@@ -1,0 +1,59 @@
+name: angren_taxi
+description: Angren Taxi - Ride-hailing platform
+
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # HTTP
+  dio: ^5.4.0
+
+  # State Management
+  provider: ^6.1.1
+
+  # WebSocket
+  socket_io_client: ^2.0.3+1
+
+  # Maps
+  flutter_map: ^6.1.0
+  latlong2: ^0.9.0
+
+  # Location
+  geolocator: ^11.0.0
+  geocoding: ^3.0.0
+
+  # Storage
+  shared_preferences: ^2.2.2
+
+  # Firebase
+  firebase_core: ^2.27.0
+  firebase_messaging: ^14.7.19
+
+  # Utilities
+  intl: ^0.20.2
+  equatable: ^2.0.5
+  get_it: ^7.6.7
+  uuid: ^4.3.3
+  pin_code_fields: ^8.0.1
+  lottie: ^3.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  build_runner: ^2.4.8
+  json_serializable: ^6.7.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/animations/

@@ -1,0 +1,126 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: angren_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: angren
+      POSTGRES_PASSWORD: angren_pass
+      POSTGRES_DB: angren_taxi
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U angren -d angren_taxi']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: angren_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - '6380:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: angren_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DB_HOST: postgres
+      REDIS_HOST: redis
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+  web-admin:
+    build:
+      context: ./web-admin
+      dockerfile: Dockerfile
+    container_name: angren_web_admin
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://backend:3000/api/v1
+    ports:
+      - '3001:3001'
+
+  web-manager:
+    build:
+      context: ./web-manager
+      dockerfile: Dockerfile
+    container_name: angren_web_manager
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://backend:3000/api/v1
+    ports:
+      - '3002:3002'
+
+  nginx:
+    image: nginx:alpine
+    container_name: angren_nginx
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - web-admin
+      - web-manager
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+
+  db-backup:
+    image: postgres:16-alpine
+    container_name: angren_db_backup
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: angren_pass
+    volumes:
+      - ./backups:/backups
+      - ./scripts/backup.sh:/backup.sh:ro
+    entrypoint: ["/bin/sh", "-c", "while true; do sleep 86400; sh /backup.sh; done"]
+    profiles:
+      - prod
+
+  adminer:
+    image: adminer:4
+    container_name: angren_adminer
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    ports:
+      - '8080:8080'
+    profiles:
+      - dev
+
+volumes:
+  postgres_data:
+  redis_data:
+  nginx_logs:

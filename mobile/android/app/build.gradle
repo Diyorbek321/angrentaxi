@@ -1,0 +1,61 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+    id "com.google.gms.google-services"
+}
+
+android {
+    namespace "uz.angren.taxi"
+    compileSdk = flutter.compileSdkVersion
+    // Pinned to an NDK already present on this machine. AGP auto-downloads a
+    // missing NDK on build, and large Google-CDN downloads stall in this
+    // environment, so we point at the locally available 26.1.10909125 instead
+    // of flutter.ndkVersion (which resolves to an uninstalled version).
+    ndkVersion = "26.1.10909125"
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_11
+    }
+
+    defaultConfig {
+        applicationId "uz.angren.taxi"
+        minSdk = 23
+        targetSdk = flutter.targetSdkVersion
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
+    }
+
+    // Two apps from one codebase: passenger and driver. Distinct application IDs
+    // so both can be installed side-by-side on the same device.
+    flavorDimensions += "app"
+    productFlavors {
+        passenger {
+            dimension "app"
+            applicationId "uz.angren.taxi.passenger"
+            resValue "string", "app_name", "Angren Taxi"
+        }
+        driver {
+            dimension "app"
+            applicationId "uz.angren.taxi.driver"
+            resValue "string", "app_name", "Angren Taxi Driver"
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.debug
+            minifyEnabled = false
+            shrinkResources = false
+        }
+    }
+}
+
+flutter {
+    source = "../.."
+}

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  DEBUG-ONLY network security config.
+
+  This file lives under src/debug and therefore overrides the strict
+  src/main/res/xml/network_security_config.xml ONLY for debug builds
+  (resource merging gives the build variant priority over main).
+
+  Release/production builds keep the strict main config, so this permissive
+  cleartext policy never ships. It lets debug APKs talk to a local HTTP dev
+  backend on any LAN address (e.g. http://10.67.196.35:3000) without TLS.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

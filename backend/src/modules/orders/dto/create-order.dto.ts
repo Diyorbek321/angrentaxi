@@ -1,0 +1,65 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
+import { PaymentMethod } from '../../../database/entities/order.entity';
+
+export class CreateOrderDto {
+  @ApiProperty({ example: 'uuid', description: 'Tariff ID' })
+  @IsUUID()
+  tariffId: string;
+
+  @ApiProperty({ example: 40.0956, description: 'Pickup latitude' })
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  pickupLat: number;
+
+  @ApiProperty({ example: 70.9432, description: 'Pickup longitude' })
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  pickupLng: number;
+
+  @ApiProperty({ example: 40.1050, description: 'Dropoff latitude' })
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  dropoffLat: number;
+
+  @ApiProperty({ example: 70.9500, description: 'Dropoff longitude' })
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  dropoffLng: number;
+
+  @ApiPropertyOptional({ example: 'Angren city center', description: 'Pickup address text' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  pickupAddress?: string;
+
+  @ApiPropertyOptional({ example: 'Angren market', description: 'Dropoff address text' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  dropoffAddress?: string;
+
+  @ApiPropertyOptional({ enum: PaymentMethod, default: PaymentMethod.CASH })
+  @IsOptional()
+  @IsEnum(PaymentMethod)
+  paymentMethod?: PaymentMethod;
+
+  @ApiPropertyOptional({ example: 'Please call on arrival' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  note?: string;
+}

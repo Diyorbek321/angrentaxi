@@ -1,0 +1,39 @@
+// Top-level build file — plugin declarations are in settings.gradle
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+// Compatibility shim. Some plugins (e.g. geolocator_android 4.6.x,
+// shared_preferences_android 2.4.x) read `flutter.compileSdkVersion` /
+// `flutter.minSdkVersion` from their OWN Gradle subproject at configuration
+// time. That pattern assumes Flutter 3.27+, but the Flutter Gradle plugin in
+// 3.24.x only registers the `flutter` extension on the :app project, so those
+// plugins otherwise fail with "unknown property 'flutter'". Provide a
+// lightweight fallback (a Groovy map supports `.key` access) for every
+// non-:app project so plugin SDK versions resolve. The :app project keeps the
+// genuine Flutter extension.
+gradle.beforeProject { p ->
+    if (p.name != "app" && !p.hasProperty("flutter")) {
+        p.ext.flutter = [
+            compileSdkVersion: 34,
+            minSdkVersion    : 23,
+            targetSdkVersion : 34,
+            ndkVersion       : "26.3.11579264",
+        ]
+    }
+}
+
+rootProject.buildDir = layout.buildDirectory.dir("../build").get().asFile
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+}
+subprojects {
+    project.evaluationDependsOn(':app')
+}
+
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
+}

@@ -1,0 +1,32 @@
+enum AppFlavor { passenger, driver }
+
+class AppConfig {
+  AppConfig._();
+
+  // Overridable at build time so the same source can target prod or a local
+  // dev backend, e.g.:
+  //   --dart-define=API_BASE_URL=http://192.168.x.x:3000/api/v1
+  //   --dart-define=WS_URL=http://192.168.x.x:3000
+  // Defaults to the production endpoints when no override is supplied.
+  static const String apiBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'https://api.angren-taxi.uz/api/v1',
+  );
+  static const String wsUrl = String.fromEnvironment(
+    'WS_URL',
+    defaultValue: 'wss://api.angren-taxi.uz',
+  );
+
+  /// Offline demo mode. Built with `--dart-define=DEMO_MODE=true`, it makes the
+  /// app run fully standalone with canned data and a scripted trip lifecycle —
+  /// no backend or internet required. Defaults to false for real builds.
+  static const bool demoMode =
+      bool.fromEnvironment('DEMO_MODE', defaultValue: false);
+
+  static const Duration otpResendDuration = Duration(seconds: 60);
+  static const Duration orderOfferTimeout = Duration(seconds: 15);
+  static const int locationUpdateDistanceFilter = 10; // meters
+
+  static const double defaultLat = 40.1392; // Angren city center
+  static const double defaultLng = 69.1225;
+}
