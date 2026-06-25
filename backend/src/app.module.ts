@@ -63,11 +63,15 @@ import { PromoCodesModule } from './modules/promo-codes/promo-codes.module';
         database: configService.get<string>('DB_NAME', 'angren_taxi'),
         entities: [User, Driver, Tariff, Order, Trip, Transaction, Otp, Rating, PromoCode, PromoCodeUsage],
         migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
+        // Auto-run pending migrations on boot — creates tables without a separate CLI step.
+        migrationsRun: true,
         synchronize: false,
         namingStrategy: new SnakeNamingStrategy(),
         logging: configService.get<string>('NODE_ENV') === 'development',
+        // SSL only when explicitly enabled (DB_SSL=true). Railway internal Postgres uses
+        // private networking without SSL, so default off avoids "server does not support SSL".
         ssl:
-          configService.get<string>('NODE_ENV') === 'production'
+          configService.get<string>('DB_SSL') === 'true'
             ? { rejectUnauthorized: false }
             : false,
       }),
