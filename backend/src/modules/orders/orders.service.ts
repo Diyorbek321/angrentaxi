@@ -88,11 +88,12 @@ export class OrdersService {
     // Create order with PostGIS geometry
     const savedOrder = await this.orderRepository.query(
       `INSERT INTO orders (passenger_id, tariff_id, pickup_location, dropoff_location,
-        pickup_address, dropoff_address, estimated_price, status, payment_method, note)
+        pickup_address, dropoff_address, estimated_price, status, payment_method, note,
+        service_type, details)
        VALUES ($1, $2,
          ST_SetSRID(ST_MakePoint($3, $4), 4326),
          ST_SetSRID(ST_MakePoint($5, $6), 4326),
-         $7, $8, $9, $10, $11, $12)
+         $7, $8, $9, $10, $11, $12, $13, $14::jsonb)
        RETURNING id`,
       [
         passengerId,
@@ -107,6 +108,8 @@ export class OrdersService {
         OrderStatus.CREATED,
         dto.paymentMethod ?? PaymentMethod.CASH,
         dto.note ?? null,
+        dto.serviceType ?? 'taxi',
+        dto.details ? JSON.stringify(dto.details) : null,
       ],
     );
 

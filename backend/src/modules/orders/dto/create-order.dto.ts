@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEnum,
   IsNumber,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -9,7 +10,10 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { PaymentMethod } from '../../../database/entities/order.entity';
+import {
+  PaymentMethod,
+  ServiceType,
+} from '../../../database/entities/order.entity';
 
 export class CreateOrderDto {
   @ApiProperty({ example: 'uuid', description: 'Tariff ID' })
@@ -62,4 +66,17 @@ export class CreateOrderDto {
   @IsString()
   @MaxLength(300)
   note?: string;
+
+  @ApiPropertyOptional({ enum: ServiceType, default: ServiceType.TAXI })
+  @IsOptional()
+  @IsEnum(ServiceType)
+  serviceType?: ServiceType;
+
+  @ApiPropertyOptional({
+    description: 'Vertical-specific payload, e.g. cargo: { weightKg, loaders, cargoNote }',
+    example: { weightKg: 300, loaders: 2, cargoNote: 'Mebel' },
+  })
+  @IsOptional()
+  @IsObject()
+  details?: Record<string, unknown>;
 }

@@ -26,6 +26,15 @@ export enum PaymentMethod {
   WALLET = 'wallet',
 }
 
+// Super-app verticals. Taxi & cargo share the ride-hailing flow; food/market
+// are reserved for the marketplace phase.
+export enum ServiceType {
+  TAXI = 'taxi',
+  CARGO = 'cargo',
+  FOOD = 'food',
+  MARKET = 'market',
+}
+
 @Entity('orders')
 export class Order {
   @PrimaryGeneratedColumn('uuid')
@@ -94,6 +103,18 @@ export class Order {
     },
   })
   finalPrice: number | null;
+
+  @Column({
+    type: 'enum',
+    enum: ServiceType,
+    default: ServiceType.TAXI,
+    name: 'service_type',
+  })
+  serviceType: ServiceType;
+
+  // Vertical-specific payload, e.g. cargo: { vehicleType, weightKg, loaders, cargoNote }.
+  @Column({ type: 'jsonb', nullable: true })
+  details: Record<string, unknown> | null;
 
   @Column({
     type: 'enum',

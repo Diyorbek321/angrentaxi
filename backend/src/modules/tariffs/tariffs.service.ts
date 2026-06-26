@@ -16,9 +16,9 @@ export class TariffsService {
     private readonly tariffRepository: Repository<Tariff>,
   ) {}
 
-  async findAll(): Promise<Tariff[]> {
+  async findAll(serviceType = 'taxi'): Promise<Tariff[]> {
     return this.tariffRepository.find({
-      where: { isActive: true },
+      where: { isActive: true, serviceType },
       order: { createdAt: 'ASC' },
     });
   }

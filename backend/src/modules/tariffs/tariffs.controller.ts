@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -31,10 +32,12 @@ export class TariffsController {
   constructor(private readonly tariffsService: TariffsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List all active tariffs' })
+  @ApiOperation({ summary: 'List active tariffs for a service (default: taxi)' })
   @ApiResponse({ status: 200, description: 'List of active tariffs' })
-  async findAll(): Promise<Tariff[]> {
-    return this.tariffsService.findAll();
+  async findAll(
+    @Query('serviceType') serviceType?: string,
+  ): Promise<Tariff[]> {
+    return this.tariffsService.findAll(serviceType || 'taxi');
   }
 
   @Get(':id')

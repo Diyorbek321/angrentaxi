@@ -36,26 +36,35 @@ async function seed(): Promise<void> {
 
     console.log('Existing data cleared.');
 
-    // Insert tariffs
+    // Insert TAXI tariffs
     const [standardTariff] = await queryRunner.query(`
-      INSERT INTO tariffs (name, base_price, price_per_km, price_per_min, min_price, is_active)
-      VALUES ('Standard', 3000, 1500, 200, 5000, true)
+      INSERT INTO tariffs (name, service_type, base_price, price_per_km, price_per_min, min_price, is_active)
+      VALUES ('Standard', 'taxi', 3000, 1500, 200, 5000, true)
       RETURNING id;
     `) as Array<{ id: string }>;
 
     const [comfortTariff] = await queryRunner.query(`
-      INSERT INTO tariffs (name, base_price, price_per_km, price_per_min, min_price, is_active)
-      VALUES ('Comfort', 5000, 2500, 300, 8000, true)
+      INSERT INTO tariffs (name, service_type, base_price, price_per_km, price_per_min, min_price, is_active)
+      VALUES ('Comfort', 'taxi', 5000, 2500, 300, 8000, true)
       RETURNING id;
     `) as Array<{ id: string }>;
 
     await queryRunner.query(`
-      INSERT INTO tariffs (name, base_price, price_per_km, price_per_min, min_price, is_active)
-      VALUES ('Business', 8000, 4000, 500, 15000, true)
+      INSERT INTO tariffs (name, service_type, base_price, price_per_km, price_per_min, min_price, is_active)
+      VALUES ('Business', 'taxi', 8000, 4000, 500, 15000, true)
       RETURNING id;
     `);
 
-    console.log(`Tariffs created: Standard (${standardTariff.id}), Comfort (${comfortTariff.id})`);
+    // Insert CARGO tariffs (yuk tashish) — by vehicle type
+    await queryRunner.query(`
+      INSERT INTO tariffs (name, service_type, vehicle_type, base_price, price_per_km, price_per_min, min_price, is_active)
+      VALUES
+        ('Furgon',      'cargo', 'van',         15000, 3000, 300, 20000, true),
+        ('Kichik yuk',  'cargo', 'small_truck', 25000, 5000, 400, 35000, true),
+        ('Katta yuk',   'cargo', 'large_truck', 50000, 9000, 600, 70000, true);
+    `);
+
+    console.log(`Tariffs created: Standard (${standardTariff.id}), Comfort (${comfortTariff.id}) + 3 cargo`);
 
     // Insert admin user
     const [adminUser] = await queryRunner.query(`

@@ -13,6 +13,14 @@ export class Tariff {
   @Column()
   name: string;
 
+  // Which vertical this tariff belongs to: 'taxi' | 'cargo' (food/market later).
+  @Column({ name: 'service_type', type: 'varchar', default: 'taxi' })
+  serviceType: string;
+
+  // For cargo: 'van' | 'small_truck' | 'large_truck'. Null for taxi.
+  @Column({ name: 'vehicle_type', type: 'varchar', nullable: true })
+  vehicleType: string | null;
+
   @Column({
     type: 'decimal',
     precision: 10,

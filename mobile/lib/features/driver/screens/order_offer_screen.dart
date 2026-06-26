@@ -167,7 +167,7 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
               color: kPrimaryYellow,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.local_taxi, color: Colors.black, size: 28),
+            child: const Icon(Icons.local_taxi, color: Colors.white, size: 28),
           ),
           const SizedBox(height: 8),
           const Text(
@@ -229,7 +229,7 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [kPrimaryYellow, Color(0xFFFFD700)],
+          colors: [kPrimary, kPrimaryDark],
         ),
         borderRadius: BorderRadius.circular(16),
       ),
@@ -237,7 +237,7 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
         children: [
           const Text(
             'Taxminiy daromad',
-            style: TextStyle(fontSize: 13, color: Colors.black54),
+            style: TextStyle(fontSize: 13, color: Colors.white70),
           ),
           const SizedBox(height: 4),
           Text(
@@ -245,7 +245,7 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
             style: const TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
-              color: Colors.black,
+              color: Colors.white,
             ),
           ),
         ],
