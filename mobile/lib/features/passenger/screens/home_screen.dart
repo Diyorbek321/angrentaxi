@@ -1,4 +1,6 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
@@ -156,52 +158,73 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Container(
-              decoration: BoxDecoration(
-                color: kSecondaryBlack,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Consumer<AuthProvider>(
-                builder: (context, auth, _) {
-                  return IconButton(
-                    icon: const Icon(Icons.menu, color: Colors.white),
-                    onPressed: () => _showMenu(context, auth),
-                  );
-                },
-              ),
+            // Frosted-glass profile button
+            Consumer<AuthProvider>(
+              builder: (context, auth, _) {
+                return GestureDetector(
+                  onTap: () => _showMenu(context, auth),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: kSurface.withValues(alpha: 0.85),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: kInk.withValues(alpha: 0.1),
+                              blurRadius: 12,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.menu_rounded, color: kInk),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
             const SizedBox(width: 12),
+            // Location pill
             Expanded(
-              child: GestureDetector(
-                onTap: _onWhereToTap,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withAlpha(20),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.search, color: kTextSecondary),
-                      SizedBox(width: 8),
-                      Text(
-                        'Qayerga borasiz?',
-                        style: TextStyle(
-                          color: kTextSecondary,
-                          fontSize: 15,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 13),
+                    decoration: BoxDecoration(
+                      color: kSurface.withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: kInk.withValues(alpha: 0.1),
+                          blurRadius: 12,
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
+                    child: Row(
+                      children: const [
+                        Icon(Icons.my_location_rounded,
+                            color: kPrimary, size: 20),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Joriy joylashuv',
+                            style: TextStyle(
+                              color: kTextPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -209,7 +232,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
           ],
         ),
       ),
-    );
+    ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.4, curve: Curves.easeOut);
   }
 
   Widget _buildBottomSheet() {
@@ -218,12 +241,16 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
       left: 0,
       right: 0,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+        decoration: BoxDecoration(
+          color: kSurface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           boxShadow: [
-            BoxShadow(color: Colors.black12, blurRadius: 12, spreadRadius: 2),
+            BoxShadow(
+              color: kInk.withValues(alpha: 0.12),
+              blurRadius: 24,
+              offset: const Offset(0, -6),
+            ),
           ],
         ),
         child: Column(
@@ -232,78 +259,139 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
           children: [
             Center(
               child: Container(
-                width: 40,
-                height: 4,
+                width: 44,
+                height: 5,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
+                  color: kSurfaceGrey,
+                  borderRadius: BorderRadius.circular(3),
                 ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Qayoqqa boramiz?',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: kTextPrimary,
+                letterSpacing: -0.5,
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Qayerga borasiz?',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: kTextPrimary,
-              ),
-            ),
-            const SizedBox(height: 12),
+            // Prominent search field
             GestureDetector(
               onTap: _onWhereToTap,
               child: Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 14),
                 decoration: BoxDecoration(
                   color: kSurfaceGrey,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(kRadiusMd),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.location_on_outlined, color: kPrimaryYellow),
-                    SizedBox(width: 12),
-                    Expanded(
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [kPrimary, kPrimaryDark],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.search_rounded,
+                          color: Colors.white, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
                       child: Text(
-                        'Manzilni kiriting...',
-                        style: TextStyle(color: kTextSecondary, fontSize: 15),
+                        'Manzilni qidiring...',
+                        style:
+                            TextStyle(color: kTextSecondary, fontSize: 15),
                       ),
                     ),
-                    Icon(Icons.arrow_forward_ios,
-                        size: 16, color: kTextSecondary),
+                    const Icon(Icons.arrow_forward_ios_rounded,
+                        size: 14, color: kTextSecondary),
                   ],
                 ),
               ),
             ),
+            const SizedBox(height: 20),
+            const Text(
+              'Saqlangan joylar',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: kTextPrimary,
+              ),
+            ),
             const SizedBox(height: 12),
-            _buildQuickDestinations(),
+            _buildSavedPlaces(),
           ],
         ),
       ),
-    );
+    ).animate().slideY(
+          begin: 1,
+          end: 0,
+          duration: 500.ms,
+          curve: Curves.easeOutCubic,
+        );
   }
 
-  Widget _buildQuickDestinations() {
-    final destinations = [
-      ('Bozor', Icons.shopping_basket_outlined),
-      ('Shifoxona', Icons.local_hospital_outlined),
-      ('Maktab', Icons.school_outlined),
-      ('Ish joyi', Icons.work_outline),
+  Widget _buildSavedPlaces() {
+    final places = [
+      ('Uy', Icons.home_rounded, const Color(0xFF1FCA8E)),
+      ('Ish', Icons.work_rounded, const Color(0xFF3B82F6)),
+      ('Bozor', Icons.shopping_basket_rounded, const Color(0xFFF59E0B)),
+      ('Qo\'shish', Icons.add_rounded, kTextSecondary),
     ];
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: destinations.map((dest) {
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ActionChip(
-              label: Text(dest.$1),
-              avatar: Icon(dest.$2, size: 18),
-              onPressed: _onWhereToTap,
-              backgroundColor: kSurfaceGrey,
+    return SizedBox(
+      height: 96,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: places.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (context, i) {
+          final p = places[i];
+          return GestureDetector(
+            onTap: _onWhereToTap,
+            child: Container(
+              width: 80,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: kSurfaceGrey,
+                borderRadius: BorderRadius.circular(kRadiusMd),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: p.$3.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(p.$2, color: p.$3, size: 22),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    p.$1,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: kTextPrimary,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          );
-        }).toList(),
+          )
+              .animate()
+              .fadeIn(delay: (200 + i * 80).ms, duration: 350.ms)
+              .slideX(begin: 0.3, curve: Curves.easeOut);
+        },
       ),
     );
   }
@@ -477,51 +565,84 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
 
   Widget _buildDriverInfo(Order order) {
     final driver = order.driver!;
-    return Row(
-      children: [
-        CircleAvatar(
-          radius: 24,
-          backgroundColor: kSurfaceGrey,
-          child: const Icon(Icons.person, color: kTextSecondary),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                driver.name,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 15,
-                ),
-              ),
-              Text(
-                driver.carInfo,
-                style: const TextStyle(
-                  color: kTextSecondary,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Row(
-          children: [
-            const Icon(Icons.star, color: kPrimaryYellow, size: 16),
-            const SizedBox(width: 4),
-            Text(
-              Formatters.formatRating(driver.rating),
-              style: const TextStyle(fontWeight: FontWeight.w600),
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: kSurfaceGrey,
+        borderRadius: BorderRadius.circular(kRadiusMd),
+      ),
+      child: Row(
+        children: [
+          // Gradient-ring avatar
+          Container(
+            padding: const EdgeInsets.all(2.5),
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(colors: [kPrimary, kPrimaryDark]),
             ),
-          ],
-        ),
-        const SizedBox(width: 8),
-        IconButton(
-          onPressed: () {},
-          icon: const Icon(Icons.phone, color: kPrimaryYellow),
-        ),
-      ],
+            child: const CircleAvatar(
+              radius: 24,
+              backgroundColor: kSurface,
+              child: Icon(Icons.person_rounded, color: kPrimaryDark, size: 26),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  driver.name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  driver.carInfo,
+                  style: const TextStyle(color: kTextSecondary, fontSize: 13),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.star_rounded,
+                        color: Color(0xFFF5A623), size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      Formatters.formatRating(driver.rating),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // Filled call button
+          GestureDetector(
+            onTap: () {},
+            child: Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(colors: [kPrimary, kPrimaryDark]),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: kPrimary.withValues(alpha: 0.4),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.phone_rounded, color: Colors.white),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

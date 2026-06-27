@@ -287,33 +287,45 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
         const SizedBox(height: 20),
         _buildEarningsRow(driverProvider),
         const SizedBox(height: 20),
-        SizedBox(
-          width: double.infinity,
-          height: 56,
-          child: ElevatedButton(
-            onPressed: isLoading
-                ? null
-                : isOnline
-                ? driverProvider.goOffline
-                : driverProvider.goOnline,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isOnline ? Colors.grey.shade700 : kPrimaryYellow,
-              foregroundColor: isOnline ? Colors.white : Colors.black,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
+        GestureDetector(
+          onTap: isLoading
+              ? null
+              : (isOnline ? driverProvider.goOffline : driverProvider.goOnline),
+          child: Container(
+            width: double.infinity,
+            height: 58,
+            decoration: BoxDecoration(
+              gradient: isOnline
+                  ? null
+                  : const LinearGradient(colors: [kPrimary, kPrimaryDark]),
+              color: isOnline ? kInk : null,
+              borderRadius: BorderRadius.circular(kRadiusMd),
+              boxShadow: isOnline
+                  ? null
+                  : [
+                      BoxShadow(
+                        color: kPrimary.withValues(alpha: 0.4),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
             ),
+            alignment: Alignment.center,
             child: isLoading
                 ? const SizedBox(
                     width: 22,
                     height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2.5),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
                   )
                 : Text(
-                    isOnline ? 'Offline bo\'lish' : 'Online bo\'lish',
+                    isOnline ? "Offline bo'lish" : "Online bo'lish",
                     style: const TextStyle(
                       fontSize: 17,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
                     ),
                   ),
           ),
