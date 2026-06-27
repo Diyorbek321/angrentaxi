@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
@@ -243,8 +244,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
             const SizedBox(height: 20),
             if (driverProvider.hasActiveOrder)
               _buildActiveOrderCard(driverProvider)
+                  .animate()
+                  .fadeIn(duration: 400.ms)
+                  .slideY(begin: 0.3, curve: Curves.easeOutCubic)
             else
-              _buildOnlineToggle(driverProvider),
+              _buildOnlineToggle(driverProvider)
+                  .animate()
+                  .fadeIn(duration: 400.ms)
+                  .slideY(begin: 0.3, curve: Curves.easeOutCubic),
           ],
         ),
       ),

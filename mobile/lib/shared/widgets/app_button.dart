@@ -11,7 +11,7 @@ class AppButton extends StatelessWidget {
     this.backgroundColor,
     this.foregroundColor,
     this.icon,
-    this.height = 52,
+    this.height = 54,
   });
 
   final String label;
@@ -25,8 +25,8 @@ class AppButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveBg = backgroundColor ?? kPrimaryYellow;
-    final effectiveFg = foregroundColor ?? Colors.black;
+    final effectiveBg = backgroundColor ?? kPrimary;
+    final effectiveFg = foregroundColor ?? Colors.white;
 
     return SizedBox(
       width: double.infinity,
@@ -36,12 +36,12 @@ class AppButton extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           backgroundColor: effectiveBg,
           foregroundColor: effectiveFg,
-          disabledBackgroundColor: kPrimaryYellow.withAlpha(102),
-          disabledForegroundColor: Colors.black38,
+          disabledBackgroundColor: kSurfaceGrey,
+          disabledForegroundColor: kTextSecondary,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(kRadiusMd),
           ),
-          elevation: isEnabled ? 2 : 0,
+          elevation: 0,
         ),
         child:
             isLoading
@@ -82,7 +82,7 @@ class AppOutlinedButton extends StatelessWidget {
     this.borderColor,
     this.textColor,
     this.icon,
-    this.height = 52,
+    this.height = 54,
   });
 
   final String label;
@@ -95,8 +95,8 @@ class AppOutlinedButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveBorder = borderColor ?? kSecondaryBlack;
-    final effectiveText = textColor ?? kSecondaryBlack;
+    final effectiveBorder = borderColor ?? kSurfaceGrey;
+    final effectiveText = textColor ?? kInk;
 
     return SizedBox(
       width: double.infinity,
@@ -106,7 +106,7 @@ class AppOutlinedButton extends StatelessWidget {
         style: OutlinedButton.styleFrom(
           side: BorderSide(color: effectiveBorder, width: 1.5),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(kRadiusMd),
           ),
         ),
         child:

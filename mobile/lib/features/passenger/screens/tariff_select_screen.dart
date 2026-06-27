@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
@@ -164,7 +165,10 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
             provider.selectTariff(tariff);
             _estimateIfReady(provider);
           },
-        );
+        )
+            .animate()
+            .fadeIn(delay: (index * 80).ms, duration: 400.ms)
+            .slideX(begin: 0.15, curve: Curves.easeOutCubic);
       },
     );
   }

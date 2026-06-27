@@ -45,6 +45,10 @@ dependencies:
   pin_code_fields: ^8.0.1
   lottie: ^3.0.0
 
+  # Premium UI: fonts + declarative micro-animations
+  google_fonts: ^6.2.1
+  flutter_animate: ^4.5.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

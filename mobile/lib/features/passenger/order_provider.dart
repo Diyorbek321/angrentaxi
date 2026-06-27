@@ -33,6 +33,11 @@ class OrderProvider extends ChangeNotifier {
   Tariff? _selectedTariff;
   double? _estimatedPrice;
 
+  // Active super-app vertical: 'taxi' or 'cargo'. Drives which tariffs load
+  // and which serviceType the order is created with.
+  String _serviceType = 'taxi';
+  Map<String, dynamic>? _cargoDetails;
+
   // Pending rating after trip completion
   String? pendingRatingOrderId;
   String? pendingRatingDriverName;
@@ -48,6 +53,22 @@ class OrderProvider extends ChangeNotifier {
   Tariff? get selectedTariff => _selectedTariff;
   double? get estimatedPrice => _estimatedPrice;
   bool get hasActiveOrder => _activeOrder != null && _activeOrder!.isActive;
+  String get serviceType => _serviceType;
+  bool get isCargo => _serviceType == 'cargo';
+
+  /// Switch the active vertical (taxi/cargo) and reset any in-progress selection.
+  void setServiceType(String type) {
+    _serviceType = type;
+    _selectedTariff = null;
+    _estimatedPrice = null;
+    _cargoDetails = null;
+    notifyListeners();
+  }
+
+  void setCargoDetails(Map<String, dynamic> details) {
+    _cargoDetails = details;
+    notifyListeners();
+  }
 
   void _setState(OrderProviderState state) {
     _state = state;
@@ -71,7 +92,9 @@ class OrderProvider extends ChangeNotifier {
 
   Future<void> loadTariffs() async {
     try {
-      final response = await _apiClient.get(ApiEndpoints.tariffs);
+      final response = await _apiClient.get(
+        '${ApiEndpoints.tariffs}?serviceType=$_serviceType',
+      );
       final data = response.data as Map<String, dynamic>;
       final list = data['data'] as List<dynamic>;
       _tariffs = list
@@ -129,6 +152,8 @@ class OrderProvider extends ChangeNotifier {
           'pickup': _pendingPickup!.toJson(),
           'dropoff': _pendingDropoff!.toJson(),
           'tariffId': _selectedTariff!.id,
+          'serviceType': _serviceType,
+          if (_cargoDetails != null) 'details': _cargoDetails,
         },
       );
 

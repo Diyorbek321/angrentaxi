@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:provider/provider.dart';
 import 'package:angren_taxi/core/config/app_config.dart';
@@ -98,11 +99,17 @@ class _OtpScreenState extends State<OtpScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 24),
-              _buildHeader(),
+              _buildHeader()
+                  .animate()
+                  .fadeIn(duration: 450.ms)
+                  .slideY(begin: -0.2, curve: Curves.easeOutCubic),
               const SizedBox(height: 40),
-              _buildOtpField(),
+              _buildOtpField()
+                  .animate()
+                  .fadeIn(delay: 150.ms, duration: 450.ms)
+                  .slideY(begin: 0.2, curve: Curves.easeOutCubic),
               const SizedBox(height: 12),
-              _buildResendRow(),
+              _buildResendRow().animate().fadeIn(delay: 300.ms),
               const SizedBox(height: 24),
               Consumer<AuthProvider>(
                 builder: (context, auth, _) {

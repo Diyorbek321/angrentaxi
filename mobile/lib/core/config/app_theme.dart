@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 // ============================================================================
 // Angren Taxi — Design System (Bolt-style, mint green)
@@ -35,7 +36,6 @@ const double kRadiusLg = 22;
 
 final ThemeData appTheme = ThemeData(
   useMaterial3: true,
-  fontFamily: 'Roboto',
   colorScheme: ColorScheme.fromSeed(
     seedColor: kPrimary,
     primary: kPrimary,
@@ -48,18 +48,18 @@ final ThemeData appTheme = ThemeData(
   scaffoldBackgroundColor: kBackground,
 
   // White app bar, dark title, mint accents — modern & airy.
-  appBarTheme: const AppBarTheme(
+  appBarTheme: AppBarTheme(
     backgroundColor: kBackground,
     foregroundColor: kInk,
     elevation: 0,
     scrolledUnderElevation: 0,
     centerTitle: true,
-    titleTextStyle: TextStyle(
+    titleTextStyle: GoogleFonts.plusJakartaSans(
       color: kInk,
       fontSize: 18,
       fontWeight: FontWeight.w700,
     ),
-    iconTheme: IconThemeData(color: kInk),
+    iconTheme: const IconThemeData(color: kInk),
   ),
 
   // Filled mint pill buttons with white text.
@@ -74,7 +74,7 @@ final ThemeData appTheme = ThemeData(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(kRadiusMd),
       ),
-      textStyle: const TextStyle(
+      textStyle: GoogleFonts.plusJakartaSans(
         fontSize: 16,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.2,
@@ -171,7 +171,7 @@ final ThemeData appTheme = ThemeData(
     foregroundColor: Colors.white,
   ),
 
-  textTheme: const TextTheme(
+  textTheme: GoogleFonts.plusJakartaSansTextTheme(const TextTheme(
     headlineLarge: TextStyle(
       fontSize: 30,
       fontWeight: FontWeight.w800,
@@ -202,5 +202,5 @@ final ThemeData appTheme = ThemeData(
       fontWeight: FontWeight.w700,
       color: kTextPrimary,
     ),
-  ),
+  )),
 );

@@ -23,6 +23,7 @@ import 'package:angren_taxi/features/passenger/screens/home_screen.dart'
 import 'package:angren_taxi/features/passenger/screens/order_history_screen.dart';
 import 'package:angren_taxi/features/passenger/screens/profile_screen.dart'
     as passenger_profile;
+import 'package:angren_taxi/features/passenger/screens/services_screen.dart';
 import 'package:angren_taxi/features/passenger/screens/tariff_select_screen.dart';
 import 'package:angren_taxi/shared/widgets/loading_widget.dart';
 
@@ -65,9 +66,10 @@ class AngrenTaxiApp extends StatelessWidget {
     if (flavor == AppFlavor.passenger) {
       return {
         ...sharedRoutes,
-        // '/home' is the post-login target used by the OTP screen; map it to
-        // this flavor's home so it resolves for both passenger and driver apps.
-        '/home': (_) => const passenger_home.PassengerHomeScreen(),
+        // '/home' is the post-login target used by the OTP screen; send it to
+        // the super-app launcher so the user picks a vertical first.
+        '/home': (_) => const ServicesScreen(),
+        '/passenger/services': (_) => const ServicesScreen(),
         '/passenger/home': (_) => const passenger_home.PassengerHomeScreen(),
         '/passenger/destination': (_) => const DestinationScreen(),
         '/passenger/tariff': (_) => const TariffSelectScreen(),
@@ -114,7 +116,7 @@ class _AppEntryPointState extends State<_AppEntryPoint> {
   void _navigate(AuthProvider auth) {
     if (auth.isAuthenticated) {
       final homePath = widget.flavor == AppFlavor.passenger
-          ? '/passenger/home'
+          ? '/passenger/services'
           : '/driver/home';
       Navigator.of(context).pushReplacementNamed(homePath);
     } else {

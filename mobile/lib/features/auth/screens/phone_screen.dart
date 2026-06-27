@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
@@ -50,9 +51,15 @@ class _PhoneScreenState extends State<PhoneScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 48),
-                _buildHeader(),
+                _buildHeader()
+                    .animate()
+                    .fadeIn(duration: 450.ms)
+                    .slideY(begin: -0.2, curve: Curves.easeOutCubic),
                 const SizedBox(height: 40),
-                _buildPhoneField(),
+                _buildPhoneField()
+                    .animate()
+                    .fadeIn(delay: 150.ms, duration: 450.ms)
+                    .slideY(begin: 0.2, curve: Curves.easeOutCubic),
                 const SizedBox(height: 16),
                 Consumer<AuthProvider>(
                   builder: (context, auth, _) {
@@ -73,9 +80,9 @@ class _PhoneScreenState extends State<PhoneScreen> {
                       isLoading: auth.state == AuthState.loading,
                     );
                   },
-                ),
+                ).animate().fadeIn(delay: 300.ms, duration: 450.ms).slideY(begin: 0.3),
                 const SizedBox(height: 24),
-                _buildTermsText(),
+                _buildTermsText().animate().fadeIn(delay: 450.ms),
               ],
             ),
           ),
@@ -95,7 +102,7 @@ class _PhoneScreenState extends State<PhoneScreen> {
             color: kPrimaryYellow,
             borderRadius: BorderRadius.circular(16),
           ),
-          child: const Icon(Icons.local_taxi, size: 36, color: Colors.black),
+          child: const Icon(Icons.bolt_rounded, size: 36, color: Colors.white),
         ),
         const SizedBox(height: 24),
         const Text(
