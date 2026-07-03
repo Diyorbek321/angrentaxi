@@ -15,6 +15,17 @@ class Formatters {
     return '$spaced UZS';
   }
 
+  /// Angren Go style amount: "18 000 so'm" (space grouping, so'm suffix).
+  static String formatSom(double amount) {
+    final formatted = _priceFormat.format(amount.toInt()).replaceAll(',', ' ');
+    return "$formatted so'm";
+  }
+
+  /// Just the grouped number without a currency suffix: "124 500".
+  static String formatAmount(double amount) {
+    return _priceFormat.format(amount.toInt()).replaceAll(',', ' ');
+  }
+
   static String formatPriceCompact(double amount) {
     if (amount >= 1000000) {
       return '${(amount / 1000000).toStringAsFixed(1)} mln UZS';

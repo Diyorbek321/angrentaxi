@@ -23,8 +23,9 @@ import 'package:angren_taxi/features/passenger/screens/home_screen.dart'
 import 'package:angren_taxi/features/passenger/screens/order_history_screen.dart';
 import 'package:angren_taxi/features/passenger/screens/profile_screen.dart'
     as passenger_profile;
-import 'package:angren_taxi/features/passenger/screens/services_screen.dart';
 import 'package:angren_taxi/features/passenger/screens/tariff_select_screen.dart';
+import 'package:angren_taxi/features/superapp/screens/main_shell.dart';
+import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/shared/widgets/loading_widget.dart';
 
 class AngrenTaxiApp extends StatelessWidget {
@@ -40,6 +41,10 @@ class AngrenTaxiApp extends StatelessWidget {
         if (flavor == AppFlavor.passenger)
           ChangeNotifierProvider<OrderProvider>(
             create: (_) => buildOrderProvider(),
+          ),
+        if (flavor == AppFlavor.passenger)
+          ChangeNotifierProvider<SuperappProvider>(
+            create: (_) => SuperappProvider(),
           ),
         if (flavor == AppFlavor.driver)
           ChangeNotifierProvider<DriverProvider>(
@@ -67,9 +72,10 @@ class AngrenTaxiApp extends StatelessWidget {
       return {
         ...sharedRoutes,
         // '/home' is the post-login target used by the OTP screen; send it to
-        // the super-app launcher so the user picks a vertical first.
-        '/home': (_) => const ServicesScreen(),
-        '/passenger/services': (_) => const ServicesScreen(),
+        // the Angren Go super-app shell (home / orders / cart / profile).
+        '/home': (_) => const SuperappShell(),
+        '/passenger/services': (_) => const SuperappShell(),
+        '/passenger/superapp': (_) => const SuperappShell(),
         '/passenger/home': (_) => const passenger_home.PassengerHomeScreen(),
         '/passenger/destination': (_) => const DestinationScreen(),
         '/passenger/tariff': (_) => const TariffSelectScreen(),

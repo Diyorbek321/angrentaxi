@@ -41,3 +41,7 @@ Thumbs.db
 .idea/
 .vscode/
 *.log
+
+# ===== Internal / sales docs =====
+Sotuv skript.docx
+*.odt
