@@ -79,12 +79,12 @@ export function OrdersTable({
                 </td>
                 <td className="px-4 py-3 max-w-[150px]">
                   <p className="text-gray-300 truncate text-xs">
-                    {order.pickupAddress.address}
+                    {order.pickupAddress ?? '—'}
                   </p>
                 </td>
                 <td className="px-4 py-3 max-w-[150px]">
                   <p className="text-gray-300 truncate text-xs">
-                    {order.dropoffAddress.address}
+                    {order.dropoffAddress ?? '—'}
                   </p>
                 </td>
                 <td className="px-4 py-3">
@@ -107,9 +107,9 @@ export function OrdersTable({
                 </td>
                 <td className="px-4 py-3 text-gray-200 text-xs font-medium">
                   {order.finalPrice != null
-                    ? `${order.finalPrice.toLocaleString()} ${order.tariff.currency}`
+                    ? `${order.finalPrice.toLocaleString()} UZS`
                     : order.estimatedPrice > 0
-                    ? `~${order.estimatedPrice.toLocaleString()} ${order.tariff.currency}`
+                    ? `~${order.estimatedPrice.toLocaleString()} UZS`
                     : '—'}
                 </td>
                 <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">

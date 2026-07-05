@@ -36,7 +36,7 @@ export function OrdersTable({ orders, isLoading, sortField, sortDir, onSort }: O
   }) => (
     <TableHead>
       <button
-        className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-500 hover:text-gray-700"
+        className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-400 hover:text-gray-200"
         onClick={() => onSort?.(field)}
       >
         {children}
@@ -86,45 +86,45 @@ export function OrdersTable({ orders, isLoading, sortField, sortDir, onSort }: O
             className="cursor-pointer"
             onClick={() => router.push(`/dashboard/orders/${order.id}`)}
           >
-            <TableCell className="font-mono text-xs text-gray-500">
+            <TableCell className="font-mono text-xs text-gray-400">
               #{shortId(order.id)}
             </TableCell>
             <TableCell>
               <div>
-                <p className="font-medium text-gray-900">
+                <p className="font-medium text-gray-100">
                   {getFullName(order.passenger.firstName, order.passenger.lastName)}
                 </p>
-                <p className="text-xs text-gray-500">{order.passenger.phone}</p>
+                <p className="text-xs text-gray-400">{order.passenger.phone}</p>
               </div>
             </TableCell>
             <TableCell>
               {order.driver ? (
                 <div>
-                  <p className="font-medium text-gray-900">
+                  <p className="font-medium text-gray-100">
                     {getFullName(order.driver.firstName, order.driver.lastName)}
                   </p>
-                  <p className="text-xs text-gray-500">{order.driver.carNumber}</p>
+                  <p className="text-xs text-gray-400">{order.driver.carNumber}</p>
                 </div>
               ) : (
-                <span className="text-xs text-gray-400">—</span>
+                <span className="text-xs text-gray-500">—</span>
               )}
             </TableCell>
             <TableCell className="max-w-[200px]">
-              <p className="truncate text-xs text-gray-700">{order.fromAddress}</p>
-              <p className="truncate text-xs text-gray-500">{order.toAddress}</p>
+              <p className="truncate text-xs text-gray-300">{order.pickupAddress ?? '—'}</p>
+              <p className="truncate text-xs text-gray-400">{order.dropoffAddress ?? '—'}</p>
             </TableCell>
             <TableCell>
               <OrderStatusBadge status={order.status} />
             </TableCell>
-            <TableCell className="font-medium text-gray-900">
-              {formatCurrency(order.price)}
+            <TableCell className="font-medium text-gray-100">
+              {formatCurrency(order.finalPrice ?? order.estimatedPrice)}
             </TableCell>
             <TableCell>
-              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700">
+              <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs text-gray-300">
                 {PAYMENT_METHOD_LABELS[order.paymentMethod as PaymentMethod] ?? order.paymentMethod}
               </span>
             </TableCell>
-            <TableCell className="text-xs text-gray-500">
+            <TableCell className="text-xs text-gray-400">
               {formatDate(order.createdAt)}
             </TableCell>
           </TableRow>

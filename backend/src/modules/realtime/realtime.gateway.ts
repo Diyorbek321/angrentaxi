@@ -103,6 +103,11 @@ export class RealtimeGateway
       // Join user's personal room
       await client.join(`user:${user.id}`);
 
+      // Dispatchers/admins also join a shared room for live board updates
+      if (user.role === UserRole.MANAGER || user.role === UserRole.ADMIN) {
+        await client.join('managers');
+      }
+
       this.logger.log(`Client ${client.id} connected as user ${user.id} (${user.role})`);
     } catch (err) {
       this.logger.warn(`WS connection rejected: ${(err as Error).message}`);
@@ -128,7 +133,8 @@ export class RealtimeGateway
     // If driver, go offline
     if (user.role === UserRole.DRIVER) {
       try {
-        await this.driversService.setOnlineStatus(user.id, false);
+        const driver = await this.driversService.setOnlineStatus(user.id, false);
+        this.emitToManagers('driver:offline', { driverId: driver.id });
         this.logger.log(`Driver ${user.id} went offline on disconnect`);
       } catch (err) {
         this.logger.warn(`Could not set driver offline: ${(err as Error).message}`);
@@ -208,5 +214,9 @@ export class RealtimeGateway
 
   emitToRoom(room: string, event: string, data: unknown): void {
     this.server.to(room).emit(event, data);
+  }
+
+  emitToManagers(event: string, data: unknown): void {
+    this.server.to('managers').emit(event, data);
   }
 }

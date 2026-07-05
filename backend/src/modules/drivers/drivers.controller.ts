@@ -28,6 +28,7 @@ import { User, UserRole, UserStatus } from '../../database/entities/user.entity'
 import { Driver } from '../../database/entities/driver.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
 import { UsersService } from '../users/users.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 @ApiTags('Drivers')
 @ApiBearerAuth('JWT-auth')
@@ -37,6 +38,7 @@ export class DriversController {
   constructor(
     private readonly driversService: DriversService,
     private readonly usersService: UsersService,
+    private readonly realtimeGateway: RealtimeGateway,
   ) {}
 
   @Get()
@@ -44,6 +46,13 @@ export class DriversController {
   @ApiOperation({ summary: 'List all drivers (admin/manager only)' })
   async findAll(@Query('page') page = 1, @Query('limit') limit = 20) {
     return this.driversService.findAll(Number(page), Number(limit));
+  }
+
+  @Get('online')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'List online drivers with live status (admin/manager only)' })
+  async getOnlineDrivers() {
+    return this.driversService.getOnlineDriversList();
   }
 
   @Get(':id')
@@ -105,7 +114,27 @@ export class DriversController {
     @CurrentUser() user: User,
     @Body() dto: SetOnlineStatusDto,
   ): Promise<Driver> {
-    return this.driversService.setOnlineStatus(user.id, dto.isOnline);
+    const driver = await this.driversService.setOnlineStatus(user.id, dto.isOnline);
+
+    if (dto.isOnline) {
+      this.realtimeGateway.emitToManagers('driver:online', {
+        driver: {
+          id: driver.id,
+          name: [driver.user?.firstName, driver.user?.lastName].filter(Boolean).join(' ').trim() || 'Driver',
+          phone: driver.user?.phone,
+          carModel: driver.carModel ?? '',
+          carNumber: driver.carNumber ?? '',
+          rating: driver.rating,
+          status: 'online',
+          currentOrderId: null,
+          lastSeen: driver.updatedAt,
+        },
+      });
+    } else {
+      this.realtimeGateway.emitToManagers('driver:offline', { driverId: driver.id });
+    }
+
+    return driver;
   }
 
   @Post('location')

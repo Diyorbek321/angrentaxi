@@ -21,6 +21,32 @@ export interface NearbyDriver {
   lng: number;
 }
 
+export interface OnlineDriverSummary {
+  id: string;
+  name: string;
+  phone: string;
+  carModel: string;
+  carNumber: string;
+  rating: number;
+  status: 'online' | 'busy';
+  currentOrderId: string | null;
+  lastSeen: Date;
+  location?: { lat: number; lng: number };
+}
+
+interface OnlineDriverRow {
+  id: string;
+  user_id: string;
+  car_model: string | null;
+  car_number: string | null;
+  rating: string;
+  updated_at: Date;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string;
+  current_order_id: string | null;
+}
+
 const DRIVERS_ONLINE_KEY = 'drivers:online';
 
 @Injectable()
@@ -64,13 +90,45 @@ export class DriversService {
   }
 
   async findById(id: string): Promise<Driver | null> {
-    return this.driverRepository.findOne({ where: { id }, relations: ['user'] });
+    const driver = await this.driverRepository.findOne({ where: { id }, relations: ['user'] });
+    if (!driver) return null;
+    const [enriched] = await this.attachDisplayFields([driver]);
+    return enriched;
   }
 
   async findByIdOrThrow(id: string): Promise<Driver> {
     const driver = await this.findById(id);
     if (!driver) throw new NotFoundException(`Driver ${id} not found`);
     return driver;
+  }
+
+  // The `user` relation only carries phone/firstName/lastName — the web panels
+  // expect those flattened onto the driver plus a completed-trip count, which
+  // has no dedicated column, so we compute both here rather than in every caller.
+  private async attachDisplayFields(drivers: Driver[]): Promise<Driver[]> {
+    if (drivers.length === 0) return drivers;
+
+    const userIds = drivers.map((d) => d.userId);
+    const rows: Array<{ driver_id: string; cnt: string }> = await this.driverRepository.query(
+      `SELECT driver_id, COUNT(*)::int as cnt FROM orders
+       WHERE driver_id = ANY($1) AND status = 'completed'
+       GROUP BY driver_id`,
+      [userIds],
+    );
+    const tripCountByUserId = new Map(rows.map((r) => [r.driver_id, Number(r.cnt)]));
+
+    for (const driver of drivers) {
+      const flat = driver as unknown as Record<string, unknown>;
+      if (driver.user) {
+        flat.firstName = driver.user.firstName;
+        flat.lastName = driver.user.lastName;
+        flat.phone = driver.user.phone;
+        flat.status = driver.user.status;
+      }
+      flat.totalTrips = tripCountByUserId.get(driver.userId) ?? 0;
+    }
+
+    return drivers;
   }
 
   async getProfile(userId: string): Promise<Driver> {
@@ -185,6 +243,60 @@ export class DriversService {
     await this.driverRepository.update(driverId, { rating: newRating });
   }
 
+  async getOnlineDriversList(): Promise<OnlineDriverSummary[]> {
+    const rows: OnlineDriverRow[] = await this.driverRepository.query(
+      `SELECT d.id, d.user_id, d.car_model, d.car_number, d.rating, d.updated_at,
+              u.first_name, u.last_name, u.phone,
+              active_order.id as current_order_id
+       FROM drivers d
+       JOIN users u ON u.id = d.user_id
+       LEFT JOIN LATERAL (
+         SELECT id FROM orders
+         WHERE driver_id = d.user_id
+           AND status IN ('accepted', 'arrived', 'in_progress')
+         ORDER BY created_at DESC
+         LIMIT 1
+       ) active_order ON true
+       WHERE d.is_online = true
+       ORDER BY d.updated_at DESC`,
+    );
+
+    if (rows.length === 0) {
+      return [];
+    }
+
+    const positions = await this.redis.geopos(
+      DRIVERS_ONLINE_KEY,
+      ...rows.map((row) => row.id),
+    );
+
+    return rows.map((row, index) => {
+      const pos = positions[index] as [string, string] | null;
+      const name = [row.first_name, row.last_name].filter(Boolean).join(' ').trim() || 'Driver';
+
+      return {
+        id: row.id,
+        name,
+        phone: row.phone,
+        carModel: row.car_model ?? '',
+        carNumber: row.car_number ?? '',
+        rating: parseFloat(row.rating),
+        status: row.current_order_id ? 'busy' : 'online',
+        currentOrderId: row.current_order_id,
+        lastSeen: row.updated_at,
+        location: pos ? { lat: parseFloat(pos[1]), lng: parseFloat(pos[0]) } : undefined,
+      };
+    });
+  }
+
+  async countAll(): Promise<number> {
+    return this.driverRepository.count();
+  }
+
+  async countOnline(): Promise<number> {
+    return this.driverRepository.count({ where: { isOnline: true } });
+  }
+
   async findAll(page = 1, limit = 20): Promise<{ drivers: Driver[]; total: number; page: number; limit: number }> {
     const [drivers, total] = await this.driverRepository.findAndCount({
       relations: ['user'],
@@ -192,6 +304,6 @@ export class DriversService {
       take: limit,
       order: { updatedAt: 'DESC' },
     });
-    return { drivers, total, page, limit };
+    return { drivers: await this.attachDisplayFields(drivers), total, page, limit };
   }
 }

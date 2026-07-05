@@ -17,6 +17,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { UsersService } from '../users/users.service';
 import { DriversService } from '../drivers/drivers.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { CreateDispatchOrderDto } from './dto/create-dispatch-order.dto';
 import { CalculatePriceDto } from './dto/calculate-price.dto';
 import { UserRole } from '../../database/entities/user.entity';
 
@@ -122,11 +123,35 @@ export class OrdersService {
       status: OrderStatus.CREATED,
     });
 
+    // Let dispatchers see the new order on the live board immediately
+    this.realtimeGateway.emitToManagers('order:created', order);
+
     // Start driver matching asynchronously
     // Note: matching module will be injected via forward reference to avoid circular deps
     this.logger.log(`Order ${orderId} created, starting driver search...`);
 
     return order;
+  }
+
+  // Manager/admin manual order entry — resolves (or creates) the passenger by
+  // phone, then reuses the normal create() flow so matching kicks off the same way.
+  async createForDispatch(dto: CreateDispatchOrderDto): Promise<Order> {
+    const passenger = await this.usersService.findOrCreateByPhone(
+      dto.passengerPhone,
+      dto.passengerName,
+    );
+
+    return this.create(passenger.id, {
+      tariffId: dto.tariffId,
+      pickupLat: dto.pickupLat,
+      pickupLng: dto.pickupLng,
+      dropoffLat: dto.dropoffLat,
+      dropoffLng: dto.dropoffLng,
+      pickupAddress: dto.pickupAddress,
+      dropoffAddress: dto.dropoffAddress,
+      paymentMethod: dto.paymentMethod,
+      note: dto.note,
+    });
   }
 
   async acceptOrder(driverId: string, orderId: string): Promise<Order> {
@@ -169,6 +194,14 @@ export class OrdersService {
 
       // Send push notification
       await this.notificationsService.notifyOrderAccepted(passenger, driver, updatedOrder);
+    }
+
+    this.realtimeGateway.emitToManagers('order:updated', updatedOrder);
+    if (driver) {
+      this.realtimeGateway.emitToManagers('driver:status_changed', {
+        driverId: driver.id,
+        status: 'busy',
+      });
     }
 
     return updatedOrder;
@@ -228,6 +261,8 @@ export class OrdersService {
       await this.notificationsService.notifyDriverArrived(passenger, updatedOrder);
     }
 
+    this.realtimeGateway.emitToManagers('order:updated', updatedOrder);
+
     return updatedOrder;
   }
 
@@ -262,6 +297,8 @@ export class OrdersService {
       orderId,
       message: 'Trip started',
     });
+
+    this.realtimeGateway.emitToManagers('order:updated', updatedOrder);
 
     return updatedOrder;
   }
@@ -354,8 +391,114 @@ export class OrdersService {
       await this.notificationsService.notifyTripCompleted(passenger, finalPrice, updatedOrder);
     }
 
+    this.realtimeGateway.emitToManagers('order:completed', updatedOrder);
+
+    const finishedDriver = await this.driversService.findByUserId(driverId);
+    if (finishedDriver) {
+      this.realtimeGateway.emitToManagers('driver:status_changed', {
+        driverId: finishedDriver.id,
+        status: 'online',
+      });
+    }
+
     this.logger.log(
       `Order ${orderId} completed. Distance: ${actualDistanceKm.toFixed(2)}km, Price: ${finalPrice} UZS`,
+    );
+
+    return updatedOrder;
+  }
+
+  async reassignDriver(orderId: string, newDriverProfileId: string): Promise<Order> {
+    const order = await this.findByIdOrThrow(orderId);
+
+    const reassignableStatuses: OrderStatus[] = [
+      OrderStatus.CREATED,
+      OrderStatus.SEARCHING,
+      OrderStatus.ACCEPTED,
+      OrderStatus.ARRIVED,
+    ];
+
+    if (!reassignableStatuses.includes(order.status)) {
+      throw new BadRequestException(
+        `Cannot assign a driver to order with status ${order.status}`,
+      );
+    }
+
+    const newDriver = await this.driversService.findByIdOrThrow(newDriverProfileId);
+
+    if (!newDriver.isOnline) {
+      throw new BadRequestException('Selected driver is not online');
+    }
+
+    if (order.driverId === newDriver.userId) {
+      throw new BadRequestException('Order is already assigned to this driver');
+    }
+
+    const previousDriverId = order.driverId;
+
+    await this.orderRepository.update(orderId, {
+      driverId: newDriver.userId,
+      status: OrderStatus.ACCEPTED,
+    });
+
+    const updatedOrder = await this.findByIdOrThrow(orderId);
+
+    // The previous driver (if any) loses this order — reuse the cancellation
+    // event so the driver app's existing handler dismisses it immediately.
+    if (previousDriverId) {
+      this.realtimeGateway.emitToUser(previousDriverId, 'order:cancelled', {
+        orderId,
+        reason: 'Reassigned to another driver',
+        cancelledBy: UserRole.MANAGER,
+      });
+    }
+
+    this.realtimeGateway.emitToUser(newDriver.userId, 'order:accepted', {
+      orderId,
+      driverId: newDriver.userId,
+      driver: {
+        id: newDriver.id,
+        userId: newDriver.userId,
+        carModel: newDriver.carModel,
+        carNumber: newDriver.carNumber,
+        rating: newDriver.rating,
+      },
+    });
+
+    const passenger = await this.usersService.findById(order.passengerId);
+    if (passenger) {
+      this.realtimeGateway.emitToUser(order.passengerId, 'order:accepted', {
+        orderId,
+        driverId: newDriver.userId,
+        driver: {
+          id: newDriver.id,
+          userId: newDriver.userId,
+          carModel: newDriver.carModel,
+          carNumber: newDriver.carNumber,
+          rating: newDriver.rating,
+        },
+      });
+      await this.notificationsService.notifyOrderAccepted(passenger, newDriver, updatedOrder);
+    }
+
+    this.realtimeGateway.emitToManagers('order:updated', updatedOrder);
+    this.realtimeGateway.emitToManagers('driver:status_changed', {
+      driverId: newDriver.id,
+      status: 'busy',
+    });
+
+    if (previousDriverId) {
+      const previousDriver = await this.driversService.findByUserId(previousDriverId);
+      if (previousDriver) {
+        this.realtimeGateway.emitToManagers('driver:status_changed', {
+          driverId: previousDriver.id,
+          status: 'online',
+        });
+      }
+    }
+
+    this.logger.log(
+      `Order ${orderId} reassigned from driver ${previousDriverId ?? 'none'} to ${newDriver.userId}`,
     );
 
     return updatedOrder;
@@ -424,6 +567,18 @@ export class OrdersService {
       }
     }
 
+    this.realtimeGateway.emitToManagers('order:cancelled', updatedOrder);
+
+    if (order.driverId) {
+      const freedDriver = await this.driversService.findByUserId(order.driverId);
+      if (freedDriver) {
+        this.realtimeGateway.emitToManagers('driver:status_changed', {
+          driverId: freedDriver.id,
+          status: 'online',
+        });
+      }
+    }
+
     return updatedOrder;
   }
 
@@ -460,7 +615,7 @@ export class OrdersService {
   }
 
   async getActiveOrders(): Promise<Order[]> {
-    return this.orderRepository.find({
+    const orders = await this.orderRepository.find({
       where: [
         { status: OrderStatus.SEARCHING },
         { status: OrderStatus.ACCEPTED },
@@ -468,21 +623,23 @@ export class OrdersService {
         { status: OrderStatus.IN_PROGRESS },
       ],
       order: { createdAt: 'DESC' },
-      relations: ['tariff'],
+      relations: ['passenger', 'driver', 'tariff'],
     });
+    return this.attachDisplayFields(orders);
   }
 
   async findByIdOrThrow(id: string): Promise<Order> {
     const order = await this.orderRepository.findOne({
       where: { id },
-      relations: ['tariff'],
+      relations: ['passenger', 'driver', 'tariff'],
     });
 
     if (!order) {
       throw new NotFoundException(`Order ${id} not found`);
     }
 
-    return order;
+    const [enriched] = await this.attachDisplayFields([order]);
+    return enriched;
   }
 
   async getAllOrders(
@@ -496,24 +653,70 @@ export class OrdersService {
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
-      relations: ['tariff'],
+      relations: ['passenger', 'driver', 'tariff'],
     });
-    return { orders, total, page, limit };
+    return { orders: await this.attachDisplayFields(orders), total, page, limit };
+  }
+
+  // The `passenger`/`driver` relations only carry raw User columns (firstName/
+  // lastName, no car info or rating — that lives on the separate Driver profile
+  // table). The web panels expect a flattened `name` plus the driver's car/rating,
+  // so we merge that in here rather than pushing this shape decision into every caller.
+  private async attachDisplayFields(orders: Order[]): Promise<Order[]> {
+    const driverUserIds = [...new Set(orders.map((o) => o.driverId).filter((id): id is string => !!id))];
+
+    const driverProfiles = await Promise.all(
+      driverUserIds.map((userId) => this.driversService.findByUserId(userId)),
+    );
+    const profileByUserId = new Map(
+      driverProfiles
+        .filter((d): d is NonNullable<typeof d> => !!d)
+        .map((d) => [d.userId, d]),
+    );
+
+    for (const order of orders) {
+      if (order.passenger) {
+        const passenger = order.passenger as unknown as Record<string, unknown>;
+        passenger.name =
+          [order.passenger.firstName, order.passenger.lastName].filter(Boolean).join(' ').trim() ||
+          'Passenger';
+      }
+
+      if (order.driver) {
+        const profile = order.driverId ? profileByUserId.get(order.driverId) : undefined;
+        const driver = order.driver as unknown as Record<string, unknown>;
+        driver.name =
+          [order.driver.firstName, order.driver.lastName].filter(Boolean).join(' ').trim() || 'Driver';
+        driver.carModel = profile?.carModel ?? null;
+        driver.carNumber = profile?.carNumber ?? null;
+        driver.rating = profile?.rating ?? 0;
+      }
+    }
+
+    return orders;
   }
 
   async getDashboardStats() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const [totalOrders, ordersToday, completedToday, totalUsers] = await Promise.all([
-      this.orderRepository.count(),
-      this.orderRepository.count({ where: [{ createdAt: today as any }] }),
-      this.orderRepository.createQueryBuilder('o')
-        .where('o.status = :s', { s: 'completed' })
-        .andWhere('o.created_at >= :d', { d: today })
-        .getCount(),
-      this.orderRepository.manager.getRepository('users').count(),
-    ]);
+    const [totalOrders, ordersToday, completedToday, totalUsers, activeDrivers, onlineDrivers] =
+      await Promise.all([
+        this.orderRepository.count(),
+        // Was comparing createdAt to exact midnight (an equality match that never
+        // hits a real timestamp) — always returned 0. Needs a >= range instead.
+        this.orderRepository
+          .createQueryBuilder('o')
+          .where('o.created_at >= :d', { d: today })
+          .getCount(),
+        this.orderRepository.createQueryBuilder('o')
+          .where('o.status = :s', { s: 'completed' })
+          .andWhere('o.created_at >= :d', { d: today })
+          .getCount(),
+        this.orderRepository.manager.getRepository('users').count(),
+        this.driversService.countAll(),
+        this.driversService.countOnline(),
+      ]);
 
     const revenueResult = await this.orderRepository.createQueryBuilder('o')
       .select('SUM(o.final_price)', 'total')
@@ -527,8 +730,10 @@ export class OrdersService {
       ordersToday,
       completedToday,
       revenueToday: parseFloat(revenueResult?.total ?? '0') || 0,
-      activeDrivers: 0,
-      onlineDrivers: 0,
+      activeDrivers,
+      onlineDrivers,
+      // No approval-pending state exists in the schema today (UserStatus is
+      // just active/blocked) — nothing real to count here yet.
       pendingDriverApprovals: 0,
     };
   }

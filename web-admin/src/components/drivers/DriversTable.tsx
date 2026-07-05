@@ -68,38 +68,38 @@ export function DriversTable({ drivers, isLoading }: DriversTableProps) {
                   {driver.firstName?.charAt(0) || '?'}
                 </div>
                 <div>
-                  <p className="font-medium text-gray-900">
+                  <p className="font-medium text-gray-100">
                     {getFullName(driver.firstName, driver.lastName)}
                   </p>
                   {driver.balance !== undefined && (
-                    <p className="text-xs text-gray-500">{formatCurrency(driver.balance)}</p>
+                    <p className="text-xs text-gray-400">{formatCurrency(driver.balance)}</p>
                   )}
                 </div>
               </div>
             </TableCell>
-            <TableCell className="text-gray-600">{driver.phone}</TableCell>
+            <TableCell className="text-gray-300">{driver.phone}</TableCell>
             <TableCell>
-              <p className="font-medium text-gray-900">{driver.carModel}</p>
-              <p className="text-xs text-gray-500">{driver.carColor}</p>
+              <p className="font-medium text-gray-100">{driver.carModel}</p>
+              {driver.carColor && <p className="text-xs text-gray-400">{driver.carColor}</p>}
             </TableCell>
             <TableCell>
-              <span className="rounded-md bg-gray-100 px-2 py-1 font-mono text-xs font-semibold text-gray-700">
+              <span className="rounded-md bg-white/10 px-2 py-1 font-mono text-xs font-semibold text-gray-300">
                 {driver.carNumber}
               </span>
             </TableCell>
             <TableCell>
               <div className="flex items-center gap-1">
                 <Star className="h-3.5 w-3.5 fill-brand-yellow text-brand-yellow" />
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-sm font-medium text-gray-100">
                   {formatRating(driver.rating)}
                 </span>
               </div>
             </TableCell>
-            <TableCell className="font-medium text-gray-900">{driver.totalTrips}</TableCell>
+            <TableCell className="font-medium text-gray-100">{driver.totalTrips}</TableCell>
             <TableCell>
               <DriverStatusBadge status={driver.status} isOnline={driver.isOnline} />
             </TableCell>
-            <TableCell className="text-xs text-gray-500">
+            <TableCell className="text-xs text-gray-400">
               {formatDate(driver.createdAt, 'dd.MM.yyyy')}
             </TableCell>
           </TableRow>

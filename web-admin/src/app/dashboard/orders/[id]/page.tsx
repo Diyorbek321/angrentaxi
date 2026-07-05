@@ -8,8 +8,6 @@ import {
   User,
   Car,
   CreditCard,
-  Clock,
-  Navigation,
   XCircle,
 } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
@@ -31,8 +29,6 @@ import { useToast } from '@/components/ui/Toast';
 import {
   formatCurrency,
   formatDate,
-  formatDistance,
-  formatDuration,
   formatPhone,
   getFullName,
   shortId,
@@ -47,11 +43,11 @@ interface InfoRowProps {
 
 function InfoRow({ icon, label, value }: InfoRowProps) {
   return (
-    <div className="flex items-start gap-3 py-3 first:pt-0 last:pb-0 border-b last:border-0 border-gray-100">
-      <div className="mt-0.5 text-gray-400 shrink-0">{icon}</div>
+    <div className="flex items-start gap-3 py-3 first:pt-0 last:pb-0 border-b last:border-0 border-white/10">
+      <div className="mt-0.5 text-gray-500 shrink-0">{icon}</div>
       <div className="flex-1 flex items-start justify-between gap-4">
-        <span className="text-sm text-gray-500">{label}</span>
-        <span className="text-sm font-medium text-gray-900 text-right">{value}</span>
+        <span className="text-sm text-gray-400">{label}</span>
+        <span className="text-sm font-medium text-gray-100 text-right">{value}</span>
       </div>
     </div>
   );
@@ -138,7 +134,7 @@ export default function OrderDetailPage() {
         </div>
 
         {/* Status banner */}
-        <div className="flex items-center gap-3 rounded-xl bg-gray-50 p-4 border border-gray-200">
+        <div className="flex items-center gap-3 rounded-xl bg-white/5 p-4 border border-white/10">
           <OrderStatusBadge status={order.status} />
           <span className="text-sm text-gray-500">
             {formatDate(order.createdAt)}
@@ -165,41 +161,27 @@ export default function OrderDetailPage() {
                 <div className="flex-1 space-y-4">
                   <div>
                     <p className="text-xs text-gray-500">Boshlang&apos;ich nuqta</p>
-                    <p className="text-sm font-medium text-gray-900">{order.fromAddress}</p>
-                    <p className="text-xs text-gray-400">
-                      {order.fromLat.toFixed(5)}, {order.fromLng.toFixed(5)}
+                    <p className="text-sm font-medium text-gray-100">{order.pickupAddress ?? '—'}</p>
+                    <p className="text-xs text-gray-500">
+                      {order.pickupLocation.coordinates[1].toFixed(5)}, {order.pickupLocation.coordinates[0].toFixed(5)}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Manzil</p>
-                    <p className="text-sm font-medium text-gray-900">{order.toAddress}</p>
-                    <p className="text-xs text-gray-400">
-                      {order.toLat.toFixed(5)}, {order.toLng.toFixed(5)}
+                    <p className="text-sm font-medium text-gray-100">{order.dropoffAddress ?? '—'}</p>
+                    <p className="text-xs text-gray-500">
+                      {order.dropoffLocation.coordinates[1].toFixed(5)}, {order.dropoffLocation.coordinates[0].toFixed(5)}
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 rounded-lg bg-gray-50 p-3">
+              <div className="grid grid-cols-1 gap-3 rounded-lg bg-white/5 p-3">
                 <div className="text-center">
-                  <Navigation className="mx-auto h-4 w-4 text-gray-400" />
-                  <p className="mt-1 text-xs text-gray-500">Masofa</p>
-                  <p className="text-sm font-semibold text-gray-900">
-                    {formatDistance(order.distance)}
-                  </p>
-                </div>
-                <div className="text-center">
-                  <Clock className="mx-auto h-4 w-4 text-gray-400" />
-                  <p className="mt-1 text-xs text-gray-500">Vaqt</p>
-                  <p className="text-sm font-semibold text-gray-900">
-                    {formatDuration(order.duration)}
-                  </p>
-                </div>
-                <div className="text-center">
-                  <CreditCard className="mx-auto h-4 w-4 text-gray-400" />
+                  <CreditCard className="mx-auto h-4 w-4 text-gray-500" />
                   <p className="mt-1 text-xs text-gray-500">Narx</p>
-                  <p className="text-sm font-semibold text-gray-900">
-                    {formatCurrency(order.price)}
+                  <p className="text-sm font-semibold text-gray-100">
+                    {formatCurrency(order.finalPrice ?? order.estimatedPrice)}
                   </p>
                 </div>
               </div>
@@ -225,7 +207,7 @@ export default function OrderDetailPage() {
               <InfoRow
                 icon={<CreditCard className="h-4 w-4" />}
                 label="Narx"
-                value={<span className="text-lg font-bold text-gray-900">{formatCurrency(order.price)}</span>}
+                value={<span className="text-lg font-bold text-gray-100">{formatCurrency(order.finalPrice ?? order.estimatedPrice)}</span>}
               />
             </CardContent>
           </Card>
@@ -237,14 +219,14 @@ export default function OrderDetailPage() {
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-4 mb-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-700 font-bold text-lg">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/20 text-blue-300 font-bold text-lg">
                   {order.passenger.firstName?.charAt(0)}
                 </div>
                 <div>
-                  <p className="font-semibold text-gray-900">
+                  <p className="font-semibold text-gray-100">
                     {getFullName(order.passenger.firstName, order.passenger.lastName)}
                   </p>
-                  <p className="text-sm text-gray-500">{formatPhone(order.passenger.phone)}</p>
+                  <p className="text-sm text-gray-400">{formatPhone(order.passenger.phone)}</p>
                 </div>
               </div>
               <InfoRow
@@ -268,10 +250,10 @@ export default function OrderDetailPage() {
                       {order.driver.firstName?.charAt(0)}
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-900">
+                      <p className="font-semibold text-gray-100">
                         {getFullName(order.driver.firstName, order.driver.lastName)}
                       </p>
-                      <p className="text-sm text-gray-500">{formatPhone(order.driver.phone)}</p>
+                      <p className="text-sm text-gray-400">{formatPhone(order.driver.phone)}</p>
                     </div>
                   </div>
                   <InfoRow
@@ -283,7 +265,7 @@ export default function OrderDetailPage() {
                     icon={<Car className="h-4 w-4" />}
                     label="Raqam"
                     value={
-                      <span className="font-mono text-xs font-semibold bg-gray-100 px-2 py-0.5 rounded">
+                      <span className="font-mono text-xs font-semibold bg-white/10 px-2 py-0.5 rounded">
                         {order.driver.carNumber}
                       </span>
                     }

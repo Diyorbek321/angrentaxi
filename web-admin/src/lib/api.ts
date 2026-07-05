@@ -113,17 +113,18 @@ export interface Driver {
   totalTrips: number;
   carModel: string;
   carNumber: string;
-  carColor: string;
-  licenseNumber: string;
+  carColor?: string;
+  licenseNumber?: string;
   createdAt: string;
   balance?: number;
 }
 
 export interface DriverTrip {
   id: string;
-  fromAddress: string;
-  toAddress: string;
-  price: number;
+  pickupAddress: string | null;
+  dropoffAddress: string | null;
+  estimatedPrice: number;
+  finalPrice: number | null;
   status: string;
   createdAt: string;
 }
@@ -151,9 +152,13 @@ export const driversApi = {
 
 // ─── Orders ───────────────────────────────────────────────────────
 
+export interface GeoPoint {
+  type: 'Point';
+  coordinates: [number, number]; // [lng, lat]
+}
+
 export interface Order {
   id: string;
-  shortId: string;
   passenger: {
     id: string;
     phone: string;
@@ -167,17 +172,15 @@ export interface Order {
     lastName: string;
     carModel: string;
     carNumber: string;
+    rating?: number;
   };
-  fromAddress: string;
-  toAddress: string;
-  fromLat: number;
-  fromLng: number;
-  toLat: number;
-  toLng: number;
+  pickupAddress: string | null;
+  dropoffAddress: string | null;
+  pickupLocation: GeoPoint;
+  dropoffLocation: GeoPoint;
   status: string;
-  price: number;
-  distance: number;
-  duration: number;
+  estimatedPrice: number;
+  finalPrice: number | null;
   paymentMethod: string;
   tariff: {
     id: string;

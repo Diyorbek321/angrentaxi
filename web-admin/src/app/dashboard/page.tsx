@@ -112,12 +112,12 @@ export default function DashboardPage() {
                         <p className="truncate text-sm font-medium text-slate-200">
                           {getFullName(order.passenger.firstName, order.passenger.lastName)}
                         </p>
-                        <p className="truncate text-xs text-slate-500">{order.fromAddress}</p>
+                        <p className="truncate text-xs text-slate-500">{order.pickupAddress ?? '—'}</p>
                       </div>
                       <div className="ml-4 flex shrink-0 items-center gap-3">
                         <OrderStatusBadge status={order.status} />
                         <span className="text-sm font-semibold text-white">
-                          {formatCurrency(order.price)}
+                          {formatCurrency(order.finalPrice ?? order.estimatedPrice)}
                         </span>
                       </div>
                     </li>

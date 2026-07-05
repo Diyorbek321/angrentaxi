@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User, UserStatus } from '../../database/entities/user.entity';
+import { User, UserRole, UserStatus } from '../../database/entities/user.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
@@ -21,6 +21,24 @@ export class UsersService {
 
   async findByPhone(phone: string): Promise<User | null> {
     return this.userRepository.findOne({ where: { phone } });
+  }
+
+  // Used by dispatcher-created orders: the passenger may not have ever logged
+  // in via OTP yet, so we create their account the same way auth.service does.
+  async findOrCreateByPhone(phone: string, fullName?: string): Promise<User> {
+    const existing = await this.findByPhone(phone);
+    if (existing) return existing;
+
+    const [firstName, ...rest] = (fullName ?? '').trim().split(/\s+/).filter(Boolean);
+
+    return this.userRepository.save({
+      phone,
+      role: UserRole.PASSENGER,
+      status: UserStatus.ACTIVE,
+      firstName: firstName || null,
+      lastName: rest.join(' ') || null,
+      fcmToken: null,
+    });
   }
 
   async findByIdOrThrow(id: string): Promise<User> {

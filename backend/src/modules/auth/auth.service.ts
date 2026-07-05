@@ -60,9 +60,19 @@ export class AuthService {
       { isUsed: true },
     );
 
-    const otpBypassEnabled =
+    const bypassFlagSet =
       this.configService.get<string>('OTP_BYPASS_ENABLED') === 'true' ||
       this.configService.get<boolean>('OTP_BYPASS_ENABLED') === true;
+    const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
+    const explicitlyAllowedInProd =
+      this.configService.get<string>('ALLOW_OTP_BYPASS_IN_PROD') === 'true';
+
+    // In production, OTP_BYPASS_ENABLED alone is not enough — a second, explicit
+    // flag must also be set. This prevents a real launch from silently inheriting
+    // a test-server config where every phone number logs in with a fixed code.
+    const otpBypassEnabled = isProduction
+      ? bypassFlagSet && explicitlyAllowedInProd
+      : bypassFlagSet;
     const bypassCode = this.configService.get<string>('OTP_BYPASS_CODE') || '123456';
 
     // In dev/bypass mode use the fixed bypass code so testers can always log in

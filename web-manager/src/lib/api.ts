@@ -32,16 +32,17 @@ export interface Driver {
 export interface Tariff {
   id: string;
   name: string;
-  baseFare: number;
-  perKm: number;
-  perMinute: number;
-  minFare: number;
-  currency: string;
+  basePrice: number;
+  pricePerKm: number;
+  pricePerMin: number;
+  minPrice: number;
+  surgeMultiplier: number;
+  isActive: boolean;
 }
 
-export interface OrderAddress {
-  address: string;
-  coordinates: Coordinates;
+export interface GeoPoint {
+  type: 'Point';
+  coordinates: [number, number]; // [lng, lat]
 }
 
 export interface Order {
@@ -54,17 +55,21 @@ export interface Order {
   tariff: Tariff;
   status: OrderStatus;
   paymentMethod: PaymentMethod;
-  pickupAddress: OrderAddress;
-  dropoffAddress: OrderAddress;
+  pickupAddress: string | null;
+  dropoffAddress: string | null;
+  pickupLocation: GeoPoint;
+  dropoffLocation: GeoPoint;
   estimatedPrice: number;
   finalPrice: number | null;
   note: string | null;
   createdAt: string;
   updatedAt: string;
-  acceptedAt: string | null;
-  startedAt: string | null;
-  completedAt: string | null;
-  cancelledAt: string | null;
+  // Not tracked as separate columns on the backend today — always absent;
+  // consumers must treat these as optional and fall back to createdAt/status.
+  acceptedAt?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  cancelledAt?: string | null;
 }
 
 export interface PaginatedResponse<T> {
@@ -95,26 +100,28 @@ export interface LoginResponse {
 export interface CreateOrderPayload {
   passengerPhone: string;
   passengerName?: string;
-  pickupAddress: string;
-  pickupCoordinates: Coordinates;
-  dropoffAddress: string;
-  dropoffCoordinates: Coordinates;
+  pickupAddress?: string;
+  pickupLat: number;
+  pickupLng: number;
+  dropoffAddress?: string;
+  dropoffLat: number;
+  dropoffLng: number;
   tariffId: string;
   paymentMethod: PaymentMethod;
   note?: string;
 }
 
 export interface CalculatePricePayload {
-  pickupCoordinates: Coordinates;
-  dropoffCoordinates: Coordinates;
   tariffId: string;
+  distanceKm: number;
+  durationMin: number;
 }
 
 export interface CalculatePriceResponse {
-  estimatedPrice: number;
-  estimatedDistance: number;
-  estimatedDuration: number;
-  currency: string;
+  price: number;
+  tariffId: string;
+  distanceKm: number;
+  durationMin: number;
 }
 
 export interface OrderFilters {
@@ -197,10 +204,11 @@ export async function getOrders(
   if (filters.dateFrom) params.dateFrom = filters.dateFrom;
   if (filters.dateTo) params.dateTo = filters.dateTo;
 
-  const res = await apiClient.get<ApiResponse<PaginatedResponse<Order>>>('/orders', {
-    params,
-  });
-  return res.data.data;
+  const res = await apiClient.get<
+    ApiResponse<{ orders: Order[]; total: number; page: number; limit: number }>
+  >('/orders', { params });
+  const { orders, total, page, limit } = res.data.data;
+  return { data: orders, total, page, limit, totalPages: Math.ceil(total / limit) };
 }
 
 export async function getOrderById(id: string): Promise<Order> {
@@ -209,7 +217,7 @@ export async function getOrderById(id: string): Promise<Order> {
 }
 
 export async function createOrder(payload: CreateOrderPayload): Promise<Order> {
-  const res = await apiClient.post<ApiResponse<Order>>('/orders', payload);
+  const res = await apiClient.post<ApiResponse<Order>>('/orders/dispatch', payload);
   return res.data.data;
 }
 
@@ -223,11 +231,11 @@ export async function calculatePrice(
   return res.data.data;
 }
 
+// The backend's `/accept` route is for a driver to accept their own offered
+// order via their JWT — a manager assigning a specific driver (first time or
+// reassigning) always goes through `/reassign`, which handles both cases.
 export async function assignDriver(orderId: string, driverId: string): Promise<Order> {
-  const res = await apiClient.patch<ApiResponse<Order>>(`/orders/${orderId}/accept`, {
-    driverId,
-  });
-  return res.data.data;
+  return reassignDriver(orderId, driverId);
 }
 
 export async function cancelOrder(orderId: string, reason?: string): Promise<Order> {

@@ -148,7 +148,7 @@ export default function DriverDetailPage() {
                 <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-yellow text-2xl font-bold text-brand-black">
                   {driver.firstName?.charAt(0)}
                 </div>
-                <h2 className="mt-4 text-xl font-semibold text-gray-900">
+                <h2 className="mt-4 text-xl font-semibold text-gray-100">
                   {getFullName(driver.firstName, driver.lastName)}
                 </h2>
                 <div className="mt-2">
@@ -156,31 +156,31 @@ export default function DriverDetailPage() {
                 </div>
                 <div className="mt-3 flex items-center gap-1">
                   <Star className="h-4 w-4 fill-brand-yellow text-brand-yellow" />
-                  <span className="font-semibold text-gray-900">{formatRating(driver.rating)}</span>
-                  <span className="text-sm text-gray-500">({driver.totalTrips} safar)</span>
+                  <span className="font-semibold text-gray-100">{formatRating(driver.rating)}</span>
+                  <span className="text-sm text-gray-400">({driver.totalTrips} safar)</span>
                 </div>
               </div>
 
-              <div className="mt-6 space-y-3 border-t pt-4">
+              <div className="mt-6 space-y-3 border-t border-white/10 pt-4">
                 <div className="flex items-center gap-3 text-sm">
-                  <Phone className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-700">{formatPhone(driver.phone)}</span>
+                  <Phone className="h-4 w-4 text-gray-500" />
+                  <span className="text-gray-300">{formatPhone(driver.phone)}</span>
                 </div>
                 <div className="flex items-center gap-3 text-sm">
-                  <Car className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-700">
-                    {driver.carModel} · {driver.carColor}
+                  <Car className="h-4 w-4 text-gray-500" />
+                  <span className="text-gray-300">
+                    {driver.carModel}{driver.carColor ? ` · ${driver.carColor}` : ''}
                   </span>
                 </div>
                 <div className="flex items-center gap-3 text-sm">
-                  <span className="rounded-md bg-gray-100 px-2 py-1 font-mono text-xs font-semibold text-gray-700">
+                  <span className="rounded-md bg-white/10 px-2 py-1 font-mono text-xs font-semibold text-gray-300">
                     {driver.carNumber}
                   </span>
                 </div>
                 {driver.balance !== undefined && (
-                  <div className="rounded-lg bg-yellow-50 p-3 text-center">
-                    <p className="text-xs text-gray-500">Balans</p>
-                    <p className="text-lg font-bold text-gray-900">
+                  <div className="rounded-lg bg-yellow-500/10 p-3 text-center">
+                    <p className="text-xs text-gray-400">Balans</p>
+                    <p className="text-lg font-bold text-gray-100">
                       {formatCurrency(driver.balance)}
                     </p>
                   </div>
@@ -232,8 +232,8 @@ export default function DriverDetailPage() {
               ].map((stat) => (
                 <Card key={stat.label}>
                   <CardContent className="p-4 text-center">
-                    <p className="text-xs text-gray-500">{stat.label}</p>
-                    <p className="mt-1 text-xl font-bold text-gray-900">{stat.value}</p>
+                    <p className="text-xs text-gray-400">{stat.label}</p>
+                    <p className="mt-1 text-xl font-bold text-gray-100">{stat.value}</p>
                   </CardContent>
                 </Card>
               ))}
@@ -268,20 +268,20 @@ export default function DriverDetailPage() {
                         {trips.map((trip) => (
                           <TableRow key={trip.id}>
                             <TableCell>
-                              <p className="truncate text-xs text-gray-700 max-w-[200px]">
-                                {trip.fromAddress}
+                              <p className="truncate text-xs text-gray-300 max-w-[200px]">
+                                {trip.pickupAddress ?? '—'}
                               </p>
-                              <p className="truncate text-xs text-gray-500 max-w-[200px]">
-                                {trip.toAddress}
+                              <p className="truncate text-xs text-gray-400 max-w-[200px]">
+                                {trip.dropoffAddress ?? '—'}
                               </p>
                             </TableCell>
-                            <TableCell className="font-medium">
-                              {formatCurrency(trip.price)}
+                            <TableCell className="font-medium text-gray-100">
+                              {formatCurrency(trip.finalPrice ?? trip.estimatedPrice)}
                             </TableCell>
                             <TableCell>
                               <OrderStatusBadge status={trip.status} />
                             </TableCell>
-                            <TableCell className="text-xs text-gray-500">
+                            <TableCell className="text-xs text-gray-400">
                               {formatDate(trip.createdAt)}
                             </TableCell>
                           </TableRow>

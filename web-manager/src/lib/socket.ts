@@ -3,11 +3,13 @@ import { io, Socket } from 'socket.io-client';
 let socket: Socket | null = null;
 
 export function getSocket(token: string): Socket {
-  if (!socket || !socket.connected) {
-    if (socket) {
-      socket.disconnect();
-    }
-    socket = io(process.env.NEXT_PUBLIC_SOCKET_URL!, {
+  // Reuse the same instance for the page session — recreating it whenever it
+  // isn't `connected` yet (e.g. still mid-handshake) orphaned any listeners
+  // already attached by other hooks, since each call would swap in a fresh
+  // socket. socket.io's own reconnection logic handles transient drops.
+  if (!socket) {
+    // Backend's RealtimeGateway is mounted on the /ws namespace, not the default one.
+    socket = io(`${process.env.NEXT_PUBLIC_SOCKET_URL}/ws`, {
       auth: { token },
       transports: ['websocket'],
       reconnection: true,

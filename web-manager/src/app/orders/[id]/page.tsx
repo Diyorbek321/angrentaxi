@@ -210,19 +210,19 @@ export default function OrderDetailPage() {
           <div className="space-y-3">
             <div>
               <p className="text-xs text-gray-500 mb-1">Pickup</p>
-              <p className="text-sm text-gray-200">{order.pickupAddress.address}</p>
+              <p className="text-sm text-gray-200">{order.pickupAddress ?? '—'}</p>
               <p className="text-xs text-gray-600 mt-0.5 font-mono">
-                {order.pickupAddress.coordinates.lat.toFixed(6)},{' '}
-                {order.pickupAddress.coordinates.lng.toFixed(6)}
+                {order.pickupLocation.coordinates[1].toFixed(6)},{' '}
+                {order.pickupLocation.coordinates[0].toFixed(6)}
               </p>
             </div>
             <div className="border-t border-gray-700" />
             <div>
               <p className="text-xs text-gray-500 mb-1">Dropoff</p>
-              <p className="text-sm text-gray-200">{order.dropoffAddress.address}</p>
+              <p className="text-sm text-gray-200">{order.dropoffAddress ?? '—'}</p>
               <p className="text-xs text-gray-600 mt-0.5 font-mono">
-                {order.dropoffAddress.coordinates.lat.toFixed(6)},{' '}
-                {order.dropoffAddress.coordinates.lng.toFixed(6)}
+                {order.dropoffLocation.coordinates[1].toFixed(6)},{' '}
+                {order.dropoffLocation.coordinates[0].toFixed(6)}
               </p>
             </div>
           </div>
@@ -243,13 +243,13 @@ export default function OrderDetailPage() {
           <InfoRow label="Tariff" value={order.tariff.name} />
           <InfoRow
             label="Estimated"
-            value={`${order.estimatedPrice.toLocaleString()} ${order.tariff.currency}`}
+            value={`${order.estimatedPrice.toLocaleString()} UZS`}
           />
           <InfoRow
             label="Final"
             value={
               order.finalPrice != null
-                ? `${order.finalPrice.toLocaleString()} ${order.tariff.currency}`
+                ? `${order.finalPrice.toLocaleString()} UZS`
                 : '—'
             }
           />

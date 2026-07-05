@@ -85,11 +85,11 @@ export function AssignDriverModal({
             </p>
             <div className="flex items-start gap-2">
               <div className="h-1.5 w-1.5 rounded-full bg-accent-500 mt-1.5 shrink-0" />
-              <p className="text-gray-300 text-xs">{order.pickupAddress.address}</p>
+              <p className="text-gray-300 text-xs">{order.pickupAddress ?? '—'}</p>
             </div>
             <div className="flex items-start gap-2">
               <div className="h-1.5 w-1.5 rounded-full bg-red-400 mt-1.5 shrink-0" />
-              <p className="text-gray-300 text-xs">{order.dropoffAddress.address}</p>
+              <p className="text-gray-300 text-xs">{order.dropoffAddress ?? '—'}</p>
             </div>
           </div>
 

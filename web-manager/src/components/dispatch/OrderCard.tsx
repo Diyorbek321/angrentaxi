@@ -105,13 +105,13 @@ export function OrderCard({
           <div className="flex items-start gap-2">
             <div className="mt-0.5 h-2 w-2 rounded-full bg-accent-500 shrink-0" />
             <p className="text-gray-300 text-xs leading-tight line-clamp-2">
-              {order.pickupAddress.address}
+              {order.pickupAddress ?? '—'}
             </p>
           </div>
           <div className="flex items-start gap-2">
             <MapPin size={14} className="text-red-400 mt-0.5 shrink-0" />
             <p className="text-gray-300 text-xs leading-tight line-clamp-2">
-              {order.dropoffAddress.address}
+              {order.dropoffAddress ?? '—'}
             </p>
           </div>
         </div>
@@ -143,8 +143,8 @@ export function OrderCard({
           </span>
           <span className="text-gray-300 font-medium">
             {order.finalPrice != null
-              ? `${order.finalPrice.toLocaleString()} ${order.tariff?.currency ?? ''}`
-              : `~${order.estimatedPrice.toLocaleString()} ${order.tariff?.currency ?? ''}`}
+              ? `${order.finalPrice.toLocaleString()} UZS`
+              : `~${order.estimatedPrice.toLocaleString()} UZS`}
           </span>
         </div>
 

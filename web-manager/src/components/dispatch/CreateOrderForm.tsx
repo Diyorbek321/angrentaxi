@@ -23,6 +23,20 @@ const PAYMENT_VALUES = [
   PAYMENT_METHOD.WALLET,
 ] as const;
 
+// Mirrors the backend's own estimate (orders.service.ts haversineDistance +
+// the 2.5 min/km rule) so the preview matches what the created order will show.
+function haversineDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 const schema = z.object({
   passengerPhone: z
     .string()
@@ -107,17 +121,15 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
 
     setCalculatingPrice(true);
     try {
-      const result = await calculatePrice({
-        pickupCoordinates: {
-          lat: parseFloat(pickupLat),
-          lng: parseFloat(pickupLng),
-        },
-        dropoffCoordinates: {
-          lat: parseFloat(dropoffLat),
-          lng: parseFloat(dropoffLng),
-        },
-        tariffId,
-      });
+      const distanceKm = haversineDistanceKm(
+        parseFloat(pickupLat),
+        parseFloat(pickupLng),
+        parseFloat(dropoffLat),
+        parseFloat(dropoffLng),
+      );
+      const durationMin = Math.ceil(distanceKm * 2.5);
+
+      const result = await calculatePrice({ tariffId, distanceKm, durationMin });
       setPriceEstimate(result);
     } catch (err) {
       console.error('Price calculation failed:', err);
@@ -136,15 +148,11 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
         passengerPhone: data.passengerPhone,
         passengerName: data.passengerName,
         pickupAddress: data.pickupAddress,
-        pickupCoordinates: {
-          lat: data.pickupLat ? parseFloat(data.pickupLat) : 0,
-          lng: data.pickupLng ? parseFloat(data.pickupLng) : 0,
-        },
+        pickupLat: data.pickupLat ? parseFloat(data.pickupLat) : 0,
+        pickupLng: data.pickupLng ? parseFloat(data.pickupLng) : 0,
         dropoffAddress: data.dropoffAddress,
-        dropoffCoordinates: {
-          lat: data.dropoffLat ? parseFloat(data.dropoffLat) : 0,
-          lng: data.dropoffLng ? parseFloat(data.dropoffLng) : 0,
-        },
+        dropoffLat: data.dropoffLat ? parseFloat(data.dropoffLat) : 0,
+        dropoffLng: data.dropoffLng ? parseFloat(data.dropoffLng) : 0,
         tariffId: data.tariffId,
         paymentMethod: data.paymentMethod,
         note: data.note,
@@ -164,7 +172,7 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
 
   const tariffOptions = tariffs.map((t) => ({
     value: t.id,
-    label: `${t.name} — min ${t.minFare} ${t.currency}`,
+    label: `${t.name} — min ${t.minPrice.toLocaleString()} UZS`,
   }));
 
   const paymentOptions = [
@@ -331,20 +339,20 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
             <div className="text-center">
               <p className="text-xs text-gray-500">Price</p>
               <p className="text-accent-500 font-semibold text-lg">
-                {priceEstimate.estimatedPrice.toLocaleString()}
+                {priceEstimate.price.toLocaleString()}
               </p>
-              <p className="text-xs text-gray-600">{priceEstimate.currency}</p>
+              <p className="text-xs text-gray-600">UZS</p>
             </div>
             <div className="text-center">
               <p className="text-xs text-gray-500">Distance</p>
               <p className="text-gray-200 font-semibold">
-                {(priceEstimate.estimatedDistance / 1000).toFixed(1)} km
+                {priceEstimate.distanceKm.toFixed(1)} km
               </p>
             </div>
             <div className="text-center">
               <p className="text-xs text-gray-500">Duration</p>
               <p className="text-gray-200 font-semibold">
-                ~{Math.round(priceEstimate.estimatedDuration / 60)} min
+                ~{priceEstimate.durationMin} min
               </p>
             </div>
           </div>

@@ -20,8 +20,10 @@ import {
 import { OrdersService } from './orders.service';
 import { MatchingService } from '../matching/matching.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { CreateDispatchOrderDto } from './dto/create-dispatch-order.dto';
 import { CalculatePriceDto } from './dto/calculate-price.dto';
 import { CancelOrderDto } from './dto/cancel-order.dto';
+import { ReassignDriverDto } from './dto/reassign-driver.dto';
 import { PaginationDto } from './dto/pagination.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -61,6 +63,20 @@ export class OrdersController {
     const order = await this.ordersService.create(user.id, dto);
 
     // Start matching asynchronously
+    this.matchingService.startSearch(order.id).catch((err: unknown) => {
+      this.logger.error(`Matching failed for order ${order.id}:`, (err as Error).message);
+    });
+
+    return order;
+  }
+
+  @Post('dispatch')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Create an order on behalf of a passenger (manager/admin only)' })
+  @ApiResponse({ status: 201, description: 'Order created' })
+  async createDispatchOrder(@Body() dto: CreateDispatchOrderDto): Promise<Order> {
+    const order = await this.ordersService.createForDispatch(dto);
+
     this.matchingService.startSearch(order.id).catch((err: unknown) => {
       this.logger.error(`Matching failed for order ${order.id}:`, (err as Error).message);
     });
@@ -182,6 +198,19 @@ export class OrdersController {
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<Order> {
     return this.ordersService.completeTrip(user.id, id);
+  }
+
+  @Patch(':id/reassign')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Assign or reassign the driver on an order (manager/admin only)' })
+  @ApiParam({ name: 'id', description: 'Order UUID' })
+  @ApiResponse({ status: 200, description: 'Order reassigned' })
+  @ApiResponse({ status: 400, description: 'Order not in a reassignable state, or driver not online' })
+  async reassignDriver(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReassignDriverDto,
+  ): Promise<Order> {
+    return this.ordersService.reassignDriver(id, dto.driverId);
   }
 
   @Patch(':id/cancel')
