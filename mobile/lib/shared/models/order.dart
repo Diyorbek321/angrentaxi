@@ -35,17 +35,19 @@ extension OrderStatusExtension on OrderStatus {
   }
 }
 
+// Backend's actual OrderStatus enum values (order.entity.ts) are
+// created/searching/accepted/arrived/in_progress/completed/cancelled — there
+// is no 'pending', 'driver_assigned', or 'driver_arrived' on the wire. Map
+// those real values onto the richer local enum below.
 OrderStatus orderStatusFromString(String status) {
   switch (status) {
-    case 'pending':
+    case 'created':
       return OrderStatus.pending;
     case 'searching':
       return OrderStatus.searching;
-    case 'driver_assigned':
+    case 'accepted':
       return OrderStatus.driverAssigned;
-    case 'driver_en_route':
-      return OrderStatus.driverEnRoute;
-    case 'driver_arrived':
+    case 'arrived':
       return OrderStatus.driverArrived;
     case 'in_progress':
       return OrderStatus.inProgress;
@@ -71,17 +73,17 @@ class OrderLocation extends Equatable {
 
   factory OrderLocation.fromJson(Map<String, dynamic> json) {
     return OrderLocation(
-      address: json['address'] as String,
-      lat: (json['lat'] as num).toDouble(),
-      lng: (json['lng'] as num).toDouble(),
+      address: (json['address'] as String?) ?? '',
+      lat: (json['lat'] as num?)?.toDouble() ?? 0,
+      lng: (json['lng'] as num?)?.toDouble() ?? 0,
     );
   }
 
   Map<String, dynamic> toJson() => {
-    'address': address,
-    'lat': lat,
-    'lng': lng,
-  };
+        'address': address,
+        'lat': lat,
+        'lng': lng,
+      };
 
   @override
   List<Object?> get props => [address, lat, lng];
@@ -103,6 +105,8 @@ class Order extends Equatable {
     this.cancelReason,
     this.distanceKm,
     this.durationMin,
+    this.passengerPhone,
+    this.passengerName,
   });
 
   final String id;
@@ -119,6 +123,8 @@ class Order extends Equatable {
   final String? cancelReason;
   final double? distanceKm;
   final int? durationMin;
+  final String? passengerPhone;
+  final String? passengerName;
 
   factory Order.fromJson(Map<String, dynamic> json) {
     return Order(
@@ -133,44 +139,49 @@ class Order extends Equatable {
       status: orderStatusFromString(json['status'] as String),
       estimatedPrice: (json['estimatedPrice'] as num).toDouble(),
       createdAt: DateTime.parse(json['createdAt'] as String),
-      driver:
-          json['driver'] != null
-              ? Driver.fromJson(json['driver'] as Map<String, dynamic>)
-              : null,
-      actualPrice:
-          json['actualPrice'] != null
-              ? (json['actualPrice'] as num).toDouble()
-              : null,
+      driver: json['driver'] != null
+          ? Driver.fromJson(json['driver'] as Map<String, dynamic>)
+          : null,
+      actualPrice: json['finalPrice'] != null
+          ? (json['finalPrice'] as num).toDouble()
+          : null,
       tariffId: json['tariffId'] as String?,
-      completedAt:
-          json['completedAt'] != null
-              ? DateTime.parse(json['completedAt'] as String)
-              : null,
+      completedAt: json['completedAt'] != null
+          ? DateTime.parse(json['completedAt'] as String)
+          : null,
       cancelReason: json['cancelReason'] as String?,
-      distanceKm:
-          json['distanceKm'] != null
-              ? (json['distanceKm'] as num).toDouble()
-              : null,
+      distanceKm: json['distanceKm'] != null
+          ? (json['distanceKm'] as num).toDouble()
+          : null,
       durationMin: json['durationMin'] as int?,
+      passengerPhone: json['passenger'] != null
+          ? (json['passenger'] as Map<String, dynamic>)['phone'] as String?
+          : null,
+      passengerName: json['passenger'] != null
+          ? [
+              (json['passenger'] as Map<String, dynamic>)['firstName'],
+              (json['passenger'] as Map<String, dynamic>)['lastName'],
+            ].whereType<String>().where((s) => s.isNotEmpty).join(' ')
+          : null,
     );
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'passengerId': passengerId,
-    'pickup': pickup.toJson(),
-    'dropoff': dropoff.toJson(),
-    'status': status.name,
-    'estimatedPrice': estimatedPrice,
-    'createdAt': createdAt.toIso8601String(),
-    'driver': driver?.toJson(),
-    'actualPrice': actualPrice,
-    'tariffId': tariffId,
-    'completedAt': completedAt?.toIso8601String(),
-    'cancelReason': cancelReason,
-    'distanceKm': distanceKm,
-    'durationMin': durationMin,
-  };
+        'id': id,
+        'passengerId': passengerId,
+        'pickup': pickup.toJson(),
+        'dropoff': dropoff.toJson(),
+        'status': status.name,
+        'estimatedPrice': estimatedPrice,
+        'createdAt': createdAt.toIso8601String(),
+        'driver': driver?.toJson(),
+        'actualPrice': actualPrice,
+        'tariffId': tariffId,
+        'completedAt': completedAt?.toIso8601String(),
+        'cancelReason': cancelReason,
+        'distanceKm': distanceKm,
+        'durationMin': durationMin,
+      };
 
   bool get isActive =>
       status == OrderStatus.searching ||
@@ -215,19 +226,19 @@ class Order extends Equatable {
 
   @override
   List<Object?> get props => [
-    id,
-    passengerId,
-    pickup,
-    dropoff,
-    status,
-    estimatedPrice,
-    createdAt,
-    driver,
-    actualPrice,
-    tariffId,
-    completedAt,
-    cancelReason,
-    distanceKm,
-    durationMin,
-  ];
+        id,
+        passengerId,
+        pickup,
+        dropoff,
+        status,
+        estimatedPrice,
+        createdAt,
+        driver,
+        actualPrice,
+        tariffId,
+        completedAt,
+        cancelReason,
+        distanceKm,
+        durationMin,
+      ];
 }

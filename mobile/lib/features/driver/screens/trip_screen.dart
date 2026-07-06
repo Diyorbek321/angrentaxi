@@ -9,6 +9,7 @@ import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
+import 'package:angren_taxi/features/driver/screens/rate_passenger_screen.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
@@ -65,7 +66,7 @@ class _TripScreenState extends State<TripScreen> {
     }
   }
 
-  Future<void> _onCompleteTrip() async {
+  Future<void> _onCompleteTrip(Order order) async {
     final confirmed = await _showCompletionDialog();
     if (!confirmed || !mounted) return;
 
@@ -74,7 +75,11 @@ class _TripScreenState extends State<TripScreen> {
 
     if (!mounted) return;
     if (provider.state == DriverProviderState.success) {
-      _showSuccessAndNavigate();
+      _showSuccessAndNavigate(order);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(provider.error ?? 'Safarni yakunlab bo\'lmadi')),
+      );
     }
   }
 
@@ -99,7 +104,7 @@ class _TripScreenState extends State<TripScreen> {
         false;
   }
 
-  void _showSuccessAndNavigate() {
+  void _showSuccessAndNavigate(Order order) {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -121,12 +126,25 @@ class _TripScreenState extends State<TripScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.of(ctx).pop();
+              // Land on /driver/home first (clearing the trip stack beneath
+              // it), then push the rating screen on top — its own
+              // submit/skip just calls Navigator.pop(), which then correctly
+              // reveals home instead of stale navigation/arrived screens.
               Navigator.of(context).pushNamedAndRemoveUntil(
                 '/driver/home',
-                (_) => false,
+                (route) => false,
+              );
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => RatePassengerScreen(
+                    orderId: order.id,
+                    passengerPhone:
+                        order.passengerName ?? order.passengerPhone ?? '',
+                  ),
+                ),
               );
             },
-            child: const Text('Bosh sahifaga'),
+            child: const Text('Davom etish'),
           ),
         ],
       ),
@@ -182,7 +200,8 @@ class _TripScreenState extends State<TripScreen> {
                     BoxShadow(color: Colors.black26, blurRadius: 6),
                   ],
                 ),
-                child: const Icon(Icons.local_taxi, color: Colors.black, size: 24),
+                child:
+                    const Icon(Icons.local_taxi, color: Colors.black, size: 24),
               ),
             ),
             Marker(
@@ -227,7 +246,8 @@ class _TripScreenState extends State<TripScreen> {
                 ],
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.black.withAlpha(20),
                   borderRadius: BorderRadius.circular(8),
@@ -280,7 +300,7 @@ class _TripScreenState extends State<TripScreen> {
             const SizedBox(height: 16),
             AppButton(
               label: 'Safarni yakunlash',
-              onPressed: _onCompleteTrip,
+              onPressed: () => _onCompleteTrip(order),
               isLoading: provider.state == DriverProviderState.loading,
               backgroundColor: kSuccess,
               foregroundColor: Colors.white,

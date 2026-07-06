@@ -29,44 +29,57 @@ class Driver extends Equatable {
   final double? currentLat;
   final double? currentLng;
 
+  // Backend sends this shape in two different forms depending on the caller:
+  // - GET /drivers/me returns the Driver entity with a nested `user` object
+  //   (phone/firstName/lastName live there, not at top level).
+  // - An order's `driver` field is the flat User entity with name/carModel/
+  //   carNumber/rating already bolted on by OrdersService.attachDisplayFields
+  //   (phone/name live at the top level there).
+  // Neither shape has carColor or totalTrips — backend doesn't track either.
   factory Driver.fromJson(Map<String, dynamic> json) {
+    final user = json['user'] as Map<String, dynamic>?;
+    final phone =
+        (json['phone'] as String?) ?? (user?['phone'] as String?) ?? '';
+    final name = (json['name'] as String?) ??
+        [user?['firstName'], user?['lastName']]
+            .whereType<String>()
+            .where((s) => s.isNotEmpty)
+            .join(' ');
+
     return Driver(
       id: json['id'] as String,
-      phone: json['phone'] as String,
-      name: json['name'] as String,
-      carModel: json['carModel'] as String,
-      carColor: json['carColor'] as String,
-      carNumber: json['carNumber'] as String,
+      phone: phone,
+      name: name.isNotEmpty ? name : phone,
+      carModel: (json['carModel'] as String?) ?? '',
+      carColor: (json['carColor'] as String?) ?? '',
+      carNumber: (json['carNumber'] as String?) ?? '',
       avatarUrl: json['avatarUrl'] as String?,
-      rating:
-          json['rating'] != null ? (json['rating'] as num).toDouble() : 5.0,
+      rating: json['rating'] != null ? (json['rating'] as num).toDouble() : 5.0,
       totalTrips: (json['totalTrips'] as int?) ?? 0,
       isOnline: (json['isOnline'] as bool?) ?? false,
-      currentLat:
-          json['currentLat'] != null
-              ? (json['currentLat'] as num).toDouble()
-              : null,
-      currentLng:
-          json['currentLng'] != null
-              ? (json['currentLng'] as num).toDouble()
-              : null,
+      currentLat: json['currentLat'] != null
+          ? (json['currentLat'] as num).toDouble()
+          : null,
+      currentLng: json['currentLng'] != null
+          ? (json['currentLng'] as num).toDouble()
+          : null,
     );
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'phone': phone,
-    'name': name,
-    'carModel': carModel,
-    'carColor': carColor,
-    'carNumber': carNumber,
-    'avatarUrl': avatarUrl,
-    'rating': rating,
-    'totalTrips': totalTrips,
-    'isOnline': isOnline,
-    'currentLat': currentLat,
-    'currentLng': currentLng,
-  };
+        'id': id,
+        'phone': phone,
+        'name': name,
+        'carModel': carModel,
+        'carColor': carColor,
+        'carNumber': carNumber,
+        'avatarUrl': avatarUrl,
+        'rating': rating,
+        'totalTrips': totalTrips,
+        'isOnline': isOnline,
+        'currentLat': currentLat,
+        'currentLng': currentLng,
+      };
 
   Driver copyWith({
     String? id,
@@ -102,17 +115,17 @@ class Driver extends Equatable {
 
   @override
   List<Object?> get props => [
-    id,
-    phone,
-    name,
-    carModel,
-    carColor,
-    carNumber,
-    avatarUrl,
-    rating,
-    totalTrips,
-    isOnline,
-    currentLat,
-    currentLng,
-  ];
+        id,
+        phone,
+        name,
+        carModel,
+        carColor,
+        carNumber,
+        avatarUrl,
+        rating,
+        totalTrips,
+        isOnline,
+        currentLat,
+        currentLng,
+      ];
 }

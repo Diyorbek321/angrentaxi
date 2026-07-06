@@ -14,8 +14,8 @@ class OrderProvider extends ChangeNotifier {
   OrderProvider({
     required ApiClient apiClient,
     required SocketService socketService,
-  }) : _apiClient = apiClient,
-       _socketService = socketService;
+  })  : _apiClient = apiClient,
+        _socketService = socketService;
 
   final ApiClient _apiClient;
   final SocketService _socketService;
@@ -97,9 +97,8 @@ class OrderProvider extends ChangeNotifier {
       );
       final data = response.data as Map<String, dynamic>;
       final list = data['data'] as List<dynamic>;
-      _tariffs = list
-          .map((e) => Tariff.fromJson(e as Map<String, dynamic>))
-          .toList();
+      _tariffs =
+          list.map((e) => Tariff.fromJson(e as Map<String, dynamic>)).toList();
       notifyListeners();
     } catch (e) {
       debugPrint('[OrderProvider] loadTariffs error: $e');
@@ -196,8 +195,7 @@ class OrderProvider extends ChangeNotifier {
           if (status == OrderStatus.completed) {
             // Store info needed for post-trip rating before clearing the order.
             pendingRatingOrderId = _activeOrder!.id;
-            pendingRatingDriverName =
-                _activeOrder!.driver?.name ?? 'Haydovchi';
+            pendingRatingDriverName = _activeOrder!.driver?.name ?? 'Haydovchi';
             loadOrderHistory();
           }
         }
@@ -230,7 +228,7 @@ class OrderProvider extends ChangeNotifier {
 
     _setState(OrderProviderState.loading);
     try {
-      await _apiClient.post(ApiEndpoints.cancelOrder(_activeOrder!.id));
+      await _apiClient.patch(ApiEndpoints.cancelOrder(_activeOrder!.id));
       _cleanupOrderListeners();
       _activeOrder = null;
       _setState(OrderProviderState.idle);
@@ -240,19 +238,20 @@ class OrderProvider extends ChangeNotifier {
     }
   }
 
+  // GET /orders/history has no status filter server-side and returns
+  // {orders, total, page, limit} — the active order (if any) is derived from
+  // the first page rather than requested directly.
   Future<void> checkActiveOrder() async {
     try {
-      final response = await _apiClient.get(
-        ApiEndpoints.orderHistory,
-        params: {'status': 'active'},
-      );
+      final response = await _apiClient.get(ApiEndpoints.orderHistory);
       final data = response.data as Map<String, dynamic>;
-      final list = data['data'] as List<dynamic>?;
-      if (list != null && list.isNotEmpty) {
-        _activeOrder = Order.fromJson(list.first as Map<String, dynamic>);
-        if (_activeOrder!.isActive) {
-          _listenToOrderEvents();
-        }
+      final list =
+          (data['data'] as Map<String, dynamic>)['orders'] as List<dynamic>;
+      final orders = list.map((e) => Order.fromJson(e as Map<String, dynamic>));
+      final active = orders.where((o) => o.isActive);
+      if (active.isNotEmpty) {
+        _activeOrder = active.first;
+        _listenToOrderEvents();
         notifyListeners();
       }
     } catch (e) {
@@ -265,10 +264,10 @@ class OrderProvider extends ChangeNotifier {
     try {
       final response = await _apiClient.get(ApiEndpoints.orderHistory);
       final data = response.data as Map<String, dynamic>;
-      final list = data['data'] as List<dynamic>;
-      _orderHistory = list
-          .map((e) => Order.fromJson(e as Map<String, dynamic>))
-          .toList();
+      final list =
+          (data['data'] as Map<String, dynamic>)['orders'] as List<dynamic>;
+      _orderHistory =
+          list.map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
       _setState(OrderProviderState.success);
     } catch (e) {
       _error = extractErrorMessage(e);
@@ -305,6 +304,6 @@ class OrderProvider extends ChangeNotifier {
 }
 
 OrderProvider buildOrderProvider() => OrderProvider(
-  apiClient: sl<ApiClient>(),
-  socketService: sl<SocketService>(),
-);
+      apiClient: sl<ApiClient>(),
+      socketService: sl<SocketService>(),
+    );

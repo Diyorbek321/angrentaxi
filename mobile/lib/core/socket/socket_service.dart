@@ -121,4 +121,10 @@ class SocketEvents {
   static const String driverArrived = 'driver:arrived';
   static const String tripStarted = 'trip:started';
   static const String tripCompleted = 'trip:completed';
+
+  // Support chat
+  static const String supportMessageSend = 'support:message'; // client emit
+  static const String supportMessageNew =
+      'support:message:new'; // server -> client
+  static const String supportThreadUpdated = 'support:thread:updated';
 }

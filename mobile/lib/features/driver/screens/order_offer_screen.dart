@@ -88,7 +88,15 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
     await provider.acceptOrder(offer.id);
 
     if (!mounted) return;
-    Navigator.of(context).pushReplacementNamed('/driver/navigation');
+    if (provider.state == DriverProviderState.success) {
+      Navigator.of(context).pushReplacementNamed('/driver/navigation');
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content:
+                Text(provider.error ?? 'Buyurtmani qabul qilib bo\'lmadi')),
+      );
+    }
   }
 
   Future<void> _onDecline(Order offer) async {
@@ -138,8 +146,7 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
                           const SizedBox(height: 20),
                           _buildRouteInfo(offer),
                           const SizedBox(height: 20),
-                          if (_distanceToPickup != null)
-                            _buildDistanceInfo(),
+                          if (_distanceToPickup != null) _buildDistanceInfo(),
                           const SizedBox(height: 32),
                           _buildActionButtons(offer, provider),
                         ],
@@ -311,7 +318,8 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
               ),
               Text(
                 address,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                 maxLines: 2,
               ),
             ],

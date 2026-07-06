@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
+import 'package:angren_taxi/features/support/screens/chat_screen.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 
@@ -50,7 +51,9 @@ class DriverProfileScreen extends StatelessWidget {
                     ],
                   ),
                 const SizedBox(height: 24),
-                if (driver != null) _buildCarInfo(driver.carModel, driver.carColor, driver.carNumber),
+                if (driver != null)
+                  _buildCarInfo(
+                      driver.carModel, driver.carColor, driver.carNumber),
                 const SizedBox(height: 24),
                 _buildStatsRow(
                   driver?.totalTrips ?? 0,
@@ -170,10 +173,17 @@ class DriverProfileScreen extends StatelessWidget {
     return Column(
       children: [
         _buildMenuTile(Icons.edit_outlined, 'Ma\'lumotlarni tahrirlash', () {}),
-        _buildMenuTile(Icons.directions_car_outlined, 'Mashina ma\'lumotlari', () {}),
+        _buildMenuTile(
+            Icons.directions_car_outlined, 'Mashina ma\'lumotlari', () {}),
         _buildMenuTile(Icons.account_balance_outlined, 'Bank hisobi', () {}),
         _buildMenuTile(Icons.notifications_outlined, 'Bildirishnomalar', () {}),
-        _buildMenuTile(Icons.help_outline, 'Yordam', () {}),
+        _buildMenuTile(
+          Icons.help_outline,
+          'Yordam',
+          () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const ChatScreen()),
+          ),
+        ),
         _buildMenuTile(
           Icons.info_outline,
           'Dastur haqida',

@@ -26,6 +26,7 @@ import 'package:angren_taxi/features/passenger/screens/profile_screen.dart'
 import 'package:angren_taxi/features/passenger/screens/tariff_select_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/main_shell.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
+import 'package:angren_taxi/features/support/support_provider.dart';
 import 'package:angren_taxi/shared/widgets/loading_widget.dart';
 
 class AngrenTaxiApp extends StatelessWidget {
@@ -37,7 +38,10 @@ class AngrenTaxiApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider<AuthProvider>(create: (_) => buildAuthProvider()),
+        ChangeNotifierProvider<AuthProvider>(
+            create: (_) => buildAuthProvider()),
+        ChangeNotifierProvider<SupportProvider>(
+            create: (_) => buildSupportProvider()),
         if (flavor == AppFlavor.passenger)
           ChangeNotifierProvider<OrderProvider>(
             create: (_) => buildOrderProvider(),
@@ -80,7 +84,8 @@ class AngrenTaxiApp extends StatelessWidget {
         '/passenger/destination': (_) => const DestinationScreen(),
         '/passenger/tariff': (_) => const TariffSelectScreen(),
         '/passenger/history': (_) => const OrderHistoryScreen(),
-        '/passenger/profile': (_) => const passenger_profile.PassengerProfileScreen(),
+        '/passenger/profile': (_) =>
+            const passenger_profile.PassengerProfileScreen(),
       };
     }
 

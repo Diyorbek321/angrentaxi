@@ -159,14 +159,17 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
           ),
           const SizedBox(height: 12),
-          _buildInfoRow(Icons.radio_button_checked, Colors.green, 'Olish joyi', order.pickup.address),
+          _buildInfoRow(Icons.radio_button_checked, Colors.green, 'Olish joyi',
+              order.pickup.address),
           const SizedBox(height: 8),
-          _buildInfoRow(Icons.location_on, kError, 'Manzil', order.dropoff.address),
+          _buildInfoRow(
+              Icons.location_on, kError, 'Manzil', order.dropoff.address),
           const Divider(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Taxminiy narx:', style: TextStyle(color: kTextSecondary)),
+              const Text('Taxminiy narx:',
+                  style: TextStyle(color: kTextSecondary)),
               Text(
                 Formatters.formatPrice(order.estimatedPrice),
                 style: const TextStyle(
@@ -245,9 +248,21 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
             child: const Text("Yo'q"),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.of(ctx).pop();
-              // Would call cancel with "passenger_no_show" reason
+              await provider.cancelOrder(reason: 'passenger_no_show');
+              if (!mounted) return;
+              if (provider.state == DriverProviderState.success) {
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  '/driver/home',
+                  (route) => false,
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content: Text(provider.error ?? 'Bekor qilib bo\'lmadi')),
+                );
+              }
             },
             child: const Text('Ha', style: TextStyle(color: kError)),
           ),

@@ -19,10 +19,10 @@ class DriverProvider extends ChangeNotifier {
     required SocketService socketService,
     required LocationService locationService,
     required LocalStorage localStorage,
-  }) : _apiClient = apiClient,
-       _socketService = socketService,
-       _locationService = locationService,
-       _localStorage = localStorage;
+  })  : _apiClient = apiClient,
+        _socketService = socketService,
+        _locationService = locationService,
+        _localStorage = localStorage;
 
   final ApiClient _apiClient;
   final SocketService _socketService;
@@ -78,7 +78,8 @@ class DriverProvider extends ChangeNotifier {
   Future<void> goOnline() async {
     _setState(DriverProviderState.loading);
     try {
-      await _apiClient.post(ApiEndpoints.driverGoOnline);
+      await _apiClient
+          .patch(ApiEndpoints.driverStatus, data: {'isOnline': true});
       _isOnline = true;
       await _localStorage.saveDriverOnlineStatus(true);
       _socketService.emit(SocketEvents.driverOnline, {});
@@ -93,7 +94,8 @@ class DriverProvider extends ChangeNotifier {
   Future<void> goOffline() async {
     _setState(DriverProviderState.loading);
     try {
-      await _apiClient.post(ApiEndpoints.driverGoOffline);
+      await _apiClient
+          .patch(ApiEndpoints.driverStatus, data: {'isOnline': false});
       _isOnline = false;
       await _localStorage.saveDriverOnlineStatus(false);
       _socketService.emit(SocketEvents.driverOffline, {});
@@ -126,7 +128,7 @@ class DriverProvider extends ChangeNotifier {
   Future<void> acceptOrder(String orderId) async {
     _setState(DriverProviderState.loading);
     try {
-      final response = await _apiClient.post(
+      final response = await _apiClient.patch(
         ApiEndpoints.acceptOrder(orderId),
       );
       final data = response.data as Map<String, dynamic>;
@@ -141,7 +143,7 @@ class DriverProvider extends ChangeNotifier {
 
   Future<void> declineOrder(String orderId) async {
     try {
-      await _apiClient.post(ApiEndpoints.declineOrder(orderId));
+      await _apiClient.patch(ApiEndpoints.declineOrder(orderId));
       _pendingOffer = null;
       notifyListeners();
     } catch (e) {
@@ -154,7 +156,7 @@ class DriverProvider extends ChangeNotifier {
     if (_activeOrder == null) return;
     _setState(DriverProviderState.loading);
     try {
-      final response = await _apiClient.post(
+      final response = await _apiClient.patch(
         ApiEndpoints.arrivedAtPickup(_activeOrder!.id),
       );
       final data = response.data as Map<String, dynamic>;
@@ -170,7 +172,7 @@ class DriverProvider extends ChangeNotifier {
     if (_activeOrder == null) return;
     _setState(DriverProviderState.loading);
     try {
-      final response = await _apiClient.post(
+      final response = await _apiClient.patch(
         ApiEndpoints.startTrip(_activeOrder!.id),
       );
       final data = response.data as Map<String, dynamic>;
@@ -186,14 +188,31 @@ class DriverProvider extends ChangeNotifier {
     if (_activeOrder == null) return;
     _setState(DriverProviderState.loading);
     try {
-      final response = await _apiClient.post(
+      final response = await _apiClient.patch(
         ApiEndpoints.completeTrip(_activeOrder!.id),
       );
       final data = response.data as Map<String, dynamic>;
       final completedOrder = Order.fromJson(
         data['data'] as Map<String, dynamic>,
       );
-      _todayEarnings += completedOrder.actualPrice ?? completedOrder.estimatedPrice;
+      _todayEarnings +=
+          completedOrder.actualPrice ?? completedOrder.estimatedPrice;
+      _activeOrder = null;
+      _setState(DriverProviderState.success);
+    } catch (e) {
+      _error = extractErrorMessage(e);
+      _setState(DriverProviderState.error);
+    }
+  }
+
+  Future<void> cancelOrder({String? reason}) async {
+    if (_activeOrder == null) return;
+    _setState(DriverProviderState.loading);
+    try {
+      await _apiClient.patch(
+        ApiEndpoints.cancelOrder(_activeOrder!.id),
+        data: {if (reason != null) 'reason': reason},
+      );
       _activeOrder = null;
       _setState(DriverProviderState.success);
     } catch (e) {
@@ -206,11 +225,11 @@ class DriverProvider extends ChangeNotifier {
     _locationSubscription?.cancel();
     _locationSubscription = _locationService
         .getPositionStream(
-          distanceFilter: AppConfig.locationUpdateDistanceFilter,
-        )
+      distanceFilter: AppConfig.locationUpdateDistanceFilter,
+    )
         .listen((position) {
-          _emitLocation(position);
-        });
+      _emitLocation(position);
+    });
   }
 
   void _stopLocationUpdates() {
@@ -219,40 +238,41 @@ class DriverProvider extends ChangeNotifier {
   }
 
   void _emitLocation(Position position) {
-    if (!_socketService.isConnected) return;
-
-    final payload = {
-      'lat': position.latitude,
-      'lng': position.longitude,
-      if (_activeOrder != null) 'orderId': _activeOrder!.id,
-    };
-
-    _socketService.emit(SocketEvents.driverLocation, payload);
-
-    // HTTP backup for reliability
-    if (_activeOrder != null) {
-      _apiClient
-          .patch(
-            ApiEndpoints.updateLocation(_activeOrder!.id),
-            data: {'lat': position.latitude, 'lng': position.longitude},
-          )
-          .then<void>(
-            (_) {},
-            onError: (Object e) =>
-                debugPrint('[Location] HTTP update failed: $e'),
-          );
+    if (_socketService.isConnected) {
+      final payload = {
+        'lat': position.latitude,
+        'lng': position.longitude,
+        if (_activeOrder != null) 'orderId': _activeOrder!.id,
+      };
+      _socketService.emit(SocketEvents.driverLocation, payload);
     }
+
+    // HTTP backup, sent whenever online (not just mid-trip) so the driver's
+    // stored location stays fresh for nearby-driver matching.
+    _apiClient.post(
+      ApiEndpoints.updateLocation,
+      data: {'lat': position.latitude, 'lng': position.longitude},
+    ).then<void>(
+      (_) {},
+      onError: (Object e) => debugPrint('[Location] HTTP update failed: $e'),
+    );
   }
 
+  // No dedicated "my active order" endpoint exists — a driver has at most one
+  // order in flight, and it's always the most recent one, so it's derived
+  // from the first page of order history instead.
   Future<void> checkActiveOrder() async {
     try {
-      final response = await _apiClient.get(ApiEndpoints.driverActiveOrder);
+      final response = await _apiClient.get(ApiEndpoints.driverOrderHistory);
       final data = response.data as Map<String, dynamic>;
-      final orderData = data['data'];
-      if (orderData != null) {
-        _activeOrder = Order.fromJson(orderData as Map<String, dynamic>);
-        notifyListeners();
-      }
+      final ordersJson =
+          (data['data'] as Map<String, dynamic>)['orders'] as List<dynamic>;
+      final orders = ordersJson
+          .map((e) => Order.fromJson(e as Map<String, dynamic>))
+          .toList();
+      final active = orders.where((o) => o.isActive);
+      _activeOrder = active.isEmpty ? null : active.first;
+      notifyListeners();
     } catch (e) {
       debugPrint('[DriverProvider] checkActiveOrder error: $e');
     }
@@ -263,10 +283,10 @@ class DriverProvider extends ChangeNotifier {
     try {
       final response = await _apiClient.get(ApiEndpoints.driverOrderHistory);
       final data = response.data as Map<String, dynamic>;
-      final list = data['data'] as List<dynamic>;
-      _orderHistory = list
-          .map((e) => Order.fromJson(e as Map<String, dynamic>))
-          .toList();
+      final list =
+          (data['data'] as Map<String, dynamic>)['orders'] as List<dynamic>;
+      _orderHistory =
+          list.map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
       _setState(DriverProviderState.success);
     } catch (e) {
       _error = extractErrorMessage(e);
@@ -307,8 +327,8 @@ class DriverProvider extends ChangeNotifier {
 }
 
 DriverProvider buildDriverProvider() => DriverProvider(
-  apiClient: sl<ApiClient>(),
-  socketService: sl<SocketService>(),
-  locationService: sl<LocationService>(),
-  localStorage: sl<LocalStorage>(),
-);
+      apiClient: sl<ApiClient>(),
+      socketService: sl<SocketService>(),
+      locationService: sl<LocationService>(),
+      localStorage: sl<LocalStorage>(),
+    );

@@ -23,19 +23,16 @@ class ApiEndpoints {
   static const String tariffs = '/tariffs';
 
   // Driver
-  static const String driverProfile = '/drivers/profile';
-  static const String driverGoOnline = '/drivers/online';
-  static const String driverGoOffline = '/drivers/offline';
-  static const String driverActiveOrder = '/drivers/active-order';
-  static const String driverEarnings = '/drivers/earnings';
-  static const String driverOrderHistory = '/drivers/orders/history';
-  static String acceptOrder(String id) => '/drivers/orders/$id/accept';
-  static String declineOrder(String id) => '/drivers/orders/$id/decline';
-  static String arrivedAtPickup(String id) => '/drivers/orders/$id/arrived';
-  static String startTrip(String id) => '/drivers/orders/$id/start';
-  static String completeTrip(String id) => '/drivers/orders/$id/complete';
-  static String updateLocation(String orderId) =>
-      '/drivers/orders/$orderId/location';
+  static const String driverProfile = '/drivers/me';
+  static const String driverStatus = '/drivers/status';
+  static const String driverEarnings = '/orders/earnings';
+  static const String driverOrderHistory = '/orders/history';
+  static String acceptOrder(String id) => '/orders/$id/accept';
+  static String declineOrder(String id) => '/orders/$id/decline';
+  static String arrivedAtPickup(String id) => '/orders/$id/arrived';
+  static String startTrip(String id) => '/orders/$id/start';
+  static String completeTrip(String id) => '/orders/$id/complete';
+  static const String updateLocation = '/drivers/location';
 
   // Ratings
   static const String submitRating = '/ratings';
@@ -45,4 +42,10 @@ class ApiEndpoints {
 
   // FCM
   static const String registerFcmToken = '/notifications/register-token';
+
+  // Support chat
+  static const String supportThreadMe = '/support/threads/me';
+  static String supportThreadMessages(String id) =>
+      '/support/threads/$id/messages';
+  static String markSupportThreadRead(String id) => '/support/threads/$id/read';
 }
