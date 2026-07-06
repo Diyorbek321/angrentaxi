@@ -77,6 +77,7 @@ export interface User {
   lastName: string;
   role: string;
   status: 'active' | 'blocked';
+  blockReason?: string | null;
   createdAt: string;
   totalOrders?: number;
 }
@@ -95,7 +96,7 @@ export const usersApi = {
 
   getById: (id: string) => api.get<ApiResponse<User>>(`/users/${id}`),
 
-  block: (id: string) => api.patch<ApiResponse<User>>(`/users/${id}/block`),
+  block: (id: string, reason?: string) => api.patch<ApiResponse<User>>(`/users/${id}/block`, { reason }),
 
   unblock: (id: string) => api.patch<ApiResponse<User>>(`/users/${id}/unblock`),
 };
@@ -104,10 +105,12 @@ export const usersApi = {
 
 export interface Driver {
   id: string;
+  userId: string;
   phone: string;
   firstName: string;
   lastName: string;
   status: string;
+  blockReason?: string | null;
   isOnline: boolean;
   rating: number;
   totalTrips: number;
@@ -145,9 +148,11 @@ export const driversApi = {
 
   approve: (id: string) => api.patch<ApiResponse<Driver>>(`/drivers/${id}/approve`),
 
-  block: (id: string) => api.patch<ApiResponse<User>>(`/users/${id}/block`),
+  // Note: takes the driver's userId, not the driver profile id — blocking is
+  // a User-level action (/users/:id/block), a different id than /drivers/:id.
+  block: (userId: string, reason?: string) => api.patch<ApiResponse<User>>(`/users/${userId}/block`, { reason }),
 
-  unblock: (id: string) => api.patch<ApiResponse<User>>(`/users/${id}/unblock`),
+  unblock: (userId: string) => api.patch<ApiResponse<User>>(`/users/${userId}/unblock`),
 };
 
 // ─── Orders ───────────────────────────────────────────────────────
@@ -217,6 +222,8 @@ export interface Tariff {
   pricePerKm: number;
   pricePerMin: number;
   minPrice: number;
+  maxPrice: number | null;
+  surgeMultiplier: number;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -229,6 +236,7 @@ export interface TariffCreateInput {
   pricePerKm: number;
   pricePerMin: number;
   minPrice: number;
+  maxPrice?: number;
   isActive?: boolean;
 }
 
@@ -242,8 +250,11 @@ export const tariffsApi = {
   update: (id: string, data: Partial<TariffCreateInput>) =>
     api.patch<ApiResponse<Tariff>>(`/tariffs/${id}`, data),
 
-  toggleActive: (id: string) =>
-    api.patch<ApiResponse<Tariff>>(`/tariffs/${id}`, { isActive: true }),
+  toggleActive: (id: string, isActive: boolean) =>
+    api.patch<ApiResponse<Tariff>>(`/tariffs/${id}`, { isActive }),
+
+  setSurge: (id: string, multiplier: number) =>
+    api.patch<ApiResponse<Tariff>>(`/tariffs/${id}/surge`, { multiplier }),
 
   delete: (id: string) => api.delete<ApiResponse<void>>(`/tariffs/${id}`),
 };
@@ -302,4 +313,96 @@ export interface DashboardStats {
 
 export const dashboardApi = {
   getStats: () => api.get<ApiResponse<DashboardStats>>('/orders/stats'),
+};
+
+// ─── Promo Codes ──────────────────────────────────────────────────
+
+export interface PromoCode {
+  id: string;
+  code: string;
+  discountPercent: number | null;
+  discountFixed: number | null;
+  maxUses: number | null;
+  usedCount: number;
+  minOrderAmount: number;
+  expiresAt: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export const promoCodesApi = {
+  getAll: () => api.get<ApiResponse<PromoCode[]>>('/promo-codes'),
+
+  deactivate: (id: string) => api.delete<ApiResponse<PromoCode>>(`/promo-codes/${id}`),
+};
+
+// ─── Tariff Change Requests ───────────────────────────────────────
+
+export type TariffChangeAction = 'create' | 'update';
+export type TariffChangeRequestStatus = 'pending' | 'approved' | 'rejected';
+
+export interface TariffChangeRequest {
+  id: string;
+  action: TariffChangeAction;
+  tariffId: string | null;
+  proposedChanges: Record<string, unknown>;
+  previousValues: Record<string, unknown> | null;
+  status: TariffChangeRequestStatus;
+  proposedBy: string;
+  reviewNote: string | null;
+  createdAt: string;
+}
+
+export const tariffChangeRequestsApi = {
+  getAll: (status?: TariffChangeRequestStatus) =>
+    api.get<ApiResponse<TariffChangeRequest[]>>('/tariff-change-requests', {
+      params: status ? { status } : undefined,
+    }),
+
+  getById: (id: string) =>
+    api.get<ApiResponse<TariffChangeRequest>>(`/tariff-change-requests/${id}`),
+
+  approve: (id: string, reviewNote?: string) =>
+    api.patch<ApiResponse<TariffChangeRequest>>(`/tariff-change-requests/${id}/approve`, {
+      reviewNote,
+    }),
+
+  reject: (id: string, reviewNote?: string) =>
+    api.patch<ApiResponse<TariffChangeRequest>>(`/tariff-change-requests/${id}/reject`, {
+      reviewNote,
+    }),
+};
+
+// ─── Driver Bonus Rules ───────────────────────────────────────────
+
+export type BonusRuleType = 'trip_count' | 'weekly_goal';
+export type BonusRuleStatus = 'active' | 'inactive';
+
+export interface BonusRule {
+  id: string;
+  name: string;
+  ruleType: BonusRuleType;
+  tripThreshold: number;
+  bonusAmount: number;
+  serviceType: string | null;
+  status: BonusRuleStatus;
+  createdAt: string;
+}
+
+export interface BonusRuleCreateInput {
+  name: string;
+  ruleType: BonusRuleType;
+  tripThreshold: number;
+  bonusAmount: number;
+  serviceType?: string;
+}
+
+export const bonusRulesApi = {
+  getAll: () => api.get<ApiResponse<BonusRule[]>>('/driver-bonus-rules'),
+
+  create: (data: BonusRuleCreateInput) =>
+    api.post<ApiResponse<BonusRule>>('/driver-bonus-rules', data),
+
+  update: (id: string, data: Partial<BonusRuleCreateInput & { status: BonusRuleStatus }>) =>
+    api.patch<ApiResponse<BonusRule>>(`/driver-bonus-rules/${id}`, data),
 };

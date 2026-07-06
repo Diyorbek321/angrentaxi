@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Star, Car, Phone, Shield, ShieldOff, CheckCircle } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Pagination } from '@/components/ui/Pagination';
@@ -50,6 +51,7 @@ export default function DriverDetailPage() {
   const [tripsLoading, setTripsLoading] = useState(false);
   const [actionType, setActionType] = useState<'approve' | 'block' | 'unblock' | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [blockReason, setBlockReason] = useState('');
 
   const tripsPagination = usePagination(10);
 
@@ -100,12 +102,12 @@ export default function DriverDetailPage() {
         setDriver(prev => prev ? { ...prev, ...(res.data.data as Partial<Driver>) } : null);
         toast({ title: 'Haydovchi tasdiqlandi', variant: 'success' });
       } else if (actionType === 'block') {
-        await driversApi.block(driver.id);
-        setDriver(prev => prev ? { ...prev, status: 'blocked' } : null);
+        await driversApi.block(driver.userId, blockReason.trim() || undefined);
+        setDriver(prev => prev ? { ...prev, status: 'blocked', blockReason: blockReason.trim() || null } : null);
         toast({ title: 'Haydovchi bloklandi', variant: 'success' });
       } else if (actionType === 'unblock') {
-        await driversApi.unblock(driver.id);
-        setDriver(prev => prev ? { ...prev, status: 'active' } : null);
+        await driversApi.unblock(driver.userId);
+        setDriver(prev => prev ? { ...prev, status: 'active', blockReason: null } : null);
         toast({ title: 'Haydovchi blokdan chiqarildi', variant: 'success' });
       }
     } catch {
@@ -113,6 +115,7 @@ export default function DriverDetailPage() {
     } finally {
       setActionLoading(false);
       setActionType(null);
+      setBlockReason('');
     }
   };
 
@@ -154,6 +157,11 @@ export default function DriverDetailPage() {
                 <div className="mt-2">
                   <DriverStatusBadge status={driver.status} isOnline={driver.isOnline} />
                 </div>
+                {driver.status === 'blocked' && driver.blockReason && (
+                  <p className="mt-2 text-xs text-red-400">
+                    Sabab: {driver.blockReason}
+                  </p>
+                )}
                 <div className="mt-3 flex items-center gap-1">
                   <Star className="h-4 w-4 fill-brand-yellow text-brand-yellow" />
                   <span className="font-semibold text-gray-100">{formatRating(driver.rating)}</span>
@@ -307,7 +315,7 @@ export default function DriverDetailPage() {
       </div>
 
       {/* Confirm action modal */}
-      <Dialog open={!!actionType} onOpenChange={() => setActionType(null)}>
+      <Dialog open={!!actionType} onOpenChange={() => { setActionType(null); setBlockReason(''); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
@@ -325,6 +333,14 @@ export default function DriverDetailPage() {
               {actionType === 'unblock' && 'Bu haydovchi yana tizimda ishlash imkoniyatiga ega bo\'ladi.'}
             </DialogDescription>
           </DialogHeader>
+          {actionType === 'block' && (
+            <Input
+              label="Sabab (ixtiyoriy)"
+              placeholder="Masalan: qoidabuzarlik, shikoyatlar..."
+              value={blockReason}
+              onChange={(e) => setBlockReason(e.target.value)}
+            />
+          )}
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setActionType(null)}>
               Bekor qilish

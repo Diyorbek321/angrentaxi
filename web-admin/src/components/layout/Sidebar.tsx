@@ -11,6 +11,8 @@ import {
   BarChart2,
   LogOut,
   Zap,
+  Ticket,
+  Gift,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -41,6 +43,16 @@ const navItems = [
     href: '/dashboard/tariffs',
     label: 'Tariflar',
     icon: Tag,
+  },
+  {
+    href: '/dashboard/promo-codes',
+    label: 'Promo kodlar',
+    icon: Ticket,
+  },
+  {
+    href: '/dashboard/bonuses',
+    label: 'Bonuslar',
+    icon: Gift,
   },
   {
     href: '/dashboard/reports',

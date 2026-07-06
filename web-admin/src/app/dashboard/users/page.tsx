@@ -46,6 +46,7 @@ export default function UsersPage() {
   const [search, setSearch] = useState('');
   const [role, setRole] = useState<string>('all');
   const [confirmUser, setConfirmUser] = useState<User | null>(null);
+  const [blockReason, setBlockReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
   const fetchUsers = useCallback(async () => {
@@ -87,13 +88,14 @@ export default function UsersPage() {
     setActionLoading(true);
     try {
       if (confirmUser.status === 'active') {
-        await usersApi.block(confirmUser.id);
+        await usersApi.block(confirmUser.id, blockReason.trim() || undefined);
         toast({ title: 'Foydalanuvchi bloklandi', variant: 'success' });
       } else {
         await usersApi.unblock(confirmUser.id);
         toast({ title: 'Foydalanuvchi blokdan chiqarildi', variant: 'success' });
       }
       setConfirmUser(null);
+      setBlockReason('');
       await fetchUsers();
     } catch {
       toast({ title: 'Xatolik', description: 'Amalni bajarishda xatolik', variant: 'error' });
@@ -161,15 +163,15 @@ export default function UsersPage() {
                     <TableRow key={user.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-600">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-semibold text-gray-300">
                             {user.firstName?.charAt(0) || '?'}
                           </div>
-                          <span className="font-medium text-gray-900">
+                          <span className="font-medium text-gray-100">
                             {getFullName(user.firstName || '', user.lastName || '')}
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-gray-600">
+                      <TableCell className="text-gray-300">
                         {formatPhone(user.phone)}
                       </TableCell>
                       <TableCell>
@@ -178,14 +180,21 @@ export default function UsersPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={user.status === 'active' ? 'success' : 'destructive'}>
-                          {user.status === 'active' ? 'Faol' : 'Bloklangan'}
-                        </Badge>
+                        <div className="flex flex-col gap-0.5">
+                          <Badge variant={user.status === 'active' ? 'success' : 'destructive'}>
+                            {user.status === 'active' ? 'Faol' : 'Bloklangan'}
+                          </Badge>
+                          {user.status === 'blocked' && user.blockReason && (
+                            <span className="text-xs text-gray-500 max-w-[180px] truncate" title={user.blockReason}>
+                              {user.blockReason}
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
-                      <TableCell className="text-xs text-gray-500">
+                      <TableCell className="text-xs text-gray-400">
                         {formatDate(user.createdAt, 'dd.MM.yyyy')}
                       </TableCell>
-                      <TableCell className="font-medium text-gray-900">
+                      <TableCell className="font-medium text-gray-100">
                         {user.totalOrders ?? '—'}
                       </TableCell>
                       <TableCell className="text-right">
@@ -233,7 +242,7 @@ export default function UsersPage() {
       </div>
 
       {/* Confirm modal */}
-      <Dialog open={!!confirmUser} onOpenChange={() => setConfirmUser(null)}>
+      <Dialog open={!!confirmUser} onOpenChange={() => { setConfirmUser(null); setBlockReason(''); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
@@ -245,8 +254,16 @@ export default function UsersPage() {
                 : `${getFullName(confirmUser?.firstName || '', confirmUser?.lastName || '')} ni blokdan chiqarmoqchimisiz?`}
             </DialogDescription>
           </DialogHeader>
+          {confirmUser?.status === 'active' && (
+            <Input
+              label="Sabab (ixtiyoriy)"
+              placeholder="Masalan: qoidabuzarlik, spam..."
+              value={blockReason}
+              onChange={(e) => setBlockReason(e.target.value)}
+            />
+          )}
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setConfirmUser(null)}>
+            <Button variant="outline" onClick={() => { setConfirmUser(null); setBlockReason(''); }}>
               Bekor qilish
             </Button>
             <Button

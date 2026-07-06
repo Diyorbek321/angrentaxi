@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Flame } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -13,12 +13,19 @@ import { Badge } from '@/components/ui/Badge';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/Modal';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { tariffsApi, Tariff, TariffCreateInput } from '@/lib/api';
+import {
+  tariffsApi,
+  tariffChangeRequestsApi,
+  Tariff,
+  TariffCreateInput,
+  TariffChangeRequest,
+} from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 import { formatCurrency, formatDate } from '@/lib/utils';
 
@@ -29,8 +36,26 @@ const tariffSchema = z.object({
   pricePerKm: z.coerce.number().min(0, 'Manfiy qiymat bo\'lmasin'),
   pricePerMin: z.coerce.number().min(0, 'Manfiy qiymat bo\'lmasin'),
   minPrice: z.coerce.number().min(0, 'Manfiy qiymat bo\'lmasin'),
+  maxPrice: z.coerce.number().min(0, 'Manfiy qiymat bo\'lmasin').optional(),
   isActive: z.boolean().optional(),
 });
+
+const actionLabel: Record<TariffChangeRequest['action'], string> = {
+  create: 'Yangi',
+  update: 'Yangilash',
+};
+
+const statusVariant: Record<TariffChangeRequest['status'], 'secondary' | 'success' | 'destructive'> = {
+  pending: 'secondary',
+  approved: 'success',
+  rejected: 'destructive',
+};
+
+const statusLabel: Record<TariffChangeRequest['status'], string> = {
+  pending: 'Kutilmoqda',
+  approved: 'Tasdiqlangan',
+  rejected: 'Rad etilgan',
+};
 
 type TariffForm = z.infer<typeof tariffSchema>;
 
@@ -43,6 +68,13 @@ export default function TariffsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Tariff | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [surgeInputs, setSurgeInputs] = useState<Record<string, string>>({});
+  const [savingSurgeId, setSavingSurgeId] = useState<string | null>(null);
+  const [requests, setRequests] = useState<TariffChangeRequest[]>([]);
+  const [reviewRequest, setReviewRequest] = useState<TariffChangeRequest | null>(null);
+  const [reviewAction, setReviewAction] = useState<'approve' | 'reject' | null>(null);
+  const [reviewNote, setReviewNote] = useState('');
+  const [reviewing, setReviewing] = useState(false);
 
   const {
     register,
@@ -63,8 +95,18 @@ export default function TariffsPage() {
     }
   };
 
+  const fetchRequests = async () => {
+    try {
+      const res = await tariffChangeRequestsApi.getAll();
+      setRequests(res.data.data);
+    } catch {
+      toast({ title: 'Xatolik', description: 'Takliflarni yuklashda xatolik', variant: 'error' });
+    }
+  };
+
   useEffect(() => {
     fetchTariffs();
+    fetchRequests();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -77,6 +119,7 @@ export default function TariffsPage() {
       pricePerKm: 0,
       pricePerMin: 0,
       minPrice: 0,
+      maxPrice: undefined,
       isActive: true,
     });
     setModalOpen(true);
@@ -91,6 +134,7 @@ export default function TariffsPage() {
       pricePerKm: tariff.pricePerKm,
       pricePerMin: tariff.pricePerMin,
       minPrice: tariff.minPrice,
+      maxPrice: tariff.maxPrice ?? undefined,
       isActive: tariff.isActive,
     });
     setModalOpen(true);
@@ -106,6 +150,7 @@ export default function TariffsPage() {
         pricePerKm: data.pricePerKm,
         pricePerMin: data.pricePerMin,
         minPrice: data.minPrice,
+        maxPrice: data.maxPrice,
         isActive: data.isActive ?? true,
       };
       if (editingTariff) {
@@ -126,7 +171,7 @@ export default function TariffsPage() {
 
   const handleToggle = async (tariff: Tariff) => {
     try {
-      const res = await tariffsApi.toggleActive(tariff.id);
+      const res = await tariffsApi.toggleActive(tariff.id, !tariff.isActive);
       setTariffs((prev) => prev.map((t) => (t.id === tariff.id ? res.data.data : t)));
       toast({
         title: res.data.data.isActive ? 'Tarif yoqildi' : 'Tarif o\'chirildi',
@@ -134,6 +179,50 @@ export default function TariffsPage() {
       });
     } catch {
       toast({ title: 'Xatolik', variant: 'error' });
+    }
+  };
+
+  const handleSetSurge = async (tariff: Tariff) => {
+    const raw = surgeInputs[tariff.id];
+    const multiplier = raw !== undefined ? parseFloat(raw) : tariff.surgeMultiplier;
+
+    if (Number.isNaN(multiplier) || multiplier < 1 || multiplier > 3) {
+      toast({ title: 'Xatolik', description: 'Koeffitsient 1.0 dan 3.0 gacha bo\'lishi kerak', variant: 'error' });
+      return;
+    }
+
+    setSavingSurgeId(tariff.id);
+    try {
+      const res = await tariffsApi.setSurge(tariff.id, multiplier);
+      setTariffs((prev) => prev.map((t) => (t.id === tariff.id ? res.data.data : t)));
+      setSurgeInputs((prev) => ({ ...prev, [tariff.id]: String(res.data.data.surgeMultiplier) }));
+      toast({ title: 'Narx koeffitsienti yangilandi', variant: 'success' });
+    } catch {
+      toast({ title: 'Xatolik', description: 'Koeffitsientni saqlashda xatolik', variant: 'error' });
+    } finally {
+      setSavingSurgeId(null);
+    }
+  };
+
+  const handleReview = async () => {
+    if (!reviewRequest || !reviewAction) return;
+    setReviewing(true);
+    try {
+      if (reviewAction === 'approve') {
+        await tariffChangeRequestsApi.approve(reviewRequest.id, reviewNote.trim() || undefined);
+        toast({ title: 'Taklif tasdiqlandi', variant: 'success' });
+      } else {
+        await tariffChangeRequestsApi.reject(reviewRequest.id, reviewNote.trim() || undefined);
+        toast({ title: 'Taklif rad etildi', variant: 'success' });
+      }
+      setReviewRequest(null);
+      setReviewAction(null);
+      setReviewNote('');
+      await Promise.all([fetchTariffs(), fetchRequests()]);
+    } catch {
+      toast({ title: 'Xatolik', description: 'Taklifni ko\'rib chiqishda xatolik', variant: 'error' });
+    } finally {
+      setReviewing(false);
     }
   };
 
@@ -190,48 +279,89 @@ export default function TariffsPage() {
                     </Badge>
                   </div>
                   {tariff.description && (
-                    <p className="text-xs text-gray-500 mt-1">{tariff.description}</p>
+                    <p className="text-xs text-gray-400 mt-1">{tariff.description}</p>
                   )}
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm pb-4">
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-lg bg-gray-50 p-2 text-center">
-                      <p className="text-xs text-gray-500">Boshlang&apos;ich</p>
-                      <p className="font-semibold text-gray-900 text-xs mt-0.5">
+                    <div className="rounded-lg bg-white/5 p-2 text-center">
+                      <p className="text-xs text-gray-400">Boshlang&apos;ich</p>
+                      <p className="font-semibold text-gray-100 text-xs mt-0.5">
                         {formatCurrency(tariff.basePrice)}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-gray-50 p-2 text-center">
-                      <p className="text-xs text-gray-500">Minimum</p>
-                      <p className="font-semibold text-gray-900 text-xs mt-0.5">
+                    <div className="rounded-lg bg-white/5 p-2 text-center">
+                      <p className="text-xs text-gray-400">Minimum</p>
+                      <p className="font-semibold text-gray-100 text-xs mt-0.5">
                         {formatCurrency(tariff.minPrice)}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-gray-50 p-2 text-center">
-                      <p className="text-xs text-gray-500">Har km uchun</p>
-                      <p className="font-semibold text-gray-900 text-xs mt-0.5">
+                    <div className="rounded-lg bg-white/5 p-2 text-center">
+                      <p className="text-xs text-gray-400">Har km uchun</p>
+                      <p className="font-semibold text-gray-100 text-xs mt-0.5">
                         {formatCurrency(tariff.pricePerKm)}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-gray-50 p-2 text-center">
-                      <p className="text-xs text-gray-500">Har min uchun</p>
-                      <p className="font-semibold text-gray-900 text-xs mt-0.5">
+                    <div className="rounded-lg bg-white/5 p-2 text-center">
+                      <p className="text-xs text-gray-400">Har min uchun</p>
+                      <p className="font-semibold text-gray-100 text-xs mt-0.5">
                         {formatCurrency(tariff.pricePerMin)}
                       </p>
                     </div>
+                    <div className="rounded-lg bg-white/5 p-2 text-center col-span-2">
+                      <p className="text-xs text-gray-400">Maksimum</p>
+                      <p className="font-semibold text-gray-100 text-xs mt-0.5">
+                        {tariff.maxPrice != null ? formatCurrency(tariff.maxPrice) : 'Cheklanmagan'}
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">
+
+                  {/* Surge multiplier control */}
+                  <div className="rounded-lg border border-white/10 p-2.5">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="flex items-center gap-1.5 text-xs text-gray-400">
+                        <Flame className={`h-3.5 w-3.5 ${tariff.surgeMultiplier > 1 ? 'text-orange-400' : 'text-gray-500'}`} />
+                        Talab koeffitsienti
+                      </span>
+                      <Badge variant={tariff.surgeMultiplier > 1 ? 'destructive' : 'secondary'}>
+                        {tariff.surgeMultiplier.toFixed(1)}x
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={1}
+                        max={3}
+                        step={0.1}
+                        value={surgeInputs[tariff.id] ?? String(tariff.surgeMultiplier)}
+                        onChange={(e) =>
+                          setSurgeInputs((prev) => ({ ...prev, [tariff.id]: e.target.value }))
+                        }
+                        className="w-20 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-gray-100 focus:outline-none focus:ring-1 focus:ring-brand-yellow"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        isLoading={savingSurgeId === tariff.id}
+                        onClick={() => handleSetSurge(tariff)}
+                      >
+                        Qo&apos;llash
+                      </Button>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-gray-500 mt-1">
                     Yangilangan: {formatDate(tariff.updatedAt, 'dd.MM.yyyy')}
                   </p>
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                  <div className="flex items-center justify-between pt-2 border-t border-white/10">
                     <button
-                      className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                      className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-200 transition-colors"
                       onClick={() => handleToggle(tariff)}
                     >
                       {tariff.isActive ? (
                         <ToggleRight className="h-4 w-4 text-green-500" />
                       ) : (
-                        <ToggleLeft className="h-4 w-4 text-gray-400" />
+                        <ToggleLeft className="h-4 w-4 text-gray-500" />
                       )}
                       {tariff.isActive ? 'O\'chirish' : 'Yoqish'}
                     </button>
@@ -242,7 +372,7 @@ export default function TariffsPage() {
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        className="hover:text-red-600"
+                        className="hover:text-red-500"
                         onClick={() => setDeleteTarget(tariff)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -254,6 +384,64 @@ export default function TariffsPage() {
             ))}
           </div>
         )}
+
+        {/* Manager-proposed tariff changes awaiting review */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Takliflar</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {requests.length === 0 ? (
+              <p className="text-sm text-gray-500">Hozircha takliflar yo&apos;q</p>
+            ) : (
+              <div className="space-y-2">
+                {requests.map((req) => (
+                  <div
+                    key={req.id}
+                    className="flex items-center justify-between rounded-lg border border-white/10 px-4 py-3"
+                  >
+                    <div className="text-sm">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">{actionLabel[req.action]}</Badge>
+                        <span className="text-gray-100">
+                          {(req.proposedChanges as { name?: string }).name ?? 'Tarif'}
+                        </span>
+                        <Badge variant={statusVariant[req.status]}>{statusLabel[req.status]}</Badge>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {formatDate(req.createdAt, 'dd.MM.yyyy HH:mm')}
+                      </p>
+                    </div>
+                    {req.status === 'pending' && (
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="success"
+                          onClick={() => {
+                            setReviewRequest(req);
+                            setReviewAction('approve');
+                          }}
+                        >
+                          Tasdiqlash
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => {
+                            setReviewRequest(req);
+                            setReviewAction('reject');
+                          }}
+                        >
+                          Rad etish
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Create/Edit modal */}
@@ -303,8 +491,15 @@ export default function TariffsPage() {
                 error={errors.pricePerMin?.message}
                 {...register('pricePerMin')}
               />
+              <Input
+                label="Maksimal narx (UZS, ixtiyoriy)"
+                type="number"
+                placeholder="50000"
+                error={errors.maxPrice?.message}
+                {...register('maxPrice')}
+              />
             </div>
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-300 cursor-pointer">
               <input type="checkbox" className="rounded accent-brand-yellow" {...register('isActive')} />
               Darhol faol qilish
             </label>
@@ -326,7 +521,7 @@ export default function TariffsPage() {
           <DialogHeader>
             <DialogTitle>Tarifni o&apos;chirish</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-300">
             <strong>{deleteTarget?.name}</strong> tarifini o&apos;chirmoqchimisiz? Bu amalni bekor qilib
             bo&apos;lmaydi.
           </p>
@@ -336,6 +531,54 @@ export default function TariffsPage() {
             </Button>
             <Button variant="destructive" isLoading={deleting} onClick={handleDelete}>
               O&apos;chirish
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Tariff change request review modal */}
+      <Dialog
+        open={!!reviewRequest}
+        onOpenChange={() => {
+          setReviewRequest(null);
+          setReviewAction(null);
+          setReviewNote('');
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {reviewAction === 'approve' ? 'Taklifni tasdiqlash' : 'Taklifni rad etish'}
+            </DialogTitle>
+            <DialogDescription>
+              {reviewAction === 'approve'
+                ? 'Ushbu taklifni tasdiqlasangiz, o\'zgarishlar darhol tariflarga qo\'llaniladi.'
+                : 'Ushbu taklifni rad etmoqchimisiz?'}
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            label="Izoh (ixtiyoriy)"
+            placeholder="Sababini yozing..."
+            value={reviewNote}
+            onChange={(e) => setReviewNote(e.target.value)}
+          />
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setReviewRequest(null);
+                setReviewAction(null);
+                setReviewNote('');
+              }}
+            >
+              Bekor qilish
+            </Button>
+            <Button
+              variant={reviewAction === 'approve' ? 'success' : 'destructive'}
+              isLoading={reviewing}
+              onClick={handleReview}
+            >
+              {reviewAction === 'approve' ? 'Tasdiqlash' : 'Rad etish'}
             </Button>
           </DialogFooter>
         </DialogContent>
