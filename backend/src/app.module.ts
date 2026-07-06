@@ -28,6 +28,11 @@ import { Otp } from './database/entities/otp.entity';
 import { Rating } from './database/entities/rating.entity';
 import { PromoCode } from './database/entities/promo_code.entity';
 import { PromoCodeUsage } from './database/entities/promo_code_usage.entity';
+import { TariffChangeRequest } from './database/entities/tariff-change-request.entity';
+import { DriverBonusRule } from './database/entities/driver-bonus-rule.entity';
+import { DriverBonusAward } from './database/entities/driver-bonus-award.entity';
+import { SupportThread } from './database/entities/support-thread.entity';
+import { SupportMessage } from './database/entities/support-message.entity';
 
 // Feature Modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -41,6 +46,9 @@ import { PaymentsModule } from './modules/payments/payments.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { RatingsModule } from './modules/ratings/ratings.module';
 import { PromoCodesModule } from './modules/promo-codes/promo-codes.module';
+import { TariffChangeRequestsModule } from './modules/tariff-change-requests/tariff-change-requests.module';
+import { DriverBonusesModule } from './modules/driver-bonuses/driver-bonuses.module';
+import { SupportModule } from './modules/support/support.module';
 
 @Module({
   imports: [
@@ -61,7 +69,23 @@ import { PromoCodesModule } from './modules/promo-codes/promo-codes.module';
         username: configService.get<string>('DB_USER', 'postgres'),
         password: configService.get<string>('DB_PASS', 'postgres'),
         database: configService.get<string>('DB_NAME', 'angren_taxi'),
-        entities: [User, Driver, Tariff, Order, Trip, Transaction, Otp, Rating, PromoCode, PromoCodeUsage],
+        entities: [
+          User,
+          Driver,
+          Tariff,
+          Order,
+          Trip,
+          Transaction,
+          Otp,
+          Rating,
+          PromoCode,
+          PromoCodeUsage,
+          TariffChangeRequest,
+          DriverBonusRule,
+          DriverBonusAward,
+          SupportThread,
+          SupportMessage,
+        ],
         migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
         // Schema is built from entities via synchronize (default on) for the test/MVP server,
         // since the hand-written migration drifted from the entities. Set DB_SYNC=false to
@@ -113,6 +137,9 @@ import { PromoCodesModule } from './modules/promo-codes/promo-codes.module';
     NotificationsModule,
     RatingsModule,
     PromoCodesModule,
+    TariffChangeRequestsModule,
+    DriverBonusesModule,
+    SupportModule,
   ],
 })
 export class AppModule {}

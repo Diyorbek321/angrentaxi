@@ -11,6 +11,8 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { UsersModule } from '../users/users.module';
 import { DriversModule } from '../drivers/drivers.module';
 import { MatchingModule } from '../matching/matching.module';
+import { PromoCodesModule } from '../promo-codes/promo-codes.module';
+import { DriverBonusesModule } from '../driver-bonuses/driver-bonuses.module';
 
 @Module({
   imports: [
@@ -21,6 +23,8 @@ import { MatchingModule } from '../matching/matching.module';
     UsersModule,
     DriversModule,
     MatchingModule,
+    PromoCodesModule,
+    DriverBonusesModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

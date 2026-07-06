@@ -9,6 +9,7 @@ import {
 import { User } from './user.entity';
 import { Order } from './order.entity';
 import { PaymentMethod } from './order.entity';
+import { DriverBonusRule } from './driver-bonus-rule.entity';
 
 export enum TransactionType {
   CREDIT = 'credit',
@@ -73,6 +74,14 @@ export class Transaction {
 
   @Column({ nullable: true, type: 'varchar' })
   externalId: string | null;
+
+  // Set when this CREDIT transaction is a driver bonus payout (see DriverBonusesService).
+  @ManyToOne(() => DriverBonusRule, { nullable: true, eager: false })
+  @JoinColumn({ name: 'bonus_rule_id' })
+  bonusRule: DriverBonusRule | null;
+
+  @Column({ name: 'bonus_rule_id', type: 'uuid', nullable: true })
+  bonusRuleId: string | null;
 
   @CreateDateColumn()
   createdAt: Date;

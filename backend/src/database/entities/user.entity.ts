@@ -16,6 +16,9 @@ export enum UserRole {
 export enum UserStatus {
   ACTIVE = 'active',
   BLOCKED = 'blocked',
+  // A driver who just self-registered a profile — awaiting admin approval.
+  // Passengers/managers/admins are never PENDING; they go ACTIVE immediately.
+  PENDING = 'pending',
 }
 
 @Entity('users')
@@ -45,6 +48,9 @@ export class User {
     default: UserStatus.ACTIVE,
   })
   status: UserStatus;
+
+  @Column({ nullable: true, type: 'varchar', length: 300 })
+  blockReason: string | null;
 
   @Column({ nullable: true, type: 'varchar' })
   fcmToken: string | null;

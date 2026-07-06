@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { User } from './user.entity';
 import { Tariff } from './tariff.entity';
+import { PromoCode } from './promo_code.entity';
 
 export enum OrderStatus {
   CREATED = 'created',
@@ -103,6 +104,41 @@ export class Order {
     },
   })
   finalPrice: number | null;
+
+  @ManyToOne(() => PromoCode, { nullable: true, eager: false })
+  @JoinColumn({ name: 'promo_code_id' })
+  promoCode: PromoCode | null;
+
+  @Column({ name: 'promo_code_id', type: 'uuid', nullable: true })
+  promoCodeId: string | null;
+
+  @Column({
+    name: 'discount_amount',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    transformer: {
+      to: (value: number | null) => value,
+      from: (value: string | null) => (value !== null ? parseFloat(value) : null),
+    },
+  })
+  discountAmount: number | null;
+
+  // Amount credited to the driver for this order (finalPrice minus discount; no
+  // commission deduction — see plan's explicit scoping-out of platform commission).
+  @Column({
+    name: 'driver_earning',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    transformer: {
+      to: (value: number | null) => value,
+      from: (value: string | null) => (value !== null ? parseFloat(value) : null),
+    },
+  })
+  driverEarning: number | null;
 
   @Column({
     type: 'enum',

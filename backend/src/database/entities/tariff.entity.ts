@@ -77,6 +77,20 @@ export class Tariff {
   })
   surgeMultiplier: number;
 
+  // Upper cap on the computed price; null = unbounded (preserves pre-existing behavior).
+  @Column({
+    name: 'max_price',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    transformer: {
+      to: (value: number | null) => value,
+      from: (value: string | null) => (value !== null ? parseFloat(value) : null),
+    },
+  })
+  maxPrice: number | null;
+
   @Column({ default: true })
   isActive: boolean;
 

@@ -44,8 +44,18 @@ export class DriversController {
   @Get()
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
   @ApiOperation({ summary: 'List all drivers (admin/manager only)' })
-  async findAll(@Query('page') page = 1, @Query('limit') limit = 20) {
-    return this.driversService.findAll(Number(page), Number(limit));
+  async findAll(
+    @Query('page') page = 1,
+    @Query('limit') limit = 20,
+    @Query('status') status?: string,
+    @Query('isOnline') isOnline?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.driversService.findAll(Number(page), Number(limit), {
+      status,
+      isOnline: isOnline === undefined ? undefined : isOnline === 'true',
+      search,
+    });
   }
 
   @Get('online')
@@ -53,6 +63,42 @@ export class DriversController {
   @ApiOperation({ summary: 'List online drivers with live status (admin/manager only)' })
   async getOnlineDrivers() {
     return this.driversService.getOnlineDriversList();
+  }
+
+  @Post('profile')
+  @Roles(UserRole.DRIVER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Create driver profile' })
+  @ApiResponse({ status: 201, description: 'Driver profile created' })
+  @ApiResponse({ status: 409, description: 'Driver profile already exists' })
+  async createProfile(
+    @CurrentUser() user: User,
+    @Body() dto: CreateDriverDto,
+  ): Promise<Driver> {
+    return this.driversService.createProfile(user.id, dto);
+  }
+
+  // NOTE: literal-path routes (me, status, location, online) must all be
+  // declared before ':id' — otherwise Express matches ':id' first and treats
+  // e.g. "me" as a driver UUID, 403ing on the wrong Roles check before the
+  // UUID pipe even runs.
+  @Get('me')
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({ summary: 'Get my driver profile' })
+  @ApiResponse({ status: 200, description: 'Driver profile' })
+  @ApiResponse({ status: 404, description: 'Driver profile not found' })
+  async getMyProfile(@CurrentUser() user: User): Promise<Driver> {
+    return this.driversService.getProfile(user.id);
+  }
+
+  @Patch('me')
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({ summary: 'Update my driver profile' })
+  @ApiResponse({ status: 200, description: 'Updated driver profile' })
+  async updateMyProfile(
+    @CurrentUser() user: User,
+    @Body() dto: UpdateDriverDto,
+  ): Promise<Driver> {
+    return this.driversService.updateProfile(user.id, dto);
   }
 
   @Get(':id')
@@ -72,38 +118,6 @@ export class DriversController {
     const driver = await this.driversService.findByIdOrThrow(id);
     await this.usersService.updateStatus(driver.userId, UserStatus.ACTIVE);
     return { ...driver, status: 'approved' };
-  }
-
-  @Post('profile')
-  @Roles(UserRole.DRIVER, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Create driver profile' })
-  @ApiResponse({ status: 201, description: 'Driver profile created' })
-  @ApiResponse({ status: 409, description: 'Driver profile already exists' })
-  async createProfile(
-    @CurrentUser() user: User,
-    @Body() dto: CreateDriverDto,
-  ): Promise<Driver> {
-    return this.driversService.createProfile(user.id, dto);
-  }
-
-  @Get('me')
-  @Roles(UserRole.DRIVER)
-  @ApiOperation({ summary: 'Get my driver profile' })
-  @ApiResponse({ status: 200, description: 'Driver profile' })
-  @ApiResponse({ status: 404, description: 'Driver profile not found' })
-  async getMyProfile(@CurrentUser() user: User): Promise<Driver> {
-    return this.driversService.getProfile(user.id);
-  }
-
-  @Patch('me')
-  @Roles(UserRole.DRIVER)
-  @ApiOperation({ summary: 'Update my driver profile' })
-  @ApiResponse({ status: 200, description: 'Updated driver profile' })
-  async updateMyProfile(
-    @CurrentUser() user: User,
-    @Body() dto: UpdateDriverDto,
-  ): Promise<Driver> {
-    return this.driversService.updateProfile(user.id, dto);
   }
 
   @Patch('status')

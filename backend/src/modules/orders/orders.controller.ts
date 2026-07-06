@@ -140,6 +140,13 @@ export class OrdersController {
     return this.ordersService.getActiveOrders();
   }
 
+  @Get('earnings')
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({ summary: "Get the current driver's earnings for today" })
+  async getEarnings(@CurrentUser() user: User): Promise<{ today: number }> {
+    return this.ordersService.getDriverEarningsToday(user.id);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get order by ID' })
   @ApiParam({ name: 'id', description: 'Order UUID' })
@@ -161,6 +168,19 @@ export class OrdersController {
     const order = await this.ordersService.acceptOrder(user.id, id);
     await this.matchingService.driverAccepted(user.id, id);
     return order;
+  }
+
+  @Patch(':id/decline')
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({ summary: 'Driver declines an offered order' })
+  @ApiParam({ name: 'id', description: 'Order UUID' })
+  @ApiResponse({ status: 200, description: 'Decline recorded, order re-offered to the next driver' })
+  async declineOrder(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<{ success: true }> {
+    await this.matchingService.driverDeclined(user.id, id);
+    return { success: true };
   }
 
   @Patch(':id/arrived')

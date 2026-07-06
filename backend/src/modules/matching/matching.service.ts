@@ -150,17 +150,44 @@ export class MatchingService {
 
     if (!driverUser) return;
 
-    // Emit to driver via WebSocket
+    // Pickup/dropoff are opaque PostGIS geometry columns on the entity — the
+    // mobile client's shared Order model expects plain {address, lat, lng},
+    // same shape OrdersService.attachDisplayFields attaches on REST responses.
+    const coordsResult = await this.orderRepository.query(
+      `SELECT ST_Y(pickup_location::geometry) as pickup_lat,
+              ST_X(pickup_location::geometry) as pickup_lng,
+              ST_Y(dropoff_location::geometry) as dropoff_lat,
+              ST_X(dropoff_location::geometry) as dropoff_lng
+       FROM orders WHERE id = $1`,
+      [orderId],
+    );
+    const coords = (coordsResult as Array<{
+      pickup_lat: string;
+      pickup_lng: string;
+      dropoff_lat: string;
+      dropoff_lng: string;
+    }>)[0];
+
+    // Emit to driver via WebSocket, shaped to match the mobile Order model
+    // (Order.fromJson) directly rather than a bespoke offer-only shape.
     this.realtimeGateway.emitToUser(driver.userId, 'new_order_offer', {
-      orderId,
-      order: {
-        id: order.id,
-        pickupAddress: order.pickupAddress,
-        dropoffAddress: order.dropoffAddress,
-        estimatedPrice: order.estimatedPrice,
-        paymentMethod: order.paymentMethod,
-        distanceKm: driver.distanceKm,
+      id: order.id,
+      passengerId: order.passengerId,
+      pickup: {
+        address: order.pickupAddress,
+        lat: parseFloat(coords.pickup_lat),
+        lng: parseFloat(coords.pickup_lng),
       },
+      dropoff: {
+        address: order.dropoffAddress,
+        lat: parseFloat(coords.dropoff_lat),
+        lng: parseFloat(coords.dropoff_lng),
+      },
+      status: order.status,
+      estimatedPrice: order.estimatedPrice,
+      createdAt: order.createdAt,
+      paymentMethod: order.paymentMethod,
+      distanceKm: driver.distanceKm,
       timeoutSeconds: this.OFFER_TIMEOUT_MS / 1000,
     });
 

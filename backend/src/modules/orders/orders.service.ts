@@ -16,6 +16,8 @@ import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
 import { UsersService } from '../users/users.service';
 import { DriversService } from '../drivers/drivers.service';
+import { PromoCodesService } from '../promo-codes/promo-codes.service';
+import { DriverBonusesService } from '../driver-bonuses/driver-bonuses.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { CreateDispatchOrderDto } from './dto/create-dispatch-order.dto';
 import { CalculatePriceDto } from './dto/calculate-price.dto';
@@ -44,6 +46,8 @@ export class OrdersService {
     private readonly notificationsService: NotificationsService,
     private readonly usersService: UsersService,
     private readonly driversService: DriversService,
+    private readonly promoCodesService: PromoCodesService,
+    private readonly driverBonusesService: DriverBonusesService,
   ) {}
 
   async calculatePrice(
@@ -86,15 +90,31 @@ export class OrdersService {
       estimatedDurationMin,
     );
 
+    // Validate (but don't yet consume) a promo code — usedCount/usage row are
+    // only recorded on actual trip completion (see completeTrip), so an
+    // abandoned/cancelled order never burns the passenger's one-time use.
+    let discountAmount = 0;
+    let promoCodeId: string | null = null;
+    if (dto.promoCode) {
+      const promoResult = await this.promoCodesService.validate(
+        dto.promoCode,
+        passengerId,
+        estimatedPrice,
+      );
+      discountAmount = promoResult.discountAmount;
+      promoCodeId = promoResult.promoCodeId;
+    }
+    const finalEstimatedPrice = Math.max(0, estimatedPrice - discountAmount);
+
     // Create order with PostGIS geometry
     const savedOrder = await this.orderRepository.query(
       `INSERT INTO orders (passenger_id, tariff_id, pickup_location, dropoff_location,
         pickup_address, dropoff_address, estimated_price, status, payment_method, note,
-        service_type, details)
+        service_type, details, promo_code_id, discount_amount)
        VALUES ($1, $2,
          ST_SetSRID(ST_MakePoint($3, $4), 4326),
          ST_SetSRID(ST_MakePoint($5, $6), 4326),
-         $7, $8, $9, $10, $11, $12, $13, $14::jsonb)
+         $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15, $16)
        RETURNING id`,
       [
         passengerId,
@@ -105,12 +125,14 @@ export class OrdersService {
         dto.dropoffLat,
         dto.pickupAddress ?? null,
         dto.dropoffAddress ?? null,
-        estimatedPrice,
+        finalEstimatedPrice,
         OrderStatus.CREATED,
         dto.paymentMethod ?? PaymentMethod.CASH,
         dto.note ?? null,
         dto.serviceType ?? 'taxi',
         dto.details ? JSON.stringify(dto.details) : null,
+        promoCodeId,
+        promoCodeId ? discountAmount : null,
       ],
     );
 
@@ -232,9 +254,13 @@ export class OrdersService {
       [driverId, orderId],
     );
 
-    const distanceMeters = parseFloat(
-      (geofenceCheck as Array<{ distance_meters: string }>)[0]?.distance_meters || '9999',
-    );
+    // NOTE: was `?? '9999'` written as `|| '9999'` — pg returns ST_Distance's
+    // result as a JS number, and a driver standing exactly on the pickup point
+    // (distance 0) is falsy, so `||` incorrectly fell back to the 9999m sentinel
+    // and rejected a driver who was precisely at the pickup location.
+    const rawDistance = (geofenceCheck as Array<{ distance_meters: number | string | null }>)[0]
+      ?.distance_meters;
+    const distanceMeters = rawDistance != null ? parseFloat(String(rawDistance)) : 9999;
 
     if (distanceMeters > 500) {
       this.logger.warn(
@@ -356,17 +382,44 @@ export class OrdersService {
       });
     }
 
+    // Re-apply the promo discount against the final amount (may differ from the
+    // original estimate since it's recomputed from actual distance/duration), and
+    // only now record actual usage — a cancelled trip never consumed the promo.
+    let finalDiscountAmount = 0;
+    if (order.promoCodeId) {
+      try {
+        const promoCode = await this.promoCodesService.findById(order.promoCodeId);
+        const promoResult = await this.promoCodesService.validate(
+          promoCode.code,
+          order.passengerId,
+          finalPrice,
+        );
+        finalDiscountAmount = promoResult.discountAmount;
+        await this.promoCodesService.apply(order.promoCodeId, order.passengerId, orderId);
+      } catch (err) {
+        // Promo became invalid between order creation and completion (expired,
+        // limit hit by a concurrent order) — degrade gracefully to full price
+        // rather than failing trip completion.
+        this.logger.warn(
+          `Promo code re-validation failed at completion for order ${orderId}, charging full price: ${err}`,
+        );
+      }
+    }
+    const discountedFinalPrice = Math.max(0, finalPrice - finalDiscountAmount);
+
     // Update order
     await this.orderRepository.update(orderId, {
       status: OrderStatus.COMPLETED,
-      finalPrice,
+      finalPrice: discountedFinalPrice,
+      discountAmount: finalDiscountAmount || null,
+      driverEarning: discountedFinalPrice,
     });
 
-    // Create transaction record
+    // Create transaction record (passenger charge)
     await this.transactionRepository.save({
       userId: order.passengerId,
       orderId,
-      amount: finalPrice,
+      amount: discountedFinalPrice,
       type: TransactionType.DEBIT,
       paymentMethod: order.paymentMethod,
       status: order.paymentMethod === PaymentMethod.CASH
@@ -374,6 +427,24 @@ export class OrdersService {
         : TransactionStatus.PENDING,
       externalId: null,
     });
+
+    // Driver payout — 100% passthrough, no commission deduction (out of scope).
+    if (order.driverId) {
+      await this.transactionRepository.save({
+        userId: order.driverId,
+        orderId,
+        amount: discountedFinalPrice,
+        type: TransactionType.CREDIT,
+        paymentMethod: order.paymentMethod,
+        status: TransactionStatus.COMPLETED,
+        externalId: null,
+      });
+
+      // Best-effort — a bonus-evaluation failure must never block trip completion.
+      this.driverBonusesService.evaluateForDriver(order.driverId).catch((err) => {
+        this.logger.error(`Bonus evaluation failed for driver ${order.driverId}: ${err}`);
+      });
+    }
 
     const updatedOrder = await this.findByIdOrThrow(orderId);
 
@@ -383,12 +454,12 @@ export class OrdersService {
     if (passenger) {
       this.realtimeGateway.emitToUser(order.passengerId, 'order:completed', {
         orderId,
-        finalPrice,
+        finalPrice: discountedFinalPrice,
         actualDistanceKm,
         actualDurationMin,
       });
 
-      await this.notificationsService.notifyTripCompleted(passenger, finalPrice, updatedOrder);
+      await this.notificationsService.notifyTripCompleted(passenger, discountedFinalPrice, updatedOrder);
     }
 
     this.realtimeGateway.emitToManagers('order:completed', updatedOrder);
@@ -402,7 +473,7 @@ export class OrdersService {
     }
 
     this.logger.log(
-      `Order ${orderId} completed. Distance: ${actualDistanceKm.toFixed(2)}km, Price: ${finalPrice} UZS`,
+      `Order ${orderId} completed. Distance: ${actualDistanceKm.toFixed(2)}km, Price: ${discountedFinalPrice} UZS`,
     );
 
     return updatedOrder;
@@ -592,10 +663,10 @@ export class OrdersService {
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
-      relations: ['tariff'],
+      relations: ['passenger', 'driver', 'tariff'],
     });
 
-    return { orders, total, page, limit };
+    return { orders: await this.attachDisplayFields(orders), total, page, limit };
   }
 
   async getDriverHistory(
@@ -608,10 +679,10 @@ export class OrdersService {
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
-      relations: ['tariff'],
+      relations: ['passenger', 'driver', 'tariff'],
     });
 
-    return { orders, total, page, limit };
+    return { orders: await this.attachDisplayFields(orders), total, page, limit };
   }
 
   async getActiveOrders(): Promise<Order[]> {
@@ -662,6 +733,9 @@ export class OrdersService {
   // lastName, no car info or rating — that lives on the separate Driver profile
   // table). The web panels expect a flattened `name` plus the driver's car/rating,
   // so we merge that in here rather than pushing this shape decision into every caller.
+  // Also attaches `pickup`/`dropoff` as {address, lat, lng} — the raw pickupLocation/
+  // dropoffLocation columns are opaque PostGIS geometry values when read through the
+  // ORM (not plain lat/lng), so mobile clients need this extracted for them here.
   private async attachDisplayFields(orders: Order[]): Promise<Order[]> {
     const driverUserIds = [...new Set(orders.map((o) => o.driverId).filter((id): id is string => !!id))];
 
@@ -673,6 +747,39 @@ export class OrdersService {
         .filter((d): d is NonNullable<typeof d> => !!d)
         .map((d) => [d.userId, d]),
     );
+
+    const orderIds = orders.map((o) => o.id);
+    const coordsByOrderId = new Map<
+      string,
+      { pickupLat: number; pickupLng: number; dropoffLat: number; dropoffLng: number }
+    >();
+
+    if (orderIds.length > 0) {
+      const coordsResult = await this.orderRepository.query(
+        `SELECT id,
+                ST_Y(pickup_location::geometry) as pickup_lat,
+                ST_X(pickup_location::geometry) as pickup_lng,
+                ST_Y(dropoff_location::geometry) as dropoff_lat,
+                ST_X(dropoff_location::geometry) as dropoff_lng
+         FROM orders WHERE id = ANY($1)`,
+        [orderIds],
+      );
+
+      for (const row of coordsResult as Array<{
+        id: string;
+        pickup_lat: string;
+        pickup_lng: string;
+        dropoff_lat: string;
+        dropoff_lng: string;
+      }>) {
+        coordsByOrderId.set(row.id, {
+          pickupLat: parseFloat(row.pickup_lat),
+          pickupLng: parseFloat(row.pickup_lng),
+          dropoffLat: parseFloat(row.dropoff_lat),
+          dropoffLng: parseFloat(row.dropoff_lng),
+        });
+      }
+    }
 
     for (const order of orders) {
       if (order.passenger) {
@@ -691,6 +798,19 @@ export class OrdersService {
         driver.carNumber = profile?.carNumber ?? null;
         driver.rating = profile?.rating ?? 0;
       }
+
+      const coords = coordsByOrderId.get(order.id);
+      const orderRecord = order as unknown as Record<string, unknown>;
+      orderRecord.pickup = {
+        address: order.pickupAddress,
+        lat: coords?.pickupLat ?? null,
+        lng: coords?.pickupLng ?? null,
+      };
+      orderRecord.dropoff = {
+        address: order.dropoffAddress,
+        lat: coords?.dropoffLat ?? null,
+        lng: coords?.dropoffLng ?? null,
+      };
     }
 
     return orders;
@@ -700,23 +820,31 @@ export class OrdersService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const [totalOrders, ordersToday, completedToday, totalUsers, activeDrivers, onlineDrivers] =
-      await Promise.all([
-        this.orderRepository.count(),
-        // Was comparing createdAt to exact midnight (an equality match that never
-        // hits a real timestamp) — always returned 0. Needs a >= range instead.
-        this.orderRepository
-          .createQueryBuilder('o')
-          .where('o.created_at >= :d', { d: today })
-          .getCount(),
-        this.orderRepository.createQueryBuilder('o')
-          .where('o.status = :s', { s: 'completed' })
-          .andWhere('o.created_at >= :d', { d: today })
-          .getCount(),
-        this.orderRepository.manager.getRepository('users').count(),
-        this.driversService.countAll(),
-        this.driversService.countOnline(),
-      ]);
+    const [
+      totalOrders,
+      ordersToday,
+      completedToday,
+      totalUsers,
+      activeDrivers,
+      onlineDrivers,
+      pendingDriverApprovals,
+    ] = await Promise.all([
+      this.orderRepository.count(),
+      // Was comparing createdAt to exact midnight (an equality match that never
+      // hits a real timestamp) — always returned 0. Needs a >= range instead.
+      this.orderRepository
+        .createQueryBuilder('o')
+        .where('o.created_at >= :d', { d: today })
+        .getCount(),
+      this.orderRepository.createQueryBuilder('o')
+        .where('o.status = :s', { s: 'completed' })
+        .andWhere('o.created_at >= :d', { d: today })
+        .getCount(),
+      this.orderRepository.manager.getRepository('users').count(),
+      this.driversService.countAll(),
+      this.driversService.countOnline(),
+      this.driversService.countPending(),
+    ]);
 
     const revenueResult = await this.orderRepository.createQueryBuilder('o')
       .select('SUM(o.final_price)', 'total')
@@ -732,10 +860,23 @@ export class OrdersService {
       revenueToday: parseFloat(revenueResult?.total ?? '0') || 0,
       activeDrivers,
       onlineDrivers,
-      // No approval-pending state exists in the schema today (UserStatus is
-      // just active/blocked) — nothing real to count here yet.
-      pendingDriverApprovals: 0,
+      pendingDriverApprovals,
     };
+  }
+
+  async getDriverEarningsToday(driverId: string): Promise<{ today: number }> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const revenueResult = await this.orderRepository
+      .createQueryBuilder('o')
+      .select('SUM(o.final_price)', 'total')
+      .where('o.driver_id = :driverId', { driverId })
+      .andWhere('o.status = :s', { s: 'completed' })
+      .andWhere('o.created_at >= :d', { d: today })
+      .getRawOne<{ total: string }>();
+
+    return { today: parseFloat(revenueResult?.total ?? '0') || 0 };
   }
 
   async getReports(from: string, to: string) {

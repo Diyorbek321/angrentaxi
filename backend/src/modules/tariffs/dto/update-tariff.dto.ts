@@ -31,6 +31,15 @@ export class UpdateTariffDto {
   @Min(0)
   minPrice?: number;
 
+  @ApiPropertyOptional({
+    example: 50000,
+    description: 'Maximum price in UZS (unbounded if omitted)',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  maxPrice?: number;
+
   @ApiPropertyOptional({ example: true, description: 'Whether tariff is active' })
   @IsOptional()
   @IsBoolean()

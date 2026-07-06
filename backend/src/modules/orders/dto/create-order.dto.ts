@@ -79,4 +79,10 @@ export class CreateOrderDto {
   @IsOptional()
   @IsObject()
   details?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ example: 'ANGREN10', description: 'Promo code to apply, if any' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  promoCode?: string;
 }

@@ -103,6 +103,19 @@ export class NotificationsService {
     }
   }
 
+  async notifySupportReply(recipient: User): Promise<void> {
+    if (recipient.fcmToken) {
+      await this.firebaseService.sendPush(
+        recipient.fcmToken,
+        'Qo\'llab-quvvatlash xizmati',
+        'Operatordan yangi xabar keldi',
+        {
+          event: 'support_reply',
+        },
+      );
+    }
+  }
+
   async sendOtpSms(phone: string, code: string): Promise<void> {
     await this.eskizService.sendSms(
       phone,

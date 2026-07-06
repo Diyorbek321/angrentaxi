@@ -35,13 +35,22 @@ export class TariffsService {
     return tariff;
   }
 
+  private validatePriceBounds(minPrice: number, maxPrice: number | null | undefined): void {
+    if (maxPrice != null && maxPrice < minPrice) {
+      throw new BadRequestException('maxPrice must be greater than or equal to minPrice');
+    }
+  }
+
   async create(dto: CreateTariffDto): Promise<Tariff> {
+    this.validatePriceBounds(dto.minPrice, dto.maxPrice);
+
     return this.tariffRepository.save({
       name: dto.name,
       basePrice: dto.basePrice,
       pricePerKm: dto.pricePerKm,
       pricePerMin: dto.pricePerMin,
       minPrice: dto.minPrice,
+      maxPrice: dto.maxPrice ?? null,
       isActive: dto.isActive ?? true,
     });
   }
@@ -56,8 +65,11 @@ export class TariffsService {
       ...(dto.pricePerKm !== undefined && { pricePerKm: dto.pricePerKm }),
       ...(dto.pricePerMin !== undefined && { pricePerMin: dto.pricePerMin }),
       ...(dto.minPrice !== undefined && { minPrice: dto.minPrice }),
+      ...(dto.maxPrice !== undefined && { maxPrice: dto.maxPrice }),
       ...(dto.isActive !== undefined && { isActive: dto.isActive }),
     };
+
+    this.validatePriceBounds(updated.minPrice, updated.maxPrice);
 
     return this.tariffRepository.save(updated);
   }
@@ -72,7 +84,9 @@ export class TariffsService {
       distanceKm * tariff.pricePerKm +
       durationMin * tariff.pricePerMin;
 
-    return Math.max(tariff.minPrice, baseTotal) * (tariff.surgeMultiplier ?? 1.0);
+    const raw = Math.max(tariff.minPrice, baseTotal) * (tariff.surgeMultiplier ?? 1.0);
+
+    return tariff.maxPrice != null ? Math.min(raw, tariff.maxPrice) : raw;
   }
 
   async setSurgeMultiplier(id: string, multiplier: number): Promise<Tariff> {

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Inject,
   Injectable,
@@ -9,9 +10,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import Redis from 'ioredis';
 import { Driver } from '../../database/entities/driver.entity';
+import { UserStatus } from '../../database/entities/user.entity';
 import { REDIS_CLIENT } from '../../config/redis.config';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
+import { UsersService } from '../users/users.service';
 
 export interface NearbyDriver {
   driverId: string;
@@ -58,6 +61,7 @@ export class DriversService {
     private readonly driverRepository: Repository<Driver>,
     @Inject(REDIS_CLIENT)
     private readonly redis: Redis,
+    private readonly usersService: UsersService,
   ) {}
 
   async createProfile(userId: string, dto: CreateDriverDto): Promise<Driver> {
@@ -66,7 +70,7 @@ export class DriversService {
       throw new ConflictException('Driver profile already exists for this user');
     }
 
-    return this.driverRepository.save({
+    const driver = await this.driverRepository.save({
       userId,
       carModel: dto.carModel ?? null,
       carNumber: dto.carNumber ?? null,
@@ -75,6 +79,11 @@ export class DriversService {
       isOnline: false,
       currentLocation: null,
     });
+
+    // New drivers wait for admin approval before they can go online.
+    await this.usersService.updateStatus(userId, UserStatus.PENDING);
+
+    return driver;
   }
 
   async findByUserId(userId: string): Promise<Driver | null> {
@@ -124,6 +133,7 @@ export class DriversService {
         flat.lastName = driver.user.lastName;
         flat.phone = driver.user.phone;
         flat.status = driver.user.status;
+        flat.blockReason = driver.user.blockReason;
       }
       flat.totalTrips = tripCountByUserId.get(driver.userId) ?? 0;
     }
@@ -165,6 +175,12 @@ export class DriversService {
 
   async setOnlineStatus(userId: string, isOnline: boolean): Promise<Driver> {
     const driver = await this.findByUserIdOrThrow(userId);
+
+    if (isOnline && driver.user?.status === UserStatus.PENDING) {
+      throw new BadRequestException(
+        'Your account is awaiting admin approval before you can go online',
+      );
+    }
 
     await this.driverRepository.update(driver.id, { isOnline });
 
@@ -297,13 +313,40 @@ export class DriversService {
     return this.driverRepository.count({ where: { isOnline: true } });
   }
 
-  async findAll(page = 1, limit = 20): Promise<{ drivers: Driver[]; total: number; page: number; limit: number }> {
-    const [drivers, total] = await this.driverRepository.findAndCount({
-      relations: ['user'],
-      skip: (page - 1) * limit,
-      take: limit,
-      order: { updatedAt: 'DESC' },
-    });
+  async countPending(): Promise<number> {
+    return this.driverRepository
+      .createQueryBuilder('d')
+      .innerJoin('d.user', 'u')
+      .where('u.status = :status', { status: UserStatus.PENDING })
+      .getCount();
+  }
+
+  async findAll(
+    page = 1,
+    limit = 20,
+    filters: { status?: string; isOnline?: boolean; search?: string } = {},
+  ): Promise<{ drivers: Driver[]; total: number; page: number; limit: number }> {
+    const qb = this.driverRepository
+      .createQueryBuilder('d')
+      .innerJoinAndSelect('d.user', 'u')
+      .orderBy('d.updatedAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    if (filters.isOnline !== undefined) {
+      qb.andWhere('d.isOnline = :isOnline', { isOnline: filters.isOnline });
+    }
+    if (filters.status) {
+      qb.andWhere('u.status = :status', { status: filters.status });
+    }
+    if (filters.search) {
+      qb.andWhere(
+        '(u.first_name ILIKE :search OR u.last_name ILIKE :search OR u.phone ILIKE :search OR d.car_number ILIKE :search)',
+        { search: `%${filters.search}%` },
+      );
+    }
+
+    const [drivers, total] = await qb.getManyAndCount();
     return { drivers: await this.attachDisplayFields(drivers), total, page, limit };
   }
 }

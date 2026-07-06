@@ -7,13 +7,14 @@ import {
   WebSocketServer,
   WsException,
 } from '@nestjs/websockets';
-import { Logger, UseGuards } from '@nestjs/common';
+import { forwardRef, Inject, Logger, UseGuards } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { DriversService } from '../drivers/drivers.service';
 import { User, UserRole } from '../../database/entities/user.entity';
 import { UsersService } from '../users/users.service';
+import { SupportService } from '../support/support.service';
 
 interface AuthSocket extends Socket {
   user: User;
@@ -34,6 +35,15 @@ interface LocationPayload {
 
 interface JoinOrderPayload {
   orderId: string;
+}
+
+interface SupportMessagePayload {
+  threadId: string;
+  body: string;
+}
+
+interface JoinSupportThreadPayload {
+  threadId: string;
 }
 
 @WebSocketGateway({
@@ -60,6 +70,8 @@ export class RealtimeGateway
     private readonly configService: ConfigService,
     private readonly driversService: DriversService,
     private readonly usersService: UsersService,
+    @Inject(forwardRef(() => SupportService))
+    private readonly supportService: SupportService,
   ) {}
 
   afterInit(_server: Server): void {
@@ -174,6 +186,17 @@ export class RealtimeGateway
         timestamp: new Date().toISOString(),
       });
     }
+
+    // Feed the dispatcher live map — keyed by driver profile id, matching
+    // the shape /drivers/online returns (not the order-room payload above,
+    // which is keyed by user id for the passenger-tracking use case).
+    const driver = await this.driversService.findByUserId(user.id);
+    if (driver) {
+      this.emitToManagers('driver:location', {
+        driverId: driver.id,
+        location: { lat, lng },
+      });
+    }
   }
 
   @SubscribeMessage('join:order')
@@ -200,6 +223,54 @@ export class RealtimeGateway
 
     await client.leave(`order:${orderId}`);
     this.logger.log(`Client ${client.id} left order room order:${orderId}`);
+  }
+
+  @SubscribeMessage('support:message')
+  async handleSupportMessage(
+    client: Socket,
+    payload: SupportMessagePayload,
+  ): Promise<void> {
+    const authClient = client as AuthSocket;
+    const user = authClient.user;
+
+    if (!user) {
+      throw new WsException('Not authenticated');
+    }
+
+    const { threadId, body } = payload;
+    if (!threadId || !body) {
+      throw new WsException('threadId and body are required');
+    }
+
+    try {
+      await this.supportService.postMessage(threadId, user, body);
+    } catch (err) {
+      throw new WsException((err as Error).message);
+    }
+  }
+
+  @SubscribeMessage('join:support:thread')
+  async handleJoinSupportThread(
+    client: Socket,
+    payload: JoinSupportThreadPayload,
+  ): Promise<void> {
+    const { threadId } = payload;
+    if (!threadId) {
+      throw new WsException('threadId is required');
+    }
+
+    await client.join(`support:thread:${threadId}`);
+  }
+
+  @SubscribeMessage('leave:support:thread')
+  async handleLeaveSupportThread(
+    client: Socket,
+    payload: JoinSupportThreadPayload,
+  ): Promise<void> {
+    const { threadId } = payload;
+    if (!threadId) return;
+
+    await client.leave(`support:thread:${threadId}`);
   }
 
   // Helper methods for other services to emit events

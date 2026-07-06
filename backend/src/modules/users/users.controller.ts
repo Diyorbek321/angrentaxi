@@ -16,6 +16,7 @@ import {
 } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { BlockUserDto } from './dto/block-user.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -77,8 +78,11 @@ export class UsersController {
   @ApiResponse({ status: 200, description: 'User blocked' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async blockUser(@Param('id', ParseUUIDPipe) id: string): Promise<User> {
-    return this.usersService.blockUser(id);
+  async blockUser(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: BlockUserDto,
+  ): Promise<User> {
+    return this.usersService.blockUser(id, dto.reason);
   }
 
   @Patch(':id/unblock')

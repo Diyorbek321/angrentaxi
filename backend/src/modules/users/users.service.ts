@@ -72,12 +72,17 @@ export class UsersService {
     await this.userRepository.update(id, { fcmToken });
   }
 
-  async blockUser(id: string): Promise<User> {
-    return this.updateStatus(id, UserStatus.BLOCKED);
+  async blockUser(id: string, reason?: string): Promise<User> {
+    const user = await this.findByIdOrThrow(id);
+    const blockReason = reason?.trim() || null;
+    await this.userRepository.update(id, { status: UserStatus.BLOCKED, blockReason });
+    return { ...user, status: UserStatus.BLOCKED, blockReason };
   }
 
   async unblockUser(id: string): Promise<User> {
-    return this.updateStatus(id, UserStatus.ACTIVE);
+    const user = await this.findByIdOrThrow(id);
+    await this.userRepository.update(id, { status: UserStatus.ACTIVE, blockReason: null });
+    return { ...user, status: UserStatus.ACTIVE, blockReason: null };
   }
 
   async findAll(

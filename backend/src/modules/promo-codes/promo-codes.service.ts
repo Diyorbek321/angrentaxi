@@ -69,6 +69,14 @@ export class PromoCodesService {
     };
   }
 
+  async findById(id: string): Promise<PromoCode> {
+    const promoCode = await this.promoCodeRepository.findOne({ where: { id } });
+    if (!promoCode) {
+      throw new NotFoundException(`Promo code with id ${id} not found`);
+    }
+    return promoCode;
+  }
+
   async apply(promoCodeId: string, userId: string, orderId: string): Promise<void> {
     const promoCode = await this.promoCodeRepository.findOne({ where: { id: promoCodeId } });
 
