@@ -36,8 +36,75 @@ export interface Tariff {
   pricePerKm: number;
   pricePerMin: number;
   minPrice: number;
+  maxPrice: number | null;
   surgeMultiplier: number;
   isActive: boolean;
+}
+
+export interface PromoCode {
+  id: string;
+  code: string;
+  discountPercent: number | null;
+  discountFixed: number | null;
+  maxUses: number | null;
+  usedCount: number;
+  minOrderAmount: number;
+  expiresAt: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CreatePromoCodePayload {
+  code: string;
+  discountPercent?: number;
+  discountFixed?: number;
+  maxUses?: number;
+  minOrderAmount?: number;
+  expiresAt?: string;
+}
+
+export type TariffChangeAction = 'create' | 'update';
+export type TariffChangeRequestStatus = 'pending' | 'approved' | 'rejected';
+
+export interface TariffChangeRequest {
+  id: string;
+  action: TariffChangeAction;
+  tariffId: string | null;
+  proposedChanges: Record<string, unknown>;
+  previousValues: Record<string, unknown> | null;
+  status: TariffChangeRequestStatus;
+  proposedBy: string;
+  reviewNote: string | null;
+  createdAt: string;
+}
+
+export interface ProposeTariffChangePayload {
+  action: TariffChangeAction;
+  tariffId?: string;
+  proposedChanges: Record<string, unknown>;
+}
+
+export type BonusRuleType = 'trip_count' | 'weekly_goal';
+export type BonusRuleStatus = 'active' | 'inactive';
+
+export interface DriverBonusRule {
+  id: string;
+  name: string;
+  ruleType: BonusRuleType;
+  tripThreshold: number;
+  bonusAmount: number;
+  serviceType: string | null;
+  status: BonusRuleStatus;
+  createdAt: string;
+}
+
+export interface DriverBonusProgress {
+  ruleId: string;
+  name: string;
+  ruleType: BonusRuleType;
+  tripThreshold: number;
+  bonusAmount: number;
+  currentCount: number;
 }
 
 export interface GeoPoint {
@@ -273,5 +340,130 @@ export async function getDriverById(id: string): Promise<Driver> {
 
 export async function getTariffs(): Promise<Tariff[]> {
   const res = await apiClient.get<ApiResponse<Tariff[]>>('/tariffs');
+  return res.data.data;
+}
+
+// ─── Support Chat ────────────────────────────────────────────────────────────
+
+export type SupportThreadStatus = 'open' | 'closed';
+
+export interface SupportThread {
+  id: string;
+  userId: string;
+  userRole: 'passenger' | 'driver';
+  orderId: string | null;
+  status: SupportThreadStatus;
+  assignedManagerId: string | null;
+  lastMessageAt: string | null;
+  createdAt: string;
+}
+
+export interface SupportThreadListItem extends SupportThread {
+  userName: string;
+  userPhone: string;
+  unreadCount: number;
+}
+
+export interface SupportMessage {
+  id: string;
+  threadId: string;
+  senderId: string;
+  senderRole: 'passenger' | 'driver' | 'manager' | 'admin';
+  body: string;
+  createdAt: string;
+}
+
+export async function getSupportThreads(
+  status?: SupportThreadStatus
+): Promise<SupportThreadListItem[]> {
+  const res = await apiClient.get<ApiResponse<{ threads: SupportThreadListItem[]; total: number }>>(
+    '/support/threads',
+    { params: status ? { status } : undefined }
+  );
+  return res.data.data.threads;
+}
+
+export async function getSupportMessages(
+  threadId: string
+): Promise<{ messages: SupportMessage[]; total: number }> {
+  const res = await apiClient.get<ApiResponse<{ messages: SupportMessage[]; total: number }>>(
+    `/support/threads/${threadId}/messages`,
+    { params: { limit: 100 } }
+  );
+  return res.data.data;
+}
+
+export async function sendSupportMessage(threadId: string, body: string): Promise<SupportMessage> {
+  const res = await apiClient.post<ApiResponse<SupportMessage>>(
+    `/support/threads/${threadId}/messages`,
+    { body }
+  );
+  return res.data.data;
+}
+
+export async function markSupportThreadRead(threadId: string): Promise<void> {
+  await apiClient.patch(`/support/threads/${threadId}/read`);
+}
+
+export async function setSupportThreadStatus(
+  threadId: string,
+  status: SupportThreadStatus
+): Promise<SupportThread> {
+  const res = await apiClient.patch<ApiResponse<SupportThread>>(
+    `/support/threads/${threadId}/status`,
+    { status }
+  );
+  return res.data.data;
+}
+
+// ─── Tariff Change Requests ──────────────────────────────────────────────────
+
+export async function proposeTariffChange(
+  payload: ProposeTariffChangePayload
+): Promise<TariffChangeRequest> {
+  const res = await apiClient.post<ApiResponse<TariffChangeRequest>>(
+    '/tariff-change-requests',
+    payload
+  );
+  return res.data.data;
+}
+
+export async function getTariffChangeRequests(
+  status?: TariffChangeRequestStatus
+): Promise<TariffChangeRequest[]> {
+  const res = await apiClient.get<ApiResponse<TariffChangeRequest[]>>(
+    '/tariff-change-requests',
+    { params: status ? { status } : undefined }
+  );
+  return res.data.data;
+}
+
+// ─── Promo Codes ──────────────────────────────────────────────────────────────
+
+export async function getPromoCodes(): Promise<PromoCode[]> {
+  const res = await apiClient.get<ApiResponse<PromoCode[]>>('/promo-codes');
+  return res.data.data;
+}
+
+export async function createPromoCode(
+  payload: CreatePromoCodePayload
+): Promise<PromoCode> {
+  const res = await apiClient.post<ApiResponse<PromoCode>>('/promo-codes', payload);
+  return res.data.data;
+}
+
+// ─── Driver Bonus Rules ────────────────────────────────────────────────────────
+
+export async function getBonusRules(): Promise<DriverBonusRule[]> {
+  const res = await apiClient.get<ApiResponse<DriverBonusRule[]>>('/driver-bonus-rules');
+  return res.data.data;
+}
+
+export async function getDriverBonusProgress(
+  driverId: string
+): Promise<DriverBonusProgress[]> {
+  const res = await apiClient.get<ApiResponse<DriverBonusProgress[]>>(
+    `/driver-bonus-rules/driver/${driverId}/progress`
+  );
   return res.data.data;
 }

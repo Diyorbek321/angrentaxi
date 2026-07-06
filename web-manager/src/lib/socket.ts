@@ -45,6 +45,13 @@ export const SOCKET_EVENTS = {
   DRIVER_ONLINE: 'driver:online',
   DRIVER_OFFLINE: 'driver:offline',
 
+  // Support chat events
+  SUPPORT_MESSAGE_SEND: 'support:message', // client → server
+  SUPPORT_MESSAGE_NEW: 'support:message:new', // server → client
+  SUPPORT_THREAD_UPDATED: 'support:thread:updated',
+  JOIN_SUPPORT_THREAD: 'join:support:thread',
+  LEAVE_SUPPORT_THREAD: 'leave:support:thread',
+
   // Connection events
   CONNECT: 'connect',
   DISCONNECT: 'disconnect',

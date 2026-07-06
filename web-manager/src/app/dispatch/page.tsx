@@ -1,12 +1,13 @@
 'use client';
 
-import { useCallback } from 'react';
-import { RefreshCw, Loader2 } from 'lucide-react';
+import { useCallback, useState } from 'react';
+import { RefreshCw, Loader2, List, Map } from 'lucide-react';
 import { useActiveOrders } from '@/hooks/useActiveOrders';
 import { useOnlineDrivers } from '@/hooks/useOnlineDrivers';
 import { useSocket } from '@/hooks/useSocket';
 import { ActiveOrdersList } from '@/components/dispatch/ActiveOrdersList';
 import { OnlineDriversList } from '@/components/dispatch/OnlineDriversList';
+import { DriverMap } from '@/components/dispatch/DriverMap';
 import { Button } from '@/components/ui/Button';
 import { Order } from '@/lib/api';
 
@@ -46,6 +47,7 @@ export default function DispatchPage() {
   } = useOnlineDrivers();
 
   const { status: socketStatus } = useSocket();
+  const [driversView, setDriversView] = useState<'list' | 'map'>('list');
 
   // Derived stats
   const searchingCount = orders.filter((o) => o.status === 'searching').length;
@@ -166,28 +168,58 @@ export default function DispatchPage() {
                 {drivers.length}
               </span>
             </div>
-            <div
-              className={`flex items-center gap-1.5 text-xs ${
-                socketStatus === 'connected' ? 'text-[#10B981]' : 'text-[#94A3B8]/40'
-              }`}
-            >
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${
-                  socketStatus === 'connected'
-                    ? 'bg-[#10B981] animate-pulse'
-                    : 'bg-[#94A3B8]/40'
+            <div className="flex items-center gap-3">
+              <div className="flex items-center rounded-md border border-white/10 p-0.5">
+                <button
+                  onClick={() => setDriversView('list')}
+                  className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors ${
+                    driversView === 'list'
+                      ? 'bg-white/10 text-[#F1F5F9]'
+                      : 'text-[#94A3B8] hover:text-[#F1F5F9]'
+                  }`}
+                >
+                  <List size={12} />
+                  Ro&apos;yxat
+                </button>
+                <button
+                  onClick={() => setDriversView('map')}
+                  className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors ${
+                    driversView === 'map'
+                      ? 'bg-white/10 text-[#F1F5F9]'
+                      : 'text-[#94A3B8] hover:text-[#F1F5F9]'
+                  }`}
+                >
+                  <Map size={12} />
+                  Xarita
+                </button>
+              </div>
+              <div
+                className={`flex items-center gap-1.5 text-xs ${
+                  socketStatus === 'connected' ? 'text-[#10B981]' : 'text-[#94A3B8]/40'
                 }`}
-              />
-              Live
+              >
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    socketStatus === 'connected'
+                      ? 'bg-[#10B981] animate-pulse'
+                      : 'bg-[#94A3B8]/40'
+                  }`}
+                />
+                Live
+              </div>
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto p-3">
-            <OnlineDriversList
-              drivers={drivers}
-              isLoading={driversLoading}
-              error={driversError}
-              onRefetch={refetchDrivers}
-            />
+          <div className={driversView === 'list' ? 'flex-1 overflow-y-auto p-3' : 'flex-1 overflow-hidden'}>
+            {driversView === 'list' ? (
+              <OnlineDriversList
+                drivers={drivers}
+                isLoading={driversLoading}
+                error={driversError}
+                onRefetch={refetchDrivers}
+              />
+            ) : (
+              <DriverMap drivers={drivers} isLoading={driversLoading} />
+            )}
           </div>
         </div>
       </div>

@@ -13,6 +13,10 @@ import {
   WifiOff,
   Menu,
   X,
+  DollarSign,
+  Tag,
+  Gift,
+  MessageCircle,
 } from 'lucide-react';
 import { isAuthenticated, logout, getUser } from '@/lib/auth';
 import { useSocket } from '@/hooks/useSocket';
@@ -22,6 +26,10 @@ const navLinks = [
   { href: '/dispatch', label: 'Dispatch', icon: LayoutDashboard },
   { href: '/orders', label: 'Orders', icon: ClipboardList },
   { href: '/create-order', label: 'Create Order', icon: PlusCircle },
+  { href: '/dispatch/tariffs', label: 'Tariffs', icon: DollarSign },
+  { href: '/dispatch/promo-codes', label: 'Promo Codes', icon: Tag },
+  { href: '/dispatch/bonuses', label: 'Bonuses', icon: Gift },
+  { href: '/dispatch/support', label: 'Support', icon: MessageCircle },
 ];
 
 export default function DispatchLayout({
