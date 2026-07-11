@@ -13,6 +13,7 @@ import { DriversModule } from '../drivers/drivers.module';
 import { MatchingModule } from '../matching/matching.module';
 import { PromoCodesModule } from '../promo-codes/promo-codes.module';
 import { DriverBonusesModule } from '../driver-bonuses/driver-bonuses.module';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { DriverBonusesModule } from '../driver-bonuses/driver-bonuses.module';
     MatchingModule,
     PromoCodesModule,
     DriverBonusesModule,
+    SettingsModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

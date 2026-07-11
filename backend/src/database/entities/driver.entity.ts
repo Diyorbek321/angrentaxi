@@ -45,6 +45,32 @@ export class Driver {
   isOnline: boolean;
 
   @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    default: 0,
+    transformer: {
+      to: (value: number) => value,
+      from: (value: string) => parseFloat(value),
+    },
+  })
+  balance: number;
+
+  // Per-driver commission override (percent, e.g. 5 for a driver carrying ads
+  // who pays a reduced rate). Null means "use the platform default rate".
+  @Column({
+    type: 'decimal',
+    precision: 5,
+    scale: 2,
+    nullable: true,
+    transformer: {
+      to: (value: number | null) => value,
+      from: (value: string | null) => (value === null ? null : parseFloat(value)),
+    },
+  })
+  commissionRate: number | null;
+
+  @Column({
     type: 'geometry',
     spatialFeatureType: 'Point',
     srid: 4326,

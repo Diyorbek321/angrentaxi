@@ -18,6 +18,7 @@ import { UsersService } from '../users/users.service';
 import { DriversService } from '../drivers/drivers.service';
 import { PromoCodesService } from '../promo-codes/promo-codes.service';
 import { DriverBonusesService } from '../driver-bonuses/driver-bonuses.service';
+import { SettingsService } from '../settings/settings.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { CreateDispatchOrderDto } from './dto/create-dispatch-order.dto';
 import { CalculatePriceDto } from './dto/calculate-price.dto';
@@ -48,6 +49,7 @@ export class OrdersService {
     private readonly driversService: DriversService,
     private readonly promoCodesService: PromoCodesService,
     private readonly driverBonusesService: DriverBonusesService,
+    private readonly settingsService: SettingsService,
   ) {}
 
   async calculatePrice(
@@ -407,12 +409,21 @@ export class OrdersService {
     }
     const discountedFinalPrice = Math.max(0, finalPrice - finalDiscountAmount);
 
+    // Commission: driver's own override rate if set, else the platform default.
+    const payoutDriver = order.driverId
+      ? await this.driversService.findByUserId(order.driverId)
+      : null;
+    const commissionRate =
+      payoutDriver?.commissionRate ?? (await this.settingsService.getDefaultCommissionRate());
+    const commissionAmount = Math.round((discountedFinalPrice * commissionRate) / 100);
+    const netDriverEarning = discountedFinalPrice - commissionAmount;
+
     // Update order
     await this.orderRepository.update(orderId, {
       status: OrderStatus.COMPLETED,
       finalPrice: discountedFinalPrice,
       discountAmount: finalDiscountAmount || null,
-      driverEarning: discountedFinalPrice,
+      driverEarning: netDriverEarning,
     });
 
     // Create transaction record (passenger charge)
@@ -428,8 +439,9 @@ export class OrdersService {
       externalId: null,
     });
 
-    // Driver payout — 100% passthrough, no commission deduction (out of scope).
-    if (order.driverId) {
+    // Driver payout: gross CREDIT for the fare, then a DEBIT for the platform's
+    // commission share — the ledger records both legs rather than only the net.
+    if (order.driverId && payoutDriver) {
       await this.transactionRepository.save({
         userId: order.driverId,
         orderId,
@@ -439,6 +451,28 @@ export class OrdersService {
         status: TransactionStatus.COMPLETED,
         externalId: null,
       });
+
+      if (commissionAmount > 0) {
+        await this.transactionRepository.save({
+          userId: order.driverId,
+          orderId,
+          amount: commissionAmount,
+          type: TransactionType.DEBIT,
+          paymentMethod: order.paymentMethod,
+          status: TransactionStatus.COMPLETED,
+          externalId: 'commission',
+        });
+      }
+
+      // For a CASH trip the driver already pocketed the fare directly from the
+      // passenger — the app never held that money, so only the commission owed
+      // to the platform hits the wallet (balance trends negative over time,
+      // which is the point: it's what the driver must eventually top up). For
+      // CARD/WALLET trips the platform holds the funds, so the wallet is
+      // credited the net payout the platform still owes the driver.
+      const balanceDelta =
+        order.paymentMethod === PaymentMethod.CASH ? -commissionAmount : netDriverEarning;
+      await this.driversService.adjustBalance(order.driverId, balanceDelta);
 
       // Best-effort — a bonus-evaluation failure must never block trip completion.
       this.driverBonusesService.evaluateForDriver(order.driverId).catch((err) => {
@@ -464,12 +498,18 @@ export class OrdersService {
 
     this.realtimeGateway.emitToManagers('order:completed', updatedOrder);
 
+    // Re-fetch: adjustBalance may have just flipped isOnline to false if the
+    // commission deduction pushed the driver negative.
     const finishedDriver = await this.driversService.findByUserId(driverId);
     if (finishedDriver) {
-      this.realtimeGateway.emitToManagers('driver:status_changed', {
-        driverId: finishedDriver.id,
-        status: 'online',
-      });
+      if (finishedDriver.isOnline) {
+        this.realtimeGateway.emitToManagers('driver:status_changed', {
+          driverId: finishedDriver.id,
+          status: 'online',
+        });
+      } else {
+        this.realtimeGateway.emitToManagers('driver:offline', { driverId: finishedDriver.id });
+      }
     }
 
     this.logger.log(

@@ -33,6 +33,16 @@ import { DriverBonusRule } from './database/entities/driver-bonus-rule.entity';
 import { DriverBonusAward } from './database/entities/driver-bonus-award.entity';
 import { SupportThread } from './database/entities/support-thread.entity';
 import { SupportMessage } from './database/entities/support-message.entity';
+import { PlatformSettings } from './database/entities/platform-settings.entity';
+import { Store } from './database/entities/store.entity';
+import { MarketCategory } from './database/entities/market-category.entity';
+import { Product } from './database/entities/product.entity';
+import { StockMovement } from './database/entities/stock-movement.entity';
+import { MarketOrder } from './database/entities/market-order.entity';
+import { Restaurant } from './database/entities/restaurant.entity';
+import { MenuCategory } from './database/entities/menu-category.entity';
+import { Dish } from './database/entities/dish.entity';
+import { FoodOrder } from './database/entities/food-order.entity';
 
 // Feature Modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -49,6 +59,9 @@ import { PromoCodesModule } from './modules/promo-codes/promo-codes.module';
 import { TariffChangeRequestsModule } from './modules/tariff-change-requests/tariff-change-requests.module';
 import { DriverBonusesModule } from './modules/driver-bonuses/driver-bonuses.module';
 import { SupportModule } from './modules/support/support.module';
+import { SettingsModule } from './modules/settings/settings.module';
+import { MarketModule } from './modules/market/market.module';
+import { FoodModule } from './modules/food/food.module';
 
 @Module({
   imports: [
@@ -85,6 +98,16 @@ import { SupportModule } from './modules/support/support.module';
           DriverBonusAward,
           SupportThread,
           SupportMessage,
+          PlatformSettings,
+          Store,
+          MarketCategory,
+          Product,
+          StockMovement,
+          MarketOrder,
+          Restaurant,
+          MenuCategory,
+          Dish,
+          FoodOrder,
         ],
         migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
         // Schema is built from entities via synchronize (default on) for the test/MVP server,
@@ -140,6 +163,9 @@ import { SupportModule } from './modules/support/support.module';
     TariffChangeRequestsModule,
     DriverBonusesModule,
     SupportModule,
+    SettingsModule,
+    MarketModule,
+    FoodModule,
   ],
 })
 export class AppModule {}

@@ -9,7 +9,11 @@
     "migration:generate": "typeorm migration:generate",
     "migration:run": "typeorm migration:run -d dist/config/typeorm.config.js",
     "seed": "ts-node src/database/seeds/seed.ts",
-    "seed:prod": "node dist/database/seeds/seed.js"
+    "seed:prod": "node dist/database/seeds/seed.js",
+    "seed:market": "ts-node src/database/seeds/seed-market.ts",
+    "seed:market:prod": "node dist/database/seeds/seed-market.js",
+    "seed:food": "ts-node src/database/seeds/seed-food.ts",
+    "seed:food:prod": "node dist/database/seeds/seed-food.js"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",

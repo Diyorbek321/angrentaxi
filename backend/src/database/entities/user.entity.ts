@@ -11,6 +11,8 @@ export enum UserRole {
   DRIVER = 'driver',
   MANAGER = 'manager',
   ADMIN = 'admin',
+  MARKET = 'market',
+  RESTAURANT = 'restaurant',
 }
 
 export enum UserStatus {

@@ -11,6 +11,12 @@ import { Repository } from 'typeorm';
 import Redis from 'ioredis';
 import { Driver } from '../../database/entities/driver.entity';
 import { UserStatus } from '../../database/entities/user.entity';
+import {
+  Transaction,
+  TransactionStatus,
+  TransactionType,
+} from '../../database/entities/transaction.entity';
+import { PaymentMethod } from '../../database/entities/order.entity';
 import { REDIS_CLIENT } from '../../config/redis.config';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
@@ -59,6 +65,8 @@ export class DriversService {
   constructor(
     @InjectRepository(Driver)
     private readonly driverRepository: Repository<Driver>,
+    @InjectRepository(Transaction)
+    private readonly transactionRepository: Repository<Transaction>,
     @Inject(REDIS_CLIENT)
     private readonly redis: Redis,
     private readonly usersService: UsersService,
@@ -179,6 +187,12 @@ export class DriversService {
     if (isOnline && driver.user?.status === UserStatus.PENDING) {
       throw new BadRequestException(
         'Your account is awaiting admin approval before you can go online',
+      );
+    }
+
+    if (isOnline && driver.balance < 0) {
+      throw new BadRequestException(
+        `Balansingiz manfiy (${driver.balance.toLocaleString('uz-UZ')} so'm). Onlayn bo'lish uchun hisobni to'ldiring.`,
       );
     }
 
@@ -303,6 +317,60 @@ export class DriversService {
         location: pos ? { lat: parseFloat(pos[1]), lng: parseFloat(pos[0]) } : undefined,
       };
     });
+  }
+
+  // Pure balance mutation with no transaction record of its own — used by
+  // OrdersService after it has already written the CREDIT/DEBIT pair for a
+  // completed trip's payout + commission, so the ledger isn't double-counted.
+  // If the delta pushes the driver negative while online, take them offline
+  // immediately rather than leaving them online-but-blocked until their next
+  // toggle.
+  async adjustBalance(userId: string, delta: number): Promise<{ driver: Driver; wentOffline: boolean }> {
+    const driver = await this.findByUserIdOrThrow(userId);
+    const newBalance = driver.balance + delta;
+    const wentOffline = newBalance < 0 && driver.isOnline;
+
+    await this.driverRepository.update(driver.id, {
+      balance: newBalance,
+      ...(wentOffline && { isOnline: false }),
+    });
+
+    if (wentOffline) {
+      await this.redis.zrem(DRIVERS_ONLINE_KEY, driver.id);
+      this.logger.log(`Driver ${driver.id} balance went negative (${newBalance}), taken offline`);
+    }
+
+    return {
+      driver: { ...driver, balance: newBalance, isOnline: wentOffline ? false : driver.isOnline },
+      wentOffline,
+    };
+  }
+
+  // Manual top-up/adjustment. `amount` may be negative for a correction. This
+  // is also the endpoint a future Telegram top-up bot will call.
+  async addFunds(driverId: string, amount: number, note?: string): Promise<Driver> {
+    const driver = await this.findByIdOrThrow(driverId);
+
+    await this.transactionRepository.save({
+      userId: driver.userId,
+      orderId: null,
+      amount: Math.abs(amount),
+      type: amount >= 0 ? TransactionType.CREDIT : TransactionType.DEBIT,
+      paymentMethod: PaymentMethod.CASH,
+      status: TransactionStatus.COMPLETED,
+      externalId: note ?? null,
+    });
+
+    const newBalance = driver.balance + amount;
+    await this.driverRepository.update(driver.id, { balance: newBalance });
+
+    return this.findByIdOrThrow(driverId);
+  }
+
+  async setCommissionRate(driverId: string, commissionRate: number | null): Promise<Driver> {
+    await this.findByIdOrThrow(driverId);
+    await this.driverRepository.update(driverId, { commissionRate });
+    return this.findByIdOrThrow(driverId);
   }
 
   async countAll(): Promise<number> {

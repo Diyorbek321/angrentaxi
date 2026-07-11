@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -37,6 +38,29 @@ export class UsersService {
       status: UserStatus.ACTIVE,
       firstName: firstName || null,
       lastName: rest.join(' ') || null,
+      fcmToken: null,
+    });
+  }
+
+  // Used by admin-initiated vendor onboarding (Market stores, Restaurants):
+  // the phone must not already belong to another account, since a vendor
+  // owner account is single-purpose (see Store/Restaurant.ownerUserId unique).
+  async createWithRole(
+    phone: string,
+    role: UserRole,
+    firstName?: string,
+    lastName?: string,
+  ): Promise<User> {
+    const existing = await this.findByPhone(phone);
+    if (existing) {
+      throw new ConflictException('A user with this phone number already exists');
+    }
+    return this.userRepository.save({
+      phone,
+      role,
+      status: UserStatus.ACTIVE,
+      firstName: firstName || null,
+      lastName: lastName || null,
       fcmToken: null,
     });
   }

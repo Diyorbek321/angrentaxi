@@ -20,6 +20,8 @@ import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
 import { SetOnlineStatusDto } from './dto/set-online-status.dto';
+import { AddFundsDto } from './dto/add-funds.dto';
+import { SetCommissionRateDto } from './dto/set-commission-rate.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -118,6 +120,28 @@ export class DriversController {
     const driver = await this.driversService.findByIdOrThrow(id);
     await this.usersService.updateStatus(driver.userId, UserStatus.ACTIVE);
     return { ...driver, status: 'approved' };
+  }
+
+  @Patch(':id/balance')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: "Add funds to (or deduct from) a driver's balance (admin only)" })
+  @ApiParam({ name: 'id', description: 'Driver UUID' })
+  async addFunds(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AddFundsDto,
+  ): Promise<Driver> {
+    return this.driversService.addFunds(id, dto.amount, dto.note);
+  }
+
+  @Patch(':id/commission-rate')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: "Set a driver's commission rate override (admin only)" })
+  @ApiParam({ name: 'id', description: 'Driver UUID' })
+  async setCommissionRate(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SetCommissionRateDto,
+  ): Promise<Driver> {
+    return this.driversService.setCommissionRate(id, dto.commissionRate ?? null);
   }
 
   @Patch('status')
