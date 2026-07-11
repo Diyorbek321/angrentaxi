@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Star, Car, Phone, Shield, ShieldOff, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Star, Car, Phone, Shield, ShieldOff, CheckCircle, Wallet } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/Modal';
 import { DriverStatusBadge } from '@/components/drivers/DriverStatusBadge';
 import { OrderStatusBadge } from '@/components/orders/OrderStatusBadge';
-import { driversApi, Driver, DriverTrip } from '@/lib/api';
+import { driversApi, settingsApi, Driver, DriverTrip } from '@/lib/api';
 import { usePagination } from '@/hooks/usePagination';
 import { useToast } from '@/components/ui/Toast';
 import {
@@ -49,9 +49,13 @@ export default function DriverDetailPage() {
   const [trips, setTrips] = useState<DriverTrip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [tripsLoading, setTripsLoading] = useState(false);
-  const [actionType, setActionType] = useState<'approve' | 'block' | 'unblock' | null>(null);
+  const [actionType, setActionType] = useState<'approve' | 'block' | 'unblock' | 'addFunds' | 'commissionRate' | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [blockReason, setBlockReason] = useState('');
+  const [fundsAmount, setFundsAmount] = useState('');
+  const [fundsNote, setFundsNote] = useState('');
+  const [commissionInput, setCommissionInput] = useState('');
+  const [defaultCommissionRate, setDefaultCommissionRate] = useState<number | null>(null);
 
   const tripsPagination = usePagination(10);
 
@@ -69,6 +73,12 @@ export default function DriverDetailPage() {
     };
     fetchDriver();
   }, [driverId, router, toast]);
+
+  useEffect(() => {
+    settingsApi.getCommission()
+      .then((res) => setDefaultCommissionRate(res.data.data.defaultCommissionRate))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const fetchTrips = async () => {
@@ -109,6 +119,21 @@ export default function DriverDetailPage() {
         await driversApi.unblock(driver.userId);
         setDriver(prev => prev ? { ...prev, status: 'active', blockReason: null } : null);
         toast({ title: 'Haydovchi blokdan chiqarildi', variant: 'success' });
+      } else if (actionType === 'addFunds') {
+        const amount = parseFloat(fundsAmount);
+        if (!amount) {
+          toast({ title: 'Xatolik', description: 'Miqdorni kiriting', variant: 'error' });
+          return;
+        }
+        const res = await driversApi.addFunds(driver.id, amount, fundsNote.trim() || undefined);
+        setDriver(prev => prev ? { ...prev, ...(res.data.data as Partial<Driver>) } : null);
+        toast({ title: 'Balans yangilandi', variant: 'success' });
+      } else if (actionType === 'commissionRate') {
+        const trimmed = commissionInput.trim();
+        const rate = trimmed === '' ? null : parseFloat(trimmed);
+        const res = await driversApi.setCommissionRate(driver.id, rate);
+        setDriver(prev => prev ? { ...prev, ...(res.data.data as Partial<Driver>) } : null);
+        toast({ title: 'Komissiya foizi yangilandi', variant: 'success' });
       }
     } catch {
       toast({ title: 'Xatolik', description: 'Amalni bajarishda xatolik', variant: 'error' });
@@ -116,6 +141,9 @@ export default function DriverDetailPage() {
       setActionLoading(false);
       setActionType(null);
       setBlockReason('');
+      setFundsAmount('');
+      setFundsNote('');
+      setCommissionInput('');
     }
   };
 
@@ -188,11 +216,27 @@ export default function DriverDetailPage() {
                 {driver.balance !== undefined && (
                   <div className="rounded-lg bg-yellow-500/10 p-3 text-center">
                     <p className="text-xs text-gray-400">Balans</p>
-                    <p className="text-lg font-bold text-gray-100">
+                    <p className={`text-lg font-bold ${driver.balance < 0 ? 'text-red-400' : 'text-gray-100'}`}>
                       {formatCurrency(driver.balance)}
                     </p>
                   </div>
                 )}
+                <div className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2 text-sm">
+                  <span className="text-gray-400">Komissiya</span>
+                  <button
+                    className="font-semibold text-gray-100 underline decoration-dotted underline-offset-2 hover:text-brand-yellow"
+                    onClick={() => {
+                      setCommissionInput(driver.commissionRate != null ? String(driver.commissionRate) : '');
+                      setActionType('commissionRate');
+                    }}
+                  >
+                    {driver.commissionRate != null
+                      ? `${driver.commissionRate}%`
+                      : defaultCommissionRate != null
+                      ? `Standart (${defaultCommissionRate}%)`
+                      : 'Standart'}
+                  </button>
+                </div>
               </div>
 
               <div className="mt-4 space-y-2">
@@ -206,6 +250,14 @@ export default function DriverDetailPage() {
                     Tasdiqlash
                   </Button>
                 )}
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={() => setActionType('addFunds')}
+                >
+                  <Wallet className="mr-2 h-4 w-4" />
+                  Hisobni to&apos;ldirish
+                </Button>
                 {driver.status !== 'blocked' ? (
                   <Button
                     className="w-full"
@@ -315,15 +367,24 @@ export default function DriverDetailPage() {
       </div>
 
       {/* Confirm action modal */}
-      <Dialog open={!!actionType} onOpenChange={() => { setActionType(null); setBlockReason(''); }}>
+      <Dialog
+        open={!!actionType}
+        onOpenChange={() => {
+          setActionType(null);
+          setBlockReason('');
+          setFundsAmount('');
+          setFundsNote('');
+          setCommissionInput('');
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {actionType === 'approve'
-                ? 'Haydovchini tasdiqlash'
-                : actionType === 'block'
-                ? 'Haydovchini bloklash'
-                : 'Blokdan chiqarish'}
+              {actionType === 'approve' && 'Haydovchini tasdiqlash'}
+              {actionType === 'block' && 'Haydovchini bloklash'}
+              {actionType === 'unblock' && 'Blokdan chiqarish'}
+              {actionType === 'addFunds' && "Hisobni to'ldirish"}
+              {actionType === 'commissionRate' && 'Komissiya foizini belgilash'}
             </DialogTitle>
             <DialogDescription>
               {actionType === 'approve' &&
@@ -331,6 +392,10 @@ export default function DriverDetailPage() {
               {actionType === 'block' &&
                 'Bu haydovchi tizimdan bloklanadi. Ishlashni to\'xtatadi.'}
               {actionType === 'unblock' && 'Bu haydovchi yana tizimda ishlash imkoniyatiga ega bo\'ladi.'}
+              {actionType === 'addFunds' &&
+                "Musbat miqdor balansni to'ldiradi, manfiy miqdor ushlab qoladi (masalan, tuzatish uchun)."}
+              {actionType === 'commissionRate' &&
+                "Ushbu haydovchi uchun alohida komissiya foizi (masalan, reklama tashigani uchun kamroq). Bo'sh qoldirsangiz, standart foiz qo'llanadi."}
             </DialogDescription>
           </DialogHeader>
           {actionType === 'block' && (
@@ -339,6 +404,32 @@ export default function DriverDetailPage() {
               placeholder="Masalan: qoidabuzarlik, shikoyatlar..."
               value={blockReason}
               onChange={(e) => setBlockReason(e.target.value)}
+            />
+          )}
+          {actionType === 'addFunds' && (
+            <div className="space-y-3">
+              <Input
+                label="Miqdor (so'm)"
+                type="number"
+                placeholder="Masalan: 50000 yoki -10000"
+                value={fundsAmount}
+                onChange={(e) => setFundsAmount(e.target.value)}
+              />
+              <Input
+                label="Izoh (ixtiyoriy)"
+                placeholder="Masalan: naqd pul orqali to'ldirildi"
+                value={fundsNote}
+                onChange={(e) => setFundsNote(e.target.value)}
+              />
+            </div>
+          )}
+          {actionType === 'commissionRate' && (
+            <Input
+              label={`Komissiya foizi, % (standart: ${defaultCommissionRate ?? '—'}%)`}
+              type="number"
+              placeholder="Bo'sh — standart foiz qo'llanadi"
+              value={commissionInput}
+              onChange={(e) => setCommissionInput(e.target.value)}
             />
           )}
           <DialogFooter className="gap-2">

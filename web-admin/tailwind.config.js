@@ -4,6 +4,10 @@ module.exports = {
   content: ['./pages/**/*.{ts,tsx}','./components/**/*.{ts,tsx}','./app/**/*.{ts,tsx}','./src/**/*.{ts,tsx}'],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['var(--font-manrope)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-jetbrains-mono)', 'ui-monospace', 'monospace'],
+      },
       colors: {
         brand: {
           yellow: '#FACC15',
@@ -19,6 +23,7 @@ module.exports = {
           700: '#1E293B',
           600: '#334155',
         },
+        warning: '#F59E0B',
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',

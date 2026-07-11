@@ -120,10 +120,10 @@ export default function DispatchPage() {
         </div>
       </div>
 
-      {/* Two-panel layout */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left: Active orders (40%) */}
-        <div className="w-[40%] border-r border-white/[0.06] flex flex-col overflow-hidden">
+      {/* Two-panel layout — stacks vertically below lg, side-by-side above it */}
+      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
+        {/* Left: Active orders (40% on large screens, half-height when stacked) */}
+        <div className="flex-1 lg:flex-none lg:w-[40%] min-h-0 border-b lg:border-b-0 lg:border-r border-white/[0.06] flex flex-col overflow-hidden">
           <div className="px-4 py-3 border-b border-white/[0.06] bg-[#0D1526]/50 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-semibold text-[#F1F5F9]">Active Orders</h2>
@@ -159,8 +159,8 @@ export default function DispatchPage() {
           </div>
         </div>
 
-        {/* Right: Online drivers (60%) */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Right: Online drivers (60% on large screens, half-height when stacked) */}
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
           <div className="px-4 py-3 border-b border-white/[0.06] bg-[#0D1526]/50 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-semibold text-[#F1F5F9]">Online Drivers</h2>

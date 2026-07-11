@@ -7,7 +7,12 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['var(--font-manrope)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-jetbrains-mono)', 'ui-monospace', 'monospace'],
+      },
       colors: {
+        warning: '#F59E0B',
         accent: {
           DEFAULT: '#FACC15',
           50: '#FEFCE8',
@@ -37,6 +42,7 @@ module.exports = {
       },
       boxShadow: {
         'glow-yellow': '0 0 20px rgba(250,204,21,0.25)',
+        'glow-yellow-sm': '0 0 10px rgba(250,204,21,0.15)',
         'card': '0 4px 24px rgba(0,0,0,0.4)',
       },
     },

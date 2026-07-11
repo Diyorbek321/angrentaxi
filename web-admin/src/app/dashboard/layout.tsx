@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { SidebarProvider } from '@/components/layout/SidebarContext';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -31,11 +32,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#080D1A]">
-      <Sidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <main className="flex-1 overflow-y-auto bg-[#080D1A]">{children}</main>
+    <SidebarProvider>
+      <div className="flex h-screen overflow-hidden bg-[#080D1A]">
+        <Sidebar />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <main className="flex-1 overflow-y-auto bg-[#080D1A]">{children}</main>
+        </div>
       </div>
-    </div>
+    </SidebarProvider>
   );
 }

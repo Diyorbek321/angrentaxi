@@ -68,11 +68,11 @@ export default function OrdersPage() {
   return (
     <div className="h-[calc(100vh-3.5rem)] flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-700 bg-gray-800/50 shrink-0">
+      <div className="px-6 py-4 border-b border-white/[0.06] bg-[#0D1526]/50 shrink-0">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-lg font-semibold text-gray-100">Orders</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <h1 className="text-lg font-semibold text-[#F1F5F9]">Orders</h1>
+            <p className="text-sm text-[#94A3B8] mt-0.5">
               {data ? `${data.total.toLocaleString()} total orders` : 'Loading...'}
             </p>
           </div>

@@ -1,0 +1,218 @@
+import axios, { AxiosError } from 'axios';
+import Cookies from 'js-cookie';
+
+const api = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1',
+  headers: { 'Content-Type': 'application/json' },
+});
+
+api.interceptors.request.use((config) => {
+  const token = Cookies.get('access_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+api.interceptors.response.use(
+  (res) => res,
+  async (err: AxiosError) => {
+    if (err.response?.status === 401) {
+      Cookies.remove('access_token');
+      Cookies.remove('vendor_user');
+      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(err);
+  }
+);
+
+export default api;
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  message?: string;
+}
+
+// ─── Auth ──────────────────────────────────────────────────────────
+
+export interface VendorUser {
+  id: string;
+  phone: string;
+  firstName: string | null;
+  lastName: string | null;
+  role: string;
+}
+
+export const authApi = {
+  sendOtp: (phone: string) =>
+    api.post<ApiResponse<{ message: string; code?: string }>>('/auth/send-otp', { phone }),
+
+  verifyOtp: (phone: string, code: string) =>
+    api.post<ApiResponse<{ accessToken: string; user: VendorUser }>>('/auth/verify-otp', {
+      phone,
+      code,
+    }),
+};
+
+// ─── Market domain types ──────────────────────────────────────────
+
+export type DeliveryMode = 'self' | 'platform';
+export type ProductUnit = 'dona' | 'kg' | 'litr';
+export type ProductStatus = 'active' | 'out' | 'hidden';
+export type MarketOrderStatus = 'new' | 'packing' | 'shipped' | 'delivered' | 'cancelled';
+
+export interface Store {
+  id: string;
+  ownerUserId: string;
+  name: string;
+  phone: string | null;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+  workingHoursStart: string;
+  workingHoursEnd: string;
+  deliveryMode: DeliveryMode;
+  lowStockThreshold: number;
+  status: 'active' | 'closed';
+}
+
+export interface MarketCategory {
+  id: string;
+  storeId: string;
+  name: string;
+  emoji: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface Product {
+  id: string;
+  storeId: string;
+  categoryId: string | null;
+  name: string;
+  sku: string | null;
+  price: number;
+  stock: number;
+  unit: ProductUnit;
+  status: ProductStatus;
+  emoji: string;
+  hue: number;
+}
+
+export interface OrderItem {
+  productId: string;
+  name: string;
+  qty: number;
+  price: number;
+  packed: boolean;
+}
+
+export interface MarketOrder {
+  id: string;
+  storeId: string;
+  customerId: string;
+  status: MarketOrderStatus;
+  items: OrderItem[];
+  deliveryMode: DeliveryMode;
+  deliveryAddress: string;
+  customerPhone: string | null;
+  totalPrice: number;
+  note: string | null;
+  createdAt: string;
+  updatedAt: string;
+  customer?: { firstName: string | null; lastName: string | null; phone: string };
+}
+
+export interface StockMovement {
+  id: string;
+  productId: string;
+  delta: number;
+  note: string | null;
+  createdAt: string;
+  product: { name: string; emoji: string; hue: number; unit: ProductUnit };
+}
+
+export interface DashboardData {
+  storeName: string;
+  lowStockThreshold: number;
+  todayOrdersCount: number;
+  todayRevenue: number;
+  outOfStockCount: number;
+  activeProductsCount: number;
+  hiddenProductsCount: number;
+  lowStock: Array<{ id: string; name: string; stock: number; unit: ProductUnit }>;
+  recentOrders: Array<{
+    id: string;
+    customer: string;
+    status: MarketOrderStatus;
+    itemsCount: number;
+    totalPrice: number;
+    createdAt: string;
+  }>;
+  bestSellers: Array<{ name: string; sold: number }>;
+}
+
+export interface ReportsData {
+  weeklyRevenue: Array<{ day: string; total: number }>;
+  categoryBreakdown: Array<{ name: string; total: number; pct: number }>;
+  bestSellers: Array<{ name: string; sold: number }>;
+  stockTurnover: number;
+}
+
+// ─── Vendor API ────────────────────────────────────────────────────
+
+export const marketApi = {
+  getStore: () => api.get<ApiResponse<Store>>('/market/vendor/store'),
+  updateStore: (data: Partial<Pick<Store, 'name' | 'phone' | 'address' | 'lat' | 'lng' | 'workingHoursStart' | 'workingHoursEnd' | 'deliveryMode' | 'lowStockThreshold'>>) =>
+    api.patch<ApiResponse<Store>>('/market/vendor/store', data),
+
+  getDashboard: () => api.get<ApiResponse<DashboardData>>('/market/vendor/dashboard'),
+  getReports: () => api.get<ApiResponse<ReportsData>>('/market/vendor/reports'),
+
+  getCategories: () => api.get<ApiResponse<MarketCategory[]>>('/market/vendor/categories'),
+  createCategory: (data: { name: string; emoji?: string; sortOrder?: number }) =>
+    api.post<ApiResponse<MarketCategory>>('/market/vendor/categories', data),
+  updateCategory: (id: string, data: Partial<{ name: string; emoji: string; sortOrder: number; isActive: boolean }>) =>
+    api.patch<ApiResponse<MarketCategory>>(`/market/vendor/categories/${id}`, data),
+  deleteCategory: (id: string) => api.delete<ApiResponse<{ deleted: boolean }>>(`/market/vendor/categories/${id}`),
+
+  getProducts: () => api.get<ApiResponse<Product[]>>('/market/vendor/products'),
+  createProduct: (data: {
+    name: string;
+    sku?: string;
+    price: number;
+    stock: number;
+    unit: ProductUnit;
+    categoryId?: string;
+    emoji?: string;
+  }) => api.post<ApiResponse<Product>>('/market/vendor/products', data),
+  updateProduct: (
+    id: string,
+    data: Partial<{
+      name: string;
+      sku: string;
+      price: number;
+      stock: number;
+      unit: ProductUnit;
+      status: ProductStatus;
+      categoryId: string;
+      emoji: string;
+    }>
+  ) => api.patch<ApiResponse<Product>>(`/market/vendor/products/${id}`, data),
+  bulkUpdateProducts: (productIds: string[], status: ProductStatus) =>
+    api.patch<ApiResponse<{ updated: number }>>('/market/vendor/products/bulk-status', { productIds, status }),
+  deleteProduct: (id: string) => api.delete<ApiResponse<{ deleted: boolean }>>(`/market/vendor/products/${id}`),
+
+  getStockMovements: () => api.get<ApiResponse<StockMovement[]>>('/market/vendor/stock/movements'),
+
+  getOrders: (status?: MarketOrderStatus) =>
+    api.get<ApiResponse<MarketOrder[]>>('/market/vendor/orders', { params: status ? { status } : undefined }),
+  getOrder: (id: string) => api.get<ApiResponse<MarketOrder>>(`/market/vendor/orders/${id}`),
+  togglePackItem: (orderId: string, index: number) =>
+    api.patch<ApiResponse<MarketOrder>>(`/market/vendor/orders/${orderId}/items/${index}/toggle-pack`),
+  advanceOrder: (orderId: string) =>
+    api.patch<ApiResponse<MarketOrder>>(`/market/vendor/orders/${orderId}/advance`),
+};

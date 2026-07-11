@@ -41,7 +41,14 @@ export default function DispatchLayout({
   const pathname = usePathname();
   const { status } = useSocket();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const user = typeof window !== 'undefined' ? getUser() : null;
+  // Read localStorage after mount, not during render — a `typeof window`
+  // check in the render body renders `null` on the server and a real value
+  // on the client's first paint, which is a guaranteed hydration mismatch.
+  const [user, setUser] = useState<ReturnType<typeof getUser>>(null);
+
+  useEffect(() => {
+    setUser(getUser());
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -67,21 +74,23 @@ export default function DispatchLayout({
           <span className="text-xs text-[#94A3B8]/60 hidden md:block">Dispatcher</span>
         </Link>
 
-        {/* Desktop nav */}
-        <nav className="hidden sm:flex items-center gap-1 flex-1">
+        {/* Desktop nav — icon-only between sm/lg (7 items won't fit with full
+            labels at that width), full icon+label from lg up */}
+        <nav className="hidden sm:flex items-center gap-1 flex-1 min-w-0">
           {navLinks.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
               href={href}
+              title={label}
               className={clsx(
-                'flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors',
+                'flex items-center gap-2 px-2.5 lg:px-3 py-2 rounded-md text-sm transition-colors shrink-0',
                 pathname === href
                   ? 'bg-[#FACC15]/10 text-[#FACC15] border border-[#FACC15]/20'
                   : 'text-[#94A3B8] hover:text-[#F1F5F9] hover:bg-white/5'
               )}
             >
               <Icon size={15} />
-              {label}
+              <span className="hidden lg:inline">{label}</span>
             </Link>
           ))}
         </nav>

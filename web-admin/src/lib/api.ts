@@ -120,6 +120,7 @@ export interface Driver {
   licenseNumber?: string;
   createdAt: string;
   balance?: number;
+  commissionRate?: number | null;
 }
 
 export interface DriverTrip {
@@ -153,6 +154,21 @@ export const driversApi = {
   block: (userId: string, reason?: string) => api.patch<ApiResponse<User>>(`/users/${userId}/block`, { reason }),
 
   unblock: (userId: string) => api.patch<ApiResponse<User>>(`/users/${userId}/unblock`),
+
+  // amount may be negative for a manual correction; positive tops up the balance.
+  addFunds: (id: string, amount: number, note?: string) =>
+    api.patch<ApiResponse<Driver>>(`/drivers/${id}/balance`, { amount, note }),
+
+  setCommissionRate: (id: string, commissionRate: number | null) =>
+    api.patch<ApiResponse<Driver>>(`/drivers/${id}/commission-rate`, { commissionRate }),
+};
+
+// ─── Settings ─────────────────────────────────────────────────────
+
+export const settingsApi = {
+  getCommission: () => api.get<ApiResponse<{ defaultCommissionRate: number }>>('/settings/commission'),
+  setCommission: (defaultCommissionRate: number) =>
+    api.patch<ApiResponse<{ defaultCommissionRate: number }>>('/settings/commission', { defaultCommissionRate }),
 };
 
 // ─── Orders ───────────────────────────────────────────────────────
@@ -405,4 +421,68 @@ export const bonusRulesApi = {
 
   update: (id: string, data: Partial<BonusRuleCreateInput & { status: BonusRuleStatus }>) =>
     api.patch<ApiResponse<BonusRule>>(`/driver-bonus-rules/${id}`, data),
+};
+
+// ─── Vendors (Market stores + Restaurants) ───────────────────────
+
+export interface StoreVendor {
+  id: string;
+  name: string;
+  phone: string | null;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+  status: 'active' | 'closed';
+  owner: { phone: string; firstName: string | null; lastName: string | null };
+  createdAt: string;
+}
+
+export interface RestaurantVendor {
+  id: string;
+  name: string;
+  phone: string | null;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+  status: 'active' | 'closed';
+  owner: { phone: string; firstName: string | null; lastName: string | null };
+  createdAt: string;
+}
+
+export interface CreateStoreVendorInput {
+  phone: string;
+  firstName?: string;
+  lastName?: string;
+  storeName: string;
+  storeAddress?: string;
+  storePhone?: string;
+  lat?: number;
+  lng?: number;
+}
+
+export interface CreateRestaurantVendorInput {
+  phone: string;
+  firstName?: string;
+  lastName?: string;
+  restaurantName: string;
+  restaurantAddress?: string;
+  restaurantPhone?: string;
+  lat?: number;
+  lng?: number;
+}
+
+export const marketAdminApi = {
+  getAll: () => api.get<ApiResponse<StoreVendor[]>>('/market/admin/stores'),
+  create: (data: CreateStoreVendorInput) =>
+    api.post<ApiResponse<StoreVendor>>('/market/admin/stores', data),
+  setStatus: (id: string, status: 'active' | 'closed') =>
+    api.patch<ApiResponse<StoreVendor>>(`/market/admin/stores/${id}/status`, { status }),
+};
+
+export const foodAdminApi = {
+  getAll: () => api.get<ApiResponse<RestaurantVendor[]>>('/food/admin/restaurants'),
+  create: (data: CreateRestaurantVendorInput) =>
+    api.post<ApiResponse<RestaurantVendor>>('/food/admin/restaurants', data),
+  setStatus: (id: string, status: 'active' | 'closed') =>
+    api.patch<ApiResponse<RestaurantVendor>>(`/food/admin/restaurants/${id}/status`, { status }),
 };
