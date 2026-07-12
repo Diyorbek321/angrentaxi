@@ -92,6 +92,13 @@ export class UsersService {
     return { ...user, status };
   }
 
+  // Used by DriversService when a passenger applies to become a driver.
+  async updateRole(id: string, role: UserRole): Promise<User> {
+    const user = await this.findByIdOrThrow(id);
+    await this.userRepository.update(id, { role });
+    return { ...user, role };
+  }
+
   async updateFcmToken(id: string, fcmToken: string): Promise<void> {
     await this.userRepository.update(id, { fcmToken });
   }

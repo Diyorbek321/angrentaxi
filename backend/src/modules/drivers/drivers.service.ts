@@ -10,7 +10,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import Redis from 'ioredis';
 import { Driver } from '../../database/entities/driver.entity';
-import { UserStatus } from '../../database/entities/user.entity';
+import { UserRole, UserStatus } from '../../database/entities/user.entity';
 import {
   Transaction,
   TransactionStatus,
@@ -78,6 +78,15 @@ export class DriversService {
       throw new ConflictException('Driver profile already exists for this user');
     }
 
+    // Staff/vendor accounts are single-purpose (see UsersService.createWithRole)
+    // and can't also apply as a driver. Passengers (the common case) and
+    // existing drivers (re-applying after a manual role fix) are allowed.
+    const user = await this.usersService.findByIdOrThrow(userId);
+    const blockedRoles = [UserRole.MANAGER, UserRole.ADMIN, UserRole.MARKET, UserRole.RESTAURANT];
+    if (blockedRoles.includes(user.role)) {
+      throw new BadRequestException('This account type cannot apply to become a driver');
+    }
+
     const driver = await this.driverRepository.save({
       userId,
       carModel: dto.carModel ?? null,
@@ -88,7 +97,11 @@ export class DriversService {
       currentLocation: null,
     });
 
-    // New drivers wait for admin approval before they can go online.
+    // Self-service driver application: promote the account to the driver role
+    // and put it in PENDING status until an admin/manager approves it.
+    if (user.role !== UserRole.DRIVER) {
+      await this.usersService.updateRole(userId, UserRole.DRIVER);
+    }
     await this.usersService.updateStatus(userId, UserStatus.PENDING);
 
     return driver;

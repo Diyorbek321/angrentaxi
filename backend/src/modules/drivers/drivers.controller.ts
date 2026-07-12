@@ -67,10 +67,13 @@ export class DriversController {
     return this.driversService.getOnlineDriversList();
   }
 
+  // No @Roles here on purpose: this is how a passenger becomes a driver.
+  // Any authenticated account may apply (DriversService rejects staff/vendor
+  // roles and accounts that already have a profile); it promotes the user to
+  // UserRole.DRIVER with UserStatus.PENDING until an admin approves them.
   @Post('profile')
-  @Roles(UserRole.DRIVER, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Create driver profile' })
-  @ApiResponse({ status: 201, description: 'Driver profile created' })
+  @ApiOperation({ summary: 'Apply to become a driver / create driver profile' })
+  @ApiResponse({ status: 201, description: 'Driver profile created, pending admin approval' })
   @ApiResponse({ status: 409, description: 'Driver profile already exists' })
   async createProfile(
     @CurrentUser() user: User,
