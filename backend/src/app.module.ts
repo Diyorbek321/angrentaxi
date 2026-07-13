@@ -46,6 +46,9 @@ import { MenuCategory } from './database/entities/menu-category.entity';
 import { Dish } from './database/entities/dish.entity';
 import { FoodOrder } from './database/entities/food-order.entity';
 import { WithdrawalRequest } from './database/entities/withdrawal-request.entity';
+import { FavoriteAddress } from './database/entities/favorite-address.entity';
+import { TripMessage } from './database/entities/trip-message.entity';
+import { SosAlert } from './database/entities/sos-alert.entity';
 
 // Feature Modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -65,6 +68,9 @@ import { SupportModule } from './modules/support/support.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { MarketModule } from './modules/market/market.module';
 import { FoodModule } from './modules/food/food.module';
+import { FavoritesModule } from './modules/favorites/favorites.module';
+import { TripChatModule } from './modules/trip-chat/trip-chat.module';
+import { SafetyModule } from './modules/safety/safety.module';
 
 @Module({
   imports: [
@@ -113,6 +119,9 @@ import { FoodModule } from './modules/food/food.module';
           Dish,
           FoodOrder,
           WithdrawalRequest,
+          FavoriteAddress,
+          TripMessage,
+          SosAlert,
         ],
         migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
         // Schema is built from entities via synchronize (default on) for the test/MVP server,
@@ -175,6 +184,9 @@ import { FoodModule } from './modules/food/food.module';
     SettingsModule,
     MarketModule,
     FoodModule,
+    FavoritesModule,
+    TripChatModule,
+    SafetyModule,
   ],
 })
 export class AppModule {}
