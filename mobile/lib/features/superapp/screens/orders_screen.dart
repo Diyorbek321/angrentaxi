@@ -1,6 +1,11 @@
 import 'package:angren_taxi/features/superapp/screens/order_detail_screen.dart';
+import 'package:angren_taxi/features/superapp/state/food_provider.dart';
+import 'package:angren_taxi/features/superapp/state/market_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/shared/models/food_order.dart';
+import 'package:angren_taxi/shared/models/market_order.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class OrderEntry {
   const OrderEntry({
@@ -31,12 +36,31 @@ const _orders = [
   OrderEntry(kind: 'Cargo', icon: Icons.local_shipping_rounded, title: 'Yuk · 2 ta quti', sub: '22-iyun, 09:40', amount: 35000, status: 'Yakunlandi', from: 'Amir Temur 24', to: 'Yangi shahar, 7-mavze'),
 ];
 
-class OrdersScreen extends StatelessWidget {
+class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key, this.embedded = false});
   final bool embedded;
 
   @override
+  State<OrdersScreen> createState() => _OrdersScreenState();
+}
+
+class _OrdersScreenState extends State<OrdersScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<MarketProvider>().loadOrderHistory();
+      context.read<FoodProvider>().loadOrderHistory();
+    });
+  }
+
+  bool get embedded => widget.embedded;
+
+  @override
   Widget build(BuildContext context) {
+    final marketOrders = context.watch<MarketProvider>().orderHistory;
+    final foodOrders = context.watch<FoodProvider>().orderHistory;
+
     return Scaffold(
       backgroundColor: agBg,
       body: Column(
@@ -76,6 +100,30 @@ class OrdersScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
               children: [
                 _ActiveOrderCard(),
+                if (foodOrders.isNotEmpty) ...[
+                  const SizedBox(height: 22),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 2),
+                    child: Text('Ovqat buyurtmalari', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: agText)),
+                  ),
+                  const SizedBox(height: 12),
+                  for (final o in foodOrders) ...[
+                    _FoodHistoryRow(order: o),
+                    const SizedBox(height: 11),
+                  ],
+                ],
+                if (marketOrders.isNotEmpty) ...[
+                  const SizedBox(height: 22),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 2),
+                    child: Text('Market buyurtmalari', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: agText)),
+                  ),
+                  const SizedBox(height: 12),
+                  for (final o in marketOrders) ...[
+                    _MarketHistoryRow(order: o),
+                    const SizedBox(height: 11),
+                  ],
+                ],
                 const SizedBox(height: 22),
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 2),
@@ -243,5 +291,115 @@ class _HistoryRow extends StatelessWidget {
       buf.write(s[i]);
     }
     return "$buf so'm";
+  }
+}
+
+class _MarketHistoryRow extends StatelessWidget {
+  const _MarketHistoryRow({required this.order});
+  final MarketOrder order;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: agSurface,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: agCardShadow,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(color: agBg, borderRadius: BorderRadius.circular(13)),
+            child: const Icon(Icons.storefront_rounded, color: agSubtle, size: 23),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${order.itemsCount} ta mahsulot',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: agText)),
+                Text('Market · #${order.id.substring(0, 6)}',
+                    style: const TextStyle(fontSize: 12, color: agSubtle, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(_HistoryRow._som(order.totalPrice),
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: agText)),
+              const SizedBox(height: 2),
+              Text(order.status.label,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: order.status.isActive ? agOrange : agGreen,
+                    fontWeight: FontWeight.w700,
+                  )),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FoodHistoryRow extends StatelessWidget {
+  const _FoodHistoryRow({required this.order});
+  final FoodOrder order;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: agSurface,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: agCardShadow,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(color: agBg, borderRadius: BorderRadius.circular(13)),
+            child: const Icon(Icons.restaurant_rounded, color: agSubtle, size: 23),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${order.itemsCount} ta taom',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: agText)),
+                Text('Ovqat · #${order.id.substring(0, 6)}',
+                    style: const TextStyle(fontSize: 12, color: agSubtle, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(_HistoryRow._som(order.totalPrice),
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: agText)),
+              const SizedBox(height: 2),
+              Text(order.status.label,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: order.status.isActive ? agOrange : agGreen,
+                    fontWeight: FontWeight.w700,
+                  )),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }

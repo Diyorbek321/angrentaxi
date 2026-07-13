@@ -11,12 +11,30 @@ class SuperappProvider extends ChangeNotifier {
   double _walletBalance = 124500;
   int _tabIndex = 0;
 
+  // Which real-backend vertical the current cart belongs to ('food' or
+  // 'market') and which store/restaurant id, so checkout knows which
+  // provider's createOrder to call. Switching context clears the cart —
+  // items from two different stores can't be combined into one order.
+  String? _activeKind;
+  String? _activeEntityId;
+
   List<CartItem> get cart => List.unmodifiable(_cart);
   bool get isCartEmpty => _cart.isEmpty;
   int get cartCount => _cart.fold(0, (sum, c) => sum + c.qty);
   double get cartSubtotal => _cart.fold(0, (sum, c) => sum + c.lineTotal);
   double get deliveryFee => _cart.isEmpty ? 0 : _deliveryFee;
   double get cartTotal => cartSubtotal + deliveryFee;
+  String? get activeKind => _activeKind;
+  String? get activeEntityId => _activeEntityId;
+
+  void setActiveContext(String kind, String entityId) {
+    if (_activeKind != kind || _activeEntityId != entityId) {
+      if (_cart.isNotEmpty) _cart.clear();
+      _activeKind = kind;
+      _activeEntityId = entityId;
+      notifyListeners();
+    }
+  }
 
   double get walletBalance => _walletBalance;
 

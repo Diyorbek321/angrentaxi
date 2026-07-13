@@ -22,7 +22,7 @@ class SocketService {
     if (isConnected) return;
 
     _socket = io.io(
-      AppConfig.wsUrl,
+      '${AppConfig.wsUrl}/ws',
       io.OptionBuilder()
           .setTransports(['websocket'])
           .setExtraHeaders({'authorization': 'Bearer $token'})
@@ -121,6 +121,12 @@ class SocketEvents {
   static const String driverArrived = 'driver:arrived';
   static const String tripStarted = 'trip:started';
   static const String tripCompleted = 'trip:completed';
+
+  // Market (passenger receives)
+  static const String marketOrderStatus = 'market:order:status';
+
+  // Food (passenger receives)
+  static const String foodOrderStatus = 'food:order:status';
 
   // Support chat
   static const String supportMessageSend = 'support:message'; // client emit

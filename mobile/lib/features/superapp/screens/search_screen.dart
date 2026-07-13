@@ -1,6 +1,5 @@
 import 'package:angren_taxi/features/superapp/data/superapp_catalog.dart';
 import 'package:angren_taxi/features/superapp/screens/product_detail_screen.dart';
-import 'package:angren_taxi/features/superapp/screens/restaurant_detail_screen.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:flutter/material.dart';
@@ -74,9 +73,9 @@ class SearchScreen extends StatelessWidget {
                         Text(r.rating, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5, color: agText)),
                       ],
                     ),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(builder: (_) => RestaurantDetailScreen(restaurant: r)),
-                    ),
+                    // Search results are still mock catalog data with no
+                    // real backend id, so this row isn't tappable yet.
+                    onTap: () {},
                   ),
                   const SizedBox(height: 11),
                 ],

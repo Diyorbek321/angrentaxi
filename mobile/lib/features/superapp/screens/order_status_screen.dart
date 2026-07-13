@@ -18,9 +18,10 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
   @override
   void initState() {
     super.initState();
+    // Cart is already cleared by CheckoutScreen once the real order succeeds —
+    // this delay is purely a cosmetic "sending" transition.
     Future<void>.delayed(const Duration(milliseconds: 2200), () {
       if (!mounted) return;
-      context.read<SuperappProvider>().clearCart();
       setState(() => _done = true);
     });
   }

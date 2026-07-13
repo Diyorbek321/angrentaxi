@@ -8,6 +8,8 @@ class User extends Equatable {
     this.avatarUrl,
     this.rating,
     this.totalTrips,
+    this.role,
+    this.status,
   });
 
   final String id;
@@ -16,6 +18,10 @@ class User extends Equatable {
   final String? avatarUrl;
   final double? rating;
   final int? totalTrips;
+  // Present on the /auth/verify-otp response (raw User entity). Used to tell
+  // whether a driver-flavor login still needs to apply for a driver profile.
+  final String? role;
+  final String? status;
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
@@ -26,6 +32,8 @@ class User extends Equatable {
       rating:
           json['rating'] != null ? (json['rating'] as num).toDouble() : null,
       totalTrips: json['totalTrips'] as int?,
+      role: json['role'] as String?,
+      status: json['status'] as String?,
     );
   }
 
@@ -36,6 +44,8 @@ class User extends Equatable {
     'avatarUrl': avatarUrl,
     'rating': rating,
     'totalTrips': totalTrips,
+    'role': role,
+    'status': status,
   };
 
   User copyWith({
@@ -45,6 +55,8 @@ class User extends Equatable {
     String? avatarUrl,
     double? rating,
     int? totalTrips,
+    String? role,
+    String? status,
   }) {
     return User(
       id: id ?? this.id,
@@ -53,11 +65,22 @@ class User extends Equatable {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       rating: rating ?? this.rating,
       totalTrips: totalTrips ?? this.totalTrips,
+      role: role ?? this.role,
+      status: status ?? this.status,
     );
   }
 
   String get displayName => name ?? phone;
 
   @override
-  List<Object?> get props => [id, phone, name, avatarUrl, rating, totalTrips];
+  List<Object?> get props => [
+    id,
+    phone,
+    name,
+    avatarUrl,
+    rating,
+    totalTrips,
+    role,
+    status,
+  ];
 }

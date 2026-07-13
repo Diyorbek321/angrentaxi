@@ -1,6 +1,4 @@
 import 'package:angren_taxi/features/passenger/order_provider.dart';
-import 'package:angren_taxi/features/superapp/data/superapp_catalog.dart';
-import 'package:angren_taxi/features/superapp/models/catalog_models.dart';
 import 'package:angren_taxi/features/superapp/screens/cargo_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/food_list_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/market_screen.dart';
@@ -8,8 +6,10 @@ import 'package:angren_taxi/features/superapp/screens/notifications_screen.dart'
 import 'package:angren_taxi/features/superapp/screens/restaurant_detail_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/search_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/wallet_screen.dart';
+import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/shared/models/food_restaurant.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -17,8 +17,22 @@ import 'package:provider/provider.dart';
 
 /// Angren Go home — green hero header, floating search, 4-service grid, a dark
 /// taxi CTA and a popular-restaurants carousel. Pixel-faithful to the prototype.
-class HomeTab extends StatelessWidget {
+class HomeTab extends StatefulWidget {
   const HomeTab({super.key});
+
+  @override
+  State<HomeTab> createState() => _HomeTabState();
+}
+
+class _HomeTabState extends State<HomeTab> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final food = context.read<FoodProvider>();
+      if (food.restaurants.isEmpty) food.loadRestaurants();
+    });
+  }
 
   void _openTaxi(BuildContext context) {
     context.read<OrderProvider>().setServiceType('taxi');
@@ -32,6 +46,7 @@ class HomeTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final balance = context.select<SuperappProvider, double>((p) => p.walletBalance);
+    final restaurants = context.watch<FoodProvider>().restaurants;
 
     return Container(
       color: agBg,
@@ -67,7 +82,8 @@ class HomeTab extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _RestaurantCarousel(
-            onOpen: (r) => _push(context, RestaurantDetailScreen(restaurant: r)),
+            restaurants: restaurants,
+            onOpen: (r) => _push(context, RestaurantDetailScreen(restaurantId: r.id)),
           ),
         ],
       ),
@@ -370,14 +386,15 @@ class _TaxiCta extends StatelessWidget {
 }
 
 class _RestaurantCarousel extends StatelessWidget {
-  const _RestaurantCarousel({required this.onOpen});
-  final void Function(Restaurant) onOpen;
+  const _RestaurantCarousel({required this.restaurants, required this.onOpen});
+  final List<FoodRestaurant> restaurants;
+  final void Function(FoodRestaurant) onOpen;
 
   @override
   Widget build(BuildContext context) {
-    const restaurants = SuperappCatalog.restaurants;
+    if (restaurants.isEmpty) return const SizedBox.shrink();
     return SizedBox(
-      height: 196,
+      height: 160,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -394,7 +411,7 @@ class _RestaurantCarousel extends StatelessWidget {
 
 class _RestaurantCard extends StatelessWidget {
   const _RestaurantCard({required this.restaurant, required this.onTap});
-  final Restaurant restaurant;
+  final FoodRestaurant restaurant;
   final VoidCallback onTap;
 
   @override
@@ -418,8 +435,8 @@ class _RestaurantCard extends StatelessWidget {
                 Container(
                   height: 92,
                   width: double.infinity,
-                  color: r.color,
-                  child: Icon(r.icon, size: 44, color: Colors.white.withValues(alpha: 0.92)),
+                  color: agOrange,
+                  child: const Icon(Icons.restaurant_rounded, size: 40, color: Colors.white70),
                 ),
                 Positioned(
                   top: 8,
@@ -427,42 +444,21 @@ class _RestaurantCard extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.95),
+                      color: (r.isOpen ? agGreen : agRed).withValues(alpha: 0.95),
                       borderRadius: BorderRadius.circular(9),
                     ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.star_rounded, size: 13, color: agOrange),
-                        const SizedBox(width: 3),
-                        Text(r.rating,
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: agText)),
-                      ],
-                    ),
+                    child: Text(r.isOpen ? 'Ochiq' : 'Yopiq',
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white)),
                   ),
                 ),
               ],
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 11, 12, 13),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(r.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: agText)),
-                  const SizedBox(height: 2),
-                  Text(r.tag, style: const TextStyle(fontSize: 11.5, color: agSubtle, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(Icons.schedule_rounded, size: 14, color: agSubtle),
-                      const SizedBox(width: 5),
-                      Text(r.time, style: const TextStyle(fontSize: 11.5, color: agSubtle, fontWeight: FontWeight.w600)),
-                    ],
-                  ),
-                ],
-              ),
+              child: Text(r.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: agText)),
             ),
           ],
         ),

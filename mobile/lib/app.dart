@@ -8,6 +8,7 @@ import 'package:angren_taxi/features/auth/screens/otp_screen.dart';
 import 'package:angren_taxi/features/auth/screens/phone_screen.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/driver/screens/arrived_screen.dart';
+import 'package:angren_taxi/features/driver/screens/driver_onboarding_screen.dart';
 import 'package:angren_taxi/features/driver/screens/earnings_screen.dart';
 import 'package:angren_taxi/features/driver/screens/home_screen.dart'
     as driver_home;
@@ -25,6 +26,8 @@ import 'package:angren_taxi/features/passenger/screens/profile_screen.dart'
     as passenger_profile;
 import 'package:angren_taxi/features/passenger/screens/tariff_select_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/main_shell.dart';
+import 'package:angren_taxi/features/superapp/state/food_provider.dart';
+import 'package:angren_taxi/features/superapp/state/market_provider.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/support/support_provider.dart';
 import 'package:angren_taxi/shared/widgets/loading_widget.dart';
@@ -49,6 +52,14 @@ class AngrenTaxiApp extends StatelessWidget {
         if (flavor == AppFlavor.passenger)
           ChangeNotifierProvider<SuperappProvider>(
             create: (_) => SuperappProvider(),
+          ),
+        if (flavor == AppFlavor.passenger)
+          ChangeNotifierProvider<MarketProvider>(
+            create: (_) => buildMarketProvider(),
+          ),
+        if (flavor == AppFlavor.passenger)
+          ChangeNotifierProvider<FoodProvider>(
+            create: (_) => buildFoodProvider(),
           ),
         if (flavor == AppFlavor.driver)
           ChangeNotifierProvider<DriverProvider>(
@@ -91,7 +102,11 @@ class AngrenTaxiApp extends StatelessWidget {
 
     return {
       ...sharedRoutes,
-      '/home': (_) => const driver_home.DriverHomeScreen(),
+      // '/home' is the post-login target used by the OTP screen; route it
+      // through the onboarding gate first, since a freshly-logged-in driver
+      // account may not have an approved driver profile yet.
+      '/home': (_) => const DriverOnboardingScreen(),
+      '/driver/gate': (_) => const DriverOnboardingScreen(),
       '/driver/home': (_) => const driver_home.DriverHomeScreen(),
       '/driver/offer': (_) => const OrderOfferScreen(),
       '/driver/navigation': (_) => const NavigationScreen(),
@@ -128,7 +143,7 @@ class _AppEntryPointState extends State<_AppEntryPoint> {
     if (auth.isAuthenticated) {
       final homePath = widget.flavor == AppFlavor.passenger
           ? '/passenger/services'
-          : '/driver/home';
+          : '/driver/gate';
       Navigator.of(context).pushReplacementNamed(homePath);
     } else {
       Navigator.of(context).pushReplacementNamed('/phone');
