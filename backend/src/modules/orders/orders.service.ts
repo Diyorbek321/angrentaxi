@@ -78,13 +78,23 @@ export class OrdersService {
       throw new BadRequestException('Selected tariff is not available');
     }
 
-    // Estimate distance using Haversine formula (frontend should provide actual distance)
-    const estimatedDistanceKm = this.haversineDistance(
-      dto.pickupLat,
-      dto.pickupLng,
-      dto.dropoffLat,
-      dto.dropoffLng,
-    );
+    // Estimate distance using Haversine formula (frontend should provide actual distance).
+    // For multi-stop rides, sum the Haversine legs across the full path:
+    // pickup -> waypoint[0] -> ... -> waypoint[n-1] -> dropoff.
+    const estimatedDistanceKm = dto.waypoints?.length
+      ? this.haversineRouteDistance(
+          [
+            { lat: dto.pickupLat, lng: dto.pickupLng },
+            ...dto.waypoints.map((w) => ({ lat: w.lat, lng: w.lng })),
+            { lat: dto.dropoffLat, lng: dto.dropoffLng },
+          ],
+        )
+      : this.haversineDistance(
+          dto.pickupLat,
+          dto.pickupLng,
+          dto.dropoffLat,
+          dto.dropoffLng,
+        );
 
     const estimatedDurationMin = Math.ceil(estimatedDistanceKm * 2.5); // rough estimate
 
@@ -114,11 +124,11 @@ export class OrdersService {
     const savedOrder = await this.orderRepository.query(
       `INSERT INTO orders (passenger_id, tariff_id, pickup_location, dropoff_location,
         pickup_address, dropoff_address, estimated_price, status, payment_method, note,
-        service_type, details, promo_code_id, discount_amount)
+        service_type, details, promo_code_id, discount_amount, waypoints)
        VALUES ($1, $2,
          ST_SetSRID(ST_MakePoint($3, $4), 4326),
          ST_SetSRID(ST_MakePoint($5, $6), 4326),
-         $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15, $16)
+         $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15, $16, $17::jsonb)
        RETURNING id`,
       [
         passengerId,
@@ -137,6 +147,7 @@ export class OrdersService {
         dto.details ? JSON.stringify(dto.details) : null,
         promoCodeId,
         promoCodeId ? discountAmount : null,
+        dto.waypoints?.length ? JSON.stringify(dto.waypoints) : null,
       ],
     );
 
@@ -890,6 +901,7 @@ export class OrdersService {
         lat: coords?.dropoffLat ?? null,
         lng: coords?.dropoffLng ?? null,
       };
+      orderRecord.waypoints = order.waypoints ?? [];
     }
 
     return orders;
@@ -1060,5 +1072,20 @@ export class OrdersService {
 
   private toRad(degrees: number): number {
     return (degrees * Math.PI) / 180;
+  }
+
+  // Sums Haversine distances leg-by-leg across an ordered list of points
+  // (pickup -> waypoints... -> dropoff), used for multi-stop ride pricing.
+  private haversineRouteDistance(points: { lat: number; lng: number }[]): number {
+    let total = 0;
+    for (let i = 0; i < points.length - 1; i++) {
+      total += this.haversineDistance(
+        points[i].lat,
+        points[i].lng,
+        points[i + 1].lat,
+        points[i + 1].lng,
+      );
+    }
+    return total;
   }
 }

@@ -1,5 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsEnum,
   IsNumber,
   IsObject,
@@ -9,11 +12,33 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import {
   PaymentMethod,
   ServiceType,
 } from '../../../database/entities/order.entity';
+
+// Single intermediate stop on a multi-stop ride, between pickup and dropoff.
+export class WaypointDto {
+  @ApiProperty({ example: 40.0980, description: 'Waypoint latitude' })
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  lat: number;
+
+  @ApiProperty({ example: 70.9440, description: 'Waypoint longitude' })
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  lng: number;
+
+  @ApiPropertyOptional({ example: 'Angren bozori', description: 'Waypoint address text' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  address?: string;
+}
 
 export class CreateOrderDto {
   @ApiProperty({ example: 'uuid', description: 'Tariff ID' })
@@ -55,6 +80,18 @@ export class CreateOrderDto {
   @IsString()
   @MaxLength(500)
   dropoffAddress?: string;
+
+  @ApiPropertyOptional({
+    type: [WaypointDto],
+    description: 'Intermediate stops between pickup and dropoff, in visit order (max 5)',
+    example: [{ address: 'Angren bozori', lat: 40.098, lng: 70.944 }],
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5)
+  @ValidateNested({ each: true })
+  @Type(() => WaypointDto)
+  waypoints?: WaypointDto[];
 
   @ApiPropertyOptional({ enum: PaymentMethod, default: PaymentMethod.CASH })
   @IsOptional()

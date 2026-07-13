@@ -82,6 +82,10 @@ export class Order {
   @Column({ nullable: true, type: 'varchar' })
   dropoffAddress: string | null;
 
+  // Intermediate stops between pickup and dropoff, in visit order.
+  @Column({ type: 'jsonb', nullable: true })
+  waypoints: { address: string; lat: number; lng: number }[] | null;
+
   @Column({
     type: 'decimal',
     precision: 10,
