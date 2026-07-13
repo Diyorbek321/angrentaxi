@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -7,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { Order, OrderStatus, PaymentMethod } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
 import { Transaction } from '../../database/entities/transaction.entity';
@@ -191,7 +193,7 @@ export class OrdersService {
       throw new BadRequestException('Order already has a driver');
     }
 
-    await this.orderRepository.update(orderId, {
+    await this.updateOrderStatusAtomic(orderId, OrderStatus.SEARCHING, {
       driverId,
       status: OrderStatus.ACCEPTED,
     });
@@ -273,7 +275,9 @@ export class OrdersService {
       );
     }
 
-    await this.orderRepository.update(orderId, { status: OrderStatus.ARRIVED });
+    await this.updateOrderStatusAtomic(orderId, OrderStatus.ACCEPTED, {
+      status: OrderStatus.ARRIVED,
+    });
 
     const updatedOrder = await this.findByIdOrThrow(orderId);
 
@@ -307,7 +311,9 @@ export class OrdersService {
       throw new ForbiddenException('You are not the driver for this order');
     }
 
-    await this.orderRepository.update(orderId, { status: OrderStatus.IN_PROGRESS });
+    await this.updateOrderStatusAtomic(orderId, OrderStatus.ARRIVED, {
+      status: OrderStatus.IN_PROGRESS,
+    });
 
     // Create Trip record
     await this.tripRepository.save({
@@ -547,7 +553,7 @@ export class OrdersService {
 
     const previousDriverId = order.driverId;
 
-    await this.orderRepository.update(orderId, {
+    await this.updateOrderStatusAtomic(orderId, reassignableStatuses, {
       driverId: newDriver.userId,
       status: OrderStatus.ACCEPTED,
     });
@@ -646,7 +652,7 @@ export class OrdersService {
       throw new ForbiddenException('You are not authorized to cancel this order');
     }
 
-    await this.orderRepository.update(orderId, {
+    await this.updateOrderStatusAtomic(orderId, cancellableStatuses, {
       status: OrderStatus.CANCELLED,
       cancelReason: reason ?? null,
     });
@@ -751,6 +757,39 @@ export class OrdersService {
 
     const [enriched] = await this.attachDisplayFields([order]);
     return enriched;
+  }
+
+  /**
+   * Atomically applies a status transition, guarding the write with a
+   * `WHERE id = :id AND status IN (:...expectedStatuses)` clause so the
+   * update only lands if the order is still in a state the caller already
+   * validated. This closes the TOCTOU race where two concurrent requests
+   * (e.g. two drivers accepting the same order) both pass the in-app status
+   * check before either write lands — only the first conditional update
+   * affects a row; the second affects zero rows and must be rejected rather
+   * than silently overwriting the first.
+   *
+   * Throws ConflictException if no row matched (order was already moved to
+   * a different status by a concurrent request).
+   */
+  private async updateOrderStatusAtomic(
+    orderId: string,
+    expectedStatus: OrderStatus | OrderStatus[],
+    updateData: QueryDeepPartialEntity<Order>,
+  ): Promise<void> {
+    const expectedStatuses = Array.isArray(expectedStatus) ? expectedStatus : [expectedStatus];
+
+    const result = await this.orderRepository
+      .createQueryBuilder()
+      .update(Order)
+      .set(updateData)
+      .where('id = :id', { id: orderId })
+      .andWhere('status IN (:...expectedStatuses)', { expectedStatuses })
+      .execute();
+
+    if (!result.affected) {
+      throw new ConflictException('Order is no longer in the expected state');
+    }
   }
 
   async getAllOrders(

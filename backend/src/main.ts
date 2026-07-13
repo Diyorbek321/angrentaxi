@@ -1,6 +1,8 @@
+import * as path from 'path';
 import * as Sentry from '@sentry/node';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import helmet from 'helmet';
@@ -8,6 +10,7 @@ import compression from 'compression';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
+import { resolveCorsOrigin } from './config/cors-origin.util';
 
 // Init Sentry before app starts
 const sentryDsn = process.env.SENTRY_DSN;
@@ -20,15 +23,21 @@ if (sentryDsn) {
 }
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // Security middleware
   app.use(helmet());
   app.use(compression());
 
+  // Serve uploaded driver KYC documents (local disk storage — see
+  // DriverDocumentsController). Deliberately outside the /api/v1 prefix, at
+  // the same relative path recorded in DriverDocument.fileUrl. PRODUCTION
+  // TODO: replace with S3/object storage + signed URLs.
+  app.useStaticAssets(path.join(process.cwd(), 'uploads'), { prefix: '/uploads' });
+
   // CORS
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || '*',
+    origin: resolveCorsOrigin(process.env.NODE_ENV, process.env.CORS_ORIGIN),
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,

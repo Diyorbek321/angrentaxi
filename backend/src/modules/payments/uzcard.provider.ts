@@ -65,11 +65,11 @@ export class UzcardProvider implements IPaymentProvider {
     const terminalId = this.configService.get<string>('UZCARD_TERMINAL_ID', '');
 
     if (!terminalId) {
-      // Dev stub
-      this.logger.warn(
-        `UZCARD_TERMINAL_ID not set — skipping real verify for ${transactionId}`,
+      // Fail closed: never treat an unconfigured provider as a verified payment.
+      this.logger.error(
+        `UZCARD_TERMINAL_ID not set — rejecting verify for ${transactionId}`,
       );
-      return true;
+      return false;
     }
 
     try {
@@ -93,13 +93,18 @@ export class UzcardProvider implements IPaymentProvider {
 
   /**
    * Verifies the HMAC-SHA256 signature sent with UZPS callbacks.
-   * In dev mode (no secret key configured) always returns true.
+   * Fails closed: if no secret key is configured, the callback is rejected
+   * rather than trusted, so a missing env var can never be mistaken for a
+   * verified payment.
    */
   verifyCallback(body: Record<string, unknown>): boolean {
     const secretKey = this.configService.get<string>('UZCARD_SECRET_KEY', '');
 
     if (!secretKey) {
-      return true; // dev mode — skip signature check
+      this.logger.error(
+        'UZCARD_SECRET_KEY not set — rejecting callback verification',
+      );
+      return false;
     }
 
     const sign = body['sign'] as string | undefined;

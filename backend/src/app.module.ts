@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { DefaultNamingStrategy, NamingStrategyInterface } from 'typeorm';
 import { validateEnv } from './config/env.validation';
+import { resolveDbSynchronize } from './config/db-synchronize.util';
 
 class SnakeNamingStrategy extends DefaultNamingStrategy implements NamingStrategyInterface {
   columnName(propertyName: string, customName: string): string {
@@ -20,6 +21,7 @@ class SnakeNamingStrategy extends DefaultNamingStrategy implements NamingStrateg
 // Entities
 import { User } from './database/entities/user.entity';
 import { Driver } from './database/entities/driver.entity';
+import { DriverDocument } from './database/entities/driver-document.entity';
 import { Tariff } from './database/entities/tariff.entity';
 import { Order } from './database/entities/order.entity';
 import { Trip } from './database/entities/trip.entity';
@@ -43,6 +45,7 @@ import { Restaurant } from './database/entities/restaurant.entity';
 import { MenuCategory } from './database/entities/menu-category.entity';
 import { Dish } from './database/entities/dish.entity';
 import { FoodOrder } from './database/entities/food-order.entity';
+import { WithdrawalRequest } from './database/entities/withdrawal-request.entity';
 
 // Feature Modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -85,6 +88,7 @@ import { FoodModule } from './modules/food/food.module';
         entities: [
           User,
           Driver,
+          DriverDocument,
           Tariff,
           Order,
           Trip,
@@ -108,12 +112,17 @@ import { FoodModule } from './modules/food/food.module';
           MenuCategory,
           Dish,
           FoodOrder,
+          WithdrawalRequest,
         ],
         migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
         // Schema is built from entities via synchronize (default on) for the test/MVP server,
         // since the hand-written migration drifted from the entities. Set DB_SYNC=false to
-        // switch back to migrations for production.
-        synchronize: configService.get<string>('DB_SYNC') !== 'false',
+        // switch back to migrations in development. In production, synchronize defaults OFF
+        // (to avoid silently altering the live schema on deploy) unless DB_SYNC=true is set.
+        synchronize: resolveDbSynchronize(
+          configService.get<string>('NODE_ENV'),
+          configService.get<string>('DB_SYNC'),
+        ),
         // One-time clean slate: set DB_DROP_SCHEMA=true to drop all tables then rebuild from
         // entities, then REMOVE it so restarts don't wipe data.
         dropSchema: configService.get<string>('DB_DROP_SCHEMA') === 'true',

@@ -13,7 +13,10 @@
     "seed:market": "ts-node src/database/seeds/seed-market.ts",
     "seed:market:prod": "node dist/database/seeds/seed-market.js",
     "seed:food": "ts-node src/database/seeds/seed-food.ts",
-    "seed:food:prod": "node dist/database/seeds/seed-food.js"
+    "seed:food:prod": "node dist/database/seeds/seed-food.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",
@@ -54,6 +57,7 @@
     "@types/bcryptjs": "^2.4.0",
     "@types/compression": "^1.7.0",
     "@types/jest": "^29.0.0",
+    "@types/multer": "^2.2.0",
     "@types/node": "^20.0.0",
     "@types/passport-jwt": "^4.0.0",
     "@types/uuid": "^9.0.0",
