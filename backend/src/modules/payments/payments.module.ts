@@ -8,9 +8,10 @@ import { UzcardProvider } from './uzcard.provider';
 import { Transaction } from '../../database/entities/transaction.entity';
 import { Order } from '../../database/entities/order.entity';
 import { User } from '../../database/entities/user.entity';
+import { WithdrawalRequest } from '../../database/entities/withdrawal-request.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Transaction, Order, User])],
+  imports: [TypeOrmModule.forFeature([Transaction, Order, User, WithdrawalRequest])],
   controllers: [PaymentsController],
   providers: [PaymentsService, PaymeProvider, ClickProvider, UzcardProvider],
   exports: [PaymentsService],

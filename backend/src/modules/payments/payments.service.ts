@@ -9,10 +9,16 @@ import { Repository } from 'typeorm';
 import { Transaction, TransactionStatus, TransactionType } from '../../database/entities/transaction.entity';
 import { Order, OrderStatus, PaymentMethod } from '../../database/entities/order.entity';
 import { User } from '../../database/entities/user.entity';
+import {
+  WithdrawalRequest,
+  WithdrawalStatus,
+} from '../../database/entities/withdrawal-request.entity';
 import { PaymeProvider } from './payme.provider';
 import { ClickProvider } from './click.provider';
 import { UzcardProvider } from './uzcard.provider';
 import { PaymentInitiateResult } from './payment.interface';
+import { RequestWithdrawalDto } from './dto/request-withdrawal.dto';
+import { ProcessWithdrawalDto } from './dto/process-withdrawal.dto';
 
 export interface WalletBalance {
   userId: string;
@@ -30,6 +36,8 @@ export class PaymentsService {
     private readonly orderRepository: Repository<Order>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(WithdrawalRequest)
+    private readonly withdrawalRepository: Repository<WithdrawalRequest>,
     private readonly paymeProvider: PaymeProvider,
     private readonly clickProvider: ClickProvider,
     private readonly uzcardProvider: UzcardProvider,
@@ -212,5 +220,126 @@ export class PaymentsService {
     });
 
     return { transactions, total, page, limit };
+  }
+
+  // --- Withdrawal requests ---
+  //
+  // Design choice (documented per code review request): the existing
+  // CREDIT/DEBIT pattern in this file (see initiatePayment) creates a
+  // transaction row *immediately* when the driver-initiated action starts,
+  // then flips its status via a callback. getWalletBalance(), however, only
+  // sums transactions with status = COMPLETED — a PENDING row does not move
+  // the balance. If a withdrawal hold were left PENDING until admin
+  // approval, a driver could file several withdrawal requests back-to-back,
+  // each individually passing the "amount <= balance" check, and drain the
+  // wallet many times over before an admin looks at any of them.
+  //
+  // To avoid that, we create the hold DEBIT transaction as COMPLETED right
+  // away, at request time — the funds leave the driver's available balance
+  // the moment the request is filed, exactly like a bank placing a hold.
+  // Approval later performs no ledger change (the hold already stands).
+  // Rejection reverses the hold with an equal-and-opposite COMPLETED CREDIT
+  // transaction, restoring the balance. "Paid" is a terminal, no-ledger-effect
+  // status: it just records that an admin manually sent the money
+  // out-of-band (see PaymentsController for the MVP/no-automation note).
+
+  async requestWithdrawal(
+    driverId: string,
+    dto: RequestWithdrawalDto,
+  ): Promise<WithdrawalRequest> {
+    const { balance } = await this.getWalletBalance(driverId);
+
+    if (dto.amount > balance) {
+      throw new BadRequestException(
+        `Requested amount (${dto.amount}) exceeds available wallet balance (${balance})`,
+      );
+    }
+
+    const withdrawal = await this.withdrawalRepository.save({
+      driverId,
+      amount: dto.amount,
+      payoutDestination: dto.payoutDestination,
+      status: WithdrawalStatus.PENDING,
+      processedAt: null,
+      adminNote: null,
+    });
+
+    // Immediate hold — see design-choice comment above.
+    await this.transactionRepository.save({
+      userId: driverId,
+      orderId: null,
+      amount: dto.amount,
+      type: TransactionType.DEBIT,
+      paymentMethod: PaymentMethod.WALLET,
+      status: TransactionStatus.COMPLETED,
+      externalId: `withdrawal_${withdrawal.id}`,
+    });
+
+    this.logger.log(
+      `Withdrawal request ${withdrawal.id} created for driver ${driverId}, amount=${dto.amount}`,
+    );
+
+    return withdrawal;
+  }
+
+  async getMyWithdrawals(driverId: string): Promise<WithdrawalRequest[]> {
+    return this.withdrawalRepository.find({
+      where: { driverId },
+      order: { requestedAt: 'DESC' },
+    });
+  }
+
+  async findWithdrawalOrThrow(id: string): Promise<WithdrawalRequest> {
+    const withdrawal = await this.withdrawalRepository.findOne({ where: { id } });
+    if (!withdrawal) {
+      throw new NotFoundException(`Withdrawal request with id ${id} not found`);
+    }
+    return withdrawal;
+  }
+
+  async processWithdrawal(
+    id: string,
+    dto: ProcessWithdrawalDto,
+  ): Promise<WithdrawalRequest> {
+    const withdrawal = await this.findWithdrawalOrThrow(id);
+
+    if (dto.status === WithdrawalStatus.PENDING) {
+      throw new BadRequestException('Cannot set a withdrawal request back to pending');
+    }
+
+    if (
+      (dto.status === WithdrawalStatus.APPROVED || dto.status === WithdrawalStatus.REJECTED) &&
+      withdrawal.status !== WithdrawalStatus.PENDING
+    ) {
+      throw new BadRequestException(
+        `Only pending withdrawal requests can be ${dto.status}, current status is ${withdrawal.status}`,
+      );
+    }
+
+    if (dto.status === WithdrawalStatus.PAID && withdrawal.status !== WithdrawalStatus.APPROVED) {
+      throw new BadRequestException(
+        `Only approved withdrawal requests can be marked as paid, current status is ${withdrawal.status}`,
+      );
+    }
+
+    if (dto.status === WithdrawalStatus.REJECTED) {
+      // Reverse the hold placed at request time.
+      await this.transactionRepository.save({
+        userId: withdrawal.driverId,
+        orderId: null,
+        amount: withdrawal.amount,
+        type: TransactionType.CREDIT,
+        paymentMethod: PaymentMethod.WALLET,
+        status: TransactionStatus.COMPLETED,
+        externalId: `withdrawal_refund_${withdrawal.id}`,
+      });
+    }
+
+    return this.withdrawalRepository.save({
+      ...withdrawal,
+      status: dto.status,
+      adminNote: dto.adminNote ?? withdrawal.adminNote,
+      processedAt: new Date(),
+    });
   }
 }

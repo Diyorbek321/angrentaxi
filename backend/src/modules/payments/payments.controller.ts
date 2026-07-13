@@ -5,6 +5,8 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
+  Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -12,16 +14,21 @@ import {
 import {
   ApiBearerAuth,
   ApiOperation,
+  ApiParam,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
+import { RequestWithdrawalDto } from './dto/request-withdrawal.dto';
+import { ProcessWithdrawalDto } from './dto/process-withdrawal.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { User } from '../../database/entities/user.entity';
+import { User, UserRole } from '../../database/entities/user.entity';
 import { PaginationDto } from '../orders/dto/pagination.dto';
+import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
 
 @ApiTags('Payments')
 @Controller('payments')
@@ -92,5 +99,53 @@ export class PaymentsController {
       pagination.page ?? 1,
       pagination.limit ?? 20,
     );
+  }
+
+  // --- Withdrawal requests (MVP/skeleton payout flow) ---
+  //
+  // There is no real bank/mobile-money integration wired up here. A driver
+  // files a withdrawal request against their wallet balance; an admin
+  // reviews it out-of-band (approve/reject), then — after actually sending
+  // the money by whatever manual channel the business uses today (bank
+  // transfer, cash, mobile money app, etc.) — marks the request 'paid'
+  // through the same PATCH endpoint. Nothing in this controller talks to a
+  // payment processor for payouts.
+
+  @Post('wallet/withdraw')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({ summary: 'Request a wallet withdrawal (driver only)' })
+  @ApiResponse({ status: 201, description: 'Withdrawal request created' })
+  @ApiResponse({ status: 400, description: 'Amount exceeds wallet balance' })
+  async requestWithdrawal(
+    @CurrentUser() user: User,
+    @Body() dto: RequestWithdrawalDto,
+  ) {
+    return this.paymentsService.requestWithdrawal(user.id, dto);
+  }
+
+  @Get('wallet/withdrawals')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({ summary: "List the current driver's own withdrawal requests" })
+  @ApiResponse({ status: 200, description: 'Withdrawal request list' })
+  async getMyWithdrawals(@CurrentUser() user: User) {
+    return this.paymentsService.getMyWithdrawals(user.id);
+  }
+
+  @Patch('wallet/withdrawals/:id')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Approve, reject, or mark a withdrawal request paid (admin only)' })
+  @ApiParam({ name: 'id', description: 'Withdrawal request UUID' })
+  @ApiResponse({ status: 200, description: 'Withdrawal request updated' })
+  async processWithdrawal(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ProcessWithdrawalDto,
+  ) {
+    return this.paymentsService.processWithdrawal(id, dto);
   }
 }

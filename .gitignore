@@ -34,6 +34,10 @@ backups/*.sql
 backups/*.dump
 !backups/.gitkeep
 
+# ===== Uploaded driver KYC documents (local disk storage, dev/MVP only) =====
+backend/uploads/driver-documents/*
+!backend/uploads/driver-documents/.gitkeep
+
 # ===== OS / Editor =====
 .DS_Store
 Thumbs.db
