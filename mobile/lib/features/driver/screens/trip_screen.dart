@@ -4,18 +4,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
+import 'package:angren_taxi/core/network/api_client.dart';
+import 'package:angren_taxi/core/safety/sos_service.dart';
+import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/driver/screens/rate_passenger_screen.dart';
+import 'package:angren_taxi/features/trip/screens/trip_chat_screen.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 
 class TripScreen extends StatefulWidget {
-  const TripScreen({super.key});
+  const TripScreen({super.key, this.sosService});
+
+  /// Injectable for tests — defaults to a [SosService] built from the real
+  /// [ApiClient] in the service locator (same pattern as
+  /// PassengerHomeScreen.sosService).
+  final SosService? sosService;
 
   @override
   State<TripScreen> createState() => _TripScreenState();
@@ -29,6 +39,9 @@ class _TripScreenState extends State<TripScreen> {
   );
   int _tripSeconds = 0;
   Timer? _tripTimer;
+
+  SosService get _sosService =>
+      widget.sosService ?? SosService(apiClient: sl<ApiClient>());
 
   @override
   void initState() {
@@ -151,6 +164,114 @@ class _TripScreenState extends State<TripScreen> {
     );
   }
 
+  void _openChat(Order order) {
+    final currentUserId = context.read<AuthProvider>().currentUser?.id;
+    if (currentUserId == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => TripChatScreen(
+          orderId: order.id,
+          currentUserId: currentUserId,
+        ),
+      ),
+    );
+  }
+
+  // Emergency services number (Uzbekistan combined police/fire line). The
+  // sheet also mentions 103 (ambulance) in its label, but tel: only accepts
+  // a single number to dial. Mirrors PassengerHomeScreen._callEmergency.
+  static const String _emergencyPhoneNumber = '102';
+
+  Future<void> _callEmergency() async {
+    final uri = Uri(scheme: 'tel', path: _emergencyPhoneNumber);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Qo'ng'iroq qilib bo'lmadi")),
+      );
+    }
+  }
+
+  Future<void> _alertDispatchers(String orderId) async {
+    // Reuses the position DriverProvider is already streaming from
+    // Geolocator (via goOnline's location subscription) instead of
+    // requesting a fresh fix, falling back to the last position the map
+    // centered on if the stream hasn't produced one yet.
+    final lastKnown = context.read<DriverProvider>().lastKnownPosition;
+    final lat = lastKnown?.latitude ?? _currentLocation.latitude;
+    final lng = lastKnown?.longitude ?? _currentLocation.longitude;
+    try {
+      await _sosService.reportSos(orderId: orderId, lat: lat, lng: lng);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Dispetcherlarga xabar yuborildi'),
+            backgroundColor: kPrimaryYellow,
+          ),
+        );
+      }
+    } on SosException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    }
+  }
+
+  void _showSosSheet(Order order) {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Favqulodda yordam',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: kTextPrimary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                "Xavfsizligingiz biz uchun muhim. Kerak bo'lsa, quyidagi "
+                'tugmalardan birini bosing.',
+                style: TextStyle(color: kTextSecondary, fontSize: 13),
+              ),
+              const SizedBox(height: 20),
+              AppButton(
+                label: 'Favqulodda chaqiruv (102/103)',
+                backgroundColor: kError,
+                foregroundColor: Colors.white,
+                onPressed: () {
+                  Navigator.of(sheetContext).pop();
+                  _callEmergency();
+                },
+              ),
+              const SizedBox(height: 12),
+              AppButton(
+                label: 'Dispetcherlarga xabar berish',
+                onPressed: () {
+                  Navigator.of(sheetContext).pop();
+                  _alertDispatchers(order.id);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -164,7 +285,7 @@ class _TripScreenState extends State<TripScreen> {
           return Stack(
             children: [
               _buildMap(order),
-              _buildTopBar(),
+              _buildTopBar(order),
               _buildBottomCard(order, provider),
             ],
           );
@@ -216,54 +337,88 @@ class _TripScreenState extends State<TripScreen> {
     );
   }
 
-  Widget _buildTopBar() {
+  Widget _buildTopBar(Order order) {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            color: kPrimaryYellow,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: const [
-              BoxShadow(color: Colors.black12, blurRadius: 8),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.local_taxi, color: Colors.black, size: 20),
-                  SizedBox(width: 6),
-                  Text(
-                    'Safar davom etmoqda',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-              Container(
+        child: Row(
+          children: [
+            Expanded(
+              child: Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
-                  color: Colors.black.withAlpha(20),
-                  borderRadius: BorderRadius.circular(8),
+                  color: kPrimaryYellow,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black12, blurRadius: 8),
+                  ],
                 ),
-                child: Text(
-                  _tripTimeText,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    fontFeatures: [FontFeature.tabularFigures()],
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.local_taxi, color: Colors.black, size: 20),
+                        SizedBox(width: 6),
+                        Text(
+                          'Safar davom etmoqda',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withAlpha(20),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        _tripTimeText,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 10),
+            _buildSosButton(order),
+          ],
         ),
+      ),
+    );
+  }
+
+  /// Small red circular SOS button next to the trip status bar. Opens
+  /// [_showSosSheet] with emergency-call and dispatcher-alert options.
+  /// Mirrors PassengerHomeScreen._buildSosButton for UI consistency.
+  Widget _buildSosButton(Order order) {
+    return GestureDetector(
+      onTap: () => _showSosSheet(order),
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: kError,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: kError.withValues(alpha: 0.4),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: const Icon(Icons.sos_rounded, color: Colors.white, size: 22),
       ),
     );
   }
@@ -294,6 +449,8 @@ class _TripScreenState extends State<TripScreen> {
               ),
             ),
             const SizedBox(height: 16),
+            _buildPassengerInfo(order),
+            const SizedBox(height: 16),
             _buildDestinationCard(order),
             const SizedBox(height: 16),
             _buildPriceRow(order),
@@ -308,6 +465,62 @@ class _TripScreenState extends State<TripScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildPassengerInfo(Order order) {
+    final passengerName = order.passengerName?.isNotEmpty == true
+        ? order.passengerName!
+        : "Yo'lovchi";
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: kSurfaceGrey,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const CircleAvatar(
+            radius: 20,
+            backgroundColor: Colors.white,
+            child: Icon(Icons.person_rounded, color: kTextSecondary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Yo'lovchi",
+                  style: TextStyle(color: kTextSecondary, fontSize: 11),
+                ),
+                Text(
+                  passengerName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Chat button — opens in-trip messaging with the passenger.
+          GestureDetector(
+            onTap: () => _openChat(order),
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: const Icon(Icons.chat_bubble_outline_rounded,
+                  color: kTextPrimary),
+            ),
+          ),
+        ],
       ),
     );
   }

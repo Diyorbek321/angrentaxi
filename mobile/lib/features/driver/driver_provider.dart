@@ -90,6 +90,11 @@ class DriverProvider extends ChangeNotifier {
   List<WithdrawalRequest> _withdrawals = [];
   bool _isSubmittingWithdrawal = false;
   String? _withdrawalError;
+  // Most recent fix observed from the location stream started in
+  // [_startLocationUpdates]. Exposed so screens (e.g. the SOS button on
+  // TripScreen) can reuse the already-tracked position instead of requesting
+  // a fresh one from the OS.
+  Position? _lastKnownPosition;
 
   DriverProviderState get state => _state;
   String? get error => _error;
@@ -107,6 +112,16 @@ class DriverProvider extends ChangeNotifier {
   List<WithdrawalRequest> get withdrawals => List.unmodifiable(_withdrawals);
   bool get isSubmittingWithdrawal => _isSubmittingWithdrawal;
   String? get withdrawalError => _withdrawalError;
+  Position? get lastKnownPosition => _lastKnownPosition;
+
+  // Test-only seam: lets widget tests simulate the location stream having
+  // already emitted a fix (normally only set by [_emitLocation] while the
+  // real Geolocator stream from [_startLocationUpdates] is running), without
+  // pulling in a fake platform channel.
+  @visibleForTesting
+  void debugSetLastKnownPositionForTest(Position position) {
+    _lastKnownPosition = position;
+  }
 
   // Most recent uploaded record for a document type, if any (list is newest
   // first per the backend's `order: { uploadedAt: 'DESC' }`).
@@ -446,6 +461,7 @@ class DriverProvider extends ChangeNotifier {
   }
 
   void _emitLocation(Position position) {
+    _lastKnownPosition = position;
     if (_socketService.isConnected) {
       final payload = {
         'lat': position.latitude,
