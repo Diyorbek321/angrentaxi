@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
@@ -563,6 +564,18 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     );
   }
 
+  Future<void> _callDriver(String phone) async {
+    if (phone.isEmpty) return;
+    final uri = Uri(scheme: 'tel', path: phone);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Qo'ng'iroq qilib bo'lmadi")),
+      );
+    }
+  }
+
   Widget _buildDriverInfo(Order order) {
     final driver = order.driver!;
     return Container(
@@ -623,7 +636,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
           ),
           // Filled call button
           GestureDetector(
-            onTap: () {},
+            onTap: () => _callDriver(driver.phone),
             child: Container(
               width: 46,
               height: 46,

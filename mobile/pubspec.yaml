@@ -55,6 +55,9 @@ dependencies:
   # Driver KYC document upload (camera / gallery picker)
   image_picker: ^1.1.2
 
+  # Calling the driver/passenger from the trip screen (tel: deep link)
+  url_launcher: ^6.3.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

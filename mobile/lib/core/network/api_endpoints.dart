@@ -8,8 +8,11 @@ class ApiEndpoints {
   static const String logout = '/auth/logout';
 
   // User / Passenger
-  static const String userProfile = '/users/profile';
-  static const String updateProfile = '/users/profile';
+  // Backend route is GET/PATCH /users/me (users.controller.ts) — was
+  // '/users/profile', which doesn't exist and was never actually called
+  // from anywhere until the profile-edit screen below started using it.
+  static const String userProfile = '/users/me';
+  static const String updateProfile = '/users/me';
   static const String paymentMethods = '/users/payment-methods';
 
   // Orders (Passenger)

@@ -98,6 +98,30 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Updates the current user's name via PATCH /users/me. Returns an error
+  /// message on failure, or null on success (after which [currentUser] and
+  /// local storage reflect the new name).
+  Future<String?> updateProfile({String? firstName, String? lastName}) async {
+    try {
+      final response = await _apiClient.patch(
+        ApiEndpoints.updateProfile,
+        data: {
+          if (firstName != null) 'firstName': firstName,
+          if (lastName != null) 'lastName': lastName,
+        },
+      );
+      final data = response.data as Map<String, dynamic>;
+      final userJson = data['data'] as Map<String, dynamic>;
+
+      await _localStorage.saveUser(userJson);
+      _currentUser = User.fromJson(userJson);
+      notifyListeners();
+      return null;
+    } catch (e) {
+      return extractErrorMessage(e);
+    }
+  }
+
   Future<void> logout() async {
     try {
       await _apiClient.post(ApiEndpoints.logout);

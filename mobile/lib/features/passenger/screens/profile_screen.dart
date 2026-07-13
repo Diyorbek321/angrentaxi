@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
+import 'package:angren_taxi/features/passenger/screens/edit_profile_screen.dart';
+import 'package:angren_taxi/features/superapp/screens/support_screen.dart';
+import 'package:angren_taxi/features/superapp/screens/wallet_screen.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 
@@ -115,22 +118,28 @@ class PassengerProfileScreen extends StatelessWidget {
         _buildMenuTile(
           Icons.edit_outlined,
           'Ma\'lumotlarni tahrirlash',
-          () {},
+          () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const EditProfileScreen()),
+          ),
         ),
         _buildMenuTile(
           Icons.payment_outlined,
           'To\'lov usullari',
-          () {},
+          () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const WalletScreen()),
+          ),
         ),
         _buildMenuTile(
           Icons.notifications_outlined,
           'Bildirishnomalar',
-          () {},
+          () => _notImplementedYet(context),
         ),
         _buildMenuTile(
           Icons.help_outline,
           'Yordam',
-          () {},
+          () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const SupportScreen()),
+          ),
         ),
         _buildMenuTile(
           Icons.info_outline,
@@ -179,6 +188,12 @@ class PassengerProfileScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  void _notImplementedYet(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Bu bo\'lim tez kunda ishga tushadi')),
     );
   }
 

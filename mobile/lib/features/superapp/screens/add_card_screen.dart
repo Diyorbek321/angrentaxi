@@ -78,7 +78,26 @@ class AddCardScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 24),
-                AgPrimaryButton(label: 'Kartani saqlash', onPressed: () => Navigator.of(context).pop()),
+                AgPrimaryButton(
+                  label: 'Kartani saqlash',
+                  // Card fields above are visual only (no controllers, no
+                  // validation) and there is no backend endpoint for saving
+                  // a tokenized card yet — Payme/Click card binding needs an
+                  // SMS-verified round trip that hasn't been built. Popping
+                  // silently here would tell the user their card was saved
+                  // when nothing happened; show that honestly instead.
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          "Karta qo'shish tez kunda ishga tushadi. "
+                          "Hozircha to'lovni buyurtma yakunida naqd yoki "
+                          "onlayn (Payme/Click) amalga oshirishingiz mumkin.",
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
           ),

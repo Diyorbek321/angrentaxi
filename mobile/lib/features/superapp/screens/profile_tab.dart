@@ -1,4 +1,5 @@
 import 'package:angren_taxi/features/auth/auth_provider.dart';
+import 'package:angren_taxi/features/passenger/screens/edit_profile_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/notifications_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/promos_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/settings_screen.dart';
@@ -21,6 +22,12 @@ class ProfileTab extends StatelessWidget {
 
   void _push(BuildContext context, Widget screen) {
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
+  }
+
+  void _notImplementedYet(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Bu bo\'lim tez kunda ishga tushadi')),
+    );
   }
 
   @override
@@ -71,17 +78,21 @@ class ProfileTab extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const Icon(Icons.edit_rounded, color: Colors.white70, size: 24),
+                    GestureDetector(
+                      onTap: () => _push(context, const EditProfileScreen()),
+                      child: const Icon(Icons.edit_rounded, color: Colors.white70, size: 24),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 20),
                 Row(
                   children: [
-                    _stat('48', 'Safarlar'),
+                    _stat('${user?.totalTrips ?? 0}', 'Safarlar'),
                     const SizedBox(width: 10),
-                    _stat('4.9', 'Reyting'),
-                    const SizedBox(width: 10),
-                    _stat('Gold', 'Daraja'),
+                    _stat(
+                      user?.rating != null ? user!.rating!.toStringAsFixed(1) : '—',
+                      'Reyting',
+                    ),
                   ],
                 ),
               ],
@@ -137,13 +148,16 @@ class ProfileTab extends StatelessWidget {
                           onTap: () => _push(context, const WalletScreen())),
                       _MenuRow(icon: Icons.receipt_long_rounded, label: 'Buyurtmalar tarixi',
                           onTap: () => context.read<SuperappProvider>().tabIndex = 1),
-                      const _MenuRow(icon: Icons.favorite_rounded, label: 'Sevimlilar'),
-                      const _MenuRow(icon: Icons.workspace_premium_rounded, iconColor: agOrange, label: 'Bonuslar', trailingBadge: '1 240',
-                          badgeBg: Color(0xFFFEF3E2), badgeColor: Color(0xFFD97706)),
-                      const _MenuRow(icon: Icons.reviews_rounded, label: 'Mening baholarim'),
-                      const _MenuRow(icon: Icons.place_rounded, label: 'Saqlangan manzillar'),
-                      _MenuRow(icon: Icons.redeem_rounded, label: 'Aksiyalar va promokodlar', trailingBadge: '2 ta',
-                          badgeBg: agTint, badgeColor: agGreen, onTap: () => _push(context, const PromosScreen())),
+                      _MenuRow(icon: Icons.favorite_rounded, label: 'Sevimlilar',
+                          onTap: () => _notImplementedYet(context)),
+                      _MenuRow(icon: Icons.workspace_premium_rounded, iconColor: agOrange, label: 'Bonuslar',
+                          onTap: () => _notImplementedYet(context)),
+                      _MenuRow(icon: Icons.reviews_rounded, label: 'Mening baholarim',
+                          onTap: () => _notImplementedYet(context)),
+                      _MenuRow(icon: Icons.place_rounded, label: 'Saqlangan manzillar',
+                          onTap: () => _notImplementedYet(context)),
+                      _MenuRow(icon: Icons.redeem_rounded, label: 'Aksiyalar va promokodlar',
+                          onTap: () => _push(context, const PromosScreen())),
                       _MenuRow(icon: Icons.notifications_rounded, label: 'Bildirishnomalar',
                           onTap: () => _push(context, const NotificationsScreen())),
                       _MenuRow(icon: Icons.settings_rounded, label: 'Sozlamalar', last: true,
@@ -204,9 +218,6 @@ class _MenuRow extends StatelessWidget {
     this.iconColor = agSubtle,
     this.onTap,
     this.last = false,
-    this.trailingBadge,
-    this.badgeBg,
-    this.badgeColor,
   });
 
   final IconData icon;
@@ -214,9 +225,6 @@ class _MenuRow extends StatelessWidget {
   final Color iconColor;
   final VoidCallback? onTap;
   final bool last;
-  final String? trailingBadge;
-  final Color? badgeBg;
-  final Color? badgeColor;
 
   @override
   Widget build(BuildContext context) {
@@ -235,14 +243,7 @@ class _MenuRow extends StatelessWidget {
             Expanded(
               child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5, color: agText)),
             ),
-            if (trailingBadge != null)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                decoration: BoxDecoration(color: badgeBg, borderRadius: BorderRadius.circular(8)),
-                child: Text(trailingBadge!, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: badgeColor)),
-              )
-            else
-              const Icon(Icons.chevron_right_rounded, size: 20, color: Color(0xFFC2CCD4)),
+            const Icon(Icons.chevron_right_rounded, size: 20, color: Color(0xFFC2CCD4)),
           ],
         ),
       ),
