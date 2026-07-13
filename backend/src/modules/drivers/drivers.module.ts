@@ -7,7 +7,7 @@ import { DriverDocumentsService } from './driver-documents.service';
 import { Driver } from '../../database/entities/driver.entity';
 import { DriverDocument } from '../../database/entities/driver-document.entity';
 import { Transaction } from '../../database/entities/transaction.entity';
-import { redisProvider } from '../../config/redis.config';
+import { redisProvider, REDIS_CLIENT } from '../../config/redis.config';
 import { UsersModule } from '../users/users.module';
 import { RealtimeModule } from '../realtime/realtime.module';
 
@@ -19,6 +19,8 @@ import { RealtimeModule } from '../realtime/realtime.module';
   ],
   controllers: [DriversController, DriverDocumentsController],
   providers: [DriversService, DriverDocumentsService, redisProvider],
-  exports: [DriversService, DriverDocumentsService],
+  // REDIS_CLIENT is re-exported so other feature modules (e.g. MatchingModule)
+  // can share this one ioredis connection instead of opening their own.
+  exports: [DriversService, DriverDocumentsService, REDIS_CLIENT],
 })
 export class DriversModule {}

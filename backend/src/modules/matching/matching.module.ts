@@ -12,7 +12,7 @@ import { UsersModule } from '../users/users.module';
   imports: [
     TypeOrmModule.forFeature([Order]),
     ScheduleModule.forRoot(),
-    DriversModule,
+    DriversModule, // also re-exports REDIS_CLIENT, reused by MatchingService
     RealtimeModule,
     NotificationsModule,
     UsersModule,
