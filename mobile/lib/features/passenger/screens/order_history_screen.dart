@@ -132,11 +132,28 @@ class _OrderHistoryCard extends StatelessWidget {
                   ),
                 ],
               ),
+              if (order.status == OrderStatus.completed) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _repeatOrder(context),
+                    icon: const Icon(Icons.replay, size: 18),
+                    label: const Text('Safarni takrorlash'),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
       ),
     );
+  }
+
+  void _repeatOrder(BuildContext context) {
+    context.read<OrderProvider>().setPendingPickup(order.pickup);
+    context.read<OrderProvider>().setPendingDropoff(order.dropoff);
+    Navigator.of(context).pushNamed('/passenger/tariff');
   }
 
   Widget _buildStatusBadge(OrderStatus status) {
@@ -256,6 +273,20 @@ class _OrderHistoryCard extends StatelessWidget {
                   'Vaqt',
                   Formatters.formatDuration(order.durationMin!),
                 ),
+              if (order.status == OrderStatus.completed) ...[
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      _repeatOrder(context);
+                    },
+                    icon: const Icon(Icons.replay, size: 18),
+                    label: const Text('Safarni takrorlash'),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
