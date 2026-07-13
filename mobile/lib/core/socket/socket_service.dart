@@ -110,6 +110,16 @@ class SocketEvents {
   static const String driverOnline = 'driver:online';
   static const String driverOffline = 'driver:offline';
 
+  // Order room membership (client emits) — matches realtime.gateway.ts's
+  // 'join:order'/'leave:order' handlers, which join/leave the
+  // `order:${orderId}` socket room that trip tracking and trip chat events
+  // are broadcast to.
+  static const String joinOrder = 'join:order';
+  static const String leaveOrder = 'leave:order';
+
+  // Trip chat (passenger<->driver, in the order room)
+  static const String tripMessage = 'trip:message'; // server -> client
+
   // Driver receives
   static const String newOrderOffer = 'new_order_offer';
   static const String orderCancelled = 'order:cancelled';

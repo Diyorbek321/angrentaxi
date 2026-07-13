@@ -15,6 +15,11 @@ class ApiEndpoints {
   static const String updateProfile = '/users/me';
   static const String paymentMethods = '/users/payment-methods';
 
+  // Favorite addresses (passenger)
+  static const String favoriteAddresses = '/users/favorite-addresses';
+  static String favoriteAddressById(String id) =>
+      '/users/favorite-addresses/$id';
+
   // Orders (Passenger)
   // Backend route is POST /orders/calculate-price, taking
   // {tariffId, distanceKm, durationMin} — see
@@ -80,4 +85,13 @@ class ApiEndpoints {
   static String supportThreadMessages(String id) =>
       '/support/threads/$id/messages';
   static String markSupportThreadRead(String id) => '/support/threads/$id/read';
+
+  // Trip chat (backend/src/modules/trip-chat) — passenger<->driver messaging
+  // scoped to a single order.
+  static String tripMessages(String orderId) => '/orders/$orderId/messages';
+
+  // Safety / SOS (backend/src/modules/safety)
+  static String reportSos(String orderId) => '/orders/$orderId/sos';
+  static String resolveSos(String id) => '/sos/$id/resolve';
+  static const String activeSosAlerts = '/sos/active';
 }

@@ -31,11 +31,22 @@ class RouteService {
 
   /// Returns null if the route can't be fetched (offline, OSRM down, no
   /// route found) — callers should fall back to a straight line.
-  Future<RouteResult?> getRoute(LatLng from, LatLng to) async {
+  ///
+  /// [waypoints], if given, are intermediate stops visited in order between
+  /// [from] and [to] (matching the backend's `Order.waypoints`), threaded
+  /// into OSRM's multi-point `/route/v1/driving/{lon1},{lat1};{lon2},{lat2};...`
+  /// URL syntax.
+  Future<RouteResult?> getRoute(
+    LatLng from,
+    LatLng to, {
+    List<LatLng> waypoints = const [],
+  }) async {
     try {
+      final routePoints = [from, ...waypoints, to];
+      final coordinateString =
+          routePoints.map((p) => '${p.longitude},${p.latitude}').join(';');
       final response = await _dio.get<Map<String, dynamic>>(
-        '/route/v1/driving/${from.longitude},${from.latitude};'
-        '${to.longitude},${to.latitude}',
+        '/route/v1/driving/$coordinateString',
         queryParameters: {
           'overview': 'full',
           'geometries': 'geojson',

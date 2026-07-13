@@ -3,8 +3,10 @@ import 'package:geocoding/geocoding.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
+import 'package:angren_taxi/features/passenger/favorites_provider.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
 import 'package:angren_taxi/features/passenger/screens/map_picker_screen.dart';
+import 'package:angren_taxi/shared/models/favorite_address.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/widgets/loading_widget.dart';
 
@@ -21,7 +23,15 @@ class _AddressSuggestion {
 }
 
 class DestinationScreen extends StatefulWidget {
-  const DestinationScreen({super.key});
+  const DestinationScreen({super.key, this.isSavingFavorite = false});
+
+  /// When true, this screen was opened from home_screen's "Qo'shish" tile to
+  /// pick a *new* location to save as a favorite, rather than to start an
+  /// order. In this mode, selecting a search result or map-picker result
+  /// prompts for a label and calls [FavoritesProvider.addFavorite] instead
+  /// of navigating to the tariff screen. Defaults to false so the normal
+  /// search-and-order flow is unaffected.
+  final bool isSavingFavorite;
 
   @override
   State<DestinationScreen> createState() => _DestinationScreenState();
@@ -39,7 +49,10 @@ class _DestinationScreenState extends State<DestinationScreen> {
   void initState() {
     super.initState();
     _focusNode.requestFocus();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _resolvePickupAddress());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _resolvePickupAddress();
+      context.read<FavoritesProvider>().loadFavorites();
+    });
   }
 
   @override
@@ -161,15 +174,101 @@ class _DestinationScreenState extends State<DestinationScreen> {
   }
 
   void _selectLocation(OrderLocation location) {
+    if (widget.isSavingFavorite) {
+      _promptSaveFavorite(location);
+      return;
+    }
     context.read<OrderProvider>().setPendingDropoff(location);
     Navigator.of(context).pushNamed('/passenger/tariff');
+  }
+
+  /// Asks for a label ("Uy"/"Ish"/custom) and saves [location] via
+  /// [FavoritesProvider.addFavorite], then pops back to wherever
+  /// [DestinationScreen] was opened from (home_screen's "Qo'shish" tile).
+  Future<void> _promptSaveFavorite(OrderLocation location) async {
+    final labelController = TextEditingController();
+    final label = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Manzilni saqlash'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                location.address,
+                style: const TextStyle(color: kTextSecondary, fontSize: 13),
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                children: [
+                  ActionChip(
+                    label: const Text('Uy'),
+                    onPressed: () => Navigator.of(ctx).pop('Uy'),
+                  ),
+                  ActionChip(
+                    label: const Text('Ish'),
+                    onPressed: () => Navigator.of(ctx).pop('Ish'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: labelController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: "Nomi (masalan, Bozor)",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Bekor qilish'),
+            ),
+            TextButton(
+              onPressed: () =>
+                  Navigator.of(ctx).pop(labelController.text.trim()),
+              child: const Text('Saqlash'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (label == null || label.isEmpty || !mounted) return;
+
+    final favoritesProvider = context.read<FavoritesProvider>();
+    final success = await favoritesProvider.addFavorite(
+      label: label,
+      address: location.address,
+      lat: location.lat,
+      lng: location.lng,
+    );
+
+    if (!mounted) return;
+    if (success) {
+      Navigator.of(context).pop();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(favoritesProvider.error ?? 'Manzilni saqlab bo\'lmadi'),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manzilni kiriting'),
+        title: Text(
+          widget.isSavingFavorite ? 'Manzilni saqlash' : 'Manzilni kiriting',
+        ),
         backgroundColor: Colors.white,
         foregroundColor: kTextPrimary,
         elevation: 0,
@@ -180,10 +279,17 @@ class _DestinationScreenState extends State<DestinationScreen> {
       ),
       body: Column(
         children: [
-          _buildPickupRow(),
-          const Divider(height: 1),
+          // The pickup row edits OrderProvider.pendingPickup, which is
+          // meaningless while just picking a location to save as a
+          // favorite — hidden in that mode.
+          if (!widget.isSavingFavorite) ...[
+            _buildPickupRow(),
+            const Divider(height: 1),
+            _buildWaypointsList(),
+          ],
           _buildSearchField(),
           _buildMapPickerAction(),
+          _buildAddStopAction(),
           const Divider(height: 1),
           Expanded(child: _buildContent()),
         ],
@@ -210,6 +316,99 @@ class _DestinationScreenState extends State<DestinationScreen> {
             title: 'Qayerdan',
             initial: pickup != null ? LatLng(pickup.lat, pickup.lng) : null,
             onPicked: provider.setPendingPickup,
+          ),
+        );
+      },
+    );
+  }
+
+  /// Shows the intermediate stops already added to this order (via
+  /// [OrderProvider.addWaypoint]), each with a remove icon wired to
+  /// [OrderProvider.removeWaypoint]. Sits between the pickup row and the
+  /// search field so it's visible while picking more stops or the final
+  /// dropoff. Hidden entirely once there are no waypoints.
+  Widget _buildWaypointsList() {
+    return Consumer<OrderProvider>(
+      builder: (context, provider, _) {
+        final waypoints = provider.pendingWaypoints;
+        if (waypoints.isEmpty) return const SizedBox.shrink();
+
+        return Column(
+          children: [
+            for (var i = 0; i < waypoints.length; i++)
+              ListTile(
+                leading: CircleAvatar(
+                  radius: 14,
+                  backgroundColor: kSurfaceGrey,
+                  child: Text(
+                    '${i + 2}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: kTextPrimary,
+                    ),
+                  ),
+                ),
+                title: Text(
+                  waypoints[i].address,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  "To'xtash ${i + 1}",
+                  style: const TextStyle(fontSize: 12),
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.close_rounded,
+                      color: kTextSecondary, size: 20),
+                  onPressed: () => provider.removeWaypoint(i),
+                ),
+              ),
+            const Divider(height: 1),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Opens the map picker to add another intermediate stop. Only shown for
+  /// the normal order flow (not while saving a favorite, where an
+  /// intermediate stop is meaningless) and only while under
+  /// [OrderProvider.maxWaypoints].
+  Widget _buildAddStopAction() {
+    if (widget.isSavingFavorite) return const SizedBox.shrink();
+
+    return Consumer<OrderProvider>(
+      builder: (context, provider, _) {
+        if (provider.pendingWaypoints.length >= OrderProvider.maxWaypoints) {
+          return const SizedBox.shrink();
+        }
+
+        final pickup = provider.pendingPickup;
+        return ListTile(
+          leading: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: kSurfaceGrey,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.add_location_alt_outlined,
+                color: kTextSecondary),
+          ),
+          title: const Text(
+            "To'xtash qo'shish",
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          subtitle: const Text(
+            "Yo'l davomida to'xtash nuqtasini belgilang",
+            style: TextStyle(fontSize: 12),
+          ),
+          onTap: () => _openMapPicker(
+            title: "To'xtash nuqtasi",
+            initial: pickup != null ? LatLng(pickup.lat, pickup.lng) : null,
+            onPicked: provider.addWaypoint,
           ),
         );
       },
@@ -340,49 +539,57 @@ class _DestinationScreenState extends State<DestinationScreen> {
   }
 
   Widget _buildRecentPlaces() {
-    final recentPlaces = <(String, IconData, double, double)>[
-      ('Angren bozori', Icons.shopping_basket_outlined, 40.1521, 69.1418),
-      ('Angren shifoxonasi', Icons.local_hospital_outlined, 40.1467, 69.1339),
-      ('Temir yo\'l stansiyasi', Icons.train_outlined, 40.1305, 69.1490),
-    ];
+    return Consumer<FavoritesProvider>(
+      builder: (context, favoritesProvider, _) {
+        final favorites = favoritesProvider.favorites;
+        if (favorites.isEmpty) {
+          return const SizedBox.shrink();
+        }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Text(
-            'Mashhur joylar',
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              color: kTextSecondary,
-              fontSize: 13,
-            ),
-          ),
-        ),
-        ...recentPlaces.map(
-          (place) => ListTile(
-            leading: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: kSurfaceGrey,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(place.$2, color: kTextSecondary, size: 20),
-            ),
-            title: Text(place.$1),
-            subtitle: const Text('Angren', style: TextStyle(fontSize: 12)),
-            onTap: () => _selectSuggestion(
-              _AddressSuggestion(
-                address: place.$1,
-                lat: place.$3,
-                lng: place.$4,
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(
+                'Saqlangan manzillar',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: kTextSecondary,
+                  fontSize: 13,
+                ),
               ),
             ),
-          ),
-        ),
-      ],
+            ...favorites.map(
+              (favorite) => ListTile(
+                leading: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: kSurfaceGrey,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(favorite.icon, color: favorite.color, size: 20),
+                ),
+                title: Text(favorite.label),
+                subtitle: Text(
+                  favorite.address,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12),
+                ),
+                onTap: () => _selectSuggestion(
+                  _AddressSuggestion(
+                    address: favorite.address,
+                    lat: favorite.lat,
+                    lng: favorite.lng,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

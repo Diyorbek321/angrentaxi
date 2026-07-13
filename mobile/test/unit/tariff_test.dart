@@ -52,4 +52,35 @@ void main() {
       expect(tariff.isAvailable, false);
     });
   });
+
+  group('Tariff.fromJson surgeMultiplier', () {
+    test('defaults to 1.0 when surgeMultiplier is absent', () {
+      final json = {
+        'id': 'x',
+        'name': 'Standard',
+        'basePrice': 3000,
+        'pricePerKm': 1500,
+        'minPrice': 5000,
+      };
+
+      final tariff = Tariff.fromJson(json);
+
+      expect(tariff.surgeMultiplier, 1.0);
+    });
+
+    test('parses a real surge value from the backend', () {
+      final json = {
+        'id': 'x',
+        'name': 'Standard',
+        'basePrice': 3000,
+        'pricePerKm': 1500,
+        'minPrice': 5000,
+        'surgeMultiplier': 1.5,
+      };
+
+      final tariff = Tariff.fromJson(json);
+
+      expect(tariff.surgeMultiplier, 1.5);
+    });
+  });
 }

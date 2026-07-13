@@ -11,6 +11,7 @@ class Tariff extends Equatable {
     this.iconName,
     this.isAvailable = true,
     this.maxPassengers = 4,
+    this.surgeMultiplier = 1.0,
   });
 
   final String id;
@@ -22,6 +23,11 @@ class Tariff extends Equatable {
   final String? iconName;
   final bool isAvailable;
   final int maxPassengers;
+
+  // Demand-surge pricing multiplier the backend computes per tariff (GET
+  // /tariffs returns e.g. "surgeMultiplier":1). Defaults to 1.0 (no surge)
+  // when the field is missing, matching the backend's own default.
+  final double surgeMultiplier;
 
   // The backend (GET /tariffs, see backend/src/database/entities/tariff.entity.ts)
   // returns basePrice/pricePerKm/minPrice/isActive — not baseFare/perKmRate/
@@ -40,6 +46,7 @@ class Tariff extends Equatable {
       iconName: json['iconName'] as String?,
       isAvailable: (json['isActive'] as bool?) ?? true,
       maxPassengers: (json['maxPassengers'] as int?) ?? 4,
+      surgeMultiplier: (json['surgeMultiplier'] as num?)?.toDouble() ?? 1.0,
     );
   }
 
@@ -53,6 +60,7 @@ class Tariff extends Equatable {
     'iconName': iconName,
     'isAvailable': isAvailable,
     'maxPassengers': maxPassengers,
+    'surgeMultiplier': surgeMultiplier,
   };
 
   double estimatePrice(double distanceKm) {
@@ -71,5 +79,6 @@ class Tariff extends Equatable {
     iconName,
     isAvailable,
     maxPassengers,
+    surgeMultiplier,
   ];
 }

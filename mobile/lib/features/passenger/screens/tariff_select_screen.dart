@@ -83,6 +83,8 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
     final route = await _routeService.getRoute(
       LatLng(pickup.lat, pickup.lng),
       LatLng(dropoff.lat, dropoff.lng),
+      waypoints:
+          provider.pendingWaypoints.map((w) => LatLng(w.lat, w.lng)).toList(),
     );
     if (!mounted) return;
     setState(() => _routeLoading = false);
@@ -271,6 +273,31 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
                 ),
               ),
             ),
+            // Numbered intermediate stops, in visit order between pickup
+            // ("1", implicit) and dropoff — matches the numbering shown in
+            // destination_screen's waypoints list.
+            for (final entry in provider.pendingWaypoints.asMap().entries)
+              Marker(
+                point: LatLng(entry.value.lat, entry.value.lng),
+                width: 22,
+                height: 22,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: kInk,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '${entry.key + 2}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
             Marker(
               point: d,
               width: 34,
@@ -331,9 +358,11 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
           const SizedBox(height: 16),
           _buildRouteRow(provider),
           const SizedBox(height: 16),
-          // Horizontal tariff cards (Yandex signature)
+          // Horizontal tariff cards (Yandex signature). Tall enough to fit
+          // the extra "Talab yuqori" surge label on surged tariffs without
+          // overflowing.
           SizedBox(
-            height: 124,
+            height: 138,
             child: provider.tariffs.isEmpty
                 ? const Center(
                     child: Text('Tariflar mavjud emas',
@@ -543,8 +572,14 @@ class _TariffCardH extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.local_taxi_rounded,
-                size: 30, color: isSelected ? kPrimaryDark : kInk),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Icon(Icons.local_taxi_rounded,
+                    size: 30, color: isSelected ? kPrimaryDark : kInk),
+                if (tariff.surgeMultiplier > 1.0) _SurgeBadge(tariff.surgeMultiplier),
+              ],
+            ),
             const Spacer(),
             Text(
               tariff.name,
@@ -564,7 +599,50 @@ class _TariffCardH extends StatelessWidget {
                 color: isSelected ? kPrimaryDark : kTextPrimary,
               ),
             ),
+            if (tariff.surgeMultiplier > 1.0) ...[
+              const SizedBox(height: 2),
+              const Text(
+                'Talab yuqori',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: kWarning,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Small orange chip shown on a tariff card when demand-surge pricing is
+/// active (backend's `surgeMultiplier` on GET /tariffs is > 1.0), e.g. "x1.5".
+class _SurgeBadge extends StatelessWidget {
+  const _SurgeBadge(this.surgeMultiplier);
+
+  final double surgeMultiplier;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = surgeMultiplier == surgeMultiplier.roundToDouble()
+        ? 'x${surgeMultiplier.toStringAsFixed(0)}'
+        : 'x${surgeMultiplier.toStringAsFixed(1)}';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: kWarning.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          color: kWarning,
         ),
       ),
     );

@@ -17,6 +17,7 @@ import 'package:angren_taxi/features/driver/screens/order_offer_screen.dart';
 import 'package:angren_taxi/features/driver/screens/profile_screen.dart'
     as driver_profile;
 import 'package:angren_taxi/features/driver/screens/trip_screen.dart';
+import 'package:angren_taxi/features/passenger/favorites_provider.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
 import 'package:angren_taxi/features/passenger/screens/destination_screen.dart';
 import 'package:angren_taxi/features/passenger/screens/home_screen.dart'
@@ -48,6 +49,10 @@ class AngrenTaxiApp extends StatelessWidget {
         if (flavor == AppFlavor.passenger)
           ChangeNotifierProvider<OrderProvider>(
             create: (_) => buildOrderProvider(),
+          ),
+        if (flavor == AppFlavor.passenger)
+          ChangeNotifierProvider<FavoritesProvider>(
+            create: (_) => buildFavoritesProvider(),
           ),
         if (flavor == AppFlavor.passenger)
           ChangeNotifierProvider<SuperappProvider>(

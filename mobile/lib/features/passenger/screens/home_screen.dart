@@ -9,16 +9,27 @@ import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
+import 'package:angren_taxi/core/network/api_client.dart';
+import 'package:angren_taxi/core/safety/sos_service.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
+import 'package:angren_taxi/features/passenger/favorites_provider.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
+import 'package:angren_taxi/features/passenger/screens/destination_screen.dart';
 import 'package:angren_taxi/features/passenger/screens/rate_driver_screen.dart';
+import 'package:angren_taxi/features/trip/screens/trip_chat_screen.dart';
+import 'package:angren_taxi/shared/models/favorite_address.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:angren_taxi/shared/widgets/loading_widget.dart';
 
 class PassengerHomeScreen extends StatefulWidget {
-  const PassengerHomeScreen({super.key});
+  const PassengerHomeScreen({super.key, this.sosService});
+
+  /// Injectable for tests — defaults to a [SosService] built from the real
+  /// [ApiClient] in the service locator (same pattern as
+  /// CheckoutScreen.paymentService).
+  final SosService? sosService;
 
   @override
   State<PassengerHomeScreen> createState() => _PassengerHomeScreenState();
@@ -32,12 +43,16 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
   );
   bool _locationLoading = true;
 
+  SosService get _sosService =>
+      widget.sosService ?? SosService(apiClient: sl<ApiClient>());
+
   @override
   void initState() {
     super.initState();
     _initLocation();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<OrderProvider>().checkActiveOrder();
+      context.read<FavoritesProvider>().loadFavorites();
     });
   }
 
@@ -339,62 +354,125 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
         );
   }
 
-  Widget _buildSavedPlaces() {
-    final places = [
-      ('Uy', Icons.home_rounded, const Color(0xFF1FCA8E)),
-      ('Ish', Icons.work_rounded, const Color(0xFF3B82F6)),
-      ('Bozor', Icons.shopping_basket_rounded, const Color(0xFFF59E0B)),
-      ('Qo\'shish', Icons.add_rounded, kTextSecondary),
-    ];
-
-    return SizedBox(
-      height: 96,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: places.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (context, i) {
-          final p = places[i];
-          return GestureDetector(
-            onTap: _onWhereToTap,
-            child: Container(
-              width: 80,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: kSurfaceGrey,
-                borderRadius: BorderRadius.circular(kRadiusMd),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: p.$3.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(p.$2, color: p.$3, size: 22),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    p.$1,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: kTextPrimary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          )
-              .animate()
-              .fadeIn(delay: (200 + i * 80).ms, duration: 350.ms)
-              .slideX(begin: 0.3, curve: Curves.easeOut);
-        },
+  /// Sends the passenger straight to tariff selection with both ends of the
+  /// trip already known — the "Qo'shish" tile is the only saved-places tile
+  /// that still goes through [_onWhereToTap]'s search flow.
+  void _onFavoriteTap(FavoriteAddress favorite) {
+    final orderProvider = context.read<OrderProvider>();
+    orderProvider.setPendingPickup(
+      OrderLocation(
+        address: 'Joriy joylashuv',
+        lat: _currentLocation.latitude,
+        lng: _currentLocation.longitude,
       ),
     );
+    orderProvider.setPendingDropoff(
+      OrderLocation(
+        address: favorite.address,
+        lat: favorite.lat,
+        lng: favorite.lng,
+      ),
+    );
+    Navigator.of(context).pushNamed('/passenger/tariff');
+  }
+
+  /// Opens the destination search in "pick a location to save" mode instead
+  /// of the normal search-and-order flow.
+  void _onAddFavoriteTap() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const DestinationScreen(isSavingFavorite: true),
+      ),
+    );
+  }
+
+  Widget _buildSavedPlaces() {
+    return Consumer<FavoritesProvider>(
+      builder: (context, favoritesProvider, _) {
+        final favorites = favoritesProvider.favorites;
+        final itemCount = favorites.length + 1; // + trailing "Qo'shish" tile
+
+        return SizedBox(
+          // 96 was too tight for the icon + label column below (42 + 8
+          // spacing + label text + 24 vertical padding), overflowing by
+          // ~12px once a test actually settles this view; 108 gives the
+          // label enough room.
+          height: 108,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: itemCount,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, i) {
+              if (i == favorites.length) {
+                return _buildSavedPlaceTile(
+                  index: i,
+                  label: "Qo'shish",
+                  icon: Icons.add_rounded,
+                  color: kTextSecondary,
+                  onTap: _onAddFavoriteTap,
+                );
+              }
+              final favorite = favorites[i];
+              return _buildSavedPlaceTile(
+                index: i,
+                label: favorite.label,
+                icon: favorite.icon,
+                color: favorite.color,
+                onTap: () => _onFavoriteTap(favorite),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSavedPlaceTile({
+    required int index,
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 80,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: kSurfaceGrey,
+          borderRadius: BorderRadius.circular(kRadiusMd),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: kTextPrimary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    )
+        .animate()
+        .fadeIn(delay: (200 + index * 80).ms, duration: 350.ms)
+        .slideX(begin: 0.3, curve: Curves.easeOut);
   }
 
   Widget _buildActiveOrderView(OrderProvider orderProvider) {
@@ -507,7 +585,14 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            _buildStatusChip(order.status),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildStatusChip(order.status),
+                _buildSosButton(order),
+              ],
+            ),
+            _buildEtaBanner(order, orderProvider),
             const SizedBox(height: 12),
             if (order.driver != null) _buildDriverInfo(order),
             const SizedBox(height: 12),
@@ -564,6 +649,182 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     );
   }
 
+  /// Small red circular SOS button shown in the active-order status row.
+  /// Opens [_showSosSheet] with emergency-call and dispatcher-alert options.
+  Widget _buildSosButton(Order order) {
+    return GestureDetector(
+      onTap: () => _showSosSheet(order),
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: kError,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: kError.withValues(alpha: 0.4),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: const Icon(Icons.sos_rounded, color: Colors.white, size: 20),
+      ),
+    );
+  }
+
+  // Emergency services number (Uzbekistan combined police/fire line). The
+  // sheet also mentions 103 (ambulance) in its label, but tel: only accepts
+  // a single number to dial.
+  static const String _emergencyPhoneNumber = '102';
+
+  Future<void> _callEmergency() async {
+    final uri = Uri(scheme: 'tel', path: _emergencyPhoneNumber);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Qo'ng'iroq qilib bo'lmadi")),
+      );
+    }
+  }
+
+  Future<void> _alertDispatchers(String orderId) async {
+    final locationService = sl<LocationService>();
+    final position = await locationService.getCurrentPosition();
+    final lat = position?.latitude ?? _currentLocation.latitude;
+    final lng = position?.longitude ?? _currentLocation.longitude;
+    try {
+      await _sosService.reportSos(orderId: orderId, lat: lat, lng: lng);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Dispetcherlarga xabar yuborildi'),
+            backgroundColor: kPrimary,
+          ),
+        );
+      }
+    } on SosException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    }
+  }
+
+  void _showSosSheet(Order order) {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Favqulodda yordam',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: kTextPrimary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                "Xavfsizligingiz biz uchun muhim. Kerak bo'lsa, quyidagi "
+                'tugmalardan birini bosing.',
+                style: TextStyle(color: kTextSecondary, fontSize: 13),
+              ),
+              const SizedBox(height: 20),
+              AppButton(
+                label: 'Favqulodda chaqiruv (102/103)',
+                backgroundColor: kError,
+                foregroundColor: Colors.white,
+                onPressed: () {
+                  Navigator.of(sheetContext).pop();
+                  _callEmergency();
+                },
+              ),
+              const SizedBox(height: 12),
+              AppButton(
+                label: 'Dispetcherlarga xabar berish',
+                onPressed: () {
+                  Navigator.of(sheetContext).pop();
+                  _alertDispatchers(order.id);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Rough ETA (in minutes) from the driver's live location to the pickup
+  /// point, assuming an average city driving speed of 25 km/h. Only
+  /// meaningful before the driver has arrived — once `driverArrived` (or
+  /// later), there's nothing left to count down to.
+  static const double _averageCitySpeedKmh = 25;
+
+  int? _etaMinutesToPickup(Order order, OrderProvider orderProvider) {
+    if (order.status != OrderStatus.driverAssigned &&
+        order.status != OrderStatus.driverEnRoute) {
+      return null;
+    }
+    final driverLocation = orderProvider.driverLocation;
+    if (driverLocation == null) return null;
+
+    const distanceCalculator = Distance();
+    final distanceKm = distanceCalculator.as(
+      LengthUnit.Kilometer,
+      driverLocation,
+      LatLng(order.pickup.lat, order.pickup.lng),
+    );
+    final minutes = (distanceKm / _averageCitySpeedKmh) * 60;
+    return minutes.round();
+  }
+
+  Widget _buildEtaBanner(Order order, OrderProvider orderProvider) {
+    final etaMinutes = _etaMinutesToPickup(order, orderProvider);
+    if (etaMinutes == null) return const SizedBox.shrink();
+
+    final text = etaMinutes < 1
+        ? 'Haydovchi deyarli yetib keldi'
+        : 'Haydovchi $etaMinutes daqiqada yetib keladi';
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: kPrimaryYellow.withAlpha(40),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.access_time_rounded,
+                size: 16, color: kPrimaryDark),
+            const SizedBox(width: 6),
+            Text(
+              text,
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: kPrimaryDark,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _callDriver(String phone) async {
     if (phone.isEmpty) return;
     final uri = Uri(scheme: 'tel', path: phone);
@@ -574,6 +835,19 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
         const SnackBar(content: Text("Qo'ng'iroq qilib bo'lmadi")),
       );
     }
+  }
+
+  void _openChat(Order order) {
+    final currentUserId = context.read<AuthProvider>().currentUser?.id;
+    if (currentUserId == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => TripChatScreen(
+          orderId: order.id,
+          currentUserId: currentUserId,
+        ),
+      ),
+    );
   }
 
   Widget _buildDriverInfo(Order order) {
@@ -632,6 +906,22 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                   ],
                 ),
               ],
+            ),
+          ),
+          // Chat button — opens in-trip messaging with the driver.
+          GestureDetector(
+            onTap: () => _openChat(order),
+            child: Container(
+              width: 46,
+              height: 46,
+              margin: const EdgeInsets.only(right: 10),
+              decoration: BoxDecoration(
+                color: kSurface,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: kSurfaceGrey, width: 1.5),
+              ),
+              child: const Icon(Icons.chat_bubble_outline_rounded,
+                  color: kPrimaryDark),
             ),
           ),
           // Filled call button
@@ -709,28 +999,85 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     );
   }
 
+  static const List<String> _cancelReasons = [
+    'Juda uzoq kutdim',
+    "Fikrimni o'zgartirdim",
+    'Narx juda qimmat',
+    'Boshqa sabab',
+  ];
+  static const String _otherCancelReason = 'Boshqa sabab';
+
   void _confirmCancel(OrderProvider orderProvider) {
+    String selectedReason = _cancelReasons.first;
+    final customReasonController = TextEditingController();
+
     showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Bekor qilishni tasdiqlang'),
-        content: const Text('Buyurtmani bekor qilmoqchimisiz?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text("Yo'q"),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              orderProvider.cancelOrder();
-            },
-            child: const Text(
-              'Ha, bekor qilish',
-              style: TextStyle(color: kError),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          return AlertDialog(
+            title: const Text('Bekor qilish sababi'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Buyurtmani bekor qilish sababini tanlang:',
+                    style: TextStyle(color: kTextSecondary, fontSize: 13),
+                  ),
+                  for (final reason in _cancelReasons)
+                    RadioListTile<String>(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      value: reason,
+                      groupValue: selectedReason,
+                      title: Text(reason),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setDialogState(() => selectedReason = value);
+                        }
+                      },
+                    ),
+                  if (selectedReason == _otherCancelReason)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4, bottom: 4),
+                      child: TextField(
+                        controller: customReasonController,
+                        autofocus: true,
+                        maxLines: 2,
+                        decoration: const InputDecoration(
+                          hintText: 'Sababni yozing...',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-        ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text("Yo'q"),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  final reason = selectedReason == _otherCancelReason
+                      ? customReasonController.text.trim()
+                      : selectedReason;
+                  orderProvider.cancelOrder(
+                    reason: reason.isEmpty ? null : reason,
+                  );
+                },
+                child: const Text(
+                  'Ha, bekor qilish',
+                  style: TextStyle(color: kError),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

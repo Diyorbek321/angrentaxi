@@ -30,8 +30,13 @@ class OrderProvider extends ChangeNotifier {
   // Pending order creation data
   OrderLocation? _pendingPickup;
   OrderLocation? _pendingDropoff;
+  final List<OrderLocation> _pendingWaypoints = [];
   Tariff? _selectedTariff;
   double? _estimatedPrice;
+
+  /// Max intermediate stops allowed on a multi-stop ride, matching the
+  /// backend's `WaypointDto` (`@ArrayMaxSize(5)`).
+  static const int maxWaypoints = 5;
 
   // Active super-app vertical: 'taxi' or 'cargo'. Drives which tariffs load
   // and which serviceType the order is created with.
@@ -50,6 +55,7 @@ class OrderProvider extends ChangeNotifier {
   LatLng? get driverLocation => _driverLocation;
   OrderLocation? get pendingPickup => _pendingPickup;
   OrderLocation? get pendingDropoff => _pendingDropoff;
+  List<OrderLocation> get pendingWaypoints => List.unmodifiable(_pendingWaypoints);
   Tariff? get selectedTariff => _selectedTariff;
   double? get estimatedPrice => _estimatedPrice;
   bool get hasActiveOrder => _activeOrder != null && _activeOrder!.isActive;
@@ -82,6 +88,27 @@ class OrderProvider extends ChangeNotifier {
 
   void setPendingDropoff(OrderLocation location) {
     _pendingDropoff = location;
+    notifyListeners();
+  }
+
+  /// Adds an intermediate stop, up to [maxWaypoints]. Silently ignores
+  /// additions past the limit — callers (e.g. destination_screen) should
+  /// hide/disable the "add stop" action once the limit is reached rather
+  /// than rely on this to surface an error.
+  void addWaypoint(OrderLocation location) {
+    if (_pendingWaypoints.length >= maxWaypoints) return;
+    _pendingWaypoints.add(location);
+    notifyListeners();
+  }
+
+  void removeWaypoint(int index) {
+    if (index < 0 || index >= _pendingWaypoints.length) return;
+    _pendingWaypoints.removeAt(index);
+    notifyListeners();
+  }
+
+  void clearWaypoints() {
+    _pendingWaypoints.clear();
     notifyListeners();
   }
 
@@ -193,6 +220,10 @@ class OrderProvider extends ChangeNotifier {
   }
 
   void _listenToOrderEvents() {
+    if (_activeOrder != null) {
+      _socketService.emit(SocketEvents.joinOrder, {'orderId': _activeOrder!.id});
+    }
+
     _socketService.on(SocketEvents.driverLocationUpdate, (data) {
       if (data is Map) {
         final lat = (data['lat'] as num?)?.toDouble();
@@ -238,18 +269,24 @@ class OrderProvider extends ChangeNotifier {
   }
 
   void _cleanupOrderListeners() {
+    if (_activeOrder != null) {
+      _socketService.emit(SocketEvents.leaveOrder, {'orderId': _activeOrder!.id});
+    }
     _socketService.off(SocketEvents.driverLocationUpdate);
     _socketService.off(SocketEvents.orderStatusUpdate);
     _socketService.off(SocketEvents.driverAssigned);
     _driverLocation = null;
   }
 
-  Future<void> cancelOrder() async {
+  Future<void> cancelOrder({String? reason}) async {
     if (_activeOrder == null) return;
 
     _setState(OrderProviderState.loading);
     try {
-      await _apiClient.patch(ApiEndpoints.cancelOrder(_activeOrder!.id));
+      await _apiClient.patch(
+        ApiEndpoints.cancelOrder(_activeOrder!.id),
+        data: reason != null ? {'reason': reason} : null,
+      );
       _cleanupOrderListeners();
       _activeOrder = null;
       _setState(OrderProviderState.idle);

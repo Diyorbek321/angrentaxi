@@ -92,4 +92,102 @@ void main() {
 
     expect(result, isNull);
   });
+
+  test('builds a plain pickup;dropoff URL when no waypoints are given', () async {
+    when(() => dio.get<Map<String, dynamic>>(
+          any(),
+          queryParameters: any(named: 'queryParameters'),
+        )).thenAnswer(
+      (_) async => Response<Map<String, dynamic>>(
+        requestOptions: RequestOptions(path: ''),
+        data: {
+          'routes': [
+            {
+              'distance': 1000.0,
+              'duration': 120.0,
+              'geometry': {
+                'coordinates': [
+                  [70.9432, 40.0956],
+                  [70.9500, 40.1050],
+                ],
+              },
+            },
+          ],
+        },
+      ),
+    );
+
+    const from = LatLng(40.0956, 70.9432);
+    const to = LatLng(40.1050, 70.9500);
+    await service.getRoute(from, to);
+
+    final capturedPath = verify(() => dio.get<Map<String, dynamic>>(
+          captureAny(),
+          queryParameters: any(named: 'queryParameters'),
+        )).captured.single as String;
+
+    expect(
+      capturedPath,
+      '/route/v1/driving/${from.longitude},${from.latitude};'
+      '${to.longitude},${to.latitude}',
+    );
+  });
+
+  test(
+      'threads waypoints into the OSRM URL in order: pickup, each waypoint, dropoff',
+      () async {
+    when(() => dio.get<Map<String, dynamic>>(
+          any(),
+          queryParameters: any(named: 'queryParameters'),
+        )).thenAnswer(
+      (_) async => Response<Map<String, dynamic>>(
+        requestOptions: RequestOptions(path: ''),
+        data: {
+          'routes': [
+            {
+              'distance': 9000.0,
+              'duration': 1200.0,
+              'geometry': {
+                'coordinates': [
+                  [70.9432, 40.0956],
+                  [70.9500, 40.1050],
+                ],
+              },
+            },
+          ],
+        },
+      ),
+    );
+
+    const from = LatLng(40.0956, 70.9432);
+    const to = LatLng(40.1050, 70.9500);
+    const waypoints = [
+      LatLng(40.1000, 70.9460),
+      LatLng(40.1020, 70.9480),
+    ];
+
+    await service.getRoute(from, to, waypoints: waypoints);
+
+    final capturedPath = verify(() => dio.get<Map<String, dynamic>>(
+          captureAny(),
+          queryParameters: any(named: 'queryParameters'),
+        )).captured.single as String;
+
+    final expectedCoords = [from, ...waypoints, to]
+        .map((p) => '${p.longitude},${p.latitude}')
+        .join(';');
+    expect(capturedPath, '/route/v1/driving/$expectedCoords');
+
+    // Explicitly pin down ordering: pickup first, waypoints in the given
+    // order, dropoff last.
+    final segments = capturedPath
+        .replaceFirst('/route/v1/driving/', '')
+        .split(';');
+    expect(segments, [
+      '${from.longitude},${from.latitude}',
+      '${waypoints[0].longitude},${waypoints[0].latitude}',
+      '${waypoints[1].longitude},${waypoints[1].latitude}',
+      '${to.longitude},${to.latitude}',
+    ]);
+  });
 }
