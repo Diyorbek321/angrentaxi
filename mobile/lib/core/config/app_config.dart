@@ -8,13 +8,17 @@ class AppConfig {
   //   --dart-define=API_BASE_URL=http://192.168.x.x:3000/api/v1
   //   --dart-define=WS_URL=http://192.168.x.x:3000
   // Defaults to the production endpoints when no override is supplied.
+  //
+  // NOTE: api.angren-taxi.uz is a future custom domain that has not been
+  // launched yet (does not resolve / no live server). Until it's live, the
+  // default points at the real production backend hosted on Railway.
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://api.angren-taxi.uz/api/v1',
+    defaultValue: 'https://angrentaxi-production.up.railway.app/api/v1',
   );
   static const String wsUrl = String.fromEnvironment(
     'WS_URL',
-    defaultValue: 'wss://api.angren-taxi.uz',
+    defaultValue: 'wss://angrentaxi-production.up.railway.app',
   );
 
   /// Offline demo mode. Built with `--dart-define=DEMO_MODE=true`, it makes the

@@ -83,8 +83,12 @@ class ApiClient {
     Map<String, dynamic>? params,
   }) => _dio.get(path, queryParameters: params);
 
-  Future<Response<dynamic>> post(String path, {dynamic data}) =>
-      _dio.post(path, data: data);
+  Future<Response<dynamic>> post(
+    String path, {
+    dynamic data,
+    ProgressCallback? onSendProgress,
+  }) =>
+      _dio.post(path, data: data, onSendProgress: onSendProgress);
 
   Future<Response<dynamic>> patch(String path, {dynamic data}) =>
       _dio.patch(path, data: data);

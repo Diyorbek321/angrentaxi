@@ -49,12 +49,23 @@ dependencies:
   google_fonts: ^6.2.1
   flutter_animate: ^4.5.0
 
+  # In-app checkout (Payme/Click/Uzcard hosted payment pages)
+  webview_flutter: ^4.9.0
+
+  # Driver KYC document upload (camera / gallery picker)
+  image_picker: ^1.1.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
   build_runner: ^2.4.8
   json_serializable: ^6.7.1
+  mocktail: ^1.0.4
+  # Faking image_picker's platform interface in widget tests (see
+  # test/widget/driver_kyc_upload_test.dart).
+  image_picker_platform_interface: ^2.11.1
+  plugin_platform_interface: ^2.1.8
 
 flutter:
   uses-material-design: true

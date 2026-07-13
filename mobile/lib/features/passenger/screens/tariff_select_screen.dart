@@ -1,19 +1,35 @@
+import 'package:angren_taxi/core/config/app_theme.dart';
+import 'package:angren_taxi/core/di/service_locator.dart';
+import 'package:angren_taxi/core/network/api_client.dart';
+import 'package:angren_taxi/core/payments/payment_service.dart';
+import 'package:angren_taxi/features/passenger/order_provider.dart';
+import 'package:angren_taxi/features/payments/screens/payment_webview_screen.dart';
+import 'package:angren_taxi/shared/models/payment_initiate_result.dart';
+import 'package:angren_taxi/shared/models/tariff.dart';
+import 'package:angren_taxi/shared/utils/formatters.dart';
+import 'package:angren_taxi/shared/widgets/error_widget.dart';
+import 'package:angren_taxi/shared/widgets/loading_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
-import 'package:angren_taxi/core/config/app_theme.dart';
-import 'package:angren_taxi/features/passenger/order_provider.dart';
-import 'package:angren_taxi/shared/models/tariff.dart';
-import 'package:angren_taxi/shared/utils/formatters.dart';
-import 'package:angren_taxi/shared/widgets/error_widget.dart';
-import 'package:angren_taxi/shared/widgets/loading_widget.dart';
 
 /// Yandex Go-style tariff screen: route map on top, horizontal tariff cards
 /// and a full-width mint order button in a bottom sheet.
 class TariffSelectScreen extends StatefulWidget {
-  const TariffSelectScreen({super.key});
+  const TariffSelectScreen({
+    super.key,
+    this.paymentService,
+    this.openPaymentCheckout,
+  });
+
+  /// Injectable for tests — defaults to a [PaymentService] built from the
+  /// real [ApiClient] in the service locator.
+  final PaymentService? paymentService;
+
+  /// Injectable for tests — defaults to pushing [PaymentWebViewScreen].
+  final OpenPaymentCheckout? openPaymentCheckout;
 
   @override
   State<TariffSelectScreen> createState() => _TariffSelectScreenState();
@@ -21,6 +37,24 @@ class TariffSelectScreen extends StatefulWidget {
 
 class _TariffSelectScreenState extends State<TariffSelectScreen> {
   String _paymentMethod = 'cash';
+  bool _payingByCard = false;
+
+  PaymentService get _paymentService =>
+      widget.paymentService ?? PaymentService(apiClient: sl<ApiClient>());
+
+  Future<bool?> _openPaymentCheckout(
+    BuildContext context,
+    PaymentInitiateResult result,
+  ) {
+    if (widget.openPaymentCheckout != null) {
+      return widget.openPaymentCheckout!(context, result);
+    }
+    return Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => PaymentWebViewScreen(result: result),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -55,10 +89,50 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
     }
     final success = await provider.createOrder();
     if (!mounted) return;
-    if (success) {
-      Navigator.of(context)
-          .pushNamedAndRemoveUntil('/passenger/home', (_) => false);
+    if (!success) return;
+
+    // Order placed. If the passenger chose card, try the real online
+    // checkout for it.
+    //
+    // NOTE — real backend business rule: `POST /payments/initiate`
+    // (backend/src/modules/payments/payments.service.ts) only accepts an
+    // order once its status is COMPLETED — i.e. after the ride has actually
+    // happened, not at order-creation time. A brand-new order (status
+    // 'created'/'searching') will be rejected with
+    // `400 Order must be completed before payment`. That's expected here,
+    // not a client bug: card rides are still fully bookable, the actual
+    // charge for them just has to happen post-trip (e.g. from the trip
+    // summary once the driver marks it complete) rather than right after
+    // tapping "Buyurtma". We still surface the call/response below so the
+    // wiring is real and ready to use the moment an order does qualify —
+    // and so passengers get a clear message instead of silent failure if a
+    // charge attempt is made too early.
+    if (_paymentMethod == 'card' && provider.activeOrder != null) {
+      setState(() => _payingByCard = true);
+      try {
+        final result = await _paymentService.initiate(
+          orderId: provider.activeOrder!.id,
+        );
+        if (!mounted) return;
+        await _openPaymentCheckout(context, result);
+      } on PaymentException catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              "To'lovni hozir boshlab bo'lmadi: ${e.message}. "
+              "Buyurtma qabul qilindi, safar oxirida to'lov amalga oshiriladi.",
+            ),
+          ),
+        );
+      } finally {
+        if (mounted) setState(() => _payingByCard = false);
+      }
     }
+
+    if (!mounted) return;
+    Navigator.of(context)
+        .pushNamedAndRemoveUntil('/passenger/home', (_) => false);
   }
 
   @override
@@ -232,7 +306,8 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
           // Order button (mint, full width)
           GestureDetector(
             onTap: (selected != null &&
-                    provider.state != OrderProviderState.loading)
+                    provider.state != OrderProviderState.loading &&
+                    !_payingByCard)
                 ? _onConfirmOrder
                 : null,
             child: Container(
@@ -250,7 +325,8 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
                 ],
               ),
               alignment: Alignment.center,
-              child: provider.state == OrderProviderState.loading
+              child: provider.state == OrderProviderState.loading ||
+                      _payingByCard
                   ? const SizedBox(
                       width: 24,
                       height: 24,
