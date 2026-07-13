@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
+import 'package:angren_taxi/features/passenger/screens/map_picker_screen.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/widgets/loading_widget.dart';
 
@@ -37,6 +39,7 @@ class _DestinationScreenState extends State<DestinationScreen> {
   void initState() {
     super.initState();
     _focusNode.requestFocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _resolvePickupAddress());
   }
 
   @override
@@ -44,6 +47,46 @@ class _DestinationScreenState extends State<DestinationScreen> {
     _searchController.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  // The pickup arrives here as raw GPS coordinates with a placeholder
+  // address ("Joylashuv aniqlanmoqda...", set by home_screen's
+  // _onWhereToTap). Resolve a real street address for it so the pickup row
+  // doesn't just show that placeholder forever.
+  Future<void> _resolvePickupAddress() async {
+    final provider = context.read<OrderProvider>();
+    final pickup = provider.pendingPickup;
+    if (pickup == null || pickup.address != 'Joylashuv aniqlanmoqda...') return;
+
+    try {
+      final placemarks = await placemarkFromCoordinates(pickup.lat, pickup.lng)
+          .timeout(const Duration(seconds: 6));
+      if (!mounted || placemarks.isEmpty) return;
+      final p = placemarks.first;
+      final addr = [p.street, p.subLocality, p.locality]
+          .where((e) => e != null && e.isNotEmpty)
+          .join(', ');
+      if (addr.isNotEmpty) {
+        provider.setPendingPickup(
+          OrderLocation(address: addr, lat: pickup.lat, lng: pickup.lng),
+        );
+      }
+    } catch (_) {
+      // Keep the placeholder — not worth surfacing an error for this.
+    }
+  }
+
+  Future<void> _openMapPicker({
+    required String title,
+    required LatLng? initial,
+    required ValueChanged<OrderLocation> onPicked,
+  }) async {
+    final result = await Navigator.of(context).push<OrderLocation>(
+      MaterialPageRoute<OrderLocation>(
+        builder: (_) => MapPickerScreen(title: title, initialLocation: initial),
+      ),
+    );
+    if (result != null) onPicked(result);
   }
 
   Future<void> _onSearchChanged(String query) async {
@@ -108,14 +151,17 @@ class _DestinationScreenState extends State<DestinationScreen> {
   }
 
   void _selectSuggestion(_AddressSuggestion suggestion) {
-    final orderProvider = context.read<OrderProvider>();
-    orderProvider.setPendingDropoff(
+    _selectLocation(
       OrderLocation(
         address: suggestion.address,
         lat: suggestion.lat,
         lng: suggestion.lng,
       ),
     );
+  }
+
+  void _selectLocation(OrderLocation location) {
+    context.read<OrderProvider>().setPendingDropoff(location);
     Navigator.of(context).pushNamed('/passenger/tariff');
   }
 
@@ -134,11 +180,69 @@ class _DestinationScreenState extends State<DestinationScreen> {
       ),
       body: Column(
         children: [
+          _buildPickupRow(),
+          const Divider(height: 1),
           _buildSearchField(),
+          _buildMapPickerAction(),
           const Divider(height: 1),
           Expanded(child: _buildContent()),
         ],
       ),
+    );
+  }
+
+  Widget _buildPickupRow() {
+    return Consumer<OrderProvider>(
+      builder: (context, provider, _) {
+        final pickup = provider.pendingPickup;
+        return ListTile(
+          leading: const Icon(Icons.my_location_rounded, color: kPrimary),
+          title: Text(
+            pickup?.address ?? 'Joriy joylashuv',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          subtitle: const Text('Qayerdan', style: TextStyle(fontSize: 12)),
+          trailing: const Icon(Icons.edit_location_alt_outlined,
+              color: kTextSecondary, size: 20),
+          onTap: () => _openMapPicker(
+            title: 'Qayerdan',
+            initial: pickup != null ? LatLng(pickup.lat, pickup.lng) : null,
+            onPicked: provider.setPendingPickup,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMapPickerAction() {
+    return Consumer<OrderProvider>(
+      builder: (context, provider, _) {
+        final pickup = provider.pendingPickup;
+        return ListTile(
+          leading: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: kPrimaryLight,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.map_outlined, color: kPrimaryDark),
+          ),
+          title: const Text(
+            'Xaritadan tanlash',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          subtitle: const Text('Manzilni xaritada belgilang',
+              style: TextStyle(fontSize: 12)),
+          onTap: () => _openMapPicker(
+            title: 'Qayerga',
+            initial: pickup != null ? LatLng(pickup.lat, pickup.lng) : null,
+            onPicked: _selectLocation,
+          ),
+        );
+      },
     );
   }
 

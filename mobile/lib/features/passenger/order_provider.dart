@@ -105,27 +105,48 @@ class OrderProvider extends ChangeNotifier {
     }
   }
 
+  // Route geometry + distance/duration for the pending pickup/dropoff pair,
+  // fetched from OSRM by the tariff-select screen. Kept here (rather than
+  // local widget state) so price estimation and the route line share one
+  // source of truth.
+  List<LatLng> _routePoints = [];
+  double? _routeDistanceKm;
+  double? _routeDurationMin;
+
+  List<LatLng> get routePoints => List.unmodifiable(_routePoints);
+  double? get routeDistanceKm => _routeDistanceKm;
+  double? get routeDurationMin => _routeDurationMin;
+
+  void setRoute({
+    required List<LatLng> points,
+    required double distanceKm,
+    required double durationMin,
+  }) {
+    _routePoints = points;
+    _routeDistanceKm = distanceKm;
+    _routeDurationMin = durationMin;
+    notifyListeners();
+  }
+
+  /// Matches backend's POST /orders/calculate-price, which prices a tariff
+  /// from a distance/duration pair rather than raw pickup/dropoff coordinates
+  /// (the backend has no routing engine of its own).
   Future<void> estimatePrice({
-    required double pickupLat,
-    required double pickupLng,
-    required double dropoffLat,
-    required double dropoffLng,
+    required double distanceKm,
+    required double durationMin,
     required String tariffId,
   }) async {
     try {
       final response = await _apiClient.post(
         ApiEndpoints.estimatePrice,
         data: {
-          'pickupLat': pickupLat,
-          'pickupLng': pickupLng,
-          'dropoffLat': dropoffLat,
-          'dropoffLng': dropoffLng,
           'tariffId': tariffId,
+          'distanceKm': distanceKm,
+          'durationMin': durationMin,
         },
       );
       final data = response.data as Map<String, dynamic>;
-      _estimatedPrice =
-          (data['data']['estimatedPrice'] as num?)?.toDouble() ?? 0;
+      _estimatedPrice = (data['data']['price'] as num?)?.toDouble() ?? 0;
       notifyListeners();
     } catch (e) {
       debugPrint('[OrderProvider] estimatePrice error: $e');
@@ -286,6 +307,9 @@ class OrderProvider extends ChangeNotifier {
     _pendingDropoff = null;
     _selectedTariff = null;
     _estimatedPrice = null;
+    _routePoints = [];
+    _routeDistanceKm = null;
+    _routeDurationMin = null;
     notifyListeners();
   }
 

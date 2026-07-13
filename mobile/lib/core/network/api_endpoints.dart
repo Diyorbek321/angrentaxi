@@ -13,7 +13,11 @@ class ApiEndpoints {
   static const String paymentMethods = '/users/payment-methods';
 
   // Orders (Passenger)
-  static const String estimatePrice = '/orders/estimate';
+  // Backend route is POST /orders/calculate-price, taking
+  // {tariffId, distanceKm, durationMin} — see
+  // backend/src/modules/orders/dto/calculate-price.dto.ts. Was previously
+  // '/orders/estimate' with a lat/lng body, which 404'd against the real API.
+  static const String estimatePrice = '/orders/calculate-price';
   static const String createOrder = '/orders';
   static const String orderHistory = '/orders/history';
   static String orderById(String id) => '/orders/$id';

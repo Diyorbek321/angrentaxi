@@ -1,5 +1,6 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
+import 'package:angren_taxi/core/location/route_service.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/payments/payment_service.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
@@ -38,9 +39,13 @@ class TariffSelectScreen extends StatefulWidget {
 class _TariffSelectScreenState extends State<TariffSelectScreen> {
   String _paymentMethod = 'cash';
   bool _payingByCard = false;
+  final MapController _mapController = MapController();
+  bool _routeLoading = false;
 
   PaymentService get _paymentService =>
       widget.paymentService ?? PaymentService(apiClient: sl<ApiClient>());
+
+  RouteService get _routeService => sl<RouteService>();
 
   Future<bool?> _openPaymentCheckout(
     BuildContext context,
@@ -62,24 +67,73 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<OrderProvider>();
       provider.loadTariffs();
-      _estimateIfReady(provider);
+      _loadRoute(provider);
     });
+  }
+
+  /// Fetches the real driving route (for the map line) and, from its
+  /// distance/duration, the price estimate — the backend has no routing
+  /// engine of its own, so distanceKm/durationMin must come from the client.
+  Future<void> _loadRoute(OrderProvider provider) async {
+    final pickup = provider.pendingPickup;
+    final dropoff = provider.pendingDropoff;
+    if (pickup == null || dropoff == null) return;
+
+    setState(() => _routeLoading = true);
+    final route = await _routeService.getRoute(
+      LatLng(pickup.lat, pickup.lng),
+      LatLng(dropoff.lat, dropoff.lng),
+    );
+    if (!mounted) return;
+    setState(() => _routeLoading = false);
+
+    if (route != null) {
+      provider.setRoute(
+        points: route.points,
+        distanceKm: route.distanceKm,
+        durationMin: route.durationMin,
+      );
+      _fitRouteBounds(route.points);
+    }
+
+    _estimateIfReady(provider);
+  }
+
+  void _fitRouteBounds(List<LatLng> points) {
+    if (points.isEmpty) return;
+    try {
+      _mapController.fitCamera(
+        CameraFit.bounds(
+          bounds: LatLngBounds.fromPoints(points),
+          padding: const EdgeInsets.fromLTRB(48, 96, 48, 260),
+        ),
+      );
+    } catch (_) {
+      // Map not laid out yet (e.g. first frame) — the initial center/zoom
+      // in MapOptions still shows a reasonable view.
+    }
   }
 
   void _estimateIfReady(OrderProvider provider) {
     final pickup = provider.pendingPickup;
     final dropoff = provider.pendingDropoff;
     if (pickup == null || dropoff == null) return;
-    if (provider.tariffs.isNotEmpty) {
-      final tariff = provider.selectedTariff ?? provider.tariffs.first;
-      provider.estimatePrice(
-        pickupLat: pickup.lat,
-        pickupLng: pickup.lng,
-        dropoffLat: dropoff.lat,
-        dropoffLng: dropoff.lng,
-        tariffId: tariff.id,
-      );
-    }
+    if (provider.tariffs.isEmpty) return;
+
+    final tariff = provider.selectedTariff ?? provider.tariffs.first;
+    // Straight-line Haversine fallback if OSRM didn't return a route, so
+    // price estimation still works (less accurate than the real route, but
+    // better than not estimating at all).
+    final distanceKm = provider.routeDistanceKm ??
+        (const Distance().as(LengthUnit.Kilometer,
+            LatLng(pickup.lat, pickup.lng), LatLng(dropoff.lat, dropoff.lng)));
+    final durationMin = provider.routeDurationMin ?? (distanceKm / 30 * 60);
+
+    provider.estimatePrice(
+      distanceKm: distanceKm,
+      durationMin: durationMin,
+      tariffId: tariff.id,
+    );
   }
 
   Future<void> _onConfirmOrder() async {
@@ -154,6 +208,13 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
                   ),
                 ),
               ),
+              if (_routeLoading)
+                const Positioned(
+                  top: 76,
+                  left: 0,
+                  right: 0,
+                  child: Center(child: _RouteLoadingPill()),
+                ),
               // Bottom sheet
               Align(
                 alignment: Alignment.bottomCenter,
@@ -178,7 +239,13 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
     final center = LatLng((p.latitude + d.latitude) / 2,
         (p.longitude + d.longitude) / 2);
 
+    // Real road route from OSRM when available; a straight line is only a
+    // fallback for when the route fetch fails (offline, OSRM unreachable).
+    final routePoints =
+        provider.routePoints.isNotEmpty ? provider.routePoints : [p, d];
+
     return FlutterMap(
+      mapController: _mapController,
       options: MapOptions(initialCenter: center, initialZoom: 13.5),
       children: [
         TileLayer(
@@ -187,7 +254,7 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
         ),
         PolylineLayer(
           polylines: [
-            Polyline(points: [p, d], strokeWidth: 4, color: kPrimary),
+            Polyline(points: routePoints, strokeWidth: 4, color: kPrimary),
           ],
         ),
         MarkerLayer(
@@ -545,6 +612,39 @@ class _PaymentChip extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _RouteLoadingPill extends StatelessWidget {
+  const _RouteLoadingPill();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: kInk.withValues(alpha: 0.12), blurRadius: 12),
+        ],
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary),
+          ),
+          SizedBox(width: 8),
+          Text(
+            "Yo'nalish yuklanmoqda...",
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ],
       ),
     );
   }

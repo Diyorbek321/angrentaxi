@@ -23,16 +23,22 @@ class Tariff extends Equatable {
   final bool isAvailable;
   final int maxPassengers;
 
+  // The backend (GET /tariffs, see backend/src/database/entities/tariff.entity.ts)
+  // returns basePrice/pricePerKm/minPrice/isActive — not baseFare/perKmRate/
+  // minFare/isAvailable/description. Previously this parsed the wrong keys,
+  // so every tariff's baseFare/minFare cast (`as num`) threw on null and
+  // loadTariffs()'s catch-all silently swallowed it, leaving the tariff list
+  // permanently empty on the tariff-select screen.
   factory Tariff.fromJson(Map<String, dynamic> json) {
     return Tariff(
       id: json['id'] as String,
       name: json['name'] as String,
-      description: json['description'] as String,
-      baseFare: (json['baseFare'] as num).toDouble(),
-      perKmRate: (json['perKmRate'] as num).toDouble(),
-      minFare: (json['minFare'] as num).toDouble(),
+      description: json['description'] as String? ?? '',
+      baseFare: (json['basePrice'] as num).toDouble(),
+      perKmRate: (json['pricePerKm'] as num).toDouble(),
+      minFare: (json['minPrice'] as num).toDouble(),
       iconName: json['iconName'] as String?,
-      isAvailable: (json['isAvailable'] as bool?) ?? true,
+      isAvailable: (json['isActive'] as bool?) ?? true,
       maxPassengers: (json['maxPassengers'] as int?) ?? 4,
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
+import 'package:angren_taxi/core/location/route_service.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
 import 'package:angren_taxi/core/storage/local_storage.dart';
@@ -28,4 +29,6 @@ Future<void> setupServiceLocator() async {
   sl.registerLazySingleton<SocketService>(() => SocketService());
 
   sl.registerLazySingleton<LocationService>(() => LocationService());
+
+  sl.registerLazySingleton<RouteService>(() => RouteService());
 }
