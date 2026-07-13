@@ -14,6 +14,9 @@ class Driver extends Equatable {
     this.isOnline = false,
     this.currentLat,
     this.currentLng,
+    this.balance = 0,
+    this.commissionRate,
+    this.userStatus,
   });
 
   final String id;
@@ -28,6 +31,11 @@ class Driver extends Equatable {
   final bool isOnline;
   final double? currentLat;
   final double? currentLng;
+  final double balance;
+  final double? commissionRate;
+  // From the nested `user` object on GET /drivers/me — 'pending' means this
+  // driver applied but hasn't been approved by an admin/manager yet.
+  final String? userStatus;
 
   // Backend sends this shape in two different forms depending on the caller:
   // - GET /drivers/me returns the Driver entity with a nested `user` object
@@ -63,6 +71,11 @@ class Driver extends Equatable {
       currentLng: json['currentLng'] != null
           ? (json['currentLng'] as num).toDouble()
           : null,
+      balance: json['balance'] != null ? (json['balance'] as num).toDouble() : 0,
+      commissionRate: json['commissionRate'] != null
+          ? (json['commissionRate'] as num).toDouble()
+          : null,
+      userStatus: user?['status'] as String?,
     );
   }
 
@@ -79,6 +92,9 @@ class Driver extends Equatable {
         'isOnline': isOnline,
         'currentLat': currentLat,
         'currentLng': currentLng,
+        'balance': balance,
+        'commissionRate': commissionRate,
+        'userStatus': userStatus,
       };
 
   Driver copyWith({
@@ -94,6 +110,9 @@ class Driver extends Equatable {
     bool? isOnline,
     double? currentLat,
     double? currentLng,
+    double? balance,
+    double? commissionRate,
+    String? userStatus,
   }) {
     return Driver(
       id: id ?? this.id,
@@ -108,6 +127,9 @@ class Driver extends Equatable {
       isOnline: isOnline ?? this.isOnline,
       currentLat: currentLat ?? this.currentLat,
       currentLng: currentLng ?? this.currentLng,
+      balance: balance ?? this.balance,
+      commissionRate: commissionRate ?? this.commissionRate,
+      userStatus: userStatus ?? this.userStatus,
     );
   }
 
@@ -127,5 +149,8 @@ class Driver extends Equatable {
         isOnline,
         currentLat,
         currentLng,
+        balance,
+        commissionRate,
+        userStatus,
       ];
 }

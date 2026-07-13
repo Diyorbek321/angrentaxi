@@ -60,6 +60,16 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     if (driver.pendingOffer != null && mounted) {
       Navigator.of(context).pushNamed('/driver/offer');
     }
+    // Surfaces goOnline/goOffline failures — critically the "balance is
+    // negative" block, which the driver otherwise has no way to see.
+    if (driver.state == DriverProviderState.error &&
+        driver.error != null &&
+        mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(driver.error!), backgroundColor: Colors.red),
+      );
+      driver.clearError();
+    }
   }
 
   @override
