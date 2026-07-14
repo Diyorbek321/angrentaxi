@@ -17,7 +17,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { OrdersService } from './orders.service';
+import { OrdersService, DriverEarningsBreakdown } from './orders.service';
 import { MatchingService } from '../matching/matching.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { CreateDispatchOrderDto } from './dto/create-dispatch-order.dto';
@@ -145,6 +145,18 @@ export class OrdersController {
   @ApiOperation({ summary: "Get the current driver's earnings for today" })
   async getEarnings(@CurrentUser() user: User): Promise<{ today: number }> {
     return this.ordersService.getDriverEarningsToday(user.id);
+  }
+
+  @Get('earnings/breakdown')
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({
+    summary:
+      "Get the current driver's earnings breakdown (today / last 7 days / last 30 days), including commission",
+  })
+  async getEarningsBreakdown(
+    @CurrentUser() user: User,
+  ): Promise<DriverEarningsBreakdown> {
+    return this.ordersService.getDriverEarningsBreakdown(user.id);
   }
 
   @Get(':id')
