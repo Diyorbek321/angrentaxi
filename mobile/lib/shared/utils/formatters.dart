@@ -63,6 +63,24 @@ class Formatters {
     }
   }
 
+  /// Minute-granular relative time for recent timestamps ("5 daqiqa oldin"),
+  /// falling back to [formatRelativeDate]'s day-granular phrasing once an
+  /// hour has passed. Used by the notifications list, whose hardcoded
+  /// placeholder copy this replaces used exactly this style.
+  static String formatRelativeTime(DateTime date) {
+    final now = DateTime.now();
+    final diff = now.difference(date);
+
+    if (diff.inMinutes < 1) {
+      return 'Hozirgina';
+    } else if (diff.inMinutes < 60) {
+      return '${diff.inMinutes} daqiqa oldin';
+    } else if (diff.inHours < 24 && diff.inDays == 0) {
+      return '${diff.inHours} soat oldin';
+    }
+    return formatRelativeDate(date);
+  }
+
   static String formatDistance(double meters) {
     if (meters < 1000) {
       return '${meters.toInt()} m';

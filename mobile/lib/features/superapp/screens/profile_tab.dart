@@ -1,5 +1,6 @@
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/passenger/screens/edit_profile_screen.dart';
+import 'package:angren_taxi/features/passenger/screens/referral_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/notifications_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/promos_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/settings_screen.dart';
@@ -158,6 +159,8 @@ class ProfileTab extends StatelessWidget {
                           onTap: () => _notImplementedYet(context)),
                       _MenuRow(icon: Icons.redeem_rounded, label: 'Aksiyalar va promokodlar',
                           onTap: () => _push(context, const PromosScreen())),
+                      _MenuRow(icon: Icons.group_add_rounded, iconColor: agPurple, label: "Do'stlarni taklif qilish",
+                          onTap: () => _push(context, const ReferralScreen())),
                       _MenuRow(icon: Icons.notifications_rounded, label: 'Bildirishnomalar',
                           onTap: () => _push(context, const NotificationsScreen())),
                       _MenuRow(icon: Icons.settings_rounded, label: 'Sozlamalar', last: true,

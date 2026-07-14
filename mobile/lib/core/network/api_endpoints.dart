@@ -65,9 +65,19 @@ class ApiEndpoints {
 
   // Promo codes
   static const String validatePromo = '/promo-codes/validate';
+  // GET /promo-codes/active (promo-codes.controller.ts) — currently-active,
+  // usable promo codes (not expired, under maxUses), newest first. Any
+  // authenticated user may call it.
+  static const String activePromoCodes = '/promo-codes/active';
 
   // FCM
   static const String registerFcmToken = '/notifications/register-token';
+
+  // Notification history (backend/src/modules/notifications) — persisted
+  // NotificationLog rows, distinct from the FCM token route above.
+  static const String notifications = '/notifications';
+  static String markNotificationRead(String id) => '/notifications/$id/read';
+  static const String markAllNotificationsRead = '/notifications/read-all';
 
   // Market (storefront)
   static const String marketStores = '/market/stores';
@@ -101,6 +111,13 @@ class ApiEndpoints {
   // Trip chat (backend/src/modules/trip-chat) — passenger<->driver messaging
   // scoped to a single order.
   static String tripMessages(String orderId) => '/orders/$orderId/messages';
+
+  // Referral program (backend/src/modules/referrals) — invite-a-friend
+  // bonus. GET returns {referralCode, referredCount, totalBonusEarned}
+  // scoped to the caller; POST applies another user's code to the caller's
+  // account (one-time only).
+  static const String myReferralInfo = '/users/me/referral';
+  static const String applyReferralCode = '/users/me/referral/apply';
 
   // Safety / SOS (backend/src/modules/safety)
   static String reportSos(String orderId) => '/orders/$orderId/sos';
