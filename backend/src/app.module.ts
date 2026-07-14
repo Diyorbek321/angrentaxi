@@ -49,6 +49,7 @@ import { WithdrawalRequest } from './database/entities/withdrawal-request.entity
 import { FavoriteAddress } from './database/entities/favorite-address.entity';
 import { TripMessage } from './database/entities/trip-message.entity';
 import { SosAlert } from './database/entities/sos-alert.entity';
+import { NotificationLog } from './database/entities/notification-log.entity';
 
 // Feature Modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -71,6 +72,7 @@ import { FoodModule } from './modules/food/food.module';
 import { FavoritesModule } from './modules/favorites/favorites.module';
 import { TripChatModule } from './modules/trip-chat/trip-chat.module';
 import { SafetyModule } from './modules/safety/safety.module';
+import { ReferralsModule } from './modules/referrals/referrals.module';
 
 @Module({
   imports: [
@@ -122,6 +124,7 @@ import { SafetyModule } from './modules/safety/safety.module';
           FavoriteAddress,
           TripMessage,
           SosAlert,
+          NotificationLog,
         ],
         migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
         // Schema is built from entities via synchronize (default on) for the test/MVP server,
@@ -187,6 +190,7 @@ import { SafetyModule } from './modules/safety/safety.module';
     FavoritesModule,
     TripChatModule,
     SafetyModule,
+    ReferralsModule,
   ],
 })
 export class AppModule {}
