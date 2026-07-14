@@ -44,6 +44,13 @@ export class PromoCodesController {
     return this.promoCodesService.validate(dto.code, user.id, dto.orderAmount);
   }
 
+  @Get('active')
+  @ApiOperation({ summary: 'List currently-active, usable promo codes' })
+  @ApiResponse({ status: 200, description: 'List of active promo codes' })
+  async findActive(): Promise<PromoCode[]> {
+    return this.promoCodesService.findActive();
+  }
+
   @Get()
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
   @ApiOperation({ summary: 'List all promo codes (manager/admin only)' })

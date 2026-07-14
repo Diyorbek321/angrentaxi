@@ -122,6 +122,16 @@ export class PromoCodesService {
     });
   }
 
+  async findActive(): Promise<PromoCode[]> {
+    return this.promoCodeRepository
+      .createQueryBuilder('promoCode')
+      .where('promoCode.isActive = :isActive', { isActive: true })
+      .andWhere('(promoCode.expiresAt IS NULL OR promoCode.expiresAt > NOW())')
+      .andWhere('(promoCode.maxUses IS NULL OR promoCode.usedCount < promoCode.maxUses)')
+      .orderBy('promoCode.createdAt', 'DESC')
+      .getMany();
+  }
+
   async deactivate(id: string): Promise<PromoCode> {
     const promoCode = await this.promoCodeRepository.findOne({ where: { id } });
 
