@@ -69,6 +69,9 @@ dev_dependencies:
   # test/widget/driver_kyc_upload_test.dart).
   image_picker_platform_interface: ^2.11.1
   plugin_platform_interface: ^2.1.8
+  # Faking url_launcher's platform interface in widget tests (see
+  # test/widget/driver_navigation_test.dart).
+  url_launcher_platform_interface: ^2.3.2
 
 flutter:
   uses-material-design: true

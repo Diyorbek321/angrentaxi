@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
@@ -61,6 +64,45 @@ class _NavigationScreenState extends State<NavigationScreen> {
     if (!mounted) return;
     if (provider.state == DriverProviderState.success) {
       Navigator.of(context).pushReplacementNamed('/driver/arrived');
+    }
+  }
+
+  /// This screen only shows before the passenger is picked up (see
+  /// app.dart / home_screen.dart#_navigateToActiveOrder — driverAssigned and
+  /// driverEnRoute route here, driverArrived/inProgress route to the
+  /// arrived/trip screens instead). It still checks the order's status
+  /// defensively so navigation always points at whichever leg is actually
+  /// next if that assumption ever changes.
+  OrderLocation _nextDestination(Order order) {
+    return order.status == OrderStatus.inProgress
+        ? order.dropoff
+        : order.pickup;
+  }
+
+  /// Opens the device's default navigation app with turn-by-turn directions
+  /// to [destination]. Uses a generic `geo:` URI on Android/others, which the
+  /// OS resolves to whichever maps app is installed (Google Maps, Yandex
+  /// Maps, etc.), prompting a chooser if more than one handles it. `geo:` is
+  /// not supported on iOS, so Apple Maps' web deep link is used there
+  /// instead — Google Maps also handles that same URL as a fallback if it's
+  /// installed. Follows the same canLaunchUrl/launchUrl guard-and-snackbar
+  /// pattern as _callDriver in
+  /// lib/features/passenger/screens/home_screen.dart.
+  Future<void> _openNavigation(OrderLocation destination) async {
+    final label = Uri.encodeComponent(destination.address);
+    final uri = Platform.isIOS
+        ? Uri.parse(
+            'https://maps.apple.com/?daddr=${destination.lat},${destination.lng}',
+          )
+        : Uri.parse(
+            'geo:0,0?q=${destination.lat},${destination.lng}($label)',
+          );
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Navigatsiya ilovasi topilmadi')),
+      );
     }
   }
 
@@ -238,6 +280,14 @@ class _NavigationScreenState extends State<NavigationScreen> {
                   ],
                 ),
               ),
+            AppOutlinedButton(
+              label: 'Navigatsiyani ochish',
+              onPressed: () => _openNavigation(_nextDestination(order)),
+              borderColor: kPrimaryYellow,
+              textColor: kInk,
+              icon: const Icon(Icons.navigation, color: kInk),
+            ),
+            const SizedBox(height: 12),
             AppButton(
               label: 'Yetib keldim',
               onPressed: _onArrived,
