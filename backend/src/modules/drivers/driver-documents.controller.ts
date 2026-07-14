@@ -5,6 +5,8 @@ import {
   Body,
   Controller,
   Get,
+  Param,
+  Patch,
   Post,
   Query,
   UnsupportedMediaTypeException,
@@ -17,6 +19,7 @@ import {
   ApiBearerAuth,
   ApiConsumes,
   ApiOperation,
+  ApiParam,
   ApiQuery,
   ApiResponse,
   ApiTags,
@@ -25,11 +28,13 @@ import { diskStorage } from 'multer';
 import { randomUUID } from 'crypto';
 import { DriverDocumentsService, UploadedDiskFile } from './driver-documents.service';
 import { UploadDriverDocumentDto } from './dto/upload-driver-document.dto';
+import { ReviewDriverDocumentDto } from './dto/review-driver-document.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { User, UserRole } from '../../database/entities/user.entity';
+import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
 
 // PRODUCTION TODO: this stores files on local disk, which does not survive
 // redeploys/scale-out on most hosts (e.g. Railway). Move to S3 (or another
@@ -110,5 +115,22 @@ export class DriverDocumentsController {
       throw new BadRequestException('driverId query param is required for admin/manager');
     }
     return this.driverDocumentsService.listForDriver(driverId);
+  }
+
+  @Patch(':id/review')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @ApiOperation({ summary: 'Approve or reject an uploaded KYC document (admin/manager only)' })
+  @ApiParam({ name: 'id', description: 'Driver document UUID' })
+  @ApiResponse({ status: 200, description: 'Document review status updated' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid status transition, or rejection missing a reason',
+  })
+  @ApiResponse({ status: 404, description: 'Document not found' })
+  async review(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReviewDriverDocumentDto,
+  ) {
+    return this.driverDocumentsService.review(id, dto);
   }
 }

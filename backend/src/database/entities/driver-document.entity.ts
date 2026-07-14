@@ -52,6 +52,9 @@ export class DriverDocument {
   })
   reviewStatus: DriverDocumentReviewStatus;
 
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  rejectionReason: string | null;
+
   @CreateDateColumn({ name: 'uploaded_at' })
   uploadedAt: Date;
 }

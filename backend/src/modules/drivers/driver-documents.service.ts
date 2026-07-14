@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
@@ -7,6 +7,7 @@ import {
   DriverDocumentType,
 } from '../../database/entities/driver-document.entity';
 import { DriversService } from './drivers.service';
+import { ReviewDriverDocumentDto } from './dto/review-driver-document.dto';
 
 // File on disk as handed to us by Multer's diskStorage engine. Kept minimal
 // (rather than depending on @types/multer's fuller Express.Multer.File) so the
@@ -68,5 +69,32 @@ export class DriverDocumentsService {
       where: { driverId },
       order: { uploadedAt: 'DESC' },
     });
+  }
+
+  // Admin/manager review decision on an uploaded KYC document. 'pending' is
+  // never a valid target here (it's only the initial state set on upload),
+  // and rejecting without a reason is rejected outright — the driver has no
+  // other way to find out what to fix on re-upload.
+  async review(documentId: string, dto: ReviewDriverDocumentDto): Promise<DriverDocument> {
+    const document = await this.documentRepository.findOne({ where: { id: documentId } });
+    if (!document) {
+      throw new NotFoundException(`Driver document "${documentId}" not found`);
+    }
+
+    if (dto.status === DriverDocumentReviewStatus.PENDING) {
+      throw new BadRequestException(
+        '"pending" is not a valid review target; use "approved" or "rejected"',
+      );
+    }
+
+    if (dto.status === DriverDocumentReviewStatus.REJECTED && !dto.reason?.trim()) {
+      throw new BadRequestException('A reason is required when rejecting a document');
+    }
+
+    document.reviewStatus = dto.status;
+    document.rejectionReason =
+      dto.status === DriverDocumentReviewStatus.REJECTED ? dto.reason!.trim() : null;
+
+    return this.documentRepository.save(document);
   }
 }

@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { DriverDocumentsService, UploadedDiskFile } from './driver-documents.service';
 import {
   DriverDocument,
@@ -12,7 +12,7 @@ import { Driver } from '../../database/entities/driver.entity';
 
 describe('DriverDocumentsService', () => {
   let service: DriverDocumentsService;
-  let documentRepository: { save: jest.Mock; find: jest.Mock };
+  let documentRepository: { save: jest.Mock; find: jest.Mock; findOne: jest.Mock };
   let driversService: { findByUserIdOrThrow: jest.Mock };
 
   const driver = { id: 'driver-1', userId: 'user-1' } as Driver;
@@ -28,6 +28,7 @@ describe('DriverDocumentsService', () => {
     documentRepository = {
       save: jest.fn(),
       find: jest.fn(),
+      findOne: jest.fn(),
     };
     driversService = {
       findByUserIdOrThrow: jest.fn().mockResolvedValue(driver),
@@ -112,6 +113,82 @@ describe('DriverDocumentsService', () => {
         expect.objectContaining({ where: { driverId: 'driver-2' } }),
       );
       expect(result).toEqual(docs);
+    });
+  });
+
+  describe('review', () => {
+    const existingDocument = (): DriverDocument =>
+      ({
+        id: 'doc-1',
+        driverId: driver.id,
+        documentType: DriverDocumentType.LICENSE_FRONT,
+        fileUrl: '/uploads/driver-documents/abc123.jpg',
+        reviewStatus: DriverDocumentReviewStatus.REJECTED,
+        rejectionReason: 'Blurry photo',
+        uploadedAt: new Date(),
+      }) as DriverDocument;
+
+    it('approving clears any prior rejectionReason', async () => {
+      const document = existingDocument();
+      documentRepository.findOne.mockResolvedValue(document);
+      documentRepository.save.mockImplementation((doc) => Promise.resolve(doc));
+
+      const result = await service.review('doc-1', {
+        status: DriverDocumentReviewStatus.APPROVED,
+      });
+
+      expect(result.reviewStatus).toBe(DriverDocumentReviewStatus.APPROVED);
+      expect(result.rejectionReason).toBeNull();
+      expect(documentRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reviewStatus: DriverDocumentReviewStatus.APPROVED,
+          rejectionReason: null,
+        }),
+      );
+    });
+
+    it('rejecting without a reason throws BadRequestException', async () => {
+      documentRepository.findOne.mockResolvedValue(existingDocument());
+
+      await expect(
+        service.review('doc-1', { status: DriverDocumentReviewStatus.REJECTED }),
+      ).rejects.toThrow(BadRequestException);
+
+      await expect(
+        service.review('doc-1', { status: DriverDocumentReviewStatus.REJECTED, reason: '   ' }),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(documentRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('rejecting with a reason sets both reviewStatus and rejectionReason correctly', async () => {
+      const document = existingDocument();
+      documentRepository.findOne.mockResolvedValue(document);
+      documentRepository.save.mockImplementation((doc) => Promise.resolve(doc));
+
+      const result = await service.review('doc-1', {
+        status: DriverDocumentReviewStatus.REJECTED,
+        reason: 'License number not legible',
+      });
+
+      expect(result.reviewStatus).toBe(DriverDocumentReviewStatus.REJECTED);
+      expect(result.rejectionReason).toBe('License number not legible');
+      expect(documentRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reviewStatus: DriverDocumentReviewStatus.REJECTED,
+          rejectionReason: 'License number not legible',
+        }),
+      );
+    });
+
+    it('reviewing a non-existent document throws NotFoundException', async () => {
+      documentRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.review('missing-doc', { status: DriverDocumentReviewStatus.APPROVED }),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(documentRepository.save).not.toHaveBeenCalled();
     });
   });
 });
