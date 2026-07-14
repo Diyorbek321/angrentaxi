@@ -11,6 +11,7 @@ import { Repository, LessThan } from 'typeorm';
 import { Otp } from '../../database/entities/otp.entity';
 import { User, UserRole, UserStatus } from '../../database/entities/user.entity';
 import { EskizService } from '../notifications/eskiz.service';
+import { generateUniqueReferralCode } from '../../common/utils/referral-code.util';
 
 interface JwtPayload {
   sub: string;
@@ -124,6 +125,7 @@ export class AuthService {
     let user = await this.userRepository.findOne({ where: { phone } });
 
     if (!user) {
+      const referralCode = await generateUniqueReferralCode(this.userRepository);
       user = await this.userRepository.save({
         phone,
         role: UserRole.PASSENGER,
@@ -131,6 +133,8 @@ export class AuthService {
         firstName: null,
         lastName: null,
         fcmToken: null,
+        referralCode,
+        referredByUserId: null,
       });
     }
 

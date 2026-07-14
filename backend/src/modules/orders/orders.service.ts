@@ -46,6 +46,12 @@ export interface DriverEarningsBreakdown {
   month: DriverEarningsPeriod;
 }
 
+// Flat bonus (in so'm) credited to both a referred passenger and their
+// referrer the first time the referred passenger completes a trip. See the
+// referral-bonus block at the end of completeTrip, and
+// ReferralsService.getMyReferralInfo which sums these by externalId prefix.
+const REFERRAL_BONUS_AMOUNT = 5000;
+
 @Injectable()
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
@@ -540,6 +546,42 @@ export class OrdersService {
       } else {
         this.realtimeGateway.emitToManagers('driver:offline', { driverId: finishedDriver.id });
       }
+    }
+
+    // Referral bonus: if this passenger was referred by another user and this
+    // is their first-ever completed trip, credit both the passenger and their
+    // referrer a fixed bonus. Best-effort — a bonus-crediting bug must never
+    // break trip completion, which is the actually critical operation here.
+    try {
+      if (passenger?.referredByUserId) {
+        const completedOrdersCount = await this.orderRepository.count({
+          where: { passengerId: order.passengerId, status: OrderStatus.COMPLETED },
+        });
+
+        if (completedOrdersCount === 1) {
+          await this.transactionRepository.save({
+            userId: order.passengerId,
+            orderId,
+            amount: REFERRAL_BONUS_AMOUNT,
+            type: TransactionType.CREDIT,
+            paymentMethod: PaymentMethod.WALLET,
+            status: TransactionStatus.COMPLETED,
+            externalId: `referral_bonus_passenger_${order.id}`,
+          });
+
+          await this.transactionRepository.save({
+            userId: passenger.referredByUserId,
+            orderId,
+            amount: REFERRAL_BONUS_AMOUNT,
+            type: TransactionType.CREDIT,
+            paymentMethod: PaymentMethod.WALLET,
+            status: TransactionStatus.COMPLETED,
+            externalId: `referral_bonus_referrer_${order.id}`,
+          });
+        }
+      }
+    } catch (err) {
+      this.logger.warn(`Referral bonus crediting failed for order ${orderId}: ${err}`);
     }
 
     this.logger.log(

@@ -57,6 +57,17 @@ export class User {
   @Column({ nullable: true, type: 'varchar' })
   fcmToken: string | null;
 
+  // Short shareable code identifying this user as a referrer. Auto-generated
+  // at user creation (see generateUniqueReferralCode) and never changes.
+  @Column({ unique: true, type: 'varchar', length: 10 })
+  referralCode: string;
+
+  // The user who referred this user, set at most once (see
+  // ReferralsService.applyReferralCode). Null if this user signed up
+  // without a referral code or hasn't applied one yet.
+  @Column({ name: 'referred_by_user_id', nullable: true, type: 'uuid' })
+  referredByUserId: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

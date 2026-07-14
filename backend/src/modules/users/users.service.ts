@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserRole, UserStatus } from '../../database/entities/user.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { generateUniqueReferralCode } from '../../common/utils/referral-code.util';
 
 @Injectable()
 export class UsersService {
@@ -31,6 +32,7 @@ export class UsersService {
     if (existing) return existing;
 
     const [firstName, ...rest] = (fullName ?? '').trim().split(/\s+/).filter(Boolean);
+    const referralCode = await generateUniqueReferralCode(this.userRepository);
 
     return this.userRepository.save({
       phone,
@@ -39,6 +41,8 @@ export class UsersService {
       firstName: firstName || null,
       lastName: rest.join(' ') || null,
       fcmToken: null,
+      referralCode,
+      referredByUserId: null,
     });
   }
 
@@ -55,6 +59,7 @@ export class UsersService {
     if (existing) {
       throw new ConflictException('A user with this phone number already exists');
     }
+    const referralCode = await generateUniqueReferralCode(this.userRepository);
     return this.userRepository.save({
       phone,
       role,
@@ -62,6 +67,8 @@ export class UsersService {
       firstName: firstName || null,
       lastName: lastName || null,
       fcmToken: null,
+      referralCode,
+      referredByUserId: null,
     });
   }
 
