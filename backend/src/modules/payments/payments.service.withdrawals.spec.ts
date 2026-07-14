@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { PaymentsService } from './payments.service';
 import {
   Transaction,
@@ -39,6 +40,7 @@ describe('PaymentsService - withdrawals', () => {
     findOne: jest.Mock;
   };
   let queryBuilderMock: { select: jest.Mock; where: jest.Mock; getRawOne: jest.Mock };
+  let dataSource: { transaction: jest.Mock };
 
   const mockBalance = (balance: number): void => {
     queryBuilderMock.getRawOne.mockResolvedValue({ balance: String(balance) });
@@ -70,6 +72,29 @@ describe('PaymentsService - withdrawals', () => {
       findOne: jest.fn(),
     };
 
+    // requestWithdrawal wraps its balance-check-then-insert in
+    // dataSource.transaction(async (manager) => {...}) so it can hold a
+    // Postgres advisory lock (see payments.service.ts comment) for the
+    // duration of the check + writes. This mock runs the callback
+    // immediately (single-threaded unit test, no real concurrency) against
+    // a fake EntityManager whose getRepository(Entity) resolves to the same
+    // transactionRepository / withdrawalRepository mocks used everywhere
+    // else in this file, so every existing assertion on those mocks keeps
+    // working unchanged.
+    dataSource = {
+      transaction: jest.fn().mockImplementation(async (cb) => {
+        const manager = {
+          query: jest.fn().mockResolvedValue(undefined),
+          getRepository: jest.fn().mockImplementation((entity) => {
+            if (entity === Transaction) return transactionRepository;
+            if (entity === WithdrawalRequest) return withdrawalRepository;
+            throw new Error(`Unexpected entity passed to manager.getRepository: ${entity}`);
+          }),
+        };
+        return cb(manager);
+      }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PaymentsService,
@@ -80,6 +105,7 @@ describe('PaymentsService - withdrawals', () => {
         { provide: PaymeProvider, useValue: {} },
         { provide: ClickProvider, useValue: {} },
         { provide: UzcardProvider, useValue: {} },
+        { provide: DataSource, useValue: dataSource },
       ],
     }).compile();
 

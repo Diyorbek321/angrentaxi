@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { Transaction, TransactionStatus, TransactionType } from '../../database/entities/transaction.entity';
 import { Order, OrderStatus, PaymentMethod } from '../../database/entities/order.entity';
 import { User } from '../../database/entities/user.entity';
@@ -41,6 +41,7 @@ export class PaymentsService {
     private readonly paymeProvider: PaymeProvider,
     private readonly clickProvider: ClickProvider,
     private readonly uzcardProvider: UzcardProvider,
+    private readonly dataSource: DataSource,
   ) {}
 
   async initiatePayment(
@@ -192,7 +193,20 @@ export class PaymentsService {
   }
 
   async getWalletBalance(userId: string): Promise<WalletBalance> {
-    const result = await this.transactionRepository
+    const balance = await this.computeBalance(this.transactionRepository, userId);
+    return { userId, balance };
+  }
+
+  // Shared by getWalletBalance (outside any transaction, using the
+  // injected repository) and requestWithdrawal (inside a locked
+  // transaction, using an EntityManager-scoped repository bound to that
+  // transaction's connection) so both compute the balance the exact same
+  // way from the exact same query.
+  private async computeBalance(
+    transactionRepo: Repository<Transaction>,
+    userId: string,
+  ): Promise<number> {
+    const result = await transactionRepo
       .createQueryBuilder('t')
       .select(
         `SUM(CASE WHEN t.type = 'credit' AND t.status = 'completed' THEN t.amount ELSE 0 END) -
@@ -204,7 +218,7 @@ export class PaymentsService {
 
     const balance = parseFloat(result?.balance ?? '0');
 
-    return { userId, balance: Math.max(0, balance) };
+    return Math.max(0, balance);
   }
 
   async getTransactionHistory(
@@ -243,43 +257,76 @@ export class PaymentsService {
   // status: it just records that an admin manually sent the money
   // out-of-band (see PaymentsController for the MVP/no-automation note).
 
+  // Race-condition guard (documented per code review request): the balance
+  // check followed by the withdrawal-request + hold-transaction insert below
+  // is a classic check-then-act sequence. Without a guard, two concurrent
+  // requestWithdrawal() calls from the same driver can both call
+  // getWalletBalance() before either one has written its hold transaction,
+  // both observe the same (stale) balance, both pass the
+  // `dto.amount <= balance` check, and both succeed — draining more than the
+  // driver's actual balance.
+  //
+  // A `SELECT ... FOR UPDATE` row lock doesn't fit cleanly here: the thing
+  // we need to serialize on isn't a single pre-existing row — a driver with
+  // no prior transactions has none to lock, and "balance" is a computed
+  // aggregate over a variable number of transaction rows, not one row we
+  // could pessimistically lock. Instead we take a Postgres advisory lock
+  // scoped to this driver (`pg_advisory_xact_lock(hashtext(driverId))`) for
+  // the lifetime of the DB transaction. hashtext() maps the driver's UUID
+  // string to the bigint key pg_advisory_xact_lock expects. A second
+  // concurrent call for the same driver blocks on that same lock key until
+  // the first transaction commits (or rolls back), then re-enters and
+  // re-reads the now-reduced balance. Different drivers hash to different
+  // keys and never contend with each other. Because it's the `_xact_lock`
+  // variant, Postgres releases it automatically at commit/rollback — there
+  // is no separate unlock call and no risk of a leaked lock.
   async requestWithdrawal(
     driverId: string,
     dto: RequestWithdrawalDto,
   ): Promise<WithdrawalRequest> {
-    const { balance } = await this.getWalletBalance(driverId);
+    return this.dataSource.transaction(async (manager: EntityManager) => {
+      await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [driverId]);
 
-    if (dto.amount > balance) {
-      throw new BadRequestException(
-        `Requested amount (${dto.amount}) exceeds available wallet balance (${balance})`,
+      const transactionRepo = manager.getRepository(Transaction);
+      const withdrawalRepo = manager.getRepository(WithdrawalRequest);
+
+      // Recompute the balance *inside* the lock. Never reuse a value read
+      // before entering the transaction — it may already be stale by the
+      // time the lock is acquired.
+      const balance = await this.computeBalance(transactionRepo, driverId);
+
+      if (dto.amount > balance) {
+        throw new BadRequestException(
+          `Requested amount (${dto.amount}) exceeds available wallet balance (${balance})`,
+        );
+      }
+
+      const withdrawal = await withdrawalRepo.save({
+        driverId,
+        amount: dto.amount,
+        payoutDestination: dto.payoutDestination,
+        status: WithdrawalStatus.PENDING,
+        processedAt: null,
+        adminNote: null,
+      });
+
+      // Immediate hold — see design-choice comment above.
+      await transactionRepo.save({
+        userId: driverId,
+        orderId: null,
+        amount: dto.amount,
+        type: TransactionType.DEBIT,
+        paymentMethod: PaymentMethod.WALLET,
+        status: TransactionStatus.COMPLETED,
+        externalId: `withdrawal_${withdrawal.id}`,
+      });
+
+      this.logger.log(
+        `Withdrawal request ${withdrawal.id} created for driver ${driverId}, amount=${dto.amount}`,
       );
-    }
 
-    const withdrawal = await this.withdrawalRepository.save({
-      driverId,
-      amount: dto.amount,
-      payoutDestination: dto.payoutDestination,
-      status: WithdrawalStatus.PENDING,
-      processedAt: null,
-      adminNote: null,
+      return withdrawal;
     });
-
-    // Immediate hold — see design-choice comment above.
-    await this.transactionRepository.save({
-      userId: driverId,
-      orderId: null,
-      amount: dto.amount,
-      type: TransactionType.DEBIT,
-      paymentMethod: PaymentMethod.WALLET,
-      status: TransactionStatus.COMPLETED,
-      externalId: `withdrawal_${withdrawal.id}`,
-    });
-
-    this.logger.log(
-      `Withdrawal request ${withdrawal.id} created for driver ${driverId}, amount=${dto.amount}`,
-    );
-
-    return withdrawal;
   }
 
   async getMyWithdrawals(driverId: string): Promise<WithdrawalRequest[]> {
