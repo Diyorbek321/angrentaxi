@@ -4,11 +4,25 @@ import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/support/screens/chat_screen.dart';
+import 'package:angren_taxi/shared/models/driver_rating_stats.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 
-class DriverProfileScreen extends StatelessWidget {
+class DriverProfileScreen extends StatefulWidget {
   const DriverProfileScreen({super.key});
+
+  @override
+  State<DriverProfileScreen> createState() => _DriverProfileScreenState();
+}
+
+class _DriverProfileScreenState extends State<DriverProfileScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<DriverProvider>().loadRatingStats();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +64,10 @@ class DriverProfileScreen extends StatelessWidget {
                       ),
                     ],
                   ),
+                if (driverProvider.ratingStats.count > 0) ...[
+                  const SizedBox(height: 16),
+                  _buildRatingBreakdown(driverProvider.ratingStats),
+                ],
                 const SizedBox(height: 24),
                 if (driver != null)
                   _buildCarInfo(
@@ -72,6 +90,42 @@ class DriverProfileScreen extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+
+  // 5-row bar chart (5 stars down to 1) below the headline rating, each row
+  // sized by that star count's share of the highest bucket, with the raw
+  // count alongside. From GET /ratings/driver/:userId.
+  Widget _buildRatingBreakdown(DriverRatingStats stats) {
+    final maxCount = stats.maxBreakdownCount;
+    return Container(
+      key: const ValueKey('rating_breakdown'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: kSurfaceGrey,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${stats.count} ta baholash',
+            style: const TextStyle(
+              color: kTextSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 10),
+          for (var star = 5; star >= 1; star--)
+            _RatingBarRow(
+              star: star,
+              count: stats.breakdown[star] ?? 0,
+              maxCount: maxCount,
+            ),
+        ],
       ),
     );
   }
@@ -277,6 +331,62 @@ class _StatCard extends StatelessWidget {
             label,
             style: const TextStyle(color: kTextSecondary, fontSize: 11),
             textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// One row of the rating breakdown bar chart: "5 ★ [====----] 12".
+class _RatingBarRow extends StatelessWidget {
+  const _RatingBarRow({
+    required this.star,
+    required this.count,
+    required this.maxCount,
+  });
+
+  final int star;
+  final int count;
+  final int maxCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final fraction = maxCount > 0 ? count / maxCount : 0.0;
+    return Padding(
+      key: ValueKey('rating_bar_row_$star'),
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 20,
+            child: Text(
+              '$star',
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+            ),
+          ),
+          const Icon(Icons.star, color: kPrimaryYellow, size: 12),
+          const SizedBox(width: 8),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: fraction,
+                minHeight: 8,
+                backgroundColor: Colors.white,
+                valueColor: const AlwaysStoppedAnimation<Color>(kPrimaryYellow),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 24,
+            child: Text(
+              '$count',
+              key: ValueKey('rating_bar_count_$star'),
+              textAlign: TextAlign.end,
+              style: const TextStyle(color: kTextSecondary, fontSize: 12),
+            ),
           ),
         ],
       ),

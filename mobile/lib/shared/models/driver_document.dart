@@ -62,6 +62,7 @@ class DriverDocument extends Equatable {
     required this.fileUrl,
     required this.reviewStatus,
     required this.uploadedAt,
+    this.rejectionReason,
   });
 
   final String id;
@@ -70,6 +71,9 @@ class DriverDocument extends Equatable {
   final String fileUrl;
   final DriverDocumentReviewStatus reviewStatus;
   final DateTime uploadedAt;
+  // Admin-provided reason when `reviewStatus == rejected`; null otherwise
+  // (backend clears it on approve, and it's never set while pending).
+  final String? rejectionReason;
 
   factory DriverDocument.fromJson(Map<String, dynamic> json) {
     return DriverDocument(
@@ -80,10 +84,18 @@ class DriverDocument extends Equatable {
       reviewStatus:
           driverDocumentReviewStatusFromApi(json['reviewStatus'] as String),
       uploadedAt: DateTime.parse(json['uploadedAt'] as String),
+      rejectionReason: json['rejectionReason'] as String?,
     );
   }
 
   @override
-  List<Object?> get props =>
-      [id, driverId, documentType, fileUrl, reviewStatus, uploadedAt];
+  List<Object?> get props => [
+        id,
+        driverId,
+        documentType,
+        fileUrl,
+        reviewStatus,
+        uploadedAt,
+        rejectionReason,
+      ];
 }

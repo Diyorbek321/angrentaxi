@@ -11,7 +11,10 @@ import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
 import 'package:angren_taxi/core/storage/local_storage.dart';
 import 'package:angren_taxi/shared/models/driver.dart';
+import 'package:angren_taxi/shared/models/driver_bonus_progress.dart';
 import 'package:angren_taxi/shared/models/driver_document.dart';
+import 'package:angren_taxi/shared/models/driver_earnings_breakdown.dart';
+import 'package:angren_taxi/shared/models/driver_rating_stats.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/models/withdrawal_request.dart';
 
@@ -90,6 +93,9 @@ class DriverProvider extends ChangeNotifier {
   List<WithdrawalRequest> _withdrawals = [];
   bool _isSubmittingWithdrawal = false;
   String? _withdrawalError;
+  DriverEarningsBreakdown _earningsBreakdown = DriverEarningsBreakdown.empty;
+  List<DriverBonusProgress> _bonusProgress = [];
+  DriverRatingStats _ratingStats = DriverRatingStats.empty;
   // Most recent fix observed from the location stream started in
   // [_startLocationUpdates]. Exposed so screens (e.g. the SOS button on
   // TripScreen) can reuse the already-tracked position instead of requesting
@@ -113,6 +119,10 @@ class DriverProvider extends ChangeNotifier {
   bool get isSubmittingWithdrawal => _isSubmittingWithdrawal;
   String? get withdrawalError => _withdrawalError;
   Position? get lastKnownPosition => _lastKnownPosition;
+  DriverEarningsBreakdown get earningsBreakdown => _earningsBreakdown;
+  List<DriverBonusProgress> get bonusProgress =>
+      List.unmodifiable(_bonusProgress);
+  DriverRatingStats get ratingStats => _ratingStats;
 
   // Test-only seam: lets widget tests simulate the location stream having
   // already emitted a fix (normally only set by [_emitLocation] while the
@@ -526,6 +536,63 @@ class DriverProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint('[DriverProvider] loadEarnings error: $e');
+    }
+  }
+
+  // GET /orders/earnings/breakdown — today/last-7-days/last-30-days
+  // gross/commission/net/trip-count for the calling driver. Separate from
+  // [loadEarnings]/[todayEarnings] above (which stay wired to the older
+  // GET /orders/earnings, still used for the headline "today" figure).
+  Future<void> loadEarningsBreakdown() async {
+    try {
+      final response =
+          await _apiClient.get(ApiEndpoints.driverEarningsBreakdown);
+      final data = response.data as Map<String, dynamic>;
+      _earningsBreakdown = DriverEarningsBreakdown.fromJson(
+        data['data'] as Map<String, dynamic>,
+      );
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[DriverProvider] loadEarningsBreakdown error: $e');
+    }
+  }
+
+  // GET /driver-bonus-rules/me/progress — this driver's progress toward
+  // every currently-active bonus rule.
+  Future<void> loadBonusProgress() async {
+    try {
+      final response = await _apiClient.get(ApiEndpoints.driverBonusProgress);
+      final data = response.data as Map<String, dynamic>;
+      final list = data['data'] as List<dynamic>;
+      _bonusProgress = list
+          .map((e) =>
+              DriverBonusProgress.fromJson(e as Map<String, dynamic>))
+          .toList();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[DriverProvider] loadBonusProgress error: $e');
+    }
+  }
+
+  // GET /ratings/driver/:userId — this driver's own rating stats (average +
+  // 1..5 star breakdown). Needs the driver's *User* UUID, not the driver
+  // profile id, so this loads the profile first if it isn't cached yet.
+  Future<void> loadRatingStats() async {
+    var userId = _driver?.userId;
+    if (userId == null) {
+      await loadProfile();
+      userId = _driver?.userId;
+    }
+    if (userId == null) return;
+    try {
+      final response =
+          await _apiClient.get(ApiEndpoints.driverRatingStats(userId));
+      final data = response.data as Map<String, dynamic>;
+      _ratingStats =
+          DriverRatingStats.fromJson(data['data'] as Map<String, dynamic>);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[DriverProvider] loadRatingStats error: $e');
     }
   }
 

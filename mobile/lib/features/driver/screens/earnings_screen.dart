@@ -2,11 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
+import 'package:angren_taxi/shared/models/driver_bonus_progress.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/models/withdrawal_request.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:angren_taxi/shared/widgets/loading_widget.dart';
+
+// Which rolling window of GET /orders/earnings/breakdown is currently shown
+// in the segmented control on the earnings screen.
+enum _EarningsPeriod { today, week, month }
 
 class EarningsScreen extends StatefulWidget {
   const EarningsScreen({super.key});
@@ -16,6 +21,8 @@ class EarningsScreen extends StatefulWidget {
 }
 
 class _EarningsScreenState extends State<EarningsScreen> {
+  _EarningsPeriod _selectedPeriod = _EarningsPeriod.today;
+
   @override
   void initState() {
     super.initState();
@@ -25,6 +32,8 @@ class _EarningsScreenState extends State<EarningsScreen> {
       provider.loadOrderHistory();
       provider.loadProfile();
       provider.loadWithdrawals();
+      provider.loadEarningsBreakdown();
+      provider.loadBonusProgress();
     });
   }
 
@@ -54,6 +63,8 @@ class _EarningsScreenState extends State<EarningsScreen> {
             onRefresh: () async {
               await provider.loadEarnings();
               await provider.loadOrderHistory();
+              await provider.loadEarningsBreakdown();
+              await provider.loadBonusProgress();
             },
             color: kPrimaryYellow,
             child: CustomScrollView(
@@ -61,6 +72,13 @@ class _EarningsScreenState extends State<EarningsScreen> {
                 SliverToBoxAdapter(
                   child: _buildEarningsSummary(context, provider),
                 ),
+                SliverToBoxAdapter(
+                  child: _buildBreakdownSection(context, provider),
+                ),
+                if (provider.bonusProgress.isNotEmpty)
+                  SliverToBoxAdapter(
+                    child: _buildBonusSection(context, provider),
+                  ),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -230,6 +248,130 @@ class _EarningsScreenState extends State<EarningsScreen> {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  // Segmented control (Bugun / Hafta / Oy) + gross/commission/net/trips
+  // figures for the selected period, from GET /orders/earnings/breakdown.
+  Widget _buildBreakdownSection(BuildContext context, DriverProvider provider) {
+    final breakdown = provider.earningsBreakdown;
+    final period = switch (_selectedPeriod) {
+      _EarningsPeriod.today => breakdown.today,
+      _EarningsPeriod.week => breakdown.week,
+      _EarningsPeriod.month => breakdown.month,
+    };
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Daromad tafsiloti',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: Colors.grey.shade800,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _PeriodTab(
+                key: const ValueKey('earnings_period_today'),
+                label: 'Bugun',
+                selected: _selectedPeriod == _EarningsPeriod.today,
+                onTap: () =>
+                    setState(() => _selectedPeriod = _EarningsPeriod.today),
+              ),
+              const SizedBox(width: 8),
+              _PeriodTab(
+                key: const ValueKey('earnings_period_week'),
+                label: 'Hafta',
+                selected: _selectedPeriod == _EarningsPeriod.week,
+                onTap: () =>
+                    setState(() => _selectedPeriod = _EarningsPeriod.week),
+              ),
+              const SizedBox(width: 8),
+              _PeriodTab(
+                key: const ValueKey('earnings_period_month'),
+                label: 'Oy',
+                selected: _selectedPeriod == _EarningsPeriod.month,
+                onTap: () =>
+                    setState(() => _selectedPeriod = _EarningsPeriod.month),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _BreakdownRow(
+            label: 'Umumiy (gross)',
+            value: Formatters.formatPrice(period.gross),
+            valueKey: const ValueKey('earnings_gross_value'),
+          ),
+          _BreakdownRow(
+            label: 'Komissiya',
+            value: '- ${Formatters.formatPrice(period.commission)}',
+            valueColor: kError,
+            valueKey: const ValueKey('earnings_commission_value'),
+          ),
+          const Divider(height: 20),
+          _BreakdownRow(
+            label: 'Sof daromad',
+            value: Formatters.formatPrice(period.net),
+            bold: true,
+            valueColor: kSuccess,
+            valueKey: const ValueKey('earnings_net_value'),
+          ),
+          _BreakdownRow(
+            label: 'Safarlar soni',
+            value: period.trips.toString(),
+            valueKey: const ValueKey('earnings_trips_value'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Progress toward each active bonus rule, from
+  // GET /driver-bonus-rules/me/progress.
+  Widget _buildBonusSection(BuildContext context, DriverProvider provider) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.emoji_events_outlined,
+                  color: kPrimaryYellow, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Bonus dasturi',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Colors.grey.shade800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          for (final bonus in provider.bonusProgress)
+            _BonusProgressTile(bonus: bonus),
         ],
       ),
     );
@@ -584,6 +726,150 @@ class _DriverOrderCard extends StatelessWidget {
                 color: kSuccess,
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+// One tab of the Bugun/Hafta/Oy segmented control on the earnings breakdown
+// card.
+class _PeriodTab extends StatelessWidget {
+  const _PeriodTab({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? kPrimaryYellow : kSurfaceGrey,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+              color: selected ? kSecondaryBlack : kTextSecondary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// A "label ......... value" row inside the earnings breakdown card.
+class _BreakdownRow extends StatelessWidget {
+  const _BreakdownRow({
+    required this.label,
+    required this.value,
+    this.valueColor,
+    this.bold = false,
+    this.valueKey,
+  });
+
+  final String label;
+  final String value;
+  final Color? valueColor;
+  final bool bold;
+  final Key? valueKey;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(color: kTextSecondary, fontSize: 13),
+          ),
+          Text(
+            value,
+            key: valueKey,
+            style: TextStyle(
+              fontSize: bold ? 16 : 14,
+              fontWeight: bold ? FontWeight.bold : FontWeight.w600,
+              color: valueColor ?? kTextPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// A single bonus rule's progress bar + reward amount on the earnings
+// screen's bonus section.
+class _BonusProgressTile extends StatelessWidget {
+  const _BonusProgressTile({required this.bonus});
+
+  final DriverBonusProgress bonus;
+
+  @override
+  Widget build(BuildContext context) {
+    final isComplete = bonus.currentCount >= bonus.tripThreshold;
+    return Padding(
+      key: ValueKey('bonus_progress_${bonus.ruleId}'),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  bonus.name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              Text(
+                '+${Formatters.formatPrice(bonus.bonusAmount)}',
+                style: const TextStyle(
+                  color: kSuccess,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: bonus.progressFraction,
+              minHeight: 8,
+              backgroundColor: kSurfaceGrey,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isComplete ? kSuccess : kPrimaryYellow,
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${bonus.currentCount}/${bonus.tripThreshold} safar',
+            style: const TextStyle(color: kTextSecondary, fontSize: 11),
+          ),
         ],
       ),
     );

@@ -93,6 +93,29 @@ void main() {
         {'success': true, 'data': <dynamic>[]},
       ),
     );
+
+    // GET /orders/earnings/breakdown and GET /driver-bonus-rules/me/progress
+    // — EarningsScreen's initState now also fires these (see
+    // driver_earnings_breakdown_test.dart for dedicated coverage); stubbed
+    // here purely so this file's unrelated withdrawal flow doesn't hit an
+    // unstubbed-mock error.
+    when(() => mockApiClient.get(ApiEndpoints.driverEarningsBreakdown))
+        .thenAnswer(
+      (_) async => _jsonResponse(ApiEndpoints.driverEarningsBreakdown, {
+        'success': true,
+        'data': {
+          'today': {'gross': 0, 'commission': 0, 'net': 0, 'trips': 0},
+          'week': {'gross': 0, 'commission': 0, 'net': 0, 'trips': 0},
+          'month': {'gross': 0, 'commission': 0, 'net': 0, 'trips': 0},
+        },
+      }),
+    );
+    when(() => mockApiClient.get(ApiEndpoints.driverBonusProgress)).thenAnswer(
+      (_) async => _jsonResponse(
+        ApiEndpoints.driverBonusProgress,
+        {'success': true, 'data': <dynamic>[]},
+      ),
+    );
   });
 
   // Drains the mocked (near-instant) async calls fired from
@@ -134,6 +157,14 @@ void main() {
 
   testWidgets('submitting a valid amount calls the withdraw API',
       (tester) async {
+    // A tall surface so the withdrawal-history list (now further down the
+    // scroll view, below the new earnings-breakdown card) lands within the
+    // visible viewport without needing to scroll the CustomScrollView.
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     when(
       () => mockApiClient.post(
         ApiEndpoints.walletWithdraw,

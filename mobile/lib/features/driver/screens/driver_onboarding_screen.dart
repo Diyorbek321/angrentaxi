@@ -457,6 +457,20 @@ class _DriverDocumentRow extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+                if (document?.reviewStatus ==
+                        DriverDocumentReviewStatus.rejected &&
+                    (document?.rejectionReason?.trim().isNotEmpty ?? false))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      document!.rejectionReason!,
+                      key: ValueKey('doc_rejection_reason_${documentType.name}'),
+                      style: const TextStyle(
+                        color: kError,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),

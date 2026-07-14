@@ -17,7 +17,8 @@ class Driver extends Equatable {
     this.balance = 0,
     this.commissionRate,
     this.userStatus,
-  });
+    String? userId,
+  }) : userId = userId ?? id;
 
   final String id;
   final String phone;
@@ -36,6 +37,12 @@ class Driver extends Equatable {
   // From the nested `user` object on GET /drivers/me — 'pending' means this
   // driver applied but hasn't been approved by an admin/manager yet.
   final String? userStatus;
+  // The driver's *User* UUID (distinct from `id`, the driver profile row's
+  // own PK) — needed for endpoints keyed by user id, e.g.
+  // GET /ratings/driver/:userId. Falls back to `id` when the backend
+  // response doesn't include a nested `user` object (shouldn't happen for
+  // GET /drivers/me in practice, but keeps this field always non-null).
+  final String userId;
 
   // Backend sends this shape in two different forms depending on the caller:
   // - GET /drivers/me returns the Driver entity with a nested `user` object
@@ -76,6 +83,7 @@ class Driver extends Equatable {
           ? (json['commissionRate'] as num).toDouble()
           : null,
       userStatus: user?['status'] as String?,
+      userId: (json['userId'] as String?) ?? (user?['id'] as String?),
     );
   }
 
@@ -95,6 +103,7 @@ class Driver extends Equatable {
         'balance': balance,
         'commissionRate': commissionRate,
         'userStatus': userStatus,
+        'userId': userId,
       };
 
   Driver copyWith({
@@ -113,6 +122,7 @@ class Driver extends Equatable {
     double? balance,
     double? commissionRate,
     String? userStatus,
+    String? userId,
   }) {
     return Driver(
       id: id ?? this.id,
@@ -130,6 +140,7 @@ class Driver extends Equatable {
       balance: balance ?? this.balance,
       commissionRate: commissionRate ?? this.commissionRate,
       userStatus: userStatus ?? this.userStatus,
+      userId: userId ?? this.userId,
     );
   }
 
@@ -152,5 +163,6 @@ class Driver extends Equatable {
         balance,
         commissionRate,
         userStatus,
+        userId,
       ];
 }

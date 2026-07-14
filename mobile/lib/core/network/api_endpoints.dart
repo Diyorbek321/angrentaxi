@@ -39,6 +39,11 @@ class ApiEndpoints {
   static const String driverApply = '/drivers/profile';
   static const String driverStatus = '/drivers/status';
   static const String driverEarnings = '/orders/earnings';
+  // GET /orders/earnings/breakdown (orders.controller.ts) — today/week/month
+  // gross/commission/net/trips for the calling driver. Distinct from
+  // `driverEarnings` above (which still only returns `{ today: number }`
+  // and is kept for the existing headline figure).
+  static const String driverEarningsBreakdown = '/orders/earnings/breakdown';
   static const String driverOrderHistory = '/orders/history';
   static String acceptOrder(String id) => '/orders/$id/accept';
   static String declineOrder(String id) => '/orders/$id/decline';
@@ -50,6 +55,13 @@ class ApiEndpoints {
 
   // Ratings
   static const String submitRating = '/ratings';
+  // GET /ratings/driver/:userId (ratings.controller.ts) — rating stats
+  // (avg/count/star breakdown) for a driver, keyed by the driver's *User*
+  // UUID (not the driver profile id).
+  static String driverRatingStats(String userId) => '/ratings/driver/$userId';
+
+  // Driver bonus program (backend/src/modules/driver-bonuses)
+  static const String driverBonusProgress = '/driver-bonus-rules/me/progress';
 
   // Promo codes
   static const String validatePromo = '/promo-codes/validate';
