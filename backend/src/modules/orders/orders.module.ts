@@ -5,6 +5,7 @@ import { OrdersService } from './orders.service';
 import { Order } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
 import { Transaction } from '../../database/entities/transaction.entity';
+import { DispatchOverride } from '../../database/entities/dispatch-override.entity';
 import { TariffsModule } from '../tariffs/tariffs.module';
 import { RealtimeModule } from '../realtime/realtime.module';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -17,7 +18,7 @@ import { SettingsModule } from '../settings/settings.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Order, Trip, Transaction]),
+    TypeOrmModule.forFeature([Order, Trip, Transaction, DispatchOverride]),
     TariffsModule,
     RealtimeModule,
     NotificationsModule,

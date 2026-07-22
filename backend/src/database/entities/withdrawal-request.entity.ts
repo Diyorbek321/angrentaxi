@@ -15,8 +15,19 @@ export enum WithdrawalStatus {
   PAID = 'paid',
 }
 
+// Which kind of account filed this request — informational only (balance
+// computation is generic per userId via Transaction.userId, see
+// PaymentsService.computeBalance). Lets the admin payout queue tell driver,
+// Market-vendor, and Eats-restaurant requests apart without joining out to
+// stores/restaurants.
+export enum WithdrawalOwnerType {
+  DRIVER = 'driver',
+  VENDOR = 'vendor',
+  RESTAURANT = 'restaurant',
+}
+
 // MVP payout request record. No bank/mobile-money automation is wired up —
-// a driver files a request, an admin reviews it out-of-band, and manually
+// the owner files a request, an admin reviews it out-of-band, and manually
 // marks it 'paid' once the transfer has actually been sent (see
 // PaymentsController for the flow notes).
 @Entity('withdrawal_requests')
@@ -24,14 +35,25 @@ export class WithdrawalRequest {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  // User.id of the driver (same convention as Transaction.userId /
-  // DriverBonusAward.driverId — not the Driver profile's own id).
+  // User.id of the requester (same convention as Transaction.userId /
+  // DriverBonusAward.driverId — not the Driver profile's own id). The
+  // `driver`/`driverId` names are legacy from when only drivers could
+  // withdraw — this now holds the requesting user's id regardless of
+  // ownerType (driver, Market vendor, or Eats restaurant owner).
   @ManyToOne(() => User, { eager: false })
   @JoinColumn({ name: 'driver_id' })
   driver: User;
 
   @Column({ name: 'driver_id' })
   driverId: string;
+
+  @Column({
+    name: 'owner_type',
+    type: 'enum',
+    enum: WithdrawalOwnerType,
+    default: WithdrawalOwnerType.DRIVER,
+  })
+  ownerType: WithdrawalOwnerType;
 
   @Column({
     type: 'decimal',

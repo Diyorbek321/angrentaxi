@@ -50,11 +50,32 @@ export default function ProductsPage() {
     flashSaved(`${id}-stock`);
   };
 
+  const [bulkPriceOpen, setBulkPriceOpen] = useState(false);
+
   const selectedCount = Object.values(selected).filter(Boolean).length;
+  const selectedIds = Object.entries(selected).filter(([, v]) => v).map(([id]) => id);
 
   const bulkSetStatus = async (status: ProductStatus) => {
-    const ids = Object.entries(selected).filter(([, v]) => v).map(([id]) => id);
+    const ids = selectedIds;
     await marketApi.bulkUpdateProducts(ids, status);
+    setSelected({});
+    await load();
+  };
+
+  // No dedicated bulk-price backend endpoint — applies the same per-product
+  // update the inline price field already uses, just looped over the
+  // selection (exact value, or a % adjustment floored at 0).
+  const bulkChangePrice = async (mode: 'set' | 'pct', value: number) => {
+    await Promise.all(
+      selectedIds.map((id) => {
+        const product = products.find((p) => p.id === id);
+        if (!product) return Promise.resolve();
+        const newPrice =
+          mode === 'set' ? Math.max(0, value) : Math.max(0, Math.round(product.price * (1 + value / 100)));
+        return marketApi.updateProduct(id, { price: newPrice });
+      })
+    );
+    setBulkPriceOpen(false);
     setSelected({});
     await load();
   };
@@ -70,6 +91,12 @@ export default function ProductsPage() {
             </button>
             <button onClick={() => bulkSetStatus('hidden')} className="bg-white/[0.06] text-slate-400 rounded-lg px-[11px] py-1.5 text-xs font-bold">
               Yashirish
+            </button>
+            <button
+              onClick={() => setBulkPriceOpen(true)}
+              className="bg-white/[0.06] text-slate-400 rounded-lg px-[11px] py-1.5 text-xs font-bold"
+            >
+              Narxni o&apos;zgartirish
             </button>
           </div>
         )}
@@ -165,6 +192,85 @@ export default function ProductsPage() {
           }}
         />
       )}
+
+      {bulkPriceOpen && (
+        <BulkPriceModal
+          count={selectedCount}
+          onClose={() => setBulkPriceOpen(false)}
+          onApply={bulkChangePrice}
+        />
+      )}
+    </div>
+  );
+}
+
+function BulkPriceModal({
+  count,
+  onClose,
+  onApply,
+}: {
+  count: number;
+  onClose: () => void;
+  onApply: (mode: 'set' | 'pct', value: number) => Promise<void>;
+}) {
+  const [mode, setMode] = useState<'set' | 'pct'>('set');
+  const [value, setValue] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    const num = parseFloat(value);
+    if (isNaN(num)) return;
+    setSaving(true);
+    try {
+      await onApply(mode, num);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-5">
+      <div onClick={onClose} className="absolute inset-0 bg-black/65 animate-fade-in" />
+      <div className="relative w-[400px] max-w-full bg-brand-dark border border-white/[0.09] rounded-2xl p-6">
+        <h3 className="text-[17px] font-extrabold mb-1.5">Narxni ommaviy o&apos;zgartirish</h3>
+        <p className="text-[13px] text-slate-400 mb-4.5">{count} ta mahsulotga qo&apos;llaniladi</p>
+
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => setMode('set')}
+            className={`flex-1 rounded-[9px] py-2 text-[12.5px] font-bold border ${
+              mode === 'set' ? 'border-brand-yellow/50 text-brand-yellow bg-brand-yellow/10' : 'border-white/[0.08] text-slate-400'
+            }`}
+          >
+            Aniq narx
+          </button>
+          <button
+            onClick={() => setMode('pct')}
+            className={`flex-1 rounded-[9px] py-2 text-[12.5px] font-bold border ${
+              mode === 'pct' ? 'border-brand-yellow/50 text-brand-yellow bg-brand-yellow/10' : 'border-white/[0.08] text-slate-400'
+            }`}
+          >
+            Foizda (%)
+          </button>
+        </div>
+
+        <Field label={mode === 'set' ? "Yangi narx (so'm)" : 'O‘zgarish foizi (masalan -10 yoki 15)'}>
+          <input className="input" type="number" value={value} onChange={(e) => setValue(e.target.value)} />
+        </Field>
+
+        <div className="flex gap-2.5 mt-5">
+          <button onClick={onClose} className="flex-1 border border-white/[0.12] text-slate-400 rounded-xl py-3 text-sm font-bold">
+            Bekor qilish
+          </button>
+          <button
+            onClick={submit}
+            disabled={!value || saving}
+            className="flex-1 bg-brand-yellow text-brand-black rounded-xl py-3 text-sm font-bold disabled:opacity-50"
+          >
+            {saving ? 'Qo‘llanmoqda...' : "Qo'llash"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

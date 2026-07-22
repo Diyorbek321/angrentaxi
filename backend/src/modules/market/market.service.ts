@@ -14,7 +14,13 @@ import {
   MarketOrder,
   MarketOrderDeliveryMode,
   MarketOrderStatus,
+  MarketPaymentMethod,
 } from '../../database/entities/market-order.entity';
+import {
+  Transaction,
+  TransactionStatus,
+  TransactionType,
+} from '../../database/entities/transaction.entity';
 import { UpdateStoreDto } from './dto/update-store.dto';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
@@ -24,7 +30,7 @@ import { CreateStoreAdminDto } from './dto/create-store-admin.dto';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../../database/entities/user.entity';
-import { ServiceType } from '../../database/entities/order.entity';
+import { PaymentMethod, ServiceType } from '../../database/entities/order.entity';
 import { OrdersService } from '../orders/orders.service';
 import { MatchingService } from '../matching/matching.service';
 import { TariffsService } from '../tariffs/tariffs.service';
@@ -45,6 +51,7 @@ export class MarketService {
     @InjectRepository(StockMovement)
     private readonly movementRepo: Repository<StockMovement>,
     @InjectRepository(MarketOrder) private readonly orderRepo: Repository<MarketOrder>,
+    @InjectRepository(Transaction) private readonly transactionRepo: Repository<Transaction>,
     private readonly realtimeGateway: RealtimeGateway,
     private readonly usersService: UsersService,
     private readonly ordersService: OrdersService,
@@ -266,7 +273,58 @@ export class MarketService {
       }
     }
 
+    if (next === MarketOrderStatus.DELIVERED) {
+      const store = await this.storeRepo.findOneOrFail({ where: { id: storeId } });
+      await this.settleStoreEarnings(store, saved);
+    }
+
     return this.withDelivery(saved);
+  }
+
+  // Settles the platform's commission on a delivered order's goods total —
+  // separate from (and in addition to) any courier delivery-fee commission
+  // OrdersService/DriversService already settles for the dispatched delivery
+  // Order. A CASH order means the customer already paid the store directly
+  // (at pickup, or via COD reconciliation with the courier) — the platform
+  // never held that money, so only the commission the store now owes hits
+  // the ledger, as a DEBIT (mirrors a driver's cash-trip commission in
+  // OrdersService.completeTrip). Deliberately does NOT also book a gross
+  // CREDIT for cash orders: doing so would let the store's ledger-computed
+  // wallet balance (see PaymentsService.computeBalance, used by
+  // requestWithdrawal) show a positive net payout it could withdraw from the
+  // platform on top of cash it already has in hand. A CARD/online order
+  // means the platform holds the funds, so the store is credited the gross
+  // and debited the commission, netting to the payout the platform owes.
+  private async settleStoreEarnings(store: Store, order: MarketOrder): Promise<void> {
+    const commissionAmount = Math.round((order.totalPrice * store.commissionRate) / 100);
+    if (commissionAmount <= 0) {
+      return;
+    }
+
+    const isCash = order.paymentMethod === MarketPaymentMethod.CASH;
+    const paymentMethod = isCash ? PaymentMethod.CASH : PaymentMethod.CARD;
+
+    if (!isCash) {
+      await this.transactionRepo.save({
+        userId: store.ownerUserId,
+        orderId: null,
+        amount: order.totalPrice,
+        type: TransactionType.CREDIT,
+        paymentMethod,
+        status: TransactionStatus.COMPLETED,
+        externalId: `market_order_${order.id}`,
+      });
+    }
+
+    await this.transactionRepo.save({
+      userId: store.ownerUserId,
+      orderId: null,
+      amount: commissionAmount,
+      type: TransactionType.DEBIT,
+      paymentMethod,
+      status: TransactionStatus.COMPLETED,
+      externalId: `market_order_commission_${order.id}`,
+    });
   }
 
   // Bridges a Market order into the ride-hailing driver-matching pipeline —
@@ -506,6 +564,7 @@ export class MarketService {
         deliveryLat: dto.deliveryLat,
         deliveryLng: dto.deliveryLng,
         deliveryMode: dto.deliveryMode ?? MarketOrderDeliveryMode.PLATFORM,
+        paymentMethod: dto.paymentMethod ?? MarketPaymentMethod.CASH,
         customerPhone,
         note: dto.note ?? null,
         status: MarketOrderStatus.NEW,
@@ -566,5 +625,19 @@ export class MarketService {
     }
     store.status = status;
     return this.storeRepo.save(store);
+  }
+
+  // Content moderation — an admin reviewing products across every store, not
+  // scoped to a single vendor's own catalog (see listProducts for that).
+  adminListProducts(): Promise<Product[]> {
+    return this.productRepo.find({ relations: ['store'], order: { createdAt: 'DESC' } });
+  }
+
+  async adminDeleteProduct(id: string): Promise<void> {
+    const product = await this.productRepo.findOne({ where: { id } });
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+    await this.productRepo.remove(product);
   }
 }

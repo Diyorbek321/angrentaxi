@@ -94,6 +94,21 @@ export class Store {
   @Column({ name: 'low_stock_threshold', type: 'int', default: 10 })
   lowStockThreshold: number;
 
+  // Platform commission on gross revenue (percent), settable per-store like
+  // Restaurant.commissionRate / Driver.commissionRate.
+  @Column({
+    name: 'commission_rate',
+    type: 'decimal',
+    precision: 5,
+    scale: 2,
+    default: 10.0,
+    transformer: {
+      to: (value: number) => value,
+      from: (value: string) => parseFloat(value),
+    },
+  })
+  commissionRate: number;
+
   @Column({
     type: 'enum',
     enum: StoreStatus,

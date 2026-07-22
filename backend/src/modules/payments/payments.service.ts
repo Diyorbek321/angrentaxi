@@ -10,6 +10,7 @@ import { Transaction, TransactionStatus, TransactionType } from '../../database/
 import { Order, OrderStatus, PaymentMethod } from '../../database/entities/order.entity';
 import { User } from '../../database/entities/user.entity';
 import {
+  WithdrawalOwnerType,
   WithdrawalRequest,
   WithdrawalStatus,
 } from '../../database/entities/withdrawal-request.entity';
@@ -283,6 +284,7 @@ export class PaymentsService {
   async requestWithdrawal(
     driverId: string,
     dto: RequestWithdrawalDto,
+    ownerType: WithdrawalOwnerType = WithdrawalOwnerType.DRIVER,
   ): Promise<WithdrawalRequest> {
     return this.dataSource.transaction(async (manager: EntityManager) => {
       await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [driverId]);
@@ -303,6 +305,7 @@ export class PaymentsService {
 
       const withdrawal = await withdrawalRepo.save({
         driverId,
+        ownerType,
         amount: dto.amount,
         payoutDestination: dto.payoutDestination,
         status: WithdrawalStatus.PENDING,
@@ -334,6 +337,27 @@ export class PaymentsService {
       where: { driverId },
       order: { requestedAt: 'DESC' },
     });
+  }
+
+  // Admin/manager payout queue — across all owners (driver, Market vendor,
+  // Eats restaurant), since requestWithdrawal now accepts all three (see
+  // ownerType). `relations: ['driver']` loads the requesting User row
+  // (phone/name) regardless of which ownerType actually filed it — the
+  // relation is named after its original driver-only past, not its current
+  // scope (see the entity's field comment).
+  async getAllWithdrawals(
+    status: WithdrawalStatus | undefined,
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<{ withdrawals: WithdrawalRequest[]; total: number; page: number; limit: number }> {
+    const [withdrawals, total] = await this.withdrawalRepository.findAndCount({
+      where: status ? { status } : {},
+      relations: ['driver'],
+      order: { requestedAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return { withdrawals, total, page, limit };
   }
 
   async findWithdrawalOrThrow(id: string): Promise<WithdrawalRequest> {

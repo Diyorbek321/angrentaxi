@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User, UserRole, UserStatus } from '../../database/entities/user.entity';
+import { ALL_PERMISSIONS, Permission, User, UserRole, UserStatus } from '../../database/entities/user.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { generateUniqueReferralCode } from '../../common/utils/referral-code.util';
 
@@ -69,6 +69,10 @@ export class UsersService {
       fcmToken: null,
       referralCode,
       referredByUserId: null,
+      // A brand-new manager starts with every permission — an admin can
+      // deliberately narrow them (e.g. to dispatch-only) afterward from
+      // Staff & Roles. Nobody should land with zero access by default.
+      permissions: role === UserRole.MANAGER ? ALL_PERMISSIONS : [],
     });
   }
 
@@ -123,15 +127,26 @@ export class UsersService {
     return { ...user, status: UserStatus.ACTIVE, blockReason: null };
   }
 
+  // Staff & Roles (RBAC) — replaces a manager's entire permission set. Only
+  // meaningful for MANAGER accounts; harmless no-op for any other role since
+  // PermissionsGuard never consults this column for them.
+  async updatePermissions(id: string, permissions: Permission[]): Promise<User> {
+    const user = await this.findByIdOrThrow(id);
+    await this.userRepository.update(id, { permissions });
+    return { ...user, permissions };
+  }
+
   async findAll(
     page: number = 1,
     limit: number = 20,
+    role?: UserRole,
   ): Promise<{ users: User[]; total: number; page: number; limit: number }> {
     if (page < 1 || limit < 1 || limit > 100) {
       throw new BadRequestException('Invalid pagination parameters');
     }
 
     const [users, total] = await this.userRepository.findAndCount({
+      where: role ? { role } : {},
       skip: (page - 1) * limit,
       take: limit,
       order: { createdAt: 'DESC' },

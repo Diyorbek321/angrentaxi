@@ -301,8 +301,11 @@ export async function calculatePrice(
 // The backend's `/accept` route is for a driver to accept their own offered
 // order via their JWT — a manager assigning a specific driver (first time or
 // reassigning) always goes through `/reassign`, which handles both cases.
-export async function assignDriver(orderId: string, driverId: string): Promise<Order> {
-  return reassignDriver(orderId, driverId);
+// This is now an exception path (MatchingService assigns drivers
+// automatically in the normal case) — `reason` is required and recorded in
+// the backend's dispatch_overrides audit log.
+export async function assignDriver(orderId: string, driverId: string, reason: string): Promise<Order> {
+  return reassignDriver(orderId, driverId, reason);
 }
 
 export async function cancelOrder(orderId: string, reason?: string): Promise<Order> {
@@ -317,10 +320,207 @@ export async function completeOrder(orderId: string): Promise<Order> {
   return res.data.data;
 }
 
-export async function reassignDriver(orderId: string, driverId: string): Promise<Order> {
+export async function reassignDriver(orderId: string, driverId: string, reason: string): Promise<Order> {
   const res = await apiClient.patch<ApiResponse<Order>>(`/orders/${orderId}/reassign`, {
     driverId,
+    reason,
   });
+  return res.data.data;
+}
+
+export interface DispatchOverride {
+  id: string;
+  orderId: string;
+  performedByUserId: string;
+  previousDriverId: string | null;
+  newDriverId: string;
+  reason: string;
+  createdAt: string;
+}
+
+export async function getDispatchOverrides(
+  page = 1,
+  limit = 20
+): Promise<{ overrides: DispatchOverride[]; total: number; page: number; limit: number }> {
+  const res = await apiClient.get<ApiResponse<{
+    overrides: DispatchOverride[];
+    total: number;
+    page: number;
+    limit: number;
+  }>>('/orders/dispatch-overrides', { params: { page, limit } });
+  return res.data.data;
+}
+
+// Orders MatchingService auto-cancelled after its search window (see
+// MatchingService.NO_DRIVER_TIMEOUT_MS) — read-only: a cancelled order can't
+// be reassigned, the remedy is a fresh manual order via Create Order.
+export async function getNoDriversFoundExceptions(
+  page = 1,
+  limit = 20
+): Promise<PaginatedResponse<Order>> {
+  const res = await apiClient.get<
+    ApiResponse<{ orders: Order[]; total: number; page: number; limit: number }>
+  >('/orders/exceptions/no-drivers-found', { params: { page, limit } });
+  const { orders, total, page: p, limit: l } = res.data.data;
+  return { data: orders, total, page: p, limit: l, totalPages: Math.ceil(total / l) };
+}
+
+// ─── Safety / SOS ────────────────────────────────────────────────────────────
+
+export type SosReporterRole = 'passenger' | 'driver';
+export type SosAlertStatus = 'active' | 'resolved';
+
+export interface SosAlert {
+  id: string;
+  orderId: string;
+  reportedByUserId: string;
+  reportedByRole: SosReporterRole;
+  lat: number;
+  lng: number;
+  status: SosAlertStatus;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
+export async function getActiveSosAlerts(): Promise<SosAlert[]> {
+  const res = await apiClient.get<ApiResponse<SosAlert[]>>('/sos/active');
+  return res.data.data;
+}
+
+export async function resolveSosAlert(id: string): Promise<SosAlert> {
+  const res = await apiClient.patch<ApiResponse<SosAlert>>(`/sos/${id}/resolve`);
+  return res.data.data;
+}
+
+export async function getSosTodaySummary(): Promise<{ resolvedToday: number; stillOpen: number }> {
+  const res = await apiClient.get<ApiResponse<{ resolvedToday: number; stillOpen: number }>>(
+    '/sos/today-summary'
+  );
+  return res.data.data;
+}
+
+// ─── Dashboard stats (Manager Overview) ─────────────────────────────────────
+
+export interface DashboardStats {
+  totalUsers: number;
+  totalOrders: number;
+  ordersToday: number;
+  completedToday: number;
+  revenueToday: number;
+  avgTripPriceToday: number;
+  cancellationRateToday: number;
+  newCustomersToday: number;
+  activeDrivers: number;
+  onlineDrivers: number;
+  pendingDriverApprovals: number;
+}
+
+export async function getDashboardStats(): Promise<DashboardStats> {
+  const res = await apiClient.get<ApiResponse<DashboardStats>>('/orders/stats');
+  return res.data.data;
+}
+
+// ─── Driver roster (full profile, not the live-status shape above) ─────────
+
+export interface DriverProfile {
+  id: string;
+  userId: string;
+  phone: string;
+  firstName: string;
+  lastName: string;
+  status: string;
+  blockReason?: string | null;
+  isOnline: boolean;
+  rating: number;
+  totalTrips: number;
+  carModel: string;
+  carNumber: string;
+  carColor?: string;
+  createdAt: string;
+  // Only meaningful when the caller has the drivers_finance permission —
+  // present on the API response regardless, but the UI only shows/edits
+  // these when that permission is granted (see getCurrentUserProfile).
+  balance?: number;
+  commissionRate?: number | null;
+}
+
+export async function getDriverRoster(filters: {
+  page?: number;
+  limit?: number;
+  status?: string;
+  search?: string;
+} = {}): Promise<{ drivers: DriverProfile[]; total: number; page: number; limit: number }> {
+  const res = await apiClient.get<
+    ApiResponse<{ drivers: DriverProfile[]; total: number; page: number; limit: number }>
+  >('/drivers', { params: filters });
+  return res.data.data;
+}
+
+export async function approveDriverProfile(id: string): Promise<DriverProfile> {
+  const res = await apiClient.patch<ApiResponse<DriverProfile>>(`/drivers/${id}/approve`);
+  return res.data.data;
+}
+
+// Requires the drivers_finance permission (see getCurrentUserProfile) — the
+// backend rejects this for a manager who wasn't granted it, ADMIN always
+// allowed.
+export async function addDriverFunds(
+  id: string,
+  amount: number,
+  note?: string
+): Promise<DriverProfile> {
+  const res = await apiClient.patch<ApiResponse<DriverProfile>>(`/drivers/${id}/balance`, {
+    amount,
+    note,
+  });
+  return res.data.data;
+}
+
+export async function setDriverCommissionRate(
+  id: string,
+  commissionRate: number | null
+): Promise<DriverProfile> {
+  const res = await apiClient.patch<ApiResponse<DriverProfile>>(`/drivers/${id}/commission-rate`, {
+    commissionRate,
+  });
+  return res.data.data;
+}
+
+// ─── Current user / RBAC ────────────────────────────────────────────────────
+
+export interface CurrentUserProfile {
+  id: string;
+  role: string;
+  permissions: string[];
+}
+
+export async function getCurrentUserProfile(): Promise<CurrentUserProfile> {
+  const res = await apiClient.get<ApiResponse<CurrentUserProfile>>('/users/me');
+  return res.data.data;
+}
+
+// ─── Finance (view-only for managers — requires withdrawals_view) ──────────
+
+export type WithdrawalStatus = 'pending' | 'approved' | 'rejected' | 'paid';
+
+export interface WithdrawalRequest {
+  id: string;
+  amount: number;
+  ownerType: 'driver' | 'vendor' | 'restaurant';
+  payoutDestination: string;
+  status: WithdrawalStatus;
+  requestedAt: string;
+  driver?: { firstName: string | null; lastName: string | null; phone: string } | null;
+}
+
+export async function getAllWithdrawals(
+  page = 1,
+  limit = 20,
+  status?: WithdrawalStatus
+): Promise<{ withdrawals: WithdrawalRequest[]; total: number; page: number; limit: number }> {
+  const res = await apiClient.get<
+    ApiResponse<{ withdrawals: WithdrawalRequest[]; total: number; page: number; limit: number }>
+  >('/payments/withdrawals', { params: { page, limit, status } });
   return res.data.data;
 }
 

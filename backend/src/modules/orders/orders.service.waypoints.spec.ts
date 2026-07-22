@@ -4,6 +4,7 @@ import { OrdersService } from './orders.service';
 import { Order } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
 import { Transaction } from '../../database/entities/transaction.entity';
+import { DispatchOverride } from '../../database/entities/dispatch-override.entity';
 import { TariffsService } from '../tariffs/tariffs.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -84,6 +85,7 @@ describe('OrdersService - multi-stop rides (waypoints)', () => {
         { provide: getRepositoryToken(Order), useValue: orderRepository },
         { provide: getRepositoryToken(Trip), useValue: {} },
         { provide: getRepositoryToken(Transaction), useValue: {} },
+        { provide: getRepositoryToken(DispatchOverride), useValue: {} },
         { provide: TariffsService, useValue: tariffsService },
         {
           provide: RealtimeGateway,

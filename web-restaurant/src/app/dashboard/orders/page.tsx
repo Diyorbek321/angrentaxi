@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Clock, MapPin, Phone, User, X } from 'lucide-react';
+import { Clock, Maximize2, MapPin, Phone, User, X } from 'lucide-react';
 import { foodApi, FoodOrder, FoodOrderStatus } from '@/lib/api';
 import { money } from '@/lib/utils';
 import { StatusBadge } from '@/components/StatusBadge';
+import { useKiosk } from '@/lib/kiosk-context';
 
 const COLUMNS: Array<{ key: FoodOrderStatus; title: string; color: string }> = [
   { key: 'new', title: 'Yangi', color: '#60A5FA' },
@@ -49,6 +50,7 @@ export default function OrdersPage() {
   const [openOrderId, setOpenOrderId] = useState<string | null>(null);
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [, setTick] = useState(0);
+  const { kiosk, setKiosk } = useKiosk();
 
   const load = async () => {
     const res = await foodApi.getOrders();
@@ -91,8 +93,19 @@ export default function OrdersPage() {
   const openOrder = orders.find((o) => o.id === openOrderId) ?? null;
 
   return (
-    <div className="h-full">
-      <div className="flex gap-4 overflow-x-auto pb-2 h-full items-start">
+    <div className="h-full flex flex-col">
+      {!kiosk && (
+        <div className="flex justify-end mb-3">
+          <button
+            onClick={() => setKiosk(true)}
+            className="inline-flex items-center gap-2 bg-white/5 border border-white/10 text-slate-300 rounded-[10px] px-3.5 py-2 text-[12.5px] font-bold hover:bg-white/10"
+          >
+            <Maximize2 className="h-3.5 w-3.5" />
+            Kiosk mode
+          </button>
+        </div>
+      )}
+      <div className="flex gap-4 overflow-x-auto pb-2 flex-1 items-start">
         {columns.map((col) => (
           <div
             key={col.key}
@@ -170,6 +183,17 @@ export default function OrdersPage() {
                           Rad
                         </button>
                       </div>
+                    )}
+                    {(order.status === 'preparing' || order.status === 'ready') && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          advance(order.id);
+                        }}
+                        className="w-full mt-3 bg-brand-yellow text-brand-black rounded-[9px] py-2.5 text-[12.5px] font-bold"
+                      >
+                        {ADVANCE_LABEL[order.status]}
+                      </button>
                     )}
                   </div>
                 );

@@ -19,15 +19,17 @@ import { CreatePromoCodeDto } from './dto/create-promo-code.dto';
 import { ValidatePromoDto } from './dto/validate-promo.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { User, UserRole } from '../../database/entities/user.entity';
+import { Permission, User, UserRole } from '../../database/entities/user.entity';
 import { PromoCode } from '../../database/entities/promo_code.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
 
 @ApiTags('Promo Codes')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Controller('promo-codes')
 export class PromoCodesController {
   constructor(private readonly promoCodesService: PromoCodesService) {}
@@ -53,6 +55,7 @@ export class PromoCodesController {
 
   @Get()
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.PROMO_MANAGE)
   @ApiOperation({ summary: 'List all promo codes (manager/admin only)' })
   @ApiResponse({ status: 200, description: 'List of all promo codes' })
   async findAll(): Promise<PromoCode[]> {
@@ -61,6 +64,7 @@ export class PromoCodesController {
 
   @Post()
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.PROMO_MANAGE)
   @ApiOperation({ summary: 'Create a new promo code (manager/admin only)' })
   @ApiResponse({ status: 201, description: 'Promo code created' })
   @ApiResponse({ status: 400, description: 'Promo code already exists' })

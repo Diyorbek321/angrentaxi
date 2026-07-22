@@ -17,28 +17,33 @@ import {
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { BlockUserDto } from './dto/block-user.dto';
+import { UpdatePermissionsDto } from './dto/update-permissions.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { User, UserRole } from '../../database/entities/user.entity';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { Permission, User, UserRole } from '../../database/entities/user.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
 
 @ApiTags('Users')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.USERS_VIEW)
   @ApiOperation({ summary: 'List all users (admin/manager only)' })
   async findAll(
     @Query('page') page = 1,
     @Query('limit') limit = 20,
+    @Query('role') role?: UserRole,
   ) {
-    return this.usersService.findAll(Number(page), Number(limit));
+    return this.usersService.findAll(Number(page), Number(limit), role);
   }
 
   @Get('me')
@@ -62,6 +67,7 @@ export class UsersController {
 
   @Get(':id')
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.USERS_VIEW)
   @ApiOperation({ summary: 'Get user by ID (manager/admin only)' })
   @ApiParam({ name: 'id', description: 'User UUID' })
   @ApiResponse({ status: 200, description: 'User found' })
@@ -94,5 +100,21 @@ export class UsersController {
   @ApiResponse({ status: 404, description: 'User not found' })
   async unblockUser(@Param('id', ParseUUIDPipe) id: string): Promise<User> {
     return this.usersService.unblockUser(id);
+  }
+
+  // Staff & Roles — an admin decides which of the fine-grained Permission
+  // values a given MANAGER account gets (see PermissionsGuard). No effect on
+  // non-manager accounts (ADMIN always has everything; other roles don't
+  // consult this list at all).
+  @Patch(':id/permissions')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: "Set a manager's fine-grained permissions (admin only)" })
+  @ApiParam({ name: 'id', description: 'User UUID' })
+  @ApiResponse({ status: 200, description: 'Permissions updated' })
+  async updatePermissions(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdatePermissionsDto,
+  ): Promise<User> {
+    return this.usersService.updatePermissions(id, dto.permissions);
   }
 }

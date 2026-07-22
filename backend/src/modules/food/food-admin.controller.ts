@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FoodService } from './food.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -33,5 +33,17 @@ export class FoodAdminController {
   @ApiOperation({ summary: "Set a restaurant's active/closed status (admin only)" })
   setStatus(@Param('id', ParseUUIDPipe) id: string, @Body() dto: SetRestaurantStatusDto) {
     return this.foodService.adminSetRestaurantStatus(id, dto.status);
+  }
+
+  @Get('dishes')
+  @ApiOperation({ summary: 'List dishes across every restaurant, for moderation (admin only)' })
+  listDishes() {
+    return this.foodService.adminListDishes();
+  }
+
+  @Delete('dishes/:id')
+  @ApiOperation({ summary: 'Remove a dish (moderation — admin only)' })
+  deleteDish(@Param('id', ParseUUIDPipe) id: string) {
+    return this.foodService.adminDeleteDish(id);
   }
 }

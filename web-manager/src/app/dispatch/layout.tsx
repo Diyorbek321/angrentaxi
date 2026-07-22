@@ -17,20 +17,36 @@ import {
   Tag,
   Gift,
   MessageCircle,
+  AlertTriangle,
+  ShieldQuestion,
+  Users,
 } from 'lucide-react';
 import { isAuthenticated, logout, getUser } from '@/lib/auth';
 import { useSocket } from '@/hooks/useSocket';
+import { getCurrentUserProfile } from '@/lib/api';
 import { clsx } from 'clsx';
 
+// `perm` is the RBAC permission required to see this item — see the backend
+// Permission enum. `null` means always visible (no gate) — used for Overview
+// and Shift Report, which are basic business visibility every manager should
+// have regardless of finer permissions. ADMIN bypasses this filter entirely
+// (see below); MANAGER accounts only see gated items they've been granted
+// from web-admin's Staff & Roles screen.
 const navLinks = [
-  { href: '/dispatch', label: 'Dispatch', icon: LayoutDashboard },
-  { href: '/orders', label: 'Orders', icon: ClipboardList },
-  { href: '/create-order', label: 'Create Order', icon: PlusCircle },
-  { href: '/dispatch/tariffs', label: 'Tariffs', icon: DollarSign },
-  { href: '/dispatch/promo-codes', label: 'Promo Codes', icon: Tag },
-  { href: '/dispatch/bonuses', label: 'Bonuses', icon: Gift },
-  { href: '/dispatch/support', label: 'Support', icon: MessageCircle },
-];
+  { href: '/dispatch/overview', label: 'Overview', icon: LayoutDashboard, perm: null },
+  { href: '/dispatch', label: 'Dispatch', icon: LayoutDashboard, perm: 'dispatch' },
+  { href: '/dispatch/exceptions', label: 'Exceptions', icon: AlertTriangle, perm: 'dispatch' },
+  { href: '/orders', label: 'Orders', icon: ClipboardList, perm: 'dispatch' },
+  { href: '/create-order', label: 'Create Order', icon: PlusCircle, perm: 'dispatch' },
+  { href: '/dispatch/drivers', label: 'Drivers', icon: Users, perm: 'drivers_view' },
+  { href: '/dispatch/audit-log', label: 'Audit Log', icon: ShieldQuestion, perm: 'dispatch' },
+  { href: '/dispatch/shift-report', label: 'Shift Report', icon: ShieldQuestion, perm: 'dispatch' },
+  { href: '/dispatch/finance', label: 'Finance', icon: DollarSign, perm: 'withdrawals_view' },
+  { href: '/dispatch/tariffs', label: 'Tariffs', icon: Tag, perm: 'tariffs_manage' },
+  { href: '/dispatch/promo-codes', label: 'Promo Codes', icon: Tag, perm: 'promo_manage' },
+  { href: '/dispatch/bonuses', label: 'Bonuses', icon: Gift, perm: 'bonuses_view' },
+  { href: '/dispatch/support', label: 'Support', icon: MessageCircle, perm: 'support_manage' },
+] as const;
 
 export default function DispatchLayout({
   children,
@@ -45,10 +61,29 @@ export default function DispatchLayout({
   // check in the render body renders `null` on the server and a real value
   // on the client's first paint, which is a guaranteed hydration mismatch.
   const [user, setUser] = useState<ReturnType<typeof getUser>>(null);
+  const [permissions, setPermissions] = useState<string[] | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     setUser(getUser());
   }, []);
+
+  useEffect(() => {
+    getCurrentUserProfile()
+      .then((profile) => {
+        setIsAdmin(profile.role === 'admin');
+        setPermissions(profile.permissions);
+      })
+      .catch(() => setPermissions([]));
+  }, []);
+
+  // Hide nav items entirely rather than disable them — a dispatch-only
+  // manager shouldn't even see that Tariffs/Promo/Finance exist. ADMIN
+  // always sees everything; while permissions are still loading, show
+  // nothing gated yet to avoid a flash of items that then disappear.
+  const visibleLinks = navLinks.filter(
+    (link) => link.perm === null || isAdmin || (permissions ?? []).includes(link.perm)
+  );
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -77,7 +112,7 @@ export default function DispatchLayout({
         {/* Desktop nav — icon-only between sm/lg (7 items won't fit with full
             labels at that width), full icon+label from lg up */}
         <nav className="hidden sm:flex items-center gap-1 flex-1 min-w-0">
-          {navLinks.map(({ href, label, icon: Icon }) => (
+          {visibleLinks.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
               href={href}
@@ -150,7 +185,7 @@ export default function DispatchLayout({
       {/* Mobile nav dropdown */}
       {mobileMenuOpen && (
         <div className="sm:hidden bg-[#0D1526] border-b border-white/[0.06] px-4 py-2 space-y-1">
-          {navLinks.map(({ href, label, icon: Icon }) => (
+          {visibleLinks.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
               href={href}

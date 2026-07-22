@@ -5,9 +5,11 @@ import { ProposeTariffChangeDto } from './dto/propose-tariff-change.dto';
 import { ReviewTariffChangeDto } from './dto/review-tariff-change.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { User, UserRole } from '../../database/entities/user.entity';
+import { Permission, User, UserRole } from '../../database/entities/user.entity';
 import {
   TariffChangeRequest,
   TariffChangeRequestStatus,
@@ -16,13 +18,14 @@ import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
 
 @ApiTags('Tariff Change Requests')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Controller('tariff-change-requests')
 export class TariffChangeRequestsController {
   constructor(private readonly requestsService: TariffChangeRequestsService) {}
 
   @Post()
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.TARIFFS_MANAGE)
   @ApiOperation({ summary: 'Propose a tariff create/update (manager/admin only)' })
   @ApiResponse({ status: 201, description: 'Proposal created, awaiting admin approval' })
   async propose(
@@ -34,6 +37,7 @@ export class TariffChangeRequestsController {
 
   @Get()
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.TARIFFS_MANAGE)
   @ApiOperation({ summary: 'List tariff change requests (manager/admin only)' })
   async findAll(
     @Query('status') status?: TariffChangeRequestStatus,
@@ -43,6 +47,7 @@ export class TariffChangeRequestsController {
 
   @Get(':id')
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.TARIFFS_MANAGE)
   @ApiOperation({ summary: 'Get a tariff change request by ID (manager/admin only)' })
   @ApiParam({ name: 'id', description: 'Tariff change request UUID' })
   async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<TariffChangeRequest> {

@@ -91,4 +91,23 @@ export class SafetyService {
       order: { createdAt: 'DESC' },
     });
   }
+
+  // Backs the dispatcher Shift Report's "SOS resolved" stat — counts alerts
+  // resolved today alongside how many are still open, so the report can show
+  // "3 / 4 · 1 still open" rather than just a resolved count in isolation.
+  async getTodaySummary(): Promise<{ resolvedToday: number; stillOpen: number }> {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const [resolvedToday, stillOpen] = await Promise.all([
+      this.sosAlertRepository
+        .createQueryBuilder('s')
+        .where('s.status = :resolved', { resolved: SosAlertStatus.RESOLVED })
+        .andWhere('s.resolved_at >= :d', { d: startOfToday })
+        .getCount(),
+      this.sosAlertRepository.count({ where: { status: SosAlertStatus.ACTIVE } }),
+    ]);
+
+    return { resolvedToday, stillOpen };
+  }
 }

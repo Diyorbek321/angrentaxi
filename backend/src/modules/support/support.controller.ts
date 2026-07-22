@@ -6,9 +6,11 @@ import { ListThreadsQueryDto } from './dto/list-threads-query.dto';
 import { SetThreadStatusDto } from './dto/set-status.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { User, UserRole } from '../../database/entities/user.entity';
+import { Permission, User, UserRole } from '../../database/entities/user.entity';
 import { SupportThread } from '../../database/entities/support-thread.entity';
 import { SupportMessage } from '../../database/entities/support-message.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
@@ -27,8 +29,9 @@ export class SupportController {
   }
 
   @Get('threads')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.SUPPORT_MANAGE)
   @ApiOperation({ summary: 'List support threads (manager/admin only)' })
   async listThreads(
     @Query() query: ListThreadsQueryDto,
@@ -74,8 +77,9 @@ export class SupportController {
   }
 
   @Patch('threads/:id/status')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.SUPPORT_MANAGE)
   @ApiOperation({ summary: 'Open or close a support thread (manager/admin only)' })
   @ApiParam({ name: 'id', description: 'Support thread UUID' })
   async setStatus(

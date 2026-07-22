@@ -1,12 +1,17 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { UsersService } from '../users/users.service';
 import { NotificationsService } from './notifications.service';
 import { RegisterFcmTokenDto } from './dto/register-fcm-token.dto';
+import { BroadcastDto } from './dto/broadcast.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
-import { User } from '../../database/entities/user.entity';
+import { Permission, User, UserRole } from '../../database/entities/user.entity';
 import { NotificationLog } from '../../database/entities/notification-log.entity';
 
 // This endpoint is the one missing link in an otherwise fully-built push
@@ -66,5 +71,23 @@ export class NotificationsController {
   @ApiResponse({ status: 200, description: 'Count of notifications marked read' })
   async markAllRead(@CurrentUser() user: User): Promise<{ updated: number }> {
     return this.notificationsService.markAllRead(user.id);
+  }
+
+  @Post('broadcast')
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.PROMO_MANAGE)
+  @ApiOperation({ summary: 'Send a push notification to an audience (admin, or manager with PROMO_MANAGE)' })
+  async broadcast(@CurrentUser() user: User, @Body() dto: BroadcastDto) {
+    return this.notificationsService.broadcast(dto.title, dto.body, dto.audience, user.id);
+  }
+
+  @Get('broadcast/history')
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.PROMO_MANAGE)
+  @ApiOperation({ summary: 'List past broadcast pushes (admin, or manager with PROMO_MANAGE)' })
+  async broadcastHistory(@Query('page') page = 1, @Query('limit') limit = 20) {
+    return this.notificationsService.getBroadcastHistory(Number(page), Number(limit));
   }
 }

@@ -11,6 +11,7 @@ import { Repository } from 'typeorm';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { Order, OrderStatus, PaymentMethod } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
+import { DispatchOverride } from '../../database/entities/dispatch-override.entity';
 import { Transaction } from '../../database/entities/transaction.entity';
 import { TransactionStatus, TransactionType } from '../../database/entities/transaction.entity';
 import { TariffsService } from '../tariffs/tariffs.service';
@@ -63,6 +64,8 @@ export class OrdersService {
     private readonly tripRepository: Repository<Trip>,
     @InjectRepository(Transaction)
     private readonly transactionRepository: Repository<Transaction>,
+    @InjectRepository(DispatchOverride)
+    private readonly dispatchOverrideRepository: Repository<DispatchOverride>,
     private readonly tariffsService: TariffsService,
     private readonly realtimeGateway: RealtimeGateway,
     private readonly notificationsService: NotificationsService,
@@ -591,7 +594,18 @@ export class OrdersService {
     return updatedOrder;
   }
 
-  async reassignDriver(orderId: string, newDriverProfileId: string): Promise<Order> {
+  // Manual driver assignment/reassignment — the exception path under the
+  // automated-dispatch model (MatchingService handles the normal case with
+  // zero human input, see MatchingService.startSearch). `performedByUserId`
+  // and `reason` are required so every use of this override is attributable
+  // and durably logged in dispatch_overrides, not just a REST access log
+  // line.
+  async reassignDriver(
+    orderId: string,
+    newDriverProfileId: string,
+    performedByUserId: string,
+    reason: string,
+  ): Promise<Order> {
     const order = await this.findByIdOrThrow(orderId);
 
     const reassignableStatuses: OrderStatus[] = [
@@ -619,9 +633,22 @@ export class OrdersService {
 
     const previousDriverId = order.driverId;
 
+    // Only logged once the conditional update actually lands — see the
+    // TOCTOU race guard on updateOrderStatusAtomic (throws ConflictException
+    // and touches 0 rows if another request already moved the order out of
+    // the expected status), which must never produce an audit entry for an
+    // override that didn't actually happen.
     await this.updateOrderStatusAtomic(orderId, reassignableStatuses, {
       driverId: newDriver.userId,
       status: OrderStatus.ACCEPTED,
+    });
+
+    await this.dispatchOverrideRepository.save({
+      orderId,
+      performedByUserId,
+      previousDriverId,
+      newDriverId: newDriver.userId,
+      reason,
     });
 
     const updatedOrder = await this.findByIdOrThrow(orderId);
@@ -685,6 +712,18 @@ export class OrdersService {
     );
 
     return updatedOrder;
+  }
+
+  async getDispatchOverrides(
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<{ overrides: DispatchOverride[]; total: number; page: number; limit: number }> {
+    const [overrides, total] = await this.dispatchOverrideRepository.findAndCount({
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return { overrides, total, page, limit };
   }
 
   async cancelOrder(
@@ -874,6 +913,25 @@ export class OrdersService {
     return { orders: await this.attachDisplayFields(orders), total, page, limit };
   }
 
+  // Dispatcher "Exceptions" worklist — orders MatchingService gave up on
+  // (see MatchingService.handleNoDriversFound, which cancels with this exact
+  // reason string once the 60s search deadline passes with no acceptance).
+  // Read-only: a cancelled order isn't in reassignableStatuses, so the
+  // remedy is a fresh manual order (Manual Order Creation), not a reassign.
+  async getNoDriversFoundExceptions(
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<PaginatedOrders> {
+    const [orders, total] = await this.orderRepository.findAndCount({
+      where: { status: OrderStatus.CANCELLED, cancelReason: 'No drivers available' },
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+      relations: ['passenger', 'driver', 'tariff'],
+    });
+    return { orders: await this.attachDisplayFields(orders), total, page, limit };
+  }
+
   // The `passenger`/`driver` relations only carry raw User columns (firstName/
   // lastName, no car info or rating — that lives on the separate Driver profile
   // table). The web panels expect a flattened `name` plus the driver's car/rating,
@@ -998,12 +1056,33 @@ export class OrdersService {
       .andWhere('o.created_at >= :d', { d: today })
       .getRawOne<{ total: string }>();
 
+    const avgPriceResult = await this.orderRepository.createQueryBuilder('o')
+      .select('AVG(o.final_price)', 'avg')
+      .where('o.status = :s', { s: 'completed' })
+      .andWhere('o.created_at >= :d', { d: today })
+      .getRawOne<{ avg: string }>();
+
+    const cancelledToday = await this.orderRepository.createQueryBuilder('o')
+      .where('o.status = :s', { s: 'cancelled' })
+      .andWhere('o.created_at >= :d', { d: today })
+      .getCount();
+
+    const newCustomersToday = await this.orderRepository.manager
+      .getRepository('users')
+      .createQueryBuilder('u')
+      .where('u.role = :r', { r: 'passenger' })
+      .andWhere('u.created_at >= :d', { d: today })
+      .getCount();
+
     return {
       totalUsers,
       totalOrders,
       ordersToday,
       completedToday,
       revenueToday: parseFloat(revenueResult?.total ?? '0') || 0,
+      avgTripPriceToday: Math.round(parseFloat(avgPriceResult?.avg ?? '0') || 0),
+      cancellationRateToday: ordersToday > 0 ? Math.round((cancelledToday / ordersToday) * 1000) / 10 : 0,
+      newCustomersToday,
       activeDrivers,
       onlineDrivers,
       pendingDriverApprovals,

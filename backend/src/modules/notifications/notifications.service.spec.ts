@@ -8,6 +8,7 @@ import { NotificationLog } from '../../database/entities/notification-log.entity
 import { User, UserRole } from '../../database/entities/user.entity';
 import { Driver } from '../../database/entities/driver.entity';
 import { Order, OrderStatus } from '../../database/entities/order.entity';
+import { PushNotificationLog } from '../../database/entities/push-notification-log.entity';
 
 describe('NotificationsService', () => {
   let service: NotificationsService;
@@ -69,6 +70,8 @@ describe('NotificationsService', () => {
           provide: getRepositoryToken(NotificationLog),
           useValue: notificationLogRepository,
         },
+        { provide: getRepositoryToken(User), useValue: {} },
+        { provide: getRepositoryToken(PushNotificationLog), useValue: {} },
       ],
     }).compile();
 

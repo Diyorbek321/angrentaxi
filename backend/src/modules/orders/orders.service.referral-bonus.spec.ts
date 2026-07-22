@@ -4,6 +4,7 @@ import { OrdersService } from './orders.service';
 import { Order, OrderStatus, PaymentMethod } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
 import { Transaction, TransactionType } from '../../database/entities/transaction.entity';
+import { DispatchOverride } from '../../database/entities/dispatch-override.entity';
 import { TariffsService } from '../tariffs/tariffs.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -84,6 +85,7 @@ describe('OrdersService - completeTrip referral bonus', () => {
         { provide: getRepositoryToken(Order), useValue: orderRepository },
         { provide: getRepositoryToken(Trip), useValue: tripRepository },
         { provide: getRepositoryToken(Transaction), useValue: transactionRepository },
+        { provide: getRepositoryToken(DispatchOverride), useValue: {} },
         { provide: TariffsService, useValue: tariffsService },
         { provide: RealtimeGateway, useValue: realtimeGateway },
         { provide: NotificationsService, useValue: notificationsService },

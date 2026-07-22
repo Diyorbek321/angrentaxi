@@ -5,6 +5,11 @@ import { Restaurant, RestaurantStatus, WorkingHoursDay } from '../../database/en
 import { MenuCategory } from '../../database/entities/menu-category.entity';
 import { Dish } from '../../database/entities/dish.entity';
 import { FoodOrder, FoodOrderStatus, FoodPaymentMethod } from '../../database/entities/food-order.entity';
+import {
+  Transaction,
+  TransactionStatus,
+  TransactionType,
+} from '../../database/entities/transaction.entity';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 import { CreateMenuCategoryDto, UpdateMenuCategoryDto } from './dto/category.dto';
 import { CreateDishDto, UpdateDishDto } from './dto/dish.dto';
@@ -13,7 +18,7 @@ import { CreateRestaurantAdminDto } from './dto/create-restaurant-admin.dto';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../../database/entities/user.entity';
-import { ServiceType } from '../../database/entities/order.entity';
+import { PaymentMethod, ServiceType } from '../../database/entities/order.entity';
 import { OrdersService } from '../orders/orders.service';
 import { MatchingService } from '../matching/matching.service';
 import { TariffsService } from '../tariffs/tariffs.service';
@@ -41,6 +46,7 @@ export class FoodService {
     @InjectRepository(MenuCategory) private readonly categoryRepo: Repository<MenuCategory>,
     @InjectRepository(Dish) private readonly dishRepo: Repository<Dish>,
     @InjectRepository(FoodOrder) private readonly orderRepo: Repository<FoodOrder>,
+    @InjectRepository(Transaction) private readonly transactionRepo: Repository<Transaction>,
     private readonly realtimeGateway: RealtimeGateway,
     private readonly usersService: UsersService,
     private readonly ordersService: OrdersService,
@@ -198,7 +204,49 @@ export class FoodService {
       saved = await this.dispatchDelivery(restaurant, saved);
     }
 
+    if (next === FoodOrderStatus.DELIVERED) {
+      const restaurant = await this.restaurantRepo.findOneOrFail({ where: { id: restaurantId } });
+      await this.settleRestaurantEarnings(restaurant, saved);
+    }
+
     return this.withDelivery(saved);
+  }
+
+  // Settles the platform's commission on a delivered order's food total —
+  // see MarketService.settleStoreEarnings for the full rationale (mirrors
+  // OrdersService.completeTrip's driver payout, but deliberately skips the
+  // gross CREDIT leg for cash orders so a restaurant can't withdraw a net
+  // payout for money it already collected directly).
+  private async settleRestaurantEarnings(restaurant: Restaurant, order: FoodOrder): Promise<void> {
+    const commissionAmount = Math.round((order.totalPrice * restaurant.commissionRate) / 100);
+    if (commissionAmount <= 0) {
+      return;
+    }
+
+    const isCash = order.paymentMethod === FoodPaymentMethod.CASH;
+    const paymentMethod = isCash ? PaymentMethod.CASH : PaymentMethod.CARD;
+
+    if (!isCash) {
+      await this.transactionRepo.save({
+        userId: restaurant.ownerUserId,
+        orderId: null,
+        amount: order.totalPrice,
+        type: TransactionType.CREDIT,
+        paymentMethod,
+        status: TransactionStatus.COMPLETED,
+        externalId: `food_order_${order.id}`,
+      });
+    }
+
+    await this.transactionRepo.save({
+      userId: restaurant.ownerUserId,
+      orderId: null,
+      amount: commissionAmount,
+      type: TransactionType.DEBIT,
+      paymentMethod,
+      status: TransactionStatus.COMPLETED,
+      externalId: `food_order_commission_${order.id}`,
+    });
   }
 
   async rejectOrder(restaurantId: string, id: string, reason: string) {
@@ -488,5 +536,19 @@ export class FoodService {
     }
     restaurant.status = status;
     return this.restaurantRepo.save(restaurant);
+  }
+
+  // Content moderation — an admin reviewing dishes across every restaurant,
+  // not scoped to a single vendor's own menu (see listDishes for that).
+  adminListDishes(): Promise<Dish[]> {
+    return this.dishRepo.find({ relations: ['restaurant'], order: { createdAt: 'DESC' } });
+  }
+
+  async adminDeleteDish(id: string): Promise<void> {
+    const dish = await this.dishRepo.findOne({ where: { id } });
+    if (!dish) {
+      throw new NotFoundException('Dish not found');
+    }
+    await this.dishRepo.remove(dish);
   }
 }

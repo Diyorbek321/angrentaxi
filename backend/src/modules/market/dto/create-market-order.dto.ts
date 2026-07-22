@@ -14,7 +14,7 @@ import {
   MaxLength,
   ValidateNested,
 } from 'class-validator';
-import { MarketOrderDeliveryMode } from '../../../database/entities/market-order.entity';
+import { MarketOrderDeliveryMode, MarketPaymentMethod } from '../../../database/entities/market-order.entity';
 
 export class MarketOrderItemInputDto {
   @ApiProperty()
@@ -60,6 +60,11 @@ export class CreateMarketOrderDto {
   @IsOptional()
   @IsEnum(MarketOrderDeliveryMode)
   deliveryMode?: MarketOrderDeliveryMode;
+
+  @ApiPropertyOptional({ enum: MarketPaymentMethod })
+  @IsOptional()
+  @IsEnum(MarketPaymentMethod)
+  paymentMethod?: MarketPaymentMethod;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -3,10 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FirebaseService } from './firebase.service';
 import { EskizService } from './eskiz.service';
-import { User } from '../../database/entities/user.entity';
+import { User, UserRole } from '../../database/entities/user.entity';
 import { Order } from '../../database/entities/order.entity';
 import { Driver } from '../../database/entities/driver.entity';
 import { NotificationLog } from '../../database/entities/notification-log.entity';
+import {
+  BroadcastAudience,
+  PushNotificationLog,
+} from '../../database/entities/push-notification-log.entity';
 
 @Injectable()
 export class NotificationsService {
@@ -17,7 +21,71 @@ export class NotificationsService {
     private readonly eskizService: EskizService,
     @InjectRepository(NotificationLog)
     private readonly notificationLogRepository: Repository<NotificationLog>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    @InjectRepository(PushNotificationLog)
+    private readonly pushNotificationLogRepository: Repository<PushNotificationLog>,
   ) {}
+
+  // Super Admin > Marketing > Push Notifications. Best-effort per user — one
+  // bad/expired token must never abort the whole broadcast. Persists a
+  // PushNotificationLog row regardless of how many actually succeeded, so
+  // the send-history list always reflects what was attempted.
+  async broadcast(
+    title: string,
+    body: string,
+    audience: BroadcastAudience,
+    performedByUserId: string,
+  ): Promise<PushNotificationLog> {
+    const roleFilter =
+      audience === BroadcastAudience.CUSTOMERS
+        ? [UserRole.PASSENGER]
+        : audience === BroadcastAudience.DRIVERS
+          ? [UserRole.DRIVER]
+          : [UserRole.PASSENGER, UserRole.DRIVER];
+
+    const recipients = await this.userRepository
+      .createQueryBuilder('u')
+      .where('u.role IN (:...roles)', { roles: roleFilter })
+      .andWhere('u.fcm_token IS NOT NULL')
+      .getMany();
+
+    let sentCount = 0;
+    for (const user of recipients) {
+      try {
+        await this.firebaseService.sendPush(user.fcmToken as string, title, body);
+        sentCount += 1;
+      } catch (error) {
+        this.logger.warn(
+          `Broadcast push failed for user ${user.id}: ${error instanceof Error ? error.message : error}`,
+        );
+      }
+    }
+
+    return this.pushNotificationLogRepository.save(
+      this.pushNotificationLogRepository.create({
+        title,
+        body,
+        audience,
+        sentCount,
+        createdByUserId: performedByUserId,
+      }),
+    );
+  }
+
+  async getBroadcastHistory(page: number = 1, limit: number = 20): Promise<{
+    broadcasts: PushNotificationLog[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const [broadcasts, total] = await this.pushNotificationLogRepository.findAndCount({
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return { broadcasts, total, page, limit };
+  }
 
   // Persists the in-app notification history row. Deliberately isolated in
   // its own try/catch so a logging bug (bad DB state, constraint violation,

@@ -8,6 +8,7 @@ import { Restaurant } from '../../database/entities/restaurant.entity';
 import { MenuCategory } from '../../database/entities/menu-category.entity';
 import { Dish } from '../../database/entities/dish.entity';
 import { FoodOrder } from '../../database/entities/food-order.entity';
+import { Transaction } from '../../database/entities/transaction.entity';
 import { RealtimeModule } from '../realtime/realtime.module';
 import { UsersModule } from '../users/users.module';
 import { OrdersModule } from '../orders/orders.module';
@@ -16,7 +17,7 @@ import { TariffsModule } from '../tariffs/tariffs.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Restaurant, MenuCategory, Dish, FoodOrder]),
+    TypeOrmModule.forFeature([Restaurant, MenuCategory, Dish, FoodOrder, Transaction]),
     forwardRef(() => RealtimeModule),
     UsersModule,
     forwardRef(() => OrdersModule),

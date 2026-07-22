@@ -16,6 +16,8 @@ interface AssignDriverModalProps {
   onAssigned: (updatedOrder: Order) => void;
 }
 
+const MIN_REASON_LENGTH = 5;
+
 export function AssignDriverModal({
   isOpen,
   onClose,
@@ -24,10 +26,12 @@ export function AssignDriverModal({
   onAssigned,
 }: AssignDriverModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [reason, setReason] = useState('');
   const [assigningDriverId, setAssigningDriverId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const isReassign = !!order?.driver;
+  const reasonValid = reason.trim().length >= MIN_REASON_LENGTH;
 
   // Filter to drivers not on a trip
   const freeDrivers = availableDrivers.filter((d) => !d.currentOrderId);
@@ -44,16 +48,17 @@ export function AssignDriverModal({
   });
 
   const handleAssign = async (driver: Driver) => {
-    if (!order) return;
+    if (!order || !reasonValid) return;
     setAssigningDriverId(driver.id);
     setError(null);
     try {
       const updated = isReassign
-        ? await reassignDriver(order.id, driver.id)
-        : await assignDriver(order.id, driver.id);
+        ? await reassignDriver(order.id, driver.id, reason.trim())
+        : await assignDriver(order.id, driver.id, reason.trim());
       onAssigned(updated);
       onClose();
       setSearchQuery('');
+      setReason('');
     } catch (err) {
       console.error('Assign failed:', err);
       setError('Failed to assign driver. Please try again.');
@@ -65,6 +70,7 @@ export function AssignDriverModal({
   const handleClose = () => {
     if (assigningDriverId) return;
     setSearchQuery('');
+    setReason('');
     setError(null);
     onClose();
   };
@@ -73,7 +79,7 @@ export function AssignDriverModal({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title={isReassign ? 'Reassign Driver' : 'Assign Driver'}
+      title={isReassign ? 'Manual Override — Reassign Driver' : 'Manual Override — Assign Driver'}
       size="md"
     >
       {order && (
@@ -93,6 +99,15 @@ export function AssignDriverModal({
             </div>
           </div>
 
+          {/* Why this is here */}
+          <div className="bg-amber-900/20 border border-amber-700/30 rounded-lg p-3">
+            <p className="text-amber-400 text-xs">
+              Orders normally get a driver automatically. Use this only for an
+              exception — no drivers found, an SOS, a driver&apos;s car breaking
+              down mid-trip, etc. Every override is logged with your reason.
+            </p>
+          </div>
+
           {/* Current driver warning */}
           {isReassign && order.driver && (
             <div className="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-3">
@@ -104,6 +119,20 @@ export function AssignDriverModal({
               </p>
             </div>
           )}
+
+          {/* Reason — required, recorded in the dispatch override audit log */}
+          <div>
+            <Input
+              placeholder="Reason for this override (required)"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            />
+            {reason.length > 0 && !reasonValid && (
+              <p className="text-red-400 text-xs mt-1">
+                Reason must be at least {MIN_REASON_LENGTH} characters.
+              </p>
+            )}
+          </div>
 
           {/* Search */}
           <Input
@@ -164,13 +193,15 @@ export function AssignDriverModal({
                     </div>
                   </div>
 
-                  {/* Assign button */}
+                  {/* Assign button — disabled until a reason is entered, since
+                      every override is logged against it */}
                   <Button
                     size="sm"
                     variant="primary"
                     onClick={() => handleAssign(driver)}
                     isLoading={assigningDriverId === driver.id}
-                    disabled={assigningDriverId !== null}
+                    disabled={assigningDriverId !== null || !reasonValid}
+                    title={!reasonValid ? 'Enter a reason first' : undefined}
                   >
                     {isReassign ? 'Reassign' : 'Assign'}
                   </Button>

@@ -43,14 +43,14 @@
     border-radius: 1rem;
   }
   .glass-card:hover {
-    border-color: rgba(250,204,21,0.2);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(250,204,21,0.1);
+    border-color: rgba(31,202,142,0.2);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(31,202,142,0.1);
   }
   .yellow-glow {
-    box-shadow: 0 0 20px rgba(250,204,21,0.3);
+    box-shadow: 0 0 20px rgba(31,202,142,0.3);
   }
   .text-gradient-yellow {
-    background: linear-gradient(135deg, #FACC15, #F59E0B);
+    background: linear-gradient(135deg, #1FCA8E, #10A064);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -61,4 +61,4 @@
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 999px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(250,204,21,0.4); }
+::-webkit-scrollbar-thumb:hover { background: rgba(31,202,142,0.4); }

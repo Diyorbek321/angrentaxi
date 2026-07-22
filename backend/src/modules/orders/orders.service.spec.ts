@@ -5,6 +5,7 @@ import { OrdersService } from './orders.service';
 import { Order, OrderStatus } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
 import { Transaction } from '../../database/entities/transaction.entity';
+import { DispatchOverride } from '../../database/entities/dispatch-override.entity';
 import { TariffsService } from '../tariffs/tariffs.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -50,6 +51,7 @@ describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => 
     update: jest.Mock;
   };
   let driversService: { findByUserId: jest.Mock; findByIdOrThrow: jest.Mock };
+  let dispatchOverrideRepository: { save: jest.Mock };
 
   const baseOrder = (overrides: Partial<Order> = {}): Order =>
     ({
@@ -82,6 +84,8 @@ describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => 
       findByIdOrThrow: jest.fn(),
     };
 
+    dispatchOverrideRepository = { save: jest.fn() };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         OrdersService,
@@ -91,6 +95,7 @@ describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => 
           useValue: { save: jest.fn(), findOne: jest.fn(), update: jest.fn() },
         },
         { provide: getRepositoryToken(Transaction), useValue: { save: jest.fn() } },
+        { provide: getRepositoryToken(DispatchOverride), useValue: dispatchOverrideRepository },
         { provide: TariffsService, useValue: {} },
         {
           provide: RealtimeGateway,
@@ -182,7 +187,7 @@ describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => 
       queryBuilderMock.execute.mockResolvedValueOnce({ affected: 0, raw: [] });
 
       await expect(
-        service.reassignDriver('order-1', 'driver-profile-2'),
+        service.reassignDriver('order-1', 'driver-profile-2', 'manager-1', 'No drivers found automatically'),
       ).rejects.toBeInstanceOf(ConflictException);
       expect(queryBuilderMock.andWhere).toHaveBeenCalledWith(
         'status IN (:...expectedStatuses)',
@@ -195,6 +200,33 @@ describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => 
           ],
         },
       );
+      // The race loser must not produce a dispatch_overrides audit entry for
+      // an override that never actually took effect.
+      expect(dispatchOverrideRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('records a dispatch_overrides audit entry once the reassignment succeeds', async () => {
+      const order = baseOrder({ status: OrderStatus.SEARCHING, driverId: null });
+      jest.spyOn(service, 'findByIdOrThrow').mockResolvedValue(order);
+      driversService.findByIdOrThrow.mockResolvedValue({
+        id: 'driver-profile-2',
+        userId: 'driver-2',
+        isOnline: true,
+        carModel: 'Cobalt',
+        carNumber: '01A123AA',
+        rating: 5,
+      });
+      queryBuilderMock.execute.mockResolvedValueOnce({ affected: 1, raw: [] });
+
+      await service.reassignDriver('order-1', 'driver-profile-2', 'manager-1', 'No drivers found automatically');
+
+      expect(dispatchOverrideRepository.save).toHaveBeenCalledWith({
+        orderId: 'order-1',
+        performedByUserId: 'manager-1',
+        previousDriverId: null,
+        newDriverId: 'driver-2',
+        reason: 'No drivers found automatically',
+      });
     });
   });
 

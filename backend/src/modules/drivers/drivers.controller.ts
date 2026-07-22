@@ -24,9 +24,11 @@ import { AddFundsDto } from './dto/add-funds.dto';
 import { SetCommissionRateDto } from './dto/set-commission-rate.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { User, UserRole, UserStatus } from '../../database/entities/user.entity';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { Permission, User, UserRole, UserStatus } from '../../database/entities/user.entity';
 import { Driver } from '../../database/entities/driver.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
 import { UsersService } from '../users/users.service';
@@ -34,7 +36,7 @@ import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 @ApiTags('Drivers')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Controller('drivers')
 export class DriversController {
   constructor(
@@ -45,6 +47,7 @@ export class DriversController {
 
   @Get()
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DRIVERS_VIEW)
   @ApiOperation({ summary: 'List all drivers (admin/manager only)' })
   async findAll(
     @Query('page') page = 1,
@@ -62,6 +65,7 @@ export class DriversController {
 
   @Get('online')
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DISPATCH)
   @ApiOperation({ summary: 'List online drivers with live status (admin/manager only)' })
   async getOnlineDrivers() {
     return this.driversService.getOnlineDriversList();
@@ -108,6 +112,7 @@ export class DriversController {
 
   @Get(':id')
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DRIVERS_VIEW)
   @ApiOperation({ summary: 'Get driver by ID (admin/manager only)' })
   @ApiParam({ name: 'id', description: 'Driver UUID' })
   @ApiResponse({ status: 200, description: 'Driver details' })
@@ -117,6 +122,7 @@ export class DriversController {
 
   @Patch(':id/approve')
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DRIVERS_APPROVE)
   @ApiOperation({ summary: 'Approve a driver (admin/manager only)' })
   @ApiParam({ name: 'id', description: 'Driver UUID' })
   async approveDriver(@Param('id', ParseUUIDPipe) id: string) {
@@ -125,9 +131,14 @@ export class DriversController {
     return { ...driver, status: 'approved' };
   }
 
+  // Widened from ADMIN-only: a manager may now be granted DRIVERS_FINANCE
+  // (see Permission enum) so they can handle balance corrections/commission
+  // overrides without an admin in the loop — an admin decides who gets this
+  // from Staff & Roles, not this decorator.
   @Patch(':id/balance')
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: "Add funds to (or deduct from) a driver's balance (admin only)" })
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DRIVERS_FINANCE)
+  @ApiOperation({ summary: "Add funds to (or deduct from) a driver's balance (admin, or manager with DRIVERS_FINANCE)" })
   @ApiParam({ name: 'id', description: 'Driver UUID' })
   async addFunds(
     @Param('id', ParseUUIDPipe) id: string,
@@ -137,8 +148,9 @@ export class DriversController {
   }
 
   @Patch(':id/commission-rate')
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: "Set a driver's commission rate override (admin only)" })
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DRIVERS_FINANCE)
+  @ApiOperation({ summary: "Set a driver's commission rate override (admin, or manager with DRIVERS_FINANCE)" })
   @ApiParam({ name: 'id', description: 'Driver UUID' })
   async setCommissionRate(
     @Param('id', ParseUUIDPipe) id: string,

@@ -27,15 +27,17 @@ import { ReassignDriverDto } from './dto/reassign-driver.dto';
 import { PaginationDto } from './dto/pagination.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { User, UserRole } from '../../database/entities/user.entity';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { Permission, User, UserRole } from '../../database/entities/user.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
 import { Order } from '../../database/entities/order.entity';
 
 @ApiTags('Orders')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Controller('orders')
 export class OrdersController {
   private readonly logger = new Logger(OrdersController.name);
@@ -72,6 +74,7 @@ export class OrdersController {
 
   @Post('dispatch')
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DISPATCH)
   @ApiOperation({ summary: 'Create an order on behalf of a passenger (manager/admin only)' })
   @ApiResponse({ status: 201, description: 'Order created' })
   async createDispatchOrder(@Body() dto: CreateDispatchOrderDto): Promise<Order> {
@@ -86,6 +89,7 @@ export class OrdersController {
 
   @Get()
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DISPATCH)
   @ApiOperation({ summary: 'List all orders (admin/manager only)' })
   async listAll(
     @Query() pagination: PaginationDto,
@@ -113,6 +117,10 @@ export class OrdersController {
     return this.ordersService.getPassengerHistory(user.id, page, limit);
   }
 
+  // No @RequirePermissions here on purpose: basic business-visibility stats
+  // (revenue, order counts, driver counts) are the Manager Overview page and
+  // should be visible to every manager regardless of which finer permissions
+  // they've been granted — only role (MANAGER/ADMIN) gates this.
   @Get('stats')
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Dashboard stats (admin/manager only)' })
@@ -134,6 +142,7 @@ export class OrdersController {
 
   @Get('active')
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DISPATCH)
   @ApiOperation({ summary: 'Get all active orders (manager/admin)' })
   @ApiResponse({ status: 200, description: 'List of active orders' })
   async getActiveOrders(): Promise<Order[]> {
@@ -157,6 +166,27 @@ export class OrdersController {
     @CurrentUser() user: User,
   ): Promise<DriverEarningsBreakdown> {
     return this.ordersService.getDriverEarningsBreakdown(user.id);
+  }
+
+  @Get('dispatch-overrides')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DISPATCH)
+  @ApiOperation({ summary: 'List the manual dispatch override audit log (manager/admin only)' })
+  @ApiResponse({ status: 200, description: 'Paginated dispatch override list' })
+  async getDispatchOverrides(@Query() pagination: PaginationDto) {
+    return this.ordersService.getDispatchOverrides(pagination.page ?? 1, pagination.limit ?? 20);
+  }
+
+  @Get('exceptions/no-drivers-found')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DISPATCH)
+  @ApiOperation({
+    summary:
+      'List orders auto-cancelled because MatchingService found no available driver (manager/admin only)',
+  })
+  @ApiResponse({ status: 200, description: 'Paginated no-drivers-found order list' })
+  async getNoDriversFoundExceptions(@Query() pagination: PaginationDto) {
+    return this.ordersService.getNoDriversFoundExceptions(pagination.page ?? 1, pagination.limit ?? 20);
   }
 
   @Get(':id')
@@ -234,15 +264,22 @@ export class OrdersController {
 
   @Patch(':id/reassign')
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Assign or reassign the driver on an order (manager/admin only)' })
+  @RequirePermissions(Permission.DISPATCH)
+  @ApiOperation({
+    summary:
+      'Manually assign or reassign the driver on an order (manager/admin only) — an exception ' +
+      'path now that MatchingService handles normal dispatch automatically; requires a reason ' +
+      'and is recorded in the dispatch_overrides audit log',
+  })
   @ApiParam({ name: 'id', description: 'Order UUID' })
   @ApiResponse({ status: 200, description: 'Order reassigned' })
   @ApiResponse({ status: 400, description: 'Order not in a reassignable state, or driver not online' })
   async reassignDriver(
+    @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ReassignDriverDto,
   ): Promise<Order> {
-    return this.ordersService.reassignDriver(id, dto.driverId);
+    return this.ordersService.reassignDriver(id, dto.driverId, user.id, dto.reason);
   }
 
   @Patch(':id/cancel')

@@ -5,16 +5,18 @@ import { CreateBonusRuleDto } from './dto/create-bonus-rule.dto';
 import { UpdateBonusRuleDto } from './dto/update-bonus-rule.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { User, UserRole } from '../../database/entities/user.entity';
+import { Permission, User, UserRole } from '../../database/entities/user.entity';
 import { DriverBonusRule } from '../../database/entities/driver-bonus-rule.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
 import { DriversService } from '../drivers/drivers.service';
 
 @ApiTags('Driver Bonus Rules')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Controller('driver-bonus-rules')
 export class DriverBonusesController {
   constructor(
@@ -31,6 +33,7 @@ export class DriverBonusesController {
 
   @Get('driver/:driverId/progress')
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.BONUSES_VIEW)
   @ApiOperation({ summary: 'Get a driver\'s bonus progress (manager/admin only)' })
   @ApiParam({ name: 'driverId', description: 'Driver profile UUID' })
   async getDriverProgress(
@@ -42,6 +45,7 @@ export class DriverBonusesController {
 
   @Get()
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.BONUSES_VIEW)
   @ApiOperation({ summary: 'List driver bonus rules (manager/admin only)' })
   async findAll(): Promise<DriverBonusRule[]> {
     return this.bonusesService.findAll();
@@ -49,6 +53,7 @@ export class DriverBonusesController {
 
   @Get(':id')
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.BONUSES_VIEW)
   @ApiOperation({ summary: 'Get a bonus rule by ID (manager/admin only)' })
   @ApiParam({ name: 'id', description: 'Bonus rule UUID' })
   async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<DriverBonusRule> {

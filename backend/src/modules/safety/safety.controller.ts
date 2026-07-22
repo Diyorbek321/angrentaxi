@@ -10,10 +10,12 @@ import { SafetyService } from './safety.service';
 import { ReportSosDto } from './dto/report-sos.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
-import { User, UserRole } from '../../database/entities/user.entity';
+import { Permission, User, UserRole } from '../../database/entities/user.entity';
 import { SosAlert, SosReporterRole } from '../../database/entities/sos-alert.entity';
 
 @ApiTags('Safety')
@@ -41,8 +43,9 @@ export class SafetyController {
   }
 
   @Patch('sos/:id/resolve')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @RequirePermissions(Permission.DISPATCH)
   @ApiOperation({ summary: 'Mark an SOS alert resolved (admin/manager only)' })
   @ApiParam({ name: 'id', description: 'SOS alert UUID' })
   @ApiResponse({ status: 200, description: 'Alert marked resolved' })
@@ -51,11 +54,21 @@ export class SafetyController {
   }
 
   @Get('sos/active')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @RequirePermissions(Permission.DISPATCH)
   @ApiOperation({ summary: 'List all currently active SOS alerts, newest first (admin/manager only)' })
   @ApiResponse({ status: 200, description: 'Active SOS alerts' })
   async listActive(): Promise<SosAlert[]> {
     return this.safetyService.listActive();
+  }
+
+  @Get('sos/today-summary')
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @RequirePermissions(Permission.DISPATCH)
+  @ApiOperation({ summary: "Today's SOS resolved/still-open counts, for the shift report (admin/manager only)" })
+  async getTodaySummary(): Promise<{ resolvedToday: number; stillOpen: number }> {
+    return this.safetyService.getTodaySummary();
   }
 }

@@ -23,6 +23,11 @@ export enum MarketOrderDeliveryMode {
   PLATFORM = 'platform',
 }
 
+export enum MarketPaymentMethod {
+  CASH = 'cash',
+  CARD = 'card',
+}
+
 export interface MarketOrderItem {
   productId: string;
   name: string;
@@ -105,6 +110,14 @@ export class MarketOrder {
 
   @Column({ name: 'customer_phone', nullable: true, type: 'varchar' })
   customerPhone: string | null;
+
+  @Column({
+    name: 'payment_method',
+    type: 'enum',
+    enum: MarketPaymentMethod,
+    default: MarketPaymentMethod.CASH,
+  })
+  paymentMethod: MarketPaymentMethod;
 
   @Column({
     name: 'total_price',

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { foodApi, Restaurant } from '@/lib/api';
+import { useKiosk } from '@/lib/kiosk-context';
 
 const NAV = [
   { href: '/dashboard', label: 'Bosh sahifa', icon: LayoutGrid },
@@ -41,6 +42,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [newOrdersCount, setNewOrdersCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const { kiosk, setKiosk } = useKiosk();
+  const [clock, setClock] = useState('');
+
+  useEffect(() => {
+    if (!kiosk) return;
+    const tick = () => setClock(new Date().toLocaleTimeString('uz-UZ', { hour12: false }));
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [kiosk]);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -87,6 +98,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [pageTitle, pageSub] = TITLES[pathname] ?? ['', ''];
   const initial = (restaurant?.name ?? user?.firstName ?? 'M').charAt(0).toUpperCase();
   const isOpen = restaurant?.status === 'active';
+
+  if (kiosk) {
+    return (
+      <div className="flex h-screen w-full flex-col bg-brand-black text-slate-200 overflow-hidden">
+        <div className="flex items-center gap-3.5 px-6 h-16 flex-shrink-0 border-b border-white/[0.07] bg-brand-dark/70 backdrop-blur-md">
+          <span className="text-[15px] font-extrabold tracking-tight">
+            Kitchen Screen · {restaurant?.name ?? '...'}
+          </span>
+          <span className="font-mono text-brand-yellow text-sm">{clock}</span>
+          <div className="flex-1" />
+          <button
+            onClick={toggleOpen}
+            className={`inline-flex items-center gap-2 px-3.5 py-[7px] rounded-full text-[13px] font-bold border ${
+              isOpen ? 'text-green-400 border-green-400/35 bg-green-400/[0.09]' : 'text-red-400 border-red-400/35 bg-red-400/[0.09]'
+            }`}
+          >
+            <span className={`w-2 h-2 rounded-full ${isOpen ? 'bg-green-400' : 'bg-red-400'}`} />
+            {isOpen ? 'Ochiq' : 'Yopiq'}
+          </button>
+          <button
+            onClick={() => setKiosk(false)}
+            className="px-3.5 py-[7px] rounded-full text-[13px] font-bold bg-white/10 text-slate-200"
+          >
+            Kioskdan chiqish
+          </button>
+        </div>
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-[18px] relative">{children}</main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen w-full bg-brand-black text-slate-200 overflow-hidden">

@@ -70,6 +70,44 @@ export const authApi = {
 
 // ─── Users ────────────────────────────────────────────────────────
 
+export type Permission =
+  | 'dispatch'
+  | 'drivers_view'
+  | 'drivers_approve'
+  | 'drivers_finance'
+  | 'tariffs_manage'
+  | 'promo_manage'
+  | 'bonuses_view'
+  | 'support_manage'
+  | 'withdrawals_view'
+  | 'users_view';
+
+export const ALL_PERMISSIONS: Permission[] = [
+  'dispatch',
+  'drivers_view',
+  'drivers_approve',
+  'drivers_finance',
+  'tariffs_manage',
+  'promo_manage',
+  'bonuses_view',
+  'support_manage',
+  'withdrawals_view',
+  'users_view',
+];
+
+export const PERMISSION_LABELS: Record<Permission, string> = {
+  dispatch: 'Dispatch (live monitor, exceptions, override, audit log)',
+  drivers_view: 'View driver roster',
+  drivers_approve: 'Approve driver KYC',
+  drivers_finance: "Adjust driver balance / commission rate",
+  tariffs_manage: 'Propose tariff changes, surge, view commission setting',
+  promo_manage: 'View & create promo codes',
+  bonuses_view: 'View bonus rules/progress',
+  support_manage: 'Support threads',
+  withdrawals_view: 'View withdrawal payout queue',
+  users_view: 'View general user list',
+};
+
 export interface User {
   id: string;
   phone: string;
@@ -80,6 +118,7 @@ export interface User {
   blockReason?: string | null;
   createdAt: string;
   totalOrders?: number;
+  permissions?: Permission[];
 }
 
 export interface AdminUser {
@@ -99,6 +138,9 @@ export const usersApi = {
   block: (id: string, reason?: string) => api.patch<ApiResponse<User>>(`/users/${id}/block`, { reason }),
 
   unblock: (id: string) => api.patch<ApiResponse<User>>(`/users/${id}/unblock`),
+
+  updatePermissions: (id: string, permissions: Permission[]) =>
+    api.patch<ApiResponse<User>>(`/users/${id}/permissions`, { permissions }),
 };
 
 // ─── Drivers ──────────────────────────────────────────────────────
@@ -163,12 +205,101 @@ export const driversApi = {
     api.patch<ApiResponse<Driver>>(`/drivers/${id}/commission-rate`, { commissionRate }),
 };
 
+// ─── Withdrawals (payout queue — driver, Market vendor, Eats restaurant) ──
+
+export type WithdrawalStatus = 'pending' | 'approved' | 'rejected' | 'paid';
+export type WithdrawalOwnerType = 'driver' | 'vendor' | 'restaurant';
+
+export interface WithdrawalRequest {
+  id: string;
+  driverId: string;
+  driver: User;
+  ownerType: WithdrawalOwnerType;
+  amount: number;
+  status: WithdrawalStatus;
+  payoutDestination: string;
+  requestedAt: string;
+  processedAt: string | null;
+  adminNote: string | null;
+}
+
+export const withdrawalsApi = {
+  getAll: (params: { page?: number; limit?: number; status?: WithdrawalStatus } = {}) =>
+    api.get<
+      ApiResponse<{ withdrawals: WithdrawalRequest[]; total: number; page: number; limit: number }>
+    >('/payments/withdrawals', { params }),
+
+  process: (id: string, status: WithdrawalStatus, adminNote?: string) =>
+    api.patch<ApiResponse<WithdrawalRequest>>(`/payments/wallet/withdrawals/${id}`, {
+      status,
+      adminNote,
+    }),
+};
+
 // ─── Settings ─────────────────────────────────────────────────────
+
+export interface GlobalSettings {
+  platformName: string;
+  supportPhone: string;
+  supportEmail: string;
+  maintenanceMode: boolean;
+}
 
 export const settingsApi = {
   getCommission: () => api.get<ApiResponse<{ defaultCommissionRate: number }>>('/settings/commission'),
   setCommission: (defaultCommissionRate: number) =>
     api.patch<ApiResponse<{ defaultCommissionRate: number }>>('/settings/commission', { defaultCommissionRate }),
+  getGlobal: () => api.get<ApiResponse<GlobalSettings>>('/settings/global'),
+  updateGlobal: (dto: Partial<GlobalSettings>) =>
+    api.patch<ApiResponse<GlobalSettings>>('/settings/global', dto),
+};
+
+// ─── Push notifications (broadcast) ────────────────────────────────
+
+export type BroadcastAudience = 'all' | 'customers' | 'drivers';
+
+export interface PushBroadcast {
+  id: string;
+  title: string;
+  body: string;
+  audience: BroadcastAudience;
+  sentCount: number;
+  createdAt: string;
+}
+
+export const broadcastApi = {
+  send: (title: string, body: string, audience: BroadcastAudience) =>
+    api.post<ApiResponse<PushBroadcast>>('/notifications/broadcast', { title, body, audience }),
+  getHistory: (page = 1, limit = 20) =>
+    api.get<ApiResponse<{ broadcasts: PushBroadcast[]; total: number; page: number; limit: number }>>(
+      '/notifications/broadcast/history',
+      { params: { page, limit } }
+    ),
+};
+
+// ─── Content moderation ─────────────────────────────────────────────
+
+export interface ModeratedProduct {
+  id: string;
+  name: string;
+  price: number;
+  status: string;
+  store?: { name: string };
+}
+
+export interface ModeratedDish {
+  id: string;
+  name: string;
+  price: number;
+  isAvailable: boolean;
+  restaurant?: { name: string };
+}
+
+export const moderationApi = {
+  getProducts: () => api.get<ApiResponse<ModeratedProduct[]>>('/market/admin/products'),
+  deleteProduct: (id: string) => api.delete<ApiResponse<void>>(`/market/admin/products/${id}`),
+  getDishes: () => api.get<ApiResponse<ModeratedDish[]>>('/food/admin/dishes'),
+  deleteDish: (id: string) => api.delete<ApiResponse<void>>(`/food/admin/dishes/${id}`),
 };
 
 // ─── Orders ───────────────────────────────────────────────────────

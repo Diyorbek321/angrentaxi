@@ -10,7 +10,7 @@ module.exports = {
       },
       colors: {
         brand: {
-          yellow: '#FACC15',
+          yellow: '#1FCA8E', // mint — renamed value only, class name kept as brand-yellow to avoid touching every component
           black: '#080D1A',
           dark: '#0D1526',
           surface: '#111827',

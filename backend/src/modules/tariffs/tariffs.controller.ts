@@ -21,8 +21,10 @@ import { CreateTariffDto } from './dto/create-tariff.dto';
 import { UpdateTariffDto } from './dto/update-tariff.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { UserRole } from '../../database/entities/user.entity';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { Permission, UserRole } from '../../database/entities/user.entity';
 import { Tariff } from '../../database/entities/tariff.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
 
@@ -78,8 +80,9 @@ export class TariffsController {
 
   @Patch(':id/surge')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.TARIFFS_MANAGE)
   @ApiOperation({ summary: 'Set surge multiplier for a tariff (manager/admin only)' })
   @ApiParam({ name: 'id', description: 'Tariff UUID' })
   @ApiBody({

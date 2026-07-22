@@ -16,6 +16,14 @@ interface OrderCardProps {
   onOrderCancelled: (orderId: string) => void;
 }
 
+// Mirrors the backend's MatchingService.NO_DRIVER_TIMEOUT_MS — while an
+// order is within its automatic-matching window, hide the manual override
+// button so dispatchers aren't tempted to shortcut the algorithm on every
+// order. Once an order has been searching longer than this, MatchingService
+// has either found a driver or is about to give up, so a manual override
+// stops competing with a search that's still meaningfully in progress.
+const AUTO_MATCH_WINDOW_MS = 60_000;
+
 export function OrderCard({
   order,
   onAssignDriver,
@@ -25,7 +33,12 @@ export function OrderCard({
   const [isCancelling, setIsCancelling] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
 
-  const canAssign = ['created', 'searching'].includes(order.status) && !order.driver;
+  const searchingElapsedMs = Date.now() - new Date(order.createdAt).getTime();
+  const pastAutoMatchWindow = searchingElapsedMs > AUTO_MATCH_WINDOW_MS;
+
+  const canAssign =
+    !order.driver &&
+    (order.status === 'created' || (order.status === 'searching' && pastAutoMatchWindow));
   const canReassign = ['accepted', 'arrived'].includes(order.status) && !!order.driver;
   const canCancel = ['created', 'searching', 'accepted', 'arrived'].includes(order.status);
   const canComplete = order.status === 'in_progress';
@@ -153,12 +166,12 @@ export function OrderCard({
           {canAssign && (
             <Button
               size="sm"
-              variant="primary"
+              variant="secondary"
               onClick={() => onAssignDriver(order)}
               leftIcon={<UserCheck size={13} />}
-              className="flex-1"
+              className="flex-1 !bg-amber-900/30 !text-amber-400 hover:!bg-amber-900/50"
             >
-              Assign Driver
+              Manual Override
             </Button>
           )}
           {canReassign && (
@@ -167,9 +180,9 @@ export function OrderCard({
               variant="secondary"
               onClick={() => onAssignDriver(order)}
               leftIcon={<UserCheck size={13} />}
-              className="flex-1"
+              className="flex-1 !bg-amber-900/30 !text-amber-400 hover:!bg-amber-900/50"
             >
-              Reassign
+              Override Driver
             </Button>
           )}
           {canComplete && (

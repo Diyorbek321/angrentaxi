@@ -33,4 +33,30 @@ export class SettingsService {
     await this.settingsRepository.update(settings.id, { defaultCommissionRate: rate });
     return { defaultCommissionRate: rate };
   }
+
+  async getGlobalSettings(): Promise<{
+    platformName: string;
+    supportPhone: string;
+    supportEmail: string;
+    maintenanceMode: boolean;
+  }> {
+    const { platformName, supportPhone, supportEmail, maintenanceMode } = await this.getOrCreate();
+    return { platformName, supportPhone, supportEmail, maintenanceMode };
+  }
+
+  async updateGlobalSettings(dto: {
+    platformName?: string;
+    supportPhone?: string;
+    supportEmail?: string;
+    maintenanceMode?: boolean;
+  }): Promise<{
+    platformName: string;
+    supportPhone: string;
+    supportEmail: string;
+    maintenanceMode: boolean;
+  }> {
+    const settings = await this.getOrCreate();
+    await this.settingsRepository.update(settings.id, dto);
+    return this.getGlobalSettings();
+  }
 }

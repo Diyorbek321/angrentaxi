@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { MarketService } from './market.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -33,5 +33,17 @@ export class MarketAdminController {
   @ApiOperation({ summary: "Set a store's active/closed status (admin only)" })
   setStatus(@Param('id', ParseUUIDPipe) id: string, @Body() dto: SetStoreStatusDto) {
     return this.marketService.adminSetStoreStatus(id, dto.status);
+  }
+
+  @Get('products')
+  @ApiOperation({ summary: 'List products across every store, for moderation (admin only)' })
+  listProducts() {
+    return this.marketService.adminListProducts();
+  }
+
+  @Delete('products/:id')
+  @ApiOperation({ summary: 'Remove a product (moderation — admin only)' })
+  deleteProduct(@Param('id', ParseUUIDPipe) id: string) {
+    return this.marketService.adminDeleteProduct(id);
   }
 }
