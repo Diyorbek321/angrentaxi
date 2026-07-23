@@ -94,6 +94,19 @@ export class Tariff {
   @Column({ default: true })
   isActive: boolean;
 
+  // Ordinal rank among taxi tariffs (1 = Start ... 5 = Biznes) — a driver may
+  // serve any tariff at or below their Driver.approvedTariffTier. Meaningless
+  // for cargo tariffs (vehicleType set instead), left at the default there.
+  @Column({ name: 'tier', type: 'int', default: 1 })
+  tier: number;
+
+  // Minimum manufacture year a driver's car must meet to be considered for
+  // this tariff, informational only — the actual gate on matching is
+  // Driver.approvedTariffTier, which a manager sets after reviewing the car
+  // (mirrors Yandex Pro's model: public criteria, per-driver manual vetting).
+  @Column({ name: 'min_car_year', type: 'int', nullable: true })
+  minCarYear: number | null;
+
   @CreateDateColumn()
   createdAt: Date;
 }

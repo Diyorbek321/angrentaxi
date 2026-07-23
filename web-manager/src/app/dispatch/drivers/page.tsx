@@ -1,14 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Search, CheckCircle, RefreshCw, Star, Wallet } from 'lucide-react';
+import { Search, CheckCircle, RefreshCw, Star, Wallet, Car } from 'lucide-react';
 import {
   getDriverRoster,
   approveDriverProfile,
   addDriverFunds,
   setDriverCommissionRate,
+  setDriverTariffTier,
   getCurrentUserProfile,
   DriverProfile,
+  TARIFF_TIERS,
 } from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -48,6 +50,10 @@ export default function DriverRosterPage() {
   const [fundsNote, setFundsNote] = useState('');
   const [commissionInput, setCommissionInput] = useState('');
   const [financeSaving, setFinanceSaving] = useState<'funds' | 'commission' | null>(null);
+
+  const [tierTarget, setTierTarget] = useState<DriverProfile | null>(null);
+  const [tierInput, setTierInput] = useState(1);
+  const [tierSaving, setTierSaving] = useState(false);
 
   useEffect(() => {
     getCurrentUserProfile()
@@ -152,6 +158,26 @@ export default function DriverRosterPage() {
     }
   };
 
+  const openTier = (driver: DriverProfile) => {
+    setTierTarget(driver);
+    setTierInput(driver.approvedTariffTier);
+  };
+
+  const handleSetTier = async () => {
+    if (!tierTarget) return;
+    setTierSaving(true);
+    try {
+      const updated = await setDriverTariffTier(tierTarget.id, tierInput);
+      setDrivers((prev) => prev.map((d) => (d.id === updated.id ? { ...d, ...updated } : d)));
+      setTierTarget(null);
+    } catch (err) {
+      console.error('Set tariff tier failed:', err);
+      window.alert('Failed to update tariff tier');
+    } finally {
+      setTierSaving(false);
+    }
+  };
+
   return (
     <div className="h-[calc(100vh-3.5rem)] overflow-y-auto">
       <div className="px-6 py-4 border-b border-white/[0.06] bg-[#0D1526]/50">
@@ -202,6 +228,7 @@ export default function DriverRosterPage() {
                     <tr>
                       <th className="px-4 py-3">Driver</th>
                       <th className="px-4 py-3">Vehicle</th>
+                      <th className="px-4 py-3">Tariff tier</th>
                       <th className="px-4 py-3">Rating</th>
                       <th className="px-4 py-3">Trips</th>
                       <th className="px-4 py-3">Status</th>
@@ -220,6 +247,15 @@ export default function DriverRosterPage() {
                         </td>
                         <td className="px-4 py-3 text-gray-300 text-xs">
                           {driver.carModel} · <span className="font-mono">{driver.carNumber}</span>
+                          {driver.carYear != null && (
+                            <span className="text-gray-500"> · {driver.carYear}</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge variant="default" size="sm">
+                            {TARIFF_TIERS.find((t) => t.tier === driver.approvedTariffTier)?.label ??
+                              driver.approvedTariffTier}
+                          </Badge>
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1 text-yellow-400">
@@ -259,6 +295,14 @@ export default function DriverRosterPage() {
                                 Finance
                               </Button>
                             )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => openTier(driver)}
+                              leftIcon={<Car size={13} />}
+                            >
+                              Tariff
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -346,6 +390,36 @@ export default function DriverRosterPage() {
                 Save
               </Button>
             </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        isOpen={!!tierTarget}
+        onClose={() => setTierTarget(null)}
+        title={tierTarget ? `${tierTarget.firstName} ${tierTarget.lastName} — Tariff tier` : 'Tariff tier'}
+        size="sm"
+      >
+        {tierTarget && (
+          <div className="space-y-4">
+            <p className="text-xs text-gray-400">
+              Highest tariff this driver may be matched against — set after reviewing their car
+              {tierTarget.carYear != null ? ` (${tierTarget.carYear})` : ''}.
+            </p>
+            <Select
+              options={TARIFF_TIERS.map((t) => ({ value: String(t.tier), label: t.label }))}
+              value={String(tierInput)}
+              onChange={(e) => setTierInput(Number(e.target.value))}
+            />
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={handleSetTier}
+              isLoading={tierSaving}
+              className="w-full"
+            >
+              Save
+            </Button>
           </div>
         )}
       </Modal>

@@ -7,6 +7,7 @@ import { DriversModule } from '../drivers/drivers.module';
 import { RealtimeModule } from '../realtime/realtime.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { UsersModule } from '../users/users.module';
+import { TariffsModule } from '../tariffs/tariffs.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { UsersModule } from '../users/users.module';
     RealtimeModule,
     NotificationsModule,
     UsersModule,
+    TariffsModule,
   ],
   providers: [MatchingService],
   exports: [MatchingService],

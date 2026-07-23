@@ -22,6 +22,7 @@ import { UpdateLocationDto } from './dto/update-location.dto';
 import { SetOnlineStatusDto } from './dto/set-online-status.dto';
 import { AddFundsDto } from './dto/add-funds.dto';
 import { SetCommissionRateDto } from './dto/set-commission-rate.dto';
+import { SetTariffTierDto } from './dto/set-tariff-tier.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
@@ -157,6 +158,21 @@ export class DriversController {
     @Body() dto: SetCommissionRateDto,
   ): Promise<Driver> {
     return this.driversService.setCommissionRate(id, dto.commissionRate ?? null);
+  }
+
+  @Patch(':id/tariff-tier')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DRIVERS_APPROVE)
+  @ApiOperation({
+    summary:
+      "Set the highest tariff tier a driver may be matched against, after reviewing their car (admin, or manager with DRIVERS_APPROVE)",
+  })
+  @ApiParam({ name: 'id', description: 'Driver UUID' })
+  async setTariffTier(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SetTariffTierDto,
+  ): Promise<Driver> {
+    return this.driversService.setApprovedTariffTier(id, dto.tier);
   }
 
   @Patch('status')

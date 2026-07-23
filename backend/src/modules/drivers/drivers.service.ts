@@ -92,9 +92,13 @@ export class DriversService {
       carModel: dto.carModel ?? null,
       carNumber: dto.carNumber ?? null,
       licensePlate: dto.licensePlate ?? null,
+      carYear: dto.carYear ?? null,
       rating: 5.0,
       isOnline: false,
       currentLocation: null,
+      // New drivers start on the lowest tariff tier (Start) until a manager
+      // reviews the car and raises it — see setApprovedTariffTier.
+      approvedTariffTier: 1,
     });
 
     // Self-service driver application: promote the account to the driver role
@@ -174,9 +178,23 @@ export class DriversService {
       ...(dto.carModel !== undefined && { carModel: dto.carModel }),
       ...(dto.carNumber !== undefined && { carNumber: dto.carNumber }),
       ...(dto.licensePlate !== undefined && { licensePlate: dto.licensePlate }),
+      ...(dto.carYear !== undefined && { carYear: dto.carYear }),
     };
 
     return this.driverRepository.save(updated);
+  }
+
+  // Manager/admin action: sets the highest Tariff.tier this driver may be
+  // matched against, after reviewing their car (year, photos, condition) —
+  // there's no automatic year-based approval, matching Yandex Pro's
+  // "check with your partner manager" model rather than a hard cutoff.
+  async setApprovedTariffTier(driverId: string, tier: number): Promise<Driver> {
+    const driver = await this.findById(driverId);
+    if (!driver) {
+      throw new NotFoundException('Driver not found');
+    }
+    await this.driverRepository.update(driverId, { approvedTariffTier: tier });
+    return { ...driver, approvedTariffTier: tier };
   }
 
   async updateLocation(userId: string, lat: number, lng: number): Promise<void> {
@@ -239,6 +257,11 @@ export class DriversService {
     lat: number,
     lng: number,
     radiusKm: number = 3,
+    // Order's Tariff.tier, if the caller wants matching restricted to drivers
+    // approved for at least that tier (e.g. a Biznes ride shouldn't offer a
+    // Start-tier driver). Omitted entirely by callers that don't care
+    // (existing manager/dispatch tooling), so this stays opt-in.
+    minTariffTier?: number,
   ): Promise<NearbyDriver[]> {
     try {
       const results = await this.redis.georadius(
@@ -264,15 +287,18 @@ export class DriversService {
         const [driverId, distStr, coords] = result as [string, string, [string, string]];
         const driver = await this.findById(driverId);
 
-        if (driver) {
-          nearbyDrivers.push({
-            driverId: driver.id,
-            userId: driver.userId,
-            distanceKm: parseFloat(distStr),
-            lng: parseFloat(coords[0]),
-            lat: parseFloat(coords[1]),
-          });
+        if (!driver) continue;
+        if (minTariffTier !== undefined && driver.approvedTariffTier < minTariffTier) {
+          continue;
         }
+
+        nearbyDrivers.push({
+          driverId: driver.id,
+          userId: driver.userId,
+          distanceKm: parseFloat(distStr),
+          lng: parseFloat(coords[0]),
+          lat: parseFloat(coords[1]),
+        });
       }
 
       return nearbyDrivers;

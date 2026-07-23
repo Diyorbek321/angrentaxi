@@ -8,6 +8,7 @@ import { DriversService, NearbyDriver } from '../drivers/drivers.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
 import { UsersService } from '../users/users.service';
+import { TariffsService } from '../tariffs/tariffs.service';
 import { REDIS_CLIENT } from '../../config/redis.config';
 
 interface DriverQueue {
@@ -58,6 +59,7 @@ export class MatchingService {
     private readonly realtimeGateway: RealtimeGateway,
     private readonly notificationsService: NotificationsService,
     private readonly usersService: UsersService,
+    private readonly tariffsService: TariffsService,
     @Inject(REDIS_CLIENT)
     private readonly redis: Redis,
   ) {}
@@ -92,8 +94,13 @@ export class MatchingService {
       message: 'Searching for nearby drivers...',
     });
 
+    // Gate matching by the tariff's tier — e.g. a Biznes ride shouldn't be
+    // offered to a driver only approved up to Start. Cargo tariffs/drivers
+    // both default tier/approvedTariffTier to 1, so this is a no-op for them.
+    const tariff = await this.tariffsService.findById(order.tariffId);
+
     // Find nearby drivers (3km radius)
-    const nearbyDrivers = await this.driversService.getNearbyDrivers(lat, lng, 3);
+    const nearbyDrivers = await this.driversService.getNearbyDrivers(lat, lng, 3, tariff.tier);
     const noDriverDeadline = Date.now() + this.NO_DRIVER_TIMEOUT_MS;
 
     if (nearbyDrivers.length === 0) {

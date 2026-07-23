@@ -12,6 +12,7 @@ describe('MatchingService (Redis-backed queue)', () => {
   let realtimeGateway: { emitToUser: jest.Mock };
   let notificationsService: { notifyNewOrderOffer: jest.Mock };
   let usersService: { findById: jest.Mock };
+  let tariffsService: { findById: jest.Mock };
   let redis: {
     store: Map<string, string>;
     activeSet: Set<string>;
@@ -63,6 +64,9 @@ describe('MatchingService (Redis-backed queue)', () => {
     realtimeGateway = { emitToUser: jest.fn() };
     notificationsService = { notifyNewOrderOffer: jest.fn().mockResolvedValue(undefined) };
     usersService = { findById: jest.fn().mockResolvedValue({ id: 'u', fcmToken: null }) };
+    tariffsService = {
+      findById: jest.fn().mockResolvedValue({ id: 'tariff-1', tier: 1 }),
+    };
 
     const store = new Map<string, string>();
     const activeSet = new Set<string>();
@@ -95,6 +99,7 @@ describe('MatchingService (Redis-backed queue)', () => {
       realtimeGateway as never,
       notificationsService as never,
       usersService as never,
+      tariffsService as never,
       redis as never,
     );
   });
@@ -220,6 +225,7 @@ describe('MatchingService (Redis-backed queue)', () => {
         realtimeGateway as never,
         notificationsService as never,
         usersService as never,
+        tariffsService as never,
         redis as never,
       );
       realtimeGateway.emitToUser.mockClear();

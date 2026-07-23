@@ -96,11 +96,13 @@ class _ApplicationForm extends StatefulWidget {
 class _ApplicationFormState extends State<_ApplicationForm> {
   final _carModelController = TextEditingController();
   final _carNumberController = TextEditingController();
+  final _carYearController = TextEditingController();
 
   @override
   void dispose() {
     _carModelController.dispose();
     _carNumberController.dispose();
+    _carYearController.dispose();
     super.dispose();
   }
 
@@ -108,6 +110,7 @@ class _ApplicationFormState extends State<_ApplicationForm> {
     final ok = await driverProvider.applyAsDriver(
       carModel: _carModelController.text.trim(),
       carNumber: _carNumberController.text.trim(),
+      carYear: int.tryParse(_carYearController.text.trim()),
     );
     if (!ok || !mounted) return;
     await widget.onSubmitted();
@@ -154,6 +157,19 @@ class _ApplicationFormState extends State<_ApplicationForm> {
                   hintText: 'Masalan: 01 A 123 BC',
                   prefixIcon: Icon(Icons.pin_outlined),
                   border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _carYearController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Mashina ishlab chiqarilgan yili',
+                  hintText: 'Masalan: 2019',
+                  prefixIcon: Icon(Icons.calendar_today_outlined),
+                  border: OutlineInputBorder(),
+                  helperText:
+                      "Qaysi tarif darajasida ishlay olishingiz shu ma'lumot asosida ko'rib chiqiladi",
                 ),
               ),
               if (driverProvider.state == DriverProviderState.error &&

@@ -29,6 +29,18 @@ export class Driver {
   @Column({ nullable: true, type: 'varchar' })
   licensePlate: string | null;
 
+  // Manufacture year, self-reported at application time — informational
+  // input to the manager's tariff-tier review, not itself enforced anywhere.
+  @Column({ name: 'car_year', type: 'int', nullable: true })
+  carYear: number | null;
+
+  // Highest Tariff.tier this driver may be matched against (1 = Start ...
+  // 5 = Biznes). A manager sets this after reviewing carYear/photos — new
+  // drivers default to 1 (Start only) until vetted higher, mirroring Yandex
+  // Pro's "check with your partner manager" model.
+  @Column({ name: 'approved_tariff_tier', type: 'int', default: 1 })
+  approvedTariffTier: number;
+
   @Column({
     type: 'decimal',
     precision: 3,

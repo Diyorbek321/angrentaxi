@@ -17,6 +17,8 @@ class Driver extends Equatable {
     this.balance = 0,
     this.commissionRate,
     this.userStatus,
+    this.carYear,
+    this.approvedTariffTier = 1,
     String? userId,
   }) : userId = userId ?? id;
 
@@ -34,6 +36,11 @@ class Driver extends Equatable {
   final double? currentLng;
   final double balance;
   final double? commissionRate;
+  // Self-reported at application time; null until the driver enters it.
+  final int? carYear;
+  // Highest Tariff.tier (1 = Start ... 5 = Biznes) this driver may be matched
+  // against — set by a manager after reviewing the car, defaults to 1.
+  final int approvedTariffTier;
   // From the nested `user` object on GET /drivers/me — 'pending' means this
   // driver applied but hasn't been approved by an admin/manager yet.
   final String? userStatus;
@@ -83,6 +90,8 @@ class Driver extends Equatable {
           ? (json['commissionRate'] as num).toDouble()
           : null,
       userStatus: user?['status'] as String?,
+      carYear: json['carYear'] as int?,
+      approvedTariffTier: (json['approvedTariffTier'] as int?) ?? 1,
       userId: (json['userId'] as String?) ?? (user?['id'] as String?),
     );
   }
@@ -103,6 +112,8 @@ class Driver extends Equatable {
         'balance': balance,
         'commissionRate': commissionRate,
         'userStatus': userStatus,
+        'carYear': carYear,
+        'approvedTariffTier': approvedTariffTier,
         'userId': userId,
       };
 
@@ -122,6 +133,8 @@ class Driver extends Equatable {
     double? balance,
     double? commissionRate,
     String? userStatus,
+    int? carYear,
+    int? approvedTariffTier,
     String? userId,
   }) {
     return Driver(
@@ -140,6 +153,8 @@ class Driver extends Equatable {
       balance: balance ?? this.balance,
       commissionRate: commissionRate ?? this.commissionRate,
       userStatus: userStatus ?? this.userStatus,
+      carYear: carYear ?? this.carYear,
+      approvedTariffTier: approvedTariffTier ?? this.approvedTariffTier,
       userId: userId ?? this.userId,
     );
   }
@@ -163,6 +178,8 @@ class Driver extends Equatable {
         balance,
         commissionRate,
         userStatus,
+        carYear,
+        approvedTariffTier,
         userId,
       ];
 }

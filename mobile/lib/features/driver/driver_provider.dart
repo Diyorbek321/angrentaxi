@@ -195,6 +195,7 @@ class DriverProvider extends ChangeNotifier {
     String? carModel,
     String? carNumber,
     String? licensePlate,
+    int? carYear,
   }) async {
     _setState(DriverProviderState.loading);
     try {
@@ -206,6 +207,7 @@ class DriverProvider extends ChangeNotifier {
             'carNumber': carNumber,
           if (licensePlate != null && licensePlate.isNotEmpty)
             'licensePlate': licensePlate,
+          if (carYear != null) 'carYear': carYear,
         },
       );
       _onboardingStatus = DriverOnboardingStatus.pendingApproval;

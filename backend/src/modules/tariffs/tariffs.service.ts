@@ -17,9 +17,12 @@ export class TariffsService {
   ) {}
 
   async findAll(serviceType = 'taxi'): Promise<Tariff[]> {
+    // tier first so taxi tiers display Start -> Biznes regardless of
+    // insertion order; cargo tariffs all share tier's default (1), so they
+    // still fall back to creation order.
     return this.tariffRepository.find({
       where: { isActive: true, serviceType },
-      order: { createdAt: 'ASC' },
+      order: { tier: 'ASC', createdAt: 'ASC' },
     });
   }
 

@@ -442,7 +442,22 @@ export interface DriverProfile {
   // these when that permission is granted (see getCurrentUserProfile).
   balance?: number;
   commissionRate?: number | null;
+  // Self-reported at application time; null until the driver enters it.
+  carYear?: number | null;
+  // Highest Tariff.tier (1 = Start ... 5 = Biznes) this driver may be
+  // matched against — set by a manager/admin after reviewing the car.
+  approvedTariffTier: number;
 }
+
+// Keep in sync with backend Tariff.tier (1-5) and the seed data in
+// 020_tariff_tiers.ts.
+export const TARIFF_TIERS = [
+  { tier: 1, label: 'Start' },
+  { tier: 2, label: 'Standart' },
+  { tier: 3, label: 'Komfort' },
+  { tier: 4, label: "Komfort+" },
+  { tier: 5, label: 'Biznes' },
+] as const;
 
 export async function getDriverRoster(filters: {
   page?: number;
@@ -482,6 +497,16 @@ export async function setDriverCommissionRate(
 ): Promise<DriverProfile> {
   const res = await apiClient.patch<ApiResponse<DriverProfile>>(`/drivers/${id}/commission-rate`, {
     commissionRate,
+  });
+  return res.data.data;
+}
+
+// Requires the drivers_approve permission — same gate as approveDriverProfile,
+// since setting how high a tariff a driver may serve is the same "vet this
+// driver's car" judgment call.
+export async function setDriverTariffTier(id: string, tier: number): Promise<DriverProfile> {
+  const res = await apiClient.patch<ApiResponse<DriverProfile>>(`/drivers/${id}/tariff-tier`, {
+    tier,
   });
   return res.data.data;
 }
