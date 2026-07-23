@@ -106,6 +106,15 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
               );
             });
           }
+          if (orderProvider.noDriversFoundMessage != null) {
+            final message = orderProvider.noDriversFoundMessage!;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              orderProvider.clearNoDriversFoundMessage();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(message), backgroundColor: kError),
+              );
+            });
+          }
           if (orderProvider.hasActiveOrder) {
             return _buildActiveOrderView(orderProvider);
           }

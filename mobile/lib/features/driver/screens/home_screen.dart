@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:angren_taxi/core/config/app_config.dart';
@@ -90,9 +91,56 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
         _locationLoading = false;
       });
       _mapController.move(_currentLocation, 15);
-    } else {
-      if (mounted) setState(() => _locationLoading = false);
+    } else if (mounted) {
+      setState(() => _locationLoading = false);
+      final reason = await locationService.checkUnavailableReason();
+      _showLocationError(reason);
     }
+  }
+
+  // Without this, a permission/GPS failure silently falls back to a hardcoded
+  // Angren-center coordinate with no indication to the driver why the map
+  // shows the wrong place.
+  void _showLocationError(LocationUnavailableReason reason) {
+    if (!mounted) return;
+    final message = switch (reason) {
+      LocationUnavailableReason.serviceDisabled =>
+        "Telefoningizda joylashuv (GPS) o'chirilgan — xarita to'g'ri ishlashi uchun uni yoqing.",
+      LocationUnavailableReason.permissionDenied ||
+      LocationUnavailableReason.permissionDeniedForever =>
+        "Ilova joylashuvga ruxsat olmadi — xaritada aniq joyingizni ko'rish uchun ruxsat bering.",
+      LocationUnavailableReason.timeoutOrError =>
+        "Joylashuvni aniqlab bo'lmadi. Ochiq joyga o'ting yoki qayta urinib ko'ring.",
+    };
+    final actionLabel = switch (reason) {
+      LocationUnavailableReason.serviceDisabled => 'Yoqish',
+      LocationUnavailableReason.permissionDenied ||
+      LocationUnavailableReason.permissionDeniedForever =>
+        'Sozlamalar',
+      LocationUnavailableReason.timeoutOrError => 'Qayta urinish',
+    };
+    final VoidCallback onAction = switch (reason) {
+      LocationUnavailableReason.serviceDisabled => () => Geolocator.openLocationSettings(),
+      LocationUnavailableReason.permissionDenied ||
+      LocationUnavailableReason.permissionDeniedForever =>
+        () => Geolocator.openAppSettings(),
+      LocationUnavailableReason.timeoutOrError => () {
+          setState(() => _locationLoading = true);
+          _initLocation();
+        },
+    };
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.orange.shade800,
+        duration: const Duration(seconds: 8),
+        action: SnackBarAction(
+          label: actionLabel,
+          textColor: Colors.white,
+          onPressed: onAction,
+        ),
+      ),
+    );
   }
 
   @override

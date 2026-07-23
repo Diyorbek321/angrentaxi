@@ -47,6 +47,11 @@ class OrderProvider extends ChangeNotifier {
   String? pendingRatingOrderId;
   String? pendingRatingDriverName;
 
+  // Set when matching.service.ts's handleNoDriversFound auto-cancels the
+  // order — a one-off banner to show, consumed the same way as
+  // pendingRatingOrderId above.
+  String? noDriversFoundMessage;
+
   OrderProviderState get state => _state;
   String? get error => _error;
   Order? get activeOrder => _activeOrder;
@@ -193,13 +198,27 @@ class OrderProvider extends ChangeNotifier {
     _setState(OrderProviderState.loading);
 
     try {
+      // Matches backend's CreateOrderDto (create-order.dto.ts) exactly — it
+      // takes flat pickupLat/pickupLng/pickupAddress (and dropoff* likewise),
+      // not nested pickup/dropoff objects; sending the nested shape gets
+      // rejected with "property pickup should not exist" plus "pickupLat
+      // must be a number" (whitelist validation strips the unknown nested
+      // key, then fails on the now-missing flat ones).
       final response = await _apiClient.post(
         ApiEndpoints.createOrder,
         data: {
-          'pickup': _pendingPickup!.toJson(),
-          'dropoff': _pendingDropoff!.toJson(),
           'tariffId': _selectedTariff!.id,
+          'pickupLat': _pendingPickup!.lat,
+          'pickupLng': _pendingPickup!.lng,
+          'pickupAddress': _pendingPickup!.address,
+          'dropoffLat': _pendingDropoff!.lat,
+          'dropoffLng': _pendingDropoff!.lng,
+          'dropoffAddress': _pendingDropoff!.address,
           'serviceType': _serviceType,
+          if (_pendingWaypoints.isNotEmpty)
+            'waypoints': _pendingWaypoints
+                .map((w) => {'lat': w.lat, 'lng': w.lng, 'address': w.address})
+                .toList(),
           if (_cargoDetails != null) 'details': _cargoDetails,
         },
       );
@@ -235,37 +254,100 @@ class OrderProvider extends ChangeNotifier {
       }
     });
 
-    _socketService.on(SocketEvents.orderStatusUpdate, (data) {
-      if (data is Map && _activeOrder != null) {
-        final status = orderStatusFromString(data['status'] as String? ?? '');
-        _activeOrder = _activeOrder!.copyWith(status: status);
-        notifyListeners();
-
-        if (status == OrderStatus.completed ||
-            status == OrderStatus.cancelled) {
-          _cleanupOrderListeners();
-          if (status == OrderStatus.completed) {
-            // Store info needed for post-trip rating before clearing the order.
-            pendingRatingOrderId = _activeOrder!.id;
-            pendingRatingDriverName = _activeOrder!.driver?.name ?? 'Haydovchi';
-            loadOrderHistory();
-          }
-        }
-      }
-    });
-
-    _socketService.on(SocketEvents.driverAssigned, (data) {
+    // orders.service.ts's 'driver' payload here only carries
+    // id/userId/carModel/carNumber/rating (no name/phone — those are only on
+    // the flat User entity GET /orders/:id returns), so apply it optimistically
+    // for an instant status flip, then refetch to backfill the rest.
+    _socketService.on(SocketEvents.orderAccepted, (data) {
       if (data is Map && _activeOrder != null) {
         final driver = data['driver'];
-        if (driver is Map<String, dynamic>) {
-          _activeOrder = _activeOrder!.copyWith(
-            driver: Driver.fromJson(driver),
-            status: OrderStatus.driverAssigned,
-          );
-          notifyListeners();
-        }
+        _activeOrder = _activeOrder!.copyWith(
+          status: OrderStatus.driverAssigned,
+          driver: driver is Map<String, dynamic>
+              ? Driver.fromJson(driver)
+              : _activeOrder!.driver,
+        );
+        notifyListeners();
+        _refreshActiveOrder();
       }
     });
+
+    _socketService.on(SocketEvents.orderArrived, (data) {
+      if (_activeOrder != null) {
+        _activeOrder = _activeOrder!.copyWith(status: OrderStatus.driverArrived);
+        notifyListeners();
+      }
+    });
+
+    _socketService.on(SocketEvents.orderInProgress, (data) {
+      if (_activeOrder != null) {
+        _activeOrder = _activeOrder!.copyWith(status: OrderStatus.inProgress);
+        notifyListeners();
+      }
+    });
+
+    _socketService.on(SocketEvents.orderCompleted, (data) {
+      if (data is Map && _activeOrder != null) {
+        _activeOrder = _activeOrder!.copyWith(
+          status: OrderStatus.completed,
+          actualPrice: (data['finalPrice'] as num?)?.toDouble(),
+          distanceKm: (data['actualDistanceKm'] as num?)?.toDouble(),
+          durationMin: (data['actualDurationMin'] as num?)?.toInt(),
+        );
+        // Store info needed for post-trip rating before clearing the order.
+        pendingRatingOrderId = _activeOrder!.id;
+        pendingRatingDriverName = _activeOrder!.driver?.name ?? 'Haydovchi';
+        notifyListeners();
+        _cleanupOrderListeners();
+        loadOrderHistory();
+      }
+    });
+
+    _socketService.on(SocketEvents.orderCancelled, (data) {
+      if (_activeOrder != null) {
+        final reason = data is Map ? data['reason'] as String? : null;
+        _activeOrder = _activeOrder!.copyWith(
+          status: OrderStatus.cancelled,
+          cancelReason: reason,
+        );
+        notifyListeners();
+        _cleanupOrderListeners();
+      }
+    });
+
+    // matching.service.ts's handleNoDriversFound already cancels the order
+    // server-side (status -> cancelled) and emits ONLY this event, never
+    // 'order:cancelled' — without this listener the app kept showing
+    // "searching..." forever, and tapping cancel afterward 400'd with
+    // "Cannot cancel order with status cancelled" since it already was.
+    _socketService.on(SocketEvents.noDriversFound, (data) {
+      if (_activeOrder != null) {
+        _activeOrder = _activeOrder!.copyWith(
+          status: OrderStatus.cancelled,
+          cancelReason: "Yaqin atrofda haydovchi topilmadi",
+        );
+        noDriversFoundMessage =
+            "Yaqin atrofda haydovchi topilmadi. Birozdan so'ng qayta urinib ko'ring.";
+        notifyListeners();
+        _cleanupOrderListeners();
+      }
+    });
+  }
+
+  // Socket payloads for order:accepted only carry the driver's
+  // id/carModel/carNumber/rating; re-fetch the full order so name/phone (only
+  // present on GET /orders/:id's flat User-backed driver object) show up too.
+  Future<void> _refreshActiveOrder() async {
+    if (_activeOrder == null) return;
+    try {
+      final response =
+          await _apiClient.get(ApiEndpoints.orderById(_activeOrder!.id));
+      final data = response.data as Map<String, dynamic>;
+      _activeOrder = Order.fromJson(data['data'] as Map<String, dynamic>);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[OrderProvider] _refreshActiveOrder error: $e');
+    }
   }
 
   void _cleanupOrderListeners() {
@@ -273,8 +355,12 @@ class OrderProvider extends ChangeNotifier {
       _socketService.emit(SocketEvents.leaveOrder, {'orderId': _activeOrder!.id});
     }
     _socketService.off(SocketEvents.driverLocationUpdate);
-    _socketService.off(SocketEvents.orderStatusUpdate);
-    _socketService.off(SocketEvents.driverAssigned);
+    _socketService.off(SocketEvents.orderAccepted);
+    _socketService.off(SocketEvents.orderArrived);
+    _socketService.off(SocketEvents.orderInProgress);
+    _socketService.off(SocketEvents.orderCompleted);
+    _socketService.off(SocketEvents.orderCancelled);
+    _socketService.off(SocketEvents.noDriversFound);
     _driverLocation = null;
   }
 
@@ -336,6 +422,11 @@ class OrderProvider extends ChangeNotifier {
   void clearPendingRating() {
     pendingRatingOrderId = null;
     pendingRatingDriverName = null;
+    notifyListeners();
+  }
+
+  void clearNoDriversFoundMessage() {
+    noDriversFoundMessage = null;
     notifyListeners();
   }
 

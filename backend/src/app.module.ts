@@ -170,7 +170,15 @@ import { ReferralsModule } from './modules/referrals/referrals.module';
     ]),
 
     // Feature Modules
+    //
+    // FavoritesModule must come before UsersModule: Nest registers routes in
+    // module-import order, and FavoritesController's literal path
+    // 'users/favorite-addresses' needs to be matched before UsersController's
+    // 'users/:id' wildcard would otherwise swallow it (treating
+    // "favorite-addresses" as the :id param and wrongly enforcing that
+    // route's @Roles(MANAGER, ADMIN) guard on every passenger).
     AuthModule,
+    FavoritesModule,
     UsersModule,
     DriversModule,
     TariffsModule,
@@ -187,7 +195,6 @@ import { ReferralsModule } from './modules/referrals/referrals.module';
     SettingsModule,
     MarketModule,
     FoodModule,
-    FavoritesModule,
     TripChatModule,
     SafetyModule,
     ReferralsModule,

@@ -190,8 +190,7 @@ class DemoEngine {
 
     // Driver found + assigned.
     _schedule(2500, () {
-      _socket.simulateIncoming(SocketEvents.driverAssigned, {'driver': DemoData.driver()});
-      _socket.simulateIncoming(SocketEvents.orderStatusUpdate, {'status': 'driver_en_route'});
+      _socket.simulateIncoming(SocketEvents.orderAccepted, {'driver': DemoData.driver()});
     });
 
     // Driver drives toward the pickup point.
@@ -207,12 +206,12 @@ class DemoEngine {
 
     // Arrived at pickup.
     _schedule(9200, () {
-      _socket.simulateIncoming(SocketEvents.orderStatusUpdate, {'status': 'driver_arrived'});
+      _socket.simulateIncoming(SocketEvents.orderArrived, {'message': 'Your driver has arrived'});
     });
 
     // Trip starts, drive to destination.
     _schedule(12000, () {
-      _socket.simulateIncoming(SocketEvents.orderStatusUpdate, {'status': 'in_progress'});
+      _socket.simulateIncoming(SocketEvents.orderInProgress, {'message': 'Trip started'});
     });
     _animate(
       fromLat: pLat,
@@ -226,7 +225,11 @@ class DemoEngine {
 
     // Completed → triggers rating screen.
     _schedule(19500, () {
-      _socket.simulateIncoming(SocketEvents.orderStatusUpdate, {'status': 'completed'});
+      _socket.simulateIncoming(SocketEvents.orderCompleted, {
+        'finalPrice': order['estimatedPrice'],
+        'actualDistanceKm': 6.4,
+        'actualDurationMin': 17,
+      });
     });
   }
 

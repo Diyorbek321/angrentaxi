@@ -124,13 +124,19 @@ class SocketEvents {
   static const String newOrderOffer = 'new_order_offer';
   static const String orderCancelled = 'order:cancelled';
 
-  // Passenger receives
+  // Passenger receives — these must match the literal strings orders.service.ts
+  // emits via realtimeGateway.emitToUser(passengerId, ...). The backend emits
+  // one distinct event per transition rather than a single generic
+  // 'order:status' event, so each lifecycle step gets its own constant here.
   static const String driverLocationUpdate = 'driver:location';
-  static const String orderStatusUpdate = 'order:status';
-  static const String driverAssigned = 'driver:assigned';
-  static const String driverArrived = 'driver:arrived';
-  static const String tripStarted = 'trip:started';
-  static const String tripCompleted = 'trip:completed';
+  static const String orderAccepted = 'order:accepted';
+  static const String orderArrived = 'order:arrived';
+  static const String orderInProgress = 'order:in_progress';
+  static const String orderCompleted = 'order:completed';
+  // Emitted by matching.service.ts's handleNoDriversFound — a distinct event
+  // from 'order:cancelled' (and the only notification sent) when the order
+  // auto-cancels after the matching retry window finds nobody nearby.
+  static const String noDriversFound = 'no_drivers_found';
 
   // Market (passenger receives)
   static const String marketOrderStatus = 'market:order:status';
