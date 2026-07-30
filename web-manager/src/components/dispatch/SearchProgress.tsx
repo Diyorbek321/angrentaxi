@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { Radar } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useNow } from './useNow';
 
 /**
  * Mirrors the backend's MatchingService.NO_DRIVER_TIMEOUT_MS — how long the
@@ -26,15 +26,9 @@ export function SearchProgress({
   createdAt: string;
   className?: string;
 }) {
-  const [now, setNow] = useState<number | null>(null);
-
-  // Time is read after mount only — Date.now() during render differs between
-  // the server and the client and would trip a hydration mismatch.
-  useEffect(() => {
-    setNow(Date.now());
-    const interval = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(interval);
-  }, []);
+  // Null until mounted — see useNow: Date.now() during render would trip a
+  // hydration mismatch.
+  const now = useNow(1000);
 
   const startedAt = new Date(createdAt).getTime();
   const elapsedMs = now == null ? 0 : Math.max(0, now - startedAt);

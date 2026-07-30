@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Ban, Car, CheckCircle2, Clock, MapPin, Phone, Star, UserCog } from 'lucide-react';
 import { Order, cancelOrder, completeOrder } from '@/lib/api';
 import { OrderStatusBadge } from '@/components/orders/OrderStatusBadge';
@@ -10,6 +10,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { ORDER_STATUS_ACCENT, PAYMENT_METHOD_LABELS } from '@/lib/constants';
 import { formatMoney, formatMoneyApprox, formatPhone, formatRating, formatRelative, shortId } from '@/lib/format';
 import { AUTO_MATCH_WINDOW_MS, SearchProgress } from './SearchProgress';
+import { useNow } from './useNow';
 
 interface OrderCardProps {
   order: Order;
@@ -33,13 +34,7 @@ export function OrderCard({
   const [isCompleting, setIsCompleting] = useState(false);
   // Elapsed time gates the manual override, but Date.now() must not be read
   // during render — it differs between server and client output.
-  const [now, setNow] = useState<number | null>(null);
-
-  useEffect(() => {
-    setNow(Date.now());
-    const interval = setInterval(() => setNow(Date.now()), 5000);
-    return () => clearInterval(interval);
-  }, []);
+  const now = useNow(5000);
 
   // While an order is inside its automatic-matching window, keep the manual
   // override hidden so dispatchers aren't tempted to shortcut the algorithm
