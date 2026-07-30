@@ -1,61 +1,92 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import { RefreshCw, Loader2, List, Map } from 'lucide-react';
-import { useActiveOrders } from '@/hooks/useActiveOrders';
-import { useOnlineDrivers } from '@/hooks/useOnlineDrivers';
+import { List, Loader2, Map as MapIcon, RefreshCw } from 'lucide-react';
+import { clsx } from 'clsx';
 import { useSocket } from '@/hooks/useSocket';
+import { useDispatchData } from '@/components/dispatch/DispatchDataContext';
 import { ActiveOrdersList } from '@/components/dispatch/ActiveOrdersList';
 import { OnlineDriversList } from '@/components/dispatch/OnlineDriversList';
 import { DriverMap } from '@/components/dispatch/DriverMap';
 import { Button } from '@/components/ui/Button';
+import { StatTile } from '@/components/ui/StatTile';
 import { Order } from '@/lib/api';
 
-function StatCard({
-  label,
-  value,
-  color,
+/** Small "the socket is feeding this panel" indicator. */
+function LiveDot({ connected }: { connected: boolean }) {
+  return (
+    <span
+      className={clsx(
+        'flex items-center gap-1.5 text-[11px]',
+        connected ? 'text-primary-700 dark:text-primary-300' : 'text-subtle'
+      )}
+    >
+      <span
+        className={clsx(
+          'h-1.5 w-1.5 rounded-full',
+          connected ? 'bg-primary animate-pulse' : 'bg-line-strong'
+        )}
+      />
+      Jonli
+    </span>
+  );
+}
+
+function PanelHeader({
+  title,
+  count,
+  connected,
+  children,
 }: {
-  label: string;
-  value: number;
-  color: string;
+  title: string;
+  count: number;
+  connected: boolean;
+  children?: React.ReactNode;
 }) {
   return (
-    <div className="glass-card px-4 py-3 flex items-center gap-3">
-      <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${color}`} />
-      <div>
-        <p className="text-xl font-bold text-[#F1F5F9]">{value}</p>
-        <p className="text-xs text-[#94A3B8]">{label}</p>
+    <div className="px-4 py-2.5 border-b border-line bg-surface flex items-center justify-between gap-3 shrink-0">
+      <div className="flex items-center gap-2 min-w-0">
+        <h2 className="text-sm font-semibold text-ink truncate">{title}</h2>
+        <span className="font-mono text-[11px] px-1.5 py-0.5 rounded-full bg-surface-2 text-muted">
+          {count}
+        </span>
+      </div>
+      <div className="flex items-center gap-3 shrink-0">
+        {children}
+        <LiveDot connected={connected} />
       </div>
     </div>
   );
 }
 
 export default function DispatchPage() {
+  // Orders and drivers come from the shell-level provider, so the header
+  // counters and this screen share one set of requests and socket listeners.
   const {
     orders,
-    isLoading: ordersLoading,
-    error: ordersError,
-    refetch: refetchOrders,
-  } = useActiveOrders();
-
-  const {
+    ordersLoading,
+    ordersError,
+    refetchOrders,
     drivers,
-    isLoading: driversLoading,
-    error: driversError,
-    refetch: refetchDrivers,
-  } = useOnlineDrivers();
+    driversLoading,
+    driversError,
+    refetchDrivers,
+  } = useDispatchData();
 
   const { status: socketStatus } = useSocket();
-  const [driversView, setDriversView] = useState<'list' | 'map'>('list');
+  const [driversView, setDriversView] = useState<'map' | 'list'>('map');
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
+  const connected = socketStatus === 'connected';
 
   // Derived stats
-  const searchingCount = orders.filter((o) => o.status === 'searching').length;
-  const acceptedCount = orders.filter(
+  const searchingCount = orders.filter(
+    (o) => o.status === 'searching' || o.status === 'created'
+  ).length;
+  const assignedCount = orders.filter(
     (o) => o.status === 'accepted' || o.status === 'arrived'
   ).length;
   const inProgressCount = orders.filter((o) => o.status === 'in_progress').length;
-  const onlineDriversCount = drivers.length;
   const availableDriversCount = drivers.filter((d) => !d.currentOrderId).length;
 
   const handleOrderUpdated = useCallback((_order: Order) => {
@@ -70,82 +101,41 @@ export default function DispatchPage() {
     await Promise.all([refetchOrders(), refetchDrivers()]);
   };
 
+  const isRefreshing = ordersLoading || driversLoading;
+
   return (
-    <div className="h-[calc(100vh-3.5rem)] flex flex-col">
+    <div className="h-full flex flex-col bg-bg">
       {/* Stats bar */}
-      <div className="border-b border-white/[0.06] bg-[#080D1A] px-4 py-3">
-        <div className="flex items-center justify-between mb-3">
+      <div className="border-b border-line bg-surface px-4 py-3 shrink-0">
+        <div className="flex items-center justify-between gap-3 mb-3">
           <div className="flex items-center gap-2">
-            <h1 className="text-sm font-semibold text-[#F1F5F9]">Live Dispatch</h1>
-            {(ordersLoading || driversLoading) && (
-              <Loader2 size={14} className="text-[#94A3B8] animate-spin" />
-            )}
+            <h1 className="text-base font-bold text-ink">Jonli dispetcher</h1>
+            {isRefreshing && <Loader2 size={14} className="text-muted animate-spin" />}
           </div>
           <Button
-            variant="ghost"
+            variant="secondary"
             size="sm"
             onClick={handleRefreshAll}
             leftIcon={<RefreshCw size={13} />}
           >
-            Refresh
+            Yangilash
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-          <StatCard
-            label="Searching"
-            value={searchingCount}
-            color="bg-blue-400"
-          />
-          <StatCard
-            label="Accepted"
-            value={acceptedCount}
-            color="bg-[#10B981]"
-          />
-          <StatCard
-            label="In Progress"
-            value={inProgressCount}
-            color="bg-orange-400"
-          />
-          <StatCard
-            label="Online Drivers"
-            value={onlineDriversCount}
-            color="bg-[#FACC15]"
-          />
-          <StatCard
-            label="Available"
-            value={availableDriversCount}
-            color="bg-emerald-400"
-          />
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2">
+          <StatTile label="Qidirilmoqda" value={searchingCount} tone="override" live={searchingCount > 0} />
+          <StatTile label="Tayinlangan" value={assignedCount} tone="info" />
+          <StatTile label="Yoʻlda" value={inProgressCount} tone="mint" />
+          <StatTile label="Onlayn haydovchilar" value={drivers.length} tone="neutral" />
+          <StatTile label="Boʻsh haydovchilar" value={availableDriversCount} tone="mint" />
         </div>
       </div>
 
-      {/* Two-panel layout — stacks vertically below lg, side-by-side above it */}
-      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
-        {/* Left: Active orders (40% on large screens, half-height when stacked) */}
-        <div className="flex-1 lg:flex-none lg:w-[40%] min-h-0 border-b lg:border-b-0 lg:border-r border-white/[0.06] flex flex-col overflow-hidden">
-          <div className="px-4 py-3 border-b border-white/[0.06] bg-[#0D1526]/50 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-semibold text-[#F1F5F9]">Active Orders</h2>
-              <span className="bg-white/10 text-[#94A3B8] text-xs px-2 py-0.5 rounded-full">
-                {orders.length}
-              </span>
-            </div>
-            <div
-              className={`flex items-center gap-1.5 text-xs ${
-                socketStatus === 'connected' ? 'text-[#10B981]' : 'text-[#94A3B8]/40'
-              }`}
-            >
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${
-                  socketStatus === 'connected'
-                    ? 'bg-[#10B981] animate-pulse'
-                    : 'bg-[#94A3B8]/40'
-                }`}
-              />
-              Live
-            </div>
-          </div>
+      {/* Two-panel layout — stacks vertically below xl, side-by-side above */}
+      <div className="flex flex-col xl:flex-row flex-1 min-h-0">
+        {/* Left: order flow */}
+        <section className="flex-1 xl:flex-none xl:w-[40%] min-h-0 border-b xl:border-b-0 xl:border-r border-line flex flex-col overflow-hidden">
+          <PanelHeader title="Aktiv buyurtmalar" count={orders.length} connected={connected} />
           <div className="flex-1 overflow-y-auto p-3">
             <ActiveOrdersList
               orders={orders}
@@ -155,61 +145,50 @@ export default function DispatchPage() {
               onOrderUpdated={handleOrderUpdated}
               onOrderCancelled={handleOrderCancelled}
               drivers={drivers}
+              selectedOrderId={selectedOrder?.id ?? null}
+              onSelectOrder={setSelectedOrder}
             />
           </div>
-        </div>
+        </section>
 
-        {/* Right: Online drivers (60% on large screens, half-height when stacked) */}
-        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-          <div className="px-4 py-3 border-b border-white/[0.06] bg-[#0D1526]/50 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-semibold text-[#F1F5F9]">Online Drivers</h2>
-              <span className="bg-white/10 text-[#94A3B8] text-xs px-2 py-0.5 rounded-full">
-                {drivers.length}
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center rounded-md border border-white/10 p-0.5">
-                <button
-                  onClick={() => setDriversView('list')}
-                  className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors ${
-                    driversView === 'list'
-                      ? 'bg-white/10 text-[#F1F5F9]'
-                      : 'text-[#94A3B8] hover:text-[#F1F5F9]'
-                  }`}
-                >
-                  <List size={12} />
-                  Ro&apos;yxat
-                </button>
-                <button
-                  onClick={() => setDriversView('map')}
-                  className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors ${
-                    driversView === 'map'
-                      ? 'bg-white/10 text-[#F1F5F9]'
-                      : 'text-[#94A3B8] hover:text-[#F1F5F9]'
-                  }`}
-                >
-                  <Map size={12} />
-                  Xarita
-                </button>
-              </div>
-              <div
-                className={`flex items-center gap-1.5 text-xs ${
-                  socketStatus === 'connected' ? 'text-[#10B981]' : 'text-[#94A3B8]/40'
-                }`}
+        {/* Right: live map */}
+        <section className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <PanelHeader title="Onlayn haydovchilar" count={drivers.length} connected={connected}>
+            <div className="flex items-center rounded-lg border border-line p-0.5">
+              <button
+                type="button"
+                onClick={() => setDriversView('map')}
+                className={clsx(
+                  'flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors',
+                  driversView === 'map'
+                    ? 'bg-surface-2 text-ink font-medium'
+                    : 'text-muted hover:text-ink'
+                )}
               >
-                <span
-                  className={`h-1.5 w-1.5 rounded-full ${
-                    socketStatus === 'connected'
-                      ? 'bg-[#10B981] animate-pulse'
-                      : 'bg-[#94A3B8]/40'
-                  }`}
-                />
-                Live
-              </div>
+                <MapIcon size={12} />
+                Xarita
+              </button>
+              <button
+                type="button"
+                onClick={() => setDriversView('list')}
+                className={clsx(
+                  'flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors',
+                  driversView === 'list'
+                    ? 'bg-surface-2 text-ink font-medium'
+                    : 'text-muted hover:text-ink'
+                )}
+              >
+                <List size={12} />
+                Roʻyxat
+              </button>
             </div>
-          </div>
-          <div className={driversView === 'list' ? 'flex-1 overflow-y-auto p-3' : 'flex-1 overflow-hidden'}>
+          </PanelHeader>
+
+          <div
+            className={
+              driversView === 'list' ? 'flex-1 overflow-y-auto p-3' : 'flex-1 overflow-hidden'
+            }
+          >
             {driversView === 'list' ? (
               <OnlineDriversList
                 drivers={drivers}
@@ -217,11 +196,20 @@ export default function DispatchPage() {
                 error={driversError}
                 onRefetch={refetchDrivers}
               />
+            ) : driversError ? (
+              <div className="h-full flex items-center justify-center p-6">
+                <p className="text-sm text-danger">{driversError}</p>
+              </div>
             ) : (
-              <DriverMap drivers={drivers} isLoading={driversLoading} />
+              <DriverMap
+                drivers={drivers}
+                isLoading={driversLoading}
+                selectedOrder={selectedOrder}
+                onClearSelection={() => setSelectedOrder(null)}
+              />
             )}
           </div>
-        </div>
+        </section>
       </div>
     </div>
   );
