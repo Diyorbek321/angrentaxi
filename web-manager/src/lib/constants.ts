@@ -26,30 +26,44 @@ export const PAYMENT_METHOD = {
 
 export type PaymentMethod = (typeof PAYMENT_METHOD)[keyof typeof PAYMENT_METHOD];
 
+// Every user-facing status string lives here. Pages must read from these
+// maps rather than writing their own Uzbek text, so a wording change is a
+// one-line edit and the panel never drifts out of sync with itself.
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  created: 'Created',
-  searching: 'Searching',
-  accepted: 'Accepted',
-  arrived: 'Arrived',
-  in_progress: 'In Progress',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
+  created: 'Yaratildi',
+  searching: 'Qidirilmoqda',
+  accepted: 'Qabul qilindi',
+  arrived: 'Yetib keldi',
+  in_progress: 'Yoʻlda',
+  completed: 'Yakunlandi',
+  cancelled: 'Bekor qilindi',
 };
 
-export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
-  created: 'bg-gray-600 text-gray-100',
-  searching: 'bg-blue-600 text-blue-100',
-  accepted: 'bg-green-600 text-green-100',
-  arrived: 'bg-yellow-600 text-yellow-100',
-  in_progress: 'bg-orange-600 text-orange-100',
-  completed: 'bg-emerald-600 text-emerald-100',
-  cancelled: 'bg-red-600 text-red-100',
+/**
+ * Status accent colour — the thin bar on order cards and the dot in legends.
+ * Mint shades mean the automatic flow is progressing; amber marks the one
+ * status a dispatcher may need to act on (search still running).
+ */
+export const ORDER_STATUS_ACCENT: Record<OrderStatus, string> = {
+  created: 'bg-line-strong',
+  searching: 'bg-override',
+  accepted: 'bg-info',
+  arrived: 'bg-primary-300',
+  in_progress: 'bg-primary',
+  completed: 'bg-primary-700',
+  cancelled: 'bg-danger',
+};
+
+export const DRIVER_STATUS_LABELS: Record<DriverStatus, string> = {
+  online: 'Boʻsh',
+  busy: 'Band',
+  offline: 'Oflayn',
 };
 
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  cash: 'Cash',
-  card: 'Card',
-  wallet: 'Wallet',
+  cash: 'Naqd',
+  card: 'Karta',
+  wallet: 'Hamyon',
 };
 
 export const ACTIVE_ORDER_STATUSES: OrderStatus[] = [
