@@ -1,15 +1,54 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { RefreshCw, ShieldAlert, ShieldQuestion } from 'lucide-react';
+import { CheckCircle2, RefreshCw, ShieldAlert, Timer, UserCog } from 'lucide-react';
 import { getDispatchOverrides, getSosTodaySummary, DispatchOverride } from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { formatTime, shortId } from '@/lib/format';
+
+function SummaryCard({
+  icon,
+  label,
+  value,
+  hint,
+  tone = 'neutral',
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  hint: string;
+  tone?: 'neutral' | 'override' | 'danger';
+}) {
+  const toneClass =
+    tone === 'override'
+      ? 'text-override-dark dark:text-override-light'
+      : tone === 'danger'
+      ? 'text-danger'
+      : 'text-ink';
+
+  return (
+    <Card className="p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <span className={toneClass}>{icon}</span>
+        <span className="text-xs text-muted">{label}</span>
+      </div>
+      <p className={`font-mono text-2xl font-bold tabular-nums ${toneClass}`}>{value}</p>
+      <p className="text-xs text-subtle mt-1 leading-snug">{hint}</p>
+    </Card>
+  );
+}
 
 export default function ShiftReportPage() {
   const [overrides, setOverrides] = useState<DispatchOverride[]>([]);
   const [sos, setSos] = useState<{ resolvedToday: number; stillOpen: number } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -20,8 +59,10 @@ export default function ShiftReportPage() {
       ]);
       setOverrides(overridesResult.overrides);
       setSos(sosResult);
+      setError(null);
     } catch (err) {
       console.error('Failed to load shift report:', err);
+      setError('Smena hisobotini yuklab boʻlmadi.');
     } finally {
       setIsLoading(false);
     }
@@ -36,82 +77,111 @@ export default function ShiftReportPage() {
   const overridesToday = overrides.filter((o) => new Date(o.createdAt) >= startOfToday);
 
   return (
-    <div className="h-[calc(100vh-3.5rem)] overflow-y-auto">
-      <div className="px-6 py-4 border-b border-white/[0.06] bg-[#0D1526]/50 flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold text-[#F1F5F9]">Shift Report</h1>
-          <p className="text-sm text-[#94A3B8] mt-0.5">Today&apos;s exception-handling activity</p>
-        </div>
-        <Button variant="ghost" size="sm" onClick={fetchData} leftIcon={<RefreshCw size={13} />}>
-          Refresh
-        </Button>
-      </div>
+    <div className="h-full overflow-y-auto">
+      <div className="px-5 py-4 max-w-5xl mx-auto">
+        <PageHeader
+          title="Smena hisoboti"
+          description="Bugun operator hal qilgan istisnolar"
+          icon={<Timer size={17} />}
+          actions={
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={fetchData}
+              leftIcon={<RefreshCw size={13} />}
+            >
+              Yangilash
+            </Button>
+          }
+        />
 
-      <div className="p-6 space-y-6">
-        {isLoading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-24 bg-gray-800 rounded-xl animate-pulse" />
-            ))}
-          </div>
+        {error ? (
+          <ErrorState message={error} onRetry={fetchData} />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card className="p-4">
-              <div className="flex items-center gap-2 text-amber-400 mb-2">
-                <ShieldQuestion size={16} />
-                <span className="text-xs text-gray-500">Manual overrides today</span>
+          <div className="space-y-6">
+            {isLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-[116px] rounded-xl" />
+                ))}
               </div>
-              <p className="text-2xl font-bold text-gray-100">{overridesToday.length}</p>
-              <p className="text-xs text-gray-500 mt-1">
-                {overridesToday.length > 5
-                  ? 'Higher than usual — worth a quick review'
-                  : 'Every one is reason-logged in the audit trail'}
-              </p>
-            </Card>
-            <Card className="p-4">
-              <div className="flex items-center gap-2 text-red-400 mb-2">
-                <ShieldAlert size={16} />
-                <span className="text-xs text-gray-500">SOS resolved today</span>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <SummaryCard
+                  icon={<UserCog size={16} />}
+                  label="Bugungi qoʻlda aralashuvlar"
+                  value={overridesToday.length}
+                  tone="override"
+                  hint={
+                    overridesToday.length > 5
+                      ? 'Odatdagidan koʻp — sabablarini koʻrib chiqing'
+                      : 'Har biri sababi bilan amallar tarixiga yozilgan'
+                  }
+                />
+                <SummaryCard
+                  icon={<ShieldAlert size={16} />}
+                  label="Bugun yopilgan SOS"
+                  value={sos?.resolvedToday ?? 0}
+                  tone="danger"
+                  hint={
+                    sos && sos.stillOpen > 0
+                      ? `${sos.stillOpen} tasi hali ochiq`
+                      : 'Ochiq signal qolmadi'
+                  }
+                />
+                <SummaryCard
+                  icon={<CheckCircle2 size={16} />}
+                  label="Bugungi jami istisnolar"
+                  value={overridesToday.length + (sos?.resolvedToday ?? 0)}
+                  hint="Aralashuvlar + yopilgan SOS signallari"
+                />
               </div>
-              <p className="text-2xl font-bold text-gray-100">{sos?.resolvedToday ?? 0}</p>
-              <p className="text-xs text-gray-500 mt-1">
-                {sos && sos.stillOpen > 0 ? `${sos.stillOpen} still open` : 'None currently open'}
-              </p>
-            </Card>
-            <Card className="p-4">
-              <div className="flex items-center gap-2 text-gray-400 mb-2">
-                <span className="text-xs text-gray-500">Total exceptions today</span>
+            )}
+
+            <Card padding="none" className="overflow-hidden">
+              <div className="px-4 py-3 border-b border-line">
+                <h2 className="text-sm font-semibold text-ink">Bugungi aralashuvlar</h2>
               </div>
-              <p className="text-2xl font-bold text-gray-100">
-                {overridesToday.length + (sos?.resolvedToday ?? 0)}
-              </p>
-              <p className="text-xs text-gray-500 mt-1">Overrides + resolved SOS alerts</p>
+
+              {isLoading ? (
+                <div className="p-4 space-y-2">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-12" />
+                  ))}
+                </div>
+              ) : overridesToday.length === 0 ? (
+                <EmptyState
+                  compact
+                  tone="positive"
+                  icon={<CheckCircle2 size={20} />}
+                  title="Bugun qoʻlda aralashuv boʻlmadi"
+                  description="Tizim barcha buyurtmalarni oʻzi taqsimladi."
+                />
+              ) : (
+                <div className="divide-y divide-line">
+                  {overridesToday.map((o) => (
+                    <div key={o.id} className="px-4 py-3 flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs text-muted">
+                            {shortId(o.orderId)}
+                          </span>
+                          <Badge variant="override" size="sm">
+                            Aralashuv
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-ink mt-1 break-words">{o.reason}</p>
+                      </div>
+                      <span className="font-mono text-xs text-subtle shrink-0">
+                        {formatTime(o.createdAt)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </Card>
           </div>
         )}
-
-        <Card padding="none">
-          <div className="px-4 py-3 border-b border-gray-700">
-            <h2 className="text-sm font-semibold text-gray-100">Today&apos;s overrides</h2>
-          </div>
-          {overridesToday.length === 0 ? (
-            <div className="py-12 text-center text-gray-500 text-sm">No manual overrides yet today</div>
-          ) : (
-            <div className="divide-y divide-gray-700">
-              {overridesToday.map((o) => (
-                <div key={o.id} className="px-4 py-3 flex items-center justify-between text-sm">
-                  <div>
-                    <span className="font-mono text-xs text-gray-400">#{o.orderId.slice(-6).toUpperCase()}</span>
-                    <p className="text-gray-300 mt-0.5">{o.reason}</p>
-                  </div>
-                  <span className="text-xs text-gray-500">
-                    {new Date(o.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
       </div>
     </div>
   );
