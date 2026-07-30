@@ -1,128 +1,157 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { format } from 'date-fns';
-import { ChevronLeft, ChevronRight, Eye } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, Inbox } from 'lucide-react';
 import { Order, PaginatedResponse } from '@/lib/api';
 import { PAYMENT_METHOD_LABELS } from '@/lib/constants';
 import { OrderStatusBadge } from './OrderStatusBadge';
 import { Button } from '@/components/ui/Button';
+import { Avatar } from '@/components/ui/Avatar';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { SkeletonTable } from '@/components/ui/Skeleton';
+import { formatDateTime, formatMoney, formatMoneyApprox, formatPhone, shortId } from '@/lib/format';
 
 interface OrdersTableProps {
   data: PaginatedResponse<Order>;
   currentPage: number;
   onPageChange: (page: number) => void;
   isLoading?: boolean;
+  /** Shown in the empty state when filters are active. */
+  hasFilters?: boolean;
+  onClearFilters?: () => void;
 }
+
+const HEADERS = [
+  'Buyurtma',
+  'Mijoz',
+  'Olib ketish',
+  'Tashlab ketish',
+  'Status',
+  'Haydovchi',
+  'Toʻlov',
+  'Narx',
+  'Sana',
+  '',
+];
 
 export function OrdersTable({
   data,
   currentPage,
   onPageChange,
   isLoading = false,
+  hasFilters = false,
+  onClearFilters,
 }: OrdersTableProps) {
   const router = useRouter();
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-48 text-gray-400">
-        <svg className="animate-spin h-6 w-6 mr-2" viewBox="0 0 24 24" fill="none">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-        </svg>
-        Loading orders...
-      </div>
-    );
+    return <SkeletonTable rows={8} cols={6} />;
   }
 
   if (data.data.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-48 text-gray-400">
-        <p className="text-sm">No orders found</p>
-      </div>
+      <EmptyState
+        icon={<Inbox size={22} />}
+        title={hasFilters ? 'Filtrga mos buyurtma topilmadi' : 'Buyurtmalar yoʻq'}
+        description={
+          hasFilters
+            ? 'Qidiruv soʻzini yoki status filtrini oʻzgartirib koʻring.'
+            : 'Yangi buyurtmalar shu roʻyxatda paydo boʻladi.'
+        }
+        action={
+          hasFilters && onClearFilters ? (
+            <Button variant="secondary" size="sm" onClick={onClearFilters}>
+              Filtrlarni tozalash
+            </Button>
+          ) : undefined
+        }
+      />
     );
   }
 
+  const from = (currentPage - 1) * data.limit + 1;
+  const to = Math.min(currentPage * data.limit, data.total);
+
   return (
     <div className="flex flex-col gap-4">
-      <div className="overflow-x-auto rounded-lg border border-gray-700">
+      <div className="overflow-x-auto rounded-xl border border-line bg-surface">
         <table className="w-full text-sm text-left">
-          <thead className="bg-gray-800 text-gray-400 uppercase text-xs">
+          <thead className="bg-surface-2 text-subtle uppercase text-[10px] tracking-wider">
             <tr>
-              <th className="px-4 py-3">Order ID</th>
-              <th className="px-4 py-3">Passenger</th>
-              <th className="px-4 py-3">Pickup</th>
-              <th className="px-4 py-3">Dropoff</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Driver</th>
-              <th className="px-4 py-3">Payment</th>
-              <th className="px-4 py-3">Price</th>
-              <th className="px-4 py-3">Date</th>
-              <th className="px-4 py-3">Actions</th>
+              {HEADERS.map((h, i) => (
+                <th key={i} className="px-4 py-3 font-semibold whitespace-nowrap">
+                  {h}
+                </th>
+              ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-700">
+          <tbody className="divide-y divide-line">
             {data.data.map((order) => (
               <tr
                 key={order.id}
-                className="bg-gray-900 hover:bg-gray-800 transition-colors"
+                onClick={() => router.push(`/orders/${order.id}`)}
+                className="hover:bg-surface-2/70 transition-colors cursor-pointer"
               >
-                <td className="px-4 py-3 font-mono text-xs text-gray-400">
-                  #{order.id.slice(-6).toUpperCase()}
+                <td className="px-4 py-3 font-mono text-xs font-semibold text-muted whitespace-nowrap">
+                  {shortId(order.id)}
                 </td>
                 <td className="px-4 py-3">
-                  <div>
-                    <p className="text-gray-100 font-medium">{order.passenger.name}</p>
-                    <p className="text-gray-500 text-xs">{order.passenger.phone}</p>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Avatar name={order.passenger?.name} size="xs" tone="muted" />
+                    <div className="min-w-0">
+                      <p className="text-ink font-medium truncate">
+                        {order.passenger?.name ?? '—'}
+                      </p>
+                      <p className="text-subtle text-[11px] font-mono">
+                        {formatPhone(order.passenger?.phone)}
+                      </p>
+                    </div>
                   </div>
                 </td>
-                <td className="px-4 py-3 max-w-[150px]">
-                  <p className="text-gray-300 truncate text-xs">
-                    {order.pickupAddress ?? '—'}
-                  </p>
+                <td className="px-4 py-3 max-w-[170px]">
+                  <p className="text-muted truncate text-xs">{order.pickupAddress ?? '—'}</p>
                 </td>
-                <td className="px-4 py-3 max-w-[150px]">
-                  <p className="text-gray-300 truncate text-xs">
-                    {order.dropoffAddress ?? '—'}
-                  </p>
+                <td className="px-4 py-3 max-w-[170px]">
+                  <p className="text-muted truncate text-xs">{order.dropoffAddress ?? '—'}</p>
                 </td>
                 <td className="px-4 py-3">
-                  <OrderStatusBadge status={order.status} size="sm" />
+                  <OrderStatusBadge status={order.status} size="sm" dot />
                 </td>
                 <td className="px-4 py-3">
                   {order.driver ? (
-                    <div>
-                      <p className="text-gray-200 text-xs font-medium">
-                        {order.driver.name}
-                      </p>
-                      <p className="text-gray-500 text-xs">{order.driver.carNumber}</p>
+                    <div className="min-w-0">
+                      <p className="text-ink text-xs font-medium truncate">{order.driver.name}</p>
+                      <p className="text-subtle text-[11px] font-mono">{order.driver.carNumber}</p>
                     </div>
                   ) : (
-                    <span className="text-gray-600 text-xs">—</span>
+                    <span className="text-subtle text-xs">—</span>
                   )}
                 </td>
-                <td className="px-4 py-3 text-gray-400 text-xs">
+                <td className="px-4 py-3 text-muted text-xs whitespace-nowrap">
                   {PAYMENT_METHOD_LABELS[order.paymentMethod]}
                 </td>
-                <td className="px-4 py-3 text-gray-200 text-xs font-medium">
+                <td className="px-4 py-3 text-ink text-xs font-mono font-medium whitespace-nowrap">
                   {order.finalPrice != null
-                    ? `${order.finalPrice.toLocaleString()} UZS`
+                    ? formatMoney(order.finalPrice)
                     : order.estimatedPrice > 0
-                    ? `~${order.estimatedPrice.toLocaleString()} UZS`
+                    ? formatMoneyApprox(order.estimatedPrice)
                     : '—'}
                 </td>
-                <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
-                  {format(new Date(order.createdAt), 'dd MMM, HH:mm')}
+                <td className="px-4 py-3 text-muted text-xs whitespace-nowrap">
+                  {formatDateTime(order.createdAt)}
                 </td>
                 <td className="px-4 py-3">
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => router.push(`/orders/${order.id}`)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/orders/${order.id}`);
+                    }}
                     leftIcon={<Eye size={14} />}
+                    aria-label="Buyurtmani koʻrish"
                   >
-                    View
+                    <span className="hidden lg:inline">Koʻrish</span>
                   </Button>
                 </td>
               </tr>
@@ -131,33 +160,34 @@ export function OrdersTable({
         </table>
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between text-sm text-gray-400">
-        <p>
-          Showing {(currentPage - 1) * data.limit + 1}–
-          {Math.min(currentPage * data.limit, data.total)} of {data.total} orders
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
+        <p className="text-xs">
+          <span className="font-mono">
+            {from}–{to}
+          </span>{' '}
+          / jami <span className="font-mono">{data.total}</span> buyurtma
         </p>
         <div className="flex items-center gap-2">
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage <= 1}
             leftIcon={<ChevronLeft size={14} />}
           >
-            Prev
+            Oldingi
           </Button>
-          <span className="px-3 py-1.5 text-xs bg-gray-800 border border-gray-700 rounded-md text-gray-300">
-            {currentPage} / {data.totalPages}
+          <span className="px-3 py-1.5 text-xs font-mono bg-surface-2 border border-line rounded-lg text-muted">
+            {currentPage} / {Math.max(1, data.totalPages)}
           </span>
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage >= data.totalPages}
             rightIcon={<ChevronRight size={14} />}
           >
-            Next
+            Keyingi
           </Button>
         </div>
       </div>
