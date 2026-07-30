@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import localFont from 'next/font/local';
 import './globals.css';
+import { THEME_INIT_SCRIPT } from '@/lib/theme';
 
 // Self-hosted (not next/font/google) so the build never depends on a live
 // fetch to Google's font CDN at build time.
@@ -27,8 +28,8 @@ const jetbrainsMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: 'Angren Taxi — Dispatcher Panel',
-  description: 'Real-time order management and dispatch for Angren Taxi',
+  title: 'Angren Taxi — Dispetcher paneli',
+  description: 'Angren Taxi uchun jonli buyurtma boshqaruvi va dispetcher paneli',
 };
 
 export default function RootLayout({
@@ -37,8 +38,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`dark ${manrope.variable} ${jetbrainsMono.variable}`}>
-      <body className="font-sans antialiased">
+    // suppressHydrationWarning: the inline script below adds/removes the
+    // `dark` class before hydration, so the server HTML and the DOM React
+    // sees differ by design on this one element.
+    <html
+      lang="uz"
+      suppressHydrationWarning
+      className={`${manrope.variable} ${jetbrainsMono.variable}`}
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
+      <body className="font-sans antialiased bg-bg text-ink">
         {children}
       </body>
     </html>
