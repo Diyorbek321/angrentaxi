@@ -49,3 +49,6 @@ Thumbs.db
 # ===== Internal / sales docs =====
 Sotuv skript.docx
 *.odt
+
+# ===== Build artifacts (distribute via GitHub Releases, not git) =====
+apk/*.apk
