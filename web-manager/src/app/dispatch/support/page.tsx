@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { Send, MessageCircle } from 'lucide-react';
+import { MessageCircle, Send } from 'lucide-react';
+import { clsx } from 'clsx';
 import {
   getSupportMessages,
   sendSupportMessage,
@@ -13,18 +14,22 @@ import {
 import { getSocket, SOCKET_EVENTS } from '@/lib/socket';
 import { getAuthToken } from '@/lib/auth';
 import { useSupportThreads } from '@/hooks/useSupportThreads';
-import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-
-function formatTime(iso: string | null): string {
-  if (!iso) return '';
-  return new Date(iso).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
-}
+import { Avatar } from '@/components/ui/Avatar';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { formatPhone, formatTime } from '@/lib/format';
 
 export default function SupportPage() {
-  const { threads, isLoading: threadsLoading, refetch: refetchThreads } = useSupportThreads();
+  const {
+    threads,
+    isLoading: threadsLoading,
+    error: threadsError,
+    refetch: refetchThreads,
+  } = useSupportThreads();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
@@ -32,6 +37,7 @@ export default function SupportPage() {
   const [sending, setSending] = useState(false);
   const selectedIdRef = useRef<string | null>(null);
   selectedIdRef.current = selectedId;
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   const selectedThread: SupportThreadListItem | undefined = threads.find(
     (t) => t.id === selectedId
@@ -79,6 +85,11 @@ export default function SupportPage() {
     };
   }, []);
 
+  // Keep the newest message in view as the conversation grows.
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ block: 'end' });
+  }, [messages]);
+
   const handleSend = async () => {
     if (!selectedId || !draft.trim()) return;
     setSending(true);
@@ -101,68 +112,96 @@ export default function SupportPage() {
   };
 
   return (
-    <div className="h-full flex">
+    <div className="h-full flex bg-bg">
       {/* Thread list */}
-      <div className="w-80 shrink-0 border-r border-white/[0.08] overflow-y-auto p-4 space-y-2">
-        <h2 className="text-sm font-semibold text-[#F1F5F9] mb-2">Yordam chatlari</h2>
-        {threadsLoading ? (
-          <p className="text-sm text-[#94A3B8]">Yuklanmoqda...</p>
-        ) : threads.length === 0 ? (
-          <p className="text-sm text-[#94A3B8]">Hozircha chatlar yo&apos;q</p>
-        ) : (
-          threads.map((thread) => (
-            <button
-              key={thread.id}
-              onClick={() => selectThread(thread.id)}
-              className={`w-full text-left rounded-lg border px-3 py-2.5 transition-colors ${
-                thread.id === selectedId
-                  ? 'border-[#FACC15]/30 bg-[#FACC15]/10'
-                  : 'border-white/[0.08] hover:bg-white/5'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-[#F1F5F9] truncate">
-                  {thread.userName}
-                </span>
-                {thread.unreadCount > 0 && (
-                  <Badge variant="info" size="sm">
-                    {thread.unreadCount}
-                  </Badge>
+      <aside className="w-72 lg:w-80 shrink-0 border-r border-line bg-surface flex flex-col">
+        <div className="px-4 py-3 border-b border-line shrink-0">
+          <h2 className="text-sm font-semibold text-ink">Qoʻllab-quvvatlash</h2>
+          <p className="text-xs text-muted mt-0.5">Mijoz va haydovchi murojaatlari</p>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          {threadsError ? (
+            <ErrorState compact message={threadsError} onRetry={refetchThreads} />
+          ) : threadsLoading ? (
+            Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)
+          ) : threads.length === 0 ? (
+            <EmptyState
+              compact
+              tone="positive"
+              icon={<MessageCircle size={20} />}
+              title="Murojaat yoʻq"
+              description="Yangi murojaat kelsa shu yerda koʻrinadi."
+            />
+          ) : (
+            threads.map((thread) => (
+              <button
+                key={thread.id}
+                onClick={() => selectThread(thread.id)}
+                className={clsx(
+                  'w-full text-left rounded-xl border px-3 py-2.5 transition-colors',
+                  thread.id === selectedId
+                    ? 'border-primary bg-primary/[0.08]'
+                    : 'border-line hover:bg-surface-2'
                 )}
-              </div>
-              <div className="flex items-center justify-between mt-1">
-                <span className="text-xs text-[#94A3B8]">{thread.userPhone}</span>
-                <span className="text-xs text-[#94A3B8]/70">{formatTime(thread.lastMessageAt)}</span>
-              </div>
-              <Badge variant={thread.status === 'open' ? 'success' : 'default'} size="sm">
-                {thread.status === 'open' ? 'Ochiq' : 'Yopiq'}
-              </Badge>
-            </button>
-          ))
-        )}
-      </div>
+              >
+                <div className="flex items-center gap-2">
+                  <Avatar name={thread.userName} size="xs" tone="muted" />
+                  <span className="text-sm font-medium text-ink truncate">{thread.userName}</span>
+                  {thread.unreadCount > 0 && (
+                    <Badge variant="danger" size="sm" className="ml-auto shrink-0">
+                      {thread.unreadCount}
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center justify-between gap-2 mt-1.5">
+                  <span className="text-[11px] font-mono text-muted truncate">
+                    {formatPhone(thread.userPhone)}
+                  </span>
+                  <span className="text-[11px] text-subtle shrink-0">
+                    {thread.lastMessageAt ? formatTime(thread.lastMessageAt) : ''}
+                  </span>
+                </div>
+                <Badge
+                  variant={thread.status === 'open' ? 'mint-soft' : 'default'}
+                  size="sm"
+                  className="mt-1.5"
+                >
+                  {thread.status === 'open' ? 'Ochiq' : 'Yopiq'}
+                </Badge>
+              </button>
+            ))
+          )}
+        </div>
+      </aside>
 
       {/* Conversation */}
-      <div className="flex-1 flex flex-col">
+      <section className="flex-1 flex flex-col min-w-0">
         {!selectedThread ? (
-          <div className="flex-1 flex items-center justify-center text-[#94A3B8]">
-            <div className="text-center">
-              <MessageCircle size={32} className="mx-auto mb-2 opacity-50" />
-              <p className="text-sm">Suhbatni tanlang</p>
-            </div>
+          <div className="flex-1 flex items-center justify-center p-6">
+            <EmptyState
+              icon={<MessageCircle size={22} />}
+              title="Suhbat tanlanmagan"
+              description="Chapdagi roʻyxatdan murojaatni tanlang."
+            />
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between border-b border-white/[0.08] px-6 py-4">
-              <div>
-                <p className="text-sm font-semibold text-[#F1F5F9]">{selectedThread.userName}</p>
-                <p className="text-xs text-[#94A3B8]">
-                  {selectedThread.userPhone} ·{' '}
-                  {selectedThread.userRole === 'driver' ? 'Haydovchi' : "Yo'lovchi"}
-                </p>
+            <div className="flex items-center justify-between gap-3 border-b border-line bg-surface px-5 py-3 shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Avatar name={selectedThread.userName} size="sm" tone="muted" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-ink truncate">
+                    {selectedThread.userName}
+                  </p>
+                  <p className="text-xs text-muted truncate">
+                    <span className="font-mono">{formatPhone(selectedThread.userPhone)}</span> ·{' '}
+                    {selectedThread.userRole === 'driver' ? 'Haydovchi' : 'Yoʻlovchi'}
+                  </p>
+                </div>
               </div>
               <Button
-                variant={selectedThread.status === 'open' ? 'outline' : 'primary'}
+                variant={selectedThread.status === 'open' ? 'secondary' : 'primary'}
                 size="sm"
                 onClick={handleToggleStatus}
               >
@@ -170,9 +209,20 @@ export default function SupportPage() {
               </Button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-3">
+            <div className="flex-1 overflow-y-auto p-5 space-y-3">
               {messagesLoading ? (
-                <p className="text-sm text-[#94A3B8]">Yuklanmoqda...</p>
+                <div className="space-y-3">
+                  <Skeleton className="h-10 w-2/3 rounded-2xl" />
+                  <Skeleton className="h-10 w-1/2 rounded-2xl ml-auto" />
+                  <Skeleton className="h-10 w-3/5 rounded-2xl" />
+                </div>
+              ) : messages.length === 0 ? (
+                <EmptyState
+                  compact
+                  icon={<MessageCircle size={20} />}
+                  title="Xabarlar yoʻq"
+                  description="Suhbatni birinchi boʻlib boshlang."
+                />
               ) : (
                 messages.map((message) => {
                   const fromOperator =
@@ -180,40 +230,53 @@ export default function SupportPage() {
                   return (
                     <div
                       key={message.id}
-                      className={`flex ${fromOperator ? 'justify-end' : 'justify-start'}`}
+                      className={clsx('flex', fromOperator ? 'justify-end' : 'justify-start')}
                     >
                       <div
-                        className={`max-w-[70%] rounded-xl px-4 py-2.5 text-sm ${
+                        className={clsx(
+                          'max-w-[72%] rounded-2xl px-3.5 py-2.5 text-sm border',
                           fromOperator
-                            ? 'bg-[#FACC15]/15 text-[#F1F5F9]'
-                            : 'bg-white/[0.06] text-[#F1F5F9]'
-                        }`}
+                            ? 'bg-primary/12 border-primary/30 text-ink rounded-br-sm'
+                            : 'bg-surface border-line text-ink rounded-bl-sm'
+                        )}
                       >
-                        {message.body}
+                        <p className="whitespace-pre-wrap break-words">{message.body}</p>
+                        <p className="text-[10px] text-subtle mt-1 text-right font-mono">
+                          {formatTime(message.createdAt)}
+                        </p>
                       </div>
                     </div>
                   );
                 })
               )}
+              <div ref={bottomRef} />
             </div>
 
-            <Card padding="sm" className="m-4 mt-0 flex items-center gap-2">
-              <Input
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleSend();
-                }}
-                placeholder="Javob yozing..."
-                className="flex-1"
-              />
-              <Button onClick={handleSend} isLoading={sending} disabled={!draft.trim()}>
-                <Send size={16} />
-              </Button>
-            </Card>
+            <div className="border-t border-line bg-surface p-3 shrink-0">
+              <div className="flex items-center gap-2">
+                <Input
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSend();
+                  }}
+                  placeholder="Javob yozing…"
+                  className="flex-1"
+                  aria-label="Javob matni"
+                />
+                <Button
+                  onClick={handleSend}
+                  isLoading={sending}
+                  disabled={!draft.trim()}
+                  aria-label="Yuborish"
+                >
+                  <Send size={16} />
+                </Button>
+              </div>
+            </div>
           </>
         )}
-      </div>
+      </section>
     </div>
   );
 }

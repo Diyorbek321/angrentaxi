@@ -3,8 +3,47 @@
 @tailwind utilities;
 
 @layer base {
+  /* Light is the default; `.dark` is toggled on <html> by the pre-hydration
+     script in app/layout.tsx. Tokens are space-separated RGB channels so
+     Tailwind's `/opacity` modifier works on them (see tailwind.config.js). */
   :root {
+    color-scheme: light;
+
+    --bg: 244 247 248; /* #F4F7F8 */
+    --surface: 255 255 255;
+    --surface-2: 237 243 244;
+    --surface-3: 226 235 236;
+    --line: 220 229 231;
+    --line-strong: 198 212 215;
+    --ink: 15 27 34; /* #0F1B22 */
+    --ink-muted: 90 108 117;
+    --ink-subtle: 133 150 158;
+
+    --shadow-card: 0 1px 2px rgba(15, 27, 34, 0.05), 0 10px 24px -14px rgba(15, 27, 34, 0.22);
+    --shadow-pop: 0 8px 32px -8px rgba(15, 27, 34, 0.22), 0 2px 8px rgba(15, 27, 34, 0.08);
+    --scrollbar-track: rgba(15, 27, 34, 0.04);
+    --scrollbar-thumb: rgba(15, 27, 34, 0.16);
+    --skeleton-sheen: rgba(255, 255, 255, 0.65);
+  }
+
+  .dark {
     color-scheme: dark;
+
+    --bg: 11 18 16; /* #0B1210 */
+    --surface: 17 26 23;
+    --surface-2: 24 36 31;
+    --surface-3: 32 47 41;
+    --line: 37 53 47;
+    --line-strong: 55 76 68;
+    --ink: 232 241 237;
+    --ink-muted: 150 170 162;
+    --ink-subtle: 108 128 120;
+
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 32px -16px rgba(0, 0, 0, 0.7);
+    --shadow-pop: 0 12px 40px -10px rgba(0, 0, 0, 0.75), 0 2px 8px rgba(0, 0, 0, 0.4);
+    --scrollbar-track: rgba(255, 255, 255, 0.03);
+    --scrollbar-thumb: rgba(255, 255, 255, 0.12);
+    --skeleton-sheen: rgba(255, 255, 255, 0.06);
   }
 
   * {
@@ -17,31 +56,46 @@
 
   body {
     min-height: 100vh;
-    background-color: #080D1A;
-    color: #F1F5F9;
+    background-color: rgb(var(--bg));
+    color: rgb(var(--ink));
   }
 
-  /* Dark scrollbar */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
   }
 
   ::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--scrollbar-track);
   }
 
   ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.10);
-    border-radius: 3px;
+    background: var(--scrollbar-thumb);
+    border-radius: 4px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #FACC15;
+    background: #1fca8e;
+  }
+
+  ::selection {
+    background: rgba(31, 202, 142, 0.28);
+  }
+
+  :focus-visible {
+    outline: 2px solid #1fca8e;
+    outline-offset: 2px;
   }
 }
 
 @layer utilities {
+  .line-clamp-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
   .line-clamp-2 {
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -49,11 +103,82 @@
     overflow: hidden;
   }
 
+  /* Panel surface used by cards, drawers and modals. */
+  .surface-card {
+    background-color: rgb(var(--surface));
+    border: 1px solid rgb(var(--line));
+    border-radius: 0.875rem;
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Floating panels over the map — translucent in both themes. */
   .glass-card {
-    background: rgba(255, 255, 255, 0.04);
+    background-color: rgb(var(--surface) / 0.86);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 0.75rem;
+    border: 1px solid rgb(var(--line));
+    border-radius: 0.875rem;
   }
+
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background-color: rgb(var(--surface-2));
+  }
+
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--skeleton-sheen) 55%,
+      transparent 100%
+    );
+    animation: shimmer 1.6s infinite;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* Leaflet renders its own chrome; pull it into the theme. */
+.leaflet-container {
+  background: rgb(var(--surface-2));
+  font-family: inherit;
+}
+
+.dark .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9) saturate(0.75);
+}
+
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: rgb(var(--surface));
+  color: rgb(var(--ink));
+  box-shadow: var(--shadow-pop);
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 0.75rem;
+}
+
+.leaflet-bar a,
+.leaflet-control-attribution {
+  background: rgb(var(--surface));
+  color: rgb(var(--ink-muted));
+  border-color: rgb(var(--line));
+}
+
+.leaflet-bar a:hover {
+  background: rgb(var(--surface-2));
+  color: rgb(var(--ink));
 }

@@ -5,11 +5,12 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Car, Phone, Lock, ArrowRight } from 'lucide-react';
+import { ArrowRight, Car, Lock, Phone } from 'lucide-react';
 import { sendOtp, verifyOtp } from '@/lib/api';
 import { setAuthToken, setUser, isAuthenticated } from '@/lib/auth';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 const phoneSchema = z.object({
   phone: z.string().min(9, 'Telefon raqamini kiriting'),
@@ -73,35 +74,41 @@ export default function LoginPage() {
       setUser(result.user);
       router.replace('/dispatch');
     } catch {
-      setAuthError('Noto\'g\'ri kod. Qaytadan urinib ko\'ring.');
+      setAuthError('Notoʻgʻri kod. Qaytadan urinib koʻring.');
     }
   };
 
   return (
-    <div className="relative min-h-screen bg-[#080D1A] flex items-center justify-center p-4 overflow-hidden">
-      {/* Yellow orb glow */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-yellow-400/5 blur-[120px] rounded-full pointer-events-none" />
+    <div className="relative min-h-screen bg-bg flex items-center justify-center p-4 overflow-hidden">
+      {/* Mint glow, subtle in both themes */}
+      <div className="absolute -top-24 -right-24 w-96 h-96 bg-primary/10 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute -bottom-32 -left-24 w-80 h-80 bg-primary/[0.07] blur-[120px] rounded-full pointer-events-none" />
+
+      <div className="absolute top-4 right-4 z-20">
+        <ThemeToggle />
+      </div>
+
       <div className="relative w-full max-w-sm z-10">
         <div className="flex flex-col items-center mb-8">
-          <div className="h-14 w-14 rounded-2xl bg-[#FACC15] flex items-center justify-center mb-4 shadow-glow-yellow">
-            <Car size={28} className="text-[#080D1A]" />
+          <div className="h-14 w-14 rounded-2xl bg-primary flex items-center justify-center mb-4 shadow-glow-mint">
+            <Car size={28} className="text-[#04231A]" />
           </div>
-          <h1 className="text-2xl font-bold text-[#F1F5F9]">Angren Taxi</h1>
-          <p className="text-[#94A3B8] text-sm mt-1">Dispetcher paneli</p>
+          <h1 className="text-2xl font-bold text-ink">Angren Taxi</h1>
+          <p className="text-muted text-sm mt-1">Dispetcher paneli</p>
         </div>
 
-        <div className="glass-card p-6 shadow-card">
-          <h2 className="text-lg font-semibold text-[#F1F5F9] mb-1">
+        <div className="bg-surface border border-line rounded-2xl p-6 shadow-card">
+          <h2 className="text-lg font-semibold text-ink mb-1">
             {step === 'phone' ? 'Kirish' : 'Tasdiqlash kodi'}
           </h2>
-          <p className="text-[#94A3B8] text-sm mb-6">
+          <p className="text-muted text-sm mb-6">
             {step === 'phone'
               ? 'Telefon raqamingizni kiriting'
               : `${phone} raqamiga yuborilgan kodni kiriting`}
           </p>
 
           {authError && (
-            <div className="mb-4 bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-sm">
+            <div className="mb-4 bg-danger/10 border border-danger/30 rounded-lg p-3 text-danger text-sm">
               {authError}
             </div>
           )}
@@ -113,7 +120,8 @@ export default function LoginPage() {
                 type="tel"
                 placeholder="+998901234568"
                 autoComplete="tel"
-                leftElement={<Phone size={15} className="text-[#94A3B8]" />}
+                mono
+                leftElement={<Phone size={15} />}
                 {...phoneForm.register('phone')}
                 error={phoneForm.formState.errors.phone?.message}
               />
@@ -123,9 +131,9 @@ export default function LoginPage() {
                 size="lg"
                 isLoading={phoneForm.formState.isSubmitting}
                 className="w-full mt-2"
+                rightIcon={<ArrowRight size={16} />}
               >
                 Kod yuborish
-                <ArrowRight size={16} className="ml-2" />
               </Button>
             </form>
           ) : (
@@ -136,13 +144,14 @@ export default function LoginPage() {
                 inputMode="numeric"
                 placeholder="000000"
                 maxLength={6}
-                leftElement={<Lock size={15} className="text-[#94A3B8]" />}
+                mono
+                leftElement={<Lock size={15} />}
                 {...otpForm.register('code')}
                 error={otpForm.formState.errors.code?.message}
               />
               {devOtpCode && (
-                <div className="rounded-lg border border-[#FACC15]/30 bg-[#FACC15]/10 px-3 py-2 text-sm text-[#FACC15]">
-                  <span className="font-semibold">DEV:</span> OTP kod —{' '}
+                <div className="rounded-lg border border-override/40 bg-override/[0.08] px-3 py-2 text-sm text-override-dark dark:text-override-light">
+                  <span className="font-semibold">TEST:</span> OTP kod —{' '}
                   <span className="font-mono font-bold">{devOtpCode}</span> (avtomatik kiritildi)
                 </div>
               )}
@@ -152,22 +161,22 @@ export default function LoginPage() {
                 size="lg"
                 isLoading={otpForm.formState.isSubmitting}
                 className="w-full mt-2"
+                rightIcon={<ArrowRight size={16} />}
               >
                 Kirish
-                <ArrowRight size={16} className="ml-2" />
               </Button>
               <button
                 type="button"
                 onClick={() => { setStep('phone'); setDevOtpCode(''); setAuthError(null); }}
-                className="w-full text-center text-sm text-[#94A3B8] hover:text-[#F1F5F9] transition-colors"
+                className="w-full text-center text-sm text-muted hover:text-ink transition-colors"
               >
-                Raqamni o&apos;zgartirish
+                Raqamni oʻzgartirish
               </button>
             </form>
           )}
         </div>
 
-        <p className="text-center text-[#94A3B8]/50 text-xs mt-6">
+        <p className="text-center text-subtle text-xs mt-6">
           Angren Taxi Dispetcher paneli v0.1.0
         </p>
       </div>

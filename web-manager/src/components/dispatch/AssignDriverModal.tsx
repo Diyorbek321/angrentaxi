@@ -1,12 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { User, Star, Car, Search } from 'lucide-react';
+import { AlertTriangle, Car, Search, Star, UserCog } from 'lucide-react';
 import { Driver, Order, assignDriver, reassignDriver } from '@/lib/api';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
+import { Avatar } from '@/components/ui/Avatar';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { formatPhone, formatRating, shortId } from '@/lib/format';
 
 interface AssignDriverModalProps {
   isOpen: boolean;
@@ -61,7 +65,7 @@ export function AssignDriverModal({
       setReason('');
     } catch (err) {
       console.error('Assign failed:', err);
-      setError('Failed to assign driver. Please try again.');
+      setError('Haydovchini tayinlab boʻlmadi. Qaytadan urinib koʻring.');
     } finally {
       setAssigningDriverId(null);
     }
@@ -79,140 +83,138 @@ export function AssignDriverModal({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title={isReassign ? 'Manual Override — Reassign Driver' : 'Manual Override — Assign Driver'}
-      size="md"
+      tone="override"
+      size="xl"
+      title={isReassign ? 'Qoʻlda aralashuv — haydovchini almashtirish' : 'Qoʻlda aralashuv — haydovchi tayinlash'}
+      subtitle={order ? `Buyurtma ${shortId(order.id)}` : undefined}
     >
       {order && (
         <div className="space-y-4">
+          {/* Why this exists at all */}
+          <div className="flex items-start gap-2.5 rounded-lg border border-override/40 bg-override/[0.08] p-3">
+            <AlertTriangle size={15} className="text-override shrink-0 mt-0.5" />
+            <p className="text-xs text-override-dark dark:text-override-light leading-relaxed">
+              Buyurtmalarga haydovchi odatda <strong>avtomatik</strong> tayinlanadi. Bu oynadan
+              faqat istisno holatlarda foydalaning — haydovchi topilmadi, SOS, mashina buzildi va
+              hokazo. Har bir aralashuv sababi bilan amallar tarixiga yoziladi.
+            </p>
+          </div>
+
           {/* Order summary */}
-          <div className="bg-gray-700/50 rounded-lg p-3 space-y-1.5">
-            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">
-              Order #{order.id.slice(-6).toUpperCase()}
-            </p>
+          <div className="rounded-lg border border-line bg-surface-2/60 p-3 space-y-2">
             <div className="flex items-start gap-2">
-              <div className="h-1.5 w-1.5 rounded-full bg-accent-500 mt-1.5 shrink-0" />
-              <p className="text-gray-300 text-xs">{order.pickupAddress ?? '—'}</p>
+              <span className="mt-1 h-2 w-2 rounded-full bg-primary shrink-0 ring-2 ring-primary/25" />
+              <p className="text-xs text-ink">{order.pickupAddress ?? '—'}</p>
             </div>
             <div className="flex items-start gap-2">
-              <div className="h-1.5 w-1.5 rounded-full bg-red-400 mt-1.5 shrink-0" />
-              <p className="text-gray-300 text-xs">{order.dropoffAddress ?? '—'}</p>
+              <span className="mt-1 h-2 w-2 rounded-full bg-danger shrink-0" />
+              <p className="text-xs text-ink">{order.dropoffAddress ?? '—'}</p>
             </div>
-          </div>
-
-          {/* Why this is here */}
-          <div className="bg-amber-900/20 border border-amber-700/30 rounded-lg p-3">
-            <p className="text-amber-400 text-xs">
-              Orders normally get a driver automatically. Use this only for an
-              exception — no drivers found, an SOS, a driver&apos;s car breaking
-              down mid-trip, etc. Every override is logged with your reason.
-            </p>
-          </div>
-
-          {/* Current driver warning */}
-          {isReassign && order.driver && (
-            <div className="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-3">
-              <p className="text-yellow-400 text-xs">
-                Current driver: <strong>{order.driver.name}</strong> ({order.driver.carNumber})
-              </p>
-              <p className="text-yellow-600 text-xs mt-1">
-                Selecting a new driver will reassign this order.
-              </p>
-            </div>
-          )}
-
-          {/* Reason — required, recorded in the dispatch override audit log */}
-          <div>
-            <Input
-              placeholder="Reason for this override (required)"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-            />
-            {reason.length > 0 && !reasonValid && (
-              <p className="text-red-400 text-xs mt-1">
-                Reason must be at least {MIN_REASON_LENGTH} characters.
+            {isReassign && order.driver && (
+              <p className="text-xs text-muted pt-1 border-t border-line">
+                Hozirgi haydovchi: <strong className="text-ink">{order.driver.name}</strong>{' '}
+                <span className="font-mono">({order.driver.carNumber})</span> — yangi haydovchi
+                tanlansa, buyurtma unga oʻtkaziladi.
               </p>
             )}
           </div>
 
-          {/* Search */}
+          {/* Reason — required, recorded in the dispatch override audit log */}
+          <Textarea
+            label="Aralashuv sababi (majburiy)"
+            placeholder="Masalan: haydovchi topilmadi, mijoz 20 daqiqa kutdi"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={2}
+            error={
+              reason.length > 0 && !reasonValid
+                ? `Sabab kamida ${MIN_REASON_LENGTH} belgidan iborat boʻlishi kerak.`
+                : undefined
+            }
+            hint={
+              reasonValid
+                ? 'Sabab yozildi — endi haydovchi tanlashingiz mumkin.'
+                : 'Sabab kiritilmaguncha tayinlash tugmalari oʻchiq turadi.'
+            }
+          />
+
           <Input
-            placeholder="Search by name, car number, phone..."
+            placeholder="Ism, mashina raqami yoki telefon boʻyicha qidirish"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             leftElement={<Search size={14} />}
           />
 
-          {/* Error */}
           {error && (
-            <p className="text-red-400 text-xs bg-red-900/20 border border-red-700/30 rounded px-3 py-2">
+            <p className="text-xs text-danger bg-danger/10 border border-danger/30 rounded-lg px-3 py-2">
               {error}
             </p>
           )}
 
-          {/* Drivers list */}
-          <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+          {/* Only online and free drivers are offered */}
+          <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
             {filteredDrivers.length === 0 ? (
-              <div className="text-center py-8 text-gray-500 text-sm">
-                {freeDrivers.length === 0
-                  ? 'No available drivers online'
-                  : 'No drivers match your search'}
-              </div>
+              <EmptyState
+                compact
+                title={
+                  freeDrivers.length === 0
+                    ? 'Boʻsh haydovchi yoʻq'
+                    : 'Qidiruvga mos haydovchi topilmadi'
+                }
+                description={
+                  freeDrivers.length === 0
+                    ? 'Hozircha barcha onlayn haydovchilar band.'
+                    : undefined
+                }
+              />
             ) : (
               filteredDrivers.map((driver) => (
                 <div
                   key={driver.id}
-                  className="flex items-center gap-3 bg-gray-700/40 hover:bg-gray-700/70 border border-gray-700 hover:border-gray-600 rounded-lg p-3 transition-colors"
+                  className="flex items-center gap-3 rounded-lg border border-line bg-surface hover:border-line-strong px-3 py-2.5 transition-colors"
                 >
-                  {/* Avatar */}
-                  <div className="h-9 w-9 rounded-full bg-gray-600 flex items-center justify-center shrink-0">
-                    <User size={16} className="text-gray-400" />
-                  </div>
-
-                  {/* Info */}
+                  <Avatar name={driver.name} size="sm" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="text-gray-100 text-sm font-medium truncate">
-                        {driver.name}
-                      </p>
-                      <Badge variant="success" size="sm">Available</Badge>
+                      <p className="text-sm font-medium text-ink truncate">{driver.name}</p>
+                      <Badge variant="mint-soft" size="sm">
+                        Boʻsh
+                      </Badge>
                     </div>
-                    <div className="flex items-center gap-3 mt-0.5">
-                      <div className="flex items-center gap-1 text-gray-500">
+                    <div className="flex items-center gap-2.5 mt-0.5 text-[11px] text-muted">
+                      <span className="flex items-center gap-1">
                         <Car size={11} />
-                        <span className="text-xs">{driver.carModel}</span>
-                      </div>
-                      <span className="text-xs font-mono text-gray-400">
-                        {driver.carNumber}
+                        {driver.carModel}
                       </span>
-                      <div className="flex items-center gap-1 text-yellow-400">
-                        <Star size={11} fill="currentColor" />
-                        <span className="text-xs text-gray-300">
-                          {driver.rating.toFixed(1)}
-                        </span>
-                      </div>
+                      <span className="font-mono">{driver.carNumber}</span>
+                      <span className="flex items-center gap-1">
+                        <Star size={11} className="text-primary" fill="currentColor" />
+                        {formatRating(driver.rating)}
+                      </span>
+                      <span className="font-mono hidden sm:inline">{formatPhone(driver.phone)}</span>
                     </div>
                   </div>
 
-                  {/* Assign button — disabled until a reason is entered, since
-                      every override is logged against it */}
+                  {/* Disabled until a reason is entered — every override is
+                      logged against it. */}
                   <Button
                     size="sm"
-                    variant="primary"
+                    variant="override"
                     onClick={() => handleAssign(driver)}
                     isLoading={assigningDriverId === driver.id}
                     disabled={assigningDriverId !== null || !reasonValid}
-                    title={!reasonValid ? 'Enter a reason first' : undefined}
+                    title={!reasonValid ? 'Avval sababni kiriting' : undefined}
+                    leftIcon={<UserCog size={13} />}
                   >
-                    {isReassign ? 'Reassign' : 'Assign'}
+                    {isReassign ? 'Almashtirish' : 'Tayinlash'}
                   </Button>
                 </div>
               ))
             )}
           </div>
 
-          {/* Total count */}
-          <p className="text-xs text-gray-600 text-center">
-            {freeDrivers.length} driver{freeDrivers.length !== 1 ? 's' : ''} available
+          <p className="text-[11px] text-subtle text-center">
+            {freeDrivers.length} ta boʻsh haydovchi onlayn
           </p>
         </div>
       )}

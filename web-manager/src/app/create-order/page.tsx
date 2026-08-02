@@ -1,9 +1,11 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, PlusCircle } from 'lucide-react';
+import { ArrowLeft, Info, PlusCircle } from 'lucide-react';
 import { CreateOrderForm } from '@/components/dispatch/CreateOrderForm';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 export default function CreateOrderPage() {
   const router = useRouter();
@@ -14,31 +16,35 @@ export default function CreateOrderPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-6">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => router.back()}
-          leftIcon={<ArrowLeft size={14} />}
-        >
-          Back
-        </Button>
-        <div>
-          <h1 className="text-lg font-semibold text-gray-100 flex items-center gap-2">
-            <PlusCircle size={18} className="text-accent-500" />
-            Create Order
-          </h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Manually create a new order for a passenger
+    <div className="h-full overflow-y-auto">
+      <div className="max-w-3xl mx-auto px-5 py-5">
+        <PageHeader
+          title="Buyurtma yaratish"
+          description="Call-markaz uchun qoʻlda buyurtma ochish"
+          icon={<PlusCircle size={17} />}
+          actions={
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.back()}
+              leftIcon={<ArrowLeft size={14} />}
+            >
+              Orqaga
+            </Button>
+          }
+        />
+
+        <div className="flex items-start gap-2.5 rounded-lg border border-line bg-surface-2/60 px-3 py-2.5 mb-5">
+          <Info size={14} className="text-muted shrink-0 mt-0.5" />
+          <p className="text-xs text-muted leading-relaxed">
+            Buyurtma yaratilgach, haydovchi <strong>avtomatik</strong> qidiriladi — bu yerda
+            haydovchi tanlanmaydi.
           </p>
         </div>
-      </div>
 
-      {/* Form card */}
-      <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
-        <CreateOrderForm onSuccess={handleSuccess} />
+        <Card padding="lg">
+          <CreateOrderForm onSuccess={handleSuccess} />
+        </Card>
       </div>
     </div>
   );

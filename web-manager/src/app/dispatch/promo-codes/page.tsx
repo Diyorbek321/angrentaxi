@@ -4,13 +4,18 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Tag } from 'lucide-react';
+import { AlertTriangle, Plus, Tag } from 'lucide-react';
 import { getPromoCodes, createPromoCode, PromoCode } from '@/lib/api';
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { SkeletonTable } from '@/components/ui/Skeleton';
+import { formatDate, formatMoney, formatNumber } from '@/lib/format';
 
 const schema = z
   .object({
@@ -33,6 +38,7 @@ export default function PromoCodesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const {
     register,
@@ -46,8 +52,9 @@ export default function PromoCodesPage() {
     try {
       const data = await getPromoCodes();
       setPromoCodes(data);
+      setLoadError(null);
     } catch {
-      setError('Promo kodlarni yuklab bo\'lmadi');
+      setLoadError('Promo kodlarni yuklab boʻlmadi');
     } finally {
       setIsLoading(false);
     }
@@ -74,94 +81,121 @@ export default function PromoCodesPage() {
     } catch (err) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        'Promo kod yaratib bo\'lmadi';
+        'Promo kod yaratib boʻlmadi';
       setError(message);
     }
   };
 
   return (
-    <div className="h-full overflow-y-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold text-[#F1F5F9]">Promo kodlar</h1>
-          <p className="text-sm text-[#94A3B8] mt-0.5">Chegirma kodlarini yaratish va boshqarish</p>
-        </div>
-        <Button leftIcon={<Plus size={16} />} onClick={() => setIsModalOpen(true)}>
-          Yangi promo kod
-        </Button>
-      </div>
+    <div className="h-full overflow-y-auto">
+      <div className="px-5 py-4 max-w-5xl mx-auto">
+        <PageHeader
+          title="Promo kodlar"
+          description="Chegirma kodlarini yaratish va boshqarish"
+          icon={<Tag size={17} />}
+          actions={
+            <Button leftIcon={<Plus size={15} />} onClick={() => setIsModalOpen(true)} size="sm">
+              Yangi promo kod
+            </Button>
+          }
+        />
 
-      {error && (
-        <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-          {error}
-        </div>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Barcha promo kodlar</CardTitle>
-        </CardHeader>
-        {isLoading ? (
-          <p className="text-sm text-[#94A3B8]">Yuklanmoqda...</p>
-        ) : promoCodes.length === 0 ? (
-          <p className="text-sm text-[#94A3B8]">Hali promo kod yaratilmagan</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-[#94A3B8] border-b border-white/[0.08]">
-                  <th className="pb-2 pr-4 font-medium">Kod</th>
-                  <th className="pb-2 pr-4 font-medium">Chegirma</th>
-                  <th className="pb-2 pr-4 font-medium">Ishlatilgan</th>
-                  <th className="pb-2 pr-4 font-medium">Min. summa</th>
-                  <th className="pb-2 pr-4 font-medium">Muddati</th>
-                  <th className="pb-2 font-medium">Holati</th>
-                </tr>
-              </thead>
-              <tbody>
-                {promoCodes.map((promo) => (
-                  <tr key={promo.id} className="border-b border-white/[0.04] last:border-0">
-                    <td className="py-2.5 pr-4 font-mono text-[#F1F5F9] flex items-center gap-1.5">
-                      <Tag size={13} className="text-[#94A3B8]" />
-                      {promo.code}
-                    </td>
-                    <td className="py-2.5 pr-4 text-[#F1F5F9]">
-                      {promo.discountPercent != null
-                        ? `${promo.discountPercent}%`
-                        : `${promo.discountFixed?.toLocaleString()} so'm`}
-                    </td>
-                    <td className="py-2.5 pr-4 text-[#94A3B8]">
-                      {promo.usedCount}
-                      {promo.maxUses != null ? ` / ${promo.maxUses}` : ''}
-                    </td>
-                    <td className="py-2.5 pr-4 text-[#94A3B8]">
-                      {promo.minOrderAmount.toLocaleString()} so'm
-                    </td>
-                    <td className="py-2.5 pr-4 text-[#94A3B8]">
-                      {promo.expiresAt ? new Date(promo.expiresAt).toLocaleDateString() : '—'}
-                    </td>
-                    <td className="py-2.5">
-                      <Badge variant={promo.isActive ? 'success' : 'default'}>
-                        {promo.isActive ? 'Faol' : 'Faol emas'}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {error && (
+          <div className="flex items-start gap-2.5 rounded-lg border border-danger/40 bg-danger/[0.08] px-3.5 py-3 mb-4">
+            <AlertTriangle size={15} className="text-danger shrink-0 mt-0.5" />
+            <p className="text-sm text-danger">{error}</p>
           </div>
         )}
-      </Card>
 
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Yangi promo kod"
-      >
+        <Card padding={isLoading || promoCodes.length === 0 ? 'md' : 'none'}>
+          {!isLoading && promoCodes.length > 0 && (
+            <div className="px-4 py-3 border-b border-line">
+              <CardTitle>Barcha promo kodlar</CardTitle>
+            </div>
+          )}
+
+          {loadError ? (
+            <ErrorState compact message={loadError} onRetry={fetchPromoCodes} />
+          ) : isLoading ? (
+            <>
+              <CardHeader>
+                <CardTitle>Barcha promo kodlar</CardTitle>
+              </CardHeader>
+              <SkeletonTable rows={5} cols={6} />
+            </>
+          ) : promoCodes.length === 0 ? (
+            <>
+              <CardHeader>
+                <CardTitle>Barcha promo kodlar</CardTitle>
+              </CardHeader>
+              <EmptyState
+                icon={<Tag size={22} />}
+                title="Hali promo kod yaratilmagan"
+                description="Birinchi chegirma kodini yarating."
+                action={
+                  <Button size="sm" leftIcon={<Plus size={14} />} onClick={() => setIsModalOpen(true)}>
+                    Yangi promo kod
+                  </Button>
+                }
+              />
+            </>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-surface-2 text-subtle uppercase text-[10px] tracking-wider">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Kod</th>
+                    <th className="px-4 py-3 font-semibold">Chegirma</th>
+                    <th className="px-4 py-3 font-semibold">Ishlatilgan</th>
+                    <th className="px-4 py-3 font-semibold">Min. summa</th>
+                    <th className="px-4 py-3 font-semibold">Muddati</th>
+                    <th className="px-4 py-3 font-semibold">Holati</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {promoCodes.map((promo) => (
+                    <tr key={promo.id} className="hover:bg-surface-2/70 transition-colors">
+                      <td className="px-4 py-3">
+                        <span className="flex items-center gap-1.5 font-mono font-semibold text-ink">
+                          <Tag size={13} className="text-primary shrink-0" />
+                          {promo.code}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-mono text-ink whitespace-nowrap">
+                        {promo.discountPercent != null
+                          ? `${promo.discountPercent}%`
+                          : formatMoney(promo.discountFixed)}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-muted">
+                        {formatNumber(promo.usedCount)}
+                        {promo.maxUses != null ? ` / ${formatNumber(promo.maxUses)}` : ''}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-muted whitespace-nowrap">
+                        {formatMoney(promo.minOrderAmount)}
+                      </td>
+                      <td className="px-4 py-3 text-muted text-xs whitespace-nowrap">
+                        {promo.expiresAt ? formatDate(promo.expiresAt) : '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant={promo.isActive ? 'success' : 'default'} size="sm" dot>
+                          {promo.isActive ? 'Faol' : 'Faol emas'}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      </div>
+
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Yangi promo kod">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
           <Input
             label="Kod"
             placeholder="ANGREN10"
+            mono
             {...register('code')}
             error={errors.code?.message}
           />
@@ -170,13 +204,15 @@ export default function PromoCodesPage() {
               label="Chegirma (%)"
               type="number"
               placeholder="10"
+              mono
               {...register('discountPercent')}
               error={errors.discountPercent?.message}
             />
             <Input
-              label="Chegirma (so'm)"
+              label="Chegirma (soʻm)"
               type="number"
               placeholder="5000"
+              mono
               {...register('discountFixed')}
             />
           </div>
@@ -185,12 +221,14 @@ export default function PromoCodesPage() {
               label="Max ishlatish soni"
               type="number"
               placeholder="100"
+              mono
               {...register('maxUses')}
             />
             <Input
               label="Min buyurtma summasi"
               type="number"
               placeholder="0"
+              mono
               {...register('minOrderAmount')}
             />
           </div>

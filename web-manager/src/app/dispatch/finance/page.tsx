@@ -1,13 +1,18 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { format } from 'date-fns';
-import { Info, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, DollarSign, Info, RefreshCw, Wallet } from 'lucide-react';
 import { getAllWithdrawals, WithdrawalRequest, WithdrawalStatus } from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge, BadgeVariant } from '@/components/ui/Badge';
 import { Select } from '@/components/ui/Select';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { StatTile } from '@/components/ui/StatTile';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { SkeletonTable } from '@/components/ui/Skeleton';
+import { formatDateTime, formatMoney, formatNumber, formatPhone } from '@/lib/format';
 
 const PAGE_LIMIT = 20;
 
@@ -18,18 +23,25 @@ const statusVariant: Record<WithdrawalStatus, BadgeVariant> = {
   paid: 'success',
 };
 
+const statusLabel: Record<WithdrawalStatus, string> = {
+  pending: 'Kutilmoqda',
+  approved: 'Tasdiqlangan',
+  rejected: 'Rad etilgan',
+  paid: 'Toʻlangan',
+};
+
 const ownerTypeLabel: Record<string, string> = {
-  driver: 'Driver',
-  vendor: 'Market vendor',
-  restaurant: 'Eats restaurant',
+  driver: 'Haydovchi',
+  vendor: 'Market sotuvchisi',
+  restaurant: 'Restoran',
 };
 
 const statusOptions = [
-  { value: '', label: 'All statuses' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'approved', label: 'Approved' },
-  { value: 'paid', label: 'Paid' },
-  { value: 'rejected', label: 'Rejected' },
+  { value: '', label: 'Barcha statuslar' },
+  { value: 'pending', label: 'Kutilmoqda' },
+  { value: 'approved', label: 'Tasdiqlangan' },
+  { value: 'paid', label: 'Toʻlangan' },
+  { value: 'rejected', label: 'Rad etilgan' },
 ];
 
 export default function FinancePage() {
@@ -38,6 +50,7 @@ export default function FinancePage() {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -49,8 +62,10 @@ export default function FinancePage() {
       );
       setWithdrawals(result.withdrawals);
       setTotal(result.total);
+      setError(null);
     } catch (err) {
       console.error('Failed to load withdrawals:', err);
+      setError('Pul yechish soʻrovlarini yuklab boʻlmadi.');
     } finally {
       setIsLoading(false);
     }
@@ -66,117 +81,152 @@ export default function FinancePage() {
 
   const pending = withdrawals.filter((w) => w.status === 'pending');
   const totalPendingAmount = pending.reduce((sum, w) => sum + w.amount, 0);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
 
   return (
-    <div className="h-[calc(100vh-3.5rem)] overflow-y-auto">
-      <div className="px-6 py-4 border-b border-white/[0.06] bg-[#0D1526]/50 flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold text-[#F1F5F9]">Finance</h1>
-          <p className="text-sm text-[#94A3B8] mt-0.5">Payout queue — driver, Market vendor, Eats restaurant</p>
-        </div>
-        <Button variant="ghost" size="sm" onClick={fetchData} leftIcon={<RefreshCw size={13} />}>
-          Refresh
-        </Button>
-      </div>
+    <div className="h-full overflow-y-auto">
+      <div className="px-5 py-4">
+        <PageHeader
+          title="Moliya"
+          description="Toʻlov navbati — haydovchi, Market sotuvchisi, restoran"
+          icon={<DollarSign size={17} />}
+          actions={
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={fetchData}
+              leftIcon={<RefreshCw size={13} />}
+            >
+              Yangilash
+            </Button>
+          }
+        />
 
-      <div className="p-6 space-y-4">
-        <div className="flex items-start gap-3 bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-3">
-          <Info size={16} className="text-blue-400 mt-0.5 shrink-0" />
-          <p className="text-sm text-blue-200">
-            Oversight only — this view is read-only. Approving, rejecting, or marking payouts
-            paid happens in the Super Admin panel.
+        {/* Read-only surface — approving/paying happens in the admin panel */}
+        <div className="flex items-start gap-2.5 rounded-lg border border-info/30 bg-info/[0.08] px-3.5 py-3 mb-4">
+          <Info size={15} className="text-info shrink-0 mt-0.5" />
+          <p className="text-sm text-info dark:text-blue-300 leading-relaxed">
+            Bu sahifa faqat kuzatuv uchun. Toʻlovni tasdiqlash, rad etish yoki «toʻlandi» deb
+            belgilash Super Admin panelida bajariladi.
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-2">
-          <Card className="p-4">
-            <p className="text-xs text-gray-500">Pending requests</p>
-            <p className="text-xl font-bold text-gray-100 mt-1">{pending.length}</p>
-          </Card>
-          <Card className="p-4">
-            <p className="text-xs text-gray-500">Pending amount</p>
-            <p className="text-xl font-bold text-gray-100 mt-1">{totalPendingAmount.toLocaleString()} UZS</p>
-          </Card>
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <StatTile
+            label="Kutilayotgan soʻrovlar"
+            value={isLoading ? '—' : pending.length}
+            tone="override"
+            icon={<Wallet size={16} />}
+          />
+          <StatTile
+            label="Kutilayotgan summa"
+            value={isLoading ? '—' : formatMoney(totalPendingAmount)}
+            tone="mint"
+            icon={<DollarSign size={16} />}
+          />
         </div>
 
         <Select
           options={statusOptions}
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="w-48"
+          className="w-48 mb-4"
+          aria-label="Status boʻyicha filtr"
         />
 
-        <Card padding="none">
-          {isLoading ? (
-            <div className="p-4 space-y-2">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-12 bg-gray-800 rounded animate-pulse" />
-              ))}
-            </div>
-          ) : withdrawals.length === 0 ? (
-            <div className="py-16 text-center text-gray-500 text-sm">No withdrawal requests</div>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="bg-gray-800 text-gray-400 uppercase text-xs">
-                    <tr>
-                      <th className="px-4 py-3">Requester</th>
-                      <th className="px-4 py-3">Type</th>
-                      <th className="px-4 py-3">Amount</th>
-                      <th className="px-4 py-3">Destination</th>
-                      <th className="px-4 py-3">Requested</th>
-                      <th className="px-4 py-3">Status</th>
+        {error ? (
+          <ErrorState message={error} onRetry={fetchData} />
+        ) : isLoading ? (
+          <SkeletonTable rows={6} cols={6} />
+        ) : withdrawals.length === 0 ? (
+          <Card>
+            <EmptyState
+              tone="positive"
+              icon={<Wallet size={22} />}
+              title="Pul yechish soʻrovi yoʻq"
+              description={
+                statusFilter ? 'Bu status boʻyicha soʻrov topilmadi.' : 'Navbat boʻsh.'
+              }
+            />
+          </Card>
+        ) : (
+          <Card padding="none" className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-surface-2 text-subtle uppercase text-[10px] tracking-wider">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Soʻrovchi</th>
+                    <th className="px-4 py-3 font-semibold">Turi</th>
+                    <th className="px-4 py-3 font-semibold">Summa</th>
+                    <th className="px-4 py-3 font-semibold">Karta / hisob</th>
+                    <th className="px-4 py-3 font-semibold">Soʻralgan vaqt</th>
+                    <th className="px-4 py-3 font-semibold">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {withdrawals.map((w) => (
+                    <tr key={w.id} className="hover:bg-surface-2/70 transition-colors">
+                      <td className="px-4 py-3">
+                        <p className="text-ink font-medium">
+                          {[w.driver?.firstName, w.driver?.lastName].filter(Boolean).join(' ') || '—'}
+                        </p>
+                        <p className="text-subtle text-[11px] font-mono">
+                          {w.driver?.phone ? formatPhone(w.driver.phone) : ''}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant="default" size="sm">
+                          {ownerTypeLabel[w.ownerType] ?? w.ownerType}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 font-mono font-semibold text-ink whitespace-nowrap">
+                        {formatMoney(w.amount)}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs text-muted">
+                        {w.payoutDestination}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs text-muted whitespace-nowrap">
+                        {formatDateTime(w.requestedAt)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant={statusVariant[w.status]} size="sm" dot>
+                          {statusLabel[w.status] ?? w.status}
+                        </Badge>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-700">
-                    {withdrawals.map((w) => (
-                      <tr key={w.id} className="bg-gray-900">
-                        <td className="px-4 py-3">
-                          <p className="text-gray-100 font-medium">
-                            {[w.driver?.firstName, w.driver?.lastName].filter(Boolean).join(' ') || '—'}
-                          </p>
-                          <p className="text-gray-500 text-xs">{w.driver?.phone ?? ''}</p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <Badge variant="default">{ownerTypeLabel[w.ownerType] ?? w.ownerType}</Badge>
-                        </td>
-                        <td className="px-4 py-3 font-semibold text-gray-100">
-                          {w.amount.toLocaleString()} UZS
-                        </td>
-                        <td className="px-4 py-3 font-mono text-xs text-gray-400">{w.payoutDestination}</td>
-                        <td className="px-4 py-3 text-xs text-gray-400">
-                          {format(new Date(w.requestedAt), 'dd MMM, HH:mm')}
-                        </td>
-                        <td className="px-4 py-3">
-                          <Badge variant={statusVariant[w.status]} size="sm">{w.status}</Badge>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex items-center justify-between px-4 py-3 text-xs text-muted border-t border-line">
+              <span>
+                Jami <span className="font-mono">{formatNumber(total)}</span> · {page} / {totalPages}{' '}
+                sahifa
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => p - 1)}
+                  leftIcon={<ChevronLeft size={13} />}
+                >
+                  Oldingi
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={page * PAGE_LIMIT >= total}
+                  onClick={() => setPage((p) => p + 1)}
+                  rightIcon={<ChevronRight size={13} />}
+                >
+                  Keyingi
+                </Button>
               </div>
-              <div className="flex items-center justify-between px-4 py-3 text-xs text-gray-500 border-t border-gray-700">
-                <span>
-                  {total} total · page {page} of {Math.max(1, Math.ceil(total / PAGE_LIMIT))}
-                </span>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="ghost" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                    Prev
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={page * PAGE_LIMIT >= total}
-                    onClick={() => setPage((p) => p + 1)}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
-        </Card>
+            </div>
+          </Card>
+        )}
       </div>
     </div>
   );

@@ -1,11 +1,33 @@
 'use client';
 
-import { useState } from 'react';
-import { RefreshCw, AlertCircle } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { CheckCircle2, Radar } from 'lucide-react';
+import Link from 'next/link';
 import { Order, Driver } from '@/lib/api';
 import { OrderCard } from './OrderCard';
 import { AssignDriverModal } from './AssignDriverModal';
-import { Button } from '@/components/ui/Button';
+import { OrderDetailDrawer } from './OrderDetailDrawer';
+import { Tabs, type TabItem } from '@/components/ui/Tabs';
+import { SkeletonCards } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+
+type OrderFilterTab = 'all' | 'searching' | 'assigned' | 'in_progress' | 'completed';
+
+const matchesTab = (order: Order, tab: OrderFilterTab): boolean => {
+  switch (tab) {
+    case 'searching':
+      return order.status === 'created' || order.status === 'searching';
+    case 'assigned':
+      return order.status === 'accepted' || order.status === 'arrived';
+    case 'in_progress':
+      return order.status === 'in_progress';
+    case 'completed':
+      return order.status === 'completed';
+    default:
+      return true;
+  }
+};
 
 interface ActiveOrdersListProps {
   orders: Order[];
@@ -15,6 +37,9 @@ interface ActiveOrdersListProps {
   onRefetch: () => Promise<void>;
   onOrderUpdated: (order: Order) => void;
   onOrderCancelled: (orderId: string) => void;
+  /** Selected order drives the map overlay on the right-hand panel. */
+  selectedOrderId?: string | null;
+  onSelectOrder?: (order: Order | null) => void;
 }
 
 export function ActiveOrdersList({
@@ -25,99 +50,129 @@ export function ActiveOrdersList({
   onOrderUpdated,
   onOrderCancelled,
   drivers,
+  selectedOrderId = null,
+  onSelectOrder,
 }: ActiveOrdersListProps) {
   const [assignModalOpen, setAssignModalOpen] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [orderForAssign, setOrderForAssign] = useState<Order | null>(null);
+  const [detailOrder, setDetailOrder] = useState<Order | null>(null);
+  const [tab, setTab] = useState<OrderFilterTab>('all');
+
+  const counts = useMemo(
+    () => ({
+      all: orders.length,
+      searching: orders.filter((o) => matchesTab(o, 'searching')).length,
+      assigned: orders.filter((o) => matchesTab(o, 'assigned')).length,
+      in_progress: orders.filter((o) => matchesTab(o, 'in_progress')).length,
+      completed: orders.filter((o) => matchesTab(o, 'completed')).length,
+    }),
+    [orders]
+  );
+
+  const tabs: TabItem<OrderFilterTab>[] = [
+    { value: 'all', label: 'Hammasi', count: counts.all },
+    { value: 'searching', label: 'Qidirilmoqda', count: counts.searching },
+    { value: 'assigned', label: 'Tayinlangan', count: counts.assigned },
+    { value: 'in_progress', label: 'Yoʻlda', count: counts.in_progress },
+    { value: 'completed', label: 'Yakunlangan', count: counts.completed },
+  ];
+
+  const visibleOrders = useMemo(() => orders.filter((o) => matchesTab(o, tab)), [orders, tab]);
 
   const handleAssignDriver = (order: Order) => {
-    setSelectedOrder(order);
+    setOrderForAssign(order);
     setAssignModalOpen(true);
   };
 
   const handleAssigned = (updatedOrder: Order) => {
     onOrderUpdated(updatedOrder);
     setAssignModalOpen(false);
-    setSelectedOrder(null);
+    setOrderForAssign(null);
   };
 
-  if (isLoading) {
+  const handleOpenDetails = (order: Order) => {
+    setDetailOrder(order);
+    onSelectOrder?.(order);
+  };
+
+  if (isLoading && orders.length === 0) {
     return (
-      <div className="flex flex-col gap-3">
-        {[...Array(3)].map((_, i) => (
-          <div key={i} className="h-48 bg-gray-800 rounded-lg border border-gray-700 animate-pulse" />
-        ))}
+      <div className="space-y-3">
+        <div className="h-9 w-full skeleton rounded-xl" />
+        <SkeletonCards count={3} height="h-44" />
       </div>
     );
   }
 
   if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
-        <AlertCircle size={32} className="text-red-400" />
-        <div>
-          <p className="text-gray-300 font-medium">Failed to load orders</p>
-          <p className="text-gray-500 text-sm mt-1">{error}</p>
-        </div>
-        <Button
-          variant="secondary"
-          onClick={onRefetch}
-          leftIcon={<RefreshCw size={14} />}
-        >
-          Retry
-        </Button>
-      </div>
-    );
-  }
-
-  if (orders.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-        <div className="h-14 w-14 rounded-full bg-gray-800 flex items-center justify-center">
-          <svg
-            className="h-7 w-7 text-gray-600"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-            />
-          </svg>
-        </div>
-        <div>
-          <p className="text-gray-400 font-medium">No active orders</p>
-          <p className="text-gray-600 text-sm mt-1">
-            New orders will appear here in real-time
-          </p>
-        </div>
-      </div>
-    );
+    return <ErrorState title="Buyurtmalarni yuklab boʻlmadi" message={error} onRetry={onRefetch} />;
   }
 
   return (
     <>
-      <div className="flex flex-col gap-3">
-        {orders.map((order) => (
-          <OrderCard
-            key={order.id}
-            order={order}
-            onAssignDriver={handleAssignDriver}
-            onOrderUpdated={onOrderUpdated}
-            onOrderCancelled={onOrderCancelled}
-          />
-        ))}
+      <div className="space-y-3">
+        <Tabs items={tabs} value={tab} onChange={setTab} size="sm" className="w-full" />
+
+        {visibleOrders.length === 0 ? (
+          tab === 'completed' ? (
+            <EmptyState
+              icon={<CheckCircle2 size={22} />}
+              tone="positive"
+              title="Yakunlangan buyurtmalar bu yerda qolmaydi"
+              description="Buyurtma yakunlangach jonli oqimdan chiqadi."
+              action={
+                <Link
+                  href="/orders"
+                  className="text-sm font-semibold text-primary-600 dark:text-primary-300 hover:underline"
+                >
+                  Buyurtmalar tarixiga oʻtish →
+                </Link>
+              }
+            />
+          ) : counts.all === 0 ? (
+            <EmptyState
+              icon={<Radar size={22} />}
+              tone="positive"
+              title="Aktiv buyurtma yoʻq"
+              description="Yangi buyurtma kelishi bilan shu yerda real vaqtda paydo boʻladi."
+            />
+          ) : (
+            <EmptyState
+              title="Bu filtrda buyurtma yoʻq"
+              description="Boshqa filtrni tanlang yoki «Hammasi» ga qayting."
+              compact
+            />
+          )
+        ) : (
+          <div className="flex flex-col gap-3">
+            {visibleOrders.map((order) => (
+              <OrderCard
+                key={order.id}
+                order={order}
+                selected={order.id === selectedOrderId}
+                onAssignDriver={handleAssignDriver}
+                onOrderUpdated={onOrderUpdated}
+                onOrderCancelled={onOrderCancelled}
+                onOpenDetails={handleOpenDetails}
+              />
+            ))}
+          </div>
+        )}
       </div>
+
+      <OrderDetailDrawer
+        order={detailOrder}
+        isOpen={detailOrder !== null}
+        onClose={() => setDetailOrder(null)}
+      />
 
       <AssignDriverModal
         isOpen={assignModalOpen}
         onClose={() => {
           setAssignModalOpen(false);
-          setSelectedOrder(null);
+          setOrderForAssign(null);
         }}
-        order={selectedOrder}
+        order={orderForAssign}
         availableDrivers={drivers}
         onAssigned={handleAssigned}
       />

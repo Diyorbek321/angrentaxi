@@ -1,35 +1,46 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { Search, Filter, RefreshCw } from 'lucide-react';
+import { Suspense, useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { ClipboardList, RefreshCw, Search } from 'lucide-react';
 import { getOrders, PaginatedResponse, Order } from '@/lib/api';
-import { OrderStatus, ORDER_STATUS } from '@/lib/constants';
+import { OrderStatus, ORDER_STATUS, ORDER_STATUS_LABELS } from '@/lib/constants';
 import { OrdersTable } from '@/components/orders/OrdersTable';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { SkeletonTable } from '@/components/ui/Skeleton';
+import { formatNumber } from '@/lib/format';
 
 const statusOptions = [
-  { value: '', label: 'All statuses' },
-  { value: ORDER_STATUS.CREATED, label: 'Created' },
-  { value: ORDER_STATUS.SEARCHING, label: 'Searching' },
-  { value: ORDER_STATUS.ACCEPTED, label: 'Accepted' },
-  { value: ORDER_STATUS.ARRIVED, label: 'Arrived' },
-  { value: ORDER_STATUS.IN_PROGRESS, label: 'In Progress' },
-  { value: ORDER_STATUS.COMPLETED, label: 'Completed' },
-  { value: ORDER_STATUS.CANCELLED, label: 'Cancelled' },
+  { value: '', label: 'Barcha statuslar' },
+  ...Object.values(ORDER_STATUS).map((status) => ({
+    value: status,
+    label: ORDER_STATUS_LABELS[status],
+  })),
 ];
 
 const PAGE_LIMIT = 20;
 
-export default function OrdersPage() {
+function OrdersPageContent() {
+  // The header search box routes here with ?q=… — pick it up as the initial
+  // query so the search feels continuous across screens.
+  const searchParams = useSearchParams();
+  const initialQuery = searchParams.get('q') ?? '';
+
   const [data, setData] = useState<PaginatedResponse<Order> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
+  const [debouncedSearch, setDebouncedSearch] = useState(initialQuery);
+
+  useEffect(() => {
+    setSearchQuery(initialQuery);
+  }, [initialQuery]);
 
   // Debounce search input
   useEffect(() => {
@@ -50,7 +61,7 @@ export default function OrdersPage() {
       setData(result);
     } catch (err) {
       console.error('Failed to fetch orders:', err);
-      setError('Failed to load orders. Please try again.');
+      setError('Buyurtmalarni yuklab boʻlmadi. Qaytadan urinib koʻring.');
     } finally {
       setIsLoading(false);
     }
@@ -65,66 +76,62 @@ export default function OrdersPage() {
     setCurrentPage(1);
   }, [statusFilter, debouncedSearch]);
 
-  return (
-    <div className="h-[calc(100vh-3.5rem)] flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-white/[0.06] bg-[#0D1526]/50 shrink-0">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-lg font-semibold text-[#F1F5F9]">Orders</h1>
-            <p className="text-sm text-[#94A3B8] mt-0.5">
-              {data ? `${data.total.toLocaleString()} total orders` : 'Loading...'}
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={fetchOrders}
-            leftIcon={<RefreshCw size={13} />}
-          >
-            Refresh
-          </Button>
-        </div>
+  const hasFilters = Boolean(statusFilter || searchQuery);
 
-        {/* Filters */}
-        <div className="flex items-center gap-3 flex-wrap">
+  const clearFilters = () => {
+    setStatusFilter('');
+    setSearchQuery('');
+  };
+
+  return (
+    <div className="h-full flex flex-col overflow-hidden">
+      <div className="px-5 pt-4 shrink-0">
+        <PageHeader
+          title="Buyurtmalar"
+          icon={<ClipboardList size={17} />}
+          description={
+            data ? `Jami ${formatNumber(data.total)} ta buyurtma` : 'Yuklanmoqda…'
+          }
+          className="mb-4"
+          actions={
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={fetchOrders}
+              leftIcon={<RefreshCw size={13} />}
+            >
+              Yangilash
+            </Button>
+          }
+        />
+
+        <div className="flex items-center gap-3 flex-wrap pb-4">
           <Input
-            placeholder="Search by passenger, phone..."
+            placeholder="Mijoz ismi yoki telefon boʻyicha"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             leftElement={<Search size={14} />}
             className="w-64"
+            aria-label="Buyurtmalarni qidirish"
           />
           <Select
             options={statusOptions}
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-44"
+            className="w-48"
+            aria-label="Status boʻyicha filtr"
           />
-          {(statusFilter || searchQuery) && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setStatusFilter('');
-                setSearchQuery('');
-              }}
-            >
-              Clear filters
+          {hasFilters && (
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              Filtrlarni tozalash
             </Button>
           )}
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div className="flex-1 overflow-y-auto px-5 pb-5">
         {error ? (
-          <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
-            <p className="text-red-400">{error}</p>
-            <Button variant="secondary" onClick={fetchOrders} leftIcon={<RefreshCw size={14} />}>
-              Retry
-            </Button>
-          </div>
+          <ErrorState title="Buyurtmalarni yuklab boʻlmadi" message={error} onRetry={fetchOrders} />
         ) : (
           <OrdersTable
             data={
@@ -139,9 +146,26 @@ export default function OrdersPage() {
             currentPage={currentPage}
             onPageChange={setCurrentPage}
             isLoading={isLoading}
+            hasFilters={hasFilters}
+            onClearFilters={clearFilters}
           />
         )}
       </div>
     </div>
+  );
+}
+
+export default function OrdersPage() {
+  // useSearchParams needs a Suspense boundary for Next's prerender pass.
+  return (
+    <Suspense
+      fallback={
+        <div className="p-5">
+          <SkeletonTable rows={8} cols={6} />
+        </div>
+      }
+    >
+      <OrdersPageContent />
+    </Suspense>
   );
 }

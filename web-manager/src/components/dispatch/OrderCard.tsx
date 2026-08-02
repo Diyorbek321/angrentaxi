@@ -1,40 +1,48 @@
 'use client';
 
 import { useState } from 'react';
-import { MapPin, User, Clock, Phone, Ban, CheckCircle, UserCheck } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { Ban, Car, CheckCircle2, Clock, MapPin, Phone, Star, UserCog } from 'lucide-react';
 import { Order, cancelOrder, completeOrder } from '@/lib/api';
 import { OrderStatusBadge } from '@/components/orders/OrderStatusBadge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { PAYMENT_METHOD_LABELS } from '@/lib/constants';
+import { Avatar } from '@/components/ui/Avatar';
+import { ORDER_STATUS_ACCENT, PAYMENT_METHOD_LABELS } from '@/lib/constants';
+import { formatMoney, formatMoneyApprox, formatPhone, formatRating, formatRelative, shortId } from '@/lib/format';
+import { AUTO_MATCH_WINDOW_MS, SearchProgress } from './SearchProgress';
+import { useNow } from './useNow';
 
 interface OrderCardProps {
   order: Order;
   onAssignDriver: (order: Order) => void;
   onOrderUpdated: (order: Order) => void;
   onOrderCancelled: (orderId: string) => void;
+  /** Opens the read-only detail drawer. */
+  onOpenDetails: (order: Order) => void;
+  selected?: boolean;
 }
-
-// Mirrors the backend's MatchingService.NO_DRIVER_TIMEOUT_MS — while an
-// order is within its automatic-matching window, hide the manual override
-// button so dispatchers aren't tempted to shortcut the algorithm on every
-// order. Once an order has been searching longer than this, MatchingService
-// has either found a driver or is about to give up, so a manual override
-// stops competing with a search that's still meaningfully in progress.
-const AUTO_MATCH_WINDOW_MS = 60_000;
 
 export function OrderCard({
   order,
   onAssignDriver,
   onOrderUpdated,
   onOrderCancelled,
+  onOpenDetails,
+  selected = false,
 }: OrderCardProps) {
   const [isCancelling, setIsCancelling] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
+  // Elapsed time gates the manual override, but Date.now() must not be read
+  // during render — it differs between server and client output.
+  const now = useNow(5000);
 
-  const searchingElapsedMs = Date.now() - new Date(order.createdAt).getTime();
-  const pastAutoMatchWindow = searchingElapsedMs > AUTO_MATCH_WINDOW_MS;
+  // While an order is inside its automatic-matching window, keep the manual
+  // override hidden so dispatchers aren't tempted to shortcut the algorithm
+  // on every order. Once the window has passed, MatchingService has either
+  // found a driver or is about to give up, so an override stops competing
+  // with a search that's still meaningfully in progress.
+  const pastAutoMatchWindow =
+    now != null && now - new Date(order.createdAt).getTime() > AUTO_MATCH_WINDOW_MS;
 
   const canAssign =
     !order.driver &&
@@ -42,174 +50,176 @@ export function OrderCard({
   const canReassign = ['accepted', 'arrived'].includes(order.status) && !!order.driver;
   const canCancel = ['created', 'searching', 'accepted', 'arrived'].includes(order.status);
   const canComplete = order.status === 'in_progress';
+  const hasActions = canAssign || canReassign || canCancel || canComplete;
 
   const handleCancel = async () => {
-    if (!confirm('Are you sure you want to cancel this order?')) return;
+    if (!confirm('Bu buyurtma bekor qilinsinmi?')) return;
     setIsCancelling(true);
     try {
       const updated = await cancelOrder(order.id, 'Cancelled by dispatcher');
       onOrderCancelled(updated.id);
     } catch (err) {
       console.error('Cancel failed:', err);
-      alert('Failed to cancel order');
+      alert('Buyurtmani bekor qilib boʻlmadi');
     } finally {
       setIsCancelling(false);
     }
   };
 
   const handleComplete = async () => {
-    if (!confirm('Mark this order as completed?')) return;
+    if (!confirm('Buyurtma yakunlandi deb belgilansinmi?')) return;
     setIsCompleting(true);
     try {
       const updated = await completeOrder(order.id);
       onOrderUpdated(updated);
     } catch (err) {
       console.error('Complete failed:', err);
-      alert('Failed to complete order');
+      alert('Buyurtmani yakunlab boʻlmadi');
     } finally {
       setIsCompleting(false);
     }
   };
 
   return (
-    <Card padding="none" className="overflow-hidden">
-      {/* Top accent bar based on status */}
-      <div
-        className={`h-0.5 w-full ${
-          order.status === 'searching'
-            ? 'bg-blue-500'
-            : order.status === 'accepted'
-            ? 'bg-green-500'
-            : order.status === 'arrived'
-            ? 'bg-yellow-500'
-            : order.status === 'in_progress'
-            ? 'bg-orange-500'
-            : 'bg-gray-600'
-        }`}
-      />
+    <Card
+      padding="none"
+      selected={selected}
+      className="overflow-hidden cursor-pointer hover:border-line-strong transition-colors"
+      onClick={() => onOpenDetails(order)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpenDetails(order);
+        }
+      }}
+    >
+      <div className={`h-0.5 w-full ${ORDER_STATUS_ACCENT[order.status]}`} />
 
-      <div className="p-4 space-y-3">
-        {/* Header row */}
+      <div className="p-3.5 space-y-3">
+        {/* Header: id, status, age */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="font-mono text-xs text-gray-500">
-              #{order.id.slice(-6).toUpperCase()}
-            </span>
-            <OrderStatusBadge status={order.status} size="sm" />
+            <span className="font-mono text-xs font-semibold text-muted">{shortId(order.id)}</span>
+            <OrderStatusBadge status={order.status} size="sm" dot />
           </div>
-          <div className="flex items-center gap-1.5 text-gray-500 text-xs shrink-0">
-            <Clock size={12} />
-            {formatDistanceToNow(new Date(order.createdAt), { addSuffix: true })}
-          </div>
-        </div>
-
-        {/* Passenger info */}
-        <div className="flex items-center gap-2">
-          <User size={14} className="text-gray-500 shrink-0" />
-          <span className="text-gray-200 text-sm font-medium truncate">
-            {order.passenger.name}
+          <span className="flex items-center gap-1 text-[11px] text-subtle shrink-0">
+            <Clock size={11} />
+            {formatRelative(order.createdAt)}
           </span>
-          <Phone size={12} className="text-gray-600 ml-auto shrink-0" />
-          <span className="text-gray-500 text-xs">{order.passenger.phone}</span>
         </div>
 
-        {/* Addresses */}
+        {/* Passenger */}
+        <div className="flex items-center gap-2 min-w-0">
+          <Avatar name={order.passenger?.name} size="xs" tone="muted" />
+          <span className="text-sm font-medium text-ink truncate">
+            {order.passenger?.name ?? 'Mijoz'}
+          </span>
+          <span className="ml-auto flex items-center gap-1 text-[11px] font-mono text-muted shrink-0">
+            <Phone size={11} />
+            {formatPhone(order.passenger?.phone)}
+          </span>
+        </div>
+
+        {/* Route */}
         <div className="space-y-1.5">
           <div className="flex items-start gap-2">
-            <div className="mt-0.5 h-2 w-2 rounded-full bg-accent-500 shrink-0" />
-            <p className="text-gray-300 text-xs leading-tight line-clamp-2">
-              {order.pickupAddress ?? '—'}
-            </p>
+            <span className="mt-1 h-2 w-2 rounded-full bg-primary shrink-0 ring-2 ring-primary/25" />
+            <p className="text-xs text-muted leading-snug line-clamp-2">{order.pickupAddress ?? '—'}</p>
           </div>
           <div className="flex items-start gap-2">
-            <MapPin size={14} className="text-red-400 mt-0.5 shrink-0" />
-            <p className="text-gray-300 text-xs leading-tight line-clamp-2">
-              {order.dropoffAddress ?? '—'}
-            </p>
+            <MapPin size={13} className="text-danger mt-0.5 shrink-0" />
+            <p className="text-xs text-muted leading-snug line-clamp-2">{order.dropoffAddress ?? '—'}</p>
           </div>
         </div>
 
-        {/* Driver info or placeholder */}
-        {order.driver ? (
-          <div className="flex items-center gap-2 bg-gray-700/50 rounded-md px-3 py-2">
-            <div className="h-6 w-6 rounded-full bg-gray-600 flex items-center justify-center shrink-0">
-              <User size={12} className="text-gray-400" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-gray-200 text-xs font-medium truncate">
-                {order.driver.name}
-              </p>
-              <p className="text-gray-500 text-xs">{order.driver.carNumber}</p>
-            </div>
-            <span className="text-gray-400 text-xs">⭐ {order.driver.rating.toFixed(1)}</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 bg-gray-700/30 rounded-md px-3 py-2 border border-dashed border-gray-700">
-            <p className="text-gray-600 text-xs">No driver assigned</p>
-          </div>
+        {/* Automatic search progress — only while the algorithm is working */}
+        {order.status === 'searching' && !order.driver && (
+          <SearchProgress createdAt={order.createdAt} />
         )}
 
-        {/* Price and payment */}
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <span>
-            {PAYMENT_METHOD_LABELS[order.paymentMethod]}
+        {/* Assigned driver */}
+        {order.driver ? (
+          <div className="flex items-center gap-2 rounded-lg bg-surface-2 border border-line px-2.5 py-2">
+            <Avatar name={order.driver.name} size="xs" />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-ink truncate">{order.driver.name}</p>
+              <p className="text-[11px] font-mono text-subtle truncate">{order.driver.carNumber}</p>
+            </div>
+            <span className="flex items-center gap-1 text-[11px] text-muted shrink-0">
+              <Star size={11} className="text-primary" fill="currentColor" />
+              {formatRating(order.driver.rating)}
+            </span>
+          </div>
+        ) : (
+          order.status !== 'searching' && (
+            <div className="rounded-lg border border-dashed border-line px-2.5 py-2">
+              <p className="text-[11px] text-subtle">Haydovchi hali tayinlanmagan</p>
+            </div>
+          )
+        )}
+
+        {/* Tariff + price */}
+        <div className="flex items-center justify-between gap-2 text-xs">
+          <span className="flex items-center gap-1.5 text-subtle min-w-0">
+            <Car size={12} className="shrink-0" />
+            <span className="truncate">{order.tariff?.name ?? '—'}</span>
+            <span className="text-line-strong">·</span>
+            <span className="shrink-0">{PAYMENT_METHOD_LABELS[order.paymentMethod]}</span>
           </span>
-          <span className="text-gray-300 font-medium">
+          <span className="font-mono font-semibold text-ink shrink-0">
             {order.finalPrice != null
-              ? `${order.finalPrice.toLocaleString()} UZS`
-              : `~${order.estimatedPrice.toLocaleString()} UZS`}
+              ? formatMoney(order.finalPrice)
+              : formatMoneyApprox(order.estimatedPrice)}
           </span>
         </div>
 
-        {/* Actions */}
-        <div className="flex flex-wrap gap-2 pt-1">
-          {canAssign && (
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => onAssignDriver(order)}
-              leftIcon={<UserCheck size={13} />}
-              className="flex-1 !bg-amber-900/30 !text-amber-400 hover:!bg-amber-900/50"
-            >
-              Manual Override
-            </Button>
-          )}
-          {canReassign && (
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => onAssignDriver(order)}
-              leftIcon={<UserCheck size={13} />}
-              className="flex-1 !bg-amber-900/30 !text-amber-400 hover:!bg-amber-900/50"
-            >
-              Override Driver
-            </Button>
-          )}
-          {canComplete && (
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={handleComplete}
-              isLoading={isCompleting}
-              leftIcon={<CheckCircle size={13} />}
-              className="flex-1"
-            >
-              Complete
-            </Button>
-          )}
-          {canCancel && (
-            <Button
-              size="sm"
-              variant="danger"
-              onClick={handleCancel}
-              isLoading={isCancelling}
-              leftIcon={<Ban size={13} />}
-              className={canAssign || canReassign || canComplete ? '' : 'flex-1'}
-            >
-              Cancel
-            </Button>
-          )}
-        </div>
+        {/* Actions — deliberately quiet. Assignment is the algorithm's job;
+            anything here is an exception, so nothing is a primary button. */}
+        {hasActions && (
+          <div
+            className="flex flex-wrap gap-2 pt-0.5"
+            onClick={(e) => e.stopPropagation()}
+            role="presentation"
+          >
+            {(canAssign || canReassign) && (
+              <Button
+                size="sm"
+                variant="override"
+                onClick={() => onAssignDriver(order)}
+                leftIcon={<UserCog size={13} />}
+                className="flex-1"
+              >
+                Qoʻlda aralashuv
+              </Button>
+            )}
+            {canComplete && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleComplete}
+                isLoading={isCompleting}
+                leftIcon={<CheckCircle2 size={13} />}
+                className="flex-1"
+              >
+                Yakunlash
+              </Button>
+            )}
+            {canCancel && (
+              <Button
+                size="sm"
+                variant="danger"
+                onClick={handleCancel}
+                isLoading={isCancelling}
+                leftIcon={<Ban size={13} />}
+                className={canAssign || canReassign || canComplete ? '' : 'flex-1'}
+              >
+                Bekor qilish
+              </Button>
+            )}
+          </div>
+        )}
       </div>
     </Card>
   );
