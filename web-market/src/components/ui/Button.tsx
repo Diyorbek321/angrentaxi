@@ -1,57 +1,101 @@
-import * as React from 'react';
-import { cva, type VariantProps } from 'class-variance-authority';
+import { forwardRef, ButtonHTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 
-const buttonVariants = cva(
-  'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#080D1A] disabled:pointer-events-none disabled:opacity-50',
-  {
-    variants: {
-      variant: {
-        default: 'bg-yellow-400 text-[#080D1A] hover:bg-yellow-300 font-semibold focus-visible:ring-yellow-400',
-        destructive: 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 focus-visible:ring-red-500',
-        outline: 'border border-white/20 bg-transparent text-slate-300 hover:bg-white/10 hover:border-white/40 focus-visible:ring-white/40',
-        secondary: 'bg-white/10 text-slate-200 hover:bg-white/20 focus-visible:ring-white/40',
-        ghost: 'text-slate-400 hover:bg-white/10 hover:text-white focus-visible:ring-white/40',
-        success: 'bg-green-500/20 text-green-400 border border-green-500/30 hover:bg-green-500/30 focus-visible:ring-green-500',
-      },
-      size: {
-        default: 'h-10 px-4 py-2',
-        sm: 'h-8 rounded-md px-3 text-xs',
-        lg: 'h-12 rounded-md px-8 text-base',
-        icon: 'h-10 w-10',
-        'icon-sm': 'h-8 w-8',
-      },
-    },
-    defaultVariants: { variant: 'default', size: 'default' },
-  }
-);
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'outline' | 'danger';
+export type ButtonSize = 'sm' | 'md' | 'lg' | 'icon' | 'icon-sm';
 
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
+export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
   isLoading?: boolean;
+  leftIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, isLoading, children, disabled, ...props }, ref) => {
+const variantClasses: Record<ButtonVariant, string> = {
+  primary:
+    'bg-primary text-[#04231A] hover:bg-primary-light active:bg-primary-dark font-semibold border border-primary shadow-glow-mint-sm focus-visible:ring-primary',
+  secondary:
+    'bg-surface-2 text-ink hover:bg-surface-3 border border-line hover:border-line-strong focus-visible:ring-primary',
+  ghost:
+    'bg-transparent text-muted hover:bg-surface-2 hover:text-ink border border-transparent focus-visible:ring-primary',
+  outline:
+    'bg-transparent border border-line text-muted hover:bg-surface-2 hover:border-line-strong hover:text-ink focus-visible:ring-primary',
+  // Destructive only — deleting a product or a category.
+  danger:
+    'bg-danger/10 text-danger hover:bg-danger/20 border border-danger/30 font-semibold focus-visible:ring-danger',
+};
+
+const sizeClasses: Record<ButtonSize, string> = {
+  sm: 'px-2.5 py-1.5 text-xs rounded-lg gap-1.5',
+  md: 'px-3.5 py-2 text-sm rounded-lg gap-2',
+  lg: 'px-5 py-2.5 text-sm rounded-xl gap-2',
+  icon: 'h-10 w-10 rounded-lg',
+  'icon-sm': 'h-8 w-8 rounded-lg',
+};
+
+const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  (
+    {
+      variant = 'primary',
+      size = 'md',
+      isLoading = false,
+      leftIcon,
+      rightIcon,
+      className,
+      disabled,
+      children,
+      type = 'button',
+      ...props
+    },
+    ref
+  ) => {
     return (
       <button
-        className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
+        type={type}
         disabled={disabled || isLoading}
+        className={cn(
+          'inline-flex items-center justify-center whitespace-nowrap transition-colors',
+          'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
+          'disabled:opacity-45 disabled:cursor-not-allowed disabled:shadow-none',
+          variantClasses[variant],
+          sizeClasses[size],
+          className
+        )}
         {...props}
       >
-        {isLoading && (
-          <svg className="mr-2 h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        {isLoading ? (
+          <svg
+            className="animate-spin h-4 w-4 shrink-0"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+            />
           </svg>
-        )}
+        ) : leftIcon ? (
+          <span className="shrink-0">{leftIcon}</span>
+        ) : null}
         {children}
+        {!isLoading && rightIcon && <span className="shrink-0">{rightIcon}</span>}
       </button>
     );
   }
 );
+
 Button.displayName = 'Button';
 
-export { Button, buttonVariants };
+export { Button };

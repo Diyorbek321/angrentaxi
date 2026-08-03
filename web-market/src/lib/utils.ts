@@ -5,11 +5,19 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function money(amount: number): string {
-  return Math.round(amount).toLocaleString('ru-RU').replace(/ /g, ' ') + " so'm";
+/**
+ * Products carry an `emoji` + `hue` instead of an uploaded image (there is no
+ * `image` field on the model), so the swatch behind the emoji is generated
+ * from the hue. Kept at a low saturation/high lightness so the emoji stays
+ * legible and a wall of products never turns into a rainbow.
+ */
+export function hueTint(hue: number, dark: boolean): string {
+  const h = ((hue % 360) + 360) % 360;
+  return dark ? `hsl(${h} 42% 16%)` : `hsl(${h} 72% 93%)`;
 }
 
-export function formatTime(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+/** Matching border for the tint above. */
+export function hueBorder(hue: number, dark: boolean): string {
+  const h = ((hue % 360) + 360) % 360;
+  return dark ? `hsl(${h} 35% 26%)` : `hsl(${h} 55% 84%)`;
 }
