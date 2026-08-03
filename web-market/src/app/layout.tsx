@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import localFont from 'next/font/local';
 import './globals.css';
 import { Providers } from './providers';
+import { THEME_INIT_SCRIPT } from '@/lib/theme';
 
 const manrope = localFont({
   src: [
@@ -32,8 +33,18 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="uz" className={`${manrope.variable} ${jetbrainsMono.variable}`}>
-      <body className="font-sans">
+    // suppressHydrationWarning: the inline script below adds/removes the
+    // `dark` class before hydration, so the server HTML and the DOM React
+    // sees differ by design on this one element.
+    <html
+      lang="uz"
+      suppressHydrationWarning
+      className={`${manrope.variable} ${jetbrainsMono.variable}`}
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
+      <body className="font-sans antialiased bg-bg text-ink">
         <Providers>{children}</Providers>
       </body>
     </html>
