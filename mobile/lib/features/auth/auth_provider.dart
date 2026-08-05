@@ -81,9 +81,15 @@ class AuthProvider extends ChangeNotifier {
       final innerData = data['data'] as Map<String, dynamic>;
 
       final token = innerData['accessToken'] as String;
+      // Older backends omit refreshToken; saveTokens keeps whatever is stored
+      // in that case instead of wiping it.
+      final refreshToken = innerData['refreshToken'] as String?;
       final userJson = innerData['user'] as Map<String, dynamic>;
 
-      await _localStorage.saveToken(token);
+      await _localStorage.saveTokens(
+        accessToken: token,
+        refreshToken: refreshToken,
+      );
       await _localStorage.saveUser(userJson);
 
       _currentUser = User.fromJson(userJson);
@@ -124,7 +130,14 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> logout() async {
     try {
-      await _apiClient.post(ApiEndpoints.logout);
+      // Best effort server-side revocation of the refresh token. The endpoint
+      // may not exist yet on older deployments — either way the local wipe in
+      // `finally` still runs.
+      final refreshToken = _localStorage.getRefreshToken();
+      await _apiClient.post(
+        ApiEndpoints.logout,
+        data: refreshToken == null ? null : {'refreshToken': refreshToken},
+      );
     } catch (_) {
       // Ignore logout API errors
     } finally {

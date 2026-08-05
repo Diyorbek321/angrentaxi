@@ -20,7 +20,12 @@ Future<void> setupServiceLocator() async {
   sl.registerSingleton<SharedPreferences>(prefs);
 
   // Core services
-  sl.registerLazySingleton<LocalStorage>(() => LocalStorage(sl()));
+  // LocalStorage is eager (not lazy) because its tokens must be loaded from
+  // the keystore — and migrated off legacy SharedPreferences — before any
+  // authenticated request can be built.
+  final localStorage = LocalStorage(prefs);
+  await localStorage.initTokens();
+  sl.registerSingleton<LocalStorage>(localStorage);
 
   sl.registerLazySingleton<ApiClient>(
     () => ApiClient(sl<LocalStorage>(), sl<GlobalKey<NavigatorState>>()),
