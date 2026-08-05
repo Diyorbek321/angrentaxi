@@ -5,6 +5,9 @@ import * as SelectPrimitive from '@radix-ui/react-select';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+// Radix Select already gives full keyboard support (arrows, type-ahead, Esc,
+// focus return). What was missing is a visible focus ring and a token-based
+// surface — both added here.
 const Select = SelectPrimitive.Root;
 const SelectGroup = SelectPrimitive.Group;
 const SelectValue = SelectPrimitive.Value;
@@ -16,20 +19,20 @@ const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      'flex h-10 w-full items-center justify-between rounded-md border border-white/10 bg-[#111827] px-3 py-2 text-sm text-white',
-      'placeholder:text-slate-600',
-      'hover:bg-white/10 hover:border-white/20',
-      'focus:border-yellow-400/60 focus:outline-none focus:ring-1 focus:ring-yellow-400/20',
+      'flex h-10 w-full items-center justify-between rounded-ds-md border border-line bg-surface px-3 py-2 text-body text-ink',
+      'data-[placeholder]:text-subtle',
+      'hover:border-line-strong hover:bg-surface-2',
+      'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bg focus:border-primary',
       'disabled:cursor-not-allowed disabled:opacity-50',
       '[&>span]:line-clamp-1',
-      'transition-colors',
+      'transition-colors duration-fast',
       className
     )}
     {...props}
   >
     {children}
     <SelectPrimitive.Icon asChild>
-      <ChevronDown className="h-4 w-4 text-slate-500" />
+      <ChevronDown className="h-4 w-4 shrink-0 text-subtle" />
     </SelectPrimitive.Icon>
   </SelectPrimitive.Trigger>
 ));
@@ -41,7 +44,7 @@ const SelectScrollUpButton = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SelectPrimitive.ScrollUpButton
     ref={ref}
-    className={cn('flex cursor-default items-center justify-center py-1 text-slate-400', className)}
+    className={cn('flex cursor-default items-center justify-center py-1 text-muted', className)}
     {...props}
   >
     <ChevronUp className="h-4 w-4" />
@@ -55,7 +58,7 @@ const SelectScrollDownButton = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SelectPrimitive.ScrollDownButton
     ref={ref}
-    className={cn('flex cursor-default items-center justify-center py-1 text-slate-400', className)}
+    className={cn('flex cursor-default items-center justify-center py-1 text-muted', className)}
     {...props}
   >
     <ChevronDown className="h-4 w-4" />
@@ -71,12 +74,7 @@ const SelectContent = React.forwardRef<
     <SelectPrimitive.Content
       ref={ref}
       className={cn(
-        'relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-lg border border-white/10 bg-[#0D1526] text-white shadow-[0_8px_32px_rgba(0,0,0,0.5)]',
-        'data-[state=open]:animate-in data-[state=closed]:animate-out',
-        'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
-        'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
-        'data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2',
-        'data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
+        'relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-ds-sm border border-line bg-surface text-ink shadow-pop animate-fade-in',
         position === 'popper' &&
           'data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1',
         className
@@ -106,7 +104,7 @@ const SelectLabel = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SelectPrimitive.Label
     ref={ref}
-    className={cn('py-1.5 pl-8 pr-2 text-xs font-semibold text-slate-500', className)}
+    className={cn('py-1.5 pl-8 pr-2 text-caption font-semibold text-subtle', className)}
     {...props}
   />
 ));
@@ -119,17 +117,19 @@ const SelectItem = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      'relative flex w-full cursor-default select-none items-center rounded-md py-2 pl-8 pr-2 text-sm text-slate-300 outline-none',
-      'focus:bg-white/10 focus:text-white',
+      'relative flex w-full cursor-default select-none items-center rounded-ds-xs py-2 pl-8 pr-2 text-body text-ink outline-none',
+      // Radix moves `focus` with the keyboard, so the highlighted row is the
+      // same for mouse and keyboard users.
+      'focus:bg-mint-tint focus:text-ink',
       'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
-      'transition-colors',
+      'transition-colors duration-fast',
       className
     )}
     {...props}
   >
     <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
       <SelectPrimitive.ItemIndicator>
-        <Check className="h-4 w-4 text-yellow-400" />
+        <Check className="h-4 w-4 text-primary-text" />
       </SelectPrimitive.ItemIndicator>
     </span>
     <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
@@ -143,7 +143,7 @@ const SelectSeparator = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SelectPrimitive.Separator
     ref={ref}
-    className={cn('-mx-1 my-1 h-px bg-white/[0.08]', className)}
+    className={cn('-mx-1 my-1 h-px bg-divider', className)}
     {...props}
   />
 ));

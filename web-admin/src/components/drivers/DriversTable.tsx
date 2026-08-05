@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Star } from 'lucide-react';
+import { Star, Car } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -10,7 +10,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/Table';
-import { Skeleton } from '@/components/ui/Skeleton';
+import { SkeletonTable } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Avatar } from '@/components/ui/Avatar';
 import { DriverStatusBadge } from './DriverStatusBadge';
 import { Driver } from '@/lib/api';
 import { formatDate, getFullName, formatRating, formatCurrency } from '@/lib/utils';
@@ -24,20 +26,16 @@ export function DriversTable({ drivers, isLoading }: DriversTableProps) {
   const router = useRouter();
 
   if (isLoading) {
-    return (
-      <div className="space-y-3 p-4">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <Skeleton key={i} className="h-12 w-full" />
-        ))}
-      </div>
-    );
+    return <SkeletonTable rows={8} cols={8} className="border-0" />;
   }
 
   if (drivers.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <p className="text-sm text-gray-500">Haydovchilar topilmadi</p>
-      </div>
+      <EmptyState
+        icon={<Car className="h-6 w-6" />}
+        title="Haydovchilar topilmadi"
+        description="Filtrni oʻzgartirib koʻring yoki keyinroq qayta urinib koʻring."
+      />
     );
   }
 
@@ -64,42 +62,41 @@ export function DriversTable({ drivers, isLoading }: DriversTableProps) {
           >
             <TableCell>
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-yellow text-sm font-bold text-brand-black">
-                  {driver.firstName?.charAt(0) || '?'}
-                </div>
+                <Avatar name={getFullName(driver.firstName, driver.lastName)} size="md" />
                 <div>
-                  <p className="font-medium text-gray-100">
+                  <p className="font-medium text-ink">
                     {getFullName(driver.firstName, driver.lastName)}
                   </p>
                   {driver.balance !== undefined && (
-                    <p className="text-xs text-gray-400">{formatCurrency(driver.balance)}</p>
+                    <p className="text-caption text-muted">{formatCurrency(driver.balance)}</p>
                   )}
                 </div>
               </div>
             </TableCell>
-            <TableCell className="text-gray-300">{driver.phone}</TableCell>
+            <TableCell className="text-muted">{driver.phone}</TableCell>
             <TableCell>
-              <p className="font-medium text-gray-100">{driver.carModel}</p>
-              {driver.carColor && <p className="text-xs text-gray-400">{driver.carColor}</p>}
+              <p className="font-medium text-ink">{driver.carModel}</p>
+              {driver.carColor && <p className="text-caption text-muted">{driver.carColor}</p>}
             </TableCell>
             <TableCell>
-              <span className="rounded-md bg-white/10 px-2 py-1 font-mono text-xs font-semibold text-gray-300">
+              <span className="rounded-ds-xs bg-surface-2 px-2 py-1 font-mono text-caption font-semibold text-ink">
                 {driver.carNumber}
               </span>
             </TableCell>
             <TableCell>
               <div className="flex items-center gap-1">
-                <Star className="h-3.5 w-3.5 fill-brand-yellow text-brand-yellow" />
-                <span className="text-sm font-medium text-gray-100">
-                  {formatRating(driver.rating)}
-                </span>
+                {/* Reyting yulduzi — amber (docs §5: kWarningDark ga eng yaqin). */}
+                <Star className="h-3.5 w-3.5 fill-override text-override" aria-hidden="true" />
+                <span className="font-medium text-ink">{formatRating(driver.rating)}</span>
               </div>
             </TableCell>
-            <TableCell className="font-medium text-gray-100">{driver.totalTrips}</TableCell>
+            <TableCell className="font-mono font-medium tabular-nums text-ink">
+              {driver.totalTrips}
+            </TableCell>
             <TableCell>
               <DriverStatusBadge status={driver.status} isOnline={driver.isOnline} />
             </TableCell>
-            <TableCell className="text-xs text-gray-400">
+            <TableCell className="text-caption text-muted">
               {formatDate(driver.createdAt, 'dd.MM.yyyy')}
             </TableCell>
           </TableRow>

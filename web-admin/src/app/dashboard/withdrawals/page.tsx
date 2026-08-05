@@ -1,13 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Header } from '@/components/layout/Header';
+import { Wallet } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Pagination } from '@/components/ui/Pagination';
-import { Skeleton } from '@/components/ui/Skeleton';
+import { SkeletonTable } from '@/components/ui/Skeleton';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
 import {
   Select,
   SelectContent,
@@ -43,6 +46,13 @@ const statusBadgeVariant: Record<WithdrawalStatus, 'warning' | 'info' | 'destruc
   paid: 'success',
 };
 
+const statusLabel: Record<WithdrawalStatus, string> = {
+  pending: 'Kutilmoqda',
+  approved: 'Tasdiqlangan',
+  rejected: 'Rad etilgan',
+  paid: "To'langan",
+};
+
 const ownerTypeLabel: Record<string, string> = {
   driver: 'Driver',
   vendor: 'Market vendor',
@@ -56,6 +66,7 @@ export default function WithdrawalsPage() {
   const pagination = usePagination(20);
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('pending');
   const [target, setTarget] = useState<WithdrawalRequest | null>(null);
   const [action, setAction] = useState<Action | null>(null);
@@ -74,7 +85,9 @@ export default function WithdrawalsPage() {
       setWithdrawals(payload?.withdrawals ?? []);
       const total = payload?.total ?? 0;
       pagination.setTotal(total, Math.ceil(total / pagination.limit));
+      setError(null);
     } catch {
+      setError("Pul yechish so'rovlarini yuklab bo'lmadi.");
       toast({ title: 'Xatolik', description: "Pul yechish so'rovlarini yuklashda xatolik", variant: 'error' });
     } finally {
       setIsLoading(false);
@@ -113,13 +126,20 @@ export default function WithdrawalsPage() {
     }
   };
 
+  // Tasdiqlash — asosiy interaktiv harakat (yashil, oq matn).
+  // Rad etish — xavfli/bekor qiluvchi harakat.
+  // "To'landi" deb belgilash — pul tizim tashqarisida qo'lda o'tkazilgani
+  // uchun qo'lda aralashuv (amber, `override`).
+  const confirmButtonVariant = action === 'rejected' ? 'destructive' : action === 'paid' ? 'override' : 'default';
+
   return (
-    <div>
-      <Header
+    <div className="p-4 sm:p-6">
+      <PageHeader
         title="Pul yechish so'rovlari"
-        subtitle="Haydovchi, Market va Eats — barcha to'lov so'rovlari bitta navbatda"
+        description="Haydovchi, Market va Eats — barcha to'lov so'rovlari bitta navbatda"
+        icon={<Wallet className="h-4 w-4" />}
       />
-      <div className="p-6 space-y-4">
+      <div className="space-y-4">
         <div className="flex items-center gap-3">
           <Select
             value={statusFilter}
@@ -140,14 +160,19 @@ export default function WithdrawalsPage() {
 
         <Card>
           <CardContent className="p-0">
-            {isLoading ? (
-              <div className="space-y-3 p-4">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <Skeleton key={i} className="h-12 w-full" />
-                ))}
+            {error ? (
+              <ErrorState message={error} onRetry={fetchWithdrawals} />
+            ) : isLoading ? (
+              <div className="p-4">
+                <SkeletonTable rows={6} cols={7} />
               </div>
             ) : withdrawals.length === 0 ? (
-              <p className="py-12 text-center text-sm text-gray-500">So&apos;rovlar topilmadi</p>
+              <EmptyState
+                compact
+                icon={<Wallet className="h-5 w-5" />}
+                title="So'rovlar topilmadi"
+                description="Tanlangan holat bo'yicha pul yechish so'rovi yo'q."
+              />
             ) : (
               <Table>
                 <TableHeader>
@@ -165,33 +190,35 @@ export default function WithdrawalsPage() {
                   {withdrawals.map((w) => (
                     <TableRow key={w.id}>
                       <TableCell>
-                        <p className="font-medium text-gray-100">
+                        <p className="font-medium text-ink">
                           {getFullName(w.driver?.firstName ?? '', w.driver?.lastName ?? '') || '—'}
                         </p>
-                        <p className="text-xs text-gray-500">{w.driver ? formatPhone(w.driver.phone) : '—'}</p>
+                        <p className="text-caption text-subtle">{w.driver ? formatPhone(w.driver.phone) : '—'}</p>
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary">{ownerTypeLabel[w.ownerType] ?? w.ownerType}</Badge>
                       </TableCell>
-                      <TableCell className="font-semibold text-gray-100">
+                      <TableCell className="font-mono font-semibold tabular-nums text-ink">
                         {formatCurrency(w.amount)}
                       </TableCell>
-                      <TableCell className="font-mono text-xs text-gray-400">
+                      <TableCell className="font-mono text-caption text-muted">
                         {w.payoutDestination}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={statusBadgeVariant[w.status]}>{w.status}</Badge>
+                        <Badge variant={statusBadgeVariant[w.status]} dot>
+                          {statusLabel[w.status]}
+                        </Badge>
                         {w.adminNote && (
-                          <p className="mt-1 max-w-[200px] truncate text-xs text-gray-500" title={w.adminNote}>
+                          <p className="mt-1 max-w-[200px] truncate text-caption text-subtle" title={w.adminNote}>
                             {w.adminNote}
                           </p>
                         )}
                       </TableCell>
-                      <TableCell className="text-xs text-gray-400">{formatDate(w.requestedAt)}</TableCell>
+                      <TableCell className="text-caption text-muted">{formatDate(w.requestedAt)}</TableCell>
                       <TableCell>
                         {w.status === 'pending' && (
                           <div className="flex gap-2">
-                            <Button size="sm" variant="success" onClick={() => openAction(w, 'approved')}>
+                            <Button size="sm" variant="default" onClick={() => openAction(w, 'approved')}>
                               Tasdiqlash
                             </Button>
                             <Button size="sm" variant="destructive" onClick={() => openAction(w, 'rejected')}>
@@ -200,12 +227,12 @@ export default function WithdrawalsPage() {
                           </div>
                         )}
                         {w.status === 'approved' && (
-                          <Button size="sm" variant="outline" onClick={() => openAction(w, 'paid')}>
+                          <Button size="sm" variant="override" onClick={() => openAction(w, 'paid')}>
                             To&apos;landi deb belgilash
                           </Button>
                         )}
                         {(w.status === 'paid' || w.status === 'rejected') && (
-                          <span className="text-xs text-gray-600">—</span>
+                          <span className="text-caption text-subtle" aria-hidden="true">—</span>
                         )}
                       </TableCell>
                     </TableRow>
@@ -216,21 +243,23 @@ export default function WithdrawalsPage() {
           </CardContent>
         </Card>
 
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-500">
-            {pagination.total} ta natijadan{' '}
-            {Math.min((pagination.page - 1) * pagination.limit + 1, pagination.total)}–
-            {Math.min(pagination.page * pagination.limit, pagination.total)} ko&apos;rsatilmoqda
-          </p>
-          <Pagination
-            page={pagination.page}
-            totalPages={pagination.totalPages}
-            pageRange={pagination.pageRange}
-            canGoPrev={pagination.canGoPrev}
-            canGoNext={pagination.canGoNext}
-            onPageChange={pagination.goToPage}
-          />
-        </div>
+        {!error && !isLoading && withdrawals.length > 0 && (
+          <div className="flex items-center justify-between">
+            <p className="text-body text-subtle">
+              {pagination.total} ta natijadan{' '}
+              {Math.min((pagination.page - 1) * pagination.limit + 1, pagination.total)}–
+              {Math.min(pagination.page * pagination.limit, pagination.total)} ko&apos;rsatilmoqda
+            </p>
+            <Pagination
+              page={pagination.page}
+              totalPages={pagination.totalPages}
+              pageRange={pagination.pageRange}
+              canGoPrev={pagination.canGoPrev}
+              canGoNext={pagination.canGoNext}
+              onPageChange={pagination.goToPage}
+            />
+          </div>
+        )}
       </div>
 
       <Dialog open={!!action} onOpenChange={closeAction}>
@@ -251,12 +280,12 @@ export default function WithdrawalsPage() {
             </DialogDescription>
           </DialogHeader>
           {target && (
-            <div className="rounded-lg bg-white/5 p-3 text-sm">
-              <p className="text-gray-300">
+            <div className="rounded-ds-md bg-surface-2 p-3 text-body">
+              <p className="text-muted">
                 {getFullName(target.driver?.firstName ?? '', target.driver?.lastName ?? '')} —{' '}
-                {formatCurrency(target.amount)}
+                <span className="font-mono tabular-nums text-ink">{formatCurrency(target.amount)}</span>
               </p>
-              <p className="mt-1 font-mono text-xs text-gray-500">{target.payoutDestination}</p>
+              <p className="mt-1 font-mono text-caption text-subtle">{target.payoutDestination}</p>
             </div>
           )}
           <Input
@@ -270,7 +299,7 @@ export default function WithdrawalsPage() {
               Bekor qilish
             </Button>
             <Button
-              variant={action === 'rejected' ? 'destructive' : 'success'}
+              variant={confirmButtonVariant}
               isLoading={actionLoading}
               onClick={handleConfirm}
             >

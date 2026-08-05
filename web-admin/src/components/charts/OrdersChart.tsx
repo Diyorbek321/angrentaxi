@@ -13,6 +13,9 @@ import {
 import { format, parseISO } from 'date-fns';
 import { RevenueDataPoint } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { CHART_COLORS } from '@/lib/chart-tokens';
 
 interface OrdersChartProps {
   data: RevenueDataPoint[];
@@ -35,7 +38,25 @@ export function OrdersChart({ data, isLoading }: OrdersChartProps) {
           <CardTitle>Buyurtmalar soni</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-64 animate-pulse rounded-lg bg-gray-100" />
+          {/* Spinner emas — diagramma shakliga mos skeleton. */}
+          <Skeleton className="h-[300px] w-full rounded-ds-md" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!data || data.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Buyurtmalar soni</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <EmptyState
+            compact
+            title="Maʼlumot yoʻq"
+            description="Tanlangan davr uchun buyurtma maʼlumoti topilmadi."
+          />
         </CardContent>
       </Card>
     );
@@ -49,33 +70,25 @@ export function OrdersChart({ data, isLoading }: OrdersChartProps) {
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <CartesianGrid strokeDasharray="3 3" />
             <XAxis
               dataKey="date"
               tickFormatter={formatAxisDate}
-              tick={{ fontSize: 12, fill: '#9ca3af' }}
+              tick={{ fontSize: 12 }}
               axisLine={false}
               tickLine={false}
             />
-            <YAxis
-              tick={{ fontSize: 12, fill: '#9ca3af' }}
-              axisLine={false}
-              tickLine={false}
-            />
+            <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
             <Tooltip
               formatter={(value: number) => [value, 'Buyurtmalar']}
               labelFormatter={formatAxisDate}
-              contentStyle={{
-                borderRadius: 8,
-                border: '1px solid #e5e7eb',
-                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
-              }}
+              cursor={{ fill: 'rgba(16,160,100,0.08)' }}
             />
             <Legend />
             <Bar
               dataKey="orders"
               name="Buyurtmalar"
-              fill="#F5C518"
+              fill={CHART_COLORS.primary}
               radius={[4, 4, 0, 0]}
               maxBarSize={40}
             />

@@ -1,14 +1,26 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Users, Car, ClipboardList, DollarSign, Clock, CheckCircle } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  Users,
+  Car,
+  ClipboardList,
+  DollarSign,
+  Clock,
+  CheckCircle,
+  LayoutDashboard,
+  Inbox,
+} from 'lucide-react';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { StatCard } from '@/components/ui/StatCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { SkeletonStats, SkeletonCards } from '@/components/ui/Skeleton';
 import { OrderStatusBadge } from '@/components/orders/OrderStatusBadge';
 import { DriverStatusBadge } from '@/components/drivers/DriverStatusBadge';
 import { dashboardApi, DashboardStats, ordersApi, driversApi, Order, Driver } from '@/lib/api';
-import { formatCurrency, formatDate, getFullName } from '@/lib/utils';
+import { formatCurrency, getFullName } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
 
 export default function DashboardPage() {
@@ -17,157 +29,179 @@ export default function DashboardPage() {
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [onlineDrivers, setOnlineDrivers] = useState<Driver[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [statsRes, ordersRes, driversRes] = await Promise.all([
-          dashboardApi.getStats(),
-          ordersApi.getAll({ page: 1, limit: 5 }),
-          driversApi.getAll({ page: 1, limit: 5, isOnline: true }),
-        ]);
-        setStats(statsRes.data.data);
-        setRecentOrders(ordersRes.data.data?.orders ?? []);
-        setOnlineDrivers(driversRes.data.data?.drivers ?? []);
-      } catch {
-        toast({ title: 'Xatolik', description: 'Ma\'lumotlarni yuklashda xatolik', variant: 'error' });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchData();
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [statsRes, ordersRes, driversRes] = await Promise.all([
+        dashboardApi.getStats(),
+        ordersApi.getAll({ page: 1, limit: 5 }),
+        driversApi.getAll({ page: 1, limit: 5, isOnline: true }),
+      ]);
+      setStats(statsRes.data.data);
+      setRecentOrders(ordersRes.data.data?.orders ?? []);
+      setOnlineDrivers(driversRes.data.data?.drivers ?? []);
+      setError(null);
+    } catch {
+      const message = "Ma'lumotlarni yuklashda xatolik";
+      setError(message);
+      toast({ title: 'Xatolik', description: message, variant: 'error' });
+    } finally {
+      setIsLoading(false);
+    }
   }, [toast]);
 
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
   return (
-    <div>
-      <Header title="Bosh sahifa" subtitle="Tizimning umumiy ko'rinishi" />
-      <div className="p-6 space-y-6">
-        {/* Stats grid */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-          <StatCard
-            title="Jami foydalanuvchilar"
-            value={stats?.totalUsers?.toLocaleString() ?? '—'}
-            icon={<Users className="h-5 w-5 text-white" />}
-            variant="blue"
-            isLoading={isLoading}
-          />
-          <StatCard
-            title="Faol haydovchilar"
-            value={stats?.activeDrivers?.toLocaleString() ?? '—'}
-            icon={<Car className="h-5 w-5 text-white" />}
-            variant="green"
-            isLoading={isLoading}
-          />
-          <StatCard
-            title="Onlayn haydovchilar"
-            value={stats?.onlineDrivers?.toLocaleString() ?? '—'}
-            icon={<CheckCircle className="h-5 w-5 text-white" />}
-            variant="green"
-            isLoading={isLoading}
-          />
-          <StatCard
-            title="Bugungi buyurtmalar"
-            value={stats?.ordersToday?.toLocaleString() ?? '—'}
-            icon={<ClipboardList className="h-5 w-5 text-white" />}
-            variant="yellow"
-            isLoading={isLoading}
-          />
-          <StatCard
-            title="Bugungi daromad"
-            value={stats ? formatCurrency(stats.revenueToday) : '—'}
-            icon={<DollarSign className="h-5 w-5 text-white" />}
-            variant="purple"
-            isLoading={isLoading}
-          />
-          <StatCard
-            title="Tasdiqlanmagan"
-            value={stats?.pendingDriverApprovals?.toLocaleString() ?? '—'}
-            subtitle="Haydovchi arizalari"
-            icon={<Clock className="h-5 w-5 text-white" />}
-            variant="yellow"
-            isLoading={isLoading}
-          />
-        </div>
+    <div className="p-4 sm:p-6">
+      <PageHeader
+        title="Bosh sahifa"
+        description="Tizimning umumiy ko'rinishi"
+        icon={<LayoutDashboard className="h-4 w-4" />}
+      />
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {/* Recent orders */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Oxirgi buyurtmalar</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {isLoading ? (
-                <div className="space-y-3 p-4">
-                  {[...Array(5)].map((_, i) => (
-                    <div key={i} className="h-12 animate-pulse rounded-lg bg-white/[0.06]" />
-                  ))}
-                </div>
-              ) : recentOrders.length === 0 ? (
-                <p className="p-6 text-center text-sm text-slate-500">Buyurtmalar yo&apos;q</p>
-              ) : (
-                <ul className="divide-y divide-white/[0.05]">
-                  {recentOrders.map((order) => (
-                    <li key={order.id} className="flex items-center justify-between px-4 py-3 hover:bg-white/[0.03] transition-colors">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-slate-200">
-                          {getFullName(order.passenger.firstName, order.passenger.lastName)}
-                        </p>
-                        <p className="truncate text-xs text-slate-500">{order.pickupAddress ?? '—'}</p>
-                      </div>
-                      <div className="ml-4 flex shrink-0 items-center gap-3">
-                        <OrderStatusBadge status={order.status} />
-                        <span className="text-sm font-semibold text-white">
-                          {formatCurrency(order.finalPrice ?? order.estimatedPrice)}
-                        </span>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
+      {error ? (
+        <ErrorState message={error} onRetry={fetchData} />
+      ) : (
+        <div className="space-y-6">
+          {/* Stats grid */}
+          {isLoading ? (
+            <SkeletonStats count={6} className="sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6" />
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+              <StatCard
+                title="Jami foydalanuvchilar"
+                value={stats?.totalUsers?.toLocaleString() ?? '—'}
+                icon={<Users className="h-5 w-5" />}
+                variant="info"
+              />
+              <StatCard
+                title="Faol haydovchilar"
+                value={stats?.activeDrivers?.toLocaleString() ?? '—'}
+                icon={<Car className="h-5 w-5" />}
+                variant="mint"
+              />
+              <StatCard
+                title="Onlayn haydovchilar"
+                value={stats?.onlineDrivers?.toLocaleString() ?? '—'}
+                icon={<CheckCircle className="h-5 w-5" />}
+                variant="mint"
+              />
+              <StatCard
+                title="Bugungi buyurtmalar"
+                value={stats?.ordersToday?.toLocaleString() ?? '—'}
+                icon={<ClipboardList className="h-5 w-5" />}
+                variant="override"
+              />
+              <StatCard
+                title="Bugungi daromad"
+                value={stats ? formatCurrency(stats.revenueToday) : '—'}
+                icon={<DollarSign className="h-5 w-5" />}
+                variant="violet"
+              />
+              <StatCard
+                title="Tasdiqlanmagan"
+                value={stats?.pendingDriverApprovals?.toLocaleString() ?? '—'}
+                subtitle="Haydovchi arizalari"
+                icon={<Clock className="h-5 w-5" />}
+                variant="override"
+              />
+            </div>
+          )}
 
-          {/* Online drivers */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Onlayn haydovchilar</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {isLoading ? (
-                <div className="space-y-3 p-4">
-                  {[...Array(5)].map((_, i) => (
-                    <div key={i} className="h-12 animate-pulse rounded-lg bg-white/[0.06]" />
-                  ))}
-                </div>
-              ) : onlineDrivers.length === 0 ? (
-                <p className="p-6 text-center text-sm text-slate-500">Onlayn haydovchilar yo&apos;q</p>
-              ) : (
-                <ul className="divide-y divide-white/[0.05]">
-                  {onlineDrivers.map((driver) => (
-                    <li key={driver.id} className="flex items-center justify-between px-4 py-3 hover:bg-white/[0.03] transition-colors">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-yellow-400 text-xs font-bold text-[#080D1A]"
-                          style={{ boxShadow: '0 0 8px rgba(250,204,21,0.3)' }}
-                        >
-                          {driver.firstName?.charAt(0)}
-                        </div>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {/* Recent orders */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Oxirgi buyurtmalar</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {isLoading ? (
+                  <div className="p-4">
+                    <SkeletonCards count={5} height="h-12" />
+                  </div>
+                ) : recentOrders.length === 0 ? (
+                  <EmptyState
+                    compact
+                    icon={<Inbox className="h-5 w-5" />}
+                    title="Buyurtmalar yo'q"
+                  />
+                ) : (
+                  <ul className="divide-y divide-divider">
+                    {recentOrders.map((order) => (
+                      <li
+                        key={order.id}
+                        className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-surface-2"
+                      >
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-slate-200">
-                            {getFullName(driver.firstName, driver.lastName)}
+                          <p className="truncate text-body font-medium text-ink">
+                            {getFullName(order.passenger.firstName, order.passenger.lastName)}
                           </p>
-                          <p className="text-xs text-slate-500">{driver.carNumber}</p>
+                          <p className="truncate text-caption text-muted">
+                            {order.pickupAddress ?? '—'}
+                          </p>
                         </div>
-                      </div>
-                      <DriverStatusBadge status={driver.status} isOnline={driver.isOnline} />
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
+                        <div className="ml-4 flex shrink-0 items-center gap-3">
+                          <OrderStatusBadge status={order.status} />
+                          <span className="text-body font-semibold text-ink">
+                            {formatCurrency(order.finalPrice ?? order.estimatedPrice)}
+                          </span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Online drivers */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Onlayn haydovchilar</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {isLoading ? (
+                  <div className="p-4">
+                    <SkeletonCards count={5} height="h-12" />
+                  </div>
+                ) : onlineDrivers.length === 0 ? (
+                  <EmptyState
+                    compact
+                    icon={<Inbox className="h-5 w-5" />}
+                    title="Onlayn haydovchilar yo'q"
+                  />
+                ) : (
+                  <ul className="divide-y divide-divider">
+                    {onlineDrivers.map((driver) => (
+                      <li
+                        key={driver.id}
+                        className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-surface-2"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-caption font-bold text-white">
+                            {driver.firstName?.charAt(0)}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-body font-medium text-ink">
+                              {getFullName(driver.firstName, driver.lastName)}
+                            </p>
+                            <p className="text-caption text-muted">{driver.carNumber}</p>
+                          </div>
+                        </div>
+                        <DriverStatusBadge status={driver.status} isOnline={driver.isOnline} />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

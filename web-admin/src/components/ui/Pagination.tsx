@@ -27,7 +27,7 @@ export function Pagination({
   return (
     <nav
       role="navigation"
-      aria-label="Pagination"
+      aria-label="Sahifalash"
       className={cn('flex items-center justify-center gap-1', className)}
     >
       <Button
@@ -35,7 +35,7 @@ export function Pagination({
         size="icon-sm"
         onClick={() => onPageChange(page - 1)}
         disabled={!canGoPrev}
-        aria-label="Previous page"
+        aria-label="Oldingi sahifa"
       >
         <ChevronLeft className="h-4 w-4" />
       </Button>
@@ -43,22 +43,30 @@ export function Pagination({
       {pageRange.map((p, idx) => {
         if (p < 0) {
           return (
-            <span key={`ellipsis-${idx}`} className="flex h-8 w-8 items-center justify-center">
-              <MoreHorizontal className="h-4 w-4 text-gray-400" />
+            <span
+              key={`ellipsis-${idx}`}
+              className="flex h-8 w-8 items-center justify-center text-subtle"
+              aria-hidden="true"
+            >
+              <MoreHorizontal className="h-4 w-4" />
             </span>
           );
         }
+        const current = p === page;
         return (
           <button
             key={p}
+            type="button"
             onClick={() => onPageChange(p)}
             className={cn(
-              'flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium transition-colors',
-              p === page
-                ? 'bg-brand-yellow text-brand-black'
-                : 'text-gray-600 hover:bg-gray-100'
+              'flex h-8 w-8 items-center justify-center rounded-ds-sm text-body font-semibold transition-colors duration-fast',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
+              current
+                ? 'bg-primary text-white dark:bg-primary-on-dark'
+                : 'text-muted hover:bg-surface-2 hover:text-ink'
             )}
-            aria-current={p === page ? 'page' : undefined}
+            aria-current={current ? 'page' : undefined}
+            aria-label={current ? `${p}-sahifa, joriy` : `${p}-sahifaga o'tish`}
           >
             {p}
           </button>
@@ -70,7 +78,7 @@ export function Pagination({
         size="icon-sm"
         onClick={() => onPageChange(page + 1)}
         disabled={!canGoNext}
-        aria-label="Next page"
+        aria-label="Keyingi sahifa"
       >
         <ChevronRight className="h-4 w-4" />
       </Button>

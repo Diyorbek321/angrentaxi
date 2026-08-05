@@ -14,7 +14,7 @@ const ToastViewport = React.forwardRef<
   <ToastPrimitive.Viewport
     ref={ref}
     className={cn(
-      'fixed top-0 right-0 z-[100] flex max-h-screen w-full flex-col-reverse gap-2 p-4 sm:max-w-[420px]',
+      'fixed right-0 top-0 z-[100] flex max-h-screen w-full flex-col-reverse gap-2 p-4 sm:max-w-[420px]',
       className
     )}
     {...props}
@@ -24,11 +24,13 @@ ToastViewport.displayName = ToastPrimitive.Viewport.displayName;
 
 type ToastVariant = 'default' | 'success' | 'error' | 'info';
 
+// Har bir ohang tinted yuza + `*-deep` matn. Ma'no rang bilan birga IKONKA va
+// MATN orqali ham beriladi (WCAG 1.4.1).
 const toastStyles: Record<ToastVariant, string> = {
-  default: 'bg-white border-gray-200 text-gray-900',
-  success: 'bg-green-50 border-green-200 text-green-900',
-  error: 'bg-red-50 border-red-200 text-red-900',
-  info: 'bg-blue-50 border-blue-200 text-blue-900',
+  default: 'bg-surface border-line text-ink',
+  success: 'bg-mint-tint border-mint/40 text-ink',
+  error: 'bg-danger-tint border-danger/40 text-ink',
+  info: 'bg-info-tint border-info/40 text-ink',
 };
 
 const ToastRoot = React.forwardRef<
@@ -39,12 +41,10 @@ const ToastRoot = React.forwardRef<
     <ToastPrimitive.Root
       ref={ref}
       className={cn(
-        'group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-xl border p-4 pr-8 shadow-lg transition-all',
+        'group pointer-events-auto relative flex w-full items-center justify-between gap-4 overflow-hidden rounded-ds-md border p-4 pr-9 shadow-pop',
+        'transition-all duration-base ease-emphasized animate-slide-up',
         'data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)]',
         'data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none',
-        'data-[state=open]:animate-in data-[state=closed]:animate-out',
-        'data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full',
-        'data-[state=open]:slide-in-from-top-full',
         toastStyles[variant],
         className
       )}
@@ -60,8 +60,11 @@ const ToastClose = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ToastPrimitive.Close
     ref={ref}
+    aria-label="Yopish"
     className={cn(
-      'absolute right-2 top-2 rounded-md p-1 text-gray-400 opacity-0 transition-opacity hover:text-gray-900 focus:opacity-100 focus:outline-none focus:ring-1 group-hover:opacity-100',
+      'absolute right-2 top-2 rounded-ds-xs p-1 text-muted transition-colors duration-fast',
+      'hover:bg-surface-2 hover:text-ink',
+      'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
       className
     )}
     toast-close=""
@@ -76,11 +79,7 @@ const ToastTitle = React.forwardRef<
   React.ElementRef<typeof ToastPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof ToastPrimitive.Title>
 >(({ className, ...props }, ref) => (
-  <ToastPrimitive.Title
-    ref={ref}
-    className={cn('text-sm font-semibold', className)}
-    {...props}
-  />
+  <ToastPrimitive.Title ref={ref} className={cn('text-body font-semibold', className)} {...props} />
 ));
 ToastTitle.displayName = ToastPrimitive.Title.displayName;
 
@@ -88,11 +87,7 @@ const ToastDescription = React.forwardRef<
   React.ElementRef<typeof ToastPrimitive.Description>,
   React.ComponentPropsWithoutRef<typeof ToastPrimitive.Description>
 >(({ className, ...props }, ref) => (
-  <ToastPrimitive.Description
-    ref={ref}
-    className={cn('text-sm opacity-90', className)}
-    {...props}
-  />
+  <ToastPrimitive.Description ref={ref} className={cn('text-body text-muted', className)} {...props} />
 ));
 ToastDescription.displayName = ToastPrimitive.Description.displayName;
 
@@ -115,6 +110,14 @@ export function useToast() {
   return React.useContext(ToastContext);
 }
 
+/** Ohangni so'z bilan ham aytadi — ekran o'quvchi rangni ko'rmaydi. */
+const variantLabel: Record<ToastVariant, string | null> = {
+  default: null,
+  success: 'Muvaffaqiyat',
+  error: 'Xato',
+  info: 'Maʼlumot',
+};
+
 export function ToastContextProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = React.useState<ToastItem[]>([]);
 
@@ -129,32 +132,39 @@ export function ToastContextProvider({ children }: { children: React.ReactNode }
 
   const icons: Record<ToastVariant, React.ReactNode> = {
     default: null,
-    success: <CheckCircle className="h-5 w-5 text-green-500 shrink-0" />,
-    error: <AlertCircle className="h-5 w-5 text-red-500 shrink-0" />,
-    info: <Info className="h-5 w-5 text-blue-500 shrink-0" />,
+    success: <CheckCircle className="h-5 w-5 shrink-0 text-primary-text" />,
+    error: <AlertCircle className="h-5 w-5 shrink-0 text-danger-deep dark:text-danger-light" />,
+    info: <Info className="h-5 w-5 shrink-0 text-info-deep dark:text-info-light" />,
   };
 
   return (
     <ToastContext.Provider value={{ toast }}>
       <ToastProvider swipeDirection="right">
         {children}
-        {toasts.map((t) => (
-          <ToastRoot
-            key={t.id}
-            variant={t.variant}
-            onOpenChange={(open) => !open && remove(t.id)}
-            defaultOpen
-          >
-            <div className="flex items-start gap-3">
-              {icons[t.variant ?? 'default']}
-              <div className="grid gap-1">
-                <ToastTitle>{t.title}</ToastTitle>
-                {t.description && <ToastDescription>{t.description}</ToastDescription>}
+        {toasts.map((t) => {
+          const variant = t.variant ?? 'default';
+          const label = variantLabel[variant];
+          return (
+            <ToastRoot
+              key={t.id}
+              variant={variant}
+              onOpenChange={(open) => !open && remove(t.id)}
+              defaultOpen
+            >
+              <div className="flex items-start gap-3">
+                <span aria-hidden="true">{icons[variant]}</span>
+                <div className="grid gap-1">
+                  <ToastTitle>
+                    {label && <span className="sr-only">{label}: </span>}
+                    {t.title}
+                  </ToastTitle>
+                  {t.description && <ToastDescription>{t.description}</ToastDescription>}
+                </div>
               </div>
-            </div>
-            <ToastClose />
-          </ToastRoot>
-        ))}
+              <ToastClose />
+            </ToastRoot>
+          );
+        })}
         <ToastViewport />
       </ToastProvider>
     </ToastContext.Provider>

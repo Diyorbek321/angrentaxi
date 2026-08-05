@@ -24,14 +24,19 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   cancelled: 'Bekor qilindi',
 };
 
+/**
+ * Angren Mint tokenlari (docs/DESIGN-TOKENS.md §3.3): tinted fon + `*-deep`
+ * matn (qorong'i temada `*-light`). Holat nomi har doim MATN bilan ham
+ * beriladi, shuning uchun rang yolg'iz ma'no tashimaydi.
+ */
 export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  searching: 'bg-blue-100 text-blue-800',
-  accepted: 'bg-indigo-100 text-indigo-800',
-  arriving: 'bg-purple-100 text-purple-800',
-  in_progress: 'bg-orange-100 text-orange-800',
-  completed: 'bg-green-100 text-green-800',
-  cancelled: 'bg-red-100 text-red-800',
+  pending: 'bg-override-tint text-override-dark dark:text-override-light border border-override/30',
+  searching: 'bg-info-tint text-info-deep dark:text-info-light border border-info/30',
+  accepted: 'bg-info-tint text-info-deep dark:text-info-light border border-info/30',
+  arriving: 'bg-violet-tint text-violet-deep dark:text-violet-light border border-violet/30',
+  in_progress: 'bg-mint-tint text-primary-text border border-mint/30',
+  completed: 'bg-mint-tint text-primary-text border border-mint/40',
+  cancelled: 'bg-danger-tint text-danger-deep dark:text-danger-light border border-danger/30',
 };
 
 export const DRIVER_STATUSES = {
@@ -51,10 +56,10 @@ export const DRIVER_STATUS_LABELS: Record<DriverStatus, string> = {
 };
 
 export const DRIVER_STATUS_COLORS: Record<DriverStatus, string> = {
-  online: 'bg-green-100 text-green-800',
-  offline: 'bg-gray-100 text-gray-800',
-  blocked: 'bg-red-100 text-red-800',
-  pending: 'bg-yellow-100 text-yellow-800',
+  online: 'bg-mint-tint text-primary-text border border-mint/40',
+  offline: 'bg-surface-2 text-muted border border-line',
+  blocked: 'bg-danger-tint text-danger-deep dark:text-danger-light border border-danger/30',
+  pending: 'bg-override-tint text-override-dark dark:text-override-light border border-override/30',
 };
 
 export const USER_ROLES = {

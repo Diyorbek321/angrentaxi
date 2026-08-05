@@ -1,12 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { ShieldCheck } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { ShieldCheck, Users } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Skeleton } from '@/components/ui/Skeleton';
+import { SkeletonTable } from '@/components/ui/Skeleton';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
 import {
   Table,
   TableBody,
@@ -31,6 +33,7 @@ export default function StaffRolesPage() {
   const { toast } = useToast();
   const [managers, setManagers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<User | null>(null);
   const [draftPermissions, setDraftPermissions] = useState<Permission[]>([]);
   const [saving, setSaving] = useState(false);
@@ -40,7 +43,9 @@ export default function StaffRolesPage() {
     try {
       const res = await usersApi.getAll({ role: 'manager', limit: 100 });
       setManagers(res.data.data?.users ?? []);
+      setError(null);
     } catch {
+      setError("Xodimlarni yuklab bo'lmadi.");
       toast({ title: 'Xatolik', description: "Xodimlarni yuklashda xatolik", variant: 'error' });
     } finally {
       setIsLoading(false);
@@ -92,24 +97,27 @@ export default function StaffRolesPage() {
   };
 
   return (
-    <div>
-      <Header
+    <div className="p-4 sm:p-6">
+      <PageHeader
         title="Xodimlar va ruxsatlar"
-        subtitle="Har bir menejer aynan qaysi bo'limlarga kira olishini belgilang — masalan, faqat dispetcherlik yoki to'liq boshqaruv"
+        description="Har bir menejer aynan qaysi bo'limlarga kira olishini belgilang — masalan, faqat dispetcherlik yoki to'liq boshqaruv"
+        icon={<Users className="h-4 w-4" />}
       />
-      <div className="p-6 space-y-4">
+      <div className="space-y-4">
         <Card>
           <CardContent className="p-0">
-            {isLoading ? (
-              <div className="space-y-3 p-4">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="h-12 w-full" />
-                ))}
+            {error ? (
+              <ErrorState message={error} onRetry={fetchManagers} />
+            ) : isLoading ? (
+              <div className="p-4">
+                <SkeletonTable rows={4} cols={3} />
               </div>
             ) : managers.length === 0 ? (
-              <p className="py-12 text-center text-sm text-gray-500">
-                Manager rolidagi hisoblar topilmadi
-              </p>
+              <EmptyState
+                icon={<Users className="h-6 w-6" />}
+                title="Manager rolidagi hisoblar topilmadi"
+                description="Manager roli bilan hisob yaratilgach, u shu yerda ko'rinadi."
+              />
             ) : (
               <Table>
                 <TableHeader>
@@ -125,10 +133,10 @@ export default function StaffRolesPage() {
                     return (
                       <TableRow key={user.id}>
                         <TableCell>
-                          <p className="font-medium text-gray-100">
+                          <p className="font-medium text-ink">
                             {getFullName(user.firstName, user.lastName)}
                           </p>
-                          <p className="text-xs text-gray-500">{formatPhone(user.phone)}</p>
+                          <p className="text-caption text-subtle">{formatPhone(user.phone)}</p>
                         </TableCell>
                         <TableCell>
                           {perms.length === 0 ? (
@@ -148,7 +156,7 @@ export default function StaffRolesPage() {
                         </TableCell>
                         <TableCell>
                           <Button size="sm" variant="outline" onClick={() => openEdit(user)}>
-                            <ShieldCheck className="mr-2 h-4 w-4" />
+                            <ShieldCheck className="mr-2 h-4 w-4" aria-hidden="true" />
                             Ruxsatlarni tahrirlash
                           </Button>
                         </TableCell>
@@ -174,7 +182,7 @@ export default function StaffRolesPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex gap-2 mb-2">
+          <div className="mb-2 flex gap-2">
             <Button size="sm" variant="secondary" onClick={() => applyPreset('all')}>
               Barchasi (To&apos;liq menejer)
             </Button>
@@ -186,19 +194,19 @@ export default function StaffRolesPage() {
             </Button>
           </div>
 
-          <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+          <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
             {ALL_PERMISSIONS.map((perm) => (
               <label
                 key={perm}
-                className="flex items-center gap-3 rounded-lg bg-white/5 px-3 py-2.5 text-sm cursor-pointer hover:bg-white/10 transition-colors"
+                className="flex cursor-pointer items-center gap-3 rounded-ds-md bg-surface-2 px-3 py-2.5 text-body transition-colors duration-fast hover:bg-surface-3"
               >
                 <input
                   type="checkbox"
                   checked={draftPermissions.includes(perm)}
                   onChange={() => togglePermission(perm)}
-                  className="h-4 w-4 rounded border-white/20 bg-transparent accent-yellow-400"
+                  className="h-4 w-4 rounded border-line-strong bg-transparent accent-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
                 />
-                <span className="text-gray-200">{PERMISSION_LABELS[perm]}</span>
+                <span className="text-ink">{PERMISSION_LABELS[perm]}</span>
               </label>
             ))}
           </div>

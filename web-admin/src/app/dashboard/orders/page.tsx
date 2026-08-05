@@ -1,11 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Search, Filter } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { Search, Filter, ClipboardList } from 'lucide-react';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Pagination } from '@/components/ui/Pagination';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { OrdersTable } from '@/components/orders/OrdersTable';
 import {
   Select,
@@ -25,6 +26,7 @@ export default function OrdersPage() {
   const pagination = usePagination(20);
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortField, setSortField] = useState<string>('createdAt');
@@ -32,6 +34,7 @@ export default function OrdersPage() {
 
   const fetchOrders = useCallback(async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const res = await ordersApi.getAll({
         page: pagination.page,
@@ -44,6 +47,7 @@ export default function OrdersPage() {
       const total = payload?.total ?? 0;
       pagination.setTotal(total, Math.ceil(total / pagination.limit));
     } catch {
+      setError('Buyurtmalarni yuklashda xatolik');
       toast({ title: 'Xatolik', description: 'Buyurtmalarni yuklashda xatolik', variant: 'error' });
     } finally {
       setIsLoading(false);
@@ -74,26 +78,28 @@ export default function OrdersPage() {
   };
 
   return (
-    <div>
-      <Header
+    <div className="p-4 sm:p-6">
+      <PageHeader
         title="Buyurtmalar"
-        subtitle={`Jami: ${pagination.total.toLocaleString()} ta`}
+        description={`Jami: ${pagination.total.toLocaleString()} ta`}
+        icon={<ClipboardList className="h-4 w-4" aria-hidden="true" />}
       />
-      <div className="p-6 space-y-4">
+      <div className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="flex-1">
             <Input
               placeholder="ID, yo'lovchi yoki haydovchi bo'yicha qidirish..."
-              leftIcon={<Search className="h-4 w-4" />}
+              leftIcon={<Search className="h-4 w-4" aria-hidden="true" />}
               onChange={(e) => debouncedSearch(e.target.value)}
+              aria-label="Buyurtmalarni qidirish"
             />
           </div>
           <Select
             value={statusFilter}
             onValueChange={(v) => { setStatusFilter(v); pagination.reset(); }}
           >
-            <SelectTrigger className="w-52">
-              <Filter className="mr-2 h-4 w-4 text-gray-400" />
+            <SelectTrigger className="w-52" aria-label="Holat bo'yicha filtr">
+              <Filter className="mr-2 h-4 w-4 text-subtle" aria-hidden="true" />
               <SelectValue placeholder="Holat bo'yicha filtr" />
             </SelectTrigger>
             <SelectContent>
@@ -107,20 +113,28 @@ export default function OrdersPage() {
           </Select>
         </div>
 
-        <Card>
-          <CardContent className="p-0">
-            <OrdersTable
-              orders={orders}
-              isLoading={isLoading}
-              sortField={sortField}
-              sortDir={sortDir}
-              onSort={handleSort}
-            />
-          </CardContent>
-        </Card>
+        {error && !isLoading ? (
+          <Card>
+            <CardContent className="p-0">
+              <ErrorState message={error} onRetry={fetchOrders} />
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardContent className="p-0">
+              <OrdersTable
+                orders={orders}
+                isLoading={isLoading}
+                sortField={sortField}
+                sortDir={sortDir}
+                onSort={handleSort}
+              />
+            </CardContent>
+          </Card>
+        )}
 
         <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-500">
+          <p className="text-body text-muted">
             {pagination.total} ta natijadan{' '}
             {Math.min((pagination.page - 1) * pagination.limit + 1, pagination.total)}–
             {Math.min(pagination.page * pagination.limit, pagination.total)} ko&apos;rsatilmoqda

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Phone, Lock, ArrowRight, Zap } from 'lucide-react';
+import { Phone, Lock, ArrowRight, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
@@ -39,6 +39,7 @@ export default function LoginPage() {
   const [phone, setPhone] = useState('');
   const [devOtpCode, setDevOtpCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // Where to land after a successful login. The middleware puts the originally
   // requested path in ?next=; `sanitizeNextPath` refuses anything that is not a
@@ -64,6 +65,7 @@ export default function LoginPage() {
 
   const handleSendOtp = async (data: PhoneForm) => {
     setIsLoading(true);
+    setAuthError(null);
     try {
       const normalized = formatPhone(data.phone);
       const res = await authApi.sendOtp(normalized);
@@ -83,6 +85,7 @@ export default function LoginPage() {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         'Kod yuborishda xatolik yuz berdi';
+      setAuthError(message);
       toast({ title: 'Xatolik', description: message, variant: 'error' });
     } finally {
       setIsLoading(false);
@@ -91,6 +94,7 @@ export default function LoginPage() {
 
   const handleVerifyOtp = async (data: OtpForm) => {
     setIsLoading(true);
+    setAuthError(null);
     try {
       // The token pair is set as httpOnly cookies inside /api/auth/login and
       // never reaches this code — only the profile comes back.
@@ -103,6 +107,7 @@ export default function LoginPage() {
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         (err instanceof Error && err.message ? err.message : null) ||
         'Noto\'g\'ri kod';
+      setAuthError(message);
       toast({ title: 'Xatolik', description: message, variant: 'error' });
     } finally {
       setIsLoading(false);
@@ -110,121 +115,125 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-[#080D1A] overflow-hidden p-4">
-      {/* Decorative background orbs */}
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-bg p-4">
+      {/* Decorative background orbs — brend rangi, dekorativ (aria-hidden). */}
       <div
-        className="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full"
-        style={{
-          background: 'radial-gradient(circle, rgba(250,204,21,0.12) 0%, transparent 70%)',
-          filter: 'blur(60px)',
-        }}
+        className="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full bg-primary/10 blur-[80px]"
+        aria-hidden="true"
       />
       <div
-        className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full"
-        style={{
-          background: 'radial-gradient(circle, rgba(59,130,246,0.10) 0%, transparent 70%)',
-          filter: 'blur(80px)',
-        }}
+        className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-info/10 blur-[100px]"
+        aria-hidden="true"
       />
 
       {/* Card */}
       <div className="relative w-full max-w-md">
         {/* Logo section */}
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <div
-            className="flex h-14 w-14 items-center justify-center rounded-2xl bg-yellow-400"
-            style={{ boxShadow: '0 0 32px rgba(250,204,21,0.4)' }}
-          >
-            <Zap className="h-7 w-7 text-[#080D1A]" />
+          <div className="flex h-14 w-14 items-center justify-center rounded-ds-md bg-gradient-cta shadow-cta">
+            <Shield className="h-7 w-7 text-white" aria-hidden="true" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">Angren Taxi</h1>
-            <p className="text-sm text-yellow-400">Admin Panel</p>
+            <h1 className="text-h1 text-ink">Angren Taxi</h1>
+            <p className="text-body text-primary-text">Admin Panel</p>
           </div>
         </div>
 
-        {/* Glass card */}
-        <div
-          className="rounded-2xl p-8"
-          style={{
-            background: 'rgba(13,21,38,0.8)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            backdropFilter: 'blur(12px)',
-            boxShadow: '0 24px 48px rgba(0,0,0,0.5)',
-          }}
-        >
+        {/* Card */}
+        <div className="rounded-ds-lg border border-line bg-surface p-8 shadow-pop">
           {/* Step indicator */}
-          <div className="mb-6 flex items-center gap-2">
+          <div className="mb-6 flex items-center gap-2" aria-hidden="true">
             <div
               className={`h-1.5 flex-1 rounded-full transition-colors ${
-                step === 'phone' || step === 'otp' ? 'bg-yellow-400' : 'bg-white/10'
+                step === 'phone' || step === 'otp' ? 'bg-primary' : 'bg-surface-2'
               }`}
             />
             <div
               className={`h-1.5 flex-1 rounded-full transition-colors ${
-                step === 'otp' ? 'bg-yellow-400' : 'bg-white/10'
+                step === 'otp' ? 'bg-primary' : 'bg-surface-2'
               }`}
             />
           </div>
 
           <div className="mb-6">
-            <h2 className="text-xl font-bold text-white">
+            <h2 className="text-h2 text-ink">
               {step === 'phone' ? 'Admin paneliga kirish' : 'Tasdiqlash kodi'}
             </h2>
-            <p className="mt-1.5 text-sm text-slate-500">
+            <p className="mt-1.5 text-body text-muted">
               {step === 'phone'
                 ? 'Telefon raqamingizni kiriting'
                 : `${phone} raqamiga yuborilgan 6 raqamli kodni kiriting`}
             </p>
           </div>
 
+          {authError && (
+            <p
+              role="alert"
+              className="mb-4 rounded-ds-md border border-danger/30 bg-danger-tint px-3 py-2.5 text-body text-danger-deep dark:text-danger-light"
+            >
+              {authError}
+            </p>
+          )}
+
           {step === 'phone' ? (
-            <form onSubmit={phoneForm.handleSubmit(handleSendOtp)} className="space-y-4">
+            <form onSubmit={phoneForm.handleSubmit(handleSendOtp)} className="space-y-4" noValidate>
               <Input
                 label="Telefon raqam"
+                type="tel"
+                autoComplete="tel"
                 placeholder="+998901234567"
+                mono
                 leftIcon={<Phone className="h-4 w-4" />}
                 error={phoneForm.formState.errors.phone?.message}
                 {...phoneForm.register('phone')}
               />
-              <Button type="submit" className="w-full" isLoading={isLoading}>
+              <Button
+                type="submit"
+                variant="primary"
+                className="w-full"
+                isLoading={isLoading}
+                rightIcon={<ArrowRight className="h-4 w-4" />}
+              >
                 Kod yuborish
-                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </form>
           ) : (
-            <form onSubmit={otpForm.handleSubmit(handleVerifyOtp)} className="space-y-4">
+            <form onSubmit={otpForm.handleSubmit(handleVerifyOtp)} className="space-y-4" noValidate>
               <Input
                 label="Tasdiqlash kodi"
+                type="text"
                 placeholder="000000"
                 maxLength={6}
+                mono
                 leftIcon={<Lock className="h-4 w-4" />}
                 error={otpForm.formState.errors.code?.message}
                 inputMode="numeric"
                 {...otpForm.register('code')}
               />
               {devOtpCode && (
-                <div
-                  className="rounded-lg px-3 py-2 text-sm"
-                  style={{
-                    background: 'rgba(250,204,21,0.08)',
-                    border: '1px solid rgba(250,204,21,0.25)',
-                    color: '#FACC15',
-                  }}
-                >
+                <div className="rounded-ds-md border border-override/40 bg-override-tint px-3 py-2 text-body text-override-dark dark:text-override-light">
                   <span className="font-semibold">DEV:</span> OTP kod —{' '}
                   <span className="font-mono font-bold">{devOtpCode}</span>{' '}
-                  <span className="text-yellow-400/60">(avtomatik kiritildi)</span>
+                  <span className="text-subtle">(avtomatik kiritildi)</span>
                 </div>
               )}
-              <Button type="submit" className="w-full" isLoading={isLoading}>
+              <Button
+                type="submit"
+                variant="primary"
+                className="w-full"
+                isLoading={isLoading}
+                rightIcon={<ArrowRight className="h-4 w-4" />}
+              >
                 Kirish
-                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
               <button
                 type="button"
-                className="w-full text-center text-sm text-slate-500 hover:text-slate-300 transition-colors"
-                onClick={() => setStep('phone')}
+                className="w-full rounded-ds-xs text-center text-body text-muted transition-colors hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+                onClick={() => {
+                  setStep('phone');
+                  setDevOtpCode('');
+                  setAuthError(null);
+                }}
               >
                 Raqamni o&apos;zgartirish
               </button>

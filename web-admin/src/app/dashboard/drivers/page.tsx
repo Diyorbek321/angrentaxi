@@ -1,11 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Search } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { Search, Car } from 'lucide-react';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Pagination } from '@/components/ui/Pagination';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { DriversTable } from '@/components/drivers/DriversTable';
 import {
   Select,
@@ -24,11 +25,13 @@ export default function DriversPage() {
   const pagination = usePagination(20);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const fetchDrivers = useCallback(async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const params: Parameters<typeof driversApi.getAll>[0] = {
         page: pagination.page,
@@ -45,6 +48,7 @@ export default function DriversPage() {
       const total = payload?.total ?? 0;
       pagination.setTotal(total, Math.ceil(total / pagination.limit));
     } catch {
+      setError('Haydovchilarni yuklashda xatolik');
       toast({ title: 'Xatolik', description: 'Haydovchilarni yuklashda xatolik', variant: 'error' });
     } finally {
       setIsLoading(false);
@@ -66,25 +70,27 @@ export default function DriversPage() {
   );
 
   return (
-    <div>
-      <Header
+    <div className="p-4 sm:p-6">
+      <PageHeader
         title="Haydovchilar"
-        subtitle={`Jami: ${pagination.total.toLocaleString()} ta`}
+        description={`Jami: ${pagination.total.toLocaleString()} ta`}
+        icon={<Car className="h-4 w-4" aria-hidden="true" />}
       />
-      <div className="p-6 space-y-4">
+      <div className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="flex-1">
             <Input
               placeholder="Ism, telefon yoki avtomobil raqami bo'yicha qidirish..."
-              leftIcon={<Search className="h-4 w-4" />}
+              leftIcon={<Search className="h-4 w-4" aria-hidden="true" />}
               onChange={(e) => debouncedSearch(e.target.value)}
+              aria-label="Haydovchilarni qidirish"
             />
           </div>
           <Select
             value={statusFilter}
             onValueChange={(v) => { setStatusFilter(v); pagination.reset(); }}
           >
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-48" aria-label="Holat bo'yicha filtr">
               <SelectValue placeholder="Holat" />
             </SelectTrigger>
             <SelectContent>
@@ -97,14 +103,22 @@ export default function DriversPage() {
           </Select>
         </div>
 
-        <Card>
-          <CardContent className="p-0">
-            <DriversTable drivers={drivers} isLoading={isLoading} />
-          </CardContent>
-        </Card>
+        {error && !isLoading ? (
+          <Card>
+            <CardContent className="p-0">
+              <ErrorState message={error} onRetry={fetchDrivers} />
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardContent className="p-0">
+              <DriversTable drivers={drivers} isLoading={isLoading} />
+            </CardContent>
+          </Card>
+        )}
 
         <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-500">
+          <p className="text-body text-muted">
             {pagination.total} ta natijadan{' '}
             {Math.min((pagination.page - 1) * pagination.limit + 1, pagination.total)}–
             {Math.min(pagination.page * pagination.limit, pagination.total)} ko&apos;rsatilmoqda

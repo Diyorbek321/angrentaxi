@@ -8,12 +8,13 @@ interface OrderStatusBadgeProps {
 
 export function OrderStatusBadge({ status, className }: OrderStatusBadgeProps) {
   const label = ORDER_STATUS_LABELS[status as OrderStatus] ?? status;
-  const color = ORDER_STATUS_COLORS[status as OrderStatus] ?? 'bg-gray-100 text-gray-700';
+  const color =
+    ORDER_STATUS_COLORS[status as OrderStatus] ?? 'bg-surface-2 text-muted border border-line';
 
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold',
+        'inline-flex items-center rounded-full px-2.5 py-0.5 text-caption font-semibold',
         color,
         className
       )}

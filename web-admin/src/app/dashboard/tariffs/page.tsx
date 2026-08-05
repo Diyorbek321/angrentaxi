@@ -1,15 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Flame } from 'lucide-react';
+import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Flame, Tag } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Header } from '@/components/layout/Header';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
+import { Badge, BadgeProps } from '@/components/ui/Badge';
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,8 @@ import {
   DialogTitle,
 } from '@/components/ui/Modal';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
 import {
   tariffsApi,
   tariffChangeRequestsApi,
@@ -45,10 +47,10 @@ const actionLabel: Record<TariffChangeRequest['action'], string> = {
   update: 'Yangilash',
 };
 
-const statusVariant: Record<TariffChangeRequest['status'], 'secondary' | 'success' | 'destructive'> = {
-  pending: 'secondary',
+const statusVariant: Record<TariffChangeRequest['status'], NonNullable<BadgeProps['variant']>> = {
+  pending: 'warning',
   approved: 'success',
-  rejected: 'destructive',
+  rejected: 'danger',
 };
 
 const statusLabel: Record<TariffChangeRequest['status'], string> = {
@@ -63,6 +65,7 @@ export default function TariffsPage() {
   const { toast } = useToast();
   const [tariffs, setTariffs] = useState<Tariff[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTariff, setEditingTariff] = useState<Tariff | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Tariff | null>(null);
@@ -88,7 +91,9 @@ export default function TariffsPage() {
     try {
       const res = await tariffsApi.getAll();
       setTariffs(res.data.data);
+      setLoadError(null);
     } catch {
+      setLoadError('Tariflarni yuklashda xatolik');
       toast({ title: 'Xatolik', description: 'Tariflarni yuklashda xatolik', variant: 'error' });
     } finally {
       setIsLoading(false);
@@ -242,17 +247,22 @@ export default function TariffsPage() {
   };
 
   return (
-    <div>
-      <Header title="Tariflar" subtitle="Narx siyosatini boshqaring" />
-      <div className="p-6 space-y-4">
-        <div className="flex justify-end">
-          <Button onClick={openCreate}>
-            <Plus className="mr-2 h-4 w-4" />
+    <div className="p-4 sm:p-6">
+      <PageHeader
+        title="Tariflar"
+        description="Narx siyosatini boshqaring"
+        icon={<Tag className="h-4 w-4" />}
+        actions={
+          <Button leftIcon={<Plus className="h-4 w-4" />} onClick={openCreate}>
             Yangi tarif
           </Button>
-        </div>
+        }
+      />
 
-        {isLoading ? (
+      <div className="space-y-4">
+        {loadError ? (
+          <ErrorState message={loadError} onRetry={fetchTariffs} />
+        ) : isLoading ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => (
               <Skeleton key={i} className="h-48" />
@@ -260,11 +270,13 @@ export default function TariffsPage() {
           </div>
         ) : tariffs.length === 0 ? (
           <Card>
-            <CardContent className="py-16 text-center">
-              <p className="text-sm text-gray-500">Tariflar yo&apos;q</p>
-              <Button className="mt-4" onClick={openCreate}>
-                Birinchi tarifni yarating
-              </Button>
+            <CardContent className="py-4">
+              <EmptyState
+                icon={<Tag className="h-6 w-6" />}
+                title="Tariflar yo'q"
+                description="Birinchi tarifni yarating."
+                action={<Button onClick={openCreate}>Birinchi tarifni yarating</Button>}
+              />
             </CardContent>
           </Card>
         ) : (
@@ -279,56 +291,63 @@ export default function TariffsPage() {
                     </Badge>
                   </div>
                   {tariff.description && (
-                    <p className="text-xs text-gray-400 mt-1">{tariff.description}</p>
+                    <p className="text-caption text-muted mt-1">{tariff.description}</p>
                   )}
                 </CardHeader>
-                <CardContent className="space-y-2 text-sm pb-4">
+                <CardContent className="space-y-2 text-body pb-4">
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-lg bg-white/5 p-2 text-center">
-                      <p className="text-xs text-gray-400">Boshlang&apos;ich</p>
-                      <p className="font-semibold text-gray-100 text-xs mt-0.5">
+                    <div className="rounded-ds-xs bg-surface-2 p-2 text-center">
+                      <p className="text-caption text-muted">Boshlang&apos;ich</p>
+                      <p className="font-semibold text-ink text-caption mt-0.5">
                         {formatCurrency(tariff.basePrice)}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-white/5 p-2 text-center">
-                      <p className="text-xs text-gray-400">Minimum</p>
-                      <p className="font-semibold text-gray-100 text-xs mt-0.5">
+                    <div className="rounded-ds-xs bg-surface-2 p-2 text-center">
+                      <p className="text-caption text-muted">Minimum</p>
+                      <p className="font-semibold text-ink text-caption mt-0.5">
                         {formatCurrency(tariff.minPrice)}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-white/5 p-2 text-center">
-                      <p className="text-xs text-gray-400">Har km uchun</p>
-                      <p className="font-semibold text-gray-100 text-xs mt-0.5">
+                    <div className="rounded-ds-xs bg-surface-2 p-2 text-center">
+                      <p className="text-caption text-muted">Har km uchun</p>
+                      <p className="font-semibold text-ink text-caption mt-0.5">
                         {formatCurrency(tariff.pricePerKm)}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-white/5 p-2 text-center">
-                      <p className="text-xs text-gray-400">Har min uchun</p>
-                      <p className="font-semibold text-gray-100 text-xs mt-0.5">
+                    <div className="rounded-ds-xs bg-surface-2 p-2 text-center">
+                      <p className="text-caption text-muted">Har min uchun</p>
+                      <p className="font-semibold text-ink text-caption mt-0.5">
                         {formatCurrency(tariff.pricePerMin)}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-white/5 p-2 text-center col-span-2">
-                      <p className="text-xs text-gray-400">Maksimum</p>
-                      <p className="font-semibold text-gray-100 text-xs mt-0.5">
+                    <div className="rounded-ds-xs bg-surface-2 p-2 text-center col-span-2">
+                      <p className="text-caption text-muted">Maksimum</p>
+                      <p className="font-semibold text-ink text-caption mt-0.5">
                         {tariff.maxPrice != null ? formatCurrency(tariff.maxPrice) : 'Cheklanmagan'}
                       </p>
                     </div>
                   </div>
 
                   {/* Surge multiplier control */}
-                  <div className="rounded-lg border border-white/10 p-2.5">
+                  <div className="rounded-ds-sm border border-line p-2.5">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="flex items-center gap-1.5 text-xs text-gray-400">
-                        <Flame className={`h-3.5 w-3.5 ${tariff.surgeMultiplier > 1 ? 'text-orange-400' : 'text-gray-500'}`} />
+                      <span className="flex items-center gap-1.5 text-caption text-muted">
+                        <Flame
+                          aria-hidden="true"
+                          className={`h-3.5 w-3.5 ${
+                            tariff.surgeMultiplier > 1
+                              ? 'text-override-dark dark:text-override-light'
+                              : 'text-subtle'
+                          }`}
+                        />
                         Talab koeffitsienti
                       </span>
-                      <Badge variant={tariff.surgeMultiplier > 1 ? 'destructive' : 'secondary'}>
+                      <Badge variant={tariff.surgeMultiplier > 1 ? 'override' : 'secondary'}>
                         {tariff.surgeMultiplier.toFixed(1)}x
                       </Badge>
                     </div>
                     <div className="flex items-center gap-2">
-                      <input
+                      <Input
                         type="number"
                         min={1}
                         max={3}
@@ -337,7 +356,8 @@ export default function TariffsPage() {
                         onChange={(e) =>
                           setSurgeInputs((prev) => ({ ...prev, [tariff.id]: e.target.value }))
                         }
-                        className="w-20 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-gray-100 focus:outline-none focus:ring-1 focus:ring-brand-yellow"
+                        className="h-8 w-20 px-2 py-1 text-caption"
+                        aria-label={`${tariff.name} narx koeffitsienti`}
                       />
                       <Button
                         size="sm"
@@ -350,30 +370,36 @@ export default function TariffsPage() {
                     </div>
                   </div>
 
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-caption text-subtle mt-1">
                     Yangilangan: {formatDate(tariff.updatedAt, 'dd.MM.yyyy')}
                   </p>
-                  <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                  <div className="flex items-center justify-between pt-2 border-t border-line">
                     <button
-                      className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-200 transition-colors"
+                      className="flex items-center gap-1.5 text-caption text-muted hover:text-ink transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bg rounded-ds-xs"
                       onClick={() => handleToggle(tariff)}
                     >
                       {tariff.isActive ? (
-                        <ToggleRight className="h-4 w-4 text-green-500" />
+                        <ToggleRight className="h-4 w-4 text-primary-text" aria-hidden="true" />
                       ) : (
-                        <ToggleLeft className="h-4 w-4 text-gray-500" />
+                        <ToggleLeft className="h-4 w-4 text-subtle" aria-hidden="true" />
                       )}
                       {tariff.isActive ? 'O\'chirish' : 'Yoqish'}
                     </button>
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="icon-sm" onClick={() => openEdit(tariff)}>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => openEdit(tariff)}
+                        aria-label={`${tariff.name} tarifini tahrirlash`}
+                      >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        className="hover:text-red-500"
+                        className="hover:text-danger-deep dark:hover:text-danger-light"
                         onClick={() => setDeleteTarget(tariff)}
+                        aria-label={`${tariff.name} tarifini o'chirish`}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -392,23 +418,28 @@ export default function TariffsPage() {
           </CardHeader>
           <CardContent>
             {requests.length === 0 ? (
-              <p className="text-sm text-gray-500">Hozircha takliflar yo&apos;q</p>
+              <EmptyState
+                compact
+                tone="positive"
+                title="Hozircha takliflar yo'q"
+                description="Boshqaruvchilar yuborgan takliflar shu yerda ko'rinadi."
+              />
             ) : (
               <div className="space-y-2">
                 {requests.map((req) => (
                   <div
                     key={req.id}
-                    className="flex items-center justify-between rounded-lg border border-white/10 px-4 py-3"
+                    className="flex items-center justify-between rounded-ds-sm border border-line px-4 py-3"
                   >
-                    <div className="text-sm">
+                    <div className="text-body">
                       <div className="flex items-center gap-2">
                         <Badge variant="secondary">{actionLabel[req.action]}</Badge>
-                        <span className="text-gray-100">
+                        <span className="text-ink">
                           {(req.proposedChanges as { name?: string }).name ?? 'Tarif'}
                         </span>
                         <Badge variant={statusVariant[req.status]}>{statusLabel[req.status]}</Badge>
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-caption text-subtle mt-1">
                         {formatDate(req.createdAt, 'dd.MM.yyyy HH:mm')}
                       </p>
                     </div>
@@ -466,6 +497,7 @@ export default function TariffsPage() {
               <Input
                 label="Boshlang'ich narx (UZS)"
                 type="number"
+                mono
                 placeholder="5000"
                 error={errors.basePrice?.message}
                 {...register('basePrice')}
@@ -473,6 +505,7 @@ export default function TariffsPage() {
               <Input
                 label="Minimum narx (UZS)"
                 type="number"
+                mono
                 placeholder="8000"
                 error={errors.minPrice?.message}
                 {...register('minPrice')}
@@ -480,6 +513,7 @@ export default function TariffsPage() {
               <Input
                 label="1 km narxi (UZS)"
                 type="number"
+                mono
                 placeholder="1500"
                 error={errors.pricePerKm?.message}
                 {...register('pricePerKm')}
@@ -487,6 +521,7 @@ export default function TariffsPage() {
               <Input
                 label="1 min narxi (UZS)"
                 type="number"
+                mono
                 placeholder="300"
                 error={errors.pricePerMin?.message}
                 {...register('pricePerMin')}
@@ -494,13 +529,18 @@ export default function TariffsPage() {
               <Input
                 label="Maksimal narx (UZS, ixtiyoriy)"
                 type="number"
+                mono
                 placeholder="50000"
                 error={errors.maxPrice?.message}
                 {...register('maxPrice')}
               />
             </div>
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-300 cursor-pointer">
-              <input type="checkbox" className="rounded accent-brand-yellow" {...register('isActive')} />
+            <label className="flex items-center gap-2 text-body font-medium text-muted cursor-pointer">
+              <input
+                type="checkbox"
+                className="rounded accent-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+                {...register('isActive')}
+              />
               Darhol faol qilish
             </label>
             <DialogFooter className="gap-2">
@@ -521,9 +561,9 @@ export default function TariffsPage() {
           <DialogHeader>
             <DialogTitle>Tarifni o&apos;chirish</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-gray-300">
-            <strong>{deleteTarget?.name}</strong> tarifini o&apos;chirmoqchimisiz? Bu amalni bekor qilib
-            bo&apos;lmaydi.
+          <p className="text-body text-muted">
+            <strong className="text-ink">{deleteTarget?.name}</strong> tarifini o&apos;chirmoqchimisiz?
+            Bu amalni bekor qilib bo&apos;lmaydi.
           </p>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>

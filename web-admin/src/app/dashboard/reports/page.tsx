@@ -2,12 +2,15 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { format, subDays } from 'date-fns';
-import { Download, TrendingUp, ShoppingCart, DollarSign, Users, Star } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { Download, TrendingUp, ShoppingCart, DollarSign, Users, Star, BarChart3 } from 'lucide-react';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { StatCard } from '@/components/ui/StatCard';
 import { Input } from '@/components/ui/Input';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { SkeletonStats, SkeletonCards } from '@/components/ui/Skeleton';
 import {
   Select,
   SelectContent,
@@ -40,10 +43,17 @@ function daysAgoStr(days: number) {
   return format(subDays(new Date(), days), DATE_FMT);
 }
 
+const RANK_STYLE = [
+  'bg-primary text-white',
+  'bg-surface-3 text-ink',
+  'bg-override-tint text-override-dark dark:text-override-light',
+] as const;
+
 export default function ReportsPage() {
   const { toast } = useToast();
   const [data, setData] = useState<ReportData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [range, setRange] = useState<string>(DATE_RANGES.LAST_7_DAYS);
   const [fromDate, setFromDate] = useState(daysAgoStr(7));
   const [toDate, setToDate] = useState(todayStr());
@@ -63,8 +73,11 @@ export default function ReportsPage() {
     try {
       const res = await reportsApi.getData({ from: resolvedFrom, to: resolvedTo });
       setData(res.data.data);
+      setError(null);
     } catch {
-      toast({ title: 'Xatolik', description: 'Hisobotni yuklashda xatolik', variant: 'error' });
+      const message = 'Hisobotni yuklashda xatolik';
+      setError(message);
+      toast({ title: 'Xatolik', description: message, variant: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -94,13 +107,23 @@ export default function ReportsPage() {
   };
 
   return (
-    <div>
-      <Header title="Hisobotlar" subtitle="Moliyaviy tahlil va statistika" />
-      <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6">
+      <PageHeader
+        title="Hisobotlar"
+        description="Moliyaviy tahlil va statistika"
+        icon={<BarChart3 className="h-4 w-4" />}
+        actions={
+          <Button variant="outline" isLoading={exporting} onClick={handleExport} leftIcon={<Download className="h-4 w-4" />}>
+            CSV eksport
+          </Button>
+        }
+      />
+
+      <div className="space-y-6">
         {/* Controls */}
         <div className="flex flex-wrap items-end gap-3">
           <div>
-            <p className="mb-1.5 text-sm font-medium text-gray-700">Davr</p>
+            <p className="mb-1.5 text-caption font-medium text-muted">Davr</p>
             <Select value={range} onValueChange={setRange}>
               <SelectTrigger className="w-44">
                 <SelectValue />
@@ -129,125 +152,119 @@ export default function ReportsPage() {
               />
             </>
           )}
-
-          <div className="flex gap-2 ml-auto">
-            <Button variant="outline" isLoading={exporting} onClick={handleExport}>
-              <Download className="mr-2 h-4 w-4" />
-              CSV eksport
-            </Button>
-          </div>
         </div>
 
-        {/* Summary stats */}
-        <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-          <StatCard
-            title="Jami daromad"
-            value={data ? formatCurrency(data.stats.totalRevenue) : '—'}
-            icon={<DollarSign className="h-5 w-5 text-brand-yellow" />}
-            iconBg="bg-yellow-100"
-            isLoading={isLoading}
-          />
-          <StatCard
-            title="Jami buyurtmalar"
-            value={data?.stats.totalOrders.toLocaleString() ?? '—'}
-            icon={<ShoppingCart className="h-5 w-5 text-blue-600" />}
-            iconBg="bg-blue-100"
-            isLoading={isLoading}
-          />
-          <StatCard
-            title="O'rtacha buyurtma"
-            value={data ? formatCurrency(data.stats.avgOrderValue) : '—'}
-            icon={<TrendingUp className="h-5 w-5 text-green-600" />}
-            iconBg="bg-green-100"
-            isLoading={isLoading}
-          />
-          <StatCard
-            title="Yangi foydalanuvchilar"
-            value={data?.stats.newUsers.toLocaleString() ?? '—'}
-            icon={<Users className="h-5 w-5 text-purple-600" />}
-            iconBg="bg-purple-100"
-            isLoading={isLoading}
-          />
-        </div>
-
-        {/* Charts */}
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <RevenueChart data={data?.revenueChart ?? []} isLoading={isLoading} />
-          <OrdersChart data={data?.revenueChart ?? []} isLoading={isLoading} />
-        </div>
-
-        {/* Top drivers */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Top haydovchilar</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
+        {error ? (
+          <ErrorState message={error} onRetry={fetchReport} />
+        ) : (
+          <>
+            {/* Summary stats */}
             {isLoading ? (
-              <div className="space-y-3 p-4">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="h-10 animate-pulse rounded-lg bg-gray-100" />
-                ))}
-              </div>
-            ) : !data || data.topDrivers.length === 0 ? (
-              <p className="py-8 text-center text-sm text-gray-500">Ma&apos;lumot yo&apos;q</p>
+              <SkeletonStats count={4} className="grid-cols-2 xl:grid-cols-4" />
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>#</TableHead>
-                    <TableHead>Haydovchi</TableHead>
-                    <TableHead>Telefon</TableHead>
-                    <TableHead>Safarlar</TableHead>
-                    <TableHead>Daromad</TableHead>
-                    <TableHead>Reyting</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.topDrivers.map((driver, index) => (
-                    <TableRow key={driver.id}>
-                      <TableCell>
-                        <span
-                          className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
-                            index === 0
-                              ? 'bg-brand-yellow text-brand-black'
-                              : index === 1
-                              ? 'bg-gray-300 text-gray-800'
-                              : index === 2
-                              ? 'bg-amber-600 text-white'
-                              : 'bg-gray-100 text-gray-600'
-                          }`}
-                        >
-                          {index + 1}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-yellow text-xs font-bold text-brand-black">
-                            {driver.firstName?.charAt(0)}
-                          </div>
-                          <span className="font-medium text-gray-900">
-                            {getFullName(driver.firstName, driver.lastName)}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-gray-600">{driver.phone}</TableCell>
-                      <TableCell className="font-medium">{driver.totalTrips}</TableCell>
-                      <TableCell className="font-semibold text-gray-900">
-                        {formatCurrency(driver.totalRevenue)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Star className="h-3.5 w-3.5 fill-brand-yellow text-brand-yellow" />
-                          <span className="font-medium">{formatRating(driver.rating)}</span>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+                <StatCard
+                  title="Jami daromad"
+                  value={data ? formatCurrency(data.stats.totalRevenue) : '—'}
+                  icon={<DollarSign className="h-5 w-5" />}
+                  variant="mint"
+                />
+                <StatCard
+                  title="Jami buyurtmalar"
+                  value={data?.stats.totalOrders.toLocaleString() ?? '—'}
+                  icon={<ShoppingCart className="h-5 w-5" />}
+                  variant="info"
+                />
+                <StatCard
+                  title="O'rtacha buyurtma"
+                  value={data ? formatCurrency(data.stats.avgOrderValue) : '—'}
+                  icon={<TrendingUp className="h-5 w-5" />}
+                  variant="mint"
+                />
+                <StatCard
+                  title="Yangi foydalanuvchilar"
+                  value={data?.stats.newUsers.toLocaleString() ?? '—'}
+                  icon={<Users className="h-5 w-5" />}
+                  variant="violet"
+                />
+              </div>
             )}
-          </CardContent>
-        </Card>
+
+            {/* Charts */}
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+              <RevenueChart data={data?.revenueChart ?? []} isLoading={isLoading} />
+              <OrdersChart data={data?.revenueChart ?? []} isLoading={isLoading} />
+            </div>
+
+            {/* Top drivers */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Top haydovchilar</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {isLoading ? (
+                  <div className="p-4">
+                    <SkeletonCards count={5} height="h-10" />
+                  </div>
+                ) : !data || data.topDrivers.length === 0 ? (
+                  <EmptyState compact title="Ma'lumot yo'q" />
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>#</TableHead>
+                        <TableHead>Haydovchi</TableHead>
+                        <TableHead>Telefon</TableHead>
+                        <TableHead>Safarlar</TableHead>
+                        <TableHead>Daromad</TableHead>
+                        <TableHead>Reyting</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {data.topDrivers.map((driver, index) => (
+                        <TableRow key={driver.id}>
+                          <TableCell>
+                            <span
+                              className={`flex h-6 w-6 items-center justify-center rounded-full text-caption font-bold ${
+                                RANK_STYLE[index] ?? 'bg-surface-2 text-muted'
+                              }`}
+                            >
+                              {index + 1}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-caption font-bold text-white">
+                                {driver.firstName?.charAt(0)}
+                              </div>
+                              <span className="font-medium text-ink">
+                                {getFullName(driver.firstName, driver.lastName)}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-muted">{driver.phone}</TableCell>
+                          <TableCell className="font-medium text-ink">{driver.totalTrips}</TableCell>
+                          <TableCell className="font-semibold text-ink">
+                            {formatCurrency(driver.totalRevenue)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Star
+                                className="h-3.5 w-3.5 fill-override text-override"
+                                aria-hidden="true"
+                              />
+                              <span className="font-medium text-ink">{formatRating(driver.rating)}</span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
     </div>
   );

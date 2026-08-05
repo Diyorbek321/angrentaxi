@@ -1,11 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Trash2 } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { Trash2, ShieldCheck } from 'lucide-react';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Skeleton } from '@/components/ui/Skeleton';
+import { Tabs } from '@/components/ui/Tabs';
+import { SkeletonCards } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { moderationApi, ModeratedProduct, ModeratedDish } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 import { formatCurrency } from '@/lib/utils';
@@ -18,6 +21,7 @@ export default function ModerationPage() {
   const [products, setProducts] = useState<ModeratedProduct[]>([]);
   const [dishes, setDishes] = useState<ModeratedDish[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = async () => {
     setIsLoading(true);
@@ -25,7 +29,9 @@ export default function ModerationPage() {
       const [p, d] = await Promise.all([moderationApi.getProducts(), moderationApi.getDishes()]);
       setProducts(p.data.data);
       setDishes(d.data.data);
+      setLoadError(null);
     } catch {
+      setLoadError("Ro'yxatni yuklashda xatolik");
       toast({ title: 'Xatolik', description: "Ro'yxatni yuklashda xatolik", variant: 'error' });
     } finally {
       setIsLoading(false);
@@ -60,54 +66,58 @@ export default function ModerationPage() {
   };
 
   return (
-    <div>
-      <Header
+    <div className="p-4 sm:p-6">
+      <PageHeader
         title="Mahsulot/Menyu moderatsiyasi"
-        subtitle="Barcha do'kon va restoranlar bo'yicha mahsulot/taomlarni ko'rib chiqish"
+        description="Barcha do'kon va restoranlar bo'yicha mahsulot/taomlarni ko'rib chiqish"
+        icon={<ShieldCheck className="h-4 w-4" />}
       />
-      <div className="p-6 space-y-4">
-        <div className="flex gap-2">
-          <button
-            onClick={() => setTab('products')}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold ${
-              tab === 'products' ? 'bg-yellow-400/15 text-yellow-400' : 'text-gray-400 bg-white/5'
-            }`}
-          >
-            Mahsulotlar ({products.length})
-          </button>
-          <button
-            onClick={() => setTab('dishes')}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold ${
-              tab === 'dishes' ? 'bg-yellow-400/15 text-yellow-400' : 'text-gray-400 bg-white/5'
-            }`}
-          >
-            Taomlar ({dishes.length})
-          </button>
-        </div>
+
+      <div className="space-y-4">
+        <Tabs
+          ariaLabel="Moderatsiya turi"
+          items={[
+            { value: 'products', label: 'Mahsulotlar', count: products.length },
+            { value: 'dishes', label: 'Taomlar', count: dishes.length },
+          ]}
+          value={tab}
+          onChange={(v) => setTab(v as Tab)}
+        />
 
         <Card>
           <CardContent className="p-0">
-            {isLoading ? (
-              <div className="space-y-3 p-4">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} className="h-12 w-full" />
-                ))}
+            {loadError ? (
+              <div className="p-4">
+                <ErrorState message={loadError} onRetry={load} compact />
+              </div>
+            ) : isLoading ? (
+              <div className="p-4">
+                <SkeletonCards count={5} height="h-12" />
               </div>
             ) : tab === 'products' ? (
               products.length === 0 ? (
-                <p className="py-12 text-center text-sm text-gray-500">Mahsulotlar topilmadi</p>
+                <EmptyState
+                  compact
+                  tone="positive"
+                  title="Mahsulotlar topilmadi"
+                  description="Ko'rib chiqilishi kerak bo'lgan mahsulot yo'q."
+                />
               ) : (
-                <div className="divide-y divide-white/5">
+                <div className="divide-y divide-divider">
                   {products.map((p) => (
                     <div key={p.id} className="flex items-center justify-between px-4 py-3">
                       <div>
-                        <p className="text-sm font-medium text-gray-100">{p.name}</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-body font-medium text-ink">{p.name}</p>
+                        <p className="text-caption text-muted">
                           {p.store?.name ?? '—'} · {formatCurrency(p.price)} · {p.status}
                         </p>
                       </div>
-                      <Button size="sm" variant="destructive" onClick={() => removeProduct(p.id)}>
-                        <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        leftIcon={<Trash2 className="h-3.5 w-3.5" />}
+                        onClick={() => removeProduct(p.id)}
+                      >
                         O&apos;chirish
                       </Button>
                     </div>
@@ -115,20 +125,29 @@ export default function ModerationPage() {
                 </div>
               )
             ) : dishes.length === 0 ? (
-              <p className="py-12 text-center text-sm text-gray-500">Taomlar topilmadi</p>
+              <EmptyState
+                compact
+                tone="positive"
+                title="Taomlar topilmadi"
+                description="Ko'rib chiqilishi kerak bo'lgan taom yo'q."
+              />
             ) : (
-              <div className="divide-y divide-white/5">
+              <div className="divide-y divide-divider">
                 {dishes.map((d) => (
                   <div key={d.id} className="flex items-center justify-between px-4 py-3">
                     <div>
-                      <p className="text-sm font-medium text-gray-100">{d.name}</p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-body font-medium text-ink">{d.name}</p>
+                      <p className="text-caption text-muted">
                         {d.restaurant?.name ?? '—'} · {formatCurrency(d.price)} ·{' '}
                         {d.isAvailable ? 'mavjud' : 'tugagan'}
                       </p>
                     </div>
-                    <Button size="sm" variant="destructive" onClick={() => removeDish(d.id)}>
-                      <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      leftIcon={<Trash2 className="h-3.5 w-3.5" />}
+                      onClick={() => removeDish(d.id)}
+                    >
                       O&apos;chirish
                     </Button>
                   </div>

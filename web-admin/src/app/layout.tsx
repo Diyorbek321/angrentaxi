@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import localFont from 'next/font/local';
 import './globals.css';
 import { Providers } from './providers';
+import { THEME_INIT_SCRIPT } from '@/lib/theme';
 
 // Self-hosted (not next/font/google) so the build never depends on a live
 // fetch to Google's font CDN at build time.
@@ -34,8 +35,18 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="uz" className={`${manrope.variable} ${jetbrainsMono.variable}`}>
-      <body className="font-sans">
+    // suppressHydrationWarning: the inline script below adds `.dark` to <html>
+    // before React hydrates, so the server markup and the live DOM differ by
+    // that one class on purpose.
+    <html
+      lang="uz"
+      className={`${manrope.variable} ${jetbrainsMono.variable}`}
+      suppressHydrationWarning
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
+      <body className="font-sans bg-bg text-ink">
         <Providers>{children}</Providers>
       </body>
     </html>

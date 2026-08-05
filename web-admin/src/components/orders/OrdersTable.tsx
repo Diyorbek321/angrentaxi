@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { ArrowUpDown } from 'lucide-react';
+import { ArrowUpDown, ClipboardList } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -10,10 +10,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/Table';
-import { Skeleton } from '@/components/ui/Skeleton';
+import { SkeletonTable } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { OrderStatusBadge } from './OrderStatusBadge';
 import { Order } from '@/lib/api';
-import { formatCurrency, formatDate, shortId, getFullName } from '@/lib/utils';
+import { cn, formatCurrency, formatDate, shortId, getFullName } from '@/lib/utils';
 import { PAYMENT_METHOD_LABELS, PaymentMethod } from '@/lib/constants';
 
 interface OrdersTableProps {
@@ -27,41 +28,42 @@ interface OrdersTableProps {
 export function OrdersTable({ orders, isLoading, sortField, sortDir, onSort }: OrdersTableProps) {
   const router = useRouter();
 
-  const SortableHead = ({
-    field,
-    children,
-  }: {
-    field: string;
-    children: React.ReactNode;
-  }) => (
-    <TableHead>
-      <button
-        className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-400 hover:text-gray-200"
-        onClick={() => onSort?.(field)}
-      >
-        {children}
-        <ArrowUpDown
-          className={`h-3 w-3 ${sortField === field ? 'text-brand-yellow' : 'text-gray-300'}`}
-        />
-      </button>
-    </TableHead>
-  );
+  const SortableHead = ({ field, children }: { field: string; children: React.ReactNode }) => {
+    const active = sortField === field;
+    return (
+      // `aria-sort` — tartiblash holati ekran o'quvchiga ham yetkaziladi,
+      // ma'no faqat ikonka rangi bilan berilmaydi.
+      <TableHead aria-sort={active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+        <button
+          type="button"
+          onClick={() => onSort?.(field)}
+          className={cn(
+            'flex items-center gap-1 text-micro uppercase transition-colors duration-fast',
+            'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface-2',
+            active ? 'text-primary-text' : 'text-muted hover:text-ink'
+          )}
+        >
+          {children}
+          <ArrowUpDown
+            className={cn('h-3 w-3', active ? 'text-primary-text' : 'text-subtle')}
+            aria-hidden="true"
+          />
+        </button>
+      </TableHead>
+    );
+  };
 
   if (isLoading) {
-    return (
-      <div className="space-y-3 p-4">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <Skeleton key={i} className="h-12 w-full" />
-        ))}
-      </div>
-    );
+    return <SkeletonTable rows={8} cols={8} className="border-0" />;
   }
 
   if (orders.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <p className="text-sm text-gray-500">Buyurtmalar topilmadi</p>
-      </div>
+      <EmptyState
+        icon={<ClipboardList className="h-6 w-6" />}
+        title="Buyurtmalar topilmadi"
+        description="Tanlangan filtr boʻyicha buyurtma yoʻq."
+      />
     );
   }
 
@@ -86,47 +88,45 @@ export function OrdersTable({ orders, isLoading, sortField, sortDir, onSort }: O
             className="cursor-pointer"
             onClick={() => router.push(`/dashboard/orders/${order.id}`)}
           >
-            <TableCell className="font-mono text-xs text-gray-400">
+            <TableCell className="font-mono text-caption text-muted">
               #{shortId(order.id)}
             </TableCell>
             <TableCell>
               <div>
-                <p className="font-medium text-gray-100">
+                <p className="font-medium text-ink">
                   {getFullName(order.passenger.firstName, order.passenger.lastName)}
                 </p>
-                <p className="text-xs text-gray-400">{order.passenger.phone}</p>
+                <p className="text-caption text-muted">{order.passenger.phone}</p>
               </div>
             </TableCell>
             <TableCell>
               {order.driver ? (
                 <div>
-                  <p className="font-medium text-gray-100">
+                  <p className="font-medium text-ink">
                     {getFullName(order.driver.firstName, order.driver.lastName)}
                   </p>
-                  <p className="text-xs text-gray-400">{order.driver.carNumber}</p>
+                  <p className="text-caption text-muted">{order.driver.carNumber}</p>
                 </div>
               ) : (
-                <span className="text-xs text-gray-500">—</span>
+                <span className="text-caption text-subtle">—</span>
               )}
             </TableCell>
             <TableCell className="max-w-[200px]">
-              <p className="truncate text-xs text-gray-300">{order.pickupAddress ?? '—'}</p>
-              <p className="truncate text-xs text-gray-400">{order.dropoffAddress ?? '—'}</p>
+              <p className="truncate text-caption text-ink">{order.pickupAddress ?? '—'}</p>
+              <p className="truncate text-caption text-muted">{order.dropoffAddress ?? '—'}</p>
             </TableCell>
             <TableCell>
               <OrderStatusBadge status={order.status} />
             </TableCell>
-            <TableCell className="font-medium text-gray-100">
+            <TableCell className="font-mono font-medium tabular-nums text-ink">
               {formatCurrency(order.finalPrice ?? order.estimatedPrice)}
             </TableCell>
             <TableCell>
-              <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs text-gray-300">
+              <span className="rounded-full bg-surface-2 px-2 py-0.5 text-caption text-muted">
                 {PAYMENT_METHOD_LABELS[order.paymentMethod as PaymentMethod] ?? order.paymentMethod}
               </span>
             </TableCell>
-            <TableCell className="text-xs text-gray-400">
-              {formatDate(order.createdAt)}
-            </TableCell>
+            <TableCell className="text-caption text-muted">{formatDate(order.createdAt)}</TableCell>
           </TableRow>
         ))}
       </TableBody>

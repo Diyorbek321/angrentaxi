@@ -4,53 +4,74 @@ import { cn } from '@/lib/utils';
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
+  hint?: string;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
+  /** Raqam, ID, telefon va narxlar mono shriftda yaxshiroq o'qiladi. */
+  mono?: boolean;
 }
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, label, error, leftIcon, rightIcon, id, ...props }, ref) => {
-    const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
+  (
+    { className, type, label, error, hint, leftIcon, rightIcon, mono = false, id, ...props },
+    ref
+  ) => {
+    const generatedId = React.useId();
+    const inputId = id || `input-${generatedId}`;
+    const errorId = `${inputId}-error`;
+    const hintId = `${inputId}-hint`;
+
     return (
       <div className="w-full">
         {label && (
-          <label
-            htmlFor={inputId}
-            className="mb-1.5 block text-sm font-medium text-slate-300"
-          >
+          <label htmlFor={inputId} className="mb-1.5 block text-caption font-medium text-muted">
             {label}
           </label>
         )}
         <div className="relative">
           {leftIcon && (
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-subtle">
               {leftIcon}
             </div>
           )}
           <input
             id={inputId}
             type={type}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? errorId : hint ? hintId : undefined}
             className={cn(
-              'flex h-10 w-full rounded-md border border-white/10 bg-[#111827] px-3 py-2 text-sm text-white',
-              'placeholder:text-slate-600',
-              'focus:border-yellow-400/60 focus:outline-none focus:ring-1 focus:ring-yellow-400/20',
-              'disabled:cursor-not-allowed disabled:bg-white/5 disabled:text-slate-500',
-              'transition-colors',
+              'flex h-10 w-full rounded-ds-md border bg-surface px-3 py-2 text-body text-ink',
+              'placeholder:text-subtle',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
+              'disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-muted',
+              'transition-colors duration-fast',
+              mono && 'font-mono',
               leftIcon && 'pl-10',
               rightIcon && 'pr-10',
-              error && 'border-red-500/60 focus:border-red-500/60 focus:ring-red-500/20',
+              error
+                ? 'border-danger focus:border-danger'
+                : 'border-line hover:border-line-strong focus:border-primary',
               className
             )}
             ref={ref}
             {...props}
           />
           {rightIcon && (
-            <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500">
+            <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-subtle">
               {rightIcon}
             </div>
           )}
         </div>
-        {error && <p className="mt-1.5 text-xs text-red-400">{error}</p>}
+        {error && (
+          <p id={errorId} className="mt-1.5 text-caption text-danger-deep dark:text-danger-light">
+            {error}
+          </p>
+        )}
+        {hint && !error && (
+          <p id={hintId} className="mt-1.5 text-caption text-subtle">
+            {hint}
+          </p>
+        )}
       </div>
     );
   }

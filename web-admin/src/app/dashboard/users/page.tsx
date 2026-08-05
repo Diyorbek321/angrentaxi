@@ -1,8 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Search, ShieldOff, Shield } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { Search, ShieldOff, Shield, Users as UsersIcon } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
@@ -16,7 +15,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/Table';
-import { Skeleton } from '@/components/ui/Skeleton';
+import { SkeletonTable } from '@/components/ui/Skeleton';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
 import {
   Select,
   SelectContent,
@@ -43,6 +45,7 @@ export default function UsersPage() {
   const pagination = usePagination(20);
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [role, setRole] = useState<string>('all');
   const [confirmUser, setConfirmUser] = useState<User | null>(null);
@@ -62,7 +65,9 @@ export default function UsersPage() {
       setUsers(payload?.users ?? []);
       const total = payload?.total ?? 0;
       pagination.setTotal(total, Math.ceil(total / pagination.limit));
+      setError(null);
     } catch {
+      setError("Foydalanuvchilarni yuklab bo'lmadi.");
       toast({ title: 'Xatolik', description: 'Foydalanuvchilarni yuklashda xatolik', variant: 'error' });
     } finally {
       setIsLoading(false);
@@ -105,12 +110,13 @@ export default function UsersPage() {
   };
 
   return (
-    <div>
-      <Header
+    <div className="p-4 sm:p-6">
+      <PageHeader
         title="Foydalanuvchilar"
-        subtitle={`Jami: ${pagination.total.toLocaleString()} ta`}
+        description={`Jami: ${pagination.total.toLocaleString()} ta`}
+        icon={<UsersIcon className="h-4 w-4" />}
       />
-      <div className="p-6 space-y-4">
+      <div className="space-y-4">
         {/* Filters */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="flex-1">
@@ -135,16 +141,18 @@ export default function UsersPage() {
 
         <Card>
           <CardContent className="p-0">
-            {isLoading ? (
-              <div className="space-y-3 p-4">
-                {Array.from({ length: 10 }).map((_, i) => (
-                  <Skeleton key={i} className="h-12 w-full" />
-                ))}
+            {error ? (
+              <ErrorState message={error} onRetry={fetchUsers} />
+            ) : isLoading ? (
+              <div className="p-4">
+                <SkeletonTable rows={10} cols={7} />
               </div>
             ) : users.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16">
-                <p className="text-sm text-gray-500">Foydalanuvchilar topilmadi</p>
-              </div>
+              <EmptyState
+                icon={<UsersIcon className="h-6 w-6" />}
+                title="Foydalanuvchilar topilmadi"
+                description="Filtrlarni o'zgartirib qayta urinib ko'ring."
+              />
             ) : (
               <Table>
                 <TableHeader>
@@ -163,15 +171,18 @@ export default function UsersPage() {
                     <TableRow key={user.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-semibold text-gray-300">
+                          <div
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-2 text-caption font-semibold text-muted"
+                            aria-hidden="true"
+                          >
                             {user.firstName?.charAt(0) || '?'}
                           </div>
-                          <span className="font-medium text-gray-100">
+                          <span className="font-medium text-ink">
                             {getFullName(user.firstName || '', user.lastName || '')}
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-gray-300">
+                      <TableCell className="text-muted">
                         {formatPhone(user.phone)}
                       </TableCell>
                       <TableCell>
@@ -181,20 +192,23 @@ export default function UsersPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-0.5">
-                          <Badge variant={user.status === 'active' ? 'success' : 'destructive'}>
+                          <Badge variant={user.status === 'active' ? 'success' : 'destructive'} dot>
                             {user.status === 'active' ? 'Faol' : 'Bloklangan'}
                           </Badge>
                           {user.status === 'blocked' && user.blockReason && (
-                            <span className="text-xs text-gray-500 max-w-[180px] truncate" title={user.blockReason}>
+                            <span
+                              className="max-w-[180px] truncate text-caption text-subtle"
+                              title={user.blockReason}
+                            >
                               {user.blockReason}
                             </span>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-xs text-gray-400">
+                      <TableCell className="text-caption text-muted">
                         {formatDate(user.createdAt, 'dd.MM.yyyy')}
                       </TableCell>
-                      <TableCell className="font-medium text-gray-100">
+                      <TableCell className="font-medium text-ink">
                         {user.totalOrders ?? '—'}
                       </TableCell>
                       <TableCell className="text-right">
@@ -205,12 +219,12 @@ export default function UsersPage() {
                         >
                           {user.status === 'active' ? (
                             <>
-                              <ShieldOff className="mr-1.5 h-3.5 w-3.5" />
+                              <ShieldOff className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
                               Bloklash
                             </>
                           ) : (
                             <>
-                              <Shield className="mr-1.5 h-3.5 w-3.5" />
+                              <Shield className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
                               Blokdan chiqarish
                             </>
                           )}
@@ -224,21 +238,23 @@ export default function UsersPage() {
           </CardContent>
         </Card>
 
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-500">
-            {pagination.total} ta natijadan{' '}
-            {(pagination.page - 1) * pagination.limit + 1}–
-            {Math.min(pagination.page * pagination.limit, pagination.total)} ko&apos;rsatilmoqda
-          </p>
-          <Pagination
-            page={pagination.page}
-            totalPages={pagination.totalPages}
-            pageRange={pagination.pageRange}
-            canGoPrev={pagination.canGoPrev}
-            canGoNext={pagination.canGoNext}
-            onPageChange={pagination.goToPage}
-          />
-        </div>
+        {!error && !isLoading && users.length > 0 && (
+          <div className="flex items-center justify-between">
+            <p className="text-body text-subtle">
+              {pagination.total} ta natijadan{' '}
+              {(pagination.page - 1) * pagination.limit + 1}–
+              {Math.min(pagination.page * pagination.limit, pagination.total)} ko&apos;rsatilmoqda
+            </p>
+            <Pagination
+              page={pagination.page}
+              totalPages={pagination.totalPages}
+              pageRange={pagination.pageRange}
+              canGoPrev={pagination.canGoPrev}
+              canGoNext={pagination.canGoNext}
+              onPageChange={pagination.goToPage}
+            />
+          </div>
+        )}
       </div>
 
       {/* Confirm modal */}

@@ -5,11 +5,17 @@ import { Plus, Gift, ToggleLeft, ToggleRight } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/Select';
 import {
   Dialog,
   DialogContent,
@@ -17,7 +23,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/Modal';
-import { Skeleton } from '@/components/ui/Skeleton';
+import { SkeletonCards } from '@/components/ui/Skeleton';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { bonusRulesApi, BonusRule, BonusRuleCreateInput } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 import { formatCurrency } from '@/lib/utils';
@@ -41,6 +50,7 @@ export default function BonusesPage() {
   const { toast } = useToast();
   const [rules, setRules] = useState<BonusRule[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -48,6 +58,7 @@ export default function BonusesPage() {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<BonusRuleForm>({ resolver: zodResolver(bonusRuleSchema) });
 
@@ -56,7 +67,9 @@ export default function BonusesPage() {
     try {
       const res = await bonusRulesApi.getAll();
       setRules(res.data.data);
+      setError(null);
     } catch {
+      setError("Bonus qoidalarini yuklab bo'lmadi.");
       toast({ title: 'Xatolik', description: "Qoidalarni yuklashda xatolik", variant: 'error' });
     } finally {
       setIsLoading(false);
@@ -110,29 +123,39 @@ export default function BonusesPage() {
   };
 
   return (
-    <div>
-      <Header title="Haydovchi bonuslari" subtitle="Bonus qoidalarini boshqaring" />
-      <div className="p-6 space-y-4">
-        <div className="flex justify-end">
-          <Button onClick={openCreate}>
-            <Plus className="mr-2 h-4 w-4" />
+    <div className="p-4 sm:p-6">
+      <PageHeader
+        title="Haydovchi bonuslari"
+        description="Bonus qoidalarini boshqaring"
+        icon={<Gift className="h-4 w-4" />}
+        actions={
+          <Button leftIcon={<Plus className="h-4 w-4" />} onClick={openCreate}>
             Yangi qoida
           </Button>
-        </div>
-
-        {isLoading ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-40" />
-            ))}
-          </div>
+        }
+      />
+      <div className="space-y-4">
+        {error ? (
+          <Card>
+            <CardContent>
+              <ErrorState message={error} onRetry={fetchRules} />
+            </CardContent>
+          </Card>
+        ) : isLoading ? (
+          <SkeletonCards count={3} height="h-40" />
         ) : rules.length === 0 ? (
           <Card>
-            <CardContent className="py-16 text-center">
-              <p className="text-sm text-gray-500">Bonus qoidalari yo&apos;q</p>
-              <Button className="mt-4" onClick={openCreate}>
-                Birinchi qoidani yarating
-              </Button>
+            <CardContent>
+              <EmptyState
+                icon={<Gift className="h-6 w-6" />}
+                title="Bonus qoidalari yo'q"
+                description="Haydovchilarni rag'batlantirish uchun birinchi bonus qoidasini yarating."
+                action={
+                  <Button size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={openCreate}>
+                    Birinchi qoidani yarating
+                  </Button>
+                }
+              />
             </CardContent>
           </Card>
         ) : (
@@ -141,34 +164,35 @@ export default function BonusesPage() {
               <Card key={rule.id} className={rule.status === 'active' ? '' : 'opacity-60'}>
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-base flex items-center gap-1.5">
-                      <Gift className="h-4 w-4 text-yellow-400" />
+                    <CardTitle className="flex items-center gap-1.5 text-title">
+                      <Gift className="h-4 w-4 text-primary" aria-hidden="true" />
                       {rule.name}
                     </CardTitle>
-                    <Badge variant={rule.status === 'active' ? 'success' : 'secondary'}>
+                    <Badge variant={rule.status === 'active' ? 'success' : 'secondary'} dot>
                       {rule.status === 'active' ? 'Faol' : 'Nofaol'}
                     </Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3 pb-4">
                   <Badge variant="info">{ruleTypeLabel[rule.ruleType]}</Badge>
-                  <p className="text-sm text-gray-300">
+                  <p className="text-body text-muted">
                     Har {rule.tripThreshold} safar uchun{' '}
-                    <span className="font-semibold text-gray-100">
+                    <span className="font-mono font-semibold tabular-nums text-ink">
                       {formatCurrency(rule.bonusAmount)}
                     </span>
                   </p>
                   {rule.serviceType && (
-                    <p className="text-xs text-gray-500">Xizmat turi: {rule.serviceType}</p>
+                    <p className="text-caption text-subtle">Xizmat turi: {rule.serviceType}</p>
                   )}
                   <button
-                    className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-200 transition-colors pt-2 border-t border-white/10 w-full"
+                    type="button"
+                    className="flex w-full items-center gap-1.5 border-t border-divider pt-2 text-caption text-muted transition-colors duration-fast hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
                     onClick={() => handleToggle(rule)}
                   >
                     {rule.status === 'active' ? (
-                      <ToggleRight className="h-4 w-4 text-green-500" />
+                      <ToggleRight className="h-4 w-4 text-primary-text" aria-hidden="true" />
                     ) : (
-                      <ToggleLeft className="h-4 w-4 text-gray-500" />
+                      <ToggleLeft className="h-4 w-4 text-subtle" aria-hidden="true" />
                     )}
                     {rule.status === 'active' ? "O'chirish" : 'Yoqish'}
                   </button>
@@ -191,20 +215,28 @@ export default function BonusesPage() {
               error={errors.name?.message}
               {...register('name')}
             />
-            <label className="flex flex-col gap-1.5 text-sm font-medium text-gray-300">
-              Qoida turi
-              <select
-                className="rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-brand-yellow"
-                {...register('ruleType')}
+            <div>
+              <label className="mb-1.5 block text-caption font-medium text-muted" htmlFor="ruleType">
+                Qoida turi
+              </label>
+              <Select
+                defaultValue="trip_count"
+                onValueChange={(v) => setValue('ruleType', v as BonusRuleForm['ruleType'])}
               >
-                <option value="trip_count">Safar soni</option>
-                <option value="weekly_goal">Haftalik maqsad</option>
-              </select>
-            </label>
+                <SelectTrigger id="ruleType" className="w-full">
+                  <SelectValue placeholder="Qoida turi" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="trip_count">Safar soni</SelectItem>
+                  <SelectItem value="weekly_goal">Haftalik maqsad</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="Safar soni chegarasi"
                 type="number"
+                mono
                 placeholder="50"
                 error={errors.tripThreshold?.message}
                 {...register('tripThreshold')}
@@ -212,6 +244,7 @@ export default function BonusesPage() {
               <Input
                 label="Bonus summasi (UZS)"
                 type="number"
+                mono
                 placeholder="50000"
                 error={errors.bonusAmount?.message}
                 {...register('bonusAmount')}

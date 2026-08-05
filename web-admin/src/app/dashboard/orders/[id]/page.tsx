@@ -4,16 +4,19 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft,
+  ClipboardList,
   MapPin,
   User,
   Car,
   CreditCard,
   XCircle,
 } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Skeleton } from '@/components/ui/Skeleton';
+import { SkeletonCards } from '@/components/ui/Skeleton';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { Avatar } from '@/components/ui/Avatar';
 import {
   Dialog,
   DialogContent,
@@ -43,11 +46,13 @@ interface InfoRowProps {
 
 function InfoRow({ icon, label, value }: InfoRowProps) {
   return (
-    <div className="flex items-start gap-3 py-3 first:pt-0 last:pb-0 border-b last:border-0 border-white/10">
-      <div className="mt-0.5 text-gray-500 shrink-0">{icon}</div>
-      <div className="flex-1 flex items-start justify-between gap-4">
-        <span className="text-sm text-gray-400">{label}</span>
-        <span className="text-sm font-medium text-gray-100 text-right">{value}</span>
+    <div className="flex items-start gap-3 border-b border-divider py-3 first:pt-0 last:border-0 last:pb-0">
+      <div className="mt-0.5 shrink-0 text-subtle" aria-hidden="true">
+        {icon}
+      </div>
+      <div className="flex flex-1 items-start justify-between gap-4">
+        <span className="text-body text-muted">{label}</span>
+        <span className="text-right text-body font-medium text-ink">{value}</span>
       </div>
     </div>
   );
@@ -60,6 +65,7 @@ export default function OrderDetailPage() {
   const orderId = params.id as string;
 
   const [order, setOrder] = useState<Order | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
@@ -71,6 +77,10 @@ export default function OrderDetailPage() {
         const res = await ordersApi.getById(orderId);
         setOrder(res.data.data);
       } catch {
+        // Yo'naltirish avvalgidek qoladi; `loadError` esa yo'naltirish
+        // amalga oshguncha (yoki u ishlamasa) bo'sh ekran o'rniga
+        // tushunarli xato holatini ko'rsatadi.
+        setLoadError('Buyurtma maʼlumotlarini yuklab boʻlmadi');
         toast({ title: 'Xatolik', description: 'Buyurtma ma\'lumotlarini yuklashda xatolik', variant: 'error' });
         router.push('/dashboard/orders');
       } finally {
@@ -101,47 +111,73 @@ export default function OrderDetailPage() {
 
   if (isLoading) {
     return (
-      <div>
-        <Header title="Buyurtma" />
-        <div className="p-6 space-y-4">
-          <Skeleton className="h-8 w-32" />
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Skeleton className="h-64" />
-            <Skeleton className="h-64" />
-          </div>
-        </div>
+      <div className="p-4 sm:p-6">
+        <PageHeader title="Buyurtma" icon={<ClipboardList className="h-4 w-4" aria-hidden="true" />} />
+        <SkeletonCards count={2} height="h-64" />
       </div>
     );
   }
 
-  if (!order) return null;
+  if (!order) {
+    return (
+      <div className="p-4 sm:p-6">
+        <PageHeader
+          title="Buyurtma"
+          icon={<ClipboardList className="h-4 w-4" aria-hidden="true" />}
+          actions={
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push('/dashboard/orders')}
+              leftIcon={<ArrowLeft className="h-4 w-4" aria-hidden="true" />}
+            >
+              Buyurtmalarga qaytish
+            </Button>
+          }
+        />
+        <ErrorState
+          message={loadError ?? 'Buyurtma topilmadi'}
+          onRetry={() => router.refresh()}
+        />
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <Header title={`Buyurtma #${shortId(order.id)}`} />
-      <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <Button variant="ghost" size="sm" onClick={() => router.back()}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Orqaga
-          </Button>
-          {canCancel && (
-            <Button variant="destructive" size="sm" onClick={() => setShowCancelModal(true)}>
-              <XCircle className="mr-2 h-4 w-4" />
-              Bekor qilish
+    <div className="p-4 sm:p-6">
+      <PageHeader
+        title={`Buyurtma #${shortId(order.id)}`}
+        icon={<ClipboardList className="h-4 w-4" aria-hidden="true" />}
+        actions={
+          <>
+            <Button variant="ghost" size="sm" onClick={() => router.back()} leftIcon={<ArrowLeft className="h-4 w-4" aria-hidden="true" />}>
+              Orqaga
             </Button>
-          )}
-        </div>
-
+            {canCancel && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowCancelModal(true)}
+                leftIcon={<XCircle className="h-4 w-4" aria-hidden="true" />}
+              >
+                Bekor qilish
+              </Button>
+            )}
+          </>
+        }
+      />
+      <div className="space-y-6">
         {/* Status banner */}
-        <div className="flex items-center gap-3 rounded-xl bg-white/5 p-4 border border-white/10">
+        <div className="flex flex-wrap items-center gap-3 rounded-ds-md border border-line bg-surface-2 p-4">
           <OrderStatusBadge status={order.status} />
-          <span className="text-sm text-gray-500">
+          <span className="text-body text-muted">
             {formatDate(order.createdAt)}
             {order.completedAt && ` → ${formatDate(order.completedAt)}`}
           </span>
           {order.cancelReason && (
-            <span className="ml-2 text-sm text-red-600">Sabab: {order.cancelReason}</span>
+            <span className="text-body text-danger-deep dark:text-danger-light">
+              Sabab: {order.cancelReason}
+            </span>
           )}
         </div>
 
@@ -154,33 +190,35 @@ export default function OrderDetailPage() {
             <CardContent className="space-y-4">
               <div className="flex gap-3">
                 <div className="flex flex-col items-center gap-1">
-                  <div className="h-3 w-3 rounded-full bg-green-500" />
-                  <div className="flex-1 w-px bg-gray-200 min-h-[2rem]" />
-                  <MapPin className="h-4 w-4 text-red-500" />
+                  {/* Boshlanish nuqtasi — yorug' fonda ko'rinishi shart bo'lgan
+                      mint, shuning uchun `mint-deep` (3.37:1), `mint` emas. */}
+                  <div className="h-3 w-3 rounded-full bg-mint-deep" aria-hidden="true" />
+                  <div className="min-h-[2rem] w-px flex-1 bg-line" aria-hidden="true" />
+                  <MapPin className="h-4 w-4 text-danger-deep dark:text-danger-light" aria-hidden="true" />
                 </div>
                 <div className="flex-1 space-y-4">
                   <div>
-                    <p className="text-xs text-gray-500">Boshlang&apos;ich nuqta</p>
-                    <p className="text-sm font-medium text-gray-100">{order.pickupAddress ?? '—'}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-caption text-subtle">Boshlang&apos;ich nuqta</p>
+                    <p className="text-body font-medium text-ink">{order.pickupAddress ?? '—'}</p>
+                    <p className="text-caption text-subtle">
                       {order.pickupLocation.coordinates[1].toFixed(5)}, {order.pickupLocation.coordinates[0].toFixed(5)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Manzil</p>
-                    <p className="text-sm font-medium text-gray-100">{order.dropoffAddress ?? '—'}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-caption text-subtle">Manzil</p>
+                    <p className="text-body font-medium text-ink">{order.dropoffAddress ?? '—'}</p>
+                    <p className="text-caption text-subtle">
                       {order.dropoffLocation.coordinates[1].toFixed(5)}, {order.dropoffLocation.coordinates[0].toFixed(5)}
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 rounded-lg bg-white/5 p-3">
+              <div className="grid grid-cols-1 gap-3 rounded-ds-md bg-surface-2 p-3">
                 <div className="text-center">
-                  <CreditCard className="mx-auto h-4 w-4 text-gray-500" />
-                  <p className="mt-1 text-xs text-gray-500">Narx</p>
-                  <p className="text-sm font-semibold text-gray-100">
+                  <CreditCard className="mx-auto h-4 w-4 text-subtle" aria-hidden="true" />
+                  <p className="mt-1 text-caption text-subtle">Narx</p>
+                  <p className="text-body font-semibold text-ink">
                     {formatCurrency(order.finalPrice ?? order.estimatedPrice)}
                   </p>
                 </div>
@@ -207,7 +245,7 @@ export default function OrderDetailPage() {
               <InfoRow
                 icon={<CreditCard className="h-4 w-4" />}
                 label="Narx"
-                value={<span className="text-lg font-bold text-gray-100">{formatCurrency(order.finalPrice ?? order.estimatedPrice)}</span>}
+                value={<span className="text-h3 font-bold text-ink">{formatCurrency(order.finalPrice ?? order.estimatedPrice)}</span>}
               />
             </CardContent>
           </Card>
@@ -218,21 +256,23 @@ export default function OrderDetailPage() {
               <CardTitle>Yo&apos;lovchi</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-4 mb-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/20 text-blue-300 font-bold text-lg">
-                  {order.passenger.firstName?.charAt(0)}
-                </div>
+              <div className="mb-4 flex items-center gap-4">
+                <Avatar
+                  name={getFullName(order.passenger.firstName, order.passenger.lastName)}
+                  size="md"
+                  tone="mint"
+                />
                 <div>
-                  <p className="font-semibold text-gray-100">
+                  <p className="font-semibold text-ink">
                     {getFullName(order.passenger.firstName, order.passenger.lastName)}
                   </p>
-                  <p className="text-sm text-gray-400">{formatPhone(order.passenger.phone)}</p>
+                  <p className="text-body text-muted">{formatPhone(order.passenger.phone)}</p>
                 </div>
               </div>
               <InfoRow
                 icon={<User className="h-4 w-4" />}
                 label="ID"
-                value={<span className="font-mono text-xs">{shortId(order.passenger.id)}</span>}
+                value={<span className="font-mono text-caption">{shortId(order.passenger.id)}</span>}
               />
             </CardContent>
           </Card>
@@ -245,15 +285,17 @@ export default function OrderDetailPage() {
             <CardContent>
               {order.driver ? (
                 <>
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-yellow text-brand-black font-bold text-lg">
-                      {order.driver.firstName?.charAt(0)}
-                    </div>
+                  <div className="mb-4 flex items-center gap-4">
+                    <Avatar
+                      name={getFullName(order.driver.firstName, order.driver.lastName)}
+                      size="md"
+                      tone="mint"
+                    />
                     <div>
-                      <p className="font-semibold text-gray-100">
+                      <p className="font-semibold text-ink">
                         {getFullName(order.driver.firstName, order.driver.lastName)}
                       </p>
-                      <p className="text-sm text-gray-400">{formatPhone(order.driver.phone)}</p>
+                      <p className="text-body text-muted">{formatPhone(order.driver.phone)}</p>
                     </div>
                   </div>
                   <InfoRow
@@ -265,14 +307,14 @@ export default function OrderDetailPage() {
                     icon={<Car className="h-4 w-4" />}
                     label="Raqam"
                     value={
-                      <span className="font-mono text-xs font-semibold bg-white/10 px-2 py-0.5 rounded">
+                      <span className="rounded-ds-xs border border-line bg-surface-2 px-2 py-0.5 font-mono text-caption font-semibold text-ink">
                         {order.driver.carNumber}
                       </span>
                     }
                   />
                 </>
               ) : (
-                <p className="text-sm text-gray-500 py-4 text-center">
+                <p className="py-4 text-center text-body text-subtle">
                   Haydovchi tayinlanmagan
                 </p>
               )}

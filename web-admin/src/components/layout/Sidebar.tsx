@@ -27,6 +27,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useSidebar } from '@/components/layout/SidebarContext';
+import { Avatar } from '@/components/ui/Avatar';
 
 interface NavItem {
   href: string;
@@ -119,14 +120,21 @@ export function Sidebar() {
         <Link
           href={item.href}
           onClick={close}
+          // Faol sahifa `aria-current` bilan ham belgilanadi — ma'no faqat
+          // rang va chegara orqali berilmaydi.
+          aria-current={active ? 'page' : undefined}
           className={cn(
-            'flex items-center gap-3 rounded-r-lg px-3 py-2.5 text-sm font-medium transition-all duration-150',
+            'flex items-center gap-3 rounded-ds-sm px-3 py-2.5 text-body font-medium transition-colors duration-fast',
+            'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
             active
-              ? 'border-l-2 border-yellow-400 bg-yellow-400/10 text-yellow-400 rounded-l-none'
-              : 'border-l-2 border-transparent text-slate-400 hover:bg-white/[0.06] hover:text-white rounded-lg'
+              ? 'rounded-l-none border-l-2 border-primary bg-mint-tint font-semibold text-primary-text'
+              : 'border-l-2 border-transparent text-muted hover:bg-surface-2 hover:text-ink'
           )}
         >
-          <item.icon className={cn('h-4 w-4 shrink-0', active ? 'text-yellow-400' : 'text-slate-500')} />
+          <item.icon
+            className={cn('h-4 w-4 shrink-0', active ? 'text-primary-text' : 'text-subtle')}
+            aria-hidden="true"
+          />
           {item.label}
         </Link>
       </li>
@@ -138,73 +146,91 @@ export function Sidebar() {
       {/* Mobile backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/60 lg:hidden"
+          className="fixed inset-0 z-30 bg-[#04140F]/50 backdrop-blur-[2px] lg:hidden"
           onClick={close}
           aria-hidden="true"
         />
       )}
 
       <aside
+        aria-label="Asosiy navigatsiya"
         className={cn(
-          'fixed inset-y-0 left-0 z-40 flex h-screen w-64 flex-col bg-[#0D1526] shadow-[4px_0_24px_rgba(0,0,0,0.3)] transition-transform duration-200 ease-out',
+          'fixed inset-y-0 left-0 z-40 flex h-screen w-64 flex-col border-r border-line bg-surface shadow-card transition-transform duration-base ease-emphasized',
           'lg:static lg:translate-x-0',
           isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
-        {/* Logo */}
+        {/* Logo — interaktiv emas, shuning uchun AKSENT qatlam (mint gradient
+            + ink ikonka). Oq ikonka mint ustida 1.85:1 bo'lardi. */}
         <div className="flex items-center gap-3 px-5 py-6">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-400 shadow-glow-yellow-sm">
-            <Zap className="h-5 w-5 text-[#080D1A]" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-ds-sm bg-gradient-mint shadow-glow-mint-sm">
+            <Zap className="h-5 w-5 text-mint-on" aria-hidden="true" />
           </div>
           <div>
-            <p className="text-sm font-bold text-white">Angren Taxi</p>
-            <p className="text-xs text-slate-500">Super Admin</p>
+            <p className="text-title text-ink">Angren Taxi</p>
+            <p className="text-caption text-muted">Super Admin</p>
           </div>
         </div>
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto px-3 py-2">
-          <ul className="space-y-0.5 mb-3">{renderItem(overviewItem)}</ul>
+          <ul className="mb-3 space-y-0.5">{renderItem(overviewItem)}</ul>
 
           {navGroups.map((group) => {
             const isCollapsed = !!collapsed[group.key];
+            const panelId = `nav-group-${group.key}`;
             return (
               <div key={group.key} className="mb-1">
                 <button
+                  type="button"
+                  aria-expanded={!isCollapsed}
+                  aria-controls={panelId}
                   onClick={() => setCollapsed((c) => ({ ...c, [group.key]: !c[group.key] }))}
-                  className="flex w-full items-center justify-between px-2 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600 hover:text-slate-400"
+                  className={cn(
+                    'flex w-full items-center justify-between rounded-ds-xs px-2 py-1.5 text-micro uppercase text-subtle',
+                    'transition-colors duration-fast hover:text-ink',
+                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface'
+                  )}
                 >
                   {group.label}
                   <ChevronDown
-                    className={cn('h-3 w-3 transition-transform', isCollapsed && '-rotate-90')}
+                    className={cn('h-3 w-3 transition-transform duration-fast', isCollapsed && '-rotate-90')}
+                    aria-hidden="true"
                   />
                 </button>
-                {!isCollapsed && <ul className="space-y-0.5">{group.items.map(renderItem)}</ul>}
+                {!isCollapsed && (
+                  <ul id={panelId} className="space-y-0.5">
+                    {group.items.map(renderItem)}
+                  </ul>
+                )}
               </div>
             );
           })}
         </nav>
 
         {/* User + logout */}
-        <div className="border-t border-white/[0.06] p-4 space-y-2">
+        <div className="space-y-2 border-t border-line p-4">
           {user && (
-            <div className="flex items-center gap-3 rounded-xl bg-white/[0.04] px-3 py-2.5">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-yellow-400 text-xs font-bold text-[#080D1A] shadow-glow-yellow-sm">
-                {user.firstName?.charAt(0) || 'A'}
-              </div>
+            <div className="flex items-center gap-3 rounded-ds-sm bg-surface-2 px-3 py-2.5">
+              <Avatar name={`${user.firstName ?? ''} ${user.lastName ?? ''}`} size="sm" />
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-white">
+                <p className="truncate text-body font-medium text-ink">
                   {user.firstName} {user.lastName}
                 </p>
-                <p className="text-xs text-slate-500">Admin</p>
+                <p className="text-caption text-muted">Admin</p>
               </div>
             </div>
           )}
           <button
+            type="button"
             onClick={logout}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-red-500/10 hover:text-red-400"
+            className={cn(
+              'flex w-full items-center gap-3 rounded-ds-sm px-3 py-2 text-body font-medium text-muted',
+              'transition-colors duration-fast hover:bg-danger-tint hover:text-danger-deep dark:hover:text-danger-light',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface'
+            )}
           >
-            <LogOut className="h-4 w-4 shrink-0" />
+            <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
             Chiqish
           </button>
         </div>

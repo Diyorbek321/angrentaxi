@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Tag } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -14,7 +14,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/Modal';
-import { Skeleton } from '@/components/ui/Skeleton';
+import { SkeletonTable } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
 import {
   Table,
   TableBody,
@@ -31,6 +33,7 @@ export default function PromoCodesPage() {
   const { toast } = useToast();
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<PromoCode | null>(null);
   const [deactivating, setDeactivating] = useState(false);
 
@@ -39,7 +42,9 @@ export default function PromoCodesPage() {
     try {
       const res = await promoCodesApi.getAll();
       setPromoCodes(res.data.data);
+      setError(null);
     } catch {
+      setError("Promo kodlarni yuklab bo'lmadi.");
       toast({ title: 'Xatolik', description: 'Promo kodlarni yuklashda xatolik', variant: 'error' });
     } finally {
       setIsLoading(false);
@@ -67,14 +72,30 @@ export default function PromoCodesPage() {
   };
 
   return (
-    <div>
-      <Header title="Promo kodlar" subtitle="Chegirma kodlarini kuzatib boring" />
-      <div className="p-6">
-        {isLoading ? (
-          <Skeleton className="h-64" />
-        ) : (
-          <Card>
-            <CardContent className="p-0">
+    <div className="p-4 sm:p-6">
+      <PageHeader
+        title="Promo kodlar"
+        description="Chegirma kodlarini kuzatib boring"
+        icon={<Tag className="h-4 w-4" />}
+      />
+      {error ? (
+        <Card>
+          <CardContent>
+            <ErrorState message={error} onRetry={fetchPromoCodes} />
+          </CardContent>
+        </Card>
+      ) : isLoading ? (
+        <SkeletonTable rows={6} cols={7} />
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            {promoCodes.length === 0 ? (
+              <EmptyState
+                icon={<Tag className="h-6 w-6" />}
+                title="Promo kodlar yo'q"
+                description="Hozircha yaratilgan chegirma kodlari mavjud emas."
+              />
+            ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -90,8 +111,8 @@ export default function PromoCodesPage() {
                 <TableBody>
                   {promoCodes.map((promo) => (
                     <TableRow key={promo.id}>
-                      <TableCell className="font-mono flex items-center gap-1.5">
-                        <Tag className="h-3.5 w-3.5 text-gray-400" />
+                      <TableCell className="flex items-center gap-1.5 font-mono">
+                        <Tag className="h-3.5 w-3.5 text-subtle" aria-hidden="true" />
                         {promo.code}
                       </TableCell>
                       <TableCell>
@@ -108,7 +129,7 @@ export default function PromoCodesPage() {
                         {promo.expiresAt ? formatDate(promo.expiresAt, 'dd.MM.yyyy') : '—'}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={promo.isActive ? 'success' : 'secondary'}>
+                        <Badge variant={promo.isActive ? 'success' : 'secondary'} dot>
                           {promo.isActive ? 'Faol' : 'Faol emas'}
                         </Badge>
                       </TableCell>
@@ -127,13 +148,10 @@ export default function PromoCodesPage() {
                   ))}
                 </TableBody>
               </Table>
-              {promoCodes.length === 0 && (
-                <p className="text-sm text-gray-500 text-center py-16">Promo kodlar yo&apos;q</p>
-              )}
-            </CardContent>
-          </Card>
-        )}
-      </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Dialog open={!!deactivateTarget} onOpenChange={() => setDeactivateTarget(null)}>
         <DialogContent>

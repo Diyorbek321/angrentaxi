@@ -16,8 +16,9 @@ export default function RootPage() {
   }, [router]);
 
   return (
-    <div className="flex h-screen items-center justify-center">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-yellow border-t-transparent" />
+    <div className="flex h-screen items-center justify-center bg-bg" aria-busy="true">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      <span className="sr-only">Yoʻnaltirilmoqda…</span>
     </div>
   );
 }

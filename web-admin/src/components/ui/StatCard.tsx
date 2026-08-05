@@ -2,14 +2,23 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from './Skeleton';
 
-type StatVariant = 'yellow' | 'blue' | 'green' | 'purple';
+/**
+ * KPI karta. Ikonka konteyneri AKSENT qatlam (tinted yuza + `*-deep` ikonka),
+ * hech qachon interaktiv `primary` fon emas — karta bosiladigan element emas.
+ *
+ * Eski variant nomlari (`yellow`/`blue`/`green`/`purple`) saqlanadi, lekin
+ * ular endi mint tizimidagi semantik ohanglarga taqqoslanadi, shunda mavjud
+ * chaqiruv joylarini bir vaqtning o'zida o'zgartirish shart emas.
+ */
+type StatVariant = 'mint' | 'info' | 'violet' | 'override' | 'danger' | 'neutral'
+  // Migratsiya davri uchun aliaslar.
+  | 'yellow' | 'blue' | 'green' | 'purple';
 
 interface StatCardProps {
   title: string;
   value: string | number;
   subtitle?: string;
   icon: React.ReactNode;
-  iconBg?: string;
   variant?: StatVariant;
   trend?: {
     value: number;
@@ -19,36 +28,24 @@ interface StatCardProps {
   className?: string;
 }
 
-const variantConfig: Record<StatVariant, {
-  iconGradient: string;
-  glowColor: string;
-  borderAccent: string;
-  hoverShadow: string;
-}> = {
+const toneConfig: Record<StatVariant, { icon: string; accent: string }> = {
+  // `mint-tint` fon + `primary-text` ikonka — yorug' fonda ham 4.95:1.
+  mint: { icon: 'bg-mint-tint text-primary-text', accent: 'bg-mint-deep' },
+  green: { icon: 'bg-mint-tint text-primary-text', accent: 'bg-mint-deep' },
+  info: { icon: 'bg-info-tint text-info-deep dark:text-info-light', accent: 'bg-info' },
+  blue: { icon: 'bg-info-tint text-info-deep dark:text-info-light', accent: 'bg-info' },
+  violet: { icon: 'bg-violet-tint text-violet-deep dark:text-violet-light', accent: 'bg-violet' },
+  purple: { icon: 'bg-violet-tint text-violet-deep dark:text-violet-light', accent: 'bg-violet' },
+  override: {
+    icon: 'bg-override-tint text-override-dark dark:text-override-light',
+    accent: 'bg-override',
+  },
   yellow: {
-    iconGradient: 'bg-stat-gradient-1',
-    glowColor: 'rgba(250,204,21,0.15)',
-    borderAccent: 'border-yellow-400/50',
-    hoverShadow: '0 8px 32px rgba(250,204,21,0.08)',
+    icon: 'bg-override-tint text-override-dark dark:text-override-light',
+    accent: 'bg-override',
   },
-  blue: {
-    iconGradient: 'bg-stat-gradient-2',
-    glowColor: 'rgba(59,130,246,0.15)',
-    borderAccent: 'border-blue-500/50',
-    hoverShadow: '0 8px 32px rgba(59,130,246,0.08)',
-  },
-  green: {
-    iconGradient: 'bg-stat-gradient-3',
-    glowColor: 'rgba(16,185,129,0.15)',
-    borderAccent: 'border-green-500/50',
-    hoverShadow: '0 8px 32px rgba(16,185,129,0.08)',
-  },
-  purple: {
-    iconGradient: 'bg-stat-gradient-4',
-    glowColor: 'rgba(139,92,246,0.15)',
-    borderAccent: 'border-purple-500/50',
-    hoverShadow: '0 8px 32px rgba(139,92,246,0.08)',
-  },
+  danger: { icon: 'bg-danger-tint text-danger-deep dark:text-danger-light', accent: 'bg-danger' },
+  neutral: { icon: 'bg-surface-2 text-muted', accent: 'bg-line-strong' },
 };
 
 export function StatCard({
@@ -56,73 +53,64 @@ export function StatCard({
   value,
   subtitle,
   icon,
-  variant = 'yellow',
+  variant = 'mint',
   trend,
   isLoading,
   className,
 }: StatCardProps) {
-  const config = variantConfig[variant];
+  const tone = toneConfig[variant] ?? toneConfig.mint;
 
   return (
     <div
       className={cn(
-        'relative overflow-hidden bg-[#0D1526] border border-white/[0.08] rounded-2xl p-6',
-        'transition-all duration-200 group',
+        'relative overflow-hidden rounded-ds-md border border-line bg-surface p-5 shadow-card',
+        'transition-colors duration-fast ease-standard hover:border-line-strong',
         className
       )}
-      style={{
-        ['--hover-shadow' as string]: config.hoverShadow,
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.boxShadow = config.hoverShadow;
-        (e.currentTarget as HTMLElement).style.borderColor = config.glowColor;
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.boxShadow = '';
-        (e.currentTarget as HTMLElement).style.borderColor = '';
-      }}
     >
-      <div className="flex items-start justify-between">
-        <div className="flex-1 min-w-0">
-          <p className="text-sm text-slate-400">{title}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-body text-muted">{title}</p>
           {isLoading ? (
-            <Skeleton className="mt-2 h-8 w-32 bg-white/10" />
+            <Skeleton className="mt-2 h-8 w-32" />
           ) : (
-            <p className="mt-2 text-3xl font-bold text-white">{value}</p>
+            <p className="mt-2 font-mono text-display tabular-nums text-ink">{value}</p>
           )}
-          {subtitle && !isLoading && (
-            <p className="mt-1 text-xs text-slate-500">{subtitle}</p>
-          )}
+          {subtitle && !isLoading && <p className="mt-1 text-caption text-subtle">{subtitle}</p>}
           {trend && !isLoading && (
             <div className="mt-2 flex items-center gap-1">
+              {/* Ma'no faqat rang bilan emas — o'q belgisi va ishora so'zi ham bor. */}
               <span
                 className={cn(
-                  'text-xs font-medium',
-                  trend.value >= 0 ? 'text-green-400' : 'text-red-400'
+                  'text-caption font-semibold',
+                  trend.value >= 0
+                    ? 'text-primary-text'
+                    : 'text-danger-deep dark:text-danger-light'
                 )}
               >
-                {trend.value >= 0 ? '▲' : '▼'} {Math.abs(trend.value)}%
+                <span aria-hidden="true">{trend.value >= 0 ? '▲' : '▼'} </span>
+                <span className="sr-only">{trend.value >= 0 ? 'oshdi' : 'kamaydi'} </span>
+                {Math.abs(trend.value)}%
               </span>
-              <span className="text-xs text-slate-500">{trend.label}</span>
+              <span className="text-caption text-subtle">{trend.label}</span>
             </div>
           )}
         </div>
         <div
           className={cn(
-            'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl',
-            config.iconGradient
+            'flex h-12 w-12 shrink-0 items-center justify-center rounded-ds-sm',
+            tone.icon
           )}
+          aria-hidden="true"
         >
           {icon}
         </div>
       </div>
 
-      {/* Bottom accent line */}
-      <div
-        className={cn(
-          'absolute bottom-0 left-0 h-[2px] w-full border-t-2',
-          config.borderAccent
-        )}
+      {/* Pastki aksent chizig'i — dekorativ, ma'no tashimaydi. */}
+      <span
+        className={cn('absolute bottom-0 left-0 h-[2px] w-full opacity-70', tone.accent)}
+        aria-hidden="true"
       />
     </div>
   );

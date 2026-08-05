@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { Percent } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Skeleton } from '@/components/ui/Skeleton';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { SkeletonForm } from '@/components/ui/Skeleton';
 import { settingsApi } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 
@@ -15,13 +16,27 @@ export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [rate, setRate] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchCommission = () => {
+    setIsLoading(true);
+    settingsApi
+      .getCommission()
+      .then((res) => {
+        setRate(String(res.data.data.defaultCommissionRate));
+        setError(null);
+      })
+      .catch(() => {
+        const message = 'Sozlamalarni yuklashda xatolik';
+        setError(message);
+        toast({ title: 'Xatolik', description: message, variant: 'error' });
+      })
+      .finally(() => setIsLoading(false));
+  };
 
   useEffect(() => {
-    settingsApi.getCommission()
-      .then((res) => setRate(String(res.data.data.defaultCommissionRate)))
-      .catch(() => toast({ title: 'Xatolik', description: "Sozlamalarni yuklashda xatolik", variant: 'error' }))
-      .finally(() => setIsLoading(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchCommission();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSave = async () => {
@@ -42,24 +57,27 @@ export default function SettingsPage() {
   };
 
   return (
-    <div>
-      <Header title="Sozlamalar" />
-      <div className="p-6">
+    <div className="p-4 sm:p-6">
+      <PageHeader title="Sozlamalar" icon={<Percent className="h-4 w-4" />} />
+
+      {error ? (
+        <ErrorState message={error} onRetry={fetchCommission} />
+      ) : (
         <Card className="max-w-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Percent className="h-4 w-4 text-brand-yellow" />
+              <Percent className="h-4 w-4 text-primary-text" aria-hidden="true" />
               Platforma komissiyasi
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm text-gray-400">
+            <p className="text-body text-muted">
               Har bir yakunlangan safardan haydovchi balansidan ushlab qolinadigan standart
               komissiya foizi. Alohida haydovchilar uchun (masalan, reklama tashigani uchun)
               haydovchi profilida boshqacha foiz belgilash mumkin.
             </p>
             {isLoading ? (
-              <Skeleton className="h-10 w-full" />
+              <SkeletonForm fields={1} />
             ) : (
               <Input
                 label="Standart komissiya foizi, %"
@@ -75,7 +93,7 @@ export default function SettingsPage() {
             </Button>
           </CardContent>
         </Card>
-      </div>
+      )}
     </div>
   );
 }

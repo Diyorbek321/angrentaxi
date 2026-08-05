@@ -13,6 +13,9 @@ import {
 import { format, parseISO } from 'date-fns';
 import { RevenueDataPoint } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { CHART_COLORS } from '@/lib/chart-tokens';
 
 interface RevenueChartProps {
   data: RevenueDataPoint[];
@@ -38,7 +41,25 @@ export function RevenueChart({ data, isLoading }: RevenueChartProps) {
           <CardTitle>Daromad dinamikasi</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-64 animate-pulse rounded-lg bg-gray-100" />
+          {/* Spinner emas — diagramma shakliga mos skeleton. */}
+          <Skeleton className="h-[300px] w-full rounded-ds-md" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!data || data.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Daromad dinamikasi</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <EmptyState
+            compact
+            title="Maʼlumot yoʻq"
+            description="Tanlangan davr uchun daromad maʼlumoti topilmadi."
+          />
         </CardContent>
       </Card>
     );
@@ -52,17 +73,19 @@ export function RevenueChart({ data, isLoading }: RevenueChartProps) {
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={data} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            {/* To'r, o'q va tooltip ranglari globals.css dagi `.recharts-*`
+                qoidalari orqali temaga bog'langan. */}
+            <CartesianGrid strokeDasharray="3 3" />
             <XAxis
               dataKey="date"
               tickFormatter={formatAxisDate}
-              tick={{ fontSize: 12, fill: '#9ca3af' }}
+              tick={{ fontSize: 12 }}
               axisLine={false}
               tickLine={false}
             />
             <YAxis
               tickFormatter={formatRevenue}
-              tick={{ fontSize: 11, fill: '#9ca3af' }}
+              tick={{ fontSize: 11 }}
               axisLine={false}
               tickLine={false}
               width={80}
@@ -70,21 +93,17 @@ export function RevenueChart({ data, isLoading }: RevenueChartProps) {
             <Tooltip
               formatter={(value: number) => [formatRevenue(value), 'Daromad']}
               labelFormatter={formatAxisDate}
-              contentStyle={{
-                borderRadius: 8,
-                border: '1px solid #e5e7eb',
-                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
-              }}
+              cursor={{ stroke: CHART_COLORS.primary, strokeOpacity: 0.3 }}
             />
             <Legend />
             <Line
               type="monotone"
               dataKey="revenue"
               name="Daromad"
-              stroke="#F5C518"
+              stroke={CHART_COLORS.primary}
               strokeWidth={2.5}
-              dot={{ r: 4, fill: '#F5C518', strokeWidth: 0 }}
-              activeDot={{ r: 6, fill: '#F5C518' }}
+              dot={{ r: 4, fill: CHART_COLORS.primary, strokeWidth: 0 }}
+              activeDot={{ r: 6, fill: CHART_COLORS.primary }}
             />
           </LineChart>
         </ResponsiveContainer>
