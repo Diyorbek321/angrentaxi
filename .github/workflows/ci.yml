@@ -1,0 +1,218 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+# Bir PR'ga ketma-ket push bo'lsa, eskisini bekor qilamiz.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  # Node 20 — barcha Dockerfile'lar `node:20-alpine` dan foydalanadi
+  # (backend/Dockerfile, web-*/Dockerfile). package.json'da `engines` yo'q.
+  NODE_VERSION: '20'
+  # Flutter 3.32.2 — mobile/pubspec.lock: `flutter: ">=3.32.0"`, `dart: ">=3.8.0 <4.0.0"`
+  # va mobile/pubspec.yaml: `environment.sdk: '>=3.0.0 <4.0.0'`.
+  FLUTTER_VERSION: '3.32.2'
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Qaysi qismlar o'zgarganini aniqlaymiz.
+  #
+  # QARORI: workflow darajasidagi `on.push.paths` / `on.pull_request.paths`
+  # filtri ISHLATILMAYDI. Sababi: agar `paths` mos kelmasa, GitHub workflow'ni
+  # umuman ishga tushirmaydi — natijada branch protection'dagi required check'lar
+  # "Expected — waiting for status" holatida abadiy osilib qoladi va PR merge
+  # bo'lmaydi. Shuning uchun workflow HAR DOIM ishga tushadi, ish hajmi esa
+  # `dorny/paths-filter` + job darajasidagi `if:` orqali qisqartiriladi.
+  # `if:` sababli o'tkazib yuborilgan (skipped) job'ni GitHub required check
+  # uchun MUVAFFAQIYATLI deb hisoblaydi, shuning uchun bu xavfsiz.
+  # Yakuniy required check sifatida quyidagi `ci-success` job'ini belgilang.
+  # ---------------------------------------------------------------------------
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      mobile: ${{ steps.filter.outputs.mobile }}
+      web_panels: ${{ steps.web.outputs.changes }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Filter backend / mobile
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            shared: &shared
+              - '.github/workflows/ci.yml'
+            backend:
+              - *shared
+              - 'backend/**'
+            mobile:
+              - *shared
+              - 'mobile/**'
+
+      # Har bir panel alohida filtr — `steps.web.outputs.changes` mos kelgan
+      # filtr nomlarini JSON massiv sifatida qaytaradi, uni matrix'ga beramiz.
+      - name: Filter web panels
+        uses: dorny/paths-filter@v3
+        id: web
+        with:
+          filters: |
+            shared: &shared
+              - '.github/workflows/ci.yml'
+            web-admin:
+              - *shared
+              - 'web-admin/**'
+            web-manager:
+              - *shared
+              - 'web-manager/**'
+            web-market:
+              - *shared
+              - 'web-market/**'
+            web-restaurant:
+              - *shared
+              - 'web-restaurant/**'
+
+  # ---------------------------------------------------------------------------
+  # Backend — NestJS + TypeScript
+  # ---------------------------------------------------------------------------
+  backend:
+    name: Backend (NestJS)
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Lint: backend'da ESLint konfiguratsiyasi yo'q (.eslintrc* / eslint.config.*
+      # topilmadi), shuning uchun alohida lint qadami qo'shilmadi.
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Test
+        run: npx jest --ci
+
+      - name: Build
+        run: npm run build
+
+  # ---------------------------------------------------------------------------
+  # Mobile — Flutter
+  # ---------------------------------------------------------------------------
+  mobile:
+    name: Mobile (Flutter)
+    needs: changes
+    if: needs.changes.outputs.mobile == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # `flutter analyze` standart holatda warning'larni ham fatal deb biladi.
+      # Kodbazada hozir 100 ta mavjud muammo bor (99 info + 1 warning), shuning
+      # uchun faqat `error` darajasi CI'ni yiqitadi.
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      # DIQQAT: test/integration/ ATAYLAB ishga tushirilmaydi — u jonli backend
+      # va --dart-define=API_BASE_URL=... talab qiladi, CI'da yiqiladi.
+      - name: Test (unit + widget)
+        run: flutter test test/unit test/widget
+
+  # ---------------------------------------------------------------------------
+  # Web panellar — Next.js 14 (4 ta panel parallel)
+  # ---------------------------------------------------------------------------
+  web:
+    name: Web (${{ matrix.panel }})
+    needs: changes
+    if: needs.changes.outputs.web_panels != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        panel: ${{ fromJSON(needs.changes.outputs.web_panels) }}
+        exclude:
+          - panel: shared
+    defaults:
+      run:
+        working-directory: ${{ matrix.panel }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ${{ matrix.panel }}/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Lint: panellarda ESLint konfiguratsiya fayli yo'q; `next build` o'zi
+      # konfiguratsiya bo'lsa lint qiladi, shuning uchun alohida qadam yo'q.
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npx next build
+
+  # ---------------------------------------------------------------------------
+  # Yagona required check — branch protection'da SHUNI belgilang.
+  # `if: always()` tufayli hamma job skip bo'lsa ham u ishlaydi va yashil bo'ladi.
+  # ---------------------------------------------------------------------------
+  ci-success:
+    name: CI success
+    if: always()
+    needs: [changes, backend, mobile, web]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check job results
+        run: |
+          echo "changes=${{ needs.changes.result }}"
+          echo "backend=${{ needs.backend.result }}"
+          echo "mobile=${{ needs.mobile.result }}"
+          echo "web=${{ needs.web.result }}"
+          for r in "${{ needs.changes.result }}" \
+                   "${{ needs.backend.result }}" \
+                   "${{ needs.mobile.result }}" \
+                   "${{ needs.web.result }}"; do
+            if [ "$r" = "failure" ] || [ "$r" = "cancelled" ]; then
+              echo "::error::Kamida bitta CI job muvaffaqiyatsiz tugadi ($r)"
+              exit 1
+            fi
+          done
+          echo "Hammasi joyida."
