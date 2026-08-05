@@ -1,9 +1,12 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 // A passenger's saved place (Yandex Go's "Uy"/"Ish"/saved-places equivalent).
 // No FK relation object is declared (mirrors withdrawal-request.entity.ts'
 // driverId-only-to-users pattern) — this table is purely per-user scoped and
 // always accessed through userId, never joined.
+// FavoritesService.list reads this table only ever scoped to one user, on
+// every address-picker open.
+@Index('idx_favorite_addresses_user_id', ['userId'])
 @Entity('favorite_addresses')
 export class FavoriteAddress {
   @PrimaryGeneratedColumn('uuid')

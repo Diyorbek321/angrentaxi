@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -23,6 +24,14 @@ export enum SosAlertStatus {
 // panic button). Persisted so dispatchers have a durable record beyond the
 // realtime 'sos:alert' socket event (see SafetyService.reportSos), and so the
 // active list survives a manager reconnecting/refreshing the dashboard.
+// Read-path indexes.
+// - status + created_at: SafetyService.listActive (active alerts,
+//   newest-first) and the still-open count, both polled by the dispatcher
+//   dashboard.
+// - status + resolved_at: the shift report's "resolved today" count, which
+//   filters resolved alerts on resolved_at rather than created_at.
+@Index('idx_sos_alerts_status_created_at', ['status', 'createdAt'])
+@Index('idx_sos_alerts_status_resolved_at', ['status', 'resolvedAt'])
 @Entity('sos_alerts')
 export class SosAlert {
   @PrimaryGeneratedColumn('uuid')

@@ -1,12 +1,17 @@
 import {
   Column,
   Entity,
+  Index,
   JoinColumn,
   OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Order } from './order.entity';
 
+// The trip row is always reached from its order (OrdersService looks it up by
+// order_id when starting/completing a ride); the @OneToOne relation is not
+// declared unique at the DB level, so no index exists implicitly.
+@Index('idx_trips_order_id', ['orderId'])
 @Entity('trips')
 export class Trip {
   @PrimaryGeneratedColumn('uuid')

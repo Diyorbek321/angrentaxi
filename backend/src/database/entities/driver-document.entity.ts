@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -24,6 +25,10 @@ export enum DriverDocumentReviewStatus {
 // KYC document uploaded by a driver during/after onboarding (license, passport,
 // vehicle registration). Additive to the text-only carModel/carNumber fields on
 // Driver — this table just tracks file references + admin review state.
+// DriverDocumentsService.listForDriver reads a single driver's documents on
+// every KYC screen open and on every admin review; no query filters on
+// review_status alone, so no index for it.
+@Index('idx_driver_documents_driver_id', ['driverId'])
 @Entity('driver_documents')
 export class DriverDocument {
   @PrimaryGeneratedColumn('uuid')

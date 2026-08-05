@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -10,8 +11,14 @@ import {
 import { User } from './user.entity';
 import { Order } from './order.entity';
 
+// RatingsService.getDriverRatingStats groups a driver's whole rating history
+// by score, and the driver profile screen calls it on every open.
+// No separate order_id index: the @Unique below already creates a composite
+// index whose leading column is order_id, which serves both the per-order
+// listing (`where: { orderId }`) and the duplicate-rating check.
 @Entity('ratings')
 @Unique(['orderId', 'fromUserId'])
+@Index('idx_ratings_to_user_id', ['toUserId'])
 export class Rating {
   @PrimaryGeneratedColumn('uuid')
   id: string;

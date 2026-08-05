@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -23,6 +24,20 @@ export enum TransactionStatus {
   REFUNDED = 'refunded',
 }
 
+// Read-path indexes.
+// - user_id + created_at: PaymentsService.getTransactionHistory (paginated,
+//   newest-first) and computeBalance / the referral bonus SUM, which both
+//   aggregate a single user's whole ledger via the user_id prefix. `type` and
+//   `status` deliberately get no index of their own: they are two- and
+//   four-value columns that are never filtered without user_id, so the
+//   user_id partition is already small enough to filter in memory.
+// - order_id: the per-order commission/charge lookup in chargeForOrder and
+//   the earnings-breakdown join on t.order_id.
+// - external_id: the payment-webhook idempotency lookup (findOne by
+//   externalId) — a full scan of the ledger on every webhook otherwise.
+@Index('idx_transactions_user_id_created_at', ['userId', 'createdAt'])
+@Index('idx_transactions_order_id', ['orderId'])
+@Index('idx_transactions_external_id', ['externalId'])
 @Entity('transactions')
 export class Transaction {
   @PrimaryGeneratedColumn('uuid')

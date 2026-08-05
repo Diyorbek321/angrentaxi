@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -17,6 +18,13 @@ export enum SupportThreadStatus {
 // One persistent thread per user (passenger or driver) — get-or-created via
 // SupportService.getOrCreateForUser, reopened rather than duplicated if the
 // user messages again after an operator closes it.
+// Read-path indexes.
+// - user_id: getOrCreateForUser runs a findOne by user_id on every support
+//   screen open and every message send.
+// - status + last_message_at: the operator inbox, which lists threads by
+//   status sorted on last_message_at DESC.
+@Index('idx_support_threads_user_id', ['userId'])
+@Index('idx_support_threads_status_last_message_at', ['status', 'lastMessageAt'])
 @Entity('support_threads')
 export class SupportThread {
   @PrimaryGeneratedColumn('uuid')

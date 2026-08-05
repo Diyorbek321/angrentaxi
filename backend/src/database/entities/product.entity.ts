@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -22,6 +23,10 @@ export enum ProductStatus {
   HIDDEN = 'hidden',
 }
 
+// The catalog is always read per store — the vendor product list
+// (`where: { storeId }`), the public storefront (`{ storeId, status }`) and
+// cart validation all scope by store_id first.
+@Index('idx_products_store_id_status', ['storeId', 'status'])
 @Entity('products')
 export class Product {
   @PrimaryGeneratedColumn('uuid')

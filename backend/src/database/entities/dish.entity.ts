@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -10,6 +11,10 @@ import {
 import { Restaurant } from './restaurant.entity';
 import { MenuCategory } from './menu-category.entity';
 
+// Menus are always read per restaurant — the owner's dish list
+// (`where: { restaurantId }`), the public menu (`{ restaurantId,
+// isAvailable }`) and cart validation all scope by restaurant_id first.
+@Index('idx_dishes_restaurant_id_is_available', ['restaurantId', 'isAvailable'])
 @Entity('dishes')
 export class Dish {
   @PrimaryGeneratedColumn('uuid')

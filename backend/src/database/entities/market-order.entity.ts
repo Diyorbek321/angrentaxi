@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -36,6 +37,16 @@ export interface MarketOrderItem {
   packed: boolean;
 }
 
+// Read-path indexes for the vendor panel and the customer's order list.
+// - store_id + created_at: MarketService.listOrders / getDashboard /
+//   getAnalytics, which all read one store's orders newest-first.
+// - store_id + status: the status-filtered vendor order board
+//   (`where: { storeId, status }`), where status is the selective part
+//   within a single store.
+// - customer_id + created_at: MarketService.getMyOrders.
+@Index('idx_market_orders_store_id_created_at', ['storeId', 'createdAt'])
+@Index('idx_market_orders_store_id_status', ['storeId', 'status'])
+@Index('idx_market_orders_customer_id_created_at', ['customerId', 'createdAt'])
 @Entity('market_orders')
 export class MarketOrder {
   @PrimaryGeneratedColumn('uuid')

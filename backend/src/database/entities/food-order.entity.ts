@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -31,6 +32,14 @@ export interface FoodOrderItem {
   prepMinutes: number;
 }
 
+// Read-path indexes, mirroring MarketOrder.
+// - restaurant_id + created_at: FoodService.listOrders / getDashboard /
+//   getAnalytics (one restaurant's orders, newest-first).
+// - restaurant_id + status: the kitchen board's status-filtered reads.
+// - customer_id + created_at: FoodService.getMyOrders.
+@Index('idx_food_orders_restaurant_id_created_at', ['restaurantId', 'createdAt'])
+@Index('idx_food_orders_restaurant_id_status', ['restaurantId', 'status'])
+@Index('idx_food_orders_customer_id_created_at', ['customerId', 'createdAt'])
 @Entity('food_orders')
 export class FoodOrder {
   @PrimaryGeneratedColumn('uuid')

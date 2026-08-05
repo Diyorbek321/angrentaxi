@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -30,6 +31,14 @@ export enum WithdrawalOwnerType {
 // the owner files a request, an admin reviews it out-of-band, and manually
 // marks it 'paid' once the transfer has actually been sent (see
 // PaymentsController for the flow notes).
+// Read-path indexes; both payout queries sort by requested_at DESC, so it is
+// the trailing column rather than a separate index.
+// - driver_id + requested_at: PaymentsService.getMyWithdrawals (the
+//   requester's own payout history).
+// - status + requested_at: the admin payout queue, which lists all requests
+//   filtered by status ('pending' first).
+@Index('idx_withdrawal_requests_driver_id_requested_at', ['driverId', 'requestedAt'])
+@Index('idx_withdrawal_requests_status_requested_at', ['status', 'requestedAt'])
 @Entity('withdrawal_requests')
 export class WithdrawalRequest {
   @PrimaryGeneratedColumn('uuid')

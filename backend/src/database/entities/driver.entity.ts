@@ -1,6 +1,7 @@
 import {
   Column,
   Entity,
+  Index,
   JoinColumn,
   OneToOne,
   PrimaryGeneratedColumn,
@@ -8,6 +9,18 @@ import {
 } from 'typeorm';
 import { User } from './user.entity';
 
+// Read-path indexes.
+// - user_id: DriversService.findByUserId is on the hot path of every driver
+//   request (auth -> driver profile) and of order accept/complete. The
+//   relation is @OneToOne but is not declared unique at the DB level, so
+//   nothing creates this index implicitly.
+// - is_online + updated_at: countOnline() for the dashboard and the
+//   dispatcher roster's `isOnline` filter, which sorts by updated_at DESC.
+//   Matching itself does not hit this table by is_online — MatchingService
+//   resolves nearby drivers from the Redis geo set and then looks each one
+//   up by primary key.
+@Index('idx_drivers_user_id', ['userId'])
+@Index('idx_drivers_is_online_updated_at', ['isOnline', 'updatedAt'])
 @Entity('drivers')
 export class Driver {
   @PrimaryGeneratedColumn('uuid')

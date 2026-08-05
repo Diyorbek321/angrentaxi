@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -9,6 +10,10 @@ import {
 import { User } from './user.entity';
 import { SupportThread } from './support-thread.entity';
 
+// Every message read is scoped to one thread and ordered by created_at
+// (SupportService.getMessages), and the unread badge counts a thread's
+// messages newer than a timestamp — both served by this composite.
+@Index('idx_support_messages_thread_id_created_at', ['threadId', 'createdAt'])
 @Entity('support_messages')
 export class SupportMessage {
   @PrimaryGeneratedColumn('uuid')

@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -61,6 +62,16 @@ export enum Permission {
 
 export const ALL_PERMISSIONS: Permission[] = Object.values(Permission);
 
+// Read-path indexes.
+// - role + created_at: UsersService.findAll (admin user list, filtered by
+//   role and sorted newest-first) and the "new customers today"
+//   role+created_at dashboard counter.
+// - referred_by_user_id: ReferralsService counts a user's referrals on every
+//   referral screen open.
+// `phone` and `referral_code` are declared `unique: true`, so Postgres
+// already backs them with an implicit unique index — no @Index for those.
+@Index('idx_users_role_created_at', ['role', 'createdAt'])
+@Index('idx_users_referred_by_user_id', ['referredByUserId'])
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')

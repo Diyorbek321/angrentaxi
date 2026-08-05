@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -36,6 +37,24 @@ export enum ServiceType {
   MARKET = 'market',
 }
 
+// Read-path indexes. Every hot orders query filters by owner or status and
+// then sorts newest-first, so each index carries created_at as its trailing
+// column: a single-column index on driver_id/passenger_id/status would still
+// leave Postgres sorting the whole matched set on every page request.
+// - driver_id + created_at: OrdersService.getDriverHistory, and the
+//   driver_id/status/created_at earnings aggregates (getDriverEarningsToday,
+//   getDriverEarningsForPeriod) which use the driver_id prefix.
+// - passenger_id + created_at: OrdersService.getPassengerHistory, plus the
+//   completed-rides loyalty count in completeTrip.
+// - status + created_at: getActiveOrders (status IN + created_at DESC),
+//   getAllOrders(status), getNoDriversFoundExceptions, and the
+//   status+created_at dashboard counters.
+// - created_at alone: the status-agnostic range scans in getReports and the
+//   "orders today" dashboard counter.
+@Index('idx_orders_driver_id_created_at', ['driverId', 'createdAt'])
+@Index('idx_orders_passenger_id_created_at', ['passengerId', 'createdAt'])
+@Index('idx_orders_status_created_at', ['status', 'createdAt'])
+@Index('idx_orders_created_at', ['createdAt'])
 @Entity('orders')
 export class Order {
   @PrimaryGeneratedColumn('uuid')

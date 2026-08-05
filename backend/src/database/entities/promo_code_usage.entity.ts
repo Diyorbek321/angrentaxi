@@ -11,6 +11,10 @@ import { PromoCode } from './promo_code.entity';
 import { User } from './user.entity';
 import { Order } from './order.entity';
 
+// No extra @Index here: the @Unique below is backed by a composite index on
+// (promo_code_id, user_id), which is exactly the lookup
+// PromoCodesService.validate performs ("has this user already used this
+// code?"), and its promo_code_id prefix also serves the per-code usage count.
 @Entity('promo_code_usages')
 @Unique(['promoCodeId', 'userId'])
 export class PromoCodeUsage {
