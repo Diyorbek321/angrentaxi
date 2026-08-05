@@ -193,9 +193,15 @@ export class OrdersController {
   @ApiOperation({ summary: 'Get order by ID' })
   @ApiParam({ name: 'id', description: 'Order UUID' })
   @ApiResponse({ status: 200, description: 'Order details' })
+  @ApiResponse({ status: 403, description: 'Not authorized to view this order' })
   @ApiResponse({ status: 404, description: 'Order not found' })
-  async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<Order> {
-    return this.ordersService.findByIdOrThrow(id);
+  async findOne(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<Order> {
+    // Only the order's passenger, its assigned driver, or a manager/admin may
+    // read an order — the response embeds passenger/driver PII and addresses.
+    return this.ordersService.findByIdForUser(id, user);
   }
 
   @Patch(':id/accept')

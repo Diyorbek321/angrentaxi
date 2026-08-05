@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
+import { ORDERS_PROVIDERS } from './orders.providers';
 import { Order } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
 import { Transaction } from '../../database/entities/transaction.entity';
@@ -30,7 +31,9 @@ import { SettingsModule } from '../settings/settings.module';
     SettingsModule,
   ],
   controllers: [OrdersController],
-  providers: [OrdersService],
+  providers: ORDERS_PROVIDERS,
+  // Only the facade is exported — other modules must keep depending on
+  // OrdersService, not on the internal collaborator services.
   exports: [OrdersService],
 })
 export class OrdersModule {}

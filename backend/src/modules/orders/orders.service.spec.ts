@@ -2,6 +2,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConflictException } from '@nestjs/common';
 import { OrdersService } from './orders.service';
+import { ORDERS_PROVIDERS } from './orders.providers';
+import { fakeDataSourceProvider } from './orders.testing';
+import { OrdersQueryService } from './orders-query.service';
 import { Order, OrderStatus } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
 import { Transaction } from '../../database/entities/transaction.entity';
@@ -36,6 +39,9 @@ import { UserRole } from '../../database/entities/user.entity';
  */
 describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => {
   let service: OrdersService;
+  // findByIdOrThrow now lives on OrdersQueryService, which the facade and the
+  // write-side services both delegate to — so that is where it gets stubbed.
+  let queryService: OrdersQueryService;
 
   let queryBuilderMock: {
     update: jest.Mock;
@@ -88,7 +94,8 @@ describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => 
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        OrdersService,
+        ...ORDERS_PROVIDERS,
+        fakeDataSourceProvider(),
         { provide: getRepositoryToken(Order), useValue: orderRepository },
         {
           provide: getRepositoryToken(Trip),
@@ -111,6 +118,7 @@ describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => 
     }).compile();
 
     service = module.get(OrdersService);
+    queryService = module.get(OrdersQueryService);
   });
 
   afterEach(() => {
@@ -120,7 +128,7 @@ describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => 
   describe('acceptOrder', () => {
     it('rejects the loser of a concurrent accept race with ConflictException', async () => {
       const order = baseOrder({ status: OrderStatus.SEARCHING, driverId: null });
-      jest.spyOn(service, 'findByIdOrThrow').mockResolvedValue(order);
+      jest.spyOn(queryService, 'findByIdOrThrow').mockResolvedValue(order);
 
       // Driver A's conditional update wins the race (1 row affected).
       queryBuilderMock.execute.mockResolvedValueOnce({ affected: 1, raw: [] });
@@ -143,7 +151,7 @@ describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => 
   describe('driverArrived', () => {
     it('throws ConflictException when the conditional update affects 0 rows', async () => {
       const order = baseOrder({ status: OrderStatus.ACCEPTED, driverId: 'driver-1' });
-      jest.spyOn(service, 'findByIdOrThrow').mockResolvedValue(order);
+      jest.spyOn(queryService, 'findByIdOrThrow').mockResolvedValue(order);
       queryBuilderMock.execute.mockResolvedValueOnce({ affected: 0, raw: [] });
 
       await expect(service.driverArrived('driver-1', 'order-1')).rejects.toBeInstanceOf(
@@ -159,7 +167,7 @@ describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => 
   describe('startTrip', () => {
     it('throws ConflictException when the conditional update affects 0 rows', async () => {
       const order = baseOrder({ status: OrderStatus.ARRIVED, driverId: 'driver-1' });
-      jest.spyOn(service, 'findByIdOrThrow').mockResolvedValue(order);
+      jest.spyOn(queryService, 'findByIdOrThrow').mockResolvedValue(order);
       queryBuilderMock.execute.mockResolvedValueOnce({ affected: 0, raw: [] });
 
       await expect(service.startTrip('driver-1', 'order-1')).rejects.toBeInstanceOf(
@@ -175,7 +183,7 @@ describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => 
   describe('reassignDriver', () => {
     it('throws ConflictException when the conditional update affects 0 rows', async () => {
       const order = baseOrder({ status: OrderStatus.ACCEPTED, driverId: 'driver-1' });
-      jest.spyOn(service, 'findByIdOrThrow').mockResolvedValue(order);
+      jest.spyOn(queryService, 'findByIdOrThrow').mockResolvedValue(order);
       driversService.findByIdOrThrow.mockResolvedValue({
         id: 'driver-profile-2',
         userId: 'driver-2',
@@ -207,7 +215,7 @@ describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => 
 
     it('records a dispatch_overrides audit entry once the reassignment succeeds', async () => {
       const order = baseOrder({ status: OrderStatus.SEARCHING, driverId: null });
-      jest.spyOn(service, 'findByIdOrThrow').mockResolvedValue(order);
+      jest.spyOn(queryService, 'findByIdOrThrow').mockResolvedValue(order);
       driversService.findByIdOrThrow.mockResolvedValue({
         id: 'driver-profile-2',
         userId: 'driver-2',
@@ -233,7 +241,7 @@ describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => 
   describe('cancelOrder', () => {
     it('throws ConflictException when the conditional update affects 0 rows', async () => {
       const order = baseOrder({ status: OrderStatus.SEARCHING, passengerId: 'passenger-1' });
-      jest.spyOn(service, 'findByIdOrThrow').mockResolvedValue(order);
+      jest.spyOn(queryService, 'findByIdOrThrow').mockResolvedValue(order);
       queryBuilderMock.execute.mockResolvedValueOnce({ affected: 0, raw: [] });
 
       await expect(

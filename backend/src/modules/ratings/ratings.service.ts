@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -10,6 +11,7 @@ import { DataSource, Repository } from 'typeorm';
 import { Rating } from '../../database/entities/rating.entity';
 import { Order, OrderStatus } from '../../database/entities/order.entity';
 import { SubmitRatingDto } from './dto/submit-rating.dto';
+import { UserRole } from '../../database/entities/user.entity';
 
 export interface DriverRatingStats {
   avg: number;
@@ -91,7 +93,32 @@ export class RatingsService {
     return saved;
   }
 
-  async getOrderRatings(orderId: string): Promise<Rating[]> {
+  /**
+   * Ratings on an order carry free-text comments about the two parties, so
+   * they follow the same access rule as the order itself: only the order's
+   * passenger, its assigned driver, or a manager/admin may read them.
+   *
+   * `order.driverId` references `User.id` (the `driver` relation on Order is a
+   * `@ManyToOne(() => User)`), so it is compared directly to the caller's id.
+   */
+  async getOrderRatings(
+    orderId: string,
+    user: { id: string; role: UserRole },
+  ): Promise<Rating[]> {
+    const order = await this.orderRepository.findOne({ where: { id: orderId } });
+
+    if (!order) {
+      throw new NotFoundException(`Order ${orderId} not found`);
+    }
+
+    const isPassenger = order.passengerId === user.id;
+    const isAssignedDriver = order.driverId !== null && order.driverId === user.id;
+    const isStaff = user.role === UserRole.MANAGER || user.role === UserRole.ADMIN;
+
+    if (!isPassenger && !isAssignedDriver && !isStaff) {
+      throw new ForbiddenException('You are not authorized to view ratings for this order');
+    }
+
     return this.ratingRepository.find({
       where: { orderId },
       order: { createdAt: 'DESC' },

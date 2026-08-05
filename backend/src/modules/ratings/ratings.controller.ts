@@ -48,12 +48,20 @@ export class RatingsController {
   @ApiOperation({ summary: 'Get all ratings for a specific order' })
   @ApiParam({ name: 'orderId', description: 'Order UUID' })
   @ApiResponse({ status: 200, description: 'List of ratings for the order' })
+  @ApiResponse({ status: 403, description: 'Not a party to this order' })
+  @ApiResponse({ status: 404, description: 'Order not found' })
   async getOrderRatings(
+    @CurrentUser() user: User,
     @Param('orderId', ParseUUIDPipe) orderId: string,
   ): Promise<Rating[]> {
-    return this.ratingsService.getOrderRatings(orderId);
+    return this.ratingsService.getOrderRatings(orderId, user);
   }
 
+  // Aggregate driver rating stats (average, count, 1-5 breakdown) are treated
+  // as public product data: passengers see a driver's rating before accepting
+  // a ride and the driver app shows it on the profile screen. The response
+  // contains no PII and no comment text — only counts — so it stays readable
+  // by any authenticated user rather than being restricted to the driver.
   @Get('driver/:userId')
   @ApiOperation({ summary: 'Get rating statistics for a driver' })
   @ApiParam({ name: 'userId', description: 'Driver user UUID' })

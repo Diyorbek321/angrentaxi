@@ -1,6 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { OrdersService } from './orders.service';
+import { ORDERS_PROVIDERS } from './orders.providers';
+import { fakeDataSourceProvider } from './orders.testing';
+import { OrdersQueryService } from './orders-query.service';
 import { Order, OrderStatus, PaymentMethod } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
 import { Transaction, TransactionType } from '../../database/entities/transaction.entity';
@@ -28,6 +31,9 @@ import { SettingsService } from '../settings/settings.service';
  */
 describe('OrdersService - completeTrip referral bonus', () => {
   let service: OrdersService;
+  // findByIdOrThrow now lives on OrdersQueryService, which the facade and the
+  // write-side services both delegate to — so that is where it gets stubbed.
+  let queryService: OrdersQueryService;
 
   const ORDER_ID = 'order-1';
   const DRIVER_ID = 'driver-1';
@@ -81,7 +87,8 @@ describe('OrdersService - completeTrip referral bonus', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        OrdersService,
+        ...ORDERS_PROVIDERS,
+        fakeDataSourceProvider(),
         { provide: getRepositoryToken(Order), useValue: orderRepository },
         { provide: getRepositoryToken(Trip), useValue: tripRepository },
         { provide: getRepositoryToken(Transaction), useValue: transactionRepository },
@@ -98,7 +105,8 @@ describe('OrdersService - completeTrip referral bonus', () => {
     }).compile();
 
     service = module.get<OrdersService>(OrdersService);
-    jest.spyOn(service, 'findByIdOrThrow').mockResolvedValue(baseOrder);
+    queryService = module.get<OrdersQueryService>(OrdersQueryService);
+    jest.spyOn(queryService, 'findByIdOrThrow').mockResolvedValue(baseOrder);
   });
 
   it('credits both the passenger and referrer on the first completed order', async () => {
