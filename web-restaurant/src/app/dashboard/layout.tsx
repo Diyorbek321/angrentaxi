@@ -1,21 +1,27 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  LayoutGrid,
-  ClipboardList,
-  UtensilsCrossed,
-  Tags,
   BarChart3,
-  Settings,
-  Bell,
+  ClipboardList,
+  LayoutGrid,
+  LogOut,
   RotateCw,
+  Settings,
+  Tags,
+  UtensilsCrossed,
 } from 'lucide-react';
+import { clsx } from 'clsx';
 import { useAuth } from '@/hooks/useAuth';
-import { foodApi, Restaurant } from '@/lib/api';
+import { useAsyncData } from '@/hooks/useAsyncData';
+import { foodApi, FoodOrder, Restaurant } from '@/lib/api';
 import { useKiosk } from '@/lib/kiosk-context';
+import { Avatar } from '@/components/ui/Avatar';
+import { Button } from '@/components/ui/Button';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 const NAV = [
   { href: '/dashboard', label: 'Bosh sahifa', icon: LayoutGrid },
@@ -24,130 +30,126 @@ const NAV = [
   { href: '/dashboard/categories', label: 'Kategoriyalar', icon: Tags },
   { href: '/dashboard/reports', label: 'Hisobotlar', icon: BarChart3 },
   { href: '/dashboard/settings', label: 'Sozlamalar', icon: Settings },
-];
+] as const;
 
-const TITLES: Record<string, [string, string]> = {
-  '/dashboard': ['Bosh sahifa', "Bugungi faoliyat ko'rsatkichlari"],
-  '/dashboard/orders': ['Buyurtmalar', 'Real vaqtli buyurtmalar boshqaruvi'],
-  '/dashboard/menu': ['Menyu', 'Taomlar va narxlar boshqaruvi'],
-  '/dashboard/categories': ['Kategoriyalar', "Menyu bo'limlarini tartiblang"],
-  '/dashboard/reports': ['Hisobotlar', 'Tushum va statistika'],
-  '/dashboard/settings': ['Sozlamalar', 'Restoran profili va ish rejimi'],
-};
+interface Chrome {
+  restaurant: Restaurant | null;
+  newOrders: number;
+}
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isLoading, isAuthenticated } = useAuth();
-  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
-  const [newOrdersCount, setNewOrdersCount] = useState(0);
-  const [refreshing, setRefreshing] = useState(false);
+  const { user, isLoading, isAuthenticated, logout } = useAuth();
   const { kiosk, setKiosk } = useKiosk();
   const [clock, setClock] = useState('');
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) router.replace('/login');
+  }, [isLoading, isAuthenticated, router]);
+
+  const loadChrome = useCallback(async (): Promise<Chrome> => {
+    const [restaurantRes, ordersRes] = await Promise.all([foodApi.getRestaurant(), foodApi.getOrders()]);
+    const orders: FoodOrder[] = ordersRes.data.data;
+    return {
+      restaurant: restaurantRes.data.data,
+      newOrders: orders.filter((o) => o.status === 'new').length,
+    };
+  }, []);
+
+  const chrome = useAsyncData<Chrome>(loadChrome, { pollMs: 30000, enabled: isAuthenticated });
 
   useEffect(() => {
     if (!kiosk) return;
     const tick = () => setClock(new Date().toLocaleTimeString('uz-UZ', { hour12: false }));
     tick();
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
   }, [kiosk]);
 
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.replace('/login');
-    }
-  }, [isLoading, isAuthenticated, router]);
-
-  const refresh = async () => {
-    try {
-      const [restaurantRes, ordersRes] = await Promise.all([foodApi.getRestaurant(), foodApi.getOrders()]);
-      setRestaurant(restaurantRes.data.data);
-      setNewOrdersCount(ordersRes.data.data.filter((o) => o.status === 'new').length);
-    } catch {
-      // handled globally by the 401 interceptor
-    }
-  };
-
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    refresh();
-    const interval = setInterval(refresh, 30000);
-    return () => clearInterval(interval);
-  }, [isAuthenticated]);
-
-  const doRefresh = async () => {
-    setRefreshing(true);
-    await refresh();
-    setTimeout(() => setRefreshing(false), 600);
-  };
+  const restaurant = chrome.data?.restaurant ?? null;
+  const newOrders = chrome.data?.newOrders ?? 0;
+  const isOpen = restaurant?.status === 'active';
 
   const toggleOpen = async () => {
-    const res = await foodApi.toggleOpen();
-    setRestaurant(res.data.data);
+    try {
+      const res = await foodApi.toggleOpen();
+      const next = res.data.data;
+      chrome.setData((prev) => ({ restaurant: next, newOrders: prev?.newOrders ?? 0 }));
+    } catch {
+      await chrome.reload();
+    }
   };
 
   if (isLoading || !isAuthenticated) {
     return (
-      <div className="flex h-screen items-center justify-center bg-brand-black">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-yellow border-t-transparent" />
+      <div className="min-h-screen bg-bg flex items-center justify-center p-6">
+        <div role="status" aria-live="polite" className="w-full max-w-sm flex flex-col items-center gap-3">
+          <span className="sr-only">Sessiya tekshirilmoqda</span>
+          <Skeleton className="h-14 w-14 rounded-ds-md" />
+          <Skeleton className="h-4 w-40" />
+        </div>
       </div>
     );
   }
 
-  const [pageTitle, pageSub] = TITLES[pathname] ?? ['', ''];
-  const initial = (restaurant?.name ?? user?.firstName ?? 'M').charAt(0).toUpperCase();
-  const isOpen = restaurant?.status === 'active';
+  /** Ochiq/yopiq holat: rang + nuqta + YOZUV. Rang yolg'iz ma'no tashimaydi. */
+  const openToggle = (
+    <button
+      type="button"
+      onClick={toggleOpen}
+      aria-pressed={isOpen}
+      className={clsx(
+        'inline-flex items-center gap-2 rounded-full border px-4 py-2 text-label transition-colors duration-fast min-h-touch',
+        isOpen
+          ? 'border-mint/45 bg-mint-tint text-primary-text'
+          : 'border-danger/45 bg-danger-tint text-danger-deep dark:text-danger-light'
+      )}
+    >
+      <span className={clsx('h-2.5 w-2.5 rounded-full', isOpen ? 'bg-mint-deep' : 'bg-danger')} aria-hidden />
+      {isOpen ? 'Ochiq' : 'Yopiq'}
+      <span className="sr-only">{isOpen ? '— yopish uchun bosing' : '— ochish uchun bosing'}</span>
+    </button>
+  );
 
   if (kiosk) {
     return (
-      <div className="flex h-screen w-full flex-col bg-brand-black text-slate-200 overflow-hidden">
-        <div className="flex items-center gap-3.5 px-6 h-16 flex-shrink-0 border-b border-white/[0.07] bg-brand-dark/70 backdrop-blur-md">
-          <span className="text-[15px] font-extrabold tracking-tight">
-            Kitchen Screen · {restaurant?.name ?? '...'}
+      <div className="flex h-screen w-full flex-col bg-bg text-ink overflow-hidden">
+        <header className="flex items-center gap-3 px-4 sm:px-6 h-16 shrink-0 border-b border-line bg-surface">
+          <UtensilsCrossed className="h-5 w-5 text-primary-text shrink-0" aria-hidden />
+          <span className="text-h3 text-ink truncate">
+            Oshxona ekrani · {restaurant?.name ?? '—'}
           </span>
-          <span className="font-mono text-brand-yellow text-sm">{clock}</span>
+          <span className="font-mono text-title text-muted tabular-nums hidden sm:inline">{clock}</span>
           <div className="flex-1" />
-          <button
-            onClick={toggleOpen}
-            className={`inline-flex items-center gap-2 px-3.5 py-[7px] rounded-full text-[13px] font-bold border ${
-              isOpen ? 'text-green-400 border-green-400/35 bg-green-400/[0.09]' : 'text-red-400 border-red-400/35 bg-red-400/[0.09]'
-            }`}
-          >
-            <span className={`w-2 h-2 rounded-full ${isOpen ? 'bg-green-400' : 'bg-red-400'}`} />
-            {isOpen ? 'Ochiq' : 'Yopiq'}
-          </button>
-          <button
-            onClick={() => setKiosk(false)}
-            className="px-3.5 py-[7px] rounded-full text-[13px] font-bold bg-white/10 text-slate-200"
-          >
+          {openToggle}
+          <Button variant="secondary" onClick={() => setKiosk(false)}>
             Kioskdan chiqish
-          </button>
-        </div>
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-[18px] relative">{children}</main>
+          </Button>
+        </header>
+        <main id="main" className="flex-1 overflow-y-auto p-4 sm:p-5">
+          {children}
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen w-full bg-brand-black text-slate-200 overflow-hidden">
-      <aside className="w-[256px] flex-shrink-0 bg-brand-dark border-r border-white/[0.07] flex flex-col p-4">
-        <div className="flex items-center gap-[11px] px-2 pt-1.5 pb-[22px]">
-          <div
-            className="w-10 h-10 rounded-xl bg-brand-yellow flex items-center justify-center font-extrabold text-xl text-brand-black"
-            style={{ boxShadow: '0 0 20px rgba(250,204,21,0.25)' }}
-          >
-            {initial}
-          </div>
-          <div>
-            <div className="text-[15px] font-extrabold leading-tight tracking-tight">
-              {restaurant?.name ?? '...'}
-            </div>
-            <div className="text-[11px] text-slate-500 font-semibold tracking-wide">ANGREN TAXI · Restoran</div>
+    <div className="flex h-screen w-full bg-bg text-ink overflow-hidden">
+      <a href="#main" className="skip-link">
+        Asosiy kontentga o&apos;tish
+      </a>
+
+      <aside className="hidden lg:flex w-64 shrink-0 flex-col gap-4 border-r border-line bg-surface p-4">
+        <div className="flex items-center gap-3 px-1 pt-1">
+          <Avatar name={restaurant?.name ?? 'Restoran'} size="lg" />
+          <div className="min-w-0">
+            <p className="text-title text-ink truncate">{restaurant?.name ?? '—'}</p>
+            <p className="text-micro text-subtle">ANGREN TAXI · RESTORAN</p>
           </div>
         </div>
 
-        <nav className="flex flex-col gap-1 flex-1">
+        <nav aria-label="Asosiy menyu" className="flex flex-1 flex-col gap-1">
           {NAV.map((item) => {
             const active = item.href === '/dashboard' ? pathname === item.href : pathname.startsWith(item.href);
             const Icon = item.icon;
@@ -155,15 +157,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-3.5 py-[11px] rounded-xl text-sm font-medium transition-all ${
-                  active ? 'bg-brand-yellow text-brand-black font-bold shadow-[0_0_20px_rgba(250,204,21,0.25)]' : 'text-slate-400 hover:bg-white/5'
-                }`}
+                aria-current={active ? 'page' : undefined}
+                className={clsx(
+                  'flex items-center gap-3 rounded-ds-sm px-3.5 py-3 text-label transition-colors duration-fast min-h-touch',
+                  // Faol element — INTERAKTIV qatlam: to'q yashil fon + oq matn.
+                  active
+                    ? 'bg-primary text-white dark:bg-primary-on-dark'
+                    : 'text-muted hover:bg-surface-2 hover:text-ink'
+                )}
               >
-                <Icon className="h-5 w-5" />
+                <Icon className="h-5 w-5 shrink-0" aria-hidden />
                 <span className="flex-1">{item.label}</span>
-                {item.href === '/dashboard/orders' && newOrdersCount > 0 && (
-                  <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-blue-400 text-white text-[11px] font-bold flex items-center justify-center animate-pulse">
-                    {newOrdersCount}
+                {item.href === '/dashboard/orders' && newOrders > 0 && (
+                  <span
+                    className={clsx(
+                      'min-w-[22px] rounded-full px-1.5 py-0.5 text-micro font-mono text-center',
+                      active ? 'bg-white/20 text-white' : 'bg-info-tint text-info-deep dark:text-info-light'
+                    )}
+                  >
+                    {newOrders}
+                    <span className="sr-only"> ta yangi buyurtma</span>
                   </span>
                 )}
               </Link>
@@ -171,53 +184,69 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           })}
         </nav>
 
-        <div className="flex flex-col gap-2.5 pt-3.5 border-t border-white/[0.07]">
-          <div className="flex items-center gap-2.5 px-3 py-[11px] rounded-[14px] bg-[#111827] border border-white/[0.07]">
-            <div className="w-9 h-9 rounded-full bg-brand-yellow text-brand-black flex items-center justify-center font-extrabold text-[15px]">
-              {(user?.firstName ?? 'M').charAt(0).toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[13px] font-bold truncate">Menejer</div>
-              <div className="text-[11px] text-slate-500">Smena · Faol</div>
-            </div>
+        <div className="flex items-center gap-3 rounded-ds-sm border border-line bg-surface-2 px-3 py-2.5">
+          <Avatar name={user?.firstName ?? 'Menejer'} size="md" tone="muted" />
+          <div className="min-w-0 flex-1">
+            <p className="text-label text-ink truncate">{user?.firstName ?? 'Menejer'}</p>
+            <p className="text-micro text-subtle font-mono">{user?.phone}</p>
           </div>
+          <button
+            type="button"
+            onClick={logout}
+            aria-label="Chiqish"
+            className="h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-ds-xs text-muted hover:bg-surface-3 hover:text-danger-deep dark:hover:text-danger-light transition-colors duration-fast"
+          >
+            <LogOut className="h-4 w-4" aria-hidden />
+          </button>
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col min-w-0 h-full">
-        <header className="flex items-center gap-3.5 px-6 py-4 border-b border-white/[0.07] bg-brand-dark/70 backdrop-blur-md flex-shrink-0">
-          <div className="flex-1 min-w-0">
-            <h1 className="text-[19px] font-extrabold tracking-tight truncate">{pageTitle}</h1>
-            <p className="text-[12.5px] text-slate-500 mt-0.5">{pageSub}</p>
-          </div>
-
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex shrink-0 items-center gap-2 border-b border-line bg-surface px-4 py-3 sm:px-6">
+          <UtensilsCrossed className="h-5 w-5 text-primary-text lg:hidden shrink-0" aria-hidden />
+          <span className="text-title text-ink truncate lg:hidden">{restaurant?.name ?? '—'}</span>
+          <div className="flex-1" />
+          {openToggle}
           <button
-            onClick={toggleOpen}
-            className={`inline-flex items-center gap-2 px-3.5 py-[7px] rounded-full text-[13px] font-bold border ${
-              isOpen ? 'text-green-400 border-green-400/35 bg-green-400/[0.09]' : 'text-red-400 border-red-400/35 bg-red-400/[0.09]'
-            }`}
+            type="button"
+            onClick={chrome.reload}
+            aria-label="Ma'lumotni yangilash"
+            className="h-10 w-10 inline-flex items-center justify-center rounded-ds-sm border border-line text-muted hover:bg-surface-2 hover:text-ink transition-colors duration-fast"
           >
-            <span className={`w-2 h-2 rounded-full ${isOpen ? 'bg-green-400 shadow-[0_0_8px_#10B981]' : 'bg-red-400'}`} />
-            {isOpen ? 'Ochiq' : 'Yopiq'}
+            <RotateCw className={clsx('h-4 w-4', chrome.isRefreshing && 'animate-spin')} aria-hidden />
           </button>
-
-          <button
-            onClick={doRefresh}
-            title="Yangilash"
-            className="w-10 h-10 rounded-[11px] border border-white/[0.08] text-slate-400 flex items-center justify-center hover:text-slate-200 hover:border-white/20"
-          >
-            <RotateCw className={`h-[18px] w-[18px] ${refreshing ? 'animate-spin' : ''}`} />
-          </button>
-
-          <button className="relative w-10 h-10 rounded-[11px] border border-white/[0.08] text-slate-400 flex items-center justify-center hover:text-slate-200 hover:border-white/20">
-            <Bell className="h-[18px] w-[18px]" />
-            {newOrdersCount > 0 && (
-              <span className="absolute top-2 right-2.5 w-2 h-2 rounded-full bg-red-400 border-2 border-brand-dark" />
-            )}
-          </button>
+          <ThemeToggle />
         </header>
 
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-6 relative">{children}</main>
+        {/* Mobil navigatsiya — yon panel yashiringanda. */}
+        <nav
+          aria-label="Asosiy menyu (mobil)"
+          className="lg:hidden flex gap-1 overflow-x-auto no-scrollbar border-b border-line bg-surface px-3 py-2"
+        >
+          {NAV.map((item) => {
+            const active = item.href === '/dashboard' ? pathname === item.href : pathname.startsWith(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? 'page' : undefined}
+                className={clsx(
+                  'whitespace-nowrap rounded-ds-xs px-3.5 py-2 text-label transition-colors duration-fast',
+                  active ? 'bg-primary text-white dark:bg-primary-on-dark' : 'text-muted hover:bg-surface-2'
+                )}
+              >
+                {item.label}
+                {item.href === '/dashboard/orders' && newOrders > 0 && (
+                  <span className="ml-1.5 font-mono text-micro">({newOrders})</span>
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <main id="main" className="flex-1 overflow-y-auto p-4 sm:p-6">
+          {children}
+        </main>
       </div>
     </div>
   );

@@ -2,8 +2,8 @@
 
 import * as React from 'react';
 import * as ToastPrimitive from '@radix-ui/react-toast';
-import { X, CheckCircle, AlertCircle, Info } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { X, CheckCircle2, AlertCircle, Info } from 'lucide-react';
+import { clsx } from 'clsx';
 
 const ToastProvider = ToastPrimitive.Provider;
 
@@ -13,7 +13,7 @@ const ToastViewport = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ToastPrimitive.Viewport
     ref={ref}
-    className={cn(
+    className={clsx(
       'fixed top-0 right-0 z-[100] flex max-h-screen w-full flex-col-reverse gap-2 p-4 sm:max-w-[420px]',
       className
     )}
@@ -24,34 +24,35 @@ ToastViewport.displayName = ToastPrimitive.Viewport.displayName;
 
 type ToastVariant = 'default' | 'success' | 'error' | 'info';
 
+/**
+ * Toast ham ikkala temada ishlaydi: fon — `surface`, chekka esa semantik
+ * tint. Ma'no faqat rang bilan emas, ikonka bilan ham beriladi.
+ */
 const toastStyles: Record<ToastVariant, string> = {
-  default: 'bg-white border-gray-200 text-gray-900',
-  success: 'bg-green-50 border-green-200 text-green-900',
-  error: 'bg-red-50 border-red-200 text-red-900',
-  info: 'bg-blue-50 border-blue-200 text-blue-900',
+  default: 'bg-surface border-line',
+  success: 'bg-surface border-mint/45',
+  error: 'bg-surface border-danger/45',
+  info: 'bg-surface border-info/45',
 };
 
 const ToastRoot = React.forwardRef<
   React.ElementRef<typeof ToastPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof ToastPrimitive.Root> & { variant?: ToastVariant }
->(({ className, variant = 'default', ...props }, ref) => {
-  return (
-    <ToastPrimitive.Root
-      ref={ref}
-      className={cn(
-        'group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-xl border p-4 pr-8 shadow-lg transition-all',
-        'data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)]',
-        'data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none',
-        'data-[state=open]:animate-in data-[state=closed]:animate-out',
-        'data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full',
-        'data-[state=open]:slide-in-from-top-full',
-        toastStyles[variant],
-        className
-      )}
-      {...props}
-    />
-  );
-});
+>(({ className, variant = 'default', ...props }, ref) => (
+  <ToastPrimitive.Root
+    ref={ref}
+    className={clsx(
+      'group pointer-events-auto relative flex w-full items-start justify-between gap-4',
+      'overflow-hidden rounded-ds-md border p-4 pr-10 shadow-pop text-ink',
+      'data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)]',
+      'data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none',
+      'data-[state=open]:animate-slide-up',
+      toastStyles[variant],
+      className
+    )}
+    {...props}
+  />
+));
 ToastRoot.displayName = ToastPrimitive.Root.displayName;
 
 const ToastClose = React.forwardRef<
@@ -60,14 +61,15 @@ const ToastClose = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ToastPrimitive.Close
     ref={ref}
-    className={cn(
-      'absolute right-2 top-2 rounded-md p-1 text-gray-400 opacity-0 transition-opacity hover:text-gray-900 focus:opacity-100 focus:outline-none focus:ring-1 group-hover:opacity-100',
+    aria-label="Yopish"
+    className={clsx(
+      'absolute right-2 top-2 rounded-ds-xs p-1.5 text-subtle transition-colors hover:text-ink hover:bg-surface-2',
       className
     )}
     toast-close=""
     {...props}
   >
-    <X className="h-4 w-4" />
+    <X className="h-4 w-4" aria-hidden />
   </ToastPrimitive.Close>
 ));
 ToastClose.displayName = ToastPrimitive.Close.displayName;
@@ -76,11 +78,7 @@ const ToastTitle = React.forwardRef<
   React.ElementRef<typeof ToastPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof ToastPrimitive.Title>
 >(({ className, ...props }, ref) => (
-  <ToastPrimitive.Title
-    ref={ref}
-    className={cn('text-sm font-semibold', className)}
-    {...props}
-  />
+  <ToastPrimitive.Title ref={ref} className={clsx('text-title text-ink', className)} {...props} />
 ));
 ToastTitle.displayName = ToastPrimitive.Title.displayName;
 
@@ -88,11 +86,7 @@ const ToastDescription = React.forwardRef<
   React.ElementRef<typeof ToastPrimitive.Description>,
   React.ComponentPropsWithoutRef<typeof ToastPrimitive.Description>
 >(({ className, ...props }, ref) => (
-  <ToastPrimitive.Description
-    ref={ref}
-    className={cn('text-sm opacity-90', className)}
-    {...props}
-  />
+  <ToastPrimitive.Description ref={ref} className={clsx('text-body text-muted', className)} {...props} />
 ));
 ToastDescription.displayName = ToastPrimitive.Description.displayName;
 
@@ -129,9 +123,9 @@ export function ToastContextProvider({ children }: { children: React.ReactNode }
 
   const icons: Record<ToastVariant, React.ReactNode> = {
     default: null,
-    success: <CheckCircle className="h-5 w-5 text-green-500 shrink-0" />,
-    error: <AlertCircle className="h-5 w-5 text-red-500 shrink-0" />,
-    info: <Info className="h-5 w-5 text-blue-500 shrink-0" />,
+    success: <CheckCircle2 className="h-5 w-5 text-primary-text shrink-0" aria-hidden />,
+    error: <AlertCircle className="h-5 w-5 text-danger-deep dark:text-danger-light shrink-0" aria-hidden />,
+    info: <Info className="h-5 w-5 text-info-deep dark:text-info-light shrink-0" aria-hidden />,
   };
 
   return (
@@ -139,12 +133,7 @@ export function ToastContextProvider({ children }: { children: React.ReactNode }
       <ToastProvider swipeDirection="right">
         {children}
         {toasts.map((t) => (
-          <ToastRoot
-            key={t.id}
-            variant={t.variant}
-            onOpenChange={(open) => !open && remove(t.id)}
-            defaultOpen
-          >
+          <ToastRoot key={t.id} variant={t.variant} onOpenChange={(open) => !open && remove(t.id)} defaultOpen>
             <div className="flex items-start gap-3">
               {icons[t.variant ?? 'default']}
               <div className="grid gap-1">

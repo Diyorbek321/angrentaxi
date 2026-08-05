@@ -1,55 +1,77 @@
-import * as React from 'react';
-import { cn } from '@/lib/utils';
+import { forwardRef, InputHTMLAttributes, ReactNode, useId } from 'react';
+import { clsx } from 'clsx';
 
-export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
+  /** Xato matni — `aria-describedby` orqali inputga bog'lanadi. */
   error?: string;
-  leftIcon?: React.ReactNode;
-  rightIcon?: React.ReactNode;
+  hint?: string;
+  leftElement?: ReactNode;
+  rightElement?: ReactNode;
+  /** Raqam, narx, telefon — mono shrift bilan yaxshiroq o'qiladi. */
+  mono?: boolean;
 }
 
-const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, label, error, leftIcon, rightIcon, id, ...props }, ref) => {
-    const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
+const Input = forwardRef<HTMLInputElement, InputProps>(
+  (
+    { label, error, hint, leftElement, rightElement, mono = false, className, id, ...props },
+    ref
+  ) => {
+    const autoId = useId();
+    const inputId = id ?? `input-${autoId}`;
+    const errorId = `${inputId}-error`;
+    const hintId = `${inputId}-hint`;
+
     return (
-      <div className="w-full">
+      <div className="flex flex-col gap-1.5">
         {label && (
-          <label htmlFor={inputId} className="mb-1.5 block text-sm font-medium text-slate-300">
+          <label htmlFor={inputId} className="text-caption font-semibold text-muted">
             {label}
           </label>
         )}
-        <div className="relative">
-          {leftIcon && (
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
-              {leftIcon}
+        <div className="relative flex items-center">
+          {leftElement && (
+            <div className="absolute left-3 text-subtle pointer-events-none flex items-center" aria-hidden>
+              {leftElement}
             </div>
           )}
           <input
+            ref={ref}
             id={inputId}
-            type={type}
-            className={cn(
-              'flex h-10 w-full rounded-md border border-white/10 bg-[#111827] px-3 py-2 text-sm text-white',
-              'placeholder:text-slate-600',
-              'focus:border-yellow-400/60 focus:outline-none focus:ring-1 focus:ring-yellow-400/20',
-              'disabled:cursor-not-allowed disabled:bg-white/5 disabled:text-slate-500',
-              'transition-colors',
-              leftIcon && 'pl-10',
-              rightIcon && 'pr-10',
-              error && 'border-red-500/60 focus:border-red-500/60 focus:ring-red-500/20',
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? errorId : hint ? hintId : undefined}
+            className={clsx(
+              'w-full bg-surface border rounded-ds-sm text-ink placeholder-subtle text-body py-2.5',
+              'transition-colors duration-fast ease-standard',
+              'disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-muted',
+              mono && 'font-mono',
+              error
+                ? 'border-danger focus:border-danger'
+                : 'border-line hover:border-line-strong focus:border-primary',
+              leftElement ? 'pl-10' : 'pl-3.5',
+              rightElement ? 'pr-10' : 'pr-3.5',
               className
             )}
-            ref={ref}
             {...props}
           />
-          {rightIcon && (
-            <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500">{rightIcon}</div>
-          )}
+          {rightElement && <div className="absolute right-3 text-subtle flex items-center">{rightElement}</div>}
         </div>
-        {error && <p className="mt-1.5 text-xs text-red-400">{error}</p>}
+        {/* Xato faqat rang bilan emas — matn bilan ham beriladi. */}
+        {error && (
+          <p id={errorId} className="text-caption text-danger-deep dark:text-danger-light">
+            {error}
+          </p>
+        )}
+        {hint && !error && (
+          <p id={hintId} className="text-caption text-subtle">
+            {hint}
+          </p>
+        )}
       </div>
     );
   }
 );
+
 Input.displayName = 'Input';
 
 export { Input };

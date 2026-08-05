@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import localFont from 'next/font/local';
 import './globals.css';
 import { Providers } from './providers';
+import { THEME_INIT_SCRIPT } from '@/lib/theme';
 
 const manrope = localFont({
   src: [
@@ -32,8 +33,17 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="uz" className={`${manrope.variable} ${jetbrainsMono.variable}`}>
-      <body className="font-sans">
+    /*
+     * `suppressHydrationWarning` — pastdagi skript <html> ga `dark` klassini
+     * React hidratsiya qilgunicha qo'yadi. Bu farqni React aks holda
+     * "mos kelmadi" deb hisoblardi. Skript bloklab ishlaydi, shuning uchun
+     * birinchi bo'yashda tema allaqachon to'g'ri — "oq chaqnash" bo'lmaydi.
+     */
+    <html lang="uz" className={`${manrope.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
+      <body className="font-sans antialiased">
         <Providers>{children}</Providers>
       </body>
     </html>

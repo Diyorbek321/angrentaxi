@@ -1,105 +1,270 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { GripVertical, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { ArrowDown, ArrowUp, Pencil, Plus, Tags, Trash2 } from 'lucide-react';
 import { foodApi, Dish, MenuCategory } from '@/lib/api';
+import { useAsyncData, errorMessage } from '@/hooks/useAsyncData';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { Input } from '@/components/ui/Input';
+import { Modal } from '@/components/ui/Modal';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { SkeletonCards } from '@/components/ui/Skeleton';
+import { useToast } from '@/components/ui/Toast';
+
+interface CategoriesData {
+  categories: MenuCategory[];
+  dishes: Dish[];
+}
 
 export default function CategoriesPage() {
-  const [categories, setCategories] = useState<MenuCategory[]>([]);
-  const [dishes, setDishes] = useState<Dish[]>([]);
+  const { toast } = useToast();
   const [newName, setNewName] = useState('');
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [renameVal, setRenameVal] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [renaming, setRenaming] = useState<MenuCategory | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [removing, setRemoving] = useState<MenuCategory | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async (): Promise<CategoriesData> => {
     const [c, d] = await Promise.all([foodApi.getCategories(), foodApi.getDishes()]);
-    setCategories(c.data.data);
-    setDishes(d.data.data);
-  };
-
-  useEffect(() => {
-    load();
+    return { categories: c.data.data, dishes: d.data.data };
   }, []);
+
+  const { data, status, error, reload } = useAsyncData<CategoriesData>(load);
+
+  const categories = useMemo(
+    () => [...(data?.categories ?? [])].sort((a, b) => a.sortOrder - b.sortOrder),
+    [data]
+  );
+  const dishes = data?.dishes ?? [];
+  const dishCount = (id: string) => dishes.filter((d) => d.categoryId === id).length;
 
   const create = async () => {
     const name = newName.trim();
     if (!name) return;
-    await foodApi.createCategory({ name, sortOrder: categories.length });
-    setNewName('');
-    await load();
-  };
-
-  const startRename = (c: MenuCategory) => {
-    setRenamingId(c.id);
-    setRenameVal(c.name);
+    setCreating(true);
+    try {
+      await foodApi.createCategory({ name, sortOrder: categories.length });
+      setNewName('');
+      toast({ title: `«${name}» qo‘shildi`, variant: 'success' });
+      await reload();
+    } catch (err) {
+      toast({ title: 'Qo‘shib bo‘lmadi', description: errorMessage(err), variant: 'error' });
+    } finally {
+      setCreating(false);
+    }
   };
 
   const commitRename = async () => {
-    if (renamingId && renameVal.trim()) {
-      await foodApi.updateCategory(renamingId, { name: renameVal.trim() });
+    if (!renaming || !renameValue.trim()) return;
+    setBusyId(renaming.id);
+    try {
+      await foodApi.updateCategory(renaming.id, { name: renameValue.trim() });
+      toast({ title: 'Nomi yangilandi', variant: 'success' });
+      setRenaming(null);
+      await reload();
+    } catch (err) {
+      toast({ title: 'Saqlab bo‘lmadi', description: errorMessage(err), variant: 'error' });
+    } finally {
+      setBusyId(null);
     }
-    setRenamingId(null);
-    await load();
   };
 
-  const remove = async (id: string) => {
-    await foodApi.deleteCategory(id);
-    await load();
+  /** Tartibni klaviatura bilan ham o'zgartirish mumkin — sudrash shart emas. */
+  const move = async (category: MenuCategory, direction: -1 | 1) => {
+    const index = categories.findIndex((c) => c.id === category.id);
+    const neighbour = categories[index + direction];
+    if (!neighbour) return;
+    setBusyId(category.id);
+    try {
+      await Promise.all([
+        foodApi.updateCategory(category.id, { sortOrder: neighbour.sortOrder }),
+        foodApi.updateCategory(neighbour.id, { sortOrder: category.sortOrder }),
+      ]);
+      await reload();
+    } catch (err) {
+      toast({ title: 'Tartibni o‘zgartirib bo‘lmadi', description: errorMessage(err), variant: 'error' });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const confirmRemove = async () => {
+    if (!removing) return;
+    try {
+      await foodApi.deleteCategory(removing.id);
+      toast({ title: `«${removing.name}» o‘chirildi`, variant: 'success' });
+    } catch (err) {
+      toast({ title: 'O‘chirib bo‘lmadi', description: errorMessage(err), variant: 'error' });
+    } finally {
+      setRemoving(null);
+      await reload();
+    }
   };
 
   return (
-    <div className="max-w-[640px] mx-auto flex flex-col gap-3.5">
-      <div className="flex gap-2.5">
-        <input
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && create()}
-          placeholder="Yangi kategoriya nomi"
-          className="flex-1 bg-[#111827] border border-white/[0.08] text-slate-100 px-3.5 py-[11px] rounded-[11px] text-sm outline-none focus:border-brand-yellow"
-        />
-        <button
-          onClick={create}
-          className="inline-flex items-center gap-1.5 bg-brand-yellow text-brand-black rounded-[11px] px-4.5 font-bold text-[13.5px]"
-        >
-          <Plus className="h-4 w-4" />
-          Qo&apos;shish
-        </button>
-      </div>
+    <div className="mx-auto w-full max-w-3xl">
+      <PageHeader
+        title="Kategoriyalar"
+        description="Menyu bo'limlari va ularning tartibi"
+        icon={<Tags size={20} />}
+      />
 
-      <div className="flex flex-col gap-2">
-        {categories.map((c) => (
-          <div key={c.id} className="flex items-center gap-3 bg-[#111827] border border-white/[0.07] rounded-[13px] px-3.5 py-3">
-            <GripVertical className="h-[18px] w-[18px] text-slate-600 cursor-grab" />
-            {renamingId === c.id ? (
-              <input
-                autoFocus
-                value={renameVal}
-                onChange={(e) => setRenameVal(e.target.value)}
-                onBlur={commitRename}
-                onKeyDown={(e) => e.key === 'Enter' && commitRename()}
-                className="flex-1 bg-brand-dark border border-brand-yellow/50 rounded-lg px-2.5 py-1.5 text-sm font-semibold outline-none"
-              />
-            ) : (
-              <span className="flex-1 text-[14.5px] font-bold">{c.name}</span>
-            )}
-            <span className="text-xs text-slate-500 whitespace-nowrap">
-              {dishes.filter((d) => d.categoryId === c.id).length} ta taom
-            </span>
-            <button
-              onClick={() => startRename(c)}
-              className="w-8 h-8 rounded-lg text-slate-500 flex items-center justify-center hover:text-brand-yellow hover:bg-white/5"
+      <form
+        className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end"
+        onSubmit={(e) => {
+          e.preventDefault();
+          create();
+        }}
+      >
+        <div className="flex-1">
+          <Input
+            label="Yangi kategoriya"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="Masalan: Salatlar"
+          />
+        </div>
+        <Button type="submit" leftIcon={<Plus size={16} />} isLoading={creating} disabled={!newName.trim()}>
+          Qo&apos;shish
+        </Button>
+      </form>
+
+      {status === 'loading' && <SkeletonCards count={4} height="h-[68px]" />}
+
+      {status === 'error' && <ErrorState message={error} onRetry={reload} />}
+
+      {status === 'ready' && categories.length === 0 && (
+        <EmptyState
+          icon={<Tags size={24} />}
+          title="Kategoriya yo'q"
+          description="Kategoriyalar menyuni mijoz uchun o'qishli qiladi. Birinchisini yuqorida qo'shing."
+        />
+      )}
+
+      {status === 'ready' && categories.length > 0 && (
+        <ol className="flex flex-col gap-2">
+          {categories.map((category, index) => (
+            <li key={category.id}>
+              <Card padding="none" className="flex items-center gap-3 px-4 py-3">
+                <span className="font-mono text-caption text-subtle w-6 tabular-nums" aria-hidden>
+                  {index + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-title text-ink truncate">{category.name}</p>
+                  <p className="text-caption text-muted">{dishCount(category.id)} ta taom</p>
+                </div>
+
+                {dishCount(category.id) === 0 && (
+                  <Badge variant="warning" size="sm">
+                    Bo&apos;sh
+                  </Badge>
+                )}
+
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={index === 0 || busyId === category.id}
+                    onClick={() => move(category, -1)}
+                    aria-label={`${category.name} — yuqoriga ko'chirish`}
+                  >
+                    <ArrowUp size={16} aria-hidden />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={index === categories.length - 1 || busyId === category.id}
+                    onClick={() => move(category, 1)}
+                    aria-label={`${category.name} — pastga ko'chirish`}
+                  >
+                    <ArrowDown size={16} aria-hidden />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setRenaming(category);
+                      setRenameValue(category.name);
+                    }}
+                    aria-label={`${category.name} — nomini o'zgartirish`}
+                  >
+                    <Pencil size={16} aria-hidden />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setRemoving(category)}
+                    aria-label={`${category.name} — o'chirish`}
+                  >
+                    <Trash2 size={16} aria-hidden />
+                  </Button>
+                </div>
+              </Card>
+            </li>
+          ))}
+        </ol>
+      )}
+
+      <Modal
+        isOpen={renaming != null}
+        onClose={() => setRenaming(null)}
+        size="sm"
+        title="Kategoriya nomi"
+        footer={
+          <div className="flex gap-2">
+            <Button variant="secondary" size="lg" className="flex-1" onClick={() => setRenaming(null)}>
+              Bekor qilish
+            </Button>
+            <Button
+              size="lg"
+              className="flex-1"
+              isLoading={busyId === renaming?.id}
+              disabled={!renameValue.trim()}
+              onClick={commitRename}
             >
-              <Pencil className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => remove(c.id)}
-              className="w-8 h-8 rounded-lg text-slate-500 flex items-center justify-center hover:text-red-400 hover:bg-white/5"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
+              Saqlash
+            </Button>
           </div>
-        ))}
-      </div>
+        }
+      >
+        <Input
+          label="Nomi"
+          value={renameValue}
+          onChange={(e) => setRenameValue(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && commitRename()}
+          autoFocus
+        />
+      </Modal>
+
+      <Modal
+        isOpen={removing != null}
+        onClose={() => setRemoving(null)}
+        tone="danger"
+        size="sm"
+        title="Kategoriyani o'chirish"
+        subtitle={removing ? `«${removing.name}» o'chiriladi.` : undefined}
+        footer={
+          <div className="flex gap-2">
+            <Button variant="secondary" size="lg" className="flex-1" onClick={() => setRemoving(null)}>
+              Bekor qilish
+            </Button>
+            <Button variant="danger" size="lg" className="flex-1" onClick={confirmRemove}>
+              O&apos;chirish
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-body text-muted">
+          {removing && dishCount(removing.id) > 0
+            ? `Bu bo'limda ${dishCount(removing.id)} ta taom bor — ular kategoriyasiz qoladi va menyuda pastda ko'rinadi.`
+            : "Bo'sh kategoriya o'chiriladi, taomlarga ta'sir qilmaydi."}
+        </p>
+      </Modal>
     </div>
   );
 }

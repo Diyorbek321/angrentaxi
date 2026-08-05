@@ -131,6 +131,14 @@ export interface Dish {
   prepMinutes: number;
   isAvailable: boolean;
   tags: string[];
+  /**
+   * Taom rasmi. Backend `dishes` jadvalida hozircha bunday ustun YO'Q,
+   * shuning uchun maydon ixtiyoriy va faqat O'QISH uchun: menyu kartochkasi
+   * rasm kelsa uni ko'rsatadi, kelmasa dekorativ o'rin egallovchi chizadi.
+   * ⚠️ Bu maydonni PATCH/POST tanasiga QO'SHMANG — backend
+   * `forbidNonWhitelisted` bilan ishlaydi va noma'lum maydon 400 qaytaradi.
+   */
+  imageUrl?: string | null;
 }
 
 export interface FoodOrderItem {
