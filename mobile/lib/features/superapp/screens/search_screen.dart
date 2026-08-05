@@ -1,16 +1,62 @@
-import 'package:angren_taxi/features/superapp/data/superapp_catalog.dart';
 import 'package:angren_taxi/features/superapp/screens/product_detail_screen.dart';
+import 'package:angren_taxi/features/superapp/screens/restaurant_detail_screen.dart';
+import 'package:angren_taxi/features/superapp/state/food_provider.dart';
+import 'package:angren_taxi/features/superapp/state/market_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-class SearchScreen extends StatelessWidget {
+/// Searches the real `/food` restaurants and `/market` products already
+/// exposed by [FoodProvider]/[MarketProvider]. There is no backend search
+/// endpoint yet, so this filters the loaded catalogue client-side — every
+/// result still carries a real backend id, so tapping through to the detail
+/// screen and ordering works end to end.
+class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
 
   @override
+  State<SearchScreen> createState() => _SearchScreenState();
+}
+
+class _SearchScreenState extends State<SearchScreen> {
+  final TextEditingController _controller = TextEditingController();
+  String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final food = context.read<FoodProvider>();
+      if (food.restaurants.isEmpty) food.loadRestaurants();
+      final market = context.read<MarketProvider>();
+      if (market.products.isEmpty) market.loadStore();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    const restaurants = SuperappCatalog.restaurants;
-    const products = SuperappCatalog.products;
+    final food = context.watch<FoodProvider>();
+    final market = context.watch<MarketProvider>();
+
+    final q = _query.trim().toLowerCase();
+    final restaurants = q.isEmpty
+        ? food.restaurants
+        : food.restaurants.where((r) => r.name.toLowerCase().contains(q)).toList();
+    final products = q.isEmpty
+        ? market.products
+        : market.products.where((p) => p.name.toLowerCase().contains(q)).toList();
+
+    final loading = food.state == FoodProviderState.loading ||
+        market.state == MarketProviderState.loading;
+    final empty = restaurants.isEmpty && products.isEmpty;
 
     return Scaffold(
       backgroundColor: agBg,
@@ -31,22 +77,32 @@ class SearchScreen extends StatelessWidget {
                     height: 46,
                     padding: const EdgeInsets.symmetric(horizontal: 14),
                     decoration: BoxDecoration(color: agBg, borderRadius: BorderRadius.circular(13)),
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(Icons.search_rounded, size: 21, color: agGreen),
-                        SizedBox(width: 9),
+                        const Icon(Icons.search_rounded, size: 21, color: agGreen),
+                        const SizedBox(width: 9),
                         Expanded(
                           child: TextField(
+                            controller: _controller,
                             autofocus: true,
-                            decoration: InputDecoration(
+                            onChanged: (value) => setState(() => _query = value),
+                            decoration: const InputDecoration(
                               isCollapsed: true,
                               border: InputBorder.none,
                               hintText: 'taom, doʻkon, mahsulot…',
                               hintStyle: TextStyle(color: agMuted, fontWeight: FontWeight.w600, fontSize: 14.5),
                             ),
-                            style: TextStyle(color: agText, fontWeight: FontWeight.w700, fontSize: 14.5),
+                            style: const TextStyle(color: agText, fontWeight: FontWeight.w700, fontSize: 14.5),
                           ),
                         ),
+                        if (_query.isNotEmpty)
+                          GestureDetector(
+                            onTap: () {
+                              _controller.clear();
+                              setState(() => _query = '');
+                            },
+                            child: const Icon(Icons.close_rounded, size: 19, color: agMuted),
+                          ),
                       ],
                     ),
                   ),
@@ -55,48 +111,67 @@ class SearchScreen extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-              children: [
-                _sectionLabel('RESTORANLAR'),
-                for (final r in restaurants.take(2)) ...[
-                  _ResultRow(
-                    color: r.color,
-                    icon: r.icon,
-                    title: r.name,
-                    sub: '${r.tag} · ${r.time}',
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.star_rounded, size: 15, color: agOrange),
-                        const SizedBox(width: 3),
-                        Text(r.rating, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5, color: agText)),
-                      ],
-                    ),
-                    // Search results are still mock catalog data with no
-                    // real backend id, so this row isn't tappable yet.
-                    onTap: () {},
-                  ),
-                  const SizedBox(height: 11),
-                ],
-                const SizedBox(height: 12),
-                _sectionLabel('MAHSULOTLAR'),
-                for (final p in products.take(3)) ...[
-                  _ResultRow(
-                    color: p.color,
-                    icon: p.icon,
-                    title: p.name,
-                    sub: 'Market · ${p.unit}',
-                    trailing: Text(Formatters.formatSom(p.price),
-                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: agText)),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(builder: (_) => ProductDetailScreen(product: p)),
-                    ),
-                  ),
-                  const SizedBox(height: 11),
-                ],
-              ],
-            ),
+            child: loading && empty
+                ? const Center(child: CircularProgressIndicator(color: agGreen))
+                : empty
+                    ? const Center(
+                        child: Text(
+                          'Hech narsa topilmadi',
+                          style: TextStyle(color: agSubtle, fontWeight: FontWeight.w600),
+                        ),
+                      )
+                    : ListView(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                        children: [
+                          if (restaurants.isNotEmpty) ...[
+                            _sectionLabel('RESTORANLAR'),
+                            for (final r in restaurants) ...[
+                              _ResultRow(
+                                color: agGreen,
+                                icon: Icons.restaurant_rounded,
+                                title: r.name,
+                                sub: r.address ?? (r.isOpen ? 'Ochiq' : 'Yopiq'),
+                                trailing: Text(
+                                  r.isOpen ? 'Ochiq' : 'Yopiq',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 12.5,
+                                    color: r.isOpen ? agGreen : agMuted,
+                                  ),
+                                ),
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => RestaurantDetailScreen(restaurantId: r.id),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 11),
+                            ],
+                            const SizedBox(height: 12),
+                          ],
+                          if (products.isNotEmpty) ...[
+                            _sectionLabel('MAHSULOTLAR'),
+                            for (final p in products) ...[
+                              _ResultRow(
+                                color: p.color,
+                                icon: p.icon,
+                                title: p.name,
+                                sub: 'Market · ${p.unit}',
+                                trailing: Text(
+                                  Formatters.formatSom(p.price),
+                                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: agText),
+                                ),
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => ProductDetailScreen(marketProduct: p),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 11),
+                            ],
+                          ],
+                        ],
+                      ),
           ),
         ],
       ),

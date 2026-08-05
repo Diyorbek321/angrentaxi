@@ -2,8 +2,10 @@ import 'package:angren_taxi/features/superapp/models/cart_item.dart';
 import 'package:flutter/foundation.dart';
 
 /// Holds cross-vertical super-app state: the unified cart, wallet balance and
-/// the active bottom-navigation tab. Food/Market/Cargo have no backend yet, so
-/// this is local state today; swap the bodies for API calls when ready.
+/// the active bottom-navigation tab. Food/Market order placement itself goes
+/// through [FoodProvider]/[MarketProvider] against the real backend; the cart
+/// below is client-side until a server-side cart exists, and [walletBalance]
+/// is still a placeholder with no wallet endpoint behind it.
 class SuperappProvider extends ChangeNotifier {
   static const double _deliveryFee = 7000;
 

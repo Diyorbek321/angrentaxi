@@ -4,8 +4,15 @@ import 'package:provider/provider.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
+import 'package:angren_taxi/features/superapp/screens/food_list_screen.dart';
+import 'package:angren_taxi/features/superapp/screens/market_screen.dart';
 
 /// Super-app launcher — premium animated home that lets the user pick a vertical.
+///
+/// NOTE: this screen is currently not wired into any route — `app.dart` sends
+/// `/passenger/services` to `SuperappShell`, whose `HomeTab` is the live
+/// launcher. Kept in sync with the real verticals so it stays usable if it is
+/// routed again.
 class ServicesScreen extends StatelessWidget {
   const ServicesScreen({super.key});
 
@@ -34,18 +41,16 @@ class ServicesScreen extends StatelessWidget {
       _Service(
         icon: Icons.restaurant_rounded,
         title: 'Ovqat',
-        subtitle: 'Tez kunda',
+        subtitle: 'Restoranlardan yetkazib berish',
         gradient: const [Color(0xFFFB923C), Color(0xFFF59E0B)],
-        comingSoon: true,
-        onTap: () => _comingSoon(context),
+        onTap: () => _push(context, const FoodListScreen()),
       ),
       _Service(
         icon: Icons.shopping_basket_rounded,
         title: 'Market',
-        subtitle: 'Tez kunda',
+        subtitle: 'Oziq-ovqat va kundalik',
         gradient: const [Color(0xFFA78BFA), Color(0xFF8B5CF6)],
-        comingSoon: true,
-        onTap: () => _comingSoon(context),
+        onTap: () => _push(context, const MarketScreen()),
       ),
     ];
 
@@ -154,13 +159,8 @@ class ServicesScreen extends StatelessWidget {
     Navigator.of(context).pushNamed('/passenger/home');
   }
 
-  void _comingSoon(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Bu xizmat tez kunda ishga tushadi 🚀'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  void _push(BuildContext context, Widget screen) {
+    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
   }
 }
 
@@ -171,7 +171,6 @@ class _Service {
     required this.subtitle,
     required this.gradient,
     required this.onTap,
-    this.comingSoon = false,
   });
 
   final IconData icon;
@@ -179,7 +178,6 @@ class _Service {
   final String subtitle;
   final List<Color> gradient;
   final VoidCallback onTap;
-  final bool comingSoon;
 }
 
 /// Vibrant gradient card with a press-scale micro-interaction.
@@ -236,34 +234,13 @@ class _ServiceCardState extends State<_ServiceCard> {
                 child: Icon(s.icon, color: Colors.white, size: 28),
               ),
               const Spacer(),
-              Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      s.title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  if (s.comingSoon) ...[
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.25),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text(
-                        'tez',
-                        style: TextStyle(fontSize: 10, color: Colors.white),
-                      ),
-                    ),
-                  ],
-                ],
+              Text(
+                s.title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
               ),
               const SizedBox(height: 2),
               Text(

@@ -11,6 +11,7 @@ import 'package:angren_taxi/features/passenger/screens/order_history_screen.dart
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:provider/provider.dart';
 
@@ -25,6 +26,15 @@ Response<dynamic> _jsonResponse(String path, Map<String, dynamic> data) {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  // OrderHistoryScreen renders dates through Formatters, which needs the 'uz'
+  // locale data loaded first — same setUpAll the other date-rendering widget
+  // tests use (see notifications_screen_test.dart).
+  setUpAll(() async {
+    await initializeDateFormatting('uz', null);
+  });
+
   late MockApiClient apiClient;
   late OrderProvider orderProvider;
 

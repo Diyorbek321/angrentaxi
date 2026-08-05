@@ -12,8 +12,9 @@ import 'package:angren_taxi/shared/models/market_store.dart';
 enum MarketProviderState { idle, loading, success, error }
 
 /// Backs the Market vertical (`superapp/screens/market_screen.dart` and
-/// friends) with the real `/market` backend. Food/Cargo remain mock — see
-/// [SuperappProvider]'s doc comment.
+/// friends) with the real `/market` backend. Food is backed the same way by
+/// [FoodProvider]; Cargo runs through the taxi `OrderProvider` flow with
+/// `serviceType: 'cargo'`.
 class MarketProvider extends ChangeNotifier {
   MarketProvider({
     required ApiClient apiClient,
