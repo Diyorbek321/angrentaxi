@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:dio/dio.dart' show MultipartFile, FormData;
-import 'package:flutter/foundation.dart';
-import 'package:geolocator/geolocator.dart';
+
 import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
@@ -17,6 +15,9 @@ import 'package:angren_taxi/shared/models/driver_earnings_breakdown.dart';
 import 'package:angren_taxi/shared/models/driver_rating_stats.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/models/withdrawal_request.dart';
+import 'package:dio/dio.dart' show MultipartFile, FormData;
+import 'package:flutter/foundation.dart';
+import 'package:geolocator/geolocator.dart';
 
 enum DriverProviderState { idle, loading, success, error }
 
@@ -534,7 +535,8 @@ class DriverProvider extends ChangeNotifier {
     try {
       final response = await _apiClient.get(ApiEndpoints.driverEarnings);
       final data = response.data as Map<String, dynamic>;
-      _todayEarnings = (data['data']['today'] as num?)?.toDouble() ?? 0;
+      final payload = data['data'] as Map<String, dynamic>;
+      _todayEarnings = (payload['today'] as num?)?.toDouble() ?? 0;
       notifyListeners();
     } catch (e) {
       debugPrint('[DriverProvider] loadEarnings error: $e');

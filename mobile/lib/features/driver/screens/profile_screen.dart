@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
@@ -7,6 +5,8 @@ import 'package:angren_taxi/features/support/screens/chat_screen.dart';
 import 'package:angren_taxi/shared/models/driver_rating_stats.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class DriverProfileScreen extends StatefulWidget {
   const DriverProfileScreen({super.key});

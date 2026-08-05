@@ -1,8 +1,8 @@
-import 'package:flutter/foundation.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/shared/models/favorite_address.dart';
+import 'package:flutter/foundation.dart';
 
 enum FavoritesProviderState { idle, loading, success, error }
 

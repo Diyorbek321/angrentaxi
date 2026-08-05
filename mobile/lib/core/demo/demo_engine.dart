@@ -1,8 +1,9 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+
 import 'package:angren_taxi/core/demo/demo_data.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
+import 'package:flutter/foundation.dart';
 
 /// Drives offline demo mode: answers REST calls with canned data and scripts
 /// the realtime trip lifecycle by pushing socket events to the (demo)

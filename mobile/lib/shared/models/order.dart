@@ -1,5 +1,5 @@
-import 'package:equatable/equatable.dart';
 import 'package:angren_taxi/shared/models/driver.dart';
+import 'package:equatable/equatable.dart';
 
 enum OrderStatus {
   pending,

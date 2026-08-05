@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
@@ -33,6 +31,8 @@ import 'package:angren_taxi/features/superapp/state/market_provider.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/support/support_provider.dart';
 import 'package:angren_taxi/shared/widgets/loading_widget.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class AngrenTaxiApp extends StatelessWidget {
   const AngrenTaxiApp({super.key, required this.flavor});
@@ -61,7 +61,7 @@ class AngrenTaxiApp extends StatelessWidget {
           ),
         if (flavor == AppFlavor.passenger)
           ChangeNotifierProvider<SuperappProvider>(
-            create: (_) => SuperappProvider(),
+            create: (_) => buildSuperappProvider(),
           ),
         if (flavor == AppFlavor.passenger)
           ChangeNotifierProvider<MarketProvider>(

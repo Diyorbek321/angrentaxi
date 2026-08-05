@@ -1,11 +1,11 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:provider/provider.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
 import 'package:angren_taxi/features/superapp/screens/food_list_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/market_screen.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:provider/provider.dart';
 
 /// Super-app launcher — premium animated home that lets the user pick a vertical.
 ///
@@ -274,10 +274,10 @@ class _PromoBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Expanded(
+          const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 Text(
                   'Angren Super App',
                   style: TextStyle(

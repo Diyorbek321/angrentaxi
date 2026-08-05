@@ -1,9 +1,3 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:latlong2/latlong.dart';
-import 'package:provider/provider.dart';
 import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
@@ -13,6 +7,12 @@ import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/loading_widget.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:provider/provider.dart';
 
 class DriverHomeScreen extends StatefulWidget {
   const DriverHomeScreen({super.key});
@@ -24,7 +24,7 @@ class DriverHomeScreen extends StatefulWidget {
 class _DriverHomeScreenState extends State<DriverHomeScreen>
     with SingleTickerProviderStateMixin {
   final MapController _mapController = MapController();
-  LatLng _currentLocation = LatLng(
+  LatLng _currentLocation = const LatLng(
     AppConfig.defaultLat,
     AppConfig.defaultLng,
   );
@@ -325,17 +325,17 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
         if (isOnline)
           _buildWaitingForOrders()
         else
-          Column(
+          const Column(
             children: [
               Text(
                 'Ishlashni boshlash',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 4),
-              const Text(
+              SizedBox(height: 4),
+              Text(
                 'Online holatga o\'ting va buyurtmalar qabul qiling',
                 style: TextStyle(color: kTextSecondary, fontSize: 13),
                 textAlign: TextAlign.center,

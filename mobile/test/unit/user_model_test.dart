@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('User.fromJson', () {
     test('composes name from firstName + lastName when name is absent', () {
-      final user = User.fromJson({
+      final user = User.fromJson(const {
         'id': 'u1',
         'phone': '+998901234567',
         'firstName': 'Diyorbek',
@@ -20,14 +20,14 @@ void main() {
     });
 
     test('falls back to phone when neither name nor firstName/lastName are set', () {
-      final user = User.fromJson({'id': 'u1', 'phone': '+998901234567'});
+      final user = User.fromJson(const {'id': 'u1', 'phone': '+998901234567'});
 
       expect(user.name, isNull);
       expect(user.displayName, '+998901234567');
     });
 
     test('prefers an explicit name field if the backend ever sends one', () {
-      final user = User.fromJson({
+      final user = User.fromJson(const {
         'id': 'u1',
         'phone': '+998901234567',
         'name': 'Explicit Name',
@@ -38,7 +38,7 @@ void main() {
     });
 
     test('handles only firstName being set (no lastName)', () {
-      final user = User.fromJson({
+      final user = User.fromJson(const {
         'id': 'u1',
         'phone': '+998901234567',
         'firstName': 'Diyorbek',

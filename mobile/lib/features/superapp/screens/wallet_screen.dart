@@ -6,12 +6,29 @@ import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-class WalletScreen extends StatelessWidget {
+class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
 
   @override
+  State<WalletScreen> createState() => _WalletScreenState();
+}
+
+class _WalletScreenState extends State<WalletScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Always re-read on open: the balance may have moved since the home tab
+    // last fetched it (an order was paid, a withdrawal cleared, ...).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<SuperappProvider>().loadWalletBalance();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final balance = context.select<SuperappProvider, double>((p) => p.walletBalance);
+    final superapp = context.watch<SuperappProvider>();
+    final balance = superapp.walletBalance;
+    final walletError = superapp.walletError;
 
     return Scaffold(
       backgroundColor: agBg,
@@ -28,6 +45,13 @@ class WalletScreen extends StatelessWidget {
                     MaterialPageRoute<void>(builder: (_) => const TopUpScreen()),
                   ),
                 ),
+                if (balance == null && walletError != null) ...[
+                  const SizedBox(height: 12),
+                  _WalletErrorNotice(
+                    message: walletError,
+                    onRetry: () => superapp.loadWalletBalance(),
+                  ),
+                ],
                 const SizedBox(height: 24),
                 AgSectionTitle('Kartalar', trailing: '+ Qo\'shish', onTrailingTap: () {
                   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AddCardScreen()));
@@ -76,7 +100,10 @@ class WalletScreen extends StatelessWidget {
 
 class _BalanceCard extends StatelessWidget {
   const _BalanceCard({required this.balance, required this.onTopUp});
-  final double balance;
+
+  /// `null` while loading or after a failed load — shown as a placeholder so
+  /// the passenger is never given a fabricated figure.
+  final double? balance;
   final VoidCallback onTopUp;
 
   @override
@@ -101,7 +128,7 @@ class _BalanceCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
-              Text(Formatters.formatAmount(balance),
+              Text(balance == null ? '—' : Formatters.formatAmount(balance!),
                   style: const TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: -1)),
               const SizedBox(width: 6),
               const Text("so'm", style: TextStyle(color: Colors.white70, fontSize: 18, fontWeight: FontWeight.w700)),
@@ -259,6 +286,37 @@ class _TxnRow extends StatelessWidget {
             ),
           ),
           Text(amount, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: amountColor)),
+        ],
+      ),
+    );
+  }
+}
+
+class _WalletErrorNotice extends StatelessWidget {
+  const _WalletErrorNotice({required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: agSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: agDivider),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline_rounded, color: agRed, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(color: agText, fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ),
+          TextButton(onPressed: onRetry, child: const Text('Qayta urinish')),
         ],
       ),
     );

@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
@@ -7,6 +5,8 @@ import 'package:angren_taxi/core/socket/socket_service.dart';
 import 'package:angren_taxi/shared/models/driver.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/models/tariff.dart';
+import 'package:flutter/foundation.dart';
+import 'package:latlong2/latlong.dart';
 
 enum OrderProviderState { idle, loading, success, error }
 
@@ -178,7 +178,8 @@ class OrderProvider extends ChangeNotifier {
         },
       );
       final data = response.data as Map<String, dynamic>;
-      _estimatedPrice = (data['data']['price'] as num?)?.toDouble() ?? 0;
+      final payload = data['data'] as Map<String, dynamic>;
+      _estimatedPrice = (payload['price'] as num?)?.toDouble() ?? 0;
       notifyListeners();
     } catch (e) {
       debugPrint('[OrderProvider] estimatePrice error: $e');

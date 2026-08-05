@@ -139,11 +139,14 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      # `flutter analyze` standart holatda warning'larni ham fatal deb biladi.
-      # Kodbazada hozir 100 ta mavjud muammo bor (99 info + 1 warning), shuning
-      # uchun faqat `error` darajasi CI'ni yiqitadi.
+      # Kodbaza `flutter analyze` uchun to'liq toza (0 muammo), shuning uchun
+      # `--fatal-infos` bilan qat'iy rejimda ishlaydi: har qanday yangi info
+      # yoki warning ham CI'ni yiqitadi. `--fatal-infos` warning'larni ham
+      # avtomatik fatal qiladi. Analiz qoidalari mobile/analysis_options.yaml
+      # da (hech qanday keng qamrovli istisnosiz — faqat generated `*.g.dart`
+      # va `*.freezed.dart` chiqarib tashlangan).
       - name: Analyze
-        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+        run: flutter analyze --fatal-infos
 
       # DIQQAT: test/integration/ ATAYLAB ishga tushirilmaydi — u jonli backend
       # va --dart-define=API_BASE_URL=... talab qiladi, CI'da yiqiladi.

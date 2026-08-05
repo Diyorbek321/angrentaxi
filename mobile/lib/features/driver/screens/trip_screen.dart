@@ -1,10 +1,5 @@
 import 'dart:async';
-import 'dart:ui' show FontFeature;
-import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
-import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
+
 import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
@@ -18,6 +13,11 @@ import 'package:angren_taxi/features/trip/screens/trip_chat_screen.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class TripScreen extends StatefulWidget {
   const TripScreen({super.key, this.sosService});
@@ -33,7 +33,7 @@ class TripScreen extends StatefulWidget {
 
 class _TripScreenState extends State<TripScreen> {
   final MapController _mapController = MapController();
-  LatLng _currentLocation = LatLng(
+  LatLng _currentLocation = const LatLng(
     AppConfig.defaultLat,
     AppConfig.defaultLng,
   );
@@ -123,12 +123,12 @@ class _TripScreenState extends State<TripScreen> {
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: Column(
+        content: const Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.check_circle, color: kSuccess, size: 64),
-            const SizedBox(height: 16),
-            const Text(
+            Icon(Icons.check_circle, color: kSuccess, size: 64),
+            SizedBox(height: 16),
+            Text(
               'Safar muvaffaqiyatli yakunlandi!',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),

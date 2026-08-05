@@ -1,9 +1,9 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:angren_taxi/shared/widgets/app_text_field.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 /// Real profile editor (PATCH /users/me) — previously "Ma'lumotlarni
 /// tahrirlash" / the profile header pencil icon did nothing at all.

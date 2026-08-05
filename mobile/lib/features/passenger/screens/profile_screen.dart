@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/passenger/screens/edit_profile_screen.dart';
@@ -7,6 +5,8 @@ import 'package:angren_taxi/features/superapp/screens/support_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/wallet_screen.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class PassengerProfileScreen extends StatelessWidget {
   const PassengerProfileScreen({super.key});

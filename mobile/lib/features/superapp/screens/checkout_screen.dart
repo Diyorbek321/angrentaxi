@@ -133,6 +133,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Future<void> _submit() async {
     final superapp = context.read<SuperappProvider>();
     final kind = superapp.activeKind;
+    // Resolved before the first `await` below: `context.read` after an async
+    // gap can throw if the passenger navigated away while we waited for GPS.
+    final foodProvider = kind == 'food' ? context.read<FoodProvider>() : null;
+    final marketProvider = kind == 'food' ? null : context.read<MarketProvider>();
 
     setState(() => _submitting = true);
 
@@ -151,7 +155,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     Object? order;
     String? error;
     if (kind == 'food') {
-      final food = context.read<FoodProvider>();
+      final food = foodProvider!;
       order = await food.createOrder(
         items: superapp.cart,
         deliveryAddress: _address,
@@ -160,7 +164,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       );
       error = food.error;
     } else {
-      final market = context.read<MarketProvider>();
+      final market = marketProvider!;
       order = await market.createOrder(
         items: superapp.cart,
         deliveryAddress: _address,

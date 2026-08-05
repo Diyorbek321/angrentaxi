@@ -1,11 +1,12 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class ArrivedScreen extends StatefulWidget {
   const ArrivedScreen({super.key});
@@ -98,11 +99,11 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: kSuccess.withAlpha(80)),
       ),
-      child: Column(
+      child: const Column(
         children: [
-          const Icon(Icons.location_on, color: kSuccess, size: 48),
-          const SizedBox(height: 8),
-          const Text(
+          Icon(Icons.location_on, color: kSuccess, size: 48),
+          SizedBox(height: 8),
+          Text(
             'Olish joyida turibsiz!',
             style: TextStyle(
               fontSize: 18,
@@ -110,8 +111,8 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
               color: kSuccess,
             ),
           ),
-          const SizedBox(height: 4),
-          const Text(
+          SizedBox(height: 4),
+          Text(
             'Yo\'lovchi kelishini kuting',
             style: TextStyle(color: kTextSecondary, fontSize: 13),
           ),

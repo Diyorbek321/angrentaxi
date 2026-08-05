@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('ReferralInfo.fromJson', () {
     test('parses a full referral info response', () {
-      final info = ReferralInfo.fromJson({
+      final info = ReferralInfo.fromJson(const {
         'referralCode': 'AB12CD',
         'referredCount': 3,
         'totalBonusEarned': 15000,
@@ -18,7 +18,7 @@ void main() {
     });
 
     test('coerces an integer totalBonusEarned to double', () {
-      final info = ReferralInfo.fromJson({
+      final info = ReferralInfo.fromJson(const {
         'referralCode': 'XY99ZZ',
         'referredCount': 0,
         'totalBonusEarned': 0,
@@ -29,7 +29,7 @@ void main() {
     });
 
     test('defaults referredCount/totalBonusEarned to 0 when absent', () {
-      final info = ReferralInfo.fromJson({'referralCode': 'ZZ11AA'});
+      final info = ReferralInfo.fromJson(const {'referralCode': 'ZZ11AA'});
 
       expect(info.referredCount, 0);
       expect(info.totalBonusEarned, 0.0);

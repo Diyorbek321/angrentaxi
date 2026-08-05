@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('FavoriteAddress.fromJson', () {
     test('parses a full favorite response', () {
-      final favorite = FavoriteAddress.fromJson({
+      final favorite = FavoriteAddress.fromJson(const {
         'id': 'fav-1',
         'userId': 'user-1',
         'label': 'Uy',
@@ -25,7 +25,7 @@ void main() {
     });
 
     test('coerces integer lat/lng to double', () {
-      final favorite = FavoriteAddress.fromJson({
+      final favorite = FavoriteAddress.fromJson(const {
         'id': 'fav-2',
         'label': 'Ish',
         'address': 'Ofis',
@@ -38,7 +38,7 @@ void main() {
     });
 
     test('defaults label/address to empty string when absent', () {
-      final favorite = FavoriteAddress.fromJson({
+      final favorite = FavoriteAddress.fromJson(const {
         'id': 'fav-3',
         'lat': 41.0,
         'lng': 70.0,

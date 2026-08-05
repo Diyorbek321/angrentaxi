@@ -16,6 +16,14 @@
 // (via a mocked ApiClient + DriverProvider.acceptOrder).
 import 'dart:io';
 
+import 'package:angren_taxi/core/di/service_locator.dart';
+import 'package:angren_taxi/core/location/location_service.dart';
+import 'package:angren_taxi/core/network/api_client.dart';
+import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/core/socket/socket_service.dart';
+import 'package:angren_taxi/core/storage/local_storage.dart';
+import 'package:angren_taxi/features/driver/driver_provider.dart';
+import 'package:angren_taxi/features/driver/screens/navigation_screen.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -26,15 +34,6 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher_platform_interface/link.dart';
 import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
-
-import 'package:angren_taxi/core/di/service_locator.dart';
-import 'package:angren_taxi/core/location/location_service.dart';
-import 'package:angren_taxi/core/network/api_client.dart';
-import 'package:angren_taxi/core/network/api_endpoints.dart';
-import 'package:angren_taxi/core/socket/socket_service.dart';
-import 'package:angren_taxi/core/storage/local_storage.dart';
-import 'package:angren_taxi/features/driver/driver_provider.dart';
-import 'package:angren_taxi/features/driver/screens/navigation_screen.dart';
 
 class MockApiClient extends Mock implements ApiClient {}
 

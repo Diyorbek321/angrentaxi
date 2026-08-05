@@ -12,7 +12,7 @@ enum LocationUnavailableReason {
 
 class LocationService {
   Future<bool> requestPermission() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       return false;
     }

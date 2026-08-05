@@ -1,10 +1,10 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/trip/trip_chat_provider.dart';
 import 'package:angren_taxi/shared/models/trip_message.dart';
 import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:angren_taxi/shared/widgets/loading_widget.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 /// In-trip passenger<->driver chat screen. Shared by both the passenger and
 /// driver apps — [currentUserId] decides which side of the conversation

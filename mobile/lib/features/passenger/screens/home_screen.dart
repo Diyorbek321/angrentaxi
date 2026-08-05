@@ -1,10 +1,5 @@
 import 'dart:ui';
-import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
-import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
+
 import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
@@ -22,6 +17,12 @@ import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:angren_taxi/shared/widgets/loading_widget.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PassengerHomeScreen extends StatefulWidget {
   const PassengerHomeScreen({super.key, this.sosService});
@@ -37,7 +38,7 @@ class PassengerHomeScreen extends StatefulWidget {
 
 class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
   final MapController _mapController = MapController();
-  LatLng _currentLocation = LatLng(
+  LatLng _currentLocation = const LatLng(
     AppConfig.defaultLat,
     AppConfig.defaultLng,
   );
@@ -232,8 +233,8 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                         ),
                       ],
                     ),
-                    child: Row(
-                      children: const [
+                    child: const Row(
+                      children: [
                         Icon(Icons.my_location_rounded,
                             color: kPrimary, size: 20),
                         SizedBox(width: 10),

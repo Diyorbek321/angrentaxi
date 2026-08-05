@@ -11,15 +11,6 @@
 // operations never complete.
 import 'dart:io';
 
-import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
-import 'package:mocktail/mocktail.dart';
-import 'package:plugin_platform_interface/plugin_platform_interface.dart';
-import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
@@ -28,6 +19,14 @@ import 'package:angren_taxi/core/storage/local_storage.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/driver/screens/driver_onboarding_screen.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MockApiClient extends Mock implements ApiClient {}
 

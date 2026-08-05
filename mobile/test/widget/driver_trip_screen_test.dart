@@ -14,14 +14,6 @@
 // test/widget/sos_button_test.dart and test/widget/driver_kyc_upload_test.dart.
 // LocationService is faked via GetIt (`sl`) so TripScreen's initState map
 // centering doesn't touch the real geolocator platform channel.
-import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:mocktail/mocktail.dart';
-import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
@@ -33,6 +25,13 @@ import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/driver/screens/trip_screen.dart';
 import 'package:angren_taxi/features/trip/screens/trip_chat_screen.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MockApiClient extends Mock implements ApiClient {}
 

@@ -1,6 +1,5 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+
 import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
@@ -8,6 +7,8 @@ import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class OrderOfferScreen extends StatefulWidget {
   const OrderOfferScreen({super.key});
@@ -170,7 +171,7 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
           Container(
             width: 56,
             height: 56,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: kPrimaryYellow,
               shape: BoxShape.circle,
             ),

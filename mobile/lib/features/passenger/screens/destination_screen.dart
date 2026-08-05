@@ -1,7 +1,3 @@
-import 'package:flutter/material.dart';
-import 'package:geocoding/geocoding.dart';
-import 'package:latlong2/latlong.dart';
-import 'package:provider/provider.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/passenger/favorites_provider.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
@@ -9,6 +5,10 @@ import 'package:angren_taxi/features/passenger/screens/map_picker_screen.dart';
 import 'package:angren_taxi/shared/models/favorite_address.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/widgets/loading_widget.dart';
+import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:provider/provider.dart';
 
 class _AddressSuggestion {
   const _AddressSuggestion({

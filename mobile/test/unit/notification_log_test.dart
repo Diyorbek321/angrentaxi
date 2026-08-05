@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('NotificationLog.fromJson', () {
     test('parses a full notification response', () {
-      final notification = NotificationLog.fromJson({
+      final notification = NotificationLog.fromJson(const {
         'id': 'notif-1',
         'userId': 'user-1',
         'title': 'Safaringiz yakunlandi',
@@ -51,7 +51,7 @@ void main() {
     });
 
     test('unrecognized event string falls back to unknown', () {
-      final notification = NotificationLog.fromJson({
+      final notification = NotificationLog.fromJson(const {
         'id': 'notif-2',
         'title': 't',
         'body': 'b',
@@ -64,7 +64,7 @@ void main() {
     });
 
     test('defaults userId/title/body/read when absent', () {
-      final notification = NotificationLog.fromJson({
+      final notification = NotificationLog.fromJson(const {
         'id': 'notif-3',
         'event': 'order_accepted',
         'createdAt': '2026-07-14T10:00:00.000Z',
@@ -77,7 +77,7 @@ void main() {
     });
 
     test('two notifications with the same fields are equal (Equatable)', () {
-      final a = NotificationLog.fromJson({
+      final a = NotificationLog.fromJson(const {
         'id': 'notif-1',
         'userId': 'user-1',
         'title': 't',
@@ -86,7 +86,7 @@ void main() {
         'read': false,
         'createdAt': '2026-07-14T10:00:00.000Z',
       });
-      final b = NotificationLog.fromJson({
+      final b = NotificationLog.fromJson(const {
         'id': 'notif-1',
         'userId': 'user-1',
         'title': 't',
@@ -100,7 +100,7 @@ void main() {
     });
 
     test('copyWith(read: true) flips read without touching other fields', () {
-      final notification = NotificationLog.fromJson({
+      final notification = NotificationLog.fromJson(const {
         'id': 'notif-1',
         'userId': 'user-1',
         'title': 't',

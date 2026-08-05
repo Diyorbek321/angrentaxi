@@ -1,6 +1,6 @@
+import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
-import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 
 /// Mirrors the backend's `NotificationLog.event` values
 /// (backend/src/modules/notifications/notifications.service.ts

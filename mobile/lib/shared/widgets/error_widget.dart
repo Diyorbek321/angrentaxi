@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
+import 'package:flutter/material.dart';
 
 class AppErrorWidget extends StatelessWidget {
   const AppErrorWidget({

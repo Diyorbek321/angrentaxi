@@ -1,9 +1,9 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:angren_taxi/features/notifications/notifications_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/shared/models/notification_log.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -177,17 +177,17 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return const Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
+          Icon(
             Icons.notifications_none_rounded,
             size: 56,
             color: agMuted,
           ),
-          const SizedBox(height: 12),
-          const Text(
+          SizedBox(height: 12),
+          Text(
             "Hozircha bildirishnomalar yo'q",
             style: TextStyle(
               fontSize: 14,

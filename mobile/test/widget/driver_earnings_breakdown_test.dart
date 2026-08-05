@@ -2,14 +2,6 @@
 // added to EarningsScreen, backed by GET /orders/earnings/breakdown.
 // ApiClient is mocked with mocktail; pattern mirrors
 // driver_wallet_withdraw_test.dart.
-import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:intl/date_symbol_data_local.dart';
-import 'package:mocktail/mocktail.dart';
-import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
@@ -18,6 +10,13 @@ import 'package:angren_taxi/core/storage/local_storage.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/driver/screens/earnings_screen.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MockApiClient extends Mock implements ApiClient {}
 

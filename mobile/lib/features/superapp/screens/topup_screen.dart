@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
@@ -126,7 +128,10 @@ class _TopUpScreenState extends State<TopUpScreen> {
             child: AgPrimaryButton(
               label: '${Formatters.formatSom(_amount)} to\'ldirish',
               onPressed: () {
-                context.read<SuperappProvider>().topUp(_amount);
+                // There is no server-side top-up endpoint yet, so we must not
+                // fake a locally incremented balance. Re-read the authoritative
+                // balance from the backend instead — whatever it really is.
+                unawaited(context.read<SuperappProvider>().loadWalletBalance());
                 Navigator.of(context).pop();
               },
             ),

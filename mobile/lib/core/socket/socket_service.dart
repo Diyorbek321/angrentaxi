@@ -1,6 +1,6 @@
+import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
-import 'package:angren_taxi/core/config/app_config.dart';
 
 class SocketService {
   io.Socket? _socket;

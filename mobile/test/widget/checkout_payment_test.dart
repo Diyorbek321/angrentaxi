@@ -103,7 +103,7 @@ void main() {
 
   setUp(() {
     apiClient = MockApiClient();
-    superapp = SuperappProvider();
+    superapp = SuperappProvider(apiClient: apiClient);
     market = MarketProvider(apiClient: apiClient, socketService: SocketService());
     food = FoodProvider(apiClient: apiClient, socketService: SocketService());
 

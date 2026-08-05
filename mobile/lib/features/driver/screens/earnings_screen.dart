@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/shared/models/driver_bonus_progress.dart';
@@ -8,6 +6,8 @@ import 'package:angren_taxi/shared/models/withdrawal_request.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:angren_taxi/shared/widgets/loading_widget.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 // Which rolling window of GET /orders/earnings/breakdown is currently shown
 // in the segmented control on the earnings screen.

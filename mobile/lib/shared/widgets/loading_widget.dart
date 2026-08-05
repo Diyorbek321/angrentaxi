@@ -1,6 +1,6 @@
+import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:angren_taxi/core/config/app_theme.dart';
 
 /// Premium animated loader — a pulsing branded badge with looping glow.
 /// Used app-wide for every loading / "searching" state.

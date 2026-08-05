@@ -1,12 +1,12 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:provider/provider.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/shared/utils/validators.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:angren_taxi/shared/widgets/error_widget.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:provider/provider.dart';
 
 class PhoneScreen extends StatefulWidget {
   const PhoneScreen({super.key});
@@ -157,7 +157,7 @@ class _PhoneScreenState extends State<PhoneScreen> {
   }
 
   Widget _buildTermsText() {
-    return Text(
+    return const Text(
       'Davom etish orqali siz foydalanish shartlari va '
       'maxfiylik siyosatiga rozilik bildirasiz.',
       style: TextStyle(

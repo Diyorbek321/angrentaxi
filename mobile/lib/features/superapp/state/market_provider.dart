@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
@@ -8,6 +7,7 @@ import 'package:angren_taxi/shared/models/market_category.dart';
 import 'package:angren_taxi/shared/models/market_order.dart';
 import 'package:angren_taxi/shared/models/market_product.dart';
 import 'package:angren_taxi/shared/models/market_store.dart';
+import 'package:flutter/foundation.dart';
 
 enum MarketProviderState { idle, loading, success, error }
 

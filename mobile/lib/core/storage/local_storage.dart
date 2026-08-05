@@ -1,7 +1,8 @@
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+
 import 'package:angren_taxi/core/storage/secure_token_store.dart';
 import 'package:angren_taxi/shared/models/user.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// App-local persistence.
 ///

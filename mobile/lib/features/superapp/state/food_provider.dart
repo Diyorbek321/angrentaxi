@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
@@ -8,6 +7,7 @@ import 'package:angren_taxi/shared/models/dish.dart';
 import 'package:angren_taxi/shared/models/food_order.dart';
 import 'package:angren_taxi/shared/models/food_restaurant.dart';
 import 'package:angren_taxi/shared/models/menu_category.dart';
+import 'package:flutter/foundation.dart';
 
 enum FoodProviderState { idle, loading, success, error }
 

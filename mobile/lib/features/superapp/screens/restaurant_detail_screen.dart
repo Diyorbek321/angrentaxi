@@ -141,9 +141,8 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
 }
 
 class _RoundBtn extends StatelessWidget {
-  const _RoundBtn({required this.icon, this.color = agText, this.onTap});
+  const _RoundBtn({required this.icon, this.onTap});
   final IconData icon;
-  final Color color;
   final VoidCallback? onTap;
 
   @override
@@ -154,7 +153,7 @@ class _RoundBtn extends StatelessWidget {
         width: 44,
         height: 44,
         decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.92), borderRadius: BorderRadius.circular(14)),
-        child: Icon(icon, color: color, size: 23),
+        child: Icon(icon, color: agText, size: 23),
       ),
     );
   }

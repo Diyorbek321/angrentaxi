@@ -31,6 +31,8 @@ class _HomeTabState extends State<HomeTab> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final food = context.read<FoodProvider>();
       if (food.restaurants.isEmpty) food.loadRestaurants();
+      final superapp = context.read<SuperappProvider>();
+      if (superapp.walletBalance == null) superapp.loadWalletBalance();
     });
   }
 
@@ -45,7 +47,7 @@ class _HomeTabState extends State<HomeTab> {
 
   @override
   Widget build(BuildContext context) {
-    final balance = context.select<SuperappProvider, double>((p) => p.walletBalance);
+    final balance = context.select<SuperappProvider, double?>((p) => p.walletBalance);
     final restaurants = context.watch<FoodProvider>().restaurants;
 
     return Container(
@@ -99,7 +101,9 @@ class _Header extends StatelessWidget {
     required this.onSearch,
   });
 
-  final double balance;
+  /// `null` while the wallet balance is still loading or failed to load —
+  /// rendered as a neutral placeholder instead of a made-up figure.
+  final double? balance;
   final VoidCallback onWallet;
   final VoidCallback onNotifs;
   final VoidCallback onSearch;
@@ -151,7 +155,7 @@ class _Header extends StatelessWidget {
                       const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 17),
                       const SizedBox(width: 7),
                       Text(
-                        Formatters.formatAmount(balance),
+                        balance == null ? '—' : Formatters.formatAmount(balance!),
                         style: const TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w800),
                       ),
                     ],

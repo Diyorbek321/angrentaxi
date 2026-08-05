@@ -1,10 +1,10 @@
-import 'package:flutter/widgets.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
 import 'package:angren_taxi/core/storage/local_storage.dart';
 import 'package:angren_taxi/shared/models/user.dart';
+import 'package:flutter/widgets.dart';
 
 enum AuthState { idle, loading, otpSent, authenticated, error }
 
