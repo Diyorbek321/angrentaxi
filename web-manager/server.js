@@ -11,12 +11,20 @@
  *
  * Deployment is a long-lived Node container (Dockerfile -> Railway), so a stateful
  * websocket hop is fine here; this would not work on a serverless/edge target.
+ *
+ * ⚠️ Taking over the server has one consequence that is easy to miss: Next.js
+ * middleware does NOT run behind `app.getRequestHandler()`. `src/middleware.ts`
+ * is therefore dead weight in production here, and the route guard it provides
+ * has to be applied by this server instead — see `server/route-guard.js`.
  */
 
 const http = require('node:http');
 const path = require('node:path');
 
-const { attachSocketProxy } = require('./server/upgrade-proxy');
+const { attachSocketProxy, readCookie } = require('./server/upgrade-proxy');
+const { applyRouteGuard } = require('./server/route-guard');
+
+const SESSION_COOKIE = process.env.SESSION_COOKIE_NAME || 'manager_token';
 
 const dir = __dirname;
 const dev = process.env.NODE_ENV !== 'production';
@@ -46,6 +54,10 @@ app
   .prepare()
   .then(() => {
     const server = http.createServer((req, res) => {
+      // Stands in for src/middleware.ts, which Next never invokes behind a
+      // custom server. Without it a logged-out browser gets 200 on /dispatch.
+      if (applyRouteGuard(req, res, readCookie, SESSION_COOKIE)) return;
+
       handle(req, res).catch(() => {
         res.statusCode = 500;
         res.end('Internal Server Error');
