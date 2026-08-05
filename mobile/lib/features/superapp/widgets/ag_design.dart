@@ -1,106 +1,186 @@
+import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:flutter/material.dart';
 
+/// Superapp ekranlari `ag*` va `k*` tokenlarni aralash ishlatadi
+/// (masalan `agSurface` + `kRadiusMd`). Ikkita import saqlash o'rniga
+/// kanonik manba shu yerdan re-export qilinadi — qiymatlar baribir bitta
+/// joyda (`app_theme.dart`) e'lon qilinadi.
+export 'package:angren_taxi/core/config/app_theme.dart';
+
 // ============================================================================
-// Angren Go — design tokens lifted 1:1 from the interactive prototype.
+// Angren Go — superapp token aliases.
+//
+// ⚠️ BU FAYL O'Z QIYMATLARINI E'LON QILMAYDI.
+// Har bir `ag*` token `core/config/app_theme.dart` dagi kanonik `k*` tokenning
+// aliasi. Yangi rang/radius/soya kerak bo'lsa — avval app_theme.dart ga
+// qo'shing, keyin shu yerda alias yarating.
+//
+// Kanonik ta'rif: docs/DESIGN-TOKENS.md
 // ============================================================================
 
-const Color agGreen = Color(0xFF10A064); // primary deep green
-const Color agMint = Color(0xFF1FCA8E); // gradient start
-const Color agBright = Color(0xFF27D89B); // bright accent / gradient top
-const Color agInk = Color(0xFF0F1B22); // near-black text & dark cards
-const Color agBg = Color(0xFFF4F7F8); // app background
-const Color agSurface = Color(0xFFFFFFFF);
-const Color agText = Color(0xFF0F1B22);
-const Color agSubtle = Color(0xFF6B7785); // secondary text
-const Color agMuted = Color(0xFF9AA6B0); // tertiary / placeholders
-const Color agDivider = Color(0xFFF1F4F6);
-const Color agBorder = Color(0xFFE4E9ED);
-const Color agTint = Color(0xFFE6FAF2); // green tint surface
-const Color agRed = Color(0xFFE5484D);
-const Color agOrange = Color(0xFFF59E0B);
-const Color agBlue = Color(0xFF3B82F6);
-const Color agPurple = Color(0xFF8B5CF6);
+// --- Brand: INTERAKTIV qatlam (to'q yashil) ---
+/// Interaktiv to'ldirish (tugma, faol holat). Oq matn bilan 5.38:1.
+const Color agPrimary = kPrimary; // #0C7A4D
+const Color agPrimaryHover = kPrimaryHover; // #0A6741
+const Color agPrimaryPressed = kPrimaryPressed; // #084F32
 
-/// The signature green gradient used on every primary CTA.
-const LinearGradient agCta = LinearGradient(
-  colors: [agMint, agGreen],
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-);
+/// Interaktiv to'ldirish ustidagi matn — OQ.
+const Color agOnPrimary = kOnPrimary; // #FFFFFF
 
-/// Header radial-style green gradient (approximated with a linear gradient).
-const LinearGradient agHeader = LinearGradient(
-  colors: [agBright, agGreen],
-  begin: Alignment.topRight,
-  end: Alignment.bottomLeft,
-);
+/// Yorug' fonda ma'noli yashil MATN / ikona (5.38:1).
+const Color agGreenText = kPrimary; // #0C7A4D
 
-List<BoxShadow> agCardShadow = [
-  BoxShadow(
-    color: agInk.withValues(alpha: 0.05),
-    blurRadius: 20,
-    offset: const Offset(0, 8),
-  ),
-];
+// --- Brand: AKSENT qatlam (mint) ---
+/// ⚠️ Mint yorug' yuzada MA'NO tashimaydi (oq ustida 2.12:1).
+/// Faqat: ink matn ortidagi to'ldirish, dekorativ element, qorong'i yuza.
+const Color agMint = kMint; // #1FCA8E
+const Color agBright = kMintBright; // #27D89B
+const Color agGreen = kMintDeep; // #10A064 — aksent gradient oxiri
+const Color agTint = kMintTint; // #E6FAF2 — chip/badge foni
 
-List<BoxShadow> agSoftShadow = [
-  BoxShadow(
-    color: agInk.withValues(alpha: 0.07),
-    blurRadius: 24,
-    offset: const Offset(0, 10),
-  ),
-];
+/// Mint TO'LDIRISH ustidagi matn (7.84:1). Mint ustida oq ishlatmang.
+const Color agOnMint = kOnMint; // #06231A
 
-List<BoxShadow> agCtaShadow = [
-  BoxShadow(
-    color: agGreen.withValues(alpha: 0.32),
-    blurRadius: 28,
-    offset: const Offset(0, 14),
-  ),
-];
+// --- Neutrals ---
+const Color agInk = kInk; // #0F1B22
+const Color agBg = kBackground; // #F4F7F8
+const Color agSurface = kSurface; // #FFFFFF
+const Color agSurface2 = kSurface2; // #EDF3F4
+const Color agText = kInk; // #0F1B22
+const Color agSubtle = kInkMuted; // #5A6C75 (AA 5.47:1)
+const Color agMuted = kInkSubtle; // #78888F (large/UI 3.67:1)
+const Color agDivider = kDivider; // #F1F4F6
+const Color agBorder = kLine; // #E4E9ED
 
-/// Full-width green gradient CTA button (the prototype's primary action).
-class AgPrimaryButton extends StatelessWidget {
+// --- Status ---
+const Color agRed = kError; // #E5484D
+const Color agOrange = kWarning; // #F59E0B
+const Color agBlue = kInfo; // #3B82F6
+const Color agPurple = kAccentViolet; // #8B5CF6
+
+// --- Radii (superapp shorthand) ---
+const double agRadiusSm = kRadiusSm; // 12
+const double agRadiusMd = kRadiusMd; // 16
+const double agRadiusLg = kRadiusLg; // 22
+
+/// Interaktiv CTA gradienti — OQ matn bilan (eng och nuqta 5.38:1).
+const LinearGradient agCta = kGradientCta;
+
+/// Dekorativ mint gradient — CTA EMAS, ustiga faqat `agInk` matn.
+const LinearGradient agMintGradient = kGradientMint;
+
+/// Ekran header gradienti. Endi INTERAKTIV (to'q yashil) gradient.
+///
+/// ⚠️ Ilgari bu mint gradient edi (`#27D89B → #10A064`) va ustida oq matn
+/// turardi — eng och nuqtada atigi **1.85:1**, ya'ni jiddiy qoidabuzarlik.
+/// Header — dekorativ yuza bo'lgani uchun ikki yo'l bor edi: (a) mintni
+/// saqlab, butun header matnini `agInk` ga o'tkazish, (b) gradientni
+/// to'qlashtirib, oq matnni saqlash. Egasining qarori "fon to'qlashadi,
+/// matn oq qoladi" bo'lgani uchun (b) tanlandi — eng och nuqtada 5.38:1.
+const LinearGradient agHeader = kGradientCta;
+
+/// Dark "ink" hero card gradient (wallet, promo, referral banners).
+const LinearGradient agInkGradient = kGradientInk;
+
+final List<BoxShadow> agCardShadow = kShadowCard;
+
+final List<BoxShadow> agSoftShadow = kShadowPop;
+
+final List<BoxShadow> agCtaShadow = kShadowCta;
+
+final List<BoxShadow> agInkShadow = kShadowInk;
+
+/// To'liq kenglikdagi asosiy CTA tugmasi (superapp ekranlari).
+///
+/// `shared/widgets/app_button.dart` dagi `AppButton` bilan bir xil
+/// balandlik (`kControlHeight`), radius (`kRadiusMd`) va yozuv o'lchamiga
+/// (`kFontTitle`) ega — farqi faqat gradientli to'ldirish va glow soyasi.
+///
+/// Holatlar: normal `kGradientCta` · pressed `kPrimaryPressed` (9.66:1) ·
+/// disabled `kPrimaryDisabled` fon + `kInkMuted` yozuv (4.88:1).
+class AgPrimaryButton extends StatefulWidget {
   const AgPrimaryButton({
     super.key,
     required this.label,
     required this.onPressed,
     this.icon,
-    this.height = 56,
+    this.height = kControlHeight,
+    this.isLoading = false,
+    this.semanticsLabel,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final IconData? icon;
   final double height;
+  final bool isLoading;
+  final String? semanticsLabel;
+
+  @override
+  State<AgPrimaryButton> createState() => _AgPrimaryButtonState();
+}
+
+class _AgPrimaryButtonState extends State<AgPrimaryButton> {
+  bool _pressed = false;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        height: height,
-        decoration: BoxDecoration(
-          gradient: agCta,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: agCtaShadow,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            if (icon != null) ...[
-              const SizedBox(width: 8),
-              Icon(icon, color: Colors.white, size: 20),
-            ],
-          ],
+    final enabled = widget.onPressed != null && !widget.isLoading;
+    final fg = enabled ? agOnPrimary : kInkMuted;
+
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: widget.semanticsLabel ?? widget.label,
+      value: widget.isLoading ? 'Yuklanmoqda' : null,
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: enabled ? widget.onPressed : null,
+        onTapDown: enabled ? (_) => setState(() => _pressed = true) : null,
+        onTapUp: enabled ? (_) => setState(() => _pressed = false) : null,
+        onTapCancel: enabled ? () => setState(() => _pressed = false) : null,
+        child: AnimatedContainer(
+          duration: kDurationFast,
+          curve: kEaseStandard,
+          height: widget.height < kMinTapTarget
+              ? kMinTapTarget
+              : widget.height,
+          decoration: BoxDecoration(
+            color: enabled
+                ? (_pressed ? kPrimaryPressed : null)
+                : kPrimaryDisabled,
+            gradient: enabled && !_pressed ? agCta : null,
+            borderRadius: BorderRadius.circular(kRadiusMd),
+            boxShadow: enabled && !_pressed ? agCtaShadow : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: widget.isLoading
+                ? [
+                    SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        valueColor: AlwaysStoppedAnimation<Color>(fg),
+                      ),
+                    ),
+                  ]
+                : [
+                    Text(
+                      widget.label,
+                      style: TextStyle(
+                        color: fg,
+                        fontSize: kFontTitle,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    if (widget.icon != null) ...[
+                      const SizedBox(width: kSpace2),
+                      Icon(widget.icon, color: fg, size: 20),
+                    ],
+                  ],
+          ),
         ),
       ),
     );
@@ -127,20 +207,14 @@ class AgHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.fromLTRB(
-        16,
-        MediaQuery.of(context).padding.top + 12,
-        16,
-        14,
+        kSpace4,
+        MediaQuery.of(context).padding.top + kSpace3,
+        kSpace4,
+        kSpace3,
       ),
       decoration: BoxDecoration(
         color: agSurface,
-        boxShadow: [
-          BoxShadow(
-            color: agInk.withValues(alpha: 0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        boxShadow: agCardShadow,
       ),
       child: Row(
         children: [
@@ -148,8 +222,9 @@ class AgHeader extends StatelessWidget {
             AgIconButton(
               icon: Icons.arrow_back_rounded,
               onTap: onBack!,
+              semanticsLabel: 'Orqaga',
             ),
-          if (onBack != null) const SizedBox(width: 12),
+          if (onBack != null) const SizedBox(width: kSpace3),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -157,7 +232,7 @@ class AgHeader extends StatelessWidget {
                 Text(
                   title,
                   style: const TextStyle(
-                    fontSize: 19,
+                    fontSize: kFontH2,
                     fontWeight: FontWeight.w800,
                     color: agText,
                   ),
@@ -167,7 +242,7 @@ class AgHeader extends StatelessWidget {
                   Text(
                     subtitle!,
                     style: const TextStyle(
-                      fontSize: 12,
+                      fontSize: kFontCaption,
                       fontWeight: FontWeight.w600,
                       color: agSubtle,
                     ),
@@ -183,12 +258,17 @@ class AgHeader extends StatelessWidget {
   }
 }
 
-/// Rounded square icon button on a light-grey surface (back / action chips).
+/// Yumaloq kvadrat ikona tugmasi (orqaga, savat, bildirishnoma).
+///
+/// Vizual o'lchami 42dp bo'lsa ham, tegish maydoni har doim kamida
+/// `kMinTapTarget` (48dp) — `SizedBox` orqali kengaytiriladi.
+/// Ikonka yolg'iz o'zi ma'no tashiganligi uchun `semanticsLabel` MAJBURIY.
 class AgIconButton extends StatelessWidget {
   const AgIconButton({
     super.key,
     required this.icon,
     required this.onTap,
+    required this.semanticsLabel,
     this.background = agBg,
     this.color = agText,
     this.size = 42,
@@ -197,6 +277,10 @@ class AgIconButton extends StatelessWidget {
 
   final IconData icon;
   final VoidCallback onTap;
+
+  /// Ekran o'quvchi uchun tugmaning nomi ("Orqaga", "Savat", ...).
+  final String semanticsLabel;
+
   final Color background;
   final Color color;
   final double size;
@@ -204,45 +288,63 @@ class AgIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              color: background,
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Icon(icon, color: color, size: 22),
-          ),
-          if (badge != null)
-            Positioned(
-              top: -3,
-              right: -3,
-              child: Container(
-                constraints: const BoxConstraints(minWidth: 18),
-                height: 18,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: agRed,
-                  borderRadius: BorderRadius.circular(9),
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-                child: Text(
-                  badge!,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w800,
+    final tap = size < kMinTapTarget ? kMinTapTarget : size;
+
+    return Semantics(
+      button: true,
+      label: semanticsLabel,
+      value: badge,
+      excludeSemantics: true,
+      child: SizedBox(
+        width: tap,
+        height: tap,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(kRadiusSm),
+            child: Center(
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: size,
+                    height: size,
+                    decoration: BoxDecoration(
+                      color: background,
+                      borderRadius: BorderRadius.circular(kRadiusSm),
+                    ),
+                    child: Icon(icon, color: color, size: 22),
                   ),
-                ),
+                  if (badge != null)
+                    Positioned(
+                      top: -3,
+                      right: -3,
+                      child: Container(
+                        constraints: const BoxConstraints(minWidth: 18),
+                        height: 18,
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: agRed,
+                          borderRadius: BorderRadius.circular(kRadiusFull),
+                          border: Border.all(color: agSurface, width: 2),
+                        ),
+                        child: Text(
+                          badge!,
+                          style: const TextStyle(
+                            color: agOnPrimary,
+                            fontSize: kFontMicro,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
-        ],
+          ),
+        ),
       ),
     );
   }
@@ -265,61 +367,60 @@ class AgCartBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 56,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        decoration: BoxDecoration(
-          color: agInk,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: agInk.withValues(alpha: 0.28),
-              blurRadius: 34,
-              offset: const Offset(0, 16),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              constraints: const BoxConstraints(minWidth: 24),
-              height: 24,
-              alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(horizontal: 5),
-              decoration: BoxDecoration(
-                color: agBright,
-                borderRadius: BorderRadius.circular(8),
+    return Semantics(
+      button: true,
+      label: 'Savat: $count ta mahsulot, $trailing. $label',
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: kControlHeight,
+          padding: const EdgeInsets.symmetric(horizontal: kSpace5),
+          decoration: BoxDecoration(
+            color: agInk,
+            borderRadius: BorderRadius.circular(kRadiusMd),
+            boxShadow: agInkShadow,
+          ),
+          child: Row(
+            children: [
+              Container(
+                constraints: const BoxConstraints(minWidth: 24),
+                height: 24,
+                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(horizontal: 5),
+                decoration: BoxDecoration(
+                  color: agBright,
+                  borderRadius: BorderRadius.circular(kRadiusXs),
+                ),
+                child: Text(
+                  '$count',
+                  style: const TextStyle(
+                    color: agOnMint,
+                    fontSize: kFontLabel,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
-              child: Text(
-                '$count',
+              const SizedBox(width: kSpace2),
+              Text(
+                label,
                 style: const TextStyle(
-                  color: Color(0xFF06231A),
-                  fontSize: 13,
+                  color: agOnPrimary,
+                  fontSize: kFontBody,
                   fontWeight: FontWeight.w800,
                 ),
               ),
-            ),
-            const SizedBox(width: 9),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14.5,
-                fontWeight: FontWeight.w800,
+              const Spacer(),
+              Text(
+                trailing,
+                style: const TextStyle(
+                  color: agOnPrimary,
+                  fontSize: kFontTitle,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-            ),
-            const Spacer(),
-            Text(
-              trailing,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -340,21 +441,33 @@ class AgSectionTitle extends StatelessWidget {
         Text(
           text,
           style: const TextStyle(
-            fontSize: 17,
+            fontSize: kFontH3,
             fontWeight: FontWeight.w800,
             color: agText,
           ),
         ),
         const Spacer(),
         if (trailing != null)
-          GestureDetector(
-            onTap: onTrailingTap,
-            child: Text(
-              trailing!,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: agGreen,
+          Semantics(
+            button: onTrailingTap != null,
+            label: trailing,
+            excludeSemantics: true,
+            child: GestureDetector(
+              onTap: onTrailingTap,
+              behavior: HitTestBehavior.opaque,
+              // Yozuv kichik bo'lsa ham tegish maydoni 48dp dan kam emas.
+              child: Container(
+                constraints: const BoxConstraints(minHeight: kMinTapTarget),
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.only(left: kSpace3),
+                child: Text(
+                  trailing!,
+                  style: const TextStyle(
+                    fontSize: kFontLabel,
+                    fontWeight: FontWeight.w700,
+                    color: agGreenText,
+                  ),
+                ),
               ),
             ),
           ),

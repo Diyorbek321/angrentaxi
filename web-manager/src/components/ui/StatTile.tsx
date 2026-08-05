@@ -5,7 +5,7 @@ export type StatTone = 'neutral' | 'mint' | 'info' | 'override' | 'danger' | 'mu
 
 const toneClasses: Record<StatTone, { dot: string; value: string }> = {
   neutral: { dot: 'bg-subtle', value: 'text-ink' },
-  mint: { dot: 'bg-primary', value: 'text-primary-700 dark:text-primary-300' },
+  mint: { dot: 'bg-mint-deep', value: 'text-primary-text' },
   info: { dot: 'bg-info', value: 'text-info dark:text-blue-300' },
   override: { dot: 'bg-override', value: 'text-override-dark dark:text-override-light' },
   danger: { dot: 'bg-danger', value: 'text-danger' },

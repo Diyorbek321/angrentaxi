@@ -24,7 +24,7 @@ function LiveDot({ connected }: { connected: boolean }) {
       <span
         className={clsx(
           'h-1.5 w-1.5 rounded-full',
-          connected ? 'bg-primary animate-pulse' : 'bg-line-strong'
+          connected ? 'bg-mint-deep animate-pulse' : 'bg-line-strong'
         )}
       />
       Jonli

@@ -178,7 +178,7 @@ export function Sidebar({
                       )}
                     >
                       {active && (
-                        <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-primary" />
+                        <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-mint-deep" />
                       )}
                       <span className="relative shrink-0">
                         <Icon size={17} />

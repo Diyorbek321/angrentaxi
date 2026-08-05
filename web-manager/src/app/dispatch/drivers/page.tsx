@@ -342,7 +342,7 @@ export default function DriverRosterPage() {
                         <span
                           title={driver.isOnline ? 'Onlayn' : 'Oflayn'}
                           className={`h-2.5 w-2.5 rounded-full inline-block ${
-                            driver.isOnline ? 'bg-primary' : 'bg-line-strong'
+                            driver.isOnline ? 'bg-mint-deep' : 'bg-line-strong'
                           }`}
                         />
                       </td>

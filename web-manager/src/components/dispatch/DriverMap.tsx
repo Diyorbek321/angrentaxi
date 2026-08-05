@@ -43,7 +43,7 @@ function DensityPanel({ drivers }: { drivers: Driver[] }) {
         <span className="text-[11px] text-muted">band</span>
       </div>
       <div className="h-1.5 w-full rounded-full bg-surface-3 overflow-hidden flex">
-        <div className="h-full bg-primary" style={{ width: `${100 - busyPercent}%` }} />
+        <div className="h-full bg-mint-deep" style={{ width: `${100 - busyPercent}%` }} />
         <div className="h-full bg-line-strong" style={{ width: `${busyPercent}%` }} />
       </div>
       <p className="text-[11px] text-subtle mt-1.5">

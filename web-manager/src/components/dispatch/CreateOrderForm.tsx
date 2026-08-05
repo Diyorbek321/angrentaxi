@@ -239,7 +239,7 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
       {/* Pickup */}
       <div className="space-y-3">
         <SectionTitle
-          icon={<span className="h-2 w-2 rounded-full bg-primary ring-2 ring-primary/25" />}
+          icon={<span className="h-2 w-2 rounded-full bg-mint-deep ring-2 ring-mint/25" />}
         >
           Olib ketish
         </SectionTitle>

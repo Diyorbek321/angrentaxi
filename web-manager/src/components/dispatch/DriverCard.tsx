@@ -22,7 +22,7 @@ export function DriverCard({ driver }: DriverCardProps) {
           <span
             className={clsx(
               'absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-surface',
-              isBusy ? 'bg-line-strong' : 'bg-primary'
+              isBusy ? 'bg-line-strong' : 'bg-mint-deep'
             )}
           />
         </div>

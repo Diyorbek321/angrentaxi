@@ -194,7 +194,7 @@ export default function BonusesPage() {
                         <div className="h-1.5 rounded-full bg-surface-3 overflow-hidden">
                           <div
                             className={`h-full rounded-full transition-[width] ${
-                              done ? 'bg-primary-700' : 'bg-primary'
+                              done ? 'bg-primary' : 'bg-mint-deep'
                             }`}
                             style={{ width: `${percent}%` }}
                           />

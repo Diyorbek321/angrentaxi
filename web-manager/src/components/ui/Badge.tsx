@@ -16,7 +16,7 @@ export type BadgeVariant =
 
 const variantClasses: Record<BadgeVariant, string> = {
   default: 'bg-surface-2 text-muted border border-line',
-  primary: 'bg-primary/12 text-primary-dark dark:text-primary border border-primary/30',
+  primary: 'bg-mint/12 text-primary-text border border-mint/30',
   success: 'bg-primary-700/10 text-primary-700 dark:text-primary-300 border border-primary-700/25',
   warning: 'bg-override/12 text-override-dark dark:text-override-light border border-override/30',
   danger: 'bg-danger/12 text-danger border border-danger/30',

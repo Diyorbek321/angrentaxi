@@ -125,7 +125,7 @@ export function OrderCard({
         {/* Route */}
         <div className="space-y-1.5">
           <div className="flex items-start gap-2">
-            <span className="mt-1 h-2 w-2 rounded-full bg-primary shrink-0 ring-2 ring-primary/25" />
+            <span className="mt-1 h-2 w-2 rounded-full bg-mint-deep shrink-0 ring-2 ring-mint/25" />
             <p className="text-xs text-muted leading-snug line-clamp-2">{order.pickupAddress ?? '—'}</p>
           </div>
           <div className="flex items-start gap-2">

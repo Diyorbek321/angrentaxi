@@ -1,21 +1,34 @@
 /**
- * Angren Mint Design System — dispetcher paneli (web-manager).
- *
+ * Angren Mint Design System — panel uchun tayyor tailwind.config.js
  * YAGONA MANBA: docs/DESIGN-TOKENS.md
- * Bu konfiguratsiyadagi barcha qiymatlar mobil ilovaning
- * `mobile/lib/core/config/app_theme.dart` fayli bilan 1:1 mos.
- * Qiymatni faqat DESIGN-TOKENS.md bilan birga o'zgartiring.
  *
- * Boshqa panellar uchun tayyor nusxa: docs/design/tailwind-mint.config.js
+ * QANDAY ISHLATILADI
+ * 1. Shu faylni panelning `tailwind.config.js` fayliga NUSXALANG.
+ * 2. `content` massivini panelning papka tuzilishiga moslang (pastda TODO).
+ * 3. `docs/design/globals-mint.css` ni `src/app/globals.css` ga nusxalang —
+ *    bu konfiguratsiya undagi CSS o'zgaruvchilarsiz ISHLAMAYDI.
+ * 4. Panelga xos rang/animatsiya kerak bo'lsa — faylning oxiridagi
+ *    "panel-spetsifik" bo'limiga qo'shing, token bloklarini o'zgartirmang.
+ *
+ * ⚠️ ENG MUHIM QOIDA — IKKI QATLAMNI ADASHTIRMANG:
+ *      `bg-primary`  + `text-white`     → tugma, faol toggle, interaktiv fon
+ *      `bg-mint`     + `text-mint-on`   → chip, badge, dekorativ to'ldirish
+ *      `bg-mint-deep`                   → yorug' fonda ko'rinishi shart bo'lgan
+ *                                         mint indikator (status nuqtasi)
+ *    `text-white` ni HECH QACHON `bg-mint` ustida ishlatmang (2.12:1).
  *
  * @type {import('tailwindcss').Config}
  */
 module.exports = {
   darkMode: 'class',
+  // TODO(panel): panelning haqiqiy papka tuzilishiga moslang.
   content: [
-    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './app/**/*.{ts,tsx}',
+    './components/**/*.{ts,tsx}',
+    './pages/**/*.{ts,tsx}',
   ],
   theme: {
     extend: {
@@ -140,8 +153,8 @@ module.exports = {
 
       // Kanonik radius shkalasi (mobil kRadius* bilan bir xil px).
       // ⚠️ Tailwind'ning standart `rounded-lg/xl/md` nomlari ATAYLAB
-      // qayta belgilanmadi — panelda 83 joyda ishlatilgan, ularni bir zarbada
-      // o'zgartirish butun UI ni buzadi. Yangi kod `rounded-ds-*` ishlatsin.
+      // qayta belgilanmagan — mavjud panellarda yuzlab joyda ishlatilgan.
+      // Yangi kod `rounded-ds-*` ishlatsin.
       // (`ds` = design system; `mint` endi rang qatlamining nomi.)
       borderRadius: {
         'ds-xs': 'var(--radius-xs)', // 8px  — badge, kichik teg
@@ -209,6 +222,10 @@ module.exports = {
         'slide-in-right': 'slide-in-right 200ms cubic-bezier(0.32, 0.72, 0, 1)',
         'slide-up': 'slide-up 150ms cubic-bezier(0, 0, 0.2, 1)',
       },
+
+      // === PANEL-SPETSIFIK QO'SHIMCHALAR SHU YERGA ===
+      // Masalan: web-market uchun "stok tugadi" rangi, web-restaurant uchun
+      // "tayyorlanmoqda" holati. Yuqoridagi tokenlarni O'ZGARTIRMANG.
     },
   },
   plugins: [],

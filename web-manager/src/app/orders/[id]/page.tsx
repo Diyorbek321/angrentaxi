@@ -269,7 +269,7 @@ export default function OrderDetailPage() {
             </CardHeader>
             <div className="space-y-3">
               <div className="flex items-start gap-2.5">
-                <span className="mt-1 h-2.5 w-2.5 rounded-full bg-primary shrink-0 ring-2 ring-primary/25" />
+                <span className="mt-1 h-2.5 w-2.5 rounded-full bg-mint-deep shrink-0 ring-2 ring-mint/25" />
                 <div className="min-w-0">
                   <p className="text-xs text-subtle mb-0.5">Olib ketish</p>
                   <p className="text-sm text-ink">{order.pickupAddress ?? '—'}</p>

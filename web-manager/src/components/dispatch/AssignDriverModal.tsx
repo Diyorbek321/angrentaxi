@@ -103,7 +103,7 @@ export function AssignDriverModal({
           {/* Order summary */}
           <div className="rounded-lg border border-line bg-surface-2/60 p-3 space-y-2">
             <div className="flex items-start gap-2">
-              <span className="mt-1 h-2 w-2 rounded-full bg-primary shrink-0 ring-2 ring-primary/25" />
+              <span className="mt-1 h-2 w-2 rounded-full bg-mint-deep shrink-0 ring-2 ring-mint/25" />
               <p className="text-xs text-ink">{order.pickupAddress ?? '—'}</p>
             </div>
             <div className="flex items-start gap-2">

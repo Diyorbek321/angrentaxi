@@ -1,3 +1,18 @@
+/* ==========================================================================
+   Angren Mint Design System — panel uchun tayyor globals.css
+   YAGONA MANBA: docs/DESIGN-TOKENS.md
+
+   QANDAY ISHLATILADI
+   1. Shu faylni panelning `src/app/globals.css` fayliga NUSXALANG.
+   2. Panelga xos qismlarni (leaflet, chart, panel-spetsifik utility'lar)
+      shu faylning OXIRIGA qo'shing — token bloklarini o'zgartirmang.
+   3. `docs/design/tailwind-mint.config.js` ni `tailwind.config.js` ga nusxalang.
+   4. `app/layout.tsx` ga `.dark` klassini <html> ga qo'yadigan
+      pre-hydration skriptini qo'shing (web-manager'dagidek).
+
+   ⚠️ Bu fayl panel-spetsifik hech narsa saqlamaydi.
+   ========================================================================== */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -9,9 +24,9 @@
      Bu blok mobil ilovaning lib/core/config/app_theme.dart fayli bilan
      1:1 mos. Qiymatni faqat DESIGN-TOKENS.md bilan birga o'zgartiring.
 
-     Light is the default; `.dark` is toggled on <html> by the pre-hydration
-     script in app/layout.tsx. Theme-dependent tokens are space-separated RGB
-     channels so Tailwind's `/opacity` modifier works (see tailwind.config.js).
+     Yorug' tema — standart. `.dark` klassi <html> ga pre-hydration skripti
+     orqali qo'yiladi (app/layout.tsx). Temaga bog'liq tokenlar bo'sh joy
+     bilan ajratilgan RGB kanallar — shunda `/opacity` modifikatori ishlaydi.
      ========================================================================== */
   :root {
     color-scheme: light;
@@ -209,35 +224,6 @@
   }
 }
 
-/* Leaflet renders its own chrome; pull it into the theme. */
-.leaflet-container {
-  background: rgb(var(--surface-2));
-  font-family: inherit;
-}
-
-.dark .leaflet-tile-pane {
-  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9) saturate(0.75);
-}
-
-.leaflet-popup-content-wrapper,
-.leaflet-popup-tip {
-  background: rgb(var(--surface));
-  color: rgb(var(--ink));
-  box-shadow: var(--shadow-pop);
-}
-
-.leaflet-popup-content-wrapper {
-  border-radius: var(--radius-sm);
-}
-
-.leaflet-bar a,
-.leaflet-control-attribution {
-  background: rgb(var(--surface));
-  color: rgb(var(--ink-muted));
-  border-color: rgb(var(--line));
-}
-
-.leaflet-bar a:hover {
-  background: rgb(var(--surface-2));
-  color: rgb(var(--ink));
-}
+/* ==========================================================================
+   Panel-spetsifik qo'shimchalar SHU YERDAN PASTGA yoziladi.
+   ========================================================================== */
