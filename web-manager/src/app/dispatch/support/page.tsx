@@ -11,8 +11,7 @@ import {
   SupportMessage,
   SupportThreadListItem,
 } from '@/lib/api';
-import { getSocket, SOCKET_EVENTS } from '@/lib/socket';
-import { getAuthToken } from '@/lib/auth';
+import { ensureSocket, subscribeToSocket, SOCKET_EVENTS } from '@/lib/socket';
 import { useSupportThreads } from '@/hooks/useSupportThreads';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -45,16 +44,17 @@ export default function SupportPage() {
 
   const selectThread = useCallback(
     (id: string) => {
-      const token = getAuthToken();
-      if (token && selectedIdRef.current) {
-        getSocket(token).emit(SOCKET_EVENTS.LEAVE_SUPPORT_THREAD, {
-          threadId: selectedIdRef.current,
-        });
-      }
+      // Room swap is fire-and-forget: the selection must update immediately even
+      // if the socket is still being set up, so the emits ride on the promise.
+      const leaving = selectedIdRef.current;
       setSelectedId(id);
-      if (token) {
-        getSocket(token).emit(SOCKET_EVENTS.JOIN_SUPPORT_THREAD, { threadId: id });
-      }
+      void ensureSocket().then((socket) => {
+        if (!socket) return;
+        if (leaving) {
+          socket.emit(SOCKET_EVENTS.LEAVE_SUPPORT_THREAD, { threadId: leaving });
+        }
+        socket.emit(SOCKET_EVENTS.JOIN_SUPPORT_THREAD, { threadId: id });
+      });
     },
     []
   );
@@ -70,19 +70,17 @@ export default function SupportPage() {
   }, [selectedId, refetchThreads]);
 
   useEffect(() => {
-    const token = getAuthToken();
-    if (!token) return;
-    const socket = getSocket(token);
-
     const handleNewMessage = (message: SupportMessage) => {
       if (message.threadId !== selectedIdRef.current) return;
       setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
     };
 
-    socket.on(SOCKET_EVENTS.SUPPORT_MESSAGE_NEW, handleNewMessage);
-    return () => {
-      socket.off(SOCKET_EVENTS.SUPPORT_MESSAGE_NEW, handleNewMessage);
-    };
+    return subscribeToSocket((socket) => {
+      socket.on(SOCKET_EVENTS.SUPPORT_MESSAGE_NEW, handleNewMessage);
+      return () => {
+        socket.off(SOCKET_EVENTS.SUPPORT_MESSAGE_NEW, handleNewMessage);
+      };
+    });
   }, []);
 
   // Keep the newest message in view as the conversation grows.

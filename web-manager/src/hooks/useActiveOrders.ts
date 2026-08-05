@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { getActiveOrders, Order } from '@/lib/api';
-import { getSocket, SOCKET_EVENTS } from '@/lib/socket';
-import { getAuthToken } from '@/lib/auth';
+import { subscribeToSocket, SOCKET_EVENTS } from '@/lib/socket';
 import { ACTIVE_ORDER_STATUSES } from '@/lib/constants';
 
 export interface UseActiveOrdersReturn {
@@ -48,11 +47,6 @@ export function useActiveOrders(): UseActiveOrdersReturn {
   }, [fetchOrders]);
 
   useEffect(() => {
-    const token = getAuthToken();
-    if (!token) return;
-
-    const socket = getSocket(token);
-
     const handleOrderCreated = (newOrder: Order) => {
       if (!mountedRef.current) return;
       setOrders((prev) => {
@@ -84,17 +78,20 @@ export function useActiveOrders(): UseActiveOrdersReturn {
       setOrders((prev) => prev.filter((o) => o.id !== completedOrder.id));
     };
 
-    socket.on(SOCKET_EVENTS.ORDER_CREATED, handleOrderCreated);
-    socket.on(SOCKET_EVENTS.ORDER_UPDATED, handleOrderUpdated);
-    socket.on(SOCKET_EVENTS.ORDER_CANCELLED, handleOrderCancelled);
-    socket.on(SOCKET_EVENTS.ORDER_COMPLETED, handleOrderCompleted);
+    // Deferred: the socket needs a token fetched from our own API before it exists.
+    return subscribeToSocket((socket) => {
+      socket.on(SOCKET_EVENTS.ORDER_CREATED, handleOrderCreated);
+      socket.on(SOCKET_EVENTS.ORDER_UPDATED, handleOrderUpdated);
+      socket.on(SOCKET_EVENTS.ORDER_CANCELLED, handleOrderCancelled);
+      socket.on(SOCKET_EVENTS.ORDER_COMPLETED, handleOrderCompleted);
 
-    return () => {
-      socket.off(SOCKET_EVENTS.ORDER_CREATED, handleOrderCreated);
-      socket.off(SOCKET_EVENTS.ORDER_UPDATED, handleOrderUpdated);
-      socket.off(SOCKET_EVENTS.ORDER_CANCELLED, handleOrderCancelled);
-      socket.off(SOCKET_EVENTS.ORDER_COMPLETED, handleOrderCompleted);
-    };
+      return () => {
+        socket.off(SOCKET_EVENTS.ORDER_CREATED, handleOrderCreated);
+        socket.off(SOCKET_EVENTS.ORDER_UPDATED, handleOrderUpdated);
+        socket.off(SOCKET_EVENTS.ORDER_CANCELLED, handleOrderCancelled);
+        socket.off(SOCKET_EVENTS.ORDER_COMPLETED, handleOrderCompleted);
+      };
+    });
   }, []);
 
   return { orders, isLoading, error, refetch: fetchOrders };

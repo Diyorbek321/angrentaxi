@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,7 +10,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
 import { authApi } from '@/lib/api';
-import { authStorage, isValidUzPhone, formatPhone } from '@/lib/auth';
+import { isValidUzPhone, formatPhone } from '@/lib/auth';
+import { sanitizeNextPath } from '@/lib/route-guard';
 import { useAuth } from '@/hooks/useAuth';
 
 const phoneSchema = z.object({
@@ -38,6 +39,18 @@ export default function LoginPage() {
   const [phone, setPhone] = useState('');
   const [devOtpCode, setDevOtpCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Where to land after a successful login. The middleware puts the originally
+  // requested path in ?next=; `sanitizeNextPath` refuses anything that is not a
+  // plain path on this origin, so the parameter cannot become an open redirect.
+  // Read from `window` rather than `useSearchParams` so the page still prerenders
+  // without a Suspense boundary.
+  const [nextPath, setNextPath] = useState('/dashboard');
+
+  useEffect(() => {
+    const param = new URLSearchParams(window.location.search).get('next');
+    setNextPath(sanitizeNextPath(param));
+  }, []);
 
   const phoneForm = useForm<PhoneForm>({
     resolver: zodResolver(phoneSchema),
@@ -79,14 +92,16 @@ export default function LoginPage() {
   const handleVerifyOtp = async (data: OtpForm) => {
     setIsLoading(true);
     try {
-      const res = await authApi.verifyOtp(phone, data.code);
-      const { accessToken, user } = res.data.data;
-      login(accessToken, user);
+      // The token pair is set as httpOnly cookies inside /api/auth/login and
+      // never reaches this code — only the profile comes back.
+      const user = await authApi.verifyOtp(phone, data.code);
+      login(user);
       toast({ title: 'Muvaffaqiyatli kirildi', variant: 'success' });
-      router.push('/dashboard');
+      router.push(nextPath);
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (err instanceof Error && err.message ? err.message : null) ||
         'Noto\'g\'ri kod';
       toast({ title: 'Xatolik', description: message, variant: 'error' });
     } finally {

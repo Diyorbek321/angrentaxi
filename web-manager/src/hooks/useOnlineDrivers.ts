@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { getOnlineDrivers, Driver, Coordinates } from '@/lib/api';
-import { getSocket, SOCKET_EVENTS } from '@/lib/socket';
-import { getAuthToken } from '@/lib/auth';
+import { subscribeToSocket, SOCKET_EVENTS } from '@/lib/socket';
 
 export interface UseOnlineDriversReturn {
   drivers: Driver[];
@@ -66,11 +65,6 @@ export function useOnlineDrivers(): UseOnlineDriversReturn {
   }, [fetchDrivers]);
 
   useEffect(() => {
-    const token = getAuthToken();
-    if (!token) return;
-
-    const socket = getSocket(token);
-
     const handleDriverStatusChanged = (payload: DriverStatusPayload) => {
       if (!mountedRef.current) return;
       setDrivers((prev) => {
@@ -107,17 +101,21 @@ export function useOnlineDrivers(): UseOnlineDriversReturn {
       setDrivers((prev) => prev.filter((d) => d.id !== payload.driverId));
     };
 
-    socket.on(SOCKET_EVENTS.DRIVER_STATUS_CHANGED, handleDriverStatusChanged);
-    socket.on(SOCKET_EVENTS.DRIVER_LOCATION, handleDriverLocation);
-    socket.on(SOCKET_EVENTS.DRIVER_ONLINE, handleDriverOnline);
-    socket.on(SOCKET_EVENTS.DRIVER_OFFLINE, handleDriverOffline);
+    // The socket is only reachable asynchronously now (its handshake token has
+    // to be fetched), so subscription is deferred until it exists.
+    return subscribeToSocket((socket) => {
+      socket.on(SOCKET_EVENTS.DRIVER_STATUS_CHANGED, handleDriverStatusChanged);
+      socket.on(SOCKET_EVENTS.DRIVER_LOCATION, handleDriverLocation);
+      socket.on(SOCKET_EVENTS.DRIVER_ONLINE, handleDriverOnline);
+      socket.on(SOCKET_EVENTS.DRIVER_OFFLINE, handleDriverOffline);
 
-    return () => {
-      socket.off(SOCKET_EVENTS.DRIVER_STATUS_CHANGED, handleDriverStatusChanged);
-      socket.off(SOCKET_EVENTS.DRIVER_LOCATION, handleDriverLocation);
-      socket.off(SOCKET_EVENTS.DRIVER_ONLINE, handleDriverOnline);
-      socket.off(SOCKET_EVENTS.DRIVER_OFFLINE, handleDriverOffline);
-    };
+      return () => {
+        socket.off(SOCKET_EVENTS.DRIVER_STATUS_CHANGED, handleDriverStatusChanged);
+        socket.off(SOCKET_EVENTS.DRIVER_LOCATION, handleDriverLocation);
+        socket.off(SOCKET_EVENTS.DRIVER_ONLINE, handleDriverOnline);
+        socket.off(SOCKET_EVENTS.DRIVER_OFFLINE, handleDriverOffline);
+      };
+    });
   }, []);
 
   return { drivers, isLoading, error, refetch: fetchDrivers };

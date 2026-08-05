@@ -1,32 +1,27 @@
-import axios, { AxiosError } from 'axios';
-import Cookies from 'js-cookie';
+import axios from 'axios';
+import { attachAuthInterceptor } from './session';
+
+/**
+ * Requests go to this app's own /api/proxy, not to the backend directly. The
+ * route handler there reads the httpOnly session cookie and adds the Bearer
+ * header server-side, which is what keeps the token out of reach of page scripts.
+ *
+ * The backend host is therefore a *server* setting now (API_URL /
+ * NEXT_PUBLIC_API_URL, resolved in lib/server/api-config.ts) and no longer needs
+ * to be baked into the browser bundle.
+ */
+export const API_PROXY_BASE_URL = '/api/proxy';
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1',
+  baseURL: API_PROXY_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
+  // Same-origin now, so the session cookie rides along automatically.
+  withCredentials: true,
 });
 
-api.interceptors.request.use((config) => {
-  const token = Cookies.get('access_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-api.interceptors.response.use(
-  (res) => res,
-  async (err: AxiosError) => {
-    if (err.response?.status === 401) {
-      Cookies.remove('access_token');
-      Cookies.remove('vendor_user');
-      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
-    }
-    return Promise.reject(err);
-  }
-);
+// Handles 401 -> single-flight refresh -> retry. See lib/session.ts for why the
+// refresh must never run more than once at a time.
+attachAuthInterceptor(api);
 
 export default api;
 
@@ -50,11 +45,39 @@ export const authApi = {
   sendOtp: (phone: string) =>
     api.post<ApiResponse<{ message: string; code?: string }>>('/auth/send-otp', { phone }),
 
-  verifyOtp: (phone: string, code: string) =>
-    api.post<ApiResponse<{ accessToken: string; user: VendorUser }>>('/auth/verify-otp', {
-      phone,
-      code,
-    }),
+  /**
+   * Verified through our own route handler, not the backend.
+   *
+   * That handler turns the token pair into httpOnly cookies (and applies the
+   * role gate before writing them); calling the backend from here would hand the
+   * tokens back to page JS, which is precisely what we are removing. Only the
+   * profile comes back.
+   */
+  verifyOtp: async (phone: string, code: string): Promise<VendorUser> => {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, code }),
+      credentials: 'same-origin',
+    });
+
+    const payload = (await res.json().catch(() => null)) as
+      | { data?: { user?: VendorUser }; message?: string }
+      | null;
+
+    if (!res.ok || !payload?.data?.user) {
+      throw new Error(payload?.message || "Noto'g'ri kod");
+    }
+
+    return payload.data.user;
+  },
+
+  /**
+   * Revokes the refresh token server-side and clears the cookies. The refresh
+   * token is not readable here, so this cannot be a plain backend call any more.
+   */
+  logout: () =>
+    fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }).catch(() => {}),
 };
 
 // ─── Market domain types ──────────────────────────────────────────

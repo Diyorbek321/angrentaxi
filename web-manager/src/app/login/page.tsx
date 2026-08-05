@@ -7,7 +7,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { ArrowRight, Car, Lock, Phone } from 'lucide-react';
 import { sendOtp, verifyOtp } from '@/lib/api';
-import { setAuthToken, setUser, isAuthenticated } from '@/lib/auth';
+import { setUser, isAuthenticated } from '@/lib/auth';
+import { sanitizeNextPath } from '@/lib/route-guard';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
@@ -29,6 +30,18 @@ export default function LoginPage() {
   const [phone, setPhone] = useState('');
   const [devOtpCode, setDevOtpCode] = useState('');
   const [authError, setAuthError] = useState<string | null>(null);
+
+  // Where to land after a successful login. The middleware puts the originally
+  // requested path in ?next=; `sanitizeNextPath` refuses anything that is not a
+  // plain path on this origin, so the parameter cannot become an open redirect.
+  // Read from `window` rather than `useSearchParams` so the page still prerenders
+  // without a Suspense boundary.
+  const [nextPath, setNextPath] = useState('/dispatch');
+
+  useEffect(() => {
+    const param = new URLSearchParams(window.location.search).get('next');
+    setNextPath(sanitizeNextPath(param));
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated()) {
@@ -65,16 +78,18 @@ export default function LoginPage() {
   const handleVerifyOtp = async (data: OtpForm) => {
     setAuthError(null);
     try {
+      // The tokens are set as httpOnly cookies inside /api/auth/login and never
+      // reach this code; the role check now lives there too, where it cannot be
+      // stepped around by calling the backend directly.
       const result = await verifyOtp(phone, data.code);
-      if (result.user.role !== 'manager' && result.user.role !== 'admin') {
-        setAuthError('Bu panel faqat menejerlar uchun.');
-        return;
-      }
-      setAuthToken(result.token);
       setUser(result.user);
-      router.replace('/dispatch');
-    } catch {
-      setAuthError('Notoʻgʻri kod. Qaytadan urinib koʻring.');
+      router.replace(nextPath);
+    } catch (err) {
+      setAuthError(
+        err instanceof Error && err.message
+          ? err.message
+          : 'Notoʻgʻri kod. Qaytadan urinib koʻring.'
+      );
     }
   };
 

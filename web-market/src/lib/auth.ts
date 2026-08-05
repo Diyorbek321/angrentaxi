@@ -1,7 +1,19 @@
 import Cookies from 'js-cookie';
 import { VendorUser } from './api';
 
-const TOKEN_KEY = 'access_token';
+/**
+ * Client-side view of the session.
+ *
+ * There is deliberately no token accessor here any more. The access and refresh
+ * tokens live in httpOnly cookies written by the /api/auth/* route handlers, so
+ * page scripts — including anything an XSS hole manages to run — cannot read
+ * them. What is left on this side is the user profile, which is display data.
+ *
+ * `isAuthenticated()` therefore answers from the cached profile rather than from
+ * a token. That is a UI hint only: the cookie is what the middleware checks, and
+ * the backend is what actually decides.
+ */
+
 const USER_KEY = 'vendor_user';
 
 const COOKIE_OPTIONS = {
@@ -11,19 +23,6 @@ const COOKIE_OPTIONS = {
 };
 
 export const authStorage = {
-  getToken(): string | null {
-    if (typeof window === 'undefined') return null;
-    return Cookies.get(TOKEN_KEY) || null;
-  },
-
-  setToken(token: string): void {
-    Cookies.set(TOKEN_KEY, token, COOKIE_OPTIONS);
-  },
-
-  removeToken(): void {
-    Cookies.remove(TOKEN_KEY);
-  },
-
   getUser(): VendorUser | null {
     if (typeof window === 'undefined') return null;
     const raw = Cookies.get(USER_KEY);
@@ -44,11 +43,14 @@ export const authStorage = {
   },
 
   isAuthenticated(): boolean {
-    return !!this.getToken();
+    return !!this.getUser();
   },
 
+  /**
+   * Only clears what this side owns. The httpOnly session cookies can only be
+   * removed by the server, which /api/auth/logout does.
+   */
   clearAll(): void {
-    this.removeToken();
     this.removeUser();
   },
 };

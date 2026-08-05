@@ -15,7 +15,8 @@ interface AuthContextValue {
   user: AdminUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (token: string, user: AdminUser) => void;
+  /** No token argument: it is set as an httpOnly cookie by /api/auth/login. */
+  login: (user: AdminUser) => void;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -50,11 +51,9 @@ export function useAuthState() {
   }, []);
 
   useEffect(() => {
-    const token = authStorage.getToken();
-    if (!token) {
-      setIsLoading(false);
-      return;
-    }
+    // The token is no longer visible from here, so the cached profile is the
+    // starting point. When it is missing we ask the backend: the request either
+    // succeeds on the strength of the session cookie, or 401s and clears up.
     const cached = authStorage.getUser();
     if (cached) {
       setUser(cached);
@@ -64,8 +63,7 @@ export function useAuthState() {
     }
   }, [refreshUser]);
 
-  const login = useCallback((token: string, adminUser: AdminUser) => {
-    authStorage.setToken(token);
+  const login = useCallback((adminUser: AdminUser) => {
     authStorage.setUser(adminUser);
     setUser(adminUser);
   }, []);

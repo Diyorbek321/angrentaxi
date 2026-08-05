@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { getSupportThreads, SupportThreadListItem } from '@/lib/api';
-import { getSocket, SOCKET_EVENTS } from '@/lib/socket';
-import { getAuthToken } from '@/lib/auth';
+import { subscribeToSocket, SOCKET_EVENTS } from '@/lib/socket';
 
 export interface UseSupportThreadsReturn {
   threads: SupportThreadListItem[];
@@ -46,11 +45,6 @@ export function useSupportThreads(): UseSupportThreadsReturn {
   }, [fetchThreads]);
 
   useEffect(() => {
-    const token = getAuthToken();
-    if (!token) return;
-
-    const socket = getSocket(token);
-
     // Payload shape differs from the joined list-item shape (no userName/
     // userPhone/unreadCount) — simplest correct approach is a full refetch
     // rather than a partial client-side merge.
@@ -59,11 +53,14 @@ export function useSupportThreads(): UseSupportThreadsReturn {
       fetchThreads();
     };
 
-    socket.on(SOCKET_EVENTS.SUPPORT_THREAD_UPDATED, handleThreadUpdated);
+    // Deferred: the socket needs a token fetched from our own API before it exists.
+    return subscribeToSocket((socket) => {
+      socket.on(SOCKET_EVENTS.SUPPORT_THREAD_UPDATED, handleThreadUpdated);
 
-    return () => {
-      socket.off(SOCKET_EVENTS.SUPPORT_THREAD_UPDATED, handleThreadUpdated);
-    };
+      return () => {
+        socket.off(SOCKET_EVENTS.SUPPORT_THREAD_UPDATED, handleThreadUpdated);
+      };
+    });
   }, [fetchThreads]);
 
   return { threads, isLoading, error, refetch: fetchThreads };

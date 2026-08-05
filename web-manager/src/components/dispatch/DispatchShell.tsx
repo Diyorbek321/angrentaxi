@@ -89,8 +89,10 @@ function ShellHeader({
     router.push(`/orders?q=${encodeURIComponent(q)}`);
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    // Awaited so the refresh token is revoked server-side before we navigate —
+    // navigating first can cancel the in-flight request and leave it live.
+    await logout();
     router.replace('/login');
   };
 

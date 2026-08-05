@@ -2,15 +2,16 @@
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { VendorUser } from '@/lib/api';
+import { VendorUser, authApi } from '@/lib/api';
 import { authStorage } from '@/lib/auth';
 
 interface AuthContextValue {
   user: VendorUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (token: string, user: VendorUser) => void;
-  logout: () => void;
+  /** No token argument: it is set as an httpOnly cookie by /api/auth/login. */
+  login: (user: VendorUser) => void;
+  logout: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextValue>({
@@ -18,7 +19,7 @@ export const AuthContext = createContext<AuthContextValue>({
   isLoading: true,
   isAuthenticated: false,
   login: () => {},
-  logout: () => {},
+  logout: async () => {},
 });
 
 export function useAuth(): AuthContextValue {
@@ -31,21 +32,25 @@ export function useAuthState() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = authStorage.getToken();
+    // The token is no longer visible from here — the cached profile is what tells
+    // us a session was established. The cookie is the authoritative signal and
+    // the middleware is what checks it.
     const cached = authStorage.getUser();
-    if (token && cached) {
+    if (cached) {
       setUser(cached);
     }
     setIsLoading(false);
   }, []);
 
-  const login = useCallback((token: string, vendorUser: VendorUser) => {
-    authStorage.setToken(token);
+  const login = useCallback((vendorUser: VendorUser) => {
     authStorage.setUser(vendorUser);
     setUser(vendorUser);
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    // Awaited so the refresh token is revoked server-side before we navigate —
+    // navigating first can cancel the in-flight request and leave it live.
+    await authApi.logout();
     authStorage.clearAll();
     setUser(null);
     router.push('/login');

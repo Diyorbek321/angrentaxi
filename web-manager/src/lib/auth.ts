@@ -1,6 +1,16 @@
-import Cookies from 'js-cookie';
+/**
+ * Client-side view of the session.
+ *
+ * There is deliberately no `getAuthToken()` here any more. The access and refresh
+ * tokens live in httpOnly cookies written by the /api/auth/* route handlers, which
+ * means page scripts — including anything an XSS hole manages to run — cannot read
+ * them. What is left on this side is the user profile, which is display data.
+ *
+ * Because of that, "am I logged in?" is now answered from the cached profile
+ * rather than from a token. That is a UI hint only: the cookie is what the
+ * middleware checks, and the backend is what actually decides.
+ */
 
-const TOKEN_KEY = 'manager_token';
 const USER_KEY = 'manager_user';
 
 export interface ManagerUser {
@@ -9,22 +19,6 @@ export interface ManagerUser {
   firstName: string | null;
   lastName: string | null;
   role: string;
-}
-
-export function setAuthToken(token: string): void {
-  Cookies.set(TOKEN_KEY, token, {
-    expires: 7,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-  });
-}
-
-export function getAuthToken(): string | undefined {
-  return Cookies.get(TOKEN_KEY);
-}
-
-export function removeAuthToken(): void {
-  Cookies.remove(TOKEN_KEY);
 }
 
 export function setUser(user: ManagerUser): void {
@@ -51,10 +45,21 @@ export function clearUser(): void {
 }
 
 export function isAuthenticated(): boolean {
-  return !!getAuthToken();
+  return !!getUser();
 }
 
-export function logout(): void {
-  removeAuthToken();
-  clearUser();
+/**
+ * Revokes the refresh token server-side, then drops the local profile.
+ *
+ * The route handler clears the cookies and swallows backend failures, so the
+ * browser always ends up logged out even when the API is unreachable.
+ */
+export async function logout(): Promise<void> {
+  try {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+  } catch {
+    // Network failure must not leave the user stuck in a half-logged-in panel.
+  } finally {
+    clearUser();
+  }
 }

@@ -1,5 +1,6 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
-export const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3000';
+// The backend URL is resolved in exactly one place now — `lib/server/api-config.ts`,
+// server-side only. Re-exporting it here would put it back in the browser bundle
+// for no reason; both constants were already unused.
 
 export const ORDER_STATUSES = {
   PENDING: 'pending',

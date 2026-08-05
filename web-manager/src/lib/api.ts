@@ -1,6 +1,6 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from 'axios';
-import Cookies from 'js-cookie';
+import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { OrderStatus, PaymentMethod } from './constants';
+import { attachAuthInterceptor } from './session';
 
 // ─── Entity Types ───────────────────────────────────────────────────────────
 
@@ -154,7 +154,10 @@ export interface ApiResponse<T> {
 }
 
 export interface LoginResponse {
-  token: string;
+  /**
+   * No `token` field any more — it is set as an httpOnly cookie by
+   * /api/auth/login and is intentionally not visible to this code.
+   */
   user: {
     id: string;
     phone: string;
@@ -202,35 +205,30 @@ export interface OrderFilters {
 
 // ─── Axios Instance ──────────────────────────────────────────────────────────
 
-function createApiClient(): AxiosInstance {
+/**
+ * Requests go to this app's own /api/proxy, not to the backend directly. The
+ * route handler there reads the httpOnly session cookie and adds the Bearer
+ * header server-side, which is what keeps the token out of reach of page scripts.
+ *
+ * The backend host is therefore a *server* setting now (API_URL /
+ * NEXT_PUBLIC_API_URL, resolved in lib/server/api-config.ts) and no longer needs
+ * to be baked into the browser bundle.
+ */
+export const API_PROXY_BASE_URL = '/api/proxy';
+
+export function createApiClient(config: AxiosRequestConfig = {}): AxiosInstance {
   const client = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_API_URL,
+    baseURL: API_PROXY_BASE_URL,
     timeout: 15000,
     headers: {
       'Content-Type': 'application/json',
     },
+    // Same-origin now, so the session cookie rides along automatically.
+    withCredentials: true,
+    ...config,
   });
 
-  client.interceptors.request.use((config) => {
-    const token = Cookies.get('manager_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  });
-
-  client.interceptors.response.use(
-    (response) => response,
-    (error: AxiosError) => {
-      if (error.response?.status === 401) {
-        Cookies.remove('manager_token');
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
-        }
-      }
-      return Promise.reject(error);
-    }
-  );
+  attachAuthInterceptor(client);
 
   return client;
 }
@@ -244,9 +242,30 @@ export async function sendOtp(phone: string): Promise<{ message: string; code?: 
   return res.data.data;
 }
 
+/**
+ * Verifies the OTP through our own route handler rather than the backend.
+ *
+ * That handler is where the tokens are turned into httpOnly cookies; sending the
+ * code straight to the backend from here would hand the response — tokens and all
+ * — back to page JS, which is exactly what we are trying to avoid.
+ */
 export async function verifyOtp(phone: string, code: string): Promise<LoginResponse> {
-  const res = await apiClient.post<ApiResponse<{ accessToken: string; user: LoginResponse['user'] }>>('/auth/verify-otp', { phone, code });
-  return { token: res.data.data.accessToken, user: res.data.data.user };
+  const res = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone, code }),
+    credentials: 'same-origin',
+  });
+
+  const payload = (await res.json().catch(() => null)) as
+    | { data?: { user?: LoginResponse['user'] }; message?: string }
+    | null;
+
+  if (!res.ok || !payload?.data?.user) {
+    throw new Error(payload?.message || 'Notoʻgʻri kod');
+  }
+
+  return { user: payload.data.user };
 }
 
 // ─── Orders ─────────────────────────────────────────────────────────────────
