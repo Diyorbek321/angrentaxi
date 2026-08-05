@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { DefaultNamingStrategy, NamingStrategyInterface } from 'typeorm';
 import { validateEnv } from './config/env.validation';
 import { resolveDbSynchronize } from './config/db-synchronize.util';
+import { HttpThrottlerGuard } from './common/guards/http-throttler.guard';
 
 class SnakeNamingStrategy extends DefaultNamingStrategy implements NamingStrategyInterface {
   columnName(propertyName: string, customName: string): string {
@@ -50,6 +52,7 @@ import { FavoriteAddress } from './database/entities/favorite-address.entity';
 import { TripMessage } from './database/entities/trip-message.entity';
 import { SosAlert } from './database/entities/sos-alert.entity';
 import { NotificationLog } from './database/entities/notification-log.entity';
+import { RefreshToken } from './database/entities/refresh-token.entity';
 
 // Feature Modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -125,6 +128,7 @@ import { ReferralsModule } from './modules/referrals/referrals.module';
           TripMessage,
           SosAlert,
           NotificationLog,
+          RefreshToken,
         ],
         migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
         // Schema is built from entities via synchronize (default on) for the test/MVP server,
@@ -150,7 +154,9 @@ import { ReferralsModule } from './modules/referrals/referrals.module';
       inject: [ConfigService],
     }),
 
-    // Rate Limiting
+    // Rate Limiting. Three named windows apply to every HTTP route (see the
+    // APP_GUARD registration below, without which none of this is enforced);
+    // individual routes tighten a specific window with @Throttle({ <name>: ... }).
     ThrottlerModule.forRoot([
       {
         name: 'short',
@@ -198,6 +204,15 @@ import { ReferralsModule } from './modules/referrals/referrals.module';
     TripChatModule,
     SafetyModule,
     ReferralsModule,
+  ],
+  providers: [
+    // ThrottlerModule only configures the limits — nothing enforces them until
+    // the guard is bound. Binding it here (rather than per-controller) makes the
+    // limits the default for every HTTP route.
+    {
+      provide: APP_GUARD,
+      useClass: HttpThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}

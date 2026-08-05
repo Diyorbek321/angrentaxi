@@ -46,8 +46,17 @@ export class HttpExceptionFilter implements ExceptionFilter {
         }
       }
     } else if (exception instanceof Error) {
-      message = exception.message;
+      // Never leak internal error details (TypeORM/Postgres messages can carry
+      // table/column names and query fragments) to the client in production.
+      // The full error goes to the logger (and Sentry) only; outside
+      // production the real message is kept to keep debugging cheap.
       this.logger.error(`Unhandled exception: ${exception.message}`, exception.stack);
+
+      if (process.env.NODE_ENV !== 'production') {
+        message = exception.message;
+      }
+    } else {
+      this.logger.error(`Unhandled non-Error exception: ${String(exception)}`);
     }
 
     const errorResponse: ErrorResponse = {

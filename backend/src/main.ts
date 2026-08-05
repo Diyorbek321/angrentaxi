@@ -1,4 +1,3 @@
-import * as path from 'path';
 import * as Sentry from '@sentry/node';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
@@ -25,15 +24,20 @@ if (sentryDsn) {
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // Railway (and any reverse proxy) terminates TLS and forwards the real client
+  // address in X-Forwarded-For. Without this, req.ip is the proxy's address for
+  // every request and the rate limiter would throttle all users as one tracker.
+  // Depth 1 = trust exactly one hop, so clients cannot spoof the header.
+  app.set('trust proxy', 1);
+
   // Security middleware
   app.use(helmet());
   app.use(compression());
 
-  // Serve uploaded driver KYC documents (local disk storage — see
-  // DriverDocumentsController). Deliberately outside the /api/v1 prefix, at
-  // the same relative path recorded in DriverDocument.fileUrl. PRODUCTION
-  // TODO: replace with S3/object storage + signed URLs.
-  app.useStaticAssets(path.join(process.cwd(), 'uploads'), { prefix: '/uploads' });
+  // NOTE: uploaded driver KYC documents (passport/licence scans) are NOT served
+  // statically. They are only reachable through the authenticated, authorized
+  // GET /api/v1/drivers/documents/:id/file endpoint — see
+  // DriverDocumentsController. Do not re-add useStaticAssets('uploads') here.
 
   // CORS
   app.enableCors({

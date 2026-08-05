@@ -91,7 +91,10 @@ export class RealtimeGateway
         return;
       }
 
-      const secret = this.configService.get<string>('APP_SECRET', 'fallback-secret');
+      // No 'fallback-secret' default: env validation already makes APP_SECRET
+      // required, and a silent fallback would verify handshakes against a
+      // publicly known key if the variable ever went missing.
+      const secret = this.configService.getOrThrow<string>('APP_SECRET');
       const payload = this.jwtService.verify<JwtPayload>(token, { secret });
 
       if (payload.type !== 'access') {

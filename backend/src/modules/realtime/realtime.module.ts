@@ -2,6 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { RealtimeGateway } from './realtime.gateway';
+import { DEFAULT_ACCESS_TTL } from '../auth/token-ttl.util';
 import { DriversModule } from '../drivers/drivers.module';
 import { UsersModule } from '../users/users.module';
 import { SupportModule } from '../support/support.module';
@@ -11,8 +12,13 @@ import { SupportModule } from '../support/support.module';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('APP_SECRET', 'fallback-secret'),
-        signOptions: { expiresIn: '7d' },
+        // No 'fallback-secret' default: env validation already makes APP_SECRET
+        // required, and a silent fallback would verify realtime tokens against
+        // a publicly known key if the variable ever went missing.
+        secret: configService.getOrThrow<string>('APP_SECRET'),
+        signOptions: {
+          expiresIn: configService.get<string>('JWT_ACCESS_TTL', DEFAULT_ACCESS_TTL),
+        },
       }),
       inject: [ConfigService],
     }),

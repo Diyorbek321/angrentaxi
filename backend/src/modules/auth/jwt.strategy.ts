@@ -3,7 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
-import { User } from '../../database/entities/user.entity';
+import { User, UserStatus } from '../../database/entities/user.entity';
 
 interface JwtPayload {
   sub: string;
@@ -21,7 +21,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('APP_SECRET', 'fallback-secret'),
+      // No 'fallback-secret' default: env validation already makes APP_SECRET
+      // required, and a silent fallback would accept tokens signed with a
+      // publicly known key if the variable ever went missing.
+      secretOrKey: configService.getOrThrow<string>('APP_SECRET'),
     });
   }
 
@@ -34,6 +37,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     if (!user) {
       throw new UnauthorizedException('User not found');
+    }
+
+    // Access tokens are long-lived, so blocking a user must take effect on the
+    // next request rather than only at login/refresh time — otherwise a
+    // blocked account keeps working until its access token expires.
+    if (user.status === UserStatus.BLOCKED) {
+      throw new UnauthorizedException('Account is blocked');
     }
 
     return user;
