@@ -1,193 +1,362 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { Plus, X } from 'lucide-react';
-import { marketApi, MarketCategory, Product, ProductStatus, ProductUnit } from '@/lib/api';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { LayoutGrid, List, Package, Plus, Search } from 'lucide-react';
+import {
+  marketApi,
+  type MarketCategory,
+  type Product,
+  type ProductStatus,
+} from '@/lib/api';
+import { cn } from '@/lib/utils';
+import { PRODUCT_STATUS_META } from '@/lib/orderStatus';
+import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { SkeletonGrid } from '@/components/ui/Skeleton';
+import { useToast } from '@/components/ui/Toast';
+import { ProductCard } from '@/components/products/ProductCard';
+import { ProductsTable } from '@/components/products/ProductsTable';
+import { ProductFormModal } from '@/components/products/ProductFormModal';
+import { BulkPriceModal, type BulkPriceMode } from '@/components/products/BulkPriceModal';
 
-const STATUS_META: Record<ProductStatus, { label: string; bg: string; color: string }> = {
-  active: { label: 'Faol', bg: 'bg-green-500/[0.14]', color: 'text-green-400' },
-  out: { label: 'Tugagan', bg: 'bg-red-500/[0.14]', color: 'text-red-400' },
-  hidden: { label: 'Yashirilgan', bg: 'bg-slate-400/[0.14]', color: 'text-slate-400' },
-};
+const VIEW_STORAGE_KEY = 'angren-market-products-view';
 
-function photoBg(hue: number) {
-  return { background: `linear-gradient(135deg,hsla(${hue},60%,45%,0.25),hsla(${hue},60%,30%,0.12))` };
-}
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'Barcha holatlar' },
+  ...(Object.keys(PRODUCT_STATUS_META) as ProductStatus[]).map((key) => ({
+    value: key,
+    label: PRODUCT_STATUS_META[key].label,
+  })),
+];
 
 export default function ProductsPage() {
+  // useSearchParams needs a Suspense boundary above it for the build to
+  // prerender this route.
+  return (
+    <Suspense fallback={<SkeletonGrid />}>
+      <ProductsView />
+    </Suspense>
+  );
+}
+
+function ProductsView() {
+  const searchParams = useSearchParams();
+  const { toast } = useToast();
+
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<MarketCategory[]>([]);
-  const [selected, setSelected] = useState<Record<string, boolean>>({});
-  const [saved, setSaved] = useState<Record<string, boolean>>({});
-  const [showAdd, setShowAdd] = useState(false);
+  const [threshold, setThreshold] = useState(10);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
-    const [p, c] = await Promise.all([marketApi.getProducts(), marketApi.getCategories()]);
-    setProducts(p.data.data);
-    setCategories(c.data.data);
+  const [view, setView] = useState<'grid' | 'table'>('grid');
+  const [query, setQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [savedFlags, setSavedFlags] = useState<Record<string, boolean>>({});
+  const [formProduct, setFormProduct] = useState<Product | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [bulkPriceOpen, setBulkPriceOpen] = useState(false);
+
+  // Seeded from the header's quick search (`?q=`).
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q) setQuery(q);
+  }, [searchParams]);
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(VIEW_STORAGE_KEY) === 'table') setView('table');
+    } catch {
+      /* private mode — defaults to grid */
+    }
+  }, []);
+
+  const changeView = (next: 'grid' | 'table') => {
+    setView(next);
+    try {
+      localStorage.setItem(VIEW_STORAGE_KEY, next);
+    } catch {
+      /* ignore */
+    }
   };
+
+  const load = useCallback(async () => {
+    setStatus((s) => (s === 'ready' ? s : 'loading'));
+    try {
+      const [productsRes, categoriesRes, storeRes] = await Promise.all([
+        marketApi.getProducts(),
+        marketApi.getCategories(),
+        marketApi.getStore(),
+      ]);
+      setProducts(productsRes.data.data);
+      setCategories(categoriesRes.data.data);
+      setThreshold(storeRes.data.data.lowStockThreshold);
+      setStatus('ready');
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : null);
+      setStatus('error');
+    }
+  }, []);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
-  const categoryName = (id: string | null) => categories.find((c) => c.id === id)?.name ?? '—';
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return products.filter((p) => {
+      if (categoryFilter !== 'all' && p.categoryId !== categoryFilter) return false;
+      if (statusFilter !== 'all' && p.status !== statusFilter) return false;
+      if (!q) return true;
+      return (
+        p.name.toLowerCase().includes(q) || (p.sku ?? '').toLowerCase().includes(q)
+      );
+    });
+  }, [products, query, categoryFilter, statusFilter]);
 
-  const flashSaved = (id: string) => {
-    setSaved((s) => ({ ...s, [id]: true }));
-    setTimeout(() => setSaved((s) => ({ ...s, [id]: false })), 1300);
+  const selectedIds = Object.entries(selected)
+    .filter(([, v]) => v)
+    .map(([id]) => id);
+  const allSelected = filtered.length > 0 && filtered.every((p) => selected[p.id]);
+
+  const flashSaved = (key: string) => {
+    setSavedFlags((s) => ({ ...s, [key]: true }));
+    setTimeout(() => setSavedFlags((s) => ({ ...s, [key]: false })), 1300);
   };
 
-  const updatePrice = async (id: string, price: number) => {
-    const res = await marketApi.updateProduct(id, { price });
-    setProducts((prev) => prev.map((p) => (p.id === id ? res.data.data : p)));
-    flashSaved(`${id}-price`);
+  const replaceProduct = (updated: Product) =>
+    setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+
+  const onInlineChange = async (product: Product, field: 'price' | 'stock', value: number) => {
+    try {
+      const res = await marketApi.updateProduct(product.id, { [field]: value });
+      replaceProduct(res.data.data);
+      flashSaved(`${product.id}-${field}`);
+    } catch {
+      toast({ title: 'Saqlab bo‘lmadi', variant: 'error' });
+    }
   };
 
-  const updateStock = async (id: string, stock: number) => {
-    const res = await marketApi.updateProduct(id, { stock: Math.max(0, stock) });
-    setProducts((prev) => prev.map((p) => (p.id === id ? res.data.data : p)));
-    flashSaved(`${id}-stock`);
+  const onToggleActive = async (product: Product, next: boolean) => {
+    try {
+      const res = await marketApi.updateProduct(product.id, {
+        status: next ? 'active' : 'hidden',
+      });
+      replaceProduct(res.data.data);
+    } catch {
+      toast({ title: 'Holatni o‘zgartirib bo‘lmadi', variant: 'error' });
+    }
   };
 
-  const [bulkPriceOpen, setBulkPriceOpen] = useState(false);
-
-  const selectedCount = Object.values(selected).filter(Boolean).length;
-  const selectedIds = Object.entries(selected).filter(([, v]) => v).map(([id]) => id);
-
-  const bulkSetStatus = async (status: ProductStatus) => {
-    const ids = selectedIds;
-    await marketApi.bulkUpdateProducts(ids, status);
-    setSelected({});
-    await load();
+  const bulkSetStatus = async (next: ProductStatus) => {
+    try {
+      await marketApi.bulkUpdateProducts(selectedIds, next);
+      setSelected({});
+      await load();
+      toast({ title: `${selectedIds.length} ta mahsulot yangilandi`, variant: 'success' });
+    } catch {
+      toast({ title: 'Ommaviy amal bajarilmadi', variant: 'error' });
+    }
   };
 
-  // No dedicated bulk-price backend endpoint — applies the same per-product
-  // update the inline price field already uses, just looped over the
-  // selection (exact value, or a % adjustment floored at 0).
-  const bulkChangePrice = async (mode: 'set' | 'pct', value: number) => {
-    await Promise.all(
-      selectedIds.map((id) => {
-        const product = products.find((p) => p.id === id);
-        if (!product) return Promise.resolve();
-        const newPrice =
-          mode === 'set' ? Math.max(0, value) : Math.max(0, Math.round(product.price * (1 + value / 100)));
-        return marketApi.updateProduct(id, { price: newPrice });
-      })
-    );
-    setBulkPriceOpen(false);
-    setSelected({});
-    await load();
+  // No bulk-price endpoint exists — this loops the same per-product update the
+  // inline price field already uses.
+  const bulkChangePrice = async (mode: BulkPriceMode, value: number) => {
+    try {
+      await Promise.all(
+        selectedIds.map((id) => {
+          const product = products.find((p) => p.id === id);
+          if (!product) return Promise.resolve();
+          const price =
+            mode === 'set'
+              ? Math.max(0, Math.round(value))
+              : Math.max(0, Math.round(product.price * (1 + value / 100)));
+          return marketApi.updateProduct(id, { price });
+        })
+      );
+      setBulkPriceOpen(false);
+      setSelected({});
+      await load();
+      toast({ title: 'Narxlar yangilandi', variant: 'success' });
+    } catch {
+      toast({ title: 'Narxlarni o‘zgartirib bo‘lmadi', variant: 'error' });
+    }
   };
+
+  const openCreate = () => {
+    setFormProduct(null);
+    setFormOpen(true);
+  };
+
+  const openEdit = (product: Product) => {
+    setFormProduct(product);
+    setFormOpen(true);
+  };
+
+  if (status === 'loading') return <SkeletonGrid />;
+  if (status === 'error') return <ErrorState message={error} onRetry={load} />;
 
   return (
-    <div className="animate-fade-in">
-      <div className="flex items-center gap-2.5 mb-[18px]">
-        {selectedCount > 0 && (
-          <div className="flex items-center gap-2 bg-brand-yellow/[0.08] border border-brand-yellow/25 rounded-[11px] py-1.5 pl-3.5 pr-1.5">
-            <span className="text-[12.5px] font-bold text-brand-yellow">{selectedCount} tanlandi</span>
-            <button onClick={() => bulkSetStatus('active')} className="bg-green-500/[0.15] text-green-400 rounded-lg px-[11px] py-1.5 text-xs font-bold">
-              Faollashtirish
-            </button>
-            <button onClick={() => bulkSetStatus('hidden')} className="bg-white/[0.06] text-slate-400 rounded-lg px-[11px] py-1.5 text-xs font-bold">
-              Yashirish
-            </button>
+    <div className="space-y-4 animate-fade-in">
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-2.5">
+        <div className="relative flex-1 min-w-48 max-w-sm">
+          <Search
+            size={15}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-subtle pointer-events-none"
+          />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Nomi yoki SKU bo'yicha qidirish..."
+            aria-label="Mahsulot qidirish"
+            className="w-full h-9 pl-9 pr-3 rounded-lg bg-surface border border-line text-sm text-ink placeholder-subtle focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors"
+          />
+        </div>
+
+        <Select
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          aria-label="Kategoriya bo'yicha filtr"
+          className="w-auto min-w-40 h-9 py-0"
+          options={[
+            { value: 'all', label: 'Barcha kategoriyalar' },
+            ...categories.map((c) => ({ value: c.id, label: `${c.emoji} ${c.name}` })),
+          ]}
+        />
+
+        <Select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          aria-label="Holat bo'yicha filtr"
+          className="w-auto min-w-36 h-9 py-0"
+          options={STATUS_OPTIONS}
+        />
+
+        <div className="flex rounded-lg border border-line overflow-hidden">
+          {(
+            [
+              { key: 'grid', icon: LayoutGrid, label: 'Karta ko‘rinishi' },
+              { key: 'table', icon: List, label: 'Jadval ko‘rinishi' },
+            ] as const
+          ).map(({ key, icon: Icon, label }) => (
             <button
-              onClick={() => setBulkPriceOpen(true)}
-              className="bg-white/[0.06] text-slate-400 rounded-lg px-[11px] py-1.5 text-xs font-bold"
+              key={key}
+              type="button"
+              onClick={() => changeView(key)}
+              title={label}
+              aria-label={label}
+              aria-pressed={view === key}
+              className={cn(
+                'h-9 w-9 inline-flex items-center justify-center transition-colors',
+                view === key
+                  ? 'bg-primary/12 text-primary-700 dark:text-primary-300'
+                  : 'bg-surface text-muted hover:bg-surface-2 hover:text-ink'
+              )}
             >
-              Narxni o&apos;zgartirish
+              <Icon size={16} />
             </button>
+          ))}
+        </div>
+
+        <Button onClick={openCreate} leftIcon={<Plus size={15} />} className="ml-auto">
+          Mahsulot qo&apos;shish
+        </Button>
+      </div>
+
+      {/* Bulk actions */}
+      {selectedIds.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary/[0.07] px-3.5 py-2.5">
+          <span className="text-xs font-semibold text-primary-700 dark:text-primary-300">
+            {selectedIds.length} ta tanlandi
+          </span>
+          <div className="ml-auto flex flex-wrap gap-2">
+            <Button size="sm" variant="secondary" onClick={() => bulkSetStatus('active')}>
+              Faollashtirish
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => bulkSetStatus('hidden')}>
+              Yashirish
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => setBulkPriceOpen(true)}>
+              Narxni o&apos;zgartirish
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setSelected({})}>
+              Bekor qilish
+            </Button>
           </div>
-        )}
-        <div className="ml-auto flex gap-[9px]">
-          <button
-            onClick={() => setShowAdd(true)}
-            className="bg-brand-yellow text-brand-dark rounded-[11px] px-[17px] py-2.5 text-sm font-extrabold flex items-center gap-2 hover:bg-yellow-300"
-          >
-            <Plus className="h-4 w-4" strokeWidth={2.6} />
-            Mahsulot qo&apos;shish
-          </button>
         </div>
-      </div>
+      )}
 
-      <div
-        className="rounded-2xl border border-white/[0.07] overflow-hidden"
-        style={{ background: 'linear-gradient(160deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))' }}
-      >
-        <div className="grid grid-cols-[40px_2.2fr_1fr_1.1fr_1.1fr_1fr] gap-3.5 px-[18px] py-3 border-b border-white/[0.08] text-[11.5px] font-bold text-slate-500 uppercase tracking-wide">
-          <div />
-          <div>Mahsulot</div>
-          <div>Kategoriya</div>
-          <div>Narx (so&apos;m)</div>
-          <div>Zaxira</div>
-          <div>Holat</div>
+      {/* Content */}
+      {filtered.length === 0 ? (
+        <EmptyState
+          icon={<Package size={24} />}
+          title={products.length === 0 ? "Hali mahsulot yo'q" : 'Mos mahsulot topilmadi'}
+          description={
+            products.length === 0
+              ? "Katalogni to'ldirish uchun birinchi mahsulotni qo'shing."
+              : "Qidiruv so'zini yoki filtrlarni o'zgartirib ko'ring."
+          }
+          action={
+            products.length === 0 ? (
+              <Button onClick={openCreate} leftIcon={<Plus size={15} />}>
+                Mahsulot qo&apos;shish
+              </Button>
+            ) : undefined
+          }
+        />
+      ) : view === 'grid' ? (
+        <div className="grid grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+          {filtered.map((product) => (
+            <ProductCard
+              key={product.id}
+              product={product}
+              selected={!!selected[product.id]}
+              onToggleSelected={() =>
+                setSelected((s) => ({ ...s, [product.id]: !s[product.id] }))
+              }
+              onEdit={() => openEdit(product)}
+              onToggleActive={(next) => onToggleActive(product, next)}
+              lowStockThreshold={threshold}
+            />
+          ))}
         </div>
-
-        {products.map((p) => {
-          const sm = STATUS_META[p.status];
-          const stockBorder = p.stock === 0 ? 'border-red-500/40' : p.stock <= 10 ? 'border-brand-yellow/40' : 'border-white/[0.09]';
-          const stockColor = p.stock === 0 ? 'text-red-400' : p.stock <= 10 ? 'text-brand-yellow' : 'text-green-400';
-          return (
-            <div
-              key={p.id}
-              className="grid grid-cols-[40px_2.2fr_1fr_1.1fr_1.1fr_1fr] gap-3.5 px-[18px] py-3 border-b border-white/[0.04] items-center"
-            >
-              <input
-                type="checkbox"
-                checked={!!selected[p.id]}
-                onChange={() => setSelected((s) => ({ ...s, [p.id]: !s[p.id] }))}
-                className="w-4 h-4 accent-brand-yellow"
-              />
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-[10px] flex-shrink-0 flex items-center justify-center text-lg" style={photoBg(p.hue)}>
-                  {p.emoji}
-                </div>
-                <div className="min-w-0">
-                  <div className="text-[13px] font-bold whitespace-nowrap overflow-hidden text-ellipsis">{p.name}</div>
-                  <div className="text-[11px] text-slate-500 font-mono mt-0.5">{p.sku}</div>
-                </div>
-              </div>
-              <div className="text-[12.5px] text-slate-400">{categoryName(p.categoryId)}</div>
-              <div className="relative flex items-center gap-1.5">
-                <input
-                  type="number"
-                  defaultValue={p.price}
-                  onBlur={(e) => {
-                    const v = Number(e.target.value);
-                    if (!Number.isNaN(v) && v !== p.price) updatePrice(p.id, v);
-                  }}
-                  className="w-[88px] bg-white/[0.04] border border-white/[0.09] rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-200 focus:border-brand-yellow outline-none"
-                />
-                {saved[`${p.id}-price`] && <Check />}
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  defaultValue={p.stock}
-                  onBlur={(e) => {
-                    const v = Number(e.target.value);
-                    if (!Number.isNaN(v) && v !== p.stock) updateStock(p.id, v);
-                  }}
-                  className={`w-16 bg-white/[0.04] border ${stockBorder} rounded-lg px-2.5 py-1.5 text-sm font-extrabold ${stockColor} focus:border-brand-yellow outline-none`}
-                />
-                <span className="text-[11.5px] text-slate-500">{p.unit}</span>
-                {saved[`${p.id}-stock`] && <Check />}
-              </div>
-              <div>
-                <span className={`text-[11.5px] font-bold px-[11px] py-1.5 rounded-lg ${sm.bg} ${sm.color}`}>{sm.label}</span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {showAdd && (
-        <AddProductModal
+      ) : (
+        <ProductsTable
+          products={filtered}
           categories={categories}
-          onClose={() => setShowAdd(false)}
-          onCreated={async () => {
-            setShowAdd(false);
+          selected={selected}
+          onToggleSelected={(id) => setSelected((s) => ({ ...s, [id]: !s[id] }))}
+          onToggleAll={() => {
+            const next = { ...selected };
+            filtered.forEach((p) => {
+              next[p.id] = !allSelected;
+            });
+            setSelected(next);
+          }}
+          allSelected={allSelected}
+          onEdit={openEdit}
+          onToggleActive={onToggleActive}
+          onInlineChange={onInlineChange}
+          savedFlags={savedFlags}
+          lowStockThreshold={threshold}
+        />
+      )}
+
+      {formOpen && (
+        <ProductFormModal
+          product={formProduct}
+          categories={categories}
+          onClose={() => setFormOpen(false)}
+          onSaved={async () => {
+            setFormOpen(false);
             await load();
           }}
         />
@@ -195,212 +364,11 @@ export default function ProductsPage() {
 
       {bulkPriceOpen && (
         <BulkPriceModal
-          count={selectedCount}
+          count={selectedIds.length}
           onClose={() => setBulkPriceOpen(false)}
           onApply={bulkChangePrice}
         />
       )}
-    </div>
-  );
-}
-
-function BulkPriceModal({
-  count,
-  onClose,
-  onApply,
-}: {
-  count: number;
-  onClose: () => void;
-  onApply: (mode: 'set' | 'pct', value: number) => Promise<void>;
-}) {
-  const [mode, setMode] = useState<'set' | 'pct'>('set');
-  const [value, setValue] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  const submit = async () => {
-    const num = parseFloat(value);
-    if (isNaN(num)) return;
-    setSaving(true);
-    try {
-      await onApply(mode, num);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-5">
-      <div onClick={onClose} className="absolute inset-0 bg-black/65 animate-fade-in" />
-      <div className="relative w-[400px] max-w-full bg-brand-dark border border-white/[0.09] rounded-2xl p-6">
-        <h3 className="text-[17px] font-extrabold mb-1.5">Narxni ommaviy o&apos;zgartirish</h3>
-        <p className="text-[13px] text-slate-400 mb-4.5">{count} ta mahsulotga qo&apos;llaniladi</p>
-
-        <div className="flex gap-2 mb-4">
-          <button
-            onClick={() => setMode('set')}
-            className={`flex-1 rounded-[9px] py-2 text-[12.5px] font-bold border ${
-              mode === 'set' ? 'border-brand-yellow/50 text-brand-yellow bg-brand-yellow/10' : 'border-white/[0.08] text-slate-400'
-            }`}
-          >
-            Aniq narx
-          </button>
-          <button
-            onClick={() => setMode('pct')}
-            className={`flex-1 rounded-[9px] py-2 text-[12.5px] font-bold border ${
-              mode === 'pct' ? 'border-brand-yellow/50 text-brand-yellow bg-brand-yellow/10' : 'border-white/[0.08] text-slate-400'
-            }`}
-          >
-            Foizda (%)
-          </button>
-        </div>
-
-        <Field label={mode === 'set' ? "Yangi narx (so'm)" : 'O‘zgarish foizi (masalan -10 yoki 15)'}>
-          <input className="input" type="number" value={value} onChange={(e) => setValue(e.target.value)} />
-        </Field>
-
-        <div className="flex gap-2.5 mt-5">
-          <button onClick={onClose} className="flex-1 border border-white/[0.12] text-slate-400 rounded-xl py-3 text-sm font-bold">
-            Bekor qilish
-          </button>
-          <button
-            onClick={submit}
-            disabled={!value || saving}
-            className="flex-1 bg-brand-yellow text-brand-black rounded-xl py-3 text-sm font-bold disabled:opacity-50"
-          >
-            {saving ? 'Qo‘llanmoqda...' : "Qo'llash"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Check() {
-  return <span className="text-green-500 animate-pop">✓</span>;
-}
-
-function AddProductModal({
-  categories,
-  onClose,
-  onCreated,
-}: {
-  categories: MarketCategory[];
-  onClose: () => void;
-  onCreated: () => Promise<void>;
-}) {
-  const [name, setName] = useState('');
-  const [sku, setSku] = useState('');
-  const [price, setPrice] = useState('');
-  const [stock, setStock] = useState('');
-  const [unit, setUnit] = useState<ProductUnit>('dona');
-  const [categoryId, setCategoryId] = useState<string>(categories[0]?.id ?? '');
-  const [saving, setSaving] = useState(false);
-
-  const save = async () => {
-    if (!name) return;
-    setSaving(true);
-    try {
-      await marketApi.createProduct({
-        name,
-        sku: sku || undefined,
-        price: Number(price) || 0,
-        stock: Number(stock) || 0,
-        unit,
-        categoryId: categoryId || undefined,
-      });
-      await onCreated();
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-      <div onClick={onClose} className="absolute inset-0 bg-black/70 animate-fade-in" />
-      <div
-        className="relative w-[560px] max-h-[90vh] overflow-y-auto bg-brand-dark border border-white/[0.09] rounded-[20px] animate-pop"
-        style={{ boxShadow: '0 30px 80px rgba(0,0,0,0.5)' }}
-      >
-        <div className="px-6 py-5 border-b border-white/[0.07] flex items-center justify-between">
-          <span className="text-[17px] font-extrabold">Yangi mahsulot</span>
-          <button onClick={onClose} className="w-[34px] h-[34px] rounded-[9px] bg-white/[0.05] text-slate-400 flex items-center justify-center">
-            <X className="h-[17px] w-[17px]" />
-          </button>
-        </div>
-        <div className="px-6 py-[22px] flex flex-col gap-[15px]">
-          <Field label="Nomi">
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Masalan: Guruch Lazer 1kg"
-              className="input"
-            />
-          </Field>
-          <Field label="SKU / Shtrix-kod">
-            <input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="GRC-1002" className="input font-mono" />
-          </Field>
-          <div className="grid grid-cols-3 gap-3">
-            <Field label="Narx (so'm)">
-              <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0" className="input font-bold" />
-            </Field>
-            <Field label="Zaxira">
-              <input type="number" value={stock} onChange={(e) => setStock(e.target.value)} placeholder="0" className="input font-bold" />
-            </Field>
-            <Field label="Birlik">
-              <select value={unit} onChange={(e) => setUnit(e.target.value as ProductUnit)} className="input">
-                <option value="dona">dona</option>
-                <option value="kg">kg</option>
-                <option value="litr">litr</option>
-              </select>
-            </Field>
-          </div>
-          <Field label="Kategoriya">
-            <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="input">
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
-        <div className="px-6 py-[18px] border-t border-white/[0.07] flex justify-end gap-2.5">
-          <button onClick={onClose} className="bg-white/[0.05] border border-white/[0.08] text-slate-200 rounded-[11px] px-5 py-[11px] text-sm font-bold">
-            Bekor qilish
-          </button>
-          <button
-            onClick={save}
-            disabled={saving || !name}
-            className="bg-brand-yellow text-brand-dark rounded-[11px] px-6 py-[11px] text-sm font-extrabold disabled:opacity-50 hover:bg-yellow-300"
-          >
-            Qo&apos;shish
-          </button>
-        </div>
-      </div>
-      <style jsx>{`
-        .input {
-          width: 100%;
-          background: rgba(255, 255, 255, 0.04);
-          border: 1px solid rgba(255, 255, 255, 0.09);
-          border-radius: 10px;
-          padding: 10px 13px;
-          color: #e5e7eb;
-          font-size: 13px;
-        }
-        .input:focus {
-          outline: none;
-          border-color: #facc15;
-        }
-      `}</style>
-    </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="text-xs text-slate-400 font-semibold block mb-1.5">{label}</label>
-      {children}
     </div>
   );
 }

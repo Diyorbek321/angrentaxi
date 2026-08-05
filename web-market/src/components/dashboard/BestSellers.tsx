@@ -24,11 +24,11 @@ export function BestSellers({ items }: { items: DashboardData['bestSellers'] }) 
         <ol className="space-y-3">
           {items.map((item, i) => (
             <li key={item.name} className="flex items-center gap-3">
-              <span className="h-6 w-6 shrink-0 rounded-lg bg-primary/12 text-primary-700 dark:text-primary-300 text-[11px] font-bold font-mono flex items-center justify-center">
+              <span className="h-6 w-6 shrink-0 rounded-lg bg-primary/12 text-primary-700 dark:text-primary-300 text-2xs font-bold font-mono flex items-center justify-center">
                 {i + 1}
               </span>
               <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-medium text-ink truncate">{item.name}</p>
+                <p className="text-sm font-medium text-ink truncate">{item.name}</p>
                 <div className="h-1.5 rounded-full bg-surface-2 mt-1.5 overflow-hidden">
                   <div
                     className="h-full rounded-full bg-primary"

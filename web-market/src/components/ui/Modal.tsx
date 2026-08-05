@@ -68,7 +68,7 @@ export function Modal({
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#04140F]/60 backdrop-blur-sm p-4 animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-scrim/60 backdrop-blur-sm p-4 animate-fade-in"
       onClick={handleOverlayClick}
       role="presentation"
     >

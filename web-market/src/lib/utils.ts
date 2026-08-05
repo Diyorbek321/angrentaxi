@@ -8,16 +8,17 @@ export function cn(...inputs: ClassValue[]) {
 /**
  * Products carry an `emoji` + `hue` instead of an uploaded image (there is no
  * `image` field on the model), so the swatch behind the emoji is generated
- * from the hue. Kept at a low saturation/high lightness so the emoji stays
- * legible and a wall of products never turns into a rainbow.
+ * from the hue.
+ *
+ * This is the one place inline styles are justified: the hue is per-product
+ * data, so there is no Tailwind class to reach for. Both colours are
+ * translucent, which keeps them readable over the light *and* dark surface
+ * without the component having to know which theme is active.
  */
-export function hueTint(hue: number, dark: boolean): string {
+export function hueSwatch(hue: number): { backgroundColor: string; borderColor: string } {
   const h = ((hue % 360) + 360) % 360;
-  return dark ? `hsl(${h} 42% 16%)` : `hsl(${h} 72% 93%)`;
-}
-
-/** Matching border for the tint above. */
-export function hueBorder(hue: number, dark: boolean): string {
-  const h = ((hue % 360) + 360) % 360;
-  return dark ? `hsl(${h} 35% 26%)` : `hsl(${h} 55% 84%)`;
+  return {
+    backgroundColor: `hsl(${h} 70% 50% / 0.14)`,
+    borderColor: `hsl(${h} 70% 50% / 0.28)`,
+  };
 }

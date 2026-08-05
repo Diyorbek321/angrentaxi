@@ -73,7 +73,7 @@ export default function OrdersPage() {
     return (
       <div className="flex gap-3 h-full min-h-0">
         {KANBAN_COLUMNS.map((s) => (
-          <Skeleton key={s} className="w-[290px] shrink-0 h-full rounded-xl" />
+          <Skeleton key={s} className="w-72 shrink-0 h-full rounded-xl" />
         ))}
       </div>
     );

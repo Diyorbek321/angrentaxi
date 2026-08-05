@@ -70,7 +70,7 @@ export function StatCard({
         >
           {value}
         </p>
-        {hint && <p className="text-[11px] text-subtle mt-1 truncate">{hint}</p>}
+        {hint && <p className="text-2xs text-subtle mt-1 truncate">{hint}</p>}
       </div>
     </div>
   );

@@ -31,7 +31,7 @@ export function SkeletonGrid({ count = 8, className }: { count?: number; classNa
       aria-busy="true"
     >
       {Array.from({ length: count }).map((_, i) => (
-        <Skeleton key={i} className="h-[132px] rounded-xl" />
+        <Skeleton key={i} className="h-32 rounded-xl" />
       ))}
     </div>
   );
@@ -64,7 +64,7 @@ export function SkeletonStats({ count = 4 }: { count?: number }) {
   return (
     <div className="grid grid-cols-2 xl:grid-cols-4 gap-3" aria-busy="true">
       {Array.from({ length: count }).map((_, i) => (
-        <Skeleton key={i} className="h-[86px] rounded-xl" />
+        <Skeleton key={i} className="h-20 rounded-xl" />
       ))}
     </div>
   );

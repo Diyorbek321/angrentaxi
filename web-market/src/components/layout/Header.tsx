@@ -60,7 +60,7 @@ export function Header({
   const isOpen = store?.status !== 'closed';
 
   return (
-    <header className="h-[68px] shrink-0 border-b border-line bg-surface flex items-center gap-4 px-5">
+    <header className="h-16 shrink-0 border-b border-line bg-surface flex items-center gap-4 px-5">
       <div className="min-w-0 flex-1">
         <h1 className="text-base font-bold tracking-tight text-ink truncate">{title}</h1>
         <p className="text-xs text-muted truncate">{subtitle}</p>
@@ -90,7 +90,7 @@ export function Header({
         )}
       </div>
 
-      <form onSubmit={submitSearch} className="hidden lg:block relative w-[230px]">
+      <form onSubmit={submitSearch} className="hidden lg:block relative w-56">
         <Search
           size={15}
           className="absolute left-3 top-1/2 -translate-y-1/2 text-subtle pointer-events-none"
@@ -133,7 +133,7 @@ export function Header({
         >
           <Bell size={16} />
           {newOrdersCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-[#04231A] text-[10px] font-bold font-mono flex items-center justify-center ring-2 ring-surface">
+            <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-primary text-primary-ink text-2xs font-bold font-mono flex items-center justify-center ring-2 ring-surface">
               {newOrdersCount > 9 ? '9+' : newOrdersCount}
             </span>
           )}

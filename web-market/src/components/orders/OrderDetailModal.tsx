@@ -137,7 +137,7 @@ export function OrderDetailModal({ order, onClose, onUpdated }: OrderDetailModal
       )}
 
       {/* Pack list */}
-      <p className="mt-5 mb-2 text-[11px] font-semibold uppercase tracking-wide text-subtle">
+      <p className="mt-5 mb-2 text-2xs font-semibold uppercase tracking-wide text-subtle">
         Yig‘ish ro‘yxati
       </p>
       <ul className="rounded-xl border border-line divide-y divide-line overflow-hidden">
@@ -158,7 +158,7 @@ export function OrderDetailModal({ order, onClose, onUpdated }: OrderDetailModal
                 className={cn(
                   'h-5 w-5 shrink-0 rounded-md border-2 flex items-center justify-center transition-colors',
                   item.packed
-                    ? 'bg-primary border-primary text-[#04231A]'
+                    ? 'bg-primary border-primary text-primary-ink'
                     : 'border-line-strong bg-surface'
                 )}
               >

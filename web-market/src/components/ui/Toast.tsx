@@ -59,7 +59,7 @@ export function ToastContextProvider({ children }: { children: React.ReactNode }
     <ToastContext.Provider value={{ toast }}>
       {children}
       <div
-        className="fixed top-0 right-0 z-[100] flex max-h-screen w-full flex-col gap-2 p-4 sm:max-w-[400px] pointer-events-none"
+        className="fixed top-0 right-0 z-[100] flex max-h-screen w-full flex-col gap-2 p-4 sm:max-w-sm pointer-events-none"
         role="region"
         aria-label="Bildirishnomalar"
       >

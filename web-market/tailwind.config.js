@@ -12,6 +12,12 @@ module.exports = {
         sans: ['var(--font-manrope)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         mono: ['var(--font-jetbrains-mono)', 'ui-monospace', 'monospace'],
       },
+      fontSize: {
+        // One step below text-xs, for dense metadata: badge counters, table
+        // captions, card sublabels. Declared here so those call sites use the
+        // scale instead of a one-off `text-[11px]`.
+        '2xs': ['0.6875rem', { lineHeight: '1rem' }],
+      },
       colors: {
         // Theme-dependent tokens. Declared as space-separated RGB channels in
         // globals.css so Tailwind's `/opacity` modifier keeps working
@@ -33,6 +39,9 @@ module.exports = {
           DEFAULT: '#1FCA8E',
           dark: '#10A064',
           light: '#27D89B',
+          // Text/icon colour for anything sitting *on* a mint fill. Dark enough
+          // to clear contrast requirements against every mint in this scale.
+          ink: '#04231A',
           50: '#ECFDF6',
           100: '#D2F8E9',
           200: '#A6F0D3',
@@ -57,6 +66,10 @@ module.exports = {
         warn: { DEFAULT: '#F59E0B', dark: '#B45309', light: '#FBBF24' },
         danger: { DEFAULT: '#EF4444', dark: '#B91C1C', light: '#F87171' },
         info: { DEFAULT: '#3B82F6', dark: '#1D4ED8' },
+
+        // Modal/drawer backdrop. A near-black with a green cast, so the scrim
+        // reads as part of the mint system in both themes.
+        scrim: '#04140F',
       },
       boxShadow: {
         card: 'var(--shadow-card)',

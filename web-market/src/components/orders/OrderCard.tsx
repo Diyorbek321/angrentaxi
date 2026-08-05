@@ -29,7 +29,7 @@ export function OrderCard({ order, onClick }: { order: MarketOrder; onClick: () 
     >
       <div className="flex items-center justify-between gap-2">
         <span className="font-mono text-xs font-semibold text-muted">{shortId(order.id)}</span>
-        <span className="text-[11px] text-subtle">{formatRelative(order.createdAt)}</span>
+        <span className="text-2xs text-subtle">{formatRelative(order.createdAt)}</span>
       </div>
 
       <p className="mt-1.5 text-sm font-semibold text-ink truncate">
@@ -61,7 +61,7 @@ export function OrderCard({ order, onClick }: { order: MarketOrder; onClick: () 
         </span>
       </div>
 
-      <div className="mt-2 flex items-center gap-1.5 text-[11px] text-subtle">
+      <div className="mt-2 flex items-center gap-1.5 text-2xs text-subtle">
         <DeliveryIcon size={11} />
         {DELIVERY_MODE_SHORT[order.deliveryMode]}
       </div>

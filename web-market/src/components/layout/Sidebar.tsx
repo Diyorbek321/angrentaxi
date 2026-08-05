@@ -55,25 +55,25 @@ export function Sidebar({
     <aside
       className={cn(
         'shrink-0 h-full flex flex-col bg-surface border-r border-line transition-[width] duration-200',
-        collapsed ? 'w-[68px]' : 'w-[248px]'
+        collapsed ? 'w-16' : 'w-60'
       )}
     >
       {/* Brand */}
       <div
         className={cn(
-          'flex items-center gap-2.5 h-[68px] shrink-0 border-b border-line',
+          'flex items-center gap-2.5 h-16 shrink-0 border-b border-line',
           collapsed ? 'justify-center px-2' : 'px-4'
         )}
       >
         <div className="h-9 w-9 shrink-0 rounded-xl bg-primary flex items-center justify-center shadow-glow-mint-sm">
-          <Package className="h-[18px] w-[18px] text-[#04231A]" strokeWidth={2.4} />
+          <Package size={18} className="text-primary-ink" strokeWidth={2.4} />
         </div>
         {!collapsed && (
           <div className="min-w-0">
             <div className="text-sm font-extrabold tracking-tight text-ink truncate">
               Angren Market
             </div>
-            <div className="text-[11px] text-muted font-medium">Sotuvchi paneli</div>
+            <div className="text-2xs text-muted font-medium">Sotuvchi paneli</div>
           </div>
         )}
       </div>
@@ -105,10 +105,10 @@ export function Sidebar({
                   )}
                 >
                   {active && !collapsed && (
-                    <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r bg-primary" />
+                    <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r bg-primary" />
                   )}
                   <span className="relative shrink-0">
-                    <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
+                    <Icon size={18} strokeWidth={2} />
                     {/* Collapsed rail keeps the signal, just smaller. */}
                     {collapsed && badge > 0 && (
                       <span className="absolute -top-1.5 -right-1.5 h-2 w-2 rounded-full bg-primary ring-2 ring-surface" />
@@ -119,7 +119,7 @@ export function Sidebar({
                   </span>
                   {!collapsed && <span className="truncate">{item.label}</span>}
                   {!collapsed && badge > 0 && (
-                    <span className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-primary text-[#04231A] text-[11px] font-bold font-mono flex items-center justify-center">
+                    <span className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-primary text-primary-ink text-2xs font-bold font-mono flex items-center justify-center">
                       {badge}
                     </span>
                   )}
@@ -142,7 +142,7 @@ export function Sidebar({
           <div className="flex flex-col items-center gap-2">
             <div
               title={`${store?.name ?? "Do'kon"} — ${STORE_STATUS_LABEL[store?.status ?? 'active']}`}
-              className="h-9 w-9 rounded-xl bg-surface-2 border border-line flex items-center justify-center text-[11px] font-bold text-ink"
+              className="h-9 w-9 rounded-xl bg-surface-2 border border-line flex items-center justify-center text-2xs font-bold text-ink"
             >
               {initials(store?.name)}
             </div>
@@ -163,12 +163,12 @@ export function Sidebar({
                 <StoreIcon size={16} className="text-muted" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-[13px] font-semibold text-ink truncate">
+                <div className="text-sm font-semibold text-ink truncate">
                   {store?.name ?? '—'}
                 </div>
                 <div
                   className={cn(
-                    'text-[11px] font-medium flex items-center gap-1.5 mt-0.5',
+                    'text-2xs font-medium flex items-center gap-1.5 mt-0.5',
                     isOpen ? 'text-primary-700 dark:text-primary-300' : 'text-muted'
                   )}
                 >
