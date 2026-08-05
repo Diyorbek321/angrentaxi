@@ -1,217 +1,388 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { Plus, X } from 'lucide-react';
-import { marketApi, MarketCategory, Product, ProductStatus, ProductUnit } from '@/lib/api';
+import { useMemo, useState } from 'react';
+import { Package, Plus, RefreshCw, Search } from 'lucide-react';
+import { clsx } from 'clsx';
+import {
+  marketApi,
+  MarketCategory,
+  Product,
+  ProductStatus,
+  ProductUnit,
+} from '@/lib/api';
+import { errorMessage, hueTint } from '@/lib/utils';
+import { useAsyncData } from '@/hooks/useAsyncData';
+import { useToast } from '@/components/ui/Toast';
+import { ProductStatusBadge } from '@/components/StatusBadge';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { Input } from '@/components/ui/Input';
+import { Modal } from '@/components/ui/Modal';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Select } from '@/components/ui/Select';
+import { SkeletonTable } from '@/components/ui/Skeleton';
 
-const STATUS_META: Record<ProductStatus, { label: string; bg: string; color: string }> = {
-  active: { label: 'Faol', bg: 'bg-green-500/[0.14]', color: 'text-green-400' },
-  out: { label: 'Tugagan', bg: 'bg-red-500/[0.14]', color: 'text-red-400' },
-  hidden: { label: 'Yashirilgan', bg: 'bg-slate-400/[0.14]', color: 'text-slate-400' },
-};
+interface CatalogData {
+  products: Product[];
+  categories: MarketCategory[];
+}
 
-function photoBg(hue: number) {
-  return { background: `linear-gradient(135deg,hsla(${hue},60%,45%,0.25),hsla(${hue},60%,30%,0.12))` };
+const ROW_GRID =
+  'grid grid-cols-[36px_minmax(0,2.2fr)_1fr_130px_150px_130px] gap-3 items-center';
+
+/** Stock colouring, with the word repeated in `title` so hue is never alone. */
+function stockTone(stock: number, threshold: number) {
+  if (stock === 0) return { text: 'text-danger-deep dark:text-danger-light', label: 'Tugagan' };
+  if (stock <= threshold)
+    return { text: 'text-override-dark dark:text-override-light', label: 'Kam qolgan' };
+  return { text: 'text-ink', label: 'Yetarli' };
 }
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<MarketCategory[]>([]);
+  const { toast } = useToast();
   const [selected, setSelected] = useState<Record<string, boolean>>({});
-  const [saved, setSaved] = useState<Record<string, boolean>>({});
   const [showAdd, setShowAdd] = useState(false);
+  const [bulkPriceOpen, setBulkPriceOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const load = async () => {
+  const { data, isLoading, isRefreshing, error, reload } = useAsyncData<CatalogData>(async () => {
     const [p, c] = await Promise.all([marketApi.getProducts(), marketApi.getCategories()]);
-    setProducts(p.data.data);
-    setCategories(c.data.data);
-  };
+    return { products: p.data.data, categories: c.data.data };
+  });
 
-  useEffect(() => {
-    load();
-  }, []);
+  const products = useMemo(() => data?.products ?? [], [data]);
+  const categories = useMemo(() => data?.categories ?? [], [data]);
 
   const categoryName = (id: string | null) => categories.find((c) => c.id === id)?.name ?? '—';
 
-  const flashSaved = (id: string) => {
-    setSaved((s) => ({ ...s, [id]: true }));
-    setTimeout(() => setSaved((s) => ({ ...s, [id]: false })), 1300);
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return products;
+    return products.filter(
+      (p) => p.name.toLowerCase().includes(q) || (p.sku ?? '').toLowerCase().includes(q)
+    );
+  }, [products, query]);
+
+  const selectedIds = Object.entries(selected)
+    .filter(([, v]) => v)
+    .map(([id]) => id);
+  const selectedCount = selectedIds.length;
+
+  const patchProduct = async (id: string, patch: Parameters<typeof marketApi.updateProduct>[1]) => {
+    try {
+      await marketApi.updateProduct(id, patch);
+      await reload();
+      toast({ title: 'Saqlandi', variant: 'success' });
+    } catch (err) {
+      toast({ title: 'Xatolik', description: errorMessage(err), variant: 'error' });
+      await reload();
+    }
   };
-
-  const updatePrice = async (id: string, price: number) => {
-    const res = await marketApi.updateProduct(id, { price });
-    setProducts((prev) => prev.map((p) => (p.id === id ? res.data.data : p)));
-    flashSaved(`${id}-price`);
-  };
-
-  const updateStock = async (id: string, stock: number) => {
-    const res = await marketApi.updateProduct(id, { stock: Math.max(0, stock) });
-    setProducts((prev) => prev.map((p) => (p.id === id ? res.data.data : p)));
-    flashSaved(`${id}-stock`);
-  };
-
-  const [bulkPriceOpen, setBulkPriceOpen] = useState(false);
-
-  const selectedCount = Object.values(selected).filter(Boolean).length;
-  const selectedIds = Object.entries(selected).filter(([, v]) => v).map(([id]) => id);
 
   const bulkSetStatus = async (status: ProductStatus) => {
-    const ids = selectedIds;
-    await marketApi.bulkUpdateProducts(ids, status);
-    setSelected({});
-    await load();
+    setBusy(true);
+    try {
+      await marketApi.bulkUpdateProducts(selectedIds, status);
+      setSelected({});
+      await reload();
+      toast({ title: `${selectedIds.length} ta mahsulot yangilandi`, variant: 'success' });
+    } catch (err) {
+      toast({ title: 'Xatolik', description: errorMessage(err), variant: 'error' });
+    } finally {
+      setBusy(false);
+    }
   };
 
-  // No dedicated bulk-price backend endpoint — applies the same per-product
-  // update the inline price field already uses, just looped over the
-  // selection (exact value, or a % adjustment floored at 0).
+  // No dedicated bulk-price backend endpoint — this applies the same
+  // per-product update the inline price field already uses, just looped over
+  // the selection (exact value, or a % adjustment floored at 0).
   const bulkChangePrice = async (mode: 'set' | 'pct', value: number) => {
     await Promise.all(
       selectedIds.map((id) => {
         const product = products.find((p) => p.id === id);
         if (!product) return Promise.resolve();
         const newPrice =
-          mode === 'set' ? Math.max(0, value) : Math.max(0, Math.round(product.price * (1 + value / 100)));
+          mode === 'set'
+            ? Math.max(0, value)
+            : Math.max(0, Math.round(product.price * (1 + value / 100)));
         return marketApi.updateProduct(id, { price: newPrice });
       })
     );
     setBulkPriceOpen(false);
     setSelected({});
-    await load();
+    await reload();
+    toast({ title: 'Narxlar yangilandi', variant: 'success' });
   };
 
   return (
-    <div className="animate-fade-in">
-      <div className="flex items-center gap-2.5 mb-[18px]">
-        {selectedCount > 0 && (
-          <div className="flex items-center gap-2 bg-brand-yellow/[0.08] border border-brand-yellow/25 rounded-[11px] py-1.5 pl-3.5 pr-1.5">
-            <span className="text-[12.5px] font-bold text-brand-yellow">{selectedCount} tanlandi</span>
-            <button onClick={() => bulkSetStatus('active')} className="bg-green-500/[0.15] text-green-400 rounded-lg px-[11px] py-1.5 text-xs font-bold">
-              Faollashtirish
-            </button>
-            <button onClick={() => bulkSetStatus('hidden')} className="bg-white/[0.06] text-slate-400 rounded-lg px-[11px] py-1.5 text-xs font-bold">
-              Yashirish
-            </button>
-            <button
-              onClick={() => setBulkPriceOpen(true)}
-              className="bg-white/[0.06] text-slate-400 rounded-lg px-[11px] py-1.5 text-xs font-bold"
+    <div>
+      <PageHeader
+        title="Mahsulotlar"
+        description="Katalog, narx va zaxirani boshqaring"
+        icon={<Package size={18} aria-hidden />}
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void reload()}
+              isLoading={isRefreshing}
+              leftIcon={<RefreshCw size={13} aria-hidden />}
             >
+              Yangilash
+            </Button>
+            <Button size="sm" onClick={() => setShowAdd(true)} leftIcon={<Plus size={14} aria-hidden />}>
+              Mahsulot qo&apos;shish
+            </Button>
+          </>
+        }
+      />
+
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="w-full sm:w-72">
+          <Input
+            aria-label="Mahsulot qidirish"
+            placeholder="Nomi yoki SKU bo'yicha qidirish"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            leftElement={<Search size={15} aria-hidden />}
+          />
+        </div>
+        {selectedCount > 0 && (
+          <div
+            role="group"
+            aria-label="Tanlanganlar uchun amallar"
+            className="flex flex-wrap items-center gap-2 rounded-ds-sm border border-line bg-surface-2/60 px-3 py-1.5"
+          >
+            <span className="text-caption font-bold text-primary-text">
+              {selectedCount} tanlandi
+            </span>
+            <Button size="sm" variant="secondary" isLoading={busy} onClick={() => void bulkSetStatus('active')}>
+              Faollashtirish
+            </Button>
+            <Button size="sm" variant="secondary" isLoading={busy} onClick={() => void bulkSetStatus('hidden')}>
+              Yashirish
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => setBulkPriceOpen(true)}>
               Narxni o&apos;zgartirish
-            </button>
+            </Button>
           </div>
         )}
-        <div className="ml-auto flex gap-[9px]">
-          <button
-            onClick={() => setShowAdd(true)}
-            className="bg-brand-yellow text-brand-dark rounded-[11px] px-[17px] py-2.5 text-sm font-extrabold flex items-center gap-2 hover:bg-yellow-300"
-          >
-            <Plus className="h-4 w-4" strokeWidth={2.6} />
-            Mahsulot qo&apos;shish
-          </button>
-        </div>
       </div>
 
-      <div
-        className="rounded-2xl border border-white/[0.07] overflow-hidden"
-        style={{ background: 'linear-gradient(160deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))' }}
-      >
-        <div className="grid grid-cols-[40px_2.2fr_1fr_1.1fr_1.1fr_1fr] gap-3.5 px-[18px] py-3 border-b border-white/[0.08] text-[11.5px] font-bold text-slate-500 uppercase tracking-wide">
-          <div />
-          <div>Mahsulot</div>
-          <div>Kategoriya</div>
-          <div>Narx (so&apos;m)</div>
-          <div>Zaxira</div>
-          <div>Holat</div>
-        </div>
-
-        {products.map((p) => {
-          const sm = STATUS_META[p.status];
-          const stockBorder = p.stock === 0 ? 'border-red-500/40' : p.stock <= 10 ? 'border-brand-yellow/40' : 'border-white/[0.09]';
-          const stockColor = p.stock === 0 ? 'text-red-400' : p.stock <= 10 ? 'text-brand-yellow' : 'text-green-400';
-          return (
+      {isLoading ? (
+        <SkeletonTable rows={8} cols={5} />
+      ) : error && products.length === 0 ? (
+        <ErrorState message={error} onRetry={reload} />
+      ) : filtered.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon={<Package size={24} aria-hidden />}
+            title={query ? 'Hech narsa topilmadi' : 'Katalog hali bo’sh'}
+            description={
+              query
+                ? "Qidiruv so'zini o'zgartirib ko'ring."
+                : "Birinchi mahsulotni qo'shsangiz, u shu yerda ko'rinadi."
+            }
+            action={
+              query ? (
+                <Button size="sm" variant="secondary" onClick={() => setQuery('')}>
+                  Qidiruvni tozalash
+                </Button>
+              ) : (
+                <Button size="sm" onClick={() => setShowAdd(true)} leftIcon={<Plus size={14} aria-hidden />}>
+                  Mahsulot qo&apos;shish
+                </Button>
+              )
+            }
+          />
+        </Card>
+      ) : (
+        <>
+          {/* Desktop: editable table. */}
+          <Card padding="none" className="hidden overflow-hidden lg:block">
             <div
-              key={p.id}
-              className="grid grid-cols-[40px_2.2fr_1fr_1.1fr_1.1fr_1fr] gap-3.5 px-[18px] py-3 border-b border-white/[0.04] items-center"
+              className={clsx(
+                ROW_GRID,
+                'border-b border-line bg-surface-2/60 px-4 py-2.5 text-micro uppercase text-muted'
+              )}
             >
-              <input
-                type="checkbox"
-                checked={!!selected[p.id]}
-                onChange={() => setSelected((s) => ({ ...s, [p.id]: !s[p.id] }))}
-                className="w-4 h-4 accent-brand-yellow"
-              />
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-[10px] flex-shrink-0 flex items-center justify-center text-lg" style={photoBg(p.hue)}>
-                  {p.emoji}
-                </div>
-                <div className="min-w-0">
-                  <div className="text-[13px] font-bold whitespace-nowrap overflow-hidden text-ellipsis">{p.name}</div>
-                  <div className="text-[11px] text-slate-500 font-mono mt-0.5">{p.sku}</div>
-                </div>
-              </div>
-              <div className="text-[12.5px] text-slate-400">{categoryName(p.categoryId)}</div>
-              <div className="relative flex items-center gap-1.5">
-                <input
-                  type="number"
-                  defaultValue={p.price}
-                  onBlur={(e) => {
-                    const v = Number(e.target.value);
-                    if (!Number.isNaN(v) && v !== p.price) updatePrice(p.id, v);
-                  }}
-                  className="w-[88px] bg-white/[0.04] border border-white/[0.09] rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-200 focus:border-brand-yellow outline-none"
-                />
-                {saved[`${p.id}-price`] && <Check />}
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  defaultValue={p.stock}
-                  onBlur={(e) => {
-                    const v = Number(e.target.value);
-                    if (!Number.isNaN(v) && v !== p.stock) updateStock(p.id, v);
-                  }}
-                  className={`w-16 bg-white/[0.04] border ${stockBorder} rounded-lg px-2.5 py-1.5 text-sm font-extrabold ${stockColor} focus:border-brand-yellow outline-none`}
-                />
-                <span className="text-[11.5px] text-slate-500">{p.unit}</span>
-                {saved[`${p.id}-stock`] && <Check />}
-              </div>
-              <div>
-                <span className={`text-[11.5px] font-bold px-[11px] py-1.5 rounded-lg ${sm.bg} ${sm.color}`}>{sm.label}</span>
-              </div>
+              <span aria-hidden />
+              <span>Mahsulot</span>
+              <span>Kategoriya</span>
+              <span>Narx (so&apos;m)</span>
+              <span>Zaxira</span>
+              <span>Holat</span>
             </div>
-          );
-        })}
-      </div>
+            <ul className="divide-y divide-divider">
+              {filtered.map((p) => {
+                const tone = stockTone(p.stock, 10);
+                return (
+                  <li key={p.id} className={clsx(ROW_GRID, 'px-4 py-2.5')}>
+                    <input
+                      type="checkbox"
+                      checked={!!selected[p.id]}
+                      onChange={() => setSelected((s) => ({ ...s, [p.id]: !s[p.id] }))}
+                      aria-label={`${p.name} tanlash`}
+                      className="h-4 w-4 accent-brand"
+                    />
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span
+                        aria-hidden
+                        style={hueTint(p.hue)}
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-ds-sm text-lg"
+                      >
+                        {p.emoji}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-body font-semibold text-ink">
+                          {p.name}
+                        </span>
+                        <span className="mt-0.5 block font-mono text-caption text-subtle">
+                          {p.sku || '—'}
+                        </span>
+                      </span>
+                    </div>
+                    <span className="truncate text-caption text-muted">
+                      {categoryName(p.categoryId)}
+                    </span>
+                    <Input
+                      type="number"
+                      mono
+                      defaultValue={p.price}
+                      aria-label={`${p.name} narxi`}
+                      onBlur={(e) => {
+                        const v = Number(e.target.value);
+                        if (!Number.isNaN(v) && v !== p.price) void patchProduct(p.id, { price: v });
+                      }}
+                    />
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        mono
+                        defaultValue={p.stock}
+                        title={tone.label}
+                        aria-label={`${p.name} zaxirasi — ${tone.label}`}
+                        className={clsx('font-bold', tone.text)}
+                        onBlur={(e) => {
+                          const v = Number(e.target.value);
+                          if (!Number.isNaN(v) && v !== p.stock)
+                            void patchProduct(p.id, { stock: Math.max(0, v) });
+                        }}
+                      />
+                      <span className="shrink-0 text-caption text-muted">{p.unit}</span>
+                    </div>
+                    <span>
+                      <ProductStatusBadge status={p.status} size="sm" />
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
 
-      {showAdd && (
-        <AddProductModal
-          categories={categories}
-          onClose={() => setShowAdd(false)}
-          onCreated={async () => {
-            setShowAdd(false);
-            await load();
-          }}
-        />
+          {/* Mobile: one card per product, same editable fields stacked. */}
+          <ul className="space-y-2.5 lg:hidden">
+            {filtered.map((p) => {
+              const tone = stockTone(p.stock, 10);
+              return (
+                <li key={p.id}>
+                  <Card padding="sm">
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={!!selected[p.id]}
+                        onChange={() => setSelected((s) => ({ ...s, [p.id]: !s[p.id] }))}
+                        aria-label={`${p.name} tanlash`}
+                        className="mt-1 h-4 w-4 shrink-0 accent-brand"
+                      />
+                      <span
+                        aria-hidden
+                        style={hueTint(p.hue)}
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-ds-sm text-lg"
+                      >
+                        {p.emoji}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-body font-semibold text-ink">{p.name}</p>
+                        <p className="mt-0.5 truncate font-mono text-caption text-subtle">
+                          {p.sku || '—'} · {categoryName(p.categoryId)}
+                        </p>
+                      </div>
+                      <ProductStatusBadge status={p.status} size="sm" />
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                      <Input
+                        label="Narx (so'm)"
+                        type="number"
+                        mono
+                        defaultValue={p.price}
+                        onBlur={(e) => {
+                          const v = Number(e.target.value);
+                          if (!Number.isNaN(v) && v !== p.price)
+                            void patchProduct(p.id, { price: v });
+                        }}
+                      />
+                      <Input
+                        label={`Zaxira (${p.unit})`}
+                        type="number"
+                        mono
+                        defaultValue={p.stock}
+                        hint={tone.label}
+                        className={clsx('font-bold', tone.text)}
+                        onBlur={(e) => {
+                          const v = Number(e.target.value);
+                          if (!Number.isNaN(v) && v !== p.stock)
+                            void patchProduct(p.id, { stock: Math.max(0, v) });
+                        }}
+                      />
+                    </div>
+                  </Card>
+                </li>
+              );
+            })}
+          </ul>
+        </>
       )}
 
-      {bulkPriceOpen && (
-        <BulkPriceModal
-          count={selectedCount}
-          onClose={() => setBulkPriceOpen(false)}
-          onApply={bulkChangePrice}
-        />
-      )}
+      <AddProductModal
+        isOpen={showAdd}
+        categories={categories}
+        onClose={() => setShowAdd(false)}
+        onCreated={async () => {
+          setShowAdd(false);
+          await reload();
+          toast({ title: "Mahsulot qo'shildi", variant: 'success' });
+        }}
+        onError={(msg) => toast({ title: 'Xatolik', description: msg, variant: 'error' })}
+      />
+
+      <BulkPriceModal
+        isOpen={bulkPriceOpen}
+        count={selectedCount}
+        onClose={() => setBulkPriceOpen(false)}
+        onApply={bulkChangePrice}
+        onError={(msg) => toast({ title: 'Xatolik', description: msg, variant: 'error' })}
+      />
     </div>
   );
 }
 
 function BulkPriceModal({
+  isOpen,
   count,
   onClose,
   onApply,
+  onError,
 }: {
+  isOpen: boolean;
   count: number;
   onClose: () => void;
   onApply: (mode: 'set' | 'pct', value: number) => Promise<void>;
+  onError: (message: string) => void;
 }) {
   const [mode, setMode] = useState<'set' | 'pct'>('set');
   const [value, setValue] = useState('');
@@ -219,188 +390,196 @@ function BulkPriceModal({
 
   const submit = async () => {
     const num = parseFloat(value);
-    if (isNaN(num)) return;
+    if (Number.isNaN(num)) return;
     setSaving(true);
     try {
       await onApply(mode, num);
+      setValue('');
+    } catch (err) {
+      onError(errorMessage(err));
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-5">
-      <div onClick={onClose} className="absolute inset-0 bg-black/65 animate-fade-in" />
-      <div className="relative w-[400px] max-w-full bg-brand-dark border border-white/[0.09] rounded-2xl p-6">
-        <h3 className="text-[17px] font-extrabold mb-1.5">Narxni ommaviy o&apos;zgartirish</h3>
-        <p className="text-[13px] text-slate-400 mb-4.5">{count} ta mahsulotga qo&apos;llaniladi</p>
-
-        <div className="flex gap-2 mb-4">
-          <button
-            onClick={() => setMode('set')}
-            className={`flex-1 rounded-[9px] py-2 text-[12.5px] font-bold border ${
-              mode === 'set' ? 'border-brand-yellow/50 text-brand-yellow bg-brand-yellow/10' : 'border-white/[0.08] text-slate-400'
-            }`}
-          >
-            Aniq narx
-          </button>
-          <button
-            onClick={() => setMode('pct')}
-            className={`flex-1 rounded-[9px] py-2 text-[12.5px] font-bold border ${
-              mode === 'pct' ? 'border-brand-yellow/50 text-brand-yellow bg-brand-yellow/10' : 'border-white/[0.08] text-slate-400'
-            }`}
-          >
-            Foizda (%)
-          </button>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Narxni ommaviy o'zgartirish"
+      subtitle={`${count} ta mahsulotga qo'llaniladi`}
+      size="sm"
+    >
+      <div className="space-y-4">
+        <div role="radiogroup" aria-label="O'zgartirish usuli" className="flex gap-2">
+          {(
+            [
+              { key: 'set', label: 'Aniq narx' },
+              { key: 'pct', label: 'Foizda (%)' },
+            ] as const
+          ).map((opt) => (
+            <button
+              key={opt.key}
+              type="button"
+              role="radio"
+              aria-checked={mode === opt.key}
+              onClick={() => setMode(opt.key)}
+              className={clsx(
+                'flex-1 rounded-ds-sm border py-2 text-caption font-bold transition-colors duration-fast',
+                mode === opt.key
+                  ? 'border-primary bg-mint-tint text-primary-text'
+                  : 'border-line text-muted hover:bg-surface-2 hover:text-ink'
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
 
-        <Field label={mode === 'set' ? "Yangi narx (so'm)" : 'O‘zgarish foizi (masalan -10 yoki 15)'}>
-          <input className="input" type="number" value={value} onChange={(e) => setValue(e.target.value)} />
-        </Field>
+        <Input
+          type="number"
+          mono
+          autoFocus
+          label={mode === 'set' ? "Yangi narx (so'm)" : "O'zgarish foizi"}
+          hint={mode === 'pct' ? 'Masalan: -10 yoki 15' : undefined}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+        />
 
-        <div className="flex gap-2.5 mt-5">
-          <button onClick={onClose} className="flex-1 border border-white/[0.12] text-slate-400 rounded-xl py-3 text-sm font-bold">
+        <div className="flex gap-2.5">
+          <Button variant="secondary" className="flex-1" onClick={onClose}>
             Bekor qilish
-          </button>
-          <button
-            onClick={submit}
-            disabled={!value || saving}
-            className="flex-1 bg-brand-yellow text-brand-black rounded-xl py-3 text-sm font-bold disabled:opacity-50"
+          </Button>
+          <Button
+            className="flex-1"
+            disabled={!value}
+            isLoading={saving}
+            onClick={() => void submit()}
           >
-            {saving ? 'Qo‘llanmoqda...' : "Qo'llash"}
-          </button>
+            Qo&apos;llash
+          </Button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
-function Check() {
-  return <span className="text-green-500 animate-pop">✓</span>;
-}
+const UNIT_OPTIONS = [
+  { value: 'dona', label: 'dona' },
+  { value: 'kg', label: 'kg' },
+  { value: 'litr', label: 'litr' },
+];
 
 function AddProductModal({
+  isOpen,
   categories,
   onClose,
   onCreated,
+  onError,
 }: {
+  isOpen: boolean;
   categories: MarketCategory[];
   onClose: () => void;
   onCreated: () => Promise<void>;
+  onError: (message: string) => void;
 }) {
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
   const [price, setPrice] = useState('');
   const [stock, setStock] = useState('');
   const [unit, setUnit] = useState<ProductUnit>('dona');
-  const [categoryId, setCategoryId] = useState<string>(categories[0]?.id ?? '');
+  const [categoryId, setCategoryId] = useState('');
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
-    if (!name) return;
+    if (!name.trim()) return;
     setSaving(true);
     try {
       await marketApi.createProduct({
-        name,
-        sku: sku || undefined,
+        name: name.trim(),
+        sku: sku.trim() || undefined,
         price: Number(price) || 0,
         stock: Number(stock) || 0,
         unit,
         categoryId: categoryId || undefined,
       });
+      setName('');
+      setSku('');
+      setPrice('');
+      setStock('');
       await onCreated();
+    } catch (err) {
+      onError(errorMessage(err));
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-      <div onClick={onClose} className="absolute inset-0 bg-black/70 animate-fade-in" />
-      <div
-        className="relative w-[560px] max-h-[90vh] overflow-y-auto bg-brand-dark border border-white/[0.09] rounded-[20px] animate-pop"
-        style={{ boxShadow: '0 30px 80px rgba(0,0,0,0.5)' }}
+    <Modal isOpen={isOpen} onClose={onClose} title="Yangi mahsulot" size="lg">
+      <form
+        className="space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void save();
+        }}
       >
-        <div className="px-6 py-5 border-b border-white/[0.07] flex items-center justify-between">
-          <span className="text-[17px] font-extrabold">Yangi mahsulot</span>
-          <button onClick={onClose} className="w-[34px] h-[34px] rounded-[9px] bg-white/[0.05] text-slate-400 flex items-center justify-center">
-            <X className="h-[17px] w-[17px]" />
-          </button>
+        <Input
+          label="Nomi"
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Masalan: Guruch Lazer 1kg"
+        />
+        <Input
+          label="SKU / Shtrix-kod"
+          mono
+          value={sku}
+          onChange={(e) => setSku(e.target.value)}
+          placeholder="GRC-1002"
+        />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <Input
+            label="Narx (so'm)"
+            type="number"
+            mono
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            placeholder="0"
+          />
+          <Input
+            label="Zaxira"
+            type="number"
+            mono
+            value={stock}
+            onChange={(e) => setStock(e.target.value)}
+            placeholder="0"
+          />
+          <Select
+            label="Birlik"
+            options={UNIT_OPTIONS}
+            value={unit}
+            onChange={(e) => setUnit(e.target.value as ProductUnit)}
+          />
         </div>
-        <div className="px-6 py-[22px] flex flex-col gap-[15px]">
-          <Field label="Nomi">
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Masalan: Guruch Lazer 1kg"
-              className="input"
-            />
-          </Field>
-          <Field label="SKU / Shtrix-kod">
-            <input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="GRC-1002" className="input font-mono" />
-          </Field>
-          <div className="grid grid-cols-3 gap-3">
-            <Field label="Narx (so'm)">
-              <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0" className="input font-bold" />
-            </Field>
-            <Field label="Zaxira">
-              <input type="number" value={stock} onChange={(e) => setStock(e.target.value)} placeholder="0" className="input font-bold" />
-            </Field>
-            <Field label="Birlik">
-              <select value={unit} onChange={(e) => setUnit(e.target.value as ProductUnit)} className="input">
-                <option value="dona">dona</option>
-                <option value="kg">kg</option>
-                <option value="litr">litr</option>
-              </select>
-            </Field>
-          </div>
-          <Field label="Kategoriya">
-            <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="input">
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
-        <div className="px-6 py-[18px] border-t border-white/[0.07] flex justify-end gap-2.5">
-          <button onClick={onClose} className="bg-white/[0.05] border border-white/[0.08] text-slate-200 rounded-[11px] px-5 py-[11px] text-sm font-bold">
-            Bekor qilish
-          </button>
-          <button
-            onClick={save}
-            disabled={saving || !name}
-            className="bg-brand-yellow text-brand-dark rounded-[11px] px-6 py-[11px] text-sm font-extrabold disabled:opacity-50 hover:bg-yellow-300"
-          >
-            Qo&apos;shish
-          </button>
-        </div>
-      </div>
-      <style jsx>{`
-        .input {
-          width: 100%;
-          background: rgba(255, 255, 255, 0.04);
-          border: 1px solid rgba(255, 255, 255, 0.09);
-          border-radius: 10px;
-          padding: 10px 13px;
-          color: #e5e7eb;
-          font-size: 13px;
-        }
-        .input:focus {
-          outline: none;
-          border-color: #facc15;
-        }
-      `}</style>
-    </div>
-  );
-}
+        <Select
+          label="Kategoriya"
+          placeholder={categories.length ? 'Kategoriyani tanlang' : 'Kategoriya yo’q'}
+          options={categories.map((c) => ({ value: c.id, label: `${c.emoji} ${c.name}` }))}
+          value={categoryId}
+          onChange={(e) => setCategoryId(e.target.value)}
+          hint={categories.length ? undefined : "Avval kategoriya qo'shing"}
+        />
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="text-xs text-slate-400 font-semibold block mb-1.5">{label}</label>
-      {children}
-    </div>
+        <div className="flex justify-end gap-2.5 pt-1">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Bekor qilish
+          </Button>
+          <Button type="submit" disabled={!name.trim()} isLoading={saving}>
+            Qo&apos;shish
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }

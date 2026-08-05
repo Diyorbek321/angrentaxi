@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import localFont from 'next/font/local';
 import './globals.css';
 import { Providers } from './providers';
+import { THEME_INIT_SCRIPT } from '@/lib/theme';
 
 const manrope = localFont({
   src: [
@@ -32,8 +33,20 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="uz" className={`${manrope.variable} ${jetbrainsMono.variable}`}>
-      <body className="font-sans">
+    // suppressHydrationWarning: the inline script below toggles the `dark`
+    // class on <html> before hydration, so the server markup and the DOM React
+    // first sees differ by design on this one element. Applying the theme from
+    // a component instead would read localStorage during render — one value on
+    // the server, another in the browser — which is the mismatch this avoids.
+    <html
+      lang="uz"
+      suppressHydrationWarning
+      className={`${manrope.variable} ${jetbrainsMono.variable}`}
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
+      <body className="font-sans antialiased bg-bg text-ink">
         <Providers>{children}</Providers>
       </body>
     </html>

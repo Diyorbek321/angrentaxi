@@ -24,11 +24,17 @@ ToastViewport.displayName = ToastPrimitive.Viewport.displayName;
 
 type ToastVariant = 'default' | 'success' | 'error' | 'info';
 
+/**
+ * Tinted surfaces, never saturated fills: the toast body has to stay readable
+ * in both themes, so the semantic hue lives in the border and the icon rather
+ * than in the background. `success` uses the mint *tint* with ink text — mint
+ * itself carries no meaning on a light surface (2.12:1).
+ */
 const toastStyles: Record<ToastVariant, string> = {
-  default: 'bg-white border-gray-200 text-gray-900',
-  success: 'bg-green-50 border-green-200 text-green-900',
-  error: 'bg-red-50 border-red-200 text-red-900',
-  info: 'bg-blue-50 border-blue-200 text-blue-900',
+  default: 'bg-surface border-line',
+  success: 'bg-mint-tint border-mint/40',
+  error: 'bg-danger-tint border-danger/40',
+  info: 'bg-info-tint border-info/40',
 };
 
 const ToastRoot = React.forwardRef<
@@ -39,12 +45,11 @@ const ToastRoot = React.forwardRef<
     <ToastPrimitive.Root
       ref={ref}
       className={cn(
-        'group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-xl border p-4 pr-8 shadow-lg transition-all',
+        'group pointer-events-auto relative flex w-full items-center justify-between gap-4 overflow-hidden',
+        'rounded-ds-md border p-4 pr-8 shadow-pop transition-all text-ink',
         'data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)]',
         'data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none',
-        'data-[state=open]:animate-in data-[state=closed]:animate-out',
-        'data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full',
-        'data-[state=open]:slide-in-from-top-full',
+        'data-[state=open]:animate-slide-up',
         toastStyles[variant],
         className
       )}
@@ -60,8 +65,9 @@ const ToastClose = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ToastPrimitive.Close
     ref={ref}
+    aria-label="Yopish"
     className={cn(
-      'absolute right-2 top-2 rounded-md p-1 text-gray-400 opacity-0 transition-opacity hover:text-gray-900 focus:opacity-100 focus:outline-none focus:ring-1 group-hover:opacity-100',
+      'absolute right-2 top-2 rounded-ds-xs p-1 text-muted transition-colors hover:text-ink hover:bg-surface-2',
       className
     )}
     toast-close=""
@@ -78,7 +84,7 @@ const ToastTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ToastPrimitive.Title
     ref={ref}
-    className={cn('text-sm font-semibold', className)}
+    className={cn('text-sm font-semibold text-ink', className)}
     {...props}
   />
 ));
@@ -90,7 +96,7 @@ const ToastDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ToastPrimitive.Description
     ref={ref}
-    className={cn('text-sm opacity-90', className)}
+    className={cn('text-sm text-muted', className)}
     {...props}
   />
 ));
@@ -127,11 +133,14 @@ export function ToastContextProvider({ children }: { children: React.ReactNode }
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
+  // The icon repeats what the tint says, so colour is never the only signal.
   const icons: Record<ToastVariant, React.ReactNode> = {
     default: null,
-    success: <CheckCircle className="h-5 w-5 text-green-500 shrink-0" />,
-    error: <AlertCircle className="h-5 w-5 text-red-500 shrink-0" />,
-    info: <Info className="h-5 w-5 text-blue-500 shrink-0" />,
+    success: <CheckCircle className="h-5 w-5 text-primary-text shrink-0" aria-hidden />,
+    error: (
+      <AlertCircle className="h-5 w-5 text-danger-deep dark:text-danger-light shrink-0" aria-hidden />
+    ),
+    info: <Info className="h-5 w-5 text-info-deep dark:text-info-light shrink-0" aria-hidden />,
   };
 
   return (

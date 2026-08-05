@@ -1,12 +1,39 @@
-const META: Record<string, { label: string; bg: string; color: string }> = {
-  new: { label: 'Yangi', bg: 'bg-brand-yellow/[0.15]', color: 'text-brand-yellow' },
-  packing: { label: "Yig'ilmoqda", bg: 'bg-blue-500/[0.15]', color: 'text-blue-400' },
-  shipped: { label: 'Yuborildi', bg: 'bg-purple-500/[0.15]', color: 'text-purple-400' },
-  delivered: { label: 'Yetkazildi', bg: 'bg-green-500/[0.15]', color: 'text-green-400' },
-  cancelled: { label: 'Bekor qilindi', bg: 'bg-red-500/[0.14]', color: 'text-red-400' },
+import { Badge, type BadgeVariant } from '@/components/ui/Badge';
+import type { MarketOrderStatus, ProductStatus } from '@/lib/api';
+
+/**
+ * Order lifecycle chips. The label always spells the state out, so the colour
+ * reinforces the meaning instead of being the only thing that carries it —
+ * several of these states are otherwise distinguishable by hue alone.
+ */
+const ORDER_META: Record<MarketOrderStatus, { label: string; variant: BadgeVariant }> = {
+  new: { label: 'Yangi', variant: 'info' },
+  packing: { label: "Yig'ilmoqda", variant: 'override' },
+  shipped: { label: 'Yuborildi', variant: 'primary' },
+  delivered: { label: 'Yetkazildi', variant: 'success' },
+  cancelled: { label: 'Bekor qilindi', variant: 'danger' },
 };
 
-export function StatusBadge({ status }: { status: string }) {
-  const m = META[status] ?? META.new;
-  return <span className={`text-[11px] font-bold px-[10px] py-1 rounded-lg ${m.bg} ${m.color}`}>{m.label}</span>;
+export function StatusBadge({ status, size }: { status: string; size?: 'sm' | 'md' }) {
+  const meta = ORDER_META[status as MarketOrderStatus] ?? ORDER_META.new;
+  return (
+    <Badge variant={meta.variant} size={size} dot>
+      {meta.label}
+    </Badge>
+  );
+}
+
+const PRODUCT_META: Record<ProductStatus, { label: string; variant: BadgeVariant }> = {
+  active: { label: 'Faol', variant: 'success' },
+  out: { label: 'Tugagan', variant: 'danger' },
+  hidden: { label: 'Yashirilgan', variant: 'default' },
+};
+
+export function ProductStatusBadge({ status, size }: { status: ProductStatus; size?: 'sm' | 'md' }) {
+  const meta = PRODUCT_META[status] ?? PRODUCT_META.hidden;
+  return (
+    <Badge variant={meta.variant} size={size} dot>
+      {meta.label}
+    </Badge>
+  );
 }

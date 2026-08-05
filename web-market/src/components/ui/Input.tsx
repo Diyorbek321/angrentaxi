@@ -1,55 +1,63 @@
-import * as React from 'react';
-import { cn } from '@/lib/utils';
+import { forwardRef, InputHTMLAttributes } from 'react';
+import { clsx } from 'clsx';
 
-export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
-  leftIcon?: React.ReactNode;
-  rightIcon?: React.ReactNode;
+  hint?: string;
+  leftElement?: React.ReactNode;
+  rightElement?: React.ReactNode;
+  /** Numbers, ids, phones and prices read better in the mono face. */
+  mono?: boolean;
 }
 
-const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, label, error, leftIcon, rightIcon, id, ...props }, ref) => {
-    const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
+const Input = forwardRef<HTMLInputElement, InputProps>(
+  (
+    { label, error, hint, leftElement, rightElement, mono = false, className, id, ...props },
+    ref
+  ) => {
+    const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-');
+
     return (
-      <div className="w-full">
+      <div className="flex flex-col gap-1.5">
         {label && (
-          <label htmlFor={inputId} className="mb-1.5 block text-sm font-medium text-slate-300">
+          <label htmlFor={inputId} className="text-xs font-medium text-muted">
             {label}
           </label>
         )}
-        <div className="relative">
-          {leftIcon && (
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
-              {leftIcon}
+        <div className="relative flex items-center">
+          {leftElement && (
+            <div className="absolute left-3 text-subtle pointer-events-none flex items-center">
+              {leftElement}
             </div>
           )}
           <input
+            ref={ref}
             id={inputId}
-            type={type}
-            className={cn(
-              'flex h-10 w-full rounded-md border border-white/10 bg-[#111827] px-3 py-2 text-sm text-white',
-              'placeholder:text-slate-600',
-              'focus:border-yellow-400/60 focus:outline-none focus:ring-1 focus:ring-yellow-400/20',
-              'disabled:cursor-not-allowed disabled:bg-white/5 disabled:text-slate-500',
+            className={clsx(
+              'w-full bg-surface border rounded-lg text-ink placeholder-subtle text-sm py-2',
+              'focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary',
+              'disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-2',
               'transition-colors',
-              leftIcon && 'pl-10',
-              rightIcon && 'pr-10',
-              error && 'border-red-500/60 focus:border-red-500/60 focus:ring-red-500/20',
+              mono && 'font-mono',
+              error ? 'border-danger/60 focus:ring-danger/30 focus:border-danger' : 'border-line hover:border-line-strong',
+              leftElement ? 'pl-9' : 'pl-3',
+              rightElement ? 'pr-9' : 'pr-3',
               className
             )}
-            ref={ref}
             {...props}
           />
-          {rightIcon && (
-            <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500">{rightIcon}</div>
+          {rightElement && (
+            <div className="absolute right-3 text-subtle flex items-center">{rightElement}</div>
           )}
         </div>
-        {error && <p className="mt-1.5 text-xs text-red-400">{error}</p>}
+        {error && <p className="text-xs text-danger">{error}</p>}
+        {hint && !error && <p className="text-xs text-subtle">{hint}</p>}
       </div>
     );
   }
 );
+
 Input.displayName = 'Input';
 
 export { Input };

@@ -8,9 +8,11 @@ import { z } from 'zod';
 import { Phone, Lock, ArrowRight, ShoppingBag } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { useToast } from '@/components/ui/Toast';
 import { authApi } from '@/lib/api';
 import { isValidUzPhone, formatPhone } from '@/lib/auth';
+import { errorMessage } from '@/lib/utils';
 import { sanitizeNextPath } from '@/lib/route-guard';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -49,7 +51,10 @@ export default function LoginPage() {
     setNextPath(sanitizeNextPath(param));
   }, []);
 
-  const phoneForm = useForm<PhoneForm>({ resolver: zodResolver(phoneSchema), defaultValues: { phone: '' } });
+  const phoneForm = useForm<PhoneForm>({
+    resolver: zodResolver(phoneSchema),
+    defaultValues: { phone: '' },
+  });
   const otpForm = useForm<OtpForm>({ resolver: zodResolver(otpSchema), defaultValues: { code: '' } });
 
   const handleSendOtp = async (data: PhoneForm) => {
@@ -70,10 +75,11 @@ export default function LoginPage() {
         variant: 'success',
       });
     } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        'Kod yuborishda xatolik yuz berdi';
-      toast({ title: 'Xatolik', description: message, variant: 'error' });
+      toast({
+        title: 'Xatolik',
+        description: errorMessage(err, 'Kod yuborishda xatolik yuz berdi'),
+        variant: 'error',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -90,60 +96,67 @@ export default function LoginPage() {
       toast({ title: 'Muvaffaqiyatli kirildi', variant: 'success' });
       router.push(nextPath);
     } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        (err instanceof Error && err.message ? err.message : null) ||
-        "Noto'g'ri kod";
-      toast({ title: 'Xatolik', description: message, variant: 'error' });
+      toast({
+        title: 'Xatolik',
+        description: errorMessage(err, "Noto'g'ri kod"),
+        variant: 'error',
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-[#080D1A] overflow-hidden p-4">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-bg p-4">
+      {/* Decorative only — mint may fill a surface, but never carry meaning. */}
       <div
-        className="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full"
-        style={{ background: 'radial-gradient(circle, rgba(250,204,21,0.12) 0%, transparent 70%)', filter: 'blur(60px)' }}
+        aria-hidden
+        className="pointer-events-none absolute -left-40 -top-40 h-96 w-96 rounded-full bg-mint/20 blur-3xl"
       />
       <div
-        className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full"
-        style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.10) 0%, transparent 70%)', filter: 'blur(80px)' }}
+        aria-hidden
+        className="pointer-events-none absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-info/10 blur-3xl"
       />
+
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
 
       <div className="relative w-full max-w-md">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <div
-            className="flex h-14 w-14 items-center justify-center rounded-2xl bg-yellow-400"
-            style={{ boxShadow: '0 0 32px rgba(250,204,21,0.4)' }}
-          >
-            <ShoppingBag className="h-7 w-7 text-[#080D1A]" />
+          <div className="flex h-14 w-14 items-center justify-center rounded-ds-md bg-gradient-cta shadow-cta">
+            <ShoppingBag className="h-7 w-7 text-white" aria-hidden />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">Angren Market</h1>
-            <p className="text-sm text-yellow-400">Sotuvchi paneli</p>
+            <h1 className="text-h1 text-ink">Angren Market</h1>
+            <p className="text-body text-primary-text font-semibold">Sotuvchi paneli</p>
           </div>
         </div>
 
-        <div
-          className="rounded-2xl p-8"
-          style={{
-            background: 'rgba(13,21,38,0.8)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            backdropFilter: 'blur(12px)',
-            boxShadow: '0 24px 48px rgba(0,0,0,0.5)',
-          }}
-        >
-          <div className="mb-6 flex items-center gap-2">
-            <div className={`h-1.5 flex-1 rounded-full transition-colors ${step === 'phone' || step === 'otp' ? 'bg-yellow-400' : 'bg-white/10'}`} />
-            <div className={`h-1.5 flex-1 rounded-full transition-colors ${step === 'otp' ? 'bg-yellow-400' : 'bg-white/10'}`} />
+        <div className="surface-card p-6 sm:p-8">
+          {/* Two-step progress. `aria-valuenow` states the step for screen
+              readers, since the filled bar alone says nothing. */}
+          <div
+            className="mb-6 flex items-center gap-2"
+            role="progressbar"
+            aria-valuemin={1}
+            aria-valuemax={2}
+            aria-valuenow={step === 'phone' ? 1 : 2}
+            aria-label="Kirish bosqichi"
+          >
+            <div className="h-1.5 flex-1 rounded-full bg-primary" />
+            <div
+              className={`h-1.5 flex-1 rounded-full transition-colors duration-fast ${
+                step === 'otp' ? 'bg-primary' : 'bg-surface-3'
+              }`}
+            />
           </div>
 
           <div className="mb-6">
-            <h2 className="text-xl font-bold text-white">
+            <h2 className="text-h2 text-ink">
               {step === 'phone' ? 'Sotuvchi paneliga kirish' : 'Tasdiqlash kodi'}
             </h2>
-            <p className="mt-1.5 text-sm text-slate-500">
+            <p className="mt-1.5 text-body text-muted">
               {step === 'phone'
                 ? 'Telefon raqamingizni kiriting'
                 : `${phone} raqamiga yuborilgan 6 raqamli kodni kiriting`}
@@ -155,13 +168,21 @@ export default function LoginPage() {
               <Input
                 label="Telefon raqam"
                 placeholder="+998901234567"
-                leftIcon={<Phone className="h-4 w-4" />}
+                autoComplete="tel"
+                inputMode="tel"
+                mono
+                leftElement={<Phone className="h-4 w-4" aria-hidden />}
                 error={phoneForm.formState.errors.phone?.message}
                 {...phoneForm.register('phone')}
               />
-              <Button type="submit" className="w-full" isLoading={isLoading}>
+              <Button
+                type="submit"
+                size="lg"
+                className="w-full"
+                isLoading={isLoading}
+                rightIcon={<ArrowRight className="h-4 w-4" aria-hidden />}
+              >
                 Kod yuborish
-                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </form>
           ) : (
@@ -170,32 +191,37 @@ export default function LoginPage() {
                 label="Tasdiqlash kodi"
                 placeholder="000000"
                 maxLength={6}
-                leftIcon={<Lock className="h-4 w-4" />}
+                mono
+                autoComplete="one-time-code"
+                leftElement={<Lock className="h-4 w-4" aria-hidden />}
                 error={otpForm.formState.errors.code?.message}
                 inputMode="numeric"
                 {...otpForm.register('code')}
               />
               {devOtpCode && (
-                <div
-                  className="rounded-lg px-3 py-2 text-sm"
-                  style={{ background: 'rgba(250,204,21,0.08)', border: '1px solid rgba(250,204,21,0.25)', color: '#FACC15' }}
-                >
+                <div className="rounded-ds-sm border border-info/40 bg-info-tint px-3 py-2 text-body text-ink">
                   <span className="font-semibold">DEV:</span> OTP kod —{' '}
                   <span className="font-mono font-bold">{devOtpCode}</span>{' '}
-                  <span className="text-yellow-400/60">(avtomatik kiritildi)</span>
+                  <span className="text-muted">(avtomatik kiritildi)</span>
                 </div>
               )}
-              <Button type="submit" className="w-full" isLoading={isLoading}>
+              <Button
+                type="submit"
+                size="lg"
+                className="w-full"
+                isLoading={isLoading}
+                rightIcon={<ArrowRight className="h-4 w-4" aria-hidden />}
+              >
                 Kirish
-                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
-              <button
+              <Button
                 type="button"
-                className="w-full text-center text-sm text-slate-500 hover:text-slate-300 transition-colors"
+                variant="ghost"
+                className="w-full"
                 onClick={() => setStep('phone')}
               >
                 Raqamni o&apos;zgartirish
-              </button>
+              </Button>
             </form>
           )}
         </div>

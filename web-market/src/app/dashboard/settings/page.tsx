@@ -1,13 +1,26 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Check, LocateFixed } from 'lucide-react';
-import { marketApi, Store } from '@/lib/api';
+import { Check, LocateFixed, Settings as SettingsIcon } from 'lucide-react';
+import { clsx } from 'clsx';
+import { marketApi, Store, DeliveryMode } from '@/lib/api';
+import { errorMessage } from '@/lib/utils';
+import { useAsyncData } from '@/hooks/useAsyncData';
 import { useToast } from '@/components/ui/Toast';
+import { Button } from '@/components/ui/Button';
+import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { Input } from '@/components/ui/Input';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 export default function SettingsPage() {
   const { toast } = useToast();
-  const [store, setStore] = useState<Store | null>(null);
+  const { data: store, isLoading, error, reload } = useAsyncData<Store>(async () => {
+    const res = await marketApi.getStore();
+    return res.data.data;
+  });
+
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
@@ -16,23 +29,22 @@ export default function SettingsPage() {
   const [locating, setLocating] = useState(false);
   const [start, setStart] = useState('08:00');
   const [end, setEnd] = useState('22:00');
-  const [deliveryMode, setDeliveryMode] = useState<'self' | 'platform'>('platform');
+  const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>('platform');
   const [saving, setSaving] = useState(false);
 
+  // Seeds the form once the store arrives. Kept as local state (not derived)
+  // because these fields are edited before they are saved back.
   useEffect(() => {
-    marketApi.getStore().then((res) => {
-      const s = res.data.data;
-      setStore(s);
-      setName(s.name);
-      setPhone(s.phone ?? '');
-      setAddress(s.address ?? '');
-      setLat(s.lat != null ? String(s.lat) : '');
-      setLng(s.lng != null ? String(s.lng) : '');
-      setStart(s.workingHoursStart);
-      setEnd(s.workingHoursEnd);
-      setDeliveryMode(s.deliveryMode);
-    });
-  }, []);
+    if (!store) return;
+    setName(store.name);
+    setPhone(store.phone ?? '');
+    setAddress(store.address ?? '');
+    setLat(store.lat != null ? String(store.lat) : '');
+    setLng(store.lng != null ? String(store.lng) : '');
+    setStart(store.workingHoursStart);
+    setEnd(store.workingHoursEnd);
+    setDeliveryMode(store.deliveryMode);
+  }, [store]);
 
   const useCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -56,7 +68,7 @@ export default function SettingsPage() {
   const save = async () => {
     setSaving(true);
     try {
-      const res = await marketApi.updateStore({
+      await marketApi.updateStore({
         name,
         phone,
         address,
@@ -66,122 +78,147 @@ export default function SettingsPage() {
         lat: lat ? Number(lat) : undefined,
         lng: lng ? Number(lng) : undefined,
       });
-      setStore(res.data.data);
+      await reload();
       toast({ title: 'Saqlandi', variant: 'success' });
-    } catch {
-      toast({ title: 'Xatolik', description: 'Saqlab bo‘lmadi', variant: 'error' });
+    } catch (err) {
+      toast({ title: 'Xatolik', description: errorMessage(err, 'Saqlab bo‘lmadi'), variant: 'error' });
     } finally {
       setSaving(false);
     }
   };
 
-  if (!store) {
-    return <div className="text-slate-500 text-sm">Yuklanmoqda...</div>;
-  }
-
   return (
-    <div className="animate-fade-in max-w-[720px] flex flex-col gap-4">
-      <div
-        className="rounded-2xl border border-white/[0.07] px-[22px] py-5"
-        style={{ background: 'linear-gradient(160deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))' }}
-      >
-        <div className="text-[15px] font-bold mb-[18px]">Do&apos;kon ma&apos;lumotlari</div>
-        <div className="grid grid-cols-2 gap-3.5">
-          <Field label="Do'kon nomi">
-            <input value={name} onChange={(e) => setName(e.target.value)} className="input" />
-          </Field>
-          <Field label="Telefon">
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} className="input" />
-          </Field>
-          <div className="col-span-2">
-            <Field label="Olib ketish manzili">
-              <input value={address} onChange={(e) => setAddress(e.target.value)} className="input" />
-            </Field>
-          </div>
-          <Field label="Kenglik (lat)">
-            <input value={lat} onChange={(e) => setLat(e.target.value)} className="input" placeholder="40.0956" />
-          </Field>
-          <Field label="Uzunlik (lng)">
-            <input value={lng} onChange={(e) => setLng(e.target.value)} className="input" placeholder="70.9432" />
-          </Field>
-          <div className="col-span-2">
-            <button
-              onClick={useCurrentLocation}
-              disabled={locating}
-              type="button"
-              className="flex items-center gap-1.5 text-xs font-semibold text-brand-yellow hover:underline disabled:opacity-50"
-            >
-              <LocateFixed className="h-3.5 w-3.5" />
-              {locating ? 'Aniqlanmoqda...' : 'Hozirgi joylashuvni olish'}
-            </button>
-            <p className="text-[11px] text-slate-500 mt-1">
-              Kuryer buyurtmani shu manzildan olib ketadi — koordinatalar aniq bo&apos;lishi kerak.
-            </p>
-          </div>
-        </div>
-      </div>
+    <div className="max-w-3xl">
+      <PageHeader
+        title="Sozlamalar"
+        description="Do'kon profili va yetkazib berish"
+        icon={<SettingsIcon size={18} aria-hidden />}
+      />
 
-      <div
-        className="rounded-2xl border border-white/[0.07] px-[22px] py-5"
-        style={{ background: 'linear-gradient(160deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))' }}
-      >
-        <div className="text-[15px] font-bold mb-4">Yetkazib berish usuli</div>
-        <div className="flex gap-3">
-          <DeliveryOption
-            title="O'zi yetkazadi"
-            desc="Do'kon o'z kuryeri bilan yetkazadi"
-            active={deliveryMode === 'self'}
-            onClick={() => setDeliveryMode('self')}
-          />
-          <DeliveryOption
-            title="Platforma kuryeri"
-            desc="Angren Taxi kuryerlari yetkazadi"
-            active={deliveryMode === 'platform'}
-            onClick={() => setDeliveryMode('platform')}
-          />
+      {isLoading ? (
+        <div className="space-y-4" aria-busy="true" aria-live="polite">
+          <span className="sr-only">Yuklanmoqda</span>
+          <Skeleton className="h-72 rounded-ds-md" />
+          <Skeleton className="h-40 rounded-ds-md" />
+          <Skeleton className="h-32 rounded-ds-md" />
         </div>
-      </div>
-
-      <div
-        className="rounded-2xl border border-white/[0.07] px-[22px] py-5"
-        style={{ background: 'linear-gradient(160deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))' }}
-      >
-        <div className="text-[15px] font-bold mb-4">Ish vaqti</div>
-        <div className="flex items-center gap-3.5">
-          <input value={start} onChange={(e) => setStart(e.target.value)} className="input w-[90px] text-center font-bold" />
-          <span className="text-slate-500">—</span>
-          <input value={end} onChange={(e) => setEnd(e.target.value)} className="input w-[90px] text-center font-bold" />
-          <span className="text-[12.5px] text-slate-500 ml-1.5">Har kuni</span>
-        </div>
-      </div>
-
-      <div className="flex justify-end gap-2.5">
-        <button
-          onClick={save}
-          disabled={saving}
-          className="bg-brand-yellow text-brand-dark rounded-[11px] px-[22px] py-[11px] text-sm font-extrabold flex items-center gap-2 disabled:opacity-50 hover:bg-yellow-300"
+      ) : error && !store ? (
+        <ErrorState message={error} onRetry={reload} />
+      ) : store ? (
+        <form
+          className="flex flex-col gap-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void save();
+          }}
         >
-          <Check className="h-4 w-4" />
-          Saqlash
-        </button>
-      </div>
+          <Card padding="lg">
+            <CardHeader>
+              <CardTitle>Do&apos;kon ma&apos;lumotlari</CardTitle>
+            </CardHeader>
+            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+              <Input label="Do'kon nomi" value={name} onChange={(e) => setName(e.target.value)} />
+              <Input
+                label="Telefon"
+                mono
+                inputMode="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
+              <div className="sm:col-span-2">
+                <Input
+                  label="Olib ketish manzili"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                />
+              </div>
+              <Input
+                label="Kenglik (lat)"
+                mono
+                value={lat}
+                onChange={(e) => setLat(e.target.value)}
+                placeholder="40.0956"
+              />
+              <Input
+                label="Uzunlik (lng)"
+                mono
+                value={lng}
+                onChange={(e) => setLng(e.target.value)}
+                placeholder="70.9432"
+              />
+              <div className="sm:col-span-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={useCurrentLocation}
+                  isLoading={locating}
+                  leftIcon={<LocateFixed size={14} aria-hidden />}
+                >
+                  Hozirgi joylashuvni olish
+                </Button>
+                <p className="mt-1 text-caption text-subtle">
+                  Kuryer buyurtmani shu manzildan olib ketadi — koordinatalar aniq bo&apos;lishi
+                  kerak.
+                </p>
+              </div>
+            </div>
+          </Card>
 
-      <style jsx>{`
-        .input {
-          width: 100%;
-          background: rgba(255, 255, 255, 0.04);
-          border: 1px solid rgba(255, 255, 255, 0.09);
-          border-radius: 10px;
-          padding: 10px 13px;
-          color: #e5e7eb;
-          font-size: 13px;
-          font-weight: 600;
-        }
-        .input:focus {
-          outline: none;
-          border-color: #facc15;
-        }
-      `}</style>
+          <Card padding="lg">
+            <CardHeader>
+              <CardTitle>Yetkazib berish usuli</CardTitle>
+            </CardHeader>
+            <div role="radiogroup" aria-label="Yetkazib berish usuli" className="flex flex-col gap-3 sm:flex-row">
+              <DeliveryOption
+                title="O'zi yetkazadi"
+                desc="Do'kon o'z kuryeri bilan yetkazadi"
+                active={deliveryMode === 'self'}
+                onClick={() => setDeliveryMode('self')}
+              />
+              <DeliveryOption
+                title="Platforma kuryeri"
+                desc="Angren Taxi kuryerlari yetkazadi"
+                active={deliveryMode === 'platform'}
+                onClick={() => setDeliveryMode('platform')}
+              />
+            </div>
+          </Card>
+
+          <Card padding="lg">
+            <CardHeader>
+              <CardTitle>Ish vaqti</CardTitle>
+            </CardHeader>
+            <div className="flex flex-wrap items-end gap-3.5">
+              <div className="w-32">
+                <Input
+                  label="Ochilish"
+                  type="time"
+                  mono
+                  value={start}
+                  onChange={(e) => setStart(e.target.value)}
+                />
+              </div>
+              <div className="w-32">
+                <Input
+                  label="Yopilish"
+                  type="time"
+                  mono
+                  value={end}
+                  onChange={(e) => setEnd(e.target.value)}
+                />
+              </div>
+              <span className="pb-2.5 text-caption text-muted">Har kuni</span>
+            </div>
+          </Card>
+
+          <div className="flex justify-end">
+            <Button type="submit" isLoading={saving} leftIcon={<Check size={15} aria-hidden />}>
+              Saqlash
+            </Button>
+          </div>
+        </form>
+      ) : null}
     </div>
   );
 }
@@ -198,28 +235,31 @@ function DeliveryOption({
   onClick: () => void;
 }) {
   return (
-    <div
+    <button
+      type="button"
+      role="radio"
+      aria-checked={active}
       onClick={onClick}
-      className={`flex-1 cursor-pointer rounded-[13px] p-[15px] border-[1.5px] ${
-        active ? 'border-brand-yellow bg-brand-yellow/[0.06]' : 'border-white/[0.09] bg-white/[0.02]'
-      }`}
+      className={clsx(
+        'flex-1 rounded-ds-sm border p-4 text-left transition-colors duration-fast',
+        active
+          ? 'border-primary bg-mint-tint ring-1 ring-primary/30'
+          : 'border-line bg-surface hover:bg-surface-2'
+      )}
     >
-      <div className="flex items-center justify-between">
-        <span className="text-[13.5px] font-bold">{title}</span>
-        <span className={`w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center ${active ? 'border-brand-yellow' : 'border-white/25'}`}>
-          {active && <span className="w-2 h-2 rounded-full bg-brand-yellow" />}
+      <span className="flex items-center justify-between gap-3">
+        <span className="text-body font-bold text-ink">{title}</span>
+        <span
+          aria-hidden
+          className={clsx(
+            'flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2',
+            active ? 'border-primary' : 'border-line-strong'
+          )}
+        >
+          {active && <span className="h-2 w-2 rounded-full bg-primary" />}
         </span>
-      </div>
-      <div className="text-xs text-slate-500 mt-1.5">{desc}</div>
-    </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="text-xs text-slate-400 font-semibold block mb-1.5">{label}</label>
-      {children}
-    </div>
+      </span>
+      <span className="mt-1.5 block text-caption text-muted">{desc}</span>
+    </button>
   );
 }

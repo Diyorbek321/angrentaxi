@@ -1,169 +1,218 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ClipboardList, Wallet, AlertTriangle, Boxes } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowRight,
+  Boxes,
+  ClipboardList,
+  LayoutGrid,
+  RefreshCw,
+  Wallet,
+} from 'lucide-react';
 import { marketApi, DashboardData } from '@/lib/api';
-import { money, formatTime } from '@/lib/utils';
+import { money, moneyShort, formatTime } from '@/lib/utils';
+import { useAsyncData } from '@/hooks/useAsyncData';
 import { StatusBadge } from '@/components/StatusBadge';
+import { Button } from '@/components/ui/Button';
+import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Skeleton, SkeletonStats } from '@/components/ui/Skeleton';
+import { StatTile } from '@/components/ui/StatTile';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [data, setData] = useState<DashboardData | null>(null);
-
-  useEffect(() => {
-    marketApi.getDashboard().then((res) => setData(res.data.data));
-  }, []);
-
-  if (!data) {
-    return <div className="text-slate-500 text-sm">Yuklanmoqda...</div>;
-  }
-
-  const stats = [
-    {
-      label: 'Bugungi buyurtmalar',
-      value: String(data.todayOrdersCount),
-      sub: `${data.todayOrdersCount} ta bugun`,
-      icon: ClipboardList,
-      iconBg: 'bg-brand-yellow/10',
-      iconColor: 'text-brand-yellow',
-      subColor: 'text-slate-400',
-    },
-    {
-      label: 'Bugungi tushum',
-      value: money(data.todayRevenue),
-      sub: 'Bugungi jami savdo',
-      icon: Wallet,
-      iconBg: 'bg-green-500/10',
-      iconColor: 'text-green-400',
-      subColor: 'text-green-400',
-    },
-    {
-      label: 'Tugagan mahsulotlar',
-      value: String(data.outOfStockCount),
-      sub: "Zudlik bilan to'ldiring",
-      icon: AlertTriangle,
-      iconBg: 'bg-red-500/10',
-      iconColor: 'text-red-400',
-      subColor: 'text-red-400',
-    },
-    {
-      label: 'Aktiv mahsulotlar',
-      value: String(data.activeProductsCount),
-      sub: `${data.hiddenProductsCount} yashirilgan`,
-      icon: Boxes,
-      iconBg: 'bg-purple-500/10',
-      iconColor: 'text-purple-400',
-      subColor: 'text-slate-400',
-    },
-  ];
+  const { data, isLoading, isRefreshing, error, reload } = useAsyncData<DashboardData>(async () => {
+    const res = await marketApi.getDashboard();
+    return res.data.data;
+  });
 
   return (
-    <div className="animate-fade-in">
-      <div className="grid grid-cols-4 gap-4 mb-5">
-        {stats.map((s) => (
-          <div
-            key={s.label}
-            className="rounded-2xl border border-white/[0.07] p-[18px] pb-4"
-            style={{ background: 'linear-gradient(160deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015))' }}
+    <div>
+      <PageHeader
+        title="Bosh sahifa"
+        description="Bugungi savdo va zaxira holati"
+        icon={<LayoutGrid size={18} aria-hidden />}
+        actions={
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => void reload()}
+            isLoading={isRefreshing}
+            leftIcon={<RefreshCw size={13} aria-hidden />}
           >
-            <div className="flex items-center justify-between mb-3.5">
-              <span className="text-[12.5px] text-slate-400 font-semibold">{s.label}</span>
-              <div className={`w-[34px] h-[34px] rounded-[10px] flex items-center justify-center ${s.iconBg} ${s.iconColor}`}>
-                <s.icon className="h-[18px] w-[18px]" />
+            Yangilash
+          </Button>
+        }
+      />
+
+      {isLoading ? (
+        <DashboardSkeleton />
+      ) : error && !data ? (
+        <ErrorState message={error} onRetry={reload} />
+      ) : data ? (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <StatTile
+              label="Bugungi buyurtmalar"
+              value={data.todayOrdersCount}
+              tone="neutral"
+              icon={<ClipboardList size={18} aria-hidden />}
+            />
+            <StatTile
+              label="Bugungi tushum"
+              value={moneyShort(data.todayRevenue)}
+              hint="so'm"
+              tone="mint"
+              icon={<Wallet size={18} aria-hidden />}
+            />
+            <StatTile
+              label="Tugagan mahsulotlar"
+              value={data.outOfStockCount}
+              hint={data.outOfStockCount > 0 ? "Zudlik bilan to'ldiring" : 'Hammasi joyida'}
+              tone={data.outOfStockCount > 0 ? 'danger' : 'muted'}
+              icon={<AlertTriangle size={18} aria-hidden />}
+            />
+            <StatTile
+              label="Faol mahsulotlar"
+              value={data.activeProductsCount}
+              hint={`${data.hiddenProductsCount} yashirilgan`}
+              tone="neutral"
+              icon={<Boxes size={18} aria-hidden />}
+            />
+          </div>
+
+          {data.lowStock.length > 0 && (
+            <div
+              role="status"
+              className="flex flex-wrap items-center gap-4 rounded-ds-md border border-danger/40 bg-danger-tint px-4 py-3.5"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-ds-sm bg-danger/15 text-danger">
+                <AlertTriangle size={20} aria-hidden />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-danger-deep dark:text-danger-light">
+                  Zaxira tugash arafasida — {data.lowStock.length} ta mahsulot
+                </p>
+                <p className="mt-0.5 truncate text-caption text-muted">
+                  {data.lowStock.map((p) => `${p.name} (${p.stock} ${p.unit})`).join(' · ')}
+                </p>
               </div>
-            </div>
-            <div className="text-[26px] font-extrabold tracking-tight">{s.value}</div>
-            <div className={`text-xs font-semibold mt-1.5 ${s.subColor}`}>{s.sub}</div>
-          </div>
-        ))}
-      </div>
-
-      {data.lowStock.length > 0 && (
-        <div
-          className="flex items-center gap-4 rounded-[14px] border border-red-500/30 px-[18px] py-[15px] mb-5"
-          style={{ background: 'linear-gradient(90deg,rgba(239,68,68,0.12),rgba(239,68,68,0.03))' }}
-        >
-          <div className="w-10 h-10 rounded-[11px] bg-red-500/[0.18] flex items-center justify-center flex-shrink-0">
-            <AlertTriangle className="h-5 w-5 text-red-400" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-[13.5px] font-bold text-red-300">
-              Zaxira tugash arafasida — {data.lowStock.length} ta mahsulot
-            </div>
-            <div className="text-[12.5px] text-slate-400 mt-[3px] whitespace-nowrap overflow-hidden text-ellipsis">
-              {data.lowStock.map((p) => `${p.name} (${p.stock} ${p.unit})`).join(' · ')}
-            </div>
-          </div>
-          <button
-            onClick={() => router.push('/dashboard/stock')}
-            className="flex-shrink-0 bg-red-500 text-white rounded-[10px] px-4 py-[9px] text-[12.5px] font-bold hover:bg-red-600"
-          >
-            To&apos;ldirish →
-          </button>
-        </div>
-      )}
-
-      <div className="grid grid-cols-[1.6fr_1fr] gap-4">
-        <div
-          className="rounded-2xl border border-white/[0.07] overflow-hidden"
-          style={{ background: 'linear-gradient(160deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))' }}
-        >
-          <div className="flex items-center justify-between px-[18px] py-4 border-b border-white/[0.06]">
-            <span className="text-sm font-bold">So&apos;nggi buyurtmalar</span>
-            <button onClick={() => router.push('/dashboard/orders')} className="text-brand-yellow text-[12.5px] font-bold">
-              Barchasi
-            </button>
-          </div>
-          <div>
-            {data.recentOrders.length === 0 && (
-              <div className="p-8 text-center text-slate-500 text-sm">Hali buyurtma yo&apos;q</div>
-            )}
-            {data.recentOrders.map((o) => (
-              <div
-                key={o.id}
-                onClick={() => router.push('/dashboard/orders')}
-                className="flex items-center gap-3.5 px-[18px] py-[13px] border-b border-white/[0.04] cursor-pointer hover:bg-white/[0.025]"
+              <Button
+                size="sm"
+                onClick={() => router.push('/dashboard/stock')}
+                rightIcon={<ArrowRight size={14} aria-hidden />}
               >
-                <div className="text-[13px] font-bold w-16 text-slate-200">{o.id.slice(0, 6)}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-semibold whitespace-nowrap overflow-hidden text-ellipsis">{o.customer}</div>
-                  <div className="text-[11.5px] text-slate-500 mt-0.5">
-                    {o.itemsCount} ta mahsulot · {formatTime(o.createdAt)}
-                  </div>
-                </div>
-                <div className="text-[13px] font-bold text-slate-200">{money(o.totalPrice)}</div>
-                <StatusBadge status={o.status} />
+                To&apos;ldirish
+              </Button>
+            </div>
+          )}
+
+          <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
+            <Card padding="none" className="overflow-hidden">
+              <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3.5">
+                <CardTitle>So&apos;nggi buyurtmalar</CardTitle>
+                <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard/orders')}>
+                  Barchasi
+                </Button>
               </div>
-            ))}
+
+              {data.recentOrders.length === 0 ? (
+                <EmptyState
+                  compact
+                  title="Hali buyurtma yo'q"
+                  description="Yangi buyurtma kelganda shu yerda ko'rinadi."
+                />
+              ) : (
+                <ul className="divide-y divide-divider">
+                  {data.recentOrders.map((o) => (
+                    <li key={o.id}>
+                      <button
+                        type="button"
+                        onClick={() => router.push('/dashboard/orders')}
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors duration-fast hover:bg-surface-2/60"
+                      >
+                        <span className="w-16 shrink-0 font-mono text-caption font-bold text-muted">
+                          {o.id.slice(0, 6)}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-body font-semibold text-ink">
+                            {o.customer}
+                          </span>
+                          <span className="mt-0.5 block text-caption text-muted">
+                            {o.itemsCount} ta mahsulot · {formatTime(o.createdAt)}
+                          </span>
+                        </span>
+                        <span className="shrink-0 font-mono text-body font-bold text-ink">
+                          {money(o.totalPrice)}
+                        </span>
+                        <StatusBadge status={o.status} size="sm" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Bugungi sotuvlar</CardTitle>
+              </CardHeader>
+              {data.bestSellers.length === 0 ? (
+                <EmptyState
+                  compact
+                  title="Hali ma'lumot yo'q"
+                  description="Birinchi sotuvdan keyin reyting shakllanadi."
+                />
+              ) : (
+                <ul className="space-y-3.5">
+                  {data.bestSellers.map((b, i) => {
+                    const maxSold = data.bestSellers[0]?.sold || 1;
+                    const pct = Math.round((b.sold / maxSold) * 100);
+                    return (
+                      <li key={b.name} className="flex items-center gap-3">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-ds-xs bg-mint-tint font-mono text-caption font-bold text-primary-text">
+                          {i + 1}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-caption font-semibold text-ink">{b.name}</p>
+                          <div
+                            className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-3"
+                            role="progressbar"
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                            aria-valuenow={pct}
+                            aria-label={`${b.name}: ${b.sold} dona sotilgan`}
+                          >
+                            <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                        <span className="shrink-0 font-mono text-caption font-bold text-muted">
+                          {b.sold}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </Card>
           </div>
         </div>
+      ) : null}
+    </div>
+  );
+}
 
-        <div
-          className="rounded-2xl border border-white/[0.07] p-[18px]"
-          style={{ background: 'linear-gradient(160deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))' }}
-        >
-          <div className="text-sm font-bold mb-4">Bugungi sotuvlar</div>
-          {data.bestSellers.length === 0 && <div className="text-slate-500 text-sm">Hali ma&apos;lumot yo&apos;q</div>}
-          {data.bestSellers.map((b, i) => {
-            const maxSold = data.bestSellers[0]?.sold || 1;
-            const pct = Math.round((b.sold / maxSold) * 100);
-            return (
-              <div key={b.name} className="flex items-center gap-3 mb-3.5">
-                <div className="w-[26px] h-[26px] rounded-lg bg-brand-yellow/10 text-brand-yellow text-xs font-extrabold flex items-center justify-center flex-shrink-0">
-                  {i + 1}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[12.5px] font-semibold whitespace-nowrap overflow-hidden text-ellipsis">{b.name}</div>
-                  <div className="h-[5px] rounded-full bg-white/[0.06] mt-1.5 overflow-hidden">
-                    <div className="h-full rounded-full bg-gradient-to-r from-brand-yellow to-amber-500" style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-                <div className="text-xs font-bold text-slate-400">{b.sold}</div>
-              </div>
-            );
-          })}
-        </div>
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-4" aria-busy="true" aria-live="polite">
+      <span className="sr-only">Yuklanmoqda</span>
+      <SkeletonStats />
+      <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
+        <Skeleton className="h-80 rounded-ds-md" />
+        <Skeleton className="h-80 rounded-ds-md" />
       </div>
     </div>
   );

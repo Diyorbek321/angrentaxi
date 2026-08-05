@@ -1,143 +1,235 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { ArrowDown, ArrowUp, Boxes, Minus, Plus, RefreshCw } from 'lucide-react';
+import { clsx } from 'clsx';
 import { marketApi, Product, StockMovement, Store } from '@/lib/api';
+import { errorMessage, formatTime, hueTint } from '@/lib/utils';
+import { useAsyncData } from '@/hooks/useAsyncData';
+import { useToast } from '@/components/ui/Toast';
+import { Button } from '@/components/ui/Button';
+import { Card, CardTitle } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Skeleton, SkeletonStats } from '@/components/ui/Skeleton';
+import { StatTile } from '@/components/ui/StatTile';
 
-function photoBg(hue: number) {
-  return { background: `linear-gradient(135deg,hsla(${hue},60%,45%,0.25),hsla(${hue},60%,30%,0.12))` };
-}
-
-function stockColor(stock: number, threshold: number) {
-  return stock === 0 ? 'text-red-400' : stock <= threshold ? 'text-brand-yellow' : 'text-green-400';
+interface StockData {
+  products: Product[];
+  movements: StockMovement[];
+  store: Store;
 }
 
 export default function StockPage() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [movements, setMovements] = useState<StockMovement[]>([]);
-  const [store, setStore] = useState<Store | null>(null);
-  const [saved, setSaved] = useState<Record<string, boolean>>({});
+  const { toast } = useToast();
+  const [busyId, setBusyId] = useState<string | null>(null);
 
-  const load = async () => {
-    const [p, m, s] = await Promise.all([marketApi.getProducts(), marketApi.getStockMovements(), marketApi.getStore()]);
-    setProducts(p.data.data);
-    setMovements(m.data.data);
-    setStore(s.data.data);
-  };
+  const { data, isLoading, isRefreshing, error, reload } = useAsyncData<StockData>(async () => {
+    const [p, m, s] = await Promise.all([
+      marketApi.getProducts(),
+      marketApi.getStockMovements(),
+      marketApi.getStore(),
+    ]);
+    return { products: p.data.data, movements: m.data.data, store: s.data.data };
+  });
 
-  useEffect(() => {
-    load();
-  }, []);
+  const products = useMemo(() => data?.products ?? [], [data]);
+  const movements = data?.movements ?? [];
+  const threshold = data?.store.lowStockThreshold ?? 10;
 
-  const threshold = store?.lowStockThreshold ?? 10;
   const outCount = products.filter((p) => p.stock === 0).length;
   const lowCount = products.filter((p) => p.stock > 0 && p.stock <= threshold).length;
+
   const needRestock = useMemo(
     () => products.filter((p) => p.stock <= threshold).sort((a, b) => a.stock - b.stock),
     [products, threshold]
   );
 
-  const flashSaved = (id: string) => {
-    setSaved((s) => ({ ...s, [id]: true }));
-    setTimeout(() => setSaved((s) => ({ ...s, [id]: false })), 1300);
-  };
-
   const bump = async (p: Product, delta: number) => {
-    const next = Math.max(0, p.stock + delta);
-    const res = await marketApi.updateProduct(p.id, { stock: next });
-    setProducts((prev) => prev.map((x) => (x.id === p.id ? res.data.data : x)));
-    flashSaved(p.id);
-    const m = await marketApi.getStockMovements();
-    setMovements(m.data.data);
+    setBusyId(p.id);
+    try {
+      await marketApi.updateProduct(p.id, { stock: Math.max(0, p.stock + delta) });
+      await reload();
+    } catch (err) {
+      toast({ title: 'Xatolik', description: errorMessage(err), variant: 'error' });
+    } finally {
+      setBusyId(null);
+    }
   };
 
   return (
-    <div className="animate-fade-in">
-      <div className="grid grid-cols-2 gap-4 mb-5">
-        <div
-          className="rounded-[14px] border border-red-500/25 px-[18px] py-4"
-          style={{ background: 'linear-gradient(90deg,rgba(239,68,68,0.1),transparent)' }}
-        >
-          <div className="text-[12.5px] text-slate-400 font-semibold">Tugagan mahsulotlar</div>
-          <div className="text-[28px] font-extrabold text-red-400 mt-1">{outCount}</div>
-        </div>
-        <div
-          className="rounded-[14px] border border-brand-yellow/25 px-[18px] py-4"
-          style={{ background: 'linear-gradient(90deg,rgba(250,204,21,0.1),transparent)' }}
-        >
-          <div className="text-[12.5px] text-slate-400 font-semibold">Kam qolgan (≤{threshold})</div>
-          <div className="text-[28px] font-extrabold text-brand-yellow mt-1">{lowCount}</div>
-        </div>
-      </div>
+    <div>
+      <PageHeader
+        title="Zaxira"
+        description="Kam qolgan va tugagan mahsulotlar"
+        icon={<Boxes size={18} aria-hidden />}
+        actions={
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => void reload()}
+            isLoading={isRefreshing}
+            leftIcon={<RefreshCw size={13} aria-hidden />}
+          >
+            Yangilash
+          </Button>
+        }
+      />
 
-      <div className="grid grid-cols-[1.4fr_1fr] gap-4">
-        <div
-          className="rounded-2xl border border-white/[0.07] overflow-hidden"
-          style={{ background: 'linear-gradient(160deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))' }}
-        >
-          <div className="px-[18px] py-[15px] border-b border-white/[0.06] text-sm font-bold">To&apos;ldirish kerak</div>
-          {needRestock.length === 0 && <div className="p-8 text-center text-slate-500 text-sm">Barcha mahsulotlar yetarli</div>}
-          {needRestock.map((p) => (
-            <div key={p.id} className="flex items-center gap-3.5 px-[18px] py-[13px] border-b border-white/[0.04]">
-              <div className="w-[38px] h-[38px] rounded-[10px] flex-shrink-0 flex items-center justify-center text-base" style={photoBg(p.hue)}>
-                {p.emoji}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-bold whitespace-nowrap overflow-hidden text-ellipsis">{p.name}</div>
-                <div className={`text-[11.5px] mt-0.5 font-bold ${stockColor(p.stock, threshold)}`}>
-                  Qoldi: {p.stock} {p.unit}
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <button onClick={() => bump(p, -5)} className="w-[30px] h-[30px] rounded-lg bg-white/[0.05] border border-white/[0.08] text-slate-200 font-bold">
-                  −
-                </button>
-                <span className="w-14 text-center bg-white/[0.04] border border-white/[0.09] rounded-lg py-1.5 text-sm font-extrabold">{p.stock}</span>
-                <button
-                  onClick={() => bump(p, 5)}
-                  className="w-[30px] h-[30px] rounded-lg bg-brand-yellow/[0.12] border border-brand-yellow/25 text-brand-yellow font-bold"
-                >
-                  +
-                </button>
-                {saved[p.id] && <span className="text-green-500 animate-pop">✓</span>}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div
-          className="rounded-2xl border border-white/[0.07] overflow-hidden"
-          style={{ background: 'linear-gradient(160deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))' }}
-        >
-          <div className="px-[18px] py-[15px] border-b border-white/[0.06] text-sm font-bold">Zaxira harakati</div>
-          <div className="py-1.5">
-            {movements.length === 0 && <div className="p-8 text-center text-slate-500 text-sm">Harakat yo&apos;q</div>}
-            {movements.map((m) => {
-              const up = m.delta > 0;
-              return (
-                <div key={m.id} className="flex items-center gap-3 px-[18px] py-[11px]">
-                  <div
-                    className={`w-[30px] h-[30px] rounded-lg flex-shrink-0 flex items-center justify-center text-[13px] font-extrabold ${
-                      up ? 'bg-green-500/[0.14] text-green-400' : 'bg-red-500/[0.12] text-red-400'
-                    }`}
-                  >
-                    {up ? '↑' : '↓'}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[12.5px] font-semibold whitespace-nowrap overflow-hidden text-ellipsis">{m.product.name}</div>
-                    <div className="text-[11px] text-slate-500 mt-0.5">
-                      {m.note} · {new Date(m.createdAt).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                  </div>
-                  <div className={`text-[12.5px] font-extrabold ${up ? 'text-green-400' : 'text-red-400'}`}>
-                    {up ? '+' : ''}
-                    {m.delta}
-                  </div>
-                </div>
-              );
-            })}
+      {isLoading ? (
+        <div className="space-y-4" aria-busy="true" aria-live="polite">
+          <span className="sr-only">Yuklanmoqda</span>
+          <SkeletonStats count={2} />
+          <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
+            <Skeleton className="h-96 rounded-ds-md" />
+            <Skeleton className="h-96 rounded-ds-md" />
           </div>
         </div>
-      </div>
+      ) : error && !data ? (
+        <ErrorState message={error} onRetry={reload} />
+      ) : data ? (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <StatTile
+              label="Tugagan mahsulotlar"
+              value={outCount}
+              tone={outCount > 0 ? 'danger' : 'muted'}
+              hint={outCount > 0 ? "Sotuvdan chiqib ketgan" : 'Tugagani yo‘q'}
+            />
+            <StatTile
+              label={`Kam qolgan (≤${threshold})`}
+              value={lowCount}
+              tone={lowCount > 0 ? 'override' : 'muted'}
+              hint={lowCount > 0 ? "Tez orada to'ldiring" : 'Hammasi yetarli'}
+            />
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
+            <Card padding="none" className="overflow-hidden">
+              <div className="border-b border-line px-4 py-3.5">
+                <CardTitle>To&apos;ldirish kerak</CardTitle>
+              </div>
+              {needRestock.length === 0 ? (
+                <EmptyState
+                  compact
+                  tone="positive"
+                  title="Barcha mahsulotlar yetarli"
+                  description="Zaxira chegaradan yuqori — hech narsa talab qilinmaydi."
+                />
+              ) : (
+                <ul className="divide-y divide-divider">
+                  {needRestock.map((p) => {
+                    const critical = p.stock === 0;
+                    return (
+                      <li key={p.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                        <span
+                          aria-hidden
+                          style={hueTint(p.hue)}
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-ds-sm text-base"
+                        >
+                          {p.emoji}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-body font-bold text-ink">{p.name}</p>
+                          <p
+                            className={clsx(
+                              'mt-0.5 text-caption font-bold',
+                              critical
+                                ? 'text-danger-deep dark:text-danger-light'
+                                : 'text-override-dark dark:text-override-light'
+                            )}
+                          >
+                            {critical ? 'Tugagan' : 'Kam qoldi'} — {p.stock} {p.unit}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            aria-label={`${p.name}: 5 ta kamaytirish`}
+                            disabled={busyId === p.id || p.stock === 0}
+                            onClick={() => void bump(p, -5)}
+                          >
+                            <Minus size={14} aria-hidden />
+                          </Button>
+                          <span
+                            className="w-14 rounded-ds-xs border border-line bg-surface-2 py-1.5 text-center font-mono text-body font-bold text-ink"
+                            aria-label={`Joriy zaxira: ${p.stock}`}
+                          >
+                            {p.stock}
+                          </span>
+                          <Button
+                            size="sm"
+                            aria-label={`${p.name}: 5 ta qo'shish`}
+                            disabled={busyId === p.id}
+                            onClick={() => void bump(p, 5)}
+                          >
+                            <Plus size={14} aria-hidden />
+                          </Button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </Card>
+
+            <Card padding="none" className="overflow-hidden">
+              <div className="border-b border-line px-4 py-3.5">
+                <CardTitle>Zaxira harakati</CardTitle>
+              </div>
+              {movements.length === 0 ? (
+                <EmptyState
+                  compact
+                  title="Harakat yo'q"
+                  description="Zaxira o'zgarganda yozuv shu yerda paydo bo'ladi."
+                />
+              ) : (
+                <ul className="divide-y divide-divider">
+                  {movements.map((m) => {
+                    const up = m.delta > 0;
+                    return (
+                      <li key={m.id} className="flex items-center gap-3 px-4 py-2.5">
+                        <span
+                          aria-hidden
+                          className={clsx(
+                            'flex h-8 w-8 shrink-0 items-center justify-center rounded-ds-xs',
+                            up
+                              ? 'bg-mint-tint text-primary-text'
+                              : 'bg-danger/12 text-danger-deep dark:text-danger-light'
+                          )}
+                        >
+                          {up ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-caption font-semibold text-ink">
+                            {m.product.name}
+                          </p>
+                          <p className="mt-0.5 truncate text-caption text-subtle">
+                            {m.note || 'Qo‘lda tuzatish'} · {formatTime(m.createdAt)}
+                          </p>
+                        </div>
+                        <span
+                          className={clsx(
+                            'shrink-0 font-mono text-caption font-bold',
+                            up
+                              ? 'text-primary-text'
+                              : 'text-danger-deep dark:text-danger-light'
+                          )}
+                        >
+                          {up ? '+' : ''}
+                          {m.delta}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </Card>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
