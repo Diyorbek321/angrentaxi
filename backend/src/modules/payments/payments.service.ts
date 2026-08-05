@@ -93,6 +93,55 @@ export class PaymentsService {
     return result;
   }
 
+  // --- Payment provider callbacks ---
+  //
+  // Every callback handler below follows the same three checks, in order,
+  // before it is willing to move money:
+  //
+  //   1. Signature — delegated to the provider (all three fail closed when
+  //      their keys are unconfigured, so a half-provisioned deployment can
+  //      never be talked into completing a payment).
+  //   2. Amount — the sum the provider says was charged must match the
+  //      amount recorded when the payment was initiated. Without this check
+  //      a caller who can produce a valid signature could settle a 500 000
+  //      UZS order by paying 100 UZS.
+  //   3. Idempotency — providers retry callbacks until they get a success
+  //      response, and a retry (or a replayed capture) must not rewrite a
+  //      transaction that already reached a terminal state.
+  //
+  // Transactions are located by orderId rather than by externalId: at
+  // initiate() time we only know our own locally generated id, while the
+  // callback carries the provider's id. Matching on both (as the previous
+  // implementation did) could never succeed. The provider's id is stored on
+  // the row when the payment completes, so it is available afterwards.
+
+  /**
+   * Looks up the card payment transaction created by initiatePayment() for
+   * an order. Withdrawal-hold transactions have a null orderId, so they can
+   * never be matched here.
+   */
+  private async findPaymentTransaction(
+    orderId: string,
+  ): Promise<Transaction | null> {
+    return this.transactionRepository.findOne({
+      where: { orderId, type: TransactionType.DEBIT },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  /**
+   * Compares a callback amount (already normalised to UZS) with the amount
+   * stored on the transaction. Uses a sub-tiyin tolerance because the DB
+   * column is decimal(10,2) and providers round to whole tiyin.
+   */
+  private amountsMatch(callbackAmount: number, recordedAmount: number): boolean {
+    if (!Number.isFinite(callbackAmount)) {
+      return false;
+    }
+
+    return Math.abs(callbackAmount - recordedAmount) < 0.01;
+  }
+
   async handlePaymeCallback(
     body: Record<string, unknown>,
     authHeader: string,
@@ -105,28 +154,104 @@ export class PaymentsService {
     }
 
     const method = body['method'] as string;
-    const params = body['params'] as Record<string, unknown>;
+    const params = (body['params'] as Record<string, unknown>) ?? {};
 
     this.logger.log(`Payme callback received: method=${method}`);
 
     if (method === 'PerformTransaction') {
       const externalId = params['id'] as string;
-      const accountOrderId = (params['account'] as Record<string, string>)?.['order_id'];
+      const accountOrderId = (params['account'] as Record<string, string>)?.[
+        'order_id'
+      ];
 
-      if (accountOrderId) {
-        await this.transactionRepository.update(
-          { externalId, orderId: accountOrderId },
-          { status: TransactionStatus.COMPLETED },
-        );
-
-        this.logger.log(`Payme payment completed for order ${accountOrderId}`);
+      if (!accountOrderId) {
+        this.logger.warn('Payme PerformTransaction without account.order_id');
+        return { allow: false };
       }
-    } else if (method === 'CancelTransaction') {
-      const externalId = params['id'] as string;
+
+      const transaction = await this.findPaymentTransaction(accountOrderId);
+
+      if (!transaction) {
+        this.logger.warn(
+          `Payme PerformTransaction for unknown order ${accountOrderId}`,
+        );
+        return { allow: false };
+      }
+
+      // Payme quotes amounts in tiyin (1 UZS = 100 tiyin) — the same unit
+      // PaymeProvider.initiate() sends.
+      const callbackAmount = Number(params['amount']) / 100;
+
+      if (!this.amountsMatch(callbackAmount, transaction.amount)) {
+        this.logger.warn(
+          `Payme amount mismatch for order ${accountOrderId}: callback=${callbackAmount} UZS, expected=${transaction.amount} UZS`,
+        );
+        return { allow: false };
+      }
+
+      if (transaction.status === TransactionStatus.COMPLETED) {
+        // Replay of an already-settled payment. Acknowledge it so Payme
+        // stops retrying, but leave the ledger untouched.
+        this.logger.log(
+          `Payme PerformTransaction replay ignored for order ${accountOrderId}`,
+        );
+        return { allow: true };
+      }
+
+      if (transaction.status !== TransactionStatus.PENDING) {
+        this.logger.warn(
+          `Payme PerformTransaction for order ${accountOrderId} in terminal status ${transaction.status}`,
+        );
+        return { allow: false };
+      }
+
       await this.transactionRepository.update(
-        { externalId },
+        { id: transaction.id },
+        { status: TransactionStatus.COMPLETED, externalId },
+      );
+
+      this.logger.log(`Payme payment completed for order ${accountOrderId}`);
+    } else if (method === 'CancelTransaction') {
+      // CancelTransaction carries only Payme's own transaction id, which we
+      // persist on the row when PerformTransaction settles it.
+      const externalId = params['id'] as string;
+      const accountOrderId = (params['account'] as Record<string, string>)?.[
+        'order_id'
+      ];
+
+      const transaction = accountOrderId
+        ? await this.findPaymentTransaction(accountOrderId)
+        : await this.transactionRepository.findOne({ where: { externalId } });
+
+      if (!transaction) {
+        this.logger.warn(`Payme CancelTransaction for unknown id ${externalId}`);
+        return { allow: true };
+      }
+
+      // State machine for cancellation, deliberately different from the
+      // completion path: COMPLETED is *not* terminal here. Payme genuinely
+      // supports reversing an already-performed transaction (a refund), and
+      // the ledger models that correctly — computeBalance() only counts
+      // COMPLETED rows, so flipping to REFUNDED withdraws the credit. What
+      // must not happen is re-cancelling an already-REFUNDED row (a retried
+      // callback) or "cancelling" a FAILED one; both are no-ops that still
+      // return success so Payme stops retrying.
+      if (
+        transaction.status !== TransactionStatus.PENDING &&
+        transaction.status !== TransactionStatus.COMPLETED
+      ) {
+        this.logger.log(
+          `Payme CancelTransaction ignored — transaction already ${transaction.status}`,
+        );
+        return { allow: true };
+      }
+
+      await this.transactionRepository.update(
+        { id: transaction.id },
         { status: TransactionStatus.REFUNDED },
       );
+
+      this.logger.log(`Payme transaction ${transaction.id} cancelled/refunded`);
     }
 
     return { allow: true };
@@ -142,15 +267,54 @@ export class PaymentsService {
       return { error: -1, error_note: 'SIGNATURE_FAILED' };
     }
 
-    const action = body['action'] as number;
+    const action = Number(body['action']);
     const merchantTransId = body['merchant_trans_id'] as string;
     const clickTransId = body['click_trans_id'] as string;
 
     // Action 1 = prepare, Action 2 = complete
     if (action === 2) {
+      if (!merchantTransId) {
+        return { error: -5, error_note: 'TRANSACTION_NOT_FOUND' };
+      }
+
+      const transaction = await this.findPaymentTransaction(merchantTransId);
+
+      if (!transaction) {
+        this.logger.warn(`Click complete for unknown order ${merchantTransId}`);
+        return { error: -5, error_note: 'TRANSACTION_NOT_FOUND' };
+      }
+
+      // Click quotes amounts in whole soum — the same unit
+      // ClickProvider.initiate() sends.
+      const callbackAmount = Number(body['amount']);
+
+      if (!this.amountsMatch(callbackAmount, transaction.amount)) {
+        this.logger.warn(
+          `Click amount mismatch for order ${merchantTransId}: callback=${callbackAmount} UZS, expected=${transaction.amount} UZS`,
+        );
+        return { error: -2, error_note: 'INCORRECT_AMOUNT' };
+      }
+
+      if (transaction.status === TransactionStatus.COMPLETED) {
+        // Retry of a callback we already settled. Answer success so Click
+        // stops retrying; the ledger stays as it is.
+        this.logger.log(`Click complete replay ignored for order ${merchantTransId}`);
+        return { error: 0, error_note: 'Success' };
+      }
+
+      if (transaction.status !== TransactionStatus.PENDING) {
+        this.logger.warn(
+          `Click complete for order ${merchantTransId} in terminal status ${transaction.status}`,
+        );
+        return { error: -9, error_note: 'TRANSACTION_CANCELLED' };
+      }
+
       await this.transactionRepository.update(
-        { externalId: `click_${merchantTransId}_${clickTransId}` },
-        { status: TransactionStatus.COMPLETED },
+        { id: transaction.id },
+        {
+          status: TransactionStatus.COMPLETED,
+          externalId: `click_${merchantTransId}_${clickTransId}`,
+        },
       );
 
       this.logger.log(`Click payment completed for order ${merchantTransId}`);
@@ -177,15 +341,67 @@ export class PaymentsService {
       `Uzcard callback received: status=${status}, orderId=${orderId}`,
     );
 
-    if (status === 'PAID' && orderId) {
+    if (!orderId) {
+      this.logger.warn('Uzcard callback without order_id');
+      return { success: false, message: 'ORDER_NOT_FOUND' };
+    }
+
+    const transaction = await this.findPaymentTransaction(orderId);
+
+    if (!transaction) {
+      this.logger.warn(`Uzcard callback for unknown order ${orderId}`);
+      return { success: false, message: 'ORDER_NOT_FOUND' };
+    }
+
+    if (status === 'PAID') {
+      // UZPS quotes amounts in tiyin — the same unit
+      // UzcardProvider.initiate() sends.
+      const callbackAmount = Number(body['amount']) / 100;
+
+      if (!this.amountsMatch(callbackAmount, transaction.amount)) {
+        this.logger.warn(
+          `Uzcard amount mismatch for order ${orderId}: callback=${callbackAmount} UZS, expected=${transaction.amount} UZS`,
+        );
+        return { success: false, message: 'AMOUNT_MISMATCH' };
+      }
+
+      if (transaction.status === TransactionStatus.COMPLETED) {
+        // Retry of an already-settled payment: acknowledge, change nothing.
+        this.logger.log(`Uzcard PAID replay ignored for order ${orderId}`);
+        return { success: true, message: 'OK' };
+      }
+
+      if (transaction.status !== TransactionStatus.PENDING) {
+        this.logger.warn(
+          `Uzcard PAID for order ${orderId} in terminal status ${transaction.status}`,
+        );
+        return { success: false, message: 'INVALID_STATE' };
+      }
+
       await this.transactionRepository.update(
-        { externalId: transactionId ?? `uzcard_dev_${orderId}`, orderId },
-        { status: TransactionStatus.COMPLETED },
+        { id: transaction.id },
+        {
+          status: TransactionStatus.COMPLETED,
+          externalId: transactionId ?? transaction.externalId,
+        },
       );
       this.logger.log(`Uzcard payment completed for order ${orderId}`);
     } else if (status === 'FAILED' || status === 'CANCELLED') {
+      // Same reasoning as the Payme cancel path: reversing a settled
+      // payment is legitimate, re-reversing an already-REFUNDED one is a
+      // retry and must be a no-op.
+      if (
+        transaction.status !== TransactionStatus.PENDING &&
+        transaction.status !== TransactionStatus.COMPLETED
+      ) {
+        this.logger.log(
+          `Uzcard ${status} ignored — transaction already ${transaction.status}`,
+        );
+        return { success: true, message: 'OK' };
+      }
+
       await this.transactionRepository.update(
-        { externalId: transactionId ?? `uzcard_dev_${orderId}`, orderId },
+        { id: transaction.id },
         { status: TransactionStatus.REFUNDED },
       );
     }

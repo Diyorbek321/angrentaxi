@@ -1,8 +1,24 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createHmac } from 'crypto';
+import { createHmac, timingSafeEqual } from 'crypto';
 import axios from 'axios';
 import { IPaymentProvider, PaymentInitiateResult } from './payment.interface';
+
+/**
+ * Constant-time string comparison for secrets/signatures.
+ * timingSafeEqual() throws on differing buffer lengths, so compare lengths
+ * first rather than letting it raise.
+ */
+function timingSafeCompare(a: string, b: string): boolean {
+  const bufA = Buffer.from(a, 'utf-8');
+  const bufB = Buffer.from(b, 'utf-8');
+
+  if (bufA.length !== bufB.length) {
+    return false;
+  }
+
+  return timingSafeEqual(bufA, bufB);
+}
 
 @Injectable()
 export class UzcardProvider implements IPaymentProvider {
@@ -116,6 +132,8 @@ export class UzcardProvider implements IPaymentProvider {
     const data = `${body['terminal_id']}&${body['order_id']}&${body['amount']}`;
     const expected = createHmac('sha256', secretKey).update(data).digest('hex');
 
-    return sign === expected;
+    // Constant-time compare so the expected signature cannot be recovered
+    // byte by byte from response timing.
+    return timingSafeCompare(sign, expected);
   }
 }
