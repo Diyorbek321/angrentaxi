@@ -47,7 +47,13 @@ Thumbs.db
 *.log
 
 # ===== Internal / sales docs =====
-Sotuv skript.docx
+# Sales scripts and interior-design AI prompts kept in the repo root by the
+# owner. They are not part of the platform — ignored rather than deleted.
+Sotuv skript*.docx
+Sotuv skript - qismlar/
+Xona*.docx
+Xona_*.txt
+prompt.txt/
 *.odt
 
 # ===== Build artifacts (distribute via GitHub Releases, not git) =====
