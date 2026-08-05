@@ -27,6 +27,8 @@ export interface StatCardProps {
   hint?: string;
   /** Pulses the icon — for counters that move while the vendor watches. */
   live?: boolean;
+  /** Drops the value a size, so long readouts like money still fit on one line. */
+  compactValue?: boolean;
   className?: string;
 }
 
@@ -37,6 +39,7 @@ export function StatCard({
   tone = 'neutral',
   hint,
   live = false,
+  compactValue = false,
   className,
 }: StatCardProps) {
   const t = toneClasses[tone];
@@ -58,7 +61,13 @@ export function StatCard({
       )}
       <div className="min-w-0 flex-1">
         <p className="text-xs text-muted truncate">{label}</p>
-        <p className={cn('text-2xl font-bold font-mono tabular-nums leading-tight mt-1', t.value)}>
+        <p
+          className={cn(
+            'font-bold font-mono tabular-nums leading-tight mt-1',
+            compactValue ? 'text-lg' : 'text-2xl',
+            t.value
+          )}
+        >
           {value}
         </p>
         {hint && <p className="text-[11px] text-subtle mt-1 truncate">{hint}</p>}
