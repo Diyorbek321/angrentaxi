@@ -5,7 +5,8 @@ import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/shared/models/driver_document.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
-import 'package:angren_taxi/shared/widgets/loading_widget.dart';
+import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
+import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -70,7 +71,25 @@ class _DriverOnboardingScreenState extends State<DriverOnboardingScreen> {
         child: Consumer<DriverProvider>(
           builder: (context, driverProvider, _) {
             if (_checking) {
-              return const LoadingWidget();
+              // Yuklanishda spinner emas, skeleton.
+              return const SingleChildScrollView(
+                padding: EdgeInsets.all(kSpace4),
+                child: AppSkeletonGroup(
+                  child: Column(
+                    children: [
+                      AppSkeleton(width: 180, height: 24),
+                      SizedBox(height: kSpace4),
+                      AppSkeleton(width: double.infinity, height: 14),
+                      SizedBox(height: kSpace6),
+                      AppSkeletonTile(),
+                      SizedBox(height: kSpace3),
+                      AppSkeletonTile(),
+                      SizedBox(height: kSpace3),
+                      AppSkeletonTile(),
+                    ],
+                  ),
+                ),
+              );
             }
             if (driverProvider.onboardingStatus ==
                 DriverOnboardingStatus.pendingApproval) {
@@ -122,23 +141,29 @@ class _ApplicationFormState extends State<_ApplicationForm> {
       builder: (context, driverProvider, auth, _) {
         final isLoading = driverProvider.state == DriverProviderState.loading;
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(kSpace4),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 16),
-              const Icon(Icons.local_taxi, color: kPrimary, size: 48),
-              const SizedBox(height: 16),
+              const SizedBox(height: kSpace4),
+              const ExcludeSemantics(
+                child: Icon(Icons.local_taxi, color: kPrimary, size: 48),
+              ),
+              const SizedBox(height: kSpace4),
               const Text(
                 'Haydovchi bo\'lish uchun ariza',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: kFontH1,
+                  fontWeight: FontWeight.w800,
+                  color: kInk,
+                ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: kSpace2),
               Text(
                 '${auth.currentUser?.phone ?? ''} raqami hali haydovchi sifatida ro\'yxatdan o\'tmagan. Mashina ma\'lumotlarini kiriting — admin tasdiqlagach onlayn bo\'la olasiz.',
-                style: const TextStyle(color: kTextSecondary, fontSize: 14),
+                style: const TextStyle(color: kInkMuted, fontSize: kFontBody),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: kSpace6),
               TextField(
                 controller: _carModelController,
                 decoration: const InputDecoration(
@@ -148,7 +173,7 @@ class _ApplicationFormState extends State<_ApplicationForm> {
                   border: OutlineInputBorder(),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: kSpace4),
               TextField(
                 controller: _carNumberController,
                 textCapitalization: TextCapitalization.characters,
@@ -159,7 +184,7 @@ class _ApplicationFormState extends State<_ApplicationForm> {
                   border: OutlineInputBorder(),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: kSpace4),
               TextField(
                 controller: _carYearController,
                 keyboardType: TextInputType.number,
@@ -175,22 +200,31 @@ class _ApplicationFormState extends State<_ApplicationForm> {
               if (driverProvider.state == DriverProviderState.error &&
                   driverProvider.error != null)
                 Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: Text(
-                    driverProvider.error!,
-                    style: const TextStyle(color: kError, fontSize: 13),
-                  ),
+                  padding: const EdgeInsets.only(top: kSpace3),
+                  child: InlineErrorWidget(message: driverProvider.error!),
                 ),
-              const SizedBox(height: 24),
+              const SizedBox(height: kSpace6),
               AppButton(
                 label: 'Arizani yuborish',
                 isLoading: isLoading,
                 onPressed: () => _submit(driverProvider),
               ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () => context.read<AuthProvider>().logout(),
-                child: const Text('Chiqish', style: TextStyle(color: kError)),
+              const SizedBox(height: kSpace3),
+              ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minHeight: kMinTapTarget,
+                  minWidth: kMinTapTarget,
+                ),
+                child: TextButton(
+                  onPressed: () => context.read<AuthProvider>().logout(),
+                  child: const Text(
+                    'Chiqish',
+                    style: TextStyle(
+                      color: kErrorDeep,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
@@ -214,63 +248,86 @@ class _PendingApprovalView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(kSpace4),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 88,
-            height: 88,
-            decoration: BoxDecoration(
-              color: kPrimaryYellow.withAlpha(30),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.hourglass_top,
-              color: kPrimaryYellow,
-              size: 40,
+          const ExcludeSemantics(
+            child: SizedBox(
+              width: 88,
+              height: 88,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: kMintTint,
+                  shape: BoxShape.circle,
+                ),
+                // Mint tint ustida mint ikona ko'rinmasdi — kPrimary.
+                child: Icon(
+                  Icons.hourglass_top,
+                  color: kPrimary,
+                  size: 40,
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: kSpace5),
           const Text(
             'Ariza ko\'rib chiqilmoqda',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: kFontH2,
+              fontWeight: FontWeight.w800,
+              color: kInk,
+            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: kSpace2),
           const Text(
             'Sizning haydovchilik arizangiz admin tomonidan tasdiqlanishini kutmoqda. Tasdiqlangach shu yerdan avtomatik davom etasiz.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: kTextSecondary, fontSize: 14),
+            style: TextStyle(color: kInkMuted, fontSize: kFontBody),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: kSpace8),
           const Align(
             alignment: Alignment.centerLeft,
             child: Text(
               'Hujjatlarni yuklang',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: kFontTitle,
+                fontWeight: FontWeight.w800,
+                color: kInk,
+              ),
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: kSpace1),
           const Align(
             alignment: Alignment.centerLeft,
             child: Text(
               'Tasdiqlash tezroq bo\'lishi uchun quyidagi hujjatlarning aniq suratlarini yuklang.',
-              style: TextStyle(color: kTextSecondary, fontSize: 13),
+              style: TextStyle(color: kInkMuted, fontSize: kFontLabel),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: kSpace3),
           const _DriverDocumentsSection(),
-          const SizedBox(height: 24),
-          AppButton(
+          const SizedBox(height: kSpace6),
+          AppOutlinedButton(
             label: 'Holatni tekshirish',
-            backgroundColor: kSurfaceGrey,
-            foregroundColor: kTextPrimary,
             onPressed: () => onRefresh(),
           ),
-          const SizedBox(height: 12),
-          TextButton(
-            onPressed: () => context.read<AuthProvider>().logout(),
-            child: const Text('Chiqish', style: TextStyle(color: kError)),
+          const SizedBox(height: kSpace3),
+          ConstrainedBox(
+            constraints: const BoxConstraints(
+              minHeight: kMinTapTarget,
+              minWidth: kMinTapTarget,
+            ),
+            child: TextButton(
+              onPressed: () => context.read<AuthProvider>().logout(),
+              child: const Text(
+                'Chiqish',
+                style: TextStyle(
+                  color: kErrorDeep,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -343,7 +400,7 @@ class _DriverDocumentsSectionState extends State<_DriverDocumentsSection> {
           children: [
             for (final entry in _kDriverDocumentTypes)
               Padding(
-                padding: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.only(bottom: kSpace3),
                 child: _DriverDocumentRow(
                   documentType: entry.$1,
                   label: entry.$2,
@@ -403,17 +460,35 @@ class _DriverDocumentRow extends StatelessWidget {
     }
   }
 
+  // Yorug' fonda AA'dan o'tadigan MATN ranglari (`*Deep`); `kError`/`kWarning`
+  // faqat to'ldirish/ikona uchun, `kSuccess` (mint) esa oq fonda 2.12:1.
   Color get _statusColor {
-    if (_isFailed) return kError;
-    if (_isUploading) return kTextSecondary;
-    if (document == null) return kTextSecondary;
+    if (_isFailed) return kErrorDeep;
+    if (_isUploading) return kInkMuted;
+    if (document == null) return kInkMuted;
     switch (document!.reviewStatus) {
       case DriverDocumentReviewStatus.pending:
-        return kWarning;
+        return kWarningDeep;
       case DriverDocumentReviewStatus.approved:
-        return kSuccess;
+        return kPrimary;
       case DriverDocumentReviewStatus.rejected:
-        return kError;
+        return kErrorDeep;
+    }
+  }
+
+  /// Rangni ko'rmaydigan foydalanuvchi uchun ZAXIRA signal — holat hech qachon
+  /// faqat rang bilan berilmaydi (ikonka + matn + rang).
+  IconData get _statusIcon {
+    if (_isFailed) return Icons.error_outline_rounded;
+    if (_isUploading) return Icons.upload_rounded;
+    if (document == null) return Icons.remove_circle_outline_rounded;
+    switch (document!.reviewStatus) {
+      case DriverDocumentReviewStatus.pending:
+        return Icons.schedule_rounded;
+      case DriverDocumentReviewStatus.approved:
+        return Icons.check_circle_rounded;
+      case DriverDocumentReviewStatus.rejected:
+        return Icons.cancel_rounded;
     }
   }
 
@@ -427,16 +502,16 @@ class _DriverDocumentRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(kSpace4),
       decoration: BoxDecoration(
         color: kSurface,
         borderRadius: BorderRadius.circular(kRadiusMd),
-        border: Border.all(color: kSurfaceGrey),
+        border: Border.all(color: kLine),
       ),
       child: Row(
         children: [
-          Icon(icon, color: kTextSecondary),
-          const SizedBox(width: 12),
+          ExcludeSemantics(child: Icon(icon, color: kInkMuted)),
+          const SizedBox(width: kSpace3),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -445,52 +520,63 @@ class _DriverDocumentRow extends StatelessWidget {
                   label,
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                    fontSize: kFontBody,
+                    color: kInk,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: kSpace1),
                 if (_isUploading)
                   Padding(
-                    padding: const EdgeInsets.only(top: 2, bottom: 4),
+                    padding: const EdgeInsets.only(top: 2, bottom: kSpace1),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(kRadiusXs),
                       child: LinearProgressIndicator(
                         value: uploadState.progress > 0
                             ? uploadState.progress
                             : null,
                         minHeight: 4,
-                        backgroundColor: kSurfaceGrey,
+                        backgroundColor: kSurface2,
                         color: kPrimary,
                       ),
                     ),
                   ),
-                Text(
-                  _statusText,
-                  key: ValueKey('doc_status_${documentType.name}'),
-                  style: TextStyle(
-                    color: _statusColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
+                Row(
+                  children: [
+                    ExcludeSemantics(
+                      child: Icon(_statusIcon, size: 14, color: _statusColor),
+                    ),
+                    const SizedBox(width: kSpace1 + 2),
+                    Flexible(
+                      child: Text(
+                        _statusText,
+                        key: ValueKey('doc_status_${documentType.name}'),
+                        style: TextStyle(
+                          color: _statusColor,
+                          fontSize: kFontCaption,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 if (document?.reviewStatus ==
                         DriverDocumentReviewStatus.rejected &&
                     (document?.rejectionReason?.trim().isNotEmpty ?? false))
                   Padding(
-                    padding: const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.only(top: kSpace1),
                     child: Text(
                       document!.rejectionReason!,
                       key: ValueKey('doc_rejection_reason_${documentType.name}'),
                       style: const TextStyle(
-                        color: kError,
-                        fontSize: 12,
+                        color: kErrorDeep,
+                        fontSize: kFontCaption,
                       ),
                     ),
                   ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: kSpace2),
           if (_isUploading)
             const SizedBox(
               width: 20,
@@ -498,14 +584,26 @@ class _DriverDocumentRow extends StatelessWidget {
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           else
-            TextButton(
-              key: ValueKey(
-                _isFailed
-                    ? 'doc_retry_${documentType.name}'
-                    : 'doc_upload_${documentType.name}',
+            ConstrainedBox(
+              constraints: const BoxConstraints(
+                minHeight: kMinTapTarget,
+                minWidth: kMinTapTarget,
               ),
-              onPressed: onTap,
-              child: Text(_actionLabel),
+              child: TextButton(
+                key: ValueKey(
+                  _isFailed
+                      ? 'doc_retry_${documentType.name}'
+                      : 'doc_upload_${documentType.name}',
+                ),
+                onPressed: onTap,
+                child: Text(
+                  _actionLabel,
+                  style: const TextStyle(
+                    fontSize: kFontLabel,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
             ),
         ],
       ),

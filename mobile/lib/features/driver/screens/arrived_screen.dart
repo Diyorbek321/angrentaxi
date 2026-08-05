@@ -58,8 +58,8 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Yetib keldim'),
-        backgroundColor: Colors.white,
-        foregroundColor: kTextPrimary,
+        backgroundColor: kSurface,
+        foregroundColor: kInk,
         elevation: 0,
       ),
       body: Consumer<DriverProvider>(
@@ -70,18 +70,18 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
           }
 
           return Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(kSpace4),
             child: Column(
               children: [
-                const SizedBox(height: 20),
+                const SizedBox(height: kSpace5),
                 _buildArrivedBanner(),
-                const SizedBox(height: 24),
+                const SizedBox(height: kSpace6),
                 _buildWaitingTimer(),
-                const SizedBox(height: 24),
+                const SizedBox(height: kSpace6),
                 _buildOrderInfo(order),
                 const Spacer(),
                 _buildActionButtons(order, provider),
-                const SizedBox(height: 16),
+                const SizedBox(height: kSpace4),
               ],
             ),
           );
@@ -93,28 +93,31 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
   Widget _buildArrivedBanner() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(kSpace5),
       decoration: BoxDecoration(
-        color: kSuccess.withAlpha(20),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: kSuccess.withAlpha(80)),
+        color: kMintTint,
+        borderRadius: BorderRadius.circular(kRadiusMd),
+        border: Border.all(color: kPrimary.withValues(alpha: 0.25)),
       ),
       child: const Column(
         children: [
-          Icon(Icons.location_on, color: kSuccess, size: 48),
-          SizedBox(height: 8),
+          // Mint tint ustidagi matn/ikona — kPrimary (mint o'zi 2.12:1).
+          ExcludeSemantics(
+            child: Icon(Icons.location_on, color: kPrimary, size: 48),
+          ),
+          SizedBox(height: kSpace2),
           Text(
             'Olish joyida turibsiz!',
             style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: kSuccess,
+              fontSize: kFontH2,
+              fontWeight: FontWeight.w800,
+              color: kPrimary,
             ),
           ),
-          SizedBox(height: 4),
+          SizedBox(height: kSpace1),
           Text(
             'Yo\'lovchi kelishini kuting',
-            style: TextStyle(color: kTextSecondary, fontSize: 13),
+            style: TextStyle(color: kInkMuted, fontSize: kFontLabel),
           ),
         ],
       ),
@@ -123,21 +126,24 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
 
   Widget _buildWaitingTimer() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(kSpace5),
       decoration: BoxDecoration(
-        color: kSurfaceGrey,
-        borderRadius: BorderRadius.circular(14),
+        color: kSurface2,
+        borderRadius: BorderRadius.circular(kRadiusMd),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.timer_outlined, color: kTextSecondary, size: 20),
-          const SizedBox(width: 8),
+          const ExcludeSemantics(
+            child: Icon(Icons.timer_outlined, color: kInkMuted, size: 20),
+          ),
+          const SizedBox(width: kSpace2),
           Text(
             'Kutish vaqti: $_waitingTimeText',
             style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
+              fontSize: kFontBodyLg,
+              fontWeight: FontWeight.w600,
+              color: kInk,
             ),
           ),
         ],
@@ -147,35 +153,41 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
 
   Widget _buildOrderInfo(Order order) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(kSpace4),
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade200),
-        borderRadius: BorderRadius.circular(14),
+        color: kSurface,
+        border: Border.all(color: kLine),
+        borderRadius: BorderRadius.circular(kRadiusMd),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             'Buyurtma ma\'lumotlari',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: kFontBodyLg,
+              color: kInk,
+            ),
           ),
-          const SizedBox(height: 12),
-          _buildInfoRow(Icons.radio_button_checked, Colors.green, 'Olish joyi',
+          const SizedBox(height: kSpace3),
+          _buildInfoRow(Icons.radio_button_checked, kPrimary, 'Olish joyi',
               order.pickup.address),
-          const SizedBox(height: 8),
+          const SizedBox(height: kSpace2),
           _buildInfoRow(
               Icons.location_on, kError, 'Manzil', order.dropoff.address),
-          const Divider(height: 20),
+          const Divider(height: kSpace5),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text('Taxminiy narx:',
-                  style: TextStyle(color: kTextSecondary)),
+                  style: TextStyle(color: kInkMuted, fontSize: kFontBody)),
               Text(
                 Formatters.formatPrice(order.estimatedPrice),
                 style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  fontSize: kFontTitle,
+                  color: kInk,
                 ),
               ),
             ],
@@ -194,8 +206,8 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: color, size: 18),
-        const SizedBox(width: 10),
+        ExcludeSemantics(child: Icon(icon, color: color, size: 18)),
+        const SizedBox(width: kSpace3),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -203,11 +215,14 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
               Text(
                 label,
                 style: const TextStyle(
-                  color: kTextSecondary,
-                  fontSize: 11,
+                  color: kInkMuted,
+                  fontSize: kFontMicro,
                 ),
               ),
-              Text(value, style: const TextStyle(fontSize: 13)),
+              Text(
+                value,
+                style: const TextStyle(fontSize: kFontLabel, color: kInk),
+              ),
             ],
           ),
         ),
@@ -222,13 +237,14 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
           label: 'Safarni boshlash',
           onPressed: _onStartTrip,
           isLoading: provider.state == DriverProviderState.loading,
-          icon: const Icon(Icons.play_arrow, color: Colors.black),
+          icon: const Icon(Icons.play_arrow, color: kOnPrimary),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: kSpace3),
         AppOutlinedButton(
           label: 'Yo\'lovchi kelmadi',
           onPressed: () => _showPassengerNotCameDialog(provider),
-          textColor: kError,
+          // Xavf MATNI kErrorDeep (6.47:1); kError faqat chegara uchun.
+          textColor: kErrorDeep,
           borderColor: kError,
         ),
       ],
@@ -265,7 +281,7 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
                 );
               }
             },
-            child: const Text('Ha', style: TextStyle(color: kError)),
+            child: const Text('Ha', style: TextStyle(color: kErrorDeep)),
           ),
         ],
       ),

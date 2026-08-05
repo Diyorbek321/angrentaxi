@@ -45,10 +45,10 @@ class ProfileTab extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 100),
         children: [
           Container(
-            padding: EdgeInsets.fromLTRB(18, topPad + 18, 18, 26),
+            padding: EdgeInsets.fromLTRB(kSpace4, topPad + kSpace5, kSpace4, kSpace6),
             decoration: const BoxDecoration(
               gradient: agHeader,
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(kRadiusXl)),
             ),
             child: Column(
               children: [
@@ -59,14 +59,18 @@ class ProfileTab extends StatelessWidget {
                       height: 64,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.22),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
+                        color: agSurface.withValues(alpha: 0.22),
+                        borderRadius: BorderRadius.circular(kRadiusLg),
+                        border: Border.all(
+                            color: agSurface.withValues(alpha: 0.3), width: 2),
                       ),
                       child: Text(_initials(name),
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 24)),
+                          style: const TextStyle(
+                              color: agOnPrimary,
+                              fontWeight: FontWeight.w800,
+                              fontSize: kFontH1)),
                     ),
-                    const SizedBox(width: 14),
+                    const SizedBox(width: kSpace4),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -74,22 +78,39 @@ class ProfileTab extends StatelessWidget {
                           Text(name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 20)),
-                          Text(phone, style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600)),
+                              style: const TextStyle(
+                                  color: agOnPrimary,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: kFontH2)),
+                          Text(phone,
+                              style: const TextStyle(
+                                  color: agOnPrimary,
+                                  fontSize: kFontLabel,
+                                  fontWeight: FontWeight.w600)),
                         ],
                       ),
                     ),
-                    GestureDetector(
-                      onTap: () => _push(context, const EditProfileScreen()),
-                      child: const Icon(Icons.edit_rounded, color: Colors.white70, size: 24),
+                    Semantics(
+                      button: true,
+                      label: 'Profilni tahrirlash',
+                      excludeSemantics: true,
+                      child: GestureDetector(
+                        onTap: () => _push(context, const EditProfileScreen()),
+                        behavior: HitTestBehavior.opaque,
+                        child: const SizedBox(
+                          width: kMinTapTarget,
+                          height: kMinTapTarget,
+                          child: Icon(Icons.edit_rounded, color: agOnPrimary, size: 24),
+                        ),
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: kSpace5),
                 Row(
                   children: [
                     _stat('${user?.totalTrips ?? 0}', 'Safarlar'),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: kSpace3),
                     _stat(
                       user?.rating != null ? user!.rating!.toStringAsFixed(1) : '—',
                       'Reyting',
@@ -100,52 +121,69 @@ class ProfileTab extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
+            padding: const EdgeInsets.fromLTRB(kSpace4, kSpace5, kSpace4, 0),
             child: Column(
               children: [
-                GestureDetector(
-                  onTap: () => _push(context, const SupportScreen()),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: agInk,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [BoxShadow(color: agInk.withValues(alpha: 0.2), blurRadius: 30, offset: const Offset(0, 12))],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 46,
-                          height: 46,
-                          decoration: BoxDecoration(color: agBright.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(13)),
-                          child: const Icon(Icons.support_agent_rounded, color: agBright, size: 24),
-                        ),
-                        const SizedBox(width: 13),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Yordam kerakmi?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15)),
-                              Text("24/7 qo'llab-quvvatlash xizmati", style: TextStyle(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.w600)),
-                            ],
+                Semantics(
+                  button: true,
+                  label: "Yordam kerakmi? 24/7 qo'llab-quvvatlash xizmati",
+                  excludeSemantics: true,
+                  child: GestureDetector(
+                    onTap: () => _push(context, const SupportScreen()),
+                    behavior: HitTestBehavior.opaque,
+                    child: Container(
+                      padding: const EdgeInsets.all(kSpace4),
+                      decoration: BoxDecoration(
+                        color: agInk,
+                        borderRadius: BorderRadius.circular(kRadiusLg),
+                        boxShadow: agInkShadow,
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 46,
+                            height: 46,
+                            decoration: BoxDecoration(
+                                color: agBright.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(kRadiusSm)),
+                            child: const Icon(Icons.support_agent_rounded,
+                                color: agBright, size: 24),
                           ),
-                        ),
-                        const Icon(Icons.arrow_forward_rounded, color: agBright, size: 22),
-                      ],
+                          const SizedBox(width: kSpace3),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Yordam kerakmi?',
+                                    style: TextStyle(
+                                        color: agOnPrimary,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: kFontTitle)),
+                                Text("24/7 qo'llab-quvvatlash xizmati",
+                                    style: TextStyle(
+                                        color: agOnPrimary.withValues(alpha: 0.75),
+                                        fontSize: kFontCaption,
+                                        fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.arrow_forward_rounded, color: agBright, size: 22),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: kSpace4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: kSpace4),
                   decoration: BoxDecoration(
                     color: agSurface,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(kRadiusLg),
                     boxShadow: agCardShadow,
                   ),
                   child: Column(
                     children: [
-                      _MenuRow(icon: Icons.account_balance_wallet_rounded, iconColor: agGreen, label: 'Hamyon va kartalar',
+                      _MenuRow(icon: Icons.account_balance_wallet_rounded, iconColor: agGreenText, label: 'Hamyon va kartalar',
                           onTap: () => _push(context, const WalletScreen())),
                       _MenuRow(icon: Icons.receipt_long_rounded, label: 'Buyurtmalar tarixi',
                           onTap: () => context.read<SuperappProvider>().tabIndex = 1),
@@ -168,24 +206,34 @@ class ProfileTab extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 14),
-                GestureDetector(
-                  onTap: () => auth.logout(),
-                  child: Container(
-                    height: 50,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: agSurface,
-                      borderRadius: BorderRadius.circular(15),
-                      border: Border.all(color: const Color(0xFFF1D6D6)),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.logout_rounded, size: 20, color: agRed),
-                        SizedBox(width: 8),
-                        Text('Chiqish', style: TextStyle(color: agRed, fontWeight: FontWeight.w800, fontSize: 14.5)),
-                      ],
+                const SizedBox(height: kSpace4),
+                Semantics(
+                  button: true,
+                  label: 'Chiqish',
+                  excludeSemantics: true,
+                  child: GestureDetector(
+                    onTap: () => auth.logout(),
+                    behavior: HitTestBehavior.opaque,
+                    child: Container(
+                      height: kControlHeightSm,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: agSurface,
+                        borderRadius: BorderRadius.circular(kRadiusMd),
+                        border: Border.all(color: kErrorBorder),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.logout_rounded, size: 20, color: kErrorDeep),
+                          SizedBox(width: kSpace2),
+                          Text('Chiqish',
+                              style: TextStyle(
+                                  color: kErrorDeep,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: kFontBody)),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -199,15 +247,19 @@ class ProfileTab extends StatelessWidget {
 
   Widget _stat(String value, String label) => Expanded(
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: kSpace3),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.16),
-            borderRadius: BorderRadius.circular(14),
+            color: agSurface.withValues(alpha: 0.16),
+            borderRadius: BorderRadius.circular(kRadiusMd),
           ),
           child: Column(
             children: [
-              Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18)),
-              Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11.5, fontWeight: FontWeight.w600)),
+              Text(value,
+                  style: const TextStyle(
+                      color: agOnPrimary, fontWeight: FontWeight.w800, fontSize: kFontH2)),
+              Text(label,
+                  style: const TextStyle(
+                      color: agOnPrimary, fontSize: kFontMicro, fontWeight: FontWeight.w600)),
             ],
           ),
         ),
@@ -231,23 +283,31 @@ class _MenuRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          border: last ? null : const Border(bottom: BorderSide(color: agDivider)),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 23, color: iconColor),
-            const SizedBox(width: 13),
-            Expanded(
-              child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5, color: agText)),
-            ),
-            const Icon(Icons.chevron_right_rounded, size: 20, color: Color(0xFFC2CCD4)),
-          ],
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: kMinTapTarget),
+          padding: const EdgeInsets.symmetric(vertical: kSpace4),
+          decoration: BoxDecoration(
+            border: last ? null : const Border(bottom: BorderSide(color: agDivider)),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: 23, color: iconColor),
+              const SizedBox(width: kSpace3),
+              Expanded(
+                child: Text(label,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: kFontBody, color: agText)),
+              ),
+              const Icon(Icons.chevron_right_rounded, size: 20, color: agMuted),
+            ],
+          ),
         ),
       ),
     );

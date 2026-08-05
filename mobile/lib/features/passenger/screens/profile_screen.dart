@@ -21,47 +21,55 @@ class PassengerProfileScreen extends StatelessWidget {
           if (user == null) return const SizedBox.shrink();
 
           return SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(kSpace5),
             child: Column(
               children: [
                 _buildAvatar(user.displayName),
-                const SizedBox(height: 20),
+                const SizedBox(height: kSpace5),
                 Text(
                   user.displayName,
                   style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
+                    fontSize: kFontH1,
+                    fontWeight: FontWeight.w800,
+                    color: kInk,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: kSpace1),
                 Text(
                   Formatters.formatPhone(user.phone),
-                  style: const TextStyle(color: kTextSecondary),
+                  style: const TextStyle(color: kInkMuted),
                 ),
                 if (user.rating != null) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: kSpace2),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.star, color: kPrimaryYellow, size: 18),
-                      const SizedBox(width: 4),
+                      // Yorug' fonda ko'rinishi shart bo'lgan mint —
+                      // kMintDeep (kMint oq ustida atigi 2.12:1).
+                      const ExcludeSemantics(
+                        child: Icon(Icons.star, color: kMintDeep, size: 18),
+                      ),
+                      const SizedBox(width: kSpace1),
                       Text(
                         '${Formatters.formatRating(user.rating!)} reyting',
-                        style: const TextStyle(fontWeight: FontWeight.w500),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: kInk,
+                        ),
                       ),
                     ],
                   ),
                 ],
-                const SizedBox(height: 32),
+                const SizedBox(height: kSpace8),
                 _buildStatsRow(user.totalTrips ?? 0),
-                const SizedBox(height: 24),
+                const SizedBox(height: kSpace6),
                 _buildMenuList(context),
-                const SizedBox(height: 24),
+                const SizedBox(height: kSpace6),
                 AppButton(
                   label: 'Chiqish',
                   onPressed: () => _confirmLogout(context, auth),
                   backgroundColor: kError,
-                  foregroundColor: Colors.white,
+                  foregroundColor: kOnPrimary,
                 ),
               ],
             ),
@@ -76,15 +84,18 @@ class PassengerProfileScreen extends StatelessWidget {
         ? name.split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join()
         : '?';
 
-    return CircleAvatar(
-      radius: 48,
-      backgroundColor: kPrimaryYellow,
-      child: Text(
-        initials.toUpperCase(),
-        style: const TextStyle(
-          fontSize: 28,
-          fontWeight: FontWeight.bold,
-          color: Colors.black,
+    // Mint dekorativ to'ldirish — ustidagi yozuv ink (7.84:1), oq emas.
+    return ExcludeSemantics(
+      child: CircleAvatar(
+        radius: 48,
+        backgroundColor: kMint,
+        child: Text(
+          initials.toUpperCase(),
+          style: const TextStyle(
+            fontSize: kFontDisplay,
+            fontWeight: FontWeight.w800,
+            color: kOnMint,
+          ),
         ),
       ),
     );
@@ -100,7 +111,7 @@ class PassengerProfileScreen extends StatelessWidget {
             icon: Icons.route,
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: kSpace3),
         const Expanded(
           child: _StatCard(
             value: '0',
@@ -153,17 +164,25 @@ class PassengerProfileScreen extends StatelessWidget {
   Widget _buildMenuTile(IconData icon, String title, VoidCallback onTap) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
+      minVerticalPadding: kSpace2,
       leading: Container(
-        width: 40,
-        height: 40,
+        width: kSpace10,
+        height: kSpace10,
         decoration: BoxDecoration(
-          color: kSurfaceGrey,
-          borderRadius: BorderRadius.circular(10),
+          color: kSurface2,
+          borderRadius: BorderRadius.circular(kRadiusSm),
         ),
-        child: Icon(icon, color: kTextPrimary, size: 20),
+        child: Icon(icon, color: kInk, size: 20),
       ),
-      title: Text(title),
-      trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: kTextSecondary),
+      title: Text(
+        title,
+        style: const TextStyle(fontSize: kFontBodyLg, color: kInk),
+      ),
+      trailing: const Icon(
+        Icons.arrow_forward_ios,
+        size: 16,
+        color: kInkMuted,
+      ),
       onTap: onTap,
     );
   }
@@ -184,7 +203,8 @@ class PassengerProfileScreen extends StatelessWidget {
               Navigator.of(ctx).pop();
               auth.logout();
             },
-            child: const Text('Chiqish', style: TextStyle(color: kError)),
+            // Yorug' fondagi xato MATNI — kErrorDeep (6.47:1).
+            child: const Text('Chiqish', style: TextStyle(color: kErrorDeep)),
           ),
         ],
       ),
@@ -221,25 +241,26 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(kSpace4),
       decoration: BoxDecoration(
-        color: kSurfaceGrey,
-        borderRadius: BorderRadius.circular(14),
+        color: kSurface2,
+        borderRadius: BorderRadius.circular(kRadiusMd),
       ),
       child: Column(
         children: [
-          Icon(icon, color: kPrimaryYellow, size: 28),
-          const SizedBox(height: 8),
+          ExcludeSemantics(child: Icon(icon, color: kMintDeep, size: 28)),
+          const SizedBox(height: kSpace2),
           Text(
             value,
             style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
+              fontSize: kFontH1,
+              fontWeight: FontWeight.w800,
+              color: kInk,
             ),
           ),
           Text(
             label,
-            style: const TextStyle(color: kTextSecondary, fontSize: 12),
+            style: const TextStyle(color: kInkMuted, fontSize: kFontCaption),
           ),
         ],
       ),

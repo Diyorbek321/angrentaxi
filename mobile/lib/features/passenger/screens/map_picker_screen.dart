@@ -1,6 +1,7 @@
 import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/shared/models/order.dart';
+import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geocoding/geocoding.dart';
@@ -113,18 +114,21 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
           ),
           // Fixed pin — the map moves under it, not the other way around.
           const Padding(
-            padding: EdgeInsets.only(bottom: 40),
+            padding: EdgeInsets.only(bottom: kSpace10),
             child: IgnorePointer(
-              child: Icon(Icons.location_on, color: kInk, size: 46),
+              child: ExcludeSemantics(
+                child: Icon(Icons.location_on, color: kInk, size: 46),
+              ),
             ),
           ),
           SafeArea(
             child: Align(
               alignment: Alignment.topLeft,
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(kSpace4),
                 child: _CircleButton(
                   icon: Icons.arrow_back_rounded,
+                  semanticsLabel: 'Orqaga',
                   onTap: () => Navigator.of(context).pop(),
                 ),
               ),
@@ -142,17 +146,13 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   Widget _buildBottomPanel() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      padding: const EdgeInsets.fromLTRB(kSpace5, kSpace5, kSpace5, kSpace8),
       decoration: BoxDecoration(
         color: kSurface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        boxShadow: [
-          BoxShadow(
-            color: kInk.withValues(alpha: 0.12),
-            blurRadius: 24,
-            offset: const Offset(0, -6),
-          ),
-        ],
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(kRadiusXl),
+        ),
+        boxShadow: kShadowPop,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -161,47 +161,38 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
           Text(
             widget.title,
             style: const TextStyle(
-              fontSize: 13,
+              fontSize: kFontLabel,
               fontWeight: FontWeight.w600,
-              color: kTextSecondary,
+              color: kInkMuted,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: kSpace2),
           Row(
             children: [
-              const Icon(Icons.location_on_outlined, color: kPrimary, size: 20),
-              const SizedBox(width: 10),
+              const ExcludeSemantics(
+                child:
+                    Icon(Icons.location_on_outlined, color: kPrimary, size: 20),
+              ),
+              const SizedBox(width: kSpace3),
               Expanded(
                 child: Text(
                   _resolving ? 'Manzil aniqlanmoqda...' : (_address ?? ''),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 15,
+                    fontSize: kFontTitle,
                     fontWeight: FontWeight.w700,
+                    color: kInk,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 18),
-          SizedBox(
-            width: double.infinity,
-            height: 54,
-            child: ElevatedButton(
-              onPressed: _resolving ? null : _confirm,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kPrimary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(kRadiusMd),
-                ),
-              ),
-              child: const Text(
-                'Shu joyni tanlash',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-              ),
-            ),
+          const SizedBox(height: kSpace5),
+          AppButton(
+            label: 'Shu joyni tanlash',
+            isEnabled: !_resolving,
+            onPressed: _resolving ? null : _confirm,
           ),
         ],
       ),
@@ -209,26 +200,44 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   }
 }
 
+/// Xarita ustidagi dumaloq ikona-tugma — 48x48 tegish maydoni va ekran
+/// o'quvchi uchun matnli yorliq bilan.
 class _CircleButton extends StatelessWidget {
-  const _CircleButton({required this.icon, required this.onTap});
+  const _CircleButton({
+    required this.icon,
+    required this.onTap,
+    required this.semanticsLabel,
+  });
+
   final IconData icon;
   final VoidCallback onTap;
+  final String semanticsLabel;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 46,
-        height: 46,
-        decoration: BoxDecoration(
-          color: kSurface,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(color: kInk.withValues(alpha: 0.12), blurRadius: 12),
-          ],
+    return Semantics(
+      button: true,
+      label: semanticsLabel,
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: kMinTapTarget,
+            minWidth: kMinTapTarget,
+          ),
+          child: Container(
+            width: kMinTapTarget,
+            height: kMinTapTarget,
+            decoration: BoxDecoration(
+              color: kSurface,
+              shape: BoxShape.circle,
+              boxShadow: kShadowPop,
+            ),
+            child: Icon(icon, color: kInk),
+          ),
         ),
-        child: Icon(icon, color: kInk),
       ),
     );
   }

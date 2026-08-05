@@ -119,9 +119,9 @@ extension NotificationLogPresentation on NotificationLog {
       case NotificationEvent.driverArrived:
         return agTint;
       case NotificationEvent.orderCancelled:
-        return const Color(0xFFFEECEC);
+        return kErrorLight;
       case NotificationEvent.supportReply:
-        return const Color(0xFFEFF6FF);
+        return kInfoLight;
       case NotificationEvent.unknown:
         return agBg;
     }

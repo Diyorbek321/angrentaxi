@@ -148,14 +148,13 @@ class _NavigationScreenState extends State<NavigationScreen> {
               height: 48,
               child: Container(
                 decoration: BoxDecoration(
-                  color: kPrimaryYellow,
+                  // Mint TO'LDIRISH + ink ikona (7.84:1) — oq ikona bo'lmasin.
+                  color: kMint,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black26, blurRadius: 6),
-                  ],
+                  border: Border.all(color: kSurface, width: 3),
+                  boxShadow: kShadowCard,
                 ),
-                child: const Icon(Icons.local_taxi, color: Colors.black, size: 24),
+                child: const Icon(Icons.local_taxi, color: kOnMint, size: 24),
               ),
             ),
             Marker(
@@ -164,11 +163,11 @@ class _NavigationScreenState extends State<NavigationScreen> {
               height: 44,
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.green.shade600,
+                  color: kPrimary,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
+                  border: Border.all(color: kSurface, width: 2),
                 ),
-                child: const Icon(Icons.person, color: Colors.white, size: 22),
+                child: const Icon(Icons.person, color: kOnPrimary, size: 22),
               ),
             ),
           ],
@@ -180,45 +179,52 @@ class _NavigationScreenState extends State<NavigationScreen> {
   Widget _buildTopBar() {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(kSpace4),
         child: Row(
           children: [
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black12, blurRadius: 6),
-                ],
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => Navigator.of(context).pop(),
+            Semantics(
+              button: true,
+              label: 'Orqaga',
+              child: Container(
+                constraints: const BoxConstraints(
+                  minHeight: kMinTapTarget,
+                  minWidth: kMinTapTarget,
+                ),
+                decoration: BoxDecoration(
+                  color: kSurface,
+                  borderRadius: BorderRadius.circular(kRadiusMd),
+                  boxShadow: kShadowCard,
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: kInk),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: kSpace3),
             Expanded(
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
+                  horizontal: kSpace4,
+                  vertical: kSpace3,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black12, blurRadius: 6),
-                  ],
+                  color: kSurface,
+                  borderRadius: BorderRadius.circular(kRadiusMd),
+                  boxShadow: kShadowCard,
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.navigation, color: kPrimaryYellow, size: 20),
-                    SizedBox(width: 8),
+                    ExcludeSemantics(
+                      child: Icon(Icons.navigation, color: kPrimary, size: 20),
+                    ),
+                    SizedBox(width: kSpace2),
                     Text(
                       'Yo\'lovchiga yo\'l',
                       style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        fontSize: kFontBody,
+                        color: kInk,
                       ),
                     ),
                   ],
@@ -237,44 +243,50 @@ class _NavigationScreenState extends State<NavigationScreen> {
       left: 0,
       right: 0,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          boxShadow: [
-            BoxShadow(color: Colors.black12, blurRadius: 16),
-          ],
+        padding: const EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, kSpace8),
+        decoration: BoxDecoration(
+          color: kSurface,
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(kRadiusXl),
+          ),
+          boxShadow: kShadowPop,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
+            const ExcludeSemantics(
+              child: SizedBox(
+                width: 40,
+                height: 4,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: kLineStrong,
+                    borderRadius: BorderRadius.all(Radius.circular(kRadiusFull)),
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: kSpace4),
             _buildPickupInfo(order),
-            const SizedBox(height: 16),
+            const SizedBox(height: kSpace4),
             if (_distanceToPickup != null)
               Padding(
-                padding: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.only(bottom: kSpace3),
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.directions_car,
-                      color: kTextSecondary,
-                      size: 18,
+                    const ExcludeSemantics(
+                      child: Icon(
+                        Icons.directions_car,
+                        color: kInkMuted,
+                        size: 18,
+                      ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: kSpace2),
                     Text(
                       'Yo\'lovchigacha: ${Formatters.formatDistance(_distanceToPickup!)}',
                       style: const TextStyle(
-                        color: kTextSecondary,
-                        fontSize: 14,
+                        color: kInkMuted,
+                        fontSize: kFontBody,
                       ),
                     ),
                   ],
@@ -283,18 +295,19 @@ class _NavigationScreenState extends State<NavigationScreen> {
             AppOutlinedButton(
               label: 'Navigatsiyani ochish',
               onPressed: () => _openNavigation(_nextDestination(order)),
-              borderColor: kPrimaryYellow,
+              // Tanlangan/urg'uli chegara — kPrimary (mint yorug' fonda
+              // 2.12:1 va chegara sifatida ko'rinmaydi).
+              borderColor: kPrimary,
               textColor: kInk,
               icon: const Icon(Icons.navigation, color: kInk),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: kSpace3),
             AppButton(
               label: 'Yetib keldim',
               onPressed: _onArrived,
               isLoading: provider.state == DriverProviderState.loading,
-              backgroundColor: kSuccess,
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.check, color: Colors.white),
+              // Oldin kSuccess (mint) + oq matn = 2.12:1 edi.
+              icon: const Icon(Icons.check, color: kOnPrimary),
             ),
           ],
         ),
@@ -304,27 +317,31 @@ class _NavigationScreenState extends State<NavigationScreen> {
 
   Widget _buildPickupInfo(Order order) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(kSpace4),
       decoration: BoxDecoration(
-        color: kSurfaceGrey,
-        borderRadius: BorderRadius.circular(12),
+        color: kSurface2,
+        borderRadius: BorderRadius.circular(kRadiusMd),
       ),
       child: Row(
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.green.shade100,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.radio_button_checked,
-              color: Colors.green,
-              size: 20,
+          const ExcludeSemantics(
+            child: SizedBox(
+              width: 40,
+              height: 40,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: kMintTint,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.radio_button_checked,
+                  color: kPrimary,
+                  size: 20,
+                ),
+              ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: kSpace3),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -332,16 +349,17 @@ class _NavigationScreenState extends State<NavigationScreen> {
                 const Text(
                   'Olish manzili',
                   style: TextStyle(
-                    color: kTextSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
+                    color: kInkMuted,
+                    fontSize: kFontMicro,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
                   order.pickup.address,
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                    fontSize: kFontBody,
+                    color: kInk,
                   ),
                   maxLines: 2,
                 ),

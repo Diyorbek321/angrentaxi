@@ -4,7 +4,9 @@ import 'package:angren_taxi/features/passenger/order_provider.dart';
 import 'package:angren_taxi/features/passenger/screens/map_picker_screen.dart';
 import 'package:angren_taxi/shared/models/favorite_address.dart';
 import 'package:angren_taxi/shared/models/order.dart';
-import 'package:angren_taxi/shared/widgets/loading_widget.dart';
+import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
+import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
+import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:latlong2/latlong.dart';
@@ -198,11 +200,11 @@ class _DestinationScreenState extends State<DestinationScreen> {
             children: [
               Text(
                 location.address,
-                style: const TextStyle(color: kTextSecondary, fontSize: 13),
+                style: const TextStyle(color: kInkMuted, fontSize: kFontLabel),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: kSpace4),
               Wrap(
-                spacing: 8,
+                spacing: kSpace2,
                 children: [
                   ActionChip(
                     label: const Text('Uy'),
@@ -214,7 +216,7 @@ class _DestinationScreenState extends State<DestinationScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: kSpace4),
               TextField(
                 controller: labelController,
                 autofocus: true,
@@ -269,11 +271,12 @@ class _DestinationScreenState extends State<DestinationScreen> {
         title: Text(
           widget.isSavingFavorite ? 'Manzilni saqlash' : 'Manzilni kiriting',
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: kTextPrimary,
+        backgroundColor: kSurface,
+        foregroundColor: kInk,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
+          tooltip: 'Orqaga',
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -302,16 +305,27 @@ class _DestinationScreenState extends State<DestinationScreen> {
       builder: (context, provider, _) {
         final pickup = provider.pendingPickup;
         return ListTile(
-          leading: const Icon(Icons.my_location_rounded, color: kPrimary),
+          leading: const ExcludeSemantics(
+            child: Icon(Icons.my_location_rounded, color: kPrimary),
+          ),
           title: Text(
             pickup?.address ?? 'Joriy joylashuv',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontWeight: FontWeight.w600),
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: kFontBodyLg,
+              color: kInk,
+            ),
           ),
-          subtitle: const Text('Qayerdan', style: TextStyle(fontSize: 12)),
-          trailing: const Icon(Icons.edit_location_alt_outlined,
-              color: kTextSecondary, size: 20),
+          subtitle: const Text(
+            'Qayerdan',
+            style: TextStyle(fontSize: kFontCaption, color: kInkMuted),
+          ),
+          trailing: const ExcludeSemantics(
+            child: Icon(Icons.edit_location_alt_outlined,
+                color: kInkMuted, size: 20),
+          ),
           onTap: () => _openMapPicker(
             title: 'Qayerdan',
             initial: pickup != null ? LatLng(pickup.lat, pickup.lng) : null,
@@ -339,13 +353,13 @@ class _DestinationScreenState extends State<DestinationScreen> {
               ListTile(
                 leading: CircleAvatar(
                   radius: 14,
-                  backgroundColor: kSurfaceGrey,
+                  backgroundColor: kSurface2,
                   child: Text(
                     '${i + 2}',
                     style: const TextStyle(
-                      fontSize: 12,
+                      fontSize: kFontCaption,
                       fontWeight: FontWeight.w800,
-                      color: kTextPrimary,
+                      color: kInk,
                     ),
                   ),
                 ),
@@ -353,15 +367,27 @@ class _DestinationScreenState extends State<DestinationScreen> {
                   waypoints[i].address,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: kFontBodyLg,
+                    color: kInk,
+                  ),
                 ),
                 subtitle: Text(
                   "To'xtash ${i + 1}",
-                  style: const TextStyle(fontSize: 12),
+                  style: const TextStyle(
+                    fontSize: kFontCaption,
+                    color: kInkMuted,
+                  ),
                 ),
                 trailing: IconButton(
                   icon: const Icon(Icons.close_rounded,
-                      color: kTextSecondary, size: 20),
+                      color: kInkMuted, size: 20),
+                  tooltip: "To'xtashni olib tashlash",
+                  constraints: const BoxConstraints(
+                    minWidth: kMinTapTarget,
+                    minHeight: kMinTapTarget,
+                  ),
                   onPressed: () => provider.removeWaypoint(i),
                 ),
               ),
@@ -388,22 +414,27 @@ class _DestinationScreenState extends State<DestinationScreen> {
         final pickup = provider.pendingPickup;
         return ListTile(
           leading: Container(
-            width: 40,
-            height: 40,
+            width: kSpace10,
+            height: kSpace10,
             decoration: BoxDecoration(
-              color: kSurfaceGrey,
-              borderRadius: BorderRadius.circular(8),
+              color: kSurface2,
+              borderRadius: BorderRadius.circular(kRadiusSm),
             ),
-            child: const Icon(Icons.add_location_alt_outlined,
-                color: kTextSecondary),
+            child: const ExcludeSemantics(
+              child: Icon(Icons.add_location_alt_outlined, color: kInkMuted),
+            ),
           ),
           title: const Text(
             "To'xtash qo'shish",
-            style: TextStyle(fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: kFontBodyLg,
+              color: kInk,
+            ),
           ),
           subtitle: const Text(
             "Yo'l davomida to'xtash nuqtasini belgilang",
-            style: TextStyle(fontSize: 12),
+            style: TextStyle(fontSize: kFontCaption, color: kInkMuted),
           ),
           onTap: () => _openMapPicker(
             title: "To'xtash nuqtasi",
@@ -421,20 +452,30 @@ class _DestinationScreenState extends State<DestinationScreen> {
         final pickup = provider.pendingPickup;
         return ListTile(
           leading: Container(
-            width: 40,
-            height: 40,
+            width: kSpace10,
+            height: kSpace10,
             decoration: BoxDecoration(
-              color: kPrimaryLight,
-              borderRadius: BorderRadius.circular(8),
+              color: kMintTint,
+              borderRadius: BorderRadius.circular(kRadiusSm),
             ),
-            child: const Icon(Icons.map_outlined, color: kPrimaryDark),
+            // kMintTint yuza ustidagi ikona/matn — kPrimary
+            // (mint yorug' fonda 2.12:1, ma'no tashiy olmaydi).
+            child: const ExcludeSemantics(
+              child: Icon(Icons.map_outlined, color: kPrimary),
+            ),
           ),
           title: const Text(
             'Xaritadan tanlash',
-            style: TextStyle(fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: kFontBodyLg,
+              color: kInk,
+            ),
           ),
-          subtitle: const Text('Manzilni xaritada belgilang',
-              style: TextStyle(fontSize: 12)),
+          subtitle: const Text(
+            'Manzilni xaritada belgilang',
+            style: TextStyle(fontSize: kFontCaption, color: kInkMuted),
+          ),
           onTap: () => _openMapPicker(
             title: 'Qayerga',
             initial: pickup != null ? LatLng(pickup.lat, pickup.lng) : null,
@@ -447,11 +488,11 @@ class _DestinationScreenState extends State<DestinationScreen> {
 
   Widget _buildSearchField() {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(kSpace4),
       child: Row(
         children: [
-          const Icon(Icons.search, color: kTextSecondary),
-          const SizedBox(width: 12),
+          const ExcludeSemantics(child: Icon(Icons.search, color: kInkMuted)),
+          const SizedBox(width: kSpace3),
           Expanded(
             child: TextField(
               controller: _searchController,
@@ -467,7 +508,12 @@ class _DestinationScreenState extends State<DestinationScreen> {
           ),
           if (_searchController.text.isNotEmpty)
             IconButton(
-              icon: const Icon(Icons.clear, color: kTextSecondary),
+              icon: const Icon(Icons.clear, color: kInkMuted),
+              tooltip: 'Tozalash',
+              constraints: const BoxConstraints(
+                minWidth: kMinTapTarget,
+                minHeight: kMinTapTarget,
+              ),
               onPressed: () {
                 _searchController.clear();
                 setState(() {
@@ -481,26 +527,24 @@ class _DestinationScreenState extends State<DestinationScreen> {
     );
   }
 
+  /// Manzil takliflari uch holatga ega: yuklanmoqda (skeleton, spinner
+  /// emas) - xato - bo'sh.
   Widget _buildContent() {
     if (_isSearching) {
-      return const LoadingWidget(message: 'Qidirilmoqda...');
+      return const AppSkeletonList(itemCount: 4, lines: 2);
     }
 
     if (_searchError != null) {
-      return Center(
-        child: Text(
-          _searchError!,
-          style: const TextStyle(color: kTextSecondary),
-        ),
+      return AppErrorState(
+        message: _searchError!,
+        onRetry: () => _onSearchChanged(_searchController.text),
       );
     }
 
     if (_suggestions.isEmpty && _searchController.text.length >= 3) {
-      return const Center(
-        child: Text(
-          'Natija topilmadi',
-          style: TextStyle(color: kTextSecondary),
-        ),
+      return const AppEmptyState(
+        icon: Icons.search_off_rounded,
+        title: 'Natija topilmadi',
       );
     }
 
@@ -519,18 +563,21 @@ class _DestinationScreenState extends State<DestinationScreen> {
         final suggestion = _suggestions[index];
         return ListTile(
           leading: Container(
-            width: 40,
-            height: 40,
+            width: kSpace10,
+            height: kSpace10,
             decoration: BoxDecoration(
-              color: kSurfaceGrey,
-              borderRadius: BorderRadius.circular(8),
+              color: kSurface2,
+              borderRadius: BorderRadius.circular(kRadiusSm),
             ),
-            child: const Icon(Icons.location_on_outlined, color: kTextSecondary),
+            child: const ExcludeSemantics(
+              child: Icon(Icons.location_on_outlined, color: kInkMuted),
+            ),
           ),
           title: Text(
             suggestion.address,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: kFontBodyLg, color: kInk),
           ),
           onTap: () => _selectSuggestion(suggestion),
         );
@@ -550,33 +597,41 @@ class _DestinationScreenState extends State<DestinationScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Padding(
-              padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+              padding: EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, kSpace2),
               child: Text(
                 'Saqlangan manzillar',
                 style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: kTextSecondary,
-                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: kInkMuted,
+                  fontSize: kFontLabel,
                 ),
               ),
             ),
             ...favorites.map(
               (favorite) => ListTile(
                 leading: Container(
-                  width: 40,
-                  height: 40,
+                  width: kSpace10,
+                  height: kSpace10,
                   decoration: BoxDecoration(
-                    color: kSurfaceGrey,
-                    borderRadius: BorderRadius.circular(8),
+                    color: kSurface2,
+                    borderRadius: BorderRadius.circular(kRadiusSm),
                   ),
-                  child: Icon(favorite.icon, color: favorite.color, size: 20),
+                  child: ExcludeSemantics(
+                    child: Icon(favorite.icon, color: favorite.color, size: 20),
+                  ),
                 ),
-                title: Text(favorite.label),
+                title: Text(
+                  favorite.label,
+                  style: const TextStyle(fontSize: kFontBodyLg, color: kInk),
+                ),
                 subtitle: Text(
                   favorite.address,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12),
+                  style: const TextStyle(
+                    fontSize: kFontCaption,
+                    color: kInkMuted,
+                  ),
                 ),
                 onTap: () => _selectSuggestion(
                   _AddressSuggestion(

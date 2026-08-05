@@ -1,13 +1,16 @@
+import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 
+/// Rasmsiz taomlar uchun dekorativ platsholder palitrasi.
+/// Ma'no tashimaydi — faqat vizual xilma-xillik uchun.
 const _dishPalette = <Color>[
-  Color(0xFFE5484D),
-  Color(0xFFF59E0B),
-  Color(0xFF10A064),
-  Color(0xFF3B82F6),
-  Color(0xFF8B5CF6),
-  Color(0xFFE08A2B),
+  kError,
+  kWarning,
+  kMintDeep,
+  kInfo,
+  kAccentViolet,
+  kWarningDeep,
 ];
 
 class Dish extends Equatable {

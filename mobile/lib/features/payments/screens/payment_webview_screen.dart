@@ -1,4 +1,6 @@
+import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/shared/models/payment_initiate_result.dart';
+import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -77,14 +79,28 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: Text("To'lov — ${widget.result.provider.toUpperCase()}"),
-          leading: IconButton(
-            icon: const Icon(Icons.close_rounded),
-            onPressed: () => _finish(false),
+          leading: Semantics(
+            button: true,
+            label: 'Yopish',
+            excludeSemantics: true,
+            child: IconButton(
+              icon: const Icon(Icons.close_rounded),
+              onPressed: () => _finish(false),
+              constraints: const BoxConstraints(
+                minWidth: kMinTapTarget,
+                minHeight: kMinTapTarget,
+              ),
+            ),
           ),
         ),
         body: Column(
           children: [
-            if (_loading) const LinearProgressIndicator(minHeight: 2),
+            if (_loading)
+              const LinearProgressIndicator(
+                minHeight: 2,
+                color: kPrimary,
+                backgroundColor: kSurface2,
+              ),
             Expanded(
               child: _loadError != null
                   ? _ErrorState(
@@ -99,19 +115,35 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
             SafeArea(
               top: false,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+                padding: const EdgeInsets.fromLTRB(
+                  kSpace4,
+                  kSpace3,
+                  kSpace4,
+                  kSpace4,
+                ),
                 child: Row(
                   children: [
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () => _finish(false),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(0, kControlHeight),
+                        ),
                         child: const Text('Bekor qilish'),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: kSpace3),
                     Expanded(
                       child: FilledButton(
                         onPressed: () => _finish(true),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: kPrimary,
+                          foregroundColor: kOnPrimary,
+                          minimumSize: const Size(0, kControlHeight),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(kRadiusMd),
+                          ),
+                        ),
                         child: const Text("To'ladim"),
                       ),
                     ),
@@ -134,23 +166,10 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.wifi_off_rounded, size: 40, color: Colors.grey),
-            const SizedBox(height: 12),
-            Text(
-              "To'lov sahifasini yuklab bo'lmadi: $message",
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            OutlinedButton(onPressed: onRetry, child: const Text('Qayta urinish')),
-          ],
-        ),
-      ),
+    // Matn o'zgarmagan — faqat umumiy `AppErrorState` ko'rinishiga o'tdi.
+    return AppErrorState(
+      message: "To'lov sahifasini yuklab bo'lmadi: $message",
+      onRetry: onRetry,
     );
   }
 }

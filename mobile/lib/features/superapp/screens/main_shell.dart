@@ -40,9 +40,9 @@ class SuperappShell extends StatelessWidget {
             ],
           ),
           Positioned(
-            left: 14,
-            right: 14,
-            bottom: 14,
+            left: kSpace3,
+            right: kSpace3,
+            bottom: kSpace3,
             child: _NavBar(
               tabs: _tabs,
               index: index,
@@ -79,23 +79,17 @@ class _NavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(kRadiusXl),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
         child: Container(
           height: 66,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          padding: const EdgeInsets.symmetric(horizontal: kSpace2),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.86),
-            borderRadius: BorderRadius.circular(24),
+            color: agSurface.withValues(alpha: 0.86),
+            borderRadius: BorderRadius.circular(kRadiusXl),
             border: Border.all(color: agInk.withValues(alpha: 0.06)),
-            boxShadow: [
-              BoxShadow(
-                color: agInk.withValues(alpha: 0.16),
-                blurRadius: 40,
-                offset: const Offset(0, 16),
-              ),
-            ],
+            boxShadow: agSoftShadow,
           ),
           child: Row(
             children: [
@@ -131,54 +125,71 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? agGreen : agMuted;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.center,
-        children: [
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(active ? tab.activeIcon : tab.icon, color: color, size: 25),
-              const SizedBox(height: 3),
-              Text(
-                tab.label,
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w700,
-                  color: color,
-                ),
-              ),
-            ],
+    // Faol tab uchta signal bilan farqlanadi: to'ldirilgan ikonka (shakl),
+    // qalinroq yozuv va rang. `agGreen` (#10A064) oq nav fonda 3.4:1 — matn
+    // uchun yetarli emas, shuning uchun `agPrimary` (5.38:1).
+    final color = active ? agPrimary : agSubtle;
+    return Semantics(
+      button: true,
+      selected: active,
+      label: tab.label,
+      value: badge == null ? null : '$badge ta',
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: kMinTapTarget,
+            minWidth: kMinTapTarget,
           ),
-          if (badge != null)
-            Positioned(
-              top: -2,
-              right: 18,
-              child: Container(
-                constraints: const BoxConstraints(minWidth: 17),
-                height: 17,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: agRed,
-                  borderRadius: BorderRadius.circular(9),
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-                child: Text(
-                  badge!,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(active ? tab.activeIcon : tab.icon,
+                      color: color, size: 25),
+                  const SizedBox(height: 3),
+                  Text(
+                    tab.label,
+                    style: TextStyle(
+                      fontSize: kFontMicro,
+                      fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+                      color: color,
+                    ),
+                  ),
+                ],
+              ),
+              if (badge != null)
+                Positioned(
+                  top: -2,
+                  right: 18,
+                  child: Container(
+                    constraints: const BoxConstraints(minWidth: 17),
+                    height: 17,
+                    padding: const EdgeInsets.symmetric(horizontal: kSpace1),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: agRed,
+                      borderRadius: BorderRadius.circular(kRadiusFull),
+                      border: Border.all(color: agSurface, width: 2),
+                    ),
+                    child: Text(
+                      badge!,
+                      style: const TextStyle(
+                        color: agOnPrimary,
+                        fontSize: kFontMicro,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }

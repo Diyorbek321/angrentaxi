@@ -1,3 +1,4 @@
+import 'package:angren_taxi/core/config/payment_brand_colors.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:flutter/material.dart';
 
@@ -11,31 +12,31 @@ class AddCardScreen extends StatelessWidget {
       body: Column(
         children: [
           Padding(
-            padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 12, 16, 8),
+            padding: EdgeInsets.fromLTRB(kSpace4, MediaQuery.of(context).padding.top + kSpace3, kSpace4, kSpace2),
             child: Row(
               children: [
-                AgIconButton(icon: Icons.arrow_back_rounded, onTap: () => Navigator.of(context).pop()),
-                const SizedBox(width: 12),
+                AgIconButton(icon: Icons.arrow_back_rounded, onTap: () => Navigator.of(context).pop(), semanticsLabel: 'Orqaga'),
+                const SizedBox(width: kSpace3),
                 const Text("Karta qo'shish",
-                    style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: agText)),
+                    style: TextStyle(fontSize: kFontH2, fontWeight: FontWeight.w800, color: agText)),
               ],
             ),
           ),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
+              padding: const EdgeInsets.fromLTRB(kSpace4, kSpace3, kSpace4, kSpace6),
               children: [
                 Container(
                   height: 188,
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(kSpace5),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [agInk, Color(0xFF23413A)],
+                      colors: kGradientInkColors,
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    borderRadius: BorderRadius.circular(22),
-                    boxShadow: [BoxShadow(color: agInk.withValues(alpha: 0.22), blurRadius: 40, offset: const Offset(0, 18))],
+                    borderRadius: BorderRadius.circular(kRadiusLg),
+                    boxShadow: agInkShadow,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -44,40 +45,56 @@ class AddCardScreen extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Container(
-                            width: 42,
-                            height: 30,
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(colors: [Color(0xFFF4D04A), Color(0xFFD4A82B)]),
-                              borderRadius: BorderRadius.circular(7),
+                          ExcludeSemantics(
+                            child: Container(
+                              width: 42,
+                              height: 30,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(colors: kCardChipGradient),
+                                borderRadius: BorderRadius.circular(kRadiusXs),
+                              ),
                             ),
                           ),
-                          Icon(Icons.contactless_rounded, color: Colors.white.withValues(alpha: 0.7), size: 24),
+                          ExcludeSemantics(
+                            child: Icon(
+                              Icons.contactless_rounded,
+                              color: agOnPrimary.withValues(alpha: 0.7),
+                              size: 24,
+                            ),
+                          ),
                         ],
                       ),
                       const Text('8600 •••• •••• ••••',
-                          style: TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w700, letterSpacing: 3)),
-                      const Row(
+                          style: TextStyle(color: agOnPrimary, fontSize: kFontH1, fontWeight: FontWeight.w700, letterSpacing: 3)),
+                      Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('KARTA EGASI', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600)),
-                          Text('MM/YY', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600)),
+                          Text('KARTA EGASI',
+                              style: TextStyle(
+                                  color: agOnPrimary.withValues(alpha: 0.8),
+                                  fontSize: kFontLabel,
+                                  fontWeight: FontWeight.w600)),
+                          Text('MM/YY',
+                              style: TextStyle(
+                                  color: agOnPrimary.withValues(alpha: 0.8),
+                                  fontSize: kFontLabel,
+                                  fontWeight: FontWeight.w600)),
                         ],
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 22),
+                const SizedBox(height: kSpace6),
                 const _Field(label: 'Karta raqami', hint: '0000 0000 0000 0000'),
-                const SizedBox(height: 13),
+                const SizedBox(height: kSpace3),
                 const Row(
                   children: [
                     Expanded(child: _Field(label: 'Amal qilish', hint: 'MM/YY')),
-                    SizedBox(width: 12),
+                    SizedBox(width: kSpace3),
                     Expanded(child: _Field(label: 'SMS kodi', hint: '— — — —')),
                   ],
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: kSpace6),
                 AgPrimaryButton(
                   label: 'Kartani saqlash',
                   // Card fields above are visual only (no controllers, no
@@ -117,18 +134,18 @@ class _Field extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: agSubtle)),
-        const SizedBox(height: 7),
+        Text(label, style: const TextStyle(fontSize: kFontLabel, fontWeight: FontWeight.w700, color: agSubtle)),
+        const SizedBox(height: kSpace2),
         Container(
-          height: 52,
-          padding: const EdgeInsets.symmetric(horizontal: 15),
+          height: kControlHeight,
+          padding: const EdgeInsets.symmetric(horizontal: kSpace4),
           alignment: Alignment.centerLeft,
           decoration: BoxDecoration(
             color: agSurface,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(kRadiusMd),
             border: Border.all(color: agBorder, width: 1.5),
           ),
-          child: Text(hint, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: agMuted)),
+          child: Text(hint, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: kFontBodyLg, color: agSubtle)),
         ),
       ],
     );

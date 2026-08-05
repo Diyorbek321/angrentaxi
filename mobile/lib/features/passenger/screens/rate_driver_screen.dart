@@ -105,77 +105,100 @@ class _RateDriverScreenState extends State<RateDriverScreen>
         widget.driverName.isNotEmpty ? widget.driverName[0].toUpperCase() : '?';
 
     return Scaffold(
-      backgroundColor: kBackgroundWhite,
+      backgroundColor: kBackground,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+          padding:
+              const EdgeInsets.fromLTRB(kSpace6, kSpace8, kSpace6, kSpace6),
           child: Column(
             children: [
-              // Avatar
-              Container(
-                width: 80,
-                height: 80,
-                decoration: const BoxDecoration(
-                  color: kPrimaryYellow,
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  avatarLetter,
-                  style: const TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
+              // Avatar — mint dekorativ to'ldirish, ustidagi harf ink
+              // (7.84:1), hech qachon oq (2.12:1).
+              ExcludeSemantics(
+                child: Container(
+                  width: 80,
+                  height: 80,
+                  decoration: const BoxDecoration(
+                    color: kMint,
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    avatarLetter,
+                    style: const TextStyle(
+                      fontSize: kFontDisplay,
+                      fontWeight: FontWeight.w800,
+                      color: kOnMint,
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: kSpace4),
               Text(
                 widget.driverName,
                 style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: kTextPrimary,
+                  fontSize: kFontH1,
+                  fontWeight: FontWeight.w800,
+                  color: kInk,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: kSpace1 + 2),
               const Text(
                 'Sayohat qanday kechdi?',
-                style: TextStyle(fontSize: 15, color: kTextSecondary),
+                style: TextStyle(fontSize: kFontTitle, color: kInkMuted),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: kSpace8),
 
-              // Star selector
+              // Star selector — har bir yulduz 48x48 tegish maydoni va
+              // "N yulduz" yorlig'i bilan.
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(5, (i) {
                   final filled = i < _selectedScore;
-                  return GestureDetector(
-                    onTap: () => _onStarTapped(i),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      child: ScaleTransition(
-                        scale: _starScales[i],
-                        child: Icon(
-                          filled ? Icons.star_rounded : Icons.star_outline_rounded,
-                          color: filled ? kPrimaryYellow : Colors.grey.shade300,
-                          size: 40,
+                  return Semantics(
+                    button: true,
+                    selected: filled,
+                    label: '${i + 1} yulduz',
+                    excludeSemantics: true,
+                    child: GestureDetector(
+                      onTap: () => _onStarTapped(i),
+                      behavior: HitTestBehavior.opaque,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          minHeight: kMinTapTarget,
+                          minWidth: kMinTapTarget,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: kSpace1 + 2),
+                          child: ScaleTransition(
+                            scale: _starScales[i],
+                            child: Icon(
+                              filled
+                                  ? Icons.star_rounded
+                                  : Icons.star_outline_rounded,
+                              // Reyting ma'no tashiydi — yorug' fonda
+                              // ko'rinadigan mint kMintDeep bo'lishi shart.
+                              color: filled ? kMintDeep : kInkSubtle,
+                              size: 40,
+                            ),
+                          ),
                         ),
                       ),
                     ),
                   );
                 }),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: kSpace2),
               Text(
                 _ratingLabel(_selectedScore),
                 style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: kTextSecondary,
+                  fontSize: kFontLabel,
+                  fontWeight: FontWeight.w600,
+                  color: kInkMuted,
                 ),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: kSpace8),
 
               // Comment field
               TextField(
@@ -184,19 +207,19 @@ class _RateDriverScreenState extends State<RateDriverScreen>
                 maxLines: 3,
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: kSurfaceGrey,
+                  fillColor: kSurface2,
                   hintText: 'Haydovchi haqida izoh...',
-                  hintStyle: const TextStyle(color: kTextSecondary),
+                  hintStyle: const TextStyle(color: kInkMuted),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(kRadiusMd),
                     borderSide: BorderSide.none,
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: kPrimaryYellow, width: 2),
+                    borderRadius: BorderRadius.circular(kRadiusMd),
+                    borderSide: const BorderSide(color: kPrimary, width: 2),
                   ),
-                  contentPadding: const EdgeInsets.all(14),
-                  counterStyle: const TextStyle(color: kTextSecondary),
+                  contentPadding: const EdgeInsets.all(kSpace4),
+                  counterStyle: const TextStyle(color: kInkMuted),
                 ),
               ),
               const Spacer(),
@@ -207,16 +230,21 @@ class _RateDriverScreenState extends State<RateDriverScreen>
                 onPressed: _submit,
                 isLoading: _isLoading,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: kSpace3),
 
               // Skip button
-              TextButton(
-                onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-                child: const Text(
-                  "O'tkazib yuborish",
-                  style: TextStyle(
-                    color: kTextSecondary,
-                    fontSize: 15,
+              SizedBox(
+                height: kMinTapTarget,
+                child: TextButton(
+                  onPressed:
+                      _isLoading ? null : () => Navigator.of(context).pop(),
+                  child: const Text(
+                    "O'tkazib yuborish",
+                    style: TextStyle(
+                      color: kInkMuted,
+                      fontSize: kFontTitle,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),

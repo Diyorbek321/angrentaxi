@@ -14,6 +14,9 @@ import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/shared/models/promo_code.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
+import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
+import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
+import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -90,66 +93,32 @@ class _PromosScreenState extends State<PromosScreen> {
   }
 
   Widget _buildBody() {
+    // Uch holat: yuklanmoqda → skeleton, xato → `AppErrorState`,
+    // bo'sh → `AppEmptyState`. Ko'rinadigan matnlar o'zgarmagan.
     if (_loading) {
-      return const Center(
-        child: CircularProgressIndicator(color: agGreen),
+      return const AppSkeletonList(
+        itemCount: 3,
+        hasLeading: false,
+        lines: 3,
+        padding: EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, kSpace6),
       );
     }
 
     if (_loadError != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline_rounded, color: agRed, size: 40),
-              const SizedBox(height: 12),
-              Text(
-                _loadError!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: agSubtle, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 16),
-              GestureDetector(
-                onTap: _load,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  decoration: BoxDecoration(color: agGreen, borderRadius: BorderRadius.circular(12)),
-                  child: const Text('Qayta urinish',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+      return AppErrorState(message: _loadError!, onRetry: _load);
     }
 
     if (_promoCodes.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.confirmation_number_outlined, color: agMuted, size: 40),
-              SizedBox(height: 12),
-              Text(
-                'Hozircha faol promokodlar yo\'q',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: agSubtle, fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-        ),
+      return const AppEmptyState(
+        icon: Icons.confirmation_number_outlined,
+        title: 'Hozircha faol promokodlar yo\'q',
       );
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      padding: const EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, kSpace6),
       itemCount: _promoCodes.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (_, __) => const SizedBox(height: kSpace3),
       itemBuilder: (context, index) {
         final promo = _promoCodes[index];
         return _PromoCard(
@@ -190,17 +159,15 @@ class _PromoCard extends StatelessWidget {
     final minOrderAmount = promo.minOrderAmount;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(kSpace5),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [agInk, Color(0xFF1D3A2F)],
+          colors: kGradientInkColors,
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(color: agInk.withValues(alpha: 0.22), blurRadius: 32, offset: const Offset(0, 14)),
-        ],
+        borderRadius: BorderRadius.circular(kRadiusLg),
+        boxShadow: agInkShadow,
       ),
       child: Stack(
         clipBehavior: Clip.hardEdge,
@@ -208,53 +175,75 @@ class _PromoCard extends StatelessWidget {
           Positioned(
             right: -14,
             top: -14,
-            child: Icon(Icons.redeem_rounded, size: 110, color: agBright.withValues(alpha: 0.2)),
+            child: ExcludeSemantics(
+              child: Icon(Icons.redeem_rounded,
+                  size: 110, color: agBright.withValues(alpha: 0.2)),
+            ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Holat faqat rang bilan emas — ikonka + 'FAOL' yozuvi birga.
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: agBright, borderRadius: BorderRadius.circular(8)),
-                child: const Text('FAOL', style: TextStyle(color: Color(0xFF06231A), fontSize: 11, fontWeight: FontWeight.w800)),
+                padding: const EdgeInsets.symmetric(horizontal: kSpace2 + 2, vertical: kSpace1),
+                decoration: BoxDecoration(color: agBright, borderRadius: BorderRadius.circular(kRadiusXs)),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle_rounded, size: 12, color: agOnMint),
+                    SizedBox(width: kSpace1),
+                    Text('FAOL', style: TextStyle(color: agOnMint, fontSize: kFontMicro, fontWeight: FontWeight.w800)),
+                  ],
+                ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: kSpace3),
               Text(
                 promoDiscountText(promo),
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 24, letterSpacing: -0.5),
+                style: const TextStyle(color: agOnPrimary, fontWeight: FontWeight.w800, fontSize: kFontH1, letterSpacing: -0.5),
               ),
-              const SizedBox(height: 10),
-              GestureDetector(
-                onTap: onCopy,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        promo.code,
-                        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800, letterSpacing: 1),
-                      ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.copy_rounded, size: 15, color: Colors.white),
-                    ],
+              const SizedBox(height: kSpace2),
+              Semantics(
+                button: true,
+                label: 'Promokodni nusxalash: ${promo.code}',
+                excludeSemantics: true,
+                child: GestureDetector(
+                  onTap: onCopy,
+                  behavior: HitTestBehavior.opaque,
+                  child: Container(
+                    constraints: const BoxConstraints(
+                      minHeight: kMinTapTarget,
+                      minWidth: kMinTapTarget,
+                    ),
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.symmetric(horizontal: kSpace3, vertical: kSpace2),
+                    decoration: BoxDecoration(
+                      color: agOnPrimary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(kRadiusSm),
+                      border: Border.all(color: agOnPrimary.withValues(alpha: 0.25)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          promo.code,
+                          style: const TextStyle(color: agOnPrimary, fontSize: kFontBody, fontWeight: FontWeight.w800, letterSpacing: 1),
+                        ),
+                        const SizedBox(width: kSpace2),
+                        const Icon(Icons.copy_rounded, size: 15, color: agOnPrimary),
+                      ],
+                    ),
                   ),
                 ),
               ),
               if (minOrderAmount > 0 || expiresAt != null) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: kSpace3),
                 Text(
                   [
                     if (minOrderAmount > 0)
                       "Min. buyurtma: ${Formatters.formatSom(minOrderAmount)}",
                     if (expiresAt != null) "${Formatters.formatDate(expiresAt)}gacha",
                   ].join(' · '),
-                  style: const TextStyle(color: Colors.white60, fontSize: 12.5, fontWeight: FontWeight.w600),
+                  style: TextStyle(color: agOnPrimary.withValues(alpha: 0.75), fontSize: kFontCaption, fontWeight: FontWeight.w600),
                 ),
               ],
             ],

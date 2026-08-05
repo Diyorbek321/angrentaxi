@@ -23,98 +23,103 @@ class SupportScreen extends StatelessWidget {
               onBack: () => Navigator.of(context).pop()),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              padding: const EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, kSpace6),
               children: [
-                GestureDetector(
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) => const ChatScreen()),
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      gradient: agCta,
-                      borderRadius: BorderRadius.circular(22),
-                      boxShadow: [
-                        BoxShadow(
-                            color: agGreen.withValues(alpha: 0.28),
-                            blurRadius: 32,
-                            offset: const Offset(0, 14))
-                      ],
+                Semantics(
+                  button: true,
+                  label: 'Operator bilan chat',
+                  excludeSemantics: true,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(builder: (_) => const ChatScreen()),
                     ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.22),
-                              borderRadius: BorderRadius.circular(15)),
-                          child: const Icon(Icons.forum_rounded,
-                              color: Colors.white, size: 27),
-                        ),
-                        const SizedBox(width: 14),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Operator bilan chat',
-                                  style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 16)),
-                              Text("O'rtacha javob · 2 daqiqa",
-                                  style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w600)),
-                            ],
+                    child: Container(
+                      constraints: const BoxConstraints(minHeight: kMinTapTarget),
+                      padding: const EdgeInsets.all(kSpace4),
+                      decoration: BoxDecoration(
+                        gradient: agCta,
+                        borderRadius: BorderRadius.circular(kRadiusLg),
+                        boxShadow: agCtaShadow,
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                                color: agOnPrimary.withValues(alpha: 0.22),
+                                borderRadius: BorderRadius.circular(kRadiusMd)),
+                            child: const Icon(Icons.forum_rounded,
+                                color: agOnPrimary, size: 27),
                           ),
-                        ),
-                        const Icon(Icons.arrow_forward_rounded,
-                            color: Colors.white, size: 24),
-                      ],
+                          const SizedBox(width: kSpace3),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Operator bilan chat',
+                                    style: TextStyle(
+                                        color: agOnPrimary,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: kFontTitle)),
+                                Text("O'rtacha javob · 2 daqiqa",
+                                    style: TextStyle(
+                                        color: agOnPrimary.withValues(alpha: 0.8),
+                                        fontSize: kFontCaption,
+                                        fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.arrow_forward_rounded,
+                              color: agOnPrimary, size: 24),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: kSpace3),
                 const Row(
                   children: [
                     Expanded(
                         child: _QuickCard(
                             icon: Icons.call_rounded,
                             bg: agTint,
-                            color: agGreen,
+                            // `agTint` yuzada ma'noli yashil — `agPrimary`.
+                            color: agPrimary,
                             title: "Qo'ng'iroq",
                             sub: '1056 · bepul')),
-                    SizedBox(width: 12),
+                    SizedBox(width: kSpace3),
                     Expanded(
                         child: _QuickCard(
                             icon: Icons.send_rounded,
-                            bg: Color(0xFFEFF6FF),
-                            color: agBlue,
+                            bg: kInfoLight,
+                            color: kInfoDeep,
                             title: 'Telegram',
                             sub: '@AngrenGoBot')),
                   ],
                 ),
-                const SizedBox(height: 22),
+                const SizedBox(height: kSpace6),
                 const Text('Tez-tez beriladigan savollar',
                     style: TextStyle(
-                        fontSize: 15,
+                        fontSize: kFontH3,
                         fontWeight: FontWeight.w800,
                         color: agText)),
-                const SizedBox(height: 12),
+                const SizedBox(height: kSpace3),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: kSpace4),
                   decoration: BoxDecoration(
                     color: agSurface,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(kRadiusLg),
                     boxShadow: agCardShadow,
                   ),
                   child: Column(
                     children: [
                       for (var i = 0; i < _faqs.length; i++)
                         Container(
-                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          constraints:
+                              const BoxConstraints(minHeight: kMinTapTarget),
+                          padding: const EdgeInsets.symmetric(vertical: kSpace4),
                           decoration: BoxDecoration(
                             border: i == _faqs.length - 1
                                 ? null
@@ -123,17 +128,22 @@ class SupportScreen extends StatelessWidget {
                           ),
                           child: Row(
                             children: [
-                              Icon(_faqs[i].$1, size: 22, color: agSubtle),
-                              const SizedBox(width: 12),
+                              ExcludeSemantics(
+                                child: Icon(_faqs[i].$1,
+                                    size: 22, color: agSubtle),
+                              ),
+                              const SizedBox(width: kSpace3),
                               Expanded(
                                 child: Text(_faqs[i].$2,
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w700,
-                                        fontSize: 14,
+                                        fontSize: kFontBody,
                                         color: agText)),
                               ),
-                              const Icon(Icons.expand_more_rounded,
-                                  size: 20, color: Color(0xFFC2CCD4)),
+                              const ExcludeSemantics(
+                                child: Icon(Icons.expand_more_rounded,
+                                    size: 20, color: agSubtle),
+                              ),
                             ],
                           ),
                         ),
@@ -165,29 +175,36 @@ class _QuickCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      constraints: const BoxConstraints(minHeight: kMinTapTarget),
+      padding: const EdgeInsets.all(kSpace4),
       decoration: BoxDecoration(
         color: agSurface,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(kRadiusLg),
         boxShadow: agCardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-                color: bg, borderRadius: BorderRadius.circular(13)),
-            child: Icon(icon, color: color, size: 24),
+          ExcludeSemantics(
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                  color: bg, borderRadius: BorderRadius.circular(kRadiusSm)),
+              child: Icon(icon, color: color, size: 24),
+            ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: kSpace2),
           Text(title,
               style: const TextStyle(
-                  fontWeight: FontWeight.w800, fontSize: 14, color: agText)),
+                  fontWeight: FontWeight.w800,
+                  fontSize: kFontBody,
+                  color: agText)),
           Text(sub,
               style: const TextStyle(
-                  fontSize: 12, color: agSubtle, fontWeight: FontWeight.w600)),
+                  fontSize: kFontCaption,
+                  color: agSubtle,
+                  fontWeight: FontWeight.w600)),
         ],
       ),
     );

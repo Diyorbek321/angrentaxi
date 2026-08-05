@@ -2,6 +2,7 @@ import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:angren_taxi/shared/widgets/app_text_field.dart';
+import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -70,7 +71,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Ma\'lumotlarni tahrirlash')),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(kSpace5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -79,17 +80,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               label: 'Ism',
               hint: 'Ismingiz',
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: kSpace4),
             AppTextField(
               controller: _lastNameController,
               label: 'Familiya',
               hint: 'Familiyangiz',
             ),
             if (_error != null) ...[
-              const SizedBox(height: 12),
-              Text(_error!, style: const TextStyle(color: kError)),
+              const SizedBox(height: kSpace3),
+              // Xato MATNI kErrorDeep (6.47:1) — kError (3.91:1) faqat ikona.
+              InlineErrorWidget(message: _error!),
             ],
-            const SizedBox(height: 24),
+            const SizedBox(height: kSpace6),
             AppButton(
               label: 'Saqlash',
               isLoading: _saving,

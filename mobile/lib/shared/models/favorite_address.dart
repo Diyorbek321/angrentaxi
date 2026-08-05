@@ -1,3 +1,4 @@
+import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 
@@ -61,13 +62,13 @@ extension FavoriteAddressPresentation on FavoriteAddress {
   Color get color {
     final lower = label.toLowerCase();
     if (lower.contains('uy') || lower.contains('home')) {
-      return const Color(0xFF1FCA8E);
+      return kMintDeep;
     }
     if (lower.contains('ish') ||
         lower.contains('ofis') ||
         lower.contains('work')) {
-      return const Color(0xFF3B82F6);
+      return kInfo;
     }
-    return const Color(0xFFF59E0B);
+    return kWarning;
   }
 }

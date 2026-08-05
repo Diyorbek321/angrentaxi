@@ -5,6 +5,10 @@ import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/shared/models/food_restaurant.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
+import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
+import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
+import 'package:angren_taxi/shared/widgets/app_status_badge.dart';
+import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -38,14 +42,23 @@ class _FoodListScreenState extends State<FoodListScreen> {
             child: Stack(
               children: [
                 if (food.state == FoodProviderState.loading && food.restaurants.isEmpty)
-                  const Center(child: CircularProgressIndicator(color: agGreen))
+                  const AppSkeletonList(itemCount: 4)
                 else if (food.state == FoodProviderState.error && food.restaurants.isEmpty)
-                  Center(
-                    child: Text(food.error ?? 'Xatolik yuz berdi', style: const TextStyle(color: agSubtle, fontWeight: FontWeight.w600)),
+                  AppErrorState(
+                    message: food.error ?? 'Xatolik yuz berdi',
+                    onRetry: () => context.read<FoodProvider>().loadRestaurants(),
+                  )
+                else if (food.restaurants.isEmpty)
+                  AppEmptyState(
+                    icon: Icons.storefront_outlined,
+                    title: 'Restoran topilmadi',
+                    message: 'Hozircha ochiq restoran yo\'q. Birozdan keyin qayta urinib ko\'ring.',
+                    actionLabel: 'Yangilash',
+                    onAction: () => context.read<FoodProvider>().loadRestaurants(),
                   )
                 else
                   ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
+                    padding: const EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, 110),
                     children: [
                       for (final r in food.restaurants) ...[
                         _FoodCard(
@@ -54,15 +67,15 @@ class _FoodListScreenState extends State<FoodListScreen> {
                             MaterialPageRoute<void>(builder: (_) => RestaurantDetailScreen(restaurantId: r.id)),
                           ),
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: kSpace4),
                       ],
                     ],
                   ),
                 if (cart.cartCount > 0)
                   Positioned(
-                    left: 16,
-                    right: 16,
-                    bottom: MediaQuery.of(context).padding.bottom + 18,
+                    left: kSpace4,
+                    right: kSpace4,
+                    bottom: MediaQuery.of(context).padding.bottom + kSpace4,
                     child: AgCartBar(
                       count: cart.cartCount,
                       label: "Savatga o'tish",
@@ -88,21 +101,26 @@ class _FoodHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 12, 16, 14),
+      padding: EdgeInsets.fromLTRB(
+          kSpace4, MediaQuery.of(context).padding.top + kSpace3, kSpace4, kSpace4),
       decoration: BoxDecoration(
         color: agSurface,
-        boxShadow: [BoxShadow(color: agInk.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 6))],
+        boxShadow: agCardShadow,
       ),
       child: Row(
         children: [
-          AgIconButton(icon: Icons.arrow_back_rounded, onTap: () => Navigator.of(context).pop()),
-          const SizedBox(width: 12),
+          AgIconButton(icon: Icons.arrow_back_rounded, onTap: () => Navigator.of(context).pop(), semanticsLabel: 'Orqaga'),
+          const SizedBox(width: kSpace3),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Ovqat yetkazish', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: agText)),
-                Text('Angren · 20–40 daqiqa', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: agSubtle)),
+                Text('Ovqat yetkazish',
+                    style: TextStyle(
+                        fontSize: kFontH2, fontWeight: FontWeight.w800, color: agText)),
+                Text('Angren · 20–40 daqiqa',
+                    style: TextStyle(
+                        fontSize: kFontCaption, fontWeight: FontWeight.w600, color: agSubtle)),
               ],
             ),
           ),
@@ -110,6 +128,7 @@ class _FoodHeader extends StatelessWidget {
             icon: Icons.shopping_bag_outlined,
             onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const CartScreen())),
             badge: cartCount > 0 ? '$cartCount' : null,
+            semanticsLabel: cartCount > 0 ? 'Savat, $cartCount ta mahsulot' : 'Savat',
           ),
         ],
       ),
@@ -125,54 +144,64 @@ class _FoodCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final r = restaurant;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(color: agSurface, borderRadius: BorderRadius.circular(20), boxShadow: agCardShadow),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
-              children: [
-                Container(
-                  height: 100,
-                  width: double.infinity,
-                  color: agOrange,
-                  child: const Icon(Icons.restaurant_rounded, size: 48, color: Colors.white70),
-                ),
-                Positioned(
-                  top: 10,
-                  left: 10,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: (r.isOpen ? agGreen : agRed).withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular(9),
-                    ),
-                    child: Text(r.isOpen ? 'Ochiq' : 'Yopiq',
-                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
-                  ),
-                ),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 13, 14, 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return Semantics(
+      button: true,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          decoration: BoxDecoration(
+            color: agSurface,
+            borderRadius: BorderRadius.circular(kRadiusLg),
+            boxShadow: agCardShadow,
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Stack(
                 children: [
-                  Text(r.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: agText)),
-                  if (r.address != null) ...[
-                    const SizedBox(height: 4),
-                    Text(r.address!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 12.5, color: agSubtle, fontWeight: FontWeight.w600)),
-                  ],
+                  Container(
+                    height: 100,
+                    width: double.infinity,
+                    color: agOrange,
+                    child: ExcludeSemantics(
+                      child: Icon(Icons.restaurant_rounded,
+                          size: 48, color: agOnPrimary.withValues(alpha: 0.7)),
+                    ),
+                  ),
+                  Positioned(
+                    top: kSpace3,
+                    left: kSpace3,
+                    child: AppStatusBadge(
+                      label: r.isOpen ? 'Ochiq' : 'Yopiq',
+                      tone: r.isOpen ? AppStatusTone.success : AppStatusTone.danger,
+                      dense: true,
+                    ),
+                  ),
                 ],
               ),
-            ),
-          ],
+              Padding(
+                padding: const EdgeInsets.fromLTRB(kSpace4, kSpace3, kSpace4, kSpace4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(r.name,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w800, fontSize: kFontTitle, color: agText)),
+                    if (r.address != null) ...[
+                      const SizedBox(height: kSpace1),
+                      Text(r.address!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: kFontCaption, color: agSubtle, fontWeight: FontWeight.w600)),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

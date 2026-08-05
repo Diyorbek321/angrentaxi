@@ -3,6 +3,7 @@ import 'package:angren_taxi/features/superapp/screens/checkout_screen.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
+import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -40,48 +41,15 @@ class _EmptyCart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 104,
-              height: 104,
-              decoration: BoxDecoration(
-                color: agSurface,
-                shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: agInk.withValues(alpha: 0.06), blurRadius: 30, offset: const Offset(0, 14))],
-              ),
-              child: const Icon(Icons.shopping_bag_outlined, size: 52, color: Color(0xFFC2CCD4)),
-            ),
-            const SizedBox(height: 20),
-            const Text("Savat bo'sh", style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: agText)),
-            const SizedBox(height: 7),
-            const Text(
-              "Ovqat yoki market mahsulotlarini qo'shing va bu yerda ko'rinadi.",
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13.5, color: agSubtle, fontWeight: FontWeight.w500, height: 1.5),
-            ),
-            const SizedBox(height: 22),
-            GestureDetector(
-              onTap: () {
-                final provider = context.read<SuperappProvider>();
-                if (provider.tabIndex != 0) provider.tabIndex = 0;
-              },
-              child: Container(
-                height: 50,
-                padding: const EdgeInsets.symmetric(horizontal: 26),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(color: agGreen, borderRadius: BorderRadius.circular(15)),
-                child: const Text("Bosh sahifaga o'tish",
-                    style: TextStyle(color: Colors.white, fontSize: 14.5, fontWeight: FontWeight.w800)),
-              ),
-            ),
-          ],
-        ),
-      ),
+    return AppEmptyState(
+      icon: Icons.shopping_bag_outlined,
+      title: "Savat bo'sh",
+      message: "Ovqat yoki market mahsulotlarini qo'shing va bu yerda ko'rinadi.",
+      actionLabel: "Bosh sahifaga o'tish",
+      onAction: () {
+        final provider = context.read<SuperappProvider>();
+        if (provider.tabIndex != 0) provider.tabIndex = 0;
+      },
     );
   }
 }
@@ -96,13 +64,13 @@ class _CartBody extends StatelessWidget {
     return Stack(
       children: [
         ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 180),
+          padding: const EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, 180),
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
+              padding: const EdgeInsets.symmetric(horizontal: kSpace4),
               decoration: BoxDecoration(
                 color: agSurface,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(kRadiusLg),
                 boxShadow: agCardShadow,
               ),
               child: Column(
@@ -117,29 +85,32 @@ class _CartBody extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: kSpace4),
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(kSpace4),
               decoration: BoxDecoration(
                 color: agSurface,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(kRadiusLg),
                 boxShadow: agCardShadow,
               ),
               child: Column(
                 children: [
                   _SummaryRow('Mahsulotlar', Formatters.formatSom(provider.cartSubtotal)),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: kSpace3),
                   _SummaryRow('Yetkazib berish', Formatters.formatSom(provider.deliveryFee)),
                   const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
+                    padding: EdgeInsets.symmetric(vertical: kSpace3),
                     child: _DashedDivider(),
                   ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Jami', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: agText)),
+                      const Text('Jami',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w800, fontSize: kFontTitle, color: agText)),
                       Text(Formatters.formatSom(provider.cartTotal),
-                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: agText)),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w800, fontSize: kFontTitle, color: agText)),
                     ],
                   ),
                 ],
@@ -148,9 +119,9 @@ class _CartBody extends StatelessWidget {
           ],
         ),
         Positioned(
-          left: 16,
-          right: 16,
-          bottom: (embedded ? 92 : MediaQuery.of(context).padding.bottom + 18),
+          left: kSpace4,
+          right: kSpace4,
+          bottom: (embedded ? 92 : MediaQuery.of(context).padding.bottom + kSpace4),
           child: AgPrimaryButton(
             label: 'Rasmiylashtirish · ${Formatters.formatSom(provider.cartTotal)}',
             onPressed: () => Navigator.of(context).push(
@@ -173,19 +144,24 @@ class _CartRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: kSpace2),
       decoration: BoxDecoration(
         border: last ? null : const Border(bottom: BorderSide(color: agDivider)),
       ),
       child: Row(
         children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(color: item.color, borderRadius: BorderRadius.circular(14)),
-            child: Icon(item.icon, size: 26, color: Colors.white.withValues(alpha: 0.95)),
+          ExcludeSemantics(
+            child: Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: item.color,
+                borderRadius: BorderRadius.circular(kRadiusSm),
+              ),
+              child: Icon(item.icon, size: 26, color: agOnPrimary.withValues(alpha: 0.95)),
+            ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: kSpace3),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,34 +169,78 @@ class _CartRow extends StatelessWidget {
                 Text(item.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: agText)),
-                const SizedBox(height: 3),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: kFontBody, color: agText)),
+                const SizedBox(height: kSpace1),
                 Text(Formatters.formatSom(item.lineTotal),
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: agGreen)),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w800, fontSize: kFontLabel, color: agGreenText)),
               ],
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(color: agBg, borderRadius: BorderRadius.circular(12)),
+            padding: const EdgeInsets.symmetric(horizontal: kSpace1),
+            decoration: BoxDecoration(
+              color: agBg,
+              borderRadius: BorderRadius.circular(kRadiusSm),
+            ),
             child: Row(
               children: [
-                GestureDetector(
+                _QtyButton(
+                  icon: Icons.remove_rounded,
+                  color: agText,
+                  semanticsLabel: 'Miqdorni kamaytirish',
                   onTap: onDec,
-                  child: const Icon(Icons.remove_rounded, size: 20, color: agText),
                 ),
-                const SizedBox(width: 11),
                 Text('${item.qty}',
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: agText)),
-                const SizedBox(width: 11),
-                GestureDetector(
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w800, fontSize: kFontBody, color: agText)),
+                _QtyButton(
+                  icon: Icons.add_rounded,
+                  color: agGreenText,
+                  semanticsLabel: 'Miqdorni oshirish',
                   onTap: onInc,
-                  child: const Icon(Icons.add_rounded, size: 20, color: agGreen),
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Savatdagi "+" / "−" tugmasi — vizual ikonka kichik bo'lsa ham
+/// tegish maydoni har doim kamida `kMinTapTarget` (48dp).
+class _QtyButton extends StatelessWidget {
+  const _QtyButton({
+    required this.icon,
+    required this.color,
+    required this.semanticsLabel,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String semanticsLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: semanticsLabel,
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minWidth: kMinTapTarget,
+            minHeight: kMinTapTarget,
+          ),
+          child: Icon(icon, size: 20, color: color),
+        ),
       ),
     );
   }
@@ -236,8 +256,12 @@ class _SummaryRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontSize: 13.5, color: agSubtle, fontWeight: FontWeight.w600)),
-        Text(value, style: const TextStyle(fontSize: 13.5, color: agText, fontWeight: FontWeight.w700)),
+        Text(label,
+            style: const TextStyle(
+                fontSize: kFontLabel, color: agSubtle, fontWeight: FontWeight.w600)),
+        Text(value,
+            style: const TextStyle(
+                fontSize: kFontLabel, color: agText, fontWeight: FontWeight.w700)),
       ],
     );
   }
@@ -257,7 +281,7 @@ class _DashedDivider extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: List.generate(
             count,
-            (_) => Container(width: dashWidth, height: 1, color: const Color(0xFFDCE2E6)),
+            (_) => Container(width: dashWidth, height: 1, color: agBorder),
           ),
         );
       },

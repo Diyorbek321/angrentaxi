@@ -122,7 +122,7 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
         }
 
         return Scaffold(
-          backgroundColor: kSecondaryBlack,
+          backgroundColor: kInk,
           body: SafeArea(
             child: Column(
               children: [
@@ -131,24 +131,24 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
                   child: Container(
                     width: double.infinity,
                     decoration: const BoxDecoration(
-                      color: Colors.white,
+                      color: kSurface,
                       borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(28),
+                        top: Radius.circular(kRadiusXl),
                       ),
                     ),
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(24),
+                      padding: const EdgeInsets.all(kSpace4),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildCountdownTimer(),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: kSpace6),
                           _buildPriceCard(offer),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: kSpace5),
                           _buildRouteInfo(offer),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: kSpace5),
                           if (_distanceToPickup != null) _buildDistanceInfo(),
-                          const SizedBox(height: 32),
+                          const SizedBox(height: kSpace8),
                           _buildActionButtons(offer, provider),
                         ],
                       ),
@@ -164,26 +164,31 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
   }
 
   Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.all(20),
+    return const Padding(
+      padding: EdgeInsets.all(kSpace5),
       child: Column(
         children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: const BoxDecoration(
-              color: kPrimaryYellow,
-              shape: BoxShape.circle,
+          // Mint TO'LDIRISH — ustida faqat ink ikona (7.84:1), oq emas.
+          ExcludeSemantics(
+            child: SizedBox(
+              width: 56,
+              height: 56,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: kMint,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.local_taxi, color: kOnMint, size: 28),
+              ),
             ),
-            child: const Icon(Icons.local_taxi, color: Colors.white, size: 28),
           ),
-          const SizedBox(height: 8),
-          const Text(
+          SizedBox(height: kSpace2),
+          Text(
             'Yangi buyurtma!',
             style: TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
+              color: kOnPrimary,
+              fontSize: kFontH2,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
@@ -205,9 +210,10 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
                 child: CircularProgressIndicator(
                   value: 1 - _progressController.value,
                   strokeWidth: 5,
-                  backgroundColor: Colors.grey.shade200,
+                  backgroundColor: kSurface2,
+                  // Progress = interaktiv qatlam → kPrimary.
                   valueColor: AlwaysStoppedAnimation<Color>(
-                    _secondsLeft > 5 ? kPrimaryYellow : kError,
+                    _secondsLeft > 5 ? kPrimary : kError,
                   ),
                 ),
               ),
@@ -215,17 +221,17 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
             Text(
               '$_secondsLeft',
               style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: _secondsLeft > 5 ? kTextPrimary : kError,
+                fontSize: kFontDisplay,
+                fontWeight: FontWeight.w800,
+                color: _secondsLeft > 5 ? kInk : kErrorDeep,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: kSpace2),
         Text(
           'Qabul qilish uchun $_secondsLeft soniya qoldi',
-          style: const TextStyle(color: kTextSecondary, fontSize: 13),
+          style: const TextStyle(color: kInkMuted, fontSize: kFontLabel),
         ),
       ],
     );
@@ -234,26 +240,28 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
   Widget _buildPriceCard(Order offer) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(kSpace5),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [kPrimary, kPrimaryDark],
-        ),
-        borderRadius: BorderRadius.circular(16),
+        // To'q yashil CTA gradienti — oq matn butun diapazonda AA.
+        gradient: kGradientCta,
+        borderRadius: BorderRadius.circular(kRadiusMd),
       ),
       child: Column(
         children: [
-          const Text(
+          Text(
             'Taxminiy daromad',
-            style: TextStyle(fontSize: 13, color: Colors.white70),
+            style: TextStyle(
+              fontSize: kFontLabel,
+              color: kOnPrimary.withValues(alpha: 0.85),
+            ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: kSpace1),
           Text(
             Formatters.formatPrice(offer.estimatedPrice),
             style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+              fontSize: kFontDisplay,
+              fontWeight: FontWeight.w800,
+              color: kOnPrimary,
             ),
           ),
         ],
@@ -263,24 +271,24 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
 
   Widget _buildRouteInfo(Order offer) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(kSpace4),
       decoration: BoxDecoration(
-        color: kSurfaceGrey,
-        borderRadius: BorderRadius.circular(14),
+        color: kSurface2,
+        borderRadius: BorderRadius.circular(kRadiusMd),
       ),
       child: Column(
         children: [
           _buildRouteRow(
             Icons.radio_button_checked,
-            Colors.green,
+            kPrimary,
             'Olish joyi',
             offer.pickup.address,
           ),
           const Padding(
             padding: EdgeInsets.only(left: 9),
             child: SizedBox(
-              height: 16,
-              child: VerticalDivider(width: 1, color: Colors.grey),
+              height: kSpace4,
+              child: VerticalDivider(width: 1, color: kLineStrong),
             ),
           ),
           _buildRouteRow(
@@ -303,8 +311,8 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: color, size: 20),
-        const SizedBox(width: 12),
+        ExcludeSemantics(child: Icon(icon, color: color, size: 20)),
+        const SizedBox(width: kSpace3),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -312,15 +320,18 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
               Text(
                 label,
                 style: const TextStyle(
-                  color: kTextSecondary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
+                  color: kInkMuted,
+                  fontSize: kFontMicro,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               Text(
                 address,
-                style:
-                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontSize: kFontBody,
+                  fontWeight: FontWeight.w600,
+                  color: kInk,
+                ),
                 maxLines: 2,
               ),
             ],
@@ -333,11 +344,13 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
   Widget _buildDistanceInfo() {
     return Row(
       children: [
-        const Icon(Icons.directions_car, color: kPrimaryYellow, size: 18),
-        const SizedBox(width: 8),
+        const ExcludeSemantics(
+          child: Icon(Icons.directions_car, color: kPrimary, size: 18),
+        ),
+        const SizedBox(width: kSpace2),
         Text(
           'Olish joyigacha: ${Formatters.formatDistance(_distanceToPickup!)}',
-          style: const TextStyle(color: kTextSecondary, fontSize: 14),
+          style: const TextStyle(color: kInkMuted, fontSize: kFontBody),
         ),
       ],
     );
@@ -349,54 +362,72 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
     return Row(
       children: [
         Expanded(
-          child: SizedBox(
-            height: 56,
-            child: OutlinedButton(
-              onPressed: isLoading ? null : () => _onDecline(offer),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: kError, width: 2),
-                foregroundColor: kError,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+          child: Semantics(
+            button: true,
+            enabled: !isLoading,
+            label: 'Rad etish',
+            excludeSemantics: true,
+            child: SizedBox(
+              height: kControlHeight,
+              child: OutlinedButton(
+                onPressed: isLoading ? null : () => _onDecline(offer),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: kError, width: 1.5),
+                  // Xavf MATNI kErrorDeep (6.47:1), kError faqat chegara.
+                  foregroundColor: kErrorDeep,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(kRadiusMd),
+                  ),
                 ),
-              ),
-              child: const Text(
-                'Rad etish',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                child: const Text(
+                  'Rad etish',
+                  style: TextStyle(
+                    fontSize: kFontTitle,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: kSpace3),
         Expanded(
           flex: 2,
-          child: SizedBox(
-            height: 56,
-            child: ElevatedButton(
-              onPressed: isLoading ? null : () => _onAccept(offer),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kSuccess,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+          child: Semantics(
+            button: true,
+            enabled: !isLoading,
+            label: 'Qabul qilish',
+            value: isLoading ? 'Yuklanmoqda' : null,
+            excludeSemantics: true,
+            child: SizedBox(
+              height: kControlHeight,
+              child: ElevatedButton(
+                onPressed: isLoading ? null : () => _onAccept(offer),
+                style: ElevatedButton.styleFrom(
+                  // Oldin kSuccess (mint) + oq matn = 2.12:1 edi.
+                  backgroundColor: kPrimary,
+                  foregroundColor: kOnPrimary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(kRadiusMd),
+                  ),
                 ),
+                child: isLoading
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: kOnPrimary,
+                        ),
+                      )
+                    : const Text(
+                        'Qabul qilish',
+                        style: TextStyle(
+                          fontSize: kFontTitle,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
               ),
-              child: isLoading
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text(
-                      'Qabul qilish',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
             ),
           ),
         ),

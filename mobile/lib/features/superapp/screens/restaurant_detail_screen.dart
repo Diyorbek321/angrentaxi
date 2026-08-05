@@ -5,6 +5,10 @@ import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/shared/models/dish.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
+import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
+import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
+import 'package:angren_taxi/shared/widgets/app_status_badge.dart';
+import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -42,12 +46,20 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
     final topPad = MediaQuery.of(context).padding.top;
 
     if (food.state == FoodProviderState.loading && food.restaurant == null) {
-      return const Scaffold(backgroundColor: agSurface, body: Center(child: CircularProgressIndicator(color: agGreen)));
+      return const Scaffold(
+        backgroundColor: agSurface,
+        body: SafeArea(child: AppSkeletonList(itemCount: 5, hasTrailing: true)),
+      );
     }
     if (food.restaurant == null) {
       return Scaffold(
         backgroundColor: agSurface,
-        body: Center(child: Text(food.error ?? 'Restoran topilmadi', style: const TextStyle(color: agSubtle))),
+        body: SafeArea(
+          child: AppErrorState(
+            message: food.error ?? 'Restoran topilmadi',
+            onRetry: () => context.read<FoodProvider>().loadRestaurantDetail(widget.restaurantId),
+          ),
+        ),
       );
     }
 
@@ -69,12 +81,21 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                       width: double.infinity,
                       color: agOrange,
                       alignment: Alignment.center,
-                      child: const Icon(Icons.restaurant_rounded, size: 96, color: Colors.white70),
+                      child: ExcludeSemantics(
+                        child: Icon(Icons.restaurant_rounded,
+                            size: 96, color: agOnPrimary.withValues(alpha: 0.7)),
+                      ),
                     ),
                     Positioned(
-                      top: topPad + 8,
-                      left: 16,
-                      child: _RoundBtn(icon: Icons.arrow_back_rounded, onTap: () => Navigator.of(context).pop()),
+                      top: topPad + kSpace2,
+                      left: kSpace4,
+                      child: AgIconButton(
+                        icon: Icons.arrow_back_rounded,
+                        onTap: () => Navigator.of(context).pop(),
+                        semanticsLabel: 'Orqaga',
+                        background: agSurface,
+                        size: 44,
+                      ),
                     ),
                   ],
                 ),
@@ -82,40 +103,60 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
               Transform.translate(
                 offset: const Offset(0, -22),
                 child: Container(
-                  decoration: const BoxDecoration(color: agSurface, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-                  padding: const EdgeInsets.fromLTRB(18, 20, 18, 120),
+                  decoration: const BoxDecoration(
+                    color: agSurface,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(kRadiusXl)),
+                  ),
+                  padding: const EdgeInsets.fromLTRB(kSpace4, kSpace5, kSpace4, 120),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Icon(Icons.circle, size: 9, color: r.isOpen ? agGreen : agRed),
-                          const SizedBox(width: 6),
-                          Text(r.isOpen ? 'Ochiq' : 'Yopiq',
-                              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: r.isOpen ? agGreen : agRed)),
-                        ],
+                      AppStatusBadge(
+                        label: r.isOpen ? 'Ochiq' : 'Yopiq',
+                        tone: r.isOpen ? AppStatusTone.success : AppStatusTone.danger,
                       ),
-                      const SizedBox(height: 6),
-                      Text(r.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: agText, letterSpacing: -0.4)),
+                      const SizedBox(height: kSpace2),
+                      Text(r.name,
+                          style: const TextStyle(
+                              fontSize: kFontH1,
+                              fontWeight: FontWeight.w800,
+                              color: agText,
+                              letterSpacing: -0.4)),
                       if (r.address != null) ...[
-                        const SizedBox(height: 8),
+                        const SizedBox(height: kSpace2),
                         Row(
                           children: [
-                            const Icon(Icons.location_on_rounded, size: 17, color: agSubtle),
-                            const SizedBox(width: 6),
+                            const ExcludeSemantics(
+                              child: Icon(Icons.location_on_rounded, size: 17, color: agSubtle),
+                            ),
+                            const SizedBox(width: kSpace2),
                             Expanded(
-                              child: Text(r.address!, style: const TextStyle(fontSize: 12.5, color: agSubtle, fontWeight: FontWeight.w600)),
+                              child: Text(r.address!,
+                                  style: const TextStyle(
+                                      fontSize: kFontCaption,
+                                      color: agSubtle,
+                                      fontWeight: FontWeight.w600)),
                             ),
                           ],
                         ),
                       ],
-                      const SizedBox(height: 20),
-                      const Text('Menyu', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: agText)),
-                      const SizedBox(height: 12),
-                      for (final d in food.dishes) ...[
-                        _DishRow(dish: d, onAdd: d.isAvailable ? () => _add(context, d) : null),
-                        const SizedBox(height: 12),
-                      ],
+                      const SizedBox(height: kSpace5),
+                      const Text('Menyu',
+                          style: TextStyle(
+                              fontSize: kFontTitle, fontWeight: FontWeight.w800, color: agText)),
+                      const SizedBox(height: kSpace3),
+                      if (food.dishes.isEmpty)
+                        const AppEmptyState(
+                          icon: Icons.restaurant_menu_rounded,
+                          title: "Menyu bo'sh",
+                          message: 'Bu restoran hozircha taom qo\'shmagan.',
+                          compact: true,
+                        )
+                      else
+                        for (final d in food.dishes) ...[
+                          _DishRow(dish: d, onAdd: d.isAvailable ? () => _add(context, d) : null),
+                          const SizedBox(height: kSpace3),
+                        ],
                     ],
                   ),
                 ),
@@ -124,9 +165,9 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
           ),
           if (provider.cartCount > 0)
             Positioned(
-              left: 16,
-              right: 16,
-              bottom: MediaQuery.of(context).padding.bottom + 18,
+              left: kSpace4,
+              right: kSpace4,
+              bottom: MediaQuery.of(context).padding.bottom + kSpace4,
               child: AgCartBar(
                 count: provider.cartCount,
                 label: "Savatga o'tish",
@@ -135,25 +176,6 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
               ),
             ),
         ],
-      ),
-    );
-  }
-}
-
-class _RoundBtn extends StatelessWidget {
-  const _RoundBtn({required this.icon, this.onTap});
-  final IconData icon;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.92), borderRadius: BorderRadius.circular(14)),
-        child: Icon(icon, color: agText, size: 23),
       ),
     );
   }
@@ -170,53 +192,84 @@ class _DishRow extends StatelessWidget {
     return Opacity(
       opacity: d.isAvailable ? 1 : 0.55,
       child: Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: const Color(0xFFF8FAFB), borderRadius: BorderRadius.circular(18)),
-      child: Row(
-        children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(color: d.color, borderRadius: BorderRadius.circular(15)),
-            child: Icon(d.icon, size: 30, color: Colors.white.withValues(alpha: 0.95)),
-          ),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(d.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: agText)),
-                const SizedBox(height: 2),
-                if (d.description != null)
-                  Text(d.description!,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12, color: agSubtle, fontWeight: FontWeight.w500, height: 1.4)),
-                const SizedBox(height: 6),
-                Text(
-                  d.isAvailable ? Formatters.formatSom(d.price) : 'Tugagan',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: d.isAvailable ? agText : agSubtle),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          if (onAdd != null)
-            GestureDetector(
-              onTap: onAdd,
+        padding: const EdgeInsets.all(kSpace3),
+        decoration: BoxDecoration(
+          color: agSurface2,
+          borderRadius: BorderRadius.circular(kRadiusMd),
+        ),
+        child: Row(
+          children: [
+            ExcludeSemantics(
               child: Container(
-                width: 40,
-                height: 40,
+                width: 60,
+                height: 60,
                 decoration: BoxDecoration(
-                  color: agGreen,
-                  borderRadius: BorderRadius.circular(13),
-                  boxShadow: [BoxShadow(color: agGreen.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 8))],
+                  color: d.color,
+                  borderRadius: BorderRadius.circular(kRadiusSm),
                 ),
-                child: const Icon(Icons.add_rounded, color: Colors.white, size: 24),
+                child: Icon(d.icon, size: 30, color: agOnPrimary.withValues(alpha: 0.95)),
               ),
             ),
-        ],
-      ),
+            const SizedBox(width: kSpace3),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(d.name,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w800, fontSize: kFontBody, color: agText)),
+                  const SizedBox(height: 2),
+                  if (d.description != null)
+                    Text(d.description!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: kFontCaption,
+                            color: agSubtle,
+                            fontWeight: FontWeight.w500,
+                            height: 1.4)),
+                  const SizedBox(height: kSpace2),
+                  Text(
+                    d.isAvailable ? Formatters.formatSom(d.price) : 'Tugagan',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: kFontBody,
+                        color: d.isAvailable ? agText : agSubtle),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: kSpace2),
+            if (onAdd != null)
+              Semantics(
+                button: true,
+                label: '${d.name} — savatga qo\'shish',
+                excludeSemantics: true,
+                child: GestureDetector(
+                  onTap: onAdd,
+                  behavior: HitTestBehavior.opaque,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      minWidth: kMinTapTarget,
+                      minHeight: kMinTapTarget,
+                    ),
+                    child: Center(
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: agPrimary,
+                          borderRadius: BorderRadius.circular(kRadiusSm),
+                          boxShadow: agCtaShadow,
+                        ),
+                        child: const Icon(Icons.add_rounded, color: agOnPrimary, size: 24),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

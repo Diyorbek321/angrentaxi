@@ -2,8 +2,11 @@ import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
+import 'package:angren_taxi/shared/widgets/app_button.dart';
+import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
+import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
+import 'package:angren_taxi/shared/widgets/app_status_badge.dart';
 import 'package:angren_taxi/shared/widgets/error_widget.dart';
-import 'package:angren_taxi/shared/widgets/loading_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -29,41 +32,38 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
       appBar: AppBar(title: const Text('Sayohat tarixi')),
       body: Consumer<OrderProvider>(
         builder: (context, provider, _) {
+          // Uch holat: yuklanmoqda (skeleton, spinner emas) - xato - bo'sh.
           if (provider.state == OrderProviderState.loading &&
               provider.orderHistory.isEmpty) {
-            return const LoadingWidget(message: 'Yuklanmoqda...');
+            return const AppSkeletonList(
+              itemCount: 4,
+              hasLeading: false,
+              lines: 3,
+              hasTrailing: true,
+            );
           }
 
           if (provider.state == OrderProviderState.error) {
-            return AppErrorWidget(
+            return AppErrorState(
               message: provider.error ?? 'Xatolik yuz berdi',
               onRetry: provider.loadOrderHistory,
             );
           }
 
           if (provider.orderHistory.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.history, size: 64, color: kTextSecondary),
-                  SizedBox(height: 16),
-                  Text(
-                    'Sayohat tarixi yo\'q',
-                    style: TextStyle(fontSize: 16, color: kTextSecondary),
-                  ),
-                ],
-              ),
+            return const AppEmptyState(
+              icon: Icons.history,
+              title: 'Sayohat tarixi yo\'q',
             );
           }
 
           return RefreshIndicator(
             onRefresh: provider.loadOrderHistory,
-            color: kPrimaryYellow,
+            color: kPrimary,
             child: ListView.separated(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(kSpace4),
               itemCount: provider.orderHistory.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              separatorBuilder: (_, __) => const SizedBox(height: kSpace3),
               itemBuilder: (context, index) {
                 return _OrderHistoryCard(order: provider.orderHistory[index]);
               },
@@ -84,10 +84,10 @@ class _OrderHistoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(kRadiusLg),
         onTap: () => _showOrderDetails(context),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(kSpace4),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -97,26 +97,29 @@ class _OrderHistoryCard extends StatelessWidget {
                   Text(
                     Formatters.formatRelativeDate(order.createdAt),
                     style: const TextStyle(
-                      color: kTextSecondary,
-                      fontSize: 12,
+                      color: kInkMuted,
+                      fontSize: kFontCaption,
                     ),
                   ),
                   _buildStatusBadge(order.status),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: kSpace3),
               _buildRouteInfo(),
-              const Divider(height: 20),
+              const Divider(height: kSpace5),
               Row(
                 children: [
                   if (order.driver != null) ...[
-                    const Icon(Icons.person_outline, size: 16, color: kTextSecondary),
-                    const SizedBox(width: 4),
+                    const ExcludeSemantics(
+                      child: Icon(Icons.person_outline,
+                          size: 16, color: kInkMuted),
+                    ),
+                    const SizedBox(width: kSpace1),
                     Text(
                       order.driver!.name,
                       style: const TextStyle(
-                        fontSize: 13,
-                        color: kTextSecondary,
+                        fontSize: kFontLabel,
+                        color: kInkMuted,
                       ),
                     ),
                     const Spacer(),
@@ -126,21 +129,19 @@ class _OrderHistoryCard extends StatelessWidget {
                       order.actualPrice ?? order.estimatedPrice,
                     ),
                     style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      fontSize: kFontTitle,
+                      color: kInk,
                     ),
                   ),
                 ],
               ),
               if (order.status == OrderStatus.completed) ...[
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => _repeatOrder(context),
-                    icon: const Icon(Icons.replay, size: 18),
-                    label: const Text('Safarni takrorlash'),
-                  ),
+                const SizedBox(height: kSpace3),
+                AppOutlinedButton(
+                  label: 'Safarni takrorlash',
+                  icon: const Icon(Icons.replay, size: 18),
+                  onPressed: () => _repeatOrder(context),
                 ),
               ],
             ],
@@ -156,29 +157,15 @@ class _OrderHistoryCard extends StatelessWidget {
     Navigator.of(context).pushNamed('/passenger/tariff');
   }
 
+  /// Holat faqat RANG bilan berilmaydi — `AppStatusBadge` ikonka + matn +
+  /// rangni birga tashiydi (WCAG 1.4.1).
   Widget _buildStatusBadge(OrderStatus status) {
-    Color color;
-    switch (status) {
-      case OrderStatus.completed:
-        color = kSuccess;
-      case OrderStatus.cancelled:
-        color = kError;
-      default:
-        color = kTextSecondary;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withAlpha(20),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withAlpha(80)),
-      ),
-      child: Text(
-        status.label,
-        style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600),
-      ),
-    );
+    final tone = switch (status) {
+      OrderStatus.completed => AppStatusTone.success,
+      OrderStatus.cancelled => AppStatusTone.danger,
+      _ => AppStatusTone.info,
+    };
+    return AppStatusBadge(label: status.label, tone: tone, dense: true);
   }
 
   Widget _buildRouteInfo() {
@@ -186,27 +173,32 @@ class _OrderHistoryCard extends StatelessWidget {
       children: [
         Row(
           children: [
-            const Icon(Icons.radio_button_checked, color: Colors.green, size: 16),
-            const SizedBox(width: 8),
+            const ExcludeSemantics(
+              child:
+                  Icon(Icons.radio_button_checked, color: kPrimary, size: 16),
+            ),
+            const SizedBox(width: kSpace2),
             Expanded(
               child: Text(
                 order.pickup.address,
-                style: const TextStyle(fontSize: 13),
+                style: const TextStyle(fontSize: kFontLabel, color: kInk),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: kSpace1),
         Row(
           children: [
-            const Icon(Icons.location_on, color: kError, size: 16),
-            const SizedBox(width: 8),
+            const ExcludeSemantics(
+              child: Icon(Icons.location_on, color: kError, size: 16),
+            ),
+            const SizedBox(width: kSpace2),
             Expanded(
               child: Text(
                 order.dropoff.address,
-                style: const TextStyle(fontSize: 13),
+                style: const TextStyle(fontSize: kFontLabel, color: kInk),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -222,7 +214,7 @@ class _OrderHistoryCard extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(kRadiusXl)),
       ),
       builder: (ctx) => DraggableScrollableSheet(
         initialChildSize: 0.6,
@@ -231,27 +223,34 @@ class _OrderHistoryCard extends StatelessWidget {
         expand: false,
         builder: (ctx, scrollController) => SingleChildScrollView(
           controller: scrollController,
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(kSpace5),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
+                child: ExcludeSemantics(
+                  child: Container(
+                    width: kSpace10,
+                    height: kSpace1,
+                    decoration: BoxDecoration(
+                      color: kLineStrong,
+                      borderRadius: BorderRadius.circular(kRadiusFull),
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: kSpace4),
               const Text(
                 'Buyurtma tafsilotlari',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: kFontH2,
+                  fontWeight: FontWeight.w800,
+                  color: kInk,
+                ),
               ),
-              const SizedBox(height: 16),
-              _buildDetailRow('Sana', Formatters.formatDateTime(order.createdAt)),
+              const SizedBox(height: kSpace4),
+              _buildDetailRow(
+                  'Sana', Formatters.formatDateTime(order.createdAt)),
               _buildDetailRow('Holat', order.status.label),
               _buildDetailRow('Chiqish', order.pickup.address),
               _buildDetailRow('Manzil', order.dropoff.address),
@@ -261,7 +260,8 @@ class _OrderHistoryCard extends StatelessWidget {
                 _buildDetailRow('Mashina', order.driver!.carInfo),
               _buildDetailRow(
                 'Narx',
-                Formatters.formatPrice(order.actualPrice ?? order.estimatedPrice),
+                Formatters.formatPrice(
+                    order.actualPrice ?? order.estimatedPrice),
               ),
               if (order.distanceKm != null)
                 _buildDetailRow(
@@ -274,17 +274,14 @@ class _OrderHistoryCard extends StatelessWidget {
                   Formatters.formatDuration(order.durationMin!),
                 ),
               if (order.status == OrderStatus.completed) ...[
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.of(ctx).pop();
-                      _repeatOrder(context);
-                    },
-                    icon: const Icon(Icons.replay, size: 18),
-                    label: const Text('Safarni takrorlash'),
-                  ),
+                const SizedBox(height: kSpace4),
+                AppOutlinedButton(
+                  label: 'Safarni takrorlash',
+                  icon: const Icon(Icons.replay, size: 18),
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    _repeatOrder(context);
+                  },
                 ),
               ],
             ],
@@ -296,7 +293,7 @@ class _OrderHistoryCard extends StatelessWidget {
 
   Widget _buildDetailRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: kSpace2),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -304,15 +301,16 @@ class _OrderHistoryCard extends StatelessWidget {
             width: 100,
             child: Text(
               label,
-              style: const TextStyle(color: kTextSecondary, fontSize: 14),
+              style: const TextStyle(color: kInkMuted, fontSize: kFontBody),
             ),
           ),
           Expanded(
             child: Text(
               value,
               style: const TextStyle(
-                fontWeight: FontWeight.w500,
-                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                fontSize: kFontBody,
+                color: kInk,
               ),
             ),
           ),

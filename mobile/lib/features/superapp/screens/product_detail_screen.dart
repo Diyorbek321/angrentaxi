@@ -52,24 +52,21 @@ class ProductDetailScreen extends StatelessWidget {
                       width: double.infinity,
                       color: _color,
                       alignment: Alignment.center,
-                      child: _emoji.isNotEmpty
-                          ? Text(_emoji, style: const TextStyle(fontSize: 96))
-                          : Icon(_icon, size: 120, color: Colors.white.withValues(alpha: 0.92)),
+                      child: ExcludeSemantics(
+                        child: _emoji.isNotEmpty
+                            ? Text(_emoji, style: const TextStyle(fontSize: 96))
+                            : Icon(_icon, size: 120, color: agOnPrimary.withValues(alpha: 0.92)),
+                      ),
                     ),
                     Positioned(
-                      top: topPad + 8,
-                      left: 16,
-                      child: GestureDetector(
+                      top: topPad + kSpace2,
+                      left: kSpace4,
+                      child: AgIconButton(
+                        icon: Icons.arrow_back_rounded,
                         onTap: () => Navigator.of(context).pop(),
-                        child: Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.92),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: const Icon(Icons.arrow_back_rounded, color: agText, size: 23),
-                        ),
+                        semanticsLabel: 'Orqaga',
+                        background: agSurface,
+                        size: 44,
                       ),
                     ),
                   ],
@@ -80,37 +77,47 @@ class ProductDetailScreen extends StatelessWidget {
                 child: Container(
                   decoration: const BoxDecoration(
                     color: agSurface,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(kRadiusXl)),
                   ),
-                  padding: const EdgeInsets.fromLTRB(18, 22, 18, 160),
+                  padding: const EdgeInsets.fromLTRB(kSpace4, kSpace5, kSpace4, 160),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Do\'kon · $_unit',
-                          style: const TextStyle(fontSize: 12.5, color: agMuted, fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 4),
+                          style: const TextStyle(
+                              fontSize: kFontCaption, color: agMuted, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: kSpace1),
                       Text(_name,
-                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: agText, letterSpacing: -0.4)),
-                      const SizedBox(height: 10),
+                          style: const TextStyle(
+                              fontSize: kFontH1,
+                              fontWeight: FontWeight.w800,
+                              color: agText,
+                              letterSpacing: -0.4)),
+                      const SizedBox(height: kSpace3),
                       Text(Formatters.formatSom(_price),
-                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: agGreen)),
-                      const SizedBox(height: 14),
+                          style: const TextStyle(
+                              fontSize: kFontH1, fontWeight: FontWeight.w800, color: agGreenText)),
+                      const SizedBox(height: kSpace4),
                       const Text(
                         "Yangi va sifatli mahsulot, yaqin do'kondan tez yetkazib beriladi.",
-                        style: TextStyle(fontSize: 13.5, color: agSubtle, fontWeight: FontWeight.w500, height: 1.6),
+                        style: TextStyle(
+                            fontSize: kFontLabel,
+                            color: agSubtle,
+                            fontWeight: FontWeight.w500,
+                            height: 1.6),
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: kSpace4),
                       Row(
                         children: [
                           const Expanded(child: _InfoChip(label: 'YETKAZISH', value: '15–25 daq')),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: kSpace3),
                           const Expanded(child: _InfoChip(label: 'REYTING', value: '4.8 ★')),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: kSpace3),
                           Expanded(
                             child: _InfoChip(
                               label: 'OMBOR',
                               value: _isAvailable ? 'Mavjud' : 'Tugagan',
-                              valueColor: _isAvailable ? agGreen : agRed,
+                              valueColor: _isAvailable ? agGreenText : kErrorDeep,
                             ),
                           ),
                         ],
@@ -122,9 +129,9 @@ class ProductDetailScreen extends StatelessWidget {
             ],
           ),
           Positioned(
-            left: 16,
-            right: 16,
-            bottom: bottomPad + 18,
+            left: kSpace4,
+            right: kSpace4,
+            bottom: bottomPad + kSpace4,
             child: Column(
               children: [
                 if (provider.cartCount > 0) ...[
@@ -136,7 +143,7 @@ class ProductDetailScreen extends StatelessWidget {
                       MaterialPageRoute<void>(builder: (_) => const CartScreen()),
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: kSpace3),
                 ],
                 AgPrimaryButton(
                   label: 'Savatga · ${Formatters.formatSom(_price)}',
@@ -161,13 +168,20 @@ class _InfoChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: const Color(0xFFF8FAFB), borderRadius: BorderRadius.circular(14)),
+      padding: const EdgeInsets.all(kSpace3),
+      decoration: BoxDecoration(
+        color: agSurface2,
+        borderRadius: BorderRadius.circular(kRadiusSm),
+      ),
       child: Column(
         children: [
-          Text(label, style: const TextStyle(fontSize: 11, color: agMuted, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 3),
-          Text(value, style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: valueColor)),
+          Text(label,
+              style: const TextStyle(
+                  fontSize: kFontMicro, color: agSubtle, fontWeight: FontWeight.w700)),
+          const SizedBox(height: kSpace1),
+          Text(value,
+              style: TextStyle(
+                  fontSize: kFontLabel, fontWeight: FontWeight.w800, color: valueColor)),
         ],
       ),
     );

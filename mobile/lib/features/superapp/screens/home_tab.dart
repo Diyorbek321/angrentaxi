@@ -11,6 +11,10 @@ import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/shared/models/food_restaurant.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
+import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
+import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
+import 'package:angren_taxi/shared/widgets/app_status_badge.dart';
+import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
@@ -48,7 +52,8 @@ class _HomeTabState extends State<HomeTab> {
   @override
   Widget build(BuildContext context) {
     final balance = context.select<SuperappProvider, double?>((p) => p.walletBalance);
-    final restaurants = context.watch<FoodProvider>().restaurants;
+    final food = context.watch<FoodProvider>();
+    final restaurants = food.restaurants;
 
     return Container(
       color: agBg,
@@ -61,30 +66,33 @@ class _HomeTabState extends State<HomeTab> {
             onNotifs: () => _push(context, const NotificationsScreen()),
             onSearch: () => _push(context, const SearchScreen()),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: kSpace5),
           _ServiceGrid(
             onTaxi: () => _openTaxi(context),
             onFood: () => _push(context, const FoodListScreen()),
             onMarket: () => _push(context, const MarketScreen()),
             onCargo: () => _push(context, const CargoScreen()),
           ).animate().fadeIn(delay: 80.ms, duration: 400.ms).slideY(begin: 0.15, curve: Curves.easeOut),
-          const SizedBox(height: 14),
+          const SizedBox(height: kSpace4),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: kSpace4),
             child: _TaxiCta(onTap: () => _openTaxi(context)),
           ).animate().fadeIn(delay: 160.ms, duration: 400.ms).slideY(begin: 0.15, curve: Curves.easeOut),
-          const SizedBox(height: 24),
+          const SizedBox(height: kSpace6),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18),
+            padding: const EdgeInsets.symmetric(horizontal: kSpace4),
             child: AgSectionTitle(
               'Mashhur restoranlar',
               trailing: 'Barchasi',
               onTrailingTap: () => _push(context, const FoodListScreen()),
             ),
           ),
-          const SizedBox(height: 12),
-          _RestaurantCarousel(
+          const SizedBox(height: kSpace3),
+          _RestaurantSection(
+            state: food.state,
+            error: food.error,
             restaurants: restaurants,
+            onRetry: () => context.read<FoodProvider>().loadRestaurants(),
             onOpen: (r) => _push(context, RestaurantDetailScreen(restaurantId: r.id)),
           ),
         ],
@@ -115,80 +123,112 @@ class _Header extends StatelessWidget {
       clipBehavior: Clip.none,
       children: [
         Container(
-          height: 178 + topPad,
-          padding: EdgeInsets.fromLTRB(18, topPad + 14, 18, 0),
+          height: 180 + topPad,
+          padding: EdgeInsets.fromLTRB(kSpace4, topPad + kSpace3, kSpace4, 0),
           decoration: const BoxDecoration(
             gradient: agHeader,
-            borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(kRadiusXl)),
           ),
           child: Row(
             children: [
-              const Icon(Icons.location_on_rounded, color: Colors.white, size: 20),
-              const SizedBox(width: 7),
+              const ExcludeSemantics(
+                child: Icon(Icons.location_on_rounded, color: agOnPrimary, size: 20),
+              ),
+              const SizedBox(width: kSpace2),
               const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text('Joriy manzil',
-                      style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600)),
+                      style: TextStyle(color: agOnPrimary, fontSize: kFontMicro, fontWeight: FontWeight.w600)),
                   Row(
                     children: [
                       Text('Angren shahri',
-                          style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
-                      Icon(Icons.expand_more_rounded, color: Colors.white, size: 16),
+                          style: TextStyle(color: agOnPrimary, fontSize: kFontBody, fontWeight: FontWeight.w800)),
+                      ExcludeSemantics(
+                        child: Icon(Icons.expand_more_rounded, color: agOnPrimary, size: 16),
+                      ),
                     ],
                   ),
                 ],
               ),
               const Spacer(),
-              GestureDetector(
-                onTap: onWallet,
-                child: Container(
-                  height: 38,
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 17),
-                      const SizedBox(width: 7),
-                      Text(
-                        balance == null ? '—' : Formatters.formatAmount(balance!),
-                        style: const TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w800),
+              Semantics(
+                button: true,
+                label: 'Hamyon',
+                excludeSemantics: true,
+                child: GestureDetector(
+                  onTap: onWallet,
+                  behavior: HitTestBehavior.opaque,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: kMinTapTarget),
+                    child: Center(
+                      child: Container(
+                        height: 38,
+                        padding: const EdgeInsets.symmetric(horizontal: kSpace3),
+                        decoration: BoxDecoration(
+                          color: agSurface.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(kRadiusSm),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.account_balance_wallet_rounded,
+                                color: agOnPrimary, size: 17),
+                            const SizedBox(width: kSpace2),
+                            Text(
+                              balance == null ? '—' : Formatters.formatAmount(balance!),
+                              style: const TextStyle(
+                                  color: agOnPrimary,
+                                  fontSize: kFontLabel,
+                                  fontWeight: FontWeight.w800),
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
-              GestureDetector(
-                onTap: onNotifs,
-                child: Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      const Icon(Icons.notifications_rounded, color: Colors.white, size: 21),
-                      Positioned(
-                        top: 9,
-                        right: 9,
-                        child: Container(
-                          width: 7,
-                          height: 7,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFFFD43B),
-                            shape: BoxShape.circle,
-                          ),
+              const SizedBox(width: kSpace2),
+              Semantics(
+                button: true,
+                label: 'Bildirishnomalar',
+                excludeSemantics: true,
+                child: GestureDetector(
+                  onTap: onNotifs,
+                  behavior: HitTestBehavior.opaque,
+                  child: SizedBox(
+                    width: kMinTapTarget,
+                    height: kMinTapTarget,
+                    child: Center(
+                      child: Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: agSurface.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(kRadiusSm),
+                        ),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            const Icon(Icons.notifications_rounded,
+                                color: agOnPrimary, size: 21),
+                            Positioned(
+                              top: 9,
+                              right: 9,
+                              child: Container(
+                                width: 7,
+                                height: 7,
+                                decoration: const BoxDecoration(
+                                  color: kWarningDark,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -197,34 +237,35 @@ class _Header extends StatelessWidget {
         ),
         // Floating search bar overlapping the header bottom edge.
         Positioned(
-          left: 16,
-          right: 16,
+          left: kSpace4,
+          right: kSpace4,
           bottom: -27,
-          child: GestureDetector(
-            onTap: onSearch,
-            child: Container(
-              height: 54,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: agSurface,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: agInk.withValues(alpha: 0.10),
-                    blurRadius: 30,
-                    offset: const Offset(0, 14),
-                  ),
-                ],
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.search_rounded, color: agGreen, size: 23),
-                  SizedBox(width: 10),
-                  Text(
-                    "Qidiruv: taom, do'kon, manzil…",
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: agMuted),
-                  ),
-                ],
+          child: Semantics(
+            button: true,
+            label: "Qidiruv: taom, do'kon, manzil…",
+            excludeSemantics: true,
+            child: GestureDetector(
+              onTap: onSearch,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                height: kControlHeight,
+                padding: const EdgeInsets.symmetric(horizontal: kSpace4),
+                decoration: BoxDecoration(
+                  color: agSurface,
+                  borderRadius: BorderRadius.circular(kRadiusMd),
+                  boxShadow: agSoftShadow,
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.search_rounded, color: agGreenText, size: 23),
+                    SizedBox(width: kSpace3),
+                    Text(
+                      "Qidiruv: taom, do'kon, manzil…",
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700, fontSize: kFontBody, color: agSubtle),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -250,17 +291,17 @@ class _ServiceGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      (Icons.local_taxi_rounded, 'Taksi', agGreen, onTaxi),
+      (Icons.local_taxi_rounded, 'Taksi', agGreenText, onTaxi),
       (Icons.restaurant_rounded, 'Ovqat', agOrange, onFood),
       (Icons.storefront_rounded, 'Market', agBlue, onMarket),
       (Icons.local_shipping_rounded, 'Cargo', agPurple, onCargo),
     ];
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.fromLTRB(kSpace4, kSpace2, kSpace4, 0),
       child: Row(
         children: [
           for (var i = 0; i < items.length; i++) ...[
-            if (i != 0) const SizedBox(width: 10),
+            if (i != 0) const SizedBox(width: kSpace3),
             Expanded(
               child: _ServiceTile(
                 icon: items[i].$1,
@@ -291,30 +332,35 @@ class _ServiceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          AspectRatio(
-            aspectRatio: 1,
-            child: Container(
-              decoration: BoxDecoration(
-                color: agSurface,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: agInk.withValues(alpha: 0.06),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: kMinTapTarget, minWidth: kMinTapTarget),
+          child: Column(
+            children: [
+              AspectRatio(
+                aspectRatio: 1,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: agSurface,
+                    borderRadius: BorderRadius.circular(kRadiusLg),
+                    boxShadow: agCardShadow,
                   ),
-                ],
+                  child: Icon(icon, color: color, size: 30),
+                ),
               ),
-              child: Icon(icon, color: color, size: 30),
-            ),
+              const SizedBox(height: kSpace2),
+              Text(label,
+                  style: const TextStyle(
+                      fontSize: kFontCaption, fontWeight: FontWeight.w700, color: agText)),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: agText)),
-        ],
+        ),
       ),
     );
   }
@@ -326,84 +372,133 @@ class _TaxiCta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 96,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [agInk, Color(0xFF1D2D34)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+    return Semantics(
+      button: true,
+      label: 'Qayoqqa boramiz? Bir tegishda taksi chaqiring',
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          height: 96,
+          padding: const EdgeInsets.symmetric(horizontal: kSpace5),
+          decoration: BoxDecoration(
+            gradient: agInkGradient,
+            borderRadius: BorderRadius.circular(kRadiusLg),
+            boxShadow: agInkShadow,
           ),
-          borderRadius: BorderRadius.circular(22),
-        ),
-        child: Stack(
-          clipBehavior: Clip.hardEdge,
-          children: [
-            Positioned(
-              right: -6,
-              bottom: -16,
-              child: Icon(Icons.local_taxi_rounded,
-                  size: 96, color: agBright.withValues(alpha: 0.22)),
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Qayoqqa boramiz?',
-                          style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 3),
-                      const Text('Bir tegishda taksi chaqiring',
-                          style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500)),
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
-                        decoration: BoxDecoration(
-                          color: agBright,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('Buyurtma',
-                                style: TextStyle(color: Color(0xFF06231A), fontSize: 12.5, fontWeight: FontWeight.w800)),
-                            SizedBox(width: 6),
-                            Icon(Icons.arrow_forward_rounded, color: Color(0xFF06231A), size: 15),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+          child: Stack(
+            clipBehavior: Clip.hardEdge,
+            children: [
+              Positioned(
+                right: -6,
+                bottom: -16,
+                child: ExcludeSemantics(
+                  child: Icon(Icons.local_taxi_rounded,
+                      size: 96, color: agBright.withValues(alpha: 0.22)),
                 ),
-              ],
-            ),
-          ],
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Qayoqqa boramiz?',
+                            style: TextStyle(
+                                color: agOnPrimary,
+                                fontSize: kFontH3,
+                                fontWeight: FontWeight.w800)),
+                        const SizedBox(height: kSpace1),
+                        Text('Bir tegishda taksi chaqiring',
+                            style: TextStyle(
+                                color: agOnPrimary.withValues(alpha: 0.75),
+                                fontSize: kFontLabel,
+                                fontWeight: FontWeight.w500)),
+                        const SizedBox(height: kSpace2),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: kSpace3, vertical: kSpace2),
+                          decoration: BoxDecoration(
+                            color: agBright,
+                            borderRadius: BorderRadius.circular(kRadiusXs),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('Buyurtma',
+                                  style: TextStyle(
+                                      color: agOnMint,
+                                      fontSize: kFontCaption,
+                                      fontWeight: FontWeight.w800)),
+                              SizedBox(width: kSpace1 + 2),
+                              Icon(Icons.arrow_forward_rounded, color: agOnMint, size: 15),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _RestaurantCarousel extends StatelessWidget {
-  const _RestaurantCarousel({required this.restaurants, required this.onOpen});
+/// Mashhur restoranlar bloki — uchta holat: yuklanmoqda / xato / bo'sh.
+class _RestaurantSection extends StatelessWidget {
+  const _RestaurantSection({
+    required this.state,
+    required this.error,
+    required this.restaurants,
+    required this.onRetry,
+    required this.onOpen,
+  });
+
+  final FoodProviderState state;
+  final String? error;
   final List<FoodRestaurant> restaurants;
+  final VoidCallback onRetry;
   final void Function(FoodRestaurant) onOpen;
 
   @override
   Widget build(BuildContext context) {
-    if (restaurants.isEmpty) return const SizedBox.shrink();
+    if (restaurants.isEmpty) {
+      if (state == FoodProviderState.loading) {
+        return const AppSkeletonList(
+          itemCount: 2,
+          lines: 2,
+          padding: EdgeInsets.symmetric(horizontal: kSpace4),
+        );
+      }
+      if (state == FoodProviderState.error) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: kSpace4),
+          child: InlineErrorWidget(
+            message: error ?? 'Xatolik yuz berdi',
+            onRetry: onRetry,
+          ),
+        );
+      }
+      return const AppEmptyState(
+        icon: Icons.restaurant_rounded,
+        title: 'Restoranlar topilmadi',
+        compact: true,
+      );
+    }
+
     return SizedBox(
-      height: 160,
+      height: 168,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: kSpace4),
         itemCount: restaurants.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 14),
+        separatorBuilder: (_, __) => const SizedBox(width: kSpace3),
         itemBuilder: (context, i) => _RestaurantCard(
           restaurant: restaurants[i],
           onTap: () => onOpen(restaurants[i]),
@@ -421,50 +516,56 @@ class _RestaurantCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final r = restaurant;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 168,
-        decoration: BoxDecoration(
-          color: agSurface,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: agCardShadow,
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
-              children: [
-                Container(
-                  height: 92,
-                  width: double.infinity,
-                  color: agOrange,
-                  child: const Icon(Icons.restaurant_rounded, size: 40, color: Colors.white70),
-                ),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: (r.isOpen ? agGreen : agRed).withValues(alpha: 0.95),
-                      borderRadius: BorderRadius.circular(9),
+    return Semantics(
+      button: true,
+      label: r.name,
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          width: 168,
+          decoration: BoxDecoration(
+            color: agSurface,
+            borderRadius: BorderRadius.circular(kRadiusLg),
+            boxShadow: agCardShadow,
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Stack(
+                children: [
+                  Container(
+                    height: 92,
+                    width: double.infinity,
+                    color: agOrange,
+                    child: ExcludeSemantics(
+                      child: Icon(Icons.restaurant_rounded,
+                          size: 40, color: agSurface.withValues(alpha: 0.7)),
                     ),
-                    child: Text(r.isOpen ? 'Ochiq' : 'Yopiq',
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white)),
                   ),
-                ),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 11, 12, 13),
-              child: Text(r.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: agText)),
-            ),
-          ],
+                  Positioned(
+                    top: kSpace2,
+                    right: kSpace2,
+                    child: AppStatusBadge(
+                      label: r.isOpen ? 'Ochiq' : 'Yopiq',
+                      tone: r.isOpen ? AppStatusTone.success : AppStatusTone.danger,
+                      dense: true,
+                    ),
+                  ),
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(kSpace3, kSpace3, kSpace3, kSpace3),
+                child: Text(r.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w800, fontSize: kFontBody, color: agText)),
+              ),
+            ],
+          ),
         ),
       ),
     );

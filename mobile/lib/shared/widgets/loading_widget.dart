@@ -25,7 +25,7 @@ class LoadingWidget extends StatelessWidget {
                 height: 84,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: kPrimary.withValues(alpha: 0.12),
+                  color: kMint.withValues(alpha: 0.12),
                 ),
               )
                   .animate(onPlay: (c) => c.repeat())
@@ -42,20 +42,17 @@ class LoadingWidget extends StatelessWidget {
                 height: 56,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    colors: [kPrimary, kPrimaryDark],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  gradient: kGradientCta,
                   boxShadow: [
                     BoxShadow(
-                      color: kPrimary.withValues(alpha: 0.4),
+                      color: kPrimary.withValues(alpha: 0.32),
                       blurRadius: 16,
                       offset: const Offset(0, 6),
                     ),
                   ],
                 ),
-                child: Icon(icon, color: Colors.white, size: 28),
+                // kGradientCta ustidagi ikona — har doim kOnPrimary (5.38:1).
+                child: Icon(icon, color: kOnPrimary, size: 28),
               )
                   .animate(onPlay: (c) => c.repeat(reverse: true))
                   .scaleXY(

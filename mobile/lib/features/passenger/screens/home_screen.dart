@@ -16,6 +16,7 @@ import 'package:angren_taxi/shared/models/favorite_address.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
+import 'package:angren_taxi/shared/widgets/app_status_badge.dart';
 import 'package:angren_taxi/shared/widgets/loading_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -112,7 +113,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               orderProvider.clearNoDriversFoundMessage();
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(message), backgroundColor: kError),
+                SnackBar(content: Text(message), backgroundColor: kErrorDeep),
               );
             });
           }
@@ -158,18 +159,20 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
               height: 40,
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade700,
+                  color: kInfoDeep,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3),
+                  border: Border.all(color: kSurface, width: 3),
+                  // Rangli "halo" — elevatsiya emas, shuning uchun
+                  // kShadow* tokenlari mos kelmaydi.
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.blue.shade700.withAlpha(100),
+                      color: kInfoDeep.withValues(alpha: 0.4),
                       blurRadius: 8,
                       spreadRadius: 2,
                     ),
                   ],
                 ),
-                child: const Icon(Icons.person, color: Colors.white, size: 20),
+                child: const Icon(Icons.person, color: kOnPrimary, size: 20),
               ),
             ),
           ],
@@ -181,69 +184,73 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
   Widget _buildTopBar() {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(kSpace4),
         child: Row(
           children: [
             // Frosted-glass profile button
             Consumer<AuthProvider>(
               builder: (context, auth, _) {
-                return GestureDetector(
-                  onTap: () => _showMenu(context, auth),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: kSurface.withValues(alpha: 0.85),
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: kInk.withValues(alpha: 0.1),
-                              blurRadius: 12,
+                return Semantics(
+                  button: true,
+                  label: 'Menyu',
+                  excludeSemantics: true,
+                  child: GestureDetector(
+                    onTap: () => _showMenu(context, auth),
+                    behavior: HitTestBehavior.opaque,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        minHeight: kMinTapTarget,
+                        minWidth: kMinTapTarget,
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(kRadiusMd),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                          child: Container(
+                            width: kMinTapTarget,
+                            height: kMinTapTarget,
+                            decoration: BoxDecoration(
+                              color: kSurface.withValues(alpha: 0.85),
+                              borderRadius: BorderRadius.circular(kRadiusMd),
+                              boxShadow: kShadowCard,
                             ),
-                          ],
+                            child: const Icon(Icons.menu_rounded, color: kInk),
+                          ),
                         ),
-                        child: const Icon(Icons.menu_rounded, color: kInk),
                       ),
                     ),
                   ),
                 );
               },
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: kSpace3),
             // Location pill
             Expanded(
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(kRadiusMd),
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 13),
+                        horizontal: kSpace4, vertical: kSpace3 + 1),
                     decoration: BoxDecoration(
                       color: kSurface.withValues(alpha: 0.85),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: kInk.withValues(alpha: 0.1),
-                          blurRadius: 12,
-                        ),
-                      ],
+                      borderRadius: BorderRadius.circular(kRadiusMd),
+                      boxShadow: kShadowCard,
                     ),
                     child: const Row(
                       children: [
-                        Icon(Icons.my_location_rounded,
-                            color: kPrimary, size: 20),
-                        SizedBox(width: 10),
+                        ExcludeSemantics(
+                          child: Icon(Icons.my_location_rounded,
+                              color: kPrimary, size: 20),
+                        ),
+                        SizedBox(width: kSpace3),
                         Expanded(
                           child: Text(
                             'Joriy joylashuv',
                             style: TextStyle(
-                              color: kTextPrimary,
-                              fontSize: 14,
+                              color: kInk,
+                              fontSize: kFontBody,
                               fontWeight: FontWeight.w600,
                             ),
                             overflow: TextOverflow.ellipsis,
@@ -267,91 +274,93 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
       left: 0,
       right: 0,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+        padding: const EdgeInsets.fromLTRB(kSpace5, kSpace3, kSpace5, kSpace8),
         decoration: BoxDecoration(
           color: kSurface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          boxShadow: [
-            BoxShadow(
-              color: kInk.withValues(alpha: 0.12),
-              blurRadius: 24,
-              offset: const Offset(0, -6),
-            ),
-          ],
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(kRadiusXl),
+          ),
+          boxShadow: kShadowPop,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Center(
-              child: Container(
-                width: 44,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: kSurfaceGrey,
-                  borderRadius: BorderRadius.circular(3),
+              child: ExcludeSemantics(
+                child: Container(
+                  width: 44,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: kSurface2,
+                    borderRadius: BorderRadius.circular(kRadiusFull),
+                  ),
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: kSpace5),
             const Text(
               'Qayoqqa boramiz?',
               style: TextStyle(
-                fontSize: 22,
+                fontSize: kFontH1,
                 fontWeight: FontWeight.w800,
-                color: kTextPrimary,
+                color: kInk,
                 letterSpacing: -0.5,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: kSpace4),
             // Prominent search field
-            GestureDetector(
-              onTap: _onWhereToTap,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 14),
-                decoration: BoxDecoration(
-                  color: kSurfaceGrey,
-                  borderRadius: BorderRadius.circular(kRadiusMd),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [kPrimary, kPrimaryDark],
+            Semantics(
+              button: true,
+              label: 'Manzilni qidiring',
+              excludeSemantics: true,
+              child: GestureDetector(
+                onTap: _onWhereToTap,
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: kSpace4, vertical: kSpace4),
+                  decoration: BoxDecoration(
+                    color: kSurface2,
+                    borderRadius: BorderRadius.circular(kRadiusMd),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          gradient: kGradientCta,
+                          borderRadius: BorderRadius.circular(kRadiusSm),
                         ),
-                        borderRadius: BorderRadius.circular(12),
+                        child: const Icon(Icons.search_rounded,
+                            color: kOnPrimary, size: 22),
                       ),
-                      child: const Icon(Icons.search_rounded,
-                          color: Colors.white, size: 22),
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        'Manzilni qidiring...',
-                        style:
-                            TextStyle(color: kTextSecondary, fontSize: 15),
+                      const SizedBox(width: kSpace3),
+                      const Expanded(
+                        child: Text(
+                          'Manzilni qidiring...',
+                          style: TextStyle(
+                              color: kInkMuted, fontSize: kFontTitle),
+                        ),
                       ),
-                    ),
-                    const Icon(Icons.arrow_forward_ios_rounded,
-                        size: 14, color: kTextSecondary),
-                  ],
+                      const Icon(Icons.arrow_forward_ios_rounded,
+                          size: 14, color: kInkMuted),
+                    ],
+                  ),
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: kSpace5),
             const Text(
               'Saqlangan joylar',
               style: TextStyle(
-                fontSize: 14,
+                fontSize: kFontBody,
                 fontWeight: FontWeight.w700,
-                color: kTextPrimary,
+                color: kInk,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: kSpace3),
             _buildSavedPlaces(),
           ],
         ),
@@ -411,14 +420,14 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: itemCount,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            separatorBuilder: (_, __) => const SizedBox(width: kSpace3),
             itemBuilder: (context, i) {
               if (i == favorites.length) {
                 return _buildSavedPlaceTile(
                   index: i,
                   label: "Qo'shish",
                   icon: Icons.add_rounded,
-                  color: kTextSecondary,
+                  color: kInkMuted,
                   onTap: _onAddFavoriteTap,
                 );
               }
@@ -444,39 +453,47 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     required Color color,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 80,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: kSurfaceGrey,
-          borderRadius: BorderRadius.circular(kRadiusMd),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(12),
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          width: 80,
+          padding: const EdgeInsets.all(kSpace3),
+          decoration: BoxDecoration(
+            color: kSurface2,
+            borderRadius: BorderRadius.circular(kRadiusMd),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ExcludeSemantics(
+                child: Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(kRadiusSm),
+                  ),
+                  child: Icon(icon, color: color, size: 22),
+                ),
               ),
-              child: Icon(icon, color: color, size: 22),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: kTextPrimary,
+              const SizedBox(height: kSpace2),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: kFontCaption,
+                  fontWeight: FontWeight.w600,
+                  color: kInk,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     )
@@ -508,7 +525,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
         height: 40,
         child: const Icon(
           Icons.location_on,
-          color: Colors.green,
+          color: kPrimary,
           size: 40,
         ),
       ),
@@ -535,14 +552,13 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
           height: 44,
           child: Container(
             decoration: BoxDecoration(
-              color: kPrimaryYellow,
+              // Mint to'ldirish — ustidagi ikona ink (7.84:1), oq emas.
+              color: kMint,
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2),
-              boxShadow: const [
-                BoxShadow(color: Colors.black26, blurRadius: 6),
-              ],
+              border: Border.all(color: kSurface, width: 2),
+              boxShadow: kShadowCard,
             ),
-            child: const Icon(Icons.local_taxi, color: Colors.black, size: 24),
+            child: const Icon(Icons.local_taxi, color: kOnMint, size: 24),
           ),
         ),
       );
@@ -575,26 +591,28 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
       left: 0,
       right: 0,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          boxShadow: [
-            BoxShadow(color: Colors.black12, blurRadius: 12),
-          ],
+        padding: const EdgeInsets.fromLTRB(kSpace5, kSpace4, kSpace5, kSpace8),
+        decoration: BoxDecoration(
+          color: kSurface,
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(kRadiusXl),
+          ),
+          boxShadow: kShadowPop,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
+            ExcludeSemantics(
+              child: Container(
+                width: kSpace10,
+                height: kSpace1,
+                decoration: BoxDecoration(
+                  color: kLineStrong,
+                  borderRadius: BorderRadius.circular(kRadiusFull),
+                ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: kSpace4),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -603,18 +621,18 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
               ],
             ),
             _buildEtaBanner(order, orderProvider),
-            const SizedBox(height: 12),
+            const SizedBox(height: kSpace3),
             if (order.driver != null) _buildDriverInfo(order),
-            const SizedBox(height: 12),
+            const SizedBox(height: kSpace3),
             _buildRouteInfo(order),
             if (order.status == OrderStatus.searching ||
                 order.status == OrderStatus.driverAssigned) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: kSpace4),
               AppButton(
                 label: 'Bekor qilish',
                 onPressed: () => _confirmCancel(orderProvider),
                 backgroundColor: kError,
-                foregroundColor: Colors.white,
+                foregroundColor: kOnPrimary,
                 isLoading:
                     orderProvider.state == OrderProviderState.loading,
               ),
@@ -625,60 +643,59 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     );
   }
 
+  /// Safar holati faqat RANG bilan berilmaydi — `AppStatusBadge` ikonka,
+  /// matn va rangni birga tashiydi (WCAG 1.4.1).
   Widget _buildStatusChip(OrderStatus status) {
-    Color color;
-    switch (status) {
-      case OrderStatus.searching:
-        color = Colors.orange;
-      case OrderStatus.driverAssigned:
-      case OrderStatus.driverEnRoute:
-        color = Colors.blue;
-      case OrderStatus.driverArrived:
-        color = Colors.green;
-      case OrderStatus.inProgress:
-        color = kPrimaryYellow;
-      default:
-        color = kTextSecondary;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withAlpha(30),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withAlpha(100)),
-      ),
-      child: Text(
-        status.label,
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.w600,
-          fontSize: 13,
-        ),
-      ),
-    );
+    final tone = switch (status) {
+      OrderStatus.searching => AppStatusTone.warning,
+      OrderStatus.driverAssigned ||
+      OrderStatus.driverEnRoute =>
+        AppStatusTone.info,
+      OrderStatus.driverArrived ||
+      OrderStatus.inProgress ||
+      OrderStatus.completed =>
+        AppStatusTone.success,
+      OrderStatus.cancelled => AppStatusTone.danger,
+      _ => AppStatusTone.neutral,
+    };
+    return AppStatusBadge(label: status.label, tone: tone);
   }
 
   /// Small red circular SOS button shown in the active-order status row.
   /// Opens [_showSosSheet] with emergency-call and dispatcher-alert options.
   Widget _buildSosButton(Order order) {
-    return GestureDetector(
-      onTap: () => _showSosSheet(order),
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: kError,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: kError.withValues(alpha: 0.4),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+    return Semantics(
+      button: true,
+      label: 'SOS — favqulodda yordam',
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: () => _showSosSheet(order),
+        behavior: HitTestBehavior.opaque,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: kMinTapTarget,
+            minWidth: kMinTapTarget,
+          ),
+          child: Center(
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: kError,
+                shape: BoxShape.circle,
+                // Qizil "halo" — kShadowCta yashil, bu yerga mos emas.
+                boxShadow: [
+                  BoxShadow(
+                    color: kError.withValues(alpha: 0.4),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.sos_rounded, color: kOnPrimary, size: 20),
             ),
-          ],
+          ),
         ),
-        child: const Icon(Icons.sos_rounded, color: Colors.white, size: 20),
       ),
     );
   }
@@ -727,11 +744,12 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(kRadiusXl)),
       ),
       builder: (sheetContext) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+          padding: const EdgeInsets.fromLTRB(
+              kSpace5, kSpace5, kSpace5, kSpace6),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -739,28 +757,28 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
               const Text(
                 'Favqulodda yordam',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: kFontH2,
                   fontWeight: FontWeight.w800,
-                  color: kTextPrimary,
+                  color: kInk,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: kSpace1 + 2),
               const Text(
                 "Xavfsizligingiz biz uchun muhim. Kerak bo'lsa, quyidagi "
                 'tugmalardan birini bosing.',
-                style: TextStyle(color: kTextSecondary, fontSize: 13),
+                style: TextStyle(color: kInkMuted, fontSize: kFontLabel),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: kSpace5),
               AppButton(
                 label: 'Favqulodda chaqiruv (102/103)',
                 backgroundColor: kError,
-                foregroundColor: Colors.white,
+                foregroundColor: kOnPrimary,
                 onPressed: () {
                   Navigator.of(sheetContext).pop();
                   _callEmergency();
                 },
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: kSpace3),
               AppButton(
                 label: 'Dispetcherlarga xabar berish',
                 onPressed: () {
@@ -808,25 +826,29 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
         : 'Haydovchi $etaMinutes daqiqada yetib keladi';
 
     return Padding(
-      padding: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.only(top: kSpace2),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+            horizontal: kSpace3, vertical: kSpace2),
         decoration: BoxDecoration(
-          color: kPrimaryYellow.withAlpha(40),
-          borderRadius: BorderRadius.circular(12),
+          // Mint tinted yuza — ustidagi matn/ikona kPrimary (5.38:1).
+          color: kMintTint,
+          borderRadius: BorderRadius.circular(kRadiusSm),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.access_time_rounded,
-                size: 16, color: kPrimaryDark),
-            const SizedBox(width: 6),
+            const ExcludeSemantics(
+              child:
+                  Icon(Icons.access_time_rounded, size: 16, color: kPrimary),
+            ),
+            const SizedBox(width: kSpace1 + 2),
             Text(
               text,
               style: const TextStyle(
                 fontWeight: FontWeight.w700,
-                fontSize: 13,
-                color: kPrimaryDark,
+                fontSize: kFontLabel,
+                color: kPrimary,
               ),
             ),
           ],
@@ -863,27 +885,33 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
   Widget _buildDriverInfo(Order order) {
     final driver = order.driver!;
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(kSpace4),
       decoration: BoxDecoration(
-        color: kSurfaceGrey,
+        color: kSurface2,
         borderRadius: BorderRadius.circular(kRadiusMd),
       ),
       child: Row(
         children: [
-          // Gradient-ring avatar
-          Container(
-            padding: const EdgeInsets.all(2.5),
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(colors: [kPrimary, kPrimaryDark]),
-            ),
-            child: const CircleAvatar(
-              radius: 24,
-              backgroundColor: kSurface,
-              child: Icon(Icons.person_rounded, color: kPrimaryDark, size: 26),
+          // ATAYLAB SAQLANADI: haydovchi avatarining mint gradient halqasi —
+          // sof dekorativ, ma'no tashimaydi.
+          const ExcludeSemantics(
+            child: Padding(
+              padding: EdgeInsets.all(2.5),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: kGradientMint,
+                ),
+                child: CircleAvatar(
+                  radius: 24,
+                  backgroundColor: kSurface,
+                  child:
+                      Icon(Icons.person_rounded, color: kPrimary, size: 26),
+                ),
+              ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: kSpace3),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -892,25 +920,30 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                   driver.name,
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
-                    fontSize: 15,
+                    fontSize: kFontTitle,
+                    color: kInk,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   driver.carInfo,
-                  style: const TextStyle(color: kTextSecondary, fontSize: 13),
+                  style: const TextStyle(
+                      color: kInkMuted, fontSize: kFontLabel),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: kSpace1),
                 Row(
                   children: [
-                    const Icon(Icons.star_rounded,
-                        color: Color(0xFFF5A623), size: 16),
-                    const SizedBox(width: 4),
+                    const ExcludeSemantics(
+                      child: Icon(Icons.star_rounded,
+                          color: kWarningDeep, size: 16),
+                    ),
+                    const SizedBox(width: kSpace1),
                     Text(
                       Formatters.formatRating(driver.rating),
                       style: const TextStyle(
                         fontWeight: FontWeight.w700,
-                        fontSize: 13,
+                        fontSize: kFontLabel,
+                        color: kInk,
                       ),
                     ),
                   ],
@@ -919,39 +952,45 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
             ),
           ),
           // Chat button — opens in-trip messaging with the driver.
-          GestureDetector(
-            onTap: () => _openChat(order),
-            child: Container(
-              width: 46,
-              height: 46,
-              margin: const EdgeInsets.only(right: 10),
-              decoration: BoxDecoration(
-                color: kSurface,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: kSurfaceGrey, width: 1.5),
+          Semantics(
+            button: true,
+            label: 'Haydovchi bilan yozishish',
+            excludeSemantics: true,
+            child: GestureDetector(
+              onTap: () => _openChat(order),
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                width: kMinTapTarget,
+                height: kMinTapTarget,
+                margin: const EdgeInsets.only(right: kSpace3),
+                decoration: BoxDecoration(
+                  color: kSurface,
+                  borderRadius: BorderRadius.circular(kRadiusMd),
+                  border: Border.all(color: kLine, width: 1.5),
+                ),
+                child: const Icon(Icons.chat_bubble_outline_rounded,
+                    color: kPrimary),
               ),
-              child: const Icon(Icons.chat_bubble_outline_rounded,
-                  color: kPrimaryDark),
             ),
           ),
           // Filled call button
-          GestureDetector(
-            onTap: () => _callDriver(driver.phone),
-            child: Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [kPrimary, kPrimaryDark]),
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: kPrimary.withValues(alpha: 0.4),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+          Semantics(
+            button: true,
+            label: "Haydovchiga qo'ng'iroq qilish",
+            excludeSemantics: true,
+            child: GestureDetector(
+              onTap: () => _callDriver(driver.phone),
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                width: kMinTapTarget,
+                height: kMinTapTarget,
+                decoration: BoxDecoration(
+                  gradient: kGradientCta,
+                  borderRadius: BorderRadius.circular(kRadiusMd),
+                  boxShadow: kShadowCta,
+                ),
+                child: const Icon(Icons.phone_rounded, color: kOnPrimary),
               ),
-              child: const Icon(Icons.phone_rounded, color: Colors.white),
             ),
           ),
         ],
@@ -961,36 +1000,40 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
 
   Widget _buildRouteInfo(Order order) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(kSpace3),
       decoration: BoxDecoration(
-        color: kSurfaceGrey,
-        borderRadius: BorderRadius.circular(10),
+        color: kSurface2,
+        borderRadius: BorderRadius.circular(kRadiusSm),
       ),
       child: Column(
         children: [
           Row(
             children: [
-              const Icon(Icons.location_on, color: Colors.green, size: 18),
-              const SizedBox(width: 8),
+              const ExcludeSemantics(
+                child: Icon(Icons.location_on, color: kPrimary, size: 18),
+              ),
+              const SizedBox(width: kSpace2),
               Expanded(
                 child: Text(
                   order.pickup.address,
-                  style: const TextStyle(fontSize: 13),
+                  style: const TextStyle(fontSize: kFontLabel, color: kInk),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: kSpace1),
           Row(
             children: [
-              const Icon(Icons.flag, color: kError, size: 18),
-              const SizedBox(width: 8),
+              const ExcludeSemantics(
+                child: Icon(Icons.flag, color: kError, size: 18),
+              ),
+              const SizedBox(width: kSpace2),
               Expanded(
                 child: Text(
                   order.dropoff.address,
-                  style: const TextStyle(fontSize: 13),
+                  style: const TextStyle(fontSize: kFontLabel, color: kInk),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -998,8 +1041,8 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
               Text(
                 Formatters.formatPrice(order.estimatedPrice),
                 style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: kTextPrimary,
+                  fontWeight: FontWeight.w800,
+                  color: kInk,
                 ),
               ),
             ],
@@ -1034,7 +1077,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                 children: [
                   const Text(
                     'Buyurtmani bekor qilish sababini tanlang:',
-                    style: TextStyle(color: kTextSecondary, fontSize: 13),
+                    style: TextStyle(color: kInkMuted, fontSize: kFontLabel),
                   ),
                   for (final reason in _cancelReasons)
                     RadioListTile<String>(
@@ -1051,7 +1094,8 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                     ),
                   if (selectedReason == _otherCancelReason)
                     Padding(
-                      padding: const EdgeInsets.only(top: 4, bottom: 4),
+                      padding: const EdgeInsets.only(
+                          top: kSpace1, bottom: kSpace1),
                       child: TextField(
                         controller: customReasonController,
                         autofocus: true,
@@ -1082,7 +1126,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                 },
                 child: const Text(
                   'Ha, bekor qilish',
-                  style: TextStyle(color: kError),
+                  style: TextStyle(color: kErrorDeep),
                 ),
               ),
             ],
@@ -1096,16 +1140,18 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(kRadiusXl)),
       ),
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const CircleAvatar(
-                backgroundColor: kSurfaceGrey,
-                child: Icon(Icons.person, color: kTextPrimary),
+              leading: const ExcludeSemantics(
+                child: CircleAvatar(
+                  backgroundColor: kSurface2,
+                  child: Icon(Icons.person, color: kInk),
+                ),
               ),
               title: Text(auth.currentUser?.displayName ?? 'Foydalanuvchi'),
               subtitle: Text(auth.currentUser?.phone ?? ''),
@@ -1128,14 +1174,15 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.logout, color: kError),
-              title: const Text('Chiqish', style: TextStyle(color: kError)),
+              leading: const Icon(Icons.logout, color: kErrorDeep),
+              title:
+                  const Text('Chiqish', style: TextStyle(color: kErrorDeep)),
               onTap: () {
                 Navigator.of(ctx).pop();
                 auth.logout();
               },
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: kSpace2),
           ],
         ),
       ),

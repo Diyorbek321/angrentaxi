@@ -20,6 +20,8 @@ import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/shared/models/referral_info.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
+import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
+import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -137,7 +139,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: agBg,
+      backgroundColor: kBackground,
       body: Column(
         children: [
           AgHeader(
@@ -150,53 +152,26 @@ class _ReferralScreenState extends State<ReferralScreen> {
     );
   }
 
+  /// Uch holat: yuklanmoqda (skeleton, spinner emas) - xato - kontent.
   Widget _buildBody() {
     if (_loading) {
-      return const Center(
-        child: CircularProgressIndicator(color: agGreen),
-      );
+      return const AppSkeletonList(itemCount: 3, lines: 2, hasTrailing: true);
     }
 
     if (_loadError != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline_rounded, color: agRed, size: 40),
-              const SizedBox(height: 12),
-              Text(
-                _loadError!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: agSubtle, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 16),
-              GestureDetector(
-                onTap: _load,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  decoration: BoxDecoration(color: agGreen, borderRadius: BorderRadius.circular(12)),
-                  child: const Text('Qayta urinish',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+      return AppErrorState(message: _loadError!, onRetry: _load);
     }
 
     final info = _info!;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 32),
+      padding: const EdgeInsets.fromLTRB(kSpace4, kSpace5, kSpace4, kSpace8),
       children: [
         _CodeCard(
           code: info.referralCode,
           onCopy: () => _copyCode(info.referralCode),
           onShare: () => _shareCode(info.referralCode),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: kSpace5),
         Row(
           children: [
             Expanded(
@@ -204,26 +179,30 @@ class _ReferralScreenState extends State<ReferralScreen> {
                 label: 'Taklif qilinganlar',
                 value: '${info.referredCount}',
                 icon: Icons.group_rounded,
-                color: agBlue,
+                color: kInfoDeep,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: kSpace3),
             Expanded(
               child: _StatTile(
                 label: 'Jami bonus',
                 value: Formatters.formatSom(info.totalBonusEarned),
                 icon: Icons.workspace_premium_rounded,
-                color: agOrange,
+                color: kWarningDeep,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: kSpace6),
         const Text(
           "Do'stingizning kodini kiriting",
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: agText),
+          style: TextStyle(
+            fontSize: kFontTitle,
+            fontWeight: FontWeight.w800,
+            color: kInk,
+          ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: kSpace3),
         _ApplyCodeSection(
           controller: _codeController,
           applying: _applying,
@@ -254,7 +233,8 @@ String _friendlyApplyError(String raw) {
 }
 
 class _CodeCard extends StatelessWidget {
-  const _CodeCard({required this.code, required this.onCopy, required this.onShare});
+  const _CodeCard(
+      {required this.code, required this.onCopy, required this.onShare});
 
   final String code;
   final VoidCallback onCopy;
@@ -263,49 +243,60 @@ class _CodeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(kSpace5),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [agInk, Color(0xFF1D3A2F)],
+          colors: kGradientInkColors,
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(color: agInk.withValues(alpha: 0.22), blurRadius: 32, offset: const Offset(0, 14)),
-        ],
+        borderRadius: BorderRadius.circular(kRadiusLg),
+        boxShadow: kShadowInk,
       ),
       child: Stack(
         clipBehavior: Clip.hardEdge,
         children: [
+          // Dekorativ mint aksent — to'q yuzada, matn ortida.
           Positioned(
             right: -14,
             top: -14,
-            child: Icon(Icons.group_add_rounded, size: 110, color: agBright.withValues(alpha: 0.2)),
+            child: ExcludeSemantics(
+              child: Icon(Icons.group_add_rounded,
+                  size: 110, color: kMintBright.withValues(alpha: 0.2)),
+            ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'SIZNING REFERRAL KODINGIZ',
-                style: TextStyle(color: Colors.white60, fontSize: 11.5, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+                style: TextStyle(
+                  color: kOnPrimary.withValues(alpha: 0.7),
+                  fontSize: kFontMicro,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: kSpace3),
               Text(
                 code,
                 style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 34,
+                  color: kOnPrimary,
+                  fontSize: kFontDisplay,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 4,
                 ),
               ),
-              const SizedBox(height: 6),
-              const Text(
+              const SizedBox(height: kSpace1 + 2),
+              Text(
                 "Do'stingiz ilovaga birinchi safarida ushbu kodni kiritsa, ikkovingiz ham bonus olasiz",
-                style: TextStyle(color: Colors.white60, fontSize: 12.5, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: kOnPrimary.withValues(alpha: 0.7),
+                  fontSize: kFontCaption,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: kSpace5),
               Row(
                 children: [
                   Expanded(
@@ -315,7 +306,7 @@ class _CodeCard extends StatelessWidget {
                       onTap: onCopy,
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: kSpace3),
                   Expanded(
                     child: _CardActionButton(
                       icon: Icons.share_rounded,
@@ -349,30 +340,42 @@ class _CardActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 44,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: filled ? agBright : Colors.white.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(12),
-          border: filled ? null : Border.all(color: Colors.white.withValues(alpha: 0.25)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 17, color: filled ? const Color(0xFF06231A) : Colors.white),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                color: filled ? const Color(0xFF06231A) : Colors.white,
+    // Mint to'ldirish ustida ink matn (9.01:1); to'ldirilmagan variant to'q
+    // karta ustida oq matn.
+    final foreground = filled ? kOnMint : kOnPrimary;
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          height: kControlHeightSm,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color:
+                filled ? kMintBright : kOnPrimary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(kRadiusMd),
+            border: filled
+                ? null
+                : Border.all(color: kOnPrimary.withValues(alpha: 0.25)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 17, color: foreground),
+              const SizedBox(width: kSpace1 + 2),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: kFontLabel,
+                  fontWeight: FontWeight.w800,
+                  color: foreground,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -395,32 +398,45 @@ class _StatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(kSpace4),
       decoration: BoxDecoration(
-        color: agSurface,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: agCardShadow,
+        color: kSurface,
+        borderRadius: BorderRadius.circular(kRadiusMd),
+        boxShadow: kShadowCard,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(11)),
-            child: Icon(icon, color: color, size: 20),
+          ExcludeSemantics(
+            child: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(kRadiusSm),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: kSpace3),
           Text(
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: agText),
+            style: const TextStyle(
+              fontSize: kFontTitle,
+              fontWeight: FontWeight.w800,
+              color: kInk,
+            ),
           ),
           const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(fontSize: 11.5, color: agSubtle, fontWeight: FontWeight.w600),
+            style: const TextStyle(
+              fontSize: kFontMicro,
+              color: kInkMuted,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
@@ -447,19 +463,24 @@ class _ApplyCodeSection extends StatelessWidget {
   Widget build(BuildContext context) {
     if (applied) {
       return Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(kSpace4),
         decoration: BoxDecoration(
-          color: agTint,
-          borderRadius: BorderRadius.circular(16),
+          color: kMintTint,
+          borderRadius: BorderRadius.circular(kRadiusMd),
         ),
+        // kMintTint yuza ustidagi matn/ikona — kPrimary (5.38:1).
         child: const Row(
           children: [
-            Icon(Icons.check_circle_rounded, color: agGreen, size: 22),
-            SizedBox(width: 10),
+            Icon(Icons.check_circle_rounded, color: kPrimary, size: 22),
+            SizedBox(width: kSpace3),
             Expanded(
               child: Text(
                 "Referral kodi muvaffaqiyatli qo'llandi",
-                style: TextStyle(color: agGreen, fontWeight: FontWeight.w700, fontSize: 13.5),
+                style: TextStyle(
+                  color: kPrimary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: kFontLabel,
+                ),
               ),
             ),
           ],
@@ -480,59 +501,62 @@ class _ApplyCodeSection extends StatelessWidget {
                 enabled: !applying,
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: agSurface,
+                  fillColor: kSurface,
                   hintText: "Do'stingizning kodini kiriting",
-                  hintStyle: const TextStyle(color: agMuted, fontSize: 14),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  hintStyle:
+                      const TextStyle(color: kInkMuted, fontSize: kFontBody),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: kSpace4, vertical: kSpace4),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(kRadiusMd),
                     borderSide: BorderSide.none,
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: agGreen, width: 2),
+                    borderRadius: BorderRadius.circular(kRadiusMd),
+                    borderSide: const BorderSide(color: kPrimary, width: 2),
                   ),
                 ),
                 onSubmitted: (_) => onSubmit(),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: kSpace3),
             SizedBox(
-              height: 50,
+              height: kControlHeightSm,
               child: ElevatedButton(
                 onPressed: applying ? null : onSubmit,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: agGreen,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: agGreen.withValues(alpha: 0.5),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  backgroundColor: kPrimary,
+                  foregroundColor: kOnPrimary,
+                  disabledBackgroundColor: kPrimaryDisabled,
+                  disabledForegroundColor: kInkMuted,
+                  minimumSize: const Size(0, kControlHeightSm),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(kRadiusMd),
+                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: kSpace5),
                 ),
                 child: applying
                     ? const SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: kOnPrimary),
                       )
-                    : const Text("Qo'llash", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5)),
+                    : const Text(
+                        "Qo'llash",
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: kFontLabel,
+                        ),
+                      ),
               ),
             ),
           ],
         ),
         if (errorMessage != null) ...[
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Icon(Icons.error_outline_rounded, color: agRed, size: 15),
-              const SizedBox(width: 5),
-              Expanded(
-                child: Text(
-                  errorMessage!,
-                  style: const TextStyle(color: agRed, fontSize: 12.5, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
-          ),
+          const SizedBox(height: kSpace2),
+          InlineErrorWidget(message: errorMessage!),
         ],
       ],
     );

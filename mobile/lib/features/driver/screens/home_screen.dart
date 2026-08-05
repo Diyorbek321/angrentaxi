@@ -6,7 +6,8 @@ import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
-import 'package:angren_taxi/shared/widgets/loading_widget.dart';
+import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
+import 'package:angren_taxi/shared/widgets/app_status_badge.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -67,7 +68,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
         driver.error != null &&
         mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(driver.error!), backgroundColor: Colors.red),
+        SnackBar(content: Text(driver.error!), backgroundColor: kErrorDeep),
       );
       driver.clearError();
     }
@@ -132,11 +133,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.orange.shade800,
+        backgroundColor: kWarningDeep,
         duration: const Duration(seconds: 8),
         action: SnackBarAction(
           label: actionLabel,
-          textColor: Colors.white,
+          textColor: kOnPrimary,
           onPressed: onAction,
         ),
       ),
@@ -151,7 +152,6 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
           return Stack(
             children: [
               _buildMap(driverProvider),
-              if (_locationLoading) const LoadingWidget(),
               _buildTopBar(driverProvider),
               _buildBottomPanel(driverProvider),
             ],
@@ -183,18 +183,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
               height: 48,
               child: Container(
                 decoration: BoxDecoration(
-                  color: driverProvider.isOnline
-                      ? kPrimaryYellow
-                      : Colors.grey.shade400,
+                  // Mint TO'LDIRISH ustida faqat ink ikona (7.84:1).
+                  color: driverProvider.isOnline ? kMint : kInkSubtle,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black26, blurRadius: 6),
-                  ],
+                  border: Border.all(color: kSurface, width: 3),
+                  boxShadow: kShadowCard,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.local_taxi,
-                  color: Colors.black,
+                  color: driverProvider.isOnline ? kOnMint : kOnPrimary,
                   size: 24,
                 ),
               ),
@@ -208,64 +205,62 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
   Widget _buildTopBar(DriverProvider driverProvider) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(kSpace4),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black12, blurRadius: 6),
-                ],
-              ),
-              child: Consumer<AuthProvider>(
-                builder: (context, auth, _) => IconButton(
-                  icon: const Icon(Icons.menu),
-                  onPressed: () => _showMenu(context, auth, driverProvider),
+            Semantics(
+              button: true,
+              label: 'Menyu',
+              child: Container(
+                constraints: const BoxConstraints(
+                  minHeight: kMinTapTarget,
+                  minWidth: kMinTapTarget,
+                ),
+                decoration: BoxDecoration(
+                  color: kSurface,
+                  borderRadius: BorderRadius.circular(kRadiusMd),
+                  boxShadow: kShadowCard,
+                ),
+                child: Consumer<AuthProvider>(
+                  builder: (context, auth, _) => IconButton(
+                    icon: const Icon(Icons.menu, color: kInk),
+                    onPressed: () => _showMenu(context, auth, driverProvider),
+                  ),
                 ),
               ),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            // Holat faqat rang bilan berilmaydi: ikonka + matn + rang.
+            // Oldin mint fon ustida OQ matn (2.12:1) edi.
+            DecoratedBox(
               decoration: BoxDecoration(
-                color: driverProvider.isOnline ? kSuccess : Colors.grey.shade600,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(kRadiusXs),
+                boxShadow: kShadowCard,
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    driverProvider.isOnline ? 'Online' : 'Offline',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+              child: AppStatusBadge(
+                label: driverProvider.isOnline ? 'Online' : 'Offline',
+                tone: driverProvider.isOnline
+                    ? AppStatusTone.success
+                    : AppStatusTone.neutral,
               ),
             ),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black12, blurRadius: 6),
-                ],
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.my_location),
-                onPressed: _initLocation,
+            Semantics(
+              button: true,
+              label: 'Joylashuvimni topish',
+              child: Container(
+                constraints: const BoxConstraints(
+                  minHeight: kMinTapTarget,
+                  minWidth: kMinTapTarget,
+                ),
+                decoration: BoxDecoration(
+                  color: kSurface,
+                  borderRadius: BorderRadius.circular(kRadiusMd),
+                  boxShadow: kShadowCard,
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.my_location, color: kInk),
+                  onPressed: _initLocation,
+                ),
               ),
             ),
           ],
@@ -280,27 +275,39 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       left: 0,
       right: 0,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 36),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          boxShadow: [
-            BoxShadow(color: Colors.black12, blurRadius: 16),
-          ],
+        padding: const EdgeInsets.fromLTRB(kSpace4, kSpace5, kSpace4, kSpace8),
+        decoration: BoxDecoration(
+          color: kSurface,
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(kRadiusXl),
+          ),
+          boxShadow: kShadowPop,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
+            const ExcludeSemantics(
+              child: SizedBox(
+                width: 40,
+                height: 4,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: kLineStrong,
+                    borderRadius: BorderRadius.all(Radius.circular(kRadiusFull)),
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 20),
-            if (driverProvider.hasActiveOrder)
+            const SizedBox(height: kSpace5),
+            // Uch holat: yuklanmoqda → skeleton, faol buyurtma → karta,
+            // bo'sh → onlayn toggle bloki.
+            if (_locationLoading)
+              const AppSkeletonList(
+                itemCount: 2,
+                hasTrailing: true,
+                padding: EdgeInsets.zero,
+              )
+            else if (driverProvider.hasActiveOrder)
               _buildActiveOrderCard(driverProvider)
                   .animate()
                   .fadeIn(duration: 400.ms)
@@ -330,62 +337,65 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
               Text(
                 'Ishlashni boshlash',
                 style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                  fontSize: kFontH2,
+                  fontWeight: FontWeight.w800,
+                  color: kInk,
                 ),
               ),
-              SizedBox(height: 4),
+              SizedBox(height: kSpace1),
               Text(
                 'Online holatga o\'ting va buyurtmalar qabul qiling',
-                style: TextStyle(color: kTextSecondary, fontSize: 13),
+                style: TextStyle(color: kInkMuted, fontSize: kFontLabel),
                 textAlign: TextAlign.center,
               ),
             ],
           ),
-        const SizedBox(height: 20),
+        const SizedBox(height: kSpace5),
         _buildEarningsRow(driverProvider),
-        const SizedBox(height: 20),
-        GestureDetector(
-          onTap: isLoading
-              ? null
-              : (isOnline ? driverProvider.goOffline : driverProvider.goOnline),
-          child: Container(
-            width: double.infinity,
-            height: 58,
-            decoration: BoxDecoration(
-              gradient: isOnline
-                  ? null
-                  : const LinearGradient(colors: [kPrimary, kPrimaryDark]),
-              color: isOnline ? kInk : null,
-              borderRadius: BorderRadius.circular(kRadiusMd),
-              boxShadow: isOnline
-                  ? null
-                  : [
-                      BoxShadow(
-                        color: kPrimary.withValues(alpha: 0.4),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6),
+        const SizedBox(height: kSpace5),
+        Semantics(
+          button: true,
+          toggled: isOnline,
+          enabled: !isLoading,
+          label: isOnline ? "Offline bo'lish" : "Online bo'lish",
+          value: isOnline ? 'Online' : 'Offline',
+          excludeSemantics: true,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: isLoading
+                ? null
+                : (isOnline
+                    ? driverProvider.goOffline
+                    : driverProvider.goOnline),
+            child: Container(
+              width: double.infinity,
+              height: kControlHeight,
+              decoration: BoxDecoration(
+                // Faol toggle = to'q yashil CTA gradienti (oq matn 5.38:1).
+                gradient: isOnline ? null : kGradientCta,
+                color: isOnline ? kInk : null,
+                borderRadius: BorderRadius.circular(kRadiusMd),
+                boxShadow: isOnline ? kShadowInk : kShadowCta,
+              ),
+              alignment: Alignment.center,
+              child: isLoading
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        valueColor: AlwaysStoppedAnimation<Color>(kOnPrimary),
                       ),
-                    ],
+                    )
+                  : Text(
+                      isOnline ? "Offline bo'lish" : "Online bo'lish",
+                      style: const TextStyle(
+                        fontSize: kFontTitle,
+                        fontWeight: FontWeight.w700,
+                        color: kOnPrimary,
+                      ),
+                    ),
             ),
-            alignment: Alignment.center,
-            child: isLoading
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : Text(
-                    isOnline ? "Offline bo'lish" : "Online bo'lish",
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                    ),
-                  ),
           ),
         ),
       ],
@@ -403,29 +413,37 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
               child: child,
             );
           },
-          child: Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              color: kPrimaryYellow.withAlpha(30),
-              shape: BoxShape.circle,
-              border: Border.all(color: kPrimaryYellow, width: 2),
+          child: const ExcludeSemantics(
+            child: SizedBox(
+              width: 72,
+              height: 72,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: kMintTint,
+                  shape: BoxShape.circle,
+                  border: Border.fromBorderSide(
+                    BorderSide(color: kPrimary, width: 2),
+                  ),
+                ),
+                child: Icon(Icons.wifi, color: kPrimary, size: 32),
+              ),
             ),
-            child: const Icon(Icons.wifi, color: kPrimaryYellow, size: 32),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: kSpace3),
         const Text(
           'Buyurtma kutilmoqda...',
           style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+            fontSize: kFontTitle,
+            fontWeight: FontWeight.w700,
+            color: kInk,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: kSpace1),
         const Text(
+          // Yorug' fondagi ma'noli yashil matn — kPrimary (mint 2.12:1).
           'Siz online holatdasiz',
-          style: TextStyle(color: kSuccess, fontSize: 13),
+          style: TextStyle(color: kPrimary, fontSize: kFontLabel),
         ),
       ],
     );
@@ -441,14 +459,22 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
             value: Formatters.formatPriceCompact(driverProvider.todayEarnings),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: kSpace3),
         Expanded(
-          child: GestureDetector(
-            onTap: () => Navigator.of(context).pushNamed('/driver/earnings'),
-            child: const _EarningChip(
-              icon: Icons.history,
-              label: 'Tarix',
-              value: "Ko'rish",
+          child: Semantics(
+            button: true,
+            label: "Tarix, ko'rish",
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => Navigator.of(context).pushNamed('/driver/earnings'),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: kMinTapTarget),
+                child: const _EarningChip(
+                  icon: Icons.history,
+                  label: 'Tarix',
+                  value: "Ko'rish",
+                ),
+              ),
             ),
           ),
         ),
@@ -461,10 +487,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(kSpace4),
           decoration: BoxDecoration(
-            color: kSurfaceGrey,
-            borderRadius: BorderRadius.circular(14),
+            color: kSurface2,
+            borderRadius: BorderRadius.circular(kRadiusMd),
           ),
           child: Column(
             children: [
@@ -474,61 +500,59 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   const Text(
                     'Faol buyurtma',
                     style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      fontSize: kFontBodyLg,
+                      color: kInk,
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: kPrimaryYellow.withAlpha(40),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      order.status.label,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: kSecondaryBlack,
-                      ),
-                    ),
+                  // Ikonka + matn + rang — holat faqat rangda qolmaydi.
+                  AppStatusBadge(
+                    label: order.status.label,
+                    tone: AppStatusTone.info,
+                    dense: true,
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: kSpace3),
               _buildOrderRouteRow(
                 Icons.radio_button_checked,
-                Colors.green,
+                kPrimary,
                 order.pickup.address,
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: kSpace1 + 2),
               _buildOrderRouteRow(
                 Icons.location_on,
                 kError,
                 order.dropoff.address,
               ),
-              const Divider(height: 16),
+              const Divider(height: kSpace4),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     Formatters.formatPrice(order.estimatedPrice),
                     style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      fontSize: kFontTitle,
+                      color: kInk,
                     ),
                   ),
                   ElevatedButton(
                     onPressed: () => _navigateToActiveOrder(driverProvider),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: kSecondaryBlack,
-                      foregroundColor: Colors.white,
+                      backgroundColor: kInk,
+                      foregroundColor: kOnPrimary,
+                      minimumSize: const Size(0, kControlHeightSm),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
+                        horizontal: kSpace4,
+                        vertical: kSpace3,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(kRadiusMd),
+                      ),
+                      textStyle: const TextStyle(
+                        fontSize: kFontTitle,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     child: const Text('Ko\'rish'),
@@ -545,14 +569,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
   Widget _buildOrderRouteRow(IconData icon, Color color, String text) {
     return Row(
       children: [
-        Icon(icon, color: color, size: 16),
-        const SizedBox(width: 8),
+        ExcludeSemantics(child: Icon(icon, color: color, size: 16)),
+        const SizedBox(width: kSpace2),
         Expanded(
           child: Text(
             text,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 13),
+            style: const TextStyle(fontSize: kFontLabel, color: kInk),
           ),
         ),
       ],
@@ -584,7 +608,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(kRadiusXl)),
       ),
       builder: (ctx) => SafeArea(
         child: Column(
@@ -592,8 +616,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
           children: [
             ListTile(
               leading: const CircleAvatar(
-                backgroundColor: kSurfaceGrey,
-                child: Icon(Icons.person, color: kTextPrimary),
+                backgroundColor: kSurface2,
+                child: Icon(Icons.person, color: kInk),
               ),
               title: Text(auth.currentUser?.displayName ?? 'Haydovchi'),
               subtitle: Text(auth.currentUser?.phone ?? ''),
@@ -617,13 +641,13 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
             ),
             ListTile(
               leading: const Icon(Icons.logout, color: kError),
-              title: const Text('Chiqish', style: TextStyle(color: kError)),
+              title: const Text('Chiqish', style: TextStyle(color: kErrorDeep)),
               onTap: () {
                 Navigator.of(ctx).pop();
                 auth.logout();
               },
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: kSpace2),
           ],
         ),
       ),
@@ -645,30 +669,31 @@ class _EarningChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(kSpace3),
       decoration: BoxDecoration(
-        color: kSurfaceGrey,
-        borderRadius: BorderRadius.circular(12),
+        color: kSurface2,
+        borderRadius: BorderRadius.circular(kRadiusSm),
       ),
       child: Row(
         children: [
-          Icon(icon, color: kPrimaryYellow, size: 20),
-          const SizedBox(width: 8),
+          ExcludeSemantics(child: Icon(icon, color: kPrimary, size: 20)),
+          const SizedBox(width: kSpace2),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 label,
                 style: const TextStyle(
-                  color: kTextSecondary,
-                  fontSize: 11,
+                  color: kInkMuted,
+                  fontSize: kFontMicro,
                 ),
               ),
               Text(
                 value,
                 style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  fontSize: kFontLabel,
+                  color: kInk,
                 ),
               ),
             ],

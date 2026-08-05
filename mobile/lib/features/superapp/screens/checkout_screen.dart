@@ -69,19 +69,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final choice = await showModalBottomSheet<CheckoutPaymentMethod>(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(kRadiusXl)),
       ),
       builder: (sheetContext) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Padding(
-              padding: EdgeInsets.fromLTRB(20, 18, 20, 6),
+              padding: EdgeInsets.fromLTRB(kSpace5, kSpace4, kSpace5, kSpace2),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
                   "To'lov usulini tanlang",
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: kFontTitle,
+                    color: agText,
+                  ),
                 ),
               ),
             ),
@@ -99,7 +103,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               secondary: const Icon(Icons.credit_card_rounded),
               onChanged: (v) => Navigator.pop(sheetContext, v),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: kSpace2),
           ],
         ),
       ),
@@ -240,20 +244,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           AgHeader(title: 'Rasmiylashtirish', onBack: () => Navigator.of(context).pop()),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              padding: const EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, kSpace6),
               children: [
                 _OptionCard(
                   iconBg: agTint,
-                  iconColor: agGreen,
+                  iconColor: agGreenText,
                   icon: Icons.location_on_rounded,
                   title: 'Yetkazib berish manzili',
                   subtitle: _address,
                   onTap: _editAddress,
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: kSpace4),
                 _OptionCard(
-                  iconBg: const Color(0xFFEFF6FF),
-                  iconColor: agBlue,
+                  iconBg: kInfoLight,
+                  iconColor: kInfoDeep,
                   icon: _paymentMethod == CheckoutPaymentMethod.card
                       ? Icons.credit_card_rounded
                       : Icons.payments_rounded,
@@ -263,28 +267,31 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       : 'Naqd pul',
                   onTap: _submitting ? null : _choosePaymentMethod,
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: kSpace4),
                 Container(
-                  padding: const EdgeInsets.all(15),
+                  padding: const EdgeInsets.all(kSpace4),
                   decoration: BoxDecoration(
                     color: agSurface,
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(kRadiusMd),
                     boxShadow: agCardShadow,
                   ),
                   child: Column(
                     children: [
                       _row('Mahsulotlar', Formatters.formatSom(provider.cartSubtotal)),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: kSpace3),
                       _row('Yetkazib berish', Formatters.formatSom(provider.deliveryFee)),
-                      const SizedBox(height: 12),
-                      const Divider(color: Color(0xFFDCE2E6), height: 1),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: kSpace3),
+                      const Divider(color: agBorder, height: 1),
+                      const SizedBox(height: kSpace3),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Jami', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: agText)),
+                          const Text('Jami',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w800, fontSize: kFontTitle, color: agText)),
                           Text(Formatters.formatSom(provider.cartTotal),
-                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: agText)),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w800, fontSize: kFontTitle, color: agText)),
                         ],
                       ),
                     ],
@@ -294,7 +301,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ),
           ),
           Padding(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(context).padding.bottom + 18),
+            padding: EdgeInsets.fromLTRB(
+                kSpace4, 0, kSpace4, MediaQuery.of(context).padding.bottom + kSpace4),
             child: AgPrimaryButton(
               label: _submitting ? 'Yuborilmoqda...' : 'Buyurtmani tasdiqlash',
               onPressed: (_submitting || provider.isCartEmpty) ? null : _submit,
@@ -308,8 +316,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   static Widget _row(String label, String value) => Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 13.5, color: agSubtle, fontWeight: FontWeight.w600)),
-          Text(value, style: const TextStyle(fontSize: 13.5, color: agText, fontWeight: FontWeight.w700)),
+          Text(label,
+              style: const TextStyle(
+                  fontSize: kFontLabel, color: agSubtle, fontWeight: FontWeight.w600)),
+          Text(value,
+              style: const TextStyle(
+                  fontSize: kFontLabel, color: agText, fontWeight: FontWeight.w700)),
         ],
       );
 }
@@ -333,36 +345,53 @@ class _OptionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(15),
-        decoration: BoxDecoration(
-          color: agSurface,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: agCardShadow,
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(13)),
-              child: Icon(icon, color: iconColor, size: 24),
-            ),
-            const SizedBox(width: 13),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: agText)),
-                  const SizedBox(height: 2),
-                  Text(subtitle, style: const TextStyle(fontSize: 12.5, color: agSubtle, fontWeight: FontWeight.w500)),
-                ],
+    return Semantics(
+      button: onTap != null,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: kMinTapTarget),
+          padding: const EdgeInsets.all(kSpace4),
+          decoration: BoxDecoration(
+            color: agSurface,
+            borderRadius: BorderRadius.circular(kRadiusMd),
+            boxShadow: agCardShadow,
+          ),
+          child: Row(
+            children: [
+              ExcludeSemantics(
+                child: Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: iconBg,
+                    borderRadius: BorderRadius.circular(kRadiusSm),
+                  ),
+                  child: Icon(icon, color: iconColor, size: 24),
+                ),
               ),
-            ),
-            if (onTap != null) const Icon(Icons.chevron_right_rounded, color: agMuted, size: 20),
-          ],
+              const SizedBox(width: kSpace3),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: kFontBody, color: agText)),
+                    const SizedBox(height: 2),
+                    Text(subtitle,
+                        style: const TextStyle(
+                            fontSize: kFontCaption, color: agSubtle, fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ),
+              if (onTap != null)
+                const ExcludeSemantics(
+                  child: Icon(Icons.chevron_right_rounded, color: agMuted, size: 20),
+                ),
+            ],
+          ),
         ),
       ),
     );

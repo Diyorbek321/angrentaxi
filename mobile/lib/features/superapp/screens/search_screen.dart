@@ -4,6 +4,10 @@ import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/market_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
+import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
+import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
+import 'package:angren_taxi/shared/widgets/app_status_badge.dart';
+import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -57,30 +61,38 @@ class _SearchScreenState extends State<SearchScreen> {
     final loading = food.state == FoodProviderState.loading ||
         market.state == MarketProviderState.loading;
     final empty = restaurants.isEmpty && products.isEmpty;
+    final failed = food.state == FoodProviderState.error &&
+        market.state == MarketProviderState.error;
 
     return Scaffold(
       backgroundColor: agBg,
       body: Column(
         children: [
           Container(
-            padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 12, 16, 14),
+            padding: EdgeInsets.fromLTRB(
+                kSpace4, MediaQuery.of(context).padding.top + kSpace3, kSpace4, kSpace4),
             decoration: BoxDecoration(
               color: agSurface,
-              boxShadow: [BoxShadow(color: agInk.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 6))],
+              boxShadow: agCardShadow,
             ),
             child: Row(
               children: [
-                AgIconButton(icon: Icons.arrow_back_rounded, onTap: () => Navigator.of(context).pop()),
-                const SizedBox(width: 10),
+                AgIconButton(icon: Icons.arrow_back_rounded, onTap: () => Navigator.of(context).pop(), semanticsLabel: 'Orqaga'),
+                const SizedBox(width: kSpace3),
                 Expanded(
                   child: Container(
-                    height: 46,
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    decoration: BoxDecoration(color: agBg, borderRadius: BorderRadius.circular(13)),
+                    height: kControlHeightSm,
+                    padding: const EdgeInsets.symmetric(horizontal: kSpace4),
+                    decoration: BoxDecoration(
+                      color: agBg,
+                      borderRadius: BorderRadius.circular(kRadiusMd),
+                    ),
                     child: Row(
                       children: [
-                        const Icon(Icons.search_rounded, size: 21, color: agGreen),
-                        const SizedBox(width: 9),
+                        const ExcludeSemantics(
+                          child: Icon(Icons.search_rounded, size: 21, color: agGreenText),
+                        ),
+                        const SizedBox(width: kSpace2),
                         Expanded(
                           child: TextField(
                             controller: _controller,
@@ -90,18 +102,34 @@ class _SearchScreenState extends State<SearchScreen> {
                               isCollapsed: true,
                               border: InputBorder.none,
                               hintText: 'taom, doʻkon, mahsulot…',
-                              hintStyle: TextStyle(color: agMuted, fontWeight: FontWeight.w600, fontSize: 14.5),
+                              hintStyle: TextStyle(
+                                  color: agSubtle,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: kFontBody),
                             ),
-                            style: const TextStyle(color: agText, fontWeight: FontWeight.w700, fontSize: 14.5),
+                            style: const TextStyle(
+                                color: agText, fontWeight: FontWeight.w700, fontSize: kFontBody),
                           ),
                         ),
                         if (_query.isNotEmpty)
-                          GestureDetector(
-                            onTap: () {
-                              _controller.clear();
-                              setState(() => _query = '');
-                            },
-                            child: const Icon(Icons.close_rounded, size: 19, color: agMuted),
+                          Semantics(
+                            button: true,
+                            label: 'Qidiruvni tozalash',
+                            excludeSemantics: true,
+                            child: GestureDetector(
+                              onTap: () {
+                                _controller.clear();
+                                setState(() => _query = '');
+                              },
+                              behavior: HitTestBehavior.opaque,
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  minWidth: kMinTapTarget,
+                                  minHeight: kMinTapTarget,
+                                ),
+                                child: const Icon(Icons.close_rounded, size: 19, color: agSubtle),
+                              ),
+                            ),
                           ),
                       ],
                     ),
@@ -112,66 +140,76 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
           Expanded(
             child: loading && empty
-                ? const Center(child: CircularProgressIndicator(color: agGreen))
-                : empty
-                    ? const Center(
-                        child: Text(
-                          'Hech narsa topilmadi',
-                          style: TextStyle(color: agSubtle, fontWeight: FontWeight.w600),
-                        ),
+                ? const AppSkeletonList(itemCount: 5, hasTrailing: true)
+                : (failed && empty)
+                    ? AppErrorState(
+                        message: food.error ?? market.error ?? 'Xatolik yuz berdi',
+                        onRetry: () {
+                          context.read<FoodProvider>().loadRestaurants();
+                          context.read<MarketProvider>().loadStore();
+                        },
                       )
-                    : ListView(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                        children: [
-                          if (restaurants.isNotEmpty) ...[
-                            _sectionLabel('RESTORANLAR'),
-                            for (final r in restaurants) ...[
-                              _ResultRow(
-                                color: agGreen,
-                                icon: Icons.restaurant_rounded,
-                                title: r.name,
-                                sub: r.address ?? (r.isOpen ? 'Ochiq' : 'Yopiq'),
-                                trailing: Text(
-                                  r.isOpen ? 'Ochiq' : 'Yopiq',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 12.5,
-                                    color: r.isOpen ? agGreen : agMuted,
+                    : empty
+                        ? const AppEmptyState(
+                            icon: Icons.search_off_rounded,
+                            title: 'Hech narsa topilmadi',
+                            message: 'Boshqa nom bilan qidirib ko\'ring.',
+                          )
+                        : ListView(
+                            padding: const EdgeInsets.fromLTRB(
+                                kSpace4, kSpace4, kSpace4, kSpace6),
+                            children: [
+                              if (restaurants.isNotEmpty) ...[
+                                _sectionLabel('RESTORANLAR'),
+                                for (final r in restaurants) ...[
+                                  _ResultRow(
+                                    color: agPrimary,
+                                    icon: Icons.restaurant_rounded,
+                                    title: r.name,
+                                    sub: r.address ?? (r.isOpen ? 'Ochiq' : 'Yopiq'),
+                                    trailing: AppStatusBadge(
+                                      label: r.isOpen ? 'Ochiq' : 'Yopiq',
+                                      tone: r.isOpen
+                                          ? AppStatusTone.success
+                                          : AppStatusTone.neutral,
+                                      dense: true,
+                                    ),
+                                    onTap: () => Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) => RestaurantDetailScreen(restaurantId: r.id),
+                                      ),
+                                    ),
                                   ),
-                                ),
-                                onTap: () => Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => RestaurantDetailScreen(restaurantId: r.id),
+                                  const SizedBox(height: kSpace3),
+                                ],
+                                const SizedBox(height: kSpace3),
+                              ],
+                              if (products.isNotEmpty) ...[
+                                _sectionLabel('MAHSULOTLAR'),
+                                for (final p in products) ...[
+                                  _ResultRow(
+                                    color: p.color,
+                                    icon: p.icon,
+                                    title: p.name,
+                                    sub: 'Market · ${p.unit}',
+                                    trailing: Text(
+                                      Formatters.formatSom(p.price),
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: kFontLabel,
+                                          color: agText),
+                                    ),
+                                    onTap: () => Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) => ProductDetailScreen(marketProduct: p),
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
-                              const SizedBox(height: 11),
+                                  const SizedBox(height: kSpace3),
+                                ],
+                              ],
                             ],
-                            const SizedBox(height: 12),
-                          ],
-                          if (products.isNotEmpty) ...[
-                            _sectionLabel('MAHSULOTLAR'),
-                            for (final p in products) ...[
-                              _ResultRow(
-                                color: p.color,
-                                icon: p.icon,
-                                title: p.name,
-                                sub: 'Market · ${p.unit}',
-                                trailing: Text(
-                                  Formatters.formatSom(p.price),
-                                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: agText),
-                                ),
-                                onTap: () => Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => ProductDetailScreen(marketProduct: p),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 11),
-                            ],
-                          ],
-                        ],
-                      ),
+                          ),
           ),
         ],
       ),
@@ -179,8 +217,13 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _sectionLabel(String text) => Padding(
-        padding: const EdgeInsets.fromLTRB(2, 0, 2, 10),
-        child: Text(text, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 1, color: agMuted)),
+        padding: const EdgeInsets.fromLTRB(2, 0, 2, kSpace3),
+        child: Text(text,
+            style: const TextStyle(
+                fontSize: kFontCaption,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1,
+                color: agSubtle)),
       );
 }
 
@@ -195,35 +238,50 @@ class _ResultRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: agSurface,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: agCardShadow,
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(13)),
-              child: Icon(icon, size: 25, color: Colors.white.withValues(alpha: 0.95)),
-            ),
-            const SizedBox(width: 13),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: agText)),
-                  Text(sub, style: const TextStyle(fontSize: 12, color: agSubtle, fontWeight: FontWeight.w600)),
-                ],
+    return Semantics(
+      button: true,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: kMinTapTarget),
+          padding: const EdgeInsets.all(kSpace3),
+          decoration: BoxDecoration(
+            color: agSurface,
+            borderRadius: BorderRadius.circular(kRadiusMd),
+            boxShadow: agCardShadow,
+          ),
+          child: Row(
+            children: [
+              ExcludeSemantics(
+                child: Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(kRadiusSm),
+                  ),
+                  child: Icon(icon, size: 25, color: agOnPrimary.withValues(alpha: 0.95)),
+                ),
               ),
-            ),
-            trailing,
-          ],
+              const SizedBox(width: kSpace3),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w800, fontSize: kFontBody, color: agText)),
+                    Text(sub,
+                        style: const TextStyle(
+                            fontSize: kFontCaption, color: agSubtle, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: kSpace2),
+              trailing,
+            ],
+          ),
         ),
       ),
     );

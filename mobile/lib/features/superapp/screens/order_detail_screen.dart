@@ -22,11 +22,11 @@ class OrderDetailScreen extends StatelessWidget {
             title: order.title,
             subtitle: '${order.kind} · ${order.sub}',
             onBack: () => Navigator.of(context).pop(),
-            trailing: const AgIconButton(icon: Icons.ios_share_rounded, onTap: _noop, color: agSubtle),
+            trailing: const AgIconButton(icon: Icons.ios_share_rounded, onTap: _noop, color: agSubtle, semanticsLabel: 'Ulashish'),
           ),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              padding: const EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, kSpace6),
               children: [
                 _card(
                   child: Row(
@@ -34,46 +34,51 @@ class OrderDetailScreen extends StatelessWidget {
                       Container(
                         width: 48,
                         height: 48,
-                        decoration: BoxDecoration(color: agTint, borderRadius: BorderRadius.circular(14)),
-                        child: const Icon(Icons.check_circle_rounded, color: agGreen, size: 25),
+                        decoration: BoxDecoration(color: agTint, borderRadius: BorderRadius.circular(kRadiusMd)),
+                        child: const ExcludeSemantics(
+                          child: Icon(Icons.check_circle_rounded, color: agGreenText, size: 25),
+                        ),
                       ),
-                      const SizedBox(width: 13),
+                      const SizedBox(width: kSpace3),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(order.status, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: agText)),
+                            Text(order.status, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: kFontTitle, color: agText)),
                             const Text('Buyurtma muvaffaqiyatli bajarildi',
-                                style: TextStyle(fontSize: 12.5, color: agSubtle, fontWeight: FontWeight.w600)),
+                                style: TextStyle(fontSize: kFontCaption, color: agSubtle, fontWeight: FontWeight.w600)),
                           ],
                         ),
                       ),
+                      const SizedBox(width: kSpace2),
                       Text(Formatters.formatSom(order.amount),
-                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: agText)),
+                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: kFontH2, color: agText)),
                     ],
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: kSpace4),
                 _card(
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Column(
-                        children: [
-                          const SizedBox(height: 4),
-                          Container(width: 11, height: 11, decoration: const BoxDecoration(color: agGreen, shape: BoxShape.circle)),
-                          Expanded(child: Container(width: 2, color: agBorder, margin: const EdgeInsets.symmetric(vertical: 4))),
-                          Container(width: 11, height: 11, decoration: BoxDecoration(color: agRed, borderRadius: BorderRadius.circular(3))),
-                          const SizedBox(height: 4),
-                        ],
+                      ExcludeSemantics(
+                        child: Column(
+                          children: [
+                            const SizedBox(height: kSpace1),
+                            Container(width: 11, height: 11, decoration: const BoxDecoration(color: kMintDeep, shape: BoxShape.circle)),
+                            Expanded(child: Container(width: 2, color: agBorder, margin: const EdgeInsets.symmetric(vertical: kSpace1))),
+                            Container(width: 11, height: 11, decoration: BoxDecoration(color: agRed, borderRadius: BorderRadius.circular(kRadiusXs))),
+                            const SizedBox(height: kSpace1),
+                          ],
+                        ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: kSpace3),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _addr('QAYERDAN', order.from),
-                            const Divider(color: agDivider, height: 24),
+                            const Divider(color: agDivider, height: kSpace6),
                             _addr('QAYERGA', order.to),
                           ],
                         ),
@@ -82,7 +87,7 @@ class OrderDetailScreen extends StatelessWidget {
                   ),
                 ),
                 if (_isTaxi) ...[
-                  const SizedBox(height: 14),
+                  const SizedBox(height: kSpace4),
                   _card(
                     child: Row(
                       children: [
@@ -91,93 +96,105 @@ class OrderDetailScreen extends StatelessWidget {
                           height: 48,
                           alignment: Alignment.center,
                           decoration: const BoxDecoration(
-                            gradient: LinearGradient(colors: [agBright, agGreen]),
+                            gradient: agMintGradient,
                             shape: BoxShape.circle,
                           ),
-                          child: const Text('B', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18)),
+                          child: const Text('B', style: TextStyle(color: agOnMint, fontWeight: FontWeight.w800, fontSize: kFontH2)),
                         ),
-                        const SizedBox(width: 13),
+                        const SizedBox(width: kSpace3),
                         const Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Bobur A.', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: agText)),
+                              Text('Bobur A.', style: TextStyle(fontWeight: FontWeight.w800, fontSize: kFontBody, color: agText)),
                               Row(
                                 children: [
-                                  Icon(Icons.star_rounded, size: 14, color: agOrange),
-                                  SizedBox(width: 4),
+                                  ExcludeSemantics(
+                                    child: Icon(Icons.star_rounded, size: 14, color: agOrange),
+                                  ),
+                                  SizedBox(width: kSpace1),
                                   Text('4.9 · Cobalt · 01 A 777 BB',
-                                      style: TextStyle(fontSize: 12, color: agSubtle, fontWeight: FontWeight.w600)),
+                                      style: TextStyle(fontSize: kFontCaption, color: agSubtle, fontWeight: FontWeight.w600)),
                                 ],
                               ),
                             ],
                           ),
                         ),
-                        const AgIconButton(icon: Icons.call_rounded, onTap: _noop, color: agSubtle),
+                        const AgIconButton(icon: Icons.call_rounded, onTap: _noop, color: agSubtle, semanticsLabel: "Qo'ng'iroq qilish"),
                       ],
                     ),
                   ),
                 ],
-                const SizedBox(height: 14),
+                const SizedBox(height: kSpace4),
                 _card(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text("To'lov tafsiloti", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: agText)),
-                      const SizedBox(height: 14),
+                      const Text("To'lov tafsiloti", style: TextStyle(fontWeight: FontWeight.w800, fontSize: kFontBody, color: agText)),
+                      const SizedBox(height: kSpace4),
                       _payRow('Asosiy summa', Formatters.formatSom(base)),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: kSpace3),
                       _payRow(_isTaxi ? 'Xizmat haqi' : 'Yetkazib berish', Formatters.formatSom(fee)),
-                      const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Divider(color: Color(0xFFDCE2E6), height: 1)),
+                      const Padding(padding: EdgeInsets.symmetric(vertical: kSpace3), child: Divider(color: agBorder, height: 1)),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Jami', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: agText)),
+                          const Text('Jami', style: TextStyle(fontWeight: FontWeight.w800, fontSize: kFontTitle, color: agText)),
                           Text(Formatters.formatSom(order.amount),
-                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: agText)),
+                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: kFontTitle, color: agText)),
                         ],
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: kSpace4),
                 Row(
                   children: [
                     Expanded(
                       child: Container(
-                        height: 52,
+                        height: kControlHeight,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           color: agSurface,
-                          borderRadius: BorderRadius.circular(15),
-                          border: Border.all(color: const Color(0xFFE7ECEF)),
+                          borderRadius: BorderRadius.circular(kRadiusMd),
+                          border: Border.all(color: agBorder),
                         ),
                         child: const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(Icons.help_outline_rounded, size: 20, color: agSubtle),
-                            SizedBox(width: 8),
-                            Text('Yordam', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: agText)),
+                            SizedBox(width: kSpace2),
+                            Text('Yordam', style: TextStyle(fontWeight: FontWeight.w800, fontSize: kFontBody, color: agText)),
                           ],
                         ),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: kSpace3),
                     Expanded(
                       flex: 14,
-                      child: GestureDetector(
-                        onTap: () => Navigator.of(context).pop(),
-                        child: Container(
-                          height: 52,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(gradient: agCta, borderRadius: BorderRadius.circular(15)),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.replay_rounded, size: 20, color: Colors.white),
-                              SizedBox(width: 8),
-                              Text('Takrorlash', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: Colors.white)),
-                            ],
+                      child: Semantics(
+                        button: true,
+                        label: 'Takrorlash',
+                        excludeSemantics: true,
+                        child: GestureDetector(
+                          onTap: () => Navigator.of(context).pop(),
+                          behavior: HitTestBehavior.opaque,
+                          child: Container(
+                            height: kControlHeight,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              gradient: agCta,
+                              borderRadius: BorderRadius.circular(kRadiusMd),
+                              boxShadow: agCtaShadow,
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.replay_rounded, size: 20, color: agOnPrimary),
+                                SizedBox(width: kSpace2),
+                                Text('Takrorlash', style: TextStyle(fontWeight: FontWeight.w800, fontSize: kFontBody, color: agOnPrimary)),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -195,10 +212,10 @@ class OrderDetailScreen extends StatelessWidget {
   static void _noop() {}
 
   Widget _card({required Widget child}) => Container(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(kSpace4),
         decoration: BoxDecoration(
           color: agSurface,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(kRadiusLg),
           boxShadow: agCardShadow,
         ),
         child: child,
@@ -207,17 +224,17 @@ class OrderDetailScreen extends StatelessWidget {
   Widget _addr(String label, String value) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 11, color: agMuted, fontWeight: FontWeight.w700)),
+          Text(label, style: const TextStyle(fontSize: kFontMicro, color: agSubtle, fontWeight: FontWeight.w700)),
           const SizedBox(height: 2),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: agText)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: kFontBody, color: agText)),
         ],
       );
 
   Widget _payRow(String label, String value) => Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 13.5, color: agSubtle, fontWeight: FontWeight.w600)),
-          Text(value, style: const TextStyle(fontSize: 13.5, color: agText, fontWeight: FontWeight.w700)),
+          Text(label, style: const TextStyle(fontSize: kFontLabel, color: agSubtle, fontWeight: FontWeight.w600)),
+          Text(value, style: const TextStyle(fontSize: kFontLabel, color: agText, fontWeight: FontWeight.w700)),
         ],
       );
 }

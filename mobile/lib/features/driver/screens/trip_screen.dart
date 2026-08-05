@@ -122,16 +122,25 @@ class _TripScreenState extends State<TripScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(kRadiusLg),
+        ),
         content: const Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.check_circle, color: kSuccess, size: 64),
-            SizedBox(height: 16),
+            // Yorug' fonda ma'noli yashil — kPrimary (mint 2.12:1).
+            ExcludeSemantics(
+              child: Icon(Icons.check_circle, color: kPrimary, size: 64),
+            ),
+            SizedBox(height: kSpace4),
             Text(
               'Safar muvaffaqiyatli yakunlandi!',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: kFontTitle,
+                fontWeight: FontWeight.w800,
+                color: kInk,
+              ),
             ),
           ],
         ),
@@ -206,8 +215,9 @@ class _TripScreenState extends State<TripScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
+            // Oq snackbar matni mint fonda 2.12:1 edi — kPrimary 5.38:1.
             content: Text('Dispetcherlarga xabar yuborildi'),
-            backgroundColor: kPrimaryYellow,
+            backgroundColor: kPrimary,
           ),
         );
       }
@@ -224,11 +234,16 @@ class _TripScreenState extends State<TripScreen> {
     showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(kRadiusXl)),
       ),
       builder: (sheetContext) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+          padding: const EdgeInsets.fromLTRB(
+            kSpace4,
+            kSpace5,
+            kSpace4,
+            kSpace6,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -236,28 +251,29 @@ class _TripScreenState extends State<TripScreen> {
               const Text(
                 'Favqulodda yordam',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: kFontH2,
                   fontWeight: FontWeight.w800,
-                  color: kTextPrimary,
+                  color: kInk,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: kSpace1 + 2),
               const Text(
                 "Xavfsizligingiz biz uchun muhim. Kerak bo'lsa, quyidagi "
                 'tugmalardan birini bosing.',
-                style: TextStyle(color: kTextSecondary, fontSize: 13),
+                style: TextStyle(color: kInkMuted, fontSize: kFontLabel),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: kSpace5),
               AppButton(
                 label: 'Favqulodda chaqiruv (102/103)',
-                backgroundColor: kError,
-                foregroundColor: Colors.white,
+                // kError + oq matn 3.91:1 (AA emas) → kErrorDeep 6.47:1.
+                backgroundColor: kErrorDeep,
+                foregroundColor: kOnPrimary,
                 onPressed: () {
                   Navigator.of(sheetContext).pop();
                   _callEmergency();
                 },
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: kSpace3),
               AppButton(
                 label: 'Dispetcherlarga xabar berish',
                 onPressed: () {
@@ -314,15 +330,13 @@ class _TripScreenState extends State<TripScreen> {
               height: 48,
               child: Container(
                 decoration: BoxDecoration(
-                  color: kPrimaryYellow,
+                  // Mint to'ldirish + ink ikona (7.84:1).
+                  color: kMint,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black26, blurRadius: 6),
-                  ],
+                  border: Border.all(color: kSurface, width: 3),
+                  boxShadow: kShadowCard,
                 ),
-                child:
-                    const Icon(Icons.local_taxi, color: Colors.black, size: 24),
+                child: const Icon(Icons.local_taxi, color: kOnMint, size: 24),
               ),
             ),
             Marker(
@@ -340,48 +354,60 @@ class _TripScreenState extends State<TripScreen> {
   Widget _buildTopBar(Order order) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(kSpace4),
         child: Row(
           children: [
             Expanded(
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: kSpace4,
+                  vertical: kSpace3,
+                ),
                 decoration: BoxDecoration(
-                  color: kPrimaryYellow,
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black12, blurRadius: 8),
-                  ],
+                  // Mint TO'LDIRISH — ustidagi matn/ikona kOnMint (7.84:1),
+                  // hech qachon oq.
+                  color: kMint,
+                  borderRadius: BorderRadius.circular(kRadiusMd),
+                  boxShadow: kShadowCard,
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Row(
                       children: [
-                        Icon(Icons.local_taxi, color: Colors.black, size: 20),
-                        SizedBox(width: 6),
+                        ExcludeSemantics(
+                          child: Icon(
+                            Icons.local_taxi,
+                            color: kOnMint,
+                            size: 20,
+                          ),
+                        ),
+                        SizedBox(width: kSpace1 + 2),
                         Text(
                           'Safar davom etmoqda',
                           style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            fontSize: kFontBody,
+                            color: kOnMint,
                           ),
                         ),
                       ],
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
+                        horizontal: kSpace3,
+                        vertical: kSpace1,
+                      ),
                       decoration: BoxDecoration(
-                        color: Colors.black.withAlpha(20),
-                        borderRadius: BorderRadius.circular(8),
+                        color: kOnMint.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(kRadiusXs),
                       ),
                       child: Text(
                         _tripTimeText,
                         style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          fontSize: kFontBody,
+                          color: kOnMint,
                           fontFeatures: [FontFeature.tabularFigures()],
                         ),
                       ),
@@ -390,7 +416,7 @@ class _TripScreenState extends State<TripScreen> {
                 ),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: kSpace3),
             _buildSosButton(order),
           ],
         ),
@@ -402,23 +428,29 @@ class _TripScreenState extends State<TripScreen> {
   /// [_showSosSheet] with emergency-call and dispatcher-alert options.
   /// Mirrors PassengerHomeScreen._buildSosButton for UI consistency.
   Widget _buildSosButton(Order order) {
-    return GestureDetector(
-      onTap: () => _showSosSheet(order),
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: kError,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: kError.withValues(alpha: 0.4),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+    return Semantics(
+      button: true,
+      label: 'SOS — favqulodda yordam',
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _showSosSheet(order),
+        child: Container(
+          width: kMinTapTarget,
+          height: kMinTapTarget,
+          decoration: BoxDecoration(
+            color: kError,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: kError.withValues(alpha: 0.4),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: const Icon(Icons.sos_rounded, color: kOnPrimary, size: 22),
         ),
-        child: const Icon(Icons.sos_rounded, color: Colors.white, size: 22),
       ),
     );
   }
@@ -429,39 +461,42 @@ class _TripScreenState extends State<TripScreen> {
       left: 0,
       right: 0,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          boxShadow: [
-            BoxShadow(color: Colors.black12, blurRadius: 16),
-          ],
+        padding: const EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, kSpace8),
+        decoration: BoxDecoration(
+          color: kSurface,
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(kRadiusXl),
+          ),
+          boxShadow: kShadowPop,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
+            const ExcludeSemantics(
+              child: SizedBox(
+                width: 40,
+                height: 4,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: kLineStrong,
+                    borderRadius: BorderRadius.all(Radius.circular(kRadiusFull)),
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: kSpace4),
             _buildPassengerInfo(order),
-            const SizedBox(height: 16),
+            const SizedBox(height: kSpace4),
             _buildDestinationCard(order),
-            const SizedBox(height: 16),
+            const SizedBox(height: kSpace4),
             _buildPriceRow(order),
-            const SizedBox(height: 16),
+            const SizedBox(height: kSpace4),
             AppButton(
               label: 'Safarni yakunlash',
               onPressed: () => _onCompleteTrip(order),
               isLoading: provider.state == DriverProviderState.loading,
-              backgroundColor: kSuccess,
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.check, color: Colors.white),
+              // Oldin kSuccess (mint) + oq matn = 2.12:1 edi.
+              icon: const Icon(Icons.check, color: kOnPrimary),
             ),
           ],
         ),
@@ -474,50 +509,60 @@ class _TripScreenState extends State<TripScreen> {
         ? order.passengerName!
         : "Yo'lovchi";
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(kSpace4),
       decoration: BoxDecoration(
-        color: kSurfaceGrey,
-        borderRadius: BorderRadius.circular(12),
+        color: kSurface2,
+        borderRadius: BorderRadius.circular(kRadiusMd),
       ),
       child: Row(
         children: [
-          const CircleAvatar(
-            radius: 20,
-            backgroundColor: Colors.white,
-            child: Icon(Icons.person_rounded, color: kTextSecondary),
+          const ExcludeSemantics(
+            child: CircleAvatar(
+              radius: 20,
+              backgroundColor: kSurface,
+              child: Icon(Icons.person_rounded, color: kInkMuted),
+            ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: kSpace3),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
                   "Yo'lovchi",
-                  style: TextStyle(color: kTextSecondary, fontSize: 11),
+                  style: TextStyle(color: kInkMuted, fontSize: kFontMicro),
                 ),
                 Text(
                   passengerName,
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                    fontSize: kFontBody,
+                    color: kInk,
                   ),
                 ),
               ],
             ),
           ),
           // Chat button — opens in-trip messaging with the passenger.
-          GestureDetector(
-            onTap: () => _openChat(order),
-            child: Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade300),
+          Semantics(
+            button: true,
+            label: "Yo'lovchi bilan yozishish",
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _openChat(order),
+              child: Container(
+                width: kMinTapTarget,
+                height: kMinTapTarget,
+                decoration: BoxDecoration(
+                  color: kSurface,
+                  borderRadius: BorderRadius.circular(kRadiusMd),
+                  border: Border.all(color: kLineStrong),
+                ),
+                child: const Icon(
+                  Icons.chat_bubble_outline_rounded,
+                  color: kInk,
+                ),
               ),
-              child: const Icon(Icons.chat_bubble_outline_rounded,
-                  color: kTextPrimary),
             ),
           ),
         ],
@@ -527,28 +572,31 @@ class _TripScreenState extends State<TripScreen> {
 
   Widget _buildDestinationCard(Order order) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(kSpace4),
       decoration: BoxDecoration(
-        color: kSurfaceGrey,
-        borderRadius: BorderRadius.circular(12),
+        color: kSurface2,
+        borderRadius: BorderRadius.circular(kRadiusMd),
       ),
       child: Row(
         children: [
-          const Icon(Icons.location_on, color: kError, size: 24),
-          const SizedBox(width: 12),
+          const ExcludeSemantics(
+            child: Icon(Icons.location_on, color: kError, size: 24),
+          ),
+          const SizedBox(width: kSpace3),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
                   'Manzil',
-                  style: TextStyle(color: kTextSecondary, fontSize: 11),
+                  style: TextStyle(color: kInkMuted, fontSize: kFontMicro),
                 ),
                 Text(
                   order.dropoff.address,
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                    fontSize: kFontBody,
+                    color: kInk,
                   ),
                   maxLines: 2,
                 ),
@@ -566,14 +614,15 @@ class _TripScreenState extends State<TripScreen> {
       children: [
         const Text(
           'Taxminiy daromad:',
-          style: TextStyle(color: kTextSecondary),
+          style: TextStyle(color: kInkMuted, fontSize: kFontBody),
         ),
         Text(
           Formatters.formatPrice(order.estimatedPrice),
           style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-            color: kPrimaryYellow,
+            fontWeight: FontWeight.w800,
+            fontSize: kFontH2,
+            // Oq fonda mint matn 2.12:1 edi → kPrimary 5.38:1.
+            color: kPrimary,
           ),
         ),
       ],

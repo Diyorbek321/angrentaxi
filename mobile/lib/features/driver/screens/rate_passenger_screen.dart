@@ -107,77 +107,96 @@ class _RatePassengerScreenState extends State<RatePassengerScreen>
             : '?';
 
     return Scaffold(
-      backgroundColor: kBackgroundWhite,
+      backgroundColor: kBackground,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+          padding: const EdgeInsets.fromLTRB(kSpace4, kSpace8, kSpace4, kSpace6),
           child: Column(
             children: [
               // Avatar
               Container(
                 width: 80,
                 height: 80,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
+                decoration: const BoxDecoration(
+                  color: kSurface2,
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
                 child: Text(
                   avatarLetter.toUpperCase(),
                   style: const TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                    color: kTextSecondary,
+                    fontSize: kFontDisplay,
+                    fontWeight: FontWeight.w800,
+                    color: kInkMuted,
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: kSpace4),
               Text(
                 widget.passengerPhone,
                 style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: kTextPrimary,
+                  fontSize: kFontH2,
+                  fontWeight: FontWeight.w800,
+                  color: kInk,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: kSpace1 + 2),
               const Text(
                 'Yo\'lovchi qanday edi?',
-                style: TextStyle(fontSize: 15, color: kTextSecondary),
+                style: TextStyle(fontSize: kFontBodyLg, color: kInkMuted),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: kSpace8),
 
               // Star selector
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(5, (i) {
                   final filled = i < _selectedScore;
-                  return GestureDetector(
-                    onTap: () => _onStarTapped(i),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      child: ScaleTransition(
-                        scale: _starScales[i],
-                        child: Icon(
-                          filled ? Icons.star_rounded : Icons.star_outline_rounded,
-                          color: filled ? kPrimaryYellow : Colors.grey.shade300,
-                          size: 40,
+                  return Semantics(
+                    button: true,
+                    selected: filled,
+                    label: '${i + 1} yulduz',
+                    excludeSemantics: true,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _onStarTapped(i),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          minHeight: kMinTapTarget,
+                          minWidth: kMinTapTarget,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: kSpace1 + 2,
+                            vertical: kSpace1,
+                          ),
+                          child: ScaleTransition(
+                            scale: _starScales[i],
+                            child: Icon(
+                              filled
+                                  ? Icons.star_rounded
+                                  : Icons.star_outline_rounded,
+                              // Yorug' fonda ma'noli yashil = kPrimary.
+                              color: filled ? kPrimary : kInkSubtle,
+                              size: 40,
+                            ),
+                          ),
                         ),
                       ),
                     ),
                   );
                 }),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: kSpace2),
               Text(
                 _ratingLabel(_selectedScore),
                 style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: kTextSecondary,
+                  fontSize: kFontLabel,
+                  fontWeight: FontWeight.w600,
+                  color: kInkMuted,
                 ),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: kSpace8),
 
               // Comment field
               TextField(
@@ -186,19 +205,20 @@ class _RatePassengerScreenState extends State<RatePassengerScreen>
                 maxLines: 3,
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: kSurfaceGrey,
+                  fillColor: kSurface2,
                   hintText: "Yo'lovchi haqida izoh...",
-                  hintStyle: const TextStyle(color: kTextSecondary),
+                  hintStyle: const TextStyle(color: kInkMuted),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(kRadiusMd),
                     borderSide: BorderSide.none,
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: kPrimaryYellow, width: 2),
+                    borderRadius: BorderRadius.circular(kRadiusMd),
+                    // Fokus halqasi — kPrimary (mint 2.12:1, ko'rinmas).
+                    borderSide: const BorderSide(color: kFocusRing, width: 2),
                   ),
-                  contentPadding: const EdgeInsets.all(14),
-                  counterStyle: const TextStyle(color: kTextSecondary),
+                  contentPadding: const EdgeInsets.all(kSpace4),
+                  counterStyle: const TextStyle(color: kInkMuted),
                 ),
               ),
               const Spacer(),
@@ -209,16 +229,24 @@ class _RatePassengerScreenState extends State<RatePassengerScreen>
                 onPressed: _submit,
                 isLoading: _isLoading,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: kSpace3),
 
               // Skip button
-              TextButton(
-                onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-                child: const Text(
-                  "O'tkazib yuborish",
-                  style: TextStyle(
-                    color: kTextSecondary,
-                    fontSize: 15,
+              ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minHeight: kMinTapTarget,
+                  minWidth: kMinTapTarget,
+                ),
+                child: TextButton(
+                  onPressed:
+                      _isLoading ? null : () => Navigator.of(context).pop(),
+                  child: const Text(
+                    "O'tkazib yuborish",
+                    style: TextStyle(
+                      color: kInkMuted,
+                      fontSize: kFontBodyLg,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),

@@ -88,35 +88,39 @@ class _OtpScreenState extends State<OtpScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tasdiqlash'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
+        leading: Semantics(
+          button: true,
+          label: 'Orqaga',
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
         ),
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(kSpace4),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 24),
+              const SizedBox(height: kSpace6),
               _buildHeader()
                   .animate()
                   .fadeIn(duration: 450.ms)
                   .slideY(begin: -0.2, curve: Curves.easeOutCubic),
-              const SizedBox(height: 40),
+              const SizedBox(height: kSpace10),
               _buildOtpField()
                   .animate()
                   .fadeIn(delay: 150.ms, duration: 450.ms)
                   .slideY(begin: 0.2, curve: Curves.easeOutCubic),
-              const SizedBox(height: 12),
+              const SizedBox(height: kSpace3),
               _buildResendRow().animate().fadeIn(delay: 300.ms),
-              const SizedBox(height: 24),
+              const SizedBox(height: kSpace6),
               Consumer<AuthProvider>(
                 builder: (context, auth, _) {
                   if (auth.state == AuthState.error && auth.error != null) {
                     return Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.only(bottom: kSpace4),
                       child: InlineErrorWidget(message: auth.error!),
                     );
                   }
@@ -150,21 +154,21 @@ class _OtpScreenState extends State<OtpScreen> {
         const Text(
           'SMS kod kiriting',
           style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: kTextPrimary,
+            fontSize: kFontH1,
+            fontWeight: FontWeight.w800,
+            color: kInk,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: kSpace2),
         RichText(
           text: TextSpan(
-            style: const TextStyle(fontSize: 15, color: kTextSecondary),
+            style: const TextStyle(fontSize: kFontBodyLg, color: kInkMuted),
             children: [
               const TextSpan(text: 'Kod '),
               TextSpan(
                 text: Formatters.formatPhone(phone),
                 style: const TextStyle(
-                  color: kTextPrimary,
+                  color: kInk,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -185,15 +189,17 @@ class _OtpScreenState extends State<OtpScreen> {
       animationType: AnimationType.fade,
       pinTheme: PinTheme(
         shape: PinCodeFieldShape.box,
-        borderRadius: BorderRadius.circular(10),
-        fieldHeight: 52,
-        fieldWidth: 48,
-        activeFillColor: kBackgroundWhite,
-        selectedFillColor: kPrimaryYellow.withAlpha(30),
-        inactiveFillColor: kSurfaceGrey,
-        activeColor: kPrimaryYellow,
-        selectedColor: kPrimaryYellow,
-        inactiveColor: kSurfaceGrey,
+        borderRadius: BorderRadius.circular(kRadiusSm),
+        fieldHeight: kControlHeight,
+        fieldWidth: kMinTapTarget,
+        activeFillColor: kSurface,
+        // Tanlangan katak — kPrimary chegara (yorug' fonda 5.38:1),
+        // mint chegara oq ustida atigi 2.12:1 berardi.
+        selectedFillColor: kMintTint,
+        inactiveFillColor: kSurface2,
+        activeColor: kPrimary,
+        selectedColor: kPrimary,
+        inactiveColor: kSurface2,
       ),
       enableActiveFill: true,
       onChanged: (value) {
@@ -210,13 +216,21 @@ class _OtpScreenState extends State<OtpScreen> {
     if (_canResend) {
       return Consumer<AuthProvider>(
         builder: (context, auth, _) {
-          return TextButton(
-            onPressed: auth.state != AuthState.loading ? _onResend : null,
-            child: const Text(
-              'Kodni qayta yuborish',
-              style: TextStyle(
-                color: kSecondaryBlack,
-                fontWeight: FontWeight.w600,
+          return ConstrainedBox(
+            constraints: const BoxConstraints(
+              minHeight: kMinTapTarget,
+              minWidth: kMinTapTarget,
+            ),
+            child: TextButton(
+              onPressed: auth.state != AuthState.loading ? _onResend : null,
+              child: const Text(
+                'Kodni qayta yuborish',
+                style: TextStyle(
+                  // Yorug' fondagi link — kPrimary (5.38:1).
+                  color: kPrimary,
+                  fontSize: kFontBodyLg,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           );
@@ -226,7 +240,7 @@ class _OtpScreenState extends State<OtpScreen> {
 
     return Text(
       'Qayta yuborish: $_secondsLeft s',
-      style: const TextStyle(color: kTextSecondary, fontSize: 14),
+      style: const TextStyle(color: kInkMuted, fontSize: kFontBody),
     );
   }
 }

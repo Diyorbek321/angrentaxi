@@ -41,31 +41,31 @@ class _PhoneScreenState extends State<PhoneScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBackgroundWhite,
+      backgroundColor: kBackground,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(kSpace4),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 48),
+                const SizedBox(height: kSpace10),
                 _buildHeader()
                     .animate()
                     .fadeIn(duration: 450.ms)
                     .slideY(begin: -0.2, curve: Curves.easeOutCubic),
-                const SizedBox(height: 40),
+                const SizedBox(height: kSpace10),
                 _buildPhoneField()
                     .animate()
                     .fadeIn(delay: 150.ms, duration: 450.ms)
                     .slideY(begin: 0.2, curve: Curves.easeOutCubic),
-                const SizedBox(height: 16),
+                const SizedBox(height: kSpace4),
                 Consumer<AuthProvider>(
                   builder: (context, auth, _) {
                     if (auth.state == AuthState.error && auth.error != null) {
                       return Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.only(bottom: kSpace4),
                         child: InlineErrorWidget(message: auth.error!),
                       );
                     }
@@ -81,7 +81,7 @@ class _PhoneScreenState extends State<PhoneScreen> {
                     );
                   },
                 ).animate().fadeIn(delay: 300.ms, duration: 450.ms).slideY(begin: 0.3),
-                const SizedBox(height: 24),
+                const SizedBox(height: kSpace6),
                 _buildTermsText().animate().fadeIn(delay: 450.ms),
               ],
             ),
@@ -92,31 +92,36 @@ class _PhoneScreenState extends State<PhoneScreen> {
   }
 
   Widget _buildHeader() {
-    return Column(
+    return const Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 64,
-          height: 64,
-          decoration: BoxDecoration(
-            color: kPrimaryYellow,
-            borderRadius: BorderRadius.circular(16),
+        // Dekorativ brend belgisi — matn uni takrorlaydi.
+        ExcludeSemantics(
+          child: SizedBox(
+            width: 64,
+            height: 64,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: kPrimary,
+                borderRadius: BorderRadius.all(Radius.circular(kRadiusMd)),
+              ),
+              child: Icon(Icons.bolt_rounded, size: 36, color: kOnPrimary),
+            ),
           ),
-          child: const Icon(Icons.bolt_rounded, size: 36, color: Colors.white),
         ),
-        const SizedBox(height: 24),
-        const Text(
+        SizedBox(height: kSpace6),
+        Text(
           'Angren Taxi',
           style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: kTextPrimary,
+            fontSize: kFontDisplay,
+            fontWeight: FontWeight.w800,
+            color: kInk,
           ),
         ),
-        const SizedBox(height: 8),
-        const Text(
+        SizedBox(height: kSpace2),
+        Text(
           'Telefon raqamingizni kiriting',
-          style: TextStyle(fontSize: 16, color: kTextSecondary),
+          style: TextStyle(fontSize: kFontBodyLg, color: kInkMuted),
         ),
       ],
     );
@@ -129,12 +134,12 @@ class _PhoneScreenState extends State<PhoneScreen> {
         const Text(
           'Telefon raqam',
           style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: kTextPrimary,
+            fontSize: kFontBody,
+            fontWeight: FontWeight.w600,
+            color: kInk,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: kSpace2),
         TextFormField(
           controller: _phoneController,
           keyboardType: TextInputType.phone,
@@ -146,10 +151,10 @@ class _PhoneScreenState extends State<PhoneScreen> {
           ],
           validator: Validators.validatePhone,
           onFieldSubmitted: (_) => _onContinue(),
-          style: const TextStyle(fontSize: 18, letterSpacing: 1),
+          style: const TextStyle(fontSize: kFontH2, letterSpacing: 1),
           decoration: const InputDecoration(
             hintText: '+998XXXXXXXXX',
-            prefixIcon: Icon(Icons.phone_outlined, color: kTextSecondary),
+            prefixIcon: Icon(Icons.phone_outlined, color: kInkMuted),
           ),
         ),
       ],
@@ -161,8 +166,8 @@ class _PhoneScreenState extends State<PhoneScreen> {
       'Davom etish orqali siz foydalanish shartlari va '
       'maxfiylik siyosatiga rozilik bildirasiz.',
       style: TextStyle(
-        fontSize: 12,
-        color: kTextSecondary,
+        fontSize: kFontCaption,
+        color: kInkMuted,
         height: 1.5,
       ),
       textAlign: TextAlign.center,

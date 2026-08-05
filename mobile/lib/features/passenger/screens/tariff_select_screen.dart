@@ -8,8 +8,9 @@ import 'package:angren_taxi/features/payments/screens/payment_webview_screen.dar
 import 'package:angren_taxi/shared/models/payment_initiate_result.dart';
 import 'package:angren_taxi/shared/models/tariff.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
+import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
+import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
 import 'package:angren_taxi/shared/widgets/error_widget.dart';
-import 'package:angren_taxi/shared/widgets/loading_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -17,7 +18,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 /// Yandex Go-style tariff screen: route map on top, horizontal tariff cards
-/// and a full-width mint order button in a bottom sheet.
+/// and a full-width primary order button in a bottom sheet.
 class TariffSelectScreen extends StatefulWidget {
   const TariffSelectScreen({
     super.key,
@@ -203,9 +204,10 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
               // Floating back button
               SafeArea(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(kSpace4),
                   child: _CircleButton(
                     icon: Icons.arrow_back_rounded,
+                    semanticsLabel: 'Orqaga',
                     onTap: () => Navigator.of(context).pop(),
                   ),
                 ),
@@ -254,9 +256,11 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
           urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
           userAgentPackageName: 'uz.angren.taxi',
         ),
+        // ATAYLAB SAQLANADI: marshrut polilinesi minti — sof dekorativ
+        // brend aksenti, ma'no matn orqali beriladi.
         PolylineLayer(
           polylines: [
-            Polyline(points: routePoints, strokeWidth: 4, color: kPrimary),
+            Polyline(points: routePoints, strokeWidth: 4, color: kMint),
           ],
         ),
         MarkerLayer(
@@ -269,7 +273,7 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
                 decoration: BoxDecoration(
                   color: kPrimary,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3),
+                  border: Border.all(color: kSurface, width: 3),
                 ),
               ),
             ),
@@ -285,14 +289,14 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
                   decoration: BoxDecoration(
                     color: kInk,
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
+                    border: Border.all(color: kSurface, width: 2),
                   ),
                   alignment: Alignment.center,
                   child: Text(
                     '${entry.key + 2}',
                     style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
+                      color: kOnPrimary,
+                      fontSize: kFontMicro,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -311,67 +315,73 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
   }
 
   Widget _buildBottomPanel(OrderProvider provider) {
+    // Ro'yxat yuklanayotganda spinner emas, skeleton — kontent kelganda
+    // panel sakramaydi.
     if (provider.state == OrderProviderState.loading &&
         provider.tariffs.isEmpty) {
       return Container(
         height: 220,
+        padding: const EdgeInsets.only(top: kSpace5),
         decoration: const BoxDecoration(
           color: kSurface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(kRadiusXl)),
         ),
-        child: const LoadingWidget(message: 'Tariflar yuklanmoqda...'),
+        child: const AppSkeletonList(itemCount: 2, lines: 2, hasTrailing: true),
       );
     }
 
     final selected = provider.selectedTariff ??
         (provider.tariffs.isNotEmpty ? provider.tariffs.first : null);
     final price = provider.estimatedPrice;
+    final canOrder = selected != null &&
+        provider.state != OrderProviderState.loading &&
+        !_payingByCard;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+      padding: const EdgeInsets.fromLTRB(kSpace4, kSpace3, kSpace4, kSpace8),
       decoration: BoxDecoration(
         color: kSurface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        boxShadow: [
-          BoxShadow(
-            color: kInk.withValues(alpha: 0.12),
-            blurRadius: 24,
-            offset: const Offset(0, -6),
-          ),
-        ],
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(kRadiusXl),
+        ),
+        boxShadow: kShadowPop,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Center(
-            child: Container(
-              width: 44,
-              height: 5,
-              decoration: BoxDecoration(
-                color: kSurfaceGrey,
-                borderRadius: BorderRadius.circular(3),
+            child: ExcludeSemantics(
+              child: Container(
+                width: 44,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: kSurface2,
+                  borderRadius: BorderRadius.circular(kRadiusFull),
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: kSpace4),
           _buildRouteRow(provider),
-          const SizedBox(height: 16),
+          const SizedBox(height: kSpace4),
           // Horizontal tariff cards (Yandex signature). Tall enough to fit
           // the extra "Talab yuqori" surge label on surged tariffs without
           // overflowing.
           SizedBox(
-            height: 138,
+            // Bo'sh holat (ikonka + sarlavha) kartalardan bir oz balandroq.
+            height: provider.tariffs.isEmpty ? 152 : 138,
             child: provider.tariffs.isEmpty
-                ? const Center(
-                    child: Text('Tariflar mavjud emas',
-                        style: TextStyle(color: kTextSecondary)),
+                ? const AppEmptyState(
+                    icon: Icons.local_taxi_outlined,
+                    title: 'Tariflar mavjud emas',
+                    compact: true,
                   )
                 : ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: provider.tariffs.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 10),
+                    separatorBuilder: (_, __) => const SizedBox(width: kSpace3),
                     itemBuilder: (context, i) {
                       final t = provider.tariffs[i];
                       final isSel = selected?.id == t.id;
@@ -390,81 +400,78 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
                     },
                   ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: kSpace4),
           _buildPaymentRow(),
-          const SizedBox(height: 14),
+          const SizedBox(height: kSpace4),
           if (provider.state == OrderProviderState.error &&
               provider.error != null)
             Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.only(bottom: kSpace3),
               child: InlineErrorWidget(message: provider.error!),
             ),
-          // Order button (mint, full width)
-          GestureDetector(
-            onTap: (selected != null &&
-                    provider.state != OrderProviderState.loading &&
-                    !_payingByCard)
-                ? _onConfirmOrder
-                : null,
-            child: Container(
-              width: double.infinity,
-              height: 58,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [kPrimary, kPrimaryDark]),
-                borderRadius: BorderRadius.circular(kRadiusMd),
-                boxShadow: [
-                  BoxShadow(
-                    color: kPrimary.withValues(alpha: 0.4),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              alignment: Alignment.center,
-              child: provider.state == OrderProviderState.loading ||
-                      _payingByCard
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text(
-                          'Buyurtma',
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
+          // Asosiy CTA — to'q yashil gradient, ustida OQ matn (5.38:1).
+          Semantics(
+            button: true,
+            enabled: canOrder,
+            child: GestureDetector(
+              onTap: canOrder ? _onConfirmOrder : null,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                width: double.infinity,
+                height: kControlHeight,
+                decoration: BoxDecoration(
+                  gradient: kGradientCta,
+                  borderRadius: BorderRadius.circular(kRadiusMd),
+                  boxShadow: kShadowCta,
+                ),
+                alignment: Alignment.center,
+                child: provider.state == OrderProviderState.loading ||
+                        _payingByCard
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(kOnPrimary),
                         ),
-                        if (price != null) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            width: 5,
-                            height: 5,
-                            decoration: const BoxDecoration(
-                              color: Colors.white70,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            Formatters.formatPrice(price),
-                            style: const TextStyle(
-                              fontSize: 17,
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text(
+                            'Buyurtma',
+                            style: TextStyle(
+                              fontSize: kFontH3,
                               fontWeight: FontWeight.w800,
-                              color: Colors.white,
+                              color: kOnPrimary,
                             ),
                           ),
+                          if (price != null) ...[
+                            const SizedBox(width: kSpace2),
+                            ExcludeSemantics(
+                              child: Container(
+                                width: 5,
+                                height: 5,
+                                decoration: BoxDecoration(
+                                  color: kOnPrimary.withValues(alpha: 0.7),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: kSpace2),
+                            Text(
+                              Formatters.formatPrice(price),
+                              style: const TextStyle(
+                                fontSize: kFontH3,
+                                fontWeight: FontWeight.w800,
+                                color: kOnPrimary,
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
-                    ),
+                      ),
+              ),
             ),
           ),
         ],
@@ -476,26 +483,32 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
     final pickup = provider.pendingPickup?.address ?? 'Joylashuv';
     final dropoff = provider.pendingDropoff?.address ?? 'Manzil';
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding:
+          const EdgeInsets.symmetric(horizontal: kSpace4, vertical: kSpace3),
       decoration: BoxDecoration(
-        color: kSurfaceGrey,
+        color: kSurface2,
         borderRadius: BorderRadius.circular(kRadiusMd),
       ),
       child: Row(
         children: [
-          Column(
-            children: [
-              Container(
-                width: 10,
-                height: 10,
-                decoration: const BoxDecoration(
-                    color: kPrimary, shape: BoxShape.circle),
-              ),
-              Container(width: 2, height: 16, color: kTextSecondary),
-              const Icon(Icons.location_on, color: kInk, size: 14),
-            ],
+          // ATAYLAB SAQLANADI: boshlanish nuqtasi minti — dekorativ.
+          ExcludeSemantics(
+            child: Column(
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: const BoxDecoration(
+                    color: kMint,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                Container(width: 2, height: kSpace4, color: kLineStrong),
+                const Icon(Icons.location_on, color: kInk, size: 14),
+              ],
+            ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: kSpace3),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -504,13 +517,19 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
+                      fontSize: kFontLabel,
+                      fontWeight: FontWeight.w600,
+                      color: kInk,
+                    )),
+                const SizedBox(height: kSpace2),
                 Text(dropoff,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w600)),
+                      fontSize: kFontLabel,
+                      fontWeight: FontWeight.w600,
+                      color: kInk,
+                    )),
               ],
             ),
           ),
@@ -528,7 +547,7 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
           selected: _paymentMethod == 'cash',
           onTap: () => setState(() => _paymentMethod = 'cash'),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: kSpace3),
         _PaymentChip(
           icon: Icons.credit_card_rounded,
           label: 'Karta',
@@ -555,71 +574,87 @@ class _TariffCardH extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: tariff.isAvailable ? onTap : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        width: 112,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isSelected ? kPrimaryLight : kSurfaceGrey,
-          borderRadius: BorderRadius.circular(kRadiusMd),
-          border: Border.all(
-            color: isSelected ? kPrimary : Colors.transparent,
-            width: 2,
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      enabled: tariff.isAvailable,
+      child: GestureDetector(
+        onTap: tariff.isAvailable ? onTap : null,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          width: 112,
+          padding: const EdgeInsets.all(kSpace3),
+          decoration: BoxDecoration(
+            color: isSelected ? kMintTint : kSurface2,
+            borderRadius: BorderRadius.circular(kRadiusMd),
+            border: Border.all(
+              color: isSelected ? kPrimary : Colors.transparent,
+              width: 2,
+            ),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Icon(Icons.local_taxi_rounded,
-                    size: 30, color: isSelected ? kPrimaryDark : kInk),
-                if (tariff.surgeMultiplier > 1.0) _SurgeBadge(tariff.surgeMultiplier),
-              ],
-            ),
-            const Spacer(),
-            Text(
-              tariff.name,
-              style: const TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w700),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              price != null
-                  ? Formatters.formatPrice(price!)
-                  : '~${Formatters.formatPrice(tariff.minFare)}',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                color: isSelected ? kPrimaryDark : kTextPrimary,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // kMintTint yuza ustidagi ikona/matn — kPrimary.
+                  ExcludeSemantics(
+                    child: Icon(Icons.local_taxi_rounded,
+                        size: 26, color: isSelected ? kPrimary : kInk),
+                  ),
+                  // Surge badge MA'NO tashiydi (narx oshgani) — u hech qachon
+                  // qirqilmasligi kerak, shuning uchun ikona kichikroq.
+                  if (tariff.surgeMultiplier > 1.0)
+                    Flexible(child: _SurgeBadge(tariff.surgeMultiplier)),
+                ],
               ),
-            ),
-            if (tariff.surgeMultiplier > 1.0) ...[
-              const SizedBox(height: 2),
-              const Text(
-                'Talab yuqori',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: kWarning,
+              const Spacer(),
+              Text(
+                tariff.name,
+                style: const TextStyle(
+                  fontSize: kFontLabel,
+                  fontWeight: FontWeight.w700,
+                  color: kInk,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
+              const SizedBox(height: 2),
+              Text(
+                price != null
+                    ? Formatters.formatPrice(price!)
+                    : '~${Formatters.formatPrice(tariff.minFare)}',
+                style: TextStyle(
+                  fontSize: kFontLabel,
+                  fontWeight: FontWeight.w800,
+                  color: isSelected ? kPrimary : kInk,
+                ),
+              ),
+              if (tariff.surgeMultiplier > 1.0) ...[
+                const SizedBox(height: 2),
+                const Text(
+                  'Talab yuqori',
+                  style: TextStyle(
+                    fontSize: kFontMicro,
+                    fontWeight: FontWeight.w700,
+                    // Yorug' fondagi amber MATN — kWarningDeep (5.02:1).
+                    color: kWarningDeep,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// Small orange chip shown on a tariff card when demand-surge pricing is
+/// Small amber chip shown on a tariff card when demand-surge pricing is
 /// active (backend's `surgeMultiplier` on GET /tariffs is > 1.0), e.g. "x1.5".
 class _SurgeBadge extends StatelessWidget {
   const _SurgeBadge(this.surgeMultiplier);
@@ -634,15 +669,15 @@ class _SurgeBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: kWarning.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(8),
+        color: kWarningLight,
+        borderRadius: BorderRadius.circular(kRadiusXs),
       ),
       child: Text(
         label,
         style: const TextStyle(
-          fontSize: 10,
+          fontSize: kFontMicro,
           fontWeight: FontWeight.w800,
-          color: kWarning,
+          color: kWarningDeep,
         ),
       ),
     );
@@ -664,31 +699,46 @@ class _PaymentChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: selected ? kPrimaryLight : kSurfaceGrey,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: selected ? kPrimary : Colors.transparent,
-            width: 1.5,
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: kMinTapTarget,
+            minWidth: kMinTapTarget,
           ),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 18, color: selected ? kPrimaryDark : kTextSecondary),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: selected ? kPrimaryDark : kTextPrimary,
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: kSpace4, vertical: kSpace3),
+            decoration: BoxDecoration(
+              color: selected ? kMintTint : kSurface2,
+              borderRadius: BorderRadius.circular(kRadiusSm),
+              border: Border.all(
+                color: selected ? kPrimary : Colors.transparent,
+                width: 1.5,
               ),
             ),
-          ],
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 18, color: selected ? kPrimary : kInkMuted),
+                const SizedBox(width: kSpace2),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: kFontLabel,
+                    fontWeight: FontWeight.w600,
+                    color: selected ? kPrimary : kInk,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -701,13 +751,12 @@ class _RouteLoadingPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding:
+          const EdgeInsets.symmetric(horizontal: kSpace4, vertical: kSpace2),
       decoration: BoxDecoration(
         color: kSurface,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(color: kInk.withValues(alpha: 0.12), blurRadius: 12),
-        ],
+        borderRadius: BorderRadius.circular(kRadiusFull),
+        boxShadow: kShadowPop,
       ),
       child: const Row(
         mainAxisSize: MainAxisSize.min,
@@ -717,10 +766,14 @@ class _RouteLoadingPill extends StatelessWidget {
             height: 14,
             child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary),
           ),
-          SizedBox(width: 8),
+          SizedBox(width: kSpace2),
           Text(
             "Yo'nalish yuklanmoqda...",
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontSize: kFontCaption,
+              fontWeight: FontWeight.w600,
+              color: kInk,
+            ),
           ),
         ],
       ),
@@ -728,26 +781,44 @@ class _RouteLoadingPill extends StatelessWidget {
   }
 }
 
+/// Xarita ustidagi dumaloq ikona-tugma — 48x48 tegish maydoni va matnli
+/// yorliq bilan.
 class _CircleButton extends StatelessWidget {
-  const _CircleButton({required this.icon, required this.onTap});
+  const _CircleButton({
+    required this.icon,
+    required this.onTap,
+    required this.semanticsLabel,
+  });
+
   final IconData icon;
   final VoidCallback onTap;
+  final String semanticsLabel;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 46,
-        height: 46,
-        decoration: BoxDecoration(
-          color: kSurface,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(color: kInk.withValues(alpha: 0.12), blurRadius: 12),
-          ],
+    return Semantics(
+      button: true,
+      label: semanticsLabel,
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: kMinTapTarget,
+            minWidth: kMinTapTarget,
+          ),
+          child: Container(
+            width: kMinTapTarget,
+            height: kMinTapTarget,
+            decoration: BoxDecoration(
+              color: kSurface,
+              shape: BoxShape.circle,
+              boxShadow: kShadowPop,
+            ),
+            child: Icon(icon, color: kInk),
+          ),
         ),
-        child: Icon(icon, color: kInk),
       ),
     );
   }

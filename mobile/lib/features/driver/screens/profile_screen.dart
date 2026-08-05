@@ -34,57 +34,72 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
           final user = authProvider.currentUser;
 
           return SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(kSpace4),
             child: Column(
               children: [
                 _buildAvatar(driver?.name ?? user?.displayName ?? 'Haydovchi'),
-                const SizedBox(height: 16),
+                const SizedBox(height: kSpace4),
                 Text(
                   driver?.name ?? user?.displayName ?? 'Haydovchi',
                   style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
+                    fontSize: kFontH1,
+                    fontWeight: FontWeight.w800,
+                    color: kInk,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: kSpace1),
                 Text(
                   Formatters.formatPhone(user?.phone ?? ''),
-                  style: const TextStyle(color: kTextSecondary),
+                  style: const TextStyle(
+                    color: kInkMuted,
+                    fontSize: kFontBody,
+                  ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: kSpace1),
                 if (driver != null)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.star, color: kPrimaryYellow, size: 18),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${Formatters.formatRating(driver.rating)} reyting',
-                        style: const TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                    ],
+                  Semantics(
+                    label:
+                        '${Formatters.formatRating(driver.rating)} yulduz reyting',
+                    excludeSemantics: true,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Yorug' fonda ma'noli belgi — kPrimary (mint 2.12:1).
+                        const Icon(Icons.star, color: kPrimary, size: 18),
+                        const SizedBox(width: kSpace1),
+                        Text(
+                          '${Formatters.formatRating(driver.rating)} reyting',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: kFontBody,
+                            color: kInk,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 if (driverProvider.ratingStats.count > 0) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: kSpace4),
                   _buildRatingBreakdown(driverProvider.ratingStats),
                 ],
-                const SizedBox(height: 24),
+                const SizedBox(height: kSpace6),
                 if (driver != null)
                   _buildCarInfo(
                       driver.carModel, driver.carColor, driver.carNumber),
-                const SizedBox(height: 24),
+                const SizedBox(height: kSpace6),
                 _buildStatsRow(
                   driver?.totalTrips ?? 0,
                   driverProvider.todayEarnings,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: kSpace6),
                 _buildMenuList(context),
-                const SizedBox(height: 24),
+                const SizedBox(height: kSpace6),
                 AppButton(
                   label: 'Chiqish',
                   onPressed: () => _confirmLogout(context, authProvider),
-                  backgroundColor: kError,
-                  foregroundColor: Colors.white,
+                  // kError + oq matn 3.91:1 → kErrorDeep 6.47:1.
+                  backgroundColor: kErrorDeep,
+                  foregroundColor: kOnPrimary,
                 ),
               ],
             ),
@@ -102,10 +117,10 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
     return Container(
       key: const ValueKey('rating_breakdown'),
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(kSpace4),
       decoration: BoxDecoration(
-        color: kSurfaceGrey,
-        borderRadius: BorderRadius.circular(14),
+        color: kSurface2,
+        borderRadius: BorderRadius.circular(kRadiusMd),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -113,12 +128,12 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
           Text(
             '${stats.count} ta baholash',
             style: const TextStyle(
-              color: kTextSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
+              color: kInkMuted,
+              fontSize: kFontCaption,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: kSpace3),
           for (var star = 5; star >= 1; star--)
             _RatingBarRow(
               star: star,
@@ -140,24 +155,30 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
       children: [
         CircleAvatar(
           radius: 48,
-          backgroundColor: kSecondaryBlack,
+          backgroundColor: kInk,
           child: Text(
             initials.toUpperCase(),
             style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: kPrimaryYellow,
+              fontSize: kFontDisplay,
+              fontWeight: FontWeight.w800,
+              // Mint qorong'i yuzada ishlaydi (kInk ustida yuqori kontrast).
+              color: kMint,
             ),
           ),
         ),
-        Container(
-          width: 20,
-          height: 20,
-          decoration: const BoxDecoration(
-            color: kSuccess,
-            shape: BoxShape.circle,
-            border: Border.fromBorderSide(
-              BorderSide(color: Colors.white, width: 2),
+        // Onlayn indikatori — yorug' fonda ko'rinishi shart, kMintDeep.
+        const ExcludeSemantics(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: kMintDeep,
+                shape: BoxShape.circle,
+                border: Border.fromBorderSide(
+                  BorderSide(color: kSurface, width: 2),
+                ),
+              ),
             ),
           ),
         ),
@@ -167,30 +188,33 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
 
   Widget _buildCarInfo(String model, String color, String number) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(kSpace4),
       decoration: BoxDecoration(
-        color: kSurfaceGrey,
-        borderRadius: BorderRadius.circular(14),
+        color: kSurface2,
+        borderRadius: BorderRadius.circular(kRadiusMd),
       ),
       child: Row(
         children: [
-          const Icon(Icons.directions_car, color: kPrimaryYellow, size: 32),
-          const SizedBox(width: 12),
+          const ExcludeSemantics(
+            child: Icon(Icons.directions_car, color: kPrimary, size: 32),
+          ),
+          const SizedBox(width: kSpace3),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 '$color $model',
                 style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  fontSize: kFontBodyLg,
+                  color: kInk,
                 ),
               ),
               Text(
                 number,
                 style: const TextStyle(
-                  color: kTextSecondary,
-                  fontSize: 13,
+                  color: kInkMuted,
+                  fontSize: kFontLabel,
                   letterSpacing: 1,
                 ),
               ),
@@ -211,7 +235,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
             icon: Icons.route,
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: kSpace3),
         Expanded(
           child: _StatCard(
             value: Formatters.formatPriceCompact(todayEarnings),
@@ -258,16 +282,19 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: kSurfaceGrey,
-          borderRadius: BorderRadius.circular(10),
+          color: kSurface2,
+          borderRadius: BorderRadius.circular(kRadiusSm),
         ),
-        child: Icon(icon, color: kTextPrimary, size: 20),
+        child: Icon(icon, color: kInk, size: 20),
       ),
-      title: Text(title),
+      title: Text(
+        title,
+        style: const TextStyle(fontSize: kFontBody, color: kInk),
+      ),
       trailing: const Icon(
         Icons.arrow_forward_ios,
         size: 16,
-        color: kTextSecondary,
+        color: kInkMuted,
       ),
       onTap: onTap,
     );
@@ -289,7 +316,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
               Navigator.of(ctx).pop();
               auth.logout();
             },
-            child: const Text('Chiqish', style: TextStyle(color: kError)),
+            child: const Text('Chiqish', style: TextStyle(color: kErrorDeep)),
           ),
         ],
       ),
@@ -311,25 +338,26 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(kSpace4),
       decoration: BoxDecoration(
-        color: kSurfaceGrey,
-        borderRadius: BorderRadius.circular(14),
+        color: kSurface2,
+        borderRadius: BorderRadius.circular(kRadiusMd),
       ),
       child: Column(
         children: [
-          Icon(icon, color: kPrimaryYellow, size: 28),
-          const SizedBox(height: 8),
+          ExcludeSemantics(child: Icon(icon, color: kPrimary, size: 28)),
+          const SizedBox(height: kSpace2),
           Text(
             value,
             style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+              fontSize: kFontH2,
+              fontWeight: FontWeight.w800,
+              color: kInk,
             ),
           ),
           Text(
             label,
-            style: const TextStyle(color: kTextSecondary, fontSize: 11),
+            style: const TextStyle(color: kInkMuted, fontSize: kFontMicro),
             textAlign: TextAlign.center,
           ),
         ],
@@ -358,34 +386,48 @@ class _RatingBarRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         children: [
-          SizedBox(
-            width: 20,
-            child: Text(
-              '$star',
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+          Semantics(
+            label: '$star yulduz',
+            excludeSemantics: true,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 20,
+                  child: Text(
+                    '$star',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: kFontCaption,
+                      color: kInk,
+                    ),
+                  ),
+                ),
+                const Icon(Icons.star, color: kPrimary, size: 12),
+              ],
             ),
           ),
-          const Icon(Icons.star, color: kPrimaryYellow, size: 12),
-          const SizedBox(width: 8),
+          const SizedBox(width: kSpace2),
           Expanded(
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(kRadiusXs),
               child: LinearProgressIndicator(
                 value: fraction,
                 minHeight: 8,
-                backgroundColor: Colors.white,
-                valueColor: const AlwaysStoppedAnimation<Color>(kPrimaryYellow),
+                backgroundColor: kSurface,
+                // Progress = interaktiv qatlam → kPrimary.
+                valueColor: const AlwaysStoppedAnimation<Color>(kPrimary),
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: kSpace2),
           SizedBox(
             width: 24,
             child: Text(
               '$count',
               key: ValueKey('rating_bar_count_$star'),
               textAlign: TextAlign.end,
-              style: const TextStyle(color: kTextSecondary, fontSize: 12),
+              style: const TextStyle(color: kInkMuted, fontSize: kFontCaption),
             ),
           ),
         ],
