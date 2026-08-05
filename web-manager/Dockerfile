@@ -17,5 +17,11 @@ ENV PORT=3002
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
+# Replaces the server.js the standalone build generates. Ours boots the same Next
+# server but also hooks the HTTP `upgrade` event, which is how the socket.io
+# handshake is proxied with the httpOnly session cookie instead of a token handed
+# to page scripts. File tracing does not know about these files, hence the copy.
+COPY --from=builder /app/server.js ./server.js
+COPY --from=builder /app/server ./server
 EXPOSE 3002
 CMD ["node", "server.js"]

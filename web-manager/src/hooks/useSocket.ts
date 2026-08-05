@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Socket } from 'socket.io-client';
-import { ensureSocket, disconnectSocket, SOCKET_EVENTS } from '@/lib/socket';
+import { getSocket, disconnectSocket, SOCKET_EVENTS } from '@/lib/socket';
 
 export type SocketStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 
@@ -17,47 +17,31 @@ export function useSocket(): UseSocketReturn {
   const [status, setStatus] = useState<SocketStatus>('disconnected');
   const socketRef = useRef<Socket | null>(null);
 
-  // Connecting is asynchronous now: the handshake token has to be fetched from
-  // our own /api/auth/socket-token, because it is no longer readable from JS.
-  // The returned teardown therefore has to cope with unmounting mid-fetch.
+  // Connecting is synchronous: the handshake carries the session cookie to our
+  // own origin, so there is no token to fetch before the socket can be opened.
   const connect = useCallback(() => {
-    let cancelled = false;
-    let detach = () => {};
-
     setStatus('connecting');
 
-    ensureSocket().then((sock) => {
-      if (cancelled) return;
-      if (!sock) {
-        setStatus('error');
-        return;
-      }
+    const sock = getSocket();
+    socketRef.current = sock;
 
-      socketRef.current = sock;
+    const onConnect = () => setStatus('connected');
+    const onDisconnect = () => setStatus('disconnected');
+    const onConnectError = () => setStatus('error');
 
-      const onConnect = () => setStatus('connected');
-      const onDisconnect = () => setStatus('disconnected');
-      const onConnectError = () => setStatus('error');
+    sock.on(SOCKET_EVENTS.CONNECT, onConnect);
+    sock.on(SOCKET_EVENTS.DISCONNECT, onDisconnect);
+    sock.on(SOCKET_EVENTS.CONNECT_ERROR, onConnectError);
 
-      sock.on(SOCKET_EVENTS.CONNECT, onConnect);
-      sock.on(SOCKET_EVENTS.DISCONNECT, onDisconnect);
-      sock.on(SOCKET_EVENTS.CONNECT_ERROR, onConnectError);
-
-      // If already connected
-      if (sock.connected) {
-        setStatus('connected');
-      }
-
-      detach = () => {
-        sock.off(SOCKET_EVENTS.CONNECT, onConnect);
-        sock.off(SOCKET_EVENTS.DISCONNECT, onDisconnect);
-        sock.off(SOCKET_EVENTS.CONNECT_ERROR, onConnectError);
-      };
-    });
+    // If already connected
+    if (sock.connected) {
+      setStatus('connected');
+    }
 
     return () => {
-      cancelled = true;
-      detach();
+      sock.off(SOCKET_EVENTS.CONNECT, onConnect);
+      sock.off(SOCKET_EVENTS.DISCONNECT, onDisconnect);
+      sock.off(SOCKET_EVENTS.CONNECT_ERROR, onConnectError);
     };
   }, []);
 

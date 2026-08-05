@@ -1,18 +1,31 @@
 import { io, Socket } from 'socket.io-client';
 
 let socket: Socket | null = null;
-let pendingConnect: Promise<Socket | null> | null = null;
 
-export function getSocket(token: string): Socket {
+/**
+ * Opens (or reuses) the realtime connection.
+ *
+ * No token is passed, and none is available to this file: the handshake goes to
+ * *our own* origin, where the custom Node server (`server.js` ->
+ * `server/upgrade-proxy.js`) reads the `httpOnly` session cookie the browser
+ * attached and turns it into the Bearer header the backend gateway expects. That
+ * is why the connection is same-origin rather than pointed at
+ * `NEXT_PUBLIC_SOCKET_URL` — a cross-origin handshake would carry no cookie, which
+ * is exactly why an access token used to have to be handed to page scripts.
+ */
+export function getSocket(): Socket {
   // Reuse the same instance for the page session — recreating it whenever it
   // isn't `connected` yet (e.g. still mid-handshake) orphaned any listeners
   // already attached by other hooks, since each call would swap in a fresh
   // socket. socket.io's own reconnection logic handles transient drops.
   if (!socket) {
-    // Backend's RealtimeGateway is mounted on the /ws namespace, not the default one.
-    socket = io(`${process.env.NEXT_PUBLIC_SOCKET_URL}/ws`, {
-      auth: { token },
+    // A leading-slash URI means "this origin"; `/ws` is the namespace the backend
+    // gateway is mounted on, and `path` is where engine.io itself lives — the
+    // upgrade proxy keys off that path.
+    socket = io('/ws', {
+      path: '/socket.io',
       transports: ['websocket'],
+      withCredentials: true,
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
@@ -23,63 +36,18 @@ export function getSocket(token: string): Socket {
 }
 
 /**
- * Async entry point every consumer should use now.
+ * `useEffect`-shaped wrapper around `getSocket`.
  *
- * The handshake token is no longer readable from `document.cookie`, so it has to
- * be asked for. The fetch is shared: several hooks mount at once on the dispatch
- * screen and each used to call `getSocket(token)` synchronously — without the
- * shared promise they would each issue their own token request before the first
- * one had created the socket.
- */
-export async function ensureSocket(): Promise<Socket | null> {
-  if (socket) return socket;
-
-  if (!pendingConnect) {
-    pendingConnect = fetchSocketToken()
-      .then((token) => (token ? getSocket(token) : null))
-      .catch(() => null)
-      .finally(() => {
-        pendingConnect = null;
-      });
-  }
-
-  return pendingConnect;
-}
-
-/**
- * `useEffect`-shaped wrapper around `ensureSocket`.
- *
- * Effects have to hand back their teardown synchronously, but the socket is only
- * available a promise later. This bridges the two: `register` runs once the socket
- * exists and returns its own unsubscribe, and unmounting before that happens
- * simply cancels the registration.
+ * `register` attaches its listeners and returns its own unsubscribe; this hands
+ * that straight back as the effect teardown.
  */
 export function subscribeToSocket(register: (socket: Socket) => () => void): () => void {
-  let cancelled = false;
-  let detach = () => {};
-
-  ensureSocket().then((socket) => {
-    if (!socket || cancelled) return;
-    detach = register(socket);
-  });
-
-  return () => {
-    cancelled = true;
-    detach();
-  };
-}
-
-async function fetchSocketToken(): Promise<string | null> {
-  const res = await fetch('/api/auth/socket-token', { credentials: 'same-origin' });
-  if (!res.ok) return null;
-  const payload = (await res.json().catch(() => null)) as { data?: { token?: string } } | null;
-  return payload?.data?.token ?? null;
+  return register(getSocket());
 }
 
 export function disconnectSocket(): void {
   socket?.disconnect();
   socket = null;
-  pendingConnect = null;
 }
 
 export function getExistingSocket(): Socket | null {

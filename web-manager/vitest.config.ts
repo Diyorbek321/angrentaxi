@@ -13,7 +13,9 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    // `server/` holds the custom Node server's plumbing, which runs as plain
+    // CommonJS outside the app's TypeScript build — hence the second pattern.
+    include: ['src/**/*.test.ts', 'server/**/*.test.js'],
     globals: false,
   },
 });

@@ -11,7 +11,7 @@ import {
   SupportMessage,
   SupportThreadListItem,
 } from '@/lib/api';
-import { ensureSocket, subscribeToSocket, SOCKET_EVENTS } from '@/lib/socket';
+import { getSocket, subscribeToSocket, SOCKET_EVENTS } from '@/lib/socket';
 import { useSupportThreads } from '@/hooks/useSupportThreads';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -44,17 +44,15 @@ export default function SupportPage() {
 
   const selectThread = useCallback(
     (id: string) => {
-      // Room swap is fire-and-forget: the selection must update immediately even
-      // if the socket is still being set up, so the emits ride on the promise.
+      // Room swap is fire-and-forget: socket.io buffers the emits if the socket
+      // is still mid-handshake, so the selection can update immediately.
       const leaving = selectedIdRef.current;
       setSelectedId(id);
-      void ensureSocket().then((socket) => {
-        if (!socket) return;
-        if (leaving) {
-          socket.emit(SOCKET_EVENTS.LEAVE_SUPPORT_THREAD, { threadId: leaving });
-        }
-        socket.emit(SOCKET_EVENTS.JOIN_SUPPORT_THREAD, { threadId: id });
-      });
+      const socket = getSocket();
+      if (leaving) {
+        socket.emit(SOCKET_EVENTS.LEAVE_SUPPORT_THREAD, { threadId: leaving });
+      }
+      socket.emit(SOCKET_EVENTS.JOIN_SUPPORT_THREAD, { threadId: id });
     },
     []
   );

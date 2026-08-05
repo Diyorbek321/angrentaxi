@@ -4,7 +4,77 @@ import { attachAuthInterceptor, refreshSession, resetRefreshState } from './sess
 
 afterEach(() => {
   resetRefreshState();
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
+
+function abortError(): Error {
+  const error = new Error('The lock request was aborted');
+  error.name = 'AbortError';
+  return error;
+}
+
+type LockCallback = () => Promise<boolean>;
+
+/**
+ * Stand-in for `navigator.locks` that actually queues.
+ *
+ * A real second tab cannot be spawned in a unit test, but every tab on an origin
+ * talks to the *same* lock manager — so one shared fake plus two independent
+ * callers reproduces the contention faithfully.
+ */
+function createFakeLockManager() {
+  const waiting: Array<() => void> = [];
+  const names: string[] = [];
+  let held = false;
+
+  return {
+    names,
+    manager: {
+      async request(
+        name: string,
+        options: { signal?: AbortSignal },
+        callback: LockCallback
+      ): Promise<boolean> {
+        names.push(name);
+
+        if (held) {
+          await new Promise<void>((resolve, reject) => {
+            const onAbort = () => reject(abortError());
+            options.signal?.addEventListener('abort', onAbort, { once: true });
+            waiting.push(() => {
+              options.signal?.removeEventListener('abort', onAbort);
+              resolve();
+            });
+          });
+        }
+
+        held = true;
+        try {
+          return await callback();
+        } finally {
+          held = false;
+          waiting.shift()?.();
+        }
+      },
+    },
+  };
+}
+
+/** A lock manager that accepts requests and never grants them. */
+function createWedgedLockManager() {
+  return {
+    request(name: string, options: { signal?: AbortSignal }): Promise<boolean> {
+      return new Promise<boolean>((_resolve, reject) => {
+        options.signal?.addEventListener('abort', () => reject(abortError()), { once: true });
+      });
+    },
+  };
+}
+
+function stubLocks(locks: unknown): void {
+  vi.stubGlobal('navigator', { locks });
+}
 
 /**
  * Builds an axios instance whose transport is scripted rather than real.
@@ -80,6 +150,129 @@ describe('refreshSession', () => {
     });
 
     await expect(refreshSession(fetcher)).resolves.toBe(false);
+  });
+});
+
+describe('refreshSession cross-tab locking', () => {
+  it('takes an origin-scoped Web Lock when the browser has one', async () => {
+    const { manager, names } = createFakeLockManager();
+    stubLocks(manager);
+
+    const fetcher = vi.fn(async () => true);
+
+    await expect(refreshSession(fetcher)).resolves.toBe(true);
+
+    expect(names).toEqual(['angren-session-refresh']);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops a second tab refreshing while the first one holds the lock', async () => {
+    // The scenario the lock exists for: two dispatcher tabs 401 at the same
+    // instant. Overlapping rotations would replay a consumed refresh token and
+    // the backend would revoke every session the user has.
+    const { manager } = createFakeLockManager();
+    stubLocks(manager);
+
+    let releaseFirst!: (value: boolean) => void;
+    const firstCall = new Promise<boolean>((resolve) => {
+      releaseFirst = resolve;
+    });
+
+    const order: string[] = [];
+    const firstTab = vi.fn(() => {
+      order.push('tab-1:start');
+      return firstCall;
+    });
+    const secondTab = vi.fn(async () => {
+      order.push('tab-2:start');
+      return true;
+    });
+
+    const first = refreshSession(firstTab);
+    // Each tab has its own module instance, so the in-tab lock does not apply
+    // between them — clearing it is what makes this a second *tab* rather than a
+    // second caller in the same one.
+    resetRefreshState();
+    const second = refreshSession(secondTab);
+
+    // Let both reach the lock manager before anything is allowed to finish.
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(secondTab).not.toHaveBeenCalled();
+
+    releaseFirst(true);
+    expect(await Promise.all([first, second])).toEqual([true, true]);
+    expect(order).toEqual(['tab-1:start', 'tab-2:start']);
+  });
+
+  it('falls back to the in-tab lock when Web Locks are unavailable', async () => {
+    // Older Safari/Firefox, or any non-secure context.
+    stubLocks(undefined);
+
+    const fetcher = vi.fn(async () => true);
+    const calls = [refreshSession(fetcher), refreshSession(fetcher)];
+
+    expect(await Promise.all(calls)).toEqual([true, true]);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores a lock manager that is not shaped like one', async () => {
+    stubLocks({ request: 'not a function' });
+
+    const fetcher = vi.fn(async () => true);
+
+    await expect(refreshSession(fetcher)).resolves.toBe(true);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it('refreshes unlocked rather than waiting forever behind a wedged holder', async () => {
+    vi.useFakeTimers();
+    stubLocks(createWedgedLockManager());
+
+    const fetcher = vi.fn(async () => true);
+    const pending = refreshSession(fetcher);
+
+    await vi.advanceTimersByTimeAsync(14_000);
+    expect(fetcher).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    await expect(pending).resolves.toBe(true);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it('releases the lock and reports failure when the refresh itself hangs', async () => {
+    // Bounding the *hold* is what keeps a stalled tab from parking the lock for
+    // its whole lifetime — the waiter timeout above should never be the thing
+    // that fires in practice.
+    vi.useFakeTimers();
+    const { manager } = createFakeLockManager();
+    stubLocks(manager);
+
+    const fetcher = vi.fn(() => new Promise<boolean>(() => {}));
+    const pending = refreshSession(fetcher);
+
+    await vi.advanceTimersByTimeAsync(11_000);
+
+    await expect(pending).resolves.toBe(false);
+  });
+
+  it('lets the lock go again after a hung refresh so the next attempt runs', async () => {
+    vi.useFakeTimers();
+    const { manager } = createFakeLockManager();
+    stubLocks(manager);
+
+    const hung = refreshSession(() => new Promise<boolean>(() => {}));
+    await vi.advanceTimersByTimeAsync(11_000);
+    await expect(hung).resolves.toBe(false);
+
+    const fetcher = vi.fn(async () => true);
+    const next = refreshSession(fetcher);
+    await vi.advanceTimersByTimeAsync(0);
+
+    await expect(next).resolves.toBe(true);
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
 });
 
