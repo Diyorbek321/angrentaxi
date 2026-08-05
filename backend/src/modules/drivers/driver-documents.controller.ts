@@ -9,11 +9,13 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   UnsupportedMediaTypeException,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
@@ -26,7 +28,11 @@ import {
 } from '@nestjs/swagger';
 import { diskStorage } from 'multer';
 import { randomUUID } from 'crypto';
-import { DriverDocumentsService, UploadedDiskFile } from './driver-documents.service';
+import {
+  DRIVER_DOCUMENTS_UPLOAD_DIR,
+  DriverDocumentsService,
+  UploadedDiskFile,
+} from './driver-documents.service';
 import { UploadDriverDocumentDto } from './dto/upload-driver-document.dto';
 import { ReviewDriverDocumentDto } from './dto/review-driver-document.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -36,11 +42,9 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { User, UserRole } from '../../database/entities/user.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
 
-// PRODUCTION TODO: this stores files on local disk, which does not survive
-// redeploys/scale-out on most hosts (e.g. Railway). Move to S3 (or another
-// object store) behind the same DriverDocumentsService interface before
-// launch; only this disk-storage config + fileUrl construction would change.
-const UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'driver-documents');
+// Upload target — shared with DriverDocumentsService, which resolves files back
+// out of it for the authorized download endpoint.
+const UPLOAD_DIR = DRIVER_DOCUMENTS_UPLOAD_DIR;
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
@@ -115,6 +119,35 @@ export class DriverDocumentsController {
       throw new BadRequestException('driverId query param is required for admin/manager');
     }
     return this.driverDocumentsService.listForDriver(driverId);
+  }
+
+  @Get(':id/file')
+  @Roles(UserRole.DRIVER, UserRole.MANAGER, UserRole.ADMIN)
+  @ApiOperation({
+    summary:
+      'Download a KYC document file. Drivers get only their own; manager/admin get any.',
+  })
+  @ApiParam({ name: 'id', description: 'Driver document UUID' })
+  @ApiResponse({ status: 200, description: 'Raw document file stream' })
+  @ApiResponse({ status: 403, description: 'Not allowed to access this document' })
+  @ApiResponse({ status: 404, description: 'Document or file not found' })
+  async downloadFile(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    const file = await this.driverDocumentsService.getFileForDownload(id, {
+      id: user.id,
+      role: user.role,
+    });
+
+    // Streamed through @Res() rather than returned, so the binary body is not
+    // wrapped by the global ResponseInterceptor envelope.
+    res.setHeader('Content-Type', file.mimeType);
+    res.setHeader('Content-Disposition', `inline; filename="${file.filename}"`);
+    // Personal identity documents: never cached by proxies or written to disk.
+    res.setHeader('Cache-Control', 'private, no-store');
+    fs.createReadStream(file.absolutePath).pipe(res);
   }
 
   @Patch(':id/review')

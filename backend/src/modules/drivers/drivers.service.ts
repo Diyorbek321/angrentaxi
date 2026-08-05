@@ -7,7 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import Redis from 'ioredis';
 import { Driver } from '../../database/entities/driver.entity';
 import { UserRole, UserStatus } from '../../database/entities/user.entity';
@@ -364,19 +364,65 @@ export class DriversService {
   // If the delta pushes the driver negative while online, take them offline
   // immediately rather than leaving them online-but-blocked until their next
   // toggle.
+  /**
+   * Database half of a balance adjustment, runnable inside a caller's
+   * transaction so a wallet movement commits or rolls back together with the
+   * ledger rows that justify it (see OrdersCompletionService.completeTrip).
+   *
+   * The balance is incremented in SQL (`balance = balance + :delta`) rather
+   * than read-modify-written in JS: two settlements landing on the same driver
+   * concurrently would otherwise both read the old balance and the second
+   * write would silently swallow the first.
+   *
+   * Deliberately does no Redis work — that side effect must not fire until the
+   * surrounding transaction has actually committed. The caller applies it via
+   * {@link takeOfflineInRedis} using the returned `wentOffline` flag.
+   */
+  async adjustBalanceWithin(
+    manager: EntityManager,
+    userId: string,
+    delta: number,
+  ): Promise<{ driverId: string; newBalance: number; wentOffline: boolean }> {
+    const driver = await manager.findOne(Driver, { where: { userId } });
+
+    if (!driver) {
+      throw new NotFoundException(`Driver for user ${userId} not found`);
+    }
+
+    const [updated] = (await manager.query(
+      `UPDATE drivers
+          SET balance = balance + $1,
+              is_online = CASE WHEN balance + $1 < 0 THEN false ELSE is_online END
+        WHERE id = $2
+    RETURNING balance, is_online`,
+      [delta, driver.id],
+    )) as Array<{ balance: string; is_online: boolean }>;
+
+    const newBalance = parseFloat(updated?.balance ?? '0');
+    const wentOffline = driver.isOnline && updated?.is_online === false;
+
+    return { driverId: driver.id, newBalance, wentOffline };
+  }
+
+  /**
+   * Drops a driver from the online geo set. Split out of the balance update so
+   * it can be deferred until after the caller's transaction commits.
+   */
+  async takeOfflineInRedis(driverId: string, reason: string): Promise<void> {
+    await this.redis.zrem(DRIVERS_ONLINE_KEY, driverId);
+    this.logger.log(`Driver ${driverId} taken offline: ${reason}`);
+  }
+
   async adjustBalance(userId: string, delta: number): Promise<{ driver: Driver; wentOffline: boolean }> {
     const driver = await this.findByUserIdOrThrow(userId);
-    const newBalance = driver.balance + delta;
-    const wentOffline = newBalance < 0 && driver.isOnline;
-
-    await this.driverRepository.update(driver.id, {
-      balance: newBalance,
-      ...(wentOffline && { isOnline: false }),
-    });
+    const { newBalance, wentOffline } = await this.adjustBalanceWithin(
+      this.driverRepository.manager,
+      userId,
+      delta,
+    );
 
     if (wentOffline) {
-      await this.redis.zrem(DRIVERS_ONLINE_KEY, driver.id);
-      this.logger.log(`Driver ${driver.id} balance went negative (${newBalance}), taken offline`);
+      await this.takeOfflineInRedis(driver.id, `balance went negative (${newBalance})`);
     }
 
     return {
