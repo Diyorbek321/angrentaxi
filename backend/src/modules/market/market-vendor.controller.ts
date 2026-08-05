@@ -7,6 +7,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { User, UserRole } from '../../database/entities/user.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
+import { OptionalEnumPipe } from '../../common/pipes/optional-enum.pipe';
 import { UpdateStoreDto } from './dto/update-store.dto';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
@@ -135,7 +136,11 @@ export class MarketVendorController {
 
   @Get('orders')
   @ApiOperation({ summary: 'List orders for my store' })
-  async listOrders(@CurrentUser() user: User, @Query('status') status?: MarketOrderStatus) {
+  async listOrders(
+    @CurrentUser() user: User,
+    @Query('status', new OptionalEnumPipe(MarketOrderStatus, 'status'))
+    status?: MarketOrderStatus,
+  ) {
     const store = await this.marketService.getStoreByOwner(user.id);
     return this.marketService.listOrders(store.id, status);
   }

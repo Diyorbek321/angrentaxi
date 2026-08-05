@@ -1,11 +1,24 @@
 // Platform-wide analytics for the admin/manager panels: the live dashboard
 // tile counters and the date-ranged reports page (revenue chart, top drivers,
 // user growth). Purely aggregate reads — no order state is ever touched here.
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order } from '../../database/entities/order.entity';
 import { DriversService } from '../drivers/drivers.service';
+
+// Server-side ceiling on the reports date range. Every query in getReports scans
+// `orders` across [from, to] — including a per-day GROUP BY for the revenue chart
+// and a three-table JOIN for the top-drivers list — so an unbounded range lets any
+// manager turn one request into a full-table scan. A year covers the widest preset
+// the admin panel offers; anything larger belongs in an offline export.
+export const MAX_REPORT_RANGE_DAYS = 366;
+
+// Top-drivers list size. Kept as a named constant so the SQL LIMIT and the
+// documented contract stay in step.
+const TOP_DRIVERS_LIMIT = 10;
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class OrdersStatsService {
@@ -84,10 +97,38 @@ export class OrdersStatsService {
     };
   }
 
+  /**
+   * Date-ranged reports for the admin/manager panels.
+   *
+   * The range is validated here rather than left to the caller: `from`/`to`
+   * arrive as raw query strings, and an unparseable or inverted pair used to
+   * degrade silently (an Invalid Date compares false against everything, so
+   * every aggregate came back as zero) while an over-wide one scanned the whole
+   * orders table. Both now fail loudly with a 400.
+   */
   async getReports(from: string, to: string) {
     const fromDate = new Date(from);
     const toDate = new Date(to);
+
+    if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
+      throw new BadRequestException(
+        'Invalid report range: "from" and "to" must be valid dates (YYYY-MM-DD)',
+      );
+    }
+
+    fromDate.setHours(0, 0, 0, 0);
     toDate.setHours(23, 59, 59, 999);
+
+    if (toDate.getTime() < fromDate.getTime()) {
+      throw new BadRequestException('Invalid report range: "to" must not be earlier than "from"');
+    }
+
+    const rangeDays = Math.ceil((toDate.getTime() - fromDate.getTime()) / MS_PER_DAY);
+    if (rangeDays > MAX_REPORT_RANGE_DAYS) {
+      throw new BadRequestException(
+        `Report range is limited to ${MAX_REPORT_RANGE_DAYS} days (requested ${rangeDays})`,
+      );
+    }
 
     const [
       totalOrdersInRange,
@@ -134,7 +175,7 @@ export class OrdersStatsService {
              AND o.created_at >= $1 AND o.created_at <= $2
            GROUP BY d.id, u.first_name, u.last_name, u.phone, d.rating
            ORDER BY total_revenue DESC
-           LIMIT 10`,
+           LIMIT ${TOP_DRIVERS_LIMIT}`,
           [fromDate, toDate],
         ) as Promise<Array<{ id: string; first_name: string; last_name: string; phone: string; total_trips: number; total_revenue: number; rating: number }>>,
         this.orderRepository.manager.query(

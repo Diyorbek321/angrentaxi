@@ -26,6 +26,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { Permission, User, UserRole } from '../../database/entities/user.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
+import { OptionalEnumPipe } from '../../common/pipes/optional-enum.pipe';
 
 @ApiTags('Users')
 @ApiBearerAuth('JWT-auth')
@@ -41,7 +42,7 @@ export class UsersController {
   async findAll(
     @Query('page') page = 1,
     @Query('limit') limit = 20,
-    @Query('role') role?: UserRole,
+    @Query('role', new OptionalEnumPipe(UserRole, 'role')) role?: UserRole,
   ) {
     return this.usersService.findAll(Number(page), Number(limit), role);
   }

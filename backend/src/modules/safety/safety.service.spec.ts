@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
-import { SafetyService } from './safety.service';
+import { ACTIVE_SOS_ALERTS_LIMIT, SafetyService } from './safety.service';
 import {
   SosAlert,
   SosAlertStatus,
@@ -157,9 +157,12 @@ describe('SafetyService', () => {
 
       const result = await service.listActive();
 
+      // `take` is the runaway guard added alongside this filter — see
+      // safety.service.active-limit.spec.ts.
       expect(sosAlertRepository.find).toHaveBeenCalledWith({
         where: { status: SosAlertStatus.ACTIVE },
         order: { createdAt: 'DESC' },
+        take: ACTIVE_SOS_ALERTS_LIMIT,
       });
       expect(result).toEqual(activeAlerts);
       expect(result.every((alert) => alert.status === SosAlertStatus.ACTIVE)).toBe(true);

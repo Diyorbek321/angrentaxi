@@ -85,9 +85,24 @@ export class OrdersCompletionService {
       [orderId],
     );
 
-    actualDistanceKm =
-      parseFloat((distResult as Array<{ distance_meters: string }>)[0]?.distance_meters || '0') /
-      1000;
+    // Same falsy-zero trap already fixed in OrdersLifecycleService.driverArrived:
+    // pg returns ST_Distance as a JS number, so `|| '0'` could not tell a genuine
+    // 0m ride (pickup == dropoff) from a missing row or a NULL geometry — both
+    // collapsed to 0 km and were priced as a zero-distance trip. Distinguish them
+    // explicitly with a null check, and treat a truly absent row as a hard error
+    // rather than silently charging the passenger the base fare only.
+    const rawDistance = (
+      distResult as Array<{ distance_meters: number | string | null }>
+    )[0]?.distance_meters;
+
+    if (rawDistance == null) {
+      this.logger.warn(
+        `No PostGIS distance available for order ${orderId} (missing row or NULL geometry); ` +
+          'falling back to 0 km for final pricing',
+      );
+    }
+
+    actualDistanceKm = rawDistance != null ? parseFloat(String(rawDistance)) / 1000 : 0;
 
     // Compute final price
     const tariff = await this.tariffsService.findById(order.tariffId);

@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { MarketService } from './market.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -8,6 +8,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { User, UserRole } from '../../database/entities/user.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
 import { CreateMarketOrderDto } from './dto/create-market-order.dto';
+import { OptionalPaginationDto } from '../../common/dto/optional-pagination.dto';
 
 @ApiTags('Market (storefront)')
 @ApiBearerAuth('JWT-auth')
@@ -23,10 +24,15 @@ export class MarketStorefrontController {
     return this.marketService.listActiveStores();
   }
 
+  // Pagination is optional on purpose: the mobile client calls this with no
+  // query string and expects a plain array back, so the parameters only exist
+  // for callers that want to page further back than the default window.
   @Get('orders')
   @ApiOperation({ summary: 'My market order history' })
-  listMyOrders(@CurrentUser() user: User) {
-    return this.marketService.listCustomerOrders(user.id);
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  listMyOrders(@CurrentUser() user: User, @Query() pagination: OptionalPaginationDto) {
+    return this.marketService.listCustomerOrders(user.id, pagination.page, pagination.limit);
   }
 
   @Get('orders/:id')

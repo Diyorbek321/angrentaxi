@@ -32,6 +32,7 @@ import { Permission, User, UserRole } from '../../database/entities/user.entity'
 import { WithdrawalOwnerType, WithdrawalStatus } from '../../database/entities/withdrawal-request.entity';
 import { PaginationDto } from '../orders/dto/pagination.dto';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
+import { OptionalEnumPipe } from '../../common/pipes/optional-enum.pipe';
 
 // Maps the caller's account role to the withdrawal's informational
 // ownerType tag (see WithdrawalRequest.ownerType). Anything that isn't a
@@ -161,7 +162,8 @@ export class PaymentsController {
   @ApiResponse({ status: 200, description: 'Paginated withdrawal request list' })
   async getAllWithdrawals(
     @Query() pagination: PaginationDto,
-    @Query('status') status?: WithdrawalStatus,
+    @Query('status', new OptionalEnumPipe(WithdrawalStatus, 'status'))
+    status?: WithdrawalStatus,
   ) {
     return this.paymentsService.getAllWithdrawals(status, pagination.page ?? 1, pagination.limit ?? 20);
   }

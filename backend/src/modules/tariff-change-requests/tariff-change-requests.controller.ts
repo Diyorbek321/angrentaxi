@@ -15,6 +15,7 @@ import {
   TariffChangeRequestStatus,
 } from '../../database/entities/tariff-change-request.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
+import { OptionalEnumPipe } from '../../common/pipes/optional-enum.pipe';
 
 @ApiTags('Tariff Change Requests')
 @ApiBearerAuth('JWT-auth')
@@ -40,7 +41,8 @@ export class TariffChangeRequestsController {
   @RequirePermissions(Permission.TARIFFS_MANAGE)
   @ApiOperation({ summary: 'List tariff change requests (manager/admin only)' })
   async findAll(
-    @Query('status') status?: TariffChangeRequestStatus,
+    @Query('status', new OptionalEnumPipe(TariffChangeRequestStatus, 'status'))
+    status?: TariffChangeRequestStatus,
   ): Promise<TariffChangeRequest[]> {
     return this.requestsService.findAll(status);
   }

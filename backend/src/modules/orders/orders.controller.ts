@@ -25,6 +25,7 @@ import { CalculatePriceDto } from './dto/calculate-price.dto';
 import { CancelOrderDto } from './dto/cancel-order.dto';
 import { ReassignDriverDto } from './dto/reassign-driver.dto';
 import { PaginationDto } from './dto/pagination.dto';
+import { ListOrdersQueryDto } from './dto/list-orders-query.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
@@ -91,11 +92,8 @@ export class OrdersController {
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
   @RequirePermissions(Permission.DISPATCH)
   @ApiOperation({ summary: 'List all orders (admin/manager only)' })
-  async listAll(
-    @Query() pagination: PaginationDto,
-    @Query('status') status?: string,
-  ) {
-    return this.ordersService.getAllOrders(pagination.page ?? 1, pagination.limit ?? 20, status);
+  async listAll(@Query() query: ListOrdersQueryDto) {
+    return this.ordersService.getAllOrders(query.page ?? 1, query.limit ?? 20, query.status);
   }
 
   @Get('history')

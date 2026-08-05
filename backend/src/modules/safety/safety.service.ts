@@ -15,6 +15,12 @@ import { OrdersService } from '../orders/orders.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { ReportSosDto } from './dto/report-sos.dto';
 
+// Upper bound on the active-alert feed (see listActive). Active SOS alerts are
+// an exception queue, not a history: a healthy city has single digits open at a
+// time, so this is a runaway guard rather than pagination. Sized like the
+// dispatcher board cap in OrdersQueryService for the same reason.
+export const ACTIVE_SOS_ALERTS_LIMIT = 200;
+
 @Injectable()
 export class SafetyService {
   private readonly logger = new Logger(SafetyService.name);
@@ -84,12 +90,35 @@ export class SafetyService {
     return this.sosAlertRepository.save(alert);
   }
 
-  /** Admin/manager only — newest-first list of currently active alerts. Guarded at the controller by RolesGuard. */
+  /**
+   * Admin/manager only — newest-first list of currently active alerts. Guarded
+   * at the controller by RolesGuard.
+   *
+   * Hard-capped at ACTIVE_SOS_ALERTS_LIMIT rows. This used to be an unbounded
+   * `find()` polled by every open manager dashboard, so a backlog of alerts
+   * nobody resolved (they only leave this list when explicitly resolved) grew
+   * the response without limit.
+   *
+   * The response stays a bare `SosAlert[]` because web-manager's
+   * `getActiveSosAlerts()` unwraps `ApiResponse<SosAlert[]>` directly and the
+   * mobile client hits the same `/sos/active` endpoint — an envelope would
+   * break both. Truncation is therefore signalled out-of-band as a warning log.
+   */
   async listActive(): Promise<SosAlert[]> {
-    return this.sosAlertRepository.find({
+    const alerts = await this.sosAlertRepository.find({
       where: { status: SosAlertStatus.ACTIVE },
       order: { createdAt: 'DESC' },
+      take: ACTIVE_SOS_ALERTS_LIMIT,
     });
+
+    if (alerts.length === ACTIVE_SOS_ALERTS_LIMIT) {
+      this.logger.warn(
+        `Active SOS alerts hit the ${ACTIVE_SOS_ALERTS_LIMIT}-row cap; ` +
+          'older unresolved alerts are not being shown to dispatchers.',
+      );
+    }
+
+    return alerts;
   }
 
   // Backs the dispatcher Shift Report's "SOS resolved" stat — counts alerts

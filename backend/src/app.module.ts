@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { DefaultNamingStrategy, NamingStrategyInterface } from 'typeorm';
 import { validateEnv } from './config/env.validation';
 import { resolveDbSynchronize } from './config/db-synchronize.util';
@@ -153,6 +154,13 @@ import { ReferralsModule } from './modules/referrals/referrals.module';
       }),
       inject: [ConfigService],
     }),
+
+    // Cron/interval scheduling. Registered at the root so every module's
+    // @Cron/@Interval handlers are discovered regardless of import order —
+    // notably AuthModule's refresh-token pruning. ScheduleModule.forRoot() is
+    // idempotent (Nest dedupes identical dynamic modules), so MatchingModule's
+    // own call remains harmless.
+    ScheduleModule.forRoot(),
 
     // Rate Limiting. Three named windows apply to every HTTP route (see the
     // APP_GUARD registration below, without which none of this is enforced);

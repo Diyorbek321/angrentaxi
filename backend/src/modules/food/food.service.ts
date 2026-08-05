@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { MoreThanOrEqual, Not, Repository } from 'typeorm';
 import { Restaurant, RestaurantStatus, WorkingHoursDay } from '../../database/entities/restaurant.entity';
 import { MenuCategory } from '../../database/entities/menu-category.entity';
 import { Dish } from '../../database/entities/dish.entity';
@@ -22,6 +22,22 @@ import { PaymentMethod, ServiceType } from '../../database/entities/order.entity
 import { OrdersService } from '../orders/orders.service';
 import { MatchingService } from '../matching/matching.service';
 import { TariffsService } from '../tariffs/tariffs.service';
+import { clampPageSize } from '../../common/utils/pagination.util';
+
+// Rolling window for the analytics that cannot be expressed as a single SQL
+// aggregate (per-dish totals live in a jsonb `items` column), plus a hard row
+// cap so a very busy restaurant still cannot pull an unbounded result set.
+const ANALYTICS_WINDOW_DAYS = 30;
+const ANALYTICS_MAX_ORDERS = 2000;
+
+// Number of orders shown in the dashboard's "recent orders" strip; now the
+// query's LIMIT rather than a slice of a full-table read.
+const RECENT_ORDERS_LIMIT = 6;
+
+// Default page size for a customer's own order history — generous, because the
+// existing clients send no pagination parameters at all.
+const CUSTOMER_ORDERS_DEFAULT_LIMIT = 50;
+const CUSTOMER_ORDERS_MAX_LIMIT = 100;
 
 const DEFAULT_HOURS: WorkingHoursDay[] = [
   { day: 'Dushanba', open: true, from: '09:00', to: '22:00' },
@@ -326,43 +342,93 @@ export class FoodService {
 
   // ---------- vendor: dashboard & reports ----------
 
+  /**
+   * Vendor dashboard (GET /food/vendor/dashboard, polled by web-restaurant).
+   *
+   * This used to load every order the restaurant has ever taken — with the
+   * `customer` relation joined on each — plus its whole menu, to compute a few
+   * counters in JS. Everything that is a counter is now a COUNT/SUM/AVG done in
+   * Postgres against the existing (restaurant_id, created_at) index, and only
+   * the six rows actually rendered are materialised.
+   *
+   * The response shape is unchanged — web-restaurant's `DashboardData` reads
+   * each field below by name.
+   */
   async getDashboard(restaurantId: string) {
-    const [restaurant, orders, dishes] = await Promise.all([
-      this.restaurantRepo.findOneOrFail({ where: { id: restaurantId } }),
-      this.orderRepo.find({ where: { restaurantId }, relations: ['customer'], order: { createdAt: 'DESC' } }),
-      this.dishRepo.find({ where: { restaurantId } }),
-    ]);
+    const restaurant = await this.restaurantRepo.findOneOrFail({ where: { id: restaurantId } });
 
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
-    const todayOrders = orders.filter((o) => o.createdAt >= startOfToday);
-    const delivered = orders.filter((o) => o.status === FoodOrderStatus.DELIVERED);
-    const avgPrepMinutes = delivered.length
-      ? Math.round(
-          delivered.reduce((sum, o) => sum + (o.updatedAt.getTime() - o.createdAt.getTime()) / 60000, 0) /
-            delivered.length,
+
+    // Average prep time is windowed rather than all-time: a restaurant's current
+    // turnaround is what the dashboard is reporting, and an all-time average is
+    // both less useful and unbounded to compute.
+    const prepSince = new Date();
+    prepSince.setDate(prepSince.getDate() - ANALYTICS_WINDOW_DAYS);
+
+    const [todayAggregate, prepAggregate, activeDishesCount, recentOrders] = await Promise.all([
+      this.orderRepo
+        .createQueryBuilder('o')
+        .select('COUNT(o.id)', 'cnt')
+        .addSelect('COALESCE(SUM(o.total_price), 0)', 'revenue')
+        .where('o.restaurant_id = :restaurantId', { restaurantId })
+        .andWhere('o.created_at >= :since', { since: startOfToday })
+        .getRawOne<{ cnt: string; revenue: string }>(),
+      this.orderRepo
+        .createQueryBuilder('o')
+        .select(
+          'COALESCE(AVG(EXTRACT(EPOCH FROM (o.updated_at - o.created_at)) / 60), 0)',
+          'avg_minutes',
         )
-      : 0;
+        .where('o.restaurant_id = :restaurantId', { restaurantId })
+        .andWhere('o.status = :status', { status: FoodOrderStatus.DELIVERED })
+        .andWhere('o.created_at >= :since', { since: prepSince })
+        .getRawOne<{ avg_minutes: string }>(),
+      this.dishRepo.count({ where: { restaurantId, isAvailable: true } }),
+      this.orderRepo.find({
+        where: { restaurantId },
+        relations: ['customer'],
+        order: { createdAt: 'DESC' },
+        take: RECENT_ORDERS_LIMIT,
+      }),
+    ]);
 
     return {
       restaurantName: restaurant.name,
       isOpen: restaurant.status === RestaurantStatus.ACTIVE,
-      todayOrdersCount: todayOrders.length,
-      todayRevenue: todayOrders.reduce((sum, o) => sum + Number(o.totalPrice), 0),
-      avgPrepMinutes,
-      activeDishesCount: dishes.filter((d) => d.isAvailable).length,
-      recentOrders: orders.slice(0, 6).map((o) => this.serializeOrder(o)),
+      todayOrdersCount: parseInt(todayAggregate?.cnt ?? '0', 10) || 0,
+      todayRevenue: parseFloat(todayAggregate?.revenue ?? '0') || 0,
+      avgPrepMinutes: Math.round(parseFloat(prepAggregate?.avg_minutes ?? '0') || 0),
+      activeDishesCount,
+      recentOrders: recentOrders.map((o) => this.serializeOrder(o)),
     };
   }
 
+  /**
+   * Vendor reports (GET /food/vendor/reports).
+   *
+   * The `since` cut-off and the cancelled-order exclusion were already applied,
+   * but in JS after reading every order row for the restaurant — so the "last 7
+   * days" report still scanned the full history. Both predicates now live in the
+   * query (`rangeDays` is a fixed 7 or 30 chosen by the controller), with a row
+   * cap as a backstop.
+   *
+   * The per-dish and hourly figures still have to be tallied in the process
+   * because `items` is a jsonb column, but they now run over the bounded set.
+   */
   async getReports(restaurantId: string, rangeDays: number) {
     const restaurant = await this.restaurantRepo.findOneOrFail({ where: { id: restaurantId } });
     const since = new Date();
     since.setDate(since.getDate() - rangeDays);
-    const orders = await this.orderRepo.find({
-      where: { restaurantId },
+    const inRange = await this.orderRepo.find({
+      where: {
+        restaurantId,
+        createdAt: MoreThanOrEqual(since),
+        status: Not(FoodOrderStatus.CANCELLED),
+      },
+      order: { createdAt: 'DESC' },
+      take: ANALYTICS_MAX_ORDERS,
     });
-    const inRange = orders.filter((o) => o.createdAt >= since && o.status !== FoodOrderStatus.CANCELLED);
 
     const days = ['Ya', 'Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh'];
     const revenue = Array.from({ length: rangeDays }, (_, i) => {
@@ -489,8 +555,25 @@ export class FoodService {
     return order;
   }
 
-  async listCustomerOrders(customerId: string) {
-    const orders = await this.orderRepo.find({ where: { customerId }, order: { createdAt: 'DESC' } });
+  /**
+   * A customer's own food order history (GET /food/orders).
+   *
+   * Was an unbounded read of the customer's entire history, each row then fanned
+   * out into a `withDelivery` lookup. Bounded the same way as the Market
+   * equivalent, and for the same reason the response stays a bare array: the
+   * Flutter client decodes `/food/orders` as a list, so pagination is opt-in and
+   * a caller that sends nothing keeps the previous behaviour.
+   */
+  async listCustomerOrders(customerId: string, page = 1, limit = CUSTOMER_ORDERS_DEFAULT_LIMIT) {
+    const safePage = Number.isFinite(page) && page >= 1 ? Math.floor(page) : 1;
+    const safeLimit = clampPageSize(limit, CUSTOMER_ORDERS_DEFAULT_LIMIT, CUSTOMER_ORDERS_MAX_LIMIT);
+
+    const orders = await this.orderRepo.find({
+      where: { customerId },
+      order: { createdAt: 'DESC' },
+      skip: (safePage - 1) * safeLimit,
+      take: safeLimit,
+    });
     return Promise.all(orders.map((o) => this.withDelivery(o)));
   }
 

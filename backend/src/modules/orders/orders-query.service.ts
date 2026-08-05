@@ -5,7 +5,13 @@
 // enrichment every read path shares — which is why the write-side services
 // (creation, lifecycle, completion, dispatch) depend on this service for their
 // own findByIdOrThrow calls rather than duplicating it.
-import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order, OrderStatus } from '../../database/entities/order.entity';
@@ -18,6 +24,12 @@ import { PaginatedOrders } from './orders.types';
 // above any realistic number of simultaneously in-flight orders for a single
 // city, so it acts as a runaway guard rather than as pagination.
 const ACTIVE_ORDERS_LIMIT = 200;
+
+const ORDER_STATUS_VALUES: readonly string[] = Object.values(OrderStatus);
+
+function isOrderStatus(value: string): value is OrderStatus {
+  return ORDER_STATUS_VALUES.includes(value);
+}
 
 @Injectable()
 export class OrdersQueryService {
@@ -148,11 +160,27 @@ export class OrdersQueryService {
     return order;
   }
 
+  /**
+   * Admin/manager order list.
+   *
+   * `status` is validated rather than blind-cast: it arrives as a raw query
+   * string, and while TypeORM parameterises it (so there is no injection), an
+   * unrecognised value used to be cast to `OrderStatus` and quietly matched
+   * nothing — the panel showed "no orders" for what was really a bad filter.
+   * ListOrdersQueryDto rejects it at the HTTP boundary; this check covers the
+   * service's other (internal) callers.
+   */
   async getAllOrders(
     page: number = 1,
     limit: number = 20,
     status?: string,
   ): Promise<PaginatedOrders> {
+    if (status !== undefined && !isOrderStatus(status)) {
+      throw new BadRequestException(
+        `Invalid order status "${status}". Must be one of: ${Object.values(OrderStatus).join(', ')}`,
+      );
+    }
+
     const where = status ? { status: status as OrderStatus } : {};
     const [orders, total] = await this.orderRepository.findAndCount({
       where,

@@ -32,6 +32,7 @@ import { RequirePermissions } from '../../common/decorators/permissions.decorato
 import { Permission, User, UserRole, UserStatus } from '../../database/entities/user.entity';
 import { Driver } from '../../database/entities/driver.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
+import { OptionalEnumPipe } from '../../common/pipes/optional-enum.pipe';
 import { UsersService } from '../users/users.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 
@@ -53,7 +54,7 @@ export class DriversController {
   async findAll(
     @Query('page') page = 1,
     @Query('limit') limit = 20,
-    @Query('status') status?: string,
+    @Query('status', new OptionalEnumPipe(UserStatus, 'status')) status?: UserStatus,
     @Query('isOnline') isOnline?: string,
     @Query('search') search?: string,
   ) {

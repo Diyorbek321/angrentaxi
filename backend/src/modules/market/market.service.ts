@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between, MoreThanOrEqual, Repository } from 'typeorm';
 import { Store, StoreDeliveryMode, StoreStatus } from '../../database/entities/store.entity';
 import { MarketCategory } from '../../database/entities/market-category.entity';
 import { Product, ProductStatus } from '../../database/entities/product.entity';
@@ -34,6 +34,27 @@ import { PaymentMethod, ServiceType } from '../../database/entities/order.entity
 import { OrdersService } from '../orders/orders.service';
 import { MatchingService } from '../matching/matching.service';
 import { TariffsService } from '../tariffs/tariffs.service';
+import { clampPageSize } from '../../common/utils/pagination.util';
+
+// Rolling window the jsonb-item analytics (best sellers, category breakdown,
+// stock turnover) are computed over, plus a hard row cap in case a very busy
+// store fills that window. Both exist because `items` is jsonb and cannot be
+// aggregated by a plain SUM — the rows have to be read into the process, so the
+// set they are read from must be bounded.
+const ANALYTICS_WINDOW_DAYS = 30;
+const ANALYTICS_MAX_ORDERS = 2000;
+const ANALYTICS_MAX_PRODUCTS = 2000;
+
+// Dashboard list sizes. Both were previously derived by slicing a full-table
+// read; they are now the query's own LIMIT.
+const RECENT_ORDERS_LIMIT = 5;
+const LOW_STOCK_LIST_LIMIT = 50;
+
+// Default page size for a customer's own order history. Kept generous so the
+// existing clients — which send no pagination parameters at all — keep seeing
+// their whole realistic history in one response.
+const CUSTOMER_ORDERS_DEFAULT_LIMIT = 50;
+const CUSTOMER_ORDERS_MAX_LIMIT = 100;
 
 const ORDER_TRANSITIONS: Record<string, MarketOrderStatus> = {
   [MarketOrderStatus.NEW]: MarketOrderStatus.PACKING,
@@ -387,40 +408,113 @@ export class MarketService {
 
   // ---------- vendor: dashboard & reports ----------
 
+  /**
+   * Vendor dashboard (GET /market/vendor/dashboard, polled by web-market).
+   *
+   * This used to load the store's entire product catalogue and its entire order
+   * history — with the `customer` relation joined on every row — only to derive
+   * a handful of counters from them in JS. A vendor with a few thousand orders
+   * turned each dashboard poll into a full read of both tables.
+   *
+   * The counters are now COUNT/SUM aggregates evaluated in Postgres against the
+   * existing (store_id, created_at) / (store_id, status) indexes, and only the
+   * rows actually rendered are materialised. The response shape is unchanged —
+   * web-market's `DashboardData` reads every field below by name.
+   */
   async getDashboard(storeId: string) {
-    const [store, products, orders] = await Promise.all([
-      this.storeRepo.findOneOrFail({ where: { id: storeId } }),
-      this.productRepo.find({ where: { storeId } }),
-      this.orderRepo.find({ where: { storeId }, relations: ['customer'], order: { createdAt: 'DESC' } }),
-    ]);
+    const store = await this.storeRepo.findOneOrFail({ where: { id: storeId } });
 
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
-    const todayOrders = orders.filter((o) => o.createdAt >= startOfToday);
-    const outOfStock = products.filter((p) => p.stock === 0);
-    const lowStock = products.filter(
-      (p) => p.stock > 0 && p.stock <= store.lowStockThreshold,
-    );
-    const active = products.filter((p) => p.status === ProductStatus.ACTIVE);
-    const hidden = products.filter((p) => p.status === ProductStatus.HIDDEN);
+
+    const [
+      todayAggregate,
+      outOfStockCount,
+      activeProductsCount,
+      hiddenProductsCount,
+      lowStock,
+      recentOrders,
+      bestSellerOrders,
+    ] = await Promise.all([
+      this.orderRepo
+        .createQueryBuilder('o')
+        .select('COUNT(o.id)', 'cnt')
+        .addSelect('COALESCE(SUM(o.total_price), 0)', 'revenue')
+        .where('o.store_id = :storeId', { storeId })
+        .andWhere('o.created_at >= :since', { since: startOfToday })
+        .getRawOne<{ cnt: string; revenue: string }>(),
+      this.productRepo.count({ where: { storeId, stock: 0 } }),
+      this.productRepo.count({ where: { storeId, status: ProductStatus.ACTIVE } }),
+      this.productRepo.count({ where: { storeId, status: ProductStatus.HIDDEN } }),
+      // Scarcest first, so the capped list is the part the vendor must act on.
+      this.productRepo.find({
+        where: { storeId, stock: Between(1, store.lowStockThreshold) },
+        order: { stock: 'ASC' },
+        take: LOW_STOCK_LIST_LIMIT,
+      }),
+      this.orderRepo.find({
+        where: { storeId },
+        relations: ['customer'],
+        order: { createdAt: 'DESC' },
+        take: RECENT_ORDERS_LIMIT,
+      }),
+      this.findOrdersForAggregation(storeId),
+    ]);
 
     return {
       storeName: store.name,
       lowStockThreshold: store.lowStockThreshold,
-      todayOrdersCount: todayOrders.length,
-      todayRevenue: todayOrders.reduce((sum, o) => sum + Number(o.totalPrice), 0),
-      outOfStockCount: outOfStock.length,
-      activeProductsCount: active.length,
-      hiddenProductsCount: hidden.length,
+      todayOrdersCount: parseInt(todayAggregate?.cnt ?? '0', 10) || 0,
+      todayRevenue: parseFloat(todayAggregate?.revenue ?? '0') || 0,
+      outOfStockCount,
+      activeProductsCount,
+      hiddenProductsCount,
       lowStock: lowStock.map((p) => ({ id: p.id, name: p.name, stock: p.stock, unit: p.unit })),
-      recentOrders: orders.slice(0, 5).map((o) => this.serializeOrder(o)),
-      bestSellers: this.computeBestSellers(orders).slice(0, 5),
+      recentOrders: recentOrders.map((o) => this.serializeOrder(o)),
+      bestSellers: this.computeBestSellers(bestSellerOrders).slice(0, 5),
     };
   }
 
+  /**
+   * Loads the order rows the JSON-item aggregates (best sellers, category
+   * breakdown, stock turnover) are computed from.
+   *
+   * `items` is a jsonb column, so those totals cannot be pushed into a plain
+   * SUM the way revenue can. Instead of reading the whole order history, the
+   * set is bounded twice: to a rolling ANALYTICS_WINDOW_DAYS window and to a
+   * hard row cap. Note this narrows the figures from all-time to the window —
+   * intentional, since "best seller" and "stock turnover" are only meaningful
+   * against recent trade anyway, and the response shape is unaffected.
+   */
+  private findOrdersForAggregation(storeId: string): Promise<MarketOrder[]> {
+    const since = new Date();
+    since.setDate(since.getDate() - ANALYTICS_WINDOW_DAYS);
+
+    return this.orderRepo.find({
+      where: { storeId, createdAt: MoreThanOrEqual(since) },
+      order: { createdAt: 'DESC' },
+      take: ANALYTICS_MAX_ORDERS,
+    });
+  }
+
+  /**
+   * Vendor reports (GET /market/vendor/reports).
+   *
+   * Previously read every order and every product the store has ever had. Both
+   * reads are now bounded: orders to the analytics window (see
+   * findOrdersForAggregation), products to the rows needed for the category
+   * lookup and the stock-on-hand total, which is a single SUM.
+   */
   async getReports(storeId: string) {
-    const orders = await this.orderRepo.find({ where: { storeId } });
-    const products = await this.productRepo.find({ where: { storeId }, relations: ['category'] });
+    const [orders, products, stockAggregate] = await Promise.all([
+      this.findOrdersForAggregation(storeId),
+      this.productRepo.find({ where: { storeId }, relations: ['category'], take: ANALYTICS_MAX_PRODUCTS }),
+      this.productRepo
+        .createQueryBuilder('p')
+        .select('COALESCE(SUM(p.stock), 0)', 'stock')
+        .where('p.store_id = :storeId', { storeId })
+        .getRawOne<{ stock: string }>(),
+    ]);
 
     const days = ['Ya', 'Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh'];
     const weeklyRevenue = Array.from({ length: 7 }, (_, i) => {
@@ -457,7 +551,7 @@ export class MarketService {
       (sum, o) => sum + o.items.reduce((s, i) => s + i.qty, 0),
       0,
     );
-    const totalCurrentStock = products.reduce((sum, p) => sum + p.stock, 0);
+    const totalCurrentStock = parseInt(stockAggregate?.stock ?? '0', 10) || 0;
     const stockTurnover = totalCurrentStock > 0 ? totalUnitsSold / totalCurrentStock : 0;
 
     return {
@@ -579,8 +673,28 @@ export class MarketService {
     return order;
   }
 
-  async listCustomerOrders(customerId: string) {
-    const orders = await this.orderRepo.find({ where: { customerId }, order: { createdAt: 'DESC' } });
+  /**
+   * A customer's own market order history (GET /market/orders).
+   *
+   * Was an unbounded read of every order the customer ever placed, each one then
+   * fanned out into a `withDelivery` lookup — so the number of queries grew with
+   * the history too.
+   *
+   * The response stays a bare array: the Flutter client hits `/market/orders`
+   * and decodes a list, so an envelope would break it. Pagination is therefore
+   * opt-in via query parameters, and a caller that sends none keeps the previous
+   * behaviour for any realistic history (newest CUSTOMER_ORDERS_DEFAULT_LIMIT).
+   */
+  async listCustomerOrders(customerId: string, page = 1, limit = CUSTOMER_ORDERS_DEFAULT_LIMIT) {
+    const safePage = Number.isFinite(page) && page >= 1 ? Math.floor(page) : 1;
+    const safeLimit = clampPageSize(limit, CUSTOMER_ORDERS_DEFAULT_LIMIT, CUSTOMER_ORDERS_MAX_LIMIT);
+
+    const orders = await this.orderRepo.find({
+      where: { customerId },
+      order: { createdAt: 'DESC' },
+      skip: (safePage - 1) * safeLimit,
+      take: safeLimit,
+    });
     return Promise.all(orders.map((o) => this.withDelivery(o)));
   }
 
