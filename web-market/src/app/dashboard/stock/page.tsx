@@ -1,142 +1,166 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { marketApi, Product, StockMovement, Store } from '@/lib/api';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Boxes, PackageX, ShieldCheck } from 'lucide-react';
+import { marketApi, type Product, type StockMovement } from '@/lib/api';
+import { cn } from '@/lib/utils';
+import { StatCard } from '@/components/ui/StatCard';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { Skeleton, SkeletonStats, SkeletonTable } from '@/components/ui/Skeleton';
+import { useToast } from '@/components/ui/Toast';
+import { StockTable } from '@/components/stock/StockTable';
+import { StockMovements } from '@/components/stock/StockMovements';
 
-function photoBg(hue: number) {
-  return { background: `linear-gradient(135deg,hsla(${hue},60%,45%,0.25),hsla(${hue},60%,30%,0.12))` };
-}
-
-function stockColor(stock: number, threshold: number) {
-  return stock === 0 ? 'text-red-400' : stock <= threshold ? 'text-brand-yellow' : 'text-green-400';
-}
+type Filter = 'attention' | 'all';
 
 export default function StockPage() {
+  const { toast } = useToast();
+
   const [products, setProducts] = useState<Product[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
-  const [store, setStore] = useState<Store | null>(null);
-  const [saved, setSaved] = useState<Record<string, boolean>>({});
+  const [threshold, setThreshold] = useState(10);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<Filter>('attention');
+  const [busyId, setBusyId] = useState<string | null>(null);
 
-  const load = async () => {
-    const [p, m, s] = await Promise.all([marketApi.getProducts(), marketApi.getStockMovements(), marketApi.getStore()]);
-    setProducts(p.data.data);
-    setMovements(m.data.data);
-    setStore(s.data.data);
-  };
+  const load = useCallback(async () => {
+    setStatus((s) => (s === 'ready' ? s : 'loading'));
+    try {
+      const [productsRes, movementsRes, storeRes] = await Promise.all([
+        marketApi.getProducts(),
+        marketApi.getStockMovements(),
+        marketApi.getStore(),
+      ]);
+      setProducts(productsRes.data.data);
+      setMovements(movementsRes.data.data);
+      setThreshold(storeRes.data.data.lowStockThreshold);
+      setStatus('ready');
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : null);
+      setStatus('error');
+    }
+  }, []);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
-  const threshold = store?.lowStockThreshold ?? 10;
   const outCount = products.filter((p) => p.stock === 0).length;
   const lowCount = products.filter((p) => p.stock > 0 && p.stock <= threshold).length;
-  const needRestock = useMemo(
-    () => products.filter((p) => p.stock <= threshold).sort((a, b) => a.stock - b.stock),
-    [products, threshold]
-  );
 
-  const flashSaved = (id: string) => {
-    setSaved((s) => ({ ...s, [id]: true }));
-    setTimeout(() => setSaved((s) => ({ ...s, [id]: false })), 1300);
+  const visible = useMemo(() => {
+    const list =
+      filter === 'attention' ? products.filter((p) => p.stock <= threshold) : [...products];
+    // Emptiest first — the vendor works down the list.
+    return list.sort((a, b) => a.stock - b.stock || a.name.localeCompare(b.name));
+  }, [products, threshold, filter]);
+
+  /**
+   * There is no restock endpoint: stock is written through `updateProduct`,
+   * which is also what records the movement on the backend. So this sends the
+   * absolute new value rather than a delta.
+   */
+  const setStock = async (product: Product, stock: number) => {
+    setBusyId(product.id);
+    try {
+      const res = await marketApi.updateProduct(product.id, { stock });
+      setProducts((prev) => prev.map((p) => (p.id === product.id ? res.data.data : p)));
+      const movementsRes = await marketApi.getStockMovements();
+      setMovements(movementsRes.data.data);
+    } catch {
+      toast({ title: 'Zaxirani saqlab bo‘lmadi', variant: 'error' });
+    } finally {
+      setBusyId(null);
+    }
   };
 
-  const bump = async (p: Product, delta: number) => {
-    const next = Math.max(0, p.stock + delta);
-    const res = await marketApi.updateProduct(p.id, { stock: next });
-    setProducts((prev) => prev.map((x) => (x.id === p.id ? res.data.data : x)));
-    flashSaved(p.id);
-    const m = await marketApi.getStockMovements();
-    setMovements(m.data.data);
-  };
-
-  return (
-    <div className="animate-fade-in">
-      <div className="grid grid-cols-2 gap-4 mb-5">
-        <div
-          className="rounded-[14px] border border-red-500/25 px-[18px] py-4"
-          style={{ background: 'linear-gradient(90deg,rgba(239,68,68,0.1),transparent)' }}
-        >
-          <div className="text-[12.5px] text-slate-400 font-semibold">Tugagan mahsulotlar</div>
-          <div className="text-[28px] font-extrabold text-red-400 mt-1">{outCount}</div>
-        </div>
-        <div
-          className="rounded-[14px] border border-brand-yellow/25 px-[18px] py-4"
-          style={{ background: 'linear-gradient(90deg,rgba(250,204,21,0.1),transparent)' }}
-        >
-          <div className="text-[12.5px] text-slate-400 font-semibold">Kam qolgan (≤{threshold})</div>
-          <div className="text-[28px] font-extrabold text-brand-yellow mt-1">{lowCount}</div>
+  if (status === 'loading') {
+    return (
+      <div className="space-y-4">
+        <SkeletonStats count={3} />
+        <div className="grid grid-cols-1 2xl:grid-cols-[1.6fr_1fr] gap-4">
+          <SkeletonTable rows={6} cols={5} />
+          <Skeleton className="h-96 rounded-xl" />
         </div>
       </div>
+    );
+  }
 
-      <div className="grid grid-cols-[1.4fr_1fr] gap-4">
-        <div
-          className="rounded-2xl border border-white/[0.07] overflow-hidden"
-          style={{ background: 'linear-gradient(160deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))' }}
-        >
-          <div className="px-[18px] py-[15px] border-b border-white/[0.06] text-sm font-bold">To&apos;ldirish kerak</div>
-          {needRestock.length === 0 && <div className="p-8 text-center text-slate-500 text-sm">Barcha mahsulotlar yetarli</div>}
-          {needRestock.map((p) => (
-            <div key={p.id} className="flex items-center gap-3.5 px-[18px] py-[13px] border-b border-white/[0.04]">
-              <div className="w-[38px] h-[38px] rounded-[10px] flex-shrink-0 flex items-center justify-center text-base" style={photoBg(p.hue)}>
-                {p.emoji}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-bold whitespace-nowrap overflow-hidden text-ellipsis">{p.name}</div>
-                <div className={`text-[11.5px] mt-0.5 font-bold ${stockColor(p.stock, threshold)}`}>
-                  Qoldi: {p.stock} {p.unit}
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <button onClick={() => bump(p, -5)} className="w-[30px] h-[30px] rounded-lg bg-white/[0.05] border border-white/[0.08] text-slate-200 font-bold">
-                  −
-                </button>
-                <span className="w-14 text-center bg-white/[0.04] border border-white/[0.09] rounded-lg py-1.5 text-sm font-extrabold">{p.stock}</span>
-                <button
-                  onClick={() => bump(p, 5)}
-                  className="w-[30px] h-[30px] rounded-lg bg-brand-yellow/[0.12] border border-brand-yellow/25 text-brand-yellow font-bold"
-                >
-                  +
-                </button>
-                {saved[p.id] && <span className="text-green-500 animate-pop">✓</span>}
-              </div>
-            </div>
-          ))}
-        </div>
+  if (status === 'error') return <ErrorState message={error} onRetry={load} />;
 
-        <div
-          className="rounded-2xl border border-white/[0.07] overflow-hidden"
-          style={{ background: 'linear-gradient(160deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))' }}
-        >
-          <div className="px-[18px] py-[15px] border-b border-white/[0.06] text-sm font-bold">Zaxira harakati</div>
-          <div className="py-1.5">
-            {movements.length === 0 && <div className="p-8 text-center text-slate-500 text-sm">Harakat yo&apos;q</div>}
-            {movements.map((m) => {
-              const up = m.delta > 0;
-              return (
-                <div key={m.id} className="flex items-center gap-3 px-[18px] py-[11px]">
-                  <div
-                    className={`w-[30px] h-[30px] rounded-lg flex-shrink-0 flex items-center justify-center text-[13px] font-extrabold ${
-                      up ? 'bg-green-500/[0.14] text-green-400' : 'bg-red-500/[0.12] text-red-400'
-                    }`}
-                  >
-                    {up ? '↑' : '↓'}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[12.5px] font-semibold whitespace-nowrap overflow-hidden text-ellipsis">{m.product.name}</div>
-                    <div className="text-[11px] text-slate-500 mt-0.5">
-                      {m.note} · {new Date(m.createdAt).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                  </div>
-                  <div className={`text-[12.5px] font-extrabold ${up ? 'text-green-400' : 'text-red-400'}`}>
-                    {up ? '+' : ''}
-                    {m.delta}
-                  </div>
-                </div>
-              );
-            })}
+  return (
+    <div className="space-y-4 animate-fade-in">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <StatCard
+          label="Zaxira tugagan"
+          value={outCount}
+          icon={<PackageX size={18} />}
+          tone={outCount > 0 ? 'danger' : 'neutral'}
+          hint={outCount > 0 ? 'Sotib bo‘lmaydi' : undefined}
+        />
+        <StatCard
+          label={`Zaxira kam (≤ ${threshold})`}
+          value={lowCount}
+          icon={<Boxes size={18} />}
+          tone={lowCount > 0 ? 'warn' : 'neutral'}
+        />
+        <StatCard
+          label="Jami mahsulotlar"
+          value={products.length}
+          icon={<ShieldCheck size={18} />}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 2xl:grid-cols-[1.6fr_1fr] gap-4">
+        <div className="space-y-3 min-w-0">
+          <div className="flex items-center gap-2">
+            {(
+              [
+                { key: 'attention', label: "To'ldirish kerak", count: outCount + lowCount },
+                { key: 'all', label: 'Barcha mahsulotlar', count: products.length },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setFilter(tab.key)}
+                aria-pressed={filter === tab.key}
+                className={cn(
+                  'inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors',
+                  filter === tab.key
+                    ? 'border-primary/45 bg-primary/10 text-primary-700 dark:text-primary-300'
+                    : 'border-line bg-surface text-muted hover:bg-surface-2 hover:text-ink'
+                )}
+              >
+                {tab.label}
+                <span className="font-mono tabular-nums">{tab.count}</span>
+              </button>
+            ))}
           </div>
+
+          {visible.length === 0 ? (
+            <div className="surface-card">
+              <EmptyState
+                tone="positive"
+                icon={<ShieldCheck size={24} />}
+                title="Zaxira yetarli"
+                description="Hozircha to'ldirish kerak bo'lgan mahsulot yo'q."
+              />
+            </div>
+          ) : (
+            <StockTable
+              products={visible}
+              threshold={threshold}
+              onSetStock={setStock}
+              busyId={busyId}
+            />
+          )}
         </div>
+
+        <StockMovements movements={movements} />
       </div>
     </div>
   );
