@@ -30,8 +30,10 @@ mobile/.packages
 **/*.g.dart.lock
 
 # ===== DB backups =====
-backups/*.sql
-backups/*.dump
+# Everything in here is a production dump: real phone numbers, ride history and
+# wallet balances. Ignore the directory wholesale rather than by extension —
+# a .json logical dump used to slip straight past the .sql/.dump patterns.
+backups/*
 !backups/.gitkeep
 
 # ===== Uploaded driver KYC documents (local disk storage, dev/MVP only) =====
