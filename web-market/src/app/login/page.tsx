@@ -5,12 +5,16 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Phone, Lock, ArrowRight, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Lock, Package, Phone } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { useToast } from '@/components/ui/Toast';
 import { authApi } from '@/lib/api';
-import { isValidUzPhone, formatPhone } from '@/lib/auth';
+// `formatPhone` here normalises input for the API — not the display formatter
+// of the same name in lib/format.ts.
+import { isValidUzPhone, formatPhone as normalizePhone } from '@/lib/auth';
 import { useAuth } from '@/hooks/useAuth';
 
 const phoneSchema = z.object({
@@ -31,21 +35,31 @@ export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
   const { toast } = useToast();
+
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [phone, setPhone] = useState('');
   const [devOtpCode, setDevOtpCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const phoneForm = useForm<PhoneForm>({ resolver: zodResolver(phoneSchema), defaultValues: { phone: '' } });
-  const otpForm = useForm<OtpForm>({ resolver: zodResolver(otpSchema), defaultValues: { code: '' } });
+  const phoneForm = useForm<PhoneForm>({
+    resolver: zodResolver(phoneSchema),
+    defaultValues: { phone: '' },
+  });
+  const otpForm = useForm<OtpForm>({
+    resolver: zodResolver(otpSchema),
+    defaultValues: { code: '' },
+  });
 
   const handleSendOtp = async (data: PhoneForm) => {
     setIsLoading(true);
     try {
-      const normalized = formatPhone(data.phone);
+      const normalized = normalizePhone(data.phone);
       const res = await authApi.sendOtp(normalized);
       setPhone(normalized);
       setStep('otp');
+
+      // In dev the backend returns the code, and the form is pre-filled with
+      // it. This behaviour is deliberate — keep it.
       const code = res.data.data.code;
       if (code) {
         setDevOtpCode(code);
@@ -71,6 +85,8 @@ export default function LoginPage() {
     try {
       const res = await authApi.verifyOtp(phone, data.code);
       const { accessToken, user } = res.data.data;
+
+      // This panel is vendors-only; every other role is turned away here.
       if (user.role !== 'market') {
         toast({
           title: 'Ruxsat yo‘q',
@@ -79,12 +95,14 @@ export default function LoginPage() {
         });
         return;
       }
+
       login(accessToken, user);
       toast({ title: 'Muvaffaqiyatli kirildi', variant: 'success' });
       router.push('/dashboard');
     } catch (err: unknown) {
       const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Noto'g'ri kod";
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Noto'g'ri kod";
       toast({ title: 'Xatolik', description: message, variant: 'error' });
     } finally {
       setIsLoading(false);
@@ -92,49 +110,50 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-[#080D1A] overflow-hidden p-4">
+    <div className="relative min-h-screen flex items-center justify-center bg-bg p-4">
+      {/* Soft mint wash behind the card — the only decoration on this screen. */}
       <div
-        className="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full"
-        style={{ background: 'radial-gradient(circle, rgba(250,204,21,0.12) 0%, transparent 70%)', filter: 'blur(60px)' }}
-      />
-      <div
-        className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full"
-        style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.10) 0%, transparent 70%)', filter: 'blur(80px)' }}
-      />
+        className="pointer-events-none absolute inset-0 overflow-hidden"
+        aria-hidden
+      >
+        <div className="absolute -top-40 -left-40 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-primary/[0.07] blur-3xl" />
+      </div>
+
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
 
       <div className="relative w-full max-w-md">
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <div
-            className="flex h-14 w-14 items-center justify-center rounded-2xl bg-yellow-400"
-            style={{ boxShadow: '0 0 32px rgba(250,204,21,0.4)' }}
-          >
-            <ShoppingBag className="h-7 w-7 text-[#080D1A]" />
+        <div className="mb-7 flex flex-col items-center gap-3 text-center">
+          <div className="h-14 w-14 rounded-2xl bg-primary flex items-center justify-center shadow-glow-mint">
+            <Package className="h-7 w-7 text-primary-ink" strokeWidth={2.2} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">Angren Market</h1>
-            <p className="text-sm text-yellow-400">Sotuvchi paneli</p>
+            <h1 className="text-2xl font-extrabold tracking-tight text-ink">Angren Market</h1>
+            <p className="text-sm text-primary-700 dark:text-primary-300 font-medium">
+              Sotuvchi paneli
+            </p>
           </div>
         </div>
 
-        <div
-          className="rounded-2xl p-8"
-          style={{
-            background: 'rgba(13,21,38,0.8)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            backdropFilter: 'blur(12px)',
-            boxShadow: '0 24px 48px rgba(0,0,0,0.5)',
-          }}
-        >
-          <div className="mb-6 flex items-center gap-2">
-            <div className={`h-1.5 flex-1 rounded-full transition-colors ${step === 'phone' || step === 'otp' ? 'bg-yellow-400' : 'bg-white/10'}`} />
-            <div className={`h-1.5 flex-1 rounded-full transition-colors ${step === 'otp' ? 'bg-yellow-400' : 'bg-white/10'}`} />
+        <div className="surface-card p-7">
+          {/* Two steps, two segments. */}
+          <div className="mb-6 flex items-center gap-2" aria-hidden>
+            <span className="h-1.5 flex-1 rounded-full bg-primary" />
+            <span
+              className={cn(
+                'h-1.5 flex-1 rounded-full transition-colors',
+                step === 'otp' ? 'bg-primary' : 'bg-surface-3'
+              )}
+            />
           </div>
 
-          <div className="mb-6">
-            <h2 className="text-xl font-bold text-white">
-              {step === 'phone' ? 'Sotuvchi paneliga kirish' : 'Tasdiqlash kodi'}
+          <div className="mb-5">
+            <h2 className="text-lg font-bold text-ink">
+              {step === 'phone' ? 'Panelga kirish' : 'Tasdiqlash kodi'}
             </h2>
-            <p className="mt-1.5 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-muted">
               {step === 'phone'
                 ? 'Telefon raqamingizni kiriting'
                 : `${phone} raqamiga yuborilgan 6 raqamli kodni kiriting`}
@@ -146,13 +165,20 @@ export default function LoginPage() {
               <Input
                 label="Telefon raqam"
                 placeholder="+998901234567"
-                leftIcon={<Phone className="h-4 w-4" />}
+                leftIcon={<Phone size={15} />}
                 error={phoneForm.formState.errors.phone?.message}
+                mono
+                autoFocus
                 {...phoneForm.register('phone')}
               />
-              <Button type="submit" className="w-full" isLoading={isLoading}>
+              <Button
+                type="submit"
+                size="lg"
+                className="w-full"
+                isLoading={isLoading}
+                rightIcon={<ArrowRight size={16} />}
+              >
                 Kod yuborish
-                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </form>
           ) : (
@@ -161,32 +187,39 @@ export default function LoginPage() {
                 label="Tasdiqlash kodi"
                 placeholder="000000"
                 maxLength={6}
-                leftIcon={<Lock className="h-4 w-4" />}
-                error={otpForm.formState.errors.code?.message}
                 inputMode="numeric"
+                leftIcon={<Lock size={15} />}
+                error={otpForm.formState.errors.code?.message}
+                mono
+                autoFocus
                 {...otpForm.register('code')}
               />
+
               {devOtpCode && (
-                <div
-                  className="rounded-lg px-3 py-2 text-sm"
-                  style={{ background: 'rgba(250,204,21,0.08)', border: '1px solid rgba(250,204,21,0.25)', color: '#FACC15' }}
-                >
-                  <span className="font-semibold">DEV:</span> OTP kod —{' '}
-                  <span className="font-mono font-bold">{devOtpCode}</span>{' '}
-                  <span className="text-yellow-400/60">(avtomatik kiritildi)</span>
-                </div>
+                <p className="rounded-lg border border-primary/30 bg-primary/[0.08] px-3 py-2 text-xs text-primary-700 dark:text-primary-300">
+                  <span className="font-semibold">DEV:</span> kod{' '}
+                  <span className="font-mono font-bold">{devOtpCode}</span> — avtomatik kiritildi
+                </p>
               )}
-              <Button type="submit" className="w-full" isLoading={isLoading}>
+
+              <Button
+                type="submit"
+                size="lg"
+                className="w-full"
+                isLoading={isLoading}
+                rightIcon={<ArrowRight size={16} />}
+              >
                 Kirish
-                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
-              <button
-                type="button"
-                className="w-full text-center text-sm text-slate-500 hover:text-slate-300 transition-colors"
+
+              <Button
+                variant="ghost"
+                className="w-full"
                 onClick={() => setStep('phone')}
+                leftIcon={<ArrowLeft size={15} />}
               >
                 Raqamni o&apos;zgartirish
-              </button>
+              </Button>
             </form>
           )}
         </div>
