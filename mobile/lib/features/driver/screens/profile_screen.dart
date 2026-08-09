@@ -1,6 +1,9 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
+import 'package:angren_taxi/features/driver/screens/earnings_screen.dart';
+import 'package:angren_taxi/features/passenger/screens/edit_profile_screen.dart';
+import 'package:angren_taxi/features/superapp/screens/notifications_screen.dart';
 import 'package:angren_taxi/features/support/screens/chat_screen.dart';
 import 'package:angren_taxi/shared/models/driver_rating_stats.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
@@ -247,14 +250,101 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
     );
   }
 
+  /// Read-only summary of the registered vehicle.
+  ///
+  /// There is no self-service vehicle-edit endpoint — the car is verified
+  /// during onboarding and a change has to be re-approved — so this shows what
+  /// is on file and points at support rather than pretending to be editable.
+  void _showCarDetails(BuildContext context) {
+    final driver = context.read<DriverProvider>().driver;
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Mashina ma\'lumotlari',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 16),
+              if (driver == null)
+                const Text('Ma\'lumot yuklanmadi')
+              else ...[
+                _carRow('Rusumi', driver.carModel),
+                _carRow('Rangi', driver.carColor),
+                _carRow('Davlat raqami', driver.carNumber),
+                if (driver.carYear != null)
+                  _carRow('Ishlab chiqarilgan yili', '\${driver.carYear}'),
+              ],
+              const SizedBox(height: 16),
+              const Text(
+                'Mashinani almashtirish uchun operator bilan bog\'laning — '
+                'yangi mashina qayta tekshiruvdan o\'tishi kerak.',
+                style: TextStyle(fontSize: 13, color: Colors.black54, height: 1.4),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _carRow(String label, String value) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(color: Colors.black54)),
+        Text(
+          value.isEmpty ? '—' : value,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ],
+    ),
+  );
+
   Widget _buildMenuList(BuildContext context) {
     return Column(
       children: [
-        _buildMenuTile(Icons.edit_outlined, 'Ma\'lumotlarni tahrirlash', () {}),
+        // These four were `() {}` — no navigation, no snackbar, nothing at
+        // all. "Bank hisobi" in particular meant a driver could not set a
+        // payout destination from the app, so they had no way to get paid.
         _buildMenuTile(
-            Icons.directions_car_outlined, 'Mashina ma\'lumotlari', () {}),
-        _buildMenuTile(Icons.account_balance_outlined, 'Bank hisobi', () {}),
-        _buildMenuTile(Icons.notifications_outlined, 'Bildirishnomalar', () {}),
+          Icons.edit_outlined,
+          'Ma\'lumotlarni tahrirlash',
+          () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const EditProfileScreen()),
+          ),
+        ),
+        _buildMenuTile(
+          Icons.directions_car_outlined,
+          'Mashina ma\'lumotlari',
+          () => _showCarDetails(context),
+        ),
+        _buildMenuTile(
+          Icons.account_balance_outlined,
+          'Bank hisobi va pul yechish',
+          () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const EarningsScreen()),
+          ),
+        ),
+        _buildMenuTile(
+          Icons.notifications_outlined,
+          'Bildirishnomalar',
+          () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const NotificationsScreen()),
+          ),
+        ),
         _buildMenuTile(
           Icons.help_outline,
           'Yordam',

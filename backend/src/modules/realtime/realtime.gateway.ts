@@ -11,14 +11,29 @@ import { forwardRef, Inject, Logger, UseGuards } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { DriversService } from '../drivers/drivers.service';
-import { User, UserRole } from '../../database/entities/user.entity';
+import { User, UserRole, UserStatus } from '../../database/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { SupportService } from '../support/support.service';
+import { Order } from '../../database/entities/order.entity';
+import { WsJwtGuard } from '../../common/guards/ws-jwt.guard';
+import { resolveCorsOrigin } from '../../config/cors-origin.util';
 
 interface AuthSocket extends Socket {
   user: User;
 }
+
+/**
+ * Per-socket sliding-window rate limit.
+ *
+ * The global ThrottlerGuard deliberately skips non-HTTP contexts
+ * (see HttpThrottlerGuard), so without this a single authenticated socket
+ * could flood `driver:location` or `support:message` unbounded.
+ */
+const WS_RATE_LIMIT_WINDOW_MS = 10_000;
+const WS_RATE_LIMIT_MAX_EVENTS = 100;
 
 interface JwtPayload {
   sub: string;
@@ -46,10 +61,14 @@ interface JoinSupportThreadPayload {
   threadId: string;
 }
 
+@UseGuards(WsJwtGuard)
 @WebSocketGateway({
   namespace: '/ws',
+  // Mirrors the HTTP CORS policy instead of a blanket wildcard: a wildcard
+  // combined with `credentials: true` is unsafe, and non-browser clients do
+  // not enforce the rejection browsers apply to that combination.
   cors: {
-    origin: '*',
+    origin: resolveCorsOrigin(process.env.NODE_ENV, process.env.CORS_ORIGIN),
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -65,6 +84,9 @@ export class RealtimeGateway
   // Map of userId -> socketId for targeted messages
   private readonly userSocketMap = new Map<string, string[]>();
 
+  // socketId -> timestamps of recent inbound events (sliding window)
+  private readonly rateWindows = new Map<string, number[]>();
+
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
@@ -72,7 +94,58 @@ export class RealtimeGateway
     private readonly usersService: UsersService,
     @Inject(forwardRef(() => SupportService))
     private readonly supportService: SupportService,
+    @InjectRepository(Order)
+    private readonly orderRepository: Repository<Order>,
   ) {}
+
+  /**
+   * Records an inbound event and throws once a socket exceeds the window
+   * budget. Called at the top of every @SubscribeMessage handler.
+   */
+  private enforceRateLimit(client: Socket): void {
+    const now = Date.now();
+    const cutoff = now - WS_RATE_LIMIT_WINDOW_MS;
+    const recent = (this.rateWindows.get(client.id) || []).filter((ts) => ts > cutoff);
+
+    if (recent.length >= WS_RATE_LIMIT_MAX_EVENTS) {
+      this.rateWindows.set(client.id, recent);
+      throw new WsException('Rate limit exceeded');
+    }
+
+    this.rateWindows.set(client.id, [...recent, now]);
+  }
+
+  /**
+   * Authorises access to an `order:<id>` room.
+   *
+   * The room carries live driver GPS and every trip-chat message, so it must
+   * follow the same rule as `GET /orders/:id`: passenger, assigned driver, or
+   * staff only. `order.driverId` references `User.id` (the `driver` relation
+   * is a `@ManyToOne(() => User)`), so comparing it to the socket user's id is
+   * correct. The Order repository is injected directly rather than going
+   * through OrdersQueryService to avoid a module-level circular dependency.
+   */
+  private async assertCanJoinOrder(user: User, orderId: string): Promise<void> {
+    if (user.role === UserRole.MANAGER || user.role === UserRole.ADMIN) {
+      return;
+    }
+
+    const order = await this.orderRepository.findOne({
+      where: { id: orderId },
+      select: { id: true, passengerId: true, driverId: true },
+    });
+
+    if (!order) {
+      throw new WsException('Order not found');
+    }
+
+    const isPassenger = order.passengerId === user.id;
+    const isAssignedDriver = order.driverId !== null && order.driverId === user.id;
+
+    if (!isPassenger && !isAssignedDriver) {
+      throw new WsException('You are not authorized to join this order');
+    }
+  }
 
   afterInit(_server: Server): void {
     this.logger.log('WebSocket Gateway initialized on namespace /ws');
@@ -109,6 +182,16 @@ export class RealtimeGateway
         return;
       }
 
+      // Blocked accounts must lose realtime access at the handshake, not when
+      // their long-lived access token finally expires. WsJwtGuard re-checks
+      // this on every inbound event so an account blocked mid-session is also
+      // cut off immediately.
+      if (user.status === UserStatus.BLOCKED) {
+        this.logger.warn(`Blocked user ${user.id} rejected at WS handshake`);
+        client.disconnect();
+        return;
+      }
+
       (client as AuthSocket).user = user;
 
       // Track user-socket mapping
@@ -133,6 +216,8 @@ export class RealtimeGateway
   async handleDisconnect(client: Socket): Promise<void> {
     const authClient = client as AuthSocket;
     const user = authClient.user;
+
+    this.rateWindows.delete(client.id);
 
     if (!user) return;
 
@@ -164,6 +249,8 @@ export class RealtimeGateway
     client: Socket,
     payload: LocationPayload,
   ): Promise<void> {
+    this.enforceRateLimit(client);
+
     const authClient = client as AuthSocket;
     const user = authClient.user;
 
@@ -207,10 +294,19 @@ export class RealtimeGateway
     client: Socket,
     payload: JoinOrderPayload,
   ): Promise<void> {
+    this.enforceRateLimit(client);
+
+    const user = (client as AuthSocket).user;
+    if (!user) {
+      throw new WsException('Not authenticated');
+    }
+
     const { orderId } = payload;
     if (!orderId) {
       throw new WsException('orderId is required');
     }
+
+    await this.assertCanJoinOrder(user, orderId);
 
     await client.join(`order:${orderId}`);
     this.logger.log(`Client ${client.id} joined order room order:${orderId}`);
@@ -233,6 +329,8 @@ export class RealtimeGateway
     client: Socket,
     payload: SupportMessagePayload,
   ): Promise<void> {
+    this.enforceRateLimit(client);
+
     const authClient = client as AuthSocket;
     const user = authClient.user;
 
@@ -257,9 +355,24 @@ export class RealtimeGateway
     client: Socket,
     payload: JoinSupportThreadPayload,
   ): Promise<void> {
+    this.enforceRateLimit(client);
+
+    const user = (client as AuthSocket).user;
+    if (!user) {
+      throw new WsException('Not authenticated');
+    }
+
     const { threadId } = payload;
     if (!threadId) {
       throw new WsException('threadId is required');
+    }
+
+    // The thread room receives every support message, so joining it needs the
+    // same ownership rule the REST reads already enforce.
+    try {
+      await this.supportService.assertCanAccessThread(threadId, user);
+    } catch (err) {
+      throw new WsException((err as Error).message);
     }
 
     await client.join(`support:thread:${threadId}`);

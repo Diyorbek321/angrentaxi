@@ -1,5 +1,4 @@
-import 'package:angren_taxi/core/config/payment_brand_colors.dart';
-import 'package:angren_taxi/features/superapp/screens/add_card_screen.dart';
+import 'package:angren_taxi/features/superapp/models/wallet_transaction.dart';
 import 'package:angren_taxi/features/superapp/screens/topup_screen.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
@@ -23,7 +22,10 @@ class _WalletScreenState extends State<WalletScreen> {
     // Always re-read on open: the balance may have moved since the home tab
     // last fetched it (an order was paid, a withdrawal cleared, ...).
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) context.read<SuperappProvider>().loadWalletBalance();
+      if (!mounted) return;
+      final superapp = context.read<SuperappProvider>();
+      superapp.loadWalletBalance();
+      superapp.loadTransactions();
     });
   }
 
@@ -32,7 +34,8 @@ class _WalletScreenState extends State<WalletScreen> {
     final superapp = context.watch<SuperappProvider>();
     final balance = superapp.walletBalance;
     final walletError = superapp.walletError;
-    final loadingTxns = superapp.isWalletLoading && balance == null;
+    final transactions = superapp.transactions;
+    final loadingTxns = superapp.isTransactionsLoading && transactions.isEmpty;
 
     return Scaffold(
       backgroundColor: agBg,
@@ -64,28 +67,13 @@ class _WalletScreenState extends State<WalletScreen> {
                   ),
                 ],
                 const SizedBox(height: kSpace6),
-                AgSectionTitle('Kartalar', trailing: '+ Qo\'shish', onTrailingTap: () {
-                  Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AddCardScreen()));
-                }),
+                const AgSectionTitle('Kartalar'),
                 const SizedBox(height: kSpace3),
-                const _CardTile(
-                  label: 'UZ',
-                  gradient: kBrandUzcardGradient,
-                  labelColor: agOnPrimary,
-                  name: 'Uzcard',
-                  number: '8600 •••• •••• 4421',
-                  selected: true,
-                ),
-                const SizedBox(height: kSpace3),
-                const _CardTile(
-                  label: 'HUMO',
-                  // Dekorativ mint to'ldirish — ustidagi yozuv `agOnMint`
-                  // (7.84:1). Oq yozuv mint ustida atigi 2.12:1 berardi.
-                  gradient: [kMint, kMintDeep],
-                  labelColor: agOnMint,
-                  name: 'Humo',
-                  number: '9860 •••• •••• 7702',
-                ),
+                // Saved cards need a Payme/Click merchant agreement before a
+                // card can be bound and charged. Until then the screen says so
+                // plainly instead of showing two invented cards ("Uzcard 8600
+                // •••• 4421") that belonged to nobody and could not be used.
+                const _CardsUnavailableNotice(),
                 const SizedBox(height: kSpace6),
                 const AgSectionTitle('So\'nggi amallar'),
                 const SizedBox(height: kSpace3),
@@ -95,6 +83,13 @@ class _WalletScreenState extends State<WalletScreen> {
                     hasTrailing: true,
                     padding: EdgeInsets.zero,
                   )
+                else if (superapp.transactionsError != null && transactions.isEmpty)
+                  InlineErrorWidget(
+                    message: superapp.transactionsError!,
+                    onRetry: () => superapp.loadTransactions(),
+                  )
+                else if (transactions.isEmpty)
+                  const _NoTransactions()
                 else
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: kSpace4),
@@ -103,11 +98,13 @@ class _WalletScreenState extends State<WalletScreen> {
                       borderRadius: BorderRadius.circular(kRadiusLg),
                       boxShadow: agCardShadow,
                     ),
-                    child: const Column(
+                    child: Column(
                       children: [
-                        _TxnRow(icon: Icons.add_rounded, iconColor: agGreenText, title: 'Hisob to\'ldirildi', time: 'Bugun, 09:12', amount: '+50 000', amountColor: agGreenText),
-                        Divider(color: agDivider, height: 1),
-                        _TxnRow(icon: Icons.local_taxi_rounded, iconColor: agSubtle, title: 'Taksi to\'lovi', time: 'Kecha, 18:24', amount: '−18 000', amountColor: agText, last: true),
+                        for (var i = 0; i < transactions.length; i++)
+                          _TxnRow(
+                            txn: transactions[i],
+                            last: i == transactions.length - 1,
+                          ),
                       ],
                     ),
                   ),
@@ -239,25 +236,8 @@ class _BalanceCard extends StatelessWidget {
   }
 }
 
-class _CardTile extends StatelessWidget {
-  const _CardTile({
-    required this.label,
-    required this.gradient,
-    required this.labelColor,
-    required this.name,
-    required this.number,
-    this.selected = false,
-  });
-
-  final String label;
-  final List<Color> gradient;
-
-  /// Brend gradienti ustidagi yozuv rangi — mint to'ldirishda `agOnMint`,
-  /// to'q ko'k brend gradientida `agOnPrimary`.
-  final Color labelColor;
-  final String name;
-  final String number;
-  final bool selected;
+class _CardsUnavailableNotice extends StatelessWidget {
+  const _CardsUnavailableNotice();
 
   @override
   Widget build(BuildContext context) {
@@ -272,37 +252,91 @@ class _CardTile extends StatelessWidget {
         children: [
           ExcludeSemantics(
             child: Container(
-              width: 48,
-              height: 33,
+              width: 40,
+              height: 40,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                gradient: LinearGradient(colors: gradient),
-                borderRadius: BorderRadius.circular(kRadiusXs),
+                color: agBg,
+                borderRadius: BorderRadius.circular(kRadiusSm),
               ),
-              child: Text(label, style: TextStyle(color: labelColor, fontSize: kFontMicro, fontWeight: FontWeight.w800)),
+              child: const Icon(
+                Icons.credit_card_off_rounded,
+                size: 21,
+                color: agSubtle,
+              ),
             ),
           ),
           const SizedBox(width: kSpace3),
-          Expanded(
+          const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: kFontBody, color: agText)),
-                Text(number, style: const TextStyle(fontSize: kFontCaption, color: agSubtle, fontWeight: FontWeight.w600)),
+                Text(
+                  'Karta bog\'lash hali mavjud emas',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: kFontBody,
+                    color: agText,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Hozircha safarlarni naqd pul yoki hamyon balansi bilan to\'lang.',
+                  style: TextStyle(
+                    fontSize: kFontCaption,
+                    color: agSubtle,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
           ),
-          if (selected)
-            Semantics(
-              label: 'Tanlangan karta',
-              child: Container(
-                width: 22,
-                height: 22,
-                decoration: const BoxDecoration(color: agTint, shape: BoxShape.circle),
-                // `agTint` yuzada ma'noli yashil — `kPrimary` (4.95:1).
-                child: const Icon(Icons.check_rounded, size: 15, color: agPrimary),
-              ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NoTransactions extends StatelessWidget {
+  const _NoTransactions();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        vertical: kSpace6,
+        horizontal: kSpace4,
+      ),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: agSurface,
+        borderRadius: BorderRadius.circular(kRadiusLg),
+        boxShadow: agCardShadow,
+      ),
+      child: const Column(
+        children: [
+          ExcludeSemantics(
+            child: Icon(Icons.receipt_long_rounded, size: 34, color: agSubtle),
+          ),
+          SizedBox(height: kSpace2),
+          Text(
+            'Hozircha amallar yo\'q',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: kFontBody,
+              color: agText,
             ),
+          ),
+          SizedBox(height: 2),
+          Text(
+            'Birinchi safar yoki to\'ldirishdan keyin bu yerda ko\'rinadi.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: kFontCaption,
+              color: agSubtle,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
@@ -310,26 +344,30 @@ class _CardTile extends StatelessWidget {
 }
 
 class _TxnRow extends StatelessWidget {
-  const _TxnRow({
-    required this.icon,
-    required this.iconColor,
-    required this.title,
-    required this.time,
-    required this.amount,
-    required this.amountColor,
-    this.last = false,
-  });
+  const _TxnRow({required this.txn, this.last = false});
 
-  final IconData icon;
-  final Color iconColor;
-  final String title;
-  final String time;
-  final String amount;
-  final Color amountColor;
+  final WalletTransaction txn;
   final bool last;
 
   @override
   Widget build(BuildContext context) {
+    final icon = txn.isCredit
+        ? Icons.add_rounded
+        : (txn.orderId != null
+              ? Icons.local_taxi_rounded
+              : Icons.north_east_rounded);
+
+    // A pending row has not moved the balance yet, so it must not be coloured
+    // like settled money.
+    final amountColor = txn.isPending
+        ? agSubtle
+        : (txn.isCredit ? agGreenText : agText);
+
+    final sign = txn.isCredit ? '+' : '−';
+    final subtitle = txn.isPending
+        ? '${Formatters.formatDateTime(txn.createdAt)} · kutilmoqda'
+        : Formatters.formatDateTime(txn.createdAt);
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: kSpace3),
       decoration: BoxDecoration(
@@ -341,8 +379,15 @@ class _TxnRow extends StatelessWidget {
             child: Container(
               width: 40,
               height: 40,
-              decoration: BoxDecoration(color: agBg, borderRadius: BorderRadius.circular(kRadiusSm)),
-              child: Icon(icon, size: 21, color: iconColor),
+              decoration: BoxDecoration(
+                color: agBg,
+                borderRadius: BorderRadius.circular(kRadiusSm),
+              ),
+              child: Icon(
+                icon,
+                size: 21,
+                color: txn.isCredit && !txn.isPending ? agGreenText : agSubtle,
+              ),
             ),
           ),
           const SizedBox(width: kSpace3),
@@ -350,12 +395,33 @@ class _TxnRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: kFontBody, color: agText)),
-                Text(time, style: const TextStyle(fontSize: kFontCaption, color: agSubtle, fontWeight: FontWeight.w600)),
+                Text(
+                  txn.title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: kFontBody,
+                    color: agText,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: kFontCaption,
+                    color: agSubtle,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
           ),
-          Text(amount, style: TextStyle(fontWeight: FontWeight.w800, fontSize: kFontBody, color: amountColor)),
+          Text(
+            '$sign${Formatters.formatAmount(txn.amount)}',
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: kFontBody,
+              color: amountColor,
+            ),
+          ),
         ],
       ),
     );

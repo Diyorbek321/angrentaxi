@@ -23,6 +23,10 @@ import { PromoCodesService } from '../promo-codes/promo-codes.service';
 import { DriverBonusesService } from '../driver-bonuses/driver-bonuses.service';
 import { SettingsService } from '../settings/settings.service';
 import { OrdersQueryService } from './orders-query.service';
+import {
+  computeWalletBalance,
+  lockWalletForUpdate,
+} from '../payments/wallet-balance.util';
 
 // Flat bonus (in so'm) credited to both a referred passenger and their
 // referrer the first time the referred passenger completes a trip. See the
@@ -79,9 +83,34 @@ export class OrdersCompletionService {
       );
     }
 
-    // Compute actual distance using PostGIS straight-line distance as fallback
+    // Actual distance, measured along the full ordered path
+    // pickup -> waypoint[0] -> ... -> waypoint[n-1] -> dropoff.
+    //
+    // This used to be a single ST_Distance(pickup, dropoff), which ignored
+    // `waypoints` entirely: a pickup -> bozor -> home ride was billed as if the
+    // driver had gone straight home, even though order creation had already
+    // priced the estimate across every leg. ST_MakeLine over the ordered points
+    // gives the same measure for a direct trip (a two-point line) while
+    // charging multi-stop rides for the distance actually driven.
     const distResult = await this.orderRepository.query(
-      `SELECT ST_Distance(pickup_location::geography, dropoff_location::geography) as distance_meters FROM orders WHERE id = $1`,
+      `SELECT ST_Length(ST_MakeLine(geom ORDER BY ord)::geography) AS distance_meters
+         FROM (
+           SELECT 0 AS ord, pickup_location AS geom
+             FROM orders WHERE id = $1
+           UNION ALL
+           SELECT ordinality::int AS ord,
+                  ST_SetSRID(
+                    ST_MakePoint((w->>'lng')::float8, (w->>'lat')::float8),
+                    4326
+                  ) AS geom
+             FROM orders o,
+                  jsonb_array_elements(COALESCE(o.waypoints, '[]'::jsonb))
+                    WITH ORDINALITY AS t(w, ordinality)
+            WHERE o.id = $1
+           UNION ALL
+           SELECT 2147483647 AS ord, dropoff_location AS geom
+             FROM orders WHERE id = $1
+         ) path`,
       [orderId],
     );
 
@@ -133,12 +162,21 @@ export class OrdersCompletionService {
           order.passengerId,
           finalPrice,
         );
-        finalDiscountAmount = promoResult.discountAmount;
+        // apply() must succeed before the discount counts. It is the step that
+        // atomically claims one of the code's remaining uses and can still
+        // fail here (the limit was taken by a concurrent completion), so the
+        // assignment happens only after it returns.
         await this.promoCodesService.apply(order.promoCodeId, order.passengerId, orderId);
+        finalDiscountAmount = promoResult.discountAmount;
       } catch (err) {
         // Promo became invalid between order creation and completion (expired,
         // limit hit by a concurrent order) — degrade gracefully to full price
         // rather than failing trip completion.
+        //
+        // The discount is explicitly cleared: it used to be assigned before
+        // apply(), so a code that failed to claim a use still discounted the
+        // fare, handing out a free discount the promo never recorded.
+        finalDiscountAmount = 0;
         this.logger.warn(
           `Promo code re-validation failed at completion for order ${orderId}, charging full price: ${err}`,
         );
@@ -166,8 +204,53 @@ export class OrdersCompletionService {
     // and the referral bonus, which are all best-effort by design.
     let wentOffline = false;
     let payoutDriverId: string | null = null;
+    let walletShortfall = 0;
 
     await this.dataSource.transaction(async (manager) => {
+      // Is the fare actually collected at this moment?
+      //
+      //  - CASH:   yes. The driver took the money directly from the passenger;
+      //            the platform never held it.
+      //  - WALLET: yes, if the passenger has the funds — they are debited here
+      //            and now, under a lock so two concurrent completions cannot
+      //            both pass the same balance check.
+      //  - CARD:   not yet. The charge stays a receivable until the payment
+      //            provider's callback settles it (PaymentsService).
+      //
+      // This matters because the driver payout below follows the same status:
+      // crediting a spendable payout against money nobody collected paid
+      // drivers out of platform funds. WALLET was worse still — it had no
+      // balance check at all, so a passenger with an empty wallet could take
+      // unlimited rides and every one of them paid the driver.
+      let chargeStatus: TransactionStatus;
+
+      if (order.paymentMethod === PaymentMethod.CASH) {
+        chargeStatus = TransactionStatus.COMPLETED;
+      } else if (order.paymentMethod === PaymentMethod.WALLET) {
+        await lockWalletForUpdate(manager, order.passengerId);
+        const balance = await computeWalletBalance(
+          manager.getRepository(Transaction),
+          order.passengerId,
+        );
+
+        if (balance >= discountedFinalPrice) {
+          chargeStatus = TransactionStatus.COMPLETED;
+        } else {
+          // The ride physically happened, so it is not cancellable here. The
+          // charge is recorded as an unpaid receivable and the passenger is
+          // blocked from ordering again until it clears
+          // (OrdersCreationService checks for outstanding debt).
+          chargeStatus = TransactionStatus.PENDING;
+          walletShortfall = discountedFinalPrice - balance;
+          this.logger.warn(
+            `Wallet balance ${balance} is short of fare ${discountedFinalPrice} for order ` +
+              `${orderId}; recording an unpaid charge for passenger ${order.passengerId}`,
+          );
+        }
+      } else {
+        chargeStatus = TransactionStatus.PENDING;
+      }
+
       await manager.update(Order, orderId, {
         status: OrderStatus.COMPLETED,
         finalPrice: discountedFinalPrice,
@@ -182,15 +265,20 @@ export class OrdersCompletionService {
         amount: discountedFinalPrice,
         type: TransactionType.DEBIT,
         paymentMethod: order.paymentMethod,
-        status: order.paymentMethod === PaymentMethod.CASH
-          ? TransactionStatus.COMPLETED
-          : TransactionStatus.PENDING,
+        status: chargeStatus,
         externalId: null,
       });
 
       // Driver payout: gross CREDIT for the fare, then a DEBIT for the
       // platform's commission share — the ledger records both legs rather than
       // only the net.
+      //
+      // Both legs carry the passenger charge's status. A payout leg only
+      // becomes spendable (computeWalletBalance counts COMPLETED rows only)
+      // once the platform has actually collected the fare; until then it is a
+      // recorded, visible, but unwithdrawable entitlement.
+      // PaymentsService.settleOrderPayout flips them when the provider
+      // callback settles the charge.
       if (order.driverId && payoutDriver) {
         await manager.save(Transaction, {
           userId: order.driverId,
@@ -198,7 +286,7 @@ export class OrdersCompletionService {
           amount: discountedFinalPrice,
           type: TransactionType.CREDIT,
           paymentMethod: order.paymentMethod,
-          status: TransactionStatus.COMPLETED,
+          status: chargeStatus,
           externalId: null,
         });
 
@@ -209,19 +297,34 @@ export class OrdersCompletionService {
             amount: commissionAmount,
             type: TransactionType.DEBIT,
             paymentMethod: order.paymentMethod,
-            status: TransactionStatus.COMPLETED,
+            status: chargeStatus,
             externalId: 'commission',
           });
         }
 
-        // For a CASH trip the driver already pocketed the fare directly from
-        // the passenger — the app never held that money, so only the commission
-        // owed to the platform hits the wallet (balance trends negative over
-        // time, which is the point: it's what the driver must eventually top
-        // up). For CARD/WALLET trips the platform holds the funds, so the
-        // wallet is credited the net payout the platform still owes.
-        const balanceDelta =
-          order.paymentMethod === PaymentMethod.CASH ? -commissionAmount : netDriverEarning;
+        // The `drivers.balance` column tracks what the platform owes the
+        // driver (or the driver owes the platform, when negative).
+        //
+        //  - CASH: the driver already pocketed the fare, so only the
+        //    commission owed back to the platform lands here. The balance
+        //    trends negative by design — that is the amount the driver must
+        //    eventually top up.
+        //  - Collected non-cash: the platform holds the money, so it owes the
+        //    driver the net payout.
+        //  - Uncollected non-cash: nothing has been collected, so nothing is
+        //    owed yet. Crediting here is exactly the bug that paid drivers out
+        //    of platform funds for fares no passenger ever paid.
+        const isCollected = chargeStatus === TransactionStatus.COMPLETED;
+        let balanceDelta: number;
+
+        if (order.paymentMethod === PaymentMethod.CASH) {
+          balanceDelta = -commissionAmount;
+        } else if (isCollected) {
+          balanceDelta = netDriverEarning;
+        } else {
+          balanceDelta = 0;
+        }
+
         const adjustment = await this.driversService.adjustBalanceWithin(
           manager,
           order.driverId,
@@ -260,6 +363,10 @@ export class OrdersCompletionService {
         finalPrice: discountedFinalPrice,
         actualDistanceKm,
         actualDurationMin,
+        // Non-zero when the wallet could not cover the fare. The app shows a
+        // "top up to keep ordering" prompt rather than letting the passenger
+        // discover the block on their next request.
+        unpaidAmount: walletShortfall,
       });
 
       await this.notificationsService.notifyTripCompleted(passenger, discountedFinalPrice, updatedOrder);

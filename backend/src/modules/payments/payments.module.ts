@@ -9,9 +9,25 @@ import { Transaction } from '../../database/entities/transaction.entity';
 import { Order } from '../../database/entities/order.entity';
 import { User } from '../../database/entities/user.entity';
 import { WithdrawalRequest } from '../../database/entities/withdrawal-request.entity';
+import { MarketOrder } from '../../database/entities/market-order.entity';
+import { FoodOrder } from '../../database/entities/food-order.entity';
+import { DriversModule } from '../drivers/drivers.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Transaction, Order, User, WithdrawalRequest])],
+  imports: [
+    TypeOrmModule.forFeature([
+      Transaction,
+      Order,
+      User,
+      WithdrawalRequest,
+      // Card checkout must work for the super-app verticals too, not just
+      // taxi rides.
+      MarketOrder,
+      FoodOrder,
+    ]),
+    // settleOrderPayout credits drivers.balance when a card payment lands.
+    DriversModule,
+  ],
   controllers: [PaymentsController],
   providers: [PaymentsService, PaymeProvider, ClickProvider, UzcardProvider],
   exports: [PaymentsService],

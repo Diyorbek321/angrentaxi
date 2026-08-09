@@ -22,6 +22,14 @@ interface DriverQueue {
   // Epoch ms — absolute deadline for the whole search, independent of how
   // many individual driver offers have been tried.
   noDriverDeadline: number;
+  // User ids already offered this order (declined or timed out). A re-search
+  // skips them so the same driver isn't re-offered a ride they just refused.
+  exhaustedDriverIds: string[];
+  // Pickup point and tariff tier, cached so a re-search doesn't have to
+  // re-read the order row on every sweep tick.
+  pickupLat: number;
+  pickupLng: number;
+  tariffTier: number;
 }
 
 // Queue state used to live only in a process-local Map, with setTimeout +
@@ -103,17 +111,28 @@ export class MatchingService {
     const nearbyDrivers = await this.driversService.getNearbyDrivers(lat, lng, 3, tariff.tier);
     const noDriverDeadline = Date.now() + this.NO_DRIVER_TIMEOUT_MS;
 
-    if (nearbyDrivers.length === 0) {
-      this.logger.log(`No drivers found near order ${orderId}, will retry...`);
+    const baseQueue: DriverQueue = {
+      orderId,
+      drivers: [],
+      currentIndex: 0,
+      passengerId: order.passengerId,
+      offerExpiresAt: 0,
+      noDriverDeadline,
+      exhaustedDriverIds: [],
+      pickupLat: lat,
+      pickupLng: lng,
+      tariffTier: tariff.tier,
+    };
 
-      await this.saveQueue({
-        orderId,
-        drivers: [],
-        currentIndex: 0,
-        passengerId: order.passengerId,
-        offerExpiresAt: 0,
-        noDriverDeadline,
-      });
+    if (nearbyDrivers.length === 0) {
+      // Persist an empty queue; the sweep re-searches every tick until the
+      // deadline, so a driver who comes online seconds later still gets the
+      // ride. This used to log "will retry..." and then never retry — the
+      // order simply sat idle for 60s and auto-cancelled.
+      this.logger.log(
+        `No drivers found near order ${orderId}; queued for re-search until deadline`,
+      );
+      await this.saveQueue(baseQueue);
       return;
     }
 
@@ -122,14 +141,7 @@ export class MatchingService {
     // Take nearest 3 drivers
     const topDrivers = nearbyDrivers.slice(0, 3);
 
-    const queue: DriverQueue = {
-      orderId,
-      drivers: topDrivers,
-      currentIndex: 0,
-      passengerId: order.passengerId,
-      offerExpiresAt: 0,
-      noDriverDeadline,
-    };
+    const queue: DriverQueue = { ...baseQueue, drivers: topDrivers };
 
     // Offer to first driver (persists the queue with offerExpiresAt set).
     await this.offerToDriver(orderId, topDrivers[0], queue);
@@ -153,9 +165,18 @@ export class MatchingService {
     this.logger.log(`Driver ${driverId} declined order ${orderId}`);
 
     queue.currentIndex += 1;
+    if (!queue.exhaustedDriverIds.includes(driverId)) {
+      queue.exhaustedDriverIds = [...queue.exhaustedDriverIds, driverId];
+    }
 
     if (queue.currentIndex >= queue.drivers.length) {
-      await this.handleNoDriversFound(orderId, queue.passengerId);
+      // Everyone in this batch passed. Don't give up yet — persist the
+      // exhausted list and let the sweep look for drivers who have since come
+      // online, right up to the overall deadline. Previously this cancelled
+      // the order the moment the last of three drivers declined, even with
+      // most of the search window still left.
+      queue.offerExpiresAt = 0;
+      await this.saveQueue(queue);
       return;
     }
 
@@ -205,10 +226,55 @@ export class MatchingService {
 
     const hasActiveOffer =
       queue.drivers.length > 0 && queue.currentIndex < queue.drivers.length;
-    if (hasActiveOffer && now >= queue.offerExpiresAt) {
-      const currentDriver = queue.drivers[queue.currentIndex];
-      await this.offerTimeout(currentDriver.userId, orderId);
+
+    if (hasActiveOffer) {
+      if (now >= queue.offerExpiresAt) {
+        const currentDriver = queue.drivers[queue.currentIndex];
+        await this.offerTimeout(currentDriver.userId, orderId);
+      }
+      return;
     }
+
+    // No offer outstanding and the deadline hasn't passed: look again. This is
+    // what makes "will retry" true — a driver who came online after the
+    // initial search, or after everyone in the first batch declined, gets
+    // offered the ride instead of the passenger waiting out the full window
+    // for a cancellation.
+    await this.researchDrivers(queue);
+  }
+
+  /**
+   * Re-runs the nearby-driver search for a queue with no outstanding offer and
+   * offers the ride to the closest driver who hasn't already refused it.
+   */
+  private async researchDrivers(queue: DriverQueue): Promise<void> {
+    const candidates = await this.driversService.getNearbyDrivers(
+      queue.pickupLat,
+      queue.pickupLng,
+      3,
+      queue.tariffTier,
+    );
+
+    const fresh = candidates.filter(
+      (driver) => !queue.exhaustedDriverIds.includes(driver.userId),
+    );
+
+    if (fresh.length === 0) {
+      return;
+    }
+
+    this.logger.log(
+      `Re-search found ${fresh.length} new driver(s) for order ${queue.orderId}`,
+    );
+
+    const nextBatch = fresh.slice(0, 3);
+    const refreshed: DriverQueue = {
+      ...queue,
+      drivers: nextBatch,
+      currentIndex: 0,
+    };
+
+    await this.offerToDriver(queue.orderId, nextBatch[0], refreshed);
   }
 
   private async offerToDriver(

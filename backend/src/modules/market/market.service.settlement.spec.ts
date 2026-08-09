@@ -65,6 +65,7 @@ describe('MarketService - store earnings settlement on delivery', () => {
       {} as never, // ordersService — unused when deliveryOrderId is null
       {} as never, // matchingService — unused by advanceOrder
       {} as never, // tariffsService — unused by advanceOrder
+      {} as never, // settingsService — only used when creating an order
     );
   });
 

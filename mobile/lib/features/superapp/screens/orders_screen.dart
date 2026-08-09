@@ -1,44 +1,18 @@
+import 'package:angren_taxi/features/passenger/order_provider.dart';
 import 'package:angren_taxi/features/superapp/screens/order_detail_screen.dart';
 import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/market_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/shared/models/food_order.dart';
 import 'package:angren_taxi/shared/models/market_order.dart';
+import 'package:angren_taxi/shared/models/order.dart';
+import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
 import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
 import 'package:angren_taxi/shared/widgets/app_status_badge.dart';
 import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
-class OrderEntry {
-  const OrderEntry({
-    required this.kind,
-    required this.icon,
-    required this.title,
-    required this.sub,
-    required this.amount,
-    required this.status,
-    required this.from,
-    required this.to,
-  });
-
-  final String kind;
-  final IconData icon;
-  final String title;
-  final String sub;
-  final double amount;
-  final String status;
-  final String from;
-  final String to;
-}
-
-const _orders = [
-  OrderEntry(kind: 'Taksi', icon: Icons.local_taxi_rounded, title: 'Markaz → Uy', sub: 'Bugun, 18:24', amount: 18000, status: 'Yakunlandi', from: 'Markaziy maydon', to: "Navoiy ko'chasi, 12"),
-  OrderEntry(kind: 'Ovqat', icon: Icons.restaurant_rounded, title: 'Milliy Taomlar', sub: 'Kecha, 13:10', amount: 47000, status: 'Yetkazildi', from: 'Milliy Taomlar', to: "Navoiy ko'chasi, 12"),
-  OrderEntry(kind: 'Market', icon: Icons.storefront_rounded, title: 'Korzinka Express', sub: '24-iyun, 11:02', amount: 62500, status: 'Yetkazildi', from: 'Korzinka Express', to: "Navoiy ko'chasi, 12"),
-  OrderEntry(kind: 'Cargo', icon: Icons.local_shipping_rounded, title: 'Yuk · 2 ta quti', sub: '22-iyun, 09:40', amount: 35000, status: 'Yakunlandi', from: 'Amir Temur 24', to: 'Yangi shahar, 7-mavze'),
-];
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key, this.embedded = false});
@@ -53,8 +27,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       context.read<MarketProvider>().loadOrderHistory();
       context.read<FoodProvider>().loadOrderHistory();
+      context.read<OrderProvider>().loadOrderHistory();
     });
   }
 
@@ -64,8 +40,14 @@ class _OrdersScreenState extends State<OrdersScreen> {
   Widget build(BuildContext context) {
     final market = context.watch<MarketProvider>();
     final food = context.watch<FoodProvider>();
+    final taxi = context.watch<OrderProvider>();
     final marketOrders = market.orderHistory;
     final foodOrders = food.orderHistory;
+
+    // Only finished rides belong under "Tarix" — an in-flight one is already
+    // shown by the active card above it.
+    final taxiHistory = taxi.orderHistory.where((o) => !o.isActive).toList();
+    final activeOrder = taxi.hasActiveOrder ? taxi.activeOrder : null;
 
     return Scaffold(
       backgroundColor: agBg,
@@ -106,8 +88,14 @@ class _OrdersScreenState extends State<OrdersScreen> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, 110),
               children: [
-                _ActiveOrderCard(),
-                const SizedBox(height: kSpace6),
+                // Rendered only when a ride is genuinely in flight. This card
+                // used to be hardcoded ("Taksi · Markaz → Uy / Bobur A. ·
+                // 01 A 777 BB / 3 daqiqada yetib keladi") and was shown to
+                // every user, including one who had never ordered anything.
+                if (activeOrder != null) ...[
+                  _ActiveOrderCard(order: activeOrder),
+                  const SizedBox(height: kSpace6),
+                ],
                 const _SectionTitle('Ovqat buyurtmalari'),
                 const SizedBox(height: kSpace3),
                 _OrderSectionBody(
@@ -148,17 +136,33 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   ],
                 ),
                 const SizedBox(height: kSpace6),
-                const _SectionTitle('Tarix'),
+                const _SectionTitle('Safarlar tarixi'),
                 const SizedBox(height: kSpace3),
-                for (final o in _orders) ...[
-                  _HistoryRow(
-                    order: o,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(builder: (_) => OrderDetailScreen(order: o)),
-                    ),
-                  ),
-                  const SizedBox(height: kSpace3),
-                ],
+                _OrderSectionBody(
+                  isLoading:
+                      taxi.state == OrderProviderState.loading && taxiHistory.isEmpty,
+                  errorMessage:
+                      taxi.state == OrderProviderState.error && taxiHistory.isEmpty
+                      ? (taxi.error ?? 'Xatolik yuz berdi')
+                      : null,
+                  onRetry: () => context.read<OrderProvider>().loadOrderHistory(),
+                  isEmpty: taxiHistory.isEmpty,
+                  emptyIcon: Icons.local_taxi_rounded,
+                  emptyTitle: 'Safarlar tarixi yo\'q',
+                  children: [
+                    for (final o in taxiHistory) ...[
+                      _HistoryRow(
+                        order: o,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => OrderDetailScreen(order: o),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: kSpace3),
+                    ],
+                  ],
+                ),
               ],
             ),
           ),
@@ -237,69 +241,121 @@ class _SegChip extends StatelessWidget {
   }
 }
 
+/// Live card for the ride currently in flight, driven entirely by the order
+/// the server returned. Tapping it returns to the tracking screen.
 class _ActiveOrderCard extends StatelessWidget {
+  const _ActiveOrderCard({required this.order});
+
+  final Order order;
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(kSpace4),
-      decoration: BoxDecoration(
-        color: agSurface,
-        borderRadius: BorderRadius.circular(kRadiusLg),
-        border: Border.all(color: agTint, width: 1.5),
-        boxShadow: agCardShadow,
-      ),
-      child: Column(
-        children: [
-          Row(
+    final driver = order.driver;
+    final subtitle = driver == null
+        ? 'Haydovchi qidirilmoqda'
+        : [
+            driver.name,
+            if (driver.carNumber.isNotEmpty) driver.carNumber,
+          ].join(' · ');
+
+    return Semantics(
+      button: true,
+      label: 'Faol safar, ${order.status.label}',
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => Navigator.of(context).pushNamed('/passenger/home'),
+        child: Container(
+          padding: const EdgeInsets.all(kSpace4),
+          decoration: BoxDecoration(
+            color: agSurface,
+            borderRadius: BorderRadius.circular(kRadiusLg),
+            border: Border.all(color: agTint, width: 1.5),
+            boxShadow: agCardShadow,
+          ),
+          child: Column(
             children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(color: agTint, borderRadius: BorderRadius.circular(kRadiusSm)),
-                child: const Icon(Icons.local_taxi_rounded, color: agGreenText, size: 24),
-              ),
-              const SizedBox(width: kSpace3),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Taksi · Markaz → Uy', style: TextStyle(fontWeight: FontWeight.w800, fontSize: kFontTitle, color: agText)),
-                    Text('Bobur A. · 01 A 777 BB', style: TextStyle(fontSize: kFontCaption, color: agSubtle, fontWeight: FontWeight.w600)),
-                  ],
-                ),
-              ),
-              Semantics(
-                container: true,
-                label: "Holat: Yo'lda",
-                excludeSemantics: true,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: kSpace3, vertical: kSpace1 + 2),
-                  decoration: BoxDecoration(color: agTint, borderRadius: BorderRadius.circular(kRadiusXs)),
-                  child: const Row(
-                    children: [
-                      SizedBox(width: 7, height: 7, child: DecoratedBox(decoration: BoxDecoration(color: kMintDeep, shape: BoxShape.circle))),
-                      SizedBox(width: kSpace1 + 1),
-                      Text("Yo'lda", style: TextStyle(color: kPrimary, fontSize: kFontMicro, fontWeight: FontWeight.w800)),
-                    ],
+              Row(
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: agTint,
+                      borderRadius: BorderRadius.circular(kRadiusSm),
+                    ),
+                    child: const Icon(
+                      Icons.local_taxi_rounded,
+                      color: agGreenText,
+                      size: 24,
+                    ),
                   ),
-                ),
+                  const SizedBox(width: kSpace3),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${order.pickup.address} → ${order.dropoff.address}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: kFontTitle,
+                            color: agText,
+                          ),
+                        ),
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: kFontCaption,
+                            color: agSubtle,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: kSpace2),
+                  AppStatusBadge(
+                    label: order.status.label,
+                    tone: AppStatusTone.info,
+                    dense: true,
+                  ),
+                ],
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: kSpace3),
+                child: Divider(color: agBorder, height: 1),
+              ),
+              Row(
+                children: [
+                  const Icon(Icons.schedule_rounded, size: 19, color: agGreenText),
+                  const SizedBox(width: kSpace2),
+                  Text(
+                    Formatters.formatSom(order.actualPrice ?? order.estimatedPrice),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: kFontLabel,
+                      color: agText,
+                    ),
+                  ),
+                  const Spacer(),
+                  const Text(
+                    'Kuzatish →',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: kFontLabel,
+                      color: agGreenText,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: kSpace3),
-            child: Divider(color: agBorder, height: 1),
-          ),
-          const Row(
-            children: [
-              Icon(Icons.schedule_rounded, size: 19, color: agGreenText),
-              SizedBox(width: kSpace2),
-              Text('3 daqiqada yetib keladi', style: TextStyle(fontWeight: FontWeight.w700, fontSize: kFontLabel, color: agText)),
-              Spacer(),
-              Text('Kuzatish →', style: TextStyle(fontWeight: FontWeight.w700, fontSize: kFontLabel, color: agGreenText)),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -307,14 +363,18 @@ class _ActiveOrderCard extends StatelessWidget {
 
 class _HistoryRow extends StatelessWidget {
   const _HistoryRow({required this.order, required this.onTap});
-  final OrderEntry order;
+
+  final Order order;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final cancelled = order.status == OrderStatus.cancelled;
+
     return Semantics(
       button: true,
-      label: '${order.title}, ${order.kind}, ${order.status}',
+      label:
+          '${order.pickup.address} dan ${order.dropoff.address} ga, ${order.status.label}',
       excludeSemantics: true,
       child: GestureDetector(
         onTap: onTap,
@@ -332,20 +392,39 @@ class _HistoryRow extends StatelessWidget {
               Container(
                 width: 46,
                 height: 46,
-                decoration: BoxDecoration(color: agBg, borderRadius: BorderRadius.circular(kRadiusSm)),
-                child: Icon(order.icon, color: agSubtle, size: 23),
+                decoration: BoxDecoration(
+                  color: agBg,
+                  borderRadius: BorderRadius.circular(kRadiusSm),
+                ),
+                child: const Icon(
+                  Icons.local_taxi_rounded,
+                  color: agSubtle,
+                  size: 23,
+                ),
               ),
               const SizedBox(width: kSpace3),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(order.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: kFontBody, color: agText)),
-                    Text('${order.kind} · ${order.sub}',
-                        style: const TextStyle(fontSize: kFontCaption, color: agSubtle, fontWeight: FontWeight.w600)),
+                    Text(
+                      '${order.pickup.address} → ${order.dropoff.address}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: kFontBody,
+                        color: agText,
+                      ),
+                    ),
+                    Text(
+                      Formatters.formatDateTime(order.createdAt),
+                      style: const TextStyle(
+                        fontSize: kFontCaption,
+                        color: agSubtle,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -353,12 +432,18 @@ class _HistoryRow extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(_som(order.amount),
-                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: kFontBody, color: agText)),
+                  Text(
+                    Formatters.formatSom(order.actualPrice ?? order.estimatedPrice),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: kFontBody,
+                      color: agText,
+                    ),
+                  ),
                   const SizedBox(height: kSpace1),
                   AppStatusBadge(
-                    label: order.status,
-                    tone: AppStatusTone.success,
+                    label: order.status.label,
+                    tone: cancelled ? AppStatusTone.danger : AppStatusTone.success,
                     dense: true,
                   ),
                 ],
@@ -368,16 +453,6 @@ class _HistoryRow extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  static String _som(double v) {
-    final s = v.toInt().toString();
-    final buf = StringBuffer();
-    for (var i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) buf.write(' ');
-      buf.write(s[i]);
-    }
-    return "$buf so'm";
   }
 }
 
@@ -427,7 +502,7 @@ class _MarketHistoryRow extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(_HistoryRow._som(order.totalPrice),
+              Text(Formatters.formatSom(order.totalPrice),
                   style: const TextStyle(fontWeight: FontWeight.w800, fontSize: kFontBody, color: agText)),
               const SizedBox(height: kSpace1),
               AppStatusBadge(label: order.status.label, tone: _tone, dense: true),
@@ -485,7 +560,7 @@ class _FoodHistoryRow extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(_HistoryRow._som(order.totalPrice),
+              Text(Formatters.formatSom(order.totalPrice),
                   style: const TextStyle(fontWeight: FontWeight.w800, fontSize: kFontBody, color: agText)),
               const SizedBox(height: kSpace1),
               AppStatusBadge(label: order.status.label, tone: _tone, dense: true),

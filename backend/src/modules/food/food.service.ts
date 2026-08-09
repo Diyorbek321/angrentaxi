@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThanOrEqual, Not, Repository } from 'typeorm';
 import { Restaurant, RestaurantStatus, WorkingHoursDay } from '../../database/entities/restaurant.entity';
@@ -22,6 +22,7 @@ import { PaymentMethod, ServiceType } from '../../database/entities/order.entity
 import { OrdersService } from '../orders/orders.service';
 import { MatchingService } from '../matching/matching.service';
 import { TariffsService } from '../tariffs/tariffs.service';
+import { SettingsService } from '../settings/settings.service';
 import { clampPageSize } from '../../common/utils/pagination.util';
 
 // Rolling window for the analytics that cannot be expressed as a single SQL
@@ -57,6 +58,8 @@ const ORDER_TRANSITIONS: Record<string, FoodOrderStatus> = {
 
 @Injectable()
 export class FoodService {
+  private readonly logger = new Logger(FoodService.name);
+
   constructor(
     @InjectRepository(Restaurant) private readonly restaurantRepo: Repository<Restaurant>,
     @InjectRepository(MenuCategory) private readonly categoryRepo: Repository<MenuCategory>,
@@ -68,6 +71,7 @@ export class FoodService {
     private readonly ordersService: OrdersService,
     private readonly matchingService: MatchingService,
     private readonly tariffsService: TariffsService,
+    private readonly settingsService: SettingsService,
   ) {}
 
   // ---------- shared ----------
@@ -335,7 +339,15 @@ export class FoodService {
           driverPhone: deliveryOrder.driver?.phone ?? null,
         },
       };
-    } catch {
+    } catch (err) {
+      // A genuine failure here (DB down, bad join) used to be indistinguishable
+      // from "no courier assigned yet": both returned delivery: null, so the
+      // vendor board showed a dispatched order as undispatched with nothing in
+      // the logs. The fallback stays — an unavailable courier lookup must not
+      // break the order list — but it is no longer silent.
+      this.logger.error(
+        `Failed to resolve delivery for food order ${order.id}: ${(err as Error).message}`,
+      );
       return { ...order, delivery: null };
     }
   }
@@ -530,7 +542,13 @@ export class FoodService {
       };
     });
 
-    const totalPrice = items.reduce((sum, i) => sum + i.qty * i.price, 0);
+    // The delivery fee is part of what the customer owes, so it belongs in
+    // the recorded total. It used to exist only as a client-side constant in
+    // the app, which meant the checkout screen showed one figure and the
+    // order row, the vendor board and the receipt all showed a smaller one.
+    const itemsTotal = items.reduce((sum, i) => sum + i.qty * i.price, 0);
+    const deliveryFee = await this.settingsService.getDeliveryFee();
+    const totalPrice = itemsTotal + deliveryFee;
     const order = await this.orderRepo.save(
       this.orderRepo.create({
         restaurantId: restaurant.id,

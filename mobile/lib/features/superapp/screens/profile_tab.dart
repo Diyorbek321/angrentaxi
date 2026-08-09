@@ -1,4 +1,5 @@
 import 'package:angren_taxi/features/auth/auth_provider.dart';
+import 'package:angren_taxi/features/passenger/screens/destination_screen.dart';
 import 'package:angren_taxi/features/passenger/screens/edit_profile_screen.dart';
 import 'package:angren_taxi/features/passenger/screens/referral_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/notifications_screen.dart';
@@ -23,12 +24,6 @@ class ProfileTab extends StatelessWidget {
 
   void _push(BuildContext context, Widget screen) {
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
-  }
-
-  void _notImplementedYet(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Bu bo\'lim tez kunda ishga tushadi')),
-    );
   }
 
   @override
@@ -187,14 +182,19 @@ class ProfileTab extends StatelessWidget {
                           onTap: () => _push(context, const WalletScreen())),
                       _MenuRow(icon: Icons.receipt_long_rounded, label: 'Buyurtmalar tarixi',
                           onTap: () => context.read<SuperappProvider>().tabIndex = 1),
-                      _MenuRow(icon: Icons.favorite_rounded, label: 'Sevimlilar',
-                          onTap: () => _notImplementedYet(context)),
-                      _MenuRow(icon: Icons.workspace_premium_rounded, iconColor: agOrange, label: 'Bonuslar',
-                          onTap: () => _notImplementedYet(context)),
-                      _MenuRow(icon: Icons.reviews_rounded, label: 'Mening baholarim',
-                          onTap: () => _notImplementedYet(context)),
+                      // Four rows here used to dead-end in a "tez kunda"
+                      // snackbar. "Saqlangan manzillar" now opens the address
+                      // manager that FavoritesProvider has always backed;
+                      // "Sevimlilar" was the same feature under a second name,
+                      // and "Bonuslar" duplicated the two rows below it, so
+                      // both are gone. "Mening baholarim" has no endpoint
+                      // behind it at all — a passenger-ratings API does not
+                      // exist — so advertising it was the wrong call.
                       _MenuRow(icon: Icons.place_rounded, label: 'Saqlangan manzillar',
-                          onTap: () => _notImplementedYet(context)),
+                          onTap: () => _push(
+                                context,
+                                const DestinationScreen(isSavingFavorite: true),
+                              )),
                       _MenuRow(icon: Icons.redeem_rounded, label: 'Aksiyalar va promokodlar',
                           onTap: () => _push(context, const PromosScreen())),
                       _MenuRow(icon: Icons.group_add_rounded, iconColor: agPurple, label: "Do'stlarni taklif qilish",

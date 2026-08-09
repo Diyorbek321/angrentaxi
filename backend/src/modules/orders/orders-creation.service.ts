@@ -5,6 +5,11 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order, OrderStatus, PaymentMethod } from '../../database/entities/order.entity';
+import {
+  Transaction,
+  TransactionStatus,
+  TransactionType,
+} from '../../database/entities/transaction.entity';
 import { TariffsService } from '../tariffs/tariffs.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { UsersService } from '../users/users.service';
@@ -22,6 +27,8 @@ export class OrdersCreationService {
   constructor(
     @InjectRepository(Order)
     private readonly orderRepository: Repository<Order>,
+    @InjectRepository(Transaction)
+    private readonly transactionRepository: Repository<Transaction>,
     private readonly tariffsService: TariffsService,
     private readonly realtimeGateway: RealtimeGateway,
     private readonly usersService: UsersService,
@@ -46,11 +53,44 @@ export class OrdersCreationService {
     };
   }
 
+  /**
+   * Total of the passenger's unpaid ride charges.
+   *
+   * A wallet trip whose balance fell short at completion is recorded as a
+   * PENDING debit (see OrdersCompletionService). Without this gate the
+   * passenger could keep ordering indefinitely on an empty wallet, and every
+   * one of those rides would be work the platform can never collect for.
+   * Card charges are excluded: those settle through the provider callback and
+   * a passenger should not be locked out while one is briefly in flight.
+   */
+  private async getOutstandingWalletDebt(passengerId: string): Promise<number> {
+    const result = await this.transactionRepository
+      .createQueryBuilder('t')
+      .select('COALESCE(SUM(t.amount), 0)', 'debt')
+      .where('t.userId = :passengerId', { passengerId })
+      .andWhere('t.type = :type', { type: TransactionType.DEBIT })
+      .andWhere('t.status = :status', { status: TransactionStatus.PENDING })
+      .andWhere('t.paymentMethod = :method', { method: PaymentMethod.WALLET })
+      .andWhere('t.orderId IS NOT NULL')
+      .getRawOne<{ debt: string }>();
+
+    return parseFloat(result?.debt ?? '0');
+  }
+
   async create(passengerId: string, dto: CreateOrderDto): Promise<Order> {
     const tariff = await this.tariffsService.findById(dto.tariffId);
 
     if (!tariff.isActive) {
       throw new BadRequestException('Selected tariff is not available');
+    }
+
+    const outstandingDebt = await this.getOutstandingWalletDebt(passengerId);
+
+    if (outstandingDebt > 0) {
+      throw new BadRequestException(
+        `You have an unpaid balance of ${outstandingDebt} so'm from a previous trip. ` +
+          'Please top up your wallet before ordering again.',
+      );
     }
 
     // Estimate distance using Haversine formula (frontend should provide actual distance).
@@ -163,6 +203,10 @@ export class OrdersCreationService {
       dropoffAddress: dto.dropoffAddress,
       paymentMethod: dto.paymentMethod,
       note: dto.note,
+      waypoints: dto.waypoints,
+      serviceType: dto.serviceType,
+      details: dto.details,
+      promoCode: dto.promoCode,
     });
   }
 }

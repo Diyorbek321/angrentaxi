@@ -84,9 +84,24 @@ export class PromoCodesService {
       throw new NotFoundException(`Promo code with id ${promoCodeId} not found`);
     }
 
-    await this.promoCodeRepository.update(promoCodeId, {
-      usedCount: promoCode.usedCount + 1,
-    });
+    // Atomic increment, and the max-uses ceiling is re-checked here in the
+    // same statement rather than trusting the earlier validate() call.
+    //
+    // Read-modify-write on `usedCount` let two trips completing at the same
+    // moment both read the same count and write count+1, so a code could be
+    // redeemed past its maxUses — validate() reads the stale counter and both
+    // callers pass. The conditional UPDATE makes the loser touch 0 rows.
+    const result = await this.promoCodeRepository
+      .createQueryBuilder()
+      .update(PromoCode)
+      .set({ usedCount: () => '"used_count" + 1' })
+      .where('id = :id', { id: promoCodeId })
+      .andWhere('(max_uses IS NULL OR used_count < max_uses)')
+      .execute();
+
+    if (!result.affected) {
+      throw new BadRequestException('Promo code usage limit has been reached');
+    }
 
     await this.promoCodeUsageRepository.save({
       promoCodeId,

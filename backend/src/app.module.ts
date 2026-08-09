@@ -4,22 +4,12 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
-import { DefaultNamingStrategy, NamingStrategyInterface } from 'typeorm';
+import { JwtModule } from '@nestjs/jwt';
 import { validateEnv } from './config/env.validation';
 import { resolveDbSynchronize } from './config/db-synchronize.util';
+import { SnakeNamingStrategy } from './config/snake-naming.strategy';
 import { HttpThrottlerGuard } from './common/guards/http-throttler.guard';
-
-class SnakeNamingStrategy extends DefaultNamingStrategy implements NamingStrategyInterface {
-  columnName(propertyName: string, customName: string): string {
-    return customName || propertyName.replace(/([A-Z])/g, '_$1').toLowerCase();
-  }
-  relationName(propertyName: string): string {
-    return propertyName.replace(/([A-Z])/g, '_$1').toLowerCase();
-  }
-  joinColumnName(relationName: string, referencedColumnName: string): string {
-    return `${relationName.replace(/([A-Z])/g, '_$1').toLowerCase()}_${referencedColumnName}`;
-  }
-}
+import { MaintenanceGuard } from './common/guards/maintenance.guard';
 
 // Entities
 import { User } from './database/entities/user.entity';
@@ -54,6 +44,8 @@ import { TripMessage } from './database/entities/trip-message.entity';
 import { SosAlert } from './database/entities/sos-alert.entity';
 import { NotificationLog } from './database/entities/notification-log.entity';
 import { RefreshToken } from './database/entities/refresh-token.entity';
+import { DispatchOverride } from './database/entities/dispatch-override.entity';
+import { PushNotificationLog } from './database/entities/push-notification-log.entity';
 
 // Feature Modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -130,12 +122,23 @@ import { ReferralsModule } from './modules/referrals/referrals.module';
           SosAlert,
           NotificationLog,
           RefreshToken,
+          // Both are injected via TypeOrmModule.forFeature (OrdersModule /
+          // NotificationsModule). TypeORM 0.3 does not validate metadata at DI
+          // time, so omitting them here let the app boot and then fail with
+          // EntityMetadataNotFoundError on the first admin broadcast or order
+          // reassignment.
+          DispatchOverride,
+          PushNotificationLog,
         ],
         migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
-        // Schema is built from entities via synchronize (default on) for the test/MVP server,
-        // since the hand-written migration drifted from the entities. Set DB_SYNC=false to
-        // switch back to migrations in development. In production, synchronize defaults OFF
-        // (to avoid silently altering the live schema on deploy) unless DB_SYNC=true is set.
+        // Run pending migrations on boot. The 000_baseline migration is
+        // generated from the entities and no-ops on a database that already
+        // has the schema, so this is safe both for a fresh deploy and for the
+        // existing server whose tables were built by synchronize.
+        migrationsRun: true,
+        // synchronize stays as a development convenience only. In production it
+        // defaults OFF (it can silently alter or drop columns on deploy) —
+        // migrations are the supported path there.
         synchronize: resolveDbSynchronize(
           configService.get<string>('NODE_ENV'),
           configService.get<string>('DB_SYNC'),
@@ -161,6 +164,11 @@ import { ReferralsModule } from './modules/referrals/referrals.module';
     // idempotent (Nest dedupes identical dynamic modules), so MatchingModule's
     // own call remains harmless.
     ScheduleModule.forRoot(),
+
+    // MaintenanceGuard verifies the bearer token itself to identify staff,
+    // because as a global guard it runs before the controller-level
+    // JwtAuthGuard that would otherwise populate request.user.
+    JwtModule.register({}),
 
     // Rate Limiting. Three named windows apply to every HTTP route (see the
     // APP_GUARD registration below, without which none of this is enforced);
@@ -220,6 +228,13 @@ import { ReferralsModule } from './modules/referrals/referrals.module';
     {
       provide: APP_GUARD,
       useClass: HttpThrottlerGuard,
+    },
+    // Makes the Global Settings maintenance switch actually stop traffic.
+    // Registered after the throttler so an admin flipping it off is never
+    // blocked by the switch itself (see MaintenanceGuard's allow-list).
+    {
+      provide: APP_GUARD,
+      useClass: MaintenanceGuard,
     },
   ],
 })

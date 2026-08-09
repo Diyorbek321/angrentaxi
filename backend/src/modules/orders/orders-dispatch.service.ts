@@ -3,7 +3,13 @@
 // cancellation with its role-based permission rules. Both walk an order
 // *backwards or sideways* out of the automated matching flow, which is why
 // they sit apart from the forward driver lifecycle.
-import { BadRequestException, ForbiddenException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order, OrderStatus } from '../../database/entities/order.entity';
@@ -70,22 +76,39 @@ export class OrdersDispatchService {
 
     const previousDriverId = order.driverId;
 
-    // Only logged once the conditional update actually lands — see the
-    // TOCTOU race guard on updateOrderStatusAtomic (throws ConflictException
-    // and touches 0 rows if another request already moved the order out of
-    // the expected status), which must never produce an audit entry for an
-    // override that didn't actually happen.
-    await this.statusTransition.updateOrderStatusAtomic(orderId, reassignableStatuses, {
-      driverId: newDriver.userId,
-      status: OrderStatus.ACCEPTED,
-    });
+    // The reassignment and its audit row commit together.
+    //
+    // These used to be two independent writes, so anything that failed after
+    // the status update — the audit insert itself, a lost connection — left
+    // the order silently moved to a new driver with no record of who did it,
+    // while the dispatcher saw a 500 and assumed nothing had happened.
+    //
+    // The conditional update keeps its TOCTOU guard: it touches 0 rows and
+    // throws ConflictException if another request already moved the order out
+    // of a reassignable status, which rolls the transaction back so no audit
+    // entry is written for an override that didn't happen.
+    await this.dispatchOverrideRepository.manager.transaction(async (manager) => {
+      const result = await manager
+        .createQueryBuilder()
+        .update(Order)
+        .set({ driverId: newDriver.userId, status: OrderStatus.ACCEPTED })
+        .where('id = :id', { id: orderId })
+        .andWhere('status IN (:...expectedStatuses)', {
+          expectedStatuses: reassignableStatuses,
+        })
+        .execute();
 
-    await this.dispatchOverrideRepository.save({
-      orderId,
-      performedByUserId,
-      previousDriverId,
-      newDriverId: newDriver.userId,
-      reason,
+      if (!result.affected) {
+        throw new ConflictException('Order is no longer in the expected state');
+      }
+
+      await manager.save(DispatchOverride, {
+        orderId,
+        performedByUserId,
+        previousDriverId,
+        newDriverId: newDriver.userId,
+        reason,
+      });
     });
 
     const updatedOrder = await this.queryService.findByIdOrThrow(orderId);

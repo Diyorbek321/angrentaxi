@@ -1,11 +1,7 @@
-import 'dart:async';
-
-import 'package:angren_taxi/core/config/payment_brand_colors.dart';
-import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class TopUpScreen extends StatefulWidget {
   const TopUpScreen({super.key});
@@ -16,7 +12,22 @@ class TopUpScreen extends StatefulWidget {
 
 class _TopUpScreenState extends State<TopUpScreen> {
   static const _presets = [20000.0, 50000.0, 100000.0];
+  static const String _supportPhone = '1056';
+
   double _amount = 50000;
+
+  Future<void> _contactSupport(BuildContext context) async {
+    final uri = Uri(scheme: 'tel', path: _supportPhone);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Qo\'ng\'iroq qilib bo\'lmadi — $_supportPhone raqamiga o\'zingiz qo\'ng\'iroq qiling'),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -127,36 +138,51 @@ class _TopUpScreenState extends State<TopUpScreen> {
                   ],
                 ),
                 const SizedBox(height: kSpace6),
+                // Online top-up needs a Payme/Click merchant agreement before
+                // a card can be charged. Until that exists this screen states
+                // the real options instead of showing a saved card that
+                // belongs to nobody ("Uzcard 8600 •••• 4421") next to a button
+                // that only re-read the balance and closed the screen.
                 Container(
-                  constraints: const BoxConstraints(minHeight: kMinTapTarget),
                   padding: const EdgeInsets.all(kSpace4),
-                  decoration: BoxDecoration(color: agSurface2, borderRadius: BorderRadius.circular(kRadiusMd)),
-                  child: Row(
+                  decoration: BoxDecoration(
+                    color: agSurface,
+                    borderRadius: BorderRadius.circular(kRadiusLg),
+                    boxShadow: agCardShadow,
+                  ),
+                  child: const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      ExcludeSemantics(
-                        child: Container(
-                          width: 48,
-                          height: 33,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(colors: kBrandUzcardGradient),
-                            borderRadius: BorderRadius.circular(kRadiusXs),
+                      Row(
+                        children: [
+                          ExcludeSemantics(
+                            child: Icon(Icons.info_outline_rounded,
+                                size: 22, color: agSubtle),
                           ),
-                          child: const Text('UZ', style: TextStyle(color: agOnPrimary, fontSize: kFontMicro, fontWeight: FontWeight.w800)),
-                        ),
+                          SizedBox(width: kSpace3),
+                          Expanded(
+                            child: Text(
+                              'Onlayn to\'ldirish hali ishga tushmagan',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: kFontBody,
+                                color: agText,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: kSpace3),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Uzcard', style: TextStyle(fontWeight: FontWeight.w700, fontSize: kFontBody, color: agText)),
-                            Text('8600 •••• 4421', style: TextStyle(fontSize: kFontCaption, color: agSubtle, fontWeight: FontWeight.w600)),
-                          ],
+                      SizedBox(height: kSpace2),
+                      Text(
+                        'Hozircha hamyonni operator orqali to\'ldirasiz: 1056 '
+                        'raqamiga qo\'ng\'iroq qiling yoki chatda yozing. '
+                        'Safarlarni naqd pul bilan ham to\'lash mumkin.',
+                        style: TextStyle(
+                          fontSize: kFontCaption,
+                          color: agSubtle,
+                          fontWeight: FontWeight.w600,
+                          height: 1.5,
                         ),
-                      ),
-                      const ExcludeSemantics(
-                        child: Icon(Icons.expand_more_rounded, color: agSubtle, size: 20),
                       ),
                     ],
                   ),
@@ -167,14 +193,8 @@ class _TopUpScreenState extends State<TopUpScreen> {
           Padding(
             padding: EdgeInsets.fromLTRB(kSpace4, 0, kSpace4, MediaQuery.of(context).padding.bottom + kSpace5),
             child: AgPrimaryButton(
-              label: '${Formatters.formatSom(_amount)} to\'ldirish',
-              onPressed: () {
-                // There is no server-side top-up endpoint yet, so we must not
-                // fake a locally incremented balance. Re-read the authoritative
-                // balance from the backend instead — whatever it really is.
-                unawaited(context.read<SuperappProvider>().loadWalletBalance());
-                Navigator.of(context).pop();
-              },
+              label: 'Operator bilan bog\'lanish',
+              onPressed: () => _contactSupport(context),
             ),
           ),
         ],

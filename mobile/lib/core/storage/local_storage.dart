@@ -20,6 +20,7 @@ class LocalStorage {
   static const String _tokenKey = 'auth_token';
   static const String _refreshTokenKey = 'refresh_token';
   static const String _userKey = 'current_user';
+  static const String _pushEnabledKey = 'push_enabled';
   static const String _driverModeKey = 'driver_mode';
 
   final SharedPreferences _prefs;
@@ -154,6 +155,16 @@ class LocalStorage {
 
   bool getDriverOnlineStatus() {
     return _prefs.getBool(_driverModeKey) ?? false;
+  }
+
+  // Push notification preference. Defaults to on — a user who has never
+  // touched the toggle should still receive order updates.
+  Future<void> savePushEnabled(bool enabled) async {
+    await _prefs.setBool(_pushEnabledKey, enabled);
+  }
+
+  bool getPushEnabled() {
+    return _prefs.getBool(_pushEnabledKey) ?? true;
   }
 
   // Clear all

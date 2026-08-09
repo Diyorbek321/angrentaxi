@@ -159,11 +159,60 @@ describe('MatchingService (Redis-backed queue)', () => {
       );
     });
 
-    it('cancels the order once every driver in the queue has declined', async () => {
+    it('keeps searching instead of cancelling once every driver in the queue has declined', async () => {
+      // The order used to be cancelled the instant the last driver in the
+      // first batch declined, throwing away most of the 60s search window.
+      // Now the queue stays active so the sweep can re-search for drivers who
+      // come online in the meantime.
       driversService.getNearbyDrivers.mockResolvedValue([makeDriver('driver-a', 1)]);
       await service.startSearch(orderId);
+      orderRepository.update.mockClear();
 
       await service.driverDeclined('driver-a', orderId);
+
+      expect(orderRepository.update).not.toHaveBeenCalledWith(
+        orderId,
+        expect.objectContaining({ status: OrderStatus.CANCELLED }),
+      );
+      expect(redis.activeSet.has(orderId)).toBe(true);
+    });
+
+    it('offers the order to a driver who comes online after the first batch declined', async () => {
+      driversService.getNearbyDrivers.mockResolvedValue([makeDriver('driver-a', 1)]);
+      await service.startSearch(orderId);
+      await service.driverDeclined('driver-a', orderId);
+      realtimeGateway.emitToUser.mockClear();
+
+      // A new driver appears in range; the previous decliner is still listed
+      // and must not be offered the same ride again.
+      driversService.getNearbyDrivers.mockResolvedValue([
+        makeDriver('driver-a', 1),
+        makeDriver('driver-c', 2),
+      ]);
+
+      await service.sweepExpiredOffers();
+
+      expect(realtimeGateway.emitToUser).toHaveBeenCalledWith(
+        'driver-c',
+        'new_order_offer',
+        expect.anything(),
+      );
+      expect(realtimeGateway.emitToUser).not.toHaveBeenCalledWith(
+        'driver-a',
+        'new_order_offer',
+        expect.anything(),
+      );
+    });
+
+    it('cancels the order when the overall search deadline passes with no driver', async () => {
+      driversService.getNearbyDrivers.mockResolvedValue([]);
+      await service.startSearch(orderId);
+
+      // Jump past the 60s no-driver deadline.
+      const realNow = Date.now();
+      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(realNow + 61_000);
+      await service.sweepExpiredOffers();
+      nowSpy.mockRestore();
 
       expect(orderRepository.update).toHaveBeenCalledWith(
         orderId,

@@ -51,9 +51,12 @@ services:
       REDIS_HOST: redis
     ports:
       - '3000:3000'
+    # No source bind-mount: the Dockerfile runs `node dist/main`, and mounting
+    # ./backend over /app replaces the image's freshly built dist with whatever
+    # stale build happens to sit on the host. Use `npm run start:dev` locally
+    # for hot reload instead.
     volumes:
-      - ./backend:/app
-      - /app/node_modules
+      - ./backend/uploads:/app/uploads
 
   web-admin:
     build:

@@ -44,9 +44,7 @@ dependencies:
   intl: ^0.20.2
   equatable: ^2.0.5
   get_it: ^7.6.7
-  uuid: ^4.3.3
   pin_code_fields: ^8.0.1
-  lottie: ^3.0.0
 
   # Premium UI: fonts + declarative micro-animations
   google_fonts: ^6.2.1

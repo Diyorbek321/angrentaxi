@@ -8,6 +8,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { Transaction, TransactionStatus, TransactionType } from '../../database/entities/transaction.entity';
 import { Order, OrderStatus, PaymentMethod } from '../../database/entities/order.entity';
+import {
+  MarketOrder,
+  MarketOrderStatus,
+} from '../../database/entities/market-order.entity';
+import {
+  FoodOrder,
+  FoodOrderStatus,
+} from '../../database/entities/food-order.entity';
 import { User } from '../../database/entities/user.entity';
 import {
   WithdrawalOwnerType,
@@ -20,6 +28,8 @@ import { UzcardProvider } from './uzcard.provider';
 import { PaymentInitiateResult } from './payment.interface';
 import { RequestWithdrawalDto } from './dto/request-withdrawal.dto';
 import { ProcessWithdrawalDto } from './dto/process-withdrawal.dto';
+import { computeWalletBalance, lockWalletForUpdate } from './wallet-balance.util';
+import { DriversService } from '../drivers/drivers.service';
 
 export interface WalletBalance {
   userId: string;
@@ -35,6 +45,10 @@ export class PaymentsService {
     private readonly transactionRepository: Repository<Transaction>,
     @InjectRepository(Order)
     private readonly orderRepository: Repository<Order>,
+    @InjectRepository(MarketOrder)
+    private readonly marketOrderRepository: Repository<MarketOrder>,
+    @InjectRepository(FoodOrder)
+    private readonly foodOrderRepository: Repository<FoodOrder>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(WithdrawalRequest)
@@ -43,28 +57,78 @@ export class PaymentsService {
     private readonly clickProvider: ClickProvider,
     private readonly uzcardProvider: UzcardProvider,
     private readonly dataSource: DataSource,
+    private readonly driversService: DriversService,
   ) {}
+
+  /**
+   * Resolves a payable order across all three verticals.
+   *
+   * This used to look only in `orders`, so a food or market order id was
+   * rejected as "Order not found" — card checkout in the super-app could never
+   * succeed, it just produced an error every single time. Market and food
+   * orders are payable as soon as they are placed (the vendor is already
+   * preparing them); a taxi ride is payable once the trip is complete and the
+   * final fare is known.
+   */
+  private async resolvePayableOrder(
+    orderId: string,
+    userId: string,
+  ): Promise<{ amount: number }> {
+    const taxiOrder = await this.orderRepository.findOne({ where: { id: orderId } });
+
+    if (taxiOrder) {
+      if (taxiOrder.passengerId !== userId) {
+        throw new BadRequestException('Order does not belong to you');
+      }
+
+      if (taxiOrder.status !== OrderStatus.COMPLETED) {
+        throw new BadRequestException('Order must be completed before payment');
+      }
+
+      return { amount: taxiOrder.finalPrice ?? taxiOrder.estimatedPrice };
+    }
+
+    const marketOrder = await this.marketOrderRepository.findOne({
+      where: { id: orderId },
+    });
+
+    if (marketOrder) {
+      if (marketOrder.customerId !== userId) {
+        throw new BadRequestException('Order does not belong to you');
+      }
+
+      if (marketOrder.status === MarketOrderStatus.CANCELLED) {
+        throw new BadRequestException('Cannot pay for a cancelled order');
+      }
+
+      return { amount: marketOrder.totalPrice };
+    }
+
+    const foodOrder = await this.foodOrderRepository.findOne({
+      where: { id: orderId },
+    });
+
+    if (foodOrder) {
+      if (foodOrder.customerId !== userId) {
+        throw new BadRequestException('Order does not belong to you');
+      }
+
+      if (foodOrder.status === FoodOrderStatus.CANCELLED) {
+        throw new BadRequestException('Cannot pay for a cancelled order');
+      }
+
+      return { amount: foodOrder.totalPrice };
+    }
+
+    throw new NotFoundException('Order not found');
+  }
 
   async initiatePayment(
     orderId: string,
     method: 'payme' | 'click' | 'uzcard',
     userId: string,
   ): Promise<PaymentInitiateResult> {
-    const order = await this.orderRepository.findOne({ where: { id: orderId } });
-
-    if (!order) {
-      throw new NotFoundException('Order not found');
-    }
-
-    if (order.passengerId !== userId) {
-      throw new BadRequestException('Order does not belong to you');
-    }
-
-    if (order.status !== OrderStatus.COMPLETED) {
-      throw new BadRequestException('Order must be completed before payment');
-    }
-
-    const amount = order.finalPrice ?? order.estimatedPrice;
+    const { amount } = await this.resolvePayableOrder(orderId, userId);
 
     const user = await this.userRepository.findOne({ where: { id: userId } });
     const phone = user?.phone ?? '';
@@ -211,6 +275,10 @@ export class PaymentsService {
       );
 
       this.logger.log(`Payme payment completed for order ${accountOrderId}`);
+
+      // The fare is now actually collected, so the driver's payout legs
+      // become spendable.
+      await this.settleOrderPayout(accountOrderId);
     } else if (method === 'CancelTransaction') {
       // CancelTransaction carries only Payme's own transaction id, which we
       // persist on the row when PerformTransaction settles it.
@@ -318,6 +386,8 @@ export class PaymentsService {
       );
 
       this.logger.log(`Click payment completed for order ${merchantTransId}`);
+
+      await this.settleOrderPayout(merchantTransId);
     }
 
     return { error: 0, error_note: 'Success' };
@@ -386,6 +456,8 @@ export class PaymentsService {
         },
       );
       this.logger.log(`Uzcard payment completed for order ${orderId}`);
+
+      await this.settleOrderPayout(orderId);
     } else if (status === 'FAILED' || status === 'CANCELLED') {
       // Same reasoning as the Payme cancel path: reversing a settled
       // payment is legitimate, re-reversing an already-REFUNDED one is a
@@ -414,28 +486,68 @@ export class PaymentsService {
     return { userId, balance };
   }
 
-  // Shared by getWalletBalance (outside any transaction, using the
-  // injected repository) and requestWithdrawal (inside a locked
-  // transaction, using an EntityManager-scoped repository bound to that
-  // transaction's connection) so both compute the balance the exact same
-  // way from the exact same query.
+  // Delegates to the shared helper so every balance read in the codebase —
+  // here, withdrawals, and trip settlement — uses the identical query.
   private async computeBalance(
     transactionRepo: Repository<Transaction>,
     userId: string,
   ): Promise<number> {
-    const result = await transactionRepo
-      .createQueryBuilder('t')
-      .select(
-        `SUM(CASE WHEN t.type = 'credit' AND t.status = 'completed' THEN t.amount ELSE 0 END) -
-         SUM(CASE WHEN t.type = 'debit' AND t.status = 'completed' THEN t.amount ELSE 0 END)`,
-        'balance',
-      )
-      .where('t.userId = :userId', { userId })
-      .getRawOne<{ balance: string }>();
+    return computeWalletBalance(transactionRepo, userId);
+  }
 
-    const balance = parseFloat(result?.balance ?? '0');
+  /**
+   * Releases a driver's payout once the passenger's fare is actually
+   * collected.
+   *
+   * OrdersCompletionService writes the driver's CREDIT (fare) and DEBIT
+   * (commission) legs with the same status as the passenger charge, so for an
+   * uncollected card payment they start PENDING and are therefore not
+   * spendable — computeWalletBalance counts COMPLETED rows only. When a
+   * provider callback settles the charge, this flips both legs to COMPLETED
+   * and credits `drivers.balance` with the net payout the platform now owes.
+   *
+   * Idempotent: a replayed callback finds no PENDING legs and does nothing, so
+   * a driver is never paid twice for one trip.
+   */
+  async settleOrderPayout(orderId: string): Promise<void> {
+    const order = await this.orderRepository.findOne({ where: { id: orderId } });
 
-    return Math.max(0, balance);
+    if (!order?.driverId) {
+      return;
+    }
+
+    const driverUserId = order.driverId;
+
+    await this.dataSource.transaction(async (manager: EntityManager) => {
+      await lockWalletForUpdate(manager, driverUserId);
+
+      const transactionRepo = manager.getRepository(Transaction);
+      const pendingLegs = await transactionRepo.find({
+        where: {
+          orderId,
+          userId: driverUserId,
+          status: TransactionStatus.PENDING,
+        },
+      });
+
+      if (pendingLegs.length === 0) {
+        return;
+      }
+
+      let netPayout = 0;
+      for (const leg of pendingLegs) {
+        netPayout += leg.type === TransactionType.CREDIT ? leg.amount : -leg.amount;
+        await transactionRepo.update({ id: leg.id }, { status: TransactionStatus.COMPLETED });
+      }
+
+      if (netPayout !== 0) {
+        await this.driversService.adjustBalanceWithin(manager, driverUserId, netPayout);
+      }
+
+      this.logger.log(
+        `Released driver payout of ${netPayout} for order ${orderId} after payment settlement`,
+      );
+    });
   }
 
   async getTransactionHistory(

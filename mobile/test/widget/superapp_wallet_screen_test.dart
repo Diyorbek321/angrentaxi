@@ -23,6 +23,22 @@ void main() {
   setUp(() {
     apiClient = MockApiClient();
     superapp = SuperappProvider(apiClient: apiClient);
+
+    // The screen also loads the real ledger (GET /payments/transactions); an
+    // empty list keeps these balance assertions isolated from it.
+    when(() => apiClient.get(
+          ApiEndpoints.paymentsTransactions,
+          params: any(named: 'params'),
+        )).thenAnswer(
+      (_) async => Response<dynamic>(
+        requestOptions:
+            RequestOptions(path: ApiEndpoints.paymentsTransactions),
+        data: {
+          'success': true,
+          'data': {'transactions': <dynamic>[], 'total': 0, 'page': 1, 'limit': 20},
+        },
+      ),
+    );
   });
 
   Future<void> pumpWallet(WidgetTester tester) async {
@@ -67,6 +83,9 @@ void main() {
     expect(superapp.walletBalance, isNull);
     expect(find.text('—'), findsOneWidget);
     expect(find.text('Qayta urinish'), findsOneWidget);
+    // With no transactions, the ledger section shows its empty state rather
+    // than the two invented rows it used to hardcode.
+    expect(find.text('Hozircha amallar yo\'q'), findsOneWidget);
 
     // Retry re-issues the request; on success the real balance replaces the
     // placeholder and the error notice disappears.

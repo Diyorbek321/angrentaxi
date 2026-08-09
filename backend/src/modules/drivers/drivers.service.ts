@@ -446,8 +446,11 @@ export class DriversService {
       externalId: note ?? null,
     });
 
-    const newBalance = driver.balance + amount;
-    await this.driverRepository.update(driver.id, { balance: newBalance });
+    // Atomic increment rather than a read-modify-write of `driver.balance`.
+    // Two concurrent top-ups (admin credit + Telegram bot, or a double-tap)
+    // both read the same starting balance and the second write silently
+    // discarded the first. Reuses the same SQL shape as adjustBalanceWithin.
+    await this.adjustBalanceWithin(this.driverRepository.manager, driver.userId, amount);
 
     return this.findByIdOrThrow(driverId);
   }

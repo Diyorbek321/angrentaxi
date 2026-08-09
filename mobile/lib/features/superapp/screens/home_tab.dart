@@ -37,6 +37,9 @@ class _HomeTabState extends State<HomeTab> {
       if (food.restaurants.isEmpty) food.loadRestaurants();
       final superapp = context.read<SuperappProvider>();
       if (superapp.walletBalance == null) superapp.loadWalletBalance();
+      // Delivery fee comes from the server so the cart total always matches
+      // what the order will actually be recorded as.
+      superapp.loadPlatformSettings();
     });
   }
 

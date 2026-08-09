@@ -8,12 +8,15 @@ import {
   TransactionStatus,
   TransactionType,
 } from '../../database/entities/transaction.entity';
+import { MarketOrder } from '../../database/entities/market-order.entity';
+import { FoodOrder } from '../../database/entities/food-order.entity';
 import { Order, PaymentMethod } from '../../database/entities/order.entity';
 import { User } from '../../database/entities/user.entity';
 import { WithdrawalRequest, WithdrawalStatus } from '../../database/entities/withdrawal-request.entity';
 import { PaymeProvider } from './payme.provider';
 import { ClickProvider } from './click.provider';
 import { UzcardProvider } from './uzcard.provider';
+import { DriversService } from '../drivers/drivers.service';
 
 /**
  * Regression coverage for the requestWithdrawal() TOCTOU race: it used to
@@ -122,11 +125,22 @@ describe('PaymentsService - requestWithdrawal race guard', () => {
         PaymentsService,
         { provide: getRepositoryToken(Transaction), useValue: transactionRepository },
         { provide: getRepositoryToken(Order), useValue: {} },
+        { provide: getRepositoryToken(MarketOrder), useValue: { findOne: jest.fn() } },
+        { provide: getRepositoryToken(FoodOrder), useValue: { findOne: jest.fn() } },
         { provide: getRepositoryToken(User), useValue: {} },
         { provide: getRepositoryToken(WithdrawalRequest), useValue: withdrawalRepository },
         { provide: PaymeProvider, useValue: {} },
         { provide: ClickProvider, useValue: {} },
         { provide: UzcardProvider, useValue: {} },
+        // settleOrderPayout credits drivers.balance once a card payment lands.
+        {
+          provide: DriversService,
+          useValue: { adjustBalanceWithin: jest.fn().mockResolvedValue({
+            driverId: 'driver-profile-1',
+            newBalance: 0,
+            wentOffline: false,
+          }) },
+        },
         { provide: DataSource, useValue: dataSource },
       ],
     }).compile();

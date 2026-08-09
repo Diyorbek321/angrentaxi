@@ -5,6 +5,7 @@ import 'package:angren_taxi/core/demo/demo_engine.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/core/storage/local_storage.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 
 /// Marks a request that has already been replayed after a token refresh, so a
@@ -105,13 +106,19 @@ class ApiClient {
       ),
     );
 
-    _dio.interceptors.add(
-      LogInterceptor(
-        requestBody: true,
-        responseBody: true,
-        logPrint: (obj) => debugPrint(obj.toString()),
-      ),
-    );
+    // Debug builds only. `debugPrint` still writes in release mode, so an
+    // unconditional LogInterceptor would put the `Authorization: Bearer <jwt>`
+    // header, the verify-otp body (phone + code) and every response body into
+    // logcat on real users' phones, where any app with log access can read it.
+    if (kDebugMode) {
+      _dio.interceptors.add(
+        LogInterceptor(
+          requestBody: true,
+          responseBody: true,
+          logPrint: (obj) => debugPrint(obj.toString()),
+        ),
+      );
+    }
   }
 
   static BaseOptions _baseOptions() => BaseOptions(

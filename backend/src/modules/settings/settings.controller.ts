@@ -32,6 +32,25 @@ export class SettingsController {
     return this.settingsService.setDefaultCommissionRate(dto.defaultCommissionRate);
   }
 
+  /**
+   * The subset of settings any signed-in customer app needs.
+   *
+   * The delivery fee in particular used to be a hardcoded constant in the
+   * Flutter app (`SuperappProvider._deliveryFee = 7000`), so changing it
+   * required a new app release and, until every user updated, the checkout
+   * total disagreed with the order the server actually recorded.
+   *
+   * Deliberately excludes `maintenanceMode` and anything else operational —
+   * those stay on the manager/admin endpoint below.
+   */
+  @Get('public')
+  @ApiOperation({ summary: 'Customer-facing settings: support contact and delivery fee' })
+  async getPublic() {
+    const { platformName, supportPhone, deliveryFee } =
+      await this.settingsService.getGlobalSettings();
+    return { platformName, supportPhone, deliveryFee };
+  }
+
   @Get('global')
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get platform name/support contact/maintenance-mode flag (manager/admin only)' })

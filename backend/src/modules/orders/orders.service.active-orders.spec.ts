@@ -3,7 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Logger } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { ORDERS_PROVIDERS } from './orders.providers';
-import { fakeDataSourceProvider } from './orders.testing';
+import { fakeDataSourceProvider, fakeTransactionRepository } from './orders.testing';
 import { OrdersQueryService } from './orders-query.service';
 import { Order, OrderStatus } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
@@ -42,7 +42,7 @@ describe('OrdersService - getActiveOrders is bounded', () => {
         fakeDataSourceProvider(),
         { provide: getRepositoryToken(Order), useValue: orderRepository },
         { provide: getRepositoryToken(Trip), useValue: {} },
-        { provide: getRepositoryToken(Transaction), useValue: {} },
+        { provide: getRepositoryToken(Transaction), useValue: fakeTransactionRepository() },
         { provide: getRepositoryToken(DispatchOverride), useValue: {} },
         { provide: TariffsService, useValue: {} },
         { provide: RealtimeGateway, useValue: {} },

@@ -3,7 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { ORDERS_PROVIDERS } from './orders.providers';
-import { fakeDataSourceProvider } from './orders.testing';
+import { fakeDataSourceProvider, fakeTransactionRepository } from './orders.testing';
 import { OrdersQueryService } from './orders-query.service';
 import { Order, OrderStatus } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
@@ -63,7 +63,7 @@ describe('OrdersService - findByIdForUser access control', () => {
           provide: getRepositoryToken(Trip),
           useValue: { save: jest.fn(), findOne: jest.fn(), update: jest.fn() },
         },
-        { provide: getRepositoryToken(Transaction), useValue: { save: jest.fn() } },
+        { provide: getRepositoryToken(Transaction), useValue: fakeTransactionRepository(0, { save: jest.fn() }) },
         { provide: getRepositoryToken(DispatchOverride), useValue: { save: jest.fn() } },
         { provide: TariffsService, useValue: {} },
         {

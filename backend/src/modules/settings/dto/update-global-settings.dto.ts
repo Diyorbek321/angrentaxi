@@ -1,5 +1,13 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsEmail, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsNumber,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 export class UpdateGlobalSettingsDto {
   @ApiPropertyOptional({ example: 'Angren Taxi' })
@@ -19,8 +27,19 @@ export class UpdateGlobalSettingsDto {
   @IsEmail()
   supportEmail?: string;
 
-  @ApiPropertyOptional({ description: 'Stored/toggleable only — not yet enforced by a request guard' })
+  @ApiPropertyOptional({
+    description:
+      'When true, MaintenanceGuard rejects all non-admin traffic with 503',
+  })
   @IsOptional()
   @IsBoolean()
   maintenanceMode?: boolean;
+
+  @ApiPropertyOptional({
+    description: "Flat delivery fee added to every food/market order, in so'm",
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  deliveryFee?: number;
 }

@@ -7,12 +7,15 @@ import {
   TransactionStatus,
   TransactionType,
 } from '../../database/entities/transaction.entity';
+import { MarketOrder } from '../../database/entities/market-order.entity';
+import { FoodOrder } from '../../database/entities/food-order.entity';
 import { Order, PaymentMethod } from '../../database/entities/order.entity';
 import { User } from '../../database/entities/user.entity';
 import { WithdrawalRequest } from '../../database/entities/withdrawal-request.entity';
 import { PaymeProvider } from './payme.provider';
 import { ClickProvider } from './click.provider';
 import { UzcardProvider } from './uzcard.provider';
+import { DriversService } from '../drivers/drivers.service';
 
 /**
  * Coverage for the hardened payment-callback handlers: a valid callback
@@ -62,12 +65,29 @@ describe('PaymentsService - provider callbacks', () => {
       providers: [
         PaymentsService,
         { provide: getRepositoryToken(Transaction), useValue: transactionRepository },
-        { provide: getRepositoryToken(Order), useValue: {} },
+        // settleOrderPayout looks the order up to find its driver. These
+        // callback tests assert ledger status transitions, not payout release,
+        // so the order resolves with no driver and settlement is a no-op.
+        {
+          provide: getRepositoryToken(Order),
+          useValue: { findOne: jest.fn().mockResolvedValue(null) },
+        },
+        { provide: getRepositoryToken(MarketOrder), useValue: { findOne: jest.fn() } },
+        { provide: getRepositoryToken(FoodOrder), useValue: { findOne: jest.fn() } },
         { provide: getRepositoryToken(User), useValue: {} },
         { provide: getRepositoryToken(WithdrawalRequest), useValue: {} },
         { provide: PaymeProvider, useValue: paymeProvider },
         { provide: ClickProvider, useValue: clickProvider },
         { provide: UzcardProvider, useValue: uzcardProvider },
+        // settleOrderPayout credits drivers.balance once a card payment lands.
+        {
+          provide: DriversService,
+          useValue: { adjustBalanceWithin: jest.fn().mockResolvedValue({
+            driverId: 'driver-profile-1',
+            newBalance: 0,
+            wentOffline: false,
+          }) },
+        },
         { provide: DataSource, useValue: { transaction: jest.fn() } },
       ],
     }).compile();

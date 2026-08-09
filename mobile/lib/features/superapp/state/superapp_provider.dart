@@ -2,6 +2,7 @@ import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/features/superapp/models/cart_item.dart';
+import 'package:angren_taxi/features/superapp/models/wallet_transaction.dart';
 import 'package:flutter/foundation.dart';
 
 /// Holds cross-vertical super-app state: the unified cart, wallet balance and
@@ -16,7 +17,13 @@ import 'package:flutter/foundation.dart';
 class SuperappProvider extends ChangeNotifier {
   SuperappProvider({required ApiClient apiClient}) : _apiClient = apiClient;
 
-  static const double _deliveryFee = 7000;
+  /// Fallback used only until [loadPlatformSettings] answers — the server
+  /// is the source of truth. This was previously a hardcoded constant that
+  /// the checkout total was built from, so the passenger saw a figure the
+  /// order row never contained.
+  static const double _deliveryFeeFallback = 7000;
+
+  double _deliveryFee = _deliveryFeeFallback;
 
   final ApiClient _apiClient;
 
@@ -24,6 +31,9 @@ class SuperappProvider extends ChangeNotifier {
   double? _walletBalance;
   bool _walletLoading = false;
   String? _walletError;
+  List<WalletTransaction> _transactions = const [];
+  bool _txnsLoading = false;
+  String? _txnsError;
   int _tabIndex = 0;
 
   // Which real-backend vertical the current cart belongs to ('food' or
@@ -56,6 +66,10 @@ class SuperappProvider extends ChangeNotifier {
   bool get isWalletLoading => _walletLoading;
   String? get walletError => _walletError;
 
+  List<WalletTransaction> get transactions => _transactions;
+  bool get isTransactionsLoading => _txnsLoading;
+  String? get transactionsError => _txnsError;
+
   /// Fetches the signed-in user's wallet balance from `GET /payments/wallet`.
   ///
   /// Backend shape (ResponseInterceptor envelope):
@@ -82,6 +96,53 @@ class SuperappProvider extends ChangeNotifier {
       _walletError = extractErrorMessage(e);
     } finally {
       _walletLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Reads the platform delivery fee so the cart total matches what the
+  /// server will record for the order.
+  Future<void> loadPlatformSettings() async {
+    try {
+      final response = await _apiClient.get(ApiEndpoints.settingsPublic);
+      final envelope = response.data as Map<String, dynamic>;
+      final payload = envelope['data'] as Map<String, dynamic>;
+      final fee = (payload['deliveryFee'] as num?)?.toDouble();
+      if (fee != null) {
+        _deliveryFee = fee;
+        notifyListeners();
+      }
+    } catch (e) {
+      // Keep the last known fee. A settings blip must not block checkout;
+      // the server recomputes the authoritative total on order creation.
+      debugPrint('[SuperappProvider] loadPlatformSettings error: $e');
+    }
+  }
+
+  /// Real ledger history from `GET /payments/transactions`.
+  ///
+  /// Envelope: `{ success, data: { transactions: [...], total, page, limit } }`.
+  Future<void> loadTransactions() async {
+    if (_txnsLoading) return;
+    _txnsLoading = true;
+    _txnsError = null;
+    notifyListeners();
+    try {
+      final response = await _apiClient.get(
+        ApiEndpoints.paymentsTransactions,
+        params: {'page': 1, 'limit': 20},
+      );
+      final envelope = response.data as Map<String, dynamic>;
+      final payload = envelope['data'] as Map<String, dynamic>;
+      final rows = (payload['transactions'] as List<dynamic>? ?? []);
+      _transactions = rows
+          .map((r) => WalletTransaction.fromJson(r as Map<String, dynamic>))
+          .toList(growable: false);
+    } catch (e) {
+      debugPrint('[SuperappProvider] loadTransactions error: $e');
+      _txnsError = extractErrorMessage(e);
+    } finally {
+      _txnsLoading = false;
       notifyListeners();
     }
   }

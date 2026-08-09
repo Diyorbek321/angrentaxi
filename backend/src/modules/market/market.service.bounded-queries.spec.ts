@@ -11,6 +11,7 @@ import { UsersService } from '../users/users.service';
 import { OrdersService } from '../orders/orders.service';
 import { MatchingService } from '../matching/matching.service';
 import { TariffsService } from '../tariffs/tariffs.service';
+import { SettingsService } from '../settings/settings.service';
 import { MarketService } from './market.service';
 
 /**
@@ -81,6 +82,12 @@ describe('MarketService — bounded vendor queries', () => {
         { provide: OrdersService, useValue: { findByIdOrThrow: jest.fn() } },
         { provide: MatchingService, useValue: {} },
         { provide: TariffsService, useValue: {} },
+        // Order creation reads the platform delivery fee; the vendor-query
+        // tests never create an order, so a fixed value is enough.
+        {
+          provide: SettingsService,
+          useValue: { getDeliveryFee: jest.fn().mockResolvedValue(7000) },
+        },
       ],
     }).compile();
 

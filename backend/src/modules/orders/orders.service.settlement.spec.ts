@@ -16,6 +16,7 @@ import { SettingsService } from '../settings/settings.service';
 import { OrdersService } from './orders.service';
 import { OrdersQueryService } from './orders-query.service';
 import { ORDERS_PROVIDERS } from './orders.providers';
+import { fakeTransactionRepository } from './orders.testing';
 
 /**
  * Trip settlement used to be five independent writes — order status, the
@@ -90,7 +91,7 @@ describe('completeTrip settlement atomicity', () => {
           provide: getRepositoryToken(Trip),
           useValue: { findOne: jest.fn().mockResolvedValue(null), update: jest.fn() },
         },
-        { provide: getRepositoryToken(Transaction), useValue: { save: repoSave } },
+        { provide: getRepositoryToken(Transaction), useValue: fakeTransactionRepository(0, { save: repoSave }) },
         { provide: getRepositoryToken(DispatchOverride), useValue: {} },
         {
           provide: TariffsService,

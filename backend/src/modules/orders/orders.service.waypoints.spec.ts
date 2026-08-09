@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { OrdersService } from './orders.service';
 import { ORDERS_PROVIDERS } from './orders.providers';
-import { fakeDataSourceProvider } from './orders.testing';
+import { fakeDataSourceProvider, fakeTransactionRepository } from './orders.testing';
 import { Order } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
 import { Transaction } from '../../database/entities/transaction.entity';
@@ -87,7 +87,7 @@ describe('OrdersService - multi-stop rides (waypoints)', () => {
         fakeDataSourceProvider(),
         { provide: getRepositoryToken(Order), useValue: orderRepository },
         { provide: getRepositoryToken(Trip), useValue: {} },
-        { provide: getRepositoryToken(Transaction), useValue: {} },
+        { provide: getRepositoryToken(Transaction), useValue: fakeTransactionRepository() },
         { provide: getRepositoryToken(DispatchOverride), useValue: {} },
         { provide: TariffsService, useValue: tariffsService },
         {

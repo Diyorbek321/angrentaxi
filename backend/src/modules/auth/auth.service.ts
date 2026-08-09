@@ -116,7 +116,14 @@ export class AuthService {
 
     if (otpBypassEnabled) {
       this.logger.warn(`OTP bypass enabled. Code for ${phone}: ${code}`);
-      return { message: 'OTP sent successfully', code };
+
+      // The code is echoed back only outside production, where it saves
+      // testers a trip to the server log. Returning it from a production
+      // server would hand a valid login code to any unauthenticated caller
+      // who knows a phone number, so there it is logged and nothing more.
+      return isProduction
+        ? { message: 'OTP sent successfully' }
+        : { message: 'OTP sent successfully', code };
     }
 
     await this.eskizService.sendSms(

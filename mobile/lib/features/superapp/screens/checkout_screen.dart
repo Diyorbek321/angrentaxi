@@ -2,6 +2,7 @@ import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/payments/payment_service.dart';
+import 'package:angren_taxi/features/passenger/screens/map_picker_screen.dart';
 import 'package:angren_taxi/features/payments/screens/payment_webview_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/order_status_screen.dart';
 import 'package:angren_taxi/features/superapp/state/food_provider.dart';
@@ -10,9 +11,12 @@ import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/shared/models/food_order.dart';
 import 'package:angren_taxi/shared/models/market_order.dart';
+import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/models/payment_initiate_result.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 /// Order-level payment choice. 'cash' is settled with the courier on
@@ -43,9 +47,65 @@ class CheckoutScreen extends StatefulWidget {
 }
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
-  String _address = "Navoiy ko'chasi, 12";
+  /// Delivery point. Null until the passenger picks one — there is no
+  /// prefilled fake address any more ("Navoiy ko'chasi, 12" used to be shown
+  /// to every user as though it were theirs).
+  OrderLocation? _destination;
   CheckoutPaymentMethod _paymentMethod = CheckoutPaymentMethod.cash;
   bool _submitting = false;
+
+  bool _resolvingAddress = true;
+
+  String get _addressLabel =>
+      _destination?.address ??
+      (_resolvingAddress ? 'Manzil aniqlanmoqda…' : 'Manzilni tanlang');
+
+  @override
+  void initState() {
+    super.initState();
+    // Prefill from the device's own position so the common case needs no
+    // interaction, and so the label and the coordinates start out describing
+    // the same place. Tapping the row opens the map picker to change it.
+    _prefillFromCurrentPosition();
+  }
+
+  Future<void> _prefillFromCurrentPosition() async {
+    final position = await _locationService.getCurrentPosition();
+    if (!mounted) return;
+
+    if (position == null) {
+      setState(() => _resolvingAddress = false);
+      return;
+    }
+
+    String address = 'Joriy joylashuv';
+    try {
+      final placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+      if (placemarks.isNotEmpty) {
+        final p = placemarks.first;
+        final parts = [p.street, p.subLocality, p.locality]
+            .where((e) => e != null && e.isNotEmpty)
+            .join(', ');
+        if (parts.isNotEmpty) address = parts;
+      }
+    } catch (_) {
+      // Geocoding is best-effort; the coordinates are what the courier needs
+      // and they are already correct.
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _destination = OrderLocation(
+        address: address,
+        lat: position.latitude,
+        lng: position.longitude,
+      );
+      _resolvingAddress = false;
+    });
+  }
 
   PaymentService get _paymentService =>
       widget.paymentService ?? PaymentService(apiClient: sl<ApiClient>());
@@ -113,24 +173,33 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
+  /// Picks the delivery point on the map.
+  ///
+  /// This used to be a plain text dialog while the coordinates sent to the
+  /// courier came from `getCurrentPosition()`. Editing the address therefore
+  /// changed only the label the vendor saw — the courier was still routed to
+  /// wherever the phone happened to be, with no warning that the two
+  /// disagreed. Picking on the map keeps the address and its coordinates in
+  /// sync by construction.
   Future<void> _editAddress() async {
-    final controller = TextEditingController(text: _address);
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Yetkazib berish manzili'),
-        content: TextField(controller: controller, autofocus: true),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Bekor qilish')),
-          TextButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Saqlash'),
-          ),
-        ],
+    final current = await _locationService.getCurrentPosition();
+    if (!mounted) return;
+
+    final picked = await Navigator.of(context).push<OrderLocation>(
+      MaterialPageRoute<OrderLocation>(
+        builder: (_) => MapPickerScreen(
+          title: 'Yetkazib berish manzili',
+          initialLocation: _destination != null
+              ? LatLng(_destination!.lat, _destination!.lng)
+              : (current != null
+                    ? LatLng(current.latitude, current.longitude)
+                    : null),
+        ),
       ),
     );
-    if (result != null && result.isNotEmpty) {
-      setState(() => _address = result);
+
+    if (picked != null && mounted) {
+      setState(() => _destination = picked);
     }
   }
 
@@ -142,19 +211,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final foodProvider = kind == 'food' ? context.read<FoodProvider>() : null;
     final marketProvider = kind == 'food' ? null : context.read<MarketProvider>();
 
-    setState(() => _submitting = true);
-
-    // A courier needs real coordinates to be dispatched to — the typed
-    // address above is just a label shown to the vendor/courier.
-    final position = await _locationService.getCurrentPosition();
-    if (position == null) {
-      setState(() => _submitting = false);
-      if (!mounted) return;
+    final destination = _destination;
+    if (destination == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Joylashuvga ruxsat bering — kuryer yuborish uchun kerak")),
+        const SnackBar(
+          content: Text('Yetkazib berish manzilini tanlang'),
+        ),
       );
       return;
     }
+
+    setState(() => _submitting = true);
 
     Object? order;
     String? error;
@@ -162,18 +229,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       final food = foodProvider!;
       order = await food.createOrder(
         items: superapp.cart,
-        deliveryAddress: _address,
-        deliveryLat: position.latitude,
-        deliveryLng: position.longitude,
+        deliveryAddress: destination.address,
+        deliveryLat: destination.lat,
+        deliveryLng: destination.lng,
       );
       error = food.error;
     } else {
       final market = marketProvider!;
       order = await market.createOrder(
         items: superapp.cart,
-        deliveryAddress: _address,
-        deliveryLat: position.latitude,
-        deliveryLng: position.longitude,
+        deliveryAddress: destination.address,
+        deliveryLat: destination.lat,
+        deliveryLng: destination.lng,
       );
       error = market.error;
     }
@@ -196,15 +263,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     // order already exists server-side, so we surface the error and let the
     // passenger retry payment or fall back to cash on delivery, instead of
     // silently losing their placed order.
+    final placedOrderId = kind == 'food'
+        ? (order as FoodOrder).id
+        : (order as MarketOrder).id;
+    var paidOnline = false;
+
     if (_paymentMethod == CheckoutPaymentMethod.card) {
-      final orderId = kind == 'food'
-          ? (order as FoodOrder).id
-          : (order as MarketOrder).id;
+      final orderId = placedOrderId;
       try {
         final result = await _paymentService.initiate(orderId: orderId);
         if (!mounted) return;
         final completed = await _openPaymentCheckout(context, result);
         if (!mounted) return;
+        paidOnline = completed == true;
         if (completed != true) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -229,7 +300,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     superapp.clearCart();
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => const OrderStatusScreen()),
+      MaterialPageRoute<void>(
+        builder: (_) => OrderStatusScreen(
+          orderId: placedOrderId,
+          paidOnline: paidOnline,
+        ),
+      ),
     );
   }
 
@@ -251,7 +327,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   iconColor: agGreenText,
                   icon: Icons.location_on_rounded,
                   title: 'Yetkazib berish manzili',
-                  subtitle: _address,
+                  subtitle: _addressLabel,
                   onTap: _editAddress,
                 ),
                 const SizedBox(height: kSpace4),

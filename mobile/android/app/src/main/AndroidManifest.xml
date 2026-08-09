@@ -8,7 +8,13 @@
     <!-- Location -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <!--
+        ACCESS_BACKGROUND_LOCATION is deliberately NOT declared. The app only
+        ever requests foreground permission (LocationService.ensurePermission),
+        and driver tracking during a trip runs through the location foreground
+        service below. Declaring it unused triggers Play Console's background
+        location review — a listing rejection for a permission nothing uses.
+    -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
@@ -75,8 +81,45 @@
             android:value="2" />
     </application>
 
-    <!-- Android 12+ splash screen -->
+    <!--
+        Package visibility (Android 11 / API 30+).
+
+        Without a matching <intent> entry here, canLaunchUrl() returns false and
+        url_launcher refuses the call — which silently killed the SOS call to
+        102, calling the driver, and handing navigation off to a maps app. The
+        url_launcher plugin contributes no queries of its own, so every scheme
+        the app launches has to be declared.
+    -->
     <queries>
+        <!-- SOS (102) and passenger <-> driver calls -->
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+            <data android:scheme="tel" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="tel" />
+        </intent>
+
+        <!-- Driver navigation hand-off to Yandex/Google Maps -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="geo" />
+        </intent>
+
+        <!-- Payment checkout pages and support links -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+
+        <!-- SMS fallback for support contact -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="sms" />
+        </intent>
+
+        <!-- Android 12+ splash screen -->
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />

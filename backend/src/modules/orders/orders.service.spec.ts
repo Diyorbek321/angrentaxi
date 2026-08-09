@@ -3,7 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConflictException } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { ORDERS_PROVIDERS } from './orders.providers';
-import { fakeDataSourceProvider } from './orders.testing';
+import { fakeDataSourceProvider, fakeTransactionRepository } from './orders.testing';
 import { OrdersQueryService } from './orders-query.service';
 import { Order, OrderStatus } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
@@ -57,7 +57,10 @@ describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => 
     update: jest.Mock;
   };
   let driversService: { findByUserId: jest.Mock; findByIdOrThrow: jest.Mock };
-  let dispatchOverrideRepository: { save: jest.Mock };
+  let dispatchOverrideRepository: {
+    save: jest.Mock;
+    manager: { transaction: jest.Mock };
+  };
 
   const baseOrder = (overrides: Partial<Order> = {}): Order =>
     ({
@@ -90,7 +93,25 @@ describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => 
       findByIdOrThrow: jest.fn(),
     };
 
-    dispatchOverrideRepository = { save: jest.fn() };
+    // reassignDriver commits the status update and its audit row in one
+    // transaction, so the mock hands the callback an EntityManager that routes
+    // back to the same queryBuilder/save mocks the assertions below inspect.
+    const transactionalManager = {
+      createQueryBuilder: jest.fn().mockReturnValue(queryBuilderMock),
+      save: jest.fn((_entity: unknown, data: unknown) =>
+        dispatchOverrideRepository.save(data),
+      ),
+    };
+
+    dispatchOverrideRepository = {
+      save: jest.fn(),
+      manager: {
+        transaction: jest.fn(
+          async (cb: (m: typeof transactionalManager) => Promise<unknown>) =>
+            cb(transactionalManager),
+        ),
+      },
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -101,7 +122,7 @@ describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => 
           provide: getRepositoryToken(Trip),
           useValue: { save: jest.fn(), findOne: jest.fn(), update: jest.fn() },
         },
-        { provide: getRepositoryToken(Transaction), useValue: { save: jest.fn() } },
+        { provide: getRepositoryToken(Transaction), useValue: fakeTransactionRepository(0, { save: jest.fn() }) },
         { provide: getRepositoryToken(DispatchOverride), useValue: dispatchOverrideRepository },
         { provide: TariffsService, useValue: {} },
         {
@@ -235,6 +256,27 @@ describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => 
         newDriverId: 'driver-2',
         reason: 'No drivers found automatically',
       });
+    });
+
+    it('commits the reassignment and its audit entry in a single transaction', async () => {
+      // Regression: these were two independent writes, so a failure after the
+      // status update left the order reassigned with no audit row while the
+      // dispatcher saw a 500 and assumed nothing had changed.
+      const order = baseOrder({ status: OrderStatus.SEARCHING, driverId: null });
+      jest.spyOn(queryService, 'findByIdOrThrow').mockResolvedValue(order);
+      driversService.findByIdOrThrow.mockResolvedValue({
+        id: 'driver-profile-2',
+        userId: 'driver-2',
+        isOnline: true,
+        carModel: 'Cobalt',
+        carNumber: '01A123AA',
+        rating: 5,
+      });
+      queryBuilderMock.execute.mockResolvedValueOnce({ affected: 1, raw: [] });
+
+      await service.reassignDriver('order-1', 'driver-profile-2', 'manager-1', 'reason');
+
+      expect(dispatchOverrideRepository.manager.transaction).toHaveBeenCalledTimes(1);
     });
   });
 

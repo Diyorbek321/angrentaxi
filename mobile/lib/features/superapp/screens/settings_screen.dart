@@ -1,5 +1,11 @@
+import 'package:angren_taxi/core/config/app_config.dart';
+import 'package:angren_taxi/core/di/service_locator.dart';
+import 'package:angren_taxi/core/network/api_client.dart';
+import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/core/storage/local_storage.dart';
 import 'package:angren_taxi/features/superapp/screens/support_screen.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -10,10 +16,43 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  String _lang = 'UZ';
-  bool _dark = false;
-  bool _push = true;
-  bool _faceId = true;
+  late bool _push = sl<LocalStorage>().getPushEnabled();
+  bool _savingPush = false;
+
+  /// Turns push delivery on or off for this device.
+  ///
+  /// The toggle used to be pure `setState` — it reset on every rebuild and was
+  /// wired to nothing, so switching it off changed no behaviour at all. It now
+  /// persists the choice and tells the server, which is what actually stops
+  /// (or resumes) notifications for this device's FCM token.
+  Future<void> _setPush(bool enabled) async {
+    setState(() {
+      _push = enabled;
+      _savingPush = true;
+    });
+
+    await sl<LocalStorage>().savePushEnabled(enabled);
+
+    try {
+      final token = enabled ? await FirebaseMessaging.instance.getToken() : null;
+      await sl<ApiClient>().post(
+        ApiEndpoints.registerFcmToken,
+        // A null token unregisters this device server-side.
+        data: {'fcmToken': token},
+      );
+    } catch (e) {
+      debugPrint('[Settings] push toggle sync failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sozlama saqlandi, lekin serverga yuborilmadi'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _savingPush = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,34 +65,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, kSpace6),
               children: [
+                // Only settings that do something are listed.
+                //
+                // Removed: a UZ/RU language switcher (the app has no
+                // localisation — every string is a hardcoded Uzbek literal, so
+                // the switch could never have worked), a dark-mode toggle
+                // (there is no dark theme), and "Face ID bilan kirish" (no
+                // biometric auth exists). All three were local setState that
+                // reset on rebuild.
                 _label('UMUMIY'),
                 _group([
-                  Row(
-                    children: [
-                      const ExcludeSemantics(
-                        child: Icon(Icons.language_rounded, size: 22, color: agSubtle),
-                      ),
-                      const SizedBox(width: kSpace3),
-                      const Expanded(child: Text('Til', style: TextStyle(fontWeight: FontWeight.w700, fontSize: kFontBody, color: agText))),
-                      _langChip('UZ'),
-                      const SizedBox(width: kSpace2),
-                      _langChip('RU'),
-                    ],
+                  _toggleRow(
+                    Icons.notifications_rounded,
+                    'Push bildirishnomalar',
+                    _push,
+                    _savingPush ? null : (v) => _setPush(v),
+                    last: true,
                   ),
-                  _toggleRow(Icons.dark_mode_rounded, 'Tungi rejim', _dark, (v) => setState(() => _dark = v)),
-                  _toggleRow(Icons.notifications_rounded, 'Push bildirishnomalar', _push, (v) => setState(() => _push = v), last: true),
                 ]),
                 const SizedBox(height: kSpace5),
-                _label('XAVFSIZLIK'),
+                _label('YORDAM'),
                 _group([
-                  _toggleRow(Icons.fingerprint_rounded, 'Face ID bilan kirish', _faceId, (v) => setState(() => _faceId = v)),
-                  _navRow(Icons.shield_rounded, 'Maxfiylik'),
                   _navRow(Icons.support_agent_rounded, 'Yordam markazi', last: true,
                       onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SupportScreen()))),
                 ]),
                 const SizedBox(height: kSpace6),
                 const Center(
-                  child: Text('Angren Go · versiya 2.4.0',
+                  // Was hardcoded "2.4.0" while pubspec said 1.0.0.
+                  child: Text('Angren Go · versiya ${AppConfig.appVersion}',
                       style: TextStyle(color: agSubtle, fontWeight: FontWeight.w600, fontSize: kFontCaption)),
                 ),
               ],
@@ -79,44 +118,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Column(children: rows),
       );
 
-  Widget _langChip(String code) {
-    final active = _lang == code;
-    return Semantics(
-      button: true,
-      selected: active,
-      label: code,
-      excludeSemantics: true,
-      child: GestureDetector(
-        onTap: () => setState(() => _lang = code),
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          constraints: const BoxConstraints(
-            minHeight: kMinTapTarget,
-            minWidth: kMinTapTarget,
-          ),
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: kSpace3, vertical: kSpace2),
-          decoration: BoxDecoration(
-            // Faol chip — interaktiv to'ldirish (`agPrimary` + oq, 5.38:1).
-            // `agGreen` (#10A064) oq yozuv bilan atigi 3.3:1 berardi.
-            color: active ? agPrimary : agBg,
-            borderRadius: BorderRadius.circular(kRadiusSm),
-            border: Border.all(color: active ? agPrimary : agBorder),
-          ),
-          child: Text(
-            code,
-            style: TextStyle(
-              fontSize: kFontLabel,
-              fontWeight: FontWeight.w800,
-              color: active ? agOnPrimary : agText,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
-  Widget _toggleRow(IconData icon, String label, bool value, ValueChanged<bool> onChanged, {bool last = false}) {
+  Widget _toggleRow(IconData icon, String label, bool value, ValueChanged<bool>? onChanged, {bool last = false}) {
     return Container(
       constraints: const BoxConstraints(minHeight: kMinTapTarget),
       padding: const EdgeInsets.symmetric(vertical: kSpace3),

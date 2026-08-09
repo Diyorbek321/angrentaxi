@@ -27,6 +27,11 @@ class AppConfig {
   static const bool demoMode =
       bool.fromEnvironment('DEMO_MODE', defaultValue: false);
 
+  /// Displayed app version. Keep in step with `version:` in pubspec.yaml —
+  /// the settings screen used to hardcode an unrelated '2.4.0' while the
+  /// about dialog said '1.0.0'.
+  static const String appVersion = '1.0.0';
+
   static const Duration otpResendDuration = Duration(seconds: 60);
   static const Duration orderOfferTimeout = Duration(seconds: 15);
   static const int locationUpdateDistanceFilter = 10; // meters

@@ -38,3 +38,28 @@ export function createFakeDataSource(overrides: ManagerOverrides = {}): DataSour
 export function fakeDataSourceProvider(overrides: ManagerOverrides = {}): Provider {
   return { provide: DataSource, useValue: createFakeDataSource(overrides) };
 }
+
+/**
+ * Transaction-repository stand-in for specs that exercise order creation.
+ *
+ * `OrdersCreationService.create` refuses a new order while the passenger has
+ * an unpaid wallet charge, which it reads through a QueryBuilder aggregate.
+ * Specs that only care about pricing or persistence want the "no debt" answer
+ * without restating that chain; `outstandingDebt` overrides it for the specs
+ * that do test the block.
+ */
+export function fakeTransactionRepository(
+  outstandingDebt = 0,
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    save: jest.fn(),
+    createQueryBuilder: jest.fn(() => ({
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getRawOne: jest.fn().mockResolvedValue({ debt: String(outstandingDebt) }),
+    })),
+    ...overrides,
+  };
+}

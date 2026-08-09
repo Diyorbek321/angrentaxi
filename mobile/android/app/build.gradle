@@ -47,11 +47,45 @@ android {
         }
     }
 
+    // Release signing is read from android/key.properties, which is gitignored
+    // and never committed. See android/key.properties.example for the format
+    // and the keytool command that creates the keystore.
+    //
+    // Without it the release build used to fall back to signingConfigs.debug —
+    // an APK signed with the shared debug key, which the Play Store rejects
+    // and which cannot be updated later by a properly signed build.
+    signingConfigs {
+        release {
+            def keystorePropertiesFile = rootProject.file("key.properties")
+            if (keystorePropertiesFile.exists()) {
+                def keystoreProperties = new Properties()
+                keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+                keyAlias = keystoreProperties["keyAlias"]
+                keyPassword = keystoreProperties["keyPassword"]
+                storeFile = file(keystoreProperties["storeFile"])
+                storePassword = keystoreProperties["storePassword"]
+            }
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig = signingConfigs.debug
-            minifyEnabled = false
-            shrinkResources = false
+            // Fall back to debug signing only for local release-mode testing,
+            // and say so loudly — a debug-signed artifact must never be the one
+            // that reaches the store.
+            if (rootProject.file("key.properties").exists()) {
+                signingConfig = signingConfigs.release
+            } else {
+                logger.warn(
+                    "WARNING: android/key.properties not found — signing the release build " +
+                    "with the DEBUG key. This APK cannot be published to Google Play."
+                )
+                signingConfig = signingConfigs.debug
+            }
+
+            minifyEnabled = true
+            shrinkResources = true
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
     }
 }

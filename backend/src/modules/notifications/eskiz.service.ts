@@ -46,7 +46,10 @@ export class EskizService {
         {
           mobile_phone: formattedPhone,
           message,
-          from: '4546',
+          // ESKIZ_FROM is documented in every .env file but used to be ignored
+          // in favour of this hardcoded value, so changing the approved sender
+          // id required a code change and a redeploy.
+          from: this.configService.get<string>('ESKIZ_FROM') || '4546',
           callback_url: '',
         },
         {

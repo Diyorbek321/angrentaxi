@@ -68,8 +68,8 @@ async function seed(): Promise<void> {
 
     // Insert admin user
     const [adminUser] = await queryRunner.query(`
-      INSERT INTO users (phone, first_name, last_name, role, status)
-      VALUES ('+998901234567', 'Admin', 'User', 'admin', 'active')
+      INSERT INTO users (phone, first_name, last_name, role, status, referral_code)
+      VALUES ('+998901234567', 'Admin', 'User', 'admin', 'active', 'ADMIN1')
       RETURNING id;
     `) as Array<{ id: string }>;
 
@@ -77,8 +77,12 @@ async function seed(): Promise<void> {
 
     // Insert manager user
     const [managerUser] = await queryRunner.query(`
-      INSERT INTO users (phone, first_name, last_name, role, status)
-      VALUES ('+998901234568', 'Manager', 'User', 'manager', 'active')
+      -- A manager with an empty permission list can open the dispatcher panel
+      -- but every action inside it returns 403, so a fresh install looked
+      -- broken until an admin hand-granted these from Staff & Roles.
+      INSERT INTO users (phone, first_name, last_name, role, status, referral_code, permissions)
+      VALUES ('+998901234568', 'Manager', 'User', 'manager', 'active', 'MNGR01',
+              '["dispatch","drivers_view","promo_manage","bonuses_view","support_manage"]'::jsonb)
       RETURNING id;
     `) as Array<{ id: string }>;
 
@@ -86,14 +90,14 @@ async function seed(): Promise<void> {
 
     // Insert passenger users
     const [passenger1] = await queryRunner.query(`
-      INSERT INTO users (phone, first_name, last_name, role, status)
-      VALUES ('+998901234569', 'Alisher', 'Karimov', 'passenger', 'active')
+      INSERT INTO users (phone, first_name, last_name, role, status, referral_code)
+      VALUES ('+998901234569', 'Alisher', 'Karimov', 'passenger', 'active', 'PSNGR1')
       RETURNING id;
     `) as Array<{ id: string }>;
 
     const [passenger2] = await queryRunner.query(`
-      INSERT INTO users (phone, first_name, last_name, role, status)
-      VALUES ('+998901234570', 'Dilnoza', 'Yusupova', 'passenger', 'active')
+      INSERT INTO users (phone, first_name, last_name, role, status, referral_code)
+      VALUES ('+998901234570', 'Dilnoza', 'Yusupova', 'passenger', 'active', 'PSNGR2')
       RETURNING id;
     `) as Array<{ id: string }>;
 
@@ -101,14 +105,14 @@ async function seed(): Promise<void> {
 
     // Insert driver users
     const [driverUser1] = await queryRunner.query(`
-      INSERT INTO users (phone, first_name, last_name, role, status)
-      VALUES ('+998901234571', 'Sardor', 'Toshmatov', 'driver', 'active')
+      INSERT INTO users (phone, first_name, last_name, role, status, referral_code)
+      VALUES ('+998901234571', 'Sardor', 'Toshmatov', 'driver', 'active', 'DRVR01')
       RETURNING id;
     `) as Array<{ id: string }>;
 
     const [driverUser2] = await queryRunner.query(`
-      INSERT INTO users (phone, first_name, last_name, role, status)
-      VALUES ('+998901234572', 'Bobur', 'Nazarov', 'driver', 'active')
+      INSERT INTO users (phone, first_name, last_name, role, status, referral_code)
+      VALUES ('+998901234572', 'Bobur', 'Nazarov', 'driver', 'active', 'DRVR02')
       RETURNING id;
     `) as Array<{ id: string }>;
 

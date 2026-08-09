@@ -1,6 +1,7 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/passenger/screens/edit_profile_screen.dart';
+import 'package:angren_taxi/features/superapp/screens/notifications_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/support_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/wallet_screen.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
@@ -111,14 +112,6 @@ class PassengerProfileScreen extends StatelessWidget {
             icon: Icons.route,
           ),
         ),
-        const SizedBox(width: kSpace3),
-        const Expanded(
-          child: _StatCard(
-            value: '0',
-            label: 'Bonus ball',
-            icon: Icons.star_outline,
-          ),
-        ),
       ],
     );
   }
@@ -143,7 +136,11 @@ class PassengerProfileScreen extends StatelessWidget {
         _buildMenuTile(
           Icons.notifications_outlined,
           'Bildirishnomalar',
-          () => _notImplementedYet(context),
+          // NotificationsScreen is fully API-backed; this used to dead-end in
+          // a "tez kunda" snackbar for a feature that already worked.
+          () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const NotificationsScreen()),
+          ),
         ),
         _buildMenuTile(
           Icons.help_outline,
@@ -208,12 +205,6 @@ class PassengerProfileScreen extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-
-  void _notImplementedYet(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Bu bo\'lim tez kunda ishga tushadi')),
     );
   }
 

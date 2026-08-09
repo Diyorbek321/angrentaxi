@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/node';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { IoAdapter } from '@nestjs/platform-socket.io';
@@ -102,8 +102,27 @@ async function bootstrap(): Promise<void> {
 
   const port = process.env.PORT || 3000;
   await app.listen(port);
-  console.log(`🚀 Angren Taxi API running on: http://localhost:${port}`);
-  console.log(`📖 Swagger docs: http://localhost:${port}/api/docs`);
+
+  const logger = new Logger('Bootstrap');
+  logger.log(`🚀 Angren Taxi API running on: http://localhost:${port}`);
+  logger.log(`📖 Swagger docs: http://localhost:${port}/api/docs`);
+
+  // A production server running with the OTP bypass on is a full
+  // authentication bypass: every phone number, including staff accounts, logs
+  // in with a fixed code. It is still permitted (an internal test server may
+  // legitimately run NODE_ENV=production), but it must never pass unnoticed.
+  const bypassActive =
+    process.env.NODE_ENV === 'production' &&
+    process.env.OTP_BYPASS_ENABLED === 'true' &&
+    process.env.ALLOW_OTP_BYPASS_IN_PROD === 'true';
+
+  if (bypassActive) {
+    logger.error(
+      '⚠️  OTP BYPASS IS ACTIVE IN PRODUCTION — any phone number can log in ' +
+        'with the fixed bypass code, including admin accounts. Set ' +
+        'OTP_BYPASS_ENABLED=false and ALLOW_OTP_BYPASS_IN_PROD=false.',
+    );
+  }
 }
 
 bootstrap();

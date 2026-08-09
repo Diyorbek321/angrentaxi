@@ -60,3 +60,11 @@ prompt.txt/
 
 # ===== Build artifacts (distribute via GitHub Releases, not git) =====
 apk/*.apk
+
+# ===== Android release signing =====
+# The keystore and its passwords must never enter the repo. Losing them means
+# no future update can be published to the same Play Store listing, so keep an
+# offline backup. See mobile/android/key.properties.example.
+mobile/android/key.properties
+*.jks
+*.keystore

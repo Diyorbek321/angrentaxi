@@ -17,6 +17,7 @@ import { SettingsService } from '../settings/settings.service';
 import { OrdersService } from './orders.service';
 import { OrdersQueryService } from './orders-query.service';
 import { ORDERS_PROVIDERS } from './orders.providers';
+import { fakeTransactionRepository } from './orders.testing';
 
 /**
  * completeTrip derived the billed distance with
@@ -72,7 +73,7 @@ describe('completeTrip — PostGIS distance falsy-zero handling', () => {
             update: tripUpdate,
           },
         },
-        { provide: getRepositoryToken(Transaction), useValue: { save: jest.fn() } },
+        { provide: getRepositoryToken(Transaction), useValue: fakeTransactionRepository(0, { save: jest.fn() }) },
         { provide: getRepositoryToken(DispatchOverride), useValue: {} },
         {
           provide: TariffsService,

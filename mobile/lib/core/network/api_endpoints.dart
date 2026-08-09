@@ -94,6 +94,9 @@ class ApiEndpoints {
   // Payments (Payme / Click / Uzcard online checkout)
   static const String paymentsInitiate = '/payments/initiate';
   static const String paymentsWallet = '/payments/wallet';
+
+  /// Customer-facing platform settings (support phone, delivery fee).
+  static const String settingsPublic = '/settings/public';
   static const String paymentsTransactions = '/payments/transactions';
 
   // Driver wallet withdrawals (payout requests)

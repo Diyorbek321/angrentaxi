@@ -33,6 +33,25 @@ export class PlatformSettings {
   // the setting reads back as. Wiring real traffic-blocking enforcement on a
   // live, deployed app is a separate, deliberate decision (see the PR/task
   // notes) rather than something to silently switch on.
+  // Flat delivery fee added to every food/market order, in so'm.
+  //
+  // This lived only in the mobile app as `SuperappProvider._deliveryFee =
+  // 7000`, so the passenger was shown a total the server never recorded: the
+  // order row, the vendor's board and the receipt were all 7000 lower than
+  // the figure at checkout. The server owns it now.
+  @Column({
+    name: 'delivery_fee',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    default: 7000,
+    transformer: {
+      to: (value: number) => value,
+      from: (value: string) => parseFloat(value),
+    },
+  })
+  deliveryFee: number;
+
   @Column({ name: 'maintenance_mode', type: 'boolean', default: false })
   maintenanceMode: boolean;
 

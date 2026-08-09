@@ -20,8 +20,12 @@ class _CargoScreenState extends State<CargoScreen> {
   ];
 
   void _callCourier() {
-    // Cargo is backend-supported — hand off to the shared booking flow.
-    context.read<OrderProvider>().setServiceType('cargo');
+    // Cargo is backend-supported — hand off to the shared booking flow, which
+    // owns address selection and the real distance-based quote. The selected
+    // vehicle type travels with the order instead of being thrown away.
+    context
+        .read<OrderProvider>()
+        .setServiceType('cargo', cargoVehicle: _types[_selected].$2);
     Navigator.of(context).pushNamed('/passenger/home');
   }
 
@@ -40,22 +44,7 @@ class _CargoScreenState extends State<CargoScreen> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, kSpace6),
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: kSpace4),
-                  decoration: BoxDecoration(
-                    color: agSurface,
-                    borderRadius: BorderRadius.circular(kRadiusLg),
-                    boxShadow: agCardShadow,
-                  ),
-                  child: Column(
-                    children: [
-                      _routeRow(kMintDeep, true, 'QAYERDAN', 'Markaz, Amir Temur 24'),
-                      const Divider(color: agDivider, height: 1, indent: 23),
-                      _routeRow(agRed, false, 'QAYERGA', 'Yangi shahar, 7-mavze'),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: kSpace5),
+
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 2),
                   child: Text('Transport turi',
@@ -88,43 +77,30 @@ class _CargoScreenState extends State<CargoScreen> {
                 ),
                 const SizedBox(height: kSpace4),
                 Container(
-                  padding: const EdgeInsets.all(kSpace5),
+                  padding: const EdgeInsets.all(kSpace4),
                   decoration: BoxDecoration(
-                    color: agInk,
+                    color: agSurface,
                     borderRadius: BorderRadius.circular(kRadiusLg),
+                    boxShadow: agCardShadow,
                   ),
-                  child: Stack(
-                    clipBehavior: Clip.hardEdge,
+                  child: const Row(
                     children: [
-                      Positioned(
-                        right: -10,
-                        bottom: -20,
-                        child: ExcludeSemantics(
-                          child: Icon(Icons.local_shipping_rounded,
-                              size: 96, color: agBright.withValues(alpha: 0.18)),
-                        ),
+                      ExcludeSemantics(
+                        child: Icon(Icons.info_outline_rounded,
+                            size: 22, color: agSubtle),
                       ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Taxminiy narx · 8.4 km',
-                              style: TextStyle(
-                                  color: agOnPrimary.withValues(alpha: 0.7),
-                                  fontSize: kFontCaption,
-                                  fontWeight: FontWeight.w700)),
-                          const SizedBox(height: kSpace1),
-                          const Text("35 000 so'm",
-                              style: TextStyle(
-                                  color: agOnPrimary,
-                                  fontSize: kFontDisplay,
-                                  fontWeight: FontWeight.w800)),
-                          const SizedBox(height: 2),
-                          Text('Yetkazish ~ 40 daqiqa',
-                              style: TextStyle(
-                                  color: agOnPrimary.withValues(alpha: 0.7),
-                                  fontSize: kFontCaption,
-                                  fontWeight: FontWeight.w600)),
-                        ],
+                      SizedBox(width: kSpace3),
+                      Expanded(
+                        child: Text(
+                          'Manzillarni keyingi qadamda xaritadan tanlaysiz — '
+                          'aniq narx masofaga qarab o\'sha yerda hisoblanadi.',
+                          style: TextStyle(
+                            fontSize: kFontCaption,
+                            color: agSubtle,
+                            fontWeight: FontWeight.w600,
+                            height: 1.4,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -142,48 +118,6 @@ class _CargoScreenState extends State<CargoScreen> {
     );
   }
 
-  Widget _routeRow(Color dot, bool circle, String label, String value) {
-    return SizedBox(
-      height: 52,
-      child: Row(
-        children: [
-          ExcludeSemantics(
-            child: Container(
-              width: 11,
-              height: 11,
-              decoration: BoxDecoration(
-                color: dot,
-                shape: circle ? BoxShape.circle : BoxShape.rectangle,
-                borderRadius: circle ? null : BorderRadius.circular(3),
-                boxShadow: circle
-                    ? [
-                        BoxShadow(
-                          color: dot.withValues(alpha: 0.16),
-                          blurRadius: 0,
-                          spreadRadius: 4,
-                        ),
-                      ]
-                    : null,
-              ),
-            ),
-          ),
-          const SizedBox(width: kSpace3),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(label,
-                  style: const TextStyle(
-                      fontSize: kFontMicro, color: agSubtle, fontWeight: FontWeight.w700)),
-              Text(value,
-                  style: const TextStyle(
-                      fontSize: kFontBody, color: agText, fontWeight: FontWeight.w700)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _TypeCard extends StatelessWidget {

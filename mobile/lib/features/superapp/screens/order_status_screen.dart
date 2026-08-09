@@ -3,28 +3,29 @@ import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-/// Combined order-processing → order-done flow matching the prototype: a brief
-/// animated "sending" state, then a success confirmation.
-class OrderStatusScreen extends StatefulWidget {
-  const OrderStatusScreen({super.key});
+/// Confirmation shown after a food/market order is actually placed.
+///
+/// This screen used to run a fixed 2200 ms timer and then declare success,
+/// with three hardcoded progress steps ("To'lov qabul qilindi" ticked, "Do'konga
+/// yuborilmoqda", "Kuryer tayinlanmoqda") that were unconnected to the order,
+/// plus an invented "Kuryer 20–30 daqiqada yetkazib beradi" promise. By the
+/// time this screen opens the order already exists server-side, so it now
+/// simply reports what is true: the order number, and whether payment was
+/// settled or is still outstanding.
+class OrderStatusScreen extends StatelessWidget {
+  const OrderStatusScreen({
+    super.key,
+    required this.orderId,
+    required this.paidOnline,
+  });
 
-  @override
-  State<OrderStatusScreen> createState() => _OrderStatusScreenState();
-}
+  /// Server-assigned id of the order that was just created.
+  final String orderId;
 
-class _OrderStatusScreenState extends State<OrderStatusScreen> {
-  bool _done = false;
-
-  @override
-  void initState() {
-    super.initState();
-    // Cart is already cleared by CheckoutScreen once the real order succeeds —
-    // this delay is purely a cosmetic "sending" transition.
-    Future<void>.delayed(const Duration(milliseconds: 2200), () {
-      if (!mounted) return;
-      setState(() => _done = true);
-    });
-  }
+  /// True only when the card checkout actually completed. Cash-on-delivery and
+  /// an abandoned card flow both leave this false, and the copy says so rather
+  /// than claiming the payment was accepted.
+  final bool paidOnline;
 
   @override
   Widget build(BuildContext context) {
@@ -33,128 +34,19 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
       body: Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: kSpace8),
-          child: _done ? _DoneView() : const _ProcessingView(),
+          child: _DoneView(orderId: orderId, paidOnline: paidOnline),
         ),
       ),
     );
   }
 }
 
-class _ProcessingView extends StatelessWidget {
-  const _ProcessingView();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          width: 88,
-          height: 88,
-          child: ExcludeSemantics(
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                SizedBox(
-                  width: 88,
-                  height: 88,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 5,
-                    valueColor: AlwaysStoppedAnimation(agPrimary),
-                    backgroundColor: agTint,
-                  ),
-                ),
-                Icon(Icons.receipt_long_rounded, color: agGreenText, size: 38),
-              ],
-            ),
-          ),
-        ),
-        SizedBox(height: kSpace8),
-        Text('Buyurtma yuborilmoqda…',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: kFontH1, fontWeight: FontWeight.w800, color: agText, letterSpacing: -0.4)),
-        SizedBox(height: kSpace2),
-        Text(
-          "To'lov tasdiqlanmoqda va do'kon\nbuyurtmangizni qabul qilmoqda",
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: kFontBody, color: agSubtle, fontWeight: FontWeight.w500, height: 1.5),
-        ),
-        SizedBox(height: kSpace6),
-        Column(
-          children: [
-            _Step(label: "To'lov qabul qilindi", state: _StepState.done),
-            SizedBox(height: kSpace3),
-            _Step(label: "Do'konga yuborilmoqda", state: _StepState.active),
-            SizedBox(height: kSpace3),
-            _Step(label: 'Kuryer tayinlanmoqda', state: _StepState.idle),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-enum _StepState { done, active, idle }
-
-class _Step extends StatelessWidget {
-  const _Step({required this.label, required this.state});
-  final String label;
-  final _StepState state;
-
-  @override
-  Widget build(BuildContext context) {
-    Widget marker;
-    switch (state) {
-      case _StepState.done:
-        marker = Container(
-          width: 22,
-          height: 22,
-          decoration: const BoxDecoration(color: agPrimary, shape: BoxShape.circle),
-          child: const Icon(Icons.check_rounded, size: 15, color: agOnPrimary),
-        );
-      case _StepState.active:
-        marker = Container(
-          width: 22,
-          height: 22,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: agPrimary, width: 2),
-          ),
-          child: Center(
-            child: Container(
-              width: 8,
-              height: 8,
-              decoration: const BoxDecoration(color: agPrimary, shape: BoxShape.circle),
-            ),
-          ),
-        );
-      case _StepState.idle:
-        marker = Container(
-          width: 22,
-          height: 22,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: agBorder, width: 2),
-          ),
-        );
-    }
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        ExcludeSemantics(child: marker),
-        const SizedBox(width: kSpace3),
-        Text(label,
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: kFontLabel,
-              color: state == _StepState.idle ? agSubtle : agText,
-            )),
-      ],
-    );
-  }
-}
-
 class _DoneView extends StatelessWidget {
+  const _DoneView({required this.orderId, required this.paidOnline});
+
+  final String orderId;
+  final bool paidOnline;
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -177,10 +69,27 @@ class _DoneView extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: kFontH1, fontWeight: FontWeight.w800, color: agText, letterSpacing: -0.5)),
         const SizedBox(height: kSpace2),
-        const Text(
-          "Kuryer 20–30 daqiqada yetkazib beradi.\nHolatni «Buyurtmalar» bo'limida kuzating.",
+        Text(
+          'Buyurtma raqami: ${orderId.split('-').first.toUpperCase()}',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: kFontBody, color: agSubtle, fontWeight: FontWeight.w500, height: 1.5),
+          style: const TextStyle(
+            fontSize: kFontBody,
+            color: agText,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: kSpace1),
+        Text(
+          paidOnline
+              ? "To'lov qabul qilindi. Holatni «Buyurtmalar» bo'limida kuzating."
+              : "Yetkazib berishda to'laysiz. Holatni «Buyurtmalar» bo'limida kuzating.",
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: kFontBody,
+            color: agSubtle,
+            fontWeight: FontWeight.w500,
+            height: 1.5,
+          ),
         ),
         const SizedBox(height: kSpace6),
         SizedBox(

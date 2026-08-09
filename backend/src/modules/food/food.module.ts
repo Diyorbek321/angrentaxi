@@ -14,6 +14,7 @@ import { UsersModule } from '../users/users.module';
 import { OrdersModule } from '../orders/orders.module';
 import { MatchingModule } from '../matching/matching.module';
 import { TariffsModule } from '../tariffs/tariffs.module';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { TariffsModule } from '../tariffs/tariffs.module';
     forwardRef(() => OrdersModule),
     MatchingModule,
     TariffsModule,
+    SettingsModule,
   ],
   controllers: [FoodVendorController, FoodStorefrontController, FoodAdminController],
   providers: [FoodService],

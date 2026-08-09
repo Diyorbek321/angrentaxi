@@ -34,14 +34,22 @@ export class SettingsService {
     return { defaultCommissionRate: rate };
   }
 
+  /** Flat per-order delivery fee for the food/market verticals. */
+  async getDeliveryFee(): Promise<number> {
+    const { deliveryFee } = await this.getOrCreate();
+    return deliveryFee;
+  }
+
   async getGlobalSettings(): Promise<{
     platformName: string;
     supportPhone: string;
     supportEmail: string;
     maintenanceMode: boolean;
+    deliveryFee: number;
   }> {
-    const { platformName, supportPhone, supportEmail, maintenanceMode } = await this.getOrCreate();
-    return { platformName, supportPhone, supportEmail, maintenanceMode };
+    const { platformName, supportPhone, supportEmail, maintenanceMode, deliveryFee } =
+      await this.getOrCreate();
+    return { platformName, supportPhone, supportEmail, maintenanceMode, deliveryFee };
   }
 
   async updateGlobalSettings(dto: {
@@ -49,11 +57,13 @@ export class SettingsService {
     supportPhone?: string;
     supportEmail?: string;
     maintenanceMode?: boolean;
+    deliveryFee?: number;
   }): Promise<{
     platformName: string;
     supportPhone: string;
     supportEmail: string;
     maintenanceMode: boolean;
+    deliveryFee: number;
   }> {
     const settings = await this.getOrCreate();
     await this.settingsRepository.update(settings.id, dto);

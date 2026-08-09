@@ -68,11 +68,17 @@ class OrderProvider extends ChangeNotifier {
   bool get isCargo => _serviceType == 'cargo';
 
   /// Switch the active vertical (taxi/cargo) and reset any in-progress selection.
-  void setServiceType(String type) {
+  /// Switches the booking flow between 'taxi' and 'cargo'.
+  ///
+  /// [cargoVehicle] carries the vehicle class picked on the cargo entry screen
+  /// ("Kuryer" / "Yengil" / "Yuk") into the order details. It used to be
+  /// selected and then silently discarded, so the courier had no idea what
+  /// size of vehicle the customer had asked for.
+  void setServiceType(String type, {String? cargoVehicle}) {
     _serviceType = type;
     _selectedTariff = null;
     _estimatedPrice = null;
-    _cargoDetails = null;
+    _cargoDetails = cargoVehicle == null ? null : {'vehicle': cargoVehicle};
     notifyListeners();
   }
 
