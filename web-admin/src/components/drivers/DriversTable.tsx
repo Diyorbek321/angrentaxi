@@ -67,8 +67,14 @@ export function DriversTable({ drivers, isLoading }: DriversTableProps) {
                   <p className="font-medium text-ink">
                     {getFullName(driver.firstName, driver.lastName)}
                   </p>
-                  {driver.balance !== undefined && (
-                    <p className="text-caption text-muted">{formatCurrency(driver.balance)}</p>
+                  {driver.walletBalance !== undefined && (
+                    <p
+                      className={`text-caption ${
+                        driver.walletBalance < 0 ? 'text-danger-deep dark:text-danger-light' : 'text-muted'
+                      }`}
+                    >
+                      {formatCurrency(driver.walletBalance)}
+                    </p>
                   )}
                 </div>
               </div>

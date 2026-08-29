@@ -15,6 +15,7 @@ import { WithdrawalRequest } from '../../database/entities/withdrawal-request.en
 import { PaymeProvider } from './payme.provider';
 import { ClickProvider } from './click.provider';
 import { UzcardProvider } from './uzcard.provider';
+import { PAYOUT_PROVIDER } from './payout.interface';
 import { DriversService } from '../drivers/drivers.service';
 
 /**
@@ -79,6 +80,15 @@ describe('PaymentsService - provider callbacks', () => {
         { provide: PaymeProvider, useValue: paymeProvider },
         { provide: ClickProvider, useValue: clickProvider },
         { provide: UzcardProvider, useValue: uzcardProvider },
+        // Pul CHIQARISH adapteri. Qo'lda o'tkazma hech qanday tarmoqqa
+        // chiqmaydi, shuning uchun mock ham shunchaki natija qaytaradi.
+        {
+          provide: PAYOUT_PROVIDER,
+          useValue: {
+            name: 'manual',
+            send: jest.fn().mockResolvedValue({ reference: null, settled: true }),
+          },
+        },
         // settleOrderPayout credits drivers.balance once a card payment lands.
         {
           provide: DriversService,
@@ -136,6 +146,31 @@ describe('PaymentsService - provider callbacks', () => {
       expect(transactionRepository.update).toHaveBeenCalledWith(
         { id: 'tx-1' },
         { status: TransactionStatus.COMPLETED, externalId: 'payme-tx-9' },
+      );
+    });
+
+    // ⚠️ REGRESSIYA: chaqim (tips) ayni shu buyurtmaga yo'lovchi nomidan
+    // IKKINCHI DEBIT yozadi va u yo'l haqidan KEYIN yaratiladi. Filtrsiz
+    // "eng oxirgi DEBIT" izlash callback'ga chaqim qatorini berardi: summa
+    // solishtiruvi yo'l haqi bilan chaqimni taqqoslab, haqiqiy to'lovni rad
+    // etardi. Chaqim faqat hamyondan bo'lgani uchun CARD filtri uni
+    // tuzilishiga ko'ra chetlab o'tadi.
+    it('looks up the card debit only, so a wallet tip cannot shadow it', async () => {
+      transactionRepository.findOne.mockResolvedValue(makeTransaction());
+
+      await service.handlePaymeCallback(
+        performBody(AMOUNT_UZS * 100),
+        'Basic key',
+      );
+
+      expect(transactionRepository.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            orderId: ORDER_ID,
+            type: TransactionType.DEBIT,
+            paymentMethod: PaymentMethod.CARD,
+          }),
+        }),
       );
     });
 

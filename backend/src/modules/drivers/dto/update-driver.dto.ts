@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { VehicleType } from '../../../database/entities/tariff.entity';
 
 export class UpdateDriverDto {
   @ApiPropertyOptional({ example: 'Toyota Camry', description: 'Car model' })
@@ -29,4 +30,20 @@ export class UpdateDriverDto {
   @Min(1990)
   @Max(new Date().getFullYear() + 1)
   carYear?: number;
+
+  @ApiPropertyOptional({
+    enum: VehicleType,
+    description:
+      "Yuk transporti turi. Bo'sh = yengil avtomobil (taksi). O'zi e'lon " +
+      'qiladi, xuddi carYear kabi — hujjat tekshiruvi driver_documents orqali.',
+  })
+  @IsOptional()
+  @IsEnum(VehicleType)
+  vehicleType?: VehicleType;
+
+  // ⚠️ `serviceTypes` ATAYLAB YO'Q. U faqat `PATCH /drivers/me/services`
+  // orqali o'zgaradi, chunki xizmat turini yoqish TEKSHIRUVGA bog'liq
+  // (`DriverServicesService`). Shu maydon bu yerda ham qolganida haydovchi
+  // termo-sumka fotosisiz ham «ovqat yetkazish» ni yoqib olardi — ya'ni
+  // darvozaning yonida ochiq eshik turgan bo'lardi.
 }

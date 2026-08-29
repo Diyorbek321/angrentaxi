@@ -1,3 +1,5 @@
+import 'package:angren_taxi/core/config/app_motion.dart';
+import 'package:angren_taxi/core/config/app_platform.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -113,6 +115,24 @@ const Color kLine = Color(0xFFE4E9ED);
 
 /// Kuchli chegara — ajratilgan bloklar.
 const Color kLineStrong = Color(0xFFC6D4D7);
+
+/// INTERAKTIV komponent chegarasi — input, tanlanadigan karta, xarita tugmasi.
+///
+/// ⚠️ `kLine` (1.22:1) va `kLineStrong` (1.52:1) BEZAK ajratkichlari uchun
+/// to'g'ri, lekin WCAG 1.4.11 komponentni ANIQLASH uchun kerak bo'lgan
+/// chegaradan 3:1 talab qiladi. Input maydonlari `filled: true` +
+/// `fillColor: surface2` bilan chizilardi va to'ldirish foni bilan atigi
+/// 1.04:1 farq qilardi — ya'ni maydon chekkasi ko'rinmasdi.
+///
+/// Hech qanday to'ldirish rangi buni yolg'iz tuzata olmaydi: oq ustida 3:1 ga
+/// yetish uchun fon shunchalik to'q bo'lishi kerakki, ichidagi matn kontrasti
+/// buziladi. Shuning uchun yechim — CHEGARA.
+///
+/// Yorug'da 3.67:1 (oq ustida) va 3.28:1 (to'ldirish ustida).
+const Color kLineInteractive = kInkSubtle;
+
+/// Qorong'i temada interaktiv chegara. `kSurface2Dark` ustida 4.96:1.
+const Color kLineInteractiveDark = kInkSubtleDark;
 
 /// Karta ICHIDAGI ingichka ajratkich.
 const Color kDivider = Color(0xFFF1F4F6);
@@ -285,6 +305,22 @@ const double kMinTapTarget = 48;
 /// Asosiy tugma va input balandligi (to'liq kenglikdagi CTA).
 const double kControlHeight = 54;
 
+/// HAYDOVCHI ekranlaridagi asosiy amal balandligi.
+///
+/// ⚠️ Nega `kControlHeight` (54) yetarli emas. Haydovchi nishonni HARAKATDAGI
+/// avtomobildan uradi: yo'l tebranishi, qishda qo'lqop, quyosh aksi. Iste'molchi
+/// uchun 44–48 dp yetarli, bu yerda esa amaliy pol 56 dp.
+///
+/// 64 — asosiy amal (Qabul qilish, Yetib keldim, Safarni boshlash). Ikkilamchi
+/// haydovchi nishonlari `kMinTapTargetDriver` dan past bo'lmasligi kerak.
+const double kControlHeightDriver = 64;
+
+/// Haydovchi ekranlaridagi eng kichik teginish nishoni.
+///
+/// `kMinTapTarget` (48) iste'molchi uchun; haydovchida 56. Ular orasida
+/// kamida 8 dp bo'shliq bo'lsin, buzg'unchi amal yonida 12 dp.
+const double kMinTapTargetDriver = 56;
+
 /// Ikkilamchi/kompakt boshqaruv balandligi (chip tugma, ikona tugma).
 const double kControlHeightSm = 48;
 
@@ -395,176 +431,327 @@ const Color kSecondaryBlack = kInk;
 const Color kBackgroundWhite = kBackground;
 
 // ---------------------------------------------------------------------------
-// 12. THEME
+// 12. THEME — YORUG' VA QORONG'I
+//
+// Ikkala tema BITTA quruvchi funksiyadan chiqadi (`_buildTheme`). Sabab:
+// ilgari faqat yorug' tema bor edi va qorong'i tokenlar (3-bo'lim) hech
+// qayerda ishlatilmasdi. Ikkita alohida `ThemeData` yozilsa, ular vaqt
+// o'tishi bilan bir-biridan uzoqlashadi — bitta joyda `Brightness` bo'yicha
+// tarmoqlanish esa buni imkonsiz qiladi.
+//
+// ⚠️ QORONG'I TEMA — TESKARI AGDARILGAN YORUG' TEMA EMAS:
+//   · fon sof qora emas (#0B1210) — sof qorada OLED "smearing" bo'ladi
+//     va kontrast haddan tashqari keskin his qilinadi;
+//   · yuza balandlashgan sari OCHROQ bo'ladi
+//     (surface #111A17 → surface2 #18241F → surface3 #202F29);
+//   · interaktiv yashil OCHROQ variantga o'tadi (`kPrimaryOnDark`), chunki
+//     yorug' temadagi #0C7A4D qorong'i yuzada 2.98:1 berib, tugma fonga
+//     qo'shilib ketardi;
+//   · soyalar qorong'i temada deyarli ko'rinmaydi — balandlik chegara
+//     (`kLineDark`) va yuza rangi orqali beriladi.
 // ---------------------------------------------------------------------------
 
-final ThemeData appTheme = ThemeData(
-  useMaterial3: true,
-  colorScheme: ColorScheme.fromSeed(
-    seedColor: kPrimary,
-    primary: kPrimary,
+/// Ikkala tema uchun umumiy quruvchi.
+ThemeData _buildTheme(Brightness brightness) {
+  final isDark = brightness == Brightness.dark;
+
+  // --- Rang rollari ---
+  final primary = isDark ? kPrimaryOnDark : kPrimary;
+  final pressed = isDark ? kPrimary : kPrimaryPressed;
+  final background = isDark ? kBackgroundDark : kBackground;
+  final surface = isDark ? kSurfaceDark : kSurface;
+  final surface2 = isDark ? kSurface2Dark : kSurface2;
+  final surface3 = isDark ? kSurface3Dark : kSurface3;
+  final line = isDark ? kLineDark : kLine;
+  final lineStrong = isDark ? kLineStrongDark : kLineStrong;
+  final lineInteractive =
+      isDark ? kLineInteractiveDark : kLineInteractive;
+  final ink = isDark ? kInkDark : kInk;
+  final inkMuted = isDark ? kInkMutedDark : kInkMuted;
+  final error = isDark ? kErrorDark : kError;
+  final tint = isDark ? kMintTintDark : kMintTint;
+  final disabledBg = isDark ? kSurface3Dark : kPrimaryDisabled;
+
+  final scheme = ColorScheme(
+    brightness: brightness,
+    primary: primary,
     onPrimary: kOnPrimary,
-    secondary: kInk,
-    surface: kSurface,
-    error: kError,
-    brightness: Brightness.light,
-  ),
-  scaffoldBackgroundColor: kBackground,
+    primaryContainer: tint,
+    onPrimaryContainer: isDark ? kMintSoft : kOnMint,
+    secondary: isDark ? kMintSoft : kInk,
+    onSecondary: isDark ? kOnMint : kOnPrimary,
+    secondaryContainer: tint,
+    onSecondaryContainer: isDark ? kMintSoft : kOnMint,
+    tertiary: isDark ? kAccentVioletDark : kAccentViolet,
+    onTertiary: isDark ? kInk : kOnPrimary,
+    error: error,
+    onError: isDark ? kInk : kOnPrimary,
+    errorContainer: isDark ? kSurface2Dark : kErrorLight,
+    onErrorContainer: isDark ? kErrorDark : kErrorDeep,
+    surface: surface,
+    onSurface: ink,
+    surfaceContainerLowest: background,
+    surfaceContainerLow: surface,
+    surfaceContainer: surface2,
+    surfaceContainerHigh: surface3,
+    surfaceContainerHighest: surface3,
+    onSurfaceVariant: inkMuted,
+    outline: lineStrong,
+    outlineVariant: line,
+    shadow: kInk,
+    scrim: kInk,
+    inverseSurface: isDark ? kSurface : kInk,
+    onInverseSurface: isDark ? kInk : kSurface,
+    inversePrimary: isDark ? kPrimary : kMintSoft,
+  );
 
-  // White app bar, dark title, mint accents — modern & airy.
-  appBarTheme: AppBarTheme(
-    backgroundColor: kBackground,
-    foregroundColor: kInk,
-    elevation: 0,
-    scrolledUnderElevation: 0,
-    centerTitle: true,
-    titleTextStyle: GoogleFonts.plusJakartaSans(
-      color: kInk,
-      fontSize: 18,
-      fontWeight: FontWeight.w700,
-    ),
-    iconTheme: const IconThemeData(color: kInk),
-  ),
-
-  // Filled mint pill buttons, ink label (WCAG AA: 7.84:1).
-  elevatedButtonTheme: ElevatedButtonThemeData(
-    style: ElevatedButton.styleFrom(
-      backgroundColor: kPrimary,
-      foregroundColor: kOnPrimary,
-      disabledBackgroundColor: kPrimaryDisabled,
-      disabledForegroundColor: kInkMuted,
-      elevation: 0,
-      minimumSize: const Size(double.infinity, 54),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(kRadiusMd),
-      ),
-      textStyle: GoogleFonts.plusJakartaSans(
-        fontSize: kFontTitle,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.2,
-      ),
-    ),
-  ),
-
-  // Soft tinted secondary action — AA-compliant green text.
-  textButtonTheme: TextButtonThemeData(
-    style: TextButton.styleFrom(
-      foregroundColor: kPrimary,
-      textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-    ),
-  ),
-
-  outlinedButtonTheme: OutlinedButtonThemeData(
-    style: OutlinedButton.styleFrom(
-      foregroundColor: kInk,
-      minimumSize: const Size(double.infinity, 54),
-      side: const BorderSide(color: kLine, width: 1.5),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(kRadiusMd),
-      ),
-      textStyle: const TextStyle(fontSize: kFontTitle, fontWeight: FontWeight.w600),
-    ),
-  ),
-
-  // Borderless filled inputs, mint focus ring.
-  inputDecorationTheme: InputDecorationTheme(
-    filled: true,
-    fillColor: kSurface2,
-    hintStyle: const TextStyle(color: kInkMuted),
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(kRadiusMd),
-      borderSide: BorderSide.none,
-    ),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(kRadiusMd),
-      borderSide: BorderSide.none,
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(kRadiusMd),
-      borderSide: const BorderSide(color: kPrimary, width: 2),
-    ),
-    errorBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(kRadiusMd),
-      borderSide: const BorderSide(color: kError, width: 1.5),
-    ),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-  ),
-
-  // Rounded, lightly shadowed cards.
-  cardTheme: CardThemeData(
-    elevation: 0,
-    margin: EdgeInsets.zero,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(kRadiusLg),
-    ),
-    color: kSurface,
-    shadowColor: kInk.withValues(alpha: 0.08),
-  ),
-
-  chipTheme: ChipThemeData(
-    backgroundColor: kMintTint,
-    labelStyle: const TextStyle(color: kPrimary, fontWeight: FontWeight.w600),
-    side: BorderSide.none,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(kRadiusSm)),
-  ),
-
-  bottomSheetTheme: const BottomSheetThemeData(
-    backgroundColor: kSurface,
-    elevation: 0,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(kRadiusXl)),
-    ),
-  ),
-
-  dividerTheme: const DividerThemeData(
-    color: kLine,
-    thickness: 1,
-    space: 1,
-  ),
-
-  bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-    backgroundColor: kSurface,
-    selectedItemColor: kPrimary,
-    unselectedItemColor: kInkMuted,
-    type: BottomNavigationBarType.fixed,
-    elevation: 0,
-  ),
-
-  floatingActionButtonTheme: const FloatingActionButtonThemeData(
-    backgroundColor: kPrimary,
-    foregroundColor: kOnPrimary,
-  ),
-
-  textTheme: GoogleFonts.plusJakartaSansTextTheme(const TextTheme(
+  final textTheme = GoogleFonts.plusJakartaSansTextTheme(TextTheme(
     headlineLarge: TextStyle(
       fontSize: kFontDisplay,
       fontWeight: FontWeight.w800,
-      color: kInk,
+      color: ink,
       letterSpacing: -0.5,
     ),
     headlineMedium: TextStyle(
       fontSize: kFontH1,
       fontWeight: FontWeight.w700,
-      color: kInk,
+      color: ink,
       letterSpacing: -0.3,
     ),
     headlineSmall: TextStyle(
       fontSize: 18,
       fontWeight: FontWeight.w700,
-      color: kInk,
+      color: ink,
     ),
     titleMedium: TextStyle(
       fontSize: kFontTitle,
       fontWeight: FontWeight.w600,
-      color: kInk,
+      color: ink,
     ),
-    bodyLarge: TextStyle(fontSize: kFontBodyLg, color: kInk),
-    bodyMedium: TextStyle(fontSize: kFontBody, color: kInk),
-    bodySmall: TextStyle(fontSize: kFontCaption, color: kInkMuted),
+    bodyLarge: TextStyle(fontSize: kFontBodyLg, color: ink),
+    bodyMedium: TextStyle(fontSize: kFontBody, color: ink),
+    bodySmall: TextStyle(fontSize: kFontCaption, color: inkMuted),
     labelLarge: TextStyle(
       fontSize: kFontTitle,
       fontWeight: FontWeight.w700,
-      color: kInk,
+      color: ink,
     ),
-  )),
-);
+  ));
+
+  return ThemeData(
+    useMaterial3: true,
+    brightness: brightness,
+    colorScheme: scheme,
+    scaffoldBackgroundColor: background,
+
+    // Barcha ekran o'tishlari shu yerda belgilanadi: iOS'da Cupertino
+    // siljishi (+ chetdan surib orqaga qaytish), Android'da Material 3
+    // "shared axis". 35 ta mavjud `MaterialPageRoute` chaqiruvi shu
+    // sozlama tufayli avtomatik to'g'ri animatsiyaga o'tadi.
+    pageTransitionsTheme: kAppPageTransitions,
+
+    // Ripple'ni iOS'da o'chirish TO'G'RI EMAS — Flutter'da InkWell hamma
+    // joyda ishlatiladi; o'rniga splash radiusi kichraytiriladi va bosilish
+    // holati asosan `AppPressable` ning masshtab animatsiyasi bilan beriladi.
+    splashFactory: InkSparkle.splashFactory,
+
+    appBarTheme: AppBarTheme(
+      backgroundColor: background,
+      foregroundColor: ink,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      centerTitle: true,
+      systemOverlayStyle: systemOverlayFor(brightness),
+      titleTextStyle: GoogleFonts.plusJakartaSans(
+        color: ink,
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+      ),
+      iconTheme: IconThemeData(color: ink),
+    ),
+
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: primary,
+        foregroundColor: kOnPrimary,
+        disabledBackgroundColor: disabledBg,
+        disabledForegroundColor: inkMuted,
+        elevation: 0,
+        minimumSize: const Size(double.infinity, kControlHeight),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(kRadiusMd),
+        ),
+        textStyle: GoogleFonts.plusJakartaSans(
+          fontSize: kFontTitle,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.2,
+        ),
+      ).copyWith(
+        backgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) return disabledBg;
+          if (states.contains(WidgetState.pressed)) return pressed;
+          return primary;
+        }),
+      ),
+    ),
+
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: isDark ? kMintSoft : kPrimary,
+        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+      ),
+    ),
+
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: ink,
+        minimumSize: const Size(double.infinity, kControlHeight),
+        side: BorderSide(color: line, width: 1.5),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(kRadiusMd),
+        ),
+        textStyle: const TextStyle(
+          fontSize: kFontTitle,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    ),
+
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: surface2,
+      hintStyle: TextStyle(color: inkMuted),
+      // ⚠️ Ilgari ikkalasi ham `BorderSide.none` edi. Maydon faqat
+      // `fillColor: surface2` bilan ajralardi va u fon bilan 1.04:1 —
+      // chekka ko'rinmasdi (WCAG 1.4.11, 3:1 talab qilinadi).
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(kRadiusMd),
+        borderSide: BorderSide(color: lineInteractive, width: 1.5),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(kRadiusMd),
+        borderSide: BorderSide(color: lineInteractive, width: 1.5),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(kRadiusMd),
+        borderSide: BorderSide(
+          color: isDark ? kFocusRingDark : kFocusRing,
+          width: 2,
+        ),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(kRadiusMd),
+        borderSide: BorderSide(color: error, width: 1.5),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(kRadiusMd),
+        borderSide: BorderSide(color: error, width: 2),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+    ),
+
+    cardTheme: CardThemeData(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(kRadiusLg),
+        // Qorong'i temada soya ko'rinmaydi — balandlik chegara bilan beriladi.
+        side: isDark ? BorderSide(color: line) : BorderSide.none,
+      ),
+      color: surface,
+      shadowColor: kInk.withValues(alpha: isDark ? 0.4 : 0.08),
+    ),
+
+    chipTheme: ChipThemeData(
+      backgroundColor: tint,
+      labelStyle: TextStyle(
+        color: isDark ? kMintSoft : kPrimary,
+        fontWeight: FontWeight.w600,
+      ),
+      side: BorderSide.none,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(kRadiusSm),
+      ),
+    ),
+
+    bottomSheetTheme: BottomSheetThemeData(
+      backgroundColor: surface,
+      elevation: 0,
+      modalBackgroundColor: surface,
+      dragHandleColor: line,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(kRadiusXl)),
+      ),
+    ),
+
+    dialogTheme: DialogThemeData(
+      backgroundColor: surface,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(kRadiusLg),
+      ),
+    ),
+
+    dividerTheme: DividerThemeData(
+      color: line,
+      thickness: 1,
+      space: 1,
+    ),
+
+    bottomNavigationBarTheme: BottomNavigationBarThemeData(
+      backgroundColor: surface,
+      selectedItemColor: isDark ? kMintSoft : kPrimary,
+      unselectedItemColor: inkMuted,
+      type: BottomNavigationBarType.fixed,
+      elevation: 0,
+    ),
+
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: surface,
+      indicatorColor: tint,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+    ),
+
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
+      backgroundColor: primary,
+      foregroundColor: kOnPrimary,
+    ),
+
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: isDark ? surface3 : kInk,
+      contentTextStyle: TextStyle(
+        color: isDark ? ink : kSurface,
+        fontSize: kFontBody,
+        fontWeight: FontWeight.w600,
+      ),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(kRadiusMd),
+      ),
+    ),
+
+    progressIndicatorTheme: ProgressIndicatorThemeData(
+      color: primary,
+      linearTrackColor: surface2,
+      circularTrackColor: surface2,
+    ),
+
+    listTileTheme: ListTileThemeData(
+      iconColor: inkMuted,
+      textColor: ink,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(kRadiusMd),
+      ),
+    ),
+
+    textTheme: textTheme,
+    iconTheme: IconThemeData(color: ink),
+  );
+}
+
+/// Yorug' tema — ilovaning standart ko'rinishi.
+final ThemeData appTheme = _buildTheme(Brightness.light);
+
+/// Qorong'i tema — 3-bo'limdagi tokenlar ustiga qurilgan.
+final ThemeData appDarkTheme = _buildTheme(Brightness.dark);

@@ -15,6 +15,8 @@ import { MaintenanceGuard } from './common/guards/maintenance.guard';
 import { User } from './database/entities/user.entity';
 import { Driver } from './database/entities/driver.entity';
 import { DriverDocument } from './database/entities/driver-document.entity';
+import { DriverVerificationRequirement } from './database/entities/driver-verification-requirement.entity';
+import { DriverVerificationSubmission } from './database/entities/driver-verification-submission.entity';
 import { Tariff } from './database/entities/tariff.entity';
 import { Order } from './database/entities/order.entity';
 import { Trip } from './database/entities/trip.entity';
@@ -46,6 +48,7 @@ import { NotificationLog } from './database/entities/notification-log.entity';
 import { RefreshToken } from './database/entities/refresh-token.entity';
 import { DispatchOverride } from './database/entities/dispatch-override.entity';
 import { PushNotificationLog } from './database/entities/push-notification-log.entity';
+import { RoadSpeedSample } from './database/entities/road-speed-sample.entity';
 
 // Feature Modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -54,6 +57,7 @@ import { DriversModule } from './modules/drivers/drivers.module';
 import { TariffsModule } from './modules/tariffs/tariffs.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { MatchingModule } from './modules/matching/matching.module';
+import { SurgeModule } from './modules/surge/surge.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
@@ -129,6 +133,15 @@ import { ReferralsModule } from './modules/referrals/referrals.module';
           // reassignment.
           DispatchOverride,
           PushNotificationLog,
+          // Injected via DriversModule's forFeature only. Same trap as the two
+          // above: without it the app boots fine and then every GPS ping dies
+          // with EntityMetadataNotFoundError inside the speed aggregator.
+          RoadSpeedSample,
+          // Same trap again: both are injected via DriversModule's forFeature
+          // only, so leaving them out here boots fine and then fails with
+          // EntityMetadataNotFoundError on the first verification request.
+          DriverVerificationRequirement,
+          DriverVerificationSubmission,
         ],
         migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
         // Run pending migrations on boot. The 000_baseline migration is
@@ -206,6 +219,10 @@ import { ReferralsModule } from './modules/referrals/referrals.module';
     TariffsModule,
     OrdersModule,
     MatchingModule,
+    // Listed here even though OrdersModule already imports it: the surge map is
+    // an endpoint of its own now, and it should not go missing the day orders
+    // stop needing surge pricing.
+    SurgeModule,
     RealtimeModule,
     PaymentsModule,
     NotificationsModule,

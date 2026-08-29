@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 52" width="120" height="52">
+  <title>Tejamkor tarifi — ixcham sedan</title>
+  <!-- To'rtta tarif rasmi tanlov qatorida YONMA-YON turadi, shuning uchun
+       ular bitta shartnomaga bo'ysunadi: viewBox 0 0 120 52, g'ildirak
+       markazi y=37, radius 8.5. Bitta faylda bu raqamlar o'zgarsa qator
+       "sakraydi" — mashinalar turli balandlikda turib qoladi.
+       Tarifni FARQLAYDIGAN yagona narsa siluet: bu yerda eng kalta kuzov
+       (8..112) va eng kalta tom (47..78). -->
+
+  <!-- Kuzov. Pastki chekkadagi ikkita yoy — g'ildirak kamarlari.
+       Ular g'ildirak USTIGA chizilmaydi, kuzovdan KESIB olinadi: aks
+       holda siluet "yopishtirilgan doira" bo'lib ko'rinadi, 82x38 dp da
+       esa mashina umuman o'qilmaydi. -->
+  <path d="M8 34 L8 28 C8 24 10.5 21.5 14 21 L37 18 L47 7.5 L78 7.5
+           L89 19 L106 21.5 C110 22 112 25 112 29 L112 34 Q112 37 109 37
+           L98 37 A10 10 0 0 0 78 37 L42 37 A10 10 0 0 0 22 37
+           L11 37 Q8 37 8 34 Z"
+        fill="#0C7A4D"/>
+
+  <!-- Oynalar old→orqa yorug'likdan to'qqa boradi: yassi siluetda
+       chuqurlikni faqat shu farq beradi, soya ishlatilmaydi. -->
+  <path d="M42 17 L49.5 10 L61 10 L61 17 Z" fill="#CFEDE0"/>
+  <path d="M64 10 L76 10 L83 17 L64 17 Z" fill="#6FE4B8"/>
+
+  <rect x="9" y="24" width="6" height="4" rx="1.6" fill="#6FE4B8"/>
+  <rect x="105" y="25.5" width="5.5" height="3.5" rx="1.5" fill="#6FE4B8"/>
+
+  <circle cx="32" cy="37" r="8.5" fill="#0F1B22"/>
+  <circle cx="32" cy="37" r="3.4" fill="#E2EBEC"/>
+  <circle cx="88" cy="37" r="8.5" fill="#0F1B22"/>
+  <circle cx="88" cy="37" r="3.4" fill="#E2EBEC"/>
+</svg>

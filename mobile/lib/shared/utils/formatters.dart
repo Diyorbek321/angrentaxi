@@ -81,6 +81,39 @@ class Formatters {
     return formatRelativeDate(date);
   }
 
+  /// O'zbekcha qisqartirilgan oy nomlari — `intl` ning `uz` lokali oy
+  /// nomlarini ruscha/inglizcha aralash qaytaradi, shuning uchun qo'lda.
+  static const List<String> _monthsShort = [
+    'yan', 'fev', 'mar', 'apr', 'may', 'iyn',
+    'iyl', 'avg', 'sen', 'okt', 'noy', 'dek',
+  ];
+
+  /// Qisqa sana: "22-avg".
+  static String formatShortDate(DateTime when) =>
+      '${when.day}-${_monthsShort[when.month - 1]}';
+
+  /// Kun yorlig'i: "Bugun" / "Ertaga" / "22-avg".
+  ///
+  /// [now] ATAYLAB parametr — testda soatga bog'lanmaslik uchun.
+  /// Solishtirish KALENDAR KUNI bo'yicha, 24 soatlik farq bo'yicha EMAS:
+  /// bugun 23:50 dan ertaga 00:10 gacha atigi 20 daqiqa, lekin bu
+  /// "Ertaga" bo'lishi kerak.
+  static String formatDayLabel(DateTime when, {DateTime? now}) {
+    final today = now ?? DateTime.now();
+    final thatDay = DateTime(when.year, when.month, when.day);
+    final thisDay = DateTime(today.year, today.month, today.day);
+    final dayDiff = thatDay.difference(thisDay).inDays;
+
+    if (dayDiff == 0) return 'Bugun';
+    if (dayDiff == 1) return 'Ertaga';
+    return formatShortDate(when);
+  }
+
+  /// Rejalashtirilgan safar yorlig'i: "Bugun, 18:30" / "Ertaga, 08:00" /
+  /// "22-avg, 08:00".
+  static String formatScheduleLabel(DateTime when, {DateTime? now}) =>
+      '${formatDayLabel(when, now: now)}, ${formatTime(when)}';
+
   static String formatDistance(double meters) {
     if (meters < 1000) {
       return '${meters.toInt()} m';

@@ -16,7 +16,10 @@ import { SettingsService } from '../settings/settings.service';
 import { OrdersService } from './orders.service';
 import { OrdersQueryService } from './orders-query.service';
 import { ORDERS_PROVIDERS } from './orders.providers';
-import { fakeTransactionRepository } from './orders.testing';
+import { SurgeService } from '../surge/surge.service';
+import { OsrmService } from '../routing/osrm.service';
+import { RoutedDistancePricing } from './routed-distance-pricing';
+import { fakeTransactionRepository, fakeCitiesServiceProvider } from './orders.testing';
 
 /**
  * Trip settlement used to be five independent writes — order status, the
@@ -85,6 +88,24 @@ describe('completeTrip settlement atomicity', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ...ORDERS_PROVIDERS,
+        fakeCitiesServiceProvider(),
+        // Routing is an accuracy layer over pricing; these tests assert the
+        // straight-line behaviour, which is also the shipped default.
+        { provide: OsrmService, useValue: { routeDistanceMeters: jest.fn() } },
+        { provide: RoutedDistancePricing, useValue: { enabled: false } },
+        // Surge is a pricing input, not a dependency of these flows: a quiet
+        // zone (1.0x) keeps the expected prices in these tests unchanged.
+        {
+          provide: SurgeService,
+          useValue: {
+            snapshotFor: jest.fn().mockResolvedValue({
+              multiplier: 1.0,
+              demand: 0,
+              supply: 0,
+              zone: 'test-zone',
+            }),
+          },
+        },
         { provide: DataSource, useValue: { transaction: transactionSpy } },
         { provide: getRepositoryToken(Order), useValue: orderRepository },
         {
@@ -98,6 +119,14 @@ describe('completeTrip settlement atomicity', () => {
           useValue: {
             findById: jest.fn().mockResolvedValue({ id: 'tariff-1' }),
             calculatePrice: jest.fn().mockReturnValue(20000),
+            // `calculatePrice` endi `calculatePriceBreakdown` ustidagi qobiq —
+            // mock ikkalasini bir manbadan beradi, aks holda ular ajralib ketadi.
+            calculatePriceBreakdown: jest.fn((_t, km = 0, min = 0, surge = 1) => ({
+              baseFare: 0, distanceKm: km, pricePerKm: 0, distanceFare: 0,
+              durationMin: min, pricePerMin: 0, timeFare: 0,
+              minPriceAdjustment: 0, surgeMultiplier: surge, surgeFare: 0,
+              maxPriceCap: 0, total: 20000,
+            })),
           },
         },
         {
@@ -165,8 +194,15 @@ describe('completeTrip settlement atomicity', () => {
       ORDER_ID,
       expect.objectContaining({ status: OrderStatus.COMPLETED }),
     );
-    // ...and the passenger charge plus both driver payout legs did too.
-    expect(managerSave).toHaveBeenCalledTimes(3);
+    // ...and so did the ledger rows: the passenger charge plus the driver's
+    // commission debit.
+    //
+    // NAQD safar uchun IKKITA qator, uchta emas: haydovchiga safar puli
+    // CREDIT qilinmaydi, chunki u pulni yo'lovchidan qo'liga olgan. Uchinchi
+    // qator yozilishi aynan haydovchiga ikki marta to'lash edi
+    // (`orders.service.wallet-settlement.spec.ts` dagi CASH testlariga
+    // qarang).
+    expect(managerSave).toHaveBeenCalledTimes(2);
 
     // Nothing settlement-related escaped to the non-transactional repositories.
     expect(repoUpdate).not.toHaveBeenCalled();

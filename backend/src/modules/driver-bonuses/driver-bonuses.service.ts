@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThanOrEqual, Repository } from 'typeorm';
 import {
@@ -16,6 +16,9 @@ import {
 import { PaymentMethod } from '../../database/entities/order.entity';
 import { CreateBonusRuleDto } from './dto/create-bonus-rule.dto';
 import { UpdateBonusRuleDto } from './dto/update-bonus-rule.dto';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
+import { UsersService } from '../users/users.service';
 
 export interface DriverBonusProgress {
   ruleId: string;
@@ -28,6 +31,8 @@ export interface DriverBonusProgress {
 
 @Injectable()
 export class DriverBonusesService {
+  private readonly logger = new Logger(DriverBonusesService.name);
+
   constructor(
     @InjectRepository(DriverBonusRule)
     private readonly ruleRepository: Repository<DriverBonusRule>,
@@ -35,6 +40,9 @@ export class DriverBonusesService {
     private readonly awardRepository: Repository<DriverBonusAward>,
     @InjectRepository(Order)
     private readonly orderRepository: Repository<Order>,
+    private readonly realtimeGateway: RealtimeGateway,
+    private readonly notificationsService: NotificationsService,
+    private readonly usersService: UsersService,
   ) {}
 
   async create(createdBy: string, dto: CreateBonusRuleDto): Promise<DriverBonusRule> {
@@ -160,6 +168,12 @@ export class DriverBonusesService {
     });
     if (existing) return;
 
+    // Xabar yuborish uchun alohida bayroq: quyidagi `catch` 23505 ni yutadi,
+    // ya'ni "parallel chaqiruv shu davr uchun allaqachon to'lagan" holati ham
+    // xatosiz tugaydi. Bayroqsiz o'sha holatda ham xabar ketardi va haydovchi
+    // bitta bonus uchun ikkita bildirishnoma olardi.
+    let awarded = false;
+
     try {
       await this.awardRepository.manager.transaction(async (manager) => {
         const transaction = await manager.save(Transaction, {
@@ -180,11 +194,68 @@ export class DriverBonusesService {
           transactionId: transaction.id,
         });
       });
+
+      awarded = true;
     } catch (err) {
       const code = (err as { code?: string }).code;
       if (code !== '23505') {
         throw err;
       }
+    }
+
+    // Xabar ATAYLAB tranzaksiyadan TASHQARIDA: ichkarida bo'lsa, socket yoki
+    // FCM sekinlashuvi pul yozadigan tranzaksiyani ochiq ushlab turardi, xatosi
+    // esa allaqachon haqli bo'lgan bonusni rollback qilib yuborardi.
+    if (awarded) {
+      await this.announceAward(rule, driverId);
+    }
+  }
+
+  /**
+   * Bonus berilgani haqida haydovchiga xabar beradi: ilova ochiq bo'lsa —
+   * socket orqali darhol, yopiq bo'lsa — push bildirishnoma orqali.
+   *
+   * NEGA butunlay "best-effort": bu yerga yetib kelganda pul allaqachon
+   * hisobga yozilgan va commit bo'lgan. Xabar yuborilmagani — noqulaylik
+   * (haydovchi bonusni daromad ekranida ko'radi), bonusni bekor qilish esa
+   * pul yo'qotish. Shuning uchun har qanday xato log'ga yozilib yutiladi.
+   */
+  private async announceAward(rule: DriverBonusRule, driverId: string): Promise<void> {
+    // Ikkita kanal — ikkita ALOHIDA try/catch. Bitta blokda bo'lsa, socket
+    // serveridagi nosozlik push'ni ham to'xtatib qo'yardi; holbuki aynan
+    // push ilovasi yopiq haydovchiga yetib boradigan yagona kanal.
+    try {
+      // `driverId` — bu haydovchining User.id si (DriverBonusAward entity'siga
+      // qarang), shuning uchun ham socket xonasi, ham push qabul qiluvchisi
+      // uchun to'g'ridan-to'g'ri ishlatiladi.
+      this.realtimeGateway.emitToUser(driverId, 'bonus:awarded', {
+        bonusRuleId: rule.id,
+        name: rule.name,
+        amount: rule.bonusAmount,
+      });
+    } catch (err) {
+      this.logger.error(
+        `Bonus socket xabari ketmadi (driver ${driverId}, qoida ${rule.id}): ${
+          err instanceof Error ? err.message : err
+        }`,
+      );
+    }
+
+    try {
+      const driver = await this.usersService.findById(driverId);
+      if (driver) {
+        await this.notificationsService.notifyBonusAwarded(
+          driver,
+          rule.name,
+          rule.bonusAmount,
+        );
+      }
+    } catch (err) {
+      this.logger.error(
+        `Bonus push bildirishnomasi ketmadi (driver ${driverId}, qoida ${rule.id}): ${
+          err instanceof Error ? err.message : err
+        }`,
+      );
     }
   }
 

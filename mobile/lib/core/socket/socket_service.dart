@@ -138,6 +138,19 @@ class SocketEvents {
   // auto-cancels after the matching retry window finds nobody nearby.
   static const String noDriversFound = 'no_drivers_found';
 
+  // Rejalashtirilgan safar.
+  //
+  // `orderScheduled` — buyurtma qabul qilindi, lekin qidiruv HALI
+  // boshlanmadi (orders-creation.service.ts). ATAYLAB `order:created` dan
+  // farq qiladi: `order:created` ilovani kuzatuv rejimiga o'tkazadi,
+  // rejalashtirilgan buyurtmada esa kuzatiladigan hech narsa yo'q.
+  //
+  // `scheduledReleased` — cron rejani jonli buyurtmaga aylantirdi va
+  // haydovchi qidiruvi boshlandi (scheduled-orders.service.ts). Narx
+  // O'ZGARMAYDI: u buyurtma berilganda qotirilgan.
+  static const String orderScheduled = 'order:scheduled';
+  static const String scheduledReleased = 'order:scheduled_released';
+
   // Market (passenger receives)
   static const String marketOrderStatus = 'market:order:status';
 

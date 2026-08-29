@@ -8,6 +8,7 @@ import {
   WsException,
 } from '@nestjs/websockets';
 import { forwardRef, Inject, Logger, UseGuards } from '@nestjs/common';
+import { Interval } from '@nestjs/schedule';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -84,6 +85,15 @@ export class RealtimeGateway
   // Map of userId -> socketId for targeted messages
   private readonly userSocketMap = new Map<string, string[]>();
 
+  /**
+   * Hozir socketi ulangan HAYDOVCHILARNING userId lari.
+   *
+   * `userSocketMap` da rol saqlanmaydi, yurak urishi esa faqat haydovchilarga
+   * tegishli — har tikda barcha ulangan foydalanuvchini bazadan tekshirish
+   * ortiqcha yuk bo'lardi.
+   */
+  private readonly connectedDrivers = new Set<string>();
+
   // socketId -> timestamps of recent inbound events (sliding window)
   private readonly rateWindows = new Map<string, number[]>();
 
@@ -155,7 +165,7 @@ export class RealtimeGateway
     try {
       const token =
         (client.handshake.auth as Record<string, string>)['token'] ||
-        (client.handshake.headers['authorization'] as string | undefined)
+        (client.handshake.headers['authorization'])
           ?.split(' ')[1];
 
       if (!token) {
@@ -206,6 +216,23 @@ export class RealtimeGateway
         await client.join('managers');
       }
 
+      // Uzilish paytida geo-to'plamdan tushib qolgan haydovchi qayta ulangach
+      // yana nomzod bo'ladi. `is_online` bu yerda O'ZGARMAYDI — u niyat, va
+      // uni faqat haydovchining o'zi qo'yadi.
+      if (user.role === UserRole.DRIVER) {
+        this.connectedDrivers.add(user.id);
+        try {
+          const restored = await this.driversService.restorePresence(user.id);
+          if (restored) {
+            this.logger.log(`Driver ${user.id} mavjudligi tiklandi`);
+          }
+        } catch (err) {
+          // Mavjudlikni tiklay olmaslik ulanishni buzmasligi kerak: haydovchi
+          // baribir birinchi joylashuv paketi bilan qaytadi.
+          this.logger.warn(`Mavjudlikni tiklab bo'lmadi: ${(err as Error).message}`);
+        }
+      }
+
       this.logger.log(`Client ${client.id} connected as user ${user.id} (${user.role})`);
     } catch (err) {
       this.logger.warn(`WS connection rejected: ${(err as Error).message}`);
@@ -226,19 +253,33 @@ export class RealtimeGateway
     const updated = sockets.filter((id) => id !== client.id);
     if (updated.length === 0) {
       this.userSocketMap.delete(user.id);
+      // Faqat OXIRGI socket ketganda: haydovchi ikki qurilmadan ulangan
+      // bo'lsa (yoki qayta ulanish eskisi bilan ustma-ust tushsa) yurak
+      // urishi to'xtamasligi kerak.
+      this.connectedDrivers.delete(user.id);
     } else {
       this.userSocketMap.set(user.id, updated);
     }
 
-    // If driver, go offline
+    // ⚠️ Haydovchi bu yerda OFLAYN QILINMAYDI. Ilgari qilinardi va aynan shu
+    // buyurtmalarning haydovchiga yetib bormasligining sababi edi: socket
+    // ekran o'chgani, ilova fonga tushgani, tarmoq almashgani yoki server
+    // qayta deploy bo'lgani uchun ham uziladi. Bularning hech biri
+    // haydovchining ishni to'xtatgani emas, lekin `setOnlineStatus(false)`
+    // uni bazada oflayn qilib, Redis geo-to'plamidan chiqarib yuborardi.
+    //
+    // Halqa yopiq edi: qayta ulanish holatni tiklamasdi, joylashuv paketi
+    // ham qutqara olmasdi (`updateLocation` Redis'ga faqat `isOnline` rost
+    // bo'lganda yozadi). Ya'ni birinchi tarmoq uzilishidan keyin haydovchi
+    // tugmani QO'LDA o'chirib-yoqmaguncha ko'rinmas bo'lib qolardi — ilovasi
+    // esa o'z lokal holatini ko'rsatib "onlayn" deb turardi.
+    //
+    // Yetib borish mumkinligini endi mavjudlik kaliti hal qiladi
+    // (`DriversService` dagi `DRIVER_PRESENCE_PREFIX` izohiga qarang): u
+    // o'zi eskiradi, ya'ni telefoni haqiqatan o'chgan haydovchi bir-ikki
+    // daqiqada nomzodlar ro'yxatidan o'zi tushadi.
     if (user.role === UserRole.DRIVER) {
-      try {
-        const driver = await this.driversService.setOnlineStatus(user.id, false);
-        this.emitToManagers('driver:offline', { driverId: driver.id });
-        this.logger.log(`Driver ${user.id} went offline on disconnect`);
-      } catch (err) {
-        this.logger.warn(`Could not set driver offline: ${(err as Error).message}`);
-      }
+      this.logger.log(`Driver ${user.id} socket disconnected (onlayn holati saqlanadi)`);
     }
 
     this.logger.log(`Client ${client.id} (user ${user.id}) disconnected`);
@@ -390,6 +431,24 @@ export class RealtimeGateway
   }
 
   // Helper methods for other services to emit events
+
+  /**
+   * Ulangan haydovchilarning mavjudlik kalitini uzaytiradi.
+   *
+   * ⚠️ Interval TTL dan sezilarli KICHIK (60s < 150s): bitta o'tkazib
+   * yuborilgan tik (deploy, GC pauzasi, sekin Redis) haydovchini
+   * nomzodlar ro'yxatidan tushirib yubormasligi kerak.
+   */
+  @Interval(60_000)
+  async refreshDriverPresence(): Promise<void> {
+    if (this.connectedDrivers.size === 0) return;
+
+    try {
+      await this.driversService.touchPresence([...this.connectedDrivers]);
+    } catch (err) {
+      this.logger.warn(`Mavjudlik yurak urishi yiqildi: ${(err as Error).message}`);
+    }
+  }
 
   emitToUser(userId: string, event: string, data: unknown): void {
     this.server.to(`user:${userId}`).emit(event, data);

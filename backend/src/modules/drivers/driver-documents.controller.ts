@@ -1,5 +1,4 @@
 import * as fs from 'fs';
-import * as path from 'path';
 import {
   BadRequestException,
   Body,
@@ -10,7 +9,6 @@ import {
   Post,
   Query,
   Res,
-  UnsupportedMediaTypeException,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -26,13 +24,8 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { diskStorage } from 'multer';
-import { randomUUID } from 'crypto';
-import {
-  DRIVER_DOCUMENTS_UPLOAD_DIR,
-  DriverDocumentsService,
-  UploadedDiskFile,
-} from './driver-documents.service';
+import { DriverDocumentsService } from './driver-documents.service';
+import { UploadedDiskFile, driverUploadMulterOptions } from './driver-uploads';
 import { UploadDriverDocumentDto } from './dto/upload-driver-document.dto';
 import { ReviewDriverDocumentDto } from './dto/review-driver-document.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -41,14 +34,6 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { User, UserRole } from '../../database/entities/user.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
-
-// Upload target — shared with DriverDocumentsService, which resolves files back
-// out of it for the authorized download endpoint.
-const UPLOAD_DIR = DRIVER_DOCUMENTS_UPLOAD_DIR;
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-
-const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 @ApiTags('Drivers')
 @ApiBearerAuth('JWT-auth')
@@ -63,30 +48,9 @@ export class DriverDocumentsController {
   @ApiOperation({ summary: 'Upload a KYC document (license, passport, vehicle registration)' })
   @ApiResponse({ status: 201, description: 'Document uploaded, pending review' })
   @ApiResponse({ status: 400, description: 'Unsupported document type or file' })
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: UPLOAD_DIR,
-        filename: (_req, file, callback) => {
-          const ext = path.extname(file.originalname).toLowerCase();
-          callback(null, `${randomUUID()}${ext}`);
-        },
-      }),
-      limits: { fileSize: MAX_FILE_SIZE_BYTES },
-      fileFilter: (_req, file, callback) => {
-        if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
-          callback(
-            new UnsupportedMediaTypeException(
-              `Unsupported file type "${file.mimetype}". Allowed: ${ALLOWED_MIME_TYPES.join(', ')}`,
-            ),
-            false,
-          );
-          return;
-        }
-        callback(null, true);
-      },
-    }),
-  )
+  // Yuklash sozlamasi (katalog, 10 MB chegara, MIME ro'yxati) `driver-uploads.ts`
+  // dan olinadi — davriy tekshiruv yuklamasi bilan bitta manba.
+  @UseInterceptors(FileInterceptor('file', driverUploadMulterOptions))
   async upload(
     @CurrentUser() user: User,
     @Body() dto: UploadDriverDocumentDto,

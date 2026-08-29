@@ -8,6 +8,7 @@ import { RealtimeModule } from '../realtime/realtime.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { UsersModule } from '../users/users.module';
 import { TariffsModule } from '../tariffs/tariffs.module';
+import { RoutingModule } from '../routing/routing.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { TariffsModule } from '../tariffs/tariffs.module';
     NotificationsModule,
     UsersModule,
     TariffsModule,
+    RoutingModule,
   ],
   providers: [MatchingService],
   exports: [MatchingService],

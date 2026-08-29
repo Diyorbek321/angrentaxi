@@ -1,21 +1,148 @@
+import 'package:angren_taxi/core/config/app_responsive.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/route_service.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/payments/payment_service.dart';
+import 'package:angren_taxi/features/passenger/map_camera_insets.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
+import 'package:angren_taxi/features/passenger/widgets/coverage_notice.dart';
+import 'package:angren_taxi/features/passenger/widgets/schedule_ride_sheet.dart';
 import 'package:angren_taxi/features/payments/screens/payment_webview_screen.dart';
 import 'package:angren_taxi/shared/models/payment_initiate_result.dart';
 import 'package:angren_taxi/shared/models/tariff.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
+import 'package:angren_taxi/shared/widgets/adaptive_map_panel.dart';
+import 'package:angren_taxi/shared/widgets/ag_map_fab.dart';
+import 'package:angren_taxi/shared/widgets/ag_option_chips.dart';
+import 'package:angren_taxi/shared/widgets/ag_route_panel.dart';
+import 'package:angren_taxi/shared/widgets/ag_tariff_card.dart';
 import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
+import 'package:angren_taxi/shared/widgets/app_pressable.dart';
 import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
+import 'package:angren_taxi/shared/widgets/app_vector_map.dart';
 import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:latlong2/latlong.dart';
+// Kamera MapLibre'ning O'Z LatLng turini kutadi; ilovaning qolgan qismi
+// latlong2 ni ishlatadi, shuning uchun bu yerda prefiks bilan.
+import 'package:maplibre_gl/maplibre_gl.dart' as ml
+    show CameraUpdate, LatLng, LatLngBounds, MapLibreMapController;
 import 'package:provider/provider.dart';
+
+// ---------------------------------------------------------------------------
+// EKRAN GEOMETRIYASI
+//
+// Bu o'lchamlar dizayn shkalasida yo'q (`kSpace*` ga tushmaydi) — ular
+// aynan shu ekranning tartibi, shuning uchun `app_theme.dart` ga emas,
+// shu yerga yoziladi.
+// ---------------------------------------------------------------------------
+
+/// Bitta tarif kartasining kengligi.
+///
+/// 112dp — 360dp li eng tor telefonda uchta karta bir vaqtda ko'rinadi
+/// (3×112 + 2×12 oraliq = 360). Kengroq karta qilinsa foydalanuvchi
+/// tanlovning borligini bilish uchun ham skroll qilishga majbur bo'lardi.
+const double _kTariffCardWidth = 112;
+
+/// Talab (surge) nishonining karta burchagidan ichkariligi. `AgTariffCard`
+/// o'z nishonini xuddi shu masofada chizadi — ikkalasi bir xil bo'lishi
+/// kerak, aks holda nishon "boshqa joydan" kelgandek ko'rinadi.
+const double _kSurgeBadgeInset = 6;
+
+/// Suzuvchi marshrut panelining eng katta kengligi. Planshetda panel
+/// ekran bo'ylab cho'zilsa manzil qatori o'qib bo'lmas darajada uzayadi.
+const double _kRoutePanelMaxWidth = 520;
+
+/// `AgTariffCard` ustunining qat'iy (matnga bog'liq bo'lmagan) qismi:
+/// 22dp tepa padding + 12dp past padding + ikkita 2dp oraliq + tanlangan
+/// kartaning 2dp chegarasi (tepa va past).
+const double _kTariffCardChrome = 42;
+
+/// Uch qatorli matnning haqiqiy balandligi shrift o'lchamidan katta —
+/// shriftning o'z leading'i qo'shiladi. Loyiha shriftida (Google Fonts)
+/// bu koeffitsient o'lchangan holda ~1.44; 1.5 zaxira bilan olinadi,
+/// chunki shrift almashsa metrikasi ham o'zgaradi.
+const double _kTariffLineFactor = 1.5;
+
+/// Variant chiplarining barqaror kalitlari.
+///
+/// `'cash'` va `'card'` ATAYLAB `_paymentMethod` ning qiymatlari bilan bir
+/// xil: chip bosilganda qiymat to'g'ridan-to'g'ri o'tadi va oradagi
+/// xaritalash (ya'ni xato qilish mumkin bo'lgan joy) umuman qolmaydi.
+const String _kOptionCash = 'cash';
+const String _kOptionCard = 'card';
+const String _kOptionSchedule = 'schedule';
+
+/// Tarif → mashina rasmi. Kalit so'zlar ro'yxati, `switch` EMAS.
+///
+/// Server tarif nomlarini o'zi belgilaydi va yangisini istalgan payt
+/// qo'shishi mumkin ("Premium", "Yuk taksi"). Qattiq kodlangan ro'yxat
+/// bo'lsa, yangi tarif rasmsiz (yoki eng yomoni, xato bilan) qolardi —
+/// shuning uchun mos keladigani topilmasa `car_econom` ga tushamiz.
+///
+/// Tartib MUHIM: "Komfort+ biznes" kabi qo'shma nom birinchi mos kelgan
+/// kalit bo'yicha hal qilinadi, shuning uchun torroq ma'noli kalitlar
+/// (yuk, biznes) kengroqlaridan (komfort) oldinda turadi.
+const Map<String, String> _kTariffArtKeywords = <String, String>{
+  'van': 'assets/tariffs/car_van.svg',
+  'miniven': 'assets/tariffs/car_van.svg',
+  'minivan': 'assets/tariffs/car_van.svg',
+  'yuk': 'assets/tariffs/car_van.svg',
+  'cargo': 'assets/tariffs/car_van.svg',
+  'business': 'assets/tariffs/car_business.svg',
+  'biznes': 'assets/tariffs/car_business.svg',
+  'premium': 'assets/tariffs/car_business.svg',
+  'vip': 'assets/tariffs/car_business.svg',
+  'lux': 'assets/tariffs/car_business.svg',
+  'comfort': 'assets/tariffs/car_comfort.svg',
+  'komfort': 'assets/tariffs/car_comfort.svg',
+  'standart': 'assets/tariffs/car_comfort.svg',
+  'standard': 'assets/tariffs/car_comfort.svg',
+};
+
+/// Noma'lum tarif shu rasmga tushadi.
+const String _kTariffArtFallback = 'assets/tariffs/car_econom.svg';
+
+/// Kamerani qayta ishga tushirish uchun eng kichik sezilarli farq.
+///
+/// Koordinatada 1e-6 daraja ≈ 10 sm, chetda 1dp — ikkalasi ham ekranda
+/// ko'rinmaydi. Aniq tenglik tekshirilsa, o'lchovdagi piksel osti
+/// chayqalishi kamerani HAR KADRDA qayta animatsiya qilardi va xarita
+/// foydalanuvchining qo'lidan chiqib ketardi.
+const double _kFitCoordEpsilon = 1e-6;
+const double _kFitInsetEpsilon = 1;
+
+/// Rasm yo'li → vaqtinchalik ikonka silueti.
+///
+/// ⚠️ `flutter_svg` loyiha bog'liqliklarida YO'Q va uni qo'shish bu
+/// vazifaning doirasidan tashqarida. SVG yo'li rastr dekoderga berilsa
+/// karta har qayta chizishda xato yozardi, shuning uchun `AgTariffCard`
+/// ga `imageBuilder` beriladi va u tarifga MOS SVG mashinani chizadi — kartalar
+/// baribir bir-biridan siluet bilan farq qiladi. Paket qo'shilgan kunda
+/// faqat shu jadval `SvgPicture.asset` ga almashadi, tarif → rasm
+/// moslashtiruvi esa o'zgarmaydi.
+/// Tarifga mos mashina rasmining yo'li.
+///
+/// Serverning `iconName` maslahati va tarif nomi birga tekshiriladi —
+/// server aniq ishora bergan bo'lsa (`"car_van"`), nomni taxmin qilish
+/// shart emas.
+///
+/// Kalit SO'Z BOSHIDAN qidiriladi, satr ichidan emas: "Advance" ichida
+/// "van" bor, lekin u miniven emas. So'z boshi esa "Van", "Vanlar",
+/// "car_van" ni ham, "Komfort+" ni ham to'g'ri tutadi.
+@visibleForTesting
+String tariffArtAsset(Tariff tariff) {
+  final words = '${tariff.iconName ?? ''} ${tariff.name}'
+      .toLowerCase()
+      .split(RegExp('[^a-z0-9]+'));
+  for (final entry in _kTariffArtKeywords.entries) {
+    if (words.any((w) => w.startsWith(entry.key))) return entry.value;
+  }
+  return _kTariffArtFallback;
+}
 
 /// Yandex Go-style tariff screen: route map on top, horizontal tariff cards
 /// and a full-width primary order button in a bottom sheet.
@@ -40,8 +167,21 @@ class TariffSelectScreen extends StatefulWidget {
 class _TariffSelectScreenState extends State<TariffSelectScreen> {
   String _paymentMethod = 'cash';
   bool _payingByCard = false;
-  final MapController _mapController = MapController();
   bool _routeLoading = false;
+
+  ml.MapLibreMapController? _mapController;
+
+  /// Sheet kontentining balandligini o'lchash uchun — kamera paddingi
+  /// shundan hisoblanadi (`map_camera_insets.dart` dagi izohga qarang).
+  final GlobalKey _panelContentKey = GlobalKey();
+
+  /// Oxirgi o'lchangan sheet kontenti balandligi. Faqat kameraga ta'sir
+  /// qiladi, vidjet daraxtiga emas — shuning uchun `setState` yo'q.
+  double? _panelContentHeight;
+
+  /// Kameraga oxirgi QO'LLANGAN moslash. Har kadrda qayta hisoblanadi,
+  /// lekin kamera faqat natija o'zgarganda qo'zg'atiladi.
+  _CameraFit? _lastCameraFit;
 
   PaymentService get _paymentService =>
       widget.paymentService ?? PaymentService(apiClient: sl<ApiClient>());
@@ -68,6 +208,11 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<OrderProvider>();
       provider.loadTariffs();
+      // Qamrov ro'yxati bosh ekranda allaqachon so'ralgan bo'lishi mumkin —
+      // `loadCities` takrorini o'zi to'xtatadi. Bu yerda ham chaqiriladi,
+      // chunki tarif ekraniga saqlangan manzil orqali TO'G'RIDAN-TO'G'RI
+      // kelish mumkin va u holda bosh ekran umuman ochilmagan bo'ladi.
+      provider.loadCities();
       _loadRoute(provider);
     });
   }
@@ -96,25 +241,9 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
         distanceKm: route.distanceKm,
         durationMin: route.durationMin,
       );
-      _fitRouteBounds(route.points);
     }
 
     _estimateIfReady(provider);
-  }
-
-  void _fitRouteBounds(List<LatLng> points) {
-    if (points.isEmpty) return;
-    try {
-      _mapController.fitCamera(
-        CameraFit.bounds(
-          bounds: LatLngBounds.fromPoints(points),
-          padding: const EdgeInsets.fromLTRB(48, 96, 48, 260),
-        ),
-      );
-    } catch (_) {
-      // Map not laid out yet (e.g. first frame) — the initial center/zoom
-      // in MapOptions still shows a reasonable view.
-    }
   }
 
   void _estimateIfReady(OrderProvider provider) {
@@ -144,9 +273,27 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
     if (provider.selectedTariff == null && provider.tariffs.isNotEmpty) {
       provider.selectTariff(provider.tariffs.first);
     }
+    // `createOrder` muvaffaqiyatda tanlovni tozalaydi, shuning uchun
+    // shoxlanish qarori UNDAN OLDIN olinadi.
+    final wasScheduled = provider.isScheduledBooking;
     final success = await provider.createOrder();
     if (!mounted) return;
     if (!success) return;
+
+    // Rejalashtirilgan safarda karta to'lovi bloki BUTUNLAY o'tkazib
+    // yuboriladi: `POST /payments/initiate` buyurtma COMPLETED bo'lishini
+    // talab qiladi (quyidagi izohga qarang), va rejalashtirilgan safar
+    // hali boshlanmagan ham — foydalanuvchiga keraksiz xato ko'rsatilardi.
+    if (wasScheduled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Safar rejalashtirildi')),
+      );
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        '/passenger/scheduled',
+        (route) => route.settings.name == '/passenger/home',
+      );
+      return;
+    }
 
     // Order placed. If the passenger chose card, try the real online
     // checkout for it.
@@ -198,32 +345,39 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
       backgroundColor: kBackground,
       body: Consumer<OrderProvider>(
         builder: (context, provider, _) {
+          // Sheet balandligi kontentga qarab o'zgaradi (surge banneri
+          // chiqdi, rejalashtirish izohi qo'shildi, xato yo'qoldi), kamera
+          // esa shu balandlikka bog'liq. Har kadrdan keyin o'lchaymiz va
+          // O'ZGARGANDA marshrutni ochiq maydonga qayta moslaymiz.
+          //
+          // Ro'yxatga olish `Consumer` ICHIDA: provider xabar berganda
+          // (marshrut keldi, safar rejalashtirildi) tashqi `build` qayta
+          // ishlamaydi — faqat shu quruvchi. Tashqarida yozilsa, kamera
+          // aynan o'sha o'zgarishlarni sezmay qolardi.
+          WidgetsBinding.instance.addPostFrameCallback((_) => _syncCamera());
+
           return Stack(
             children: [
               _buildRouteMap(provider),
-              // Floating back button
+              // Xarita ustidagi suzuvchi tugma — sheet bilan bir xil
+              // yuzada emas, o'z qatlamida turadi.
               SafeArea(
                 child: Padding(
-                  padding: const EdgeInsets.all(kSpace4),
-                  child: _CircleButton(
-                    icon: Icons.arrow_back_rounded,
-                    semanticsLabel: 'Orqaga',
-                    onTap: () => Navigator.of(context).pop(),
+                  padding: EdgeInsets.all(context.gutter),
+                  child: Align(
+                    alignment: Alignment.topLeft,
+                    child: AgMapFab(
+                      icon: Icons.arrow_back_rounded,
+                      semanticsLabel: 'Orqaga',
+                      onTap: () => Navigator.of(context).pop(),
+                    ),
                   ),
                 ),
               ),
-              if (_routeLoading)
-                const Positioned(
-                  top: 76,
-                  left: 0,
-                  right: 0,
-                  child: Center(child: _RouteLoadingPill()),
-                ),
-              // Bottom sheet
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: _buildBottomPanel(provider),
-              ),
+              _buildFloatingRoutePanel(provider),
+              // Telefonda pastdagi sheet, 720dp+ ekranda chap yon panel —
+              // xarita marshrutni to'liq ko'rsatib turadi.
+              _buildBottomPanel(provider),
             ],
           );
         },
@@ -231,86 +385,209 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
     );
   }
 
-  Widget _buildRouteMap(OrderProvider provider) {
+  /// Manzillar sheet ICHIDAN chiqarilib, xarita USTIDA suzadi.
+  ///
+  /// Sabab: ilgari "qayerdan → qayerga" pastdagi sheetning birinchi bloki
+  /// edi va sheet balandligining uchdan birini yeb qo'yardi. Endi sheet
+  /// faqat QARORni (tarif, to'lov, tugma) tashiydi, marshrut esa xarita
+  /// bilan bir qatlamda — u doim ko'rinadi va sheet pasayganda ham
+  /// yo'qolmaydi.
+  Widget _buildFloatingRoutePanel(OrderProvider provider) {
+    final gutter = context.gutter;
+    final side = context.canSplitMapPanel;
+    final distanceKm = provider.routeDistanceKm;
+
+    return Positioned(
+      // Telefonda panel orqaga tugmasi OSTIDA turadi; keng ekranda tugma
+      // yon panel ustunida qolgani uchun panel u bilan bir sathda boshlanadi.
+      top: MediaQuery.paddingOf(context).top +
+          gutter +
+          (side ? 0 : kMinTapTarget + kSpace3),
+      // Yon panel rejimida panel chapdagi ustunni yopib qo'ymasligi kerak.
+      left: side ? context.sidePanelWidth + gutter * 2 : gutter,
+      right: gutter,
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: _kRoutePanelMaxWidth),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AgRoutePanel(
+                from: provider.pendingPickup?.address ?? 'Joylashuv',
+                to: provider.pendingDropoff?.address ?? 'Manzil',
+                // Masofa allaqachon hisoblangan (`_loadRoute` → OSRM, yoki
+                // Haversine zaxirasi) — panel uni ko'rsatadi, qayta
+                // hisoblamaydi.
+                distanceLabel: distanceKm == null
+                    ? null
+                    : Formatters.formatDistance(distanceKm * 1000),
+                // Almashtirish tugmasi YO'Q va bu ataylab: bu ekranda
+                // marshrut allaqachon qat'iy — narx aynan shu yo'nalish
+                // bo'yicha baholangan. Yo'nalishni teskari qilish qayta
+                // yo'l qurish va qayta baholashni talab qiladi, ya'ni bu
+                // vizual emas, MANTIQIY o'zgarish bo'lardi.
+                showSwap: false,
+              ),
+              // Yuklanish belgisi panel OSTIDA, qat'iy koordinatada emas:
+              // panel balandligi manzil uzunligiga qarab o'zgarsa ham
+              // ular ustma-ust tushmaydi.
+              if (_routeLoading) ...[
+                const SizedBox(height: kSpace3),
+                const Center(child: _RouteLoadingPill()),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // -------------------------------------------------------------------
+  // KAMERA — TO'LDIRILGAN TO'RTBURCHAK (padded-fit)
+  //
+  // Sheet ekranning pastki qismini doim yopib turadi. Marshrut BUTUN
+  // ekranga moslansa, uning markazi sheet ostida qoladi va yo'lovchi
+  // safarini ko'rish uchun sheetni pastga surishga majbur bo'ladi.
+  // Shuning uchun kamera ochiq maydonga moslanadi: chetlar
+  // `MapCameraInsets` da hisoblanadi (ikkala yo'lovchi xarita ekrani —
+  // bosh ekran va faol safar — xuddi shu qoidaga bo'ysunadi).
+  //
+  // `AppVectorMap.fitToContent` shu sababdan ATAYLAB o'chirilgan: u
+  // paddingni ichkarida qat'iy saqlaydi (left/right 48, top 96,
+  // bottom 260) va sheet balandligini bilmaydi.
+  // -------------------------------------------------------------------
+
+  /// Olish nuqtasi. Zaxira markaz — birinchi faol shaharning markazi,
+  /// qattiq kodlangan koordinata EMAS: ikkinchi shahar qo'shilganda bu
+  /// yerga qaytib tegish kerak bo'lmasin. Shaharlar hali yuklanmagan
+  /// bo'lsa `AppConfig` dagi qiymat zaxira bo'lib qoladi — ilova
+  /// koordinatasiz xaritani umuman ocha olmaydi.
+  LatLng _pickupPoint(OrderProvider provider) {
     final pickup = provider.pendingPickup;
-    final dropoff = provider.pendingDropoff;
-    final p = pickup != null
+    return pickup != null
         ? LatLng(pickup.lat, pickup.lng)
-        : const LatLng(40.0956, 70.9432);
-    final d = dropoff != null
+        : provider.coverage.fallbackCenter;
+  }
+
+  /// Tushish nuqtasi — zaxirasi [_pickupPoint] bilan bir xil.
+  LatLng _dropoffPoint(OrderProvider provider) {
+    final dropoff = provider.pendingDropoff;
+    return dropoff != null
         ? LatLng(dropoff.lat, dropoff.lng)
-        : const LatLng(40.1050, 70.9500);
-    final center = LatLng((p.latitude + d.latitude) / 2,
-        (p.longitude + d.longitude) / 2);
+        : provider.coverage.fallbackCenter;
+  }
+
+  /// Xaritada CHIZILGAN barcha nuqtalar — kamera aynan shularni sig'diradi.
+  /// Ro'yxat `_buildRouteMap` chizadigan narsa bilan bir xil bo'lishi
+  /// kerak, aks holda kamera ko'rinmaydigan nuqtaga ham joy ajratadi.
+  List<LatLng> _mapPoints(OrderProvider provider) {
+    final p = _pickupPoint(provider);
+    final d = _dropoffPoint(provider);
+    return <LatLng>[
+      ...(provider.routePoints.isNotEmpty
+          ? provider.routePoints
+          : <LatLng>[p, d]),
+      p,
+      for (final w in provider.pendingWaypoints) LatLng(w.lat, w.lng),
+      d,
+    ];
+  }
+
+  void _onMapCreated(ml.MapLibreMapController controller) {
+    _mapController = controller;
+    _fitCamera();
+  }
+
+  /// Sheetni o'lchaydi va kerak bo'lsa kamerani qayta moslaydi.
+  void _syncCamera() {
+    if (!mounted) return;
+    final renderObject = _panelContentKey.currentContext?.findRenderObject();
+    if (renderObject is RenderBox && renderObject.hasSize) {
+      _panelContentHeight = renderObject.size.height;
+    }
+    _fitCamera();
+  }
+
+  void _fitCamera() {
+    final controller = _mapController;
+    if (controller == null || !mounted) return;
+
+    final points = _mapPoints(context.read<OrderProvider>());
+    // Bitta nuqtaning "chegarasi" yo'q — `newLatLngBounds` unga
+    // qo'llanmaydi va boshlang'ich markaz/zoom o'z holicha qoladi.
+    if (points.length < 2) return;
+
+    var minLat = points.first.latitude, maxLat = minLat;
+    var minLng = points.first.longitude, maxLng = minLng;
+    for (final p in points) {
+      minLat = p.latitude < minLat ? p.latitude : minLat;
+      maxLat = p.latitude > maxLat ? p.latitude : maxLat;
+      minLng = p.longitude < minLng ? p.longitude : minLng;
+      maxLng = p.longitude > maxLng ? p.longitude : maxLng;
+    }
+
+    final fit = _CameraFit(
+      minLat: minLat,
+      minLng: minLng,
+      maxLat: maxLat,
+      maxLng: maxLng,
+      insets: MapCameraInsets.forPanel(
+        context,
+        panelContentHeight: _panelContentHeight,
+      ),
+    );
+    final last = _lastCameraFit;
+    if (last != null && !fit.differsFrom(last)) return;
+    _lastCameraFit = fit;
+
+    controller.animateCamera(
+      ml.CameraUpdate.newLatLngBounds(
+        ml.LatLngBounds(
+          southwest: ml.LatLng(minLat, minLng),
+          northeast: ml.LatLng(maxLat, maxLng),
+        ),
+        left: fit.insets.left,
+        top: fit.insets.top,
+        right: fit.insets.right,
+        bottom: fit.insets.bottom,
+      ),
+    );
+  }
+
+  Widget _buildRouteMap(OrderProvider provider) {
+    final p = _pickupPoint(provider);
+    final d = _dropoffPoint(provider);
+    final center =
+        LatLng((p.latitude + d.latitude) / 2, (p.longitude + d.longitude) / 2);
 
     // Real road route from OSRM when available; a straight line is only a
     // fallback for when the route fetch fails (offline, OSRM unreachable).
     final routePoints =
         provider.routePoints.isNotEmpty ? provider.routePoints : [p, d];
 
-    return FlutterMap(
-      mapController: _mapController,
-      options: MapOptions(initialCenter: center, initialZoom: 13.5),
-      children: [
-        TileLayer(
-          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          userAgentPackageName: 'uz.angren.taxi',
-        ),
-        // ATAYLAB SAQLANADI: marshrut polilinesi minti — sof dekorativ
-        // brend aksenti, ma'no matn orqali beriladi.
-        PolylineLayer(
-          polylines: [
-            Polyline(points: routePoints, strokeWidth: 4, color: kMint),
-          ],
-        ),
-        MarkerLayer(
-          markers: [
-            Marker(
-              point: p,
-              width: 26,
-              height: 26,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: kPrimary,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: kSurface, width: 3),
-                ),
-              ),
-            ),
-            // Numbered intermediate stops, in visit order between pickup
-            // ("1", implicit) and dropoff — matches the numbering shown in
-            // destination_screen's waypoints list.
-            for (final entry in provider.pendingWaypoints.asMap().entries)
-              Marker(
-                point: LatLng(entry.value.lat, entry.value.lng),
-                width: 22,
-                height: 22,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: kInk,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: kSurface, width: 2),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    '${entry.key + 2}',
-                    style: const TextStyle(
-                      color: kOnPrimary,
-                      fontSize: kFontMicro,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ),
-            Marker(
-              point: d,
-              width: 34,
-              height: 34,
-              child: const Icon(Icons.location_on, color: kInk, size: 34),
-            ),
-          ],
-        ),
+    return AppVectorMap(
+      initialCenter: center,
+      initialZoom: 13.5,
+      // ATAYLAB SAQLANADI: marshrut chizig'i minti — sof dekorativ brend
+      // aksenti, ma'no matn orqali beriladi.
+      route: routePoints,
+      markers: [
+        AppMapMarker(point: p, icon: AppMapIcon.pickup),
+        // Oraliq to'xtashlar borish tartibida — destination_screen'dagi
+        // ro'yxat raqamlanishi bilan bir xil.
+        for (final waypoint in provider.pendingWaypoints)
+          AppMapMarker(
+            point: LatLng(waypoint.lat, waypoint.lng),
+            icon: AppMapIcon.waypoint,
+          ),
+        AppMapMarker(point: d, icon: AppMapIcon.dropoff),
       ],
+      // Kamerani O'ZIMIZ boshqaramiz — yuqoridagi "TO'LDIRILGAN
+      // TO'RTBURCHAK" izohiga qarang.
+      fitToContent: false,
+      onMapCreated: _onMapCreated,
     );
   }
 
@@ -319,90 +596,64 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
     // panel sakramaydi.
     if (provider.state == OrderProviderState.loading &&
         provider.tariffs.isEmpty) {
-      return Container(
-        height: 220,
-        padding: const EdgeInsets.only(top: kSpace5),
-        decoration: const BoxDecoration(
-          color: kSurface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(kRadiusXl)),
+      return AdaptiveMapPanel(
+        layered: true,
+        child: AgSurfaceCard(
+          // Skeleton ham O'LCHANADI: kamera sheet balandligini shu kalit
+          // orqali biladi va kontent kelguncha ham marshrut ochiq
+          // maydonda turadi.
+          key: _panelContentKey,
+          child: const SizedBox(
+            height: 200,
+            child: AppSkeletonList(itemCount: 2, lines: 2, hasTrailing: true),
+          ),
         ),
-        child: const AppSkeletonList(itemCount: 2, lines: 2, hasTrailing: true),
       );
     }
 
     final selected = provider.selectedTariff ??
         (provider.tariffs.isNotEmpty ? provider.tariffs.first : null);
     final price = provider.estimatedPrice;
+    // Olish nuqtasi xizmat hududidan tashqarida bo'lsa tugma o'chiriladi —
+    // sabab esa uning USTIDA yoziladi. Ishlamaydigan tugma sababsiz
+    // qoldirilsa, odam ilova buzilgan deb o'ylaydi.
+    final coverageWarning = provider.coverageWarning;
     final canOrder = selected != null &&
+        coverageWarning == null &&
         provider.state != OrderProviderState.loading &&
         !_payingByCard;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(kSpace4, kSpace3, kSpace4, kSpace8),
-      decoration: BoxDecoration(
-        color: kSurface,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(kRadiusXl),
-        ),
-        boxShadow: kShadowPop,
-      ),
+    return AdaptiveMapPanel(
+      // QATLAMLI YUZA: panel foni kSurface2, ichidagi bloklar oq. Chuqurlik
+      // chegaradan emas, ikki yuzaning farqidan keladi.
+      layered: true,
       child: Column(
+        // Kamera shu ustunning balandligini o'lchaydi — `_syncCamera`.
+        key: _panelContentKey,
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Center(
-            child: ExcludeSemantics(
-              child: Container(
-                width: 44,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: kSurface2,
-                  borderRadius: BorderRadius.circular(kRadiusFull),
-                ),
-              ),
-            ),
-          ),
+          _buildTariffRow(provider, selected: selected, price: price),
+          const SizedBox(height: kSpace3),
+          _buildOptionsRow(provider),
+          // Kutish qoidasi BOSISHDAN OLDIN aytiladi. Aytilmagan haq
+          // buyurtmadan keyin "meni aldashdi" degan xulosaga olib keladi —
+          // bu esa bekor qilish va e'tirozning eng arzon sababi.
+          if (selected != null) ...[
+            const SizedBox(height: kSpace2),
+            _buildWaitingNote(selected),
+          ],
           const SizedBox(height: kSpace4),
-          _buildRouteRow(provider),
-          const SizedBox(height: kSpace4),
-          // Horizontal tariff cards (Yandex signature). Tall enough to fit
-          // the extra "Talab yuqori" surge label on surged tariffs without
-          // overflowing.
-          SizedBox(
-            // Bo'sh holat (ikonka + sarlavha) kartalardan bir oz balandroq.
-            height: provider.tariffs.isEmpty ? 152 : 138,
-            child: provider.tariffs.isEmpty
-                ? const AppEmptyState(
-                    icon: Icons.local_taxi_outlined,
-                    title: 'Tariflar mavjud emas',
-                    compact: true,
-                  )
-                : ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: provider.tariffs.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: kSpace3),
-                    itemBuilder: (context, i) {
-                      final t = provider.tariffs[i];
-                      final isSel = selected?.id == t.id;
-                      return _TariffCardH(
-                        tariff: t,
-                        isSelected: isSel,
-                        price: isSel ? price : null,
-                        onTap: () {
-                          provider.selectTariff(t);
-                          _estimateIfReady(provider);
-                        },
-                      )
-                          .animate()
-                          .fadeIn(delay: (i * 70).ms, duration: 350.ms)
-                          .slideX(begin: 0.2, curve: Curves.easeOut);
-                    },
-                  ),
-          ),
-          const SizedBox(height: kSpace4),
-          _buildPaymentRow(),
-          const SizedBox(height: kSpace4),
+          // Narx odatdagidan yuqori bo'lsa, sababini aytamiz. Tushuntirilmagan
+          // qimmatlashuv o'zboshimchalik bo'lib ko'rinadi va ishonchni yo'qotadi.
+          if (provider.isSurging) _buildSurgeNotice(provider.surgeMultiplier),
+          if (coverageWarning != null) CoverageNotice(message: coverageWarning),
+          if (provider.isScheduledBooking) _buildScheduleNotice(),
+          // Serverning oxirgi so'zi ham SHU YERDA ko'rinadi: `POST /orders`
+          // 400 bilan "Bu hududda hozircha xizmat ko'rsatilmaymiz" qaytarsa,
+          // `createOrder` uni `error` ga yozadi va yo'lovchi sababni o'qiydi
+          // (ikki qatlamli himoya: mobil oldindan tekshiradi, server
+          // yakuniy qarorni aytadi).
           if (provider.state == OrderProviderState.error &&
               provider.error != null)
             Padding(
@@ -413,9 +664,11 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
           Semantics(
             button: true,
             enabled: canOrder,
-            child: GestureDetector(
+            child: AppPressable(
               onTap: canOrder ? _onConfirmOrder : null,
-              behavior: HitTestBehavior.opaque,
+              haptic: AppHapticLevel.impact,
+              pressedScale: 0.98,
+              minTapTarget: false,
               child: Container(
                 width: double.infinity,
                 height: kControlHeight,
@@ -432,44 +685,79 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
                         height: 24,
                         child: CircularProgressIndicator(
                           strokeWidth: 2.5,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(kOnPrimary),
+                          valueColor: AlwaysStoppedAnimation<Color>(kOnPrimary),
                         ),
                       )
-                    : Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text(
-                            'Buyurtma',
-                            style: TextStyle(
-                              fontSize: kFontH3,
-                              fontWeight: FontWeight.w800,
-                              color: kOnPrimary,
-                            ),
-                          ),
-                          if (price != null) ...[
-                            const SizedBox(width: kSpace2),
-                            ExcludeSemantics(
-                              child: Container(
-                                width: 5,
-                                height: 5,
-                                decoration: BoxDecoration(
-                                  color: kOnPrimary.withValues(alpha: 0.7),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: kSpace2),
+                    // NIMAGA `FittedBox`, `Flexible` EMAS.
+                    //
+                    // Tugmada ikkita matn bor va IKKALASI ham to'liq
+                    // o'qilishi kerak: yozuv qaysi amal ekanini, narx esa
+                    // qanchaga ekanini aytadi. `Flexible` + ellipsis
+                    // ulardan birini kesardi — "Rejalashtiri…" yoki
+                    // "12 500 s…" (kesilgan narx esa shunchaki yolg'on).
+                    //
+                    // Tizim shrifti 2x ga ko'tarilganda bu qator 320dp li
+                    // ekranda 33px, 360dp da 1.3px, yon panelda 17px toshib
+                    // ketardi — ya'ni kontent KO'RINMAY qolardi. `scaleDown`
+                    // faqat sig'magan holatda kichraytiradi: odatiy
+                    // shkalada tugma piksel-pikselgacha o'sha-o'sha.
+                    : FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
                             Text(
-                              Formatters.formatPrice(price),
+                              provider.isScheduledBooking
+                                  ? 'Rejalashtirish'
+                                  : 'Buyurtma',
+                              maxLines: 1,
                               style: const TextStyle(
                                 fontSize: kFontH3,
                                 fontWeight: FontWeight.w800,
                                 color: kOnPrimary,
                               ),
                             ),
+                            if (price != null) ...[
+                              const SizedBox(width: kSpace2),
+                              ExcludeSemantics(
+                                child: Container(
+                                  width: 5,
+                                  height: 5,
+                                  decoration: BoxDecoration(
+                                    color: kOnPrimary.withValues(alpha: 0.7),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: kSpace2),
+                              // Tarif almashtirilganda narx sakramaydi —
+                              // eskisi o'chib, yangisi paydo bo'ladi.
+                              AnimatedSwitcher(
+                                duration: kDurationBase,
+                                transitionBuilder: (child, anim) =>
+                                    FadeTransition(
+                                  opacity: anim,
+                                  child: SizeTransition(
+                                    sizeFactor: anim,
+                                    axis: Axis.horizontal,
+                                    child: child,
+                                  ),
+                                ),
+                                child: Text(
+                                  Formatters.formatPrice(price),
+                                  key: ValueKey(price),
+                                  maxLines: 1,
+                                  style: const TextStyle(
+                                    fontSize: kFontH3,
+                                    fontWeight: FontWeight.w800,
+                                    color: kOnPrimary,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
               ),
             ),
@@ -479,58 +767,193 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
     );
   }
 
-  Widget _buildRouteRow(OrderProvider provider) {
-    final pickup = provider.pendingPickup?.address ?? 'Joylashuv';
-    final dropoff = provider.pendingDropoff?.address ?? 'Manzil';
+  /// Gorizontal tarif kartalari — ekranning imzo bloki.
+  ///
+  /// Kartalar `AgSurfaceCard` ga O'RALMAYDI: `AgTariffCard` ning o'zi oq
+  /// karta, panel esa `kSurface2`. Oq kartani yana oq karta ichiga solish
+  /// qatlamni yo'q qilardi (oq ustidagi oq ajralmaydi).
+  Widget _buildTariffRow(
+    OrderProvider provider, {
+    required Tariff? selected,
+    required double? price,
+  }) {
+    if (provider.tariffs.isEmpty) {
+      return const AgSurfaceCard(
+        // Bo'sh holat o'z ichki bo'shlig'ini o'zi beradi — karta padding'i
+        // ustiga qo'shilsa blok ikki barobar balandlashardi.
+        //
+        // Balandlik ham QAT'IY BERILMAYDI: ilgari bu blok kartalar qatori
+        // bilan bitta `SizedBox` ni bo'lishardi va o'sha yerdagi 140/152dp
+        // 360dp li ekranda ikonka+sarlavha ustunini toshirib yuborardi
+        // (RenderFlex overflow). `AppEmptyState` o'z o'lchamini o'zi biladi.
+        padding: EdgeInsets.zero,
+        child: AppEmptyState(
+          icon: Icons.local_taxi_outlined,
+          title: 'Tariflar mavjud emas',
+          compact: true,
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: _tariffRowHeight(context),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        // Mashina rasmi karta tepasidan `artOverhang` chiqadi, `ListView`
+        // esa o'z ko'rish maydonini KESADI — joy padding bilan ochilmasa
+        // siluetning yuqori qismi qirqilib qolardi.
+        padding: const EdgeInsets.only(top: AgTariffCard.artOverhang),
+        itemCount: provider.tariffs.length,
+        separatorBuilder: (_, __) => const SizedBox(width: kSpace3),
+        itemBuilder: (context, i) {
+          final t = provider.tariffs[i];
+          final isSel = selected?.id == t.id;
+          final surging = t.surgeMultiplier > 1.0;
+
+          return SizedBox(
+            width: _kTariffCardWidth,
+            // Vaqtincha o'chirilgan tarif (`isActive: false`) YASHIRILMAYDI —
+            // foydalanuvchi variant BORLIGINI bilsin. Lekin u bosilmasligi
+            // ko'rinib ham turishi kerak: `AgTariffCard` da o'chirilgan
+            // holat yo'q, shuning uchun butun karta xiralashtiriladi.
+            // O'chirilgan boshqaruvga WCAG kontrast talabi qo'yilmaydi.
+            child: Opacity(
+              opacity: t.isAvailable ? 1 : 0.45,
+              child: Stack(
+                // Nishon karta burchagida, rasm esa tepasidan tashqarida —
+                // ikkalasi ham kesilmasligi kerak.
+                clipBehavior: Clip.none,
+                children: [
+                  AgTariffCard(
+                    name: t.name,
+                    // Valyuta yozuvi ("UZS") kartada TAKRORLANMAYDI: u
+                    // pastdagi CTA da to'liq ko'rinadi, kartada esa 112dp
+                    // kenglikda raqamni ellipsisga tushirib yuborardi.
+                    priceLabel: isSel && price != null
+                        ? Formatters.formatAmount(price)
+                        : '~${Formatters.formatAmount(t.minFare)}',
+                    // Uchinchi qatorda kelish vaqti yo'q — server buni
+                    // bermaydi va uni o'ylab topish yaramaydi. O'rniga
+                    // tarifga xos haqiqiy ma'lumot: talab yuqori bo'lsa
+                    // ogohlantirish, aks holda sig'im.
+                    etaLabel:
+                        surging ? 'Talab yuqori' : "${t.maxPassengers} o'rin",
+                    assetPath: tariffArtAsset(t),
+                    imageBuilder: _buildTariffArt,
+                    selected: isSel,
+                    onTap: t.isAvailable
+                        ? () {
+                            // Haptikani `AgTariffCard` o'zi beradi
+                            // (`AppHapticLevel.select`) — bu yerda takror
+                            // chaqirilsa ikki marta titrardi.
+                            provider.selectTariff(t);
+                            _estimateIfReady(provider);
+                          }
+                        : null,
+                  ),
+                  if (surging)
+                    Positioned(
+                      top: _kSurgeBadgeInset,
+                      right: _kSurgeBadgeInset,
+                      // `AgTariffCard.badge` ISHLATILMAYDI: uning nishoni
+                      // mint (aksent/chegirma ma'nosi), talab oshishi esa
+                      // OGOHLANTIRISH — amber. Rangni almashtirish nishonning
+                      // ma'nosini teskarisiga o'girardi.
+                      child: IgnorePointer(
+                        // Nishon kartaning tegish maydonini teshib
+                        // qo'ymasligi kerak; ma'nosi ("Talab yuqori")
+                        // ekran o'quvchiga karta yorlig'i orqali yetadi.
+                        child: ExcludeSemantics(
+                          child: _SurgeBadge(t.surgeMultiplier),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          )
+              .animate()
+              .fadeIn(delay: (i * 70).ms, duration: 350.ms)
+              .slideX(begin: 0.2, curve: Curves.easeOut);
+        },
+      ),
+    );
+  }
+
+  /// Tarif qatorining balandligi matn shkalasiga ergashadi.
+  ///
+  /// Qat'iy raqam yozilsa, tizim shrifti kattalashtirilgan qurilmada
+  /// karta ichidagi ustun toshib ketardi (RenderFlex overflow). Karta
+  /// ustuni uch qatordan iborat — nom (12.5), narx (`kFontTitle`) va
+  /// izoh (10.5); o'lchamlar `AgTariffCard` ning o'zidan olingan.
+  double _tariffRowHeight(BuildContext context) {
+    final scaler = MediaQuery.textScalerOf(context);
+    final lines =
+        scaler.scale(12.5) + scaler.scale(kFontTitle) + scaler.scale(10.5);
+    // 4dp — yaxlitlash uchun zaxira.
+    return AgTariffCard.artOverhang +
+        _kTariffCardChrome +
+        lines * _kTariffLineFactor +
+        4;
+  }
+
+  /// Tarif mashinasi — kartaning tepa chekkasidan chiqib turadigan rasm.
+  ///
+  /// `AgTariffCard` ataylab `flutter_svg` ga bog'lanmagan (rasm formati
+  /// chaqiruvchining qarori), shuning uchun vektor chizish shu yerda.
+  ///
+  /// ⚠️ Rasm DEKORATIV: ma'no kartaning matnida (nom, narx, ETA), shuning
+  /// uchun ekran o'quvchidan yashiriladi — aks holda har tarifda ortiqcha
+  /// "rasm" e'loni o'qiladi.
+  Widget _buildTariffArt(BuildContext context, String assetPath) {
+    return ExcludeSemantics(
+      child: SvgPicture.asset(
+        assetPath,
+        width: 82,
+        height: 38,
+        fit: BoxFit.contain,
+        // Asset yo'q yoki buzuq bo'lsa karta bo'sh joy bilan qolmaydi.
+        placeholderBuilder: (_) => const Icon(
+          Icons.local_taxi_rounded,
+          size: 34,
+          color: kInkSubtle,
+        ),
+      ),
+    );
+  }
+
+  /// Talab yuqori bo'lgan paytdagi narx oshishi haqida ochiq xabar.
+  ///
+  /// Koeffitsient serverdan keladi (SurgeService) va hududdagi buyurtma /
+  /// bo'sh haydovchi nisbatidan hisoblanadi. Foydalanuvchiga raqamni ham
+  /// ko'rsatamiz — "1.5x" mavhum "narx yuqori" dan ancha halolroq.
+  Widget _buildSurgeNotice(double multiplier) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: kSpace4, vertical: kSpace3),
+      margin: const EdgeInsets.only(bottom: kSpace3),
+      padding: const EdgeInsets.symmetric(
+        horizontal: kSpace3,
+        vertical: kSpace3,
+      ),
       decoration: BoxDecoration(
-        color: kSurface2,
+        color: kWarningLight,
         borderRadius: BorderRadius.circular(kRadiusMd),
       ),
       child: Row(
         children: [
-          // ATAYLAB SAQLANADI: boshlanish nuqtasi minti — dekorativ.
-          ExcludeSemantics(
-            child: Column(
-              children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: const BoxDecoration(
-                    color: kMint,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                Container(width: 2, height: kSpace4, color: kLineStrong),
-                const Icon(Icons.location_on, color: kInk, size: 14),
-              ],
-            ),
+          const ExcludeSemantics(
+            child:
+                Icon(Icons.trending_up_rounded, color: kWarningDeep, size: 20),
           ),
           const SizedBox(width: kSpace3),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(pickup,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: kFontLabel,
-                      fontWeight: FontWeight.w600,
-                      color: kInk,
-                    )),
-                const SizedBox(height: kSpace2),
-                Text(dropoff,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: kFontLabel,
-                      fontWeight: FontWeight.w600,
-                      color: kInk,
-                    )),
-              ],
+            child: Text(
+              'Hozir talab yuqori — narx ${multiplier.toStringAsFixed(1)}x. '
+              'Bir necha daqiqadan keyin arzonlashishi mumkin.',
+              style: const TextStyle(
+                fontSize: kFontLabel,
+                fontWeight: FontWeight.w600,
+                color: kWarningDeep,
+              ),
             ),
           ),
         ],
@@ -538,117 +961,161 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
     );
   }
 
-  Widget _buildPaymentRow() {
-    return Row(
-      children: [
-        _PaymentChip(
-          icon: Icons.payments_rounded,
-          label: 'Naqd',
-          selected: _paymentMethod == 'cash',
-          onTap: () => setState(() => _paymentMethod = 'cash'),
-        ),
-        const SizedBox(width: kSpace3),
-        _PaymentChip(
-          icon: Icons.credit_card_rounded,
-          label: 'Karta',
-          selected: _paymentMethod == 'card',
-          onTap: () => setState(() => _paymentMethod = 'card'),
-        ),
-      ],
-    );
-  }
-}
-
-class _TariffCardH extends StatelessWidget {
-  const _TariffCardH({
-    required this.tariff,
-    required this.isSelected,
-    required this.onTap,
-    this.price,
-  });
-
-  final Tariff tariff;
-  final bool isSelected;
-  final VoidCallback onTap;
-  final double? price;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      selected: isSelected,
-      enabled: tariff.isAvailable,
-      child: GestureDetector(
-        onTap: tariff.isAvailable ? onTap : null,
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          width: 112,
-          padding: const EdgeInsets.all(kSpace3),
-          decoration: BoxDecoration(
-            color: isSelected ? kMintTint : kSurface2,
-            borderRadius: BorderRadius.circular(kRadiusMd),
-            border: Border.all(
-              color: isSelected ? kPrimary : Colors.transparent,
-              width: 2,
+  /// Kutish haqi — YAGONA qator, ko'rsatilgan narxdan tashqarida.
+  ///
+  /// ⚠️ FAQAT MATN: qiymatlar tanlangan tarifdan o'qiladi
+  /// (`GET /tariffs` → `freeWaitMinutes`, `waitingPricePerMinute`), bu yerda
+  /// hech narsa hisoblanmaydi. Narxni ham, kutish haqini ham server
+  /// hisoblaydi — mobil tomonda takror hisob ikki xil raqam berardi.
+  ///
+  /// Ogohlantirish emas, IZOH ohangida: bu odatiy qoida, favqulodda hol
+  /// emas. Amber quti har buyurtmada chiqsa, u tez orada ko'rinmay qoladi
+  /// va haqiqiy ogohlantirishlarning (talab yuqori) kuchini ham yeydi.
+  Widget _buildWaitingNote(Tariff tariff) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: kSpace1),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Ikonka DEKORATIV — ma'no matnda. Rang kInkSubtle: qoida bo'yicha
+          // u faqat ikonka va chegara uchun.
+          const Padding(
+            padding: EdgeInsets.only(top: 1),
+            child: ExcludeSemantics(
+              child: Icon(Icons.timer_outlined, size: 15, color: kInkSubtle),
             ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // kMintTint yuza ustidagi ikona/matn — kPrimary.
-                  ExcludeSemantics(
-                    child: Icon(Icons.local_taxi_rounded,
-                        size: 26, color: isSelected ? kPrimary : kInk),
-                  ),
-                  // Surge badge MA'NO tashiydi (narx oshgani) — u hech qachon
-                  // qirqilmasligi kerak, shuning uchun ikona kichikroq.
-                  if (tariff.surgeMultiplier > 1.0)
-                    Flexible(child: _SurgeBadge(tariff.surgeMultiplier)),
-                ],
+          const SizedBox(width: kSpace2),
+          Expanded(
+            child: Text(
+              'Haydovchi kelgach ${tariff.freeWaitMinutes} daqiqa kutish '
+              'bepul, keyin har boshlangan daqiqa uchun '
+              '${Formatters.formatSom(tariff.waitingPricePerMinute)}. '
+              "Bu haq ko'rsatilgan narxdan alohida qo'shiladi.",
+              style: const TextStyle(
+                fontSize: kFontCaption,
+                fontWeight: FontWeight.w600,
+                // Yozuvda kInkMuted — kInkSubtle matn uchun juda och.
+                color: kInkMuted,
+                height: 1.35,
               ),
-              const Spacer(),
-              Text(
-                tariff.name,
-                style: const TextStyle(
-                  fontSize: kFontLabel,
-                  fontWeight: FontWeight.w700,
-                  color: kInk,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                price != null
-                    ? Formatters.formatPrice(price!)
-                    : '~${Formatters.formatPrice(tariff.minFare)}',
-                style: TextStyle(
-                  fontSize: kFontLabel,
-                  fontWeight: FontWeight.w800,
-                  color: isSelected ? kPrimary : kInk,
-                ),
-              ),
-              if (tariff.surgeMultiplier > 1.0) ...[
-                const SizedBox(height: 2),
-                const Text(
-                  'Talab yuqori',
-                  style: TextStyle(
-                    fontSize: kFontMicro,
-                    fontWeight: FontWeight.w700,
-                    // Yorug' fondagi amber MATN — kWarningDeep (5.02:1).
-                    color: kWarningDeep,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ],
+            ),
           ),
-        ),
+        ],
+      ),
+    );
+  }
+
+  /// To'lov usuli va safar vaqti — bitta ixcham chiplar qatorida.
+  ///
+  /// Bu blok `AgSurfaceCard` ga o'raladi: chiplar `kSurface2` fonli panel
+  /// ustida yolg'iz turganda "sochilib ketgan" ko'rinadi, oq karta esa
+  /// ularni bitta qaror guruhiga bog'laydi.
+  Widget _buildOptionsRow(OrderProvider provider) {
+    final scheduledAt = provider.scheduledAt;
+    final scheduleLabel = scheduledAt == null
+        ? 'Hozir'
+        : Formatters.formatScheduleLabel(scheduledAt);
+
+    return AgSurfaceCard(
+      padding: const EdgeInsets.symmetric(
+        horizontal: kSpace3,
+        vertical: kSpace2,
+      ),
+      // Qator gorizontal skrollga o'ralgan (`AgOptionChips` ichida) —
+      // uchinchi chip tor ekranda (360dp) toshib ketmasligi uchun.
+      child: AgOptionChips(
+        items: [
+          AgOptionChipItem(
+            id: _kOptionCash,
+            label: 'Naqd',
+            icon: Icons.payments_rounded,
+            active: _paymentMethod == _kOptionCash,
+          ),
+          AgOptionChipItem(
+            id: _kOptionCard,
+            label: 'Karta',
+            icon: Icons.credit_card_rounded,
+            active: _paymentMethod == _kOptionCard,
+          ),
+          AgOptionChipItem(
+            id: _kOptionSchedule,
+            label: scheduleLabel,
+            icon: Icons.schedule_rounded,
+            active: provider.isScheduledBooking,
+            // "14:30" yolg'iz o'zi nimani anglatishini aytmaydi.
+            semanticsLabel: 'Safar vaqti: $scheduleLabel',
+          ),
+        ],
+        onTap: (id) => _onOptionTap(id, provider),
+      ),
+    );
+  }
+
+  /// Chip bosilishi. MANTIQ o'zgarmaydi: `cash`/`card` — `_paymentMethod`
+  /// ning ayni o'sha qiymatlari (`_onConfirmOrder` shu satrni o'qiydi),
+  /// uchinchisi esa avvalgidek rejalashtirish sheetini ochadi.
+  void _onOptionTap(String id, OrderProvider provider) {
+    switch (id) {
+      case _kOptionCash:
+      case _kOptionCard:
+        setState(() => _paymentMethod = id);
+      case _kOptionSchedule:
+        _pickScheduleTime(provider);
+    }
+  }
+
+  Future<void> _pickScheduleTime(OrderProvider provider) async {
+    final picked = await ScheduleRideSheet.show(
+      context,
+      initialValue: provider.scheduledAt,
+    );
+    if (!mounted) return;
+    // `null` — foydalanuvchi "Hozir buyurtma qilaman" ni tanladi yoki
+    // sheetni yopdi. Ikkalasi ham rejalashtirishni bekor qiladi.
+    provider.setScheduledAt(picked);
+  }
+
+  /// Rejalashtirilgan safarda narx nima uchun o'zgarmasligini aytadi.
+  ///
+  /// Bu `_buildSurgeNotice` bilan bir xil falsafa: yo'lovchi narx haqidagi
+  /// qoidani OLDINDAN bilishi kerak, aks holda u kutilmagan narsa kutadi.
+  ///
+  /// ⚠️ VA'DA ANIQLASHTIRILDI. Ilgari bu yerda "narx qotiriladi va
+  /// o'zgarmaydi" deb yozilgan edi — endi bu to'liq rost emas: kutish haqi
+  /// qat'iy narx kafolatidan TASHQARIDA undiriladi
+  /// (`orders-completion.service.ts`). Matn o'zgartirilmasa, chekdagi
+  /// kutish qatori va'dani buzgandek ko'rinardi.
+  Widget _buildScheduleNotice() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: kSpace3),
+      padding: const EdgeInsets.symmetric(
+        horizontal: kSpace3,
+        vertical: kSpace3,
+      ),
+      decoration: BoxDecoration(
+        color: kInfoLight,
+        borderRadius: BorderRadius.circular(kRadiusMd),
+      ),
+      child: const Row(
+        children: [
+          ExcludeSemantics(
+            child: Icon(Icons.lock_clock_rounded, color: kInfoDeep, size: 20),
+          ),
+          SizedBox(width: kSpace3),
+          Expanded(
+            child: Text(
+              "Narx hozir qotiriladi va safar kunida o'zgarmaydi — "
+              'kutish haqi bundan tashqari. Haydovchi belgilangan vaqtdan '
+              '10 daqiqa oldin qidiriladi.',
+              style: TextStyle(
+                fontSize: kFontLabel,
+                fontWeight: FontWeight.w600,
+                color: kInfoDeep,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -684,65 +1151,36 @@ class _SurgeBadge extends StatelessWidget {
   }
 }
 
-class _PaymentChip extends StatelessWidget {
-  const _PaymentChip({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
+/// Kameraga qo'llangan moslash — chegara va chetlar birgalikda.
+///
+/// Ikkalasi BIRGA saqlanadi, chunki kamera ikkalasidan ham o'zgaradi:
+/// marshrut yangilanganda chegara, sheet o'sganda esa chetlar.
+@immutable
+class _CameraFit {
+  const _CameraFit({
+    required this.minLat,
+    required this.minLng,
+    required this.maxLat,
+    required this.maxLng,
+    required this.insets,
   });
 
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
+  final double minLat;
+  final double minLng;
+  final double maxLat;
+  final double maxLng;
+  final MapCameraInsets insets;
 
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: label,
-      excludeSemantics: true,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            minHeight: kMinTapTarget,
-            minWidth: kMinTapTarget,
-          ),
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: kSpace4, vertical: kSpace3),
-            decoration: BoxDecoration(
-              color: selected ? kMintTint : kSurface2,
-              borderRadius: BorderRadius.circular(kRadiusSm),
-              border: Border.all(
-                color: selected ? kPrimary : Colors.transparent,
-                width: 1.5,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 18, color: selected ? kPrimary : kInkMuted),
-                const SizedBox(width: kSpace2),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: kFontLabel,
-                    fontWeight: FontWeight.w600,
-                    color: selected ? kPrimary : kInk,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  /// Kamerani qayta qo'zg'atishga arziydigan farq bormi.
+  bool differsFrom(_CameraFit other) =>
+      (minLat - other.minLat).abs() > _kFitCoordEpsilon ||
+      (minLng - other.minLng).abs() > _kFitCoordEpsilon ||
+      (maxLat - other.maxLat).abs() > _kFitCoordEpsilon ||
+      (maxLng - other.maxLng).abs() > _kFitCoordEpsilon ||
+      (insets.left - other.insets.left).abs() > _kFitInsetEpsilon ||
+      (insets.top - other.insets.top).abs() > _kFitInsetEpsilon ||
+      (insets.right - other.insets.right).abs() > _kFitInsetEpsilon ||
+      (insets.bottom - other.insets.bottom).abs() > _kFitInsetEpsilon;
 }
 
 class _RouteLoadingPill extends StatelessWidget {
@@ -776,49 +1214,6 @@ class _RouteLoadingPill extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Xarita ustidagi dumaloq ikona-tugma — 48x48 tegish maydoni va matnli
-/// yorliq bilan.
-class _CircleButton extends StatelessWidget {
-  const _CircleButton({
-    required this.icon,
-    required this.onTap,
-    required this.semanticsLabel,
-  });
-
-  final IconData icon;
-  final VoidCallback onTap;
-  final String semanticsLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: semanticsLabel,
-      excludeSemantics: true,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            minHeight: kMinTapTarget,
-            minWidth: kMinTapTarget,
-          ),
-          child: Container(
-            width: kMinTapTarget,
-            height: kMinTapTarget,
-            decoration: BoxDecoration(
-              color: kSurface,
-              shape: BoxShape.circle,
-              boxShadow: kShadowPop,
-            ),
-            child: Icon(icon, color: kInk),
-          ),
-        ),
       ),
     );
   }

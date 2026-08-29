@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 52" width="120" height="52">
+  <title>Biznes tarifi — past va uzun sedan</title>
+  <!-- Umumiy shartnoma (car_econom.svg ga qarang): viewBox 0 0 120 52,
+       g'ildirak markazi y=37, radius 8.5 — to'rt mashina bitta yer
+       chizig'ida turishi uchun.
+       Biznesni ajratadigan narsa NARX yoki nishon emas, PROPORSIYA:
+       eng uzun kuzov (3..117) va eng past tom (y=10, tejamkorda 7.5).
+       Past va uzun siluet qimmatlik signali — buni rang bermaydi. -->
+
+  <path d="M3 34 L3 29 C3 25 5.5 22.5 9 22 L32 19.5 L47 10 L82 10
+           L95 20 L111 22.5 C115 23 117 26 117 30 L117 34 Q117 37 114 37
+           L104 37 A10 10 0 0 0 84 37 L38 37 A10 10 0 0 0 18 37
+           L6 37 Q3 37 3 34 Z"
+        fill="#084F32"/>
+
+  <!-- Oynalar old→orqa yorug'likdan to'qqa boradi: yassi siluetda
+       chuqurlikni faqat shu farq beradi, soya ishlatilmaydi. -->
+  <path d="M39 18.5 L48 12 L58 12 L58 18.5 Z" fill="#CFEDE0"/>
+  <path d="M61 12 L72 12 L72 18.5 L61 18.5 Z" fill="#9FE3C6"/>
+  <path d="M75 12 L81 12 L88 18.5 L75 18.5 Z" fill="#6FE4B8"/>
+
+  <rect x="4" y="25" width="6.5" height="4" rx="1.6" fill="#6FE4B8"/>
+  <rect x="110" y="26.5" width="5.5" height="3.5" rx="1.5" fill="#6FE4B8"/>
+
+  <circle cx="28" cy="37" r="8.5" fill="#0F1B22"/>
+  <circle cx="28" cy="37" r="3.4" fill="#E2EBEC"/>
+  <circle cx="94" cy="37" r="8.5" fill="#0F1B22"/>
+  <circle cx="94" cy="37" r="3.4" fill="#E2EBEC"/>
+</svg>

@@ -26,13 +26,39 @@ gradle.beforeProject { p ->
     }
 }
 
-rootProject.buildDir = layout.buildDirectory.dir("../build").get().asFile
+// ⚠️ `rootProject.file(...)` — `layout.buildDirectory.dir(...)` EMAS.
+//
+// `layout.buildDirectory` allaqachon `android/build` ni bildiradi, ya'ni
+// undan `../build` olish yana o'sha `android/build` ni beradi — ya'ni bu
+// qator hech narsa qilmasdi. Flutter asboblari esa APK'ni loyiha ildizidagi
+// `mobile/build/app/outputs/flutter-apk/` dan qidiradi va topa olmay
+// "Gradle build failed to produce an .apk file" deb tugatardi. Build o'zi
+// muvaffaqiyatli o'tib, natija boshqa papkada qolib ketardi.
+//
+// `rootProject.file()` yo'lni loyiha PAPKASIGA (`android/`) nisbatan
+// hisoblaydi, ya'ni `mobile/build` — Flutter kutgan joy.
+rootProject.buildDir = rootProject.file("../build")
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
 }
 subprojects {
     project.evaluationDependsOn(':app')
 }
+
+// MapLibre plagini androidx.core 1.16.0 ni tortadi, u esa AGP 8.6+ talab
+// qiladi — loyihada 8.3.0. AGP'ni ko'tarish butun qurilma zanjirini
+// (Gradle, Kotlin, google-services) qo'zg'atadi, shuning uchun kerakli
+// minimal yechim: androidx.core ni AGP 8.3 qo'llaydigan oxirgi versiyaga
+// qadab qo'yamiz. MapLibre unda yo'q API ishlatmaydi.
+subprojects {
+    configurations.configureEach {
+        resolutionStrategy {
+            force "androidx.core:core:1.13.1"
+            force "androidx.core:core-ktx:1.13.1"
+        }
+    }
+}
+
 
 tasks.register("clean", Delete) {
     delete rootProject.buildDir

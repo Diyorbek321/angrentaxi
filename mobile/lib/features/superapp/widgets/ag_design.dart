@@ -1,3 +1,4 @@
+import 'package:angren_taxi/core/config/app_haptics.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:flutter/material.dart';
 
@@ -136,7 +137,12 @@ class _AgPrimaryButtonState extends State<AgPrimaryButton> {
       excludeSemantics: true,
       child: GestureDetector(
         onTap: enabled ? widget.onPressed : null,
-        onTapDown: enabled ? (_) => setState(() => _pressed = true) : null,
+        onTapDown: enabled
+            ? (_) {
+                AppHaptics.tap();
+                setState(() => _pressed = true);
+              }
+            : null,
         onTapUp: enabled ? (_) => setState(() => _pressed = false) : null,
         onTapCancel: enabled ? () => setState(() => _pressed = false) : null,
         child: AnimatedContainer(
@@ -301,7 +307,10 @@ class AgIconButton extends StatelessWidget {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: onTap,
+            onTap: () {
+              AppHaptics.tap();
+              onTap();
+            },
             borderRadius: BorderRadius.circular(kRadiusSm),
             child: Center(
               child: Stack(
@@ -372,7 +381,10 @@ class AgCartBar extends StatelessWidget {
       label: 'Savat: $count ta mahsulot, $trailing. $label',
       excludeSemantics: true,
       child: GestureDetector(
-        onTap: onTap,
+        onTap: () {
+          AppHaptics.impact();
+          onTap();
+        },
         child: Container(
           height: kControlHeight,
           padding: const EdgeInsets.symmetric(horizontal: kSpace5),

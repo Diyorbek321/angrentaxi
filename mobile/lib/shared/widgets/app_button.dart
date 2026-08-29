@@ -1,3 +1,5 @@
+import 'package:angren_taxi/core/config/app_haptics.dart';
+import 'package:angren_taxi/core/config/app_platform.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:flutter/material.dart';
 
@@ -59,7 +61,14 @@ class AppButton extends StatelessWidget {
         width: double.infinity,
         height: height < kMinTapTarget ? kMinTapTarget : height,
         child: ElevatedButton(
-          onPressed: enabled ? onPressed : null,
+          // Haptika harakatdan OLDIN — foydalanuvchi bosgani tasdiqlanadi,
+          // natija kutilmasdan.
+          onPressed: enabled
+              ? () {
+                  AppHaptics.tap();
+                  onPressed!();
+                }
+              : null,
           style: ElevatedButton.styleFrom(
             backgroundColor: effectiveBg,
             foregroundColor: effectiveFg,
@@ -72,37 +81,49 @@ class AppButton extends StatelessWidget {
           ).copyWith(
             // Bosilgan holat: fon to'qlashadi, matn oq qoladi.
             backgroundColor: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.disabled)) return kPrimaryDisabled;
+              if (states.contains(WidgetState.disabled)) {
+                return kPrimaryDisabled;
+              }
               if (states.contains(WidgetState.pressed)) {
                 return backgroundColor == null ? kPrimaryPressed : effectiveBg;
               }
               return effectiveBg;
             }),
           ),
-          child: isLoading
-              ? SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    valueColor: AlwaysStoppedAnimation<Color>(effectiveFg),
-                  ),
-                )
-              : Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (icon != null) ...[icon!, const SizedBox(width: kSpace2)],
-                    Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: kFontTitle,
-                        fontWeight: FontWeight.w700,
-                        color: effectiveFg,
+          // Yuklanish holati matn bilan almashganda "sakrash" bo'lmasligi
+          // uchun `AnimatedSwitcher` — ikkalasi ham bir xil balandlikda.
+          child: AnimatedSwitcher(
+            duration: kDurationFast,
+            child: isLoading
+                ? AdaptiveProgress(
+                    key: const ValueKey('loading'),
+                    size: 22,
+                    color: effectiveFg,
+                  )
+                : Row(
+                    key: const ValueKey('label'),
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (icon != null) ...[
+                        icon!,
+                        const SizedBox(width: kSpace2),
+                      ],
+                      Flexible(
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: kFontTitle,
+                            fontWeight: FontWeight.w700,
+                            color: effectiveFg,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+          ),
         ),
       ),
     );
@@ -149,7 +170,12 @@ class AppOutlinedButton extends StatelessWidget {
         width: double.infinity,
         height: height < kMinTapTarget ? kMinTapTarget : height,
         child: OutlinedButton(
-          onPressed: enabled ? onPressed : null,
+          onPressed: enabled
+              ? () {
+                  AppHaptics.tap();
+                  onPressed!();
+                }
+              : null,
           style: OutlinedButton.styleFrom(
             foregroundColor: effectiveText,
             side: BorderSide(color: effectiveBorder, width: 1.5),
@@ -164,19 +190,15 @@ class AppOutlinedButton extends StatelessWidget {
             }),
           ),
           child: isLoading
-              ? SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    valueColor: AlwaysStoppedAnimation<Color>(effectiveText),
-                  ),
-                )
+              ? AdaptiveProgress(size: 22, color: effectiveText)
               : Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (icon != null) ...[icon!, const SizedBox(width: kSpace2)],
+                    if (icon != null) ...[
+                      icon!,
+                      const SizedBox(width: kSpace2)
+                    ],
                     Text(
                       label,
                       style: TextStyle(

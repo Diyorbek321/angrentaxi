@@ -24,6 +24,18 @@ export enum TransactionStatus {
   REFUNDED = 'refunded',
 }
 
+/**
+ * `externalId` qiymati — chaqim (tips) daftar qatorlarini belgilaydi.
+ *
+ * NEGA KONSTANTA: chaqim yo'lovchining hamyonidan AYNI SHU buyurtma uchun
+ * ikkinchi DEBIT qatorini yozadi va u yo'l haqidan KEYIN yaratiladi. Buyurtma
+ * bo'yicha "eng oxirgi DEBIT" ni izlaydigan har bir joy (chek, karta
+ * callback'i) endi yo'l haqi o'rniga chaqimni topib olardi. Belgi bitta
+ * joyda turishi shart — aks holda satrni bir joyda o'zgartirib, filtrlarni
+ * jimgina buzib qo'yish mumkin.
+ */
+export const TIP_LEDGER_TAG = 'tip';
+
 // Read-path indexes.
 // - user_id + created_at: PaymentsService.getTransactionHistory (paginated,
 //   newest-first) and computeBalance / the referral bonus SUM, which both

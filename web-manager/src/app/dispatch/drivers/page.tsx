@@ -428,15 +428,20 @@ export default function DriverRosterPage() {
         {financeTarget && (
           <div className="space-y-5">
             <div className="rounded-xl border border-line bg-surface-2/60 p-4 text-center">
-              <p className="text-xs text-muted">Joriy balans</p>
+              {/* Daftardan hisoblangan qoldiq — haydovchi o'z ilovasida
+                  AYNAN shu raqamni ko'radi. `balance` ustuni yechib olingan
+                  pulni hisobga olmagani uchun bu yerda ishlatilmaydi. */}
+              <p className="text-xs text-muted">
+                {(financeTarget.walletBalance ?? 0) < 0 ? 'Qarz' : 'Hamyon'}
+              </p>
               <p
                 className={`font-mono text-xl font-bold mt-1 ${
-                  (financeTarget.balance ?? 0) < 0
+                  (financeTarget.walletBalance ?? 0) < 0
                     ? 'text-danger'
                     : 'text-primary-700 dark:text-primary-300'
                 }`}
               >
-                {formatMoney(financeTarget.balance ?? 0)}
+                {formatMoney(financeTarget.walletBalance ?? 0)}
               </p>
             </div>
 

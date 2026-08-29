@@ -264,9 +264,14 @@ String extractErrorMessage(dynamic error) {
   if (error is DioException) {
     final data = error.response?.data;
     if (data is Map<String, dynamic>) {
-      return (data['message'] as String?) ??
-          (data['error'] as String?) ??
-          'Xatolik yuz berdi';
+      // ⚠️ `message` HAR DOIM satr emas: NestJS'ning `ValidationPipe`
+      // xatolari massiv bo'lib keladi (`["pickupLat must be a number"]`).
+      // Ilgari bu yerda to'g'ridan-to'g'ri `as String?` turardi va massiv
+      // kelganda funksiyaning O'ZI `TypeError` bilan yiqilardi — ya'ni
+      // serverning aniq xabari o'rniga foydalanuvchi umuman hech narsa
+      // ko'rmasdi.
+      final message = _messageText(data['message']) ?? _messageText(data['error']);
+      return message ?? 'Xatolik yuz berdi';
     }
     if (error.type == DioExceptionType.connectionTimeout ||
         error.type == DioExceptionType.receiveTimeout) {
@@ -277,4 +282,37 @@ String extractErrorMessage(dynamic error) {
     }
   }
   return 'Noma\'lum xatolik yuz berdi';
+}
+
+/// NestJS xato javobidagi `message` / `error` maydonini bitta ko'rsatiladigan
+/// qatorga o'giradi (hech narsa chiqmasa `null`).
+///
+/// ⚠️ NEGA alohida funksiya kerak: bu maydon UCH xil ko'rinishda keladi —
+///
+///   · sof satr — biznes qoidasi buzilganda, masalan qamrov darvozasi:
+///     `{"message": "Bu hududda hozircha xizmat ko'rsatilmaymiz"}`;
+///   · satrlar massivi — `ValidationPipe`:
+///     `{"message": ["pickupLat must be a number"]}`;
+///   · umuman yo'q — proksi yoki shlyuz qaytargan javobda.
+///
+/// Ilgari bu yerda to'g'ridan-to'g'ri `as String?` turardi: massiv kelganda
+/// `extractErrorMessage` ning O'ZI `TypeError` bilan yiqilardi va
+/// foydalanuvchi serverning aniq sababi o'rniga umuman hech narsa
+/// ko'rmasdi. Endi eng yomon holatda ham `null` qaytadi, chaqiruvchi esa
+/// umumiy matnga o'tadi.
+String? _messageText(dynamic value) {
+  if (value is String) {
+    final text = value.trim();
+    return text.isEmpty ? null : text;
+  }
+  if (value is List) {
+    // Bir nechta validatsiya xatosi bitta jumlaga birlashtiriladi —
+    // foydalanuvchi ro'yxatni emas, gapni o'qiydi.
+    final parts = value
+        .map((e) => e?.toString().trim() ?? '')
+        .where((e) => e.isNotEmpty)
+        .toList();
+    return parts.isEmpty ? null : parts.join('. ');
+  }
+  return null;
 }

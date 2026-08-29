@@ -36,7 +36,11 @@ export class ClickProvider implements IPaymentProvider {
   async initiate(
     amount: number,
     orderId: string,
-    phone: string,
+    // Click hosted checkout to'lovchining raqamini so'ramaydi — u
+    // sahifada o'zi kiritiladi. Parametr `IPaymentProvider` shartnomasi
+    // uchun turibdi (Payme uni ISHLATADI), shuning uchun olib tashlab
+    // bo'lmaydi; ostki chiziq "ataylab ishlatilmayapti" degani.
+    _phone: string,
   ): Promise<PaymentInitiateResult> {
     const params = new URLSearchParams({
       service_id: this.serviceId,

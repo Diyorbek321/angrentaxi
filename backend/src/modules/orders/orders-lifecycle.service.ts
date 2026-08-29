@@ -14,6 +14,7 @@ import { UsersService } from '../users/users.service';
 import { DriversService } from '../drivers/drivers.service';
 import { OrdersQueryService } from './orders-query.service';
 import { OrderStatusTransitionService } from './order-status-transition.service';
+import { waitingSettingsOf } from '../tariffs/waiting-charge';
 
 @Injectable()
 export class OrdersLifecycleService {
@@ -127,18 +128,53 @@ export class OrdersLifecycleService {
       );
     }
 
-    await this.statusTransition.updateOrderStatusAtomic(orderId, OrderStatus.ACCEPTED, {
-      status: OrderStatus.ARRIVED,
-    });
+    // ⚠️ KUTISH HISOBI SHU YERDA BOSHLANADI. `arrived_at` — pul undiriladigan
+    // maydon (`orders-completion.service.ts` uni safar boshlanishigacha
+    // bo'lgan kutish haqiga aylantiradi), shuning uchun uni yozish
+    // qoidalari status o'zgarishidan qat'iyroq.
+    //
+    // ⚠️ IDEMPOTENT — `COALESCE("arrived_at", :arrivedAt)`: qiymat FAQAT
+    // bo'sh bo'lganda yoziladi. Aks holda haydovchi "Yetib keldim" tugmasini
+    // qayta bosib kutish hisobini nolga tushira olardi, ya'ni yo'lovchi
+    // qancha kutdirgani ahamiyatsiz bo'lib qolardi. Status qo'riqchisi
+    // (`status IN ('accepted')`) ham takroriy chaqiruvni to'sadi; COALESCE
+    // esa qoidani MA'LUMOTLAR BAZASI darajasida saqlaydi va kelajakda status
+    // sharti yumshatilsa ham buzilmaydi.
+    //
+    // Vaqt JS'dan olinadi, SQL `NOW()` dan emas: kutish daqiqalari shu
+    // maydon bilan `trips.start_time` orasidagi FARQ, va u ham JS `Date`
+    // sifatida yoziladi. Ikkalasi bitta soatdan chiqishi shart — aks holda
+    // baza va Node vaqt mintaqasi farq qilganda kutish soatlab noto'g'ri
+    // hisoblanardi.
+    const arrivedAt = new Date();
+
+    await this.statusTransition.updateOrderStatusAtomic(
+      orderId,
+      OrderStatus.ACCEPTED,
+      {
+        status: OrderStatus.ARRIVED,
+        arrivedAt: () => 'COALESCE("arrived_at", :arrivedAt)',
+      },
+      { arrivedAt },
+    );
 
     const updatedOrder = await this.queryService.findByIdOrThrow(orderId);
+    const waiting = waitingSettingsOf(updatedOrder.tariff ?? {});
 
     // Notify passenger
     const passenger = await this.usersService.findById(order.passengerId);
 
     if (passenger) {
+      // ⚠️ PAKETDA KUTISH SHARTNOMASI TO'LIQ UZATILADI. Yo'lovchi ilovasi
+      // hisoblagichni O'Z soatidan emas, shu uch maydondan yuritadi —
+      // aks holda haydovchi va yo'lovchi har xil raqam ko'radi va bu aynan
+      // tuzatilayotgan nuqson edi. `arrivedAt` serverdan kelgani uchun
+      // ilova qayta ishga tushsa ham hisob nolga qaytmaydi.
       this.realtimeGateway.emitToUser(order.passengerId, 'order:arrived', {
         orderId,
+        arrivedAt: updatedOrder.arrivedAt,
+        freeWaitMinutes: waiting.freeWaitMinutes,
+        waitingPricePerMinute: waiting.waitingPricePerMinute,
         message: 'Your driver has arrived',
       });
 

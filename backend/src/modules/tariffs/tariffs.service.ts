@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { FareBreakdown } from './fare-breakdown';
 import { Tariff } from '../../database/entities/tariff.entity';
 import { CreateTariffDto } from './dto/create-tariff.dto';
 import { UpdateTariffDto } from './dto/update-tariff.dto';
@@ -77,19 +78,91 @@ export class TariffsService {
     return this.tariffRepository.save(updated);
   }
 
+  /**
+   * [zoneSurge], when given, is the live demand-based multiplier for the pickup
+   * area (see SurgeService). It does not replace the tariff's own
+   * `surgeMultiplier` — the higher of the two wins, so an admin who sets a
+   * manual multiplier for a holiday keeps it as a floor while the automatic
+   * one can still react to a rush hour above it.
+   */
   calculatePrice(
     tariff: Tariff,
     distanceKm: number,
     durationMin: number,
+    zoneSurge?: number,
   ): number {
-    const baseTotal =
-      tariff.basePrice +
-      distanceKm * tariff.pricePerKm +
-      durationMin * tariff.pricePerMin;
+    return this.calculatePriceBreakdown(
+      tariff,
+      distanceKm,
+      durationMin,
+      zoneSurge,
+    ).total;
+  }
 
-    const raw = Math.max(tariff.minPrice, baseTotal) * (tariff.surgeMultiplier ?? 1.0);
+  /**
+   * Narxni qatorlarga ajratib hisoblaydi — chek uchun.
+   *
+   * `calculatePrice` shu metodning ustidagi yupqa qobiq. Ular ATAYLAB bitta
+   * hisob-kitobdan chiqadi: ikkita alohida formula yozilsa, ular vaqt o'tishi
+   * bilan ajralib ketadi va chekdagi summa undirilgan summadan farq qila
+   * boshlaydi — bu esa eng yomon xato turi, chunki u jimgina yuzaga keladi.
+   *
+   * Qatorlar tartibi hisob-kitob tartibini aks ettiradi:
+   *   asos + masofa + vaqt  →  eng kam haq  →  koeffitsient  →  yuqori chegara
+   *
+   * ⚠️ KUTISH HAQI BU YERDA HISOBLANMAYDI va ataylab shunday. Kutish safar
+   * BOSHLANISHIDAN oldingi vaqtga bog'liq (`orders.arrived_at` → safar
+   * boshlanishi), ya'ni narx baholanayotgan lahzada u hali mavjud emas.
+   * U safar yakunlanganda, `withWaitingFare` orqali BITTA joyda qo'shiladi
+   * (`orders-completion.service.ts`) — shu sababli qat'iy narxli va
+   * hisoblagichli safarlar kutish uchun AYNAN bir xil qoidadan o'tadi.
+   */
+  calculatePriceBreakdown(
+    tariff: Tariff,
+    distanceKm: number,
+    durationMin: number,
+    zoneSurge?: number,
+  ): FareBreakdown {
+    const baseFare = tariff.basePrice;
+    const distanceFare = distanceKm * tariff.pricePerKm;
+    const timeFare = durationMin * tariff.pricePerMin;
+    const subtotal = baseFare + distanceFare + timeFare;
 
-    return tariff.maxPrice != null ? Math.min(raw, tariff.maxPrice) : raw;
+    // Eng kam haq — `Math.max(minPrice, subtotal)` ning qator ko'rinishi.
+    const minPriceAdjustment = Math.max(0, tariff.minPrice - subtotal);
+    const afterMin = subtotal + minPriceAdjustment;
+
+    const surgeMultiplier = Math.max(
+      tariff.surgeMultiplier ?? 1.0,
+      zoneSurge ?? 1.0,
+    );
+    const surgeFare = afterMin * (surgeMultiplier - 1);
+    const afterSurge = afterMin + surgeFare;
+
+    // Yuqori chegara har doim MANFIY (yoki 0) — shunda u jamiga
+    // to'g'ridan-to'g'ri qo'shiladi va invariant saqlanadi.
+    const maxPriceCap =
+      tariff.maxPrice != null ? Math.min(0, tariff.maxPrice - afterSurge) : 0;
+
+    return {
+      baseFare,
+      distanceKm,
+      pricePerKm: tariff.pricePerKm,
+      distanceFare,
+      durationMin,
+      pricePerMin: tariff.pricePerMin,
+      timeFare,
+      minPriceAdjustment,
+      surgeMultiplier,
+      surgeFare,
+      maxPriceCap,
+      // Baholash lahzasida kutish yo'q — qatorlar mavjud, lekin nol.
+      // Ular tarkibda HAR DOIM bo'lishi shart: mobil ilova maydon bor-yo'qligini
+      // tekshirmasdan o'qiy olsin (eski jsonb qatorlaridan farqli o'laroq).
+      waitingMinutes: 0,
+      waitingFare: 0,
+      total: afterSurge + maxPriceCap,
+    };
   }
 
   async setSurgeMultiplier(id: string, multiplier: number): Promise<Tariff> {
@@ -111,8 +184,9 @@ export class TariffsService {
     tariffId: string,
     distanceKm: number,
     durationMin: number,
+    zoneSurge?: number,
   ): Promise<number> {
     const tariff = await this.findById(tariffId);
-    return this.calculatePrice(tariff, distanceKm, durationMin);
+    return this.calculatePrice(tariff, distanceKm, durationMin, zoneSurge);
   }
 }

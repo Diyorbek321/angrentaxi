@@ -221,11 +221,16 @@ export default function DriverDetailPage() {
                     {driver.carNumber}
                   </span>
                 </div>
-                {driver.balance !== undefined && (
+                {/* Manba — DAFTAR (`walletBalance`), `balance` ustuni EMAS.
+                    Ustun yechib olingan pulni hisobga olmaydi, ya'ni operator
+                    haydovchi ko'rayotgan raqamdan boshqasini ko'rardi. */}
+                {driver.walletBalance !== undefined && (
                   <div className="rounded-ds-md bg-surface-2 p-3 text-center">
-                    <p className="text-caption text-subtle">Balans</p>
-                    <p className={`text-h3 font-bold ${driver.balance < 0 ? 'text-danger-deep dark:text-danger-light' : 'text-ink'}`}>
-                      {formatCurrency(driver.balance)}
+                    <p className="text-caption text-subtle">
+                      {driver.walletBalance < 0 ? 'Qarz' : 'Hamyon'}
+                    </p>
+                    <p className={`text-h3 font-bold ${driver.walletBalance < 0 ? 'text-danger-deep dark:text-danger-light' : 'text-ink'}`}>
+                      {formatCurrency(driver.walletBalance)}
                     </p>
                   </div>
                 )}
@@ -297,7 +302,7 @@ export default function DriverDetailPage() {
               {[
                 { label: 'Jami safarlar', value: driver.totalTrips.toString() },
                 { label: 'Reyting', value: formatRating(driver.rating) },
-                { label: 'Balans', value: formatCurrency(driver.balance ?? 0) },
+                { label: 'Hamyon', value: formatCurrency(driver.walletBalance ?? 0) },
               ].map((stat) => (
                 <Card key={stat.label}>
                   <CardContent className="p-4 text-center">

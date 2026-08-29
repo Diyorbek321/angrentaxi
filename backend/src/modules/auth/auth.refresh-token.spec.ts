@@ -50,7 +50,7 @@ describe('AuthService refresh token rotation', () => {
       ip: '127.0.0.1',
       createdAt: new Date(),
       ...overrides,
-    }) as RefreshToken;
+    });
 
   beforeEach(async () => {
     signCounter = 0;

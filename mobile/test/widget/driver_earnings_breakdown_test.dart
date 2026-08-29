@@ -10,6 +10,9 @@ import 'package:angren_taxi/core/storage/local_storage.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/driver/screens/earnings_screen.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
+// Davr tanlash endi `AgOptionChips` — chip kalitlari `agOptionChipKey(id)`
+// dan keladi (ilgari ekranga yozilgan `ValueKey('earnings_period_*')` edi).
+import 'package:angren_taxi/shared/widgets/ag_option_chips.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -67,6 +70,16 @@ void main() {
       (_) async => _jsonResponse(ApiEndpoints.driverOrderHistory, {
         'success': true,
         'data': {'orders': <dynamic>[]},
+      }),
+    );
+
+    // EarningsScreen'ning initState'i hamyon qoldig'ini ham so'raydi. Bu
+    // fayl daromad taqsimotiga tegishli, shuning uchun stub minimal —
+    // stubsiz mock xatosi test logini bekorga to'ldirardi.
+    when(() => mockApiClient.get(ApiEndpoints.paymentsWallet)).thenAnswer(
+      (_) async => _jsonResponse(ApiEndpoints.paymentsWallet, {
+        'success': true,
+        'data': {'userId': 'user-1', 'balance': 0},
       }),
     );
 
@@ -136,9 +149,9 @@ void main() {
       (tester) async {
     await pumpEarningsScreen(tester);
 
-    expect(find.byKey(const ValueKey('earnings_period_today')), findsOneWidget);
-    expect(find.byKey(const ValueKey('earnings_period_week')), findsOneWidget);
-    expect(find.byKey(const ValueKey('earnings_period_month')), findsOneWidget);
+    expect(find.byKey(agOptionChipKey('today')), findsOneWidget);
+    expect(find.byKey(agOptionChipKey('week')), findsOneWidget);
+    expect(find.byKey(agOptionChipKey('month')), findsOneWidget);
 
     expect(
       (tester.widget(find.byKey(const ValueKey('earnings_gross_value'))) as Text)
@@ -166,7 +179,7 @@ void main() {
   testWidgets('tapping "Hafta" switches to the week breakdown', (tester) async {
     await pumpEarningsScreen(tester);
 
-    await tester.tap(find.byKey(const ValueKey('earnings_period_week')));
+    await tester.tap(find.byKey(agOptionChipKey('week')));
     await pumpUntilQuiet(tester, times: 3);
 
     expect(
@@ -184,7 +197,7 @@ void main() {
   testWidgets('tapping "Oy" switches to the month breakdown', (tester) async {
     await pumpEarningsScreen(tester);
 
-    await tester.tap(find.byKey(const ValueKey('earnings_period_month')));
+    await tester.tap(find.byKey(agOptionChipKey('month')));
     await pumpUntilQuiet(tester, times: 3);
 
     expect(

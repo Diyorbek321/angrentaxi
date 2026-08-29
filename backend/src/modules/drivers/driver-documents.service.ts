@@ -1,5 +1,3 @@
-import * as fs from 'fs';
-import * as path from 'path';
 import {
   BadRequestException,
   ForbiddenException,
@@ -16,52 +14,28 @@ import {
 import { UserRole } from '../../database/entities/user.entity';
 import { DriversService } from './drivers.service';
 import { ReviewDriverDocumentDto } from './dto/review-driver-document.dto';
+import {
+  DRIVER_UPLOAD_DIR,
+  DRIVER_UPLOAD_URL_PREFIX,
+  DriverUploadFile,
+  UploadedDiskFile,
+  readDriverUploadFile,
+} from './driver-uploads';
 
-// PRODUCTION TODO: local disk does not survive redeploys/scale-out on most
-// hosts (e.g. Railway). Move to S3 (or another object store) behind this same
-// service interface before launch; only this directory + the fileUrl
-// construction and the download resolver below would change.
-export const DRIVER_DOCUMENTS_UPLOAD_DIR = path.resolve(
-  process.cwd(),
-  'uploads',
-  'driver-documents',
-);
+// Yuklash katalogi, MIME ro'yxati va yo'l tiklash mantig'i `driver-uploads.ts`
+// da — davriy tekshiruv fotolari ham AYNAN o'sha qoidalardan foydalanadi.
+// Bu yerdagi nomlar mavjud import'lar (test va kontroller) buzilmasligi uchun
+// qayta eksport qilinadi.
+export const DRIVER_DOCUMENTS_UPLOAD_DIR = DRIVER_UPLOAD_DIR;
 
-// Public path prefix recorded in DriverDocument.fileUrl. Kept as-is so existing
-// rows stay valid — the value is treated as an opaque record, never as a path
-// to read from (see resolveStoredFilePath).
-const DRIVER_DOCUMENTS_URL_PREFIX = '/uploads/driver-documents';
+/** KYC fayli — ruxsat berilgan chaqiruvchiga oqim bilan qaytariladi. */
+export type DriverDocumentFile = DriverUploadFile;
 
-const EXTENSION_MIME_TYPES: Record<string, string> = {
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.png': 'image/png',
-  '.webp': 'image/webp',
-  '.pdf': 'application/pdf',
-};
-
-const FALLBACK_MIME_TYPE = 'application/octet-stream';
-
-// A KYC file resolved for streaming back to an authorized caller.
-export interface DriverDocumentFile {
-  absolutePath: string;
-  filename: string;
-  mimeType: string;
-}
+export type { UploadedDiskFile };
 
 export interface DocumentRequester {
   id: string;
   role: UserRole;
-}
-
-// File on disk as handed to us by Multer's diskStorage engine. Kept minimal
-// (rather than depending on @types/multer's fuller Express.Multer.File) so the
-// service stays decoupled from the HTTP/multipart layer.
-export interface UploadedDiskFile {
-  filename: string;
-  path: string;
-  mimetype: string;
-  size: number;
 }
 
 const VALID_DOCUMENT_TYPES = Object.values(DriverDocumentType) as string[];
@@ -95,7 +69,7 @@ export class DriverDocumentsService {
     // licence scans, so they are only served through the authorized
     // GET /drivers/documents/:id/file endpoint. Kept in this shape so existing
     // rows keep working without a data migration.
-    const fileUrl = `${DRIVER_DOCUMENTS_URL_PREFIX}/${file.filename}`;
+    const fileUrl = `${DRIVER_UPLOAD_URL_PREFIX}/${file.filename}`;
 
     return this.documentRepository.save({
       driverId: driver.id,
@@ -132,18 +106,12 @@ export class DriverDocumentsService {
 
     await this.assertCanReadDocument(document, requester);
 
-    const absolutePath = this.resolveStoredFilePath(document.fileUrl);
-    if (!absolutePath || !fs.existsSync(absolutePath)) {
+    const file = readDriverUploadFile(document.fileUrl);
+    if (!file) {
       throw new NotFoundException(`File for driver document "${documentId}" is missing`);
     }
 
-    const filename = path.basename(absolutePath);
-    return {
-      absolutePath,
-      filename,
-      mimeType:
-        EXTENSION_MIME_TYPES[path.extname(filename).toLowerCase()] ?? FALLBACK_MIME_TYPE,
-    };
+    return file;
   }
 
   private async assertCanReadDocument(
@@ -162,28 +130,6 @@ export class DriverDocumentsService {
     }
 
     throw new ForbiddenException('You may only access your own documents');
-  }
-
-  // Path-traversal guard. The DB value is never handed to path.join directly:
-  // only its basename is used, and the result must still land directly inside
-  // the upload directory. So "../../etc/passwd" or an absolute path stored in
-  // fileUrl cannot escape.
-  private resolveStoredFilePath(fileUrl: string | null | undefined): string | null {
-    if (!fileUrl) {
-      return null;
-    }
-
-    const filename = path.basename(fileUrl);
-    if (!filename || filename === '.' || filename === '..') {
-      return null;
-    }
-
-    const absolutePath = path.resolve(DRIVER_DOCUMENTS_UPLOAD_DIR, filename);
-    if (!absolutePath.startsWith(DRIVER_DOCUMENTS_UPLOAD_DIR + path.sep)) {
-      return null;
-    }
-
-    return absolutePath;
   }
 
   // Admin/manager review decision on an uploaded KYC document. 'pending' is

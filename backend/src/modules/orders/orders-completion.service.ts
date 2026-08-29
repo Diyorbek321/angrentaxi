@@ -23,10 +23,17 @@ import { PromoCodesService } from '../promo-codes/promo-codes.service';
 import { DriverBonusesService } from '../driver-bonuses/driver-bonuses.service';
 import { SettingsService } from '../settings/settings.service';
 import { OrdersQueryService } from './orders-query.service';
+import { OsrmService } from '../routing/osrm.service';
+import { RoutedDistancePricing } from './routed-distance-pricing';
 import {
-  computeWalletBalance,
+  computeSpendableBalance,
   lockWalletForUpdate,
 } from '../payments/wallet-balance.util';
+import {
+  computeWaitingMinutes,
+  waitingSettingsOf,
+  withWaitingFare,
+} from '../tariffs/waiting-charge';
 
 // Flat bonus (in so'm) credited to both a referred passenger and their
 // referrer the first time the referred passenger completes a trip. See the
@@ -54,6 +61,8 @@ export class OrdersCompletionService {
     private readonly driverBonusesService: DriverBonusesService,
     private readonly settingsService: SettingsService,
     private readonly queryService: OrdersQueryService,
+    private readonly osrmService: OsrmService,
+    private readonly routedDistancePricing: RoutedDistancePricing,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -133,13 +142,118 @@ export class OrdersCompletionService {
 
     actualDistanceKm = rawDistance != null ? parseFloat(String(rawDistance)) / 1000 : 0;
 
-    // Compute final price
+    // The measure above is a straight line between the ordered points, not the
+    // road. In a real street grid that under-reports the driven distance —
+    // the driver absorbs the difference on every ride.
+    //
+    // Routing the same points through OSRM gives what was actually driven.
+    // It is off by default because switching it on repricing every ride is a
+    // business decision, not a deployment detail: enable ROUTED_DISTANCE_PRICING
+    // once you have compared a few real trips both ways.
+    if (this.routedDistancePricing.enabled) {
+      const routed = await this.routedDistanceKm(orderId);
+      if (routed != null) {
+        this.logger.log(
+          `Order ${orderId}: routed distance ${routed.toFixed(2)} km ` +
+            `(straight-line was ${actualDistanceKm.toFixed(2)} km)`,
+        );
+        actualDistanceKm = routed;
+      }
+    }
+
+    // Yakuniy narx — endi qatorlarga ajratilgan holda, chunki chek uni
+    // jonli tarifdan qayta hisoblay olmaydi (tarif keyin o'zgarishi mumkin).
+    //
+    // ⚠️ `order.surgeMultiplier` ATAYLAB UZATILMAYDI — mavjud narx xulqi
+    // saqlanadi. Bu yerda ma'lum nomuvofiqlik bor: buyurtma yaratilganda
+    // baholash hudud koeffitsienti bilan hisoblanadi
+    // (`orders-creation.service.ts`), yakunda esa faqat tarifning o'z
+    // koeffitsienti qo'llanadi — ya'ni yo'lovchidan ko'rsatilganidan KAM
+    // undiriladi. Buni tuzatish narxni oshiradi, ya'ni BIZNES QARORI;
+    // shuning uchun u shu o'zgarish doirasida qilinmadi. Tuzatish kerak
+    // bo'lsa: quyidagi chaqiruvga to'rtinchi argument `order.surgeMultiplier`
+    // qo'shiladi va `tariffs.service.spec.ts` dagi kutilgan qiymatlar
+    // yangilanadi.
     const tariff = await this.tariffsService.findById(order.tariffId);
-    const finalPrice = this.tariffsService.calculatePrice(
-      tariff,
-      actualDistanceKm,
-      actualDurationMin,
+
+    // ⚠️ NARX QOIDASI — ikkita rejim, USTIGA har ikkalasiga qo'shiladigan
+    // kutish haqi:
+    //
+    // QAT'IY (`isFixedPrice`): yo'lovchi manzilni oldindan belgilagan, ya'ni
+    //   marshrut ma'lum bo'lgan. Buyurtma yaratilganda hisoblangan tarkib
+    //   (`order.fareBreakdown`) YO'L HAQI sifatida aynan undiriladi:
+    //   tirbandlik ham, uzunroq yo'l ham summani o'zgartirmaydi.
+    //
+    // HISOBLAGICH: manzil oldindan ma'lum emas yoki buyurtma yaratilganda
+    //   marshrutni hisoblab bo'lmagan (OSRM javob bermagan). Bunda haqiqiy
+    //   bosib o'tilgan masofa bo'yicha hisoblanadi.
+    //
+    // ⚠️ VA'DA O'ZGARDI — KUTISH KAFOLATDAN TASHQARIDA (biznes qarori).
+    // Ilgari bu yerda "qat'iy narxda `fareBreakdown.total` AYNAN undiriladi"
+    // deb yozilgan edi; endi undiriladigan summa `quote.total + waitingFare`.
+    // Sababi: qat'iy narx MARSHRUT noaniqligini yopadi — buni haydovchi
+    // boshqarmaydi. Kutish esa YO'LOVCHI boshqaradigan xarajat, va uni
+    // kafolat ichiga kiritish haydovchini yo'lovchining kechikishi uchun
+    // jazolardi. Amalda "narx belgilangan, kutish alohida" degan va'da
+    // bo'ladi — mobil ilovalardagi "Belgilangan narx" chipi ham shu
+    // ma'noni berishi SHART, aks holda va'da bilan chek farq qiladi.
+    //
+    // Eski buyurtmalarda `isFixedPrice = false` va `fareBreakdown = null` —
+    // ular hisoblagich yo'lidan o'tadi, ya'ni bugungi xulq saqlanadi.
+    const useQuote = order.isFixedPrice && order.fareBreakdown != null;
+
+    const rideFare = useQuote
+      ? order.fareBreakdown!
+      : this.tariffsService.calculatePriceBreakdown(
+          tariff,
+          actualDistanceKm,
+          actualDurationMin,
+        );
+
+    // ⚠️ KUTISH — IKKALA REJIM UCHUN BITTA JOYDA. Ataylab shunday: qoida
+    // ikki tarmoqqa ko'chirilsa, ular vaqt o'tishi bilan ajralib ketardi va
+    // bir xil kutgan ikki yo'lovchi har xil summa to'lardi.
+    //
+    // Oyna: `order.arrivedAt` → `trip.startTime`. Safar boshlangach kutish
+    // TUGAYDI — undan keyingi vaqt `timeFare` da alohida hisoblanadi, ya'ni
+    // ikki marta undirilmaydi.
+    //
+    // ⚠️ ESKI BUYURTMALAR: `arrivedAt` migratsiyadan oldin umuman yozilmagan
+    // (`null`), safar yozuvi yo'q bo'lsa `trip?.startTime` ham `null` —
+    // ikkalasida ham kutish 0 va hisob-kitob AVVALGIDEK qoladi.
+    const { freeWaitMinutes, waitingPricePerMinute } = waitingSettingsOf(tariff);
+    const waitingMinutes = computeWaitingMinutes(
+      order.arrivedAt,
+      trip?.startTime ?? null,
+      freeWaitMinutes,
     );
+
+    const fareBreakdown = withWaitingFare(
+      rideFare,
+      waitingMinutes,
+      waitingPricePerMinute,
+    );
+    const finalPrice = fareBreakdown.total;
+
+    if (useQuote) {
+      this.logger.log(
+        `Order ${orderId}: qat'iy narx qo'llandi (yo'l haqi ${rideFare.total}, ` +
+          `kutish ${fareBreakdown.waitingFare}, jami ${finalPrice}). ` +
+          `Haqiqiy masofa ${actualDistanceKm.toFixed(2)} km, ` +
+          `baholangan ${fareBreakdown.distanceKm.toFixed(2)} km.`,
+      );
+    }
+
+    if (waitingMinutes > 0) {
+      // Kutish haqi nizo chiqadigan qator — undirilgan har bir daqiqa
+      // jurnalda qoladi, aks holda "nega qo'shimcha pul yechildi?" savoliga
+      // javob beradigan hech narsa bo'lmasdi.
+      this.logger.log(
+        `Order ${orderId}: kutish ${waitingMinutes} daqiqa × ` +
+          `${waitingPricePerMinute} so'm = ${fareBreakdown.waitingFare} so'm ` +
+          `(bepul ${freeWaitMinutes} daqiqadan keyin).`,
+      );
+    }
 
     // Update trip
     if (trip) {
@@ -228,7 +342,11 @@ export class OrdersCompletionService {
         chargeStatus = TransactionStatus.COMPLETED;
       } else if (order.paymentMethod === PaymentMethod.WALLET) {
         await lockWalletForUpdate(manager, order.passengerId);
-        const balance = await computeWalletBalance(
+        // Sarflash uchun QIRQILGAN qoldiq: hamyon balansi endi ishorali
+        // bo'lishi mumkin (haydovchi qarzi), manfiy qiymatni to'g'ridan-
+        // to'g'ri narx bilan solishtirish esa qarzdor foydalanuvchini
+        // o'tkazib yuborishi mumkin edi.
+        const balance = await computeSpendableBalance(
           manager.getRepository(Transaction),
           order.passengerId,
         );
@@ -256,6 +374,11 @@ export class OrdersCompletionService {
         finalPrice: discountedFinalPrice,
         discountAmount: finalDiscountAmount || null,
         driverEarning: netDriverEarning,
+        // Chek ma'lumotlari AYNI SHU tranzaksiyada yoziladi: chek — pul
+        // harakatining qog'ozdagi aksi, ular ajralib qolsa chek yolg'on
+        // gapiradi.
+        fareBreakdown,
+        completedAt: now,
       });
 
       // Passenger charge.
@@ -269,26 +392,44 @@ export class OrdersCompletionService {
         externalId: null,
       });
 
-      // Driver payout: gross CREDIT for the fare, then a DEBIT for the
-      // platform's commission share — the ledger records both legs rather than
-      // only the net.
+      // Driver payout.
       //
-      // Both legs carry the passenger charge's status. A payout leg only
-      // becomes spendable (computeWalletBalance counts COMPLETED rows only)
-      // once the platform has actually collected the fare; until then it is a
-      // recorded, visible, but unwithdrawable entitlement.
-      // PaymentsService.settleOrderPayout flips them when the provider
-      // callback settles the charge.
+      // NAQD va NAQD BO'LMAGAN safar bu yerda TUB FARQ qiladi, chunki pulni
+      // kim ushlab turgani boshqa:
+      //
+      //  - Naqd: haydovchi summani yo'lovchidan QO'LIGA olgan, platforma unga
+      //    tegmagan. Demak platforma haydovchiga hech narsa qarz emas —
+      //    aksincha, haydovchi platformaga komissiya qarzdor. Daftarga FAQAT
+      //    komissiya DEBIT'i tushadi.
+      //
+      //  - Naqd bo'lmagan: pulni platforma ushlab turadi, ya'ni haydovchiga
+      //    sof to'lovni qarz. Daftar ikkala oyoqni ham yozadi (to'liq summa
+      //    CREDIT + komissiya DEBIT) va ikkalasi yo'lovchi to'lovi holatini
+      //    oladi — pul HAQIQATAN yig'ilmaguncha yechib bo'lmaydi.
+      //    `PaymentsService.settleOrderPayout` provayder javobi kelganda
+      //    ularni COMPLETED ga o'tkazadi.
+      //
+      // ⚠️ NEGA MUHIM: ilgari naqd safarda ham to'liq summa CREDIT bo'lib
+      // yozilardi va `chargeStatus` naqd uchun COMPLETED edi. Ya'ni
+      // haydovchining yechib olinadigan hamyoniga sof daromad tushardi —
+      // o'sha pul allaqachon uning cho'ntagida bo'la turib. Faqat naqd bilan
+      // ishlaydigan haydovchi shu yo'l bilan bir pulni ikki marta olishi
+      // mumkin edi: bir marta yo'lovchidan, ikkinchi marta platformadan
+      // yechib.
+      const platformHoldsFare = order.paymentMethod !== PaymentMethod.CASH;
+
       if (order.driverId && payoutDriver) {
-        await manager.save(Transaction, {
-          userId: order.driverId,
-          orderId,
-          amount: discountedFinalPrice,
-          type: TransactionType.CREDIT,
-          paymentMethod: order.paymentMethod,
-          status: chargeStatus,
-          externalId: null,
-        });
+        if (platformHoldsFare) {
+          await manager.save(Transaction, {
+            userId: order.driverId,
+            orderId,
+            amount: discountedFinalPrice,
+            type: TransactionType.CREDIT,
+            paymentMethod: order.paymentMethod,
+            status: chargeStatus,
+            externalId: null,
+          });
+        }
 
         if (commissionAmount > 0) {
           await manager.save(Transaction, {
@@ -429,5 +570,43 @@ export class OrdersCompletionService {
     );
 
     return updatedOrder;
+  }
+
+  /**
+   * Road distance (km) along pickup → waypoints → dropoff, or null when the
+   * router can't answer — in which case pricing keeps the straight-line
+   * measure rather than guessing.
+   */
+  private async routedDistanceKm(orderId: string): Promise<number | null> {
+    const rows: { lng: number; lat: number }[] = await this.orderRepository.query(
+      `SELECT ST_X(geom::geometry) AS lng, ST_Y(geom::geometry) AS lat
+         FROM (
+           SELECT 0 AS ord, pickup_location AS geom
+             FROM orders WHERE id = $1
+           UNION ALL
+           SELECT ordinality::int AS ord,
+                  ST_SetSRID(
+                    ST_MakePoint((w->>'lng')::float8, (w->>'lat')::float8),
+                    4326
+                  ) AS geom
+             FROM orders o,
+                  jsonb_array_elements(COALESCE(o.waypoints, '[]'::jsonb))
+                    WITH ORDINALITY AS t(w, ordinality)
+            WHERE o.id = $1
+           UNION ALL
+           SELECT 2147483647 AS ord, dropoff_location AS geom
+             FROM orders WHERE id = $1
+         ) path
+        ORDER BY ord`,
+      [orderId],
+    );
+
+    if (rows.length < 2) return null;
+
+    const meters = await this.osrmService.routeDistanceMeters(
+      rows.map((r) => [Number(r.lng), Number(r.lat)] as const),
+    );
+
+    return meters == null ? null : meters / 1000;
   }
 }

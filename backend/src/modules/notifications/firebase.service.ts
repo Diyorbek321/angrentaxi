@@ -29,7 +29,7 @@ export class FirebaseService implements OnModuleInit {
           }),
         });
       } else {
-        this.app = admin.apps[0] as admin.app.App;
+        this.app = admin.apps[0];
       }
 
       this.logger.log('Firebase Admin SDK initialized');

@@ -3,12 +3,15 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Interval } from '@nestjs/schedule';
 import Redis from 'ioredis';
-import { Order, OrderStatus } from '../../database/entities/order.entity';
+import { Order, OrderStatus, ServiceType } from '../../database/entities/order.entity';
+import { VehicleType } from '../../database/entities/tariff.entity';
 import { DriversService, NearbyDriver } from '../drivers/drivers.service';
+import { DriverCapabilityFilter } from '../drivers/driver-capabilities';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
 import { UsersService } from '../users/users.service';
 import { TariffsService } from '../tariffs/tariffs.service';
+import { OsrmService } from '../routing/osrm.service';
 import { REDIS_CLIENT } from '../../config/redis.config';
 
 interface DriverQueue {
@@ -30,6 +33,13 @@ interface DriverQueue {
   pickupLat: number;
   pickupLng: number;
   tariffTier: number;
+  // Buyurtmaning vertikali va tarif talab qiladigan transport turi. Navbat
+  // bilan birga saqlanadi, chunki qayta-qidiruv (researchDrivers) buyurtma
+  // qatorini qaytadan o'qimaydi — filtr faqat startSearch'da qo'llanilsa,
+  // birinchi partiya rad etganidan keyingi qidiruvda furgon buyurtmasi yana
+  // sedanlarga tarqalib ketardi.
+  serviceType: ServiceType;
+  vehicleType: VehicleType | null;
 }
 
 // Queue state used to live only in a process-local Map, with setTimeout +
@@ -68,9 +78,49 @@ export class MatchingService {
     private readonly notificationsService: NotificationsService,
     private readonly usersService: UsersService,
     private readonly tariffsService: TariffsService,
+    private readonly osrmService: OsrmService,
     @Inject(REDIS_CLIENT)
     private readonly redis: Redis,
   ) {}
+
+  /**
+   * Re-orders candidates by driving time to the pickup instead of straight-line
+   * distance.
+   *
+   * Redis GEORADIUS ranks by air distance, which misreads exactly the cases
+   * that annoy passengers most: a driver 400 m away across a river or on the
+   * far side of a one-way street outranks one 900 m away with a clear run.
+   *
+   * Falls back to the incoming (distance-ordered) list whenever the router is
+   * unavailable — dispatch must never block on routing.
+   */
+  private async rankByEta(
+    candidates: NearbyDriver[],
+    pickupLat: number,
+    pickupLng: number,
+  ): Promise<NearbyDriver[]> {
+    if (candidates.length < 2) return candidates;
+
+    const durations = await this.osrmService.durationsTo(
+      candidates.map((d) => [d.lng, d.lat] as const),
+      [pickupLng, pickupLat],
+    );
+
+    if (!durations) return candidates;
+
+    // A driver OSRM can't route to (unmapped street) keeps their distance
+    // ranking rather than being dropped — losing a real, available driver is
+    // worse than ordering them imperfectly.
+    const scored = candidates.map((driver, i) => ({
+      driver,
+      // Fallback score assumes a conservative 25 km/h city average.
+      seconds: durations[i] ?? (driver.distanceKm / 25) * 3600,
+    }));
+
+    return scored
+      .sort((a, b) => a.seconds - b.seconds)
+      .map((entry) => entry.driver);
+  }
 
   async startSearch(orderId: string): Promise<void> {
     const order = await this.orderRepository.findOne({ where: { id: orderId } });
@@ -107,8 +157,29 @@ export class MatchingService {
     // both default tier/approvedTariffTier to 1, so this is a no-op for them.
     const tariff = await this.tariffsService.findById(order.tariffId);
 
+    // Haydovchi imkoniyatlari bo'yicha filtr. Ilgari BUNDAY FILTR YO'Q EDI:
+    // yuk buyurtmasi 3 km ichidagi har qanday onlayn haydovchiga — sedan
+    // egasiga ham — tarqalar, ovqat/market yetkazishi esa hech kimga
+    // yo'naltirilmagan holda shu ro'yxatga tushardi.
+    //
+    // Talab qilinadigan transport turi TARIFDAN olinadi (`Tariff.vehicleType`),
+    // buyurtmaning erkin shakldagi `details` idan emas: narx aynan tarifdan
+    // hisoblangan, ya'ni haydovchi ham shu tarif talabiga mos kelishi kerak.
+    const capabilities: DriverCapabilityFilter = {
+      // Eski buyurtmalarda ustun default'i 'taxi', lekin zaxira baribir
+      // yozilgan: `undefined` filtrga tushsa, u "talab yo'q" deb o'qilardi.
+      serviceType: order.serviceType ?? ServiceType.TAXI,
+      vehicleType: tariff.vehicleType ?? null,
+    };
+
     // Find nearby drivers (3km radius)
-    const nearbyDrivers = await this.driversService.getNearbyDrivers(lat, lng, 3, tariff.tier);
+    const nearbyDrivers = await this.driversService.getNearbyDrivers(
+      lat,
+      lng,
+      3,
+      tariff.tier,
+      capabilities,
+    );
     const noDriverDeadline = Date.now() + this.NO_DRIVER_TIMEOUT_MS;
 
     const baseQueue: DriverQueue = {
@@ -122,6 +193,8 @@ export class MatchingService {
       pickupLat: lat,
       pickupLng: lng,
       tariffTier: tariff.tier,
+      serviceType: capabilities.serviceType ?? ServiceType.TAXI,
+      vehicleType: capabilities.vehicleType ?? null,
     };
 
     if (nearbyDrivers.length === 0) {
@@ -138,8 +211,9 @@ export class MatchingService {
 
     this.logger.log(`Found ${nearbyDrivers.length} nearby drivers for order ${orderId}`);
 
-    // Take nearest 3 drivers
-    const topDrivers = nearbyDrivers.slice(0, 3);
+    // Take the 3 drivers who can actually reach the pickup soonest.
+    const ranked = await this.rankByEta(nearbyDrivers, lat, lng);
+    const topDrivers = ranked.slice(0, 3);
 
     const queue: DriverQueue = { ...baseQueue, drivers: topDrivers };
 
@@ -253,6 +327,13 @@ export class MatchingService {
       queue.pickupLng,
       3,
       queue.tariffTier,
+      {
+        // ⚠️ `?? TAXI` — deploy paytida Redis'da qolgan ESKI navbatlar uchun.
+        // Ular bu maydonlarsiz yozilgan; `undefined` ni to'g'ridan-to'g'ri
+        // uzatsak, o'sha buyurtmalar filtrga tushmay hammaga tarqalardi.
+        serviceType: queue.serviceType ?? ServiceType.TAXI,
+        vehicleType: queue.vehicleType ?? null,
+      },
     );
 
     const fresh = candidates.filter(
@@ -267,7 +348,9 @@ export class MatchingService {
       `Re-search found ${fresh.length} new driver(s) for order ${queue.orderId}`,
     );
 
-    const nextBatch = fresh.slice(0, 3);
+    const nextBatch = (
+      await this.rankByEta(fresh, queue.pickupLat, queue.pickupLng)
+    ).slice(0, 3);
     const refreshed: DriverQueue = {
       ...queue,
       drivers: nextBatch,
@@ -335,6 +418,20 @@ export class MatchingService {
       paymentMethod: order.paymentMethod,
       distanceKm: driver.distanceKm,
       timeoutSeconds: this.OFFER_TIMEOUT_MS / 1000,
+      // ⚠️ XIZMAT TURI TAKLIF PAKETIDA BO'LISHI SHART.
+      //
+      // Ilova taklif kartochkasini AYNAN shu maydondan quradi
+      // (`DriverServiceWording.of(order.serviceType)`), va maydon kelmasa
+      // u ataylab `taxi` ga qaytadi. Ya'ni maydonsiz paket xato bermaydi —
+      // JIMGINA yolg'on ko'rsatadi: haydovchi ovqat yetkazish taklifida
+      // «Taksi» yorlig'ini, «Olish joyi» va «Yo'lovchigacha» matnlarini
+      // ko'rardi, holbuki olish nuqtasi restoran. U qabul qilgandan
+      // KEYINGINA, REST javobi kelganda matnlar to'g'rilanardi — ya'ni
+      // haydovchi qarorni noto'g'ri ma'lumot asosida qabul qilardi.
+      //
+      // Zaxira `TAXI`: ustun qo'shilishidan oldingi buyurtmalarda qiymat
+      // bo'sh bo'lishi mumkin, ular esa aynan taksi buyurtmalari.
+      serviceType: order.serviceType ?? ServiceType.TAXI,
     });
 
     // Send push notification

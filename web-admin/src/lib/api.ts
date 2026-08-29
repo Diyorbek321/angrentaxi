@@ -178,7 +178,20 @@ export interface Driver {
   carColor?: string;
   licenseNumber?: string;
   createdAt: string;
+  /** @deprecated Qaror va ko'rsatish uchun `walletBalance` ishlating. */
   balance?: number;
+  /**
+   * Haydovchining HAQIQIY pul holati — tranzaksiyalar daftaridan
+   * hisoblanadi. Manfiy bo'lishi mumkin: bu haydovchining platformaga
+   * qarzi (asosan naqd safarlar komissiyasi).
+   *
+   * ⚠️ `balance` ustunidan FARQ QILADI va aynan shuni ko'rsatish kerak.
+   * Ustun yechib olingan pulni hisobga olmaydi (yechish faqat daftarni
+   * debetlaydi), ya'ni birinchi yechishdan keyin u haqiqiy qoldiqdan
+   * ajralib ketadi. Ustunni ko'rsatish operator bilan haydovchiga ikki
+   * xil raqam berardi.
+   */
+  walletBalance?: number;
   commissionRate?: number | null;
 }
 

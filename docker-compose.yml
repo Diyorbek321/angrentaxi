@@ -34,6 +34,30 @@ services:
       timeout: 5s
       retries: 5
 
+  # Self-hosted routing. The app used to call OSRM's public demo server, which
+  # is rate-limited and carries no SLA — unusable as a production dependency
+  # for ETA-ranked dispatch and snap-to-road trip distances.
+  #
+  # Requires a pre-processed graph in ./osrm/data. Run scripts/osrm-prepare.sh
+  # once to download the Uzbekistan OSM extract and build it.
+  osrm:
+    image: ghcr.io/project-osrm/osrm-backend:v5.27.1
+    container_name: angren_osrm
+    restart: unless-stopped
+    command: osrm-routed --algorithm mld --max-table-size 1000 /data/uzbekistan-latest.osrm
+    volumes:
+      - ./osrm/data:/data:ro
+    ports:
+      - '5000:5000'
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "wget -qO- 'http://localhost:5000/route/v1/driving/69.12,40.14;69.13,40.15' | grep -q '\"code\":\"Ok\"'"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
   backend:
     build:
       context: ./backend
@@ -49,6 +73,9 @@ services:
     environment:
       DB_HOST: postgres
       REDIS_HOST: redis
+      # Points at the osrm service above. Routing degrades gracefully, so the
+      # backend still starts and dispatches rides if OSRM is down.
+      OSRM_URL: http://osrm:5000
     ports:
       - '3000:3000'
     # No source bind-mount: the Dockerfile runs `node dist/main`, and mounting

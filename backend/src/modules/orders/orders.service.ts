@@ -16,6 +16,10 @@ import { OrdersLifecycleService } from './orders-lifecycle.service';
 import { OrdersCompletionService } from './orders-completion.service';
 import { OrdersDispatchService } from './orders-dispatch.service';
 import { OrdersQueryService } from './orders-query.service';
+import { OrdersReceiptService } from './orders-receipt.service';
+import { OrdersTipsService } from './orders-tips.service';
+import { AddTipDto } from './dto/add-tip.dto';
+import { OrderReceiptDto } from './dto/order-receipt.dto';
 import { OrdersEarningsService } from './orders-earnings.service';
 import { OrdersStatsService } from './orders-stats.service';
 import { DriverEarningsBreakdown, PaginatedOrders } from './orders.types';
@@ -32,6 +36,8 @@ export class OrdersService {
     private readonly completionService: OrdersCompletionService,
     private readonly dispatchService: OrdersDispatchService,
     private readonly queryService: OrdersQueryService,
+    private readonly receiptService: OrdersReceiptService,
+    private readonly tipsService: OrdersTipsService,
     private readonly earningsService: OrdersEarningsService,
     private readonly statsService: OrdersStatsService,
   ) {}
@@ -105,6 +111,23 @@ export class OrdersService {
     return this.queryService.findByIdForUser(id, user);
   }
 
+  /** Tugagan safar cheki. Kirish huquqi `findByIdForUser` bilan bir xil. */
+  getReceipt(
+    id: string,
+    user: { id: string; role: UserRole },
+  ): Promise<OrderReceiptDto> {
+    return this.receiptService.getReceipt(id, user);
+  }
+
+  /** Haydovchiga chaqim — komissiyasiz, hamyondan. */
+  addTip(
+    passengerId: string,
+    orderId: string,
+    dto: AddTipDto,
+  ): Promise<{ tipAmount: number; walletBalance: number }> {
+    return this.tipsService.addTip(passengerId, orderId, dto);
+  }
+
   getPassengerHistory(
     passengerId: string,
     page: number = 1,
@@ -123,6 +146,11 @@ export class OrdersService {
 
   getActiveOrders(): Promise<Order[]> {
     return this.queryService.getActiveOrders();
+  }
+
+  /** Yo'lovchining kelgusi rejalashtirilgan safarlari. */
+  getScheduledOrders(passengerId: string): Promise<Order[]> {
+    return this.queryService.getScheduledOrders(passengerId);
   }
 
   getAllOrders(

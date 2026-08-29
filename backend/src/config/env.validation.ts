@@ -23,9 +23,30 @@ export enum Environment {
 }
 
 class EnvironmentVariables {
+  /**
+   * MAJBURIY — standart qiymati ATAYLAB yo'q.
+   *
+   * ⚠️ NEGA. Ilgari bu yerda `= Environment.Development` turardi, ya'ni
+   * o'zgaruvchini o'rnatishni unutgan deploy JIMGINA dev serverga aylanardi.
+   * Jonli serverda aynan shu holat kuzatildi va u bir vaqtning o'zida
+   * beshta xatti-harakatni ochib qo'ygan edi:
+   *
+   *   1. `POST /auth/send-otp` javob tanasida OTP kodini QAYTARARDI — ya'ni
+   *      telefon raqamini bilgan har qanday odam istalgan hisobga kira
+   *      olardi;
+   *   2. OTP bypass ikkinchi darvozani (`ALLOW_OTP_BYPASS_IN_PROD`) talab
+   *      qilmasdi;
+   *   3. TypeORM `synchronize` standart bo'yicha YONIQ bo'lardi — jonli
+   *      sxema har deployda entity'lardan qayta yozilardi;
+   *   4. CORS yumshoq dev siyosatiga tushardi;
+   *   5. Xato javoblari stack trace bilan chiqardi.
+   *
+   * Sozlamaning YO'QLIGI eng xavfsiz emas, eng OCHIQ holatni bergani —
+   * teskari mantiq. Endi qiymat ko'rsatilmasa ilova umuman ko'tarilmaydi:
+   * shovqinli va bir zumda tushunarli nosozlik, jim ochiq eshikdan yaxshi.
+   */
   @IsEnum(Environment)
-  @IsOptional()
-  NODE_ENV: Environment = Environment.Development;
+  NODE_ENV: Environment;
 
   @IsNumber()
   @Min(1)
@@ -110,6 +131,16 @@ class EnvironmentVariables {
   @IsBoolean()
   @IsOptional()
   OTP_BYPASS_ENABLED: boolean = false;
+
+  // Base URL of the OSRM routing server used for ETA-ranked dispatch and
+  // snap-to-road trip distances, e.g. http://osrm:5000.
+  //
+  // Left empty, OsrmService falls back to OSRM's public demo server and logs a
+  // warning — that server is rate-limited and carries no SLA, so production
+  // must set this.
+  @IsString()
+  @IsOptional()
+  OSRM_URL: string = '';
 }
 
 export function validateEnv(config: Record<string, unknown>): EnvironmentVariables {

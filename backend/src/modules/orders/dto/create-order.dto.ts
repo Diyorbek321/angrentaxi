@@ -4,6 +4,7 @@ import {
   ArrayMaxSize,
   IsArray,
   IsEnum,
+  IsISO8601,
   IsNumber,
   IsObject,
   IsOptional,
@@ -122,4 +123,20 @@ export class CreateOrderDto {
   @IsString()
   @MaxLength(50)
   promoCode?: string;
+
+  @ApiPropertyOptional({
+    example: '2026-08-20T03:00:00.000Z',
+    description:
+      "Rejalashtirilgan olib ketish vaqti (ISO-8601, UTC). Berilmasa — " +
+      'buyurtma darhol haydovchi qidiruviga chiqadi.',
+  })
+  @IsOptional()
+  // ⚠️ `@IsDate() + @Type(() => Date)` ATAYLAB ISHLATILMAYDI: `main.ts`
+  // `ValidationPipe` ni `enableImplicitConversion: true` bilan ishga
+  // tushiradi, va bu rejimda sana konvertatsiyasi kutilmagan natija beradi
+  // (yaroqsiz satr `Invalid Date` ga aylanadi-yu, `@IsDate` dan o'tib
+  // ketishi mumkin). Satr sifatida qabul qilinadi, `Date` ga o'girish
+  // servisda — validatsiya bilan bir joyda — bajariladi.
+  @IsISO8601({ strict: true })
+  scheduledAt?: string;
 }

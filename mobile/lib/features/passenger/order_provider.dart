@@ -1,10 +1,13 @@
 import 'package:angren_taxi/core/di/service_locator.dart';
+import 'package:angren_taxi/core/location/city_coverage.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
 import 'package:angren_taxi/shared/models/driver.dart';
 import 'package:angren_taxi/shared/models/order.dart';
+import 'package:angren_taxi/shared/models/service_city.dart';
 import 'package:angren_taxi/shared/models/tariff.dart';
+import 'package:dio/dio.dart' show DioException;
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -34,9 +37,31 @@ class OrderProvider extends ChangeNotifier {
   Tariff? _selectedTariff;
   double? _estimatedPrice;
 
+  /// Live surge for the pickup zone, as returned with the last quote. 1.0
+  /// means normal pricing; anything above it is worth telling the passenger
+  /// about, since an unexplained higher price reads as arbitrary.
+  double _surgeMultiplier = 1.0;
+
+  /// Tanlangan rejalashtirish vaqti (MAHALLIY vaqt). `null` = "hozir".
+  ///
+  /// Bu buyurtma qurilayotgan paytdagi TANLOV, saqlangan buyurtma emas —
+  /// shuning uchun [_scheduledOrders] dan alohida turadi.
+  DateTime? _scheduledAt;
+
+  /// Serverdagi kelgusi rejalar (`GET /orders/scheduled`).
+  List<Order> _scheduledOrders = [];
+
   /// Max intermediate stops allowed on a multi-stop ride, matching the
   /// backend's `WaypointDto` (`@ArrayMaxSize(5)`).
   static const int maxWaypoints = 5;
+
+  /// Ilova bilgan xizmat hududlari. Boshlanishi — MA'LUMOT YO'Q holati,
+  /// ya'ni hech qanday cheklov yo'q.
+  CityCoverage _coverage = CityCoverage.empty;
+
+  /// `GET /cities` hozir uchayaptimi — bosh ekran va tarif ekrani ikkalasi
+  /// ham [loadCities] ni chaqiradi, ikki marta so'ramaslik uchun.
+  Future<void>? _citiesInFlight;
 
   // Active super-app vertical: 'taxi' or 'cargo'. Drives which tariffs load
   // and which serviceType the order is created with.
@@ -52,20 +77,69 @@ class OrderProvider extends ChangeNotifier {
   // pendingRatingOrderId above.
   String? noDriversFoundMessage;
 
+  // ---- Chaqim (tips) holati ----
+  //
+  // ⚠️ NEGA umumiy [_state]/[_error] EMAS: baholash ekrani asosiy ekran
+  // USTIDA modal sifatida ochiladi, va home_screen.dart dagi asosiy CTA
+  // `state == loading` ga qarab aylanadi. Umumiy holatni ishlatsak,
+  // chaqim yuborilayotganda orqadagi ekran ham "yuklanmoqda"ga o'tib
+  // ketardi. Xuddi shu sabab bilan driver_provider.dart dagi
+  // `requestWithdrawal` ham o'z bayroqlaridan foydalanadi.
+  bool _isSubmittingTip = false;
+  String? _tipError;
+
+  /// Server 409 qaytardi — bu safar uchun chaqim allaqachon yozilgan.
+  /// Qayta urinish foydasiz, shuning uchun UI tanlovni butunlay yopadi.
+  bool _tipAlreadyGiven = false;
+
   OrderProviderState get state => _state;
   String? get error => _error;
   Order? get activeOrder => _activeOrder;
   List<Order> get orderHistory => List.unmodifiable(_orderHistory);
   List<Tariff> get tariffs => List.unmodifiable(_tariffs);
   LatLng? get driverLocation => _driverLocation;
+
   OrderLocation? get pendingPickup => _pendingPickup;
   OrderLocation? get pendingDropoff => _pendingDropoff;
   List<OrderLocation> get pendingWaypoints => List.unmodifiable(_pendingWaypoints);
   Tariff? get selectedTariff => _selectedTariff;
   double? get estimatedPrice => _estimatedPrice;
+  double get surgeMultiplier => _surgeMultiplier;
+  bool get isSurging => _surgeMultiplier > 1.0;
   bool get hasActiveOrder => _activeOrder != null && _activeOrder!.isActive;
   String get serviceType => _serviceType;
   bool get isCargo => _serviceType == 'cargo';
+  bool get isSubmittingTip => _isSubmittingTip;
+  String? get tipError => _tipError;
+  bool get isTipAlreadyGiven => _tipAlreadyGiven;
+
+  DateTime? get scheduledAt => _scheduledAt;
+  bool get isScheduledBooking => _scheduledAt != null;
+  List<Order> get scheduledOrders => List.unmodifiable(_scheduledOrders);
+
+  /// Rejalashtirish vaqtini o'rnatadi ([when] `null` — "hozir" ga qaytaradi).
+  ///
+  /// Backend hozirdan kamida 30 daqiqa keyingi vaqtni talab qiladi
+  /// (`SCHEDULED_MIN_LEAD_MINUTES`); tanlagichning o'zi o'tgan va juda
+  /// yaqin slotlarni o'chirib qo'yadi, bu esa oxirgi darvoza.
+  void setScheduledAt(DateTime? when) {
+    _scheduledAt = when;
+    notifyListeners();
+  }
+
+  /// Haydovchi joylashuvi — alohida kanal orqali.
+  ///
+  /// U safar davomida har necha soniyada yangilanadi. Ilgari har yangilanish
+  /// `notifyListeners()` chaqirardi, ya'ni butun asosiy ekran (xarita bilan
+  /// birga) qaytadan qurilardi — bu sezilarli jank manbai edi. Endi faqat
+  /// shu notifierga obuna bo'lgan marker qatlami yangilanadi.
+  final ValueNotifier<LatLng?> driverLocationListenable =
+      ValueNotifier<LatLng?>(null);
+
+  void _setDriverLocation(LatLng? location) {
+    _driverLocation = location;
+    driverLocationListenable.value = location;
+  }
 
   /// Switch the active vertical (taxi/cargo) and reset any in-progress selection.
   /// Switches the booking flow between 'taxi' and 'cargo'.
@@ -143,6 +217,81 @@ class OrderProvider extends ChangeNotifier {
     }
   }
 
+  // ==========================================================================
+  // XIZMAT QAMROVI
+  //
+  // Shahar OLISH NUQTASIDAN aniqlanadi, foydalanuvchi qo'lda TANLAMAYDI:
+  // qo'lda tanlash yana bir xato manbai (odam Angrenni tanlab Toshkentdan
+  // buyurtma berishi mumkin), koordinatadan aniqlash esa har doim rost.
+  //
+  // Bu mobil tomondagi BIRINCHI qatlam: foydalanuvchi xizmat yo'q hududda
+  // ekanini buyurtma berishdan OLDIN biladi. Oxirgi so'zni baribir server
+  // aytadi (`POST /orders` → 400) — [createOrder] uning xabarini ko'rsatadi.
+  // ==========================================================================
+
+  CityCoverage get coverage => _coverage;
+
+  /// `GET /cities` — qamrov ro'yxati. Sessiyada bir marta yetarli.
+  ///
+  /// ⚠️ Xato JIMGINA yutiladi va holat o'zgarmaydi: qamrov ma'lumotining
+  /// yo'qligi buyurtma berishga to'sqinlik qilmasligi kerak (bo'sh ro'yxat
+  /// = cheklov yo'q). Shu sabab bu yerda `_setState(error)` YO'Q — aks
+  /// holda bosh ekrandagi CTA sababsiz "yuklanmoqda"/xato holatiga tushib
+  /// qolardi.
+  Future<void> loadCities() {
+    if (_coverage.hasData) return Future<void>.value();
+    // ⚠️ Tozalash `_fetchCities` ning `finally` blokida EMAS, `whenComplete`
+    // da: so'rov SINXRON yiqilsa (masalan `Dio` argumentni tekshirib darhol
+    // otsa) `finally` quyidagi `??=` tayinlanishidan OLDIN ishlardi, ya'ni
+    // tugagan future maydonga qaytadan yozilib qolardi va keyingi
+    // `loadCities()` abadiy o'sha bo'sh natijani qaytarardi — bir marta
+    // yiqilgan qamrov sessiya oxirigacha tiklanmasdi.
+    // `whenComplete` qayta chaqiruvi mikrotaskda ishlaydi, ya'ni tayinlash
+    // ALLAQACHON bo'lib bo'lgan.
+    return _citiesInFlight ??= _fetchCities().whenComplete(() {
+      // Yiqilgan urinishdan keyin qayta so'rashga yo'l ochiq qoladi.
+      _citiesInFlight = null;
+    });
+  }
+
+  Future<void> _fetchCities() async {
+    try {
+      final response = await _apiClient.get(ApiEndpoints.cities);
+      _coverage = CityCoverage.fromResponse(response.data);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[OrderProvider] loadCities error: $e');
+    }
+  }
+
+  /// [lat]/[lng] ga eng yaqin xizmat hududi (ma'lumot bo'lmasa `null`).
+  ServiceCity? nearestServiceCity(double lat, double lng) =>
+      _coverage.nearestTo(lat, lng);
+
+  /// Nuqta xizmat hududidan tashqarida bo'lsa — foydalanuvchiga
+  /// ko'rsatiladigan sabab, aks holda `null`.
+  ///
+  /// Xabar ikki qismdan iborat: NIMA bo'lgani va NIMA qilish mumkinligi
+  /// (eng yaqin hudud nomi). Faqat "xizmat yo'q" deyish odamni boshi berk
+  /// ko'chada qoldiradi.
+  String? coverageWarningFor(double lat, double lng) {
+    if (_coverage.isServiceable(lat, lng)) return null;
+    final nearest = _coverage.nearestTo(lat, lng);
+    if (nearest == null) return null;
+    return "Bu hududda hozircha xizmat ko'rsatilmaymiz. "
+        'Eng yaqin xizmat hududi: ${nearest.name}.';
+  }
+
+  /// Tanlangan olish nuqtasi bo'yicha ogohlantirish — buyurtma tugmasini
+  /// o'chirish qarori shundan chiqadi.
+  String? get coverageWarning {
+    final pickup = _pendingPickup;
+    if (pickup == null) return null;
+    return coverageWarningFor(pickup.lat, pickup.lng);
+  }
+
+  bool get isPickupOutsideCoverage => coverageWarning != null;
+
   // Route geometry + distance/duration for the pending pickup/dropoff pair,
   // fetched from OSRM by the tariff-select screen. Kept here (rather than
   // local widget state) so price estimation and the route line share one
@@ -166,26 +315,63 @@ class OrderProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Matches backend's POST /orders/calculate-price, which prices a tariff
-  /// from a distance/duration pair rather than raw pickup/dropoff coordinates
-  /// (the backend has no routing engine of its own).
+  /// Backend'ning POST /orders/calculate-price chaqiruvi.
+  ///
+  /// Olish VA tushish nuqtalari yuboriladi:
+  ///
+  /// · Olish nuqtasi — hudud koeffitsienti (surge) uchun. Usiz backend faqat
+  ///   tarifning qo'lda qo'yilgan koeffitsientini qo'llay oladi.
+  ///
+  /// · Tushish nuqtasi — bu YANGI va u eng muhim. Backend marshrutni O'ZI
+  ///   hisoblaydi va bu yerdagi `distanceKm` ni e'tiborga olmaydi.
+  ///
+  ///   ⚠️ NEGA: buyurtma yaratilganda narx baribir server tomonda
+  ///   hisoblanadi. Ilgari baholash mijozning OSRM raqamiga tayanardi,
+  ///   buyurtma esa serverning haversine (to'g'ri chiziq) raqamiga — ya'ni
+  ///   yo'lovchi ko'rgan narx bilan yozilgan narx boshqa-boshqa sonlar edi.
+  ///   Endi ikkalasi ham bitta hisob-kitobdan chiqadi va ko'rsatilgan summa
+  ///   MARSHRUT uchun qat'iy: tirbandlik yoki uzunroq yo'l narxni
+  ///   oshirmaydi.
+  ///
+  ///   ⚠️ KUTISH BU KAFOLATDAN TASHQARIDA. Haydovchi yetib kelgach bepul
+  ///   oyna tugasa, kutish haqi shu summa USTIGA qo'shiladi (backend
+  ///   `waiting-charge.ts`). Sababi: qat'iy narx haydovchi boshqarmaydigan
+  ///   noaniqlikni yopadi, kutish esa YO'LOVCHI boshqaradigan narsa.
+  ///   Shuning uchun ekranda ham "narx belgilangan, kutish alohida" degan
+  ///   ma'no berilishi shart — yig'ilayotgan summa
+  ///   `active_order_view.dart` da real vaqtda ko'rsatiladi.
   Future<void> estimatePrice({
     required double distanceKm,
     required double durationMin,
     required String tariffId,
   }) async {
     try {
+      final pickup = _pendingPickup;
+      final dropoff = _pendingDropoff;
       final response = await _apiClient.post(
         ApiEndpoints.estimatePrice,
         data: {
           'tariffId': tariffId,
+          // Server marshrutni hisoblay olmasa (OSRM javob bermasa) shu
+          // qiymatlar zaxira sifatida ishlatiladi.
           'distanceKm': distanceKm,
           'durationMin': durationMin,
+          if (pickup != null) 'pickupLat': pickup.lat,
+          if (pickup != null) 'pickupLng': pickup.lng,
+          if (dropoff != null) 'dropoffLat': dropoff.lat,
+          if (dropoff != null) 'dropoffLng': dropoff.lng,
         },
       );
       final data = response.data as Map<String, dynamic>;
       final payload = data['data'] as Map<String, dynamic>;
       _estimatedPrice = (payload['price'] as num?)?.toDouble() ?? 0;
+      _surgeMultiplier = (payload['surgeMultiplier'] as num?)?.toDouble() ?? 1.0;
+      // Server o'z masofasini qaytaradi — ekranda ko'rsatiladigan masofa ham
+      // narx asosidagi masofa bilan bir xil bo'lishi kerak.
+      final serverDistance = (payload['distanceKm'] as num?)?.toDouble();
+      if (serverDistance != null && serverDistance > 0) {
+        _routeDistanceKm = serverDistance;
+      }
       notifyListeners();
     } catch (e) {
       debugPrint('[OrderProvider] estimatePrice error: $e');
@@ -197,6 +383,16 @@ class OrderProvider extends ChangeNotifier {
         _pendingDropoff == null ||
         _selectedTariff == null) {
       _error = 'Manzil va tarif tanlanmagan';
+      _setState(OrderProviderState.error);
+      return false;
+    }
+
+    // Qamrov darvozasi — tarmoqqa chiqishdan oldin. UI tugmani allaqachon
+    // o'chirib qo'ygan, bu esa oxirgi mahalliy tekshiruv (masalan buyurtma
+    // saqlangan manzil orqali to'g'ridan-to'g'ri berilsa).
+    final blocked = coverageWarning;
+    if (blocked != null) {
+      _error = blocked;
       _setState(OrderProviderState.error);
       return false;
     }
@@ -227,15 +423,37 @@ class OrderProvider extends ChangeNotifier {
                 .map((w) => {'lat': w.lat, 'lng': w.lng, 'address': w.address})
                 .toList(),
           if (_cargoDetails != null) 'details': _cargoDetails,
+          // Backend `@IsISO8601({strict: true})` kutadi va `timestamptz`
+          // ga yozadi — mahalliy vaqt yuborilsa O'zbekistonda (UTC+5)
+          // safar 5 soatga surilib ketardi.
+          if (_scheduledAt != null)
+            'scheduledAt': _scheduledAt!.toUtc().toIso8601String(),
         },
       );
 
       final data = response.data as Map<String, dynamic>;
-      _activeOrder = Order.fromJson(
-        data['data'] as Map<String, dynamic>,
-      );
+      final order = Order.fromJson(data['data'] as Map<String, dynamic>);
+      final wasScheduled = _scheduledAt != null;
 
-      _listenToOrderEvents();
+      // ⚠️ TANLOV DARHOL TOZALANADI — muvaffaqiyatning IKKALA shoxida ham.
+      // Aks holda keyingi oddiy safar jimgina o'tib ketgan vaqtga
+      // rejalashtirilardi va backend 400 qaytarardi ("kamida 30 daqiqa
+      // keyin bo'lishi kerak") — foydalanuvchi uchun sababsiz xato.
+      _scheduledAt = null;
+
+      if (wasScheduled) {
+        // Rejalashtirilgan buyurtmada `_activeOrder` O'RNATILMAYDI va
+        // soket tinglovchilari QO'SHILMAYDI: kuzatiladigan hech narsa
+        // yo'q (haydovchi hali qidirilmayapti ham), va `_activeOrder`
+        // to'ldirilsa bosh ekran kuzatuv rejimiga qulflanib qolardi.
+        _scheduledOrders = [..._scheduledOrders, order]
+          ..sort((a, b) => (a.scheduledAt ?? a.createdAt)
+              .compareTo(b.scheduledAt ?? b.createdAt));
+      } else {
+        _activeOrder = order;
+        _listenToOrderEvents();
+      }
+
       _setState(OrderProviderState.success);
       return true;
     } catch (e) {
@@ -255,8 +473,7 @@ class OrderProvider extends ChangeNotifier {
         final lat = (data['lat'] as num?)?.toDouble();
         final lng = (data['lng'] as num?)?.toDouble();
         if (lat != null && lng != null) {
-          _driverLocation = LatLng(lat, lng);
-          notifyListeners();
+          _setDriverLocation(LatLng(lat, lng));
         }
       }
     });
@@ -279,9 +496,30 @@ class OrderProvider extends ChangeNotifier {
       }
     });
 
+    // ⚠️ KUTISH SHARTNOMASI SHU PAKETDAN OLINADI. Server `arrivedAt` ni
+    // O'Z soatidan yuboradi va yo'lovchi hisoblagichi AYNAN shundan
+    // hisoblaydi — qurilma soatidan emas. Aks holda haydovchi bilan
+    // yo'lovchi har xil raqam ko'rardi va bu aynan tuzatilayotgan nuqson
+    // edi (kutish endi PUL undiradi, ya'ni raqam nizoli).
+    //
+    // Paket kelmasa yoki `arrivedAt` yaroqsiz bo'lsa maydon `null` qolib,
+    // hisoblagich umuman ko'rsatilmaydi; keyingi to'liq yangilanish
+    // (`_refreshActiveOrder` / `checkActiveOrder`) uni REST javobidan
+    // to'ldiradi, chunki backend uchala maydonni har bir buyurtma
+    // javobiga qo'shadi.
     _socketService.on(SocketEvents.orderArrived, (data) {
       if (_activeOrder != null) {
-        _activeOrder = _activeOrder!.copyWith(status: OrderStatus.driverArrived);
+        final payload = data is Map ? data : const {};
+        final rawArrivedAt = payload['arrivedAt'];
+        _activeOrder = _activeOrder!.copyWith(
+          status: OrderStatus.driverArrived,
+          arrivedAt: rawArrivedAt is String
+              ? DateTime.tryParse(rawArrivedAt)?.toLocal()
+              : null,
+          freeWaitMinutes: (payload['freeWaitMinutes'] as num?)?.toInt(),
+          waitingPricePerMinute:
+              (payload['waitingPricePerMinute'] as num?)?.toInt(),
+        );
         notifyListeners();
       }
     });
@@ -368,7 +606,7 @@ class OrderProvider extends ChangeNotifier {
     _socketService.off(SocketEvents.orderCompleted);
     _socketService.off(SocketEvents.orderCancelled);
     _socketService.off(SocketEvents.noDriversFound);
-    _driverLocation = null;
+    _setDriverLocation(null);
   }
 
   Future<void> cancelOrder({String? reason}) async {
@@ -410,6 +648,50 @@ class OrderProvider extends ChangeNotifier {
     }
   }
 
+  /// GET /orders/scheduled — yo'lovchining kelgusi rejalari.
+  ///
+  /// Xato bo'lsa umumiy [_state] ga TEGMAYDI: bu ro'yxat asosiy buyurtma
+  /// oqimidan mustaqil va uning yuklanmasligi bosh ekrandagi CTA ni
+  /// "yuklanmoqda" holatiga tushirmasligi kerak.
+  Future<void> loadScheduledOrders() async {
+    try {
+      final response = await _apiClient.get(ApiEndpoints.scheduledOrders);
+      final data = response.data as Map<String, dynamic>;
+      final list = data['data'] as List<dynamic>;
+      _scheduledOrders =
+          list.map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[OrderProvider] loadScheduledOrders error: $e');
+    }
+  }
+
+  /// Rejalashtirilgan safarni bekor qiladi.
+  ///
+  /// Alohida endpoint yo'q — backend `SCHEDULED` ni bekor qilinadigan
+  /// holatlar ro'yxatiga qo'shgan, ya'ni odatdagi
+  /// `PATCH /orders/:id/cancel` ishlaydi.
+  ///
+  /// ⚠️ [cancelOrder] dan farqi: u `_activeOrder` bilan ishlaydi, bu esa
+  /// ro'yxatdagi ELEMENT bilan — rejalashtirilgan buyurtma hech qachon
+  /// `_activeOrder` bo'lmaydi.
+  Future<bool> cancelScheduledOrder(String orderId, {String? reason}) async {
+    try {
+      await _apiClient.patch(
+        ApiEndpoints.cancelOrder(orderId),
+        data: reason != null ? {'reason': reason} : null,
+      );
+      _scheduledOrders =
+          _scheduledOrders.where((o) => o.id != orderId).toList();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = extractErrorMessage(e);
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<void> loadOrderHistory() async {
     _setState(OrderProviderState.loading);
     try {
@@ -424,6 +706,68 @@ class OrderProvider extends ChangeNotifier {
       _error = extractErrorMessage(e);
       _setState(OrderProviderState.error);
     }
+  }
+
+  /// POST /orders/:id/tip — safar tugagandan keyin haydovchiga chaqim.
+  ///
+  /// [amount] BUTUN so'm bo'lishi shart (backend `@IsInt`), 1 000..200 000.
+  /// Muvaffaqiyatda `true`, aks holda `false` qaytaradi va sababni
+  /// [tipError] ga yozadi — chaqiruvchi ekran xabarni o'zi ko'rsatadi.
+  Future<bool> addTip({required String orderId, required int amount}) async {
+    _isSubmittingTip = true;
+    _tipError = null;
+    // Har urinishda noldan: bayroqlar OXIRGI urinish haqida gapiradi,
+    // aks holda boshqa buyurtmadagi eski 409 yangi safarni ham blokladi.
+    _tipAlreadyGiven = false;
+    notifyListeners();
+    try {
+      await _apiClient.post(
+        ApiEndpoints.addTip(orderId),
+        data: {'amount': amount},
+      );
+      _isSubmittingTip = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      // 409 alohida eslab qolinadi: qayta urinish har doim yana 409 beradi,
+      // shuning uchun UI summa tanlashni butunlay yopishi kerak.
+      _tipAlreadyGiven = e is DioException && e.response?.statusCode == 409;
+      _tipError = _tipFailureMessage(e);
+      _isSubmittingTip = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Chaqim xatolarini foydalanuvchi tushunadigan xabarga o'giradi.
+  ///
+  /// NEGA backend matnini shundayligicha ko'rsatmaymiz: 400 kodi ostida
+  /// to'rt xil sabab bor (safar tugamagan · haydovchi yo'q · 24 soat o'tgan ·
+  /// mablag' yetarli emas) va ulardan faqat bittasi foydalanuvchi TUZATA
+  /// oladigan holat. Hamyon holati alohida ajratiladi — unda keyingi qadam
+  /// aniq: hamyonni to'ldirish.
+  static String _tipFailureMessage(Object error) {
+    if (error is! DioException) return extractErrorMessage(error);
+
+    final status = error.response?.statusCode;
+    if (status == 409) {
+      return 'Bu safar uchun chaqim allaqachon berilgan.';
+    }
+    if (status == 403) {
+      return 'Bu safar sizga tegishli emas.';
+    }
+
+    final serverMessage = extractErrorMessage(error);
+    if (status == 400) {
+      // Backend matni o'zgarishi mumkin, shuning uchun o'zak bo'yicha
+      // qidiriladi: "mablag'" / "mablag" (apostrofsiz yozuv ham).
+      if (serverMessage.toLowerCase().contains('mablag')) {
+        return "Hamyonda mablag' yetarli emas. Hamyonni to'ldiring yoki "
+            'kichikroq summa tanlang.';
+      }
+      return serverMessage;
+    }
+    return serverMessage;
   }
 
   void clearPendingRating() {
@@ -442,6 +786,10 @@ class OrderProvider extends ChangeNotifier {
     _pendingDropoff = null;
     _selectedTariff = null;
     _estimatedPrice = null;
+    // ⚠️ Rejalashtirish tanlovi ham tozalanadi — u ham "qurilayotgan
+    // buyurtma" holatining bir qismi. `createOrder` uni allaqachon
+    // tozalaydi; bu esa yarim yo'lda tashlab ketilgan oqim uchun.
+    _scheduledAt = null;
     _routePoints = [];
     _routeDistanceKm = null;
     _routeDurationMin = null;
@@ -458,6 +806,7 @@ class OrderProvider extends ChangeNotifier {
   @override
   void dispose() {
     _cleanupOrderListeners();
+    driverLocationListenable.dispose();
     super.dispose();
   }
 }

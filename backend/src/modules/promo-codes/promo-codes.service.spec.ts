@@ -34,7 +34,7 @@ describe('PromoCodesService - findActive', () => {
       createdAt: NOW,
       updatedAt: NOW,
       ...overrides,
-    } as PromoCode;
+    };
   }
 
   beforeAll(() => {

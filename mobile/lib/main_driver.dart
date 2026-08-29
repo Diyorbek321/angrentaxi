@@ -7,6 +7,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -15,6 +16,20 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ⚠️ `intl` LOKAL MA'LUMOTLARINI YUKLASH — ILOVA ISHGA TUSHISHIDA MAJBURIY.
+  //
+  // `Formatters` ning har bir sana metodi `DateFormat(pattern, 'uz')` ni
+  // ishlatadi, va u lokal ma'lumotlarisiz `LocaleDataException` tashlaydi:
+  // "Locale data has not been initialized". Ya'ni buni chaqirmasdan chek
+  // ekrani, safarlar tarixi, bildirishnomalar, promo-kodlar va
+  // rejalashtirilgan safarlar ekrani — sana ko'rsatadigan HAR BIR ekran —
+  // qizil xato ekraniga aylanardi.
+  //
+  // Bu vidjet testlarida sezilmay qolgan edi: ular `setUpAll` da
+  // `initializeDateFormatting('uz')` ni O'ZLARI chaqiradi, ya'ni testlar
+  // yashil bo'lib turgan holda ilova prodda yiqilardi.
+  await initializeDateFormatting('uz', null);
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

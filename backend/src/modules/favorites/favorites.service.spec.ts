@@ -52,7 +52,7 @@ describe('FavoritesService', () => {
         lat: dto.lat,
         lng: dto.lng,
         createdAt: new Date(),
-      } as FavoriteAddress;
+      };
       favoriteAddressRepository.save.mockResolvedValue(saved);
 
       const result = await service.create(userId, dto);

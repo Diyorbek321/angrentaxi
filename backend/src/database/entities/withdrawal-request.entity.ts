@@ -97,4 +97,18 @@ export class WithdrawalRequest {
   // Admin's note when approving/rejecting/marking paid (e.g. rejection reason).
   @Column({ name: 'admin_note', type: 'varchar', nullable: true })
   adminNote: string | null;
+
+  /**
+   * To'lov provayderi bergan o'tkazma identifikatori.
+   *
+   * ⚠️ `adminNote` dan ALOHIDA maydon: izoh odam yozadigan erkin matn,
+   * bu esa tizim bergan raqam. Ularni bitta ustunga qo'shish keyinchalik
+   * "qaysi o'tkazma?" degan savolga javob berishni matn ichidan qidirishga
+   * aylantirardi.
+   *
+   * Qo'lda o'tkazmada `null` — hech qanday tizim raqam bermagan
+   * (`ManualPayoutProvider` izohiga qarang).
+   */
+  @Column({ name: 'payout_reference', type: 'varchar', nullable: true })
+  payoutReference: string | null;
 }

@@ -2,8 +2,8 @@ import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
+import 'package:angren_taxi/shared/widgets/app_vector_map.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -92,25 +92,15 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
       body: Stack(
         alignment: Alignment.center,
         children: [
-          FlutterMap(
-            options: MapOptions(
-              initialCenter: _center,
-              initialZoom: 16,
-              onMapEvent: (event) {
-                if (event is MapEventMoveEnd) {
-                  _resolveAddress(event.camera.center);
-                  _center = event.camera.center;
-                } else if (event is MapEventMove) {
-                  _center = event.camera.center;
-                }
-              },
-            ),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'uz.angren.taxi',
-              ),
-            ],
+          AppVectorMap(
+            initialCenter: _center,
+            initialZoom: 16,
+            // Xarita to'xtaganda markazdagi nuqta manzilga aylantiriladi —
+            // pin qimirlamaydi, xarita uning ostida suriladi.
+            onCameraIdle: (center) {
+              _center = center;
+              _resolveAddress(center);
+            },
           ),
           // Fixed pin — the map moves under it, not the other way around.
           const Padding(

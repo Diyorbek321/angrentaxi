@@ -2,9 +2,31 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 
+/**
+ * Transport turi — `tariffs.vehicle_type` va `drivers.vehicle_type` AYNAN shu
+ * to'plamdan oziqlanadi.
+ *
+ * NEGA bitta manba: matching haydovchining imkoniyatini tarifning talabiga
+ * qiyoslaydi. Agar qiymatlar ikki joyda alohida yozilsa, bir tomonda 'van',
+ * ikkinchisida 'furgon' paydo bo'lishi mumkin va filtr JIMGINA hech kimni
+ * topolmay qoladi — buyurtma xatosiz, lekin haydovchisiz qoladi.
+ *
+ * `null` (enum a'zosi emas) — yengil avtomobil, ya'ni taksi. Shuning uchun
+ * taksi tariflarida ham, taksi haydovchilarida ham ustun bo'sh turadi.
+ */
+export enum VehicleType {
+  VAN = 'van',
+  SMALL_TRUCK = 'small_truck',
+  LARGE_TRUCK = 'large_truck',
+}
+
+// `findAll(serviceType, cityId)` filtri: `(city_id IS NULL OR city_id = :id)`
+// faol tariflar ichidan tanlanadi.
+@Index('idx_tariffs_city_id_is_active', ['cityId', 'isActive'])
 @Entity('tariffs')
 export class Tariff {
   @PrimaryGeneratedColumn('uuid')
@@ -18,8 +40,10 @@ export class Tariff {
   serviceType: string;
 
   // For cargo: 'van' | 'small_truck' | 'large_truck'. Null for taxi.
+  // Matching uses this as the required vehicle for the order — a driver is
+  // only offered the ride when Driver.vehicleType is exactly this value.
   @Column({ name: 'vehicle_type', type: 'varchar', nullable: true })
-  vehicleType: string | null;
+  vehicleType: VehicleType | null;
 
   @Column({
     type: 'decimal',
@@ -91,6 +115,31 @@ export class Tariff {
   })
   maxPrice: number | null;
 
+  /**
+   * BEPUL kutish oynasi, daqiqa. Haydovchi "keldim" belgilagan lahzadan
+   * boshlanadi (`orders.arrived_at`).
+   *
+   * ⚠️ Migratsiya `009_waiting_charge` bu ustunni DEFAULT 3 bilan qo'shadi va
+   * mavjud tariflarni darhol to'ldiradi — admin panelda kutish maydonlari
+   * paydo bo'lishini kutmasdan, barcha tariflar ishlaydigan qiymat bilan
+   * yashaydi.
+   */
+  @Column({ name: 'free_wait_minutes', type: 'int', default: 3 })
+  freeWaitMinutes: number;
+
+  /**
+   * Bepul oynadan keyingi har bir BOSHLANGAN daqiqa narxi, so'm.
+   *
+   * ⚠️ NEGA `int`, boshqa narx ustunlari kabi `decimal` EMAS. Qiymat butun
+   * so'mda (500), va u butun songa (daqiqaga) ko'paytiriladi — ya'ni natija
+   * ham har doim butun so'm. `int` saqlash float yaxlitlash xatosi paydo
+   * bo'ladigan yagona yo'lni umuman yopadi va `parseFloat` transformerini
+   * ham keraksiz qiladi. So'mning tiyini yo'q, ya'ni kasr qism kutish haqi
+   * uchun hech qanday ma'no bermaydi.
+   */
+  @Column({ name: 'waiting_price_per_minute', type: 'int', default: 500 })
+  waitingPricePerMinute: number;
+
   @Column({ default: true })
   isActive: boolean;
 
@@ -106,6 +155,20 @@ export class Tariff {
   // (mirrors Yandex Pro's model: public criteria, per-driver manual vetting).
   @Column({ name: 'min_car_year', type: 'int', nullable: true })
   minCarYear: number | null;
+
+  /**
+   * Tarif qaysi shaharga tegishli. `null` = BARCHA shaharlarda amal qiladi.
+   *
+   * ⚠️ `null` NING MA'NOSI SHU YERDA HAL QILINGAN: ko'p shaharlilik
+   * qo'shilgunga qadar yaratilgan har bir tarifda bu ustun bo'sh bo'ladi,
+   * va ular hech qayerda yo'qolmasligi SHART. Shuning uchun `findAll`
+   * cityId bilan chaqirilganda shart `(city_id = :cityId OR city_id IS
+   * NULL)` — "shu shaharniki VA hamma joyniki". Teskarisi (NULL ni
+   * "hech qayerda" deb o'qish) migratsiyadan keyin butun narx ro'yxatini
+   * bo'shatib qo'yardi.
+   */
+  @Column({ name: 'city_id', type: 'uuid', nullable: true })
+  cityId: string | null;
 
   @CreateDateColumn()
   createdAt: Date;

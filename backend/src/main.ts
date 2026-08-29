@@ -125,4 +125,16 @@ async function bootstrap(): Promise<void> {
   }
 }
 
-bootstrap();
+// ⚠️ Xatoni YUTMASLIK muhim: `bootstrap()` kutilmagan holda qolsa, port
+// band, baza yetib bo'lmaydigan yoki `NODE_ENV` ko'rsatilmagan holatda
+// jarayon xatoni faqat "unhandled rejection" bo'lib chiqarardi va
+// muvaffaqiyatli chiqish kodi bilan tugashi mumkin edi — ya'ni deploy
+// vositasi ishga tushmagan serverni "ko'tarildi" deb hisoblardi.
+//
+// Endi sabab jurnalga tushadi va chiqish kodi 1 bo'ladi.
+bootstrap().catch((err: unknown) => {
+  // Logger'ning o'zi ishga tushmagan bo'lishi mumkin, shuning uchun
+  // konsolga to'g'ridan-to'g'ri yoziladi.
+  console.error('Ilovani ishga tushirib bo\'lmadi:', err);
+  process.exit(1);
+});

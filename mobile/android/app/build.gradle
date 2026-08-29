@@ -25,7 +25,19 @@ android {
 
     defaultConfig {
         applicationId "uz.angren.taxi"
-        minSdk = 23
+        // ⚠️ 24 — 23 EMAS. Ovozli navigatsiya uchun qo'shilgan `flutter_tts`
+        // minSdk 24 talab qiladi va 23 bilan manifest birlashtiruvchi
+        // butun build'ni to'xtatadi (ilova umuman qurilmaydi).
+        //
+        // `tools:overrideLibrary` bilan majburlash ham mumkin edi, lekin u
+        // kutubxonani o'zi qo'llab-quvvatlamaydigan API darajasida ishga
+        // tushirardi — ya'ni build o'tardi-yu, ovozli yo'riqnoma eski
+        // qurilmada ish vaqtida yiqilardi. Jim ishlamaydigan funksiya
+        // ochiq talabdan yomonroq.
+        //
+        // Narxi: Android 6.0 (2015) qo'llab-quvvatlashdan chiqadi. Android
+        // 7.0+ hozirgi faol qurilmalarning deyarli hammasini qamrab oladi.
+        minSdk = 24
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

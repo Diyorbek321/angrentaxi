@@ -459,7 +459,20 @@ export interface DriverProfile {
   // Only meaningful when the caller has the drivers_finance permission —
   // present on the API response regardless, but the UI only shows/edits
   // these when that permission is granted (see getCurrentUserProfile).
+  /** @deprecated Qaror va ko'rsatish uchun `walletBalance` ishlating. */
   balance?: number;
+  /**
+   * Haydovchining HAQIQIY pul holati — tranzaksiyalar daftaridan
+   * hisoblanadi. Manfiy bo'lishi mumkin: bu haydovchining platformaga
+   * qarzi (asosan naqd safarlar komissiyasi).
+   *
+   * ⚠️ `balance` ustunidan FARQ QILADI va aynan shuni ko'rsatish kerak.
+   * Ustun yechib olingan pulni hisobga olmaydi (yechish faqat daftarni
+   * debetlaydi), ya'ni birinchi yechishdan keyin u haqiqiy qoldiqdan
+   * ajralib ketadi. Ustunni ko'rsatish operator bilan haydovchiga ikki
+   * xil raqam berardi.
+   */
+  walletBalance?: number;
   commissionRate?: number | null;
   // Self-reported at application time; null until the driver enters it.
   carYear?: number | null;

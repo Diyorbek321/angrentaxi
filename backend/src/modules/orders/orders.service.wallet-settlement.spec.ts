@@ -21,7 +21,10 @@ import { SettingsService } from '../settings/settings.service';
 import { OrdersService } from './orders.service';
 import { OrdersQueryService } from './orders-query.service';
 import { ORDERS_PROVIDERS } from './orders.providers';
-import { fakeTransactionRepository } from './orders.testing';
+import { SurgeService } from '../surge/surge.service';
+import { OsrmService } from '../routing/osrm.service';
+import { RoutedDistancePricing } from './routed-distance-pricing';
+import { fakeTransactionRepository, fakeCitiesServiceProvider } from './orders.testing';
 
 /**
  * Regression coverage for the settlement money leak.
@@ -37,8 +40,10 @@ import { fakeTransactionRepository } from './orders.testing';
  * out a driver.
  *
  * The rules now under test:
- *   CASH                     -> charge COMPLETED, driver legs COMPLETED,
- *                               balance -= commission (driver holds the cash)
+ *   CASH                     -> charge COMPLETED, driver ledger gets ONLY the
+ *                               commission DEBIT (the driver already holds the
+ *                               fare — crediting it again paid them twice),
+ *                               balance -= commission
  *   WALLET, funds available  -> charge COMPLETED (debited), legs COMPLETED,
  *                               balance += net payout
  *   WALLET, funds short      -> charge PENDING (a debt), legs PENDING,
@@ -120,6 +125,24 @@ describe('completeTrip — wallet and card settlement', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ...ORDERS_PROVIDERS,
+        fakeCitiesServiceProvider(),
+        // Routing is an accuracy layer over pricing; these tests assert the
+        // straight-line behaviour, which is also the shipped default.
+        { provide: OsrmService, useValue: { routeDistanceMeters: jest.fn() } },
+        { provide: RoutedDistancePricing, useValue: { enabled: false } },
+        // Surge is a pricing input, not a dependency of these flows: a quiet
+        // zone (1.0x) keeps the expected prices in these tests unchanged.
+        {
+          provide: SurgeService,
+          useValue: {
+            snapshotFor: jest.fn().mockResolvedValue({
+              multiplier: 1.0,
+              demand: 0,
+              supply: 0,
+              zone: 'test-zone',
+            }),
+          },
+        },
         {
           provide: DataSource,
           useValue: {
@@ -145,6 +168,14 @@ describe('completeTrip — wallet and card settlement', () => {
           useValue: {
             findById: jest.fn().mockResolvedValue({ id: 'tariff-1' }),
             calculatePrice: jest.fn().mockReturnValue(FARE),
+            // `calculatePrice` endi `calculatePriceBreakdown` ustidagi qobiq —
+            // mock ikkalasini bir manbadan beradi, aks holda ular ajralib ketadi.
+            calculatePriceBreakdown: jest.fn((_t, km = 0, min = 0, surge = 1) => ({
+              baseFare: 0, distanceKm: km, pricePerKm: 0, distanceFare: 0,
+              durationMin: min, pricePerMin: 0, timeFare: 0,
+              minPriceAdjustment: 0, surgeMultiplier: surge, surgeFare: 0,
+              maxPriceCap: 0, total: FARE,
+            })),
           },
         },
         {
@@ -210,13 +241,47 @@ describe('completeTrip — wallet and card settlement', () => {
       await service.completeTrip(DRIVER_USER_ID, ORDER_ID);
 
       expect(chargeRow()).toMatchObject({ status: TransactionStatus.COMPLETED });
-      expect(driverCreditRow()).toMatchObject({ status: TransactionStatus.COMPLETED });
       // The driver already holds the cash, so the platform is owed its cut.
       expect(adjustBalanceWithin).toHaveBeenCalledWith(
         expect.anything(),
         DRIVER_USER_ID,
         -COMMISSION,
       );
+    });
+
+    it("haydovchining hamyoniga safar puli TUSHMAYDI — u allaqachon qo'lida", async () => {
+      // ⚠️ Aynan tuzatilgan pul yo'qotishi. Ilgari naqd safarda ham to'liq
+      // summa CREDIT bo'lib, `chargeStatus` esa naqd uchun COMPLETED edi —
+      // ya'ni sof daromad haydovchining YECHIB OLINADIGAN hamyoniga
+      // tushardi. Pul esa allaqachon uning cho'ntagida edi.
+      //
+      // Natijada faqat naqd bilan ishlaydigan haydovchi bir pulni ikki
+      // marta olishi mumkin edi: yo'lovchidan naqd, keyin platformadan
+      // yechib. Yechish so'rovi aynan shu daftarni tekshiradi.
+      await build({ paymentMethod: PaymentMethod.CASH });
+
+      await service.completeTrip(DRIVER_USER_ID, ORDER_ID);
+
+      expect(driverCreditRow()).toBeUndefined();
+    });
+
+    it('naqd safarda daftarga FAQAT komissiya qarzi yoziladi', async () => {
+      // Bitta hisob modeli: naqd haydovchining qoldig'i minusga ketadi va
+      // bu uning platformaga qarzini bildiradi.
+      await build({ paymentMethod: PaymentMethod.CASH });
+
+      await service.completeTrip(DRIVER_USER_ID, ORDER_ID);
+
+      const driverRows = savedTransactions().filter(
+        (row) => row['userId'] === DRIVER_USER_ID,
+      );
+      expect(driverRows).toHaveLength(1);
+      expect(driverRows[0]).toMatchObject({
+        type: TransactionType.DEBIT,
+        amount: COMMISSION,
+        status: TransactionStatus.COMPLETED,
+        externalId: 'commission',
+      });
     });
   });
 
@@ -299,6 +364,24 @@ describe('createOrder — outstanding wallet debt', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ...ORDERS_PROVIDERS,
+        fakeCitiesServiceProvider(),
+        // Routing is an accuracy layer over pricing; these tests assert the
+        // straight-line behaviour, which is also the shipped default.
+        { provide: OsrmService, useValue: { routeDistanceMeters: jest.fn() } },
+        { provide: RoutedDistancePricing, useValue: { enabled: false } },
+        // Surge is a pricing input, not a dependency of these flows: a quiet
+        // zone (1.0x) keeps the expected prices in these tests unchanged.
+        {
+          provide: SurgeService,
+          useValue: {
+            snapshotFor: jest.fn().mockResolvedValue({
+              multiplier: 1.0,
+              demand: 0,
+              supply: 0,
+              zone: 'test-zone',
+            }),
+          },
+        },
         {
           provide: DataSource,
           useValue: { transaction: jest.fn() },
@@ -314,7 +397,7 @@ describe('createOrder — outstanding wallet debt', () => {
             }),
           },
         },
-        { provide: getRepositoryToken(Trip), useValue: {} },
+        { provide: getRepositoryToken(Trip), useValue: { find: jest.fn().mockResolvedValue([]),} },
         {
           provide: getRepositoryToken(Transaction),
           useValue: fakeTransactionRepository(outstandingDebt),
@@ -325,6 +408,14 @@ describe('createOrder — outstanding wallet debt', () => {
           useValue: {
             findById: jest.fn().mockResolvedValue({ id: 'tariff-1', isActive: true }),
             calculatePrice: jest.fn().mockReturnValue(15000),
+            // `calculatePrice` endi `calculatePriceBreakdown` ustidagi qobiq —
+            // mock ikkalasini bir manbadan beradi, aks holda ular ajralib ketadi.
+            calculatePriceBreakdown: jest.fn((_t, km = 0, min = 0, surge = 1) => ({
+              baseFare: 0, distanceKm: km, pricePerKm: 0, distanceFare: 0,
+              durationMin: min, pricePerMin: 0, timeFare: 0,
+              minPriceAdjustment: 0, surgeMultiplier: surge, surgeFare: 0,
+              maxPriceCap: 0, total: 15000,
+            })),
           },
         },
         { provide: RealtimeGateway, useValue: { emitToUser: jest.fn(), emitToManagers: jest.fn() } },

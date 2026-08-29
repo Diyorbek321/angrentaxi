@@ -13,7 +13,17 @@ import { UserRole } from '../../database/entities/user.entity';
 
 interface JwtPayload {
   sub: string;
-  role: string;
+  /**
+   * ⚠️ `string` EMAS, `UserRole`.
+   *
+   * Ilgari `string` edi va quyidagi `payload.role === UserRole.ADMIN`
+   * taqqoslashi tekshiruvchi uchun ma'nosiz bo'lardi: rol nomi
+   * o'zgarsa yoki xato yozilsa shart JIMGINA hech qachon rost bo'lmay
+   * qolardi va texnik ishlar rejimida admin ham ichkariga kira
+   * olmasdi. Turni tor qilish shu xatoni kompilyatsiya vaqtida
+   * ushlaydi.
+   */
+  role: UserRole;
   type: 'access' | 'refresh';
 }
 

@@ -1,6 +1,8 @@
+import 'package:angren_taxi/features/passenger/screens/receipt_screen.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
+import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -216,6 +218,22 @@ class OrderDetailScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+                // Chek FAQAT tugagan safarda ko'rsatiladi: backend tugamagan
+                // buyurtma uchun 400 qaytaradi, ya'ni tugma boshqa holatda
+                // faqat xato ekraniga olib borardi.
+                if (order.status == OrderStatus.completed) ...[
+                  const SizedBox(height: kSpace4),
+                  AppOutlinedButton(
+                    label: 'Chekni ko\'rish',
+                    icon: const Icon(Icons.receipt_long_rounded, size: 18),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => ReceiptScreen(orderId: order.id),
+                      ),
+                    ),
+                    semanticsLabel: 'Safar chekini ochish',
+                  ),
+                ],
               ],
             ),
           ),

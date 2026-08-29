@@ -18,6 +18,14 @@ class DemoEngine {
   Map<String, dynamic>? _driverOrder;
   int _orderSeq = 0;
 
+  /// Demo hamyon qoldig'i — chaqim undan yechiladi, shunda ketma-ket
+  /// berilgan chaqimlar ko'rsatuvda haqiqiy pulday kamayadi.
+  double _walletBalance = 120000;
+
+  /// Buyurtma bo'yicha berilgan chaqim. Chek shu summani ko'rsatadi —
+  /// chaqim va chek ikkita alohida yolg'on emas, bitta holat bo'lib qoladi.
+  final Map<String, double> _tips = {};
+
   SocketService get _socket => sl<SocketService>();
 
   /// Routes a REST call to canned data. Returns the full response body the app
@@ -77,6 +85,26 @@ class DemoEngine {
       _passengerOrder = null;
       return _ok({'cancelled': true});
     }
+    // ---- Chek va chaqim ----
+    //
+    // NEGA ALOHIDA: bularsiz ikkala yo'l ham pastdagi "bo'sh muvaffaqiyat"
+    // zaxirasiga tushardi — chek 0 so'mlik bo'sh hujjat bo'lib chiqar,
+    // chaqim esa hech qayerga yozilmasdan "yuborildi" deb ko'rsatilardi.
+    if (path.contains('/orders/') && path.endsWith('/receipt')) {
+      final id = _orderIdFrom(path, '/receipt');
+      return _ok(DemoData.receipt(
+        _findOrder(id),
+        tipAmount: _tips[id] ?? 0,
+      ));
+    }
+    if (path.contains('/orders/') && path.endsWith('/tip')) {
+      final id = _orderIdFrom(path, '/tip');
+      final amount = (body['amount'] as num?)?.toDouble() ?? 0;
+      _tips[id] = (_tips[id] ?? 0) + amount;
+      _walletBalance -= amount;
+      return _ok({'tipAmount': amount, 'walletBalance': _walletBalance});
+    }
+
     if (path.endsWith('/orders/history')) {
       // ?status=active → none active at start (clean home screen)
       return _okList(DemoData.orderHistory());
@@ -292,6 +320,26 @@ class DemoEngine {
 
   // ---------- helpers ----------
 
+  /// `/orders/<id>/receipt` dan `<id>` ni ajratadi.
+  String _orderIdFrom(String path, String suffix) {
+    final withoutSuffix = path.substring(0, path.length - suffix.length);
+    return withoutSuffix.split('/').last;
+  }
+
+  /// Chek uchun buyurtma: avval jonli safar, keyin tarix. Topilmasa — eng
+  /// so'nggi tarix yozuvi, chunki demo'da "yo'q buyurtma" xato ekrani emas,
+  /// mahsulot buzuq degan taassurot qoldiradi.
+  Map<String, dynamic> _findOrder(String id) {
+    final live = _passengerOrder;
+    if (live != null && live['id'] == id) return live;
+
+    final history = DemoData.orderHistory();
+    for (final order in history) {
+      if (order['id'] == id) return order;
+    }
+    return history.first;
+  }
+
   Map<String, dynamic> _ok(Map<String, dynamic> data) => {'success': true, 'data': data};
   Map<String, dynamic> _okList(List<Map<String, dynamic>> data) =>
       {'success': true, 'data': data};
@@ -311,5 +359,9 @@ class DemoEngine {
     _cancelTimers();
     _passengerOrder = null;
     _driverOrder = null;
+    // Chiqishdan keyin chaqim va hamyon ham boshlang'ich holatga qaytadi,
+    // aks holda keyingi ko'rsatuv oldingi seansning pulidan boshlanardi.
+    _tips.clear();
+    _walletBalance = 120000;
   }
 }

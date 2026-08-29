@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
+  TariffChangeAction,
   TariffChangeRequest,
   TariffChangeRequestStatus,
 } from '../../database/entities/tariff-change-request.entity';
@@ -73,12 +74,23 @@ export class TariffChangeRequestsService {
     const request = await this.findByIdOrThrow(id);
     this.assertPending(request);
 
-    if (request.action === 'create') {
+    // ⚠️ Taqqoslash ENUM a'zosi bilan, satr bilan emas. Ilgari bu yerda
+    // `=== 'create'` turardi: `action` ustunining turi o'zgarsa (masalan
+    // yangi qiymat qo'shilsa yoki nomi tuzatilsa) shart JIMGINA hech
+    // qachon rost bo'lmay qolardi va har bir so'rov `update` shoxiga
+    // tushardi.
+    if (request.action === TariffChangeAction.CREATE) {
       await this.tariffsService.create(request.proposedChanges as unknown as CreateTariffDto);
     } else {
       if (!request.tariffId) {
         throw new BadRequestException('Update request is missing a tariffId');
       }
+      // Kast ATAYLAB saqlanadi, garchi TypeScript usiz ham o'tkazsa:
+      // `proposedChanges` — `Record<string, unknown>`, ya'ni turlanmagan
+      // JSON, va `UpdateTariffDto` maydonlarining hammasi ixtiyoriy
+      // bo'lgani uchun tekshiruvchi ularni mos deb biladi. Kast "bu yerda
+      // ishonch bilan tur beryapmiz" degan niyatni ko'rsatib turadi va
+      // yuqoridagi `create` shoxi bilan bir xil o'qiladi.
       await this.tariffsService.update(
         request.tariffId,
         request.proposedChanges as unknown as UpdateTariffDto,

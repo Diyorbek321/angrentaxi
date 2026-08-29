@@ -17,7 +17,10 @@ import { SettingsService } from '../settings/settings.service';
 import { OrdersService } from './orders.service';
 import { OrdersQueryService } from './orders-query.service';
 import { ORDERS_PROVIDERS } from './orders.providers';
-import { fakeTransactionRepository } from './orders.testing';
+import { SurgeService } from '../surge/surge.service';
+import { OsrmService } from '../routing/osrm.service';
+import { RoutedDistancePricing } from './routed-distance-pricing';
+import { fakeTransactionRepository, fakeCitiesServiceProvider } from './orders.testing';
 
 /**
  * completeTrip derived the billed distance with
@@ -50,6 +53,24 @@ describe('completeTrip — PostGIS distance falsy-zero handling', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ...ORDERS_PROVIDERS,
+        fakeCitiesServiceProvider(),
+        // Routing is an accuracy layer over pricing; these tests assert the
+        // straight-line behaviour, which is also the shipped default.
+        { provide: OsrmService, useValue: { routeDistanceMeters: jest.fn() } },
+        { provide: RoutedDistancePricing, useValue: { enabled: false } },
+        // Surge is a pricing input, not a dependency of these flows: a quiet
+        // zone (1.0x) keeps the expected prices in these tests unchanged.
+        {
+          provide: SurgeService,
+          useValue: {
+            snapshotFor: jest.fn().mockResolvedValue({
+              multiplier: 1.0,
+              demand: 0,
+              supply: 0,
+              zone: 'test-zone',
+            }),
+          },
+        },
         {
           provide: DataSource,
           useValue: {
@@ -69,6 +90,8 @@ describe('completeTrip — PostGIS distance falsy-zero handling', () => {
         {
           provide: getRepositoryToken(Trip),
           useValue: {
+            // `attachDisplayFields` endi safarlarni paketli o'qiydi.
+            find: jest.fn().mockResolvedValue([]),
             findOne: jest.fn().mockResolvedValue({ id: 'trip-1', startTime: new Date() }),
             update: tripUpdate,
           },
@@ -77,7 +100,29 @@ describe('completeTrip — PostGIS distance falsy-zero handling', () => {
         { provide: getRepositoryToken(DispatchOverride), useValue: {} },
         {
           provide: TariffsService,
-          useValue: { findById: jest.fn().mockResolvedValue({ id: 'tariff-1' }), calculatePrice },
+          useValue: { findById: jest.fn().mockResolvedValue({ id: 'tariff-1' }), calculatePrice,
+            // `calculatePrice` endi shu metodning ustidagi qobiq — mock ham
+            // ikkalasini bir manbadan beradi, aks holda ular ajralib ketadi.
+            // Argumentlar AYNAN qanday kelgan bo'lsa shunday uzatiladi:
+            // ishlab chiqarish kodi 3 ta argument bilan chaqiradi, va
+            // testlar `calculatePrice` aynan 3 ta bilan chaqirilganini
+            // tekshiradi. Bu yerda 4-chi `undefined` qo'shilsa, tekshiruv
+            // yiqiladi — mock haqiqatni buzgan bo'lardi.
+            calculatePriceBreakdown: jest.fn((...args: unknown[]) => ({
+              baseFare: 0,
+              distanceKm: args[1] as number,
+              pricePerKm: 0,
+              distanceFare: 0,
+              durationMin: args[2] as number,
+              pricePerMin: 0,
+              timeFare: 0,
+              minPriceAdjustment: 0,
+              surgeMultiplier: (args[3] as number) ?? 1,
+              surgeFare: 0,
+              maxPriceCap: 0,
+              total: (calculatePrice as (...a: unknown[]) => number)(...args),
+            })),
+          },
         },
         {
           provide: RealtimeGateway,

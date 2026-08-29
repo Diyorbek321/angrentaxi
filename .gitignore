@@ -68,3 +68,14 @@ apk/*.apk
 mobile/android/key.properties
 *.jks
 *.keystore
+
+# JVM heap dumplari — Gradle OOM'da avtomatik hosil bo'ladi (GB'larda).
+# Ular hech qachon commit qilinmasligi kerak: tarixdan olib tashlash uchun
+# butun tarixni qayta yozish talab qilinadi.
+*.hprof
+
+# Qurilgan APK/AAB artefaktlari — relizlar git'da emas, chiqarish
+# quvurida saqlanadi.
+apk/
+*.apk
+*.aab

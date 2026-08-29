@@ -5,6 +5,7 @@ import L from 'leaflet';
 import { useEffect } from 'react';
 import { Driver, Order } from '@/lib/api';
 import { formatRating, shortId } from '@/lib/format';
+import { MAP_TILE_URL } from '@/lib/map-config';
 
 import 'leaflet/dist/leaflet.css';
 
@@ -97,8 +98,11 @@ export default function DriverMapInner({ drivers, selectedOrder = null }: Driver
   return (
     <MapContainer center={points[0] ?? DEFAULT_CENTER} zoom={13} className="h-full w-full">
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        url={MAP_TILE_URL}
+        tileSize={512}
+        zoomOffset={-1}
+        minZoom={1}
       />
       <FitToPoints points={points} priority={routePoints} />
 

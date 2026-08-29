@@ -6,12 +6,16 @@ class DemoData {
   DemoData._();
 
   // Angren city coordinates (matches AppConfig defaults).
-  static const double pickupLat = 40.1392;
-  static const double pickupLng = 69.1225;
-  static const double dropoffLat = 40.1521;
-  static const double dropoffLng = 69.1418;
-  static const double driverStartLat = 40.1331;
-  static const double driverStartLng = 69.1170;
+  //
+  // These were previously ~130 km off, in Tajikistan — the demo trip ran
+  // through empty mountains. The relative offsets between the three points
+  // are unchanged, so the demo route keeps its original shape.
+  static const double pickupLat = 41.0212;
+  static const double pickupLng = 70.0795;
+  static const double dropoffLat = 41.0341;
+  static const double dropoffLng = 70.0988;
+  static const double driverStartLat = 41.0151;
+  static const double driverStartLng = 70.0740;
 
   static const String pickupAddress = 'Angren shahar markazi';
   static const String dropoffAddress = 'Angren bozori';
@@ -137,4 +141,110 @@ class DemoData {
           'durationMin': 12,
         },
       ];
+
+  // ---------------------------------------------------------------------
+  // Safar cheki — GET /orders/:id/receipt
+  // ---------------------------------------------------------------------
+
+  /// Chek javobi (`OrderReceiptDto`) — demo buyurtma xaritasidan yasaladi.
+  ///
+  /// NEGA UMUMAN KERAK: demo rejimda noma'lum yo'llar bo'sh `{}` bilan
+  /// javob berardi, ya'ni chek ekrani 0 so'mlik, manzilsiz, tarkibsiz
+  /// "hujjat" ko'rsatardi. Bo'sh chek — soxta ekran, va u demo ko'rsatuvda
+  /// mahsulot buzuq ekanini bildiradi.
+  static Map<String, dynamic> receipt(
+    Map<String, dynamic> order, {
+    double tipAmount = 0,
+  }) {
+    final id = (order['id'] as String?) ?? 'demo-order';
+    final total =
+        ((order['actualPrice'] ?? order['estimatedPrice']) as num?)?.toDouble() ??
+            0;
+    final distanceKm = (order['distanceKm'] as num?)?.toDouble() ?? 4.2;
+    final durationMin = (order['durationMin'] as num?)?.toInt() ?? 14;
+    final pickup = order['pickup'] as Map?;
+    final dropoff = order['dropoff'] as Map?;
+    final driverInfo = order['driver'] as Map?;
+
+    return {
+      'orderId': id,
+      // Backend UUID ning birinchi bo'lagini oladi; demo id lari
+      // "demo-order-h1" ko'rinishida, shuning uchun oxirgi bo'lak —
+      // aks holda hamma cheklarda bir xil "DEMO" turardi.
+      'orderNumber': id.split('-').last.toUpperCase(),
+      'completedAt': order['completedAt'] ??
+          DateTime.now().toUtc().toIso8601String(),
+      'serviceType': order['serviceType'] ?? 'taxi',
+      'pickupAddress': pickup?['address'] ?? pickupAddress,
+      'dropoffAddress': dropoff?['address'] ?? dropoffAddress,
+      'waypoints': const <Map<String, dynamic>>[],
+      'tariffId': order['tariffId'] ?? 'tariff-komfort',
+      'tariffName': 'Komfort',
+      'distanceKm': distanceKm,
+      'durationMin': durationMin,
+      'fare': _fare(
+        distanceKm: distanceKm,
+        durationMin: durationMin,
+        total: total,
+      ),
+      'surgeMultiplier': 1.0,
+      'grossPrice': total,
+      'discountAmount': 0,
+      'promoCode': null,
+      'tipAmount': tipAmount,
+      'total': total,
+      'paymentMethod': 'wallet',
+      'paymentStatus': 'completed',
+      'unpaidAmount': 0,
+      'driver': driverInfo == null
+          ? null
+          : {
+              // Demo haydovchi xaritasida bitta `name` maydoni bor; backend
+              // esa ism/familiyani birlashtirib yuboradi — ikkala shakl ham
+              // qo'llab-quvvatlanadi.
+              'name': driverInfo['name'] ??
+                  "${driverInfo['firstName'] ?? 'Haydovchi'} "
+                      "${driverInfo['lastName'] ?? ''}"
+                          .trim(),
+              'carModel': driverInfo['carModel'],
+              'carNumber': driverInfo['carNumber'],
+            },
+    };
+  }
+
+  /// Narx tarkibi.
+  ///
+  /// ⚠️ Backend invarianti demo'da ham buzilmaydi:
+  ///   asos + masofa + vaqt + eng kam haq + koeffitsient + chegara == jami.
+  /// Hisoblangan summa buyurtma narxidan farq qilsa, farq "eng kam haq"
+  /// (kam bo'lsa) yoki "yuqori narx chegarasi" (ko'p bo'lsa) qatoriga
+  /// yoziladi — soxta raqam qo'shilmaydi, qatorlar baribir jamiga qo'shiladi.
+  static Map<String, dynamic> _fare({
+    required double distanceKm,
+    required int durationMin,
+    required double total,
+  }) {
+    const baseFare = 8000.0;
+    const pricePerKm = 2500.0;
+    const pricePerMin = 300.0;
+
+    final distanceFare = distanceKm * pricePerKm;
+    final timeFare = durationMin * pricePerMin;
+    final gap = total - (baseFare + distanceFare + timeFare);
+
+    return {
+      'baseFare': baseFare,
+      'distanceKm': distanceKm,
+      'pricePerKm': pricePerKm,
+      'distanceFare': distanceFare,
+      'durationMin': durationMin,
+      'pricePerMin': pricePerMin,
+      'timeFare': timeFare,
+      'minPriceAdjustment': gap > 0 ? gap : 0.0,
+      'surgeMultiplier': 1.0,
+      'surgeFare': 0.0,
+      'maxPriceCap': gap < 0 ? gap : 0.0,
+      'total': total,
+    };
+  }
 }

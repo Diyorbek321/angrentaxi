@@ -53,8 +53,20 @@ void main() {
     localStorage = LocalStorage(prefs);
     mockApiClient = MockApiClient();
 
-    // GET /drivers/me — driver with a known wallet balance (50 000 UZS),
-    // used by the client-side over-balance validation check.
+    // GET /payments/wallet — hamyon qoldig'ining YAGONA manbai (50 000 UZS).
+    //
+    // ⚠️ Ilgari mahalliy tekshiruv `GET /drivers/me` dagi `balance` ustuniga
+    // qarardi, server esa yechishni daftarga solishtirardi — ikki xil raqam,
+    // ikki xil javob. Endi ikkalasi ham shu endpointdan keladi.
+    when(() => mockApiClient.get(ApiEndpoints.paymentsWallet)).thenAnswer(
+      (_) async => _jsonResponse(ApiEndpoints.paymentsWallet, {
+        'success': true,
+        'data': {'userId': 'user-1', 'balance': 50000},
+      }),
+    );
+
+    // GET /drivers/me — profil ma'lumotlari (mashina, telefon). Undagi
+    // `balance` ustuni endi QAROR uchun ishlatilmaydi.
     when(() => mockApiClient.get(ApiEndpoints.driverProfile)).thenAnswer(
       (_) async => _jsonResponse(ApiEndpoints.driverProfile, {
         'success': true,

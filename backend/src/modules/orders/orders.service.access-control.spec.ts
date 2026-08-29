@@ -3,7 +3,10 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { ORDERS_PROVIDERS } from './orders.providers';
-import { fakeDataSourceProvider, fakeTransactionRepository } from './orders.testing';
+import { SurgeService } from '../surge/surge.service';
+import { OsrmService } from '../routing/osrm.service';
+import { RoutedDistancePricing } from './routed-distance-pricing';
+import { fakeDataSourceProvider, fakeTransactionRepository, fakeCitiesServiceProvider } from './orders.testing';
 import { OrdersQueryService } from './orders-query.service';
 import { Order, OrderStatus } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
@@ -49,6 +52,24 @@ describe('OrdersService - findByIdForUser access control', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ...ORDERS_PROVIDERS,
+        fakeCitiesServiceProvider(),
+        // Routing is an accuracy layer over pricing; these tests assert the
+        // straight-line behaviour, which is also the shipped default.
+        { provide: OsrmService, useValue: { routeDistanceMeters: jest.fn() } },
+        { provide: RoutedDistancePricing, useValue: { enabled: false } },
+        // Surge is a pricing input, not a dependency of these flows: a quiet
+        // zone (1.0x) keeps the expected prices in these tests unchanged.
+        {
+          provide: SurgeService,
+          useValue: {
+            snapshotFor: jest.fn().mockResolvedValue({
+              multiplier: 1.0,
+              demand: 0,
+              supply: 0,
+              zone: 'test-zone',
+            }),
+          },
+        },
         fakeDataSourceProvider(),
         {
           provide: getRepositoryToken(Order),
@@ -65,7 +86,19 @@ describe('OrdersService - findByIdForUser access control', () => {
         },
         { provide: getRepositoryToken(Transaction), useValue: fakeTransactionRepository(0, { save: jest.fn() }) },
         { provide: getRepositoryToken(DispatchOverride), useValue: { save: jest.fn() } },
-        { provide: TariffsService, useValue: {} },
+        {
+          provide: TariffsService,
+          useValue: {
+            findById: jest.fn().mockResolvedValue({ id: 'tariff-1' }),
+            calculatePrice: jest.fn().mockReturnValue(0),
+            calculatePriceBreakdown: jest.fn().mockReturnValue({
+              baseFare: 0, distanceKm: 0, pricePerKm: 0, distanceFare: 0,
+              durationMin: 0, pricePerMin: 0, timeFare: 0,
+              minPriceAdjustment: 0, surgeMultiplier: 1, surgeFare: 0,
+              maxPriceCap: 0, total: 0,
+            }),
+          },
+        },
         {
           provide: RealtimeGateway,
           useValue: { emitToUser: jest.fn(), emitToManagers: jest.fn() },
@@ -127,7 +160,7 @@ describe('OrdersService - findByIdForUser access control', () => {
   it('does not treat an unassigned order (driverId null) as owned by a driver', async () => {
     jest
       .spyOn(queryService, 'findByIdOrThrow')
-      .mockResolvedValue({ ...order, driverId: null } as Order);
+      .mockResolvedValue({ ...order, driverId: null });
 
     await expect(
       service.findByIdForUser('order-1', { id: 'driver-user-1', role: UserRole.DRIVER }),

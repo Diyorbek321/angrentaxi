@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PaymentsController } from './payments.controller';
+import { PAYOUT_PROVIDER } from './payout.interface';
+import { ManualPayoutProvider } from './manual-payout.provider';
 import { PaymentsService } from './payments.service';
 import { PaymeProvider } from './payme.provider';
 import { ClickProvider } from './click.provider';
@@ -29,7 +31,16 @@ import { DriversModule } from '../drivers/drivers.module';
     DriversModule,
   ],
   controllers: [PaymentsController],
-  providers: [PaymentsService, PaymeProvider, ClickProvider, UzcardProvider],
+  providers: [
+    PaymentsService,
+    PaymeProvider,
+    ClickProvider,
+    UzcardProvider,
+    // Pul CHIQARISH yo'li. Payme/Click payout kalitlari kelganda faqat shu
+    // bog'lanish o'zgaradi — `PaymentsService` ga tegilmaydi
+    // (`payout.interface.ts` dagi izohga qarang).
+    { provide: PAYOUT_PROVIDER, useClass: ManualPayoutProvider },
+  ],
   exports: [PaymentsService],
 })
 export class PaymentsModule {}

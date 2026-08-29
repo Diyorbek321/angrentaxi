@@ -11,7 +11,25 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
-// Label + icon for each KYC document type the driver must submit.
+// ⚠️ ESKI NAQSH — QATTIQ KODLANGAN RO'YXAT. YANGI KOD BUNDAY QILMAYDI.
+//
+// Yangi, serverdan boshqariladigan naqsh:
+//   features/driver/screens/verification_screen.dart
+//   shared/models/driver_verification.dart
+// U yerda ro'yxat ham, nomlar ham, izohlar ham serverdan keladi — yangi
+// talab qo'shish uchun APK chiqarish shart emas.
+//
+// NEGA BU RO'YXAT SHU YERDA QOLDIRILDI (ataylab, "yarim ko'chirish" emas):
+// bu ekran — HISOB YARATISHNING yagona yo'li. `GET /drivers/me/verification`
+// hali yangi endpoint bo'lib, ariza `pending` holatda turgan haydovchi uchun
+// aynan shu to'rtta boshlang'ich KYC hujjatini qaytarishi KAFOLATLANMAGAN.
+// Agar u bo'sh ro'yxat qaytarsa, yangi haydovchi hujjat yuklay olmaydi va
+// hisobi butunlay tiqilib qoladi — tuzatib bo'lmaydigan regressiya.
+//
+// KO'CHIRISH SHARTI: server `pending` haydovchi uchun ham to'liq ro'yxat
+// qaytarishi tasdiqlangach, `_DriverDocumentsSection` ni tekshiruv ekrani
+// bilan almashtirish kifoya; POST manzili `/drivers/documents` dan
+// `/drivers/me/verification/:code` ga o'tadi.
 const List<(DriverDocumentType, String, IconData)> _kDriverDocumentTypes = [
   (
     DriverDocumentType.licenseFront,

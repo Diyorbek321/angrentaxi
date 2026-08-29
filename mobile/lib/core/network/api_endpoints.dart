@@ -31,8 +31,45 @@ class ApiEndpoints {
   static String orderById(String id) => '/orders/$id';
   static String cancelOrder(String id) => '/orders/$id/cancel';
 
+  // GET /orders/scheduled (orders.controller.ts) — yo'lovchining kelgusi
+  // rejalashtirilgan safarlari, eng yaqini birinchi.
+  //
+  // ⚠️ Backend'da bu marshrut `@Get(':id')` DAN OLDIN e'lon qilingan
+  // bo'lishi shart, aks holda Nest 'scheduled' ni UUID deb o'qib
+  // `ParseUUIDPipe` bilan 400 qaytaradi.
+  //
+  // Bekor qilish uchun alohida endpoint YO'Q — rejalashtirilgan buyurtma
+  // mavjud `cancelOrder` orqali bekor qilinadi (backend'da SCHEDULED
+  // bekor qilinadigan holatlar ro'yxatiga qo'shilgan).
+  static const String scheduledOrders = '/orders/scheduled';
+
+  // GET /orders/:id/receipt (orders.controller.ts) — TUGAGAN safarning
+  // moliyaviy hujjati: narx tarkibi, chegirma, chaqim, to'lov holati.
+  // Safar tugamagan bo'lsa 400, chek boshqaning bo'lsa 403 qaytadi.
+  static String orderReceipt(String id) => '/orders/$id/receipt';
+
+  // Chaqim — POST /orders/:id/tip (orders.controller.ts). Faqat yo'lovchi
+  // roli, faqat TUGAGAN safar uchun va safar tugaganidan keyingi 24 soat
+  // ichida. Tana: {amount} — 1 000..200 000 oralig'idagi BUTUN son
+  // (add-tip.dto.ts), javob: {tipAmount, walletBalance}.
+  //
+  // ⚠️ Summa faqat HAMYONDAN yechiladi — naqd/karta yo'q, chunki chaqim
+  // DEBIT qatori yo'l haqi DEBIT qatorini to'sib qo'yardi
+  // (orders-tips.service.ts dagi izohga qarang).
+  static String addTip(String id) => '/orders/$id/tip';
+
   // Tariffs
   static const String tariffs = '/tariffs';
+
+  // Xizmat ko'rsatiladigan shaharlar — OMMAVIY marshrut (token talab
+  // qilmaydi), chunki qamrov buyurtmadan OLDIN kerak.
+  //
+  //   GET /cities → [{id, name, centerLat, centerLng, radiusKm}]
+  //
+  // Har bir shahar MARKAZ + RADIUS bilan berilgan doira. Ro'yxat bo'sh
+  // kelsa yoki so'rov yiqilsa mobil tomon hech narsani bloklamaydi —
+  // core/location/city_coverage.dart dagi izohga qarang.
+  static const String cities = '/cities';
 
   // Driver
   static const String driverProfile = '/drivers/me';
@@ -52,6 +89,38 @@ class ApiEndpoints {
   static String completeTrip(String id) => '/orders/$id/complete';
   static const String updateLocation = '/drivers/location';
   static const String driverDocuments = '/drivers/documents';
+
+  // Haydovchi tekshiruvi — hujjat muddatlari + avtomobil suratlari.
+  //
+  // ⚠️ Talablar RO'YXATI SERVERDAN keladi: `code` erkin satr, `label`/`hint`
+  // ni ham server beradi. Mobil tomonda qattiq kodlangan ro'yxat YO'Q —
+  // yangi talab qo'shish uchun APK chiqarish SHART EMAS. To'liq kontrakt
+  // uchun shared/models/driver_verification.dart ga qarang.
+  static const String driverVerification = '/drivers/me/verification';
+
+  // POST, multipart/form-data, maydon nomi "file". `code` serverdan kelgan
+  // erkin satr bo'lgani uchun manzilga qo'yishdan oldin kodlanadi — unda
+  // `/` yoki bo'sh joy chiqib qolsa marshrut buzilmasin.
+  static String driverVerificationUpload(String code) =>
+      '/drivers/me/verification/${Uri.encodeComponent(code)}';
+
+  // Haydovchining XIZMAT TURLARI — qaysi vertikallardan buyurtma oladi.
+  //
+  //   GET   /drivers/me/services  → { enabled: [...], options: [...] }
+  //   PATCH /drivers/me/services  ← { serviceTypes: ['taxi', 'food'] }
+  //
+  // ⚠️ Ro'yxat, nom va izoh SERVERDAN keladi — mobil tomonda tarjima
+  // jadvali YO'Q (tekshiruv ekranidagi naqshning aynan o'zi). To'liq
+  // kontrakt uchun shared/models/driver_service.dart ga qarang.
+  static const String driverServices = '/drivers/me/services';
+
+  // Talab (surge) xaritasi — faqat haydovchi roli uchun.
+  // GET /surge/zones?lat=<double>&lng=<double>&rings=<int, default 4>
+  // To'g'ridan-to'g'ri MapLibre'ga beriladigan GeoJSON `FeatureCollection`
+  // qaytaradi; har bir feature `properties`ida `zone`, `level` va
+  // `multiplier` bo'ladi (koeffitsiyent EKRANGA CHIQMAYDI — shared/models/
+  // demand_zone.dart dagi izohga qarang).
+  static const String surgeZones = '/surge/zones';
 
   // Ratings
   static const String submitRating = '/ratings';

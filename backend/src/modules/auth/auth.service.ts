@@ -115,15 +115,30 @@ export class AuthService {
     });
 
     if (otpBypassEnabled) {
-      this.logger.warn(`OTP bypass enabled. Code for ${phone}: ${code}`);
+      // ⚠️ Kod telefon raqami bilan birga yozilmaydi — jurnal odatda
+      // kengroq doiraga ko'rinadi. Raqamning oxirgi to'rt belgisi
+      // qaysi hisob ekanini aniqlashga yetadi.
+      this.logger.warn(
+        `OTP bypass enabled for ...${phone.slice(-4)} — code is the configured bypass value`,
+      );
 
-      // The code is echoed back only outside production, where it saves
-      // testers a trip to the server log. Returning it from a production
-      // server would hand a valid login code to any unauthenticated caller
-      // who knows a phone number, so there it is logged and nothing more.
-      return isProduction
-        ? { message: 'OTP sent successfully' }
-        : { message: 'OTP sent successfully', code };
+      // ⚠️ Kodni javobda QAYTARISH alohida, AYNIQSA yoqiladigan imkoniyat.
+      //
+      // Ilgari shart `!isProduction` edi va u xavfni teskari qo'yardi:
+      // `NODE_ENV` ni o'rnatishni unutgan server eng ochiq holatga
+      // tushardi. Jonli serverda aynan shunday bo'ldi — `/auth/send-otp`
+      // javob tanasida yaroqli login kodini qaytarardi, ya'ni telefon
+      // raqamini bilgan har qanday odam istalgan hisobga kira olardi.
+      //
+      // Endi bitta o'zgaruvchining YO'QLIGI hech narsani ochmaydi: kodni
+      // ko'rish uchun `OTP_ECHO_CODE=true` ni ATAYLAB qo'yish kerak.
+      // Ishlab chiquvchi uchun bu yo'qotish emas — kod baribir server
+      // jurnalida turibdi.
+      const echoCode = this.configService.get<string>('OTP_ECHO_CODE') === 'true';
+
+      return echoCode
+        ? { message: 'OTP sent successfully', code }
+        : { message: 'OTP sent successfully' };
     }
 
     await this.eskizService.sendSms(

@@ -1,6 +1,6 @@
 import 'dart:async';
-
 import 'package:angren_taxi/core/config/app_config.dart';
+import 'package:angren_taxi/core/config/app_haptics.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
@@ -55,6 +55,7 @@ class _OtpScreenState extends State<OtpScreen> {
 
   Future<void> _onVerify() async {
     if (_otpValue.length != 6) {
+      AppHaptics.warning();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('6 ta raqamli kodni kiriting')),
       );
@@ -66,7 +67,13 @@ class _OtpScreenState extends State<OtpScreen> {
 
     if (!mounted) return;
     if (success) {
+      // Kirish muvaffaqiyatli — ikki zarbali ko'tariluvchi naqsh.
+      AppHaptics.success();
       Navigator.of(context).pushNamedAndRemoveUntil('/home', (_) => false);
+    } else {
+      // Noto'g'ri kod. Xato haptikasi ekranga qaramasdan ham tushunarli —
+      // foydalanuvchi ko'pincha klaviaturaga qarab turadi.
+      AppHaptics.error();
     }
   }
 
@@ -77,6 +84,7 @@ class _OtpScreenState extends State<OtpScreen> {
     await auth.sendOtp(auth.phone!);
     if (!mounted) return;
     if (auth.state == AuthState.otpSent) {
+      AppHaptics.tap();
       _otpController.clear();
       _otpValue = '';
       _startCountdown();

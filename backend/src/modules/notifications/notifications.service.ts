@@ -240,6 +240,65 @@ export class NotificationsService {
     await this.logNotification(recipient.id, title, body, 'support_reply');
   }
 
+  /**
+   * Haydovchiga bonus yozilgani haqida xabar.
+   *
+   * NEGA aniq matn kerak: bonus haydovchining hamyoniga jimgina tushadi va
+   * u faqat daromad ekranini ochsagina ko'radi. "Sizga bonus berildi" degan
+   * umumiy matn esa savol tug'diradi — qaysi shart bajarildi, qancha pul
+   * keldi? Shuning uchun qoida nomi ham, summa ham matnning o'zida turadi.
+   *
+   * Summa `uz-UZ` bilan formatlanadi (drivers.service.ts dagi balans matni
+   * bilan bir xil): haydovchi "25 000 so'm" ni bir qarashda o'qiydi,
+   * "25000" ni esa o'qishga to'xtaydi.
+   */
+  async notifyBonusAwarded(driver: User, bonusName: string, amount: number): Promise<void> {
+    const title = 'Bonus hisobingizga tushdi';
+    const body = `${bonusName}: ${amount.toLocaleString('uz-UZ')} so'm hisobingizga qo'shildi`;
+
+    if (driver.fcmToken) {
+      await this.firebaseService.sendPush(driver.fcmToken, title, body, {
+        event: 'bonus_awarded',
+        bonusName,
+        amount: amount.toString(),
+      });
+    }
+
+    await this.logNotification(driver.id, title, body, 'bonus_awarded');
+  }
+
+  /**
+   * Davriy tekshiruv muddati haqida haydovchiga eslatma.
+   *
+   * NEGA aniq ro'yxat matnda: "hujjatlaringizni yangilang" degan umumiy
+   * xabar haydovchini ilovani ochib, qaysi biri ekanini qidirishga majbur
+   * qiladi va ko'pchilik shunchaki e'tiborsiz qoldiradi. Nomi va qolgan
+   * kunlari yozilgan xabar esa darhol harakatga chorlaydi.
+   *
+   * `overdue` va `due_soon` matni ATAYLAB har xil: birinchisi allaqachon
+   * ishdan chetlatish xavfi, ikkinchisi shunchaki ogohlantirish.
+   */
+  async notifyVerificationDue(
+    driver: User,
+    labels: string[],
+    hasOverdue: boolean,
+  ): Promise<void> {
+    const title = hasOverdue ? 'Tekshiruv muddati o‘tdi' : 'Tekshiruv muddati yaqinlashdi';
+    const listed = labels.join(', ');
+    const body = hasOverdue
+      ? `${listed} — muddati o‘tgan. Yangilamasangiz onlayn chiqa olmaysiz.`
+      : `${listed} — muddati tugayapti. Iltimos, yangilab qo‘ying.`;
+
+    if (driver.fcmToken) {
+      await this.firebaseService.sendPush(driver.fcmToken, title, body, {
+        event: 'verification_due',
+        codes: labels.join('|'),
+      });
+    }
+
+    await this.logNotification(driver.id, title, body, 'verification_due');
+  }
+
   async sendOtpSms(phone: string, code: string): Promise<void> {
     await this.eskizService.sendSms(
       phone,

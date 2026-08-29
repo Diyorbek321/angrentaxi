@@ -10,12 +10,13 @@ import {
 } from '../../database/entities/transaction.entity';
 import { MarketOrder } from '../../database/entities/market-order.entity';
 import { FoodOrder } from '../../database/entities/food-order.entity';
-import { Order, PaymentMethod } from '../../database/entities/order.entity';
+import { Order } from '../../database/entities/order.entity';
 import { User } from '../../database/entities/user.entity';
 import { WithdrawalRequest, WithdrawalStatus } from '../../database/entities/withdrawal-request.entity';
 import { PaymeProvider } from './payme.provider';
 import { ClickProvider } from './click.provider';
 import { UzcardProvider } from './uzcard.provider';
+import { PAYOUT_PROVIDER } from './payout.interface';
 import { DriversService } from '../drivers/drivers.service';
 
 /**
@@ -132,6 +133,15 @@ describe('PaymentsService - requestWithdrawal race guard', () => {
         { provide: PaymeProvider, useValue: {} },
         { provide: ClickProvider, useValue: {} },
         { provide: UzcardProvider, useValue: {} },
+        // Pul CHIQARISH adapteri. Qo'lda o'tkazma hech qanday tarmoqqa
+        // chiqmaydi, shuning uchun mock ham shunchaki natija qaytaradi.
+        {
+          provide: PAYOUT_PROVIDER,
+          useValue: {
+            name: 'manual',
+            send: jest.fn().mockResolvedValue({ reference: null, settled: true }),
+          },
+        },
         // settleOrderPayout credits drivers.balance once a card payment lands.
         {
           provide: DriversService,
@@ -171,14 +181,14 @@ describe('PaymentsService - requestWithdrawal race guard', () => {
 
     // The loser must fail loudly with BadRequestException, never silently
     // succeed or throw something else.
-    const rejection = rejected[0] as PromiseRejectedResult;
+    const rejection = rejected[0];
     expect(rejection.reason).toBeInstanceOf(BadRequestException);
 
     // Only the winner's withdrawal + hold transaction were persisted.
     expect(withdrawalRepository.save).toHaveBeenCalledTimes(1);
     expect(transactionRepository.save).toHaveBeenCalledTimes(1);
 
-    const winner = (fulfilled[0] as PromiseFulfilledResult<WithdrawalRequest>).value;
+    const winner = (fulfilled[0]).value;
     expect(winner.status).toBe(WithdrawalStatus.PENDING);
     expect(winner.amount).toBe(70000);
 

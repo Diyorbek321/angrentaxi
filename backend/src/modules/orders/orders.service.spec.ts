@@ -3,7 +3,10 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConflictException } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { ORDERS_PROVIDERS } from './orders.providers';
-import { fakeDataSourceProvider, fakeTransactionRepository } from './orders.testing';
+import { SurgeService } from '../surge/surge.service';
+import { OsrmService } from '../routing/osrm.service';
+import { RoutedDistancePricing } from './routed-distance-pricing';
+import { fakeDataSourceProvider, fakeTransactionRepository, fakeCitiesServiceProvider } from './orders.testing';
 import { OrdersQueryService } from './orders-query.service';
 import { Order, OrderStatus } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
@@ -48,6 +51,7 @@ describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => 
     set: jest.Mock;
     where: jest.Mock;
     andWhere: jest.Mock;
+    setParameters: jest.Mock;
     execute: jest.Mock;
   };
   let orderRepository: {
@@ -78,6 +82,12 @@ describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => 
       set: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
+      // `driverArrived` `arrived_at` ni xom SQL bilan yozadi
+      // (`COALESCE("arrived_at", :arrivedAt)`) va bog'lanuvchi qiymatni
+      // `setParameters` orqali uzatadi. Mockda bu metod bo'lmasa chaqiruv
+      // `TypeError` bilan yiqiladi va test kutilgan `ConflictException` ni
+      // umuman ko'rmaydi — ya'ni TOCTOU qo'riqchisi tekshirilmay qolardi.
+      setParameters: jest.fn().mockReturnThis(),
       execute: jest.fn(),
     };
 
@@ -116,6 +126,24 @@ describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ...ORDERS_PROVIDERS,
+        fakeCitiesServiceProvider(),
+        // Routing is an accuracy layer over pricing; these tests assert the
+        // straight-line behaviour, which is also the shipped default.
+        { provide: OsrmService, useValue: { routeDistanceMeters: jest.fn() } },
+        { provide: RoutedDistancePricing, useValue: { enabled: false } },
+        // Surge is a pricing input, not a dependency of these flows: a quiet
+        // zone (1.0x) keeps the expected prices in these tests unchanged.
+        {
+          provide: SurgeService,
+          useValue: {
+            snapshotFor: jest.fn().mockResolvedValue({
+              multiplier: 1.0,
+              demand: 0,
+              supply: 0,
+              zone: 'test-zone',
+            }),
+          },
+        },
         fakeDataSourceProvider(),
         { provide: getRepositoryToken(Order), useValue: orderRepository },
         {
@@ -124,7 +152,19 @@ describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => 
         },
         { provide: getRepositoryToken(Transaction), useValue: fakeTransactionRepository(0, { save: jest.fn() }) },
         { provide: getRepositoryToken(DispatchOverride), useValue: dispatchOverrideRepository },
-        { provide: TariffsService, useValue: {} },
+        {
+          provide: TariffsService,
+          useValue: {
+            findById: jest.fn().mockResolvedValue({ id: 'tariff-1' }),
+            calculatePrice: jest.fn().mockReturnValue(0),
+            calculatePriceBreakdown: jest.fn().mockReturnValue({
+              baseFare: 0, distanceKm: 0, pricePerKm: 0, distanceFare: 0,
+              durationMin: 0, pricePerMin: 0, timeFare: 0,
+              minPriceAdjustment: 0, surgeMultiplier: 1, surgeFare: 0,
+              maxPriceCap: 0, total: 0,
+            }),
+          },
+        },
         {
           provide: RealtimeGateway,
           useValue: { emitToUser: jest.fn(), emitToManagers: jest.fn() },
@@ -182,6 +222,47 @@ describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => 
         'status IN (:...expectedStatuses)',
         { expectedStatuses: [OrderStatus.ACCEPTED] },
       );
+    });
+
+    /**
+     * ⚠️ KUTISH HISOBINI HIMOYA QILADI.
+     *
+     * `arrived_at` — pul undiriladigan maydon: kutish haqi shu lahzadan
+     * safar boshlanishigacha hisoblanadi. Agar u har "Yetib keldim"
+     * bosilganda qayta yozilsa, haydovchi tugmani ikkinchi marta bosib
+     * kutish hisobini NOLGA tushira olardi va yo'lovchi qancha kutdirgani
+     * ahamiyatsiz bo'lib qolardi.
+     *
+     * Shuning uchun yozuv `COALESCE("arrived_at", :arrivedAt)` — qiymat
+     * FAQAT ustun bo'sh bo'lganda tushadi. Qoida shu darajada muhimki, u
+     * status qo'riqchisiga tayanmaydi: SQL ning o'zi idempotentlikni
+     * kafolatlaydi.
+     */
+    it('arrivedAt IDEMPOTENT — COALESCE bilan yoziladi, qayta yozilmaydi', async () => {
+      const order = baseOrder({ status: OrderStatus.ACCEPTED, driverId: 'driver-1' });
+      jest.spyOn(queryService, 'findByIdOrThrow').mockResolvedValue(order);
+      queryBuilderMock.execute.mockResolvedValueOnce({ affected: 1, raw: [] });
+
+      await service.driverArrived('driver-1', 'order-1');
+
+      const [updateData] = queryBuilderMock.set.mock.calls[0] as [
+        Record<string, unknown>,
+      ];
+      expect(updateData.status).toBe(OrderStatus.ARRIVED);
+
+      // Xom SQL ifodasi: mavjud qiymat bo'lsa u SAQLANADI.
+      expect(typeof updateData.arrivedAt).toBe('function');
+      expect((updateData.arrivedAt as () => string)()).toBe(
+        'COALESCE("arrived_at", :arrivedAt)',
+      );
+
+      // Vaqt parametr sifatida BOG'LANADI (SQL ichiga qo'yilmaydi), ya'ni
+      // pg drayveri uni `trips.start_time` bilan bir xil serializatsiya
+      // qiladi — kutish daqiqalari aynan shu ikki vaqt AYIRMASI.
+      const [parameters] = queryBuilderMock.setParameters.mock.calls[0] as [
+        { arrivedAt: Date },
+      ];
+      expect(parameters.arrivedAt).toBeInstanceOf(Date);
     });
   });
 
@@ -293,6 +374,12 @@ describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => 
         'status IN (:...expectedStatuses)',
         {
           expectedStatuses: [
+            // SCHEDULED ham bekor qilinadiganlar ichida: yo'lovchi
+            // rejalashtirilgan safarni bajarilishidan OLDIN bekor qila
+            // olishi kerak — aynan shu narsa uni rejaga aylantiradi.
+            // (`reassignDriver` ro'yxati esa o'zgarmadi: hali haydovchi
+            // qidirilmagan buyurtmaga haydovchi biriktirish mantiqsiz.)
+            OrderStatus.SCHEDULED,
             OrderStatus.CREATED,
             OrderStatus.SEARCHING,
             OrderStatus.ACCEPTED,

@@ -34,7 +34,9 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { Permission, User, UserRole } from '../../database/entities/user.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
-import { Order } from '../../database/entities/order.entity';
+import { Order, OrderStatus } from '../../database/entities/order.entity';
+import { AddTipDto } from './dto/add-tip.dto';
+import { OrderReceiptDto } from './dto/order-receipt.dto';
 
 @ApiTags('Orders')
 @ApiBearerAuth('JWT-auth')
@@ -65,12 +67,33 @@ export class OrdersController {
   ): Promise<Order> {
     const order = await this.ordersService.create(user.id, dto);
 
+    this.startSearchUnlessScheduled(order);
+
+    return order;
+  }
+
+  /**
+   * Rejalashtirilgan buyurtmada qidiruv HOZIR boshlanmaydi.
+   *
+   * Uni `ScheduledOrdersService` cron'i `scheduled_at` dan
+   * SCHEDULED_DISPATCH_LEAD_MINUTES oldin ishga tushiradi. Bu yerda
+   * `startSearch` chaqirilsa, ertangi safar uchun haydovchi BUGUN
+   * qidirilardi va 60 soniyadan keyin "haydovchi topilmadi" deb bekor
+   * bo'lardi.
+   */
+  private startSearchUnlessScheduled(order: Order): void {
+    if (order.status === OrderStatus.SCHEDULED) {
+      this.logger.log(
+        `Order ${order.id} is scheduled for ${order.scheduledAt?.toISOString() ?? '?'} — ` +
+          'matching deferred to ScheduledOrdersService',
+      );
+      return;
+    }
+
     // Start matching asynchronously
     this.matchingService.startSearch(order.id).catch((err: unknown) => {
       this.logger.error(`Matching failed for order ${order.id}:`, (err as Error).message);
     });
-
-    return order;
   }
 
   @Post('dispatch')
@@ -81,9 +104,7 @@ export class OrdersController {
   async createDispatchOrder(@Body() dto: CreateDispatchOrderDto): Promise<Order> {
     const order = await this.ordersService.createForDispatch(dto);
 
-    this.matchingService.startSearch(order.id).catch((err: unknown) => {
-      this.logger.error(`Matching failed for order ${order.id}:`, (err as Error).message);
-    });
+    this.startSearchUnlessScheduled(order);
 
     return order;
   }
@@ -147,6 +168,23 @@ export class OrdersController {
     return this.ordersService.getActiveOrders();
   }
 
+  /**
+   * ⚠️ MARSHRUT TARTIBI: bu handler `@Get(':id')` DAN OLDIN turishi SHART.
+   *
+   * Nest marshrutlarni e'lon tartibida ro'yxatdan o'tkazadi. Pastroqqa
+   * qo'yilsa `GET /orders/scheduled` `findOne('scheduled')` ga tushadi va
+   * `ParseUUIDPipe` "Validation failed (uuid is expected)" bilan 400
+   * qaytaradi — endpoint umuman ishlamaydi, lekin xato xabari boshqa
+   * narsani ko'rsatadi.
+   */
+  @Get('scheduled')
+  @Roles(UserRole.PASSENGER)
+  @ApiOperation({ summary: "Yo'lovchining kelgusi rejalashtirilgan safarlari" })
+  @ApiResponse({ status: 200, description: 'Rejalashtirilgan safarlar ro\'yxati' })
+  async getScheduled(@CurrentUser() user: User): Promise<Order[]> {
+    return this.ordersService.getScheduledOrders(user.id);
+  }
+
   @Get('earnings')
   @Roles(UserRole.DRIVER)
   @ApiOperation({ summary: "Get the current driver's earnings for today" })
@@ -200,6 +238,39 @@ export class OrdersController {
     // Only the order's passenger, its assigned driver, or a manager/admin may
     // read an order — the response embeds passenger/driver PII and addresses.
     return this.ordersService.findByIdForUser(id, user);
+  }
+
+  @Get(':id/receipt')
+  @ApiOperation({ summary: 'Tugagan safar cheki' })
+  @ApiParam({ name: 'id', description: 'Order UUID' })
+  @ApiResponse({ status: 200, description: 'Chek', type: OrderReceiptDto })
+  @ApiResponse({ status: 400, description: 'Safar hali tugamagan' })
+  @ApiResponse({ status: 403, description: 'Bu chek sizga tegishli emas' })
+  async getReceipt(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<OrderReceiptDto> {
+    // Rol guard yo'q — huquq `findByIdForUser` ichida tekshiriladi
+    // (yo'lovchi / tayinlangan haydovchi / manager).
+    return this.ordersService.getReceipt(id, user);
+  }
+
+  @Post(':id/tip')
+  @Roles(UserRole.PASSENGER)
+  @ApiOperation({ summary: "Haydovchiga chaqim (komissiyasiz, hamyondan)" })
+  @ApiParam({ name: 'id', description: 'Order UUID' })
+  @ApiResponse({ status: 201, description: 'Chaqim berildi' })
+  @ApiResponse({
+    status: 400,
+    description: "Safar tugamagan, 24 soat o'tgan yoki hamyonda mablag' yetarli emas",
+  })
+  @ApiResponse({ status: 409, description: 'Chaqim allaqachon berilgan' })
+  async addTip(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AddTipDto,
+  ): Promise<{ tipAmount: number; walletBalance: number }> {
+    return this.ordersService.addTip(user.id, id, dto);
   }
 
   @Patch(':id/accept')

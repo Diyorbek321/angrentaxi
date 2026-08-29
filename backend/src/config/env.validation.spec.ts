@@ -4,6 +4,9 @@ import 'reflect-metadata';
 import { validateEnv } from './env.validation';
 
 const baseEnv = {
+  // MAJBURIY: standart qiymati ataylab olib tashlangan
+  // (`env.validation.ts` dagi izohga qarang).
+  NODE_ENV: 'development',
   DB_HOST: 'localhost',
   DB_PORT: 5432,
   DB_USER: 'postgres',
@@ -13,6 +16,30 @@ const baseEnv = {
   REDIS_PORT: 6379,
   APP_SECRET: 'a'.repeat(32),
 };
+
+describe('validateEnv NODE_ENV', () => {
+  it("ko'rsatilmagan bo'lsa ilova KO'TARILMAYDI", () => {
+    // ⚠️ Ilgari bu holat jimgina `development` ga tushardi va deploy
+    // qilingan server bir vaqtning o'zida OTP kodini javobda qaytarishni,
+    // `synchronize` ni, yumshoq CORS'ni va stack trace'larni ochib
+    // qo'yardi. Sozlamaning yo'qligi eng ochiq holatni bermasligi kerak.
+    const { NODE_ENV: _omitted, ...withoutEnv } = baseEnv;
+
+    expect(() => validateEnv(withoutEnv)).toThrow(/NODE_ENV/);
+  });
+
+  it("noto'g'ri qiymatni rad etadi", () => {
+    // "prod" yoki "PRODUCTION" kabi yaqin, lekin noto'g'ri qiymat
+    // productionni ochib yuborardi — shuning uchun ro'yxat qat'iy.
+    expect(() => validateEnv({ ...baseEnv, NODE_ENV: 'prod' })).toThrow(/NODE_ENV/);
+  });
+
+  it("uchta yaroqli qiymatni qabul qiladi", () => {
+    for (const value of ['development', 'production', 'test']) {
+      expect(validateEnv({ ...baseEnv, NODE_ENV: value }).NODE_ENV).toBe(value);
+    }
+  });
+});
 
 describe('validateEnv APP_SECRET', () => {
   it('accepts a 32-character secret', () => {

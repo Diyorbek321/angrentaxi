@@ -1,5 +1,6 @@
 import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/core/location/route_service.dart';
+import 'package:angren_taxi/core/location/voice_guide.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
 import 'package:angren_taxi/core/storage/local_storage.dart';
@@ -36,4 +37,9 @@ Future<void> setupServiceLocator() async {
   sl.registerLazySingleton<LocationService>(() => LocationService());
 
   sl.registerLazySingleton<RouteService>(() => RouteService());
+
+  // Ovozli navigatsiya. Lazy singleton ATAYLAB: `init()` qurilmadagi
+  // tillar ro'yxatini so'raydi (sekin platforma chaqiruvi), navigatsiya
+  // ekraniga har kirganda uni qaytadan so'rash ortiqcha.
+  sl.registerLazySingleton<VoiceGuide>(() => VoiceGuide());
 }

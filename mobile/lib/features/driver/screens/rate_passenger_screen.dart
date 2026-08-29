@@ -10,10 +10,16 @@ class RatePassengerScreen extends StatefulWidget {
     super.key,
     required this.orderId,
     required this.passengerPhone,
+    this.clientLabel = "Yo'lovchi",
   });
 
   final String orderId;
   final String passengerPhone;
+
+  /// Baholanayotgan tomonning nomi. Taksida "Yo'lovchi", ovqat/market
+  /// yetkazishda "Mijoz" — chaqiruvchi
+  /// `DriverServiceWording.clientLabel` ni uzatadi.
+  final String clientLabel;
 
   @override
   State<RatePassengerScreen> createState() => _RatePassengerScreenState();
@@ -141,9 +147,12 @@ class _RatePassengerScreenState extends State<RatePassengerScreen>
                 ),
               ),
               const SizedBox(height: kSpace1 + 2),
-              const Text(
-                'Yo\'lovchi qanday edi?',
-                style: TextStyle(fontSize: kFontBodyLg, color: kInkMuted),
+              Text(
+                '${widget.clientLabel} qanday edi?',
+                style: const TextStyle(
+                  fontSize: kFontBodyLg,
+                  color: kInkMuted,
+                ),
               ),
               const SizedBox(height: kSpace8),
 
@@ -206,7 +215,7 @@ class _RatePassengerScreenState extends State<RatePassengerScreen>
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: kSurface2,
-                  hintText: "Yo'lovchi haqida izoh...",
+                  hintText: '${widget.clientLabel} haqida izoh...',
                   hintStyle: const TextStyle(color: kInkMuted),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(kRadiusMd),

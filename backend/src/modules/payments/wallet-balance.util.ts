@@ -2,11 +2,20 @@ import { EntityManager, Repository } from 'typeorm';
 import { Transaction } from '../../database/entities/transaction.entity';
 
 /**
- * Wallet balance = completed credits minus completed debits.
+ * Hamyon balansi = tugallangan kirim − tugallangan chiqim. ISHORALI.
  *
- * PENDING rows are deliberately excluded: an uncollected card charge or an
- * unpaid wallet debt is a receivable, not money the user can spend. The result
- * is clamped at 0 so a negative aggregate never reads as spendable credit.
+ * PENDING qatorlar ATAYLAB hisobga olinmaydi: yig'ilmagan karta to'lovi yoki
+ * to'lanmagan hamyon qarzi — bu qarzdorlik, sarflash mumkin bo'lgan pul emas.
+ *
+ * ⚠️ NEGA MANFIY BO'LA OLADI. Ilgari natija 0 ga qirqilardi va shu sabab
+ * haydovchining platformaga QARZI ko'rinmasdi: naqd safarning komissiyasi
+ * daftarda turardi, balans esa 0 deb o'qilardi. Endi haydovchi uchun bitta
+ * hisob bor va u manfiy bo'lishi mumkin — bu "platformaga shuncha qarzdorsan"
+ * degani (onlayn chiqish shu bilan bloklanadi).
+ *
+ * Sarflashdan oldin tekshiradigan chaqiruvchi `computeSpendableBalance` ni
+ * ishlatadi — manfiy qoldiq hech qachon "sarflasa bo'ladigan kredit" bo'lib
+ * o'qilmasligi kerak.
  *
  * Shared by every caller that touches a balance so they all compute it the
  * same way from the same query — `PaymentsService.getWalletBalance` (outside a
@@ -28,9 +37,22 @@ export async function computeWalletBalance(
     .where('t.userId = :userId', { userId })
     .getRawOne<{ balance: string }>();
 
-  const balance = parseFloat(result?.balance ?? '0');
+  return parseFloat(result?.balance ?? '0');
+}
 
-  return Math.max(0, balance);
+/**
+ * Sarflash mumkin bo'lgan qoldiq — hech qachon manfiy emas.
+ *
+ * ⚠️ Aynan shu funksiya "hamyondan to'lay olasanmi?" savoliga javob beradi.
+ * Ishorali balansni to'g'ridan-to'g'ri solishtirish manfiy qoldiqli
+ * foydalanuvchini ham "to'lovga qurbi yetadi" deb o'tkazib yuborishi mumkin
+ * edi (masalan −5000 >= −10000).
+ */
+export async function computeSpendableBalance(
+  transactionRepo: Repository<Transaction>,
+  userId: string,
+): Promise<number> {
+  return Math.max(0, await computeWalletBalance(transactionRepo, userId));
 }
 
 /**

@@ -1,12 +1,17 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
-import { Transaction, TransactionStatus, TransactionType } from '../../database/entities/transaction.entity';
+import {
+  Transaction,
+  TransactionStatus,
+  TransactionType,
+} from '../../database/entities/transaction.entity';
 import { Order, OrderStatus, PaymentMethod } from '../../database/entities/order.entity';
 import {
   MarketOrder,
@@ -29,6 +34,7 @@ import { PaymentInitiateResult } from './payment.interface';
 import { RequestWithdrawalDto } from './dto/request-withdrawal.dto';
 import { ProcessWithdrawalDto } from './dto/process-withdrawal.dto';
 import { computeWalletBalance, lockWalletForUpdate } from './wallet-balance.util';
+import { IPayoutProvider, PAYOUT_PROVIDER } from './payout.interface';
 import { DriversService } from '../drivers/drivers.service';
 
 export interface WalletBalance {
@@ -58,6 +64,10 @@ export class PaymentsService {
     private readonly uzcardProvider: UzcardProvider,
     private readonly dataSource: DataSource,
     private readonly driversService: DriversService,
+    // Pul CHIQARISH yo'li — hozir qo'lda o'tkazma. Interfeys orqali
+    // olinadi, ya'ni avtomatik provayder qo'shilganda bu sinf o'zgarmaydi.
+    @Inject(PAYOUT_PROVIDER)
+    private readonly payoutProvider: IPayoutProvider,
   ) {}
 
   /**
@@ -183,12 +193,25 @@ export class PaymentsService {
    * Looks up the card payment transaction created by initiatePayment() for
    * an order. Withdrawal-hold transactions have a null orderId, so they can
    * never be matched here.
+   *
+   * ⚠️ The paymentMethod filter is load-bearing, not decoration. A tip writes
+   * a second passenger DEBIT against the same orderId (OrdersTipsService,
+   * tagged TIP_LEDGER_TAG) and it is created *after* the fare charge, so a
+   * plain newest-DEBIT lookup would hand the provider callback the tip row:
+   * the amount check would then compare the fare against the tip and reject a
+   * legitimate payment — or, if the two amounts happened to match, settle the
+   * order against the wrong ledger row. Tips are wallet-only, so restricting
+   * the lookup to CARD keeps them out by construction.
    */
   private async findPaymentTransaction(
     orderId: string,
   ): Promise<Transaction | null> {
     return this.transactionRepository.findOne({
-      where: { orderId, type: TransactionType.DEBIT },
+      where: {
+        orderId,
+        type: TransactionType.DEBIT,
+        paymentMethod: PaymentMethod.CARD,
+      },
       order: { createdAt: 'DESC' },
     });
   }
@@ -734,10 +757,39 @@ export class PaymentsService {
       });
     }
 
+    // Pul CHIQARISH aynan shu yerdan o'tadi. Hozirgi amalga oshirish —
+    // qo'lda o'tkazma, ya'ni tarmoqqa chiqmaydi va faqat jurnalga yozadi.
+    //
+    // ⚠️ NEGA chaqiruv hozir yoziladi. Payme/Click payout kalitlari
+    // kelganda `payments.module.ts` dagi bitta bog'lanish o'zgaradi va bu
+    // metod o'zgarishsiz qoladi. Aks holda o'sha kuni pul chiqarish
+    // mantig'ining o'rtasiga tarmoq chaqiruvi kiritish kerak bo'lardi —
+    // pul kodiga eng yomon paytda tegish.
+    //
+    // ⚠️ Provayder yiqilsa holat O'ZGARMAYDI (xato yuqoriga otiladi):
+    // "to'landi" deb belgilab qo'yib, keyin pul ketmagan bo'lishi
+    // haydovchining pulini yo'q qilardi — u daftarda yechilgan, aslida
+    // esa hech qayerga bormagan.
+    let payoutReference: string | null = withdrawal.payoutReference;
+
+    if (dto.status === WithdrawalStatus.PAID) {
+      const result = await this.payoutProvider.send({
+        amount: withdrawal.amount,
+        destination: withdrawal.payoutDestination,
+        withdrawalId: withdrawal.id,
+      });
+      payoutReference = result.reference;
+      this.logger.log(
+        `Withdrawal ${withdrawal.id} paid via ${this.payoutProvider.name}` +
+          (result.reference ? ` (ref ${result.reference})` : ''),
+      );
+    }
+
     return this.withdrawalRepository.save({
       ...withdrawal,
       status: dto.status,
       adminNote: dto.adminNote ?? withdrawal.adminNote,
+      payoutReference,
       processedAt: new Date(),
     });
   }

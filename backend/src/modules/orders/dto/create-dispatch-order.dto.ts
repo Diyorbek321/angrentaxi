@@ -4,6 +4,7 @@ import {
   ArrayMaxSize,
   IsArray,
   IsEnum,
+  IsISO8601,
   IsNumber,
   IsObject,
   IsOptional,
@@ -115,4 +116,19 @@ export class CreateDispatchOrderDto {
   @IsString()
   @MaxLength(50)
   promoCode?: string;
+
+  // Call-centre operatori ham rejalashtirilgan safarni qabul qila olishi
+  // kerak. `createForDispatch` baribir `create()` ga delegate qiladi, ya'ni
+  // validatsiya va narx qotirish bir xil yo'ldan o'tadi.
+  //
+  // ⚠️ `forbidNonWhitelisted: true` sababli bu maydonni DTO ga qo'shmasdan
+  // yuborish `400 property scheduledAt should not exist` beradi — shuning
+  // uchun IKKALA DTO ham yangilanishi shart.
+  @ApiPropertyOptional({
+    example: '2026-08-20T03:00:00.000Z',
+    description: "Rejalashtirilgan olib ketish vaqti (ISO-8601, UTC)",
+  })
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  scheduledAt?: string;
 }

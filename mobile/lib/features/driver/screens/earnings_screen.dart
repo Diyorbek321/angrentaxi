@@ -1,9 +1,12 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/shared/models/driver_bonus_progress.dart';
+import 'package:angren_taxi/shared/models/driver_earnings_breakdown.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/models/withdrawal_request.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
+import 'package:angren_taxi/shared/widgets/ag_map_fab.dart';
+import 'package:angren_taxi/shared/widgets/ag_option_chips.dart';
 import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
 import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
 import 'package:angren_taxi/shared/widgets/app_status_badge.dart';
@@ -11,9 +14,80 @@ import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+// ============================================================================
+// DAROMAD EKRANI — haydovchi bu ekranga bitta savol bilan keladi:
+// "men bugun QANCHA topdim va nega shuncha?".
+//
+// Tuzilma shu savolga qarab qurilgan:
+//
+//   1. SOF DAROMAD siyoh hero kartada, ekrandagi ENG KATTA element.
+//      1,5 soniyalik qarashda faqat shu raqam o'qilsa ham ekran o'z
+//      vazifasini bajargan bo'ladi.
+//   2. USHLAB QOLINGANLAR SHU YERDA, o'sha kartaning ichida — pastdagi
+//      alohida kartada emas. Sof raqamni tushuntirishsiz ko'rsatish
+//      qo'llab-quvvatlashga murojaat va churn keltiradi: haydovchi
+//      "menga kam to'landi" deb o'ylaydi, chunki safarlar summasi bilan
+//      qo'lga tekkan pul orasidagi farqni hech kim ko'rsatmagan.
+//      Zanjir: safarlardan jami → platforma komissiyasi → qo'lga tekkani.
+//   3. Davr (Bugun / Hafta / Oy) hero USTIDA turadi: u butun kartaning
+//      ma'nosini o'zgartiradi, shuning uchun raqamdan OLDIN o'qilishi kerak.
+//
+// ⚠️ CHAQIM (tips) QATORI YO'Q — MA'LUMOT YO'QLIGI UCHUN, unutilgani uchun
+// emas. Backend chaqimni alohida daftar yozuvi sifatida saqlaydi
+// (`transaction.external_id = 'tip'`, komissiyasiz — backend/src/modules/
+// orders/orders-tips.service.ts), lekin GET /orders/earnings/breakdown uni
+// qaytarmaydi: javobda faqat `gross` / `commission` / `net` / `trips` bor
+// (backend/src/modules/orders/orders-earnings.service.ts). Shu sababli
+// chaqim `gross` ichiga ham, `net` ichiga ham kirmaydi — ya'ni hamyondagi
+// pul bu ekrandagi sof daromaddan KATTA bo'lishi mumkin. To'liq zanjir
+// uchun avval backendga `tips` maydoni qo'shilishi kerak, keyin bu yerga
+// bitta `_LedgerRow` (kMintSoft, "+" bilan) qo'shiladi.
+//
+// Ranglar: siyoh yuzada haydovchining asosiy raqami kMintSoft (11.22:1) —
+// oq (17.5:1) qatorlar uchun qoldirilgan, shunda "pul" rangi ledger
+// qiymatlaridan ajralib turadi.
+//
+// ⚠️ QORONG'I YUZADAGI KONTRAST GRADIENT BO'YLAB O'LCHANADI. Hero foni
+// `kGradientInk` — yuqori chapda kInk (#0F1B22), pastki o'ngda
+// kInkGradientEnd (#1D3A2F, ANCHA yorug'). Ichki bloklar esa ustiga
+// `kOnPrimary` ni 10% shaffoflikda qo'yadi, ya'ni matn haqiqatda #273238
+// (yuqorida) … #344E44 (pastda) ustida turadi — YALANG'OCH kInk ustida EMAS.
+// Shu sababli kErrorDark (#FF6369) bu kartada YARAMAYDI: u yalang'och kInk
+// ustida 6.03:1 bo'lsa ham, ichki blokda 4.53:1 ga, kartaning pastki
+// o'ngida esa 3.12:1 ga tushadi — AA dan past. Kamayish/ogohlantirish
+// qiymatlari uchun kWarningDark (#FBBF24) olinadi: o'sha bloklarda
+// 7.86:1 … 5.42:1, ya'ni butun gradient bo'ylab AA dan yuqori.
+// QARZ esa umuman shaffof yuzada CHIZILMAYDI — pastdagi `_WalletRow`
+// izohiga qarang.
+// ============================================================================
+
 // Which rolling window of GET /orders/earnings/breakdown is currently shown
-// in the segmented control on the earnings screen.
+// in the period chips on the earnings screen.
 enum _EarningsPeriod { today, week, month }
+
+/// Chip `id` si — `AgOptionChips` yorliq emas, BARQAROR id qaytaradi.
+String _periodId(_EarningsPeriod period) => switch (period) {
+      _EarningsPeriod.today => 'today',
+      _EarningsPeriod.week => 'week',
+      _EarningsPeriod.month => 'month',
+    };
+
+/// Chipdagi qisqa yorliq — barmoq ostidagi qator tor ekranda ham sig'sin.
+String _periodChipLabel(_EarningsPeriod period) => switch (period) {
+      _EarningsPeriod.today => 'Bugun',
+      _EarningsPeriod.week => 'Hafta',
+      _EarningsPeriod.month => 'Oy',
+    };
+
+/// Hero kartadagi to'liq yorliq. Chipda "Hafta" yozilgan, lekin backend
+/// SURILUVCHI oyna qaytaradi (oxirgi 7/30 kun) — haydovchi buni kalendar
+/// haftasi deb o'ylab, dushanba kuni "nega raqam nolga tushmadi?" demasligi
+/// uchun aniq aytiladi.
+String _periodTitle(_EarningsPeriod period) => switch (period) {
+      _EarningsPeriod.today => 'Bugun',
+      _EarningsPeriod.week => "So'nggi 7 kun",
+      _EarningsPeriod.month => "So'nggi 30 kun",
+    };
 
 class EarningsScreen extends StatefulWidget {
   const EarningsScreen({super.key});
@@ -34,6 +108,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
       provider.loadOrderHistory();
       provider.loadProfile();
       provider.loadWithdrawals();
+      provider.loadWalletBalance();
       provider.loadEarningsBreakdown();
       provider.loadBonusProgress();
     });
@@ -42,6 +117,9 @@ class _EarningsScreenState extends State<EarningsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // Qatlamli til: ekran foni kSurface2, bloklar esa oq `AgSurfaceCard`.
+      // Ikkalasi BIRGA ishlatiladi — oq fon ustidagi oq karta ajralmaydi.
+      backgroundColor: kSurface2,
       appBar: AppBar(title: const Text('Daromad')),
       body: Consumer<DriverProvider>(
         builder: (context, provider, _) {
@@ -54,19 +132,19 @@ class _EarningsScreenState extends State<EarningsScreen> {
                 child: Column(
                   children: [
                     Padding(
-                      padding: EdgeInsets.all(kSpace4),
+                      padding: EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, 0),
                       child: AppSkeleton(
                         width: double.infinity,
-                        height: 180,
-                        radius: kRadiusLg,
+                        height: 44,
+                        radius: kRadiusFull,
                       ),
                     ),
                     Padding(
-                      padding: EdgeInsets.fromLTRB(kSpace4, 0, kSpace4, kSpace4),
+                      padding: EdgeInsets.all(kSpace4),
                       child: AppSkeleton(
                         width: double.infinity,
-                        height: 140,
-                        radius: kRadiusMd,
+                        height: 260,
+                        radius: kRadiusLg,
                       ),
                     ),
                     AppSkeletonTile(hasTrailing: true),
@@ -97,44 +175,39 @@ class _EarningsScreenState extends State<EarningsScreen> {
               await provider.loadOrderHistory();
               await provider.loadEarningsBreakdown();
               await provider.loadBonusProgress();
+              // Yechish so'rovi tasdiqlangan yoki rad etilgan bo'lishi
+              // mumkin — ikkalasi ham qoldiqni o'zgartiradi.
+              await provider.loadWalletBalance();
             },
             color: kPrimary,
             child: CustomScrollView(
               slivers: [
+                SliverToBoxAdapter(child: _buildPeriodChips()),
                 SliverToBoxAdapter(
-                  child: _buildEarningsSummary(context, provider),
-                ),
-                SliverToBoxAdapter(
-                  child: _buildBreakdownSection(context, provider),
+                  child: _buildEarningsHero(context, provider),
                 ),
                 if (provider.bonusProgress.isNotEmpty)
                   SliverToBoxAdapter(
                     child: _buildBonusSection(context, provider),
                   ),
                 const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      kSpace4,
-                      kSpace4,
-                      kSpace4,
-                      kSpace2,
-                    ),
-                    child: Text(
-                      "Pul yechish so'rovlari",
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: kFontTitle,
-                        color: kInk,
-                      ),
-                    ),
-                  ),
+                  child: _SectionHeader("Pul yechish so'rovlari"),
                 ),
                 if (provider.withdrawals.isEmpty)
+                  // Bo'sh holat OQ kartada: `AppEmptyState` ikonkasi
+                  // `kSurface2` doira ichida chiziladi va ekran foni ham
+                  // `kSurface2` — kartasiz u fonda butunlay yo'qolardi.
                   const SliverToBoxAdapter(
-                    child: AppEmptyState(
-                      icon: Icons.request_quote_outlined,
-                      title: "Hozircha so'rovlar yo'q",
-                      compact: true,
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(kSpace4, 0, kSpace4, kSpace2),
+                      child: AgSurfaceCard(
+                        padding: EdgeInsets.zero,
+                        child: AppEmptyState(
+                          icon: Icons.request_quote_outlined,
+                          title: "Hozircha so'rovlar yo'q",
+                          compact: true,
+                        ),
+                      ),
                     ),
                   )
                 else
@@ -147,22 +220,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                     ),
                   ),
                 const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      kSpace4,
-                      kSpace4,
-                      kSpace4,
-                      kSpace2,
-                    ),
-                    child: Text(
-                      'Buyurtmalar tarixi',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: kFontTitle,
-                        color: kInk,
-                      ),
-                    ),
-                  ),
+                  child: _SectionHeader('Buyurtmalar tarixi'),
                 ),
                 if (provider.orderHistory.isEmpty)
                   // A plain padded box rather than SliverFillRemaining: the
@@ -172,9 +230,16 @@ class _EarningsScreenState extends State<EarningsScreen> {
                   // forces its child into exactly that (possibly too small)
                   // space, overflowing instead of just taking what it needs.
                   const SliverToBoxAdapter(
-                    child: AppEmptyState(
-                      icon: Icons.history,
-                      title: 'Buyurtmalar tarixi yo\'q',
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(kSpace4, 0, kSpace4, kSpace2),
+                      child: AgSurfaceCard(
+                        padding: EdgeInsets.zero,
+                        child: AppEmptyState(
+                          icon: Icons.history,
+                          title: 'Buyurtmalar tarixi yo\'q',
+                          compact: true,
+                        ),
+                      ),
                     ),
                   )
                 else
@@ -186,6 +251,8 @@ class _EarningsScreenState extends State<EarningsScreen> {
                       childCount: provider.orderHistory.length,
                     ),
                   ),
+                // Oxirgi karta tizim jest paneli ostida qolmasin.
+                const SliverToBoxAdapter(child: SizedBox(height: kSpace6)),
               ],
             ),
           );
@@ -194,9 +261,45 @@ class _EarningsScreenState extends State<EarningsScreen> {
     );
   }
 
-  Widget _buildEarningsSummary(BuildContext context, DriverProvider provider) {
+  // Davr tanlash — `AgOptionChips`. Ilgari bu uchta teng kenglikdagi
+  // "segmented" tab edi; chiplar qatori tor ekranda ham sig'adi va tizim
+  // shrifti kattalashtirilganda kesilmaydi (chip minHeight bilan o'sadi,
+  // tegish maydoni esa 48dp bo'lib qoladi).
+  Widget _buildPeriodChips() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, kSpace3),
+      child: AgOptionChips(
+        items: [
+          for (final period in _EarningsPeriod.values)
+            AgOptionChipItem(
+              id: _periodId(period),
+              label: _periodChipLabel(period),
+              active: _selectedPeriod == period,
+              // Yolg'iz "Oy" ekran o'quvchida ma'nosiz — davrning to'liq
+              // nomi aytiladi.
+              semanticsLabel: '${_periodTitle(period)} daromadi',
+            ),
+        ],
+        onTap: (id) {
+          final period = _EarningsPeriod.values
+              .firstWhere((p) => _periodId(p) == id);
+          setState(() => _selectedPeriod = period);
+        },
+      ),
+    );
+  }
+
+  // Siyoh hero: sof daromad + uni tushuntiruvchi zanjir + hamyon + yechish.
+  Widget _buildEarningsHero(BuildContext context, DriverProvider provider) {
+    final breakdown = provider.earningsBreakdown;
+    final DriverEarningsPeriod period = switch (_selectedPeriod) {
+      _EarningsPeriod.today => breakdown.today,
+      _EarningsPeriod.week => breakdown.week,
+      _EarningsPeriod.month => breakdown.month,
+    };
+
     return Container(
-      margin: const EdgeInsets.all(kSpace4),
+      margin: const EdgeInsets.fromLTRB(kSpace4, 0, kSpace4, kSpace4),
       padding: const EdgeInsets.all(kSpace5),
       decoration: BoxDecoration(
         gradient: kGradientInk,
@@ -206,57 +309,57 @@ class _EarningsScreenState extends State<EarningsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Bugungi daromad',
+            'Sof daromad · ${_periodTitle(_selectedPeriod)}',
             style: TextStyle(
               color: kOnPrimary.withValues(alpha: 0.78),
               fontSize: kFontLabel,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: kSpace1),
           Text(
-            Formatters.formatPrice(provider.todayEarnings),
+            Formatters.formatPrice(period.net),
+            key: const ValueKey('earnings_net_value'),
             style: const TextStyle(
-              // Mint qorong'i yuzada ishlaydi (kInk gradienti ustida).
-              color: kMint,
+              // Haydovchining ASOSIY raqami quyoshda o'qilishi kerak.
+              // kMintSoft siyoh ustida 11.22:1 — pul rangi saqlanadi,
+              // lekin ledgerdagi oq qiymatlardan ajralib turadi.
+              // (Ilgari kMint edi — 8.8:1; bu ekranda eng katta raqam
+              // uchun eng yuqori kontrastli mint tanlandi.)
+              color: kMintSoft,
               fontSize: kFontDisplay,
               fontWeight: FontWeight.w800,
+              height: 1.05,
             ),
           ),
-          const SizedBox(height: kSpace5),
-          Row(
-            children: [
-              _EarningsStatChip(
-                label: "Jami buyurtmalar",
-                value: provider.orderHistory.length.toString(),
-              ),
-              const SizedBox(width: kSpace3),
-              _EarningsStatChip(
-                label: 'Yakunlangan',
-                value: provider.orderHistory
-                    .where((o) => o.status == OrderStatus.completed)
-                    .length
-                    .toString(),
-              ),
-            ],
-          ),
-          if (provider.driver != null) ...[
+          const SizedBox(height: kSpace4),
+          _buildLedger(period),
+          // ⚠️ Manba — DAFTAR (`/payments/wallet`), `Driver.balance` ustuni
+          // EMAS. Ustun yechib olingan pulni hisobga olmasdi, ya'ni birinchi
+          // yechishdan keyin ekranda haqiqiy qoldiqdan katta raqam turardi va
+          // haydovchi "yechish" bosganda serverdan rad javob olardi.
+          //
+          // `null` (hali yuklanmagan) holatida blok UMUMAN ko'rsatilmaydi:
+          // nol chizish "puling yo'q" degan yolg'on bo'lardi.
+          if (provider.walletBalance != null) ...[
             const SizedBox(height: kSpace3),
-            Row(
-              children: [
-                _EarningsStatChip(
-                  label: 'Balans',
-                  value: Formatters.formatPrice(provider.driver!.balance),
-                  // Qorong'i yuzada xato rangi — kErrorDark.
-                  valueColor:
-                      provider.driver!.balance < 0 ? kErrorDark : null,
-                ),
-              ],
+            // Qarz holatida OQIBAT ham shu blokning ICHIDA aytiladi (faqat
+            // raqam emas): haydovchi nega onlayn chiqa olmayotganini bilishi
+            // kerak, aks holda u buni ilova nosozligi deb o'ylaydi. Ilgari
+            // bu jumla blokdan tashqarida, gradient ustida turardi —
+            // kartaning pastida kErrorDark u yerda 4.26:1 ga tushardi.
+            _WalletRow(
+              balance: provider.walletBalance!,
+              isDebt: provider.hasWalletDebt,
             ),
           ],
           const SizedBox(height: kSpace4),
           SizedBox(
             width: double.infinity,
-            height: kControlHeight,
+            // Haydovchi nishoni — `kControlHeight` (54, yo'lovchi uchun)
+            // emas, `kControlHeightDriver`. Bu ekran ko'pincha mashinada,
+            // yo'l chetida ochiladi.
+            height: kControlHeightDriver,
             child: ElevatedButton.icon(
               key: const ValueKey('withdraw_button'),
               onPressed: () => _showWithdrawDialog(context),
@@ -285,90 +388,60 @@ class _EarningsScreenState extends State<EarningsScreen> {
     );
   }
 
-  // Segmented control (Bugun / Hafta / Oy) + gross/commission/net/trips
-  // figures for the selected period, from GET /orders/earnings/breakdown.
-  Widget _buildBreakdownSection(BuildContext context, DriverProvider provider) {
-    final breakdown = provider.earningsBreakdown;
-    final period = switch (_selectedPeriod) {
-      _EarningsPeriod.today => breakdown.today,
-      _EarningsPeriod.week => breakdown.week,
-      _EarningsPeriod.month => breakdown.month,
-    };
-
+  /// USHLAB QOLINGANLAR — sof raqamning YONIDA, yashirilmagan holda.
+  ///
+  /// Zanjir yuqoridan pastga o'qiladi va yuqoridagi katta raqam bilan
+  /// tugaydi: safarlardan jami → komissiya → qo'lga tekkani. Oxirgi qator
+  /// summani QAYTA ko'rsatadi (kalitsiz — kalit hero raqamida), chunki
+  /// oxirigacha yetmagan hisob "isbot" bo'la olmaydi.
+  Widget _buildLedger(DriverEarningsPeriod period) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(kSpace4, 0, kSpace4, kSpace4),
-      padding: const EdgeInsets.all(kSpace4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: kSpace4,
+        vertical: kSpace3,
+      ),
       decoration: BoxDecoration(
-        color: kSurface,
+        // Siyoh karta ichidagi ikkinchi qatlam — chegara emas, YUZA farqi.
+        color: kOnPrimary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(kRadiusMd),
-        border: Border.all(color: kLine),
-        boxShadow: kShadowCard,
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Daromad tafsiloti',
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: kFontTitle,
-              color: kInk,
-            ),
+          _LedgerRow(
+            label: 'Yakunlangan safarlar',
+            value: period.trips.toString(),
+            valueKey: const ValueKey('earnings_trips_value'),
           ),
-          const SizedBox(height: kSpace3),
-          Row(
-            children: [
-              _PeriodTab(
-                key: const ValueKey('earnings_period_today'),
-                label: 'Bugun',
-                selected: _selectedPeriod == _EarningsPeriod.today,
-                onTap: () =>
-                    setState(() => _selectedPeriod = _EarningsPeriod.today),
-              ),
-              const SizedBox(width: kSpace2),
-              _PeriodTab(
-                key: const ValueKey('earnings_period_week'),
-                label: 'Hafta',
-                selected: _selectedPeriod == _EarningsPeriod.week,
-                onTap: () =>
-                    setState(() => _selectedPeriod = _EarningsPeriod.week),
-              ),
-              const SizedBox(width: kSpace2),
-              _PeriodTab(
-                key: const ValueKey('earnings_period_month'),
-                label: 'Oy',
-                selected: _selectedPeriod == _EarningsPeriod.month,
-                onTap: () =>
-                    setState(() => _selectedPeriod = _EarningsPeriod.month),
-              ),
-            ],
-          ),
-          const SizedBox(height: kSpace4),
-          _BreakdownRow(
-            label: 'Umumiy (gross)',
+          _LedgerRow(
+            label: 'Safarlardan jami',
             value: Formatters.formatPrice(period.gross),
             valueKey: const ValueKey('earnings_gross_value'),
           ),
-          _BreakdownRow(
-            label: 'Komissiya',
+          _LedgerRow(
+            label: 'Platforma komissiyasi',
             value: '- ${Formatters.formatPrice(period.commission)}',
-            // Xato/kamayish MATNI — kErrorDeep (6.47:1), kError 3.91:1.
-            valueColor: kErrorDeep,
+            // Kamayish — kWarningDark. Ilgari kErrorDark edi, izohda
+            // "6.12:1" deb yozilgandi; o'sha raqam YALANG'OCH kInk uchun
+            // hisoblangan, holbuki qator `kOnPrimary` 10% blok ichida va
+            // gradient ustida turadi: haqiqiy qiymat 4.53:1 (yuqorida) …
+            // 3.12:1 (pastda) — AA dan past. kWarningDark shu blokda
+            // 7.86:1 … 5.42:1. Ma'no rangda EMAS: "- " belgisi va yorliq
+            // aytadi (WCAG 1.4.1), shuning uchun rang almashuvi mazmunni
+            // o'zgartirmaydi. Komissiya XATO emas, kutilgan ushlanma —
+            // ogohlantirish rangi semantik jihatdan ham to'g'riroq.
+            valueColor: kWarningDark,
             valueKey: const ValueKey('earnings_commission_value'),
           ),
-          const Divider(height: kSpace5),
-          _BreakdownRow(
-            label: 'Sof daromad',
-            value: Formatters.formatPrice(period.net),
-            bold: true,
-            // Oq fonda muvaffaqiyat MATNI — kPrimary (mint 2.12:1).
-            valueColor: kPrimary,
-            valueKey: const ValueKey('earnings_net_value'),
+          Divider(
+            height: kSpace5,
+            thickness: 1,
+            color: kOnPrimary.withValues(alpha: 0.18),
           ),
-          _BreakdownRow(
-            label: 'Safarlar soni',
-            value: period.trips.toString(),
-            valueKey: const ValueKey('earnings_trips_value'),
+          _LedgerRow(
+            label: 'Qo\'lingizga qoladi',
+            value: Formatters.formatPrice(period.net),
+            valueColor: kMintSoft,
+            bold: true,
           ),
         ],
       ),
@@ -378,39 +451,34 @@ class _EarningsScreenState extends State<EarningsScreen> {
   // Progress toward each active bonus rule, from
   // GET /driver-bonus-rules/me/progress.
   Widget _buildBonusSection(BuildContext context, DriverProvider provider) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(kSpace4, 0, kSpace4, kSpace4),
-      padding: const EdgeInsets.all(kSpace4),
-      decoration: BoxDecoration(
-        color: kSurface,
-        borderRadius: BorderRadius.circular(kRadiusMd),
-        border: Border.all(color: kLine),
-        boxShadow: kShadowCard,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              ExcludeSemantics(
-                child: Icon(Icons.emoji_events_outlined,
-                    color: kPrimary, size: 20),
-              ),
-              SizedBox(width: kSpace2),
-              Text(
-                'Bonus dasturi',
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: kFontTitle,
-                  color: kInk,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(kSpace4, 0, kSpace4, kSpace4),
+      child: AgSurfaceCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                ExcludeSemantics(
+                  child: Icon(Icons.emoji_events_outlined,
+                      color: kPrimary, size: 20),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: kSpace3),
-          for (final bonus in provider.bonusProgress)
-            _BonusProgressTile(bonus: bonus),
-        ],
+                SizedBox(width: kSpace2),
+                Text(
+                  'Bonus dasturi',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: kFontTitle,
+                    color: kInk,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: kSpace3),
+            for (final bonus in provider.bonusProgress)
+              _BonusProgressTile(bonus: bonus),
+          ],
+        ),
       ),
     );
   }
@@ -453,7 +521,15 @@ class _WithdrawDialogState extends State<_WithdrawDialog> {
   }
 
   Future<void> _submit(DriverProvider provider) async {
-    final balance = provider.driver?.balance ?? 0;
+    // ⚠️ Tekshiruv DAFTAR qoldig'iga qarshi — server ham aynan shunga
+    // qaraydi. Ilgari bu yerda `driver.balance` ustuni ishlatilardi, ya'ni
+    // ilova va server ikki xil raqamni tekshirardi: ilova o'tkazib
+    // yuborardi, server esa rad etardi.
+    //
+    // `null` = qoldiq hali o'qilmagan. Bunda mahalliy chegara qo'llanmaydi
+    // va qaror serverga qoladi — noma'lum qiymatni 0 deb olish haydovchiga
+    // "pulingiz yo'q" degan yolg'on xabar bo'lardi.
+    final balance = provider.walletBalance;
     final rawAmount = _amountController.text.trim().replaceAll(',', '.');
     final amount = double.tryParse(rawAmount);
     final destination = _destinationController.text.trim();
@@ -468,10 +544,19 @@ class _WithdrawDialogState extends State<_WithdrawDialog> {
       );
       return;
     }
-    if (amount > balance) {
+    if (balance != null && balance <= 0) {
+      setState(
+        () => _validationError = provider.hasWalletDebt
+            ? "Hisobingiz manfiy (${Formatters.formatPrice(balance)}). "
+                "Avval qarzni yoping."
+            : "Yechish uchun mablag' yo'q",
+      );
+      return;
+    }
+    if (balance != null && amount > balance) {
       setState(
         () => _validationError =
-            "Summa balansdan oshib ketdi. Balans: ${Formatters.formatPrice(balance)}",
+            "Summa hamyondan oshib ketdi. Hamyon: ${Formatters.formatPrice(balance)}",
       );
       return;
     }
@@ -501,13 +586,15 @@ class _WithdrawDialogState extends State<_WithdrawDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (provider.driver != null)
+                if (provider.walletBalance != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: kSpace3),
                     child: Text(
-                      'Balans: ${Formatters.formatPrice(provider.driver!.balance)}',
-                      style: const TextStyle(
-                        color: kInkMuted,
+                      provider.hasWalletDebt
+                          ? 'Qarz: ${Formatters.formatPrice(provider.walletBalance!)}'
+                          : 'Hamyon: ${Formatters.formatPrice(provider.walletBalance!)}',
+                      style: TextStyle(
+                        color: provider.hasWalletDebt ? kErrorDeep : kInkMuted,
                         fontSize: kFontBody,
                       ),
                     ),
@@ -547,15 +634,35 @@ class _WithdrawDialogState extends State<_WithdrawDialog> {
               ],
             ),
           ),
+          // Bekor qilish va Yuborish ORASIDA 12dp. `OverflowBar` ni
+          // standart holatda 0 bo'shliq bilan taxlaydi — ikki tugma
+          // bir-biriga tegib turadi va mashinada, qo'l qaltiraganda
+          // noto'g'ri tugma bosiladi. Bu ekranda "noto'g'ri tugma"
+          // to'ldirilgan formani yo'qotadi.
+          actionsOverflowButtonSpacing: kSpace3,
+          // Dialog tugmalari ham HAYDOVCHI nishoni: global mavzu
+          // `ElevatedButton` ga `kControlHeight` (54) beradi, `TextButton`
+          // esa Material'ning 48dp standartida qoladi — ikkalasi ham
+          // `kMinTapTargetDriver` (56) dan past.
           actions: [
             TextButton(
               onPressed: provider.isSubmittingWithdrawal
                   ? null
                   : () => Navigator.of(context).pop(),
+              style: TextButton.styleFrom(
+                // Kenglik Material standartida (64) qoladi: bekor qilish
+                // to'liq kenglikdagi "Yuborish" dan SHAKLI bilan ham
+                // farq qilib tursin.
+                minimumSize: const Size(64, kMinTapTargetDriver),
+              ),
               child: const Text('Bekor qilish'),
             ),
             ElevatedButton(
               key: const ValueKey('withdraw_submit_button'),
+              style: ElevatedButton.styleFrom(
+                minimumSize:
+                    const Size(double.infinity, kMinTapTargetDriver),
+              ),
               onPressed: provider.isSubmittingWithdrawal
                   ? null
                   : () => _submit(provider),
@@ -591,254 +698,129 @@ class _WithdrawDialogState extends State<_WithdrawDialog> {
   }
 }
 
-class _WithdrawalCard extends StatelessWidget {
-  const _WithdrawalCard({required this.withdrawal});
+/// Ro'yxat sarlavhasi — qatlamli fon (`kSurface2`) ustida, kartadan
+/// TASHQARIDA turadi, shunda u guruh nomi bo'lib o'qiladi.
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader(this.title);
 
-  final WithdrawalRequest withdrawal;
+  final String title;
 
   @override
   Widget build(BuildContext context) {
-    final (statusLabel, statusTone) =
-        _withdrawalStatusDisplay(withdrawal.status);
-    return Container(
-      key: ValueKey('withdrawal_${withdrawal.id}'),
-      margin: const EdgeInsets.symmetric(
-        horizontal: kSpace4,
-        vertical: kSpace1 + 2,
-      ),
-      padding: const EdgeInsets.all(kSpace4),
-      decoration: BoxDecoration(
-        color: kSurface,
-        borderRadius: BorderRadius.circular(kRadiusMd),
-        border: Border.all(color: kLine),
-        boxShadow: kShadowCard,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  Formatters.formatPrice(withdrawal.amount),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: kFontBody,
-                    color: kInk,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  withdrawal.payoutDestination,
-                  style: const TextStyle(
-                    color: kInkMuted,
-                    fontSize: kFontMicro,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  Formatters.formatRelativeDate(withdrawal.requestedAt),
-                  style: const TextStyle(
-                    color: kInkMuted,
-                    fontSize: kFontMicro,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          AppStatusBadge(label: statusLabel, tone: statusTone),
-        ],
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(kSpace4, kSpace2, kSpace4, kSpace3),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontWeight: FontWeight.w800,
+          fontSize: kFontTitle,
+          color: kInk,
+        ),
       ),
     );
   }
 }
 
-class _EarningsStatChip extends StatelessWidget {
-  const _EarningsStatChip({
-    required this.label,
-    required this.value,
-    this.valueColor,
-  });
+/// Hamyon qoldig'i — hero ichidagi bitta blok.
+///
+/// Ma'no hech qachon faqat rangda qolmaydi: qarz holatida yorliq "Qarz" ga,
+/// ikonka esa ogohlantirishga o'zgaradi (WCAG 1.4.1).
+///
+/// ⚠️ QARZ BLOKI SHAFFOF YUZADA CHIZILMAYDI. Oddiy holatda blok foni
+/// `kOnPrimary` 10% — u gradient ustida suzadi va rangi kartaning qayerida
+/// turishiga qarab o'zgaradi (#273238 … #344E44). Oq raqam u yerda 13.13:1 …
+/// 9.05:1, ya'ni xavfsiz. Qizil esa xavfsiz EMAS: kErrorDark o'sha blokda
+/// 4.53:1 dan 3.12:1 gacha tushadi. Qarz — bu ekrandagi eng oqibatli fakt
+/// (u haydovchini onlayn chiqishdan to'sadi), shuning uchun u gradientga
+/// UMUMAN bog'liq bo'lmagan OPAQ `kErrorLight` yuzaga ko'chiriladi:
+/// kErrorDeep matn 5.91:1, kInk yorliq 16.0:1 — kartaning istalgan joyida
+/// bir xil. Yon ta'siri ham foydali: siyoh karta ustidagi yagona yorug'
+/// blok 1,5 soniyalik qarashda birinchi bo'lib ko'zga tashlanadi.
+class _WalletRow extends StatelessWidget {
+  const _WalletRow({required this.balance, required this.isDebt});
 
-  final String label;
-  final String value;
-  final Color? valueColor;
+  final double balance;
+  final bool isDebt;
+
+  static const String _debtConsequence =
+      "Naqd safarlar komissiyasi. Qarz yopilmaguncha onlayn chiqib "
+      "bo'lmaydi.";
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: kSpace3,
-          vertical: kSpace2,
-        ),
-        decoration: BoxDecoration(
-          color: kOnPrimary.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(kRadiusSm),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              value,
-              style: TextStyle(
-                color: valueColor ?? kOnPrimary,
-                fontWeight: FontWeight.w800,
-                fontSize: kFontH2,
+    final Color surface =
+        isDebt ? kErrorLight : kOnPrimary.withValues(alpha: 0.1);
+    final Color labelColor =
+        isDebt ? kInk : kOnPrimary.withValues(alpha: 0.78);
+    final Color valueColor = isDebt ? kErrorDeep : kOnPrimary;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: kSpace4,
+        vertical: kSpace3,
+      ),
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: BorderRadius.circular(kRadiusMd),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              ExcludeSemantics(
+                child: Icon(
+                  isDebt
+                      ? Icons.warning_amber_rounded
+                      : Icons.account_balance_wallet_outlined,
+                  size: 18,
+                  color: isDebt
+                      ? kErrorDeep
+                      : kOnPrimary.withValues(alpha: 0.78),
+                ),
               ),
-            ),
-            Text(
-              label,
+              const SizedBox(width: kSpace2),
+              Expanded(
+                child: Text(
+                  isDebt ? 'Qarz' : 'Hamyon',
+                  style: TextStyle(
+                    color: labelColor,
+                    fontSize: kFontLabel,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Text(
+                Formatters.formatPrice(balance),
+                style: TextStyle(
+                  color: valueColor,
+                  fontSize: kFontBodyLg,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          if (isDebt) ...[
+            const SizedBox(height: kSpace2),
+            const Text(
+              _debtConsequence,
               style: TextStyle(
-                color: kOnPrimary.withValues(alpha: 0.78),
-                fontSize: kFontMicro,
+                fontSize: kFontLabel,
+                fontWeight: FontWeight.w600,
+                // Yorug' yuzada — kErrorDeep (kErrorLight ustida 5.91:1).
+                color: kErrorDeep,
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DriverOrderCard extends StatelessWidget {
-  const _DriverOrderCard({required this.order});
-
-  final Order order;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(
-        horizontal: kSpace4,
-        vertical: kSpace1 + 2,
-      ),
-      padding: const EdgeInsets.all(kSpace4),
-      decoration: BoxDecoration(
-        color: kSurface,
-        borderRadius: BorderRadius.circular(kRadiusMd),
-        border: Border.all(color: kLine),
-        boxShadow: kShadowCard,
-      ),
-      child: Row(
-        children: [
-          ExcludeSemantics(
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: order.status == OrderStatus.completed
-                    ? kMintTint
-                    : kErrorLight,
-                borderRadius: BorderRadius.circular(kRadiusSm),
-              ),
-              child: Icon(
-                order.status == OrderStatus.completed
-                    ? Icons.check_circle_outline
-                    : Icons.cancel_outlined,
-                // Tint yuzada ikona kPrimary/kErrorDeep — mint 2.12:1.
-                color: order.status == OrderStatus.completed
-                    ? kPrimary
-                    : kErrorDeep,
-                size: 22,
-              ),
-            ),
-          ),
-          const SizedBox(width: kSpace3),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  order.dropoff.address,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: kFontLabel,
-                    color: kInk,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  Formatters.formatRelativeDate(order.createdAt),
-                  style: const TextStyle(
-                    color: kInkMuted,
-                    fontSize: kFontMicro,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (order.status == OrderStatus.completed)
-            Text(
-              Formatters.formatPrice(order.actualPrice ?? order.estimatedPrice),
-              style: const TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: kFontBody,
-                color: kPrimary,
-              ),
-            ),
         ],
       ),
     );
   }
 }
 
-// One tab of the Bugun/Hafta/Oy segmented control on the earnings breakdown
-// card.
-class _PeriodTab extends StatelessWidget {
-  const _PeriodTab({
-    super.key,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Semantics(
-        button: true,
-        selected: selected,
-        label: label,
-        excludeSemantics: true,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onTap,
-          child: AnimatedContainer(
-            duration: kDurationFast,
-            constraints: const BoxConstraints(minHeight: kMinTapTarget),
-            padding: const EdgeInsets.symmetric(vertical: kSpace3),
-            decoration: BoxDecoration(
-              // Faol toggle = kPrimary + OQ matn; mint fon ustidagi
-              // matn yorug' fonda ma'no tashiy olmasdi.
-              color: selected ? kPrimary : kSurface2,
-              borderRadius: BorderRadius.circular(kRadiusSm),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: kFontLabel,
-                color: selected ? kOnPrimary : kInkMuted,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// A "label ......... value" row inside the earnings breakdown card.
-class _BreakdownRow extends StatelessWidget {
-  const _BreakdownRow({
+/// Hero ichidagi hisob qatori: "yorliq .......... qiymat".
+class _LedgerRow extends StatelessWidget {
+  const _LedgerRow({
     required this.label,
     required this.value,
     this.valueColor,
@@ -857,22 +839,174 @@ class _BreakdownRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: kSpace1),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: const TextStyle(color: kInkMuted, fontSize: kFontLabel),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                // Siyoh yuzada ikkilamchi matn — 0.78 shaffoflik (≈10:1).
+                // kInkMuted bu yerda ISHLAMAYDI: u yorug' fon uchun.
+                color: kOnPrimary.withValues(alpha: 0.78),
+                fontSize: kFontLabel,
+              ),
+            ),
           ),
+          const SizedBox(width: kSpace3),
           Text(
             value,
             key: valueKey,
             style: TextStyle(
-              fontSize: bold ? kFontTitle : kFontBody,
+              fontSize: bold ? kFontBodyLg : kFontBody,
               fontWeight: bold ? FontWeight.w800 : FontWeight.w700,
-              color: valueColor ?? kInk,
+              color: valueColor ?? kOnPrimary,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _WithdrawalCard extends StatelessWidget {
+  const _WithdrawalCard({required this.withdrawal});
+
+  final WithdrawalRequest withdrawal;
+
+  @override
+  Widget build(BuildContext context) {
+    final (statusLabel, statusTone) =
+        _withdrawalStatusDisplay(withdrawal.status);
+    return Padding(
+      key: ValueKey('withdrawal_${withdrawal.id}'),
+      padding: const EdgeInsets.fromLTRB(kSpace4, 0, kSpace4, kSpace2),
+      child: AgSurfaceCard(
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    Formatters.formatPrice(withdrawal.amount),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: kFontBodyLg,
+                      color: kInk,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    withdrawal.payoutDestination,
+                    style: const TextStyle(
+                      color: kInkMuted,
+                      // 11dp (kFontMicro) mashinadan o'qilmaydi — bu
+                      // ekrandagi barcha ikkilamchi matn kabi bir pog'ona
+                      // yuqori.
+                      fontSize: kFontCaption,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    Formatters.formatRelativeDate(withdrawal.requestedAt),
+                    style: const TextStyle(
+                      color: kInkMuted,
+                      // 11dp (kFontMicro) mashinadan o'qilmaydi — bu
+                      // ekrandagi barcha ikkilamchi matn kabi bir pog'ona
+                      // yuqori.
+                      fontSize: kFontCaption,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: kSpace3),
+            AppStatusBadge(label: statusLabel, tone: statusTone),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DriverOrderCard extends StatelessWidget {
+  const _DriverOrderCard({required this.order});
+
+  final Order order;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(kSpace4, 0, kSpace4, kSpace2),
+      child: AgSurfaceCard(
+        child: Row(
+          children: [
+            ExcludeSemantics(
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: order.status == OrderStatus.completed
+                      ? kMintTint
+                      : kErrorLight,
+                  borderRadius: BorderRadius.circular(kRadiusSm),
+                ),
+                child: Icon(
+                  order.status == OrderStatus.completed
+                      ? Icons.check_circle_outline
+                      : Icons.cancel_outlined,
+                  // Tint yuzada ikona kPrimary/kErrorDeep — mint 2.12:1.
+                  color: order.status == OrderStatus.completed
+                      ? kPrimary
+                      : kErrorDeep,
+                  size: 22,
+                ),
+              ),
+            ),
+            const SizedBox(width: kSpace3),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    order.dropoff.address,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: kFontBody,
+                      color: kInk,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    Formatters.formatRelativeDate(order.createdAt),
+                    style: const TextStyle(
+                      color: kInkMuted,
+                      // 11dp (kFontMicro) mashinadan o'qilmaydi — bu
+                      // ekrandagi barcha ikkilamchi matn kabi bir pog'ona
+                      // yuqori.
+                      fontSize: kFontCaption,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (order.status == OrderStatus.completed) ...[
+              const SizedBox(width: kSpace3),
+              Text(
+                Formatters.formatPrice(
+                  order.actualPrice ?? order.estimatedPrice,
+                ),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: kFontBodyLg,
+                  color: kPrimary,
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -902,28 +1036,31 @@ class _BonusProgressTile extends StatelessWidget {
                   bonus.name,
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
-                    fontSize: kFontLabel,
+                    fontSize: kFontBody,
                     color: kInk,
                   ),
                 ),
               ),
+              const SizedBox(width: kSpace3),
               Text(
                 '+${Formatters.formatPrice(bonus.bonusAmount)}',
                 style: const TextStyle(
                   // Oq fonda muvaffaqiyat MATNI — kPrimary.
                   color: kPrimary,
                   fontWeight: FontWeight.w800,
-                  fontSize: kFontLabel,
+                  fontSize: kFontBody,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: kSpace1 + 2),
+          const SizedBox(height: kSpace2),
           ClipRRect(
             borderRadius: BorderRadius.circular(kRadiusXs),
             child: LinearProgressIndicator(
               value: bonus.progressFraction,
-              minHeight: 8,
+              // Chiziq balandligi 10dp: mashinadan qaraganda 8dp chiziq
+              // "bor-yo'qligi" bilinmaydi.
+              minHeight: 10,
               backgroundColor: kSurface2,
               // Progress = interaktiv qatlam; tugallanganda to'qroq.
               valueColor: AlwaysStoppedAnimation<Color>(
@@ -934,7 +1071,7 @@ class _BonusProgressTile extends StatelessWidget {
           const SizedBox(height: kSpace1),
           Text(
             '${bonus.currentCount}/${bonus.tripThreshold} safar',
-            style: const TextStyle(color: kInkMuted, fontSize: kFontMicro),
+            style: const TextStyle(color: kInkMuted, fontSize: kFontCaption),
           ),
         ],
       ),

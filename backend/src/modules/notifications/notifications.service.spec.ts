@@ -148,6 +148,34 @@ describe('NotificationsService', () => {
       );
     });
 
+    it('notifyBonusAwarded persists a log row even when the driver has no fcmToken', async () => {
+      const driver = baseUser({ id: 'driver-user-1', fcmToken: null });
+
+      await service.notifyBonusAwarded(driver, '50 ta safar bonusi', 25000);
+
+      expect(firebaseService.sendPush).not.toHaveBeenCalled();
+      expect(notificationLogRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 'driver-user-1', event: 'bonus_awarded' }),
+      );
+    });
+
+    it('notifyBonusAwarded names the bonus and the amount in the body', async () => {
+      // Haydovchi bildirishnomani ochmasdan turib "qaysi bonus, qancha pul"
+      // degan savolga javob olishi kerak — umumiy "sizga bonus berildi" emas.
+      const driver = baseUser({ id: 'driver-user-1' });
+
+      await service.notifyBonusAwarded(driver, '50 ta safar bonusi', 25000);
+
+      const [token, title, body, data] = firebaseService.sendPush.mock.calls[0];
+      expect(token).toBe('a-real-looking-fcm-token');
+      expect(title).toBe('Bonus hisobingizga tushdi');
+      expect(body).toContain('50 ta safar bonusi');
+      expect(body).toContain("so'm");
+      // Summa ajratilgan holda: "25 000", "25000" emas.
+      expect(body).toContain((25000).toLocaleString('uz-UZ'));
+      expect(data).toMatchObject({ event: 'bonus_awarded', amount: '25000' });
+    });
+
     it('still sends the push AND persists the log row when fcmToken is present', async () => {
       const passenger = baseUser();
 

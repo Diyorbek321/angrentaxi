@@ -91,7 +91,16 @@ export class OrdersDispatchService {
       const result = await manager
         .createQueryBuilder()
         .update(Order)
-        .set({ driverId: newDriver.userId, status: OrderStatus.ACCEPTED })
+        // ⚠️ `arrivedAt` NOLLANADI. Yangi haydovchi hali yo'lda, ya'ni kutish
+        // oynasi hali boshlanmagan. Tozalanmasa, oldingi haydovchi ARRIVED
+        // bosgan buyurtmada eski vaqt qolib ketardi va yo'lovchi ALMASHTIRISH
+        // jarayonida o'tgan butun vaqt uchun kutish haqi to'lardi — o'zi
+        // sabab bo'lmagan kechikish uchun.
+        .set({
+          driverId: newDriver.userId,
+          status: OrderStatus.ACCEPTED,
+          arrivedAt: null,
+        })
         .where('id = :id', { id: orderId })
         .andWhere('status IN (:...expectedStatuses)', {
           expectedStatuses: reassignableStatuses,
@@ -183,6 +192,10 @@ export class OrdersDispatchService {
     const order = await this.queryService.findByIdOrThrow(orderId);
 
     const cancellableStatuses: OrderStatus[] = [
+      // Rejalashtirilgan safar bajarilishidan OLDIN bekor qilinishi kerak —
+      // aynan shu narsa uni rejaga aylantiradi. Haydovchi hali biriktirilmagan,
+      // shuning uchun bekor qilish hech kimga zarar keltirmaydi.
+      OrderStatus.SCHEDULED,
       OrderStatus.CREATED,
       OrderStatus.SEARCHING,
       OrderStatus.ACCEPTED,

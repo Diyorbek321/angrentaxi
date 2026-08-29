@@ -201,7 +201,11 @@ export class MarketService {
       await this.recordStockChange(storeId, product, dto.stock, "Qo'lda o'zgartirildi");
     }
 
-    const { stock, ...rest } = dto;
+    // `stock` ATAYLAB chiqarib tashlanadi: uning o'zgarishi yuqorida
+    // `recordStockChange` orqali harakat jurnaliga yozildi, shuning uchun
+    // uni `Object.assign` bilan ikkinchi marta qo'llash zaxira tarixini
+    // chetlab o'tgan bo'lardi.
+    const { stock: _stock, ...rest } = dto;
     Object.assign(product, rest);
     return this.productRepo.save(product);
   }
