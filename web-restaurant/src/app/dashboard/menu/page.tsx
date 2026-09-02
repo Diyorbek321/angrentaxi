@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { Clock, Pencil, Plus, Trash2, UtensilsCrossed } from 'lucide-react';
+import { Check, Clock, Pencil, Plus, Trash2, UtensilsCrossed, X } from 'lucide-react';
 import { clsx } from 'clsx';
 import { foodApi, Dish, MenuCategory } from '@/lib/api';
 import { useAsyncData, errorMessage } from '@/hooks/useAsyncData';
@@ -25,9 +25,13 @@ interface MenuData {
   categories: MenuCategory[];
 }
 
+/** Katalog HOLAT bo'yicha birinchi bo'linadi (Ozon naqshi): sotuvda / tugagan. */
+type AvailFilter = 'all' | 'on' | 'off';
+
 export default function MenuPage() {
   const { toast } = useToast();
   const [catFilter, setCatFilter] = useState<string>('all');
+  const [availFilter, setAvailFilter] = useState<AvailFilter>('all');
   const [editing, setEditing] = useState<Dish | 'new' | null>(null);
   const [removing, setRemoving] = useState<Dish | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -54,17 +58,34 @@ export default function MenuPage() {
     [categories, dishes]
   );
 
-  const filtered = dishes.filter((d) => catFilter === 'all' || d.categoryId === catFilter);
+  const availTabs = useMemo(
+    () =>
+      [
+        { value: 'all', label: 'Barchasi', count: dishes.length },
+        { value: 'on', label: 'Sotuvda', count: dishes.filter((d) => d.isAvailable).length },
+        { value: 'off', label: 'Tugagan', count: dishes.filter((d) => !d.isAvailable).length },
+      ] as const,
+    [dishes]
+  );
+
+  const filtered = dishes.filter(
+    (d) =>
+      (catFilter === 'all' || d.categoryId === catFilter) &&
+      (availFilter === 'all' || (availFilter === 'on' ? d.isAvailable : !d.isAvailable))
+  );
   const categoryName = (id: string | null) => categories.find((c) => c.id === id)?.name ?? 'Kategoriyasiz';
+
+  const applyDishUpdate = (updated: Dish) =>
+    setData((prev) =>
+      prev ? { ...prev, dishes: prev.dishes.map((d) => (d.id === updated.id ? updated : d)) } : prev
+    );
 
   const toggleAvailability = async (dish: Dish) => {
     setBusyId(dish.id);
     try {
       const res = await foodApi.updateDish(dish.id, { isAvailable: !dish.isAvailable });
       const updated = res.data.data;
-      setData((prev) =>
-        prev ? { ...prev, dishes: prev.dishes.map((d) => (d.id === dish.id ? updated : d)) } : prev
-      );
+      applyDishUpdate(updated);
       toast({
         title: updated.isAvailable ? `${updated.name} — mavjud` : `${updated.name} — tugagan`,
         variant: 'success',
@@ -108,8 +129,20 @@ export default function MenuPage() {
 
       {status === 'ready' && (
         <div className="flex flex-col gap-5">
-          {categories.length > 0 && (
-            <Tabs items={tabs} value={catFilter} onChange={setCatFilter} label="Menyu kategoriyalari" />
+          {/* Holat birinchi, kategoriya keyin — tugagan taomlar bir qarashda. */}
+          {dishes.length > 0 && (
+            <div className="flex flex-col gap-2.5">
+              <Tabs
+                items={availTabs}
+                value={availFilter}
+                onChange={(v) => setAvailFilter(v)}
+                label="Mavjudlik bo'yicha filtr"
+                size="sm"
+              />
+              {categories.length > 0 && (
+                <Tabs items={tabs} value={catFilter} onChange={setCatFilter} label="Menyu kategoriyalari" />
+              )}
+            </div>
           )}
 
           {dishes.length === 0 ? (
@@ -127,11 +160,17 @@ export default function MenuPage() {
             <EmptyState
               compact
               icon={<UtensilsCrossed size={20} />}
-              title="Bu bo'limda taom yo'q"
-              description="Boshqa kategoriyani tanlang yoki shu bo'limga taom qo'shing."
+              title="Filtrga mos taom yo'q"
+              description="Tanlangan holat va kategoriya kombinatsiyasida hech narsa topilmadi."
               action={
-                <Button variant="secondary" onClick={() => setCatFilter('all')}>
-                  Barchasini ko&apos;rsatish
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setCatFilter('all');
+                    setAvailFilter('all');
+                  }}
+                >
+                  Filtrlarni tozalash
                 </Button>
               }
             />
@@ -157,9 +196,7 @@ export default function MenuPage() {
                   <div className="flex flex-1 flex-col gap-2 p-4">
                     <div className="flex items-start justify-between gap-2">
                       <h2 className="text-title text-ink">{dish.name}</h2>
-                      <span className="font-mono text-title text-ink tabular-nums whitespace-nowrap">
-                        {money(dish.price)}
-                      </span>
+                      <InlinePrice dish={dish} onSaved={applyDishUpdate} />
                     </div>
 
                     <p className="min-h-[36px] text-caption text-muted line-clamp-2">
@@ -258,6 +295,101 @@ export default function MenuPage() {
         </p>
       </Modal>
     </div>
+  );
+}
+
+/**
+ * Bir maydonlik tuzatish uchun to'liq forma ochilmaydi — narx joyida
+ * tahrirlanadi (data-tables: inline edit + KO'RINADIGAN affordance).
+ * Backend PATCH qisman yangilashni qo'llaydi, faqat `price` yuboriladi.
+ */
+function InlinePrice({ dish, onSaved }: { dish: Dish; onSaved: (updated: Dish) => void }) {
+  const { toast } = useToast();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const start = () => {
+    setValue(String(dish.price));
+    setEditing(true);
+  };
+
+  const commit = async () => {
+    const price = Number(value);
+    if (!value.trim() || !Number.isFinite(price) || price <= 0) {
+      toast({ title: "Narx 0 dan katta bo'lishi kerak", variant: 'error' });
+      return;
+    }
+    if (price === dish.price) {
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await foodApi.updateDish(dish.id, { price });
+      onSaved(res.data.data);
+      toast({ title: `${dish.name} — narx yangilandi`, variant: 'success' });
+      setEditing(false);
+    } catch (err) {
+      toast({ title: 'Narxni saqlab bo‘lmadi', description: errorMessage(err), variant: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!editing) {
+    return (
+      <span className="inline-flex items-center gap-0.5 whitespace-nowrap">
+        <span className="font-mono text-title text-ink tabular-nums">{money(dish.price)}</span>
+        <button
+          type="button"
+          onClick={start}
+          aria-label={`${dish.name} — narxini o'zgartirish`}
+          title="Narxni o'zgartirish"
+          className="h-7 w-7 inline-flex items-center justify-center rounded-ds-xs text-subtle hover:bg-surface-2 hover:text-primary-text transition-colors duration-fast"
+        >
+          <Pencil size={13} aria-hidden />
+        </button>
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1">
+      <input
+        type="number"
+        min={0}
+        step={500}
+        autoFocus
+        value={value}
+        disabled={saving}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') void commit();
+          if (e.key === 'Escape') setEditing(false);
+        }}
+        aria-label={`${dish.name} — yangi narx (so'm)`}
+        className="w-24 rounded-ds-xs border border-primary bg-surface px-2 py-1 font-mono text-body text-ink tabular-nums"
+      />
+      <button
+        type="button"
+        onClick={commit}
+        disabled={saving}
+        aria-label="Narxni saqlash"
+        className="h-7 w-7 inline-flex items-center justify-center rounded-ds-xs bg-primary text-white hover:bg-primary-hover disabled:opacity-60 transition-colors duration-fast dark:bg-primary-on-dark"
+      >
+        <Check size={14} aria-hidden />
+      </button>
+      <button
+        type="button"
+        onClick={() => setEditing(false)}
+        disabled={saving}
+        aria-label="Tahrirni bekor qilish"
+        className="h-7 w-7 inline-flex items-center justify-center rounded-ds-xs border border-line text-muted hover:bg-surface-2 hover:text-ink transition-colors duration-fast"
+      >
+        <X size={14} aria-hidden />
+      </button>
+    </span>
   );
 }
 

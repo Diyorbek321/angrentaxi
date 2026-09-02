@@ -1,11 +1,12 @@
 'use client';
 
-import { useCallback, useState } from 'react';
-import { BarChart3, Inbox } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { BarChart3, Download, Inbox, TrendingDown, TrendingUp } from 'lucide-react';
 import { clsx } from 'clsx';
 import { foodApi, ReportsData } from '@/lib/api';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { money } from '@/lib/utils';
+import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
@@ -18,6 +19,33 @@ const RANGES = [
   { value: '7', label: '7 kun' },
   { value: '30', label: '30 kun' },
 ] as const;
+
+/**
+ * Davr taqqoslashi FAQAT yuklangan real ma'lumotdan: davrning ikkinchi
+ * yarmi kunlik o'rtachasi birinchi yarmiga nisbatan. API o'tgan davrni
+ * alohida bermaydi — o'ylab topilgan delta bo'lmaydi.
+ */
+function halfPeriodDelta(revenue: ReportsData['revenue']): {
+  pct: number;
+  firstDays: number;
+  secondDays: number;
+} | null {
+  if (revenue.length < 4) return null;
+  const half = Math.floor(revenue.length / 2);
+  const first = revenue.slice(0, half);
+  const second = revenue.slice(half);
+  const avg = (arr: ReportsData['revenue']) =>
+    arr.length ? arr.reduce((s, r) => s + r.total, 0) / arr.length : 0;
+  const a1 = avg(first);
+  const a2 = avg(second);
+  if (a1 <= 0) return null;
+  return { pct: Math.round(((a2 - a1) / a1) * 100), firstDays: first.length, secondDays: second.length };
+}
+
+function csvCell(value: string | number): string {
+  const s = String(value);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
 
 export default function ReportsPage() {
   const [range, setRange] = useState<'7' | '30'>('7');
@@ -34,6 +62,39 @@ export default function ReportsPage() {
   const peakHour = data?.hourly.reduce((best, h) => (h.count > best.count ? h : best), data.hourly[0]);
   const maxDish = data?.topDishes[0]?.qty || 1;
   const hasRevenue = (data?.revenue ?? []).some((r) => r.total > 0);
+  const delta = useMemo(() => (data ? halfPeriodDelta(data.revenue) : null), [data]);
+
+  /** CSV — klient tomonda, yuklangan ma'lumotdan. Operatorning universal chiqish yo'li. */
+  const exportCsv = () => {
+    if (!data) return;
+    const lines: string[] = [];
+    lines.push('Kunlik tushum');
+    lines.push("Kun,Tushum (so'm)");
+    data.revenue.forEach((r) => lines.push(`${csvCell(r.day)},${Math.round(r.total)}`));
+    lines.push('');
+    lines.push("Eng ko'p sotilgan taomlar");
+    lines.push('Taom,Soni');
+    data.topDishes.forEach((t) => lines.push(`${csvCell(t.name)},${t.qty}`));
+    lines.push('');
+    lines.push("Soatlar bo'yicha yuklama");
+    lines.push('Soat,Buyurtmalar');
+    data.hourly.forEach((h) => lines.push(`${h.hour}:00,${h.count}`));
+    lines.push('');
+    lines.push("To'lov xulosasi");
+    lines.push(`Jami tushum,${Math.round(data.payout.gross)}`);
+    lines.push(`Komissiya (${data.payout.commissionRate}%),${Math.round(data.payout.commission)}`);
+    lines.push(`Sof to'lov,${Math.round(data.payout.net)}`);
+    lines.push(`Buyurtmalar,${data.payout.orders}`);
+
+    // BOM — Excel UTF-8 ni to'g'ri ochishi uchun.
+    const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `hisobot-${range}kun-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="mx-auto w-full max-w-6xl">
@@ -42,13 +103,23 @@ export default function ReportsPage() {
         description="Tushum, ommabop taomlar va yuklama"
         icon={<BarChart3 size={20} />}
         actions={
-          <Tabs
-            items={RANGES}
-            value={range}
-            onChange={(v) => setRange(v)}
-            label="Hisobot davri"
-            size="sm"
-          />
+          <>
+            <Tabs
+              items={RANGES}
+              value={range}
+              onChange={(v) => setRange(v)}
+              label="Hisobot davri"
+              size="sm"
+            />
+            <Button
+              variant="secondary"
+              leftIcon={<Download size={14} />}
+              disabled={!data}
+              onClick={exportCsv}
+            >
+              CSV yuklab olish
+            </Button>
+          </>
         }
       />
 
@@ -80,6 +151,32 @@ export default function ReportsPage() {
                 <CardTitle>Tushum dinamikasi</CardTitle>
                 <span className="text-caption text-muted">so&apos;nggi {range} kun</span>
               </CardHeader>
+
+              {/* Davr taqqoslashi — faqat yuklangan real ma'lumotdan (yarmga
+                  yarim, kunlik o'rtacha). Yo'nalish rang + strelka + yozuv
+                  bilan — rang yolg'iz ma'no tashimaydi. */}
+              {delta && hasRevenue && (
+                <p
+                  className={clsx(
+                    'mb-3 -mt-1 inline-flex items-center gap-1.5 text-caption font-semibold',
+                    delta.pct >= 0 ? 'text-primary-text' : 'text-danger-deep dark:text-danger-light'
+                  )}
+                >
+                  {delta.pct >= 0 ? (
+                    <TrendingUp size={14} aria-hidden />
+                  ) : (
+                    <TrendingDown size={14} aria-hidden />
+                  )}
+                  <span className="font-mono tabular-nums">
+                    {delta.pct >= 0 ? '+' : ''}
+                    {delta.pct}%
+                  </span>
+                  <span className="font-medium text-muted">
+                    oxirgi {delta.secondDays} kun kunlik o&apos;rtachasi avvalgi {delta.firstDays} kunga
+                    nisbatan
+                  </span>
+                </p>
+              )}
 
               {!hasRevenue ? (
                 <EmptyState

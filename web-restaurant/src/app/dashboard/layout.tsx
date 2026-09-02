@@ -1,36 +1,21 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import {
-  BarChart3,
-  ClipboardList,
-  LayoutGrid,
-  LogOut,
-  RotateCw,
-  Settings,
-  Tags,
-  UtensilsCrossed,
-} from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Menu, UtensilsCrossed, Wifi, WifiOff } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth } from '@/hooks/useAuth';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { foodApi, FoodOrder, Restaurant } from '@/lib/api';
 import { useKiosk } from '@/lib/kiosk-context';
-import { Avatar } from '@/components/ui/Avatar';
+import { trackNewOrders, resetOrderAlerts } from '@/lib/order-alerts';
+import { Sidebar } from '@/components/layout/Sidebar';
 import { Button } from '@/components/ui/Button';
+import { PollStatus } from '@/components/ui/PollStatus';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
-const NAV = [
-  { href: '/dashboard', label: 'Bosh sahifa', icon: LayoutGrid },
-  { href: '/dashboard/orders', label: 'Buyurtmalar', icon: ClipboardList },
-  { href: '/dashboard/menu', label: 'Menyu', icon: UtensilsCrossed },
-  { href: '/dashboard/categories', label: 'Kategoriyalar', icon: Tags },
-  { href: '/dashboard/reports', label: 'Hisobotlar', icon: BarChart3 },
-  { href: '/dashboard/settings', label: 'Sozlamalar', icon: Settings },
-] as const;
+const BASE_TITLE = 'Angren Taxi — Restoran paneli';
 
 interface Chrome {
   restaurant: Restaurant | null;
@@ -38,11 +23,12 @@ interface Chrome {
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
   const router = useRouter();
   const { user, isLoading, isAuthenticated, logout } = useAuth();
   const { kiosk, setKiosk } = useKiosk();
   const [clock, setClock] = useState('');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [togglingOpen, setTogglingOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) router.replace('/login');
@@ -50,14 +36,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const loadChrome = useCallback(async (): Promise<Chrome> => {
     const [restaurantRes, ordersRes] = await Promise.all([foodApi.getRestaurant(), foodApi.getOrders()]);
+    const restaurant = restaurantRes.data.data;
     const orders: FoodOrder[] = ordersRes.data.data;
+    // Ovozli signal POLL natijasidan otiladi — operator ekranga qaramasa ham
+    // eshitadi. Buyurtmalar sahifasining 15 s poll'i bilan dedup modul ichida.
+    trackNewOrders(orders, restaurant?.notifications.sound ?? false);
     return {
-      restaurant: restaurantRes.data.data,
+      restaurant,
       newOrders: orders.filter((o) => o.status === 'new').length,
     };
   }, []);
 
   const chrome = useAsyncData<Chrome>(loadChrome, { pollMs: 30000, enabled: isAuthenticated });
+
+  const restaurant = chrome.data?.restaurant ?? null;
+  const newOrders = chrome.data?.newOrders ?? 0;
+  const isOpen = restaurant?.status === 'active';
+
+  // Fon vkladkasi ham yangi buyurtmani ko'rsatadi: brauzer tab sarlavhasida son.
+  useEffect(() => {
+    document.title = newOrders > 0 ? `(${newOrders}) Yangi buyurtma — ${BASE_TITLE}` : BASE_TITLE;
+    return () => {
+      document.title = BASE_TITLE;
+    };
+  }, [newOrders]);
 
   useEffect(() => {
     if (!kiosk) return;
@@ -67,18 +69,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => clearInterval(id);
   }, [kiosk]);
 
-  const restaurant = chrome.data?.restaurant ?? null;
-  const newOrders = chrome.data?.newOrders ?? 0;
-  const isOpen = restaurant?.status === 'active';
-
   const toggleOpen = async () => {
+    setTogglingOpen(true);
     try {
       const res = await foodApi.toggleOpen();
       const next = res.data.data;
       chrome.setData((prev) => ({ restaurant: next, newOrders: prev?.newOrders ?? 0 }));
     } catch {
       await chrome.reload();
+    } finally {
+      setTogglingOpen(false);
     }
+  };
+
+  const handleLogout = () => {
+    resetOrderAlerts();
+    void logout();
   };
 
   if (isLoading || !isAuthenticated) {
@@ -98,9 +104,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <button
       type="button"
       onClick={toggleOpen}
+      disabled={togglingOpen}
       aria-pressed={isOpen}
       className={clsx(
         'inline-flex items-center gap-2 rounded-full border px-4 py-2 text-label transition-colors duration-fast min-h-touch',
+        'disabled:opacity-60',
         isOpen
           ? 'border-mint/45 bg-mint-tint text-primary-text'
           : 'border-danger/45 bg-danger-tint text-danger-deep dark:text-danger-light'
@@ -112,21 +120,61 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     </button>
   );
 
+  /** Aloqa holati: poll ishlayaptimi — doim ko'rinadi (realtime ishonch). */
+  const connectionChip = (
+    <span
+      className={clsx(
+        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-micro',
+        chrome.error
+          ? 'border-danger/45 bg-danger-tint text-danger-deep dark:text-danger-light'
+          : 'border-line bg-surface-2 text-muted'
+      )}
+    >
+      {chrome.error ? <WifiOff size={12} aria-hidden /> : <Wifi size={12} aria-hidden />}
+      {chrome.error ? 'Aloqa uzildi' : 'Jonli'}
+    </span>
+  );
+
+  /**
+   * Pauza holati JIM turmaydi: restoran yopiq ekan, yangi buyurtma kelmaydi —
+   * banner buni har sahifada baland aytadi (vendor-panels: "quietly paused
+   * store looks like a store with no customers").
+   */
+  const pausedBanner = !isOpen && restaurant != null && (
+    <div
+      role="status"
+      className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-danger/40 bg-danger-tint px-4 py-2.5 sm:px-6"
+    >
+      <span className="relative flex h-2.5 w-2.5 shrink-0" aria-hidden>
+        <span className="absolute inline-flex h-full w-full rounded-full bg-danger opacity-60 animate-ping" />
+        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-danger" />
+      </span>
+      <p className="min-w-0 flex-1 text-label text-danger-deep dark:text-danger-light">
+        Qabul YOPIQ — mijozlar hozir buyurtma bera olmaydi.
+      </p>
+      <Button variant="secondary" size="sm" isLoading={togglingOpen} onClick={toggleOpen}>
+        Qabulni ochish
+      </Button>
+    </div>
+  );
+
   if (kiosk) {
     return (
       <div className="flex h-screen w-full flex-col bg-bg text-ink overflow-hidden">
         <header className="flex items-center gap-3 px-4 sm:px-6 h-16 shrink-0 border-b border-line bg-surface">
           <UtensilsCrossed className="h-5 w-5 text-primary-text shrink-0" aria-hidden />
-          <span className="text-h3 text-ink truncate">
-            Oshxona ekrani · {restaurant?.name ?? '—'}
-          </span>
-          <span className="font-mono text-title text-muted tabular-nums hidden sm:inline">{clock}</span>
+          <span className="text-h3 text-ink truncate">{restaurant?.name ?? '—'}</span>
+          {connectionChip}
           <div className="flex-1" />
+          <span className="font-mono text-h2 text-ink tabular-nums" aria-hidden>
+            {clock}
+          </span>
           {openToggle}
           <Button variant="secondary" onClick={() => setKiosk(false)}>
             Kioskdan chiqish
           </Button>
         </header>
+        {pausedBanner}
         <main id="main" className="flex-1 overflow-y-auto p-4 sm:p-5">
           {children}
         </main>
@@ -140,109 +188,39 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         Asosiy kontentga o&apos;tish
       </a>
 
-      <aside className="hidden lg:flex w-64 shrink-0 flex-col gap-4 border-r border-line bg-surface p-4">
-        <div className="flex items-center gap-3 px-1 pt-1">
-          <Avatar name={restaurant?.name ?? 'Restoran'} size="lg" />
-          <div className="min-w-0">
-            <p className="text-title text-ink truncate">{restaurant?.name ?? '—'}</p>
-            <p className="text-micro text-subtle">ANGREN TAXI · RESTORAN</p>
-          </div>
-        </div>
-
-        <nav aria-label="Asosiy menyu" className="flex flex-1 flex-col gap-1">
-          {NAV.map((item) => {
-            const active = item.href === '/dashboard' ? pathname === item.href : pathname.startsWith(item.href);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={active ? 'page' : undefined}
-                className={clsx(
-                  'flex items-center gap-3 rounded-ds-sm px-3.5 py-3 text-label transition-colors duration-fast min-h-touch',
-                  // Faol element — INTERAKTIV qatlam: to'q yashil fon + oq matn.
-                  active
-                    ? 'bg-primary text-white dark:bg-primary-on-dark'
-                    : 'text-muted hover:bg-surface-2 hover:text-ink'
-                )}
-              >
-                <Icon className="h-5 w-5 shrink-0" aria-hidden />
-                <span className="flex-1">{item.label}</span>
-                {item.href === '/dashboard/orders' && newOrders > 0 && (
-                  <span
-                    className={clsx(
-                      'min-w-[22px] rounded-full px-1.5 py-0.5 text-micro font-mono text-center',
-                      active ? 'bg-white/20 text-white' : 'bg-info-tint text-info-deep dark:text-info-light'
-                    )}
-                  >
-                    {newOrders}
-                    <span className="sr-only"> ta yangi buyurtma</span>
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="flex items-center gap-3 rounded-ds-sm border border-line bg-surface-2 px-3 py-2.5">
-          <Avatar name={user?.firstName ?? 'Menejer'} size="md" tone="muted" />
-          <div className="min-w-0 flex-1">
-            <p className="text-label text-ink truncate">{user?.firstName ?? 'Menejer'}</p>
-            <p className="text-micro text-subtle font-mono">{user?.phone}</p>
-          </div>
-          <button
-            type="button"
-            onClick={logout}
-            aria-label="Chiqish"
-            className="h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-ds-xs text-muted hover:bg-surface-3 hover:text-danger-deep dark:hover:text-danger-light transition-colors duration-fast"
-          >
-            <LogOut className="h-4 w-4" aria-hidden />
-          </button>
-        </div>
-      </aside>
+      <Sidebar
+        restaurantName={restaurant?.name ?? null}
+        userName={user?.firstName ?? null}
+        userPhone={user?.phone}
+        newOrders={newOrders}
+        onLogout={handleLogout}
+        mobileOpen={mobileNavOpen}
+        onMobileClose={() => setMobileNavOpen(false)}
+      />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex shrink-0 items-center gap-2 border-b border-line bg-surface px-4 py-3 sm:px-6">
-          <UtensilsCrossed className="h-5 w-5 text-primary-text lg:hidden shrink-0" aria-hidden />
-          <span className="text-title text-ink truncate lg:hidden">{restaurant?.name ?? '—'}</span>
-          <div className="flex-1" />
-          {openToggle}
           <button
             type="button"
-            onClick={chrome.reload}
-            aria-label="Ma'lumotni yangilash"
-            className="h-10 w-10 inline-flex items-center justify-center rounded-ds-sm border border-line text-muted hover:bg-surface-2 hover:text-ink transition-colors duration-fast"
+            onClick={() => setMobileNavOpen(true)}
+            aria-label="Menyuni ochish"
+            className="lg:hidden h-10 w-10 shrink-0 inline-flex items-center justify-center rounded-ds-sm border border-line text-muted hover:bg-surface-2 hover:text-ink transition-colors duration-fast"
           >
-            <RotateCw className={clsx('h-4 w-4', chrome.isRefreshing && 'animate-spin')} aria-hidden />
+            <Menu className="h-5 w-5" aria-hidden />
           </button>
+          <span className="text-title text-ink truncate lg:hidden">{restaurant?.name ?? '—'}</span>
+          <span className="hidden lg:inline-flex">{connectionChip}</span>
+          <div className="flex-1" />
+          {openToggle}
+          <PollStatus
+            lastUpdatedAt={chrome.lastUpdatedAt}
+            isRefreshing={chrome.isRefreshing}
+            onRefresh={chrome.reload}
+          />
           <ThemeToggle />
         </header>
 
-        {/* Mobil navigatsiya — yon panel yashiringanda. */}
-        <nav
-          aria-label="Asosiy menyu (mobil)"
-          className="lg:hidden flex gap-1 overflow-x-auto no-scrollbar border-b border-line bg-surface px-3 py-2"
-        >
-          {NAV.map((item) => {
-            const active = item.href === '/dashboard' ? pathname === item.href : pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={active ? 'page' : undefined}
-                className={clsx(
-                  'whitespace-nowrap rounded-ds-xs px-3.5 py-2 text-label transition-colors duration-fast',
-                  active ? 'bg-primary text-white dark:bg-primary-on-dark' : 'text-muted hover:bg-surface-2'
-                )}
-              >
-                {item.label}
-                {item.href === '/dashboard/orders' && newOrders > 0 && (
-                  <span className="ml-1.5 font-mono text-micro">({newOrders})</span>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
+        {pausedBanner}
 
         <main id="main" className="flex-1 overflow-y-auto p-4 sm:p-6">
           {children}

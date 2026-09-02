@@ -13,6 +13,7 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { PollStatus, StaleDataBanner } from '@/components/ui/PollStatus';
 import { SkeletonStats, SkeletonTable } from '@/components/ui/Skeleton';
 import { StatTile } from '@/components/ui/StatTile';
 
@@ -22,7 +23,9 @@ export default function DashboardPage() {
     return res.data.data;
   }, []);
 
-  const { data, status, error, isRefreshing, reload } = useAsyncData<DashboardData>(load, { pollMs: 30000 });
+  const { data, status, error, isRefreshing, lastUpdatedAt, reload } = useAsyncData<DashboardData>(load, {
+    pollMs: 30000,
+  });
 
   return (
     <div className="mx-auto w-full max-w-6xl">
@@ -37,9 +40,7 @@ export default function DashboardPage() {
                 {data.isOpen ? 'Qabul ochiq' : 'Qabul yopiq'}
               </Badge>
             )}
-            <Button variant="secondary" onClick={reload} isLoading={isRefreshing}>
-              Yangilash
-            </Button>
+            <PollStatus lastUpdatedAt={lastUpdatedAt} isRefreshing={isRefreshing} onRefresh={reload} />
           </>
         }
       />
@@ -55,6 +56,10 @@ export default function DashboardPage() {
 
       {status === 'ready' && data && (
         <div className="flex flex-col gap-5">
+          {/* Fon yangilanishi uzilib qolsa — sahifa xatoga aylanmaydi, oxirgi
+              yaxshi ma'lumot qoladi va "shu vaqt holaticha" deb belgilanadi. */}
+          <StaleDataBanner error={error} lastUpdatedAt={lastUpdatedAt} onRetry={reload} isRetrying={isRefreshing} />
+
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <StatTile
               label="Bugungi buyurtmalar"
@@ -113,16 +118,15 @@ export default function DashboardPage() {
                   <caption className="sr-only">Oxirgi buyurtmalar ro&apos;yxati</caption>
                   <thead>
                     <tr className="text-micro uppercase text-subtle">
-                      <th scope="col" className="px-5 py-3 font-extrabold">
-                        Raqam
-                      </th>
+                      {/* Birinchi ustun — odam o'qiydigan identifikator (mijoz),
+                          mono raqam uning ostida sub-qator (data-tables doktrinasi). */}
                       <th scope="col" className="px-5 py-3 font-extrabold">
                         Mijoz
                       </th>
                       <th scope="col" className="px-5 py-3 font-extrabold">
                         Taomlar
                       </th>
-                      <th scope="col" className="px-5 py-3 font-extrabold">
+                      <th scope="col" className="px-5 py-3 font-extrabold text-right">
                         Summa
                       </th>
                       <th scope="col" className="px-5 py-3 font-extrabold">
@@ -133,10 +137,12 @@ export default function DashboardPage() {
                   <tbody className="divide-y divide-divider">
                     {data.recentOrders.map((o) => (
                       <tr key={o.id} className="hover:bg-surface-2/60 transition-colors duration-fast">
-                        <td className="px-5 py-3.5 font-mono text-body text-muted">#{o.id.slice(0, 6)}</td>
-                        <td className="px-5 py-3.5 text-body font-semibold text-ink">{o.customer}</td>
+                        <td className="px-5 py-3.5">
+                          <p className="text-body font-semibold text-ink">{o.customer}</p>
+                          <p className="font-mono text-micro text-subtle">#{o.id.slice(0, 6)}</p>
+                        </td>
                         <td className="px-5 py-3.5 text-body text-muted">{o.itemsCount} ta</td>
-                        <td className="px-5 py-3.5 font-mono text-body text-ink tabular-nums">
+                        <td className="px-5 py-3.5 font-mono text-body text-ink tabular-nums text-right">
                           {money(o.totalPrice)}
                         </td>
                         <td className="px-5 py-3.5">
@@ -152,14 +158,6 @@ export default function DashboardPage() {
               </div>
             )}
           </Card>
-
-          {/* Fon yangilanishi uzilib qolsa — sahifa xatoga aylanmaydi, lekin
-              foydalanuvchi ma'lumot eskirganini bilishi kerak. */}
-          {error && (
-            <p role="status" className="text-caption text-override-dark dark:text-override-light">
-              Oxirgi yangilash muvaffaqiyatsiz: {error}
-            </p>
-          )}
         </div>
       )}
     </div>
