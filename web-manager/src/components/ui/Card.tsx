@@ -21,7 +21,9 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={clsx(
-          'bg-surface rounded-xl border shadow-card transition-colors',
+          // ds-md (16px) — the canonical "standart karta" radius, same as the
+          // .surface-card utility, so the panel has exactly one card radius.
+          'bg-surface rounded-ds-md border shadow-card transition-colors',
           selected ? 'border-primary ring-1 ring-primary/30' : 'border-line',
           paddingClasses[padding],
           hoverable && 'hover:border-line-strong hover:bg-surface-2/60 cursor-pointer',

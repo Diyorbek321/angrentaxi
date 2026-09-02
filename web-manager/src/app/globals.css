@@ -207,6 +207,33 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  /* Frozen table header edge — a hairline shadow signals the frozen row the
+     moment rows start sliding beneath it. */
+  .sticky-th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 1px 0 rgb(var(--line));
+  }
+
+}
+
+/* Reduced motion: movement is replaced with instant state change, never with
+   silence — the red badge, the count and the tinted surfaces stay; only the
+   pulsing/sliding stops (control-room rule: opacity-only fallbacks). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
 }
 
 /* Leaflet renders its own chrome; pull it into the theme. */

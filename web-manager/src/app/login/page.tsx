@@ -105,14 +105,16 @@ export default function LoginPage() {
 
       <div className="relative w-full max-w-sm z-10">
         <div className="flex flex-col items-center mb-8">
-          <div className="h-14 w-14 rounded-2xl bg-primary flex items-center justify-center mb-4 shadow-glow-mint">
-            <Car size={28} className="text-[#04231A]" />
+          {/* Ink glyph on primary fill was 3.10:1 — the fill is the interactive
+              layer now, so the glyph is white (5.38:1, DESIGN-TOKENS §6.2). */}
+          <div className="h-14 w-14 rounded-ds-md bg-primary flex items-center justify-center mb-4 shadow-glow-primary">
+            <Car size={28} className="text-white" />
           </div>
           <h1 className="text-2xl font-bold text-ink">Angren Taxi</h1>
           <p className="text-muted text-sm mt-1">Dispetcher paneli</p>
         </div>
 
-        <div className="bg-surface border border-line rounded-2xl p-6 shadow-card">
+        <div className="bg-surface border border-line rounded-ds-md p-6 shadow-card">
           <h2 className="text-lg font-semibold text-ink mb-1">
             {step === 'phone' ? 'Kirish' : 'Tasdiqlash kodi'}
           </h2>
@@ -123,7 +125,10 @@ export default function LoginPage() {
           </p>
 
           {authError && (
-            <div className="mb-4 bg-danger/10 border border-danger/30 rounded-lg p-3 text-danger text-sm">
+            <div
+              role="alert"
+              className="mb-4 bg-danger-tint border border-danger/40 rounded-ds-xs p-3 text-danger-deep dark:text-danger-light text-sm"
+            >
               {authError}
             </div>
           )}
@@ -164,8 +169,10 @@ export default function LoginPage() {
                 {...otpForm.register('code')}
                 error={otpForm.formState.errors.code?.message}
               />
+              {/* Dev-only helper note — informational blue; amber stays
+                  reserved for manual override alone. */}
               {devOtpCode && (
-                <div className="rounded-lg border border-override/40 bg-override/[0.08] px-3 py-2 text-sm text-override-dark dark:text-override-light">
+                <div className="rounded-ds-xs border border-info/40 bg-info-tint px-3 py-2 text-sm text-info-deep dark:text-info-light">
                   <span className="font-semibold">TEST:</span> OTP kod —{' '}
                   <span className="font-mono font-bold">{devOtpCode}</span> (avtomatik kiritildi)
                 </div>

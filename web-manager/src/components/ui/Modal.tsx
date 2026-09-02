@@ -74,8 +74,9 @@ export function Modal({
       <div
         role="dialog"
         aria-modal="true"
+        aria-label={title}
         className={clsx(
-          'relative w-full bg-surface border border-line rounded-2xl shadow-pop',
+          'relative w-full bg-surface border border-line rounded-ds-md shadow-pop',
           'flex flex-col max-h-[90vh] animate-slide-up',
           sizeClasses[size],
           className
@@ -84,7 +85,7 @@ export function Modal({
         {title && (
           <div
             className={clsx(
-              'flex items-start justify-between gap-3 px-5 py-4 border-b shrink-0 rounded-t-2xl',
+              'flex items-start justify-between gap-3 px-5 py-4 border-b shrink-0 rounded-t-ds-md',
               toneClasses[tone]
             )}
           >
@@ -96,7 +97,7 @@ export function Modal({
               type="button"
               onClick={onClose}
               aria-label="Yopish"
-              className="shrink-0 h-7 w-7 inline-flex items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-surface-2 transition-colors"
+              className="shrink-0 h-7 w-7 inline-flex items-center justify-center rounded-ds-xs text-muted hover:text-ink hover:bg-surface-2 transition-colors"
             >
               <X size={15} />
             </button>

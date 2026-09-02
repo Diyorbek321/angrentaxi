@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
+import { useToast } from '@/components/ui/Toast';
 import { PAYMENT_METHOD, PAYMENT_METHOD_LABELS } from '@/lib/constants';
 import { formatDistanceKm, formatMoney } from '@/lib/format';
 
@@ -96,6 +97,7 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const { toast } = useToast();
 
   const {
     register,
@@ -177,6 +179,13 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
       reset();
       setPriceEstimate(null);
       onSuccess?.();
+      // The inline banner above stays as the persistent record; the toast is
+      // the immediate, non-blocking confirmation.
+      toast({
+        title: 'Buyurtma yaratildi',
+        description: 'Tizim avtomatik ravishda haydovchi qidirishni boshladi.',
+        variant: 'success',
+      });
     } catch (err) {
       console.error('Create order failed:', err);
       setSubmitError('Buyurtma yaratilmadi. Qaytadan urinib koʻring.');
@@ -200,7 +209,7 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {submitSuccess && (
-        <div className="flex items-start gap-2.5 rounded-lg border border-primary/40 bg-primary/[0.08] p-3.5">
+        <div className="flex items-start gap-2.5 rounded-ds-xs border border-primary/40 bg-primary/[0.08] p-3.5">
           <CheckCircle2 size={16} className="text-primary-600 dark:text-primary-300 shrink-0 mt-0.5" />
           <p className="text-sm text-primary-700 dark:text-primary-300">
             Buyurtma yaratildi. Tizim avtomatik ravishda haydovchi qidirishni boshladi.
@@ -209,7 +218,7 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
       )}
 
       {submitError && (
-        <div className="flex items-start gap-2.5 rounded-lg border border-danger/40 bg-danger/[0.08] p-3.5">
+        <div className="flex items-start gap-2.5 rounded-ds-xs border border-danger/40 bg-danger/[0.08] p-3.5">
           <AlertTriangle size={16} className="text-danger shrink-0 mt-0.5" />
           <p className="text-sm text-danger">{submitError}</p>
         </div>
@@ -335,7 +344,7 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
       />
 
       {/* Price estimate */}
-      <div className="rounded-xl border border-line bg-surface-2/60 p-4 space-y-3">
+      <div className="rounded-ds-sm border border-line bg-surface-2/60 p-4 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <SectionTitle icon={<Calculator size={13} />}>Taxminiy narx</SectionTitle>
           <Button

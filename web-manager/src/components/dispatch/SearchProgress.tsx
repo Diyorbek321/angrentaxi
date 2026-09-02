@@ -44,11 +44,27 @@ export function SearchProgress({
     Math.floor(elapsedMs / OFFER_TIMEOUT_MS) + 1
   );
 
+  // Mint, not amber, deliberately: this is the SYSTEM working (mint = the
+  // machine is driving). Amber belongs to manual override alone — if the
+  // search wore amber too, the intervention colour would stop meaning
+  // anything. Expiry hands over to danger: the algorithm has given up and
+  // the order is now an exception.
   return (
-    <div className={clsx('rounded-lg border border-override/30 bg-override/[0.07] px-3 py-2', className)}>
+    <div
+      className={clsx(
+        'rounded-ds-xs border px-3 py-2',
+        expired ? 'border-danger/40 bg-danger-tint' : 'border-mint/40 bg-mint-tint',
+        className
+      )}
+    >
       <div className="flex items-center justify-between gap-2 mb-1.5">
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-override-dark dark:text-override-light">
-          <Radar size={12} className="animate-pulse" />
+        <span
+          className={clsx(
+            'inline-flex items-center gap-1.5 text-[11px] font-semibold',
+            expired ? 'text-danger-deep dark:text-danger-light' : 'text-primary-text'
+          )}
+        >
+          <Radar size={12} className={expired ? undefined : 'animate-pulse'} />
           {expired ? 'Qidiruv oynasi tugadi' : `Avtomatik qidiruv — ~${offerRound}-taklif`}
         </span>
         <span className="font-mono text-[11px] text-muted tabular-nums">
@@ -59,7 +75,7 @@ export function SearchProgress({
         <div
           className={clsx(
             'h-full rounded-full transition-[width] duration-1000 ease-linear',
-            expired ? 'bg-danger' : 'bg-override'
+            expired ? 'bg-danger' : 'bg-mint-deep'
           )}
           style={{ width: `${Math.round(ratio * 100)}%` }}
         />

@@ -35,11 +35,16 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={inputId}
             className={clsx(
-              'w-full bg-surface border rounded-lg text-ink placeholder-subtle text-sm py-2',
-              'focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary',
+              // h-9 matches the md button and the topbar controls, so mixed
+              // rows of inputs and buttons sit on one baseline.
+              'w-full h-9 bg-surface border rounded-ds-xs text-ink placeholder-subtle text-sm',
+              // `focus:` (not focus-visible) is right for text fields — a
+              // click into a field should light it up too. Ring colour is the
+              // theme-aware focus token (dark primary is invisible on dark).
+              'focus:outline-none focus:ring-2 focus:ring-focus/40 focus:border-focus',
               'disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-2',
               'transition-colors',
-              mono && 'font-mono',
+              mono && 'font-mono tabular-nums',
               error ? 'border-danger/60 focus:ring-danger/30 focus:border-danger' : 'border-line hover:border-line-strong',
               leftElement ? 'pl-9' : 'pl-3',
               rightElement ? 'pr-9' : 'pr-3',

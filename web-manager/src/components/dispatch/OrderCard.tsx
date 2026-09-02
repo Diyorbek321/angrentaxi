@@ -7,6 +7,8 @@ import { OrderStatusBadge } from '@/components/orders/OrderStatusBadge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Avatar } from '@/components/ui/Avatar';
+import { useToast } from '@/components/ui/Toast';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ORDER_STATUS_ACCENT, PAYMENT_METHOD_LABELS } from '@/lib/constants';
 import { formatMoney, formatMoneyApprox, formatPhone, formatRating, formatRelative, shortId } from '@/lib/format';
 import { AUTO_MATCH_WINDOW_MS, SearchProgress } from './SearchProgress';
@@ -32,6 +34,8 @@ export function OrderCard({
 }: OrderCardProps) {
   const [isCancelling, setIsCancelling] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
+  const [confirming, setConfirming] = useState<'cancel' | 'complete' | null>(null);
+  const { toast } = useToast();
   // Elapsed time gates the manual override, but Date.now() must not be read
   // during render — it differs between server and client output.
   const now = useNow(5000);
@@ -52,29 +56,42 @@ export function OrderCard({
   const canComplete = order.status === 'in_progress';
   const hasActions = canAssign || canReassign || canCancel || canComplete;
 
+  // Destructive acts are the one case that earns a blocking confirmation. The
+  // outcome feedback is a toast — non-blocking, so the operator's flow isn't
+  // interrupted twice.
   const handleCancel = async () => {
-    if (!confirm('Bu buyurtma bekor qilinsinmi?')) return;
+    setConfirming(null);
     setIsCancelling(true);
     try {
       const updated = await cancelOrder(order.id, 'Cancelled by dispatcher');
       onOrderCancelled(updated.id);
+      toast({ title: `Buyurtma ${shortId(order.id)} bekor qilindi`, variant: 'info' });
     } catch (err) {
       console.error('Cancel failed:', err);
-      alert('Buyurtmani bekor qilib boʻlmadi');
+      toast({
+        title: 'Buyurtmani bekor qilib boʻlmadi',
+        description: 'Qaytadan urinib koʻring.',
+        variant: 'error',
+      });
     } finally {
       setIsCancelling(false);
     }
   };
 
   const handleComplete = async () => {
-    if (!confirm('Buyurtma yakunlandi deb belgilansinmi?')) return;
+    setConfirming(null);
     setIsCompleting(true);
     try {
       const updated = await completeOrder(order.id);
       onOrderUpdated(updated);
+      toast({ title: `Buyurtma ${shortId(order.id)} yakunlandi`, variant: 'success' });
     } catch (err) {
       console.error('Complete failed:', err);
-      alert('Buyurtmani yakunlab boʻlmadi');
+      toast({
+        title: 'Buyurtmani yakunlab boʻlmadi',
+        description: 'Qaytadan urinib koʻring.',
+        variant: 'error',
+      });
     } finally {
       setIsCompleting(false);
     }
@@ -141,7 +158,7 @@ export function OrderCard({
 
         {/* Assigned driver */}
         {order.driver ? (
-          <div className="flex items-center gap-2 rounded-lg bg-surface-2 border border-line px-2.5 py-2">
+          <div className="flex items-center gap-2 rounded-ds-xs bg-surface-2 border border-line px-2.5 py-2">
             <Avatar name={order.driver.name} size="xs" />
             <div className="min-w-0 flex-1">
               <p className="text-xs font-medium text-ink truncate">{order.driver.name}</p>
@@ -154,7 +171,7 @@ export function OrderCard({
           </div>
         ) : (
           order.status !== 'searching' && (
-            <div className="rounded-lg border border-dashed border-line px-2.5 py-2">
+            <div className="rounded-ds-xs border border-dashed border-line px-2.5 py-2">
               <p className="text-[11px] text-subtle">Haydovchi hali tayinlanmagan</p>
             </div>
           )
@@ -198,7 +215,7 @@ export function OrderCard({
               <Button
                 size="sm"
                 variant="secondary"
-                onClick={handleComplete}
+                onClick={() => setConfirming('complete')}
                 isLoading={isCompleting}
                 leftIcon={<CheckCircle2 size={13} />}
                 className="flex-1"
@@ -210,7 +227,7 @@ export function OrderCard({
               <Button
                 size="sm"
                 variant="danger"
-                onClick={handleCancel}
+                onClick={() => setConfirming('cancel')}
                 isLoading={isCancelling}
                 leftIcon={<Ban size={13} />}
                 className={canAssign || canReassign || canComplete ? '' : 'flex-1'}
@@ -220,6 +237,43 @@ export function OrderCard({
             )}
           </div>
         )}
+      </div>
+
+      {/* Modal renders inline, not through a portal, so it sits inside the
+          card's click area — without this guard every click in the dialog
+          would also open the detail drawer behind it. */}
+      <div onClick={(e) => e.stopPropagation()} role="presentation">
+        <ConfirmDialog
+          isOpen={confirming === 'cancel'}
+          onClose={() => setConfirming(null)}
+          onConfirm={handleCancel}
+          title="Buyurtma bekor qilinsinmi?"
+          description={
+            <>
+              <span className="font-mono">{shortId(order.id)}</span> bekor qilinadi.
+              Buni ortga qaytarib boʻlmaydi.
+            </>
+          }
+          confirmLabel="Bekor qilish"
+          cancelLabel="Yoʻq"
+          tone="danger"
+          isPending={isCancelling}
+        />
+        <ConfirmDialog
+          isOpen={confirming === 'complete'}
+          onClose={() => setConfirming(null)}
+          onConfirm={handleComplete}
+          title="Buyurtma yakunlansinmi?"
+          description={
+            <>
+              <span className="font-mono">{shortId(order.id)}</span> yakunlangan deb
+              belgilanadi va yoʻlovchidan haq undiriladi.
+            </>
+          }
+          confirmLabel="Yakunlash"
+          tone="default"
+          isPending={isCompleting}
+        />
       </div>
     </Card>
   );

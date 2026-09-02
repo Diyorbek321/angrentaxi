@@ -93,7 +93,7 @@ export function DriverMap({
               type="button"
               onClick={onClearSelection}
               aria-label="Tanlovni bekor qilish"
-              className="ml-auto shrink-0 h-6 w-6 inline-flex items-center justify-center rounded-md text-muted hover:text-ink hover:bg-surface-2 transition-colors"
+              className="ml-auto shrink-0 h-6 w-6 inline-flex items-center justify-center rounded-ds-xs text-muted hover:text-ink hover:bg-surface-2 transition-colors"
             >
               <X size={13} />
             </button>

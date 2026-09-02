@@ -122,7 +122,7 @@ export function Sidebar({
         className={clsx(
           'z-40 shrink-0 bg-surface border-r border-line flex flex-col transition-[width] duration-200',
           'fixed inset-y-0 left-0 lg:static lg:translate-x-0',
-          collapsed ? 'w-[4.5rem]' : 'w-60',
+          collapsed ? 'w-16' : 'w-60',
           mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
@@ -133,9 +133,14 @@ export function Sidebar({
             collapsed ? 'justify-center px-2' : 'px-4'
           )}
         >
-          <Link href="/dispatch" className="flex items-center gap-2.5 min-w-0" onClick={onCloseMobile}>
-            <span className="h-8 w-8 rounded-xl bg-primary flex items-center justify-center shrink-0 shadow-glow-mint-sm">
-              <Car size={16} className="text-[#04231A]" />
+          <Link
+            href="/dispatch"
+            aria-label="Angren Taxi — Dispetcher"
+            className="flex items-center gap-2.5 min-w-0"
+            onClick={onCloseMobile}
+          >
+            <span className="h-8 w-8 rounded-ds-sm bg-primary flex items-center justify-center shrink-0 shadow-glow-mint-sm">
+              <Car size={16} className="text-white" />
             </span>
             {!collapsed && (
               <span className="min-w-0">
@@ -148,10 +153,21 @@ export function Sidebar({
           </Link>
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
-          {groups.map((group) => (
+        {/* Nav. RBAC has already filtered `groups` upstream (hide, never
+            disable) — with one group of two items this still reads as a
+            deliberate short menu: captions drop with their group, dividers
+            only appear between the groups that survived. */}
+        <nav aria-label="Asosiy navigatsiya" className="flex-1 overflow-y-auto py-3 px-2">
+          {groups.map((group, groupIndex) => (
             <div key={group.title}>
+              {/* Collapsed rail keeps the grouping legible with a divider
+                  where the caption used to be. */}
+              {groupIndex > 0 &&
+                (collapsed ? (
+                  <div className="mx-2 my-2 border-t border-line" role="presentation" />
+                ) : (
+                  <div className="h-4" role="presentation" />
+                ))}
               {!collapsed && (
                 <p className="px-2.5 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-subtle">
                   {group.title}
@@ -167,11 +183,18 @@ export function Sidebar({
                     <Link
                       key={href}
                       href={href}
+                      // Collapsed rail: native title tooltip + aria-label.
+                      // Native on purpose — a CSS tooltip inside this
+                      // overflow-y-auto nav would be clipped at the rail edge.
                       title={collapsed ? label : undefined}
+                      aria-label={collapsed ? label : undefined}
+                      aria-current={active ? 'page' : undefined}
                       onClick={onCloseMobile}
                       className={clsx(
-                        'relative flex items-center gap-2.5 rounded-lg text-sm transition-colors',
+                        'relative flex items-center gap-2.5 rounded-ds-xs text-sm transition-colors',
                         collapsed ? 'justify-center px-2 py-2.5' : 'px-2.5 py-2',
+                        // Active = two indicators (tinted fill + edge bar),
+                        // never colour alone.
                         active
                           ? 'bg-primary/12 text-primary-700 dark:text-primary-300 font-semibold'
                           : 'text-muted hover:bg-surface-2 hover:text-ink'
@@ -205,9 +228,11 @@ export function Sidebar({
           <button
             type="button"
             onClick={onToggleCollapsed}
-            title={collapsed ? 'Panelni yoyish' : 'Panelni yigʻish'}
+            title={collapsed ? 'Panelni yoyish' : undefined}
+            aria-label={collapsed ? 'Panelni yoyish' : 'Panelni yigʻish'}
+            aria-expanded={!collapsed}
             className={clsx(
-              'w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-muted',
+              'w-full flex items-center gap-2 rounded-ds-xs px-2.5 py-2 text-xs text-muted',
               'hover:bg-surface-2 hover:text-ink transition-colors',
               collapsed && 'justify-center px-2'
             )}

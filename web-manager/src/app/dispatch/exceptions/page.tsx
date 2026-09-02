@@ -33,17 +33,39 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { SkeletonCards } from '@/components/ui/Skeleton';
 import { StatTile } from '@/components/ui/StatTile';
+import { useToast } from '@/components/ui/Toast';
 import { formatDateTime, formatDuration, formatPhone, shortId } from '@/lib/format';
+import { clsx } from 'clsx';
 
 const PAGE_LIMIT = 10;
+const SOS_POLL_MS = 15_000;
+
+/**
+ * Age thresholds for visual escalation — the operator's cost is measured in
+ * unresolved-minutes, so a card that has sat for half an hour must not look
+ * like one that appeared ten seconds ago.
+ */
+const AGE_WARN_MS = 10 * 60_000;
+const AGE_CRITICAL_MS = 30 * 60_000;
 
 /** How long an exception has been sitting unresolved — the number that matters. */
 function OpenFor({ since }: { since: string }) {
   const now = useNow(1000);
   if (now == null) return <span className="font-mono text-xs text-subtle">—</span>;
+  const age = now - new Date(since).getTime();
   return (
-    <span className="font-mono text-xs text-subtle tabular-nums">
-      {formatDuration(now - new Date(since).getTime())} beri
+    <span
+      className={clsx(
+        'font-mono text-xs tabular-nums',
+        // The age itself escalates: quiet → warning-red as minutes pile up.
+        age >= AGE_CRITICAL_MS
+          ? 'font-semibold text-danger-deep dark:text-danger-light'
+          : age >= AGE_WARN_MS
+          ? 'text-danger-deep dark:text-danger-light'
+          : 'text-subtle'
+      )}
+    >
+      {formatDuration(age)} beri
     </span>
   );
 }
@@ -58,6 +80,11 @@ function SosCard({
   onOverride: (order: Order) => void;
 }) {
   const [isResolving, setIsResolving] = useState(false);
+  const { toast } = useToast();
+  // A minute-level clock is enough for threshold checks (OpenFor ticks by
+  // itself every second).
+  const now = useNow(30_000);
+  const ageMs = now == null ? 0 : now - new Date(alert.createdAt).getTime();
   // SosAlert carries only an orderId, so the customer's phone and route are
   // pulled from the order itself — that's what makes "call the customer" and
   // "intervene" actionable straight from this card.
@@ -82,9 +109,14 @@ function SosCard({
     try {
       await resolveSosAlert(alert.id);
       onResolved(alert.id);
+      toast({ title: 'SOS signali hal qilindi', variant: 'success' });
     } catch (err) {
       console.error('Resolve SOS failed:', err);
-      window.alert('Signalni yopib boʻlmadi');
+      toast({
+        title: 'Signalni yopib boʻlmadi',
+        description: 'Qaytadan urinib koʻring.',
+        variant: 'error',
+      });
     } finally {
       setIsResolving(false);
     }
@@ -94,11 +126,19 @@ function SosCard({
     !!order && ['created', 'searching', 'accepted', 'arrived'].includes(order.status);
 
   return (
-    <Card padding="none" className="overflow-hidden !border-danger/40">
+    <Card
+      padding="none"
+      className={clsx(
+        'overflow-hidden !border-danger/40',
+        // An SOS that has sat unresolved past the threshold starts pulsing —
+        // it must be impossible to mistake for a fresh one.
+        ageMs >= AGE_WARN_MS && 'animate-pulse-ring !border-danger/70'
+      )}
+    >
       <div className="h-1 w-full bg-danger" />
       <div className="p-4">
         <div className="flex items-start gap-3">
-          <span className="h-9 w-9 rounded-xl bg-danger/12 flex items-center justify-center shrink-0">
+          <span className="h-9 w-9 rounded-ds-sm bg-danger/12 flex items-center justify-center shrink-0">
             <ShieldAlert size={17} className="text-danger" />
           </span>
 
@@ -172,13 +212,37 @@ function SosCard({
   );
 }
 
+/**
+ * A "no driver found" exception. Muted red, not amber: red belongs to
+ * unresolved exceptions (amber is the manual-override mark and nothing else),
+ * and SOS above keeps the saturated red so this tier stays visually below it.
+ * The card escalates as it ages — subtle → prominent.
+ */
 function NoDriverCard({ order }: { order: Order }) {
+  const now = useNow(30_000);
+  const ageMs = now == null ? 0 : now - new Date(order.createdAt).getTime();
+  const escalation = ageMs >= AGE_CRITICAL_MS ? 2 : ageMs >= AGE_WARN_MS ? 1 : 0;
+
   return (
-    <Card padding="none" className="overflow-hidden">
-      <div className="h-0.5 w-full bg-override" />
+    <Card
+      padding="none"
+      className={clsx(
+        'overflow-hidden',
+        escalation === 1 && '!border-danger/40',
+        escalation === 2 && '!border-danger/60 bg-danger-tint'
+      )}
+    >
+      <div
+        className={clsx(
+          'w-full bg-danger',
+          escalation === 0 && 'h-0.5 opacity-50',
+          escalation === 1 && 'h-0.5',
+          escalation === 2 && 'h-1'
+        )}
+      />
       <div className="p-3.5 flex items-start gap-3">
-        <span className="h-8 w-8 rounded-xl bg-override/12 flex items-center justify-center shrink-0">
-          <ShieldAlert size={15} className="text-override" />
+        <span className="h-8 w-8 rounded-ds-sm bg-danger/12 flex items-center justify-center shrink-0">
+          <ShieldAlert size={15} className="text-danger" />
         </span>
 
         <div className="flex-1 min-w-0">
@@ -203,8 +267,10 @@ function NoDriverCard({ order }: { order: Order }) {
               </Button>
             </a>
           )}
+          {/* Opening a fresh order is the routine remedy here, not an
+              override — the cancelled order can't be reassigned. */}
           <Link href="/create-order">
-            <Button size="sm" variant="override" leftIcon={<PlusCircle size={13} />}>
+            <Button size="sm" variant="primary" leftIcon={<PlusCircle size={13} />}>
               <span className="hidden sm:inline">Yangi buyurtma</span>
             </Button>
           </Link>
@@ -259,7 +325,7 @@ export default function ExceptionsPage() {
 
   useEffect(() => {
     fetchSos();
-    const interval = setInterval(fetchSos, 15000);
+    const interval = setInterval(fetchSos, SOS_POLL_MS);
     return () => clearInterval(interval);
   }, [fetchSos]);
 
@@ -280,7 +346,9 @@ export default function ExceptionsPage() {
       <div className="px-5 py-4 max-w-5xl mx-auto">
         <PageHeader
           title="Istisnolar"
-          description="Avtomatik tizim oʻzi hal qila olmagan holatlar"
+          // Poll-based page — the cadence is stated, never silent (SOS ro'yxati
+          // har SOS_POLL_MS da qayta so'raladi).
+          description="Avtomatik tizim oʻzi hal qila olmagan holatlar · har 15 soniyada yangilanadi"
           icon={<ShieldAlert size={17} />}
           actions={
             <Button
@@ -307,7 +375,9 @@ export default function ExceptionsPage() {
           <StatTile
             label="Haydovchi topilmagan buyurtmalar"
             value={noDriversLoading ? '—' : noDriversTotal}
-            tone={noDriversTotal > 0 ? 'override' : 'mint'}
+            // Red family, not amber: an unresolved exception is act-now
+            // territory; amber stays the manual-override mark alone.
+            tone={noDriversTotal > 0 ? 'danger' : 'mint'}
           />
         </div>
 
@@ -367,7 +437,7 @@ export default function ExceptionsPage() {
           <div className="flex items-center gap-2 mb-1.5">
             <h2 className="text-sm font-semibold text-ink">Haydovchi topilmadi</h2>
             {noDriversTotal > 0 && (
-              <Badge variant="override" size="sm">
+              <Badge variant="danger" size="sm">
                 {noDriversTotal}
               </Badge>
             )}

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { AlertTriangle, CheckCircle2, Pencil, Plus, Tag } from 'lucide-react';
+import { AlertTriangle, Clock, Pencil, Plus, RefreshCw, Tag } from 'lucide-react';
 import {
   getTariffs,
   getTariffChangeRequests,
@@ -20,22 +20,33 @@ import { Modal } from '@/components/ui/Modal';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { RetryBanner } from '@/components/ui/RetryBanner';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { useToast } from '@/components/ui/Toast';
 import { formatDateTime, formatMoney } from '@/lib/format';
 
-const schema = z.object({
-  name: z.string().min(2, 'Nomi kerak'),
-  basePrice: z.coerce.number().min(0),
-  pricePerKm: z.coerce.number().min(0),
-  pricePerMin: z.coerce.number().min(0),
-  minPrice: z.coerce.number().min(0),
-  maxPrice: z.coerce.number().min(0).optional(),
-});
+// Every message is Uzbek and attaches to its own field — a form that reports
+// "Expected number" in English is a form the operator cannot fix.
+const schema = z
+  .object({
+    name: z.string().min(2, 'Nomi kamida 2 ta belgi boʻlsin'),
+    basePrice: z.coerce.number({ invalid_type_error: 'Raqam kiriting' }).min(0, 'Manfiy boʻlmasin'),
+    pricePerKm: z.coerce.number({ invalid_type_error: 'Raqam kiriting' }).min(0, 'Manfiy boʻlmasin'),
+    pricePerMin: z.coerce
+      .number({ invalid_type_error: 'Raqam kiriting' })
+      .min(0, 'Manfiy boʻlmasin'),
+    minPrice: z.coerce.number({ invalid_type_error: 'Raqam kiriting' }).min(0, 'Manfiy boʻlmasin'),
+    maxPrice: z.coerce.number({ invalid_type_error: 'Raqam kiriting' }).min(0).optional(),
+  })
+  .refine((data) => data.maxPrice == null || data.maxPrice === 0 || data.maxPrice >= data.minPrice, {
+    message: 'Max narx min narxdan kichik boʻlmasligi kerak',
+    path: ['maxPrice'],
+  });
 
 type FormData = z.infer<typeof schema>;
 
 const statusBadge: Record<TariffChangeRequest['status'], { label: string; variant: BadgeVariant }> = {
-  pending: { label: 'Kutilmoqda', variant: 'warning' },
+  pending: { label: 'Kutilmoqda', variant: 'info' },
   approved: { label: 'Tasdiqlangan', variant: 'success' },
   rejected: { label: 'Rad etilgan', variant: 'danger' },
 };
@@ -44,20 +55,22 @@ function TariffRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-2">
       <span className="text-muted">{label}</span>
-      <span className="font-mono text-ink">{value}</span>
+      <span className="font-mono text-ink tabular-nums">{value}</span>
     </div>
   );
 }
 
 export default function TariffsPage() {
+  const { toast } = useToast();
+
   const [tariffs, setTariffs] = useState<Tariff[]>([]);
   const [requests, setRequests] = useState<TariffChangeRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTariff, setEditingTariff] = useState<Tariff | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const {
     register,
@@ -77,9 +90,10 @@ export default function TariffsPage() {
       setRequests(requestsData);
       setLoadError(null);
     } catch {
-      setLoadError('Maʼlumotlarni yuklab boʻlmadi');
+      setLoadError('Maʼlumotlarni yuklab boʻlmadi.');
     } finally {
       setIsLoading(false);
+      setHasLoadedOnce(true);
     }
   };
 
@@ -89,12 +103,14 @@ export default function TariffsPage() {
 
   const openProposeNew = () => {
     setEditingTariff(null);
+    setSubmitError(null);
     reset({ name: '', basePrice: 0, pricePerKm: 0, pricePerMin: 0, minPrice: 0, maxPrice: undefined });
     setIsModalOpen(true);
   };
 
   const openProposeEdit = (tariff: Tariff) => {
     setEditingTariff(tariff);
+    setSubmitError(null);
     reset({
       name: tariff.name,
       basePrice: tariff.basePrice,
@@ -107,8 +123,7 @@ export default function TariffsPage() {
   };
 
   const onSubmit = async (data: FormData) => {
-    setError(null);
-    setSuccess(null);
+    setSubmitError(null);
     try {
       await proposeTariffChange({
         action: editingTariff ? 'update' : 'create',
@@ -116,15 +131,26 @@ export default function TariffsPage() {
         proposedChanges: data,
       });
       setIsModalOpen(false);
-      setSuccess('Taklif yuborildi, admin tasdigʻini kutmoqda');
+      toast({
+        title: editingTariff
+          ? `«${editingTariff.name}» oʻzgarishi taklif qilindi`
+          : `«${data.name}» tarifi taklif qilindi`,
+        description: 'Admin tasdigʻidan soʻng kuchga kiradi.',
+        variant: 'success',
+      });
       await fetchAll();
     } catch (err) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         'Taklif yuborib boʻlmadi';
-      setError(message);
+      // Stays inside the modal, next to the form that produced it — the
+      // operator's input is still on screen and still editable.
+      setSubmitError(message);
     }
   };
+
+  const pendingRequests = requests.filter((r) => r.status === 'pending');
+  const showSkeleton = isLoading && !hasLoadedOnce;
 
   return (
     <div className="h-full overflow-y-auto">
@@ -134,27 +160,33 @@ export default function TariffsPage() {
           description="Oʻzgarishlar admin tasdigʻidan soʻng kuchga kiradi"
           icon={<Tag size={17} />}
           actions={
-            <Button leftIcon={<Plus size={15} />} onClick={openProposeNew} size="sm">
-              Yangi tarif taklif qilish
-            </Button>
+            <>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={fetchAll}
+                leftIcon={<RefreshCw size={13} />}
+              >
+                Yangilash
+              </Button>
+              <Button leftIcon={<Plus size={15} />} onClick={openProposeNew} size="sm">
+                Yangi tarif taklif qilish
+              </Button>
+            </>
           }
         />
 
-        {error && (
-          <div className="flex items-start gap-2.5 rounded-lg border border-danger/40 bg-danger/[0.08] px-3.5 py-3 mb-4">
-            <AlertTriangle size={15} className="text-danger shrink-0 mt-0.5" />
-            <p className="text-sm text-danger">{error}</p>
-          </div>
-        )}
-        {success && (
-          <div className="flex items-start gap-2.5 rounded-lg border border-primary/40 bg-primary/[0.08] px-3.5 py-3 mb-4">
-            <CheckCircle2 size={15} className="text-primary-600 dark:text-primary-300 shrink-0 mt-0.5" />
-            <p className="text-sm text-primary-700 dark:text-primary-300">{success}</p>
-          </div>
+        {loadError && (
+          <RetryBanner
+            message={loadError}
+            onRetry={fetchAll}
+            keepsLastData={tariffs.length > 0 || requests.length > 0}
+            className="mb-4"
+          />
         )}
 
-        {loadError ? (
-          <ErrorState message={loadError} onRetry={fetchAll} />
+        {loadError && !hasLoadedOnce ? (
+          <ErrorState message="Tarmoq yoki server xatosi. Qayta urinib koʻring." onRetry={fetchAll} />
         ) : (
           <div className="space-y-5">
             <Card>
@@ -167,10 +199,13 @@ export default function TariffsPage() {
                 )}
               </CardHeader>
 
-              {isLoading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {showSkeleton ? (
+                <div
+                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+                  aria-busy="true"
+                >
                   {Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className="h-44 rounded-xl" />
+                    <Skeleton key={i} className="h-44 rounded-ds-sm" />
                   ))}
                 </div>
               ) : tariffs.length === 0 ? (
@@ -179,13 +214,18 @@ export default function TariffsPage() {
                   icon={<Tag size={20} />}
                   title="Tarif yoʻq"
                   description="Birinchi tarifni taklif qiling — admin tasdiqlagach kuchga kiradi."
+                  action={
+                    <Button size="sm" leftIcon={<Plus size={14} />} onClick={openProposeNew}>
+                      Yangi tarif taklif qilish
+                    </Button>
+                  }
                 />
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {tariffs.map((tariff) => (
                     <div
                       key={tariff.id}
-                      className="rounded-xl border border-line bg-surface-2/50 p-4 space-y-2.5"
+                      className="rounded-ds-sm border border-line bg-surface-2/50 p-4 space-y-2.5"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <p className="font-semibold text-ink truncate">{tariff.name}</p>
@@ -199,7 +239,7 @@ export default function TariffsPage() {
                             variant="ghost"
                             size="sm"
                             onClick={() => openProposeEdit(tariff)}
-                            aria-label="Tarifni oʻzgartirishni taklif qilish"
+                            aria-label={`${tariff.name} tarifini oʻzgartirishni taklif qilish`}
                           >
                             <Pencil size={14} />
                           </Button>
@@ -216,7 +256,7 @@ export default function TariffsPage() {
                         />
                       </div>
                       {tariff.surgeMultiplier !== 1 && (
-                        <Badge variant="override" size="sm">
+                        <Badge variant="info" size="sm">
                           Oshirilgan ×{tariff.surgeMultiplier}
                         </Badge>
                       )}
@@ -229,16 +269,24 @@ export default function TariffsPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Mening takliflarim</CardTitle>
+                {/* Pending count is the number the operator is waiting on. */}
+                {pendingRequests.length > 0 && (
+                  <Badge variant="info" size="sm" dot>
+                    <Clock size={11} aria-hidden />
+                    {pendingRequests.length} ta kutilmoqda
+                  </Badge>
+                )}
               </CardHeader>
 
-              {isLoading ? (
-                <div className="space-y-2">
+              {showSkeleton ? (
+                <div className="space-y-2" aria-busy="true">
                   <Skeleton className="h-12" />
                   <Skeleton className="h-12" />
                 </div>
               ) : requests.length === 0 ? (
                 <EmptyState
                   compact
+                  icon={<Tag size={20} />}
                   title="Hali taklif yuborilmagan"
                   description="Tarif kartasidagi qalam belgisi orqali oʻzgarish taklif qiling."
                 />
@@ -247,11 +295,11 @@ export default function TariffsPage() {
                   {requests.map((req) => (
                     <div
                       key={req.id}
-                      className="flex items-center justify-between gap-3 rounded-lg border border-line bg-surface-2/50 px-4 py-2.5"
+                      className="flex items-center justify-between gap-3 rounded-ds-xs border border-line bg-surface-2/50 px-4 py-2.5"
                     >
                       <div className="text-sm text-ink min-w-0">
                         {req.action === 'create' ? 'Yangi tarif' : 'Tarif yangilash'}
-                        <span className="text-muted font-mono text-xs ml-2">
+                        <span className="text-muted font-mono text-xs ml-2 tabular-nums">
                           {formatDateTime(req.createdAt)}
                         </span>
                         {req.reviewNote && (
@@ -277,6 +325,16 @@ export default function TariffsPage() {
         subtitle="Taklif admin tasdigʻiga yuboriladi"
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+          {submitError && (
+            <div
+              role="alert"
+              className="flex items-start gap-2.5 rounded-ds-xs border border-danger/40 bg-danger-tint px-3.5 py-3"
+            >
+              <AlertTriangle size={15} className="text-danger shrink-0 mt-0.5" />
+              <p className="text-sm text-danger-deep dark:text-danger-light">{submitError}</p>
+            </div>
+          )}
+
           <Input label="Nomi" {...register('name')} error={errors.name?.message} />
           <div className="grid grid-cols-2 gap-4">
             <Input
@@ -314,6 +372,7 @@ export default function TariffsPage() {
             label="Max narx (ixtiyoriy)"
             type="number"
             mono
+            hint="Boʻsh qoldirilsa narx cheklanmaydi"
             {...register('maxPrice')}
             error={errors.maxPrice?.message}
           />

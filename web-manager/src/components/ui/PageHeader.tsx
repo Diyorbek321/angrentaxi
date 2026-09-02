@@ -20,7 +20,7 @@ export function PageHeader({ title, description, actions, icon, className }: Pag
     >
       <div className="flex items-start gap-3 min-w-0">
         {icon && (
-          <span className="h-9 w-9 shrink-0 rounded-xl bg-primary/12 text-primary-600 dark:text-primary-300 flex items-center justify-center">
+          <span className="h-9 w-9 shrink-0 rounded-ds-sm bg-primary/12 text-primary-600 dark:text-primary-300 flex items-center justify-center">
             {icon}
           </span>
         )}

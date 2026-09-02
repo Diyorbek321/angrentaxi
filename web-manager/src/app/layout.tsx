@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import localFont from 'next/font/local';
 import './globals.css';
 import { THEME_INIT_SCRIPT } from '@/lib/theme';
+import { Providers } from './providers';
 
 // Self-hosted (not next/font/google) so the build never depends on a live
 // fetch to Google's font CDN at build time.
@@ -50,7 +51,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className="font-sans antialiased bg-bg text-ink">
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

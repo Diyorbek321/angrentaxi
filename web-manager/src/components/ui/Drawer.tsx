@@ -67,6 +67,7 @@ export function Drawer({
       <aside
         role="dialog"
         aria-modal="true"
+        aria-label={title}
         className={clsx(
           'h-full w-full bg-surface border-l border-line shadow-pop flex flex-col animate-slide-in-right',
           widthClasses[width],
@@ -82,7 +83,7 @@ export function Drawer({
             type="button"
             onClick={onClose}
             aria-label="Yopish"
-            className="shrink-0 h-7 w-7 inline-flex items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-surface-2 transition-colors"
+            className="shrink-0 h-7 w-7 inline-flex items-center justify-center rounded-ds-xs text-muted hover:text-ink hover:bg-surface-2 transition-colors"
           >
             <X size={15} />
           </button>

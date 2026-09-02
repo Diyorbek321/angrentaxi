@@ -109,7 +109,7 @@ function PassengerHistory({ order }: { order: Order }) {
   }
 
   return (
-    <ul className="divide-y divide-line rounded-lg border border-line overflow-hidden">
+    <ul className="divide-y divide-line rounded-ds-xs border border-line overflow-hidden">
       {history.map((h) => (
         <li key={h.id} className="flex items-center gap-2 px-3 py-2 bg-surface">
           <span className="font-mono text-[11px] text-muted shrink-0">{shortId(h.id)}</span>
@@ -152,7 +152,7 @@ export function OrderDetailDrawer({ order, isOpen, onClose }: OrderDetailDrawerP
         </span>
       }
     >
-      <div className="flex items-center gap-2 rounded-lg border border-line bg-surface-2/60 px-3 py-2">
+      <div className="flex items-center gap-2 rounded-ds-xs border border-line bg-surface-2/60 px-3 py-2">
         <Eye size={14} className="text-muted shrink-0" />
         <p className="text-xs text-muted leading-snug">
           Faqat koʻrish uchun. Haydovchi tayinlash tizim tomonidan avtomatik bajariladi —
@@ -161,7 +161,7 @@ export function OrderDetailDrawer({ order, isOpen, onClose }: OrderDetailDrawerP
       </div>
 
       <Section icon={<User size={12} />} title="Mijoz">
-        <div className="rounded-lg border border-line bg-surface px-3 py-2.5 flex items-center gap-3">
+        <div className="rounded-ds-xs border border-line bg-surface px-3 py-2.5 flex items-center gap-3">
           <Avatar name={order.passenger?.name} size="md" tone="muted" />
           <div className="min-w-0">
             <p className="text-sm font-medium text-ink truncate">
@@ -172,7 +172,7 @@ export function OrderDetailDrawer({ order, isOpen, onClose }: OrderDetailDrawerP
           {order.passenger?.phone && (
             <a
               href={`tel:${order.passenger.phone}`}
-              className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-xs text-muted hover:text-ink hover:bg-surface-2 transition-colors"
+              className="ml-auto inline-flex items-center gap-1.5 rounded-ds-xs border border-line px-2.5 py-1.5 text-xs text-muted hover:text-ink hover:bg-surface-2 transition-colors"
             >
               <Phone size={13} />
               Qoʻngʻiroq
@@ -182,7 +182,7 @@ export function OrderDetailDrawer({ order, isOpen, onClose }: OrderDetailDrawerP
       </Section>
 
       <Section icon={<MapPin size={12} />} title="Marshrut">
-        <div className="rounded-lg border border-line bg-surface px-3 py-2.5 space-y-3">
+        <div className="rounded-ds-xs border border-line bg-surface px-3 py-2.5 space-y-3">
           <div className="flex items-start gap-2.5">
             <span className="mt-1 h-2.5 w-2.5 rounded-full bg-mint-deep shrink-0 ring-2 ring-mint/25" />
             <div className="min-w-0">
@@ -210,7 +210,7 @@ export function OrderDetailDrawer({ order, isOpen, onClose }: OrderDetailDrawerP
 
       <Section icon={<Car size={12} />} title="Haydovchi">
         {order.driver ? (
-          <div className="rounded-lg border border-line bg-surface px-3 py-2.5 flex items-center gap-3">
+          <div className="rounded-ds-xs border border-line bg-surface px-3 py-2.5 flex items-center gap-3">
             <Avatar name={order.driver.name} size="md" />
             <div className="min-w-0">
               <p className="text-sm font-medium text-ink truncate">{order.driver.name}</p>
@@ -225,7 +225,7 @@ export function OrderDetailDrawer({ order, isOpen, onClose }: OrderDetailDrawerP
             </span>
           </div>
         ) : (
-          <div className="rounded-lg border border-dashed border-line px-3 py-3">
+          <div className="rounded-ds-xs border border-dashed border-line px-3 py-3">
             <p className="text-xs text-subtle">
               {order.status === 'searching'
                 ? 'Tizim eng yaqin haydovchini qidirmoqda.'
@@ -236,7 +236,7 @@ export function OrderDetailDrawer({ order, isOpen, onClose }: OrderDetailDrawerP
       </Section>
 
       <Section icon={<Receipt size={12} />} title="Narx tafsiloti">
-        <div className="rounded-lg border border-line bg-surface px-3 py-1.5 divide-y divide-line">
+        <div className="rounded-ds-xs border border-line bg-surface px-3 py-1.5 divide-y divide-line">
           <Row label="Tarif" value={t?.name ?? '—'} />
           <Row label="Boshlangʻich narx" value={<span className="font-mono">{formatMoney(t?.basePrice)}</span>} />
           <Row label="Har km uchun" value={<span className="font-mono">{formatMoney(t?.pricePerKm)}</span>} />
@@ -245,7 +245,7 @@ export function OrderDetailDrawer({ order, isOpen, onClose }: OrderDetailDrawerP
           {t?.surgeMultiplier != null && t.surgeMultiplier !== 1 && (
             <Row
               label="Oshirilgan koeffitsient"
-              value={<Badge variant="override" size="sm">×{t.surgeMultiplier}</Badge>}
+              value={<Badge variant="info" size="sm">×{t.surgeMultiplier}</Badge>}
             />
           )}
           <Row label="Toʻlov turi" value={PAYMENT_METHOD_LABELS[order.paymentMethod]} />
@@ -264,14 +264,14 @@ export function OrderDetailDrawer({ order, isOpen, onClose }: OrderDetailDrawerP
 
       {order.note && (
         <Section icon={<Receipt size={12} />} title="Izoh">
-          <p className="rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-ink whitespace-pre-wrap">
+          <p className="rounded-ds-xs border border-line bg-surface px-3 py-2.5 text-sm text-ink whitespace-pre-wrap">
             {order.note}
           </p>
         </Section>
       )}
 
       <Section icon={<Clock size={12} />} title="Vaqt belgilari">
-        <div className="rounded-lg border border-line bg-surface px-3 py-1.5 divide-y divide-line">
+        <div className="rounded-ds-xs border border-line bg-surface px-3 py-1.5 divide-y divide-line">
           <Row label="Yaratildi" value={<span className="font-mono">{formatDateTime(order.createdAt)}</span>} />
           {/* acceptedAt/startedAt/completedAt are not separate columns on the
               backend today — rendered only when the API actually sends them. */}

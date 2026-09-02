@@ -24,6 +24,8 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Avatar } from '@/components/ui/Avatar';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { useToast } from '@/components/ui/Toast';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { PAYMENT_METHOD_LABELS } from '@/lib/constants';
 import {
   formatDate,
@@ -49,9 +51,9 @@ function DetailSkeleton() {
       <Skeleton className="h-10 w-64" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-40 rounded-xl" />
+          <Skeleton key={i} className="h-40 rounded-ds-sm" />
         ))}
-        <Skeleton className="h-32 rounded-xl md:col-span-2" />
+        <Skeleton className="h-32 rounded-ds-sm md:col-span-2" />
       </div>
     </div>
   );
@@ -66,6 +68,8 @@ export default function OrderDetailPage() {
   const [isCancelling, setIsCancelling] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [confirming, setConfirming] = useState<'cancel' | 'complete' | null>(null);
+  const { toast } = useToast();
   // Drivers come from the shell provider — no second live-drivers request.
   const { drivers } = useDispatchData();
 
@@ -78,27 +82,41 @@ export default function OrderDetailPage() {
       .finally(() => setIsLoading(false));
   }, [id]);
 
+  // The destructive act itself is gated by a confirmation; the OUTCOME is a
+  // toast — non-blocking, so the operator is not interrupted twice.
   const handleCancel = async () => {
-    if (!order || !confirm('Bu buyurtma bekor qilinsinmi?')) return;
+    if (!order) return;
+    setConfirming(null);
     setIsCancelling(true);
     try {
       const updated = await cancelOrder(order.id, 'Cancelled by dispatcher');
       setOrder(updated);
+      toast({ title: `Buyurtma ${shortId(order.id)} bekor qilindi`, variant: 'info' });
     } catch {
-      alert('Buyurtmani bekor qilib boʻlmadi');
+      toast({
+        title: 'Buyurtmani bekor qilib boʻlmadi',
+        description: 'Qaytadan urinib koʻring.',
+        variant: 'error',
+      });
     } finally {
       setIsCancelling(false);
     }
   };
 
   const handleComplete = async () => {
-    if (!order || !confirm('Buyurtma yakunlandi deb belgilansinmi?')) return;
+    if (!order) return;
+    setConfirming(null);
     setIsCompleting(true);
     try {
       const updated = await completeOrder(order.id);
       setOrder(updated);
+      toast({ title: `Buyurtma ${shortId(order.id)} yakunlandi`, variant: 'success' });
     } catch {
-      alert('Buyurtmani yakunlab boʻlmadi');
+      toast({
+        title: 'Buyurtmani yakunlab boʻlmadi',
+        description: 'Qaytadan urinib koʻring.',
+        variant: 'error',
+      });
     } finally {
       setIsCompleting(false);
     }
@@ -164,7 +182,7 @@ export default function OrderDetailPage() {
               <Button
                 size="sm"
                 variant="secondary"
-                onClick={handleComplete}
+                onClick={() => setConfirming('complete')}
                 isLoading={isCompleting}
                 leftIcon={<CheckCircle2 size={13} />}
               >
@@ -175,7 +193,7 @@ export default function OrderDetailPage() {
               <Button
                 size="sm"
                 variant="danger"
-                onClick={handleCancel}
+                onClick={() => setConfirming('cancel')}
                 isLoading={isCancelling}
                 leftIcon={<Ban size={13} />}
               >
@@ -207,7 +225,7 @@ export default function OrderDetailPage() {
               {order.passenger?.phone && (
                 <a
                   href={`tel:${order.passenger.phone}`}
-                  className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-xs text-muted hover:text-ink hover:bg-surface-2 transition-colors"
+                  className="ml-auto inline-flex items-center gap-1.5 rounded-ds-xs border border-line px-2.5 py-1.5 text-xs text-muted hover:text-ink hover:bg-surface-2 transition-colors"
                 >
                   <Phone size={13} />
                   Qoʻngʻiroq
@@ -363,6 +381,38 @@ export default function OrderDetailPage() {
           setOrder(updated);
           setAssignModalOpen(false);
         }}
+      />
+
+      <ConfirmDialog
+        isOpen={confirming === 'cancel'}
+        onClose={() => setConfirming(null)}
+        onConfirm={handleCancel}
+        title="Buyurtma bekor qilinsinmi?"
+        description={
+          <>
+            <span className="font-mono">{shortId(order.id)}</span> bekor qilinadi.
+            Buni ortga qaytarib boʻlmaydi.
+          </>
+        }
+        confirmLabel="Bekor qilish"
+        cancelLabel="Yoʻq"
+        tone="danger"
+        isPending={isCancelling}
+      />
+      <ConfirmDialog
+        isOpen={confirming === 'complete'}
+        onClose={() => setConfirming(null)}
+        onConfirm={handleComplete}
+        title="Buyurtma yakunlansinmi?"
+        description={
+          <>
+            <span className="font-mono">{shortId(order.id)}</span> yakunlangan deb
+            belgilanadi va yoʻlovchidan haq undiriladi.
+          </>
+        }
+        confirmLabel="Yakunlash"
+        tone="default"
+        isPending={isCompleting}
       />
     </div>
   );

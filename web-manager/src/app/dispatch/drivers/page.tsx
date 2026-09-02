@@ -1,51 +1,55 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Car,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Download,
   RefreshCw,
   Search,
   Star,
+  UserCheck,
   Users,
   Wallet,
 } from 'lucide-react';
-import {
-  getDriverRoster,
-  approveDriverProfile,
-  addDriverFunds,
-  setDriverCommissionRate,
-  setDriverTariffTier,
-  getCurrentUserProfile,
-  DriverProfile,
-  TARIFF_TIERS,
-} from '@/lib/api';
+import { getDriverRoster, approveDriverProfile, getCurrentUserProfile, DriverProfile } from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
 import { Badge, BadgeVariant } from '@/components/ui/Badge';
-import { Modal } from '@/components/ui/Modal';
 import { Avatar } from '@/components/ui/Avatar';
+import { DriverFinanceModal } from '@/components/drivers/DriverFinanceModal';
+import { DriverTierModal, tierLabel } from '@/components/drivers/DriverTierModal';
+import { Tabs } from '@/components/ui/Tabs';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { FilterChip } from '@/components/ui/FilterChip';
+import { RetryBanner } from '@/components/ui/RetryBanner';
 import { SkeletonTable } from '@/components/ui/Skeleton';
-import { formatMoney, formatNumber, formatPhone, formatRating } from '@/lib/format';
+import { useToast } from '@/components/ui/Toast';
+import { downloadCsv } from '@/lib/csv';
+import { formatNumber, formatPhone, formatRating } from '@/lib/format';
 
-const PAGE_LIMIT = 20;
+const PAGE_SIZES = [20, 50, 100] as const;
 
-const statusOptions = [
-  { value: '', label: 'Barcha statuslar' },
+type StatusFilter = '' | 'pending' | 'active' | 'blocked';
+
+// Quick status filters above the table; the working set (tasdiq kutmoqda)
+// sits second so it is one click away all shift.
+const STATUS_TABS: { value: StatusFilter; label: string }[] = [
+  { value: '', label: 'Hammasi' },
   { value: 'pending', label: 'Tasdiq kutmoqda' },
   { value: 'active', label: 'Faol' },
   { value: 'blocked', label: 'Bloklangan' },
 ];
 
+// Amber is reserved for manual override alone (control-room.md) — a driver
+// awaiting review is "needs a look", which is info, not intervention.
 const statusVariant: Record<string, BadgeVariant> = {
-  pending: 'warning',
+  pending: 'info',
   active: 'success',
   blocked: 'danger',
 };
@@ -56,27 +60,36 @@ const statusLabel: Record<string, string> = {
   blocked: 'Bloklangan',
 };
 
+// First column is the human identifier (driver name), per data-tables.md.
+const HEADERS: { label: string; align?: 'right' }[] = [
+  { label: 'Haydovchi' },
+  { label: 'Mashina' },
+  { label: 'Tarif darajasi' },
+  { label: 'Reyting', align: 'right' },
+  { label: 'Safarlar', align: 'right' },
+  { label: 'Status' },
+  { label: 'Onlayn' },
+  { label: '' },
+];
+
 export default function DriverRosterPage() {
+  const { toast } = useToast();
+
   const [drivers, setDrivers] = useState<DriverProfile[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState('');
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZES[0]);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [canManageFinance, setCanManageFinance] = useState(false);
 
   const [financeTarget, setFinanceTarget] = useState<DriverProfile | null>(null);
-  const [fundsAmount, setFundsAmount] = useState('');
-  const [fundsNote, setFundsNote] = useState('');
-  const [commissionInput, setCommissionInput] = useState('');
-  const [financeSaving, setFinanceSaving] = useState<'funds' | 'commission' | null>(null);
-
   const [tierTarget, setTierTarget] = useState<DriverProfile | null>(null);
-  const [tierInput, setTierInput] = useState(1);
-  const [tierSaving, setTierSaving] = useState(false);
 
   useEffect(() => {
     getCurrentUserProfile()
@@ -94,7 +107,7 @@ export default function DriverRosterPage() {
     try {
       const result = await getDriverRoster({
         page,
-        limit: PAGE_LIMIT,
+        limit: pageSize,
         status: statusFilter || undefined,
         search: search || undefined,
       });
@@ -103,11 +116,14 @@ export default function DriverRosterPage() {
       setError(null);
     } catch (err) {
       console.error('Failed to load drivers:', err);
+      // The last good rows stay on screen — a roster that blanks on a failed
+      // refresh is lying; the banner names the failure and offers retry.
       setError('Haydovchilar roʻyxatini yuklab boʻlmadi.');
     } finally {
       setIsLoading(false);
+      setHasLoadedOnce(true);
     }
-  }, [page, statusFilter, search]);
+  }, [page, pageSize, statusFilter, search]);
 
   useEffect(() => {
     fetchDrivers();
@@ -115,96 +131,167 @@ export default function DriverRosterPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, search]);
+  }, [statusFilter, search, pageSize]);
 
   const handleApprove = async (driver: DriverProfile) => {
     setApprovingId(driver.id);
     try {
       await approveDriverProfile(driver.id);
-      setDrivers((prev) =>
-        prev.map((d) => (d.id === driver.id ? { ...d, status: 'active' } : d))
-      );
+      setDrivers((prev) => prev.map((d) => (d.id === driver.id ? { ...d, status: 'active' } : d)));
+      toast({
+        title: `${driver.firstName} ${driver.lastName} tasdiqlandi`,
+        description: 'Haydovchi endi buyurtma qabul qila oladi.',
+        variant: 'success',
+      });
     } catch (err) {
       console.error('Approve failed:', err);
-      window.alert('Haydovchini tasdiqlab boʻlmadi');
+      toast({
+        title: 'Haydovchini tasdiqlab boʻlmadi',
+        description: 'Qayta urinib koʻring yoki ruxsatingizni tekshiring.',
+        variant: 'error',
+      });
     } finally {
       setApprovingId(null);
     }
   };
 
-  const openFinance = (driver: DriverProfile) => {
-    setFinanceTarget(driver);
-    setFundsAmount('');
-    setFundsNote('');
-    setCommissionInput(driver.commissionRate != null ? String(driver.commissionRate) : '');
+  // One merge point for both modals — the server's updated profile is the
+  // source of truth for the row after any edit.
+  const mergeDriver = (updated: DriverProfile) => {
+    setDrivers((prev) => prev.map((d) => (d.id === updated.id ? { ...d, ...updated } : d)));
   };
 
-  const closeFinance = () => {
-    setFinanceTarget(null);
-    setFundsAmount('');
-    setFundsNote('');
-    setCommissionInput('');
+  // Meaningful default sort (data-tables.md): online drivers first — the ones
+  // the dispatcher can actually act on — then by name.
+  const rows = useMemo(
+    () =>
+      [...drivers].sort((a, b) => {
+        if (a.isOnline !== b.isOnline) return a.isOnline ? -1 : 1;
+        return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, 'uz');
+      }),
+    [drivers]
+  );
+
+  const clearFilters = () => {
+    setSearchInput('');
+    setStatusFilter('');
   };
 
-  const handleAddFunds = async () => {
-    if (!financeTarget) return;
-    const amount = parseFloat(fundsAmount);
-    if (!amount) {
-      window.alert('Avval summani kiriting');
-      return;
+  const handleExport = () => {
+    if (rows.length === 0) return;
+    const header = [
+      'Ism',
+      'Telefon',
+      'Mashina',
+      'Davlat raqami',
+      'Tarif darajasi',
+      'Reyting',
+      'Safarlar',
+      'Status',
+      'Onlayn',
+      ...(canManageFinance ? ['Hamyon (soʻm)', 'Komissiya (%)'] : []),
+    ];
+    downloadCsv(
+      'haydovchilar',
+      header,
+      rows.map((d) => [
+        `${d.firstName} ${d.lastName}`,
+        formatPhone(d.phone),
+        d.carModel,
+        d.carNumber,
+        tierLabel(d.approvedTariffTier),
+        formatRating(d.rating),
+        d.totalTrips,
+        statusLabel[d.status] ?? d.status,
+        d.isOnline ? 'Ha' : 'Yoʻq',
+        ...(canManageFinance
+          ? [d.walletBalance ?? '', d.commissionRate ?? '']
+          : []),
+      ])
+    );
+    toast({
+      title: `${rows.length} ta haydovchi CSV faylga eksport qilindi`,
+      description: 'Joriy sahifadagi yozuvlar — filtrlar hisobga olingan.',
+      variant: 'success',
+    });
+  };
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, total);
+
+  const activeChips = useMemo(() => {
+    const chips: { key: string; label: string; onRemove: () => void }[] = [];
+    if (searchInput) {
+      chips.push({
+        key: 'q',
+        label: `Qidiruv: "${searchInput}"`,
+        onRemove: () => setSearchInput(''),
+      });
     }
-    setFinanceSaving('funds');
-    try {
-      const updated = await addDriverFunds(financeTarget.id, amount, fundsNote.trim() || undefined);
-      setDrivers((prev) => prev.map((d) => (d.id === updated.id ? { ...d, ...updated } : d)));
-      setFundsAmount('');
-      setFundsNote('');
-    } catch (err) {
-      console.error('Add funds failed:', err);
-      window.alert('Balansni yangilab boʻlmadi');
-    } finally {
-      setFinanceSaving(null);
+    if (statusFilter) {
+      chips.push({
+        key: 'status',
+        label: `Status: ${statusLabel[statusFilter]}`,
+        onRemove: () => setStatusFilter(''),
+      });
     }
-  };
+    return chips;
+  }, [searchInput, statusFilter]);
 
-  const handleSetCommission = async () => {
-    if (!financeTarget) return;
-    const trimmed = commissionInput.trim();
-    const rate = trimmed === '' ? null : parseFloat(trimmed);
-    setFinanceSaving('commission');
-    try {
-      const updated = await setDriverCommissionRate(financeTarget.id, rate);
-      setDrivers((prev) => prev.map((d) => (d.id === updated.id ? { ...d, ...updated } : d)));
-    } catch (err) {
-      console.error('Set commission rate failed:', err);
-      window.alert('Komissiya foizini yangilab boʻlmadi');
-    } finally {
-      setFinanceSaving(null);
+  const renderEmpty = () => {
+    // Three empties, not one generic void: filtered-to-empty clears filters
+    // here; a cleared approval queue is a *good* state; first-use explains.
+    if (searchInput) {
+      return (
+        <EmptyState
+          icon={<Users size={22} />}
+          title="Filtrga mos haydovchi topilmadi"
+          description="Ism, telefon yoki mashina raqamini oʻzgartirib koʻring."
+          action={
+            <Button variant="secondary" size="sm" onClick={clearFilters}>
+              Filtrlarni tozalash
+            </Button>
+          }
+        />
+      );
     }
-  };
-
-  const openTier = (driver: DriverProfile) => {
-    setTierTarget(driver);
-    setTierInput(driver.approvedTariffTier);
-  };
-
-  const handleSetTier = async () => {
-    if (!tierTarget) return;
-    setTierSaving(true);
-    try {
-      const updated = await setDriverTariffTier(tierTarget.id, tierInput);
-      setDrivers((prev) => prev.map((d) => (d.id === updated.id ? { ...d, ...updated } : d)));
-      setTierTarget(null);
-    } catch (err) {
-      console.error('Set tariff tier failed:', err);
-      window.alert('Tarif darajasini yangilab boʻlmadi');
-    } finally {
-      setTierSaving(false);
+    if (statusFilter === 'pending') {
+      return (
+        <EmptyState
+          tone="positive"
+          icon={<UserCheck size={22} />}
+          title="Tasdiq kutayotgan haydovchi yoʻq ✓"
+          description="Barcha arizalar koʻrib chiqilgan."
+          action={
+            <Button variant="secondary" size="sm" onClick={clearFilters}>
+              Barcha haydovchilar
+            </Button>
+          }
+        />
+      );
     }
+    if (statusFilter) {
+      return (
+        <EmptyState
+          icon={<Users size={22} />}
+          title={`«${statusLabel[statusFilter]}» holatida haydovchi yoʻq`}
+          action={
+            <Button variant="secondary" size="sm" onClick={clearFilters}>
+              Filtrlarni tozalash
+            </Button>
+          }
+        />
+      );
+    }
+    return (
+      <EmptyState
+        icon={<Users size={22} />}
+        title="Haydovchilar yoʻq"
+        description="Ilova orqali roʻyxatdan oʻtgan haydovchilar shu jadvalda paydo boʻladi."
+      />
+    );
   };
-
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
-  const hasFilters = Boolean(statusFilter || searchInput);
 
   return (
     <div className="h-full overflow-y-auto">
@@ -219,18 +306,30 @@ export default function DriverRosterPage() {
           }
           className="mb-4"
           actions={
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={fetchDrivers}
-              leftIcon={<RefreshCw size={13} />}
-            >
-              Yangilash
-            </Button>
+            <>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleExport}
+                disabled={rows.length === 0}
+                leftIcon={<Download size={13} />}
+                title="Joriy sahifadagi yozuvlarni CSV sifatida yuklab olish"
+              >
+                CSV eksport
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={fetchDrivers}
+                leftIcon={<RefreshCw size={13} />}
+              >
+                Yangilash
+              </Button>
+            </>
           }
         />
 
-        <div className="flex items-center gap-3 flex-wrap mb-5">
+        <div className="flex items-center gap-3 flex-wrap mb-3">
           <Input
             placeholder="Ism, telefon yoki mashina raqami"
             value={searchInput}
@@ -239,61 +338,64 @@ export default function DriverRosterPage() {
             className="w-64"
             aria-label="Haydovchilarni qidirish"
           />
-          <Select
-            options={statusOptions}
+          <Tabs
+            items={STATUS_TABS}
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-48"
-            aria-label="Status boʻyicha filtr"
+            onChange={(v) => setStatusFilter(v)}
+            size="sm"
           />
         </div>
 
-        {error ? (
-          <ErrorState message={error} onRetry={fetchDrivers} />
-        ) : isLoading ? (
-          <SkeletonTable rows={8} cols={6} />
-        ) : drivers.length === 0 ? (
-          <Card>
-            <EmptyState
-              icon={<Users size={22} />}
-              title={hasFilters ? 'Filtrga mos haydovchi topilmadi' : 'Haydovchilar yoʻq'}
-              description={
-                hasFilters ? 'Qidiruv yoki status filtrini oʻzgartirib koʻring.' : undefined
-              }
-              action={
-                hasFilters ? (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      setSearchInput('');
-                      setStatusFilter('');
-                    }}
-                  >
-                    Filtrlarni tozalash
-                  </Button>
-                ) : undefined
-              }
-            />
-          </Card>
+        {activeChips.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap mb-3">
+            {activeChips.map((chip) => (
+              <FilterChip key={chip.key} label={chip.label} onRemove={chip.onRemove} />
+            ))}
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              Hammasini tozalash
+            </Button>
+          </div>
+        )}
+
+        {error && (
+          <RetryBanner
+            message={error}
+            onRetry={fetchDrivers}
+            keepsLastData={rows.length > 0}
+            className="mb-3"
+          />
+        )}
+
+        {error && rows.length === 0 ? (
+          <ErrorState
+            message="Tarmoq yoki server xatosi. Qayta urinib koʻring."
+            onRetry={fetchDrivers}
+          />
+        ) : isLoading && !hasLoadedOnce ? (
+          <SkeletonTable rows={8} cols={HEADERS.length - 1} />
+        ) : rows.length === 0 ? (
+          <Card>{renderEmpty()}</Card>
         ) : (
           <Card padding="none" className="overflow-hidden">
-            <div className="overflow-x-auto">
+            {/* The table owns its scroll region so the header can freeze. */}
+            <div className="overflow-auto max-h-[calc(100vh-16rem)]">
               <table className="w-full text-sm text-left">
-                <thead className="bg-surface-2 text-subtle uppercase text-[10px] tracking-wider">
+                <thead className="text-subtle uppercase text-[10px] tracking-wider">
                   <tr>
-                    <th className="px-4 py-3 font-semibold">Haydovchi</th>
-                    <th className="px-4 py-3 font-semibold">Mashina</th>
-                    <th className="px-4 py-3 font-semibold">Tarif darajasi</th>
-                    <th className="px-4 py-3 font-semibold">Reyting</th>
-                    <th className="px-4 py-3 font-semibold">Safarlar</th>
-                    <th className="px-4 py-3 font-semibold">Status</th>
-                    <th className="px-4 py-3 font-semibold">Onlayn</th>
-                    <th className="px-4 py-3 font-semibold" />
+                    {HEADERS.map((h, i) => (
+                      <th
+                        key={i}
+                        className={`sticky-th bg-surface-2 px-4 py-3 font-semibold whitespace-nowrap ${
+                          h.align === 'right' ? 'text-right' : ''
+                        }`}
+                      >
+                        {h.label}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
-                  {drivers.map((driver) => (
+                  {rows.map((driver) => (
                     <tr key={driver.id} className="hover:bg-surface-2/70 transition-colors">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2 min-w-0">
@@ -320,17 +422,16 @@ export default function DriverRosterPage() {
                       </td>
                       <td className="px-4 py-3">
                         <Badge variant="mint-soft" size="sm">
-                          {TARIFF_TIERS.find((t) => t.tier === driver.approvedTariffTier)?.label ??
-                            driver.approvedTariffTier}
+                          {tierLabel(driver.approvedTariffTier)}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3">
-                        <span className="flex items-center gap-1 text-xs text-muted">
-                          <Star size={12} className="text-primary" fill="currentColor" />
+                      <td className="px-4 py-3 text-right">
+                        <span className="inline-flex items-center gap-1 text-xs text-muted font-mono tabular-nums">
+                          <Star size={12} className="text-mint-deep" fill="currentColor" />
                           {formatRating(driver.rating)}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-muted text-xs font-mono">
+                      <td className="px-4 py-3 text-muted text-xs font-mono text-right tabular-nums">
                         {formatNumber(driver.totalTrips)}
                       </td>
                       <td className="px-4 py-3">
@@ -339,12 +440,17 @@ export default function DriverRosterPage() {
                         </Badge>
                       </td>
                       <td className="px-4 py-3">
-                        <span
-                          title={driver.isOnline ? 'Onlayn' : 'Oflayn'}
-                          className={`h-2.5 w-2.5 rounded-full inline-block ${
-                            driver.isOnline ? 'bg-mint-deep' : 'bg-line-strong'
-                          }`}
-                        />
+                        {/* Colour is never the only signal — the label rides
+                            with the dot (WCAG 1.4.1). */}
+                        <span className="inline-flex items-center gap-1.5 text-[11px] text-muted whitespace-nowrap">
+                          <span
+                            aria-hidden
+                            className={`h-2.5 w-2.5 rounded-full inline-block ${
+                              driver.isOnline ? 'bg-mint-deep' : 'bg-line-strong'
+                            }`}
+                          />
+                          {driver.isOnline ? 'Onlayn' : 'Oflayn'}
+                        </span>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-1.5 justify-end">
@@ -363,7 +469,7 @@ export default function DriverRosterPage() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => openFinance(driver)}
+                              onClick={() => setFinanceTarget(driver)}
                               leftIcon={<Wallet size={13} />}
                             >
                               Moliya
@@ -372,7 +478,7 @@ export default function DriverRosterPage() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => openTier(driver)}
+                            onClick={() => setTierTarget(driver)}
                             leftIcon={<Car size={13} />}
                           >
                             Tarif
@@ -385,12 +491,32 @@ export default function DriverRosterPage() {
               </table>
             </div>
 
-            <div className="flex items-center justify-between px-4 py-3 text-xs text-muted border-t border-line">
-              <span>
-                Jami <span className="font-mono">{formatNumber(total)}</span> · {page} / {totalPages}{' '}
-                sahifa
-              </span>
-              <div className="flex gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-xs text-muted border-t border-line">
+              <div className="flex items-center gap-3">
+                <span>
+                  <span className="font-mono tabular-nums">
+                    {from}–{to}
+                  </span>{' '}
+                  / jami <span className="font-mono tabular-nums">{formatNumber(total)}</span>{' '}
+                  haydovchi
+                </span>
+                <label className="flex items-center gap-1.5">
+                  <span className="text-subtle">Sahifada:</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    aria-label="Sahifadagi qatorlar soni"
+                    className="h-7 rounded-ds-xs border border-line bg-surface px-1.5 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-focus/40"
+                  >
+                    {PAGE_SIZES.map((size) => (
+                      <option key={size} value={size}>
+                        {size}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="flex items-center gap-2">
                 <Button
                   size="sm"
                   variant="secondary"
@@ -400,10 +526,13 @@ export default function DriverRosterPage() {
                 >
                   Oldingi
                 </Button>
+                <span className="px-3 py-1.5 font-mono tabular-nums bg-surface-2 border border-line rounded-ds-xs">
+                  {page} / {totalPages}
+                </span>
                 <Button
                   size="sm"
                   variant="secondary"
-                  disabled={page * PAGE_LIMIT >= total}
+                  disabled={page * pageSize >= total}
                   onClick={() => setPage((p) => p + 1)}
                   rightIcon={<ChevronRight size={13} />}
                 >
@@ -415,118 +544,17 @@ export default function DriverRosterPage() {
         )}
       </div>
 
-      <Modal
-        isOpen={!!financeTarget}
-        onClose={closeFinance}
-        title={
-          financeTarget
-            ? `${financeTarget.firstName} ${financeTarget.lastName} — moliya`
-            : 'Moliya'
-        }
-        size="md"
-      >
-        {financeTarget && (
-          <div className="space-y-5">
-            <div className="rounded-xl border border-line bg-surface-2/60 p-4 text-center">
-              {/* Daftardan hisoblangan qoldiq — haydovchi o'z ilovasida
-                  AYNAN shu raqamni ko'radi. `balance` ustuni yechib olingan
-                  pulni hisobga olmagani uchun bu yerda ishlatilmaydi. */}
-              <p className="text-xs text-muted">
-                {(financeTarget.walletBalance ?? 0) < 0 ? 'Qarz' : 'Hamyon'}
-              </p>
-              <p
-                className={`font-mono text-xl font-bold mt-1 ${
-                  (financeTarget.walletBalance ?? 0) < 0
-                    ? 'text-danger'
-                    : 'text-primary-700 dark:text-primary-300'
-                }`}
-              >
-                {formatMoney(financeTarget.walletBalance ?? 0)}
-              </p>
-            </div>
+      <DriverFinanceModal
+        driver={financeTarget}
+        onClose={() => setFinanceTarget(null)}
+        onUpdated={mergeDriver}
+      />
 
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-ink">Balansni toʻldirish / tuzatish</p>
-              <Input
-                placeholder="Summa (ayirish uchun manfiy son)"
-                type="number"
-                mono
-                value={fundsAmount}
-                onChange={(e) => setFundsAmount(e.target.value)}
-              />
-              <Input
-                placeholder="Izoh (ixtiyoriy)"
-                value={fundsNote}
-                onChange={(e) => setFundsNote(e.target.value)}
-              />
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={handleAddFunds}
-                isLoading={financeSaving === 'funds'}
-                className="w-full"
-              >
-                Qoʻllash
-              </Button>
-            </div>
-
-            <div className="space-y-2 pt-4 border-t border-line">
-              <p className="text-sm font-medium text-ink">Komissiya foizi</p>
-              <Input
-                placeholder="% — boʻsh qoldirilsa platforma qiymati"
-                type="number"
-                mono
-                value={commissionInput}
-                onChange={(e) => setCommissionInput(e.target.value)}
-              />
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={handleSetCommission}
-                isLoading={financeSaving === 'commission'}
-                className="w-full"
-              >
-                Saqlash
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      <Modal
-        isOpen={!!tierTarget}
+      <DriverTierModal
+        driver={tierTarget}
         onClose={() => setTierTarget(null)}
-        title={
-          tierTarget
-            ? `${tierTarget.firstName} ${tierTarget.lastName} — tarif darajasi`
-            : 'Tarif darajasi'
-        }
-        size="sm"
-      >
-        {tierTarget && (
-          <div className="space-y-4">
-            <p className="text-xs text-muted leading-relaxed">
-              Bu haydovchi qatnasha oladigan eng yuqori tarif — mashinasi
-              {tierTarget.carYear != null ? ` (${tierTarget.carYear}-yil)` : ''} koʻrib chiqilgach
-              belgilanadi.
-            </p>
-            <Select
-              options={TARIFF_TIERS.map((t) => ({ value: String(t.tier), label: t.label }))}
-              value={String(tierInput)}
-              onChange={(e) => setTierInput(Number(e.target.value))}
-            />
-            <Button
-              size="sm"
-              variant="primary"
-              onClick={handleSetTier}
-              isLoading={tierSaving}
-              className="w-full"
-            >
-              Saqlash
-            </Button>
-          </div>
-        )}
-      </Modal>
+        onUpdated={mergeDriver}
+      />
     </div>
   );
 }

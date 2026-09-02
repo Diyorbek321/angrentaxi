@@ -1,7 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { CheckCircle2, RefreshCw, ShieldAlert, Timer, UserCog } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import {
+  CheckCircle2,
+  Download,
+  RefreshCw,
+  ShieldAlert,
+  Timer,
+  UserCog,
+} from 'lucide-react';
 import { getDispatchOverrides, getSosTodaySummary, DispatchOverride } from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -9,8 +17,30 @@ import { Badge } from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { RetryBanner } from '@/components/ui/RetryBanner';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { formatTime, shortId } from '@/lib/format';
+import { useToast } from '@/components/ui/Toast';
+import { downloadCsv } from '@/lib/csv';
+import { formatDateTime, formatTime, shortId } from '@/lib/format';
+
+// One page of overrides is what the report reads; the caveat under the KPI
+// row says so rather than implying the whole history was summed.
+const FETCH_LIMIT = 100;
+
+type Period = 'today' | '7d' | '30d';
+
+const PERIODS: { value: Period; label: string }[] = [
+  { value: 'today', label: 'Bugun' },
+  { value: '7d', label: '7 kun' },
+  { value: '30d', label: '30 kun' },
+];
+
+function periodStart(period: Period): Date {
+  const from = new Date();
+  if (period === 'today') from.setHours(0, 0, 0, 0);
+  else from.setDate(from.getDate() - (period === '7d' ? 7 : 30));
+  return from;
+}
 
 function SummaryCard({
   icon,
@@ -29,7 +59,7 @@ function SummaryCard({
     tone === 'override'
       ? 'text-override-dark dark:text-override-light'
       : tone === 'danger'
-      ? 'text-danger'
+      ? 'text-danger-deep dark:text-danger-light'
       : 'text-ink';
 
   return (
@@ -45,16 +75,20 @@ function SummaryCard({
 }
 
 export default function ShiftReportPage() {
+  const { toast } = useToast();
+
   const [overrides, setOverrides] = useState<DispatchOverride[]>([]);
   const [sos, setSos] = useState<{ resolvedToday: number; stillOpen: number } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [period, setPeriod] = useState<Period>('today');
 
   const fetchData = async () => {
     setIsLoading(true);
     try {
       const [overridesResult, sosResult] = await Promise.all([
-        getDispatchOverrides(1, 100),
+        getDispatchOverrides(1, FETCH_LIMIT),
         getSosTodaySummary(),
       ]);
       setOverrides(overridesResult.overrides);
@@ -65,6 +99,7 @@ export default function ShiftReportPage() {
       setError('Smena hisobotini yuklab boʻlmadi.');
     } finally {
       setIsLoading(false);
+      setHasLoadedOnce(true);
     }
   };
 
@@ -72,55 +107,129 @@ export default function ShiftReportPage() {
     fetchData();
   }, []);
 
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const overridesToday = overrides.filter((o) => new Date(o.createdAt) >= startOfToday);
+  const inPeriod = useMemo(() => {
+    const cutoff = periodStart(period).getTime();
+    return overrides
+      .filter((o) => new Date(o.createdAt).getTime() >= cutoff)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [overrides, period]);
+
+  const periodLabel = PERIODS.find((p) => p.value === period)?.label ?? '';
+
+  const handleExport = () => {
+    if (inPeriod.length === 0) return;
+    downloadCsv(
+      `smena-hisoboti-${period}`,
+      ['Vaqt', 'Buyurtma', 'Operator', 'Oldingi haydovchi', 'Yangi haydovchi', 'Sabab'],
+      inPeriod.map((o) => [
+        new Date(o.createdAt).toLocaleString('uz-UZ'),
+        shortId(o.orderId),
+        o.performedByUserId,
+        o.previousDriverId ?? '',
+        o.newDriverId,
+        o.reason,
+      ])
+    );
+    toast({
+      title: `${inPeriod.length} ta aralashuv CSV faylga eksport qilindi`,
+      description: `Davr: ${periodLabel}`,
+      variant: 'success',
+    });
+  };
+
+  const showSkeleton = isLoading && !hasLoadedOnce;
 
   return (
     <div className="h-full overflow-y-auto">
       <div className="px-5 py-4 max-w-5xl mx-auto">
         <PageHeader
           title="Smena hisoboti"
-          description="Bugun operator hal qilgan istisnolar"
+          description="Operator hal qilgan istisnolar — davr boʻyicha"
           icon={<Timer size={17} />}
           actions={
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={fetchData}
-              leftIcon={<RefreshCw size={13} />}
-            >
-              Yangilash
-            </Button>
+            <>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleExport}
+                disabled={inPeriod.length === 0}
+                leftIcon={<Download size={13} />}
+                title="Tanlangan davr yozuvlarini CSV sifatida yuklab olish"
+              >
+                CSV eksport
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={fetchData}
+                leftIcon={<RefreshCw size={13} />}
+              >
+                Yangilash
+              </Button>
+            </>
           }
         />
 
-        {error ? (
-          <ErrorState message={error} onRetry={fetchData} />
+        {/* Period presets — one active at a time, today is the shift default. */}
+        <div
+          role="group"
+          aria-label="Hisobot davri"
+          className="inline-flex items-center rounded-ds-sm border border-line bg-surface-2/60 p-0.5 mb-4"
+        >
+          {PERIODS.map((p) => (
+            <button
+              key={p.value}
+              type="button"
+              aria-pressed={period === p.value}
+              onClick={() => setPeriod(p.value)}
+              className={`h-8 px-3 rounded-ds-xs text-xs font-medium transition-colors ${
+                period === p.value
+                  ? 'bg-surface text-ink shadow-card border border-line'
+                  : 'text-muted hover:text-ink border border-transparent'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        {error && (
+          <RetryBanner
+            message={error}
+            onRetry={fetchData}
+            keepsLastData={hasLoadedOnce && overrides.length > 0}
+            className="mb-4"
+          />
+        )}
+
+        {error && !hasLoadedOnce ? (
+          <ErrorState
+            message="Tarmoq yoki server xatosi. Qayta urinib koʻring."
+            onRetry={fetchData}
+          />
         ) : (
           <div className="space-y-6">
-            {isLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {showSkeleton ? (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" aria-busy="true">
                 {Array.from({ length: 3 }).map((_, i) => (
-                  <Skeleton key={i} className="h-[116px] rounded-xl" />
+                  <Skeleton key={i} className="h-[116px] rounded-ds-md" />
                 ))}
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <SummaryCard
                   icon={<UserCog size={16} />}
-                  label="Bugungi qoʻlda aralashuvlar"
-                  value={overridesToday.length}
+                  label={`Qoʻlda aralashuvlar · ${periodLabel}`}
+                  value={inPeriod.length}
                   tone="override"
-                  hint={
-                    overridesToday.length > 5
-                      ? 'Odatdagidan koʻp — sabablarini koʻrib chiqing'
-                      : 'Har biri sababi bilan amallar tarixiga yozilgan'
-                  }
+                  hint="Har biri sababi bilan amallar tarixiga yozilgan"
                 />
+                {/* The SOS endpoint returns today's figures only — the label
+                    says «bugun» in every period so the number is never read
+                    as the selected range. */}
                 <SummaryCard
                   icon={<ShieldAlert size={16} />}
-                  label="Bugun yopilgan SOS"
+                  label="Yopilgan SOS · bugun"
                   value={sos?.resolvedToday ?? 0}
                   tone="danger"
                   hint={
@@ -131,53 +240,82 @@ export default function ShiftReportPage() {
                 />
                 <SummaryCard
                   icon={<CheckCircle2 size={16} />}
-                  label="Bugungi jami istisnolar"
-                  value={overridesToday.length + (sos?.resolvedToday ?? 0)}
-                  hint="Aralashuvlar + yopilgan SOS signallari"
+                  label="Ochiq SOS signallari"
+                  value={sos?.stillOpen ?? 0}
+                  hint={
+                    sos && sos.stillOpen > 0
+                      ? 'Istisnolar sahifasida koʻrib chiqing'
+                      : 'Hammasi yopilgan'
+                  }
                 />
               </div>
             )}
 
+            <p className="text-[11px] text-subtle -mt-3">
+              Aralashuvlar oxirgi {FETCH_LIMIT} ta yozuvdan hisoblanadi. SOS koʻrsatkichlari faqat
+              bugungi kun uchun mavjud.
+            </p>
+
             <Card padding="none" className="overflow-hidden">
-              <div className="px-4 py-3 border-b border-line">
-                <h2 className="text-sm font-semibold text-ink">Bugungi aralashuvlar</h2>
+              <div className="px-4 py-3 border-b border-line flex items-center justify-between gap-3">
+                <h2 className="text-sm font-semibold text-ink">Aralashuvlar · {periodLabel}</h2>
+                {!showSkeleton && inPeriod.length > 0 && (
+                  <Badge variant="override" size="sm">
+                    {inPeriod.length}
+                  </Badge>
+                )}
               </div>
 
-              {isLoading ? (
-                <div className="p-4 space-y-2">
+              {showSkeleton ? (
+                <div className="p-4 space-y-2" aria-busy="true">
                   {Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className="h-12" />
+                    <Skeleton key={i} className="h-14" />
                   ))}
                 </div>
-              ) : overridesToday.length === 0 ? (
+              ) : inPeriod.length === 0 ? (
                 <EmptyState
                   compact
                   tone="positive"
                   icon={<CheckCircle2 size={20} />}
-                  title="Bugun qoʻlda aralashuv boʻlmadi"
+                  title={
+                    period === 'today'
+                      ? 'Bugun qoʻlda aralashuv boʻlmadi'
+                      : `Bu davrda (${periodLabel}) aralashuv boʻlmadi`
+                  }
                   description="Tizim barcha buyurtmalarni oʻzi taqsimladi."
                 />
               ) : (
-                <div className="divide-y divide-line">
-                  {overridesToday.map((o) => (
-                    <div key={o.id} className="px-4 py-3 flex items-start justify-between gap-3">
+                <ul className="divide-y divide-line">
+                  {inPeriod.map((o) => (
+                    // Amber left edge = a human intervened, the same mark the
+                    // audit log uses. It appears nowhere else on this page.
+                    <li
+                      key={o.id}
+                      className="px-4 py-3 flex items-start justify-between gap-3 border-l-2 border-l-override"
+                    >
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs text-muted">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Link
+                            href={`/orders/${o.orderId}`}
+                            className="font-mono text-xs text-primary-text hover:underline"
+                          >
                             {shortId(o.orderId)}
-                          </span>
+                          </Link>
                           <Badge variant="override" size="sm">
-                            Aralashuv
+                            Qoʻlda aralashuv
                           </Badge>
                         </div>
                         <p className="text-sm text-ink mt-1 break-words">{o.reason}</p>
                       </div>
-                      <span className="font-mono text-xs text-subtle shrink-0">
-                        {formatTime(o.createdAt)}
+                      <span
+                        className="font-mono text-xs text-subtle shrink-0 tabular-nums"
+                        title={formatDateTime(o.createdAt)}
+                      >
+                        {period === 'today' ? formatTime(o.createdAt) : formatDateTime(o.createdAt)}
                       </span>
-                    </div>
+                    </li>
                   ))}
-                </div>
+                </ul>
               )}
             </Card>
           </div>

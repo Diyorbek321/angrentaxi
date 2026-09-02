@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { useToast } from '@/components/ui/Toast';
 import { formatPhone, formatRating, shortId } from '@/lib/format';
 
 interface AssignDriverModalProps {
@@ -33,6 +34,7 @@ export function AssignDriverModal({
   const [reason, setReason] = useState('');
   const [assigningDriverId, setAssigningDriverId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const isReassign = !!order?.driver;
   const reasonValid = reason.trim().length >= MIN_REASON_LENGTH;
@@ -63,6 +65,11 @@ export function AssignDriverModal({
       onClose();
       setSearchQuery('');
       setReason('');
+      toast({
+        title: `Qoʻlda aralashuv: ${driver.name} tayinlandi`,
+        description: `Buyurtma ${shortId(order.id)} · sabab amallar tarixiga yozildi.`,
+        variant: 'success',
+      });
     } catch (err) {
       console.error('Assign failed:', err);
       setError('Haydovchini tayinlab boʻlmadi. Qaytadan urinib koʻring.');
@@ -91,7 +98,7 @@ export function AssignDriverModal({
       {order && (
         <div className="space-y-4">
           {/* Why this exists at all */}
-          <div className="flex items-start gap-2.5 rounded-lg border border-override/40 bg-override/[0.08] p-3">
+          <div className="flex items-start gap-2.5 rounded-ds-xs border border-override/40 bg-override/[0.08] p-3">
             <AlertTriangle size={15} className="text-override shrink-0 mt-0.5" />
             <p className="text-xs text-override-dark dark:text-override-light leading-relaxed">
               Buyurtmalarga haydovchi odatda <strong>avtomatik</strong> tayinlanadi. Bu oynadan
@@ -101,7 +108,7 @@ export function AssignDriverModal({
           </div>
 
           {/* Order summary */}
-          <div className="rounded-lg border border-line bg-surface-2/60 p-3 space-y-2">
+          <div className="rounded-ds-xs border border-line bg-surface-2/60 p-3 space-y-2">
             <div className="flex items-start gap-2">
               <span className="mt-1 h-2 w-2 rounded-full bg-mint-deep shrink-0 ring-2 ring-mint/25" />
               <p className="text-xs text-ink">{order.pickupAddress ?? '—'}</p>
@@ -146,7 +153,7 @@ export function AssignDriverModal({
           />
 
           {error && (
-            <p className="text-xs text-danger bg-danger/10 border border-danger/30 rounded-lg px-3 py-2">
+            <p className="text-xs text-danger bg-danger/10 border border-danger/30 rounded-ds-xs px-3 py-2">
               {error}
             </p>
           )}
@@ -171,7 +178,7 @@ export function AssignDriverModal({
               filteredDrivers.map((driver) => (
                 <div
                   key={driver.id}
-                  className="flex items-center gap-3 rounded-lg border border-line bg-surface hover:border-line-strong px-3 py-2.5 transition-colors"
+                  className="flex items-center gap-3 rounded-ds-xs border border-line bg-surface hover:border-line-strong px-3 py-2.5 transition-colors"
                 >
                   <Avatar name={driver.name} size="sm" />
                   <div className="flex-1 min-w-0">

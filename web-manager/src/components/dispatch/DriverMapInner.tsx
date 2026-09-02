@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-
 import L from 'leaflet';
 import { useEffect } from 'react';
 import { Driver, Order } from '@/lib/api';
+import { MAP_COLORS } from '@/lib/constants';
 import { formatRating, shortId } from '@/lib/format';
 import { MAP_TILE_URL } from '@/lib/map-config';
 
@@ -12,20 +13,22 @@ import 'leaflet/dist/leaflet.css';
 // Default Angren city center — used when no driver locations are available yet.
 const DEFAULT_CENTER: [number, number] = [40.0956, 70.9432];
 
-const MINT = '#1FCA8E';
-const BUSY = '#94A3B8';
-const DROPOFF = '#EF4444';
-
-/** Mint car pin for free drivers, grey for drivers already on a trip. */
-function carIcon(color: string): L.DivIcon {
+/**
+ * Marker colours come from MAP_COLORS (lib/constants.ts), the hex mirror of
+ * the token ramp — Leaflet takes inline styles, not Tailwind classes.
+ * Available drivers pop (mint-deep, the light-ground mint); busy drivers
+ * recede (ink-subtle grey at reduced opacity); dropoff is the danger token.
+ */
+function carIcon(color: string, recede = false): L.DivIcon {
   return L.divIcon({
     className: '',
     html: `<div style="
       width:26px;height:26px;border-radius:9px;background:${color};
       display:flex;align-items:center;justify-content:center;
+      ${recede ? 'opacity:.75;' : ''}
       box-shadow:0 0 0 3px ${color}33, 0 2px 6px rgba(0,0,0,.35);
     "><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"
-        fill="none" stroke="#04231A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        fill="none" stroke="${MAP_COLORS.markerInk}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M19 17h2l-1.5-6.5a2 2 0 0 0-2-1.5h-11a2 2 0 0 0-2 1.5L3 17h2"/>
         <circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M9 17h6"/>
       </svg></div>`,
@@ -46,10 +49,10 @@ function dotIcon(color: string, ring = true): L.DivIcon {
   });
 }
 
-const AVAILABLE_ICON = carIcon(MINT);
-const BUSY_ICON = carIcon(BUSY);
-const PICKUP_ICON = dotIcon(MINT);
-const DROPOFF_ICON = dotIcon(DROPOFF);
+const AVAILABLE_ICON = carIcon(MAP_COLORS.available);
+const BUSY_ICON = carIcon(MAP_COLORS.busy, true);
+const PICKUP_ICON = dotIcon(MAP_COLORS.available);
+const DROPOFF_ICON = dotIcon(MAP_COLORS.dropoff);
 
 /**
  * Recenters the map when the set of known driver locations changes, without
@@ -127,7 +130,10 @@ export default function DriverMapInner({ drivers, selectedOrder = null }: Driver
       ))}
 
       {routePoints.length === 2 && (
-        <Polyline positions={routePoints} pathOptions={{ color: MINT, weight: 3, dashArray: '6 8', opacity: 0.9 }} />
+        <Polyline
+          positions={routePoints}
+          pathOptions={{ color: MAP_COLORS.route, weight: 3, dashArray: '6 8', opacity: 0.9 }}
+        />
       )}
 
       {pickup && (

@@ -34,7 +34,7 @@ export default function CreateOrderPage() {
           }
         />
 
-        <div className="flex items-start gap-2.5 rounded-lg border border-line bg-surface-2/60 px-3 py-2.5 mb-5">
+        <div className="flex items-start gap-2.5 rounded-ds-xs border border-line bg-surface-2/60 px-3 py-2.5 mb-5">
           <Info size={14} className="text-muted shrink-0 mt-0.5" />
           <p className="text-xs text-muted leading-relaxed">
             Buyurtma yaratilgach, haydovchi <strong>avtomatik</strong> qidiriladi — bu yerda

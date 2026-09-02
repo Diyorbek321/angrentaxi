@@ -123,7 +123,9 @@ export default function DispatchPage() {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2">
-          <StatTile label="Qidirilmoqda" value={searchingCount} tone="override" live={searchingCount > 0} />
+          {/* Searching is mint and pulsing — the machine at work. Amber is
+              never a lifecycle colour here; it belongs to manual override. */}
+          <StatTile label="Qidirilmoqda" value={searchingCount} tone="mint" live={searchingCount > 0} />
           <StatTile label="Tayinlangan" value={assignedCount} tone="info" />
           <StatTile label="Yoʻlda" value={inProgressCount} tone="mint" />
           <StatTile label="Onlayn haydovchilar" value={drivers.length} tone="neutral" />
@@ -154,12 +156,12 @@ export default function DispatchPage() {
         {/* Right: live map */}
         <section className="flex-1 min-h-0 flex flex-col overflow-hidden">
           <PanelHeader title="Onlayn haydovchilar" count={drivers.length} connected={connected}>
-            <div className="flex items-center rounded-lg border border-line p-0.5">
+            <div className="flex items-center rounded-ds-xs border border-line p-0.5">
               <button
                 type="button"
                 onClick={() => setDriversView('map')}
                 className={clsx(
-                  'flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors',
+                  'flex items-center gap-1 rounded-ds-xs px-2 py-1 text-xs transition-colors',
                   driversView === 'map'
                     ? 'bg-surface-2 text-ink font-medium'
                     : 'text-muted hover:text-ink'
@@ -172,7 +174,7 @@ export default function DispatchPage() {
                 type="button"
                 onClick={() => setDriversView('list')}
                 className={clsx(
-                  'flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors',
+                  'flex items-center gap-1 rounded-ds-xs px-2 py-1 text-xs transition-colors',
                   driversView === 'list'
                     ? 'bg-surface-2 text-ink font-medium'
                     : 'text-muted hover:text-ink'

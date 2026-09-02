@@ -1,11 +1,13 @@
 import { Badge, BadgeVariant } from '@/components/ui/Badge';
 import { OrderStatus, ORDER_STATUS_LABELS } from '@/lib/constants';
 
-// Mint shades track the automatic flow (arrived -> in progress -> completed);
-// amber marks `searching`, the one state a dispatcher may have to act on.
+// One lifecycle, one ramp (see ORDER_STATUS_ACCENT in lib/constants.ts):
+// neutral -> searching (animated mint tint — the machine working) -> info ->
+// mint light -> mint -> deep green -> red. Amber appears nowhere in the
+// lifecycle: it is reserved for the manual-override flow alone.
 const statusVariantMap: Record<OrderStatus, BadgeVariant> = {
   created: 'default',
-  searching: 'warning',
+  searching: 'searching',
   accepted: 'info',
   arrived: 'mint-soft',
   in_progress: 'primary',

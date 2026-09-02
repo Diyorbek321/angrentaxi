@@ -98,7 +98,7 @@ export function ActiveOrdersList({
   if (isLoading && orders.length === 0) {
     return (
       <div className="space-y-3">
-        <div className="h-9 w-full skeleton rounded-xl" />
+        <div className="h-9 w-full skeleton rounded-ds-sm" />
         <SkeletonCards count={3} height="h-44" />
       </div>
     );

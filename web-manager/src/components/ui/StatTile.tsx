@@ -36,7 +36,7 @@ export function StatTile({
   return (
     <div
       className={clsx(
-        'bg-surface border border-line rounded-xl px-3.5 py-2.5 flex items-center gap-3 min-w-0',
+        'bg-surface border border-line rounded-ds-sm px-3.5 py-2.5 flex items-center gap-3 min-w-0',
         className
       )}
     >

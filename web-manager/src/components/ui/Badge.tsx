@@ -9,6 +9,8 @@ export type BadgeVariant =
   | 'danger'
   | 'info'
   | 'mint-soft'
+  /** The automatic search in flight — mint family, the only animated badge. */
+  | 'searching'
   /** Manual intervention marker — amber, and only ever that. */
   | 'override'
   /** Legacy alias kept so existing call sites keep compiling. */
@@ -22,6 +24,7 @@ const variantClasses: Record<BadgeVariant, string> = {
   danger: 'bg-danger/12 text-danger border border-danger/30',
   info: 'bg-info/12 text-info dark:text-blue-300 border border-info/30',
   'mint-soft': 'bg-primary/8 text-primary-600 dark:text-primary-300 border border-primary/20',
+  searching: 'bg-mint-tint text-primary-text border border-mint/40',
   override: 'bg-override/15 text-override-dark dark:text-override-light border border-override/40',
   orange: 'bg-override/12 text-override-dark dark:text-override-light border border-override/30',
 };
@@ -46,7 +49,16 @@ const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
         )}
         {...props}
       >
-        {dot && <span className="h-1.5 w-1.5 rounded-full bg-current shrink-0" />}
+        {dot && (
+          <span
+            className={clsx(
+              'h-1.5 w-1.5 rounded-full bg-current shrink-0',
+              // `searching` is the machine visibly working — the one animated
+              // state in the whole lifecycle ramp (control-room rule).
+              variant === 'searching' && 'animate-pulse'
+            )}
+          />
+        )}
         {children}
       </span>
     );

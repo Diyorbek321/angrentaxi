@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -18,13 +18,70 @@ import { clsx } from 'clsx';
 import { isAuthenticated, logout, getUser } from '@/lib/auth';
 import { useSocket } from '@/hooks/useSocket';
 import { getCurrentUserProfile, getActiveSosAlerts, getNoDriversFoundExceptions } from '@/lib/api';
+import { persistSidebarCollapsed } from '@/lib/ui-prefs';
+import { formatTime } from '@/lib/format';
 import { Avatar } from '@/components/ui/Avatar';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { NAV_GROUPS, Sidebar, type NavGroup } from './Sidebar';
 import { DispatchDataProvider, useDispatchData } from './DispatchDataContext';
 
-const SIDEBAR_STORAGE_KEY = 'angren-dispatch-sidebar-collapsed';
 const EXCEPTIONS_POLL_MS = 30_000;
+
+/**
+ * The connection lifecycle as the operator must see it (control-room rule:
+ * silence is the enemy — a frozen panel that looks live is worse than an
+ * outage banner):
+ *
+ *   Jonli (quiet mint) → Ulanmoqda (reconnecting, neutral) → Uzilgan (red —
+ *   connection lost is an act-now state) with "maʼlumot HH:MM holatiga koʻra"
+ *   the moment freshness is lost, so the last good snapshot stays visible
+ *   but honestly labelled.
+ */
+function ConnectionIndicator() {
+  const { status } = useSocket();
+  // The moment live updates stopped arriving — feeds the staleness label.
+  const [staleSince, setStaleSince] = useState<number | null>(null);
+  const prevConnected = useRef(false);
+
+  useEffect(() => {
+    if (status === 'connected') {
+      prevConnected.current = true;
+      setStaleSince(null);
+    } else if (prevConnected.current) {
+      // Only mark the first moment of loss; reconnect attempts keep it.
+      setStaleSince((prev) => prev ?? Date.now());
+    }
+  }, [status]);
+
+  const state: 'live' | 'reconnecting' | 'stale' =
+    status === 'connected' ? 'live' : status === 'connecting' ? 'reconnecting' : 'stale';
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      title={`WebSocket: ${status}`}
+      className={clsx(
+        'hidden sm:flex items-center gap-1.5 h-9 px-2.5 rounded-ds-xs border text-xs',
+        state === 'live' && 'border-primary/30 bg-primary/10 text-primary-700 dark:text-primary-300',
+        state === 'reconnecting' && 'border-line bg-surface-2/60 text-muted',
+        state === 'stale' && 'border-danger/40 bg-danger/10 text-danger'
+      )}
+    >
+      {state === 'live' && <Wifi size={14} />}
+      {state === 'reconnecting' && <Wifi size={14} className="animate-pulse" />}
+      {state === 'stale' && <WifiOff size={14} />}
+      <span className="hidden lg:inline font-medium">
+        {state === 'live' ? 'Jonli' : state === 'reconnecting' ? 'Ulanmoqda…' : 'Uzilgan'}
+      </span>
+      {state !== 'live' && staleSince != null && (
+        <span className="hidden xl:inline text-[11px] font-normal">
+          · maʼlumot {formatTime(staleSince)} holatiga koʻra
+        </span>
+      )}
+    </div>
+  );
+}
 
 /** Compact live readout in the header — the numbers an operator glances at. */
 function HeaderCounter({
@@ -43,7 +100,7 @@ function HeaderCounter({
   return (
     <div
       title={label}
-      className="hidden md:flex items-center gap-2 h-9 px-2.5 rounded-lg border border-line bg-surface-2/60"
+      className="hidden md:flex items-center gap-2 h-9 px-2.5 rounded-ds-xs border border-line bg-surface-2/60"
     >
       <span className={clsx('shrink-0', tone === 'mint' ? 'text-primary-600 dark:text-primary-300' : 'text-muted')}>
         {icon}
@@ -68,7 +125,6 @@ function ShellHeader({
   canSeeExceptions: boolean;
 }) {
   const router = useRouter();
-  const { status } = useSocket();
   const { orders, ordersLoading, drivers, driversLoading } = useDispatchData();
   const [user, setUser] = useState<ReturnType<typeof getUser>>(null);
   const [query, setQuery] = useState('');
@@ -96,16 +152,13 @@ function ShellHeader({
     router.replace('/login');
   };
 
-  const socketLabel =
-    status === 'connected' ? 'Jonli' : status === 'connecting' ? 'Ulanmoqda' : 'Uzilgan';
-
   return (
     <header className="h-14 shrink-0 bg-surface border-b border-line flex items-center gap-2 px-3 sm:px-4">
       <button
         type="button"
         onClick={onOpenMobileNav}
         aria-label="Menyuni ochish"
-        className="lg:hidden h-9 w-9 inline-flex items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-surface-2 transition-colors"
+        className="lg:hidden h-9 w-9 inline-flex items-center justify-center rounded-ds-xs text-muted hover:text-ink hover:bg-surface-2 transition-colors"
       >
         <Menu size={18} />
       </button>
@@ -128,7 +181,7 @@ function ShellHeader({
           href="/dispatch/exceptions"
           title="Istisnolar"
           className={clsx(
-            'inline-flex items-center gap-1.5 h-9 px-2.5 rounded-lg border text-xs font-semibold transition-colors',
+            'inline-flex items-center gap-1.5 h-9 px-2.5 rounded-ds-xs border text-xs font-semibold transition-colors',
             exceptionsCount > 0
               ? 'border-danger/40 bg-danger/10 text-danger animate-pulse-ring'
               : 'border-line bg-surface-2/60 text-muted hover:text-ink'
@@ -148,7 +201,7 @@ function ShellHeader({
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Buyurtma, mijoz, telefon…"
           aria-label="Buyurtmalar boʻyicha qidiruv"
-          className="h-9 w-40 lg:w-64 rounded-lg border border-line bg-surface-2/60 pl-9 pr-3 text-sm text-ink placeholder-subtle focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors"
+          className="h-9 w-40 lg:w-64 rounded-ds-xs border border-line bg-surface-2/60 pl-9 pr-3 text-sm text-ink placeholder-subtle focus:outline-none focus:ring-2 focus:ring-focus/40 focus:border-focus transition-colors"
         />
       </form>
 
@@ -158,7 +211,7 @@ function ShellHeader({
             href="/dispatch/exceptions"
             aria-label="Bildirishnomalar"
             title="Bildirishnomalar"
-            className="relative h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line text-muted hover:text-ink hover:bg-surface-2 transition-colors"
+            className="relative h-9 w-9 inline-flex items-center justify-center rounded-ds-xs border border-line text-muted hover:text-ink hover:bg-surface-2 transition-colors"
           >
             <Bell size={16} />
             {exceptionsCount > 0 && (
@@ -171,18 +224,7 @@ function ShellHeader({
 
         <ThemeToggle />
 
-        <div
-          title={`WebSocket: ${status}`}
-          className={clsx(
-            'hidden sm:flex items-center gap-1.5 h-9 px-2.5 rounded-lg border text-xs',
-            status === 'connected'
-              ? 'border-primary/30 bg-primary/10 text-primary-700 dark:text-primary-300'
-              : 'border-line bg-surface-2/60 text-muted'
-          )}
-        >
-          {status === 'connected' ? <Wifi size={14} /> : <WifiOff size={14} />}
-          <span className="hidden lg:inline">{socketLabel}</span>
-        </div>
+        <ConnectionIndicator />
 
         <div className="hidden md:flex items-center gap-2 pl-2 border-l border-line">
           <Avatar name={user?.firstName ?? user?.phone ?? null} size="sm" />
@@ -199,7 +241,7 @@ function ShellHeader({
           onClick={handleLogout}
           title="Chiqish"
           aria-label="Chiqish"
-          className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-transparent text-muted hover:text-danger hover:bg-danger/10 transition-colors"
+          className="h-9 w-9 inline-flex items-center justify-center rounded-ds-xs border border-transparent text-muted hover:text-danger hover:bg-danger/10 transition-colors"
         >
           <LogOut size={16} />
         </button>
@@ -214,13 +256,24 @@ function ShellHeader({
  * app/create-order/layout.tsx — the latter two live outside the /dispatch
  * segment, so without this they would render with no navigation at all.
  */
-export function DispatchShell({ children }: { children: React.ReactNode }) {
+export function DispatchShell({
+  children,
+  initialCollapsed = false,
+}: {
+  children: React.ReactNode;
+  /**
+   * Comes from the sidebar cookie, read by the server layout — the initial
+   * HTML already matches the user's saved preference, so a collapsed rail
+   * never flashes open on load.
+   */
+  initialCollapsed?: boolean;
+}) {
   const router = useRouter();
   const pathname = usePathname();
 
   const [permissions, setPermissions] = useState<string[] | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(initialCollapsed);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [exceptionsCount, setExceptionsCount] = useState(0);
 
@@ -239,24 +292,10 @@ export function DispatchShell({ children }: { children: React.ReactNode }) {
       .catch(() => setPermissions([]));
   }, []);
 
-  // Same trap as the theme and the user chip: the collapsed flag is read
-  // after mount, never during render.
-  useEffect(() => {
-    try {
-      setCollapsed(localStorage.getItem(SIDEBAR_STORAGE_KEY) === '1');
-    } catch {
-      /* private mode — default to expanded */
-    }
-  }, []);
-
   const toggleCollapsed = useCallback(() => {
     setCollapsed((prev) => {
       const next = !prev;
-      try {
-        localStorage.setItem(SIDEBAR_STORAGE_KEY, next ? '1' : '0');
-      } catch {
-        /* ignore */
-      }
+      persistSidebarCollapsed(next);
       return next;
     });
   }, []);
