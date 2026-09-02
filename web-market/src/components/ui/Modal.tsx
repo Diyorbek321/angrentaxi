@@ -67,7 +67,7 @@ export function Modal({
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#04140F]/60 backdrop-blur-sm p-4 animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#04140F]/60 backdrop-blur-sm p-4 motion-safe:animate-fade-in"
       onClick={handleOverlayClick}
       role="presentation"
     >
@@ -75,8 +75,8 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         className={clsx(
-          'relative w-full bg-surface border border-line rounded-2xl shadow-pop',
-          'flex flex-col max-h-[90vh] animate-slide-up',
+          'relative w-full bg-surface border border-line rounded-ds-md shadow-pop',
+          'flex flex-col max-h-[90vh] motion-safe:animate-slide-up',
           sizeClasses[size],
           className
         )}
@@ -84,7 +84,7 @@ export function Modal({
         {title && (
           <div
             className={clsx(
-              'flex items-start justify-between gap-3 px-5 py-4 border-b shrink-0 rounded-t-2xl',
+              'flex items-start justify-between gap-3 px-5 py-4 border-b shrink-0 rounded-t-ds-md',
               toneClasses[tone]
             )}
           >
@@ -96,7 +96,7 @@ export function Modal({
               type="button"
               onClick={onClose}
               aria-label="Yopish"
-              className="shrink-0 h-7 w-7 inline-flex items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-surface-2 transition-colors"
+              className="shrink-0 h-7 w-7 inline-flex items-center justify-center rounded-ds-xs text-muted hover:text-ink hover:bg-surface-2 transition-colors"
             >
               <X size={15} />
             </button>

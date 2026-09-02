@@ -58,7 +58,7 @@ export function Drawer({
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex justify-end bg-[#04140F]/50 backdrop-blur-[2px] animate-fade-in"
+      className="fixed inset-0 z-50 flex justify-end bg-[#04140F]/50 backdrop-blur-[2px] motion-safe:animate-fade-in"
       onClick={(e) => {
         if (e.target === overlayRef.current) onClose();
       }}
@@ -68,7 +68,7 @@ export function Drawer({
         role="dialog"
         aria-modal="true"
         className={clsx(
-          'h-full w-full bg-surface border-l border-line shadow-pop flex flex-col animate-slide-in-right',
+          'h-full w-full bg-surface border-l border-line shadow-pop flex flex-col motion-safe:animate-slide-in-right',
           widthClasses[width],
           className
         )}
@@ -82,7 +82,7 @@ export function Drawer({
             type="button"
             onClick={onClose}
             aria-label="Yopish"
-            className="shrink-0 h-7 w-7 inline-flex items-center justify-center rounded-lg text-muted hover:text-ink hover:bg-surface-2 transition-colors"
+            className="shrink-0 h-7 w-7 inline-flex items-center justify-center rounded-ds-xs text-muted hover:text-ink hover:bg-surface-2 transition-colors"
           >
             <X size={15} />
           </button>

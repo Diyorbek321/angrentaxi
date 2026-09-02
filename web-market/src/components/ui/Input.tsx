@@ -35,8 +35,8 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={inputId}
             className={clsx(
-              'w-full bg-surface border rounded-lg text-ink placeholder-subtle text-sm py-2',
-              'focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary',
+              'h-10 w-full bg-surface border rounded-ds-xs text-ink placeholder-subtle text-sm tabular-nums',
+              'focus:outline-none focus:ring-2 focus:ring-focus/35 focus:border-focus',
               'disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-2',
               'transition-colors',
               mono && 'font-mono',

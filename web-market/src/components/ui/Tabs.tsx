@@ -27,7 +27,7 @@ export function Tabs<T extends string = string>({
     <div
       role="tablist"
       className={clsx(
-        'inline-flex items-center gap-1 rounded-xl border border-line bg-surface-2/60 p-1 overflow-x-auto no-scrollbar max-w-full',
+        'inline-flex items-center gap-1 rounded-ds-sm border border-line bg-surface-2/60 p-1 overflow-x-auto no-scrollbar max-w-full',
         className
       )}
     >
@@ -41,7 +41,8 @@ export function Tabs<T extends string = string>({
             aria-selected={active}
             onClick={() => onChange(item.value)}
             className={clsx(
-              'inline-flex items-center gap-1.5 rounded-lg font-medium transition-colors whitespace-nowrap',
+              'inline-flex items-center gap-1.5 rounded-ds-xs font-medium transition-colors whitespace-nowrap',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
               size === 'sm' ? 'px-2.5 py-1 text-xs' : 'px-3 py-1.5 text-sm',
               active
                 ? 'bg-surface text-ink shadow-card border border-line'

@@ -29,7 +29,7 @@ export function ErrorState({
         className
       )}
     >
-      <div className="h-12 w-12 rounded-2xl bg-danger/12 text-danger flex items-center justify-center">
+      <div className="h-12 w-12 rounded-ds-md bg-danger/12 text-danger flex items-center justify-center">
         <AlertTriangle size={22} />
       </div>
       <div className="max-w-md">

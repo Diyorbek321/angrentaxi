@@ -26,7 +26,7 @@ const variantClasses: Record<ButtonVariant, string> = {
   secondary:
     'bg-surface-2 text-ink hover:bg-surface-3 border border-line hover:border-line-strong focus:ring-primary',
   danger:
-    'bg-danger/10 text-danger hover:bg-danger/20 border border-danger/30 focus:ring-danger',
+    'bg-danger/10 text-danger-deep dark:text-danger-light hover:bg-danger/20 border border-danger/30 focus:ring-danger',
   ghost:
     'bg-transparent text-muted hover:bg-surface-2 hover:text-ink border border-transparent focus:ring-primary',
   outline:
@@ -35,10 +35,14 @@ const variantClasses: Record<ButtonVariant, string> = {
     'bg-override/12 text-override-dark dark:text-override-light hover:bg-override/20 border border-override/40 font-semibold focus:ring-override',
 };
 
+/**
+ * Boshqaruv balandligi izchil shkala: 32 / 40 / 48 px. Input va Select ham
+ * `md` bilan bir xil 40px — yonma-yon turganda tekis chiziq hosil bo'ladi.
+ */
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'px-2.5 py-1.5 text-xs rounded-lg gap-1.5',
-  md: 'px-3.5 py-2 text-sm rounded-lg gap-2',
-  lg: 'px-5 py-2.5 text-sm rounded-xl gap-2',
+  sm: 'h-8 px-2.5 text-xs rounded-ds-xs gap-1.5',
+  md: 'h-10 px-3.5 text-sm rounded-ds-xs gap-2',
+  lg: 'h-12 px-5 text-sm rounded-ds-sm gap-2',
 };
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -61,7 +65,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || isLoading}
         className={clsx(
-          'inline-flex items-center justify-center whitespace-nowrap transition-colors',
+          'inline-flex items-center justify-center whitespace-nowrap transition-colors tabular-nums',
           'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
           'disabled:opacity-45 disabled:cursor-not-allowed disabled:shadow-none',
           variantClasses[variant],

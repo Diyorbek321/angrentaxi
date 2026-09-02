@@ -9,21 +9,21 @@ export type BadgeVariant =
   | 'danger'
   | 'info'
   | 'mint-soft'
+  /** Jarayondagi ish (masalan, buyurtma yig'ilmoqda) — binafsha token. */
+  | 'violet'
   /** Manual intervention marker — amber, and only ever that. */
-  | 'override'
-  /** Legacy alias kept so existing call sites keep compiling. */
-  | 'orange';
+  | 'override';
 
 const variantClasses: Record<BadgeVariant, string> = {
   default: 'bg-surface-2 text-muted border border-line',
   primary: 'bg-mint/12 text-primary-text border border-mint/30',
   success: 'bg-primary-700/10 text-primary-700 dark:text-primary-300 border border-primary-700/25',
   warning: 'bg-override/12 text-override-dark dark:text-override-light border border-override/30',
-  danger: 'bg-danger/12 text-danger border border-danger/30',
-  info: 'bg-info/12 text-info dark:text-blue-300 border border-info/30',
+  danger: 'bg-danger/12 text-danger-deep dark:text-danger-light border border-danger/30',
+  info: 'bg-info/12 text-info-deep dark:text-info-light border border-info/30',
   'mint-soft': 'bg-primary/8 text-primary-600 dark:text-primary-300 border border-primary/20',
+  violet: 'bg-violet/12 text-violet-dark dark:text-violet-light border border-violet/30',
   override: 'bg-override/15 text-override-dark dark:text-override-light border border-override/40',
-  orange: 'bg-override/12 text-override-dark dark:text-override-light border border-override/30',
 };
 
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
@@ -39,7 +39,7 @@ const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
       <span
         ref={ref}
         className={clsx(
-          'inline-flex items-center gap-1.5 font-medium rounded-full whitespace-nowrap',
+          'inline-flex items-center gap-1.5 font-medium rounded-full whitespace-nowrap tabular-nums',
           variantClasses[variant],
           size === 'sm' ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-xs',
           className

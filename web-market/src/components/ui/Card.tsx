@@ -21,7 +21,8 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={clsx(
-          'bg-surface rounded-xl border shadow-card transition-colors',
+          // ds-md (16px) — kanonik "standart karta" radiusi (.surface-card bilan bir xil).
+          'bg-surface rounded-ds-md border shadow-card transition-colors',
           selected ? 'border-primary ring-1 ring-primary/30' : 'border-line',
           paddingClasses[padding],
           hoverable && 'hover:border-line-strong hover:bg-surface-2/60 cursor-pointer',

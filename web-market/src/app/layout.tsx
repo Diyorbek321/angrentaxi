@@ -3,6 +3,7 @@ import localFont from 'next/font/local';
 import './globals.css';
 import { Providers } from './providers';
 import { THEME_INIT_SCRIPT } from '@/lib/theme';
+import { SIDEBAR_INIT_SCRIPT } from '@/lib/sidebar-state';
 
 const manrope = localFont({
   src: [
@@ -45,6 +46,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        {/* Yon panel yig'ilgan holati ham pre-paint: usiz har yuklanishda
+            keng holatdan yig'ilganga "sakrash" ko'rinadi. */}
+        <script dangerouslySetInnerHTML={{ __html: SIDEBAR_INIT_SCRIPT }} />
       </head>
       <body className="font-sans antialiased bg-bg text-ink">
         <Providers>{children}</Providers>

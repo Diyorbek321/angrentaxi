@@ -33,7 +33,7 @@ export function ThemeToggle({ className }: { className?: string }) {
       title={theme === null ? 'Mavzu' : label}
       aria-label={theme === null ? 'Mavzu' : label}
       className={clsx(
-        'h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line',
+        'h-10 w-10 inline-flex items-center justify-center rounded-ds-xs border border-line',
         'text-muted hover:text-ink hover:bg-surface-2 transition-colors',
         className
       )}

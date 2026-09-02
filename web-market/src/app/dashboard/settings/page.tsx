@@ -30,6 +30,7 @@ export default function SettingsPage() {
   const [start, setStart] = useState('08:00');
   const [end, setEnd] = useState('22:00');
   const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>('platform');
+  const [threshold, setThreshold] = useState('10');
   const [saving, setSaving] = useState(false);
 
   // Seeds the form once the store arrives. Kept as local state (not derived)
@@ -44,6 +45,7 @@ export default function SettingsPage() {
     setStart(store.workingHoursStart);
     setEnd(store.workingHoursEnd);
     setDeliveryMode(store.deliveryMode);
+    setThreshold(String(store.lowStockThreshold));
   }, [store]);
 
   const useCurrentLocation = () => {
@@ -75,6 +77,7 @@ export default function SettingsPage() {
         workingHoursStart: start,
         workingHoursEnd: end,
         deliveryMode,
+        lowStockThreshold: Math.max(0, Number(threshold) || 0),
         lat: lat ? Number(lat) : undefined,
         lng: lng ? Number(lng) : undefined,
       });
@@ -209,6 +212,28 @@ export default function SettingsPage() {
                 />
               </div>
               <span className="pb-2.5 text-caption text-muted">Har kuni</span>
+            </div>
+          </Card>
+
+          <Card padding="lg">
+            <CardHeader>
+              <CardTitle>Zaxira ogohlantirishi</CardTitle>
+            </CardHeader>
+            <div className="flex flex-wrap items-end gap-3.5">
+              <div className="w-40">
+                <Input
+                  label="Kam zaxira chegarasi"
+                  type="number"
+                  mono
+                  min={0}
+                  value={threshold}
+                  onChange={(e) => setThreshold(e.target.value)}
+                />
+              </div>
+              <p className="max-w-sm pb-1 text-caption text-subtle">
+                Zaxirasi shu sondan kam yoki teng mahsulotlar «Zaxira» sahifasida va bosh
+                sahifada ogohlantirish sifatida chiqadi.
+              </p>
             </div>
           </Card>
 

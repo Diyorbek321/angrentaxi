@@ -22,8 +22,8 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           ref={ref}
           id={areaId}
           className={clsx(
-            'w-full bg-surface border rounded-lg text-ink placeholder-subtle text-sm px-3 py-2',
-            'focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary',
+            'w-full bg-surface border rounded-ds-xs text-ink placeholder-subtle text-sm px-3 py-2',
+            'focus:outline-none focus:ring-2 focus:ring-focus/35 focus:border-focus',
             'disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-2',
             'transition-colors resize-y min-h-[72px]',
             error ? 'border-danger/60 focus:ring-danger/30 focus:border-danger' : 'border-line hover:border-line-strong',

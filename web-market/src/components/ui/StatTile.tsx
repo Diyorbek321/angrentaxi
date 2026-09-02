@@ -6,9 +6,9 @@ export type StatTone = 'neutral' | 'mint' | 'info' | 'override' | 'danger' | 'mu
 const toneClasses: Record<StatTone, { dot: string; value: string }> = {
   neutral: { dot: 'bg-subtle', value: 'text-ink' },
   mint: { dot: 'bg-mint-deep', value: 'text-primary-text' },
-  info: { dot: 'bg-info', value: 'text-info dark:text-blue-300' },
+  info: { dot: 'bg-info', value: 'text-info-deep dark:text-info-light' },
   override: { dot: 'bg-override', value: 'text-override-dark dark:text-override-light' },
-  danger: { dot: 'bg-danger', value: 'text-danger' },
+  danger: { dot: 'bg-danger', value: 'text-danger-deep dark:text-danger-light' },
   muted: { dot: 'bg-line-strong', value: 'text-muted' },
 };
 
@@ -36,7 +36,7 @@ export function StatTile({
   return (
     <div
       className={clsx(
-        'bg-surface border border-line rounded-xl px-3.5 py-2.5 flex items-center gap-3 min-w-0',
+        'bg-surface border border-line rounded-ds-md px-3.5 py-2.5 flex items-center gap-3 min-w-0',
         className
       )}
     >
@@ -45,7 +45,12 @@ export function StatTile({
       ) : (
         <span className="relative flex h-2.5 w-2.5 shrink-0">
           {live && (
-            <span className={clsx('absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping', t.dot)} />
+            <span
+              className={clsx(
+                'absolute inline-flex h-full w-full rounded-full opacity-60 motion-safe:animate-ping',
+                t.dot
+              )}
+            />
           )}
           <span className={clsx('relative inline-flex h-2.5 w-2.5 rounded-full', t.dot)} />
         </span>

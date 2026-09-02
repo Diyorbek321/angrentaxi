@@ -1,41 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import {
-  LayoutGrid,
-  ClipboardList,
-  Package,
-  Tags,
-  Boxes,
-  BarChart3,
-  Settings,
-  Menu,
-  X,
-  LogOut,
-} from 'lucide-react';
-import { clsx } from 'clsx';
+import { useRouter } from 'next/navigation';
+import { Menu, WifiOff } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { marketApi, Store } from '@/lib/api';
-import { Avatar } from '@/components/ui/Avatar';
+import { formatTime } from '@/lib/utils';
+import { Sidebar } from '@/components/layout/Sidebar';
+import { PollingStatus } from '@/components/layout/PollingStatus';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
-const NAV = [
-  { href: '/dashboard', label: 'Bosh sahifa', icon: LayoutGrid },
-  { href: '/dashboard/orders', label: 'Buyurtmalar', icon: ClipboardList },
-  { href: '/dashboard/products', label: 'Mahsulotlar', icon: Package },
-  { href: '/dashboard/categories', label: 'Kategoriyalar', icon: Tags },
-  { href: '/dashboard/stock', label: 'Zaxira', icon: Boxes },
-  { href: '/dashboard/reports', label: 'Hisobotlar', icon: BarChart3 },
-  { href: '/dashboard/settings', label: 'Sozlamalar', icon: Settings },
-] as const;
+const BASE_TITLE = 'Angren Market — Sotuvchi paneli';
+const POLL_INTERVAL_MS = 30_000;
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
   const router = useRouter();
   const { user, isLoading, isAuthenticated, logout } = useAuth();
   const [store, setStore] = useState<Store | null>(null);
@@ -43,47 +25,60 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [hasCritical, setHasCritical] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
 
+  // Poll halolligi: oxirgi muvaffaqiyatli yangilanish vaqti va uzilish holati.
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [pollFailed, setPollFailed] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.replace('/login');
     }
   }, [isLoading, isAuthenticated, router]);
 
+  const refresh = useCallback(async () => {
+    try {
+      const [storeRes, ordersRes, dashRes] = await Promise.all([
+        marketApi.getStore(),
+        marketApi.getOrders('new'),
+        marketApi.getDashboard(),
+      ]);
+      setStore(storeRes.data.data);
+      setNewOrdersCount(ordersRes.data.data.length);
+      setHasCritical(dashRes.data.data.outOfStockCount > 0);
+      setLastUpdated(new Date());
+      setPollFailed(false);
+    } catch {
+      // 401 ni interceptor hal qiladi; qolgan xatolar — aloqa uzilishi.
+      // Oxirgi yaxshi ma'lumot EKRANDA QOLADI, banner esa eskirganini aytadi.
+      setPollFailed(true);
+    }
+  }, []);
+
+  const manualRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refresh();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refresh]);
+
   useEffect(() => {
     if (!isAuthenticated) return;
-    const refresh = async () => {
-      try {
-        const [storeRes, ordersRes, dashRes] = await Promise.all([
-          marketApi.getStore(),
-          marketApi.getOrders('new'),
-          marketApi.getDashboard(),
-        ]);
-        setStore(storeRes.data.data);
-        setNewOrdersCount(ordersRes.data.data.length);
-        setHasCritical(dashRes.data.data.outOfStockCount > 0);
-      } catch {
-        // handled globally by the 401 interceptor
-      }
-    };
-    refresh();
-    const interval = setInterval(refresh, 30000);
+    void refresh();
+    const interval = setInterval(() => void refresh(), POLL_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, refresh]);
 
-  // Any navigation closes the mobile drawer; leaving it open over the new page
-  // is the classic off-canvas bug.
+  // Fon tabida ham ko'rinsin: yangi buyurtma soni brauzer tab sarlavhasida.
   useEffect(() => {
-    setNavOpen(false);
-  }, [pathname]);
-
-  useEffect(() => {
-    if (!navOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setNavOpen(false);
+    document.title =
+      newOrdersCount > 0 ? `(${newOrdersCount}) Yangi buyurtma — Angren Market` : BASE_TITLE;
+    return () => {
+      document.title = BASE_TITLE;
     };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [navOpen]);
+  }, [newOrdersCount]);
 
   if (isLoading || !isAuthenticated) {
     return (
@@ -97,7 +92,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             ))}
           </div>
         </div>
-        <div className="flex-1 p-6 space-y-4">
+        <div className="flex-1 space-y-4 p-6">
           <Skeleton className="h-9 w-56" />
           <Skeleton className="h-[74px] w-full rounded-ds-md" />
           <Skeleton className="h-64 w-full rounded-ds-md" />
@@ -107,133 +102,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Sotuvchi';
-  const storeOpen = store?.status !== 'closed';
-
-  const navList = (
-    <nav className="flex flex-1 flex-col gap-1" aria-label="Asosiy navigatsiya">
-      {NAV.map((item) => {
-        const active =
-          item.href === '/dashboard' ? pathname === item.href : pathname.startsWith(item.href);
-        const Icon = item.icon;
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            aria-current={active ? 'page' : undefined}
-            className={clsx(
-              'relative flex items-center gap-3 rounded-ds-sm px-3 py-2.5 text-sm font-semibold',
-              'transition-colors duration-fast',
-              active
-                ? 'bg-mint-tint text-primary-text'
-                : 'text-muted hover:bg-surface-2 hover:text-ink'
-            )}
-          >
-            {/* The rail repeats what `aria-current` says — position, not colour,
-                is what makes the active item findable at a glance. */}
-            {active && (
-              <span
-                aria-hidden
-                className="absolute -left-3 top-2 bottom-2 w-[3px] rounded-r-full bg-primary"
-              />
-            )}
-            <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={2} aria-hidden />
-            <span className="truncate">{item.label}</span>
-            {item.href === '/dashboard/orders' && newOrdersCount > 0 && (
-              <Badge variant="primary" size="sm" className="ml-auto font-mono">
-                {newOrdersCount}
-              </Badge>
-            )}
-            {item.href === '/dashboard/stock' && hasCritical && (
-              <Badge variant="danger" size="sm" className="ml-auto">
-                Kritik
-              </Badge>
-            )}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-
-  const storeCard = (
-    <div className="mt-4 flex items-center gap-3 rounded-ds-sm border border-line bg-surface-2/60 p-3">
-      <Avatar name={fullName} size="md" />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-bold text-ink">{store?.name ?? '—'}</p>
-        <p className="mt-0.5 flex items-center gap-1.5 text-caption text-muted">
-          <span
-            aria-hidden
-            className={clsx(
-              'h-1.5 w-1.5 shrink-0 rounded-full',
-              // mint-deep, not mint: on a light surface plain mint is 2.12:1
-              // and a status dot has to be visible to mean anything.
-              storeOpen ? 'bg-mint-deep' : 'bg-line-strong'
-            )}
-          />
-          {storeOpen ? 'Ochiq' : 'Yopiq'}
-        </p>
-      </div>
-    </div>
-  );
 
   return (
     <div className="flex min-h-screen w-full bg-bg text-ink">
-      {/* Desktop rail */}
-      <aside className="hidden w-[248px] shrink-0 flex-col border-r border-line bg-surface p-3.5 lg:flex">
-        <BrandMark />
-        {navList}
-        {storeCard}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="mt-2 justify-start"
-          onClick={() => void logout()}
-          leftIcon={<LogOut size={14} aria-hidden />}
-        >
-          Chiqish
-        </Button>
-      </aside>
-
-      {/* Mobile off-canvas rail */}
-      {navOpen && (
-        <div
-          className="fixed inset-0 z-50 flex lg:hidden"
-          role="presentation"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setNavOpen(false);
-          }}
-        >
-          <div aria-hidden className="absolute inset-0 bg-[#04140F]/50 backdrop-blur-[2px]" />
-          <aside
-            role="dialog"
-            aria-modal="true"
-            aria-label="Navigatsiya"
-            className="relative flex h-full w-[264px] flex-col border-r border-line bg-surface p-3.5 shadow-pop animate-slide-in-right"
-          >
-            <div className="flex items-start justify-between">
-              <BrandMark />
-              <button
-                type="button"
-                aria-label="Yopish"
-                onClick={() => setNavOpen(false)}
-                className="h-8 w-8 shrink-0 rounded-ds-xs text-muted transition-colors hover:bg-surface-2 hover:text-ink"
-              >
-                <X size={16} className="mx-auto" aria-hidden />
-              </button>
-            </div>
-            {navList}
-            {storeCard}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="mt-2 justify-start"
-              onClick={() => void logout()}
-              leftIcon={<LogOut size={14} aria-hidden />}
-            >
-              Chiqish
-            </Button>
-          </aside>
-        </div>
-      )}
+      <Sidebar
+        store={store}
+        userName={fullName}
+        newOrdersCount={newOrdersCount}
+        hasCritical={hasCritical}
+        mobileOpen={navOpen}
+        onMobileClose={() => setNavOpen(false)}
+        onLogout={() => void logout()}
+      />
 
       <main className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-line bg-surface/85 px-4 backdrop-blur lg:px-6">
@@ -242,7 +122,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             onClick={() => setNavOpen(true)}
             aria-label="Menyuni ochish"
             aria-expanded={navOpen}
-            className="h-9 w-9 rounded-ds-xs border border-line text-muted transition-colors hover:bg-surface-2 hover:text-ink lg:hidden"
+            className="h-10 w-10 rounded-ds-xs border border-line text-muted transition-colors hover:bg-surface-2 hover:text-ink lg:hidden"
           >
             <Menu size={16} className="mx-auto" aria-hidden />
           </button>
@@ -251,30 +131,52 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </p>
           <div className="ml-auto flex items-center gap-2">
             {newOrdersCount > 0 && (
-              <Badge variant="primary" size="sm" dot>
-                {newOrdersCount} yangi buyurtma
-              </Badge>
+              <Link
+                href="/dashboard/orders"
+                className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+              >
+                <Badge variant="primary" dot className="font-bold">
+                  {newOrdersCount} yangi buyurtma
+                </Badge>
+              </Link>
             )}
+            <PollingStatus
+              lastUpdated={lastUpdated}
+              failed={pollFailed}
+              refreshing={refreshing}
+              onRefresh={manualRefresh}
+            />
             <ThemeToggle />
           </div>
         </header>
 
+        {/* Aloqa uzilgan banner: oxirgi yaxshi ma'lumot ekranda qoladi, lekin
+            ESKIRGANI aniq yozib qo'yiladi — jim turib "jonli"ga o'xshatish
+            paneldagi ishonchni bir marta va butunlay sindiradi. */}
+        {pollFailed && (
+          <div
+            role="alert"
+            className="flex flex-wrap items-center gap-3 border-b border-override/40 bg-override-tint px-4 py-2.5 lg:px-6"
+          >
+            <WifiOff
+              size={16}
+              aria-hidden
+              className="shrink-0 text-override-dark dark:text-override-light"
+            />
+            <p className="min-w-0 flex-1 text-caption font-bold text-override-dark dark:text-override-light">
+              Server bilan aloqa yo&apos;q
+              {lastUpdated
+                ? ` — ma'lumotlar ${formatTime(lastUpdated.toISOString())} da yangilangan, eskirgan bo'lishi mumkin`
+                : " — ma'lumotlarni yuklab bo'lmadi"}
+            </p>
+            <Button variant="secondary" size="sm" isLoading={refreshing} onClick={() => void manualRefresh()}>
+              Qayta urinish
+            </Button>
+          </div>
+        )}
+
         <div className="min-w-0 flex-1 p-4 lg:p-6">{children}</div>
       </main>
-    </div>
-  );
-}
-
-function BrandMark() {
-  return (
-    <div className="flex items-center gap-3 px-2 pb-5 pt-1.5">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-ds-sm bg-gradient-cta">
-        <Package className="h-[18px] w-[18px] text-white" strokeWidth={2.4} aria-hidden />
-      </div>
-      <div className="min-w-0">
-        <p className="truncate text-title leading-tight text-ink">Angren Market</p>
-        <p className="mt-0.5 text-caption text-muted">Sotuvchi paneli</p>
-      </div>
     </div>
   );
 }

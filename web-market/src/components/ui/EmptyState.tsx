@@ -36,7 +36,7 @@ export function EmptyState({
     >
       <div
         className={clsx(
-          'flex items-center justify-center rounded-2xl',
+          'flex items-center justify-center rounded-ds-md',
           compact ? 'h-11 w-11' : 'h-14 w-14',
           tone === 'positive'
             ? 'bg-primary/12 text-primary-600 dark:text-primary-300'

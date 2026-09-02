@@ -1,39 +1,59 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus, RefreshCw, Tags, Trash2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ChevronDown, ChevronUp, Pencil, Plus, RefreshCw, Tags, Trash2 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { marketApi, MarketCategory } from '@/lib/api';
+import { marketApi, MarketCategory, Product } from '@/lib/api';
 import { errorMessage, hueTint } from '@/lib/utils';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { useToast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { DataErrorBanner } from '@/components/ui/DataErrorBanner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
-import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SkeletonCards } from '@/components/ui/Skeleton';
+import { CategoryModal } from '@/components/categories/CategoryModal';
 
 const HUES = [45, 200, 25, 280, 150, 320];
 
+interface CategoriesData {
+  categories: MarketCategory[];
+  products: Product[];
+}
+
 export default function CategoriesPage() {
   const { toast } = useToast();
-  const [showAdd, setShowAdd] = useState(false);
-  const [name, setName] = useState('');
-  const [emoji, setEmoji] = useState('🛒');
-  const [saving, setSaving] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<MarketCategory | null>(null);
   const [pendingDelete, setPendingDelete] = useState<MarketCategory | null>(null);
+  const [reordering, setReordering] = useState(false);
 
-  const { data, isLoading, isRefreshing, error, reload } = useAsyncData<MarketCategory[]>(
+  const { data, isLoading, isRefreshing, error, reload } = useAsyncData<CategoriesData>(
     async () => {
-      const res = await marketApi.getCategories();
-      return res.data.data;
+      const [c, p] = await Promise.all([marketApi.getCategories(), marketApi.getProducts()]);
+      return { categories: c.data.data, products: p.data.data };
     }
   );
 
-  const categories = data ?? [];
+  // Mijoz ilovasida ko'rinadigan tartib — sortOrder bo'yicha.
+  const categories = useMemo(
+    () =>
+      [...(data?.categories ?? [])].sort(
+        (a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'uz')
+      ),
+    [data]
+  );
+
+  const productCount = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const p of data?.products ?? []) {
+      if (p.categoryId) counts[p.categoryId] = (counts[p.categoryId] ?? 0) + 1;
+    }
+    return counts;
+  }, [data]);
 
   const toggle = async (c: MarketCategory) => {
     try {
@@ -41,6 +61,25 @@ export default function CategoriesPage() {
       await reload();
     } catch (err) {
       toast({ title: 'Xatolik', description: errorMessage(err), variant: 'error' });
+    }
+  };
+
+  /** Yuqoriga/pastga: ikkala qo'shni ham YANGI o'rnini sortOrder qilib oladi. */
+  const move = async (index: number, dir: -1 | 1) => {
+    const target = categories[index];
+    const neighbor = categories[index + dir];
+    if (!target || !neighbor) return;
+    setReordering(true);
+    try {
+      await Promise.all([
+        marketApi.updateCategory(target.id, { sortOrder: index + dir }),
+        marketApi.updateCategory(neighbor.id, { sortOrder: index }),
+      ]);
+      await reload();
+    } catch (err) {
+      toast({ title: 'Xatolik', description: errorMessage(err), variant: 'error' });
+    } finally {
+      setReordering(false);
     }
   };
 
@@ -56,24 +95,19 @@ export default function CategoriesPage() {
     }
   };
 
-  const create = async () => {
-    if (!name.trim()) return;
-    setSaving(true);
+  const save = async (form: { name: string; emoji: string }) => {
     try {
-      await marketApi.createCategory({
-        name: name.trim(),
-        emoji: emoji || '🛒',
-        sortOrder: categories.length,
-      });
-      setName('');
-      setEmoji('🛒');
-      setShowAdd(false);
+      if (editing) {
+        await marketApi.updateCategory(editing.id, form);
+      } else {
+        await marketApi.createCategory({ ...form, sortOrder: categories.length });
+      }
+      setModalOpen(false);
+      setEditing(null);
       await reload();
-      toast({ title: "Kategoriya qo'shildi", variant: 'success' });
+      toast({ title: editing ? 'Saqlandi' : "Kategoriya qo'shildi", variant: 'success' });
     } catch (err) {
       toast({ title: 'Xatolik', description: errorMessage(err), variant: 'error' });
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -81,7 +115,7 @@ export default function CategoriesPage() {
     <div className="max-w-3xl">
       <PageHeader
         title="Kategoriyalar"
-        description="Mahsulot guruhlari va ularning tartibi"
+        description="Mahsulot guruhlari va ularning mijozga ko'rinish tartibi"
         icon={<Tags size={18} aria-hidden />}
         actions={
           <>
@@ -94,12 +128,21 @@ export default function CategoriesPage() {
             >
               Yangilash
             </Button>
-            <Button size="sm" onClick={() => setShowAdd(true)} leftIcon={<Plus size={14} aria-hidden />}>
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditing(null);
+                setModalOpen(true);
+              }}
+              leftIcon={<Plus size={14} aria-hidden />}
+            >
               Kategoriya
             </Button>
           </>
         }
       />
+
+      {error && data && <DataErrorBanner message={error} onRetry={reload} retrying={isRefreshing} />}
 
       {isLoading ? (
         <SkeletonCards count={4} height="h-[72px]" />
@@ -112,7 +155,14 @@ export default function CategoriesPage() {
             title="Kategoriya yo'q"
             description="Kategoriyalar mahsulotlarni mijoz uchun guruhlaydi."
             action={
-              <Button size="sm" onClick={() => setShowAdd(true)} leftIcon={<Plus size={14} aria-hidden />}>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditing(null);
+                  setModalOpen(true);
+                }}
+                leftIcon={<Plus size={14} aria-hidden />}
+              >
                 Birinchi kategoriya
               </Button>
             }
@@ -122,7 +172,28 @@ export default function CategoriesPage() {
         <ul className="flex flex-col gap-2.5">
           {categories.map((c, i) => (
             <li key={c.id}>
-              <Card padding="sm" className="flex items-center gap-3.5">
+              <Card padding="sm" className="flex items-center gap-3">
+                {/* Tartib: drag emas — aniq yuqoriga/pastga tugmalar. */}
+                <span className="flex flex-col">
+                  <button
+                    type="button"
+                    aria-label={`${c.name} — yuqoriga ko'tarish`}
+                    disabled={i === 0 || reordering}
+                    onClick={() => void move(i, -1)}
+                    className="flex h-5 w-6 items-center justify-center rounded-ds-xs text-subtle transition-colors duration-fast hover:bg-surface-2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-35"
+                  >
+                    <ChevronUp size={14} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`${c.name} — pastga tushirish`}
+                    disabled={i === categories.length - 1 || reordering}
+                    onClick={() => void move(i, 1)}
+                    className="flex h-5 w-6 items-center justify-center rounded-ds-xs text-subtle transition-colors duration-fast hover:bg-surface-2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-35"
+                  >
+                    <ChevronDown size={14} aria-hidden />
+                  </button>
+                </span>
                 <span
                   aria-hidden
                   style={hueTint(HUES[i % HUES.length])}
@@ -133,7 +204,8 @@ export default function CategoriesPage() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-body font-bold text-ink">{c.name}</p>
                   <p className="mt-0.5 text-caption text-muted">
-                    {c.isActive ? 'Faol' : "O'chirilgan"}
+                    <span className="font-mono tabular-nums">{productCount[c.id] ?? 0}</span> ta
+                    mahsulot · {c.isActive ? 'Faol' : "O'chirilgan"}
                   </p>
                 </div>
 
@@ -147,7 +219,7 @@ export default function CategoriesPage() {
                   onClick={() => void toggle(c)}
                   className={clsx(
                     'relative h-6 w-11 shrink-0 rounded-full transition-colors duration-fast',
-                    c.isActive ? 'bg-primary' : 'bg-surface-3 border border-line'
+                    c.isActive ? 'bg-primary' : 'border border-line bg-surface-3'
                   )}
                 >
                   <span
@@ -159,6 +231,18 @@ export default function CategoriesPage() {
                   />
                 </button>
 
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`${c.name} kategoriyasini tahrirlash`}
+                  onClick={() => {
+                    setEditing(c);
+                    setModalOpen(true);
+                  }}
+                  className="shrink-0"
+                >
+                  <Pencil size={14} aria-hidden />
+                </Button>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -174,49 +258,15 @@ export default function CategoriesPage() {
         </ul>
       )}
 
-      <Modal
-        isOpen={showAdd}
-        onClose={() => setShowAdd(false)}
-        title="Yangi kategoriya"
-        size="sm"
-      >
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void create();
-          }}
-        >
-          <div className="flex gap-3">
-            <div className="w-20">
-              <Input
-                label="Belgi"
-                value={emoji}
-                maxLength={2}
-                onChange={(e) => setEmoji(e.target.value)}
-                className="text-center text-lg"
-              />
-            </div>
-            <div className="flex-1">
-              <Input
-                label="Kategoriya nomi"
-                autoFocus
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Masalan: Ichimliklar"
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2.5">
-            <Button type="button" variant="secondary" onClick={() => setShowAdd(false)}>
-              Bekor qilish
-            </Button>
-            <Button type="submit" disabled={!name.trim()} isLoading={saving}>
-              Saqlash
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      <CategoryModal
+        isOpen={modalOpen}
+        category={editing}
+        onClose={() => {
+          setModalOpen(false);
+          setEditing(null);
+        }}
+        onSave={save}
+      />
 
       <Modal
         isOpen={!!pendingDelete}
@@ -227,7 +277,10 @@ export default function CategoriesPage() {
         size="sm"
       >
         <p className="text-body text-muted">
-          Bu amalni bekor qilib bo&apos;lmaydi. Kategoriyadagi mahsulotlar kategoriyasiz qoladi.
+          Bu amalni bekor qilib bo&apos;lmaydi.{' '}
+          {pendingDelete && (productCount[pendingDelete.id] ?? 0) > 0
+            ? `Ichidagi ${productCount[pendingDelete.id]} ta mahsulot kategoriyasiz qoladi.`
+            : 'Bu kategoriyada mahsulot yo‘q.'}
         </p>
         <div className="mt-5 flex justify-end gap-2.5">
           <Button variant="secondary" onClick={() => setPendingDelete(null)}>
