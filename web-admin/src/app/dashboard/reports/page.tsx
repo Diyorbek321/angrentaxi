@@ -1,23 +1,30 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { format, subDays } from 'date-fns';
-import { Download, TrendingUp, ShoppingCart, DollarSign, Users, Star, BarChart3 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { differenceInCalendarDays, format, parseISO, subDays } from 'date-fns';
+import {
+  AlertTriangle,
+  BarChart3,
+  DollarSign,
+  Download,
+  ShoppingCart,
+  Star,
+  TrendingUp,
+  Users,
+} from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { StatCard } from '@/components/ui/StatCard';
-import { Input } from '@/components/ui/Input';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { SkeletonStats, SkeletonCards } from '@/components/ui/Skeleton';
+import { SkeletonStats, SkeletonTable } from '@/components/ui/Skeleton';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/Select';
+  DateRangeFilter,
+  DATE_PRESET_LABELS,
+  rangeForPreset,
+  type DateRangeValue,
+} from '@/components/ui/DateRangeFilter';
 import {
   Table,
   TableBody,
@@ -28,20 +35,15 @@ import {
 } from '@/components/ui/Table';
 import { RevenueChart } from '@/components/charts/RevenueChart';
 import { OrdersChart } from '@/components/charts/OrdersChart';
-import { reportsApi, ReportData } from '@/lib/api';
+import { reportsApi, ReportData, RevenueDataPoint, TopDriver } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
-import { formatCurrency, formatRating, getFullName } from '@/lib/utils';
-import { DATE_RANGES } from '@/lib/constants';
+import { downloadCsv } from '@/lib/csv';
+import { formatCurrency, formatDate, formatRating, getFullName } from '@/lib/utils';
 
 const DATE_FMT = 'yyyy-MM-dd';
 
-function todayStr() {
-  return format(new Date(), DATE_FMT);
-}
-
-function daysAgoStr(days: number) {
-  return format(subDays(new Date(), days), DATE_FMT);
-}
+/** Hisobotda "filtrsiz" holat yo'q — davr har doim tanlangan bo'ladi. */
+const DEFAULT_RANGE: DateRangeValue = { preset: '7d', ...rangeForPreset('7d') };
 
 const RANK_STYLE = [
   'bg-primary text-white',
@@ -49,32 +51,59 @@ const RANK_STYLE = [
   'bg-override-tint text-override-dark dark:text-override-light',
 ] as const;
 
+/**
+ * Foizli o'zgarish — FAQAT ikkala davr ham haqiqatda yuklanganda.
+ * Oldingi davr nolga teng bo'lsa foiz ma'nosiz (∞), shuning uchun `null`.
+ */
+function pctChange(current: number, previous: number): number | null {
+  if (!Number.isFinite(current) || !Number.isFinite(previous) || previous === 0) return null;
+  return Math.round(((current - previous) / previous) * 100);
+}
+
 export default function ReportsPage() {
   const { toast } = useToast();
   const [data, setData] = useState<ReportData | null>(null);
+  /** Oldingi (teng uzunlikdagi) davr — taqqoslash deltasi FAQAT shundan. */
+  const [previous, setPrevious] = useState<ReportData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [range, setRange] = useState<string>(DATE_RANGES.LAST_7_DAYS);
-  const [fromDate, setFromDate] = useState(daysAgoStr(7));
-  const [toDate, setToDate] = useState(todayStr());
-  const [exporting, setExporting] = useState(false);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const [range, setRange] = useState<DateRangeValue>(DEFAULT_RANGE);
 
-  const resolvedFrom =
-    range === DATE_RANGES.LAST_7_DAYS
-      ? daysAgoStr(7)
-      : range === DATE_RANGES.LAST_30_DAYS
-      ? daysAgoStr(30)
-      : fromDate;
+  const from = range.from ?? DEFAULT_RANGE.from!;
+  const to = range.to ?? DEFAULT_RANGE.to!;
 
-  const resolvedTo = range === DATE_RANGES.CUSTOM ? toDate : todayStr();
+  // Oldingi davr — joriy davr bilan TENG uzunlikda, undan oldin turadi.
+  const previousRange = useMemo(() => {
+    try {
+      const spanDays = Math.max(0, differenceInCalendarDays(parseISO(to), parseISO(from)));
+      const prevTo = subDays(parseISO(from), 1);
+      const prevFrom = subDays(prevTo, spanDays);
+      return { from: format(prevFrom, DATE_FMT), to: format(prevTo, DATE_FMT) };
+    } catch {
+      return null;
+    }
+  }, [from, to]);
 
   const fetchReport = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await reportsApi.getData({ from: resolvedFrom, to: resolvedTo });
-      setData(res.data.data);
+      const [currentRes, previousRes] = await Promise.allSettled([
+        reportsApi.getData({ from, to }),
+        previousRange
+          ? reportsApi.getData({ from: previousRange.from, to: previousRange.to })
+          : Promise.reject(new Error('no previous range')),
+      ]);
+
+      if (currentRes.status === 'rejected') throw currentRes.reason;
+
+      setData(currentRes.value.data.data);
+      // Oldingi davr yuklanmasa — delta KO'RSATILMAYDI (o'ylab topilmaydi).
+      setPrevious(previousRes.status === 'fulfilled' ? previousRes.value.data.data : null);
       setError(null);
+      setHasLoadedOnce(true);
     } catch {
+      // Oxirgi muvaffaqiyatli hisobot ekranda qoladi; banner + retry chiqadi.
       const message = 'Hisobotni yuklashda xatolik';
       setError(message);
       toast({ title: 'Xatolik', description: message, variant: 'error' });
@@ -82,142 +111,200 @@ export default function ReportsPage() {
       setIsLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resolvedFrom, resolvedTo]);
+  }, [from, to, previousRange?.from, previousRange?.to]);
 
   useEffect(() => {
     fetchReport();
   }, [fetchReport]);
 
-  const handleExport = async () => {
-    setExporting(true);
-    try {
-      const res = await reportsApi.exportCsv({ from: resolvedFrom, to: resolvedTo });
-      const url = URL.createObjectURL(res.data as Blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `report-${resolvedFrom}-${resolvedTo}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
-      toast({ title: 'Eksport muvaffaqiyatli', variant: 'success' });
-    } catch {
-      toast({ title: 'Xatolik', description: 'Eksportda xatolik', variant: 'error' });
-    } finally {
-      setExporting(false);
-    }
+  const comparisonLabel = range.preset
+    ? `oldingi ${DATE_PRESET_LABELS[range.preset].toLowerCase()}ga nisbatan`
+    : 'oldingi davrga nisbatan';
+
+  /** Delta faqat ikkala davr ham bor bo'lganda quriladi. */
+  const trendFor = (pick: (r: ReportData) => number) => {
+    if (!data || !previous) return undefined;
+    const value = pctChange(pick(data), pick(previous));
+    if (value == null) return undefined;
+    return { value, label: comparisonLabel, positiveIsGood: true };
   };
+
+  const revenueSeries = data?.revenueChart ?? [];
+  const revenueSpark = revenueSeries.map((p) => p.revenue);
+  const ordersSpark = revenueSeries.map((p) => p.orders);
+
+  const handleExportSeries = () => {
+    if (revenueSeries.length === 0) return;
+    // Yangi API chaqirig'i YO'Q — ekrandagi yuklangan seriya eksport qilinadi.
+    downloadCsv<RevenueDataPoint>(
+      `hisobot-${from}-${to}.csv`,
+      [
+        { header: 'Sana', value: (p) => p.date },
+        { header: 'Daromad', value: (p) => p.revenue },
+        { header: 'Buyurtmalar', value: (p) => p.orders },
+      ],
+      revenueSeries
+    );
+    toast({ title: 'CSV yuklab olindi', description: `${revenueSeries.length} ta kun`, variant: 'success' });
+  };
+
+  const handleExportDrivers = () => {
+    const drivers = data?.topDrivers ?? [];
+    if (drivers.length === 0) return;
+    downloadCsv<TopDriver>(
+      `top-haydovchilar-${from}-${to}.csv`,
+      [
+        { header: 'Haydovchi', value: (d) => getFullName(d.firstName, d.lastName) },
+        { header: 'Telefon', value: (d) => d.phone },
+        { header: 'Safarlar', value: (d) => d.totalTrips },
+        { header: 'Daromad', value: (d) => d.totalRevenue },
+        { header: 'Reyting', value: (d) => formatRating(d.rating) },
+      ],
+      drivers
+    );
+    toast({ title: 'CSV yuklab olindi', description: `${drivers.length} ta haydovchi`, variant: 'success' });
+  };
+
+  const showFullError = error && !isLoading && !hasLoadedOnce;
+  const showErrorBanner = error && !isLoading && hasLoadedOnce;
 
   return (
     <div className="p-4 sm:p-6">
       <PageHeader
         title="Hisobotlar"
-        description="Moliyaviy tahlil va statistika"
-        icon={<BarChart3 className="h-4 w-4" />}
+        description={`${formatDate(from, 'dd.MM.yyyy')} — ${formatDate(to, 'dd.MM.yyyy')}`}
+        icon={<BarChart3 className="h-4 w-4" aria-hidden="true" />}
         actions={
-          <Button variant="outline" isLoading={exporting} onClick={handleExport} leftIcon={<Download className="h-4 w-4" />}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportSeries}
+            disabled={revenueSeries.length === 0}
+            leftIcon={<Download className="h-4 w-4" aria-hidden="true" />}
+          >
             CSV eksport
           </Button>
         }
       />
 
       <div className="space-y-6">
-        {/* Controls */}
-        <div className="flex flex-wrap items-end gap-3">
-          <div>
-            <p className="mb-1.5 text-caption font-medium text-muted">Davr</p>
-            <Select value={range} onValueChange={setRange}>
-              <SelectTrigger className="w-44">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={DATE_RANGES.LAST_7_DAYS}>Oxirgi 7 kun</SelectItem>
-                <SelectItem value={DATE_RANGES.LAST_30_DAYS}>Oxirgi 30 kun</SelectItem>
-                <SelectItem value={DATE_RANGES.CUSTOM}>Maxsus davr</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {range === DATE_RANGES.CUSTOM && (
-            <>
-              <Input
-                label="Dan"
-                type="date"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-              />
-              <Input
-                label="Gacha"
-                type="date"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-              />
-            </>
+        <div className="flex flex-wrap items-center gap-3">
+          <DateRangeFilter
+            value={range}
+            // Faol presetni qayta bosish davrni "bo'sh" qilib qo'yardi —
+            // hisobot uchun bu holat mavjud emas, standart davrga qaytamiz.
+            onChange={(v) => setRange(v.preset ? v : DEFAULT_RANGE)}
+          />
+          {previous && (
+            <p className="text-caption text-subtle">
+              Taqqoslash davri: {formatDate(previousRange!.from, 'dd.MM.yyyy')} —{' '}
+              {formatDate(previousRange!.to, 'dd.MM.yyyy')}
+            </p>
           )}
         </div>
 
-        {error ? (
-          <ErrorState message={error} onRetry={fetchReport} />
+        {showErrorBanner && (
+          <div
+            role="alert"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-ds-sm border border-danger/30 bg-danger-tint px-4 py-3"
+          >
+            <p className="flex items-center gap-2 text-body text-danger-deep dark:text-danger-light">
+              <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+              {error} — oxirgi muvaffaqiyatli yuklangan hisobot ko&apos;rsatilmoqda.
+            </p>
+            <Button variant="secondary" size="sm" onClick={fetchReport}>
+              Qayta urinish
+            </Button>
+          </div>
+        )}
+
+        {showFullError ? (
+          <Card>
+            <CardContent className="p-0">
+              <ErrorState message={error} onRetry={fetchReport} />
+            </CardContent>
+          </Card>
         ) : (
           <>
-            {/* Summary stats */}
-            {isLoading ? (
+            {isLoading && !hasLoadedOnce ? (
               <SkeletonStats count={4} className="grid-cols-2 xl:grid-cols-4" />
             ) : (
-              <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <StatCard
                   title="Jami daromad"
                   value={data ? formatCurrency(data.stats.totalRevenue) : '—'}
                   icon={<DollarSign className="h-5 w-5" />}
                   variant="mint"
+                  trend={trendFor((r) => r.stats.totalRevenue)}
+                  sparkline={revenueSpark}
+                  isLoading={isLoading}
                 />
                 <StatCard
                   title="Jami buyurtmalar"
-                  value={data?.stats.totalOrders.toLocaleString() ?? '—'}
+                  value={data?.stats.totalOrders.toLocaleString('uz-UZ') ?? '—'}
                   icon={<ShoppingCart className="h-5 w-5" />}
                   variant="info"
+                  trend={trendFor((r) => r.stats.totalOrders)}
+                  sparkline={ordersSpark}
+                  isLoading={isLoading}
                 />
                 <StatCard
                   title="O'rtacha buyurtma"
                   value={data ? formatCurrency(data.stats.avgOrderValue) : '—'}
                   icon={<TrendingUp className="h-5 w-5" />}
                   variant="mint"
+                  trend={trendFor((r) => r.stats.avgOrderValue)}
+                  isLoading={isLoading}
                 />
                 <StatCard
                   title="Yangi foydalanuvchilar"
-                  value={data?.stats.newUsers.toLocaleString() ?? '—'}
+                  value={data?.stats.newUsers.toLocaleString('uz-UZ') ?? '—'}
                   icon={<Users className="h-5 w-5" />}
                   variant="violet"
+                  trend={trendFor((r) => r.stats.newUsers)}
+                  isLoading={isLoading}
                 />
               </div>
             )}
 
-            {/* Charts */}
+            {/* Diagrammalar chart-tokens ranglaridan va reduced-motion
+                naqshidan foydalanadi (OrdersChart/RevenueChart ichida). */}
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-              <RevenueChart data={data?.revenueChart ?? []} isLoading={isLoading} />
-              <OrdersChart data={data?.revenueChart ?? []} isLoading={isLoading} />
+              <RevenueChart data={revenueSeries} isLoading={isLoading && !hasLoadedOnce} />
+              <OrdersChart data={revenueSeries} isLoading={isLoading && !hasLoadedOnce} />
             </div>
 
-            {/* Top drivers */}
             <Card>
-              <CardHeader>
+              <CardHeader className="flex-row items-center justify-between space-y-0">
                 <CardTitle>Top haydovchilar</CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportDrivers}
+                  disabled={(data?.topDrivers.length ?? 0) === 0}
+                  leftIcon={<Download className="h-3.5 w-3.5" aria-hidden="true" />}
+                >
+                  CSV
+                </Button>
               </CardHeader>
               <CardContent className="p-0">
-                {isLoading ? (
-                  <div className="p-4">
-                    <SkeletonCards count={5} height="h-10" />
-                  </div>
+                {isLoading && !hasLoadedOnce ? (
+                  <SkeletonTable rows={5} cols={6} className="border-0" />
                 ) : !data || data.topDrivers.length === 0 ? (
-                  <EmptyState compact title="Ma'lumot yo'q" />
+                  <EmptyState
+                    title="Bu davrda ma'lumot yo'q"
+                    description="Tanlangan davrda yakunlangan safar bo'lmagan — boshqa davrni tanlab ko'ring."
+                  />
                 ) : (
-                  <Table>
+                  <Table stickyHeader containerClassName="max-h-[55vh]">
                     <TableHeader>
                       <TableRow>
-                        <TableHead>#</TableHead>
+                        <TableHead className="w-12">#</TableHead>
                         <TableHead>Haydovchi</TableHead>
                         <TableHead>Telefon</TableHead>
-                        <TableHead>Safarlar</TableHead>
-                        <TableHead>Daromad</TableHead>
-                        <TableHead>Reyting</TableHead>
+                        <TableHead className="text-right">Safarlar</TableHead>
+                        <TableHead className="text-right">Daromad</TableHead>
+                        <TableHead className="text-right">Reyting</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -225,7 +312,7 @@ export default function ReportsPage() {
                         <TableRow key={driver.id}>
                           <TableCell>
                             <span
-                              className={`flex h-6 w-6 items-center justify-center rounded-full text-caption font-bold ${
+                              className={`flex h-6 w-6 items-center justify-center rounded-full text-caption font-bold tabular-nums ${
                                 RANK_STYLE[index] ?? 'bg-surface-2 text-muted'
                               }`}
                             >
@@ -234,7 +321,10 @@ export default function ReportsPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-3">
-                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-caption font-bold text-white">
+                              <div
+                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-mint-tint text-caption font-bold text-primary-text"
+                                aria-hidden="true"
+                              >
                                 {driver.firstName?.charAt(0)}
                               </div>
                               <span className="font-medium text-ink">
@@ -242,19 +332,25 @@ export default function ReportsPage() {
                               </span>
                             </div>
                           </TableCell>
-                          <TableCell className="text-muted">{driver.phone}</TableCell>
-                          <TableCell className="font-medium text-ink">{driver.totalTrips}</TableCell>
-                          <TableCell className="font-semibold text-ink">
+                          <TableCell className="font-mono text-caption text-muted">
+                            {driver.phone}
+                          </TableCell>
+                          <TableCell className="text-right font-mono tabular-nums text-ink">
+                            {driver.totalTrips}
+                          </TableCell>
+                          <TableCell className="text-right font-mono font-semibold tabular-nums text-ink">
                             {formatCurrency(driver.totalRevenue)}
                           </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
+                          <TableCell className="text-right">
+                            <span className="inline-flex items-center gap-1">
                               <Star
                                 className="h-3.5 w-3.5 fill-override text-override"
                                 aria-hidden="true"
                               />
-                              <span className="font-medium text-ink">{formatRating(driver.rating)}</span>
-                            </div>
+                              <span className="font-mono tabular-nums text-ink">
+                                {formatRating(driver.rating)}
+                              </span>
+                            </span>
                           </TableCell>
                         </TableRow>
                       ))}

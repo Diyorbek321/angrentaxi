@@ -23,8 +23,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     // sessiya tekshirilgach hech narsa joyidan siljimaydi.
     return (
       <div className="flex h-screen overflow-hidden bg-bg" aria-busy="true" aria-live="polite">
-        <div className="hidden w-64 shrink-0 border-r border-line bg-surface p-4 lg:block">
-          <Skeleton className="h-10 w-40 rounded-ds-sm" />
+        {/* Kenglik <html>.sidebar-collapsed klassiga bog'liq (pre-paint skript) —
+            haqiqiy yon menyu mount bo'lganda hech narsa sakramaydi. */}
+        <div className="hidden w-64 shrink-0 border-r border-line bg-surface p-4 lg:block [.sidebar-collapsed_&]:w-16 [.sidebar-collapsed_&]:p-2">
+          <Skeleton className="h-10 w-full max-w-40 rounded-ds-sm" />
           <div className="mt-6 space-y-2">
             {Array.from({ length: 8 }).map((_, i) => (
               <Skeleton key={i} className="h-9 w-full rounded-ds-sm" />

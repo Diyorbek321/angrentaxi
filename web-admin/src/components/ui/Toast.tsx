@@ -98,6 +98,17 @@ interface ToastItem {
   title: string;
   description?: string;
   variant?: ToastVariant;
+  /**
+   * Ixtiyoriy harakat tugmasi — "undo" uslubidagi toastlar uchun (masalan,
+   * blokdan chiqarishni QAYTARISH). Doktrina: qaytariladigan amal modal
+   * bilan emas, darhol bajarilib, undo bilan himoyalanadi.
+   */
+  action?: {
+    label: string;
+    onClick: () => void | Promise<void>;
+    /** Ekran o'quvchi uchun muqobil matn (Radix talabi); berilmasa label. */
+    altText?: string;
+  };
 }
 
 interface ToastContextValue {
@@ -161,6 +172,21 @@ export function ToastContextProvider({ children }: { children: React.ReactNode }
                   {t.description && <ToastDescription>{t.description}</ToastDescription>}
                 </div>
               </div>
+              {t.action && (
+                <ToastPrimitive.Action altText={t.action.altText ?? t.action.label} asChild>
+                  <button
+                    type="button"
+                    onClick={() => void t.action?.onClick()}
+                    className={cn(
+                      'shrink-0 rounded-ds-sm border border-line bg-surface px-3 py-1.5 text-caption font-semibold text-ink',
+                      'transition-colors duration-fast hover:bg-surface-2',
+                      'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface'
+                    )}
+                  >
+                    {t.action.label}
+                  </button>
+                </ToastPrimitive.Action>
+              )}
               <ToastClose />
             </ToastRoot>
           );

@@ -1,7 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Flame, Tag } from 'lucide-react';
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  ToggleLeft,
+  ToggleRight,
+  Flame,
+  Tag,
+  Check,
+  X,
+  Inbox,
+} from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -18,7 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/Modal';
-import { Skeleton } from '@/components/ui/Skeleton';
+import { Skeleton, SkeletonCards } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import {
@@ -29,7 +40,7 @@ import {
   TariffChangeRequest,
 } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { cn, formatCurrency, formatDate } from '@/lib/utils';
 
 const tariffSchema = z.object({
   name: z.string().min(2, 'Kamida 2 ta harf'),
@@ -59,7 +70,28 @@ const statusLabel: Record<TariffChangeRequest['status'], string> = {
   rejected: 'Rad etilgan',
 };
 
+const SURGE_MIN = 1;
+const SURGE_MAX = 3;
+
+function validateSurge(raw: string): string | null {
+  const value = parseFloat(raw);
+  if (Number.isNaN(value) || value < SURGE_MIN || value > SURGE_MAX) {
+    return `${SURGE_MIN.toFixed(1)} dan ${SURGE_MAX.toFixed(1)} gacha bo'lishi kerak`;
+  }
+  return null;
+}
+
 type TariffForm = z.infer<typeof tariffSchema>;
+
+/** Narx bloklari — karta ichida takrorlanadigan kichik yacheyka. */
+function PriceCell({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {
+  return (
+    <div className={cn('rounded-ds-xs bg-surface-2 p-2 text-center', wide && 'col-span-2')}>
+      <p className="text-caption text-muted">{label}</p>
+      <p className="mt-0.5 text-caption font-semibold tabular-nums text-ink">{value}</p>
+    </div>
+  );
+}
 
 export default function TariffsPage() {
   const { toast } = useToast();
@@ -71,9 +103,15 @@ export default function TariffsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Tariff | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [surgeInputs, setSurgeInputs] = useState<Record<string, string>>({});
+  // Inline surge tahriri: bitta maydon — pencil → input + ✓/✕, xato
+  // maydonning O'ZIGA biriktiriladi (modal ham, toast ham emas).
+  const [editingSurgeId, setEditingSurgeId] = useState<string | null>(null);
+  const [surgeValue, setSurgeValue] = useState('');
+  const [surgeError, setSurgeError] = useState<string | null>(null);
   const [savingSurgeId, setSavingSurgeId] = useState<string | null>(null);
   const [requests, setRequests] = useState<TariffChangeRequest[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(true);
+  const [requestsError, setRequestsError] = useState<string | null>(null);
   const [reviewRequest, setReviewRequest] = useState<TariffChangeRequest | null>(null);
   const [reviewAction, setReviewAction] = useState<'approve' | 'reject' | null>(null);
   const [reviewNote, setReviewNote] = useState('');
@@ -101,11 +139,15 @@ export default function TariffsPage() {
   };
 
   const fetchRequests = async () => {
+    setRequestsLoading(true);
     try {
       const res = await tariffChangeRequestsApi.getAll();
       setRequests(res.data.data);
+      setRequestsError(null);
     } catch {
-      toast({ title: 'Xatolik', description: 'Takliflarni yuklashda xatolik', variant: 'error' });
+      setRequestsError('Takliflarni yuklashda xatolik');
+    } finally {
+      setRequestsLoading(false);
     }
   };
 
@@ -187,23 +229,32 @@ export default function TariffsPage() {
     }
   };
 
-  const handleSetSurge = async (tariff: Tariff) => {
-    const raw = surgeInputs[tariff.id];
-    const multiplier = raw !== undefined ? parseFloat(raw) : tariff.surgeMultiplier;
+  const startSurgeEdit = (tariff: Tariff) => {
+    setEditingSurgeId(tariff.id);
+    setSurgeValue(String(tariff.surgeMultiplier));
+    setSurgeError(null);
+  };
 
-    if (Number.isNaN(multiplier) || multiplier < 1 || multiplier > 3) {
-      toast({ title: 'Xatolik', description: 'Koeffitsient 1.0 dan 3.0 gacha bo\'lishi kerak', variant: 'error' });
+  const cancelSurgeEdit = () => {
+    setEditingSurgeId(null);
+    setSurgeValue('');
+    setSurgeError(null);
+  };
+
+  const applySurge = async (tariff: Tariff) => {
+    const validation = validateSurge(surgeValue);
+    if (validation) {
+      setSurgeError(validation);
       return;
     }
-
     setSavingSurgeId(tariff.id);
     try {
-      const res = await tariffsApi.setSurge(tariff.id, multiplier);
+      const res = await tariffsApi.setSurge(tariff.id, parseFloat(surgeValue));
       setTariffs((prev) => prev.map((t) => (t.id === tariff.id ? res.data.data : t)));
-      setSurgeInputs((prev) => ({ ...prev, [tariff.id]: String(res.data.data.surgeMultiplier) }));
+      cancelSurgeEdit();
       toast({ title: 'Narx koeffitsienti yangilandi', variant: 'success' });
     } catch {
-      toast({ title: 'Xatolik', description: 'Koeffitsientni saqlashda xatolik', variant: 'error' });
+      setSurgeError('Saqlashda xatolik — qayta urinib ko\'ring');
     } finally {
       setSavingSurgeId(null);
     }
@@ -246,6 +297,121 @@ export default function TariffsPage() {
     }
   };
 
+  const activeCount = tariffs.filter((t) => t.isActive).length;
+  const pendingRequests = requests.filter((r) => r.status === 'pending').length;
+
+  const renderSurgeBlock = (tariff: Tariff) => {
+    const isEditing = editingSurgeId === tariff.id;
+    const isSaving = savingSurgeId === tariff.id;
+    const errorId = `surge-error-${tariff.id}`;
+
+    return (
+      <div
+        className={cn(
+          'rounded-ds-sm border p-2.5 transition-colors duration-fast',
+          // Tahrir rejimidagi maydon ko'rinishidan farq qiladi (doktrina).
+          isEditing ? 'border-primary bg-surface' : 'border-line'
+        )}
+      >
+        <div className="mb-2 flex items-center justify-between">
+          <span className="flex items-center gap-1.5 text-caption text-muted">
+            <Flame
+              aria-hidden="true"
+              className={cn(
+                'h-3.5 w-3.5',
+                tariff.surgeMultiplier > 1
+                  ? 'text-override-dark dark:text-override-light'
+                  : 'text-subtle'
+              )}
+            />
+            Talab koeffitsienti
+          </span>
+          <Badge variant={tariff.surgeMultiplier > 1 ? 'override' : 'secondary'}>
+            {tariff.surgeMultiplier.toFixed(1)}x
+          </Badge>
+        </div>
+
+        {isEditing ? (
+          <div>
+            <div className="flex items-center gap-1.5">
+              <Input
+                type="number"
+                min={SURGE_MIN}
+                max={SURGE_MAX}
+                step={0.1}
+                mono
+                autoFocus
+                value={surgeValue}
+                onChange={(e) => {
+                  setSurgeValue(e.target.value);
+                  if (surgeError) setSurgeError(validateSurge(e.target.value));
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    applySurge(tariff);
+                  }
+                  if (e.key === 'Escape') cancelSurgeEdit();
+                }}
+                aria-label={`${tariff.name} narx koeffitsienti`}
+                aria-invalid={surgeError ? true : undefined}
+                aria-describedby={surgeError ? errorId : undefined}
+                className="h-8 w-24 px-2 py-1 text-caption"
+              />
+              {/* Aniq saqlash (✓) va bekor qilish (✕) — yashirin "blur'da
+                  saqlanadi" xulq-atvori yo'q. */}
+              <Button
+                size="icon-sm"
+                variant="primary"
+                isLoading={isSaving}
+                disabled={!!validateSurge(surgeValue)}
+                onClick={() => applySurge(tariff)}
+                aria-label="Koeffitsientni saqlash"
+              >
+                <Check className="h-3.5 w-3.5" aria-hidden="true" />
+              </Button>
+              <Button
+                size="icon-sm"
+                variant="outline"
+                disabled={isSaving}
+                onClick={cancelSurgeEdit}
+                aria-label="Tahrirni bekor qilish"
+              >
+                <X className="h-3.5 w-3.5" aria-hidden="true" />
+              </Button>
+            </div>
+            {/* Validatsiya xatosi maydonning o'ziga biriktiriladi. */}
+            {surgeError ? (
+              <p id={errorId} className="mt-1.5 text-caption text-danger-deep dark:text-danger-light">
+                {surgeError}
+              </p>
+            ) : (
+              <p className="mt-1.5 text-caption text-subtle">
+                {SURGE_MIN.toFixed(1)}–{SURGE_MAX.toFixed(1)} oralig&apos;ida · Enter — saqlash
+              </p>
+            )}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => startSurgeEdit(tariff)}
+            className={cn(
+              'flex w-full items-center justify-between rounded-ds-xs px-2 py-1.5 text-caption font-semibold text-ink',
+              'transition-colors duration-fast hover:bg-surface-2',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface'
+            )}
+            aria-label={`${tariff.name} narx koeffitsientini tahrirlash`}
+          >
+            <span className="font-mono tabular-nums">{tariff.surgeMultiplier.toFixed(1)}x</span>
+            {/* Ko'rinadigan affordans — operator yacheyka bosib ko'rib
+                tahrirlanishini "kashf qilishi" shart emas. */}
+            <Pencil className="h-3.5 w-3.5 text-subtle" aria-hidden="true" />
+          </button>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="p-4 sm:p-6">
       <PageHeader
@@ -259,220 +425,193 @@ export default function TariffsPage() {
         }
       />
 
-      <div className="space-y-4">
-        {loadError ? (
-          <ErrorState message={loadError} onRetry={fetchTariffs} />
-        ) : isLoading ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-48" />
-            ))}
+      <div className="space-y-6">
+        {/* ─── 1-bo'lim: Tariflar ro'yxati ─── */}
+        <section aria-labelledby="tariffs-list-heading">
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <h2 id="tariffs-list-heading" className="text-h3 text-ink">
+              Tariflar ro&apos;yxati
+            </h2>
+            {!isLoading && !loadError && tariffs.length > 0 && (
+              <p className="text-caption tabular-nums text-muted">
+                {tariffs.length} ta tarif · {activeCount} tasi faol
+              </p>
+            )}
           </div>
-        ) : tariffs.length === 0 ? (
-          <Card>
-            <CardContent className="py-4">
-              <EmptyState
-                icon={<Tag className="h-6 w-6" />}
-                title="Tariflar yo'q"
-                description="Birinchi tarifni yarating."
-                action={<Button onClick={openCreate}>Birinchi tarifni yarating</Button>}
-              />
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {tariffs.map((tariff) => (
-              <Card key={tariff.id} className={tariff.isActive ? '' : 'opacity-60'}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-base">{tariff.name}</CardTitle>
-                    <Badge variant={tariff.isActive ? 'success' : 'secondary'}>
-                      {tariff.isActive ? 'Faol' : 'Nofaol'}
-                    </Badge>
-                  </div>
-                  {tariff.description && (
-                    <p className="text-caption text-muted mt-1">{tariff.description}</p>
-                  )}
-                </CardHeader>
-                <CardContent className="space-y-2 text-body pb-4">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-ds-xs bg-surface-2 p-2 text-center">
-                      <p className="text-caption text-muted">Boshlang&apos;ich</p>
-                      <p className="font-semibold text-ink text-caption mt-0.5">
-                        {formatCurrency(tariff.basePrice)}
-                      </p>
-                    </div>
-                    <div className="rounded-ds-xs bg-surface-2 p-2 text-center">
-                      <p className="text-caption text-muted">Minimum</p>
-                      <p className="font-semibold text-ink text-caption mt-0.5">
-                        {formatCurrency(tariff.minPrice)}
-                      </p>
-                    </div>
-                    <div className="rounded-ds-xs bg-surface-2 p-2 text-center">
-                      <p className="text-caption text-muted">Har km uchun</p>
-                      <p className="font-semibold text-ink text-caption mt-0.5">
-                        {formatCurrency(tariff.pricePerKm)}
-                      </p>
-                    </div>
-                    <div className="rounded-ds-xs bg-surface-2 p-2 text-center">
-                      <p className="text-caption text-muted">Har min uchun</p>
-                      <p className="font-semibold text-ink text-caption mt-0.5">
-                        {formatCurrency(tariff.pricePerMin)}
-                      </p>
-                    </div>
-                    <div className="rounded-ds-xs bg-surface-2 p-2 text-center col-span-2">
-                      <p className="text-caption text-muted">Maksimum</p>
-                      <p className="font-semibold text-ink text-caption mt-0.5">
-                        {tariff.maxPrice != null ? formatCurrency(tariff.maxPrice) : 'Cheklanmagan'}
-                      </p>
-                    </div>
-                  </div>
 
-                  {/* Surge multiplier control */}
-                  <div className="rounded-ds-sm border border-line p-2.5">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="flex items-center gap-1.5 text-caption text-muted">
-                        <Flame
-                          aria-hidden="true"
-                          className={`h-3.5 w-3.5 ${
-                            tariff.surgeMultiplier > 1
-                              ? 'text-override-dark dark:text-override-light'
-                              : 'text-subtle'
-                          }`}
-                        />
-                        Talab koeffitsienti
-                      </span>
-                      <Badge variant={tariff.surgeMultiplier > 1 ? 'override' : 'secondary'}>
-                        {tariff.surgeMultiplier.toFixed(1)}x
+          {loadError ? (
+            <Card>
+              <CardContent className="p-0">
+                <ErrorState message={loadError} onRetry={fetchTariffs} />
+              </CardContent>
+            </Card>
+          ) : isLoading ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" aria-busy="true">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-72 rounded-ds-md" />
+              ))}
+            </div>
+          ) : tariffs.length === 0 ? (
+            <Card>
+              <CardContent className="py-4">
+                <EmptyState
+                  icon={<Tag className="h-6 w-6" />}
+                  title="Tariflar yo'q"
+                  description="Narx siyosati birinchi tarifdan boshlanadi."
+                  action={<Button onClick={openCreate}>Birinchi tarifni yarating</Button>}
+                />
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {tariffs.map((tariff) => (
+                <Card key={tariff.id} className={tariff.isActive ? '' : 'opacity-60'}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <CardTitle className="text-base">{tariff.name}</CardTitle>
+                      <Badge variant={tariff.isActive ? 'success' : 'secondary'}>
+                        {tariff.isActive ? 'Faol' : 'Nofaol'}
                       </Badge>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        min={1}
-                        max={3}
-                        step={0.1}
-                        value={surgeInputs[tariff.id] ?? String(tariff.surgeMultiplier)}
-                        onChange={(e) =>
-                          setSurgeInputs((prev) => ({ ...prev, [tariff.id]: e.target.value }))
-                        }
-                        className="h-8 w-20 px-2 py-1 text-caption"
-                        aria-label={`${tariff.name} narx koeffitsienti`}
-                      />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        isLoading={savingSurgeId === tariff.id}
-                        onClick={() => handleSetSurge(tariff)}
-                      >
-                        Qo&apos;llash
-                      </Button>
-                    </div>
-                  </div>
-
-                  <p className="text-caption text-subtle mt-1">
-                    Yangilangan: {formatDate(tariff.updatedAt, 'dd.MM.yyyy')}
-                  </p>
-                  <div className="flex items-center justify-between pt-2 border-t border-line">
-                    <button
-                      className="flex items-center gap-1.5 text-caption text-muted hover:text-ink transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bg rounded-ds-xs"
-                      onClick={() => handleToggle(tariff)}
-                    >
-                      {tariff.isActive ? (
-                        <ToggleRight className="h-4 w-4 text-primary-text" aria-hidden="true" />
-                      ) : (
-                        <ToggleLeft className="h-4 w-4 text-subtle" aria-hidden="true" />
-                      )}
-                      {tariff.isActive ? 'O\'chirish' : 'Yoqish'}
-                    </button>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => openEdit(tariff)}
-                        aria-label={`${tariff.name} tarifini tahrirlash`}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="hover:text-danger-deep dark:hover:text-danger-light"
-                        onClick={() => setDeleteTarget(tariff)}
-                        aria-label={`${tariff.name} tarifini o'chirish`}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {/* Manager-proposed tariff changes awaiting review */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Takliflar</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {requests.length === 0 ? (
-              <EmptyState
-                compact
-                tone="positive"
-                title="Hozircha takliflar yo'q"
-                description="Boshqaruvchilar yuborgan takliflar shu yerda ko'rinadi."
-              />
-            ) : (
-              <div className="space-y-2">
-                {requests.map((req) => (
-                  <div
-                    key={req.id}
-                    className="flex items-center justify-between rounded-ds-sm border border-line px-4 py-3"
-                  >
-                    <div className="text-body">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary">{actionLabel[req.action]}</Badge>
-                        <span className="text-ink">
-                          {(req.proposedChanges as { name?: string }).name ?? 'Tarif'}
-                        </span>
-                        <Badge variant={statusVariant[req.status]}>{statusLabel[req.status]}</Badge>
-                      </div>
-                      <p className="text-caption text-subtle mt-1">
-                        {formatDate(req.createdAt, 'dd.MM.yyyy HH:mm')}
-                      </p>
-                    </div>
-                    {req.status === 'pending' && (
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="success"
-                          onClick={() => {
-                            setReviewRequest(req);
-                            setReviewAction('approve');
-                          }}
-                        >
-                          Tasdiqlash
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => {
-                            setReviewRequest(req);
-                            setReviewAction('reject');
-                          }}
-                        >
-                          Rad etish
-                        </Button>
-                      </div>
+                    {tariff.description && (
+                      <p className="mt-1 text-caption text-muted">{tariff.description}</p>
                     )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  </CardHeader>
+                  <CardContent className="space-y-2 pb-4 text-body">
+                    {/* Narx tuzilmasi */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <PriceCell label="Boshlang'ich" value={formatCurrency(tariff.basePrice)} />
+                      <PriceCell label="Minimum" value={formatCurrency(tariff.minPrice)} />
+                      <PriceCell label="Har km uchun" value={formatCurrency(tariff.pricePerKm)} />
+                      <PriceCell label="Har min uchun" value={formatCurrency(tariff.pricePerMin)} />
+                      <PriceCell
+                        label="Maksimum"
+                        value={
+                          tariff.maxPrice != null ? formatCurrency(tariff.maxPrice) : 'Cheklanmagan'
+                        }
+                        wide
+                      />
+                    </div>
+
+                    {/* Talab koeffitsienti — inline tahrir */}
+                    {renderSurgeBlock(tariff)}
+
+                    <p className="mt-1 text-caption tabular-nums text-subtle">
+                      Yangilangan: {formatDate(tariff.updatedAt, 'dd.MM.yyyy')}
+                    </p>
+
+                    {/* Karta harakatlari */}
+                    <div className="flex items-center justify-between border-t border-line pt-2">
+                      <button
+                        className="flex items-center gap-1.5 rounded-ds-xs text-caption text-muted transition-colors hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+                        onClick={() => handleToggle(tariff)}
+                      >
+                        {tariff.isActive ? (
+                          <ToggleRight className="h-4 w-4 text-primary-text" aria-hidden="true" />
+                        ) : (
+                          <ToggleLeft className="h-4 w-4 text-subtle" aria-hidden="true" />
+                        )}
+                        {tariff.isActive ? 'O\'chirish' : 'Yoqish'}
+                      </button>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => openEdit(tariff)}
+                          aria-label={`${tariff.name} tarifini tahrirlash`}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="hover:text-danger-deep dark:hover:text-danger-light"
+                          onClick={() => setDeleteTarget(tariff)}
+                          aria-label={`${tariff.name} tarifini o'chirish`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* ─── 2-bo'lim: Boshqaruvchilar takliflari ─── */}
+        <section aria-labelledby="tariff-requests-heading">
+          <Card>
+            <CardHeader className="flex-row items-center justify-between space-y-0">
+              <CardTitle id="tariff-requests-heading">Boshqaruvchilar takliflari</CardTitle>
+              {pendingRequests > 0 && (
+                <Badge variant="warning">{pendingRequests} ta kutilmoqda</Badge>
+              )}
+            </CardHeader>
+            <CardContent>
+              {requestsLoading ? (
+                <SkeletonCards count={2} height="h-16" />
+              ) : requestsError ? (
+                <ErrorState compact message={requestsError} onRetry={fetchRequests} />
+              ) : requests.length === 0 ? (
+                <EmptyState
+                  compact
+                  tone="positive"
+                  icon={<Inbox className="h-5 w-5" />}
+                  title="Hozircha takliflar yo'q"
+                  description="Boshqaruvchilar yuborgan takliflar shu yerda ko'rinadi."
+                />
+              ) : (
+                <div className="space-y-2">
+                  {requests.map((req) => (
+                    <div
+                      key={req.id}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-ds-sm border border-line px-4 py-3"
+                    >
+                      <div className="text-body">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="secondary">{actionLabel[req.action]}</Badge>
+                          <span className="text-ink">
+                            {(req.proposedChanges as { name?: string }).name ?? 'Tarif'}
+                          </span>
+                          <Badge variant={statusVariant[req.status]}>{statusLabel[req.status]}</Badge>
+                        </div>
+                        <p className="mt-1 text-caption tabular-nums text-subtle">
+                          {formatDate(req.createdAt, 'dd.MM.yyyy HH:mm')}
+                        </p>
+                      </div>
+                      {req.status === 'pending' && (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="success"
+                            onClick={() => {
+                              setReviewRequest(req);
+                              setReviewAction('approve');
+                            }}
+                          >
+                            Tasdiqlash
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => {
+                              setReviewRequest(req);
+                              setReviewAction('reject');
+                            }}
+                          >
+                            Rad etish
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </section>
       </div>
 
       {/* Create/Edit modal */}
@@ -495,7 +634,7 @@ export default function TariffsPage() {
             />
             <div className="grid grid-cols-2 gap-3">
               <Input
-                label="Boshlang'ich narx (UZS)"
+                label="Boshlang'ich narx (so'm)"
                 type="number"
                 mono
                 placeholder="5000"
@@ -503,7 +642,7 @@ export default function TariffsPage() {
                 {...register('basePrice')}
               />
               <Input
-                label="Minimum narx (UZS)"
+                label="Minimum narx (so'm)"
                 type="number"
                 mono
                 placeholder="8000"
@@ -511,7 +650,7 @@ export default function TariffsPage() {
                 {...register('minPrice')}
               />
               <Input
-                label="1 km narxi (UZS)"
+                label="1 km narxi (so'm)"
                 type="number"
                 mono
                 placeholder="1500"
@@ -519,7 +658,7 @@ export default function TariffsPage() {
                 {...register('pricePerKm')}
               />
               <Input
-                label="1 min narxi (UZS)"
+                label="1 min narxi (so'm)"
                 type="number"
                 mono
                 placeholder="300"
@@ -527,7 +666,7 @@ export default function TariffsPage() {
                 {...register('pricePerMin')}
               />
               <Input
-                label="Maksimal narx (UZS, ixtiyoriy)"
+                label="Maksimal narx (so'm, ixtiyoriy)"
                 type="number"
                 mono
                 placeholder="50000"
@@ -535,7 +674,7 @@ export default function TariffsPage() {
                 {...register('maxPrice')}
               />
             </div>
-            <label className="flex items-center gap-2 text-body font-medium text-muted cursor-pointer">
+            <label className="flex cursor-pointer items-center gap-2 text-body font-medium text-muted">
               <input
                 type="checkbox"
                 className="rounded accent-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface"

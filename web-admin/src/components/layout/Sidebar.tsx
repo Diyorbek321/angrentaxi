@@ -22,6 +22,8 @@ import {
   Bell,
   ShieldAlert,
   SlidersHorizontal,
+  PanelLeftClose,
+  PanelLeftOpen,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -42,10 +44,10 @@ interface NavGroup {
   items: NavItem[];
 }
 
-// A single top-level item (no group wrapper) plus 5 collapsible groups —
-// mirrors the Super Admin design's hierarchical sidebar (Overview / Taxi &
-// Cargo / Market & Eats / Users / Marketing / System), while keeping every
-// existing route unchanged underneath.
+// Bitta yuqori darajali element + 6 ta yig'iladigan guruh. Guruhlar tartibi =
+// ustuvorlik tartibi: kunlik ish (Taxi, Market) tepada, kam ochiladigan
+// "Tizim" oxirida — ekran torayganda aynan past-ustuvorlar scroll ostiga
+// tushadi, kunlik ish emas.
 const overviewItem: NavItem = {
   href: '/dashboard',
   label: 'Bosh sahifa',
@@ -105,8 +107,12 @@ const navGroups: NavGroup[] = [
 export function Sidebar() {
   const pathname = usePathname();
   const { logout, user } = useAuth();
-  const { isOpen, close } = useSidebar();
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const { isOpen, close, isCollapsed, toggleCollapsed } = useSidebar();
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+
+  // Mobil overlay har doim to'liq kenglikda ochiladi; ikon-rail faqat
+  // desktopda ma'noga ega.
+  const rail = isCollapsed && !isOpen;
 
   const isActive = (href: string, exact?: boolean) => {
     if (exact) return pathname === href;
@@ -121,10 +127,13 @@ export function Sidebar() {
           href={item.href}
           onClick={close}
           // Faol sahifa `aria-current` bilan ham belgilanadi — ma'no faqat
-          // rang va chegara orqali berilmaydi.
+          // rang va chegara orqali berilmaydi (fill + chap chiziq = 2 indikator).
           aria-current={active ? 'page' : undefined}
+          aria-label={rail ? item.label : undefined}
+          title={rail ? item.label : undefined}
           className={cn(
-            'flex items-center gap-3 rounded-ds-sm px-3 py-2.5 text-body font-medium transition-colors duration-fast',
+            'flex items-center rounded-ds-sm text-body font-medium transition-colors duration-fast',
+            rail ? 'justify-center px-0 py-2.5' : 'gap-3 px-3 py-2.5',
             'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
             active
               ? 'rounded-l-none border-l-2 border-primary bg-mint-tint font-semibold text-primary-text'
@@ -135,7 +144,7 @@ export function Sidebar() {
             className={cn('h-4 w-4 shrink-0', active ? 'text-primary-text' : 'text-subtle')}
             aria-hidden="true"
           />
-          {item.label}
+          {!rail && item.label}
         </Link>
       </li>
     );
@@ -155,50 +164,65 @@ export function Sidebar() {
       <aside
         aria-label="Asosiy navigatsiya"
         className={cn(
-          'fixed inset-y-0 left-0 z-40 flex h-screen w-64 flex-col border-r border-line bg-surface shadow-card transition-transform duration-base ease-emphasized',
+          'fixed inset-y-0 left-0 z-40 flex h-screen flex-col border-r border-line bg-surface shadow-card',
+          'transition-[width,transform] duration-base ease-emphasized',
+          rail ? 'w-16' : 'w-64',
           'lg:static lg:translate-x-0',
           isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
         {/* Logo — interaktiv emas, shuning uchun AKSENT qatlam (mint gradient
             + ink ikonka). Oq ikonka mint ustida 1.85:1 bo'lardi. */}
-        <div className="flex items-center gap-3 px-5 py-6">
-          <div className="flex h-10 w-10 items-center justify-center rounded-ds-sm bg-gradient-mint shadow-glow-mint-sm">
+        <div className={cn('flex items-center py-6', rail ? 'justify-center px-0' : 'gap-3 px-5')}>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-ds-sm bg-gradient-mint shadow-glow-mint-sm">
             <Zap className="h-5 w-5 text-mint-on" aria-hidden="true" />
           </div>
-          <div>
-            <p className="text-title text-ink">Angren Taxi</p>
-            <p className="text-caption text-muted">Super Admin</p>
-          </div>
+          {!rail && (
+            <div>
+              <p className="text-title text-ink">Angren Taxi</p>
+              <p className="text-caption text-muted">Super Admin</p>
+            </div>
+          )}
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-3 py-2">
+        <nav className={cn('flex-1 overflow-y-auto py-2', rail ? 'px-2' : 'px-3')}>
           <ul className="mb-3 space-y-0.5">{renderItem(overviewItem)}</ul>
 
           {navGroups.map((group) => {
-            const isCollapsed = !!collapsed[group.key];
+            const isGroupCollapsed = !rail && !!collapsedGroups[group.key];
             const panelId = `nav-group-${group.key}`;
             return (
               <div key={group.key} className="mb-1">
-                <button
-                  type="button"
-                  aria-expanded={!isCollapsed}
-                  aria-controls={panelId}
-                  onClick={() => setCollapsed((c) => ({ ...c, [group.key]: !c[group.key] }))}
-                  className={cn(
-                    'flex w-full items-center justify-between rounded-ds-xs px-2 py-1.5 text-micro uppercase text-subtle',
-                    'transition-colors duration-fast hover:text-ink',
-                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface'
-                  )}
-                >
-                  {group.label}
-                  <ChevronDown
-                    className={cn('h-3 w-3 transition-transform duration-fast', isCollapsed && '-rotate-90')}
-                    aria-hidden="true"
-                  />
-                </button>
-                {!isCollapsed && (
+                {rail ? (
+                  // Rail rejimida guruh sarlavhasi o'rniga ingichka ajratkich —
+                  // guruhlanish saqlanadi, matn esa tooltip'larda.
+                  <div className="mx-2 my-2 border-t border-divider" aria-hidden="true" />
+                ) : (
+                  <button
+                    type="button"
+                    aria-expanded={!isGroupCollapsed}
+                    aria-controls={panelId}
+                    onClick={() =>
+                      setCollapsedGroups((c) => ({ ...c, [group.key]: !c[group.key] }))
+                    }
+                    className={cn(
+                      'flex w-full items-center justify-between rounded-ds-xs px-2 py-1.5 text-micro uppercase text-subtle',
+                      'transition-colors duration-fast hover:text-ink',
+                      'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface'
+                    )}
+                  >
+                    {group.label}
+                    <ChevronDown
+                      className={cn(
+                        'h-3 w-3 transition-transform duration-fast',
+                        isGroupCollapsed && '-rotate-90'
+                      )}
+                      aria-hidden="true"
+                    />
+                  </button>
+                )}
+                {!isGroupCollapsed && (
                   <ul id={panelId} className="space-y-0.5">
                     {group.items.map(renderItem)}
                   </ul>
@@ -208,30 +232,62 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* User + logout */}
-        <div className="space-y-2 border-t border-line p-4">
-          {user && (
-            <div className="flex items-center gap-3 rounded-ds-sm bg-surface-2 px-3 py-2.5">
-              <Avatar name={`${user.firstName ?? ''} ${user.lastName ?? ''}`} size="sm" />
-              <div className="min-w-0">
-                <p className="truncate text-body font-medium text-ink">
-                  {user.firstName} {user.lastName}
-                </p>
-                <p className="text-caption text-muted">Admin</p>
+        {/* Rail toggle (faqat desktop) + user + logout */}
+        <div className={cn('space-y-2 border-t border-line', rail ? 'p-2' : 'p-4')}>
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            aria-label={isCollapsed ? 'Menyuni kengaytirish' : 'Menyuni yig‘ish'}
+            title={isCollapsed ? 'Menyuni kengaytirish' : 'Menyuni yig‘ish'}
+            className={cn(
+              'hidden w-full items-center rounded-ds-sm py-2 text-body font-medium text-muted lg:flex',
+              rail ? 'justify-center px-0' : 'gap-3 px-3',
+              'transition-colors duration-fast hover:bg-surface-2 hover:text-ink',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface'
+            )}
+          >
+            {isCollapsed ? (
+              <PanelLeftOpen className="h-4 w-4 shrink-0" aria-hidden="true" />
+            ) : (
+              <PanelLeftClose className="h-4 w-4 shrink-0" aria-hidden="true" />
+            )}
+            {!rail && 'Menyuni yig‘ish'}
+          </button>
+
+          {user &&
+            (rail ? (
+              <div
+                className="flex justify-center py-1"
+                title={`${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || 'Admin'}
+              >
+                <Avatar name={`${user.firstName ?? ''} ${user.lastName ?? ''}`} size="sm" />
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="flex items-center gap-3 rounded-ds-sm bg-surface-2 px-3 py-2.5">
+                <Avatar name={`${user.firstName ?? ''} ${user.lastName ?? ''}`} size="sm" />
+                <div className="min-w-0">
+                  <p className="truncate text-body font-medium text-ink">
+                    {user.firstName} {user.lastName}
+                  </p>
+                  <p className="text-caption text-muted">Admin</p>
+                </div>
+              </div>
+            ))}
+
           <button
             type="button"
             onClick={logout}
+            aria-label={rail ? 'Chiqish' : undefined}
+            title={rail ? 'Chiqish' : undefined}
             className={cn(
-              'flex w-full items-center gap-3 rounded-ds-sm px-3 py-2 text-body font-medium text-muted',
+              'flex w-full items-center rounded-ds-sm py-2 text-body font-medium text-muted',
+              rail ? 'justify-center px-0' : 'gap-3 px-3',
               'transition-colors duration-fast hover:bg-danger-tint hover:text-danger-deep dark:hover:text-danger-light',
               'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface'
             )}
           >
             <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
-            Chiqish
+            {!rail && 'Chiqish'}
           </button>
         </div>
       </aside>

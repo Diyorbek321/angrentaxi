@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Star, Car } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Star, Car, SearchX } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -12,45 +12,117 @@ import {
 } from '@/components/ui/Table';
 import { SkeletonTable } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
 import { DriverStatusBadge } from './DriverStatusBadge';
 import { Driver } from '@/lib/api';
-import { formatDate, getFullName, formatRating, formatCurrency } from '@/lib/utils';
+import { cn, formatDate, getFullName, formatRating, formatCurrency } from '@/lib/utils';
+
+export type DriverSortDir = 'asc' | 'desc' | null;
 
 interface DriversTableProps {
   drivers: Driver[];
   isLoading: boolean;
+  sortField?: string | null;
+  sortDir?: DriverSortDir;
+  onSort?: (field: string) => void;
+  hasActiveFilters?: boolean;
+  onClearFilters?: () => void;
 }
 
-export function DriversTable({ drivers, isLoading }: DriversTableProps) {
+export function DriversTable({
+  drivers,
+  isLoading,
+  sortField,
+  sortDir,
+  onSort,
+  hasActiveFilters = false,
+  onClearFilters,
+}: DriversTableProps) {
   const router = useRouter();
+
+  const SortableHead = ({
+    field,
+    children,
+    align = 'left',
+  }: {
+    field: string;
+    children: React.ReactNode;
+    align?: 'left' | 'right';
+  }) => {
+    const active = sortField === field && !!sortDir;
+    const Icon = !active ? ArrowUpDown : sortDir === 'asc' ? ArrowUp : ArrowDown;
+    return (
+      <TableHead
+        aria-sort={active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+        className={align === 'right' ? 'text-right' : undefined}
+      >
+        <button
+          type="button"
+          onClick={() => onSort?.(field)}
+          className={cn(
+            'inline-flex items-center gap-1 text-micro uppercase transition-colors duration-fast',
+            align === 'right' && 'flex-row-reverse',
+            'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface-2',
+            active ? 'text-primary-text' : 'text-muted hover:text-ink'
+          )}
+        >
+          {children}
+          <Icon
+            className={cn('h-3 w-3', active ? 'text-primary-text' : 'text-subtle')}
+            aria-hidden="true"
+          />
+        </button>
+      </TableHead>
+    );
+  };
 
   if (isLoading) {
     return <SkeletonTable rows={8} cols={8} className="border-0" />;
   }
 
   if (drivers.length === 0) {
+    if (hasActiveFilters) {
+      return (
+        <EmptyState
+          icon={<SearchX className="h-6 w-6" />}
+          title="Hech narsa mos kelmadi"
+          description="Tanlangan filtrlar bo'yicha haydovchi topilmadi."
+          action={
+            onClearFilters && (
+              <Button variant="secondary" size="sm" onClick={onClearFilters}>
+                Filtrlarni tozalash
+              </Button>
+            )
+          }
+        />
+      );
+    }
     return (
       <EmptyState
         icon={<Car className="h-6 w-6" />}
-        title="Haydovchilar topilmadi"
-        description="Filtrni oʻzgartirib koʻring yoki keyinroq qayta urinib koʻring."
+        title="Hozircha haydovchilar yo'q"
+        description="Haydovchilar ilova orqali ro'yxatdan o'tishi bilan shu jadvalda ko'rinadi."
       />
     );
   }
 
   return (
-    <Table>
+    <Table stickyHeader containerClassName="max-h-[65vh]">
       <TableHeader>
         <TableRow>
-          <TableHead>Haydovchi</TableHead>
+          <SortableHead field="name">Haydovchi</SortableHead>
           <TableHead>Telefon</TableHead>
           <TableHead>Avtomobil</TableHead>
           <TableHead>Raqam</TableHead>
-          <TableHead>Reyting</TableHead>
-          <TableHead>Safarlar</TableHead>
+          <SortableHead field="rating" align="right">
+            Reyting
+          </SortableHead>
+          <SortableHead field="trips" align="right">
+            Safarlar
+          </SortableHead>
           <TableHead>Holat</TableHead>
-          <TableHead>Ro&apos;yxatdan o&apos;tgan</TableHead>
+          <SortableHead field="createdAt">Ro&apos;yxatdan o&apos;tgan</SortableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -69,9 +141,12 @@ export function DriversTable({ drivers, isLoading }: DriversTableProps) {
                   </p>
                   {driver.walletBalance !== undefined && (
                     <p
-                      className={`text-caption ${
-                        driver.walletBalance < 0 ? 'text-danger-deep dark:text-danger-light' : 'text-muted'
-                      }`}
+                      className={cn(
+                        'text-caption tabular-nums',
+                        driver.walletBalance < 0
+                          ? 'text-danger-deep dark:text-danger-light'
+                          : 'text-muted'
+                      )}
                     >
                       {formatCurrency(driver.walletBalance)}
                     </p>
@@ -89,20 +164,22 @@ export function DriversTable({ drivers, isLoading }: DriversTableProps) {
                 {driver.carNumber}
               </span>
             </TableCell>
-            <TableCell>
-              <div className="flex items-center gap-1">
+            <TableCell className="text-right">
+              <div className="inline-flex items-center gap-1">
                 {/* Reyting yulduzi — amber (docs §5: kWarningDark ga eng yaqin). */}
                 <Star className="h-3.5 w-3.5 fill-override text-override" aria-hidden="true" />
-                <span className="font-medium text-ink">{formatRating(driver.rating)}</span>
+                <span className="font-medium tabular-nums text-ink">
+                  {formatRating(driver.rating)}
+                </span>
               </div>
             </TableCell>
-            <TableCell className="font-mono font-medium tabular-nums text-ink">
+            <TableCell className="text-right font-mono font-medium tabular-nums text-ink">
               {driver.totalTrips}
             </TableCell>
             <TableCell>
               <DriverStatusBadge status={driver.status} isOnline={driver.isOnline} />
             </TableCell>
-            <TableCell className="text-caption text-muted">
+            <TableCell className="text-caption tabular-nums text-muted">
               {formatDate(driver.createdAt, 'dd.MM.yyyy')}
             </TableCell>
           </TableRow>

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Phone, Lock, ArrowRight, Shield } from 'lucide-react';
+import { AlertCircle, ArrowRight, Lock, Phone, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
@@ -135,42 +135,44 @@ export default function LoginPage() {
           </div>
           <div>
             <h1 className="text-h1 text-ink">Angren Taxi</h1>
-            <p className="text-body text-primary-text">Admin Panel</p>
+            <p className="text-body text-primary-text">Boshqaruv paneli</p>
           </div>
         </div>
 
         {/* Card */}
         <div className="rounded-ds-lg border border-line bg-surface p-8 shadow-pop">
-          {/* Step indicator */}
-          <div className="mb-6 flex items-center gap-2" aria-hidden="true">
-            <div
-              className={`h-1.5 flex-1 rounded-full transition-colors ${
-                step === 'phone' || step === 'otp' ? 'bg-primary' : 'bg-surface-2'
-              }`}
-            />
-            <div
-              className={`h-1.5 flex-1 rounded-full transition-colors ${
-                step === 'otp' ? 'bg-primary' : 'bg-surface-2'
-              }`}
-            />
+          {/* Qadam ko'rsatkichi — ma'no faqat rang bilan emas, so'z bilan ham. */}
+          <div className="mb-6">
+            <div className="flex items-center gap-2" aria-hidden="true">
+              <div className="h-1.5 flex-1 rounded-full bg-primary transition-colors duration-fast" />
+              <div
+                className={`h-1.5 flex-1 rounded-full transition-colors duration-fast ${
+                  step === 'otp' ? 'bg-primary' : 'bg-surface-2'
+                }`}
+              />
+            </div>
+            <p className="mt-2 text-caption text-subtle">
+              {step === 'phone' ? '1-qadam / 2' : '2-qadam / 2'}
+            </p>
           </div>
 
           <div className="mb-6">
             <h2 className="text-h2 text-ink">
-              {step === 'phone' ? 'Admin paneliga kirish' : 'Tasdiqlash kodi'}
+              {step === 'phone' ? 'Panelga kirish' : 'Tasdiqlash kodi'}
             </h2>
-            <p className="mt-1.5 text-body text-muted">
+            <p className="mt-1.5 text-body leading-relaxed text-muted">
               {step === 'phone'
-                ? 'Telefon raqamingizni kiriting'
-                : `${phone} raqamiga yuborilgan 6 raqamli kodni kiriting`}
+                ? 'Telefon raqamingizni kiriting — SMS orqali bir martalik kod yuboramiz.'
+                : `${phone} raqamiga yuborilgan 6 raqamli kodni kiriting.`}
             </p>
           </div>
 
           {authError && (
             <p
               role="alert"
-              className="mb-4 rounded-ds-md border border-danger/30 bg-danger-tint px-3 py-2.5 text-body text-danger-deep dark:text-danger-light"
+              className="mb-4 flex items-start gap-2 rounded-ds-md border border-danger/30 bg-danger-tint px-3 py-2.5 text-body text-danger-deep dark:text-danger-light"
             >
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               {authError}
             </p>
           )}
@@ -181,9 +183,10 @@ export default function LoginPage() {
                 label="Telefon raqam"
                 type="tel"
                 autoComplete="tel"
+                autoFocus
                 placeholder="+998901234567"
                 mono
-                leftIcon={<Phone className="h-4 w-4" />}
+                leftIcon={<Phone className="h-4 w-4" aria-hidden="true" />}
                 error={phoneForm.formState.errors.phone?.message}
                 {...phoneForm.register('phone')}
               />
@@ -192,9 +195,9 @@ export default function LoginPage() {
                 variant="primary"
                 className="w-full"
                 isLoading={isLoading}
-                rightIcon={<ArrowRight className="h-4 w-4" />}
+                rightIcon={<ArrowRight className="h-4 w-4" aria-hidden="true" />}
               >
-                Kod yuborish
+                {isLoading ? 'Kod yuborilmoqda…' : 'Kod yuborish'}
               </Button>
             </form>
           ) : (
@@ -202,10 +205,12 @@ export default function LoginPage() {
               <Input
                 label="Tasdiqlash kodi"
                 type="text"
+                autoFocus
+                autoComplete="one-time-code"
                 placeholder="000000"
                 maxLength={6}
                 mono
-                leftIcon={<Lock className="h-4 w-4" />}
+                leftIcon={<Lock className="h-4 w-4" aria-hidden="true" />}
                 error={otpForm.formState.errors.code?.message}
                 inputMode="numeric"
                 {...otpForm.register('code')}
@@ -222,13 +227,13 @@ export default function LoginPage() {
                 variant="primary"
                 className="w-full"
                 isLoading={isLoading}
-                rightIcon={<ArrowRight className="h-4 w-4" />}
+                rightIcon={<ArrowRight className="h-4 w-4" aria-hidden="true" />}
               >
-                Kirish
+                {isLoading ? 'Tekshirilmoqda…' : 'Kirish'}
               </Button>
               <button
                 type="button"
-                className="w-full rounded-ds-xs text-center text-body text-muted transition-colors hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+                className="w-full rounded-ds-xs py-1 text-center text-body text-muted transition-colors duration-fast hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
                 onClick={() => {
                   setStep('phone');
                   setDevOtpCode('');

@@ -229,7 +229,7 @@ export default function DriverDetailPage() {
                     <p className="text-caption text-subtle">
                       {driver.walletBalance < 0 ? 'Qarz' : 'Hamyon'}
                     </p>
-                    <p className={`text-h3 font-bold ${driver.walletBalance < 0 ? 'text-danger-deep dark:text-danger-light' : 'text-ink'}`}>
+                    <p className={`font-mono text-h3 font-bold tabular-nums ${driver.walletBalance < 0 ? 'text-danger-deep dark:text-danger-light' : 'text-ink'}`}>
                       {formatCurrency(driver.walletBalance)}
                     </p>
                   </div>
@@ -297,17 +297,19 @@ export default function DriverDetailPage() {
 
           {/* Stats + trips */}
           <div className="space-y-6 lg:col-span-2">
-            {/* Stats row */}
+            {/* Stats row — raqamlar tabular-nums, ustunda titramaydi. */}
             <div className="grid grid-cols-3 gap-4">
               {[
-                { label: 'Jami safarlar', value: driver.totalTrips.toString() },
+                { label: 'Jami safarlar', value: driver.totalTrips.toLocaleString('uz-UZ') },
                 { label: 'Reyting', value: formatRating(driver.rating) },
                 { label: 'Hamyon', value: formatCurrency(driver.walletBalance ?? 0) },
               ].map((stat) => (
                 <Card key={stat.label}>
                   <CardContent className="p-4 text-center">
                     <p className="text-caption text-muted">{stat.label}</p>
-                    <p className="mt-1 text-h2 font-bold text-ink">{stat.value}</p>
+                    <p className="mt-1 font-mono text-h2 font-bold tabular-nums text-ink">
+                      {stat.value}
+                    </p>
                   </CardContent>
                 </Card>
               ))}
@@ -331,7 +333,7 @@ export default function DriverDetailPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Yo&apos;nalish</TableHead>
-                          <TableHead>Narx</TableHead>
+                          <TableHead className="text-right">Narx</TableHead>
                           <TableHead>Holat</TableHead>
                           <TableHead>Sana</TableHead>
                         </TableRow>
@@ -347,7 +349,7 @@ export default function DriverDetailPage() {
                                 {trip.dropoffAddress ?? '—'}
                               </p>
                             </TableCell>
-                            <TableCell className="font-medium text-ink">
+                            <TableCell className="text-right font-mono font-medium tabular-nums text-ink">
                               {formatCurrency(trip.finalPrice ?? trip.estimatedPrice)}
                             </TableCell>
                             <TableCell>

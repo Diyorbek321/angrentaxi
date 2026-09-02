@@ -265,4 +265,37 @@
     z-index: 1;
     background-color: rgb(var(--surface-2));
   }
+
+  /* Muzlatilgan sarlavha chetini bildiruvchi nozik soya. */
+  .table-sticky-head thead th::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    bottom: -1px;
+    height: 1px;
+    background-color: rgb(var(--line));
+  }
+}
+
+/* Harakatni kamaytirish: animatsiya olib tashlanadi, FEEDBACKning o'zi emas —
+   shimmer o'rniga statik surface-2 fon, o'tishlar esa bir zumda tugaydi.
+   (Recharts JS-animatsiyasi useReducedMotion hook'i orqali o'chiriladi.) */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .skeleton::after {
+    animation: none;
+    transform: none;
+    background-image: none;
+  }
 }

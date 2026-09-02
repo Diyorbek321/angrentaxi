@@ -1,24 +1,26 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { format, parseISO, isValid } from 'date-fns';
+import { uz } from 'date-fns/locale';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** Pul har doim "125 000 so'm" ko'rinishida — panel operatorlari tilida. */
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('uz-UZ', {
     style: 'decimal',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount) + ' UZS';
+  }).format(amount) + " so'm";
 }
 
 export function formatDate(dateStr: string, fmt = 'dd.MM.yyyy HH:mm'): string {
   try {
     const date = parseISO(dateStr);
     if (!isValid(date)) return dateStr;
-    return format(date, fmt);
+    return format(date, fmt, { locale: uz });
   } catch {
     return dateStr;
   }
@@ -60,10 +62,10 @@ export function formatDistance(meters: number): string {
 
 export function formatDuration(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes} min`;
+  if (minutes < 60) return `${minutes} daqiqa`;
   const hours = Math.floor(minutes / 60);
   const remainingMins = minutes % 60;
-  return `${hours}h ${remainingMins}min`;
+  return `${hours} soat ${remainingMins} daqiqa`;
 }
 
 export function debounce<T extends (...args: any[]) => any>(

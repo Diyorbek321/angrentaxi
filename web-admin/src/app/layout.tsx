@@ -3,6 +3,7 @@ import localFont from 'next/font/local';
 import './globals.css';
 import { Providers } from './providers';
 import { THEME_INIT_SCRIPT } from '@/lib/theme';
+import { SIDEBAR_INIT_SCRIPT } from '@/lib/sidebar-state';
 
 // Self-hosted (not next/font/google) so the build never depends on a live
 // fetch to Google's font CDN at build time.
@@ -45,6 +46,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        {/* Rail holati ham pre-paint: yon menyu "ochiq → yig'ilgan" miltillamaydi. */}
+        <script dangerouslySetInnerHTML={{ __html: SIDEBAR_INIT_SCRIPT }} />
       </head>
       <body className="font-sans bg-bg text-ink">
         <Providers>{children}</Providers>

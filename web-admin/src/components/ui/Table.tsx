@@ -1,12 +1,33 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
-  ({ className, ...props }, ref) => (
+interface TableProps extends React.HTMLAttributes<HTMLTableElement> {
+  /**
+   * Sarlavha qatorini scroll paytida ustda qoldiradi (`.table-sticky-head`,
+   * globals.css). Ishlashi uchun konteynerga balandlik chegarasi kerak —
+   * `containerClassName` orqali beriladi (masalan, `max-h-[65vh]`).
+   */
+  stickyHeader?: boolean;
+  containerClassName?: string;
+}
+
+const Table = React.forwardRef<HTMLTableElement, TableProps>(
+  ({ className, stickyHeader = false, containerClassName, ...props }, ref) => (
     // The scroll container is focusable so a keyboard user can reach a wide
     // table's horizontal scrollbar without a mouse.
-    <div className="w-full overflow-x-auto rounded-ds-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus" tabIndex={0}>
-      <table ref={ref} className={cn('w-full caption-bottom text-body', className)} {...props} />
+    <div
+      className={cn(
+        'w-full overflow-x-auto rounded-ds-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
+        stickyHeader && 'overflow-y-auto',
+        containerClassName
+      )}
+      tabIndex={0}
+    >
+      <table
+        ref={ref}
+        className={cn('w-full caption-bottom text-body', stickyHeader && 'table-sticky-head', className)}
+        {...props}
+      />
     </div>
   )
 );

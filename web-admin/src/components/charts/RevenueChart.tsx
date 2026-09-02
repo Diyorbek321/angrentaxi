@@ -8,7 +8,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from 'recharts';
 import { format, parseISO } from 'date-fns';
 import { RevenueDataPoint } from '@/lib/api';
@@ -16,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { CHART_COLORS } from '@/lib/chart-tokens';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 interface RevenueChartProps {
   data: RevenueDataPoint[];
@@ -23,7 +23,7 @@ interface RevenueChartProps {
 }
 
 const formatRevenue = (value: number) =>
-  new Intl.NumberFormat('uz-UZ', { notation: 'compact' }).format(value) + ' UZS';
+  new Intl.NumberFormat('uz-UZ', { notation: 'compact' }).format(value) + " so'm";
 
 const formatAxisDate = (dateStr: string) => {
   try {
@@ -34,6 +34,8 @@ const formatAxisDate = (dateStr: string) => {
 };
 
 export function RevenueChart({ data, isLoading }: RevenueChartProps) {
+  const reducedMotion = useReducedMotion();
+
   if (isLoading) {
     return (
       <Card>
@@ -95,7 +97,8 @@ export function RevenueChart({ data, isLoading }: RevenueChartProps) {
               labelFormatter={formatAxisDate}
               cursor={{ stroke: CHART_COLORS.primary, strokeOpacity: 0.3 }}
             />
-            <Legend />
+            {/* Bitta seriyali diagrammada legenda sarlavhani takrorlaydi — olib
+                tashlandi. Harakat kamaytirilganda kirish animatsiyasi o'chadi. */}
             <Line
               type="monotone"
               dataKey="revenue"
@@ -104,6 +107,7 @@ export function RevenueChart({ data, isLoading }: RevenueChartProps) {
               strokeWidth={2.5}
               dot={{ r: 4, fill: CHART_COLORS.primary, strokeWidth: 0 }}
               activeDot={{ r: 6, fill: CHART_COLORS.primary }}
+              isAnimationActive={!reducedMotion}
             />
           </LineChart>
         </ResponsiveContainer>

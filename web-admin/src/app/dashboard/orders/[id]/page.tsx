@@ -218,7 +218,7 @@ export default function OrderDetailPage() {
                 <div className="text-center">
                   <CreditCard className="mx-auto h-4 w-4 text-subtle" aria-hidden="true" />
                   <p className="mt-1 text-caption text-subtle">Narx</p>
-                  <p className="text-body font-semibold text-ink">
+                  <p className="font-mono text-body font-semibold tabular-nums text-ink">
                     {formatCurrency(order.finalPrice ?? order.estimatedPrice)}
                   </p>
                 </div>
@@ -245,7 +245,7 @@ export default function OrderDetailPage() {
               <InfoRow
                 icon={<CreditCard className="h-4 w-4" />}
                 label="Narx"
-                value={<span className="text-h3 font-bold text-ink">{formatCurrency(order.finalPrice ?? order.estimatedPrice)}</span>}
+                value={<span className="font-mono text-h3 font-bold tabular-nums text-ink">{formatCurrency(order.finalPrice ?? order.estimatedPrice)}</span>}
               />
             </CardContent>
           </Card>

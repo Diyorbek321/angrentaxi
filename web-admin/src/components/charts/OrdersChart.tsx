@@ -8,7 +8,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from 'recharts';
 import { format, parseISO } from 'date-fns';
 import { RevenueDataPoint } from '@/lib/api';
@@ -16,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { CHART_COLORS } from '@/lib/chart-tokens';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 interface OrdersChartProps {
   data: RevenueDataPoint[];
@@ -31,6 +31,8 @@ const formatAxisDate = (dateStr: string) => {
 };
 
 export function OrdersChart({ data, isLoading }: OrdersChartProps) {
+  const reducedMotion = useReducedMotion();
+
   if (isLoading) {
     return (
       <Card>
@@ -84,13 +86,15 @@ export function OrdersChart({ data, isLoading }: OrdersChartProps) {
               labelFormatter={formatAxisDate}
               cursor={{ fill: 'rgba(16,160,100,0.08)' }}
             />
-            <Legend />
+            {/* Bitta seriyali diagrammada legenda sarlavhani takrorlaydi — olib
+                tashlandi. Harakat kamaytirilganda kirish animatsiyasi o'chadi. */}
             <Bar
               dataKey="orders"
               name="Buyurtmalar"
               fill={CHART_COLORS.primary}
               radius={[4, 4, 0, 0]}
               maxBarSize={40}
+              isAnimationActive={!reducedMotion}
             />
           </BarChart>
         </ResponsiveContainer>

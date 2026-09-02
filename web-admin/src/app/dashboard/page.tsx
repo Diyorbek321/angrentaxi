@@ -1,15 +1,17 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { format, subDays } from 'date-fns';
 import {
   Users,
   Car,
   ClipboardList,
-  DollarSign,
+  Banknote,
   Clock,
-  CheckCircle,
   LayoutDashboard,
   Inbox,
+  ArrowRight,
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatCard } from '@/components/ui/StatCard';
@@ -17,12 +19,40 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { SkeletonStats, SkeletonCards } from '@/components/ui/Skeleton';
+import { OrdersChart } from '@/components/charts/OrdersChart';
+import { RevenueChart } from '@/components/charts/RevenueChart';
 import { OrderStatusBadge } from '@/components/orders/OrderStatusBadge';
 import { DriverStatusBadge } from '@/components/drivers/DriverStatusBadge';
-import { dashboardApi, DashboardStats, ordersApi, driversApi, Order, Driver } from '@/lib/api';
-import { formatCurrency, getFullName } from '@/lib/utils';
+import {
+  dashboardApi,
+  DashboardStats,
+  ordersApi,
+  driversApi,
+  reportsApi,
+  Order,
+  Driver,
+  RevenueDataPoint,
+} from '@/lib/api';
+import { cn, formatCurrency, getFullName } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
 
+const DATE_FMT = 'yyyy-MM-dd';
+
+const viewAllLink = cn(
+  'inline-flex items-center gap-1 rounded-ds-xs text-caption font-semibold text-primary-text',
+  'transition-colors duration-fast hover:underline',
+  'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface'
+);
+
+/**
+ * Teskari piramida: tepada "hammasi joyidami?" (5 ta KPI, eng muhimi chap
+ * yuqorida), o'rtada harakatni tushuntiruvchi 7 kunlik trendlar, pastda
+ * detal (oxirgi buyurtmalar, onlayn haydovchilar) va drill-down havolalar.
+ *
+ * DELTA YO'Q — bu qaror: /orders/stats o'tgan-davr taqqoslamasini bermaydi,
+ * delta esa faqat haqiqiy ma'lumotdan chiziladi. Sparkline'lar reports
+ * API'sining HAQIQIY 7 kunlik seriyasidan keladi.
+ */
 export default function DashboardPage() {
   const { toast } = useToast();
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -30,6 +60,9 @@ export default function DashboardPage() {
   const [onlineDrivers, setOnlineDrivers] = useState<Driver[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [trendData, setTrendData] = useState<RevenueDataPoint[]>([]);
+  const [trendsLoading, setTrendsLoading] = useState(true);
+  const [trendsError, setTrendsError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -52,9 +85,31 @@ export default function DashboardPage() {
     }
   }, [toast]);
 
+  // Trendlar alohida yuklanadi: KPI'lar birinchi, diagrammalar keyin —
+  // trend so'rovi yiqilsa ham yuqoridagi javob ekranda qoladi.
+  const fetchTrends = useCallback(async () => {
+    setTrendsLoading(true);
+    try {
+      const res = await reportsApi.getData({
+        from: format(subDays(new Date(), 7), DATE_FMT),
+        to: format(new Date(), DATE_FMT),
+      });
+      setTrendData(res.data.data?.revenueChart ?? []);
+      setTrendsError(null);
+    } catch {
+      setTrendsError('Trend maʼlumotlarini yuklashda xatolik');
+    } finally {
+      setTrendsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+    fetchTrends();
+  }, [fetchData, fetchTrends]);
+
+  const ordersSparkline = trendData.map((d) => d.orders);
+  const revenueSparkline = trendData.map((d) => d.revenue);
 
   return (
     <div className="p-4 sm:p-6">
@@ -68,56 +123,76 @@ export default function DashboardPage() {
         <ErrorState message={error} onRetry={fetchData} />
       ) : (
         <div className="space-y-6">
-          {/* Stats grid */}
+          {/* 1-qavat: KPI'lar — eng muhimi (bugungi buyurtmalar) chap yuqorida */}
           {isLoading ? (
-            <SkeletonStats count={6} className="sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6" />
+            <SkeletonStats count={5} className="sm:grid-cols-2 xl:grid-cols-5" />
           ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-              <StatCard
-                title="Jami foydalanuvchilar"
-                value={stats?.totalUsers?.toLocaleString() ?? '—'}
-                icon={<Users className="h-5 w-5" />}
-                variant="info"
-              />
-              <StatCard
-                title="Faol haydovchilar"
-                value={stats?.activeDrivers?.toLocaleString() ?? '—'}
-                icon={<Car className="h-5 w-5" />}
-                variant="mint"
-              />
-              <StatCard
-                title="Onlayn haydovchilar"
-                value={stats?.onlineDrivers?.toLocaleString() ?? '—'}
-                icon={<CheckCircle className="h-5 w-5" />}
-                variant="mint"
-              />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
               <StatCard
                 title="Bugungi buyurtmalar"
-                value={stats?.ordersToday?.toLocaleString() ?? '—'}
+                value={stats?.ordersToday?.toLocaleString('uz-UZ') ?? '—'}
                 icon={<ClipboardList className="h-5 w-5" />}
-                variant="override"
+                variant="mint"
+                sparkline={ordersSparkline}
+                subtitle={ordersSparkline.length > 1 ? "So'nggi 7 kun" : undefined}
               />
               <StatCard
                 title="Bugungi daromad"
                 value={stats ? formatCurrency(stats.revenueToday) : '—'}
-                icon={<DollarSign className="h-5 w-5" />}
+                icon={<Banknote className="h-5 w-5" />}
                 variant="violet"
+                sparkline={revenueSparkline}
+                subtitle={revenueSparkline.length > 1 ? "So'nggi 7 kun" : undefined}
+              />
+              <StatCard
+                title="Onlayn haydovchilar"
+                value={stats?.onlineDrivers?.toLocaleString('uz-UZ') ?? '—'}
+                subtitle={
+                  stats ? `${stats.activeDrivers.toLocaleString('uz-UZ')} ta faol haydovchidan` : undefined
+                }
+                icon={<Car className="h-5 w-5" />}
+                variant="info"
               />
               <StatCard
                 title="Tasdiqlanmagan"
-                value={stats?.pendingDriverApprovals?.toLocaleString() ?? '—'}
+                value={stats?.pendingDriverApprovals?.toLocaleString('uz-UZ') ?? '—'}
                 subtitle="Haydovchi arizalari"
                 icon={<Clock className="h-5 w-5" />}
                 variant="override"
               />
+              <StatCard
+                title="Jami foydalanuvchilar"
+                value={stats?.totalUsers?.toLocaleString('uz-UZ') ?? '—'}
+                icon={<Users className="h-5 w-5" />}
+                variant="neutral"
+              />
             </div>
           )}
 
+          {/* 2-qavat: harakatni tushuntiruvchi trendlar (so'nggi 7 kun) */}
+          {trendsError && !trendsLoading ? (
+            <Card>
+              <CardContent className="p-0">
+                <ErrorState compact message={trendsError} onRetry={fetchTrends} />
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <OrdersChart data={trendData} isLoading={trendsLoading} />
+              <RevenueChart data={trendData} isLoading={trendsLoading} />
+            </div>
+          )}
+
+          {/* 3-qavat: detal va drill-down */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {/* Recent orders */}
             <Card>
-              <CardHeader>
+              <CardHeader className="flex-row items-center justify-between space-y-0">
                 <CardTitle>Oxirgi buyurtmalar</CardTitle>
+                <Link href="/dashboard/orders" className={viewAllLink}>
+                  Barchasini ko&apos;rish
+                  <ArrowRight className="h-3 w-3" aria-hidden="true" />
+                </Link>
               </CardHeader>
               <CardContent className="p-0">
                 {isLoading ? (
@@ -128,29 +203,35 @@ export default function DashboardPage() {
                   <EmptyState
                     compact
                     icon={<Inbox className="h-5 w-5" />}
-                    title="Buyurtmalar yo'q"
+                    title="Hozircha buyurtmalar yo'q"
+                    description="Yangi buyurtmalar shu yerda ko'rinadi."
                   />
                 ) : (
                   <ul className="divide-y divide-divider">
                     {recentOrders.map((order) => (
-                      <li
-                        key={order.id}
-                        className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-surface-2"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate text-body font-medium text-ink">
-                            {getFullName(order.passenger.firstName, order.passenger.lastName)}
-                          </p>
-                          <p className="truncate text-caption text-muted">
-                            {order.pickupAddress ?? '—'}
-                          </p>
-                        </div>
-                        <div className="ml-4 flex shrink-0 items-center gap-3">
-                          <OrderStatusBadge status={order.status} />
-                          <span className="text-body font-semibold text-ink">
-                            {formatCurrency(order.finalPrice ?? order.estimatedPrice)}
-                          </span>
-                        </div>
+                      <li key={order.id}>
+                        <Link
+                          href={`/dashboard/orders/${order.id}`}
+                          className={cn(
+                            'flex items-center justify-between px-4 py-3 transition-colors duration-fast hover:bg-surface-2',
+                            'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus'
+                          )}
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-body font-medium text-ink">
+                              {getFullName(order.passenger.firstName, order.passenger.lastName)}
+                            </p>
+                            <p className="truncate text-caption text-muted">
+                              {order.pickupAddress ?? '—'}
+                            </p>
+                          </div>
+                          <div className="ml-4 flex shrink-0 items-center gap-3">
+                            <OrderStatusBadge status={order.status} />
+                            <span className="text-body font-semibold tabular-nums text-ink">
+                              {formatCurrency(order.finalPrice ?? order.estimatedPrice)}
+                            </span>
+                          </div>
+                        </Link>
                       </li>
                     ))}
                   </ul>
@@ -160,8 +241,12 @@ export default function DashboardPage() {
 
             {/* Online drivers */}
             <Card>
-              <CardHeader>
+              <CardHeader className="flex-row items-center justify-between space-y-0">
                 <CardTitle>Onlayn haydovchilar</CardTitle>
+                <Link href="/dashboard/drivers?status=online" className={viewAllLink}>
+                  Barchasini ko&apos;rish
+                  <ArrowRight className="h-3 w-3" aria-hidden="true" />
+                </Link>
               </CardHeader>
               <CardContent className="p-0">
                 {isLoading ? (
@@ -173,26 +258,32 @@ export default function DashboardPage() {
                     compact
                     icon={<Inbox className="h-5 w-5" />}
                     title="Onlayn haydovchilar yo'q"
+                    description="Haydovchi onlayn bo'lishi bilan shu yerda ko'rinadi."
                   />
                 ) : (
                   <ul className="divide-y divide-divider">
                     {onlineDrivers.map((driver) => (
-                      <li
-                        key={driver.id}
-                        className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-surface-2"
-                      >
-                        <div className="flex min-w-0 items-center gap-3">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-caption font-bold text-white">
-                            {driver.firstName?.charAt(0)}
+                      <li key={driver.id}>
+                        <Link
+                          href={`/dashboard/drivers/${driver.id}`}
+                          className={cn(
+                            'flex items-center justify-between px-4 py-3 transition-colors duration-fast hover:bg-surface-2',
+                            'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus'
+                          )}
+                        >
+                          <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-mint-tint text-caption font-bold text-primary-text">
+                              {driver.firstName?.charAt(0)}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-body font-medium text-ink">
+                                {getFullName(driver.firstName, driver.lastName)}
+                              </p>
+                              <p className="font-mono text-caption text-muted">{driver.carNumber}</p>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <p className="truncate text-body font-medium text-ink">
-                              {getFullName(driver.firstName, driver.lastName)}
-                            </p>
-                            <p className="text-caption text-muted">{driver.carNumber}</p>
-                          </div>
-                        </div>
-                        <DriverStatusBadge status={driver.status} isOnline={driver.isOnline} />
+                          <DriverStatusBadge status={driver.status} isOnline={driver.isOnline} />
+                        </Link>
                       </li>
                     ))}
                   </ul>
