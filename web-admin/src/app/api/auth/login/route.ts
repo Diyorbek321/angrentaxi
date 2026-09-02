@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
   }
 
   const payload = (await upstream.json().catch(() => null)) as {
-    data?: { accessToken?: string; refreshToken?: string; user?: unknown };
+    data?: { accessToken?: string; refreshToken?: string; user?: { role?: string } };
     message?: string;
   } | null;
 
@@ -60,6 +60,17 @@ export async function POST(req: NextRequest) {
   }
 
   const { accessToken, refreshToken, user } = payload.data;
+
+  // The role gate used to live in the login page, where anyone could skip it by
+  // calling the backend directly. It is not a real authorization boundary here
+  // either — the backend still enforces permissions per endpoint — but it stops
+  // a driver's valid token from being planted in a super-admin cookie.
+  if (user.role !== 'admin') {
+    return NextResponse.json(
+      { success: false, message: 'Bu panel faqat administratorlar uchun.' },
+      { status: 403 }
+    );
+  }
 
   const res = NextResponse.json({ success: true, data: { user } });
   setSessionCookies(res, { accessToken, refreshToken });
