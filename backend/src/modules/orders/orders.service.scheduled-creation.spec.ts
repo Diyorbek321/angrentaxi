@@ -321,3 +321,73 @@ describe('CreateOrderDto.scheduledAt', () => {
     expect(errors.map((e) => e.property)).toContain('scheduledAt');
   });
 });
+
+describe('OrdersService.create — kelishilgan narx (kuryer safari)', () => {
+  it('yetkazish haqi AYNAN narx bo‘ladi, tarif qo‘llanmaydi, narx qat‘iy', async () => {
+    const orderRepository = {
+      query: jest.fn().mockResolvedValue([{ id: 'ride-1' }]),
+      findOne: jest.fn(),
+      createQueryBuilder: jest.fn(),
+    };
+    const calculatePriceBreakdown = jest.fn();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ...ORDERS_PROVIDERS,
+        fakeCitiesServiceProvider(),
+        // OSRM javob bermaydi — oddiy buyurtmada bu hisoblagich rejimini
+        // bildirardi, kelishilgan narx esa baribir qat'iy qolishi kerak.
+        { provide: OsrmService, useValue: { routeDistanceMeters: jest.fn().mockResolvedValue(null) } },
+        { provide: RoutedDistancePricing, useValue: { enabled: false } },
+        {
+          provide: SurgeService,
+          useValue: { snapshotFor: jest.fn().mockResolvedValue({ multiplier: 2, demand: 9, supply: 1, zone: 'z' }) },
+        },
+        fakeDataSourceProvider(),
+        { provide: getRepositoryToken(Order), useValue: orderRepository },
+        { provide: getRepositoryToken(Trip), useValue: {} },
+        { provide: getRepositoryToken(Transaction), useValue: fakeTransactionRepository(0) },
+        { provide: getRepositoryToken(DispatchOverride), useValue: {} },
+        {
+          provide: TariffsService,
+          useValue: {
+            findById: jest.fn().mockResolvedValue({ id: 'tariff-food', isActive: true }),
+            calculatePriceBreakdown,
+          },
+        },
+        { provide: RealtimeGateway, useValue: { emitToUser: jest.fn(), emitToManagers: jest.fn() } },
+        { provide: NotificationsService, useValue: {} },
+        { provide: UsersService, useValue: {} },
+        { provide: DriversService, useValue: {} },
+        { provide: PromoCodesService, useValue: {} },
+        { provide: DriverBonusesService, useValue: {} },
+        { provide: SettingsService, useValue: {} },
+      ],
+    }).compile();
+    const service = module.get(OrdersService);
+    jest
+      .spyOn(module.get(OrdersQueryService), 'findByIdOrThrow')
+      .mockResolvedValue({ id: 'ride-1', status: OrderStatus.CREATED } as Order);
+
+    await service.create(
+      'customer-1',
+      {
+        tariffId: 'tariff-food',
+        pickupLat: 41.02,
+        pickupLng: 70.14,
+        dropoffLat: 41.03,
+        dropoffLng: 70.15,
+        options: ['pet', 'child_seat'] as never,
+      },
+      { agreedFare: 7000 },
+    );
+
+    const params = orderRepository.query.mock.calls[0][1] as unknown[];
+    // Hudud surge 2.0 bo'lsa ham mijoz checkout'da ko'rgan 7 000 qoladi.
+    expect(params[8]).toBe(7000);
+    expect(JSON.parse(params[18] as string).total).toBe(7000);
+    expect(params[19]).toBe(true);
+    expect(calculatePriceBreakdown).not.toHaveBeenCalled();
+    // Safar opsiyalari barqaror tartibda saqlanadi — matching shunga qaraydi.
+    expect(params[22]).toBe('["child_seat","pet"]');
+  });
+});

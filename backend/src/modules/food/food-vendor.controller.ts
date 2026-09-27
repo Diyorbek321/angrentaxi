@@ -153,6 +153,13 @@ export class FoodVendorController {
     return this.foodService.advanceOrder(restaurant.id, id);
   }
 
+  @Post('orders/:id/redispatch')
+  @ApiOperation({ summary: 'Send a new courier after the previous one was not found or cancelled' })
+  async redispatchOrder(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
+    const restaurant = await this.foodService.getRestaurantByOwner(user.id);
+    return this.foodService.redispatchDelivery(restaurant.id, id);
+  }
+
   @Patch('orders/:id/reject')
   @ApiOperation({ summary: 'Reject an order with a reason' })
   async rejectOrder(

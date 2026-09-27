@@ -50,8 +50,12 @@ export class OrdersService {
     return this.creationService.calculatePrice(dto);
   }
 
-  create(passengerId: string, dto: CreateOrderDto): Promise<Order> {
-    return this.creationService.create(passengerId, dto);
+  create(
+    passengerId: string,
+    dto: CreateOrderDto,
+    options?: { agreedFare?: number },
+  ): Promise<Order> {
+    return this.creationService.create(passengerId, dto, options);
   }
 
   createForDispatch(dto: CreateDispatchOrderDto): Promise<Order> {

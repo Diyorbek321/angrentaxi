@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Interval } from '@nestjs/schedule';
@@ -13,6 +13,7 @@ import { UsersService } from '../users/users.service';
 import { TariffsService } from '../tariffs/tariffs.service';
 import { OsrmService } from '../routing/osrm.service';
 import { REDIS_CLIENT } from '../../config/redis.config';
+import { DeliveryEventsService } from '../delivery/delivery-events.service';
 
 interface DriverQueue {
   orderId: string;
@@ -40,6 +41,9 @@ interface DriverQueue {
   // sedanlarga tarqalib ketardi.
   serviceType: ServiceType;
   vehicleType: VehicleType | null;
+  // Safar opsiyalari — xuddi shu sabab bilan navbatda saqlanadi: qayta
+  // qidiruvda bola o'rindig'i so'ralgan safar o'rindiqsiz mashinaga ketmasin.
+  tripOptions?: string[];
 }
 
 // Queue state used to live only in a process-local Map, with setTimeout +
@@ -81,6 +85,9 @@ export class MatchingService {
     private readonly osrmService: OsrmService,
     @Inject(REDIS_CLIENT)
     private readonly redis: Redis,
+    // Optional only so unit tests that build this service by hand keep
+    // compiling; DeliveryEventsModule is global, so the app always has it.
+    @Optional() private readonly deliveryEvents?: DeliveryEventsService,
   ) {}
 
   /**
@@ -170,6 +177,7 @@ export class MatchingService {
       // yozilgan: `undefined` filtrga tushsa, u "talab yo'q" deb o'qilardi.
       serviceType: order.serviceType ?? ServiceType.TAXI,
       vehicleType: tariff.vehicleType ?? null,
+      tripOptions: order.options ?? [],
     };
 
     // Find nearby drivers (3km radius)
@@ -195,6 +203,7 @@ export class MatchingService {
       tariffTier: tariff.tier,
       serviceType: capabilities.serviceType ?? ServiceType.TAXI,
       vehicleType: capabilities.vehicleType ?? null,
+      tripOptions: [...(capabilities.tripOptions ?? [])],
     };
 
     if (nearbyDrivers.length === 0) {
@@ -333,6 +342,7 @@ export class MatchingService {
         // uzatsak, o'sha buyurtmalar filtrga tushmay hammaga tarqalardi.
         serviceType: queue.serviceType ?? ServiceType.TAXI,
         vehicleType: queue.vehicleType ?? null,
+        tripOptions: queue.tripOptions ?? [],
       },
     );
 
@@ -432,6 +442,12 @@ export class MatchingService {
       // Zaxira `TAXI`: ustun qo'shilishidan oldingi buyurtmalarda qiymat
       // bo'sh bo'lishi mumkin, ular esa aynan taksi buyurtmalari.
       serviceType: order.serviceType ?? ServiceType.TAXI,
+      // Food/market: vendor, item count and the cash to collect at the door
+      // (see deliveryRideDetails). The courier decides whether to take the
+      // offer on these — a 150 000 so'm cash handover is not a taxi ride.
+      details: order.details ?? null,
+      // Haydovchi taklifda "bola o'rindig'i kerak" ni ko'rishi shart.
+      options: order.options ?? [],
     });
 
     // Send push notification
@@ -465,6 +481,10 @@ export class MatchingService {
     });
 
     this.logger.log(`Order ${orderId} cancelled — no drivers found`);
+
+    // Food/market: tell the vendor nobody took the delivery so they can
+    // re-dispatch, instead of the order sitting at "ready" forever.
+    await this.deliveryEvents?.publish(order, 'cancelled');
   }
 
   private queueKey(orderId: string): string {

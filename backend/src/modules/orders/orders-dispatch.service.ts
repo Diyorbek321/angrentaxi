@@ -9,7 +9,9 @@ import {
   ForbiddenException,
   Injectable,
   Logger,
+  Optional,
 } from '@nestjs/common';
+import { DeliveryEventsService } from '../delivery/delivery-events.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order, OrderStatus } from '../../database/entities/order.entity';
@@ -35,6 +37,9 @@ export class OrdersDispatchService {
     private readonly driversService: DriversService,
     private readonly queryService: OrdersQueryService,
     private readonly statusTransition: OrderStatusTransitionService,
+    // Optional only so unit tests that build this service by hand keep
+    // compiling; DeliveryEventsModule is global, so the app always has it.
+    @Optional() private readonly deliveryEvents?: DeliveryEventsService,
   ) {}
 
   // Manual driver assignment/reassignment — the exception path under the
@@ -251,6 +256,8 @@ export class OrdersDispatchService {
     }
 
     this.realtimeGateway.emitToManagers('order:cancelled', updatedOrder);
+    // Food/market: the vendor needs a new courier.
+    await this.deliveryEvents?.publish(updatedOrder, 'cancelled');
 
     if (order.driverId) {
       const freedDriver = await this.driversService.findByUserId(order.driverId);

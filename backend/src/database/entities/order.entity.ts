@@ -334,6 +334,12 @@ export class Order {
   @Column({ type: 'jsonb', nullable: true })
   details: Record<string, unknown> | null;
 
+  // Passenger-requested extras (child seat, pet, ...). A matching filter:
+  // only drivers whose `amenities` cover all of these get the offer.
+  // See modules/orders/trip-options.ts.
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  options: string[];
+
   @Column({
     type: 'enum',
     enum: OrderStatus,

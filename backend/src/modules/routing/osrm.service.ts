@@ -22,6 +22,22 @@ export interface MatchedTrace {
 export const OSRM_PUBLIC_DEMO = 'https://router.project-osrm.org';
 
 /**
+ * One driving route as the apps draw it. Deliberately OSRM's own shape
+ * (`distance`, `duration`, GeoJSON `geometry`, `legs[].steps[]`): the mobile
+ * turn-by-turn parser already reads exactly this, so proxying it through the
+ * backend changes the URL the app calls and nothing else.
+ */
+export interface DrivingRoute {
+  /** Metres. */
+  distance: number;
+  /** Seconds. */
+  duration: number;
+  geometry: { type: 'LineString'; coordinates: [number, number][] };
+  /** OSRM legs with `steps` — opaque to the backend, parsed by the app. */
+  legs: unknown[];
+}
+
+/**
  * Thin OSRM client for the three services dispatch actually needs:
  *
  * - `/table`  — pickup-to-driver ETA matrix, so matching can rank by driving
@@ -168,6 +184,39 @@ export class OsrmService {
       return data.routes[0].distance;
     } catch (err) {
       this.logger.warn(`OSRM /route failed: ${(err as Error).message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Full driving route through `points` (in order), with geometry and
+   * turn-by-turn steps, for the apps to draw and navigate.
+   *
+   * The apps used to call OSRM themselves, which meant every build carried an
+   * OSRM URL — in practice the public demo server, since nobody rebuilds an
+   * APK to change a server. Routing through here keeps the one OSRM endpoint
+   * a server-side setting.
+   */
+  async route(points: readonly Coordinate[]): Promise<DrivingRoute | null> {
+    if (points.length < 2) return null;
+
+    try {
+      const { data } = await this.http.get<{
+        code: string;
+        routes?: DrivingRoute[];
+      }>(`/route/v1/driving/${OsrmService.toParam(points)}`, {
+        params: { overview: 'full', geometries: 'geojson', steps: 'true' },
+        // A person is waiting on this (tariff screen, navigation start), but
+        // the app already falls back to a straight line, so 6s is the ceiling.
+        timeout: 6000,
+      });
+
+      if (data.code !== 'Ok' || !data.routes?.length) return null;
+
+      const { distance, duration, geometry, legs } = data.routes[0];
+      return { distance, duration, geometry, legs: legs ?? [] };
+    } catch (err) {
+      this.logger.warn(`OSRM /route (full) failed: ${(err as Error).message}`);
       return null;
     }
   }

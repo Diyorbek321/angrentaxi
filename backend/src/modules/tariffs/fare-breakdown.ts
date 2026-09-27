@@ -86,3 +86,35 @@ export interface FareBreakdown {
   /** Yakuniy summa. `calculatePrice()` natijasi bilan AYNAN teng. */
   total: number;
 }
+
+/**
+ * A breakdown for a fare that was agreed up front rather than computed from
+ * the tariff — the courier ride of a food/market order, priced at the
+ * delivery fee the customer already saw and paid at checkout.
+ *
+ * Everything lands in `baseFare` so the rows still add up to `total` (the
+ * invariant every receipt relies on). Distance and duration are kept for the
+ * record; their rates are zero because they did not set the price.
+ */
+export function agreedFareBreakdown(
+  fare: number,
+  distanceKm: number,
+  durationMin: number,
+): FareBreakdown {
+  return {
+    baseFare: fare,
+    distanceKm,
+    pricePerKm: 0,
+    distanceFare: 0,
+    durationMin,
+    pricePerMin: 0,
+    timeFare: 0,
+    minPriceAdjustment: 0,
+    surgeMultiplier: 1,
+    surgeFare: 0,
+    maxPriceCap: 0,
+    waitingMinutes: 0,
+    waitingFare: 0,
+    total: fare,
+  };
+}

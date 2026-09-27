@@ -19,12 +19,7 @@ import { ServiceType } from '../../database/entities/order.entity';
 import { VehicleType } from '../../database/entities/tariff.entity';
 import { resolveDriverServiceTypes } from './driver-capabilities';
 import { UserRole } from '../../database/entities/user.entity';
-import {
-  DRIVER_UPLOAD_URL_PREFIX,
-  DriverUploadFile,
-  UploadedDiskFile,
-  readDriverUploadFile,
-} from './driver-uploads';
+import { DriverUploadFile, DriverUploadsStore, UploadedMemoryFile } from './driver-uploads';
 import { ReviewDriverVerificationDto } from './dto/review-driver-verification.dto';
 
 /** Kontraktda kelishilgan holatlar to'plami. */
@@ -126,6 +121,7 @@ export class DriverVerificationService {
     private readonly submissionRepository: Repository<DriverVerificationSubmission>,
     @InjectRepository(Driver)
     private readonly driverRepository: Repository<Driver>,
+    private readonly uploads: DriverUploadsStore,
   ) {}
 
   // ---------------------------------------------------------------- o'qish
@@ -298,8 +294,7 @@ export class DriverVerificationService {
   // ---------------------------------------------------------------- yozish
 
   /**
-   * Haydovchi bitta material yuboradi. Fayl allaqachon diskka yozilgan
-   * (Multer), bu yerda faqat yozuv qoladi.
+   * Haydovchi bitta material yuboradi: fayl saqlanadi va yozuv qo'shiladi.
    *
    * Har yuborish — YANGI qator: eskisi ustiga yozilmaydi, shuning uchun
    * "qachon nima yuborilgan" tarixi to'liq saqlanadi.
@@ -307,7 +302,7 @@ export class DriverVerificationService {
   async submit(
     userId: string,
     code: string,
-    file: UploadedDiskFile,
+    file: UploadedMemoryFile,
     now: Date = new Date(),
   ): Promise<DriverVerificationItem> {
     const driver = await this.driverRepository.findOne({ where: { userId } });
@@ -327,7 +322,9 @@ export class DriverVerificationService {
       code: requirement.code,
       // Saqlash manzili, ochiq URL emas — fayl faqat ruxsat tekshiradigan
       // endpoint orqali beriladi (KYC hujjatlaridagi bilan bir xil qoida).
-      fileUrl: `${DRIVER_UPLOAD_URL_PREFIX}/${file.filename}`,
+      // Fayl haydovchi va kod tekshirilgandan KEYIN saqlanadi — rad etilgan
+      // so'rov bucket'da yetim obyekt qoldirmaydi.
+      fileUrl: await this.uploads.save(file),
       reviewStatus: DriverVerificationReviewStatus.PENDING,
       rejectionReason: null,
       reviewedAt: null,
@@ -343,6 +340,9 @@ export class DriverVerificationService {
     const submissions = await this.submissionRepository.find({
       where: { reviewStatus: DriverVerificationReviewStatus.PENDING },
       order: { submittedAt: 'ASC' },
+      // Navbat eng eskisidan ishlanadi; chegara bitta so'rov butun jadvalni
+      // xotiraga olib kelmasligi uchun.
+      take: 200,
     });
     if (submissions.length === 0) {
       return [];
@@ -416,10 +416,7 @@ export class DriverVerificationService {
       where: { code: submission.code },
     });
 
-    const validUntil =
-      dto.approved && requirement && requirement.cadenceDays > 0
-        ? new Date(now.getTime() + requirement.cadenceDays * MS_PER_DAY)
-        : null;
+    const validUntil = dto.approved ? this.resolveValidUntil(dto.validUntil, requirement, now) : null;
 
     const saved = await this.submissionRepository.save({
       ...submission,
@@ -441,6 +438,40 @@ export class DriverVerificationService {
     } as DriverVerificationRequirement;
 
     return this.toItem(requirement ?? fallback, saved, this.resolveStatus(saved, now), now);
+  }
+
+  /**
+   * Tasdiqlangan materialning amal qilish muddati.
+   *
+   * Menejer hujjatdagi sanani kiritgan bo'lsa — AYNAN o'sha (kun oxirigacha,
+   * mahalliy vaqt emas, UTC 23:59:59: hujjat "shu kungacha" amal qiladi).
+   * Aks holda talabning davriyligi (`cadenceDays`), u ham bo'lmasa — muddatsiz.
+   *
+   * O'tgan sana rad etiladi: muddati o'tgan guvohnomani "tasdiqlash"
+   * haydovchini darhol bloklardi va menejerning xatosi bo'lishi deyarli aniq.
+   */
+  private resolveValidUntil(
+    explicit: string | undefined,
+    requirement: DriverVerificationRequirement | null,
+    now: Date,
+  ): Date | null {
+    if (explicit) {
+      const day = new Date(explicit);
+      if (Number.isNaN(day.getTime())) {
+        throw new BadRequestException('Amal qilish muddati noto‘g‘ri sana');
+      }
+      const endOfDay = new Date(
+        Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(), 23, 59, 59),
+      );
+      if (endOfDay.getTime() <= now.getTime()) {
+        throw new BadRequestException('Hujjat muddati allaqachon o‘tgan — tasdiqlab bo‘lmaydi');
+      }
+      return endOfDay;
+    }
+    if (requirement && requirement.cadenceDays > 0) {
+      return new Date(now.getTime() + requirement.cadenceDays * MS_PER_DAY);
+    }
+    return null;
   }
 
   /**
@@ -474,7 +505,7 @@ export class DriverVerificationService {
       }
     }
 
-    const file = readDriverUploadFile(submission.fileUrl);
+    const file = await this.uploads.open(submission.fileUrl);
     if (!file) {
       throw new NotFoundException(`File for submission "${submissionId}" is missing`);
     }

@@ -2,7 +2,9 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
+  ArrayUnique,
   IsArray,
+  IsIn,
   IsEnum,
   IsISO8601,
   IsNumber,
@@ -18,6 +20,7 @@ import {
 } from 'class-validator';
 import { PaymentMethod, ServiceType } from '../../../database/entities/order.entity';
 import { WaypointDto } from './create-order.dto';
+import { TRIP_OPTION_VALUES, TripOption } from '../trip-options';
 
 export class CreateDispatchOrderDto {
   @ApiProperty({ example: '+998901234569', description: 'Passenger phone number' })
@@ -110,6 +113,14 @@ export class CreateDispatchOrderDto {
   @IsOptional()
   @IsObject()
   details?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ enum: TripOption, isArray: true, example: ['child_seat'] })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @ArrayMaxSize(TRIP_OPTION_VALUES.length)
+  @IsIn(TRIP_OPTION_VALUES, { each: true })
+  options?: TripOption[];
 
   @ApiPropertyOptional({ example: 'ANGREN10', description: 'Promo code to apply, if any' })
   @IsOptional()

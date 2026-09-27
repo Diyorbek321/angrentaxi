@@ -5,7 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { ALL_PERMISSIONS, Permission, User, UserRole, UserStatus } from '../../database/entities/user.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { generateUniqueReferralCode } from '../../common/utils/referral-code.util';
@@ -16,6 +16,12 @@ export class UsersService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {}
+
+  /** Batch lookup for lists that show several people at once (one query, not N). */
+  async findByIds(ids: readonly string[]): Promise<User[]> {
+    if (ids.length === 0) return [];
+    return this.userRepository.find({ where: { id: In([...ids]) } });
+  }
 
   async findById(id: string): Promise<User | null> {
     return this.userRepository.findOne({ where: { id } });

@@ -19,7 +19,7 @@ import { PaymentMethod } from '../../database/entities/order.entity';
  * CARD order books both legs since the platform actually holds the funds.
  */
 describe('MarketService - store earnings settlement on delivery', () => {
-  let orderRepo: { findOne: jest.Mock; save: jest.Mock };
+  let orderRepo: { findOne: jest.Mock; save: jest.Mock; update: jest.Mock };
   let storeRepo: { findOneOrFail: jest.Mock };
   let transactionRepo: { save: jest.Mock };
   let realtimeGateway: { emitToUser: jest.Mock };
@@ -48,6 +48,7 @@ describe('MarketService - store earnings settlement on delivery', () => {
     orderRepo = {
       findOne: jest.fn(),
       save: jest.fn().mockImplementation((order) => Promise.resolve(order)),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
     };
     storeRepo = { findOneOrFail: jest.fn().mockResolvedValue(store) };
     transactionRepo = { save: jest.fn().mockImplementation((tx) => Promise.resolve({ id: 'tx-1', ...tx })) };

@@ -12,7 +12,7 @@ import { PaymentMethod } from '../../database/entities/order.entity';
  * this mirrors.
  */
 describe('FoodService - restaurant earnings settlement on delivery', () => {
-  let orderRepo: { findOne: jest.Mock; save: jest.Mock };
+  let orderRepo: { findOne: jest.Mock; save: jest.Mock; update: jest.Mock };
   let restaurantRepo: { findOneOrFail: jest.Mock };
   let transactionRepo: { save: jest.Mock };
   let realtimeGateway: { emitToUser: jest.Mock };
@@ -41,6 +41,7 @@ describe('FoodService - restaurant earnings settlement on delivery', () => {
     orderRepo = {
       findOne: jest.fn(),
       save: jest.fn().mockImplementation((order) => Promise.resolve(order)),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
     };
     restaurantRepo = { findOneOrFail: jest.fn().mockResolvedValue(restaurant) };
     transactionRepo = { save: jest.fn().mockImplementation((tx) => Promise.resolve({ id: 'tx-1', ...tx })) };

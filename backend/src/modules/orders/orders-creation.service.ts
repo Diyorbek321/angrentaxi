@@ -11,6 +11,8 @@ import {
   TransactionType,
 } from '../../database/entities/transaction.entity';
 import { TariffsService } from '../tariffs/tariffs.service';
+import { agreedFareBreakdown } from '../tariffs/fare-breakdown';
+import { normalizeTripOptions } from './trip-options';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { UsersService } from '../users/users.service';
 import { PromoCodesService } from '../promo-codes/promo-codes.service';
@@ -248,7 +250,17 @@ export class OrdersCreationService {
     return when;
   }
 
-  async create(passengerId: string, dto: CreateOrderDto): Promise<Order> {
+  /**
+   * @param options.agreedFare Internal callers only (never from a request
+   *   body): the fare was already agreed elsewhere — the delivery fee a
+   *   food/market customer paid at checkout — so the tariff is not consulted
+   *   for the price and the order is fixed-price at exactly this amount.
+   */
+  async create(
+    passengerId: string,
+    dto: CreateOrderDto,
+    options: { agreedFare?: number } = {},
+  ): Promise<Order> {
     const scheduledAt = this.resolveScheduledAt(dto.scheduledAt, new Date());
 
     // ⚠️ QAMROV TEKSHIRUVI ENG BOSHIDA — OSRM chaqiruvi, narx hisobi va
@@ -323,18 +335,23 @@ export class OrdersCreationService {
     // TA'SIR QILMAYDI — kafolat marshrutga tegishli, kutish esa yo'lovchi
     // boshqaradigan xarajat. Ya'ni undiriladigan summa `quote.total` dan
     // katta bo'lishi mumkin.
-    const quote = this.tariffsService.calculatePriceBreakdown(
-      tariff,
-      estimatedDistanceKm,
-      estimatedDurationMin,
-      zoneSurge,
-    );
+    const quote =
+      options.agreedFare !== undefined
+        ? agreedFareBreakdown(options.agreedFare, estimatedDistanceKm, estimatedDurationMin)
+        : this.tariffsService.calculatePriceBreakdown(
+            tariff,
+            estimatedDistanceKm,
+            estimatedDurationMin,
+            zoneSurge,
+          );
     const estimatedPrice = quote.total;
 
     // OSRM javob bermagan bo'lsa asos to'g'ri chiziq — bunday raqamni
     // majburiy qilib qo'yish haydovchini zarar ko'rsatadi, shuning uchun
     // bunda hisoblagich rejimida qolamiz.
-    const isFixedPrice = routed;
+    // Kelishilgan narx (yetkazish haqi) marshrutga bog'liq emas — u doim
+    // qat'iy.
+    const isFixedPrice = routed || options.agreedFare !== undefined;
 
     // Validate (but don't yet consume) a promo code — usedCount/usage row are
     // only recorded on actual trip completion (see completeTrip), so an
@@ -357,12 +374,12 @@ export class OrdersCreationService {
       `INSERT INTO orders (passenger_id, tariff_id, pickup_location, dropoff_location,
         pickup_address, dropoff_address, estimated_price, status, payment_method, note,
         service_type, details, promo_code_id, discount_amount, waypoints,
-        surge_multiplier, fare_breakdown, is_fixed_price, scheduled_at, city_id)
+        surge_multiplier, fare_breakdown, is_fixed_price, scheduled_at, city_id, options)
        VALUES ($1, $2,
          ST_SetSRID(ST_MakePoint($3, $4), 4326),
          ST_SetSRID(ST_MakePoint($5, $6), 4326),
          $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15, $16, $17::jsonb, $18,
-         $19::jsonb, $20, $21, $22)
+         $19::jsonb, $20, $21, $22, $23::jsonb)
        RETURNING id`,
       [
         passengerId,
@@ -398,6 +415,8 @@ export class OrdersCreationService {
         // (ikkinchisi bu yerga yetib kelmaydi: yuqorida 400 bilan
         // to'xtatilgan). Hisobot va filtr uchun saqlanadi.
         cityId,
+        // Matching filtri shu ro'yxatga qaraydi (trip-options.ts).
+        JSON.stringify(normalizeTripOptions(dto.options)),
       ],
     );
 
@@ -466,6 +485,7 @@ export class OrdersCreationService {
       details: dto.details,
       promoCode: dto.promoCode,
       scheduledAt: dto.scheduledAt,
+      options: dto.options,
     });
   }
 }

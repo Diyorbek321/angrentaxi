@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   Logger,
@@ -29,6 +30,7 @@ import {
   DriverCapabilityFilter,
   driverMatchesCapabilities,
 } from './driver-capabilities';
+import { normalizeTripOptions } from '../orders/trip-options';
 
 export interface NearbyDriver {
   driverId: string;
@@ -275,6 +277,28 @@ export class DriversService {
   async updateProfile(userId: string, dto: UpdateDriverDto): Promise<Driver> {
     const driver = await this.findByUserIdOrThrow(userId);
 
+    // Tasdiqlangan haydovchining mashinasi faqat so'rov orqali o'zgaradi
+    // (VehicleChangeService): yo'lovchiga "shu raqamni kuting" deb aytiladigan
+    // qiymat tekshiruvsiz almashtirilsa, pickup'ga boshqa mashina keladi.
+    // Ariza hali ko'rilmagan (PENDING) haydovchi esa onboarding davomida
+    // bemalol tuzata oladi.
+    const touchesVehicle = [
+      dto.carModel,
+      dto.carNumber,
+      dto.licensePlate,
+      dto.carYear,
+      dto.vehicleType,
+    ].some((value) => value !== undefined);
+    if (touchesVehicle) {
+      const user = await this.usersService.findById(userId);
+      if (user && user.status !== UserStatus.PENDING) {
+        throw new ForbiddenException(
+          "Tasdiqlangan haydovchi mashinani faqat o'zgartirish so'rovi orqali almashtira oladi " +
+            '(POST /drivers/me/vehicle-change)',
+        );
+      }
+    }
+
     const updated = {
       ...driver,
       ...(dto.carModel !== undefined && { carModel: dto.carModel }),
@@ -289,6 +313,15 @@ export class DriversService {
     };
 
     return this.driverRepository.save(updated);
+  }
+
+  /**
+   * What the driver can offer (child seat, pets, ...). Self-declared and not
+   * reviewed — it only narrows which offers reach them, it grants nothing.
+   */
+  async updateAmenities(userId: string, amenities: readonly string[]): Promise<Driver> {
+    const driver = await this.findByUserIdOrThrow(userId);
+    return this.driverRepository.save({ ...driver, amenities: normalizeTripOptions(amenities) });
   }
 
   // Manager/admin action: sets the highest Tariff.tier this driver may be
@@ -561,7 +594,7 @@ export class DriversService {
       // Redis bilmaydi. Har bir nomzod uchun alohida so'rov N+1 bo'lardi.
       const drivers = await this.driverRepository.find({
         where: { id: In(hits.map((h) => h.driverId)) },
-        select: ['id', 'userId', 'approvedTariffTier', 'serviceTypes', 'vehicleType'],
+        select: ['id', 'userId', 'approvedTariffTier', 'serviceTypes', 'vehicleType', 'amenities'],
       });
       const byId = new Map(drivers.map((d) => [d.id, d]));
 

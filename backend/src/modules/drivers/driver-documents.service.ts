@@ -14,24 +14,32 @@ import {
 import { UserRole } from '../../database/entities/user.entity';
 import { DriversService } from './drivers.service';
 import { ReviewDriverDocumentDto } from './dto/review-driver-document.dto';
-import {
-  DRIVER_UPLOAD_DIR,
-  DRIVER_UPLOAD_URL_PREFIX,
-  DriverUploadFile,
-  UploadedDiskFile,
-  readDriverUploadFile,
-} from './driver-uploads';
+import { DriverUploadFile, DriverUploadsStore, UploadedMemoryFile } from './driver-uploads';
 
-// Yuklash katalogi, MIME ro'yxati va yo'l tiklash mantig'i `driver-uploads.ts`
-// da — davriy tekshiruv fotolari ham AYNAN o'sha qoidalardan foydalanadi.
-// Bu yerdagi nomlar mavjud import'lar (test va kontroller) buzilmasligi uchun
-// qayta eksport qilinadi.
-export const DRIVER_DOCUMENTS_UPLOAD_DIR = DRIVER_UPLOAD_DIR;
+// Saqlash, MIME ro'yxati va kalit tiklash mantig'i `driver-uploads.ts` da —
+// davriy tekshiruv fotolari ham AYNAN o'sha qoidalardan foydalanadi.
 
 /** KYC fayli — ruxsat berilgan chaqiruvchiga oqim bilan qaytariladi. */
 export type DriverDocumentFile = DriverUploadFile;
 
-export type { UploadedDiskFile };
+export type { UploadedMemoryFile };
+
+/** One row of the KYC review queue (`GET /drivers/documents/pending`). */
+export interface PendingDriverDocument {
+  id: string;
+  driverId: string;
+  driverName: string | null;
+  driverPhone: string | null;
+  documentType: DriverDocumentType;
+  uploadedAt: string;
+}
+
+/**
+ * Upper bound on one queue read. A backlog bigger than this is an operations
+ * problem the reviewer works through oldest-first anyway; the cap only keeps
+ * one request from materialising the whole table.
+ */
+export const PENDING_DOCUMENTS_LIMIT = 200;
 
 export interface DocumentRequester {
   id: string;
@@ -46,16 +54,17 @@ export class DriverDocumentsService {
     @InjectRepository(DriverDocument)
     private readonly documentRepository: Repository<DriverDocument>,
     private readonly driversService: DriversService,
+    private readonly uploads: DriverUploadsStore,
   ) {}
 
-  // Records an already-saved-to-disk file against the authenticated driver.
+  // Stores the file and records it against the authenticated driver.
   // `documentType` arrives as a raw string from the multipart form field, so
   // it's validated here too (not just via the DTO/ValidationPipe) since this
   // is the boundary that actually persists the record.
   async recordUpload(
     userId: string,
     documentType: string,
-    file: UploadedDiskFile,
+    file: UploadedMemoryFile,
   ): Promise<DriverDocument> {
     if (!VALID_DOCUMENT_TYPES.includes(documentType)) {
       throw new BadRequestException(
@@ -65,11 +74,11 @@ export class DriverDocumentsService {
 
     const driver = await this.driversService.findByUserIdOrThrow(userId);
 
-    // Storage locator, NOT a publicly reachable URL: these are passport and
-    // licence scans, so they are only served through the authorized
-    // GET /drivers/documents/:id/file endpoint. Kept in this shape so existing
-    // rows keep working without a data migration.
-    const fileUrl = `${DRIVER_UPLOAD_URL_PREFIX}/${file.filename}`;
+    // Stored only after the type and driver checks pass, so a rejected
+    // request leaves no orphan object behind. The returned value is a storage
+    // locator, NOT a publicly reachable URL: these are passport and licence
+    // scans, only served through GET /drivers/documents/:id/file.
+    const fileUrl = await this.uploads.save(file);
 
     return this.documentRepository.save({
       driverId: driver.id,
@@ -91,6 +100,32 @@ export class DriverDocumentsService {
     });
   }
 
+  /**
+   * Every document still waiting for a decision, oldest first — the order a
+   * reviewer should work in, since the oldest upload is the driver who has
+   * waited longest to start earning.
+   */
+  async listPending(): Promise<PendingDriverDocument[]> {
+    const documents = await this.documentRepository.find({
+      where: { reviewStatus: DriverDocumentReviewStatus.PENDING },
+      relations: ['driver', 'driver.user'],
+      order: { uploadedAt: 'ASC' },
+      take: PENDING_DOCUMENTS_LIMIT,
+    });
+
+    return documents.map((document) => {
+      const user = document.driver?.user;
+      return {
+        id: document.id,
+        driverId: document.driverId,
+        driverName: user ? [user.firstName, user.lastName].filter(Boolean).join(' ') || null : null,
+        driverPhone: user?.phone ?? null,
+        documentType: document.documentType,
+        uploadedAt: document.uploadedAt.toISOString(),
+      };
+    });
+  }
+
   // Resolves a KYC file for download, enforcing access itself rather than
   // relying on the route guard alone: a driver may only read their own
   // documents, while managers and admins may read any. Everyone else is
@@ -106,7 +141,7 @@ export class DriverDocumentsService {
 
     await this.assertCanReadDocument(document, requester);
 
-    const file = readDriverUploadFile(document.fileUrl);
+    const file = await this.uploads.open(document.fileUrl);
     if (!file) {
       throw new NotFoundException(`File for driver document "${documentId}" is missing`);
     }

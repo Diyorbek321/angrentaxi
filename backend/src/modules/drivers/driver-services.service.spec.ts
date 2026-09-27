@@ -140,6 +140,7 @@ function buildHarness(options: {
     requirementRepo as never,
     submissionRepo as never,
     driverRepo as never,
+    { save: jest.fn(), open: jest.fn() } as never,
   );
   const service = new DriverServicesService(
     driverRepo as never,

@@ -1,4 +1,12 @@
-import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  OnModuleInit,
+  Optional,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, MoreThanOrEqual, Repository } from 'typeorm';
 import { Store, StoreDeliveryMode, StoreStatus } from '../../database/entities/store.entity';
@@ -25,12 +33,14 @@ import { CreateStoreAdminDto } from './dto/create-store-admin.dto';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../../database/entities/user.entity';
-import { PaymentMethod, ServiceType } from '../../database/entities/order.entity';
+import { OrderStatus, PaymentMethod, ServiceType } from '../../database/entities/order.entity';
 import { OrdersService } from '../orders/orders.service';
 import { MatchingService } from '../matching/matching.service';
 import { TariffsService } from '../tariffs/tariffs.service';
 import { SettingsService } from '../settings/settings.service';
 import { clampPageSize } from '../../common/utils/pagination.util';
+import { DeliveryEvent, DeliveryEventsService } from '../delivery/delivery-events.service';
+import { checkoutDeliveryFee, deliveryRideDetails } from '../delivery/delivery-ride-details';
 
 // Rolling window the jsonb-item analytics (best sellers, category breakdown,
 // stock turnover) are computed over, plus a hard row cap in case a very busy
@@ -59,7 +69,7 @@ const ORDER_TRANSITIONS: Record<string, MarketOrderStatus> = {
 };
 
 @Injectable()
-export class MarketService {
+export class MarketService implements OnModuleInit {
   private readonly logger = new Logger(MarketService.name);
 
   constructor(
@@ -77,7 +87,14 @@ export class MarketService {
     private readonly matchingService: MatchingService,
     private readonly tariffsService: TariffsService,
     private readonly settingsService: SettingsService,
+    @Optional() private readonly deliveryEvents?: DeliveryEventsService,
   ) {}
+
+  onModuleInit(): void {
+    this.deliveryEvents?.subscribe((event) =>
+      event.marketOrderId ? this.onDeliveryEvent(event.marketOrderId, event) : undefined,
+    );
+  }
 
   // ---------- shared helpers ----------
 
@@ -283,8 +300,23 @@ export class MarketService {
     if (!next) {
       throw new BadRequestException(`Order cannot advance from status "${order.status}"`);
     }
-    order.status = next;
-    let saved = await this.orderRepo.save(order);
+    let saved: MarketOrder;
+    if (next === MarketOrderStatus.DELIVERED) {
+      // Conditional write: the courier's completion marks the order delivered
+      // too (onDeliveryEvent). Whichever lands first settles the vendor; the
+      // loser gets a 409 instead of booking the commission a second time.
+      const result = await this.orderRepo.update(
+        { id: order.id, status: order.status },
+        { status: next },
+      );
+      if (!result.affected) {
+        throw new ConflictException('Order status has already changed — refresh the board');
+      }
+      saved = { ...order, status: next };
+    } else {
+      order.status = next;
+      saved = await this.orderRepo.save(order);
+    }
     this.realtimeGateway.emitToUser(saved.customerId, 'market:order:status', {
       orderId: saved.id,
       status: saved.status,
@@ -365,17 +397,37 @@ export class MarketService {
       throw new BadRequestException('No active delivery tariff configured for market orders');
     }
 
-    const deliveryOrder = await this.ordersService.create(order.customerId, {
-      tariffId: tariffs[0].id,
-      pickupLat: store.lat,
-      pickupLng: store.lng,
-      dropoffLat: order.deliveryLat,
-      dropoffLng: order.deliveryLng,
-      pickupAddress: store.name,
-      dropoffAddress: order.deliveryAddress,
-      serviceType: ServiceType.MARKET,
-      details: { marketOrderId: order.id },
-    });
+    // The courier ride IS the delivery the customer already paid for at
+    // checkout: priced at that fee (the tariff price charged delivery twice)
+    // and paid the same way as the order, so a card order never has the
+    // courier asking for cash at the door.
+    const deliveryOrder = await this.ordersService.create(
+      order.customerId,
+      {
+        tariffId: tariffs[0].id,
+        pickupLat: store.lat,
+        pickupLng: store.lng,
+        dropoffLat: order.deliveryLat,
+        dropoffLng: order.deliveryLng,
+        pickupAddress: store.name,
+        dropoffAddress: order.deliveryAddress,
+        serviceType: ServiceType.MARKET,
+        paymentMethod:
+          order.paymentMethod === MarketPaymentMethod.CASH ? PaymentMethod.CASH : PaymentMethod.CARD,
+        details: {
+          marketOrderId: order.id,
+          ...deliveryRideDetails({
+            vendorName: store.name,
+            vendorPhone: store.phone ?? null,
+            customerPhone: order.customerPhone ?? order.customer?.phone ?? null,
+            itemsCount: order.items.reduce((sum, item) => sum + item.qty, 0),
+            totalPrice: order.totalPrice,
+            isCash: order.paymentMethod === MarketPaymentMethod.CASH,
+          }),
+        },
+      },
+      { agreedFare: checkoutDeliveryFee(order) },
+    );
     this.matchingService.startSearch(deliveryOrder.id).catch(() => {
       // Matching failures are logged inside MatchingService itself; the
       // market order still ships, just without an auto-assigned courier yet.
@@ -383,6 +435,79 @@ export class MarketService {
 
     order.deliveryOrderId = deliveryOrder.id;
     return this.orderRepo.save(order);
+  }
+
+  /**
+   * Sends a new courier for a SHIPPED platform-delivery order whose previous
+   * courier ride ended without a delivery. Refuses while a courier ride is
+   * still live, so a double click cannot put two couriers on one parcel.
+   */
+  async redispatchDelivery(storeId: string, id: string) {
+    const order = await this.findOrderEntity(storeId, id);
+    if (order.status !== MarketOrderStatus.SHIPPED) {
+      throw new BadRequestException('Only shipped orders can be sent to a courier');
+    }
+    const store = await this.storeRepo.findOneOrFail({ where: { id: storeId } });
+    if (store.deliveryMode !== StoreDeliveryMode.PLATFORM) {
+      throw new BadRequestException('This store delivers its own orders');
+    }
+    if (order.deliveryOrderId) {
+      const ride = await this.ordersService.findByIdOrThrow(order.deliveryOrderId);
+      if (ride.status !== OrderStatus.CANCELLED) {
+        throw new ConflictException('A courier is already being searched for or assigned');
+      }
+    }
+    const saved = await this.dispatchDelivery(store, order);
+    return this.withDelivery(saved);
+  }
+
+  /**
+   * Courier ride → market order. Only the ride currently linked to the order
+   * counts; late events from a ride abandoned by a re-dispatch are ignored.
+   */
+  private async onDeliveryEvent(marketOrderId: string, event: DeliveryEvent): Promise<void> {
+    const order = await this.orderRepo.findOne({ where: { id: marketOrderId } });
+    if (!order || order.deliveryOrderId !== event.deliveryOrderId) return;
+
+    if (event.kind === 'delivered') {
+      // Conditional write so a simultaneous manual "delivered" click and the
+      // courier's completion cannot both settle the store.
+      const result = await this.orderRepo.update(
+        { id: order.id, status: MarketOrderStatus.SHIPPED },
+        { status: MarketOrderStatus.DELIVERED },
+      );
+      if (!result.affected) return;
+
+      const store = await this.storeRepo.findOneOrFail({ where: { id: order.storeId } });
+      await this.settleStoreEarnings(store, { ...order, status: MarketOrderStatus.DELIVERED });
+      for (const userId of [order.customerId, store.ownerUserId]) {
+        this.realtimeGateway.emitToUser(userId, 'market:order:status', {
+          orderId: order.id,
+          status: MarketOrderStatus.DELIVERED,
+        });
+      }
+      return;
+    }
+
+    if (event.kind === 'cancelled') {
+      if (order.status !== MarketOrderStatus.SHIPPED) return;
+      const store = await this.storeRepo.findOne({ where: { id: order.storeId } });
+      if (store) {
+        this.realtimeGateway.emitToUser(store.ownerUserId, 'market:delivery:failed', {
+          orderId: order.id,
+        });
+      }
+      this.realtimeGateway.emitToUser(order.customerId, 'market:order:courier', {
+        orderId: order.id,
+        stage: 'searching_again',
+      });
+      return;
+    }
+
+    this.realtimeGateway.emitToUser(order.customerId, 'market:order:courier', {
+      orderId: order.id,
+      stage: event.kind,
+    });
   }
 
   private async withDelivery(order: MarketOrder) {

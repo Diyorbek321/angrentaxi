@@ -222,6 +222,32 @@ export class NotificationsService {
     await this.logNotification(targetUser.id, title, body, 'order_cancelled');
   }
 
+  /**
+   * Haydovchiga: yo'lovchi uning mashinasida buyum qoldirgan. Tavsif matnda
+   * turadi — haydovchi bildirishnomaning o'zidan qidirishni boshlay olsin.
+   * Yo'lovchi telefoni ATAYLAB yo'q: topshirishni dispetcher tashkil qiladi.
+   */
+  async notifyLostItemReported(driver: User, description: string): Promise<void> {
+    const title = "Yo'lovchi buyum qoldirgan";
+    const body = `Mashinangizni tekshiring: ${description}`;
+    if (driver.fcmToken) {
+      await this.firebaseService.sendPush(driver.fcmToken, title, body, { event: 'lost_item_reported' });
+    }
+    await this.logNotification(driver.id, title, body, 'lost_item_reported');
+  }
+
+  /** Yo'lovchiga: haydovchi buyumni topdimi-yo'qmi. */
+  async notifyLostItemAnswered(passenger: User, found: boolean): Promise<void> {
+    const title = "Yo'qolgan buyum";
+    const body = found
+      ? 'Haydovchi buyumingizni topdi — operator siz bilan bog\'lanib qaytarishni kelishadi.'
+      : 'Haydovchi mashinadan buyumingizni topmadi.';
+    if (passenger.fcmToken) {
+      await this.firebaseService.sendPush(passenger.fcmToken, title, body, { event: 'lost_item_answered' });
+    }
+    await this.logNotification(passenger.id, title, body, 'lost_item_answered');
+  }
+
   async notifySupportReply(recipient: User): Promise<void> {
     const title = 'Qo\'llab-quvvatlash xizmati';
     const body = 'Operatordan yangi xabar keldi';

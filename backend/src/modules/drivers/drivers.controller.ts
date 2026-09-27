@@ -18,6 +18,7 @@ import {
 import { DriversService } from './drivers.service';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
+import { UpdateAmenitiesDto } from './dto/update-amenities.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
 import { SetOnlineStatusDto } from './dto/set-online-status.dto';
 import { AddFundsDto } from './dto/add-funds.dto';
@@ -110,6 +111,19 @@ export class DriversController {
     @Body() dto: UpdateDriverDto,
   ): Promise<Driver> {
     return this.driversService.updateProfile(user.id, dto);
+  }
+
+  @Patch('me/amenities')
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({
+    summary: "Safar opsiyalari: bola o'rindig'i, hayvon, konditsioner, katta bagaj (to'liq ro'yxat)",
+  })
+  @ApiResponse({ status: 200, description: 'Updated driver profile' })
+  async updateMyAmenities(
+    @CurrentUser() user: User,
+    @Body() dto: UpdateAmenitiesDto,
+  ): Promise<Driver> {
+    return this.driversService.updateAmenities(user.id, dto.amenities);
   }
 
   @Get(':id')

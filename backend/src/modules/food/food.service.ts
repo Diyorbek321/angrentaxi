@@ -1,4 +1,12 @@
-import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  OnModuleInit,
+  Optional,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThanOrEqual, Not, Repository } from 'typeorm';
 import { Restaurant, RestaurantStatus, WorkingHoursDay } from '../../database/entities/restaurant.entity';
@@ -18,12 +26,14 @@ import { CreateRestaurantAdminDto } from './dto/create-restaurant-admin.dto';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../../database/entities/user.entity';
-import { PaymentMethod, ServiceType } from '../../database/entities/order.entity';
+import { OrderStatus, PaymentMethod, ServiceType } from '../../database/entities/order.entity';
 import { OrdersService } from '../orders/orders.service';
 import { MatchingService } from '../matching/matching.service';
 import { TariffsService } from '../tariffs/tariffs.service';
 import { SettingsService } from '../settings/settings.service';
 import { clampPageSize } from '../../common/utils/pagination.util';
+import { DeliveryEvent, DeliveryEventsService } from '../delivery/delivery-events.service';
+import { checkoutDeliveryFee, deliveryRideDetails } from '../delivery/delivery-ride-details';
 
 // Rolling window for the analytics that cannot be expressed as a single SQL
 // aggregate (per-dish totals live in a jsonb `items` column), plus a hard row
@@ -57,7 +67,7 @@ const ORDER_TRANSITIONS: Record<string, FoodOrderStatus> = {
 };
 
 @Injectable()
-export class FoodService {
+export class FoodService implements OnModuleInit {
   private readonly logger = new Logger(FoodService.name);
 
   constructor(
@@ -72,7 +82,14 @@ export class FoodService {
     private readonly matchingService: MatchingService,
     private readonly tariffsService: TariffsService,
     private readonly settingsService: SettingsService,
+    @Optional() private readonly deliveryEvents?: DeliveryEventsService,
   ) {}
+
+  onModuleInit(): void {
+    this.deliveryEvents?.subscribe((event) =>
+      event.foodOrderId ? this.onDeliveryEvent(event.foodOrderId, event) : undefined,
+    );
+  }
 
   // ---------- shared ----------
 
@@ -212,8 +229,23 @@ export class FoodService {
     if (!next) {
       throw new BadRequestException(`Order cannot advance from status "${order.status}"`);
     }
-    order.status = next;
-    let saved = await this.orderRepo.save(order);
+    let saved: FoodOrder;
+    if (next === FoodOrderStatus.DELIVERED) {
+      // Conditional write: the courier's completion marks the order delivered
+      // too (onDeliveryEvent). Whichever lands first settles the vendor; the
+      // loser gets a 409 instead of booking the commission a second time.
+      const result = await this.orderRepo.update(
+        { id: order.id, status: order.status },
+        { status: next },
+      );
+      if (!result.affected) {
+        throw new ConflictException('Order status has already changed — refresh the board');
+      }
+      saved = { ...order, status: next };
+    } else {
+      order.status = next;
+      saved = await this.orderRepo.save(order);
+    }
     this.realtimeGateway.emitToUser(saved.customerId, 'food:order:status', {
       orderId: saved.id,
       status: saved.status,
@@ -299,17 +331,37 @@ export class FoodService {
       throw new BadRequestException('No active delivery tariff configured for food orders');
     }
 
-    const deliveryOrder = await this.ordersService.create(order.customerId, {
-      tariffId: tariffs[0].id,
-      pickupLat: restaurant.lat,
-      pickupLng: restaurant.lng,
-      dropoffLat: order.deliveryLat,
-      dropoffLng: order.deliveryLng,
-      pickupAddress: restaurant.name,
-      dropoffAddress: order.deliveryAddress,
-      serviceType: ServiceType.FOOD,
-      details: { foodOrderId: order.id },
-    });
+    // The courier ride IS the delivery the customer already paid for at
+    // checkout: priced at that fee (the tariff price charged delivery twice)
+    // and paid the same way as the order, so a card order never has the
+    // courier asking for cash at the door.
+    const deliveryOrder = await this.ordersService.create(
+      order.customerId,
+      {
+        tariffId: tariffs[0].id,
+        pickupLat: restaurant.lat,
+        pickupLng: restaurant.lng,
+        dropoffLat: order.deliveryLat,
+        dropoffLng: order.deliveryLng,
+        pickupAddress: restaurant.name,
+        dropoffAddress: order.deliveryAddress,
+        serviceType: ServiceType.FOOD,
+        paymentMethod:
+          order.paymentMethod === FoodPaymentMethod.CASH ? PaymentMethod.CASH : PaymentMethod.CARD,
+        details: {
+          foodOrderId: order.id,
+          ...deliveryRideDetails({
+            vendorName: restaurant.name,
+            vendorPhone: restaurant.phone ?? null,
+            customerPhone: order.customerPhone ?? order.customer?.phone ?? null,
+            itemsCount: order.items.reduce((sum, item) => sum + item.qty, 0),
+            totalPrice: order.totalPrice,
+            isCash: order.paymentMethod === FoodPaymentMethod.CASH,
+          }),
+        },
+      },
+      { agreedFare: checkoutDeliveryFee(order) },
+    );
     this.matchingService.startSearch(deliveryOrder.id).catch(() => {
       // Matching failures are logged inside MatchingService itself; the
       // food order still moves to "ready", just without an auto-assigned
@@ -318,6 +370,84 @@ export class FoodService {
 
     order.deliveryOrderId = deliveryOrder.id;
     return this.orderRepo.save(order);
+  }
+
+  /**
+   * Sends a new courier for a READY order whose previous courier ride ended
+   * without a delivery (nobody accepted, or it was cancelled). Refuses while a
+   * courier ride is still live, so a double click cannot put two couriers on
+   * one bag.
+   */
+  async redispatchDelivery(restaurantId: string, id: string) {
+    const order = await this.findOrderEntity(restaurantId, id);
+    if (order.status !== FoodOrderStatus.READY) {
+      throw new BadRequestException('Only ready orders can be sent to a courier');
+    }
+    if (order.deliveryOrderId) {
+      const ride = await this.ordersService.findByIdOrThrow(order.deliveryOrderId);
+      if (ride.status !== OrderStatus.CANCELLED) {
+        throw new ConflictException('A courier is already being searched for or assigned');
+      }
+    }
+    const restaurant = await this.restaurantRepo.findOneOrFail({ where: { id: restaurantId } });
+    const saved = await this.dispatchDelivery(restaurant, order);
+    return this.withDelivery(saved);
+  }
+
+  /**
+   * Courier ride → food order. Only the ride currently linked to the order
+   * counts: after a re-dispatch, late events from the abandoned ride are
+   * ignored rather than, say, marking the order "courier not found" while the
+   * new courier is on the way.
+   */
+  private async onDeliveryEvent(foodOrderId: string, event: DeliveryEvent): Promise<void> {
+    const order = await this.orderRepo.findOne({ where: { id: foodOrderId } });
+    if (!order || order.deliveryOrderId !== event.deliveryOrderId) return;
+
+    if (event.kind === 'delivered') {
+      // Conditional write: the restaurant may click "delivered" by hand at the
+      // same moment. Whoever lands first settles; the other is a no-op, so the
+      // commission is never booked twice.
+      const result = await this.orderRepo.update(
+        { id: order.id, status: FoodOrderStatus.READY },
+        { status: FoodOrderStatus.DELIVERED },
+      );
+      if (!result.affected) return;
+
+      const restaurant = await this.restaurantRepo.findOneOrFail({
+        where: { id: order.restaurantId },
+      });
+      await this.settleRestaurantEarnings(restaurant, { ...order, status: FoodOrderStatus.DELIVERED });
+      for (const userId of [order.customerId, restaurant.ownerUserId]) {
+        this.realtimeGateway.emitToUser(userId, 'food:order:status', {
+          orderId: order.id,
+          status: FoodOrderStatus.DELIVERED,
+        });
+      }
+      return;
+    }
+
+    if (event.kind === 'cancelled') {
+      if (order.status !== FoodOrderStatus.READY) return;
+      const restaurant = await this.restaurantRepo.findOne({ where: { id: order.restaurantId } });
+      // The vendor board polls, but the push lets it flash the order at once:
+      // hot food is going cold while nobody is coming for it.
+      if (restaurant) {
+        this.realtimeGateway.emitToUser(restaurant.ownerUserId, 'food:delivery:failed', {
+          orderId: order.id,
+        });
+      }
+      this.realtimeGateway.emitToUser(order.customerId, 'food:order:courier', {
+        orderId: order.id,
+        stage: 'searching_again',
+      });
+      return;
+    }
+
+    this.realtimeGateway.emitToUser(order.customerId, 'food:order:courier', {
+      orderId: order.id,
+      stage: event.kind,
+    });
   }
 
   private async withDelivery(order: FoodOrder) {

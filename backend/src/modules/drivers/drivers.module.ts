@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DriversController } from './drivers.controller';
+import { DriverUploadsStore } from './driver-uploads';
 import { DriversService } from './drivers.service';
 import { DriverDocumentsController } from './driver-documents.controller';
 import { DriverDocumentsService } from './driver-documents.service';
@@ -11,6 +12,9 @@ import { DriverVerificationService } from './driver-verification.service';
 import { DriverVerificationRemindersService } from './driver-verification-reminders.service';
 import { RoadSpeedController } from './road-speed.controller';
 import { RoadSpeedService } from './road-speed.service';
+import { VehicleChangeController } from './vehicle-change.controller';
+import { VehicleChangeService } from './vehicle-change.service';
+import { VehicleChangeRequest } from '../../database/entities/vehicle-change-request.entity';
 import { Driver } from '../../database/entities/driver.entity';
 import { DriverDocument } from '../../database/entities/driver-document.entity';
 import { DriverVerificationRequirement } from '../../database/entities/driver-verification-requirement.entity';
@@ -37,6 +41,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
       Order,
       Transaction,
       RoadSpeedSample,
+      VehicleChangeRequest,
     ]),
     forwardRef(() => UsersModule),
     forwardRef(() => RealtimeModule),
@@ -54,6 +59,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
   // ro'yxatdan o'tishi marshrutlashni bir ma'noli qiladi.
   controllers: [
     DriverVerificationController,
+    VehicleChangeController,
     DriverServicesController,
     DriversController,
     DriverDocumentsController,
@@ -65,6 +71,8 @@ import { NotificationsModule } from '../notifications/notifications.module';
     DriverVerificationService,
     DriverServicesService,
     DriverVerificationRemindersService,
+    DriverUploadsStore,
+    VehicleChangeService,
     RoadSpeedService,
     redisProvider,
   ],

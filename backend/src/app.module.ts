@@ -12,43 +12,6 @@ import { HttpThrottlerGuard } from './common/guards/http-throttler.guard';
 import { MaintenanceGuard } from './common/guards/maintenance.guard';
 
 // Entities
-import { User } from './database/entities/user.entity';
-import { Driver } from './database/entities/driver.entity';
-import { DriverDocument } from './database/entities/driver-document.entity';
-import { DriverVerificationRequirement } from './database/entities/driver-verification-requirement.entity';
-import { DriverVerificationSubmission } from './database/entities/driver-verification-submission.entity';
-import { Tariff } from './database/entities/tariff.entity';
-import { Order } from './database/entities/order.entity';
-import { Trip } from './database/entities/trip.entity';
-import { Transaction } from './database/entities/transaction.entity';
-import { Otp } from './database/entities/otp.entity';
-import { Rating } from './database/entities/rating.entity';
-import { PromoCode } from './database/entities/promo_code.entity';
-import { PromoCodeUsage } from './database/entities/promo_code_usage.entity';
-import { TariffChangeRequest } from './database/entities/tariff-change-request.entity';
-import { DriverBonusRule } from './database/entities/driver-bonus-rule.entity';
-import { DriverBonusAward } from './database/entities/driver-bonus-award.entity';
-import { SupportThread } from './database/entities/support-thread.entity';
-import { SupportMessage } from './database/entities/support-message.entity';
-import { PlatformSettings } from './database/entities/platform-settings.entity';
-import { Store } from './database/entities/store.entity';
-import { MarketCategory } from './database/entities/market-category.entity';
-import { Product } from './database/entities/product.entity';
-import { StockMovement } from './database/entities/stock-movement.entity';
-import { MarketOrder } from './database/entities/market-order.entity';
-import { Restaurant } from './database/entities/restaurant.entity';
-import { MenuCategory } from './database/entities/menu-category.entity';
-import { Dish } from './database/entities/dish.entity';
-import { FoodOrder } from './database/entities/food-order.entity';
-import { WithdrawalRequest } from './database/entities/withdrawal-request.entity';
-import { FavoriteAddress } from './database/entities/favorite-address.entity';
-import { TripMessage } from './database/entities/trip-message.entity';
-import { SosAlert } from './database/entities/sos-alert.entity';
-import { NotificationLog } from './database/entities/notification-log.entity';
-import { RefreshToken } from './database/entities/refresh-token.entity';
-import { DispatchOverride } from './database/entities/dispatch-override.entity';
-import { PushNotificationLog } from './database/entities/push-notification-log.entity';
-import { RoadSpeedSample } from './database/entities/road-speed-sample.entity';
 
 // Feature Modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -58,6 +21,9 @@ import { TariffsModule } from './modules/tariffs/tariffs.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { MatchingModule } from './modules/matching/matching.module';
 import { SurgeModule } from './modules/surge/surge.module';
+import { StorageModule } from './modules/storage/storage.module';
+import { DeliveryEventsModule } from './modules/delivery/delivery-events.service';
+import { LostItemsModule } from './modules/lost-items/lost-items.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
@@ -73,6 +39,7 @@ import { FavoritesModule } from './modules/favorites/favorites.module';
 import { TripChatModule } from './modules/trip-chat/trip-chat.module';
 import { SafetyModule } from './modules/safety/safety.module';
 import { ReferralsModule } from './modules/referrals/referrals.module';
+import { ENTITIES } from './database/entities';
 
 @Module({
   imports: [
@@ -93,56 +60,8 @@ import { ReferralsModule } from './modules/referrals/referrals.module';
         username: configService.get<string>('DB_USER', 'postgres'),
         password: configService.get<string>('DB_PASS', 'postgres'),
         database: configService.get<string>('DB_NAME', 'angren_taxi'),
-        entities: [
-          User,
-          Driver,
-          DriverDocument,
-          Tariff,
-          Order,
-          Trip,
-          Transaction,
-          Otp,
-          Rating,
-          PromoCode,
-          PromoCodeUsage,
-          TariffChangeRequest,
-          DriverBonusRule,
-          DriverBonusAward,
-          SupportThread,
-          SupportMessage,
-          PlatformSettings,
-          Store,
-          MarketCategory,
-          Product,
-          StockMovement,
-          MarketOrder,
-          Restaurant,
-          MenuCategory,
-          Dish,
-          FoodOrder,
-          WithdrawalRequest,
-          FavoriteAddress,
-          TripMessage,
-          SosAlert,
-          NotificationLog,
-          RefreshToken,
-          // Both are injected via TypeOrmModule.forFeature (OrdersModule /
-          // NotificationsModule). TypeORM 0.3 does not validate metadata at DI
-          // time, so omitting them here let the app boot and then fail with
-          // EntityMetadataNotFoundError on the first admin broadcast or order
-          // reassignment.
-          DispatchOverride,
-          PushNotificationLog,
-          // Injected via DriversModule's forFeature only. Same trap as the two
-          // above: without it the app boots fine and then every GPS ping dies
-          // with EntityMetadataNotFoundError inside the speed aggregator.
-          RoadSpeedSample,
-          // Same trap again: both are injected via DriversModule's forFeature
-          // only, so leaving them out here boots fine and then fails with
-          // EntityMetadataNotFoundError on the first verification request.
-          DriverVerificationRequirement,
-          DriverVerificationSubmission,
-        ],
+        // Single list, checked against every @Entity by entities.spec.ts.
+        entities: ENTITIES,
         migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
         // Run pending migrations on boot. The 000_baseline migration is
         // generated from the entities and no-ops on a database that already
@@ -223,6 +142,9 @@ import { ReferralsModule } from './modules/referrals/referrals.module';
     // an endpoint of its own now, and it should not go missing the day orders
     // stop needing surge pricing.
     SurgeModule,
+    StorageModule,
+    DeliveryEventsModule,
+    LostItemsModule,
     RealtimeModule,
     PaymentsModule,
     NotificationsModule,

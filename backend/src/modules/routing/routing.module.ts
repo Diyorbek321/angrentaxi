@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { OsrmService } from './osrm.service';
+import { RoutingController } from './routing.controller';
 
 /**
  * Routing lives in its own module so both dispatch (ETA-ranked matching) and
@@ -7,6 +8,7 @@ import { OsrmService } from './osrm.service';
  * configured endpoint.
  */
 @Module({
+  controllers: [RoutingController],
   providers: [OsrmService],
   exports: [OsrmService],
 })

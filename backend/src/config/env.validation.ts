@@ -141,6 +141,32 @@ class EnvironmentVariables {
   @IsString()
   @IsOptional()
   OSRM_URL: string = '';
+
+  // Upload storage — see StorageModule. `s3` needs the S3_* values below and
+  // refuses to boot without them rather than silently writing to local disk.
+  @IsString()
+  @IsOptional()
+  STORAGE_DRIVER: string = 'local';
+
+  @IsString()
+  @IsOptional()
+  S3_BUCKET: string = '';
+
+  @IsString()
+  @IsOptional()
+  S3_REGION: string = 'auto';
+
+  @IsString()
+  @IsOptional()
+  S3_ENDPOINT: string = '';
+
+  @IsString()
+  @IsOptional()
+  S3_ACCESS_KEY_ID: string = '';
+
+  @IsString()
+  @IsOptional()
+  S3_SECRET_ACCESS_KEY: string = '';
 }
 
 export function validateEnv(config: Record<string, unknown>): EnvironmentVariables {

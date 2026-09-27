@@ -325,6 +325,27 @@ describe('completeTrip — kutish haqi HAQIQIY oqimda', () => {
     });
   });
 
+  describe('ovqat/market kuryeri — restoranda kutish mijozdan olinmaydi', () => {
+    it.each([{ foodOrderId: 'food-1' }, { marketOrderId: 'market-1' }])(
+      '20 daqiqa restoranda kutilsa ham narx o\'zgarmaydi (%p)',
+      async (details) => {
+        // Kuryer restoranda ovqat tayyor bo'lishini kutadi — bu sotuvchining
+        // kechikishi. Taksi qoidasi qo'llansa, mijoz 8 500 so'm ortiqcha to'lardi.
+        await build(
+          { isFixedPrice: true, fareBreakdown: quote(), arrivedAt: ARRIVED_AT, details },
+          tariffWithWaiting(),
+          min(20),
+        );
+
+        await service.completeTrip(DRIVER_USER_ID, ORDER_ID);
+
+        expect(persisted().fareBreakdown.waitingMinutes).toBe(0);
+        expect(persisted().fareBreakdown.waitingFare).toBe(0);
+        expect(persisted().finalPrice).toBe(43200);
+      },
+    );
+  });
+
   describe('chegara xulqi — nizo chiqadigan aniq nuqta', () => {
     const fixedAfter = async (start: Date) => {
       await build(

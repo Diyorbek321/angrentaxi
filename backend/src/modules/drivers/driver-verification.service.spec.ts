@@ -137,6 +137,21 @@ const taxiDriver: VerificationDriver = {
   serviceTypes: [ServiceType.TAXI],
 };
 
+/**
+ * DriverUploadsStore'ning soxtasi: `save` fayl nomini buferdan oladi, shunda
+ * test qaysi `fileUrl` yozilishini oldindan biladi.
+ */
+function fakeUploads() {
+  return {
+    save: jest.fn(async (file: { buffer: Buffer }) => `/uploads/driver-documents/${file.buffer.toString()}.jpg`),
+    open: jest.fn(),
+  };
+}
+
+function jpeg(name: string) {
+  return { buffer: Buffer.from(name), mimetype: 'image/jpeg', size: name.length };
+}
+
 function buildService(
   requirements: DriverVerificationRequirement[],
   submissions: DriverVerificationSubmission[] = [],
@@ -156,6 +171,7 @@ function buildService(
     requirementRepository as never,
     submissionRepository as never,
     driverRepository as never,
+    fakeUploads() as never,
   );
   return { service, requirementRepository, submissionRepository, driverRepository };
 }
@@ -609,12 +625,7 @@ describe('DriverVerificationService.submit', () => {
     const { service } = buildService([requirement()]);
 
     await expect(
-      service.submit('user-1', 'not_a_real_code', {
-        filename: 'x.jpg',
-        path: '/tmp/x.jpg',
-        mimetype: 'image/jpeg',
-        size: 10,
-      }),
+      service.submit('user-1', 'not_a_real_code', jpeg('x')),
     ).rejects.toThrow(BadRequestException);
   });
 
@@ -624,7 +635,7 @@ describe('DriverVerificationService.submit', () => {
     const item = await service.submit(
       'user-1',
       'vehicle_photo_front',
-      { filename: 'abc.jpg', path: '/tmp/abc.jpg', mimetype: 'image/jpeg', size: 10 },
+      jpeg('abc'),
       NOW,
     );
 
@@ -650,7 +661,7 @@ describe('DriverVerificationService.submit', () => {
     await service.submit(
       'user-1',
       'vehicle_photo_front',
-      { filename: 'new.jpg', path: '/tmp/new.jpg', mimetype: 'image/jpeg', size: 10 },
+      jpeg('new'),
       NOW,
     );
 
@@ -661,12 +672,7 @@ describe('DriverVerificationService.submit', () => {
     const { service } = buildService([requirement()], [], []);
 
     await expect(
-      service.submit('user-nobody', 'vehicle_photo_front', {
-        filename: 'x.jpg',
-        path: '/tmp/x.jpg',
-        mimetype: 'image/jpeg',
-        size: 10,
-      }),
+      service.submit('user-nobody', 'vehicle_photo_front', jpeg('x')),
     ).rejects.toThrow(NotFoundException);
   });
 });
@@ -698,6 +704,39 @@ describe('DriverVerificationService.review', () => {
 
     expect(item.validUntil).toBeNull();
     expect(item.status).toBe('ok');
+  });
+
+  it('menejer kiritgan hujjat muddati cadenceDays o‘rniga ishlatiladi', async () => {
+    const { service } = buildService(
+      [requirement({ cadenceDays: 30 })],
+      [submission({ id: 'sub-1' })],
+    );
+    const expiry = new Date(NOW.getTime() + 200 * 24 * 60 * 60 * 1000);
+    const day = expiry.toISOString().slice(0, 10);
+
+    const item = await service.review(
+      'sub-1',
+      'manager-1',
+      { approved: true, validUntil: day },
+      NOW,
+    );
+
+    // Hujjat o'sha kun OXIRIGACHA amal qiladi.
+    expect(item.validUntil).toBe(`${day}T23:59:59.000Z`);
+    expect(item.status).toBe('ok');
+  });
+
+  it('muddati o‘tgan hujjatni tasdiqlab bo‘lmaydi', async () => {
+    const { service, submissionRepository } = buildService(
+      [requirement({ cadenceDays: 30 })],
+      [submission({ id: 'sub-1' })],
+    );
+    const yesterday = new Date(NOW.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    await expect(
+      service.review('sub-1', 'manager-1', { approved: true, validUntil: yesterday }, NOW),
+    ).rejects.toThrow(BadRequestException);
+    expect(submissionRepository.rows[0].reviewStatus).toBe(DriverVerificationReviewStatus.PENDING);
   });
 
   it('rad etishda sabab MAJBURIY', async () => {
@@ -773,7 +812,7 @@ describe('DriverVerificationService.review', () => {
     const submitted = await service.submit(
       'user-1',
       'vehicle_photo_front',
-      { filename: 'a.jpg', path: '/tmp/a.jpg', mimetype: 'image/jpeg', size: 1 },
+      jpeg('a'),
       NOW,
     );
     expect(submitted.status).toBe('pending_review');

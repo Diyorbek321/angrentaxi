@@ -321,6 +321,7 @@ describe('MatchingService (Redis-backed queue)', () => {
       distanceKm: number;
       serviceTypes: ServiceType[] | null;
       vehicleType: VehicleType | null;
+      amenities?: string[];
     }
 
     function sedan(userId: string, distanceKm: number): PoolDriver {
@@ -435,6 +436,22 @@ describe('MatchingService (Redis-backed queue)', () => {
         'no_drivers_found',
         expect.objectContaining({ orderId }),
       );
+    });
+
+    it("bola o'rindig'i so'ralgan safar o'rindiqsiz haydovchiga bormaydi — qayta qidiruvda ham", async () => {
+      orderRepository.findOne.mockResolvedValue(makeOrder({ options: ['child_seat'] }));
+      const withSeat = { ...sedan('seat-driver', 1.1), amenities: ['child_seat', 'air_conditioner'] };
+      usePool([sedan('no-seat-driver', 0.3), withSeat]);
+
+      await service.startSearch(orderId);
+      expect(offeredTo()).toEqual(['seat-driver']);
+      // Offer shows the driver what was asked for.
+      expect(realtimeGateway.emitToUser).toHaveBeenCalledWith(
+        'seat-driver',
+        'new_order_offer',
+        expect.objectContaining({ options: ['child_seat'] }),
+      );
+      expect(JSON.parse(redis.store.get('matching:queue:order-1')!).tripOptions).toEqual(['child_seat']);
     });
 
     it('ETA tartiblash filtrdan KEYINGI ro‘yxatga qo‘llanadi', async () => {

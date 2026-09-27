@@ -1,4 +1,3 @@
-import * as fs from 'fs';
 import {
   BadRequestException,
   Body,
@@ -24,11 +23,13 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { User, UserRole } from '../../database/entities/user.entity';
+import { Permission, User, UserRole } from '../../database/entities/user.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
-import { UploadedDiskFile, driverUploadMulterOptions } from './driver-uploads';
+import { UploadedMemoryFile, driverUploadMulterOptions } from './driver-uploads';
 import {
   DriverVerificationItem,
   DriverVerificationService,
@@ -47,7 +48,7 @@ import { ReviewDriverVerificationDto } from './dto/review-driver-verification.dt
  */
 @ApiTags('Drivers')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Controller('drivers')
 export class DriverVerificationController {
   constructor(private readonly verificationService: DriverVerificationService) {}
@@ -76,7 +77,7 @@ export class DriverVerificationController {
   async submit(
     @CurrentUser() user: User,
     @Param('code') code: string,
-    @UploadedFile() file: UploadedDiskFile,
+    @UploadedFile() file: UploadedMemoryFile,
   ): Promise<DriverVerificationItem> {
     if (!file) {
       throw new BadRequestException('Fayl yuborilmadi (multipart maydoni "file" kutilgan)');
@@ -86,6 +87,7 @@ export class DriverVerificationController {
 
   @Get('verification/pending')
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DRIVERS_APPROVE)
   @ApiOperation({ summary: "Ko'rilmagan tekshiruv materiallari navbati" })
   async pending(): Promise<PendingVerificationEntry[]> {
     return this.verificationService.listPending();
@@ -116,11 +118,12 @@ export class DriverVerificationController {
     res.setHeader('Content-Disposition', `inline; filename="${file.filename}"`);
     // Shaxsni tasdiqlovchi hujjatlar: proksi ham, disk ham keshlamasin.
     res.setHeader('Cache-Control', 'private, no-store');
-    fs.createReadStream(file.absolutePath).pipe(res);
+    file.stream.pipe(res);
   }
 
   @Patch('verification/:id/review')
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DRIVERS_APPROVE)
   @ApiOperation({ summary: 'Tekshiruv materialini tasdiqlash yoki rad etish' })
   @ApiParam({ name: 'id', description: 'Submission UUID' })
   @ApiResponse({ status: 400, description: "Allaqachon ko'rilgan yoki sabab yo'q" })

@@ -203,3 +203,48 @@ describe('OsrmService', () => {
     });
   });
 });
+
+describe('OsrmService.route', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('asks for full GeoJSON geometry with steps and returns the first route', async () => {
+    const osrmRoute = {
+      distance: 5230,
+      duration: 610,
+      geometry: { type: 'LineString', coordinates: [[70, 41], [70.1, 41.1]] },
+      legs: [{ steps: [] }],
+      weight: 700,
+    };
+    get.mockResolvedValueOnce({ data: { code: 'Ok', routes: [osrmRoute] } });
+
+    const result = await makeService('http://osrm:5000').route([
+      [70, 41],
+      [70.1, 41.1],
+    ]);
+
+    const [url, options] = get.mock.calls[0] as [string, { params: Record<string, string> }];
+    expect(url).toBe('/route/v1/driving/70,41;70.1,41.1');
+    expect(options.params).toEqual({ overview: 'full', geometries: 'geojson', steps: 'true' });
+    // Only the fields the apps read — OSRM internals like `weight` stay behind.
+    expect(result).toEqual({
+      distance: 5230,
+      duration: 610,
+      geometry: osrmRoute.geometry,
+      legs: osrmRoute.legs,
+    });
+  });
+
+  it('returns null on NoRoute and on network failure', async () => {
+    get.mockResolvedValueOnce({ data: { code: 'NoRoute' } });
+    const service = makeService('http://osrm:5000');
+    await expect(service.route([[70, 41], [70.1, 41.1]])).resolves.toBeNull();
+
+    get.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+    await expect(service.route([[70, 41], [70.1, 41.1]])).resolves.toBeNull();
+  });
+
+  it('does not call OSRM for fewer than two points', async () => {
+    await expect(makeService('http://osrm:5000').route([[70, 41]])).resolves.toBeNull();
+    expect(get).not.toHaveBeenCalled();
+  });
+});

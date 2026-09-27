@@ -31,6 +31,9 @@ describe('DriversService — serviceTypes yon eshigi yopiq', () => {
     };
     const usersService = {
       findByIdOrThrow: jest.fn(async () => ({ id: 'user-2', role: UserRole.PASSENGER })),
+      // Ariza hali ko'rilmagan haydovchi — mashina maydonlarini o'zi tuzata
+      // oladi (tasdiqlangandan keyingi qulf vehicle-change.service.spec.ts da).
+      findById: jest.fn(async () => ({ id: 'user-1', status: UserStatus.PENDING })),
       updateRole: jest.fn(async () => undefined),
       updateStatus: jest.fn(async () => undefined),
     };

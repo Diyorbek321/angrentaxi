@@ -1,4 +1,3 @@
-import * as fs from 'fs';
 import {
   BadRequestException,
   Body,
@@ -25,19 +24,21 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { DriverDocumentsService } from './driver-documents.service';
-import { UploadedDiskFile, driverUploadMulterOptions } from './driver-uploads';
+import { UploadedMemoryFile, driverUploadMulterOptions } from './driver-uploads';
 import { UploadDriverDocumentDto } from './dto/upload-driver-document.dto';
 import { ReviewDriverDocumentDto } from './dto/review-driver-document.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { User, UserRole } from '../../database/entities/user.entity';
+import { Permission, User, UserRole } from '../../database/entities/user.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
 
 @ApiTags('Drivers')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Controller('drivers/documents')
 export class DriverDocumentsController {
   constructor(private readonly driverDocumentsService: DriverDocumentsService) {}
@@ -54,7 +55,7 @@ export class DriverDocumentsController {
   async upload(
     @CurrentUser() user: User,
     @Body() dto: UploadDriverDocumentDto,
-    @UploadedFile() file: UploadedDiskFile,
+    @UploadedFile() file: UploadedMemoryFile,
   ) {
     if (!file) {
       throw new BadRequestException('No file uploaded (expected multipart field "file")');
@@ -85,6 +86,15 @@ export class DriverDocumentsController {
     return this.driverDocumentsService.listForDriver(driverId);
   }
 
+  @Get('pending')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DRIVERS_APPROVE)
+  @ApiOperation({ summary: 'KYC documents waiting for review, oldest first (manager/admin)' })
+  @ApiResponse({ status: 200, description: 'Pending documents with driver name and phone' })
+  async pending() {
+    return this.driverDocumentsService.listPending();
+  }
+
   @Get(':id/file')
   @Roles(UserRole.DRIVER, UserRole.MANAGER, UserRole.ADMIN)
   @ApiOperation({
@@ -111,11 +121,12 @@ export class DriverDocumentsController {
     res.setHeader('Content-Disposition', `inline; filename="${file.filename}"`);
     // Personal identity documents: never cached by proxies or written to disk.
     res.setHeader('Cache-Control', 'private, no-store');
-    fs.createReadStream(file.absolutePath).pipe(res);
+    file.stream.pipe(res);
   }
 
   @Patch(':id/review')
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @RequirePermissions(Permission.DRIVERS_APPROVE)
   @ApiOperation({ summary: 'Approve or reject an uploaded KYC document (admin/manager only)' })
   @ApiParam({ name: 'id', description: 'Driver document UUID' })
   @ApiResponse({ status: 200, description: 'Document review status updated' })

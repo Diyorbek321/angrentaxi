@@ -122,6 +122,12 @@ export class Driver {
   @Column({ name: 'service_types', type: 'jsonb', default: () => `'["taxi"]'` })
   serviceTypes: ServiceType[];
 
+  // What the driver can offer a passenger: child seat, pets, A/C, big trunk.
+  // Self-declared (like carYear) and used only to filter offers — a driver
+  // who ticks "child seat" without having one gets a complaint, not a fine.
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  amenities: string[];
+
   @Column({
     type: 'geometry',
     spatialFeatureType: 'Point',

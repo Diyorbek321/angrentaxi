@@ -1,5 +1,6 @@
 import { ServiceType } from '../../database/entities/order.entity';
 import { VehicleType } from '../../database/entities/tariff.entity';
+import { driverProvidesTripOptions } from '../orders/trip-options';
 
 /**
  * Haydovchi imkoniyatlari — "bu haydovchi shu buyurtmani BAJARA OLADIMI?"
@@ -28,12 +29,16 @@ export interface DriverCapabilityFilter {
   // Buyurtma tarifidagi `vehicle_type`. `null`/`undefined` = transport turi
   // muhim emas (taksi tariflari), ya'ni filtr qo'llanmaydi.
   vehicleType?: VehicleType | null;
+  // Yo'lovchi so'ragan safar opsiyalari (bola o'rindig'i, hayvon, ...).
+  // Bo'sh/yo'q = hech narsa talab qilinmaydi.
+  tripOptions?: readonly string[];
 }
 
 /** Haydovchidan imkoniyat tekshiruvi uchun kerak bo'ladigan minimal shakl. */
 export interface DriverCapabilities {
   serviceTypes?: ServiceType[] | null;
   vehicleType?: VehicleType | null;
+  amenities?: string[] | null;
 }
 
 /**
@@ -76,6 +81,11 @@ export function driverMatchesCapabilities(
   // `null`/`undefined` talab = transport turi ahamiyatsiz. Faqat aniq tur
   // so'ralganda filtrlaymiz.
   if (filter.vehicleType != null && driver.vehicleType !== filter.vehicleType) {
+    return false;
+  }
+
+  // Bola o'rindig'i so'ralgan safar o'rindig'i yo'q haydovchiga bormaydi.
+  if (!driverProvidesTripOptions(driver.amenities, filter.tripOptions)) {
     return false;
   }
 

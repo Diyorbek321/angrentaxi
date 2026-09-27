@@ -2,7 +2,9 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
+  ArrayUnique,
   IsArray,
+  IsIn,
   IsEnum,
   IsISO8601,
   IsNumber,
@@ -19,6 +21,7 @@ import {
   PaymentMethod,
   ServiceType,
 } from '../../../database/entities/order.entity';
+import { TRIP_OPTION_VALUES, TripOption } from '../trip-options';
 
 // Single intermediate stop on a multi-stop ride, between pickup and dropoff.
 export class WaypointDto {
@@ -117,6 +120,19 @@ export class CreateOrderDto {
   @IsOptional()
   @IsObject()
   details?: Record<string, unknown>;
+
+  @ApiPropertyOptional({
+    enum: TripOption,
+    isArray: true,
+    description: "Safar opsiyalari — faqat hammasini ta'minlay oladigan haydovchiga taklif qilinadi",
+    example: ['child_seat'],
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @ArrayMaxSize(TRIP_OPTION_VALUES.length)
+  @IsIn(TRIP_OPTION_VALUES, { each: true })
+  options?: TripOption[];
 
   @ApiPropertyOptional({ example: 'ANGREN10', description: 'Promo code to apply, if any' })
   @IsOptional()

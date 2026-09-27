@@ -169,4 +169,11 @@ export class MarketVendorController {
     const store = await this.marketService.getStoreByOwner(user.id);
     return this.marketService.advanceOrder(store.id, id);
   }
+
+  @Post('orders/:id/redispatch')
+  @ApiOperation({ summary: 'Send a new courier after the previous one was not found or cancelled' })
+  async redispatchOrder(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
+    const store = await this.marketService.getStoreByOwner(user.id);
+    return this.marketService.redispatchDelivery(store.id, id);
+  }
 }

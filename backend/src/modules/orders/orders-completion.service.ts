@@ -4,7 +4,8 @@
 // ledger entries, wallet adjustment, bonus evaluation, and the first-trip
 // referral bonus. Separated from OrdersLifecycleService because this single
 // transition carries far more business rules than all the others combined.
-import { BadRequestException, ForbiddenException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, Optional } from '@nestjs/common';
+import { DeliveryEventsService } from '../delivery/delivery-events.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { Order, OrderStatus, PaymentMethod } from '../../database/entities/order.entity';
@@ -64,6 +65,9 @@ export class OrdersCompletionService {
     private readonly osrmService: OsrmService,
     private readonly routedDistancePricing: RoutedDistancePricing,
     private readonly dataSource: DataSource,
+    // Optional only so unit tests that build this service by hand keep
+    // compiling; DeliveryEventsModule is global, so the app always has it.
+    @Optional() private readonly deliveryEvents?: DeliveryEventsService,
   ) {}
 
   async completeTrip(driverId: string, orderId: string): Promise<Order> {
@@ -222,11 +226,16 @@ export class OrdersCompletionService {
     // (`null`), safar yozuvi yo'q bo'lsa `trip?.startTime` ham `null` —
     // ikkalasida ham kutish 0 va hisob-kitob AVVALGIDEK qoladi.
     const { freeWaitMinutes, waitingPricePerMinute } = waitingSettingsOf(tariff);
-    const waitingMinutes = computeWaitingMinutes(
-      order.arrivedAt,
-      trip?.startTime ?? null,
-      freeWaitMinutes,
-    );
+    // ⚠️ YETKAZISHDA KUTISH HAQI YO'Q. Kuryer "yetib keldim" dan "olib
+    // ketdim" gacha RESTORAN/DO'KON oldida kutadi — bu sotuvchining
+    // tayyorlash vaqti, mijozniki emas. Mijozdan undirish uni boshqa
+    // birovning kechikishi uchun jazolardi.
+    const isVendorDelivery =
+      typeof order.details?.foodOrderId === 'string' ||
+      typeof order.details?.marketOrderId === 'string';
+    const waitingMinutes = isVendorDelivery
+      ? 0
+      : computeWaitingMinutes(order.arrivedAt, trip?.startTime ?? null, freeWaitMinutes);
 
     const fareBreakdown = withWaitingFare(
       rideFare,
@@ -514,6 +523,8 @@ export class OrdersCompletionService {
     }
 
     this.realtimeGateway.emitToManagers('order:completed', updatedOrder);
+    // Food/market: marks the vendor order delivered and settles the vendor.
+    await this.deliveryEvents?.publish(updatedOrder, 'delivered');
 
     // Re-fetch: adjustBalance may have just flipped isOnline to false if the
     // commission deduction pushed the driver negative.

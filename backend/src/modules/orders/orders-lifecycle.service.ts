@@ -3,7 +3,7 @@
 // atomically (TOCTOU guard), and fans the result out to the passenger and the
 // dispatcher board. Trip completion is heavy enough (settlement, promo,
 // referral bonuses) that it lives in OrdersCompletionService instead.
-import { BadRequestException, ForbiddenException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order, OrderStatus } from '../../database/entities/order.entity';
@@ -15,6 +15,7 @@ import { DriversService } from '../drivers/drivers.service';
 import { OrdersQueryService } from './orders-query.service';
 import { OrderStatusTransitionService } from './order-status-transition.service';
 import { waitingSettingsOf } from '../tariffs/waiting-charge';
+import { DeliveryEventsService } from '../delivery/delivery-events.service';
 
 @Injectable()
 export class OrdersLifecycleService {
@@ -31,6 +32,9 @@ export class OrdersLifecycleService {
     private readonly driversService: DriversService,
     private readonly queryService: OrdersQueryService,
     private readonly statusTransition: OrderStatusTransitionService,
+    // Optional only so unit tests that build this service by hand keep
+    // compiling; DeliveryEventsModule is global, so the app always has it.
+    @Optional() private readonly deliveryEvents?: DeliveryEventsService,
   ) {}
 
   async acceptOrder(driverId: string, orderId: string): Promise<Order> {
@@ -76,6 +80,7 @@ export class OrdersLifecycleService {
     }
 
     this.realtimeGateway.emitToManagers('order:updated', updatedOrder);
+    await this.deliveryEvents?.publish(updatedOrder, 'accepted');
     if (driver) {
       this.realtimeGateway.emitToManagers('driver:status_changed', {
         driverId: driver.id,
@@ -182,6 +187,7 @@ export class OrdersLifecycleService {
     }
 
     this.realtimeGateway.emitToManagers('order:updated', updatedOrder);
+    await this.deliveryEvents?.publish(updatedOrder, 'arrived');
 
     return updatedOrder;
   }
@@ -221,6 +227,7 @@ export class OrdersLifecycleService {
     });
 
     this.realtimeGateway.emitToManagers('order:updated', updatedOrder);
+    await this.deliveryEvents?.publish(updatedOrder, 'picked_up');
 
     return updatedOrder;
   }
