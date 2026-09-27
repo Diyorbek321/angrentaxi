@@ -79,3 +79,6 @@ mobile/android/key.properties
 apk/
 *.apk
 *.aab
+
+# OSRM graph / OSM extracts (built by scripts/osrm-prepare.sh or osrm/Dockerfile)
+osrm/data/

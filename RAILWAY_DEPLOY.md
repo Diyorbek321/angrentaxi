@@ -126,6 +126,59 @@ xato beradi va butun matching tizimi ishlamaydi. Shuning uchun **Docker image'da
 
 ---
 
+## 3a. OSRM — marshrut serveri
+
+Backend ETA bo'yicha haydovchi tanlash, qat'iy narx va mobil ilovadagi marshrut
+chizig'i uchun OSRM'dan foydalanadi. Ilova OSRM'ga to'g'ridan-to'g'ri bormaydi —
+`GET /api/v1/routing/route` orqali backend'dan oladi, ya'ni OSRM manzili faqat
+server sozlamasi.
+
+`osrm/Dockerfile` graf'ni **build paytida** o'zi quradi (Geofabrik'dan
+O'zbekiston extract'i, Toshkent viloyati chegarasi bilan kesilgan: Angren,
+Olmaliq, Chirchiq, Toshkent). Volume ham, qo'lda skript ham kerak emas.
+
+```bash
+cd osrm
+railway add --service osrm          # bir marta
+railway up . --path-as-root --service osrm --ci
+```
+
+- osrm servisiga `PORT=5000` o'zgaruvchisini bering (ichki tarmoq shu portda).
+- Build ~3–5 daqiqa, image ~340 MB, ishlashda ~120 MB RAM.
+- Backend'ga: `OSRM_URL=http://osrm.railway.internal:5000`
+- Xizmat hududi kengaysa (masalan, shaharlararo) — `osrm/Dockerfile` dagi
+  `ROUTE_BBOX` ni kengaytirib qayta deploy qiling.
+
+Tekshirish (Railway shell yoki lokal):
+`curl 'http://osrm.railway.internal:5000/route/v1/driving/70.14,41.02;69.28,41.31'`
+→ `"code":"Ok"`, Angren→Toshkent ~105 km.
+
+## 3b. Fayl saqlash (haydovchi hujjatlari)
+
+KYC hujjatlari va tekshiruv fotolari standart holda konteyner diskiga
+yoziladi — Railway'da **har deploy'da o'chadi**. Ikki yo'l bor:
+
+**A. S3-mos bucket (tavsiya).** Railway Bucket, Cloudflare R2, AWS S3 yoki
+MinIO — hammasi bir xil ishlaydi. Bucket **private** bo'lsin: fayllar faqat
+backend ruxsat tekshirgandan keyin oqim bilan beriladi.
+
+```
+STORAGE_DRIVER=s3
+S3_BUCKET=angren-kyc
+S3_REGION=auto
+S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com   # R2; AWS uchun bo'sh
+S3_ACCESS_KEY_ID=...
+S3_SECRET_ACCESS_KEY=...
+```
+
+`STORAGE_DRIVER=s3` bo'lib, kalitlardan biri yetishmasa backend **ishga
+tushmaydi** — fayllar diskka jimgina yozilib, keyin yo'qolib ketmasligi uchun.
+
+**B. Railway Volume.** backend servisiga volume ulang, mount path:
+`/app/uploads`. `STORAGE_DRIVER=local` qoladi.
+
+---
+
 ## 4. Web-Admin (Next.js)
 
 1. **+ New** → **GitHub Repo** → o'sha repo.
@@ -204,6 +257,8 @@ flutter build apk --flavor driver -t lib/main_driver.dart \
 - [ ] web-manager: Root Dir `/web-manager`, env to'g'ri
 - [ ] backend `CORS_ORIGIN` web domenlarga moslangan
 - [ ] OTP `123456` bilan login ishlaydi
+- [ ] osrm servisi deploy qilingan, backend'da `OSRM_URL` o'rnatilgan
+- [ ] `STORAGE_DRIVER=s3` + bucket kalitlari (yoki `/app/uploads` volume)
 
 ---
 

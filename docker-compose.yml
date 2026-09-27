@@ -38,25 +38,19 @@ services:
   # is rate-limited and carries no SLA — unusable as a production dependency
   # for ETA-ranked dispatch and snap-to-road trip distances.
   #
-  # Requires a pre-processed graph in ./osrm/data. Run scripts/osrm-prepare.sh
-  # once to download the Uzbekistan OSM extract and build it.
+  # osrm/Dockerfile downloads the OSM extract and builds the graph during
+  # `docker compose build` (a few minutes, once). The same image deploys to
+  # Railway unchanged. For a whole-country graph instead of the Tashkent-region
+  # box, use scripts/osrm-prepare.sh.
   osrm:
-    image: ghcr.io/project-osrm/osrm-backend:v5.27.1
+    build:
+      context: ./osrm
     container_name: angren_osrm
     restart: unless-stopped
-    command: osrm-routed --algorithm mld --max-table-size 1000 /data/uzbekistan-latest.osrm
-    volumes:
-      - ./osrm/data:/data:ro
     ports:
       - '5000:5000'
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - "wget -qO- 'http://localhost:5000/route/v1/driving/69.12,40.14;69.13,40.15' | grep -q '\"code\":\"Ok\"'"
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
+    # No healthcheck: the OSRM image ships without curl/wget, and the backend
+    # already treats an unreachable router as "fall back to straight-line".
 
   backend:
     build:
