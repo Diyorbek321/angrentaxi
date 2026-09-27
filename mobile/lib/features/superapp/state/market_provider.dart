@@ -3,6 +3,7 @@ import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
 import 'package:angren_taxi/features/superapp/models/cart_item.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/market_category.dart';
 import 'package:angren_taxi/shared/models/market_order.dart';
 import 'package:angren_taxi/shared/models/market_product.dart';
@@ -55,7 +56,7 @@ class MarketProvider extends ChangeNotifier {
       final listRes = await _apiClient.get(ApiEndpoints.marketStores);
       final stores = ((listRes.data as Map<String, dynamic>)['data'] as List<dynamic>);
       if (stores.isEmpty) {
-        _error = "Hozircha do'kon yo'q";
+        _error = AppL10n.current.saNoStoreYet;
         _setState(MarketProviderState.error);
         return;
       }

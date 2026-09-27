@@ -1,5 +1,6 @@
 import 'package:angren_taxi/core/config/app_responsive.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/widgets/app_pressable.dart';
 import 'package:flutter/material.dart';
 
@@ -172,7 +173,7 @@ class AgRoutePanel extends StatelessWidget {
                 _RouteRow(
                   glyph: const _FromGlyph(),
                   text: from,
-                  semanticsLabel: 'Qayerdan: $from',
+                  semanticsLabel: context.l10n.shRouteFromSemantics(from),
                   onTap: onTapFrom,
                   reserveSwapSpace: showSwap,
                 ),
@@ -181,8 +182,8 @@ class AgRoutePanel extends StatelessWidget {
                   glyph: const _ToGlyph(),
                   text: to,
                   semanticsLabel: hasDistance
-                      ? 'Qayerga: $to, $distance'
-                      : 'Qayerga: $to',
+                      ? context.l10n.shRouteToWithDistanceSemantics(to, distance)
+                      : context.l10n.shRouteToSemantics(to),
                   onTap: onTapTo,
                   trailing: hasDistance ? _DistanceLabel(text: distance) : null,
                 ),
@@ -375,7 +376,7 @@ class _SwapButton extends StatelessWidget {
 
     return AppPressable(
       onTap: onTap,
-      semanticsLabel: 'Manzillarni almashtirish',
+      semanticsLabel: context.l10n.shRouteSwap,
       // Yo'nalish teskarisiga aylandi — bu tanlov o'zgarishi, oddiy
       // teginish emas.
       haptic: AppHapticLevel.select,

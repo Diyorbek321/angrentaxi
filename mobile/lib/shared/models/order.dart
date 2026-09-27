@@ -1,4 +1,6 @@
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/driver.dart';
+import 'package:angren_taxi/shared/models/trip_option.dart';
 import 'package:angren_taxi/shared/utils/waiting_charge.dart';
 import 'package:equatable/equatable.dart';
 
@@ -21,23 +23,23 @@ extension OrderStatusExtension on OrderStatus {
   String get label {
     switch (this) {
       case OrderStatus.scheduled:
-        return 'Rejalashtirilgan';
+        return AppL10n.current.shOrderStatusScheduled;
       case OrderStatus.pending:
-        return 'Kutilmoqda';
+        return AppL10n.current.shStatusPending;
       case OrderStatus.searching:
-        return 'Haydovchi izlanmoqda';
+        return AppL10n.current.shOrderStatusSearching;
       case OrderStatus.driverAssigned:
-        return 'Haydovchi tayinlandi';
+        return AppL10n.current.shOrderStatusDriverAssigned;
       case OrderStatus.driverEnRoute:
-        return 'Haydovchi kelmoqda';
+        return AppL10n.current.shOrderStatusDriverEnRoute;
       case OrderStatus.driverArrived:
-        return 'Haydovchi yetib keldi';
+        return AppL10n.current.shOrderStatusDriverArrived;
       case OrderStatus.inProgress:
-        return 'Sayohat davom etmoqda';
+        return AppL10n.current.shOrderStatusInProgress;
       case OrderStatus.completed:
-        return 'Yakunlandi';
+        return AppL10n.current.shOrderStatusCompleted;
       case OrderStatus.cancelled:
-        return 'Bekor qilindi';
+        return AppL10n.current.shStatusCancelled;
     }
   }
 }
@@ -93,6 +95,68 @@ String serviceTypeFromApi(dynamic value) {
   return raw.isEmpty ? kServiceTypeTaxi : raw;
 }
 
+// ============================================================================
+// YETKAZIB BERISH MA'LUMOTI — ovqat/market kuryer safarida.
+//
+// Backend kuryer safarining `details` ga restoran/do'kon, mahsulot soni va
+// eshik oldida mijozdan olinadigan NAQD summani yozadi
+// (backend: delivery-ride-details.ts). Taksi va cargo buyurtmalarida bu
+// maydon bo'lmaydi va [Order.delivery] `null` qoladi.
+// ============================================================================
+
+class DeliveryInfo extends Equatable {
+  const DeliveryInfo({
+    required this.vendorName,
+    required this.itemsCount,
+    required this.collectCash,
+    this.vendorPhone,
+    this.customerPhone,
+  });
+
+  final String vendorName;
+  final String? vendorPhone;
+  final String? customerPhone;
+  final int itemsCount;
+
+  /// Eshik oldida mijozdan olinadigan naqd, so'm. `0` = onlayn to'langan.
+  final int collectCash;
+
+  bool get mustCollectCash => collectCash > 0;
+
+  /// `details` ovqat yoki market buyurtmasiga bog'langan bo'lsagina qiymat
+  /// qaytaradi. Buzuq maydon butun buyurtmani yiqitmasligi uchun har bir
+  /// maydon alohida, zaxira bilan o'qiladi.
+  static DeliveryInfo? fromDetails(dynamic details) {
+    if (details is! Map) return null;
+    final isDelivery =
+        details['foodOrderId'] is String || details['marketOrderId'] is String;
+    if (!isDelivery) return null;
+
+    String? text(String key) {
+      final value = details[key];
+      return value is String && value.trim().isNotEmpty ? value.trim() : null;
+    }
+
+    return DeliveryInfo(
+      vendorName: text('vendorName') ?? '',
+      vendorPhone: text('vendorPhone'),
+      customerPhone: text('customerPhone'),
+      itemsCount: switch (details['itemsCount']) {
+        final num n => n.toInt(),
+        _ => 0,
+      },
+      collectCash: switch (details['collectCash']) {
+        final num n => n.round(),
+        _ => 0,
+      },
+    );
+  }
+
+  @override
+  List<Object?> get props =>
+      [vendorName, vendorPhone, customerPhone, itemsCount, collectCash];
+}
+
 class OrderLocation extends Equatable {
   const OrderLocation({
     required this.address,
@@ -145,6 +209,8 @@ class Order extends Equatable {
     this.arrivedAt,
     this.freeWaitMinutes = kDefaultFreeWaitMinutes,
     this.waitingPricePerMinute = kDefaultWaitingPricePerMinute,
+    this.delivery,
+    this.options = const [],
   });
 
   final String id;
@@ -216,6 +282,24 @@ class Order extends Equatable {
   /// Zaxira qiymat [kDefaultWaitingPricePerMinute].
   final int waitingPricePerMinute;
 
+  /// Ovqat/market kuryer safarida — nima olib ketilayotgani va qancha naqd
+  /// olinishi. Taksi va cargoda `null`.
+  final DeliveryInfo? delivery;
+
+  /// Yo'lovchi so'ragan safar opsiyalari (bola o'rindig'i, hayvon, ...).
+  /// Haydovchi taklifda ko'radi — u shu opsiyalar tufayli tanlangan.
+  final List<TripOption> options;
+
+  /// Bu safar ovqat yoki market yetkazish (kuryer) safarimi.
+  ///
+  /// `serviceType` ham tekshiriladi: `details` yubormaydigan javoblarda
+  /// (eski server, ba'zi realtime paketlar) ham kuryer safari taksi deb
+  /// adashtirilmasin.
+  bool get isDelivery =>
+      delivery != null ||
+      serviceType == kServiceTypeFood ||
+      serviceType == kServiceTypeMarket;
+
   factory Order.fromJson(Map<String, dynamic> json) {
     return Order(
       id: json['id'] as String,
@@ -269,6 +353,8 @@ class Order extends Equatable {
           (json['freeWaitMinutes'] as num?)?.toInt() ?? kDefaultFreeWaitMinutes,
       waitingPricePerMinute: (json['waitingPricePerMinute'] as num?)?.toInt() ??
           kDefaultWaitingPricePerMinute,
+      delivery: DeliveryInfo.fromDetails(json['details']),
+      options: TripOption.listFromApi(json['options']),
     );
   }
 
@@ -327,6 +413,8 @@ class Order extends Equatable {
     DateTime? arrivedAt,
     int? freeWaitMinutes,
     int? waitingPricePerMinute,
+    DeliveryInfo? delivery,
+    List<TripOption>? options,
   }) {
     return Order(
       id: id ?? this.id,
@@ -354,6 +442,8 @@ class Order extends Equatable {
       freeWaitMinutes: freeWaitMinutes ?? this.freeWaitMinutes,
       waitingPricePerMinute:
           waitingPricePerMinute ?? this.waitingPricePerMinute,
+      delivery: delivery ?? this.delivery,
+      options: options ?? this.options,
     );
   }
 
@@ -385,5 +475,7 @@ class Order extends Equatable {
         arrivedAt,
         freeWaitMinutes,
         waitingPricePerMinute,
+        delivery,
+        options,
       ];
 }

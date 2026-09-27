@@ -36,9 +36,12 @@ import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/market_provider.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/support/support_provider.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/widgets/loading_widget.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AngrenTaxiApp extends StatelessWidget {
   const AngrenTaxiApp({super.key, required this.flavor});
@@ -49,6 +52,10 @@ class AngrenTaxiApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        // Ilova tili — sozlamalardan almashtiriladi va saqlanadi.
+        ChangeNotifierProvider<LocaleController>(
+          create: (_) => LocaleController(sl<SharedPreferences>()),
+        ),
         ChangeNotifierProvider<AuthProvider>(
             create: (_) => buildAuthProvider()),
         ChangeNotifierProvider<SupportProvider>(
@@ -82,66 +89,79 @@ class AngrenTaxiApp extends StatelessWidget {
             create: (_) => buildDriverProvider(),
           ),
       ],
-      child: MaterialApp(
-        title: 'Angren Taxi',
-        debugShowCheckedModeBanner: false,
+      child: Builder(
+        builder: (context) => MaterialApp(
+          title: 'Angren Taxi',
+          debugShowCheckedModeBanner: false,
 
-        // Yorug' va qorong'i temalar bitta quruvchidan chiqadi
-        // (`app_theme.dart` 12-bo'lim).
-        //
-        // ⚠️ `themeMode` ATAYLAB `light` — `system` EMAS.
-        //
-        // Qorong'i tema TO'LIQ qurilgan va to'g'ri, lekin ekranlar hali
-        // unga tayyor emas: 51 faylda 461 marta `kSurface`, `kInk`,
-        // `agBg` kabi YORUG'LIKKA QATTIQ BOG'LANGAN const tokenlar
-        // ishlatilgan. Ular `const Color` bo'lgani uchun temaga javob
-        // bermaydi — `system` rejimida qurilma qorong'i bo'lsa, Scaffold
-        // foni qorayadi-yu, kartalar oq, matn esa deyarli qora bo'lib
-        // qoladi. Ya'ni yoqish "qorong'i rejim" emas, BUZILGAN ekran
-        // beradi.
-        //
-        // YOQISH TARTIBI: ekranlardagi `kSurface` → `scheme.surface`,
-        // `kInk` → `scheme.onSurface`, `kInkMuted` → `scheme.onSurfaceVariant`,
-        // `kBackground` → `scheme.surfaceContainerLowest`,
-        // `kLine` → `scheme.outlineVariant` ga ko'chirilgach, shu qatorni
-        // `ThemeMode.system` ga o'zgartirish kifoya — boshqa hech narsa
-        // kerak emas.
-        theme: appTheme,
-        darkTheme: appDarkTheme,
-        themeMode: ThemeMode.light,
+          // O'zbekcha (asosiy) va ruscha. Matnlar lib/l10n/parts/*.json dan.
+          locale: context.watch<LocaleController>().locale,
+          supportedLocales: kSupportedLocales,
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
 
-        // Platformaga mos scroll fizikasi butun ilovaga bir joydan
-        // qo'llanadi: iOS'da bounce, Android'da M3 stretch.
-        scrollBehavior: const AppScrollBehavior(),
+          // Yorug' va qorong'i temalar bitta quruvchidan chiqadi
+          // (`app_theme.dart` 12-bo'lim).
+          //
+          // ⚠️ `themeMode` ATAYLAB `light` — `system` EMAS.
+          //
+          // Qorong'i tema TO'LIQ qurilgan va to'g'ri, lekin ekranlar hali
+          // unga tayyor emas: 51 faylda 461 marta `kSurface`, `kInk`,
+          // `agBg` kabi YORUG'LIKKA QATTIQ BOG'LANGAN const tokenlar
+          // ishlatilgan. Ular `const Color` bo'lgani uchun temaga javob
+          // bermaydi — `system` rejimida qurilma qorong'i bo'lsa, Scaffold
+          // foni qorayadi-yu, kartalar oq, matn esa deyarli qora bo'lib
+          // qoladi. Ya'ni yoqish "qorong'i rejim" emas, BUZILGAN ekran
+          // beradi.
+          //
+          // YOQISH TARTIBI: ekranlardagi `kSurface` → `scheme.surface`,
+          // `kInk` → `scheme.onSurface`, `kInkMuted` → `scheme.onSurfaceVariant`,
+          // `kBackground` → `scheme.surfaceContainerLowest`,
+          // `kLine` → `scheme.outlineVariant` ga ko'chirilgach, shu qatorni
+          // `ThemeMode.system` ga o'zgartirish kifoya — boshqa hech narsa
+          // kerak emas.
+          theme: appTheme,
+          darkTheme: appDarkTheme,
+          themeMode: ThemeMode.light,
 
-        navigatorKey: sl<GlobalKey<NavigatorState>>(),
-        // Xiaomi/Samsung qobiqlarida "Shrift o'lchami" va "Ekran o'lchami"
-        // sozlamalari matnni 1.5–2x gacha kattalashtirishi mumkin. Ekranlar
-        // qattiq balandlikdagi kartalar bilan qurilgani uchun bu yerda matn
-        // toshib ketardi ("responsive emas" deb ko'rinadigan holat).
-        //
-        // Foydalanuvchi tanlovini butunlay bekor qilmaymiz — kattalashtirishga
-        // ruxsat beriladi, lekin layout buziladigan darajagacha emas.
-        builder: (context, child) {
-          final media = MediaQuery.of(context);
+          // Platformaga mos scroll fizikasi butun ilovaga bir joydan
+          // qo'llanadi: iOS'da bounce, Android'da M3 stretch.
+          scrollBehavior: const AppScrollBehavior(),
 
-          // Planshetda tartib allaqachon kengroq bo'lgani uchun matnni
-          // 1.4x gacha kattalashtirishga joy bor; tor telefonda (< 360dp)
-          // esa 1.2x dan oshsa kartalar toshib ketadi.
-          final wide = breakpointForWidth(media.size.width) != Breakpoint.tight;
+          navigatorKey: sl<GlobalKey<NavigatorState>>(),
+          // Xiaomi/Samsung qobiqlarida "Shrift o'lchami" va "Ekran o'lchami"
+          // sozlamalari matnni 1.5–2x gacha kattalashtirishi mumkin. Ekranlar
+          // qattiq balandlikdagi kartalar bilan qurilgani uchun bu yerda matn
+          // toshib ketardi ("responsive emas" deb ko'rinadigan holat).
+          //
+          // Foydalanuvchi tanlovini butunlay bekor qilmaymiz — kattalashtirishga
+          // ruxsat beriladi, lekin layout buziladigan darajagacha emas.
+          builder: (context, child) {
+            final media = MediaQuery.of(context);
 
-          return MediaQuery(
-            data: media.copyWith(
-              textScaler: media.textScaler.clamp(
-                minScaleFactor: 0.85,
-                maxScaleFactor: wide ? 1.4 : 1.2,
+            // Planshetda tartib allaqachon kengroq bo'lgani uchun matnni
+            // 1.4x gacha kattalashtirishga joy bor; tor telefonda (< 360dp)
+            // esa 1.2x dan oshsa kartalar toshib ketadi.
+            final wide =
+                breakpointForWidth(media.size.width) != Breakpoint.tight;
+
+            return MediaQuery(
+              data: media.copyWith(
+                textScaler: media.textScaler.clamp(
+                  minScaleFactor: 0.85,
+                  maxScaleFactor: wide ? 1.4 : 1.2,
+                ),
               ),
-            ),
-            child: child ?? const SizedBox.shrink(),
-          );
-        },
-        home: _AppEntryPoint(flavor: flavor),
-        routes: _buildRoutes(flavor),
+              child: child ?? const SizedBox.shrink(),
+            );
+          },
+          home: _AppEntryPoint(flavor: flavor),
+          routes: _buildRoutes(flavor),
+        ),
       ),
     );
   }

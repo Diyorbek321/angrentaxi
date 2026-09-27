@@ -1,3 +1,5 @@
+import 'package:angren_taxi/l10n/l10n.dart';
+
 /// One row of the wallet ledger, as returned by `GET /payments/transactions`.
 ///
 /// The wallet screen used to render two hardcoded rows ("Hisob to'ldirildi
@@ -55,11 +57,17 @@ class WalletTransaction {
   String get title {
     final marker = externalId ?? '';
 
-    if (marker == 'commission') return 'Platforma komissiyasi';
-    if (marker.startsWith('withdrawal_')) return 'Pul yechish';
-    if (marker.startsWith('referral_bonus')) return 'Referal bonus';
-    if (marker.startsWith('bonus')) return 'Bonus';
-    if (orderId != null) return isCredit ? 'Safar daromadi' : "Safar to'lovi";
-    return isCredit ? "Hisob to'ldirildi" : 'Yechim';
+    if (marker == 'commission') return AppL10n.current.saTxnCommission;
+    if (marker.startsWith('withdrawal_')) return AppL10n.current.saTxnWithdrawal;
+    if (marker.startsWith('referral_bonus')) return AppL10n.current.saTxnReferralBonus;
+    if (marker.startsWith('bonus')) return AppL10n.current.saTxnBonus;
+    if (orderId != null) {
+      return isCredit
+          ? AppL10n.current.saTxnTripEarning
+          : AppL10n.current.saTxnTripPayment;
+    }
+    return isCredit
+        ? AppL10n.current.saTxnTopUp
+        : AppL10n.current.saTxnDebit;
   }
 }

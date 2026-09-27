@@ -3,10 +3,12 @@ import 'package:angren_taxi/core/location/city_coverage.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/driver.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/models/service_city.dart';
 import 'package:angren_taxi/shared/models/tariff.dart';
+import 'package:angren_taxi/shared/models/trip_option.dart';
 import 'package:dio/dio.dart' show DioException;
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
@@ -47,6 +49,7 @@ class OrderProvider extends ChangeNotifier {
   /// Bu buyurtma qurilayotgan paytdagi TANLOV, saqlangan buyurtma emas —
   /// shuning uchun [_scheduledOrders] dan alohida turadi.
   DateTime? _scheduledAt;
+  List<TripOption> _tripOptions = const [];
 
   /// Serverdagi kelgusi rejalar (`GET /orders/scheduled`).
   List<Order> _scheduledOrders = [];
@@ -112,6 +115,15 @@ class OrderProvider extends ChangeNotifier {
   bool get isSubmittingTip => _isSubmittingTip;
   String? get tipError => _tipError;
   bool get isTipAlreadyGiven => _tipAlreadyGiven;
+
+  /// Safar opsiyalari — matching filtri (faqat mos haydovchiga boradi).
+  List<TripOption> get tripOptions => List.unmodifiable(_tripOptions);
+
+  void setTripOptions(Iterable<TripOption> options) {
+    _tripOptions = options.toSet().toList()
+      ..sort((a, b) => a.index.compareTo(b.index));
+    notifyListeners();
+  }
 
   DateTime? get scheduledAt => _scheduledAt;
   bool get isScheduledBooking => _scheduledAt != null;
@@ -278,8 +290,7 @@ class OrderProvider extends ChangeNotifier {
     if (_coverage.isServiceable(lat, lng)) return null;
     final nearest = _coverage.nearestTo(lat, lng);
     if (nearest == null) return null;
-    return "Bu hududda hozircha xizmat ko'rsatilmaymiz. "
-        'Eng yaqin xizmat hududi: ${nearest.name}.';
+    return AppL10n.current.paxCoverageWarning(nearest.name);
   }
 
   /// Tanlangan olish nuqtasi bo'yicha ogohlantirish — buyurtma tugmasini
@@ -382,7 +393,7 @@ class OrderProvider extends ChangeNotifier {
     if (_pendingPickup == null ||
         _pendingDropoff == null ||
         _selectedTariff == null) {
-      _error = 'Manzil va tarif tanlanmagan';
+      _error = AppL10n.current.paxOrderMissingRouteOrTariff;
       _setState(OrderProviderState.error);
       return false;
     }
@@ -428,6 +439,8 @@ class OrderProvider extends ChangeNotifier {
           // safar 5 soatga surilib ketardi.
           if (_scheduledAt != null)
             'scheduledAt': _scheduledAt!.toUtc().toIso8601String(),
+          if (_tripOptions.isNotEmpty)
+            'options': _tripOptions.map((o) => o.apiValue).toList(),
         },
       );
 
@@ -440,6 +453,8 @@ class OrderProvider extends ChangeNotifier {
       // rejalashtirilardi va backend 400 qaytarardi ("kamida 30 daqiqa
       // keyin bo'lishi kerak") — foydalanuvchi uchun sababsiz xato.
       _scheduledAt = null;
+      // Opsiyalar ham shu buyurtmaga tegishli edi — keyingisiga o'tmaydi.
+      _tripOptions = const [];
 
       if (wasScheduled) {
         // Rejalashtirilgan buyurtmada `_activeOrder` O'RNATILMAYDI va
@@ -541,7 +556,7 @@ class OrderProvider extends ChangeNotifier {
         );
         // Store info needed for post-trip rating before clearing the order.
         pendingRatingOrderId = _activeOrder!.id;
-        pendingRatingDriverName = _activeOrder!.driver?.name ?? 'Haydovchi';
+        pendingRatingDriverName = _activeOrder!.driver?.name ?? AppL10n.current.paxDetailDriver;
         notifyListeners();
         _cleanupOrderListeners();
         loadOrderHistory();
@@ -569,10 +584,9 @@ class OrderProvider extends ChangeNotifier {
       if (_activeOrder != null) {
         _activeOrder = _activeOrder!.copyWith(
           status: OrderStatus.cancelled,
-          cancelReason: "Yaqin atrofda haydovchi topilmadi",
+          cancelReason: AppL10n.current.paxNoDriversNearby,
         );
-        noDriversFoundMessage =
-            "Yaqin atrofda haydovchi topilmadi. Birozdan so'ng qayta urinib ko'ring.";
+        noDriversFoundMessage = AppL10n.current.paxNoDriversNearbyRetry;
         notifyListeners();
         _cleanupOrderListeners();
       }
@@ -637,7 +651,12 @@ class OrderProvider extends ChangeNotifier {
       final list =
           (data['data'] as Map<String, dynamic>)['orders'] as List<dynamic>;
       final orders = list.map((e) => Order.fromJson(e as Map<String, dynamic>));
-      final active = orders.where((o) => o.isActive);
+      // Ovqat/market kuryer safari ham shu yo'lovchi nomidan yaratiladi
+      // (mijoz = safar "yo'lovchisi"). U taksi oqimiga tiklanmasligi kerak:
+      // aks holda ovqat buyurtmasi bergan odam bosh ekranda "haydovchi
+      // yo'lda" taksi ekraniga qulflanib qolardi. Kuryerni u ovqat/market
+      // buyurtmasi ekranida kuzatadi.
+      final active = orders.where((o) => o.isActive && !o.isDelivery);
       if (active.isNotEmpty) {
         _activeOrder = active.first;
         _listenToOrderEvents();
@@ -751,10 +770,10 @@ class OrderProvider extends ChangeNotifier {
 
     final status = error.response?.statusCode;
     if (status == 409) {
-      return 'Bu safar uchun chaqim allaqachon berilgan.';
+      return AppL10n.current.paxTipAlreadyGiven;
     }
     if (status == 403) {
-      return 'Bu safar sizga tegishli emas.';
+      return AppL10n.current.paxTipNotYourTrip;
     }
 
     final serverMessage = extractErrorMessage(error);
@@ -762,8 +781,7 @@ class OrderProvider extends ChangeNotifier {
       // Backend matni o'zgarishi mumkin, shuning uchun o'zak bo'yicha
       // qidiriladi: "mablag'" / "mablag" (apostrofsiz yozuv ham).
       if (serverMessage.toLowerCase().contains('mablag')) {
-        return "Hamyonda mablag' yetarli emas. Hamyonni to'ldiring yoki "
-            'kichikroq summa tanlang.';
+        return AppL10n.current.paxTipInsufficientFunds;
       }
       return serverMessage;
     }
@@ -790,6 +808,7 @@ class OrderProvider extends ChangeNotifier {
     // buyurtma" holatining bir qismi. `createOrder` uni allaqachon
     // tozalaydi; bu esa yarim yo'lda tashlab ketilgan oqim uchun.
     _scheduledAt = null;
+    _tripOptions = const [];
     _routePoints = [];
     _routeDistanceKm = null;
     _routeDurationMin = null;

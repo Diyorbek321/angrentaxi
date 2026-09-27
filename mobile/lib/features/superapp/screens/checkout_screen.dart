@@ -9,6 +9,7 @@ import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/market_provider.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/food_order.dart';
 import 'package:angren_taxi/shared/models/market_order.dart';
 import 'package:angren_taxi/shared/models/order.dart';
@@ -58,7 +59,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   String get _addressLabel =>
       _destination?.address ??
-      (_resolvingAddress ? 'Manzil aniqlanmoqda…' : 'Manzilni tanlang');
+      (_resolvingAddress
+          ? context.l10n.saAddressResolving
+          : context.l10n.saChooseAddress);
 
   @override
   void initState() {
@@ -78,7 +81,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       return;
     }
 
-    String address = 'Joriy joylashuv';
+    String address = context.l10n.saCurrentLocation;
     try {
       final placemarks = await placemarkFromCoordinates(
         position.latitude,
@@ -135,13 +138,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(kSpace5, kSpace4, kSpace5, kSpace2),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(kSpace5, kSpace4, kSpace5, kSpace2),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  "To'lov usulini tanlang",
-                  style: TextStyle(
+                  context.l10n.saChoosePaymentMethod,
+                  style: const TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: kFontTitle,
                     color: agText,
@@ -152,14 +155,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             RadioListTile<CheckoutPaymentMethod>(
               value: CheckoutPaymentMethod.cash,
               groupValue: _paymentMethod,
-              title: const Text('Naqd pul'),
+              title: Text(context.l10n.saPaymentCash),
               secondary: const Icon(Icons.payments_rounded),
               onChanged: (v) => Navigator.pop(sheetContext, v),
             ),
             RadioListTile<CheckoutPaymentMethod>(
               value: CheckoutPaymentMethod.card,
               groupValue: _paymentMethod,
-              title: const Text('Karta (Payme / Click)'),
+              title: Text(context.l10n.saPaymentCard),
               secondary: const Icon(Icons.credit_card_rounded),
               onChanged: (v) => Navigator.pop(sheetContext, v),
             ),
@@ -188,7 +191,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final picked = await Navigator.of(context).push<OrderLocation>(
       MaterialPageRoute<OrderLocation>(
         builder: (_) => MapPickerScreen(
-          title: 'Yetkazib berish manzili',
+          title: context.l10n.saDeliveryAddress,
           initialLocation: _destination != null
               ? LatLng(_destination!.lat, _destination!.lng)
               : (current != null
@@ -214,8 +217,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final destination = _destination;
     if (destination == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Yetkazib berish manzilini tanlang'),
+        SnackBar(
+          content: Text(context.l10n.saChooseDeliveryAddress),
         ),
       );
       return;
@@ -250,7 +253,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (order == null) {
       setState(() => _submitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error ?? 'Buyurtma yuborilmadi')),
+        SnackBar(content: Text(error ?? context.l10n.saOrderNotSent)),
       );
       return;
     }
@@ -278,9 +281,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         paidOnline = completed == true;
         if (completed != true) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text(
-                "To'lov yakunlanmadi — buyurtma qabul qilindi, to'lovni keyinroq amalga oshirishingiz mumkin",
+                context.l10n.saPaymentNotCompleted,
               ),
             ),
           );
@@ -289,7 +292,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         setState(() => _submitting = false);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("To'lovni boshlab bo'lmadi: ${e.message}")),
+          SnackBar(content: Text(context.l10n.saPaymentStartFailed(e.message))),
         );
         return;
       }
@@ -317,7 +320,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       backgroundColor: agBg,
       body: Column(
         children: [
-          AgHeader(title: 'Rasmiylashtirish', onBack: () => Navigator.of(context).pop()),
+          AgHeader(title: context.l10n.saCheckoutTitle, onBack: () => Navigator.of(context).pop()),
           Expanded(
             child: ListView(
               padding: const EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, kSpace6),
@@ -326,7 +329,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   iconBg: agTint,
                   iconColor: agGreenText,
                   icon: Icons.location_on_rounded,
-                  title: 'Yetkazib berish manzili',
+                  title: context.l10n.saDeliveryAddress,
                   subtitle: _addressLabel,
                   onTap: _editAddress,
                 ),
@@ -337,10 +340,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   icon: _paymentMethod == CheckoutPaymentMethod.card
                       ? Icons.credit_card_rounded
                       : Icons.payments_rounded,
-                  title: "To'lov usuli",
+                  title: context.l10n.saPaymentMethod,
                   subtitle: _paymentMethod == CheckoutPaymentMethod.card
-                      ? 'Karta (Payme / Click)'
-                      : 'Naqd pul',
+                      ? context.l10n.saPaymentCard
+                      : context.l10n.saPaymentCash,
                   onTap: _submitting ? null : _choosePaymentMethod,
                 ),
                 const SizedBox(height: kSpace4),
@@ -353,17 +356,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
                   child: Column(
                     children: [
-                      _row('Mahsulotlar', Formatters.formatSom(provider.cartSubtotal)),
+                      _row(context.l10n.saMarketProducts, Formatters.formatSom(provider.cartSubtotal)),
                       const SizedBox(height: kSpace3),
-                      _row('Yetkazib berish', Formatters.formatSom(provider.deliveryFee)),
+                      _row(context.l10n.saDelivery, Formatters.formatSom(provider.deliveryFee)),
                       const SizedBox(height: kSpace3),
                       const Divider(color: agBorder, height: 1),
                       const SizedBox(height: kSpace3),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Jami',
-                              style: TextStyle(
+                          Text(context.l10n.saTotal,
+                              style: const TextStyle(
                                   fontWeight: FontWeight.w800, fontSize: kFontTitle, color: agText)),
                           Text(Formatters.formatSom(provider.cartTotal),
                               style: const TextStyle(
@@ -380,7 +383,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             padding: EdgeInsets.fromLTRB(
                 kSpace4, 0, kSpace4, MediaQuery.of(context).padding.bottom + kSpace4),
             child: AgPrimaryButton(
-              label: _submitting ? 'Yuborilmoqda...' : 'Buyurtmani tasdiqlash',
+              label: _submitting ? context.l10n.saSubmitting : context.l10n.saConfirmOrder,
               onPressed: (_submitting || provider.isCartEmpty) ? null : _submit,
             ),
           ),

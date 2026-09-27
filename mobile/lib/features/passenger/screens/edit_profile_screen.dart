@@ -1,5 +1,6 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:angren_taxi/shared/widgets/app_text_field.dart';
 import 'package:angren_taxi/shared/widgets/error_widget.dart';
@@ -61,7 +62,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Ma\'lumotlar saqlandi')),
+      SnackBar(content: Text(context.l10n.paxProfileSaved)),
     );
     Navigator.of(context).pop();
   }
@@ -69,7 +70,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Ma\'lumotlarni tahrirlash')),
+      appBar: AppBar(title: Text(context.l10n.paxEditProfile)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(kSpace5),
         child: Column(
@@ -77,14 +78,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           children: [
             AppTextField(
               controller: _firstNameController,
-              label: 'Ism',
-              hint: 'Ismingiz',
+              label: context.l10n.paxFirstName,
+              hint: context.l10n.paxFirstNameHint,
             ),
             const SizedBox(height: kSpace4),
             AppTextField(
               controller: _lastNameController,
-              label: 'Familiya',
-              hint: 'Familiyangiz',
+              label: context.l10n.paxLastName,
+              hint: context.l10n.paxLastNameHint,
             ),
             if (_error != null) ...[
               const SizedBox(height: kSpace3),
@@ -93,7 +94,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ],
             const SizedBox(height: kSpace6),
             AppButton(
-              label: 'Saqlash',
+              label: context.l10n.paxSave,
               isLoading: _saving,
               onPressed: _saving ? null : _save,
             ),

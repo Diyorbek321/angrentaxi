@@ -2,6 +2,7 @@ import 'package:angren_taxi/features/superapp/models/cart_item.dart';
 import 'package:angren_taxi/features/superapp/screens/checkout_screen.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/ag_map_fab.dart';
 import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
@@ -48,7 +49,7 @@ class CartScreen extends StatelessWidget {
       body: Column(
         children: [
           AgHeader(
-            title: 'Savat',
+            title: context.l10n.saCart,
             onBack: embedded ? null : () => Navigator.of(context).pop(),
           ),
           Expanded(
@@ -69,9 +70,9 @@ class _EmptyCart extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppEmptyState(
       icon: Icons.shopping_bag_outlined,
-      title: "Savat bo'sh",
-      message: "Ovqat yoki market mahsulotlarini qo'shing va bu yerda ko'rinadi.",
-      actionLabel: "Bosh sahifaga o'tish",
+      title: context.l10n.saCartEmptyTitle,
+      message: context.l10n.saCartEmptyMessage,
+      actionLabel: context.l10n.saGoToHome,
       onAction: () {
         final provider = context.read<SuperappProvider>();
         if (provider.tabIndex != 0) provider.tabIndex = 0;
@@ -98,8 +99,8 @@ class _CartBody extends StatelessWidget {
   Widget build(BuildContext context) {
     // Yo'lovchi ko'radigan HAR BIR haq shu ro'yxatda. Yashirin qator yo'q.
     final lines = <_PriceLine>[
-      _PriceLine('Mahsulotlar', provider.cartSubtotal),
-      _PriceLine('Yetkazib berish', provider.deliveryFee),
+      _PriceLine(context.l10n.saMarketProducts, provider.cartSubtotal),
+      _PriceLine(context.l10n.saDelivery, provider.deliveryFee),
     ];
     final linesSum = lines.fold<double>(0, (sum, l) => sum + l.amount);
     final total = provider.cartTotal;
@@ -151,8 +152,8 @@ class _CartBody extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Jami',
-                          style: TextStyle(
+                      Text(context.l10n.saTotal,
+                          style: const TextStyle(
                               fontWeight: FontWeight.w800, fontSize: kFontTitle, color: agText)),
                       Text(Formatters.formatSom(total),
                           style: const TextStyle(
@@ -166,11 +167,11 @@ class _CartBody extends StatelessWidget {
             // Ishonch qatori: yuqoridagi uchta raqam — yakuniy raqamlar.
             // Yetkazib berish haqi AYNAN shu yerda aytilgani uchun
             // checkout'da yangi raqam chiqmasligini ochiq yozamiz.
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: kSpace2),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: kSpace2),
               child: Text(
-                "Rasmiylashtirishda qo'shimcha haq qo'shilmaydi.",
-                style: TextStyle(
+                context.l10n.saCartNoExtraFees,
+                style: const TextStyle(
                   fontSize: kFontCaption,
                   color: kInkMuted,
                   fontWeight: FontWeight.w600,
@@ -187,9 +188,9 @@ class _CartBody extends StatelessWidget {
             // Summa CTA da TAKRORLANADI — bu bosishdan oldingi oxirgi
             // tasdiq. Yo'lovchi qancha to'lashini tugmadan uzoqlashmasdan
             // ko'radi.
-            label: 'Rasmiylashtirish · ${Formatters.formatSom(total)}',
+            label: context.l10n.saCheckoutWithTotal(Formatters.formatSom(total)),
             semanticsLabel:
-                'Rasmiylashtirish, jami ${Formatters.formatSom(total)}',
+                context.l10n.saCheckoutWithTotalLabel(Formatters.formatSom(total)),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const CheckoutScreen()),
             ),
@@ -274,7 +275,7 @@ class _CartRow extends StatelessWidget {
                 _QtyButton(
                   icon: Icons.remove_rounded,
                   color: agText,
-                  semanticsLabel: 'Miqdorni kamaytirish',
+                  semanticsLabel: context.l10n.saQtyDecrease,
                   onTap: onDec,
                 ),
                 Text('${item.qty}',
@@ -283,7 +284,7 @@ class _CartRow extends StatelessWidget {
                 _QtyButton(
                   icon: Icons.add_rounded,
                   color: agGreenText,
-                  semanticsLabel: 'Miqdorni oshirish',
+                  semanticsLabel: context.l10n.saQtyIncrease,
                   onTap: onInc,
                 ),
               ],

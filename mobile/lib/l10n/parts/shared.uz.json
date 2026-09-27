@@ -1,0 +1,410 @@
+{
+  "shServiceTaxi": "Taksi",
+  "shServiceCargoShort": "Yuk",
+  "shServiceFoodShort": "Ovqat",
+  "shServiceMarketShort": "Market",
+  "shOrderStatusScheduled": "Rejalashtirilgan",
+  "shStatusPending": "Kutilmoqda",
+  "shOrderStatusSearching": "Haydovchi izlanmoqda",
+  "shOrderStatusDriverAssigned": "Haydovchi tayinlandi",
+  "shOrderStatusDriverEnRoute": "Haydovchi kelmoqda",
+  "shOrderStatusDriverArrived": "Haydovchi yetib keldi",
+  "shOrderStatusInProgress": "Sayohat davom etmoqda",
+  "shOrderStatusCompleted": "Yakunlandi",
+  "shStatusCancelled": "Bekor qilindi",
+  "shDeliveryAccepted": "Qabul qilindi",
+  "shDeliveryPreparing": "Tayyorlanmoqda",
+  "shDeliveryOnTheWay": "Yo'lda",
+  "shDeliveryDelivered": "Yetkazildi",
+  "shMarketPacking": "Do'kon yig'moqda",
+  "shTxTrip": "Sayohat",
+  "shTxTopUp": "Hisobni to'ldirish",
+  "shTxWithdrawal": "Pul yechish",
+  "shTxBonus": "Bonus",
+  "shTripOptionChildSeat": "Bola o'rindig'i",
+  "shTripOptionPet": "Hayvon bilan",
+  "shTripOptionAirConditioner": "Konditsioner",
+  "shTripOptionBigLuggage": "Katta bagaj",
+  "shLostItemOpen": "Haydovchi tekshirmoqda",
+  "shLostItemFound": "Topildi — operator bog'lanadi",
+  "shLostItemNotFound": "Mashinadan topilmadi",
+  "shLostItemReturned": "Qaytarildi",
+  "shLostItemClosed": "Yopildi",
+  "shVerifDaysOverdue": "{days} kun kechikkan",
+  "@shVerifDaysOverdue": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "shVerifExpiresToday": "Bugun tugaydi",
+  "shVerifDaysLeft": "{days} kun qoldi",
+  "@shVerifDaysLeft": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "shVerifOk": "Yaroqli",
+  "shVerifDueSoon": "Muddati tugayapti",
+  "shVerifOverdue": "Muddati o'tgan",
+  "shVerifPendingReview": "Tekshirilmoqda",
+  "shVerifRejected": "Rad etilgan",
+  "shVerifMissing": "Yuklanmagan",
+  "shVerifUnknown": "E'tibor talab qiladi",
+  "shPayMethodCash": "Naqd pul",
+  "shPayMethodCard": "Karta",
+  "shPayMethodWallet": "Hamyon",
+  "shPayStatusPaid": "To'landi",
+  "shPayStatusFailed": "Amalga oshmadi",
+  "shPayStatusRefunded": "Qaytarildi",
+  "shServiceCargo": "Yuk tashish",
+  "shServiceFood": "Ovqat yetkazish",
+  "shServiceMarket": "Do'kon yetkazish",
+  "shDriverFallbackName": "Haydovchi",
+  "shFareBase": "Asos",
+  "shFareDistance": "Masofa ({km} km × {price})",
+  "@shFareDistance": {
+    "placeholders": {
+      "km": {
+        "type": "String"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "shFareTime": "Vaqt ({minutes} daq × {price})",
+  "@shFareTime": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "shFareMinAdjustment": "Eng kam haq tuzatmasi",
+  "shFareSurge": "Talab koeffitsienti (×{multiplier})",
+  "@shFareSurge": {
+    "placeholders": {
+      "multiplier": {
+        "type": "String"
+      }
+    }
+  },
+  "shFareMaxCap": "Yuqori narx chegarasi",
+  "shFareWaitingFree": "Kutish (0 daq — bepul vaqtdan oshmadi)",
+  "shFareWaitingRate": "Kutish ({minutes} daq × {price})",
+  "@shFareWaitingRate": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "shFareWaiting": "Kutish ({minutes} daq)",
+  "@shFareWaiting": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "shReceiptHeader": "Angren Go — safar cheki",
+  "shReceiptOrder": "Buyurtma: {number}",
+  "@shReceiptOrder": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptDate": "Sana: {date}",
+  "@shReceiptDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptService": "Xizmat: {service}",
+  "@shReceiptService": {
+    "placeholders": {
+      "service": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptTariff": "Tarif: {tariff}",
+  "@shReceiptTariff": {
+    "placeholders": {
+      "tariff": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptPickup": "Olib ketish: {address}",
+  "@shReceiptPickup": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptNotSaved": "saqlanmagan",
+  "shReceiptStop": "To'xtash {index}: {address}",
+  "@shReceiptStop": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptDropoff": "Tushish: {address}",
+  "@shReceiptDropoff": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptDistance": "Masofa: {distance}",
+  "@shReceiptDistance": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptDuration": "Davomiyligi: {duration}",
+  "@shReceiptDuration": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptNoFareBreakdown": "Narx tarkibi saqlanmagan.",
+  "shReceiptTotal": "Jami: {amount}",
+  "@shReceiptTotal": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptDiscount": "Chegirma{promo}: −{amount}",
+  "@shReceiptDiscount": {
+    "placeholders": {
+      "promo": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptTip": "Chaqim: +{amount}",
+  "@shReceiptTip": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptGrandTotal": "Yakuniy: {amount}",
+  "@shReceiptGrandTotal": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptPayment": "To'lov: {payment}",
+  "@shReceiptPayment": {
+    "placeholders": {
+      "payment": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptUnpaid": "To'lanmagan qoldiq: {amount}",
+  "@shReceiptUnpaid": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptDriver": "Haydovchi: {driver}",
+  "@shReceiptDriver": {
+    "placeholders": {
+      "driver": {
+        "type": "String"
+      }
+    }
+  },
+  "shValPhoneRequired": "Telefon raqamini kiriting",
+  "shValPhoneInvalid": "Telefon raqami noto'g'ri (+998XXXXXXXXX)",
+  "shValOtpRequired": "Kodni kiriting",
+  "shValOtpLength": "Kod 6 raqamdan iborat bo'lishi kerak",
+  "shValDigitsOnly": "Faqat raqamlar kiriting",
+  "shValFieldRequired": "{field} bo'sh bo'lmasligi kerak",
+  "@shValFieldRequired": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "shValThisFieldRequired": "Bu maydon bo'sh bo'lmasligi kerak",
+  "shValNameRequired": "Ismni kiriting",
+  "shValNameTooShort": "Ism kamida 2 ta harfdan iborat bo'lishi kerak",
+  "shConfirm": "Tasdiqlash",
+  "shCancel": "Bekor qilish",
+  "shErrorGeneric": "Xatolik yuz berdi",
+  "shErrorTimeout": "Ulanish vaqti tugadi. Internetni tekshiring",
+  "shErrorNoInternet": "Internet bilan muammo bor",
+  "shErrorUnknown": "Noma'lum xatolik yuz berdi",
+  "shManeuverContinue": "Yo'lda davom eting",
+  "shManeuverDepart": "Yo'lni boshlang",
+  "shManeuverArrive": "Manzilga yetib keldingiz",
+  "shManeuverOnRamp": "Chiqish yo'lkasiga kiring",
+  "shManeuverOffRamp": "Yo'lkadan chiqing",
+  "shManeuverExitRoundabout": "Aylanmadan chiqing",
+  "shManeuverStraight": "To'g'ri davom eting",
+  "shManeuverUturn": "Orqaga qayting",
+  "shManeuverSharpRight": "Keskin o'ngga buriling",
+  "shManeuverRight": "O'ngga buriling",
+  "shManeuverSlightRight": "Sal o'ngga oling",
+  "shManeuverSlightLeft": "Sal chapga oling",
+  "shManeuverLeft": "Chapga buriling",
+  "shManeuverSharpLeft": "Keskin chapga buriling",
+  "shManeuverEndOfRoadRight": "Yo'l oxirida o'ngga buriling",
+  "shManeuverEndOfRoadLeft": "Yo'l oxirida chapga buriling",
+  "shManeuverEndOfRoadUturn": "Yo'l oxirida orqaga qayting",
+  "shManeuverEndOfRoadStraight": "Yo'l oxirigacha davom eting",
+  "shManeuverForkRight": "Ayrilishda o'ng tomonni tanlang",
+  "shManeuverForkLeft": "Ayrilishda chap tomonni tanlang",
+  "shManeuverForkStraight": "Ayrilishda to'g'ri davom eting",
+  "shManeuverMergeRight": "O'ng qatorga qo'shiling",
+  "shManeuverMergeLeft": "Chap qatorga qo'shiling",
+  "shManeuverMerge": "Qatorga qo'shiling",
+  "shManeuverRoundabout": "Aylanmaga kiring",
+  "shManeuverRoundaboutExit": "Aylanmaga kiring va {exit}-chiqishdan chiqing",
+  "@shManeuverRoundaboutExit": {
+    "placeholders": {
+      "exit": {
+        "type": "int"
+      }
+    }
+  },
+  "shManeuverArriveIn": "{meters} metrdan keyin manzilga yetib borasiz",
+  "@shManeuverArriveIn": {
+    "placeholders": {
+      "meters": {
+        "type": "int"
+      }
+    }
+  },
+  "shManeuverInDistance": "{meters} metrdan keyin {instruction}",
+  "@shManeuverInDistance": {
+    "placeholders": {
+      "meters": {
+        "type": "int"
+      },
+      "instruction": {
+        "type": "String"
+      }
+    }
+  },
+  "shRetry": "Qayta urinish",
+  "shErrorSemantics": "Xatolik: {message}",
+  "@shErrorSemantics": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "shLoading": "Yuklanmoqda",
+  "shStatusSemantics": "Holat: {status}",
+  "@shStatusSemantics": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "shNeedsAttentionSemantics": "{label}, e'tibor talab qiladi",
+  "@shNeedsAttentionSemantics": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "shRouteFromSemantics": "Qayerdan: {address}",
+  "@shRouteFromSemantics": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "shRouteToSemantics": "Qayerga: {address}",
+  "@shRouteToSemantics": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "shRouteToWithDistanceSemantics": "Qayerga: {address}, {distance}",
+  "@shRouteToWithDistanceSemantics": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      },
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "shRouteSwap": "Manzillarni almashtirish",
+  "shAuthContinue": "Davom etish",
+  "shAuthEnterPhone": "Telefon raqamingizni kiriting",
+  "shAuthPhoneLabel": "Telefon raqam",
+  "shAuthTerms": "Davom etish orqali siz foydalanish shartlari va maxfiylik siyosatiga rozilik bildirasiz.",
+  "shOtpEnterSixDigits": "6 ta raqamli kodni kiriting",
+  "shOtpTitle": "Tasdiqlash",
+  "shBack": "Orqaga",
+  "shOtpHeading": "SMS kod kiriting",
+  "shOtpSentPrefix": "Kod ",
+  "shOtpSentSuffix": " raqamiga yuborildi",
+  "shOtpResend": "Kodni qayta yuborish",
+  "shOtpResendIn": "Qayta yuborish: {seconds} s",
+  "@shOtpResendIn": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "shSupportChatTitle": "Operator bilan chat",
+  "shSupportChatEmpty": "Xabar yozing — operatorlarimiz 24/7 yordam berishga tayyor",
+  "shChatHint": "Xabar yozing...",
+  "shSend": "Yuborish",
+  "shTripChatTitle": "Suhbat",
+  "shTripChatEmpty": "Hali xabar yo'q. Birinchi bo'lib yozing!"
+}

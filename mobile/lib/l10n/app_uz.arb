@@ -1,0 +1,2101 @@
+{
+  "@@locale": "uz",
+  "appLanguage": "Ilova tili",
+  "commonCancel": "Bekor qilish",
+  "commonDone": "Tayyor",
+  "commonErrorTitle": "Xatolik yuz berdi",
+  "commonRetry": "Qayta urinish",
+  "commonSave": "Saqlash",
+  "commonSend": "Yuborish",
+  "drvAbout": "Dastur haqida",
+  "drvAccept": "Qabul qilish",
+  "drvAcceptFailed": "Buyurtmani qabul qilib bo'lmadi",
+  "drvAcceptedOrders": "Qabul qilinadigan buyurtmalar",
+  "drvAmenitiesIntro": "Mashinangizda bor narsalarni belgilang — yo'lovchi shularni so'rasa, buyurtma sizga keladi.",
+  "drvAmenitiesTitle": "Qo'shimcha imkoniyatlar",
+  "drvAmenitiesWarning": "Mashinada yo'q narsani belgilamang: yo'lovchi bola o'rindig'i kutib chiqadi va safarni bekor qiladi.",
+  "drvAmount": "Summa",
+  "drvAmountExceedsWallet": "Summa hamyondan oshib ketdi. Hamyon: {balance}",
+  "@drvAmountExceedsWallet": {
+    "placeholders": {
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
+  "drvAmountHint": "Masalan: 60000",
+  "drvAppName": "Angren Taxi - Haydovchi",
+  "drvApplicationIntro": "{phone} raqami hali haydovchi sifatida ro'yxatdan o'tmagan. Mashina ma'lumotlarini kiriting — admin tasdiqlagach onlayn bo'la olasiz.",
+  "@drvApplicationIntro": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "drvApplicationPending": "Ariza ko'rib chiqilmoqda",
+  "drvApplicationPendingBody": "Sizning haydovchilik arizangiz admin tomonidan tasdiqlanishini kutmoqda. Tasdiqlangach shu yerdan avtomatik davom etasiz.",
+  "drvApplicationTitle": "Haydovchi bo'lish uchun ariza",
+  "drvArrivedCargo": "Yuk olish joyidasiz!",
+  "drvArrivedRestaurant": "Restorandasiz!",
+  "drvArrivedShop": "Do'kondasiz!",
+  "drvArrivedTaxi": "Olish joyida turibsiz!",
+  "drvArrivedTitle": "Yetib keldim",
+  "drvBack": "Orqaga",
+  "drvBalanceNegative": "Hisobingiz manfiy ({balance}). Avval qarzni yoping.",
+  "@drvBalanceNegative": {
+    "placeholders": {
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
+  "drvBankAndWithdraw": "Bank hisobi va pul yechish",
+  "drvBonusDone": "Bajarildi — {amount}",
+  "@drvBonusDone": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "drvBonusProgram": "Bonus dasturi",
+  "drvBonusRemaining": "Yana {count} ta safar — {amount}",
+  "@drvBonusRemaining": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "drvBonusTrips": "{current}/{threshold} safar",
+  "@drvBonusTrips": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "threshold": {
+        "type": "int"
+      }
+    }
+  },
+  "drvCall": "Qo'ng'iroq",
+  "drvCallCustomer": "Mijozga qo'ng'iroq",
+  "drvCallFailed": "Qo'ng'iroq qilib bo'lmadi",
+  "drvCallSeller": "Sotuvchiga qo'ng'iroq",
+  "drvCamera": "Kamera",
+  "drvCancel": "Bekor qilish",
+  "drvCancelFailed": "Bekor qilib bo'lmadi",
+  "drvCarColor": "Rangi",
+  "drvCarDetails": "Mashina ma'lumotlari",
+  "drvCarModel": "Rusumi",
+  "drvCarModelField": "Mashina modeli",
+  "drvCarModelHint": "Masalan: Chevrolet Cobalt",
+  "drvCarModelRequired": "Mashina rusumini kiriting",
+  "drvCarYear": "Ishlab chiqarilgan yili",
+  "drvCarYearField": "Mashina ishlab chiqarilgan yili",
+  "drvCarYearHelper": "Qaysi tarif darajasida ishlay olishingiz shu ma'lumot asosida ko'rib chiqiladi",
+  "drvCarYearHint": "Masalan: 2019",
+  "drvCarYearOptional": "Ishlab chiqarilgan yili (ixtiyoriy)",
+  "drvCarYearRange": "1990 dan {max} gacha yil kiriting",
+  "@drvCarYearRange": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "drvCardOrPhone": "Karta yoki telefon raqami",
+  "drvCargo": "Yuk",
+  "drvCargoDelivered": "Yuk muvaffaqiyatli yetkazildi!",
+  "drvCargoInProgress": "Yuk yetkazilmoqda",
+  "drvCargoNotGiven": "Yuk berilmadi",
+  "drvCargoPickupPlace": "Yukni olish joyi",
+  "drvChatCustomer": "Mijoz bilan yozishish",
+  "drvChatPassenger": "Yo'lovchi bilan yozishish",
+  "drvCheckStatus": "Holatni tekshirish",
+  "drvCollectCash": "Mijozdan naqd oling",
+  "drvCompleteCargoConfirm": "Yukni topshirganingizni tasdiqlaysizmi?",
+  "drvCompleteDelivery": "Yetkazishni yakunlash",
+  "drvCompleteFailed": "Yakunlab bo'lmadi",
+  "drvCompleteOrderConfirm": "Buyurtmani mijozga topshirganingizni tasdiqlaysizmi?",
+  "drvCompleteTrip": "Safarni yakunlash",
+  "drvCompleteTripConfirm": "Safarni yakunlashni tasdiqlaysizmi?",
+  "drvCompletedTrips": "Yakunlangan safarlar",
+  "drvContinue": "Davom etish",
+  "drvCurrentCar": "Hozirgi mashina",
+  "drvCustomer": "Mijoz",
+  "drvDataNotLoaded": "Ma'lumot yuklanmadi",
+  "drvDeadlineApproaching": "Muddat yaqinlashmoqda",
+  "drvDebt": "Qarz",
+  "drvDebtAmount": "Qarz: {amount}",
+  "@drvDebtAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "drvDebtConsequence": "Naqd safarlar komissiyasi. Qarz yopilmaguncha onlayn chiqib bo'lmaydi.",
+  "drvDecline": "Rad etish",
+  "drvDeliveryAddress": "Yetkazish manzili",
+  "drvDemandEvenMessage": "Zonalar orasida farq yo‘q — istalgan joyda kutishingiz mumkin. Maʼlumot har daqiqada yangilanadi.",
+  "drvDemandEvenTitle": "Hozir talab hamma joyda oddiy",
+  "drvDemandHigh": "Talab yuqori",
+  "drvDemandLoadFailed": "Talab maʼlumoti olinmadi",
+  "drvDemandMapLinkSem": "Talab xaritasi, qayerda buyurtma ko'pligini ko'rish",
+  "drvDemandMapTitle": "Talab xaritasi",
+  "drvDemandNormal": "Talab oddiy",
+  "drvDemandPaintedMore": "Bo‘yalgan joylarda buyurtma ko‘proq",
+  "drvDemandRowSem": "{title}, {count}",
+  "@drvDemandRowSem": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "drvDemandRowSemNearest": "{title}, {count}, eng yaqini {distance}",
+  "@drvDemandRowSemNearest": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "count": {
+        "type": "String"
+      },
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "drvDemandStayNear": "Shu zonalarga yaqin turing — buyurtma tezroq keladi.",
+  "drvDemandUnpaintedNormal": "Bo‘yalmagan joylarda talab odatdagidek.",
+  "drvDemandVeryHigh": "Talab juda yuqori",
+  "drvDemandZone": "Talab zonasi",
+  "drvDestination": "Manzil",
+  "drvDispatchersNotified": "Dispetcherlarga xabar yuborildi",
+  "drvDistanceToCargo": "Yukkacha",
+  "drvDistanceToPassenger": "Yo'lovchigacha",
+  "drvDistanceToRestaurant": "Restorangacha",
+  "drvDistanceToShop": "Do'kongacha",
+  "drvDocApproved": "Tasdiqlangan",
+  "drvDocLicenseBack": "Haydovchilik guvohnomasi (orqa tomoni)",
+  "drvDocLicenseFront": "Haydovchilik guvohnomasi (old tomoni)",
+  "drvDocPassport": "Pasport",
+  "drvDocRejectedReupload": "Rad etilgan — qayta yuklang",
+  "drvDocUnderReview": "Tekshirilmoqda",
+  "drvDocVehicleRegistration": "Texnik pasport",
+  "drvDocsExpiringSoon": "Ba'zi hujjatlarning muddati tugayapti. Ishingiz to'xtab qolmasligi uchun oldindan yangilang.",
+  "drvDocsExpiringSoonShort": "Ba'zi hujjatlarning muddati tugayapti. Oldindan yangilab qo'ying.",
+  "drvDriver": "Haydovchi",
+  "drvEarnings": "Daromad",
+  "drvEditProfile": "Ma'lumotlarni tahrirlash",
+  "drvEmergencyCall": "Favqulodda chaqiruv (102/103)",
+  "drvEmergencyHelp": "Favqulodda yordam",
+  "drvEmergencySos": "Favqulodda yordam (SOS)",
+  "drvEnable": "Yoqish",
+  "drvEnterCardOrPhone": "Karta yoki telefon raqamini kiriting",
+  "drvEnterValidAmount": "To'g'ri summa kiriting",
+  "drvErrorOccurred": "Xatolik yuz berdi",
+  "drvEstimatedEarnings": "Taxminiy daromad",
+  "drvEstimatedPrice": "Taxminiy narx:",
+  "drvFindMyLocation": "Joylashuvimni topish",
+  "drvFitZones": "Zonalarni ekranga sig'dirish",
+  "drvFreeWait": "Bepul kutish",
+  "drvGallery": "Galereya",
+  "drvGoOffline": "Offline bo'lish",
+  "drvGoOnline": "Online bo'lish",
+  "drvGoOnlineBlocked": "Onlayn bo'lish yopiq",
+  "drvGoToNearestZone": "Eng yaqin zonaga yo‘l olish",
+  "drvGoToNearestZoneSem": "Eng yaqin talab zonasiga navigatsiyani ochish, {level}, {distance}",
+  "@drvGoToNearestZoneSem": {
+    "placeholders": {
+      "level": {
+        "type": "String"
+      },
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "drvGpsDisabled": "Telefoningizda joylashuv (GPS) o'chirilgan — xarita to'g'ri ishlashi uchun uni yoqing.",
+  "drvHelp": "Yordam",
+  "drvHeroSemBonus": "{name}: {threshold} tadan {count} ta bajarildi",
+  "@drvHeroSemBonus": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "drvHeroSemEarnings": "Bugungi daromad {amount}",
+  "@drvHeroSemEarnings": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "drvHeroSemOpenHistory": "Daromad tarixini ochish",
+  "drvItemsCount": "{count} ta mahsulot",
+  "@drvItemsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "drvLast30Days": "So'nggi 30 kun",
+  "drvLast7Days": "So'nggi 7 kun",
+  "drvLoading": "Yuklanmoqda",
+  "drvLocationDenied": "Ilova joylashuvga ruxsat olmadi — xaritada aniq joyingizni ko'rish uchun ruxsat bering.",
+  "drvLocationFailed": "Joylashuvni aniqlab bo'lmadi. Ochiq joyga o'ting yoki qayta urinib ko'ring.",
+  "drvLocationUnavailable": "Joylashuvingiz aniqlanmadi. GPS yoqilganini va ilovaga ruxsat berilganini tekshiring.",
+  "drvLogout": "Chiqish",
+  "drvLogoutConfirmBody": "Hisobdan chiqmoqchimisiz?",
+  "drvLogoutConfirmTitle": "Chiqishni tasdiqlang",
+  "drvLostItems": "Yo'qolgan buyumlar",
+  "drvMenu": "Menyu",
+  "drvMessage": "Xabar",
+  "drvMoreActions": "Qo'shimcha amallar",
+  "drvNavAppNotFound": "Navigatsiya ilovasi topilmadi",
+  "drvNeedsAttention": "{count} ta e'tibor talab qiladi",
+  "@drvNeedsAttention": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "drvNetEarnings": "Sof daromad · {period}",
+  "@drvNetEarnings": {
+    "placeholders": {
+      "period": {
+        "type": "String"
+      }
+    }
+  },
+  "drvNewCar": "Yangi mashina",
+  "drvNewOrder": "Yangi buyurtma!",
+  "drvNoFundsToWithdraw": "Yechish uchun mablag' yo'q",
+  "drvNoKeepWaiting": "Yo'q, kutaman",
+  "drvNoOrderHistory": "Buyurtmalar tarixi yo'q",
+  "drvNoRequestsYet": "Hozircha so'rovlar yo'q",
+  "drvNoShowConfirm": "Buyurtmani bekor qilmoqchimisiz?",
+  "drvNoShowConfirmWaited": "{elapsed} kutdingiz. Buyurtmani bekor qilmoqchimisiz?",
+  "@drvNoShowConfirmWaited": {
+    "placeholders": {
+      "elapsed": {
+        "type": "String"
+      }
+    }
+  },
+  "drvNoShowConfirmWaitedFee": "{elapsed} kutdingiz, {fare} kutish haqi yig'ildi. Buyurtmani bekor qilmoqchimisiz?",
+  "@drvNoShowConfirmWaitedFee": {
+    "placeholders": {
+      "elapsed": {
+        "type": "String"
+      },
+      "fare": {
+        "type": "String"
+      }
+    }
+  },
+  "drvNotUpdated": "Yangilanmadi: {message}",
+  "@drvNotUpdated": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "drvNotUploaded": "Yuklanmagan",
+  "drvNotifications": "Bildirishnomalar",
+  "drvNotifyDispatchers": "Dispetcherlarga xabar berish",
+  "drvOffline": "Offline",
+  "drvOfflineLower": "offline",
+  "drvOnline": "Online",
+  "drvOnlineLower": "online",
+  "drvOpenNavigation": "Navigatsiyani ochish",
+  "drvOpenOrder": "Buyurtmani ochish",
+  "drvOpenOrderSem": "{type} buyurtmasini ochish",
+  "@drvOpenOrderSem": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      }
+    }
+  },
+  "drvOpenVerification": "Tekshiruvni ochish",
+  "drvOptional": "Majburiy emas",
+  "drvOrderDelivered": "Buyurtma muvaffaqiyatli yetkazildi!",
+  "drvOrderDetails": "Buyurtma ma'lumotlari",
+  "drvOrderHistory": "Buyurtmalar tarixi",
+  "drvOrderInProgress": "Buyurtma yetkazilmoqda",
+  "drvOrderNotGiven": "Buyurtma berilmadi",
+  "drvPaidOnline": "Onlayn to'langan — pul olmaysiz",
+  "drvPassenger": "Yo'lovchi",
+  "drvPassengerNoShow": "Yo'lovchi kelmadi",
+  "drvPassengerRequested": "Yo'lovchi so'ragan: {options}",
+  "@drvPassengerRequested": {
+    "placeholders": {
+      "options": {
+        "type": "String"
+      }
+    }
+  },
+  "drvPayment": "To'lov",
+  "drvPeriodEarningsSem": "{period} daromadi",
+  "@drvPeriodEarningsSem": {
+    "placeholders": {
+      "period": {
+        "type": "String"
+      }
+    }
+  },
+  "drvPeriodMonth": "Oy",
+  "drvPeriodWeek": "Hafta",
+  "drvPickupCargo": "Yukni oling",
+  "drvPickupOrder": "Buyurtmani oling",
+  "drvPickupPassenger": "Yo'lovchini oling",
+  "drvPickupPlace": "Olish joyi",
+  "drvPlateHint": "Masalan: 01 A 123 BC",
+  "drvPlateNumber": "Davlat raqami",
+  "drvPlateRequired": "Davlat raqamini kiriting",
+  "drvPlatformCommission": "Platforma komissiyasi",
+  "drvPleaseRate": "Iltimos, baho bering",
+  "drvProfileTitle": "Profil",
+  "drvRateCommentHint": "{client} haqida izoh...",
+  "@drvRateCommentHint": {
+    "placeholders": {
+      "client": {
+        "type": "String"
+      }
+    }
+  },
+  "drvRateHowWas": "{client} qanday edi?",
+  "@drvRateHowWas": {
+    "placeholders": {
+      "client": {
+        "type": "String"
+      }
+    }
+  },
+  "drvRateStars": "{count} yulduz",
+  "@drvRateStars": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "drvRating1": "Juda yomon",
+  "drvRating2": "Yomon",
+  "drvRating3": "Oddiy",
+  "drvRating4": "Yaxshi",
+  "drvRating5": "Ajoyib!",
+  "drvRatingPick": "Yulduz tanlang",
+  "drvRatingStarsSem": "{rating} yulduz reyting",
+  "@drvRatingStarsSem": {
+    "placeholders": {
+      "rating": {
+        "type": "String"
+      }
+    }
+  },
+  "drvRatingValue": "{rating} reyting",
+  "@drvRatingValue": {
+    "placeholders": {
+      "rating": {
+        "type": "String"
+      }
+    }
+  },
+  "drvRatingsCount": "{count} ta baholash",
+  "@drvRatingsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "drvReason": "Sabab: {reason}",
+  "@drvReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "drvRefreshDemand": "Talab maʼlumotini yangilash",
+  "drvRefreshing": "Yangilanmoqda…",
+  "drvRequestApproved": "Tasdiqlandi — profil yangilandi",
+  "drvRequestPending": "So'rov ko'rib chiqilmoqda",
+  "drvRequestRejected": "Rad etildi",
+  "drvRequirementsNeeded": "Kerak: {items}",
+  "@drvRequirementsNeeded": {
+    "placeholders": {
+      "items": {
+        "type": "String"
+      }
+    }
+  },
+  "drvRestaurant": "Restoran",
+  "drvRetry": "Qayta urinish",
+  "drvReupload": "Qayta yuklash",
+  "drvRouteToCargo": "Yukka yo'l",
+  "drvRouteToPassenger": "Yo'lovchiga yo'l",
+  "drvRouteToRestaurant": "Restoranga yo'l",
+  "drvRouteToShop": "Do'konga yo'l",
+  "drvSafetyNote": "Xavfsizligingiz biz uchun muhim. Kerak bo'lsa, quyidagi tugmalardan birini bosing.",
+  "drvSave": "Saqlash",
+  "drvSaved": "Saqlandi",
+  "drvSecondsToAccept": "Qabul qilish uchun {seconds} soniya qoldi",
+  "@drvSecondsToAccept": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "drvSeller": "Sotuvchi",
+  "drvSend": "Yuborish",
+  "drvSendRequest": "So'rov yuborish",
+  "drvServiceBlockedDefault": "Bu turni yoqish uchun tekshiruv talablari bajarilishi kerak.",
+  "drvServiceChipOff": "{label}, o'chirilgan. Xizmat turlarini ochish",
+  "@drvServiceChipOff": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "drvServiceChipOn": "{label}, yoqilgan. Xizmat turlarini ochish",
+  "@drvServiceChipOn": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "drvServiceChipUnavailable": "{label}, mavjud emas. Xizmat turlarini ochish",
+  "@drvServiceChipUnavailable": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "drvServiceChipUnavailableReason": "{label}, mavjud emas: {reason}. Xizmat turlarini ochish",
+  "@drvServiceChipUnavailableReason": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "drvServicesEmptyMessage": "Hozircha sizga hech qanday xizmat turi taklif qilinmayapti. Yangisi paydo bo'lsa shu yerda ko'rinadi.",
+  "drvServicesEmptySelection": "Kamida bitta xizmat turi yoqilgan bo'lishi kerak — aks holda sizga buyurtma kelmaydi.",
+  "drvServicesEmptyTitle": "Xizmat turi yo'q",
+  "drvServicesHeading": "Qaysi buyurtmalarni olasiz",
+  "drvServicesSaved": "Xizmat turlari saqlandi",
+  "drvServicesSubtitle": "Faqat yoqilgan turlar bo'yicha buyurtma keladi. Talablari bajarilmagan turni yoqib bo'lmaydi.",
+  "drvServicesTitle": "Xizmat turlari",
+  "drvSettings": "Sozlamalar",
+  "drvShop": "Do'kon",
+  "drvSkip": "O'tkazib yuborish",
+  "drvSom": "so'm",
+  "drvSosSem": "SOS — favqulodda yordam",
+  "drvStartDelivery": "Yetkazishni boshlash",
+  "drvStartTrip": "Safarni boshlash",
+  "drvSubmitApplication": "Arizani yuborish",
+  "drvToday": "Bugun",
+  "drvTodayEarnings": "Bugungi daromad",
+  "drvTotalTrips": "Jami safarlar",
+  "drvTripCompleted": "Safar muvaffaqiyatli yakunlandi!",
+  "drvTripInProgress": "Safar davom etmoqda",
+  "drvTripsCount": "{count} ta safar",
+  "@drvTripsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "drvTripsGross": "Safarlardan jami",
+  "drvTypeCargo": "Yuk tashish",
+  "drvTypeFood": "Ovqat yetkazish",
+  "drvTypeMarket": "Market yetkazish",
+  "drvTypeTaxi": "Taksi",
+  "drvUpdatedAt": "Yangilandi: {time}",
+  "@drvUpdatedAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "drvUpload": "Yuklash",
+  "drvUploadDocuments": "Hujjatlarni yuklang",
+  "drvUploadDocumentsHint": "Tasdiqlash tezroq bo'lishi uchun quyidagi hujjatlarning aniq suratlarini yuklang.",
+  "drvUploadError": "Yuklashda xatolik",
+  "drvUploadNew": "Yangisini yuklash",
+  "drvUploadingPercent": "Yuklanmoqda... {percent}%",
+  "@drvUploadingPercent": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "drvUploadingPercentSem": "Yuklanmoqda, {percent} foiz",
+  "@drvUploadingPercentSem": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "drvVehicleChangeNote": "Menejer tasdiqlaguncha profilingizda hozirgi mashina qoladi. Yangi mashina fotolarini tekshiruv bo'limidan so'rashlari mumkin.",
+  "drvVehicleChangeTitle": "Mashinani almashtirish",
+  "drvVehicleRequestSent": "So'rov yuborildi — menejer tekshiradi",
+  "drvVerificationEmptyMessage": "Hozircha sizdan hech qanday hujjat yoki surat talab qilinmayapti. Yangi talab paydo bo'lsa shu yerda ko'rinadi.",
+  "drvVerificationEmptyTitle": "Talab yo'q",
+  "drvVerificationIncomplete": "Tekshiruv to'liq emas — quyidagi talablarni bajaring.",
+  "drvVerificationIncompleteShort": "Tekshiruv to'liq emas — talablarni bajaring.",
+  "drvVerificationTitle": "Tekshiruv",
+  "drvView": "Ko'rish",
+  "drvWaitBillingCaption": "Jami {elapsed} · {perMinute}/daqiqa",
+  "@drvWaitBillingCaption": {
+    "placeholders": {
+      "elapsed": {
+        "type": "String"
+      },
+      "perMinute": {
+        "type": "String"
+      }
+    }
+  },
+  "drvWaitBillingSem": "Kutish haqi {fare}, jami {elapsed} kutildi",
+  "@drvWaitBillingSem": {
+    "placeholders": {
+      "fare": {
+        "type": "String"
+      },
+      "elapsed": {
+        "type": "String"
+      }
+    }
+  },
+  "drvWaitFee": "Kutish haqi",
+  "drvWaitFreeCaption": "Keyin {perMinute}/daqiqa",
+  "@drvWaitFreeCaption": {
+    "placeholders": {
+      "perMinute": {
+        "type": "String"
+      }
+    }
+  },
+  "drvWaitFreeSem": "Bepul kutish tugashiga {remaining} qoldi, keyin {perMinute} har daqiqa uchun",
+  "@drvWaitFreeSem": {
+    "placeholders": {
+      "remaining": {
+        "type": "String"
+      },
+      "perMinute": {
+        "type": "String"
+      }
+    }
+  },
+  "drvWallet": "Hamyon",
+  "drvWalletAmount": "Hamyon: {amount}",
+  "@drvWalletAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "drvWeekAmount": "Hafta: {amount}",
+  "@drvWeekAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "drvWhereMoreOrders": "Qayerda buyurtma ko'p",
+  "drvWithdraw": "Pul yechish",
+  "drvWithdrawApproved": "Tasdiqlandi",
+  "drvWithdrawPaid": "To'landi",
+  "drvWithdrawPending": "Kutilmoqda",
+  "drvWithdrawRequests": "Pul yechish so'rovlari",
+  "drvYesCancel": "Ha, bekor qilaman",
+  "drvYouKeep": "Qo'lingizga qoladi",
+  "drvZonesCount": "{count} zona",
+  "@drvZonesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fmtCurrencySom": "{amount} so'm",
+  "@fmtCurrencySom": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "fmtDaysAgo": "{days} kun oldin",
+  "@fmtDaysAgo": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "fmtHours": "{hours} soat",
+  "@fmtHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "fmtHoursAgo": "{hours} soat oldin",
+  "@fmtHoursAgo": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "fmtHoursMinutes": "{hours} soat {minutes} daqiqa",
+  "@fmtHoursMinutes": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "fmtJustNow": "Hozirgina",
+  "fmtMillionUzs": "{value} mln UZS",
+  "@fmtMillionUzs": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "fmtMinutes": "{minutes} daqiqa",
+  "@fmtMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "fmtMinutesAgo": "{minutes} daqiqa oldin",
+  "@fmtMinutesAgo": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "fmtMonthsShort": "yan,fev,mar,apr,may,iyn,iyl,avg,sen,okt,noy,dek",
+  "fmtThousandUzs": "{value} ming UZS",
+  "@fmtThousandUzs": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "fmtToday": "Bugun",
+  "fmtTodayAt": "Bugun, {time}",
+  "@fmtTodayAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "fmtTomorrow": "Ertaga",
+  "fmtYesterdayAt": "Kecha, {time}",
+  "@fmtYesterdayAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "languageRussian": "Русский",
+  "languageUzbek": "O'zbekcha",
+  "paxAbout": "Dastur haqida",
+  "paxAddFavorite": "Qo'shish",
+  "paxAddStop": "To'xtash qo'shish",
+  "paxAddressNotFound": "Manzilni topib bo'lmadi",
+  "paxAddressResolveFailed": "Manzilni aniqlab bo'lmadi",
+  "paxApproxDistance": "taxminan {distance}",
+  "@paxApproxDistance": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "paxBack": "Orqaga",
+  "paxCall": "Qo'ng'iroq",
+  "paxCallFailed": "Qo'ng'iroq qilib bo'lmadi",
+  "paxCancel": "Bekor qilish",
+  "paxCancelConfirmYes": "Ha, bekor qilish",
+  "paxCancelFailed": "Bekor qilib bo'lmadi",
+  "paxCancelReasonChangedMind": "Fikrimni o'zgartirdim",
+  "paxCancelReasonHint": "Sababni yozing...",
+  "paxCancelReasonLongWait": "Juda uzoq kutdim",
+  "paxCancelReasonOther": "Boshqa sabab",
+  "paxCancelReasonPrompt": "Buyurtmani bekor qilish sababini tanlang:",
+  "paxCancelReasonTitle": "Bekor qilish sababi",
+  "paxCancelReasonTooExpensive": "Narx juda qimmat",
+  "paxCancelScheduleBody": "{when} ga rejalashtirilgan safar bekor qilinsinmi?",
+  "@paxCancelScheduleBody": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "paxCancelScheduleTitle": "Rejani bekor qilish",
+  "paxCardPaymentStartFailed": "To'lovni hozir boshlab bo'lmadi: {error}. Buyurtma qabul qilindi, safar oxirida to'lov amalga oshiriladi.",
+  "@paxCardPaymentStartFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "paxClear": "Tozalash",
+  "paxClose": "Yopish",
+  "paxCoverageWarning": "Bu hududda hozircha xizmat ko'rsatilmaymiz. Eng yaqin xizmat hududi: {area}.",
+  "@paxCoverageWarning": {
+    "placeholders": {
+      "area": {
+        "type": "String"
+      }
+    }
+  },
+  "paxCurrentLocation": "Joriy joylashuv",
+  "paxDestination": "Manzil",
+  "paxDetailCar": "Mashina",
+  "paxDetailDate": "Sana",
+  "paxDetailDistance": "Masofa",
+  "paxDetailDriver": "Haydovchi",
+  "paxDetailDuration": "Vaqt",
+  "paxDetailFrom": "Chiqish",
+  "paxDetailPrice": "Narx",
+  "paxDetailStatus": "Holat",
+  "paxDone": "Tayyor",
+  "paxDriverAlmostThere": "Haydovchi deyarli yetib keldi",
+  "paxDriverEta": "Haydovchi {minutes} daqiqada yetib keladi",
+  "@paxDriverEta": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "paxEditProfile": "Ma'lumotlarni tahrirlash",
+  "paxEnterAddress": "Manzilni kiriting",
+  "paxExtras": "Qo'shimcha",
+  "paxExtrasCount": "Qo'shimcha · {count}",
+  "@paxExtrasCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "paxExtrasListSemantics": "Qo'shimcha talablar: {options}",
+  "@paxExtrasListSemantics": {
+    "placeholders": {
+      "options": {
+        "type": "String"
+      }
+    }
+  },
+  "paxExtrasNoneSemantics": "Qo'shimcha talablar: yo'q",
+  "paxFavoriteHome": "Uy",
+  "paxFavoriteNameHint": "Nomi (masalan, Bozor)",
+  "paxFavoriteWork": "Ish",
+  "paxFirstName": "Ism",
+  "paxFirstNameHint": "Ismingiz",
+  "paxFrom": "Qayerdan",
+  "paxFromChangeSemantics": "Qayerdan: {address}. O'zgartirish",
+  "@paxFromChangeSemantics": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "paxGenericError": "Xatolik yuz berdi",
+  "paxHasScheduledTrip": "Rejalashtirilgan safar bor",
+  "paxHelp": "Yordam",
+  "paxHighDemand": "Talab yuqori",
+  "paxHistoryEmpty": "Sayohat tarixi yo'q",
+  "paxHistoryTitle": "Sayohat tarixi",
+  "paxLastName": "Familiya",
+  "paxLastNameHint": "Familiyangiz",
+  "paxLocatingAddress": "Joylashuv aniqlanmoqda...",
+  "paxLocation": "Joylashuv",
+  "paxLogout": "Chiqish",
+  "paxLogoutConfirmBody": "Hisobdan chiqmoqchimisiz?",
+  "paxLogoutConfirmTitle": "Chiqishni tasdiqlang",
+  "paxLostItemButton": "Buyum qoldirdim",
+  "paxLostItemDialogHint": "Masalan: qora hamyon, orqa o'rindiqda",
+  "paxLostItemDialogTitle": "Nima qoldirdingiz?",
+  "paxLostItemSent": "Haydovchiga xabar yuborildi — javobni «Yo'qolgan buyumlar» bo'limida ko'rasiz",
+  "paxLostItems": "Yo'qolgan buyumlar",
+  "paxMenu": "Menyu",
+  "paxMessage": "Xabar",
+  "paxNo": "Yo'q",
+  "paxNoDriversNearby": "Yaqin atrofda haydovchi topilmadi",
+  "paxNoDriversNearbyRetry": "Yaqin atrofda haydovchi topilmadi. Birozdan so'ng qayta urinib ko'ring.",
+  "paxNoResults": "Natija topilmadi",
+  "paxNoTariffs": "Tariflar mavjud emas",
+  "paxNotifications": "Bildirishnomalar",
+  "paxNow": "Hozir",
+  "paxOrderCta": "Buyurtma",
+  "paxOrderDetails": "Buyurtma tafsilotlari",
+  "paxOrderMissingRouteOrTariff": "Manzil va tarif tanlanmagan",
+  "paxOutsideServiceArea": "Xizmat hududidan tashqarida",
+  "paxPaymentCard": "Karta",
+  "paxPaymentCash": "Naqd",
+  "paxPaymentMethods": "To'lov usullari",
+  "paxPickOnMap": "Xaritadan tanlash",
+  "paxPickThisPlace": "Shu joyni tanlash",
+  "paxPickupPoint": "Olish nuqtasi",
+  "paxPriceLocked": "Narx qotirilgan — safar paytida o'zgarmaydi.",
+  "paxProfileSaved": "Ma'lumotlar saqlandi",
+  "paxProfileTitle": "Profil",
+  "paxRateCloseWithoutTip": "Chaqimsiz yopish",
+  "paxRateCommentHint": "Haydovchi haqida izoh...",
+  "paxRateHowWasTrip": "Sayohat qanday kechdi?",
+  "paxRatePleaseRate": "Iltimos, baho bering",
+  "paxRatePrimaryNoTipSemantics": "{action}, chaqimsiz",
+  "@paxRatePrimaryNoTipSemantics": {
+    "placeholders": {
+      "action": {
+        "type": "String"
+      }
+    }
+  },
+  "paxRatePrimaryWithTipSemantics": "{action}, {amount} chaqim bilan",
+  "@paxRatePrimaryWithTipSemantics": {
+    "placeholders": {
+      "action": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "paxRateSkip": "O'tkazib yuborish",
+  "paxRateStarSemantics": "{count} yulduz",
+  "@paxRateStarSemantics": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "paxRateThanks": "Bahoyingiz uchun rahmat!",
+  "paxRateTipSent": "{amount} chaqim haydovchiga yuborildi. Rahmat!",
+  "@paxRateTipSent": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "paxRatingBad": "Yomon",
+  "paxRatingExcellent": "Ajoyib!",
+  "paxRatingGood": "Yaxshi",
+  "paxRatingOk": "Oddiy",
+  "paxRatingPickStars": "Yulduz tanlang",
+  "paxRatingValue": "{rating} reyting",
+  "@paxRatingValue": {
+    "placeholders": {
+      "rating": {
+        "type": "String"
+      }
+    }
+  },
+  "paxRatingVeryBad": "Juda yomon",
+  "paxReceiptAddressMissing": "Manzil saqlanmagan",
+  "paxReceiptCopySemantics": "Chek matnini nusxalash",
+  "paxReceiptDiscount": "Chegirma",
+  "paxReceiptDiscountWithCode": "Chegirma ({code})",
+  "@paxReceiptDiscountWithCode": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "paxReceiptDropoff": "Tushish",
+  "paxReceiptDuration": "Davomiyligi",
+  "paxReceiptFareBreakdown": "Narx tarkibi",
+  "paxReceiptForbiddenBody": "Chekni faqat safar yo'lovchisi, tayinlangan haydovchi yoki menejer ko'ra oladi.",
+  "paxReceiptForbiddenTitle": "Bu chek sizga tegishli emas",
+  "paxReceiptGrandTotal": "Yakuniy",
+  "paxReceiptLoading": "Chek yuklanmoqda",
+  "paxReceiptNoBreakdown": "Bu safar uchun narx tarkibi saqlanmagan. Quyida faqat yakuniy hisob ko'rsatilgan.",
+  "paxReceiptNoPaymentInfo": "To'lov ma'lumoti saqlanmagan.",
+  "paxReceiptOrderNumber": "Buyurtma № {number}",
+  "@paxReceiptOrderNumber": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "paxReceiptOrderNumberLabel": "Buyurtma raqami",
+  "paxReceiptParseError": "Chek ma'lumotlari o'qilmadi",
+  "paxReceiptPayment": "To'lov",
+  "paxReceiptPaymentMethod": "Usul",
+  "paxReceiptPaymentStatus": "Holati",
+  "paxReceiptPickup": "Olib ketish",
+  "paxReceiptService": "Xizmat",
+  "paxReceiptStop": "To'xtash {index}",
+  "@paxReceiptStop": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "paxReceiptSubtotal": "Jami",
+  "paxReceiptTariff": "Tarif",
+  "paxReceiptTextCopied": "Chek matni nusxalandi",
+  "paxReceiptTip": "Chaqim",
+  "paxReceiptTipHint": "Komissiyasiz — to'liq haydovchiga",
+  "paxReceiptTitle": "Safar cheki",
+  "paxReceiptUnpaid": "To'lanmagan qoldiq: {amount}. Hamyonni to'ldiring — qarz yangi buyurtma berishni to'sib qo'yadi.",
+  "@paxReceiptUnpaid": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "paxReceiptWaitingNote": "Kutish haqi belgilangan narxga kirmaydi: bepul daqiqalardan keyin har boshlangan daqiqa alohida qo'shiladi.",
+  "paxReferralApplied": "Referral kodi qo'llandi!",
+  "paxReferralAppliedBanner": "Referral kodi muvaffaqiyatli qo'llandi",
+  "paxReferralApply": "Qo'llash",
+  "paxReferralCardHint": "Do'stingiz ilovaga birinchi safarida ushbu kodni kiritsa, ikkovingiz ham bonus olasiz",
+  "paxReferralCodeCopied": "Kod nusxalandi",
+  "paxReferralCopy": "Nusxalash",
+  "paxReferralEnterCode": "Kodni kiriting",
+  "paxReferralEnterFriendCode": "Do'stingizning kodini kiriting",
+  "paxReferralErrAlreadyApplied": "Sizda allaqachon referral kodi qo'llangan",
+  "paxReferralErrInvalid": "Bunday referral kod topilmadi",
+  "paxReferralErrOwnCode": "O'zingizning kodingizni qo'llay olmaysiz",
+  "paxReferralInvitedCount": "Taklif qilinganlar",
+  "paxReferralShare": "Ulashish",
+  "paxReferralShareCopied": "Taklif matni nusxalandi — do'stingizga yuboring",
+  "paxReferralShareMessage": "Angren Taxi'ga taklif qilaman! Ro'yxatdan o'tishda mening kodimni kiriting: {code}",
+  "@paxReferralShareMessage": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "paxReferralTitle": "Do'stlarni taklif qilish",
+  "paxReferralTotalBonus": "Jami bonus",
+  "paxReferralYourCode": "SIZNING REFERRAL KODINGIZ",
+  "paxRemoveStop": "To'xtashni olib tashlash",
+  "paxRepeatRide": "Safarni takrorlash",
+  "paxResolvingAddress": "Manzil aniqlanmoqda...",
+  "paxRouteLoading": "Yo'nalish yuklanmoqda...",
+  "paxSave": "Saqlash",
+  "paxSaveAddress": "Manzilni saqlash",
+  "paxSaveAddressFailed": "Manzilni saqlab bo'lmadi",
+  "paxSavedAddresses": "Saqlangan manzillar",
+  "paxSavedPlaces": "Saqlangan joylar",
+  "paxScheduleCancelled": "Reja bekor qilindi",
+  "paxScheduleCta": "Rejalashtirish",
+  "paxScheduleHint": "Haydovchi belgilangan vaqtdan 10 daqiqa oldin qidiriladi. Narx hozir qotiriladi va o'zgarmaydi.",
+  "paxScheduleNoSlots": "Bu kun uchun vaqt qolmadi — keyingi kunni tanlang.",
+  "paxScheduleOrderNow": "Hozir buyurtma qilaman",
+  "paxSchedulePickTime": "Vaqtni tanlang",
+  "paxScheduleTitle": "Safarni rejalashtirish",
+  "paxScheduledEmptyBody": "Tarif ekranida vaqtni belgilab, safarni oldindan buyurtma qilishingiz mumkin.",
+  "paxScheduledEmptyTitle": "Rejalashtirilgan safarlar yo'q",
+  "paxScheduledPriceNote": "Narx hozir qotiriladi va safar kunida o'zgarmaydi — kutish haqi bundan tashqari. Haydovchi belgilangan vaqtdan 10 daqiqa oldin qidiriladi.",
+  "paxScheduledTripsTitle": "Rejalashtirilgan safarlar",
+  "paxSearchAddressHint": "Manzilni qidiring...",
+  "paxSearchAddressSemantics": "Manzilni qidiring",
+  "paxSearchPlaceHint": "Ko'cha, mahalla, joy nomi...",
+  "paxSeats": "{count} o'rin",
+  "@paxSeats": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "paxSend": "Yuborish",
+  "paxShareTripCopied": "Safar ma'lumoti nusxalandi",
+  "paxShareTripDriver": "Haydovchi: {name}, {car}",
+  "@paxShareTripDriver": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "car": {
+        "type": "String"
+      }
+    }
+  },
+  "paxShareTripFrom": "Qayerdan: {address}",
+  "@paxShareTripFrom": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "paxShareTripHeader": "Angren Taxi — safarim",
+  "paxShareTripStatus": "Holat: {status}",
+  "@paxShareTripStatus": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "paxShareTripTo": "Qayerga: {address}",
+  "@paxShareTripTo": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "paxSomSuffix": "so'm",
+  "paxSosAlertDispatchers": "Dispetcherlarga xabar berish",
+  "paxSosBody": "Xavfsizligingiz biz uchun muhim. Kerak bo'lsa, quyidagi tugmalardan birini bosing.",
+  "paxSosDispatchersAlerted": "Dispetcherlarga xabar yuborildi",
+  "paxSosEmergencyCall": "Favqulodda chaqiruv (102/103)",
+  "paxSosSemantics": "SOS — favqulodda yordam",
+  "paxSosTitle": "Favqulodda yordam",
+  "paxStop": "To'xtash",
+  "paxStopPoint": "To'xtash nuqtasi",
+  "paxSurgeNotice": "Hozir talab yuqori — narx {multiplier}x. Bir necha daqiqadan keyin arzonlashishi mumkin.",
+  "@paxSurgeNotice": {
+    "placeholders": {
+      "multiplier": {
+        "type": "String"
+      }
+    }
+  },
+  "paxTariffWaitingNote": "Haydovchi kelgach {freeMinutes} daqiqa kutish bepul, keyin har boshlangan daqiqa uchun {perMinute}. Bu haq ko'rsatilgan narxdan alohida qo'shiladi.",
+  "@paxTariffWaitingNote": {
+    "placeholders": {
+      "freeMinutes": {
+        "type": "int"
+      },
+      "perMinute": {
+        "type": "String"
+      }
+    }
+  },
+  "paxTipAlreadyGiven": "Bu safar uchun chaqim allaqachon berilgan.",
+  "paxTipExplainer": "Summa to'liq haydovchiga o'tadi — komissiya ushlanmaydi. Hamyoningizdan yechiladi.",
+  "paxTipInsufficientFunds": "Hamyonda mablag' yetarli emas. Hamyonni to'ldiring yoki kichikroq summa tanlang.",
+  "paxTipNotYourTrip": "Bu safar sizga tegishli emas.",
+  "paxTipOptional": "Ixtiyoriy",
+  "paxTipOther": "Boshqa",
+  "paxTipRangeError": "Chaqim {min} dan {max}gacha bo'lishi kerak",
+  "@paxTipRangeError": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "paxTipTitle": "Haydovchiga chaqim",
+  "paxTo": "Qayerga",
+  "paxTripOptionsHint": "Faqat shu talablarni bajara oladigan haydovchi qidiriladi — bu biroz ko'proq vaqt olishi mumkin.",
+  "paxTripOptionsTitle": "Qo'shimcha talablar",
+  "paxTripScheduled": "Safar rejalashtirildi",
+  "paxTripTimeSemantics": "Safar vaqti: {time}",
+  "@paxTripTimeSemantics": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "paxTripsStat": "Sayohatlar",
+  "paxUnknownAddress": "Noma'lum manzil",
+  "paxUpcomingTrip": "Kelgusi safar: {when}",
+  "@paxUpcomingTrip": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "paxUserFallback": "Foydalanuvchi",
+  "paxWaitingFree": "Bepul kutish",
+  "paxWaitingFreeCaption": "Keyin {perMinute}/daqiqa, safar narxiga qo'shiladi",
+  "@paxWaitingFreeCaption": {
+    "placeholders": {
+      "perMinute": {
+        "type": "String"
+      }
+    }
+  },
+  "paxWaitingFreeSemantics": "Bepul kutish tugashiga {remaining} qoldi, keyin har daqiqa uchun {perMinute} safar narxiga qo'shiladi",
+  "@paxWaitingFreeSemantics": {
+    "placeholders": {
+      "remaining": {
+        "type": "String"
+      },
+      "perMinute": {
+        "type": "String"
+      }
+    }
+  },
+  "paxWaitingPaid": "Kutish haqi",
+  "paxWaitingPaidCaption": "Jami {elapsed} · safar narxiga qo'shiladi",
+  "@paxWaitingPaidCaption": {
+    "placeholders": {
+      "elapsed": {
+        "type": "String"
+      }
+    }
+  },
+  "paxWaitingPaidSemantics": "Kutish haqi {amount}, jami {elapsed} kutildi. Safar narxiga qo'shiladi.",
+  "@paxWaitingPaidSemantics": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "elapsed": {
+        "type": "String"
+      }
+    }
+  },
+  "paxWhereTo": "Qayoqqa boramiz?",
+  "saActiveOrderLabel": "Faol buyurtma: {service}. {title}. {stage}",
+  "@saActiveOrderLabel": {
+    "placeholders": {
+      "service": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      },
+      "stage": {
+        "type": "String"
+      }
+    }
+  },
+  "saAddItemToCartLabel": "{name} — savatga qo'shish",
+  "@saAddItemToCartLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "saAddToCartWithPrice": "Savatga · {price}",
+  "@saAddToCartWithPrice": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "saAddressResolving": "Manzil aniqlanmoqda…",
+  "saAngrenCity": "Angren shahri",
+  "saBack": "Orqaga",
+  "saBackToHome": "Bosh sahifaga",
+  "saBadgeCount": "{count} ta",
+  "@saBadgeCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "saCallDriver": "Haydovchiga qo'ng'iroq qilish",
+  "saCallFailed": "Qo'ng'iroq qilib bo'lmadi",
+  "saCallFailedDialManually": "Qo'ng'iroq qilib bo'lmadi — {phone} raqamiga o'zingiz qo'ng'iroq qiling",
+  "@saCallFailedDialManually": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "saCancel": "Bekor qilish",
+  "saCargoAddressHint": "Manzillarni keyingi qadamda xaritadan tanlaysiz — aniq narx masofaga qarab o'sha yerda hisoblanadi.",
+  "saCargoCallCourier": "Kuryer chaqirish",
+  "saCargoCourier": "Kuryer",
+  "saCargoLight": "Yengil",
+  "saCargoSubtitle": "Shahar ichida tez yetkazib berish",
+  "saCargoTitle": "Cargo · Yuk yetkazish",
+  "saCargoTruck": "Yuk",
+  "saCargoUpTo1t": "1 t gacha",
+  "saCargoUpTo300kg": "300 kg gacha",
+  "saCargoUpTo5kg": "5 kg gacha",
+  "saCargoVehicleType": "Transport turi",
+  "saCart": "Savat",
+  "saCartBarLabel": "Savatga buyurtma",
+  "saCartBarSemantics": "Savat: {count} ta mahsulot, {total}. {action}",
+  "@saCartBarSemantics": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "total": {
+        "type": "String"
+      },
+      "action": {
+        "type": "String"
+      }
+    }
+  },
+  "saCartEmptyMessage": "Ovqat yoki market mahsulotlarini qo'shing va bu yerda ko'rinadi.",
+  "saCartEmptyTitle": "Savat bo'sh",
+  "saCartNoExtraFees": "Rasmiylashtirishda qo'shimcha haq qo'shilmaydi.",
+  "saCartWithCount": "Savat, {count} ta mahsulot",
+  "@saCartWithCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "saCheckoutTitle": "Rasmiylashtirish",
+  "saCheckoutWithTotal": "Rasmiylashtirish · {total}",
+  "@saCheckoutWithTotal": {
+    "placeholders": {
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "saCheckoutWithTotalLabel": "Rasmiylashtirish, jami {total}",
+  "@saCheckoutWithTotalLabel": {
+    "placeholders": {
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "saChooseAddress": "Manzilni tanlang",
+  "saChooseDeliveryAddress": "Yetkazib berish manzilini tanlang",
+  "saChoosePaymentMethod": "To'lov usulini tanlang",
+  "saClose": "Yopish",
+  "saClosed": "Yopiq",
+  "saCompletedAt": "Yakunlandi",
+  "saConfirmOrder": "Buyurtmani tasdiqlash",
+  "saContactOperator": "Operator bilan bog'lanish",
+  "saCurrentAddress": "Joriy manzil",
+  "saCurrentLocation": "Joriy joylashuv",
+  "saDefaultUserName": "Foydalanuvchi",
+  "saDelivery": "Yetkazib berish",
+  "saDeliveryAddress": "Yetkazib berish manzili",
+  "saDestination": "Manzil",
+  "saDishesCount": "{count} ta taom",
+  "@saDishesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "saDistance": "Masofa",
+  "saDuration": "Davomiyligi",
+  "saEditProfile": "Profilni tahrirlash",
+  "saErrorOccurred": "Xatolik yuz berdi",
+  "saFaqCancelA": "Faol buyurtma ekranida \"Bekor qilish\" tugmasini bosing va sababni tanlang. Haydovchi yetib kelgunga qadar bekor qilish bepul.",
+  "saFaqCancelQ": "Buyurtmani qanday bekor qilaman?",
+  "saFaqComplaintA": "Safar tugagach baho qo'yish ekranida izoh qoldiring yoki operator bilan chatga safar raqamini yuboring. Har bir shikoyat ko'rib chiqiladi.",
+  "saFaqComplaintQ": "Haydovchi ustidan shikoyat",
+  "saFaqLostItemA": "Buyurtmalar tarixidan safarni oching va haydovchiga qo'ng'iroq qiling. Javob bo'lmasa, operator bilan chatga yozing — biz haydovchi bilan bog'lanamiz.",
+  "saFaqLostItemQ": "Mashinada narsa qoldirdim",
+  "saFaqPaymentA": "Hamyon balansingizni tekshiring. Balans yetmasa safar qarz sifatida qayd etiladi va uni to'lamaguningizcha yangi buyurtma bera olmaysiz. Naqd to'lovni tanlab ham davom etishingiz mumkin.",
+  "saFaqPaymentQ": "To'lov o'tmadi, nima qilaman?",
+  "saFaqTitle": "Tez-tez beriladigan savollar",
+  "saFoodNoRestaurantsMessage": "Hozircha ochiq restoran yo'q. Birozdan keyin qayta urinib ko'ring.",
+  "saFoodNoRestaurantsTitle": "Restoran topilmadi",
+  "saFoodSubtitle": "Angren · 20–40 daqiqa",
+  "saFoodTitle": "Ovqat yetkazish",
+  "saGoToCart": "Savatga o'tish",
+  "saGoToHome": "Bosh sahifaga o'tish",
+  "saHelpCenter": "Yordam markazi",
+  "saInviteFriends": "Do'stlarni taklif qilish",
+  "saLoading": "Yuklanmoqda",
+  "saLogout": "Chiqish",
+  "saLostItemDriverNote": "Haydovchi: {note}",
+  "@saLostItemDriverNote": {
+    "placeholders": {
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "saLostItemFound": "Topdim",
+  "saLostItemFoundTitle": "Buyum topildi",
+  "saLostItemNotFound": "Topmadim",
+  "saLostItemOperatorNote": "Operator: {note}",
+  "@saLostItemOperatorNote": {
+    "placeholders": {
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "saLostItemWhereHint": "Qayerda turibdi? (ixtiyoriy)",
+  "saLostItemsEmptyDriver": "Yo'lovchi safaringizda buyum qoldirsa, shu yerda ko'rasiz.",
+  "saLostItemsEmptyPassenger": "Safarda biror narsa qoldirsangiz, chek sahifasidan xabar bering.",
+  "saLostItemsEmptyTitle": "Xabarlar yo'q",
+  "saLostItemsTitle": "Yo'qolgan buyumlar",
+  "saMarket": "Market",
+  "saMarketNoProductsMessage": "Bu do'konda hozircha mahsulot yo'q.",
+  "saMarketNoProductsTitle": "Mahsulot topilmadi",
+  "saMarketProducts": "Mahsulotlar",
+  "saMarketSearchHint": "Mahsulot qidirish…",
+  "saMarketSubtitle": "15–25 daqiqa · Yaqin do'kon",
+  "saMenu": "Menyu",
+  "saMenuEmptyMessage": "Bu restoran hozircha taom qo'shmagan.",
+  "saMenuEmptyTitle": "Menyu bo'sh",
+  "saNoStoreYet": "Hozircha do'kon yo'q",
+  "saNotificationUnreadLabel": "O'qilmagan: {title}",
+  "@saNotificationUnreadLabel": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "saNotificationsEmpty": "Hozircha bildirishnomalar yo'q",
+  "saNotificationsMarkAllRead": "Barchasini o'qilgan deb belgilash",
+  "saNotificationsReadAction": "O'qildi",
+  "saNotificationsTitle": "Bildirishnomalar",
+  "saOpen": "Ochiq",
+  "saOpenTripReceipt": "Safar chekini ochish",
+  "saOrderAccepted": "Buyurtma qabul qilindi",
+  "saOrderHistory": "Buyurtmalar tarixi",
+  "saOrderNotSent": "Buyurtma yuborilmadi",
+  "saOrderNumber": "Buyurtma raqami: {number}",
+  "@saOrderNumber": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "saOrderNumberLabel": "Buyurtma raqami",
+  "saOrderPaidOnlineHint": "To'lov qabul qilindi. Holatni «Buyurtmalar» bo'limida kuzating.",
+  "saOrderPayOnDeliveryHint": "Yetkazib berishda to'laysiz. Holatni «Buyurtmalar» bo'limida kuzating.",
+  "saOrdersActive": "Faol",
+  "saOrdersHistory": "Tarix",
+  "saOrdersNoActiveMessage": "Taksi chaqiring yoki ovqat buyurtma qiling — jonli buyurtma shu yerda kuzatiladi.",
+  "saOrdersNoActiveTitle": "Faol buyurtma yo'q",
+  "saOrdersNoHistoryMessage": "Yakunlangan buyurtmalar shu yerda saqlanadi.",
+  "saOrdersNoHistoryTitle": "Buyurtmalar tarixi yo'q",
+  "saOrdersTitle": "Buyurtmalar",
+  "saPaymentCard": "Karta (Payme / Click)",
+  "saPaymentCash": "Naqd pul",
+  "saPaymentIPaid": "To'ladim",
+  "saPaymentMethod": "To'lov usuli",
+  "saPaymentNotCompleted": "To'lov yakunlanmadi — buyurtma qabul qilindi, to'lovni keyinroq amalga oshirishingiz mumkin",
+  "saPaymentPageLoadFailed": "To'lov sahifasini yuklab bo'lmadi: {message}",
+  "@saPaymentPageLoadFailed": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "saPaymentStartFailed": "To'lovni boshlab bo'lmadi: {message}",
+  "@saPaymentStartFailed": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "saPaymentTitle": "To'lov — {provider}",
+  "@saPaymentTitle": {
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "saPickup": "Olib ketish",
+  "saPopularRestaurants": "Mashhur restoranlar",
+  "saProductDeliveryLabel": "YETKAZISH",
+  "saProductDeliveryValue": "15–25 daq",
+  "saProductDescription": "Yangi va sifatli mahsulot, yaqin do'kondan tez yetkazib beriladi.",
+  "saProductInStock": "Mavjud",
+  "saProductOutOfStock": "Tugagan",
+  "saProductRatingLabel": "REYTING",
+  "saProductStockLabel": "OMBOR",
+  "saProductStoreUnit": "Do'kon · {unit}",
+  "@saProductStoreUnit": {
+    "placeholders": {
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "saProductsCount": "{count} ta mahsulot",
+  "@saProductsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "saProfileHelpBannerLabel": "Yordam kerakmi? 24/7 qo'llab-quvvatlash xizmati",
+  "saProfileNeedHelp": "Yordam kerakmi?",
+  "saProfileRating": "Reyting",
+  "saProfileSupport247": "24/7 qo'llab-quvvatlash xizmati",
+  "saProfileTrips": "Safarlar",
+  "saPromoActive": "FAOL",
+  "saPromoCodeCopied": "Kod nusxalandi",
+  "saPromoCopyLabel": "Promokodni nusxalash: {code}",
+  "@saPromoCopyLabel": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "saPromoMinOrder": "Min. buyurtma: {amount}",
+  "@saPromoMinOrder": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "saPromoUntil": "{date}gacha",
+  "@saPromoUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "saPromosEmpty": "Hozircha faol promokodlar yo'q",
+  "saPromosTitle": "Aksiyalar va promokodlar",
+  "saQtyDecrease": "Miqdorni kamaytirish",
+  "saQtyIncrease": "Miqdorni oshirish",
+  "saRefresh": "Yangilash",
+  "saRestaurantNotFound": "Restoran topilmadi",
+  "saRestaurantsNotFound": "Restoranlar topilmadi",
+  "saSavedAddresses": "Saqlangan manzillar",
+  "saSearch": "Qidiruv",
+  "saSearchClear": "Qidiruvni tozalash",
+  "saSearchEmptyMessage": "Boshqa nom bilan qidirib ko'ring.",
+  "saSearchEmptyTitle": "Hech narsa topilmadi",
+  "saSearchHint": "taom, doʻkon, mahsulot…",
+  "saSearchMarketUnit": "Market · {unit}",
+  "@saSearchMarketUnit": {
+    "placeholders": {
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "saSearchSectionProducts": "MAHSULOTLAR",
+  "saSearchSectionRestaurants": "RESTORANLAR",
+  "saSearchingDriver": "Haydovchi qidirilmoqda",
+  "saSeeAll": "Barchasi",
+  "saSegChipLabel": "{label}, {count} ta",
+  "@saSegChipLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "saSegChipLabelSelected": "{label}, {count} ta, tanlangan",
+  "@saSegChipLabelSelected": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "saSend": "Yuborish",
+  "saSettingsPush": "Push bildirishnomalar",
+  "saSettingsPushSyncFailed": "Sozlama saqlandi, lekin serverga yuborilmadi",
+  "saSettingsSectionGeneral": "UMUMIY",
+  "saSettingsSectionHelp": "YORDAM",
+  "saSettingsTitle": "Sozlamalar",
+  "saSettingsVersion": "Angren Go · versiya {version}",
+  "@saSettingsVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "saSom": "so'm",
+  "saStageAccepted": "Qabul qilindi",
+  "saStageDelivered": "Yetkazildi",
+  "saStageDriverEnRoute": "Haydovchi yo'lda",
+  "saStageInTrip": "Safarda",
+  "saStageOnTheWay": "Yo'lda",
+  "saStagePacking": "Yig'ilmoqda",
+  "saStagePreparing": "Tayyorlanmoqda",
+  "saStageProgress": "{total} bosqichdan {step}: {stage}",
+  "@saStageProgress": {
+    "placeholders": {
+      "total": {
+        "type": "int"
+      },
+      "step": {
+        "type": "int"
+      },
+      "stage": {
+        "type": "String"
+      }
+    }
+  },
+  "saStageSearching": "Qidirilmoqda",
+  "saSubmitting": "Yuborilmoqda...",
+  "saSupportCall": "Qo'ng'iroq",
+  "saSupportCallSub": "{phone} · bepul",
+  "@saSupportCallSub": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "saSupportOperatorChat": "Operator bilan chat",
+  "saSupportOperatorChatSub": "Savolingizni yozing — operator javob beradi",
+  "saTabHome": "Asosiy",
+  "saTabOrders": "Buyurtma",
+  "saTabProfile": "Profil",
+  "saTaxiWhereToLabel": "Taksi. Qayerga borasiz?",
+  "saTelegramOpenFailed": "Telegramni ochib bo'lmadi",
+  "saTopUpAmountLabel": "To'ldirish summasi",
+  "saTopUpOnlineUnavailable": "Onlayn to'ldirish hali ishga tushmagan",
+  "saTopUpTitle": "Hisobni to'ldirish",
+  "saTopUpViaOperatorHint": "Hozircha hamyonni operator orqali to'ldirasiz: 1056 raqamiga qo'ng'iroq qiling yoki chatda yozing. Safarlarni naqd pul bilan ham to'lash mumkin.",
+  "saTotal": "Jami",
+  "saTxnBonus": "Bonus",
+  "saTxnCommission": "Platforma komissiyasi",
+  "saTxnCredit": "kirim",
+  "saTxnDebit": "Yechim",
+  "saTxnDebitWord": "chiqim",
+  "saTxnPending": "{when} · kutilmoqda",
+  "@saTxnPending": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "saTxnReferralBonus": "Referal bonus",
+  "saTxnSemantics": "{title}, {amount} so'm {direction}, {subtitle}",
+  "@saTxnSemantics": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "direction": {
+        "type": "String"
+      },
+      "subtitle": {
+        "type": "String"
+      }
+    }
+  },
+  "saTxnTopUp": "Hisob to'ldirildi",
+  "saTxnTripEarning": "Safar daromadi",
+  "saTxnTripPayment": "Safar to'lovi",
+  "saTxnWithdrawal": "Pul yechish",
+  "saViewOrders": "Buyurtmalarni koʻrish",
+  "saViewReceipt": "Chekni ko'rish",
+  "saWalletAllServices": "Barcha xizmatlar",
+  "saWalletAndCards": "Hamyon va kartalar",
+  "saWalletBalanceLabel": "Hamyon balansi {amount} so'm",
+  "@saWalletBalanceLabel": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "saWalletBalanceNotLoaded": "Hamyon balansi hali yuklanmadi",
+  "saWalletBalanceTitle": "Angren Go balans",
+  "saWalletCards": "Kartalar",
+  "saWalletCardsUnavailableMessage": "Hozircha safarlarni naqd pul yoki hamyon balansi bilan to'lang.",
+  "saWalletCardsUnavailableTitle": "Karta bog'lash hali mavjud emas",
+  "saWalletNoTxnsMessage": "Birinchi safar yoki to'ldirishdan keyin bu yerda ko'rinadi.",
+  "saWalletNoTxnsTitle": "Hozircha amallar yo'q",
+  "saWalletOneWalletNote": "Taksi, yuk, ovqat va market — bitta hamyon, bitta daftar.",
+  "saWalletRecentActivity": "So'nggi amallar",
+  "saWalletTitle": "Hamyon",
+  "saWalletTopUp": "To'ldirish",
+  "saWalletTransfer": "O'tkazish",
+  "saWhereTo": "Qayerga borasiz?",
+  "shAuthContinue": "Davom etish",
+  "shAuthEnterPhone": "Telefon raqamingizni kiriting",
+  "shAuthPhoneLabel": "Telefon raqam",
+  "shAuthTerms": "Davom etish orqali siz foydalanish shartlari va maxfiylik siyosatiga rozilik bildirasiz.",
+  "shBack": "Orqaga",
+  "shCancel": "Bekor qilish",
+  "shChatHint": "Xabar yozing...",
+  "shConfirm": "Tasdiqlash",
+  "shDeliveryAccepted": "Qabul qilindi",
+  "shDeliveryDelivered": "Yetkazildi",
+  "shDeliveryOnTheWay": "Yo'lda",
+  "shDeliveryPreparing": "Tayyorlanmoqda",
+  "shDriverFallbackName": "Haydovchi",
+  "shErrorGeneric": "Xatolik yuz berdi",
+  "shErrorNoInternet": "Internet bilan muammo bor",
+  "shErrorSemantics": "Xatolik: {message}",
+  "@shErrorSemantics": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "shErrorTimeout": "Ulanish vaqti tugadi. Internetni tekshiring",
+  "shErrorUnknown": "Noma'lum xatolik yuz berdi",
+  "shFareBase": "Asos",
+  "shFareDistance": "Masofa ({km} km × {price})",
+  "@shFareDistance": {
+    "placeholders": {
+      "km": {
+        "type": "String"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "shFareMaxCap": "Yuqori narx chegarasi",
+  "shFareMinAdjustment": "Eng kam haq tuzatmasi",
+  "shFareSurge": "Talab koeffitsienti (×{multiplier})",
+  "@shFareSurge": {
+    "placeholders": {
+      "multiplier": {
+        "type": "String"
+      }
+    }
+  },
+  "shFareTime": "Vaqt ({minutes} daq × {price})",
+  "@shFareTime": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "shFareWaiting": "Kutish ({minutes} daq)",
+  "@shFareWaiting": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "shFareWaitingFree": "Kutish (0 daq — bepul vaqtdan oshmadi)",
+  "shFareWaitingRate": "Kutish ({minutes} daq × {price})",
+  "@shFareWaitingRate": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "shLoading": "Yuklanmoqda",
+  "shLostItemClosed": "Yopildi",
+  "shLostItemFound": "Topildi — operator bog'lanadi",
+  "shLostItemNotFound": "Mashinadan topilmadi",
+  "shLostItemOpen": "Haydovchi tekshirmoqda",
+  "shLostItemReturned": "Qaytarildi",
+  "shManeuverArrive": "Manzilga yetib keldingiz",
+  "shManeuverArriveIn": "{meters} metrdan keyin manzilga yetib borasiz",
+  "@shManeuverArriveIn": {
+    "placeholders": {
+      "meters": {
+        "type": "int"
+      }
+    }
+  },
+  "shManeuverContinue": "Yo'lda davom eting",
+  "shManeuverDepart": "Yo'lni boshlang",
+  "shManeuverEndOfRoadLeft": "Yo'l oxirida chapga buriling",
+  "shManeuverEndOfRoadRight": "Yo'l oxirida o'ngga buriling",
+  "shManeuverEndOfRoadStraight": "Yo'l oxirigacha davom eting",
+  "shManeuverEndOfRoadUturn": "Yo'l oxirida orqaga qayting",
+  "shManeuverExitRoundabout": "Aylanmadan chiqing",
+  "shManeuverForkLeft": "Ayrilishda chap tomonni tanlang",
+  "shManeuverForkRight": "Ayrilishda o'ng tomonni tanlang",
+  "shManeuverForkStraight": "Ayrilishda to'g'ri davom eting",
+  "shManeuverInDistance": "{meters} metrdan keyin {instruction}",
+  "@shManeuverInDistance": {
+    "placeholders": {
+      "meters": {
+        "type": "int"
+      },
+      "instruction": {
+        "type": "String"
+      }
+    }
+  },
+  "shManeuverLeft": "Chapga buriling",
+  "shManeuverMerge": "Qatorga qo'shiling",
+  "shManeuverMergeLeft": "Chap qatorga qo'shiling",
+  "shManeuverMergeRight": "O'ng qatorga qo'shiling",
+  "shManeuverOffRamp": "Yo'lkadan chiqing",
+  "shManeuverOnRamp": "Chiqish yo'lkasiga kiring",
+  "shManeuverRight": "O'ngga buriling",
+  "shManeuverRoundabout": "Aylanmaga kiring",
+  "shManeuverRoundaboutExit": "Aylanmaga kiring va {exit}-chiqishdan chiqing",
+  "@shManeuverRoundaboutExit": {
+    "placeholders": {
+      "exit": {
+        "type": "int"
+      }
+    }
+  },
+  "shManeuverSharpLeft": "Keskin chapga buriling",
+  "shManeuverSharpRight": "Keskin o'ngga buriling",
+  "shManeuverSlightLeft": "Sal chapga oling",
+  "shManeuverSlightRight": "Sal o'ngga oling",
+  "shManeuverStraight": "To'g'ri davom eting",
+  "shManeuverUturn": "Orqaga qayting",
+  "shMarketPacking": "Do'kon yig'moqda",
+  "shNeedsAttentionSemantics": "{label}, e'tibor talab qiladi",
+  "@shNeedsAttentionSemantics": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "shOrderStatusCompleted": "Yakunlandi",
+  "shOrderStatusDriverArrived": "Haydovchi yetib keldi",
+  "shOrderStatusDriverAssigned": "Haydovchi tayinlandi",
+  "shOrderStatusDriverEnRoute": "Haydovchi kelmoqda",
+  "shOrderStatusInProgress": "Sayohat davom etmoqda",
+  "shOrderStatusScheduled": "Rejalashtirilgan",
+  "shOrderStatusSearching": "Haydovchi izlanmoqda",
+  "shOtpEnterSixDigits": "6 ta raqamli kodni kiriting",
+  "shOtpHeading": "SMS kod kiriting",
+  "shOtpResend": "Kodni qayta yuborish",
+  "shOtpResendIn": "Qayta yuborish: {seconds} s",
+  "@shOtpResendIn": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "shOtpSentPrefix": "Kod ",
+  "shOtpSentSuffix": " raqamiga yuborildi",
+  "shOtpTitle": "Tasdiqlash",
+  "shPayMethodCard": "Karta",
+  "shPayMethodCash": "Naqd pul",
+  "shPayMethodWallet": "Hamyon",
+  "shPayStatusFailed": "Amalga oshmadi",
+  "shPayStatusPaid": "To'landi",
+  "shPayStatusRefunded": "Qaytarildi",
+  "shReceiptDate": "Sana: {date}",
+  "@shReceiptDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptDiscount": "Chegirma{promo}: −{amount}",
+  "@shReceiptDiscount": {
+    "placeholders": {
+      "promo": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptDistance": "Masofa: {distance}",
+  "@shReceiptDistance": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptDriver": "Haydovchi: {driver}",
+  "@shReceiptDriver": {
+    "placeholders": {
+      "driver": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptDropoff": "Tushish: {address}",
+  "@shReceiptDropoff": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptDuration": "Davomiyligi: {duration}",
+  "@shReceiptDuration": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptGrandTotal": "Yakuniy: {amount}",
+  "@shReceiptGrandTotal": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptHeader": "Angren Go — safar cheki",
+  "shReceiptNoFareBreakdown": "Narx tarkibi saqlanmagan.",
+  "shReceiptNotSaved": "saqlanmagan",
+  "shReceiptOrder": "Buyurtma: {number}",
+  "@shReceiptOrder": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptPayment": "To'lov: {payment}",
+  "@shReceiptPayment": {
+    "placeholders": {
+      "payment": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptPickup": "Olib ketish: {address}",
+  "@shReceiptPickup": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptService": "Xizmat: {service}",
+  "@shReceiptService": {
+    "placeholders": {
+      "service": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptStop": "To'xtash {index}: {address}",
+  "@shReceiptStop": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptTariff": "Tarif: {tariff}",
+  "@shReceiptTariff": {
+    "placeholders": {
+      "tariff": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptTip": "Chaqim: +{amount}",
+  "@shReceiptTip": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptTotal": "Jami: {amount}",
+  "@shReceiptTotal": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "shReceiptUnpaid": "To'lanmagan qoldiq: {amount}",
+  "@shReceiptUnpaid": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "shRetry": "Qayta urinish",
+  "shRouteFromSemantics": "Qayerdan: {address}",
+  "@shRouteFromSemantics": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "shRouteSwap": "Manzillarni almashtirish",
+  "shRouteToSemantics": "Qayerga: {address}",
+  "@shRouteToSemantics": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "shRouteToWithDistanceSemantics": "Qayerga: {address}, {distance}",
+  "@shRouteToWithDistanceSemantics": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      },
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "shSend": "Yuborish",
+  "shServiceCargo": "Yuk tashish",
+  "shServiceCargoShort": "Yuk",
+  "shServiceFood": "Ovqat yetkazish",
+  "shServiceFoodShort": "Ovqat",
+  "shServiceMarket": "Do'kon yetkazish",
+  "shServiceMarketShort": "Market",
+  "shServiceTaxi": "Taksi",
+  "shStatusCancelled": "Bekor qilindi",
+  "shStatusPending": "Kutilmoqda",
+  "shStatusSemantics": "Holat: {status}",
+  "@shStatusSemantics": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "shSupportChatEmpty": "Xabar yozing — operatorlarimiz 24/7 yordam berishga tayyor",
+  "shSupportChatTitle": "Operator bilan chat",
+  "shTripChatEmpty": "Hali xabar yo'q. Birinchi bo'lib yozing!",
+  "shTripChatTitle": "Suhbat",
+  "shTripOptionAirConditioner": "Konditsioner",
+  "shTripOptionBigLuggage": "Katta bagaj",
+  "shTripOptionChildSeat": "Bola o'rindig'i",
+  "shTripOptionPet": "Hayvon bilan",
+  "shTxBonus": "Bonus",
+  "shTxTopUp": "Hisobni to'ldirish",
+  "shTxTrip": "Sayohat",
+  "shTxWithdrawal": "Pul yechish",
+  "shValDigitsOnly": "Faqat raqamlar kiriting",
+  "shValFieldRequired": "{field} bo'sh bo'lmasligi kerak",
+  "@shValFieldRequired": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "shValNameRequired": "Ismni kiriting",
+  "shValNameTooShort": "Ism kamida 2 ta harfdan iborat bo'lishi kerak",
+  "shValOtpLength": "Kod 6 raqamdan iborat bo'lishi kerak",
+  "shValOtpRequired": "Kodni kiriting",
+  "shValPhoneInvalid": "Telefon raqami noto'g'ri (+998XXXXXXXXX)",
+  "shValPhoneRequired": "Telefon raqamini kiriting",
+  "shValThisFieldRequired": "Bu maydon bo'sh bo'lmasligi kerak",
+  "shVerifDaysLeft": "{days} kun qoldi",
+  "@shVerifDaysLeft": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "shVerifDaysOverdue": "{days} kun kechikkan",
+  "@shVerifDaysOverdue": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "shVerifDueSoon": "Muddati tugayapti",
+  "shVerifExpiresToday": "Bugun tugaydi",
+  "shVerifMissing": "Yuklanmagan",
+  "shVerifOk": "Yaroqli",
+  "shVerifOverdue": "Muddati o'tgan",
+  "shVerifPendingReview": "Tekshirilmoqda",
+  "shVerifRejected": "Rad etilgan",
+  "shVerifUnknown": "E'tibor talab qiladi"
+}

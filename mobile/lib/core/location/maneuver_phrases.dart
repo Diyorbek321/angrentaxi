@@ -1,3 +1,4 @@
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/route_step.dart';
 
 // ============================================================================
@@ -49,7 +50,7 @@ abstract final class ManeuverPhrases {
   ///
   /// Nega aynan shu gap: u har qanday yo'l holatida to'g'ri va haydovchini
   /// noto'g'ri harakatga undamaydi.
-  static const String fallback = 'Yo\'lda davom eting';
+  static String get fallback => AppL10n.current.shManeuverContinue;
 
   /// Ekranda ko'rsatiladigan / ovozda aytiladigan asosiy ko'rsatma.
   ///
@@ -80,10 +81,25 @@ abstract final class ManeuverPhrases {
     // qo'shsa "500 metrdan keyin yetib keldingiz" degan noto'g'ri gap
     // chiqadi, shuning uchun kelasi zamon shakli ishlatiladi.
     if (step.type == ManeuverType.arrive) {
-      return '$meters metrdan keyin manzilga yetib borasiz';
+      return AppL10n.current.shManeuverArriveIn(meters);
     }
 
-    return '$meters metrdan keyin $instruction';
+    return AppL10n.current.shManeuverInDistance(
+      meters,
+      _midSentence(instruction),
+    );
+  }
+
+  /// Ko'rsatmani gap o'rtasiga qo'yish uchun tayyorlaydi.
+  ///
+  /// O'zbekchada ko'rsatma o'zgarmaydi ("500 metrdan keyin O'ngga
+  /// buriling"). Ruschada esa "Через 500 метров поверните направо" —
+  /// gap o'rtasidagi fe'l kichik harf bilan yoziladi.
+  static String _midSentence(String instruction) {
+    if (!AppL10n.localeName.startsWith('ru') || instruction.isEmpty) {
+      return instruction;
+    }
+    return instruction[0].toLowerCase() + instruction.substring(1);
   }
 
   /// Manevr turiga mos, modifikatorni hisobga olgan asosiy ibora.
@@ -93,22 +109,22 @@ abstract final class ManeuverPhrases {
   /// chetda qolmaydi.
   static String _baseInstruction(RouteStep step) {
     return switch (step.type) {
-      ManeuverType.depart => 'Yo\'lni boshlang',
-      ManeuverType.arrive => 'Manzilga yetib keldingiz',
+      ManeuverType.depart => AppL10n.current.shManeuverDepart,
+      ManeuverType.arrive => AppL10n.current.shManeuverArrive,
       ManeuverType.turn => _turnPhrase(step.modifier),
       ManeuverType.endOfRoad => _endOfRoadPhrase(step.modifier),
       ManeuverType.fork => _forkPhrase(step.modifier),
       ManeuverType.merge => _mergePhrase(step.modifier),
-      ManeuverType.onRamp => 'Chiqish yo\'lkasiga kiring',
-      ManeuverType.offRamp => 'Yo\'lkadan chiqing',
+      ManeuverType.onRamp => AppL10n.current.shManeuverOnRamp,
+      ManeuverType.offRamp => AppL10n.current.shManeuverOffRamp,
       ManeuverType.roundabout ||
       ManeuverType.rotary ||
       ManeuverType.roundaboutTurn =>
         _roundaboutPhrase(step.exit),
       ManeuverType.exitRoundabout ||
       ManeuverType.exitRotary =>
-        'Aylanmadan chiqing',
-      ManeuverType.straightOn => 'To\'g\'ri davom eting',
+        AppL10n.current.shManeuverExitRoundabout,
+      ManeuverType.straightOn => AppL10n.current.shManeuverStraight,
 
       // `new name` — yo'l nomi o'zgardi, harakat talab qilinmaydi. Xuddi
       // shunday `notification` ham faqat xabar beradi.
@@ -123,14 +139,14 @@ abstract final class ManeuverPhrases {
   /// Oddiy burilish iborasi.
   static String _turnPhrase(ManeuverModifier modifier) {
     return switch (modifier) {
-      ManeuverModifier.uturn => 'Orqaga qayting',
-      ManeuverModifier.sharpRight => 'Keskin o\'ngga buriling',
-      ManeuverModifier.right => 'O\'ngga buriling',
-      ManeuverModifier.slightRight => 'Sal o\'ngga oling',
-      ManeuverModifier.straight => 'To\'g\'ri davom eting',
-      ManeuverModifier.slightLeft => 'Sal chapga oling',
-      ManeuverModifier.left => 'Chapga buriling',
-      ManeuverModifier.sharpLeft => 'Keskin chapga buriling',
+      ManeuverModifier.uturn => AppL10n.current.shManeuverUturn,
+      ManeuverModifier.sharpRight => AppL10n.current.shManeuverSharpRight,
+      ManeuverModifier.right => AppL10n.current.shManeuverRight,
+      ManeuverModifier.slightRight => AppL10n.current.shManeuverSlightRight,
+      ManeuverModifier.straight => AppL10n.current.shManeuverStraight,
+      ManeuverModifier.slightLeft => AppL10n.current.shManeuverSlightLeft,
+      ManeuverModifier.left => AppL10n.current.shManeuverLeft,
+      ManeuverModifier.sharpLeft => AppL10n.current.shManeuverSharpLeft,
 
       // Modifikatorsiz "turn" — OSRM tomonni bilmayapti. Yo'nalishni
       // o'zimiz to'qib bo'lmaydi, shuning uchun neytral ibora.
@@ -144,15 +160,15 @@ abstract final class ManeuverPhrases {
       ManeuverModifier.right ||
       ManeuverModifier.sharpRight ||
       ManeuverModifier.slightRight =>
-        'Yo\'l oxirida o\'ngga buriling',
+        AppL10n.current.shManeuverEndOfRoadRight,
       ManeuverModifier.left ||
       ManeuverModifier.sharpLeft ||
       ManeuverModifier.slightLeft =>
-        'Yo\'l oxirida chapga buriling',
-      ManeuverModifier.uturn => 'Yo\'l oxirida orqaga qayting',
+        AppL10n.current.shManeuverEndOfRoadLeft,
+      ManeuverModifier.uturn => AppL10n.current.shManeuverEndOfRoadUturn,
       ManeuverModifier.straight ||
       ManeuverModifier.none =>
-        'Yo\'l oxirigacha davom eting',
+        AppL10n.current.shManeuverEndOfRoadStraight,
     };
   }
 
@@ -162,15 +178,15 @@ abstract final class ManeuverPhrases {
       ManeuverModifier.right ||
       ManeuverModifier.sharpRight ||
       ManeuverModifier.slightRight =>
-        'Ayrilishda o\'ng tomonni tanlang',
+        AppL10n.current.shManeuverForkRight,
       ManeuverModifier.left ||
       ManeuverModifier.sharpLeft ||
       ManeuverModifier.slightLeft =>
-        'Ayrilishda chap tomonni tanlang',
-      ManeuverModifier.uturn => 'Orqaga qayting',
+        AppL10n.current.shManeuverForkLeft,
+      ManeuverModifier.uturn => AppL10n.current.shManeuverUturn,
       ManeuverModifier.straight ||
       ManeuverModifier.none =>
-        'Ayrilishda to\'g\'ri davom eting',
+        AppL10n.current.shManeuverForkStraight,
     };
   }
 
@@ -180,24 +196,24 @@ abstract final class ManeuverPhrases {
       ManeuverModifier.right ||
       ManeuverModifier.sharpRight ||
       ManeuverModifier.slightRight =>
-        'O\'ng qatorga qo\'shiling',
+        AppL10n.current.shManeuverMergeRight,
       ManeuverModifier.left ||
       ManeuverModifier.sharpLeft ||
       ManeuverModifier.slightLeft =>
-        'Chap qatorga qo\'shiling',
+        AppL10n.current.shManeuverMergeLeft,
       ManeuverModifier.uturn ||
       ManeuverModifier.straight ||
       ManeuverModifier.none =>
-        'Qatorga qo\'shiling',
+        AppL10n.current.shManeuverMerge,
     };
   }
 
   /// Aylanma yo'l. Chiqish raqami bo'lsa aytiladi — aynan shu raqam
   /// haydovchiga aylanmada qayerdan chiqishni ko'rsatadigan yagona ma'lumot.
   static String _roundaboutPhrase(int? exit) {
-    if (exit == null || exit < 1) return 'Aylanmaga kiring';
+    if (exit == null || exit < 1) return AppL10n.current.shManeuverRoundabout;
 
-    return 'Aylanmaga kiring va $exit-chiqishdan chiqing';
+    return AppL10n.current.shManeuverRoundaboutExit(exit);
   }
 
   /// Noma'lum tur — yo'nalish ma'lum bo'lsa undan foydalanamiz.

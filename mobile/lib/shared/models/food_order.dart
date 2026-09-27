@@ -1,3 +1,4 @@
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:equatable/equatable.dart';
 
 enum FoodOrderStatus { newOrder, preparing, ready, delivered, cancelled }
@@ -6,15 +7,15 @@ extension FoodOrderStatusExtension on FoodOrderStatus {
   String get label {
     switch (this) {
       case FoodOrderStatus.newOrder:
-        return 'Qabul qilindi';
+        return AppL10n.current.shDeliveryAccepted;
       case FoodOrderStatus.preparing:
-        return 'Tayyorlanmoqda';
+        return AppL10n.current.shDeliveryPreparing;
       case FoodOrderStatus.ready:
-        return "Yo'lda";
+        return AppL10n.current.shDeliveryOnTheWay;
       case FoodOrderStatus.delivered:
-        return 'Yetkazildi';
+        return AppL10n.current.shDeliveryDelivered;
       case FoodOrderStatus.cancelled:
-        return 'Bekor qilindi';
+        return AppL10n.current.shStatusCancelled;
     }
   }
 

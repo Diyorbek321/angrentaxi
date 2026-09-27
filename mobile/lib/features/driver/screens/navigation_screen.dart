@@ -16,6 +16,7 @@ import 'package:angren_taxi/features/driver/widgets/maneuver_banner.dart';
 // `MapCameraInsets` yo'lovchi papkasida yashaydi, lekin u ekranga emas
 // TARTIBGA bog'liq — izoh `trip_screen.dart` dagi import ustida.
 import 'package:angren_taxi/features/passenger/map_camera_insets.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/adaptive_map_panel.dart';
@@ -394,7 +395,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Navigatsiya ilovasi topilmadi')),
+        SnackBar(content: Text(context.l10n.drvNavAppNotFound)),
       );
     }
   }
@@ -479,7 +480,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
           children: [
             Semantics(
               button: true,
-              label: 'Orqaga',
+              label: context.l10n.drvBack,
               child: Container(
                 // Haydovchi ikkilamchi nishoni — `kMinTapTargetDriver` (56),
                 // yo'lovchi 48dp emas: harakatdagi qo'l uchun pol shu.
@@ -579,7 +580,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
           _buildPickupInfo(order, wording),
           const SizedBox(height: kSpace4),
           AppOutlinedButton(
-            label: 'Navigatsiyani ochish',
+            label: context.l10n.drvOpenNavigation,
             onPressed: () => _openNavigation(_nextDestination(order)),
             // Ikkilamchi amal — haydovchi poli `kMinTapTargetDriver` (56).
             height: kMinTapTargetDriver,
@@ -593,7 +594,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
           // qoidasi: asosiy amal yonida 12dp).
           const SizedBox(height: kSpace3),
           AppButton(
-            label: 'Yetib keldim',
+            label: context.l10n.drvArrivedTitle,
             onPressed: _onArrived,
             isLoading: provider.state == DriverProviderState.loading,
             // Haydovchi ASOSIY amali — 64dp.

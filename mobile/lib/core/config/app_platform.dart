@@ -1,6 +1,7 @@
 import 'package:angren_taxi/core/config/app_haptics.dart';
 import 'package:angren_taxi/core/config/app_motion.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -156,11 +157,13 @@ Future<bool> showAdaptiveConfirm(
   BuildContext context, {
   required String title,
   required String message,
-  String confirmLabel = 'Tasdiqlash',
-  String cancelLabel = 'Bekor qilish',
+  String? confirmLabel,
+  String? cancelLabel,
   bool isDestructive = false,
 }) async {
   AppHaptics.warning();
+  final confirmText = confirmLabel ?? context.l10n.shConfirm;
+  final cancelText = cancelLabel ?? context.l10n.shCancel;
 
   final result = await showDialog<bool>(
     context: context,
@@ -179,13 +182,13 @@ Future<bool> showAdaptiveConfirm(
           actions: [
             CupertinoDialogAction(
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: Text(cancelLabel),
+              child: Text(cancelText),
             ),
             CupertinoDialogAction(
               isDestructiveAction: isDestructive,
               isDefaultAction: !isDestructive,
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: Text(confirmLabel),
+              child: Text(confirmText),
             ),
           ],
         );
@@ -200,12 +203,12 @@ Future<bool> showAdaptiveConfirm(
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(cancelLabel),
+            child: Text(cancelText),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
             style: TextButton.styleFrom(foregroundColor: destructive),
-            child: Text(confirmLabel),
+            child: Text(confirmText),
           ),
         ],
       );

@@ -1,5 +1,6 @@
 import 'package:angren_taxi/features/notifications/notifications_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/notification_log.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
@@ -34,12 +35,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             builder: (context, provider, _) {
               final enabled = provider.unreadCount != 0;
               return AgHeader(
-                title: 'Bildirishnomalar',
+                title: context.l10n.saNotificationsTitle,
                 onBack: () => Navigator.of(context).pop(),
                 trailing: Semantics(
                   button: true,
                   enabled: enabled,
-                  label: "Barchasini o'qilgan deb belgilash",
+                  label: context.l10n.saNotificationsMarkAllRead,
                   excludeSemantics: true,
                   child: GestureDetector(
                     onTap: enabled ? provider.markAllRead : null,
@@ -52,7 +53,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       alignment: Alignment.centerRight,
                       padding: const EdgeInsets.only(left: kSpace3),
                       child: Text(
-                        "O'qildi",
+                        context.l10n.saNotificationsReadAction,
                         style: TextStyle(
                           fontSize: kFontLabel,
                           fontWeight: FontWeight.w700,
@@ -80,15 +81,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 if (provider.state == NotificationsProviderState.error &&
                     provider.notifications.isEmpty) {
                   return AppErrorState(
-                    message: provider.error ?? 'Xatolik yuz berdi',
+                    message: provider.error ?? context.l10n.saErrorOccurred,
                     onRetry: provider.loadNotifications,
                   );
                 }
 
                 if (provider.notifications.isEmpty) {
-                  return const AppEmptyState(
+                  return AppEmptyState(
                     icon: Icons.notifications_none_rounded,
-                    title: "Hozircha bildirishnomalar yo'q",
+                    title: context.l10n.saNotificationsEmpty,
                   );
                 }
 
@@ -130,7 +131,7 @@ class _NotificationCard extends StatelessWidget {
     return Semantics(
       button: true,
       label: unread
-          ? "O'qilmagan: ${notification.title}"
+          ? context.l10n.saNotificationUnreadLabel(notification.title)
           : notification.title,
       excludeSemantics: true,
       child: GestureDetector(

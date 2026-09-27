@@ -1,3 +1,4 @@
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:equatable/equatable.dart';
 
@@ -166,7 +167,7 @@ class ReceiptDriver extends Equatable {
 
   factory ReceiptDriver.fromJson(Map<String, dynamic> json) {
     return ReceiptDriver(
-      name: (json['name'] as String?) ?? 'Haydovchi',
+      name: (json['name'] as String?) ?? AppL10n.current.shDriverFallbackName,
       carModel: _text(json['carModel']),
       carNumber: _text(json['carNumber']),
     );
@@ -181,9 +182,9 @@ enum ReceiptPaymentMethod { cash, card, wallet }
 
 extension ReceiptPaymentMethodLabel on ReceiptPaymentMethod {
   String get label => switch (this) {
-        ReceiptPaymentMethod.cash => 'Naqd pul',
-        ReceiptPaymentMethod.card => 'Karta',
-        ReceiptPaymentMethod.wallet => 'Hamyon',
+        ReceiptPaymentMethod.cash => AppL10n.current.shPayMethodCash,
+        ReceiptPaymentMethod.card => AppL10n.current.shPayMethodCard,
+        ReceiptPaymentMethod.wallet => AppL10n.current.shPayMethodWallet,
       };
 }
 
@@ -203,10 +204,10 @@ enum ReceiptPaymentStatus { pending, completed, failed, refunded }
 
 extension ReceiptPaymentStatusLabel on ReceiptPaymentStatus {
   String get label => switch (this) {
-        ReceiptPaymentStatus.pending => 'Kutilmoqda',
-        ReceiptPaymentStatus.completed => "To'landi",
-        ReceiptPaymentStatus.failed => 'Amalga oshmadi',
-        ReceiptPaymentStatus.refunded => 'Qaytarildi',
+        ReceiptPaymentStatus.pending => AppL10n.current.shStatusPending,
+        ReceiptPaymentStatus.completed => AppL10n.current.shPayStatusPaid,
+        ReceiptPaymentStatus.failed => AppL10n.current.shPayStatusFailed,
+        ReceiptPaymentStatus.refunded => AppL10n.current.shPayStatusRefunded,
       };
 }
 
@@ -224,10 +225,10 @@ ReceiptPaymentStatus? receiptPaymentStatusFromString(String? value) {
 /// tanimagan so'zni chiqarib yubormaslik uchun.
 String? receiptServiceTypeLabel(String? serviceType) {
   return switch (serviceType) {
-    'taxi' => 'Taksi',
-    'cargo' => 'Yuk tashish',
-    'food' => 'Ovqat yetkazish',
-    'market' => "Do'kon yetkazish",
+    'taxi' => AppL10n.current.shServiceTaxi,
+    'cargo' => AppL10n.current.shServiceCargo,
+    'food' => AppL10n.current.shServiceFood,
+    'market' => AppL10n.current.shServiceMarket,
     _ => null,
   };
 }

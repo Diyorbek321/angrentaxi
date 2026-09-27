@@ -1,6 +1,7 @@
 import 'package:angren_taxi/core/config/app_haptics.dart';
 import 'package:angren_taxi/core/config/app_platform.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 // ============================================================================
@@ -55,7 +56,7 @@ class AppButton extends StatelessWidget {
       enabled: enabled,
       label: semanticsLabel ?? label,
       // Yuklanish holati ekran o'quvchiga e'lon qilinadi.
-      value: isLoading ? 'Yuklanmoqda' : null,
+      value: isLoading ? context.l10n.shLoading : null,
       excludeSemantics: true,
       child: SizedBox(
         width: double.infinity,
@@ -164,7 +165,7 @@ class AppOutlinedButton extends StatelessWidget {
       button: true,
       enabled: enabled,
       label: semanticsLabel ?? label,
-      value: isLoading ? 'Yuklanmoqda' : null,
+      value: isLoading ? context.l10n.shLoading : null,
       excludeSemantics: true,
       child: SizedBox(
         width: double.infinity,

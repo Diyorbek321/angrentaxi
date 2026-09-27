@@ -7,6 +7,7 @@ import 'package:angren_taxi/features/superapp/screens/orders_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/profile_tab.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -36,12 +37,12 @@ import 'package:provider/provider.dart';
 class SuperappShell extends StatelessWidget {
   const SuperappShell({super.key});
 
-  static const _tabs = [
-    _TabDef('Asosiy', Icons.home_outlined, Icons.home_rounded),
-    _TabDef('Buyurtma', Icons.receipt_long_outlined, Icons.receipt_long_rounded),
-    _TabDef('Savat', Icons.shopping_bag_outlined, Icons.shopping_bag_rounded),
-    _TabDef('Profil', Icons.person_outline_rounded, Icons.person_rounded),
-  ];
+  static List<_TabDef> _tabs(BuildContext context) => [
+        _TabDef(context.l10n.saTabHome, Icons.home_outlined, Icons.home_rounded),
+        _TabDef(context.l10n.saTabOrders, Icons.receipt_long_outlined, Icons.receipt_long_rounded),
+        _TabDef(context.l10n.saCart, Icons.shopping_bag_outlined, Icons.shopping_bag_rounded),
+        _TabDef(context.l10n.saTabProfile, Icons.person_outline_rounded, Icons.person_rounded),
+      ];
 
   /// Savat tabining indeksi — nishon faqat shu elementga qo'yiladi.
   /// Raqamni ikki joyda takrorlamaslik uchun nomlangan konstanta.
@@ -74,7 +75,7 @@ class SuperappShell extends StatelessWidget {
             right: kSpace3,
             bottom: kSpace3 + bottomInset,
             child: _NavBar(
-              tabs: _tabs,
+              tabs: _tabs(context),
               index: index,
               cartTabIndex: _cartTabIndex,
               cartBadge: provider.cartCount,
@@ -182,7 +183,7 @@ class _NavItem extends StatelessWidget {
       button: true,
       selected: active,
       label: tab.label,
-      value: badge == null ? null : '$badge ta',
+      value: badge == null ? null : context.l10n.saBadgeCount(badge!),
       excludeSemantics: true,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,

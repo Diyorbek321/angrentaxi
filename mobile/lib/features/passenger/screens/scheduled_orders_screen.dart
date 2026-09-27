@@ -1,6 +1,7 @@
 import 'package:angren_taxi/core/config/app_responsive.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
@@ -41,19 +42,20 @@ class _ScheduledOrdersScreenState extends State<ScheduledOrdersScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: kSurface,
-        title: const Text('Rejani bekor qilish'),
+        title: Text(context.l10n.paxCancelScheduleTitle),
         content: Text(
-          '${Formatters.formatScheduleLabel(order.scheduledAt ?? order.createdAt)} '
-          'ga rejalashtirilgan safar bekor qilinsinmi?',
+          context.l10n.paxCancelScheduleBody(
+            Formatters.formatScheduleLabel(order.scheduledAt ?? order.createdAt),
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Yo\'q'),
+            child: Text(context.l10n.paxNo),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Bekor qilish'),
+            child: Text(context.l10n.paxCancel),
           ),
         ],
       ),
@@ -67,7 +69,9 @@ class _ScheduledOrdersScreenState extends State<ScheduledOrdersScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          ok ? 'Reja bekor qilindi' : (provider.error ?? 'Bekor qilib bo\'lmadi'),
+          ok
+              ? context.l10n.paxScheduleCancelled
+              : (provider.error ?? context.l10n.paxCancelFailed),
         ),
       ),
     );
@@ -80,9 +84,9 @@ class _ScheduledOrdersScreenState extends State<ScheduledOrdersScreen> {
       appBar: AppBar(
         backgroundColor: kSurface,
         surfaceTintColor: Colors.transparent,
-        title: const Text(
-          'Rejalashtirilgan safarlar',
-          style: TextStyle(
+        title: Text(
+          context.l10n.paxScheduledTripsTitle,
+          style: const TextStyle(
             fontSize: kFontH3,
             fontWeight: FontWeight.w800,
             color: kInk,
@@ -100,11 +104,10 @@ class _ScheduledOrdersScreenState extends State<ScheduledOrdersScreen> {
 
           final orders = provider.scheduledOrders;
           if (orders.isEmpty) {
-            return const AppEmptyState(
+            return AppEmptyState(
               icon: Icons.schedule_rounded,
-              title: 'Rejalashtirilgan safarlar yo\'q',
-              message: 'Tarif ekranida vaqtni belgilab, safarni oldindan '
-                  'buyurtma qilishingiz mumkin.',
+              title: context.l10n.paxScheduledEmptyTitle,
+              message: context.l10n.paxScheduledEmptyBody,
             );
           }
 
@@ -178,14 +181,14 @@ class _ScheduledCard extends StatelessWidget {
           _AddressRow(
             color: kPrimary,
             text: order.pickup.address.isEmpty
-                ? 'Olish nuqtasi'
+                ? context.l10n.paxPickupPoint
                 : order.pickup.address,
           ),
           const SizedBox(height: kSpace2),
           _AddressRow(
             color: kError,
             text: order.dropoff.address.isEmpty
-                ? 'Manzil'
+                ? context.l10n.paxDestination
                 : order.dropoff.address,
           ),
           const SizedBox(height: kSpace3),
@@ -201,9 +204,9 @@ class _ScheduledCard extends StatelessWidget {
               color: kInfoLight,
               borderRadius: BorderRadius.circular(kRadiusSm),
             ),
-            child: const Text(
-              "Narx qotirilgan — safar paytida o'zgarmaydi.",
-              style: TextStyle(
+            child: Text(
+              context.l10n.paxPriceLocked,
+              style: const TextStyle(
                 fontSize: kFontCaption,
                 fontWeight: FontWeight.w600,
                 color: kInfoDeep,
@@ -227,9 +230,9 @@ class _ScheduledCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(kRadiusMd),
                   border: Border.all(color: kErrorBorder),
                 ),
-                child: const Text(
-                  'Bekor qilish',
-                  style: TextStyle(
+                child: Text(
+                  context.l10n.paxCancel,
+                  style: const TextStyle(
                     fontSize: kFontBody,
                     fontWeight: FontWeight.w700,
                     color: kErrorDeep,

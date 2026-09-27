@@ -2,8 +2,10 @@ import 'package:angren_taxi/core/config/app_responsive.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/features/lost_items/lost_items_service.dart';
 import 'package:angren_taxi/features/passenger/widgets/receipt_widgets.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order_receipt.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/utils/receipt_formatter.dart';
@@ -57,6 +59,57 @@ class ReceiptScreen extends StatefulWidget {
 class _ReceiptScreenState extends State<ReceiptScreen> {
   late final ApiClient _apiClient = widget._apiClient ?? sl<ApiClient>();
 
+  /// Safardan keyin 7 kun ichida (backend: LOST_ITEM_REPORT_WINDOW_DAYS) va
+  /// faqat haydovchili safarda — xabar haydovchiga yuboriladi.
+  bool _canReportLostItem(OrderReceipt receipt) {
+    final completedAt = receipt.completedAt;
+    if (completedAt == null || receipt.driver == null) return false;
+    return DateTime.now().difference(completedAt) < const Duration(days: 7);
+  }
+
+  Future<void> _reportLostItem(OrderReceipt receipt) async {
+    final controller = TextEditingController();
+    final description = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.l10n.paxLostItemDialogTitle),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 500,
+          maxLines: 3,
+          decoration: InputDecoration(
+            hintText: context.l10n.paxLostItemDialogHint,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(context.l10n.paxCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(controller.text.trim()),
+            child: Text(context.l10n.paxSend),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || description == null || description.length < 3) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final sentMessage = context.l10n.paxLostItemSent;
+    try {
+      await LostItemsService(_apiClient).report(
+        orderId: receipt.orderId,
+        description: description,
+      );
+      messenger.showSnackBar(SnackBar(
+        content: Text(sentMessage),
+      ));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(extractErrorMessage(e))));
+    }
+  }
+
   bool _loading = true;
   String? _error;
 
@@ -107,7 +160,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   void _copyReceipt(OrderReceipt receipt) {
     Clipboard.setData(ClipboardData(text: receiptAsText(receipt)));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Chek matni nusxalandi')),
+      SnackBar(content: Text(context.l10n.paxReceiptTextCopied)),
     );
   }
 
@@ -120,9 +173,9 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       body: Column(
         children: [
           AgHeader(
-            title: 'Safar cheki',
+            title: context.l10n.paxReceiptTitle,
             subtitle: receipt != null && receipt.orderNumber.isNotEmpty
-                ? 'Buyurtma № ${receipt.orderNumber}'
+                ? context.l10n.paxReceiptOrderNumber(receipt.orderNumber)
                 : null,
             onBack: () => Navigator.of(context).pop(),
           ),
@@ -138,10 +191,9 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     if (_forbidden) {
       return AppEmptyState(
         icon: Icons.lock_outline_rounded,
-        title: 'Bu chek sizga tegishli emas',
-        message: 'Chekni faqat safar yo\'lovchisi, tayinlangan haydovchi '
-            'yoki menejer ko\'ra oladi.',
-        actionLabel: 'Orqaga',
+        title: context.l10n.paxReceiptForbiddenTitle,
+        message: context.l10n.paxReceiptForbiddenBody,
+        actionLabel: context.l10n.paxBack,
         onAction: () => Navigator.of(context).pop(),
       );
     }
@@ -152,7 +204,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
     if (receipt == null) {
       return AppErrorState(
-        message: 'Chek ma\'lumotlari o\'qilmadi',
+        message: context.l10n.paxReceiptParseError,
         onRetry: _load,
       );
     }
@@ -176,11 +228,19 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           ],
           const SizedBox(height: kSpace5),
           AppOutlinedButton(
-            label: 'Nusxalash',
+            label: context.l10n.paxReferralCopy,
             icon: const Icon(Icons.copy_rounded, size: 18),
             onPressed: () => _copyReceipt(receipt),
-            semanticsLabel: 'Chek matnini nusxalash',
+            semanticsLabel: context.l10n.paxReceiptCopySemantics,
           ),
+          if (_canReportLostItem(receipt)) ...[
+            const SizedBox(height: kSpace3),
+            AppOutlinedButton(
+              label: context.l10n.paxLostItemButton,
+              icon: const Icon(Icons.inventory_2_outlined, size: 18),
+              onPressed: () => _reportLostItem(receipt),
+            ),
+          ],
         ],
       ),
     );
@@ -227,9 +287,9 @@ class _HeaderCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Buyurtma raqami',
-                      style: TextStyle(
+                    Text(
+                      context.l10n.paxReceiptOrderNumberLabel,
+                      style: const TextStyle(
                         fontSize: kFontMicro,
                         color: agSubtle,
                         fontWeight: FontWeight.w700,
@@ -260,21 +320,27 @@ class _HeaderCard extends StatelessWidget {
           const ReceiptDivider(),
           if (receipt.completedAt != null)
             ReceiptAmountRow(
-              label: 'Sana',
+              label: context.l10n.paxDetailDate,
               value: Formatters.formatDateTime(receipt.completedAt!),
             ),
           if (serviceLabel != null)
-            ReceiptAmountRow(label: 'Xizmat', value: serviceLabel),
+            ReceiptAmountRow(
+              label: context.l10n.paxReceiptService,
+              value: serviceLabel,
+            ),
           if (receipt.tariffName != null)
-            ReceiptAmountRow(label: 'Tarif', value: receipt.tariffName!),
+            ReceiptAmountRow(
+              label: context.l10n.paxReceiptTariff,
+              value: receipt.tariffName!,
+            ),
           if (receipt.distanceKm != null)
             ReceiptAmountRow(
-              label: 'Masofa',
+              label: context.l10n.paxDetailDistance,
               value: Formatters.formatDistance(receipt.distanceKm! * 1000),
             ),
           if (receipt.durationMin != null)
             ReceiptAmountRow(
-              label: 'Davomiyligi',
+              label: context.l10n.paxReceiptDuration,
               value: Formatters.formatDuration(receipt.durationMin!),
             ),
         ],
@@ -298,8 +364,8 @@ class _RouteCard extends StatelessWidget {
         children: [
           ReceiptRoutePoint(
             color: agGreenText,
-            label: 'Olib ketish',
-            value: receipt.pickupAddress ?? 'Manzil saqlanmagan',
+            label: context.l10n.paxReceiptPickup,
+            value: receipt.pickupAddress ?? context.l10n.paxReceiptAddressMissing,
           ),
           // Oraliq to'xtashlar chek marshrutining bir qismi — ular
           // ko'rsatilmasa, yo'lovchi "nega narx katta?" degan savolga
@@ -308,17 +374,17 @@ class _RouteCard extends StatelessWidget {
             const ReceiptDivider(),
             ReceiptRoutePoint(
               color: agMuted,
-              label: 'To\'xtash ${i + 1}',
+              label: context.l10n.paxReceiptStop(i + 1),
               value: waypoints[i].address.isEmpty
-                  ? 'Manzil saqlanmagan'
+                  ? context.l10n.paxReceiptAddressMissing
                   : waypoints[i].address,
             ),
           ],
           const ReceiptDivider(),
           ReceiptRoutePoint(
             color: agText,
-            label: 'Tushish',
-            value: receipt.dropoffAddress ?? 'Manzil saqlanmagan',
+            label: context.l10n.paxReceiptDropoff,
+            value: receipt.dropoffAddress ?? context.l10n.paxReceiptAddressMissing,
           ),
         ],
       ),
@@ -344,9 +410,9 @@ class _FareCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Narx tarkibi',
-            style: TextStyle(
+          Text(
+            context.l10n.paxReceiptFareBreakdown,
+            style: const TextStyle(
               fontSize: kFontTitle,
               color: agText,
               fontWeight: FontWeight.w800,
@@ -358,10 +424,9 @@ class _FareCard extends StatelessWidget {
             // Eski safarlarda tarkib umuman saqlanmagan. Uni "asos = 85%,
             // xizmat haqi = 15%" qabilida o'ylab topish — foydalanuvchiga
             // yolg'on hujjat berish demak.
-            const ReceiptNotice(
+            ReceiptNotice(
               icon: Icons.info_outline_rounded,
-              text: 'Bu safar uchun narx tarkibi saqlanmagan. Quyida faqat '
-                  'yakuniy hisob ko\'rsatilgan.',
+              text: context.l10n.paxReceiptNoBreakdown,
             ),
           ] else ...[
             for (final line in fareLines(fare))
@@ -372,18 +437,16 @@ class _FareCard extends StatelessWidget {
             // va'dasi bilan bu izoh BIR XIL ma'noni berishi shart — ikkalasi
             // ajralib ketsa, yo'lovchi va'da bilan chekni solishtirib
             // aldangandek his qiladi.
-            const ReceiptNotice(
+            ReceiptNotice(
               icon: Icons.timer_outlined,
-              text: 'Kutish haqi belgilangan narxga kirmaydi: bepul '
-                  'daqiqalardan keyin har boshlangan daqiqa alohida '
-                  'qo\'shiladi.',
+              text: context.l10n.paxReceiptWaitingNote,
             ),
           ],
 
           if (hasAdjustments) ...[
             const ReceiptDivider(),
             ReceiptAmountRow(
-              label: 'Jami',
+              label: context.l10n.paxReceiptSubtotal,
               // Tarkib bo'lsa, yuqoridagi qatorlar AYNAN shu songa
               // qo'shiladi — backend invarianti (`fare-breakdown.ts`) buni
               // kafolatlaydi. Tarkib bo'lmasa, bu chegirmagacha bo'lgan
@@ -394,22 +457,22 @@ class _FareCard extends StatelessWidget {
             if (receipt.discountAmount > 0)
               ReceiptAmountRow(
                 label: receipt.promoCode != null
-                    ? 'Chegirma (${receipt.promoCode})'
-                    : 'Chegirma',
+                    ? context.l10n.paxReceiptDiscountWithCode(receipt.promoCode!)
+                    : context.l10n.paxReceiptDiscount,
                 value: '−${formatSomRounded(receipt.discountAmount)}',
                 valueColor: agGreenText,
               ),
             if (receipt.tipAmount > 0)
               ReceiptAmountRow(
-                label: 'Chaqim',
-                hint: 'Komissiyasiz — to\'liq haydovchiga',
+                label: context.l10n.paxReceiptTip,
+                hint: context.l10n.paxReceiptTipHint,
                 value: '+${formatSomRounded(receipt.tipAmount)}',
               ),
           ],
 
           const ReceiptDivider(),
           ReceiptAmountRow(
-            label: 'Yakuniy',
+            label: context.l10n.paxReceiptGrandTotal,
             value: formatSomRounded(receipt.grandTotal),
             emphasized: true,
             large: true,
@@ -434,9 +497,9 @@ class _PaymentCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'To\'lov',
-            style: TextStyle(
+          Text(
+            context.l10n.paxReceiptPayment,
+            style: const TextStyle(
               fontSize: kFontTitle,
               color: agText,
               fontWeight: FontWeight.w800,
@@ -444,13 +507,19 @@ class _PaymentCard extends StatelessWidget {
           ),
           const SizedBox(height: kSpace3),
           if (method != null)
-            ReceiptAmountRow(label: 'Usul', value: method.label),
+            ReceiptAmountRow(
+              label: context.l10n.paxReceiptPaymentMethod,
+              value: method.label,
+            ),
           if (status != null)
-            ReceiptAmountRow(label: 'Holati', value: status.label),
+            ReceiptAmountRow(
+              label: context.l10n.paxReceiptPaymentStatus,
+              value: status.label,
+            ),
           if (method == null && status == null)
-            const ReceiptNotice(
+            ReceiptNotice(
               icon: Icons.info_outline_rounded,
-              text: 'To\'lov ma\'lumoti saqlanmagan.',
+              text: context.l10n.paxReceiptNoPaymentInfo,
             ),
           if (receipt.hasUnpaidAmount) ...[
             const SizedBox(height: kSpace3),
@@ -459,10 +528,9 @@ class _PaymentCard extends StatelessWidget {
             ReceiptNotice(
               icon: Icons.warning_amber_rounded,
               tone: ReceiptNoticeTone.warning,
-              text: 'To\'lanmagan qoldiq: '
-                  '${formatSomRounded(receipt.unpaidAmount)}. '
-                  'Hamyonni to\'ldiring — qarz yangi buyurtma berishni '
-                  'to\'sib qo\'yadi.',
+              text: context.l10n.paxReceiptUnpaid(
+                formatSomRounded(receipt.unpaidAmount),
+              ),
             ),
           ],
         ],
@@ -503,9 +571,9 @@ class _DriverCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Haydovchi',
-                  style: TextStyle(
+                Text(
+                  context.l10n.paxDetailDriver,
+                  style: const TextStyle(
                     fontSize: kFontMicro,
                     color: agSubtle,
                     fontWeight: FontWeight.w700,

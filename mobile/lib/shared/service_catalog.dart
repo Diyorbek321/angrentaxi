@@ -1,3 +1,4 @@
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:flutter/material.dart';
 
@@ -28,7 +29,6 @@ import 'package:flutter/material.dart';
 class ServiceCatalogEntry {
   const ServiceCatalogEntry._({
     required this.serviceType,
-    required this.label,
     required this.icon,
   });
 
@@ -36,31 +36,32 @@ class ServiceCatalogEntry {
   final String serviceType;
 
   /// Yo'lovchi ko'radigan QISQA yorliq — chip qatoriga mo'ljallangan.
-  final String label;
+  String get label => switch (serviceType) {
+        kServiceTypeCargo => AppL10n.current.shServiceCargoShort,
+        kServiceTypeFood => AppL10n.current.shServiceFoodShort,
+        kServiceTypeMarket => AppL10n.current.shServiceMarketShort,
+        _ => AppL10n.current.shServiceTaxi,
+      };
 
   final IconData icon;
 
   static const ServiceCatalogEntry taxi = ServiceCatalogEntry._(
     serviceType: kServiceTypeTaxi,
-    label: 'Taksi',
     icon: Icons.local_taxi_rounded,
   );
 
   static const ServiceCatalogEntry cargo = ServiceCatalogEntry._(
     serviceType: kServiceTypeCargo,
-    label: 'Yuk',
     icon: Icons.local_shipping_rounded,
   );
 
   static const ServiceCatalogEntry food = ServiceCatalogEntry._(
     serviceType: kServiceTypeFood,
-    label: 'Ovqat',
     icon: Icons.restaurant_rounded,
   );
 
   static const ServiceCatalogEntry market = ServiceCatalogEntry._(
     serviceType: kServiceTypeMarket,
-    label: 'Market',
     icon: Icons.storefront_rounded,
   );
 

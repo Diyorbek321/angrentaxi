@@ -1,5 +1,6 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
@@ -29,7 +30,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Sayohat tarixi')),
+      appBar: AppBar(title: Text(context.l10n.paxHistoryTitle)),
       body: Consumer<OrderProvider>(
         builder: (context, provider, _) {
           // Uch holat: yuklanmoqda (skeleton, spinner emas) - xato - bo'sh.
@@ -45,15 +46,15 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
 
           if (provider.state == OrderProviderState.error) {
             return AppErrorState(
-              message: provider.error ?? 'Xatolik yuz berdi',
+              message: provider.error ?? context.l10n.paxGenericError,
               onRetry: provider.loadOrderHistory,
             );
           }
 
           if (provider.orderHistory.isEmpty) {
-            return const AppEmptyState(
+            return AppEmptyState(
               icon: Icons.history,
-              title: 'Sayohat tarixi yo\'q',
+              title: context.l10n.paxHistoryEmpty,
             );
           }
 
@@ -139,7 +140,7 @@ class _OrderHistoryCard extends StatelessWidget {
               if (order.status == OrderStatus.completed) ...[
                 const SizedBox(height: kSpace3),
                 AppOutlinedButton(
-                  label: 'Safarni takrorlash',
+                  label: context.l10n.paxRepeatRide,
                   icon: const Icon(Icons.replay, size: 18),
                   onPressed: () => _repeatOrder(context),
                 ),
@@ -240,9 +241,9 @@ class _OrderHistoryCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: kSpace4),
-              const Text(
-                'Buyurtma tafsilotlari',
-                style: TextStyle(
+              Text(
+                context.l10n.paxOrderDetails,
+                style: const TextStyle(
                   fontSize: kFontH2,
                   fontWeight: FontWeight.w800,
                   color: kInk,
@@ -250,33 +251,33 @@ class _OrderHistoryCard extends StatelessWidget {
               ),
               const SizedBox(height: kSpace4),
               _buildDetailRow(
-                  'Sana', Formatters.formatDateTime(order.createdAt)),
-              _buildDetailRow('Holat', order.status.label),
-              _buildDetailRow('Chiqish', order.pickup.address),
-              _buildDetailRow('Manzil', order.dropoff.address),
+                  context.l10n.paxDetailDate, Formatters.formatDateTime(order.createdAt)),
+              _buildDetailRow(context.l10n.paxDetailStatus, order.status.label),
+              _buildDetailRow(context.l10n.paxDetailFrom, order.pickup.address),
+              _buildDetailRow(context.l10n.paxDestination, order.dropoff.address),
               if (order.driver != null)
-                _buildDetailRow('Haydovchi', order.driver!.name),
+                _buildDetailRow(context.l10n.paxDetailDriver, order.driver!.name),
               if (order.driver != null)
-                _buildDetailRow('Mashina', order.driver!.carInfo),
+                _buildDetailRow(context.l10n.paxDetailCar, order.driver!.carInfo),
               _buildDetailRow(
-                'Narx',
+                context.l10n.paxDetailPrice,
                 Formatters.formatPrice(
                     order.actualPrice ?? order.estimatedPrice),
               ),
               if (order.distanceKm != null)
                 _buildDetailRow(
-                  'Masofa',
+                  context.l10n.paxDetailDistance,
                   Formatters.formatDistance(order.distanceKm! * 1000),
                 ),
               if (order.durationMin != null)
                 _buildDetailRow(
-                  'Vaqt',
+                  context.l10n.paxDetailDuration,
                   Formatters.formatDuration(order.durationMin!),
                 ),
               if (order.status == OrderStatus.completed) ...[
                 const SizedBox(height: kSpace4),
                 AppOutlinedButton(
-                  label: 'Safarni takrorlash',
+                  label: context.l10n.paxRepeatRide,
                   icon: const Icon(Icons.replay, size: 18),
                   onPressed: () {
                     Navigator.of(ctx).pop();

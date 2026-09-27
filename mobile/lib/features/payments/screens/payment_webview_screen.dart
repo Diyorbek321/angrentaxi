@@ -1,4 +1,5 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/payment_initiate_result.dart';
 import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:flutter/material.dart';
@@ -78,10 +79,13 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text("To'lov — ${widget.result.provider.toUpperCase()}"),
+          title: Text(
+            context.l10n
+                .saPaymentTitle(widget.result.provider.toUpperCase()),
+          ),
           leading: Semantics(
             button: true,
-            label: 'Yopish',
+            label: context.l10n.saClose,
             excludeSemantics: true,
             child: IconButton(
               icon: const Icon(Icons.close_rounded),
@@ -129,7 +133,7 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size(0, kControlHeight),
                         ),
-                        child: const Text('Bekor qilish'),
+                        child: Text(context.l10n.saCancel),
                       ),
                     ),
                     const SizedBox(width: kSpace3),
@@ -144,7 +148,7 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
                             borderRadius: BorderRadius.circular(kRadiusMd),
                           ),
                         ),
-                        child: const Text("To'ladim"),
+                        child: Text(context.l10n.saPaymentIPaid),
                       ),
                     ),
                   ],
@@ -168,7 +172,7 @@ class _ErrorState extends StatelessWidget {
   Widget build(BuildContext context) {
     // Matn o'zgarmagan — faqat umumiy `AppErrorState` ko'rinishiga o'tdi.
     return AppErrorState(
-      message: "To'lov sahifasini yuklab bo'lmadi: $message",
+      message: context.l10n.saPaymentPageLoadFailed(message),
       onRetry: onRetry,
     );
   }

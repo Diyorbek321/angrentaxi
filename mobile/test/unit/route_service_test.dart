@@ -1,50 +1,55 @@
-// RouteService fetches real road-route geometry from OSRM to replace the
-// old straight-line-only polyline drawn between pickup and dropoff.
+// RouteService fetches real road-route geometry through the backend's
+// `GET /routing/route` (an OSRM proxy) to replace the old straight-line
+// polyline drawn between pickup and dropoff.
 import 'package:angren_taxi/core/location/route_service.dart';
+import 'package:angren_taxi/core/network/api_client.dart';
+import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:mocktail/mocktail.dart';
 
-class MockDio extends Mock implements Dio {}
+class MockApiClient extends Mock implements ApiClient {}
+
+Response<dynamic> _wrapped(Object? route) => Response<dynamic>(
+      requestOptions: RequestOptions(path: ''),
+      // Global ResponseInterceptor envelope — the route is under `data`.
+      data: {'success': true, 'data': route},
+    );
+
+Map<String, dynamic> _route({
+  double distance = 5200,
+  double duration = 720,
+  List<List<double>> coordinates = const [
+    [70.9432, 40.0956],
+    [70.9460, 40.1000],
+    [70.9500, 40.1050],
+  ],
+}) =>
+    {
+      'distance': distance,
+      'duration': duration,
+      'geometry': {'type': 'LineString', 'coordinates': coordinates},
+      'legs': <dynamic>[],
+    };
 
 void main() {
-  late MockDio dio;
+  late MockApiClient api;
   late RouteService service;
 
-  setUpAll(() {
-    registerFallbackValue(RequestOptions(path: ''));
-  });
-
   setUp(() {
-    dio = MockDio();
-    service = RouteService(dio: dio);
+    api = MockApiClient();
+    service = RouteService(api);
   });
 
-  test('parses OSRM geojson geometry, distance (m->km) and duration (s->min)', () async {
-    when(() => dio.get<Map<String, dynamic>>(
-          any(),
-          queryParameters: any(named: 'queryParameters'),
-        )).thenAnswer(
-      (_) async => Response<Map<String, dynamic>>(
-        requestOptions: RequestOptions(path: ''),
-        data: {
-          'routes': [
-            {
-              'distance': 5200.0,
-              'duration': 720.0,
-              'geometry': {
-                'coordinates': [
-                  [70.9432, 40.0956],
-                  [70.9460, 40.1000],
-                  [70.9500, 40.1050],
-                ],
-              },
-            },
-          ],
-        },
-      ),
-    );
+  void stubRoute(Object? route) {
+    when(() => api.get(any(), params: any(named: 'params')))
+        .thenAnswer((_) async => _wrapped(route));
+  }
+
+  test('parses geojson geometry, distance (m->km) and duration (s->min)',
+      () async {
+    stubRoute(_route());
 
     final result = await service.getRoute(
       const LatLng(40.0956, 70.9432),
@@ -60,130 +65,50 @@ void main() {
     expect(result.points.first.longitude, 70.9432);
   });
 
-  test('returns null (not a throw) when OSRM has no route', () async {
-    when(() => dio.get<Map<String, dynamic>>(
-          any(),
-          queryParameters: any(named: 'queryParameters'),
-        )).thenAnswer(
-      (_) async => Response<Map<String, dynamic>>(
-        requestOptions: RequestOptions(path: ''),
-        data: {'routes': []},
-      ),
-    );
+  test('calls the backend proxy, never an OSRM host', () async {
+    stubRoute(_route());
 
-    final result = await service.getRoute(
-      const LatLng(0, 0),
-      const LatLng(1, 1),
-    );
+    await service.getRoute(const LatLng(40, 70), const LatLng(41, 71));
 
-    expect(result, isNull);
+    final path = verify(() => api.get(captureAny(), params: any(named: 'params')))
+        .captured
+        .single;
+    expect(path, ApiEndpoints.routingRoute);
   });
 
-  test('returns null on network failure instead of throwing', () async {
-    when(() => dio.get<Map<String, dynamic>>(
-          any(),
-          queryParameters: any(named: 'queryParameters'),
-        )).thenThrow(DioException(requestOptions: RequestOptions(path: '')));
-
-    final result = await service.getRoute(
-      const LatLng(0, 0),
-      const LatLng(1, 1),
+  test('returns null (not a throw) when there is no route', () async {
+    stubRoute(null);
+    expect(
+      await service.getRoute(const LatLng(0, 0), const LatLng(1, 1)),
+      isNull,
     );
-
-    expect(result, isNull);
   });
 
-  test('builds a plain pickup;dropoff URL when no waypoints are given', () async {
-    when(() => dio.get<Map<String, dynamic>>(
-          any(),
-          queryParameters: any(named: 'queryParameters'),
-        )).thenAnswer(
-      (_) async => Response<Map<String, dynamic>>(
-        requestOptions: RequestOptions(path: ''),
-        data: {
-          'routes': [
-            {
-              'distance': 1000.0,
-              'duration': 120.0,
-              'geometry': {
-                'coordinates': [
-                  [70.9432, 40.0956],
-                  [70.9500, 40.1050],
-                ],
-              },
-            },
-          ],
-        },
-      ),
+  test('returns null on network failure (e.g. 404 no route) instead of throwing',
+      () async {
+    when(() => api.get(any(), params: any(named: 'params'))).thenThrow(
+      DioException(requestOptions: RequestOptions(path: '')),
     );
-
-    const from = LatLng(40.0956, 70.9432);
-    const to = LatLng(40.1050, 70.9500);
-    await service.getRoute(from, to);
-
-    final capturedPath = verify(() => dio.get<Map<String, dynamic>>(
-          captureAny(),
-          queryParameters: any(named: 'queryParameters'),
-        )).captured.single as String;
 
     expect(
-      capturedPath,
-      '/route/v1/driving/${from.longitude},${from.latitude};'
-      '${to.longitude},${to.latitude}',
+      await service.getRoute(const LatLng(0, 0), const LatLng(1, 1)),
+      isNull,
     );
   });
 
-  test(
-      'threads waypoints into the OSRM URL in order: pickup, each waypoint, dropoff',
-      () async {
-    when(() => dio.get<Map<String, dynamic>>(
-          any(),
-          queryParameters: any(named: 'queryParameters'),
-        )).thenAnswer(
-      (_) async => Response<Map<String, dynamic>>(
-        requestOptions: RequestOptions(path: ''),
-        data: {
-          'routes': [
-            {
-              'distance': 9000.0,
-              'duration': 1200.0,
-              'geometry': {
-                'coordinates': [
-                  [70.9432, 40.0956],
-                  [70.9500, 40.1050],
-                ],
-              },
-            },
-          ],
-        },
-      ),
-    );
+  test('sends coords in order: pickup, each waypoint, dropoff', () async {
+    stubRoute(_route());
 
     const from = LatLng(40.0956, 70.9432);
     const to = LatLng(40.1050, 70.9500);
-    const waypoints = [
-      LatLng(40.1000, 70.9460),
-      LatLng(40.1020, 70.9480),
-    ];
+    const waypoints = [LatLng(40.1000, 70.9460), LatLng(40.1020, 70.9480)];
 
     await service.getRoute(from, to, waypoints: waypoints);
 
-    final capturedPath = verify(() => dio.get<Map<String, dynamic>>(
-          captureAny(),
-          queryParameters: any(named: 'queryParameters'),
-        )).captured.single as String;
-
-    final expectedCoords = [from, ...waypoints, to]
-        .map((p) => '${p.longitude},${p.latitude}')
-        .join(';');
-    expect(capturedPath, '/route/v1/driving/$expectedCoords');
-
-    // Explicitly pin down ordering: pickup first, waypoints in the given
-    // order, dropoff last.
-    final segments = capturedPath
-        .replaceFirst('/route/v1/driving/', '')
-        .split(';');
-    expect(segments, [
+    final params = verify(() => api.get(any(), params: captureAny(named: 'params')))
+        .captured
+        .single as Map<String, dynamic>;
+    expect((params['coords'] as String).split(';'), [
       '${from.longitude},${from.latitude}',
       '${waypoints[0].longitude},${waypoints[0].latitude}',
       '${waypoints[1].longitude},${waypoints[1].latitude}',

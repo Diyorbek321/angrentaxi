@@ -1,3 +1,4 @@
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
 // ============================================================================
@@ -66,7 +67,13 @@ class VoiceGuide {
   /// qanday qurilmada bor va o'zbekcha matnni kirill emas, lotin
   /// transliteratsiyasi sifatida o'qiydi — mukammal emas, lekin tushunarli
   /// va jimlikdan ancha yaxshi.
-  static const List<String> preferredLanguages = ['uz-UZ', 'ru-RU'];
+  ///
+  /// Ilova tili ruscha bo'lsa ko'rsatmalar ham ruscha (kirill) — ularni
+  /// faqat ruscha ovoz o'qiy oladi, shuning uchun uz-UZ tanlanmaydi.
+  static List<String> get preferredLanguages =>
+      AppL10n.localeName.startsWith('ru')
+          ? const ['ru-RU']
+          : const ['uz-UZ', 'ru-RU'];
 
   /// Navigatsiya uchun biroz sekinlashtirilgan tezlik.
   ///

@@ -1,5 +1,6 @@
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/features/support/screens/chat_screen.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -28,44 +29,25 @@ class SupportScreen extends StatelessWidget {
     }
   }
 
-  static const _faqs = [
-    (
-      Icons.help_outline_rounded,
-      'Buyurtmani qanday bekor qilaman?',
-      'Faol buyurtma ekranida "Bekor qilish" tugmasini bosing va sababni '
-          'tanlang. Haydovchi yetib kelgunga qadar bekor qilish bepul.',
-    ),
-    (
-      Icons.payments_rounded,
-      "To'lov o'tmadi, nima qilaman?",
-      'Hamyon balansingizni tekshiring. Balans yetmasa safar qarz sifatida '
-          'qayd etiladi va uni to\'lamaguningizcha yangi buyurtma bera '
-          'olmaysiz. Naqd to\'lovni tanlab ham davom etishingiz mumkin.',
-    ),
-    (
-      Icons.luggage_rounded,
-      'Mashinada narsa qoldirdim',
-      'Buyurtmalar tarixidan safarni oching va haydovchiga qo\'ng\'iroq '
-          'qiling. Javob bo\'lmasa, operator bilan chatga yozing — biz '
-          'haydovchi bilan bog\'lanamiz.',
-    ),
-    (
-      Icons.star_rounded,
-      'Haydovchi ustidan shikoyat',
-      'Safar tugagach baho qo\'yish ekranida izoh qoldiring yoki operator '
-          'bilan chatga safar raqamini yuboring. Har bir shikoyat ko\'rib '
-          'chiqiladi.',
-    ),
-  ];
+  static List<(IconData, String, String)> _faqs(BuildContext context) {
+    final l10n = context.l10n;
+    return [
+      (Icons.help_outline_rounded, l10n.saFaqCancelQ, l10n.saFaqCancelA),
+      (Icons.payments_rounded, l10n.saFaqPaymentQ, l10n.saFaqPaymentA),
+      (Icons.luggage_rounded, l10n.saFaqLostItemQ, l10n.saFaqLostItemA),
+      (Icons.star_rounded, l10n.saFaqComplaintQ, l10n.saFaqComplaintA),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
+    final faqs = _faqs(context);
     return Scaffold(
       backgroundColor: agBg,
       body: Column(
         children: [
           AgHeader(
-              title: 'Yordam markazi',
+              title: context.l10n.saHelpCenter,
               onBack: () => Navigator.of(context).pop()),
           Expanded(
             child: ListView(
@@ -73,7 +55,7 @@ class SupportScreen extends StatelessWidget {
               children: [
                 Semantics(
                   button: true,
-                  label: 'Operator bilan chat',
+                  label: context.l10n.saSupportOperatorChat,
                   excludeSemantics: true,
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
@@ -104,12 +86,12 @@ class SupportScreen extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Operator bilan chat',
-                                    style: TextStyle(
+                                Text(context.l10n.saSupportOperatorChat,
+                                    style: const TextStyle(
                                         color: agOnPrimary,
                                         fontWeight: FontWeight.w800,
                                         fontSize: kFontTitle)),
-                                Text('Savolingizni yozing — operator javob beradi',
+                                Text(context.l10n.saSupportOperatorChatSub,
                                     style: TextStyle(
                                         color: agOnPrimary.withValues(alpha: 0.8),
                                         fontSize: kFontCaption,
@@ -133,12 +115,12 @@ class SupportScreen extends StatelessWidget {
                             bg: agTint,
                             // `agTint` yuzada ma'noli yashil — `agPrimary`.
                             color: agPrimary,
-                            title: "Qo'ng'iroq",
-                            sub: '$_supportPhone · bepul',
+                            title: context.l10n.saSupportCall,
+                            sub: context.l10n.saSupportCallSub(_supportPhone),
                             onTap: () => _launch(
                                   context,
                                   Uri(scheme: 'tel', path: _supportPhone),
-                                  'Qo\'ng\'iroq qilib bo\'lmadi',
+                                  context.l10n.saCallFailed,
                                 ))),
                     const SizedBox(width: kSpace3),
                     Expanded(
@@ -151,13 +133,13 @@ class SupportScreen extends StatelessWidget {
                             onTap: () => _launch(
                                   context,
                                   Uri.parse('https://t.me/$_telegramHandle'),
-                                  'Telegramni ochib bo\'lmadi',
+                                  context.l10n.saTelegramOpenFailed,
                                 ))),
                   ],
                 ),
                 const SizedBox(height: kSpace6),
-                const Text('Tez-tez beriladigan savollar',
-                    style: TextStyle(
+                Text(context.l10n.saFaqTitle,
+                    style: const TextStyle(
                         fontSize: kFontH3,
                         fontWeight: FontWeight.w800,
                         color: agText)),
@@ -171,12 +153,12 @@ class SupportScreen extends StatelessWidget {
                   ),
                   child: Column(
                     children: [
-                      for (var i = 0; i < _faqs.length; i++)
+                      for (var i = 0; i < faqs.length; i++)
                         _FaqTile(
-                          icon: _faqs[i].$1,
-                          question: _faqs[i].$2,
-                          answer: _faqs[i].$3,
-                          last: i == _faqs.length - 1,
+                          icon: faqs[i].$1,
+                          question: faqs[i].$2,
+                          answer: faqs[i].$3,
+                          last: i == faqs.length - 1,
                         ),
                     ],
                   ),

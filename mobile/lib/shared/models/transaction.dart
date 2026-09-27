@@ -1,3 +1,4 @@
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:equatable/equatable.dart';
 
 enum TransactionType { trip, topUp, withdrawal, bonus }
@@ -6,13 +7,13 @@ extension TransactionTypeExtension on TransactionType {
   String get label {
     switch (this) {
       case TransactionType.trip:
-        return 'Sayohat';
+        return AppL10n.current.shTxTrip;
       case TransactionType.topUp:
-        return 'Hisobni to\'ldirish';
+        return AppL10n.current.shTxTopUp;
       case TransactionType.withdrawal:
-        return 'Pul yechish';
+        return AppL10n.current.shTxWithdrawal;
       case TransactionType.bonus:
-        return 'Bonus';
+        return AppL10n.current.shTxBonus;
     }
   }
 }

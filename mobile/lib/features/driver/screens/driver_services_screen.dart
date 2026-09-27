@@ -1,6 +1,7 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/driver/service_wording.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/driver_service.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
@@ -35,9 +36,8 @@ import 'package:provider/provider.dart';
 /// qanday buyurtma kelmaydi va u buni sababini bilmay smenani bekorga
 /// o'tkazadi. Server ham bunga ruxsat bermaydi — lekin haydovchi xatoni
 /// tarmoqqa chiqmasdan, DARHOL ko'rishi kerak.
-const String kDriverServicesEmptySelectionError =
-    "Kamida bitta xizmat turi yoqilgan bo'lishi kerak — aks holda sizga "
-    'buyurtma kelmaydi.';
+String get kDriverServicesEmptySelectionError =>
+    AppL10n.current.drvServicesEmptySelection;
 
 class DriverServicesScreen extends StatefulWidget {
   const DriverServicesScreen({super.key});
@@ -141,8 +141,8 @@ class _DriverServicesScreenState extends State<DriverServicesScreen> {
     if (saved) {
       _syncDraft(provider.services);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Xizmat turlari saqlandi'),
+        SnackBar(
+          content: Text(context.l10n.drvServicesSaved),
           backgroundColor: kPrimary,
         ),
       );
@@ -173,7 +173,7 @@ class _DriverServicesScreenState extends State<DriverServicesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Xizmat turlari')),
+      appBar: AppBar(title: Text(context.l10n.drvServicesTitle)),
       body: Consumer<DriverProvider>(
         builder: (context, provider, _) => RefreshIndicator(
           onRefresh: _load,
@@ -209,14 +209,13 @@ class _DriverServicesScreenState extends State<DriverServicesScreen> {
     if (services.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        children: const [
-          SizedBox(height: kSpace10),
+        children: [
+          const SizedBox(height: kSpace10),
           AppEmptyState(
-            key: ValueKey('driver_services_empty'),
+            key: const ValueKey('driver_services_empty'),
             icon: Icons.category_outlined,
-            title: 'Xizmat turi yo\'q',
-            message: 'Hozircha sizga hech qanday xizmat turi taklif '
-                'qilinmayapti. Yangisi paydo bo\'lsa shu yerda ko\'rinadi.',
+            title: context.l10n.drvServicesEmptyTitle,
+            message: context.l10n.drvServicesEmptyMessage,
           ),
         ],
       );
@@ -228,19 +227,18 @@ class _DriverServicesScreenState extends State<DriverServicesScreen> {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, kSpace8),
       children: [
-        const Text(
-          'Qaysi buyurtmalarni olasiz',
-          style: TextStyle(
+        Text(
+          context.l10n.drvServicesHeading,
+          style: const TextStyle(
             fontSize: kFontH3,
             fontWeight: FontWeight.w800,
             color: kInk,
           ),
         ),
         const SizedBox(height: kSpace1),
-        const Text(
-          'Faqat yoqilgan turlar bo\'yicha buyurtma keladi. Talablari '
-          'bajarilmagan turni yoqib bo\'lmaydi.',
-          style: TextStyle(
+        Text(
+          context.l10n.drvServicesSubtitle,
+          style: const TextStyle(
             fontSize: kFontLabel,
             color: kInkMuted,
             height: 1.4,
@@ -280,7 +278,7 @@ class _DriverServicesScreenState extends State<DriverServicesScreen> {
       minimum: const EdgeInsets.fromLTRB(kSpace4, 0, kSpace4, kSpace4),
       child: AppButton(
         key: const ValueKey('driver_services_save'),
-        label: 'Saqlash',
+        label: context.l10n.drvSave,
         isLoading: provider.isSavingServices,
         onPressed: () => _save(services),
       ),
@@ -427,7 +425,7 @@ class _ServiceOptionCard extends StatelessWidget {
             _BlockedNotice(
               key: ValueKey('service_blocked_${option.serviceType}'),
               reason: option.blockedReason ??
-                  "Bu turni yoqish uchun tekshiruv talablari bajarilishi kerak.",
+                  context.l10n.drvServiceBlockedDefault,
               requirementLabels: requirementLabels,
               onOpenVerification: onOpenVerification,
             ),
@@ -490,7 +488,7 @@ class _BlockedNotice extends StatelessWidget {
           if (requirementLabels.isNotEmpty) ...[
             const SizedBox(height: kSpace2),
             Text(
-              'Kerak: ${requirementLabels.join(', ')}',
+              context.l10n.drvRequirementsNeeded(requirementLabels.join(', ')),
               style: const TextStyle(
                 fontSize: kFontCaption,
                 color: kInkMuted,
@@ -500,7 +498,7 @@ class _BlockedNotice extends StatelessWidget {
           ],
           const SizedBox(height: kSpace3),
           AppOutlinedButton(
-            label: 'Tekshiruvni ochish',
+            label: context.l10n.drvOpenVerification,
             height: kControlHeightSm,
             onPressed: onOpenVerification,
             icon: const Icon(Icons.verified_outlined, size: 18, color: kInk),

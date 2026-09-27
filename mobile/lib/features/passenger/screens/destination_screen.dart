@@ -3,6 +3,7 @@ import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/passenger/favorites_provider.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
 import 'package:angren_taxi/features/passenger/screens/map_picker_screen.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/favorite_address.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
@@ -163,7 +164,9 @@ class _DestinationScreenState extends State<DestinationScreen> {
   Future<void> _resolvePickupAddress() async {
     final provider = context.read<OrderProvider>();
     final pickup = provider.pendingPickup;
-    if (pickup == null || pickup.address != 'Joylashuv aniqlanmoqda...') return;
+    if (pickup == null || pickup.address != context.l10n.paxLocatingAddress) {
+      return;
+    }
 
     try {
       final placemarks = await placemarkFromCoordinates(pickup.lat, pickup.lng)
@@ -258,7 +261,7 @@ class _DestinationScreenState extends State<DestinationScreen> {
       if (mounted) {
         setState(() {
           _isSearching = false;
-          _searchError = 'Manzilni topib bo\'lmadi';
+          _searchError = context.l10n.paxAddressNotFound;
           _suggestions = [];
         });
       }
@@ -293,7 +296,7 @@ class _DestinationScreenState extends State<DestinationScreen> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          title: const Text('Manzilni saqlash'),
+          title: Text(context.l10n.paxSaveAddress),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -307,12 +310,14 @@ class _DestinationScreenState extends State<DestinationScreen> {
                 spacing: kSpace2,
                 children: [
                   ActionChip(
-                    label: const Text('Uy'),
-                    onPressed: () => Navigator.of(ctx).pop('Uy'),
+                    label: Text(context.l10n.paxFavoriteHome),
+                    onPressed: () =>
+                        Navigator.of(ctx).pop(context.l10n.paxFavoriteHome),
                   ),
                   ActionChip(
-                    label: const Text('Ish'),
-                    onPressed: () => Navigator.of(ctx).pop('Ish'),
+                    label: Text(context.l10n.paxFavoriteWork),
+                    onPressed: () =>
+                        Navigator.of(ctx).pop(context.l10n.paxFavoriteWork),
                   ),
                 ],
               ),
@@ -320,9 +325,9 @@ class _DestinationScreenState extends State<DestinationScreen> {
               TextField(
                 controller: labelController,
                 autofocus: true,
-                decoration: const InputDecoration(
-                  hintText: "Nomi (masalan, Bozor)",
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  hintText: context.l10n.paxFavoriteNameHint,
+                  border: const OutlineInputBorder(),
                 ),
               ),
             ],
@@ -330,12 +335,12 @@ class _DestinationScreenState extends State<DestinationScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Bekor qilish'),
+              child: Text(context.l10n.paxCancel),
             ),
             TextButton(
               onPressed: () =>
                   Navigator.of(ctx).pop(labelController.text.trim()),
-              child: const Text('Saqlash'),
+              child: Text(context.l10n.paxSave),
             ),
           ],
         );
@@ -358,7 +363,8 @@ class _DestinationScreenState extends State<DestinationScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(favoritesProvider.error ?? 'Manzilni saqlab bo\'lmadi'),
+          content: Text(favoritesProvider.error ?? context.l10n.paxSaveAddressFailed,
+          ),
         ),
       );
     }
@@ -401,7 +407,9 @@ class _DestinationScreenState extends State<DestinationScreen> {
       backgroundColor: kSurface2,
       appBar: AppBar(
         title: Text(
-          widget.isSavingFavorite ? 'Manzilni saqlash' : 'Manzilni kiriting',
+          widget.isSavingFavorite
+              ? context.l10n.paxSaveAddress
+              : context.l10n.paxEnterAddress,
         ),
         // AppBar ham fon rangida — sarlavha va mazmun bitta uzluksiz
         // yuzada turadi, ekran tepasida ortiqcha "chegara" paydo bo'lmaydi.
@@ -414,7 +422,7 @@ class _DestinationScreenState extends State<DestinationScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          tooltip: 'Orqaga',
+          tooltip: context.l10n.paxBack,
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -464,13 +472,13 @@ class _DestinationScreenState extends State<DestinationScreen> {
     return Consumer<OrderProvider>(
       builder: (context, provider, _) {
         final pickup = provider.pendingPickup;
-        final address = pickup?.address ?? 'Joriy joylashuv';
+        final address = pickup?.address ?? context.l10n.paxCurrentLocation;
         return _RouteRow(
           // `kPrimary` DOIRA — boshlanish nuqtasi.
           glyph: const _FromGlyph(),
           title: address,
-          caption: 'Qayerdan',
-          semanticsLabel: 'Qayerdan: $address. O\'zgartirish',
+          caption: context.l10n.paxFrom,
+          semanticsLabel: context.l10n.paxFromChangeSemantics(address),
           trailing: const ExcludeSemantics(
             child: Icon(
               Icons.edit_location_alt_outlined,
@@ -479,7 +487,7 @@ class _DestinationScreenState extends State<DestinationScreen> {
             ),
           ),
           onTap: () => _openMapPicker(
-            title: 'Qayerdan',
+            title: context.l10n.paxFrom,
             initial: pickup != null ? LatLng(pickup.lat, pickup.lng) : null,
             onPicked: provider.setPendingPickup,
           ),
@@ -512,7 +520,7 @@ class _DestinationScreenState extends State<DestinationScreen> {
                 // to'xtash — 2).
                 glyph: _StopGlyph(order: i + 2),
                 title: waypoints[i].address,
-                caption: "To'xtash",
+                caption: context.l10n.paxStop,
                 // Qator o'zi bosilmaydi (faqat o'chirish tugmasi bor),
                 // shuning uchun matn semantikasi o'z holicha o'qiladi.
                 trailing: IconButton(
@@ -521,7 +529,7 @@ class _DestinationScreenState extends State<DestinationScreen> {
                     color: kInkMuted,
                     size: 20,
                   ),
-                  tooltip: "To'xtashni olib tashlash",
+                  tooltip: context.l10n.paxRemoveStop,
                   constraints: const BoxConstraints(
                     minWidth: kMinTapTarget,
                     minHeight: kMinTapTarget,
@@ -579,7 +587,7 @@ class _DestinationScreenState extends State<DestinationScreen> {
                       color: kInk,
                     ),
                     decoration: InputDecoration(
-                      hintText: 'Ko\'cha, mahalla, joy nomi...',
+                      hintText: context.l10n.paxSearchPlaceHint,
                       // Ko'rsatma matni KICHIK — `kInkSubtle` (3.67:1) AA
                       // dan past, shuning uchun `kInkMuted` (5.47:1).
                       hintStyle: TextStyle(
@@ -596,7 +604,7 @@ class _DestinationScreenState extends State<DestinationScreen> {
                 if (_searchController.text.isNotEmpty)
                   IconButton(
                     icon: const Icon(Icons.clear, color: kInkMuted),
-                    tooltip: 'Tozalash',
+                    tooltip: context.l10n.paxClear,
                     constraints: const BoxConstraints(
                       minWidth: kMinTapTarget,
                       minHeight: kMinTapTarget,
@@ -643,9 +651,9 @@ class _DestinationScreenState extends State<DestinationScreen> {
             items: [
               AgActionItem(
                 icon: Icons.map_outlined,
-                label: 'Xaritadan tanlash',
+                label: context.l10n.paxPickOnMap,
                 onTap: () => _openMapPicker(
-                  title: 'Qayerga',
+                  title: context.l10n.paxTo,
                   initial: initial,
                   onPicked: _selectLocation,
                 ),
@@ -653,9 +661,9 @@ class _DestinationScreenState extends State<DestinationScreen> {
               if (canAddStop)
                 AgActionItem(
                   icon: Icons.add_location_alt_outlined,
-                  label: "To'xtash qo'shish",
+                  label: context.l10n.paxAddStop,
                   onTap: () => _openMapPicker(
-                    title: "To'xtash nuqtasi",
+                    title: context.l10n.paxStopPoint,
                     initial: initial,
                     onPicked: provider.addWaypoint,
                   ),
@@ -682,9 +690,9 @@ class _DestinationScreenState extends State<DestinationScreen> {
     }
 
     if (_suggestions.isEmpty && _searchController.text.length >= 3) {
-      return const AppEmptyState(
+      return AppEmptyState(
         icon: Icons.search_off_rounded,
-        title: 'Natija topilmadi',
+        title: context.l10n.paxNoResults,
       );
     }
 
@@ -736,11 +744,11 @@ class _DestinationScreenState extends State<DestinationScreen> {
           padding:
               const EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, kSpace4),
           children: [
-            const Padding(
-              padding: EdgeInsets.only(left: kSpace1, bottom: kSpace2),
+            Padding(
+              padding: const EdgeInsets.only(left: kSpace1, bottom: kSpace2),
               child: Text(
-                'Saqlangan manzillar',
-                style: TextStyle(
+                context.l10n.paxSavedAddresses,
+                style: const TextStyle(
                   fontWeight: FontWeight.w700,
                   // Kichik sarlavha — `kInkSubtle` emas, `kInkMuted`.
                   color: kInkMuted,
@@ -1026,7 +1034,8 @@ class _PlaceRow extends StatelessWidget {
       semanticsLabel: [
         title,
         if (sub != null) sub,
-        if (trailing != null) 'taxminan ${trailing.substring(1)}',
+        if (trailing != null)
+          context.l10n.paxApproxDistance(trailing.substring(1)),
       ].join(', '),
       minTapTarget: false,
       // Ro'yxat qatori — masshtab emas, ripple javob beradi (qo'shni

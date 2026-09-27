@@ -5,6 +5,8 @@ import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/core/storage/local_storage.dart';
 import 'package:angren_taxi/features/superapp/screens/support_screen.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
+import 'package:angren_taxi/shared/widgets/language_picker.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 
@@ -44,8 +46,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       debugPrint('[Settings] push toggle sync failed: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Sozlama saqlandi, lekin serverga yuborilmadi'),
+          SnackBar(
+            content: Text(context.l10n.saSettingsPushSyncFailed),
           ),
         );
       }
@@ -60,40 +62,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
       backgroundColor: agBg,
       body: Column(
         children: [
-          AgHeader(title: 'Sozlamalar', onBack: () => Navigator.of(context).pop()),
+          AgHeader(title: context.l10n.saSettingsTitle, onBack: () => Navigator.of(context).pop()),
           Expanded(
             child: ListView(
               padding: const EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, kSpace6),
               children: [
                 // Only settings that do something are listed.
                 //
-                // Removed: a UZ/RU language switcher (the app has no
-                // localisation — every string is a hardcoded Uzbek literal, so
-                // the switch could never have worked), a dark-mode toggle
-                // (there is no dark theme), and "Face ID bilan kirish" (no
-                // biometric auth exists). All three were local setState that
-                // reset on rebuild.
-                _label('UMUMIY'),
+                // Removed: a dark-mode toggle (there is no dark theme) and
+                // "Face ID bilan kirish" (no biometric auth exists). The UZ/RU
+                // switch is back now that the app is actually localised.
+                _label(context.l10n.saSettingsSectionGeneral),
                 _group([
+                  _navRow(
+                    Icons.language_rounded,
+                    '${context.l10n.appLanguage}: '
+                    '${languageName(context, currentAppLocale(context))}',
+                    onTap: () => showLanguagePicker(context),
+                  ),
                   _toggleRow(
                     Icons.notifications_rounded,
-                    'Push bildirishnomalar',
+                    context.l10n.saSettingsPush,
                     _push,
                     _savingPush ? null : (v) => _setPush(v),
                     last: true,
                   ),
                 ]),
                 const SizedBox(height: kSpace5),
-                _label('YORDAM'),
+                _label(context.l10n.saSettingsSectionHelp),
                 _group([
-                  _navRow(Icons.support_agent_rounded, 'Yordam markazi', last: true,
+                  _navRow(Icons.support_agent_rounded, context.l10n.saHelpCenter, last: true,
                       onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SupportScreen()))),
                 ]),
                 const SizedBox(height: kSpace6),
-                const Center(
+                Center(
                   // Was hardcoded "2.4.0" while pubspec said 1.0.0.
-                  child: Text('Angren Go · versiya ${AppConfig.appVersion}',
-                      style: TextStyle(color: agSubtle, fontWeight: FontWeight.w600, fontSize: kFontCaption)),
+                  child: Text(context.l10n.saSettingsVersion(AppConfig.appVersion),
+                      style: const TextStyle(color: agSubtle, fontWeight: FontWeight.w600, fontSize: kFontCaption)),
                 ),
               ],
             ),

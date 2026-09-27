@@ -1,13 +1,18 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
+import 'package:angren_taxi/features/driver/screens/driver_amenities_screen.dart';
 import 'package:angren_taxi/features/driver/screens/earnings_screen.dart';
+import 'package:angren_taxi/features/driver/screens/vehicle_change_screen.dart';
+import 'package:angren_taxi/features/lost_items/screens/lost_items_screen.dart';
 import 'package:angren_taxi/features/passenger/screens/edit_profile_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/notifications_screen.dart';
 import 'package:angren_taxi/features/support/screens/chat_screen.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/driver_rating_stats.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
+import 'package:angren_taxi/shared/widgets/language_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -30,7 +35,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Profil')),
+      appBar: AppBar(title: Text(context.l10n.drvProfileTitle)),
       body: Consumer2<DriverProvider, AuthProvider>(
         builder: (context, driverProvider, authProvider, _) {
           final driver = driverProvider.driver;
@@ -40,10 +45,10 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
             padding: const EdgeInsets.all(kSpace4),
             child: Column(
               children: [
-                _buildAvatar(driver?.name ?? user?.displayName ?? 'Haydovchi'),
+                _buildAvatar(driver?.name ?? user?.displayName ?? context.l10n.drvDriver),
                 const SizedBox(height: kSpace4),
                 Text(
-                  driver?.name ?? user?.displayName ?? 'Haydovchi',
+                  driver?.name ?? user?.displayName ?? context.l10n.drvDriver,
                   style: const TextStyle(
                     fontSize: kFontH1,
                     fontWeight: FontWeight.w800,
@@ -61,8 +66,9 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
                 const SizedBox(height: kSpace1),
                 if (driver != null)
                   Semantics(
-                    label:
-                        '${Formatters.formatRating(driver.rating)} yulduz reyting',
+                    label: context.l10n.drvRatingStarsSem(
+                      Formatters.formatRating(driver.rating),
+                    ),
                     excludeSemantics: true,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -71,7 +77,9 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
                         const Icon(Icons.star, color: kPrimary, size: 18),
                         const SizedBox(width: kSpace1),
                         Text(
-                          '${Formatters.formatRating(driver.rating)} reyting',
+                          context.l10n.drvRatingValue(
+                            Formatters.formatRating(driver.rating),
+                          ),
                           style: const TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: kFontBody,
@@ -98,7 +106,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
                 _buildMenuList(context),
                 const SizedBox(height: kSpace6),
                 AppButton(
-                  label: 'Chiqish',
+                  label: context.l10n.drvLogout,
                   onPressed: () => _confirmLogout(context, authProvider),
                   // kError + oq matn 3.91:1 → kErrorDeep 6.47:1.
                   backgroundColor: kErrorDeep,
@@ -129,7 +137,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${stats.count} ta baholash',
+            context.l10n.drvRatingsCount(stats.count),
             style: const TextStyle(
               color: kInkMuted,
               fontSize: kFontCaption,
@@ -234,7 +242,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
         Expanded(
           child: _StatCard(
             value: totalTrips.toString(),
-            label: 'Jami safarlar',
+            label: context.l10n.drvTotalTrips,
             icon: Icons.route,
           ),
         ),
@@ -242,7 +250,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
         Expanded(
           child: _StatCard(
             value: Formatters.formatPriceCompact(todayEarnings),
-            label: "Bugun",
+            label: context.l10n.drvToday,
             icon: Icons.account_balance_wallet_outlined,
           ),
         ),
@@ -272,25 +280,34 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Mashina ma\'lumotlari',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              Text(
+                context.l10n.drvCarDetails,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 16),
               if (driver == null)
-                const Text('Ma\'lumot yuklanmadi')
+                Text(context.l10n.drvDataNotLoaded)
               else ...[
-                _carRow('Rusumi', driver.carModel),
-                _carRow('Rangi', driver.carColor),
-                _carRow('Davlat raqami', driver.carNumber),
+                _carRow(context.l10n.drvCarModel, driver.carModel),
+                _carRow(context.l10n.drvCarColor, driver.carColor),
+                _carRow(context.l10n.drvPlateNumber, driver.carNumber),
                 if (driver.carYear != null)
-                  _carRow('Ishlab chiqarilgan yili', '\${driver.carYear}'),
+                  _carRow(context.l10n.drvCarYear, '${driver.carYear}'),
               ],
               const SizedBox(height: 16),
-              const Text(
-                'Mashinani almashtirish uchun operator bilan bog\'laning — '
-                'yangi mashina qayta tekshiruvdan o\'tishi kerak.',
-                style: TextStyle(fontSize: 13, color: Colors.black54, height: 1.4),
+              // Tasdiqlangan haydovchi mashinani faqat so'rov orqali
+              // almashtiradi — menejer tekshirmaguncha eski mashina qoladi.
+              AppButton(
+                label: context.l10n.drvVehicleChangeTitle,
+                icon: const Icon(Icons.swap_horiz_rounded),
+                onPressed: () {
+                  Navigator.of(sheetContext).pop();
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => VehicleChangeScreen(current: driver),
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -321,43 +338,65 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
         // payout destination from the app, so they had no way to get paid.
         _buildMenuTile(
           Icons.edit_outlined,
-          'Ma\'lumotlarni tahrirlash',
+          context.l10n.drvEditProfile,
           () => Navigator.of(context).push(
             MaterialPageRoute<void>(builder: (_) => const EditProfileScreen()),
           ),
         ),
         _buildMenuTile(
           Icons.directions_car_outlined,
-          'Mashina ma\'lumotlari',
+          context.l10n.drvCarDetails,
           () => _showCarDetails(context),
         ),
         _buildMenuTile(
+          Icons.tune_rounded,
+          context.l10n.drvAmenitiesTitle,
+          () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const DriverAmenitiesScreen()),
+          ),
+        ),
+        _buildMenuTile(
           Icons.account_balance_outlined,
-          'Bank hisobi va pul yechish',
+          context.l10n.drvBankAndWithdraw,
           () => Navigator.of(context).push(
             MaterialPageRoute<void>(builder: (_) => const EarningsScreen()),
           ),
         ),
         _buildMenuTile(
+          Icons.language_rounded,
+          '${context.l10n.appLanguage}: '
+          '${languageName(context, currentAppLocale(context))}',
+          () => showLanguagePicker(context),
+        ),
+        _buildMenuTile(
+          Icons.inventory_2_outlined,
+          context.l10n.drvLostItems,
+          () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const LostItemsScreen(isDriver: true),
+            ),
+          ),
+        ),
+        _buildMenuTile(
           Icons.notifications_outlined,
-          'Bildirishnomalar',
+          context.l10n.drvNotifications,
           () => Navigator.of(context).push(
             MaterialPageRoute<void>(builder: (_) => const NotificationsScreen()),
           ),
         ),
         _buildMenuTile(
           Icons.help_outline,
-          'Yordam',
+          context.l10n.drvHelp,
           () => Navigator.of(context).push(
             MaterialPageRoute<void>(builder: (_) => const ChatScreen()),
           ),
         ),
         _buildMenuTile(
           Icons.info_outline,
-          'Dastur haqida',
+          context.l10n.drvAbout,
           () => showAboutDialog(
             context: context,
-            applicationName: 'Angren Taxi - Haydovchi',
+            applicationName: context.l10n.drvAppName,
             applicationVersion: '1.0.0',
           ),
         ),
@@ -394,19 +433,22 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Chiqishni tasdiqlang'),
-        content: const Text('Hisobdan chiqmoqchimisiz?'),
+        title: Text(context.l10n.drvLogoutConfirmTitle),
+        content: Text(context.l10n.drvLogoutConfirmBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Bekor qilish'),
+            child: Text(context.l10n.drvCancel),
           ),
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
               auth.logout();
             },
-            child: const Text('Chiqish', style: TextStyle(color: kErrorDeep)),
+            child: Text(
+              context.l10n.drvLogout,
+              style: const TextStyle(color: kErrorDeep),
+            ),
           ),
         ],
       ),
@@ -477,7 +519,7 @@ class _RatingBarRow extends StatelessWidget {
       child: Row(
         children: [
           Semantics(
-            label: '$star yulduz',
+            label: context.l10n.drvRateStars(star),
             excludeSemantics: true,
             child: Row(
               mainAxisSize: MainAxisSize.min,

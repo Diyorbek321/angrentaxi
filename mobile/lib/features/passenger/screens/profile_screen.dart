@@ -1,9 +1,11 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
+import 'package:angren_taxi/features/lost_items/screens/lost_items_screen.dart';
 import 'package:angren_taxi/features/passenger/screens/edit_profile_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/notifications_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/support_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/wallet_screen.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:flutter/material.dart';
@@ -15,7 +17,7 @@ class PassengerProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Profil')),
+      appBar: AppBar(title: Text(context.l10n.paxProfileTitle)),
       body: Consumer<AuthProvider>(
         builder: (context, auth, _) {
           final user = auth.currentUser;
@@ -52,7 +54,9 @@ class PassengerProfileScreen extends StatelessWidget {
                       ),
                       const SizedBox(width: kSpace1),
                       Text(
-                        '${Formatters.formatRating(user.rating!)} reyting',
+                        context.l10n.paxRatingValue(
+                          Formatters.formatRating(user.rating!),
+                        ),
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           color: kInk,
@@ -62,12 +66,12 @@ class PassengerProfileScreen extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: kSpace8),
-                _buildStatsRow(user.totalTrips ?? 0),
+                _buildStatsRow(context, user.totalTrips ?? 0),
                 const SizedBox(height: kSpace6),
                 _buildMenuList(context),
                 const SizedBox(height: kSpace6),
                 AppButton(
-                  label: 'Chiqish',
+                  label: context.l10n.paxLogout,
                   onPressed: () => _confirmLogout(context, auth),
                   backgroundColor: kError,
                   foregroundColor: kOnPrimary,
@@ -102,13 +106,13 @@ class PassengerProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatsRow(int totalTrips) {
+  Widget _buildStatsRow(BuildContext context, int totalTrips) {
     return Row(
       children: [
         Expanded(
           child: _StatCard(
             value: totalTrips.toString(),
-            label: 'Sayohatlar',
+            label: context.l10n.paxTripsStat,
             icon: Icons.route,
           ),
         ),
@@ -121,21 +125,21 @@ class PassengerProfileScreen extends StatelessWidget {
       children: [
         _buildMenuTile(
           Icons.edit_outlined,
-          'Ma\'lumotlarni tahrirlash',
+          context.l10n.paxEditProfile,
           () => Navigator.of(context).push(
             MaterialPageRoute<void>(builder: (_) => const EditProfileScreen()),
           ),
         ),
         _buildMenuTile(
           Icons.payment_outlined,
-          'To\'lov usullari',
+          context.l10n.paxPaymentMethods,
           () => Navigator.of(context).push(
             MaterialPageRoute<void>(builder: (_) => const WalletScreen()),
           ),
         ),
         _buildMenuTile(
           Icons.notifications_outlined,
-          'Bildirishnomalar',
+          context.l10n.paxNotifications,
           // NotificationsScreen is fully API-backed; this used to dead-end in
           // a "tez kunda" snackbar for a feature that already worked.
           () => Navigator.of(context).push(
@@ -143,15 +147,24 @@ class PassengerProfileScreen extends StatelessWidget {
           ),
         ),
         _buildMenuTile(
+          Icons.inventory_2_outlined,
+          context.l10n.paxLostItems,
+          () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const LostItemsScreen(isDriver: false),
+            ),
+          ),
+        ),
+        _buildMenuTile(
           Icons.help_outline,
-          'Yordam',
+          context.l10n.paxHelp,
           () => Navigator.of(context).push(
             MaterialPageRoute<void>(builder: (_) => const SupportScreen()),
           ),
         ),
         _buildMenuTile(
           Icons.info_outline,
-          'Dastur haqida',
+          context.l10n.paxAbout,
           () => _showAbout(context),
         ),
       ],
@@ -188,12 +201,12 @@ class PassengerProfileScreen extends StatelessWidget {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Chiqishni tasdiqlang'),
-        content: const Text('Hisobdan chiqmoqchimisiz?'),
+        title: Text(context.l10n.paxLogoutConfirmTitle),
+        content: Text(context.l10n.paxLogoutConfirmBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text("Bekor qilish"),
+            child: Text(context.l10n.paxCancel),
           ),
           TextButton(
             onPressed: () {
@@ -201,7 +214,10 @@ class PassengerProfileScreen extends StatelessWidget {
               auth.logout();
             },
             // Yorug' fondagi xato MATNI — kErrorDeep (6.47:1).
-            child: const Text('Chiqish', style: TextStyle(color: kErrorDeep)),
+            child: Text(
+              context.l10n.paxLogout,
+              style: const TextStyle(color: kErrorDeep),
+            ),
           ),
         ],
       ),

@@ -1,3 +1,4 @@
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/widgets/app_status_badge.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
@@ -142,9 +143,9 @@ class DriverVerificationItem extends Equatable {
   String? get deadlineText {
     final days = daysLeft;
     if (days == null) return null;
-    if (days < 0) return '${-days} kun kechikkan';
-    if (days == 0) return 'Bugun tugaydi';
-    return '$days kun qoldi';
+    if (days < 0) return AppL10n.current.shVerifDaysOverdue(-days);
+    if (days == 0) return AppL10n.current.shVerifExpiresToday;
+    return AppL10n.current.shVerifDaysLeft(days);
   }
 
   @override
@@ -242,15 +243,15 @@ class DriverVerification extends Equatable {
 /// holat MATN + IKONKA + rang uchligini birga tashiydi.
 extension DriverVerificationStatusPresentation on DriverVerificationStatus {
   String get label => switch (this) {
-        DriverVerificationStatus.ok => 'Yaroqli',
-        DriverVerificationStatus.dueSoon => 'Muddati tugayapti',
-        DriverVerificationStatus.overdue => "Muddati o'tgan",
-        DriverVerificationStatus.pendingReview => 'Tekshirilmoqda',
-        DriverVerificationStatus.rejected => 'Rad etilgan',
-        DriverVerificationStatus.missing => 'Yuklanmagan',
+        DriverVerificationStatus.ok => AppL10n.current.shVerifOk,
+        DriverVerificationStatus.dueSoon => AppL10n.current.shVerifDueSoon,
+        DriverVerificationStatus.overdue => AppL10n.current.shVerifOverdue,
+        DriverVerificationStatus.pendingReview => AppL10n.current.shVerifPendingReview,
+        DriverVerificationStatus.rejected => AppL10n.current.shVerifRejected,
+        DriverVerificationStatus.missing => AppL10n.current.shVerifMissing,
         // Noma'lum holat — nima bo'lganini aytolmaymiz, lekin haydovchini
         // "hammasi joyida" deb aldab ham qo'yolmaymiz.
-        DriverVerificationStatus.unknown => "E'tibor talab qiladi",
+        DriverVerificationStatus.unknown => AppL10n.current.shVerifUnknown,
       };
 
   AppStatusTone get tone => switch (this) {

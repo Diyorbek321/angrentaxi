@@ -1,3 +1,4 @@
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:equatable/equatable.dart';
 
 enum MarketOrderStatus { newOrder, packing, shipped, delivered, cancelled }
@@ -6,15 +7,15 @@ extension MarketOrderStatusExtension on MarketOrderStatus {
   String get label {
     switch (this) {
       case MarketOrderStatus.newOrder:
-        return 'Qabul qilindi';
+        return AppL10n.current.shDeliveryAccepted;
       case MarketOrderStatus.packing:
-        return "Do'kon yig'moqda";
+        return AppL10n.current.shMarketPacking;
       case MarketOrderStatus.shipped:
-        return 'Yo\'lda';
+        return AppL10n.current.shDeliveryOnTheWay;
       case MarketOrderStatus.delivered:
-        return 'Yetkazildi';
+        return AppL10n.current.shDeliveryDelivered;
       case MarketOrderStatus.cancelled:
-        return 'Bekor qilindi';
+        return AppL10n.current.shStatusCancelled;
     }
   }
 

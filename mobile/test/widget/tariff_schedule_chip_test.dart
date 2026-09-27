@@ -25,7 +25,7 @@ import 'package:provider/provider.dart';
 class MockApiClient extends Mock implements ApiClient {}
 
 /// `flutter test` ostida haqiqiy OSRM chaqiruvidan qochadi.
-class FakeRouteService extends RouteService {
+class FakeRouteService implements RouteService {
   @override
   Future<RouteResult?> getRoute(
     LatLng from,

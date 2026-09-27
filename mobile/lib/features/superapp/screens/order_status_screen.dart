@@ -1,5 +1,6 @@
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -65,12 +66,13 @@ class _DoneView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: kSpace6),
-        const Text('Buyurtma qabul qilindi',
+        Text(context.l10n.saOrderAccepted,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: kFontH1, fontWeight: FontWeight.w800, color: agText, letterSpacing: -0.5)),
+            style: const TextStyle(fontSize: kFontH1, fontWeight: FontWeight.w800, color: agText, letterSpacing: -0.5)),
         const SizedBox(height: kSpace2),
         Text(
-          'Buyurtma raqami: ${orderId.split('-').first.toUpperCase()}',
+          context.l10n
+              .saOrderNumber(orderId.split('-').first.toUpperCase()),
           textAlign: TextAlign.center,
           style: const TextStyle(
             fontSize: kFontBody,
@@ -81,8 +83,8 @@ class _DoneView extends StatelessWidget {
         const SizedBox(height: kSpace1),
         Text(
           paidOnline
-              ? "To'lov qabul qilindi. Holatni «Buyurtmalar» bo'limida kuzating."
-              : "Yetkazib berishda to'laysiz. Holatni «Buyurtmalar» bo'limida kuzating.",
+              ? context.l10n.saOrderPaidOnlineHint
+              : context.l10n.saOrderPayOnDeliveryHint,
           textAlign: TextAlign.center,
           style: const TextStyle(
             fontSize: kFontBody,
@@ -96,7 +98,7 @@ class _DoneView extends StatelessWidget {
           width: double.infinity,
           child: Semantics(
             button: true,
-            label: 'Buyurtmalarni koʻrish',
+            label: context.l10n.saViewOrders,
             excludeSemantics: true,
             child: GestureDetector(
               onTap: () => _backToHome(context),
@@ -109,13 +111,13 @@ class _DoneView extends StatelessWidget {
                   borderRadius: BorderRadius.circular(kRadiusMd),
                   boxShadow: agInkShadow,
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.near_me_rounded, color: agOnPrimary, size: 21),
-                    SizedBox(width: kSpace2),
-                    Text('Buyurtmalarni koʻrish',
-                        style: TextStyle(color: agOnPrimary, fontSize: kFontTitle, fontWeight: FontWeight.w800)),
+                    const Icon(Icons.near_me_rounded, color: agOnPrimary, size: 21),
+                    const SizedBox(width: kSpace2),
+                    Text(context.l10n.saViewOrders,
+                        style: const TextStyle(color: agOnPrimary, fontSize: kFontTitle, fontWeight: FontWeight.w800)),
                   ],
                 ),
               ),
@@ -125,7 +127,7 @@ class _DoneView extends StatelessWidget {
         const SizedBox(height: kSpace3),
         Semantics(
           button: true,
-          label: 'Bosh sahifaga',
+          label: context.l10n.saBackToHome,
           excludeSemantics: true,
           child: GestureDetector(
             onTap: () => _backToHome(context),
@@ -133,8 +135,8 @@ class _DoneView extends StatelessWidget {
             child: Container(
               constraints: const BoxConstraints(minHeight: kMinTapTarget, minWidth: kMinTapTarget),
               alignment: Alignment.center,
-              child: const Text('Bosh sahifaga',
-                  style: TextStyle(color: agGreenText, fontWeight: FontWeight.w700, fontSize: kFontBody)),
+              child: Text(context.l10n.saBackToHome,
+                  style: const TextStyle(color: agGreenText, fontWeight: FontWeight.w700, fontSize: kFontBody)),
             ),
           ),
         ),

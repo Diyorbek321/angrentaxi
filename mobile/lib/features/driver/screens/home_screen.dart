@@ -10,6 +10,7 @@ import 'package:angren_taxi/features/driver/service_wording.dart';
 import 'package:angren_taxi/features/driver/widgets/driver_earnings_hero.dart';
 import 'package:angren_taxi/features/driver/widgets/driver_verification_notice.dart';
 import 'package:angren_taxi/features/passenger/map_camera_insets.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/driver_bonus_progress.dart';
 import 'package:angren_taxi/shared/models/driver_service.dart';
 import 'package:angren_taxi/shared/models/order.dart';
@@ -198,19 +199,19 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     if (!mounted) return;
     final message = switch (reason) {
       LocationUnavailableReason.serviceDisabled =>
-        "Telefoningizda joylashuv (GPS) o'chirilgan — xarita to'g'ri ishlashi uchun uni yoqing.",
+        context.l10n.drvGpsDisabled,
       LocationUnavailableReason.permissionDenied ||
       LocationUnavailableReason.permissionDeniedForever =>
-        "Ilova joylashuvga ruxsat olmadi — xaritada aniq joyingizni ko'rish uchun ruxsat bering.",
+        context.l10n.drvLocationDenied,
       LocationUnavailableReason.timeoutOrError =>
-        "Joylashuvni aniqlab bo'lmadi. Ochiq joyga o'ting yoki qayta urinib ko'ring.",
+        context.l10n.drvLocationFailed,
     };
     final actionLabel = switch (reason) {
-      LocationUnavailableReason.serviceDisabled => 'Yoqish',
+      LocationUnavailableReason.serviceDisabled => context.l10n.drvEnable,
       LocationUnavailableReason.permissionDenied ||
       LocationUnavailableReason.permissionDeniedForever =>
-        'Sozlamalar',
-      LocationUnavailableReason.timeoutOrError => 'Qayta urinish',
+        context.l10n.drvSettings,
+      LocationUnavailableReason.timeoutOrError => context.l10n.drvRetry,
     };
     final VoidCallback onAction = switch (reason) {
       LocationUnavailableReason.serviceDisabled => () =>
@@ -307,7 +308,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
               builder: (context, auth, _) => _driverFab(
                 AgMapFab(
                   icon: Icons.menu,
-                  semanticsLabel: 'Menyu',
+                  semanticsLabel: context.l10n.drvMenu,
                   badge: needsAttention,
                   onTap: () => _showMenu(context, auth, driverProvider),
                 ),
@@ -321,7 +322,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 boxShadow: kShadowCard,
               ),
               child: AppStatusBadge(
-                label: driverProvider.isOnline ? 'Online' : 'Offline',
+                label: driverProvider.isOnline
+                    ? context.l10n.drvOnline
+                    : context.l10n.drvOffline,
                 tone: driverProvider.isOnline
                     ? AppStatusTone.success
                     : AppStatusTone.neutral,
@@ -330,7 +333,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
             _driverFab(
               AgMapFab(
                 icon: Icons.my_location,
-                semanticsLabel: 'Joylashuvimni topish',
+                semanticsLabel: context.l10n.drvFindMyLocation,
                 large: true,
                 onTap: _initLocation,
               ),
@@ -432,10 +435,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
               key: const ValueKey('driver_verification_blocked'),
               tone: AppStatusTone.danger,
               icon: Icons.block_rounded,
-              title: "Onlayn bo'lish yopiq",
+              title: context.l10n.drvGoOnlineBlocked,
               message: verification.blockedReason ??
-                  "Tekshiruv to'liq emas — talablarni bajaring.",
-              actionLabel: 'Tekshiruvni ochish',
+                  context.l10n.drvVerificationIncompleteShort,
+              actionLabel: context.l10n.drvOpenVerification,
               onAction: () =>
                   Navigator.of(context).pushNamed('/driver/verification'),
             ),
@@ -447,11 +450,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
               key: const ValueKey('driver_verification_due_soon'),
               tone: AppStatusTone.warning,
               icon: Icons.schedule_rounded,
-              title: 'Muddat yaqinlashmoqda',
+              title: context.l10n.drvDeadlineApproaching,
               // Ogohlantirish — ishni TO'XTATMAYDI.
-              message: "Ba'zi hujjatlarning muddati tugayapti. "
-                  'Oldindan yangilab qo\'ying.',
-              actionLabel: 'Ko\'rish',
+              message: context.l10n.drvDocsExpiringSoonShort,
+              actionLabel: context.l10n.drvView,
               onAction: () =>
                   Navigator.of(context).pushNamed('/driver/verification'),
             ),
@@ -475,8 +477,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
           button: true,
           toggled: isOnline,
           enabled: !isLoading && canToggle,
-          label: isOnline ? "Offline bo'lish" : "Online bo'lish",
-          value: isOnline ? 'Online' : 'Offline',
+          label: isOnline ? context.l10n.drvGoOffline : context.l10n.drvGoOnline,
+          value: isOnline ? context.l10n.drvOnline : context.l10n.drvOffline,
           // Ekran o'quvchi tugma nega bosilmasligini AYTSIN — aks holda
           // "o'chiq tugma" sababsiz ko'rinadi.
           hint: canToggle ? null : verification.blockedReason,
@@ -539,7 +541,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                         color: kOnPrimary,
                       )
                     : Text(
-                        isOnline ? "Offline bo'lish" : "Online bo'lish",
+                        isOnline
+                            ? context.l10n.drvGoOffline
+                            : context.l10n.drvGoOnline,
                         key: ValueKey(isOnline),
                         style: TextStyle(
                           // Tugma matni ham haydovchi o'lchamida: 16dp
@@ -593,11 +597,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.only(left: kSpace1, bottom: kSpace2),
+        Padding(
+          padding: const EdgeInsets.only(left: kSpace1, bottom: kSpace2),
           child: Text(
-            'Qabul qilinadigan buyurtmalar',
-            style: TextStyle(
+            context.l10n.drvAcceptedOrders,
+            style: const TextStyle(
               // `kInkSubtle` EMAS — u 3.67:1 bilan yozuv uchun AA'dan past.
               color: kInkMuted,
               fontSize: kFontCaption,
@@ -642,12 +646,13 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   String _serviceChipSemantics(DriverServiceOption option) {
     if (!option.canEnable && !option.enabled) {
       final reason = option.blockedReason;
-      return '${option.label}, mavjud emas'
-          '${reason == null ? '' : ': $reason'}'
-          '. Xizmat turlarini ochish';
+      return reason == null
+          ? context.l10n.drvServiceChipUnavailable(option.label)
+          : context.l10n.drvServiceChipUnavailableReason(option.label, reason);
     }
-    return '${option.label}, ${option.enabled ? 'yoqilgan' : "o'chirilgan"}. '
-        'Xizmat turlarini ochish';
+    return option.enabled
+        ? context.l10n.drvServiceChipOn(option.label)
+        : context.l10n.drvServiceChipOff(option.label);
   }
 
   /// Talab xaritasiga o'tish.
@@ -658,11 +663,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   Widget _buildDemandMapLink() {
     return AppPressable(
       onTap: () => Navigator.of(context).pushNamed('/driver/demand'),
-      semanticsLabel: "Talab xaritasi, qayerda buyurtma ko'pligini ko'rish",
+      semanticsLabel: context.l10n.drvDemandMapLinkSem,
       pressedScale: 0.98,
       minTapTarget: false,
-      child: const AgSurfaceCard(
-        padding: EdgeInsets.symmetric(
+      child: AgSurfaceCard(
+        padding: const EdgeInsets.symmetric(
           horizontal: kSpace4,
           vertical: kSpace3,
         ),
@@ -670,7 +675,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
         child: ExcludeSemantics(
           child: Row(
             children: [
-              SizedBox(
+              const SizedBox(
                 width: 40,
                 height: 40,
                 child: DecoratedBox(
@@ -687,23 +692,23 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                   ),
                 ),
               ),
-              SizedBox(width: kSpace3),
+              const SizedBox(width: kSpace3),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Talab xaritasi',
-                      style: TextStyle(
+                      context.l10n.drvDemandMapTitle,
+                      style: const TextStyle(
                         fontSize: kFontBodyLg,
                         fontWeight: FontWeight.w700,
                         color: kInk,
                       ),
                     ),
                     Text(
-                      "Qayerda buyurtma ko'p",
-                      style: TextStyle(
+                      context.l10n.drvWhereMoreOrders,
+                      style: const TextStyle(
                         fontSize: kFontCaption,
                         color: kInkMuted,
                         fontWeight: FontWeight.w500,
@@ -713,7 +718,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 ),
               ),
               // `kInkSubtle` FAQAT ikonka uchun — yozuvda ishlatilmaydi.
-              Icon(Icons.chevron_right_rounded, color: kInkSubtle),
+              const Icon(Icons.chevron_right_rounded, color: kInkSubtle),
             ],
           ),
         ),
@@ -802,12 +807,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
               // haydovchi uchun eng yomon xato.
               Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      "To'lov",
+                      context.l10n.drvPayment,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: kInkMuted, fontSize: kFontLabel),
+                      style: const TextStyle(color: kInkMuted, fontSize: kFontLabel),
                     ),
                   ),
                   const SizedBox(width: kSpace3),
@@ -829,8 +834,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
         const SizedBox(height: kSpace3),
         AppButton(
           key: const ValueKey('driver_active_order_open'),
-          label: 'Buyurtmani ochish',
-          semanticsLabel: '${wording.typeLabel} buyurtmasini ochish',
+          label: context.l10n.drvOpenOrder,
+          semanticsLabel: context.l10n.drvOpenOrderSem(wording.typeLabel),
           height: kControlHeightDriver,
           // To'q siyoh — bu DAVOM ETTIRISH, yangi smena boshlash emas
           // (yashil CTA aynan "boshlash" ma'nosini oldindan band qilgan).
@@ -898,13 +903,13 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                   backgroundColor: kSurface2,
                   child: Icon(Icons.person, color: kInk),
                 ),
-                title: Text(auth.currentUser?.displayName ?? 'Haydovchi'),
+                title: Text(auth.currentUser?.displayName ?? context.l10n.drvDriver),
                 subtitle: Text(auth.currentUser?.phone ?? ''),
               ),
               const Divider(),
               _buildMenuTile(
                 icon: Icons.account_balance_wallet_outlined,
-                title: 'Daromad',
+                title: context.l10n.drvEarnings,
                 onTap: () {
                   Navigator.of(ctx).pop();
                   Navigator.of(context).pushNamed('/driver/earnings');
@@ -912,7 +917,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
               ),
               _buildMenuTile(
                 icon: Icons.person_outline,
-                title: 'Profil',
+                title: context.l10n.drvProfileTitle,
                 onTap: () {
                   Navigator.of(ctx).pop();
                   Navigator.of(context).pushNamed('/driver/profile');
@@ -922,11 +927,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
               // banner yo'qolganda ham haydovchi hujjatlarini ko'ra olsin.
               _buildMenuTile(
                 icon: Icons.verified_outlined,
-                title: 'Tekshiruv',
+                title: context.l10n.drvVerificationTitle,
                 subtitle: driverProvider.verification.actionNeededCount > 0
                     ? Text(
-                        '${driverProvider.verification.actionNeededCount} ta '
-                        "e'tibor talab qiladi",
+                        context.l10n.drvNeedsAttention(
+                          driverProvider.verification.actionNeededCount,
+                        ),
                         style: const TextStyle(
                           color: kWarningDeep,
                           fontSize: kFontCaption,
@@ -944,10 +950,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
               _buildMenuTile(
                 key: const ValueKey('driver_menu_services'),
                 icon: Icons.category_outlined,
-                title: 'Xizmat turlari',
-                subtitle: const Text(
-                  "Qaysi buyurtmalarni olasiz",
-                  style: TextStyle(fontSize: kFontCaption, color: kInkMuted),
+                title: context.l10n.drvServicesTitle,
+                subtitle: Text(
+                  context.l10n.drvServicesHeading,
+                  style: const TextStyle(fontSize: kFontCaption, color: kInkMuted),
                 ),
                 onTap: () {
                   Navigator.of(ctx).pop();
@@ -961,7 +967,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
               const SizedBox(height: kSpace3),
               _buildMenuTile(
                 icon: Icons.logout,
-                title: 'Chiqish',
+                title: context.l10n.drvLogout,
                 // Xavf MATNI `kErrorDeep` (6.47:1); `kError` faqat
                 // chegara va to'ldirish uchun.
                 foreground: kErrorDeep,

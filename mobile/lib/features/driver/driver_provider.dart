@@ -17,6 +17,7 @@ import 'package:angren_taxi/shared/models/driver_rating_stats.dart';
 import 'package:angren_taxi/shared/models/driver_service.dart';
 import 'package:angren_taxi/shared/models/driver_verification.dart';
 import 'package:angren_taxi/shared/models/order.dart';
+import 'package:angren_taxi/shared/models/trip_option.dart';
 import 'package:angren_taxi/shared/models/withdrawal_request.dart';
 import 'package:dio/dio.dart' show MultipartFile, FormData;
 import 'package:flutter/foundation.dart';
@@ -527,6 +528,26 @@ class DriverProvider extends ChangeNotifier {
     } finally {
       _isSavingServices = false;
       notifyListeners();
+    }
+  }
+
+  /// Safar opsiyalari (bola o'rindig'i, hayvon, ...) — to'liq ro'yxat
+  /// yuboriladi. Muvaffaqiyatda profil server javobi bilan yangilanadi,
+  /// shunda ekran haqiqatan saqlangan ro'yxatni ko'rsatadi.
+  Future<String?> updateAmenities(List<TripOption> amenities) async {
+    try {
+      final response = await _apiClient.patch(
+        ApiEndpoints.driverAmenities,
+        data: {'amenities': amenities.map((a) => a.apiValue).toList()},
+      );
+      final payload = (response.data as Map<String, dynamic>)['data'];
+      if (payload is Map<String, dynamic> && _driver != null) {
+        _driver = _driver!.copyWith(amenities: TripOption.listFromApi(payload['amenities']));
+        notifyListeners();
+      }
+      return null;
+    } catch (e) {
+      return extractErrorMessage(e);
     }
   }
 

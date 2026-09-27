@@ -2,6 +2,7 @@ import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:flutter/material.dart';
 
@@ -10,7 +11,7 @@ class RatePassengerScreen extends StatefulWidget {
     super.key,
     required this.orderId,
     required this.passengerPhone,
-    this.clientLabel = "Yo'lovchi",
+    this.clientLabel,
   });
 
   final String orderId;
@@ -18,8 +19,9 @@ class RatePassengerScreen extends StatefulWidget {
 
   /// Baholanayotgan tomonning nomi. Taksida "Yo'lovchi", ovqat/market
   /// yetkazishda "Mijoz" — chaqiruvchi
-  /// `DriverServiceWording.clientLabel` ni uzatadi.
-  final String clientLabel;
+  /// `DriverServiceWording.clientLabel` ni uzatadi. Berilmasa — "Yo'lovchi"
+  /// (joriy tilda).
+  final String? clientLabel;
 
   @override
   State<RatePassengerScreen> createState() => _RatePassengerScreenState();
@@ -72,7 +74,7 @@ class _RatePassengerScreenState extends State<RatePassengerScreen>
   Future<void> _submit() async {
     if (_selectedScore == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Iltimos, baho bering')),
+        SnackBar(content: Text(context.l10n.drvPleaseRate)),
       );
       return;
     }
@@ -111,6 +113,8 @@ class _RatePassengerScreenState extends State<RatePassengerScreen>
         widget.passengerPhone.isNotEmpty
             ? widget.passengerPhone[0]
             : '?';
+    final l10n = context.l10n;
+    final clientLabel = widget.clientLabel ?? l10n.drvPassenger;
 
     return Scaffold(
       backgroundColor: kBackground,
@@ -148,7 +152,7 @@ class _RatePassengerScreenState extends State<RatePassengerScreen>
               ),
               const SizedBox(height: kSpace1 + 2),
               Text(
-                '${widget.clientLabel} qanday edi?',
+                l10n.drvRateHowWas(clientLabel),
                 style: const TextStyle(
                   fontSize: kFontBodyLg,
                   color: kInkMuted,
@@ -164,7 +168,7 @@ class _RatePassengerScreenState extends State<RatePassengerScreen>
                   return Semantics(
                     button: true,
                     selected: filled,
-                    label: '${i + 1} yulduz',
+                    label: l10n.drvRateStars(i + 1),
                     excludeSemantics: true,
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
@@ -215,7 +219,7 @@ class _RatePassengerScreenState extends State<RatePassengerScreen>
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: kSurface2,
-                  hintText: '${widget.clientLabel} haqida izoh...',
+                  hintText: l10n.drvRateCommentHint(clientLabel),
                   hintStyle: const TextStyle(color: kInkMuted),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(kRadiusMd),
@@ -234,7 +238,7 @@ class _RatePassengerScreenState extends State<RatePassengerScreen>
 
               // Submit button
               AppButton(
-                label: 'Yuborish',
+                label: l10n.drvSend,
                 onPressed: _submit,
                 isLoading: _isLoading,
               ),
@@ -249,9 +253,9 @@ class _RatePassengerScreenState extends State<RatePassengerScreen>
                 child: TextButton(
                   onPressed:
                       _isLoading ? null : () => Navigator.of(context).pop(),
-                  child: const Text(
-                    "O'tkazib yuborish",
-                    style: TextStyle(
+                  child: Text(
+                    l10n.drvSkip,
+                    style: const TextStyle(
                       color: kInkMuted,
                       fontSize: kFontBodyLg,
                       fontWeight: FontWeight.w600,
@@ -269,17 +273,17 @@ class _RatePassengerScreenState extends State<RatePassengerScreen>
   String _ratingLabel(int score) {
     switch (score) {
       case 1:
-        return 'Juda yomon';
+        return context.l10n.drvRating1;
       case 2:
-        return 'Yomon';
+        return context.l10n.drvRating2;
       case 3:
-        return 'Oddiy';
+        return context.l10n.drvRating3;
       case 4:
-        return 'Yaxshi';
+        return context.l10n.drvRating4;
       case 5:
-        return 'Ajoyib!';
+        return context.l10n.drvRating5;
       default:
-        return 'Yulduz tanlang';
+        return context.l10n.drvRatingPick;
     }
   }
 }

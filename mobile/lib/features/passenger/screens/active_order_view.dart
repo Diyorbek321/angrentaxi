@@ -7,6 +7,7 @@ import 'package:angren_taxi/core/safety/sos_service.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/passenger/map_camera_insets.dart';
 import 'package:angren_taxi/features/trip/screens/trip_chat_screen.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/utils/waiting_charge.dart';
@@ -338,24 +339,24 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
       items: [
         AgActionItem(
           icon: Icons.phone_rounded,
-          label: "Qo'ng'iroq",
+          label: context.l10n.paxCall,
           onTap: driver == null || driver.phone.isEmpty
               ? null
               : () => _callDriver(driver.phone),
         ),
         AgActionItem(
           icon: Icons.chat_bubble_outline_rounded,
-          label: 'Xabar',
+          label: context.l10n.paxMessage,
           onTap: driver == null ? null : () => _openChat(order),
         ),
         AgActionItem(
           icon: Icons.ios_share_rounded,
-          label: 'Ulashish',
+          label: context.l10n.paxReferralShare,
           onTap: () => _shareTrip(order),
         ),
         AgActionItem(
           icon: Icons.close_rounded,
-          label: 'Bekor qilish',
+          label: context.l10n.paxCancel,
           destructive: true,
           onTap: canCancel ? _confirmCancel : null,
         ),
@@ -368,7 +369,7 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
   Widget _buildSosButton(Order order) {
     return Semantics(
       button: true,
-      label: 'SOS — favqulodda yordam',
+      label: context.l10n.paxSosSemantics,
       excludeSemantics: true,
       child: AppPressable(
         haptic: AppHapticLevel.none,
@@ -419,7 +420,7 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
       await launchUrl(uri);
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Qo'ng'iroq qilib bo'lmadi")),
+        SnackBar(content: Text(context.l10n.paxCallFailed)),
       );
     }
   }
@@ -433,8 +434,8 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
       await _sosService.reportSos(orderId: orderId, lat: lat, lng: lng);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Dispetcherlarga xabar yuborildi'),
+          SnackBar(
+            content: Text(context.l10n.paxSosDispatchersAlerted),
             backgroundColor: kPrimary,
           ),
         );
@@ -462,23 +463,22 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'Favqulodda yordam',
-                style: TextStyle(
+              Text(
+                context.l10n.paxSosTitle,
+                style: const TextStyle(
                   fontSize: kFontH2,
                   fontWeight: FontWeight.w800,
                   color: kInk,
                 ),
               ),
               const SizedBox(height: kSpace1 + 2),
-              const Text(
-                "Xavfsizligingiz biz uchun muhim. Kerak bo'lsa, quyidagi "
-                'tugmalardan birini bosing.',
-                style: TextStyle(color: kInkMuted, fontSize: kFontLabel),
+              Text(
+                context.l10n.paxSosBody,
+                style: const TextStyle(color: kInkMuted, fontSize: kFontLabel),
               ),
               const SizedBox(height: kSpace5),
               AppButton(
-                label: 'Favqulodda chaqiruv (102/103)',
+                label: context.l10n.paxSosEmergencyCall,
                 backgroundColor: kError,
                 foregroundColor: kOnPrimary,
                 onPressed: () {
@@ -488,7 +488,7 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
               ),
               const SizedBox(height: kSpace3),
               AppButton(
-                label: 'Dispetcherlarga xabar berish',
+                label: context.l10n.paxSosAlertDispatchers,
                 onPressed: () {
                   Navigator.of(sheetContext).pop();
                   _alertDispatchers(order.id);
@@ -552,8 +552,8 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
     if (etaMinutes == null) return const SizedBox.shrink();
 
     final text = etaMinutes < 1
-        ? 'Haydovchi deyarli yetib keldi'
-        : 'Haydovchi $etaMinutes daqiqada yetib keladi';
+        ? context.l10n.paxDriverAlmostThere
+        : context.l10n.paxDriverEta(etaMinutes);
 
     return Padding(
       padding: const EdgeInsets.only(top: kSpace2),
@@ -652,20 +652,23 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
     final headline = billing
         ? '+${Formatters.formatSom(charge.fare.toDouble())}'
         : formatWaitClock(charge.freeRemaining);
-    final title = billing ? 'Kutish haqi' : 'Bepul kutish';
+    final title =
+        billing ? context.l10n.paxWaitingPaid : context.l10n.paxWaitingFree;
     final caption = billing
-        ? "Jami ${formatWaitElapsed(charge.elapsed)} · safar narxiga qo'shiladi"
-        : "Keyin $perMinute/daqiqa, safar narxiga qo'shiladi";
+        ? context.l10n.paxWaitingPaidCaption(formatWaitElapsed(charge.elapsed))
+        : context.l10n.paxWaitingFreeCaption(perMinute);
 
     final accent = billing ? kWarningDeep : kPrimary;
 
     final semanticsLabel = billing
-        ? 'Kutish haqi ${Formatters.formatSom(charge.fare.toDouble())}, '
-            'jami ${formatWaitElapsed(charge.elapsed)} kutildi. '
-            "Safar narxiga qo'shiladi."
-        : 'Bepul kutish tugashiga ${formatWaitClock(charge.freeRemaining)} '
-            "qoldi, keyin har daqiqa uchun $perMinute safar narxiga "
-            "qo'shiladi";
+        ? context.l10n.paxWaitingPaidSemantics(
+            Formatters.formatSom(charge.fare.toDouble()),
+            formatWaitElapsed(charge.elapsed),
+          )
+        : context.l10n.paxWaitingFreeSemantics(
+            formatWaitClock(charge.freeRemaining),
+            perMinute,
+          );
 
     return Padding(
       padding: const EdgeInsets.only(top: kSpace2),
@@ -759,7 +762,7 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
       await launchUrl(uri);
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Qo'ng'iroq qilib bo'lmadi")),
+        SnackBar(content: Text(context.l10n.paxCallFailed)),
       );
     }
   }
@@ -786,16 +789,17 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
   Future<void> _shareTrip(Order order) async {
     final driver = order.driver;
     final lines = <String>[
-      'Angren Taxi — safarim',
-      "Qayerdan: ${order.pickup.address}",
-      'Qayerga: ${order.dropoff.address}',
-      if (driver != null) 'Haydovchi: ${driver.name}, ${driver.carInfo}',
-      'Holat: ${order.status.label}',
+      context.l10n.paxShareTripHeader,
+      context.l10n.paxShareTripFrom(order.pickup.address),
+      context.l10n.paxShareTripTo(order.dropoff.address),
+      if (driver != null)
+        context.l10n.paxShareTripDriver(driver.name, driver.carInfo),
+      context.l10n.paxShareTripStatus(order.status.label),
     ];
     await Clipboard.setData(ClipboardData(text: lines.join('\n')));
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Safar ma'lumoti nusxalandi")),
+      SnackBar(content: Text(context.l10n.paxShareTripCopied)),
     );
   }
 
@@ -914,13 +918,13 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
     );
   }
 
-  static const List<String> _cancelReasons = [
-    'Juda uzoq kutdim',
-    "Fikrimni o'zgartirdim",
-    'Narx juda qimmat',
-    'Boshqa sabab',
-  ];
-  static const String _otherCancelReason = 'Boshqa sabab';
+  static List<String> get _cancelReasons => [
+        AppL10n.current.paxCancelReasonLongWait,
+        AppL10n.current.paxCancelReasonChangedMind,
+        AppL10n.current.paxCancelReasonTooExpensive,
+        AppL10n.current.paxCancelReasonOther,
+      ];
+  static String get _otherCancelReason => AppL10n.current.paxCancelReasonOther;
 
   void _confirmCancel() {
     String selectedReason = _cancelReasons.first;
@@ -931,15 +935,15 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           return AlertDialog(
-            title: const Text('Bekor qilish sababi'),
+            title: Text(context.l10n.paxCancelReasonTitle),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Buyurtmani bekor qilish sababini tanlang:',
-                    style: TextStyle(color: kInkMuted, fontSize: kFontLabel),
+                  Text(
+                    context.l10n.paxCancelReasonPrompt,
+                    style: const TextStyle(color: kInkMuted, fontSize: kFontLabel),
                   ),
                   for (final reason in _cancelReasons)
                     RadioListTile<String>(
@@ -962,9 +966,9 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
                         controller: customReasonController,
                         autofocus: true,
                         maxLines: 2,
-                        decoration: const InputDecoration(
-                          hintText: 'Sababni yozing...',
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          hintText: context.l10n.paxCancelReasonHint,
+                          border: const OutlineInputBorder(),
                         ),
                       ),
                     ),
@@ -974,7 +978,7 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text("Yo'q"),
+                child: Text(context.l10n.paxNo),
               ),
               TextButton(
                 onPressed: () {
@@ -984,9 +988,9 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
                       : selectedReason;
                   widget.onCancel(reason.isEmpty ? null : reason);
                 },
-                child: const Text(
-                  'Ha, bekor qilish',
-                  style: TextStyle(color: kErrorDeep),
+                child: Text(
+                  context.l10n.paxCancelConfirmYes,
+                  style: const TextStyle(color: kErrorDeep),
                 ),
               ),
             ],

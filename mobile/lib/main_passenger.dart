@@ -30,6 +30,7 @@ Future<void> main() async {
   // `initializeDateFormatting('uz')` ni O'ZLARI chaqiradi, ya'ni testlar
   // yashil bo'lib turgan holda ilova prodda yiqilardi.
   await initializeDateFormatting('uz', null);
+  await initializeDateFormatting('ru', null);
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

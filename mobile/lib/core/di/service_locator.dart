@@ -36,7 +36,7 @@ Future<void> setupServiceLocator() async {
 
   sl.registerLazySingleton<LocationService>(() => LocationService());
 
-  sl.registerLazySingleton<RouteService>(() => RouteService());
+  sl.registerLazySingleton<RouteService>(() => RouteService(sl<ApiClient>()));
 
   // Ovozli navigatsiya. Lazy singleton ATAYLAB: `init()` qurilmadagi
   // tillar ro'yxatini so'raydi (sekin platforma chaqiruvi), navigatsiya

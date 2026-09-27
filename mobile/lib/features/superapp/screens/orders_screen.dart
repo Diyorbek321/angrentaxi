@@ -3,6 +3,7 @@ import 'package:angren_taxi/features/superapp/screens/order_detail_screen.dart';
 import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/market_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/food_order.dart';
 import 'package:angren_taxi/shared/models/market_order.dart';
 import 'package:angren_taxi/shared/models/order.dart';
@@ -174,7 +175,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       entry.label,
       if (order.isActive)
         if (driver == null)
-          'Haydovchi qidirilmoqda'
+          context.l10n.saSearchingDriver
         else ...[
           driver.name,
           if (driver.carNumber.isNotEmpty) driver.carNumber,
@@ -197,7 +198,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
         OrderStatus.completed => AppStatusTone.success,
         _ => AppStatusTone.info,
       },
-      stages: const ['Qidirilmoqda', "Haydovchi yo'lda", 'Safarda', 'Yakunlandi'],
+      stages: [
+        context.l10n.saStageSearching,
+        context.l10n.saStageDriverEnRoute,
+        context.l10n.saStageInTrip,
+        context.l10n.saCompletedAt,
+      ],
       stageIndex: switch (order.status) {
         OrderStatus.cancelled => null,
         OrderStatus.scheduled ||
@@ -229,7 +235,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       createdAt: order.createdAt,
       icon: ServiceCatalogEntry.food.icon,
       vertical: _Vertical.food,
-      title: '${order.itemsCount} ta taom',
+      title: context.l10n.saDishesCount(order.itemsCount),
       subtitle: '${ServiceCatalogEntry.food.label} · #${_shortId(order.id)}',
       amount: Formatters.formatSom(order.totalPrice),
       statusLabel: order.status.label,
@@ -238,7 +244,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
         FoodOrderStatus.delivered => AppStatusTone.success,
         _ => AppStatusTone.info,
       },
-      stages: const ['Qabul qilindi', 'Tayyorlanmoqda', "Yo'lda", 'Yetkazildi'],
+      stages: [
+        context.l10n.saStageAccepted,
+        context.l10n.saStagePreparing,
+        context.l10n.saStageOnTheWay,
+        context.l10n.saStageDelivered,
+      ],
       stageIndex: switch (order.status) {
         FoodOrderStatus.cancelled => null,
         FoodOrderStatus.newOrder => 0,
@@ -256,7 +267,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       createdAt: order.createdAt,
       icon: ServiceCatalogEntry.market.icon,
       vertical: _Vertical.market,
-      title: '${order.itemsCount} ta mahsulot',
+      title: context.l10n.saProductsCount(order.itemsCount),
       subtitle: '${ServiceCatalogEntry.market.label} · #${_shortId(order.id)}',
       amount: Formatters.formatSom(order.totalPrice),
       statusLabel: order.status.label,
@@ -265,7 +276,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
         MarketOrderStatus.delivered => AppStatusTone.success,
         _ => AppStatusTone.info,
       },
-      stages: const ['Qabul qilindi', "Yig'ilmoqda", "Yo'lda", 'Yetkazildi'],
+      stages: [
+        context.l10n.saStageAccepted,
+        context.l10n.saStagePacking,
+        context.l10n.saStageOnTheWay,
+        context.l10n.saStageDelivered,
+      ],
       stageIndex: switch (order.status) {
         MarketOrderStatus.cancelled => null,
         MarketOrderStatus.newOrder => 0,
@@ -331,7 +347,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
     final isLoading =
         tracked.isEmpty && taxi.state == OrderProviderState.loading;
     final errorMessage = tracked.isEmpty && taxi.state == OrderProviderState.error
-        ? (taxi.error ?? 'Xatolik yuz berdi')
+        ? (taxi.error ?? context.l10n.saErrorOccurred)
         : null;
 
     return Scaffold(
@@ -354,11 +370,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
                       AgIconButton(
                           icon: Icons.arrow_back_rounded,
                           onTap: () => Navigator.of(context).pop(),
-                          semanticsLabel: 'Orqaga'),
+                          semanticsLabel: context.l10n.saBack),
                       const SizedBox(width: kSpace3),
                     ],
-                    const Text('Buyurtmalar',
-                        style: TextStyle(
+                    Text(context.l10n.saOrdersTitle,
+                        style: const TextStyle(
                             fontSize: kFontH1, fontWeight: FontWeight.w800, color: agText)),
                   ],
                 ),
@@ -366,7 +382,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 Row(
                   children: [
                     _SegChip(
-                      label: 'Faol',
+                      label: context.l10n.saOrdersActive,
                       count: active.length,
                       active: filter == _OrdersFilter.active,
                       onTap: () =>
@@ -374,7 +390,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     ),
                     const SizedBox(width: kSpace2),
                     _SegChip(
-                      label: 'Tarix',
+                      label: context.l10n.saOrdersHistory,
                       count: history.length,
                       active: filter == _OrdersFilter.history,
                       onTap: () =>
@@ -435,16 +451,15 @@ class _OrdersBody extends StatelessWidget {
       return SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(kSpace4, kSpace6, kSpace4, 110),
         child: filter == _OrdersFilter.active
-            ? const AppEmptyState(
+            ? AppEmptyState(
                 icon: Icons.local_taxi_rounded,
-                title: "Faol buyurtma yo'q",
-                message:
-                    "Taksi chaqiring yoki ovqat buyurtma qiling — jonli buyurtma shu yerda kuzatiladi.",
+                title: context.l10n.saOrdersNoActiveTitle,
+                message: context.l10n.saOrdersNoActiveMessage,
               )
-            : const AppEmptyState(
+            : AppEmptyState(
                 icon: Icons.receipt_long_rounded,
-                title: "Buyurtmalar tarixi yo'q",
-                message: 'Yakunlangan buyurtmalar shu yerda saqlanadi.',
+                title: context.l10n.saOrdersNoHistoryTitle,
+                message: context.l10n.saOrdersNoHistoryMessage,
               ),
       );
     }
@@ -477,7 +492,9 @@ class _SegChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppPressable(
       onTap: onTap,
-      semanticsLabel: '$label, $count ta${active ? ', tanlangan' : ''}',
+      semanticsLabel: active
+          ? context.l10n.saSegChipLabelSelected(label, count)
+          : context.l10n.saSegChipLabel(label, count),
       pressedScale: 0.96,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: kSpace4, vertical: kSpace2),
@@ -632,7 +649,7 @@ class _StageBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       container: true,
-      label: '${stages.length} bosqichdan ${index + 1}: ${stages[index]}',
+      label: context.l10n.saStageProgress(stages.length, index + 1, stages[index]),
       excludeSemantics: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

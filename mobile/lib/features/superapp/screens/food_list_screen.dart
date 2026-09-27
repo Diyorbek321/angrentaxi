@@ -3,6 +3,7 @@ import 'package:angren_taxi/features/superapp/screens/restaurant_detail_screen.d
 import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/food_restaurant.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
@@ -45,15 +46,15 @@ class _FoodListScreenState extends State<FoodListScreen> {
                   const AppSkeletonList(itemCount: 4)
                 else if (food.state == FoodProviderState.error && food.restaurants.isEmpty)
                   AppErrorState(
-                    message: food.error ?? 'Xatolik yuz berdi',
+                    message: food.error ?? context.l10n.saErrorOccurred,
                     onRetry: () => context.read<FoodProvider>().loadRestaurants(),
                   )
                 else if (food.restaurants.isEmpty)
                   AppEmptyState(
                     icon: Icons.storefront_outlined,
-                    title: 'Restoran topilmadi',
-                    message: 'Hozircha ochiq restoran yo\'q. Birozdan keyin qayta urinib ko\'ring.',
-                    actionLabel: 'Yangilash',
+                    title: context.l10n.saFoodNoRestaurantsTitle,
+                    message: context.l10n.saFoodNoRestaurantsMessage,
+                    actionLabel: context.l10n.saRefresh,
                     onAction: () => context.read<FoodProvider>().loadRestaurants(),
                   )
                 else
@@ -78,7 +79,7 @@ class _FoodListScreenState extends State<FoodListScreen> {
                     bottom: MediaQuery.of(context).padding.bottom + kSpace4,
                     child: AgCartBar(
                       count: cart.cartCount,
-                      label: "Savatga o'tish",
+                      label: context.l10n.saGoToCart,
                       trailing: Formatters.formatSom(cart.cartSubtotal),
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(builder: (_) => const CartScreen()),
@@ -109,17 +110,17 @@ class _FoodHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          AgIconButton(icon: Icons.arrow_back_rounded, onTap: () => Navigator.of(context).pop(), semanticsLabel: 'Orqaga'),
+          AgIconButton(icon: Icons.arrow_back_rounded, onTap: () => Navigator.of(context).pop(), semanticsLabel: context.l10n.saBack),
           const SizedBox(width: kSpace3),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Ovqat yetkazish',
-                    style: TextStyle(
+                Text(context.l10n.saFoodTitle,
+                    style: const TextStyle(
                         fontSize: kFontH2, fontWeight: FontWeight.w800, color: agText)),
-                Text('Angren · 20–40 daqiqa',
-                    style: TextStyle(
+                Text(context.l10n.saFoodSubtitle,
+                    style: const TextStyle(
                         fontSize: kFontCaption, fontWeight: FontWeight.w600, color: agSubtle)),
               ],
             ),
@@ -128,7 +129,9 @@ class _FoodHeader extends StatelessWidget {
             icon: Icons.shopping_bag_outlined,
             onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const CartScreen())),
             badge: cartCount > 0 ? '$cartCount' : null,
-            semanticsLabel: cartCount > 0 ? 'Savat, $cartCount ta mahsulot' : 'Savat',
+            semanticsLabel: cartCount > 0
+                ? context.l10n.saCartWithCount(cartCount)
+                : context.l10n.saCart,
           ),
         ],
       ),
@@ -174,7 +177,7 @@ class _FoodCard extends StatelessWidget {
                     top: kSpace3,
                     left: kSpace3,
                     child: AppStatusBadge(
-                      label: r.isOpen ? 'Ochiq' : 'Yopiq',
+                      label: r.isOpen ? context.l10n.saOpen : context.l10n.saClosed,
                       tone: r.isOpen ? AppStatusTone.success : AppStatusTone.danger,
                       dense: true,
                     ),

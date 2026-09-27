@@ -157,7 +157,7 @@ class NavigationEngine {
   /// va FAQAT o'shanda — ovozni ishga tushiradi.
   NavigationProgress update(LatLng position) {
     if (_steps.isEmpty) {
-      return const NavigationProgress(
+      return NavigationProgress(
         stepIndex: 0,
         step: null,
         distanceToManeuverMeters: 0,

@@ -2,6 +2,7 @@ import 'package:angren_taxi/features/superapp/models/wallet_transaction.dart';
 import 'package:angren_taxi/features/superapp/screens/topup_screen.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/ag_map_fab.dart';
 import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
@@ -63,7 +64,7 @@ class _WalletScreenState extends State<WalletScreen> {
       backgroundColor: agSurface2,
       body: Column(
         children: [
-          AgHeader(title: 'Hamyon', onBack: () => Navigator.of(context).pop()),
+          AgHeader(title: context.l10n.saWalletTitle, onBack: () => Navigator.of(context).pop()),
           Expanded(
             child: ListView(
               padding: const EdgeInsets.fromLTRB(
@@ -91,7 +92,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   ),
                 ],
                 const SizedBox(height: kSpace6),
-                const AgSectionTitle('Kartalar'),
+                AgSectionTitle(context.l10n.saWalletCards),
                 const SizedBox(height: kSpace3),
                 // Saved cards need a Payme/Click merchant agreement before a
                 // card can be bound and charged. Until then the screen says so
@@ -99,14 +100,14 @@ class _WalletScreenState extends State<WalletScreen> {
                 // •••• 4421") that belonged to nobody and could not be used.
                 const _CardsUnavailableNotice(),
                 const SizedBox(height: kSpace6),
-                const AgSectionTitle('So\'nggi amallar'),
+                AgSectionTitle(context.l10n.saWalletRecentActivity),
                 const SizedBox(height: 2),
                 // Bitta hamyon qoidasini YOZIB qo'yamiz. Aks holda
                 // foydalanuvchi ro'yxatda taksi va ovqat qatorlarini
                 // aralash ko'rib, "bu qaysi hisob?" deb o'ylaydi.
-                const Text(
-                  'Taksi, yuk, ovqat va market — bitta hamyon, bitta daftar.',
-                  style: TextStyle(
+                Text(
+                  context.l10n.saWalletOneWalletNote,
+                  style: const TextStyle(
                     fontSize: kFontCaption,
                     fontWeight: FontWeight.w600,
                     // Kichik yozuv: `kInkMuted` (5.47:1). `kInkSubtle`
@@ -201,8 +202,8 @@ class _BalanceCard extends StatelessWidget {
           Semantics(
             container: true,
             label: balance == null
-                ? 'Hamyon balansi hali yuklanmadi'
-                : "Hamyon balansi $amount so'm",
+                ? context.l10n.saWalletBalanceNotLoaded
+                : context.l10n.saWalletBalanceLabel(amount),
             excludeSemantics: true,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -210,7 +211,7 @@ class _BalanceCard extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      'Angren Go balans',
+                      context.l10n.saWalletBalanceTitle,
                       style: TextStyle(
                         color: agOnPrimary.withValues(alpha: 0.75),
                         fontSize: kFontLabel,
@@ -230,7 +231,7 @@ class _BalanceCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(kRadiusFull),
                       ),
                       child: Text(
-                        'Barcha xizmatlar',
+                        context.l10n.saWalletAllServices,
                         style: TextStyle(
                           color: agOnPrimary.withValues(alpha: 0.85),
                           fontSize: kFontMicro,
@@ -265,7 +266,7 @@ class _BalanceCard extends StatelessWidget {
                     ),
                     const SizedBox(width: kSpace1 + 2),
                     Text(
-                      "so'm",
+                      context.l10n.saSom,
                       style: TextStyle(
                         color: agOnPrimary.withValues(alpha: 0.7),
                         fontSize: kFontTitle,
@@ -289,7 +290,7 @@ class _BalanceCard extends StatelessWidget {
                   // ishlaydigan tugma o'z tuguniga ega.
                   container: true,
                   button: true,
-                  label: "To'ldirish",
+                  label: context.l10n.saWalletTopUp,
                   excludeSemantics: true,
                   child: GestureDetector(
                     onTap: onTopUp,
@@ -305,16 +306,16 @@ class _BalanceCard extends StatelessWidget {
                         color: agBright,
                         borderRadius: BorderRadius.circular(kRadiusSm),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          ExcludeSemantics(
+                          const ExcludeSemantics(
                             child: Icon(Icons.add_rounded,
                                 color: agOnMint, size: 19),
                           ),
-                          SizedBox(width: kSpace2),
-                          Text("To'ldirish",
-                              style: TextStyle(
+                          const SizedBox(width: kSpace2),
+                          Text(context.l10n.saWalletTopUp,
+                              style: const TextStyle(
                                   color: agOnMint,
                                   fontSize: kFontLabel,
                                   fontWeight: FontWeight.w800)),
@@ -345,16 +346,16 @@ class _BalanceCard extends StatelessWidget {
                     color: agOnPrimary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(kRadiusSm),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      ExcludeSemantics(
+                      const ExcludeSemantics(
                         child: Icon(Icons.north_east_rounded,
                             color: agOnPrimary, size: 19),
                       ),
-                      SizedBox(width: kSpace2),
-                      Text("O'tkazish",
-                          style: TextStyle(
+                      const SizedBox(width: kSpace2),
+                      Text(context.l10n.saWalletTransfer,
+                          style: const TextStyle(
                               color: agOnPrimary,
                               fontSize: kFontLabel,
                               fontWeight: FontWeight.w800)),
@@ -375,10 +376,10 @@ class _CardsUnavailableNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const AgSurfaceCard(
+    return AgSurfaceCard(
       child: Row(
         children: [
-          ExcludeSemantics(
+          const ExcludeSemantics(
             child: _RowIcon(
               icon: Icons.credit_card_off_rounded,
               // Dekorativ ikonka — `kInkSubtle` (3.67:1) UI elementi
@@ -386,23 +387,23 @@ class _CardsUnavailableNotice extends StatelessWidget {
               color: agMuted,
             ),
           ),
-          SizedBox(width: kSpace3),
+          const SizedBox(width: kSpace3),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Karta bog\'lash hali mavjud emas',
-                  style: TextStyle(
+                  context.l10n.saWalletCardsUnavailableTitle,
+                  style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: kFontBody,
                     color: agText,
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
-                  'Hozircha safarlarni naqd pul yoki hamyon balansi bilan to\'lang.',
-                  style: TextStyle(
+                  context.l10n.saWalletCardsUnavailableMessage,
+                  style: const TextStyle(
                     fontSize: kFontCaption,
                     color: agSubtle,
                     fontWeight: FontWeight.w600,
@@ -422,27 +423,27 @@ class _NoTransactions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const AgSurfaceCard(
-      padding: EdgeInsets.symmetric(vertical: kSpace6, horizontal: kSpace4),
+    return AgSurfaceCard(
+      padding: const EdgeInsets.symmetric(vertical: kSpace6, horizontal: kSpace4),
       child: Column(
         children: [
-          ExcludeSemantics(
+          const ExcludeSemantics(
             child: Icon(Icons.receipt_long_rounded, size: 34, color: agMuted),
           ),
-          SizedBox(height: kSpace2),
+          const SizedBox(height: kSpace2),
           Text(
-            'Hozircha amallar yo\'q',
-            style: TextStyle(
+            context.l10n.saWalletNoTxnsTitle,
+            style: const TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: kFontBody,
               color: agText,
             ),
           ),
-          SizedBox(height: 2),
+          const SizedBox(height: 2),
           Text(
-            'Birinchi safar yoki to\'ldirishdan keyin bu yerda ko\'rinadi.',
+            context.l10n.saWalletNoTxnsMessage,
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: kFontCaption,
               color: agSubtle,
               fontWeight: FontWeight.w600,
@@ -509,14 +510,19 @@ class _TxnRow extends StatelessWidget {
 
     final sign = txn.isCredit ? '+' : '−';
     final when = Formatters.formatDateTime(txn.createdAt);
-    final subtitle = txn.isPending ? '$when · kutilmoqda' : when;
-    final direction = txn.isCredit ? 'kirim' : 'chiqim';
+    final subtitle =
+        txn.isPending ? context.l10n.saTxnPending(when) : when;
+    final direction =
+        txn.isCredit ? context.l10n.saTxnCredit : context.l10n.saTxnDebitWord;
 
     return Semantics(
       container: true,
-      label: '${txn.title}, '
-          "${Formatters.formatAmount(txn.amount)} so'm $direction, "
-          '$subtitle',
+      label: context.l10n.saTxnSemantics(
+        txn.title,
+        Formatters.formatAmount(txn.amount),
+        direction,
+        subtitle,
+      ),
       excludeSemantics: true,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: kSpace3),

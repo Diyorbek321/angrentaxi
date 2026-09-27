@@ -83,6 +83,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # UZ/RU matnlar lib/l10n/app_*.arb dan generatsiya qilinadi (l10n.yaml).
+  generate: true
   assets:
     - assets/images/
     - assets/animations/

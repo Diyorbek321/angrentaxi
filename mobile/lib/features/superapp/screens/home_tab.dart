@@ -12,6 +12,7 @@ import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/market_provider.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/food_order.dart';
 import 'package:angren_taxi/shared/models/food_restaurant.dart';
 import 'package:angren_taxi/shared/models/market_order.dart';
@@ -206,8 +207,8 @@ class _HomeTabState extends State<HomeTab> {
           Padding(
             padding: EdgeInsets.symmetric(horizontal: context.gutter),
             child: AgSectionTitle(
-              'Mashhur restoranlar',
-              trailing: 'Barchasi',
+              context.l10n.saPopularRestaurants,
+              trailing: context.l10n.saSeeAll,
               onTrailingTap: () => _push(context, const FoodListScreen()),
             ),
           ),
@@ -338,16 +339,16 @@ class _HeaderRow extends StatelessWidget {
         // `Expanded` + ellipsis: uchta boshqaruv (hamyon, qidiruv,
         // bildirishnoma) tor ekranda joyni siqib qo'ymasin — manzil
         // qisqaradi, qator taqillab ketmaydi.
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Joriy manzil',
+                context.l10n.saCurrentAddress,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
+                style: const TextStyle(
                   color: agOnPrimary,
                   fontSize: kFontMicro,
                   fontWeight: FontWeight.w600,
@@ -357,17 +358,17 @@ class _HeaderRow extends StatelessWidget {
                 children: [
                   Flexible(
                     child: Text(
-                      'Angren shahri',
+                      context.l10n.saAngrenCity,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: agOnPrimary,
                         fontSize: kFontBody,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
-                  ExcludeSemantics(
+                  const ExcludeSemantics(
                     child: Icon(Icons.expand_more_rounded,
                         color: agOnPrimary, size: 16),
                   ),
@@ -386,7 +387,7 @@ class _HeaderRow extends StatelessWidget {
         AgIconButton(
           icon: Icons.search_rounded,
           onTap: onSearch,
-          semanticsLabel: 'Qidiruv',
+          semanticsLabel: context.l10n.saSearch,
           background: kSurface.withValues(alpha: 0.18),
           color: agOnPrimary,
           size: 38,
@@ -394,7 +395,7 @@ class _HeaderRow extends StatelessWidget {
         AgIconButton(
           icon: Icons.notifications_rounded,
           onTap: onNotifs,
-          semanticsLabel: 'Bildirishnomalar',
+          semanticsLabel: context.l10n.saNotificationsTitle,
           background: kSurface.withValues(alpha: 0.18),
           color: agOnPrimary,
           size: 38,
@@ -419,7 +420,7 @@ class _WalletPill extends StatelessWidget {
     // eshitilardi. `excludeSemantics` ichkaridagi matn tugunini yig'adi.
     return Semantics(
       button: true,
-      label: 'Hamyon',
+      label: context.l10n.saWalletTitle,
       value: balance == null ? null : Formatters.formatAmount(balance!),
       onTap: onTap,
       excludeSemantics: true,
@@ -480,7 +481,7 @@ class _TaxiBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppPressable(
       onTap: onTap,
-      semanticsLabel: 'Taksi. Qayerga borasiz?',
+      semanticsLabel: context.l10n.saTaxiWhereToLabel,
       // Katta yuza uchun nozik masshtab — 0.93 bunday blokda "sakragan"
       // ko'rinardi.
       pressedScale: 0.98,
@@ -534,7 +535,7 @@ class _TaxiBlock extends StatelessWidget {
                   const SizedBox(width: kSpace3),
                   Expanded(
                     child: Text(
-                      'Qayerga borasiz?',
+                      context.l10n.saWhereTo,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -695,7 +696,7 @@ class _ActiveOrderCard extends StatelessWidget {
     return AppPressable(
       onTap: summary.onOpen,
       semanticsLabel:
-          'Faol buyurtma: ${summary.service}. ${summary.title}. ${summary.stage}',
+          context.l10n.saActiveOrderLabel(summary.service, summary.title, summary.stage),
       pressedScale: 0.98,
       minTapTarget: false,
       child: AgSurfaceCard(
@@ -791,14 +792,14 @@ class _RestaurantSection extends StatelessWidget {
         return Padding(
           padding: EdgeInsets.symmetric(horizontal: context.gutter),
           child: InlineErrorWidget(
-            message: error ?? 'Xatolik yuz berdi',
+            message: error ?? context.l10n.saErrorOccurred,
             onRetry: onRetry,
           ),
         );
       }
-      return const AppEmptyState(
+      return AppEmptyState(
         icon: Icons.restaurant_rounded,
-        title: 'Restoranlar topilmadi',
+        title: context.l10n.saRestaurantsNotFound,
         compact: true,
       );
     }
@@ -863,7 +864,7 @@ class _RestaurantCard extends StatelessWidget {
                     top: kSpace2,
                     right: kSpace2,
                     child: AppStatusBadge(
-                      label: r.isOpen ? 'Ochiq' : 'Yopiq',
+                      label: r.isOpen ? context.l10n.saOpen : context.l10n.saClosed,
                       tone: r.isOpen
                           ? AppStatusTone.success
                           : AppStatusTone.danger,

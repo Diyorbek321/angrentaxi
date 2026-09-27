@@ -2,6 +2,7 @@ import 'package:angren_taxi/features/superapp/models/cart_item.dart';
 import 'package:angren_taxi/features/superapp/screens/cart_screen.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/market_product.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:flutter/material.dart';
@@ -64,7 +65,7 @@ class ProductDetailScreen extends StatelessWidget {
                       child: AgIconButton(
                         icon: Icons.arrow_back_rounded,
                         onTap: () => Navigator.of(context).pop(),
-                        semanticsLabel: 'Orqaga',
+                        semanticsLabel: context.l10n.saBack,
                         background: agSurface,
                         size: 44,
                       ),
@@ -83,7 +84,7 @@ class ProductDetailScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Do\'kon · $_unit',
+                      Text(context.l10n.saProductStoreUnit(_unit),
                           style: const TextStyle(
                               fontSize: kFontCaption, color: agMuted, fontWeight: FontWeight.w700)),
                       const SizedBox(height: kSpace1),
@@ -98,9 +99,9 @@ class ProductDetailScreen extends StatelessWidget {
                           style: const TextStyle(
                               fontSize: kFontH1, fontWeight: FontWeight.w800, color: agGreenText)),
                       const SizedBox(height: kSpace4),
-                      const Text(
-                        "Yangi va sifatli mahsulot, yaqin do'kondan tez yetkazib beriladi.",
-                        style: TextStyle(
+                      Text(
+                        context.l10n.saProductDescription,
+                        style: const TextStyle(
                             fontSize: kFontLabel,
                             color: agSubtle,
                             fontWeight: FontWeight.w500,
@@ -109,14 +110,21 @@ class ProductDetailScreen extends StatelessWidget {
                       const SizedBox(height: kSpace4),
                       Row(
                         children: [
-                          const Expanded(child: _InfoChip(label: 'YETKAZISH', value: '15–25 daq')),
+                          Expanded(
+                            child: _InfoChip(
+                              label: context.l10n.saProductDeliveryLabel,
+                              value: context.l10n.saProductDeliveryValue,
+                            ),
+                          ),
                           const SizedBox(width: kSpace3),
-                          const Expanded(child: _InfoChip(label: 'REYTING', value: '4.8 ★')),
+                          Expanded(child: _InfoChip(label: context.l10n.saProductRatingLabel, value: '4.8 ★')),
                           const SizedBox(width: kSpace3),
                           Expanded(
                             child: _InfoChip(
-                              label: 'OMBOR',
-                              value: _isAvailable ? 'Mavjud' : 'Tugagan',
+                              label: context.l10n.saProductStockLabel,
+                              value: _isAvailable
+                                  ? context.l10n.saProductInStock
+                                  : context.l10n.saProductOutOfStock,
                               valueColor: _isAvailable ? agGreenText : kErrorDeep,
                             ),
                           ),
@@ -137,7 +145,7 @@ class ProductDetailScreen extends StatelessWidget {
                 if (provider.cartCount > 0) ...[
                   AgCartBar(
                     count: provider.cartCount,
-                    label: 'Savatga buyurtma',
+                    label: context.l10n.saCartBarLabel,
                     trailing: Formatters.formatSom(provider.cartSubtotal),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(builder: (_) => const CartScreen()),
@@ -146,7 +154,7 @@ class ProductDetailScreen extends StatelessWidget {
                   const SizedBox(height: kSpace3),
                 ],
                 AgPrimaryButton(
-                  label: 'Savatga · ${Formatters.formatSom(_price)}',
+                  label: context.l10n.saAddToCartWithPrice(Formatters.formatSom(_price)),
                   icon: Icons.add_shopping_cart_rounded,
                   onPressed: _isAvailable ? () => _add(context) : null,
                 ),

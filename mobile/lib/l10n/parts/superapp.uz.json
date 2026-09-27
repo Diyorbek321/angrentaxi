@@ -1,0 +1,475 @@
+{
+  "saTxnCommission": "Platforma komissiyasi",
+  "saTxnWithdrawal": "Pul yechish",
+  "saTxnReferralBonus": "Referal bonus",
+  "saTxnBonus": "Bonus",
+  "saTxnTripEarning": "Safar daromadi",
+  "saTxnTripPayment": "Safar to'lovi",
+  "saTxnTopUp": "Hisob to'ldirildi",
+  "saTxnDebit": "Yechim",
+  "saNoStoreYet": "Hozircha do'kon yo'q",
+  "saLostItemFoundTitle": "Buyum topildi",
+  "saLostItemWhereHint": "Qayerda turibdi? (ixtiyoriy)",
+  "saCancel": "Bekor qilish",
+  "saSend": "Yuborish",
+  "saLostItemsTitle": "Yo'qolgan buyumlar",
+  "saLostItemsEmptyTitle": "Xabarlar yo'q",
+  "saLostItemsEmptyDriver": "Yo'lovchi safaringizda buyum qoldirsa, shu yerda ko'rasiz.",
+  "saLostItemsEmptyPassenger": "Safarda biror narsa qoldirsangiz, chek sahifasidan xabar bering.",
+  "saLostItemDriverNote": "Haydovchi: {note}",
+  "@saLostItemDriverNote": {
+    "placeholders": {
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "saLostItemOperatorNote": "Operator: {note}",
+  "@saLostItemOperatorNote": {
+    "placeholders": {
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "saLostItemNotFound": "Topmadim",
+  "saLostItemFound": "Topdim",
+  "saPaymentTitle": "To'lov — {provider}",
+  "@saPaymentTitle": {
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "saClose": "Yopish",
+  "saPaymentIPaid": "To'ladim",
+  "saPaymentPageLoadFailed": "To'lov sahifasini yuklab bo'lmadi: {message}",
+  "@saPaymentPageLoadFailed": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "saOrderAccepted": "Buyurtma qabul qilindi",
+  "saOrderNumber": "Buyurtma raqami: {number}",
+  "@saOrderNumber": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "saOrderPaidOnlineHint": "To'lov qabul qilindi. Holatni «Buyurtmalar» bo'limida kuzating.",
+  "saOrderPayOnDeliveryHint": "Yetkazib berishda to'laysiz. Holatni «Buyurtmalar» bo'limida kuzating.",
+  "saViewOrders": "Buyurtmalarni koʻrish",
+  "saBackToHome": "Bosh sahifaga",
+  "saCargoCourier": "Kuryer",
+  "saCargoLight": "Yengil",
+  "saCargoTruck": "Yuk",
+  "saCargoUpTo5kg": "5 kg gacha",
+  "saCargoUpTo300kg": "300 kg gacha",
+  "saCargoUpTo1t": "1 t gacha",
+  "saCargoTitle": "Cargo · Yuk yetkazish",
+  "saCargoSubtitle": "Shahar ichida tez yetkazib berish",
+  "saCargoVehicleType": "Transport turi",
+  "saCargoAddressHint": "Manzillarni keyingi qadamda xaritadan tanlaysiz — aniq narx masofaga qarab o'sha yerda hisoblanadi.",
+  "saCargoCallCourier": "Kuryer chaqirish",
+  "saSettingsPushSyncFailed": "Sozlama saqlandi, lekin serverga yuborilmadi",
+  "saSettingsTitle": "Sozlamalar",
+  "saSettingsSectionGeneral": "UMUMIY",
+  "saSettingsPush": "Push bildirishnomalar",
+  "saSettingsSectionHelp": "YORDAM",
+  "saHelpCenter": "Yordam markazi",
+  "saSettingsVersion": "Angren Go · versiya {version}",
+  "@saSettingsVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "saBack": "Orqaga",
+  "saProductStoreUnit": "Do'kon · {unit}",
+  "@saProductStoreUnit": {
+    "placeholders": {
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "saProductDescription": "Yangi va sifatli mahsulot, yaqin do'kondan tez yetkazib beriladi.",
+  "saProductDeliveryLabel": "YETKAZISH",
+  "saProductDeliveryValue": "15–25 daq",
+  "saProductRatingLabel": "REYTING",
+  "saProductStockLabel": "OMBOR",
+  "saProductInStock": "Mavjud",
+  "saProductOutOfStock": "Tugagan",
+  "saCartBarLabel": "Savatga buyurtma",
+  "saAddToCartWithPrice": "Savatga · {price}",
+  "@saAddToCartWithPrice": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "saCallFailedDialManually": "Qo'ng'iroq qilib bo'lmadi — {phone} raqamiga o'zingiz qo'ng'iroq qiling",
+  "@saCallFailedDialManually": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "saTopUpTitle": "Hisobni to'ldirish",
+  "saTopUpAmountLabel": "To'ldirish summasi",
+  "saSom": "so'm",
+  "saTopUpOnlineUnavailable": "Onlayn to'ldirish hali ishga tushmagan",
+  "saTopUpViaOperatorHint": "Hozircha hamyonni operator orqali to'ldirasiz: 1056 raqamiga qo'ng'iroq qiling yoki chatda yozing. Safarlarni naqd pul bilan ham to'lash mumkin.",
+  "saContactOperator": "Operator bilan bog'lanish",
+  "saNotificationsTitle": "Bildirishnomalar",
+  "saNotificationsMarkAllRead": "Barchasini o'qilgan deb belgilash",
+  "saNotificationsReadAction": "O'qildi",
+  "saErrorOccurred": "Xatolik yuz berdi",
+  "saNotificationsEmpty": "Hozircha bildirishnomalar yo'q",
+  "saNotificationUnreadLabel": "O'qilmagan: {title}",
+  "@saNotificationUnreadLabel": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "saFoodNoRestaurantsTitle": "Restoran topilmadi",
+  "saFoodNoRestaurantsMessage": "Hozircha ochiq restoran yo'q. Birozdan keyin qayta urinib ko'ring.",
+  "saRefresh": "Yangilash",
+  "saGoToCart": "Savatga o'tish",
+  "saFoodTitle": "Ovqat yetkazish",
+  "saFoodSubtitle": "Angren · 20–40 daqiqa",
+  "saCartWithCount": "Savat, {count} ta mahsulot",
+  "@saCartWithCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "saCart": "Savat",
+  "saOpen": "Ochiq",
+  "saClosed": "Yopiq",
+  "saPromoCodeCopied": "Kod nusxalandi",
+  "saPromosTitle": "Aksiyalar va promokodlar",
+  "saPromosEmpty": "Hozircha faol promokodlar yo'q",
+  "saPromoActive": "FAOL",
+  "saPromoCopyLabel": "Promokodni nusxalash: {code}",
+  "@saPromoCopyLabel": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "saPromoMinOrder": "Min. buyurtma: {amount}",
+  "@saPromoMinOrder": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "saPromoUntil": "{date}gacha",
+  "@saPromoUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "saRestaurantNotFound": "Restoran topilmadi",
+  "saMenu": "Menyu",
+  "saMenuEmptyTitle": "Menyu bo'sh",
+  "saMenuEmptyMessage": "Bu restoran hozircha taom qo'shmagan.",
+  "saAddItemToCartLabel": "{name} — savatga qo'shish",
+  "@saAddItemToCartLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "saSearchHint": "taom, doʻkon, mahsulot…",
+  "saSearchClear": "Qidiruvni tozalash",
+  "saSearchEmptyTitle": "Hech narsa topilmadi",
+  "saSearchEmptyMessage": "Boshqa nom bilan qidirib ko'ring.",
+  "saSearchSectionRestaurants": "RESTORANLAR",
+  "saSearchSectionProducts": "MAHSULOTLAR",
+  "saSearchMarketUnit": "Market · {unit}",
+  "@saSearchMarketUnit": {
+    "placeholders": {
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "saTabHome": "Asosiy",
+  "saTabOrders": "Buyurtma",
+  "saTabProfile": "Profil",
+  "saBadgeCount": "{count} ta",
+  "@saBadgeCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "saFaqCancelQ": "Buyurtmani qanday bekor qilaman?",
+  "saFaqCancelA": "Faol buyurtma ekranida \"Bekor qilish\" tugmasini bosing va sababni tanlang. Haydovchi yetib kelgunga qadar bekor qilish bepul.",
+  "saFaqPaymentQ": "To'lov o'tmadi, nima qilaman?",
+  "saFaqPaymentA": "Hamyon balansingizni tekshiring. Balans yetmasa safar qarz sifatida qayd etiladi va uni to'lamaguningizcha yangi buyurtma bera olmaysiz. Naqd to'lovni tanlab ham davom etishingiz mumkin.",
+  "saFaqLostItemQ": "Mashinada narsa qoldirdim",
+  "saFaqLostItemA": "Buyurtmalar tarixidan safarni oching va haydovchiga qo'ng'iroq qiling. Javob bo'lmasa, operator bilan chatga yozing — biz haydovchi bilan bog'lanamiz.",
+  "saFaqComplaintQ": "Haydovchi ustidan shikoyat",
+  "saFaqComplaintA": "Safar tugagach baho qo'yish ekranida izoh qoldiring yoki operator bilan chatga safar raqamini yuboring. Har bir shikoyat ko'rib chiqiladi.",
+  "saSupportOperatorChat": "Operator bilan chat",
+  "saSupportOperatorChatSub": "Savolingizni yozing — operator javob beradi",
+  "saSupportCall": "Qo'ng'iroq",
+  "saSupportCallSub": "{phone} · bepul",
+  "@saSupportCallSub": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "saCallFailed": "Qo'ng'iroq qilib bo'lmadi",
+  "saTelegramOpenFailed": "Telegramni ochib bo'lmadi",
+  "saFaqTitle": "Tez-tez beriladigan savollar",
+  "saDefaultUserName": "Foydalanuvchi",
+  "saEditProfile": "Profilni tahrirlash",
+  "saProfileTrips": "Safarlar",
+  "saProfileRating": "Reyting",
+  "saProfileHelpBannerLabel": "Yordam kerakmi? 24/7 qo'llab-quvvatlash xizmati",
+  "saProfileNeedHelp": "Yordam kerakmi?",
+  "saProfileSupport247": "24/7 qo'llab-quvvatlash xizmati",
+  "saWalletAndCards": "Hamyon va kartalar",
+  "saOrderHistory": "Buyurtmalar tarixi",
+  "saSavedAddresses": "Saqlangan manzillar",
+  "saInviteFriends": "Do'stlarni taklif qilish",
+  "saLogout": "Chiqish",
+  "saMarket": "Market",
+  "saMarketSubtitle": "15–25 daqiqa · Yaqin do'kon",
+  "saMarketSearchHint": "Mahsulot qidirish…",
+  "saMarketNoProductsTitle": "Mahsulot topilmadi",
+  "saMarketNoProductsMessage": "Bu do'konda hozircha mahsulot yo'q.",
+  "saMarketProducts": "Mahsulotlar",
+  "saPickup": "Olib ketish",
+  "saDestination": "Manzil",
+  "saCallDriver": "Haydovchiga qo'ng'iroq qilish",
+  "saOrderNumberLabel": "Buyurtma raqami",
+  "saDistance": "Masofa",
+  "saDuration": "Davomiyligi",
+  "saCompletedAt": "Yakunlandi",
+  "saTotal": "Jami",
+  "saViewReceipt": "Chekni ko'rish",
+  "saOpenTripReceipt": "Safar chekini ochish",
+  "saCartEmptyTitle": "Savat bo'sh",
+  "saCartEmptyMessage": "Ovqat yoki market mahsulotlarini qo'shing va bu yerda ko'rinadi.",
+  "saGoToHome": "Bosh sahifaga o'tish",
+  "saDelivery": "Yetkazib berish",
+  "saCartNoExtraFees": "Rasmiylashtirishda qo'shimcha haq qo'shilmaydi.",
+  "saCheckoutWithTotal": "Rasmiylashtirish · {total}",
+  "@saCheckoutWithTotal": {
+    "placeholders": {
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "saCheckoutWithTotalLabel": "Rasmiylashtirish, jami {total}",
+  "@saCheckoutWithTotalLabel": {
+    "placeholders": {
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "saQtyDecrease": "Miqdorni kamaytirish",
+  "saQtyIncrease": "Miqdorni oshirish",
+  "saAddressResolving": "Manzil aniqlanmoqda…",
+  "saChooseAddress": "Manzilni tanlang",
+  "saCurrentLocation": "Joriy joylashuv",
+  "saChoosePaymentMethod": "To'lov usulini tanlang",
+  "saPaymentCash": "Naqd pul",
+  "saPaymentCard": "Karta (Payme / Click)",
+  "saDeliveryAddress": "Yetkazib berish manzili",
+  "saChooseDeliveryAddress": "Yetkazib berish manzilini tanlang",
+  "saOrderNotSent": "Buyurtma yuborilmadi",
+  "saPaymentNotCompleted": "To'lov yakunlanmadi — buyurtma qabul qilindi, to'lovni keyinroq amalga oshirishingiz mumkin",
+  "saPaymentStartFailed": "To'lovni boshlab bo'lmadi: {message}",
+  "@saPaymentStartFailed": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "saCheckoutTitle": "Rasmiylashtirish",
+  "saPaymentMethod": "To'lov usuli",
+  "saSubmitting": "Yuborilmoqda...",
+  "saConfirmOrder": "Buyurtmani tasdiqlash",
+  "saWalletTitle": "Hamyon",
+  "saWalletCards": "Kartalar",
+  "saWalletRecentActivity": "So'nggi amallar",
+  "saWalletOneWalletNote": "Taksi, yuk, ovqat va market — bitta hamyon, bitta daftar.",
+  "saWalletBalanceNotLoaded": "Hamyon balansi hali yuklanmadi",
+  "saWalletBalanceLabel": "Hamyon balansi {amount} so'm",
+  "@saWalletBalanceLabel": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "saWalletBalanceTitle": "Angren Go balans",
+  "saWalletAllServices": "Barcha xizmatlar",
+  "saWalletTopUp": "To'ldirish",
+  "saWalletTransfer": "O'tkazish",
+  "saWalletCardsUnavailableTitle": "Karta bog'lash hali mavjud emas",
+  "saWalletCardsUnavailableMessage": "Hozircha safarlarni naqd pul yoki hamyon balansi bilan to'lang.",
+  "saWalletNoTxnsTitle": "Hozircha amallar yo'q",
+  "saWalletNoTxnsMessage": "Birinchi safar yoki to'ldirishdan keyin bu yerda ko'rinadi.",
+  "saTxnPending": "{when} · kutilmoqda",
+  "@saTxnPending": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "saTxnCredit": "kirim",
+  "saTxnDebitWord": "chiqim",
+  "saTxnSemantics": "{title}, {amount} so'm {direction}, {subtitle}",
+  "@saTxnSemantics": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "direction": {
+        "type": "String"
+      },
+      "subtitle": {
+        "type": "String"
+      }
+    }
+  },
+  "saSearchingDriver": "Haydovchi qidirilmoqda",
+  "saStageSearching": "Qidirilmoqda",
+  "saStageDriverEnRoute": "Haydovchi yo'lda",
+  "saStageInTrip": "Safarda",
+  "saDishesCount": "{count} ta taom",
+  "@saDishesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "saStageAccepted": "Qabul qilindi",
+  "saStagePreparing": "Tayyorlanmoqda",
+  "saStageOnTheWay": "Yo'lda",
+  "saStageDelivered": "Yetkazildi",
+  "saProductsCount": "{count} ta mahsulot",
+  "@saProductsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "saStagePacking": "Yig'ilmoqda",
+  "saOrdersTitle": "Buyurtmalar",
+  "saOrdersActive": "Faol",
+  "saOrdersHistory": "Tarix",
+  "saOrdersNoActiveTitle": "Faol buyurtma yo'q",
+  "saOrdersNoActiveMessage": "Taksi chaqiring yoki ovqat buyurtma qiling — jonli buyurtma shu yerda kuzatiladi.",
+  "saOrdersNoHistoryTitle": "Buyurtmalar tarixi yo'q",
+  "saOrdersNoHistoryMessage": "Yakunlangan buyurtmalar shu yerda saqlanadi.",
+  "saSegChipLabel": "{label}, {count} ta",
+  "@saSegChipLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "saSegChipLabelSelected": "{label}, {count} ta, tanlangan",
+  "@saSegChipLabelSelected": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "saStageProgress": "{total} bosqichdan {step}: {stage}",
+  "@saStageProgress": {
+    "placeholders": {
+      "total": {
+        "type": "int"
+      },
+      "step": {
+        "type": "int"
+      },
+      "stage": {
+        "type": "String"
+      }
+    }
+  },
+  "saLoading": "Yuklanmoqda",
+  "saCartBarSemantics": "Savat: {count} ta mahsulot, {total}. {action}",
+  "@saCartBarSemantics": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "total": {
+        "type": "String"
+      },
+      "action": {
+        "type": "String"
+      }
+    }
+  },
+  "saCurrentAddress": "Joriy manzil",
+  "saAngrenCity": "Angren shahri",
+  "saPopularRestaurants": "Mashhur restoranlar",
+  "saSeeAll": "Barchasi",
+  "saSearch": "Qidiruv",
+  "saTaxiWhereToLabel": "Taksi. Qayerga borasiz?",
+  "saWhereTo": "Qayerga borasiz?",
+  "saActiveOrderLabel": "Faol buyurtma: {service}. {title}. {stage}",
+  "@saActiveOrderLabel": {
+    "placeholders": {
+      "service": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      },
+      "stage": {
+        "type": "String"
+      }
+    }
+  },
+  "saRestaurantsNotFound": "Restoranlar topilmadi"
+}

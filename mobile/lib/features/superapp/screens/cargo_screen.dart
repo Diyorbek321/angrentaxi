@@ -1,5 +1,6 @@
 import 'package:angren_taxi/features/passenger/order_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -13,11 +14,23 @@ class CargoScreen extends StatefulWidget {
 class _CargoScreenState extends State<CargoScreen> {
   int _selected = 0;
 
+  // $2 is the wire value sent as `cargoDetails.vehicle` — never localize it.
+  // What the user sees comes from [_typeLabels].
   static const _types = [
-    (Icons.sports_motorsports_rounded, 'Kuryer', '5 kg gacha'),
-    (Icons.airport_shuttle_rounded, 'Yengil', '300 kg gacha'),
-    (Icons.local_shipping_rounded, 'Yuk', '1 t gacha'),
+    (Icons.sports_motorsports_rounded, 'Kuryer'),
+    (Icons.airport_shuttle_rounded, 'Yengil'),
+    (Icons.local_shipping_rounded, 'Yuk'),
   ];
+
+  /// Display title and capacity caption for `_types[i]`.
+  static (String, String) _typeLabels(BuildContext context, int i) {
+    final l10n = context.l10n;
+    return switch (i) {
+      0 => (l10n.saCargoCourier, l10n.saCargoUpTo5kg),
+      1 => (l10n.saCargoLight, l10n.saCargoUpTo300kg),
+      _ => (l10n.saCargoTruck, l10n.saCargoUpTo1t),
+    };
+  }
 
   void _callCourier() {
     // Cargo is backend-supported — hand off to the shared booking flow, which
@@ -36,8 +49,8 @@ class _CargoScreenState extends State<CargoScreen> {
       body: Column(
         children: [
           AgHeader(
-            title: 'Cargo · Yuk yetkazish',
-            subtitle: 'Shahar ichida tez yetkazib berish',
+            title: context.l10n.saCargoTitle,
+            subtitle: context.l10n.saCargoSubtitle,
             onBack: () => Navigator.of(context).pop(),
           ),
           Expanded(
@@ -45,10 +58,10 @@ class _CargoScreenState extends State<CargoScreen> {
               padding: const EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, kSpace6),
               children: [
 
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 2),
-                  child: Text('Transport turi',
-                      style: TextStyle(
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: Text(context.l10n.saCargoVehicleType,
+                      style: const TextStyle(
                           fontSize: kFontTitle, fontWeight: FontWeight.w800, color: agText)),
                 ),
                 const SizedBox(height: kSpace3),
@@ -65,8 +78,8 @@ class _CargoScreenState extends State<CargoScreen> {
                             behavior: HitTestBehavior.opaque,
                             child: _TypeCard(
                               icon: _types[i].$1,
-                              title: _types[i].$2,
-                              sub: _types[i].$3,
+                              title: _typeLabels(context, i).$1,
+                              sub: _typeLabels(context, i).$2,
                               active: _selected == i,
                             ),
                           ),
@@ -83,18 +96,17 @@ class _CargoScreenState extends State<CargoScreen> {
                     borderRadius: BorderRadius.circular(kRadiusLg),
                     boxShadow: agCardShadow,
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
-                      ExcludeSemantics(
+                      const ExcludeSemantics(
                         child: Icon(Icons.info_outline_rounded,
                             size: 22, color: agSubtle),
                       ),
-                      SizedBox(width: kSpace3),
+                      const SizedBox(width: kSpace3),
                       Expanded(
                         child: Text(
-                          'Manzillarni keyingi qadamda xaritadan tanlaysiz — '
-                          'aniq narx masofaga qarab o\'sha yerda hisoblanadi.',
-                          style: TextStyle(
+                          context.l10n.saCargoAddressHint,
+                          style: const TextStyle(
                             fontSize: kFontCaption,
                             color: agSubtle,
                             fontWeight: FontWeight.w600,
@@ -111,7 +123,7 @@ class _CargoScreenState extends State<CargoScreen> {
           Padding(
             padding: EdgeInsets.fromLTRB(
                 kSpace4, 0, kSpace4, MediaQuery.of(context).padding.bottom + kSpace4),
-            child: AgPrimaryButton(label: 'Kuryer chaqirish', onPressed: _callCourier),
+            child: AgPrimaryButton(label: context.l10n.saCargoCallCourier, onPressed: _callCourier),
           ),
         ],
       ),

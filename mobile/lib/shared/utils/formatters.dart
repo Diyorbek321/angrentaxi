@@ -1,3 +1,4 @@
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:intl/intl.dart';
 
 class Formatters {
@@ -18,7 +19,7 @@ class Formatters {
   /// Angren Go style amount: "18 000 so'm" (space grouping, so'm suffix).
   static String formatSom(double amount) {
     final formatted = _priceFormat.format(amount.toInt()).replaceAll(',', ' ');
-    return "$formatted so'm";
+    return AppL10n.current.fmtCurrencySom(formatted);
   }
 
   /// Just the grouped number without a currency suffix: "124 500".
@@ -28,24 +29,24 @@ class Formatters {
 
   static String formatPriceCompact(double amount) {
     if (amount >= 1000000) {
-      return '${(amount / 1000000).toStringAsFixed(1)} mln UZS';
+      return AppL10n.current.fmtMillionUzs((amount / 1000000).toStringAsFixed(1));
     }
     if (amount >= 1000) {
-      return '${(amount / 1000).toStringAsFixed(0)} ming UZS';
+      return AppL10n.current.fmtThousandUzs((amount / 1000).toStringAsFixed(0));
     }
     return '${amount.toInt()} UZS';
   }
 
   static String formatDate(DateTime date) {
-    return DateFormat('dd.MM.yyyy', 'uz').format(date);
+    return DateFormat('dd.MM.yyyy', AppL10n.localeName).format(date);
   }
 
   static String formatDateTime(DateTime date) {
-    return DateFormat('dd.MM.yyyy HH:mm', 'uz').format(date);
+    return DateFormat('dd.MM.yyyy HH:mm', AppL10n.localeName).format(date);
   }
 
   static String formatTime(DateTime date) {
-    return DateFormat('HH:mm', 'uz').format(date);
+    return DateFormat('HH:mm', AppL10n.localeName).format(date);
   }
 
   static String formatRelativeDate(DateTime date) {
@@ -53,11 +54,11 @@ class Formatters {
     final diff = now.difference(date);
 
     if (diff.inDays == 0) {
-      return "Bugun, ${formatTime(date)}";
+      return AppL10n.current.fmtTodayAt(formatTime(date));
     } else if (diff.inDays == 1) {
-      return "Kecha, ${formatTime(date)}";
+      return AppL10n.current.fmtYesterdayAt(formatTime(date));
     } else if (diff.inDays < 7) {
-      return '${diff.inDays} kun oldin';
+      return AppL10n.current.fmtDaysAgo(diff.inDays);
     } else {
       return formatDate(date);
     }
@@ -72,25 +73,23 @@ class Formatters {
     final diff = now.difference(date);
 
     if (diff.inMinutes < 1) {
-      return 'Hozirgina';
+      return AppL10n.current.fmtJustNow;
     } else if (diff.inMinutes < 60) {
-      return '${diff.inMinutes} daqiqa oldin';
+      return AppL10n.current.fmtMinutesAgo(diff.inMinutes);
     } else if (diff.inHours < 24 && diff.inDays == 0) {
-      return '${diff.inHours} soat oldin';
+      return AppL10n.current.fmtHoursAgo(diff.inHours);
     }
     return formatRelativeDate(date);
   }
 
-  /// O'zbekcha qisqartirilgan oy nomlari — `intl` ning `uz` lokali oy
-  /// nomlarini ruscha/inglizcha aralash qaytaradi, shuning uchun qo'lda.
-  static const List<String> _monthsShort = [
-    'yan', 'fev', 'mar', 'apr', 'may', 'iyn',
-    'iyl', 'avg', 'sen', 'okt', 'noy', 'dek',
-  ];
+  /// Qisqartirilgan oy nomlari — `intl` ning `uz` lokali oy nomlarini
+  /// ruscha/inglizcha aralash qaytaradi, shuning uchun tarjima faylidan.
+  static List<String> get _monthsShort => AppL10n.current.fmtMonthsShort.split(',');
 
-  /// Qisqa sana: "22-avg".
-  static String formatShortDate(DateTime when) =>
-      '${when.day}-${_monthsShort[when.month - 1]}';
+  /// Qisqa sana: "22-avg" (ruschada "22 авг").
+  static String formatShortDate(DateTime when) => AppL10n.localeName == 'ru'
+      ? '${when.day} ${_monthsShort[when.month - 1]}'
+      : '${when.day}-${_monthsShort[when.month - 1]}';
 
   /// Kun yorlig'i: "Bugun" / "Ertaga" / "22-avg".
   ///
@@ -104,8 +103,8 @@ class Formatters {
     final thisDay = DateTime(today.year, today.month, today.day);
     final dayDiff = thatDay.difference(thisDay).inDays;
 
-    if (dayDiff == 0) return 'Bugun';
-    if (dayDiff == 1) return 'Ertaga';
+    if (dayDiff == 0) return AppL10n.current.fmtToday;
+    if (dayDiff == 1) return AppL10n.current.fmtTomorrow;
     return formatShortDate(when);
   }
 
@@ -122,12 +121,13 @@ class Formatters {
   }
 
   static String formatDuration(int minutes) {
+    final l = AppL10n.current;
     if (minutes < 60) {
-      return '$minutes daqiqa';
+      return l.fmtMinutes(minutes);
     }
     final hours = minutes ~/ 60;
     final mins = minutes % 60;
-    return mins == 0 ? '$hours soat' : '$hours soat $mins daqiqa';
+    return mins == 0 ? l.fmtHours(hours) : l.fmtHoursMinutes(hours, mins);
   }
 
   static String formatRating(double rating) {

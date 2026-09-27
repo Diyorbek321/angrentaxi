@@ -1,0 +1,17 @@
+{
+  "fmtCurrencySom": "{amount} сум",
+  "fmtMillionUzs": "{value} млн UZS",
+  "fmtThousandUzs": "{value} тыс. UZS",
+  "fmtToday": "Сегодня",
+  "fmtTomorrow": "Завтра",
+  "fmtTodayAt": "Сегодня, {time}",
+  "fmtYesterdayAt": "Вчера, {time}",
+  "fmtDaysAgo": "{days} дн. назад",
+  "fmtJustNow": "Только что",
+  "fmtMinutesAgo": "{minutes} мин. назад",
+  "fmtHoursAgo": "{hours} ч. назад",
+  "fmtMinutes": "{minutes} мин",
+  "fmtHours": "{hours} ч",
+  "fmtHoursMinutes": "{hours} ч {minutes} мин",
+  "fmtMonthsShort": "янв,фев,мар,апр,мая,июн,июл,авг,сен,окт,ноя,дек"
+}

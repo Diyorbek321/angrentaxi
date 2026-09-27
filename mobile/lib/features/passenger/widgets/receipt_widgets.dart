@@ -1,4 +1,5 @@
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order_receipt.dart';
 import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
 import 'package:angren_taxi/shared/widgets/app_status_badge.dart';
@@ -252,7 +253,7 @@ class ReceiptSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppSkeletonGroup(
-      label: 'Chek yuklanmoqda',
+      label: context.l10n.paxReceiptLoading,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, kSpace8),
         children: [

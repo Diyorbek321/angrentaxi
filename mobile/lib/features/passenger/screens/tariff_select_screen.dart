@@ -8,7 +8,9 @@ import 'package:angren_taxi/features/passenger/map_camera_insets.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
 import 'package:angren_taxi/features/passenger/widgets/coverage_notice.dart';
 import 'package:angren_taxi/features/passenger/widgets/schedule_ride_sheet.dart';
+import 'package:angren_taxi/features/passenger/widgets/trip_options_sheet.dart';
 import 'package:angren_taxi/features/payments/screens/payment_webview_screen.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/payment_initiate_result.dart';
 import 'package:angren_taxi/shared/models/tariff.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
@@ -75,6 +77,7 @@ const double _kTariffLineFactor = 1.5;
 const String _kOptionCash = 'cash';
 const String _kOptionCard = 'card';
 const String _kOptionSchedule = 'schedule';
+const String _kOptionExtras = 'extras';
 
 /// Tarif → mashina rasmi. Kalit so'zlar ro'yxati, `switch` EMAS.
 ///
@@ -286,7 +289,7 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
     // hali boshlanmagan ham — foydalanuvchiga keraksiz xato ko'rsatilardi.
     if (wasScheduled) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Safar rejalashtirildi')),
+        SnackBar(content: Text(context.l10n.paxTripScheduled)),
       );
       Navigator.of(context).pushNamedAndRemoveUntil(
         '/passenger/scheduled',
@@ -324,8 +327,7 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              "To'lovni hozir boshlab bo'lmadi: ${e.message}. "
-              "Buyurtma qabul qilindi, safar oxirida to'lov amalga oshiriladi.",
+              context.l10n.paxCardPaymentStartFailed(e.message),
             ),
           ),
         );
@@ -368,7 +370,7 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
                     alignment: Alignment.topLeft,
                     child: AgMapFab(
                       icon: Icons.arrow_back_rounded,
-                      semanticsLabel: 'Orqaga',
+                      semanticsLabel: context.l10n.paxBack,
                       onTap: () => Navigator.of(context).pop(),
                     ),
                   ),
@@ -415,8 +417,9 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               AgRoutePanel(
-                from: provider.pendingPickup?.address ?? 'Joylashuv',
-                to: provider.pendingDropoff?.address ?? 'Manzil',
+                from: provider.pendingPickup?.address ?? context.l10n.paxLocation,
+                to: provider.pendingDropoff?.address ??
+                    context.l10n.paxDestination,
                 // Masofa allaqachon hisoblangan (`_loadRoute` → OSRM, yoki
                 // Haversine zaxirasi) — panel uni ko'rsatadi, qayta
                 // hisoblamaydi.
@@ -709,8 +712,8 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
                           children: [
                             Text(
                               provider.isScheduledBooking
-                                  ? 'Rejalashtirish'
-                                  : 'Buyurtma',
+                                  ? context.l10n.paxScheduleCta
+                                  : context.l10n.paxOrderCta,
                               maxLines: 1,
                               style: const TextStyle(
                                 fontSize: kFontH3,
@@ -778,7 +781,7 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
     required double? price,
   }) {
     if (provider.tariffs.isEmpty) {
-      return const AgSurfaceCard(
+      return AgSurfaceCard(
         // Bo'sh holat o'z ichki bo'shlig'ini o'zi beradi — karta padding'i
         // ustiga qo'shilsa blok ikki barobar balandlashardi.
         //
@@ -789,7 +792,7 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
         padding: EdgeInsets.zero,
         child: AppEmptyState(
           icon: Icons.local_taxi_outlined,
-          title: 'Tariflar mavjud emas',
+          title: context.l10n.paxNoTariffs,
           compact: true,
         ),
       );
@@ -837,7 +840,9 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
                     // tarifga xos haqiqiy ma'lumot: talab yuqori bo'lsa
                     // ogohlantirish, aks holda sig'im.
                     etaLabel:
-                        surging ? 'Talab yuqori' : "${t.maxPassengers} o'rin",
+                        surging
+                            ? context.l10n.paxHighDemand
+                            : context.l10n.paxSeats(t.maxPassengers),
                     assetPath: tariffArtAsset(t),
                     imageBuilder: _buildTariffArt,
                     selected: isSel,
@@ -947,8 +952,7 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
           const SizedBox(width: kSpace3),
           Expanded(
             child: Text(
-              'Hozir talab yuqori — narx ${multiplier.toStringAsFixed(1)}x. '
-              'Bir necha daqiqadan keyin arzonlashishi mumkin.',
+              context.l10n.paxSurgeNotice(multiplier.toStringAsFixed(1)),
               style: const TextStyle(
                 fontSize: kFontLabel,
                 fontWeight: FontWeight.w600,
@@ -988,10 +992,10 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
           const SizedBox(width: kSpace2),
           Expanded(
             child: Text(
-              'Haydovchi kelgach ${tariff.freeWaitMinutes} daqiqa kutish '
-              'bepul, keyin har boshlangan daqiqa uchun '
-              '${Formatters.formatSom(tariff.waitingPricePerMinute)}. '
-              "Bu haq ko'rsatilgan narxdan alohida qo'shiladi.",
+              context.l10n.paxTariffWaitingNote(
+                tariff.freeWaitMinutes,
+                Formatters.formatSom(tariff.waitingPricePerMinute),
+              ),
               style: const TextStyle(
                 fontSize: kFontCaption,
                 fontWeight: FontWeight.w600,
@@ -1014,7 +1018,7 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
   Widget _buildOptionsRow(OrderProvider provider) {
     final scheduledAt = provider.scheduledAt;
     final scheduleLabel = scheduledAt == null
-        ? 'Hozir'
+        ? context.l10n.paxNow
         : Formatters.formatScheduleLabel(scheduledAt);
 
     return AgSurfaceCard(
@@ -1028,13 +1032,13 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
         items: [
           AgOptionChipItem(
             id: _kOptionCash,
-            label: 'Naqd',
+            label: context.l10n.paxPaymentCash,
             icon: Icons.payments_rounded,
             active: _paymentMethod == _kOptionCash,
           ),
           AgOptionChipItem(
             id: _kOptionCard,
-            label: 'Karta',
+            label: context.l10n.paxPaymentCard,
             icon: Icons.credit_card_rounded,
             active: _paymentMethod == _kOptionCard,
           ),
@@ -1044,7 +1048,20 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
             icon: Icons.schedule_rounded,
             active: provider.isScheduledBooking,
             // "14:30" yolg'iz o'zi nimani anglatishini aytmaydi.
-            semanticsLabel: 'Safar vaqti: $scheduleLabel',
+            semanticsLabel: context.l10n.paxTripTimeSemantics(scheduleLabel),
+          ),
+          AgOptionChipItem(
+            id: _kOptionExtras,
+            label: provider.tripOptions.isEmpty
+                ? context.l10n.paxExtras
+                : context.l10n.paxExtrasCount(provider.tripOptions.length),
+            icon: Icons.tune_rounded,
+            active: provider.tripOptions.isNotEmpty,
+            semanticsLabel: provider.tripOptions.isEmpty
+                ? context.l10n.paxExtrasNoneSemantics
+                : context.l10n.paxExtrasListSemantics(
+                    provider.tripOptions.map((o) => o.label).join(', '),
+                  ),
           ),
         ],
         onTap: (id) => _onOptionTap(id, provider),
@@ -1062,7 +1079,18 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
         setState(() => _paymentMethod = id);
       case _kOptionSchedule:
         _pickScheduleTime(provider);
+      case _kOptionExtras:
+        _pickTripOptions(provider);
     }
+  }
+
+  Future<void> _pickTripOptions(OrderProvider provider) async {
+    final picked = await TripOptionsSheet.show(
+      context,
+      initial: provider.tripOptions,
+    );
+    if (!mounted || picked == null) return;
+    provider.setTripOptions(picked);
   }
 
   Future<void> _pickScheduleTime(OrderProvider provider) async {
@@ -1097,18 +1125,16 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
         color: kInfoLight,
         borderRadius: BorderRadius.circular(kRadiusMd),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          ExcludeSemantics(
+          const ExcludeSemantics(
             child: Icon(Icons.lock_clock_rounded, color: kInfoDeep, size: 20),
           ),
-          SizedBox(width: kSpace3),
+          const SizedBox(width: kSpace3),
           Expanded(
             child: Text(
-              "Narx hozir qotiriladi va safar kunida o'zgarmaydi — "
-              'kutish haqi bundan tashqari. Haydovchi belgilangan vaqtdan '
-              '10 daqiqa oldin qidiriladi.',
-              style: TextStyle(
+              context.l10n.paxScheduledPriceNote,
+              style: const TextStyle(
                 fontSize: kFontLabel,
                 fontWeight: FontWeight.w600,
                 color: kInfoDeep,
@@ -1196,18 +1222,18 @@ class _RouteLoadingPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(kRadiusFull),
         boxShadow: kShadowPop,
       ),
-      child: const Row(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
+          const SizedBox(
             width: 14,
             height: 14,
             child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary),
           ),
-          SizedBox(width: kSpace2),
+          const SizedBox(width: kSpace2),
           Text(
-            "Yo'nalish yuklanmoqda...",
-            style: TextStyle(
+            context.l10n.paxRouteLoading,
+            style: const TextStyle(
               fontSize: kFontCaption,
               fontWeight: FontWeight.w600,
               color: kInk,

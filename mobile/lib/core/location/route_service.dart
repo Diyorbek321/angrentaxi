@@ -1,6 +1,6 @@
-import 'package:angren_taxi/core/config/app_config.dart';
+import 'package:angren_taxi/core/network/api_client.dart';
+import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/shared/models/route_step.dart';
-import 'package:dio/dio.dart';
 import 'package:latlong2/latlong.dart';
 
 class RouteResult {
@@ -23,38 +23,27 @@ class RouteResult {
   final List<RouteStep> steps;
 }
 
-/// Fetches real driving-route geometry from OSRM. Used to draw the actual road
-/// route on the map (instead of a straight line between pickup/dropoff) and to
-/// get a real distance/duration for price estimation, matching what the
-/// backend's price calculator expects.
+/// Fetches real driving-route geometry. Used to draw the actual road route on
+/// the map (instead of a straight line between pickup/dropoff) and to get a
+/// real distance/duration for price estimation, matching what the backend's
+/// price calculator expects.
 ///
-/// The endpoint comes from [AppConfig.osrmUrl] so builds can point at the
-/// platform's own OSRM server. It defaults to OSRM's public demo server, which
-/// is rate-limited and has no SLA — fine for a dev build, not for real traffic.
+/// Goes through the backend (`GET /routing/route`), never to OSRM directly.
+/// Ilgari har bir APK ichida OSRM manzili qotib qolardi — amalda ommaviy demo
+/// server, chunki server almashtirish uchun hech kim ilovani qayta build
+/// qilmaydi. Endi OSRM faqat server sozlamasi (`OSRM_URL`), ilova esa
+/// backend javobini OSRM shaklida oladi (`distance`, `duration`,
+/// `geometry`, `legs`), shuning uchun tahlil qiluvchi kod o'zgarmadi.
 class RouteService {
-  RouteService({Dio? dio})
-      : _dio = dio ??
-            Dio(BaseOptions(
-              baseUrl: AppConfig.osrmUrl,
-              connectTimeout: const Duration(seconds: 8),
-              receiveTimeout: const Duration(seconds: 8),
-            ));
+  RouteService(this._api);
 
-  final Dio _dio;
+  final ApiClient _api;
 
   /// Returns null if the route can't be fetched (offline, OSRM down, no
   /// route found) — callers should fall back to a straight line.
   ///
   /// [waypoints], if given, are intermediate stops visited in order between
-  /// [from] and [to] (matching the backend's `Order.waypoints`), threaded
-  /// into OSRM's multi-point `/route/v1/driving/{lon1},{lat1};{lon2},{lat2};...`
-  /// URL syntax.
-  ///
-  /// `steps=true` HAR DOIM so'raladi: OSRM manevr ma'lumotini faqat shu
-  /// bayroq bilan qaytaradi va u javob hajmini sezilarli oshirmaydi
-  /// (bir marshrut uchun o'nlab qadam). Buning evaziga haydovchi
-  /// navigatsiyasi tashqi ilovaga bog'lanmay, ilova ichida pog'onali
-  /// ko'rsatma bera oladi.
+  /// [from] and [to] (matching the backend's `Order.waypoints`).
   Future<RouteResult?> getRoute(
     LatLng from,
     LatLng to, {
@@ -62,24 +51,20 @@ class RouteService {
   }) async {
     try {
       final routePoints = [from, ...waypoints, to];
-      final coordinateString =
+      final coords =
           routePoints.map((p) => '${p.longitude},${p.latitude}').join(';');
-      final response = await _dio.get<Map<String, dynamic>>(
-        '/route/v1/driving/$coordinateString',
-        queryParameters: {
-          'overview': 'full',
-          'geometries': 'geojson',
-          'steps': 'true',
-        },
+      final response = await _api.get(
+        ApiEndpoints.routingRoute,
+        params: {'coords': coords},
       );
 
-      final data = response.data;
-      final routes = data?['routes'] as List<dynamic>?;
-      if (routes == null || routes.isEmpty) return null;
+      final body = response.data;
+      final route = body is Map<String, dynamic> ? body['data'] : null;
+      if (route is! Map<String, dynamic>) return null;
 
-      final route = routes.first as Map<String, dynamic>;
       final geometry = route['geometry'] as Map<String, dynamic>;
       final coordinates = geometry['coordinates'] as List<dynamic>;
+      if (coordinates.isEmpty) return null;
 
       final points = coordinates
           .map((c) => c as List<dynamic>)

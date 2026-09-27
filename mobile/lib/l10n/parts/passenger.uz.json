@@ -1,0 +1,466 @@
+{
+  "paxTripOptionsTitle": "Qo'shimcha talablar",
+  "paxTripOptionsHint": "Faqat shu talablarni bajara oladigan haydovchi qidiriladi — bu biroz ko'proq vaqt olishi mumkin.",
+  "paxDone": "Tayyor",
+  "paxProfileSaved": "Ma'lumotlar saqlandi",
+  "paxEditProfile": "Ma'lumotlarni tahrirlash",
+  "paxFirstName": "Ism",
+  "paxFirstNameHint": "Ismingiz",
+  "paxLastName": "Familiya",
+  "paxLastNameHint": "Familiyangiz",
+  "paxSave": "Saqlash",
+  "paxUnknownAddress": "Noma'lum manzil",
+  "paxAddressResolveFailed": "Manzilni aniqlab bo'lmadi",
+  "paxBack": "Orqaga",
+  "paxResolvingAddress": "Manzil aniqlanmoqda...",
+  "paxPickThisPlace": "Shu joyni tanlash",
+  "paxProfileTitle": "Profil",
+  "paxRatingValue": "{rating} reyting",
+  "@paxRatingValue": {
+    "placeholders": {
+      "rating": {
+        "type": "String"
+      }
+    }
+  },
+  "paxLogout": "Chiqish",
+  "paxTripsStat": "Sayohatlar",
+  "paxPaymentMethods": "To'lov usullari",
+  "paxNotifications": "Bildirishnomalar",
+  "paxLostItems": "Yo'qolgan buyumlar",
+  "paxHelp": "Yordam",
+  "paxAbout": "Dastur haqida",
+  "paxLogoutConfirmTitle": "Chiqishni tasdiqlang",
+  "paxLogoutConfirmBody": "Hisobdan chiqmoqchimisiz?",
+  "paxCancel": "Bekor qilish",
+  "paxCancelScheduleTitle": "Rejani bekor qilish",
+  "paxCancelScheduleBody": "{when} ga rejalashtirilgan safar bekor qilinsinmi?",
+  "@paxCancelScheduleBody": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "paxNo": "Yo'q",
+  "paxScheduleCancelled": "Reja bekor qilindi",
+  "paxCancelFailed": "Bekor qilib bo'lmadi",
+  "paxScheduledTripsTitle": "Rejalashtirilgan safarlar",
+  "paxScheduledEmptyTitle": "Rejalashtirilgan safarlar yo'q",
+  "paxScheduledEmptyBody": "Tarif ekranida vaqtni belgilab, safarni oldindan buyurtma qilishingiz mumkin.",
+  "paxPickupPoint": "Olish nuqtasi",
+  "paxDestination": "Manzil",
+  "paxPriceLocked": "Narx qotirilgan — safar paytida o'zgarmaydi.",
+  "paxHistoryTitle": "Sayohat tarixi",
+  "paxGenericError": "Xatolik yuz berdi",
+  "paxHistoryEmpty": "Sayohat tarixi yo'q",
+  "paxRepeatRide": "Safarni takrorlash",
+  "paxOrderDetails": "Buyurtma tafsilotlari",
+  "paxDetailDate": "Sana",
+  "paxDetailStatus": "Holat",
+  "paxDetailFrom": "Chiqish",
+  "paxDetailDriver": "Haydovchi",
+  "paxDetailCar": "Mashina",
+  "paxDetailPrice": "Narx",
+  "paxDetailDistance": "Masofa",
+  "paxDetailDuration": "Vaqt",
+  "paxScheduleTitle": "Safarni rejalashtirish",
+  "paxScheduleHint": "Haydovchi belgilangan vaqtdan 10 daqiqa oldin qidiriladi. Narx hozir qotiriladi va o'zgarmaydi.",
+  "paxScheduleNoSlots": "Bu kun uchun vaqt qolmadi — keyingi kunni tanlang.",
+  "paxSchedulePickTime": "Vaqtni tanlang",
+  "paxScheduleOrderNow": "Hozir buyurtma qilaman",
+  "paxReceiptLoading": "Chek yuklanmoqda",
+  "paxReferralEnterCode": "Kodni kiriting",
+  "paxReferralApplied": "Referral kodi qo'llandi!",
+  "paxReferralCodeCopied": "Kod nusxalandi",
+  "paxReferralShareMessage": "Angren Taxi'ga taklif qilaman! Ro'yxatdan o'tishda mening kodimni kiriting: {code}",
+  "@paxReferralShareMessage": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "paxReferralShareCopied": "Taklif matni nusxalandi — do'stingizga yuboring",
+  "paxReferralTitle": "Do'stlarni taklif qilish",
+  "paxReferralInvitedCount": "Taklif qilinganlar",
+  "paxReferralTotalBonus": "Jami bonus",
+  "paxReferralEnterFriendCode": "Do'stingizning kodini kiriting",
+  "paxReferralErrAlreadyApplied": "Sizda allaqachon referral kodi qo'llangan",
+  "paxReferralErrOwnCode": "O'zingizning kodingizni qo'llay olmaysiz",
+  "paxReferralErrInvalid": "Bunday referral kod topilmadi",
+  "paxReferralYourCode": "SIZNING REFERRAL KODINGIZ",
+  "paxReferralCardHint": "Do'stingiz ilovaga birinchi safarida ushbu kodni kiritsa, ikkovingiz ham bonus olasiz",
+  "paxReferralCopy": "Nusxalash",
+  "paxReferralShare": "Ulashish",
+  "paxReferralAppliedBanner": "Referral kodi muvaffaqiyatli qo'llandi",
+  "paxReferralApply": "Qo'llash",
+  "paxLostItemDialogTitle": "Nima qoldirdingiz?",
+  "paxLostItemDialogHint": "Masalan: qora hamyon, orqa o'rindiqda",
+  "paxSend": "Yuborish",
+  "paxLostItemSent": "Haydovchiga xabar yuborildi — javobni «Yo'qolgan buyumlar» bo'limida ko'rasiz",
+  "paxReceiptTextCopied": "Chek matni nusxalandi",
+  "paxReceiptTitle": "Safar cheki",
+  "paxReceiptOrderNumber": "Buyurtma № {number}",
+  "@paxReceiptOrderNumber": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "paxReceiptForbiddenTitle": "Bu chek sizga tegishli emas",
+  "paxReceiptForbiddenBody": "Chekni faqat safar yo'lovchisi, tayinlangan haydovchi yoki menejer ko'ra oladi.",
+  "paxReceiptParseError": "Chek ma'lumotlari o'qilmadi",
+  "paxReceiptCopySemantics": "Chek matnini nusxalash",
+  "paxLostItemButton": "Buyum qoldirdim",
+  "paxReceiptOrderNumberLabel": "Buyurtma raqami",
+  "paxReceiptService": "Xizmat",
+  "paxReceiptTariff": "Tarif",
+  "paxReceiptDuration": "Davomiyligi",
+  "paxReceiptPickup": "Olib ketish",
+  "paxReceiptAddressMissing": "Manzil saqlanmagan",
+  "paxReceiptStop": "To'xtash {index}",
+  "@paxReceiptStop": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "paxReceiptDropoff": "Tushish",
+  "paxReceiptFareBreakdown": "Narx tarkibi",
+  "paxReceiptNoBreakdown": "Bu safar uchun narx tarkibi saqlanmagan. Quyida faqat yakuniy hisob ko'rsatilgan.",
+  "paxReceiptWaitingNote": "Kutish haqi belgilangan narxga kirmaydi: bepul daqiqalardan keyin har boshlangan daqiqa alohida qo'shiladi.",
+  "paxReceiptSubtotal": "Jami",
+  "paxReceiptDiscountWithCode": "Chegirma ({code})",
+  "@paxReceiptDiscountWithCode": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "paxReceiptDiscount": "Chegirma",
+  "paxReceiptTip": "Chaqim",
+  "paxReceiptTipHint": "Komissiyasiz — to'liq haydovchiga",
+  "paxReceiptGrandTotal": "Yakuniy",
+  "paxReceiptPayment": "To'lov",
+  "paxReceiptPaymentMethod": "Usul",
+  "paxReceiptPaymentStatus": "Holati",
+  "paxReceiptNoPaymentInfo": "To'lov ma'lumoti saqlanmagan.",
+  "paxReceiptUnpaid": "To'lanmagan qoldiq: {amount}. Hamyonni to'ldiring — qarz yangi buyurtma berishni to'sib qo'yadi.",
+  "@paxReceiptUnpaid": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "paxTipRangeError": "Chaqim {min} dan {max}gacha bo'lishi kerak",
+  "@paxTipRangeError": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "paxRatePleaseRate": "Iltimos, baho bering",
+  "paxRateThanks": "Bahoyingiz uchun rahmat!",
+  "paxRateTipSent": "{amount} chaqim haydovchiga yuborildi. Rahmat!",
+  "@paxRateTipSent": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "paxRateHowWasTrip": "Sayohat qanday kechdi?",
+  "paxRateStarSemantics": "{count} yulduz",
+  "@paxRateStarSemantics": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "paxRateCommentHint": "Haydovchi haqida izoh...",
+  "paxRateCloseWithoutTip": "Chaqimsiz yopish",
+  "paxRateSkip": "O'tkazib yuborish",
+  "paxClose": "Yopish",
+  "paxRatePrimaryNoTipSemantics": "{action}, chaqimsiz",
+  "@paxRatePrimaryNoTipSemantics": {
+    "placeholders": {
+      "action": {
+        "type": "String"
+      }
+    }
+  },
+  "paxRatePrimaryWithTipSemantics": "{action}, {amount} chaqim bilan",
+  "@paxRatePrimaryWithTipSemantics": {
+    "placeholders": {
+      "action": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "paxTipTitle": "Haydovchiga chaqim",
+  "paxTipOptional": "Ixtiyoriy",
+  "paxTipExplainer": "Summa to'liq haydovchiga o'tadi — komissiya ushlanmaydi. Hamyoningizdan yechiladi.",
+  "paxTipOther": "Boshqa",
+  "paxSomSuffix": "so'm",
+  "paxTipAlreadyGiven": "Bu safar uchun chaqim allaqachon berilgan.",
+  "paxRatingVeryBad": "Juda yomon",
+  "paxRatingBad": "Yomon",
+  "paxRatingOk": "Oddiy",
+  "paxRatingGood": "Yaxshi",
+  "paxRatingExcellent": "Ajoyib!",
+  "paxRatingPickStars": "Yulduz tanlang",
+  "paxCoverageWarning": "Bu hududda hozircha xizmat ko'rsatilmaymiz. Eng yaqin xizmat hududi: {area}.",
+  "@paxCoverageWarning": {
+    "placeholders": {
+      "area": {
+        "type": "String"
+      }
+    }
+  },
+  "paxOrderMissingRouteOrTariff": "Manzil va tarif tanlanmagan",
+  "paxNoDriversNearby": "Yaqin atrofda haydovchi topilmadi",
+  "paxNoDriversNearbyRetry": "Yaqin atrofda haydovchi topilmadi. Birozdan so'ng qayta urinib ko'ring.",
+  "paxTipNotYourTrip": "Bu safar sizga tegishli emas.",
+  "paxTipInsufficientFunds": "Hamyonda mablag' yetarli emas. Hamyonni to'ldiring yoki kichikroq summa tanlang.",
+  "paxLocatingAddress": "Joylashuv aniqlanmoqda...",
+  "paxMenu": "Menyu",
+  "paxWhereTo": "Qayoqqa boramiz?",
+  "paxSavedPlaces": "Saqlangan joylar",
+  "paxSearchAddressSemantics": "Manzilni qidiring",
+  "paxOutsideServiceArea": "Xizmat hududidan tashqarida",
+  "paxSearchAddressHint": "Manzilni qidiring...",
+  "paxUpcomingTrip": "Kelgusi safar: {when}",
+  "@paxUpcomingTrip": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "paxHasScheduledTrip": "Rejalashtirilgan safar bor",
+  "paxCurrentLocation": "Joriy joylashuv",
+  "paxAddFavorite": "Qo'shish",
+  "paxUserFallback": "Foydalanuvchi",
+  "paxAddressNotFound": "Manzilni topib bo'lmadi",
+  "paxSaveAddress": "Manzilni saqlash",
+  "paxFavoriteHome": "Uy",
+  "paxFavoriteWork": "Ish",
+  "paxFavoriteNameHint": "Nomi (masalan, Bozor)",
+  "paxSaveAddressFailed": "Manzilni saqlab bo'lmadi",
+  "paxEnterAddress": "Manzilni kiriting",
+  "paxFrom": "Qayerdan",
+  "paxFromChangeSemantics": "Qayerdan: {address}. O'zgartirish",
+  "@paxFromChangeSemantics": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "paxStop": "To'xtash",
+  "paxRemoveStop": "To'xtashni olib tashlash",
+  "paxSearchPlaceHint": "Ko'cha, mahalla, joy nomi...",
+  "paxClear": "Tozalash",
+  "paxPickOnMap": "Xaritadan tanlash",
+  "paxTo": "Qayerga",
+  "paxAddStop": "To'xtash qo'shish",
+  "paxStopPoint": "To'xtash nuqtasi",
+  "paxNoResults": "Natija topilmadi",
+  "paxSavedAddresses": "Saqlangan manzillar",
+  "paxApproxDistance": "taxminan {distance}",
+  "@paxApproxDistance": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "paxCall": "Qo'ng'iroq",
+  "paxMessage": "Xabar",
+  "paxSosSemantics": "SOS — favqulodda yordam",
+  "paxCallFailed": "Qo'ng'iroq qilib bo'lmadi",
+  "paxSosDispatchersAlerted": "Dispetcherlarga xabar yuborildi",
+  "paxSosTitle": "Favqulodda yordam",
+  "paxSosBody": "Xavfsizligingiz biz uchun muhim. Kerak bo'lsa, quyidagi tugmalardan birini bosing.",
+  "paxSosEmergencyCall": "Favqulodda chaqiruv (102/103)",
+  "paxSosAlertDispatchers": "Dispetcherlarga xabar berish",
+  "paxDriverAlmostThere": "Haydovchi deyarli yetib keldi",
+  "paxDriverEta": "Haydovchi {minutes} daqiqada yetib keladi",
+  "@paxDriverEta": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "paxWaitingPaid": "Kutish haqi",
+  "paxWaitingFree": "Bepul kutish",
+  "paxWaitingPaidCaption": "Jami {elapsed} · safar narxiga qo'shiladi",
+  "@paxWaitingPaidCaption": {
+    "placeholders": {
+      "elapsed": {
+        "type": "String"
+      }
+    }
+  },
+  "paxWaitingFreeCaption": "Keyin {perMinute}/daqiqa, safar narxiga qo'shiladi",
+  "@paxWaitingFreeCaption": {
+    "placeholders": {
+      "perMinute": {
+        "type": "String"
+      }
+    }
+  },
+  "paxWaitingPaidSemantics": "Kutish haqi {amount}, jami {elapsed} kutildi. Safar narxiga qo'shiladi.",
+  "@paxWaitingPaidSemantics": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "elapsed": {
+        "type": "String"
+      }
+    }
+  },
+  "paxWaitingFreeSemantics": "Bepul kutish tugashiga {remaining} qoldi, keyin har daqiqa uchun {perMinute} safar narxiga qo'shiladi",
+  "@paxWaitingFreeSemantics": {
+    "placeholders": {
+      "remaining": {
+        "type": "String"
+      },
+      "perMinute": {
+        "type": "String"
+      }
+    }
+  },
+  "paxShareTripHeader": "Angren Taxi — safarim",
+  "paxShareTripFrom": "Qayerdan: {address}",
+  "@paxShareTripFrom": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "paxShareTripTo": "Qayerga: {address}",
+  "@paxShareTripTo": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "paxShareTripDriver": "Haydovchi: {name}, {car}",
+  "@paxShareTripDriver": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "car": {
+        "type": "String"
+      }
+    }
+  },
+  "paxShareTripStatus": "Holat: {status}",
+  "@paxShareTripStatus": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "paxShareTripCopied": "Safar ma'lumoti nusxalandi",
+  "paxCancelReasonLongWait": "Juda uzoq kutdim",
+  "paxCancelReasonChangedMind": "Fikrimni o'zgartirdim",
+  "paxCancelReasonTooExpensive": "Narx juda qimmat",
+  "paxCancelReasonOther": "Boshqa sabab",
+  "paxCancelReasonTitle": "Bekor qilish sababi",
+  "paxCancelReasonPrompt": "Buyurtmani bekor qilish sababini tanlang:",
+  "paxCancelReasonHint": "Sababni yozing...",
+  "paxCancelConfirmYes": "Ha, bekor qilish",
+  "paxTripScheduled": "Safar rejalashtirildi",
+  "paxCardPaymentStartFailed": "To'lovni hozir boshlab bo'lmadi: {error}. Buyurtma qabul qilindi, safar oxirida to'lov amalga oshiriladi.",
+  "@paxCardPaymentStartFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "paxLocation": "Joylashuv",
+  "paxScheduleCta": "Rejalashtirish",
+  "paxOrderCta": "Buyurtma",
+  "paxNoTariffs": "Tariflar mavjud emas",
+  "paxHighDemand": "Talab yuqori",
+  "paxSeats": "{count} o'rin",
+  "@paxSeats": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "paxSurgeNotice": "Hozir talab yuqori — narx {multiplier}x. Bir necha daqiqadan keyin arzonlashishi mumkin.",
+  "@paxSurgeNotice": {
+    "placeholders": {
+      "multiplier": {
+        "type": "String"
+      }
+    }
+  },
+  "paxTariffWaitingNote": "Haydovchi kelgach {freeMinutes} daqiqa kutish bepul, keyin har boshlangan daqiqa uchun {perMinute}. Bu haq ko'rsatilgan narxdan alohida qo'shiladi.",
+  "@paxTariffWaitingNote": {
+    "placeholders": {
+      "freeMinutes": {
+        "type": "int"
+      },
+      "perMinute": {
+        "type": "String"
+      }
+    }
+  },
+  "paxNow": "Hozir",
+  "paxPaymentCash": "Naqd",
+  "paxPaymentCard": "Karta",
+  "paxTripTimeSemantics": "Safar vaqti: {time}",
+  "@paxTripTimeSemantics": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "paxExtras": "Qo'shimcha",
+  "paxExtrasCount": "Qo'shimcha · {count}",
+  "@paxExtrasCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "paxExtrasNoneSemantics": "Qo'shimcha talablar: yo'q",
+  "paxExtrasListSemantics": "Qo'shimcha talablar: {options}",
+  "@paxExtrasListSemantics": {
+    "placeholders": {
+      "options": {
+        "type": "String"
+      }
+    }
+  },
+  "paxScheduledPriceNote": "Narx hozir qotiriladi va safar kunida o'zgarmaydi — kutish haqi bundan tashqari. Haydovchi belgilangan vaqtdan 10 daqiqa oldin qidiriladi.",
+  "paxRouteLoading": "Yo'nalish yuklanmoqda..."
+}

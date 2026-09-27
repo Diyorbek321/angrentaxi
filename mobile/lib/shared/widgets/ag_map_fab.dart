@@ -1,4 +1,5 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/widgets/app_pressable.dart';
 import 'package:flutter/material.dart';
 
@@ -114,7 +115,9 @@ class AgMapFab extends StatelessWidget {
       // foydalanuvchi uchun badge mavjud emas va u "e'tibor talab
       // qilinayotganini" hech qachon bilmaydi.
       semanticsLabel:
-          badge ? '$semanticsLabel, e\'tibor talab qiladi' : semanticsLabel,
+          badge
+              ? context.l10n.shNeedsAttentionSemantics(semanticsLabel)
+              : semanticsLabel,
       // Kichik element uchun 0.97 sezilmaydi — doira uchun kuchliroq masshtab.
       pressedScale: 0.92,
       // Tegish maydonini o'zimiz beramiz: `AppPressable` faqat balandlikni

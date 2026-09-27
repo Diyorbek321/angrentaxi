@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:angren_taxi/core/config/app_platform.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/driver_verification.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
@@ -73,12 +74,12 @@ class _DriverVerificationScreenState extends State<DriverVerificationScreen> {
             const SizedBox(height: kSpace2),
             ListTile(
               leading: const Icon(Icons.photo_camera_outlined),
-              title: const Text('Kamera'),
+              title: Text(context.l10n.drvCamera),
               onTap: () => Navigator.of(sheetContext).pop(ImageSource.camera),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Galereya'),
+              title: Text(context.l10n.drvGallery),
               onTap: () => Navigator.of(sheetContext).pop(ImageSource.gallery),
             ),
             const SizedBox(height: kSpace2),
@@ -99,7 +100,7 @@ class _DriverVerificationScreenState extends State<DriverVerificationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Tekshiruv')),
+      appBar: AppBar(title: Text(context.l10n.drvVerificationTitle)),
       body: Consumer<DriverProvider>(
         builder: (context, driverProvider, _) {
           return RefreshIndicator(
@@ -140,15 +141,13 @@ class _DriverVerificationScreenState extends State<DriverVerificationScreen> {
       // qilinmayapti" deyishi mutlaqo normal holat.
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        children: const [
-          SizedBox(height: kSpace10),
+        children: [
+          const SizedBox(height: kSpace10),
           AppEmptyState(
-            key: ValueKey('verification_empty'),
+            key: const ValueKey('verification_empty'),
             icon: Icons.verified_outlined,
-            title: 'Talab yo\'q',
-            message:
-                'Hozircha sizdan hech qanday hujjat yoki surat talab qilinmayapti. '
-                'Yangi talab paydo bo\'lsa shu yerda ko\'rinadi.',
+            title: context.l10n.drvVerificationEmptyTitle,
+            message: context.l10n.drvVerificationEmptyMessage,
           ),
         ],
       );
@@ -165,22 +164,21 @@ class _DriverVerificationScreenState extends State<DriverVerificationScreen> {
               key: const ValueKey('verification_blocked_banner'),
               tone: AppStatusTone.danger,
               icon: Icons.block_rounded,
-              title: "Onlayn bo'lish yopiq",
+              title: context.l10n.drvGoOnlineBlocked,
               message: verification.blockedReason ??
-                  "Tekshiruv to'liq emas — quyidagi talablarni bajaring.",
+                  context.l10n.drvVerificationIncomplete,
             ),
           )
         else if (verification.hasDueSoon)
-          const Padding(
-            padding: EdgeInsets.only(bottom: kSpace4),
+          Padding(
+            padding: const EdgeInsets.only(bottom: kSpace4),
             child: _VerificationBanner(
-              key: ValueKey('verification_due_soon_banner'),
+              key: const ValueKey('verification_due_soon_banner'),
               tone: AppStatusTone.warning,
               icon: Icons.schedule_rounded,
-              title: 'Muddat yaqinlashmoqda',
+              title: context.l10n.drvDeadlineApproaching,
               // Bloklamaydi — haydovchi ishlashda davom etadi.
-              message: 'Ba\'zi hujjatlarning muddati tugayapti. '
-                  'Ishingiz to\'xtab qolmasligi uchun oldindan yangilang.',
+              message: context.l10n.drvDocsExpiringSoon,
             ),
           ),
         for (final item in verification.items)
@@ -309,10 +307,10 @@ class _VerificationItemCard extends StatelessWidget {
   bool get _isFailed =>
       uploadState.status == DriverDocumentUploadStatus.failed;
 
-  String get _actionLabel {
-    if (_isFailed) return 'Qayta urinish';
-    if (item.status == DriverVerificationStatus.missing) return 'Yuklash';
-    return 'Yangisini yuklash';
+  String _actionLabelFor(AppLocalizations l10n) {
+    if (_isFailed) return l10n.drvRetry;
+    if (item.status == DriverVerificationStatus.missing) return l10n.drvUpload;
+    return l10n.drvUploadNew;
   }
 
   /// Muddat matni rangi: kechikkan bo'lsa xato, yaqin bo'lsa ogohlantirish.
@@ -328,6 +326,7 @@ class _VerificationItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final deadline = item.deadlineText;
+    final actionLabel = _actionLabelFor(context.l10n);
     return Container(
       key: ValueKey('verification_item_${item.code}'),
       padding: const EdgeInsets.all(kSpace4),
@@ -383,9 +382,9 @@ class _VerificationItemCard extends StatelessWidget {
                     ],
                     if (!item.isRequired) ...[
                       const SizedBox(height: 2),
-                      const Text(
-                        'Majburiy emas',
-                        style: TextStyle(
+                      Text(
+                        context.l10n.drvOptional,
+                        style: const TextStyle(
                           fontSize: kFontMicro,
                           color: kInkSubtle,
                           fontWeight: FontWeight.w600,
@@ -459,27 +458,27 @@ class _VerificationItemCard extends StatelessWidget {
           else if (item.status.needsAction || _isFailed)
             AppButton(
               key: ValueKey('verification_upload_${item.code}'),
-              label: _actionLabel,
+              label: actionLabel,
               height: kControlHeightSm,
               icon: const Icon(
                 Icons.photo_camera_outlined,
                 size: 18,
                 color: kOnPrimary,
               ),
-              semanticsLabel: '${item.label} — $_actionLabel',
+              semanticsLabel: '${item.label} — $actionLabel',
               onPressed: onUpload,
             )
           else
             AppOutlinedButton(
               key: ValueKey('verification_upload_${item.code}'),
-              label: _actionLabel,
+              label: actionLabel,
               height: kControlHeightSm,
               icon: const Icon(
                 Icons.photo_camera_outlined,
                 size: 18,
                 color: kInk,
               ),
-              semanticsLabel: '${item.label} — $_actionLabel',
+              semanticsLabel: '${item.label} — $actionLabel',
               onPressed: onUpload,
             ),
         ],
@@ -500,7 +499,7 @@ class _UploadProgress extends StatelessWidget {
     return Semantics(
       container: true,
       liveRegion: true,
-      label: 'Yuklanmoqda, $percent foiz',
+      label: context.l10n.drvUploadingPercentSem(percent),
       excludeSemantics: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -520,7 +519,7 @@ class _UploadProgress extends StatelessWidget {
               const AdaptiveProgress(size: 14, color: kInkMuted),
               const SizedBox(width: kSpace2),
               Text(
-                'Yuklanmoqda... $percent%',
+                context.l10n.drvUploadingPercent(percent),
                 style: const TextStyle(
                   fontSize: kFontCaption,
                   color: kInkMuted,

@@ -1,3 +1,4 @@
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order_receipt.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 
@@ -49,33 +50,38 @@ List<({String label, String value})> fareLines(FareBreakdown fare) {
   //
   // ⚠️ KUTISH QATORI BU QOIDADAN ISTISNO — pastga qarang.
   final parts = <({String label, double value, bool visible})>[
-    (label: 'Asos', value: fare.baseFare, visible: true),
+    (label: AppL10n.current.shFareBase, value: fare.baseFare, visible: true),
     (
-      label: 'Masofa (${fare.distanceKm.toStringAsFixed(1)} km × '
-          '${formatSomRounded(fare.pricePerKm)})',
+      label: AppL10n.current.shFareDistance(
+        fare.distanceKm.toStringAsFixed(1),
+        formatSomRounded(fare.pricePerKm),
+      ),
       value: fare.distanceFare,
       visible: true,
     ),
     (
-      label: 'Vaqt (${fare.durationMin.round()} daq × '
-          '${formatSomRounded(fare.pricePerMin)})',
+      label: AppL10n.current.shFareTime(
+        fare.durationMin.round(),
+        formatSomRounded(fare.pricePerMin),
+      ),
       value: fare.timeFare,
       visible: true,
     ),
     (
-      label: 'Eng kam haq tuzatmasi',
+      label: AppL10n.current.shFareMinAdjustment,
       value: fare.minPriceAdjustment,
       visible: fare.minPriceAdjustment > 0,
     ),
     (
-      label: 'Talab koeffitsienti '
-          '(×${fare.surgeMultiplier.toStringAsFixed(1)})',
+      label: AppL10n.current.shFareSurge(
+        fare.surgeMultiplier.toStringAsFixed(1),
+      ),
       value: fare.surgeFare,
       visible: fare.surgeFare > 0,
     ),
     // Yuqori chegara har doim manfiy — u summani KAMAYTIRADI.
     (
-      label: 'Yuqori narx chegarasi',
+      label: AppL10n.current.shFareMaxCap,
       value: fare.maxPriceCap,
       visible: fare.maxPriceCap < 0,
     ),
@@ -129,7 +135,7 @@ String _waitingLabel(FareBreakdown fare) {
   if (minutes <= 0) {
     // Nol holatda ham SABAB yoziladi: "0 daq" yolg'iz o'zi haydovchi umuman
     // kutmaganini bildirardi, aslida esa u bepul oynadan oshmagan.
-    return "Kutish (0 daq — bepul vaqtdan oshmadi)";
+    return AppL10n.current.shFareWaitingFree;
   }
 
   final perMinute = fare.waitingFare / minutes;
@@ -137,8 +143,11 @@ String _waitingLabel(FareBreakdown fare) {
   final exact = rounded > 0 && (perMinute - rounded).abs() < 0.001;
 
   return exact
-      ? 'Kutish ($minutes daq × ${Formatters.formatSom(rounded)})'
-      : 'Kutish ($minutes daq)';
+      ? AppL10n.current.shFareWaitingRate(
+          minutes,
+          Formatters.formatSom(rounded),
+        )
+      : AppL10n.current.shFareWaiting(minutes);
 }
 
 /// Chekning matnli ko'rinishi — "Nusxalash" tugmasi shuni buferga qo'yadi.
@@ -147,41 +156,52 @@ String _waitingLabel(FareBreakdown fare) {
 /// ishlatiladi; matn odam o'qiy oladigan qilib tuzilgan, chunki u
 /// qo'llab-quvvatlash chatiga yoki messenjerga tashlanadi.
 String receiptAsText(OrderReceipt receipt) {
+  final l10n = AppL10n.current;
   final buffer = StringBuffer()
-    ..writeln('Angren Go — safar cheki')
-    ..writeln('Buyurtma: ${receipt.orderNumber}');
+    ..writeln(l10n.shReceiptHeader)
+    ..writeln(l10n.shReceiptOrder(receipt.orderNumber));
 
   if (receipt.completedAt != null) {
-    buffer.writeln('Sana: ${Formatters.formatDateTime(receipt.completedAt!)}');
+    buffer.writeln(
+      l10n.shReceiptDate(Formatters.formatDateTime(receipt.completedAt!)),
+    );
   }
   final serviceLabel = receiptServiceTypeLabel(receipt.serviceType);
-  if (serviceLabel != null) buffer.writeln('Xizmat: $serviceLabel');
+  if (serviceLabel != null) buffer.writeln(l10n.shReceiptService(serviceLabel));
   if (receipt.tariffName != null) {
-    buffer.writeln('Tarif: ${receipt.tariffName}');
+    buffer.writeln(l10n.shReceiptTariff(receipt.tariffName!));
   }
 
   buffer.writeln();
-  buffer.writeln('Olib ketish: ${receipt.pickupAddress ?? "saqlanmagan"}');
+  buffer.writeln(
+    l10n.shReceiptPickup(receipt.pickupAddress ?? l10n.shReceiptNotSaved),
+  );
   for (var i = 0; i < receipt.waypoints.length; i++) {
-    buffer.writeln('To\'xtash ${i + 1}: ${receipt.waypoints[i].address}');
+    buffer.writeln(l10n.shReceiptStop(i + 1, receipt.waypoints[i].address));
   }
-  buffer.writeln('Tushish: ${receipt.dropoffAddress ?? "saqlanmagan"}');
+  buffer.writeln(
+    l10n.shReceiptDropoff(receipt.dropoffAddress ?? l10n.shReceiptNotSaved),
+  );
 
   if (receipt.distanceKm != null) {
     buffer.writeln(
-      'Masofa: ${Formatters.formatDistance(receipt.distanceKm! * 1000)}',
+      l10n.shReceiptDistance(
+        Formatters.formatDistance(receipt.distanceKm! * 1000),
+      ),
     );
   }
   if (receipt.durationMin != null) {
     buffer.writeln(
-      'Davomiyligi: ${Formatters.formatDuration(receipt.durationMin!)}',
+      l10n.shReceiptDuration(
+        Formatters.formatDuration(receipt.durationMin!),
+      ),
     );
   }
 
   buffer.writeln();
   final fare = receipt.fare;
   if (fare == null) {
-    buffer.writeln('Narx tarkibi saqlanmagan.');
+    buffer.writeln(l10n.shReceiptNoFareBreakdown);
   } else {
     for (final line in fareLines(fare)) {
       buffer.writeln('${line.label}: ${line.value}');
@@ -194,29 +214,38 @@ String receiptAsText(OrderReceipt receipt) {
   final hasAdjustments = receipt.discountAmount > 0 || receipt.tipAmount > 0;
   if (hasAdjustments) {
     buffer.writeln(
-      'Jami: ${formatSomRounded(fare?.total ?? receipt.grossPrice)}',
+      l10n.shReceiptTotal(
+        formatSomRounded(fare?.total ?? receipt.grossPrice),
+      ),
     );
     if (receipt.discountAmount > 0) {
       final promo = receipt.promoCode != null ? ' (${receipt.promoCode})' : '';
       buffer.writeln(
-        'Chegirma$promo: −${formatSomRounded(receipt.discountAmount)}',
+        l10n.shReceiptDiscount(
+          promo,
+          formatSomRounded(receipt.discountAmount),
+        ),
       );
     }
     if (receipt.tipAmount > 0) {
-      buffer.writeln('Chaqim: +${formatSomRounded(receipt.tipAmount)}');
+      buffer.writeln(
+        l10n.shReceiptTip(formatSomRounded(receipt.tipAmount)),
+      );
     }
   }
-  buffer.writeln('Yakuniy: ${formatSomRounded(receipt.grandTotal)}');
+  buffer.writeln(
+    l10n.shReceiptGrandTotal(formatSomRounded(receipt.grandTotal)),
+  );
 
   buffer.writeln();
   final payment = [
     if (receipt.paymentMethod != null) receipt.paymentMethod!.label,
     if (receipt.paymentStatus != null) receipt.paymentStatus!.label,
   ].join(' · ');
-  if (payment.isNotEmpty) buffer.writeln('To\'lov: $payment');
+  if (payment.isNotEmpty) buffer.writeln(l10n.shReceiptPayment(payment));
   if (receipt.hasUnpaidAmount) {
     buffer.writeln(
-      'To\'lanmagan qoldiq: ${formatSomRounded(receipt.unpaidAmount)}',
+      l10n.shReceiptUnpaid(formatSomRounded(receipt.unpaidAmount)),
     );
   }
 
@@ -227,7 +256,9 @@ String receiptAsText(OrderReceipt receipt) {
       if (driver.carNumber != null) driver.carNumber!,
     ].join(' · ');
     buffer.writeln(
-      'Haydovchi: ${driver.name}${car.isEmpty ? '' : ' · $car'}',
+      l10n.shReceiptDriver(
+        '${driver.name}${car.isEmpty ? '' : ' · $car'}',
+      ),
     );
   }
 

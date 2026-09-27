@@ -4,6 +4,7 @@ import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/demand_zone.dart';
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
@@ -114,8 +115,7 @@ class DemandProvider extends ChangeNotifier {
       final center = await _resolveCenter();
       if (center == null) {
         _fail(
-          "Joylashuvingiz aniqlanmadi. GPS yoqilganini va ilovaga ruxsat "
-          "berilganini tekshiring.",
+          AppL10n.current.drvLocationUnavailable,
           silent: silent,
         );
         return;

@@ -12,12 +12,14 @@ import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/driver/screens/rate_passenger_screen.dart';
 import 'package:angren_taxi/features/driver/service_wording.dart';
+import 'package:angren_taxi/features/driver/widgets/delivery_info_card.dart';
 // `MapCameraInsets` yo'lovchi papkasida yashaydi, lekin u ekranga emas
 // TARTIBGA bog'liq: sheet ostida qolgan maydonni hisoblaydi. Haydovchi
 // xarita ekranlari ham xuddi shu qoidaga bo'ysunishi kerak, aks holda
 // ikkita turli "sheet ostida markazlashish" xatosi paydo bo'ladi.
 import 'package:angren_taxi/features/passenger/map_camera_insets.dart';
 import 'package:angren_taxi/features/trip/screens/trip_chat_screen.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/adaptive_map_panel.dart';
@@ -227,7 +229,7 @@ class _TripScreenState extends State<TripScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(provider.error ?? "Yakunlab bo'lmadi"),
+          content: Text(provider.error ?? context.l10n.drvCompleteFailed),
         ),
       );
     }
@@ -283,7 +285,7 @@ class _TripScreenState extends State<TripScreen> {
                 ),
               );
             },
-            child: const Text('Davom etish'),
+            child: Text(context.l10n.drvContinue),
           ),
         ],
       ),
@@ -326,7 +328,7 @@ class _TripScreenState extends State<TripScreen> {
       await launchUrl(uri);
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Qo'ng'iroq qilib bo'lmadi")),
+        SnackBar(content: Text(context.l10n.drvCallFailed)),
       );
     }
   }
@@ -350,7 +352,7 @@ class _TripScreenState extends State<TripScreen> {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Navigatsiya ilovasi topilmadi')),
+        SnackBar(content: Text(context.l10n.drvNavAppNotFound)),
       );
     }
   }
@@ -367,9 +369,9 @@ class _TripScreenState extends State<TripScreen> {
       await _sosService.reportSos(orderId: orderId, lat: lat, lng: lng);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             // Oq snackbar matni mint fonda 2.12:1 edi — kPrimary 5.38:1.
-            content: Text('Dispetcherlarga xabar yuborildi'),
+            content: Text(context.l10n.drvDispatchersNotified),
             backgroundColor: kPrimary,
           ),
         );
@@ -401,23 +403,22 @@ class _TripScreenState extends State<TripScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'Favqulodda yordam',
-                style: TextStyle(
+              Text(
+                context.l10n.drvEmergencyHelp,
+                style: const TextStyle(
                   fontSize: kFontH2,
                   fontWeight: FontWeight.w800,
                   color: kInk,
                 ),
               ),
               const SizedBox(height: kSpace1 + 2),
-              const Text(
-                "Xavfsizligingiz biz uchun muhim. Kerak bo'lsa, quyidagi "
-                'tugmalardan birini bosing.',
-                style: TextStyle(color: kInkMuted, fontSize: kFontLabel),
+              Text(
+                context.l10n.drvSafetyNote,
+                style: const TextStyle(color: kInkMuted, fontSize: kFontLabel),
               ),
               const SizedBox(height: kSpace5),
               AppButton(
-                label: 'Favqulodda chaqiruv (102/103)',
+                label: context.l10n.drvEmergencyCall,
                 // kError + oq matn 3.91:1 (AA emas) → kErrorDeep 6.47:1.
                 backgroundColor: kErrorDeep,
                 foregroundColor: kOnPrimary,
@@ -430,7 +431,7 @@ class _TripScreenState extends State<TripScreen> {
               ),
               const SizedBox(height: kSpace3),
               AppButton(
-                label: 'Dispetcherlarga xabar berish',
+                label: context.l10n.drvNotifyDispatchers,
                 height: kControlHeightDriver,
                 onPressed: () {
                   Navigator.of(sheetContext).pop();
@@ -470,9 +471,9 @@ class _TripScreenState extends State<TripScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                "Qo'shimcha amallar",
-                style: TextStyle(
+              Text(
+                context.l10n.drvMoreActions,
+                style: const TextStyle(
                   fontSize: kFontH2,
                   fontWeight: FontWeight.w800,
                   color: kInk,
@@ -481,7 +482,7 @@ class _TripScreenState extends State<TripScreen> {
               const SizedBox(height: kSpace5),
               _buildMenuAction(
                 icon: Icons.navigation,
-                label: 'Navigatsiyani ochish',
+                label: context.l10n.drvOpenNavigation,
                 foreground: kInk,
                 onTap: () {
                   Navigator.of(sheetContext).pop();
@@ -496,7 +497,7 @@ class _TripScreenState extends State<TripScreen> {
               const SizedBox(height: kSpace3),
               _buildMenuAction(
                 icon: Icons.sos_rounded,
-                label: 'Favqulodda yordam (SOS)',
+                label: context.l10n.drvEmergencySos,
                 // kErrorDeep oq ustida 6.47:1 — ikonka ham, yozuv ham.
                 foreground: kErrorDeep,
                 onTap: () {
@@ -732,7 +733,7 @@ class _TripScreenState extends State<TripScreen> {
   Widget _buildSosButton(Order order) {
     return Semantics(
       button: true,
-      label: 'SOS — favqulodda yordam',
+      label: context.l10n.drvSosSem,
       excludeSemantics: true,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -783,6 +784,15 @@ class _TripScreenState extends State<TripScreen> {
           const SizedBox(height: kSpace2),
           _buildClientCard(order, wording),
           const SizedBox(height: kSpace2),
+          // Kuryer: eshik oldida qancha naqd olinishi — topshirishdan
+          // oldingi eng muhim raqam, daromad kartasidan yuqorida.
+          if (order.delivery != null) ...[
+            DeliveryInfoCard(
+              delivery: order.delivery!,
+              stage: DeliveryCardStage.dropoff,
+            ),
+            const SizedBox(height: kSpace2),
+          ],
           _buildEarningsCard(order),
           const SizedBox(height: kSpace4),
           _buildActionRow(order, wording),
@@ -822,7 +832,7 @@ class _TripScreenState extends State<TripScreen> {
       items: [
         AgActionItem(
           icon: Icons.call_rounded,
-          label: "Qo'ng'iroq",
+          label: context.l10n.drvCall,
           // Raqam kelmagan buyurtmada tugma o'z o'rnida qoladi, lekin
           // bosilmaydi — yo'qolib qolsa qolgan nishonlar siljib ketardi va
           // haydovchi mushak xotirasiga tayanib boshqasini bosardi.
@@ -832,12 +842,12 @@ class _TripScreenState extends State<TripScreen> {
         ),
         AgActionItem(
           icon: Icons.chat_bubble_outline_rounded,
-          label: 'Xabar',
+          label: context.l10n.drvMessage,
           onTap: () => _openChat(order),
         ),
         AgActionItem(
           icon: Icons.more_horiz_rounded,
-          label: 'Menyu',
+          label: context.l10n.drvMenu,
           onTap: () => _showTripMenu(order),
         ),
       ],
@@ -948,9 +958,9 @@ class _TripScreenState extends State<TripScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            'Taxminiy daromad',
-            style: TextStyle(
+          Text(
+            context.l10n.drvEstimatedEarnings,
+            style: const TextStyle(
               // Siyoh ustida kMintSoft 11.22:1.
               color: kMintSoft,
               fontSize: kFontLabel,

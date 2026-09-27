@@ -93,17 +93,6 @@ class AppConfig {
   static const String mapTilesUrl = String.fromEnvironment('MAP_TILES_URL');
   static const String mapGlyphsUrl = String.fromEnvironment('MAP_GLYPHS_URL');
 
-  // ===== Marshrut (OSRM) =====
-  // Standart qiymat — OSRM'ning ommaviy demo serveri: rate-limit ostida, SLA
-  // yo'q va ishlab chiqarish trafigi uchun mo'ljallanmagan. Prod build'da
-  // o'z serveringizni ko'rsating:
-  //   --dart-define=OSRM_URL=https://osrm.angren-taxi.uz
-  // Serverni ko'tarish uchun: scripts/osrm-prepare.sh
-  static const String osrmUrl = String.fromEnvironment(
-    'OSRM_URL',
-    defaultValue: 'https://router.project-osrm.org',
-  );
-
   // ===== Joylashuv yuborish tezligi =====
   // Sanoat amaliyoti: faol holatda har 2–5 soniyada. Faqat masofa filtri
   // yetarli emas — tirbandlikda mashina 10 m yurmasdan turadi va yo'lovchi

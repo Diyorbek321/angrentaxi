@@ -1,5 +1,6 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/utils/validators.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:angren_taxi/shared/widgets/error_widget.dart';
@@ -75,7 +76,7 @@ class _PhoneScreenState extends State<PhoneScreen> {
                 Consumer<AuthProvider>(
                   builder: (context, auth, _) {
                     return AppButton(
-                      label: 'Davom etish',
+                      label: context.l10n.shAuthContinue,
                       onPressed: _onContinue,
                       isLoading: auth.state == AuthState.loading,
                     );
@@ -92,11 +93,11 @@ class _PhoneScreenState extends State<PhoneScreen> {
   }
 
   Widget _buildHeader() {
-    return const Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Dekorativ brend belgisi — matn uni takrorlaydi.
-        ExcludeSemantics(
+        const ExcludeSemantics(
           child: SizedBox(
             width: 64,
             height: 64,
@@ -109,8 +110,8 @@ class _PhoneScreenState extends State<PhoneScreen> {
             ),
           ),
         ),
-        SizedBox(height: kSpace6),
-        Text(
+        const SizedBox(height: kSpace6),
+        const Text(
           'Angren Taxi',
           style: TextStyle(
             fontSize: kFontDisplay,
@@ -118,10 +119,10 @@ class _PhoneScreenState extends State<PhoneScreen> {
             color: kInk,
           ),
         ),
-        SizedBox(height: kSpace2),
+        const SizedBox(height: kSpace2),
         Text(
-          'Telefon raqamingizni kiriting',
-          style: TextStyle(fontSize: kFontBodyLg, color: kInkMuted),
+          context.l10n.shAuthEnterPhone,
+          style: const TextStyle(fontSize: kFontBodyLg, color: kInkMuted),
         ),
       ],
     );
@@ -131,9 +132,9 @@ class _PhoneScreenState extends State<PhoneScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Telefon raqam',
-          style: TextStyle(
+        Text(
+          context.l10n.shAuthPhoneLabel,
+          style: const TextStyle(
             fontSize: kFontBody,
             fontWeight: FontWeight.w600,
             color: kInk,
@@ -162,10 +163,9 @@ class _PhoneScreenState extends State<PhoneScreen> {
   }
 
   Widget _buildTermsText() {
-    return const Text(
-      'Davom etish orqali siz foydalanish shartlari va '
-      'maxfiylik siyosatiga rozilik bildirasiz.',
-      style: TextStyle(
+    return Text(
+      context.l10n.shAuthTerms,
+      style: const TextStyle(
         fontSize: kFontCaption,
         color: kInkMuted,
         height: 1.5,

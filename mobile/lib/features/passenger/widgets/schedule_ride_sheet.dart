@@ -1,5 +1,6 @@
 import 'package:angren_taxi/core/config/app_responsive.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_pressable.dart';
 import 'package:flutter/material.dart';
@@ -159,19 +160,18 @@ class _ScheduleRideSheetState extends State<ScheduleRideSheet> {
             ),
           ),
           const SizedBox(height: kSpace4),
-          const Text(
-            'Safarni rejalashtirish',
-            style: TextStyle(
+          Text(
+            context.l10n.paxScheduleTitle,
+            style: const TextStyle(
               fontSize: kFontH2,
               fontWeight: FontWeight.w800,
               color: kInk,
             ),
           ),
           const SizedBox(height: kSpace2),
-          const Text(
-            "Haydovchi belgilangan vaqtdan 10 daqiqa oldin qidiriladi. "
-            "Narx hozir qotiriladi va o'zgarmaydi.",
-            style: TextStyle(
+          Text(
+            context.l10n.paxScheduleHint,
+            style: const TextStyle(
               fontSize: kFontLabel,
               fontWeight: FontWeight.w500,
               color: kInkMuted,
@@ -252,10 +252,10 @@ class _ScheduleRideSheetState extends State<ScheduleRideSheet> {
           color: kSurface2,
           borderRadius: BorderRadius.circular(kRadiusMd),
         ),
-        child: const Text(
-          "Bu kun uchun vaqt qolmadi — keyingi kunni tanlang.",
+        child: Text(
+          context.l10n.paxScheduleNoSlots,
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: kFontBody,
             fontWeight: FontWeight.w600,
             color: kInkMuted,
@@ -353,7 +353,7 @@ class _ScheduleRideSheetState extends State<ScheduleRideSheet> {
           child: Text(
             canConfirm && selected != null
                 ? Formatters.formatScheduleLabel(selected, now: _now)
-                : 'Vaqtni tanlang',
+                : context.l10n.paxSchedulePickTime,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
@@ -379,9 +379,9 @@ class _ScheduleRideSheetState extends State<ScheduleRideSheet> {
           width: double.infinity,
           height: kControlHeightSm,
           alignment: Alignment.center,
-          child: const Text(
-            'Hozir buyurtma qilaman',
-            style: TextStyle(
+          child: Text(
+            context.l10n.paxScheduleOrderNow,
+            style: const TextStyle(
               fontSize: kFontBody,
               fontWeight: FontWeight.w700,
               color: kInkMuted,

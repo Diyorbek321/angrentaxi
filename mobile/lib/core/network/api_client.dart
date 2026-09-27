@@ -4,6 +4,7 @@ import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/demo/demo_engine.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/core/storage/local_storage.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
@@ -271,17 +272,17 @@ String extractErrorMessage(dynamic error) {
       // serverning aniq xabari o'rniga foydalanuvchi umuman hech narsa
       // ko'rmasdi.
       final message = _messageText(data['message']) ?? _messageText(data['error']);
-      return message ?? 'Xatolik yuz berdi';
+      return message ?? AppL10n.current.shErrorGeneric;
     }
     if (error.type == DioExceptionType.connectionTimeout ||
         error.type == DioExceptionType.receiveTimeout) {
-      return 'Ulanish vaqti tugadi. Internetni tekshiring';
+      return AppL10n.current.shErrorTimeout;
     }
     if (error.type == DioExceptionType.connectionError) {
-      return 'Internet bilan muammo bor';
+      return AppL10n.current.shErrorNoInternet;
     }
   }
-  return 'Noma\'lum xatolik yuz berdi';
+  return AppL10n.current.shErrorUnknown;
 }
 
 /// NestJS xato javobidagi `message` / `error` maydonini bitta ko'rsatiladigan

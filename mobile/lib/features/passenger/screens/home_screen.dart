@@ -14,6 +14,7 @@ import 'package:angren_taxi/features/passenger/widgets/coverage_notice.dart';
 import 'package:angren_taxi/features/superapp/screens/cargo_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/food_list_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/market_screen.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/favorite_address.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/service_catalog.dart';
@@ -142,7 +143,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     final orderProvider = context.read<OrderProvider>();
     orderProvider.setPendingPickup(
       OrderLocation(
-        address: 'Joylashuv aniqlanmoqda...',
+        address: context.l10n.paxLocatingAddress,
         lat: _currentLocation.latitude,
         lng: _currentLocation.longitude,
       ),
@@ -160,7 +161,8 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
           if (orderProvider.pendingRatingOrderId != null) {
             final orderId = orderProvider.pendingRatingOrderId!;
             final driverName =
-                orderProvider.pendingRatingDriverName ?? 'Haydovchi';
+                orderProvider.pendingRatingDriverName ??
+                context.l10n.paxDetailDriver;
             WidgetsBinding.instance.addPostFrameCallback((_) {
               orderProvider.clearPendingRating();
               Navigator.of(context).push(
@@ -278,7 +280,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
             Consumer<AuthProvider>(
               builder: (context, auth, _) => AgMapFab(
                 icon: Icons.menu_rounded,
-                semanticsLabel: 'Menyu',
+                semanticsLabel: context.l10n.paxMenu,
                 onTap: () => _showMenu(context, auth),
               ),
             ),
@@ -323,9 +325,9 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Qayoqqa boramiz?',
-                  style: TextStyle(
+                Text(
+                  context.l10n.paxWhereTo,
+                  style: const TextStyle(
                     fontSize: kFontH1,
                     fontWeight: FontWeight.w800,
                     color: kInk,
@@ -347,9 +349,9 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Saqlangan joylar',
-                  style: TextStyle(
+                Text(
+                  context.l10n.paxSavedPlaces,
+                  style: const TextStyle(
                     fontSize: kFontBody,
                     fontWeight: FontWeight.w700,
                     color: kInk,
@@ -437,7 +439,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
   Widget _buildSearchField({required bool blocked}) {
     return AppPressable(
       onTap: blocked ? null : _onWhereToTap,
-      semanticsLabel: 'Manzilni qidiring',
+      semanticsLabel: context.l10n.paxSearchAddressSemantics,
       haptic: AppHapticLevel.impact,
       pressedScale: 0.98,
       minTapTarget: false,
@@ -469,8 +471,8 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
             Expanded(
               child: Text(
                 blocked
-                    ? 'Xizmat hududidan tashqarida'
-                    : 'Manzilni qidiring...',
+                    ? context.l10n.paxOutsideServiceArea
+                    : context.l10n.paxSearchAddressHint,
                 // O'chirilgan holatda ham `kInkMuted`: `kInkSubtle` oq
                 // ustida 3.67:1 — chegara va ikonka uchun yetadi, YOZUV
                 // uchun emas (AA 4.5:1). O'chirilganini matnning O'ZI
@@ -508,7 +510,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
           child: AppPressable(
             onTap: () =>
                 Navigator.of(context).pushNamed('/passenger/scheduled'),
-            semanticsLabel: 'Rejalashtirilgan safarlar',
+            semanticsLabel: context.l10n.paxScheduledTripsTitle,
             pressedScale: 0.98,
             minTapTarget: false,
             child: Container(
@@ -528,8 +530,10 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                   Expanded(
                     child: Text(
                       when != null
-                          ? 'Kelgusi safar: ${Formatters.formatScheduleLabel(when)}'
-                          : 'Rejalashtirilgan safar bor',
+                          ? context.l10n.paxUpcomingTrip(
+                              Formatters.formatScheduleLabel(when),
+                            )
+                          : context.l10n.paxHasScheduledTrip,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -568,7 +572,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     final orderProvider = context.read<OrderProvider>();
     orderProvider.setPendingPickup(
       OrderLocation(
-        address: 'Joriy joylashuv',
+        address: context.l10n.paxCurrentLocation,
         lat: _currentLocation.latitude,
         lng: _currentLocation.longitude,
       ),
@@ -617,7 +621,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
               if (i == favorites.length) {
                 return _buildSavedPlaceTile(
                   index: i,
-                  label: "Qo'shish",
+                  label: context.l10n.paxAddFavorite,
                   icon: Icons.add_rounded,
                   color: kInkMuted,
                   onTap: _onAddFavoriteTap,
@@ -721,13 +725,15 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                   child: Icon(Icons.person, color: kInk),
                 ),
               ),
-              title: Text(auth.currentUser?.displayName ?? 'Foydalanuvchi'),
+              title: Text(
+                auth.currentUser?.displayName ?? context.l10n.paxUserFallback,
+              ),
               subtitle: Text(auth.currentUser?.phone ?? ''),
             ),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.history),
-              title: const Text('Sayohat tarixi'),
+              title: Text(context.l10n.paxHistoryTitle),
               onTap: () {
                 Navigator.of(ctx).pop();
                 Navigator.of(context).pushNamed('/passenger/history');
@@ -735,7 +741,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.person_outline),
-              title: const Text('Profil'),
+              title: Text(context.l10n.paxProfileTitle),
               onTap: () {
                 Navigator.of(ctx).pop();
                 Navigator.of(context).pushNamed('/passenger/profile');
@@ -743,7 +749,10 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.logout, color: kErrorDeep),
-              title: const Text('Chiqish', style: TextStyle(color: kErrorDeep)),
+              title: Text(
+                context.l10n.paxLogout,
+                style: const TextStyle(color: kErrorDeep),
+              ),
               onTap: () {
                 Navigator.of(ctx).pop();
                 auth.logout();
@@ -781,16 +790,16 @@ class _LocationPill extends StatelessWidget {
         border: Border.all(color: kLineInteractive),
         boxShadow: kShadowPop,
       ),
-      child: const Row(
+      child: Row(
         children: [
-          ExcludeSemantics(
+          const ExcludeSemantics(
             child: Icon(Icons.my_location_rounded, color: kPrimary, size: 20),
           ),
-          SizedBox(width: kSpace3),
+          const SizedBox(width: kSpace3),
           Expanded(
             child: Text(
-              'Joriy joylashuv',
-              style: TextStyle(
+              context.l10n.paxCurrentLocation,
+              style: const TextStyle(
                 color: kInk,
                 fontSize: kFontBody,
                 fontWeight: FontWeight.w600,

@@ -18,6 +18,7 @@ import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/referral_info.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
@@ -85,7 +86,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
   Future<void> _applyCode() async {
     final code = _codeController.text.trim();
     if (code.isEmpty) {
-      setState(() => _applyError = 'Kodni kiriting');
+      setState(() => _applyError = context.l10n.paxReferralEnterCode);
       return;
     }
 
@@ -106,7 +107,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
         _applyError = null;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Referral kodi qo'llandi!")),
+        SnackBar(content: Text(context.l10n.paxReferralApplied)),
       );
     } catch (e) {
       if (!mounted) return;
@@ -120,18 +121,16 @@ class _ReferralScreenState extends State<ReferralScreen> {
   void _copyCode(String code) {
     Clipboard.setData(ClipboardData(text: code));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Kod nusxalandi')),
+      SnackBar(content: Text(context.l10n.paxReferralCodeCopied)),
     );
   }
 
   void _shareCode(String code) {
-    final message =
-        "Angren Taxi'ga taklif qilaman! Ro'yxatdan o'tishda mening "
-        "kodimni kiriting: $code";
+    final message = context.l10n.paxReferralShareMessage(code);
     Clipboard.setData(ClipboardData(text: message));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Taklif matni nusxalandi — do'stingizga yuboring"),
+      SnackBar(
+        content: Text(context.l10n.paxReferralShareCopied),
       ),
     );
   }
@@ -143,7 +142,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
       body: Column(
         children: [
           AgHeader(
-            title: "Do'stlarni taklif qilish",
+            title: context.l10n.paxReferralTitle,
             onBack: () => Navigator.of(context).pop(),
           ),
           Expanded(child: _buildBody()),
@@ -176,7 +175,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
           children: [
             Expanded(
               child: _StatTile(
-                label: 'Taklif qilinganlar',
+                label: context.l10n.paxReferralInvitedCount,
                 value: '${info.referredCount}',
                 icon: Icons.group_rounded,
                 color: kInfoDeep,
@@ -185,7 +184,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
             const SizedBox(width: kSpace3),
             Expanded(
               child: _StatTile(
-                label: 'Jami bonus',
+                label: context.l10n.paxReferralTotalBonus,
                 value: Formatters.formatSom(info.totalBonusEarned),
                 icon: Icons.workspace_premium_rounded,
                 color: kWarningDeep,
@@ -194,9 +193,9 @@ class _ReferralScreenState extends State<ReferralScreen> {
           ],
         ),
         const SizedBox(height: kSpace6),
-        const Text(
-          "Do'stingizning kodini kiriting",
-          style: TextStyle(
+        Text(
+          context.l10n.paxReferralEnterFriendCode,
+          style: const TextStyle(
             fontSize: kFontTitle,
             fontWeight: FontWeight.w800,
             color: kInk,
@@ -221,13 +220,13 @@ class _ReferralScreenState extends State<ReferralScreen> {
 String _friendlyApplyError(String raw) {
   final lower = raw.toLowerCase();
   if (lower.contains('already been applied') || lower.contains('already applied')) {
-    return "Sizda allaqachon referral kodi qo'llangan";
+    return AppL10n.current.paxReferralErrAlreadyApplied;
   }
   if (lower.contains('cannot use your own')) {
-    return "O'zingizning kodingizni qo'llay olmaysiz";
+    return AppL10n.current.paxReferralErrOwnCode;
   }
   if (lower.contains('invalid referral code')) {
-    return 'Bunday referral kod topilmadi';
+    return AppL10n.current.paxReferralErrInvalid;
   }
   return raw;
 }
@@ -269,7 +268,7 @@ class _CodeCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'SIZNING REFERRAL KODINGIZ',
+                context.l10n.paxReferralYourCode,
                 style: TextStyle(
                   color: kOnPrimary.withValues(alpha: 0.7),
                   fontSize: kFontMicro,
@@ -289,7 +288,7 @@ class _CodeCard extends StatelessWidget {
               ),
               const SizedBox(height: kSpace1 + 2),
               Text(
-                "Do'stingiz ilovaga birinchi safarida ushbu kodni kiritsa, ikkovingiz ham bonus olasiz",
+                context.l10n.paxReferralCardHint,
                 style: TextStyle(
                   color: kOnPrimary.withValues(alpha: 0.7),
                   fontSize: kFontCaption,
@@ -302,7 +301,7 @@ class _CodeCard extends StatelessWidget {
                   Expanded(
                     child: _CardActionButton(
                       icon: Icons.copy_rounded,
-                      label: 'Nusxalash',
+                      label: context.l10n.paxReferralCopy,
                       onTap: onCopy,
                     ),
                   ),
@@ -310,7 +309,7 @@ class _CodeCard extends StatelessWidget {
                   Expanded(
                     child: _CardActionButton(
                       icon: Icons.share_rounded,
-                      label: 'Ulashish',
+                      label: context.l10n.paxReferralShare,
                       filled: true,
                       onTap: onShare,
                     ),
@@ -469,14 +468,14 @@ class _ApplyCodeSection extends StatelessWidget {
           borderRadius: BorderRadius.circular(kRadiusMd),
         ),
         // kMintTint yuza ustidagi matn/ikona — kPrimary (5.38:1).
-        child: const Row(
+        child: Row(
           children: [
-            Icon(Icons.check_circle_rounded, color: kPrimary, size: 22),
-            SizedBox(width: kSpace3),
+            const Icon(Icons.check_circle_rounded, color: kPrimary, size: 22),
+            const SizedBox(width: kSpace3),
             Expanded(
               child: Text(
-                "Referral kodi muvaffaqiyatli qo'llandi",
-                style: TextStyle(
+                context.l10n.paxReferralAppliedBanner,
+                style: const TextStyle(
                   color: kPrimary,
                   fontWeight: FontWeight.w700,
                   fontSize: kFontLabel,
@@ -502,7 +501,7 @@ class _ApplyCodeSection extends StatelessWidget {
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: kSurface,
-                  hintText: "Do'stingizning kodini kiriting",
+                  hintText: context.l10n.paxReferralEnterFriendCode,
                   hintStyle:
                       const TextStyle(color: kInkMuted, fontSize: kFontBody),
                   contentPadding: const EdgeInsets.symmetric(
@@ -543,9 +542,9 @@ class _ApplyCodeSection extends StatelessWidget {
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: kOnPrimary),
                       )
-                    : const Text(
-                        "Qo'llash",
-                        style: TextStyle(
+                    : Text(
+                        context.l10n.paxReferralApply,
+                        style: const TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: kFontLabel,
                         ),

@@ -4,6 +4,7 @@ import 'package:angren_taxi/features/superapp/screens/product_detail_screen.dart
 import 'package:angren_taxi/features/superapp/state/market_provider.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/market_product.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
@@ -58,19 +59,19 @@ class _MarketScreenState extends State<MarketScreen> {
               children: [
                 Row(
                   children: [
-                    AgIconButton(icon: Icons.arrow_back_rounded, onTap: () => Navigator.of(context).pop(), semanticsLabel: 'Orqaga'),
+                    AgIconButton(icon: Icons.arrow_back_rounded, onTap: () => Navigator.of(context).pop(), semanticsLabel: context.l10n.saBack),
                     const SizedBox(width: kSpace3),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(market.store?.name ?? 'Market',
+                          Text(market.store?.name ?? context.l10n.saMarket,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                   fontSize: kFontH2, fontWeight: FontWeight.w800, color: agText)),
-                          const Text("15–25 daqiqa · Yaqin do'kon",
-                              style: TextStyle(
+                          Text(context.l10n.saMarketSubtitle,
+                              style: const TextStyle(
                                   fontSize: kFontCaption,
                                   fontWeight: FontWeight.w600,
                                   color: agSubtle)),
@@ -84,8 +85,8 @@ class _MarketScreenState extends State<MarketScreen> {
                       ),
                       badge: cart.cartCount > 0 ? '${cart.cartCount}' : null,
                       semanticsLabel: cart.cartCount > 0
-                          ? 'Savat, ${cart.cartCount} ta mahsulot'
-                          : 'Savat',
+                          ? context.l10n.saCartWithCount(cart.cartCount)
+                          : context.l10n.saCart,
                     ),
                   ],
                 ),
@@ -97,14 +98,14 @@ class _MarketScreenState extends State<MarketScreen> {
                     color: agBg,
                     borderRadius: BorderRadius.circular(kRadiusMd),
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
-                      ExcludeSemantics(
+                      const ExcludeSemantics(
                         child: Icon(Icons.search_rounded, size: 21, color: agSubtle),
                       ),
-                      SizedBox(width: kSpace2),
-                      Text('Mahsulot qidirish…',
-                          style: TextStyle(
+                      const SizedBox(width: kSpace2),
+                      Text(context.l10n.saMarketSearchHint,
+                          style: const TextStyle(
                               fontSize: kFontBody, fontWeight: FontWeight.w600, color: agSubtle)),
                     ],
                   ),
@@ -117,15 +118,15 @@ class _MarketScreenState extends State<MarketScreen> {
                 ? const AppSkeletonGrid(itemCount: 6)
                 : market.state == MarketProviderState.error && market.products.isEmpty
                     ? AppErrorState(
-                        message: market.error ?? 'Xatolik yuz berdi',
+                        message: market.error ?? context.l10n.saErrorOccurred,
                         onRetry: () => context.read<MarketProvider>().loadStore(),
                       )
                     : market.products.isEmpty
                     ? AppEmptyState(
                         icon: Icons.shopping_basket_outlined,
-                        title: 'Mahsulot topilmadi',
-                        message: 'Bu do\'konda hozircha mahsulot yo\'q.',
-                        actionLabel: 'Yangilash',
+                        title: context.l10n.saMarketNoProductsTitle,
+                        message: context.l10n.saMarketNoProductsMessage,
+                        actionLabel: context.l10n.saRefresh,
                         onAction: () => context.read<MarketProvider>().loadStore(),
                       )
                     : Stack(
@@ -169,12 +170,12 @@ class _MarketScreenState extends State<MarketScreen> {
                                     ),
                                   ),
                                 ),
-                              const SliverToBoxAdapter(
+                              SliverToBoxAdapter(
                                 child: Padding(
-                                  padding: EdgeInsets.fromLTRB(
+                                  padding: const EdgeInsets.fromLTRB(
                                       kSpace4, kSpace4, kSpace4, kSpace3),
-                                  child: Text('Mahsulotlar',
-                                      style: TextStyle(
+                                  child: Text(context.l10n.saMarketProducts,
+                                      style: const TextStyle(
                                           fontSize: kFontTitle,
                                           fontWeight: FontWeight.w800,
                                           color: agText)),
@@ -212,7 +213,7 @@ class _MarketScreenState extends State<MarketScreen> {
                               bottom: MediaQuery.of(context).padding.bottom + kSpace4,
                               child: AgCartBar(
                                 count: cart.cartCount,
-                                label: 'Savat',
+                                label: context.l10n.saCart,
                                 trailing: Formatters.formatSom(cart.cartSubtotal),
                                 onTap: () => Navigator.of(context).push(
                                   MaterialPageRoute<void>(builder: (_) => const CartScreen()),
@@ -287,7 +288,7 @@ class _ProductCard extends StatelessWidget {
                   Semantics(
                     button: true,
                     enabled: p.isAvailable,
-                    label: '${p.name} — savatga qo\'shish',
+                    label: context.l10n.saAddItemToCartLabel(p.name),
                     excludeSemantics: true,
                     child: GestureDetector(
                       onTap: p.isAvailable ? onAdd : null,

@@ -1,5 +1,6 @@
 import 'package:angren_taxi/core/config/app_motion.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/driver_bonus_progress.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_pressable.dart';
@@ -169,10 +170,10 @@ class _DriverEarningsHeroState extends State<DriverEarningsHero>
             children: [
               Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Bugungi daromad',
-                      style: TextStyle(
+                      context.l10n.drvTodayEarnings,
+                      style: const TextStyle(
                         color: kMintSoft,
                         fontSize: kFontLabel,
                         fontWeight: FontWeight.w600,
@@ -227,9 +228,9 @@ class _DriverEarningsHeroState extends State<DriverEarningsHero>
           ),
         ),
         const SizedBox(width: kSpace2),
-        const Text(
-          "so'm",
-          style: TextStyle(
+        Text(
+          context.l10n.drvSom,
+          style: const TextStyle(
             color: kMintSoft,
             fontSize: kFontBodyLg,
             fontWeight: FontWeight.w700,
@@ -250,13 +251,15 @@ class _DriverEarningsHeroState extends State<DriverEarningsHero>
       children: [
         _HeroMetric(
           icon: Icons.route_rounded,
-          text: '${widget.todayTrips} ta safar',
+          text: context.l10n.drvTripsCount(widget.todayTrips),
         ),
         const SizedBox(width: kSpace4),
         Flexible(
           child: _HeroMetric(
             icon: Icons.calendar_view_week_rounded,
-            text: 'Hafta: ${Formatters.formatAmount(widget.weekNet)}',
+            text: context.l10n.drvWeekAmount(
+              Formatters.formatAmount(widget.weekNet),
+            ),
           ),
         ),
       ],
@@ -300,7 +303,7 @@ class _DriverEarningsHeroState extends State<DriverEarningsHero>
           dot,
         const SizedBox(width: kSpace2),
         Text(
-          online ? 'Online' : 'Offline',
+          online ? context.l10n.drvOnline : context.l10n.drvOffline,
           style: TextStyle(
             color: color,
             fontSize: kFontLabel,
@@ -371,9 +374,13 @@ class _DriverEarningsHeroState extends State<DriverEarningsHero>
         const SizedBox(height: kSpace2),
         Text(
           remaining > 0
-              ? 'Yana $remaining ta safar — '
-                  '${Formatters.formatSom(bonus.bonusAmount)}'
-              : 'Bajarildi — ${Formatters.formatSom(bonus.bonusAmount)}',
+              ? context.l10n.drvBonusRemaining(
+                  remaining,
+                  Formatters.formatSom(bonus.bonusAmount),
+                )
+              : context.l10n.drvBonusDone(
+                  Formatters.formatSom(bonus.bonusAmount),
+                ),
           style: const TextStyle(
             color: kMintSoft,
             fontSize: kFontCaption,
@@ -385,18 +392,21 @@ class _DriverEarningsHeroState extends State<DriverEarningsHero>
   }
 
   String _semanticsLabel(DriverBonusProgress? bonus) {
+    final l10n = context.l10n;
     final buffer = StringBuffer()
-      ..write('Bugungi daromad ')
-      ..write(Formatters.formatSom(widget.todayEarnings))
-      ..write(', ${widget.todayTrips} ta safar')
-      ..write(widget.isOnline ? ', online' : ', offline');
+      ..write(
+        l10n.drvHeroSemEarnings(Formatters.formatSom(widget.todayEarnings)),
+      )
+      ..write(', ${l10n.drvTripsCount(widget.todayTrips)}')
+      ..write(
+        ', ${widget.isOnline ? l10n.drvOnlineLower : l10n.drvOfflineLower}',
+      );
     if (bonus != null) {
       buffer.write(
-        ', ${bonus.name}: ${bonus.tripThreshold} tadan '
-        '${bonus.currentCount} ta bajarildi',
+        ', ${l10n.drvHeroSemBonus(bonus.name, bonus.tripThreshold, bonus.currentCount)}',
       );
     }
-    buffer.write('. Daromad tarixini ochish');
+    buffer.write('. ${l10n.drvHeroSemOpenHistory}');
     return buffer.toString();
   }
 }

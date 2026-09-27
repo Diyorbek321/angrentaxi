@@ -6,6 +6,9 @@ import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/driver/service_wording.dart';
+import 'package:angren_taxi/features/driver/widgets/delivery_info_card.dart';
+import 'package:angren_taxi/features/driver/widgets/trip_options_badges.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:flutter/material.dart';
@@ -114,7 +117,7 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content:
-                Text(provider.error ?? 'Buyurtmani qabul qilib bo\'lmadi')),
+                Text(provider.error ?? context.l10n.drvAcceptFailed)),
       );
     }
   }
@@ -185,6 +188,17 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
                                 _buildCountdownTimer(),
                                 const SizedBox(height: kSpace6),
                                 _buildPriceCard(offer),
+                                if (offer.options.isNotEmpty) ...[
+                                  const SizedBox(height: kSpace4),
+                                  TripOptionsBadges(options: offer.options),
+                                ],
+                                if (offer.delivery != null) ...[
+                                  const SizedBox(height: kSpace4),
+                                  DeliveryInfoCard(
+                                    delivery: offer.delivery!,
+                                    stage: DeliveryCardStage.offer,
+                                  ),
+                                ],
                                 const SizedBox(height: kSpace5),
                                 _buildRouteInfo(offer, wording),
                               ],
@@ -234,9 +248,9 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
             ),
           ),
           const SizedBox(height: kSpace2),
-          const Text(
-            'Yangi buyurtma!',
-            style: TextStyle(
+          Text(
+            context.l10n.drvNewOrder,
+            style: const TextStyle(
               color: kOnPrimary,
               fontSize: kFontH2,
               fontWeight: FontWeight.w800,
@@ -331,7 +345,7 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
           ),
           const SizedBox(height: kSpace2),
           Text(
-            'Qabul qilish uchun $_secondsLeft soniya qoldi',
+            context.l10n.drvSecondsToAccept(_secondsLeft),
             style: const TextStyle(color: kInkMuted, fontSize: kFontLabel),
           ),
         ],
@@ -356,7 +370,7 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
       child: Column(
         children: [
           Text(
-            'Taxminiy daromad',
+            context.l10n.drvEstimatedEarnings,
             style: TextStyle(
               fontSize: kFontLabel,
               color: kOnPrimary.withValues(alpha: 0.85),
@@ -533,8 +547,8 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
         Semantics(
           button: true,
           enabled: !isLoading,
-          label: 'Qabul qilish',
-          value: isLoading ? 'Yuklanmoqda' : null,
+          label: context.l10n.drvAccept,
+          value: isLoading ? context.l10n.drvLoading : null,
           excludeSemantics: true,
           child: SizedBox(
             width: double.infinity,
@@ -558,9 +572,9 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
                         color: kOnPrimary,
                       ),
                     )
-                  : const Text(
-                      'Qabul qilish',
-                      style: TextStyle(
+                  : Text(
+                      context.l10n.drvAccept,
+                      style: const TextStyle(
                         fontSize: kFontH2,
                         fontWeight: FontWeight.w800,
                       ),
@@ -572,7 +586,7 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
         Semantics(
           button: true,
           enabled: !isLoading,
-          label: 'Rad etish',
+          label: context.l10n.drvDecline,
           excludeSemantics: true,
           child: TextButton(
             onPressed: isLoading ? null : () => _onDecline(offer),
@@ -587,9 +601,9 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
                 borderRadius: BorderRadius.circular(kRadiusMd),
               ),
             ),
-            child: const Text(
-              'Rad etish',
-              style: TextStyle(
+            child: Text(
+              context.l10n.drvDecline,
+              style: const TextStyle(
                 fontSize: kFontTitle,
                 fontWeight: FontWeight.w600,
               ),

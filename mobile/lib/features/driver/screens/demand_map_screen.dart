@@ -5,6 +5,7 @@ import 'package:angren_taxi/core/config/app_responsive.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/driver/demand_provider.dart';
 import 'package:angren_taxi/features/passenger/map_camera_insets.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/demand_zone.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/adaptive_map_panel.dart';
@@ -334,7 +335,7 @@ class _DemandMapScreenState extends State<DemandMapScreen>
           children: [
             AgMapFab(
               icon: Icons.arrow_back_rounded,
-              semanticsLabel: 'Orqaga',
+              semanticsLabel: context.l10n.drvBack,
               onTap: () => Navigator.of(context).pop(),
             ),
             const SizedBox(width: kSpace3),
@@ -348,7 +349,7 @@ class _DemandMapScreenState extends State<DemandMapScreen>
               children: [
                 AgMapFab(
                   icon: Icons.refresh_rounded,
-                  semanticsLabel: 'Talab maʼlumotini yangilash',
+                  semanticsLabel: context.l10n.drvRefreshDemand,
                   // Tugma yuklanayotganda ham FAOL qoladi: takroriy so'rov
                   // provayderda baribir o'tkazib yuboriladi, holat esa
                   // sarlavhada ("Yangilanmoqda…") aytiladi. O'chirilgan
@@ -359,7 +360,7 @@ class _DemandMapScreenState extends State<DemandMapScreen>
                 const SizedBox(height: kSpace2),
                 AgMapFab(
                   icon: Icons.center_focus_strong_rounded,
-                  semanticsLabel: 'Zonalarni ekranga sig\'dirish',
+                  semanticsLabel: context.l10n.drvFitZones,
                   // Kamera o'zi faqat ochilishda moslanadi; xaritani
                   // surib yuborgan haydovchi shu tugma bilan qaytadi.
                   // Xaritadagi ASOSIY amal shu — shuning uchun `large`.
@@ -397,7 +398,7 @@ class _DemandMapScreenState extends State<DemandMapScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Talab xaritasi',
+            context.l10n.drvDemandMapTitle,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
@@ -408,7 +409,7 @@ class _DemandMapScreenState extends State<DemandMapScreen>
           ),
           if (isRefreshing)
             Text(
-              'Yangilanmoqda…',
+              context.l10n.drvRefreshing,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
@@ -419,7 +420,7 @@ class _DemandMapScreenState extends State<DemandMapScreen>
             )
           else if (updatedAt != null)
             Text(
-              'Yangilandi: ${Formatters.formatTime(updatedAt)}',
+              context.l10n.drvUpdatedAt(Formatters.formatTime(updatedAt)),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
@@ -473,8 +474,8 @@ class _DemandMapScreenState extends State<DemandMapScreen>
         padding: EdgeInsets.zero,
         child: AppErrorState(
           compact: true,
-          title: 'Talab maʼlumoti olinmadi',
-          message: provider.error ?? 'Xatolik yuz berdi',
+          title: context.l10n.drvDemandLoadFailed,
+          message: provider.error ?? context.l10n.drvErrorOccurred,
           onRetry: () => provider.refresh(),
         ),
       );
@@ -485,14 +486,13 @@ class _DemandMapScreenState extends State<DemandMapScreen>
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const AgSurfaceCard(
+          AgSurfaceCard(
             padding: EdgeInsets.zero,
             child: AppEmptyState(
               compact: true,
               icon: Icons.explore_outlined,
-              title: 'Hozir talab hamma joyda oddiy',
-              message: 'Zonalar orasida farq yo‘q — istalgan joyda kutishingiz '
-                  'mumkin. Maʼlumot har daqiqada yangilanadi.',
+              title: context.l10n.drvDemandEvenTitle,
+              message: context.l10n.drvDemandEvenMessage,
             ),
           ),
           _buildStaleNotice(provider),
@@ -520,7 +520,7 @@ class _DemandMapScreenState extends State<DemandMapScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Bo‘yalgan joylarda buyurtma ko‘proq',
+                context.l10n.drvDemandPaintedMore,
                 style: TextStyle(
                   fontSize: context.fs(kFontBody),
                   fontWeight: FontWeight.w700,
@@ -529,7 +529,7 @@ class _DemandMapScreenState extends State<DemandMapScreen>
               ),
               const SizedBox(height: kSpace1),
               Text(
-                'Shu zonalarga yaqin turing — buyurtma tezroq keladi.',
+                context.l10n.drvDemandStayNear,
                 style: TextStyle(
                   fontSize: context.fs(kFontLabel),
                   color: kInkMuted,
@@ -563,7 +563,7 @@ class _DemandMapScreenState extends State<DemandMapScreen>
               // Bo'yalmagan joyning ma'nosi ham aytiladi — aks holda
               // "rangsiz" "ma'lumot yo'q" deb tushunilishi mumkin.
               Text(
-                'Bo‘yalmagan joylarda talab odatdagidek.',
+                context.l10n.drvDemandUnpaintedNormal,
                 style: TextStyle(
                   fontSize: context.fs(kFontCaption),
                   // Yozuvda kInkSubtle ISHLATILMAYDI (3.67:1 — kichik matn
@@ -578,13 +578,14 @@ class _DemandMapScreenState extends State<DemandMapScreen>
         if (target != null) ...[
           const SizedBox(height: kSpace4),
           AppButton(
-            label: 'Eng yaqin zonaga yo‘l olish',
+            label: context.l10n.drvGoToNearestZone,
             // Haydovchi nishoni — `kControlHeight` (54) yo'lovchi uchun.
             height: kControlHeightDriver,
             icon: const Icon(Icons.navigation_rounded, size: 20),
-            semanticsLabel: 'Eng yaqin talab zonasiga navigatsiyani ochish, '
-                '${_levelTitle(target.level)}, '
-                '${Formatters.formatDistance(target.meters)}',
+            semanticsLabel: context.l10n.drvGoToNearestZoneSem(
+              _levelTitle(target.level),
+              Formatters.formatDistance(target.meters),
+            ),
             onPressed: () => _openNavigation(target),
           ),
         ],
@@ -601,7 +602,7 @@ class _DemandMapScreenState extends State<DemandMapScreen>
 
     return Padding(
       padding: const EdgeInsets.only(top: kSpace4),
-      child: InlineErrorWidget(message: 'Yangilanmadi: $message'),
+      child: InlineErrorWidget(message: context.l10n.drvNotUpdated(message)),
     );
   }
 
@@ -662,7 +663,7 @@ class _DemandMapScreenState extends State<DemandMapScreen>
   /// bir xil: Androidda umumiy `geo:` (OS o'rnatilgan navigatorni tanlaydi),
   /// iOS'da `geo:` qo'llab-quvvatlanmagani uchun Apple Maps havolasi.
   Future<void> _openNavigation(_NearestZone target) async {
-    final label = Uri.encodeComponent('Talab zonasi');
+    final label = Uri.encodeComponent(context.l10n.drvDemandZone);
     final uri = Platform.isIOS
         ? Uri.parse(
             'https://maps.apple.com/?daddr='
@@ -676,7 +677,7 @@ class _DemandMapScreenState extends State<DemandMapScreen>
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Navigatsiya ilovasi topilmadi')),
+        SnackBar(content: Text(context.l10n.drvNavAppNotFound)),
       );
     }
   }
@@ -697,9 +698,9 @@ class _NearestZone {
 }
 
 String _levelTitle(DemandLevel level) => switch (level) {
-      DemandLevel.high => 'Talab juda yuqori',
-      DemandLevel.elevated => 'Talab yuqori',
-      DemandLevel.normal => 'Talab oddiy',
+      DemandLevel.high => AppL10n.current.drvDemandVeryHigh,
+      DemandLevel.elevated => AppL10n.current.drvDemandHigh,
+      DemandLevel.normal => AppL10n.current.drvDemandNormal,
     };
 
 /// Legendaning bitta qatori: rang namunasi + ikonka + matn + zonalar soni
@@ -739,7 +740,7 @@ class _DemandLevelRow extends StatelessWidget {
     };
 
     final title = _levelTitle(level);
-    final countLabel = count == 1 ? '1 zona' : '$count zona';
+    final countLabel = context.l10n.drvZonesCount(count);
     final distance = distanceMeters;
     final distanceLabel =
         distance == null ? null : Formatters.formatDistance(distance);
@@ -747,8 +748,12 @@ class _DemandLevelRow extends StatelessWidget {
     return Semantics(
       container: true,
       label: distanceLabel == null
-          ? '$title, $countLabel'
-          : '$title, $countLabel, eng yaqini $distanceLabel',
+          ? context.l10n.drvDemandRowSem(title, countLabel)
+          : context.l10n.drvDemandRowSemNearest(
+              title,
+              countLabel,
+              distanceLabel,
+            ),
       excludeSemantics: true,
       child: Row(
         children: [

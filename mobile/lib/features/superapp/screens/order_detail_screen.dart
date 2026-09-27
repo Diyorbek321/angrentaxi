@@ -1,5 +1,6 @@
 import 'package:angren_taxi/features/passenger/screens/receipt_screen.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
@@ -112,7 +113,7 @@ class OrderDetailScreen extends StatelessWidget {
                     children: [
                       _Point(
                         color: agGreenText,
-                        label: 'Olib ketish',
+                        label: context.l10n.saPickup,
                         value: order.pickup.address,
                       ),
                       const Padding(
@@ -121,7 +122,7 @@ class OrderDetailScreen extends StatelessWidget {
                       ),
                       _Point(
                         color: agText,
-                        label: 'Manzil',
+                        label: context.l10n.saDestination,
                         value: order.dropoff.address,
                       ),
                     ],
@@ -177,7 +178,7 @@ class OrderDetailScreen extends StatelessWidget {
                           AgIconButton(
                             icon: Icons.call_rounded,
                             onTap: () => _callDriver(context, driver.phone),
-                            semanticsLabel: 'Haydovchiga qo\'ng\'iroq qilish',
+                            semanticsLabel: context.l10n.saCallDriver,
                           ),
                       ],
                     ),
@@ -188,22 +189,22 @@ class OrderDetailScreen extends StatelessWidget {
                   child: Column(
                     children: [
                       _Row(
-                        label: 'Buyurtma raqami',
+                        label: context.l10n.saOrderNumberLabel,
                         value: order.id.split('-').first.toUpperCase(),
                       ),
                       if (order.distanceKm != null)
                         _Row(
-                          label: 'Masofa',
+                          label: context.l10n.saDistance,
                           value: Formatters.formatDistance(order.distanceKm! * 1000),
                         ),
                       if (order.durationMin != null)
                         _Row(
-                          label: 'Davomiyligi',
+                          label: context.l10n.saDuration,
                           value: Formatters.formatDuration(order.durationMin!),
                         ),
                       if (order.completedAt != null)
                         _Row(
-                          label: 'Yakunlandi',
+                          label: context.l10n.saCompletedAt,
                           value: Formatters.formatDateTime(order.completedAt!),
                         ),
                       // The total is the server's figure. There is no invented
@@ -211,7 +212,7 @@ class OrderDetailScreen extends StatelessWidget {
                       // single fare plus an optional promo discount, and
                       // showing a split it never sent would be fiction.
                       _Row(
-                        label: 'Jami',
+                        label: context.l10n.saTotal,
                         value: Formatters.formatSom(_amount),
                         emphasized: true,
                       ),
@@ -224,14 +225,14 @@ class OrderDetailScreen extends StatelessWidget {
                 if (order.status == OrderStatus.completed) ...[
                   const SizedBox(height: kSpace4),
                   AppOutlinedButton(
-                    label: 'Chekni ko\'rish',
+                    label: context.l10n.saViewReceipt,
                     icon: const Icon(Icons.receipt_long_rounded, size: 18),
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) => ReceiptScreen(orderId: order.id),
                       ),
                     ),
-                    semanticsLabel: 'Safar chekini ochish',
+                    semanticsLabel: context.l10n.saOpenTripReceipt,
                   ),
                 ],
               ],
@@ -248,7 +249,7 @@ class OrderDetailScreen extends StatelessWidget {
       await launchUrl(uri);
     } else if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Qo\'ng\'iroq qilib bo\'lmadi')),
+        SnackBar(content: Text(context.l10n.saCallFailed)),
       );
     }
   }

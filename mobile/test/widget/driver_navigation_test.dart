@@ -80,7 +80,7 @@ class _FakeLocationService extends LocationService {
 ///
 /// Burilish haydovchidan aniq 300 m shimolda — `NavigationEngine` ning
 /// `near` (150 m) va `immediate` (60 m) oynalarini testda boshqarish uchun.
-class _FakeRouteService extends RouteService {
+class _FakeRouteService implements RouteService {
   _FakeRouteService({this.steps});
 
   /// `null` — OSRM `steps` yubormagan holat (eski server / boshqa profil).

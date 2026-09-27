@@ -3,6 +3,7 @@ import 'package:angren_taxi/features/superapp/screens/restaurant_detail_screen.d
 import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/market_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
 import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
@@ -77,7 +78,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
             child: Row(
               children: [
-                AgIconButton(icon: Icons.arrow_back_rounded, onTap: () => Navigator.of(context).pop(), semanticsLabel: 'Orqaga'),
+                AgIconButton(icon: Icons.arrow_back_rounded, onTap: () => Navigator.of(context).pop(), semanticsLabel: context.l10n.saBack),
                 const SizedBox(width: kSpace3),
                 Expanded(
                   child: Container(
@@ -98,11 +99,11 @@ class _SearchScreenState extends State<SearchScreen> {
                             controller: _controller,
                             autofocus: true,
                             onChanged: (value) => setState(() => _query = value),
-                            decoration: const InputDecoration(
+                            decoration: InputDecoration(
                               isCollapsed: true,
                               border: InputBorder.none,
-                              hintText: 'taom, doʻkon, mahsulot…',
-                              hintStyle: TextStyle(
+                              hintText: context.l10n.saSearchHint,
+                              hintStyle: const TextStyle(
                                   color: agSubtle,
                                   fontWeight: FontWeight.w600,
                                   fontSize: kFontBody),
@@ -114,7 +115,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         if (_query.isNotEmpty)
                           Semantics(
                             button: true,
-                            label: 'Qidiruvni tozalash',
+                            label: context.l10n.saSearchClear,
                             excludeSemantics: true,
                             child: GestureDetector(
                               onTap: () {
@@ -143,32 +144,32 @@ class _SearchScreenState extends State<SearchScreen> {
                 ? const AppSkeletonList(itemCount: 5, hasTrailing: true)
                 : (failed && empty)
                     ? AppErrorState(
-                        message: food.error ?? market.error ?? 'Xatolik yuz berdi',
+                        message: food.error ?? market.error ?? context.l10n.saErrorOccurred,
                         onRetry: () {
                           context.read<FoodProvider>().loadRestaurants();
                           context.read<MarketProvider>().loadStore();
                         },
                       )
                     : empty
-                        ? const AppEmptyState(
+                        ? AppEmptyState(
                             icon: Icons.search_off_rounded,
-                            title: 'Hech narsa topilmadi',
-                            message: 'Boshqa nom bilan qidirib ko\'ring.',
+                            title: context.l10n.saSearchEmptyTitle,
+                            message: context.l10n.saSearchEmptyMessage,
                           )
                         : ListView(
                             padding: const EdgeInsets.fromLTRB(
                                 kSpace4, kSpace4, kSpace4, kSpace6),
                             children: [
                               if (restaurants.isNotEmpty) ...[
-                                _sectionLabel('RESTORANLAR'),
+                                _sectionLabel(context.l10n.saSearchSectionRestaurants),
                                 for (final r in restaurants) ...[
                                   _ResultRow(
                                     color: agPrimary,
                                     icon: Icons.restaurant_rounded,
                                     title: r.name,
-                                    sub: r.address ?? (r.isOpen ? 'Ochiq' : 'Yopiq'),
+                                    sub: r.address ?? (r.isOpen ? context.l10n.saOpen : context.l10n.saClosed),
                                     trailing: AppStatusBadge(
-                                      label: r.isOpen ? 'Ochiq' : 'Yopiq',
+                                      label: r.isOpen ? context.l10n.saOpen : context.l10n.saClosed,
                                       tone: r.isOpen
                                           ? AppStatusTone.success
                                           : AppStatusTone.neutral,
@@ -185,13 +186,13 @@ class _SearchScreenState extends State<SearchScreen> {
                                 const SizedBox(height: kSpace3),
                               ],
                               if (products.isNotEmpty) ...[
-                                _sectionLabel('MAHSULOTLAR'),
+                                _sectionLabel(context.l10n.saSearchSectionProducts),
                                 for (final p in products) ...[
                                   _ResultRow(
                                     color: p.color,
                                     icon: p.icon,
                                     title: p.name,
-                                    sub: 'Market · ${p.unit}',
+                                    sub: context.l10n.saSearchMarketUnit(p.unit),
                                     trailing: Text(
                                       Formatters.formatSom(p.price),
                                       style: const TextStyle(

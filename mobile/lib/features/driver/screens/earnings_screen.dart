@@ -1,5 +1,6 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/driver_bonus_progress.dart';
 import 'package:angren_taxi/shared/models/driver_earnings_breakdown.dart';
 import 'package:angren_taxi/shared/models/order.dart';
@@ -74,9 +75,9 @@ String _periodId(_EarningsPeriod period) => switch (period) {
 
 /// Chipdagi qisqa yorliq — barmoq ostidagi qator tor ekranda ham sig'sin.
 String _periodChipLabel(_EarningsPeriod period) => switch (period) {
-      _EarningsPeriod.today => 'Bugun',
-      _EarningsPeriod.week => 'Hafta',
-      _EarningsPeriod.month => 'Oy',
+      _EarningsPeriod.today => AppL10n.current.drvToday,
+      _EarningsPeriod.week => AppL10n.current.drvPeriodWeek,
+      _EarningsPeriod.month => AppL10n.current.drvPeriodMonth,
     };
 
 /// Hero kartadagi to'liq yorliq. Chipda "Hafta" yozilgan, lekin backend
@@ -84,9 +85,9 @@ String _periodChipLabel(_EarningsPeriod period) => switch (period) {
 /// haftasi deb o'ylab, dushanba kuni "nega raqam nolga tushmadi?" demasligi
 /// uchun aniq aytiladi.
 String _periodTitle(_EarningsPeriod period) => switch (period) {
-      _EarningsPeriod.today => 'Bugun',
-      _EarningsPeriod.week => "So'nggi 7 kun",
-      _EarningsPeriod.month => "So'nggi 30 kun",
+      _EarningsPeriod.today => AppL10n.current.drvToday,
+      _EarningsPeriod.week => AppL10n.current.drvLast7Days,
+      _EarningsPeriod.month => AppL10n.current.drvLast30Days,
     };
 
 class EarningsScreen extends StatefulWidget {
@@ -120,7 +121,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
       // Qatlamli til: ekran foni kSurface2, bloklar esa oq `AgSurfaceCard`.
       // Ikkalasi BIRGA ishlatiladi — oq fon ustidagi oq karta ajralmaydi.
       backgroundColor: kSurface2,
-      appBar: AppBar(title: const Text('Daromad')),
+      appBar: AppBar(title: Text(context.l10n.drvEarnings)),
       body: Consumer<DriverProvider>(
         builder: (context, provider, _) {
           // Uch holat: yuklanmoqda → SKELETON (spinner emas),
@@ -161,7 +162,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
           if (provider.state == DriverProviderState.error &&
               provider.orderHistory.isEmpty) {
             return AppErrorState(
-              message: provider.error ?? 'Xatolik yuz berdi',
+              message: provider.error ?? context.l10n.drvErrorOccurred,
               onRetry: () {
                 provider.loadEarnings();
                 provider.loadOrderHistory();
@@ -190,21 +191,21 @@ class _EarningsScreenState extends State<EarningsScreen> {
                   SliverToBoxAdapter(
                     child: _buildBonusSection(context, provider),
                   ),
-                const SliverToBoxAdapter(
-                  child: _SectionHeader("Pul yechish so'rovlari"),
+                SliverToBoxAdapter(
+                  child: _SectionHeader(context.l10n.drvWithdrawRequests),
                 ),
                 if (provider.withdrawals.isEmpty)
                   // Bo'sh holat OQ kartada: `AppEmptyState` ikonkasi
                   // `kSurface2` doira ichida chiziladi va ekran foni ham
                   // `kSurface2` — kartasiz u fonda butunlay yo'qolardi.
-                  const SliverToBoxAdapter(
+                  SliverToBoxAdapter(
                     child: Padding(
-                      padding: EdgeInsets.fromLTRB(kSpace4, 0, kSpace4, kSpace2),
+                      padding: const EdgeInsets.fromLTRB(kSpace4, 0, kSpace4, kSpace2),
                       child: AgSurfaceCard(
                         padding: EdgeInsets.zero,
                         child: AppEmptyState(
                           icon: Icons.request_quote_outlined,
-                          title: "Hozircha so'rovlar yo'q",
+                          title: context.l10n.drvNoRequestsYet,
                           compact: true,
                         ),
                       ),
@@ -219,8 +220,8 @@ class _EarningsScreenState extends State<EarningsScreen> {
                       childCount: provider.withdrawals.length,
                     ),
                   ),
-                const SliverToBoxAdapter(
-                  child: _SectionHeader('Buyurtmalar tarixi'),
+                SliverToBoxAdapter(
+                  child: _SectionHeader(context.l10n.drvOrderHistory),
                 ),
                 if (provider.orderHistory.isEmpty)
                   // A plain padded box rather than SliverFillRemaining: the
@@ -229,14 +230,14 @@ class _EarningsScreenState extends State<EarningsScreen> {
                   // content's intrinsic height, and SliverFillRemaining
                   // forces its child into exactly that (possibly too small)
                   // space, overflowing instead of just taking what it needs.
-                  const SliverToBoxAdapter(
+                  SliverToBoxAdapter(
                     child: Padding(
-                      padding: EdgeInsets.fromLTRB(kSpace4, 0, kSpace4, kSpace2),
+                      padding: const EdgeInsets.fromLTRB(kSpace4, 0, kSpace4, kSpace2),
                       child: AgSurfaceCard(
                         padding: EdgeInsets.zero,
                         child: AppEmptyState(
                           icon: Icons.history,
-                          title: 'Buyurtmalar tarixi yo\'q',
+                          title: context.l10n.drvNoOrderHistory,
                           compact: true,
                         ),
                       ),
@@ -277,7 +278,8 @@ class _EarningsScreenState extends State<EarningsScreen> {
               active: _selectedPeriod == period,
               // Yolg'iz "Oy" ekran o'quvchida ma'nosiz — davrning to'liq
               // nomi aytiladi.
-              semanticsLabel: '${_periodTitle(period)} daromadi',
+              semanticsLabel:
+                  context.l10n.drvPeriodEarningsSem(_periodTitle(period)),
             ),
         ],
         onTap: (id) {
@@ -309,7 +311,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Sof daromad · ${_periodTitle(_selectedPeriod)}',
+            context.l10n.drvNetEarnings(_periodTitle(_selectedPeriod)),
             style: TextStyle(
               color: kOnPrimary.withValues(alpha: 0.78),
               fontSize: kFontLabel,
@@ -374,9 +376,9 @@ class _EarningsScreenState extends State<EarningsScreen> {
                 ),
               ),
               icon: const Icon(Icons.account_balance_wallet_outlined),
-              label: const Text(
-                'Pul yechish',
-                style: TextStyle(
+              label: Text(
+                context.l10n.drvWithdraw,
+                style: const TextStyle(
                   fontSize: kFontTitle,
                   fontWeight: FontWeight.w700,
                 ),
@@ -408,17 +410,17 @@ class _EarningsScreenState extends State<EarningsScreen> {
       child: Column(
         children: [
           _LedgerRow(
-            label: 'Yakunlangan safarlar',
+            label: context.l10n.drvCompletedTrips,
             value: period.trips.toString(),
             valueKey: const ValueKey('earnings_trips_value'),
           ),
           _LedgerRow(
-            label: 'Safarlardan jami',
+            label: context.l10n.drvTripsGross,
             value: Formatters.formatPrice(period.gross),
             valueKey: const ValueKey('earnings_gross_value'),
           ),
           _LedgerRow(
-            label: 'Platforma komissiyasi',
+            label: context.l10n.drvPlatformCommission,
             value: '- ${Formatters.formatPrice(period.commission)}',
             // Kamayish — kWarningDark. Ilgari kErrorDark edi, izohda
             // "6.12:1" deb yozilgandi; o'sha raqam YALANG'OCH kInk uchun
@@ -438,7 +440,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
             color: kOnPrimary.withValues(alpha: 0.18),
           ),
           _LedgerRow(
-            label: 'Qo\'lingizga qoladi',
+            label: context.l10n.drvYouKeep,
             value: Formatters.formatPrice(period.net),
             valueColor: kMintSoft,
             bold: true,
@@ -457,16 +459,16 @@ class _EarningsScreenState extends State<EarningsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
-                ExcludeSemantics(
+                const ExcludeSemantics(
                   child: Icon(Icons.emoji_events_outlined,
                       color: kPrimary, size: 20),
                 ),
-                SizedBox(width: kSpace2),
+                const SizedBox(width: kSpace2),
                 Text(
-                  'Bonus dasturi',
-                  style: TextStyle(
+                  context.l10n.drvBonusProgram,
+                  style: const TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: kFontTitle,
                     color: kInk,
@@ -535,28 +537,27 @@ class _WithdrawDialogState extends State<_WithdrawDialog> {
     final destination = _destinationController.text.trim();
 
     if (amount == null || amount <= 0) {
-      setState(() => _validationError = "To'g'ri summa kiriting");
+      setState(() => _validationError = context.l10n.drvEnterValidAmount);
       return;
     }
     if (destination.length < 3) {
       setState(
-        () => _validationError = "Karta yoki telefon raqamini kiriting",
+        () => _validationError = context.l10n.drvEnterCardOrPhone,
       );
       return;
     }
     if (balance != null && balance <= 0) {
       setState(
         () => _validationError = provider.hasWalletDebt
-            ? "Hisobingiz manfiy (${Formatters.formatPrice(balance)}). "
-                "Avval qarzni yoping."
-            : "Yechish uchun mablag' yo'q",
+            ? context.l10n.drvBalanceNegative(Formatters.formatPrice(balance))
+            : context.l10n.drvNoFundsToWithdraw,
       );
       return;
     }
     if (balance != null && amount > balance) {
       setState(
         () => _validationError =
-            "Summa hamyondan oshib ketdi. Hamyon: ${Formatters.formatPrice(balance)}",
+            context.l10n.drvAmountExceedsWallet(Formatters.formatPrice(balance)),
       );
       return;
     }
@@ -580,7 +581,7 @@ class _WithdrawDialogState extends State<_WithdrawDialog> {
       builder: (context, provider, _) {
         final error = _validationError ?? provider.withdrawalError;
         return AlertDialog(
-          title: const Text('Pul yechish'),
+          title: Text(context.l10n.drvWithdraw),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -591,8 +592,12 @@ class _WithdrawDialogState extends State<_WithdrawDialog> {
                     padding: const EdgeInsets.only(bottom: kSpace3),
                     child: Text(
                       provider.hasWalletDebt
-                          ? 'Qarz: ${Formatters.formatPrice(provider.walletBalance!)}'
-                          : 'Hamyon: ${Formatters.formatPrice(provider.walletBalance!)}',
+                          ? context.l10n.drvDebtAmount(
+                              Formatters.formatPrice(provider.walletBalance!),
+                            )
+                          : context.l10n.drvWalletAmount(
+                              Formatters.formatPrice(provider.walletBalance!),
+                            ),
                       style: TextStyle(
                         color: provider.hasWalletDebt ? kErrorDeep : kInkMuted,
                         fontSize: kFontBody,
@@ -604,17 +609,17 @@ class _WithdrawDialogState extends State<_WithdrawDialog> {
                   controller: _amountController,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Summa',
-                    hintText: 'Masalan: 60000',
+                  decoration: InputDecoration(
+                    labelText: context.l10n.drvAmount,
+                    hintText: context.l10n.drvAmountHint,
                   ),
                 ),
                 const SizedBox(height: kSpace3),
                 TextField(
                   key: const ValueKey('withdraw_destination_field'),
                   controller: _destinationController,
-                  decoration: const InputDecoration(
-                    labelText: 'Karta yoki telefon raqami',
+                  decoration: InputDecoration(
+                    labelText: context.l10n.drvCardOrPhone,
                     hintText: '+998901234567',
                   ),
                 ),
@@ -655,7 +660,7 @@ class _WithdrawDialogState extends State<_WithdrawDialog> {
                 // farq qilib tursin.
                 minimumSize: const Size(64, kMinTapTargetDriver),
               ),
-              child: const Text('Bekor qilish'),
+              child: Text(context.l10n.drvCancel),
             ),
             ElevatedButton(
               key: const ValueKey('withdraw_submit_button'),
@@ -672,7 +677,7 @@ class _WithdrawDialogState extends State<_WithdrawDialog> {
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Yuborish'),
+                  : Text(context.l10n.drvSend),
             ),
           ],
         );
@@ -688,13 +693,13 @@ class _WithdrawDialogState extends State<_WithdrawDialog> {
 (String, AppStatusTone) _withdrawalStatusDisplay(WithdrawalStatus status) {
   switch (status) {
     case WithdrawalStatus.pending:
-      return ('Kutilmoqda', AppStatusTone.warning);
+      return (AppL10n.current.drvWithdrawPending, AppStatusTone.warning);
     case WithdrawalStatus.approved:
-      return ('Tasdiqlandi', AppStatusTone.success);
+      return (AppL10n.current.drvWithdrawApproved, AppStatusTone.success);
     case WithdrawalStatus.rejected:
-      return ('Rad etildi', AppStatusTone.danger);
+      return (AppL10n.current.drvRequestRejected, AppStatusTone.danger);
     case WithdrawalStatus.paid:
-      return ("To'landi", AppStatusTone.success);
+      return (AppL10n.current.drvWithdrawPaid, AppStatusTone.success);
   }
 }
 
@@ -742,9 +747,7 @@ class _WalletRow extends StatelessWidget {
   final double balance;
   final bool isDebt;
 
-  static const String _debtConsequence =
-      "Naqd safarlar komissiyasi. Qarz yopilmaguncha onlayn chiqib "
-      "bo'lmaydi.";
+  static String get _debtConsequence => AppL10n.current.drvDebtConsequence;
 
   @override
   Widget build(BuildContext context) {
@@ -782,7 +785,7 @@ class _WalletRow extends StatelessWidget {
               const SizedBox(width: kSpace2),
               Expanded(
                 child: Text(
-                  isDebt ? 'Qarz' : 'Hamyon',
+                  isDebt ? context.l10n.drvDebt : context.l10n.drvWallet,
                   style: TextStyle(
                     color: labelColor,
                     fontSize: kFontLabel,
@@ -802,9 +805,9 @@ class _WalletRow extends StatelessWidget {
           ),
           if (isDebt) ...[
             const SizedBox(height: kSpace2),
-            const Text(
+            Text(
               _debtConsequence,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: kFontLabel,
                 fontWeight: FontWeight.w600,
                 // Yorug' yuzada — kErrorDeep (kErrorLight ustida 5.91:1).
@@ -1070,7 +1073,7 @@ class _BonusProgressTile extends StatelessWidget {
           ),
           const SizedBox(height: kSpace1),
           Text(
-            '${bonus.currentCount}/${bonus.tripThreshold} safar',
+            context.l10n.drvBonusTrips(bonus.currentCount, bonus.tripThreshold),
             style: const TextStyle(color: kInkMuted, fontSize: kFontCaption),
           ),
         ],

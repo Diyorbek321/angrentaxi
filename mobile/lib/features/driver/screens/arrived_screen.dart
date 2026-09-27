@@ -1,6 +1,9 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/driver/service_wording.dart';
+import 'package:angren_taxi/features/driver/widgets/delivery_info_card.dart';
+import 'package:angren_taxi/features/driver/widgets/trip_options_badges.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/utils/waiting_charge.dart';
@@ -51,7 +54,7 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Yetib keldim'),
+        title: Text(context.l10n.drvArrivedTitle),
         backgroundColor: kSurface,
         foregroundColor: kInk,
         elevation: 0,
@@ -90,6 +93,19 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
                       _buildWaitingBlock(order),
                       const SizedBox(height: kSpace6),
                       _buildOrderInfo(order, wording),
+                      if (order.options.isNotEmpty) ...[
+                        const SizedBox(height: kSpace4),
+                        TripOptionsBadges(options: order.options),
+                      ],
+                      // Restoran/do'kon oldida: nima olinadi, sotuvchi
+                      // telefoni va mijozdan olinadigan naqd.
+                      if (order.delivery != null) ...[
+                        const SizedBox(height: kSpace4),
+                        DeliveryInfoCard(
+                          delivery: order.delivery!,
+                          stage: DeliveryCardStage.pickup,
+                        ),
+                      ],
                       const Spacer(),
                       const SizedBox(height: kSpace6),
                       _buildActionButtons(order, provider, wording),
@@ -194,19 +210,27 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
     final headline = billing
         ? '+${Formatters.formatSom(charge.fare.toDouble())}'
         : formatWaitClock(charge.freeRemaining);
-    final label = billing ? 'Kutish haqi' : 'Bepul kutish';
+    final l10n = context.l10n;
+    final label = billing ? l10n.drvWaitFee : l10n.drvFreeWait;
     final caption = billing
-        ? 'Jami ${formatWaitElapsed(charge.elapsed)} · $perMinute/daqiqa'
-        : 'Keyin $perMinute/daqiqa';
+        ? l10n.drvWaitBillingCaption(
+            formatWaitElapsed(charge.elapsed),
+            perMinute,
+          )
+        : l10n.drvWaitFreeCaption(perMinute);
 
     // Ekran o'quvchi uchun BUTUN blok bitta jumla. `liveRegion: false` —
     // raqam sekundiga o'zgaradi va jonli soha bo'lsa u boshqa hamma narsani
     // bosib ketardi.
     final semanticsLabel = billing
-        ? 'Kutish haqi ${Formatters.formatSom(charge.fare.toDouble())}, '
-            'jami ${formatWaitElapsed(charge.elapsed)} kutildi'
-        : 'Bepul kutish tugashiga ${formatWaitClock(charge.freeRemaining)} '
-            'qoldi, keyin $perMinute har daqiqa uchun';
+        ? l10n.drvWaitBillingSem(
+            Formatters.formatSom(charge.fare.toDouble()),
+            formatWaitElapsed(charge.elapsed),
+          )
+        : l10n.drvWaitFreeSem(
+            formatWaitClock(charge.freeRemaining),
+            perMinute,
+          );
 
     return Semantics(
       label: semanticsLabel,
@@ -298,9 +322,9 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Buyurtma ma\'lumotlari',
-            style: TextStyle(
+          Text(
+            context.l10n.drvOrderDetails,
+            style: const TextStyle(
               fontWeight: FontWeight.w800,
               fontSize: kFontBodyLg,
               color: kInk,
@@ -322,12 +346,12 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
           // haydovchi uchun eng yomon xato).
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Taxminiy narx:',
+                  context.l10n.drvEstimatedPrice,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: kInkMuted, fontSize: kFontBody),
+                  style: const TextStyle(color: kInkMuted, fontSize: kFontBody),
                 ),
               ),
               const SizedBox(width: kSpace3),
@@ -450,21 +474,21 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
 
     // `arrivedAt` yo'q buyurtmada kutish vaqti haqida GAPIRMAYMIZ — soxta
     // "0 soniya kutdingiz" yozuvidan ko'ra savolning o'zi yaxshiroq.
-    final waitedLine = order.arrivedAt == null
-        ? ''
+    final l10n = context.l10n;
+    final confirmText = order.arrivedAt == null
+        ? l10n.drvNoShowConfirm
         : charge.isBilling
-            ? '${formatWaitElapsed(charge.elapsed)} kutdingiz, '
-                '${Formatters.formatSom(charge.fare.toDouble())} kutish haqi '
-                'yig\'ildi. '
-            : '${formatWaitElapsed(charge.elapsed)} kutdingiz. ';
+            ? l10n.drvNoShowConfirmWaitedFee(
+                formatWaitElapsed(charge.elapsed),
+                Formatters.formatSom(charge.fare.toDouble()),
+              )
+            : l10n.drvNoShowConfirmWaited(formatWaitElapsed(charge.elapsed));
 
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(wording.noShowActionLabel),
-        content: Text(
-          '${waitedLine}Buyurtmani bekor qilmoqchimisiz?',
-        ),
+        content: Text(confirmText),
         // ⚠️ TASDIQ DIALOGIDA HAM IKKI TANLOV YONMA-YON QO'YILMAYDI —
         // ekrandagi tugmalar bilan bir xil qoida, chunki xavf ham o'sha:
         // tanlovlardan biri buyurtmani BEKOR qiladi.
@@ -498,14 +522,14 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
             children: [
               AppButton(
                 key: const ValueKey('no_show_keep_waiting'),
-                label: "Yo'q, kutaman",
+                label: l10n.drvNoKeepWaiting,
                 height: kMinTapTargetDriver,
                 onPressed: () => Navigator.of(ctx).pop(),
               ),
               const SizedBox(height: kSpace4),
               AppOutlinedButton(
                 key: const ValueKey('no_show_confirm_cancel'),
-                label: 'Ha, bekor qilaman',
+                label: l10n.drvYesCancel,
                 height: kMinTapTargetDriver,
                 // Xavf MATNI kErrorDeep (6.47:1); kError faqat chegara uchun.
                 textColor: kErrorDeep,
@@ -523,7 +547,7 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content:
-                            Text(provider.error ?? 'Bekor qilib bo\'lmadi'),
+                            Text(provider.error ?? l10n.drvCancelFailed),
                       ),
                     );
                   }

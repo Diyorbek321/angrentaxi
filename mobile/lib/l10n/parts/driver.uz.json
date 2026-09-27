@@ -1,0 +1,651 @@
+{
+  "drvTypeTaxi": "Taksi",
+  "drvTypeCargo": "Yuk tashish",
+  "drvTypeFood": "Ovqat yetkazish",
+  "drvTypeMarket": "Market yetkazish",
+  "drvPassenger": "Yo'lovchi",
+  "drvCargo": "Yuk",
+  "drvCustomer": "Mijoz",
+  "drvRestaurant": "Restoran",
+  "drvShop": "Do'kon",
+  "drvChatPassenger": "Yo'lovchi bilan yozishish",
+  "drvChatCustomer": "Mijoz bilan yozishish",
+  "drvPickupPlace": "Olish joyi",
+  "drvDestination": "Manzil",
+  "drvCargoPickupPlace": "Yukni olish joyi",
+  "drvDeliveryAddress": "Yetkazish manzili",
+  "drvRouteToPassenger": "Yo'lovchiga yo'l",
+  "drvRouteToCargo": "Yukka yo'l",
+  "drvRouteToRestaurant": "Restoranga yo'l",
+  "drvRouteToShop": "Do'konga yo'l",
+  "drvDistanceToPassenger": "Yo'lovchigacha",
+  "drvDistanceToCargo": "Yukkacha",
+  "drvDistanceToRestaurant": "Restorangacha",
+  "drvDistanceToShop": "Do'kongacha",
+  "drvArrivedTaxi": "Olish joyida turibsiz!",
+  "drvArrivedCargo": "Yuk olish joyidasiz!",
+  "drvArrivedRestaurant": "Restorandasiz!",
+  "drvArrivedShop": "Do'kondasiz!",
+  "drvPickupPassenger": "Yo'lovchini oling",
+  "drvPickupCargo": "Yukni oling",
+  "drvPickupOrder": "Buyurtmani oling",
+  "drvStartTrip": "Safarni boshlash",
+  "drvStartDelivery": "Yetkazishni boshlash",
+  "drvTripInProgress": "Safar davom etmoqda",
+  "drvCargoInProgress": "Yuk yetkazilmoqda",
+  "drvOrderInProgress": "Buyurtma yetkazilmoqda",
+  "drvCompleteTrip": "Safarni yakunlash",
+  "drvCompleteDelivery": "Yetkazishni yakunlash",
+  "drvCompleteTripConfirm": "Safarni yakunlashni tasdiqlaysizmi?",
+  "drvCompleteCargoConfirm": "Yukni topshirganingizni tasdiqlaysizmi?",
+  "drvCompleteOrderConfirm": "Buyurtmani mijozga topshirganingizni tasdiqlaysizmi?",
+  "drvTripCompleted": "Safar muvaffaqiyatli yakunlandi!",
+  "drvCargoDelivered": "Yuk muvaffaqiyatli yetkazildi!",
+  "drvOrderDelivered": "Buyurtma muvaffaqiyatli yetkazildi!",
+  "drvPassengerNoShow": "Yo'lovchi kelmadi",
+  "drvCargoNotGiven": "Yuk berilmadi",
+  "drvOrderNotGiven": "Buyurtma berilmadi",
+  "drvCallFailed": "Qo'ng'iroq qilib bo'lmadi",
+  "drvSeller": "Sotuvchi",
+  "drvItemsCount": "{count} ta mahsulot",
+  "@drvItemsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "drvCallSeller": "Sotuvchiga qo'ng'iroq",
+  "drvCallCustomer": "Mijozga qo'ng'iroq",
+  "drvCollectCash": "Mijozdan naqd oling",
+  "drvPaidOnline": "Onlayn to'langan — pul olmaysiz",
+  "drvPassengerRequested": "Yo'lovchi so'ragan: {options}",
+  "@drvPassengerRequested": {
+    "placeholders": {
+      "options": {
+        "type": "String"
+      }
+    }
+  },
+  "drvLocationUnavailable": "Joylashuvingiz aniqlanmadi. GPS yoqilganini va ilovaga ruxsat berilganini tekshiring.",
+  "drvSaved": "Saqlandi",
+  "drvAmenitiesTitle": "Qo'shimcha imkoniyatlar",
+  "drvAmenitiesIntro": "Mashinangizda bor narsalarni belgilang — yo'lovchi shularni so'rasa, buyurtma sizga keladi.",
+  "drvAmenitiesWarning": "Mashinada yo'q narsani belgilamang: yo'lovchi bola o'rindig'i kutib chiqadi va safarni bekor qiladi.",
+  "drvSave": "Saqlash",
+  "drvPleaseRate": "Iltimos, baho bering",
+  "drvRateHowWas": "{client} qanday edi?",
+  "@drvRateHowWas": {
+    "placeholders": {
+      "client": {
+        "type": "String"
+      }
+    }
+  },
+  "drvRateStars": "{count} yulduz",
+  "@drvRateStars": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "drvRateCommentHint": "{client} haqida izoh...",
+  "@drvRateCommentHint": {
+    "placeholders": {
+      "client": {
+        "type": "String"
+      }
+    }
+  },
+  "drvSend": "Yuborish",
+  "drvSkip": "O'tkazib yuborish",
+  "drvRating1": "Juda yomon",
+  "drvRating2": "Yomon",
+  "drvRating3": "Oddiy",
+  "drvRating4": "Yaxshi",
+  "drvRating5": "Ajoyib!",
+  "drvRatingPick": "Yulduz tanlang",
+  "drvVehicleRequestSent": "So'rov yuborildi — menejer tekshiradi",
+  "drvVehicleChangeTitle": "Mashinani almashtirish",
+  "drvNewCar": "Yangi mashina",
+  "drvCarModel": "Rusumi",
+  "drvCarModelHint": "Masalan: Chevrolet Cobalt",
+  "drvCarModelRequired": "Mashina rusumini kiriting",
+  "drvPlateNumber": "Davlat raqami",
+  "drvPlateRequired": "Davlat raqamini kiriting",
+  "drvCarYearOptional": "Ishlab chiqarilgan yili (ixtiyoriy)",
+  "drvCarYearRange": "1990 dan {max} gacha yil kiriting",
+  "@drvCarYearRange": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "drvVehicleChangeNote": "Menejer tasdiqlaguncha profilingizda hozirgi mashina qoladi. Yangi mashina fotolarini tekshiruv bo'limidan so'rashlari mumkin.",
+  "drvSendRequest": "So'rov yuborish",
+  "drvCurrentCar": "Hozirgi mashina",
+  "drvRequestPending": "So'rov ko'rib chiqilmoqda",
+  "drvRequestApproved": "Tasdiqlandi — profil yangilandi",
+  "drvRequestRejected": "Rad etildi",
+  "drvReason": "Sabab: {reason}",
+  "@drvReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "drvTodayEarnings": "Bugungi daromad",
+  "drvSom": "so'm",
+  "drvTripsCount": "{count} ta safar",
+  "@drvTripsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "drvWeekAmount": "Hafta: {amount}",
+  "@drvWeekAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "drvOnline": "Online",
+  "drvOffline": "Offline",
+  "drvOnlineLower": "online",
+  "drvOfflineLower": "offline",
+  "drvBonusRemaining": "Yana {count} ta safar — {amount}",
+  "@drvBonusRemaining": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "drvBonusDone": "Bajarildi — {amount}",
+  "@drvBonusDone": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "drvHeroSemEarnings": "Bugungi daromad {amount}",
+  "@drvHeroSemEarnings": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "drvHeroSemBonus": "{name}: {threshold} tadan {count} ta bajarildi",
+  "@drvHeroSemBonus": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "drvHeroSemOpenHistory": "Daromad tarixini ochish",
+  "drvServicesEmptySelection": "Kamida bitta xizmat turi yoqilgan bo'lishi kerak — aks holda sizga buyurtma kelmaydi.",
+  "drvServicesSaved": "Xizmat turlari saqlandi",
+  "drvServicesTitle": "Xizmat turlari",
+  "drvServicesEmptyTitle": "Xizmat turi yo'q",
+  "drvServicesEmptyMessage": "Hozircha sizga hech qanday xizmat turi taklif qilinmayapti. Yangisi paydo bo'lsa shu yerda ko'rinadi.",
+  "drvServicesHeading": "Qaysi buyurtmalarni olasiz",
+  "drvServicesSubtitle": "Faqat yoqilgan turlar bo'yicha buyurtma keladi. Talablari bajarilmagan turni yoqib bo'lmaydi.",
+  "drvServiceBlockedDefault": "Bu turni yoqish uchun tekshiruv talablari bajarilishi kerak.",
+  "drvRequirementsNeeded": "Kerak: {items}",
+  "@drvRequirementsNeeded": {
+    "placeholders": {
+      "items": {
+        "type": "String"
+      }
+    }
+  },
+  "drvOpenVerification": "Tekshiruvni ochish",
+  "drvCamera": "Kamera",
+  "drvGallery": "Galereya",
+  "drvVerificationTitle": "Tekshiruv",
+  "drvVerificationEmptyTitle": "Talab yo'q",
+  "drvVerificationEmptyMessage": "Hozircha sizdan hech qanday hujjat yoki surat talab qilinmayapti. Yangi talab paydo bo'lsa shu yerda ko'rinadi.",
+  "drvGoOnlineBlocked": "Onlayn bo'lish yopiq",
+  "drvVerificationIncomplete": "Tekshiruv to'liq emas — quyidagi talablarni bajaring.",
+  "drvDeadlineApproaching": "Muddat yaqinlashmoqda",
+  "drvDocsExpiringSoon": "Ba'zi hujjatlarning muddati tugayapti. Ishingiz to'xtab qolmasligi uchun oldindan yangilang.",
+  "drvRetry": "Qayta urinish",
+  "drvUpload": "Yuklash",
+  "drvUploadNew": "Yangisini yuklash",
+  "drvOptional": "Majburiy emas",
+  "drvUploadingPercentSem": "Yuklanmoqda, {percent} foiz",
+  "@drvUploadingPercentSem": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "drvUploadingPercent": "Yuklanmoqda... {percent}%",
+  "@drvUploadingPercent": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "drvArrivedTitle": "Yetib keldim",
+  "drvWaitFee": "Kutish haqi",
+  "drvFreeWait": "Bepul kutish",
+  "drvWaitBillingCaption": "Jami {elapsed} · {perMinute}/daqiqa",
+  "@drvWaitBillingCaption": {
+    "placeholders": {
+      "elapsed": {
+        "type": "String"
+      },
+      "perMinute": {
+        "type": "String"
+      }
+    }
+  },
+  "drvWaitFreeCaption": "Keyin {perMinute}/daqiqa",
+  "@drvWaitFreeCaption": {
+    "placeholders": {
+      "perMinute": {
+        "type": "String"
+      }
+    }
+  },
+  "drvWaitBillingSem": "Kutish haqi {fare}, jami {elapsed} kutildi",
+  "@drvWaitBillingSem": {
+    "placeholders": {
+      "fare": {
+        "type": "String"
+      },
+      "elapsed": {
+        "type": "String"
+      }
+    }
+  },
+  "drvWaitFreeSem": "Bepul kutish tugashiga {remaining} qoldi, keyin {perMinute} har daqiqa uchun",
+  "@drvWaitFreeSem": {
+    "placeholders": {
+      "remaining": {
+        "type": "String"
+      },
+      "perMinute": {
+        "type": "String"
+      }
+    }
+  },
+  "drvOrderDetails": "Buyurtma ma'lumotlari",
+  "drvEstimatedPrice": "Taxminiy narx:",
+  "drvNoShowConfirm": "Buyurtmani bekor qilmoqchimisiz?",
+  "drvNoShowConfirmWaited": "{elapsed} kutdingiz. Buyurtmani bekor qilmoqchimisiz?",
+  "@drvNoShowConfirmWaited": {
+    "placeholders": {
+      "elapsed": {
+        "type": "String"
+      }
+    }
+  },
+  "drvNoShowConfirmWaitedFee": "{elapsed} kutdingiz, {fare} kutish haqi yig'ildi. Buyurtmani bekor qilmoqchimisiz?",
+  "@drvNoShowConfirmWaitedFee": {
+    "placeholders": {
+      "elapsed": {
+        "type": "String"
+      },
+      "fare": {
+        "type": "String"
+      }
+    }
+  },
+  "drvNoKeepWaiting": "Yo'q, kutaman",
+  "drvYesCancel": "Ha, bekor qilaman",
+  "drvCancelFailed": "Bekor qilib bo'lmadi",
+  "drvProfileTitle": "Profil",
+  "drvDriver": "Haydovchi",
+  "drvRatingStarsSem": "{rating} yulduz reyting",
+  "@drvRatingStarsSem": {
+    "placeholders": {
+      "rating": {
+        "type": "String"
+      }
+    }
+  },
+  "drvRatingValue": "{rating} reyting",
+  "@drvRatingValue": {
+    "placeholders": {
+      "rating": {
+        "type": "String"
+      }
+    }
+  },
+  "drvLogout": "Chiqish",
+  "drvRatingsCount": "{count} ta baholash",
+  "@drvRatingsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "drvTotalTrips": "Jami safarlar",
+  "drvToday": "Bugun",
+  "drvCarDetails": "Mashina ma'lumotlari",
+  "drvDataNotLoaded": "Ma'lumot yuklanmadi",
+  "drvCarColor": "Rangi",
+  "drvCarYear": "Ishlab chiqarilgan yili",
+  "drvEditProfile": "Ma'lumotlarni tahrirlash",
+  "drvBankAndWithdraw": "Bank hisobi va pul yechish",
+  "drvLostItems": "Yo'qolgan buyumlar",
+  "drvNotifications": "Bildirishnomalar",
+  "drvHelp": "Yordam",
+  "drvAbout": "Dastur haqida",
+  "drvAppName": "Angren Taxi - Haydovchi",
+  "drvLogoutConfirmTitle": "Chiqishni tasdiqlang",
+  "drvLogoutConfirmBody": "Hisobdan chiqmoqchimisiz?",
+  "drvCancel": "Bekor qilish",
+  "drvAcceptFailed": "Buyurtmani qabul qilib bo'lmadi",
+  "drvNewOrder": "Yangi buyurtma!",
+  "drvSecondsToAccept": "Qabul qilish uchun {seconds} soniya qoldi",
+  "@drvSecondsToAccept": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "drvEstimatedEarnings": "Taxminiy daromad",
+  "drvAccept": "Qabul qilish",
+  "drvLoading": "Yuklanmoqda",
+  "drvDecline": "Rad etish",
+  "drvDocLicenseFront": "Haydovchilik guvohnomasi (old tomoni)",
+  "drvDocLicenseBack": "Haydovchilik guvohnomasi (orqa tomoni)",
+  "drvDocPassport": "Pasport",
+  "drvDocVehicleRegistration": "Texnik pasport",
+  "drvApplicationTitle": "Haydovchi bo'lish uchun ariza",
+  "drvApplicationIntro": "{phone} raqami hali haydovchi sifatida ro'yxatdan o'tmagan. Mashina ma'lumotlarini kiriting — admin tasdiqlagach onlayn bo'la olasiz.",
+  "@drvApplicationIntro": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "drvCarModelField": "Mashina modeli",
+  "drvPlateHint": "Masalan: 01 A 123 BC",
+  "drvCarYearField": "Mashina ishlab chiqarilgan yili",
+  "drvCarYearHint": "Masalan: 2019",
+  "drvCarYearHelper": "Qaysi tarif darajasida ishlay olishingiz shu ma'lumot asosida ko'rib chiqiladi",
+  "drvSubmitApplication": "Arizani yuborish",
+  "drvApplicationPending": "Ariza ko'rib chiqilmoqda",
+  "drvApplicationPendingBody": "Sizning haydovchilik arizangiz admin tomonidan tasdiqlanishini kutmoqda. Tasdiqlangach shu yerdan avtomatik davom etasiz.",
+  "drvUploadDocuments": "Hujjatlarni yuklang",
+  "drvUploadDocumentsHint": "Tasdiqlash tezroq bo'lishi uchun quyidagi hujjatlarning aniq suratlarini yuklang.",
+  "drvCheckStatus": "Holatni tekshirish",
+  "drvUploadError": "Yuklashda xatolik",
+  "drvNotUploaded": "Yuklanmagan",
+  "drvDocUnderReview": "Tekshirilmoqda",
+  "drvDocApproved": "Tasdiqlangan",
+  "drvDocRejectedReupload": "Rad etilgan — qayta yuklang",
+  "drvReupload": "Qayta yuklash",
+  "drvNavAppNotFound": "Navigatsiya ilovasi topilmadi",
+  "drvBack": "Orqaga",
+  "drvOpenNavigation": "Navigatsiyani ochish",
+  "drvRefreshDemand": "Talab maʼlumotini yangilash",
+  "drvFitZones": "Zonalarni ekranga sig'dirish",
+  "drvDemandMapTitle": "Talab xaritasi",
+  "drvRefreshing": "Yangilanmoqda…",
+  "drvUpdatedAt": "Yangilandi: {time}",
+  "@drvUpdatedAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "drvDemandLoadFailed": "Talab maʼlumoti olinmadi",
+  "drvErrorOccurred": "Xatolik yuz berdi",
+  "drvDemandEvenTitle": "Hozir talab hamma joyda oddiy",
+  "drvDemandEvenMessage": "Zonalar orasida farq yo‘q — istalgan joyda kutishingiz mumkin. Maʼlumot har daqiqada yangilanadi.",
+  "drvDemandPaintedMore": "Bo‘yalgan joylarda buyurtma ko‘proq",
+  "drvDemandStayNear": "Shu zonalarga yaqin turing — buyurtma tezroq keladi.",
+  "drvDemandUnpaintedNormal": "Bo‘yalmagan joylarda talab odatdagidek.",
+  "drvGoToNearestZone": "Eng yaqin zonaga yo‘l olish",
+  "drvGoToNearestZoneSem": "Eng yaqin talab zonasiga navigatsiyani ochish, {level}, {distance}",
+  "@drvGoToNearestZoneSem": {
+    "placeholders": {
+      "level": {
+        "type": "String"
+      },
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "drvNotUpdated": "Yangilanmadi: {message}",
+  "@drvNotUpdated": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "drvDemandZone": "Talab zonasi",
+  "drvDemandVeryHigh": "Talab juda yuqori",
+  "drvDemandHigh": "Talab yuqori",
+  "drvDemandNormal": "Talab oddiy",
+  "drvZonesCount": "{count} zona",
+  "@drvZonesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "drvDemandRowSem": "{title}, {count}",
+  "@drvDemandRowSem": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "drvDemandRowSemNearest": "{title}, {count}, eng yaqini {distance}",
+  "@drvDemandRowSemNearest": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "count": {
+        "type": "String"
+      },
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "drvGpsDisabled": "Telefoningizda joylashuv (GPS) o'chirilgan — xarita to'g'ri ishlashi uchun uni yoqing.",
+  "drvLocationDenied": "Ilova joylashuvga ruxsat olmadi — xaritada aniq joyingizni ko'rish uchun ruxsat bering.",
+  "drvLocationFailed": "Joylashuvni aniqlab bo'lmadi. Ochiq joyga o'ting yoki qayta urinib ko'ring.",
+  "drvEnable": "Yoqish",
+  "drvSettings": "Sozlamalar",
+  "drvMenu": "Menyu",
+  "drvFindMyLocation": "Joylashuvimni topish",
+  "drvVerificationIncompleteShort": "Tekshiruv to'liq emas — talablarni bajaring.",
+  "drvDocsExpiringSoonShort": "Ba'zi hujjatlarning muddati tugayapti. Oldindan yangilab qo'ying.",
+  "drvView": "Ko'rish",
+  "drvGoOffline": "Offline bo'lish",
+  "drvGoOnline": "Online bo'lish",
+  "drvAcceptedOrders": "Qabul qilinadigan buyurtmalar",
+  "drvServiceChipUnavailable": "{label}, mavjud emas. Xizmat turlarini ochish",
+  "@drvServiceChipUnavailable": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "drvServiceChipUnavailableReason": "{label}, mavjud emas: {reason}. Xizmat turlarini ochish",
+  "@drvServiceChipUnavailableReason": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "drvServiceChipOn": "{label}, yoqilgan. Xizmat turlarini ochish",
+  "@drvServiceChipOn": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "drvServiceChipOff": "{label}, o'chirilgan. Xizmat turlarini ochish",
+  "@drvServiceChipOff": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "drvDemandMapLinkSem": "Talab xaritasi, qayerda buyurtma ko'pligini ko'rish",
+  "drvWhereMoreOrders": "Qayerda buyurtma ko'p",
+  "drvPayment": "To'lov",
+  "drvOpenOrder": "Buyurtmani ochish",
+  "drvOpenOrderSem": "{type} buyurtmasini ochish",
+  "@drvOpenOrderSem": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      }
+    }
+  },
+  "drvEarnings": "Daromad",
+  "drvNeedsAttention": "{count} ta e'tibor talab qiladi",
+  "@drvNeedsAttention": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "drvCompleteFailed": "Yakunlab bo'lmadi",
+  "drvContinue": "Davom etish",
+  "drvDispatchersNotified": "Dispetcherlarga xabar yuborildi",
+  "drvEmergencyHelp": "Favqulodda yordam",
+  "drvSafetyNote": "Xavfsizligingiz biz uchun muhim. Kerak bo'lsa, quyidagi tugmalardan birini bosing.",
+  "drvEmergencyCall": "Favqulodda chaqiruv (102/103)",
+  "drvNotifyDispatchers": "Dispetcherlarga xabar berish",
+  "drvMoreActions": "Qo'shimcha amallar",
+  "drvEmergencySos": "Favqulodda yordam (SOS)",
+  "drvSosSem": "SOS — favqulodda yordam",
+  "drvCall": "Qo'ng'iroq",
+  "drvMessage": "Xabar",
+  "drvPeriodWeek": "Hafta",
+  "drvPeriodMonth": "Oy",
+  "drvLast7Days": "So'nggi 7 kun",
+  "drvLast30Days": "So'nggi 30 kun",
+  "drvWithdrawRequests": "Pul yechish so'rovlari",
+  "drvNoRequestsYet": "Hozircha so'rovlar yo'q",
+  "drvOrderHistory": "Buyurtmalar tarixi",
+  "drvNoOrderHistory": "Buyurtmalar tarixi yo'q",
+  "drvPeriodEarningsSem": "{period} daromadi",
+  "@drvPeriodEarningsSem": {
+    "placeholders": {
+      "period": {
+        "type": "String"
+      }
+    }
+  },
+  "drvNetEarnings": "Sof daromad · {period}",
+  "@drvNetEarnings": {
+    "placeholders": {
+      "period": {
+        "type": "String"
+      }
+    }
+  },
+  "drvWithdraw": "Pul yechish",
+  "drvCompletedTrips": "Yakunlangan safarlar",
+  "drvTripsGross": "Safarlardan jami",
+  "drvPlatformCommission": "Platforma komissiyasi",
+  "drvYouKeep": "Qo'lingizga qoladi",
+  "drvBonusProgram": "Bonus dasturi",
+  "drvEnterValidAmount": "To'g'ri summa kiriting",
+  "drvEnterCardOrPhone": "Karta yoki telefon raqamini kiriting",
+  "drvBalanceNegative": "Hisobingiz manfiy ({balance}). Avval qarzni yoping.",
+  "@drvBalanceNegative": {
+    "placeholders": {
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
+  "drvNoFundsToWithdraw": "Yechish uchun mablag' yo'q",
+  "drvAmountExceedsWallet": "Summa hamyondan oshib ketdi. Hamyon: {balance}",
+  "@drvAmountExceedsWallet": {
+    "placeholders": {
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
+  "drvDebtAmount": "Qarz: {amount}",
+  "@drvDebtAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "drvWalletAmount": "Hamyon: {amount}",
+  "@drvWalletAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "drvAmount": "Summa",
+  "drvAmountHint": "Masalan: 60000",
+  "drvCardOrPhone": "Karta yoki telefon raqami",
+  "drvWithdrawPending": "Kutilmoqda",
+  "drvWithdrawApproved": "Tasdiqlandi",
+  "drvWithdrawPaid": "To'landi",
+  "drvDebtConsequence": "Naqd safarlar komissiyasi. Qarz yopilmaguncha onlayn chiqib bo'lmaydi.",
+  "drvDebt": "Qarz",
+  "drvWallet": "Hamyon",
+  "drvBonusTrips": "{current}/{threshold} safar",
+  "@drvBonusTrips": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "threshold": {
+        "type": "int"
+      }
+    }
+  }
+}

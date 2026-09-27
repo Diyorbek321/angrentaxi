@@ -3,6 +3,7 @@ import 'package:angren_taxi/features/superapp/screens/cart_screen.dart';
 import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/dish.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
@@ -56,7 +57,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
         backgroundColor: agSurface,
         body: SafeArea(
           child: AppErrorState(
-            message: food.error ?? 'Restoran topilmadi',
+            message: food.error ?? context.l10n.saRestaurantNotFound,
             onRetry: () => context.read<FoodProvider>().loadRestaurantDetail(widget.restaurantId),
           ),
         ),
@@ -92,7 +93,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                       child: AgIconButton(
                         icon: Icons.arrow_back_rounded,
                         onTap: () => Navigator.of(context).pop(),
-                        semanticsLabel: 'Orqaga',
+                        semanticsLabel: context.l10n.saBack,
                         background: agSurface,
                         size: 44,
                       ),
@@ -112,7 +113,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       AppStatusBadge(
-                        label: r.isOpen ? 'Ochiq' : 'Yopiq',
+                        label: r.isOpen ? context.l10n.saOpen : context.l10n.saClosed,
                         tone: r.isOpen ? AppStatusTone.success : AppStatusTone.danger,
                       ),
                       const SizedBox(height: kSpace2),
@@ -141,15 +142,15 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                         ),
                       ],
                       const SizedBox(height: kSpace5),
-                      const Text('Menyu',
-                          style: TextStyle(
+                      Text(context.l10n.saMenu,
+                          style: const TextStyle(
                               fontSize: kFontTitle, fontWeight: FontWeight.w800, color: agText)),
                       const SizedBox(height: kSpace3),
                       if (food.dishes.isEmpty)
-                        const AppEmptyState(
+                        AppEmptyState(
                           icon: Icons.restaurant_menu_rounded,
-                          title: "Menyu bo'sh",
-                          message: 'Bu restoran hozircha taom qo\'shmagan.',
+                          title: context.l10n.saMenuEmptyTitle,
+                          message: context.l10n.saMenuEmptyMessage,
                           compact: true,
                         )
                       else
@@ -170,7 +171,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
               bottom: MediaQuery.of(context).padding.bottom + kSpace4,
               child: AgCartBar(
                 count: provider.cartCount,
-                label: "Savatga o'tish",
+                label: context.l10n.saGoToCart,
                 trailing: Formatters.formatSom(provider.cartSubtotal),
                 onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const CartScreen())),
               ),
@@ -230,7 +231,7 @@ class _DishRow extends StatelessWidget {
                             height: 1.4)),
                   const SizedBox(height: kSpace2),
                   Text(
-                    d.isAvailable ? Formatters.formatSom(d.price) : 'Tugagan',
+                    d.isAvailable ? Formatters.formatSom(d.price) : context.l10n.saProductOutOfStock,
                     style: TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: kFontBody,
@@ -243,7 +244,7 @@ class _DishRow extends StatelessWidget {
             if (onAdd != null)
               Semantics(
                 button: true,
-                label: '${d.name} — savatga qo\'shish',
+                label: context.l10n.saAddItemToCartLabel(d.name),
                 excludeSemantics: true,
                 child: GestureDetector(
                   onTap: onAdd,

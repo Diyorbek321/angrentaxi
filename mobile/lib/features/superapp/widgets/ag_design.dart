@@ -1,5 +1,6 @@
 import 'package:angren_taxi/core/config/app_haptics.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 /// Superapp ekranlari `ag*` va `k*` tokenlarni aralash ishlatadi
@@ -133,7 +134,7 @@ class _AgPrimaryButtonState extends State<AgPrimaryButton> {
       button: true,
       enabled: enabled,
       label: widget.semanticsLabel ?? widget.label,
-      value: widget.isLoading ? 'Yuklanmoqda' : null,
+      value: widget.isLoading ? context.l10n.saLoading : null,
       excludeSemantics: true,
       child: GestureDetector(
         onTap: enabled ? widget.onPressed : null,
@@ -228,7 +229,7 @@ class AgHeader extends StatelessWidget {
             AgIconButton(
               icon: Icons.arrow_back_rounded,
               onTap: onBack!,
-              semanticsLabel: 'Orqaga',
+              semanticsLabel: context.l10n.saBack,
             ),
           if (onBack != null) const SizedBox(width: kSpace3),
           Expanded(
@@ -378,7 +379,7 @@ class AgCartBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: 'Savat: $count ta mahsulot, $trailing. $label',
+      label: context.l10n.saCartBarSemantics(count, trailing, label),
       excludeSemantics: true,
       child: GestureDetector(
         onTap: () {

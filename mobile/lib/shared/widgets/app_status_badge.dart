@@ -1,4 +1,5 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 // ============================================================================
@@ -87,7 +88,7 @@ class AppStatusBadge extends StatelessWidget {
     final fg = tone.foreground;
     return Semantics(
       container: true,
-      label: 'Holat: $label',
+      label: context.l10n.shStatusSemantics(label),
       excludeSemantics: true,
       child: Container(
         padding: EdgeInsets.symmetric(

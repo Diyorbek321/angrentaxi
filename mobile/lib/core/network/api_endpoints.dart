@@ -71,10 +71,15 @@ class ApiEndpoints {
   // core/location/city_coverage.dart dagi izohga qarang.
   static const String cities = '/cities';
 
+  // Routing — OSRM backend orqali (ilova OSRM manzilini bilmaydi)
+  static const String routingRoute = '/routing/route';
+
   // Driver
   static const String driverProfile = '/drivers/me';
   static const String driverApply = '/drivers/profile';
   static const String driverStatus = '/drivers/status';
+  // Mashina almashtirish — faqat so'rov orqali, menejer tasdiqlaydi
+  static const String driverVehicleChange = '/drivers/me/vehicle-change';
   static const String driverEarnings = '/orders/earnings';
   // GET /orders/earnings/breakdown (orders.controller.ts) — today/week/month
   // gross/commission/net/trips for the calling driver. Distinct from
@@ -113,6 +118,11 @@ class ApiEndpoints {
   // jadvali YO'Q (tekshiruv ekranidagi naqshning aynan o'zi). To'liq
   // kontrakt uchun shared/models/driver_service.dart ga qarang.
   static const String driverServices = '/drivers/me/services';
+  static const String driverAmenities = '/drivers/me/amenities';
+  // Yo'qolgan buyumlar
+  static const String lostItems = '/lost-items';
+  static const String myLostItems = '/lost-items/mine';
+  static String lostItemDriverResponse(String id) => '/lost-items/$id/driver-response';
 
   // Talab (surge) xaritasi — faqat haydovchi roli uchun.
   // GET /surge/zones?lat=<double>&lng=<double>&rings=<int, default 4>

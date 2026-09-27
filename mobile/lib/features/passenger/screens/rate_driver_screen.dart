@@ -5,6 +5,7 @@ import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:angren_taxi/shared/widgets/app_pressable.dart';
@@ -154,8 +155,10 @@ class _RateDriverScreenState extends State<RateDriverScreen>
     final amount = _tipAmount;
     if (amount == null || amount < _tipMin || amount > _tipMax) {
       setState(() {
-        _tipFieldError = 'Chaqim ${Formatters.formatAmount(_tipMin.toDouble())}'
-            ' dan ${Formatters.formatSom(_tipMax.toDouble())}gacha bo\'lishi kerak';
+        _tipFieldError = context.l10n.paxTipRangeError(
+          Formatters.formatAmount(_tipMin.toDouble()),
+          Formatters.formatSom(_tipMax.toDouble()),
+        );
       });
       AppHaptics.error();
       return false;
@@ -171,7 +174,7 @@ class _RateDriverScreenState extends State<RateDriverScreen>
     if (_selectedScore == 0) {
       AppHaptics.error();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Iltimos, baho bering')),
+        SnackBar(content: Text(context.l10n.paxRatePleaseRate)),
       );
       return;
     }
@@ -226,9 +229,10 @@ class _RateDriverScreenState extends State<RateDriverScreen>
         SnackBar(
           content: Text(
             tipAmount == null
-                ? 'Bahoyingiz uchun rahmat!'
-                : '${Formatters.formatSom(tipAmount.toDouble())} chaqim '
-                    'haydovchiga yuborildi. Rahmat!',
+                ? context.l10n.paxRateThanks
+                : context.l10n.paxRateTipSent(
+                    Formatters.formatSom(tipAmount.toDouble()),
+                  ),
           ),
         ),
       );
@@ -307,10 +311,10 @@ class _RateDriverScreenState extends State<RateDriverScreen>
                           ),
                         ),
                         const SizedBox(height: kSpace1 + 2),
-                        const Text(
-                          'Sayohat qanday kechdi?',
+                        Text(
+                          context.l10n.paxRateHowWasTrip,
                           style:
-                              TextStyle(fontSize: kFontTitle, color: kInkMuted),
+                              const TextStyle(fontSize: kFontTitle, color: kInkMuted),
                         ),
                         const SizedBox(height: kSpace6),
 
@@ -323,7 +327,7 @@ class _RateDriverScreenState extends State<RateDriverScreen>
                             return Semantics(
                               button: true,
                               selected: filled,
-                              label: '${i + 1} yulduz',
+                              label: context.l10n.paxRateStarSemantics(i + 1),
                               excludeSemantics: true,
                               child: GestureDetector(
                                 onTap: () => _onStarTapped(i),
@@ -374,7 +378,7 @@ class _RateDriverScreenState extends State<RateDriverScreen>
                           decoration: InputDecoration(
                             filled: true,
                             fillColor: kSurface2,
-                            hintText: 'Haydovchi haqida izoh...',
+                            hintText: context.l10n.paxRateCommentHint,
                             hintStyle: const TextStyle(color: kInkMuted),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(kRadiusMd),
@@ -417,8 +421,8 @@ class _RateDriverScreenState extends State<RateDriverScreen>
                               // yuborish" yolg'on bo'lardi — endi bu faqat
                               // chaqimsiz yopish.
                               _ratingSubmitted
-                                  ? 'Chaqimsiz yopish'
-                                  : "O'tkazib yuborish",
+                                  ? context.l10n.paxRateCloseWithoutTip
+                                  : context.l10n.paxRateSkip,
                               style: const TextStyle(
                                 color: kInkMuted,
                                 fontSize: kFontTitle,
@@ -440,12 +444,19 @@ class _RateDriverScreenState extends State<RateDriverScreen>
   }
 
   String get _primaryLabel =>
-      _ratingSubmitted && _tipLocked ? 'Yopish' : 'Yuborish';
+      _ratingSubmitted && _tipLocked
+          ? context.l10n.paxClose
+          : context.l10n.paxSend;
 
   String get _primarySemanticsLabel {
     final amount = _tipAmount;
-    if (amount == null) return '$_primaryLabel, chaqimsiz';
-    return '$_primaryLabel, ${Formatters.formatSom(amount.toDouble())} chaqim bilan';
+    if (amount == null) {
+      return context.l10n.paxRatePrimaryNoTipSemantics(_primaryLabel);
+    }
+    return context.l10n.paxRatePrimaryWithTipSemantics(
+      _primaryLabel,
+      Formatters.formatSom(amount.toDouble()),
+    );
   }
 
   // ---------------------------------------------------------------------
@@ -464,20 +475,20 @@ class _RateDriverScreenState extends State<RateDriverScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              ExcludeSemantics(
+              const ExcludeSemantics(
                 child: Icon(
                   Icons.volunteer_activism_rounded,
                   size: 20,
                   color: kMintDeep,
                 ),
               ),
-              SizedBox(width: kSpace2),
+              const SizedBox(width: kSpace2),
               Expanded(
                 child: Text(
-                  'Haydovchiga chaqim',
-                  style: TextStyle(
+                  context.l10n.paxTipTitle,
+                  style: const TextStyle(
                     fontSize: kFontTitle,
                     fontWeight: FontWeight.w800,
                     color: kInk,
@@ -487,8 +498,8 @@ class _RateDriverScreenState extends State<RateDriverScreen>
               // Ixtiyoriyligi darhol ko'rinsin — aks holda majburiy qadam
               // deb o'qiladi va foydalanuvchi ekranda qotib qoladi.
               Text(
-                'Ixtiyoriy',
-                style: TextStyle(
+                context.l10n.paxTipOptional,
+                style: const TextStyle(
                   fontSize: kFontCaption,
                   fontWeight: FontWeight.w600,
                   color: kInkMuted,
@@ -497,10 +508,9 @@ class _RateDriverScreenState extends State<RateDriverScreen>
             ],
           ),
           const SizedBox(height: kSpace1),
-          const Text(
-            "Summa to'liq haydovchiga o'tadi — komissiya ushlanmaydi. "
-            "Hamyoningizdan yechiladi.",
-            style: TextStyle(
+          Text(
+            context.l10n.paxTipExplainer,
+            style: const TextStyle(
               fontSize: kFontCaption,
               color: kInkMuted,
               height: 1.35,
@@ -522,7 +532,7 @@ class _RateDriverScreenState extends State<RateDriverScreen>
                     onTap: () => _selectPreset(amount),
                   ),
                 _TipChip(
-                  label: 'Boshqa',
+                  label: context.l10n.paxTipOther,
                   selected: _customTipOpen,
                   enabled: !_isLoading,
                   onTap: _toggleCustom,
@@ -563,7 +573,7 @@ class _RateDriverScreenState extends State<RateDriverScreen>
                     color: kInkMuted,
                     fontWeight: FontWeight.w400,
                   ),
-                  suffixText: "so'm",
+                  suffixText: context.l10n.paxSomSuffix,
                   suffixStyle: const TextStyle(
                     color: kInkMuted,
                     fontWeight: FontWeight.w600,
@@ -599,17 +609,17 @@ class _RateDriverScreenState extends State<RateDriverScreen>
 
   /// 409'dan keyingi holat: tanlov o'rnini yakuniy tushuntirish egallaydi.
   Widget _buildTipNotice() {
-    return const Row(
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ExcludeSemantics(
+        const ExcludeSemantics(
           child: Icon(Icons.check_circle_rounded, size: 18, color: kMintDeep),
         ),
-        SizedBox(width: kSpace2),
+        const SizedBox(width: kSpace2),
         Expanded(
           child: Text(
-            'Bu safar uchun chaqim allaqachon berilgan.',
-            style: TextStyle(fontSize: kFontLabel, color: kInkMuted),
+            context.l10n.paxTipAlreadyGiven,
+            style: const TextStyle(fontSize: kFontLabel, color: kInkMuted),
           ),
         ),
       ],
@@ -619,17 +629,17 @@ class _RateDriverScreenState extends State<RateDriverScreen>
   String _ratingLabel(int score) {
     switch (score) {
       case 1:
-        return 'Juda yomon';
+        return context.l10n.paxRatingVeryBad;
       case 2:
-        return 'Yomon';
+        return context.l10n.paxRatingBad;
       case 3:
-        return 'Oddiy';
+        return context.l10n.paxRatingOk;
       case 4:
-        return 'Yaxshi';
+        return context.l10n.paxRatingGood;
       case 5:
-        return 'Ajoyib!';
+        return context.l10n.paxRatingExcellent;
       default:
-        return 'Yulduz tanlang';
+        return context.l10n.paxRatingPickStars;
     }
   }
 }
