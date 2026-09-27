@@ -12,6 +12,7 @@ import {
   orderCustomerPhone,
 } from '@/lib/order-status';
 import { errorMessage, formatRelative, formatTime, money } from '@/lib/utils';
+import { courierState, CourierTone } from '@/lib/courier';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -48,6 +49,18 @@ export function OrderDrawer({ order, onClose, onChanged, onError }: OrderDrawerP
       onError(errorMessage(err));
     } finally {
       setTogglingIndex(null);
+    }
+  };
+
+  const redispatch = async () => {
+    setBusy(true);
+    try {
+      await marketApi.redispatchOrder(order.id);
+      await onChanged();
+    } catch (err) {
+      onError(errorMessage(err));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -104,6 +117,10 @@ export function OrderDrawer({ order, onClose, onChanged, onError }: OrderDrawerP
           Yig&apos;ildi: {packedCount}/{order.items.length}
         </span>
       </div>
+
+      {order.status === 'shipped' && order.deliveryMode === 'platform' && (
+        <CourierStrip order={order} busy={busy} onRedispatch={() => void redispatch()} />
+      )}
 
       {/* Mijoz izohi — xatolarning 1-manbai, shuning uchun ro'yxatdan OLDIN
           va ko'zga tashlanadigan blokda. */}
@@ -188,5 +205,55 @@ export function OrderDrawer({ order, onClose, onChanged, onError }: OrderDrawerP
         </ul>
       </div>
     </Drawer>
+  );
+}
+
+const courierToneClasses: Record<CourierTone, string> = {
+  waiting: 'border-info/40 bg-info-tint text-info-deep dark:text-info-light',
+  active: 'border-mint-deep/40 bg-mint-tint text-primary-text',
+  done: 'border-line bg-surface-2 text-muted',
+  failed: 'border-danger/40 bg-danger-tint text-danger-deep dark:text-danger-light',
+};
+
+/**
+ * Platforma kuryeri. "Kuryer topilmadi" qizil va tugma bilan: sotuvchi
+ * boshqa oynani qidirmasdan shu yerdan qayta chaqiradi.
+ */
+function CourierStrip({
+  order,
+  busy,
+  onRedispatch,
+}: {
+  order: MarketOrder;
+  busy: boolean;
+  onRedispatch: () => void;
+}) {
+  const state = courierState(order.delivery);
+  const driver = order.delivery?.driverName;
+  const driverPhone = order.delivery?.driverPhone;
+
+  return (
+    <div role="status" className={clsx('rounded-ds-sm border p-3', courierToneClasses[state.tone])}>
+      <p className="flex items-center gap-1.5 text-body font-semibold">
+        <Truck size={14} aria-hidden />
+        {state.label}
+      </p>
+      {state.tone === 'active' && (driver || driverPhone) && (
+        <p className="mt-1 flex flex-wrap items-center gap-x-3 text-caption text-ink">
+          {driver && <span>{driver}</span>}
+          {driverPhone && (
+            <a href={`tel:${driverPhone}`} className="inline-flex items-center gap-1 font-mono hover:underline">
+              <Phone size={12} aria-hidden />
+              {driverPhone}
+            </a>
+          )}
+        </p>
+      )}
+      {state.canRedispatch && (
+        <Button variant="secondary" className="mt-2 w-full" isLoading={busy} onClick={onRedispatch}>
+          Kuryerni qayta chaqirish
+        </Button>
+      )}
+    </div>
   );
 }

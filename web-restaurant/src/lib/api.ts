@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { attachAuthInterceptor } from './session';
+import type { DeliveryInfo } from './courier';
 
 /**
  * Requests go to this app's own /api/proxy, not to the backend directly. The
@@ -164,6 +165,8 @@ export interface FoodOrder {
   createdAt: string;
   updatedAt: string;
   customer?: { firstName: string | null; lastName: string | null; phone: string };
+  /** Courier ride, once the order reached "ready". See lib/courier.ts. */
+  delivery?: DeliveryInfo | null;
 }
 
 export interface DashboardData {
@@ -247,4 +250,5 @@ export const foodApi = {
   advanceOrder: (id: string) => api.patch<ApiResponse<FoodOrder>>(`/food/vendor/orders/${id}/advance`),
   rejectOrder: (id: string, reason: string) =>
     api.patch<ApiResponse<FoodOrder>>(`/food/vendor/orders/${id}/reject`, { reason }),
+  redispatchOrder: (id: string) => api.post<ApiResponse<FoodOrder>>(`/food/vendor/orders/${id}/redispatch`),
 };

@@ -15,6 +15,7 @@ import {
   PackageCheck,
   Phone,
   Timer,
+  Truck,
   User,
 } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -24,6 +25,7 @@ import { money, formatTime } from '@/lib/utils';
 import { ADVANCE_LABEL, NEXT_STATUS, statusMeta } from '@/lib/order-status';
 import { trackNewOrders } from '@/lib/order-alerts';
 import { useKiosk } from '@/lib/kiosk-context';
+import { courierState, CourierTone } from '@/lib/courier';
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -180,6 +182,19 @@ export default function OrdersPage() {
     }
   };
 
+  const redispatch = async (order: FoodOrder) => {
+    setBusyId(order.id);
+    try {
+      await foodApi.redispatchOrder(order.id);
+      await reload();
+      toast({ title: `#${order.id.slice(0, 6)} — kuryer qayta izlanmoqda`, variant: 'success' });
+    } catch {
+      toast({ title: 'Kuryerni chaqirib bo‘lmadi', description: 'Qayta urinib ko‘ring', variant: 'error' });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const openOrder = orders.find((o) => o.id === openOrderId) ?? null;
   const newCount = grouped.new.length;
   const visible = grouped[tab];
@@ -260,6 +275,7 @@ export default function OrdersPage() {
                   onOpen={() => setOpenOrderId(order.id)}
                   onAdvance={() => advance(order)}
                   onReject={() => setRejectId(order.id)}
+                  onRedispatch={() => redispatch(order)}
                 />
               ))}
             </div>
@@ -374,6 +390,7 @@ function OrderCard({
   onOpen,
   onAdvance,
   onReject,
+  onRedispatch,
 }: {
   order: FoodOrder;
   kiosk: boolean;
@@ -382,6 +399,7 @@ function OrderCard({
   onOpen: () => void;
   onAdvance: () => void;
   onReject: () => void;
+  onRedispatch: () => void;
 }) {
   const sla = slaInfo(order, now);
   const canAdvance = NEXT_STATUS[order.status] != null;
@@ -499,6 +517,10 @@ function OrderCard({
         </span>
       </div>
 
+      {order.status === 'ready' && (
+        <CourierStrip order={order} kiosk={kiosk} busy={busy} onRedispatch={onRedispatch} />
+      )}
+
       {/* Holat zinapoyasi: BITTA oldinga tugma, har doim kartaning pastida. */}
       {canAdvance && (
         <div className="mt-3 flex gap-2">
@@ -524,6 +546,68 @@ function OrderCard({
         </div>
       )}
     </article>
+  );
+}
+
+const courierToneClasses: Record<CourierTone, string> = {
+  waiting: 'border-info/40 bg-info-tint text-info-dark dark:text-info-light',
+  active: 'border-mint-deep/40 bg-mint-tint text-primary-text',
+  done: 'border-line bg-surface-2 text-muted',
+  failed: 'border-danger/40 bg-danger-tint text-danger-dark dark:text-danger-light',
+};
+
+/**
+ * Tayyor buyurtmaning kuryeri. "Kuryer topilmadi" — issiq ovqat kutib
+ * turibdi va hech kim kelmaydi — shuning uchun qizil va tugma bilan:
+ * oshxona boshqa oynani qidirmasdan shu yerdan qayta chaqiradi.
+ */
+function CourierStrip({
+  order,
+  kiosk,
+  busy,
+  onRedispatch,
+}: {
+  order: FoodOrder;
+  kiosk: boolean;
+  busy: boolean;
+  onRedispatch: () => void;
+}) {
+  const state = courierState(order.delivery);
+  const driver = order.delivery?.driverName;
+  const driverPhone = order.delivery?.driverPhone;
+
+  return (
+    <div
+      role="status"
+      className={clsx('mt-3 rounded-ds-sm border p-3', courierToneClasses[state.tone])}
+    >
+      <p className={clsx('flex items-center gap-1.5 font-semibold', kiosk ? 'text-body-lg' : 'text-body')}>
+        <Truck size={14} aria-hidden />
+        {state.label}
+      </p>
+      {state.tone === 'active' && (driver || driverPhone) && (
+        <p className="mt-1 flex flex-wrap items-center gap-x-3 text-caption text-ink">
+          {driver && <span>{driver}</span>}
+          {driverPhone && (
+            <a href={`tel:${driverPhone}`} className="inline-flex items-center gap-1 font-mono hover:underline min-h-touch">
+              <Phone size={12} aria-hidden />
+              {driverPhone}
+            </a>
+          )}
+        </p>
+      )}
+      {state.canRedispatch && (
+        <Button
+          size="kitchen"
+          variant="secondary"
+          className={clsx('mt-2 w-full', kiosk && 'min-h-[56px] text-h3')}
+          isLoading={busy}
+          onClick={onRedispatch}
+        >
+          Kuryerni qayta chaqirish
+        </Button>
+      )}
+    </div>
   );
 }
 

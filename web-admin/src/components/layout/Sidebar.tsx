@@ -21,6 +21,7 @@ import {
   ChevronDown,
   Bell,
   ShieldAlert,
+  FileCheck2,
   SlidersHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
@@ -62,6 +63,7 @@ const navGroups: NavGroup[] = [
     items: [
       { href: '/dashboard/orders', label: 'Buyurtmalar', icon: ClipboardList },
       { href: '/dashboard/drivers', label: 'Haydovchilar', icon: Car },
+      { href: '/dashboard/driver-documents', label: 'Haydovchi hujjatlari', icon: FileCheck2 },
       { href: '/dashboard/tariffs', label: 'Tariflar', icon: Tag },
     ],
   },

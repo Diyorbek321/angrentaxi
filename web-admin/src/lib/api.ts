@@ -332,6 +332,66 @@ export const moderationApi = {
   deleteDish: (id: string) => api.delete<ApiResponse<void>>(`/food/admin/dishes/${id}`),
 };
 
+// ─── Driver documents & periodic verification ─────────────────────
+
+export interface PendingKycDocument {
+  id: string;
+  driverId: string;
+  driverName: string | null;
+  driverPhone: string | null;
+  documentType: string;
+  uploadedAt: string;
+}
+
+export interface PendingVerification {
+  id: string;
+  driverId: string;
+  driverName: string | null;
+  driverPhone: string | null;
+  code: string;
+  label: string;
+  kind: 'document' | 'photo';
+  submittedAt: string;
+}
+
+export interface VehicleFields {
+  carModel: string | null;
+  carNumber: string | null;
+  licensePlate: string | null;
+  carYear: number | null;
+  vehicleType: string | null;
+}
+
+export interface PendingVehicleChange {
+  id: string;
+  driverId: string;
+  driverName: string | null;
+  driverPhone: string | null;
+  previous: VehicleFields;
+  proposed: VehicleFields;
+  createdAt: string;
+}
+
+export const driverReviewApi = {
+  pendingVehicleChanges: () =>
+    api.get<ApiResponse<PendingVehicleChange[]>>('/drivers/vehicle-changes/pending'),
+  reviewVehicleChange: (id: string, body: { approved: boolean; note?: string }) =>
+    api.patch<ApiResponse<unknown>>(`/drivers/vehicle-changes/${id}/review`, body),
+  pendingDocuments: () => api.get<ApiResponse<PendingKycDocument[]>>('/drivers/documents/pending'),
+  reviewDocument: (id: string, body: { status: 'approved' | 'rejected'; reason?: string }) =>
+    api.patch<ApiResponse<unknown>>(`/drivers/documents/${id}/review`, body),
+  pendingVerifications: () => api.get<ApiResponse<PendingVerification[]>>('/drivers/verification/pending'),
+  reviewVerification: (
+    id: string,
+    body: { approved: boolean; rejectionReason?: string; validUntil?: string }
+  ) => api.patch<ApiResponse<unknown>>(`/drivers/verification/${id}/review`, body),
+  /** Binary file through the proxy; the backend checks the reviewer's role. */
+  documentFile: (id: string) =>
+    api.get<Blob>(`/drivers/documents/${id}/file`, { responseType: 'blob' }),
+  verificationFile: (id: string) =>
+    api.get<Blob>(`/drivers/verification/${id}/file`, { responseType: 'blob' }),
+};
+
 // ─── Orders ───────────────────────────────────────────────────────
 
 export interface GeoPoint {

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { attachAuthInterceptor } from './session';
+import type { DeliveryInfo } from './courier';
 
 /**
  * Requests go to this app's own /api/proxy, not to the backend directly. The
@@ -147,6 +148,8 @@ export interface MarketOrder {
   createdAt: string;
   updatedAt: string;
   customer?: { firstName: string | null; lastName: string | null; phone: string };
+  /** Courier ride for platform delivery, once shipped. See lib/courier.ts. */
+  delivery?: DeliveryInfo | null;
 }
 
 export interface StockMovement {
@@ -238,4 +241,6 @@ export const marketApi = {
     api.patch<ApiResponse<MarketOrder>>(`/market/vendor/orders/${orderId}/items/${index}/toggle-pack`),
   advanceOrder: (orderId: string) =>
     api.patch<ApiResponse<MarketOrder>>(`/market/vendor/orders/${orderId}/advance`),
+  redispatchOrder: (orderId: string) =>
+    api.post<ApiResponse<MarketOrder>>(`/market/vendor/orders/${orderId}/redispatch`),
 };

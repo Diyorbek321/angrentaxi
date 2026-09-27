@@ -724,3 +724,38 @@ export async function getDriverBonusProgress(
   );
   return res.data.data;
 }
+
+// ─── Lost items (passenger left something in the car) ─────────────────────
+
+export type LostItemStatus = 'open' | 'found' | 'not_found' | 'returned' | 'closed';
+
+export interface LostItemReport {
+  id: string;
+  orderId: string;
+  description: string;
+  status: LostItemStatus;
+  driverNote: string | null;
+  operatorNote: string | null;
+  passengerPhone: string | null;
+  passengerName: string | null;
+  driverPhone: string | null;
+  driverName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function getLostItems(status?: LostItemStatus): Promise<LostItemReport[]> {
+  const res = await apiClient.get<ApiResponse<LostItemReport[]>>('/lost-items', {
+    params: status ? { status } : undefined,
+  });
+  return res.data.data;
+}
+
+export async function closeLostItem(
+  id: string,
+  status: 'returned' | 'closed',
+  note?: string
+): Promise<LostItemReport> {
+  const res = await apiClient.patch<ApiResponse<LostItemReport>>(`/lost-items/${id}`, { status, note });
+  return res.data.data;
+}
