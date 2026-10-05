@@ -229,16 +229,25 @@ CORS_ORIGIN=https://<web-admin-domeni>
 
 ## 7. Mobil ilova (alohida build)
 
-Mobil Railway'da emas — telefon/emulyatorga build qilinadi. Backend domeniga yo'naltiring:
+Mobil Railway'da emas — telefon/emulyatorga build qilinadi. Backend domeniga yo'naltiring.
+
+Xarita kaliti (`MAPTILER_KEY`) repoda saqlanmaydi — `mobile/.env.dart-defines.json`
+faylida turadi (git'ga kirmaydi). Yo'q bo'lsa namunadan yarating:
+`cp mobile/dart-defines.example.json mobile/.env.dart-defines.json` va kalitni yozing.
+Kalitsiz build xatosiz o'tadi, lekin xarita bo'sh chiqadi.
 
 ```bash
+cd mobile
+
 # Yo'lovchi ilovasi
 flutter build apk --flavor passenger -t lib/main_passenger.dart \
+  --dart-define-from-file=.env.dart-defines.json \
   --dart-define=API_BASE_URL=https://<backend-domen>/api/v1 \
   --dart-define=WS_URL=https://<backend-domen>
 
 # Haydovchi ilovasi
 flutter build apk --flavor driver -t lib/main_driver.dart \
+  --dart-define-from-file=.env.dart-defines.json \
   --dart-define=API_BASE_URL=https://<backend-domen>/api/v1 \
   --dart-define=WS_URL=https://<backend-domen>
 ```
