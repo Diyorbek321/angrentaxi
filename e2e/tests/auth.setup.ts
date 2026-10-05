@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { test as setup, request as playwrightRequest } from '@playwright/test';
-import { API_URL, PANELS, PASSENGER_PHONE, authFile, type PanelName } from '../support/env';
+import { API_ACCOUNT_PHONES, API_URL, PANELS, authFile, type ApiAccount, type PanelName } from '../support/env';
 import { hasLiveSession, loginThroughApi, loginThroughUi, type ApiTokens } from '../support/login';
 
 // Sessions are cached in .auth/ and reused while they still work. Logging in
@@ -29,24 +29,27 @@ for (const name of Object.keys(PANELS) as PanelName[]) {
   });
 }
 
-setup('session: passenger', async () => {
-  setup.setTimeout(240_000);
-  const file = authFile('passenger');
-  const ctx = await playwrightRequest.newContext();
+// Accounts without a web panel (the mobile-app roles) log in against the API.
+for (const account of Object.keys(API_ACCOUNT_PHONES) as ApiAccount[]) {
+  setup(`session: ${account}`, async () => {
+    setup.setTimeout(240_000);
+    const file = authFile(account);
+    const ctx = await playwrightRequest.newContext();
 
-  if (fs.existsSync(file)) {
-    const cached = JSON.parse(fs.readFileSync(file, 'utf8')) as ApiTokens;
-    const probe = await ctx.get(`${API_URL}/users/me`, {
-      headers: { Authorization: `Bearer ${cached.accessToken}` },
-    });
-    if (probe.ok()) {
-      await ctx.dispose();
-      return;
+    if (fs.existsSync(file)) {
+      const cached = JSON.parse(fs.readFileSync(file, 'utf8')) as ApiTokens;
+      const probe = await ctx.get(`${API_URL}/users/me`, {
+        headers: { Authorization: `Bearer ${cached.accessToken}` },
+      });
+      if (probe.ok()) {
+        await ctx.dispose();
+        return;
+      }
     }
-  }
 
-  const tokens = await loginThroughApi(ctx, PASSENGER_PHONE);
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, JSON.stringify(tokens));
-  await ctx.dispose();
-});
+    const tokens = await loginThroughApi(ctx, API_ACCOUNT_PHONES[account]);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(tokens));
+    await ctx.dispose();
+  });
+}

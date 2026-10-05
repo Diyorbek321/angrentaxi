@@ -27,13 +27,15 @@ npm run report                    # HTML report with screenshots/traces of failu
 | all four | every page opens with no browser error and no failed request (smoke) |
 | market | category create/rename/delete; product add, price edit, hide; passenger order → packing → packed → shipped → delivered, stock reserved |
 | restaurant | category create/rename/delete; dish add, price edit, sold out, delete; passenger order → preparing → ready → delivered; reject with reason |
-| manager | call-centre order create → open → cancel; promo code created by manager, deactivated by admin |
-| admin | revoke/restore a manager permission; close/reopen a store |
+| manager | call-centre order create → open → cancel; promo code created by manager, deactivated by admin; tariff proposed by manager, approved and then deleted by admin |
+| admin | revoke/restore a manager permission; close/reopen a store; KYC document uploaded by the driver → scan opens (via object storage) → approved; driver payout → approved → paid; tariff list includes inactive/delivery tariffs; deleting a tariff that orders use is refused with the reason |
 
 ## Things to know
 
 - **Data.** Tests run against whatever database the backend uses (the local dev
-  one by default) and use seeded accounts. Everything a test creates is named
+  one by default) and use seeded accounts (driver +998901234572 plays the
+  driver app). The KYC test uploads a tiny PNG to whatever object storage the
+  backend is configured with. Everything a test creates is named
   `E2E …` and removed afterwards; orders cannot be deleted, so finished or
   cancelled `E2E` orders stay in history.
 - **Login limit.** `/auth/send-otp` allows 5 calls per minute per IP. Sessions are

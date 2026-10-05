@@ -61,7 +61,17 @@ export const PANELS: Record<PanelName, PanelConfig> = {
 // mobile app. Seeded passenger; deliberately not the one used for manual QA.
 export const PASSENGER_PHONE = env('E2E_PASSENGER_PHONE', '+998901234570');
 
-export const authFile = (name: PanelName | 'passenger'): string => `.auth/${name}.json`;
+// Uploads KYC documents and asks for payouts — stands in for the driver app.
+// Seeded driver; not the one with the online demo state.
+export const DRIVER_PHONE = env('E2E_DRIVER_PHONE', '+998901234572');
+
+export type ApiAccount = 'passenger' | 'driver';
+export const API_ACCOUNT_PHONES: Record<ApiAccount, string> = {
+  passenger: PASSENGER_PHONE,
+  driver: DRIVER_PHONE,
+};
+
+export const authFile = (name: PanelName | ApiAccount): string => `.auth/${name}.json`;
 
 /** Unique, recognisable label for data a test creates. */
 export const uniqueName = (label: string): string =>

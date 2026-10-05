@@ -1,29 +1,43 @@
 # Angren Taxi — qolgan ishlar
 
-Oxirgi yangilanish: 2026-09-27. Bajarilgan ishlar tarixi uchun `git log`ga qarang — bu fayl faqat **hali ochiq** ishlarni kuzatish uchun.
+Oxirgi yangilanish: 2026-10-05. Bajarilgan ishlar tarixi uchun `git log`ga qarang — bu fayl faqat **hali ochiq** ishlarni kuzatish uchun.
 
 ---
 
+## 🗺️ Yo'l xaritasi (2026-10-05 da qaror qilindi)
+
+- **1-versiya (hozir):** mavjud funksiyalarni barqaror ishlatish va serverga chiqarish. Yangi funksiya qo'shilmaydi.
+- **2-versiya:** **posilka yetkazish** (shahar ichida — "kalitni olib borib bering"). Taksi/kuryer oqimi qayta ishlatiladi.
+- **3-versiya:** **super-ilova ichida reklama**.
+- Keyinroq ko'rib chiqiladi (1-versiya ma'lumotlariga qarab): shaharlararo qatnov, Telegram bot orqali buyurtma, safarni yaqinlarga ulashish, qo'shni shaharlarga kengayish, korporativ hisoblar, zona bo'yicha tarif.
+
 ## 🔴 Bloker — tashqi shartnoma/hisob kerak
 
-- [ ] **Eskiz SMS shartnomasi** — `ESKIZ_EMAIL`/`ESKIZ_PASSWORD`. Busiz real foydalanuvchi ro'yxatdan o'ta olmaydi.
+- [ ] **Railway'ni tiklash** — 2026-10-05 holatida backend ham, 4 ta panel ham `404 "Application not found"` qaytaradi. Qayta yaratilsa panel domenlari o'zgaradi → `CORS_ORIGIN`ni yangilash.
+- [ ] **Eskiz SMS shartnomasi** — `ESKIZ_EMAIL`/`ESKIZ_PASSWORD`. Busiz real foydalanuvchi ro'yxatdan o'ta olmaydi (production'da OTP bypass o'chiq).
 - [ ] **Firebase loyihasi (FCM)** — haqiqiy `google-services.json` + serverga `FIREBASE_*`. Hozirgisi placeholder, push kelmaydi.
 - [ ] **Payme / Click merchant kalitlari** — karta to'lovi. Karta bilan to'langan food/market buyurtmada kuryerga to'lov ham shunga bog'liq (hozir PENDING qoladi).
 - [ ] **Haydovchiga bank orqali pul o'tkazish** — `WithdrawalStatus.PAID` hozir faqat status.
 
-## 🟠 Serverda qo'lda qilinadigan ish (RAILWAY_DEPLOY.md, 3a/3b bo'limlari)
+## 🟠 Serverda qo'lda qilinadigan ish (RAILWAY_DEPLOY.md)
 
-- [ ] **OSRM servisini deploy qilish** — `cd osrm && railway up . --path-as-root --service osrm`, `PORT=5000`, backend'ga `OSRM_URL=http://osrm.railway.internal:5000`.
-- [ ] **Fayl saqlash** — `STORAGE_DRIVER=s3` + bucket kalitlari (Railway Bucket / R2), yoki backend'ga `/app/uploads` volume.
-- [ ] **`.env.production`ni serverga ko'chirish** — `APP_SECRET`ni yangi generatsiya qiling: `openssl rand -hex 32`.
+- [ ] **`feat/production-readiness` → `main` PR** — Railway backend'ni `main`dan deploy qiladi.
+- [ ] **YANGI `APP_SECRET`** (`openssl rand -hex 32`) — eskisi ochiq repoda (`RAILWAY_DEPLOY.md` tarixida) turgan. Majburiy.
 - [ ] **Seed admin raqamini o'zgartirish** — `+998901234567` hujjatlarda ochiq.
-- [ ] Migratsiyalar 010–012 (mashina so'rovlari, safar opsiyalari, yo'qolgan buyumlar) backend ishga tushganda o'zi bajariladi.
+- [ ] **Fayl saqlash** — Cloudflare R2 tanlandi; lokalda ulangan va sinalgan. Serverga `STORAGE_DRIVER=s3` + 6 ta `S3_*` (tokenni yangilab).
+- [ ] **OSRM servisini deploy qilish** — `cd osrm && railway up . --path-as-root --service osrm`, `PORT=5000`, backend'ga `OSRM_URL=http://osrm.railway.internal:5000`.
+- [ ] **4 ta web panelni `railway up` bilan qayta deploy** — GitHub'dan avtomatik deploy bo'lmaydi (sessiya cookie nomlari o'zgargan).
+- [ ] **Server bazasini tekshirish** — bitta haydovchida bir nechta faol zakaz (tuzatilgan bug'dan qolgan) bor-yo'qligi.
+- [ ] Migratsiyalar 010–013 backend ishga tushganda o'zi bajariladi. Baza chala bo'lsa: bir marta `DB_SYNC=true`, keyin `false`.
+
+## 🔧 Barqarorlik (hozirgi fokus — server kerak emas)
+
+Hammasi 2026-10-05 da bajarildi (`git log`). Keyingi navbat — haqiqiy qurilmada sinov (pastda).
 
 ## 🟡 Biznes qarori kerak
 
 - [ ] **Naqd food/market buyurtmada kuryer ushlagan sotuvchi puli** — kuryer mijozdan to'liq summani oladi; sotuvchi bilan hisob-kitob hozir jismoniy (tizimda kuzatilmaydi).
 - [ ] **Safar opsiyalari uchun qo'shimcha haq** — hozir bepul (bola o'rindig'i, hayvon, ...).
-- [ ] **Real talab-asosli surge**, **zona-asosli tarif**, **korporativ hisoblar**, **shaharlararo**.
 - [ ] **Haydovchi smenasi** — hozircha kerak emas deb qaror qilindi.
 - [ ] **Backend xato xabarlari tili** — ilova UZ/RU, lekin server xatolari o'zbekcha qoladi.
 
@@ -31,4 +45,4 @@ Oxirgi yangilanish: 2026-09-27. Bajarilgan ishlar tarixi uchun `git log`ga qaran
 
 - [ ] **Real qurilmada sinov** — SOS, qo'ng'iroq, navigatsiya, kamera orqali KYC, xaritadan manzil tanlash, ruscha interfeys.
 - [ ] **NDK ogohlantirishi** — plaginlar NDK 27+ ni xohlaydi (`app/build.gradle` da `ndkVersion`). Build hozir o'tadi.
-- [ ] **Eski APK fayllari** — `apk/` papkasida.
+- [ ] **Eski APK fayllari** — `apk/` papkasida (eng yangisi 2026-08-29, kod 2026-09-27 gacha o'zgargan).

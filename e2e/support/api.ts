@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import { expect, type APIRequestContext, type APIResponse } from '@playwright/test';
-import { API_URL, authFile, type PanelConfig } from './env';
+import { API_URL, authFile, type ApiAccount, type PanelConfig } from './env';
 import type { ApiTokens } from './login';
 
 // Angren city centre — inside the dispatch area, so a courier can be offered.
@@ -49,21 +49,36 @@ export class PanelApi {
   }
 }
 
-/** The passenger, talking to the backend directly as the mobile app does. */
-export class PassengerApi {
-  private readonly token: string;
+/** A mobile-app account talking to the backend directly, as the app does. */
+class AppApi {
+  protected readonly token: string;
 
-  constructor(private readonly request: APIRequestContext) {
-    const tokens = JSON.parse(fs.readFileSync(authFile('passenger'), 'utf8')) as ApiTokens;
+  constructor(
+    protected readonly request: APIRequestContext,
+    account: ApiAccount,
+  ) {
+    const tokens = JSON.parse(fs.readFileSync(authFile(account), 'utf8')) as ApiTokens;
     this.token = tokens.accessToken;
   }
 
-  private async post<T>(path: string, body: unknown): Promise<T> {
-    const res = await this.request.post(`${API_URL}${path}`, {
-      headers: { Authorization: `Bearer ${this.token}` },
-      data: body,
-    });
+  protected get auth() {
+    return { Authorization: `Bearer ${this.token}` };
+  }
+
+  async get<T>(path: string): Promise<T> {
+    return data<T>(await this.request.get(`${API_URL}${path}`, { headers: this.auth }), `GET ${path}`);
+  }
+
+  async post<T>(path: string, body: unknown): Promise<T> {
+    const res = await this.request.post(`${API_URL}${path}`, { headers: this.auth, data: body });
     return data<T>(res, `POST ${path}`);
+  }
+}
+
+/** The passenger: places the orders the vendor panels then work through. */
+export class PassengerApi extends AppApi {
+  constructor(request: APIRequestContext) {
+    super(request, 'passenger');
   }
 
   placeMarketOrder(storeId: string, items: { productId: string; qty: number }[]) {
@@ -82,5 +97,45 @@ export class PassengerApi {
       ...DELIVERY_POINT,
       paymentMethod: 'cash',
     });
+  }
+}
+
+// Smallest valid PNG the backend's magic-byte check accepts (1×1, red).
+const PNG_1X1 = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC',
+  'base64',
+);
+
+/** The driver: uploads KYC documents and asks for payouts. */
+export class DriverApi extends AppApi {
+  constructor(request: APIRequestContext) {
+    super(request, 'driver');
+  }
+
+  me() {
+    return this.get<{ id: string; userId: string }>('/drivers/me');
+  }
+
+  async uploadDocument(documentType: string): Promise<{ id: string; reviewStatus: string }> {
+    const res = await this.request.post(`${API_URL}/drivers/documents`, {
+      headers: this.auth,
+      multipart: {
+        documentType,
+        file: { name: 'e2e.png', mimeType: 'image/png', buffer: PNG_1X1 },
+      },
+    });
+    return data(res, 'POST /drivers/documents');
+  }
+
+  documents() {
+    return this.get<Array<{ id: string; reviewStatus: string }>>('/drivers/documents');
+  }
+
+  requestWithdrawal(amount: number, payoutDestination: string) {
+    return this.post<{ id: string; status: string }>('/payments/wallet/withdraw', { amount, payoutDestination });
+  }
+
+  withdrawals() {
+    return this.get<Array<{ id: string; status: string }>>('/payments/wallet/withdrawals');
   }
 }
