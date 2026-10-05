@@ -54,15 +54,18 @@ import { NotificationsModule } from '../notifications/notifications.module';
   // bo'lganida yo ikkinchi Redis ulanishi ochilardi, yo DriversModule bilan
   // aylanma bog'liqlik paydo bo'lardi.
   //
-  // DriverVerificationController ATAYLAB DriversController dan OLDIN: ikkalasi
-  // ham `drivers` prefiksida, va aniq yo'llar parametrli yo'llardan oldin
-  // ro'yxatdan o'tishi marshrutlashni bir ma'noli qiladi.
+  // DriverVerificationController va DriverDocumentsController ATAYLAB
+  // DriversController dan OLDIN: hammasi `drivers` prefiksida, va aniq yo'llar
+  // parametrli yo'llardan oldin ro'yxatdan o'tishi marshrutlashni bir ma'noli
+  // qiladi. Aks holda `GET /drivers/:id` (faqat manager/admin) haydovchining
+  // `GET /drivers/documents` so'rovini yutib, unga 403 qaytarardi.
+  // Tartib drivers.module.routing.spec.ts da qo'riqlanadi.
   controllers: [
     DriverVerificationController,
+    DriverDocumentsController,
     VehicleChangeController,
     DriverServicesController,
     DriversController,
-    DriverDocumentsController,
     RoadSpeedController,
   ],
   providers: [
