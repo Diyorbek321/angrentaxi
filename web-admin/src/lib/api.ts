@@ -478,7 +478,8 @@ export interface TariffCreateInput {
 }
 
 export const tariffsApi = {
-  getAll: () => api.get<ApiResponse<Tariff[]>>('/tariffs'),
+  // Admin needs inactive and non-taxi tariffs too — '/tariffs' is the public, active-taxi list.
+  getAll: () => api.get<ApiResponse<Tariff[]>>('/tariffs/all'),
 
   getById: (id: string) => api.get<ApiResponse<Tariff>>(`/tariffs/${id}`),
 

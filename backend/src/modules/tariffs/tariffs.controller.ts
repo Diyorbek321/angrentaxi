@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Delete,
   Param,
   Patch,
   Post,
@@ -42,6 +43,22 @@ export class TariffsController {
     return this.tariffsService.findAll(serviceType || 'taxi');
   }
 
+  // Declared before `:id` so "all" is never parsed as a tariff id.
+  @Get('all')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Every tariff — inactive ones and every service type included (admin only)',
+  })
+  @ApiResponse({ status: 200, description: 'All tariffs' })
+  async findAllForAdmin(): Promise<Tariff[]> {
+    // The public list above is active taxi tariffs only. The admin panel shows
+    // "Nofaol"/"Yoqish" and cargo/food/market tariffs, so on that list a
+    // deactivated tariff vanished for good and delivery tariffs were never seen.
+    return this.tariffsService.findAllIncludingInactive();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get tariff by ID' })
   @ApiParam({ name: 'id', description: 'Tariff UUID' })
@@ -60,6 +77,19 @@ export class TariffsController {
   @ApiResponse({ status: 403, description: 'Forbidden' })
   async create(@Body() dto: CreateTariffDto): Promise<Tariff> {
     return this.tariffsService.create(dto);
+  }
+
+  @Delete(':id')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Delete an unused tariff (admin only)' })
+  @ApiParam({ name: 'id', description: 'Tariff UUID' })
+  @ApiResponse({ status: 200, description: 'Tariff deleted' })
+  @ApiResponse({ status: 409, description: 'Orders reference it, or it is the last active tariff of its type' })
+  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<{ deleted: true }> {
+    await this.tariffsService.remove(id);
+    return { deleted: true };
   }
 
   @Patch(':id')

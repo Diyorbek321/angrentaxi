@@ -290,8 +290,13 @@ export default function TariffsPage() {
       toast({ title: 'Tarif o\'chirildi', variant: 'success' });
       setDeleteTarget(null);
       await fetchTariffs();
-    } catch {
-      toast({ title: 'Xatolik', description: 'Tarifni o\'chirishda xatolik', variant: 'error' });
+    } catch (err) {
+      // The server explains a refusal (orders use the tariff, or it is the last
+      // active one of its service) — show that, not a generic failure.
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        'Tarifni o\'chirishda xatolik';
+      toast({ title: 'O\'chirib bo\'lmadi', description: message, variant: 'error' });
     } finally {
       setDeleting(false);
     }

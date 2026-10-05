@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -76,6 +77,45 @@ export class TariffsService {
     this.validatePriceBounds(updated.minPrice, updated.maxPrice);
 
     return this.tariffRepository.save(updated);
+  }
+
+  /**
+   * Deletes a tariff nothing depends on.
+   *
+   * Refused when orders reference it (their receipts and reports read the
+   * tariff row) — deactivating is the way to retire such a tariff. Also
+   * refused for the last ACTIVE tariff of a service type: food/market
+   * dispatch picks "any active tariff of that type", so removing the last
+   * one would silently stop deliveries.
+   */
+  async remove(id: string): Promise<void> {
+    const tariff = await this.findById(id);
+
+    const [{ count }] = (await this.tariffRepository.query(
+      'SELECT COUNT(*) AS count FROM orders WHERE tariff_id = $1',
+      [id],
+    )) as Array<{ count: string }>;
+    const orders = Number(count);
+    if (orders > 0) {
+      throw new ConflictException(
+        `«${tariff.name}» bo'yicha ${orders} ta buyurtma bor — uni o'chirib bo'lmaydi. ` +
+          `Yangi buyurtmalarga chiqmasligi uchun faolsizlantiring.`,
+      );
+    }
+
+    if (tariff.isActive) {
+      const activeOfType = await this.tariffRepository.count({
+        where: { serviceType: tariff.serviceType, isActive: true },
+      });
+      if (activeOfType <= 1) {
+        throw new ConflictException(
+          `«${tariff.name}» — "${tariff.serviceType}" xizmatidagi yagona faol tarif. ` +
+            `Avval boshqa tarif qo'shing, aks holda bu xizmat to'xtab qoladi.`,
+        );
+      }
+    }
+
+    await this.tariffRepository.delete(id);
   }
 
   /**
