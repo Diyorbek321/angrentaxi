@@ -22,6 +22,7 @@ import { PaymentsService } from './payments.service';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 import { RequestWithdrawalDto } from './dto/request-withdrawal.dto';
 import { ProcessWithdrawalDto } from './dto/process-withdrawal.dto';
+import { ListWithdrawalsQueryDto } from './dto/list-withdrawals-query.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
@@ -29,10 +30,9 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Permission, User, UserRole } from '../../database/entities/user.entity';
-import { WithdrawalOwnerType, WithdrawalStatus } from '../../database/entities/withdrawal-request.entity';
+import { WithdrawalOwnerType } from '../../database/entities/withdrawal-request.entity';
 import { PaginationDto } from '../orders/dto/pagination.dto';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
-import { OptionalEnumPipe } from '../../common/pipes/optional-enum.pipe';
 
 // Maps the caller's account role to the withdrawal's informational
 // ownerType tag (see WithdrawalRequest.ownerType). Anything that isn't a
@@ -161,11 +161,9 @@ export class PaymentsController {
   })
   @ApiResponse({ status: 200, description: 'Paginated withdrawal request list' })
   async getAllWithdrawals(
-    @Query() pagination: PaginationDto,
-    @Query('status', new OptionalEnumPipe(WithdrawalStatus, 'status'))
-    status?: WithdrawalStatus,
+    @Query() query: ListWithdrawalsQueryDto,
   ) {
-    return this.paymentsService.getAllWithdrawals(status, pagination.page ?? 1, pagination.limit ?? 20);
+    return this.paymentsService.getAllWithdrawals(query.status, query.page ?? 1, query.limit ?? 20);
   }
 
   @Patch('wallet/withdrawals/:id')
