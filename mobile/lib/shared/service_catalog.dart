@@ -40,6 +40,7 @@ class ServiceCatalogEntry {
         kServiceTypeCargo => AppL10n.current.shServiceCargoShort,
         kServiceTypeFood => AppL10n.current.shServiceFoodShort,
         kServiceTypeMarket => AppL10n.current.shServiceMarketShort,
+        kServiceTypeParcel => AppL10n.current.shServiceParcelShort,
         _ => AppL10n.current.shServiceTaxi,
       };
 
@@ -65,6 +66,11 @@ class ServiceCatalogEntry {
     icon: Icons.storefront_rounded,
   );
 
+  static const ServiceCatalogEntry parcel = ServiceCatalogEntry._(
+    serviceType: kServiceTypeParcel,
+    icon: Icons.inventory_2_rounded,
+  );
+
   /// Yo'lovchi bosh ekranidagi chiplar tartibi.
   ///
   /// Taksi BIRINCHI va sukut bo'yicha tanlangan — sessiyalarning katta
@@ -72,6 +78,7 @@ class ServiceCatalogEntry {
   static const List<ServiceCatalogEntry> all = <ServiceCatalogEntry>[
     taxi,
     cargo,
+    parcel,
     food,
     market,
   ];

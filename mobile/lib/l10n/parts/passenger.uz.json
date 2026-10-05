@@ -462,5 +462,7 @@
     }
   },
   "paxScheduledPriceNote": "Narx hozir qotiriladi va safar kunida o'zgarmaydi — kutish haqi bundan tashqari. Haydovchi belgilangan vaqtdan 10 daqiqa oldin qidiriladi.",
-  "paxRouteLoading": "Yo'nalish yuklanmoqda..."
+  "paxRouteLoading": "Yo'nalish yuklanmoqda...",
+  "paxParcelPinTitle": "Topshirish kodi",
+  "paxParcelPinHint": "Qabul qiluvchiga ayting. Haydovchi posilkani shu kodsiz topshira olmaydi."
 }

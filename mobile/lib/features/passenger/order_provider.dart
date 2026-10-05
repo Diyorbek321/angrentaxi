@@ -160,11 +160,14 @@ class OrderProvider extends ChangeNotifier {
   /// ("Kuryer" / "Yengil" / "Yuk") into the order details. It used to be
   /// selected and then silently discarded, so the courier had no idea what
   /// size of vehicle the customer had asked for.
-  void setServiceType(String type, {String? cargoVehicle}) {
+  /// [details] — the vertical's payload sent with the order (a parcel's
+  /// recipient and item, see ParcelInfo.toDetails); [cargoVehicle] is the
+  /// cargo shorthand for `{'vehicle': ...}`.
+  void setServiceType(String type, {String? cargoVehicle, Map<String, dynamic>? details}) {
     _serviceType = type;
     _selectedTariff = null;
     _estimatedPrice = null;
-    _cargoDetails = cargoVehicle == null ? null : {'vehicle': cargoVehicle};
+    _cargoDetails = details ?? (cargoVehicle == null ? null : {'vehicle': cargoVehicle});
     notifyListeners();
   }
 
@@ -661,6 +664,10 @@ class OrderProvider extends ChangeNotifier {
         _activeOrder = active.first;
         _listenToOrderEvents();
         notifyListeners();
+        // The history list never carries a parcel's delivery PIN — only the
+        // sender's own GET /orders/:id does. Without this, reopening the app
+        // mid-delivery would lose the code the recipient has to be told.
+        if (_activeOrder!.isParcel) await _refreshActiveOrder();
       }
     } catch (e) {
       debugPrint('[OrderProvider] checkActiveOrder error: $e');

@@ -1,5 +1,6 @@
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/driver.dart';
+import 'package:angren_taxi/shared/models/parcel_info.dart';
 import 'package:angren_taxi/shared/models/trip_option.dart';
 import 'package:angren_taxi/shared/utils/waiting_charge.dart';
 import 'package:equatable/equatable.dart';
@@ -84,6 +85,7 @@ const String kServiceTypeTaxi = 'taxi';
 const String kServiceTypeCargo = 'cargo';
 const String kServiceTypeFood = 'food';
 const String kServiceTypeMarket = 'market';
+const String kServiceTypeParcel = 'parcel';
 
 /// Xom qiymatni normallashtiradi.
 ///
@@ -211,6 +213,8 @@ class Order extends Equatable {
     this.waitingPricePerMinute = kDefaultWaitingPricePerMinute,
     this.delivery,
     this.options = const [],
+    this.parcel,
+    this.deliveryPin,
   });
 
   final String id;
@@ -290,6 +294,15 @@ class Order extends Equatable {
   /// Haydovchi taklifda ko'radi — u shu opsiyalar tufayli tanlangan.
   final List<TripOption> options;
 
+  /// Posilka safarida — qabul qiluvchi va buyum. Boshqa safarlarda `null`.
+  final ParcelInfo? parcel;
+
+  /// Posilka topshirish PIN kodi. FAQAT yuboruvchi yo'lovchiga keladi —
+  /// haydovchi javobida server uni umuman yubormaydi.
+  final String? deliveryPin;
+
+  bool get isParcel => serviceType == kServiceTypeParcel;
+
   /// Bu safar ovqat yoki market yetkazish (kuryer) safarimi.
   ///
   /// `serviceType` ham tekshiriladi: `details` yubormaydigan javoblarda
@@ -355,6 +368,11 @@ class Order extends Equatable {
           kDefaultWaitingPricePerMinute,
       delivery: DeliveryInfo.fromDetails(json['details']),
       options: TripOption.listFromApi(json['options']),
+      parcel: ParcelInfo.fromDetails(
+        serviceTypeFromApi(json['serviceType']),
+        json['details'],
+      ),
+      deliveryPin: json['deliveryPin'] as String?,
     );
   }
 
@@ -415,6 +433,8 @@ class Order extends Equatable {
     int? waitingPricePerMinute,
     DeliveryInfo? delivery,
     List<TripOption>? options,
+    ParcelInfo? parcel,
+    String? deliveryPin,
   }) {
     return Order(
       id: id ?? this.id,
@@ -444,6 +464,8 @@ class Order extends Equatable {
           waitingPricePerMinute ?? this.waitingPricePerMinute,
       delivery: delivery ?? this.delivery,
       options: options ?? this.options,
+      parcel: parcel ?? this.parcel,
+      deliveryPin: deliveryPin ?? this.deliveryPin,
     );
   }
 
@@ -477,5 +499,7 @@ class Order extends Equatable {
         waitingPricePerMinute,
         delivery,
         options,
+        parcel,
+        deliveryPin,
       ];
 }

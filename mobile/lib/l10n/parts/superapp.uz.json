@@ -471,5 +471,21 @@
       }
     }
   },
-  "saRestaurantsNotFound": "Restoranlar topilmadi"
+  "saRestaurantsNotFound": "Restoranlar topilmadi",
+  "saParcelTitle": "Posilka yuborish",
+  "saParcelSubtitle": "Kalit, hujjat yoki buyumni shahar ichida yetkazamiz",
+  "saParcelRecipientPhone": "Qabul qiluvchi telefoni",
+  "saParcelRecipientName": "Qabul qiluvchi ismi (ixtiyoriy)",
+  "saParcelWhat": "Nima yuboryapsiz?",
+  "saParcelWhatHint": "Masalan: kalitlar, hujjatlar",
+  "saParcelSize": "O'lchami",
+  "saParcelSizeSmall": "Kichik",
+  "saParcelSizeSmallHint": "Kalit, hujjat",
+  "saParcelSizeMedium": "O'rta",
+  "saParcelSizeMediumHint": "Sumka, quti",
+  "saParcelSizeLarge": "Katta",
+  "saParcelSizeLargeHint": "Bagajga sig'adi",
+  "saParcelPinInfo": "Haydovchi posilkani faqat PIN kod bilan topshiradi. Kodni buyurtma berganingizdan keyin ko'rasiz — uni qabul qiluvchiga ayting.",
+  "saParcelContinue": "Manzilni tanlash",
+  "saParcelWhatRequired": "Nima yuborilayotganini yozing"
 }

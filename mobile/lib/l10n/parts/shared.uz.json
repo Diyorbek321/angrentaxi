@@ -406,5 +406,6 @@
   "shChatHint": "Xabar yozing...",
   "shSend": "Yuborish",
   "shTripChatTitle": "Suhbat",
-  "shTripChatEmpty": "Hali xabar yo'q. Birinchi bo'lib yozing!"
+  "shTripChatEmpty": "Hali xabar yo'q. Birinchi bo'lib yozing!",
+  "shServiceParcelShort": "Posilka"
 }

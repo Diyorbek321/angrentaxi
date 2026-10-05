@@ -85,6 +85,9 @@ class AppLocalizationsUz extends AppLocalizations {
   String get drvArrivedCargo => 'Yuk olish joyidasiz!';
 
   @override
+  String get drvArrivedParcel => 'Posilka olish joyidasiz!';
+
+  @override
   String get drvArrivedRestaurant => 'Restorandasiz!';
 
   @override
@@ -133,6 +136,9 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get drvCallFailed => 'Qo\'ng\'iroq qilib bo\'lmadi';
+
+  @override
+  String get drvCallRecipient => 'Qabul qiluvchiga qo\'ng\'iroq';
 
   @override
   String get drvCallSeller => 'Sotuvchiga qo\'ng\'iroq';
@@ -228,6 +234,10 @@ class AppLocalizationsUz extends AppLocalizations {
   @override
   String get drvCompleteOrderConfirm =>
       'Buyurtmani mijozga topshirganingizni tasdiqlaysizmi?';
+
+  @override
+  String get drvCompleteParcelConfirm =>
+      'Qabul qiluvchidan 4 xonali PIN kodni so\'rang va kiriting.';
 
   @override
   String get drvCompleteTrip => 'Safarni yakunlash';
@@ -329,6 +339,9 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get drvDistanceToCargo => 'Yukkacha';
+
+  @override
+  String get drvDistanceToParcel => 'Posilkagacha';
 
   @override
   String get drvDistanceToPassenger => 'Yo\'lovchigacha';
@@ -606,6 +619,43 @@ class AppLocalizationsUz extends AppLocalizations {
   String get drvPaidOnline => 'Onlayn to\'langan — pul olmaysiz';
 
   @override
+  String get drvParcel => 'Posilka';
+
+  @override
+  String get drvParcelDelivered => 'Posilka topshirildi!';
+
+  @override
+  String get drvParcelInProgress => 'Posilka yetkazilmoqda';
+
+  @override
+  String get drvParcelNotGiven => 'Posilka berilmadi';
+
+  @override
+  String get drvParcelPickupPlace => 'Posilkani olish joyi';
+
+  @override
+  String get drvParcelPinHint =>
+      '4 xonali kod — yuboruvchi uni qabul qiluvchiga aytgan.';
+
+  @override
+  String get drvParcelPinSubmit => 'Topshirish';
+
+  @override
+  String get drvParcelPinTitle => 'Qabul qiluvchidan PIN kodni so\'rang';
+
+  @override
+  String get drvParcelRecipient => 'Qabul qiluvchi';
+
+  @override
+  String get drvParcelSizeLarge => 'Katta';
+
+  @override
+  String get drvParcelSizeMedium => 'O\'rta';
+
+  @override
+  String get drvParcelSizeSmall => 'Kichik';
+
+  @override
   String get drvPassenger => 'Yo\'lovchi';
 
   @override
@@ -635,6 +685,9 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get drvPickupOrder => 'Buyurtmani oling';
+
+  @override
+  String get drvPickupParcel => 'Posilkani oling';
 
   @override
   String get drvPickupPassenger => 'Yo\'lovchini oling';
@@ -744,6 +797,9 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get drvRouteToCargo => 'Yukka yo\'l';
+
+  @override
+  String get drvRouteToParcel => 'Posilkaga yo\'l';
 
   @override
   String get drvRouteToPassenger => 'Yo\'lovchiga yo\'l';
@@ -881,6 +937,9 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get drvTypeMarket => 'Market yetkazish';
+
+  @override
+  String get drvTypeParcel => 'Posilka';
 
   @override
   String get drvTypeTaxi => 'Taksi';
@@ -1350,6 +1409,13 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get paxOutsideServiceArea => 'Xizmat hududidan tashqarida';
+
+  @override
+  String get paxParcelPinHint =>
+      'Qabul qiluvchiga ayting. Haydovchi posilkani shu kodsiz topshira olmaydi.';
+
+  @override
+  String get paxParcelPinTitle => 'Topshirish kodi';
 
   @override
   String get paxPaymentCard => 'Karta';
@@ -2215,6 +2281,56 @@ class AppLocalizationsUz extends AppLocalizations {
   String get saOrdersTitle => 'Buyurtmalar';
 
   @override
+  String get saParcelContinue => 'Manzilni tanlash';
+
+  @override
+  String get saParcelPinInfo =>
+      'Haydovchi posilkani faqat PIN kod bilan topshiradi. Kodni buyurtma berganingizdan keyin ko\'rasiz — uni qabul qiluvchiga ayting.';
+
+  @override
+  String get saParcelRecipientName => 'Qabul qiluvchi ismi (ixtiyoriy)';
+
+  @override
+  String get saParcelRecipientPhone => 'Qabul qiluvchi telefoni';
+
+  @override
+  String get saParcelSize => 'O\'lchami';
+
+  @override
+  String get saParcelSizeLarge => 'Katta';
+
+  @override
+  String get saParcelSizeLargeHint => 'Bagajga sig\'adi';
+
+  @override
+  String get saParcelSizeMedium => 'O\'rta';
+
+  @override
+  String get saParcelSizeMediumHint => 'Sumka, quti';
+
+  @override
+  String get saParcelSizeSmall => 'Kichik';
+
+  @override
+  String get saParcelSizeSmallHint => 'Kalit, hujjat';
+
+  @override
+  String get saParcelSubtitle =>
+      'Kalit, hujjat yoki buyumni shahar ichida yetkazamiz';
+
+  @override
+  String get saParcelTitle => 'Posilka yuborish';
+
+  @override
+  String get saParcelWhat => 'Nima yuboryapsiz?';
+
+  @override
+  String get saParcelWhatHint => 'Masalan: kalitlar, hujjatlar';
+
+  @override
+  String get saParcelWhatRequired => 'Nima yuborilayotganini yozing';
+
+  @override
   String get saPaymentCard => 'Karta (Payme / Click)';
 
   @override
@@ -2995,6 +3111,9 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get shServiceMarketShort => 'Market';
+
+  @override
+  String get shServiceParcelShort => 'Posilka';
 
   @override
   String get shServiceTaxi => 'Taksi';

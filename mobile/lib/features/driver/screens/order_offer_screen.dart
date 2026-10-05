@@ -7,6 +7,7 @@ import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/driver/service_wording.dart';
 import 'package:angren_taxi/features/driver/widgets/delivery_info_card.dart';
+import 'package:angren_taxi/features/driver/widgets/parcel_info_card.dart';
 import 'package:angren_taxi/features/driver/widgets/trip_options_badges.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order.dart';
@@ -196,6 +197,13 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
                                   const SizedBox(height: kSpace4),
                                   DeliveryInfoCard(
                                     delivery: offer.delivery!,
+                                    stage: DeliveryCardStage.offer,
+                                  ),
+                                ],
+                                if (offer.parcel != null) ...[
+                                  const SizedBox(height: kSpace4),
+                                  ParcelInfoCard(
+                                    parcel: offer.parcel!,
                                     stage: DeliveryCardStage.offer,
                                   ),
                                 ],

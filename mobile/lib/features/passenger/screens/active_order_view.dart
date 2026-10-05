@@ -6,6 +6,7 @@ import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/safety/sos_service.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/passenger/map_camera_insets.dart';
+import 'package:angren_taxi/features/passenger/widgets/parcel_pin_card.dart';
 import 'package:angren_taxi/features/trip/screens/trip_chat_screen.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order.dart';
@@ -274,6 +275,12 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
           // shu nuqtada.
           _buildWaitingBlock(order),
           const SizedBox(height: kSpace3),
+          // Posilka: qabul qiluvchiga aytiladigan topshirish kodi — haydovchi
+          // usiz yakunlay olmaydi, shuning uchun haydovchi kartasidan yuqorida.
+          if (order.isParcel && order.deliveryPin != null) ...[
+            ParcelPinCard(pin: order.deliveryPin!),
+            const SizedBox(height: kSpace2),
+          ],
           if (order.driver != null) ...[
             AgSurfaceCard(child: _buildDriverInfo(order)),
             const SizedBox(height: kSpace2),

@@ -85,6 +85,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get drvArrivedCargo => 'Вы на месте загрузки!';
 
   @override
+  String get drvArrivedParcel => 'Вы на месте получения посылки!';
+
+  @override
   String get drvArrivedRestaurant => 'Вы в ресторане!';
 
   @override
@@ -133,6 +136,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get drvCallFailed => 'Не удалось позвонить';
+
+  @override
+  String get drvCallRecipient => 'Позвонить получателю';
 
   @override
   String get drvCallSeller => 'Позвонить продавцу';
@@ -227,6 +233,10 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get drvCompleteOrderConfirm =>
       'Подтвердите, что заказ передан клиенту';
+
+  @override
+  String get drvCompleteParcelConfirm =>
+      'Попросите у получателя 4-значный PIN-код и введите его.';
 
   @override
   String get drvCompleteTrip => 'Завершить поездку';
@@ -327,6 +337,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get drvDistanceToCargo => 'До груза';
+
+  @override
+  String get drvDistanceToParcel => 'До посылки';
 
   @override
   String get drvDistanceToPassenger => 'До пассажира';
@@ -606,6 +619,43 @@ class AppLocalizationsRu extends AppLocalizations {
   String get drvPaidOnline => 'Оплачено онлайн — деньги не берите';
 
   @override
+  String get drvParcel => 'Посылка';
+
+  @override
+  String get drvParcelDelivered => 'Посылка вручена!';
+
+  @override
+  String get drvParcelInProgress => 'Посылка в пути';
+
+  @override
+  String get drvParcelNotGiven => 'Посылку не передали';
+
+  @override
+  String get drvParcelPickupPlace => 'Где забрать посылку';
+
+  @override
+  String get drvParcelPinHint =>
+      '4-значный код — отправитель сообщил его получателю.';
+
+  @override
+  String get drvParcelPinSubmit => 'Вручить';
+
+  @override
+  String get drvParcelPinTitle => 'Спросите PIN-код у получателя';
+
+  @override
+  String get drvParcelRecipient => 'Получатель';
+
+  @override
+  String get drvParcelSizeLarge => 'Большая';
+
+  @override
+  String get drvParcelSizeMedium => 'Средняя';
+
+  @override
+  String get drvParcelSizeSmall => 'Маленькая';
+
+  @override
   String get drvPassenger => 'Пассажир';
 
   @override
@@ -635,6 +685,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get drvPickupOrder => 'Заберите заказ';
+
+  @override
+  String get drvPickupParcel => 'Заберите посылку';
 
   @override
   String get drvPickupPassenger => 'Заберите пассажира';
@@ -744,6 +797,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get drvRouteToCargo => 'Путь к грузу';
+
+  @override
+  String get drvRouteToParcel => 'Путь к посылке';
 
   @override
   String get drvRouteToPassenger => 'Путь к пассажиру';
@@ -881,6 +937,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get drvTypeMarket => 'Доставка из магазина';
+
+  @override
+  String get drvTypeParcel => 'Посылка';
 
   @override
   String get drvTypeTaxi => 'Такси';
@@ -1350,6 +1409,13 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get paxOutsideServiceArea => 'Вне зоны обслуживания';
+
+  @override
+  String get paxParcelPinHint =>
+      'Сообщите получателю. Без этого кода водитель не сможет вручить посылку.';
+
+  @override
+  String get paxParcelPinTitle => 'Код вручения';
 
   @override
   String get paxPaymentCard => 'Карта';
@@ -2211,6 +2277,55 @@ class AppLocalizationsRu extends AppLocalizations {
   String get saOrdersTitle => 'Заказы';
 
   @override
+  String get saParcelContinue => 'Выбрать адрес';
+
+  @override
+  String get saParcelPinInfo =>
+      'Водитель вручит посылку только по PIN-коду. Вы увидите код после заказа — сообщите его получателю.';
+
+  @override
+  String get saParcelRecipientName => 'Имя получателя (необязательно)';
+
+  @override
+  String get saParcelRecipientPhone => 'Телефон получателя';
+
+  @override
+  String get saParcelSize => 'Размер';
+
+  @override
+  String get saParcelSizeLarge => 'Большая';
+
+  @override
+  String get saParcelSizeLargeHint => 'Помещается в багажник';
+
+  @override
+  String get saParcelSizeMedium => 'Средняя';
+
+  @override
+  String get saParcelSizeMediumHint => 'Сумка, коробка';
+
+  @override
+  String get saParcelSizeSmall => 'Маленькая';
+
+  @override
+  String get saParcelSizeSmallHint => 'Ключи, документы';
+
+  @override
+  String get saParcelSubtitle => 'Доставим ключи, документы или вещи по городу';
+
+  @override
+  String get saParcelTitle => 'Отправить посылку';
+
+  @override
+  String get saParcelWhat => 'Что отправляете?';
+
+  @override
+  String get saParcelWhatHint => 'Например: ключи, документы';
+
+  @override
+  String get saParcelWhatRequired => 'Укажите, что отправляете';
+
+  @override
   String get saPaymentCard => 'Карта (Payme / Click)';
 
   @override
@@ -2988,6 +3103,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get shServiceMarketShort => 'Маркет';
+
+  @override
+  String get shServiceParcelShort => 'Посылка';
 
   @override
   String get shServiceTaxi => 'Такси';

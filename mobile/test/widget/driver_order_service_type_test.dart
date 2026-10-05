@@ -55,6 +55,7 @@ const String _orderId = 'order-1';
 Map<String, dynamic> _orderJson({
   String? serviceType,
   String status = 'in_progress',
+  Map<String, dynamic>? details,
 }) =>
     {
       'id': _orderId,
@@ -78,7 +79,15 @@ Map<String, dynamic> _orderJson({
       'estimatedPrice': 20000.0,
       'createdAt': '2026-07-13T10:00:00.000Z',
       if (serviceType != null) 'serviceType': serviceType,
+      if (details != null) 'details': details,
     };
+
+const _parcelDetails = {
+  'recipientPhone': '+998901112233',
+  'recipientName': 'Ona',
+  'itemDescription': 'Kalitlar',
+  'size': 'small',
+};
 
 Response<dynamic> _jsonResponse(String path, Map<String, dynamic> data) =>
     Response<dynamic>(
@@ -311,7 +320,7 @@ void main() {
     testWidgets('ovqat: surib yakunlash ham yetkazish so\'zlarini beradi',
         (tester) async {
       await seedActiveOrder(_orderJson(serviceType: 'food'));
-      when(() => apiClient.patch(ApiEndpoints.completeTrip(_orderId)))
+      when(() => apiClient.patch(ApiEndpoints.completeTrip(_orderId), data: any(named: 'data')))
           .thenAnswer(
         (_) async => _jsonResponse(
           ApiEndpoints.completeTrip(_orderId),
@@ -331,13 +340,13 @@ void main() {
         find.text('Buyurtmani mijozga topshirganingizni tasdiqlaysizmi?'),
         findsNothing,
       );
-      verifyNever(() => apiClient.patch(ApiEndpoints.completeTrip(_orderId)));
+      verifyNever(() => apiClient.patch(ApiEndpoints.completeTrip(_orderId), data: any(named: 'data')));
 
       // Chegaradan (70%) uzun surish — amal bajariladi.
       await tester.drag(slider, Offset(tester.getSize(slider).width, 0));
       await pumpUntilQuiet(tester);
 
-      verify(() => apiClient.patch(ApiEndpoints.completeTrip(_orderId)))
+      verify(() => apiClient.patch(ApiEndpoints.completeTrip(_orderId), data: any(named: 'data')))
           .called(1);
       expect(
         find.text('Buyurtma muvaffaqiyatli yetkazildi!'),
@@ -353,6 +362,69 @@ void main() {
       expect(find.text('Safarni yakunlash'), findsOneWidget);
       expect(find.text("Yo'lovchi"), findsOneWidget);
       expect(find.text('Manzil'), findsOneWidget);
+    });
+  });
+
+  group('Posilka (2-versiya)', () {
+    testWidgets('taklifda buyum va o\'lcham ko\'rinadi, qabul qiluvchi telefoni EMAS', (tester) async {
+      await pumpOfferScreen(tester, _orderJson(serviceType: 'parcel', status: 'searching', details: _parcelDetails));
+
+      expect(find.text('Kalitlar'), findsOneWidget);
+      expect(find.text('Kichik'), findsOneWidget);
+      expect(find.byTooltip("Qabul qiluvchiga qo'ng'iroq"), findsNothing);
+    });
+
+    testWidgets('safarda qabul qiluvchi va qo\'ng\'iroq tugmasi', (tester) async {
+      await seedActiveOrder(_orderJson(serviceType: 'parcel', details: _parcelDetails));
+      await pumpTripScreen(tester);
+
+      expect(find.text('Posilka yetkazilmoqda'), findsOneWidget);
+      expect(find.text('Ona'), findsOneWidget);
+      expect(find.byTooltip("Qabul qiluvchiga qo'ng'iroq"), findsOneWidget);
+    });
+
+    testWidgets('surib yakunlash PIN so\'raydi va kodni serverga yuboradi', (tester) async {
+      await seedActiveOrder(_orderJson(serviceType: 'parcel', details: _parcelDetails));
+      when(() => apiClient.patch(ApiEndpoints.completeTrip(_orderId), data: any(named: 'data'))).thenAnswer(
+        (_) async => _jsonResponse(
+          ApiEndpoints.completeTrip(_orderId),
+          _orderJson(serviceType: 'parcel', status: 'completed', details: _parcelDetails),
+        ),
+      );
+      await pumpTripScreen(tester);
+
+      final slider = find.byType(AgSlideAction);
+      await tester.drag(slider, Offset(tester.getSize(slider).width, 0));
+      await pumpUntilQuiet(tester);
+
+      // PIN kiritilmaguncha hech narsa yuborilmaydi.
+      expect(find.text("Qabul qiluvchidan PIN kodni so'rang"), findsOneWidget);
+      verifyNever(() => apiClient.patch(ApiEndpoints.completeTrip(_orderId), data: any(named: 'data')));
+
+      final dialog = find.byType(AlertDialog);
+      await tester.enterText(find.descendant(of: dialog, matching: find.byType(TextField)), '0427');
+      await tester.pump();
+      await tester.tap(find.descendant(of: dialog, matching: find.text('Topshirish')));
+      await pumpUntilQuiet(tester);
+
+      verify(() => apiClient.patch(
+            ApiEndpoints.completeTrip(_orderId),
+            data: {'deliveryPin': '0427'},
+          )).called(1);
+      expect(find.text('Posilka topshirildi!'), findsOneWidget);
+    });
+
+    testWidgets('PIN oynasi bekor qilinsa yakunlanmaydi', (tester) async {
+      await seedActiveOrder(_orderJson(serviceType: 'parcel', details: _parcelDetails));
+      await pumpTripScreen(tester);
+
+      final slider = find.byType(AgSlideAction);
+      await tester.drag(slider, Offset(tester.getSize(slider).width, 0));
+      await pumpUntilQuiet(tester);
+      await tester.tap(find.descendant(of: find.byType(AlertDialog), matching: find.text('Bekor qilish')));
+      await pumpUntilQuiet(tester);
+
+      verifyNever(() => apiClient.patch(ApiEndpoints.completeTrip(_orderId), data: any(named: 'data')));
     });
   });
 }

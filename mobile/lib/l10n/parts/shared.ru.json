@@ -147,5 +147,6 @@
   "shChatHint": "Напишите сообщение...",
   "shSend": "Отправить",
   "shTripChatTitle": "Чат",
-  "shTripChatEmpty": "Сообщений пока нет. Напишите первым!"
+  "shTripChatEmpty": "Сообщений пока нет. Напишите первым!",
+  "shServiceParcelShort": "Посылка"
 }

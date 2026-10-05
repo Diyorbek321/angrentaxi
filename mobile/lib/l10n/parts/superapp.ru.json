@@ -221,5 +221,21 @@
   "saTaxiWhereToLabel": "Такси. Куда едем?",
   "saWhereTo": "Куда едем?",
   "saActiveOrderLabel": "Активный заказ: {service}. {title}. {stage}",
-  "saRestaurantsNotFound": "Рестораны не найдены"
+  "saRestaurantsNotFound": "Рестораны не найдены",
+  "saParcelTitle": "Отправить посылку",
+  "saParcelSubtitle": "Доставим ключи, документы или вещи по городу",
+  "saParcelRecipientPhone": "Телефон получателя",
+  "saParcelRecipientName": "Имя получателя (необязательно)",
+  "saParcelWhat": "Что отправляете?",
+  "saParcelWhatHint": "Например: ключи, документы",
+  "saParcelSize": "Размер",
+  "saParcelSizeSmall": "Маленькая",
+  "saParcelSizeSmallHint": "Ключи, документы",
+  "saParcelSizeMedium": "Средняя",
+  "saParcelSizeMediumHint": "Сумка, коробка",
+  "saParcelSizeLarge": "Большая",
+  "saParcelSizeLargeHint": "Помещается в багажник",
+  "saParcelPinInfo": "Водитель вручит посылку только по PIN-коду. Вы увидите код после заказа — сообщите его получателю.",
+  "saParcelContinue": "Выбрать адрес",
+  "saParcelWhatRequired": "Укажите, что отправляете"
 }

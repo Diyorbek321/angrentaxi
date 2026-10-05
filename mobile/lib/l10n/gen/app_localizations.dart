@@ -236,6 +236,12 @@ abstract class AppLocalizations {
   /// **'Yuk olish joyidasiz!'**
   String get drvArrivedCargo;
 
+  /// No description provided for @drvArrivedParcel.
+  ///
+  /// In uz, this message translates to:
+  /// **'Posilka olish joyidasiz!'**
+  String get drvArrivedParcel;
+
   /// No description provided for @drvArrivedRestaurant.
   ///
   /// In uz, this message translates to:
@@ -319,6 +325,12 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Qo\'ng\'iroq qilib bo\'lmadi'**
   String get drvCallFailed;
+
+  /// No description provided for @drvCallRecipient.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qabul qiluvchiga qo\'ng\'iroq'**
+  String get drvCallRecipient;
 
   /// No description provided for @drvCallSeller.
   ///
@@ -500,6 +512,12 @@ abstract class AppLocalizations {
   /// **'Buyurtmani mijozga topshirganingizni tasdiqlaysizmi?'**
   String get drvCompleteOrderConfirm;
 
+  /// No description provided for @drvCompleteParcelConfirm.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qabul qiluvchidan 4 xonali PIN kodni so\'rang va kiriting.'**
+  String get drvCompleteParcelConfirm;
+
   /// No description provided for @drvCompleteTrip.
   ///
   /// In uz, this message translates to:
@@ -679,6 +697,12 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Yukkacha'**
   String get drvDistanceToCargo;
+
+  /// No description provided for @drvDistanceToParcel.
+  ///
+  /// In uz, this message translates to:
+  /// **'Posilkagacha'**
+  String get drvDistanceToParcel;
 
   /// No description provided for @drvDistanceToPassenger.
   ///
@@ -1178,6 +1202,78 @@ abstract class AppLocalizations {
   /// **'Onlayn to\'langan — pul olmaysiz'**
   String get drvPaidOnline;
 
+  /// No description provided for @drvParcel.
+  ///
+  /// In uz, this message translates to:
+  /// **'Posilka'**
+  String get drvParcel;
+
+  /// No description provided for @drvParcelDelivered.
+  ///
+  /// In uz, this message translates to:
+  /// **'Posilka topshirildi!'**
+  String get drvParcelDelivered;
+
+  /// No description provided for @drvParcelInProgress.
+  ///
+  /// In uz, this message translates to:
+  /// **'Posilka yetkazilmoqda'**
+  String get drvParcelInProgress;
+
+  /// No description provided for @drvParcelNotGiven.
+  ///
+  /// In uz, this message translates to:
+  /// **'Posilka berilmadi'**
+  String get drvParcelNotGiven;
+
+  /// No description provided for @drvParcelPickupPlace.
+  ///
+  /// In uz, this message translates to:
+  /// **'Posilkani olish joyi'**
+  String get drvParcelPickupPlace;
+
+  /// No description provided for @drvParcelPinHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'4 xonali kod — yuboruvchi uni qabul qiluvchiga aytgan.'**
+  String get drvParcelPinHint;
+
+  /// No description provided for @drvParcelPinSubmit.
+  ///
+  /// In uz, this message translates to:
+  /// **'Topshirish'**
+  String get drvParcelPinSubmit;
+
+  /// No description provided for @drvParcelPinTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qabul qiluvchidan PIN kodni so\'rang'**
+  String get drvParcelPinTitle;
+
+  /// No description provided for @drvParcelRecipient.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qabul qiluvchi'**
+  String get drvParcelRecipient;
+
+  /// No description provided for @drvParcelSizeLarge.
+  ///
+  /// In uz, this message translates to:
+  /// **'Katta'**
+  String get drvParcelSizeLarge;
+
+  /// No description provided for @drvParcelSizeMedium.
+  ///
+  /// In uz, this message translates to:
+  /// **'O\'rta'**
+  String get drvParcelSizeMedium;
+
+  /// No description provided for @drvParcelSizeSmall.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kichik'**
+  String get drvParcelSizeSmall;
+
   /// No description provided for @drvPassenger.
   ///
   /// In uz, this message translates to:
@@ -1231,6 +1327,12 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Buyurtmani oling'**
   String get drvPickupOrder;
+
+  /// No description provided for @drvPickupParcel.
+  ///
+  /// In uz, this message translates to:
+  /// **'Posilkani oling'**
+  String get drvPickupParcel;
 
   /// No description provided for @drvPickupPassenger.
   ///
@@ -1417,6 +1519,12 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Yukka yo\'l'**
   String get drvRouteToCargo;
+
+  /// No description provided for @drvRouteToParcel.
+  ///
+  /// In uz, this message translates to:
+  /// **'Posilkaga yo\'l'**
+  String get drvRouteToParcel;
 
   /// No description provided for @drvRouteToPassenger.
   ///
@@ -1657,6 +1765,12 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Market yetkazish'**
   String get drvTypeMarket;
+
+  /// No description provided for @drvTypeParcel.
+  ///
+  /// In uz, this message translates to:
+  /// **'Posilka'**
+  String get drvTypeParcel;
 
   /// No description provided for @drvTypeTaxi.
   ///
@@ -2461,6 +2575,18 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Xizmat hududidan tashqarida'**
   String get paxOutsideServiceArea;
+
+  /// No description provided for @paxParcelPinHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qabul qiluvchiga ayting. Haydovchi posilkani shu kodsiz topshira olmaydi.'**
+  String get paxParcelPinHint;
+
+  /// No description provided for @paxParcelPinTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Topshirish kodi'**
+  String get paxParcelPinTitle;
 
   /// No description provided for @paxPaymentCard.
   ///
@@ -3974,6 +4100,102 @@ abstract class AppLocalizations {
   /// **'Buyurtmalar'**
   String get saOrdersTitle;
 
+  /// No description provided for @saParcelContinue.
+  ///
+  /// In uz, this message translates to:
+  /// **'Manzilni tanlash'**
+  String get saParcelContinue;
+
+  /// No description provided for @saParcelPinInfo.
+  ///
+  /// In uz, this message translates to:
+  /// **'Haydovchi posilkani faqat PIN kod bilan topshiradi. Kodni buyurtma berganingizdan keyin ko\'rasiz — uni qabul qiluvchiga ayting.'**
+  String get saParcelPinInfo;
+
+  /// No description provided for @saParcelRecipientName.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qabul qiluvchi ismi (ixtiyoriy)'**
+  String get saParcelRecipientName;
+
+  /// No description provided for @saParcelRecipientPhone.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qabul qiluvchi telefoni'**
+  String get saParcelRecipientPhone;
+
+  /// No description provided for @saParcelSize.
+  ///
+  /// In uz, this message translates to:
+  /// **'O\'lchami'**
+  String get saParcelSize;
+
+  /// No description provided for @saParcelSizeLarge.
+  ///
+  /// In uz, this message translates to:
+  /// **'Katta'**
+  String get saParcelSizeLarge;
+
+  /// No description provided for @saParcelSizeLargeHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bagajga sig\'adi'**
+  String get saParcelSizeLargeHint;
+
+  /// No description provided for @saParcelSizeMedium.
+  ///
+  /// In uz, this message translates to:
+  /// **'O\'rta'**
+  String get saParcelSizeMedium;
+
+  /// No description provided for @saParcelSizeMediumHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Sumka, quti'**
+  String get saParcelSizeMediumHint;
+
+  /// No description provided for @saParcelSizeSmall.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kichik'**
+  String get saParcelSizeSmall;
+
+  /// No description provided for @saParcelSizeSmallHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kalit, hujjat'**
+  String get saParcelSizeSmallHint;
+
+  /// No description provided for @saParcelSubtitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kalit, hujjat yoki buyumni shahar ichida yetkazamiz'**
+  String get saParcelSubtitle;
+
+  /// No description provided for @saParcelTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Posilka yuborish'**
+  String get saParcelTitle;
+
+  /// No description provided for @saParcelWhat.
+  ///
+  /// In uz, this message translates to:
+  /// **'Nima yuboryapsiz?'**
+  String get saParcelWhat;
+
+  /// No description provided for @saParcelWhatHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Masalan: kalitlar, hujjatlar'**
+  String get saParcelWhatHint;
+
+  /// No description provided for @saParcelWhatRequired.
+  ///
+  /// In uz, this message translates to:
+  /// **'Nima yuborilayotganini yozing'**
+  String get saParcelWhatRequired;
+
   /// No description provided for @saPaymentCard.
   ///
   /// In uz, this message translates to:
@@ -5324,6 +5546,12 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Market'**
   String get shServiceMarketShort;
+
+  /// No description provided for @shServiceParcelShort.
+  ///
+  /// In uz, this message translates to:
+  /// **'Posilka'**
+  String get shServiceParcelShort;
 
   /// No description provided for @shServiceTaxi.
   ///

@@ -14,6 +14,7 @@ import 'package:angren_taxi/features/passenger/widgets/coverage_notice.dart';
 import 'package:angren_taxi/features/superapp/screens/cargo_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/food_list_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/market_screen.dart';
+import 'package:angren_taxi/features/superapp/screens/parcel_screen.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/favorite_address.dart';
 import 'package:angren_taxi/shared/models/order.dart';
@@ -423,6 +424,10 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
         // o'zi `setServiceType('cargo', cargoVehicle: ...)` ni chaqiradi.
         // Turni bu yerda qo'lda qo'yish transport turini bo'sh qoldirardi.
         _push(const CargoScreen());
+      case kServiceTypeParcel:
+        // Posilka ham yuk kabi o'z ekranidan (kimga, nima) boshlanadi va
+        // `ParcelScreen` turni `details` bilan birga o'zi qo'yadi.
+        _push(const ParcelScreen());
       case kServiceTypeFood:
         _push(const FoodListScreen());
       case kServiceTypeMarket:

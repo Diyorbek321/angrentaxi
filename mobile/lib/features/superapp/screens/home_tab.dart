@@ -5,6 +5,7 @@ import 'package:angren_taxi/features/superapp/screens/cargo_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/food_list_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/market_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/notifications_screen.dart';
+import 'package:angren_taxi/features/superapp/screens/parcel_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/restaurant_detail_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/search_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/wallet_screen.dart';
@@ -197,6 +198,7 @@ class _HomeTabState extends State<HomeTab> {
           const SizedBox(height: kSpace6),
           _SecondaryServices(
             onCargo: () => _push(context, const CargoScreen()),
+            onParcel: () => _push(context, const ParcelScreen()),
             onFood: () => _push(context, const FoodListScreen()),
             onMarket: () => _push(context, const MarketScreen()),
           )
@@ -570,11 +572,13 @@ class _TaxiBlock extends StatelessWidget {
 class _SecondaryServices extends StatelessWidget {
   const _SecondaryServices({
     required this.onCargo,
+    required this.onParcel,
     required this.onFood,
     required this.onMarket,
   });
 
   final VoidCallback onCargo;
+  final VoidCallback onParcel;
   final VoidCallback onFood;
   final VoidCallback onMarket;
 
@@ -582,6 +586,7 @@ class _SecondaryServices extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = <(ServiceCatalogEntry, Color, VoidCallback)>[
       (ServiceCatalogEntry.cargo, agPurple, onCargo),
+      (ServiceCatalogEntry.parcel, agPrimary, onParcel),
       (ServiceCatalogEntry.food, agOrange, onFood),
       (ServiceCatalogEntry.market, agBlue, onMarket),
     ];

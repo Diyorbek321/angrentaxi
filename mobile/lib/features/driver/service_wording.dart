@@ -40,13 +40,17 @@ class DriverServiceWording {
 
   static AppLocalizations get _l => AppL10n.current;
 
+  /// [parcel] — posilka matni; berilmasa yuk matni ishlatiladi (posilka ham
+  /// buyumni bir joydan olib, boshqa joyga eltish).
   String _pick({
     required String taxi,
     required String cargo,
     required String food,
     required String market,
+    String? parcel,
   }) =>
       switch (serviceType) {
+        kServiceTypeParcel => parcel ?? cargo,
         kServiceTypeCargo => cargo,
         kServiceTypeFood => food,
         kServiceTypeMarket => market,
@@ -60,6 +64,7 @@ class DriverServiceWording {
         cargo: _l.drvTypeCargo,
         food: _l.drvTypeFood,
         market: _l.drvTypeMarket,
+        parcel: _l.drvTypeParcel,
       );
 
   /// Olish nuqtasidagi tomon: "Yo'lovchi" · "Yuk" · "Restoran" · "Do'kon".
@@ -68,6 +73,7 @@ class DriverServiceWording {
         cargo: _l.drvCargo,
         food: _l.drvRestaurant,
         market: _l.drvShop,
+        parcel: _l.drvParcel,
       );
 
   /// Yetkazish tomonidagi odam. Taksida u yo'lovchining o'zi, qolgan
@@ -93,6 +99,7 @@ class DriverServiceWording {
         cargo: _l.drvCargoPickupPlace,
         food: _l.drvRestaurant,
         market: _l.drvShop,
+        parcel: _l.drvParcelPickupPlace,
       );
 
   /// Tushish nuqtasi sarlavhasi.
@@ -109,6 +116,7 @@ class DriverServiceWording {
         cargo: _l.drvRouteToCargo,
         food: _l.drvRouteToRestaurant,
         market: _l.drvRouteToShop,
+        parcel: _l.drvRouteToParcel,
       );
 
   /// Masofa qatorining boshi: "$distanceToPickupLabel: 1,2 km".
@@ -117,6 +125,7 @@ class DriverServiceWording {
         cargo: _l.drvDistanceToCargo,
         food: _l.drvDistanceToRestaurant,
         market: _l.drvDistanceToShop,
+        parcel: _l.drvDistanceToParcel,
       );
 
   /// "Yetib keldim" ekranining bannerdagi sarlavhasi.
@@ -125,6 +134,7 @@ class DriverServiceWording {
         cargo: _l.drvArrivedCargo,
         food: _l.drvArrivedRestaurant,
         market: _l.drvArrivedShop,
+        parcel: _l.drvArrivedParcel,
       );
 
   /// Olish nuqtasida bajariladigan ish ("Buyurtmani oling").
@@ -133,6 +143,7 @@ class DriverServiceWording {
         cargo: _l.drvPickupCargo,
         food: _l.drvPickupOrder,
         market: _l.drvPickupOrder,
+        parcel: _l.drvPickupParcel,
       );
 
   /// Safar/yetkazishni boshlash tugmasi.
@@ -149,6 +160,7 @@ class DriverServiceWording {
         cargo: _l.drvCargoInProgress,
         food: _l.drvOrderInProgress,
         market: _l.drvOrderInProgress,
+        parcel: _l.drvParcelInProgress,
       );
 
   /// Yakunlash tugmasi.
@@ -166,6 +178,7 @@ class DriverServiceWording {
         cargo: _l.drvCompleteCargoConfirm,
         food: _l.drvCompleteOrderConfirm,
         market: _l.drvCompleteOrderConfirm,
+        parcel: _l.drvCompleteParcelConfirm,
       );
 
   /// Yakunlangandan keyingi xabar.
@@ -174,6 +187,7 @@ class DriverServiceWording {
         cargo: _l.drvCargoDelivered,
         food: _l.drvOrderDelivered,
         market: _l.drvOrderDelivered,
+        parcel: _l.drvParcelDelivered,
       );
 
   /// Olish nuqtasida hech narsa berilmagan holat ("Yo'lovchi kelmadi").
@@ -182,6 +196,7 @@ class DriverServiceWording {
         cargo: _l.drvCargoNotGiven,
         food: _l.drvOrderNotGiven,
         market: _l.drvOrderNotGiven,
+        parcel: _l.drvParcelNotGiven,
       );
 
   static const DriverServiceWording taxi = DriverServiceWording._(
@@ -204,6 +219,11 @@ class DriverServiceWording {
     icon: Icons.storefront_rounded,
   );
 
+  static const DriverServiceWording parcel = DriverServiceWording._(
+    serviceType: kServiceTypeParcel,
+    icon: Icons.inventory_2_rounded,
+  );
+
   /// Tanish turmi — noma'lum bo'lsa `null`.
   ///
   /// Buyurtma oqimida bu kerak emas ([of] baribir taksiga qaytadi), lekin
@@ -219,6 +239,8 @@ class DriverServiceWording {
         return food;
       case kServiceTypeMarket:
         return market;
+      case kServiceTypeParcel:
+        return parcel;
       default:
         return null;
     }

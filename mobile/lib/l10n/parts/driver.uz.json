@@ -647,5 +647,24 @@
         "type": "int"
       }
     }
-  }
+  },
+  "drvTypeParcel": "Posilka",
+  "drvParcel": "Posilka",
+  "drvParcelPickupPlace": "Posilkani olish joyi",
+  "drvRouteToParcel": "Posilkaga yo'l",
+  "drvDistanceToParcel": "Posilkagacha",
+  "drvArrivedParcel": "Posilka olish joyidasiz!",
+  "drvPickupParcel": "Posilkani oling",
+  "drvParcelInProgress": "Posilka yetkazilmoqda",
+  "drvCompleteParcelConfirm": "Qabul qiluvchidan 4 xonali PIN kodni so'rang va kiriting.",
+  "drvParcelDelivered": "Posilka topshirildi!",
+  "drvParcelNotGiven": "Posilka berilmadi",
+  "drvParcelPinTitle": "Qabul qiluvchidan PIN kodni so'rang",
+  "drvParcelPinHint": "4 xonali kod — yuboruvchi uni qabul qiluvchiga aytgan.",
+  "drvParcelPinSubmit": "Topshirish",
+  "drvParcelRecipient": "Qabul qiluvchi",
+  "drvCallRecipient": "Qabul qiluvchiga qo'ng'iroq",
+  "drvParcelSizeSmall": "Kichik",
+  "drvParcelSizeMedium": "O'rta",
+  "drvParcelSizeLarge": "Katta"
 }

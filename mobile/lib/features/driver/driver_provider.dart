@@ -668,12 +668,15 @@ class DriverProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> completeTrip() async {
+  /// [deliveryPin] — posilkada qabul qiluvchi aytgan kod (server usiz
+  /// yakunlamaydi; noto'g'ri bo'lsa qolgan urinishlar sonini aytadi).
+  Future<void> completeTrip({String? deliveryPin}) async {
     if (_activeOrder == null) return;
     _setState(DriverProviderState.loading);
     try {
       final response = await _apiClient.patch(
         ApiEndpoints.completeTrip(_activeOrder!.id),
+        data: {if (deliveryPin != null) 'deliveryPin': deliveryPin},
       );
       final data = response.data as Map<String, dynamic>;
       final completedOrder = Order.fromJson(

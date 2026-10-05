@@ -13,6 +13,8 @@ import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/driver/screens/rate_passenger_screen.dart';
 import 'package:angren_taxi/features/driver/service_wording.dart';
 import 'package:angren_taxi/features/driver/widgets/delivery_info_card.dart';
+import 'package:angren_taxi/features/driver/widgets/parcel_info_card.dart';
+import 'package:angren_taxi/features/driver/widgets/parcel_pin_dialog.dart';
 // `MapCameraInsets` yo'lovchi papkasida yashaydi, lekin u ekranga emas
 // TARTIBGA bog'liq: sheet ostida qolgan maydonni hisoblaydi. Haydovchi
 // xarita ekranlari ham xuddi shu qoidaga bo'ysunishi kerak, aks holda
@@ -221,7 +223,14 @@ class _TripScreenState extends State<TripScreen> {
   /// oynasi → baholash ekrani.
   Future<void> _onCompleteTrip(Order order, DriverServiceWording wording) async {
     final provider = context.read<DriverProvider>();
-    await provider.completeTrip();
+    // Posilka faqat qabul qiluvchi aytgan PIN bilan topshiriladi. Bekor
+    // qilinsa hech narsa yuborilmaydi — haydovchi qayta surib urinadi.
+    String? deliveryPin;
+    if (order.isParcel) {
+      deliveryPin = await showParcelPinDialog(context);
+      if (deliveryPin == null || !mounted) return;
+    }
+    await provider.completeTrip(deliveryPin: deliveryPin);
 
     if (!mounted) return;
     if (provider.state == DriverProviderState.success) {
@@ -789,6 +798,14 @@ class _TripScreenState extends State<TripScreen> {
           if (order.delivery != null) ...[
             DeliveryInfoCard(
               delivery: order.delivery!,
+              stage: DeliveryCardStage.dropoff,
+            ),
+            const SizedBox(height: kSpace2),
+          ],
+          // Posilka: kimga topshiriladi — PIN kodni haydovchi undan so'raydi.
+          if (order.parcel != null) ...[
+            ParcelInfoCard(
+              parcel: order.parcel!,
               stage: DeliveryCardStage.dropoff,
             ),
             const SizedBox(height: kSpace2),
