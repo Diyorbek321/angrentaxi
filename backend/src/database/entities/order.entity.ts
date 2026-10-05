@@ -35,6 +35,16 @@ export enum OrderStatus {
   CANCELLED = 'cancelled',
 }
 
+/**
+ * Statuses in which an order occupies its driver. A driver holds at most one
+ * such order: matching skips them and accepting a second one is refused.
+ */
+export const DRIVER_ACTIVE_ORDER_STATUSES: readonly OrderStatus[] = [
+  OrderStatus.ACCEPTED,
+  OrderStatus.ARRIVED,
+  OrderStatus.IN_PROGRESS,
+];
+
 export enum PaymentMethod {
   CASH = 'cash',
   CARD = 'card',

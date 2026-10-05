@@ -145,6 +145,20 @@ describe('DriversService — jonli mavjudlik', () => {
       expect(await nearbyIds()).toEqual(['a', 'b']);
       expect(redis.zrem).not.toHaveBeenCalled();
     });
+
+    it('faol safardagi haydovchini nomzod qilib BERMAYDI', async () => {
+      // Safardagi haydovchi geo-to'plamda qoladi (u hali onlayn), lekin
+      // unga taklif yuborilsa yo'lovchi 15 soniyani bekorga kutadi, haydovchi
+      // esa ikkinchi buyurtmani qabul qilib qo'yishi mumkin edi.
+      pool = [driverRow('band'), driverRow('bosh')];
+      present.add('band');
+      present.add('bosh');
+      driverRepository.query.mockImplementation((sql: string) =>
+        Promise.resolve(sql.includes('FROM orders') ? [{ driver_id: 'user-band' }] : []),
+      );
+
+      expect(await nearbyIds()).toEqual(['bosh']);
+    });
   });
 
   describe('getOnlineDriversList — dispetcher taxtasi', () => {

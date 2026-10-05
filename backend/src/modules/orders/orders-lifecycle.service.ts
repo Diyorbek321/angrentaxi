@@ -50,10 +50,7 @@ export class OrdersLifecycleService {
       throw new BadRequestException('Order already has a driver');
     }
 
-    await this.statusTransition.updateOrderStatusAtomic(orderId, OrderStatus.SEARCHING, {
-      driverId,
-      status: OrderStatus.ACCEPTED,
-    });
+    await this.statusTransition.acceptForDriver(orderId, driverId);
 
     const updatedOrder = await this.queryService.findByIdOrThrow(orderId);
 

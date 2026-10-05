@@ -18,7 +18,7 @@ import {
   TransactionStatus,
   TransactionType,
 } from '../../database/entities/transaction.entity';
-import { PaymentMethod } from '../../database/entities/order.entity';
+import { DRIVER_ACTIVE_ORDER_STATUSES, PaymentMethod } from '../../database/entities/order.entity';
 import { REDIS_CLIENT } from '../../config/redis.config';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
@@ -603,6 +603,12 @@ export class DriversService {
       // hech narsa yo'q, ya'ni telefoni o'chgan haydovchi ham nomzod bo'lib
       // chiqaveradi.
       const present = await this.filterPresent(hits.map((h) => h.driverId));
+      // Safardagi haydovchi onlayn bo'lib qoladi (geo-to'plamda turadi),
+      // lekin unga taklif yuborish yo'lovchining 15 soniyasini bekorga
+      // yeydi. Qabul qilish ham band haydovchini rad etadi
+      // (`OrderStatusTransitionService.acceptForDriver`), bu esa — taklifni
+      // umuman yubormaslik.
+      const busy = await this.findBusyUserIds(drivers.map((d) => d.userId));
 
       // Redis returned these already sorted by distance; preserve that order.
       return hits
@@ -610,6 +616,7 @@ export class DriversService {
           const driver = byId.get(hit.driverId);
           if (!driver) return [];
           if (!present.has(hit.driverId)) return [];
+          if (busy.has(driver.userId)) return [];
           if (minTariffTier !== undefined && driver.approvedTariffTier < minTariffTier) {
             return [];
           }
@@ -631,6 +638,16 @@ export class DriversService {
       this.logger.error(`Redis georadius error: ${(err as Error).message}`);
       return [];
     }
+  }
+
+  /** User ids (orders.driver_id) among [userIds] that currently hold an active order. */
+  private async findBusyUserIds(userIds: string[]): Promise<Set<string>> {
+    if (userIds.length === 0) return new Set();
+    const rows: Array<{ driver_id: string }> = await this.driverRepository.query(
+      `SELECT DISTINCT driver_id FROM orders WHERE driver_id = ANY($1) AND status = ANY($2)`,
+      [userIds, [...DRIVER_ACTIVE_ORDER_STATUSES]],
+    );
+    return new Set(rows.map((row) => row.driver_id));
   }
 
   /**

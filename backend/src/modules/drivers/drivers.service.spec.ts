@@ -20,7 +20,7 @@ describe('DriversService.getNearbyDrivers (imkoniyat filtri)', () => {
   }
 
   let service: DriversService;
-  let driverRepository: { find: jest.Mock };
+  let driverRepository: { find: jest.Mock; query: jest.Mock };
   let redis: { georadius: jest.Mock; mget: jest.Mock; zrem: jest.Mock };
   let pool: DriverRow[];
 
@@ -54,6 +54,8 @@ describe('DriversService.getNearbyDrivers (imkoniyat filtri)', () => {
   beforeEach(() => {
     pool = [];
     driverRepository = {
+      // Faol buyurtmasi bor (band) haydovchilar so'rovi — bu yerda hech kim band emas.
+      query: jest.fn().mockResolvedValue([]),
       find: jest.fn(({ where }: { where: { id: { value: string[] } } }) => {
         const ids = where.id.value;
         return Promise.resolve(pool.filter((d) => ids.includes(d.id)));

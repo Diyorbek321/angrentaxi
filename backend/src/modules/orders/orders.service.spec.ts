@@ -59,6 +59,7 @@ describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => 
     query: jest.Mock;
     createQueryBuilder: jest.Mock;
     update: jest.Mock;
+    manager: { transaction: jest.Mock };
   };
   let driversService: { findByUserId: jest.Mock; findByIdOrThrow: jest.Mock };
   let dispatchOverrideRepository: {
@@ -96,6 +97,18 @@ describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => 
       query: jest.fn().mockResolvedValue([{ distance_meters: 10 }]),
       createQueryBuilder: jest.fn().mockReturnValue(queryBuilderMock),
       update: jest.fn(),
+      // acceptOrder locks on the driver and checks they are free inside a
+      // transaction; here the driver is always free, and the conditional
+      // update goes through the same queryBuilder mock as everything else.
+      manager: {
+        transaction: jest.fn(async (cb: (m: unknown) => Promise<unknown>) =>
+          cb({
+            query: jest.fn().mockResolvedValue([]),
+            count: jest.fn().mockResolvedValue(0),
+            createQueryBuilder: jest.fn().mockReturnValue(queryBuilderMock),
+          }),
+        ),
+      },
     };
 
     driversService = {
