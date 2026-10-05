@@ -84,7 +84,9 @@ describe('MatchingService (Redis-backed queue)', () => {
       store,
       activeSet,
       get: jest.fn((key: string) => Promise.resolve(store.get(key) ?? null)),
-      set: jest.fn((key: string, value: string) => {
+      // Honours NX like real Redis: the per-driver offer hold relies on it.
+      set: jest.fn((key: string, value: string, ...flags: unknown[]) => {
+        if (flags.includes('NX') && store.has(key)) return Promise.resolve(null);
         store.set(key, value);
         return Promise.resolve('OK');
       }),
@@ -613,6 +615,74 @@ describe('MatchingService (Redis-backed queue)', () => {
         'new_order_offer',
         expect.objectContaining({ serviceType: ServiceType.TAXI }),
       );
+    });
+  });
+
+  describe('bitta haydovchiga bir vaqtda faqat BITTA taklif', () => {
+    // Ilgari ikki xil zakaz bir haydovchini bir vaqtda tanlay olardi: ilova
+    // faqat oxirgi taklifni ko'rsatadi, birinchisi 15 soniya javobsiz qolib
+    // o'sha zakazning yo'lovchisi bekorga kutardi.
+    const hold = (userId: string) => `matching:offer:${userId}`;
+
+    it('taklif yuborilganda haydovchi shu zakaz uchun band qilinadi (TTL bilan)', async () => {
+      driversService.getNearbyDrivers.mockResolvedValue([makeDriver('driver-a', 1)]);
+
+      await service.startSearch(orderId);
+
+      expect(redis.store.get(hold('driver-a'))).toBe(orderId);
+      expect(redis.set).toHaveBeenCalledWith(hold('driver-a'), orderId, 'EX', expect.any(Number), 'NX');
+    });
+
+    it("boshqa zakazning taklifini ko'rib turgan haydovchini o'tkazib, keyingisiga taklif qiladi", async () => {
+      redis.store.set(hold('driver-a'), 'order-boshqa');
+      driversService.getNearbyDrivers.mockResolvedValue([
+        makeDriver('driver-a', 1),
+        makeDriver('driver-b', 2),
+      ]);
+
+      await service.startSearch(orderId);
+
+      expect(realtimeGateway.emitToUser).not.toHaveBeenCalledWith('driver-a', 'new_order_offer', expect.anything());
+      expect(realtimeGateway.emitToUser).toHaveBeenCalledWith('driver-b', 'new_order_offer', expect.anything());
+    });
+
+    it("hamma band bo'lsa taklif yubormaydi, lekin ularni rad etgan deb HISOBLAMAYDI — bo'shashi bilan oladi", async () => {
+      redis.store.set(hold('driver-a'), 'order-boshqa');
+      driversService.getNearbyDrivers.mockResolvedValue([makeDriver('driver-a', 1)]);
+
+      await service.startSearch(orderId);
+      expect(realtimeGateway.emitToUser).not.toHaveBeenCalledWith('driver-a', 'new_order_offer', expect.anything());
+
+      redis.store.delete(hold('driver-a')); // boshqa zakazga javob berdi
+      await service.sweepExpiredOffers();
+
+      expect(realtimeGateway.emitToUser).toHaveBeenCalledWith('driver-a', 'new_order_offer', expect.anything());
+    });
+
+    it('rad etilganda band belgisi darhol olinadi', async () => {
+      driversService.getNearbyDrivers.mockResolvedValue([makeDriver('driver-a', 1)]);
+      await service.startSearch(orderId);
+
+      await service.driverDeclined('driver-a', orderId);
+
+      expect(redis.store.has(hold('driver-a'))).toBe(false);
+    });
+
+    it('qabul qilinganda band belgisi olinadi', async () => {
+      driversService.getNearbyDrivers.mockResolvedValue([makeDriver('driver-a', 1)]);
+      await service.startSearch(orderId);
+
+      await service.driverAccepted('driver-a', orderId);
+
+      expect(redis.store.has(hold('driver-a'))).toBe(false);
+    });
+
+    it("boshqa zakazning band belgisiga tegmaydi (eskirgan javob kelsa)", async () => {
+      redis.store.set(hold('driver-a'), 'order-boshqa');
+
+      await service.driverAccepted('driver-a', orderId);
+
+      expect(redis.store.get(hold('driver-a'))).toBe('order-boshqa');
     });
   });
 

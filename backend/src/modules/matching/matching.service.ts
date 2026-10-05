@@ -232,6 +232,7 @@ export class MatchingService {
 
   async driverAccepted(driverId: string, orderId: string): Promise<void> {
     await this.deleteQueue(orderId);
+    await this.releaseDriverHold(driverId, orderId);
     this.logger.log(`Driver ${driverId} accepted order ${orderId}`);
   }
 
@@ -246,6 +247,7 @@ export class MatchingService {
     if (!currentDriver || currentDriver.userId !== driverId) return;
 
     this.logger.log(`Driver ${driverId} declined order ${orderId}`);
+    await this.releaseDriverHold(driverId, orderId);
 
     queue.currentIndex += 1;
     if (!queue.exhaustedDriverIds.includes(driverId)) {
@@ -385,6 +387,14 @@ export class MatchingService {
       return;
     }
 
+    // One live offer per driver. Without this two orders searching at once
+    // could both pick the same driver: the app shows only the latest offer,
+    // so the first order's passenger waited out a 15 s offer nobody could see.
+    if (!(await this.holdDriverForOffer(driver.userId, orderId))) {
+      await this.offerToNextFreeDriver(orderId, queue);
+      return;
+    }
+
     const driverUser = await this.usersService.findById(driver.userId);
 
     if (!driverUser) return;
@@ -485,6 +495,45 @@ export class MatchingService {
     // Food/market: tell the vendor nobody took the delivery so they can
     // re-dispatch, instead of the order sitting at "ready" forever.
     await this.deliveryEvents?.publish(order, 'cancelled');
+  }
+
+  /**
+   * Skips past drivers who are holding another order's offer. They are NOT
+   * added to exhaustedDriverIds — they never saw this order — so once their
+   * hold clears the sweep's re-search offers them this ride.
+   */
+  private async offerToNextFreeDriver(orderId: string, queue: DriverQueue): Promise<void> {
+    const nextIndex = queue.currentIndex + 1;
+    if (nextIndex < queue.drivers.length) {
+      await this.offerToDriver(orderId, queue.drivers[nextIndex], { ...queue, currentIndex: nextIndex });
+      return;
+    }
+    // Nobody in this batch is free: no outstanding offer, so the next sweep
+    // tick re-searches (until the overall deadline).
+    await this.saveQueue({ ...queue, currentIndex: queue.drivers.length, offerExpiresAt: 0 });
+  }
+
+  private driverHoldKey(driverUserId: string): string {
+    return `matching:offer:${driverUserId}`;
+  }
+
+  /** Atomically reserves the driver for this order's offer; true if this order holds them. */
+  private async holdDriverForOffer(driverUserId: string, orderId: string): Promise<boolean> {
+    const key = this.driverHoldKey(driverUserId);
+    // A little longer than the offer itself, so the hold never lapses while
+    // the offer is still on the driver's screen. A crash leaves it to expire.
+    const ttlSeconds = Math.ceil(this.OFFER_TIMEOUT_MS / 1000) + 5;
+    if (await this.redis.set(key, orderId, 'EX', ttlSeconds, 'NX')) return true;
+    // Re-offering the same order (e.g. after a restart) keeps its own hold.
+    return (await this.redis.get(key)) === orderId;
+  }
+
+  /** Frees the driver — but only from THIS order's hold, never another's. */
+  private async releaseDriverHold(driverUserId: string, orderId: string): Promise<void> {
+    const key = this.driverHoldKey(driverUserId);
+    if ((await this.redis.get(key)) === orderId) {
+      await this.redis.del(key);
+    }
   }
 
   private queueKey(orderId: string): string {
