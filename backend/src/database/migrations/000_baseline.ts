@@ -1,4 +1,5 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
+import { PartialSchemaError } from "../partial-schema.error";
 
 /**
  * Baseline schema, generated from the entity definitions.
@@ -80,7 +81,7 @@ export class Baseline1700000000000 implements MigrationInterface {
             }
 
             if (missing.length > 0) {
-                throw new Error(
+                throw new PartialSchemaError(
                     `Cannot baseline: the database has a partial schema, missing ${missing.length} ` +
                         `table(s): ${missing.join(', ')}. Start the server once with DB_SYNC=true to ` +
                         'let synchronize complete the schema, then redeploy with DB_SYNC=false.',

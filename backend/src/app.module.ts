@@ -1,12 +1,14 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { DataSource } from 'typeorm';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { JwtModule } from '@nestjs/jwt';
 import { validateEnv } from './config/env.validation';
 import { resolveDbSynchronize } from './config/db-synchronize.util';
+import { bootDataSource, schemaBootOptions } from './config/schema-boot';
 import { SnakeNamingStrategy } from './config/snake-naming.strategy';
 import { HttpThrottlerGuard } from './common/guards/http-throttler.guard';
 import { MaintenanceGuard } from './common/guards/maintenance.guard';
@@ -63,10 +65,12 @@ import { ENTITIES } from './database/entities';
         // Single list, checked against every @Entity by entities.spec.ts.
         entities: ENTITIES,
         migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
-        // Run pending migrations on boot. The 000_baseline migration is
+        // Pending migrations always run on boot. The 000_baseline migration is
         // generated from the entities and no-ops on a database that already
         // has the schema, so this is safe both for a fresh deploy and for the
         // existing server whose tables were built by synchronize.
+        // The actual ordering (synchronize first, then migrations) is done by
+        // `dataSourceFactory` below — see config/schema-boot.ts.
         migrationsRun: true,
         // synchronize stays as a development convenience only. In production it
         // defaults OFF (it can silently alter or drop columns on deploy) —
@@ -88,6 +92,10 @@ import { ENTITIES } from './database/entities';
             : false,
       }),
       inject: [ConfigService],
+      dataSourceFactory: async (options) => {
+        if (!options) throw new Error('TypeORM options missing');
+        return bootDataSource(new DataSource(schemaBootOptions(options)), options.synchronize === true);
+      },
     }),
 
     // Cron/interval scheduling. Registered at the root so every module's
