@@ -10,6 +10,7 @@ import {
   Clock,
   CreditCard,
   MapPin,
+  Package,
   Phone,
   Star,
   User,
@@ -27,6 +28,7 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { useToast } from '@/components/ui/Toast';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { PAYMENT_METHOD_LABELS } from '@/lib/constants';
+import { PARCEL_SIZE_LABELS, parcelInfo } from '@/lib/parcel';
 import {
   formatDate,
   formatDateTime,
@@ -141,6 +143,8 @@ export default function OrderDetailPage() {
     );
   }
 
+  const parcel = parcelInfo(order);
+
   return (
     <div className="h-full overflow-y-auto">
       <div className="max-w-4xl mx-auto px-5 py-5 space-y-5">
@@ -233,6 +237,30 @@ export default function OrderDetailPage() {
               )}
             </div>
           </Card>
+
+          {/* Parcel: who receives it. When the driver's PIN locks, the dispatcher
+              phones this number before completing the ride from here. */}
+          {parcel && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Package size={15} className="text-muted" />
+                  Posilka
+                </CardTitle>
+              </CardHeader>
+              <InfoRow label="Qabul qiluvchi" value={parcel.recipientName ?? '—'} />
+              <InfoRow
+                label="Telefon"
+                value={
+                  <a href={`tel:${parcel.recipientPhone}`} className="font-mono text-primary-text hover:underline">
+                    {formatPhone(parcel.recipientPhone)}
+                  </a>
+                }
+              />
+              <InfoRow label="Nima" value={parcel.itemDescription} />
+              <InfoRow label="Oʻlcham" value={PARCEL_SIZE_LABELS[parcel.size]} />
+            </Card>
+          )}
 
           {/* Driver */}
           <Card>

@@ -76,8 +76,12 @@ export class OrdersService {
     return this.lifecycleService.startTrip(driverId, orderId);
   }
 
-  completeTrip(driverId: string, orderId: string): Promise<Order> {
-    return this.completionService.completeTrip(driverId, orderId);
+  completeTrip(driverId: string, orderId: string, deliveryPin?: string): Promise<Order> {
+    return this.completionService.completeTrip(driverId, orderId, deliveryPin);
+  }
+
+  completeByDispatcher(orderId: string): Promise<Order> {
+    return this.completionService.completeByDispatcher(orderId);
   }
 
   // --- Dispatcher overrides & cancellation ---

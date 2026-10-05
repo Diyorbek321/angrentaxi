@@ -58,6 +58,9 @@ export enum ServiceType {
   CARGO = 'cargo',
   FOOD = 'food',
   MARKET = 'market',
+  // Shahar ichida buyum/hujjat yetkazish — taksi oqimi + PIN bilan topshirish
+  // (modules/orders/parcel.ts).
+  PARCEL = 'parcel',
 }
 
 // Read-path indexes. Every hot orders query filters by owner or status and
@@ -343,6 +346,16 @@ export class Order {
   // Vertical-specific payload, e.g. cargo: { vehicleType, weightKg, loaders, cargoNote }.
   @Column({ type: 'jsonb', nullable: true })
   details: Record<string, unknown> | null;
+
+  // Posilka topshirish kodi. `select: false` — oddiy so'rovlarda HECH QACHON
+  // o'qilmaydi, ya'ni haydovchiga ketadigan javob va taklif paketiga tasodifan
+  // tushib qolmaydi. Faqat yuboruvchi yo'lovchiga va yakunlash tekshiruviga
+  // aniq so'rov bilan o'qiladi.
+  @Column({ name: 'delivery_pin', type: 'varchar', length: 4, nullable: true, select: false })
+  deliveryPin?: string | null;
+
+  @Column({ name: 'delivery_pin_attempts', type: 'int', default: 0, select: false })
+  deliveryPinAttempts?: number;
 
   // Passenger-requested extras (child seat, pet, ...). A matching filter:
   // only drivers whose `amenities` cover all of these get the offer.

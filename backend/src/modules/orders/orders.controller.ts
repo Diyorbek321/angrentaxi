@@ -20,6 +20,7 @@ import {
 import { OrdersService, DriverEarningsBreakdown } from './orders.service';
 import { MatchingService } from '../matching/matching.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { CompleteTripDto } from './dto/complete-trip.dto';
 import { CreateDispatchOrderDto } from './dto/create-dispatch-order.dto';
 import { CalculatePriceDto } from './dto/calculate-price.dto';
 import { CancelOrderDto } from './dto/cancel-order.dto';
@@ -333,8 +334,22 @@ export class OrdersController {
   async completeTrip(
     @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CompleteTripDto,
   ): Promise<Order> {
-    return this.ordersService.completeTrip(user.id, id);
+    return this.ordersService.completeTrip(user.id, id, dto.deliveryPin);
+  }
+
+  // The dispatcher panel's "Yakunlash" used to call the driver-only route
+  // above and always got 403. Separate route: a dispatcher completes for the
+  // assigned driver (and, for a parcel, after speaking to the recipient).
+  @Patch(':id/force-complete')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DISPATCH)
+  @ApiOperation({ summary: "Dispatcher completes a ride on the driver's behalf (manager/admin)" })
+  @ApiParam({ name: 'id', description: 'Order UUID' })
+  @ApiResponse({ status: 200, description: 'Trip completed' })
+  async forceComplete(@Param('id', ParseUUIDPipe) id: string): Promise<Order> {
+    return this.ordersService.completeByDispatcher(id);
   }
 
   @Patch(':id/reassign')

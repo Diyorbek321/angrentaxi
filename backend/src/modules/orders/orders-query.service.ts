@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
-import { Order, OrderStatus } from '../../database/entities/order.entity';
+import { Order, OrderStatus, ServiceType } from '../../database/entities/order.entity';
 import { DispatchOverride } from '../../database/entities/dispatch-override.entity';
 import { UserRole } from '../../database/entities/user.entity';
 import { DriversService } from '../drivers/drivers.service';
@@ -184,6 +184,16 @@ export class OrdersQueryService {
 
     if (!isPassenger && !isAssignedDriver && !isStaff) {
       throw new ForbiddenException('You are not authorized to view this order');
+    }
+
+    // Posilka PIN — faqat yuboruvchiga (u qabul qiluvchiga aytadi). Haydovchi
+    // uni HECH QACHON ko'rmasligi kerak: aks holda tekshiruv ma'nosiz bo'lardi.
+    if (isPassenger && order.serviceType === ServiceType.PARCEL) {
+      const [row] = (await this.orderRepository.query(
+        'SELECT delivery_pin FROM orders WHERE id = $1',
+        [id],
+      )) as Array<{ delivery_pin: string | null }>;
+      return { ...order, deliveryPin: row?.delivery_pin ?? null };
     }
 
     return order;

@@ -158,7 +158,7 @@ describe('DriverServicesService', () => {
       const summary = await service.getForUser('user-1', NOW);
 
       expect(summary.enabled).toEqual([ServiceType.TAXI]);
-      expect(summary.options).toHaveLength(4);
+      expect(summary.options).toHaveLength(5);
       expect(summary.options[0]).toEqual({
         serviceType: ServiceType.TAXI,
         label: 'Taksi',

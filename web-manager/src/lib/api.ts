@@ -129,6 +129,10 @@ export interface Order {
   estimatedPrice: number;
   finalPrice: number | null;
   note: string | null;
+  // 'taxi' | 'cargo' | 'food' | 'market' | 'parcel'; details carry the
+  // vertical's payload (for a parcel: recipient and item — see lib/parcel.ts).
+  serviceType?: string;
+  details?: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
   // Not tracked as separate columns on the backend today — always absent;
@@ -335,7 +339,9 @@ export async function cancelOrder(orderId: string, reason?: string): Promise<Ord
 }
 
 export async function completeOrder(orderId: string): Promise<Order> {
-  const res = await apiClient.patch<ApiResponse<Order>>(`/orders/${orderId}/complete`);
+  // `/complete` is the driver's own route (403 for a dispatcher); this one
+  // completes on the assigned driver's behalf, parcel PIN included.
+  const res = await apiClient.patch<ApiResponse<Order>>(`/orders/${orderId}/force-complete`);
   return res.data.data;
 }
 

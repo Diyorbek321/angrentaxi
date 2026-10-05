@@ -8,7 +8,13 @@ import { BadRequestException, ForbiddenException, Injectable, Logger, Optional }
 import { DeliveryEventsService } from '../delivery/delivery-events.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { Order, OrderStatus, PaymentMethod } from '../../database/entities/order.entity';
+import { Order, OrderStatus, PaymentMethod, ServiceType } from '../../database/entities/order.entity';
+import {
+  PARCEL_PIN_MAX_ATTEMPTS,
+  assertPinGiven,
+  checkDeliveryPin,
+  deliveryPinLocked,
+} from './parcel';
 import { Trip } from '../../database/entities/trip.entity';
 import {
   Transaction,
@@ -70,7 +76,12 @@ export class OrdersCompletionService {
     @Optional() private readonly deliveryEvents?: DeliveryEventsService,
   ) {}
 
-  async completeTrip(driverId: string, orderId: string): Promise<Order> {
+  async completeTrip(
+    driverId: string,
+    orderId: string,
+    deliveryPin?: string,
+    options: { byDispatcher?: boolean } = {},
+  ): Promise<Order> {
     const order = await this.queryService.findByIdOrThrow(orderId);
 
     if (order.status !== OrderStatus.IN_PROGRESS) {
@@ -81,6 +92,12 @@ export class OrdersCompletionService {
 
     if (order.driverId !== driverId) {
       throw new ForbiddenException('You are not the driver for this order');
+    }
+
+    // Posilka faqat qabul qiluvchi aytgan PIN bilan topshiriladi. Dispetcher
+    // (PIN bloklanganda, qabul qiluvchi bilan gaplashib) undan ozod.
+    if (order.serviceType === ServiceType.PARCEL && !options.byDispatcher) {
+      await this.verifyDeliveryPin(orderId, deliveryPin);
     }
 
     // Get trip record
@@ -619,5 +636,41 @@ export class OrdersCompletionService {
     );
 
     return meters == null ? null : meters / 1000;
+  }
+
+  /**
+   * Every guess spends one attempt, counted atomically BEFORE the comparison,
+   * so parallel guesses cannot all read the same count and slip past the
+   * limit. (Wrapped in a CTE so the driver returns plain rows, not the
+   * [rows, count] pair TypeORM gives for a bare UPDATE.)
+   */
+  private async verifyDeliveryPin(orderId: string, given: string | undefined): Promise<void> {
+    assertPinGiven(given);
+    const rows = (await this.orderRepository.query(
+      `WITH spent AS (
+         UPDATE orders SET delivery_pin_attempts = delivery_pin_attempts + 1
+          WHERE id = $1 AND delivery_pin_attempts < $2
+          RETURNING delivery_pin, delivery_pin_attempts
+       ) SELECT delivery_pin, delivery_pin_attempts FROM spent`,
+      [orderId, PARCEL_PIN_MAX_ATTEMPTS],
+    )) as Array<{ delivery_pin: string | null; delivery_pin_attempts: number }>;
+    if (rows.length === 0) {
+      throw deliveryPinLocked();
+    }
+    checkDeliveryPin({ pin: rows[0].delivery_pin, attemptsUsed: rows[0].delivery_pin_attempts }, given);
+  }
+
+  /**
+   * Dispatcher completes a ride on the assigned driver's behalf — the panel's
+   * "Yakunlash" button. Same settlement as the driver's own completion; a
+   * parcel skips the PIN (the dispatcher has spoken to the recipient).
+   */
+  async completeByDispatcher(orderId: string): Promise<Order> {
+    const order = await this.queryService.findByIdOrThrow(orderId);
+    if (!order.driverId) {
+      throw new BadRequestException('Order has no driver to complete it for');
+    }
+    this.logger.log(`Order ${orderId} completed by a dispatcher on behalf of driver ${order.driverId}`);
+    return this.completeTrip(order.driverId, orderId, undefined, { byDispatcher: true });
   }
 }

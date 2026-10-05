@@ -4,7 +4,8 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Order, OrderStatus, PaymentMethod } from '../../database/entities/order.entity';
+import { Order, OrderStatus, PaymentMethod, ServiceType } from '../../database/entities/order.entity';
+import { generateDeliveryPin, parseParcelDetails } from './parcel';
 import {
   Transaction,
   TransactionStatus,
@@ -279,6 +280,18 @@ export class OrdersCreationService {
       throw new BadRequestException('Selected tariff is not available');
     }
 
+    // Posilka faqat posilka tarifi bilan va aksincha: posilka tarifi bilan
+    // berilgan oddiy safar PIN tekshiruvini chetlab o'tardi, taksi tarifi
+    // bilan berilgan posilka esa posilka xizmatini yoqmagan haydovchiga borardi.
+    const isParcel = dto.serviceType === ServiceType.PARCEL;
+    if (isParcel !== (tariff.serviceType === ServiceType.PARCEL)) {
+      throw new BadRequestException(
+        isParcel ? "Posilka faqat 'Posilka' tarifi bilan beriladi" : "Bu tarif faqat posilka uchun",
+      );
+    }
+    const details = isParcel ? parseParcelDetails(dto.details) : dto.details;
+    const deliveryPin = isParcel ? generateDeliveryPin() : null;
+
     const outstandingDebt = await this.getOutstandingWalletDebt(passengerId);
 
     if (outstandingDebt > 0) {
@@ -374,12 +387,13 @@ export class OrdersCreationService {
       `INSERT INTO orders (passenger_id, tariff_id, pickup_location, dropoff_location,
         pickup_address, dropoff_address, estimated_price, status, payment_method, note,
         service_type, details, promo_code_id, discount_amount, waypoints,
-        surge_multiplier, fare_breakdown, is_fixed_price, scheduled_at, city_id, options)
+        surge_multiplier, fare_breakdown, is_fixed_price, scheduled_at, city_id, options,
+        delivery_pin)
        VALUES ($1, $2,
          ST_SetSRID(ST_MakePoint($3, $4), 4326),
          ST_SetSRID(ST_MakePoint($5, $6), 4326),
          $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15, $16, $17::jsonb, $18,
-         $19::jsonb, $20, $21, $22, $23::jsonb)
+         $19::jsonb, $20, $21, $22, $23::jsonb, $24)
        RETURNING id`,
       [
         passengerId,
@@ -398,7 +412,7 @@ export class OrdersCreationService {
         dto.paymentMethod ?? PaymentMethod.CASH,
         dto.note ?? null,
         dto.serviceType ?? 'taxi',
-        dto.details ? JSON.stringify(dto.details) : null,
+        details ? JSON.stringify(details) : null,
         promoCodeId,
         promoCodeId ? discountAmount : null,
         dto.waypoints?.length ? JSON.stringify(dto.waypoints) : null,
@@ -417,11 +431,15 @@ export class OrdersCreationService {
         cityId,
         // Matching filtri shu ro'yxatga qaraydi (trip-options.ts).
         JSON.stringify(normalizeTripOptions(dto.options)),
+        deliveryPin,
       ],
     );
 
     const orderId = (savedOrder as Array<{ id: string }>)[0].id;
-    const order = await this.queryService.findByIdOrThrow(orderId);
+    const loaded = await this.queryService.findByIdOrThrow(orderId);
+    // The PIN column is `select: false`; the sender gets it back exactly once
+    // here, and later only through the passenger's own GET /orders/:id.
+    const order: Order = deliveryPin ? { ...loaded, deliveryPin } : loaded;
 
     if (scheduledAt) {
       // ⚠️ ALOHIDA EVENT, `order:created` EMAS. Mobil ilova `order:created`
@@ -453,7 +471,8 @@ export class OrdersCreationService {
     });
 
     // Let dispatchers see the new order on the live board immediately
-    this.realtimeGateway.emitToManagers('order:created', order);
+    // `loaded`, not `order`: the parcel PIN is for the sender, not the board.
+    this.realtimeGateway.emitToManagers('order:created', loaded);
 
     // Start driver matching asynchronously
     // Note: matching module will be injected via forward reference to avoid circular deps

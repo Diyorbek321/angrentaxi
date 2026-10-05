@@ -73,6 +73,20 @@ class AppApi {
     const res = await this.request.post(`${API_URL}${path}`, { headers: this.auth, data: body });
     return data<T>(res, `POST ${path}`);
   }
+
+  async patch<T>(path: string, body?: unknown): Promise<T> {
+    const res = await this.request.patch(`${API_URL}${path}`, { headers: this.auth, data: body ?? {} });
+    return data<T>(res, `PATCH ${path}`);
+  }
+
+  /** For calls a test expects to fail — returns the raw response. */
+  rawPost(path: string, body: unknown): Promise<APIResponse> {
+    return this.request.post(`${API_URL}${path}`, { headers: this.auth, data: body });
+  }
+
+  rawPatch(path: string, body?: unknown): Promise<APIResponse> {
+    return this.request.patch(`${API_URL}${path}`, { headers: this.auth, data: body ?? {} });
+  }
 }
 
 /** The passenger: places the orders the vendor panels then work through. */
@@ -86,6 +100,21 @@ export class PassengerApi extends AppApi {
       storeId,
       items,
       ...DELIVERY_POINT,
+      paymentMethod: 'cash',
+    });
+  }
+
+  placeParcelOrder(tariffId: string, details: Record<string, unknown>) {
+    return this.post<{ id: string; status: string; serviceType: string; deliveryPin?: string }>('/orders', {
+      tariffId,
+      serviceType: 'parcel',
+      details,
+      pickupLat: 41.0110,
+      pickupLng: 70.1420,
+      pickupAddress: 'E2E posilka olish',
+      dropoffLat: 41.0250,
+      dropoffLng: 70.1600,
+      dropoffAddress: 'E2E posilka manzil',
       paymentMethod: 'cash',
     });
   }
