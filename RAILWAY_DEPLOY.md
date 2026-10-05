@@ -77,11 +77,13 @@ xato beradi va butun matching tizimi ishlamaydi. Shuning uchun **Docker image'da
    REDIS_PORT=${{Redis.REDISPORT}}
    REDIS_PASSWORD=${{Redis.REDISPASSWORD}}
 
-   # JWT (yangi generatsiya: openssl rand -hex 32)
-   APP_SECRET=ba64e371944d1cc78155b3a2220efce403a37e15837865bdb3f9fade9da014d5
+   # JWT — har bir server uchun YANGI generatsiya qiling, hech qayerga yozmang:
+   #   openssl rand -hex 32
+   APP_SECRET=<openssl rand -hex 32 natijasi>
 
-   # CORS — web panellar domenlari (vergul bilan emas, bittadan; '*' credentials bilan ishlamaydi)
-   CORS_ORIGIN=https://<web-admin-domeni>
+   # CORS — TO'RTALA web panel domeni, vergul bilan ajratilgan ('*' credentials bilan ishlamaydi).
+   # Bittasi tushib qolsa, o'sha panelda SMS kod yuborilmaydi (login ishlamaydi).
+   CORS_ORIGIN=https://<web-admin-domeni>,https://<web-manager-domeni>,https://<web-market-domeni>,https://<web-restaurant-domeni>
 
    # OTP — test uchun bypass (123456). Real prod'da false qiling!
    OTP_BYPASS_ENABLED=true
@@ -216,11 +218,14 @@ NEXT_PUBLIC_SOCKET_URL=https://<backend-domen>
 ## 6. CORS'ni yakunlash
 
 Backend deploy bo'lib, web domenlar tayyor bo'lgach, backend `CORS_ORIGIN`ni
-aniq web domenga moslang (xavfsizroq):
+aniq web domenlarga moslang (xavfsizroq). **To'rtala panel** vergul bilan:
 
 ```
-CORS_ORIGIN=https://<web-admin-domeni>
+CORS_ORIGIN=https://<web-admin-domeni>,https://<web-manager-domeni>,https://<web-market-domeni>,https://<web-restaurant-domeni>
 ```
+
+Har bir panel login sahifasi `/auth/send-otp`ni brauzerdan to'g'ridan-to'g'ri
+backend'ga yuboradi — ro'yxatda yo'q panelda SMS kod yuborilmaydi.
 
 > Test bosqichida tez ishlashi uchun vaqtincha `CORS_ORIGIN=*` qoldirsa ham bo'ladi,
 > lekin `credentials: true` bilan brauzer `*`ni rad etadi — shuning uchun aniq domen tavsiya etiladi.
@@ -264,7 +269,7 @@ flutter build apk --flavor driver -t lib/main_driver.dart \
 - [ ] `/api/docs` ochiladi
 - [ ] web-admin: Root Dir `/web-admin`, `NEXT_PUBLIC_*` to'g'ri backend domeniga
 - [ ] web-manager: Root Dir `/web-manager`, env to'g'ri
-- [ ] backend `CORS_ORIGIN` web domenlarga moslangan
+- [ ] backend `CORS_ORIGIN` to'rtala web panel domeniga moslangan
 - [ ] OTP `123456` bilan login ishlaydi
 - [ ] osrm servisi deploy qilingan, backend'da `OSRM_URL` o'rnatilgan
 - [ ] `STORAGE_DRIVER=s3` + bucket kalitlari (yoki `/app/uploads` volume)
