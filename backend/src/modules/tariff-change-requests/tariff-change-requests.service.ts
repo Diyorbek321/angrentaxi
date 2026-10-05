@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
 import { Repository } from 'typeorm';
 import {
   TariffChangeAction,
@@ -24,12 +26,14 @@ export class TariffChangeRequestsService {
 
   async propose(proposedBy: string, dto: ProposeTariffChangeDto): Promise<TariffChangeRequest> {
     let previousValues: Record<string, unknown> | null = null;
+    let current: Tariff | null = null;
 
     if (dto.tariffId) {
       const tariff = await this.tariffRepository.findOne({ where: { id: dto.tariffId } });
       if (!tariff) {
         throw new NotFoundException(`Tariff with id ${dto.tariffId} not found`);
       }
+      current = tariff;
       previousValues = {
         name: tariff.name,
         basePrice: tariff.basePrice,
@@ -41,6 +45,8 @@ export class TariffChangeRequestsService {
       };
     }
 
+    await this.assertValidProposal(dto, current);
+
     return this.requestRepository.save({
       action: dto.action,
       tariffId: dto.tariffId ?? null,
@@ -49,6 +55,34 @@ export class TariffChangeRequestsService {
       proposedBy,
       status: TariffChangeRequestStatus.PENDING,
     });
+  }
+
+  /**
+   * Checks `proposedChanges` with the same rules the admin's approval will
+   * apply, so a proposal that can never be approved is refused when the
+   * manager submits it — not discovered later by the admin as a bare 400.
+   * Approval casts the JSON straight to Create/UpdateTariffDto, so this is
+   * also the only place its shape is ever validated.
+   */
+  private async assertValidProposal(dto: ProposeTariffChangeDto, current: Tariff | null): Promise<void> {
+    const isCreate = dto.action === TariffChangeAction.CREATE;
+    const target = plainToInstance(isCreate ? CreateTariffDto : UpdateTariffDto, dto.proposedChanges);
+    const errors = await validate(target, { whitelist: true, forbidNonWhitelisted: true });
+    if (errors.length > 0) {
+      const reasons = errors.flatMap((e) => Object.values(e.constraints ?? {}));
+      throw new BadRequestException(`Tarif taklifi noto'g'ri: ${reasons.join('; ')}`);
+    }
+
+    // Effective bounds after the change: an update only sends what it alters.
+    const changes = dto.proposedChanges as { minPrice?: number; maxPrice?: number | null };
+    const minPrice = changes.minPrice ?? current?.minPrice ?? 0;
+    const maxPrice = 'maxPrice' in changes ? changes.maxPrice : current?.maxPrice;
+    if (maxPrice != null && maxPrice < minPrice) {
+      throw new BadRequestException(
+        `Max narx (${maxPrice}) min narxdan (${minPrice}) kichik bo'lmasligi kerak. ` +
+          `Cheklov kerak bo'lmasa, max narxni bo'sh qoldiring.`,
+      );
+    }
   }
 
   async findAll(status?: TariffChangeRequestStatus): Promise<TariffChangeRequest[]> {

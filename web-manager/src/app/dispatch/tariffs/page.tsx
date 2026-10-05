@@ -128,7 +128,10 @@ export default function TariffsPage() {
       await proposeTariffChange({
         action: editingTariff ? 'update' : 'create',
         tariffId: editingTariff?.id,
-        proposedChanges: data,
+        // An empty "Max narx (ixtiyoriy)" coerces to 0, which the schema above
+        // reads as "no cap" — send it as null, not as a cap of 0 so'm (which the
+        // server rejects, since it is below the minimum price).
+        proposedChanges: { ...data, maxPrice: data.maxPrice ? data.maxPrice : null },
       });
       setIsModalOpen(false);
       toast({
