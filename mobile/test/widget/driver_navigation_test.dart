@@ -1,5 +1,6 @@
-// Widget tests for the "Navigatsiyani ochish" (open navigation) button
-// added to NavigationScreen (mobile/lib/features/driver/screens/
+// Widget tests for the in-app pickup navigation on NavigationScreen. The old
+// "Navigatsiyani ochish" button (external Yandex/Google app) was removed —
+// navigation stays inside the app. Originally written for that button on NavigationScreen (mobile/lib/features/driver/screens/
 // navigation_screen.dart) — the driver-side "en route to pickup" screen.
 //
 // Tapping the button should hand the device's default maps/navigation app a
@@ -15,7 +16,6 @@
 // real active order the same way as test/widget/driver_trip_screen_test.dart
 // (via a mocked ApiClient + DriverProvider.acceptOrder).
 import 'dart:async';
-import 'dart:io';
 
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
@@ -177,9 +177,7 @@ List<RouteStep> _routeWithRightTurn() => [
 class _FakeUrlLauncherPlatform extends Fake
     with MockPlatformInterfaceMixin
     implements UrlLauncherPlatform {
-  _FakeUrlLauncherPlatform({this.canLaunchResult = true});
-
-  final bool canLaunchResult;
+  final bool canLaunchResult = true;
   final List<String> canLaunchCalls = [];
   final List<String> launchedUrls = [];
 
@@ -215,24 +213,6 @@ const Map<String, dynamic> _enRouteOrderJson = {
     'lng': 70.1500,
   },
   'status': 'accepted',
-  'estimatedPrice': 20000.0,
-  'createdAt': '2026-07-13T10:00:00.000Z',
-};
-
-const Map<String, dynamic> _inProgressOrderJson = {
-  'id': _orderId,
-  'passengerId': 'passenger-1',
-  'pickup': {
-    'address': "Angren, Bobur ko'chasi, 10",
-    'lat': 41.0167,
-    'lng': 70.1436,
-  },
-  'dropoff': {
-    'address': 'Angren, Mustaqillik maydoni',
-    'lat': 41.0200,
-    'lng': 70.1500,
-  },
-  'status': 'in_progress',
   'estimatedPrice': 20000.0,
   'createdAt': '2026-07-13T10:00:00.000Z',
 };
@@ -326,73 +306,13 @@ void main() {
   }
 
   testWidgets(
-    'shows a prominent "Navigatsiyani ochish" button on the pickup navigation screen',
+    'navigatsiya ilova ichida — tashqi navigatorga chiqaradigan tugma yo\'q',
     (tester) async {
       await seedActiveOrder(_enRouteOrderJson);
       await pumpNavigationScreen(tester);
 
-      expect(find.text('Navigatsiyani ochish'), findsOneWidget);
-      expect(find.byIcon(Icons.navigation), findsWidgets);
-
-      tester.takeException();
-    },
-  );
-
-  testWidgets(
-    'tapping the button on Android opens turn-by-turn navigation (Yandex Navigator first) to the pickup',
-    (tester) async {
-      await seedActiveOrder(_enRouteOrderJson);
-      await pumpNavigationScreen(tester);
-
-      await tester.tap(find.text('Navigatsiyani ochish'));
-      await tester.pump();
-
-      expect(fakeUrlLauncher.canLaunchCalls, hasLength(1));
-      expect(fakeUrlLauncher.launchedUrls, hasLength(1));
-      // `geo:` faqat nuqtani ochardi — haydovchi yana ikki marta bosishi
-      // kerak edi. Endi to'g'ridan-to'g'ri yo'nalish rejimi.
-      expect(
-        fakeUrlLauncher.launchedUrls.single,
-        'yandexnavi://build_route_on_map?lat_to=41.0167&lon_to=70.1436',
-      );
-
-      tester.takeException();
-    },
-    skip: Platform.isIOS,
-  );
-
-  testWidgets(
-    'when the active order is already inProgress, navigation targets the dropoff instead of the pickup',
-    (tester) async {
-      await seedActiveOrder(_inProgressOrderJson);
-      await pumpNavigationScreen(tester);
-
-      await tester.tap(find.text('Navigatsiyani ochish'));
-      await tester.pump();
-
-      final launched = fakeUrlLauncher.launchedUrls.single;
-      expect(launched, contains('lat_to=41.02'));
-      expect(launched, contains('lon_to=70.15'));
-
-      tester.takeException();
-    },
-    skip: Platform.isIOS,
-  );
-
-  testWidgets(
-    'shows a SnackBar instead of silently failing when no app can handle the URI',
-    (tester) async {
-      fakeUrlLauncher = _FakeUrlLauncherPlatform(canLaunchResult: false);
-      UrlLauncherPlatform.instance = fakeUrlLauncher;
-
-      await seedActiveOrder(_enRouteOrderJson);
-      await pumpNavigationScreen(tester);
-
-      await tester.tap(find.text('Navigatsiyani ochish'));
-      await tester.pump();
-
+      expect(find.text('Navigatsiyani ochish'), findsNothing);
       expect(fakeUrlLauncher.launchedUrls, isEmpty);
-      expect(find.text('Navigatsiya ilovasi topilmadi'), findsOneWidget);
 
       tester.takeException();
     },
@@ -515,7 +435,6 @@ void main() {
       await sendPing(tester, _FakeRouteService.north(220));
 
       expect(find.text('Yo\'lovchiga yo\'l'), findsOneWidget);
-      expect(find.text('Navigatsiyani ochish'), findsOneWidget);
       expect(tts.spoken, isEmpty);
 
       tester.takeException();

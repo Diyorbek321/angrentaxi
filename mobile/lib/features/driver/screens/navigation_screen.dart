@@ -9,7 +9,6 @@ import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/core/location/route_service.dart';
 import 'package:angren_taxi/core/location/voice_guide.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
-import 'package:angren_taxi/features/driver/external_navigation.dart';
 import 'package:angren_taxi/features/driver/navigation/turn_by_turn_guidance.dart';
 import 'package:angren_taxi/features/driver/service_wording.dart';
 import 'package:angren_taxi/features/driver/widgets/maneuver_banner.dart';
@@ -340,31 +339,6 @@ class _NavigationScreenState extends State<NavigationScreen> {
         : order.pickup;
   }
 
-  /// Opens the device's default navigation app with turn-by-turn directions
-  /// to [destination]. Uses a generic `geo:` URI on Android/others, which the
-  /// OS resolves to whichever maps app is installed (Google Maps, Yandex
-  /// Maps, etc.), prompting a chooser if more than one handles it. `geo:` is
-  /// not supported on iOS, so Apple Maps' web deep link is used there
-  /// instead — Google Maps also handles that same URL as a fallback if it's
-  /// installed. Follows the same canLaunchUrl/launchUrl guard-and-snackbar
-  /// pattern as _callDriver in
-  /// lib/features/passenger/screens/home_screen.dart.
-  Future<void> _openNavigation(OrderLocation destination) async {
-    // Avval yo'nalish rejimi (Yandex Navigator / Google Maps), oxirida
-    // oddiy xarita nuqtasi — `external_navigation.dart` izohiga qarang.
-    final opened = await openExternalNavigation(
-      destination.lat,
-      destination.lng,
-      destination.address,
-    );
-    if (!opened && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.drvNavAppNotFound)),
-      );
-    }
-  }
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -544,20 +518,9 @@ class _NavigationScreenState extends State<NavigationScreen> {
         children: [
           _buildPickupInfo(order, wording),
           const SizedBox(height: kSpace4),
-          AppOutlinedButton(
-            label: context.l10n.drvOpenNavigation,
-            onPressed: () => _openNavigation(_nextDestination(order)),
-            // Ikkilamchi amal — haydovchi poli `kMinTapTargetDriver` (56).
-            height: kMinTapTargetDriver,
-            // Tanlangan/urg'uli chegara — kPrimary (mint yorug' fonda
-            // 2.12:1 va chegara sifatida ko'rinmaydi).
-            borderColor: kPrimary,
-            textColor: kInk,
-            icon: const Icon(Icons.navigation, color: kInk),
-          ),
-          // 12dp — ikkilamchi tugma bilan asosiy amal orasida (o'lcham
-          // qoidasi: asosiy amal yonida 12dp).
-          const SizedBox(height: kSpace3),
+          // "Navigatorni ochish" (Yandex/Google) OLIB TASHLANDI: navigatsiya
+          // shu ekranning o'zida — banner, ovoz, ergashuvchi kamera. Ilovadan
+          // chiqib ketish haydovchini zakaz holatidan uzib qo'yardi.
           AppButton(
             label: context.l10n.drvArrivedTitle,
             onPressed: _onArrived,

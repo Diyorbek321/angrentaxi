@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/config/app_responsive.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
+import 'package:angren_taxi/core/config/map_style.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/core/location/route_service.dart';
@@ -11,7 +12,6 @@ import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/safety/sos_service.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
-import 'package:angren_taxi/features/driver/external_navigation.dart';
 import 'package:angren_taxi/features/driver/navigation/turn_by_turn_guidance.dart';
 import 'package:angren_taxi/features/driver/screens/rate_passenger_screen.dart';
 import 'package:angren_taxi/features/driver/service_wording.dart';
@@ -94,6 +94,13 @@ class _TripScreenState extends State<TripScreen> {
   /// animatsiya qilinmaydi.
   _CameraFit? _lastCameraFit;
 
+  /// Birinchi GPS ping'idan keyin kamera umumiy ko'rinishdan haydovchiga
+  /// ERGASHISHGA o'tadi (navigator rejimi) — `navigation_screen.dart` bilan
+  /// bir xil xulq.
+  bool _followingDriver = false;
+  bool _cameraBusy = false;
+  MapCameraInsets? _appliedFollowInsets;
+
   MeterService get _meterService =>
       widget.meterService ?? MeterService(sl<ApiClient>());
 
@@ -155,6 +162,8 @@ class _TripScreenState extends State<TripScreen> {
     final here = LatLng(position.latitude, position.longitude);
     setState(() => _currentLocation = here);
     _guidance?.onPosition(here);
+    _followingDriver = true;
+    _followDriver();
   }
 
   void _onGuidanceChanged() {
@@ -231,7 +240,53 @@ class _TripScreenState extends State<TripScreen> {
     if (renderObject is RenderBox && renderObject.hasSize) {
       _panelContentHeight = renderObject.size.height;
     }
-    _fitCamera();
+    if (!_followingDriver) {
+      _fitCamera();
+      return;
+    }
+    // Ergashishda kamera ping'da yangilanadi; bu yerda faqat sheet
+    // balandligi o'zgargan bo'lsa aralashamiz.
+    final applied = _appliedFollowInsets;
+    if (applied == null || _insetsDiffer(_followInsets(), applied)) {
+      _followDriver();
+    }
+  }
+
+  MapCameraInsets _followInsets() => MapCameraInsets.forPanel(
+        context,
+        panelContentHeight: _panelContentHeight,
+      );
+
+  bool _insetsDiffer(MapCameraInsets a, MapCameraInsets b) =>
+      (a.left - b.left).abs() > 1 ||
+      (a.top - b.top).abs() > 1 ||
+      (a.right - b.right).abs() > 1 ||
+      (a.bottom - b.bottom).abs() > 1;
+
+  /// Kamerani haydovchiga qaratadi va ochiq maydon (sheet usti) markaziga
+  /// suradi. Ikki qadam sababi `navigation_screen.dart#_followDriver` da.
+  Future<void> _followDriver() async {
+    final controller = _mapController;
+    if (controller == null || !mounted || _cameraBusy) return;
+    _cameraBusy = true;
+    try {
+      final insets = _followInsets();
+      _appliedFollowInsets = insets;
+      await controller.animateCamera(
+        ml.CameraUpdate.newLatLngZoom(
+          ml.LatLng(_currentLocation.latitude, _currentLocation.longitude),
+          16.5,
+        ),
+      );
+      if (!mounted) return;
+      final scroll = insets.centeringScroll;
+      if (scroll.dx.abs() < 1 && scroll.dy.abs() < 1) return;
+      await controller.animateCamera(
+        ml.CameraUpdate.scrollBy(scroll.dx, scroll.dy),
+      );
+    } finally {
+      _cameraBusy = false;
+    }
   }
 
   void _fitCamera() {
@@ -416,28 +471,6 @@ class _TripScreenState extends State<TripScreen> {
     }
   }
 
-  /// Tashqi navigator ilovasini manzilga ochadi.
-  ///
-  /// Naqsh `navigation_screen.dart#_openNavigation` bilan bir xil: `geo:`
-  /// URI ni OS o'zi o'rnatilgan xarita ilovasiga uzatadi, iOS'da esa
-  /// Apple Maps veb havolasi ishlatiladi (`geo:` u yerda qo'llab-
-  /// quvvatlanmaydi).
-  Future<void> _openNavigation(OrderLocation destination) async {
-    // Avval yo'nalish rejimi (Yandex Navigator / Google Maps), oxirida
-    // oddiy xarita nuqtasi — `external_navigation.dart` izohiga qarang.
-    final opened = await openExternalNavigation(
-      destination.lat,
-      destination.lng,
-      destination.address,
-    );
-    if (!opened && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.drvNavAppNotFound)),
-      );
-    }
-  }
-
-
   Future<void> _alertDispatchers(String orderId) async {
     // Reuses the position DriverProvider is already streaming from
     // Geolocator (via goOnline's location subscription) instead of
@@ -561,23 +594,6 @@ class _TripScreenState extends State<TripScreen> {
                 ),
               ),
               const SizedBox(height: kSpace5),
-              // Taksometrda boriladigan manzil yo'q — navigatsiya ma'nosiz.
-              if (!order.isMetered)
-                _buildMenuAction(
-                  icon: Icons.navigation,
-                  label: context.l10n.drvOpenNavigation,
-                  foreground: kInk,
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    _openNavigation(order.dropoff);
-                  },
-                ),
-              // 12dp, 8dp EMAS: SOS oqibatli amal va yonidagi qator
-              // ilovadan CHIQARIB YUBORADI (tashqi navigator). O'lcham
-              // qoidasi shunday qatorlar orasida 12dp talab qiladi —
-              // harakatdagi qo'l "SOS" ga cho'zilib "Navigatsiya" ni
-              // bosmasin.
-              const SizedBox(height: kSpace3),
               _buildMenuAction(
                 icon: Icons.sos_rounded,
                 label: context.l10n.drvEmergencySos,
@@ -717,6 +733,10 @@ class _TripScreenState extends State<TripScreen> {
       // Kamerani O'ZIMIZ boshqaramiz — yuqoridagi "TO'LDIRILGAN
       // TO'RTBURCHAK" izohiga qarang.
       fitToContent: false,
+      // Navigator ko'rinishi — olib ketishga borishdagi ekran bilan bir xil:
+      // egilgan kamera va tunda qora xarita (`navigation_screen.dart`).
+      tilt: 45,
+      style: MapStyleLoader.styleForNow(),
     );
   }
 
