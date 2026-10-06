@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/city_coverage.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
@@ -19,8 +21,21 @@ class OrderProvider extends ChangeNotifier {
   OrderProvider({
     required ApiClient apiClient,
     required SocketService socketService,
+    Duration? syncInterval,
   })  : _apiClient = apiClient,
-        _socketService = socketService;
+        _socketService = socketService,
+        syncInterval = syncInterval ?? defaultSyncInterval;
+
+  /// Faol safar holatini serverdan tekshirish oralig'i — socket event'i
+  /// yo'qolganda ekran shu vaqtdan ko'p qotib qolmaydi ([_syncActiveOrder]).
+  /// `null` — davriy tekshiruv o'chiq (faqat qayta ulanishda).
+  final Duration? syncInterval;
+
+  /// Widget testlari `test/flutter_test_config.dart` da `null` qiladi:
+  /// aks holda ochiq qolgan davriy taymer har bir testni yiqitadi.
+  static Duration? defaultSyncInterval = const Duration(seconds: 10);
+  Timer? _syncTimer;
+  bool _syncInFlight = false;
 
   final ApiClient _apiClient;
   final SocketService _socketService;
@@ -514,6 +529,7 @@ class OrderProvider extends ChangeNotifier {
     if (_activeOrder != null) {
       _socketService.emit(SocketEvents.joinOrder, {'orderId': _activeOrder!.id});
     }
+    _startSync();
 
     _socketService.on(SocketEvents.driverLocationUpdate, (data) {
       if (data is Map) {
@@ -580,30 +596,22 @@ class OrderProvider extends ChangeNotifier {
 
     _socketService.on(SocketEvents.orderCompleted, (data) {
       if (data is Map && _activeOrder != null) {
-        _activeOrder = _activeOrder!.copyWith(
+        _finishCompleted(_activeOrder!.copyWith(
           status: OrderStatus.completed,
           actualPrice: (data['finalPrice'] as num?)?.toDouble(),
           distanceKm: (data['actualDistanceKm'] as num?)?.toDouble(),
           durationMin: (data['actualDurationMin'] as num?)?.toInt(),
-        );
-        // Store info needed for post-trip rating before clearing the order.
-        pendingRatingOrderId = _activeOrder!.id;
-        pendingRatingDriverName = _activeOrder!.driver?.name ?? AppL10n.current.paxDetailDriver;
-        notifyListeners();
-        _cleanupOrderListeners();
-        loadOrderHistory();
+        ));
       }
     });
 
     _socketService.on(SocketEvents.orderCancelled, (data) {
       if (_activeOrder != null) {
         final reason = data is Map ? data['reason'] as String? : null;
-        _activeOrder = _activeOrder!.copyWith(
+        _finishCancelled(_activeOrder!.copyWith(
           status: OrderStatus.cancelled,
           cancelReason: reason,
-        );
-        notifyListeners();
-        _cleanupOrderListeners();
+        ));
       }
     });
 
@@ -625,6 +633,81 @@ class OrderProvider extends ChangeNotifier {
     });
   }
 
+  /// Safar tugadi — reyting ma'lumotini saqlab, tinglovchilarni yopadi.
+  /// Socket event'i ham, zaxira sinxronlash ham AYNAN shu yo'ldan o'tadi.
+  void _finishCompleted(Order completed) {
+    _activeOrder = completed;
+    pendingRatingOrderId = completed.id;
+    pendingRatingDriverName =
+        completed.driver?.name ?? AppL10n.current.paxDetailDriver;
+    notifyListeners();
+    _cleanupOrderListeners();
+    loadOrderHistory();
+  }
+
+  void _finishCancelled(Order cancelled) {
+    _activeOrder = cancelled;
+    notifyListeners();
+    _cleanupOrderListeners();
+  }
+
+  /// ZAXIRA: socket event'lari uzilish paytida yo'qoladi (server ularni
+  /// saqlamaydi). Holat serverdan olinadi va o'zgargan bo'lsa event kelgandek
+  /// qo'llanadi. Faol safar davomida har [syncInterval] da va socket qayta
+  /// ulanganda chaqiriladi.
+  Future<void> _syncActiveOrder() async {
+    final current = _activeOrder;
+    if (current == null || !current.isActive || _syncInFlight) return;
+    _syncInFlight = true;
+    try {
+      final response = await _apiClient.get(ApiEndpoints.orderById(current.id));
+      final data = response.data as Map<String, dynamic>;
+      final fresh = Order.fromJson(data['data'] as Map<String, dynamic>);
+      // Kutish paytida boshqa buyurtma boshlangan yoki bekor qilingan bo'lsa
+      // eski javobni qo'llamaymiz.
+      if (_activeOrder?.id != current.id || !(_activeOrder?.isActive ?? false)) {
+        return;
+      }
+      if (fresh.status == OrderStatus.completed) {
+        _finishCompleted(fresh);
+      } else if (fresh.status == OrderStatus.cancelled) {
+        _finishCancelled(fresh);
+      } else if (fresh.status != current.status) {
+        _activeOrder = fresh;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('[OrderProvider] _syncActiveOrder error: $e');
+    } finally {
+      _syncInFlight = false;
+    }
+  }
+
+  void _onSocketReconnect() {
+    final order = _activeOrder;
+    if (order == null) return;
+    // Qayta ulanishda server buyurtma xonasini unutadi — haydovchi
+    // joylashuvi kelishi uchun qayta qo'shilamiz.
+    _socketService.emit(SocketEvents.joinOrder, {'orderId': order.id});
+    _syncActiveOrder();
+  }
+
+  void _startSync() {
+    _syncTimer?.cancel();
+    final interval = syncInterval;
+    _syncTimer = interval == null
+        ? null
+        : Timer.periodic(interval, (_) => _syncActiveOrder());
+    _socketService.removeReconnectListener(_onSocketReconnect);
+    _socketService.addReconnectListener(_onSocketReconnect);
+  }
+
+  void _stopSync() {
+    _syncTimer?.cancel();
+    _syncTimer = null;
+    _socketService.removeReconnectListener(_onSocketReconnect);
+  }
+
   // Socket payloads for order:accepted only carry the driver's
   // id/carModel/carNumber/rating; re-fetch the full order so name/phone (only
   // present on GET /orders/:id's flat User-backed driver object) show up too.
@@ -642,6 +725,7 @@ class OrderProvider extends ChangeNotifier {
   }
 
   void _cleanupOrderListeners() {
+    _stopSync();
     if (_activeOrder != null) {
       _socketService.emit(SocketEvents.leaveOrder, {'orderId': _activeOrder!.id});
     }

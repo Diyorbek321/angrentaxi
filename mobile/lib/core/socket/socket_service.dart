@@ -10,6 +10,22 @@ class SocketService {
   final Map<String, void Function(dynamic)> _demoHandlers = {};
   bool _demoConnected = false;
 
+  /// Qayta ulanganda chaqiriladi (birinchi ulanishda emas).
+  ///
+  /// NEGA KERAK: socket uzilib turgan paytda yuborilgan event'lar
+  /// (`order:in_progress`, `order:completed`) server tomonda saqlanmaydi —
+  /// ular shunchaki yo'qoladi. Telefon ekrani o'chganda yoki hotspot bir
+  /// zum uzilganda shunday bo'ladi va yo'lovchi ekrani "Haydovchi keldi"
+  /// holatida qotib qolardi. Tinglovchi holatni REST orqali qayta oladi.
+  final List<VoidCallback> _reconnectListeners = [];
+  bool _hasConnectedBefore = false;
+
+  void addReconnectListener(VoidCallback listener) =>
+      _reconnectListeners.add(listener);
+
+  void removeReconnectListener(VoidCallback listener) =>
+      _reconnectListeners.remove(listener);
+
   bool get isConnected =>
       AppConfig.demoMode ? _demoConnected : (_socket?.connected ?? false);
 
@@ -29,13 +45,23 @@ class SocketService {
           .setAuth({'token': token})
           .enableAutoConnect()
           .enableReconnection()
-          .setReconnectionAttempts(5)
+          // ⚠️ CHEKSIZ. Avval 5 urinish (~10 soniya) edi: ekran o'chib
+          // tarmoq uxlab qolsa, socket butunlay "o'lardi" va ilova qayta
+          // ishga tushirilmaguncha hech qanday event kelmasdi.
+          .setReconnectionAttempts(double.infinity)
           .setReconnectionDelay(2000)
+          .setReconnectionDelayMax(10000)
           .build(),
     );
 
     _socket!.onConnect((_) {
       debugPrint('[Socket] Connected');
+      if (_hasConnectedBefore) {
+        for (final listener in List.of(_reconnectListeners)) {
+          listener();
+        }
+      }
+      _hasConnectedBefore = true;
     });
 
     _socket!.onDisconnect((_) {
@@ -94,6 +120,7 @@ class SocketService {
     }
     _socket?.disconnect();
     _socket = null;
+    _hasConnectedBefore = false;
   }
 
   void dispose() {
