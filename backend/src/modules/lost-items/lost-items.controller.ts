@@ -8,7 +8,7 @@ import { RequirePermissions } from '../../common/decorators/permissions.decorato
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
 import { OptionalEnumPipe } from '../../common/pipes/optional-enum.pipe';
-import { Permission, User, UserRole } from '../../database/entities/user.entity';
+import { Permission, User, PASSENGER_APP_ROLES, UserRole } from '../../database/entities/user.entity';
 import { LostItemReport, LostItemStatus } from '../../database/entities/lost-item-report.entity';
 import { LostItemsService, OperatorLostItemView } from './lost-items.service';
 import { DriverLostItemResponseDto, OperatorLostItemUpdateDto, ReportLostItemDto } from './dto/lost-item.dto';
@@ -21,7 +21,7 @@ export class LostItemsController {
   constructor(private readonly lostItemsService: LostItemsService) {}
 
   @Post()
-  @Roles(UserRole.PASSENGER)
+  @Roles(...PASSENGER_APP_ROLES)
   @ApiOperation({ summary: "Safarda qoldirilgan buyum haqida xabar (yakunlangan safar, 7 kun ichida)" })
   @ApiResponse({ status: 409, description: 'Bu safar uchun ochiq xabar allaqachon bor' })
   async report(@CurrentUser() user: User, @Body() dto: ReportLostItemDto): Promise<LostItemReport> {
@@ -29,7 +29,7 @@ export class LostItemsController {
   }
 
   @Get('mine')
-  @Roles(UserRole.PASSENGER, UserRole.DRIVER)
+  @Roles(...PASSENGER_APP_ROLES, UserRole.DRIVER)
   @ApiOperation({ summary: "Yo'lovchi: o'z xabarlari · Haydovchi: o'z safarlari bo'yicha xabarlar" })
   async mine(@CurrentUser() user: User): Promise<LostItemReport[]> {
     return this.lostItemsService.listMine(user);

@@ -16,6 +16,23 @@ export enum UserRole {
   RESTAURANT = 'restaurant',
 }
 
+/**
+ * Yo'lovchi ilovasidan foydalana oladigan rollar (biznes qarori, 2026-10-06).
+ *
+ * Menejer, do'kon va restoran egasi ham taksi chaqiradi — alohida yo'lovchi
+ * akkaunti ochishga majbur qilinmaydi. ⚠️ ADMIN ATAYLAB YO'Q: admin tokeni
+ * telefonda saqlanadi, telefon yo'qolsa butun tizim boshqaruvi begona qo'lga
+ * o'tadi. ⚠️ HAYDOVCHI ham yo'q: o'zi o'ziga zakaz berib bonus yig'ish
+ * (firibgarlik) shu bilan yopiladi — haydovchi o'z raqami bilan yo'lovchi
+ * bo'la olmaydi.
+ */
+export const PASSENGER_APP_ROLES: readonly UserRole[] = [
+  UserRole.PASSENGER,
+  UserRole.MANAGER,
+  UserRole.MARKET,
+  UserRole.RESTAURANT,
+];
+
 export enum UserStatus {
   ACTIVE = 'active',
   BLOCKED = 'blocked',

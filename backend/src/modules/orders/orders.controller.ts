@@ -33,7 +33,7 @@ import { PermissionsGuard } from '../auth/permissions.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
-import { Permission, User, UserRole } from '../../database/entities/user.entity';
+import { Permission, User, PASSENGER_APP_ROLES, UserRole } from '../../database/entities/user.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
 import { Order, OrderStatus } from '../../database/entities/order.entity';
 import { AddTipDto } from './dto/add-tip.dto';
@@ -61,7 +61,7 @@ export class OrdersController {
   }
 
   @Post()
-  @Roles(UserRole.PASSENGER)
+  @Roles(...PASSENGER_APP_ROLES)
   @ApiOperation({ summary: 'Create a new order' })
   @ApiResponse({ status: 201, description: 'Order created' })
   async createOrder(
@@ -181,7 +181,7 @@ export class OrdersController {
    * narsani ko'rsatadi.
    */
   @Get('scheduled')
-  @Roles(UserRole.PASSENGER)
+  @Roles(...PASSENGER_APP_ROLES)
   @ApiOperation({ summary: "Yo'lovchining kelgusi rejalashtirilgan safarlari" })
   @ApiResponse({ status: 200, description: 'Rejalashtirilgan safarlar ro\'yxati' })
   async getScheduled(@CurrentUser() user: User): Promise<Order[]> {
@@ -272,7 +272,7 @@ export class OrdersController {
   }
 
   @Post(':id/tip')
-  @Roles(UserRole.PASSENGER)
+  @Roles(...PASSENGER_APP_ROLES)
   @ApiOperation({ summary: "Haydovchiga chaqim (komissiyasiz, hamyondan)" })
   @ApiParam({ name: 'id', description: 'Order UUID' })
   @ApiResponse({ status: 201, description: 'Chaqim berildi' })

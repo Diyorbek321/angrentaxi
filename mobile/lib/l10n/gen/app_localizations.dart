@@ -113,7 +113,7 @@ abstract class AppLocalizations {
   /// No description provided for @authWrongAppStaff.
   ///
   /// In uz, this message translates to:
-  /// **'Bu raqam xodim yoki sotuvchi hisobi — u boshqaruv panelida ishlaydi. Mobil ilova uchun boshqa raqam kiriting.'**
+  /// **'Bu raqam bilan bu ilovaga kirib bo\'lmaydi. Admin hisobi faqat boshqaruv panelida ishlaydi; xodim va sotuvchi taksini yo\'lovchi ilovasidan chaqiradi.'**
   String get authWrongAppStaff;
 
   /// No description provided for @commonCancel.

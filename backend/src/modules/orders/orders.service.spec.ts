@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { ORDERS_PROVIDERS } from './orders.providers';
 import { SurgeService } from '../surge/surge.service';
@@ -375,6 +375,25 @@ describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => 
   });
 
   describe('cancelOrder', () => {
+    it('do\'kon egasi yo\'lovchi sifatida O\'Z buyurtmasini bekor qila oladi', async () => {
+      const order = baseOrder({ status: OrderStatus.SEARCHING, passengerId: 'store-owner-1' });
+      jest.spyOn(queryService, 'findByIdOrThrow').mockResolvedValue(order);
+      queryBuilderMock.execute.mockResolvedValueOnce({ affected: 1, raw: [] });
+
+      await expect(
+        service.cancelOrder('store-owner-1', UserRole.MARKET, 'order-1'),
+      ).resolves.toBeDefined();
+    });
+
+    it('do\'kon egasi BEGONA buyurtmani bekor qila olmaydi', async () => {
+      const order = baseOrder({ status: OrderStatus.SEARCHING, passengerId: 'passenger-1' });
+      jest.spyOn(queryService, 'findByIdOrThrow').mockResolvedValue(order);
+
+      await expect(
+        service.cancelOrder('store-owner-1', UserRole.MARKET, 'order-1'),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
     it('throws ConflictException when the conditional update affects 0 rows', async () => {
       const order = baseOrder({ status: OrderStatus.SEARCHING, passengerId: 'passenger-1' });
       jest.spyOn(queryService, 'findByIdOrThrow').mockResolvedValue(order);

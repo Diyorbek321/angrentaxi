@@ -9,5 +9,5 @@
   "commonSend": "Yuborish",
   "commonErrorTitle": "Xatolik yuz berdi",
   "authWrongAppDriver": "Bu raqam haydovchi sifatida ro'yxatdan o'tgan. Haydovchi ilovasidan foydalaning yoki yo'lovchi sifatida boshqa raqam bilan kiring.",
-  "authWrongAppStaff": "Bu raqam xodim yoki sotuvchi hisobi — u boshqaruv panelida ishlaydi. Mobil ilova uchun boshqa raqam kiriting."
+  "authWrongAppStaff": "Bu raqam bilan bu ilovaga kirib bo'lmaydi. Admin hisobi faqat boshqaruv panelida ishlaydi; xodim va sotuvchi taksini yo'lovchi ilovasidan chaqiradi."
 }

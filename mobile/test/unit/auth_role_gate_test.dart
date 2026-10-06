@@ -81,6 +81,14 @@ void main() {
     expect(driverApp.error, AppL10n.current.authWrongAppStaff);
   });
 
+  test('manager, store and restaurant owners may ride in the passenger app', () async {
+    for (final role in ['manager', 'market', 'restaurant']) {
+      expect(await loginAs(build(AppFlavor.passenger), role), isTrue, reason: role);
+    }
+    // ...but never the driver app: that one is for driving.
+    expect(await loginAs(build(AppFlavor.driver), 'market'), isFalse);
+  });
+
   test('the right roles sign in as before', () async {
     final passenger = build(AppFlavor.passenger);
     expect(await loginAs(passenger, 'passenger'), isTrue);

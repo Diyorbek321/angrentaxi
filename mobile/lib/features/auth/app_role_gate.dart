@@ -5,11 +5,18 @@ enum WrongAppReason {
   /// Haydovchi raqami yo'lovchi ilovasida.
   driverInPassengerApp,
 
-  /// Xodim/sotuvchi raqami (admin, menejer, do'kon, restoran) mobil ilovada.
+  /// Xodim/sotuvchi raqami ilova ruxsat bermaydigan joyda: admin — har
+  /// ikkala ilovada, menejer/do'kon/restoran — haydovchi ilovasida.
   staffAccount,
 }
 
-/// Bitta raqam = bitta akkaunt = bitta rol (backend `users.role`).
+/// Yo'lovchi ilovasiga kira oladigan rollar — backend
+/// `PASSENGER_APP_ROLES` bilan bir xil. Menejer, do'kon va restoran egasi
+/// ham taksi chaqiradi. Admin YO'Q: uning tokeni telefonda saqlanmasin.
+const passengerAppRoles = {'passenger', 'manager', 'market', 'restaurant'};
+
+/// Bitta raqam = bitta akkaunt = bitta rol (backend `users.role`), lekin
+/// yo'lovchi ilovasidan bir nechta rol foydalanadi ([passengerAppRoles]).
 ///
 /// ⚠️ NEGA ILOVADA HAM TEKSHIRILADI. Server noto'g'ri rolni baribir 403
 /// bilan rad etadi, lekin kirish o'tib ketardi va foydalanuvchi buyurtma
@@ -24,7 +31,7 @@ WrongAppReason? wrongAppReason(AppFlavor flavor, String? role) {
   if (role == null) return null;
   switch (flavor) {
     case AppFlavor.passenger:
-      if (role == 'passenger') return null;
+      if (passengerAppRoles.contains(role)) return null;
       return role == 'driver'
           ? WrongAppReason.driverInPassengerApp
           : WrongAppReason.staffAccount;

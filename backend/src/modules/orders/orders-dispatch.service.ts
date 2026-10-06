@@ -214,7 +214,10 @@ export class OrdersDispatchService {
     }
 
     // Permission check: passenger can cancel their own, driver can cancel their assigned order
-    const isPassenger = userRole === UserRole.PASSENGER && order.passengerId === userId;
+    // Buyurtma egasi — rolidan qat'i nazar (menejer/do'kon egasi ham yo'lovchi
+    // bo'lib taksi chaqiradi, `PASSENGER_APP_ROLES`). Haydovchi o'z nomidan
+    // buyurtma bera olmaydi, shuning uchun bu shart uni qamramaydi.
+    const isPassenger = userRole !== UserRole.DRIVER && order.passengerId === userId;
     const isDriver = userRole === UserRole.DRIVER && order.driverId === userId;
     const isManagerOrAdmin =
       userRole === UserRole.MANAGER || userRole === UserRole.ADMIN;

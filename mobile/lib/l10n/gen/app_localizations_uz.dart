@@ -17,7 +17,7 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get authWrongAppStaff =>
-      'Bu raqam xodim yoki sotuvchi hisobi — u boshqaruv panelida ishlaydi. Mobil ilova uchun boshqa raqam kiriting.';
+      'Bu raqam bilan bu ilovaga kirib bo\'lmaydi. Admin hisobi faqat boshqaruv panelida ishlaydi; xodim va sotuvchi taksini yo\'lovchi ilovasidan chaqiradi.';
 
   @override
   String get commonCancel => 'Bekor qilish';

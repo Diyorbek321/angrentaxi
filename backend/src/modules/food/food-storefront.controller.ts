@@ -5,7 +5,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { User, UserRole } from '../../database/entities/user.entity';
+import { User, PASSENGER_APP_ROLES, UserRole } from '../../database/entities/user.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
 import { CreateFoodOrderDto } from './dto/create-food-order.dto';
 import { OptionalPaginationDto } from '../../common/dto/optional-pagination.dto';
@@ -13,7 +13,7 @@ import { OptionalPaginationDto } from '../../common/dto/optional-pagination.dto'
 @ApiTags('Food (storefront)')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.PASSENGER)
+@Roles(...PASSENGER_APP_ROLES)
 @Controller('food')
 export class FoodStorefrontController {
   constructor(private readonly foodService: FoodService) {}
