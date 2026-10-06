@@ -708,3 +708,48 @@ export const foodAdminApi = {
   setStatus: (id: string, status: 'active' | 'closed') =>
     api.patch<ApiResponse<RestaurantVendor>>(`/food/admin/restaurants/${id}/status`, { status }),
 };
+
+// ─── Ads (home-screen banners) ────────────────────────────────────
+
+export type AdLinkType = 'none' | 'restaurant' | 'store' | 'url';
+
+export interface AdBanner {
+  id: string;
+  title: string;
+  linkType: AdLinkType;
+  linkTarget: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  isActive: boolean;
+  sortOrder: number;
+  impressions: number;
+  clicks: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type UpdateAdBannerInput = Partial<
+  Pick<AdBanner, 'title' | 'linkType' | 'linkTarget' | 'startsAt' | 'endsAt' | 'isActive' | 'sortOrder'>
+>;
+
+export const adsApi = {
+  getAll: () => api.get<ApiResponse<AdBanner[]>>('/ads'),
+
+  /**
+   * Multipart. Content-Type ATAYLAB `multipart/form-data`: instansiyaning
+   * standart `application/json` sarlavhasi bilan axios FormData'ni JSON'ga
+   * aylantirib yuborardi. Brauzer boundary'ni o'zi qo'shadi.
+   */
+  create: (form: FormData) =>
+    api.post<ApiResponse<AdBanner>>('/ads', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+
+  update: (id: string, data: UpdateAdBannerInput) =>
+    api.patch<ApiResponse<AdBanner>>(`/ads/${id}`, data),
+
+  remove: (id: string) => api.delete(`/ads/${id}`),
+
+  /** `<img src>` uchun — backend'da ochiq, proksi orqali shu origin'dan. */
+  imageUrl: (id: string) => `${API_PROXY_BASE_URL}/ads/${id}/image`,
+};

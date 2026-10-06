@@ -12,6 +12,7 @@ const PAGES = [
   '/dashboard/vendors',
   '/dashboard/moderation',
   '/dashboard/tariffs',
+  '/dashboard/ads',
   '/dashboard/promo-codes',
   '/dashboard/bonuses',
   '/dashboard/withdrawals',

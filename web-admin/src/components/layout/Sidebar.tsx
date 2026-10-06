@@ -12,6 +12,7 @@ import {
   BarChart2,
   LogOut,
   Zap,
+  Megaphone,
   Ticket,
   Gift,
   Settings,
@@ -89,6 +90,7 @@ const navGroups: NavGroup[] = [
     key: 'marketing',
     label: 'Marketing',
     items: [
+      { href: '/dashboard/ads', label: 'Reklama', icon: Megaphone },
       { href: '/dashboard/promo-codes', label: 'Promo kodlar', icon: Ticket },
       { href: '/dashboard/bonuses', label: 'Bonuslar', icon: Gift },
       { href: '/dashboard/push-notifications', label: 'Push xabarnomalar', icon: Bell },
