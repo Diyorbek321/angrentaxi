@@ -7,5 +7,7 @@
   "commonRetry": "Qayta urinish",
   "commonDone": "Tayyor",
   "commonSend": "Yuborish",
-  "commonErrorTitle": "Xatolik yuz berdi"
+  "commonErrorTitle": "Xatolik yuz berdi",
+  "authWrongAppDriver": "Bu raqam haydovchi sifatida ro'yxatdan o'tgan. Haydovchi ilovasidan foydalaning yoki yo'lovchi sifatida boshqa raqam bilan kiring.",
+  "authWrongAppStaff": "Bu raqam xodim yoki sotuvchi hisobi — u boshqaruv panelida ishlaydi. Mobil ilova uchun boshqa raqam kiriting."
 }

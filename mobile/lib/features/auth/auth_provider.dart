@@ -1,8 +1,11 @@
+import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
 import 'package:angren_taxi/core/storage/local_storage.dart';
+import 'package:angren_taxi/features/auth/app_role_gate.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/user.dart';
 import 'package:flutter/widgets.dart';
 
@@ -14,6 +17,7 @@ class AuthProvider extends ChangeNotifier {
     required LocalStorage localStorage,
     required SocketService socketService,
     required GlobalKey<NavigatorState> navigatorKey,
+    this.flavor,
   }) : _apiClient = apiClient,
        _localStorage = localStorage,
        _socketService = socketService,
@@ -23,6 +27,13 @@ class AuthProvider extends ChangeNotifier {
   final LocalStorage _localStorage;
   final SocketService _socketService;
   final GlobalKey<NavigatorState> _navigatorKey;
+
+  /// Qaysi ilova ichida ishlayapti — kirishda rol shunga mos bo'lishi shart
+  /// ([wrongAppReason]). `null` — tekshiruvsiz (izolyatsiyadagi testlar).
+  final AppFlavor? flavor;
+
+  WrongAppReason? _rejectRole(String? role) =>
+      flavor == null ? null : wrongAppReason(flavor!, role);
 
   AuthState _state = AuthState.idle;
   String? _error;
@@ -44,6 +55,12 @@ class AuthProvider extends ChangeNotifier {
     final token = _localStorage.getToken();
     final user = _localStorage.getUser();
     if (token != null && user != null) {
+      // Saqlangan sessiya boshqa ilovaga tegishli (masalan, eski build rolni
+      // tekshirmay kiritib yuborgan) — jimgina tozalab, kirish ekraniga.
+      if (_rejectRole(user.role) != null) {
+        await _localStorage.clearAll();
+        return;
+      }
       _currentUser = user;
       _socketService.connect(token);
       _setState(AuthState.authenticated);
@@ -85,6 +102,18 @@ class AuthProvider extends ChangeNotifier {
       // in that case instead of wiping it.
       final refreshToken = innerData['refreshToken'] as String?;
       final userJson = innerData['user'] as Map<String, dynamic>;
+
+      // Rol bu ilovaga mos kelmasa sessiya SAQLANMAYDI va hozirgina
+      // berilgan refresh token serverda bekor qilinadi.
+      final rejected = _rejectRole(userJson['role'] as String?);
+      if (rejected != null) {
+        await _revokeQuietly(refreshToken);
+        _error = rejected == WrongAppReason.driverInPassengerApp
+            ? AppL10n.current.authWrongAppDriver
+            : AppL10n.current.authWrongAppStaff;
+        _setState(AuthState.error);
+        return false;
+      }
 
       await _localStorage.saveTokens(
         accessToken: token,
@@ -155,6 +184,15 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> _revokeQuietly(String? refreshToken) async {
+    if (refreshToken == null) return;
+    try {
+      await _apiClient.post(ApiEndpoints.logout, data: {'refreshToken': refreshToken});
+    } catch (_) {
+      // Bekor qilinmasa ham token qurilmada saqlanmagan — muddati bilan o'ladi.
+    }
+  }
+
   void clearError() {
     _error = null;
     if (_state == AuthState.error) {
@@ -169,9 +207,10 @@ class AuthProvider extends ChangeNotifier {
   }
 }
 
-AuthProvider buildAuthProvider() => AuthProvider(
+AuthProvider buildAuthProvider(AppFlavor flavor) => AuthProvider(
   apiClient: sl<ApiClient>(),
   localStorage: sl<LocalStorage>(),
   socketService: sl<SocketService>(),
   navigatorKey: sl<GlobalKey<NavigatorState>>(),
+  flavor: flavor,
 );

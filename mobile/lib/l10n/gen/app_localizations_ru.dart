@@ -12,6 +12,14 @@ class AppLocalizationsRu extends AppLocalizations {
   String get appLanguage => 'Язык приложения';
 
   @override
+  String get authWrongAppDriver =>
+      'Этот номер зарегистрирован как водитель. Используйте приложение для водителей или войдите как пассажир с другим номером.';
+
+  @override
+  String get authWrongAppStaff =>
+      'Этот номер — аккаунт сотрудника или продавца, он работает в панели управления. Для мобильного приложения введите другой номер.';
+
+  @override
   String get commonCancel => 'Отмена';
 
   @override
@@ -77,6 +85,10 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get drvApplicationPendingBody =>
       'Ваша заявка ждёт одобрения администратором. После одобрения вы автоматически продолжите отсюда.';
+
+  @override
+  String get drvApplicationRoleWarning =>
+      'Внимание: после отправки заявки этот номер станет аккаунтом водителя, и с ним нельзя будет заказывать такси, еду или товары в приложении для пассажиров. Для поездок как пассажир понадобится другой номер.';
 
   @override
   String get drvApplicationTitle => 'Заявка на работу водителем';

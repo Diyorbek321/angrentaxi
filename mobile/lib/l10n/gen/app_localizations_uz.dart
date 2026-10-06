@@ -12,6 +12,14 @@ class AppLocalizationsUz extends AppLocalizations {
   String get appLanguage => 'Ilova tili';
 
   @override
+  String get authWrongAppDriver =>
+      'Bu raqam haydovchi sifatida ro\'yxatdan o\'tgan. Haydovchi ilovasidan foydalaning yoki yo\'lovchi sifatida boshqa raqam bilan kiring.';
+
+  @override
+  String get authWrongAppStaff =>
+      'Bu raqam xodim yoki sotuvchi hisobi — u boshqaruv panelida ishlaydi. Mobil ilova uchun boshqa raqam kiriting.';
+
+  @override
   String get commonCancel => 'Bekor qilish';
 
   @override
@@ -77,6 +85,10 @@ class AppLocalizationsUz extends AppLocalizations {
   @override
   String get drvApplicationPendingBody =>
       'Sizning haydovchilik arizangiz admin tomonidan tasdiqlanishini kutmoqda. Tasdiqlangach shu yerdan avtomatik davom etasiz.';
+
+  @override
+  String get drvApplicationRoleWarning =>
+      'Diqqat: ariza yuborilgach bu raqam haydovchi hisobiga aylanadi va u bilan yo\'lovchi ilovasida taksi, ovqat yoki market buyurtma qila olmaysiz. Yo\'lovchi sifatida foydalanish uchun boshqa raqam kerak bo\'ladi.';
 
   @override
   String get drvApplicationTitle => 'Haydovchi bo\'lish uchun ariza';

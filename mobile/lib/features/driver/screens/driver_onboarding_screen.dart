@@ -226,6 +226,11 @@ class _ApplicationFormState extends State<_ApplicationForm> {
                   child: InlineErrorWidget(message: driverProvider.error!),
                 ),
               const SizedBox(height: kSpace6),
+              // Ariza akkauntni QAYTARIB BO'LMAS darajada haydovchiga
+              // aylantiradi (backend `createProfile`) — yo'lovchi ilovasi
+              // shu raqam bilan endi ishlamaydi. Tugma yonida aytiladi.
+              const _RoleChangeWarning(),
+              const SizedBox(height: kSpace4),
               AppButton(
                 label: context.l10n.drvSubmitApplication,
                 isLoading: isLoading,
@@ -627,6 +632,37 @@ class _DriverDocumentRow extends StatelessWidget {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RoleChangeWarning extends StatelessWidget {
+  const _RoleChangeWarning();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(kSpace3),
+      decoration: BoxDecoration(
+        color: kWarningLight,
+        borderRadius: BorderRadius.circular(kRadiusSm),
+        border: Border.all(color: kWarning.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const ExcludeSemantics(
+            child: Icon(Icons.info_outline_rounded, color: kWarningDeep, size: 20),
+          ),
+          const SizedBox(width: kSpace2),
+          Expanded(
+            child: Text(
+              context.l10n.drvApplicationRoleWarning,
+              style: const TextStyle(color: kInk, fontSize: kFontCaption + 1, height: 1.35),
+            ),
+          ),
         ],
       ),
     );

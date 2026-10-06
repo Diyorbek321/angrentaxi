@@ -57,7 +57,7 @@ class AngrenTaxiApp extends StatelessWidget {
           create: (_) => LocaleController(sl<SharedPreferences>()),
         ),
         ChangeNotifierProvider<AuthProvider>(
-            create: (_) => buildAuthProvider()),
+            create: (_) => buildAuthProvider(flavor)),
         ChangeNotifierProvider<SupportProvider>(
             create: (_) => buildSupportProvider()),
         if (flavor == AppFlavor.passenger)

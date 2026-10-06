@@ -666,5 +666,6 @@
   "drvCallRecipient": "Qabul qiluvchiga qo'ng'iroq",
   "drvParcelSizeSmall": "Kichik",
   "drvParcelSizeMedium": "O'rta",
-  "drvParcelSizeLarge": "Katta"
+  "drvParcelSizeLarge": "Katta",
+  "drvApplicationRoleWarning": "Diqqat: ariza yuborilgach bu raqam haydovchi hisobiga aylanadi va u bilan yo'lovchi ilovasida taksi, ovqat yoki market buyurtma qila olmaysiz. Yo'lovchi sifatida foydalanish uchun boshqa raqam kerak bo'ladi."
 }

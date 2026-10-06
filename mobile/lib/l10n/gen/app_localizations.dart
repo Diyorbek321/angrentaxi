@@ -104,6 +104,18 @@ abstract class AppLocalizations {
   /// **'Ilova tili'**
   String get appLanguage;
 
+  /// No description provided for @authWrongAppDriver.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bu raqam haydovchi sifatida ro\'yxatdan o\'tgan. Haydovchi ilovasidan foydalaning yoki yo\'lovchi sifatida boshqa raqam bilan kiring.'**
+  String get authWrongAppDriver;
+
+  /// No description provided for @authWrongAppStaff.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bu raqam xodim yoki sotuvchi hisobi — u boshqaruv panelida ishlaydi. Mobil ilova uchun boshqa raqam kiriting.'**
+  String get authWrongAppStaff;
+
   /// No description provided for @commonCancel.
   ///
   /// In uz, this message translates to:
@@ -223,6 +235,12 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Sizning haydovchilik arizangiz admin tomonidan tasdiqlanishini kutmoqda. Tasdiqlangach shu yerdan avtomatik davom etasiz.'**
   String get drvApplicationPendingBody;
+
+  /// No description provided for @drvApplicationRoleWarning.
+  ///
+  /// In uz, this message translates to:
+  /// **'Diqqat: ariza yuborilgach bu raqam haydovchi hisobiga aylanadi va u bilan yo\'lovchi ilovasida taksi, ovqat yoki market buyurtma qila olmaysiz. Yo\'lovchi sifatida foydalanish uchun boshqa raqam kerak bo\'ladi.'**
+  String get drvApplicationRoleWarning;
 
   /// No description provided for @drvApplicationTitle.
   ///
