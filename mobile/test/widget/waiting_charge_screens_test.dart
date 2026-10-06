@@ -38,6 +38,12 @@ const String _orderId = 'order-1';
 /// Buyurtma javobi — backend `attachDisplayFields` chiqaradigan shakl:
 /// `arrivedAt`, `freeWaitMinutes`, `waitingPricePerMinute` ILDIZDA turadi,
 /// `tariff` ichida emas.
+/// Oxirgi fikstura yaratilgan lahza. Haydovchi ekrani shu soat bilan
+/// chiziladi: provider asinxron tayyorlanadi va to'liq to'plam og'ir
+/// yuklanganda fikstura bilan birinchi kadr orasida 1 soniyadan ko'p o'tib,
+/// yuqoriga yaxlitlangan "1:30" "1:29" bo'lib qolardi (beqaror test).
+DateTime _fixtureNow = DateTime.now();
+
 Map<String, dynamic> _orderJson({
   required Duration? waitedFor,
   int freeWaitMinutes = 3,
@@ -68,7 +74,7 @@ Map<String, dynamic> _orderJson({
     // ochiladi. Lokal sanoqli eski kodda bu yerda har doim nol chiqardi.
     'arrivedAt': waitedFor == null
         ? null
-        : DateTime.now().toUtc().subtract(waitedFor).toIso8601String(),
+        : (_fixtureNow = DateTime.now()).toUtc().subtract(waitedFor).toIso8601String(),
     'freeWaitMinutes': freeWaitMinutes,
     'waitingPricePerMinute': waitingPricePerMinute,
   };
@@ -128,7 +134,7 @@ void main() {
     await tester.pumpWidget(
       ChangeNotifierProvider<DriverProvider>.value(
         value: provider,
-        child: MaterialApp(home: ArrivedScreen(clock: clock)),
+        child: MaterialApp(home: ArrivedScreen(clock: clock ?? () => _fixtureNow)),
       ),
     );
     await tester.pump();
