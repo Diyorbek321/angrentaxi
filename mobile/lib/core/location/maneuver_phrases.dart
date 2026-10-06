@@ -41,8 +41,16 @@ enum AnnouncementPhase {
 /// chiqadi, ya'ni raqam haqiqatdan uzoqlashmaydi.
 const Map<AnnouncementPhase, int> kPhaseDistanceMeters = {
   AnnouncementPhase.far: 500,
-  AnnouncementPhase.near: 150,
+  AnnouncementPhase.near: 100,
 };
+
+/// Ko'rsatmani oldindan yozib olingan bo'laklar sifatida beradi
+/// (`tool/voice_clip_catalogue.json` dagi id'lar).
+///
+/// NEGA BO'LAKLAR: telefonlarning ko'pida o'zbekcha TTS ovozi YO'Q — ruscha
+/// ovoz lotin matnini buzib o'qiydi yoki umuman jim. Yozib olingan bo'laklar
+/// har qanday qurilmada, internetsiz bir xil toza ovoz beradi. Ko'cha nomi
+/// AYTILMAYDI (uni oldindan yozib bo'lmaydi) — u ekrandagi bannerda.
 
 /// OSRM manevrlarini o'zbekcha iboraga aylantiradi.
 abstract final class ManeuverPhrases {
@@ -91,6 +99,61 @@ abstract final class ManeuverPhrases {
       meters,
       _midSentence(instruction),
     );
+  }
+
+  /// [announcementFor] ning ovoz bo'laklari shaklidagi aynan o'sha gapi:
+  /// `far`/`near` da avval masofa ("100 metrdan keyin"), keyin ko'rsatma.
+  static List<String> voiceClipsFor(RouteStep step, AnnouncementPhase phase) {
+    final meters = kPhaseDistanceMeters[phase];
+    if (meters == null) return [_clipFor(step)];
+    if (step.type == ManeuverType.arrive) return ['dist_$meters', 'arrive_in'];
+    return ['dist_$meters', _clipFor(step)];
+  }
+
+  /// Marshrut qayta qurilayotgani haqidagi gap bo'lagi.
+  static const List<String> reroutingClips = ['shManeuverRerouting'];
+
+  /// Asosiy ko'rsatmaning bo'lagi. Matn → kalit teskari jadvali orqali:
+  /// `_baseInstruction` dagi tanlovni ikkinchi marta yozmaslik uchun (ikki
+  /// nusxa vaqt o'tib ajralib ketardi va ovoz ekrandan boshqa gap aytardi).
+  static String _clipFor(RouteStep step) {
+    final isRoundabout = step.type == ManeuverType.roundabout ||
+        step.type == ManeuverType.rotary ||
+        step.type == ManeuverType.roundaboutTurn;
+    final exit = step.exit;
+    if (isRoundabout && exit != null && exit >= 1) {
+      // 5 tadan ko'p chiqishli aylanma Angrenda yo'q — oddiy "aylanmaga kiring".
+      return exit <= 5 ? 'roundabout_exit_$exit' : 'shManeuverRoundabout';
+    }
+    final l = AppL10n.current;
+    final byText = <String, String>{
+      l.shManeuverContinue: 'shManeuverContinue',
+      l.shManeuverDepart: 'shManeuverDepart',
+      l.shManeuverArrive: 'shManeuverArrive',
+      l.shManeuverOnRamp: 'shManeuverOnRamp',
+      l.shManeuverOffRamp: 'shManeuverOffRamp',
+      l.shManeuverExitRoundabout: 'shManeuverExitRoundabout',
+      l.shManeuverStraight: 'shManeuverStraight',
+      l.shManeuverUturn: 'shManeuverUturn',
+      l.shManeuverSharpRight: 'shManeuverSharpRight',
+      l.shManeuverRight: 'shManeuverRight',
+      l.shManeuverSlightRight: 'shManeuverSlightRight',
+      l.shManeuverSlightLeft: 'shManeuverSlightLeft',
+      l.shManeuverLeft: 'shManeuverLeft',
+      l.shManeuverSharpLeft: 'shManeuverSharpLeft',
+      l.shManeuverEndOfRoadRight: 'shManeuverEndOfRoadRight',
+      l.shManeuverEndOfRoadLeft: 'shManeuverEndOfRoadLeft',
+      l.shManeuverEndOfRoadUturn: 'shManeuverEndOfRoadUturn',
+      l.shManeuverEndOfRoadStraight: 'shManeuverEndOfRoadStraight',
+      l.shManeuverForkRight: 'shManeuverForkRight',
+      l.shManeuverForkLeft: 'shManeuverForkLeft',
+      l.shManeuverForkStraight: 'shManeuverForkStraight',
+      l.shManeuverMergeRight: 'shManeuverMergeRight',
+      l.shManeuverMergeLeft: 'shManeuverMergeLeft',
+      l.shManeuverMerge: 'shManeuverMerge',
+      l.shManeuverRoundabout: 'shManeuverRoundabout',
+    };
+    return byText[_baseInstruction(step)] ?? 'shManeuverContinue';
   }
 
   /// Ko'rsatmani gap o'rtasiga qo'yish uchun tayyorlaydi.

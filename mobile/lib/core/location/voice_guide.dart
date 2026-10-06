@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:angren_taxi/core/location/voice_clip_player.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
@@ -56,9 +59,23 @@ class FlutterTtsEngine implements TtsEngine {
 
 /// Navigatsiya ko'rsatmalarini ovozda aytadi.
 class VoiceGuide {
-  VoiceGuide({TtsEngine? engine}) : _engine = engine ?? FlutterTtsEngine();
+  VoiceGuide({TtsEngine? engine, ClipPlayer? clips})
+      : _engine = engine ?? FlutterTtsEngine(),
+        _clips = clips ?? const AssetClipPlayer();
 
   final TtsEngine _engine;
+  final ClipPlayer _clips;
+
+  /// Joriy til uchun o'rnatilgan bo'laklar. Bo'sh — bo'laklar yaratilmagan
+  /// (Azure kaliti hali yo'q) yoki ilova tili uchun yo'q: TTS ishlatiladi.
+  Set<String> _installedClips = const {};
+
+  /// Bo'lak ijro etilganmi — faqat shunda to'xtatish buyrug'i yuboriladi
+  /// (har gapda ortiqcha platforma chaqiruvi bo'lmasin).
+  bool _clipsStarted = false;
+
+  /// Bo'lak papkasi: ilova tili ruscha bo'lsa `ru`, aks holda `uz`.
+  static String get clipLanguage => AppL10n.localeName.startsWith('ru') ? 'ru' : 'uz';
 
   /// Afzal ko'rilgan tillar, tartib bo'yicha.
   ///
@@ -84,8 +101,9 @@ class VoiceGuide {
   bool _available = false;
   bool _initialised = false;
 
-  /// TTS umuman gapira oladimi. `false` bo'lsa [speak] jimgina qaytadi.
-  bool get isAvailable => _available;
+  /// Biror ovoz bormi — yozib olingan bo'laklar YOKI TTS. `false` bo'lsa
+  /// [speak] jimgina qaytadi.
+  bool get isAvailable => _available || _installedClips.isNotEmpty;
 
   /// Mavjud tillarni tekshirib, eng mosini tanlaydi.
   ///
@@ -95,6 +113,14 @@ class VoiceGuide {
   Future<void> init() async {
     if (_initialised) return;
     _initialised = true;
+
+    // Bo'laklar TTS'dan MUSTAQIL: o'zbekcha ovozsiz telefonda aynan ular
+    // gapiradi, shuning uchun TTS topilmasa ham ular yuklanadi.
+    //
+    // ⚠️ KUTILMAYDI: asset ro'yxatini o'qish sekin bo'lishi mumkin va
+    // navigatsiya (birinchi ko'rsatma) uni kutib qolmasligi kerak. Ro'yxat
+    // kelguncha aytilgan gap TTS bilan aytiladi — bu xavfsiz zaxira.
+    unawaited(_clips.available(clipLanguage).then((ids) => _installedClips = ids));
 
     try {
       final available = await _engine.languages();
@@ -128,12 +154,23 @@ class VoiceGuide {
   /// Oldingi gap TO'XTATILADI: navigatsiyada eng yangi ko'rsatma eng
   /// muhimi. Navbatga qo'yilsa haydovchi allaqachon o'tib ketgan burilish
   /// haqida eshitib turardi.
-  Future<void> speak(String text) async {
-    if (!_available || text.isEmpty) return;
+  ///
+  /// [clips] — xuddi shu gap yozib olingan bo'laklar sifatida. HAMMASI
+  /// o'rnatilgan bo'lsa ular ijro etiladi; bittasi ham yo'q bo'lsa — TTS
+  /// (yarim gap aytishdan ko'ra butun gapni sun'iy ovozda aytgan yaxshi).
+  Future<void> speak(String text, {List<String> clips = const []}) async {
+    if (text.isEmpty && clips.isEmpty) return;
 
+    final useClips = clips.isNotEmpty && clips.every(_installedClips.contains);
     try {
-      await _engine.stop();
-      await _engine.speak(text);
+      if (_available) await _engine.stop();
+      if (_clipsStarted) await _clips.stop();
+      if (useClips) {
+        _clipsStarted = true;
+        await _clips.play(clipLanguage, clips);
+        return;
+      }
+      if (_available && text.isNotEmpty) await _engine.speak(text);
     } catch (_) {
       // Ovoz chiqmagani navigatsiyani to'xtatish uchun sabab emas.
     }
@@ -144,6 +181,7 @@ class VoiceGuide {
     if (!_initialised) return;
 
     try {
+      if (_clipsStarted) await _clips.stop();
       await _engine.stop();
     } catch (_) {
       // Ekran yopilyapti — bu yerda qiladigan ish qolmadi.

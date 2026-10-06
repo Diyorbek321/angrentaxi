@@ -11,6 +11,8 @@
 import 'package:angren_taxi/core/config/app_haptics.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
+import 'package:angren_taxi/core/location/route_service.dart';
+import 'package:angren_taxi/core/location/voice_guide.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/core/safety/sos_service.dart';
@@ -27,6 +29,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -143,6 +146,10 @@ void main() {
     sl.registerLazySingleton<LocationService>(() => _FakeLocationService());
     sl.registerLazySingleton<ApiClient>(() => apiClient);
     sl.registerLazySingleton<SocketService>(() => SocketService());
+    // Safar ekrani manzilgacha ilova ichidagi navigatsiyani boshlaydi —
+    // bu testlar uni sinamaydi, shuning uchun marshrut yo'q, ovoz jim.
+    sl.registerLazySingleton<RouteService>(() => _NoRouteService());
+    sl.registerLazySingleton<VoiceGuide>(() => VoiceGuide(engine: _SilentTts()));
   });
 
   tearDown(() async {
@@ -427,4 +434,22 @@ void main() {
       verifyNever(() => apiClient.patch(ApiEndpoints.completeTrip(_orderId), data: any(named: 'data')));
     });
   });
+}
+
+class _NoRouteService implements RouteService {
+  @override
+  Future<RouteResult?> getRoute(LatLng from, LatLng to, {List<LatLng> waypoints = const []}) async => null;
+}
+
+class _SilentTts implements TtsEngine {
+  @override
+  Future<List<String>> languages() async => const [];
+  @override
+  Future<void> setLanguage(String language) async {}
+  @override
+  Future<void> setSpeechRate(double rate) async {}
+  @override
+  Future<void> speak(String text) async {}
+  @override
+  Future<void> stop() async {}
 }

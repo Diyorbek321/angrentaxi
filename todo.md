@@ -32,6 +32,11 @@ Oxirgi yangilanish: 2026-10-06. Bajarilgan ishlar tarixi uchun `git log`ga qaran
 - [ ] **Real telefonda sinov (fon)**: haydovchi onlayn → ilovadan chiqadi → suzuvchi tugma chiqadi → zakaz → ilova o'zi ochiladi. Android 15, Xiaomi (MIUI qalqib chiquvchi oyna ruxsati) va Samsung'da alohida.
 - [ ] **Real qurilmada sinov**: Xiaomi/Redmi'da "Avtomatik ishga tushish" va batareya cheklovisiz; telefon qulflangan holda 10 daqiqa safar — taksometr izi uzilmasligi.
 
+## 🔊 Ovozli navigatsiya (2026-10-06)
+
+- [ ] **O'zbekcha ovoz bo'laklarini yaratish** — Azure Speech kaliti kerak. `mobile/.env.voice` ga `AZURE_TTS_KEY=...` va `AZURE_TTS_REGION=...` yozib, `cd mobile && python3 tool/generate_voice_clips.py` (68 ta mp3, ~1 MB), keyin APK qayta yig'iladi. Ungacha ilova telefon TTS bilan gapiradi.
+- [ ] **Real telefonda eshitib ko'rish** — bo'laklar orasidagi pauza, musiqa ovozi pasayishi, Xiaomi'da.
+
 ## 🔴 Bloker — tashqi shartnoma/hisob kerak
 
 - [ ] **Railway'ni tiklash** — 2026-10-05 holatida backend ham, 4 ta panel ham `404 "Application not found"` qaytaradi. Qayta yaratilsa panel domenlari o'zgaradi → `CORS_ORIGIN`ni yangilash.

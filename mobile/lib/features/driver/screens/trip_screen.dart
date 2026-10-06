@@ -5,14 +5,18 @@ import 'package:angren_taxi/core/config/app_responsive.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
+import 'package:angren_taxi/core/location/route_service.dart';
+import 'package:angren_taxi/core/location/voice_guide.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/safety/sos_service.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/driver/external_navigation.dart';
+import 'package:angren_taxi/features/driver/navigation/turn_by_turn_guidance.dart';
 import 'package:angren_taxi/features/driver/screens/rate_passenger_screen.dart';
 import 'package:angren_taxi/features/driver/service_wording.dart';
 import 'package:angren_taxi/features/driver/widgets/delivery_info_card.dart';
+import 'package:angren_taxi/features/driver/widgets/maneuver_banner.dart';
 import 'package:angren_taxi/features/driver/widgets/parcel_info_card.dart';
 import 'package:angren_taxi/features/driver/widgets/parcel_pin_dialog.dart';
 // `MapCameraInsets` yo'lovchi papkasida yashaydi, lekin u ekranga emas
@@ -34,6 +38,7 @@ import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:angren_taxi/shared/widgets/app_pressable.dart';
 import 'package:angren_taxi/shared/widgets/app_vector_map.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 // Xarita kamerasi MapLibre'ning o'z LatLng turini kutadi; ilovaning
 // qolgan qismi latlong2 ni ishlatadi, shuning uchun prefiks bilan.
@@ -50,7 +55,7 @@ const double _kFitCoordEpsilon = 1e-6;
 const double _kFitInsetEpsilon = 1;
 
 class TripScreen extends StatefulWidget {
-  const TripScreen({super.key, this.sosService, this.meterService});
+  const TripScreen({super.key, this.sosService, this.meterService, this.guidance});
 
   /// Injectable for tests — defaults to a [SosService] built from the real
   /// [ApiClient] in the service locator (same pattern as
@@ -59,6 +64,10 @@ class TripScreen extends StatefulWidget {
 
   /// Taksometr kartasi uchun — testlarda almashtiriladi.
   final MeterService? meterService;
+
+  /// Ilova ichidagi navigatsiya — testlarda almashtiriladi. `null` bo'lsa
+  /// service locator'dan quriladi.
+  final TurnByTurnGuidance? guidance;
 
   @override
   State<TripScreen> createState() => _TripScreenState();
@@ -101,7 +110,55 @@ class _TripScreenState extends State<TripScreen> {
   @override
   void dispose() {
     _tripTimer?.cancel();
+    _positionSubscription?.cancel();
+    _guidance?.removeListener(_onGuidanceChanged);
+    // Ovoz ham to'xtaydi — safar tugagan ekranda burilish haqida gapirmasin.
+    _guidance?.dispose();
     super.dispose();
+  }
+
+  // -------------------------------------------------------------------
+  // ILOVA ICHIDAGI NAVIGATSIYA — yo'lovchi bilan manzilgacha.
+  //
+  // Ilgari bu bosqichda faqat "Navigatorda ochish" bor edi: haydovchi
+  // ilovadan chiqib ketardi. Endi olishga borishdagi bilan AYNAN bir xil
+  // banner, ovoz ("100 metrdan keyin o'ngga buriling") va chetga chiqqanda
+  // qayta qurish. Taksometrda manzil yo'q — navigatsiya ham yo'q.
+  // -------------------------------------------------------------------
+  TurnByTurnGuidance? _guidance;
+  StreamSubscription<Position>? _positionSubscription;
+
+  Future<void> _startGuidance(Order order) async {
+    if (order.isMetered || _guidance != null) return;
+    final guidance = widget.guidance ??
+        TurnByTurnGuidance(routes: sl<RouteService>(), voice: sl<VoiceGuide>());
+    _guidance = guidance..addListener(_onGuidanceChanged);
+    await guidance.start(
+      _currentLocation,
+      LatLng(order.dropoff.lat, order.dropoff.lng),
+      waypoints: [for (final w in order.waypoints) LatLng(w.lat, w.lng)],
+    );
+    if (!mounted) return;
+    try {
+      // 5 m — "hozir buriling" oynasini o'tkazib yubormaslik uchun
+      // (navigation_screen bilan bir xil sabab).
+      _positionSubscription = sl<LocationService>()
+          .getPositionStream(distanceFilter: 5)
+          .listen(_onPosition, onError: (Object _) {}, cancelOnError: false);
+    } catch (_) {
+      // Joylashuv oqimi yo'q — ekran statik qoladi, yiqilmaydi.
+    }
+  }
+
+  void _onPosition(Position position) {
+    if (!mounted) return;
+    final here = LatLng(position.latitude, position.longitude);
+    setState(() => _currentLocation = here);
+    _guidance?.onPosition(here);
+  }
+
+  void _onGuidanceChanged() {
+    if (mounted) setState(() {});
   }
 
   void _startTripTimer() {
@@ -128,6 +185,9 @@ class _TripScreenState extends State<TripScreen> {
       // ochiq maydonga moslanadi (pastdagi "TO'LDIRILGAN TO'RTBURCHAK").
       _fitCamera();
     }
+    if (!mounted) return;
+    final order = context.read<DriverProvider>().activeOrder;
+    if (order != null) await _startGuidance(order);
   }
 
   // -------------------------------------------------------------------
@@ -643,6 +703,8 @@ class _TripScreenState extends State<TripScreen> {
       onMapCreated: _onMapCreated,
       markers: [
         AppMapMarker(point: _currentLocation, icon: AppMapIcon.car),
+        for (final w in order.waypoints)
+          AppMapMarker(point: LatLng(w.lat, w.lng), icon: AppMapIcon.waypoint),
         // Taksometrda `dropoff` = olish nuqtasi — manzil belgisi chizilmaydi.
         if (!order.isMetered)
           AppMapMarker(
@@ -650,6 +712,8 @@ class _TripScreenState extends State<TripScreen> {
             icon: AppMapIcon.dropoff,
           ),
       ],
+      // Haqiqiy yo'l chizig'i (ilova ichidagi navigatsiya yuklagan).
+      route: _guidance?.routePoints ?? const [],
       // Kamerani O'ZIMIZ boshqaramiz — yuqoridagi "TO'LDIRILGAN
       // TO'RTBURCHAK" izohiga qarang.
       fitToContent: false,
@@ -672,7 +736,11 @@ class _TripScreenState extends State<TripScreen> {
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.fromLTRB(left, kSpace4, kSpace4, kSpace4),
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+        Row(
           children: [
             Expanded(
               child: Container(
@@ -743,6 +811,18 @@ class _TripScreenState extends State<TripScreen> {
             // ataylab uzoqroq (o'lcham qoidasi: buzg'unchi amal yonida 12dp).
             const SizedBox(width: kSpace3),
             _buildSosButton(order),
+          ],
+        ),
+            // Navigatsiya ko'rsatmasi — holat qatori OSTIDA, haydovchi nigohi
+            // tushadigan joyda (olishga borish ekranidagi bilan bir xil).
+            if (_guidance?.progress?.step case final step?) ...[
+              const SizedBox(height: kSpace2),
+              ManeuverBanner(
+                step: step,
+                instruction: _guidance!.progress!.instruction,
+                distanceMeters: _guidance!.progress!.distanceToManeuverMeters,
+              ),
+            ],
           ],
         ),
       ),

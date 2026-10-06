@@ -36,6 +36,7 @@ class NavigationAnnouncement {
     required this.stepIndex,
     required this.phase,
     required this.text,
+    this.clips = const [],
   });
 
   /// Qaysi manevr haqida (marshrutdagi indeks).
@@ -46,6 +47,11 @@ class NavigationAnnouncement {
 
   /// Aytiladigan o'zbekcha gap.
   final String text;
+
+  /// Xuddi shu gap yozib olingan ovoz bo'laklari sifatida
+  /// ([ManeuverPhrases.voiceClipsFor]). Bo'laklar o'rnatilmagan bo'lsa
+  /// [VoiceGuide] [text] ni TTS bilan aytadi.
+  final List<String> clips;
 
   @override
   String toString() => 'NavigationAnnouncement($stepIndex, ${phase.name}, "$text")';
@@ -132,7 +138,9 @@ class NavigationEngine {
 
   /// Bosqichlar chegarasi (metr). Tartib MUHIM: uzoqdan yaqinga.
   static const double kFarMeters = 500;
-  static const double kNearMeters = 150;
+  /// "100 metrdan keyin" — [kPhaseDistanceMeters] dagi `near` bilan BIR XIL
+  /// bo'lishi shart: aytilgan raqam haqiqiy masofadan katta bo'lmasin.
+  static const double kNearMeters = 100;
 
   /// "Hozir buriling" chegarasi.
   ///
@@ -293,6 +301,7 @@ class NavigationEngine {
       stepIndex: _stepIndex,
       phase: phase,
       text: ManeuverPhrases.announcementFor(step, phase),
+      clips: ManeuverPhrases.voiceClipsFor(step, phase),
     );
   }
 

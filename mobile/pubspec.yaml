@@ -91,3 +91,7 @@ flutter:
     - assets/animations/
     - assets/map/
     - assets/tariffs/
+    # Navigatsiya ovoz bo'laklari (tool/generate_voice_clips.py). Bo'sh bo'lsa
+    # ilova TTS bilan gapiradi.
+    - assets/voice/uz/
+    - assets/voice/ru/

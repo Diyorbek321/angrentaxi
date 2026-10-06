@@ -1,0 +1,156 @@
+{
+  "_comment": "Navigatsiya ovoz bo'laklari katalogi — YAGONA MANBA. ManeuverPhrases.voiceClipsFor faqat shu id'larni qaytaradi (test bilan qo'riqlanadi), tool/generate_voice_clips.py esa matnni ARB'dan olib, har biri uchun assets/voice/<til>/<id>.mp3 yaratadi.",
+  "languages": {
+    "uz": "uz-UZ-MadinaNeural",
+    "ru": "ru-RU-SvetlanaNeural"
+  },
+  "clips": [
+    {
+      "id": "shManeuverContinue",
+      "arb": "shManeuverContinue"
+    },
+    {
+      "id": "shManeuverDepart",
+      "arb": "shManeuverDepart"
+    },
+    {
+      "id": "shManeuverArrive",
+      "arb": "shManeuverArrive"
+    },
+    {
+      "id": "shManeuverOnRamp",
+      "arb": "shManeuverOnRamp"
+    },
+    {
+      "id": "shManeuverOffRamp",
+      "arb": "shManeuverOffRamp"
+    },
+    {
+      "id": "shManeuverExitRoundabout",
+      "arb": "shManeuverExitRoundabout"
+    },
+    {
+      "id": "shManeuverStraight",
+      "arb": "shManeuverStraight"
+    },
+    {
+      "id": "shManeuverUturn",
+      "arb": "shManeuverUturn"
+    },
+    {
+      "id": "shManeuverSharpRight",
+      "arb": "shManeuverSharpRight"
+    },
+    {
+      "id": "shManeuverRight",
+      "arb": "shManeuverRight"
+    },
+    {
+      "id": "shManeuverSlightRight",
+      "arb": "shManeuverSlightRight"
+    },
+    {
+      "id": "shManeuverSlightLeft",
+      "arb": "shManeuverSlightLeft"
+    },
+    {
+      "id": "shManeuverLeft",
+      "arb": "shManeuverLeft"
+    },
+    {
+      "id": "shManeuverSharpLeft",
+      "arb": "shManeuverSharpLeft"
+    },
+    {
+      "id": "shManeuverEndOfRoadRight",
+      "arb": "shManeuverEndOfRoadRight"
+    },
+    {
+      "id": "shManeuverEndOfRoadLeft",
+      "arb": "shManeuverEndOfRoadLeft"
+    },
+    {
+      "id": "shManeuverEndOfRoadUturn",
+      "arb": "shManeuverEndOfRoadUturn"
+    },
+    {
+      "id": "shManeuverEndOfRoadStraight",
+      "arb": "shManeuverEndOfRoadStraight"
+    },
+    {
+      "id": "shManeuverForkRight",
+      "arb": "shManeuverForkRight"
+    },
+    {
+      "id": "shManeuverForkLeft",
+      "arb": "shManeuverForkLeft"
+    },
+    {
+      "id": "shManeuverForkStraight",
+      "arb": "shManeuverForkStraight"
+    },
+    {
+      "id": "shManeuverMergeRight",
+      "arb": "shManeuverMergeRight"
+    },
+    {
+      "id": "shManeuverMergeLeft",
+      "arb": "shManeuverMergeLeft"
+    },
+    {
+      "id": "shManeuverMerge",
+      "arb": "shManeuverMerge"
+    },
+    {
+      "id": "shManeuverRoundabout",
+      "arb": "shManeuverRoundabout"
+    },
+    {
+      "id": "shManeuverRerouting",
+      "arb": "shManeuverRerouting"
+    },
+    {
+      "id": "dist_500",
+      "arb": "shManeuverInDistance",
+      "meters": 500,
+      "part": "prefix"
+    },
+    {
+      "id": "dist_100",
+      "arb": "shManeuverInDistance",
+      "meters": 100,
+      "part": "prefix"
+    },
+    {
+      "id": "arrive_in",
+      "arb": "shManeuverArriveIn",
+      "meters": 0,
+      "part": "suffix"
+    },
+    {
+      "id": "roundabout_exit_1",
+      "arb": "shManeuverRoundaboutExit",
+      "exit": 1
+    },
+    {
+      "id": "roundabout_exit_2",
+      "arb": "shManeuverRoundaboutExit",
+      "exit": 2
+    },
+    {
+      "id": "roundabout_exit_3",
+      "arb": "shManeuverRoundaboutExit",
+      "exit": 3
+    },
+    {
+      "id": "roundabout_exit_4",
+      "arb": "shManeuverRoundaboutExit",
+      "exit": 4
+    },
+    {
+      "id": "roundabout_exit_5",
+      "arb": "shManeuverRoundaboutExit",
+      "exit": 5
+    }
+  ]
+}

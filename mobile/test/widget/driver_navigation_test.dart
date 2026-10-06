@@ -82,7 +82,7 @@ class _FakeLocationService extends LocationService {
 /// OSRM ga chiqmasdan pog'onali marshrut beradi.
 ///
 /// Burilish haydovchidan aniq 300 m shimolda — `NavigationEngine` ning
-/// `near` (150 m) va `immediate` (60 m) oynalarini testda boshqarish uchun.
+/// `near` (100 m) va `immediate` (60 m) oynalarini testda boshqarish uchun.
 class _FakeRouteService implements RouteService {
   _FakeRouteService({this.steps});
 
@@ -441,7 +441,7 @@ void main() {
 
       // Svetoforda to'xtab qolgan haydovchidan 15 ta bir xil ping.
       for (var i = 0; i < 15; i++) {
-        await sendPing(tester, _FakeRouteService.north(200));
+        await sendPing(tester, _FakeRouteService.north(220));
       }
 
       expect(
@@ -449,7 +449,7 @@ void main() {
         hasLength(1),
         reason: 'Ilova bir xil gapni tinimsiz takrorlamasligi kerak',
       );
-      expect(tts.spoken.single, '150 metrdan keyin O\'ngga buriling, Navoiy ko\'chasi');
+      expect(tts.spoken.single, '100 metrdan keyin O\'ngga buriling, Navoiy ko\'chasi');
 
       tester.takeException();
     },
@@ -486,15 +486,15 @@ void main() {
       await seedActiveOrder(_enRouteOrderJson);
       await pumpNavigationScreen(tester);
 
-      // 150 m oynasi.
-      await sendPing(tester, _FakeRouteService.north(180));
-      await sendPing(tester, _FakeRouteService.north(190));
+      // 100 m oynasi.
+      await sendPing(tester, _FakeRouteService.north(220));
+      await sendPing(tester, _FakeRouteService.north(225));
       // 60 m oynasi.
       await sendPing(tester, _FakeRouteService.north(260));
       await sendPing(tester, _FakeRouteService.north(265));
 
       expect(tts.spoken, hasLength(2));
-      expect(tts.spoken.first, startsWith('150 metrdan keyin'));
+      expect(tts.spoken.first, startsWith('100 metrdan keyin'));
       expect(
         tts.spoken.last,
         'O\'ngga buriling, Navoiy ko\'chasi',
@@ -512,7 +512,7 @@ void main() {
       await seedActiveOrder(_enRouteOrderJson);
       await pumpNavigationScreen(tester);
 
-      await sendPing(tester, _FakeRouteService.north(200));
+      await sendPing(tester, _FakeRouteService.north(220));
 
       expect(find.text('Yo\'lovchiga yo\'l'), findsOneWidget);
       expect(find.text('Navigatsiyani ochish'), findsOneWidget);

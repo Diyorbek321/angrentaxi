@@ -6,13 +6,11 @@ import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/config/map_style.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
-import 'package:angren_taxi/core/location/maneuver_phrases.dart';
-import 'package:angren_taxi/core/location/navigation_engine.dart';
-import 'package:angren_taxi/core/location/off_route_detector.dart';
 import 'package:angren_taxi/core/location/route_service.dart';
 import 'package:angren_taxi/core/location/voice_guide.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/driver/external_navigation.dart';
+import 'package:angren_taxi/features/driver/navigation/turn_by_turn_guidance.dart';
 import 'package:angren_taxi/features/driver/service_wording.dart';
 import 'package:angren_taxi/features/driver/widgets/maneuver_banner.dart';
 // `MapCameraInsets` yo'lovchi papkasida yashaydi, lekin u ekranga emas
@@ -55,21 +53,13 @@ class _NavigationScreenState extends State<NavigationScreen> {
   );
   double? _distanceToPickup;
 
-  /// Pog'onali navigatsiya holati. Marshrut yuklanmaguncha `null` — bunda
-  /// ekran eski ko'rinishida (faqat masofa + tashqi navigator) ishlaydi.
-  NavigationEngine? _engine;
-  NavigationProgress? _progress;
+  /// Pog'onali navigatsiya — marshrut, ko'rsatma, ovoz, qayta qurish.
+  /// Marshrut yuklanmaguncha banner o'rnida oddiy sarlavha turadi.
+  late final TurnByTurnGuidance _guidance = TurnByTurnGuidance(
+    routes: sl<RouteService>(),
+    voice: sl<VoiceGuide>(),
+  )..addListener(_onGuidanceChanged);
 
-  /// Marshrut chizig'i xaritada.
-  List<LatLng> _routePoints = const [];
-
-  /// Marshrutdan chiqib ketishni sezadi; `null` — marshrut hali yo'q.
-  OffRouteDetector? _offRoute;
-
-  /// Qayta hisoblash so'rovi yo'lda — ikkinchisi yuborilmaydi.
-  bool _rerouting = false;
-
-  final VoiceGuide _voice = sl<VoiceGuide>();
   StreamSubscription<Position>? _positionSubscription;
 
   /// Sheet kontentining balandligi — kamera paddingi shundan hisoblanadi.
@@ -106,7 +96,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
     _positionSubscription?.cancel();
     // Ekran yopilganda gap o'rtasida qolgan ovoz to'xtatiladi — aks holda
     // haydovchi allaqachon boshqa ekranda turib burilish haqida eshitardi.
-    _voice.stop();
+    _guidance.dispose();
     super.dispose();
   }
 
@@ -138,55 +128,22 @@ class _NavigationScreenState extends State<NavigationScreen> {
   }
 
   /// Marshrutni yuklab, ovozni tayyorlab, GPS oqimiga ulanadi.
-  ///
-  /// Har bir bosqich alohida yiqilishi mumkin va yiqilsa ham ekran ishlab
-  /// turaveradi: marshrut kelmasa banner ko'rsatilmaydi, ovoz bo'lmasa
-  /// banner o'zi qoladi.
   Future<void> _startGuidance() async {
     if (!mounted) return;
     final order = context.read<DriverProvider>().activeOrder;
     if (order == null) return;
 
     final destination = _nextDestination(order);
-    await _loadRoute(_currentLocation, LatLng(destination.lat, destination.lng));
+    await _guidance.start(_currentLocation, LatLng(destination.lat, destination.lng));
     if (!mounted) return;
-
-    // Ovoz marshrutdan KEYIN tayyorlanadi: birinchi ko'rsatma marshrut
-    // kelmaguncha baribir aytilmaydi, TTS tillarini so'rash esa sekin.
-    await _voice.init();
-
     _listenToPosition();
   }
 
-  /// [from] dan manzilgacha marshrut — boshida ham, chetga chiqilganda ham.
-  /// Yangi marshrut bilan dvigatel ham, detektor ham NOLDAN boshlanadi:
-  /// eski burilishlar haqida gapirmasin, eski chiziq bilan solishtirmasin.
-  Future<void> _loadRoute(LatLng from, LatLng to) async {
-    final route = await sl<RouteService>().getRoute(from, to);
-    if (!mounted || route == null) return;
-    setState(() {
-      _routePoints = route.points;
-      _engine = NavigationEngine(steps: route.steps);
-      _offRoute = OffRouteDetector(route.points);
-    });
+  void _onGuidanceChanged() {
+    if (mounted) setState(() {});
   }
 
-  /// Haydovchi marshrutdan chiqdi — joriy joyidan yangi yo'l.
-  Future<void> _reroute(LatLng here) async {
-    if (_rerouting) return;
-    final order = context.read<DriverProvider>().activeOrder;
-    if (order == null) return;
-    _rerouting = true;
-    _voice.speak(ManeuverPhrases.rerouting);
-    try {
-      final destination = _nextDestination(order);
-      await _loadRoute(here, LatLng(destination.lat, destination.lng));
-    } finally {
-      _rerouting = false;
-    }
-  }
-
-  /// GPS oqimini navigatsiya dvigateliga ulaydi.
+  /// GPS oqimini navigatsiyaga ulaydi.
   ///
   /// `distanceFilter` ATAYLAB kichik: navigatsiyada har 5 metr ham muhim,
   /// standart 10 metr esa "hozir buriling" oynasini o'tkazib yuborishi
@@ -211,33 +168,13 @@ class _NavigationScreenState extends State<NavigationScreen> {
 
   /// Bitta GPS ping'i.
   void _onPosition(Position position) {
-    final engine = _engine;
-    if (engine == null || !mounted) return;
-
+    if (!mounted || !_guidance.hasRoute) return;
     final here = LatLng(position.latitude, position.longitude);
-    final progress = engine.update(here);
-
-    // Chetga chiqildi (bir necha ping tasdiqlagan) — yo'l qayta quriladi.
-    // Javob kelguncha eski ko'rsatma ekranda qoladi.
-    if (_offRoute?.update(here, DateTime.now()) ?? false) {
-      _reroute(here);
-    }
-
-    setState(() {
-      _currentLocation = here;
-      _progress = progress;
-    });
+    setState(() => _currentLocation = here);
+    _guidance.onPosition(here);
 
     _followingDriver = true;
     _followDriver();
-
-    // Dvigatel `announcement` ni FAQAT yangi (manevr, bosqich) juftligida
-    // qaytaradi — shu sababli bu yerda hech qanday qo'shimcha tekshiruv
-    // kerak emas va gap takrorlanmaydi.
-    final announcement = progress.announcement;
-    if (announcement != null) {
-      _voice.speak(announcement.text);
-    }
   }
 
   Future<void> _onArrived() async {
@@ -303,7 +240,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
   /// Ro'yxat `_buildMap` chizadigan narsa bilan bir xil bo'lishi kerak.
   List<LatLng> _mapPoints(Order order) => <LatLng>[
         _currentLocation,
-        ..._routePoints,
+        ..._guidance.routePoints,
         LatLng(order.pickup.lat, order.pickup.lng),
       ];
 
@@ -474,7 +411,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
         ),
       ],
       // Haqiqiy yo'l chizig'i — to'g'ri chiziq emas.
-      route: _routePoints,
+      route: _guidance.routePoints,
       // Kamerani O'ZIMIZ boshqaramiz — yuqoridagi "TO'LDIRILGAN
       // TO'RTBURCHAK" izohiga qarang.
       fitToContent: false,
@@ -541,7 +478,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
   /// yubormasligi mumkin. Bunday paytda ekran eski, ishonchli ko'rinishida
   /// qoladi — tashqi navigator tugmasi baribir joyida.
   Widget _buildGuidanceHeader(DriverServiceWording wording) {
-    final progress = _progress;
+    final progress = _guidance.progress;
     final step = progress?.step;
 
     if (progress == null || step == null) {

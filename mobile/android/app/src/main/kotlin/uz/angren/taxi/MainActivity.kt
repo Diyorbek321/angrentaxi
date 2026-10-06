@@ -37,5 +37,20 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+
+        // Navigatsiya ovoz bo'laklari — lib/core/location/voice_clip_player.dart
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "uz.angren.taxi/voice")
+            .setMethodCallHandler { call, result ->
+                val ctx = applicationContext
+                when (call.method) {
+                    "play" -> result.success(
+                        VoicePlayer.play(ctx, call.argument<List<String>>("assets") ?: emptyList()),
+                    )
+                    "stop" -> {
+                        VoicePlayer.stop(ctx); result.success(null)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
     }
 }

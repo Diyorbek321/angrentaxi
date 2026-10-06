@@ -216,6 +216,7 @@ class Order extends Equatable {
     this.parcel,
     this.deliveryPin,
     this.isMetered = false,
+    this.waypoints = const [],
   });
 
   final String id;
@@ -308,6 +309,11 @@ class Order extends Equatable {
   /// `estimatedPrice` esa "kamida" summa, yakuniy narx emas.
   final bool isMetered;
 
+  /// Oraliq bekatlar, borish tartibida. Haydovchi navigatsiyasi yo'lni shular
+  /// orqali quradi — aks holda ko'p bekatli safarda to'g'ri manzilga yo'l
+  /// ko'rsatilib, bekatlar o'tkazib yuborilardi.
+  final List<OrderLocation> waypoints;
+
   /// Ekranda ko'rsatiladigan manzil. Taksometrda manzil matni YO'Q (safar
   /// tugagach ham — tugash joyi faqat koordinata), shuning uchun bo'sh qator
   /// yoki olish manzilining takrori o'rniga "Manzil yo'q — taksometr".
@@ -388,6 +394,10 @@ class Order extends Equatable {
       ),
       deliveryPin: json['deliveryPin'] as String?,
       isMetered: json['isMetered'] == true,
+      waypoints: [
+        for (final w in (json['waypoints'] as List<dynamic>? ?? const []))
+          if (w is Map<String, dynamic>) OrderLocation.fromJson(w),
+      ],
     );
   }
 
@@ -412,6 +422,7 @@ class Order extends Equatable {
         'freeWaitMinutes': freeWaitMinutes,
         'waitingPricePerMinute': waitingPricePerMinute,
         'isMetered': isMetered,
+        'waypoints': [for (final w in waypoints) w.toJson()],
       };
 
   /// ⚠️ `scheduled` ATAYLAB BU YERGA KIRMAYDI.
@@ -452,6 +463,7 @@ class Order extends Equatable {
     ParcelInfo? parcel,
     String? deliveryPin,
     bool? isMetered,
+    List<OrderLocation>? waypoints,
   }) {
     return Order(
       id: id ?? this.id,
@@ -484,6 +496,7 @@ class Order extends Equatable {
       parcel: parcel ?? this.parcel,
       deliveryPin: deliveryPin ?? this.deliveryPin,
       isMetered: isMetered ?? this.isMetered,
+      waypoints: waypoints ?? this.waypoints,
     );
   }
 
@@ -520,5 +533,6 @@ class Order extends Equatable {
         parcel,
         deliveryPin,
         isMetered,
+        waypoints,
       ];
 }

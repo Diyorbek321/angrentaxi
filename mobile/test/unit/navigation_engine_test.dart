@@ -52,9 +52,9 @@ void main() {
     test('bir joyda turgan mashinaga ogohlantirish FAQAT BIR MARTA aytiladi', () {
       final engine = NavigationEngine(steps: routeWithTurnAt(1000));
 
-      // Haydovchi burilishga 100 m qolganda svetoforda turib qoldi va
+      // Haydovchi burilishga 80 m qolganda svetoforda turib qoldi va
       // 30 ta ping bir xil joydan keldi.
-      final standingStill = north(900);
+      final standingStill = north(920);
 
       final announcements = <NavigationAnnouncement>[];
       for (var i = 0; i < 30; i++) {
@@ -75,8 +75,8 @@ void main() {
     test('GPS chayqalishi ORQAGA qadam tashlab qayta gapirtirmaydi', () {
       final engine = NavigationEngine(steps: routeWithTurnAt(1000));
 
-      // 100 m — `near` bosqichi.
-      final first = engine.update(north(900));
+      // 80 m — `near` bosqichi.
+      final first = engine.update(north(920));
       expect(first.announcement?.phase, AnnouncementPhase.near);
 
       // GPS adashib mashinani 160 m ga "qaytardi" — bu `far` oynasiga
@@ -101,9 +101,9 @@ void main() {
       expect(engine.update(north(520)).announcement, isNull);
       expect(engine.update(north(560)).announcement, isNull);
 
-      // 150 m — `near`.
-      expect(engine.update(north(870)).announcement?.phase, AnnouncementPhase.near);
-      expect(engine.update(north(880)).announcement, isNull);
+      // 100 m — `near` ("100 metrdan keyin").
+      expect(engine.update(north(920)).announcement?.phase, AnnouncementPhase.near);
+      expect(engine.update(north(925)).announcement, isNull);
 
       // 60 m — `immediate`.
       expect(
@@ -122,11 +122,11 @@ void main() {
         step(at: north(3000), type: ManeuverType.arrive, modifier: ManeuverModifier.none),
       ]);
 
-      engine.update(north(900)); // 1-burilish uchun `near`
+      engine.update(north(920)); // 1-burilish uchun `near`
       engine.update(north(1010)); // burilishni o'tdi
 
-      // Ikkinchi burilishga 100 m qolganda — yangi manevr, yangi hisob.
-      final second = engine.update(north(1900));
+      // Ikkinchi burilishga 80 m qolganda — yangi manevr, yangi hisob.
+      final second = engine.update(north(1920));
       expect(second.announcement?.phase, AnnouncementPhase.near);
       expect(second.announcement?.text, contains('Chapga buriling'));
     });
@@ -134,13 +134,13 @@ void main() {
     test('reset() dan keyin marshrut qaytadan aytiladi', () {
       final engine = NavigationEngine(steps: routeWithTurnAt(1000));
 
-      expect(engine.update(north(900)).announcement, isNotNull);
-      expect(engine.update(north(900)).announcement, isNull);
+      expect(engine.update(north(920)).announcement, isNotNull);
+      expect(engine.update(north(920)).announcement, isNull);
 
       // Marshrut qayta hisoblandi — eski "aytilgan" ro'yxati yaroqsiz.
       engine.reset();
 
-      expect(engine.update(north(900)).announcement, isNotNull);
+      expect(engine.update(north(920)).announcement, isNotNull);
     });
   });
 
