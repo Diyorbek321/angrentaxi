@@ -18,6 +18,13 @@ Oxirgi yangilanish: 2026-10-06. Bajarilgan ishlar tarixi uchun `git log`ga qaran
 - [ ] **Hisobot faqat jami son** — kunlik kesim kerak bo'lsa alohida jadval (`AdBanner` izohiga qarang).
 - [ ] Mobil ilovaning yangi APK'si — karusel faqat yangi build'da ko'rinadi.
 
+## 🚕 Taksometr — ochiq qoldiqlar (2026-10-06)
+
+- [ ] **Yo'lga moslash (OSRM match) faqat o'z OSRM serverida ishlaydi** — ochiq demo server `match` ga ~10 nuqtadan ko'p bermaydi, shuning uchun hozir xom GPS iz ishlatiladi (sinovda aniq chiqdi). OSRM deploy qilinganda (pastdagi ro'yxat) o'zi yoqiladi.
+- [ ] **Narx yaxlitlash** — narxlar tiyin bilan saqlanadi (`6499.18`). Ilova butun so'mni ko'rsatadi; 100 so'mgacha yaxlitlash kerakmi — biznes qarori.
+- [ ] **Taksometr tarifi** — hozir oddiy tarif stavkalari (boshlang'ich + km + daqiqa). Alohida stavka kerak bo'lsa — biznes qarori.
+- [ ] **Chek** — taksometrli safar chekida manzil "saqlanmagan" deb chiqadi; `isMetered` ni chek javobiga qo'shib, "Taksometr" deb yozish.
+
 ## 🔴 Bloker — tashqi shartnoma/hisob kerak
 
 - [ ] **Railway'ni tiklash** — 2026-10-05 holatida backend ham, 4 ta panel ham `404 "Application not found"` qaytaradi. Qayta yaratilsa panel domenlari o'zgaradi → `CORS_ORIGIN`ni yangilash.
