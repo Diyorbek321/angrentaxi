@@ -487,5 +487,7 @@
   "saParcelSizeLargeHint": "Bagajga sig'adi",
   "saParcelPinInfo": "Haydovchi posilkani faqat PIN kod bilan topshiradi. Kodni buyurtma berganingizdan keyin ko'rasiz — uni qabul qiluvchiga ayting.",
   "saParcelContinue": "Manzilni tanlash",
-  "saParcelWhatRequired": "Nima yuborilayotganini yozing"
+  "saParcelWhatRequired": "Nima yuborilayotganini yozing",
+  "saAdBadge": "Reklama",
+  "saAdOpenFailed": "Havolani ochib bo'lmadi"
 }

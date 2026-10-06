@@ -1904,6 +1904,12 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get saAdBadge => 'Реклама';
+
+  @override
+  String get saAdOpenFailed => 'Не удалось открыть ссылку';
+
+  @override
   String saAddItemToCartLabel(String name) {
     return '$name — добавить в корзину';
   }

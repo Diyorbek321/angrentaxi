@@ -556,6 +556,8 @@
   "paxWaitingPaidSemantics": "Плата за ожидание {amount}, всего ожидание {elapsed}. Добавится к стоимости поездки.",
   "paxWhereTo": "Куда едем?",
   "saActiveOrderLabel": "Активный заказ: {service}. {title}. {stage}",
+  "saAdBadge": "Реклама",
+  "saAdOpenFailed": "Не удалось открыть ссылку",
   "saAddItemToCartLabel": "{name} — добавить в корзину",
   "saAddToCartWithPrice": "В корзину · {price}",
   "saAddressResolving": "Определяем адрес…",

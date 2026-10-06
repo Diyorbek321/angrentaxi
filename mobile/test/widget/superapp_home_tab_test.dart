@@ -27,12 +27,15 @@
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
+import 'package:angren_taxi/features/ads/ad_carousel.dart';
+import 'package:angren_taxi/features/ads/ads_service.dart';
 import 'package:angren_taxi/features/notifications/notifications_provider.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
 import 'package:angren_taxi/features/superapp/screens/cargo_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/food_list_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/home_tab.dart';
 import 'package:angren_taxi/features/superapp/screens/market_screen.dart';
+import 'package:angren_taxi/features/superapp/screens/restaurant_detail_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/search_screen.dart';
 import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/market_provider.dart';
@@ -137,7 +140,7 @@ void main() {
     notificationsProvider = NotificationsProvider(apiClient: apiClient);
   });
 
-  Future<void> pumpHome(WidgetTester tester) async {
+  Future<void> pumpHome(WidgetTester tester, {AdsService? adsService}) async {
     await tester.pumpWidget(
       MultiProvider(
         providers: [
@@ -158,7 +161,7 @@ void main() {
                   body: Center(child: Text('taxi-flow-stub')),
                 ),
           },
-          home: const Scaffold(body: HomeTab()),
+          home: Scaffold(body: HomeTab(adsService: adsService)),
         ),
       ),
     );
@@ -637,6 +640,36 @@ void main() {
         find.descendant(of: notifButton(), matching: find.text('3')),
         findsOneWidget,
       );
+    });
+  });
+
+  group('HomeTab — reklama karuseli', () {
+    setUp(AdsService.resetSession);
+
+    testWidgets('sukut bo\'yicha (sl yo\'q) karusel chizilmaydi', (tester) async {
+      await pumpHome(tester);
+      expect(find.byType(AdCarousel), findsNothing);
+    });
+
+    testWidgets('restoran banneri bosilsa — bosish hisoblanadi va restoran ochiladi',
+        (tester) async {
+      when(() => apiClient.get(ApiEndpoints.activeAds)).thenAnswer(
+        (_) async => _json(ApiEndpoints.activeAds, [
+          {'id': 'ad-1', 'title': 'Osh aksiyasi', 'linkType': 'restaurant', 'linkTarget': 'rest-1'},
+        ]),
+      );
+      when(() => apiClient.post(any())).thenAnswer((_) async => _json('/', null));
+
+      await pumpHome(tester, adsService: AdsService(apiClient));
+      final banner = find.bySemanticsLabel('Reklama: Osh aksiyasi');
+      await tester.ensureVisible(banner);
+      await tester.tap(banner);
+      await tester.pump();
+
+      verify(() => apiClient.post(ApiEndpoints.adClick('ad-1'))).called(1);
+      final page = recorder.lastBuiltPage(homeContext(tester));
+      expect(page, isA<RestaurantDetailScreen>());
+      expect((page as RestaurantDetailScreen).restaurantId, 'rest-1');
     });
   });
 }

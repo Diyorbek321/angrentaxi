@@ -1907,6 +1907,12 @@ class AppLocalizationsUz extends AppLocalizations {
   }
 
   @override
+  String get saAdBadge => 'Reklama';
+
+  @override
+  String get saAdOpenFailed => 'Havolani ochib bo\'lmadi';
+
+  @override
   String saAddItemToCartLabel(String name) {
     return '$name — savatga qo\'shish';
   }

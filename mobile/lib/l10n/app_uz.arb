@@ -1252,6 +1252,8 @@
       }
     }
   },
+  "saAdBadge": "Reklama",
+  "saAdOpenFailed": "Havolani ochib bo'lmadi",
   "saAddItemToCartLabel": "{name} — savatga qo'shish",
   "@saAddItemToCartLabel": {
     "placeholders": {

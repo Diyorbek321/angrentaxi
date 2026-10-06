@@ -237,5 +237,7 @@
   "saParcelSizeLargeHint": "Помещается в багажник",
   "saParcelPinInfo": "Водитель вручит посылку только по PIN-коду. Вы увидите код после заказа — сообщите его получателю.",
   "saParcelContinue": "Выбрать адрес",
-  "saParcelWhatRequired": "Укажите, что отправляете"
+  "saParcelWhatRequired": "Укажите, что отправляете",
+  "saAdBadge": "Реклама",
+  "saAdOpenFailed": "Не удалось открыть ссылку"
 }

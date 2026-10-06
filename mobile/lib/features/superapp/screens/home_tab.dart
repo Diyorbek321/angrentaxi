@@ -1,4 +1,8 @@
 import 'package:angren_taxi/core/config/app_responsive.dart';
+import 'package:angren_taxi/core/di/service_locator.dart';
+import 'package:angren_taxi/core/network/api_client.dart';
+import 'package:angren_taxi/features/ads/ad_carousel.dart';
+import 'package:angren_taxi/features/ads/ads_service.dart';
 import 'package:angren_taxi/features/notifications/notifications_provider.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
 import 'package:angren_taxi/features/superapp/screens/cargo_screen.dart';
@@ -14,6 +18,7 @@ import 'package:angren_taxi/features/superapp/state/market_provider.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
+import 'package:angren_taxi/shared/models/ad_banner.dart';
 import 'package:angren_taxi/shared/models/food_order.dart';
 import 'package:angren_taxi/shared/models/food_restaurant.dart';
 import 'package:angren_taxi/shared/models/market_order.dart';
@@ -29,6 +34,7 @@ import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // ============================================================================
 // SUPER-APP BOSH EKRANI — TAKSI IMTIYOZLI.
@@ -72,13 +78,21 @@ const double _kSecondaryIconSize = 24;
 /// Angren Go bosh ekrani — taksi imtiyozli hero, ikkilamchi xizmatlar
 /// qatori, birlashtirilgan faol buyurtma kartasi va mashhur restoranlar.
 class HomeTab extends StatefulWidget {
-  const HomeTab({super.key});
+  const HomeTab({super.key, this.adsService});
+
+  /// Testlar uchun. Berilmasa — `sl` dagi [ApiClient] bilan; u ham
+  /// ro'yxatdan o'tmagan bo'lsa (izolyatsiyadagi vidjet testlari) reklama
+  /// karuseli umuman chizilmaydi.
+  final AdsService? adsService;
 
   @override
   State<HomeTab> createState() => _HomeTabState();
 }
 
 class _HomeTabState extends State<HomeTab> {
+  late final AdsService? _ads = widget.adsService ??
+      (sl.isRegistered<ApiClient>() ? AdsService(sl<ApiClient>()) : null);
+
   @override
   void initState() {
     super.initState();
@@ -100,6 +114,30 @@ class _HomeTabState extends State<HomeTab> {
 
   void _push(BuildContext context, Widget screen) {
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
+  }
+
+  /// Banner havolasi. Do'kon — hozircha bitta (MarketScreen birinchi
+  /// do'konni ochadi, `MarketProvider.loadStore` izohiga qarang), shuning
+  /// uchun `linkTarget` ko'p do'konli ko'rinish paydo bo'lguncha ishlatilmaydi.
+  Future<void> _openAd(BuildContext context, AdBanner banner) async {
+    switch (banner.linkType) {
+      case AdLinkType.restaurant:
+        final id = banner.linkTarget;
+        if (id != null) _push(context, RestaurantDetailScreen(restaurantId: id));
+      case AdLinkType.store:
+        _push(context, const MarketScreen());
+      case AdLinkType.url:
+        final uri = banner.externalUri;
+        final opened = uri != null &&
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+        if (!opened && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(context.l10n.saAdOpenFailed)),
+          );
+        }
+      case AdLinkType.none:
+        break;
+    }
   }
 
   /// Jonli buyurtmani XIZMATDAN QAT'I NAZAR bitta ko'rinishga keltiradi.
@@ -171,6 +209,7 @@ class _HomeTabState extends State<HomeTab> {
     final food = context.watch<FoodProvider>();
     final restaurants = food.restaurants;
     final active = _activeOrder(context);
+    final ads = _ads;
 
     return ColoredBox(
       // Qatlamli yuza: ekran foni `kSurface2`, ustidagi bloklar oq.
@@ -205,6 +244,15 @@ class _HomeTabState extends State<HomeTab> {
               .animate()
               .fadeIn(delay: 80.ms, duration: 400.ms)
               .slideY(begin: 0.15, curve: Curves.easeOut),
+          // Reklama taksi va xizmatlardan KEYIN: asosiy vazifa (safar)
+          // birinchi ekranda turadi, banner uni pastga surmaydi.
+          if (ads != null) ...[
+            const SizedBox(height: kSpace6),
+            AdCarousel(
+              service: ads,
+              onOpen: (banner) => _openAd(context, banner),
+            ),
+          ],
           const SizedBox(height: kSpace6),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: context.gutter),

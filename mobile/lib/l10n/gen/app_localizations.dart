@@ -3434,6 +3434,18 @@ abstract class AppLocalizations {
   /// **'Faol buyurtma: {service}. {title}. {stage}'**
   String saActiveOrderLabel(String service, String title, String stage);
 
+  /// No description provided for @saAdBadge.
+  ///
+  /// In uz, this message translates to:
+  /// **'Reklama'**
+  String get saAdBadge;
+
+  /// No description provided for @saAdOpenFailed.
+  ///
+  /// In uz, this message translates to:
+  /// **'Havolani ochib bo\'lmadi'**
+  String get saAdOpenFailed;
+
   /// No description provided for @saAddItemToCartLabel.
   ///
   /// In uz, this message translates to:

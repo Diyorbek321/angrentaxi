@@ -124,6 +124,11 @@ class ApiEndpoints {
   static const String myLostItems = '/lost-items/mine';
   static String lostItemDriverResponse(String id) => '/lost-items/$id/driver-response';
 
+  // Reklama — bosh ekran banner karuseli (3-versiya).
+  static const String activeAds = '/ads/active';
+  static String adImpression(String id) => '/ads/$id/impression';
+  static String adClick(String id) => '/ads/$id/click';
+
   // Talab (surge) xaritasi — faqat haydovchi roli uchun.
   // GET /surge/zones?lat=<double>&lng=<double>&rings=<int, default 4>
   // To'g'ridan-to'g'ri MapLibre'ga beriladigan GeoJSON `FeatureCollection`
