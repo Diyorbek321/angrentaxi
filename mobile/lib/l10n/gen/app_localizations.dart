@@ -1148,6 +1148,18 @@ abstract class AppLocalizations {
   /// **'Dispetcherlarga xabar berish'**
   String get drvNotifyDispatchers;
 
+  /// No description provided for @drvOfferNotificationChannel.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yangi buyurtmalar'**
+  String get drvOfferNotificationChannel;
+
+  /// No description provided for @drvOfferNotificationTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yangi buyurtma'**
+  String get drvOfferNotificationTitle;
+
   /// No description provided for @drvOffline.
   ///
   /// In uz, this message translates to:
@@ -1573,6 +1585,24 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Sozlamalar'**
   String get drvReadyOpenSettings;
+
+  /// No description provided for @drvReadyOverlay.
+  ///
+  /// In uz, this message translates to:
+  /// **'Boshqa ilovalar ustida ko\'rsatish'**
+  String get drvReadyOverlay;
+
+  /// No description provided for @drvReadyOverlayWhy.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ilovadan chiqib ketganingizda zakaz kelsa, ilova o\'zi ochiladi. Ekran chetida kichik tugma turadi — bosib qaytasiz.'**
+  String get drvReadyOverlayWhy;
+
+  /// No description provided for @drvReadyOverlayXiaomi.
+  ///
+  /// In uz, this message translates to:
+  /// **'Xiaomi/Redmi: Sozlamalar → Ilovalar → Angren Taxi Driver → Boshqa ruxsatlar → «Fonda ishlayotganda qalqib chiquvchi oynalarni ko\'rsatish» ni ham yoqing.'**
+  String get drvReadyOverlayXiaomi;
 
   /// No description provided for @drvReadyPrecise.
   ///

@@ -689,5 +689,10 @@
   "drvReadyMissing": "Bajarilmagan",
   "drvForegroundTitle": "Angren Taxi — siz onlaynsiz",
   "drvForegroundText": "Buyurtma va safar uchun joylashuvingiz yuborilmoqda",
-  "drvForegroundChannel": "Onlayn holat"
+  "drvForegroundChannel": "Onlayn holat",
+  "drvOfferNotificationTitle": "Yangi buyurtma",
+  "drvOfferNotificationChannel": "Yangi buyurtmalar",
+  "drvReadyOverlay": "Boshqa ilovalar ustida ko'rsatish",
+  "drvReadyOverlayWhy": "Ilovadan chiqib ketganingizda zakaz kelsa, ilova o'zi ochiladi. Ekran chetida kichik tugma turadi — bosib qaytasiz.",
+  "drvReadyOverlayXiaomi": "Xiaomi/Redmi: Sozlamalar → Ilovalar → Angren Taxi Driver → Boshqa ruxsatlar → «Fonda ishlayotganda qalqib chiquvchi oynalarni ko'rsatish» ni ham yoqing."
 }

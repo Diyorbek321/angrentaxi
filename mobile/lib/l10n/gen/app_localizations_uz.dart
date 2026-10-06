@@ -594,6 +594,12 @@ class AppLocalizationsUz extends AppLocalizations {
   String get drvNotifyDispatchers => 'Dispetcherlarga xabar berish';
 
   @override
+  String get drvOfferNotificationChannel => 'Yangi buyurtmalar';
+
+  @override
+  String get drvOfferNotificationTitle => 'Yangi buyurtma';
+
+  @override
   String get drvOffline => 'Offline';
 
   @override
@@ -827,6 +833,17 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get drvReadyOpenSettings => 'Sozlamalar';
+
+  @override
+  String get drvReadyOverlay => 'Boshqa ilovalar ustida ko\'rsatish';
+
+  @override
+  String get drvReadyOverlayWhy =>
+      'Ilovadan chiqib ketganingizda zakaz kelsa, ilova o\'zi ochiladi. Ekran chetida kichik tugma turadi — bosib qaytasiz.';
+
+  @override
+  String get drvReadyOverlayXiaomi =>
+      'Xiaomi/Redmi: Sozlamalar → Ilovalar → Angren Taxi Driver → Boshqa ruxsatlar → «Fonda ishlayotganda qalqib chiquvchi oynalarni ko\'rsatish» ni ham yoqing.';
 
   @override
   String get drvReadyPrecise => 'Aniq joylashuv';

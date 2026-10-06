@@ -11,10 +11,12 @@ void main() {
     expect(r.isComplete, isTrue);
   });
 
-  test('battery is only a recommendation', () {
-    final r = only(ReadinessItem.values.toSet()..remove(ReadinessItem.battery));
-    expect(r.canGoOnline, isTrue);
-    expect(r.isComplete, isFalse);
+  test('battery and drawing over other apps are only recommendations', () {
+    for (final item in [ReadinessItem.battery, ReadinessItem.overlay]) {
+      final r = only(ReadinessItem.values.toSet()..remove(item));
+      expect(r.canGoOnline, isTrue, reason: '$item');
+      expect(r.isComplete, isFalse, reason: '$item');
+    }
   });
 
   test('each blocking item alone stops going online', () {

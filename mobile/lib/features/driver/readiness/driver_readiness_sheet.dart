@@ -5,9 +5,9 @@ import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:flutter/material.dart';
 
-/// Batareya tavsiyasi sessiyada bir marta ko'rsatiladi: u to'smaydi, har
+/// Tavsiyalar (ustida ko'rsatish, batareya) sessiyada bir marta ko'rsatiladi: ular to'smaydi, har
 /// "Onlayn" bosilganda chiqsa — bezovta qiladi va e'tiborsiz qoladi.
-bool _batteryNudgedThisSession = false;
+bool _recommendationsNudged = false;
 
 /// Onlayn bo'lishdan oldin chaqiriladi. `true` — davom etish mumkin.
 ///
@@ -17,11 +17,11 @@ Future<bool> ensureDriverReady(
   ReadinessChecker checker = const PlatformReadinessChecker(),
 }) async {
   final readiness = await checker.check();
-  final batteryOnly = readiness.canGoOnline && !readiness.isComplete;
-  if (readiness.isComplete || (batteryOnly && _batteryNudgedThisSession)) {
+  final recommendationsOnly = readiness.canGoOnline && !readiness.isComplete;
+  if (readiness.isComplete || (recommendationsOnly && _recommendationsNudged)) {
     return true;
   }
-  if (batteryOnly) _batteryNudgedThisSession = true;
+  if (recommendationsOnly) _recommendationsNudged = true;
   if (!context.mounted) return false;
 
   final result = await showModalBottomSheet<bool>(
@@ -109,6 +109,9 @@ class _DriverReadinessSheetState extends State<DriverReadinessSheet>
                         ok: _readiness.isOk(item),
                         blocking: DriverReadiness.blocking.contains(item),
                         onFix: _readiness.canFix(item) ? () => _fix(item) : null,
+                        extraHint: item == ReadinessItem.overlay && _readiness.xiaomiFamily
+                            ? context.l10n.drvReadyOverlayXiaomi
+                            : null,
                       ),
                   ],
                 ),
@@ -133,7 +136,12 @@ class _ReadinessRow extends StatelessWidget {
     required this.ok,
     required this.blocking,
     required this.onFix,
+    this.extraHint,
   });
+
+  /// Qo'shimcha ko'rsatma (masalan, MIUI'ning alohida ruxsati) — band
+  /// bajarilgan bo'lsa ham ko'rinadi, chunki uni dastur tekshira olmaydi.
+  final String? extraHint;
 
   final ReadinessItem item;
   final bool ok;
@@ -149,6 +157,7 @@ class _ReadinessRow extends StatelessWidget {
       ReadinessItem.preciseLocation => (l10n.drvReadyPrecise, l10n.drvReadyPreciseWhy, l10n.drvReadyGrant),
       ReadinessItem.notifications =>
         (l10n.drvReadyNotifications, l10n.drvReadyNotificationsWhy, l10n.drvReadyGrant),
+      ReadinessItem.overlay => (l10n.drvReadyOverlay, l10n.drvReadyOverlayWhy, l10n.drvReadyOpenSettings),
       ReadinessItem.battery => (l10n.drvReadyBattery, l10n.drvReadyBatteryWhy, l10n.drvReadyOpenSettings),
     };
 
@@ -161,7 +170,8 @@ class _ReadinessRow extends StatelessWidget {
 
     return Semantics(
       container: true,
-      label: '$title: ${ok ? l10n.drvReadyDone : l10n.drvReadyMissing}',
+      label: '$title: ${ok ? l10n.drvReadyDone : l10n.drvReadyMissing}'
+          '${extraHint != null ? '. $extraHint' : ''}',
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: kSpace2),
         child: Row(
@@ -200,6 +210,13 @@ class _ReadinessRow extends StatelessWidget {
                       Text(
                         why,
                         style: const TextStyle(fontSize: kFontCaption, color: kInkMuted, height: 1.35),
+                      ),
+                    ],
+                    if (extraHint != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        extraHint!,
+                        style: const TextStyle(fontSize: kFontCaption, color: kInk, height: 1.35),
                       ),
                     ],
                   ],

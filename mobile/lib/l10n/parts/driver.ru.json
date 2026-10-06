@@ -328,5 +328,10 @@
   "drvReadyMissing": "Не выполнено",
   "drvForegroundTitle": "Angren Taxi — вы на линии",
   "drvForegroundText": "Ваше местоположение передаётся для заказов и поездок",
-  "drvForegroundChannel": "Статус на линии"
+  "drvForegroundChannel": "Статус на линии",
+  "drvOfferNotificationTitle": "Новый заказ",
+  "drvOfferNotificationChannel": "Новые заказы",
+  "drvReadyOverlay": "Поверх других приложений",
+  "drvReadyOverlayWhy": "Если вы вышли из приложения и пришёл заказ, приложение откроется само. У края экрана будет маленькая кнопка — нажмите, чтобы вернуться.",
+  "drvReadyOverlayXiaomi": "Xiaomi/Redmi: Настройки → Приложения → Angren Taxi Driver → Другие разрешения → включите также «Отображать всплывающие окна, когда приложение работает в фоне»."
 }

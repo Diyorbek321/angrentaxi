@@ -594,6 +594,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get drvNotifyDispatchers => 'Сообщить диспетчерам';
 
   @override
+  String get drvOfferNotificationChannel => 'Новые заказы';
+
+  @override
+  String get drvOfferNotificationTitle => 'Новый заказ';
+
+  @override
   String get drvOffline => 'Офлайн';
 
   @override
@@ -828,6 +834,17 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get drvReadyOpenSettings => 'Настройки';
+
+  @override
+  String get drvReadyOverlay => 'Поверх других приложений';
+
+  @override
+  String get drvReadyOverlayWhy =>
+      'Если вы вышли из приложения и пришёл заказ, приложение откроется само. У края экрана будет маленькая кнопка — нажмите, чтобы вернуться.';
+
+  @override
+  String get drvReadyOverlayXiaomi =>
+      'Xiaomi/Redmi: Настройки → Приложения → Angren Taxi Driver → Другие разрешения → включите также «Отображать всплывающие окна, когда приложение работает в фоне».';
 
   @override
   String get drvReadyPrecise => 'Точная геолокация';

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Faqat HAYDOVCHI ilovasi (driver flavor) — asosiy manifest bilan birlashtiriladi. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Onlayn haydovchi ilovadan chiqqanda suzuvchi tugma va zakaz kelganda
+         ilovani ekranga chiqarish: Android 10+ fondan Activity ochishga faqat
+         shu ruxsat bilan (Android 15 da — ko'rinib turgan oyna bilan) yo'l
+         qo'yadi. Foydalanuvchi sozlamalardan yoqadi. Yo'lovchi ilovasiga
+         ATAYLAB kirmaydi. Kod: kotlin/uz/angren/taxi/DriverOverlay.kt -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+</manifest>

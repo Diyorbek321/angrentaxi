@@ -1,3 +1,4 @@
+import 'package:angren_taxi/core/platform/driver_overlay.dart';
 import 'package:angren_taxi/features/driver/readiness/driver_readiness.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart' as ph;
@@ -15,7 +16,9 @@ abstract class ReadinessChecker {
 }
 
 class PlatformReadinessChecker implements ReadinessChecker {
-  const PlatformReadinessChecker();
+  const PlatformReadinessChecker([this._overlay = const DriverOverlay()]);
+
+  final DriverOverlay _overlay;
 
   static bool _granted(LocationPermission p) =>
       p == LocationPermission.whileInUse || p == LocationPermission.always;
@@ -36,13 +39,17 @@ class PlatformReadinessChecker implements ReadinessChecker {
     // kerak, uni Google Play alohida tekshiradi. Sozlamalar sahifasi yetarli.
     final battery = await ph.Permission.ignoreBatteryOptimizations.isGranted;
 
-    return DriverReadiness({
-      ReadinessItem.gps: gps,
-      ReadinessItem.location: location,
-      ReadinessItem.preciseLocation: precise,
-      ReadinessItem.notifications: notifications,
-      ReadinessItem.battery: battery,
-    });
+    return DriverReadiness(
+      {
+        ReadinessItem.gps: gps,
+        ReadinessItem.location: location,
+        ReadinessItem.preciseLocation: precise,
+        ReadinessItem.notifications: notifications,
+        ReadinessItem.overlay: await _overlay.canDrawOverlays(),
+        ReadinessItem.battery: battery,
+      },
+      xiaomiFamily: await _overlay.isXiaomiFamily(),
+    );
   }
 
   @override
@@ -68,6 +75,9 @@ class PlatformReadinessChecker implements ReadinessChecker {
       case ReadinessItem.notifications:
         final status = await ph.Permission.notification.request();
         if (status.isPermanentlyDenied) await ph.openAppSettings();
+      case ReadinessItem.overlay:
+        // Tizim dialogi yo'q — faqat maxsus sozlamalar sahifasi.
+        await _overlay.openOverlaySettings();
       case ReadinessItem.battery:
         await ph.openAppSettings();
     }

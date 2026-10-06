@@ -6,6 +6,7 @@ import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/auth/screens/otp_screen.dart';
 import 'package:angren_taxi/features/auth/screens/phone_screen.dart';
+import 'package:angren_taxi/features/driver/background/driver_background_host.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/driver/screens/arrived_screen.dart';
 import 'package:angren_taxi/features/driver/screens/demand_map_screen.dart';
@@ -156,7 +157,12 @@ class AngrenTaxiApp extends StatelessWidget {
                   maxScaleFactor: wide ? 1.4 : 1.2,
                 ),
               ),
-              child: child ?? const SizedBox.shrink(),
+              // Haydovchi: ilovadan chiqqanda suzuvchi tugma va fonda
+              // kelgan zakazda ilovani ekranga chiqarish. Shu yerda —
+              // ekranlar almashganda qayta qurilmaydi.
+              child: flavor == AppFlavor.driver
+                  ? DriverBackgroundHost(child: child ?? const SizedBox.shrink())
+                  : (child ?? const SizedBox.shrink()),
             );
           },
           home: _AppEntryPoint(flavor: flavor),

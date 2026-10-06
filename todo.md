@@ -28,7 +28,8 @@ Oxirgi yangilanish: 2026-10-06. Bajarilgan ishlar tarixi uchun `git log`ga qaran
 ## 📱 Ruxsatlar — ochiq qoldiqlar (2026-10-06)
 
 - [ ] **Google Play: fon joylashuvi deklaratsiyasi** — `FOREGROUND_SERVICE_LOCATION` uchun Play Console → App content → "Foreground service permissions": nima uchun kerakligi + 30 soniyalik video (haydovchi onlayn bo'ladi, bildirishnoma ko'rinadi, navigatorga o'tadi, joylashuv yuborilaveradi). Busiz haydovchi ilovasi chiqmaydi.
-- [ ] **Fondagi haydovchiga yangi buyurtma xabari** — fon xizmati socket'ni tirik ushlaydi, lekin taklif ekrani faqat ilova ochiq bo'lsa ko'rinadi. Firebase (FCM) sozlangach push yoki mahalliy bildirishnoma kerak.
+- [x] ~~Fondagi haydovchiga yangi buyurtma xabari~~ — 2026-10-06: suzuvchi tugma + ilova o'zi ochiladi + ovozli bildirishnoma (`DriverOverlay.kt`). **Qolgani:** ilova "so'nggi ilovalar"dan surib YOPILSA zakaz kelmaydi — buni faqat Firebase push hal qiladi.
+- [ ] **Real telefonda sinov (fon)**: haydovchi onlayn → ilovadan chiqadi → suzuvchi tugma chiqadi → zakaz → ilova o'zi ochiladi. Android 15, Xiaomi (MIUI qalqib chiquvchi oyna ruxsati) va Samsung'da alohida.
 - [ ] **Real qurilmada sinov**: Xiaomi/Redmi'da "Avtomatik ishga tushish" va batareya cheklovisiz; telefon qulflangan holda 10 daqiqa safar — taksometr izi uzilmasligi.
 
 ## 🔴 Bloker — tashqi shartnoma/hisob kerak
