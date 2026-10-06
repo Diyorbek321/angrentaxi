@@ -1,4 +1,18 @@
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
+
+/// Fon xizmati bildirishnomasining matni (foydalanuvchi tilida).
+class BackgroundNotice {
+  const BackgroundNotice({
+    required this.title,
+    required this.text,
+    required this.channelName,
+  });
+
+  final String title;
+  final String text;
+  final String channelName;
+}
 
 /// Why [LocationService.getCurrentPosition] returned null, so callers can
 /// show the driver/passenger a specific, actionable message instead of
@@ -64,13 +78,42 @@ class LocationService {
     return LocationUnavailableReason.timeoutOrError;
   }
 
-  Stream<Position> getPositionStream({int distanceFilter = 10}) {
-    return Geolocator.getPositionStream(
-      locationSettings: LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: distanceFilter,
-      ),
-    );
+  /// Joylashuv oqimi.
+  ///
+  /// [background] berilsa (faqat Android) oqim FOREGROUND SERVICE orqali
+  /// ishlaydi: doimiy bildirishnoma ko'rinadi va ekran o'chganda yoki
+  /// haydovchi boshqa ilovaga (Yandex Navigator) o'tganda ham joylashuv
+  /// kelaveradi. Busiz Android fondagi ilovaga soatiga bir necha fiks
+  /// beradi — taksometr yo'lni to'g'ri chiziq qilib kam hisoblar, yo'lovchi
+  /// esa mashinani qotib qolgan holda ko'rardi.
+  ///
+  /// "Har doim" ruxsati (ACCESS_BACKGROUND_LOCATION) KERAK EMAS: xizmat
+  /// ilova ochiq paytda boshlanadi, "foydalanilganda" ruxsati yetadi.
+  Stream<Position> getPositionStream({
+    int distanceFilter = 10,
+    BackgroundNotice? background,
+  }) {
+    final LocationSettings settings =
+        background != null && defaultTargetPlatform == TargetPlatform.android
+            ? AndroidSettings(
+                accuracy: LocationAccuracy.high,
+                distanceFilter: distanceFilter,
+                foregroundNotificationConfig: ForegroundNotificationConfig(
+                  notificationTitle: background.title,
+                  notificationText: background.text,
+                  notificationChannelName: background.channelName,
+                  // Ekran o'chganda CPU uxlab qolmasin — aks holda fiks
+                  // kelsa ham socket'ga yuborilmaydi.
+                  enableWakeLock: true,
+                  // Haydovchi bildirishnomani tasodifan surib yubora olmasin.
+                  setOngoing: true,
+                ),
+              )
+            : LocationSettings(
+                accuracy: LocationAccuracy.high,
+                distanceFilter: distanceFilter,
+              );
+    return Geolocator.getPositionStream(locationSettings: settings);
   }
 
   double calculateDistance(

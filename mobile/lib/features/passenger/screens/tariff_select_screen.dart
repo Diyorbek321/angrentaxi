@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:angren_taxi/core/config/app_responsive.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
@@ -32,6 +34,7 @@ import 'package:latlong2/latlong.dart';
 // latlong2 ni ishlatadi, shuning uchun bu yerda prefiks bilan.
 import 'package:maplibre_gl/maplibre_gl.dart' as ml
     show CameraUpdate, LatLng, LatLngBounds, MapLibreMapController;
+import 'package:permission_handler/permission_handler.dart' as ph;
 import 'package:provider/provider.dart';
 
 // ---------------------------------------------------------------------------
@@ -271,6 +274,18 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
     );
   }
 
+  /// Faqat hali so'ralmagan bo'lsa tizim dialogini ochadi; rad etilgan
+  /// bo'lsa qayta bezovta qilmaydi. Plagin yo'q muhitda (testlar) jim.
+  Future<void> _askNotificationsOnce() async {
+    try {
+      if (await ph.Permission.notification.isDenied) {
+        await ph.Permission.notification.request();
+      }
+    } catch (e) {
+      debugPrint('[Notifications] permission request skipped: $e');
+    }
+  }
+
   Future<void> _onConfirmOrder() async {
     final provider = context.read<OrderProvider>();
     if (provider.selectedTariff == null && provider.tariffs.isNotEmpty) {
@@ -282,6 +297,11 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
     final success = await provider.createOrder();
     if (!mounted) return;
     if (!success) return;
+
+    // Bildirishnoma ruxsati AYNAN SHU YERDA — yo'lovchi hozirgina buyurtma
+    // berdi va "haydovchi topildi/keldi" xabarini kutadi. Ilova ochilishida
+    // tushuntirishsiz so'ralgan dialog ko'pincha rad etilardi.
+    unawaited(_askNotificationsOnce());
 
     // Rejalashtirilgan safarda karta to'lovi bloki BUTUNLAY o'tkazib
     // yuboriladi: `POST /payments/initiate` buyurtma COMPLETED bo'lishini

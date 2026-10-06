@@ -60,11 +60,10 @@ Future<void> main() async {
 Future<void> _registerFcmToken() async {
   try {
     final messaging = FirebaseMessaging.instance;
-    await messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+    // Bildirishnoma ruxsati bu yerda SO'RALMAYDI: ilova ochilgan zahoti,
+    // tushuntirishsiz chiqadigan dialog ko'pincha rad etiladi. Haydovchi uni
+    // "Ishga tayyorlik" oynasida, nima uchun kerakligini o'qib beradi.
+    // Android'da token ruxsatsiz ham olinadi.
 
     final token = await messaging.getToken();
     if (token != null) {

@@ -436,6 +436,16 @@ class AppLocalizationsRu extends AppLocalizations {
   String get drvFitZones => 'Показать все зоны';
 
   @override
+  String get drvForegroundChannel => 'Статус на линии';
+
+  @override
+  String get drvForegroundText =>
+      'Ваше местоположение передаётся для заказов и поездок';
+
+  @override
+  String get drvForegroundTitle => 'Angren Taxi — вы на линии';
+
+  @override
   String get drvFreeWait => 'Бесплатное ожидание';
 
   @override
@@ -772,6 +782,69 @@ class AppLocalizationsRu extends AppLocalizations {
   String drvRatingsCount(int count) {
     return 'Оценок: $count';
   }
+
+  @override
+  String get drvReadyBattery => 'Без ограничений батареи';
+
+  @override
+  String get drvReadyBatteryWhy =>
+      'Чтобы телефон не выключал приложение в фоне. В настройках: Батарея → Без ограничений.';
+
+  @override
+  String get drvReadyDone => 'Готово';
+
+  @override
+  String get drvReadyEnable => 'Включить';
+
+  @override
+  String get drvReadyGoOnline => 'Выйти на линию';
+
+  @override
+  String get drvReadyGps => 'GPS включён';
+
+  @override
+  String get drvReadyGpsWhy =>
+      'Чтобы телефон мог определить ваше местоположение.';
+
+  @override
+  String get drvReadyGrant => 'Разрешить';
+
+  @override
+  String get drvReadyLocation => 'Доступ к геолокации';
+
+  @override
+  String get drvReadyLocationWhy =>
+      'Чтобы получать заказы рядом и показывать пассажиру, где вы.';
+
+  @override
+  String get drvReadyMissing => 'Не выполнено';
+
+  @override
+  String get drvReadyNotifications => 'Уведомления';
+
+  @override
+  String get drvReadyNotificationsWhy =>
+      'Чтобы показывать, что приложение работает в фоне, и сообщать о новых заказах.';
+
+  @override
+  String get drvReadyOpenSettings => 'Настройки';
+
+  @override
+  String get drvReadyPrecise => 'Точная геолокация';
+
+  @override
+  String get drvReadyPreciseWhy =>
+      'Для таксометра и проверки «я на месте». «Приблизительная» геолокация ошибается примерно на 1 км.';
+
+  @override
+  String get drvReadyRecommended => 'Рекомендуется';
+
+  @override
+  String get drvReadySubtitle =>
+      'Чтобы получать заказы, нужно следующее. Без отмеченных пунктов выйти на линию нельзя.';
+
+  @override
+  String get drvReadyTitle => 'Готовность к работе';
 
   @override
   String drvReason(String reason) {

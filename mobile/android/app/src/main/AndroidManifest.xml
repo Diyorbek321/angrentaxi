@@ -11,8 +11,9 @@
     <!--
         ACCESS_BACKGROUND_LOCATION is deliberately NOT declared. The app only
         ever requests foreground permission (LocationService.ensurePermission),
-        and driver tracking during a trip runs through the location foreground
-        service below. Declaring it unused triggers Play Console's background
+        and driver tracking runs through the location foreground service below
+        for as long as the driver is online (DriverProvider._startLocationUpdates
+        → LocationService.getPositionStream(background: …)). Declaring it unused triggers Play Console's background
         location review — a listing rejection for a permission nothing uses.
     -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />

@@ -25,6 +25,12 @@ Oxirgi yangilanish: 2026-10-06. Bajarilgan ishlar tarixi uchun `git log`ga qaran
 - [ ] **Taksometr tarifi** — hozir oddiy tarif stavkalari (boshlang'ich + km + daqiqa). Alohida stavka kerak bo'lsa — biznes qarori.
 - [ ] **Chek** — taksometrli safar chekida manzil "saqlanmagan" deb chiqadi; `isMetered` ni chek javobiga qo'shib, "Taksometr" deb yozish.
 
+## 📱 Ruxsatlar — ochiq qoldiqlar (2026-10-06)
+
+- [ ] **Google Play: fon joylashuvi deklaratsiyasi** — `FOREGROUND_SERVICE_LOCATION` uchun Play Console → App content → "Foreground service permissions": nima uchun kerakligi + 30 soniyalik video (haydovchi onlayn bo'ladi, bildirishnoma ko'rinadi, navigatorga o'tadi, joylashuv yuborilaveradi). Busiz haydovchi ilovasi chiqmaydi.
+- [ ] **Fondagi haydovchiga yangi buyurtma xabari** — fon xizmati socket'ni tirik ushlaydi, lekin taklif ekrani faqat ilova ochiq bo'lsa ko'rinadi. Firebase (FCM) sozlangach push yoki mahalliy bildirishnoma kerak.
+- [ ] **Real qurilmada sinov**: Xiaomi/Redmi'da "Avtomatik ishga tushish" va batareya cheklovisiz; telefon qulflangan holda 10 daqiqa safar — taksometr izi uzilmasligi.
+
 ## 🔴 Bloker — tashqi shartnoma/hisob kerak
 
 - [ ] **Railway'ni tiklash** — 2026-10-05 holatida backend ham, 4 ta panel ham `404 "Application not found"` qaytaradi. Qayta yaratilsa panel domenlari o'zgaradi → `CORS_ORIGIN`ni yangilash.

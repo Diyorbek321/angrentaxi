@@ -878,6 +878,24 @@ abstract class AppLocalizations {
   /// **'Zonalarni ekranga sig\'dirish'**
   String get drvFitZones;
 
+  /// No description provided for @drvForegroundChannel.
+  ///
+  /// In uz, this message translates to:
+  /// **'Onlayn holat'**
+  String get drvForegroundChannel;
+
+  /// No description provided for @drvForegroundText.
+  ///
+  /// In uz, this message translates to:
+  /// **'Buyurtma va safar uchun joylashuvingiz yuborilmoqda'**
+  String get drvForegroundText;
+
+  /// No description provided for @drvForegroundTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Angren Taxi — siz onlaynsiz'**
+  String get drvForegroundTitle;
+
   /// No description provided for @drvFreeWait.
   ///
   /// In uz, this message translates to:
@@ -1471,6 +1489,120 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'{count} ta baholash'**
   String drvRatingsCount(int count);
+
+  /// No description provided for @drvReadyBattery.
+  ///
+  /// In uz, this message translates to:
+  /// **'Batareya cheklovisiz'**
+  String get drvReadyBattery;
+
+  /// No description provided for @drvReadyBatteryWhy.
+  ///
+  /// In uz, this message translates to:
+  /// **'Telefon ilovani fonda o\'chirib qo\'ymasligi uchun. Sozlamalarda: Batareya → Cheklovsiz.'**
+  String get drvReadyBatteryWhy;
+
+  /// No description provided for @drvReadyDone.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bajarildi'**
+  String get drvReadyDone;
+
+  /// No description provided for @drvReadyEnable.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yoqish'**
+  String get drvReadyEnable;
+
+  /// No description provided for @drvReadyGoOnline.
+  ///
+  /// In uz, this message translates to:
+  /// **'Onlayn bo\'lish'**
+  String get drvReadyGoOnline;
+
+  /// No description provided for @drvReadyGps.
+  ///
+  /// In uz, this message translates to:
+  /// **'GPS yoqilgan'**
+  String get drvReadyGps;
+
+  /// No description provided for @drvReadyGpsWhy.
+  ///
+  /// In uz, this message translates to:
+  /// **'Telefon joylashuvingizni aniqlay olishi uchun.'**
+  String get drvReadyGpsWhy;
+
+  /// No description provided for @drvReadyGrant.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ruxsat berish'**
+  String get drvReadyGrant;
+
+  /// No description provided for @drvReadyLocation.
+  ///
+  /// In uz, this message translates to:
+  /// **'Joylashuv ruxsati'**
+  String get drvReadyLocation;
+
+  /// No description provided for @drvReadyLocationWhy.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yaqin buyurtmalarni olish va yo\'lovchiga qayerdaligingizni ko\'rsatish uchun.'**
+  String get drvReadyLocationWhy;
+
+  /// No description provided for @drvReadyMissing.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bajarilmagan'**
+  String get drvReadyMissing;
+
+  /// No description provided for @drvReadyNotifications.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bildirishnomalar'**
+  String get drvReadyNotifications;
+
+  /// No description provided for @drvReadyNotificationsWhy.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ilova fonda ishlayotganini ko\'rsatish va yangi buyurtma haqida xabar berish uchun.'**
+  String get drvReadyNotificationsWhy;
+
+  /// No description provided for @drvReadyOpenSettings.
+  ///
+  /// In uz, this message translates to:
+  /// **'Sozlamalar'**
+  String get drvReadyOpenSettings;
+
+  /// No description provided for @drvReadyPrecise.
+  ///
+  /// In uz, this message translates to:
+  /// **'Aniq joylashuv'**
+  String get drvReadyPrecise;
+
+  /// No description provided for @drvReadyPreciseWhy.
+  ///
+  /// In uz, this message translates to:
+  /// **'Taksometr va «yetib keldim» tekshiruvi uchun. «Taxminiy» joylashuv taxminan 1 km xato beradi.'**
+  String get drvReadyPreciseWhy;
+
+  /// No description provided for @drvReadyRecommended.
+  ///
+  /// In uz, this message translates to:
+  /// **'Tavsiya'**
+  String get drvReadyRecommended;
+
+  /// No description provided for @drvReadySubtitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Buyurtma olish uchun quyidagilar kerak. Belgilanganlarsiz onlayn bo\'lib bo\'lmaydi.'**
+  String get drvReadySubtitle;
+
+  /// No description provided for @drvReadyTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ishga tayyorlik'**
+  String get drvReadyTitle;
 
   /// No description provided for @drvReason.
   ///

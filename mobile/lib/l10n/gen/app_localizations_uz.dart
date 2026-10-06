@@ -436,6 +436,16 @@ class AppLocalizationsUz extends AppLocalizations {
   String get drvFitZones => 'Zonalarni ekranga sig\'dirish';
 
   @override
+  String get drvForegroundChannel => 'Onlayn holat';
+
+  @override
+  String get drvForegroundText =>
+      'Buyurtma va safar uchun joylashuvingiz yuborilmoqda';
+
+  @override
+  String get drvForegroundTitle => 'Angren Taxi — siz onlaynsiz';
+
+  @override
   String get drvFreeWait => 'Bepul kutish';
 
   @override
@@ -772,6 +782,68 @@ class AppLocalizationsUz extends AppLocalizations {
   String drvRatingsCount(int count) {
     return '$count ta baholash';
   }
+
+  @override
+  String get drvReadyBattery => 'Batareya cheklovisiz';
+
+  @override
+  String get drvReadyBatteryWhy =>
+      'Telefon ilovani fonda o\'chirib qo\'ymasligi uchun. Sozlamalarda: Batareya → Cheklovsiz.';
+
+  @override
+  String get drvReadyDone => 'Bajarildi';
+
+  @override
+  String get drvReadyEnable => 'Yoqish';
+
+  @override
+  String get drvReadyGoOnline => 'Onlayn bo\'lish';
+
+  @override
+  String get drvReadyGps => 'GPS yoqilgan';
+
+  @override
+  String get drvReadyGpsWhy => 'Telefon joylashuvingizni aniqlay olishi uchun.';
+
+  @override
+  String get drvReadyGrant => 'Ruxsat berish';
+
+  @override
+  String get drvReadyLocation => 'Joylashuv ruxsati';
+
+  @override
+  String get drvReadyLocationWhy =>
+      'Yaqin buyurtmalarni olish va yo\'lovchiga qayerdaligingizni ko\'rsatish uchun.';
+
+  @override
+  String get drvReadyMissing => 'Bajarilmagan';
+
+  @override
+  String get drvReadyNotifications => 'Bildirishnomalar';
+
+  @override
+  String get drvReadyNotificationsWhy =>
+      'Ilova fonda ishlayotganini ko\'rsatish va yangi buyurtma haqida xabar berish uchun.';
+
+  @override
+  String get drvReadyOpenSettings => 'Sozlamalar';
+
+  @override
+  String get drvReadyPrecise => 'Aniq joylashuv';
+
+  @override
+  String get drvReadyPreciseWhy =>
+      'Taksometr va «yetib keldim» tekshiruvi uchun. «Taxminiy» joylashuv taxminan 1 km xato beradi.';
+
+  @override
+  String get drvReadyRecommended => 'Tavsiya';
+
+  @override
+  String get drvReadySubtitle =>
+      'Buyurtma olish uchun quyidagilar kerak. Belgilanganlarsiz onlayn bo\'lib bo\'lmaydi.';
+
+  @override
+  String get drvReadyTitle => 'Ishga tayyorlik';
 
   @override
   String drvReason(String reason) {

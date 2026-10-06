@@ -55,7 +55,10 @@ class _FakeLocationService extends LocationService {
   Future<Position?> getCurrentPosition() async => fixAt(41.0100, 70.1400);
 
   @override
-  Stream<Position> getPositionStream({int distanceFilter = 10}) =>
+  Stream<Position> getPositionStream({
+    int distanceFilter = 10,
+    BackgroundNotice? background,
+  }) =>
       positions.stream;
 
   /// tearDown shu yerdan yopadi — oqim ochiq qolsa keyingi test uni

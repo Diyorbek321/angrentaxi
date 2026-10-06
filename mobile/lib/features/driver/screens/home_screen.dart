@@ -6,6 +6,8 @@ import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
+import 'package:angren_taxi/features/driver/readiness/driver_readiness_sheet.dart';
+import 'package:angren_taxi/features/driver/readiness/readiness_checker.dart';
 import 'package:angren_taxi/features/driver/service_wording.dart';
 import 'package:angren_taxi/features/driver/widgets/driver_earnings_hero.dart';
 import 'package:angren_taxi/features/driver/widgets/driver_verification_notice.dart';
@@ -57,7 +59,10 @@ import 'package:provider/provider.dart';
 // ============================================================================
 
 class DriverHomeScreen extends StatefulWidget {
-  const DriverHomeScreen({super.key});
+  const DriverHomeScreen({super.key, this.readinessChecker});
+
+  /// Testlar uchun — `null` bo'lsa haqiqiy plaginlar ([PlatformReadinessChecker]).
+  final ReadinessChecker? readinessChecker;
 
   @override
   State<DriverHomeScreen> createState() => _DriverHomeScreenState();
@@ -190,6 +195,23 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     final renderObject = _sheetContentKey.currentContext?.findRenderObject();
     if (renderObject is! RenderBox || !renderObject.hasSize) return null;
     return renderObject.size.height;
+  }
+
+  /// Onlayn bo'lishdan oldin — tayyorlik tekshiruvi. Ilgari haydovchi
+  /// joylashuv ruxsatisiz ham onlayn bo'lardi va unga hech qachon buyurtma
+  /// kelmasdi, sababini esa bilmasdi. Hammasi joyida bo'lsa oyna ko'rinmaydi.
+  Future<void> _goOnline(DriverProvider driverProvider) async {
+    final ready = await ensureDriverReady(
+      context,
+      checker: widget.readinessChecker ?? const PlatformReadinessChecker(),
+    );
+    if (!ready || !mounted) return;
+    // Ish smenasining boshlanishi — haydovchi uchun kunning eng muhim
+    // harakati.
+    AppHaptics.success();
+    await driverProvider.goOnline();
+    // Ruxsat hozirgina berilgan bo'lsa xarita hali zaxira markazda turibdi.
+    if (!_hasLocationFix && mounted) _initLocation();
   }
 
   // Without this, a permission/GPS failure silently falls back to a hardcoded
@@ -498,10 +520,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                       AppHaptics.impact();
                       driverProvider.goOffline();
                     } else {
-                      // Ish smenasining boshlanishi — haydovchi uchun
-                      // kunning eng muhim harakati.
-                      AppHaptics.success();
-                      driverProvider.goOnline();
+                      _goOnline(driverProvider);
                     }
                   },
             child: AnimatedContainer(

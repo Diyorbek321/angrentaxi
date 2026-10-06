@@ -9,6 +9,7 @@ import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
 import 'package:angren_taxi/core/storage/local_storage.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/driver.dart';
 import 'package:angren_taxi/shared/models/driver_bonus_progress.dart';
 import 'package:angren_taxi/shared/models/driver_document.dart';
@@ -710,9 +711,18 @@ class DriverProvider extends ChangeNotifier {
 
   void _startLocationUpdates() {
     _locationSubscription?.cancel();
+    // Onlayn turgan butun vaqt davomida fon xizmati: haydovchi ko'pincha
+    // telefonni qulflaydi yoki navigatorga o'tadi, joylashuv esa buyurtma
+    // taklifi, yo'lovchi xaritasi va taksometr uchun uzluksiz kerak.
+    final l10n = AppL10n.current;
     _locationSubscription = _locationService
         .getPositionStream(
       distanceFilter: AppConfig.locationUpdateDistanceFilter,
+      background: BackgroundNotice(
+        title: l10n.drvForegroundTitle,
+        text: l10n.drvForegroundText,
+        channelName: l10n.drvForegroundChannel,
+      ),
     )
         .listen((position) {
       // Masofa filtri o'zi yetarli emas — tirbandlikda mashina 10 m

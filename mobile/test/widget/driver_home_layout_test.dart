@@ -56,7 +56,10 @@ class _FakeLocationService extends LocationService {
       );
 
   @override
-  Stream<Position> getPositionStream({int distanceFilter = 10}) =>
+  Stream<Position> getPositionStream({
+    int distanceFilter = 10,
+    BackgroundNotice? background,
+  }) =>
       const Stream<Position>.empty();
 }
 
