@@ -48,11 +48,27 @@ class MarketProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Loads the first available store — there's a single seeded store today;
-  /// once multi-store browsing exists this becomes a store-picker flow.
-  Future<void> loadStore() async {
+  /// Loads a store with its catalogue.
+  ///
+  /// [storeId] comes from an ad banner pointing at one particular store.
+  /// Without it the first listed store opens — there is a single store
+  /// today; a store picker replaces that once there are several.
+  ///
+  /// A banner can outlive its store (deactivated, deleted), so if the
+  /// requested store fails to load we fall back to the first one rather
+  /// than greeting the user with an error after they tapped an ad.
+  Future<void> loadStore({String? storeId}) async {
     _setState(MarketProviderState.loading);
     try {
+      if (storeId != null) {
+        try {
+          await _loadStoreDetail(storeId);
+          _setState(MarketProviderState.success);
+          return;
+        } catch (e) {
+          debugPrint('[MarketProvider] store $storeId unavailable, falling back: $e');
+        }
+      }
       final listRes = await _apiClient.get(ApiEndpoints.marketStores);
       final stores = ((listRes.data as Map<String, dynamic>)['data'] as List<dynamic>);
       if (stores.isEmpty) {
@@ -60,23 +76,25 @@ class MarketProvider extends ChangeNotifier {
         _setState(MarketProviderState.error);
         return;
       }
-      final storeId = (stores.first as Map<String, dynamic>)['id'] as String;
-
-      final detailRes = await _apiClient.get(ApiEndpoints.marketStore(storeId));
-      final detail = (detailRes.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
-      _store = MarketStore.fromJson(detail['store'] as Map<String, dynamic>);
-      _categories = ((detail['categories'] as List<dynamic>))
-          .map((e) => MarketCategory.fromJson(e as Map<String, dynamic>))
-          .toList();
-      _products = ((detail['products'] as List<dynamic>))
-          .map((e) => MarketProduct.fromJson(e as Map<String, dynamic>))
-          .toList();
+      await _loadStoreDetail((stores.first as Map<String, dynamic>)['id'] as String);
       _setState(MarketProviderState.success);
     } catch (e) {
       debugPrint('[MarketProvider] loadStore error: $e');
       _error = extractErrorMessage(e);
       _setState(MarketProviderState.error);
     }
+  }
+
+  Future<void> _loadStoreDetail(String storeId) async {
+    final detailRes = await _apiClient.get(ApiEndpoints.marketStore(storeId));
+    final detail = (detailRes.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
+    _store = MarketStore.fromJson(detail['store'] as Map<String, dynamic>);
+    _categories = ((detail['categories'] as List<dynamic>))
+        .map((e) => MarketCategory.fromJson(e as Map<String, dynamic>))
+        .toList();
+    _products = ((detail['products'] as List<dynamic>))
+        .map((e) => MarketProduct.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<MarketOrder?> createOrder({

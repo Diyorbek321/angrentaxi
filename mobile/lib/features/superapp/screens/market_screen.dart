@@ -14,7 +14,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 class MarketScreen extends StatefulWidget {
-  const MarketScreen({super.key});
+  const MarketScreen({super.key, this.storeId});
+
+  /// Aniq do'kon (reklama banneridan). `null` — birinchi do'kon.
+  final String? storeId;
 
   @override
   State<MarketScreen> createState() => _MarketScreenState();
@@ -26,7 +29,7 @@ class _MarketScreenState extends State<MarketScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final market = context.read<MarketProvider>();
-      await market.loadStore();
+      await market.loadStore(storeId: widget.storeId);
       if (mounted && market.store != null) {
         context.read<SuperappProvider>().setActiveContext('market', market.store!.id);
       }
@@ -119,7 +122,7 @@ class _MarketScreenState extends State<MarketScreen> {
                 : market.state == MarketProviderState.error && market.products.isEmpty
                     ? AppErrorState(
                         message: market.error ?? context.l10n.saErrorOccurred,
-                        onRetry: () => context.read<MarketProvider>().loadStore(),
+                        onRetry: () => context.read<MarketProvider>().loadStore(storeId: widget.storeId),
                       )
                     : market.products.isEmpty
                     ? AppEmptyState(
@@ -127,7 +130,7 @@ class _MarketScreenState extends State<MarketScreen> {
                         title: context.l10n.saMarketNoProductsTitle,
                         message: context.l10n.saMarketNoProductsMessage,
                         actionLabel: context.l10n.saRefresh,
-                        onAction: () => context.read<MarketProvider>().loadStore(),
+                        onAction: () => context.read<MarketProvider>().loadStore(storeId: widget.storeId),
                       )
                     : Stack(
                         children: [

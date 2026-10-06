@@ -116,16 +116,16 @@ class _HomeTabState extends State<HomeTab> {
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
   }
 
-  /// Banner havolasi. Do'kon — hozircha bitta (MarketScreen birinchi
-  /// do'konni ochadi, `MarketProvider.loadStore` izohiga qarang), shuning
-  /// uchun `linkTarget` ko'p do'konli ko'rinish paydo bo'lguncha ishlatilmaydi.
+  /// Banner havolasi. Do'kon banneri `linkTarget` dagi aynan o'sha do'konni
+  /// ochadi; do'kon o'chirilgan bo'lsa birinchi do'konga qaytadi
+  /// (`MarketProvider.loadStore` izohiga qarang).
   Future<void> _openAd(BuildContext context, AdBanner banner) async {
     switch (banner.linkType) {
       case AdLinkType.restaurant:
         final id = banner.linkTarget;
         if (id != null) _push(context, RestaurantDetailScreen(restaurantId: id));
       case AdLinkType.store:
-        _push(context, const MarketScreen());
+        _push(context, MarketScreen(storeId: banner.linkTarget));
       case AdLinkType.url:
         final uri = banner.externalUri;
         final opened = uri != null &&
