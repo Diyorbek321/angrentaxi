@@ -252,6 +252,39 @@ export class OrdersCreationService {
   }
 
   /**
+   * Buyurtma taksometrlimi va bu yerda ruxsat etiladimi.
+   *
+   * Faqat oddiy TAKSI: yuk, posilka va yetkazishda narx manzilsiz ma'nosiz
+   * (posilka PIN bilan aynan manzilda topshiriladi). Oraliq bekatlar ham
+   * mumkin emas — bekat bor-u, oxirgi manzil yo'q bo'lgan marshrut yo'q.
+   */
+  private resolveMetered(
+    dto: CreateOrderDto,
+    tariffServiceType: string,
+    options: { agreedFare?: number },
+  ): boolean {
+    const hasLat = dto.dropoffLat !== undefined;
+    const hasLng = dto.dropoffLng !== undefined;
+    if (hasLat !== hasLng) {
+      throw new BadRequestException("Manzilning ikkala koordinatasi ham kerak (yoki hech biri — taksometr)");
+    }
+    if (hasLat) return false;
+
+    const serviceType = dto.serviceType ?? ServiceType.TAXI;
+    if (
+      serviceType !== ServiceType.TAXI ||
+      tariffServiceType !== (ServiceType.TAXI as string) ||
+      options.agreedFare !== undefined
+    ) {
+      throw new BadRequestException("Manzilsiz (taksometr) buyurtma faqat taksi uchun");
+    }
+    if (dto.waypoints?.length) {
+      throw new BadRequestException("Oraliq bekat bilan manzil ham ko'rsatilishi kerak");
+    }
+    return true;
+  }
+
+  /**
    * @param options.agreedFare Internal callers only (never from a request
    *   body): the fare was already agreed elsewhere — the delivery fee a
    *   food/market customer paid at checkout — so the tariff is not consulted
@@ -290,6 +323,14 @@ export class OrdersCreationService {
       );
     }
     const details = isParcel ? parseParcelDetails(dto.details) : dto.details;
+
+    // TAKSOMETR: manzil ko'rsatilmagan — narx safar oxirida GPS izidan.
+    const isMetered = this.resolveMetered(dto, tariff.serviceType, options);
+    // `dropoff_location` NOT NULL: taksometrda vaqtincha olish nuqtasi,
+    // safar tugaganda haqiqiy tugash joyi yoziladi (`Order.isMetered` izohi).
+    const dropoff = isMetered
+      ? { lat: dto.pickupLat, lng: dto.pickupLng }
+      : { lat: dto.dropoffLat!, lng: dto.dropoffLng! };
     const deliveryPin = isParcel ? generateDeliveryPin() : null;
 
     const outstandingDebt = await this.getOutstandingWalletDebt(passengerId);
@@ -306,12 +347,15 @@ export class OrdersCreationService {
     // pickup -> waypoint[0] -> ... -> waypoint[n-1] -> dropoff.
     // Manzil oldindan ma'lum, shuning uchun marshrutni HOZIR hisoblaymiz va
     // narxni QAT'IY qilib qotiramiz — yo'lovchi ko'rgan raqam undiriladi.
-    const { distanceKm: estimatedDistanceKm, routed } =
-      await this.resolveRouteDistanceKm([
-        { lat: dto.pickupLat, lng: dto.pickupLng },
-        ...(dto.waypoints ?? []).map((w) => ({ lat: w.lat, lng: w.lng })),
-        { lat: dto.dropoffLat, lng: dto.dropoffLng },
-      ]);
+    // Taksometrda marshrut yo'q — baholash 0 km, ya'ni tarifning eng kam
+    // narxi ("kamida shuncha"); OSRM'ga bekorga murojaat qilinmaydi.
+    const { distanceKm: estimatedDistanceKm, routed } = isMetered
+      ? { distanceKm: 0, routed: false }
+      : await this.resolveRouteDistanceKm([
+          { lat: dto.pickupLat, lng: dto.pickupLng },
+          ...(dto.waypoints ?? []).map((w) => ({ lat: w.lat, lng: w.lng })),
+          dropoff,
+        ]);
 
     const estimatedDurationMin = Math.ceil(estimatedDistanceKm * 2.5); // rough estimate
 
@@ -364,7 +408,7 @@ export class OrdersCreationService {
     // bunda hisoblagich rejimida qolamiz.
     // Kelishilgan narx (yetkazish haqi) marshrutga bog'liq emas — u doim
     // qat'iy.
-    const isFixedPrice = routed || options.agreedFare !== undefined;
+    const isFixedPrice = !isMetered && (routed || options.agreedFare !== undefined);
 
     // Validate (but don't yet consume) a promo code — usedCount/usage row are
     // only recorded on actual trip completion (see completeTrip), so an
@@ -388,22 +432,22 @@ export class OrdersCreationService {
         pickup_address, dropoff_address, estimated_price, status, payment_method, note,
         service_type, details, promo_code_id, discount_amount, waypoints,
         surge_multiplier, fare_breakdown, is_fixed_price, scheduled_at, city_id, options,
-        delivery_pin)
+        delivery_pin, is_metered)
        VALUES ($1, $2,
          ST_SetSRID(ST_MakePoint($3, $4), 4326),
          ST_SetSRID(ST_MakePoint($5, $6), 4326),
          $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15, $16, $17::jsonb, $18,
-         $19::jsonb, $20, $21, $22, $23::jsonb, $24)
+         $19::jsonb, $20, $21, $22, $23::jsonb, $24, $25)
        RETURNING id`,
       [
         passengerId,
         dto.tariffId,
         dto.pickupLng,
         dto.pickupLat,
-        dto.dropoffLng,
-        dto.dropoffLat,
+        dropoff.lng,
+        dropoff.lat,
         dto.pickupAddress ?? null,
-        dto.dropoffAddress ?? null,
+        isMetered ? null : (dto.dropoffAddress ?? null),
         finalEstimatedPrice,
         // Rejalashtirilgan buyurtma SCHEDULED da tug'iladi — u dispetcher
         // taxtasiga chiqmaydi va haydovchiga taklif qilinmaydi, chunki
@@ -432,6 +476,7 @@ export class OrdersCreationService {
         // Matching filtri shu ro'yxatga qaraydi (trip-options.ts).
         JSON.stringify(normalizeTripOptions(dto.options)),
         deliveryPin,
+        isMetered,
       ],
     );
 

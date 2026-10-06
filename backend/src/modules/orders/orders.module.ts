@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { TaximeterModule } from '../taximeter/taximeter.module';
 import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
 import { ORDERS_PROVIDERS } from './orders.providers';
+import { OrdersMeterService } from './orders-meter.service';
 import { ScheduledOrdersService } from './scheduled-orders.service';
 import { Order } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
@@ -35,6 +37,7 @@ import { SettingsModule } from '../settings/settings.module';
     SettingsModule,
     SurgeModule,
     RoutingModule,
+    TaximeterModule,
     // `OrdersCreationService` olib ketish nuqtasini shaharga bog'laydi
     // (`resolveCityIdForPickup`). Modul eng quyi qatlamda — hech qanday
     // feature modulini olmaydi — shuning uchun aylanma bog'liqlik yo'q.
@@ -47,7 +50,10 @@ import { SettingsModule } from '../settings/settings.module';
   // spec faylga tegishsiz mock qo'shishni talab qilardi. Fasad
   // (`OrdersService`) unga bog'lanmaydi: o'qish `OrdersQueryService` da,
   // bekor qilish esa mavjud `cancelOrder` orqali ishlaydi.
-  providers: [...ORDERS_PROVIDERS, ScheduledOrdersService],
+  // `OrdersMeterService` ham tashqarida: u `TaximeterService` ni talab qiladi,
+  // `ORDERS_PROVIDERS` dan modul yig'adigan o'nlab unit spec'lar esa uni
+  // bermaydi (taksometr ular sinayotgan oqimlarga aloqasi yo'q).
+  providers: [...ORDERS_PROVIDERS, ScheduledOrdersService, OrdersMeterService],
   // Only the facade is exported — other modules must keep depending on
   // OrdersService, not on the internal collaborator services.
   exports: [OrdersService],

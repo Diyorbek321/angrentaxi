@@ -6,6 +6,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, In, Repository } from 'typeorm';
@@ -24,6 +25,7 @@ import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
 import { UsersService } from '../users/users.service';
 import { RoadSpeedService } from './road-speed.service';
+import { TaximeterService } from '../taximeter/taximeter.service';
 import { DriverVerificationService } from './driver-verification.service';
 import {
   DEFAULT_DRIVER_SERVICE_TYPES,
@@ -131,6 +133,9 @@ export class DriversService {
     // joyda ishlatilmaydi. Bog'liqlik bir tomonlama — bu servis
     // `DriversService` ni olmaydi, shuning uchun `forwardRef` kerak emas.
     private readonly verificationService: DriverVerificationService,
+    // Taksometr izi. Ixtiyoriy faqat izolyatsiyadagi unit testlar uchun —
+    // ilovada `TaximeterModule` har doim ulangan.
+    @Optional() private readonly taximeterService?: TaximeterService,
   ) {}
 
   async createProfile(userId: string, dto: CreateDriverDto): Promise<Driver> {
@@ -358,6 +363,16 @@ export class DriversService {
     // yozuvidagi xato (Redis uzildi, jadval hali migratsiya qilinmagan) uni
     // hech qachon buzmasligi kerak — shuning uchun xato log'ga yozilib,
     // metod baribir muvaffaqiyatli tugaydi.
+    // Taksometr izi — tezlik profili bilan bir xil sababga ko'ra "yiqilsa
+    // ham mayli": dispetcherlik uchun joylashuv muhimroq. Bitta tushib
+    // qolgan nuqta masofani deyarli o'zgartirmaydi (keyingisi bilan
+    // to'g'ri chiziq bo'lib qoladi).
+    try {
+      await this.taximeterService?.recordForDriver(userId, lat, lng);
+    } catch (err) {
+      this.logger.warn(`Taksometr nuqtasini yozib bo'lmadi (user ${userId}): ${(err as Error).message}`);
+    }
+
     try {
       await this.roadSpeedService.recordPing(driver.id, lat, lng);
     } catch (err) {

@@ -434,6 +434,10 @@ export class MatchingService {
       },
       status: order.status,
       estimatedPrice: order.estimatedPrice,
+      // Taksometr: manzil yo'q (`dropoff` = olish nuqtasi), narx — "kamida".
+      // Busiz ilova "A → A" va eng kam narxni yakuniy summa deb ko'rsatardi.
+      isMetered: order.isMetered,
+      isFixedPrice: order.isFixedPrice,
       createdAt: order.createdAt,
       paymentMethod: order.paymentMethod,
       distanceKm: driver.distanceKm,

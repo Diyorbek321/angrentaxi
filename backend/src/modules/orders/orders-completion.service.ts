@@ -8,6 +8,7 @@ import { BadRequestException, ForbiddenException, Injectable, Logger, Optional }
 import { DeliveryEventsService } from '../delivery/delivery-events.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { TaximeterService } from '../taximeter/taximeter.service';
 import { Order, OrderStatus, PaymentMethod, ServiceType } from '../../database/entities/order.entity';
 import {
   PARCEL_PIN_MAX_ATTEMPTS,
@@ -74,6 +75,7 @@ export class OrdersCompletionService {
     // Optional only so unit tests that build this service by hand keep
     // compiling; DeliveryEventsModule is global, so the app always has it.
     @Optional() private readonly deliveryEvents?: DeliveryEventsService,
+    @Optional() private readonly taximeterService?: TaximeterService,
   ) {}
 
   async completeTrip(
@@ -113,74 +115,11 @@ export class OrdersCompletionService {
       );
     }
 
-    // Actual distance, measured along the full ordered path
-    // pickup -> waypoint[0] -> ... -> waypoint[n-1] -> dropoff.
-    //
-    // This used to be a single ST_Distance(pickup, dropoff), which ignored
-    // `waypoints` entirely: a pickup -> bozor -> home ride was billed as if the
-    // driver had gone straight home, even though order creation had already
-    // priced the estimate across every leg. ST_MakeLine over the ordered points
-    // gives the same measure for a direct trip (a two-point line) while
-    // charging multi-stop rides for the distance actually driven.
-    const distResult = await this.orderRepository.query(
-      `SELECT ST_Length(ST_MakeLine(geom ORDER BY ord)::geography) AS distance_meters
-         FROM (
-           SELECT 0 AS ord, pickup_location AS geom
-             FROM orders WHERE id = $1
-           UNION ALL
-           SELECT ordinality::int AS ord,
-                  ST_SetSRID(
-                    ST_MakePoint((w->>'lng')::float8, (w->>'lat')::float8),
-                    4326
-                  ) AS geom
-             FROM orders o,
-                  jsonb_array_elements(COALESCE(o.waypoints, '[]'::jsonb))
-                    WITH ORDINALITY AS t(w, ordinality)
-            WHERE o.id = $1
-           UNION ALL
-           SELECT 2147483647 AS ord, dropoff_location AS geom
-             FROM orders WHERE id = $1
-         ) path`,
-      [orderId],
-    );
-
-    // Same falsy-zero trap already fixed in OrdersLifecycleService.driverArrived:
-    // pg returns ST_Distance as a JS number, so `|| '0'` could not tell a genuine
-    // 0m ride (pickup == dropoff) from a missing row or a NULL geometry — both
-    // collapsed to 0 km and were priced as a zero-distance trip. Distinguish them
-    // explicitly with a null check, and treat a truly absent row as a hard error
-    // rather than silently charging the passenger the base fare only.
-    const rawDistance = (
-      distResult as Array<{ distance_meters: number | string | null }>
-    )[0]?.distance_meters;
-
-    if (rawDistance == null) {
-      this.logger.warn(
-        `No PostGIS distance available for order ${orderId} (missing row or NULL geometry); ` +
-          'falling back to 0 km for final pricing',
-      );
-    }
-
-    actualDistanceKm = rawDistance != null ? parseFloat(String(rawDistance)) / 1000 : 0;
-
-    // The measure above is a straight line between the ordered points, not the
-    // road. In a real street grid that under-reports the driven distance —
-    // the driver absorbs the difference on every ride.
-    //
-    // Routing the same points through OSRM gives what was actually driven.
-    // It is off by default because switching it on repricing every ride is a
-    // business decision, not a deployment detail: enable ROUTED_DISTANCE_PRICING
-    // once you have compared a few real trips both ways.
-    if (this.routedDistancePricing.enabled) {
-      const routed = await this.routedDistanceKm(orderId);
-      if (routed != null) {
-        this.logger.log(
-          `Order ${orderId}: routed distance ${routed.toFixed(2)} km ` +
-            `(straight-line was ${actualDistanceKm.toFixed(2)} km)`,
-        );
-        actualDistanceKm = routed;
-      }
-    }
+    // TAKSOMETR — masofa haydovchining haqiqiy GPS izidan; aks holda
+    // to'xtashlar bo'ylab o'lchanadi (pastdagi `plannedPathDistanceKm`).
+    actualDistanceKm = order.isMetered
+      ? await this.meteredDistanceKm(orderId)
+      : await this.plannedPathDistanceKm(orderId);
 
     // Yakuniy narx — endi qatorlarga ajratilgan holda, chunki chek uni
     // jonli tarifdan qayta hisoblay olmaydi (tarif keyin o'zgarishi mumkin).
@@ -598,6 +537,103 @@ export class OrdersCompletionService {
     );
 
     return updatedOrder;
+  }
+
+
+  /**
+   * Taksometr: izga oxirgi nuqta qo'shiladi (oxirgi ping'dan keyingi metrlar),
+   * masofa izdan olinadi va buyurtmaning "manzili" haqiqiy tugash joyiga
+   * yangilanadi — chek, tarix va dispetcher xaritasi to'g'ri nuqtani ko'rsin.
+   */
+  private async meteredDistanceKm(orderId: string): Promise<number> {
+    if (!this.taximeterService) return 0;
+    await this.taximeterService.recordDriverPosition(orderId);
+    const metered = await this.taximeterService.finalDistance(orderId);
+    if (metered.endPoint) {
+      await this.orderRepository.query(
+        `UPDATE orders SET dropoff_location = ST_SetSRID(ST_MakePoint($2, $3), 4326) WHERE id = $1`,
+        [orderId, metered.endPoint.lng, metered.endPoint.lat],
+      );
+    }
+    this.logger.log(
+      `Order ${orderId}: taximeter ${metered.distanceKm.toFixed(2)} km ` +
+        `(${metered.matched ? 'road-matched' : 'raw GPS track'})`,
+    );
+    return metered.distanceKm;
+  }
+
+  /** Rejalashtirilgan yo'l (olish → bekatlar → manzil) bo'ylab masofa. */
+  private async plannedPathDistanceKm(orderId: string): Promise<number> {
+    // Actual distance, measured along the full ordered path
+    // pickup -> waypoint[0] -> ... -> waypoint[n-1] -> dropoff.
+    //
+    // This used to be a single ST_Distance(pickup, dropoff), which ignored
+    // `waypoints` entirely: a pickup -> bozor -> home ride was billed as if the
+    // driver had gone straight home, even though order creation had already
+    // priced the estimate across every leg. ST_MakeLine over the ordered points
+    // gives the same measure for a direct trip (a two-point line) while
+    // charging multi-stop rides for the distance actually driven.
+    const distResult = await this.orderRepository.query(
+      `SELECT ST_Length(ST_MakeLine(geom ORDER BY ord)::geography) AS distance_meters
+         FROM (
+           SELECT 0 AS ord, pickup_location AS geom
+             FROM orders WHERE id = $1
+           UNION ALL
+           SELECT ordinality::int AS ord,
+                  ST_SetSRID(
+                    ST_MakePoint((w->>'lng')::float8, (w->>'lat')::float8),
+                    4326
+                  ) AS geom
+             FROM orders o,
+                  jsonb_array_elements(COALESCE(o.waypoints, '[]'::jsonb))
+                    WITH ORDINALITY AS t(w, ordinality)
+            WHERE o.id = $1
+           UNION ALL
+           SELECT 2147483647 AS ord, dropoff_location AS geom
+             FROM orders WHERE id = $1
+         ) path`,
+      [orderId],
+    );
+
+    // Same falsy-zero trap already fixed in OrdersLifecycleService.driverArrived:
+    // pg returns ST_Distance as a JS number, so `|| '0'` could not tell a genuine
+    // 0m ride (pickup == dropoff) from a missing row or a NULL geometry — both
+    // collapsed to 0 km and were priced as a zero-distance trip. Distinguish them
+    // explicitly with a null check, and treat a truly absent row as a hard error
+    // rather than silently charging the passenger the base fare only.
+    const rawDistance = (
+      distResult as Array<{ distance_meters: number | string | null }>
+    )[0]?.distance_meters;
+
+    if (rawDistance == null) {
+      this.logger.warn(
+        `No PostGIS distance available for order ${orderId} (missing row or NULL geometry); ` +
+          'falling back to 0 km for final pricing',
+      );
+    }
+
+    let actualDistanceKm = rawDistance != null ? parseFloat(String(rawDistance)) / 1000 : 0;
+
+    // The measure above is a straight line between the ordered points, not the
+    // road. In a real street grid that under-reports the driven distance —
+    // the driver absorbs the difference on every ride.
+    //
+    // Routing the same points through OSRM gives what was actually driven.
+    // It is off by default because switching it on repricing every ride is a
+    // business decision, not a deployment detail: enable ROUTED_DISTANCE_PRICING
+    // once you have compared a few real trips both ways.
+    if (this.routedDistancePricing.enabled) {
+      const routed = await this.routedDistanceKm(orderId);
+      if (routed != null) {
+        this.logger.log(
+          `Order ${orderId}: routed distance ${routed.toFixed(2)} km ` +
+            `(straight-line was ${actualDistanceKm.toFixed(2)} km)`,
+        );
+        actualDistanceKm = routed;
+      }
+    }
+
+    return actualDistanceKm;
   }
 
   /**

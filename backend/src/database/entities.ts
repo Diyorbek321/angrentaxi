@@ -45,6 +45,7 @@ import { TariffChangeRequest } from './entities/tariff-change-request.entity';
 import { Tariff } from './entities/tariff.entity';
 import { Transaction } from './entities/transaction.entity';
 import { TripMessage } from './entities/trip-message.entity';
+import { TripTrackPoint } from './entities/trip-track-point.entity';
 import { Trip } from './entities/trip.entity';
 import { User } from './entities/user.entity';
 import { VehicleChangeRequest } from './entities/vehicle-change-request.entity';
@@ -88,6 +89,7 @@ export const ENTITIES = [
   Tariff,
   Transaction,
   TripMessage,
+  TripTrackPoint,
   Trip,
   User,
   VehicleChangeRequest,

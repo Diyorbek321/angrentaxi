@@ -279,6 +279,18 @@ export class Order {
   isFixedPrice: boolean;
 
   /**
+   * TAKSOMETR: yo'lovchi manzil KO'RSATMAGAN. Narx safar oxirida haydovchining
+   * haqiqiy GPS izidan (`trip_track_points`) hisoblanadi.
+   *
+   * ⚠️ `dropoffLocation` ustuni NOT NULL, shuning uchun bunday buyurtmada u
+   * vaqtincha OLISH NUQTASIGA teng va `dropoffAddress = null`; safar tugaganda
+   * haqiqiy tugash nuqtasiga yangilanadi. Mijozlar manzilni ko'rsatishdan
+   * oldin shu bayroqqa qarashi SHART — aks holda "A → A" chiqadi.
+   */
+  @Column({ name: 'is_metered', type: 'boolean', default: false })
+  isMetered: boolean;
+
+  /**
    * Buyurtma yaratilgan paytdagi hudud koeffitsienti.
    *
    * Ilgari u `OrdersCreationService` da hisoblanib, narxga qo'shilib,

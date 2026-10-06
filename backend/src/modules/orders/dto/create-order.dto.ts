@@ -61,17 +61,24 @@ export class CreateOrderDto {
   @Max(180)
   pickupLng: number;
 
-  @ApiProperty({ example: 40.1050, description: 'Dropoff latitude' })
+  /**
+   * Manzil IXTIYORIY: ikkalasi ham berilmasa — TAKSOMETR (faqat taksi),
+   * narx safar oxirida haqiqiy GPS izidan hisoblanadi. Faqat bittasi
+   * berilsa — 400 (`OrdersCreationService.create`).
+   */
+  @ApiPropertyOptional({ example: 40.1050, description: "Dropoff latitude. Omit both for a metered (taximeter) ride" })
+  @IsOptional()
   @IsNumber()
   @Min(-90)
   @Max(90)
-  dropoffLat: number;
+  dropoffLat?: number;
 
-  @ApiProperty({ example: 70.9500, description: 'Dropoff longitude' })
+  @ApiPropertyOptional({ example: 70.9500, description: 'Dropoff longitude. Omit both for a metered ride' })
+  @IsOptional()
   @IsNumber()
   @Min(-180)
   @Max(180)
-  dropoffLng: number;
+  dropoffLng?: number;
 
   @ApiPropertyOptional({ example: 'Angren city center', description: 'Pickup address text' })
   @IsOptional()

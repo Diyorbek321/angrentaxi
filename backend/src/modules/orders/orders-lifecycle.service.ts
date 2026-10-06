@@ -6,6 +6,7 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { TaximeterService } from '../taximeter/taximeter.service';
 import { Order, OrderStatus } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
@@ -35,6 +36,7 @@ export class OrdersLifecycleService {
     // Optional only so unit tests that build this service by hand keep
     // compiling; DeliveryEventsModule is global, so the app always has it.
     @Optional() private readonly deliveryEvents?: DeliveryEventsService,
+    @Optional() private readonly taximeterService?: TaximeterService,
   ) {}
 
   async acceptOrder(driverId: string, orderId: string): Promise<Order> {
@@ -214,6 +216,12 @@ export class OrdersLifecycleService {
       actualDistanceKm: null,
       actualDurationMin: null,
     });
+
+    // Taksometr izining birinchi nuqtasi — haydovchi turgan joy. Busiz
+    // birinchi ping kelguncha bosilgan metrlar hisobdan tushib qolardi.
+    if (order.isMetered) {
+      await this.taximeterService?.recordDriverPosition(orderId);
+    }
 
     const updatedOrder = await this.queryService.findByIdOrThrow(orderId);
 

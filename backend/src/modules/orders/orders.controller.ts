@@ -37,6 +37,7 @@ import { Permission, User, UserRole } from '../../database/entities/user.entity'
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
 import { Order, OrderStatus } from '../../database/entities/order.entity';
 import { AddTipDto } from './dto/add-tip.dto';
+import { OrdersMeterService, type MeterReading } from './orders-meter.service';
 import { OrderReceiptDto } from './dto/order-receipt.dto';
 
 @ApiTags('Orders')
@@ -49,6 +50,7 @@ export class OrdersController {
   constructor(
     private readonly ordersService: OrdersService,
     private readonly matchingService: MatchingService,
+    private readonly meterService: OrdersMeterService,
   ) {}
 
   @Post('calculate-price')
@@ -254,6 +256,19 @@ export class OrdersController {
     // Rol guard yo'q — huquq `findByIdForUser` ichida tekshiriladi
     // (yo'lovchi / tayinlangan haydovchi / manager).
     return this.ordersService.getReceipt(id, user);
+  }
+
+  @Get(':id/meter')
+  @ApiOperation({ summary: 'Taksometr: joriy masofa, vaqt va summa (safar davomida)' })
+  @ApiParam({ name: 'id', description: 'Order UUID' })
+  @ApiResponse({ status: 400, description: 'Taksometrli emas yoki safar davom etmayapti' })
+  @ApiResponse({ status: 403, description: 'Bu buyurtma sizga tegishli emas' })
+  async getMeter(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<MeterReading> {
+    // Rol guard yo'q — huquq `findByIdForUser` ichida (chek bilan bir xil).
+    return this.meterService.reading(id, user);
   }
 
   @Post(':id/tip')

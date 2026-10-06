@@ -9,6 +9,7 @@
 // qidirib, 60 soniyada "haydovchi topilmadi" deb bekor qilish bilan
 // tugaydi.
 import { PATH_METADATA } from '@nestjs/common/constants';
+import { OrdersMeterService } from './orders-meter.service';
 import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
 import { MatchingService } from '../matching/matching.service';
@@ -46,6 +47,7 @@ describe('OrdersController — rejalashtirilgan safar', () => {
     controller = new OrdersController(
       ordersService as unknown as OrdersService,
       matchingService as unknown as MatchingService,
+      {} as OrdersMeterService,
     );
   });
 

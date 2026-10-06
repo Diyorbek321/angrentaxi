@@ -1,5 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { TaximeterModule } from '../taximeter/taximeter.module';
 import { DriversController } from './drivers.controller';
 import { DriverUploadsStore } from './driver-uploads';
 import { DriversService } from './drivers.service';
@@ -29,6 +30,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
+    TaximeterModule,
     TypeOrmModule.forFeature([
       Driver,
       DriverDocument,
