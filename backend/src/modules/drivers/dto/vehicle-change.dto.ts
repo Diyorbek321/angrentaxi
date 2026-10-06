@@ -11,6 +11,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { formBoolean } from '../../../common/utils/form-boolean.util';
 import { VehicleType } from '../../../database/entities/tariff.entity';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
@@ -57,7 +58,7 @@ export class RequestVehicleChangeDto {
 
 export class ReviewVehicleChangeDto {
   @ApiProperty({ example: true })
-  @Transform(({ value }) => (value === 'true' ? true : value === 'false' ? false : value))
+  @Transform(formBoolean)
   @IsBoolean()
   approved: boolean;
 

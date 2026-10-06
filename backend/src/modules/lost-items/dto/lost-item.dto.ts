@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsIn, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { formBoolean } from '../../../common/utils/form-boolean.util';
 import { LostItemStatus } from '../../../database/entities/lost-item-report.entity';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
@@ -20,7 +21,7 @@ export class ReportLostItemDto {
 
 export class DriverLostItemResponseDto {
   @ApiProperty({ description: 'Did the driver find the item in the car?' })
-  @Transform(({ value }) => (value === 'true' ? true : value === 'false' ? false : value))
+  @Transform(formBoolean)
   @IsBoolean()
   found: boolean;
 

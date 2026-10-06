@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsBoolean, IsDateString, IsOptional, IsString, MaxLength } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { formBoolean } from '../../../common/utils/form-boolean.util';
 
 /**
  * Kontrakt: `{ "approved": true }` yoki
@@ -13,7 +14,7 @@ export class ReviewDriverVerificationDto {
   })
   // Menejer paneli forma orqali `"true"`/`"false"` satr yuborishi mumkin —
   // `@IsBoolean()` uni rad etardi va rad etish tugmasi jimgina ishlamasdi.
-  @Transform(({ value }) => (value === 'true' ? true : value === 'false' ? false : value))
+  @Transform(formBoolean)
   @IsBoolean()
   approved: boolean;
 
