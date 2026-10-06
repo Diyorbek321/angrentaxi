@@ -47,6 +47,13 @@ export class OrderReceiptDto {
   @ApiProperty({ nullable: true })
   dropoffAddress: string | null;
 
+  @ApiProperty({
+    example: false,
+    description:
+      "Taksometrli safar: manzil oldindan berilmagan, narx GPS izdan hisoblangan",
+  })
+  isMetered: boolean;
+
   @ApiProperty({ type: [Object], description: "Oraliq to'xtashlar" })
   waypoints: unknown[];
 

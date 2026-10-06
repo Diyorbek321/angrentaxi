@@ -1817,6 +1817,7 @@
   },
   "shFareMaxCap": "Yuqori narx chegarasi",
   "shFareMinAdjustment": "Eng kam haq tuzatmasi",
+  "shFareRounding": "Yaxlitlash",
   "shFareSurge": "Talab koeffitsienti (×{multiplier})",
   "@shFareSurge": {
     "placeholders": {
@@ -2009,6 +2010,7 @@
     }
   },
   "shReceiptHeader": "Angren Go — safar cheki",
+  "shReceiptMeteredDropoff": "Taksometr bo'yicha (manzilsiz)",
   "shReceiptNoFareBreakdown": "Narx tarkibi saqlanmagan.",
   "shReceiptNotSaved": "saqlanmagan",
   "shReceiptOrder": "Buyurtma: {number}",

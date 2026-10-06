@@ -2891,6 +2891,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get shFareMinAdjustment => 'Доплата до минимальной стоимости';
 
   @override
+  String get shFareRounding => 'Округление';
+
+  @override
   String shFareSurge(String multiplier) {
     return 'Повышенный спрос (×$multiplier)';
   }
@@ -3100,6 +3103,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get shReceiptHeader => 'Angren Go — чек поездки';
+
+  @override
+  String get shReceiptMeteredDropoff => 'По таксометру (без адреса)';
 
   @override
   String get shReceiptNoFareBreakdown => 'Детализация стоимости не сохранена.';

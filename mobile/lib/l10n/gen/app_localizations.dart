@@ -5205,6 +5205,12 @@ abstract class AppLocalizations {
   /// **'Eng kam haq tuzatmasi'**
   String get shFareMinAdjustment;
 
+  /// No description provided for @shFareRounding.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yaxlitlash'**
+  String get shFareRounding;
+
   /// No description provided for @shFareSurge.
   ///
   /// In uz, this message translates to:
@@ -5552,6 +5558,12 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Angren Go — safar cheki'**
   String get shReceiptHeader;
+
+  /// No description provided for @shReceiptMeteredDropoff.
+  ///
+  /// In uz, this message translates to:
+  /// **'Taksometr bo\'yicha (manzilsiz)'**
+  String get shReceiptMeteredDropoff;
 
   /// No description provided for @shReceiptNoFareBreakdown.
   ///

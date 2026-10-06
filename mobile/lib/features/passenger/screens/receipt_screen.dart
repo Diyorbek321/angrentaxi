@@ -384,7 +384,10 @@ class _RouteCard extends StatelessWidget {
           ReceiptRoutePoint(
             color: agText,
             label: context.l10n.paxReceiptDropoff,
-            value: receipt.dropoffAddress ?? context.l10n.paxReceiptAddressMissing,
+            value: receipt.dropoffAddress ??
+                (receipt.isMetered
+                    ? context.l10n.shReceiptMeteredDropoff
+                    : context.l10n.paxReceiptAddressMissing),
           ),
         ],
       ),

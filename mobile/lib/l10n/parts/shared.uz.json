@@ -96,6 +96,7 @@
       }
     }
   },
+  "shFareRounding": "Yaxlitlash",
   "shFareMaxCap": "Yuqori narx chegarasi",
   "shFareWaitingFree": "Kutish (0 daq — bepul vaqtdan oshmadi)",
   "shFareWaitingRate": "Kutish ({minutes} daq × {price})",
@@ -158,6 +159,7 @@
       }
     }
   },
+  "shReceiptMeteredDropoff": "Taksometr bo'yicha (manzilsiz)",
   "shReceiptNotSaved": "saqlanmagan",
   "shReceiptStop": "To'xtash {index}: {address}",
   "@shReceiptStop": {

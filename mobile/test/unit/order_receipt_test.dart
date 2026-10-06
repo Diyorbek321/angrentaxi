@@ -97,6 +97,39 @@ void main() {
     expect(text, isNot(contains('Masofa (')));
   });
 
+  test('taksometrli safarda manzil "saqlanmagan" emas, "Taksometr" deb yoziladi', () {
+    final metered = OrderReceipt.fromJson({
+      ...receiptJson(),
+      'dropoffAddress': null,
+      'isMetered': true,
+    });
+    expect(metered.isMetered, isTrue);
+    expect(receiptAsText(metered), contains("Taksometr bo'yicha (manzilsiz)"));
+
+    final legacy = OrderReceipt.fromJson({
+      ...receiptJson(),
+      'dropoffAddress': null,
+    });
+    expect(legacy.isMetered, isFalse);
+    expect(receiptAsText(legacy), isNot(contains('Taksometr')));
+  });
+
+  test('100 so\'mga yaxlitlash alohida qator va ustun jamiga qo\'shiladi', () {
+    final fare = FareBreakdown.fromJson({
+      ...fareJson(),
+      'surgeMultiplier': 1.0,
+      'surgeFare': 0,
+      'timeFare': 5390,
+      'roundingAdjustment': 10,
+      'total': 31900,
+    });
+    final lines = fareLines(fare);
+    expect(lines.last.label, 'Yaxlitlash');
+    expect(lines.last.value, '10 so\'m');
+    final sum = lines.map((l) => asShown(l.value)).fold<int>(0, (a, b) => a + b);
+    expect(sum, 31900);
+  });
+
   test('chaqim yakuniy summaga qo\'shiladi', () {
     final receipt = OrderReceipt.fromJson(receiptJson(tipAmount: 5000));
 

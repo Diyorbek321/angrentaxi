@@ -57,7 +57,8 @@ describe('TariffsService — narx tarkibi', () => {
       b.minPriceAdjustment +
       b.surgeFare +
       b.maxPriceCap +
-      b.waitingFare;
+      b.waitingFare +
+      b.roundingAdjustment;
     expect(sum).toBeCloseTo(b.total, 6);
   };
 
@@ -104,6 +105,22 @@ describe('TariffsService — narx tarkibi', () => {
         1,
         2.0,
       );
+      expectInvariant(b);
+    });
+  });
+
+  describe('100 so\'mga yaxlitlash', () => {
+    it('tiyinli narx yaxlitlanadi, farq alohida qatorda', () => {
+      // 10000 + 3.37*2000 + 7.3*500 = 20390 → 20400
+      const b = service.calculatePriceBreakdown(tariff(), 3.37, 7.3);
+      expect(b.total).toBe(20400);
+      expect(b.roundingAdjustment).toBeCloseTo(10, 6);
+      expectInvariant(b);
+    });
+
+    it('koeffitsientdan keyin ham jami 100 ga karrali', () => {
+      const b = service.calculatePriceBreakdown(tariff(), 4.13, 9, 1.37);
+      expect(b.total % 100).toBe(0);
       expectInvariant(b);
     });
   });

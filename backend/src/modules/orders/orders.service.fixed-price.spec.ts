@@ -37,6 +37,7 @@ const quote: FareBreakdown = {
   // safar yakunida `withWaitingFare` bilan qo'shiladi.
   waitingMinutes: 0,
   waitingFare: 0,
+  roundingAdjustment: 0,
   total: 43200,
 };
 
@@ -104,7 +105,8 @@ describe('Qat\'iy narx qoidasi', () => {
           fare.minPriceAdjustment +
           fare.surgeFare +
           fare.maxPriceCap +
-          fare.waitingFare,
+          fare.waitingFare +
+          fare.roundingAdjustment,
       ).toBeCloseTo(fare.total, 6);
     });
 
@@ -218,7 +220,8 @@ describe('Qat\'iy narx qoidasi', () => {
           fare.minPriceAdjustment +
           fare.surgeFare +
           fare.maxPriceCap +
-          fare.waitingFare,
+          fare.waitingFare +
+          fare.roundingAdjustment,
       ).toBeCloseTo(fare.total, 6);
     });
 

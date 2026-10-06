@@ -41,7 +41,7 @@ describe('agreedFareBreakdown', () => {
   it('puts the whole fare in one row so the rows still add up to the total', () => {
     const b = agreedFareBreakdown(7000, 3.2, 8);
     const rows =
-      b.baseFare + b.distanceFare + b.timeFare + b.minPriceAdjustment + b.surgeFare + b.maxPriceCap + b.waitingFare;
+      b.baseFare + b.distanceFare + b.timeFare + b.minPriceAdjustment + b.surgeFare + b.maxPriceCap + b.waitingFare + b.roundingAdjustment;
     expect(rows).toBe(7000);
     expect(b.total).toBe(7000);
     expect(b.distanceKm).toBe(3.2);

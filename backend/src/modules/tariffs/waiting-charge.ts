@@ -1,4 +1,5 @@
 import { FareBreakdown } from './fare-breakdown';
+import { withRounding } from './fare-rounding';
 
 /**
  * KUTISH HAQI — qoidaning YAGONA manbasi.
@@ -131,7 +132,7 @@ export function computeWaitingMinutes(
  *
  * INVARIANT (kengaytirilgan):
  *   baseFare + distanceFare + timeFare + minPriceAdjustment
- *     + surgeFare + maxPriceCap + waitingFare === total
+ *     + surgeFare + maxPriceCap + waitingFare + roundingAdjustment === total
  */
 export function withWaitingFare(
   breakdown: FareBreakdown,
@@ -146,10 +147,19 @@ export function withWaitingFare(
   // umuman paydo bo'lmaydi — pul qiymati aniq butun so'mda qoladi.
   const waitingFare = waitingMinutes * waitingPricePerMinute;
 
-  return {
+  const withWaiting = {
     ...breakdown,
     waitingMinutes,
     waitingFare,
     total: breakdown.total - previousWaitingFare + waitingFare,
   };
+
+  // Kutish yo'q bo'lsa jamiga TEGILMAYDI: yangi quote allaqachon
+  // yaxlitlangan, yetkazishning kelishilgan summasi (`agreedFareBreakdown`)
+  // esa mijoz checkout'da ko'rgan summa — uni o'zgartirib bo'lmaydi.
+  // Kutish qo'shilsa (daqiqa narxi 100 ga karrali bo'lmasligi mumkin) —
+  // yangi jami qayta yaxlitlanadi.
+  return waitingFare === 0 && previousWaitingFare === 0
+    ? withWaiting
+    : withRounding(withWaiting);
 }

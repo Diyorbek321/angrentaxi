@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { withRounding } from './fare-rounding';
 import { FareBreakdown } from './fare-breakdown';
 import { Tariff } from '../../database/entities/tariff.entity';
 import { CreateTariffDto } from './dto/create-tariff.dto';
@@ -149,6 +150,7 @@ export class TariffsService {
    *
    * Qatorlar tartibi hisob-kitob tartibini aks ettiradi:
    *   asos + masofa + vaqt  →  eng kam haq  →  koeffitsient  →  yuqori chegara
+   *     →  100 so'mga yaxlitlash (`fare-rounding.ts`)
    *
    * ⚠️ KUTISH HAQI BU YERDA HISOBLANMAYDI va ataylab shunday. Kutish safar
    * BOSHLANISHIDAN oldingi vaqtga bog'liq (`orders.arrived_at` → safar
@@ -184,7 +186,7 @@ export class TariffsService {
     const maxPriceCap =
       tariff.maxPrice != null ? Math.min(0, tariff.maxPrice - afterSurge) : 0;
 
-    return {
+    return withRounding({
       baseFare,
       distanceKm,
       pricePerKm: tariff.pricePerKm,
@@ -201,8 +203,9 @@ export class TariffsService {
       // tekshirmasdan o'qiy olsin (eski jsonb qatorlaridan farqli o'laroq).
       waitingMinutes: 0,
       waitingFare: 0,
+      roundingAdjustment: 0,
       total: afterSurge + maxPriceCap,
-    };
+    });
   }
 
   async setSurgeMultiplier(id: string, multiplier: number): Promise<Tariff> {

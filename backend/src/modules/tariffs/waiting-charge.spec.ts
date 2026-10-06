@@ -33,6 +33,7 @@ const rideFare = (over: Partial<FareBreakdown> = {}): FareBreakdown => ({
   maxPriceCap: 0,
   waitingMinutes: 0,
   waitingFare: 0,
+  roundingAdjustment: 0,
   total: 36000,
   ...over,
 });
@@ -44,7 +45,8 @@ const sumOfLines = (b: FareBreakdown) =>
   b.minPriceAdjustment +
   b.surgeFare +
   b.maxPriceCap +
-  b.waitingFare;
+  b.waitingFare +
+  b.roundingAdjustment;
 
 describe('computeWaitingMinutes — yaxlitlash qoidasi', () => {
   const FREE = 3;
@@ -228,5 +230,19 @@ describe('withWaitingFare', () => {
     const b = withWaitingFare(rideFare(), 7, 500);
     expect(Number.isInteger(b.waitingFare)).toBe(true);
     expect(b.waitingFare).toBe(3500);
+  });
+});
+
+describe('withWaitingFare — 100 so\'mga yaxlitlash', () => {
+  it('daqiqa narxi 100 ga karrali bo\'lmasa jami qayta yaxlitlanadi', () => {
+    const b = withWaitingFare(rideFare(), 3, 350);
+    expect(b.waitingFare).toBe(1050);
+    expect(b.total).toBe(37100);
+    expect(sumOfLines(b)).toBeCloseTo(b.total, 6);
+  });
+
+  it('kutish yo\'q bo\'lsa kelishilgan summaga tegilmaydi', () => {
+    const agreed = rideFare({ baseFare: 5050, distanceFare: 0, timeFare: 0, total: 5050 });
+    expect(withWaitingFare(agreed, 0, 350).total).toBe(5050);
   });
 });

@@ -10,7 +10,7 @@
  *
  *   baseFare + distanceFare + timeFare
  *     + minPriceAdjustment + surgeFare + maxPriceCap
- *     + waitingFare === total
+ *     + waitingFare + roundingAdjustment === total
  *
  * Bu shunchaki did masalasi emas. Chek qatorlari jamiga qo'shilmasa, u
  * chekning umuman yo'qligidan ham yomon — foydalanuvchi hisob-kitobda xato
@@ -83,6 +83,12 @@ export interface FareBreakdown {
    */
   waitingFare: number;
 
+  /**
+   * 100 so'mga yaxlitlash farqi (`fare-rounding.ts`). -50..+50 oralig'ida.
+   * Eski safarlarda maydon YO'Q — o'quvchi uni `0` deb qabul qiladi.
+   */
+  roundingAdjustment: number;
+
   /** Yakuniy summa. `calculatePrice()` natijasi bilan AYNAN teng. */
   total: number;
 }
@@ -115,6 +121,8 @@ export function agreedFareBreakdown(
     maxPriceCap: 0,
     waitingMinutes: 0,
     waitingFare: 0,
+    // Kelishilgan summa mijoz checkout'da ko'rgan summa — yaxlitlanmaydi.
+    roundingAdjustment: 0,
     total: fare,
   };
 }

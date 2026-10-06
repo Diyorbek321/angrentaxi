@@ -2899,6 +2899,9 @@ class AppLocalizationsUz extends AppLocalizations {
   String get shFareMinAdjustment => 'Eng kam haq tuzatmasi';
 
   @override
+  String get shFareRounding => 'Yaxlitlash';
+
+  @override
   String shFareSurge(String multiplier) {
     return 'Talab koeffitsienti (×$multiplier)';
   }
@@ -3107,6 +3110,9 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get shReceiptHeader => 'Angren Go — safar cheki';
+
+  @override
+  String get shReceiptMeteredDropoff => 'Taksometr bo\'yicha (manzilsiz)';
 
   @override
   String get shReceiptNoFareBreakdown => 'Narx tarkibi saqlanmagan.';

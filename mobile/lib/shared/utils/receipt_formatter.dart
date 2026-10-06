@@ -32,7 +32,7 @@ String formatSomRounded(double value) =>
 ///
 /// Tartib backend invariantini takrorlaydi:
 ///   asos + masofa + vaqt + eng kam haq + koeffitsient + yuqori chegara
-///     + kutish = jami
+///     + kutish + yaxlitlash = jami
 ///
 /// ⚠️ YAXLITLASH QATOR BO'YICHA EMAS, YIG'INDI BO'YICHA. Har bir qator
 /// ALOHIDA yaxlitlansa, yarim so'mlar bir tomonga to'planib qolishi mumkin
@@ -98,6 +98,13 @@ List<({String label, String value})> fareLines(FareBreakdown fare) {
       label: _waitingLabel(fare),
       value: fare.waitingFare,
       visible: true,
+    ),
+    // Narx 100 so'mga yaxlitlanadi (backend `fare-rounding.ts`). Qator
+    // bo'lmasa ustun jamiga ±50 so'mgacha qo'shilmay qolardi.
+    (
+      label: AppL10n.current.shFareRounding,
+      value: fare.roundingAdjustment,
+      visible: fare.roundingAdjustment.abs() >= 0.5,
     ),
   ];
 
@@ -180,7 +187,12 @@ String receiptAsText(OrderReceipt receipt) {
     buffer.writeln(l10n.shReceiptStop(i + 1, receipt.waypoints[i].address));
   }
   buffer.writeln(
-    l10n.shReceiptDropoff(receipt.dropoffAddress ?? l10n.shReceiptNotSaved),
+    l10n.shReceiptDropoff(
+      receipt.dropoffAddress ??
+          (receipt.isMetered
+              ? l10n.shReceiptMeteredDropoff
+              : l10n.shReceiptNotSaved),
+    ),
   );
 
   if (receipt.distanceKm != null) {

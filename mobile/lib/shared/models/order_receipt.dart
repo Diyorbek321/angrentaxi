@@ -28,7 +28,7 @@ import 'package:equatable/equatable.dart';
 ///
 ///   baseFare + distanceFare + timeFare
 ///     + minPriceAdjustment + surgeFare + maxPriceCap
-///     + waitingFare == total
+///     + waitingFare + roundingAdjustment == total
 ///
 /// Chek ekrani qatorlarni AYNAN shu tartibda chiqaradi — shunda foydalanuvchi
 /// jamini o'zi qo'shib tekshira oladi. Tartibni o'zgartirish hujjatni
@@ -49,6 +49,7 @@ class FareBreakdown extends Equatable {
     required this.waitingMinutes,
     required this.waitingFare,
     required this.total,
+    this.roundingAdjustment = 0,
   });
 
   /// Tarifning boshlang'ich haqi.
@@ -104,6 +105,9 @@ class FareBreakdown extends Equatable {
   /// avvalgidek qo'shiladi.
   final double waitingFare;
 
+  /// 100 so'mga yaxlitlash farqi (-50..+50). Eski safarlarda kalit yo'q — 0.
+  final double roundingAdjustment;
+
   /// Chegirmagacha bo'lgan yakuniy summa.
   final double total;
 
@@ -125,6 +129,7 @@ class FareBreakdown extends Equatable {
       // Eski safarlarda ikkala kalit ham yo'q — 0 (kutish undirilmagan).
       waitingMinutes: (json['waitingMinutes'] as num?)?.round() ?? 0,
       waitingFare: _num(json['waitingFare']),
+      roundingAdjustment: _num(json['roundingAdjustment']),
       total: _num(json['total']),
     );
   }
@@ -144,6 +149,7 @@ class FareBreakdown extends Equatable {
         maxPriceCap,
         waitingMinutes,
         waitingFare,
+        roundingAdjustment,
         total,
       ];
 }
@@ -250,6 +256,7 @@ class OrderReceipt extends Equatable {
     this.completedAt,
     this.pickupAddress,
     this.dropoffAddress,
+    this.isMetered = false,
     this.tariffName,
     this.distanceKm,
     this.durationMin,
@@ -271,6 +278,11 @@ class OrderReceipt extends Equatable {
 
   final String? pickupAddress;
   final String? dropoffAddress;
+
+  /// Taksometrli safar: manzil ATAYLAB berilmagan, narx GPS izdan
+  /// hisoblangan. Chek bunda manzil o'rniga "saqlanmagan" emas, "Taksometr"
+  /// deb yozadi.
+  final bool isMetered;
 
   /// Oraliq to'xtashlar. `OrderLocation` QAYTA ISHLATILADI — backend bu
   /// yerda ham aynan `{address, lat, lng}` yuboradi va ikkinchi bir xil
@@ -331,6 +343,7 @@ class OrderReceipt extends Equatable {
       serviceType: (json['serviceType'] as String?) ?? 'taxi',
       pickupAddress: _text(json['pickupAddress']),
       dropoffAddress: _text(json['dropoffAddress']),
+      isMetered: json['isMetered'] == true,
       waypoints: rawWaypoints is List
           ? rawWaypoints
               .whereType<Map<String, dynamic>>()
@@ -371,6 +384,7 @@ class OrderReceipt extends Equatable {
         serviceType,
         pickupAddress,
         dropoffAddress,
+        isMetered,
         waypoints,
         tariffId,
         tariffName,

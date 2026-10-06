@@ -42,6 +42,7 @@ import {
   waitingSettingsOf,
   withWaitingFare,
 } from '../tariffs/waiting-charge';
+import { applyDiscount } from '../tariffs/fare-rounding';
 
 // Flat bonus (in so'm) credited to both a referred passenger and their
 // referrer the first time the referred passenger completes a trip. See the
@@ -261,7 +262,10 @@ export class OrdersCompletionService {
         );
       }
     }
-    const discountedFinalPrice = Math.max(0, finalPrice - finalDiscountAmount);
+    // 100 so'mga yaxlitlanadi; chegirma shunga moslashadi (`applyDiscount`).
+    const discounted = applyDiscount(finalPrice, finalDiscountAmount);
+    const discountedFinalPrice = discounted.finalPrice;
+    finalDiscountAmount = discounted.discountAmount;
 
     // Commission: driver's own override rate if set, else the platform default.
     const payoutDriver = order.driverId

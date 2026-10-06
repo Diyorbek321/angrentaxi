@@ -119,6 +119,16 @@ describe('OrdersReceiptService', () => {
     expect(receipt.durationMin).toBe(18);
   });
 
+  it('taksometrli safarni belgilaydi, oddiy safarda false', async () => {
+    const metered = await build({ isMetered: true, dropoffAddress: null })
+      .getReceipt(ORDER, USER);
+    expect(metered.isMetered).toBe(true);
+    expect(metered.dropoffAddress).toBeNull();
+
+    const regular = await build({}).getReceipt(ORDER, USER);
+    expect(regular.isMetered).toBe(false);
+  });
+
   it('promokod matnini alohida yuklamadan oladi', async () => {
     const service = build({}, { promoCode: 'YANGI25' });
     const receipt = await service.getReceipt(ORDER, USER);

@@ -99,6 +99,7 @@ const quote = (): FareBreakdown => ({
   maxPriceCap: 0,
   waitingMinutes: 0,
   waitingFare: 0,
+  roundingAdjustment: 0,
   total: 43200,
 });
 
@@ -115,7 +116,8 @@ const sumOfLines = (b: FareBreakdown) =>
   b.minPriceAdjustment +
   b.surgeFare +
   b.maxPriceCap +
-  b.waitingFare;
+  b.waitingFare +
+  b.roundingAdjustment;
 
 describe('completeTrip — kutish haqi HAQIQIY oqimda', () => {
   let service: OrdersService;

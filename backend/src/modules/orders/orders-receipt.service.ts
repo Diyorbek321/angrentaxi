@@ -97,6 +97,9 @@ export class OrdersReceiptService {
 
       pickupAddress: order.pickupAddress,
       dropoffAddress: order.dropoffAddress,
+      // Taksometrli safarda manzil yo'q — bu "saqlanmagan" emas, ATAYLAB
+      // berilmagan. Chek ekrani shunga qarab "Taksometr" deb yozadi.
+      isMetered: order.isMetered ?? false,
       waypoints: order.waypoints ?? [],
 
       tariffId: order.tariffId,
