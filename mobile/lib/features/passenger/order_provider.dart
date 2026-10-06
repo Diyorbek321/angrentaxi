@@ -35,6 +35,9 @@ class OrderProvider extends ChangeNotifier {
   // Pending order creation data
   OrderLocation? _pendingPickup;
   OrderLocation? _pendingDropoff;
+  // TAKSOMETR: yo'lovchi "Manzilsiz" ni tanlagan — buyurtma manzilsiz
+  // yuboriladi, narx safar oxirida haqiqiy yo'ldan hisoblanadi.
+  bool _isMetered = false;
   final List<OrderLocation> _pendingWaypoints = [];
   Tariff? _selectedTariff;
   double? _estimatedPrice;
@@ -104,6 +107,12 @@ class OrderProvider extends ChangeNotifier {
 
   OrderLocation? get pendingPickup => _pendingPickup;
   OrderLocation? get pendingDropoff => _pendingDropoff;
+  bool get isMetered => _isMetered;
+
+  /// Taksometr faqat oddiy taksida (server ham shuni talab qiladi) va oraliq
+  /// bekatlarsiz — bekat bor-u, oxirgi manzil yo'q bo'lgan marshrut yo'q.
+  bool get canChooseMetered =>
+      _serviceType == 'taxi' && _pendingWaypoints.isEmpty;
   List<OrderLocation> get pendingWaypoints => List.unmodifiable(_pendingWaypoints);
   Tariff? get selectedTariff => _selectedTariff;
   double? get estimatedPrice => _estimatedPrice;
@@ -165,6 +174,8 @@ class OrderProvider extends ChangeNotifier {
   /// cargo shorthand for `{'vehicle': ...}`.
   void setServiceType(String type, {String? cargoVehicle, Map<String, dynamic>? details}) {
     _serviceType = type;
+    // Taksometr faqat taksida — boshqa xizmatga o'tilsa tanlov bekor.
+    if (type != 'taxi') _isMetered = false;
     _selectedTariff = null;
     _estimatedPrice = null;
     _cargoDetails = details ?? (cargoVehicle == null ? null : {'vehicle': cargoVehicle});
@@ -188,6 +199,20 @@ class OrderProvider extends ChangeNotifier {
 
   void setPendingDropoff(OrderLocation location) {
     _pendingDropoff = location;
+    _isMetered = false;
+    notifyListeners();
+  }
+
+  /// "Manzilsiz — taksometr". Oldingi manzil, marshrut va narx bahosi
+  /// tozalanadi: ular endi bu buyurtmaga tegishli emas.
+  void chooseMetered() {
+    if (!canChooseMetered) return;
+    _isMetered = true;
+    _pendingDropoff = null;
+    _routePoints = [];
+    _routeDistanceKm = null;
+    _routeDurationMin = null;
+    _estimatedPrice = null;
     notifyListeners();
   }
 
@@ -394,7 +419,7 @@ class OrderProvider extends ChangeNotifier {
 
   Future<bool> createOrder() async {
     if (_pendingPickup == null ||
-        _pendingDropoff == null ||
+        (_pendingDropoff == null && !_isMetered) ||
         _selectedTariff == null) {
       _error = AppL10n.current.paxOrderMissingRouteOrTariff;
       _setState(OrderProviderState.error);
@@ -428,9 +453,12 @@ class OrderProvider extends ChangeNotifier {
           'pickupLat': _pendingPickup!.lat,
           'pickupLng': _pendingPickup!.lng,
           'pickupAddress': _pendingPickup!.address,
-          'dropoffLat': _pendingDropoff!.lat,
-          'dropoffLng': _pendingDropoff!.lng,
-          'dropoffAddress': _pendingDropoff!.address,
+          // Taksometrda manzil umuman yuborilmaydi — server shundan biladi.
+          if (!_isMetered) ...{
+            'dropoffLat': _pendingDropoff!.lat,
+            'dropoffLng': _pendingDropoff!.lng,
+            'dropoffAddress': _pendingDropoff!.address,
+          },
           'serviceType': _serviceType,
           if (_pendingWaypoints.isNotEmpty)
             'waypoints': _pendingWaypoints
@@ -458,6 +486,7 @@ class OrderProvider extends ChangeNotifier {
       _scheduledAt = null;
       // Opsiyalar ham shu buyurtmaga tegishli edi — keyingisiga o'tmaydi.
       _tripOptions = const [];
+      _isMetered = false;
 
       if (wasScheduled) {
         // Rejalashtirilgan buyurtmada `_activeOrder` O'RNATILMAYDI va
@@ -809,6 +838,7 @@ class OrderProvider extends ChangeNotifier {
   void clearPendingOrder() {
     _pendingPickup = null;
     _pendingDropoff = null;
+    _isMetered = false;
     _selectedTariff = null;
     _estimatedPrice = null;
     // ⚠️ Rejalashtirish tanlovi ham tozalanadi — u ham "qurilayotgan

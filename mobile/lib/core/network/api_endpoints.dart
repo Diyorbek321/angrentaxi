@@ -129,6 +129,9 @@ class ApiEndpoints {
   static String adImpression(String id) => '/ads/$id/impression';
   static String adClick(String id) => '/ads/$id/click';
 
+  // Taksometr — safar davomidagi jonli masofa/vaqt/summa.
+  static String orderMeter(String id) => '/orders/$id/meter';
+
   // Talab (surge) xaritasi — faqat haydovchi roli uchun.
   // GET /surge/zones?lat=<double>&lng=<double>&rings=<int, default 4>
   // To'g'ridan-to'g'ri MapLibre'ga beriladigan GeoJSON `FeatureCollection`

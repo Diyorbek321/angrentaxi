@@ -52,6 +52,9 @@ abstract final class ManeuverPhrases {
   /// noto'g'ri harakatga undamaydi.
   static String get fallback => AppL10n.current.shManeuverContinue;
 
+  /// Haydovchi marshrutdan chiqib, yo'l qayta qurilayotganda aytiladi.
+  static String get rerouting => AppL10n.current.shManeuverRerouting;
+
   /// Ekranda ko'rsatiladigan / ovozda aytiladigan asosiy ko'rsatma.
   ///
   /// [step] — oldinda turgan manevr (`steps[i+1]`, `route_step.dart` dagi

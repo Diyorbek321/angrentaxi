@@ -668,6 +668,18 @@ class _DestinationScreenState extends State<DestinationScreen> {
                     onPicked: provider.addWaypoint,
                   ),
                 ),
+              // TAKSOMETR: "qayerga borishimni hali bilmayman / yo'lda
+              // aytaman". Faqat taksida va bekatlarsiz (server ham shuni
+              // talab qiladi) — boshqa holatda tugma umuman ko'rinmaydi.
+              if (!widget.isSavingFavorite && provider.canChooseMetered)
+                AgActionItem(
+                  icon: Icons.speed_rounded,
+                  label: context.l10n.paxNoDestination,
+                  onTap: () {
+                    provider.chooseMetered();
+                    Navigator.of(context).pushNamed('/passenger/tariff');
+                  },
+                ),
             ],
           ),
         );

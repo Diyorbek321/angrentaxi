@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/config/app_responsive.dart';
@@ -10,6 +9,7 @@ import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/safety/sos_service.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
+import 'package:angren_taxi/features/driver/external_navigation.dart';
 import 'package:angren_taxi/features/driver/screens/rate_passenger_screen.dart';
 import 'package:angren_taxi/features/driver/service_wording.dart';
 import 'package:angren_taxi/features/driver/widgets/delivery_info_card.dart';
@@ -20,6 +20,8 @@ import 'package:angren_taxi/features/driver/widgets/parcel_pin_dialog.dart';
 // xarita ekranlari ham xuddi shu qoidaga bo'ysunishi kerak, aks holda
 // ikkita turli "sheet ostida markazlashish" xatosi paydo bo'ladi.
 import 'package:angren_taxi/features/passenger/map_camera_insets.dart';
+import 'package:angren_taxi/features/trip/meter/live_meter_card.dart';
+import 'package:angren_taxi/features/trip/meter/meter_service.dart';
 import 'package:angren_taxi/features/trip/screens/trip_chat_screen.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order.dart';
@@ -48,12 +50,15 @@ const double _kFitCoordEpsilon = 1e-6;
 const double _kFitInsetEpsilon = 1;
 
 class TripScreen extends StatefulWidget {
-  const TripScreen({super.key, this.sosService});
+  const TripScreen({super.key, this.sosService, this.meterService});
 
   /// Injectable for tests — defaults to a [SosService] built from the real
   /// [ApiClient] in the service locator (same pattern as
   /// PassengerHomeScreen.sosService).
   final SosService? sosService;
+
+  /// Taksometr kartasi uchun — testlarda almashtiriladi.
+  final MeterService? meterService;
 
   @override
   State<TripScreen> createState() => _TripScreenState();
@@ -79,6 +84,9 @@ class _TripScreenState extends State<TripScreen> {
   /// Kameraga oxirgi QO'LLANGAN moslash — natija o'zgarmasa qayta
   /// animatsiya qilinmaydi.
   _CameraFit? _lastCameraFit;
+
+  MeterService get _meterService =>
+      widget.meterService ?? MeterService(sl<ApiClient>());
 
   SosService get _sosService =>
       widget.sosService ?? SosService(apiClient: sl<ApiClient>());
@@ -140,10 +148,16 @@ class _TripScreenState extends State<TripScreen> {
 
   /// Xaritada CHIZILGAN nuqtalar — kamera aynan shularni sig'diradi.
   /// Ro'yxat `_buildMap` chizadigan markerlar bilan bir xil bo'lishi kerak.
-  List<LatLng> _mapPoints(Order order) => <LatLng>[
-        _currentLocation,
-        LatLng(order.dropoff.lat, order.dropoff.lng),
-      ];
+  List<LatLng> _mapPoints(Order order) => order.isMetered
+      // Taksometr: manzil yo'q — mashina atrofidagi ~800 m.
+      ? <LatLng>[
+          LatLng(_currentLocation.latitude - 0.004, _currentLocation.longitude - 0.004),
+          LatLng(_currentLocation.latitude + 0.004, _currentLocation.longitude + 0.004),
+        ]
+      : <LatLng>[
+          _currentLocation,
+          LatLng(order.dropoff.lat, order.dropoff.lng),
+        ];
 
   void _onMapCreated(ml.MapLibreMapController controller) {
     _mapController = controller;
@@ -349,22 +363,20 @@ class _TripScreenState extends State<TripScreen> {
   /// Apple Maps veb havolasi ishlatiladi (`geo:` u yerda qo'llab-
   /// quvvatlanmaydi).
   Future<void> _openNavigation(OrderLocation destination) async {
-    final label = Uri.encodeComponent(destination.address);
-    final uri = Platform.isIOS
-        ? Uri.parse(
-            'https://maps.apple.com/?daddr=${destination.lat},${destination.lng}',
-          )
-        : Uri.parse(
-            'geo:0,0?q=${destination.lat},${destination.lng}($label)',
-          );
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else if (mounted) {
+    // Avval yo'nalish rejimi (Yandex Navigator / Google Maps), oxirida
+    // oddiy xarita nuqtasi — `external_navigation.dart` izohiga qarang.
+    final opened = await openExternalNavigation(
+      destination.lat,
+      destination.lng,
+      destination.address,
+    );
+    if (!opened && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(context.l10n.drvNavAppNotFound)),
       );
     }
   }
+
 
   Future<void> _alertDispatchers(String orderId) async {
     // Reuses the position DriverProvider is already streaming from
@@ -489,15 +501,17 @@ class _TripScreenState extends State<TripScreen> {
                 ),
               ),
               const SizedBox(height: kSpace5),
-              _buildMenuAction(
-                icon: Icons.navigation,
-                label: context.l10n.drvOpenNavigation,
-                foreground: kInk,
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  _openNavigation(order.dropoff);
-                },
-              ),
+              // Taksometrda boriladigan manzil yo'q — navigatsiya ma'nosiz.
+              if (!order.isMetered)
+                _buildMenuAction(
+                  icon: Icons.navigation,
+                  label: context.l10n.drvOpenNavigation,
+                  foreground: kInk,
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _openNavigation(order.dropoff);
+                  },
+                ),
               // 12dp, 8dp EMAS: SOS oqibatli amal va yonidagi qator
               // ilovadan CHIQARIB YUBORADI (tashqi navigator). O'lcham
               // qoidasi shunday qatorlar orasida 12dp talab qiladi —
@@ -629,10 +643,12 @@ class _TripScreenState extends State<TripScreen> {
       onMapCreated: _onMapCreated,
       markers: [
         AppMapMarker(point: _currentLocation, icon: AppMapIcon.car),
-        AppMapMarker(
-          point: LatLng(order.dropoff.lat, order.dropoff.lng),
-          icon: AppMapIcon.dropoff,
-        ),
+        // Taksometrda `dropoff` = olish nuqtasi — manzil belgisi chizilmaydi.
+        if (!order.isMetered)
+          AppMapMarker(
+            point: LatLng(order.dropoff.lat, order.dropoff.lng),
+            icon: AppMapIcon.dropoff,
+          ),
       ],
       // Kamerani O'ZIMIZ boshqaramiz — yuqoridagi "TO'LDIRILGAN
       // TO'RTBURCHAK" izohiga qarang.
@@ -810,7 +826,16 @@ class _TripScreenState extends State<TripScreen> {
             ),
             const SizedBox(height: kSpace2),
           ],
-          _buildEarningsCard(order),
+          // Taksometr: oldindan hisoblangan daromad yo'q — o'rnida jonli
+          // hisoblagich (yo'lovchi ham aynan shu sonni ko'radi).
+          if (order.isMetered)
+            LiveMeterCard(
+              orderId: order.id,
+              service: _meterService,
+              minFare: order.estimatedPrice,
+            )
+          else
+            _buildEarningsCard(order),
           const SizedBox(height: kSpace4),
           _buildActionRow(order, wording),
           // 12dp — ikkilamchi qator bilan QAYTARIB BO'LMAYDIGAN amal
@@ -891,7 +916,7 @@ class _TripScreenState extends State<TripScreen> {
                   ),
                 ),
                 Text(
-                  order.dropoff.address,
+                  order.dropoffLabel,
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     // Manzil — bu ekrandagi eng ko'p o'qiladigan matn;

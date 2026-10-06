@@ -1389,7 +1389,18 @@ class AppLocalizationsRu extends AppLocalizations {
   String get paxMessage => 'Чат';
 
   @override
+  String paxMeteredRates(String base, String perKm, String perMin, String min) {
+    return 'Таксометр: $base + $perKm/км + $perMin/мин, минимум $min. Итоговая цена считается в конце поездки по пройденному пути и времени.';
+  }
+
+  @override
+  String get paxMeteredTo => 'Без адреса — по таксометру';
+
+  @override
   String get paxNo => 'Нет';
+
+  @override
+  String get paxNoDestination => 'Без адреса';
 
   @override
   String get paxNoDriversNearby => 'Поблизости нет свободных водителей';
@@ -2893,6 +2904,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get shManeuverOnRamp => 'Въезжайте на трассу';
 
   @override
+  String get shManeuverRerouting =>
+      'Вы отклонились от маршрута. Маршрут перестраивается.';
+
+  @override
   String get shManeuverRight => 'Поверните направо';
 
   @override
@@ -2923,6 +2938,26 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get shMarketPacking => 'Магазин собирает заказ';
+
+  @override
+  String shMeterAtLeast(String price) {
+    return 'от $price';
+  }
+
+  @override
+  String shMeterDistanceTime(String distance, int minutes) {
+    return '$distance · $minutes мин';
+  }
+
+  @override
+  String get shMeterFinalNote =>
+      'Итоговая цена уточняется по маршруту в конце поездки';
+
+  @override
+  String get shMeterNoDestination => 'Без адреса — таксометр';
+
+  @override
+  String get shMeterTitle => 'Таксометр';
 
   @override
   String shNeedsAttentionSemantics(String label) {

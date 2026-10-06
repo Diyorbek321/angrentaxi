@@ -1389,7 +1389,18 @@ class AppLocalizationsUz extends AppLocalizations {
   String get paxMessage => 'Xabar';
 
   @override
+  String paxMeteredRates(String base, String perKm, String perMin, String min) {
+    return 'Taksometr: $base + $perKm/km + $perMin/daq, kamida $min. Yakuniy narx bosib o\'tilgan yo\'l va vaqtga qarab safar oxirida hisoblanadi.';
+  }
+
+  @override
+  String get paxMeteredTo => 'Manzilsiz — taksometr bo\'yicha';
+
+  @override
   String get paxNo => 'Yo\'q';
+
+  @override
+  String get paxNoDestination => 'Manzilsiz';
 
   @override
   String get paxNoDriversNearby => 'Yaqin atrofda haydovchi topilmadi';
@@ -2901,6 +2912,10 @@ class AppLocalizationsUz extends AppLocalizations {
   String get shManeuverOnRamp => 'Chiqish yo\'lkasiga kiring';
 
   @override
+  String get shManeuverRerouting =>
+      'Marshrutdan chiqdingiz. Yo\'l qayta hisoblanmoqda.';
+
+  @override
   String get shManeuverRight => 'O\'ngga buriling';
 
   @override
@@ -2931,6 +2946,26 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get shMarketPacking => 'Do\'kon yig\'moqda';
+
+  @override
+  String shMeterAtLeast(String price) {
+    return 'kamida $price';
+  }
+
+  @override
+  String shMeterDistanceTime(String distance, int minutes) {
+    return '$distance · $minutes daq';
+  }
+
+  @override
+  String get shMeterFinalNote =>
+      'Yakuniy narx safar tugaganda yo\'l bo\'yicha aniqlanadi';
+
+  @override
+  String get shMeterNoDestination => 'Manzil yo\'q — taksometr';
+
+  @override
+  String get shMeterTitle => 'Taksometr';
 
   @override
   String shNeedsAttentionSemantics(String label) {

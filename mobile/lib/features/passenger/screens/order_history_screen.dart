@@ -198,7 +198,7 @@ class _OrderHistoryCard extends StatelessWidget {
             const SizedBox(width: kSpace2),
             Expanded(
               child: Text(
-                order.dropoff.address,
+                order.dropoffLabel,
                 style: const TextStyle(fontSize: kFontLabel, color: kInk),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -254,7 +254,7 @@ class _OrderHistoryCard extends StatelessWidget {
                   context.l10n.paxDetailDate, Formatters.formatDateTime(order.createdAt)),
               _buildDetailRow(context.l10n.paxDetailStatus, order.status.label),
               _buildDetailRow(context.l10n.paxDetailFrom, order.pickup.address),
-              _buildDetailRow(context.l10n.paxDestination, order.dropoff.address),
+              _buildDetailRow(context.l10n.paxDestination, order.dropoffLabel),
               if (order.driver != null)
                 _buildDetailRow(context.l10n.paxDetailDriver, order.driver!.name),
               if (order.driver != null)

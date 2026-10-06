@@ -215,6 +215,7 @@ class Order extends Equatable {
     this.options = const [],
     this.parcel,
     this.deliveryPin,
+    this.isMetered = false,
   });
 
   final String id;
@@ -301,6 +302,19 @@ class Order extends Equatable {
   /// haydovchi javobida server uni umuman yubormaydi.
   final String? deliveryPin;
 
+  /// TAKSOMETR: yo'lovchi manzil ko'rsatmagan, narx safar oxirida haqiqiy
+  /// yo'ldan hisoblanadi. ⚠️ Bunday buyurtmada [dropoff] safar tugaguncha
+  /// OLISH NUQTASIGA teng va manzilsiz — uni manzil sifatida ko'rsatmang,
+  /// `estimatedPrice` esa "kamida" summa, yakuniy narx emas.
+  final bool isMetered;
+
+  /// Ekranda ko'rsatiladigan manzil. Taksometrda manzil matni YO'Q (safar
+  /// tugagach ham — tugash joyi faqat koordinata), shuning uchun bo'sh qator
+  /// yoki olish manzilining takrori o'rniga "Manzil yo'q — taksometr".
+  String get dropoffLabel => isMetered && dropoff.address.isEmpty
+      ? AppL10n.current.shMeterNoDestination
+      : dropoff.address;
+
   bool get isParcel => serviceType == kServiceTypeParcel;
 
   /// Bu safar ovqat yoki market yetkazish (kuryer) safarimi.
@@ -373,6 +387,7 @@ class Order extends Equatable {
         json['details'],
       ),
       deliveryPin: json['deliveryPin'] as String?,
+      isMetered: json['isMetered'] == true,
     );
   }
 
@@ -396,6 +411,7 @@ class Order extends Equatable {
         'arrivedAt': arrivedAt?.toIso8601String(),
         'freeWaitMinutes': freeWaitMinutes,
         'waitingPricePerMinute': waitingPricePerMinute,
+        'isMetered': isMetered,
       };
 
   /// ⚠️ `scheduled` ATAYLAB BU YERGA KIRMAYDI.
@@ -435,6 +451,7 @@ class Order extends Equatable {
     List<TripOption>? options,
     ParcelInfo? parcel,
     String? deliveryPin,
+    bool? isMetered,
   }) {
     return Order(
       id: id ?? this.id,
@@ -466,6 +483,7 @@ class Order extends Equatable {
       options: options ?? this.options,
       parcel: parcel ?? this.parcel,
       deliveryPin: deliveryPin ?? this.deliveryPin,
+      isMetered: isMetered ?? this.isMetered,
     );
   }
 
@@ -501,5 +519,6 @@ class Order extends Equatable {
         options,
         parcel,
         deliveryPin,
+        isMetered,
       ];
 }

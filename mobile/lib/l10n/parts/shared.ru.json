@@ -148,5 +148,11 @@
   "shSend": "Отправить",
   "shTripChatTitle": "Чат",
   "shTripChatEmpty": "Сообщений пока нет. Напишите первым!",
-  "shServiceParcelShort": "Посылка"
+  "shServiceParcelShort": "Посылка",
+  "shMeterTitle": "Таксометр",
+  "shMeterDistanceTime": "{distance} · {minutes} мин",
+  "shMeterFinalNote": "Итоговая цена уточняется по маршруту в конце поездки",
+  "shMeterAtLeast": "от {price}",
+  "shMeterNoDestination": "Без адреса — таксометр",
+  "shManeuverRerouting": "Вы отклонились от маршрута. Маршрут перестраивается."
 }

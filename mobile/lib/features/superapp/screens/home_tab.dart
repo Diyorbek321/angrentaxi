@@ -159,7 +159,7 @@ class _HomeTabState extends State<HomeTab> {
       return _ActiveOrderSummary(
         icon: entry.icon,
         service: entry.label,
-        title: '${order.pickup.address} → ${order.dropoff.address}',
+        title: '${order.pickup.address} → ${order.dropoffLabel}',
         stage: order.status.label,
         // Safarni kuzatish ekrani — "Buyurtmalar" ro'yxatidagi faol karta
         // ham aynan shu yerga olib boradi, oqim bir xil qoladi.

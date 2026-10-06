@@ -187,9 +187,9 @@ class _ScheduledCard extends StatelessWidget {
           const SizedBox(height: kSpace2),
           _AddressRow(
             color: kError,
-            text: order.dropoff.address.isEmpty
+            text: order.dropoffLabel.isEmpty
                 ? context.l10n.paxDestination
-                : order.dropoff.address,
+                : order.dropoffLabel,
           ),
           const SizedBox(height: kSpace3),
           // Narx qotirilgani ochiq aytiladi — bu rejalashtirishning asosiy

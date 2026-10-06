@@ -407,5 +407,28 @@
   "shSend": "Yuborish",
   "shTripChatTitle": "Suhbat",
   "shTripChatEmpty": "Hali xabar yo'q. Birinchi bo'lib yozing!",
-  "shServiceParcelShort": "Posilka"
+  "shServiceParcelShort": "Posilka",
+  "shMeterTitle": "Taksometr",
+  "shMeterDistanceTime": "{distance} · {minutes} daq",
+  "@shMeterDistanceTime": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "shMeterFinalNote": "Yakuniy narx safar tugaganda yo'l bo'yicha aniqlanadi",
+  "shMeterAtLeast": "kamida {price}",
+  "@shMeterAtLeast": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "shMeterNoDestination": "Manzil yo'q — taksometr",
+  "shManeuverRerouting": "Marshrutdan chiqdingiz. Yo'l qayta hisoblanmoqda."
 }

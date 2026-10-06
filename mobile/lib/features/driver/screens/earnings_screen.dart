@@ -973,7 +973,7 @@ class _DriverOrderCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    order.dropoff.address,
+                    order.dropoffLabel,
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: kFontBody,

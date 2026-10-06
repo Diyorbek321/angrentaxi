@@ -86,6 +86,9 @@ class _FakeRouteService implements RouteService {
   /// `null` — OSRM `steps` yubormagan holat (eski server / boshqa profil).
   final List<RouteStep>? steps;
 
+  /// Necha marta marshrut so'raldi — qayta hisoblash testlari uchun.
+  int calls = 0;
+
   static const LatLng origin = LatLng(41.0100, 70.1400);
 
   /// [origin] dan shimolga [meters] metr.
@@ -98,8 +101,17 @@ class _FakeRouteService implements RouteService {
     LatLng to, {
     List<LatLng> waypoints = const [],
   }) async {
+    calls++;
+    // Chiziq haqiqiy marshrut kabi BURILISH bo'ylab: shimolga 300 m, keyin
+    // sharqqa. `[from, to]` to'g'ri chizig'i ping'lar yo'liga mos kelmasdi
+    // va chetga chiqish detektori haydovchini "marshrutdan chiqdi" deb
+    // to'g'ri topgan bo'lardi.
     return RouteResult(
-      points: [from, to],
+      points: [
+        origin,
+        north(300),
+        LatLng(north(300).latitude, origin.longitude + 0.01),
+      ],
       distanceKm: 1,
       durationMin: 3,
       steps: steps ?? const [],
@@ -324,7 +336,7 @@ void main() {
   );
 
   testWidgets(
-    'tapping the button on Android launches a geo: URI for the pickup point',
+    'tapping the button on Android opens turn-by-turn navigation (Yandex Navigator first) to the pickup',
     (tester) async {
       await seedActiveOrder(_enRouteOrderJson);
       await pumpNavigationScreen(tester);
@@ -334,9 +346,12 @@ void main() {
 
       expect(fakeUrlLauncher.canLaunchCalls, hasLength(1));
       expect(fakeUrlLauncher.launchedUrls, hasLength(1));
-      final launched = fakeUrlLauncher.launchedUrls.single;
-      expect(launched, startsWith('geo:0,0?q=41.0167,70.1436('));
-      expect(launched, contains(Uri.encodeComponent("Angren, Bobur ko'chasi, 10")));
+      // `geo:` faqat nuqtani ochardi — haydovchi yana ikki marta bosishi
+      // kerak edi. Endi to'g'ridan-to'g'ri yo'nalish rejimi.
+      expect(
+        fakeUrlLauncher.launchedUrls.single,
+        'yandexnavi://build_route_on_map?lat_to=41.0167&lon_to=70.1436',
+      );
 
       tester.takeException();
     },
@@ -353,9 +368,8 @@ void main() {
       await tester.pump();
 
       final launched = fakeUrlLauncher.launchedUrls.single;
-      expect(launched, contains('41.02'));
-      expect(launched, contains('70.15'));
-      expect(launched, contains(Uri.encodeComponent('Angren, Mustaqillik maydoni')));
+      expect(launched, contains('lat_to=41.02'));
+      expect(launched, contains('lon_to=70.15'));
 
       tester.takeException();
     },
@@ -433,6 +447,30 @@ void main() {
         reason: 'Ilova bir xil gapni tinimsiz takrorlamasligi kerak',
       );
       expect(tts.spoken.single, '150 metrdan keyin O\'ngga buriling, Navoiy ko\'chasi');
+
+      tester.takeException();
+    },
+  );
+
+  testWidgets(
+    'marshrutdan chiqilsa ogohlantiradi va yo\'lni joriy joydan qayta quradi',
+    (tester) async {
+      final routes = _FakeRouteService(steps: _routeWithRightTurn());
+      sl.unregister<RouteService>();
+      sl.registerLazySingleton<RouteService>(() => routes);
+      await seedActiveOrder(_enRouteOrderJson);
+      await pumpNavigationScreen(tester);
+      final before = routes.calls;
+
+      // Burilishdan oldin noto'g'ri tomonga — chiziqdan ~170 m g'arbda.
+      for (var i = 0; i < 3; i++) {
+        final p = _FakeRouteService.north(100.0 + i * 20);
+        await sendPing(tester, LatLng(p.latitude, p.longitude - 0.002));
+      }
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(routes.calls, before + 1, reason: 'yangi marshrut so\'ralishi kerak');
+      expect(tts.spoken, contains(startsWith('Marshrutdan chiqdingiz')));
 
       tester.takeException();
     },

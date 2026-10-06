@@ -2528,11 +2528,29 @@ abstract class AppLocalizations {
   /// **'Xabar'**
   String get paxMessage;
 
+  /// No description provided for @paxMeteredRates.
+  ///
+  /// In uz, this message translates to:
+  /// **'Taksometr: {base} + {perKm}/km + {perMin}/daq, kamida {min}. Yakuniy narx bosib o\'tilgan yo\'l va vaqtga qarab safar oxirida hisoblanadi.'**
+  String paxMeteredRates(String base, String perKm, String perMin, String min);
+
+  /// No description provided for @paxMeteredTo.
+  ///
+  /// In uz, this message translates to:
+  /// **'Manzilsiz — taksometr bo\'yicha'**
+  String get paxMeteredTo;
+
   /// No description provided for @paxNo.
   ///
   /// In uz, this message translates to:
   /// **'Yo\'q'**
   String get paxNo;
+
+  /// No description provided for @paxNoDestination.
+  ///
+  /// In uz, this message translates to:
+  /// **'Manzilsiz'**
+  String get paxNoDestination;
 
   /// No description provided for @paxNoDriversNearby.
   ///
@@ -5205,6 +5223,12 @@ abstract class AppLocalizations {
   /// **'Chiqish yo\'lkasiga kiring'**
   String get shManeuverOnRamp;
 
+  /// No description provided for @shManeuverRerouting.
+  ///
+  /// In uz, this message translates to:
+  /// **'Marshrutdan chiqdingiz. Yo\'l qayta hisoblanmoqda.'**
+  String get shManeuverRerouting;
+
   /// No description provided for @shManeuverRight.
   ///
   /// In uz, this message translates to:
@@ -5264,6 +5288,36 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Do\'kon yig\'moqda'**
   String get shMarketPacking;
+
+  /// No description provided for @shMeterAtLeast.
+  ///
+  /// In uz, this message translates to:
+  /// **'kamida {price}'**
+  String shMeterAtLeast(String price);
+
+  /// No description provided for @shMeterDistanceTime.
+  ///
+  /// In uz, this message translates to:
+  /// **'{distance} · {minutes} daq'**
+  String shMeterDistanceTime(String distance, int minutes);
+
+  /// No description provided for @shMeterFinalNote.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yakuniy narx safar tugaganda yo\'l bo\'yicha aniqlanadi'**
+  String get shMeterFinalNote;
+
+  /// No description provided for @shMeterNoDestination.
+  ///
+  /// In uz, this message translates to:
+  /// **'Manzil yo\'q — taksometr'**
+  String get shMeterNoDestination;
+
+  /// No description provided for @shMeterTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Taksometr'**
+  String get shMeterTitle;
 
   /// No description provided for @shNeedsAttentionSemantics.
   ///

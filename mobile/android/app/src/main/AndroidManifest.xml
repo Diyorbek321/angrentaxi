@@ -101,7 +101,17 @@
             <data android:scheme="tel" />
         </intent>
 
-        <!-- Driver navigation hand-off to Yandex/Google Maps -->
+        <!-- Driver navigation hand-off. Turn-by-turn first (Yandex Navigator,
+             Google Maps navigation mode), plain map pin (geo:) as the last
+             resort — see lib/features/driver/external_navigation.dart -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="yandexnavi" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="google.navigation" />
+        </intent>
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="geo" />

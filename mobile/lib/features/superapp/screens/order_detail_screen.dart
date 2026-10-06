@@ -39,7 +39,7 @@ class OrderDetailScreen extends StatelessWidget {
       body: Column(
         children: [
           AgHeader(
-            title: '${order.pickup.address} → ${order.dropoff.address}',
+            title: '${order.pickup.address} → ${order.dropoffLabel}',
             subtitle: Formatters.formatDateTime(order.createdAt),
             onBack: () => Navigator.of(context).pop(),
           ),
@@ -123,7 +123,7 @@ class OrderDetailScreen extends StatelessWidget {
                       _Point(
                         color: agText,
                         label: context.l10n.saDestination,
-                        value: order.dropoff.address,
+                        value: order.dropoffLabel,
                       ),
                     ],
                   ),

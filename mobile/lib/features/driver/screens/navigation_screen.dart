@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/config/app_responsive.dart';
@@ -7,10 +6,13 @@ import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/config/map_style.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
+import 'package:angren_taxi/core/location/maneuver_phrases.dart';
 import 'package:angren_taxi/core/location/navigation_engine.dart';
+import 'package:angren_taxi/core/location/off_route_detector.dart';
 import 'package:angren_taxi/core/location/route_service.dart';
 import 'package:angren_taxi/core/location/voice_guide.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
+import 'package:angren_taxi/features/driver/external_navigation.dart';
 import 'package:angren_taxi/features/driver/service_wording.dart';
 import 'package:angren_taxi/features/driver/widgets/maneuver_banner.dart';
 // `MapCameraInsets` yo'lovchi papkasida yashaydi, lekin u ekranga emas
@@ -31,7 +33,6 @@ import 'package:latlong2/latlong.dart';
 import 'package:maplibre_gl/maplibre_gl.dart' as ml
     show CameraUpdate, LatLng, LatLngBounds, MapLibreMapController;
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 /// Koordinatada 1e-6 daraja ≈ 10 sm, chetda 1dp — ikkalasi ham ekranda
 /// ko'rinmaydi. Aniq tenglik tekshirilsa, o'lchovdagi piksel osti
@@ -61,6 +62,12 @@ class _NavigationScreenState extends State<NavigationScreen> {
 
   /// Marshrut chizig'i xaritada.
   List<LatLng> _routePoints = const [];
+
+  /// Marshrutdan chiqib ketishni sezadi; `null` — marshrut hali yo'q.
+  OffRouteDetector? _offRoute;
+
+  /// Qayta hisoblash so'rovi yo'lda — ikkinchisi yuborilmaydi.
+  bool _rerouting = false;
 
   final VoiceGuide _voice = sl<VoiceGuide>();
   StreamSubscription<Position>? _positionSubscription;
@@ -141,25 +148,42 @@ class _NavigationScreenState extends State<NavigationScreen> {
     if (order == null) return;
 
     final destination = _nextDestination(order);
-    final route = await sl<RouteService>().getRoute(
-      _currentLocation,
-      LatLng(destination.lat, destination.lng),
-    );
-
+    await _loadRoute(_currentLocation, LatLng(destination.lat, destination.lng));
     if (!mounted) return;
-
-    if (route != null) {
-      setState(() {
-        _routePoints = route.points;
-        _engine = NavigationEngine(steps: route.steps);
-      });
-    }
 
     // Ovoz marshrutdan KEYIN tayyorlanadi: birinchi ko'rsatma marshrut
     // kelmaguncha baribir aytilmaydi, TTS tillarini so'rash esa sekin.
     await _voice.init();
 
     _listenToPosition();
+  }
+
+  /// [from] dan manzilgacha marshrut — boshida ham, chetga chiqilganda ham.
+  /// Yangi marshrut bilan dvigatel ham, detektor ham NOLDAN boshlanadi:
+  /// eski burilishlar haqida gapirmasin, eski chiziq bilan solishtirmasin.
+  Future<void> _loadRoute(LatLng from, LatLng to) async {
+    final route = await sl<RouteService>().getRoute(from, to);
+    if (!mounted || route == null) return;
+    setState(() {
+      _routePoints = route.points;
+      _engine = NavigationEngine(steps: route.steps);
+      _offRoute = OffRouteDetector(route.points);
+    });
+  }
+
+  /// Haydovchi marshrutdan chiqdi — joriy joyidan yangi yo'l.
+  Future<void> _reroute(LatLng here) async {
+    if (_rerouting) return;
+    final order = context.read<DriverProvider>().activeOrder;
+    if (order == null) return;
+    _rerouting = true;
+    _voice.speak(ManeuverPhrases.rerouting);
+    try {
+      final destination = _nextDestination(order);
+      await _loadRoute(here, LatLng(destination.lat, destination.lng));
+    } finally {
+      _rerouting = false;
+    }
   }
 
   /// GPS oqimini navigatsiya dvigateliga ulaydi.
@@ -192,6 +216,12 @@ class _NavigationScreenState extends State<NavigationScreen> {
 
     final here = LatLng(position.latitude, position.longitude);
     final progress = engine.update(here);
+
+    // Chetga chiqildi (bir necha ping tasdiqlagan) — yo'l qayta quriladi.
+    // Javob kelguncha eski ko'rsatma ekranda qoladi.
+    if (_offRoute?.update(here, DateTime.now()) ?? false) {
+      _reroute(here);
+    }
 
     setState(() {
       _currentLocation = here;
@@ -383,22 +413,20 @@ class _NavigationScreenState extends State<NavigationScreen> {
   /// pattern as _callDriver in
   /// lib/features/passenger/screens/home_screen.dart.
   Future<void> _openNavigation(OrderLocation destination) async {
-    final label = Uri.encodeComponent(destination.address);
-    final uri = Platform.isIOS
-        ? Uri.parse(
-            'https://maps.apple.com/?daddr=${destination.lat},${destination.lng}',
-          )
-        : Uri.parse(
-            'geo:0,0?q=${destination.lat},${destination.lng}($label)',
-          );
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else if (mounted) {
+    // Avval yo'nalish rejimi (Yandex Navigator / Google Maps), oxirida
+    // oddiy xarita nuqtasi — `external_navigation.dart` izohiga qarang.
+    final opened = await openExternalNavigation(
+      destination.lat,
+      destination.lng,
+      destination.address,
+    );
+    if (!opened && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(context.l10n.drvNavAppNotFound)),
       );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

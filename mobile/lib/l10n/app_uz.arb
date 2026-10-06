@@ -902,7 +902,26 @@
   "paxLostItems": "Yo'qolgan buyumlar",
   "paxMenu": "Menyu",
   "paxMessage": "Xabar",
+  "paxMeteredRates": "Taksometr: {base} + {perKm}/km + {perMin}/daq, kamida {min}. Yakuniy narx bosib o'tilgan yo'l va vaqtga qarab safar oxirida hisoblanadi.",
+  "@paxMeteredRates": {
+    "placeholders": {
+      "base": {
+        "type": "String"
+      },
+      "perKm": {
+        "type": "String"
+      },
+      "perMin": {
+        "type": "String"
+      },
+      "min": {
+        "type": "String"
+      }
+    }
+  },
+  "paxMeteredTo": "Manzilsiz — taksometr bo'yicha",
   "paxNo": "Yo'q",
+  "paxNoDestination": "Manzilsiz",
   "paxNoDriversNearby": "Yaqin atrofda haydovchi topilmadi",
   "paxNoDriversNearbyRetry": "Yaqin atrofda haydovchi topilmadi. Birozdan so'ng qayta urinib ko'ring.",
   "paxNoResults": "Natija topilmadi",
@@ -1852,6 +1871,7 @@
   "shManeuverMergeRight": "O'ng qatorga qo'shiling",
   "shManeuverOffRamp": "Yo'lkadan chiqing",
   "shManeuverOnRamp": "Chiqish yo'lkasiga kiring",
+  "shManeuverRerouting": "Marshrutdan chiqdingiz. Yo'l qayta hisoblanmoqda.",
   "shManeuverRight": "O'ngga buriling",
   "shManeuverRoundabout": "Aylanmaga kiring",
   "shManeuverRoundaboutExit": "Aylanmaga kiring va {exit}-chiqishdan chiqing",
@@ -1869,6 +1889,28 @@
   "shManeuverStraight": "To'g'ri davom eting",
   "shManeuverUturn": "Orqaga qayting",
   "shMarketPacking": "Do'kon yig'moqda",
+  "shMeterAtLeast": "kamida {price}",
+  "@shMeterAtLeast": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "shMeterDistanceTime": "{distance} · {minutes} daq",
+  "@shMeterDistanceTime": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "shMeterFinalNote": "Yakuniy narx safar tugaganda yo'l bo'yicha aniqlanadi",
+  "shMeterNoDestination": "Manzil yo'q — taksometr",
+  "shMeterTitle": "Taksometr",
   "shNeedsAttentionSemantics": "{label}, e'tibor talab qiladi",
   "@shNeedsAttentionSemantics": {
     "placeholders": {

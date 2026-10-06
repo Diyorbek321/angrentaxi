@@ -189,7 +189,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       createdAt: order.createdAt,
       icon: entry.icon,
       vertical: isCargo ? _Vertical.cargo : _Vertical.taxi,
-      title: '${order.pickup.address} → ${order.dropoff.address}',
+      title: '${order.pickup.address} → ${order.dropoffLabel}',
       subtitle: subtitleParts.join(' · '),
       amount: Formatters.formatSom(order.actualPrice ?? order.estimatedPrice),
       statusLabel: order.status.label,

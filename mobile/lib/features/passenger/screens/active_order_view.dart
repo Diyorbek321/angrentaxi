@@ -7,6 +7,8 @@ import 'package:angren_taxi/core/safety/sos_service.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/passenger/map_camera_insets.dart';
 import 'package:angren_taxi/features/passenger/widgets/parcel_pin_card.dart';
+import 'package:angren_taxi/features/trip/meter/live_meter_card.dart';
+import 'package:angren_taxi/features/trip/meter/meter_service.dart';
 import 'package:angren_taxi/features/trip/screens/trip_chat_screen.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order.dart';
@@ -72,6 +74,7 @@ class ActiveOrderView extends StatefulWidget {
     required this.isBusy,
     required this.onCancel,
     required this.sosService,
+    this.meterService,
     required this.fallbackLocation,
     this.topBar,
   });
@@ -99,6 +102,10 @@ class ActiveOrderView extends StatefulWidget {
   /// talab qilinardi va bekor qilish testi shu sababdan yiqilardi.
   final SosService? sosService;
 
+  /// Taksometr kartasi uchun — testlarda almashtiriladi; `null` bo'lsa
+  /// kerak bo'lganda service locator'dan (SOS bilan bir xil sabab).
+  final MeterService? meterService;
+
   /// SOS xabarida ishlatiladigan zaxira koordinata — jonli fiks olinmasa
   /// shu yuboriladi (bosh ekran allaqachon bilgan eng yaxshi taxmin).
   final LatLng fallbackLocation;
@@ -114,6 +121,9 @@ class ActiveOrderView extends StatefulWidget {
 class _ActiveOrderViewState extends State<ActiveOrderView> {
   SosService get _sosService =>
       widget.sosService ?? SosService(apiClient: sl<ApiClient>());
+
+  MeterService get _meterService =>
+      widget.meterService ?? MeterService(sl<ApiClient>());
 
   /// Sheet kontentining balandligini o'lchash uchun. Kamera paddingi shundan
   /// hisoblanadi — `map_camera_insets.dart` dagi izohga qarang.
@@ -174,10 +184,19 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
     final controller = _mapController;
     if (controller == null || !mounted) return;
 
-    final points = <LatLng>[
-      LatLng(widget.order.pickup.lat, widget.order.pickup.lng),
-      LatLng(widget.order.dropoff.lat, widget.order.dropoff.lng),
-    ];
+    final pickup = LatLng(widget.order.pickup.lat, widget.order.pickup.lng);
+    // Taksometrda `dropoff` = olish nuqtasi (manzil yo'q) — olish atrofidagi
+    // ~800 m kvadrat ko'rsatiladi; bitta nuqtaga chegara qurib bo'lmaydi.
+    const pad = 0.004;
+    final points = widget.order.isMetered
+        ? <LatLng>[
+            LatLng(pickup.latitude - pad, pickup.longitude - pad),
+            LatLng(pickup.latitude + pad, pickup.longitude + pad),
+          ]
+        : <LatLng>[
+            pickup,
+            LatLng(widget.order.dropoff.lat, widget.order.dropoff.lng),
+          ];
 
     var minLat = points.first.latitude, maxLat = minLat;
     var minLng = points.first.longitude, maxLng = minLng;
@@ -213,10 +232,11 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
         point: LatLng(widget.order.pickup.lat, widget.order.pickup.lng),
         icon: AppMapIcon.pickup,
       ),
-      AppMapMarker(
-        point: LatLng(widget.order.dropoff.lat, widget.order.dropoff.lng),
-        icon: AppMapIcon.dropoff,
-      ),
+      if (!widget.order.isMetered)
+        AppMapMarker(
+          point: LatLng(widget.order.dropoff.lat, widget.order.dropoff.lng),
+          icon: AppMapIcon.dropoff,
+        ),
     ];
 
     return ValueListenableBuilder<LatLng?>(
@@ -274,6 +294,7 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
           // kutish bloki paydo bo'ladi — yo'lovchining ko'zi allaqachon
           // shu nuqtada.
           _buildWaitingBlock(order),
+          _buildMeterBlock(order),
           const SizedBox(height: kSpace3),
           // Posilka: qabul qiluvchiga aytiladigan topshirish kodi — haydovchi
           // usiz yakunlay olmaydi, shuning uchun haydovchi kartasidan yuqorida.
@@ -622,6 +643,22 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
   // aytmasa, yo'lovchi yig'ilayotgan summani "shunchaki ma'lumot" deb
   // o'qib, chekda uni ko'rganda aldanganday his qilardi.
   // --------------------------------------------------------------------
+  /// TAKSOMETR — safar davomida jonli summa. Haydovchi ham AYNAN shu
+  /// kartani ko'radi (hisob serverda), ya'ni ikki ekranda bir xil raqam.
+  Widget _buildMeterBlock(Order order) {
+    if (!order.isMetered || order.status != OrderStatus.inProgress) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: kSpace3),
+      child: LiveMeterCard(
+        orderId: order.id,
+        service: _meterService,
+        minFare: order.estimatedPrice,
+      ),
+    );
+  }
+
   Widget _buildWaitingBlock(Order order) {
     // Kutish oynasi FAQAT "yetib keldi" holatida ochiq. Safar boshlangach
     // (`inProgress`) hisoblagich TO'XTAYDI: undan keyingi vaqt server
@@ -798,7 +835,9 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
     final lines = <String>[
       context.l10n.paxShareTripHeader,
       context.l10n.paxShareTripFrom(order.pickup.address),
-      context.l10n.paxShareTripTo(order.dropoff.address),
+      context.l10n.paxShareTripTo(
+        order.dropoffLabel,
+      ),
       if (driver != null)
         context.l10n.paxShareTripDriver(driver.name, driver.carInfo),
       context.l10n.paxShareTripStatus(order.status.label),
@@ -906,14 +945,18 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
             const SizedBox(width: kSpace2),
             Expanded(
               child: Text(
-                order.dropoff.address,
+                order.dropoffLabel,
                 style: const TextStyle(fontSize: kFontLabel, color: kInk),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
             Text(
-              Formatters.formatPrice(order.estimatedPrice),
+              // Taksometrda bu yakuniy narx emas, tarif minimumi.
+              order.isMetered
+                  ? context.l10n.shMeterAtLeast(
+                      Formatters.formatPrice(order.estimatedPrice))
+                  : Formatters.formatPrice(order.estimatedPrice),
               style: const TextStyle(
                 fontWeight: FontWeight.w800,
                 color: kInk,

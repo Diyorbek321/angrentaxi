@@ -464,5 +464,24 @@
   "paxScheduledPriceNote": "Narx hozir qotiriladi va safar kunida o'zgarmaydi — kutish haqi bundan tashqari. Haydovchi belgilangan vaqtdan 10 daqiqa oldin qidiriladi.",
   "paxRouteLoading": "Yo'nalish yuklanmoqda...",
   "paxParcelPinTitle": "Topshirish kodi",
-  "paxParcelPinHint": "Qabul qiluvchiga ayting. Haydovchi posilkani shu kodsiz topshira olmaydi."
+  "paxParcelPinHint": "Qabul qiluvchiga ayting. Haydovchi posilkani shu kodsiz topshira olmaydi.",
+  "paxNoDestination": "Manzilsiz",
+  "paxMeteredTo": "Manzilsiz — taksometr bo'yicha",
+  "paxMeteredRates": "Taksometr: {base} + {perKm}/km + {perMin}/daq, kamida {min}. Yakuniy narx bosib o'tilgan yo'l va vaqtga qarab safar oxirida hisoblanadi.",
+  "@paxMeteredRates": {
+    "placeholders": {
+      "base": {
+        "type": "String"
+      },
+      "perKm": {
+        "type": "String"
+      },
+      "perMin": {
+        "type": "String"
+      },
+      "min": {
+        "type": "String"
+      }
+    }
+  }
 }

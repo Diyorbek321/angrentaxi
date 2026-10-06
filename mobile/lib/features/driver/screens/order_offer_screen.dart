@@ -378,7 +378,11 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
       child: Column(
         children: [
           Text(
-            context.l10n.drvEstimatedEarnings,
+            // Taksometr: summa safar oxirida yo'ldan hisoblanadi — bu yerda
+            // faqat tarif minimumi, "kamida" deb aniq aytiladi.
+            offer.isMetered
+                ? context.l10n.shMeterTitle
+                : context.l10n.drvEstimatedEarnings,
             style: TextStyle(
               fontSize: kFontLabel,
               color: kOnPrimary.withValues(alpha: 0.85),
@@ -386,9 +390,12 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
           ),
           const SizedBox(height: kSpace1),
           Text(
-            Formatters.formatPrice(offer.estimatedPrice),
-            style: const TextStyle(
-              fontSize: kFontDisplay,
+            offer.isMetered
+                ? context.l10n.shMeterAtLeast(Formatters.formatPrice(offer.estimatedPrice))
+                : Formatters.formatPrice(offer.estimatedPrice),
+            style: TextStyle(
+              // "kamida …" uzunroq — tor ekranda bitta qatorga sig'sin.
+              fontSize: offer.isMetered ? kFontH1 : kFontDisplay,
               fontWeight: FontWeight.w800,
               color: kOnPrimary,
               height: 1.1,
@@ -439,7 +446,7 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
             Icons.location_on,
             kError,
             wording.dropoffTitle,
-            offer.dropoff.address,
+            offer.dropoffLabel,
           ),
         ],
       ),

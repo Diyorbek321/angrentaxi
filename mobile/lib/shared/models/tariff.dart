@@ -21,6 +21,7 @@ class Tariff extends Equatable {
     required this.baseFare,
     required this.perKmRate,
     required this.minFare,
+    this.perMinRate = 0,
     this.iconName,
     this.isAvailable = true,
     this.maxPassengers = 4,
@@ -35,6 +36,10 @@ class Tariff extends Equatable {
   final double baseFare;
   final double perKmRate;
   final double minFare;
+
+  /// Daqiqa narxi (`pricePerMin`) — taksometr stavkasini ko'rsatish uchun.
+  /// Eski server yubormasa 0.
+  final double perMinRate;
   final String? iconName;
   final bool isAvailable;
   final int maxPassengers;
@@ -74,6 +79,7 @@ class Tariff extends Equatable {
       baseFare: (json['basePrice'] as num).toDouble(),
       perKmRate: (json['pricePerKm'] as num).toDouble(),
       minFare: (json['minPrice'] as num).toDouble(),
+      perMinRate: (json['pricePerMin'] as num?)?.toDouble() ?? 0,
       iconName: json['iconName'] as String?,
       isAvailable: (json['isActive'] as bool?) ?? true,
       maxPassengers: (json['maxPassengers'] as int?) ?? 4,
@@ -116,6 +122,7 @@ class Tariff extends Equatable {
     baseFare,
     perKmRate,
     minFare,
+    perMinRate,
     iconName,
     isAvailable,
     maxPassengers,

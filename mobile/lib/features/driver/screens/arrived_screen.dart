@@ -343,7 +343,7 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
               wording.pickupTitle, order.pickup.address),
           const SizedBox(height: kSpace2),
           _buildInfoRow(Icons.location_on, kError, wording.dropoffTitle,
-              order.dropoff.address),
+              order.dropoffLabel),
           const Divider(height: kSpace5, color: kLine),
           // ⚠️ YORLIQ EGILADI, SUMMA EGILMAYDI. Qator `spaceBetween` bilan
           // qat'iy ikki matndan iborat edi: uzun summa (masalan

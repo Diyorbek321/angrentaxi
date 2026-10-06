@@ -418,8 +418,10 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
             children: [
               AgRoutePanel(
                 from: provider.pendingPickup?.address ?? context.l10n.paxLocation,
-                to: provider.pendingDropoff?.address ??
-                    context.l10n.paxDestination,
+                to: provider.isMetered
+                    ? context.l10n.paxMeteredTo
+                    : (provider.pendingDropoff?.address ??
+                        context.l10n.paxDestination),
                 // Masofa allaqachon hisoblangan (`_loadRoute` → OSRM, yoki
                 // Haversine zaxirasi) — panel uni ko'rsatadi, qayta
                 // hisoblamaydi.
@@ -487,6 +489,16 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
   /// kerak, aks holda kamera ko'rinmaydigan nuqtaga ham joy ajratadi.
   List<LatLng> _mapPoints(OrderProvider provider) {
     final p = _pickupPoint(provider);
+    // Taksometrda manzil yo'q — kamera olish nuqtasi atrofidagi ~800 m li
+    // kvadratni panel ochiq qoldirgan joyga sig'diradi (bitta nuqtaga
+    // "chegara" qurib bo'lmaydi va u panel ostida qolib ketardi).
+    if (provider.isMetered) {
+      const pad = 0.004;
+      return [
+        LatLng(p.latitude - pad, p.longitude - pad),
+        LatLng(p.latitude + pad, p.longitude + pad),
+      ];
+    }
     final d = _dropoffPoint(provider);
     return <LatLng>[
       ...(provider.routePoints.isNotEmpty
@@ -567,8 +579,9 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
 
     // Real road route from OSRM when available; a straight line is only a
     // fallback for when the route fetch fails (offline, OSRM unreachable).
-    final routePoints =
-        provider.routePoints.isNotEmpty ? provider.routePoints : [p, d];
+    final routePoints = provider.isMetered
+        ? const <LatLng>[]
+        : (provider.routePoints.isNotEmpty ? provider.routePoints : [p, d]);
 
     return AppVectorMap(
       initialCenter: center,
@@ -585,7 +598,9 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
             point: LatLng(waypoint.lat, waypoint.lng),
             icon: AppMapIcon.waypoint,
           ),
-        AppMapMarker(point: d, icon: AppMapIcon.dropoff),
+        // Taksometrda manzil belgisi YO'Q: `d` u holda shahar markazi
+        // zaxirasi bo'lardi va xaritada soxta manzil paydo bo'lardi.
+        if (!provider.isMetered) AppMapMarker(point: d, icon: AppMapIcon.dropoff),
       ],
       // Kamerani O'ZIMIZ boshqaramiz — yuqoridagi "TO'LDIRILGAN
       // TO'RTBURCHAK" izohiga qarang.
@@ -643,6 +658,13 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
           // buyurtmadan keyin "meni aldashdi" degan xulosaga olib keladi —
           // bu esa bekor qilish va e'tirozning eng arzon sababi.
           if (selected != null) ...[
+            // Taksometrda narx oldindan ma'lum emas — stavkalar BOSISHDAN
+            // OLDIN aytiladi, aks holda "kamida 5 000" yakuniy summa deb
+            // o'qilardi.
+            if (provider.isMetered) ...[
+              const SizedBox(height: kSpace2),
+              _buildMeteredNote(selected),
+            ],
             const SizedBox(height: kSpace2),
             _buildWaitingNote(selected),
           ],
@@ -975,6 +997,40 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
   /// Ogohlantirish emas, IZOH ohangida: bu odatiy qoida, favqulodda hol
   /// emas. Amber quti har buyurtmada chiqsa, u tez orada ko'rinmay qoladi
   /// va haqiqiy ogohlantirishlarning (talab yuqori) kuchini ham yeydi.
+  Widget _buildMeteredNote(Tariff tariff) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: kSpace1),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 1),
+            child: ExcludeSemantics(
+              child: Icon(Icons.speed_rounded, size: 15, color: kInkSubtle),
+            ),
+          ),
+          const SizedBox(width: kSpace2),
+          Expanded(
+            child: Text(
+              context.l10n.paxMeteredRates(
+                Formatters.formatSom(tariff.baseFare),
+                Formatters.formatSom(tariff.perKmRate),
+                Formatters.formatSom(tariff.perMinRate),
+                Formatters.formatSom(tariff.minFare),
+              ),
+              style: const TextStyle(
+                fontSize: kFontCaption,
+                fontWeight: FontWeight.w600,
+                color: kInk,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildWaitingNote(Tariff tariff) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: kSpace1),

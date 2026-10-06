@@ -794,7 +794,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
               _buildOrderRouteRow(
                 Icons.location_on,
                 kError,
-                order.dropoff.address,
+                order.dropoffLabel,
               ),
               // `AgSurfaceCard` OQ, shuning uchun ajratkich `kLine` —
               // `kSurface2` fonli sheetda emas, karta ICHIDA turadi.
