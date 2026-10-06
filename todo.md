@@ -34,7 +34,8 @@ Oxirgi yangilanish: 2026-10-06. Bajarilgan ishlar tarixi uchun `git log`ga qaran
 
 ## 🔊 Ovozli navigatsiya (2026-10-06)
 
-- [ ] **O'zbekcha ovoz bo'laklarini yaratish** — Azure Speech kaliti kerak. `mobile/.env.voice` ga `AZURE_TTS_KEY=...` va `AZURE_TTS_REGION=...` yozib, `cd mobile && python3 tool/generate_voice_clips.py` (68 ta mp3, ~1 MB), keyin APK qayta yig'iladi. Ungacha ilova telefon TTS bilan gapiradi.
+- [x] ~~O'zbekcha ovoz bo'laklari~~ — 2026-10-06 edge-tts (kalitsiz) bilan yaratildi, 68 ta mp3, faqat haydovchi APK'sida.
+- [ ] **Ilova chiqishidan oldin bo'laklarni Azure bilan qayta yaratish** — edge-tts Edge brauzerining norasmiy xizmati (tijorat uchun rasmiy ruxsat yo'q). Ovoz bir xil: Azure Speech (bepul F0) → `mobile/.env.voice` ga `AZURE_TTS_KEY`/`AZURE_TTS_REGION` → `python3 tool/generate_voice_clips.py --force`.
 - [ ] **Real telefonda eshitib ko'rish** — bo'laklar orasidagi pauza, musiqa ovozi pasayishi, Xiaomi'da.
 
 ## 🔴 Bloker — tashqi shartnoma/hisob kerak

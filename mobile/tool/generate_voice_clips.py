@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 """
-Navigatsiya ovoz bo'laklarini Microsoft Azure neyron ovozi bilan yaratadi.
+Navigatsiya ovoz bo'laklarini Microsoft neyron ovozlari (uz Madina, ru
+Svetlana) bilan yaratadi.
 
   python3 tool/generate_voice_clips.py --dry-run   # faqat matnlarni ko'rsatadi
   python3 tool/generate_voice_clips.py             # assets/voice/<til>/<id>.mp3
   python3 tool/generate_voice_clips.py --force     # mavjudlarini ham qayta yaratadi
 
-Kalit: muhit o'zgaruvchilari AZURE_TTS_KEY va AZURE_TTS_REGION, yoki
-mobile/.env.voice fayli (git'ga KIRMAYDI):
-  AZURE_TTS_KEY=...
-  AZURE_TTS_REGION=westeurope
+Ikki manba, ovoz AYNAN BIR XIL:
+  * Azure (rasmiy, tijorat uchun ruxsat bor) — AZURE_TTS_KEY va
+    AZURE_TTS_REGION muhitda yoki mobile/.env.voice faylida (git'ga KIRMAYDI);
+  * edge-tts (kalitsiz; `pip install edge-tts`) — kalit bo'lmasa ishlatiladi.
+    Edge brauzerining norasmiy "ovoz chiqarib o'qish" xizmati: sinov uchun
+    qulay, lekin ilova chiqishidan oldin Azure bilan --force qayta yaratish
+    tavsiya etiladi (huquqiy jihatdan toza).
 
 Bo'laklar ro'yxati — tool/voice_clip_catalogue.json (Dart bilan yagona manba),
 matnlar — lib/l10n/app_<til>.arb. Ilova bo'laklarni o'zi topadi; birortasi
@@ -87,6 +91,15 @@ def synthesize(text, voice, lang_tag, key, region):
         return response.read()
 
 
+def synthesize_edge(text, voice, target):
+    try:
+        import asyncio
+        import edge_tts
+    except ImportError:
+        sys.exit("Azure kaliti yo'q va edge-tts o'rnatilmagan: pip install edge-tts")
+    asyncio.run(edge_tts.Communicate(text, voice, rate="-5%").save(str(target)))
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
@@ -95,8 +108,9 @@ def main():
 
     catalogue = json.loads(CATALOGUE.read_text())
     key, region = load_key()
-    if not args.dry_run and (not key or not region):
-        sys.exit("AZURE_TTS_KEY va AZURE_TTS_REGION kerak (muhit yoki mobile/.env.voice)")
+    use_azure = bool(key and region)
+    if not args.dry_run:
+        print("Manba:", "Azure" if use_azure else "edge-tts (kalitsiz)")
 
     made = skipped = 0
     for lang, voice in catalogue["languages"].items():
@@ -112,7 +126,10 @@ def main():
             if target.exists() and not args.force:
                 skipped += 1
                 continue
-            target.write_bytes(synthesize(text, voice, voice[:5], key, region))
+            if use_azure:
+                target.write_bytes(synthesize(text, voice, voice[:5], key, region))
+            else:
+                synthesize_edge(text, voice, target)
             made += 1
             print(f"✓ {lang}/{clip['id']}: {text}")
     if not args.dry_run:

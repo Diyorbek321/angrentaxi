@@ -93,5 +93,8 @@ flutter:
     - assets/tariffs/
     # Navigatsiya ovoz bo'laklari (tool/generate_voice_clips.py). Bo'sh bo'lsa
     # ilova TTS bilan gapiradi.
-    - assets/voice/uz/
-    - assets/voice/ru/
+    # Faqat haydovchi ilovasi — yo'lovchi APK'siga ortiqcha 1.3 MB kirmaydi.
+    - path: assets/voice/uz/
+      flavors: [driver]
+    - path: assets/voice/ru/
+      flavors: [driver]
