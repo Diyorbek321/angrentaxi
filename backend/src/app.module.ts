@@ -41,6 +41,7 @@ import { FavoritesModule } from './modules/favorites/favorites.module';
 import { TripChatModule } from './modules/trip-chat/trip-chat.module';
 import { SafetyModule } from './modules/safety/safety.module';
 import { ReferralsModule } from './modules/referrals/referrals.module';
+import { AdsModule } from './modules/ads/ads.module';
 import { ENTITIES } from './database/entities';
 
 @Module({
@@ -167,6 +168,7 @@ import { ENTITIES } from './database/entities';
     TripChatModule,
     SafetyModule,
     ReferralsModule,
+    AdsModule,
   ],
   providers: [
     // ThrottlerModule only configures the limits — nothing enforces them until

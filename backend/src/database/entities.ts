@@ -8,6 +8,7 @@
 // City). `entities.spec.ts` now fails the build instead: it compares this list
 // with every class decorated with @Entity under database/entities.
 
+import { AdBanner } from './entities/ad-banner.entity';
 import { City } from './entities/city.entity';
 import { Dish } from './entities/dish.entity';
 import { DispatchOverride } from './entities/dispatch-override.entity';
@@ -50,6 +51,7 @@ import { VehicleChangeRequest } from './entities/vehicle-change-request.entity';
 import { WithdrawalRequest } from './entities/withdrawal-request.entity';
 
 export const ENTITIES = [
+  AdBanner,
   City,
   Dish,
   DispatchOverride,
