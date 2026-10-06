@@ -34,12 +34,22 @@ export class TaximeterService {
    * Haydovchining yangi joylashuvi — agar u hozir taksometrli safarda bo'lsa,
    * izga yoziladi. Bitta so'rov: buyurtma topilmasa hech narsa qo'shilmaydi.
    * `orders.driver_id` — haydovchining `users.id` si.
+   *
+   * ⚠️ TAKROR: ilova har fiksni IKKI yo'l bilan yuboradi (socket + HTTP
+   * zaxira), ikkalasi ham shu yerga keladi. Oxirgi 10 soniyada aynan shu
+   * nuqta yozilgan bo'lsa — o'tkazib yuboriladi (narxga baribir ta'sir
+   * qilmasdi, lekin jadval ikki barobar o'sardi).
    */
   async recordForDriver(driverUserId: string, lat: number, lng: number): Promise<void> {
     await this.trackRepository.query(
       `INSERT INTO trip_track_points (order_id, lat, lng)
-       SELECT id, $2, $3 FROM orders
-        WHERE driver_id = $1 AND status = 'in_progress' AND is_metered = true
+       SELECT o.id, $2, $3 FROM orders o
+        WHERE o.driver_id = $1 AND o.status = 'in_progress' AND o.is_metered = true
+          AND NOT EXISTS (
+            SELECT 1 FROM trip_track_points t
+             WHERE t.order_id = o.id AND t.lat = $2 AND t.lng = $3
+               AND t.recorded_at > now() - interval '10 seconds'
+          )
         LIMIT 1`,
       [driverUserId, lat, lng],
     );

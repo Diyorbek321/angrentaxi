@@ -49,8 +49,9 @@ describe('TaximeterService.recordForDriver', () => {
     const { service, trackRepository } = build([], null);
     await service.recordForDriver('driver-user-1', 41.01, 70.15);
     const [sql, params] = trackRepository.query.mock.calls[0] as unknown as [string, unknown[]];
-    expect(sql).toContain("status = 'in_progress'");
-    expect(sql).toContain('is_metered = true');
+    expect(sql).toContain("o.status = 'in_progress'");
+    expect(sql).toContain('NOT EXISTS');
+    expect(sql).toContain('o.is_metered = true');
     expect(params).toEqual(['driver-user-1', 41.01, 70.15]);
   });
 });
