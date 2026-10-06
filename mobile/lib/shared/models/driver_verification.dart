@@ -61,12 +61,13 @@ DriverVerificationStatus _statusFromApi(String? value) {
 /// Noma'lum qiymat `document` ga tushadi: ikonka ma'no tashimaydi (yonida
 /// serverning o'z yorlig'i turadi), shuning uchun bu yerda xato qilish
 /// xavfsiz.
-enum DriverVerificationKind { document, vehiclePhoto }
+enum DriverVerificationKind { document, vehiclePhoto, selfie }
 
-DriverVerificationKind _kindFromApi(String? value) =>
-    value == 'vehicle_photo'
-        ? DriverVerificationKind.vehiclePhoto
-        : DriverVerificationKind.document;
+DriverVerificationKind _kindFromApi(String? value) => switch (value) {
+      'vehicle_photo' => DriverVerificationKind.vehiclePhoto,
+      'selfie' => DriverVerificationKind.selfie,
+      _ => DriverVerificationKind.document,
+    };
 
 /// Serverdan kelgan bitta talab: hujjat yoki avtomobil surati.
 class DriverVerificationItem extends Equatable {
@@ -298,5 +299,12 @@ extension DriverVerificationKindPresentation on DriverVerificationKind {
         DriverVerificationKind.document => Icons.badge_outlined,
         DriverVerificationKind.vehiclePhoto =>
           Icons.directions_car_filled_outlined,
+        DriverVerificationKind.selfie => Icons.face_retouching_natural,
       };
+
+  /// Faqat kamera — galereya YO'Q. Ko'rik va selfi "hozirgi holat"ni
+  /// isbotlaydi: galereyadan eski surat yuborish tekshiruvni ma'nosiz
+  /// qilardi. Hujjat (pasport, guvohnoma) esa avval olingan skan bo'lishi
+  /// mumkin.
+  bool get cameraOnly => this != DriverVerificationKind.document;
 }

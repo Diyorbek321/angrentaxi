@@ -121,14 +121,17 @@ async function seed(): Promise<void> {
         ('passport',             'Pasport',                               'Rasmli sahifa to''liq tushsin',                 'document', NULL, NULL, 0,  7, true, true, 30),
         ('vehicle_registration', 'Texnik pasport',                        'Davlat raqami va egasi ko''rinsin',             'document', NULL, NULL, 0,  7, true, true, 40),
 
-        -- Avtomobil fotolari: oyiga bir marta yangilanadi. Aynan shu qism
-        -- uchun davriylik tushunchasi kiritilgan — avtomobil holati vaqt
-        -- o'tishi bilan o'zgaradi, hujjatlardan farqli.
-        ('vehicle_photo_front',    'Avtomobil old tomondan',   'Davlat raqami ko''rinsin', 'vehicle_photo', NULL, NULL, 30, 5, true, true, 50),
-        ('vehicle_photo_back',     'Avtomobil orqa tomondan',  'Davlat raqami ko''rinsin', 'vehicle_photo', NULL, NULL, 30, 5, true, true, 60),
-        ('vehicle_photo_left',     'Avtomobil chap tomondan',  NULL,                       'vehicle_photo', NULL, NULL, 30, 5, true, true, 70),
-        ('vehicle_photo_right',    'Avtomobil o''ng tomondan', NULL,                       'vehicle_photo', NULL, NULL, 30, 5, true, true, 80),
-        ('vehicle_photo_interior', 'Salon',                    'Old va orqa o''rindiqlar ko''rinsin', 'vehicle_photo', NULL, NULL, 30, 5, true, true, 90),
+        -- Davriy ko'rik — migratsiya 017 bilan AYNAN bir xil (biznes
+        -- qoidasi u yerda yozilgan): mashina 30 kunda, selfi 3 kunda,
+        -- muddat o'tsa 1 kun muhlat.
+        ('selfie',                    'Selfi',                    'Yuzingiz aniq ko''rinsin, ko''zoynak va niqobsiz', 'selfie', NULL, NULL, 3, 1, true, true, 5),
+        ('vehicle_photo_front',       'Avtomobil old tomondan',   'Davlat raqami ko''rinsin',                   'vehicle_photo', NULL, NULL, 30, 1, true, true, 50),
+        ('vehicle_photo_back',        'Avtomobil orqa tomondan',  'Davlat raqami ko''rinsin',                   'vehicle_photo', NULL, NULL, 30, 1, true, true, 60),
+        ('vehicle_photo_left',        'Avtomobil chap tomondan',  'Mashina to''liq tushsin',                    'vehicle_photo', NULL, NULL, 30, 1, true, true, 70),
+        ('vehicle_photo_right',       'Avtomobil o''ng tomondan', 'Mashina to''liq tushsin',                    'vehicle_photo', NULL, NULL, 30, 1, true, true, 80),
+        ('vehicle_photo_front_seats', 'Old o''rindiqlar',         'Eshikni ochib, ikkala o''rindiq ko''rinsin', 'vehicle_photo', NULL, NULL, 30, 1, true, true, 90),
+        ('vehicle_photo_rear_seats',  'Orqa o''rindiqlar',        'Eshikni ochib, butun o''rindiq ko''rinsin',  'vehicle_photo', NULL, NULL, 30, 1, true, true, 92),
+        ('vehicle_photo_trunk',       'Bagaj',                    'Bagajni ochib, ichi to''liq ko''rinsin',     'vehicle_photo', NULL, NULL, 30, 1, true, true, 94),
 
         -- Faqat furgon uchun: vehicle_type = van bo'lgani uchun bu qator
         -- yengil avtomobil haydovchisining ro'yxatida UMUMAN ko'rinmaydi.

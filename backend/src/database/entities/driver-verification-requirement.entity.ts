@@ -13,6 +13,12 @@ import { VehicleType } from './tariff.entity';
 export enum DriverVerificationKind {
   DOCUMENT = 'document',
   VEHICLE_PHOTO = 'vehicle_photo',
+  /**
+   * Haydovchining o'z yuzi — akkauntdan boshqa odam foydalanmayotganini
+   * tekshirish. Mobil ilova uni FAQAT old kamera bilan oladi (galereyasiz),
+   * menejer esa avvalgi tasdiqlangan selfi bilan yonma-yon solishtiradi.
+   */
+  SELFIE = 'selfie',
 }
 
 /**

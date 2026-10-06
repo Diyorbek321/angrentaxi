@@ -858,6 +858,41 @@ describe('DriverVerificationService.listPending', () => {
     });
   });
 
+  it('selfi yonida taqqoslash uchun oxirgi tasdiqlangan selfi beriladi', async () => {
+    const { service } = buildService(
+      [requirement({ code: 'selfie', kind: DriverVerificationKind.SELFIE, label: 'Selfi' })],
+      [
+        submission({ id: 'old-selfie', code: 'selfie', submittedAt: daysFromNow(-9), reviewStatus: DriverVerificationReviewStatus.APPROVED }),
+        submission({ id: 'older-selfie', code: 'selfie', submittedAt: daysFromNow(-20), reviewStatus: DriverVerificationReviewStatus.APPROVED }),
+        submission({ id: 'passport', code: 'passport', submittedAt: daysFromNow(-90), reviewStatus: DriverVerificationReviewStatus.APPROVED }),
+        submission({ id: 'today', code: 'selfie' }),
+      ],
+    );
+
+    const [entry] = await service.listPending();
+
+    expect(entry).toMatchObject({ id: 'today', kind: DriverVerificationKind.SELFIE, referenceSubmissionId: 'old-selfie' });
+  });
+
+  it('birinchi selfida taqqoslash pasport rasmidan, boshqa turlarda yo\'q', async () => {
+    const { service } = buildService(
+      [
+        requirement({ code: 'selfie', kind: DriverVerificationKind.SELFIE }),
+        requirement({ code: 'vehicle_photo_front' }),
+      ],
+      [
+        submission({ id: 'passport', code: 'passport', submittedAt: daysFromNow(-90), reviewStatus: DriverVerificationReviewStatus.APPROVED }),
+        submission({ id: 'first-selfie', code: 'selfie', submittedAt: daysFromNow(-2) }),
+        submission({ id: 'car', code: 'vehicle_photo_front', submittedAt: daysFromNow(-1) }),
+      ],
+    );
+
+    const pending = await service.listPending();
+
+    expect(pending.find((p) => p.id === 'first-selfie')?.referenceSubmissionId).toBe('passport');
+    expect(pending.find((p) => p.id === 'car')?.referenceSubmissionId).toBeNull();
+  });
+
   it("qoida o'chirilgan bo'lsa ham navbat ochiq qoladi (label o'rniga code)", async () => {
     const { service } = buildService([], [submission({ id: 'orphan' })]);
 

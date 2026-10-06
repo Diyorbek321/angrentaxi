@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import {
+  ShieldCheck,
   AlertTriangle,
   Car,
   ChevronLeft,
@@ -56,6 +57,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     title: 'Jamoa',
     links: [
       { href: '/dispatch/drivers', label: 'Haydovchilar', icon: Users, perm: 'drivers_view' },
+      { href: '/dispatch/verification', label: 'Koʻrik va selfi', icon: ShieldCheck, perm: 'drivers_view' },
       { href: '/dispatch/audit-log', label: 'Amallar tarixi', icon: ScrollText, perm: 'dispatch' },
       { href: '/dispatch/shift-report', label: 'Smena hisoboti', icon: Timer, perm: null },
     ],

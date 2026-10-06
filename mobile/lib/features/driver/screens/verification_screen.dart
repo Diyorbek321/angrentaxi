@@ -55,41 +55,54 @@ class _DriverVerificationScreenState extends State<DriverVerificationScreen> {
   }
 
   Future<void> _pickAndUpload(DriverVerificationItem item) async {
-    final source = await showModalBottomSheet<ImageSource>(
-      context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: kSpace2),
-            Text(
-              item.label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: kFontTitle,
-                fontWeight: FontWeight.w800,
-                color: kInk,
+    // Ko'rik va selfi — to'g'ridan-to'g'ri kamera, tanlov oynasisiz
+    // (`DriverVerificationKind.cameraOnly` izohiga qarang).
+    final source = item.kind.cameraOnly
+        ? ImageSource.camera
+        : await showModalBottomSheet<ImageSource>(
+            context: context,
+            builder: (sheetContext) => SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: kSpace2),
+                  Text(
+                    item.label,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: kFontTitle,
+                      fontWeight: FontWeight.w800,
+                      color: kInk,
+                    ),
+                  ),
+                  const SizedBox(height: kSpace2),
+                  ListTile(
+                    leading: const Icon(Icons.photo_camera_outlined),
+                    title: Text(context.l10n.drvCamera),
+                    onTap: () =>
+                        Navigator.of(sheetContext).pop(ImageSource.camera),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.photo_library_outlined),
+                    title: Text(context.l10n.drvGallery),
+                    onTap: () =>
+                        Navigator.of(sheetContext).pop(ImageSource.gallery),
+                  ),
+                  const SizedBox(height: kSpace2),
+                ],
               ),
             ),
-            const SizedBox(height: kSpace2),
-            ListTile(
-              leading: const Icon(Icons.photo_camera_outlined),
-              title: Text(context.l10n.drvCamera),
-              onTap: () => Navigator.of(sheetContext).pop(ImageSource.camera),
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library_outlined),
-              title: Text(context.l10n.drvGallery),
-              onTap: () => Navigator.of(sheetContext).pop(ImageSource.gallery),
-            ),
-            const SizedBox(height: kSpace2),
-          ],
-        ),
-      ),
-    );
+          );
     if (source == null || !mounted) return;
 
-    final picked = await _picker.pickImage(source: source, imageQuality: 85);
+    final picked = await _picker.pickImage(
+      source: source,
+      imageQuality: 85,
+      // Selfi — old kamera. Boshqa turlar — orqa kamera (standart).
+      preferredCameraDevice: item.kind == DriverVerificationKind.selfie
+          ? CameraDevice.front
+          : CameraDevice.rear,
+    );
     if (picked == null || !mounted) return;
 
     await context
@@ -186,8 +199,7 @@ class _DriverVerificationScreenState extends State<DriverVerificationScreen> {
             padding: const EdgeInsets.only(bottom: kSpace3),
             child: _VerificationItemCard(
               item: item,
-              uploadState:
-                  driverProvider.verificationUploadStateFor(item.code),
+              uploadState: driverProvider.verificationUploadStateFor(item.code),
               onUpload: () => _pickAndUpload(item),
             ),
           ),
@@ -304,8 +316,7 @@ class _VerificationItemCard extends StatelessWidget {
 
   bool get _isUploading =>
       uploadState.status == DriverDocumentUploadStatus.uploading;
-  bool get _isFailed =>
-      uploadState.status == DriverDocumentUploadStatus.failed;
+  bool get _isFailed => uploadState.status == DriverDocumentUploadStatus.failed;
 
   String _actionLabelFor(AppLocalizations l10n) {
     if (_isFailed) return l10n.drvRetry;

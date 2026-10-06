@@ -765,3 +765,38 @@ export async function closeLostItem(
   const res = await apiClient.patch<ApiResponse<LostItemReport>>(`/lost-items/${id}`, { status, note });
   return res.data.data;
 }
+
+// ─── Driver periodic checks (vehicle inspection, selfie) ─────────
+
+export type VerificationKind = 'document' | 'vehicle_photo' | 'selfie';
+
+export interface PendingVerification {
+  id: string;
+  driverId: string;
+  driverName: string | null;
+  driverPhone: string | null;
+  code: string;
+  label: string;
+  kind: VerificationKind;
+  submittedAt: string;
+  /** Selfie only: the previous approved selfie (or passport) to compare against. */
+  referenceSubmissionId: string | null;
+}
+
+export async function getPendingVerifications(): Promise<PendingVerification[]> {
+  const res = await apiClient.get<ApiResponse<PendingVerification[]>>('/drivers/verification/pending');
+  return res.data.data;
+}
+
+export async function reviewVerification(
+  id: string,
+  body: { approved: boolean; rejectionReason?: string }
+): Promise<void> {
+  await apiClient.patch(`/drivers/verification/${id}/review`, body);
+}
+
+/** Binary file through the proxy; the backend checks the reviewer's role. */
+export async function getVerificationFile(id: string): Promise<Blob> {
+  const res = await apiClient.get<Blob>(`/drivers/verification/${id}/file`, { responseType: 'blob' });
+  return res.data;
+}

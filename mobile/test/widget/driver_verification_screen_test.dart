@@ -42,13 +42,18 @@ class _FakeImagePickerPlatform extends Fake
   _FakeImagePickerPlatform(this.filePath);
 
   final String filePath;
+  ImageSource? lastSource;
+  CameraDevice? lastDevice;
 
   @override
   Future<XFile?> getImageFromSource({
     required ImageSource source,
     ImagePickerOptions options = const ImagePickerOptions(),
-  }) async =>
-      XFile(filePath);
+  }) async {
+    lastSource = source;
+    lastDevice = options.preferredCameraDevice;
+    return XFile(filePath);
+  }
 }
 
 Response<dynamic> _jsonResponse(String path, dynamic data) => Response(
@@ -84,6 +89,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late MockApiClient mockApiClient;
+
+  late _FakeImagePickerPlatform picker;
   late LocalStorage localStorage;
   late String tempFilePath;
   late ImagePickerPlatform originalImagePickerPlatform;
@@ -107,7 +114,8 @@ void main() {
     tempFilePath = tempFile.path;
 
     originalImagePickerPlatform = ImagePickerPlatform.instance;
-    ImagePickerPlatform.instance = _FakeImagePickerPlatform(tempFilePath);
+    picker = _FakeImagePickerPlatform(tempFilePath);
+    ImagePickerPlatform.instance = picker;
   });
 
   tearDown(() {
@@ -166,6 +174,15 @@ void main() {
     expect(find.text('Galereya'), findsOneWidget);
     await tester.tap(find.text('Galereya'));
 
+    await tester.runAsync(() async {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    });
+    await pumpUntilQuiet(tester);
+  }
+
+  /// Ko'rik/selfi: tanlov oynasi YO'Q, bosish to'g'ridan-to'g'ri kamerani ochadi.
+  Future<void> tapCameraOnlyItem(WidgetTester tester, String code) async {
+    await tester.tap(find.byKey(ValueKey('verification_upload_$code')));
     await tester.runAsync(() async {
       await Future<void>.delayed(const Duration(milliseconds: 50));
     });
@@ -376,6 +393,35 @@ void main() {
     );
   });
 
+  testWidgets('selfi old kamera bilan, tanlov oynasisiz olinadi', (tester) async {
+    stubVerification(
+      canGoOnline: true,
+      items: [
+        _item(code: 'selfie', label: 'Selfi', kind: 'selfie', status: 'due_soon'),
+      ],
+    );
+    final uploadPath = ApiEndpoints.driverVerificationUpload('selfie');
+    when(
+      () => mockApiClient.post(
+        uploadPath,
+        data: any(named: 'data'),
+        onSendProgress: any(named: 'onSendProgress'),
+      ),
+    ).thenAnswer(
+      (_) async => _jsonResponse(uploadPath, {
+        'success': true,
+        'data': _item(code: 'selfie', label: 'Selfi', kind: 'selfie', status: 'pending_review'),
+      }),
+    );
+
+    await pumpScreen(tester);
+    await tapCameraOnlyItem(tester, 'selfie');
+
+    expect(find.text('Galereya'), findsNothing);
+    expect(picker.lastSource, ImageSource.camera);
+    expect(picker.lastDevice, CameraDevice.front);
+  });
+
   testWidgets('surat tanlash serverga yuklash so\'rovini yuboradi',
       (tester) async {
     stubVerification(
@@ -414,7 +460,12 @@ void main() {
     await pumpScreen(tester);
     expect(find.text('Yuklanmagan'), findsOneWidget);
 
-    await pickGalleryPhotoFor(tester, 'vehicle_photo_front');
+    await tapCameraOnlyItem(tester, 'vehicle_photo_front');
+
+    // Mashina ko'rigi faqat kameradan — galereyadan eski surat bo'lmaydi.
+    expect(find.text('Galereya'), findsNothing);
+    expect(picker.lastSource, ImageSource.camera);
+    expect(picker.lastDevice, CameraDevice.rear);
 
     verify(
       () => mockApiClient.post(

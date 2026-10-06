@@ -73,6 +73,12 @@ export interface PendingVerificationEntry {
   kind: DriverVerificationKind;
   fileUrl: string;
   submittedAt: string;
+  /**
+   * Faqat selfi uchun: menejer yonma-yon solishtiradigan material — oxirgi
+   * tasdiqlangan selfi, u bo'lmasa tasdiqlangan pasport. Boshqa turlarda
+   * `null`. Fayl `GET /drivers/verification/:id/file` orqali olinadi.
+   */
+  referenceSubmissionId: string | null;
 }
 
 /**
@@ -358,6 +364,7 @@ export class DriverVerificationService {
       relations: ['user'],
     });
     const byDriverId = new Map(drivers.map((d) => [d.id, d]));
+    const references = await this.findSelfieReferences(submissions, byCode);
 
     return submissions.map((submission) => {
       const requirement = byCode.get(submission.code);
@@ -375,8 +382,48 @@ export class DriverVerificationService {
         kind: requirement?.kind ?? DriverVerificationKind.DOCUMENT,
         fileUrl: submission.fileUrl,
         submittedAt: submission.submittedAt.toISOString(),
+        referenceSubmissionId:
+          requirement?.kind === DriverVerificationKind.SELFIE
+            ? (references.get(submission.driverId) ?? null)
+            : null,
       };
     });
+  }
+
+  /**
+   * Selfi yuborgan har bir haydovchi uchun taqqoslash materiali (driverId →
+   * submission id): oxirgi TASDIQLANGAN selfi, u bo'lmasa (birinchi selfi)
+   * tasdiqlangan pasport. Menejer yuzni ko'z bilan solishtiradi — avtomatik
+   * yuz tanish yo'q, lekin bir xil odam ekanini ko'rish uchun shu yetadi.
+   */
+  private async findSelfieReferences(
+    submissions: DriverVerificationSubmission[],
+    byCode: Map<string, DriverVerificationRequirement>,
+  ): Promise<Map<string, string>> {
+    const selfieCodes = new Set(
+      [...byCode.values()].filter((r) => r.kind === DriverVerificationKind.SELFIE).map((r) => r.code),
+    );
+    const driverIds = [
+      ...new Set(submissions.filter((s) => selfieCodes.has(s.code)).map((s) => s.driverId)),
+    ];
+    if (driverIds.length === 0) return new Map();
+
+    const approved = await this.submissionRepository.find({
+      where: {
+        driverId: In(driverIds),
+        code: In([...selfieCodes, 'passport']),
+        reviewStatus: DriverVerificationReviewStatus.APPROVED,
+      },
+      order: { submittedAt: 'DESC' },
+    });
+
+    const result = new Map<string, string>();
+    for (const driverId of driverIds) {
+      const own = approved.filter((s) => s.driverId === driverId);
+      const reference = own.find((s) => selfieCodes.has(s.code)) ?? own.find((s) => s.code === 'passport');
+      if (reference) result.set(driverId, reference.id);
+    }
+    return result;
   }
 
   /**
