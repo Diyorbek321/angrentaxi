@@ -1873,14 +1873,6 @@
   },
   "shManeuverContinue": "Yo'lda davom eting",
   "shManeuverDepart": "Yo'lni boshlang",
-  "shManeuverEndOfRoadLeft": "Yo'l oxirida chapga buriling",
-  "shManeuverEndOfRoadRight": "Yo'l oxirida o'ngga buriling",
-  "shManeuverEndOfRoadStraight": "Yo'l oxirigacha davom eting",
-  "shManeuverEndOfRoadUturn": "Yo'l oxirida orqaga qayting",
-  "shManeuverExitRoundabout": "Aylanmadan chiqing",
-  "shManeuverForkLeft": "Ayrilishda chap tomonni tanlang",
-  "shManeuverForkRight": "Ayrilishda o'ng tomonni tanlang",
-  "shManeuverForkStraight": "Ayrilishda to'g'ri davom eting",
   "shManeuverInDistance": "{meters} metrdan keyin {instruction}",
   "@shManeuverInDistance": {
     "placeholders": {
@@ -1893,26 +1885,10 @@
     }
   },
   "shManeuverLeft": "Chapga buriling",
-  "shManeuverMerge": "Qatorga qo'shiling",
-  "shManeuverMergeLeft": "Chap qatorga qo'shiling",
-  "shManeuverMergeRight": "O'ng qatorga qo'shiling",
-  "shManeuverOffRamp": "Yo'lkadan chiqing",
-  "shManeuverOnRamp": "Chiqish yo'lkasiga kiring",
   "shManeuverRerouting": "Marshrutdan chiqdingiz. Yo'l qayta hisoblanmoqda.",
   "shManeuverRight": "O'ngga buriling",
-  "shManeuverRoundabout": "Aylanmaga kiring",
-  "shManeuverRoundaboutExit": "Aylanmaga kiring va {exit}-chiqishdan chiqing",
-  "@shManeuverRoundaboutExit": {
-    "placeholders": {
-      "exit": {
-        "type": "int"
-      }
-    }
-  },
   "shManeuverSharpLeft": "Keskin chapga buriling",
   "shManeuverSharpRight": "Keskin o'ngga buriling",
-  "shManeuverSlightLeft": "Sal chapga oling",
-  "shManeuverSlightRight": "Sal o'ngga oling",
   "shManeuverStraight": "To'g'ri davom eting",
   "shManeuverUturn": "Orqaga qayting",
   "shMarketPacking": "Do'kon yig'moqda",

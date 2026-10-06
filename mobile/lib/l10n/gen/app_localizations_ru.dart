@@ -2947,51 +2947,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get shManeuverDepart => 'Начните движение';
 
   @override
-  String get shManeuverEndOfRoadLeft => 'В конце дороги поверните налево';
-
-  @override
-  String get shManeuverEndOfRoadRight => 'В конце дороги поверните направо';
-
-  @override
-  String get shManeuverEndOfRoadStraight => 'Продолжайте до конца дороги';
-
-  @override
-  String get shManeuverEndOfRoadUturn => 'В конце дороги развернитесь';
-
-  @override
-  String get shManeuverExitRoundabout => 'Съезжайте с кольца';
-
-  @override
-  String get shManeuverForkLeft => 'На развилке держитесь левее';
-
-  @override
-  String get shManeuverForkRight => 'На развилке держитесь правее';
-
-  @override
-  String get shManeuverForkStraight => 'На развилке продолжайте прямо';
-
-  @override
   String shManeuverInDistance(int meters, String instruction) {
     return 'Через $meters метров $instruction';
   }
 
   @override
   String get shManeuverLeft => 'Поверните налево';
-
-  @override
-  String get shManeuverMerge => 'Перестройтесь в поток';
-
-  @override
-  String get shManeuverMergeLeft => 'Перестройтесь в левый ряд';
-
-  @override
-  String get shManeuverMergeRight => 'Перестройтесь в правый ряд';
-
-  @override
-  String get shManeuverOffRamp => 'Сверните на съезд';
-
-  @override
-  String get shManeuverOnRamp => 'Въезжайте на трассу';
 
   @override
   String get shManeuverRerouting =>
@@ -3001,24 +2962,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get shManeuverRight => 'Поверните направо';
 
   @override
-  String get shManeuverRoundabout => 'Въезжайте на круговое движение';
-
-  @override
-  String shManeuverRoundaboutExit(int exit) {
-    return 'На круговом движении съезжайте на $exit-й съезд';
-  }
-
-  @override
   String get shManeuverSharpLeft => 'Резко поверните налево';
 
   @override
   String get shManeuverSharpRight => 'Резко поверните направо';
-
-  @override
-  String get shManeuverSlightLeft => 'Держитесь левее';
-
-  @override
-  String get shManeuverSlightRight => 'Держитесь правее';
 
   @override
   String get shManeuverStraight => 'Продолжайте прямо';

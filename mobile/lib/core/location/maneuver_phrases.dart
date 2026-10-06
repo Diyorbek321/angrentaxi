@@ -104,6 +104,8 @@ abstract final class ManeuverPhrases {
   /// [announcementFor] ning ovoz bo'laklari shaklidagi aynan o'sha gapi:
   /// `far`/`near` da avval masofa ("100 metrdan keyin"), keyin ko'rsatma.
   static List<String> voiceClipsFor(RouteStep step, AnnouncementPhase phase) {
+    // Jim manevr — hech narsa (noto'g'ri bo'lak aytilgandan ko'ra jimlik).
+    if (!isSpoken(step)) return const [];
     final meters = kPhaseDistanceMeters[phase];
     if (meters == null) return [_clipFor(step)];
     if (step.type == ManeuverType.arrive) return ['dist_$meters', 'arrive_in'];
@@ -113,48 +115,27 @@ abstract final class ManeuverPhrases {
   /// Marshrut qayta qurilayotgani haqidagi gap bo'lagi.
   static const List<String> reroutingClips = ['shManeuverRerouting'];
 
-  /// Asosiy ko'rsatmaning bo'lagi. Matn → kalit teskari jadvali orqali:
-  /// `_baseInstruction` dagi tanlovni ikkinchi marta yozmaslik uchun (ikki
-  /// nusxa vaqt o'tib ajralib ketardi va ovoz ekrandan boshqa gap aytardi).
-  static String _clipFor(RouteStep step) {
-    final isRoundabout = step.type == ManeuverType.roundabout ||
-        step.type == ManeuverType.rotary ||
-        step.type == ManeuverType.roundaboutTurn;
-    final exit = step.exit;
-    if (isRoundabout && exit != null && exit >= 1) {
-      // 5 tadan ko'p chiqishli aylanma Angrenda yo'q — oddiy "aylanmaga kiring".
-      return exit <= 5 ? 'roundabout_exit_$exit' : 'shManeuverRoundabout';
-    }
+  /// Ovozda AYTILADIGAN ko'rsatmalarning bo'laklari. Ro'yxatda yo'q
+  /// ko'rsatma (to'g'ri yurish, yo'l egilishi, qatorga qo'shilish) — jim.
+  static Map<String, String> get _spokenClipByText {
     final l = AppL10n.current;
-    final byText = <String, String>{
-      l.shManeuverContinue: 'shManeuverContinue',
-      l.shManeuverDepart: 'shManeuverDepart',
+    return {
       l.shManeuverArrive: 'shManeuverArrive',
-      l.shManeuverOnRamp: 'shManeuverOnRamp',
-      l.shManeuverOffRamp: 'shManeuverOffRamp',
-      l.shManeuverExitRoundabout: 'shManeuverExitRoundabout',
-      l.shManeuverStraight: 'shManeuverStraight',
       l.shManeuverUturn: 'shManeuverUturn',
       l.shManeuverSharpRight: 'shManeuverSharpRight',
       l.shManeuverRight: 'shManeuverRight',
-      l.shManeuverSlightRight: 'shManeuverSlightRight',
-      l.shManeuverSlightLeft: 'shManeuverSlightLeft',
       l.shManeuverLeft: 'shManeuverLeft',
       l.shManeuverSharpLeft: 'shManeuverSharpLeft',
-      l.shManeuverEndOfRoadRight: 'shManeuverEndOfRoadRight',
-      l.shManeuverEndOfRoadLeft: 'shManeuverEndOfRoadLeft',
-      l.shManeuverEndOfRoadUturn: 'shManeuverEndOfRoadUturn',
-      l.shManeuverEndOfRoadStraight: 'shManeuverEndOfRoadStraight',
-      l.shManeuverForkRight: 'shManeuverForkRight',
-      l.shManeuverForkLeft: 'shManeuverForkLeft',
-      l.shManeuverForkStraight: 'shManeuverForkStraight',
-      l.shManeuverMergeRight: 'shManeuverMergeRight',
-      l.shManeuverMergeLeft: 'shManeuverMergeLeft',
-      l.shManeuverMerge: 'shManeuverMerge',
-      l.shManeuverRoundabout: 'shManeuverRoundabout',
     };
-    return byText[_baseInstruction(step)] ?? 'shManeuverContinue';
   }
+
+  /// Bu manevr haqida ovozda gapirish kerakmi. Dvigatel `false` bo'lganda
+  /// umuman ogohlantirish chiqarmaydi.
+  static bool isSpoken(RouteStep step) =>
+      _spokenClipByText.containsKey(_baseInstruction(step));
+
+  /// Asosiy ko'rsatmaning bo'lagi (faqat [isSpoken] manevrlar uchun ma'noli).
+  static String _clipFor(RouteStep step) => _spokenClipByText[_baseInstruction(step)]!;
 
   /// Ko'rsatmani gap o'rtasiga qo'yish uchun tayyorlaydi.
   ///
@@ -168,125 +149,62 @@ abstract final class ManeuverPhrases {
     return instruction[0].toLowerCase() + instruction.substring(1);
   }
 
-  /// Manevr turiga mos, modifikatorni hisobga olgan asosiy ibora.
+  /// Asosiy ibora — FAQAT oddiy, aniq ko'rsatmalar (foydalanuvchi qarori,
+  /// 2026-10-06): "o'ngga / chapga / keskin / orqaga qayting / yetib
+  /// keldingiz". Ayrilish, yo'l oxiri, aylanma, rampa — hammasi chiqish
+  /// YO'NALISHIGA qarab shu iboralarga keltiriladi. "Sal o'ngga" (yo'l
+  /// egilishi), qatorga qo'shilish va to'g'ri yurish — [isSpoken] bo'yicha
+  /// JIM: ekranda ko'rinadi, lekin aytilmaydi.
+  ///
+  /// ⚠️ "Svetofordan buriling" YO'Q va bo'lmasligi kerak: OSRM burilish
+  /// joyida svetofor bor-yo'qligini bilmaydi, svetofor yo'q joyda bu gap
+  /// haydovchini adashtirardi.
   ///
   /// `switch` TO'LIQ (exhaustive): `ManeuverType` ga yangi qiymat qo'shilsa
-  /// analizator shu yerni xato deb belgilaydi va yangi tur e'tibordan
-  /// chetda qolmaydi.
+  /// analizator shu yerni xato deb belgilaydi.
   static String _baseInstruction(RouteStep step) {
     return switch (step.type) {
       ManeuverType.depart => AppL10n.current.shManeuverDepart,
       ManeuverType.arrive => AppL10n.current.shManeuverArrive,
-      ManeuverType.turn => _turnPhrase(step.modifier),
-      ManeuverType.endOfRoad => _endOfRoadPhrase(step.modifier),
-      ManeuverType.fork => _forkPhrase(step.modifier),
-      ManeuverType.merge => _mergePhrase(step.modifier),
-      ManeuverType.onRamp => AppL10n.current.shManeuverOnRamp,
-      ManeuverType.offRamp => AppL10n.current.shManeuverOffRamp,
+      // Oddiy burilishda "sal" — yo'l egilishi, burilish emas.
+      ManeuverType.turn => _directional(step.modifier, slightIsTurn: false),
+      // Bularda "sal" ham haqiqiy tanlov (qaysi tarmoqqa/chiqishga) — aniq
+      // burilish sifatida aytiladi.
+      ManeuverType.endOfRoad ||
+      ManeuverType.fork ||
+      ManeuverType.onRamp ||
+      ManeuverType.offRamp ||
       ManeuverType.roundabout ||
       ManeuverType.rotary ||
-      ManeuverType.roundaboutTurn =>
-        _roundaboutPhrase(step.exit),
-      ManeuverType.exitRoundabout ||
-      ManeuverType.exitRotary =>
-        AppL10n.current.shManeuverExitRoundabout,
+      ManeuverType.roundaboutTurn ||
+      // Noma'lum tur: modifikator bo'lsa yo'nalish baribir foydali.
+      ManeuverType.unknown =>
+        _directional(step.modifier, slightIsTurn: true),
       ManeuverType.straightOn => AppL10n.current.shManeuverStraight,
-
-      // `new name` — yo'l nomi o'zgardi, harakat talab qilinmaydi. Xuddi
-      // shunday `notification` ham faqat xabar beradi.
-      ManeuverType.newName || ManeuverType.notification => fallback,
-
-      // OSRM biz bilmaydigan tur yubordi. Modifikator bo'lsa — yo'nalish
-      // baribir foydali ("chapga buriling"); bo'lmasa umumiy maslahat.
-      ManeuverType.unknown => _unknownPhrase(step.modifier),
+      ManeuverType.exitRoundabout ||
+      ManeuverType.exitRotary ||
+      ManeuverType.merge ||
+      ManeuverType.newName ||
+      ManeuverType.notification =>
+        fallback,
     };
   }
 
-  /// Oddiy burilish iborasi.
-  static String _turnPhrase(ManeuverModifier modifier) {
+  /// Yo'nalish → ibora. Modifikatorsiz tomon O'YLAB TOPILMAYDI (noto'g'ri
+  /// tomonni aytish jim qolishdan ham xavfli) — umumiy, jim ibora.
+  static String _directional(ManeuverModifier modifier, {required bool slightIsTurn}) {
+    final l = AppL10n.current;
     return switch (modifier) {
-      ManeuverModifier.uturn => AppL10n.current.shManeuverUturn,
-      ManeuverModifier.sharpRight => AppL10n.current.shManeuverSharpRight,
-      ManeuverModifier.right => AppL10n.current.shManeuverRight,
-      ManeuverModifier.slightRight => AppL10n.current.shManeuverSlightRight,
-      ManeuverModifier.straight => AppL10n.current.shManeuverStraight,
-      ManeuverModifier.slightLeft => AppL10n.current.shManeuverSlightLeft,
-      ManeuverModifier.left => AppL10n.current.shManeuverLeft,
-      ManeuverModifier.sharpLeft => AppL10n.current.shManeuverSharpLeft,
-
-      // Modifikatorsiz "turn" — OSRM tomonni bilmayapti. Yo'nalishni
-      // o'zimiz to'qib bo'lmaydi, shuning uchun neytral ibora.
+      ManeuverModifier.uturn => l.shManeuverUturn,
+      ManeuverModifier.sharpRight => l.shManeuverSharpRight,
+      ManeuverModifier.right => l.shManeuverRight,
+      ManeuverModifier.slightRight => slightIsTurn ? l.shManeuverRight : fallback,
+      ManeuverModifier.straight => l.shManeuverStraight,
+      ManeuverModifier.slightLeft => slightIsTurn ? l.shManeuverLeft : fallback,
+      ManeuverModifier.left => l.shManeuverLeft,
+      ManeuverModifier.sharpLeft => l.shManeuverSharpLeft,
       ManeuverModifier.none => fallback,
     };
-  }
-
-  /// Yo'l tugadi — majburiy burilish.
-  static String _endOfRoadPhrase(ManeuverModifier modifier) {
-    return switch (modifier) {
-      ManeuverModifier.right ||
-      ManeuverModifier.sharpRight ||
-      ManeuverModifier.slightRight =>
-        AppL10n.current.shManeuverEndOfRoadRight,
-      ManeuverModifier.left ||
-      ManeuverModifier.sharpLeft ||
-      ManeuverModifier.slightLeft =>
-        AppL10n.current.shManeuverEndOfRoadLeft,
-      ManeuverModifier.uturn => AppL10n.current.shManeuverEndOfRoadUturn,
-      ManeuverModifier.straight ||
-      ManeuverModifier.none =>
-        AppL10n.current.shManeuverEndOfRoadStraight,
-    };
-  }
-
-  /// Yo'l ikkiga ayrilishi.
-  static String _forkPhrase(ManeuverModifier modifier) {
-    return switch (modifier) {
-      ManeuverModifier.right ||
-      ManeuverModifier.sharpRight ||
-      ManeuverModifier.slightRight =>
-        AppL10n.current.shManeuverForkRight,
-      ManeuverModifier.left ||
-      ManeuverModifier.sharpLeft ||
-      ManeuverModifier.slightLeft =>
-        AppL10n.current.shManeuverForkLeft,
-      ManeuverModifier.uturn => AppL10n.current.shManeuverUturn,
-      ManeuverModifier.straight ||
-      ManeuverModifier.none =>
-        AppL10n.current.shManeuverForkStraight,
-    };
-  }
-
-  /// Qatorga qo'shilish.
-  static String _mergePhrase(ManeuverModifier modifier) {
-    return switch (modifier) {
-      ManeuverModifier.right ||
-      ManeuverModifier.sharpRight ||
-      ManeuverModifier.slightRight =>
-        AppL10n.current.shManeuverMergeRight,
-      ManeuverModifier.left ||
-      ManeuverModifier.sharpLeft ||
-      ManeuverModifier.slightLeft =>
-        AppL10n.current.shManeuverMergeLeft,
-      ManeuverModifier.uturn ||
-      ManeuverModifier.straight ||
-      ManeuverModifier.none =>
-        AppL10n.current.shManeuverMerge,
-    };
-  }
-
-  /// Aylanma yo'l. Chiqish raqami bo'lsa aytiladi — aynan shu raqam
-  /// haydovchiga aylanmada qayerdan chiqishni ko'rsatadigan yagona ma'lumot.
-  static String _roundaboutPhrase(int? exit) {
-    if (exit == null || exit < 1) return AppL10n.current.shManeuverRoundabout;
-
-    return AppL10n.current.shManeuverRoundaboutExit(exit);
-  }
-
-  /// Noma'lum tur — yo'nalish ma'lum bo'lsa undan foydalanamiz.
-  static String _unknownPhrase(ManeuverModifier modifier) {
-    if (modifier == ManeuverModifier.none) return fallback;
-
-    return _turnPhrase(modifier);
   }
 
   /// Ko'cha nomi qaysi manevrlarda ma'noli.

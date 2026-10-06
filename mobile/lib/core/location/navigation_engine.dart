@@ -278,6 +278,10 @@ class NavigationEngine {
 
   /// Shu ping'da aytilishi kerak bo'lgan gap, yoki `null`.
   NavigationAnnouncement? _announcementFor(RouteStep step, double distance) {
+    // To'g'ri yurish, yo'l egilishi, qatorga qo'shilish — ovozda aytilmaydi
+    // (ekrandagi banner baribir ko'rsatadi).
+    if (!ManeuverPhrases.isSpoken(step)) return null;
+
     final phase = _phaseFor(distance);
     if (phase == null) return null;
 

@@ -279,36 +279,12 @@
   "shManeuverContinue": "Yo'lda davom eting",
   "shManeuverDepart": "Yo'lni boshlang",
   "shManeuverArrive": "Manzilga yetib keldingiz",
-  "shManeuverOnRamp": "Chiqish yo'lkasiga kiring",
-  "shManeuverOffRamp": "Yo'lkadan chiqing",
-  "shManeuverExitRoundabout": "Aylanmadan chiqing",
   "shManeuverStraight": "To'g'ri davom eting",
   "shManeuverUturn": "Orqaga qayting",
   "shManeuverSharpRight": "Keskin o'ngga buriling",
   "shManeuverRight": "O'ngga buriling",
-  "shManeuverSlightRight": "Sal o'ngga oling",
-  "shManeuverSlightLeft": "Sal chapga oling",
   "shManeuverLeft": "Chapga buriling",
   "shManeuverSharpLeft": "Keskin chapga buriling",
-  "shManeuverEndOfRoadRight": "Yo'l oxirida o'ngga buriling",
-  "shManeuverEndOfRoadLeft": "Yo'l oxirida chapga buriling",
-  "shManeuverEndOfRoadUturn": "Yo'l oxirida orqaga qayting",
-  "shManeuverEndOfRoadStraight": "Yo'l oxirigacha davom eting",
-  "shManeuverForkRight": "Ayrilishda o'ng tomonni tanlang",
-  "shManeuverForkLeft": "Ayrilishda chap tomonni tanlang",
-  "shManeuverForkStraight": "Ayrilishda to'g'ri davom eting",
-  "shManeuverMergeRight": "O'ng qatorga qo'shiling",
-  "shManeuverMergeLeft": "Chap qatorga qo'shiling",
-  "shManeuverMerge": "Qatorga qo'shiling",
-  "shManeuverRoundabout": "Aylanmaga kiring",
-  "shManeuverRoundaboutExit": "Aylanmaga kiring va {exit}-chiqishdan chiqing",
-  "@shManeuverRoundaboutExit": {
-    "placeholders": {
-      "exit": {
-        "type": "int"
-      }
-    }
-  },
   "shManeuverArriveIn": "{meters} metrdan keyin manzilga yetib borasiz",
   "@shManeuverArriveIn": {
     "placeholders": {

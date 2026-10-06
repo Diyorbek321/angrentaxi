@@ -5295,54 +5295,6 @@ abstract class AppLocalizations {
   /// **'Yo\'lni boshlang'**
   String get shManeuverDepart;
 
-  /// No description provided for @shManeuverEndOfRoadLeft.
-  ///
-  /// In uz, this message translates to:
-  /// **'Yo\'l oxirida chapga buriling'**
-  String get shManeuverEndOfRoadLeft;
-
-  /// No description provided for @shManeuverEndOfRoadRight.
-  ///
-  /// In uz, this message translates to:
-  /// **'Yo\'l oxirida o\'ngga buriling'**
-  String get shManeuverEndOfRoadRight;
-
-  /// No description provided for @shManeuverEndOfRoadStraight.
-  ///
-  /// In uz, this message translates to:
-  /// **'Yo\'l oxirigacha davom eting'**
-  String get shManeuverEndOfRoadStraight;
-
-  /// No description provided for @shManeuverEndOfRoadUturn.
-  ///
-  /// In uz, this message translates to:
-  /// **'Yo\'l oxirida orqaga qayting'**
-  String get shManeuverEndOfRoadUturn;
-
-  /// No description provided for @shManeuverExitRoundabout.
-  ///
-  /// In uz, this message translates to:
-  /// **'Aylanmadan chiqing'**
-  String get shManeuverExitRoundabout;
-
-  /// No description provided for @shManeuverForkLeft.
-  ///
-  /// In uz, this message translates to:
-  /// **'Ayrilishda chap tomonni tanlang'**
-  String get shManeuverForkLeft;
-
-  /// No description provided for @shManeuverForkRight.
-  ///
-  /// In uz, this message translates to:
-  /// **'Ayrilishda o\'ng tomonni tanlang'**
-  String get shManeuverForkRight;
-
-  /// No description provided for @shManeuverForkStraight.
-  ///
-  /// In uz, this message translates to:
-  /// **'Ayrilishda to\'g\'ri davom eting'**
-  String get shManeuverForkStraight;
-
   /// No description provided for @shManeuverInDistance.
   ///
   /// In uz, this message translates to:
@@ -5354,36 +5306,6 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Chapga buriling'**
   String get shManeuverLeft;
-
-  /// No description provided for @shManeuverMerge.
-  ///
-  /// In uz, this message translates to:
-  /// **'Qatorga qo\'shiling'**
-  String get shManeuverMerge;
-
-  /// No description provided for @shManeuverMergeLeft.
-  ///
-  /// In uz, this message translates to:
-  /// **'Chap qatorga qo\'shiling'**
-  String get shManeuverMergeLeft;
-
-  /// No description provided for @shManeuverMergeRight.
-  ///
-  /// In uz, this message translates to:
-  /// **'O\'ng qatorga qo\'shiling'**
-  String get shManeuverMergeRight;
-
-  /// No description provided for @shManeuverOffRamp.
-  ///
-  /// In uz, this message translates to:
-  /// **'Yo\'lkadan chiqing'**
-  String get shManeuverOffRamp;
-
-  /// No description provided for @shManeuverOnRamp.
-  ///
-  /// In uz, this message translates to:
-  /// **'Chiqish yo\'lkasiga kiring'**
-  String get shManeuverOnRamp;
 
   /// No description provided for @shManeuverRerouting.
   ///
@@ -5397,18 +5319,6 @@ abstract class AppLocalizations {
   /// **'O\'ngga buriling'**
   String get shManeuverRight;
 
-  /// No description provided for @shManeuverRoundabout.
-  ///
-  /// In uz, this message translates to:
-  /// **'Aylanmaga kiring'**
-  String get shManeuverRoundabout;
-
-  /// No description provided for @shManeuverRoundaboutExit.
-  ///
-  /// In uz, this message translates to:
-  /// **'Aylanmaga kiring va {exit}-chiqishdan chiqing'**
-  String shManeuverRoundaboutExit(int exit);
-
   /// No description provided for @shManeuverSharpLeft.
   ///
   /// In uz, this message translates to:
@@ -5420,18 +5330,6 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Keskin o\'ngga buriling'**
   String get shManeuverSharpRight;
-
-  /// No description provided for @shManeuverSlightLeft.
-  ///
-  /// In uz, this message translates to:
-  /// **'Sal chapga oling'**
-  String get shManeuverSlightLeft;
-
-  /// No description provided for @shManeuverSlightRight.
-  ///
-  /// In uz, this message translates to:
-  /// **'Sal o\'ngga oling'**
-  String get shManeuverSlightRight;
 
   /// No description provided for @shManeuverStraight.
   ///

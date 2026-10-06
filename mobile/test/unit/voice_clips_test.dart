@@ -52,16 +52,15 @@ void main() {
         expect(ManeuverPhrases.voiceClipsFor(arrive, AnnouncementPhase.immediate), ['shManeuverArrive']);
       });
 
-      test('roundabout exits', () {
+      test('silent maneuvers produce no clips at all', () {
         expect(
-          ManeuverPhrases.voiceClipsFor(
-              _step(ManeuverType.roundabout, ManeuverModifier.right, exit: 2), AnnouncementPhase.immediate),
-          ['roundabout_exit_2'],
+          ManeuverPhrases.voiceClipsFor(_step(ManeuverType.merge, ManeuverModifier.left), AnnouncementPhase.near),
+          isEmpty,
         );
         expect(
           ManeuverPhrases.voiceClipsFor(
-              _step(ManeuverType.rotary, ManeuverModifier.none, exit: 9), AnnouncementPhase.immediate),
-          ['shManeuverRoundabout'],
+              _step(ManeuverType.roundabout, ManeuverModifier.right, exit: 2), AnnouncementPhase.immediate),
+          ['shManeuverRight'],
         );
       });
 

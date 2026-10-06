@@ -149,20 +149,48 @@ void main() {
       expect(text, 'O\'ngga buriling, Navoiy ko\'chasi');
     });
 
-    test('aylanmada chiqish raqami aytiladi', () {
-      final text = ManeuverPhrases.instructionFor(
-        step(ManeuverType.roundabout, ManeuverModifier.right, exit: 2),
+    test('aylanma chiqish YO\'NALISHI bo\'yicha aytiladi (raqam emas)', () {
+      expect(
+        ManeuverPhrases.instructionFor(step(ManeuverType.roundabout, ManeuverModifier.right, exit: 2)),
+        'O\'ngga buriling',
       );
-
-      expect(text, contains('2-chiqish'));
+      expect(
+        ManeuverPhrases.instructionFor(step(ManeuverType.rotary, ManeuverModifier.left)),
+        'Chapga buriling',
+      );
     });
 
-    test('chiqish raqami noma\'lum aylanmada ham gap to\'g\'ri qoladi', () {
-      final text = ManeuverPhrases.instructionFor(
-        step(ManeuverType.roundabout, ManeuverModifier.right),
-      );
+    test('ayrilish va yo\'l oxiri — oddiy burilish (svetofor taxmin qilinmaydi)', () {
+      for (final type in [ManeuverType.fork, ManeuverType.endOfRoad]) {
+        expect(ManeuverPhrases.instructionFor(step(type, ManeuverModifier.slightRight)), 'O\'ngga buriling');
+        expect(ManeuverPhrases.instructionFor(step(type, ManeuverModifier.left)), 'Chapga buriling');
+      }
+      for (final type in ManeuverType.values) {
+        for (final modifier in ManeuverModifier.values) {
+          expect(
+            ManeuverPhrases.instructionFor(step(type, modifier)).toLowerCase(),
+            isNot(contains('svetofor')),
+          );
+        }
+      }
+    });
 
-      expect(text, 'Aylanmaga kiring');
+    test('faqat aniq ko\'rsatmalar aytiladi, qolgani jim', () {
+      bool spoken(ManeuverType t, ManeuverModifier m) => ManeuverPhrases.isSpoken(step(t, m));
+
+      expect(spoken(ManeuverType.turn, ManeuverModifier.right), isTrue);
+      expect(spoken(ManeuverType.turn, ManeuverModifier.sharpLeft), isTrue);
+      expect(spoken(ManeuverType.turn, ManeuverModifier.uturn), isTrue);
+      expect(spoken(ManeuverType.arrive, ManeuverModifier.none), isTrue);
+      expect(spoken(ManeuverType.fork, ManeuverModifier.slightLeft), isTrue);
+
+      // Yo'l egilishi, to'g'ri yurish, qatorga qo'shilish, boshlash — jim.
+      expect(spoken(ManeuverType.turn, ManeuverModifier.slightRight), isFalse);
+      expect(spoken(ManeuverType.straightOn, ManeuverModifier.straight), isFalse);
+      expect(spoken(ManeuverType.merge, ManeuverModifier.left), isFalse);
+      expect(spoken(ManeuverType.depart, ManeuverModifier.none), isFalse);
+      expect(spoken(ManeuverType.exitRoundabout, ManeuverModifier.right), isFalse);
+      expect(spoken(ManeuverType.roundabout, ManeuverModifier.straight), isFalse);
     });
 
     test('uzoq bosqichda "yetib borasiz" kelasi zamonda aytiladi', () {

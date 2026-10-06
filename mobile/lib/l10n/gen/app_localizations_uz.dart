@@ -2954,51 +2954,12 @@ class AppLocalizationsUz extends AppLocalizations {
   String get shManeuverDepart => 'Yo\'lni boshlang';
 
   @override
-  String get shManeuverEndOfRoadLeft => 'Yo\'l oxirida chapga buriling';
-
-  @override
-  String get shManeuverEndOfRoadRight => 'Yo\'l oxirida o\'ngga buriling';
-
-  @override
-  String get shManeuverEndOfRoadStraight => 'Yo\'l oxirigacha davom eting';
-
-  @override
-  String get shManeuverEndOfRoadUturn => 'Yo\'l oxirida orqaga qayting';
-
-  @override
-  String get shManeuverExitRoundabout => 'Aylanmadan chiqing';
-
-  @override
-  String get shManeuverForkLeft => 'Ayrilishda chap tomonni tanlang';
-
-  @override
-  String get shManeuverForkRight => 'Ayrilishda o\'ng tomonni tanlang';
-
-  @override
-  String get shManeuverForkStraight => 'Ayrilishda to\'g\'ri davom eting';
-
-  @override
   String shManeuverInDistance(int meters, String instruction) {
     return '$meters metrdan keyin $instruction';
   }
 
   @override
   String get shManeuverLeft => 'Chapga buriling';
-
-  @override
-  String get shManeuverMerge => 'Qatorga qo\'shiling';
-
-  @override
-  String get shManeuverMergeLeft => 'Chap qatorga qo\'shiling';
-
-  @override
-  String get shManeuverMergeRight => 'O\'ng qatorga qo\'shiling';
-
-  @override
-  String get shManeuverOffRamp => 'Yo\'lkadan chiqing';
-
-  @override
-  String get shManeuverOnRamp => 'Chiqish yo\'lkasiga kiring';
 
   @override
   String get shManeuverRerouting =>
@@ -3008,24 +2969,10 @@ class AppLocalizationsUz extends AppLocalizations {
   String get shManeuverRight => 'O\'ngga buriling';
 
   @override
-  String get shManeuverRoundabout => 'Aylanmaga kiring';
-
-  @override
-  String shManeuverRoundaboutExit(int exit) {
-    return 'Aylanmaga kiring va $exit-chiqishdan chiqing';
-  }
-
-  @override
   String get shManeuverSharpLeft => 'Keskin chapga buriling';
 
   @override
   String get shManeuverSharpRight => 'Keskin o\'ngga buriling';
-
-  @override
-  String get shManeuverSlightLeft => 'Sal chapga oling';
-
-  @override
-  String get shManeuverSlightRight => 'Sal o\'ngga oling';
 
   @override
   String get shManeuverStraight => 'To\'g\'ri davom eting';

@@ -6,32 +6,8 @@
   },
   "clips": [
     {
-      "id": "shManeuverContinue",
-      "arb": "shManeuverContinue"
-    },
-    {
-      "id": "shManeuverDepart",
-      "arb": "shManeuverDepart"
-    },
-    {
       "id": "shManeuverArrive",
       "arb": "shManeuverArrive"
-    },
-    {
-      "id": "shManeuverOnRamp",
-      "arb": "shManeuverOnRamp"
-    },
-    {
-      "id": "shManeuverOffRamp",
-      "arb": "shManeuverOffRamp"
-    },
-    {
-      "id": "shManeuverExitRoundabout",
-      "arb": "shManeuverExitRoundabout"
-    },
-    {
-      "id": "shManeuverStraight",
-      "arb": "shManeuverStraight"
     },
     {
       "id": "shManeuverUturn",
@@ -46,64 +22,12 @@
       "arb": "shManeuverRight"
     },
     {
-      "id": "shManeuverSlightRight",
-      "arb": "shManeuverSlightRight"
-    },
-    {
-      "id": "shManeuverSlightLeft",
-      "arb": "shManeuverSlightLeft"
-    },
-    {
       "id": "shManeuverLeft",
       "arb": "shManeuverLeft"
     },
     {
       "id": "shManeuverSharpLeft",
       "arb": "shManeuverSharpLeft"
-    },
-    {
-      "id": "shManeuverEndOfRoadRight",
-      "arb": "shManeuverEndOfRoadRight"
-    },
-    {
-      "id": "shManeuverEndOfRoadLeft",
-      "arb": "shManeuverEndOfRoadLeft"
-    },
-    {
-      "id": "shManeuverEndOfRoadUturn",
-      "arb": "shManeuverEndOfRoadUturn"
-    },
-    {
-      "id": "shManeuverEndOfRoadStraight",
-      "arb": "shManeuverEndOfRoadStraight"
-    },
-    {
-      "id": "shManeuverForkRight",
-      "arb": "shManeuverForkRight"
-    },
-    {
-      "id": "shManeuverForkLeft",
-      "arb": "shManeuverForkLeft"
-    },
-    {
-      "id": "shManeuverForkStraight",
-      "arb": "shManeuverForkStraight"
-    },
-    {
-      "id": "shManeuverMergeRight",
-      "arb": "shManeuverMergeRight"
-    },
-    {
-      "id": "shManeuverMergeLeft",
-      "arb": "shManeuverMergeLeft"
-    },
-    {
-      "id": "shManeuverMerge",
-      "arb": "shManeuverMerge"
-    },
-    {
-      "id": "shManeuverRoundabout",
-      "arb": "shManeuverRoundabout"
     },
     {
       "id": "shManeuverRerouting",
@@ -126,31 +50,6 @@
       "arb": "shManeuverArriveIn",
       "meters": 0,
       "part": "suffix"
-    },
-    {
-      "id": "roundabout_exit_1",
-      "arb": "shManeuverRoundaboutExit",
-      "exit": 1
-    },
-    {
-      "id": "roundabout_exit_2",
-      "arb": "shManeuverRoundaboutExit",
-      "exit": 2
-    },
-    {
-      "id": "roundabout_exit_3",
-      "arb": "shManeuverRoundaboutExit",
-      "exit": 3
-    },
-    {
-      "id": "roundabout_exit_4",
-      "arb": "shManeuverRoundaboutExit",
-      "exit": 4
-    },
-    {
-      "id": "roundabout_exit_5",
-      "arb": "shManeuverRoundaboutExit",
-      "exit": 5
     }
   ]
 }
