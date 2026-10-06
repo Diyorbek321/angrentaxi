@@ -2,7 +2,9 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Logger,
+  Optional,
   Param,
   Patch,
   Post,
@@ -39,6 +41,9 @@ import { Order, OrderStatus } from '../../database/entities/order.entity';
 import { AddTipDto } from './dto/add-tip.dto';
 import { OrdersMeterService, type MeterReading } from './orders-meter.service';
 import { OrderReceiptDto } from './dto/order-receipt.dto';
+import { FraudReviewDto } from './dto/fraud-review.dto';
+import { FraudReviewEntry, OrderFraudService } from './order-fraud.service';
+import { parseDeviceId } from './fraud-rules';
 
 @ApiTags('Orders')
 @ApiBearerAuth('JWT-auth')
@@ -51,6 +56,8 @@ export class OrdersController {
     private readonly ordersService: OrdersService,
     private readonly matchingService: MatchingService,
     private readonly meterService: OrdersMeterService,
+    // Optional: controller spec'lari uni qurmaydi; prod'da OrdersModule beradi.
+    @Optional() private readonly fraudService?: OrderFraudService,
   ) {}
 
   @Post('calculate-price')
@@ -67,8 +74,10 @@ export class OrdersController {
   async createOrder(
     @CurrentUser() user: User,
     @Body() dto: CreateOrderDto,
+    @Headers('x-device-id') deviceId?: string,
   ): Promise<Order> {
     const order = await this.ordersService.create(user.id, dto);
+    await this.fraudService?.recordPassengerDevice(order.id, parseDeviceId(deviceId));
 
     this.startSearchUnlessScheduled(order);
 
@@ -228,6 +237,28 @@ export class OrdersController {
     return this.ordersService.getNoDriversFoundExceptions(pagination.page ?? 1, pagination.limit ?? 20);
   }
 
+  /** ⚠️ `@Get(':id')` DAN OLDIN turishi shart (yuqoridagi izohga qarang). */
+  @Get('fraud-review')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DRIVERS_VIEW)
+  @ApiOperation({ summary: "Shubhali safarlar (o'zini o'zi zakaz qilish belgilari) — menejer navbati" })
+  async getFraudReviewQueue(): Promise<FraudReviewEntry[]> {
+    return this.fraudService?.listPending() ?? [];
+  }
+
+  @Patch(':id/fraud-review')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DRIVERS_VIEW)
+  @ApiOperation({ summary: 'Shubhali safar bo‘yicha qaror: tasdiqlansa bonus beriladi' })
+  async reviewFraud(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: FraudReviewDto,
+  ): Promise<{ ok: true }> {
+    await this.fraudService?.review(id, user.id, dto.approved, dto.note);
+    return { ok: true };
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get order by ID' })
   @ApiParam({ name: 'id', description: 'Order UUID' })
@@ -297,8 +328,10 @@ export class OrdersController {
   async acceptOrder(
     @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) id: string,
+    @Headers('x-device-id') deviceId?: string,
   ): Promise<Order> {
     const order = await this.ordersService.acceptOrder(user.id, id);
+    await this.fraudService?.recordDriverAccept(id, user.id, parseDeviceId(deviceId));
     await this.matchingService.driverAccepted(user.id, id);
     return order;
   }

@@ -290,6 +290,40 @@ export class Order {
   @Column({ name: 'is_metered', type: 'boolean', default: false })
   isMetered: boolean;
 
+  // -------------------------------------------------------------------
+  // O'ZINI O'ZI ZAKAZ QILISHNI ANIQLASH (migratsiya 018, `fraud-rules.ts`).
+  //
+  // ⚠️ HAMMASI `select: false`: buyurtma javobi yo'lovchiga ham, haydovchiga
+  // ham boradi. Haydovchi "shubhali" belgisini ko'rsa, qoidani aylanib
+  // o'tishni o'rganadi; qurilma ID si esa boshqa tomonga umuman tegishli
+  // emas. Faqat `OrderFraudService` (xom SQL) va bonus hisobi o'qiydi.
+  // -------------------------------------------------------------------
+
+  @Column({ name: 'passenger_device_id', type: 'varchar', length: 64, nullable: true, select: false })
+  passengerDeviceId: string | null;
+
+  @Column({ name: 'driver_device_id', type: 'varchar', length: 64, nullable: true, select: false })
+  driverDeviceId: string | null;
+
+  @Column({ name: 'accept_distance_m', type: 'int', nullable: true, select: false })
+  acceptDistanceM: number | null;
+
+  @Column({ name: 'fraud_signals', type: 'jsonb', default: () => `'[]'`, select: false })
+  fraudSignals: string[];
+
+  /** NULL (toza) | pending | approved | rejected. */
+  @Column({ name: 'fraud_review', type: 'varchar', length: 20, nullable: true, select: false })
+  fraudReview: 'pending' | 'approved' | 'rejected' | null;
+
+  @Column({ name: 'fraud_reviewed_by', type: 'uuid', nullable: true, select: false })
+  fraudReviewedBy: string | null;
+
+  @Column({ name: 'fraud_reviewed_at', type: 'timestamptz', nullable: true, select: false })
+  fraudReviewedAt: Date | null;
+
+  @Column({ name: 'fraud_note', type: 'varchar', length: 300, nullable: true, select: false })
+  fraudNote: string | null;
+
   /**
    * Buyurtma yaratilgan paytdagi hudud koeffitsienti.
    *

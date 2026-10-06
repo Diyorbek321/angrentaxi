@@ -800,3 +800,37 @@ export async function getVerificationFile(id: string): Promise<Blob> {
   const res = await apiClient.get<Blob>(`/drivers/verification/${id}/file`, { responseType: 'blob' });
   return res.data;
 }
+
+// ─── Self-order (fraud) review ───────────────────────────────────
+
+export type FraudSignal =
+  | 'same_device'
+  | 'repeated_pair'
+  | 'new_passenger_one_driver'
+  | 'driver_at_pickup'
+  | 'too_short';
+
+export interface FraudReviewEntry {
+  orderId: string;
+  completedAt: string | null;
+  finalPrice: number | null;
+  pickupAddress: string | null;
+  dropoffAddress: string | null;
+  distanceKm: number | null;
+  durationMin: number | null;
+  signals: FraudSignal[];
+  passengerName: string | null;
+  passengerPhone: string | null;
+  driverName: string | null;
+  driverPhone: string | null;
+  pairTripsTotal: number;
+}
+
+export async function getFraudReviewQueue(): Promise<FraudReviewEntry[]> {
+  const res = await apiClient.get<ApiResponse<FraudReviewEntry[]>>('/orders/fraud-review');
+  return res.data.data;
+}
+
+export async function reviewFraud(orderId: string, approved: boolean, note?: string): Promise<void> {
+  await apiClient.patch(`/orders/${orderId}/fraud-review`, { approved, note });
+}

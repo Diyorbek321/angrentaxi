@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import {
+  ShieldAlert,
   ShieldCheck,
   AlertTriangle,
   Car,
@@ -58,6 +59,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     links: [
       { href: '/dispatch/drivers', label: 'Haydovchilar', icon: Users, perm: 'drivers_view' },
       { href: '/dispatch/verification', label: 'Koʻrik va selfi', icon: ShieldCheck, perm: 'drivers_view' },
+      { href: '/dispatch/fraud', label: 'Shubhali safarlar', icon: ShieldAlert, perm: 'drivers_view' },
       { href: '/dispatch/audit-log', label: 'Amallar tarixi', icon: ScrollText, perm: 'dispatch' },
       { href: '/dispatch/shift-report', label: 'Smena hisoboti', icon: Timer, perm: null },
     ],

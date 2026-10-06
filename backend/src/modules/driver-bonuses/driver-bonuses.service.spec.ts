@@ -1,3 +1,4 @@
+import { Equal, IsNull, Or } from 'typeorm';
 import { Logger } from '@nestjs/common';
 import { DriverBonusesService } from './driver-bonuses.service';
 import {
@@ -286,5 +287,14 @@ describe('DriverBonusesService', () => {
         50000,
       );
     });
+  });
+
+  it('shubhali va rad etilgan safarlar bonus hisobiga kirmaydi', async () => {
+    ruleRepository.find.mockResolvedValue([tripCountRule()]);
+    await service.evaluateForDriver(DRIVER_USER_ID);
+
+    const where = orderRepository.count.mock.calls[0][0].where;
+    // NULL (toza) yoki menejer tasdiqlagan — pending/rejected emas.
+    expect(where.fraudReview).toEqual(Or(IsNull(), Equal('approved')));
   });
 });

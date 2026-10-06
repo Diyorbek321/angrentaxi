@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThanOrEqual, Repository } from 'typeorm';
+import { Equal, IsNull, MoreThanOrEqual, Or, Repository } from 'typeorm';
 import {
   BonusRuleStatus,
   BonusRuleType,
@@ -148,6 +148,9 @@ export class DriverBonusesService {
       where: {
         driverId,
         status: OrderStatus.COMPLETED,
+        // O'zini o'zi zakaz qilish: shubhali (pending) va rad etilgan safar
+        // bonusga kirmaydi; menejer tasdiqlasa — kiradi (`fraud-rules.ts`).
+        fraudReview: Or(IsNull(), Equal('approved' as const)),
         ...(serviceType ? { serviceType: serviceType as Order['serviceType'] } : {}),
         ...(since ? { createdAt: MoreThanOrEqual(since) } : {}),
       },

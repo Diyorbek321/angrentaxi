@@ -2,6 +2,7 @@ package uz.angren.taxi
 
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import android.provider.Settings
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
@@ -34,6 +35,17 @@ class MainActivity : FlutterActivity() {
                     "cancelOfferNotification" -> {
                         DriverOverlay.cancelOfferNotification(ctx); result.success(null)
                     }
+                    else -> result.notImplemented()
+                }
+            }
+
+        // Qurilma identifikatori — lib/core/platform/device_identity.dart
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "uz.angren.taxi/device")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "deviceId" -> result.success(
+                        Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID),
+                    )
                     else -> result.notImplemented()
                 }
             }

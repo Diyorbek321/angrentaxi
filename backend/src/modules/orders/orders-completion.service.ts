@@ -43,12 +43,13 @@ import {
   withWaitingFare,
 } from '../tariffs/waiting-charge';
 import { applyDiscount } from '../tariffs/fare-rounding';
+import { OrderFraudService } from './order-fraud.service';
+import { REFERRAL_BONUS_AMOUNT } from './referral-bonus';
 
 // Flat bonus (in so'm) credited to both a referred passenger and their
 // referrer the first time the referred passenger completes a trip. See the
 // referral-bonus block at the end of completeTrip, and
 // ReferralsService.getMyReferralInfo which sums these by externalId prefix.
-const REFERRAL_BONUS_AMOUNT = 5000;
 
 @Injectable()
 export class OrdersCompletionService {
@@ -77,6 +78,7 @@ export class OrdersCompletionService {
     // compiling; DeliveryEventsModule is global, so the app always has it.
     @Optional() private readonly deliveryEvents?: DeliveryEventsService,
     @Optional() private readonly taximeterService?: TaximeterService,
+    @Optional() private readonly fraudService?: OrderFraudService,
   ) {}
 
   async completeTrip(
@@ -455,7 +457,17 @@ export class OrdersCompletionService {
       );
     }
 
-    if (order.driverId && payoutDriver) {
+    // O'zini o'zi zakaz qilish tekshiruvi BONUSDAN OLDIN: shubhali safar
+    // bonus va referal hisobiga kirmaydi (`fraud-rules.ts`). Best-effort —
+    // tekshiruv xatosi safar yakunini to'xtatmaydi, safar toza hisoblanadi.
+    let suspicious = false;
+    try {
+      suspicious = (await this.fraudService?.assessCompleted(orderId))?.flagged ?? false;
+    } catch (err) {
+      this.logger.warn(`Fraud assessment failed for order ${orderId}: ${err}`);
+    }
+
+    if (order.driverId && payoutDriver && !suspicious) {
       // Best-effort — a bonus-evaluation failure must never block trip completion.
       this.driverBonusesService.evaluateForDriver(order.driverId).catch((err) => {
         this.logger.error(`Bonus evaluation failed for driver ${order.driverId}: ${err}`);
@@ -505,7 +517,9 @@ export class OrdersCompletionService {
     // referrer a fixed bonus. Best-effort — a bonus-crediting bug must never
     // break trip completion, which is the actually critical operation here.
     try {
-      if (passenger?.referredByUserId) {
+      // Shubhali safarda referal ushlab qolinadi — menejer tasdiqlasa
+      // `creditReferralBonus` beradi.
+      if (passenger?.referredByUserId && !suspicious) {
         const completedOrdersCount = await this.orderRepository.count({
           where: { passengerId: order.passengerId, status: OrderStatus.COMPLETED },
         });
