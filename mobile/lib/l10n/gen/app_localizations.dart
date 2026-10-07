@@ -1340,6 +1340,18 @@ abstract class AppLocalizations {
   /// **'Yo\'lovchi so\'ragan: {options}'**
   String drvPassengerRequested(String options);
 
+  /// No description provided for @drvPayVendor.
+  ///
+  /// In uz, this message translates to:
+  /// **'Do\'konga o\'zingiz to\'laysiz'**
+  String get drvPayVendor;
+
+  /// No description provided for @drvPayVendorHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Tovarni olayotganda to\'lang — mijozdan yetkazish haqi bilan birga qaytarib olasiz.'**
+  String get drvPayVendorHint;
+
   /// No description provided for @drvPayment.
   ///
   /// In uz, this message translates to:
@@ -2023,6 +2035,24 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'So\'rov yuborildi — menejer tekshiradi'**
   String get drvVehicleRequestSent;
+
+  /// No description provided for @drvVendorPaidAction.
+  ///
+  /// In uz, this message translates to:
+  /// **'Do\'konga {amount} to\'ladim'**
+  String drvVendorPaidAction(String amount);
+
+  /// No description provided for @drvVendorPaidDone.
+  ///
+  /// In uz, this message translates to:
+  /// **'Do\'konga to\'landi'**
+  String get drvVendorPaidDone;
+
+  /// No description provided for @drvVendorPayFirst.
+  ///
+  /// In uz, this message translates to:
+  /// **'Avval do\'konga to\'lang va tasdiqlang'**
+  String get drvVendorPayFirst;
 
   /// No description provided for @drvVerificationEmptyMessage.
   ///
@@ -3817,6 +3847,12 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Savat, {count} ta mahsulot'**
   String saCartWithCount(int count);
+
+  /// No description provided for @saCashLimitNote.
+  ///
+  /// In uz, this message translates to:
+  /// **'Naqd to\'lov {limit} so\'mgacha — bu buyurtma karta bilan to\'lanadi'**
+  String saCashLimitNote(String limit);
 
   /// No description provided for @saCheckoutTitle.
   ///

@@ -111,6 +111,7 @@ class DeliveryInfo extends Equatable {
     required this.vendorName,
     required this.itemsCount,
     required this.collectCash,
+    this.payVendor = 0,
     this.vendorPhone,
     this.customerPhone,
   });
@@ -124,6 +125,13 @@ class DeliveryInfo extends Equatable {
   final int collectCash;
 
   bool get mustCollectCash => collectCash > 0;
+
+  /// Tovarni olayotganda do'konga O'Z pulidan to'lanadigan summa (faqat
+  /// tovar, yetkazishsiz), so'm. Mijozdan [collectCash] bilan qaytariladi.
+  /// `0` = onlayn to'langan (backend `delivery/vendor-cash.ts`).
+  final int payVendor;
+
+  bool get mustPayVendor => payVendor > 0;
 
   /// `details` ovqat yoki market buyurtmasiga bog'langan bo'lsagina qiymat
   /// qaytaradi. Buzuq maydon butun buyurtmani yiqitmasligi uchun har bir
@@ -151,12 +159,16 @@ class DeliveryInfo extends Equatable {
         final num n => n.round(),
         _ => 0,
       },
+      payVendor: switch (details['payVendor']) {
+        final num n => n.round(),
+        _ => 0,
+      },
     );
   }
 
   @override
   List<Object?> get props =>
-      [vendorName, vendorPhone, customerPhone, itemsCount, collectCash];
+      [vendorName, vendorPhone, customerPhone, itemsCount, collectCash, payVendor];
 }
 
 class OrderLocation extends Equatable {

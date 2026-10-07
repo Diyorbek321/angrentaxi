@@ -150,6 +150,11 @@ export interface MarketOrder {
   customer?: { firstName: string | null; lastName: string | null; phone: string };
   /** Courier ride for platform delivery, once shipped. See lib/courier.ts. */
   delivery?: DeliveryInfo | null;
+  paymentMethod: 'cash' | 'card';
+  /** Naqd buyurtma: kuryer tovar pulini toʻladi / sotuvchi qarori (lib/vendor-cash.ts). */
+  vendorCashPaidAt?: string | null;
+  vendorCashConfirmedAt?: string | null;
+  vendorCashDisputedAt?: string | null;
 }
 
 export interface StockMovement {
@@ -243,4 +248,7 @@ export const marketApi = {
     api.patch<ApiResponse<MarketOrder>>(`/market/vendor/orders/${orderId}/advance`),
   redispatchOrder: (orderId: string) =>
     api.post<ApiResponse<MarketOrder>>(`/market/vendor/orders/${orderId}/redispatch`),
+  /** Naqd: kuryerdan tovar puli olindimi. `false` — dispetcherga nizo. */
+  cashReceived: (orderId: string, received: boolean) =>
+    api.patch<ApiResponse<{ ok: true }>>(`/market/vendor/orders/${orderId}/cash-received`, { received }),
 };

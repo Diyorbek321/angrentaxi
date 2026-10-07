@@ -27,6 +27,7 @@ import { trackNewOrders } from '@/lib/order-alerts';
 import { useKiosk } from '@/lib/kiosk-context';
 import { courierState, CourierTone } from '@/lib/courier';
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
+import { VendorCashStrip } from '@/components/VendorCashStrip';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Drawer } from '@/components/ui/Drawer';
@@ -195,6 +196,22 @@ export default function OrdersPage() {
     }
   };
 
+  const decideCash = async (order: FoodOrder, received: boolean) => {
+    setBusyId(order.id);
+    try {
+      await foodApi.cashReceived(order.id, received);
+      await reload();
+      toast({
+        title: received ? 'Naqd pul olindi' : 'Dispetcherga xabar berildi',
+        variant: received ? 'success' : 'info',
+      });
+    } catch {
+      toast({ title: 'Saqlab boʻlmadi', description: 'Qayta urinib koʻring', variant: 'error' });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const openOrder = orders.find((o) => o.id === openOrderId) ?? null;
   const newCount = grouped.new.length;
   const visible = grouped[tab];
@@ -276,6 +293,7 @@ export default function OrdersPage() {
                   onAdvance={() => advance(order)}
                   onReject={() => setRejectId(order.id)}
                   onRedispatch={() => redispatch(order)}
+                  onCashDecision={(received) => decideCash(order, received)}
                 />
               ))}
             </div>
@@ -391,6 +409,7 @@ function OrderCard({
   onAdvance,
   onReject,
   onRedispatch,
+  onCashDecision,
 }: {
   order: FoodOrder;
   kiosk: boolean;
@@ -400,6 +419,7 @@ function OrderCard({
   onAdvance: () => void;
   onReject: () => void;
   onRedispatch: () => void;
+  onCashDecision: (received: boolean) => void;
 }) {
   const sla = slaInfo(order, now);
   const canAdvance = NEXT_STATUS[order.status] != null;
@@ -519,6 +539,11 @@ function OrderCard({
 
       {order.status === 'ready' && (
         <CourierStrip order={order} kiosk={kiosk} busy={busy} onRedispatch={onRedispatch} />
+      )}
+
+      {/* Naqd: kuryer tovar pulini toʻlaydi — sotuvchi tasdiqlaydi yoki nizo. */}
+      {(order.status === 'ready' || order.status === 'delivered') && (
+        <VendorCashStrip order={order} busy={busy} onDecide={onCashDecision} large={kiosk} />
       )}
 
       {/* Holat zinapoyasi: BITTA oldinga tugma, har doim kartaning pastida. */}

@@ -6,6 +6,7 @@ import type { MarketOrder } from '@/lib/api';
 import { ADVANCE_LABEL, DELIVERY_MODE_LABEL, orderCustomerName } from '@/lib/order-status';
 import { formatRelative, money } from '@/lib/utils';
 import { StatusBadge } from '@/components/StatusBadge';
+import { vendorCashView } from '@/lib/vendor-cash';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -76,8 +77,9 @@ export function OrderRow({
       <span className="text-right font-mono text-body tabular-nums font-bold text-ink">
         {money(o.totalPrice)}
       </span>
-      <span>
+      <span className="flex flex-wrap items-center gap-1">
         <StatusBadge status={o.status} size="sm" />
+        <CashBadge order={o} />
       </span>
       <span>
         {advanceLabel ? (
@@ -119,7 +121,10 @@ export function OrderCardMobile({ order: o, onOpen }: { order: MarketOrder; onOp
               #{o.id.slice(0, 6)} · {formatRelative(o.createdAt)}
             </span>
           </span>
-          <StatusBadge status={o.status} size="sm" />
+          <span className="flex flex-wrap items-center gap-1">
+            <StatusBadge status={o.status} size="sm" />
+            <CashBadge order={o} />
+          </span>
         </span>
         <span className="mt-2.5 flex items-center justify-between gap-3">
           <span className="flex min-w-0 items-center gap-2 text-caption text-muted">
@@ -135,4 +140,24 @@ export function OrderCardMobile({ order: o, onOpen }: { order: MarketOrder; onOp
       </button>
     </Card>
   );
+}
+
+/** Kuryer "to'ladim" dedi — sotuvchi tasdig'i kerak; nizo — qizil. */
+function CashBadge({ order }: { order: MarketOrder }) {
+  const { step } = vendorCashView(order);
+  if (step === 'awaiting_vendor') {
+    return (
+      <Badge variant="warning" size="sm">
+        Naqd: tasdiqlang
+      </Badge>
+    );
+  }
+  if (step === 'disputed') {
+    return (
+      <Badge variant="danger" size="sm">
+        Naqd nizo
+      </Badge>
+    );
+  }
+  return null;
 }

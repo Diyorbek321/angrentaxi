@@ -301,6 +301,8 @@
   "saChooseAddress": "Manzilni tanlang",
   "saCurrentLocation": "Joriy joylashuv",
   "saChoosePaymentMethod": "To'lov usulini tanlang",
+  "saCashLimitNote": "Naqd to'lov {limit} so'mgacha — bu buyurtma karta bilan to'lanadi",
+  "@saCashLimitNote": {"placeholders": {"limit": {"type": "String"}}},
   "saPaymentCash": "Naqd pul",
   "saPaymentCard": "Karta (Payme / Click)",
   "saDeliveryAddress": "Yetkazib berish manzili",

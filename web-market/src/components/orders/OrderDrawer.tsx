@@ -14,6 +14,7 @@ import {
 import { errorMessage, formatRelative, formatTime, money } from '@/lib/utils';
 import { courierState, CourierTone } from '@/lib/courier';
 import { StatusBadge } from '@/components/StatusBadge';
+import { VendorCashStrip } from '@/components/VendorCashStrip';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Drawer } from '@/components/ui/Drawer';
@@ -56,6 +57,18 @@ export function OrderDrawer({ order, onClose, onChanged, onError }: OrderDrawerP
     setBusy(true);
     try {
       await marketApi.redispatchOrder(order.id);
+      await onChanged();
+    } catch (err) {
+      onError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const decideCash = async (received: boolean) => {
+    setBusy(true);
+    try {
+      await marketApi.cashReceived(order.id, received);
       await onChanged();
     } catch (err) {
       onError(errorMessage(err));
@@ -121,6 +134,12 @@ export function OrderDrawer({ order, onClose, onChanged, onError }: OrderDrawerP
       {order.status === 'shipped' && order.deliveryMode === 'platform' && (
         <CourierStrip order={order} busy={busy} onRedispatch={() => void redispatch()} />
       )}
+
+      {/* Naqd + platforma kuryeri: kuryer tovar pulini do'konga to'laydi. */}
+      {order.deliveryMode === 'platform' &&
+        (order.status === 'shipped' || order.status === 'delivered') && (
+          <VendorCashStrip order={order} busy={busy} onDecide={(r) => void decideCash(r)} />
+        )}
 
       {/* Mijoz izohi — xatolarning 1-manbai, shuning uchun ro'yxatdan OLDIN
           va ko'zga tashlanadigan blokda. */}

@@ -695,6 +695,13 @@ class AppLocalizationsUz extends AppLocalizations {
   }
 
   @override
+  String get drvPayVendor => 'Do\'konga o\'zingiz to\'laysiz';
+
+  @override
+  String get drvPayVendorHint =>
+      'Tovarni olayotganda to\'lang — mijozdan yetkazish haqi bilan birga qaytarib olasiz.';
+
+  @override
   String get drvPayment => 'To\'lov';
 
   @override
@@ -1085,6 +1092,17 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get drvVehicleRequestSent => 'So\'rov yuborildi — menejer tekshiradi';
+
+  @override
+  String drvVendorPaidAction(String amount) {
+    return 'Do\'konga $amount to\'ladim';
+  }
+
+  @override
+  String get drvVendorPaidDone => 'Do\'konga to\'landi';
+
+  @override
+  String get drvVendorPayFirst => 'Avval do\'konga to\'lang va tasdiqlang';
 
   @override
   String get drvVerificationEmptyMessage =>
@@ -2124,6 +2142,11 @@ class AppLocalizationsUz extends AppLocalizations {
   @override
   String saCartWithCount(int count) {
     return 'Savat, $count ta mahsulot';
+  }
+
+  @override
+  String saCashLimitNote(String limit) {
+    return 'Naqd to\'lov $limit so\'mgacha — bu buyurtma karta bilan to\'lanadi';
   }
 
   @override

@@ -11,6 +11,7 @@ const _cash = DeliveryInfo(
   customerPhone: '+998907778899',
   itemsCount: 3,
   collectCash: 75000,
+  payVendor: 65000,
 );
 
 void main() {
@@ -58,5 +59,33 @@ void main() {
     await tester.tap(find.byIcon(Icons.call));
 
     expect(dialled, ['+998901112233', '+998907778899']);
+  });
+
+  testWidgets('before pickup the courier sees what to pay the vendor', (tester) async {
+    await tester.pumpWidget(_wrap(
+      const DeliveryInfoCard(delivery: _cash, stage: DeliveryCardStage.offer),
+    ));
+    expect(find.text("Do'konga o'zingiz to'laysiz"), findsOneWidget);
+    expect(find.textContaining('65'), findsOneWidget);
+  });
+
+  testWidgets('after pickup the vendor line is gone — only the customer cash', (tester) async {
+    await tester.pumpWidget(_wrap(
+      const DeliveryInfoCard(delivery: _cash, stage: DeliveryCardStage.dropoff),
+    ));
+    expect(find.text("Do'konga o'zingiz to'laysiz"), findsNothing);
+    expect(find.text('Mijozdan naqd oling'), findsOneWidget);
+  });
+
+  test('payVendor is read from the ride details', () {
+    final info = DeliveryInfo.fromDetails({
+      'foodOrderId': 'fo-1',
+      'vendorName': 'Osh Markazi',
+      'collectCash': 75000,
+      'payVendor': 65000,
+    });
+    expect(info?.payVendor, 65000);
+    expect(info?.mustPayVendor, isTrue);
+    expect(DeliveryInfo.fromDetails({'foodOrderId': 'fo-1'})?.mustPayVendor, isFalse);
   });
 }

@@ -17,6 +17,7 @@ const EMPTY_FORM: GlobalSettings = {
   supportPhone: '',
   supportEmail: '',
   maintenanceMode: false,
+  maxCashVendorOrder: 200000,
 };
 
 type FieldErrors = Partial<Record<keyof GlobalSettings, string>>;
@@ -66,6 +67,9 @@ export default function GlobalSettingsPage() {
     }
     if (values.supportEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.supportEmail.trim())) {
       errors.supportEmail = "Noto'g'ri email manzil";
+    }
+    if (!Number.isFinite(values.maxCashVendorOrder) || values.maxCashVendorOrder < 0) {
+      errors.maxCashVendorOrder = "Musbat summa kiriting (0 — cheklanmagan)";
     }
     return errors;
   };
@@ -165,6 +169,28 @@ export default function GlobalSettingsPage() {
                   value={form.supportEmail}
                   error={fieldErrors.supportEmail}
                   onChange={(e) => update('supportEmail', e.target.value)}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Ovqat/market: kuryer tovarni do'kondan o'z pulidan sotib oladi
+                (backend delivery/vendor-cash.ts) — naqd shu summagacha. */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Ovqat va market: naqd toʻlov</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Input
+                  label="Naqd buyurtma chegarasi, soʻm"
+                  type="number"
+                  inputMode="numeric"
+                  mono
+                  min={0}
+                  step={1000}
+                  value={String(form.maxCashVendorOrder)}
+                  error={fieldErrors.maxCashVendorOrder}
+                  hint="Kuryer tovarni doʻkondan oʻz pulidan sotib oladi. Bundan katta buyurtma faqat karta bilan. 0 — cheklanmagan."
+                  onChange={(e) => update('maxCashVendorOrder', Number(e.target.value))}
                 />
               </CardContent>
             </Card>

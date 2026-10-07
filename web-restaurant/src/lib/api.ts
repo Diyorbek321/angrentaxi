@@ -167,6 +167,10 @@ export interface FoodOrder {
   customer?: { firstName: string | null; lastName: string | null; phone: string };
   /** Courier ride, once the order reached "ready". See lib/courier.ts. */
   delivery?: DeliveryInfo | null;
+  /** Naqd buyurtma: kuryer tovar pulini toʻladi / sotuvchi qarori (lib/vendor-cash.ts). */
+  vendorCashPaidAt?: string | null;
+  vendorCashConfirmedAt?: string | null;
+  vendorCashDisputedAt?: string | null;
 }
 
 export interface DashboardData {
@@ -251,4 +255,7 @@ export const foodApi = {
   rejectOrder: (id: string, reason: string) =>
     api.patch<ApiResponse<FoodOrder>>(`/food/vendor/orders/${id}/reject`, { reason }),
   redispatchOrder: (id: string) => api.post<ApiResponse<FoodOrder>>(`/food/vendor/orders/${id}/redispatch`),
+  /** Naqd: kuryerdan tovar puli olindimi. `false` — dispetcherga nizo. */
+  cashReceived: (id: string, received: boolean) =>
+    api.patch<ApiResponse<{ ok: true }>>(`/food/vendor/orders/${id}/cash-received`, { received }),
 };

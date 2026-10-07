@@ -35,6 +35,12 @@ Oxirgi yangilanish: 2026-10-06. Bajarilgan ishlar tarixi uchun `git log`ga qaran
 - [ ] **Ilova chiqishidan oldin bo'laklarni Azure bilan qayta yaratish** — edge-tts Edge brauzerining norasmiy xizmati (tijorat uchun rasmiy ruxsat yo'q). Ovoz bir xil: Azure Speech (bepul F0) → `mobile/.env.voice` ga `AZURE_TTS_KEY`/`AZURE_TTS_REGION` → `python3 tool/generate_voice_clips.py --force`.
 - [ ] **Real telefonda eshitib ko'rish** — bo'laklar orasidagi pauza, musiqa ovozi pasayishi, Xiaomi'da.
 
+## 💵 Naqd ovqat/market (2026-10-07 qilindi) — qoldiqlar
+
+- [ ] **Karta ulanmaguncha 200 000 so'mdan katta ovqat/market buyurtmasi berib bo'lmaydi** — naqd chegaradan oshgan, karta (Payme/Click) esa hali yo'q. Chegarani admin panelidan vaqtincha oshirish mumkin (Umumiy sozlamalar → Naqd buyurtma chegarasi).
+- [ ] **Nizoni yopish yo'q** — dispetcher "Istisnolar"da nizoni ko'radi, lekin "hal qilindi" tugmasi hali yo'q (telefon orqali hal qilinadi).
+- [ ] Sotuvchi buyurtmani o'zi "yetkazildi" qila oladi, kuryer topilmagan bo'lsa ham (eski xulq) — platforma kuryeri bilan bunga ruxsat berish kerakmi.
+
 ## 🔴 Bloker — tashqi shartnoma/hisob kerak
 
 - [ ] **Railway'ni tiklash** — 2026-10-05 holatida backend ham, 4 ta panel ham `404 "Application not found"` qaytaradi. Qayta yaratilsa panel domenlari o'zgaradi → `CORS_ORIGIN`ni yangilash.
@@ -60,7 +66,6 @@ Hammasi 2026-10-05 da bajarildi (`git log`). Keyingi navbat — haqiqiy qurilmad
 
 ## 🟡 Biznes qarori kerak
 
-- [ ] **Naqd food/market buyurtmada kuryer ushlagan sotuvchi puli** — kuryer mijozdan to'liq summani oladi; sotuvchi bilan hisob-kitob hozir jismoniy (tizimda kuzatilmaydi).
 - [ ] **Safar opsiyalari uchun qo'shimcha haq** — hozir bepul (bola o'rindig'i, hayvon, ...).
 - [ ] **Haydovchi smenasi** — hozircha kerak emas deb qaror qilindi.
 - [ ] **Backend xato xabarlari tili** — ilova UZ/RU, lekin server xatolari o'zbekcha qoladi.

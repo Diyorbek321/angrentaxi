@@ -62,6 +62,13 @@ class DeliveryInfoCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Olishdan OLDIN: kuryer do'konga o'z pulidan to'laydi — buni
+          // zakazni qabul qilishdan oldin bilishi shart (cho'ntagida
+          // yetarli naqd bormi). Olgandan keyin bu qator kerak emas.
+          if (delivery.mustPayVendor && stage != DeliveryCardStage.dropoff) ...[
+            _PayVendorLine(amount: delivery.payVendor),
+            const SizedBox(height: kSpace2),
+          ],
           _CashBanner(delivery: delivery),
           const SizedBox(height: kSpace3),
           Row(
@@ -108,6 +115,61 @@ class DeliveryInfoCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PayVendorLine extends StatelessWidget {
+  const _PayVendorLine({required this.amount});
+
+  final int amount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(kSpace3),
+        decoration: BoxDecoration(
+          color: kSurface,
+          borderRadius: BorderRadius.circular(kRadiusSm),
+          border: Border.all(color: kWarningDeep.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.storefront_outlined, color: kWarningDeep),
+            const SizedBox(width: kSpace2),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    context.l10n.drvPayVendor,
+                    style: const TextStyle(
+                      fontSize: kFontLabel,
+                      color: kWarningDeep,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    Formatters.formatPrice(amount.toDouble()),
+                    style: const TextStyle(
+                      fontSize: kFontTitle,
+                      fontWeight: FontWeight.w800,
+                      color: kInk,
+                    ),
+                  ),
+                  Text(
+                    context.l10n.drvPayVendorHint,
+                    style: const TextStyle(fontSize: kFontCaption, color: kInkMuted),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

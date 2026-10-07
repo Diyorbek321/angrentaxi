@@ -834,3 +834,22 @@ export async function getFraudReviewQueue(): Promise<FraudReviewEntry[]> {
 export async function reviewFraud(orderId: string, approved: boolean, note?: string): Promise<void> {
   await apiClient.patch(`/orders/${orderId}/fraud-review`, { approved, note });
 }
+
+// ─── Cash disputes (courier ↔ vendor) ────────────────────────────
+
+/** Sotuvchi "kuryerdan tovar pulini olmadim" degan naqd buyurtma. */
+export interface CashDispute {
+  kind: 'food' | 'market';
+  vendorOrderId: string;
+  vendorName: string;
+  vendorPhone: string | null;
+  amount: number;
+  courierPaidAt: string | null;
+  disputedAt: string;
+  deliveryOrderId: string | null;
+}
+
+export async function getCashDisputes(): Promise<CashDispute[]> {
+  const res = await apiClient.get<ApiResponse<CashDispute[]>>('/delivery/cash-disputes');
+  return res.data.data;
+}

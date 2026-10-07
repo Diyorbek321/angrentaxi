@@ -381,6 +381,8 @@
       }
     }
   },
+  "drvPayVendor": "Do'konga o'zingiz to'laysiz",
+  "drvPayVendorHint": "Tovarni olayotganda to'lang — mijozdan yetkazish haqi bilan birga qaytarib olasiz.",
   "drvPayment": "To'lov",
   "drvPeriodEarningsSem": "{period} daromadi",
   "@drvPeriodEarningsSem": {
@@ -624,6 +626,16 @@
   "drvVehicleChangeNote": "Menejer tasdiqlaguncha profilingizda hozirgi mashina qoladi. Yangi mashina fotolarini tekshiruv bo'limidan so'rashlari mumkin.",
   "drvVehicleChangeTitle": "Mashinani almashtirish",
   "drvVehicleRequestSent": "So'rov yuborildi — menejer tekshiradi",
+  "drvVendorPaidAction": "Do'konga {amount} to'ladim",
+  "@drvVendorPaidAction": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "drvVendorPaidDone": "Do'konga to'landi",
+  "drvVendorPayFirst": "Avval do'konga to'lang va tasdiqlang",
   "drvVerificationEmptyMessage": "Hozircha sizdan hech qanday hujjat yoki surat talab qilinmayapti. Yangi talab paydo bo'lsa shu yerda ko'rinadi.",
   "drvVerificationEmptyTitle": "Talab yo'q",
   "drvVerificationIncomplete": "Tekshiruv to'liq emas — quyidagi talablarni bajaring.",
@@ -1377,6 +1389,14 @@
     "placeholders": {
       "count": {
         "type": "int"
+      }
+    }
+  },
+  "saCashLimitNote": "Naqd to'lov {limit} so'mgacha — bu buyurtma karta bilan to'lanadi",
+  "@saCashLimitNote": {
+    "placeholders": {
+      "limit": {
+        "type": "String"
       }
     }
   },

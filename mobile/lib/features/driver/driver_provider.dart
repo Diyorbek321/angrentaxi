@@ -653,6 +653,30 @@ class DriverProvider extends ChangeNotifier {
     }
   }
 
+  /// Naqd ovqat/market: kuryer do'konga tovar pulini to'lagan buyurtmalar.
+  /// Server ham saqlaydi (qayta belgilash xavfsiz); bu to'plam faqat
+  /// "Olib ketdim" tugmasini darhol ochish uchun.
+  final Set<String> _vendorPaidOrderIds = {};
+
+  bool isVendorPaid(String orderId) => _vendorPaidOrderIds.contains(orderId);
+
+  /// "Do'konga to'ladim". Busiz server safarni boshlatmaydi.
+  Future<bool> markVendorPaid() async {
+    final order = _activeOrder;
+    if (order == null) return false;
+    _setState(DriverProviderState.loading);
+    try {
+      await _apiClient.patch(ApiEndpoints.vendorPaid(order.id));
+      _vendorPaidOrderIds.add(order.id);
+      _setState(DriverProviderState.success);
+      return true;
+    } catch (e) {
+      _error = extractErrorMessage(e);
+      _setState(DriverProviderState.error);
+      return false;
+    }
+  }
+
   Future<void> startTrip() async {
     if (_activeOrder == null) return;
     _setState(DriverProviderState.loading);

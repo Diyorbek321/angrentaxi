@@ -27,6 +27,7 @@ import { AssignDriverModal } from '@/components/dispatch/AssignDriverModal';
 import { useNow } from '@/components/dispatch/useNow';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { CashDisputesSection } from '@/components/dispatch/CashDisputesSection';
 import { Badge } from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -431,6 +432,9 @@ export default function ExceptionsPage() {
             </div>
           )}
         </section>
+
+        {/* Kuryer do'konga to'ladim dedi, sotuvchi olmadim dedi */}
+        <CashDisputesSection />
 
         {/* No drivers found */}
         <section>

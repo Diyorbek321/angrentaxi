@@ -91,6 +91,7 @@ class ApiEndpoints {
   static String declineOrder(String id) => '/orders/$id/decline';
   static String arrivedAtPickup(String id) => '/orders/$id/arrived';
   static String startTrip(String id) => '/orders/$id/start';
+  static String vendorPaid(String id) => '/orders/$id/vendor-paid';
   static String completeTrip(String id) => '/orders/$id/complete';
   static const String updateLocation = '/drivers/location';
   static const String driverDocuments = '/drivers/documents';

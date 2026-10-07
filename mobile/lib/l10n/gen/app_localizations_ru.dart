@@ -695,6 +695,13 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get drvPayVendor => 'Оплатите магазину сами';
+
+  @override
+  String get drvPayVendorHint =>
+      'Заплатите при получении товара — клиент вернёт вам эту сумму вместе с доставкой.';
+
+  @override
   String get drvPayment => 'Оплата';
 
   @override
@@ -1086,6 +1093,17 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get drvVehicleRequestSent => 'Заявка отправлена — менеджер проверит';
+
+  @override
+  String drvVendorPaidAction(String amount) {
+    return 'Я заплатил магазину $amount';
+  }
+
+  @override
+  String get drvVendorPaidDone => 'Магазину оплачено';
+
+  @override
+  String get drvVendorPayFirst => 'Сначала оплатите магазину и подтвердите';
 
   @override
   String get drvVerificationEmptyMessage =>
@@ -2122,6 +2140,11 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String saCartWithCount(int count) {
     return 'Корзина, товаров: $count';
+  }
+
+  @override
+  String saCashLimitNote(String limit) {
+    return 'Наличными — до $limit сум, этот заказ оплачивается картой';
   }
 
   @override

@@ -273,6 +273,8 @@ export interface GlobalSettings {
   supportPhone: string;
   supportEmail: string;
   maintenanceMode: boolean;
+  /** Naqd ovqat/market buyurtmasi chegarasi, so'm. 0 — cheklanmagan. */
+  maxCashVendorOrder: number;
 }
 
 export const settingsApi = {

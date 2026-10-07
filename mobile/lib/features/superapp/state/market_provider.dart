@@ -102,6 +102,7 @@ class MarketProvider extends ChangeNotifier {
     required String deliveryAddress,
     required double deliveryLat,
     required double deliveryLng,
+    String paymentMethod = 'cash',
   }) async {
     if (_store == null || items.isEmpty) return null;
 
@@ -115,6 +116,7 @@ class MarketProvider extends ChangeNotifier {
           'deliveryAddress': deliveryAddress,
           'deliveryLat': deliveryLat,
           'deliveryLng': deliveryLng,
+          'paymentMethod': paymentMethod,
         },
       );
       final data = (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;

@@ -161,6 +161,7 @@
   "saChooseAddress": "Выберите адрес",
   "saCurrentLocation": "Текущее местоположение",
   "saChoosePaymentMethod": "Выберите способ оплаты",
+  "saCashLimitNote": "Наличными — до {limit} сум, этот заказ оплачивается картой",
   "saPaymentCash": "Наличные",
   "saPaymentCard": "Карта (Payme / Click)",
   "saDeliveryAddress": "Адрес доставки",

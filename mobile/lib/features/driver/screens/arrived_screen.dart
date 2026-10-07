@@ -439,15 +439,55 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
     DriverProvider provider,
     DriverServiceWording wording,
   ) {
+    // Naqd ovqat/market: avval do'konga tovar puli (`vendor-cash.ts`).
+    // To'lanmaguncha asosiy amal — "To'ladim", "Olib ketdim" esa o'chiq:
+    // aks holda sotuvchi pulsiz qolib, bu faqat nizoda ma'lum bo'lardi.
+    final payVendor = order.delivery?.payVendor ?? 0;
+    final mustPayVendor = payVendor > 0 && !provider.isVendorPaid(order.id);
     return Column(
       children: [
+        if (payVendor > 0) ...[
+          if (mustPayVendor)
+            AppButton(
+              key: const ValueKey('vendor_paid_button'),
+              label: context.l10n.drvVendorPaidAction(
+                Formatters.formatPrice(payVendor.toDouble()),
+              ),
+              onPressed: () => provider.markVendorPaid(),
+              isLoading: provider.state == DriverProviderState.loading,
+              height: kControlHeightDriver,
+              icon: const Icon(Icons.storefront_outlined, color: kOnPrimary),
+            )
+          else
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.check_circle, color: kPrimary),
+                const SizedBox(width: kSpace2),
+                Text(
+                  context.l10n.drvVendorPaidDone,
+                  style: const TextStyle(fontWeight: FontWeight.w700, color: kInk),
+                ),
+              ],
+            ),
+          const SizedBox(height: kSpace3),
+        ],
         AppButton(
           label: wording.startActionLabel,
-          onPressed: _onStartTrip,
-          isLoading: provider.state == DriverProviderState.loading,
+          // `null` — o'chiq: avval do'konga to'lov.
+          onPressed: mustPayVendor ? null : _onStartTrip,
+          isLoading: !mustPayVendor && provider.state == DriverProviderState.loading,
           height: kControlHeightDriver,
           icon: const Icon(Icons.play_arrow, color: kOnPrimary),
         ),
+        if (mustPayVendor) ...[
+          const SizedBox(height: kSpace2),
+          Text(
+            context.l10n.drvVendorPayFirst,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: kFontLabel, color: kInkMuted),
+          ),
+        ],
         const SizedBox(height: kSpace5),
         AppOutlinedButton(
           label: wording.noShowActionLabel,

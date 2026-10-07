@@ -25,6 +25,7 @@ import 'package:angren_taxi/features/driver/screens/order_offer_screen.dart';
 import 'package:angren_taxi/features/driver/screens/trip_screen.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/widgets/ag_slide_action.dart';
+import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -280,6 +281,37 @@ void main() {
       // Taksi so'zlari umuman qolmasligi kerak.
       expect(find.text('Safarni boshlash'), findsNothing);
       expect(find.text("Yo'lovchi kelmadi"), findsNothing);
+    });
+
+    testWidgets('naqd ovqat: avval do\'konga to\'lov, keyin olib ketish', (tester) async {
+      await seedActiveOrder(_orderJson(
+        serviceType: 'food',
+        status: 'arrived',
+        details: {
+          'foodOrderId': 'fo-1',
+          'vendorName': 'Osh Markazi',
+          'itemsCount': 2,
+          'collectCash': 72000,
+          'payVendor': 65000,
+        },
+      ));
+      when(() => apiClient.patch(ApiEndpoints.vendorPaid(_orderId))).thenAnswer(
+        (_) async => _jsonResponse(ApiEndpoints.vendorPaid(_orderId), {'amount': 65000}),
+      );
+      await pumpArrivedScreen(tester);
+
+      final start = find.widgetWithText(AppButton, 'Yetkazishni boshlash');
+      expect(tester.widget<AppButton>(start).onPressed, isNull,
+          reason: "to'lanmaguncha tovarni olib ketib bo'lmaydi");
+      expect(find.text("Avval do'konga to'lang va tasdiqlang"), findsOneWidget);
+
+      await tester.ensureVisible(find.byKey(const ValueKey('vendor_paid_button')));
+      await tester.tap(find.byKey(const ValueKey('vendor_paid_button')));
+      await pumpUntilQuiet(tester);
+
+      verify(() => apiClient.patch(ApiEndpoints.vendorPaid(_orderId))).called(1);
+      expect(find.text("Do'konga to'landi"), findsOneWidget);
+      expect(tester.widget<AppButton>(start).onPressed, isNotNull);
     });
 
     testWidgets('yuk: yukni olish', (tester) async {

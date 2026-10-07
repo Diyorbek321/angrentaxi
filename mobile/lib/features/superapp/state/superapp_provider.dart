@@ -48,6 +48,24 @@ class SuperappProvider extends ChangeNotifier {
   int get cartCount => _cart.fold(0, (sum, c) => sum + c.qty);
   double get cartSubtotal => _cart.fold(0, (sum, c) => sum + c.lineTotal);
   double get deliveryFee => _cart.isEmpty ? 0 : _deliveryFee;
+
+  /// Naqd ovqat/market buyurtmasi chegarasi (server `max_cash_vendor_order`).
+  /// Kuryer tovarni do'kondan o'z pulidan oladi — katta summa faqat karta.
+  /// `null` — hali noma'lum: ilova cheklamaydi, server baribir tekshiradi.
+  double? _maxCashVendorOrder;
+  double? get maxCashVendorOrder => _maxCashVendorOrder;
+
+  /// Joriy savat naqd to'lanishi mumkinmi.
+  bool get cashAllowed {
+    final limit = _maxCashVendorOrder;
+    return limit == null || limit <= 0 || cartTotal <= limit;
+  }
+
+  @visibleForTesting
+  void debugSetMaxCashVendorOrderForTest(double? value) {
+    _maxCashVendorOrder = value;
+    notifyListeners();
+  }
   double get cartTotal => cartSubtotal + deliveryFee;
   String? get activeKind => _activeKind;
   String? get activeEntityId => _activeEntityId;
@@ -108,10 +126,10 @@ class SuperappProvider extends ChangeNotifier {
       final envelope = response.data as Map<String, dynamic>;
       final payload = envelope['data'] as Map<String, dynamic>;
       final fee = (payload['deliveryFee'] as num?)?.toDouble();
-      if (fee != null) {
-        _deliveryFee = fee;
-        notifyListeners();
-      }
+      if (fee != null) _deliveryFee = fee;
+      _maxCashVendorOrder =
+          (payload['maxCashVendorOrder'] as num?)?.toDouble() ?? _maxCashVendorOrder;
+      notifyListeners();
     } catch (e) {
       // Keep the last known fee. A settings blip must not block checkout;
       // the server recomputes the authoritative total on order creation.

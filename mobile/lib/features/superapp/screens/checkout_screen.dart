@@ -53,6 +53,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   /// to every user as though it were theirs).
   OrderLocation? _destination;
   CheckoutPaymentMethod _paymentMethod = CheckoutPaymentMethod.cash;
+
+  /// Haqiqatda ishlatiladigan usul: savat naqd chegarasidan oshsa — karta,
+  /// tanlovdan qat'i nazar (`SuperappProvider.cashAllowed`).
+  CheckoutPaymentMethod get _effectiveMethod =>
+      context.read<SuperappProvider>().cashAllowed
+          ? _paymentMethod
+          : CheckoutPaymentMethod.card;
   bool _submitting = false;
 
   bool _resolvingAddress = true;
@@ -128,7 +135,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
+  /// Naqd ruxsat etilmasa — sababi ("200 000 so'mgacha"), aks holda `null`.
+  String? get cashLimitNote {
+    final superapp = context.read<SuperappProvider>();
+    final limit = superapp.maxCashVendorOrder;
+    if (superapp.cashAllowed || limit == null) return null;
+    return context.l10n.saCashLimitNote(Formatters.formatSom(limit));
+  }
+
   Future<void> _choosePaymentMethod() async {
+    final note = cashLimitNote;
     final choice = await showModalBottomSheet<CheckoutPaymentMethod>(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -154,14 +170,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ),
             RadioListTile<CheckoutPaymentMethod>(
               value: CheckoutPaymentMethod.cash,
-              groupValue: _paymentMethod,
+              groupValue: _effectiveMethod,
               title: Text(context.l10n.saPaymentCash),
+              subtitle: note == null ? null : Text(note),
               secondary: const Icon(Icons.payments_rounded),
-              onChanged: (v) => Navigator.pop(sheetContext, v),
+              // Chegaradan oshgan savatda naqd — o'chiq.
+              onChanged: note == null
+                  ? (v) => Navigator.pop(sheetContext, v)
+                  : null,
             ),
             RadioListTile<CheckoutPaymentMethod>(
               value: CheckoutPaymentMethod.card,
-              groupValue: _paymentMethod,
+              groupValue: _effectiveMethod,
               title: Text(context.l10n.saPaymentCard),
               secondary: const Icon(Icons.credit_card_rounded),
               onChanged: (v) => Navigator.pop(sheetContext, v),
@@ -235,6 +255,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         deliveryAddress: destination.address,
         deliveryLat: destination.lat,
         deliveryLng: destination.lng,
+        paymentMethod: _effectiveMethod.name,
       );
       error = food.error;
     } else {
@@ -244,6 +265,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         deliveryAddress: destination.address,
         deliveryLat: destination.lat,
         deliveryLng: destination.lng,
+        paymentMethod: _effectiveMethod.name,
       );
       error = market.error;
     }
@@ -271,7 +293,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         : (order as MarketOrder).id;
     var paidOnline = false;
 
-    if (_paymentMethod == CheckoutPaymentMethod.card) {
+    if (_effectiveMethod == CheckoutPaymentMethod.card) {
       final orderId = placedOrderId;
       try {
         final result = await _paymentService.initiate(orderId: orderId);
@@ -337,15 +359,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 _OptionCard(
                   iconBg: kInfoLight,
                   iconColor: kInfoDeep,
-                  icon: _paymentMethod == CheckoutPaymentMethod.card
+                  icon: _effectiveMethod == CheckoutPaymentMethod.card
                       ? Icons.credit_card_rounded
                       : Icons.payments_rounded,
                   title: context.l10n.saPaymentMethod,
-                  subtitle: _paymentMethod == CheckoutPaymentMethod.card
+                  subtitle: _effectiveMethod == CheckoutPaymentMethod.card
                       ? context.l10n.saPaymentCard
                       : context.l10n.saPaymentCash,
                   onTap: _submitting ? null : _choosePaymentMethod,
                 ),
+                if (cashLimitNote case final note?) ...[
+                  const SizedBox(height: kSpace2),
+                  Text(
+                    note,
+                    style: const TextStyle(fontSize: kFontLabel, color: agSubtle),
+                  ),
+                ],
                 const SizedBox(height: kSpace4),
                 Container(
                   padding: const EdgeInsets.all(kSpace4),
