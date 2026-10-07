@@ -26,6 +26,7 @@ describe('deliveryRideDetails', () => {
     customerPhone: '+998901234569',
     itemsCount: 2,
     totalPrice: 71000.4,
+    itemsTotal: 64000,
   };
 
   it('asks the courier to collect the full total on a cash order', () => {
@@ -34,6 +35,11 @@ describe('deliveryRideDetails', () => {
 
   it('asks for nothing on a card order', () => {
     expect(deliveryRideDetails({ ...base, isCash: false }).collectCash).toBe(0);
+    expect(deliveryRideDetails({ ...base, isCash: false }).payVendor).toBe(0);
+  });
+
+  it('on a cash order the courier pays the vendor for the goods only', () => {
+    expect(deliveryRideDetails({ ...base, isCash: true }).payVendor).toBe(64000);
   });
 });
 

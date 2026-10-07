@@ -17,6 +17,7 @@ import { OrdersQueryService } from './orders-query.service';
 import { OrderStatusTransitionService } from './order-status-transition.service';
 import { waitingSettingsOf } from '../tariffs/waiting-charge';
 import { DeliveryEventsService } from '../delivery/delivery-events.service';
+import { VendorCashService } from '../delivery/vendor-cash.service';
 
 @Injectable()
 export class OrdersLifecycleService {
@@ -37,6 +38,7 @@ export class OrdersLifecycleService {
     // compiling; DeliveryEventsModule is global, so the app always has it.
     @Optional() private readonly deliveryEvents?: DeliveryEventsService,
     @Optional() private readonly taximeterService?: TaximeterService,
+    @Optional() private readonly vendorCash?: VendorCashService,
   ) {}
 
   async acceptOrder(driverId: string, orderId: string): Promise<Order> {
@@ -203,6 +205,10 @@ export class OrdersLifecycleService {
     if (order.driverId !== driverId) {
       throw new ForbiddenException('You are not the driver for this order');
     }
+
+    // Naqd ovqat/market: kuryer do'konga tovar pulini to'lamaguncha tovarni
+    // olib keta olmaydi (`delivery/vendor-cash.ts`).
+    await this.vendorCash?.assertReadyForPickup(order);
 
     await this.statusTransition.updateOrderStatusAtomic(orderId, OrderStatus.ARRIVED, {
       status: OrderStatus.IN_PROGRESS,

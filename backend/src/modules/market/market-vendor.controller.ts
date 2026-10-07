@@ -7,6 +7,8 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { User, UserRole } from '../../database/entities/user.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
+import { VendorCashService } from '../delivery/vendor-cash.service';
+import { CashReceivedDto } from '../delivery/dto/cash-received.dto';
 import { OptionalEnumPipe } from '../../common/pipes/optional-enum.pipe';
 import { UpdateStoreDto } from './dto/update-store.dto';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
@@ -20,7 +22,10 @@ import { MarketOrderStatus } from '../../database/entities/market-order.entity';
 @Roles(UserRole.MARKET)
 @Controller('market/vendor')
 export class MarketVendorController {
-  constructor(private readonly marketService: MarketService) {}
+  constructor(
+    private readonly marketService: MarketService,
+    private readonly vendorCash: VendorCashService,
+  ) {}
 
   @Get('store')
   @ApiOperation({ summary: 'Get my store profile' })
@@ -175,5 +180,20 @@ export class MarketVendorController {
   async redispatchOrder(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
     const store = await this.marketService.getStoreByOwner(user.id);
     return this.marketService.redispatchDelivery(store.id, id);
+  }
+
+  /**
+   * Naqd buyurtma: kuryer tovar pulini to'ladimi (`delivery/vendor-cash.ts`).
+   * "Olmadim" — dispetcherga nizo ketadi.
+   */
+  @Patch('orders/:id/cash-received')
+  @ApiOperation({ summary: "Kuryerdan tovar puli olindi / olinmadi (naqd buyurtma)" })
+  async cashReceived(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CashReceivedDto,
+  ) {
+    await this.vendorCash.vendorDecision(user.id, 'market', id, dto.received);
+    return { ok: true };
   }
 }

@@ -162,6 +162,8 @@ describe('FoodService — courier delivery bridge', () => {
             itemsCount: 3,
             // Cash order: the courier collects the full total at the door.
             collectCash: 75000,
+            // Kuryer restoranga tovar pulini to'laydi: 75 000 − 10 000 yetkazish.
+            payVendor: 65000,
           },
         }),
         // 75 000 total − 65 000 of food = the 10 000 delivery fee the

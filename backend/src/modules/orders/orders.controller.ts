@@ -44,6 +44,7 @@ import { OrderReceiptDto } from './dto/order-receipt.dto';
 import { FraudReviewDto } from './dto/fraud-review.dto';
 import { FraudReviewEntry, OrderFraudService } from './order-fraud.service';
 import { parseDeviceId } from './fraud-rules';
+import { VendorCashService } from '../delivery/vendor-cash.service';
 
 @ApiTags('Orders')
 @ApiBearerAuth('JWT-auth')
@@ -58,6 +59,7 @@ export class OrdersController {
     private readonly meterService: OrdersMeterService,
     // Optional: controller spec'lari uni qurmaydi; prod'da OrdersModule beradi.
     @Optional() private readonly fraudService?: OrderFraudService,
+    @Optional() private readonly vendorCash?: VendorCashService,
   ) {}
 
   @Post('calculate-price')
@@ -334,6 +336,21 @@ export class OrdersController {
     await this.fraudService?.recordDriverAccept(id, user.id, parseDeviceId(deviceId));
     await this.matchingService.driverAccepted(user.id, id);
     return order;
+  }
+
+  /**
+   * Kuryer: "do'konga tovar pulini to'ladim" (naqd ovqat/market). Busiz
+   * safarni boshlab bo'lmaydi — `VendorCashService.assertReadyForPickup`.
+   */
+  @Patch(':id/vendor-paid')
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({ summary: "Kuryer do'konga tovar pulini to'ladi" })
+  async markVendorPaid(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<{ amount: number }> {
+    if (!this.vendorCash) return { amount: 0 };
+    return this.vendorCash.markPaidByCourier(user.id, id);
   }
 
   @Patch(':id/decline')

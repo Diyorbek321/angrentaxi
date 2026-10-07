@@ -46,9 +46,9 @@ export class SettingsController {
   @Get('public')
   @ApiOperation({ summary: 'Customer-facing settings: support contact and delivery fee' })
   async getPublic() {
-    const { platformName, supportPhone, deliveryFee } =
+    const { platformName, supportPhone, deliveryFee, maxCashVendorOrder } =
       await this.settingsService.getGlobalSettings();
-    return { platformName, supportPhone, deliveryFee };
+    return { platformName, supportPhone, deliveryFee, maxCashVendorOrder };
   }
 
   @Get('global')

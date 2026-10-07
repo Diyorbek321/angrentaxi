@@ -14,6 +14,12 @@ export interface DeliveryRideDetails {
   itemsCount: number;
   /** So'm to take from the customer at handover; 0 when paid online. */
   collectCash: number;
+  /**
+   * So'm the courier pays the vendor at pickup (goods only, no delivery fee);
+   * 0 when paid online. See `vendor-cash.ts`: the courier buys the bag with
+   * their own cash and recovers it — plus the delivery fee — at the door.
+   */
+  payVendor: number;
 }
 
 export function deliveryRideDetails(input: {
@@ -22,6 +28,8 @@ export function deliveryRideDetails(input: {
   customerPhone: string | null;
   itemsCount: number;
   totalPrice: number;
+  /** Goods only — `totalPrice` minus the delivery fee. */
+  itemsTotal: number;
   isCash: boolean;
 }): DeliveryRideDetails {
   return {
@@ -30,6 +38,7 @@ export function deliveryRideDetails(input: {
     customerPhone: input.customerPhone,
     itemsCount: input.itemsCount,
     collectCash: input.isCash ? Math.round(input.totalPrice) : 0,
+    payVendor: input.isCash ? Math.round(input.itemsTotal) : 0,
   };
 }
 

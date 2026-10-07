@@ -25,6 +25,7 @@ import { MatchingModule } from './modules/matching/matching.module';
 import { SurgeModule } from './modules/surge/surge.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { DeliveryEventsModule } from './modules/delivery/delivery-events.service';
+import { VendorCashModule } from './modules/delivery/vendor-cash.service';
 import { LostItemsModule } from './modules/lost-items/lost-items.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { PaymentsModule } from './modules/payments/payments.module';
@@ -153,6 +154,7 @@ import { ENTITIES } from './database/entities';
     SurgeModule,
     StorageModule,
     DeliveryEventsModule,
+    VendorCashModule,
     LostItemsModule,
     RealtimeModule,
     PaymentsModule,

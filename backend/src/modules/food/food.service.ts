@@ -34,6 +34,7 @@ import { SettingsService } from '../settings/settings.service';
 import { clampPageSize } from '../../common/utils/pagination.util';
 import { DeliveryEvent, DeliveryEventsService } from '../delivery/delivery-events.service';
 import { checkoutDeliveryFee, deliveryRideDetails } from '../delivery/delivery-ride-details';
+import { assertCashWithinLimit } from '../delivery/vendor-cash';
 
 // Rolling window for the analytics that cannot be expressed as a single SQL
 // aggregate (per-dish totals live in a jsonb `items` column), plus a hard row
@@ -356,6 +357,8 @@ export class FoodService implements OnModuleInit {
             customerPhone: order.customerPhone ?? order.customer?.phone ?? null,
             itemsCount: order.items.reduce((sum, item) => sum + item.qty, 0),
             totalPrice: order.totalPrice,
+            // Tovar summasi — kuryer do'konga shuni to'laydi (`vendor-cash.ts`).
+            itemsTotal: Number(order.totalPrice) - checkoutDeliveryFee(order),
             isCash: order.paymentMethod === FoodPaymentMethod.CASH,
           }),
         },
@@ -679,6 +682,13 @@ export class FoodService implements OnModuleInit {
     const itemsTotal = items.reduce((sum, i) => sum + i.qty * i.price, 0);
     const deliveryFee = await this.settingsService.getDeliveryFee();
     const totalPrice = itemsTotal + deliveryFee;
+    // Kuryer tovarni restorandan o'z pulidan oladi — naqd chegaralangan
+    // (`delivery/vendor-cash.ts`).
+    assertCashWithinLimit(
+      (dto.paymentMethod ?? FoodPaymentMethod.CASH) === FoodPaymentMethod.CASH,
+      totalPrice,
+      await this.settingsService.getMaxCashVendorOrder(),
+    );
     const order = await this.orderRepo.save(
       this.orderRepo.create({
         restaurantId: restaurant.id,

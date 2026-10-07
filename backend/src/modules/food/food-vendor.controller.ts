@@ -7,6 +7,8 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { User, UserRole } from '../../database/entities/user.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
+import { VendorCashService } from '../delivery/vendor-cash.service';
+import { CashReceivedDto } from '../delivery/dto/cash-received.dto';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 import { CreateMenuCategoryDto, UpdateMenuCategoryDto } from './dto/category.dto';
 import { CreateDishDto, UpdateDishDto } from './dto/dish.dto';
@@ -18,7 +20,10 @@ import { RejectOrderDto } from './dto/reject-order.dto';
 @Roles(UserRole.RESTAURANT)
 @Controller('food/vendor')
 export class FoodVendorController {
-  constructor(private readonly foodService: FoodService) {}
+  constructor(
+    private readonly foodService: FoodService,
+    private readonly vendorCash: VendorCashService,
+  ) {}
 
   @Get('restaurant')
   @ApiOperation({ summary: 'Get my restaurant profile' })
@@ -169,5 +174,20 @@ export class FoodVendorController {
   ) {
     const restaurant = await this.foodService.getRestaurantByOwner(user.id);
     return this.foodService.rejectOrder(restaurant.id, id, dto.reason);
+  }
+
+  /**
+   * Naqd buyurtma: kuryer tovar pulini to'ladimi (`delivery/vendor-cash.ts`).
+   * "Olmadim" — dispetcherga nizo ketadi.
+   */
+  @Patch('orders/:id/cash-received')
+  @ApiOperation({ summary: "Kuryerdan tovar puli olindi / olinmadi (naqd buyurtma)" })
+  async cashReceived(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CashReceivedDto,
+  ) {
+    await this.vendorCash.vendorDecision(user.id, 'food', id, dto.received);
+    return { ok: true };
   }
 }

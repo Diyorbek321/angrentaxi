@@ -40,16 +40,23 @@ export class SettingsService {
     return deliveryFee;
   }
 
+  /** Naqd ovqat/market buyurtmasi chegarasi (so'm). */
+  async getMaxCashVendorOrder(): Promise<number> {
+    const { maxCashVendorOrder } = await this.getOrCreate();
+    return maxCashVendorOrder;
+  }
+
   async getGlobalSettings(): Promise<{
     platformName: string;
     supportPhone: string;
     supportEmail: string;
     maintenanceMode: boolean;
     deliveryFee: number;
+    maxCashVendorOrder: number;
   }> {
-    const { platformName, supportPhone, supportEmail, maintenanceMode, deliveryFee } =
+    const { platformName, supportPhone, supportEmail, maintenanceMode, deliveryFee, maxCashVendorOrder } =
       await this.getOrCreate();
-    return { platformName, supportPhone, supportEmail, maintenanceMode, deliveryFee };
+    return { platformName, supportPhone, supportEmail, maintenanceMode, deliveryFee, maxCashVendorOrder };
   }
 
   async updateGlobalSettings(dto: {
@@ -58,12 +65,14 @@ export class SettingsService {
     supportEmail?: string;
     maintenanceMode?: boolean;
     deliveryFee?: number;
+    maxCashVendorOrder?: number;
   }): Promise<{
     platformName: string;
     supportPhone: string;
     supportEmail: string;
     maintenanceMode: boolean;
     deliveryFee: number;
+    maxCashVendorOrder: number;
   }> {
     const settings = await this.getOrCreate();
     await this.settingsRepository.update(settings.id, dto);

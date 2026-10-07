@@ -41,6 +41,7 @@ import { SettingsService } from '../settings/settings.service';
 import { clampPageSize } from '../../common/utils/pagination.util';
 import { DeliveryEvent, DeliveryEventsService } from '../delivery/delivery-events.service';
 import { checkoutDeliveryFee, deliveryRideDetails } from '../delivery/delivery-ride-details';
+import { assertCashWithinLimit } from '../delivery/vendor-cash';
 
 // Rolling window the jsonb-item analytics (best sellers, category breakdown,
 // stock turnover) are computed over, plus a hard row cap in case a very busy
@@ -422,6 +423,8 @@ export class MarketService implements OnModuleInit {
             customerPhone: order.customerPhone ?? order.customer?.phone ?? null,
             itemsCount: order.items.reduce((sum, item) => sum + item.qty, 0),
             totalPrice: order.totalPrice,
+            // Tovar summasi — kuryer do'konga shuni to'laydi (`vendor-cash.ts`).
+            itemsTotal: Number(order.totalPrice) - checkoutDeliveryFee(order),
             isCash: order.paymentMethod === MarketPaymentMethod.CASH,
           }),
         },
@@ -772,6 +775,26 @@ export class MarketService implements OnModuleInit {
       };
     });
 
+    // The delivery fee is part of what the customer owes, so it belongs in
+    // the recorded total. It used to exist only as a client-side constant in
+    // the app, which meant the checkout screen showed one figure and the
+    // order row, the vendor board and the receipt all showed a smaller one.
+    const itemsTotal = items.reduce((sum, i) => sum + i.qty * i.price, 0);
+    const deliveryFee = await this.settingsService.getDeliveryFee();
+    const totalPrice = itemsTotal + deliveryFee;
+
+    // Naqd chegarasi ZAXIRAGA TEGISHDAN OLDIN: rad etilgan buyurtma
+    // mahsulotni band qilib qo'ymasin. Faqat platforma kuryeri uchun — u
+    // tovarni do'kondan o'z pulidan oladi (`delivery/vendor-cash.ts`);
+    // do'konning o'z kuryeri pulni do'kon nomidan oladi.
+    const deliveryMode = dto.deliveryMode ?? MarketOrderDeliveryMode.PLATFORM;
+    assertCashWithinLimit(
+      (dto.paymentMethod ?? MarketPaymentMethod.CASH) === MarketPaymentMethod.CASH &&
+        deliveryMode === MarketOrderDeliveryMode.PLATFORM,
+      totalPrice,
+      await this.settingsService.getMaxCashVendorOrder(),
+    );
+
     for (const item of items) {
       const product = byId.get(item.productId);
       if (!product) continue;
@@ -782,14 +805,6 @@ export class MarketService implements OnModuleInit {
         `Buyurtma`,
       );
     }
-
-    // The delivery fee is part of what the customer owes, so it belongs in
-    // the recorded total. It used to exist only as a client-side constant in
-    // the app, which meant the checkout screen showed one figure and the
-    // order row, the vendor board and the receipt all showed a smaller one.
-    const itemsTotal = items.reduce((sum, i) => sum + i.qty * i.price, 0);
-    const deliveryFee = await this.settingsService.getDeliveryFee();
-    const totalPrice = itemsTotal + deliveryFee;
     const order = await this.orderRepo.save(
       this.orderRepo.create({
         storeId: store.id,
@@ -799,7 +814,7 @@ export class MarketService implements OnModuleInit {
         deliveryAddress: dto.deliveryAddress,
         deliveryLat: dto.deliveryLat,
         deliveryLng: dto.deliveryLng,
-        deliveryMode: dto.deliveryMode ?? MarketOrderDeliveryMode.PLATFORM,
+        deliveryMode,
         paymentMethod: dto.paymentMethod ?? MarketPaymentMethod.CASH,
         customerPhone,
         note: dto.note ?? null,

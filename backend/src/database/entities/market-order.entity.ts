@@ -145,6 +145,17 @@ export class MarketOrder {
   @Column({ nullable: true, type: 'varchar' })
   note: string | null;
 
+  // Naqd buyurtmada kuryer do'konga to'lashi (migratsiya 019,
+  // `delivery/vendor-cash.ts`): to'ladi → sotuvchi tasdiqladi yoki nizo.
+  @Column({ name: 'vendor_cash_paid_at', type: 'timestamptz', nullable: true })
+  vendorCashPaidAt: Date | null;
+
+  @Column({ name: 'vendor_cash_confirmed_at', type: 'timestamptz', nullable: true })
+  vendorCashConfirmedAt: Date | null;
+
+  @Column({ name: 'vendor_cash_disputed_at', type: 'timestamptz', nullable: true })
+  vendorCashDisputedAt: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

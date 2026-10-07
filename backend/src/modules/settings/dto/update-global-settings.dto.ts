@@ -42,4 +42,12 @@ export class UpdateGlobalSettingsDto {
   @IsNumber()
   @Min(0)
   deliveryFee?: number;
+
+  @ApiPropertyOptional({
+    description: "Naqd ovqat/market buyurtmasi chegarasi, so'm (undan katta — faqat karta)",
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  maxCashVendorOrder?: number;
 }

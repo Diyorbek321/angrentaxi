@@ -52,6 +52,22 @@ export class PlatformSettings {
   })
   deliveryFee: number;
 
+  // Naqd ovqat/market buyurtmasi chegarasi, so'm (migratsiya 019). Kuryer
+  // tovarni do'kondan O'Z pulidan sotib oladi — katta summani cho'ntagidan
+  // to'lamasin. Undan katta buyurtma faqat karta bilan.
+  @Column({
+    name: 'max_cash_vendor_order',
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    default: 200000,
+    transformer: {
+      to: (value: number) => value,
+      from: (value: string) => parseFloat(value),
+    },
+  })
+  maxCashVendorOrder: number;
+
   @Column({ name: 'maintenance_mode', type: 'boolean', default: false })
   maintenanceMode: boolean;
 
