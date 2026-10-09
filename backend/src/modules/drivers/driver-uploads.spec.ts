@@ -42,7 +42,7 @@ describe('driverUploadKey', () => {
 });
 
 describe('DriverUploadsStore.save', () => {
-  const storage = { driver: 'local' as const, put: jest.fn(), get: jest.fn() };
+  const storage = { driver: 'local' as const, put: jest.fn(), get: jest.fn(), delete: jest.fn() };
   const store = new DriverUploadsStore(storage);
 
   beforeEach(() => jest.clearAllMocks());

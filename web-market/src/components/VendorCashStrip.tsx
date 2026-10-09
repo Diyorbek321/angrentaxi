@@ -23,7 +23,7 @@ export function VendorCashStrip({
   onDecide: (received: boolean) => void;
   large?: boolean;
 }) {
-  const { step, amount } = vendorCashView(order);
+  const { step, amount, resolution } = vendorCashView(order);
   if (step === 'none') return null;
 
   if (step === 'awaiting_courier') {
@@ -40,6 +40,20 @@ export function VendorCashStrip({
       <p className={clsx('mt-3 flex items-center gap-1.5 text-primary-text', large ? 'text-body' : 'text-caption')}>
         <CheckCircle2 size={14} aria-hidden />
         Kuryerdan {money(amount)} olindi
+      </p>
+    );
+  }
+
+  if (step === 'resolved') {
+    return (
+      <p
+        role="status"
+        className={clsx('mt-3 flex items-start gap-1.5 text-primary-text', large ? 'text-body' : 'text-caption')}
+      >
+        <CheckCircle2 size={14} aria-hidden className="mt-0.5 shrink-0" />
+        <span>
+          Nizo hal qilindi{resolution ? <span className="text-muted"> — {resolution}</span> : null}
+        </span>
       </p>
     );
   }

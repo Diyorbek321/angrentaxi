@@ -22,7 +22,7 @@ import { clsx } from 'clsx';
 import { foodApi, FoodOrder, FoodOrderStatus, Restaurant } from '@/lib/api';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { money, formatTime } from '@/lib/utils';
-import { ADVANCE_LABEL, NEXT_STATUS, statusMeta } from '@/lib/order-status';
+import { advanceLabelFor, NEXT_STATUS, statusMeta } from '@/lib/order-status';
 import { trackNewOrders } from '@/lib/order-alerts';
 import { useKiosk } from '@/lib/kiosk-context';
 import { courierState, CourierTone } from '@/lib/courier';
@@ -422,7 +422,8 @@ function OrderCard({
   onCashDecision: (received: boolean) => void;
 }) {
   const sla = slaInfo(order, now);
-  const canAdvance = NEXT_STATUS[order.status] != null;
+  const advanceLabel = advanceLabelFor(order);
+  const canAdvance = advanceLabel != null;
   const isNew = order.status === 'new';
   const isDone = order.status === 'delivered' || order.status === 'cancelled';
   const phone = order.customerPhone ?? order.customer?.phone ?? null;
@@ -555,7 +556,7 @@ function OrderCard({
             isLoading={busy}
             onClick={onAdvance}
           >
-            {ADVANCE_LABEL[order.status]}
+            {advanceLabel}
           </Button>
           {isNew && (
             <Button
@@ -650,7 +651,7 @@ function OrderDrawer({
   onReject: () => void;
 }) {
   if (!order) return null;
-  const next = NEXT_STATUS[order.status];
+  const advanceLabel = advanceLabelFor(order);
 
   return (
     <Drawer
@@ -665,16 +666,16 @@ function OrderDrawer({
         </span>
       }
       footer={
-        (order.status === 'new' || next) && (
+        (order.status === 'new' || advanceLabel) && (
           <div className="flex gap-2">
             {order.status === 'new' && (
               <Button variant="danger" size="lg" onClick={onReject}>
                 Rad etish
               </Button>
             )}
-            {next && (
+            {advanceLabel && (
               <Button size="lg" className="flex-1" isLoading={busy} onClick={onAdvance}>
-                {ADVANCE_LABEL[order.status]}
+                {advanceLabel}
               </Button>
             )}
           </div>

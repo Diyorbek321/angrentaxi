@@ -1,9 +1,12 @@
+import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
+import 'package:angren_taxi/features/superapp/screens/courier_tracking_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/order_detail_screen.dart';
 import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/market_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
+import 'package:angren_taxi/shared/models/courier_tracking.dart';
 import 'package:angren_taxi/shared/models/food_order.dart';
 import 'package:angren_taxi/shared/models/market_order.dart';
 import 'package:angren_taxi/shared/models/order.dart';
@@ -236,7 +239,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       icon: ServiceCatalogEntry.food.icon,
       vertical: _Vertical.food,
       title: context.l10n.saDishesCount(order.itemsCount),
-      subtitle: '${ServiceCatalogEntry.food.label} · #${_shortId(order.id)}',
+      subtitle: _deliverySubtitle(ServiceCatalogEntry.food.label, order.id, order.isTrackable ? order.delivery : null),
       amount: Formatters.formatSom(order.totalPrice),
       statusLabel: order.status.label,
       tone: switch (order.status) {
@@ -258,6 +261,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
         FoodOrderStatus.delivered => 3,
       },
       isActive: order.status.isActive,
+      onTap: order.isTrackable
+          ? () => _openCourierMap(ApiEndpoints.foodOrderById(order.id), order.delivery!)
+          : null,
     );
   }
 
@@ -268,7 +274,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       icon: ServiceCatalogEntry.market.icon,
       vertical: _Vertical.market,
       title: context.l10n.saProductsCount(order.itemsCount),
-      subtitle: '${ServiceCatalogEntry.market.label} · #${_shortId(order.id)}',
+      subtitle: _deliverySubtitle(ServiceCatalogEntry.market.label, order.id, order.isTrackable ? order.delivery : null),
       amount: Formatters.formatSom(order.totalPrice),
       statusLabel: order.status.label,
       tone: switch (order.status) {
@@ -290,7 +296,34 @@ class _OrdersScreenState extends State<OrdersScreen> {
         MarketOrderStatus.delivered => 3,
       },
       isActive: order.status.isActive,
+      onTap: order.isTrackable
+          ? () => _openCourierMap(ApiEndpoints.marketOrderById(order.id), order.delivery!)
+          : null,
     );
+  }
+
+  /// "Ovqat · #ab12cd". Kuryer yo'lda bo'lsa raqam o'rniga uning ismi —
+  /// karta bosilsa kuryer xaritasi ochilishiga ishora.
+  String _deliverySubtitle(String label, String id, CourierTracking? delivery) {
+    final courier = delivery?.driverName;
+    return [
+      label,
+      if (courier != null && courier.isNotEmpty)
+        courier
+      else
+        '#${_shortId(id)}',
+    ].join(' · ');
+  }
+
+  /// Kuryer kuzatuvi yopilgach ro'yxat yangilanadi — orada buyurtma
+  /// yetkazilgan bo'lishi mumkin.
+  Future<void> _openCourierMap(String refreshPath, CourierTracking delivery) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CourierTrackingScreen(refreshPath: refreshPath, initial: delivery),
+      ),
+    );
+    if (mounted) _reloadAll();
   }
 
   /// `substring(0, 6)` qisqa id kutadi — server qisqaroq id yuborsa

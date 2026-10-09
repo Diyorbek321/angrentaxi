@@ -2750,6 +2750,30 @@ class AppLocalizationsUz extends AppLocalizations {
   String get saTotal => 'Jami';
 
   @override
+  String get saTrackCallCourier => 'Kuryerga qo\'ng\'iroq qilish';
+
+  @override
+  String get saTrackCancelled => 'Buyurtma bekor qilindi';
+
+  @override
+  String get saTrackDelivered => 'Buyurtma yetkazildi';
+
+  @override
+  String get saTrackOnTheWay => 'Kuryer yo\'lda';
+
+  @override
+  String get saTrackOpenMap => 'Kuryerni xaritada ko\'rish';
+
+  @override
+  String get saTrackSearching => 'Kuryer qidirilmoqda';
+
+  @override
+  String get saTrackTitle => 'Kuryer xaritada';
+
+  @override
+  String get saTrackWaitingLocation => 'Kuryer joylashuvi kutilmoqda…';
+
+  @override
   String get saTxnBonus => 'Bonus';
 
   @override

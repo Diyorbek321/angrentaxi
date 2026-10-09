@@ -166,11 +166,15 @@ export interface FoodOrder {
   updatedAt: string;
   customer?: { firstName: string | null; lastName: string | null; phone: string };
   /** Courier ride, once the order reached "ready". See lib/courier.ts. */
+  /** Platforma kuryeri safari — bo'lsa "yetkazildi"ni faqat kuryer qiladi. */
+  deliveryOrderId?: string | null;
   delivery?: DeliveryInfo | null;
   /** Naqd buyurtma: kuryer tovar pulini toʻladi / sotuvchi qarori (lib/vendor-cash.ts). */
   vendorCashPaidAt?: string | null;
   vendorCashConfirmedAt?: string | null;
   vendorCashDisputedAt?: string | null;
+  vendorCashDisputeResolvedAt?: string | null;
+  vendorCashDisputeResolution?: string | null;
 }
 
 export interface DashboardData {

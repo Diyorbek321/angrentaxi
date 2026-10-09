@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertTriangle, ExternalLink, Megaphone, Plus, Store, Trash2, UtensilsCrossed } from 'lucide-react';
+import { AlertTriangle, BarChart3, ExternalLink, Megaphone, Plus, Store, Trash2, UtensilsCrossed } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/Table';
 import { useToast } from '@/components/ui/Toast';
 import { CreateAdDialog } from '@/components/ads/CreateAdDialog';
+import { AdDailyDrawer } from '@/components/ads/AdDailyDrawer';
 import { adsApi, type AdBanner } from '@/lib/api';
 import { AD_LINK_LABELS, AD_STATE_LABELS, adCtr, adState, formatCtr, type AdState } from '@/lib/ads';
 import { formatDate } from '@/lib/utils';
@@ -58,6 +59,7 @@ export default function AdsPage() {
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdBanner | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [reportTarget, setReportTarget] = useState<AdBanner | null>(null);
 
   const fetchAds = async () => {
     setIsLoading(true);
@@ -224,7 +226,15 @@ export default function AdsPage() {
                         <TableCell className="text-right font-mono tabular-nums text-muted">
                           {formatCtr(adCtr(ad))}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="whitespace-nowrap text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setReportTarget(ad)}
+                            aria-label={`«${ad.title}» kunlik hisoboti`}
+                          >
+                            <BarChart3 className="h-4 w-4" aria-hidden="true" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -250,6 +260,8 @@ export default function AdsPage() {
         onCreated={(ad) => setAds((prev) => [...prev, ad].sort((a, b) => a.sortOrder - b.sortOrder))}
       />
 
+      <AdDailyDrawer ad={reportTarget} onClose={() => setReportTarget(null)} />
+
       {/* O'chirish qaytarilmaydi va hisoblagichlar (reklama beruvchi hisoboti)
           ham yo'qoladi — shuning uchun tasdiqlash modali. Vaqtincha to'xtatish
           uchun qatordagi kalit bor. */}
@@ -258,8 +270,8 @@ export default function AdsPage() {
           <DialogHeader>
             <DialogTitle>Bannerni o&apos;chirish</DialogTitle>
             <DialogDescription>
-              <strong>{deleteTarget?.title}</strong> butunlay o&apos;chiriladi, uning ko&apos;rish va
-              bosish statistikasi ham yo&apos;qoladi. Vaqtincha to&apos;xtatish uchun kalitni
+              <strong>{deleteTarget?.title}</strong> butunlay o&apos;chiriladi — rasmi, ko&apos;rish va
+              bosish statistikasi (kunlik hisoboti bilan) ham yo&apos;qoladi. Vaqtincha to&apos;xtatish uchun kalitni
               o&apos;chiring.
             </DialogDescription>
           </DialogHeader>

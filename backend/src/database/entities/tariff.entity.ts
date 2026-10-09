@@ -116,6 +116,24 @@ export class Tariff {
   maxPrice: number | null;
 
   /**
+   * TAKSOMETR (manzilsiz safar) km narxi (migratsiya 022). Odatda oddiy
+   * [pricePerKm] dan biroz qimmatroq: haydovchi qayerga borishini oldindan
+   * bilmaydi. `null` — oddiy km narxi ishlatiladi (`metered-rate.ts`).
+   */
+  @Column({
+    name: 'metered_price_per_km',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    transformer: {
+      to: (value: number | null) => value,
+      from: (value: string | null) => (value !== null ? parseFloat(value) : null),
+    },
+  })
+  meteredPricePerKm: number | null;
+
+  /**
    * BEPUL kutish oynasi, daqiqa. Haydovchi "keldim" belgilagan lahzadan
    * boshlanadi (`orders.arrived_at`).
    *

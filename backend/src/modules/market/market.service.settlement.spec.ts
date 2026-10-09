@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { MarketService } from './market.service';
 import {
   MarketOrder,
@@ -123,6 +124,17 @@ describe('MarketService - store earnings settlement on delivery', () => {
 
     await service.advanceOrder('store-1', 'market-order-1');
 
+    expect(transactionRepo.save).not.toHaveBeenCalled();
+  });
+
+  it("platforma kuryeri chaqirilgan buyurtmani sotuvchi 'yetkazildi' qila olmaydi", async () => {
+    // Kuryer topilmagan (safar bekor) bo'lsa ham: yetkazildi faqat kuryer
+    // topshirganda yoki dispetcher kuryer safarini yakunlaganda.
+    orderRepo.findOne.mockResolvedValue(shippedOrder({ deliveryOrderId: 'ride-1' }));
+
+    await expect(service.advanceOrder('store-1', 'market-order-1')).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(orderRepo.update).not.toHaveBeenCalled();
     expect(transactionRepo.save).not.toHaveBeenCalled();
   });
 });

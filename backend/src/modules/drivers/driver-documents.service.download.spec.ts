@@ -28,6 +28,10 @@ class MemoryStorage implements ObjectStorage {
     const body = this.objects.get(key);
     return body ? { stream: Readable.from(body), contentType: null, size: body.length } : null;
   }
+
+  async delete(key: string): Promise<void> {
+    this.objects.delete(key);
+  }
 }
 
 // KYC scans (passport, driving licence) used to be served by

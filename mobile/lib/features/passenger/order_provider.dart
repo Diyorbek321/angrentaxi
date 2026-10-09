@@ -525,21 +525,28 @@ class OrderProvider extends ChangeNotifier {
     }
   }
 
+  /// Nomlangan metod — `off` da AYNAN SHU tinglovchini o'chirish uchun:
+  /// `driver:location` ni ovqat/market kuryer kuzatuvi ham tinglaydi.
+  void _onDriverLocation(dynamic data) {
+    if (data is! Map) return;
+    // Server paketga `orderId` qo'shadi: yo'lovchi bir vaqtda ovqat kuryerini
+    // ham kuzatayotgan bo'lsa, u mashina taksi o'rnida chizilmasin.
+    final orderId = data['orderId'];
+    if (orderId != null && orderId != _activeOrder?.id) return;
+    final lat = (data['lat'] as num?)?.toDouble();
+    final lng = (data['lng'] as num?)?.toDouble();
+    if (lat != null && lng != null) {
+      _setDriverLocation(LatLng(lat, lng));
+    }
+  }
+
   void _listenToOrderEvents() {
     if (_activeOrder != null) {
       _socketService.emit(SocketEvents.joinOrder, {'orderId': _activeOrder!.id});
     }
     _startSync();
 
-    _socketService.on(SocketEvents.driverLocationUpdate, (data) {
-      if (data is Map) {
-        final lat = (data['lat'] as num?)?.toDouble();
-        final lng = (data['lng'] as num?)?.toDouble();
-        if (lat != null && lng != null) {
-          _setDriverLocation(LatLng(lat, lng));
-        }
-      }
-    });
+    _socketService.on(SocketEvents.driverLocationUpdate, _onDriverLocation);
 
     // orders.service.ts's 'driver' payload here only carries
     // id/userId/carModel/carNumber/rating (no name/phone — those are only on
@@ -729,7 +736,7 @@ class OrderProvider extends ChangeNotifier {
     if (_activeOrder != null) {
       _socketService.emit(SocketEvents.leaveOrder, {'orderId': _activeOrder!.id});
     }
-    _socketService.off(SocketEvents.driverLocationUpdate);
+    _socketService.off(SocketEvents.driverLocationUpdate, _onDriverLocation);
     _socketService.off(SocketEvents.orderAccepted);
     _socketService.off(SocketEvents.orderArrived);
     _socketService.off(SocketEvents.orderInProgress);

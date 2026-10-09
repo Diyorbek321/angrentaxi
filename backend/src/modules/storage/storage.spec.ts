@@ -1,10 +1,10 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { GetObjectCommand, NoSuchKey, PutObjectCommand } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, GetObjectCommand, NoSuchKey, PutObjectCommand } from '@aws-sdk/client-s3';
 import { LocalDiskStorage } from './local-disk.storage';
 import { S3Storage } from './s3.storage';
-import { assertSafeKey } from './object-storage';
+import { assertDeletableKey, assertSafeKey } from './object-storage';
 import { createObjectStorage } from './storage.module';
 
 async function readAll(stream: NodeJS.ReadableStream): Promise<string> {
@@ -24,6 +24,17 @@ describe('assertSafeKey', () => {
       expect(() => assertSafeKey(key)).toThrow();
     },
   );
+});
+
+describe('assertDeletableKey', () => {
+  it('reklama rasmini o\'chirishga ruxsat beradi', () => {
+    expect(() => assertDeletableKey('ads/a.jpg')).not.toThrow();
+  });
+
+  it('KYC hujjatlarini O\'CHIRTIRMAYDI — saqlash muddati siyosat qarori', () => {
+    expect(() => assertDeletableKey('driver-documents/a.jpg')).toThrow();
+    expect(() => assertDeletableKey('driver-verification/a.jpg')).toThrow();
+  });
 });
 
 describe('LocalDiskStorage', () => {
@@ -47,6 +58,21 @@ describe('LocalDiskStorage', () => {
 
   it('returns null for a missing file', async () => {
     await expect(storage.get('driver-documents/missing.jpg')).resolves.toBeNull();
+  });
+
+  it('deletes an ad image; a missing file is not an error', async () => {
+    await storage.put('ads/a.jpg', Buffer.from('x'), 'image/jpeg');
+    await storage.delete('ads/a.jpg');
+    await expect(storage.get('ads/a.jpg')).resolves.toBeNull();
+    await expect(storage.delete('ads/a.jpg')).resolves.toBeUndefined();
+  });
+
+  it('refuses to delete a KYC document', async () => {
+    await storage.put('driver-documents/a.jpg', Buffer.from('x'), 'image/jpeg');
+    await expect(storage.delete('driver-documents/a.jpg')).rejects.toThrow();
+    const kept = await storage.get('driver-documents/a.jpg');
+    // Oxirigacha o'qiladi: ochiq qolgan stream papka o'chirilgach xato beradi.
+    expect(await readAll(kept!.stream)).toBe('x');
   });
 
   it('refuses keys that would climb out of root', async () => {
@@ -97,6 +123,19 @@ describe('S3Storage', () => {
     send.mockRejectedValueOnce(new Error('AccessDenied'));
     await expect(storage.get('driver-documents/a.jpg')).rejects.toThrow('AccessDenied');
   });
+
+  it('deletes with bucket and key', async () => {
+    send.mockResolvedValueOnce({});
+    await storage.delete('ads/a.jpg');
+    const command = send.mock.calls[0][0] as DeleteObjectCommand;
+    expect(command).toBeInstanceOf(DeleteObjectCommand);
+    expect(command.input).toEqual({ Bucket: 'kyc', Key: 'ads/a.jpg' });
+  });
+
+  it('never sends a delete for a KYC key', async () => {
+    await expect(storage.delete('driver-documents/a.jpg')).rejects.toThrow();
+    expect(send).not.toHaveBeenCalled();
+  });
 });
 
 describe('createObjectStorage', () => {
@@ -130,4 +169,5 @@ describe('createObjectStorage', () => {
   it('refuses an unknown driver', () => {
     expect(() => createObjectStorage(config({ STORAGE_DRIVER: 'ftp' }), logger)).toThrow(/ftp/);
   });
+
 });

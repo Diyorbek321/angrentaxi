@@ -3,6 +3,7 @@ import {
   BadRequestException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   UnsupportedMediaTypeException,
 } from '@nestjs/common';
@@ -10,11 +11,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, LessThanOrEqual, MoreThan, Repository } from 'typeorm';
 import { isUUID } from 'class-validator';
 import { AdBanner, AdLinkType } from '../../database/entities/ad-banner.entity';
+import { AdBannerDailyStat } from '../../database/entities/ad-banner-daily-stat.entity';
 import { Restaurant } from '../../database/entities/restaurant.entity';
 import { Store } from '../../database/entities/store.entity';
 import { OBJECT_STORAGE, ObjectStorage } from '../storage/object-storage';
 import type { UploadedMemoryFile } from '../drivers/driver-uploads';
 import { adImageKeyFor, adImageMimeType } from './ad-images';
+import { AD_STATS_MAX_DAYS, AdDailyRow, fillDailySeries, tashkentDay } from './ad-daily-series';
 import { CreateAdBannerDto } from './dto/create-ad-banner.dto';
 import { UpdateAdBannerDto } from './dto/update-ad-banner.dto';
 
@@ -41,7 +44,11 @@ export class AdsService {
     @InjectRepository(Store)
     private readonly storeRepository: Repository<Store>,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
+    @InjectRepository(AdBannerDailyStat)
+    private readonly dailyRepository: Repository<AdBannerDailyStat>,
   ) {}
+
+  private readonly logger = new Logger(AdsService.name);
 
   /** Admin: hammasi, nofaollari va muddati tugaganlari bilan. */
   findAll(): Promise<AdBanner[]> {
@@ -116,13 +123,42 @@ export class AdsService {
   }
 
   /**
-   * Qator o'chiriladi; rasm bucket'da qoladi — `ObjectStorage` da ataylab
-   * `delete` yo'q (izohiga qarang). Banner rasmi kichik va uni hech narsa
-   * ko'rsatmaydi, chunki rasm faqat banner id orqali ochiladi.
+   * Qator, keyin rasmi o'chiriladi. Rasmni o'chirish yiqilsa banner baribir
+   * o'chgan hisoblanadi (log yoziladi): yetim rasmni hech narsa ko'rsatmaydi,
+   * chunki u faqat banner id orqali ochiladi — admin esa xato ko'rmasin.
    */
   async remove(id: string): Promise<void> {
+    const banner = await this.adRepository.findOne({
+      where: { id },
+      select: { id: true, imageKey: true },
+    });
+    if (!banner) throw new NotFoundException('Banner topilmadi');
+
     const result = await this.adRepository.delete({ id });
     if (!result.affected) throw new NotFoundException('Banner topilmadi');
+
+    try {
+      await this.storage.delete(banner.imageKey);
+    } catch (err) {
+      this.logger.warn(`Banner ${id} rasmi (${banner.imageKey}) o'chmadi: ${(err as Error).message}`);
+    }
+  }
+
+  /** Oxirgi [days] kunning ko'rish/bosish soni, eskisidan boshlab. */
+  async dailyStats(id: string, days: number, now = new Date()): Promise<AdDailyRow[]> {
+    if (!(await this.adRepository.exists({ where: { id } }))) {
+      throw new NotFoundException('Banner topilmadi');
+    }
+    const span = Math.min(Math.max(Math.floor(days) || 1, 1), AD_STATS_MAX_DAYS);
+    const today = tashkentDay(now);
+    const rows = (await this.dailyRepository.query(
+      `SELECT to_char(day, 'YYYY-MM-DD') AS day, impressions, clicks
+         FROM ad_banner_daily_stats
+        WHERE banner_id = $1 AND day > $2::date - $3::int
+        ORDER BY day`,
+      [id, today, span],
+    )) as AdDailyRow[];
+    return fillDailySeries(rows, span, today);
   }
 
   async openImage(id: string): Promise<AdImage | null> {
@@ -153,6 +189,18 @@ export class AdsService {
   private async bump(id: string, column: 'impressions' | 'clicks'): Promise<void> {
     const result = await this.adRepository.increment({ id, isActive: true }, column, 1);
     if (!result.affected) throw new NotFoundException('Banner topilmadi');
+
+    // Kunlik kesim — Toshkent sanasi bazaning o'zida olinadi (server zonasi
+    // muhim emas). Bir qator = bir bannerning bir kuni. Yiqilsa faqat log:
+    // jami son yozildi, ilovaning ko'rish so'rovi xato bilan qaytmasin.
+    await this.dailyRepository.query(
+      `INSERT INTO ad_banner_daily_stats (banner_id, day, impressions, clicks)
+       VALUES ($1, (now() AT TIME ZONE 'Asia/Tashkent')::date, $2, $3)
+       ON CONFLICT (banner_id, day) DO UPDATE SET
+         impressions = ad_banner_daily_stats.impressions + EXCLUDED.impressions,
+         clicks = ad_banner_daily_stats.clicks + EXCLUDED.clicks`,
+      [id, column === 'impressions' ? 1 : 0, column === 'clicks' ? 1 : 0],
+    ).catch((err: Error) => this.logger.warn(`Banner ${id} kunlik hisobi yozilmadi: ${err.message}`));
   }
 
   private async validateLink({ linkType, linkTarget }: LinkFields): Promise<LinkFields> {

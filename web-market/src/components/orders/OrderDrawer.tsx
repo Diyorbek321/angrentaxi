@@ -5,7 +5,7 @@ import { Check, MapPin, MessageSquareText, Phone, Truck } from 'lucide-react';
 import { clsx } from 'clsx';
 import { marketApi, MarketOrder } from '@/lib/api';
 import {
-  ADVANCE_LABEL,
+  advanceLabelFor,
   DELIVERY_MODE_LABEL,
   TERMINAL_LABEL,
   orderCustomerName,
@@ -38,7 +38,7 @@ export function OrderDrawer({ order, onClose, onChanged, onError }: OrderDrawerP
   if (!order) return null;
 
   const packedCount = order.items.filter((i) => i.packed).length;
-  const advanceLabel = ADVANCE_LABEL[order.status];
+  const advanceLabel = advanceLabelFor(order);
   const phone = orderCustomerPhone(order);
 
   const togglePack = async (index: number) => {
@@ -110,7 +110,7 @@ export function OrderDrawer({ order, onClose, onChanged, onError }: OrderDrawerP
             </Button>
           ) : (
             <p className="py-2 text-center text-body font-semibold text-muted">
-              {TERMINAL_LABEL[order.status]}
+              {TERMINAL_LABEL[order.status] ?? 'Kuryer topshirgach oʻzi yakunlanadi'}
             </p>
           )}
         </div>

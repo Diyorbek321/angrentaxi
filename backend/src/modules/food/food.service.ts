@@ -35,6 +35,7 @@ import { clampPageSize } from '../../common/utils/pagination.util';
 import { DeliveryEvent, DeliveryEventsService } from '../delivery/delivery-events.service';
 import { checkoutDeliveryFee, deliveryRideDetails } from '../delivery/delivery-ride-details';
 import { assertCashWithinLimit } from '../delivery/vendor-cash';
+import { courierTracking } from '../delivery/delivery-tracking';
 
 // Rolling window for the analytics that cannot be expressed as a single SQL
 // aggregate (per-dish totals live in a jsonb `items` column), plus a hard row
@@ -229,6 +230,15 @@ export class FoodService implements OnModuleInit {
     const next = ORDER_TRANSITIONS[order.status];
     if (!next) {
       throw new BadRequestException(`Order cannot advance from status "${order.status}"`);
+    }
+    // Platforma kuryeri chaqirilgan buyurtma faqat kuryer topshirganda
+    // (yoki dispetcher kuryer safarini yakunlaganda) "yetkazildi" bo'ladi.
+    // Kuryer topilmagan bo'lsa ham: aks holda mijoz hech narsa olmagan
+    // buyurtma yopilib, sotuvchiga komissiya hisoblanib ketardi.
+    if (next === FoodOrderStatus.DELIVERED && order.deliveryOrderId) {
+      throw new BadRequestException(
+        "Buyurtmani kuryer topshiradi — kuryer topilmasa qayta chaqiring yoki dispetcherga murojaat qiling",
+      );
     }
     let saved: FoodOrder;
     if (next === FoodOrderStatus.DELIVERED) {
@@ -459,19 +469,9 @@ export class FoodService implements OnModuleInit {
     }
     try {
       const deliveryOrder = await this.ordersService.findByIdOrThrow(order.deliveryOrderId);
-      return {
-        ...order,
-        delivery: {
-          orderId: deliveryOrder.id,
-          status: deliveryOrder.status,
-          driverName:
-            [deliveryOrder.driver?.firstName, deliveryOrder.driver?.lastName]
-              .filter(Boolean)
-              .join(' ')
-              .trim() || null,
-          driverPhone: deliveryOrder.driver?.phone ?? null,
-        },
-      };
+      // Vendor panels read orderId/status/driverName/driverPhone; the customer
+      // app also uses the car and the two points for its live courier map.
+      return { ...order, delivery: courierTracking(deliveryOrder) };
     } catch (err) {
       // A genuine failure here (DB down, bad join) used to be indistinguishable
       // from "no courier assigned yet": both returned delivery: null, so the

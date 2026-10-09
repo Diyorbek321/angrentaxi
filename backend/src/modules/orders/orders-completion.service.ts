@@ -42,6 +42,7 @@ import {
   waitingSettingsOf,
   withWaitingFare,
 } from '../tariffs/waiting-charge';
+import { meteredTariff } from '../tariffs/metered-rate';
 import { applyDiscount } from '../tariffs/fare-rounding';
 import { OrderFraudService } from './order-fraud.service';
 import { REFERRAL_BONUS_AMOUNT } from './referral-bonus';
@@ -168,7 +169,8 @@ export class OrdersCompletionService {
     const rideFare = useQuote
       ? order.fareBreakdown!
       : this.tariffsService.calculatePriceBreakdown(
-          tariff,
+          // Taksometrda km narxi alohida bo'lishi mumkin (`metered-rate.ts`).
+          meteredTariff(tariff, order.isMetered ?? false),
           actualDistanceKm,
           actualDurationMin,
         );

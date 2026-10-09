@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { FoodService } from './food.service';
 import { FoodOrder, FoodOrderStatus, FoodPaymentMethod } from '../../database/entities/food-order.entity';
 import { Restaurant } from '../../database/entities/restaurant.entity';
@@ -115,6 +116,17 @@ describe('FoodService - restaurant earnings settlement on delivery', () => {
 
     await service.advanceOrder('restaurant-1', 'food-order-1');
 
+    expect(transactionRepo.save).not.toHaveBeenCalled();
+  });
+
+  it("platforma kuryeri chaqirilgan buyurtmani sotuvchi 'yetkazildi' qila olmaydi", async () => {
+    // Kuryer topilmagan (safar bekor) bo'lsa ham: yetkazildi faqat kuryer
+    // topshirganda yoki dispetcher kuryer safarini yakunlaganda.
+    orderRepo.findOne.mockResolvedValue(readyOrder({ deliveryOrderId: 'ride-1' }));
+
+    await expect(service.advanceOrder('restaurant-1', 'food-order-1')).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(orderRepo.update).not.toHaveBeenCalled();
     expect(transactionRepo.save).not.toHaveBeenCalled();
   });
 });

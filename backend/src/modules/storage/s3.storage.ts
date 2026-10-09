@@ -1,11 +1,12 @@
 import {
+  DeleteObjectCommand,
   GetObjectCommand,
   NoSuchKey,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
 import { Readable } from 'stream';
-import { ObjectStorage, StoredObject, assertSafeKey } from './object-storage';
+import { ObjectStorage, StoredObject, assertDeletableKey, assertSafeKey } from './object-storage';
 
 export interface S3StorageConfig {
   bucket: string;
@@ -21,7 +22,8 @@ export interface S3StorageConfig {
 /**
  * Any S3-compatible bucket. The bucket must be PRIVATE: these are passport and
  * licence scans, and the backend streams them only after its own access
- * check. Nothing here ever produces a public or presigned URL.
+ * check. Nothing here ever produces a public or presigned URL, and only
+ * ad images can be deleted (`assertDeletableKey`).
  */
 export class S3Storage implements ObjectStorage {
   readonly driver = 's3' as const;
@@ -69,5 +71,11 @@ export class S3Storage implements ObjectStorage {
       }
       throw err;
     }
+  }
+
+  /** S3 DeleteObject is already idempotent: a missing key succeeds. */
+  async delete(key: string): Promise<void> {
+    assertDeletableKey(key);
+    await this.client.send(new DeleteObjectCommand({ Bucket: this.config.bucket, Key: key }));
   }
 }

@@ -27,16 +27,20 @@ export type VendorCashState =
   | 'awaiting_courier'
   | 'awaiting_vendor'
   | 'confirmed'
-  | 'disputed';
+  | 'disputed'
+  /** Dispetcher nizoni yopdi. */
+  | 'resolved';
 
 export interface VendorCashColumns {
   vendorCashPaidAt: Date | null;
   vendorCashConfirmedAt: Date | null;
   vendorCashDisputedAt: Date | null;
+  vendorCashDisputeResolvedAt?: Date | null;
 }
 
 export function vendorCashState(isCash: boolean, order: VendorCashColumns): VendorCashState {
   if (!isCash) return 'not_applicable';
+  if (order.vendorCashDisputeResolvedAt) return 'resolved';
   if (order.vendorCashDisputedAt) return 'disputed';
   if (order.vendorCashConfirmedAt) return 'confirmed';
   if (order.vendorCashPaidAt) return 'awaiting_vendor';

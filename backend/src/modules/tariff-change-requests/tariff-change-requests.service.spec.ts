@@ -10,7 +10,7 @@ import { TariffChangeAction } from '../../database/entities/tariff-change-reques
  * A bad proposal must be refused when the manager submits it.
  */
 describe('TariffChangeRequestsService.propose — validates the proposal up front', () => {
-  const existing = { id: 't1', name: 'Standard', basePrice: 3000, pricePerKm: 1500, pricePerMin: 200, minPrice: 5000, maxPrice: null, isActive: true };
+  const existing = { id: 't1', name: 'Standard', basePrice: 3000, pricePerKm: 1500, meteredPricePerKm: null, pricePerMin: 200, minPrice: 5000, maxPrice: null, isActive: true };
 
   function build() {
     const requestRepository = { save: jest.fn(async (row: unknown) => row) };
@@ -29,6 +29,28 @@ describe('TariffChangeRequestsService.propose — validates the proposal up fron
     const { service, requestRepository } = build();
     await service.propose('m1', create({ ...valid, maxPrice: null }) as never);
     expect(requestRepository.save).toHaveBeenCalled();
+  });
+
+  it('accepts a taximeter km price, or null for "use the normal km price"', async () => {
+    const { service, requestRepository } = build();
+    await service.propose('m1', create({ ...valid, meteredPricePerKm: 1900 }) as never);
+    await service.propose('m1', create({ ...valid, meteredPricePerKm: null }) as never);
+    expect(requestRepository.save).toHaveBeenCalledTimes(2);
+  });
+
+  it('refuses a negative taximeter km price', async () => {
+    const { service } = build();
+    await expect(
+      service.propose('m1', create({ ...valid, meteredPricePerKm: -1 }) as never),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('records the current taximeter km price so the admin sees what changes', async () => {
+    const { service, requestRepository } = build();
+    await service.propose('m1', { action: TariffChangeAction.UPDATE, tariffId: 't1', proposedChanges: { meteredPricePerKm: 1800 } } as never);
+    expect(requestRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ previousValues: expect.objectContaining({ meteredPricePerKm: null }) }),
+    );
   });
 
   it('refuses a cap below the minimum price — at proposal time, not at approval', async () => {

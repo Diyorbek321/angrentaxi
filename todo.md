@@ -1,6 +1,6 @@
 # Angren Taxi — qolgan ishlar
 
-Oxirgi yangilanish: 2026-10-06. Bajarilgan ishlar tarixi uchun `git log`ga qarang — bu fayl faqat **hali ochiq** ishlarni kuzatish uchun.
+Oxirgi yangilanish: 2026-10-09. Bajarilgan ishlar tarixi uchun `git log`ga qarang — bu fayl faqat **hali ochiq** ishlarni kuzatish uchun.
 
 ---
 
@@ -11,16 +11,24 @@ Oxirgi yangilanish: 2026-10-06. Bajarilgan ishlar tarixi uchun `git log`ga qaran
 - **3-versiya:** ✅ **bosh ekranda reklama banneri** — 2026-10-06 da qilindi (backend, admin paneli "Reklama", mobil karusel; ko'rish/bosish/CTR hisoboti).
 - Keyinroq ko'rib chiqiladi (1-versiya ma'lumotlariga qarab): shaharlararo qatnov, Telegram bot orqali buyurtma, safarni yaqinlarga ulashish, qo'shni shaharlarga kengayish, korporativ hisoblar, zona bo'yicha tarif.
 
+## ✅ Navbatdagi ishlar (2026-10-09 da qaror qilindi)
+
+- [x] **Dispetcher: nizoni "hal qilindi" deb yopish** (2026-10-09: migratsiya 020, izoh majburiy, sotuvchi panelida ko'rinadi) — "Istisnolar" sahifasida tugma (izoh bilan), nizo yopilgani tarixda qoladi.
+- [x] **Kuryer topilmasa sotuvchi "yetkazildi" qila olmaydi** (2026-10-09: kuryer chaqirilgan buyurtmada backend rad etadi, tugma yashirildi; market'ning o'z yetkazishi rejimida ruxsat qoladi) — platforma kuryeri bilan buyurtmada bu ruxsat olib tashlanadi (backend + sotuvchi panellari).
+- [x] **Reklamani to'g'irlash** (2026-10-09: rasm `storage.delete` bilan o'chadi — faqat `ads/` kalitlari; migratsiya 021 kunlik jadval, admin'da "Hisobot" oynasi) — banner o'chirilganda rasmi bucket'dan ham o'chsin (`ObjectStorage`ga `delete`) va hisobotga kunlik kesim (ko'rish/bosish kun bo'yicha).
+- [x] **Taksometr uchun alohida tarif** (2026-10-09: `tariffs.metered_price_per_km`, migratsiya 022, hisoblagich va yakuniy narx shundan; admin formasi + menejer taklifi maydoni, bo'sh — oddiy km narxi) — oddiy tarifdan km narxi biroz qimmatroq; admin/menejer sozlaydi.
+- [ ] **Safar opsiyalari uchun qo'shimcha haq** — bola o'rindig'i, hayvon va h.k. narxini menejer belgilaydi; narxga qo'shiladi va chekda ko'rinadi.
+- [ ] **Server xato xabarlari ruscha ham** — ilova tiliga qarab (`Accept-Language`) UZ yoki RU qaytsin.
+- [ ] **NDK ogohlantirishini tuzatish** — `app/build.gradle` da `ndkVersion` ni plaginlar talab qilgan 27+ ga ko'tarish.
+- [x] **Buyurtma beruvchi kuryer/haydovchini xaritada jonli ko'radi** (2026-10-09: taksi va posilkada oldindan bor edi; ovqat/market uchun "Buyurtmalar" → yo'ldagi buyurtma → kuryer xaritasi qo'shildi. Real telefonda sinash kerak) — taksida yo'lovchi haydovchi qayerdan kelayotganini ko'radi; xuddi shu ovqat, market (do'kon) va posilka buyurtmalarida mijozga kuryer uchun ham ishlasin.
+
 ## 📣 Reklama (3-versiya) — kichik ochiq qoldiqlar
 
-- [ ] **O'chirilgan banner rasmi** bucket'da qoladi (`ObjectStorage` da `delete` yo'q). Kichik fayllar; ko'payib ketsa tozalash skripti.
-- [ ] **Hisobot faqat jami son** — kunlik kesim kerak bo'lsa alohida jadval (`AdBanner` izohiga qarang).
 - [ ] Mobil ilovaning yangi APK'si — karusel faqat yangi build'da ko'rinadi.
 
 ## 🚕 Taksometr — ochiq qoldiqlar (2026-10-06)
 
 - [ ] **Yo'lga moslash (OSRM match) faqat o'z OSRM serverida ishlaydi** — ochiq demo server `match` ga ~10 nuqtadan ko'p bermaydi, shuning uchun hozir xom GPS iz ishlatiladi (sinovda aniq chiqdi). OSRM deploy qilinganda (pastdagi ro'yxat) o'zi yoqiladi.
-- [ ] **Taksometr tarifi** — hozir oddiy tarif stavkalari (boshlang'ich + km + daqiqa). Alohida stavka kerak bo'lsa — biznes qarori.
 
 ## 📱 Ruxsatlar — ochiq qoldiqlar (2026-10-06)
 
@@ -38,8 +46,6 @@ Oxirgi yangilanish: 2026-10-06. Bajarilgan ishlar tarixi uchun `git log`ga qaran
 ## 💵 Naqd ovqat/market (2026-10-07 qilindi) — qoldiqlar
 
 - [ ] **Karta ulanmaguncha 200 000 so'mdan katta ovqat/market buyurtmasi berib bo'lmaydi** — naqd chegaradan oshgan, karta (Payme/Click) esa hali yo'q. Chegarani admin panelidan vaqtincha oshirish mumkin (Umumiy sozlamalar → Naqd buyurtma chegarasi).
-- [ ] **Nizoni yopish yo'q** — dispetcher "Istisnolar"da nizoni ko'radi, lekin "hal qilindi" tugmasi hali yo'q (telefon orqali hal qilinadi).
-- [ ] Sotuvchi buyurtmani o'zi "yetkazildi" qila oladi, kuryer topilmagan bo'lsa ham (eski xulq) — platforma kuryeri bilan bunga ruxsat berish kerakmi.
 
 ## 🔴 Bloker — tashqi shartnoma/hisob kerak
 
@@ -66,12 +72,9 @@ Hammasi 2026-10-05 da bajarildi (`git log`). Keyingi navbat — haqiqiy qurilmad
 
 ## 🟡 Biznes qarori kerak
 
-- [ ] **Safar opsiyalari uchun qo'shimcha haq** — hozir bepul (bola o'rindig'i, hayvon, ...).
 - [ ] **Haydovchi smenasi** — hozircha kerak emas deb qaror qilindi.
-- [ ] **Backend xato xabarlari tili** — ilova UZ/RU, lekin server xatolari o'zbekcha qoladi.
 
 ## ⚠️ Tekshirilishi kerak
 
 - [ ] **Real qurilmada sinov** — SOS, qo'ng'iroq, navigatsiya, kamera orqali KYC, xaritadan manzil tanlash, ruscha interfeys.
-- [ ] **NDK ogohlantirishi** — plaginlar NDK 27+ ni xohlaydi (`app/build.gradle` da `ndkVersion`). Build hozir o'tadi.
 - [ ] **Eski APK fayllari** — `apk/` papkasida (eng yangisi 2026-08-29, kod 2026-09-27 gacha o'zgargan).

@@ -1,4 +1,4 @@
-import type { AdBanner, AdLinkType } from './api';
+import type { AdBanner, AdLinkType, AdDailyRow } from './api';
 
 /**
  * Reklama sahifasining sof mantig'i — React'siz, testlanadigan.
@@ -38,6 +38,17 @@ export function adCtr(ad: Pick<AdBanner, 'impressions' | 'clicks'>): number | nu
 
 export function formatCtr(ctr: number | null): string {
   return ctr == null ? '—' : `${ctr.toFixed(ctr < 10 ? 1 : 0)}%`;
+}
+
+/** Kunlik hisobotning davr bo'yicha jami — CTR [adCtr] bilan bir xil o'lchovda (%). */
+export function dailyTotals(rows: ReadonlyArray<AdDailyRow>): {
+  impressions: number;
+  clicks: number;
+  ctr: number | null;
+} {
+  const impressions = rows.reduce((sum, r) => sum + r.impressions, 0);
+  const clicks = rows.reduce((sum, r) => sum + r.clicks, 0);
+  return { impressions, clicks, ctr: adCtr({ impressions, clicks }) };
 }
 
 export const AD_IMAGE_MAX_BYTES = 2 * 1024 * 1024;

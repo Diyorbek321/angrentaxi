@@ -14,17 +14,22 @@ function build(existing: Record<string, unknown> | null = null) {
     save: jest.fn(async (row: Record<string, unknown>) => ({ id: AD_ID, ...row })),
     delete: jest.fn(async () => ({ affected: existing ? 1 : 0 })),
     increment: jest.fn(async () => ({ affected: existing ? 1 : 0 })),
+    exists: jest.fn(async () => existing !== null),
+  };
+  const dailyRepository = {
+    query: jest.fn(async (_sql: string, _params?: unknown[]) => [] as unknown[]),
   };
   const restaurantRepository = { exists: jest.fn(async () => true) };
   const storeRepository = { exists: jest.fn(async () => true) };
-  const storage = { driver: 'local', put: jest.fn(), get: jest.fn() };
+  const storage = { driver: 'local', put: jest.fn(), get: jest.fn(), delete: jest.fn(async () => undefined) };
   const service = new AdsService(
     adRepository as never,
     restaurantRepository as never,
     storeRepository as never,
     storage as never,
+    dailyRepository as never,
   );
-  return { service, adRepository, restaurantRepository, storeRepository, storage };
+  return { service, adRepository, restaurantRepository, storeRepository, storage, dailyRepository };
 }
 
 const file = (buffer = PNG) => ({ buffer, mimetype: 'image/png', size: buffer.length });
@@ -144,6 +149,22 @@ describe('AdsService counters', () => {
     );
   });
 
+  it('also adds the hit to today\'s row (Tashkent day) for the daily report', async () => {
+    const { service, dailyRepository } = build({ id: AD_ID });
+    await service.recordClick(AD_ID);
+
+    const [sql, params] = dailyRepository.query.mock.calls[0];
+    expect(sql).toContain('ON CONFLICT');
+    expect(sql).toContain('Asia/Tashkent');
+    expect(params).toEqual([AD_ID, 0, 1]);
+  });
+
+  it('does not touch the daily table when the banner is unknown', async () => {
+    const { service, dailyRepository } = build(null);
+    await expect(service.recordImpression(AD_ID)).rejects.toBeInstanceOf(NotFoundException);
+    expect(dailyRepository.query).not.toHaveBeenCalled();
+  });
+
   it('404s a click on an unknown or switched-off banner', async () => {
     const { service } = build(null);
     await expect(service.recordClick(AD_ID)).rejects.toBeInstanceOf(NotFoundException);
@@ -179,5 +200,49 @@ describe('AdsService.openImage', () => {
     const { service, storage } = build({ id: AD_ID, imageKey: 'driver-documents/x.pdf' });
     await expect(service.openImage(AD_ID)).resolves.toBeNull();
     expect(storage.get).not.toHaveBeenCalled();
+  });
+});
+
+describe('AdsService.remove', () => {
+  it('deletes the row and then its image', async () => {
+    const { service, adRepository, storage } = build({ id: AD_ID, imageKey: 'ads/x.png' });
+    await service.remove(AD_ID);
+    expect(adRepository.delete).toHaveBeenCalledWith({ id: AD_ID });
+    expect(storage.delete).toHaveBeenCalledWith('ads/x.png');
+  });
+
+  it('still removes the banner when the image delete fails (logged, not thrown)', async () => {
+    const { service, storage } = build({ id: AD_ID, imageKey: 'ads/x.png' });
+    storage.delete.mockRejectedValueOnce(new Error('R2 down'));
+    await expect(service.remove(AD_ID)).resolves.toBeUndefined();
+  });
+
+  it('404s an unknown banner without touching storage', async () => {
+    const { service, storage } = build(null);
+    await expect(service.remove(AD_ID)).rejects.toBeInstanceOf(NotFoundException);
+    expect(storage.delete).not.toHaveBeenCalled();
+  });
+});
+
+describe('AdsService.dailyStats', () => {
+  it('returns one row per day, oldest first, zero-filling quiet days', async () => {
+    const { service, dailyRepository } = build({ id: AD_ID });
+    dailyRepository.query.mockResolvedValueOnce([
+      { day: '2026-10-08', impressions: 40, clicks: 3 },
+      { day: '2026-10-09', impressions: 12, clicks: 1 },
+    ]);
+
+    const rows = await service.dailyStats(AD_ID, 3, new Date('2026-10-09T12:00:00+05:00'));
+
+    expect(rows).toEqual([
+      { day: '2026-10-07', impressions: 0, clicks: 0 },
+      { day: '2026-10-08', impressions: 40, clicks: 3 },
+      { day: '2026-10-09', impressions: 12, clicks: 1 },
+    ]);
+  });
+
+  it('404s an unknown banner', async () => {
+    const { service } = build(null);
+    await expect(service.dailyStats(AD_ID, 7)).rejects.toBeInstanceOf(NotFoundException);
   });
 });

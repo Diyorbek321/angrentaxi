@@ -9,6 +9,7 @@
 // with every class decorated with @Entity under database/entities.
 
 import { AdBanner } from './entities/ad-banner.entity';
+import { AdBannerDailyStat } from './entities/ad-banner-daily-stat.entity';
 import { City } from './entities/city.entity';
 import { Dish } from './entities/dish.entity';
 import { DispatchOverride } from './entities/dispatch-override.entity';
@@ -53,6 +54,7 @@ import { WithdrawalRequest } from './entities/withdrawal-request.entity';
 
 export const ENTITIES = [
   AdBanner,
+  AdBannerDailyStat,
   City,
   Dish,
   DispatchOverride,

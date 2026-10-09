@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { adCtr, adState, buildAdFormData, formatCtr, validateAdForm, type AdFormInput } from './ads';
+import { adCtr, adState, buildAdFormData, dailyTotals, formatCtr, validateAdForm, type AdFormInput } from './ads';
 
 const NOW = new Date('2026-10-06T12:00:00Z');
 
@@ -77,5 +77,19 @@ describe('buildAdFormData', () => {
     expect(form.get('startsAt')).toBe(new Date('2026-10-10T10:00').toISOString());
     expect(form.get('isActive')).toBe('true');
     expect(form.get('image')).toBeInstanceOf(File);
+  });
+});
+
+describe('dailyTotals', () => {
+  it('davr bo\'yicha jami va CTR', () => {
+    const totals = dailyTotals([
+      { day: '2026-10-08', impressions: 300, clicks: 6 },
+      { day: '2026-10-09', impressions: 100, clicks: 2 },
+    ]);
+    expect(totals).toEqual({ impressions: 400, clicks: 8, ctr: 2 });
+  });
+
+  it('ko\'rish bo\'lmasa CTR yo\'q', () => {
+    expect(dailyTotals([]).ctr).toBeNull();
   });
 });

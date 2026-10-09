@@ -24,6 +24,7 @@ import { RetryBanner } from '@/components/ui/RetryBanner';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
 import { formatDateTime, formatMoney } from '@/lib/format';
+import { meteredPriceField, meteredPriceLabel } from '@/lib/metered-price';
 
 // Every message is Uzbek and attaches to its own field — a form that reports
 // "Expected number" in English is a form the operator cannot fix.
@@ -32,6 +33,7 @@ const schema = z
     name: z.string().min(2, 'Nomi kamida 2 ta belgi boʻlsin'),
     basePrice: z.coerce.number({ invalid_type_error: 'Raqam kiriting' }).min(0, 'Manfiy boʻlmasin'),
     pricePerKm: z.coerce.number({ invalid_type_error: 'Raqam kiriting' }).min(0, 'Manfiy boʻlmasin'),
+    meteredPricePerKm: meteredPriceField,
     pricePerMin: z.coerce
       .number({ invalid_type_error: 'Raqam kiriting' })
       .min(0, 'Manfiy boʻlmasin'),
@@ -104,7 +106,15 @@ export default function TariffsPage() {
   const openProposeNew = () => {
     setEditingTariff(null);
     setSubmitError(null);
-    reset({ name: '', basePrice: 0, pricePerKm: 0, pricePerMin: 0, minPrice: 0, maxPrice: undefined });
+    reset({
+      name: '',
+      basePrice: 0,
+      pricePerKm: 0,
+      meteredPricePerKm: null,
+      pricePerMin: 0,
+      minPrice: 0,
+      maxPrice: undefined,
+    });
     setIsModalOpen(true);
   };
 
@@ -115,6 +125,7 @@ export default function TariffsPage() {
       name: tariff.name,
       basePrice: tariff.basePrice,
       pricePerKm: tariff.pricePerKm,
+      meteredPricePerKm: tariff.meteredPricePerKm,
       pricePerMin: tariff.pricePerMin,
       minPrice: tariff.minPrice,
       maxPrice: tariff.maxPrice ?? undefined,
@@ -251,6 +262,10 @@ export default function TariffsPage() {
                       <div className="text-xs space-y-1">
                         <TariffRow label="Boshlangʻich" value={formatMoney(tariff.basePrice)} />
                         <TariffRow label="Km narxi" value={formatMoney(tariff.pricePerKm)} />
+                        <TariffRow
+                          label="Taksometr km"
+                          value={meteredPriceLabel(tariff.meteredPricePerKm, formatMoney)}
+                        />
                         <TariffRow label="Daqiqa narxi" value={formatMoney(tariff.pricePerMin)} />
                         <TariffRow label="Min narx" value={formatMoney(tariff.minPrice)} />
                         <TariffRow
@@ -371,6 +386,14 @@ export default function TariffsPage() {
               error={errors.minPrice?.message}
             />
           </div>
+          <Input
+            label="Taksometr km narxi (ixtiyoriy)"
+            type="number"
+            mono
+            hint="Manzilsiz safar uchun, odatda km narxidan biroz qimmat. Boʻsh — oddiy km narxi"
+            {...register('meteredPricePerKm')}
+            error={errors.meteredPricePerKm?.message}
+          />
           <Input
             label="Max narx (ixtiyoriy)"
             type="number"

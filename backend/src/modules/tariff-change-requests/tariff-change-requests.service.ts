@@ -38,6 +38,7 @@ export class TariffChangeRequestsService {
         name: tariff.name,
         basePrice: tariff.basePrice,
         pricePerKm: tariff.pricePerKm,
+        meteredPricePerKm: tariff.meteredPricePerKm,
         pricePerMin: tariff.pricePerMin,
         minPrice: tariff.minPrice,
         maxPrice: tariff.maxPrice,

@@ -240,5 +240,13 @@
   "saParcelContinue": "Выбрать адрес",
   "saParcelWhatRequired": "Укажите, что отправляете",
   "saAdBadge": "Реклама",
-  "saAdOpenFailed": "Не удалось открыть ссылку"
+  "saAdOpenFailed": "Не удалось открыть ссылку",
+  "saTrackTitle": "Курьер на карте",
+  "saTrackSearching": "Ищем курьера",
+  "saTrackOnTheWay": "Курьер в пути",
+  "saTrackWaitingLocation": "Ожидаем местоположение курьера…",
+  "saTrackDelivered": "Заказ доставлен",
+  "saTrackCancelled": "Заказ отменён",
+  "saTrackCallCourier": "Позвонить курьеру",
+  "saTrackOpenMap": "Курьер на карте"
 }

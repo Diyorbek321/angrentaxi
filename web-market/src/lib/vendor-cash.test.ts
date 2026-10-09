@@ -24,4 +24,16 @@ describe('vendorCashView', () => {
     expect(vendorCashView({ ...paid, vendorCashConfirmedAt: '2026-10-07T10:01:00Z' }).step).toBe('confirmed');
     expect(vendorCashView({ ...paid, vendorCashDisputedAt: '2026-10-07T10:01:00Z' }).step).toBe('disputed');
   });
+
+  it('dispetcher nizoni yopgach — hal qilindi, izohi bilan', () => {
+    const view = vendorCashView({
+      ...base,
+      vendorCashPaidAt: '2026-10-07T10:00:00Z',
+      vendorCashDisputedAt: '2026-10-07T10:01:00Z',
+      vendorCashDisputeResolvedAt: '2026-10-07T11:00:00Z',
+      vendorCashDisputeResolution: 'Kuryer pulni olib keldi',
+    });
+    expect(view.step).toBe('resolved');
+    expect(view.resolution).toBe('Kuryer pulni olib keldi');
+  });
 });

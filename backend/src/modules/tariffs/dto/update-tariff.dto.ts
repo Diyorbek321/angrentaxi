@@ -19,6 +19,16 @@ export class UpdateTariffDto {
   @Min(0)
   pricePerKm?: number;
 
+  @ApiPropertyOptional({
+    example: 1800,
+    description: "Taksometr (manzilsiz safar) km narxi, UZS. Bo'sh — oddiy km narxi",
+    nullable: true,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  meteredPricePerKm?: number | null;
+
   @ApiPropertyOptional({ example: 200, description: 'Price per minute in UZS' })
   @IsOptional()
   @IsNumber()

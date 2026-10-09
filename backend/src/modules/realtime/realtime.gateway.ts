@@ -94,6 +94,10 @@ export class RealtimeGateway
    */
   private readonly connectedDrivers = new Set<string>();
 
+  // driver userId -> the order they were last confirmed assigned to
+  // (see isAssignedDriver)
+  private readonly verifiedDriverOrder = new Map<string, string>();
+
   // socketId -> timestamps of recent inbound events (sliding window)
   private readonly rateWindows = new Map<string, number[]>();
 
@@ -257,6 +261,7 @@ export class RealtimeGateway
       // bo'lsa (yoki qayta ulanish eskisi bilan ustma-ust tushsa) yurak
       // urishi to'xtamasligi kerak.
       this.connectedDrivers.delete(user.id);
+      this.verifiedDriverOrder.delete(user.id);
     } else {
       this.userSocketMap.set(user.id, updated);
     }
@@ -308,11 +313,15 @@ export class RealtimeGateway
     // Update driver location in DB + Redis
     await this.driversService.updateLocation(user.id, lat, lng);
 
-    // If there's an active order, broadcast location to order room
-    if (orderId) {
+    // The order room is what the passenger — or the food/market customer
+    // watching their courier — draws the car from, so only the driver
+    // assigned to that order may write to it. `orderId` rides along so a
+    // client tracking two orders at once never mixes their cars up.
+    if (orderId && (await this.isAssignedDriver(user.id, orderId))) {
       this.server.to(`order:${orderId}`).emit('driver:location', {
         lat,
         lng,
+        orderId,
         driverId: user.id,
         timestamp: new Date().toISOString(),
       });
@@ -328,6 +337,25 @@ export class RealtimeGateway
         location: { lat, lng },
       });
     }
+  }
+
+  /**
+   * Whether [driverUserId] is the driver on [orderId]. Location pings arrive
+   * every few seconds, so a confirmed pair is remembered instead of hitting the
+   * database each time; a driver only ever has one active order, so the cache
+   * holds one entry per driver and is dropped with their last socket.
+   */
+  private async isAssignedDriver(driverUserId: string, orderId: string): Promise<boolean> {
+    if (this.verifiedDriverOrder.get(driverUserId) === orderId) return true;
+
+    const order = await this.orderRepository.findOne({
+      where: { id: orderId },
+      select: { id: true, driverId: true },
+    });
+    if (order?.driverId !== driverUserId) return false;
+
+    this.verifiedDriverOrder.set(driverUserId, orderId);
+    return true;
   }
 
   @SubscribeMessage('join:order')

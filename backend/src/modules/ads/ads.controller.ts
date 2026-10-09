@@ -2,13 +2,16 @@ import {
   BadRequestException,
   Body,
   Controller,
+  DefaultValuePipe,
   Delete,
   Get,
   HttpCode,
   NotFoundException,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
+  Query,
   Res,
   UploadedFile,
   UseGuards,
@@ -20,12 +23,14 @@ import {
   ApiConsumes,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { AdsService } from './ads.service';
+import { AdDailyRow } from './ad-daily-series';
 import { adImageMulterOptions } from './ad-images';
 import { CreateAdBannerDto } from './dto/create-ad-banner.dto';
 import { UpdateAdBannerDto } from './dto/update-ad-banner.dto';
@@ -83,6 +88,20 @@ export class AdsController {
       throw new BadRequestException('Rasm yuborilmadi (multipart maydoni "image" kutilgan)');
     }
     return this.adsService.create(dto, file);
+  }
+
+  @Get(':id/daily')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: "Bannerning kunlik ko'rish/bosish hisoboti (admin)" })
+  @ApiParam({ name: 'id', description: 'Banner UUID' })
+  @ApiQuery({ name: 'days', required: false, description: 'Oxirgi necha kun (1–90, standart 30)' })
+  dailyStats(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('days', new DefaultValuePipe(30), ParseIntPipe) days: number,
+  ): Promise<AdDailyRow[]> {
+    return this.adsService.dailyStats(id, days);
   }
 
   @Patch(':id')

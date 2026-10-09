@@ -491,5 +491,13 @@
   "saParcelContinue": "Manzilni tanlash",
   "saParcelWhatRequired": "Nima yuborilayotganini yozing",
   "saAdBadge": "Reklama",
-  "saAdOpenFailed": "Havolani ochib bo'lmadi"
+  "saAdOpenFailed": "Havolani ochib bo'lmadi",
+  "saTrackTitle": "Kuryer xaritada",
+  "saTrackSearching": "Kuryer qidirilmoqda",
+  "saTrackOnTheWay": "Kuryer yo'lda",
+  "saTrackWaitingLocation": "Kuryer joylashuvi kutilmoqda…",
+  "saTrackDelivered": "Buyurtma yetkazildi",
+  "saTrackCancelled": "Buyurtma bekor qilindi",
+  "saTrackCallCourier": "Kuryerga qo'ng'iroq qilish",
+  "saTrackOpenMap": "Kuryerni xaritada ko'rish"
 }

@@ -41,12 +41,14 @@ import {
 } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
+import { meteredPriceField, meteredPriceLabel } from '@/lib/metered-price';
 
 const tariffSchema = z.object({
   name: z.string().min(2, 'Kamida 2 ta harf'),
   description: z.string().optional(),
   basePrice: z.coerce.number().min(0, 'Manfiy qiymat bo\'lmasin'),
   pricePerKm: z.coerce.number().min(0, 'Manfiy qiymat bo\'lmasin'),
+  meteredPricePerKm: meteredPriceField,
   pricePerMin: z.coerce.number().min(0, 'Manfiy qiymat bo\'lmasin'),
   minPrice: z.coerce.number().min(0, 'Manfiy qiymat bo\'lmasin'),
   maxPrice: z.coerce.number().min(0, 'Manfiy qiymat bo\'lmasin').optional(),
@@ -164,6 +166,7 @@ export default function TariffsPage() {
       description: '',
       basePrice: 0,
       pricePerKm: 0,
+      meteredPricePerKm: null,
       pricePerMin: 0,
       minPrice: 0,
       maxPrice: undefined,
@@ -179,6 +182,7 @@ export default function TariffsPage() {
       description: tariff.description || '',
       basePrice: tariff.basePrice,
       pricePerKm: tariff.pricePerKm,
+      meteredPricePerKm: tariff.meteredPricePerKm,
       pricePerMin: tariff.pricePerMin,
       minPrice: tariff.minPrice,
       maxPrice: tariff.maxPrice ?? undefined,
@@ -195,6 +199,7 @@ export default function TariffsPage() {
         description: data.description,
         basePrice: data.basePrice,
         pricePerKm: data.pricePerKm,
+        meteredPricePerKm: data.meteredPricePerKm,
         pricePerMin: data.pricePerMin,
         minPrice: data.minPrice,
         maxPrice: data.maxPrice,
@@ -490,6 +495,11 @@ export default function TariffsPage() {
                       <PriceCell label="Har km uchun" value={formatCurrency(tariff.pricePerKm)} />
                       <PriceCell label="Har min uchun" value={formatCurrency(tariff.pricePerMin)} />
                       <PriceCell
+                        label="Taksometr km"
+                        value={meteredPriceLabel(tariff.meteredPricePerKm, formatCurrency)}
+                        wide
+                      />
+                      <PriceCell
                         label="Maksimum"
                         value={
                           tariff.maxPrice != null ? formatCurrency(tariff.maxPrice) : 'Cheklanmagan'
@@ -669,6 +679,15 @@ export default function TariffsPage() {
                 placeholder="300"
                 error={errors.pricePerMin?.message}
                 {...register('pricePerMin')}
+              />
+              <Input
+                label="Taksometr 1 km (so'm, ixtiyoriy)"
+                type="number"
+                mono
+                placeholder="1800"
+                hint="Manzilsiz safar uchun. Bo'sh — oddiy km narxi"
+                error={errors.meteredPricePerKm?.message}
+                {...register('meteredPricePerKm')}
               />
               <Input
                 label="Maksimal narx (so'm, ixtiyoriy)"

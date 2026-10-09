@@ -4928,6 +4928,54 @@ abstract class AppLocalizations {
   /// **'Jami'**
   String get saTotal;
 
+  /// No description provided for @saTrackCallCourier.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kuryerga qo\'ng\'iroq qilish'**
+  String get saTrackCallCourier;
+
+  /// No description provided for @saTrackCancelled.
+  ///
+  /// In uz, this message translates to:
+  /// **'Buyurtma bekor qilindi'**
+  String get saTrackCancelled;
+
+  /// No description provided for @saTrackDelivered.
+  ///
+  /// In uz, this message translates to:
+  /// **'Buyurtma yetkazildi'**
+  String get saTrackDelivered;
+
+  /// No description provided for @saTrackOnTheWay.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kuryer yo\'lda'**
+  String get saTrackOnTheWay;
+
+  /// No description provided for @saTrackOpenMap.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kuryerni xaritada ko\'rish'**
+  String get saTrackOpenMap;
+
+  /// No description provided for @saTrackSearching.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kuryer qidirilmoqda'**
+  String get saTrackSearching;
+
+  /// No description provided for @saTrackTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kuryer xaritada'**
+  String get saTrackTitle;
+
+  /// No description provided for @saTrackWaitingLocation.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kuryer joylashuvi kutilmoqda…'**
+  String get saTrackWaitingLocation;
+
   /// No description provided for @saTxnBonus.
   ///
   /// In uz, this message translates to:

@@ -459,6 +459,8 @@ export interface Tariff {
   description?: string;
   basePrice: number;
   pricePerKm: number;
+  /** Taksometr km narxi; `null` — oddiy [pricePerKm] ishlatiladi. */
+  meteredPricePerKm: number | null;
   pricePerMin: number;
   minPrice: number;
   maxPrice: number | null;
@@ -473,6 +475,7 @@ export interface TariffCreateInput {
   description?: string;
   basePrice: number;
   pricePerKm: number;
+  meteredPricePerKm: number | null;
   pricePerMin: number;
   minPrice: number;
   maxPrice?: number;
@@ -730,6 +733,13 @@ export interface AdBanner {
   updatedAt: string;
 }
 
+/** Bannerning bir kuni (Toshkent sanasi, `YYYY-MM-DD`). */
+export interface AdDailyRow {
+  day: string;
+  impressions: number;
+  clicks: number;
+}
+
 export type UpdateAdBannerInput = Partial<
   Pick<AdBanner, 'title' | 'linkType' | 'linkTarget' | 'startsAt' | 'endsAt' | 'isActive' | 'sortOrder'>
 >;
@@ -751,6 +761,10 @@ export const adsApi = {
     api.patch<ApiResponse<AdBanner>>(`/ads/${id}`, data),
 
   remove: (id: string) => api.delete(`/ads/${id}`),
+
+  /** Oxirgi [days] kun, eskisidan boshlab; jim kunlar 0 bilan keladi. */
+  daily: (id: string, days = 30) =>
+    api.get<ApiResponse<AdDailyRow[]>>(`/ads/${id}/daily`, { params: { days } }),
 
   /** `<img src>` uchun — backend'da ochiq, proksi orqali shu origin'dan. */
   imageUrl: (id: string) => `${API_PROXY_BASE_URL}/ads/${id}/image`,

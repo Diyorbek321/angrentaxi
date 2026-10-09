@@ -65,3 +65,17 @@ export const ADVANCE_LABEL: Partial<Record<FoodOrderStatus, string>> = {
   preparing: 'Tayyor deb belgilash',
   ready: 'Yetkazildi deb belgilash',
 };
+
+/**
+ * Sotuvchi buyurtmani keyingi bosqichga o'tkaza oladimi — va qaysi yozuv
+ * bilan. Platforma kuryeri chaqirilgan buyurtmani "yetkazildi" qilishni
+ * faqat kuryer (yoki dispetcher) qiladi: backend buni rad etadi, shuning
+ * uchun tugma umuman ko'rsatilmaydi — kuryer topilmagan bo'lsa ham.
+ */
+export function advanceLabelFor(order: {
+  status: FoodOrderStatus;
+  deliveryOrderId?: string | null;
+}): string | undefined {
+  if (NEXT_STATUS[order.status] === 'delivered' && order.deliveryOrderId) return undefined;
+  return ADVANCE_LABEL[order.status];
+}

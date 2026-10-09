@@ -3,7 +3,7 @@
 import { MessageSquareText } from 'lucide-react';
 import { clsx } from 'clsx';
 import type { MarketOrder } from '@/lib/api';
-import { ADVANCE_LABEL, DELIVERY_MODE_LABEL, orderCustomerName } from '@/lib/order-status';
+import { advanceLabelFor, DELIVERY_MODE_LABEL, orderCustomerName } from '@/lib/order-status';
 import { formatRelative, money } from '@/lib/utils';
 import { StatusBadge } from '@/components/StatusBadge';
 import { vendorCashView } from '@/lib/vendor-cash';
@@ -31,7 +31,7 @@ export function OrderRow({
   advancing: boolean;
 }) {
   const isNew = o.status === 'new';
-  const advanceLabel = ADVANCE_LABEL[o.status];
+  const advanceLabel = advanceLabelFor(o);
   return (
     <li
       className={clsx(

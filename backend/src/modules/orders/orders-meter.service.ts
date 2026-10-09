@@ -6,6 +6,7 @@ import { Trip } from '../../database/entities/trip.entity';
 import { UserRole } from '../../database/entities/user.entity';
 import { TariffsService } from '../tariffs/tariffs.service';
 import { computeWaitingMinutes, waitingSettingsOf, withWaitingFare } from '../tariffs/waiting-charge';
+import { meteredTariff } from '../tariffs/metered-rate';
 import { TaximeterService } from '../taximeter/taximeter.service';
 import { OrdersQueryService } from './orders-query.service';
 
@@ -59,7 +60,7 @@ export class OrdersMeterService {
     const { freeWaitMinutes, waitingPricePerMinute } = waitingSettingsOf(tariff);
     const waitingMinutes = computeWaitingMinutes(order.arrivedAt, trip?.startTime ?? null, freeWaitMinutes);
     const breakdown = withWaitingFare(
-      this.tariffsService.calculatePriceBreakdown(tariff, distanceKm, durationMin),
+      this.tariffsService.calculatePriceBreakdown(meteredTariff(tariff, true), distanceKm, durationMin),
       waitingMinutes,
       waitingPricePerMinute,
     );

@@ -39,5 +39,8 @@ describe('vendorCashState', () => {
   it('tasdiqlangan va nizo', () => {
     expect(vendorCashState(true, { ...none, vendorCashPaidAt: at, vendorCashConfirmedAt: at })).toBe('confirmed');
     expect(vendorCashState(true, { ...none, vendorCashPaidAt: at, vendorCashDisputedAt: at })).toBe('disputed');
+    expect(
+      vendorCashState(true, { ...none, vendorCashPaidAt: at, vendorCashDisputedAt: at, vendorCashDisputeResolvedAt: at }),
+    ).toBe('resolved');
   });
 });

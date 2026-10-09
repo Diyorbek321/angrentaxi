@@ -1,5 +1,7 @@
 import {
   BadRequestException,
+  Body,
+  ConflictException,
   Controller,
   ForbiddenException,
   Get,
@@ -7,6 +9,8 @@ import {
   Injectable,
   Module,
   NotFoundException,
+  Param,
+  Post,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -15,7 +19,9 @@ import { RolesGuard } from '../auth/roles.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
-import { Permission, UserRole } from '../../database/entities/user.entity';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
+import { Permission, User, UserRole } from '../../database/entities/user.entity';
 import { InjectRepository, TypeOrmModule } from '@nestjs/typeorm';
 import { IsNull, Not, Repository } from 'typeorm';
 import { Order, OrderStatus } from '../../database/entities/order.entity';
@@ -26,6 +32,7 @@ import { Store } from '../../database/entities/store.entity';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { RealtimeModule } from '../realtime/realtime.module';
 import { VendorCashColumns } from './vendor-cash';
+import { ResolveCashDisputeDto } from './dto/resolve-cash-dispute.dto';
 
 export type VendorKind = 'food' | 'market';
 
@@ -143,9 +150,55 @@ export class VendorCashService {
     });
   }
 
-  /** Dispetcher navbati: sotuvchi "pul olmadim" degan buyurtmalar. */
+  /**
+   * Dispetcher nizoni yopadi — odatda ikki tomonga qo'ng'iroq qilib
+   * aniqlagandan keyin. [resolution] majburiy: "hal qilindi" degan belgi
+   * qanday hal bo'lganini aytmasa, keyingi nizoda unga suyanib bo'lmaydi.
+   *
+   * Yozuv shartli (`resolvedAt IS NULL`): ikki dispetcher bir vaqtda bossa,
+   * ikkinchisi birinchisining izohini ustidan yozmaydi.
+   */
+  async resolveDispute(
+    managerUserId: string,
+    kind: VendorKind,
+    vendorOrderId: string,
+    resolution: string,
+  ): Promise<void> {
+    const note = resolution.trim();
+    if (!note) throw new BadRequestException('Nizo qanday hal qilinganini yozing');
+
+    const ref = await this.loadVendorOrder(kind, vendorOrderId);
+    if (!ref) throw new NotFoundException('Buyurtma topilmadi');
+    if (!ref.order.vendorCashDisputedAt) {
+      throw new BadRequestException("Bu buyurtmada nizo yo'q");
+    }
+
+    const result = await this.repoFor(kind).update(
+      { id: ref.order.id, vendorCashDisputeResolvedAt: IsNull() },
+      {
+        vendorCashDisputeResolvedAt: new Date(),
+        vendorCashDisputeResolvedBy: managerUserId,
+        vendorCashDisputeResolution: note,
+      },
+    );
+    if (!result.affected) {
+      throw new ConflictException('Nizo allaqachon hal qilingan');
+    }
+
+    this.realtimeGateway.emitToManagers('delivery:cash_dispute_resolved', {
+      kind,
+      vendorOrderId: ref.order.id,
+    });
+    this.realtimeGateway.emitToUser(ref.ownerUserId, 'vendor:cash_dispute_resolved', {
+      kind,
+      vendorOrderId: ref.order.id,
+      resolution: note,
+    });
+  }
+
+  /** Dispetcher navbati: sotuvchi "pul olmadim" degan, hali YOPILMAGAN buyurtmalar. */
   async listDisputes(): Promise<VendorCashDispute[]> {
-    const where = { vendorCashDisputedAt: Not(IsNull()) };
+    const where = { vendorCashDisputedAt: Not(IsNull()), vendorCashDisputeResolvedAt: IsNull() };
     const [food, market] = await Promise.all([
       this.foodOrderRepo.find({ where, relations: ['restaurant'], order: { vendorCashDisputedAt: 'DESC' }, take: 100 }),
       this.marketOrderRepo.find({ where, relations: ['store'], order: { vendorCashDisputedAt: 'DESC' }, take: 100 }),
@@ -224,6 +277,23 @@ export class VendorCashController {
   @ApiOperation({ summary: "Naqd nizolar: sotuvchi kuryerdan tovar pulini olmagan" })
   listDisputes(): Promise<VendorCashDispute[]> {
     return this.vendorCash.listDisputes();
+  }
+
+  @Post('cash-disputes/:kind/:id/resolve')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DISPATCH)
+  @ApiOperation({ summary: 'Naqd nizoni yopish (izoh bilan)' })
+  async resolveDispute(
+    @CurrentUser() user: User,
+    @Param('kind') kind: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ResolveCashDisputeDto,
+  ): Promise<{ resolved: true }> {
+    if (kind !== 'food' && kind !== 'market') {
+      throw new BadRequestException("Noto'g'ri buyurtma turi");
+    }
+    await this.vendorCash.resolveDispute(user.id, kind, id, dto.resolution);
+    return { resolved: true };
   }
 }
 

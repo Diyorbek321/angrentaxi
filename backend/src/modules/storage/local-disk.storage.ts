@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { ObjectStorage, StoredObject, assertSafeKey } from './object-storage';
+import { ObjectStorage, StoredObject, assertDeletableKey, assertSafeKey } from './object-storage';
 
 /**
  * Files on the container's own disk.
@@ -39,6 +39,15 @@ export class LocalDiskStorage implements ObjectStorage {
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
       throw err;
+    }
+  }
+
+  async delete(key: string): Promise<void> {
+    assertDeletableKey(key);
+    try {
+      await fs.promises.unlink(this.resolve(key));
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
     }
   }
 }

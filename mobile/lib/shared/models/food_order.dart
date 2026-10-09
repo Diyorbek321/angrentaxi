@@ -1,4 +1,6 @@
 import 'package:angren_taxi/l10n/l10n.dart';
+import 'package:angren_taxi/shared/models/courier_tracking.dart';
+import 'package:angren_taxi/shared/models/order.dart' show OrderStatus;
 import 'package:equatable/equatable.dart';
 
 enum FoodOrderStatus { newOrder, preparing, ready, delivered, cancelled }
@@ -77,6 +79,7 @@ class FoodOrder extends Equatable {
     required this.deliveryAddress,
     required this.totalPrice,
     required this.createdAt,
+    this.delivery,
   });
 
   final String id;
@@ -86,6 +89,18 @@ class FoodOrder extends Equatable {
   final String deliveryAddress;
   final double totalPrice;
   final DateTime createdAt;
+
+  /// Kuryer safari — do'kon/restoran kuryer chaqirgandan keyin paydo
+  /// bo'ladi. `null` — hali chaqirilmagan.
+  final CourierTracking? delivery;
+
+  /// Mijoz kuryerni xaritada kuzata oladimi: buyurtma hali yo'lda va unga
+  /// kuryer safari bog'langan (bekor qilingan safar — qayta qidirilmoqda,
+  /// kuzatadigan mashina yo'q).
+  bool get isTrackable =>
+      status.isActive &&
+      delivery != null &&
+      delivery!.status != OrderStatus.cancelled;
 
   int get itemsCount => items.fold(0, (sum, i) => sum + i.qty);
 
@@ -100,6 +115,7 @@ class FoodOrder extends Equatable {
       deliveryAddress: (json['deliveryAddress'] as String?) ?? '',
       totalPrice: (json['totalPrice'] as num).toDouble(),
       createdAt: DateTime.parse(json['createdAt'] as String),
+      delivery: CourierTracking.tryParse(json['delivery']),
     );
   }
 
@@ -112,9 +128,10 @@ class FoodOrder extends Equatable {
       deliveryAddress: deliveryAddress,
       totalPrice: totalPrice,
       createdAt: createdAt,
+      delivery: delivery,
     );
   }
 
   @override
-  List<Object?> get props => [id, restaurantId, status, items, deliveryAddress, totalPrice, createdAt];
+  List<Object?> get props => [id, restaurantId, status, items, deliveryAddress, totalPrice, createdAt, delivery];
 }

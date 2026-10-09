@@ -149,12 +149,16 @@ export interface MarketOrder {
   updatedAt: string;
   customer?: { firstName: string | null; lastName: string | null; phone: string };
   /** Courier ride for platform delivery, once shipped. See lib/courier.ts. */
+  /** Platforma kuryeri safari — bo'lsa "yetkazildi"ni faqat kuryer qiladi. */
+  deliveryOrderId?: string | null;
   delivery?: DeliveryInfo | null;
   paymentMethod: 'cash' | 'card';
   /** Naqd buyurtma: kuryer tovar pulini toʻladi / sotuvchi qarori (lib/vendor-cash.ts). */
   vendorCashPaidAt?: string | null;
   vendorCashConfirmedAt?: string | null;
   vendorCashDisputedAt?: string | null;
+  vendorCashDisputeResolvedAt?: string | null;
+  vendorCashDisputeResolution?: string | null;
 }
 
 export interface StockMovement {

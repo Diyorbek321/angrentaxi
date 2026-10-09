@@ -2743,6 +2743,30 @@ class AppLocalizationsRu extends AppLocalizations {
   String get saTotal => 'Итого';
 
   @override
+  String get saTrackCallCourier => 'Позвонить курьеру';
+
+  @override
+  String get saTrackCancelled => 'Заказ отменён';
+
+  @override
+  String get saTrackDelivered => 'Заказ доставлен';
+
+  @override
+  String get saTrackOnTheWay => 'Курьер в пути';
+
+  @override
+  String get saTrackOpenMap => 'Курьер на карте';
+
+  @override
+  String get saTrackSearching => 'Ищем курьера';
+
+  @override
+  String get saTrackTitle => 'Курьер на карте';
+
+  @override
+  String get saTrackWaitingLocation => 'Ожидаем местоположение курьера…';
+
+  @override
   String get saTxnBonus => 'Бонус';
 
   @override

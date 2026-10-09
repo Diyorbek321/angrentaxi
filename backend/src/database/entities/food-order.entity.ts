@@ -143,6 +143,16 @@ export class FoodOrder {
   @Column({ name: 'vendor_cash_disputed_at', type: 'timestamptz', nullable: true })
   vendorCashDisputedAt: Date | null;
 
+  // Dispetcher nizoni yopdi (migratsiya 020). Izoh majburiy.
+  @Column({ name: 'vendor_cash_dispute_resolved_at', type: 'timestamptz', nullable: true })
+  vendorCashDisputeResolvedAt: Date | null;
+
+  @Column({ name: 'vendor_cash_dispute_resolved_by', type: 'uuid', nullable: true })
+  vendorCashDisputeResolvedBy: string | null;
+
+  @Column({ name: 'vendor_cash_dispute_resolution', type: 'varchar', length: 500, nullable: true })
+  vendorCashDisputeResolution: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

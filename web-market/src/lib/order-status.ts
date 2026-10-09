@@ -126,3 +126,17 @@ export function orderCustomerName(o: MarketOrder): string {
 export function orderCustomerPhone(o: MarketOrder): string | null {
   return o.customerPhone || o.customer?.phone || null;
 }
+
+/**
+ * Sotuvchi buyurtmani keyingi bosqichga o'tkaza oladimi — va qaysi yozuv
+ * bilan. Platforma kuryeri chaqirilgan buyurtmani "yetkazildi" qilishni
+ * faqat kuryer (yoki dispetcher) qiladi: backend buni rad etadi, shuning
+ * uchun tugma umuman ko'rsatilmaydi — kuryer topilmagan bo'lsa ham.
+ */
+export function advanceLabelFor(order: {
+  status: MarketOrderStatus;
+  deliveryOrderId?: string | null;
+}): string | undefined {
+  if (NEXT_STATUS[order.status] === 'delivered' && order.deliveryOrderId) return undefined;
+  return ADVANCE_LABEL[order.status];
+}

@@ -34,6 +34,8 @@ export interface Tariff {
   name: string;
   basePrice: number;
   pricePerKm: number;
+  /** Taksometr km narxi; `null` — oddiy [pricePerKm] ishlatiladi. */
+  meteredPricePerKm: number | null;
   pricePerMin: number;
   minPrice: number;
   maxPrice: number | null;
@@ -852,4 +854,15 @@ export interface CashDispute {
 export async function getCashDisputes(): Promise<CashDispute[]> {
   const res = await apiClient.get<ApiResponse<CashDispute[]>>('/delivery/cash-disputes');
   return res.data.data;
+}
+
+/** Nizoni yopadi — navbatdan chiqadi, sotuvchiga izoh bilan xabar boradi. */
+export async function resolveCashDispute(
+  kind: CashDispute['kind'],
+  vendorOrderId: string,
+  resolution: string,
+): Promise<void> {
+  await apiClient.post(`/delivery/cash-disputes/${kind}/${vendorOrderId}/resolve`, {
+    resolution: resolution.trim(),
+  });
 }

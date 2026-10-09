@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { OrderStatus } from '../../database/entities/order.entity';
 import { VendorCashService } from './vendor-cash.service';
 
@@ -20,6 +20,7 @@ describe('VendorCashService', () => {
     vendorCashPaidAt: null,
     vendorCashConfirmedAt: null,
     vendorCashDisputedAt: null,
+    vendorCashDisputeResolvedAt: null,
     ...over,
   });
 
@@ -101,6 +102,66 @@ describe('VendorCashService', () => {
     it('kuryer hali to\'lamagan bo\'lsa qaror yo\'q', async () => {
       foodRepo.findOne.mockResolvedValue(foodOrder());
       await expect(service.vendorDecision('owner-1', 'food', 'fo-1', true)).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe('dispetcher nizoni yopadi', () => {
+    beforeEach(() =>
+      foodRepo.findOne.mockResolvedValue(
+        foodOrder({ vendorCashPaidAt: new Date(), vendorCashDisputedAt: new Date() }),
+      ),
+    );
+
+    it('kim, qachon va qanday hal qilgani yoziladi', async () => {
+      foodRepo.update.mockResolvedValue({ affected: 1 });
+
+      await service.resolveDispute('manager-1', 'food', 'fo-1', '  Kuryer pulni olib keldi  ');
+
+      expect(foodRepo.update).toHaveBeenCalledWith(
+        { id: 'fo-1', vendorCashDisputeResolvedAt: expect.anything() },
+        {
+          vendorCashDisputeResolvedAt: expect.any(Date),
+          vendorCashDisputeResolvedBy: 'manager-1',
+          vendorCashDisputeResolution: 'Kuryer pulni olib keldi',
+        },
+      );
+      expect(gateway.emitToManagers).toHaveBeenCalledWith(
+        'delivery:cash_dispute_resolved',
+        { kind: 'food', vendorOrderId: 'fo-1' },
+      );
+      expect(gateway.emitToUser).toHaveBeenCalledWith(
+        'owner-1',
+        'vendor:cash_dispute_resolved',
+        expect.objectContaining({ vendorOrderId: 'fo-1' }),
+      );
+    });
+
+    it('izohsiz yopib bo\'lmaydi', async () => {
+      await expect(service.resolveDispute('manager-1', 'food', 'fo-1', '   ')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+    });
+
+    it('nizo bo\'lmagan buyurtmani yopib bo\'lmaydi', async () => {
+      foodRepo.findOne.mockResolvedValue(foodOrder({ vendorCashPaidAt: new Date() }));
+      await expect(service.resolveDispute('manager-1', 'food', 'fo-1', 'ok')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+    });
+
+    it('buyurtma topilmasa 404', async () => {
+      foodRepo.findOne.mockResolvedValue(null);
+      await expect(service.resolveDispute('manager-1', 'food', 'fo-1', 'ok')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it('ikki dispetcher bir vaqtda yopsa ikkinchisi rad etiladi', async () => {
+      foodRepo.update.mockResolvedValue({ affected: 0 });
+      await expect(service.resolveDispute('manager-2', 'food', 'fo-1', 'ok')).rejects.toBeInstanceOf(
+        ConflictException,
+      );
+      expect(gateway.emitToManagers).not.toHaveBeenCalled();
     });
   });
 });

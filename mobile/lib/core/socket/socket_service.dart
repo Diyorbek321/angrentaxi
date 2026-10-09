@@ -99,12 +99,22 @@ class SocketService {
     _socket?.on(event, handler);
   }
 
-  void off(String event) {
+  /// [handler] berilsa faqat O'SHA tinglovchi o'chiriladi. Busiz event'ning
+  /// BARCHA tinglovchilari ketadi — bitta event'ni ikki ekran tinglasa
+  /// (masalan `driver:location`: taksi va kuryer kuzatuvi), biri yopilganda
+  /// ikkinchisini o'chirib yubormaslik uchun [handler] ni bering.
+  void off(String event, [void Function(dynamic)? handler]) {
     if (AppConfig.demoMode) {
-      _demoHandlers.remove(event);
+      if (handler == null || identical(_demoHandlers[event], handler)) {
+        _demoHandlers.remove(event);
+      }
       return;
     }
-    _socket?.off(event);
+    if (handler == null) {
+      _socket?.off(event);
+    } else {
+      _socket?.off(event, handler);
+    }
   }
 
   /// Demo only: push a server-style event to the registered handler.
