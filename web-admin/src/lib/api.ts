@@ -16,6 +16,8 @@ const api = axios.create({
   baseURL: API_PROXY_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
+    // Panel o'zbekcha: server xatolari ham o'zbekcha (brauzer tili ruscha bo'lsa ham).
+    'Accept-Language': 'uz',
   },
   // Same-origin now, so the session cookie rides along automatically.
   withCredentials: true,

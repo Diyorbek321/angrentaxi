@@ -81,6 +81,10 @@ class ApiClient {
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
           }
+          // Server xato xabarlari ilova tilida keladi (backend
+          // `common/i18n`). Har so'rovda o'qiladi — til ilova ichida
+          // almashtirilsa keyingi so'rovdan kuchga kiradi.
+          options.headers['Accept-Language'] = AppL10n.localeName;
           // O'zini o'zi zakaz qilishni aniqlash uchun (`DeviceIdentity`).
           final deviceId = await DeviceIdentity.instance.id();
           if (deviceId != null) {

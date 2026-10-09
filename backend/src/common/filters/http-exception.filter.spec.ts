@@ -15,6 +15,7 @@ describe('HttpExceptionFilter', () => {
   let loggerError: jest.SpyInstance;
   let filter: HttpExceptionFilter;
   let host: ArgumentsHost;
+  let headers: Record<string, string>;
 
   const lastBody = (): Record<string, unknown> =>
     jsonMock.mock.calls[0][0] as Record<string, unknown>;
@@ -24,10 +25,11 @@ describe('HttpExceptionFilter', () => {
     statusMock = jest.fn().mockReturnValue({ json: jsonMock });
     loggerError = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
 
+    headers = {};
     host = {
       switchToHttp: () => ({
         getResponse: () => ({ status: statusMock }),
-        getRequest: () => ({ url: '/orders/abc' }),
+        getRequest: () => ({ url: '/orders/abc', headers }),
       }),
     } as unknown as ArgumentsHost;
 
@@ -82,5 +84,16 @@ describe('HttpExceptionFilter', () => {
 
     expect(statusMock).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     expect(lastBody()).toMatchObject({ message: 'Phone number is invalid' });
+  });
+
+  it("xabarni ilova tiliga o'giradi (Accept-Language)", () => {
+    headers['accept-language'] = 'ru';
+    filter.catch(new BadRequestException("Bu hududda hozircha xizmat ko'rsatilmaymiz"), host);
+    expect(lastBody()).toMatchObject({ message: 'В этом районе мы пока не работаем' });
+  });
+
+  it("til ko'rsatilmasa — o'zbekcha, inglizcha xabar ham o'zbekchaga", () => {
+    filter.catch(new BadRequestException('Selected tariff is not available'), host);
+    expect(lastBody()).toMatchObject({ message: 'Tanlangan tarif hozir mavjud emas' });
   });
 });

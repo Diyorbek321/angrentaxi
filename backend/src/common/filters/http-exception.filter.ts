@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { localizeMessage, resolveLanguage } from '../i18n/error-messages';
 
 interface ErrorResponse {
   success: false;
@@ -58,6 +59,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
     } else {
       this.logger.error(`Unhandled non-Error exception: ${String(exception)}`);
     }
+
+    // Ilova tiliga qarab UZ yoki RU (`common/i18n/error-catalogue.ts`).
+    // Lug'atda yo'q xabar o'zgarmaydi.
+    message = localizeMessage(message, resolveLanguage(request.headers?.['accept-language']));
 
     const errorResponse: ErrorResponse = {
       success: false,

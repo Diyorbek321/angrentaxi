@@ -229,6 +229,8 @@ export function createApiClient(config: AxiosRequestConfig = {}): AxiosInstance 
     timeout: 15000,
     headers: {
       'Content-Type': 'application/json',
+      // Panel o'zbekcha: server xatolari ham o'zbekcha (brauzer tili ruscha bo'lsa ham).
+      'Accept-Language': 'uz',
     },
     // Same-origin now, so the session cookie rides along automatically.
     withCredentials: true,

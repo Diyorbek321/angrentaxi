@@ -15,7 +15,8 @@ export const API_PROXY_BASE_URL = '/api/proxy';
 
 const api = axios.create({
   baseURL: API_PROXY_BASE_URL,
-  headers: { 'Content-Type': 'application/json' },
+  // Panel o'zbekcha: server xatolari ham o'zbekcha (brauzer tili ruscha bo'lsa ham).
+  headers: { 'Content-Type': 'application/json', 'Accept-Language': 'uz' },
   // Same-origin now, so the session cookie rides along automatically.
   withCredentials: true,
 });
