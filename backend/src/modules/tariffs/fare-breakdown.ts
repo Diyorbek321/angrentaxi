@@ -10,13 +10,19 @@
  *
  *   baseFare + distanceFare + timeFare
  *     + minPriceAdjustment + surgeFare + maxPriceCap
- *     + waitingFare + roundingAdjustment === total
+ *     + optionsFare + waitingFare + roundingAdjustment === total
  *
  * Bu shunchaki did masalasi emas. Chek qatorlari jamiga qo'shilmasa, u
  * chekning umuman yo'qligidan ham yomon — foydalanuvchi hisob-kitobda xato
  * borligini ko'radi-yu, qayerdaligini tushunmaydi. Invariant
  * `tariffs.service.spec.ts` da qo'riqlanadi.
  */
+/** Chekdagi bitta opsiya qatori. `option` — `TripOption` xom qiymati. */
+export interface TripOptionCharge {
+  option: string;
+  fee: number;
+}
+
 export interface FareBreakdown {
   /** Tarifning boshlang'ich haqi (`tariff.basePrice`). */
   baseFare: number;
@@ -54,6 +60,23 @@ export interface FareBreakdown {
    * yo'q bo'lsa 0). Manfiy bo'lgani uchun jamiga to'g'ridan-to'g'ri qo'shiladi.
    */
   maxPriceCap: number;
+
+  /**
+   * Safar opsiyalari haqi (bola o'rindig'i, hayvon...) — `optionCharges`
+   * yig'indisi. Koeffitsient va yuqori chegaradan TASHQARIDA: bu narsa
+   * uchun belgilangan aniq summa, masofaga bog'liq emas
+   * (`orders/trip-option-fees.ts`).
+   *
+   * ⚠️ ESKI TARKIBLARDA maydon YO'Q — o'quvchi uni `0` deb qabul qiladi.
+   */
+  optionsFare?: number;
+
+  /**
+   * Har bir opsiya va uning haqi — buyurtma berilgan lahzada MUZLATILGAN.
+   * Menejer keyin narxni o'zgartirsa, boshlangan safar cheki o'zgarmaydi.
+   * Faqat haqi > 0 bo'lgan opsiyalar.
+   */
+  optionCharges?: TripOptionCharge[];
 
   /**
    * HAQ OLINADIGAN kutish daqiqalari — BEPUL DAQIQALAR ALLAQACHON AYIRILGAN.
@@ -119,6 +142,8 @@ export function agreedFareBreakdown(
     surgeMultiplier: 1,
     surgeFare: 0,
     maxPriceCap: 0,
+    optionsFare: 0,
+    optionCharges: [],
     waitingMinutes: 0,
     waitingFare: 0,
     // Kelishilgan summa mijoz checkout'da ko'rgan summa — yaxlitlanmaydi.

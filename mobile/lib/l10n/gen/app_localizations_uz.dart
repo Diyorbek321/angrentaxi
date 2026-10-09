@@ -1974,6 +1974,11 @@ class AppLocalizationsUz extends AppLocalizations {
   String get paxTo => 'Qayerga';
 
   @override
+  String paxTripOptionsFeeNote(String amount) {
+    return 'Tanlangan opsiyalar uchun $amount narxga qo\'shiladi.';
+  }
+
+  @override
   String get paxTripOptionsHint =>
       'Faqat shu talablarni bajara oladigan haydovchi qidiriladi — bu biroz ko\'proq vaqt olishi mumkin.';
 
@@ -2944,6 +2949,9 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get shFareMinAdjustment => 'Eng kam haq tuzatmasi';
+
+  @override
+  String get shFareOptionOther => 'Qo\'shimcha opsiya';
 
   @override
   String get shFareRounding => 'Yaxlitlash';

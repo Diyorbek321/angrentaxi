@@ -1972,6 +1972,11 @@ class AppLocalizationsRu extends AppLocalizations {
   String get paxTo => 'Куда';
 
   @override
+  String paxTripOptionsFeeNote(String amount) {
+    return 'За выбранные опции к цене добавится $amount.';
+  }
+
+  @override
   String get paxTripOptionsHint =>
       'Ищем только водителей, которые могут выполнить эти пожелания — это может занять немного больше времени.';
 
@@ -2936,6 +2941,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get shFareMinAdjustment => 'Доплата до минимальной стоимости';
+
+  @override
+  String get shFareOptionOther => 'Дополнительная опция';
 
   @override
   String get shFareRounding => 'Округление';

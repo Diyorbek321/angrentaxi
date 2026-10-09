@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PlatformSettings } from '../../database/entities/platform-settings.entity';
+import { normalizeTripOptionFees, TripOptionFees } from '../orders/trip-option-fees';
 
 @Injectable()
 export class SettingsService {
@@ -44,6 +45,27 @@ export class SettingsService {
   async getMaxCashVendorOrder(): Promise<number> {
     const { maxCashVendorOrder } = await this.getOrCreate();
     return maxCashVendorOrder;
+  }
+
+  /** Safar opsiyalari haqi — faqat haqi > 0 bo'lgan opsiyalar. */
+  async getTripOptionFees(): Promise<TripOptionFees> {
+    const { tripOptionFees } = await this.getOrCreate();
+    return normalizeTripOptionFees(tripOptionFees);
+  }
+
+  /**
+   * Faqat yuborilgan opsiyalar o'zgaradi; `0` — o'sha opsiya haqi olib
+   * tashlanadi. Boshlangan safarlarga ta'sir qilmaydi: ularning haqi
+   * buyurtma quote'ida muzlatilgan.
+   */
+  async updateTripOptionFees(changes: TripOptionFees): Promise<TripOptionFees> {
+    const settings = await this.getOrCreate();
+    const merged = normalizeTripOptionFees({
+      ...normalizeTripOptionFees(settings.tripOptionFees),
+      ...changes,
+    });
+    await this.settingsRepository.update(settings.id, { tripOptionFees: merged });
+    return merged;
   }
 
   async getGlobalSettings(): Promise<{

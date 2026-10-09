@@ -200,6 +200,9 @@ export class TariffsService {
       surgeMultiplier,
       surgeFare,
       maxPriceCap,
+      // Opsiya haqi buyurtmaga bog'liq — `withOptionsFare` ustiga qo'shadi.
+      optionsFare: 0,
+      optionCharges: [],
       // Baholash lahzasida kutish yo'q — qatorlar mavjud, lekin nol.
       // Ular tarkibda HAR DOIM bo'lishi shart: mobil ilova maydon bor-yo'qligini
       // tekshirmasdan o'qiy olsin (eski jsonb qatorlaridan farqli o'laroq).

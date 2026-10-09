@@ -408,5 +408,6 @@
     }
   },
   "shMeterNoDestination": "Manzil yo'q — taksometr",
-  "shManeuverRerouting": "Marshrutdan chiqdingiz. Yo'l qayta hisoblanmoqda."
+  "shManeuverRerouting": "Marshrutdan chiqdingiz. Yo'l qayta hisoblanmoqda.",
+  "shFareOptionOther": "Qo'shimcha opsiya"
 }

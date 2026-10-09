@@ -85,6 +85,9 @@ List<({String label, String value})> fareLines(FareBreakdown fare) {
       value: fare.maxPriceCap,
       visible: fare.maxPriceCap < 0,
     ),
+    // Safar opsiyalari — har biri o'z qatori. Koeffitsient va chegaradan
+    // KEYIN (backend `trip-option-fees.ts`): ular opsiya haqiga tegmaydi.
+    ..._optionParts(fare),
     // ⚠️ KUTISH QATORI NOL BO'LSA HAM KO'RSATILADI — yuqoridagi "nol qator
     // chiqmaydi" qoidasidan ATAYLAB istisno.
     //
@@ -129,6 +132,28 @@ List<({String label, String value})> fareLines(FareBreakdown fare) {
   }
 
   return lines;
+}
+
+/// Opsiya qatorlari. Qatorlar yo'q-u, summa bor bo'lsa (bo'lmasligi kerak)
+/// — bitta umumiy qator: ustun baribir jamiga qo'shilishi shart.
+List<({String label, double value, bool visible})> _optionParts(FareBreakdown fare) {
+  if (fare.optionCharges.isEmpty) {
+    return [
+      (
+        label: AppL10n.current.shFareOptionOther,
+        value: fare.optionsFare,
+        visible: fare.optionsFare > 0,
+      ),
+    ];
+  }
+  return [
+    for (final charge in fare.optionCharges)
+      (
+        label: charge.option?.label ?? AppL10n.current.shFareOptionOther,
+        value: charge.fee,
+        visible: true,
+      ),
+  ];
 }
 
 /// Kutish qatorining yorlig'i.

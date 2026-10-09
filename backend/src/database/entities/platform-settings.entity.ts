@@ -68,6 +68,11 @@ export class PlatformSettings {
   })
   maxCashVendorOrder: number;
 
+  // Safar opsiyalari haqi, so'm (migratsiya 023): `{ child_seat: 5000 }`.
+  // Menejer belgilaydi; o'qish `normalizeTripOptionFees` orqali.
+  @Column({ name: 'trip_option_fees', type: 'jsonb', default: () => "'{}'" })
+  tripOptionFees: Record<string, number>;
+
   @Column({ name: 'maintenance_mode', type: 'boolean', default: false })
   maintenanceMode: boolean;
 

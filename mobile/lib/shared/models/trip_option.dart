@@ -36,6 +36,22 @@ enum TripOption {
     return null;
   }
 
+  /// Server haqlari (`GET /settings/trip-option-fees`): `{"child_seat": 5000}`.
+  /// Noma'lum opsiya va musbat bo'lmagan qiymat tashlanadi — haqsiz degani.
+  static Map<TripOption, int> feesFromApi(Object? value) {
+    if (value is! Map) return const {};
+    final fees = <TripOption, int>{};
+    for (final option in TripOption.values) {
+      final fee = value[option.apiValue];
+      if (fee is num && fee > 0) fees[option] = fee.round();
+    }
+    return fees;
+  }
+
+  /// Tanlangan opsiyalar uchun qo'shimcha haq yig'indisi, so'm.
+  static int totalFee(Iterable<TripOption> options, Map<TripOption, int> fees) =>
+      options.fold(0, (sum, option) => sum + (fees[option] ?? 0));
+
   /// JSON ro'yxatini o'qiydi; noma'lum va takroriy qiymatlar tashlanadi.
   static List<TripOption> listFromApi(Object? value) {
     if (value is! List) return const [];

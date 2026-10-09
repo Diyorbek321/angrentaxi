@@ -40,6 +40,20 @@ describe('OrdersMeterService.reading', () => {
     expect(reading.fare).toBe(13900);
   });
 
+  it("adds the trip option fee frozen in the order's quote", async () => {
+    const service = build({
+      id: 'o-1', isMetered: true, status: OrderStatus.IN_PROGRESS, tariffId: 't-1',
+      arrivedAt: null,
+      fareBreakdown: { optionsFare: 5000, optionCharges: [{ option: 'child_seat', fee: 5000 }] },
+    });
+
+    const reading = await service.reading('o-1', passenger, NOW);
+
+    expect(reading.optionsFare).toBe(5000);
+    // 3000 + 4×1500 + 12×200 + 5000
+    expect(reading.fare).toBe(16400);
+  });
+
   it('only for a metered ride that is under way', async () => {
     await expect(
       build({ isMetered: false, status: OrderStatus.IN_PROGRESS, tariffId: 't-1' }).reading('o-1', passenger, NOW),

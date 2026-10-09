@@ -24,6 +24,7 @@ import { RetryBanner } from '@/components/ui/RetryBanner';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
 import { formatDateTime, formatMoney } from '@/lib/format';
+import { TripOptionFeesCard } from '@/components/tariffs/TripOptionFeesCard';
 import { meteredPriceField, meteredPriceLabel } from '@/lib/metered-price';
 
 // Every message is Uzbek and attaches to its own field — a form that reports
@@ -283,6 +284,8 @@ export default function TariffsPage() {
                 </div>
               )}
             </Card>
+
+            <TripOptionFeesCard />
 
             <Card>
               <CardHeader>

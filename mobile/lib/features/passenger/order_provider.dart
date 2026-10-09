@@ -68,6 +68,8 @@ class OrderProvider extends ChangeNotifier {
   /// shuning uchun [_scheduledOrders] dan alohida turadi.
   DateTime? _scheduledAt;
   List<TripOption> _tripOptions = const [];
+  Map<TripOption, int> _tripOptionFees = const {};
+  double _optionsFare = 0;
 
   /// Serverdagi kelgusi rejalar (`GET /orders/scheduled`).
   List<Order> _scheduledOrders = [];
@@ -142,6 +144,31 @@ class OrderProvider extends ChangeNotifier {
 
   /// Safar opsiyalari — matching filtri (faqat mos haydovchiga boradi).
   List<TripOption> get tripOptions => List.unmodifiable(_tripOptions);
+
+  /// Opsiyalar uchun qo'shimcha haq (menejer belgilaydi). Faqat KO'RSATISH
+  /// uchun — narxga qo'shishni server qiladi ([estimatePrice], buyurtma).
+  Map<TripOption, int> get tripOptionFees => _tripOptionFees;
+
+  /// Tanlangan opsiyalar haqi — taksometr rejimida (narx oldindan yo'q)
+  /// "kamida" summa yonida ko'rsatiladi.
+  int get selectedOptionsFee => TripOption.totalFee(_tripOptions, _tripOptionFees);
+
+  /// Serverning oxirgi bahosidagi opsiya haqi (narx ichida).
+  double get optionsFare => _optionsFare;
+
+  /// `GET /settings/trip-option-fees`. Xato jimgina yutiladi: haq yonidagi
+  /// yozuv chiqmaydi, lekin narxni baribir server hisoblaydi — ya'ni
+  /// yo'lovchi noto'g'ri summa ko'rmaydi.
+  Future<void> loadTripOptionFees() async {
+    try {
+      final response = await _apiClient.get(ApiEndpoints.tripOptionFees);
+      final data = response.data as Map<String, dynamic>;
+      _tripOptionFees = TripOption.feesFromApi(data['data']);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[OrderProvider] loadTripOptionFees error: $e');
+    }
+  }
 
   void setTripOptions(Iterable<TripOption> options) {
     _tripOptions = options.toSet().toList()
@@ -414,11 +441,16 @@ class OrderProvider extends ChangeNotifier {
           if (pickup != null) 'pickupLng': pickup.lng,
           if (dropoff != null) 'dropoffLat': dropoff.lat,
           if (dropoff != null) 'dropoffLng': dropoff.lng,
+          // Opsiya haqi narxga qo'shiladi — ko'rsatilgan narx buyurtma
+          // narxi bilan bir xil bo'lishi uchun bahoda ham yuboriladi.
+          if (_tripOptions.isNotEmpty)
+            'options': _tripOptions.map((o) => o.apiValue).toList(),
         },
       );
       final data = response.data as Map<String, dynamic>;
       final payload = data['data'] as Map<String, dynamic>;
       _estimatedPrice = (payload['price'] as num?)?.toDouble() ?? 0;
+      _optionsFare = (payload['optionsFare'] as num?)?.toDouble() ?? 0;
       _surgeMultiplier = (payload['surgeMultiplier'] as num?)?.toDouble() ?? 1.0;
       // Server o'z masofasini qaytaradi — ekranda ko'rsatiladigan masofa ham
       // narx asosidagi masofa bilan bir xil bo'lishi kerak.

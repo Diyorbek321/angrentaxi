@@ -483,5 +483,13 @@
         "type": "String"
       }
     }
+  },
+  "paxTripOptionsFeeNote": "Tanlangan opsiyalar uchun {amount} narxga qo'shiladi.",
+  "@paxTripOptionsFeeNote": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
   }
 }

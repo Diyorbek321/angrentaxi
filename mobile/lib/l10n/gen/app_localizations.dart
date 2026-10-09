@@ -3566,6 +3566,12 @@ abstract class AppLocalizations {
   /// **'Qayerga'**
   String get paxTo;
 
+  /// No description provided for @paxTripOptionsFeeNote.
+  ///
+  /// In uz, this message translates to:
+  /// **'Tanlangan opsiyalar uchun {amount} narxga qo\'shiladi.'**
+  String paxTripOptionsFeeNote(String amount);
+
   /// No description provided for @paxTripOptionsHint.
   ///
   /// In uz, this message translates to:
@@ -5288,6 +5294,12 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Eng kam haq tuzatmasi'**
   String get shFareMinAdjustment;
+
+  /// No description provided for @shFareOptionOther.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qo\'shimcha opsiya'**
+  String get shFareOptionOther;
 
   /// No description provided for @shFareRounding.
   ///

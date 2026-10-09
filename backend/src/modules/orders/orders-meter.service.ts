@@ -5,6 +5,7 @@ import { OrderStatus } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
 import { UserRole } from '../../database/entities/user.entity';
 import { TariffsService } from '../tariffs/tariffs.service';
+import { withOptionsFare } from './trip-option-fees';
 import { computeWaitingMinutes, waitingSettingsOf, withWaitingFare } from '../tariffs/waiting-charge';
 import { meteredTariff } from '../tariffs/metered-rate';
 import { TaximeterService } from '../taximeter/taximeter.service';
@@ -14,6 +15,8 @@ export interface MeterReading {
   distanceKm: number;
   durationMin: number;
   waitingFare: number;
+  /** Muzlatilgan opsiya haqi (bola o'rindig'i...), jamiga kirgan. */
+  optionsFare: number;
   /** Hozirgacha jami — yakunda shu formula bilan hisoblanadi (masofa yo'lga moslanadi). */
   fare: number;
   startedAt: string;
@@ -59,8 +62,12 @@ export class OrdersMeterService {
     const tariff = await this.tariffsService.findById(order.tariffId);
     const { freeWaitMinutes, waitingPricePerMinute } = waitingSettingsOf(tariff);
     const waitingMinutes = computeWaitingMinutes(order.arrivedAt, trip?.startTime ?? null, freeWaitMinutes);
+    // Yakuniy narx bilan bir xil: muzlatilgan opsiya haqi + kutish.
     const breakdown = withWaitingFare(
-      this.tariffsService.calculatePriceBreakdown(meteredTariff(tariff, true), distanceKm, durationMin),
+      withOptionsFare(
+        this.tariffsService.calculatePriceBreakdown(meteredTariff(tariff, true), distanceKm, durationMin),
+        order.fareBreakdown?.optionCharges ?? [],
+      ),
       waitingMinutes,
       waitingPricePerMinute,
     );
@@ -69,6 +76,7 @@ export class OrdersMeterService {
       distanceKm: Math.round(distanceKm * 100) / 100,
       durationMin,
       waitingFare: breakdown.waitingFare,
+      optionsFare: breakdown.optionsFare ?? 0,
       fare: breakdown.total,
       startedAt: startedAt.toISOString(),
     };

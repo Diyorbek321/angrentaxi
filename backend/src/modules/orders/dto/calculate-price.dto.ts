@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, IsOptional, IsUUID, Max, Min } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsIn, IsNumber, IsOptional, IsUUID, Max, Min } from 'class-validator';
+import { TRIP_OPTION_VALUES, TripOption } from '../trip-options';
 
 export class CalculatePriceDto {
   @ApiProperty({ example: 'uuid', description: 'Tariff ID' })
@@ -60,4 +61,12 @@ export class CalculatePriceDto {
   @Max(180)
   @IsOptional()
   dropoffLng?: number;
+
+  /** So'ralgan safar opsiyalari — haqi bo'lsa narxga qo'shiladi. */
+  @ApiProperty({ enum: TripOption, isArray: true, required: false })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(TRIP_OPTION_VALUES.length)
+  @IsIn(TRIP_OPTION_VALUES, { each: true })
+  options?: TripOption[];
 }

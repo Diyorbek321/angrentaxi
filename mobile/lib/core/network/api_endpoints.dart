@@ -185,6 +185,9 @@ class ApiEndpoints {
 
   /// Customer-facing platform settings (support phone, delivery fee).
   static const String settingsPublic = '/settings/public';
+
+  /// Safar opsiyalari haqi (`{"child_seat": 5000}`) — menejer belgilaydi.
+  static const String tripOptionFees = '/settings/trip-option-fees';
   static const String paymentsTransactions = '/payments/transactions';
 
   // Driver wallet withdrawals (payout requests)

@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { OrderStatus, PaymentMethod } from './constants';
 import { attachAuthInterceptor } from './session';
+import type { TripOptionFees } from './trip-option-fees';
 
 // ─── Entity Types ───────────────────────────────────────────────────────────
 
@@ -677,6 +678,21 @@ export async function setSupportThreadStatus(
   const res = await apiClient.patch<ApiResponse<SupportThread>>(
     `/support/threads/${threadId}/status`,
     { status }
+  );
+  return res.data.data;
+}
+
+// ─── Trip Option Fees ────────────────────────────────────────────────────────
+
+export async function getTripOptionFees(): Promise<TripOptionFees> {
+  const res = await apiClient.get<ApiResponse<TripOptionFees>>('/settings/trip-option-fees');
+  return res.data.data;
+}
+
+export async function updateTripOptionFees(changes: TripOptionFees): Promise<TripOptionFees> {
+  const res = await apiClient.patch<ApiResponse<TripOptionFees>>(
+    '/settings/trip-option-fees',
+    changes
   );
   return res.data.data;
 }

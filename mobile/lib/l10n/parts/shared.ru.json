@@ -139,5 +139,6 @@
   "shMeterFinalNote": "Итоговая цена уточняется по маршруту в конце поездки",
   "shMeterAtLeast": "от {price}",
   "shMeterNoDestination": "Без адреса — таксометр",
-  "shManeuverRerouting": "Вы отклонились от маршрута. Маршрут перестраивается."
+  "shManeuverRerouting": "Вы отклонились от маршрута. Маршрут перестраивается.",
+  "shFareOptionOther": "Дополнительная опция"
 }

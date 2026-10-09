@@ -46,7 +46,7 @@ export class OrdersService {
 
   calculatePrice(
     dto: CalculatePriceDto,
-  ): Promise<{ price: number; tariffId: string; distanceKm: number; durationMin: number }> {
+  ): ReturnType<OrdersCreationService['calculatePrice']> {
     return this.creationService.calculatePrice(dto);
   }
 

@@ -215,6 +215,58 @@ void main() {
     expect(sum, asShown(formatSomRounded(fare.total)));
   });
 
+  // Safar opsiyalari haqi (bola o'rindig'i, hayvon) — har biri o'z qatori,
+  // koeffitsient va chegaradan keyin, kutishdan oldin.
+  test('opsiya haqi har bir opsiya uchun alohida qator, jamiga qo\'shiladi', () {
+    final fare = FareBreakdown.fromJson({
+      ...fareJson(),
+      'optionsFare': 12000,
+      'optionCharges': const [
+        {'option': 'child_seat', 'fee': 5000},
+        {'option': 'pet', 'fee': 7000},
+      ],
+      'total': 56660,
+    });
+
+    expect(fare.optionsFare, 12000);
+    expect(fare.optionCharges, hasLength(2));
+
+    final lines = fareLines(fare);
+    final labels = lines.map((l) => l.label).toList();
+    final seat = labels.indexOf("Bola o'rindig'i");
+    final pet = labels.indexOf('Hayvon bilan');
+    expect(seat, greaterThan(labels.indexWhere((l) => l.startsWith('Talab'))));
+    expect(pet, seat + 1);
+    expect(labels[pet + 1], startsWith('Kutish'));
+    expect(asShown(lines[seat].value), 5000);
+    expect(asShown(lines[pet].value), 7000);
+
+    final sum = lines.map((l) => asShown(l.value)).fold<int>(0, (a, b) => a + b);
+    expect(sum, asShown(formatSomRounded(fare.total)));
+  });
+
+  test('eski tarkibda opsiya kalitlari yo\'q — qator chiqmaydi', () {
+    final fare = FareBreakdown.fromJson(fareJson());
+
+    expect(fare.optionsFare, 0);
+    expect(fare.optionCharges, isEmpty);
+    expect(fareLines(fare), hasLength(5));
+  });
+
+  test('noma\'lum opsiya (yangi server) umumiy nom bilan chiqadi, yiqilmaydi', () {
+    final fare = FareBreakdown.fromJson({
+      ...fareJson(),
+      'optionsFare': 4000,
+      'optionCharges': const [
+        {'option': 'roof_box', 'fee': 4000},
+      ],
+      'total': 48660,
+    });
+
+    final line = fareLines(fare).firstWhere((l) => asShown(l.value) == 4000);
+    expect(line.label, "Qo'shimcha opsiya");
+  });
+
   test('ko\'rsatilgan qatorlar yig\'indisi ko\'rsatilgan jamiga teng', () {
     final fare = FareBreakdown.fromJson(fareJson());
 

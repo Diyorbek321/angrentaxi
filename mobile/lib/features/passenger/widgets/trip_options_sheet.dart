@@ -1,6 +1,7 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/trip_option.dart';
+import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:flutter/material.dart';
 
@@ -11,20 +12,25 @@ import 'package:flutter/material.dart';
 /// pastda buni ochiq aytamiz: yo'lovchi "nega haydovchi uzoq topilyapti?"
 /// savoliga javobni oldindan bilsin.
 class TripOptionsSheet extends StatefulWidget {
-  const TripOptionsSheet({super.key, required this.initial});
+  const TripOptionsSheet({super.key, required this.initial, this.fees = const {}});
 
   final List<TripOption> initial;
+
+  /// Opsiya uchun qo'shimcha haq — tanlashdan OLDIN ko'rinishi shart:
+  /// aytilmagan haq chekda "meni aldashdi" bo'lib chiqadi.
+  final Map<TripOption, int> fees;
 
   /// Tanlovni qaytaradi; sheet yopilsa (`null`) — tanlov o'zgarmaydi.
   static Future<List<TripOption>?> show(
     BuildContext context, {
     required List<TripOption> initial,
+    Map<TripOption, int> fees = const {},
   }) {
     return showModalBottomSheet<List<TripOption>>(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) => TripOptionsSheet(initial: initial),
+      builder: (_) => TripOptionsSheet(initial: initial, fees: fees),
     );
   }
 
@@ -68,6 +74,16 @@ class _TripOptionsSheetState extends State<TripOptionsSheet> {
                 }),
                 secondary: Icon(option.icon, color: kInkMuted),
                 title: Text(option.label),
+                subtitle: (widget.fees[option] ?? 0) > 0
+                    ? Text(
+                        '+${Formatters.formatSom(widget.fees[option]!.toDouble())}',
+                        style: const TextStyle(
+                          color: kInk,
+                          fontWeight: FontWeight.w600,
+                          fontSize: kFontLabel,
+                        ),
+                      )
+                    : null,
               ),
             const SizedBox(height: kSpace2),
             Text(

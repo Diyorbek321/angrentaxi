@@ -214,6 +214,8 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<OrderProvider>();
       provider.loadTariffs();
+      // Opsiya haqlari opsiyalar oynasida va narx ostida ko'rsatiladi.
+      provider.loadTripOptionFees();
       // Qamrov ro'yxati bosh ekranda allaqachon so'ralgan bo'lishi mumkin —
       // `loadCities` takrorini o'zi to'xtatadi. Bu yerda ham chaqiriladi,
       // chunki tarif ekraniga saqlangan manzil orqali TO'G'RIDAN-TO'G'RI
@@ -674,6 +676,10 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
           _buildTariffRow(provider, selected: selected, price: price),
           const SizedBox(height: kSpace3),
           _buildOptionsRow(provider),
+          if (provider.selectedOptionsFee > 0) ...[
+            const SizedBox(height: kSpace2),
+            _buildOptionsFeeNote(provider.selectedOptionsFee),
+          ],
           // Kutish qoidasi BOSISHDAN OLDIN aytiladi. Aytilmagan haq
           // buyurtmadan keyin "meni aldashdi" degan xulosaga olib keladi —
           // bu esa bekor qilish va e'tirozning eng arzon sababi.
@@ -1051,6 +1057,37 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
     );
   }
 
+  /// Opsiya haqi narx bilan BIR QARASHDA ko'rinsin — taksometrda ayniqsa,
+  /// chunki u yerda "kamida" summada opsiya hisobga olinmagan ko'rinadi.
+  Widget _buildOptionsFeeNote(int fee) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: kSpace1),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 1),
+            child: ExcludeSemantics(
+              child: Icon(Icons.add_circle_outline_rounded, size: 15, color: kInkSubtle),
+            ),
+          ),
+          const SizedBox(width: kSpace2),
+          Expanded(
+            child: Text(
+              context.l10n.paxTripOptionsFeeNote(Formatters.formatSom(fee.toDouble())),
+              style: const TextStyle(
+                fontSize: kFontCaption,
+                fontWeight: FontWeight.w600,
+                color: kInkMuted,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildWaitingNote(Tariff tariff) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: kSpace1),
@@ -1164,9 +1201,12 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
     final picked = await TripOptionsSheet.show(
       context,
       initial: provider.tripOptions,
+      fees: provider.tripOptionFees,
     );
     if (!mounted || picked == null) return;
     provider.setTripOptions(picked);
+    // Opsiyaning haqi bo'lishi mumkin — ko'rsatilgan narx yangilanadi.
+    _estimateIfReady(provider);
   }
 
   Future<void> _pickScheduleTime(OrderProvider provider) async {

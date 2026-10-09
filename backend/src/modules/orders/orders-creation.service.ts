@@ -1,7 +1,7 @@
 // Order intake: fare quoting, passenger-initiated order creation (raw PostGIS
 // INSERT plus promo validation and the "order created" fan-out), and the
 // manager/admin manual-entry variant that resolves a passenger by phone first.
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order, OrderStatus, PaymentMethod, ServiceType } from '../../database/entities/order.entity';
@@ -14,6 +14,9 @@ import {
 import { TariffsService } from '../tariffs/tariffs.service';
 import { agreedFareBreakdown } from '../tariffs/fare-breakdown';
 import { normalizeTripOptions } from './trip-options';
+import { tripOptionCharges, withOptionsFare } from './trip-option-fees';
+import { TripOptionCharge } from '../tariffs/fare-breakdown';
+import { SettingsService } from '../settings/settings.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { UsersService } from '../users/users.service';
 import { PromoCodesService } from '../promo-codes/promo-codes.service';
@@ -48,7 +51,19 @@ export class OrdersCreationService {
     private readonly surgeService: SurgeService,
     private readonly osrmService: OsrmService,
     private readonly citiesService: CitiesService,
+    // Optional: qo'lda quriladigan spec'lar uni bermaydi; prod'da OrdersModule.
+    @Optional() private readonly settingsService?: SettingsService,
   ) {}
+
+  /**
+   * So'ralgan opsiyalar uchun haq qatorlari. Opsiya so'ralmagan bo'lsa
+   * sozlamaga umuman murojaat qilinmaydi — aksariyat buyurtmalar shunday.
+   */
+  private async optionChargesFor(options: readonly string[] | null | undefined): Promise<TripOptionCharge[]> {
+    const wanted = normalizeTripOptions(options);
+    if (wanted.length === 0 || !this.settingsService) return [];
+    return tripOptionCharges(wanted, await this.settingsService.getTripOptionFees());
+  }
 
   /**
    * Buyurtma qaysi shaharda yaratilayotganini OLISH NUQTASIDAN aniqlaydi.
@@ -136,6 +151,7 @@ export class OrdersCreationService {
     distanceKm: number;
     durationMin: number;
     surgeMultiplier: number;
+    optionsFare: number;
   }> {
     // Surge belongs to the pickup area, so it can only be applied when the
     // client sends where the ride starts. Older clients omit it and get the
@@ -168,12 +184,14 @@ export class OrdersCreationService {
       }
     }
 
-    const price = await this.tariffsService.calculatePriceByTariffId(
-      dto.tariffId,
-      distanceKm,
-      durationMin,
-      surge,
+    const tariff = await this.tariffsService.findById(dto.tariffId);
+    // Buyurtma yaratilganda ham AYNAN shu tarkib chiqadi — ko'rsatilgan narx
+    // bilan yoziladigan narx bir xil bo'lishi uchun opsiya haqi shu yerda ham.
+    const breakdown = withOptionsFare(
+      this.tariffsService.calculatePriceBreakdown(tariff, distanceKm, durationMin, surge),
+      await this.optionChargesFor(dto.options),
     );
+    const price = breakdown.total;
 
     return {
       price,
@@ -183,6 +201,9 @@ export class OrdersCreationService {
       // Returned so the app can tell the passenger *why* the price is higher
       // than usual. A surge the rider can't see reads as arbitrary pricing.
       surgeMultiplier: surge,
+      // Opsiya haqi alohida — ilova "shundan +5 000 so'm bola o'rindig'i"
+      // deb ko'rsata olsin.
+      optionsFare: breakdown.optionsFare ?? 0,
     };
   }
 
@@ -392,14 +413,22 @@ export class OrdersCreationService {
     // TA'SIR QILMAYDI — kafolat marshrutga tegishli, kutish esa yo'lovchi
     // boshqaradigan xarajat. Ya'ni undiriladigan summa `quote.total` dan
     // katta bo'lishi mumkin.
+    //
+    // OPSIYA HAQI shu quote'ga MUZLATILADI (`optionCharges`): taksometr va
+    // qat'iy bo'lmagan safarda ham yakuniy narx o'sha qatorlarni oladi, ya'ni
+    // menejer keyin haqni o'zgartirsa ham yo'lovchi ko'rgani undiriladi.
+    // Kelishilgan summaga (yetkazish haqi) opsiya qo'shilmaydi.
     const quote =
       options.agreedFare !== undefined
         ? agreedFareBreakdown(options.agreedFare, estimatedDistanceKm, estimatedDurationMin)
-        : this.tariffsService.calculatePriceBreakdown(
-            tariff,
-            estimatedDistanceKm,
-            estimatedDurationMin,
-            zoneSurge,
+        : withOptionsFare(
+            this.tariffsService.calculatePriceBreakdown(
+              tariff,
+              estimatedDistanceKm,
+              estimatedDurationMin,
+              zoneSurge,
+            ),
+            await this.optionChargesFor(dto.options),
           );
     const estimatedPrice = quote.total;
 

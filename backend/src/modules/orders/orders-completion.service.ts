@@ -42,6 +42,7 @@ import {
   waitingSettingsOf,
   withWaitingFare,
 } from '../tariffs/waiting-charge';
+import { withOptionsFare } from './trip-option-fees';
 import { meteredTariff } from '../tariffs/metered-rate';
 import { applyDiscount } from '../tariffs/fare-rounding';
 import { OrderFraudService } from './order-fraud.service';
@@ -166,13 +167,19 @@ export class OrdersCompletionService {
     // ular hisoblagich yo'lidan o'tadi, ya'ni bugungi xulq saqlanadi.
     const useQuote = order.isFixedPrice && order.fareBreakdown != null;
 
+    // OPSIYA HAQI: qat'iy narxda quote'ning ichida; hisoblagich yo'lida esa
+    // buyurtma berilganda MUZLATILGAN qatorlar qayta qo'shiladi
+    // (`trip-option-fees.ts`) — sozlama keyin o'zgargan bo'lsa ham.
     const rideFare = useQuote
       ? order.fareBreakdown!
-      : this.tariffsService.calculatePriceBreakdown(
-          // Taksometrda km narxi alohida bo'lishi mumkin (`metered-rate.ts`).
-          meteredTariff(tariff, order.isMetered ?? false),
-          actualDistanceKm,
-          actualDurationMin,
+      : withOptionsFare(
+          this.tariffsService.calculatePriceBreakdown(
+            // Taksometrda km narxi alohida bo'lishi mumkin (`metered-rate.ts`).
+            meteredTariff(tariff, order.isMetered ?? false),
+            actualDistanceKm,
+            actualDurationMin,
+          ),
+          order.fareBreakdown?.optionCharges ?? [],
         );
 
     // ⚠️ KUTISH — IKKALA REJIM UCHUN BITTA JOYDA. Ataylab shunday: qoida

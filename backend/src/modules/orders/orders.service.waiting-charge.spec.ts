@@ -116,6 +116,7 @@ const sumOfLines = (b: FareBreakdown) =>
   b.minPriceAdjustment +
   b.surgeFare +
   b.maxPriceCap +
+  (b.optionsFare ?? 0) +
   b.waitingFare +
   b.roundingAdjustment;
 
@@ -471,6 +472,43 @@ describe('completeTrip — kutish haqi HAQIQIY oqimda', () => {
 
       expect(Number.isInteger(persisted().fareBreakdown.waitingFare)).toBe(true);
       expect(persisted().fareBreakdown.waitingFare).toBe(2500);
+    });
+
+    it("opsiya haqi buyurtma berilganda MUZLATILGAN quote'dan olinadi", async () => {
+      // Hisoblagich yo'li tarkibni qayta hisoblaydi — opsiya qatori yo'qolib
+      // qolmasligi va sozlamadan qayta o'qilmasligi shart.
+      const frozen = {
+        ...quote(),
+        optionsFare: 5000,
+        optionCharges: [{ option: 'child_seat', fee: 5000 }],
+      };
+      await build({ isFixedPrice: false, fareBreakdown: frozen, arrivedAt: ARRIVED_AT }, tariffWithWaiting(), min(8));
+
+      await service.completeTrip(DRIVER_USER_ID, ORDER_ID);
+
+      const b = persisted().fareBreakdown;
+      expect(b.optionsFare).toBe(5000);
+      expect(b.optionCharges).toEqual([{ option: 'child_seat', fee: 5000 }]);
+      expect(b.waitingFare).toBe(2500);
+      expect(sumOfLines(b)).toBeCloseTo(b.total, 6);
+      expect(persisted().finalPrice).toBe(b.total);
+    });
+  });
+
+  describe("qat'iy narx — opsiya haqi quote ichida", () => {
+    it('quote\'dagi opsiya haqi ikki marta qo\'shilmaydi', async () => {
+      const frozen = {
+        ...quote(),
+        optionsFare: 5000,
+        optionCharges: [{ option: 'pet', fee: 5000 }],
+        total: 48200,
+      };
+      await build({ isFixedPrice: true, fareBreakdown: frozen, arrivedAt: null }, tariffWithWaiting(), min(8));
+
+      await service.completeTrip(DRIVER_USER_ID, ORDER_ID);
+
+      expect(persisted().finalPrice).toBe(48200);
+      expect(persisted().fareBreakdown.optionsFare).toBe(5000);
     });
   });
 });

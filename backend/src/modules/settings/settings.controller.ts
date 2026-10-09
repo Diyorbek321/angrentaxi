@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SettingsService } from './settings.service';
 import { UpdateCommissionDto } from './dto/update-commission.dto';
 import { UpdateGlobalSettingsDto } from './dto/update-global-settings.dto';
+import { UpdateTripOptionFeesDto } from './dto/update-trip-option-fees.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
@@ -49,6 +50,28 @@ export class SettingsController {
     const { platformName, supportPhone, deliveryFee, maxCashVendorOrder } =
       await this.settingsService.getGlobalSettings();
     return { platformName, supportPhone, deliveryFee, maxCashVendorOrder };
+  }
+
+  /**
+   * Safar opsiyalari haqi. Har qanday kirgan foydalanuvchi o'qiydi —
+   * yo'lovchi ilovasi opsiya yonida "+5 000 so'm" ni ko'rsatadi.
+   */
+  @Get('trip-option-fees')
+  @ApiOperation({ summary: 'Trip option surcharges, so\'m (child seat, pet...)' })
+  async getTripOptionFees() {
+    return this.settingsService.getTripOptionFees();
+  }
+
+  /**
+   * Menejer belgilaydi (biznes qarori, 2026-10-09). Tarif kabi admin
+   * tasdig'idan o'tmaydi: bu kichik qat'iy summa, foiz yoki koeffitsient emas.
+   */
+  @Patch('trip-option-fees')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.TARIFFS_MANAGE)
+  @ApiOperation({ summary: 'Set trip option surcharges (manager/admin)' })
+  async updateTripOptionFees(@Body() dto: UpdateTripOptionFeesDto) {
+    return this.settingsService.updateTripOptionFees(dto);
   }
 
   @Get('global')

@@ -1,5 +1,6 @@
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order.dart';
+import 'package:angren_taxi/shared/models/trip_option.dart';
 import 'package:equatable/equatable.dart';
 
 // ============================================================================
@@ -28,7 +29,7 @@ import 'package:equatable/equatable.dart';
 ///
 ///   baseFare + distanceFare + timeFare
 ///     + minPriceAdjustment + surgeFare + maxPriceCap
-///     + waitingFare + roundingAdjustment == total
+///     + optionsFare + waitingFare + roundingAdjustment == total
 ///
 /// Chek ekrani qatorlarni AYNAN shu tartibda chiqaradi — shunda foydalanuvchi
 /// jamini o'zi qo'shib tekshira oladi. Tartibni o'zgartirish hujjatni
@@ -50,6 +51,8 @@ class FareBreakdown extends Equatable {
     required this.waitingFare,
     required this.total,
     this.roundingAdjustment = 0,
+    this.optionsFare = 0,
+    this.optionCharges = const [],
   });
 
   /// Tarifning boshlang'ich haqi.
@@ -83,6 +86,13 @@ class FareBreakdown extends Equatable {
   /// Yuqori chegara kesib tashlagan summa. Har doim <= 0 — manfiy bo'lgani
   /// uchun jamiga to'g'ridan-to'g'ri qo'shiladi va invariant saqlanadi.
   final double maxPriceCap;
+
+  /// Safar opsiyalari haqi (bola o'rindig'i, hayvon...) — [optionCharges]
+  /// yig'indisi. Buyurtma berilgan lahzada muzlatilgan. Eski safarlarda 0.
+  final double optionsFare;
+
+  /// Har bir opsiya va uning haqi — chekda alohida qator.
+  final List<FareOptionCharge> optionCharges;
 
   /// HAQ OLINADIGAN kutish daqiqalari — BEPUL DAQIQALAR ALLAQACHON AYIRILGAN.
   ///
@@ -130,6 +140,12 @@ class FareBreakdown extends Equatable {
       waitingMinutes: (json['waitingMinutes'] as num?)?.round() ?? 0,
       waitingFare: _num(json['waitingFare']),
       roundingAdjustment: _num(json['roundingAdjustment']),
+      // Eski safarlarda ikkala kalit ham yo'q — opsiya haqi olinmagan.
+      optionsFare: _num(json['optionsFare']),
+      optionCharges: [
+        for (final raw in (json['optionCharges'] as List?) ?? const [])
+          if (raw is Map) FareOptionCharge.fromJson(raw.cast<String, dynamic>()),
+      ],
       total: _num(json['total']),
     );
   }
@@ -147,11 +163,31 @@ class FareBreakdown extends Equatable {
         surgeMultiplier,
         surgeFare,
         maxPriceCap,
+        optionsFare,
+        optionCharges,
         waitingMinutes,
         waitingFare,
         roundingAdjustment,
         total,
       ];
+}
+
+/// Chekdagi bitta opsiya qatori. [option] `null` — ilova hali bilmaydigan
+/// (keyinroq serverga qo'shilgan) opsiya: chek yiqilmaydi, umumiy nom bilan
+/// chiqadi.
+class FareOptionCharge extends Equatable {
+  const FareOptionCharge({required this.option, required this.fee});
+
+  factory FareOptionCharge.fromJson(Map<String, dynamic> json) => FareOptionCharge(
+        option: TripOption.fromApi(json['option']),
+        fee: _num(json['fee']),
+      );
+
+  final TripOption? option;
+  final double fee;
+
+  @override
+  List<Object?> get props => [option, fee];
 }
 
 /// Chekdagi haydovchi — FAQAT identifikatsiya uchun.

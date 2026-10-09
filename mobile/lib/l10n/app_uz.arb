@@ -1236,6 +1236,14 @@
   },
   "paxTipTitle": "Haydovchiga chaqim",
   "paxTo": "Qayerga",
+  "paxTripOptionsFeeNote": "Tanlangan opsiyalar uchun {amount} narxga qo'shiladi.",
+  "@paxTripOptionsFeeNote": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "paxTripOptionsHint": "Faqat shu talablarni bajara oladigan haydovchi qidiriladi — bu biroz ko'proq vaqt olishi mumkin.",
   "paxTripOptionsTitle": "Qo'shimcha talablar",
   "paxTripScheduled": "Safar rejalashtirildi",
@@ -1845,6 +1853,7 @@
   },
   "shFareMaxCap": "Yuqori narx chegarasi",
   "shFareMinAdjustment": "Eng kam haq tuzatmasi",
+  "shFareOptionOther": "Qo'shimcha opsiya",
   "shFareRounding": "Yaxlitlash",
   "shFareSurge": "Talab koeffitsienti (×{multiplier})",
   "@shFareSurge": {
