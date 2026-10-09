@@ -7,12 +7,18 @@ plugins {
 
 android {
     namespace "uz.angren.taxi"
-    compileSdk = flutter.compileSdkVersion
-    // Pinned to an NDK already present on this machine. AGP auto-downloads a
-    // missing NDK on build, and large Google-CDN downloads stall in this
-    // environment, so we point at the locally available 26.1.10909125 instead
-    // of flutter.ndkVersion (which resolves to an uninstalled version).
-    ndkVersion = "26.1.10909125"
+    // flutter_tts SDK 36 ga qarshi kompilyatsiya qilinadi. compileSdk faqat
+    // qaysi API'lar ko'rinishini belgilaydi — ilova xulqini targetSdk
+    // (flutter.targetSdkVersion) boshqaradi, u o'zgarmadi.
+    compileSdk = 36
+    // Plaginlar talab qilgan eng yuqori NDK: maplibre_gl — 28.1, qolganlari
+    // 27.0. Pastroq versiyada build "Your project is configured with Android
+    // NDK ..., but the following plugin(s) depend on a different Android NDK
+    // version" deb ogohlantiradi. NDK'lar orqaga mos — eng yangisi tanlanadi.
+    // Plagin yangilanib talab o'ssa, shu xabar yana chiqadi: shu yerni
+    // ko'taring (AGP yetishmagan NDK'ni o'zi yuklashga urinadi, bu muhitda
+    // katta yuklamalar to'xtab qoladi — oldindan qo'lda o'rnating).
+    ndkVersion = "28.1.13356709"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
