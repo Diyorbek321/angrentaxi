@@ -58,19 +58,22 @@ class _FoodListScreenState extends State<FoodListScreen> {
                     onAction: () => context.read<FoodProvider>().loadRestaurants(),
                   )
                 else
-                  ListView(
+                  // Dangasa ro'yxat — faqat ko'ringan kartalar quriladi.
+                  ListView.builder(
                     padding: const EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, 110),
-                    children: [
-                      for (final r in food.restaurants) ...[
-                        _FoodCard(
+                    itemCount: food.restaurants.length,
+                    itemBuilder: (context, i) {
+                      final r = food.restaurants[i];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: kSpace4),
+                        child: _FoodCard(
                           restaurant: r,
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute<void>(builder: (_) => RestaurantDetailScreen(restaurantId: r.id)),
                           ),
                         ),
-                        const SizedBox(height: kSpace4),
-                      ],
-                    ],
+                      );
+                    },
                   ),
                 if (cart.cartCount > 0)
                   Positioned(

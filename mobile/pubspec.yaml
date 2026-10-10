@@ -38,6 +38,9 @@ dependencies:
   # Firebase
   firebase_core: ^2.27.0
   firebase_messaging: ^14.7.19
+  # Haqiqiy telefonlardagi ishga tushish vaqti va API so'rovlari davomiyligi
+  # (lib/core/network/performance_interceptor.dart).
+  firebase_performance: ^0.9.4+7
 
   # Utilities
   intl: ^0.20.2
@@ -91,6 +94,9 @@ flutter:
     - assets/animations/
     - assets/map/
     - assets/tariffs/
+    # Plus Jakarta Sans (OFL) — `GoogleFonts.config.allowRuntimeFetching`
+    # o'chirilgan, shrift faqat shu yerdan o'qiladi (main_*.dart).
+    - assets/google_fonts/
     # Navigatsiya ovoz bo'laklari (tool/generate_voice_clips.py). Bo'sh bo'lsa
     # ilova TTS bilan gapiradi.
     # Faqat haydovchi ilovasi — yo'lovchi APK'siga ortiqcha 1.3 MB kirmaydi.

@@ -70,97 +70,115 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
       backgroundColor: agSurface,
       body: Stack(
         children: [
-          ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              SizedBox(
-                height: 230,
+          // ⚠️ SLIVERLAR: menyu dangasa quriladi — faqat ekranda ko'ringan
+          // taomlar. Ilgari `ListView(children: [...])` 100 ta taomli menyuni
+          // ochishda hammasini birdaniga qurardi.
+          CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                // Oq varaq rasm ustiga 22dp chiqib turadi. `Transform` emas,
+                // `Stack`: transform joyni bo'shatmaydi va varaq bilan menyu
+                // orasida 22dp tirqish qolardi.
                 child: Stack(
                   children: [
-                    Container(
+                    SizedBox(
                       height: 230,
-                      width: double.infinity,
-                      color: agOrange,
-                      alignment: Alignment.center,
-                      child: ExcludeSemantics(
-                        child: Icon(Icons.restaurant_rounded,
-                            size: 96, color: agOnPrimary.withValues(alpha: 0.7)),
+                      child: Stack(
+                        children: [
+                          Container(
+                            height: 230,
+                            width: double.infinity,
+                            color: agOrange,
+                            alignment: Alignment.center,
+                            child: ExcludeSemantics(
+                              child:
+                                  Icon(Icons.restaurant_rounded, size: 96, color: agOnPrimary.withValues(alpha: 0.7)),
+                            ),
+                          ),
+                          Positioned(
+                            top: topPad + kSpace2,
+                            left: kSpace4,
+                            child: AgIconButton(
+                              icon: Icons.arrow_back_rounded,
+                              onTap: () => Navigator.of(context).pop(),
+                              semanticsLabel: context.l10n.saBack,
+                              background: agSurface,
+                              size: 44,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    Positioned(
-                      top: topPad + kSpace2,
-                      left: kSpace4,
-                      child: AgIconButton(
-                        icon: Icons.arrow_back_rounded,
-                        onTap: () => Navigator.of(context).pop(),
-                        semanticsLabel: context.l10n.saBack,
-                        background: agSurface,
-                        size: 44,
+                    Padding(
+                      padding: const EdgeInsets.only(top: 230 - 22),
+                      child: Container(
+                        width: double.infinity,
+                        decoration: const BoxDecoration(
+                          color: agSurface,
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(kRadiusXl)),
+                        ),
+                        padding: const EdgeInsets.fromLTRB(kSpace4, kSpace5, kSpace4, 0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            AppStatusBadge(
+                              label: r.isOpen ? context.l10n.saOpen : context.l10n.saClosed,
+                              tone: r.isOpen ? AppStatusTone.success : AppStatusTone.danger,
+                            ),
+                            const SizedBox(height: kSpace2),
+                            Text(r.name,
+                                style: const TextStyle(
+                                    fontSize: kFontH1,
+                                    fontWeight: FontWeight.w800,
+                                    color: agText,
+                                    letterSpacing: -0.4)),
+                            if (r.address != null) ...[
+                              const SizedBox(height: kSpace2),
+                              Row(
+                                children: [
+                                  const ExcludeSemantics(
+                                    child: Icon(Icons.location_on_rounded, size: 17, color: agSubtle),
+                                  ),
+                                  const SizedBox(width: kSpace2),
+                                  Expanded(
+                                    child: Text(r.address!,
+                                        style: const TextStyle(
+                                            fontSize: kFontCaption, color: agSubtle, fontWeight: FontWeight.w600)),
+                                  ),
+                                ],
+                              ),
+                            ],
+                            const SizedBox(height: kSpace5),
+                            Text(context.l10n.saMenu,
+                                style:
+                                    const TextStyle(fontSize: kFontTitle, fontWeight: FontWeight.w800, color: agText)),
+                            const SizedBox(height: kSpace3),
+                          ],
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-              Transform.translate(
-                offset: const Offset(0, -22),
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: agSurface,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(kRadiusXl)),
-                  ),
-                  padding: const EdgeInsets.fromLTRB(kSpace4, kSpace5, kSpace4, 120),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      AppStatusBadge(
-                        label: r.isOpen ? context.l10n.saOpen : context.l10n.saClosed,
-                        tone: r.isOpen ? AppStatusTone.success : AppStatusTone.danger,
-                      ),
-                      const SizedBox(height: kSpace2),
-                      Text(r.name,
-                          style: const TextStyle(
-                              fontSize: kFontH1,
-                              fontWeight: FontWeight.w800,
-                              color: agText,
-                              letterSpacing: -0.4)),
-                      if (r.address != null) ...[
-                        const SizedBox(height: kSpace2),
-                        Row(
-                          children: [
-                            const ExcludeSemantics(
-                              child: Icon(Icons.location_on_rounded, size: 17, color: agSubtle),
-                            ),
-                            const SizedBox(width: kSpace2),
-                            Expanded(
-                              child: Text(r.address!,
-                                  style: const TextStyle(
-                                      fontSize: kFontCaption,
-                                      color: agSubtle,
-                                      fontWeight: FontWeight.w600)),
-                            ),
-                          ],
-                        ),
-                      ],
-                      const SizedBox(height: kSpace5),
-                      Text(context.l10n.saMenu,
-                          style: const TextStyle(
-                              fontSize: kFontTitle, fontWeight: FontWeight.w800, color: agText)),
-                      const SizedBox(height: kSpace3),
-                      if (food.dishes.isEmpty)
-                        AppEmptyState(
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(kSpace4, 0, kSpace4, 120),
+                sliver: food.dishes.isEmpty
+                    ? SliverToBoxAdapter(
+                        child: AppEmptyState(
                           icon: Icons.restaurant_menu_rounded,
                           title: context.l10n.saMenuEmptyTitle,
                           message: context.l10n.saMenuEmptyMessage,
                           compact: true,
-                        )
-                      else
-                        for (final d in food.dishes) ...[
-                          _DishRow(dish: d, onAdd: d.isAvailable ? () => _add(context, d) : null),
-                          const SizedBox(height: kSpace3),
-                        ],
-                    ],
-                  ),
-                ),
+                        ),
+                      )
+                    : SliverList.separated(
+                        itemCount: food.dishes.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: kSpace3),
+                        itemBuilder: (context, i) {
+                          final d = food.dishes[i];
+                          return _DishRow(dish: d, onAdd: d.isAvailable ? () => _add(context, d) : null);
+                        },
+                      ),
               ),
             ],
           ),

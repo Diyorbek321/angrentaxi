@@ -156,61 +156,71 @@ class _SearchScreenState extends State<SearchScreen> {
                             title: context.l10n.saSearchEmptyTitle,
                             message: context.l10n.saSearchEmptyMessage,
                           )
-                        : ListView(
-                            padding: const EdgeInsets.fromLTRB(
-                                kSpace4, kSpace4, kSpace4, kSpace6),
-                            children: [
+                        // Dangasa ro'yxat: qatorlar QURUVCHI sifatida yig'iladi
+                        // (arzon yopilmalar), vidjetlar esa faqat ekranga
+                        // chiqqanda quriladi — katalog o'sganda ham qidiruv
+                        // har harfda yuzlab qatorni qayta qurmaydi.
+                        : Builder(builder: (context) {
+                            final rows = <WidgetBuilder>[
                               if (restaurants.isNotEmpty) ...[
-                                _sectionLabel(context.l10n.saSearchSectionRestaurants),
-                                for (final r in restaurants) ...[
-                                  _ResultRow(
-                                    color: agPrimary,
-                                    icon: Icons.restaurant_rounded,
-                                    title: r.name,
-                                    sub: r.address ?? (r.isOpen ? context.l10n.saOpen : context.l10n.saClosed),
-                                    trailing: AppStatusBadge(
-                                      label: r.isOpen ? context.l10n.saOpen : context.l10n.saClosed,
-                                      tone: r.isOpen
-                                          ? AppStatusTone.success
-                                          : AppStatusTone.neutral,
-                                      dense: true,
-                                    ),
-                                    onTap: () => Navigator.of(context).push(
-                                      MaterialPageRoute<void>(
-                                        builder: (_) => RestaurantDetailScreen(restaurantId: r.id),
+                                (_) => _sectionLabel(context.l10n.saSearchSectionRestaurants),
+                                for (final r in restaurants)
+                                  (context) => Padding(
+                                        padding: const EdgeInsets.only(bottom: kSpace3),
+                                        child: _ResultRow(
+                                          color: agPrimary,
+                                          icon: Icons.restaurant_rounded,
+                                          title: r.name,
+                                          sub: r.address ?? (r.isOpen ? context.l10n.saOpen : context.l10n.saClosed),
+                                          trailing: AppStatusBadge(
+                                            label: r.isOpen ? context.l10n.saOpen : context.l10n.saClosed,
+                                            tone: r.isOpen
+                                                ? AppStatusTone.success
+                                                : AppStatusTone.neutral,
+                                            dense: true,
+                                          ),
+                                          onTap: () => Navigator.of(context).push(
+                                            MaterialPageRoute<void>(
+                                              builder: (_) => RestaurantDetailScreen(restaurantId: r.id),
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: kSpace3),
-                                ],
-                                const SizedBox(height: kSpace3),
+                                (_) => const SizedBox(height: kSpace3),
                               ],
                               if (products.isNotEmpty) ...[
-                                _sectionLabel(context.l10n.saSearchSectionProducts),
-                                for (final p in products) ...[
-                                  _ResultRow(
-                                    color: p.color,
-                                    icon: p.icon,
-                                    title: p.name,
-                                    sub: context.l10n.saSearchMarketUnit(p.unit),
-                                    trailing: Text(
-                                      Formatters.formatSom(p.price),
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: kFontLabel,
-                                          color: agText),
-                                    ),
-                                    onTap: () => Navigator.of(context).push(
-                                      MaterialPageRoute<void>(
-                                        builder: (_) => ProductDetailScreen(marketProduct: p),
+                                (_) => _sectionLabel(context.l10n.saSearchSectionProducts),
+                                for (final p in products)
+                                  (context) => Padding(
+                                        padding: const EdgeInsets.only(bottom: kSpace3),
+                                        child: _ResultRow(
+                                          color: p.color,
+                                          icon: p.icon,
+                                          title: p.name,
+                                          sub: context.l10n.saSearchMarketUnit(p.unit),
+                                          trailing: Text(
+                                            Formatters.formatSom(p.price),
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: kFontLabel,
+                                                color: agText),
+                                          ),
+                                          onTap: () => Navigator.of(context).push(
+                                            MaterialPageRoute<void>(
+                                              builder: (_) => ProductDetailScreen(marketProduct: p),
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: kSpace3),
-                                ],
                               ],
-                            ],
-                          ),
+                            ];
+                            return ListView.builder(
+                              padding: const EdgeInsets.fromLTRB(
+                                  kSpace4, kSpace4, kSpace4, kSpace6),
+                              itemCount: rows.length,
+                              itemBuilder: (context, i) => rows[i](context),
+                            );
+                          }),
           ),
         ],
       ),

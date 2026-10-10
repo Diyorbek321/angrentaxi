@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:angren_taxi/core/network/api_client.dart';
+import 'package:angren_taxi/core/network/poll_gate.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
 import 'package:angren_taxi/shared/models/courier_tracking.dart';
 import 'package:flutter/foundation.dart';
@@ -62,7 +63,10 @@ class CourierTrackingController extends ChangeNotifier {
     _join(_tracking.orderId);
     final interval = refreshInterval;
     if (interval != null) {
-      _timer = Timer.periodic(interval, (_) => refresh());
+      final gate = PollGate(isConnected: () => _socketService.isConnected);
+      _timer = Timer.periodic(interval, (_) {
+        if (gate.shouldPoll()) refresh();
+      });
     }
   }
 

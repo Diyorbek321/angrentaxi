@@ -3,6 +3,7 @@ import 'package:angren_taxi/core/location/route_service.dart';
 import 'package:angren_taxi/core/location/voice_guide.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
+import 'package:angren_taxi/core/storage/json_cache.dart';
 import 'package:angren_taxi/core/storage/local_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
@@ -19,6 +20,7 @@ Future<void> setupServiceLocator() async {
   // SharedPreferences
   final prefs = await SharedPreferences.getInstance();
   sl.registerSingleton<SharedPreferences>(prefs);
+  sl.registerSingleton<JsonCache>(JsonCache(prefs));
 
   // Core services
   // LocalStorage is eager (not lazy) because its tokens must be loaded from

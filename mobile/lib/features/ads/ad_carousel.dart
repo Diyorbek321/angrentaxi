@@ -176,6 +176,12 @@ class _AdSlide extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tappable = banner.linkType != AdLinkType.none;
+    // Rasm ekran kengligida dekodlanadi: serverdagi asl fayl (ko'pincha
+    // 1500–2000 px) to'liq o'lchamda xotiraga ochilsa, arzon telefonlarda
+    // karusel aylanganda kadr tushib ketadi.
+    final decodeWidth = (MediaQuery.sizeOf(context).width *
+            MediaQuery.devicePixelRatioOf(context))
+        .round();
     return Semantics(
       image: true,
       button: tappable,
@@ -190,7 +196,12 @@ class _AdSlide extends StatelessWidget {
             ColoredBox(
               color: agSurface,
               child: Image(
-                image: image,
+                image: ResizeImage.resizeIfNeeded(
+                  // O'lcham hali noma'lum (0) bo'lsa — asl o'lchamda.
+                  decodeWidth > 0 ? decodeWidth : null,
+                  null,
+                  image,
+                ),
                 fit: BoxFit.cover,
                 frameBuilder: (context, child, frame, _) {
                   if (frame != null) {

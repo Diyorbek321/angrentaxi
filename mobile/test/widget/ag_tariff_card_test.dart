@@ -113,7 +113,10 @@ void main() {
     });
 
     testWidgets('rasm uyasi 82x38 va gorizontal markazda', (tester) async {
-      await tester.pumpWidget(_host(_card()));
+      // Ilovadagidek kenglik beriladi (qatorda `Expanded`). Aks holda karta
+      // matn kengligiga qisqaradi va natija test shriftiga bog'liq bo'lib
+      // qoladi: haqiqiy Plus Jakarta Sans test shriftidan tor.
+      await tester.pumpWidget(_host(SizedBox(width: 120, child: _card())));
 
       final art = tester.getRect(find.byKey(AgTariffCard.artKey));
       expect(art.width, 82);

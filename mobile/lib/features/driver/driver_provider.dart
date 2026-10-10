@@ -775,10 +775,15 @@ class DriverProvider extends ChangeNotifier {
         if (_activeOrder != null) 'orderId': _activeOrder!.id,
       };
       _socketService.emit(SocketEvents.driverLocation, payload);
+      // Socket handler joylashuvni o'zi DB + Redis'ga yozadi
+      // (`realtime.gateway.ts` → `driversService.updateLocation`). Ilgari
+      // HTTP ham har fiksda ketardi: harakatda har 4 soniyada ikki yozuv
+      // va ikki tarmoq so'rovi (batareya, trafik, DB yuki).
+      return;
     }
 
-    // HTTP backup, sent whenever online (not just mid-trip) so the driver's
-    // stored location stays fresh for nearby-driver matching.
+    // HTTP zaxira — faqat socket uzilganda, toki haydovchining saqlangan
+    // joylashuvi yaqin-haydovchi qidiruvi uchun eskirib qolmasin.
     _apiClient.post(
       ApiEndpoints.updateLocation,
       data: {'lat': position.latitude, 'lng': position.longitude},

@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
+import 'package:angren_taxi/core/storage/json_cache.dart';
 import 'package:angren_taxi/features/superapp/models/cart_item.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/market_category.dart';
@@ -20,11 +23,18 @@ class MarketProvider extends ChangeNotifier {
   MarketProvider({
     required ApiClient apiClient,
     required SocketService socketService,
+    JsonCache? cache,
   })  : _apiClient = apiClient,
-        _socketService = socketService;
+        _socketService = socketService,
+        _cache = cache;
 
   final ApiClient _apiClient;
   final SocketService _socketService;
+
+  /// Oxirgi ochilgan do'kon katalogi — ekran skeleton o'rniga shu nusxa
+  /// bilan darhol ochiladi (`json_cache.dart`).
+  final JsonCache? _cache;
+  static const String _storeKey = 'market.store';
 
   MarketProviderState _state = MarketProviderState.idle;
   String? _error;
@@ -58,7 +68,8 @@ class MarketProvider extends ChangeNotifier {
   /// requested store fails to load we fall back to the first one rather
   /// than greeting the user with an error after they tapped an ad.
   Future<void> loadStore({String? storeId}) async {
-    _setState(MarketProviderState.loading);
+    final showedCache = _showCachedStore(storeId);
+    _setState(showedCache ? MarketProviderState.success : MarketProviderState.loading);
     try {
       if (storeId != null) {
         try {
@@ -80,6 +91,8 @@ class MarketProvider extends ChangeNotifier {
       _setState(MarketProviderState.success);
     } catch (e) {
       debugPrint('[MarketProvider] loadStore error: $e');
+      // Keshdagi katalog ko'rinib turibdi — xato ekrani bilan almashtirmaymiz.
+      if (showedCache) return;
       _error = extractErrorMessage(e);
       _setState(MarketProviderState.error);
     }
@@ -88,13 +101,36 @@ class MarketProvider extends ChangeNotifier {
   Future<void> _loadStoreDetail(String storeId) async {
     final detailRes = await _apiClient.get(ApiEndpoints.marketStore(storeId));
     final detail = (detailRes.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
-    _store = MarketStore.fromJson(detail['store'] as Map<String, dynamic>);
-    _categories = ((detail['categories'] as List<dynamic>))
+    _applyStoreDetail(detail);
+    unawaited(_cache?.write(_storeKey, detail));
+  }
+
+  void _applyStoreDetail(Map<String, dynamic> detail) {
+    final store = MarketStore.fromJson(detail['store'] as Map<String, dynamic>);
+    final categories = ((detail['categories'] as List<dynamic>))
         .map((e) => MarketCategory.fromJson(e as Map<String, dynamic>))
         .toList();
-    _products = ((detail['products'] as List<dynamic>))
+    final products = ((detail['products'] as List<dynamic>))
         .map((e) => MarketProduct.fromJson(e as Map<String, dynamic>))
         .toList();
+    _store = store;
+    _categories = categories;
+    _products = products;
+  }
+
+  /// Keshdagi katalogni ko'rsatadi, agar u so'ralgan do'konniki bo'lsa.
+  bool _showCachedStore(String? storeId) {
+    final cached = _cache?.read(_storeKey);
+    if (cached is! Map<String, dynamic>) return false;
+    try {
+      final cachedId = (cached['store'] as Map<String, dynamic>)['id'];
+      if (storeId != null && cachedId != storeId) return false;
+      _applyStoreDetail(cached);
+      return true;
+    } catch (e) {
+      debugPrint('[MarketProvider] cached store unreadable: $e');
+      return false;
+    }
   }
 
   Future<MarketOrder?> createOrder({
@@ -187,4 +223,5 @@ class MarketProvider extends ChangeNotifier {
 MarketProvider buildMarketProvider() => MarketProvider(
       apiClient: sl<ApiClient>(),
       socketService: sl<SocketService>(),
+      cache: sl<JsonCache>(),
     );

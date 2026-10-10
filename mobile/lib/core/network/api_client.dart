@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/demo/demo_engine.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/core/network/performance_interceptor.dart';
 import 'package:angren_taxi/core/platform/device_identity.dart';
 import 'package:angren_taxi/core/storage/local_storage.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
@@ -116,6 +117,10 @@ class ApiClient {
         },
       ),
     );
+
+    // Oxirgi bo'lib qo'shiladi: o'lchov tarmoqqa chiqishdan oldin boshlanib,
+    // javob kelgan zahoti to'xtaydi (token yangilash kutishi kirmaydi).
+    _dio.interceptors.add(PerformanceInterceptor());
 
     // Debug builds only. `debugPrint` still writes in release mode, so an
     // unconditional LogInterceptor would put the `Authorization: Bearer <jwt>`

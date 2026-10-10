@@ -241,6 +241,19 @@ faylida turadi (git'ga kirmaydi). Yo'q bo'lsa namunadan yarating:
 `cp mobile/dart-defines.example.json mobile/.env.dart-defines.json` va kalitni yozing.
 Kalitsiz build xatosiz o'tadi, lekin xarita bo'sh chiqadi.
 
+Tarqatish uchun skript: ikkala ilovani protsessor turi (ABI) bo'yicha bo'lib va
+obfuskatsiya qilib yig'adi — APK ~68 MB o'rniga 2–3 baravar kichik
+(telefonlarning aksariyati uchun `app-arm64-v8a-release.apk`):
+
+```bash
+cd mobile
+API_BASE_URL=https://<backend-domen>/api/v1 WS_URL=https://<backend-domen> \
+  tool/build_release.sh
+```
+
+Xato steklarini o'qish uchun `build/symbols/<flavor>/` ni har reliz uchun saqlang.
+Qo'lda (bitta umumiy APK) yig'ish:
+
 ```bash
 cd mobile
 

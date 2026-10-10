@@ -79,8 +79,10 @@ class _TripScreenState extends State<TripScreen> {
     AppConfig.defaultLat,
     AppConfig.defaultLng,
   );
-  int _tripSeconds = 0;
-  Timer? _tripTimer;
+  /// Safar soati shu paytdan sanaydi. Soniya sanog'i [_TripClock] ichida:
+  /// ilgari bu yerdagi `Timer` har soniyada `setState` chaqirib, butun
+  /// ekranni (xarita, panel, kartalar) qayta qurardi.
+  final DateTime _tripStartedAt = DateTime.now();
 
   /// Sheet kontentining balandligini o'lchash uchun — kamera paddingi
   /// shundan hisoblanadi (`map_camera_insets.dart` dagi izohga qarang).
@@ -111,12 +113,10 @@ class _TripScreenState extends State<TripScreen> {
   void initState() {
     super.initState();
     _initLocation();
-    _startTripTimer();
   }
 
   @override
   void dispose() {
-    _tripTimer?.cancel();
     _positionSubscription?.cancel();
     _guidance?.removeListener(_onGuidanceChanged);
     // Ovoz ham to'xtaydi — safar tugagan ekranda burilish haqida gapirmasin.
@@ -168,18 +168,6 @@ class _TripScreenState extends State<TripScreen> {
 
   void _onGuidanceChanged() {
     if (mounted) setState(() {});
-  }
-
-  void _startTripTimer() {
-    _tripTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() => _tripSeconds++);
-    });
-  }
-
-  String get _tripTimeText {
-    final mins = _tripSeconds ~/ 60;
-    final secs = _tripSeconds % 60;
-    return '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
   }
 
   Future<void> _initLocation() async {
@@ -702,7 +690,7 @@ class _TripScreenState extends State<TripScreen> {
 
           return Stack(
             children: [
-              _buildMap(order),
+              RepaintBoundary(child: _buildMap(order)),
               _buildTopBar(order, wording),
               _buildPanel(order, provider, wording),
             ],
@@ -813,8 +801,8 @@ class _TripScreenState extends State<TripScreen> {
                         color: kOnMint.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(kRadiusXs),
                       ),
-                      child: Text(
-                        _tripTimeText,
+                      child: _TripClock(
+                        startedAt: _tripStartedAt,
                         style: const TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: kFontBody,
@@ -1157,4 +1145,46 @@ class _CameraFit {
       (insets.top - other.insets.top).abs() > _kFitInsetEpsilon ||
       (insets.right - other.insets.right).abs() > _kFitInsetEpsilon ||
       (insets.bottom - other.insets.bottom).abs() > _kFitInsetEpsilon;
+}
+
+/// Safar davomiyligini "MM:SS" ko'rinishida chizadi. Taymer faqat shu
+/// kichik vidjetni qayta quradi; vaqt har safar [startedAt] dan hisoblanadi,
+/// shuning uchun vidjet qayta yaratilsa ham sanoq nolga qaytmaydi.
+class _TripClock extends StatefulWidget {
+  const _TripClock({required this.startedAt, required this.style});
+
+  final DateTime startedAt;
+  final TextStyle style;
+
+  @override
+  State<_TripClock> createState() => _TripClockState();
+}
+
+class _TripClockState extends State<_TripClock> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final elapsed = DateTime.now().difference(widget.startedAt).inSeconds;
+    final mins = elapsed ~/ 60;
+    final secs = elapsed % 60;
+    return Text(
+      '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}',
+      style: widget.style,
+    );
+  }
 }
