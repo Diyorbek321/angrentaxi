@@ -178,7 +178,7 @@
       }
     }
   },
-  "paxRateHowWasTrip": "Sayohat qanday kechdi?",
+  "paxRateHowWasTrip": "Safar qanday kechdi?",
   "paxRateStarSemantics": "{count} yulduz",
   "@paxRateStarSemantics": {
     "placeholders": {
@@ -237,7 +237,7 @@
   "paxTipInsufficientFunds": "Hamyonda mablag' yetarli emas. Hamyonni to'ldiring yoki kichikroq summa tanlang.",
   "paxLocatingAddress": "Joylashuv aniqlanmoqda...",
   "paxMenu": "Menyu",
-  "paxWhereTo": "Qayoqqa boramiz?",
+  "paxWhereTo": "Qayerga borasiz?",
   "paxSavedPlaces": "Saqlangan joylar",
   "paxSearchAddressSemantics": "Manzilni qidiring",
   "paxOutsideServiceArea": "Xizmat hududidan tashqarida",
@@ -491,5 +491,7 @@
         "type": "String"
       }
     }
-  }
+  },
+  "paxRecentPlaces": "Oxirgi manzillar",
+  "paxAddressNotFoundHint": "Xaritadan aniq joyni belgilang yoki boshqacha yozib ko'ring"
 }

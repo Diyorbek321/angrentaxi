@@ -1,9 +1,9 @@
 {
   "fmtCurrencySom": "{amount} so'm",
   "@fmtCurrencySom": {"placeholders": {"amount": {"type": "String"}}},
-  "fmtMillionUzs": "{value} mln UZS",
+  "fmtMillionUzs": "{value} mln so'm",
   "@fmtMillionUzs": {"placeholders": {"value": {"type": "String"}}},
-  "fmtThousandUzs": "{value} ming UZS",
+  "fmtThousandUzs": "{value} ming so'm",
   "@fmtThousandUzs": {"placeholders": {"value": {"type": "String"}}},
   "fmtToday": "Bugun",
   "fmtTomorrow": "Ertaga",

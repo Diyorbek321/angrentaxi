@@ -3,6 +3,7 @@ import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/driver/service_wording.dart';
 import 'package:angren_taxi/features/driver/widgets/delivery_info_card.dart';
 import 'package:angren_taxi/features/driver/widgets/parcel_info_card.dart';
+import 'package:angren_taxi/features/driver/widgets/passenger_contact_card.dart';
 import 'package:angren_taxi/features/driver/widgets/trip_options_badges.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order.dart';
@@ -93,6 +94,10 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
                       // ketmasligi kerak.
                       _buildWaitingBlock(order),
                       const SizedBox(height: kSpace6),
+                      // Yo'lovchi ko'rinmasa haydovchi birinchi qo'ng'iroq
+                      // qiladi — tugma shu ekranda bo'lishi shart.
+                      PassengerContactCard(order: order, wording: wording),
+                      const SizedBox(height: kSpace4),
                       _buildOrderInfo(order, wording),
                       if (order.options.isNotEmpty) ...[
                         const SizedBox(height: kSpace4),

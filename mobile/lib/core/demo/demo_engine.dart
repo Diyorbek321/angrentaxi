@@ -30,7 +30,11 @@ class DemoEngine {
 
   /// Routes a REST call to canned data. Returns the full response body the app
   /// expects (`{ "data": ... }`). Side effects (timelines) are started here.
-  Map<String, dynamic> handle(String method, String path, dynamic data) {
+  Map<String, dynamic> handle(String method, String rawPath, dynamic data) {
+    // Ba'zi so'rovlar so'rov qatorini yo'lga qo'shib yuboradi
+    // (`/tariffs?serviceType=taxi`) — `endsWith` tekshiruvlari ishlashi uchun
+    // u olib tashlanadi.
+    final path = Uri.parse(rawPath).path;
     final body = data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
     debugPrint('[Demo] $method $path');
 
@@ -106,8 +110,13 @@ class DemoEngine {
     }
 
     if (path.endsWith('/orders/history')) {
-      // ?status=active → none active at start (clean home screen)
-      return _okList(DemoData.orderHistory());
+      // Haqiqiy API: `{orders, total, page, limit}` (ham yo'lovchi, ham
+      // haydovchi shu yo'lni ishlatadi). Boshida faol buyurtma yo'q.
+      final orders = DemoData.orderHistory();
+      return _ok({'orders': orders, 'total': orders.length, 'page': 1, 'limit': 20});
+    }
+    if (path.endsWith('/orders/scheduled')) {
+      return _okList(const []);
     }
 
     // ---- Ratings / promo ----
@@ -126,8 +135,18 @@ class DemoEngine {
     }
 
     // ---- Driver ----
-    if (path.endsWith('/drivers/profile')) {
+    if (path.endsWith('/drivers/profile') || path.endsWith('/drivers/me')) {
       return _ok(DemoData.driver());
+    }
+    // Hozirgi API: `PATCH /drivers/status {isOnline}`. Eski
+    // `/drivers/online|offline` yo'llari ham qoldiriladi.
+    if (path.endsWith('/drivers/status')) {
+      if (body['isOnline'] == true) {
+        _startDriverOffer();
+      } else {
+        _cancelTimers();
+      }
+      return _ok({'isOnline': body['isOnline'] == true});
     }
     if (path.endsWith('/drivers/online')) {
       _startDriverOffer();
@@ -146,34 +165,68 @@ class DemoEngine {
     if (path.endsWith('/drivers/orders/history')) {
       return _okList(DemoData.orderHistory());
     }
-    if (path.contains('/drivers/orders/') && path.endsWith('/accept')) {
+    if (path.contains('/orders/') && path.endsWith('/accept')) {
       _driverOrder = _updateDriverStatus('driver_assigned');
       return _ok(_driverOrder!);
     }
-    if (path.contains('/drivers/orders/') && path.endsWith('/decline')) {
+    if (path.contains('/orders/') && path.endsWith('/decline')) {
       return _ok({'declined': true});
     }
-    if (path.contains('/drivers/orders/') && path.endsWith('/arrived')) {
+    if (path.contains('/orders/') && path.endsWith('/arrived')) {
       _driverOrder = _updateDriverStatus('driver_arrived');
       return _ok(_driverOrder!);
     }
-    if (path.contains('/drivers/orders/') && path.endsWith('/start')) {
+    if (path.contains('/orders/') && path.endsWith('/start')) {
       _driverOrder = _updateDriverStatus('in_progress');
       return _ok(_driverOrder!);
     }
-    if (path.contains('/drivers/orders/') && path.endsWith('/complete')) {
+    if (path.contains('/orders/') && path.endsWith('/complete')) {
       final completed = _updateDriverStatus('completed');
       completed['actualPrice'] = completed['estimatedPrice'];
       _driverOrder = null;
       return _ok(completed);
     }
-    if (path.contains('/drivers/orders/') && path.endsWith('/location')) {
+    if (path.contains('/orders/') && path.endsWith('/location')) {
       return _ok({});
     }
 
     // ---- Notifications ----
     if (path.endsWith('/notifications/register-token')) {
       return _ok({'registered': true});
+    }
+
+    // ---- Super-app: hamyon, ovqat, market, reklama ----
+    if (path.endsWith('/payments/wallet')) {
+      return _ok({'userId': DemoData.passengerUserId, 'balance': _walletBalance});
+    }
+    if (path.endsWith('/food/restaurants')) {
+      return _okList(DemoData.restaurants());
+    }
+    if (path.contains('/food/restaurants/')) {
+      return _ok(DemoData.restaurantDetail(path.split('/').last));
+    }
+    if (path.endsWith('/market/stores')) {
+      return _okList([DemoData.store()]);
+    }
+    if (path.contains('/market/stores/')) {
+      return _ok(DemoData.storeDetail());
+    }
+    if (path.endsWith('/food/orders') ||
+        path.endsWith('/market/orders') ||
+        path.endsWith('/ads/active') ||
+        path.endsWith('/users/favorite-addresses')) {
+      return _okList(const []);
+    }
+
+    if (path.endsWith('/driver-bonus-rules/me/progress')) {
+      return _okList(const []);
+    }
+    // `GET /orders/:id` — faol buyurtmani yangilash (yo'lovchi yoki haydovchi).
+    if (method == 'GET' && RegExp(r'/orders/[^/]+$').hasMatch(path)) {
+      final id = path.split('/').last;
+      final order = [_passengerOrder, _driverOrder]
+          .firstWhere((o) => o?['id'] == id, orElse: () => null);
+      if (order != null) return _ok(order);
     }
 
     // Fallback: empty success
@@ -306,6 +359,13 @@ class DemoEngine {
         'tariffId': 'tariff-komfort',
         'distanceKm': 4.2,
         'durationMin': 14,
+        'tripDistanceKm': 4.2,
+        'tripDurationMin': 14,
+        'passenger': {
+          'firstName': 'Aziz',
+          'lastName': 'Karimov',
+          'phone': '+998901234567',
+        },
       };
       _socket.simulateIncoming(SocketEvents.newOrderOffer, _driverOrder);
     });

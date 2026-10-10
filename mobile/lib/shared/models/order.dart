@@ -216,6 +216,8 @@ class Order extends Equatable {
     this.cancelReason,
     this.distanceKm,
     this.durationMin,
+    this.tripDistanceKm,
+    this.tripDurationMin,
     this.passengerPhone,
     this.passengerName,
     this.scheduledAt,
@@ -245,6 +247,14 @@ class Order extends Equatable {
   final String? cancelReason;
   final double? distanceKm;
   final int? durationMin;
+
+  /// Safarning o'zi (olish → manzil), buyurtmada qotirilgan baholash.
+  /// Taklif paketida keladi (`matching.service.ts`); taksometrda yo'q.
+  ///
+  /// ⚠️ [distanceKm] bilan adashtirmang: taklifda u haydovchidan OLISH
+  /// NUQTASIGACHA bo'lgan masofa.
+  final double? tripDistanceKm;
+  final int? tripDurationMin;
   final String? passengerPhone;
   final String? passengerName;
 
@@ -373,6 +383,8 @@ class Order extends Equatable {
           ? (json['distanceKm'] as num).toDouble()
           : null,
       durationMin: json['durationMin'] as int?,
+      tripDistanceKm: (json['tripDistanceKm'] as num?)?.toDouble(),
+      tripDurationMin: (json['tripDurationMin'] as num?)?.round(),
       passengerPhone: json['passenger'] != null
           ? (json['passenger'] as Map<String, dynamic>)['phone'] as String?
           : null,
@@ -428,6 +440,8 @@ class Order extends Equatable {
         'cancelReason': cancelReason,
         'distanceKm': distanceKm,
         'durationMin': durationMin,
+        'tripDistanceKm': tripDistanceKm,
+        'tripDurationMin': tripDurationMin,
         'scheduledAt': scheduledAt?.toIso8601String(),
         'serviceType': serviceType,
         'arrivedAt': arrivedAt?.toIso8601String(),
@@ -492,6 +506,8 @@ class Order extends Equatable {
       cancelReason: cancelReason ?? this.cancelReason,
       distanceKm: distanceKm ?? this.distanceKm,
       durationMin: durationMin ?? this.durationMin,
+      tripDistanceKm: tripDistanceKm,
+      tripDurationMin: tripDurationMin,
       scheduledAt: scheduledAt ?? this.scheduledAt,
       serviceType: serviceType ?? this.serviceType,
       // ⚠️ `copyWith` bu maydonni TOZALAY OLMAYDI (`??` naqshi). Buyurtma
@@ -528,6 +544,8 @@ class Order extends Equatable {
         cancelReason,
         distanceKm,
         durationMin,
+        tripDistanceKm,
+        tripDurationMin,
         // ⚠️ `props` GA QO'SHILISHI SHART. `Order extends Equatable`, ya'ni
         // bu yerda yo'q maydon tenglikda HISOBGA OLINMAYDI: `copyWith(
         // scheduledAt: ...)` natijasi eskisiga TENG deb topilardi va

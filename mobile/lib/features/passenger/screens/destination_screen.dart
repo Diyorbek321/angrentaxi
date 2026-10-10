@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:angren_taxi/core/config/app_responsive.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/passenger/favorites_provider.dart';
@@ -12,7 +14,6 @@ import 'package:angren_taxi/shared/widgets/ag_map_fab.dart';
 import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
 import 'package:angren_taxi/shared/widgets/app_pressable.dart';
 import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
-import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:latlong2/latlong.dart';
@@ -140,6 +141,14 @@ class _DestinationScreenState extends State<DestinationScreen> {
   bool _isSearching = false;
   String? _searchError;
 
+  /// Har harfda geokoderga borilmaydi: yozish to'xtagach so'raladi.
+  Timer? _debounce;
+  static const Duration _kSearchDebounce = Duration(milliseconds: 400);
+
+  /// Eng oxirgi so'rov raqami. Sekin kelgan ESKI javob (masalan "boz")
+  /// yangisining ("bozor") ustiga yozilmasligi uchun.
+  int _searchSeq = 0;
+
   @override
   void initState() {
     super.initState();
@@ -147,11 +156,13 @@ class _DestinationScreenState extends State<DestinationScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _resolvePickupAddress();
       context.read<FavoritesProvider>().loadFavorites();
+      context.read<OrderProvider>().loadRecentDestinations();
     });
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -207,26 +218,35 @@ class _DestinationScreenState extends State<DestinationScreen> {
     if (result != null) onPicked(result);
   }
 
-  Future<void> _onSearchChanged(String query) async {
+  void _onSearchChanged(String query) {
+    _debounce?.cancel();
     if (query.length < 3) {
+      _searchSeq++;
       setState(() {
         _suggestions = [];
         _searchError = null;
+        _isSearching = false;
       });
       return;
     }
-
+    // Skeleton darhol — foydalanuvchi so'rov ketganini ko'radi.
     setState(() {
       _isSearching = true;
       _searchError = null;
     });
+    _debounce = Timer(_kSearchDebounce, () => _search(query));
+  }
+
+  Future<void> _search(String query) async {
+    final seq = ++_searchSeq;
+    bool stale() => !mounted || seq != _searchSeq;
 
     try {
       final locations = await locationFromAddress(
         '$query, Angren, Uzbekistan',
       ).timeout(const Duration(seconds: 5));
 
-      if (!mounted) return;
+      if (stale()) return;
 
       final suggestions = <_AddressSuggestion>[];
       for (final loc in locations.take(5)) {
@@ -251,14 +271,17 @@ class _DestinationScreenState extends State<DestinationScreen> {
         }
       }
 
-      if (mounted) {
+      if (!stale()) {
         setState(() {
           _suggestions = suggestions;
           _isSearching = false;
         });
       }
     } catch (e) {
-      if (mounted) {
+      // Android geokoderi "topilmadi" ni ham XATO bilan qaytaradi — ikkalasi
+      // foydalanuvchi uchun bitta holat: manzil topilmadi (pastda xaritadan
+      // tanlash taklif qilinadi).
+      if (!stale()) {
         setState(() {
           _isSearching = false;
           _searchError = context.l10n.paxAddressNotFound;
@@ -594,7 +617,14 @@ class _DestinationScreenState extends State<DestinationScreen> {
                         fontSize: context.fs(kFontBodyLg),
                         color: kInkMuted,
                       ),
+                      // Ramka va fon TASHQI konteynerda. Mavzudagi
+                      // `filled` + `focusedBorder` bu yerga ham tushib,
+                      // ichkarida ikkinchi yashil ramka chizardi.
                       border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      filled: false,
+                      contentPadding: EdgeInsets.zero,
                       isDense: true,
                     ),
                     textInputAction: TextInputAction.search,
@@ -652,11 +682,7 @@ class _DestinationScreenState extends State<DestinationScreen> {
               AgActionItem(
                 icon: Icons.map_outlined,
                 label: context.l10n.paxPickOnMap,
-                onTap: () => _openMapPicker(
-                  title: context.l10n.paxTo,
-                  initial: initial,
-                  onPicked: _selectLocation,
-                ),
+                onTap: _pickDestinationOnMap,
               ),
               if (canAddStop)
                 AgActionItem(
@@ -687,6 +713,15 @@ class _DestinationScreenState extends State<DestinationScreen> {
     );
   }
 
+  void _pickDestinationOnMap() {
+    final pickup = context.read<OrderProvider>().pendingPickup;
+    _openMapPicker(
+      title: context.l10n.paxTo,
+      initial: pickup != null ? LatLng(pickup.lat, pickup.lng) : null,
+      onPicked: _selectLocation,
+    );
+  }
+
   /// Manzil takliflari uch holatga ega: yuklanmoqda (skeleton, spinner
   /// emas) - xato - bo'sh.
   Widget _buildContent(OrderLocation? pickup) {
@@ -694,17 +729,18 @@ class _DestinationScreenState extends State<DestinationScreen> {
       return const AppSkeletonList(itemCount: 4, lines: 2);
     }
 
-    if (_searchError != null) {
-      return AppErrorState(
-        message: _searchError!,
-        onRetry: () => _onSearchChanged(_searchController.text),
-      );
-    }
-
-    if (_suggestions.isEmpty && _searchController.text.length >= 3) {
+    // Topilmadi (yoki geokoder xato berdi) — "Qayta urinish" emas: o'sha
+    // so'z qayta qidirilsa ham topilmaydi. Angrenda joylar ko'pincha mo'ljal
+    // bilan aytiladi va geokoder ularni bilmaydi — yagona ishlaydigan yo'l
+    // xaritada belgilash.
+    if (_searchError != null ||
+        (_suggestions.isEmpty && _searchController.text.length >= 3)) {
       return AppEmptyState(
         icon: Icons.search_off_rounded,
-        title: context.l10n.paxNoResults,
+        title: context.l10n.paxAddressNotFound,
+        message: context.l10n.paxAddressNotFoundHint,
+        actionLabel: context.l10n.paxPickOnMap,
+        onAction: _pickDestinationOnMap,
       );
     }
 
@@ -744,11 +780,20 @@ class _DestinationScreenState extends State<DestinationScreen> {
     );
   }
 
+  /// Qidiruv bo'sh bo'lganda: saqlangan joylar va OXIRGI MANZILLAR.
+  ///
+  /// Oxirgi manzillar tarixdan olinadi (`OrderProvider.recentDestinations`)
+  /// — takroriy safar ikki bosishga qisqaradi: "Qayerga?" → manzil.
+  /// Ilgari bu yerda faqat saqlangan joylar bor edi va ular bo'lmasa ekran
+  /// pastki 2/3 qismi bo'm-bo'sh turardi.
   Widget _buildRecentPlaces(OrderLocation? pickup) {
-    return Consumer<FavoritesProvider>(
-      builder: (context, favoritesProvider, _) {
+    return Consumer2<FavoritesProvider, OrderProvider>(
+      builder: (context, favoritesProvider, orderProvider, _) {
         final favorites = favoritesProvider.favorites;
-        if (favorites.isEmpty) {
+        final recent = widget.isSavingFavorite
+            ? const <OrderLocation>[]
+            : orderProvider.recentDestinations;
+        if (favorites.isEmpty && recent.isEmpty) {
           return const SizedBox.shrink();
         }
 
@@ -756,32 +801,56 @@ class _DestinationScreenState extends State<DestinationScreen> {
           padding:
               const EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, kSpace4),
           children: [
-            Padding(
-              padding: const EdgeInsets.only(left: kSpace1, bottom: kSpace2),
-              child: Text(
-                context.l10n.paxSavedAddresses,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  // Kichik sarlavha — `kInkSubtle` emas, `kInkMuted`.
-                  color: kInkMuted,
-                  fontSize: kFontLabel,
-                ),
+            if (favorites.isNotEmpty) ...[
+              _sectionTitle(context.l10n.paxSavedAddresses),
+              AgSurfaceCard(
+                padding: EdgeInsets.zero,
+                child: _cardRows([
+                  for (var i = 0; i < favorites.length; i++) ...[
+                    if (i > 0) const _PlaceDivider(),
+                    _buildFavoriteRow(favorites[i], pickup),
+                  ],
+                ]),
               ),
-            ),
-            AgSurfaceCard(
-              padding: EdgeInsets.zero,
-              child: _cardRows([
-                for (var i = 0; i < favorites.length; i++) ...[
-                  if (i > 0) const _PlaceDivider(),
-                  _buildFavoriteRow(favorites[i], pickup),
-                ],
-              ]),
-            ),
+            ],
+            if (recent.isNotEmpty) ...[
+              if (favorites.isNotEmpty) const SizedBox(height: kSpace4),
+              _sectionTitle(context.l10n.paxRecentPlaces),
+              AgSurfaceCard(
+                padding: EdgeInsets.zero,
+                child: _cardRows([
+                  for (var i = 0; i < recent.length; i++) ...[
+                    if (i > 0) const _PlaceDivider(),
+                    _PlaceRow(
+                      icon: Icons.history_rounded,
+                      iconColor: kInkMuted,
+                      title: recent[i].address,
+                      trailingLabel:
+                          _airDistanceLabel(pickup, recent[i].lat, recent[i].lng),
+                      onTap: () => _selectLocation(recent[i]),
+                    ),
+                  ],
+                ]),
+              ),
+            ],
           ],
         );
       },
     );
   }
+
+  Widget _sectionTitle(String text) => Padding(
+        padding: const EdgeInsets.only(left: kSpace1, bottom: kSpace2),
+        child: Text(
+          text,
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            // Kichik sarlavha — `kInkSubtle` emas, `kInkMuted`.
+            color: kInkMuted,
+            fontSize: kFontLabel,
+          ),
+        ),
+      );
 
   Widget _buildFavoriteRow(FavoriteAddress favorite, OrderLocation? pickup) {
     return _PlaceRow(

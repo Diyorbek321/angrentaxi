@@ -9,12 +9,10 @@ class Formatters {
     'uz_UZ',
   );
 
-  static String formatPrice(double amount) {
-    final formatted = _priceFormat.format(amount.toInt());
-    // Replace standard comma grouping with space
-    final spaced = formatted.replaceAll(',', ' ');
-    return '$spaced UZS';
-  }
+  /// Narx — ilova bo'ylab BITTA ko'rinishda: "18 500 so'm" ("сум").
+  /// Ilgari bu "18 500 UZS" berardi, `formatSom` esa "so'm" — bitta
+  /// safarning narxi bir ekranda UZS, keyingisida so'm bo'lib chiqardi.
+  static String formatPrice(double amount) => formatSom(amount);
 
   /// Angren Go style amount: "18 000 so'm" (space grouping, so'm suffix).
   static String formatSom(double amount) {
@@ -34,7 +32,7 @@ class Formatters {
     if (amount >= 1000) {
       return AppL10n.current.fmtThousandUzs((amount / 1000).toStringAsFixed(0));
     }
-    return '${amount.toInt()} UZS';
+    return formatSom(amount);
   }
 
   static String formatDate(DateTime date) {

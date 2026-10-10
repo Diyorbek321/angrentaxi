@@ -1,7 +1,7 @@
 {
   "fmtCurrencySom": "{amount} сум",
-  "fmtMillionUzs": "{value} млн UZS",
-  "fmtThousandUzs": "{value} тыс. UZS",
+  "fmtMillionUzs": "{value} млн сум",
+  "fmtThousandUzs": "{value} тыс. сум",
   "fmtToday": "Сегодня",
   "fmtTomorrow": "Завтра",
   "fmtTodayAt": "Сегодня, {time}",

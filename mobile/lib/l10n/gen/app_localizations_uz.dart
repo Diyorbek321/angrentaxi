@@ -452,10 +452,10 @@ class AppLocalizationsUz extends AppLocalizations {
   String get drvGallery => 'Galereya';
 
   @override
-  String get drvGoOffline => 'Offline bo\'lish';
+  String get drvGoOffline => 'Oflayn bo\'lish';
 
   @override
-  String get drvGoOnline => 'Online bo\'lish';
+  String get drvGoOnline => 'Onlayn bo\'lish';
 
   @override
   String get drvGoOnlineBlocked => 'Onlayn bo\'lish yopiq';
@@ -600,13 +600,13 @@ class AppLocalizationsUz extends AppLocalizations {
   String get drvOfferNotificationTitle => 'Yangi buyurtma';
 
   @override
-  String get drvOffline => 'Offline';
+  String get drvOffline => 'Oflayn';
 
   @override
   String get drvOfflineLower => 'offline';
 
   @override
-  String get drvOnline => 'Online';
+  String get drvOnline => 'Onlayn';
 
   @override
   String get drvOnlineLower => 'online';
@@ -1030,6 +1030,9 @@ class AppLocalizationsUz extends AppLocalizations {
   String get drvTripInProgress => 'Safar davom etmoqda';
 
   @override
+  String get drvTripLength => 'Safar';
+
+  @override
   String drvTripsCount(int count) {
     return '$count ta safar';
   }
@@ -1220,7 +1223,7 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String fmtMillionUzs(String value) {
-    return '$value mln UZS';
+    return '$value mln so\'m';
   }
 
   @override
@@ -1239,7 +1242,7 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String fmtThousandUzs(String value) {
-    return '$value ming UZS';
+    return '$value ming so\'m';
   }
 
   @override
@@ -1275,6 +1278,10 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get paxAddressNotFound => 'Manzilni topib bo\'lmadi';
+
+  @override
+  String get paxAddressNotFoundHint =>
+      'Xaritadan aniq joyni belgilang yoki boshqacha yozib ko\'ring';
 
   @override
   String get paxAddressResolveFailed => 'Manzilni aniqlab bo\'lmadi';
@@ -1581,7 +1588,7 @@ class AppLocalizationsUz extends AppLocalizations {
   String get paxRateCommentHint => 'Haydovchi haqida izoh...';
 
   @override
-  String get paxRateHowWasTrip => 'Sayohat qanday kechdi?';
+  String get paxRateHowWasTrip => 'Safar qanday kechdi?';
 
   @override
   String get paxRatePleaseRate => 'Iltimos, baho bering';
@@ -1735,6 +1742,9 @@ class AppLocalizationsUz extends AppLocalizations {
   @override
   String get paxReceiptWaitingNote =>
       'Kutish haqi belgilangan narxga kirmaydi: bepul daqiqalardan keyin har boshlangan daqiqa alohida qo\'shiladi.';
+
+  @override
+  String get paxRecentPlaces => 'Oxirgi manzillar';
 
   @override
   String get paxReferralApplied => 'Referral kodi qo\'llandi!';
@@ -2034,7 +2044,7 @@ class AppLocalizationsUz extends AppLocalizations {
   }
 
   @override
-  String get paxWhereTo => 'Qayoqqa boramiz?';
+  String get paxWhereTo => 'Qayerga borasiz?';
 
   @override
   String saActiveOrderLabel(String service, String title, String stage) {

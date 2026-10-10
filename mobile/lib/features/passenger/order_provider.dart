@@ -4,6 +4,7 @@ import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/city_coverage.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/core/network/poll_gate.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/driver.dart';
@@ -734,9 +735,12 @@ class OrderProvider extends ChangeNotifier {
   void _startSync() {
     _syncTimer?.cancel();
     final interval = syncInterval;
+    final gate = PollGate(isConnected: () => _socketService.isConnected);
     _syncTimer = interval == null
         ? null
-        : Timer.periodic(interval, (_) => _syncActiveOrder());
+        : Timer.periodic(interval, (_) {
+            if (gate.shouldPoll()) _syncActiveOrder();
+          });
     _socketService.removeReconnectListener(_onSocketReconnect);
     _socketService.addReconnectListener(_onSocketReconnect);
   }
@@ -823,6 +827,47 @@ class OrderProvider extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('[OrderProvider] checkActiveOrder error: $e');
+    }
+  }
+
+  /// Oxirgi borilgan joylar — manzil ekranida bir bosishda tanlash uchun.
+  ///
+  /// Kichik shaharda odamlarning safarlari asosan bir xil 3–5 joy orasida
+  /// (uy, ish, bozor, ota-ona uyi) — har safar qidirib yozish ortiqcha.
+  /// Tarix yangisidan eskisiga keladi; bir xil manzil bir marta olinadi.
+  /// Taksometr (manzilsiz) va kuryer safarlari olinmaydi.
+  List<OrderLocation> get recentDestinations {
+    final seen = <String>{};
+    final result = <OrderLocation>[];
+    for (final order in _orderHistory) {
+      if (order.isMetered || order.isDelivery) continue;
+      if (order.status != OrderStatus.completed) continue;
+      final key = order.dropoff.address.trim().toLowerCase();
+      if (key.isEmpty || !seen.add(key)) continue;
+      result.add(order.dropoff);
+      if (result.length == maxRecentDestinations) break;
+    }
+    return result;
+  }
+
+  static const int maxRecentDestinations = 5;
+
+  /// Tarixni JIMGINA yuklaydi — [loadOrderHistory] dan farqi: umumiy
+  /// [_state] / [_error] ga TEGMAYDI. Manzil ekrani ochilganda chaqiriladi;
+  /// uning xatosi buyurtma oqimida "Noma'lum xatolik" bo'lib chiqmasligi
+  /// kerak — oxirgi manzillar shunchaki ko'rinmaydi.
+  Future<void> loadRecentDestinations() async {
+    if (_orderHistory.isNotEmpty) return;
+    try {
+      final response = await _apiClient.get(ApiEndpoints.orderHistory);
+      final data = response.data as Map<String, dynamic>;
+      final list =
+          (data['data'] as Map<String, dynamic>)['orders'] as List<dynamic>;
+      _orderHistory =
+          list.map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[OrderProvider] loadRecentDestinations error: $e');
     }
   }
 

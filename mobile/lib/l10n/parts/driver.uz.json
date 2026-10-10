@@ -161,8 +161,8 @@
       }
     }
   },
-  "drvOnline": "Online",
-  "drvOffline": "Offline",
+  "drvOnline": "Onlayn",
+  "drvOffline": "Oflayn",
   "drvOnlineLower": "online",
   "drvOfflineLower": "offline",
   "drvBonusRemaining": "Yana {count} ta safar — {amount}",
@@ -498,8 +498,8 @@
   "drvVerificationIncompleteShort": "Tekshiruv to'liq emas — talablarni bajaring.",
   "drvDocsExpiringSoonShort": "Ba'zi hujjatlarning muddati tugayapti. Oldindan yangilab qo'ying.",
   "drvView": "Ko'rish",
-  "drvGoOffline": "Offline bo'lish",
-  "drvGoOnline": "Online bo'lish",
+  "drvGoOffline": "Oflayn bo'lish",
+  "drvGoOnline": "Onlayn bo'lish",
   "drvAcceptedOrders": "Qabul qilinadigan buyurtmalar",
   "drvServiceChipUnavailable": "{label}, mavjud emas. Xizmat turlarini ochish",
   "@drvServiceChipUnavailable": {
@@ -700,5 +700,6 @@
   "drvOfferNotificationChannel": "Yangi buyurtmalar",
   "drvReadyOverlay": "Boshqa ilovalar ustida ko'rsatish",
   "drvReadyOverlayWhy": "Ilovadan chiqib ketganingizda zakaz kelsa, ilova o'zi ochiladi. Ekran chetida kichik tugma turadi — bosib qaytasiz.",
-  "drvReadyOverlayXiaomi": "Xiaomi/Redmi: Sozlamalar → Ilovalar → Angren Taxi Driver → Boshqa ruxsatlar → «Fonda ishlayotganda qalqib chiquvchi oynalarni ko'rsatish» ni ham yoqing."
+  "drvReadyOverlayXiaomi": "Xiaomi/Redmi: Sozlamalar → Ilovalar → Angren Taxi Driver → Boshqa ruxsatlar → «Fonda ishlayotganda qalqib chiquvchi oynalarni ko'rsatish» ni ham yoqing.",
+  "drvTripLength": "Safar"
 }

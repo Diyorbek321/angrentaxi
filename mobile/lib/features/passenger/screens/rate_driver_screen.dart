@@ -100,7 +100,9 @@ class _RateDriverScreenState extends State<RateDriverScreen>
     // Animate all stars up to and including the tapped one.
     for (int i = 0; i < 5; i++) {
       if (i <= index) {
-        _starControllers[i].forward().then((_) => _starControllers[i].reverse());
+        _starControllers[i]
+            .forward()
+            .then((_) => _starControllers[i].reverse());
       }
     }
   }
@@ -313,8 +315,8 @@ class _RateDriverScreenState extends State<RateDriverScreen>
                         const SizedBox(height: kSpace1 + 2),
                         Text(
                           context.l10n.paxRateHowWasTrip,
-                          style:
-                              const TextStyle(fontSize: kFontTitle, color: kInkMuted),
+                          style: const TextStyle(
+                              fontSize: kFontTitle, color: kInkMuted),
                         ),
                         const SizedBox(height: kSpace6),
 
@@ -443,10 +445,9 @@ class _RateDriverScreenState extends State<RateDriverScreen>
     );
   }
 
-  String get _primaryLabel =>
-      _ratingSubmitted && _tipLocked
-          ? context.l10n.paxClose
-          : context.l10n.paxSend;
+  String get _primaryLabel => _ratingSubmitted && _tipLocked
+      ? context.l10n.paxClose
+      : context.l10n.paxSend;
 
   String get _primarySemanticsLabel {
     final amount = _tipAmount;
@@ -566,8 +567,7 @@ class _RateDriverScreenState extends State<RateDriverScreen>
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: kSurface2,
-                  hintText:
-                      '${Formatters.formatAmount(_tipMin.toDouble())} – '
+                  hintText: '${Formatters.formatAmount(_tipMin.toDouble())} – '
                       '${Formatters.formatAmount(_tipMax.toDouble())}',
                   hintStyle: const TextStyle(
                     color: kInkMuted,
@@ -696,7 +696,6 @@ class _TipChip extends StatelessWidget {
         child: Container(
           constraints: const BoxConstraints(minHeight: kMinTapTarget),
           padding: const EdgeInsets.symmetric(horizontal: kSpace4),
-          alignment: Alignment.center,
           decoration: BoxDecoration(
             color: background,
             borderRadius: BorderRadius.circular(kRadiusSm),
@@ -705,24 +704,30 @@ class _TipChip extends StatelessWidget {
               width: selected ? 2 : 1.5,
             ),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (selected) ...[
-                Icon(Icons.check_rounded, size: 16, color: foreground),
-                const SizedBox(width: kSpace1),
-              ],
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: kFontBody,
-                  fontWeight: FontWeight.w700,
-                  color: foreground,
+          // `Align(widthFactor: 1)` — vertikal markazda, lekin kengligi
+          // MATNGA teng. `Container.alignment` esa chipni butun kenglikka
+          // cho'zib, to'rtta chipni ustma-ust qatorlarga terardi.
+          child: Align(
+            widthFactor: 1,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (selected) ...[
+                  Icon(Icons.check_rounded, size: 16, color: foreground),
+                  const SizedBox(width: kSpace1),
+                ],
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: kFontBody,
+                    fontWeight: FontWeight.w700,
+                    color: foreground,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

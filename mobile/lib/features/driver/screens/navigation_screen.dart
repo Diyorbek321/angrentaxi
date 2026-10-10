@@ -12,6 +12,7 @@ import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/driver/navigation/turn_by_turn_guidance.dart';
 import 'package:angren_taxi/features/driver/service_wording.dart';
 import 'package:angren_taxi/features/driver/widgets/maneuver_banner.dart';
+import 'package:angren_taxi/features/driver/widgets/passenger_contact_card.dart';
 // `MapCameraInsets` yo'lovchi papkasida yashaydi, lekin u ekranga emas
 // TARTIBGA bog'liq — izoh `trip_screen.dart` dagi import ustida.
 import 'package:angren_taxi/features/passenger/map_camera_insets.dart';
@@ -516,6 +517,10 @@ class _NavigationScreenState extends State<NavigationScreen> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Olib ketish nuqtasi noaniq bo'lsa haydovchi yo'lda qo'ng'iroq
+          // qiladi — ilgari bu faqat safar boshlangach mumkin edi.
+          PassengerContactCard(order: order, wording: wording),
+          const SizedBox(height: kSpace3),
           _buildPickupInfo(order, wording),
           const SizedBox(height: kSpace4),
           // "Navigatorni ochish" (Yandex/Google) OLIB TASHLANDI: navigatsiya

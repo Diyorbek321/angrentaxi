@@ -321,7 +321,9 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
   /// matn va rangni birga tashiydi (WCAG 1.4.1).
   Widget _buildStatusChip(OrderStatus status) {
     final tone = switch (status) {
-      OrderStatus.searching => AppStatusTone.warning,
+      // Qidiruv — oddiy, kutilgan holat; ogohlantirish (⚠) belgisi
+      // yo'lovchini bekorga xavotirga solardi.
+      OrderStatus.searching => AppStatusTone.info,
       OrderStatus.driverAssigned ||
       OrderStatus.driverEnRoute =>
         AppStatusTone.info,
@@ -886,12 +888,22 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
               ),
               const SizedBox(height: 2),
               Text(
-                driver.carInfo,
+                '${driver.carColor} ${driver.carModel}'.trim(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(color: kInkMuted, fontSize: kFontLabel),
               ),
               const SizedBox(height: kSpace1),
               Row(
                 children: [
+                  // DAVLAT RAQAMI — yo'lovchi mashinani ko'chada AYNAN shu
+                  // bilan topadi (bir xil oq Cobalt'lar ko'p). Ilgari u
+                  // kulrang mayda matn ichida edi; endi raqam lavhasiga
+                  // o'xshash, eng ko'zga tashlanadigan element.
+                  if (driver.carNumber.isNotEmpty) ...[
+                    _PlateBadge(number: driver.carNumber),
+                    const SizedBox(width: kSpace3),
+                  ],
                   const ExcludeSemantics(
                     child:
                         Icon(Icons.star_rounded, color: kWarningDeep, size: 16),
@@ -1046,6 +1058,35 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+/// Davlat raqami lavhasi: oq fon, qora qalin raqam, ingichka chegara.
+class _PlateBadge extends StatelessWidget {
+  const _PlateBadge({required this.number});
+
+  final String number;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: kSpace2, vertical: 2),
+      decoration: BoxDecoration(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(kRadiusXs),
+        border: Border.all(color: kInk, width: 1.5),
+      ),
+      child: Text(
+        number,
+        style: const TextStyle(
+          fontWeight: FontWeight.w800,
+          fontSize: kFontBody,
+          color: kInk,
+          letterSpacing: 0.5,
+          fontFeatures: [FontFeature.tabularFigures()],
+        ),
       ),
     );
   }

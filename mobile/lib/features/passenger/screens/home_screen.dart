@@ -38,6 +38,15 @@ import 'package:provider/provider.dart';
 class PassengerHomeScreen extends StatefulWidget {
   const PassengerHomeScreen({super.key, this.sosService});
 
+  /// Marshrut argumenti: bosh sahifadagi "Qayerga borasiz?" maydonidan
+  /// kelinganda manzil qidiruvi GPS aniqlangan zahoti O'ZI ochiladi —
+  /// ilgari yo'lovchi xarita ekranida "Qayerga?" ni ikkinchi marta bosardi.
+  ///
+  /// ⚠️ Faqat GPS fiksidan keyin: olish nuqtasi shahar markazi (standart
+  /// koordinata) bilan ketib qolsa, haydovchi noto'g'ri joyga boradi.
+  /// Joylashuv aniqlanmasa ekran oddiy xarita holatida qoladi.
+  static const Object openSearchArgument = 'open-destination-search';
+
   /// Injectable for tests — o'zgarishsiz [ActiveOrderView] ga uzatiladi,
   /// u esa `null` bo'lsa xizmatni service locator'dan quradi (same pattern
   /// as CheckoutScreen.paymentService).
@@ -91,6 +100,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
         _locationLoading = false;
         _hasLocationFix = true;
       });
+      _openSearchIfRequested();
       // Xarita allaqachon qurilgan bo'lsa kamerani surib qo'yamiz; hali
       // qurilmagan bo'lsa buni `onMapCreated` bajaradi (ikki marta emas —
       // o'sha paytda `_hasLocationFix` hali `false` bo'ladi).
@@ -138,6 +148,17 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     final renderObject = _sheetContentKey.currentContext?.findRenderObject();
     if (renderObject is! RenderBox || !renderObject.hasSize) return null;
     return renderObject.size.height;
+  }
+
+  bool _searchOpened = false;
+
+  void _openSearchIfRequested() {
+    if (_searchOpened || !mounted) return;
+    final requested = ModalRoute.of(context)?.settings.arguments ==
+        PassengerHomeScreen.openSearchArgument;
+    if (!requested || context.read<OrderProvider>().hasActiveOrder) return;
+    _searchOpened = true;
+    _onWhereToTap();
   }
 
   void _onWhereToTap() {

@@ -70,6 +70,9 @@ class DriverHomeScreen extends StatefulWidget {
 
 class _DriverHomeScreenState extends State<DriverHomeScreen> {
   ml.MapLibreMapController? _mapController;
+
+  /// Taklif ekrani ochilgan oxirgi buyurtma — [_onDriverProviderChanged].
+  String? _offerShownFor;
   LatLng _currentLocation = const LatLng(
     AppConfig.defaultLat,
     AppConfig.defaultLng,
@@ -112,7 +115,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
 
   void _onDriverProviderChanged() {
     final driver = context.read<DriverProvider>();
-    if (driver.pendingOffer != null && mounted) {
+    // Provayder taklif turgan paytda ham ko'p marta xabar beradi (masalan
+    // "Qabul qilish" bosilganda `loading` holati). Har xabarda ekran ochilsa,
+    // bitta taklif ustma-ust bir necha marta ochilardi — shuning uchun har
+    // taklif uchun faqat BIR MARTA.
+    final offer = driver.pendingOffer;
+    if (offer == null) {
+      _offerShownFor = null;
+    } else if (offer.id != _offerShownFor && mounted) {
+      _offerShownFor = offer.id;
       Navigator.of(context).pushNamed('/driver/offer');
     }
     // Surfaces goOnline/goOffline failures — critically the "balance is
@@ -267,7 +278,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
         builder: (context, driverProvider, _) {
           return Stack(
             children: [
-              _buildMap(driverProvider),
+              RepaintBoundary(child: _buildMap(driverProvider)),
               _buildTopBar(driverProvider),
               _buildBottomPanel(driverProvider),
             ],

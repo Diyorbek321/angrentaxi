@@ -213,6 +213,11 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<OrderProvider>();
+      // `OrderProvider.error` UMUMIY maydon: tarix yuklanmagani yoki oldingi
+      // bekor qilish xatosi ham shu yerda qoladi. Tozalanmasa yo'lovchi bu
+      // ekranga hech narsa bosmay turib "Noma'lum xatolik yuz berdi" ni
+      // ko'rardi. Bu ekranda faqat UNING O'Z amali (buyurtma) xatosi chiqadi.
+      provider.clearError();
       provider.loadTariffs();
       // Opsiya haqlari opsiyalar oynasida va narx ostida ko'rsatiladi.
       provider.loadTripOptionFees();

@@ -23,6 +23,7 @@ import 'package:angren_taxi/features/driver/readiness/driver_readiness.dart';
 import 'package:angren_taxi/features/driver/readiness/readiness_checker.dart';
 import 'package:angren_taxi/features/driver/screens/home_screen.dart';
 import 'package:angren_taxi/features/driver/screens/verification_screen.dart';
+import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:angren_taxi/shared/widgets/app_pressable.dart';
 import 'package:dio/dio.dart';
@@ -155,10 +156,13 @@ void main() {
   }
 
   late _FakeLocationService locationService;
+  late DriverProvider driverProvider;
+  var offerScreensOpened = 0;
 
   Future<void> pumpHome(WidgetTester tester, {ReadinessChecker? readiness}) async {
     locationService = _FakeLocationService();
-    final driverProvider = DriverProvider(
+    offerScreensOpened = 0;
+    driverProvider = DriverProvider(
       apiClient: mockApiClient,
       socketService: SocketService(),
       locationService: locationService,
@@ -184,6 +188,10 @@ void main() {
             '/driver/services': (_) => const Scaffold(
                   body: Text('xizmat-turlari-ekrani'),
                 ),
+            '/driver/offer': (_) {
+              offerScreensOpened++;
+              return const Scaffold(body: Text('taklif-ekrani'));
+            },
           },
         ),
       ),
@@ -410,5 +418,31 @@ void main() {
           reason: 'onlayn haydovchi joylashuvi fonda ham yuborilishi kerak');
       expect(locationService.lastBackground!.title, contains('onlayn'));
     });
+  });
+
+  // ⚠️ Provayder taklif turgan paytda ham ko'p marta xabar beradi ("Qabul
+  // qilish" bosilganda `loading`). Ilgari har xabarda taklif ekrani qayta
+  // ochilardi va bitta buyurtma ustma-ust bir necha marta turardi.
+  testWidgets('bitta taklif uchun taklif ekrani faqat bir marta ochiladi',
+      (tester) async {
+    stubVerification();
+    await pumpHome(tester);
+
+    final offer = Order.fromJson(const {
+      'id': 'offer-1',
+      'passengerId': 'p-1',
+      'pickup': {'address': 'A', 'lat': 41.0, 'lng': 70.1},
+      'dropoff': {'address': 'B', 'lat': 41.01, 'lng': 70.11},
+      'status': 'pending',
+      'estimatedPrice': 15000,
+      'createdAt': '2026-10-10T10:00:00.000Z',
+    });
+    driverProvider.debugSetPendingOfferForTest(offer);
+    await tester.pump();
+    // Xuddi shu taklif bilan yana xabar.
+    driverProvider.debugSetPendingOfferForTest(offer);
+    await pumpUntilQuiet(tester);
+
+    expect(offerScreensOpened, 1);
   });
 }

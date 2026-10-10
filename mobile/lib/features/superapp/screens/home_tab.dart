@@ -5,6 +5,7 @@ import 'package:angren_taxi/features/ads/ad_carousel.dart';
 import 'package:angren_taxi/features/ads/ads_service.dart';
 import 'package:angren_taxi/features/notifications/notifications_provider.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
+import 'package:angren_taxi/features/passenger/screens/home_screen.dart' show PassengerHomeScreen;
 import 'package:angren_taxi/features/superapp/screens/cargo_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/food_list_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/market_screen.dart';
@@ -109,7 +110,11 @@ class _HomeTabState extends State<HomeTab> {
 
   void _openTaxi(BuildContext context) {
     context.read<OrderProvider>().setServiceType('taxi');
-    Navigator.of(context).pushNamed('/passenger/home');
+    // Kartadagi "Qayerga borasiz?" — qidiruvga to'g'ridan-to'g'ri.
+    Navigator.of(context).pushNamed(
+      '/passenger/home',
+      arguments: PassengerHomeScreen.openSearchArgument,
+    );
   }
 
   void _push(BuildContext context, Widget screen) {

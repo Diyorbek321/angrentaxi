@@ -598,7 +598,12 @@ ThemeData _buildTheme(Brightness brightness) {
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         foregroundColor: isDark ? kMintSoft : kPrimary,
-        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+        // Shrift ATAYLAB beriladi: tugma uslubi ambient matn uslubini meros
+        // olmaydi, `fontFamily` siz esa matn Roboto bo'lib qolardi.
+        textStyle: GoogleFonts.plusJakartaSans(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     ),
 
@@ -610,7 +615,7 @@ ThemeData _buildTheme(Brightness brightness) {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(kRadiusMd),
         ),
-        textStyle: const TextStyle(
+        textStyle: GoogleFonts.plusJakartaSans(
           fontSize: kFontTitle,
           fontWeight: FontWeight.w600,
         ),

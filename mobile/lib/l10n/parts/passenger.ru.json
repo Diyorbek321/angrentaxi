@@ -226,5 +226,7 @@
   "paxNoDestination": "Без адреса",
   "paxMeteredTo": "Без адреса — по таксометру",
   "paxMeteredRates": "Таксометр: {base} + {perKm}/км + {perMin}/мин, минимум {min}. Итоговая цена считается в конце поездки по пройденному пути и времени.",
-  "paxTripOptionsFeeNote": "За выбранные опции к цене добавится {amount}."
+  "paxTripOptionsFeeNote": "За выбранные опции к цене добавится {amount}.",
+  "paxRecentPlaces": "Недавние адреса",
+  "paxAddressNotFoundHint": "Отметьте точку на карте или попробуйте написать иначе"
 }

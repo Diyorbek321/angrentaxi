@@ -440,7 +440,13 @@ export class MatchingService {
       isFixedPrice: order.isFixedPrice,
       createdAt: order.createdAt,
       paymentMethod: order.paymentMethod,
+      // ⚠️ `distanceKm` — haydovchidan OLISH NUQTASIGACHA (eski nom).
       distanceKm: driver.distanceKm,
+      // Safarning o'zi: buyurtmada qotirilgan baholash. Haydovchi taklifni
+      // narxga qarab emas, "qancha yuraman" ga qarab ham tortadi.
+      // Taksometrda baholash yo'q — `null`.
+      tripDistanceKm: order.fareBreakdown?.distanceKm ?? null,
+      tripDurationMin: order.fareBreakdown?.durationMin ?? null,
       timeoutSeconds: this.OFFER_TIMEOUT_MS / 1000,
       // ⚠️ XIZMAT TURI TAKLIF PAKETIDA BO'LISHI SHART.
       //

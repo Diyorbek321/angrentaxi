@@ -29,6 +29,11 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
   late AnimationController _progressController;
   double? _distanceToPickup;
 
+  /// Ekran o'zi chiqib ketyapti (qabul/rad/vaqt tugadi). Shundan keyin
+  /// `pendingOffer == null` holati "taklif yo'qoldi, yopil" degani EMAS —
+  /// [_leave] ga qarang.
+  bool _leaving = false;
+
   @override
   void initState() {
     super.initState();
@@ -101,11 +106,33 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
     if (offer != null) {
       provider.declineOrder(offer.id);
     }
-    if (mounted) Navigator.of(context).pop();
+    _leave();
+  }
+
+  /// Faqat SHU ekranni yopadi.
+  ///
+  /// ⚠️ `Navigator.pop()` ISHLATILMAYDI: u qaysi ekrandan chaqirilishidan
+  /// qat'i nazar ENG USTDAGI ekranni yopadi. Qabul qilishda taklif ekrani
+  /// navigatsiya bilan almashtiriladi va o'tish animatsiyasi davomida hali
+  /// tirik bo'ladi — o'sha paytda chaqirilgan `pop()` yangi ochilgan
+  /// navigatsiya ekranini yopib, haydovchini bosh ekranga qaytarardi.
+  void _leave() {
+    if (_leaving || !mounted) return;
+    _leaving = true;
+    final route = ModalRoute.of(context);
+    if (route == null || !route.isActive) return;
+    if (route.isCurrent) {
+      Navigator.of(context).pop();
+    } else {
+      Navigator.of(context).removeRoute(route);
+    }
   }
 
   Future<void> _onAccept(Order offer) async {
     _timer?.cancel();
+    // Qabul so'rovi tugaganda `pendingOffer` tozalanadi — bu ekran o'shanda
+    // o'zini yopmasligi kerak, uni navigatsiya almashtiradi.
+    _leaving = true;
     final provider = context.read<DriverProvider>();
     await provider.acceptOrder(offer.id);
 
@@ -114,6 +141,9 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
       AppHaptics.success();
       Navigator.of(context).pushReplacementNamed('/driver/navigation');
     } else {
+      // Qabul o'tmadi — ekran yana o'z holatiga qaraydi (taklif boshqa
+      // haydovchiga ketgan bo'lsa yopiladi).
+      _leaving = false;
       AppHaptics.error();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -127,7 +157,7 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
     _timer?.cancel();
     final provider = context.read<DriverProvider>();
     await provider.declineOrder(offer.id);
-    if (mounted) Navigator.of(context).pop();
+    _leave();
   }
 
   @override
@@ -136,9 +166,11 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
       builder: (context, provider, _) {
         final offer = provider.pendingOffer;
         if (offer == null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) Navigator.of(context).pop();
-          });
+          // Taklif bekor qilindi yoki boshqa haydovchiga ketdi. Ekran o'zi
+          // chiqib ketayotgan bo'lsa (qabul qilindi) — tegilmaydi.
+          if (!_leaving) {
+            WidgetsBinding.instance.addPostFrameCallback((_) => _leave());
+          }
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
@@ -422,8 +454,8 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
       ),
       child: Column(
         children: [
-          if (_distanceToPickup != null) ...[
-            _buildDistanceInfo(wording),
+          if (_distanceToPickup != null || _tripLength(offer) != null) ...[
+            _buildDistanceInfo(offer, wording),
             const Padding(
               padding: EdgeInsets.symmetric(vertical: kSpace3),
               child: Divider(height: 1, thickness: 1, color: kLineStrong),
@@ -496,32 +528,77 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
   /// (kFontH3) va to'q siyohda. Yorliq ("Restorangacha", "Yo'lovchigacha")
   /// ustida kichik va kInkMuted: u kontekst, raqam esa qarorning o'zi.
   /// Ikonka yo'nalish ma'nosini beradi va yolg'iz qolmaydi.
-  Widget _buildDistanceInfo(DriverServiceWording wording) {
+  Widget _buildDistanceInfo(Order offer, DriverServiceWording wording) {
+    final trip = _tripLength(offer);
+    return Row(
+      children: [
+        if (_distanceToPickup != null)
+          Expanded(
+            child: _buildFigure(
+              Icons.near_me_rounded,
+              wording.distanceToPickupLabel,
+              Formatters.formatDistance(_distanceToPickup!),
+            ),
+          ),
+        // Safarning o'zi — haydovchi taklifni faqat narxga qarab emas,
+        // "qancha yuraman" ga qarab ham tortadi. 18 000 so'mlik 2 km va
+        // 18 000 so'mlik 9 km — ikki xil taklif.
+        if (trip != null)
+          Expanded(
+            child: _buildFigure(
+              Icons.route_rounded,
+              context.l10n.drvTripLength,
+              trip,
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// "4.2 km · 11 daq". Taksometrda (manzil yo'q) va baholash kelmaganda
+  /// `null` — qator chizilmaydi.
+  String? _tripLength(Order offer) {
+    final km = offer.tripDistanceKm;
+    if (offer.isMetered || km == null || km <= 0) return null;
+    final distance = Formatters.formatDistance(km * 1000);
+    final minutes = offer.tripDurationMin;
+    return minutes == null || minutes <= 0
+        ? distance
+        : '$distance · ${Formatters.formatDuration(minutes)}';
+  }
+
+  Widget _buildFigure(IconData icon, String label, String value) {
     return MergeSemantics(
       child: Row(
         children: [
-          const ExcludeSemantics(
-            child: Icon(Icons.near_me_rounded, color: kPrimary, size: 20),
-          ),
+          ExcludeSemantics(child: Icon(icon, color: kPrimary, size: 20)),
           const SizedBox(width: kSpace3),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  wording.distanceToPickupLabel,
+                  label,
                   style: const TextStyle(
                     color: kInkMuted,
                     fontSize: kFontMicro,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                Text(
-                  Formatters.formatDistance(_distanceToPickup!),
-                  style: const TextStyle(
-                    color: kInk,
-                    fontSize: kFontH3,
-                    fontWeight: FontWeight.w800,
+                // Ikki ustunda "4.2 km · 14 daq" yarim kenglikka sig'masligi
+                // mumkin — kesilgan raqam (ellipsis) yolg'on, shuning uchun
+                // faqat sig'maganda kichraytiriladi.
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    maxLines: 1,
+                    style: const TextStyle(
+                      color: kInk,
+                      fontSize: kFontH3,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
               ],

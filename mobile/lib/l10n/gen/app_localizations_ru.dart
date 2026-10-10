@@ -1031,6 +1031,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get drvTripInProgress => 'Поездка идёт';
 
   @override
+  String get drvTripLength => 'Поездка';
+
+  @override
   String drvTripsCount(int count) {
     return 'Поездок: $count';
   }
@@ -1221,7 +1224,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String fmtMillionUzs(String value) {
-    return '$value млн UZS';
+    return '$value млн сум';
   }
 
   @override
@@ -1240,7 +1243,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String fmtThousandUzs(String value) {
-    return '$value тыс. UZS';
+    return '$value тыс. сум';
   }
 
   @override
@@ -1276,6 +1279,10 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get paxAddressNotFound => 'Не удалось найти адрес';
+
+  @override
+  String get paxAddressNotFoundHint =>
+      'Отметьте точку на карте или попробуйте написать иначе';
 
   @override
   String get paxAddressResolveFailed => 'Не удалось определить адрес';
@@ -1736,6 +1743,9 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get paxReceiptWaitingNote =>
       'Платное ожидание не входит в фиксированную цену: после бесплатных минут каждая начатая минута оплачивается отдельно.';
+
+  @override
+  String get paxRecentPlaces => 'Недавние адреса';
 
   @override
   String get paxReferralApplied => 'Промокод применён!';

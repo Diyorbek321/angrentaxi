@@ -911,13 +911,13 @@ abstract class AppLocalizations {
   /// No description provided for @drvGoOffline.
   ///
   /// In uz, this message translates to:
-  /// **'Offline bo\'lish'**
+  /// **'Oflayn bo\'lish'**
   String get drvGoOffline;
 
   /// No description provided for @drvGoOnline.
   ///
   /// In uz, this message translates to:
-  /// **'Online bo\'lish'**
+  /// **'Onlayn bo\'lish'**
   String get drvGoOnline;
 
   /// No description provided for @drvGoOnlineBlocked.
@@ -1163,7 +1163,7 @@ abstract class AppLocalizations {
   /// No description provided for @drvOffline.
   ///
   /// In uz, this message translates to:
-  /// **'Offline'**
+  /// **'Oflayn'**
   String get drvOffline;
 
   /// No description provided for @drvOfflineLower.
@@ -1175,7 +1175,7 @@ abstract class AppLocalizations {
   /// No description provided for @drvOnline.
   ///
   /// In uz, this message translates to:
-  /// **'Online'**
+  /// **'Onlayn'**
   String get drvOnline;
 
   /// No description provided for @drvOnlineLower.
@@ -1928,6 +1928,12 @@ abstract class AppLocalizations {
   /// **'Safar davom etmoqda'**
   String get drvTripInProgress;
 
+  /// No description provided for @drvTripLength.
+  ///
+  /// In uz, this message translates to:
+  /// **'Safar'**
+  String get drvTripLength;
+
   /// No description provided for @drvTripsCount.
   ///
   /// In uz, this message translates to:
@@ -2231,7 +2237,7 @@ abstract class AppLocalizations {
   /// No description provided for @fmtMillionUzs.
   ///
   /// In uz, this message translates to:
-  /// **'{value} mln UZS'**
+  /// **'{value} mln so\'m'**
   String fmtMillionUzs(String value);
 
   /// No description provided for @fmtMinutes.
@@ -2255,7 +2261,7 @@ abstract class AppLocalizations {
   /// No description provided for @fmtThousandUzs.
   ///
   /// In uz, this message translates to:
-  /// **'{value} ming UZS'**
+  /// **'{value} ming so\'m'**
   String fmtThousandUzs(String value);
 
   /// No description provided for @fmtToday.
@@ -2317,6 +2323,12 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Manzilni topib bo\'lmadi'**
   String get paxAddressNotFound;
+
+  /// No description provided for @paxAddressNotFoundHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Xaritadan aniq joyni belgilang yoki boshqacha yozib ko\'ring'**
+  String get paxAddressNotFoundHint;
 
   /// No description provided for @paxAddressResolveFailed.
   ///
@@ -2885,7 +2897,7 @@ abstract class AppLocalizations {
   /// No description provided for @paxRateHowWasTrip.
   ///
   /// In uz, this message translates to:
-  /// **'Sayohat qanday kechdi?'**
+  /// **'Safar qanday kechdi?'**
   String get paxRateHowWasTrip;
 
   /// No description provided for @paxRatePleaseRate.
@@ -3151,6 +3163,12 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Kutish haqi belgilangan narxga kirmaydi: bepul daqiqalardan keyin har boshlangan daqiqa alohida qo\'shiladi.'**
   String get paxReceiptWaitingNote;
+
+  /// No description provided for @paxRecentPlaces.
+  ///
+  /// In uz, this message translates to:
+  /// **'Oxirgi manzillar'**
+  String get paxRecentPlaces;
 
   /// No description provided for @paxReferralApplied.
   ///
@@ -3659,7 +3677,7 @@ abstract class AppLocalizations {
   /// No description provided for @paxWhereTo.
   ///
   /// In uz, this message translates to:
-  /// **'Qayoqqa boramiz?'**
+  /// **'Qayerga borasiz?'**
   String get paxWhereTo;
 
   /// No description provided for @saActiveOrderLabel.

@@ -61,33 +61,33 @@ class DemoData {
           'id': 'tariff-econom',
           'name': 'Ekonom',
           'description': 'Arzon va tezkor',
-          'baseFare': 5000,
-          'perKmRate': 1800,
-          'minFare': 8000,
+          'basePrice': 5000,
+          'pricePerKm': 1800,
+          'minPrice': 8000,
           'iconName': 'economy',
-          'isAvailable': true,
+          'isActive': true,
           'maxPassengers': 4,
         },
         {
           'id': 'tariff-komfort',
           'name': 'Komfort',
           'description': 'Yangi va qulay avtomobillar',
-          'baseFare': 8000,
-          'perKmRate': 2500,
-          'minFare': 12000,
+          'basePrice': 8000,
+          'pricePerKm': 2500,
+          'minPrice': 12000,
           'iconName': 'comfort',
-          'isAvailable': true,
+          'isActive': true,
           'maxPassengers': 4,
         },
         {
           'id': 'tariff-biznes',
           'name': 'Biznes',
           'description': 'Premium darajadagi xizmat',
-          'baseFare': 15000,
-          'perKmRate': 4000,
-          'minFare': 25000,
+          'basePrice': 15000,
+          'pricePerKm': 4000,
+          'minPrice': 25000,
           'iconName': 'business',
-          'isAvailable': true,
+          'isActive': true,
           'maxPassengers': 4,
         },
       ];
@@ -247,4 +247,43 @@ class DemoData {
       'total': total,
     };
   }
+
+  // ---- Super-app (ovqat / market) — ko'rsatuv uchun minimal katalog ----
+
+  static List<Map<String, dynamic>> restaurants() => [
+        {'id': 'demo-rest-1', 'name': 'Osh Markazi', 'address': 'Angren, Navoiy 12', 'status': 'open'},
+        {'id': 'demo-rest-2', 'name': 'Lavash House', 'address': 'Angren, Mustaqillik 4', 'status': 'open'},
+      ];
+
+  static Map<String, dynamic> restaurantDetail(String id) {
+    final restaurant = restaurants().firstWhere(
+      (r) => r['id'] == id,
+      orElse: () => restaurants().first,
+    );
+    return {
+      'restaurant': restaurant,
+      'categories': [
+        {'id': 'demo-cat-1', 'name': 'Asosiy taomlar'},
+      ],
+      'dishes': [
+        {'id': 'demo-dish-1', 'categoryId': 'demo-cat-1', 'name': 'Toshkent oshi', 'price': 35000},
+        {'id': 'demo-dish-2', 'categoryId': 'demo-cat-1', 'name': 'Lag\'mon', 'price': 30000},
+        {'id': 'demo-dish-3', 'categoryId': 'demo-cat-1', 'name': 'Somsa', 'price': 8000},
+      ],
+    };
+  }
+
+  static Map<String, dynamic> store() =>
+      {'id': 'demo-store-1', 'name': 'Angren Market', 'address': 'Angren, Bobur 3'};
+
+  static Map<String, dynamic> storeDetail() => {
+        'store': store(),
+        'categories': [
+          {'id': 'demo-mcat-1', 'name': 'Oziq-ovqat', 'emoji': '🥖'},
+        ],
+        'products': [
+          {'id': 'demo-p-1', 'categoryId': 'demo-mcat-1', 'name': 'Non', 'price': 4000, 'stock': 50},
+          {'id': 'demo-p-2', 'categoryId': 'demo-mcat-1', 'name': 'Sut 1 l', 'price': 12000, 'stock': 20},
+        ],
+      };
 }

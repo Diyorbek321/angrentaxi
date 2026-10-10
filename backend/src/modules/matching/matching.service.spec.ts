@@ -118,6 +118,33 @@ describe('MatchingService (Redis-backed queue)', () => {
   });
 
   describe('startSearch', () => {
+    it('includes the quoted trip distance and duration so the driver can judge the ride', async () => {
+      orderRepository.findOne.mockResolvedValue(
+        makeOrder({ fareBreakdown: { distanceKm: 4.2, durationMin: 11 } }),
+      );
+      driversService.getNearbyDrivers.mockResolvedValue([makeDriver('driver-a', 1)]);
+
+      await service.startSearch(orderId);
+
+      expect(realtimeGateway.emitToUser).toHaveBeenCalledWith(
+        'driver-a',
+        'new_order_offer',
+        expect.objectContaining({ tripDistanceKm: 4.2, tripDurationMin: 11 }),
+      );
+    });
+
+    it('sends null trip figures when the order has no quote (taximeter)', async () => {
+      driversService.getNearbyDrivers.mockResolvedValue([makeDriver('driver-a', 1)]);
+
+      await service.startSearch(orderId);
+
+      expect(realtimeGateway.emitToUser).toHaveBeenCalledWith(
+        'driver-a',
+        'new_order_offer',
+        expect.objectContaining({ tripDistanceKm: null, tripDurationMin: null }),
+      );
+    });
+
     it('offers the nearest driver and persists a Redis-backed queue', async () => {
       driversService.getNearbyDrivers.mockResolvedValue([
         makeDriver('driver-a', 1),

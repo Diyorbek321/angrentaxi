@@ -169,8 +169,10 @@ class _OtpScreenState extends State<OtpScreen> {
           ),
         ),
         const SizedBox(height: kSpace2),
-        RichText(
-          text: TextSpan(
+        // `Text.rich`, `RichText` emas: u ilova shriftini va tizimdagi matn
+        // kattalashtirishni meros oladi.
+        Text.rich(
+          TextSpan(
             style: const TextStyle(fontSize: kFontBodyLg, color: kInkMuted),
             children: [
               TextSpan(text: context.l10n.shOtpSentPrefix),
@@ -211,6 +213,12 @@ class _OtpScreenState extends State<OtpScreen> {
         inactiveColor: kSurface2,
       ),
       enableActiveFill: true,
+      // Katakchalar ORTIDAGI yashirin matn maydoni mavzudan `filled` fonni
+      // olib, 6 katakni birlashtiruvchi kulrang yo'lak chizardi.
+      backgroundColor: Colors.transparent,
+      // Controller'ni bu ekran yaratadi va `dispose` da O'ZI yopadi. Paket
+      // ham yopsa ikki marta `dispose` — debug'da qizil xato.
+      autoDisposeControllers: false,
       onChanged: (value) {
         setState(() => _otpValue = value);
         if (value.length == 6) {
