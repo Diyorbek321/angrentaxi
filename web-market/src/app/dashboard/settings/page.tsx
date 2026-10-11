@@ -6,6 +6,8 @@ import { clsx } from 'clsx';
 import { marketApi, Store, DeliveryMode } from '@/lib/api';
 import { errorMessage } from '@/lib/utils';
 import { useAsyncData } from '@/hooks/useAsyncData';
+import { catalogImageForm, catalogImageSrc, ImageChange } from '@/lib/catalog-image';
+import { ImagePicker } from '@/components/ImagePicker';
 import { useToast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -31,6 +33,7 @@ export default function SettingsPage() {
   const [end, setEnd] = useState('22:00');
   const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>('platform');
   const [threshold, setThreshold] = useState('10');
+  const [image, setImage] = useState<ImageChange>({ kind: 'keep' });
   const [saving, setSaving] = useState(false);
 
   // Seeds the form once the store arrives. Kept as local state (not derived)
@@ -81,13 +84,27 @@ export default function SettingsPage() {
         lat: lat ? Number(lat) : undefined,
         lng: lng ? Number(lng) : undefined,
       });
-      await reload();
-      toast({ title: 'Saqlandi', variant: 'success' });
     } catch (err) {
       toast({ title: 'Xatolik', description: errorMessage(err, 'Saqlab bo‘lmadi'), variant: 'error' });
+      setSaving(false);
+      return;
+    }
+    // Muqova alohida so'rov: almashtirilganda eski rasm serverda o'chadi.
+    try {
+      if (image.kind === 'set') await marketApi.uploadStoreImage(await catalogImageForm(image.file));
+      else if (image.kind === 'remove') await marketApi.removeStoreImage();
+      setImage({ kind: 'keep' });
+      toast({ title: 'Saqlandi', variant: 'success' });
+    } catch (err) {
+      toast({
+        title: 'Maʼlumotlar saqlandi, lekin muqova yangilanmadi',
+        description: errorMessage(err, 'Rasmni saqlab boʻlmadi'),
+        variant: 'error',
+      });
     } finally {
       setSaving(false);
     }
+    await reload();
   };
 
   return (
@@ -120,6 +137,15 @@ export default function SettingsPage() {
               <CardTitle>Do&apos;kon ma&apos;lumotlari</CardTitle>
             </CardHeader>
             <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <ImagePicker
+                  label="Muqova rasmi"
+                  currentSrc={catalogImageSrc(store.imageKey)}
+                  value={image}
+                  onChange={setImage}
+                  aspectClassName="aspect-[16/9]"
+                />
+              </div>
               <Input label="Do'kon nomi" value={name} onChange={(e) => setName(e.target.value)} />
               <Input
                 label="Telefon"

@@ -11,8 +11,7 @@ export interface DishImageProps {
 }
 
 /**
- * Taom rasmi. Backend hozircha rasm URL'ini bermaydi (lib/api.ts dagi
- * `Dish.imageUrl` izohiga qarang), shuning uchun rasm bo'lmasa yoki
+ * Taom rasmi (`catalogImageSrc(dish.imageKey)`). Rasm bo'lmasa yoki
  * yuklanmasa dekorativ mint gradient chiziladi — u ma'no tashimaydi,
  * shuning uchun mint bo'lishi mumkin (DESIGN-TOKENS 3.4).
  *

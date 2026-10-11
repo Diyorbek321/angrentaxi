@@ -5,6 +5,8 @@ import { Bell, Check, Clock, LocateFixed, MapPin, Settings as SettingsIcon, Smar
 import { clsx } from 'clsx';
 import { foodApi, Notifications, Restaurant, WorkingHoursDay } from '@/lib/api';
 import { useAsyncData, errorMessage } from '@/hooks/useAsyncData';
+import { ImagePicker } from '@/components/ImagePicker';
+import { catalogImageForm, catalogImageSrc, ImageChange } from '@/lib/catalog-image';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -23,6 +25,9 @@ interface Draft {
   hours: WorkingHoursDay[];
   radius: number;
   notifications: Notifications;
+  /** Saqlangan muqova kaliti va formadagi tanlov. */
+  imageKey: string | null;
+  image: ImageChange;
 }
 
 function toDraft(r: Restaurant): Draft {
@@ -35,6 +40,8 @@ function toDraft(r: Restaurant): Draft {
     hours: r.hours ?? [],
     radius: r.deliveryRadiusKm,
     notifications: r.notifications,
+    imageKey: r.imageKey ?? null,
+    image: { kind: 'keep' },
   };
 }
 
@@ -92,9 +99,27 @@ export default function SettingsPage() {
         lng: draft.lng ? Number(draft.lng) : undefined,
       });
       setDraft(toDraft(res.data.data));
-      toast({ title: 'Saqlandi', variant: 'success' });
     } catch (err) {
       toast({ title: 'Saqlab bo‘lmadi', description: errorMessage(err), variant: 'error' });
+      setSaving(false);
+      return;
+    }
+    // Muqova alohida so'rov: almashtirilganda eski rasm serverda o'chadi.
+    try {
+      if (draft.image.kind === 'set') {
+        const res = await foodApi.uploadRestaurantImage(await catalogImageForm(draft.image.file));
+        setDraft(toDraft(res.data.data));
+      } else if (draft.image.kind === 'remove') {
+        const res = await foodApi.removeRestaurantImage();
+        setDraft(toDraft(res.data.data));
+      }
+      toast({ title: 'Saqlandi', variant: 'success' });
+    } catch (err) {
+      toast({
+        title: 'Maʼlumotlar saqlandi, lekin muqova yangilanmadi',
+        description: errorMessage(err),
+        variant: 'error',
+      });
     } finally {
       setSaving(false);
     }
@@ -135,6 +160,13 @@ export default function SettingsPage() {
               <CardTitle>Restoran ma&apos;lumotlari</CardTitle>
             </CardHeader>
             <div className="flex flex-col gap-4">
+              <ImagePicker
+                label="Muqova rasmi"
+                currentSrc={catalogImageSrc(draft.imageKey)}
+                value={draft.image}
+                onChange={(image) => patch({ image })}
+                aspectClassName="aspect-[16/9]"
+              />
               <Input label="Nomi" value={draft.name} onChange={(e) => patch({ name: e.target.value })} />
               <Input
                 label="Telefon"

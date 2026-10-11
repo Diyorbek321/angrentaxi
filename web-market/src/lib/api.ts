@@ -102,6 +102,8 @@ export interface Store {
   deliveryMode: DeliveryMode;
   lowStockThreshold: number;
   status: 'active' | 'closed';
+  /** Muqova rasmi kaliti (`lib/catalog-image.ts`); faqat o'qish — rasm alohida endpoint orqali. */
+  imageKey?: string | null;
 }
 
 export interface MarketCategory {
@@ -125,6 +127,11 @@ export interface Product {
   status: ProductStatus;
   emoji: string;
   hue: number;
+  /**
+   * Rasm kaliti (`catalog/<uuid>.jpg`), `catalogImageSrc` bilan manzilga
+   * aylanadi. Faqat O'QISH — PATCH/POST tanasiga qo'shmang (`forbidNonWhitelisted`).
+   */
+  imageKey?: string | null;
 }
 
 export interface OrderItem {
@@ -202,6 +209,18 @@ export interface ReportsData {
 
 export const marketApi = {
   getStore: () => api.get<ApiResponse<Store>>('/market/vendor/store'),
+
+  /**
+   * Rasmlar — multipart. Content-Type ATAYLAB `multipart/form-data`:
+   * instansiyaning standart `application/json` sarlavhasi bilan axios
+   * FormData'ni JSON'ga aylantirib yuborardi. Brauzer boundary'ni o'zi qo'shadi.
+   * Almashtirilganda eski rasm serverda o'chadi.
+   */
+  uploadStoreImage: (form: FormData) =>
+    api.put<ApiResponse<Store>>('/market/vendor/store/image', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  removeStoreImage: () => api.delete<ApiResponse<Store>>('/market/vendor/store/image'),
   updateStore: (data: Partial<Pick<Store, 'name' | 'phone' | 'address' | 'lat' | 'lng' | 'workingHoursStart' | 'workingHoursEnd' | 'deliveryMode' | 'lowStockThreshold'>>) =>
     api.patch<ApiResponse<Store>>('/market/vendor/store', data),
 
@@ -241,6 +260,11 @@ export const marketApi = {
   bulkUpdateProducts: (productIds: string[], status: ProductStatus) =>
     api.patch<ApiResponse<{ updated: number }>>('/market/vendor/products/bulk-status', { productIds, status }),
   deleteProduct: (id: string) => api.delete<ApiResponse<{ deleted: boolean }>>(`/market/vendor/products/${id}`),
+  uploadProductImage: (id: string, form: FormData) =>
+    api.put<ApiResponse<Product>>(`/market/vendor/products/${id}/image`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  removeProductImage: (id: string) => api.delete<ApiResponse<Product>>(`/market/vendor/products/${id}/image`),
 
   getStockMovements: () => api.get<ApiResponse<StockMovement[]>>('/market/vendor/stock/movements'),
 

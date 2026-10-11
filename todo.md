@@ -1,6 +1,6 @@
 # Angren Taxi — qolgan ishlar
 
-Oxirgi yangilanish: 2026-10-09. Bajarilgan ishlar tarixi uchun `git log`ga qarang — bu fayl faqat **hali ochiq** ishlarni kuzatish uchun.
+Oxirgi yangilanish: 2026-10-10. Bajarilgan ishlar tarixi uchun `git log`ga qarang — bu fayl faqat **hali ochiq** ishlarni kuzatish uchun.
 
 ---
 
@@ -46,6 +46,14 @@ Oxirgi yangilanish: 2026-10-09. Bajarilgan ishlar tarixi uchun `git log`ga qaran
 ## 💵 Naqd ovqat/market (2026-10-07 qilindi) — qoldiqlar
 
 - [ ] **Karta ulanmaguncha 200 000 so'mdan katta ovqat/market buyurtmasi berib bo'lmaydi** — naqd chegaradan oshgan, karta (Payme/Click) esa hali yo'q. Chegarani admin panelidan vaqtincha oshirish mumkin (Umumiy sozlamalar → Naqd buyurtma chegarasi).
+
+## 🖼️ Katalog rasmlari (2026-10-10 qilindi) — qoldiqlar
+
+Restoran/do'kon muqovasi, taom va mahsulot fotosi: migratsiya 024 (`image_key`), ochiq `GET /media/catalog/<uuid>.jpg`, mobil `CatalogImage`. Demo katalog: `cd backend && npm run seed:demo` (5 restoran, 39 taom, 22 mahsulot, 3 banner; rasmlar `backend/demo-assets/`, Unsplash, mualliflar `CREDITS.json`).
+
+- [x] **Sotuvchi panellaridan rasm yuklash** (2026-10-11: `PUT/DELETE …/vendor/{restaurant|store}/image` va `…/{dishes|products}/:id/image`; restoran — taom formasi + Sozlamalar muqovasi, market — yangi mahsulot formasi, jadvaldagi belgini bosish, Sozlamalar muqovasi. Panel rasmni brauzerda 1200 px JPEG'ga kichraytiradi, server chegarasi 2 MB. Brauzerda qo'lda sinalmagan — kichraytirish faqat brauzerda ishlaydi)
+- [x] **Rasm almashtirilganda/o'chirilganda eski fayl o'chadi** (2026-10-11: `CatalogImageService`; taom/mahsulot o'chirilganda ham. Boshqa qator ishlatayotgan fayl — demo seed rasmlari — o'chirilmaydi)
+- [ ] Rasmlar diskda keshlanmaydi (faqat xotirada) — ilova qayta ochilganda qayta yuklanadi. Kerak bo'lsa `cached_network_image`.
 
 ## 🔴 Bloker — tashqi shartnoma/hisob kerak
 

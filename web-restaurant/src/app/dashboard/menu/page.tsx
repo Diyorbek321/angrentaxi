@@ -7,6 +7,8 @@ import { foodApi, Dish, MenuCategory } from '@/lib/api';
 import { useAsyncData, errorMessage } from '@/hooks/useAsyncData';
 import { money } from '@/lib/utils';
 import { DishImage } from '@/components/DishImage';
+import { ImagePicker } from '@/components/ImagePicker';
+import { catalogImageForm, catalogImageSrc, ImageChange } from '@/lib/catalog-image';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -185,7 +187,7 @@ export default function MenuPage() {
                   )}
                 >
                   <div className="relative">
-                    <DishImage src={dish.imageUrl} name={dish.name} className="h-36 w-full" />
+                    <DishImage src={catalogImageSrc(dish.imageKey)} name={dish.name} className="h-36 w-full" />
                     <span className="absolute left-2.5 top-2.5">
                       <Badge variant="default" size="sm">
                         {categoryName(dish.categoryId)}
@@ -411,6 +413,7 @@ function DishModal({
   const [prep, setPrep] = useState(dish ? String(dish.prepMinutes) : '12');
   const [categoryId, setCategoryId] = useState(dish?.categoryId ?? categories[0]?.id ?? '');
   const [tags, setTags] = useState(dish?.tags.join(', ') ?? '');
+  const [image, setImage] = useState<ImageChange>({ kind: 'keep' });
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<{ name?: string; price?: string; prep?: string }>({});
 
@@ -438,16 +441,31 @@ function DishModal({
         .map((t) => t.trim())
         .filter(Boolean),
     };
+    let savedId: string;
     try {
-      if (dish) await foodApi.updateDish(dish.id, payload);
-      else await foodApi.createDish(payload);
-      toast({ title: dish ? 'Taom yangilandi' : "Taom qo'shildi", variant: 'success' });
-      await onSaved();
+      const res = dish ? await foodApi.updateDish(dish.id, payload) : await foodApi.createDish(payload);
+      savedId = res.data.data.id;
     } catch (err) {
       toast({ title: 'Saqlab bo‘lmadi', description: errorMessage(err), variant: 'error' });
+      setSaving(false);
+      return;
+    }
+    // Rasm taomdan keyin: yangi taomning id'si faqat shu yerda ma'lum.
+    // Rasm yiqilsa taom baribir saqlangan — buni aniq aytamiz.
+    try {
+      if (image.kind === 'set') await foodApi.uploadDishImage(savedId, await catalogImageForm(image.file));
+      if (image.kind === 'remove') await foodApi.removeDishImage(savedId);
+      toast({ title: dish ? 'Taom yangilandi' : "Taom qo'shildi", variant: 'success' });
+    } catch (err) {
+      toast({
+        title: 'Taom saqlandi, lekin rasm yangilanmadi',
+        description: errorMessage(err),
+        variant: 'error',
+      });
     } finally {
       setSaving(false);
     }
+    await onSaved();
   };
 
   return (
@@ -469,6 +487,12 @@ function DishModal({
       }
     >
       <div className="flex flex-col gap-4">
+        <ImagePicker
+          label="Rasm"
+          currentSrc={catalogImageSrc(dish?.imageKey)}
+          value={image}
+          onChange={setImage}
+        />
         <Input
           label="Nomi"
           value={name}

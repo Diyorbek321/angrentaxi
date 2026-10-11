@@ -22,6 +22,7 @@ import { Select } from '@/components/ui/Select';
 import { SkeletonTable } from '@/components/ui/Skeleton';
 import { Tabs, type TabItem } from '@/components/ui/Tabs';
 import { AddProductModal } from '@/components/products/AddProductModal';
+import { ProductImageModal } from '@/components/products/ProductImageModal';
 import { BulkPriceModal, type BulkPriceChange } from '@/components/products/BulkPriceModal';
 import { BulkToolbar } from '@/components/products/BulkToolbar';
 import {
@@ -53,6 +54,7 @@ export default function ProductsPage() {
   const [categoryId, setCategoryId] = useState('');
   const [busy, setBusy] = useState(false);
   const [statusBusyId, setStatusBusyId] = useState<string | null>(null);
+  const [imageFor, setImageFor] = useState<Product | null>(null);
 
   const { data, isLoading, isRefreshing, error, reload } = useAsyncData<CatalogData>(async () => {
     const [p, c, s] = await Promise.all([
@@ -321,6 +323,7 @@ export default function ProductsPage() {
                   onSaveStock={(v) => patchProduct(p.id, { stock: Math.max(0, v) })}
                   onSetStatus={(status) => void setStatus(p.id, status)}
                   statusBusy={statusBusyId === p.id}
+                  onEditImage={() => setImageFor(p)}
                 />
               ))}
             </ul>
@@ -341,6 +344,7 @@ export default function ProductsPage() {
                   onSaveStock={(v) => patchProduct(p.id, { stock: Math.max(0, v) })}
                   onSetStatus={(status) => void setStatus(p.id, status)}
                   statusBusy={statusBusyId === p.id}
+                  onEditImage={() => setImageFor(p)}
                 />
               </li>
             ))}
@@ -370,6 +374,19 @@ export default function ProductsPage() {
         }}
         onError={(msg) => toast({ title: 'Xatolik', description: msg, variant: 'error' })}
       />
+
+      {imageFor && (
+        <ProductImageModal
+          product={imageFor}
+          onClose={() => setImageFor(null)}
+          onSaved={async () => {
+            setImageFor(null);
+            await reload();
+            toast({ title: 'Rasm yangilandi', variant: 'success' });
+          }}
+          onError={(msg) => toast({ title: 'Xatolik', description: msg, variant: 'error' })}
+        />
+      )}
 
       <BulkPriceModal
         isOpen={bulkPriceOpen}

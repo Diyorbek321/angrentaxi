@@ -114,6 +114,8 @@ export interface Restaurant {
   commissionRate: number;
   notifications: Notifications;
   status: RestaurantStatus;
+  /** Muqova rasmi kaliti (`lib/catalog-image.ts`); faqat o'qish — rasm alohida endpoint orqali. */
+  imageKey?: string | null;
 }
 
 export interface MenuCategory {
@@ -134,13 +136,12 @@ export interface Dish {
   isAvailable: boolean;
   tags: string[];
   /**
-   * Taom rasmi. Backend `dishes` jadvalida hozircha bunday ustun YO'Q,
-   * shuning uchun maydon ixtiyoriy va faqat O'QISH uchun: menyu kartochkasi
-   * rasm kelsa uni ko'rsatadi, kelmasa dekorativ o'rin egallovchi chizadi.
-   * ⚠️ Bu maydonni PATCH/POST tanasiga QO'SHMANG — backend
+   * Taom rasmi kaliti (`catalog/<uuid>.jpg`), `catalogImageSrc` bilan
+   * manzilga aylanadi. Faqat O'QISH: rasm `uploadDishImage`/`removeDishImage`
+   * orqali o'zgaradi. ⚠️ PATCH/POST tanasiga QO'SHMANG — backend
    * `forbidNonWhitelisted` bilan ishlaydi va noma'lum maydon 400 qaytaradi.
    */
-  imageUrl?: string | null;
+  imageKey?: string | null;
 }
 
 export interface FoodOrderItem {
@@ -219,6 +220,18 @@ export const foodApi = {
   ) => api.patch<ApiResponse<Restaurant>>('/food/vendor/restaurant', data),
   toggleOpen: () => api.patch<ApiResponse<Restaurant>>('/food/vendor/restaurant/toggle-open'),
 
+  /**
+   * Rasmlar — multipart. Content-Type ATAYLAB `multipart/form-data`:
+   * instansiyaning standart `application/json` sarlavhasi bilan axios
+   * FormData'ni JSON'ga aylantirib yuborardi. Brauzer boundary'ni o'zi qo'shadi.
+   * Almashtirilganda eski rasm serverda o'chadi.
+   */
+  uploadRestaurantImage: (form: FormData) =>
+    api.put<ApiResponse<Restaurant>>('/food/vendor/restaurant/image', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  removeRestaurantImage: () => api.delete<ApiResponse<Restaurant>>('/food/vendor/restaurant/image'),
+
   getDashboard: () => api.get<ApiResponse<DashboardData>>('/food/vendor/dashboard'),
   getReports: (range: 7 | 30) =>
     api.get<ApiResponse<ReportsData>>('/food/vendor/reports', { params: { range } }),
@@ -252,6 +265,11 @@ export const foodApi = {
     }>
   ) => api.patch<ApiResponse<Dish>>(`/food/vendor/dishes/${id}`, data),
   deleteDish: (id: string) => api.delete<ApiResponse<{ deleted: boolean }>>(`/food/vendor/dishes/${id}`),
+  uploadDishImage: (id: string, form: FormData) =>
+    api.put<ApiResponse<Dish>>(`/food/vendor/dishes/${id}/image`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  removeDishImage: (id: string) => api.delete<ApiResponse<Dish>>(`/food/vendor/dishes/${id}/image`),
 
   getOrders: () => api.get<ApiResponse<FoodOrder[]>>('/food/vendor/orders'),
   getOrder: (id: string) => api.get<ApiResponse<FoodOrder>>(`/food/vendor/orders/${id}`),

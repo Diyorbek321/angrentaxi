@@ -4,10 +4,11 @@ import { CheckCircle2, CircleOff, Eye, EyeOff } from 'lucide-react';
 import { clsx } from 'clsx';
 import type { Product, ProductStatus } from '@/lib/api';
 import { stockTone } from '@/lib/product-status';
-import { hueTint, moneyShort } from '@/lib/utils';
+import { moneyShort } from '@/lib/utils';
 import { ProductStatusBadge } from '@/components/StatusBadge';
 import { Card } from '@/components/ui/Card';
 import { InlineEditCell } from './InlineEditCell';
+import { ProductThumb } from './ProductThumb';
 
 /** Jadval ustunlari — sahifadagi sarlavha qatori bilan bir xil bo'lishi shart. */
 export const PRODUCT_ROW_GRID =
@@ -23,6 +24,8 @@ export interface ProductRowProps {
   onSaveStock: (value: number) => Promise<void>;
   onSetStatus: (status: ProductStatus) => void;
   statusBusy: boolean;
+  /** Rasmni yuklash/almashtirish oynasini ochadi. */
+  onEditImage: () => void;
 }
 
 /**
@@ -91,6 +94,7 @@ export function ProductRow({
   onSaveStock,
   onSetStatus,
   statusBusy,
+  onEditImage,
 }: ProductRowProps) {
   const tone = stockTone(p.stock, threshold);
   return (
@@ -103,13 +107,7 @@ export function ProductRow({
         className="h-4 w-4 accent-brand"
       />
       <div className="flex min-w-0 items-center gap-3">
-        <span
-          aria-hidden
-          style={hueTint(p.hue)}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-ds-sm text-lg"
-        >
-          {p.emoji}
-        </span>
+        <ProductThumb product={p} onClick={onEditImage} />
         <span className="min-w-0">
           <span className="block truncate text-body font-semibold text-ink">{p.name}</span>
           <span className="mt-0.5 block truncate font-mono text-caption text-subtle">
@@ -153,6 +151,7 @@ export function ProductCardMobile({
   onSaveStock,
   onSetStatus,
   statusBusy,
+  onEditImage,
 }: ProductRowProps) {
   const tone = stockTone(p.stock, threshold);
   return (
@@ -165,13 +164,7 @@ export function ProductCardMobile({
           aria-label={`${p.name} tanlash`}
           className="mt-1 h-4 w-4 shrink-0 accent-brand"
         />
-        <span
-          aria-hidden
-          style={hueTint(p.hue)}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-ds-sm text-lg"
-        >
-          {p.emoji}
-        </span>
+        <ProductThumb product={p} onClick={onEditImage} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-body font-semibold text-ink">{p.name}</p>
           <p className="mt-0.5 truncate font-mono text-caption text-subtle">

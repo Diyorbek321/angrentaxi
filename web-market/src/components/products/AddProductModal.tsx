@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { marketApi, MarketCategory, ProductUnit } from '@/lib/api';
 import { errorMessage } from '@/lib/utils';
+import { catalogImageForm, ImageChange } from '@/lib/catalog-image';
+import { ImagePicker } from '@/components/ImagePicker';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
@@ -33,13 +35,15 @@ export function AddProductModal({
   const [stock, setStock] = useState('');
   const [unit, setUnit] = useState<ProductUnit>('dona');
   const [categoryId, setCategoryId] = useState('');
+  const [image, setImage] = useState<ImageChange>({ kind: 'keep' });
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
     if (!name.trim()) return;
     setSaving(true);
+    let createdId: string;
     try {
-      await marketApi.createProduct({
+      const res = await marketApi.createProduct({
         name: name.trim(),
         sku: sku.trim() || undefined,
         price: Number(price) || 0,
@@ -47,16 +51,28 @@ export function AddProductModal({
         unit,
         categoryId: categoryId || undefined,
       });
-      setName('');
-      setSku('');
-      setPrice('');
-      setStock('');
-      await onCreated();
+      createdId = res.data.data.id;
     } catch (err) {
       onError(errorMessage(err));
-    } finally {
       setSaving(false);
+      return;
     }
+    // Rasm mahsulotdan keyin: id faqat shu yerda ma'lum. Rasm yiqilsa ham
+    // mahsulot qo'shilgan — forma tozalanadi, xato alohida aytiladi.
+    if (image.kind === 'set') {
+      try {
+        await marketApi.uploadProductImage(createdId, await catalogImageForm(image.file));
+      } catch (err) {
+        onError(`Mahsulot qo'shildi, lekin rasm yuklanmadi: ${errorMessage(err)}`);
+      }
+    }
+    setName('');
+    setSku('');
+    setPrice('');
+    setStock('');
+    setImage({ kind: 'keep' });
+    setSaving(false);
+    await onCreated();
   };
 
   return (
@@ -68,6 +84,13 @@ export function AddProductModal({
           void save();
         }}
       >
+        <ImagePicker
+          label="Rasm (ixtiyoriy)"
+          currentSrc={null}
+          value={image}
+          onChange={setImage}
+          aspectClassName="aspect-[2/1]"
+        />
         <Input
           label="Nomi"
           autoFocus
