@@ -23,6 +23,7 @@ import { CreateMenuCategoryDto, UpdateMenuCategoryDto } from './dto/category.dto
 import { CreateDishDto, UpdateDishDto } from './dto/dish.dto';
 import { CreateFoodOrderDto } from './dto/create-food-order.dto';
 import { CreateRestaurantAdminDto } from './dto/create-restaurant-admin.dto';
+import { CatalogModerationQueryDto, likePattern } from '../../common/dto/catalog-moderation-query.dto';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../../database/entities/user.entity';
@@ -783,8 +784,23 @@ export class FoodService implements OnModuleInit {
 
   // Content moderation — an admin reviewing dishes across every restaurant,
   // not scoped to a single vendor's own menu (see listDishes for that).
-  adminListDishes(): Promise<Dish[]> {
-    return this.dishRepo.find({ relations: ['restaurant'], order: { createdAt: 'DESC' } });
+  async adminListDishes(
+    query: CatalogModerationQueryDto,
+  ): Promise<{ dishes: Dish[]; total: number; page: number; limit: number }> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const qb = this.dishRepo
+      .createQueryBuilder('dish')
+      .leftJoinAndSelect('dish.restaurant', 'restaurant')
+      .orderBy('dish.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+    const search = query.search?.trim();
+    if (search) {
+      qb.where('(dish.name ILIKE :q OR restaurant.name ILIKE :q)', { q: likePattern(search) });
+    }
+    const [dishes, total] = await qb.getManyAndCount();
+    return { dishes, total, page, limit };
   }
 
   /** O'chirilgan taomning rasm kaliti — chaqiruvchi faylni tozalaydi. */

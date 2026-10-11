@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import { AlertTriangle, BarChart3, ExternalLink, Megaphone, Plus, Store, Trash2, UtensilsCrossed } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -28,10 +29,16 @@ import {
 } from '@/components/ui/Table';
 import { useToast } from '@/components/ui/Toast';
 import { CreateAdDialog } from '@/components/ads/CreateAdDialog';
-import { AdDailyDrawer } from '@/components/ads/AdDailyDrawer';
 import { adsApi, type AdBanner } from '@/lib/api';
 import { AD_LINK_LABELS, AD_STATE_LABELS, adCtr, adState, formatCtr, type AdState } from '@/lib/ads';
 import { formatDate } from '@/lib/utils';
+
+// Hisobot oynasi grafik (recharts) bilan — sahifa birinchi yuklanishiga
+// kirmasin; bo'lak sahifa chizilgandan keyin fonda yuklanadi.
+const AdDailyDrawer = dynamic(
+  () => import('@/components/ads/AdDailyDrawer').then((m) => m.AdDailyDrawer),
+  { ssr: false }
+);
 
 // Amber intizomi: amber faqat qo'lda aralashuv uchun — bu yerda yo'q.
 const STATE_BADGE: Record<AdState, 'success' | 'info' | 'secondary'> = {

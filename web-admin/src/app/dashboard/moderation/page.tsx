@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Search, SearchX, ShieldCheck, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -22,7 +22,9 @@ import {
 } from '@/components/ui/Modal';
 import { moderationApi, ModeratedProduct, ModeratedDish } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
-import { formatCurrency } from '@/lib/utils';
+import { debounce, formatCurrency } from '@/lib/utils';
+import { usePagination } from '@/hooks/usePagination';
+import { PaginationBar } from '@/components/ui/PaginationBar';
 
 type Tab = 'products' | 'dishes';
 
@@ -42,18 +44,32 @@ export default function ModerationPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  /** Input'dagi matn (darhol) va so'rovga ketgan matn (400 ms dan keyin). */
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
+  const [totals, setTotals] = useState<Record<Tab, number>>({ products: 0, dishes: 0 });
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const pagination = usePagination(20);
+  const { page, limit, setTotal, reset: resetPage } = pagination;
 
-  const load = async () => {
+  // Server sahifalaydi va qidiradi: katalog o'sgani sari hammasini bir
+  // so'rovda olib, brauzerda filtrlash sekinlashib borardi.
+  const load = useCallback(async () => {
     setIsLoading(true);
+    const params = { page, limit, search: search.trim() || undefined };
     try {
-      const [p, d] = await Promise.all([moderationApi.getProducts(), moderationApi.getDishes()]);
-      // API tartibi saqlanadi — javobda vaqt belgisi yo'q, shuning uchun
-      // "eng eskisi birinchi" tartibini mijoz tomonida qura olmaymiz.
-      setProducts(p.data.data);
-      setDishes(d.data.data);
+      if (tab === 'products') {
+        const res = (await moderationApi.getProducts(params)).data.data;
+        setProducts(res.products);
+        setTotals((t) => ({ ...t, products: res.total }));
+        setTotal(res.total, Math.max(1, Math.ceil(res.total / res.limit)));
+      } else {
+        const res = (await moderationApi.getDishes(params)).data.data;
+        setDishes(res.dishes);
+        setTotals((t) => ({ ...t, dishes: res.total }));
+        setTotal(res.total, Math.max(1, Math.ceil(res.total / res.limit)));
+      }
       setError(null);
       setHasLoadedOnce(true);
     } catch {
@@ -62,28 +78,41 @@ export default function ModerationPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [tab, page, limit, search, setTotal, toast]);
 
   useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    void load();
+  }, [load]);
+
+  // Ikkinchi tabning soni ham ko'rinsin — bitta yozuvli yengil so'rov.
+  useEffect(() => {
+    void Promise.all([
+      moderationApi.getProducts({ page: 1, limit: 1 }),
+      moderationApi.getDishes({ page: 1, limit: 1 }),
+    ])
+      .then(([p, d]) => setTotals({ products: p.data.data.total, dishes: d.data.data.total }))
+      .catch(() => {});
   }, []);
 
-  const q = search.trim().toLowerCase();
-  const filteredProducts = useMemo(
-    () =>
-      q
-        ? products.filter((p) => [p.name, p.store?.name ?? ''].join(' ').toLowerCase().includes(q))
-        : products,
-    [products, q]
-  );
-  const filteredDishes = useMemo(
-    () =>
-      q
-        ? dishes.filter((d) => [d.name, d.restaurant?.name ?? ''].join(' ').toLowerCase().includes(q))
-        : dishes,
-    [dishes, q]
-  );
+  const debouncedSearch = useRef(
+    debounce((value: string) => {
+      setSearch(value);
+      resetPage();
+    }, 400)
+  ).current;
+
+  const handleSearchChange = (value: string) => {
+    setSearchInput(value);
+    debouncedSearch(value);
+  };
+
+  const clearSearch = () => {
+    setSearchInput('');
+    setSearch('');
+    resetPage();
+  };
+
+  const q = search.trim();
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -91,11 +120,11 @@ export default function ModerationPage() {
     try {
       if (deleteTarget.kind === 'products') {
         await moderationApi.deleteProduct(deleteTarget.id);
-        setProducts((prev) => prev.filter((p) => p.id !== deleteTarget.id));
       } else {
         await moderationApi.deleteDish(deleteTarget.id);
-        setDishes((prev) => prev.filter((d) => d.id !== deleteTarget.id));
       }
+      // Sahifa server bo'yicha qayta to'ladi: keyingi sahifadagi yozuv o'rniga chiqadi.
+      await load();
       toast({
         title: `«${deleteTarget.name}» o'chirildi`,
         description: 'Sotuvchi katalogidan butunlay olib tashlandi.',
@@ -121,7 +150,7 @@ export default function ModerationPage() {
           title="Hech narsa mos kelmadi"
           description={`"${search.trim()}" bo'yicha ${kind === 'products' ? 'mahsulot' : 'taom'} topilmadi.`}
           action={
-            <Button variant="secondary" size="sm" onClick={() => setSearch('')}>
+            <Button variant="secondary" size="sm" onClick={clearSearch}>
               Qidiruvni tozalash
             </Button>
           }
@@ -155,7 +184,7 @@ export default function ModerationPage() {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {filteredProducts.map((p) => (
+        {products.map((p) => (
           <TableRow key={p.id}>
             <TableCell className="font-medium text-ink">{p.name}</TableCell>
             <TableCell className="text-muted">{p.store?.name ?? '—'}</TableCell>
@@ -195,7 +224,7 @@ export default function ModerationPage() {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {filteredDishes.map((d) => (
+        {dishes.map((d) => (
           <TableRow key={d.id}>
             <TableCell className="font-medium text-ink">{d.name}</TableCell>
             <TableCell className="text-muted">{d.restaurant?.name ?? '—'}</TableCell>
@@ -225,7 +254,7 @@ export default function ModerationPage() {
     </Table>
   );
 
-  const activeRows = tab === 'products' ? filteredProducts : filteredDishes;
+  const activeRows = tab === 'products' ? products : dishes;
 
   return (
     <div className="p-4 sm:p-6">
@@ -240,18 +269,21 @@ export default function ModerationPage() {
           <Tabs
             ariaLabel="Moderatsiya turi"
             items={[
-              { value: 'products', label: 'Mahsulotlar', count: products.length },
-              { value: 'dishes', label: 'Taomlar', count: dishes.length },
+              { value: 'products', label: 'Mahsulotlar', count: totals.products },
+              { value: 'dishes', label: 'Taomlar', count: totals.dishes },
             ]}
             value={tab}
-            onChange={(v) => setTab(v as Tab)}
+            onChange={(v) => {
+              setTab(v as Tab);
+              resetPage();
+            }}
           />
           <div className="min-w-[220px] flex-1">
             <Input
               placeholder="Nomi yoki sotuvchi bo'yicha qidirish..."
               leftIcon={<Search className="h-4 w-4" aria-hidden="true" />}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => handleSearchChange(e.target.value)}
               aria-label="Moderatsiya navbatida qidirish"
             />
           </div>
@@ -292,6 +324,20 @@ export default function ModerationPage() {
               )}
             </CardContent>
           </Card>
+        )}
+
+        {pagination.total > 0 && (
+          <PaginationBar
+            page={pagination.page}
+            limit={pagination.limit}
+            total={pagination.total}
+            totalPages={pagination.totalPages}
+            pageRange={pagination.pageRange}
+            canGoPrev={pagination.canGoPrev}
+            canGoNext={pagination.canGoNext}
+            onPageChange={pagination.goToPage}
+            onLimitChange={pagination.setLimit}
+          />
         )}
       </div>
 

@@ -33,8 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/Table';
-import { RevenueChart } from '@/components/charts/RevenueChart';
-import { OrdersChart } from '@/components/charts/OrdersChart';
+import { OrdersChart, RevenueChart } from '@/components/charts/lazy';
 import { reportsApi, ReportData, RevenueDataPoint, TopDriver } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 import { downloadCsv } from '@/lib/csv';

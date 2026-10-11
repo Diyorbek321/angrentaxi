@@ -329,10 +329,25 @@ export interface ModeratedDish {
   restaurant?: { name: string };
 }
 
+export interface ModerationQuery {
+  page: number;
+  limit: number;
+  search?: string;
+}
+
 export const moderationApi = {
-  getProducts: () => api.get<ApiResponse<ModeratedProduct[]>>('/market/admin/products'),
+  /** Server sahifalaydi va qidiradi (nomi yoki do'kon nomi). */
+  getProducts: (params: ModerationQuery) =>
+    api.get<ApiResponse<{ products: ModeratedProduct[]; total: number; page: number; limit: number }>>(
+      '/market/admin/products',
+      { params }
+    ),
   deleteProduct: (id: string) => api.delete<ApiResponse<void>>(`/market/admin/products/${id}`),
-  getDishes: () => api.get<ApiResponse<ModeratedDish[]>>('/food/admin/dishes'),
+  getDishes: (params: ModerationQuery) =>
+    api.get<ApiResponse<{ dishes: ModeratedDish[]; total: number; page: number; limit: number }>>(
+      '/food/admin/dishes',
+      { params }
+    ),
   deleteDish: (id: string) => api.delete<ApiResponse<void>>(`/food/admin/dishes/${id}`),
 };
 

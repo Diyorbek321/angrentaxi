@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FoodService } from './food.service';
 import { CatalogImageService } from '../storage/catalog-image.service';
@@ -7,6 +7,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../database/entities/user.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
+import { CatalogModerationQueryDto } from '../../common/dto/catalog-moderation-query.dto';
 import { CreateRestaurantAdminDto } from './dto/create-restaurant-admin.dto';
 import { SetRestaurantStatusDto } from './dto/set-restaurant-status.dto';
 
@@ -41,8 +42,8 @@ export class FoodAdminController {
 
   @Get('dishes')
   @ApiOperation({ summary: 'List dishes across every restaurant, for moderation (admin only)' })
-  listDishes() {
-    return this.foodService.adminListDishes();
+  listDishes(@Query() query: CatalogModerationQueryDto) {
+    return this.foodService.adminListDishes(query);
   }
 
   @Delete('dishes/:id')

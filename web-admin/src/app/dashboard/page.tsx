@@ -19,8 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { SkeletonStats, SkeletonCards } from '@/components/ui/Skeleton';
-import { OrdersChart } from '@/components/charts/OrdersChart';
-import { RevenueChart } from '@/components/charts/RevenueChart';
+import { OrdersChart, RevenueChart } from '@/components/charts/lazy';
 import { OrderStatusBadge } from '@/components/orders/OrderStatusBadge';
 import { DriverStatusBadge } from '@/components/drivers/DriverStatusBadge';
 import {

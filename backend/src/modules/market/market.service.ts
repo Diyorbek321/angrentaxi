@@ -30,6 +30,7 @@ import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { BulkUpdateProductsDto } from './dto/bulk-update-products.dto';
 import { CreateMarketOrderDto } from './dto/create-market-order.dto';
 import { CreateStoreAdminDto } from './dto/create-store-admin.dto';
+import { CatalogModerationQueryDto, likePattern } from '../../common/dto/catalog-moderation-query.dto';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../../database/entities/user.entity';
@@ -902,8 +903,23 @@ export class MarketService implements OnModuleInit {
 
   // Content moderation — an admin reviewing products across every store, not
   // scoped to a single vendor's own catalog (see listProducts for that).
-  adminListProducts(): Promise<Product[]> {
-    return this.productRepo.find({ relations: ['store'], order: { createdAt: 'DESC' } });
+  async adminListProducts(
+    query: CatalogModerationQueryDto,
+  ): Promise<{ products: Product[]; total: number; page: number; limit: number }> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const qb = this.productRepo
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.store', 'store')
+      .orderBy('product.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+    const search = query.search?.trim();
+    if (search) {
+      qb.where('(product.name ILIKE :q OR store.name ILIKE :q)', { q: likePattern(search) });
+    }
+    const [products, total] = await qb.getManyAndCount();
+    return { products, total, page, limit };
   }
 
   /** O'chirilgan mahsulotning rasm kaliti — chaqiruvchi faylni tozalaydi. */

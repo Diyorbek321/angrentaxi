@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { MarketService } from './market.service';
 import { CatalogImageService } from '../storage/catalog-image.service';
@@ -7,6 +7,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../database/entities/user.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
+import { CatalogModerationQueryDto } from '../../common/dto/catalog-moderation-query.dto';
 import { CreateStoreAdminDto } from './dto/create-store-admin.dto';
 import { SetStoreStatusDto } from './dto/set-store-status.dto';
 
@@ -41,8 +42,8 @@ export class MarketAdminController {
 
   @Get('products')
   @ApiOperation({ summary: 'List products across every store, for moderation (admin only)' })
-  listProducts() {
-    return this.marketService.adminListProducts();
+  listProducts(@Query() query: CatalogModerationQueryDto) {
+    return this.marketService.adminListProducts(query);
   }
 
   @Delete('products/:id')
