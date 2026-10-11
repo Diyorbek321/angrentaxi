@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { API_BASE_URL } from '@/lib/server/api-config';
 import { ACCESS_TOKEN_COOKIE } from '@/lib/server/auth-cookies';
 import { crossOriginRejection, isSameOrigin } from '@/lib/server/same-origin';
+import { cacheControlFor } from '@/lib/server/proxy-cache';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -81,7 +82,7 @@ async function forward(req: NextRequest, segments: string[]): Promise<NextRespon
     const value = upstream.headers.get(name);
     if (value) responseHeaders.set(name, value);
   }
-  responseHeaders.set('Cache-Control', 'no-store');
+  responseHeaders.set('Cache-Control', cacheControlFor(req.method, segments, upstream.status));
 
   // 204/304 must not carry a body, and the backend's own Set-Cookie headers are
   // intentionally dropped — session state on this origin is ours alone.

@@ -7,6 +7,7 @@ import { marketApi, MarketOrder, MarketOrderStatus } from '@/lib/api';
 import { ORDER_STATUS, compareOrders } from '@/lib/order-status';
 import { errorMessage } from '@/lib/utils';
 import { useAsyncData } from '@/hooks/useAsyncData';
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
 import { usePagination } from '@/hooks/usePagination';
 import { useToast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
@@ -47,6 +48,7 @@ export default function OrdersPage() {
     const interval = setInterval(() => void reload(), POLL_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [reload]);
+  useRealtimeRefresh(reload);
 
   const orders = useMemo(() => [...(data ?? [])].sort(compareOrders), [data]);
 

@@ -1,6 +1,6 @@
 # Angren Taxi — qolgan ishlar
 
-Oxirgi yangilanish: 2026-10-10. Bajarilgan ishlar tarixi uchun `git log`ga qarang — bu fayl faqat **hali ochiq** ishlarni kuzatish uchun.
+Oxirgi yangilanish: 2026-10-11. Bajarilgan ishlar tarixi uchun `git log`ga qarang — bu fayl faqat **hali ochiq** ishlarni kuzatish uchun.
 
 ---
 
@@ -77,6 +77,16 @@ Restoran/do'kon muqovasi, taom va mahsulot fotosi: migratsiya 024 (`image_key`),
 ## 🔧 Barqarorlik (hozirgi fokus — server kerak emas)
 
 Hammasi 2026-10-05 da bajarildi (`git log`). Keyingi navbat — haqiqiy qurilmada sinov (pastda).
+
+## 🖥️ Web panellar tezligi (2026-10-11 qilindi)
+
+- [x] **Restoran va market panellari socket orqali** — yangi buyurtma, kuryer topilmadi, naqd to'lov hodisasi kelishi bilan ro'yxat yangilanadi (sinovda 35 ms; avval 15–30 s poll). Manager panelidagi usul: `server.js` + `server/upgrade-proxy.js`, token sahifaga berilmaydi. Poll zaxira bo'lib qoldi. ⚠️ `npm run dev` endi `node server.js`; Dockerfile `server.js` va `server/` ni nusxalaydi.
+- [x] **Panel proksisi katalog rasmlarini brauzerda keshlaydi** (`lib/server/proxy-cache.ts`).
+- [x] **Admin: grafiklar kechiktirib yuklanadi** — bosh sahifa 259→157 KB, Reklama 275→176, Hisobotlar 252→150.
+- [x] **Admin moderatsiyasi server tomonida sahifalanadi va qidiradi** (`?page&limit&search`).
+- [ ] **Railway: panel proksisini ichki tarmoqqa yo'naltirish** — 4 panelga `API_URL=http://<backend>.railway.internal:<port>/api/v1` (manager/admin socket uchun `SOCKET_URL` ham). Railway tiklanganda.
+- [ ] Market "Mahsulotlar" sahifasi hamma mahsulotni olib, brauzerda sahifalaydi — katalog katta bo'lsa serverga o'tkazish (tab sonlari uchun server hisobi kerak).
+- [ ] Admin moderatsiyasida taom/mahsulot rasmi ko'rinmaydi.
 
 ## 🟡 Biznes qarori kerak
 

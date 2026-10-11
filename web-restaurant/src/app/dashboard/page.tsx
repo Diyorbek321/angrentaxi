@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ClipboardList, Clock, Inbox, LayoutGrid, UtensilsCrossed, Wallet } from 'lucide-react';
 import { foodApi, DashboardData } from '@/lib/api';
 import { useAsyncData } from '@/hooks/useAsyncData';
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
 import { money, formatTime } from '@/lib/utils';
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { Badge } from '@/components/ui/Badge';
@@ -26,6 +27,7 @@ export default function DashboardPage() {
   const { data, status, error, isRefreshing, lastUpdatedAt, reload } = useAsyncData<DashboardData>(load, {
     pollMs: 30000,
   });
+  useRealtimeRefresh(reload);
 
   return (
     <div className="mx-auto w-full max-w-6xl">

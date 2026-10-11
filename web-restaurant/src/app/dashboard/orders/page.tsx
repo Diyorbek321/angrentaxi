@@ -21,6 +21,7 @@ import {
 import { clsx } from 'clsx';
 import { foodApi, FoodOrder, FoodOrderStatus, Restaurant } from '@/lib/api';
 import { useAsyncData } from '@/hooks/useAsyncData';
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
 import { money, formatTime } from '@/lib/utils';
 import { advanceLabelFor, NEXT_STATUS, statusMeta } from '@/lib/order-status';
 import { trackNewOrders } from '@/lib/order-alerts';
@@ -135,6 +136,7 @@ export default function OrdersPage() {
   const { data, status, error, isRefreshing, lastUpdatedAt, reload } = useAsyncData<FoodOrder[]>(load, {
     pollMs: 15000,
   });
+  useRealtimeRefresh(reload);
   const orders = useMemo(() => data ?? [], [data]);
 
   // Taymer sekundlik — bu faqat ko'rsatkichni qayta chizadi, so'rov yubormaydi.

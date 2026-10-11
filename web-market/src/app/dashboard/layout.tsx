@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Menu, WifiOff } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
 import { marketApi, Store } from '@/lib/api';
 import { formatTime } from '@/lib/utils';
 import { Sidebar } from '@/components/layout/Sidebar';
@@ -70,6 +71,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const interval = setInterval(() => void refresh(), POLL_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [isAuthenticated, refresh]);
+
+  // Yangi buyurtma socket orqali darhol — 30 s poll zaxira bo'lib qoladi.
+  useRealtimeRefresh(refresh, isAuthenticated);
 
   // Fon tabida ham ko'rinsin: yangi buyurtma soni brauzer tab sarlavhasida.
   useEffect(() => {

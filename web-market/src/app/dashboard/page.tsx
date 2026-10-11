@@ -18,6 +18,7 @@ import { clsx } from 'clsx';
 import { marketApi, DashboardData } from '@/lib/api';
 import { money, moneyShort, formatTime } from '@/lib/utils';
 import { useAsyncData } from '@/hooks/useAsyncData';
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -50,6 +51,7 @@ export default function DashboardPage() {
     const interval = setInterval(() => void reload(), POLL_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [reload]);
+  useRealtimeRefresh(reload);
 
   return (
     <div>

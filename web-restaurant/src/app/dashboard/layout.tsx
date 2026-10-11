@@ -6,6 +6,7 @@ import { Menu, UtensilsCrossed, Wifi, WifiOff } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth } from '@/hooks/useAuth';
 import { useAsyncData } from '@/hooks/useAsyncData';
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
 import { foodApi, FoodOrder, Restaurant } from '@/lib/api';
 import { useKiosk } from '@/lib/kiosk-context';
 import { trackNewOrders, resetOrderAlerts } from '@/lib/order-alerts';
@@ -48,6 +49,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, []);
 
   const chrome = useAsyncData<Chrome>(loadChrome, { pollMs: 30000, enabled: isAuthenticated });
+  // Yangi buyurtma socket orqali darhol: ovozli signal ham shu yuklashdan chiqadi.
+  useRealtimeRefresh(chrome.reload, isAuthenticated);
 
   const restaurant = chrome.data?.restaurant ?? null;
   const newOrders = chrome.data?.newOrders ?? 0;
