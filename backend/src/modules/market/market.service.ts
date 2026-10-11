@@ -244,9 +244,11 @@ export class MarketService implements OnModuleInit {
     return { updated: toUpdate.length };
   }
 
-  async deleteProduct(storeId: string, id: string): Promise<void> {
+  /** O'chirilgan mahsulotning rasm kaliti — chaqiruvchi faylni tozalaydi. */
+  async deleteProduct(storeId: string, id: string): Promise<string | null> {
     const product = await this.getOwnedProduct(storeId, id);
     await this.productRepo.remove(product);
+    return product.imageKey;
   }
 
   listStockMovements(storeId: string): Promise<StockMovement[]> {
@@ -904,11 +906,13 @@ export class MarketService implements OnModuleInit {
     return this.productRepo.find({ relations: ['store'], order: { createdAt: 'DESC' } });
   }
 
-  async adminDeleteProduct(id: string): Promise<void> {
+  /** O'chirilgan mahsulotning rasm kaliti — chaqiruvchi faylni tozalaydi. */
+  async adminDeleteProduct(id: string): Promise<string | null> {
     const product = await this.productRepo.findOne({ where: { id } });
     if (!product) {
       throw new NotFoundException('Product not found');
     }
     await this.productRepo.remove(product);
+    return product.imageKey;
   }
 }

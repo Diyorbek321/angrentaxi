@@ -1,3 +1,4 @@
+import 'package:angren_taxi/shared/widgets/catalog_image.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 
@@ -12,6 +13,7 @@ class MarketProduct extends Equatable {
     required this.status,
     required this.emoji,
     required this.hue,
+    this.imageKey,
   });
 
   final String id;
@@ -23,6 +25,9 @@ class MarketProduct extends Equatable {
   final String status;
   final String emoji;
   final int hue;
+  final String? imageKey;
+
+  String? get imageUrl => catalogImageUrl(imageKey);
 
   bool get isAvailable => status == 'active' && stock > 0;
 
@@ -43,11 +48,12 @@ class MarketProduct extends Equatable {
       status: (json['status'] as String?) ?? 'active',
       emoji: (json['emoji'] as String?) ?? '📦',
       hue: (json['hue'] as num?)?.toInt() ?? 45,
+      imageKey: json['imageKey'] as String?,
     );
   }
 
   @override
-  List<Object?> get props => [id, categoryId, name, price, stock, unit, status, emoji, hue];
+  List<Object?> get props => [id, categoryId, name, price, stock, unit, status, emoji, hue, imageKey];
 }
 
 /// Best-effort emoji → Material icon mapping so existing icon-based product

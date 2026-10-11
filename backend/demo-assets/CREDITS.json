@@ -1,0 +1,422 @@
+{
+ "r-osh": {
+  "id": "64zZ_h_HCTs",
+  "author": "Igor Sporynin",
+  "link": "https://unsplash.com/photos/a-bowl-filled-with-different-types-of-food-on-a-table-64zZ_h_HCTs",
+  "query": "uzbek plov restaurant"
+ },
+ "r-lavash": {
+  "id": "xq04aTV-LVk",
+  "author": "Bayuaji Abiyu",
+  "link": "https://unsplash.com/photos/a-cut-in-half-sandwich-sitting-on-top-of-a-cutting-board-xq04aTV-LVk",
+  "query": "shawarma wrap"
+ },
+ "r-burger": {
+  "id": "E6HjQaB7UEA",
+  "author": "Dan Gold",
+  "link": "https://unsplash.com/photos/people-eating-burgers-and-fries-E6HjQaB7UEA",
+  "query": "burger restaurant"
+ },
+ "r-pizza": {
+  "id": "40OJLYVWeeM",
+  "author": "Nik Owens",
+  "link": "https://unsplash.com/photos/pizza-on-brown-wooden-table-40OJLYVWeeM",
+  "query": "pizza wood oven"
+ },
+ "r-kafe": {
+  "id": "UMUCQcDdLws",
+  "author": "Breakslow",
+  "link": "https://unsplash.com/photos/cappuccino-cup-UMUCQcDdLws",
+  "query": "cafe desserts coffee"
+ },
+ "d-toshkent-oshi": {
+  "id": "u8oFTbtcTQM",
+  "author": "Umair Ali Asad",
+  "link": "https://unsplash.com/photos/a-tray-of-food-u8oFTbtcTQM",
+  "query": "pilaf rice dish"
+ },
+ "d-samarqand-oshi": {
+  "id": "PnZaDhSpAZw",
+  "author": "Natalia Gusakova",
+  "link": "https://unsplash.com/photos/a-bowl-of-rice-and-a-cup-of-tea-on-a-table-PnZaDhSpAZw",
+  "query": "plov rice meat carrot"
+ },
+ "d-manti": {
+  "id": "VdcAnwXHr9U",
+  "author": "Tamara Malaniy",
+  "link": "https://unsplash.com/photos/white-pastry-on-black-plate-VdcAnwXHr9U",
+  "query": "manti dumplings"
+ },
+ "d-shashlik": {
+  "id": "FOZbF67e-DE",
+  "author": "Mihir Sabnis",
+  "link": "https://unsplash.com/photos/several-skewers-of-chicken-and-vegetables-on-a-grill-FOZbF67e-DE",
+  "query": "meat skewers grill"
+ },
+ "d-jigar": {
+  "id": "T9TZk823XYU",
+  "author": "Vegan Foods Product",
+  "link": "https://unsplash.com/photos/a-white-plate-topped-with-meat-and-veggies-T9TZk823XYU",
+  "query": "grilled kebab skewers plate"
+ },
+ "d-somsa": {
+  "id": "8T9AVksyt7s",
+  "author": "kabir cheema",
+  "link": "https://unsplash.com/photos/samosas-with-green-chili-and-pomegranate-8T9AVksyt7s",
+  "query": "samsa pastry"
+ },
+ "d-achchiq-chuchuk": {
+  "id": "brkFAQjAO3w",
+  "author": "Grooveland Designs",
+  "link": "https://unsplash.com/photos/sliced-tomato-and-green-leaf-vegetable-in-white-ceramic-bowl-brkFAQjAO3w",
+  "query": "tomato onion salad"
+ },
+ "d-non": {
+  "id": "rXPKelZmS_Q",
+  "author": "Evgeny Matveev",
+  "link": "https://unsplash.com/photos/a-bunch-of-breads-that-are-sitting-on-a-table-rXPKelZmS_Q",
+  "query": "uzbek bread"
+ },
+ "d-kok-choy": {
+  "id": "_EMTtTEioWo",
+  "author": "Vincent Roman",
+  "link": "https://unsplash.com/photos/white-ceramic-teapot-beside-white-ceramic-mug-_EMTtTEioWo",
+  "query": "green tea pot"
+ },
+ "d-lavash": {
+  "id": "MdkUEKFfkTM",
+  "author": "Advocator SY",
+  "link": "https://unsplash.com/photos/a-black-plate-topped-with-a-burrito-and-a-salad-MdkUEKFfkTM",
+  "query": "lavash wrap"
+ },
+ "d-pishloqli-lavash": {
+  "id": "ZB8NK8cB4EE",
+  "author": "Pixzolo Photography",
+  "link": "https://unsplash.com/photos/bread-with-cheese-fillings-on-white-ceramic-plate-ZB8NK8cB4EE",
+  "query": "cheese wrap sandwich"
+ },
+ "d-shaurma": {
+  "id": "TvcjBk5y0wU",
+  "author": "Eugene Kucheruk",
+  "link": "https://unsplash.com/photos/a-sandwich-on-a-plate-TvcjBk5y0wU",
+  "query": "shawarma"
+ },
+ "d-hotdog": {
+  "id": "RKQ4-Q5FF-o",
+  "author": "Ball Park Brand",
+  "link": "https://unsplash.com/photos/brown-bread-with-hotdog-on-top-RKQ4-Q5FF-o",
+  "query": "hot dog"
+ },
+ "d-fri-lavash": {
+  "id": "lpsbMRRqMQw",
+  "author": "Joyce Panda",
+  "link": "https://unsplash.com/photos/french-fries-on-white-ceramic-plate-lpsbMRRqMQw",
+  "query": "french fries"
+ },
+ "d-lemonad": {
+  "id": "p5EiqkBYIEE",
+  "author": "Francesca Hotchin",
+  "link": "https://unsplash.com/photos/lime-juice-on-drinking-glass-beside-sliced-limes-p5EiqkBYIEE",
+  "query": "lemonade glass"
+ },
+ "d-klassik-burger": {
+  "id": "sc5sTPMrVfk",
+  "author": "amirali mirhashemian",
+  "link": "https://unsplash.com/photos/burger-with-lettuce-and-tomatoes-sc5sTPMrVfk",
+  "query": "classic burger"
+ },
+ "d-chizburger": {
+  "id": "5ZR4DxAG3RQ",
+  "author": "Giorgi Iremadze",
+  "link": "https://unsplash.com/photos/burger-with-lettuce-and-tomato-5ZR4DxAG3RQ",
+  "query": "cheeseburger"
+ },
+ "d-double-burger": {
+  "id": "jh5XyK4Rr3Y",
+  "author": "amirali mirhashemian",
+  "link": "https://unsplash.com/photos/double-patty-cheeseburger-jh5XyK4Rr3Y",
+  "query": "double burger"
+ },
+ "d-chicken-burger": {
+  "id": "3IHKG-iqAmc",
+  "author": "Caramel",
+  "link": "https://unsplash.com/photos/a-close-up-of-a-tray-of-sandwiches-3IHKG-iqAmc",
+  "query": "crispy chicken sandwich"
+ },
+ "d-kartoshka-fri": {
+  "id": "ChXHveqrb28",
+  "author": "Mitchell Luo",
+  "link": "https://unsplash.com/photos/a-basket-of-french-fries-sitting-on-top-of-a-wooden-table-ChXHveqrb28",
+  "query": "french fries basket"
+ },
+ "d-nagets": {
+  "id": "TEplqAWpCIs",
+  "author": "Brett Jordan",
+  "link": "https://unsplash.com/photos/brown-cookies-on-white-ceramic-plate-TEplqAWpCIs",
+  "query": "chicken nuggets"
+ },
+ "d-cola": {
+  "id": "qy4vrr2qi3M",
+  "author": "Alessandro D’Antonio",
+  "link": "https://unsplash.com/photos/coca-cola-bottles-on-black-table-qy4vrr2qi3M",
+  "query": "cola bottle"
+ },
+ "d-ayron": {
+  "id": "2rlleYcpvtI",
+  "author": "engin akyurt",
+  "link": "https://unsplash.com/photos/clear-drinking-glass-with-brown-liquid-2rlleYcpvtI",
+  "query": "glass of milk yogurt drink"
+ },
+ "d-bbq": {
+  "id": "FzB_512zvP0",
+  "author": "Dennis Klein",
+  "link": "https://unsplash.com/photos/tomato-and-tomato-puree-with-parsley-in-bowl-FzB_512zvP0",
+  "query": "bbq sauce"
+ },
+ "d-cheesecake": {
+  "id": "s8_7AqkzCWY",
+  "author": "Tina Guina",
+  "link": "https://unsplash.com/photos/sliced-of-cake-on-black-plate-s8_7AqkzCWY",
+  "query": "cheesecake slice"
+ },
+ "d-margarita": {
+  "id": "MQUqbmszGGM",
+  "author": "Ivan Torres",
+  "link": "https://unsplash.com/photos/cheese-pizza-with-tomatoes-and-rosemary-MQUqbmszGGM",
+  "query": "margherita pizza"
+ },
+ "d-pepperoni": {
+  "id": "a66sGfOnnqQ",
+  "author": "Shourav Sheikh",
+  "link": "https://unsplash.com/photos/pizza-with-sausage-and-mushrooms-a66sGfOnnqQ",
+  "query": "pepperoni pizza"
+ },
+ "d-4cheese": {
+  "id": "JG5lgvc57qE",
+  "author": "georgia z",
+  "link": "https://unsplash.com/photos/pizza-with-cheese-and-green-leaves-JG5lgvc57qE",
+  "query": "four cheese pizza"
+ },
+ "d-meat-pizza": {
+  "id": "oYkC51pOQBk",
+  "author": "Pranjall Kumar",
+  "link": "https://unsplash.com/photos/pizza-on-brown-wooden-tray-oYkC51pOQBk",
+  "query": "meat pizza"
+ },
+ "d-sezar": {
+  "id": "xeTv9N2FjXA",
+  "author": "Tania Melnyczuk",
+  "link": "https://unsplash.com/photos/vegetable-salad-on-white-ceramic-plate-xeTv9N2FjXA",
+  "query": "caesar salad"
+ },
+ "d-cola-1l": {
+  "id": "Yezt64WAT8A",
+  "author": "Charlie Wollborg",
+  "link": "https://unsplash.com/photos/a-large-group-of-cans-of-soda-Yezt64WAT8A",
+  "query": "soda cans"
+ },
+ "d-kapuchino": {
+  "id": "ZLqxSzvVr7I",
+  "author": "Dani",
+  "link": "https://unsplash.com/photos/cup-of-coffee-on-saucer-ZLqxSzvVr7I",
+  "query": "cappuccino"
+ },
+ "d-latte": {
+  "id": "nzyzAUsbV0M",
+  "author": "Fahmi Fakhrudin",
+  "link": "https://unsplash.com/photos/person-making-latte-art-nzyzAUsbV0M",
+  "query": "latte art"
+ },
+ "d-napoleon": {
+  "id": "fWGxcZYRgxQ",
+  "author": "Halyna Chemerys",
+  "link": "https://unsplash.com/photos/a-plate-of-food-fWGxcZYRgxQ",
+  "query": "napoleon cake"
+ },
+ "d-medovik": {
+  "id": "5kZvaxlK568",
+  "author": "Olga Petnyunene",
+  "link": "https://unsplash.com/photos/a-close-up-of-a-cake-on-a-plate-with-a-spoon-5kZvaxlK568",
+  "query": "honey cake"
+ },
+ "d-muzqaymoq": {
+  "id": "QYsRxRPygwU",
+  "author": "Courtney Cook",
+  "link": "https://unsplash.com/photos/ice-cream-cone-with-sprinkles-QYsRxRPygwU",
+  "query": "ice cream scoops"
+ },
+ "d-kruassan": {
+  "id": "sqkXyyj4WdE",
+  "author": "Conor Brown",
+  "link": "https://unsplash.com/photos/a-bunch-of-croissants-that-are-on-a-table-sqkXyyj4WdE",
+  "query": "croissant"
+ },
+ "d-tiramisu": {
+  "id": "d-Mx494kXAg",
+  "author": "Gina's Auckland",
+  "link": "https://unsplash.com/photos/a-piece-of-cake-sitting-on-top-of-a-white-plate-d-Mx494kXAg",
+  "query": "tiramisu"
+ },
+ "s-market": {
+  "id": "IH65r4HEQWQ",
+  "author": "Jack Lee",
+  "link": "https://unsplash.com/photos/a-grocery-store-aisle-filled-with-lots-of-food-IH65r4HEQWQ",
+  "query": "grocery store shelves"
+ },
+ "p-guruch": {
+  "id": "-LdilhDx3sk",
+  "author": "Pierre Bamin",
+  "link": "https://unsplash.com/photos/raw-white-rice-grains-background--LdilhDx3sk",
+  "query": "rice grains"
+ },
+ "p-yog": {
+  "id": "ga7jUmY3lrk",
+  "author": "Dmytro Glazunov",
+  "link": "https://unsplash.com/photos/a-bottle-of-water-on-a-table-ga7jUmY3lrk",
+  "query": "sunflower oil bottle"
+ },
+ "p-un": {
+  "id": "yHZwjlcVNII",
+  "author": "Carl Tronders",
+  "link": "https://unsplash.com/photos/three-bags-of-flour-on-a-shelf-yHZwjlcVNII",
+  "query": "flour bag"
+ },
+ "p-shakar": {
+  "id": "TXVntZ190Ao",
+  "author": "Daniel Kraus",
+  "link": "https://unsplash.com/photos/a-pile-of-sugar-cubes-sitting-on-top-of-each-other-TXVntZ190Ao",
+  "query": "sugar"
+ },
+ "p-choy": {
+  "id": "2CRgKZAyPXg",
+  "author": "Oleg Guijinsky",
+  "link": "https://unsplash.com/photos/black-burnt-matchsticks-closeup-photography-2CRgKZAyPXg",
+  "query": "black tea leaves"
+ },
+ "p-suv": {
+  "id": "N-MqWXXZvNY",
+  "author": "Steve A Johnson",
+  "link": "https://unsplash.com/photos/clear-drinking-bottle-filled-with-water-N-MqWXXZvNY",
+  "query": "water bottle"
+ },
+ "p-kartoshka": {
+  "id": "B0s3Xndk6tw",
+  "author": "Lars Blankers",
+  "link": "https://unsplash.com/photos/brown-potato-lot-B0s3Xndk6tw",
+  "query": "potatoes"
+ },
+ "p-tuxum": {
+  "id": "Hj53USePB1E",
+  "author": "Jakub Kapusnak",
+  "link": "https://unsplash.com/photos/shallow-focus-photography-of-brown-eggs-Hj53USePB1E",
+  "query": "eggs carton"
+ },
+ "p-sovun": {
+  "id": "6J0MUsmS4fQ",
+  "author": "Aurélia Dubois",
+  "link": "https://unsplash.com/photos/white-cheese-on-brown-wooden-table-6J0MUsmS4fQ",
+  "query": "soap bar"
+ },
+ "p-pomidor": {
+  "id": "OlXUUQedQyM",
+  "author": "Avin CP",
+  "link": "https://unsplash.com/photos/red-tomato-on-gray-concrete-surface-OlXUUQedQyM",
+  "query": "tomatoes"
+ },
+ "p-bodring": {
+  "id": "2GiRcLP_jkI",
+  "author": "Harshal S. Hirve",
+  "link": "https://unsplash.com/photos/cucumber-lot-2GiRcLP_jkI",
+  "query": "cucumbers"
+ },
+ "p-olma": {
+  "id": "wXuzS9xR49M",
+  "author": "Matheus Cenali",
+  "link": "https://unsplash.com/photos/bunch-of-red-apples-wXuzS9xR49M",
+  "query": "red apples"
+ },
+ "p-banan": {
+  "id": "1jyRHJPkpz8",
+  "author": "Gabriel Mihalcea",
+  "link": "https://unsplash.com/photos/a-bunch-of-bananas-sitting-on-top-of-a-white-table-1jyRHJPkpz8",
+  "query": "bananas"
+ },
+ "p-sut": {
+  "id": "c7PT4PZMcNA",
+  "author": "Anita Jankovic",
+  "link": "https://unsplash.com/photos/white-candle-in-clear-glass-holder-c7PT4PZMcNA",
+  "query": "milk jug glass"
+ },
+ "p-qatiq": {
+  "id": "uy_V12d-VXU",
+  "author": "Vicky Ng",
+  "link": "https://unsplash.com/photos/sliced-fruits-on-white-ceramic-plate-uy_V12d-VXU",
+  "query": "yogurt bowl"
+ },
+ "p-pishloq": {
+  "id": "JJcT6VJWDlg",
+  "author": "David Foodphototasty",
+  "link": "https://unsplash.com/photos/a-couple-of-pieces-of-cheese-sitting-on-top-of-a-wooden-cutting-board-JJcT6VJWDlg",
+  "query": "cheese"
+ },
+ "p-makaron": {
+  "id": "m5Ft3bsalhQ",
+  "author": "Bozhin Karaivanov",
+  "link": "https://unsplash.com/photos/yellow-flower-petals-in-close-up-photography-m5Ft3bsalhQ",
+  "query": "pasta"
+ },
+ "p-shokolad": {
+  "id": "mGP8gyGb8zY",
+  "author": "Denny Müller",
+  "link": "https://unsplash.com/photos/cardboard-box-filled-with-chocolate-bars-mGP8gyGb8zY",
+  "query": "chocolate bar"
+ },
+ "p-kofe": {
+  "id": "TD4DBagg2wE",
+  "author": "Mike Kenneally",
+  "link": "https://unsplash.com/photos/coffee-bean-lot-TD4DBagg2wE",
+  "query": "coffee beans"
+ },
+ "p-sharbat": {
+  "id": "TmOGarNOGFs",
+  "author": "Mateusz Feliksik",
+  "link": "https://unsplash.com/photos/orange-juice-in-clear-drinking-glass-TmOGarNOGFs",
+  "query": "orange juice"
+ },
+ "p-piyoz": {
+  "id": "0_fkPHulv-M",
+  "author": "K8",
+  "link": "https://unsplash.com/photos/pink-and-white-garlic-on-white-surface-0_fkPHulv-M",
+  "query": "onions"
+ },
+ "p-sabzi": {
+  "id": "IZq1FV87qpM",
+  "author": "Nick Fewings",
+  "link": "https://unsplash.com/photos/a-pile-of-carrots-with-green-tops-and-leaves-IZq1FV87qpM",
+  "query": "carrots"
+ },
+ "b-food": {
+  "id": "Q_Moi2xjieU",
+  "author": "Stefan Vladimirov",
+  "link": "https://unsplash.com/photos/white-plates-with-assorted-foods-Q_Moi2xjieU",
+  "query": "delicious food table top view"
+ },
+ "b-taxi": {
+  "id": "NqOInJ-ttqM",
+  "author": "Marc-Olivier Jodoin",
+  "link": "https://unsplash.com/photos/long-exposure-photography-of-road-and-cars-NqOInJ-ttqM",
+  "query": "city night car lights"
+ },
+ "b-market": {
+  "id": "-gOUx23DNks",
+  "author": "Jacopo Maiarelli",
+  "link": "https://unsplash.com/photos/assorted-fruits-at-the-market--gOUx23DNks",
+  "query": "fresh vegetables market"
+ },
+ "d-lagmon": {
+  "id": "NFQi_2HUNRI",
+  "author": "Kirill Tonkikh",
+  "link": "https://unsplash.com/photos/a-bowl-of-noodle-soup-with-chopsticks-on-the-side-NFQi_2HUNRI",
+  "query": "beef noodle soup"
+ }
+}

@@ -9,6 +9,7 @@ import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
 import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
 import 'package:angren_taxi/shared/widgets/app_status_badge.dart';
+import 'package:angren_taxi/shared/widgets/catalog_image.dart';
 import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -167,13 +168,18 @@ class _FoodCard extends StatelessWidget {
             children: [
               Stack(
                 children: [
-                  Container(
-                    height: 100,
+                  SizedBox(
+                    height: 132,
                     width: double.infinity,
-                    color: agOrange,
-                    child: ExcludeSemantics(
-                      child: Icon(Icons.restaurant_rounded,
-                          size: 48, color: agOnPrimary.withValues(alpha: 0.7)),
+                    child: CatalogImage(
+                      imageUrl: r.imageUrl,
+                      placeholder: Container(
+                        color: agOrange,
+                        child: ExcludeSemantics(
+                          child: Icon(Icons.restaurant_rounded,
+                              size: 48, color: agOnPrimary.withValues(alpha: 0.7)),
+                        ),
+                      ),
                     ),
                   ),
                   Positioned(

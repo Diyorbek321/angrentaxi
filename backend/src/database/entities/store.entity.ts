@@ -40,6 +40,13 @@ export class Store {
   @Column({ nullable: true, type: 'varchar' })
   address: string | null;
 
+  /**
+   * Katalog rasmi kaliti (`catalog/<uuid>.<ext>`), null = rasm yo'q.
+   * Maxfiy emas: mijoz uni `GET /media/<kalit>` orqali ochiq yuklaydi.
+   */
+  @Column({ name: 'image_key', type: 'varchar', length: 200, nullable: true })
+  imageKey: string | null;
+
   // Unused legacy column, superseded by lat/lng below (plain decimals are
   // simpler to read/write than PostGIS geometry for a single static point).
   @Column({

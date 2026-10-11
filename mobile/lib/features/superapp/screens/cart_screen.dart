@@ -6,6 +6,7 @@ import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/ag_map_fab.dart';
 import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
+import 'package:angren_taxi/shared/widgets/catalog_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -218,14 +219,19 @@ class _CartRow extends StatelessWidget {
       child: Row(
         children: [
           ExcludeSemantics(
-            child: Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: item.color,
-                borderRadius: BorderRadius.circular(kRadiusSm),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(kRadiusSm),
+              child: SizedBox(
+                width: 52,
+                height: 52,
+                child: CatalogImage(
+                  imageUrl: item.imageUrl,
+                  placeholder: Container(
+                    color: item.color,
+                    child: Icon(item.icon, size: 26, color: agOnPrimary.withValues(alpha: 0.95)),
+                  ),
+                ),
               ),
-              child: Icon(item.icon, size: 26, color: agOnPrimary.withValues(alpha: 0.95)),
             ),
           ),
           const SizedBox(width: kSpace3),

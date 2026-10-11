@@ -8,6 +8,7 @@ import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
 import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
 import 'package:angren_taxi/shared/widgets/app_status_badge.dart';
+import 'package:angren_taxi/shared/widgets/catalog_image.dart';
 import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -170,6 +171,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                         child: _ResultRow(
                                           color: agPrimary,
                                           icon: Icons.restaurant_rounded,
+                                          imageUrl: r.imageUrl,
                                           title: r.name,
                                           sub: r.address ?? (r.isOpen ? context.l10n.saOpen : context.l10n.saClosed),
                                           trailing: AppStatusBadge(
@@ -196,6 +198,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                         child: _ResultRow(
                                           color: p.color,
                                           icon: p.icon,
+                                          imageUrl: p.imageUrl,
                                           title: p.name,
                                           sub: context.l10n.saSearchMarketUnit(p.unit),
                                           trailing: Text(
@@ -239,9 +242,18 @@ class _SearchScreenState extends State<SearchScreen> {
 }
 
 class _ResultRow extends StatelessWidget {
-  const _ResultRow({required this.color, required this.icon, required this.title, required this.sub, required this.trailing, required this.onTap});
+  const _ResultRow({
+    required this.color,
+    required this.icon,
+    this.imageUrl,
+    required this.title,
+    required this.sub,
+    required this.trailing,
+    required this.onTap,
+  });
   final Color color;
   final IconData icon;
+  final String? imageUrl;
   final String title;
   final String sub;
   final Widget trailing;
@@ -265,14 +277,19 @@ class _ResultRow extends StatelessWidget {
           child: Row(
             children: [
               ExcludeSemantics(
-                child: Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(kRadiusSm),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(kRadiusSm),
+                  child: SizedBox(
+                    width: 50,
+                    height: 50,
+                    child: CatalogImage(
+                      imageUrl: imageUrl,
+                      placeholder: Container(
+                        color: color,
+                        child: Icon(icon, size: 25, color: agOnPrimary.withValues(alpha: 0.95)),
+                      ),
+                    ),
                   ),
-                  child: Icon(icon, size: 25, color: agOnPrimary.withValues(alpha: 0.95)),
                 ),
               ),
               const SizedBox(width: kSpace3),

@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { MarketService } from './market.service';
+import { CatalogImageService } from '../storage/catalog-image.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -15,7 +16,10 @@ import { SetStoreStatusDto } from './dto/set-store-status.dto';
 @Roles(UserRole.ADMIN)
 @Controller('market/admin')
 export class MarketAdminController {
-  constructor(private readonly marketService: MarketService) {}
+  constructor(
+    private readonly marketService: MarketService,
+    private readonly catalogImages: CatalogImageService,
+  ) {}
 
   @Get('stores')
   @ApiOperation({ summary: 'List all Market stores (admin only)' })
@@ -43,7 +47,8 @@ export class MarketAdminController {
 
   @Delete('products/:id')
   @ApiOperation({ summary: 'Remove a product (moderation — admin only)' })
-  deleteProduct(@Param('id', ParseUUIDPipe) id: string) {
-    return this.marketService.adminDeleteProduct(id);
+  async deleteProduct(@Param('id', ParseUUIDPipe) id: string) {
+    const imageKey = await this.marketService.adminDeleteProduct(id);
+    await this.catalogImages.discard(imageKey);
   }
 }

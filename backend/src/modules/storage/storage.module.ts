@@ -1,7 +1,9 @@
 import * as path from 'path';
 import { Global, Logger, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { CatalogImageService } from './catalog-image.service';
 import { LocalDiskStorage } from './local-disk.storage';
+import { MediaController } from './media.controller';
 import { OBJECT_STORAGE, ObjectStorage } from './object-storage';
 import { S3Storage } from './s3.storage';
 
@@ -49,13 +51,15 @@ export function createObjectStorage(config: ConfigService, logger = new Logger('
 
 @Global()
 @Module({
+  controllers: [MediaController],
   providers: [
     {
       provide: OBJECT_STORAGE,
       inject: [ConfigService],
       useFactory: (config: ConfigService) => createObjectStorage(config),
     },
+    CatalogImageService,
   ],
-  exports: [OBJECT_STORAGE],
+  exports: [OBJECT_STORAGE, CatalogImageService],
 })
 export class StorageModule {}

@@ -5,8 +5,8 @@ import { Readable } from 'stream';
  *
  * KYC scans are written once and read back through an authorizing endpoint.
  * There is no public URL and no listing. Delete exists only for prefixes in
- * [DELETABLE_PREFIXES] (ad banner images, which an admin removes with the
- * banner): deleting identity documents is a retention policy decision, not
+ * [DELETABLE_PREFIXES] (ad banner and catalog images, which are removed
+ * when replaced or when their row goes): deleting identity documents is a retention policy decision, not
  * something an endpoint should do by accident, so every driver refuses
  * any other key.
  */
@@ -45,7 +45,7 @@ export function assertSafeKey(key: string): void {
 }
 
 /** The only prefixes whose objects may be deleted (see the interface note). */
-export const DELETABLE_PREFIXES: readonly string[] = ['ads/'];
+export const DELETABLE_PREFIXES: readonly string[] = ['ads/', 'catalog/'];
 
 export function assertDeletableKey(key: string): void {
   assertSafeKey(key);

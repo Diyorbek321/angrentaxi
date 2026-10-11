@@ -1,3 +1,4 @@
+import 'package:angren_taxi/shared/widgets/catalog_image.dart';
 import 'package:equatable/equatable.dart';
 
 class FoodRestaurant extends Equatable {
@@ -6,12 +7,16 @@ class FoodRestaurant extends Equatable {
     required this.name,
     required this.address,
     required this.isOpen,
+    this.imageKey,
   });
 
   final String id;
   final String name;
   final String? address;
   final bool isOpen;
+  final String? imageKey;
+
+  String? get imageUrl => catalogImageUrl(imageKey);
 
   factory FoodRestaurant.fromJson(Map<String, dynamic> json) {
     return FoodRestaurant(
@@ -19,9 +24,10 @@ class FoodRestaurant extends Equatable {
       name: json['name'] as String,
       address: json['address'] as String?,
       isOpen: (json['status'] as String?) != 'closed',
+      imageKey: json['imageKey'] as String?,
     );
   }
 
   @override
-  List<Object?> get props => [id, name, address, isOpen];
+  List<Object?> get props => [id, name, address, isOpen, imageKey];
 }

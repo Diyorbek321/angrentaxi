@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MarketService } from './market.service';
+import { MarketImagesService } from './market-images.service';
 import { MarketVendorController } from './market-vendor.controller';
 import { MarketStorefrontController } from './market-storefront.controller';
 import { MarketAdminController } from './market-admin.controller';
@@ -28,7 +29,7 @@ import { SettingsModule } from '../settings/settings.module';
     SettingsModule,
   ],
   controllers: [MarketVendorController, MarketStorefrontController, MarketAdminController],
-  providers: [MarketService],
+  providers: [MarketService, MarketImagesService],
   exports: [MarketService],
 })
 export class MarketModule {}

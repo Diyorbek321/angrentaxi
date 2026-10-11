@@ -182,9 +182,11 @@ export class FoodService implements OnModuleInit {
     return this.dishRepo.save(dish);
   }
 
-  async deleteDish(restaurantId: string, id: string): Promise<void> {
+  /** O'chirilgan taomning rasm kaliti — chaqiruvchi faylni tozalaydi. */
+  async deleteDish(restaurantId: string, id: string): Promise<string | null> {
     const dish = await this.getOwnedDish(restaurantId, id);
     await this.dishRepo.remove(dish);
+    return dish.imageKey;
   }
 
   // ---------- vendor: orders ----------
@@ -785,11 +787,13 @@ export class FoodService implements OnModuleInit {
     return this.dishRepo.find({ relations: ['restaurant'], order: { createdAt: 'DESC' } });
   }
 
-  async adminDeleteDish(id: string): Promise<void> {
+  /** O'chirilgan taomning rasm kaliti — chaqiruvchi faylni tozalaydi. */
+  async adminDeleteDish(id: string): Promise<string | null> {
     const dish = await this.dishRepo.findOne({ where: { id } });
     if (!dish) {
       throw new NotFoundException('Dish not found');
     }
     await this.dishRepo.remove(dish);
+    return dish.imageKey;
   }
 }

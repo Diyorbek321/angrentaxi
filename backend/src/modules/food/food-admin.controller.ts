@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FoodService } from './food.service';
+import { CatalogImageService } from '../storage/catalog-image.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -15,7 +16,10 @@ import { SetRestaurantStatusDto } from './dto/set-restaurant-status.dto';
 @Roles(UserRole.ADMIN)
 @Controller('food/admin')
 export class FoodAdminController {
-  constructor(private readonly foodService: FoodService) {}
+  constructor(
+    private readonly foodService: FoodService,
+    private readonly catalogImages: CatalogImageService,
+  ) {}
 
   @Get('restaurants')
   @ApiOperation({ summary: 'List all restaurants (admin only)' })
@@ -43,7 +47,8 @@ export class FoodAdminController {
 
   @Delete('dishes/:id')
   @ApiOperation({ summary: 'Remove a dish (moderation — admin only)' })
-  deleteDish(@Param('id', ParseUUIDPipe) id: string) {
-    return this.foodService.adminDeleteDish(id);
+  async deleteDish(@Param('id', ParseUUIDPipe) id: string) {
+    const imageKey = await this.foodService.adminDeleteDish(id);
+    await this.catalogImages.discard(imageKey);
   }
 }

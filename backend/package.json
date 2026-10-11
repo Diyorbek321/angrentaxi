@@ -14,6 +14,8 @@
     "seed:market:prod": "node dist/database/seeds/seed-market.js",
     "seed:food": "ts-node src/database/seeds/seed-food.ts",
     "seed:food:prod": "node dist/database/seeds/seed-food.js",
+    "seed:demo": "ts-node src/database/seeds/seed-demo.ts",
+    "seed:demo:prod": "node dist/database/seeds/seed-demo.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",

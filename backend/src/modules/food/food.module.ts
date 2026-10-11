@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FoodService } from './food.service';
+import { FoodImagesService } from './food-images.service';
 import { FoodVendorController } from './food-vendor.controller';
 import { FoodStorefrontController } from './food-storefront.controller';
 import { FoodAdminController } from './food-admin.controller';
@@ -27,7 +28,7 @@ import { SettingsModule } from '../settings/settings.module';
     SettingsModule,
   ],
   controllers: [FoodVendorController, FoodStorefrontController, FoodAdminController],
-  providers: [FoodService],
+  providers: [FoodService, FoodImagesService],
   exports: [FoodService],
 })
 export class FoodModule {}

@@ -9,6 +9,7 @@ import 'package:angren_taxi/shared/models/market_product.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
 import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
+import 'package:angren_taxi/shared/widgets/catalog_image.dart';
 import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -38,7 +39,7 @@ class _MarketScreenState extends State<MarketScreen> {
 
   void _add(BuildContext context, MarketProduct p) {
     context.read<SuperappProvider>().addToCart(
-          CartItem(id: p.id, name: p.name, price: p.price, qty: 1, icon: p.icon, color: p.color),
+          CartItem(id: p.id, name: p.name, price: p.price, qty: 1, icon: p.icon, color: p.color, imageUrl: p.imageUrl),
         );
   }
 
@@ -257,15 +258,20 @@ class _ProductCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Container(
-                  width: double.infinity,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: p.color,
-                    borderRadius: BorderRadius.circular(kRadiusSm),
-                  ),
-                  child: ExcludeSemantics(
-                    child: Text(p.emoji, style: const TextStyle(fontSize: 34)),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(kRadiusSm),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: CatalogImage(
+                      imageUrl: p.imageUrl,
+                      placeholder: Container(
+                        alignment: Alignment.center,
+                        color: p.color,
+                        child: ExcludeSemantics(
+                          child: Text(p.emoji, style: const TextStyle(fontSize: 34)),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),

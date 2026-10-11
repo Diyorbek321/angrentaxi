@@ -5,6 +5,7 @@ import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/market_product.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
+import 'package:angren_taxi/shared/widgets/catalog_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -27,7 +28,15 @@ class ProductDetailScreen extends StatelessWidget {
 
   void _add(BuildContext context) {
     context.read<SuperappProvider>().addToCart(
-          CartItem(id: _id, name: _name, price: _price, qty: 1, icon: _icon, color: _color),
+          CartItem(
+            id: _id,
+            name: _name,
+            price: _price,
+            qty: 1,
+            icon: _icon,
+            color: _color,
+            imageUrl: marketProduct.imageUrl,
+          ),
         );
   }
 
@@ -48,15 +57,20 @@ class ProductDetailScreen extends StatelessWidget {
                 height: 260,
                 child: Stack(
                   children: [
-                    Container(
+                    SizedBox(
                       height: 260,
                       width: double.infinity,
-                      color: _color,
-                      alignment: Alignment.center,
-                      child: ExcludeSemantics(
-                        child: _emoji.isNotEmpty
-                            ? Text(_emoji, style: const TextStyle(fontSize: 96))
-                            : Icon(_icon, size: 120, color: agOnPrimary.withValues(alpha: 0.92)),
+                      child: CatalogImage(
+                        imageUrl: marketProduct.imageUrl,
+                        placeholder: Container(
+                          color: _color,
+                          alignment: Alignment.center,
+                          child: ExcludeSemantics(
+                            child: _emoji.isNotEmpty
+                                ? Text(_emoji, style: const TextStyle(fontSize: 96))
+                                : Icon(_icon, size: 120, color: agOnPrimary.withValues(alpha: 0.92)),
+                          ),
+                        ),
                       ),
                     ),
                     Positioned(

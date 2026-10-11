@@ -9,6 +9,7 @@ import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
 import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
 import 'package:angren_taxi/shared/widgets/app_status_badge.dart';
+import 'package:angren_taxi/shared/widgets/catalog_image.dart';
 import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -36,7 +37,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
 
   void _add(BuildContext context, Dish d) {
     context.read<SuperappProvider>().addToCart(
-          CartItem(id: d.id, name: d.name, price: d.price, qty: 1, icon: d.icon, color: d.color),
+          CartItem(id: d.id, name: d.name, price: d.price, qty: 1, icon: d.icon, color: d.color, imageUrl: d.imageUrl),
         );
   }
 
@@ -85,14 +86,19 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                       height: 230,
                       child: Stack(
                         children: [
-                          Container(
+                          SizedBox(
                             height: 230,
                             width: double.infinity,
-                            color: agOrange,
-                            alignment: Alignment.center,
-                            child: ExcludeSemantics(
-                              child:
-                                  Icon(Icons.restaurant_rounded, size: 96, color: agOnPrimary.withValues(alpha: 0.7)),
+                            child: CatalogImage(
+                              imageUrl: r.imageUrl,
+                              placeholder: Container(
+                                color: agOrange,
+                                alignment: Alignment.center,
+                                child: ExcludeSemantics(
+                                  child:
+                                      Icon(Icons.restaurant_rounded, size: 96, color: agOnPrimary.withValues(alpha: 0.7)),
+                                ),
+                              ),
                             ),
                           ),
                           Positioned(
@@ -219,14 +225,19 @@ class _DishRow extends StatelessWidget {
         child: Row(
           children: [
             ExcludeSemantics(
-              child: Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: d.color,
-                  borderRadius: BorderRadius.circular(kRadiusSm),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(kRadiusSm),
+                child: SizedBox(
+                  width: 76,
+                  height: 76,
+                  child: CatalogImage(
+                    imageUrl: d.imageUrl,
+                    placeholder: Container(
+                      color: d.color,
+                      child: Icon(d.icon, size: 30, color: agOnPrimary.withValues(alpha: 0.95)),
+                    ),
+                  ),
                 ),
-                child: Icon(d.icon, size: 30, color: agOnPrimary.withValues(alpha: 0.95)),
               ),
             ),
             const SizedBox(width: kSpace3),
