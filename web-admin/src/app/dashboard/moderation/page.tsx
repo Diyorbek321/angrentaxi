@@ -25,6 +25,7 @@ import { useToast } from '@/components/ui/Toast';
 import { debounce, formatCurrency } from '@/lib/utils';
 import { usePagination } from '@/hooks/usePagination';
 import { PaginationBar } from '@/components/ui/PaginationBar';
+import { CatalogThumb } from '@/components/moderation/CatalogThumb';
 
 type Tab = 'products' | 'dishes';
 
@@ -186,7 +187,12 @@ export default function ModerationPage() {
       <TableBody>
         {products.map((p) => (
           <TableRow key={p.id}>
-            <TableCell className="font-medium text-ink">{p.name}</TableCell>
+            <TableCell className="font-medium text-ink">
+              <div className="flex items-center gap-3">
+                <CatalogThumb imageKey={p.imageKey} name={p.name} />
+                <span>{p.name}</span>
+              </div>
+            </TableCell>
             <TableCell className="text-muted">{p.store?.name ?? '—'}</TableCell>
             <TableCell className="text-right font-mono tabular-nums text-ink">
               {formatCurrency(p.price)}
@@ -226,7 +232,12 @@ export default function ModerationPage() {
       <TableBody>
         {dishes.map((d) => (
           <TableRow key={d.id}>
-            <TableCell className="font-medium text-ink">{d.name}</TableCell>
+            <TableCell className="font-medium text-ink">
+              <div className="flex items-center gap-3">
+                <CatalogThumb imageKey={d.imageKey} name={d.name} />
+                <span>{d.name}</span>
+              </div>
+            </TableCell>
             <TableCell className="text-muted">{d.restaurant?.name ?? '—'}</TableCell>
             <TableCell className="text-right font-mono tabular-nums text-ink">
               {formatCurrency(d.price)}

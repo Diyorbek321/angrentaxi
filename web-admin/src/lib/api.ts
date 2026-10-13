@@ -318,6 +318,7 @@ export interface ModeratedProduct {
   name: string;
   price: number;
   status: string;
+  imageKey?: string | null;
   store?: { name: string };
 }
 
@@ -326,6 +327,7 @@ export interface ModeratedDish {
   name: string;
   price: number;
   isAvailable: boolean;
+  imageKey?: string | null;
   restaurant?: { name: string };
 }
 
