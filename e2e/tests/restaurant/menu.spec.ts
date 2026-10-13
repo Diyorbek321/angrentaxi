@@ -1,6 +1,7 @@
 import { test, expect, expectToast } from '../../support/fixtures';
 import { PanelApi } from '../../support/api';
 import { PANELS, uniqueName } from '../../support/env';
+import { bigPhoto, naturalEdge } from '../../support/images';
 
 interface Category { id: string; name: string }
 interface Dish { id: string; name: string; price: number; isAvailable: boolean; categoryId: string | null }
@@ -79,5 +80,44 @@ test.describe('restaurant — menu', () => {
     await page.getByRole('dialog').getByRole('button', { name: "O'chirish" }).click();
     await expectToast(page, `${name} o‘chirildi`);
     expect(await findDish(name)).toBeUndefined();
+  });
+});
+
+test.describe('restaurant — taom rasmi', () => {
+  let api: PanelApi;
+  const created: string[] = [];
+
+  test.beforeEach(({ request }) => {
+    api = new PanelApi(request, PANELS.restaurant);
+  });
+
+  test.afterEach(async () => {
+    for (const id of created.splice(0)) await api.tryDelete(`/food/vendor/dishes/${id}`);
+  });
+
+  test('yangi taom formasida katta foto 1200 px JPEG ga kichraytirilib yuklanadi', async ({ page }) => {
+    const name = uniqueName('Rasmli taom');
+    await page.goto('/dashboard/menu');
+    const photo = await bigPhoto(page);
+    expect(photo.byteLength, 'manba foto backend chegarasidan katta').toBeGreaterThan(2 * 1024 * 1024);
+
+    await page.getByRole('button', { name: 'Yangi taom' }).first().click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Nomi').fill(name);
+    await dialog.getByLabel("Narxi (so'm)").fill('31000');
+    await dialog.locator('input[type="file"]').setInputFiles({ name: 'osh.jpg', mimeType: 'image/jpeg', buffer: photo });
+    const upload = page.waitForResponse((r) => r.request().method() === 'PUT' && r.url().endsWith('/image'));
+    await dialog.getByRole('button', { name: 'Saqlash' }).click();
+    expect((await upload).status(), 'backend 2 MB chegarasi rad etmadi').toBe(200);
+    await expectToast(page, "Taom qo'shildi");
+
+    const dish = (await api.get<(Dish & { imageKey?: string | null })[]>('/food/vendor/dishes')).find((d) => d.name === name);
+    expect(dish?.imageKey).toMatch(/^catalog\/[0-9a-f-]{36}\.jpg$/);
+    created.push(dish!.id);
+
+    const res = await page.request.get(`/api/proxy/media/${dish!.imageKey}`);
+    expect(res.headers()['content-type']).toBe('image/jpeg');
+    expect((await res.body()).byteLength).toBeLessThan(2 * 1024 * 1024);
+    expect(await naturalEdge(page.getByRole('img', { name }).first())).toBe(1200);
   });
 });

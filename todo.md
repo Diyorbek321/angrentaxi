@@ -1,6 +1,6 @@
 # Angren Taxi — qolgan ishlar
 
-Oxirgi yangilanish: 2026-10-11. Bajarilgan ishlar tarixi uchun `git log`ga qarang — bu fayl faqat **hali ochiq** ishlarni kuzatish uchun.
+Oxirgi yangilanish: 2026-10-13. Bajarilgan ishlar tarixi uchun `git log`ga qarang — bu fayl faqat **hali ochiq** ishlarni kuzatish uchun.
 
 ---
 
@@ -53,7 +53,9 @@ Restoran/do'kon muqovasi, taom va mahsulot fotosi: migratsiya 024 (`image_key`),
 
 - [x] **Sotuvchi panellaridan rasm yuklash** (2026-10-11: `PUT/DELETE …/vendor/{restaurant|store}/image` va `…/{dishes|products}/:id/image`; restoran — taom formasi + Sozlamalar muqovasi, market — yangi mahsulot formasi, jadvaldagi belgini bosish, Sozlamalar muqovasi. Panel rasmni brauzerda 1200 px JPEG'ga kichraytiradi, server chegarasi 2 MB. Brauzerda qo'lda sinalmagan — kichraytirish faqat brauzerda ishlaydi)
 - [x] **Rasm almashtirilganda/o'chirilganda eski fayl o'chadi** (2026-10-11: `CatalogImageService`; taom/mahsulot o'chirilganda ham. Boshqa qator ishlatayotgan fayl — demo seed rasmlari — o'chirilmaydi)
-- [ ] Rasmlar diskda keshlanmaydi (faqat xotirada) — ilova qayta ochilganda qayta yuklanadi. Kerak bo'lsa `cached_network_image`.
+- [x] **Rasmlar diskda keshlanadi** (2026-10-13: `CatalogImage` → `cached_network_image`; yangi APK'da ishlaydi)
+- [x] **Katalog rasmlari 429 olmaydi** (2026-10-13: `GET /media/catalog/*` uchun `short`/`medium` limit o'chirildi, `long` 1000/daqiqa — bitta ekran 20–30 rasm so'raydi, 10/s limiti ularni kesardi; panel jadvalida ham, mobil menyuda ham)
+- [x] **Paneldan rasm yuklash brauzerda sinaldi** (2026-10-13: e2e — 4000×3000 foto market va restoran panelida 1200 px JPEG'ga kichraytirilib yuklanadi)
 
 ## 🔴 Bloker — tashqi shartnoma/hisob kerak
 
@@ -84,9 +86,10 @@ Hammasi 2026-10-05 da bajarildi (`git log`). Keyingi navbat — haqiqiy qurilmad
 - [x] **Panel proksisi katalog rasmlarini brauzerda keshlaydi** (`lib/server/proxy-cache.ts`).
 - [x] **Admin: grafiklar kechiktirib yuklanadi** — bosh sahifa 259→157 KB, Reklama 275→176, Hisobotlar 252→150.
 - [x] **Admin moderatsiyasi server tomonida sahifalanadi va qidiradi** (`?page&limit&search`).
+- [ ] **Panel proksisi mijoz IP'sini uzatmaydi** — backend limiti (IP boshiga) panel serverining bitta IP'siga tushadi: production'da bir paneldagi barcha foydalanuvchilar bitta 200/daqiqa chelakni bo'lishadi. Proksi `X-Forwarded-For` ni xavfsiz uzatishi kerak (Railway chekka sarlavhasidan).
 - [ ] **Railway: panel proksisini ichki tarmoqqa yo'naltirish** — 4 panelga `API_URL=http://<backend>.railway.internal:<port>/api/v1` (manager/admin socket uchun `SOCKET_URL` ham). Railway tiklanganda.
-- [ ] Market "Mahsulotlar" sahifasi hamma mahsulotni olib, brauzerda sahifalaydi — katalog katta bo'lsa serverga o'tkazish (tab sonlari uchun server hisobi kerak).
-- [ ] Admin moderatsiyasida taom/mahsulot rasmi ko'rinmaydi.
+- [x] **Market "Mahsulotlar" server tomonida sahifalanadi** (2026-10-13: `GET /market/vendor/products/browse?page&limit&search&status&categoryId` + `counts`; tanlov sahifalar orasida saqlanadi. Kategoriyalar va Zaxira sahifalari hali eski to'liq ro'yxatni oladi)
+- [x] **Admin moderatsiyasida taom/mahsulot rasmi** (2026-10-13: jadvalda kichik rasm, bosilsa kattasi yangi oynada; admin proksisi ham rasmni keshlaydi)
 
 ## 🟡 Biznes qarori kerak
 

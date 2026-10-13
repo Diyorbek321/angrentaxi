@@ -28,7 +28,7 @@ test.describe('restaurant — order lifecycle', () => {
   const placeOrder = (request: APIRequestContext) =>
     new PassengerApi(request).placeFoodOrder(restaurant.id, [{ dishId: dish.id, qty: 1 }]);
 
-  test('passenger order goes new → preparing → ready → delivered', async ({ page, request }) => {
+  test('passenger order goes new → preparing → ready; the platform courier delivers it', async ({ page, request }) => {
     const order = await placeOrder(request);
     expect(order.status).toBe('new');
     const orderStatus = async () => (await api.get<Order>(`/food/vendor/orders/${order.id}`)).status;
@@ -44,8 +44,10 @@ test.describe('restaurant — order lifecycle', () => {
     await expect.poll(orderStatus).toBe('ready');
 
     await page.getByRole('tab', { name: /^Tayyor(?!lanmoqda)/ }).click();
-    await card.getByRole('button', { name: 'Yetkazildi deb belgilash' }).click();
-    await expect.poll(orderStatus).toBe('delivered');
+    // "Tayyor" bo'lganda platforma kuryeri chaqiriladi va buyurtmani u
+    // yakunlaydi — restoranda "Yetkazildi" tugmasi yo'q (backend ham rad etadi).
+    await expect(card).toBeVisible();
+    await expect(card.getByRole('button', { name: 'Yetkazildi deb belgilash' })).toHaveCount(0);
   });
 
   test('restaurant rejects a new order with a reason', async ({ page, request }) => {

@@ -28,7 +28,7 @@ test.describe('market — order lifecycle', () => {
     }
   });
 
-  test('passenger order goes new → packing → shipped → delivered', async ({ page, request }) => {
+  test('passenger order goes new → packing → shipped; the platform courier delivers it', async ({ page, request }) => {
     const store = await api.get<Store>('/market/vendor/store');
     const order = await new PassengerApi(request).placeMarketOrder(store.id, [{ productId: product.id, qty: 2 }]);
     expect(order.status).toBe('new');
@@ -57,7 +57,8 @@ test.describe('market — order lifecycle', () => {
     await drawer.getByRole('button', { name: 'Yuborildi deb belgilash' }).click();
     await expect.poll(orderStatus).toBe('shipped');
 
-    await row.getByRole('button', { name: 'Yetkazildi deb belgilash' }).click();
-    await expect.poll(orderStatus).toBe('delivered');
+    // Platforma kuryeri bilan buyurtmani kuryer yakunlaydi — sotuvchida
+    // "Yetkazildi" tugmasi yo'q (backend ham rad etadi).
+    await expect(row.getByRole('button', { name: 'Yetkazildi deb belgilash' })).toHaveCount(0);
   });
 });
