@@ -1,10 +1,11 @@
-import { NextResponse, type NextRequest } from 'next/server';
-import { API_BASE_URL } from '@/lib/server/api-config';
-import { ACCESS_TOKEN_COOKIE } from '@/lib/server/auth-cookies';
-import { crossOriginRejection, isSameOrigin } from '@/lib/server/same-origin';
+import { NextResponse, type NextRequest } from "next/server";
+import { API_BASE_URL } from "@/lib/server/api-config";
+import { clientIpHeaders } from "@/lib/server/client-ip";
+import { ACCESS_TOKEN_COOKIE } from "@/lib/server/auth-cookies";
+import { crossOriginRejection, isSameOrigin } from "@/lib/server/same-origin";
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 /**
  * Backend-for-frontend passthrough.
@@ -22,31 +23,42 @@ export const dynamic = 'force-dynamic';
 
 // Headers that describe *our* hop to the backend, or that the backend must decide
 // for itself. Everything else the page sent (Accept, Content-Type, …) rides along.
-const FORWARDED_REQUEST_HEADERS = ['content-type', 'accept', 'accept-language'];
+const FORWARDED_REQUEST_HEADERS = ["content-type", "accept", "accept-language"];
 // `nosniff`: backend media javobida qo'yadi — rasm panel domenida ochilganda ham saqlansin.
-const FORWARDED_RESPONSE_HEADERS = ['content-type', 'content-disposition', 'content-language', 'x-content-type-options'];
+const FORWARDED_RESPONSE_HEADERS = [
+  "content-type",
+  "content-disposition",
+  "content-language",
+  "x-content-type-options",
+];
 
-const METHODS_WITHOUT_BODY = new Set(['GET', 'HEAD']);
-const SAFE_METHODS = new Set(['GET', 'HEAD']);
+const METHODS_WITHOUT_BODY = new Set(["GET", "HEAD"]);
+const SAFE_METHODS = new Set(["GET", "HEAD"]);
 
 function buildTargetUrl(segments: string[], search: string): string | null {
   // `..` and empty segments would let a caller climb out of the API prefix and
   // aim this proxy at an arbitrary path on the backend host.
   if (segments.length === 0) return null;
   for (const segment of segments) {
-    if (!segment || segment === '.' || segment === '..') return null;
+    if (!segment || segment === "." || segment === "..") return null;
   }
-  return `${API_BASE_URL}/${segments.join('/')}${search}`;
+  return `${API_BASE_URL}/${segments.join("/")}${search}`;
 }
 
-async function forward(req: NextRequest, segments: string[]): Promise<NextResponse> {
+async function forward(
+  req: NextRequest,
+  segments: string[],
+): Promise<NextResponse> {
   if (!SAFE_METHODS.has(req.method) && !isSameOrigin(req)) {
     return crossOriginRejection();
   }
 
   const target = buildTargetUrl(segments, req.nextUrl.search);
   if (!target) {
-    return NextResponse.json({ success: false, message: 'Invalid path' }, { status: 400 });
+    return NextResponse.json(
+      { success: false, message: "Invalid path" },
+      { status: 400 },
+    );
   }
 
   const headers = new Headers();
@@ -56,9 +68,13 @@ async function forward(req: NextRequest, segments: string[]): Promise<NextRespon
   }
 
   const token = req.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
-  if (token) headers.set('authorization', `Bearer ${token}`);
+  if (token) headers.set("authorization", `Bearer ${token}`);
+  for (const [name, value] of Object.entries(clientIpHeaders(req.headers)))
+    headers.set(name, value);
 
-  const body = METHODS_WITHOUT_BODY.has(req.method) ? undefined : await req.arrayBuffer();
+  const body = METHODS_WITHOUT_BODY.has(req.method)
+    ? undefined
+    : await req.arrayBuffer();
 
   let upstream: Response;
   try {
@@ -67,13 +83,13 @@ async function forward(req: NextRequest, segments: string[]): Promise<NextRespon
       headers,
       // A zero-length buffer on POST is still a body; undefined is not.
       body: body && body.byteLength > 0 ? body : undefined,
-      cache: 'no-store',
-      redirect: 'manual',
+      cache: "no-store",
+      redirect: "manual",
     });
   } catch {
     return NextResponse.json(
-      { success: false, message: 'Serverga ulanib boʻlmadi' },
-      { status: 502 }
+      { success: false, message: "Serverga ulanib boʻlmadi" },
+      { status: 502 },
     );
   }
 
@@ -82,7 +98,7 @@ async function forward(req: NextRequest, segments: string[]): Promise<NextRespon
     const value = upstream.headers.get(name);
     if (value) responseHeaders.set(name, value);
   }
-  responseHeaders.set('Cache-Control', 'no-store');
+  responseHeaders.set("Cache-Control", "no-store");
 
   // 204/304 must not carry a body, and the backend's own Set-Cookie headers are
   // intentionally dropped — session state on this origin is ours alone.
@@ -95,8 +111,13 @@ async function forward(req: NextRequest, segments: string[]): Promise<NextRespon
 
 type Context = { params: { path: string[] } };
 
-export const GET = (req: NextRequest, ctx: Context) => forward(req, ctx.params.path);
-export const POST = (req: NextRequest, ctx: Context) => forward(req, ctx.params.path);
-export const PUT = (req: NextRequest, ctx: Context) => forward(req, ctx.params.path);
-export const PATCH = (req: NextRequest, ctx: Context) => forward(req, ctx.params.path);
-export const DELETE = (req: NextRequest, ctx: Context) => forward(req, ctx.params.path);
+export const GET = (req: NextRequest, ctx: Context) =>
+  forward(req, ctx.params.path);
+export const POST = (req: NextRequest, ctx: Context) =>
+  forward(req, ctx.params.path);
+export const PUT = (req: NextRequest, ctx: Context) =>
+  forward(req, ctx.params.path);
+export const PATCH = (req: NextRequest, ctx: Context) =>
+  forward(req, ctx.params.path);
+export const DELETE = (req: NextRequest, ctx: Context) =>
+  forward(req, ctx.params.path);

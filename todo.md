@@ -86,7 +86,7 @@ Hammasi 2026-10-05 da bajarildi (`git log`). Keyingi navbat — haqiqiy qurilmad
 - [x] **Panel proksisi katalog rasmlarini brauzerda keshlaydi** (`lib/server/proxy-cache.ts`).
 - [x] **Admin: grafiklar kechiktirib yuklanadi** — bosh sahifa 259→157 KB, Reklama 275→176, Hisobotlar 252→150.
 - [x] **Admin moderatsiyasi server tomonida sahifalanadi va qidiradi** (`?page&limit&search`).
-- [ ] **Panel proksisi mijoz IP'sini uzatmaydi** — backend limiti (IP boshiga) panel serverining bitta IP'siga tushadi: production'da bir paneldagi barcha foydalanuvchilar bitta 200/daqiqa chelakni bo'lishadi. Proksi `X-Forwarded-For` ni xavfsiz uzatishi kerak (Railway chekka sarlavhasidan).
+- [x] **Panel mijoz IP'sini backendga uzatadi** (2026-10-13: `lib/server/client-ip.ts` — kiruvchi `X-Forwarded-For` ning oxirgi qiymati, proksi + login/refresh/logout. OTP va boshqa limitlar endi har foydalanuvchiga alohida. ⚠️ Faqat panel backendni **ichki tarmoq** orqali chaqirsa ishlaydi — ochiq domen orqali chaqirsa Railway chekkasi panel IP'sini oxiriga qo'shadi. Pastdagi `API_URL` ishi shu sababli muhim.)
 - [ ] **Railway: panel proksisini ichki tarmoqqa yo'naltirish** — 4 panelga `API_URL=http://<backend>.railway.internal:<port>/api/v1` (manager/admin socket uchun `SOCKET_URL` ham). Railway tiklanganda.
 - [x] **Market "Mahsulotlar" server tomonida sahifalanadi** (2026-10-13: `GET /market/vendor/products/browse?page&limit&search&status&categoryId` + `counts`; tanlov sahifalar orasida saqlanadi. Kategoriyalar va Zaxira sahifalari hali eski to'liq ro'yxatni oladi)
 - [x] **Admin moderatsiyasida taom/mahsulot rasmi** (2026-10-13: jadvalda kichik rasm, bosilsa kattasi yangi oynada; admin proksisi ham rasmni keshlaydi)

@@ -1,14 +1,15 @@
-import { NextResponse, type NextRequest } from 'next/server';
-import { API_BASE_URL } from '@/lib/server/api-config';
+import { NextResponse, type NextRequest } from "next/server";
+import { API_BASE_URL } from "@/lib/server/api-config";
+import { clientIpHeaders } from "@/lib/server/client-ip";
 import {
   REFRESH_TOKEN_COOKIE,
   clearSessionCookies,
   setSessionCookies,
-} from '@/lib/server/auth-cookies';
-import { crossOriginRejection, isSameOrigin } from '@/lib/server/same-origin';
+} from "@/lib/server/auth-cookies";
+import { crossOriginRejection, isSameOrigin } from "@/lib/server/same-origin";
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 /**
  * Swaps the refresh cookie for a fresh token pair.
@@ -27,8 +28,8 @@ export async function POST(req: NextRequest) {
   const refreshToken = req.cookies.get(REFRESH_TOKEN_COOKIE)?.value;
   if (!refreshToken) {
     const res = NextResponse.json(
-      { success: false, message: 'No refresh token' },
-      { status: 401 }
+      { success: false, message: "No refresh token" },
+      { status: 401 },
     );
     clearSessionCookies(res);
     return res;
@@ -37,17 +38,20 @@ export async function POST(req: NextRequest) {
   let upstream: Response;
   try {
     upstream = await fetch(`${API_BASE_URL}/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: {
+        ...clientIpHeaders(req.headers),
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ refreshToken }),
-      cache: 'no-store',
+      cache: "no-store",
     });
   } catch {
     // A network blip is not proof the session is gone — keep the cookies so the
     // next attempt can still succeed.
     return NextResponse.json(
-      { success: false, message: 'Serverga ulanib boʻlmadi' },
-      { status: 502 }
+      { success: false, message: "Serverga ulanib boʻlmadi" },
+      { status: 502 },
     );
   }
 
@@ -57,8 +61,8 @@ export async function POST(req: NextRequest) {
 
   if (!upstream.ok || !payload?.data?.accessToken) {
     const res = NextResponse.json(
-      { success: false, message: 'Session expired' },
-      { status: 401 }
+      { success: false, message: "Session expired" },
+      { status: 401 },
     );
     clearSessionCookies(res);
     return res;

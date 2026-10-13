@@ -1,10 +1,14 @@
-import { NextResponse, type NextRequest } from 'next/server';
-import { API_BASE_URL } from '@/lib/server/api-config';
-import { REFRESH_TOKEN_COOKIE, clearSessionCookies } from '@/lib/server/auth-cookies';
-import { crossOriginRejection, isSameOrigin } from '@/lib/server/same-origin';
+import { NextResponse, type NextRequest } from "next/server";
+import { API_BASE_URL } from "@/lib/server/api-config";
+import { clientIpHeaders } from "@/lib/server/client-ip";
+import {
+  REFRESH_TOKEN_COOKIE,
+  clearSessionCookies,
+} from "@/lib/server/auth-cookies";
+import { crossOriginRejection, isSameOrigin } from "@/lib/server/same-origin";
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 /**
  * Ends the session.
@@ -26,10 +30,13 @@ export async function POST(req: NextRequest) {
   if (refreshToken) {
     try {
       await fetch(`${API_BASE_URL}/auth/logout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: {
+          ...clientIpHeaders(req.headers),
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ refreshToken }),
-        cache: 'no-store',
+        cache: "no-store",
       });
     } catch {
       // Best effort. A logout the user asked for always clears this browser,
