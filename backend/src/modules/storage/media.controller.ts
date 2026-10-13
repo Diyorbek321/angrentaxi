@@ -1,8 +1,16 @@
 import { Controller, Get, Inject, NotFoundException, Param, Res } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { CATALOG_PREFIX, catalogImageMimeType } from './catalog-images';
 import { OBJECT_STORAGE, ObjectStorage } from './object-storage';
+
+/**
+ * Katalog ekrani (mobil menyu, panel jadvali) bir zumda 20–30 ta rasm so'raydi —
+ * global `short` (10/s) va `medium` (50/10s) ularni 429 bilan kesardi. Fayl
+ * ochiq va keshlanadi, shuning uchun faqat daqiqalik chegara qoladi (kengroq).
+ */
+const MEDIA_THROTTLE = { long: { limit: 1000, ttl: 60000 } };
 
 @ApiTags('Media')
 @Controller('media')
@@ -14,6 +22,8 @@ export class MediaController {
    * fayl hech qachon joyida o'zgarmaydi, shuning uchun `immutable` kesh.
    */
   @Get('catalog/:file')
+  @SkipThrottle({ short: true, medium: true })
+  @Throttle(MEDIA_THROTTLE)
   @ApiOperation({ summary: 'Katalog rasmi (ochiq, keshlanadi)' })
   @ApiParam({ name: 'file', description: '<uuid>.jpg | .png | .webp' })
   async catalogImage(@Param('file') file: string, @Res() res: Response): Promise<void> {

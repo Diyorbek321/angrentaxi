@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { API_BASE_URL } from '@/lib/server/api-config';
 import { ACCESS_TOKEN_COOKIE } from '@/lib/server/auth-cookies';
 import { crossOriginRejection, isSameOrigin } from '@/lib/server/same-origin';
+import { cacheControlFor } from '@/lib/server/proxy-cache';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -23,7 +24,8 @@ export const dynamic = 'force-dynamic';
 // Headers that describe *our* hop to the backend, or that the backend must decide
 // for itself. Everything else the page sent (Accept, Content-Type, …) rides along.
 const FORWARDED_REQUEST_HEADERS = ['content-type', 'accept', 'accept-language'];
-const FORWARDED_RESPONSE_HEADERS = ['content-type', 'content-disposition', 'content-language'];
+// `nosniff`: backend media javobida qo'yadi — rasm panel domenida ochilganda ham saqlansin.
+const FORWARDED_RESPONSE_HEADERS = ['content-type', 'content-disposition', 'content-language', 'x-content-type-options'];
 
 const METHODS_WITHOUT_BODY = new Set(['GET', 'HEAD']);
 const SAFE_METHODS = new Set(['GET', 'HEAD']);
@@ -81,7 +83,7 @@ async function forward(req: NextRequest, segments: string[]): Promise<NextRespon
     const value = upstream.headers.get(name);
     if (value) responseHeaders.set(name, value);
   }
-  responseHeaders.set('Cache-Control', 'no-store');
+  responseHeaders.set('Cache-Control', cacheControlFor(req.method, segments, upstream.status));
 
   // 204/304 must not carry a body, and the backend's own Set-Cookie headers are
   // intentionally dropped — session state on this origin is ours alone.

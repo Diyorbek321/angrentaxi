@@ -24,7 +24,8 @@ export const dynamic = 'force-dynamic';
 // Headers that describe *our* hop to the backend, or that the backend must decide
 // for itself. Everything else the page sent (Accept, Content-Type, …) rides along.
 const FORWARDED_REQUEST_HEADERS = ['content-type', 'accept', 'accept-language'];
-const FORWARDED_RESPONSE_HEADERS = ['content-type', 'content-disposition', 'content-language'];
+// `nosniff`: backend media javobida qo'yadi — rasm panel domenida ochilganda ham saqlansin.
+const FORWARDED_RESPONSE_HEADERS = ['content-type', 'content-disposition', 'content-language', 'x-content-type-options'];
 
 const METHODS_WITHOUT_BODY = new Set(['GET', 'HEAD']);
 const SAFE_METHODS = new Set(['GET', 'HEAD']);
