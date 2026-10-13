@@ -3,6 +3,7 @@ import 'package:angren_taxi/shared/models/dish.dart';
 import 'package:angren_taxi/shared/models/food_restaurant.dart';
 import 'package:angren_taxi/shared/models/market_product.dart';
 import 'package:angren_taxi/shared/widgets/catalog_image.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -48,18 +49,22 @@ void main() {
     expect(find.byType(Image), findsNothing);
   });
 
-  testWidgets('URL bor: rasm yuklanguncha platsholder ostida turadi', (tester) async {
+  testWidgets('URL bor: rasm diskdan keshlanadigan widget bilan, platsholder ostida', (tester) async {
     await tester.pumpWidget(
       const Directionality(
         textDirection: TextDirection.ltr,
-        child: SizedBox(
-          width: 100,
-          height: 100,
-          child: CatalogImage(imageUrl: 'http://localhost/x.jpg', placeholder: Text('platsholder')),
+        child: Center(
+          child: SizedBox(
+            width: 100,
+            height: 100,
+            child: CatalogImage(imageUrl: 'http://localhost/x.jpg', placeholder: Text('platsholder')),
+          ),
         ),
       ),
     );
     expect(find.text('platsholder'), findsOneWidget);
-    expect(find.byType(Image), findsOneWidget);
+    final cached = tester.widget<CachedNetworkImage>(find.byType(CachedNetworkImage));
+    expect(cached.imageUrl, 'http://localhost/x.jpg');
+    expect(cached.memCacheWidth, 300); // 100 dp × test DPR 3.0
   });
 }
