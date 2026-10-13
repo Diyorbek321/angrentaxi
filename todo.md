@@ -74,6 +74,8 @@ Restoran/do'kon muqovasi, taom va mahsulot fotosi: migratsiya 024 (`image_key`),
 - [ ] **OSRM servisini deploy qilish** — `cd osrm && railway up . --path-as-root --service osrm`, `PORT=5000`, backend'ga `OSRM_URL=http://osrm.railway.internal:5000`.
 - [ ] **4 ta web panelni `railway up` bilan qayta deploy** — GitHub'dan avtomatik deploy bo'lmaydi (sessiya cookie nomlari o'zgargan).
 - [ ] **Server bazasini tekshirish** — bitta haydovchida bir nechta faol zakaz (tuzatilgan bug'dan qolgan) bor-yo'qligi.
+- [ ] **Uptime monitor yoqish** (2026-10-13 qo'shildi: `.github/workflows/uptime.yml`, har 5 daqiqa `scripts/smoke.sh`). GitHub → Settings → Actions: variable `API_URL`, `PANEL_URLS`; secret `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`. Faqat `main`ga tushgandan keyin ishlaydi.
+- [ ] **Railway healthcheck** — `backend/railway.json` endi `/api/v1/health` ni kutadi; yangi deploy shu 200 qaytarmaguncha trafikka qo'yilmaydi. Har deploy'dan keyin: `API_URL=… PANEL_URLS="…" ./scripts/smoke.sh`.
 - [ ] Migratsiyalar 010–013 backend ishga tushganda o'zi bajariladi. Baza chala bo'lsa: bir marta `DB_SYNC=true`, keyin `false`.
 
 ## 🔧 Barqarorlik (hozirgi fokus — server kerak emas)
