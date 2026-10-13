@@ -33,6 +33,8 @@ export function useAsyncData<T>(fetcher: () => Promise<T>, deps: unknown[] = [])
   fetcherRef.current = fetcher;
 
   const loadedOnce = useRef(false);
+  /** Faqat eng oxirgi so'rov javobi yoziladi — filtr tez almashsa eskisi ustidan yozmasin. */
+  const latestRequest = useRef(0);
   const alive = useRef(true);
 
   useEffect(() => {
@@ -44,16 +46,18 @@ export function useAsyncData<T>(fetcher: () => Promise<T>, deps: unknown[] = [])
 
   const reload = useCallback(async () => {
     if (loadedOnce.current) setIsRefreshing(true);
+    const requestId = ++latestRequest.current;
+    const isCurrent = () => alive.current && requestId === latestRequest.current;
     try {
       const result = await fetcherRef.current();
-      if (!alive.current) return;
+      if (!isCurrent()) return;
       setDataState(result);
       setError(null);
     } catch (err) {
-      if (!alive.current) return;
+      if (!isCurrent()) return;
       setError(errorMessage(err));
     } finally {
-      if (alive.current) {
+      if (isCurrent()) {
         loadedOnce.current = true;
         setIsLoading(false);
         setIsRefreshing(false);

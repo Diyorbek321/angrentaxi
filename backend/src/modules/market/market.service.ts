@@ -28,6 +28,8 @@ import { UpdateStoreDto } from './dto/update-store.dto';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { BulkUpdateProductsDto } from './dto/bulk-update-products.dto';
+import { VendorProductQueryDto } from './dto/vendor-product-query.dto';
+import { browseVendorProducts, VendorProductPage } from './vendor-product-browse';
 import { CreateMarketOrderDto } from './dto/create-market-order.dto';
 import { CreateStoreAdminDto } from './dto/create-store-admin.dto';
 import { CatalogModerationQueryDto, likePattern } from '../../common/dto/catalog-moderation-query.dto';
@@ -190,6 +192,10 @@ export class MarketService implements OnModuleInit {
 
   listProducts(storeId: string): Promise<Product[]> {
     return this.productRepo.find({ where: { storeId }, order: { createdAt: 'DESC' } });
+  }
+
+  browseProducts(storeId: string, query: VendorProductQueryDto): Promise<VendorProductPage> {
+    return browseVendorProducts(this.productRepo, storeId, query);
   }
 
   createProduct(storeId: string, dto: CreateProductDto): Promise<Product> {

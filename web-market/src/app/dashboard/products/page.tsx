@@ -1,13 +1,13 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Package, Plus, RefreshCw, Search } from 'lucide-react';
 import { clsx } from 'clsx';
-import { marketApi, MarketCategory, Product, ProductStatus, Store } from '@/lib/api';
+import { marketApi, MarketCategory, Product, ProductPage, ProductStatus, Store } from '@/lib/api';
 import { PRODUCT_STATUS } from '@/lib/product-status';
 import { errorMessage } from '@/lib/utils';
 import { useAsyncData } from '@/hooks/useAsyncData';
-import { usePagination } from '@/hooks/usePagination';
+import { useServerPagination } from '@/hooks/usePagination';
 import { useToast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -31,8 +31,7 @@ import {
   ProductRow,
 } from '@/components/products/ProductRow';
 
-interface CatalogData {
-  products: Product[];
+interface CatalogMeta {
   categories: MarketCategory[];
   store: Store;
 }
@@ -42,61 +41,101 @@ type TabKey = 'all' | ProductStatus;
 /** Katalog HOLAT bo'yicha birinchi bo'linadi (Ozon naqshi) — real API holatlari. */
 const TAB_ORDER: TabKey[] = ['all', 'active', 'out', 'hidden'];
 
-const STATE_PRIORITY: Record<ProductStatus, number> = { active: 0, out: 1, hidden: 2 };
+/** Qidiruv har harfda emas, yozish to'xtagach serverga ketadi. */
+const SEARCH_DEBOUNCE_MS = 300;
 
 export default function ProductsPage() {
   const { toast } = useToast();
   const [tab, setTab] = useState<TabKey>('all');
-  const [selected, setSelected] = useState<Record<string, boolean>>({});
+  /** Tanlov sahifalar orasida saqlanadi — shuning uchun mahsulotning o'zi saqlanadi. */
+  const [selected, setSelected] = useState<Record<string, Product>>({});
   const [showAdd, setShowAdd] = useState(false);
   const [bulkPriceOpen, setBulkPriceOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [busy, setBusy] = useState(false);
   const [statusBusyId, setStatusBusyId] = useState<string | null>(null);
   const [imageFor, setImageFor] = useState<Product | null>(null);
 
-  const { data, isLoading, isRefreshing, error, reload } = useAsyncData<CatalogData>(async () => {
-    const [p, c, s] = await Promise.all([
-      marketApi.getProducts(),
-      marketApi.getCategories(),
-      marketApi.getStore(),
-    ]);
-    return { products: p.data.data, categories: c.data.data, store: s.data.data };
+  const pager = useServerPagination(25);
+  const { page, pageSize, setPage } = pager;
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setSearch(query.trim());
+      setPage(1);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(id);
+  }, [query, setPage]);
+
+  const meta = useAsyncData<CatalogMeta>(async () => {
+    const [c, s] = await Promise.all([marketApi.getCategories(), marketApi.getStore()]);
+    return { categories: c.data.data, store: s.data.data };
   });
 
+  // Katalog server tomonida sahifalanadi va filtrlanadi — katalog o'sgani sari
+  // hammasini olib brauzerda saralash sekinlashib borardi.
+  const { data, isLoading, isRefreshing, error, reload } = useAsyncData<ProductPage>(
+    async () =>
+      (
+        await marketApi.browseProducts({
+          page,
+          limit: pageSize,
+          search: search || undefined,
+          status: tab === 'all' ? undefined : tab,
+          categoryId: categoryId || undefined,
+        })
+      ).data.data,
+    [page, pageSize, search, tab, categoryId]
+  );
+
   const products = useMemo(() => data?.products ?? [], [data]);
-  const categories = useMemo(() => data?.categories ?? [], [data]);
-  const threshold = data?.store.lowStockThreshold ?? 10;
+  const total = data?.total ?? 0;
+  const categories = useMemo(() => meta.data?.categories ?? [], [meta.data]);
+  const threshold = meta.data?.store.lowStockThreshold ?? 10;
+  const paged = pager.toPaged(products, total);
+
+  // Tanlangan qatorlar sahifadagi eng yangi nusxa bilan yangilanadi — inline
+  // narx tahriridan keyin ommaviy narx eski narxdan hisoblanmasin.
+  useEffect(() => {
+    if (!data) return;
+    setSelected((s) => {
+      const fresh = data.products.filter((p) => s[p.id] && s[p.id] !== p);
+      return fresh.length ? { ...s, ...Object.fromEntries(fresh.map((p) => [p.id, p])) } : s;
+    });
+  }, [data]);
+
+  // O'chirish yoki holat o'zgarishidan keyin sahifa bo'shab qolsa — oxirgisiga qaytamiz.
+  useEffect(() => {
+    if (data && page > paged.pageCount) setPage(paged.pageCount);
+  }, [data, page, paged.pageCount, setPage]);
 
   const categoryName = (id: string | null) => categories.find((c) => c.id === id)?.name ?? '—';
 
-  const tabs: readonly TabItem<TabKey>[] = useMemo(() => {
-    const counts: Record<string, number> = { all: products.length };
-    for (const p of products) counts[p.status] = (counts[p.status] ?? 0) + 1;
-    return TAB_ORDER.map((value) => ({
-      value,
-      label: value === 'all' ? 'Barchasi' : PRODUCT_STATUS[value].segmentLabel,
-      count: counts[value] ?? 0,
-    }));
-  }, [products]);
+  const tabs: readonly TabItem<TabKey>[] = useMemo(
+    () =>
+      TAB_ORDER.map((value) => ({
+        value,
+        label: value === 'all' ? 'Barchasi' : PRODUCT_STATUS[value].segmentLabel,
+        count: data?.counts[value] ?? 0,
+      })),
+    [data]
+  );
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return products
-      .filter((p) => (tab === 'all' ? true : p.status === tab))
-      .filter((p) => (categoryId ? p.categoryId === categoryId : true))
-      .filter((p) =>
-        q ? p.name.toLowerCase().includes(q) || (p.sku ?? '').toLowerCase().includes(q) : true
-      )
-      .sort(
-        (a, b) =>
-          STATE_PRIORITY[a.status] - STATE_PRIORITY[b.status] ||
-          a.name.localeCompare(b.name, 'uz')
-      );
-  }, [products, tab, categoryId, query]);
+  const changeTab = (next: TabKey) => {
+    setTab(next);
+    setPage(1);
+  };
 
-  const paged = usePagination(filtered, 25);
+  const changeCategory = (next: string) => {
+    setCategoryId(next);
+    setPage(1);
+  };
+
+  const reloadAll = async () => {
+    await Promise.all([reload(), meta.reload()]);
+  };
 
   const chips: FilterChip[] = [
     ...(query.trim()
@@ -107,7 +146,7 @@ export default function ProductsPage() {
           {
             key: 'cat',
             label: `Kategoriya: ${categoryName(categoryId)}`,
-            onRemove: () => setCategoryId(''),
+            onRemove: () => changeCategory(''),
           },
         ]
       : []),
@@ -115,21 +154,31 @@ export default function ProductsPage() {
 
   const clearFilters = () => {
     setQuery('');
+    setSearch('');
     setCategoryId('');
     setTab('all');
+    setPage(1);
   };
 
-  const selectedIds = Object.entries(selected)
-    .filter(([, v]) => v)
-    .map(([id]) => id);
-  const selectedProducts = products.filter((p) => selectedIds.includes(p.id));
+  const selectedProducts = Object.values(selected);
+  const selectedIds = selectedProducts.map((p) => p.id);
   const selectedCount = selectedIds.length;
-  const pageAllSelected = paged.pageItems.length > 0 && paged.pageItems.every((p) => selected[p.id]);
+  const pageAllSelected = products.length > 0 && products.every((p) => selected[p.id]);
+
+  const toggleOne = (p: Product) =>
+    setSelected((s) => {
+      if (!s[p.id]) return { ...s, [p.id]: p };
+      const { [p.id]: _removed, ...rest } = s;
+      return rest;
+    });
 
   const toggleAllOnPage = () => {
-    const next = { ...selected };
-    paged.pageItems.forEach((p) => (next[p.id] = !pageAllSelected));
-    setSelected(next);
+    const pageIds = new Set(products.map((p) => p.id));
+    setSelected((s) =>
+      pageAllSelected
+        ? Object.fromEntries(Object.entries(s).filter(([id]) => !pageIds.has(id)))
+        : { ...s, ...Object.fromEntries(products.map((p) => [p.id, p])) }
+    );
   };
 
   const patchProduct = async (id: string, patch: Parameters<typeof marketApi.updateProduct>[1]) => {
@@ -182,7 +231,8 @@ export default function ProductsPage() {
     }
   };
 
-  const hasFilters = query.trim() !== '' || categoryId !== '' || tab !== 'all';
+  const hasFilters = search !== '' || categoryId !== '' || tab !== 'all';
+  const catalogEmpty = !hasFilters && total === 0;
 
   return (
     <div>
@@ -195,7 +245,7 @@ export default function ProductsPage() {
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => void reload()}
+              onClick={() => void reloadAll()}
               isLoading={isRefreshing}
               leftIcon={<RefreshCw size={13} aria-hidden />}
             >
@@ -209,7 +259,7 @@ export default function ProductsPage() {
       />
 
       <div className="mb-3 flex flex-wrap items-center gap-3">
-        <Tabs items={tabs} value={tab} onChange={setTab} size="sm" />
+        <Tabs items={tabs} value={tab} onChange={changeTab} size="sm" />
         <div className="w-full sm:w-64">
           <Input
             aria-label="Mahsulot qidirish"
@@ -228,7 +278,7 @@ export default function ProductsPage() {
               ...categories.map((c) => ({ value: c.id, label: `${c.emoji} ${c.name}` })),
             ]}
             value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
+            onChange={(e) => changeCategory(e.target.value)}
           />
         </div>
       </div>
@@ -251,7 +301,7 @@ export default function ProductsPage() {
         <SkeletonTable rows={8} cols={6} />
       ) : error && products.length === 0 ? (
         <ErrorState message={error} onRetry={reload} />
-      ) : products.length === 0 ? (
+      ) : catalogEmpty ? (
         <Card>
           <EmptyState
             icon={<Package size={24} aria-hidden />}
@@ -264,9 +314,9 @@ export default function ProductsPage() {
             }
           />
         </Card>
-      ) : filtered.length === 0 ? (
+      ) : total === 0 ? (
         <Card>
-          {tab === 'out' && !query.trim() && !categoryId ? (
+          {tab === 'out' && !search && !categoryId ? (
             <EmptyState
               tone="positive"
               title="Tugagan mahsulot yo'q"
@@ -318,7 +368,7 @@ export default function ProductsPage() {
                   categoryName={categoryName(p.categoryId)}
                   threshold={threshold}
                   checked={!!selected[p.id]}
-                  onCheck={() => setSelected((s) => ({ ...s, [p.id]: !s[p.id] }))}
+                  onCheck={() => toggleOne(p)}
                   onSavePrice={(v) => patchProduct(p.id, { price: v })}
                   onSaveStock={(v) => patchProduct(p.id, { stock: Math.max(0, v) })}
                   onSetStatus={(status) => void setStatus(p.id, status)}
@@ -339,7 +389,7 @@ export default function ProductsPage() {
                   categoryName={categoryName(p.categoryId)}
                   threshold={threshold}
                   checked={!!selected[p.id]}
-                  onCheck={() => setSelected((s) => ({ ...s, [p.id]: !s[p.id] }))}
+                  onCheck={() => toggleOne(p)}
                   onSavePrice={(v) => patchProduct(p.id, { price: v })}
                   onSaveStock={(v) => patchProduct(p.id, { stock: Math.max(0, v) })}
                   onSetStatus={(status) => void setStatus(p.id, status)}
@@ -357,9 +407,9 @@ export default function ProductsPage() {
         </>
       )}
 
-      {hasFilters && filtered.length > 0 && (
+      {hasFilters && total > 0 && (
         <p className="mt-3 text-caption text-subtle">
-          Filtr qo&apos;llangan: {filtered.length} / {products.length} ta mahsulot ko&apos;rsatilmoqda
+          Filtr qo&apos;llangan: {total} ta mahsulot topildi
         </p>
       )}
 

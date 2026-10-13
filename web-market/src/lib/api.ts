@@ -134,6 +134,23 @@ export interface Product {
   imageKey?: string | null;
 }
 
+export interface ProductBrowseQuery {
+  page: number;
+  limit: number;
+  search?: string;
+  status?: ProductStatus;
+  categoryId?: string;
+}
+
+/** Server sahifasi; `counts` — tab sonlari (qidiruv/kategoriya hisobga olingan, holat emas). */
+export interface ProductPage {
+  products: Product[];
+  total: number;
+  page: number;
+  limit: number;
+  counts: Record<'all' | ProductStatus, number>;
+}
+
 export interface OrderItem {
   productId: string;
   name: string;
@@ -235,6 +252,8 @@ export const marketApi = {
   deleteCategory: (id: string) => api.delete<ApiResponse<{ deleted: boolean }>>(`/market/vendor/categories/${id}`),
 
   getProducts: () => api.get<ApiResponse<Product[]>>('/market/vendor/products'),
+  browseProducts: (params: ProductBrowseQuery) =>
+    api.get<ApiResponse<ProductPage>>('/market/vendor/products/browse', { params }),
   createProduct: (data: {
     name: string;
     sku?: string;

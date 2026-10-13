@@ -32,6 +32,7 @@ import { UpdateStoreDto } from './dto/update-store.dto';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { BulkUpdateProductsDto } from './dto/bulk-update-products.dto';
+import { VendorProductQueryDto } from './dto/vendor-product-query.dto';
 import { MarketOrderStatus } from '../../database/entities/market-order.entity';
 
 @ApiTags('Market (vendor)')
@@ -131,6 +132,13 @@ export class MarketVendorController {
   async listProducts(@CurrentUser() user: User) {
     const store = await this.marketService.getStoreByOwner(user.id);
     return this.marketService.listProducts(store.id);
+  }
+
+  @Get('products/browse')
+  @ApiOperation({ summary: 'List my products — paged, with search and status/category filters' })
+  async browseProducts(@CurrentUser() user: User, @Query() query: VendorProductQueryDto) {
+    const store = await this.marketService.getStoreByOwner(user.id);
+    return this.marketService.browseProducts(store.id, query);
   }
 
   @Post('products')
