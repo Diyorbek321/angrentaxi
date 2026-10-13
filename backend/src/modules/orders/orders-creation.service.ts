@@ -338,7 +338,7 @@ export class OrdersCreationService {
     // berilgan oddiy safar PIN tekshiruvini chetlab o'tardi, taksi tarifi
     // bilan berilgan posilka esa posilka xizmatini yoqmagan haydovchiga borardi.
     const isParcel = dto.serviceType === ServiceType.PARCEL;
-    if (isParcel !== (tariff.serviceType === ServiceType.PARCEL)) {
+    if (isParcel !== (tariff.serviceType === (ServiceType.PARCEL as string))) {
       throw new BadRequestException(
         isParcel ? "Posilka faqat 'Posilka' tarifi bilan beriladi" : "Bu tarif faqat posilka uchun",
       );
