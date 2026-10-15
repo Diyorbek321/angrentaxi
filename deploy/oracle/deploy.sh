@@ -114,9 +114,21 @@ else
 fi
 
 log "smoke test"
-API_URL="https://api.${DOMAIN}/api/v1" \
-PANEL_URLS="https://admin.${DOMAIN} https://manager.${DOMAIN} https://market.${DOMAIN} https://restaurant.${DOMAIN}" \
-  "$REPO_DIR/scripts/smoke.sh" || die "smoke failed on $sha — inspect, then: deploy/oracle/deploy.sh --rollback"
+# On a first deploy (or a new domain) Caddy obtains certificates a few seconds
+# AFTER it reports healthy — every HTTPS check then fails with code 000. Retry
+# before declaring the release broken.
+smoke() {
+  API_URL="https://api.${DOMAIN}/api/v1" \
+  PANEL_URLS="https://admin.${DOMAIN} https://manager.${DOMAIN} https://market.${DOMAIN} https://restaurant.${DOMAIN}" \
+    "$REPO_DIR/scripts/smoke.sh"
+}
+smoke_ok=0
+for attempt in 1 2 3 4 5; do
+  if smoke; then smoke_ok=1; break; fi
+  log "smoke attempt $attempt failed — retrying in 15s (certificates may still be issuing)"
+  sleep 15
+done
+[[ "$smoke_ok" == "1" ]] || die "smoke failed on $sha — inspect, then: deploy/oracle/deploy.sh --rollback"
 
 log "pruning dangling images (keeps tagged releases for rollback)"
 docker image prune -f >/dev/null
