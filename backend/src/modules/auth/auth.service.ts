@@ -98,10 +98,19 @@ export class AuthService {
     // In production, OTP_BYPASS_ENABLED alone is not enough — a second, explicit
     // flag must also be set. This prevents a real launch from silently inheriting
     // a test-server config where every phone number logs in with a fixed code.
-    const otpBypassEnabled = isProduction
+    const globalBypass = isProduction
       ? bypassFlagSet && explicitlyAllowedInProd
       : bypassFlagSet;
-    const bypassCode = this.configService.get<string>('OTP_BYPASS_CODE') || '123456';
+
+    // Sinov raqamlari ro'yxati: yopiq sinovda SMS provayderisiz kirish uchun.
+    // Faqat sanab o'tilgan raqamlar, va faqat kod ATAYLAB berilgan bo'lsa —
+    // aks holda hamma biladigan '123456' standartiga tushib qolardi.
+    const explicitBypassCode = this.configService.get<string>('OTP_BYPASS_CODE');
+    const allowlistBypass =
+      !!explicitBypassCode && this.bypassPhones().has(phone);
+
+    const otpBypassEnabled = globalBypass || allowlistBypass;
+    const bypassCode = explicitBypassCode || '123456';
 
     // In dev/bypass mode use the fixed bypass code so testers can always log in
     // with a known value; otherwise generate a random 6-digit code.
@@ -410,5 +419,17 @@ export class AuthService {
   // search space for the next one. Range is [100000, 1000000) => 6 digits.
   private generateOtpCode(): string {
     return randomInt(100000, 1000000).toString();
+  }
+
+  // `OTP_BYPASS_PHONES` — vergul bilan ajratilgan E.164 raqamlar. Bo'sh
+  // elementlar tashlanadi, shuning uchun buzuq qiymat hech kimni ochmaydi.
+  private bypassPhones(): Set<string> {
+    const raw = this.configService.get<string>('OTP_BYPASS_PHONES') ?? '';
+    return new Set(
+      raw
+        .split(',')
+        .map((p) => p.trim())
+        .filter((p) => p.length > 0),
+    );
   }
 }
