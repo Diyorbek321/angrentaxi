@@ -81,15 +81,27 @@ install -d -m 750 -o "$DEPLOY_USER" -g "$DEPLOY_USER" /opt/angren
 install -d -m 750 -o "$DEPLOY_USER" -g "$DEPLOY_USER" "$BACKUP_DIR"
 
 log "host firewall: allow 80/443 (Oracle iptables rules)"
-for port in 80 443; do
-  if ! iptables -C INPUT -p tcp -m state --state NEW --dport "$port" -j ACCEPT 2>/dev/null; then
-    # Position 6 = before Oracle's final REJECT rule (their docs use the same).
-    iptables -I INPUT 6 -p tcp -m state --state NEW --dport "$port" -j ACCEPT
+# Insert right before Oracle's catch-all REJECT. Its position differs between
+# images (5 on Ubuntu 24.04 Minimal, 6 on some others) — a hard-coded index
+# lands AFTER the REJECT and silently keeps 80/443 closed.
+reject_pos() {
+  iptables -L INPUT --line-numbers -n | awk '$2 == "REJECT" { print $1; exit }'
+}
+allow_input() {
+  if ! iptables -C INPUT "$@" -j ACCEPT 2>/dev/null; then
+    local pos
+    pos="$(reject_pos)"
+    if [[ -n "$pos" ]]; then
+      iptables -I INPUT "$pos" "$@" -j ACCEPT
+    else
+      iptables -A INPUT "$@" -j ACCEPT
+    fi
   fi
+}
+for port in 80 443; do
+  allow_input -p tcp -m state --state NEW --dport "$port"
 done
-if ! iptables -C INPUT -p udp --dport 443 -j ACCEPT 2>/dev/null; then
-  iptables -I INPUT 6 -p udp --dport 443 -j ACCEPT   # HTTP/3, optional
-fi
+allow_input -p udp --dport 443   # HTTP/3, optional
 netfilter-persistent save
 
 log "swap ${SWAP_SIZE_GB}G"
