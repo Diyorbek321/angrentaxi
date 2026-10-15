@@ -19,6 +19,7 @@ import {
   DEFAULT_REFRESH_TTL,
   parseTtlToMs,
 } from './token-ttl.util';
+import { parseEnvBoolean } from '../../common/utils/env-boolean.util';
 
 interface JwtPayload {
   sub: string;
@@ -86,9 +87,10 @@ export class AuthService {
       { isUsed: true },
     );
 
+    // ⚠️ Aniq o'qish: satr ("false") ham, validatsiyadan o'tgan boolean ham
+    // (`common/utils/env-boolean.util.ts`). Tushunarsiz qiymat — o'chiq.
     const bypassFlagSet =
-      this.configService.get<string>('OTP_BYPASS_ENABLED') === 'true' ||
-      this.configService.get<boolean>('OTP_BYPASS_ENABLED') === true;
+      parseEnvBoolean(this.configService.get<unknown>('OTP_BYPASS_ENABLED')) === true;
     const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
     const explicitlyAllowedInProd =
       this.configService.get<string>('ALLOW_OTP_BYPASS_IN_PROD') === 'true';

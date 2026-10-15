@@ -7,7 +7,9 @@ import { DataTable, type DataTableColumn, type SortState } from '@/components/ui
 import { MoneyText } from '@/components/ui/MoneyText';
 import { PlateNumber } from '@/components/ui/PlateNumber';
 import type { PaginationProps } from '@/components/ui/Pagination';
+import { Badge } from '@/components/ui/Badge';
 import { DriverStatusBadge } from './DriverStatusBadge';
+import { legalBriefBadge } from '@/lib/driver-legal';
 import type { Driver } from '@/lib/api';
 import { formatDateShort, formatNumber, formatPhone, formatRating, fullName } from '@/lib/format';
 import { driverRegisteredAt } from '@/lib/driver';
@@ -80,6 +82,19 @@ const columns: DataTableColumn<Driver>[] = [
     key: 'status',
     header: 'Holat',
     cell: (d) => <DriverStatusBadge status={d.status} isOnline={d.isOnline} />,
+  },
+  {
+    key: 'legal',
+    header: 'Huquqiy',
+    hideBelow: 'lg',
+    cell: (d) => {
+      const badge = legalBriefBadge(d.legal);
+      return (
+        <span title={badge.title}>
+          <Badge variant={badge.variant}>{badge.label}</Badge>
+        </span>
+      );
+    },
   },
   {
     key: 'createdAt',

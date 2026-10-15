@@ -15,6 +15,7 @@ import { formatPhone, formatRelative, formatTime, shortId } from '@/lib/format';
 import { courierState, CourierTone } from '@/lib/courier';
 import { StatusBadge } from '@/components/StatusBadge';
 import { VendorCashStrip } from '@/components/VendorCashStrip';
+import type { VendorSettlementContext } from '@/lib/vendor-cash';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Drawer } from '@/components/ui/Drawer';
@@ -27,6 +28,8 @@ export interface OrderDrawerProps {
   onClose: () => void;
   onChanged: () => Promise<void>;
   onError: (message: string) => void;
+  /** Hisob-kitob rejimi + do'kon komissiyasi (lib/vendor-cash.ts). */
+  settlement?: VendorSettlementContext;
 }
 
 /**
@@ -34,7 +37,7 @@ export interface OrderDrawerProps {
  * nima, nechta, kimga, qayerga, kim yetkazadi, mijoz nima dedi.
  * Holat faqat BITTA oldinga tugma bilan o'zgaradi (zinapoya, sakrash yo'q).
  */
-export function OrderDrawer({ order, onClose, onChanged, onError }: OrderDrawerProps) {
+export function OrderDrawer({ order, onClose, onChanged, onError, settlement }: OrderDrawerProps) {
   const [busy, setBusy] = useState(false);
   const [togglingIndex, setTogglingIndex] = useState<number | null>(null);
 
@@ -138,7 +141,12 @@ export function OrderDrawer({ order, onClose, onChanged, onError }: OrderDrawerP
       {/* Naqd + platforma kuryeri: kuryer tovar pulini do'konga to'laydi. */}
       {order.deliveryMode === 'platform' &&
         (order.status === 'shipped' || order.status === 'delivered') && (
-          <VendorCashStrip order={order} busy={busy} onDecide={(r) => void decideCash(r)} />
+          <VendorCashStrip
+            order={order}
+            busy={busy}
+            onDecide={(r) => void decideCash(r)}
+            settlement={settlement}
+          />
         )}
 
       {/* Mijoz izohi — xatolarning 1-manbai, shuning uchun ro'yxatdan OLDIN

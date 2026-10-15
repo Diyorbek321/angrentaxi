@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { BellRing, CircleOff, Volume2, VolumeX } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
+import { useWalletSettlementToasts } from '@/hooks/useVendorSettlement';
 import { marketApi, type Store } from '@/lib/api';
 import { fullName } from '@/lib/format';
 import { getSocket } from '@/lib/realtime';
@@ -112,6 +113,8 @@ export function MarketShell({
 
   // Yangi buyurtma socket orqali darhol — 30 s poll zaxira bo'lib qoladi.
   useRealtimeRefresh(refresh, isAuthenticated);
+  // Hamyon o'tkazmasi (va teskarisi) — qaysi sahifada bo'lmasin toast.
+  useWalletSettlementToasts(isAuthenticated);
   const socketConnected = useSocketConnected(isAuthenticated);
 
   // Fon tabida ham ko'rinsin: yangi buyurtma soni brauzer tab sarlavhasida.

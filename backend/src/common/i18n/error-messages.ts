@@ -45,8 +45,12 @@ const fill = (template: string, values: readonly string[]) =>
 /**
  * Xabarni tilga o'giradi. Lug'atda yo'q bo'lsa — o'zgarmay qaytadi.
  * O'zgaruvchilar `{0}`, `{1}` manbadagi tartibda olinadi.
+ *
+ * O'zgaruvchi qiymati ham (`; ` bilan ajratilgan ro'yxat bo'lsa — har bir
+ * bo'lagi) lug'atdan qidiriladi: huquqiy darvoza xabari ichidagi sabablar va
+ * hujjat nomlari shu yo'l bilan ruschaga o'tadi. Chuqurlik cheklangan.
  */
-export function localizeMessage(message: string, language: AppLanguage): string {
+export function localizeMessage(message: string, language: AppLanguage, depth = 0): string {
   const exact = EXACT.get(message);
   if (exact) return pick(exact, language) ?? message;
 
@@ -54,9 +58,24 @@ export function localizeMessage(message: string, language: AppLanguage): string 
     const match = pattern.exec(message);
     if (!match) continue;
     const template = pick(entry, language);
-    return template ? fill(template, sourceOrderedValues(entry.source, match)) : message;
+    if (!template) return message;
+    const values = sourceOrderedValues(entry.source, match).map((value) =>
+      depth < MAX_NESTING ? localizeList(value, language, depth + 1) : value,
+    );
+    return fill(template, values);
   }
   return message;
+}
+
+const MAX_NESTING = 3;
+const LIST_SEPARATOR = '; ';
+
+function localizeList(value: string | undefined, language: AppLanguage, depth: number): string {
+  if (value === undefined) return '';
+  return value
+    .split(LIST_SEPARATOR)
+    .map((part) => localizeMessage(part, language, depth))
+    .join(LIST_SEPARATOR);
 }
 
 function pick(entry: ErrorCatalogueEntry, language: AppLanguage): string | undefined {

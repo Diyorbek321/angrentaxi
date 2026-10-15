@@ -1195,6 +1195,36 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get ernNetFromFares => 'Чистыми с поездок';
+
+  @override
+  String get ernNetWithTips => 'Итого чистыми';
+
+  @override
+  String get ernShiftPass => 'Смена';
+
+  @override
+  String get ernTaxWithheld => 'Налог (1%)';
+
+  @override
+  String get ernTips => 'Чаевые (без комиссии)';
+
+  @override
+  String errBalanceIs(String balance) {
+    return 'Баланс: $balance';
+  }
+
+  @override
+  String errNeedVsBalance(String required, String balance) {
+    return 'Нужно: $required, баланс: $balance';
+  }
+
+  @override
+  String errPriceVsBalance(String price, String balance) {
+    return 'Стоимость: $price, баланс: $balance';
+  }
+
+  @override
   String fmtCurrencySom(String amount) {
     return '$amount сум';
   }
@@ -1267,6 +1297,177 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get languageUzbek => 'O\'zbekcha';
+
+  @override
+  String get lglBirthDate => 'Дата рождения';
+
+  @override
+  String lglBlockedBannerBody(int count) {
+    return 'Не выполнены юридические требования: $count';
+  }
+
+  @override
+  String get lglBlockedBannerTitle => 'Нельзя выйти на линию в такси';
+
+  @override
+  String get lglClose => 'Закрыть';
+
+  @override
+  String get lglCourierHint =>
+      'Чтобы продолжить работу курьером, отключите такси в разделе «Виды услуг».';
+
+  @override
+  String get lglDocCarrierInsurance =>
+      'Страхование ответственности перевозчика';
+
+  @override
+  String get lglDocCarrierInsuranceHint =>
+      'Страховой полис — должен быть виден срок действия';
+
+  @override
+  String get lglDocMedicalCheck => 'Справка о медосмотре';
+
+  @override
+  String get lglDocMedicalCheckHint => 'О прохождении ежегодного медосмотра';
+
+  @override
+  String get lglDocTaxiLicence => 'Лицензионная карточка такси';
+
+  @override
+  String get lglDocTaxiLicenceHint =>
+      'Должны быть видны регион и срок действия';
+
+  @override
+  String get lglDocTechInspection => 'Ежегодный техосмотр';
+
+  @override
+  String get lglDocTechInspectionHint => 'Свидетельство о техосмотре';
+
+  @override
+  String get lglDuplicatePinfl =>
+      'Этот ПИНФЛ уже зарегистрирован в профиле другого водителя';
+
+  @override
+  String get lglDuplicateTin =>
+      'Этот ИНН уже зарегистрирован в профиле другого водителя';
+
+  @override
+  String get lglEligibleBody => 'Вы можете принимать заказы такси.';
+
+  @override
+  String get lglEligibleTitle => 'Все требования выполнены';
+
+  @override
+  String get lglFill => 'Заполнить';
+
+  @override
+  String get lglGoOnlineBlockedBody => 'Для такси не выполнены требования:';
+
+  @override
+  String get lglGoOnlineBlockedTitle => 'Не удалось выйти на линию';
+
+  @override
+  String get lglIndividualEntrepreneur => 'ИП (индивидуальный предприниматель)';
+
+  @override
+  String get lglIntro =>
+      'Требования постановления Кабмина № 200 для работы в такси. Данные используются для отчёта по налогу 1% и в чеках.';
+
+  @override
+  String get lglLegalRequirement => 'Юридическое требование для такси';
+
+  @override
+  String get lglLicenceIssuedAt =>
+      'Дата выдачи водительского удостоверения (кат. B)';
+
+  @override
+  String get lglLoadFailed => 'Не удалось загрузить юридический профиль';
+
+  @override
+  String get lglLockedNote =>
+      'Ваш документ подтверждён. Чтобы изменить ПИНФЛ, ИНН, налоговый статус или дату рождения, обратитесь к оператору.';
+
+  @override
+  String get lglMenuSubtitle => 'Налоговый статус, ПИНФЛ, лицензия';
+
+  @override
+  String get lglNotEligibleTitle => 'Невыполненные требования';
+
+  @override
+  String get lglOpenDocuments => 'Загрузить документы';
+
+  @override
+  String get lglOpenProfile => 'Открыть юридический профиль';
+
+  @override
+  String get lglPinfl => 'ПИНФЛ';
+
+  @override
+  String get lglPinflHint => '14 цифр — в паспорте или ID-карте';
+
+  @override
+  String get lglSave => 'Сохранить';
+
+  @override
+  String get lglSaved => 'Юридический профиль сохранён';
+
+  @override
+  String get lglSelectDate => 'Выберите дату';
+
+  @override
+  String get lglSelectRegion => 'Выберите регион';
+
+  @override
+  String get lglSelfEmployed => 'Самозанятый';
+
+  @override
+  String get lglStatusBlocking =>
+      'Выход на линию в такси остановлен. Заполните следующее.';
+
+  @override
+  String lglStatusGrace(String date) {
+    return 'Обязательно с $date. Пока можно работать.';
+  }
+
+  @override
+  String get lglStatusWarning =>
+      'Пока это предупреждение — работать не мешает.';
+
+  @override
+  String get lglTaxStatus => 'Налоговый статус';
+
+  @override
+  String get lglTaxiLicenceNumber => 'Номер лицензионной карточки такси';
+
+  @override
+  String get lglTaxiLicenceRegion => 'Регион лицензии';
+
+  @override
+  String get lglTin => 'ИНН';
+
+  @override
+  String get lglTinHintOptional => '9 цифр — необязательно';
+
+  @override
+  String get lglTinHintRequired => '9 цифр — обязательно для ИП';
+
+  @override
+  String get lglTitle => 'Юридический профиль';
+
+  @override
+  String get lglValPinflFormat => 'ПИНФЛ должен состоять из 14 цифр';
+
+  @override
+  String get lglValPinflRequired => 'Введите ПИНФЛ';
+
+  @override
+  String get lglValTaxStatusRequired => 'Выберите налоговый статус';
+
+  @override
+  String get lglValTinFormat => 'ИНН должен состоять из 9 цифр';
+
+  @override
+  String get lglValTinRequired => 'Для ИП ИНН обязателен';
 
   @override
   String get paxAbout => 'О приложении';
@@ -3380,4 +3581,287 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get shVerifUnknown => 'Требует внимания';
+
+  @override
+  String get shfActive => 'Смена активна';
+
+  @override
+  String get shfAlreadyActive => 'У вас уже есть активная смена';
+
+  @override
+  String get shfBought => 'Смена активирована';
+
+  @override
+  String shfBuy(String price) {
+    return 'Купить смену — $price';
+  }
+
+  @override
+  String get shfCancel => 'Отмена';
+
+  @override
+  String shfComparison(int days, String commission, String passCost) {
+    return 'За последние $days дн. вы заплатили $commission комиссии, со сменой было бы $passCost.';
+  }
+
+  @override
+  String shfComparisonNoTrips(int days) {
+    return 'За последние $days дн. поездок не было — сравнивать не с чем.';
+  }
+
+  @override
+  String get shfConfirm => 'Купить';
+
+  @override
+  String shfConfirmBody(String price, int hours, String services) {
+    return 'С кошелька спишется $price. $hours ч комиссия за поездки «$services» не берётся. Налог 1% удерживается как обычно.';
+  }
+
+  @override
+  String get shfConfirmTitle => 'Купить смену?';
+
+  @override
+  String shfHoursMinutes(int hours, int minutes) {
+    return '$hours ч $minutes мин';
+  }
+
+  @override
+  String shfMinutes(int minutes) {
+    return '$minutes мин';
+  }
+
+  @override
+  String shfRemaining(String time) {
+    return 'Осталось $time';
+  }
+
+  @override
+  String shfSubtitle(int hours) {
+    return '$hours ч без комиссии';
+  }
+
+  @override
+  String get shfTitle => 'Смена';
+
+  @override
+  String shfVerdictCommission(String amount) {
+    return 'Комиссия вышла дешевле на $amount';
+  }
+
+  @override
+  String get shfVerdictEqual => 'Одинаково';
+
+  @override
+  String shfVerdictShift(String amount) {
+    return 'Смена сэкономила бы $amount';
+  }
+
+  @override
+  String wdrAmountExceedsAvailable(String amount) {
+    return 'Сейчас можно вывести не больше $amount';
+  }
+
+  @override
+  String wdrAvailable(String amount) {
+    return 'Доступно к выводу: $amount';
+  }
+
+  @override
+  String wdrHoldNote(String amount, String days) {
+    return 'Пополнение картой $amount можно будет вывести через $days дн.';
+  }
+
+  @override
+  String get wdrNothingAvailable => 'Сейчас нет средств, доступных к выводу';
+
+  @override
+  String get wltAmount => 'Сумма';
+
+  @override
+  String get wltAmountHint => 'Введите сумму';
+
+  @override
+  String wltAmountRange(String min, String max) {
+    return 'От $min до $max';
+  }
+
+  @override
+  String wltCallFailed(String phone) {
+    return 'Не удалось позвонить. Номер: $phone';
+  }
+
+  @override
+  String wltCallOperator(String phone) {
+    return 'Позвонить оператору: $phone';
+  }
+
+  @override
+  String get wltContinuePending => 'Продолжить оплату';
+
+  @override
+  String get wltCurrentBalance => 'Текущий баланс';
+
+  @override
+  String get wltDisabledBody =>
+      'Пополнение из приложения пока не включено. Позвоните оператору — он пополнит кошелёк.';
+
+  @override
+  String get wltDisabledTitle => 'Пополнение через оператора';
+
+  @override
+  String get wltDone => 'Готово';
+
+  @override
+  String get wltFailedBody =>
+      'Деньги не списаны. Попробуйте ещё раз или выберите другой способ.';
+
+  @override
+  String get wltFailedTitle => 'Оплата не прошла';
+
+  @override
+  String get wltHistory => 'История пополнений';
+
+  @override
+  String get wltHistoryEmpty => 'Пополнений пока нет';
+
+  @override
+  String wltNewBalance(String balance) {
+    return 'Новый баланс: $balance';
+  }
+
+  @override
+  String get wltNoSupportPhone =>
+      'Номер оператора не найден — напишите в чат поддержки.';
+
+  @override
+  String get wltOpenCheckoutAgain => 'Снова открыть страницу оплаты';
+
+  @override
+  String wltPay(String amount) {
+    return 'Оплатить $amount';
+  }
+
+  @override
+  String get wltProvider => 'Способ оплаты';
+
+  @override
+  String get wltRefundClawbackFallback =>
+      'Клиенту вернули оплату картой — ваша доля по этому заказу списана с кошелька.';
+
+  @override
+  String get wltReminderFallback =>
+      'Расчёт с ресторанами и магазинами будет через кошелёк — пополните его.';
+
+  @override
+  String get wltShowPending => 'Показать незавершённые платежи';
+
+  @override
+  String get wltStatusCancelled => 'Отменено';
+
+  @override
+  String get wltStatusExpired => 'Истекло';
+
+  @override
+  String get wltStatusFailed => 'Не прошло';
+
+  @override
+  String get wltStatusPaid => 'Оплачено';
+
+  @override
+  String get wltStatusPending => 'Ожидает';
+
+  @override
+  String get wltStillPending =>
+      'Пока не подтверждено. Если деньги списаны, они поступят автоматически — следите в истории.';
+
+  @override
+  String wltSuccessBody(String amount) {
+    return '$amount зачислено на кошелёк';
+  }
+
+  @override
+  String get wltSuccessTitle => 'Кошелёк пополнен';
+
+  @override
+  String wltTooManyPending(String count) {
+    return 'У вас $count незавершённых платежа. Сначала завершите их или дождитесь отмены.';
+  }
+
+  @override
+  String get wltTooManyPendingNoCount =>
+      'У вас слишком много незавершённых платежей. Сначала завершите их или дождитесь отмены.';
+
+  @override
+  String get wltTopUpShort => 'Пополнить';
+
+  @override
+  String get wltTopUpTitle => 'Пополнить кошелёк';
+
+  @override
+  String get wltTryAgain => 'Попробовать снова';
+
+  @override
+  String wltUpdGeneric(String amount) {
+    return 'Кошелёк обновлён: $amount';
+  }
+
+  @override
+  String wltUpdManual(String amount) {
+    return 'Оператор скорректировал кошелёк: $amount';
+  }
+
+  @override
+  String wltUpdRefundClawback(String amount) {
+    return 'Оплата возвращена клиенту — доля списана с кошелька: $amount';
+  }
+
+  @override
+  String wltUpdShiftRefund(String amount) {
+    return 'Возврат за смену: $amount';
+  }
+
+  @override
+  String wltUpdTopup(String amount) {
+    return 'Кошелёк пополнен: $amount';
+  }
+
+  @override
+  String wltUpdTopupReversal(String amount) {
+    return 'Пополнение отменено: $amount';
+  }
+
+  @override
+  String wltUpdVendorReversal(String amount) {
+    return 'Перевод магазину возвращён: $amount';
+  }
+
+  @override
+  String get wltValAmountEmpty => 'Введите сумму';
+
+  @override
+  String get wltValAmountInvalid => 'Введите только цифры';
+
+  @override
+  String wltValAmountMax(String max) {
+    return 'Максимальная сумма — $max';
+  }
+
+  @override
+  String wltValAmountMin(String min) {
+    return 'Минимальная сумма — $min';
+  }
+
+  @override
+  String get wltVendorInsufficientBody =>
+      'При наличном заказе оплата товара магазину списывается с кошелька. Пополните кошелёк и примите заказ снова.';
+
+  @override
+  String get wltVendorInsufficientTitle => 'На кошельке недостаточно средств';
+
+  @override
+  String get wltWaitingBody =>
+      'Деньги поступят, как только платёжная система подтвердит оплату. Обычно несколько секунд.';
+
+  @override
+  String get wltWaitingTitle => 'Ожидаем подтверждения оплаты';
 }

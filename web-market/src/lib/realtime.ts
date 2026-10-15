@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client';
+import type { WalletReversedEvent, WalletSettledEvent } from '@/lib/vendor-settlement';
 
 /**
  * Jonli ulanish: yangi buyurtma polling'ni kutmasdan darhol ko'rinadi.
@@ -18,6 +19,9 @@ export const VENDOR_REFRESH_EVENTS = [
   'market:delivery:failed',
   'vendor:cash_paid',
   'vendor:cash_dispute_resolved',
+  // Hamyon rejimi (docs/LEGAL-COMPLIANCE.md §7, §14): o'tkazma va teskarisi.
+  'vendor:wallet_settled',
+  'vendor:wallet_reversed',
 ] as const;
 
 /** Muddati o'tgan token bilan server uzsa — cookie yangilanishini kutib qayta urinish. */
@@ -87,5 +91,24 @@ export function subscribeVendorRefresh(onRefresh: () => void, debounceMs = 300):
     if (timer) clearTimeout(timer);
     sock.off('connect', onConnect);
     VENDOR_REFRESH_EVENTS.forEach((event) => sock.off(event, fire));
+  };
+}
+
+/**
+ * Hamyon o'tkazmasi hodisalari — yuki bilan (toast uchun). Ro'yxatni yangilash
+ * esa [subscribeVendorRefresh] orqali alohida bo'ladi.
+ */
+export function subscribeVendorWalletEvents(handlers: {
+  onSettled: (payload: WalletSettledEvent) => void;
+  onReversed: (payload: WalletReversedEvent) => void;
+}): () => void {
+  const sock = getSocket();
+  const settled = (payload: WalletSettledEvent) => handlers.onSettled(payload);
+  const reversed = (payload: WalletReversedEvent) => handlers.onReversed(payload);
+  sock.on('vendor:wallet_settled', settled);
+  sock.on('vendor:wallet_reversed', reversed);
+  return () => {
+    sock.off('vendor:wallet_settled', settled);
+    sock.off('vendor:wallet_reversed', reversed);
   };
 }

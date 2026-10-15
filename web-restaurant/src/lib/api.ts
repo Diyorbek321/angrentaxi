@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { attachAuthInterceptor } from './session';
 import type { DeliveryInfo } from './courier';
+import type { VendorWalletSettlement } from './vendor-cash';
 
 /**
  * Requests go to this app's own /api/proxy, not to the backend directly. The
@@ -114,6 +115,8 @@ export interface Restaurant {
   commissionRate: number;
   notifications: Notifications;
   status: RestaurantStatus;
+  /** STIR (9 raqam) — fiskal chekda komitent sifatida (docs/LEGAL-COMPLIANCE.md §3). */
+  tin?: string | null;
   /** Muqova rasmi kaliti (`lib/catalog-image.ts`); faqat o'qish — rasm alohida endpoint orqali. */
   imageKey?: string | null;
 }
@@ -177,6 +180,11 @@ export interface FoodOrder {
   vendorCashDisputedAt?: string | null;
   vendorCashDisputeResolvedAt?: string | null;
   vendorCashDisputeResolution?: string | null;
+  /** Hamyon rejimi: kuryer hamyonidan o'tkazilgan payt (lib/vendor-cash.ts). */
+  vendorWalletSettledAt?: string | null;
+  /** O'tkazma summalari, o'tkazma PAYTIDA saqlangan (§22); `null` — hamyon orqali o'tkazilmagan. */
+  vendorWalletSettlement?: VendorWalletSettlement | null;
+  vendorWalletReversalCount?: number;
 }
 
 export interface DashboardData {
@@ -209,13 +217,20 @@ export interface ReportsData {
   };
 }
 
+// ─── Platforma sozlamalari ─────────────────────────────────────────
+
+export const settingsApi = {
+  /** Hisob-kitob rejimi (amaldagi) va hamyonga o'tish sanasi — lib/vendor-settlement.ts. */
+  getPublic: () => api.get<ApiResponse<unknown>>('/settings/public'),
+};
+
 // ─── Vendor API ────────────────────────────────────────────────────
 
 export const foodApi = {
   getRestaurant: () => api.get<ApiResponse<Restaurant>>('/food/vendor/restaurant'),
   updateRestaurant: (
     data: Partial<
-      Pick<Restaurant, 'name' | 'phone' | 'address' | 'lat' | 'lng' | 'hours' | 'deliveryRadiusKm' | 'commissionRate' | 'notifications'>
+      Pick<Restaurant, 'name' | 'phone' | 'address' | 'lat' | 'lng' | 'hours' | 'deliveryRadiusKm' | 'commissionRate' | 'notifications' | 'tin'>
     >
   ) => api.patch<ApiResponse<Restaurant>>('/food/vendor/restaurant', data),
   toggleOpen: () => api.patch<ApiResponse<Restaurant>>('/food/vendor/restaurant/toggle-open'),

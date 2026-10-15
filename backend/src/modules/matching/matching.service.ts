@@ -14,6 +14,7 @@ import { TariffsService } from '../tariffs/tariffs.service';
 import { OsrmService } from '../routing/osrm.service';
 import { REDIS_CLIENT } from '../../config/redis.config';
 import { DeliveryEventsService } from '../delivery/delivery-events.service';
+import { VendorCashService, payVendorOf } from '../delivery/vendor-cash.service';
 
 interface DriverQueue {
   orderId: string;
@@ -44,6 +45,10 @@ interface DriverQueue {
   // Safar opsiyalari — xuddi shu sabab bilan navbatda saqlanadi: qayta
   // qidiruvda bola o'rindig'i so'ralgan safar o'rindiqsiz mashinaga ketmasin.
   tripOptions?: string[];
+  // Naqd ovqat/market yetkazishida kuryer do'konga to'laydigan tovar summasi
+  // (`details.payVendor`). Hamyon rejimida shu summadan kam hamyonli kuryerga
+  // taklif bormaydi — qayta qidiruv ham shu qiymatni ishlatadi.
+  payVendor?: number;
 }
 
 // Queue state used to live only in a process-local Map, with setTimeout +
@@ -88,7 +93,26 @@ export class MatchingService {
     // Optional only so unit tests that build this service by hand keep
     // compiling; DeliveryEventsModule is global, so the app always has it.
     @Optional() private readonly deliveryEvents?: DeliveryEventsService,
+    // Hamyon rejimi filtri (docs/LEGAL-COMPLIANCE.md §14). Global modul;
+    // ixtiyoriy faqat qo'lda yig'iladigan spec'lar uchun.
+    @Optional() private readonly vendorCash?: VendorCashService,
   ) {}
+
+  /**
+   * Hamyon rejimida naqd yetkazish: hamyonida tovar summasi bo'lmagan
+   * kuryerlar chiqarib tashlanadi (ular baribir qabul qila olmasdi).
+   * Filtr xato bersa — ro'yxat o'zgarmaydi: qabul qilishdagi tekshiruv
+   * (`assertCanAccept`) baribir himoya qiladi, qidiruv esa to'xtamasligi kerak.
+   */
+  private async filterByWallet(payVendor: number, candidates: NearbyDriver[]): Promise<NearbyDriver[]> {
+    if (!this.vendorCash || payVendor <= 0 || candidates.length === 0) return candidates;
+    try {
+      return await this.vendorCash.filterCouriersByWallet(payVendor, candidates);
+    } catch (err) {
+      this.logger.warn(`Wallet filter failed, offering unfiltered: ${(err as Error).message}`);
+      return candidates;
+    }
+  }
 
   /**
    * Re-orders candidates by driving time to the pickup instead of straight-line
@@ -181,12 +205,10 @@ export class MatchingService {
     };
 
     // Find nearby drivers (3km radius)
-    const nearbyDrivers = await this.driversService.getNearbyDrivers(
-      lat,
-      lng,
-      3,
-      tariff.tier,
-      capabilities,
+    const payVendor = payVendorOf(order);
+    const nearbyDrivers = await this.filterByWallet(
+      payVendor,
+      await this.driversService.getNearbyDrivers(lat, lng, 3, tariff.tier, capabilities),
     );
     const noDriverDeadline = Date.now() + this.NO_DRIVER_TIMEOUT_MS;
 
@@ -204,6 +226,7 @@ export class MatchingService {
       serviceType: capabilities.serviceType ?? ServiceType.TAXI,
       vehicleType: capabilities.vehicleType ?? null,
       tripOptions: [...(capabilities.tripOptions ?? [])],
+      payVendor,
     };
 
     if (nearbyDrivers.length === 0) {
@@ -348,8 +371,9 @@ export class MatchingService {
       },
     );
 
-    const fresh = candidates.filter(
-      (driver) => !queue.exhaustedDriverIds.includes(driver.userId),
+    const fresh = await this.filterByWallet(
+      queue.payVendor ?? 0,
+      candidates.filter((driver) => !queue.exhaustedDriverIds.includes(driver.userId)),
     );
 
     if (fresh.length === 0) {

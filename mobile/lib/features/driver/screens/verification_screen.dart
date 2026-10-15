@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:angren_taxi/core/config/app_platform.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
+import 'package:angren_taxi/features/driver/legal/legal_document_labels.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/driver_verification.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
@@ -67,7 +68,7 @@ class _DriverVerificationScreenState extends State<DriverVerificationScreen> {
                 children: [
                   const SizedBox(height: kSpace2),
                   Text(
-                    item.label,
+                    verificationItemLabel(item),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: kFontTitle,
@@ -371,7 +372,7 @@ class _VerificationItemCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      item.label,
+                      verificationItemLabel(item),
                       key: ValueKey('verification_label_${item.code}'),
                       style: const TextStyle(
                         fontSize: kFontBody,
@@ -379,10 +380,10 @@ class _VerificationItemCard extends StatelessWidget {
                         color: kInk,
                       ),
                     ),
-                    if (item.hint != null) ...[
+                    if (verificationItemHint(item) != null) ...[
                       const SizedBox(height: 2),
                       Text(
-                        item.hint!,
+                        verificationItemHint(item)!,
                         key: ValueKey('verification_hint_${item.code}'),
                         style: const TextStyle(
                           fontSize: kFontCaption,
@@ -391,7 +392,22 @@ class _VerificationItemCard extends StatelessWidget {
                         ),
                       ),
                     ],
-                    if (!item.isRequired) ...[
+                    // Huquqiy hujjatlar serverda `isRequired = false`
+                    // (eski onlayn darvoza ularni hisobga olmasin deb),
+                    // lekin ular IXTIYORIY EMAS — huquqiy darvoza talab
+                    // qiladi. "Ixtiyoriy" deyish haydovchini aldardi.
+                    if (isLegalVerificationCode(item.code)) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        context.l10n.lglLegalRequirement,
+                        key: ValueKey('verification_legal_${item.code}'),
+                        style: const TextStyle(
+                          fontSize: kFontMicro,
+                          color: kWarningDeep,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ] else if (!item.isRequired) ...[
                       const SizedBox(height: 2),
                       Text(
                         context.l10n.drvOptional,
@@ -476,7 +492,7 @@ class _VerificationItemCard extends StatelessWidget {
                 size: 18,
                 color: kOnPrimary,
               ),
-              semanticsLabel: '${item.label} — $actionLabel',
+              semanticsLabel: '${verificationItemLabel(item)} — $actionLabel',
               onPressed: onUpload,
             )
           else
@@ -489,7 +505,7 @@ class _VerificationItemCard extends StatelessWidget {
                 size: 18,
                 color: kInk,
               ),
-              semanticsLabel: '${item.label} — $actionLabel',
+              semanticsLabel: '${verificationItemLabel(item)} — $actionLabel',
               onPressed: onUpload,
             ),
         ],

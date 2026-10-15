@@ -1,3 +1,4 @@
+import { syncDriverBalanceColumn } from '../payments/wallet-balance.util';
 import { Repository } from 'typeorm';
 import { Order, PaymentMethod } from '../../database/entities/order.entity';
 import {
@@ -58,6 +59,8 @@ export async function creditReferralBonus(
       status: TransactionStatus.COMPLETED,
       externalId: `referral_bonus_${tag}_${orderId}`,
     });
+    // Taklif qilgan haydovchi bo'lsa — `drivers.balance` keshi (§13); aks holda no-op.
+    await syncDriverBalanceColumn(orderRepository.manager, userId);
   }
   return true;
 }

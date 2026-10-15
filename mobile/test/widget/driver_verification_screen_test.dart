@@ -514,4 +514,50 @@ void main() {
     expect(find.text('Fayl hajmi juda katta'), findsOneWidget);
     expect(find.text('Qayta urinish'), findsOneWidget);
   });
+
+  // Huquqiy hujjatlar (docs/LEGAL-COMPLIANCE.md §1, §21): serverda
+  // `isRequired = false`, lekin "Ixtiyoriy" EMAS — huquqiy talab. Nomi —
+  // SERVER yorlig'i (v4 uni `Accept-Language` bo'yicha tarjima qiladi);
+  // yorliq kelmasa — ilova tilidagi zaxira. Yuklash oqimi umumiy.
+  testWidgets("4 ta huquqiy hujjat: server nomi (zaxira — mahalliy), 'huquqiy talab' belgisi",
+      (tester) async {
+    stubVerification(items: [
+      {
+        ..._item(
+          code: 'taxi_licence',
+          label: 'Лицензионная карточка (сервер)',
+          status: 'missing',
+        ),
+        'isRequired': false,
+      },
+      for (final code in [
+        'medical_check',
+        'carrier_insurance',
+        'tech_inspection',
+      ])
+        {
+          ..._item(code: code, label: '', status: 'missing'),
+          'isRequired': false,
+        },
+    ]);
+
+    // Ro'yxat dangasa quriladi — 4 ta karta bitta ekranga sig'sin.
+    tester.view.physicalSize = const Size(1080, 4000);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.reset);
+    await pumpScreen(tester);
+
+    String label(String code) => tester
+        .widget<Text>(find.byKey(ValueKey('verification_label_$code')))
+        .data!;
+    expect(label('taxi_licence'), 'Лицензионная карточка (сервер)');
+    expect(label('medical_check'), "Tibbiy ko'rik ma'lumotnomasi");
+    expect(label('carrier_insurance'), "Tashuvchining javobgarlik sug'urtasi");
+    expect(label('tech_inspection'), "Yillik texnik ko'rik");
+    expect(find.byKey(const ValueKey('verification_legal_taxi_licence')),
+        findsOneWidget);
+    expect(find.text('Ixtiyoriy'), findsNothing);
+    expect(find.byKey(const ValueKey('verification_upload_medical_check')),
+        findsOneWidget);
+  });
 }

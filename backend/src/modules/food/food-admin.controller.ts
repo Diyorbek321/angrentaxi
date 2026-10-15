@@ -5,7 +5,10 @@ import { CatalogImageService } from '../storage/catalog-image.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { UserRole } from '../../database/entities/user.entity';
+import { User, UserRole } from '../../database/entities/user.entity';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { VendorTinService } from '../vendor-tin/vendor-tin.service';
+import { SetVendorTinDto } from '../vendor-tin/dto/set-vendor-tin.dto';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
 import { CatalogModerationQueryDto } from '../../common/dto/catalog-moderation-query.dto';
 import { CreateRestaurantAdminDto } from './dto/create-restaurant-admin.dto';
@@ -20,6 +23,7 @@ export class FoodAdminController {
   constructor(
     private readonly foodService: FoodService,
     private readonly catalogImages: CatalogImageService,
+    private readonly vendorTin: VendorTinService,
   ) {}
 
   @Get('restaurants')
@@ -32,6 +36,17 @@ export class FoodAdminController {
   @ApiOperation({ summary: 'Onboard a new restaurant vendor (admin only)' })
   createRestaurant(@Body() dto: CreateRestaurantAdminDto) {
     return this.foodService.adminCreateRestaurant(dto);
+  }
+
+  /** Fiskal chekdagi komitent STIR'i (9 raqam | null) — amallar jurnaliga yoziladi (`vendor.tin_update`). */
+  @Patch('restaurants/:id/tin')
+  @ApiOperation({ summary: "Set or clear a restaurant's TIN (9 digits | null), audit-logged (admin only)" })
+  setTin(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SetVendorTinDto,
+  ) {
+    return this.vendorTin.setTin(user.id, 'restaurant', id, dto.tin);
   }
 
   @Patch('restaurants/:id/status')

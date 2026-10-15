@@ -18,6 +18,7 @@ import { DriversService } from '../drivers/drivers.service';
 import { PromoCodesService } from '../promo-codes/promo-codes.service';
 import { DriverBonusesService } from '../driver-bonuses/driver-bonuses.service';
 import { SettingsService } from '../settings/settings.service';
+import { ShiftPassesService } from '../shift-passes/shift-passes.service';
 
 /**
  * Coverage for OrdersService.getDriverEarningsBreakdown, the new
@@ -48,6 +49,7 @@ describe('OrdersService - getDriverEarningsBreakdown', () => {
     createdAt: Date;
     finalPrice: number | null;
     estimatedPrice: number;
+    tipAmount?: number | null;
   }
 
   interface FixtureTransaction {
@@ -59,6 +61,7 @@ describe('OrdersService - getDriverEarningsBreakdown', () => {
 
   let orders: FixtureOrder[];
   let transactions: FixtureTransaction[];
+  let passes: Array<{ driverId: string; startsAt: Date; price: number }>;
 
   function daysBeforeNow(days: number): Date {
     const d = new Date(NOW);
@@ -78,6 +81,7 @@ describe('OrdersService - getDriverEarningsBreakdown', () => {
   beforeEach(async () => {
     orders = [];
     transactions = [];
+    passes = [];
 
     // Fake query builder: records the WHERE/andWHERE bind params, then
     // computes getRawOne() by filtering the in-memory fixtures the same way
@@ -128,9 +132,22 @@ describe('OrdersService - getDriverEarningsBreakdown', () => {
             )
             .reduce((sum, t) => sum + t.amount, 0);
 
+          const tax = transactions
+            .filter(
+              (t) =>
+                matchedIds.has(t.orderId) &&
+                t.externalId === 'tax_withholding' &&
+                t.userId === state.driverId,
+            )
+            .reduce((sum, t) => sum + t.amount, 0);
+
+          const tips = matched.reduce((sum, o) => sum + (o.tipAmount ?? 0), 0);
+
           return {
             gross: String(gross),
             commission: String(commission),
+            tax: String(tax),
+            tips: String(tips),
             trips: String(matched.length),
           };
         }),
@@ -190,10 +207,46 @@ describe('OrdersService - getDriverEarningsBreakdown', () => {
         { provide: PromoCodesService, useValue: {} },
         { provide: DriverBonusesService, useValue: {} },
         { provide: SettingsService, useValue: {} },
+        {
+          provide: ShiftPassesService,
+          useValue: {
+            totalCostSince: jest.fn(async (driverId: string, from: Date) =>
+              passes
+                .filter((p) => p.driverId === driverId && p.startsAt.getTime() >= from.getTime())
+                .reduce((sum, p) => sum + p.price, 0),
+            ),
+          },
+        },
       ],
     }).compile();
 
     service = module.get(OrdersService);
+  });
+
+  it("chaqiq (tips) alohida: `net` ga kirmaydi, `netWithTips = net + tips`", async () => {
+    orders.push({
+      id: 'order-tip',
+      driverId: DRIVER_ID,
+      status: OrderStatus.COMPLETED,
+      createdAt: NOW,
+      finalPrice: 20000,
+      estimatedPrice: 20000,
+      tipAmount: 3000,
+    });
+    transactions.push({ orderId: 'order-tip', userId: DRIVER_ID, externalId: 'commission', amount: 2000 });
+
+    const result = await service.getDriverEarningsBreakdown(DRIVER_ID);
+
+    expect(result.today).toEqual({
+      gross: 20000,
+      commission: 2000,
+      taxWithheld: 0,
+      shiftPassCost: 0,
+      net: 18000,
+      trips: 1,
+      tips: 3000,
+      netWithTips: 21000,
+    });
   });
 
   it('counts a completed order from today in today, week, and month', async () => {
@@ -214,9 +267,9 @@ describe('OrdersService - getDriverEarningsBreakdown', () => {
 
     const result = await service.getDriverEarningsBreakdown(DRIVER_ID);
 
-    expect(result.today).toEqual({ gross: 20000, commission: 2000, net: 18000, trips: 1 });
-    expect(result.week).toEqual({ gross: 20000, commission: 2000, net: 18000, trips: 1 });
-    expect(result.month).toEqual({ gross: 20000, commission: 2000, net: 18000, trips: 1 });
+    expect(result.today).toEqual({ gross: 20000, commission: 2000, taxWithheld: 0, shiftPassCost: 0, net: 18000, trips: 1, tips: 0, netWithTips: 18000 });
+    expect(result.week).toEqual({ gross: 20000, commission: 2000, taxWithheld: 0, shiftPassCost: 0, net: 18000, trips: 1, tips: 0, netWithTips: 18000 });
+    expect(result.month).toEqual({ gross: 20000, commission: 2000, taxWithheld: 0, shiftPassCost: 0, net: 18000, trips: 1, tips: 0, netWithTips: 18000 });
   });
 
   it('counts an order from 10 days ago in month but not today or week', async () => {
@@ -237,9 +290,9 @@ describe('OrdersService - getDriverEarningsBreakdown', () => {
 
     const result = await service.getDriverEarningsBreakdown(DRIVER_ID);
 
-    expect(result.today).toEqual({ gross: 0, commission: 0, net: 0, trips: 0 });
-    expect(result.week).toEqual({ gross: 0, commission: 0, net: 0, trips: 0 });
-    expect(result.month).toEqual({ gross: 15000, commission: 1500, net: 13500, trips: 1 });
+    expect(result.today).toEqual({ gross: 0, commission: 0, taxWithheld: 0, shiftPassCost: 0, net: 0, trips: 0, tips: 0, netWithTips: 0 });
+    expect(result.week).toEqual({ gross: 0, commission: 0, taxWithheld: 0, shiftPassCost: 0, net: 0, trips: 0, tips: 0, netWithTips: 0 });
+    expect(result.month).toEqual({ gross: 15000, commission: 1500, taxWithheld: 0, shiftPassCost: 0, net: 13500, trips: 1, tips: 0, netWithTips: 13500 });
   });
 
   it('excludes an order from 40 days ago from today, week, and month', async () => {
@@ -260,9 +313,9 @@ describe('OrdersService - getDriverEarningsBreakdown', () => {
 
     const result = await service.getDriverEarningsBreakdown(DRIVER_ID);
 
-    expect(result.today).toEqual({ gross: 0, commission: 0, net: 0, trips: 0 });
-    expect(result.week).toEqual({ gross: 0, commission: 0, net: 0, trips: 0 });
-    expect(result.month).toEqual({ gross: 0, commission: 0, net: 0, trips: 0 });
+    expect(result.today).toEqual({ gross: 0, commission: 0, taxWithheld: 0, shiftPassCost: 0, net: 0, trips: 0, tips: 0, netWithTips: 0 });
+    expect(result.week).toEqual({ gross: 0, commission: 0, taxWithheld: 0, shiftPassCost: 0, net: 0, trips: 0, tips: 0, netWithTips: 0 });
+    expect(result.month).toEqual({ gross: 0, commission: 0, taxWithheld: 0, shiftPassCost: 0, net: 0, trips: 0, tips: 0, netWithTips: 0 });
   });
 
   it('sums commission across multiple trips within a period', async () => {
@@ -291,7 +344,7 @@ describe('OrdersService - getDriverEarningsBreakdown', () => {
 
     const result = await service.getDriverEarningsBreakdown(DRIVER_ID);
 
-    expect(result.week).toEqual({ gross: 40000, commission: 4000, net: 36000, trips: 2 });
+    expect(result.week).toEqual({ gross: 40000, commission: 4000, taxWithheld: 0, shiftPassCost: 0, net: 36000, trips: 2, tips: 0, netWithTips: 36000 });
   });
 
   it('excludes a non-completed (e.g. cancelled) order even from today', async () => {
@@ -312,9 +365,9 @@ describe('OrdersService - getDriverEarningsBreakdown', () => {
 
     const result = await service.getDriverEarningsBreakdown(DRIVER_ID);
 
-    expect(result.today).toEqual({ gross: 0, commission: 0, net: 0, trips: 0 });
-    expect(result.week).toEqual({ gross: 0, commission: 0, net: 0, trips: 0 });
-    expect(result.month).toEqual({ gross: 0, commission: 0, net: 0, trips: 0 });
+    expect(result.today).toEqual({ gross: 0, commission: 0, taxWithheld: 0, shiftPassCost: 0, net: 0, trips: 0, tips: 0, netWithTips: 0 });
+    expect(result.week).toEqual({ gross: 0, commission: 0, taxWithheld: 0, shiftPassCost: 0, net: 0, trips: 0, tips: 0, netWithTips: 0 });
+    expect(result.month).toEqual({ gross: 0, commission: 0, taxWithheld: 0, shiftPassCost: 0, net: 0, trips: 0, tips: 0, netWithTips: 0 });
   });
 
   it("excludes another driver's completed order from today", async () => {
@@ -329,6 +382,42 @@ describe('OrdersService - getDriverEarningsBreakdown', () => {
 
     const result = await service.getDriverEarningsBreakdown(DRIVER_ID);
 
-    expect(result.today).toEqual({ gross: 0, commission: 0, net: 0, trips: 0 });
+    expect(result.today).toEqual({ gross: 0, commission: 0, taxWithheld: 0, shiftPassCost: 0, net: 0, trips: 0, tips: 0, netWithTips: 0 });
+  });
+
+  describe('soliq va smena qatorlari (bosqich 2)', () => {
+    it('ushlab qolingan soliq va smena narxi alohida, net hammasidan keyin', async () => {
+      orders.push({
+        id: 'o-tax',
+        driverId: DRIVER_ID,
+        status: OrderStatus.COMPLETED,
+        createdAt: NOW,
+        finalPrice: 20000,
+        estimatedPrice: 20000,
+      });
+      transactions.push(
+        { orderId: 'o-tax', userId: DRIVER_ID, externalId: 'commission', amount: 2000 },
+        { orderId: 'o-tax', userId: DRIVER_ID, externalId: 'tax_withholding', amount: 200 },
+      );
+      passes.push(
+        { driverId: DRIVER_ID, startsAt: NOW, price: 25000 },
+        { driverId: DRIVER_ID, startsAt: daysBeforeNow(10), price: 25000 },
+        { driverId: OTHER_DRIVER_ID, startsAt: NOW, price: 25000 },
+      );
+
+      const result = await service.getDriverEarningsBreakdown(DRIVER_ID);
+
+      expect(result.today).toEqual({
+        gross: 20000,
+        commission: 2000,
+        taxWithheld: 200,
+        shiftPassCost: 25000,
+        net: 20000 - 2000 - 200 - 25000,
+        trips: 1,
+        tips: 0,
+        netWithTips: 20000 - 2000 - 200 - 25000,
+      });
+      expect(result.month.shiftPassCost).toBe(50000);
+    });
   });
 });

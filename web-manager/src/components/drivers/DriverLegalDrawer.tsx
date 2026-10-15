@@ -1,0 +1,347 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import { AlertTriangle, CheckCircle2, ShieldAlert } from 'lucide-react';
+import {
+  getDriverLegal,
+  updateDriverLegal,
+  type DriverLegalSummary,
+  type DriverProfile,
+} from '@/lib/api';
+import { apiErrorTitle } from '@/lib/api-error';
+import {
+  TAX_STATUS_LABEL,
+  TAX_STATUS_OPTIONS,
+  apiErrorMessage,
+  buildLegalPatch,
+  enforcementText,
+  hasMaskedLegalIds,
+  LEGAL_DUPLICATE_MESSAGE,
+  legalDuplicateField,
+  legalBadge,
+  legalFormFromProfile,
+  validateLegalForm,
+  type LegalFormErrors,
+  type LegalFormValues,
+} from '@/lib/driver-legal';
+import { Drawer } from '@/components/ui/Drawer';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { SkeletonForm } from '@/components/ui/Skeleton';
+import { KeyValue, KeyValueList } from '@/components/ui/KeyValue';
+import { useToast } from '@/components/ui/Toast';
+import { formatDate, fullName } from '@/lib/format';
+
+export interface DriverLegalDrawerProps {
+  driver: DriverProfile | null;
+  /** drivers_approve — tahrirlash; aks holda faqat ko'rish. */
+  canEdit: boolean;
+  onClose: () => void;
+  /** Saqlangandan keyin jadvaldagi badge yangilanadi. */
+  onUpdated?: (driverId: string, summary: DriverLegalSummary) => void;
+}
+
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
+/**
+ * «Huquqiy profil» (VMQ 200 / PQ-247): profil, talablarga moslik sabablari
+ * va majburlash holati. Tahrirlash — drivers_approve ruxsati bilan.
+ */
+export function DriverLegalDrawer({ driver, canEdit, onClose, onUpdated }: DriverLegalDrawerProps) {
+  const { toast } = useToast();
+  const [summary, setSummary] = useState<DriverLegalSummary | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [values, setValues] = useState<LegalFormValues | null>(null);
+  const [errors, setErrors] = useState<LegalFormErrors>({});
+  const [saving, setSaving] = useState(false);
+
+  const driverId = driver?.id ?? null;
+
+  const load = useCallback(async () => {
+    if (!driverId) return;
+    setLoading(true);
+    try {
+      const result = await getDriverLegal(driverId);
+      setSummary(result);
+      setError(null);
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Huquqiy profilni yuklab boʻlmadi'));
+    } finally {
+      setLoading(false);
+    }
+  }, [driverId]);
+
+  useEffect(() => {
+    setSummary(null);
+    setEditing(false);
+    setErrors({});
+    setError(null);
+    if (driverId) void load();
+  }, [driverId, load]);
+
+  const startEdit = () => {
+    if (!summary) return;
+    setValues(legalFormFromProfile(summary.profile));
+    setErrors({});
+    setEditing(true);
+  };
+
+  const set = <K extends keyof LegalFormValues>(key: K, value: LegalFormValues[K]) => {
+    setValues((prev) => (prev ? { ...prev, [key]: value } : prev));
+    setErrors((prev) => ({ ...prev, [key]: undefined }));
+  };
+
+  const save = async () => {
+    if (!driverId || !summary || !values) return;
+    const found = validateLegalForm(values, todayIso());
+    if (Object.values(found).some(Boolean)) {
+      setErrors(found);
+      return;
+    }
+    const patch = buildLegalPatch(summary.profile, values);
+    if (Object.keys(patch).length === 0) {
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    try {
+      const updated = await updateDriverLegal(driverId, patch);
+      setSummary(updated);
+      setEditing(false);
+      onUpdated?.(driverId, updated);
+      toast({
+        title: 'Huquqiy profil saqlandi',
+        description: legalBadge(updated.eligibility).label,
+        variant: 'success',
+      });
+    } catch (err) {
+      // 409 LEGAL_PROFILE_DUPLICATE — xato tegishli maydon ostida, forma ochiq qoladi.
+      const duplicate = legalDuplicateField(err);
+      if (duplicate) setErrors((prev) => ({ ...prev, [duplicate]: LEGAL_DUPLICATE_MESSAGE[duplicate] }));
+      toast({
+        title: apiErrorTitle(err, 'Saqlab boʻlmadi'),
+        description: duplicate
+          ? LEGAL_DUPLICATE_MESSAGE[duplicate]
+          : apiErrorMessage(err, 'Qayta urinib koʻring yoki ruxsatingizni tekshiring.'),
+        variant: 'error',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Niqoblangan PINFL/STIR — ko'ruvchida DRIVERS_APPROVE yo'q (backend shunday
+  // qaytaradi): profil faqat ko'rish uchun, niqobli qiymat hech qachon tahrirlanmaydi.
+  const masked = summary ? hasMaskedLegalIds(summary.profile) : false;
+  const editable = canEdit && !masked;
+
+  const footer = !summary || !editable ? undefined : editing ? (
+      <div className="flex justify-end gap-2">
+        <Button variant="secondary" size="sm" onClick={() => setEditing(false)} disabled={saving}>
+          Bekor qilish
+        </Button>
+        <Button size="sm" onClick={() => void save()} isLoading={saving}>
+          Saqlash
+        </Button>
+      </div>
+    ) : (
+      <div className="flex justify-end">
+        <Button variant="secondary" size="sm" onClick={startEdit}>
+          Tahrirlash
+        </Button>
+      </div>
+    );
+
+  return (
+    <Drawer
+      isOpen={!!driver}
+      onClose={onClose}
+      title="Huquqiy profil"
+      subtitle={driver ? fullName(driver.firstName, driver.lastName) : undefined}
+      width="lg"
+      footer={footer}
+    >
+      {error && !summary ? (
+        <ErrorState title="Huquqiy profilni yuklab boʻlmadi" message={error} onRetry={load} retrying={loading} />
+      ) : !summary ? (
+        <SkeletonForm fields={6} />
+      ) : (
+        <div className="space-y-5">
+          <EligibilitySection summary={summary} />
+          {editing && values && editable ? (
+            <LegalForm values={values} errors={errors} onChange={set} />
+          ) : (
+            <ProfileView summary={summary} />
+          )}
+          {masked && (
+            <p className="text-xs text-subtle">
+              JShShIR va STIR niqoblangan — toʻliq qiymat «Drivers Approve» ruxsati bilan koʻrinadi.
+            </p>
+          )}
+          {!editable && (
+            <p className="text-xs text-subtle">Tahrirlash uchun «Drivers Approve» ruxsati kerak.</p>
+          )}
+        </div>
+      )}
+    </Drawer>
+  );
+}
+
+function EligibilitySection({ summary }: { summary: DriverLegalSummary }) {
+  const e = summary.eligibility;
+  const badge = legalBadge(e);
+  return (
+    <section aria-label="Talablarga moslik" className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge
+          variant={badge.variant}
+          size="lg"
+          icon={
+            badge.variant === 'success' ? (
+              <CheckCircle2 size={13} aria-hidden />
+            ) : badge.variant === 'danger' ? (
+              <ShieldAlert size={13} aria-hidden />
+            ) : undefined
+          }
+        >
+          {badge.label}
+        </Badge>
+        <Badge variant={e.enforced ? 'danger' : 'neutral'} size="md">
+          {e.enforced ? 'Majburlanadi' : 'Majburlanmaydi'}
+        </Badge>
+      </div>
+      <p className="text-xs text-muted">{enforcementText(e, formatDate)}</p>
+      {e.appliesToTaxi && e.reasons.length > 0 && (
+        <ul className="space-y-1.5" aria-label="Kamchiliklar">
+          {e.reasons.map((r) => (
+            <li
+              key={r.code}
+              className={`flex items-start gap-2 rounded-ds-sm border px-3 py-2 text-[13px] ${
+                e.blocking
+                  ? 'border-danger/30 bg-danger-tint text-danger-dark dark:text-danger-light'
+                  : 'border-info/25 bg-info-tint text-info-dark dark:text-info-light'
+              }`}
+            >
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden />
+              <span>
+                <span className="sr-only">{e.blocking ? 'Bloklaydi: ' : 'Ogohlantirish: '}</span>
+                {r.message}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function ProfileView({ summary }: { summary: DriverLegalSummary }) {
+  const p = summary.profile;
+  const dash = <span className="text-subtle">Kiritilmagan</span>;
+  return (
+    <KeyValueList>
+      <KeyValue label="Soliq maqomi">{p.taxStatus ? TAX_STATUS_LABEL[p.taxStatus] : dash}</KeyValue>
+      <KeyValue label="JShShIR (PINFL)">{p.pinfl ? <span className="font-mono">{p.pinfl}</span> : dash}</KeyValue>
+      <KeyValue label="STIR">{p.tin ? <span className="font-mono">{p.tin}</span> : dash}</KeyValue>
+      <KeyValue label="Tugʻilgan sana">{p.birthDate ? formatDate(p.birthDate) : dash}</KeyValue>
+      <KeyValue label="Guvohnoma berilgan">
+        {p.drivingLicenceIssuedAt ? formatDate(p.drivingLicenceIssuedAt) : dash}
+      </KeyValue>
+      <KeyValue label="Taksi litsenziyasi">
+        {p.taxiLicenceNumber ? <span className="font-mono">{p.taxiLicenceNumber}</span> : dash}
+      </KeyValue>
+      <KeyValue label="Litsenziya hududi">{p.taxiLicenceRegion || dash}</KeyValue>
+      <KeyValue label="Fuqarolik">{p.citizenship}</KeyValue>
+    </KeyValueList>
+  );
+}
+
+function LegalForm({
+  values,
+  errors,
+  onChange,
+}: {
+  values: LegalFormValues;
+  errors: LegalFormErrors;
+  onChange: <K extends keyof LegalFormValues>(key: K, value: LegalFormValues[K]) => void;
+}) {
+  const digits = (v: string, max: number) => v.replace(/\D/g, '').slice(0, max);
+  return (
+    <form
+      className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+      onSubmit={(e) => e.preventDefault()}
+      aria-label="Huquqiy profilni tahrirlash"
+      noValidate
+    >
+      <Select
+        label="Soliq maqomi"
+        options={TAX_STATUS_OPTIONS}
+        value={values.taxStatus}
+        onChange={(e) => onChange('taxStatus', e.target.value as LegalFormValues['taxStatus'])}
+        error={errors.taxStatus}
+        wrapperClassName="sm:col-span-2"
+      />
+      <Input
+        label="JShShIR (PINFL)"
+        inputMode="numeric"
+        mono
+        value={values.pinfl}
+        onChange={(e) => onChange('pinfl', digits(e.target.value, 14))}
+        error={errors.pinfl}
+        hint="14 ta raqam"
+      />
+      <Input
+        label="STIR"
+        inputMode="numeric"
+        mono
+        value={values.tin}
+        onChange={(e) => onChange('tin', digits(e.target.value, 9))}
+        error={errors.tin}
+        hint="9 ta raqam — YaTT uchun majburiy"
+      />
+      <Input
+        label="Tugʻilgan sana"
+        type="date"
+        value={values.birthDate}
+        onChange={(e) => onChange('birthDate', e.target.value)}
+        error={errors.birthDate}
+      />
+      <Input
+        label="Guvohnoma berilgan sana"
+        type="date"
+        value={values.drivingLicenceIssuedAt}
+        onChange={(e) => onChange('drivingLicenceIssuedAt', e.target.value)}
+        error={errors.drivingLicenceIssuedAt}
+        hint="B toifasi, staj hisobi uchun"
+      />
+      <Input
+        label="Taksi litsenziya varaqasi raqami"
+        mono
+        maxLength={50}
+        value={values.taxiLicenceNumber}
+        onChange={(e) => onChange('taxiLicenceNumber', e.target.value)}
+        error={errors.taxiLicenceNumber}
+      />
+      <Input
+        label="Litsenziya hududi"
+        maxLength={100}
+        value={values.taxiLicenceRegion}
+        onChange={(e) => onChange('taxiLicenceRegion', e.target.value)}
+        error={errors.taxiLicenceRegion}
+      />
+      <Input
+        label="Fuqarolik"
+        maxLength={2}
+        value={values.citizenship}
+        onChange={(e) => onChange('citizenship', e.target.value.toUpperCase())}
+        error={errors.citizenship}
+        hint="ISO kod, masalan UZ"
+      />
+    </form>
+  );
+}

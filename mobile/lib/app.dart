@@ -8,8 +8,10 @@ import 'package:angren_taxi/features/auth/screens/otp_screen.dart';
 import 'package:angren_taxi/features/auth/screens/phone_screen.dart';
 import 'package:angren_taxi/features/driver/background/driver_background_host.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
+import 'package:angren_taxi/features/driver/legal/driver_legal_provider.dart';
 import 'package:angren_taxi/features/driver/screens/arrived_screen.dart';
 import 'package:angren_taxi/features/driver/screens/demand_map_screen.dart';
+import 'package:angren_taxi/features/driver/screens/driver_legal_screen.dart';
 import 'package:angren_taxi/features/driver/screens/driver_onboarding_screen.dart';
 import 'package:angren_taxi/features/driver/screens/driver_services_screen.dart';
 import 'package:angren_taxi/features/driver/screens/earnings_screen.dart';
@@ -21,6 +23,10 @@ import 'package:angren_taxi/features/driver/screens/profile_screen.dart'
     as driver_profile;
 import 'package:angren_taxi/features/driver/screens/trip_screen.dart';
 import 'package:angren_taxi/features/driver/screens/verification_screen.dart';
+import 'package:angren_taxi/features/driver/screens/wallet_topup_screen.dart';
+import 'package:angren_taxi/features/driver/wallet/driver_wallet_events_host.dart';
+import 'package:angren_taxi/features/driver/wallet/driver_wallet_provider.dart';
+import 'package:angren_taxi/features/driver/wallet/wallet_deep_links.dart';
 import 'package:angren_taxi/features/notifications/notifications_provider.dart';
 import 'package:angren_taxi/features/passenger/favorites_provider.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
@@ -88,6 +94,17 @@ class AngrenTaxiApp extends StatelessWidget {
         if (flavor == AppFlavor.driver)
           ChangeNotifierProvider<DriverProvider>(
             create: (_) => buildDriverProvider(),
+          ),
+        // Huquqiy profil va hamyon bo'limlari (to'ldirish, smena) —
+        // docs/LEGAL-COMPLIANCE.md. DriverProvider'dan alohida: u allaqachon
+        // katta, bular esa mustaqil.
+        if (flavor == AppFlavor.driver)
+          ChangeNotifierProvider<DriverLegalProvider>(
+            create: (_) => buildDriverLegalProvider(),
+          ),
+        if (flavor == AppFlavor.driver)
+          ChangeNotifierProvider<DriverWalletProvider>(
+            create: (_) => buildDriverWalletProvider(),
           ),
       ],
       child: Builder(
@@ -161,15 +178,46 @@ class AngrenTaxiApp extends StatelessWidget {
               // kelgan zakazda ilovani ekranga chiqarish. Shu yerda —
               // ekranlar almashganda qayta qurilmaydi.
               child: flavor == AppFlavor.driver
-                  ? DriverBackgroundHost(child: child ?? const SizedBox.shrink())
+                  ? DriverBackgroundHost(
+                      // Hamyon hodisalari (`wallet:updated`, push) — har
+                      // qanday ekranda snackbar / to'ldirish ekraniga o'tish.
+                      child: DriverWalletEventsHost(
+                        navigatorKey: sl<GlobalKey<NavigatorState>>(),
+                        child: child ?? const SizedBox.shrink(),
+                      ),
+                    )
                   : (child ?? const SizedBox.shrink()),
             );
           },
           home: _AppEntryPoint(flavor: flavor),
           routes: _buildRoutes(flavor),
+          // Sovuq start to'lovdan qaytish havolasi bilan
+          // (`angrengo://wallet/topup/<id>`): havola DriverDeepLinks'ga
+          // beriladi (bosh ekran tayyor bo'lgach ochiladi), Navigator esa
+          // odatdagidek "/" dan boshlaydi — aks holda u havolani nomli
+          // marshrut deb qidirib, "marshrut topilmadi" xatosiga tushardi.
+          onGenerateInitialRoutes: flavor == AppFlavor.driver
+              ? (initialRoute) => _driverInitialRoutes(initialRoute)
+              : null,
         ),
       ),
     );
+  }
+
+  List<Route<dynamic>> _driverInitialRoutes(String initialRoute) {
+    final route = DriverDeepLinks.instance.handle(initialRoute)
+        ? Navigator.defaultRouteName
+        : initialRoute;
+    final navigator = sl<GlobalKey<NavigatorState>>().currentState;
+    if (navigator != null) {
+      return Navigator.defaultGenerateInitialRoutes(navigator, route);
+    }
+    return [
+      MaterialPageRoute<void>(
+        settings: const RouteSettings(name: Navigator.defaultRouteName),
+        builder: (_) => _AppEntryPoint(flavor: flavor),
+      ),
+    ];
   }
 
   Map<String, WidgetBuilder> _buildRoutes(AppFlavor flavor) {
@@ -217,6 +265,13 @@ class AngrenTaxiApp extends StatelessWidget {
       // Kuryer rejimi: haydovchi qaysi vertikallardan buyurtma olishini
       // o'zi tanlaydi (ovqat/market shusiz hech kimga mos kelmaydi).
       '/driver/services': (_) => const DriverServicesScreen(),
+      // Huquqiy profil (VMQ 200 / PQ-247) va hamyonni to'ldirish.
+      '/driver/legal': (_) => const DriverLegalScreen(),
+      // `arguments` — to'ldirish id'si (to'lovdan qaytish havolasi, §24).
+      kDriverTopupRoute: (context) {
+        final args = ModalRoute.of(context)?.settings.arguments;
+        return WalletTopupScreen(topupId: args is String ? args : null);
+      },
     };
   }
 }

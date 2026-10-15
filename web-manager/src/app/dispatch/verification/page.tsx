@@ -9,7 +9,15 @@ import {
   reviewVerification,
   VerificationKind,
 } from '@/lib/api';
-import { groupVerifications, KIND_LABEL, VerificationGroup } from '@/lib/verification';
+import {
+  groupVerifications,
+  isLegalDocument,
+  KIND_LABEL,
+  validateValidUntil,
+  verificationLabel,
+  VerificationGroup,
+} from '@/lib/verification';
+import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -49,6 +57,9 @@ export default function VerificationPage() {
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
   const [rejecting, setRejecting] = useState<PendingVerification | null>(null);
   const [reason, setReason] = useState('');
+  // Hujjat tasdiqlanganda kiritiladigan «amal qilish muddati» (id → YYYY-MM-DD).
+  const [validUntil, setValidUntil] = useState<Record<string, string>>({});
+  const [validUntilErrors, setValidUntilErrors] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -80,7 +91,12 @@ export default function VerificationPage() {
     setBusyIds((prev) => new Set(Array.from(prev).concat(ids)));
     try {
       for (const item of items) {
-        await reviewVerification(item.id, { approved, rejectionReason });
+        const until = approved && item.kind === 'document' ? validUntil[item.id]?.trim() : undefined;
+        await reviewVerification(item.id, {
+          approved,
+          rejectionReason,
+          ...(until ? { validUntil: until } : {}),
+        });
       }
       setEntries((prev) => prev.filter((e) => !ids.includes(e.id)));
       toast({ title: approved ? 'Tasdiqlandi' : 'Rad etildi', variant: 'success' });
@@ -90,6 +106,24 @@ export default function VerificationPage() {
     } finally {
       setBusyIds((prev) => new Set(Array.from(prev).filter((id) => !ids.includes(id))));
     }
+  };
+
+  /** Hujjat sanalarini tekshiradi, keyin tasdiqlaydi. */
+  const approve = (items: PendingVerification[]) => {
+    const today = new Date().toISOString().slice(0, 10);
+    const found: Record<string, string> = {};
+    for (const item of items) {
+      if (item.kind !== 'document') continue;
+      const err = validateValidUntil(validUntil[item.id] ?? '', today);
+      if (err) found[item.id] = err;
+    }
+    setValidUntilErrors((prev) => {
+      const next = { ...prev };
+      for (const item of items) delete next[item.id];
+      return { ...next, ...found };
+    });
+    if (Object.keys(found).length > 0) return;
+    void decide(items, true);
   };
 
   const confirmReject = async () => {
@@ -104,7 +138,7 @@ export default function VerificationPage() {
     <PageBody className="max-w-6xl">
         <PageHeader
           title="Koʻrik va selfi"
-          description="Mashina koʻrigi 30 kunda, selfi 3 kunda. Muddat oʻtsa 1 kundan keyin haydovchi onlayn chiqa olmaydi."
+          description="Mashina koʻrigi 30 kunda, selfi 3 kunda, hujjat — oʻzidagi muddatgacha. Muddat oʻtsa 1 kundan keyin haydovchi onlayn chiqa olmaydi."
           actions={
             <Button
               variant="secondary"
@@ -153,8 +187,18 @@ export default function VerificationPage() {
                 key={group.key}
                 group={group}
                 busyIds={busyIds}
-                onApproveAll={() => void decide(group.items, true)}
-                onApprove={(item) => void decide([item], true)}
+                onApproveAll={() => approve(group.items)}
+                onApprove={(item) => approve([item])}
+                validUntil={validUntil}
+                validUntilErrors={validUntilErrors}
+                onValidUntilChange={(id, value) => {
+                  setValidUntil((prev) => ({ ...prev, [id]: value }));
+                  setValidUntilErrors((prev) => {
+                    const next = { ...prev };
+                    delete next[id];
+                    return next;
+                  });
+                }}
                 onReject={(item) => {
                   setReason('');
                   setRejecting(item);
@@ -168,7 +212,7 @@ export default function VerificationPage() {
         isOpen={rejecting !== null}
         onClose={() => setRejecting(null)}
         title="Rad etish"
-        subtitle={rejecting ? `${rejecting.label} — ${rejecting.driverName ?? 'Haydovchi'}` : undefined}
+        subtitle={rejecting ? `${verificationLabel(rejecting)} — ${rejecting.driverName ?? 'Haydovchi'}` : undefined}
         size="md"
       >
         <Textarea
@@ -198,12 +242,18 @@ function GroupCard({
   onApproveAll,
   onApprove,
   onReject,
+  validUntil,
+  validUntilErrors,
+  onValidUntilChange,
 }: {
   group: VerificationGroup;
   busyIds: Set<string>;
   onApproveAll: () => void;
   onApprove: (item: PendingVerification) => void;
   onReject: (item: PendingVerification) => void;
+  validUntil: Record<string, string>;
+  validUntilErrors: Record<string, string>;
+  onValidUntilChange: (id: string, value: string) => void;
 }) {
   const anyBusy = group.items.some((i) => busyIds.has(i.id));
   return (
@@ -241,7 +291,25 @@ function GroupCard({
                 <Photo id={item.id} caption="Yangi" />
               </div>
             ) : (
-              <Photo id={item.id} caption={item.label} />
+              <Photo id={item.id} caption={verificationLabel(item)} />
+            )}
+            {item.kind === 'document' && (
+              <Input
+                type="date"
+                size="sm"
+                wrapperClassName="mt-2"
+                label="Amal qilish muddati"
+                aria-label={`${verificationLabel(item)} — amal qilish muddati`}
+                value={validUntil[item.id] ?? ''}
+                onChange={(e) => onValidUntilChange(item.id, e.target.value)}
+                error={validUntilErrors[item.id]}
+                hint={
+                  isLegalDocument(item.code)
+                    ? 'Hujjatdagi sana. Kiritilmasa — 365 kun'
+                    : 'Hujjatdagi sana (ixtiyoriy)'
+                }
+                disabled={busyIds.has(item.id)}
+              />
             )}
             {item.kind === 'selfie' && !item.referenceSubmissionId && (
               <p className="mt-1 text-[11px] text-muted">Solishtirish uchun avvalgi selfi yoki pasport yoʻq</p>
@@ -253,7 +321,7 @@ function GroupCard({
               <Button
                 size="sm"
                 variant="secondary"
-                aria-label={`${item.label} — rad etish`}
+                aria-label={`${verificationLabel(item)} — rad etish`}
                 disabled={busyIds.has(item.id)}
                 onClick={() => onReject(item)}
               >
@@ -273,6 +341,9 @@ function GroupCard({
  */
 function Photo({ id, caption }: { id: string | null; caption: string }) {
   const [url, setUrl] = useState<string | null>(null);
+  // Hujjatlar (litsenziya, tibbiy ma'lumotnoma) PDF bo'lib kelishi mumkin —
+  // `<img>` ularni ko'rsata olmaydi, havola beramiz.
+  const [isPdf, setIsPdf] = useState(false);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -283,6 +354,7 @@ function Photo({ id, caption }: { id: string | null; caption: string }) {
       .then((blob) => {
         if (cancelled) return;
         objectUrl = URL.createObjectURL(blob);
+        setIsPdf(blob.type === 'application/pdf');
         setUrl(objectUrl);
       })
       .catch(() => !cancelled && setFailed(true));
@@ -297,6 +369,15 @@ function Photo({ id, caption }: { id: string | null; caption: string }) {
       <div className="flex aspect-[3/4] items-center justify-center overflow-hidden rounded-ds-xs bg-surface-2">
         {!id || failed ? (
           <span className="px-2 text-center text-[11px] text-subtle">{failed ? 'Ochilmadi' : 'Yoʻq'}</span>
+        ) : url && isPdf ? (
+          <a
+            href={url}
+            target="_blank"
+            rel="noreferrer"
+            className="px-2 text-center text-xs font-medium text-primary-text hover:underline"
+          >
+            PDF faylni ochish
+          </a>
         ) : url ? (
           <a href={url} target="_blank" rel="noreferrer" className="h-full w-full">
             {/* eslint-disable-next-line @next/next/no-img-element -- blob: URL, next/image cannot optimise it */}

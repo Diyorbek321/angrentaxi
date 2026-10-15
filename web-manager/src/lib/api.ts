@@ -490,6 +490,11 @@ export interface DriverProfile {
   // Highest Tariff.tier (1 = Start ... 5 = Biznes) this driver may be
   // matched against — set by a manager/admin after reviewing the car.
   approvedTariffTier: number;
+  /**
+   * Huquqiy talablar qisqa xulosasi (`GET /drivers`, §22). `null` — backend
+   * hisoblay olmadi. Boshqa endpointlar (approve, balance…) qaytarmasligi mumkin.
+   */
+  legal?: DriverLegalBrief | null;
 }
 
 // Keep in sync with backend Tariff.tier (1-5) and the seed data in
@@ -525,7 +530,7 @@ export async function approveDriverProfile(id: string): Promise<DriverProfile> {
 export async function addDriverFunds(
   id: string,
   amount: number,
-  note?: string
+  note: string
 ): Promise<DriverProfile> {
   const res = await apiClient.patch<ApiResponse<DriverProfile>>(`/drivers/${id}/balance`, {
     amount,
@@ -810,7 +815,8 @@ export async function getPendingVerifications(): Promise<PendingVerification[]> 
 
 export async function reviewVerification(
   id: string,
-  body: { approved: boolean; rejectionReason?: string }
+  /** `validUntil` (YYYY-MM-DD) — hujjatda yozilgan muddat; faqat tasdiqlashda. */
+  body: { approved: boolean; rejectionReason?: string; validUntil?: string }
 ): Promise<void> {
   await apiClient.patch(`/drivers/verification/${id}/review`, body);
 }
@@ -883,4 +889,118 @@ export async function resolveCashDispute(
   await apiClient.post(`/delivery/cash-disputes/${kind}/${vendorOrderId}/resolve`, {
     resolution: resolution.trim(),
   });
+}
+
+// ─── Driver legal profile (VMQ 200 / PQ-247) — docs/LEGAL-COMPLIANCE.md §1, §5 ───
+
+export type DriverTaxStatus = 'self_employed' | 'individual_entrepreneur';
+
+export interface DriverLegalProfile {
+  taxStatus: DriverTaxStatus | null;
+  pinfl: string | null;
+  tin: string | null;
+  /** YYYY-MM-DD */
+  birthDate: string | null;
+  /** YYYY-MM-DD */
+  drivingLicenceIssuedAt: string | null;
+  taxiLicenceNumber: string | null;
+  taxiLicenceRegion: string | null;
+  citizenship: string;
+}
+
+export interface DriverLegalReason {
+  code: string;
+  message: string;
+}
+
+export interface DriverLegalEligibility {
+  eligible: boolean;
+  /** Majburlash sanasi o'tganmi (`legalComplianceEnforcedFrom`). */
+  enforced: boolean;
+  enforcedFrom: string | null;
+  /** Haydovchida taksi xizmati bormi — darvoza faqat taksiga tegishli. */
+  appliesToTaxi: boolean;
+  /** Hozir taksi uchun onlayn chiqishi to'silganmi. */
+  blocking: boolean;
+  reasons: DriverLegalReason[];
+}
+
+/** `GET /drivers` qatoridagi qisqa xulosa; to'liq ro'yxat — `GET /drivers/:id/legal`. */
+export interface DriverLegalBrief {
+  eligible: boolean;
+  blocking: boolean;
+  /** `reasons` soni. */
+  issueCount: number;
+}
+
+export interface DriverLegalSummary {
+  profile: DriverLegalProfile;
+  eligibility: DriverLegalEligibility;
+}
+
+export type DriverLegalPatch = Partial<{
+  taxStatus: DriverTaxStatus | null;
+  pinfl: string | null;
+  tin: string | null;
+  birthDate: string | null;
+  drivingLicenceIssuedAt: string | null;
+  taxiLicenceNumber: string | null;
+  taxiLicenceRegion: string | null;
+  citizenship: string;
+}>;
+
+/** drivers_view ruxsati. */
+export async function getDriverLegal(driverId: string): Promise<DriverLegalSummary> {
+  const res = await apiClient.get<ApiResponse<DriverLegalSummary>>(`/drivers/${driverId}/legal`);
+  return res.data.data;
+}
+
+/** drivers_approve ruxsati. Faqat yuborilgan maydonlar o'zgaradi; `null` — tozalaydi. */
+export async function updateDriverLegal(
+  driverId: string,
+  patch: DriverLegalPatch
+): Promise<DriverLegalSummary> {
+  const res = await apiClient.patch<ApiResponse<DriverLegalSummary>>(`/drivers/${driverId}/legal`, patch);
+  return res.data.data;
+}
+
+// ─── Audit log (manual money actions) — §12, drivers_finance ───
+
+export interface AuditLogActor {
+  id: string;
+  name: string | null;
+  phone: string | null;
+  role: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  actorUserId: string | null;
+  /** `null` — tizim amali yoki o'chirilgan foydalanuvchi (§22). */
+  actor?: AuditLogActor | null;
+  action: string;
+  targetType: string;
+  targetId: string | null;
+  amount: number | null;
+  note: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface AuditLogPage {
+  items: AuditLogEntry[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export async function getAuditLog(params: {
+  action?: string;
+  targetType?: string;
+  targetId?: string;
+  page?: number;
+  limit?: number;
+}): Promise<AuditLogPage> {
+  const res = await apiClient.get<ApiResponse<AuditLogPage>>('/admin/audit-log', { params });
+  return res.data.data;
 }

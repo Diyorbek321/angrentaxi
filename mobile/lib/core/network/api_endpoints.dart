@@ -120,6 +120,15 @@ class ApiEndpoints {
   // kontrakt uchun shared/models/driver_service.dart ga qarang.
   static const String driverServices = '/drivers/me/services';
   static const String driverAmenities = '/drivers/me/amenities';
+
+  // Huquqiy profil (VMQ 200 / PQ-247) — docs/LEGAL-COMPLIANCE.md §5.
+  //   GET/PATCH /drivers/me/legal → { profile, eligibility }
+  static const String driverLegal = '/drivers/me/legal';
+
+  // Kunlik smena — docs/LEGAL-COMPLIANCE.md §8, §10.
+  //   GET  → { enabled, price, durationHours, serviceTypes, current, comparison }
+  //   POST → ShiftPass (400 o'chiq/balans yetmaydi, 409 faol smena bor)
+  static const String driverShiftPass = '/drivers/me/shift-pass';
   // Yo'qolgan buyumlar
   static const String lostItems = '/lost-items';
   static const String myLostItems = '/lost-items/mine';
@@ -195,6 +204,12 @@ class ApiEndpoints {
   static const String walletWithdrawals = '/payments/wallet/withdrawals';
   static String walletWithdrawalById(String id) =>
       '/payments/wallet/withdrawals/$id';
+
+  // Hamyonni Payme/Click orqali o'zi to'ldirish — docs/LEGAL-COMPLIANCE.md §11.
+  //   POST {amount, provider} → WalletTopup & { topupId, checkoutUrl }
+  static const String walletTopup = '/payments/wallet/topup';
+  static String walletTopupById(String id) => '/payments/wallet/topup/$id';
+  static const String walletTopups = '/payments/wallet/topups';
 
   // Support chat
   static const String supportThreadMe = '/support/threads/me';

@@ -335,4 +335,108 @@ void main() {
     expect(find.text(Formatters.formatPrice(25000)), findsOneWidget);
     expect(find.text('8600 1234 5678 9012'), findsOneWidget);
   });
+
+  testWidgets(
+      'karta to\'ldirishi ushlab turilgan: dialog izohi va availableForWithdrawal chegarasi',
+      (tester) async {
+    when(() => mockApiClient.get(ApiEndpoints.paymentsWallet)).thenAnswer(
+      (_) async => _jsonResponse(ApiEndpoints.paymentsWallet, {
+        'success': true,
+        'data': {
+          'userId': 'user-1',
+          'balance': 50000,
+          'availableForWithdrawal': 20000,
+          'withdrawalHold': 30000,
+          'withdrawalHoldDays': 7,
+        },
+      }),
+    );
+
+    await pumpEarningsScreen(tester);
+    await openWithdrawDialog(tester);
+
+    expect(
+      (tester.widget(find.byKey(const ValueKey('withdraw_available_text')))
+              as Text)
+          .data,
+      contains(Formatters.formatPrice(20000)),
+    );
+    final note =
+        (tester.widget(find.byKey(const ValueKey('withdraw_hold_note'))) as Text)
+            .data!;
+    expect(note, contains(Formatters.formatPrice(30000)));
+    expect(note, contains('7 kundan keyin'));
+
+    // Qoldiqdan kam, lekin yechish mumkin bo'lganidan ko'p.
+    await tester.enterText(
+      find.byKey(const ValueKey('withdraw_amount_field')),
+      '30000',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('withdraw_destination_field')),
+      '+998901234567',
+    );
+    await tester.tap(find.byKey(const ValueKey('withdraw_submit_button')));
+    await pumpUntilQuiet(tester);
+
+    expect(
+      (tester.widget(find.byKey(const ValueKey('withdraw_error_text')))
+              as Text)
+          .data,
+      contains(Formatters.formatPrice(20000)),
+    );
+    verifyNever(
+      () => mockApiClient.post(
+        ApiEndpoints.walletWithdraw,
+        data: any(named: 'data'),
+      ),
+    );
+  });
+
+  testWidgets('server WALLET_WITHDRAWAL_ON_HOLD qaytarsa — ilova tilidagi izoh',
+      (tester) async {
+    when(
+      () => mockApiClient.post(
+        ApiEndpoints.walletWithdraw,
+        data: any(named: 'data'),
+      ),
+    ).thenThrow(
+      DioException(
+        requestOptions: RequestOptions(path: ApiEndpoints.walletWithdraw),
+        response: Response(
+          requestOptions: RequestOptions(path: ApiEndpoints.walletWithdraw),
+          statusCode: 400,
+          data: {
+            'success': false,
+            'statusCode': 400,
+            'message': 'srv',
+            'code': 'WALLET_WITHDRAWAL_ON_HOLD',
+            'details': {'available': 10000, 'held': 40000, 'holdDays': 5},
+          },
+        ),
+      ),
+    );
+
+    await pumpEarningsScreen(tester);
+    await openWithdrawDialog(tester);
+    await tester.enterText(
+      find.byKey(const ValueKey('withdraw_amount_field')),
+      '30000',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('withdraw_destination_field')),
+      '+998901234567',
+    );
+    await tester.tap(find.byKey(const ValueKey('withdraw_submit_button')));
+    await pumpUntilQuiet(tester);
+
+    final text =
+        (tester.widget(find.byKey(const ValueKey('withdraw_error_text')))
+                as Text)
+            .data!;
+    expect(text, contains(Formatters.formatPrice(40000)));
+    expect(text, contains('5 kundan keyin'));
+    expect(text, contains(Formatters.formatPrice(10000)));
+    expect(text, isNot(contains('srv')));
+  });
 }

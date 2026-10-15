@@ -1,4 +1,4 @@
-import { plainToInstance } from 'class-transformer';
+import { Transform, plainToInstance } from 'class-transformer';
 import {
   IsEnum,
   IsNumber,
@@ -15,6 +15,7 @@ import {
   DEFAULT_ACCESS_TTL,
   DEFAULT_REFRESH_TTL,
 } from '../modules/auth/token-ttl.util';
+import { envBoolean } from '../common/utils/env-boolean.util';
 
 export enum Environment {
   Development = 'development',
@@ -128,9 +129,28 @@ class EnvironmentVariables {
   @IsOptional()
   PAYME_SECRET_KEY: string = '';
 
+  // ⚠️ `@Transform(envBoolean)` MAJBURIY: implicit conversion "false" ni
+  // `true` qilardi (`common/utils/env-boolean.util.ts`). Har bir yangi boolean
+  // env shu naqsh bilan e'lon qilinsin.
+  @Transform(envBoolean)
   @IsBoolean()
   @IsOptional()
   OTP_BYPASS_ENABLED: boolean = false;
+
+  // Hamyonni karta orqali to'ldirgandan keyin foydalanuvchi qaytadigan manzil
+  // (Payme `c`, Click/UZPS `return_url`). `{id}` — to'ldirish id'si bilan
+  // almashtiriladi. Masalan `angrengo://wallet/topup/{id}` yoki
+  // `https://angrengo.uz/app/wallet/topup/{id}`. Bo'sh — provayder standarti.
+  @IsString()
+  @IsOptional()
+  WALLET_TOPUP_RETURN_URL: string = '';
+
+  // Click Prepare'dan keyin shuncha daqiqa ichida Complete kelmasa, soatlik
+  // cron tranzaksiyani bekor deb belgilaydi (pulga ta'siri yo'q).
+  @IsNumber()
+  @Min(1)
+  @IsOptional()
+  CLICK_PREPARE_TTL_MINUTES: number = 60;
 
   // Base URL of the OSRM routing server used for ETA-ranked dispatch and
   // snap-to-road trip distances, e.g. http://osrm:5000.
@@ -147,6 +167,12 @@ class EnvironmentVariables {
   @IsString()
   @IsOptional()
   STORAGE_DRIVER: string = 'local';
+
+  // Fiskal chek provayderi (modules/fiscal). Haqiqiy OFD integratsiyasi hali
+  // yo'q — `noop` yozuvni `skipped` holatida saqlaydi.
+  @IsString()
+  @IsOptional()
+  FISCAL_PROVIDER: string = 'noop';
 
   @IsString()
   @IsOptional()

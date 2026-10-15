@@ -1,3 +1,4 @@
+import { syncDriverBalanceColumn } from '../payments/wallet-balance.util';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Equal, IsNull, MoreThanOrEqual, Or, Repository } from 'typeorm';
@@ -196,6 +197,8 @@ export class DriverBonusesService {
           periodKey,
           transactionId: transaction.id,
         });
+        // `drivers.balance` — daftarning keshi (docs/LEGAL-COMPLIANCE.md §13).
+        await syncDriverBalanceColumn(manager, driverId);
       });
 
       awarded = true;

@@ -50,3 +50,39 @@ export const KIND_LABEL: Record<VerificationKind, string> = {
   selfie: 'Selfi',
   document: 'Hujjat',
 };
+
+/**
+ * VMQ 200 bo'yicha taksi hujjatlari (migratsiya 025). Backend `label` ni
+ * o'zi yuboradi; bu xarita — u bo'sh kelsa yoki eski backend bo'lsa zaxira.
+ */
+export const LEGAL_DOCUMENT_LABEL: Record<string, string> = {
+  taxi_licence: 'Taksi litsenziya varaqasi',
+  medical_check: 'Tibbiy koʻrik maʼlumotnomasi',
+  carrier_insurance: 'Tashuvchi javobgarlik sugʻurtasi',
+  tech_inspection: 'Texnik koʻrik',
+};
+
+export function isLegalDocument(code: string): boolean {
+  return code in LEGAL_DOCUMENT_LABEL;
+}
+
+export function verificationLabel(entry: Pick<PendingVerification, 'code' | 'label'>): string {
+  const label = entry.label?.trim();
+  if (label && label !== entry.code) return label;
+  return LEGAL_DOCUMENT_LABEL[entry.code] ?? label ?? entry.code;
+}
+
+/**
+ * Tasdiqlashdagi «amal qilish muddati» (YYYY-MM-DD). Bo'sh — ruxsat
+ * (backend talabning `cadenceDays` hisobini oladi, huquqiy hujjatlarda
+ * 365 kun). Muddati o'tgan hujjat tasdiqlanmaydi — rad etiladi.
+ */
+export function validateValidUntil(value: string, today: string): string | null {
+  const v = value.trim();
+  if (!v) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v) || Number.isNaN(new Date(`${v}T00:00:00Z`).getTime())) {
+    return 'Sana notoʻgʻri';
+  }
+  if (v <= today) return 'Muddati oʻtgan hujjatni rad eting';
+  return null;
+}

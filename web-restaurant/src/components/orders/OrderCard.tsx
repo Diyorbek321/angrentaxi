@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { MoneyText } from '@/components/ui/MoneyText';
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { VendorCashStrip } from '@/components/VendorCashStrip';
+import type { VendorSettlementContext } from '@/lib/vendor-cash';
 import { CourierStrip } from './CourierStrip';
 import { PrepTimerChip } from './PrepTimerChip';
 
@@ -21,6 +22,8 @@ export interface OrderCardProps {
   onReject: () => void;
   onRedispatch: () => void;
   onCashDecision: (received: boolean) => void;
+  /** Hisob-kitob rejimi + restoran komissiyasi (lib/vendor-cash.ts). */
+  settlement?: VendorSettlementContext;
 }
 
 export function customerPhoneOf(order: FoodOrder): string | null {
@@ -47,6 +50,7 @@ export function OrderCard({
   onReject,
   onRedispatch,
   onCashDecision,
+  settlement,
 }: OrderCardProps) {
   const timer = formatPrepTimer(order, now);
   const advanceLabel = advanceLabelFor(order);
@@ -145,7 +149,13 @@ export function OrderCard({
 
       {/* Naqd: kuryer tovar pulini toʻlaydi — sotuvchi tasdiqlaydi yoki nizo. */}
       {(order.status === 'ready' || order.status === 'delivered') && (
-        <VendorCashStrip order={order} busy={busy} onDecide={onCashDecision} large={kiosk} />
+        <VendorCashStrip
+          order={order}
+          busy={busy}
+          onDecide={onCashDecision}
+          large={kiosk}
+          settlement={settlement}
+        />
       )}
 
       {/* Holat zinapoyasi: BITTA oldinga tugma, har doim kartaning pastida. */}

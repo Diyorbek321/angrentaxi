@@ -54,6 +54,10 @@ export class OrdersLifecycleService {
       throw new BadRequestException('Order already has a driver');
     }
 
+    // Hamyon rejimida (e-tijorat qonuni 23-modda) naqd ovqat/market
+    // buyurtmasini faqat hamyonida tovar summasi bor kuryer oladi.
+    await this.vendorCash?.assertCanAccept(driverId, order);
+
     await this.statusTransition.acceptForDriver(orderId, driverId);
 
     const updatedOrder = await this.queryService.findByIdOrThrow(orderId);

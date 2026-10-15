@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Download, Plus, Store, UtensilsCrossed } from 'lucide-react';
+import { Download, Pencil, Plus, Store, UtensilsCrossed } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -14,6 +14,7 @@ import type { FilterChip } from '@/components/ui/FilterChips';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { usePagination } from '@/hooks/usePagination';
+import { VendorTinModal, type VendorTinTarget } from '@/components/vendors/VendorTinModal';
 import { downloadCsv } from '@/lib/csv';
 import { formatDate } from '@/lib/utils';
 import { formatDateShort, formatPhone, fullName } from '@/lib/format';
@@ -59,6 +60,12 @@ export default function VendorsPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [sort, setSort] = useState<SortState | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [tinTarget, setTinTarget] = useState<VendorTinTarget | null>(null);
+
+  const applyTin = (kind: VendorTinTarget['kind'], id: string, tin: string | null) => {
+    if (kind === 'stores') setStores((prev) => prev.map((v) => (v.id === id ? { ...v, tin } : v)));
+    else setRestaurants((prev) => prev.map((v) => (v.id === id ? { ...v, tin } : v)));
+  };
 
   const load = async () => {
     setIsLoading(true);
@@ -186,6 +193,7 @@ export default function VendorsPage() {
         { header: 'Egasi', value: (v) => ownerName(v) },
         { header: 'Telefon', value: (v) => v.owner.phone },
         { header: 'Manzil', value: (v) => v.address ?? '' },
+        { header: 'STIR', value: (v) => v.tin ?? '' },
         { header: 'Holat', value: (v) => STATUS_LABELS[v.status] },
         { header: "Qo'shilgan sana", value: (v) => formatDate(v.createdAt) },
       ],
@@ -222,6 +230,33 @@ export default function VendorsPage() {
         <p className="truncate text-muted" title={v.address ?? undefined}>
           {v.address ?? '—'}
         </p>
+      ),
+    },
+    {
+      // Fiskal chekda komitent STIR'i (LEGAL-COMPLIANCE §3). Sotuvchi o'zi
+      // kiritadi; admin bu yerdan tuzatadi (§23, audit `vendor.tin_update`).
+      key: 'tin',
+      header: 'STIR',
+      hideBelow: 'lg',
+      cell: (v) => (
+        <button
+          type="button"
+          onClick={() => setTinTarget({ kind: tab, id: v.id, name: v.name, tin: v.tin })}
+          aria-label={`STIRni tahrirlash: ${v.name}`}
+          title={
+            v.tin
+              ? 'STIRni tahrirlash'
+              : "Sotuvchi STIR kiritmagan — chek butun summani platforma aylanmasi deb ko'rsatadi"
+          }
+          className="group inline-flex items-center gap-1.5 rounded-ds-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+        >
+          {v.tin ? (
+            <span className="font-mono text-xs text-ink">{v.tin}</span>
+          ) : (
+            <span className="text-subtle">—</span>
+          )}
+          <Pencil size={12} aria-hidden className="text-subtle opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100" />
+        </button>
       ),
     },
     {
@@ -353,6 +388,8 @@ export default function VendorsPage() {
           onLimitChange: pagination.setLimit,
         }}
       />
+
+      <VendorTinModal target={tinTarget} onClose={() => setTinTarget(null)} onSaved={applyTin} />
 
       <AddVendorModal
         kind={tab}

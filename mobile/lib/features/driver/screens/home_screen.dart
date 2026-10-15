@@ -4,13 +4,21 @@ import 'package:angren_taxi/core/config/app_platform.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
+import 'package:angren_taxi/core/network/api_error.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
+import 'package:angren_taxi/features/driver/legal/driver_legal_provider.dart';
+import 'package:angren_taxi/features/driver/legal/legal_rejection.dart';
 import 'package:angren_taxi/features/driver/readiness/driver_readiness_sheet.dart';
 import 'package:angren_taxi/features/driver/readiness/readiness_checker.dart';
 import 'package:angren_taxi/features/driver/service_wording.dart';
+import 'package:angren_taxi/features/driver/wallet/driver_push_events.dart';
+import 'package:angren_taxi/features/driver/wallet/driver_wallet_events_host.dart';
+import 'package:angren_taxi/features/driver/wallet/driver_wallet_provider.dart';
+import 'package:angren_taxi/features/driver/wallet/wallet_deep_links.dart';
 import 'package:angren_taxi/features/driver/widgets/driver_earnings_hero.dart';
 import 'package:angren_taxi/features/driver/widgets/driver_verification_notice.dart';
+import 'package:angren_taxi/features/driver/widgets/legal_block_sheet.dart';
 import 'package:angren_taxi/features/passenger/map_camera_insets.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/driver_bonus_progress.dart';
@@ -110,6 +118,16 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       driver.loadEarningsBreakdown();
       driver.loadBonusProgress();
       driver.loadDriverServices();
+      // Huquqiy xulosa (blok banneri) va hamyon sozlamalari. Provayderlar
+      // ixtiyoriy — eski vidjet testlari faqat DriverProvider bilan quradi.
+      Provider.of<DriverLegalProvider?>(context, listen: false)?.load();
+      Provider.of<DriverWalletProvider?>(context, listen: false)
+          ?.loadSettings();
+      // Ilova yopiq turganda bosilgan push (masalan kuryer eslatmasi)
+      // endi ochilishi mumkin — bosh ekran tayyor.
+      DriverPushBus.instance.markReady();
+      // To'lov sahifasidan qaytish havolasi (sovuq start) — xuddi shunday.
+      DriverDeepLinks.instance.markReady();
     });
   }
 
@@ -131,11 +149,67 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     if (driver.state == DriverProviderState.error &&
         driver.error != null &&
         mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(driver.error!), backgroundColor: kErrorDeep),
-      );
+      final kind = driver.errorKind;
+      final details = driver.errorDetails;
+      final rawMessage = driver.error!;
+      final message = withCodedErrorAmounts(rawMessage, details);
+      // Qabul qilishda hamyon yetmasligi — buni taklif ekrani O'ZI
+      // tushuntiradi (dialog + "To'ldirish"); bu yerda tozalasak, u turini
+      // bilmay qolardi.
+      if (kind == DriverErrorKind.vendorWalletInsufficient) return;
       driver.clearError();
+      if (kind == DriverErrorKind.legalBlocked) {
+        _showLegalBlock(
+          rawMessage,
+          fromError: legalRejectionReasons(details),
+          coded: details?.code == ApiErrorCode.legalNotEligible &&
+              details!.reasons.isNotEmpty,
+        );
+        return;
+      }
+      // Qarz (manfiy balans) onlayn chiqishni to'sadi — yechim to'ldirish.
+      final canTopUp = (driver.hasWalletDebt ||
+              kind == DriverErrorKind.walletNegativeBalance) &&
+          Provider.of<DriverWalletProvider?>(context, listen: false) != null;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: kErrorDeep,
+          action: canTopUp
+              ? SnackBarAction(
+                  label: context.l10n.wltTopUpShort,
+                  textColor: kOnPrimary,
+                  onPressed: () =>
+                      Navigator.of(context).pushNamed(kDriverTopupRoute),
+                )
+              : null,
+        ),
+      );
     }
+  }
+
+  /// Huquqiy darvoza rad etdi: sabablarni RO'YXAT qilib ko'rsatamiz.
+  /// Manba — xatodagi `reasons[]` (server tilida, §21); eski serverda
+  /// `GET /drivers/me/legal` (har holda yangilanadi — banner/karta uchun),
+  /// u ham bo'sh bo'lsa matndan ajratilgani ([fromError]).
+  Future<void> _showLegalBlock(
+    String message, {
+    required List<String> fromError,
+    required bool coded,
+  }) async {
+    final legal = Provider.of<DriverLegalProvider?>(context, listen: false);
+    await legal?.load();
+    if (!mounted) return;
+    final fromProfile = legal?.eligibility.reasons
+            .map((r) => r.message)
+            .toList(growable: false) ??
+        const <String>[];
+    final reasons = coded || fromProfile.isEmpty ? fromError : fromProfile;
+    await showLegalBlockSheet(
+      context,
+      reasons: reasons,
+      fallbackMessage: message,
+    );
   }
 
   @override
@@ -457,10 +531,32 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     // va ekran bitta savolga javob beradi: "nima qilishim kerak?".
     final blocked = !verification.canGoOnline;
 
+    // Huquqiy darvoza (VMQ 200) — faqat majburlash kuchga kirgan va server
+    // haydovchini haqiqatan bloklagan bo'lsa. Tekshiruv bloki ustun turadi
+    // (u har qanday xizmatni to'sadi), shuning uchun ikkalasi birga
+    // chizilmaydi.
+    final legal = Provider.of<DriverLegalProvider?>(context);
+    final legalBlocked = !blocked && (legal?.showBlockingBanner ?? false);
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (legalBlocked)
+          Padding(
+            padding: const EdgeInsets.only(bottom: kSpace3),
+            child: DriverVerificationNotice(
+              key: const ValueKey('driver_legal_blocked'),
+              tone: AppStatusTone.danger,
+              icon: Icons.gavel_rounded,
+              title: context.l10n.lglBlockedBannerTitle,
+              message: context.l10n.lglBlockedBannerBody(
+                legal!.eligibility.reasons.length,
+              ),
+              actionLabel: context.l10n.lglFill,
+              onAction: () => Navigator.of(context).pushNamed('/driver/legal'),
+            ),
+          ),
         if (blocked)
           Padding(
             padding: const EdgeInsets.only(bottom: kSpace3),
@@ -988,6 +1084,30 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 onTap: () {
                   Navigator.of(ctx).pop();
                   Navigator.of(context).pushNamed('/driver/services');
+                },
+              ),
+              // Huquqiy profil (soliq maqomi, JShShIR, litsenziya).
+              _buildMenuTile(
+                key: const ValueKey('driver_menu_legal'),
+                icon: Icons.gavel_rounded,
+                title: context.l10n.lglTitle,
+                subtitle: Text(
+                  context.l10n.lglMenuSubtitle,
+                  style:
+                      const TextStyle(fontSize: kFontCaption, color: kInkMuted),
+                ),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  Navigator.of(context).pushNamed('/driver/legal');
+                },
+              ),
+              _buildMenuTile(
+                key: const ValueKey('driver_menu_topup'),
+                icon: Icons.add_card_rounded,
+                title: context.l10n.wltTopUpTitle,
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  Navigator.of(context).pushNamed(kDriverTopupRoute);
                 },
               ),
               // ⚠️ Chiqish — BUZG'UNCHI amal. Yuqoridagi kundalik

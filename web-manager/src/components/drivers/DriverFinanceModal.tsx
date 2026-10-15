@@ -8,6 +8,13 @@ import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { MoneyText } from '@/components/ui/MoneyText';
 import { formatMoney, fullName } from '@/lib/format';
+import { apiErrorTitle } from '@/lib/api-error';
+import {
+  balanceAdjustmentErrorMessage,
+  manualAdjustmentLimitMessage,
+  validateBalanceAdjustment,
+} from '@/lib/balance-adjustment';
+import { DriverAuditHistory } from './DriverAuditHistory';
 
 export interface DriverFinanceModalProps {
   driver: DriverProfile | null;
@@ -30,12 +37,15 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
   const [fundsAmount, setFundsAmount] = useState('');
   const [fundsNote, setFundsNote] = useState('');
   const [fundsError, setFundsError] = useState<string | null>(null);
+  const [fundsNoteError, setFundsNoteError] = useState<string | null>(null);
   const [commissionInput, setCommissionInput] = useState('');
   const [commissionError, setCommissionError] = useState<string | null>(null);
   const [saving, setSaving] = useState<'funds' | 'commission' | null>(null);
   // Inline step rather than a stacked dialog — a modal on top of a modal traps
   // focus twice and buries the amount the operator is meant to be checking.
   const [fundsConfirm, setFundsConfirm] = useState(false);
+  // Yangi tuzatishdan keyin «Amallar tarixi» qaytadan o'qiladi.
+  const [historyKey, setHistoryKey] = useState(0);
 
   // Re-seed the form whenever a different driver opens the modal.
   useEffect(() => {
@@ -43,6 +53,7 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
     setFundsAmount('');
     setFundsNote('');
     setFundsError(null);
+    setFundsNoteError(null);
     setCommissionError(null);
     setCommissionInput(driver?.commissionRate != null ? String(driver.commissionRate) : '');
   }, [driver]);
@@ -55,12 +66,19 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
   /** Validates and opens the inline confirmation step — money never moves here. */
   const requestAddFunds = () => {
     if (!current) return;
-    const amount = Number(fundsAmount);
-    if (!fundsAmount.trim() || Number.isNaN(amount) || amount === 0) {
-      setFundsError('Noldan farqli summa kiriting');
+    // Butun so'm, ≠ 0, |summa| ≤ 5 mln — backend DTO bilan bir xil (§25 #6).
+    const invalid = validateBalanceAdjustment(fundsAmount);
+    if (invalid) {
+      setFundsError(invalid);
+      return;
+    }
+    // Izoh majburiy: amallar jurnaliga va haydovchiga push matniga tushadi.
+    if (!fundsNote.trim()) {
+      setFundsNoteError('Izoh majburiy — sababini yozing');
       return;
     }
     setFundsError(null);
+    setFundsNoteError(null);
     setFundsConfirm(true);
   };
 
@@ -72,10 +90,11 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
 
     setSaving('funds');
     try {
-      const updated = await addDriverFunds(current.id, amount, fundsNote.trim() || undefined);
+      const updated = await addDriverFunds(current.id, amount, fundsNote.trim());
       applyUpdate(updated);
       setFundsAmount('');
       setFundsNote('');
+      setHistoryKey((k) => k + 1);
       toast({
         title: `${formatMoney(Math.abs(amount))} ${verb}`,
         description: `${fullName(updated.firstName, updated.lastName)} · yangi qoldiq ${formatMoney(
@@ -85,9 +104,12 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
       });
     } catch (err) {
       console.error('Add funds failed:', err);
+      // 403 MANUAL_ADJUSTMENT_LIMIT — chegara summa maydoni ostida ham ko'rinadi.
+      const limitMessage = manualAdjustmentLimitMessage(err);
+      if (limitMessage) setFundsError(limitMessage);
       toast({
-        title: 'Balansni yangilab boʻlmadi',
-        description: 'Summa oʻzgarmadi. Qayta urinib koʻring.',
+        title: apiErrorTitle(err, 'Balansni yangilab boʻlmadi'),
+        description: balanceAdjustmentErrorMessage(err, 'Summa oʻzgarmadi. Qayta urinib koʻring.'),
         variant: 'error',
       });
     } finally {
@@ -160,7 +182,9 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
             <Input
               placeholder="Summa (ayirish uchun manfiy son)"
               type="number"
-                value={fundsAmount}
+              inputMode="numeric"
+              step={1}
+              value={fundsAmount}
               onChange={(e) => {
                 setFundsAmount(e.target.value);
                 if (fundsError) setFundsError(null);
@@ -172,10 +196,16 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
               disabled={fundsConfirm}
             />
             <Input
-              placeholder="Izoh (ixtiyoriy)"
+              placeholder="Izoh (majburiy)"
               value={fundsNote}
-              onChange={(e) => setFundsNote(e.target.value)}
+              onChange={(e) => {
+                setFundsNote(e.target.value);
+                if (fundsNoteError) setFundsNoteError(null);
+              }}
+              error={fundsNoteError ?? undefined}
               aria-label="Izoh"
+              required
+              maxLength={200}
               disabled={fundsConfirm}
             />
             {fundsConfirm && current ? (
@@ -221,6 +251,10 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
                 Qoʻllash
               </Button>
             )}
+          </div>
+
+          <div className="pt-4 border-t border-line">
+            <DriverAuditHistory driverId={current.id} refreshKey={historyKey} />
           </div>
 
           <div className="space-y-2 pt-4 border-t border-line">

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Driver } from '../../database/entities/driver.entity';
@@ -10,6 +10,7 @@ import {
   UnmetServiceRequirement,
   VerificationDriver,
 } from './driver-verification.service';
+import { DriverLegalService } from './driver-legal.service';
 
 /** `GET/PATCH /drivers/me/services` javobidagi bitta element. */
 export interface DriverServiceOption {
@@ -64,6 +65,8 @@ export class DriverServicesService {
     @InjectRepository(Order)
     private readonly orderRepository: Repository<Order>,
     private readonly verificationService: DriverVerificationService,
+    // VMQ 200 darvozasi — taksini YANGI yoqishda. Ixtiyoriy: unit spec'lar.
+    @Optional() private readonly legalGate?: DriverLegalService,
   ) {}
 
   async getForUser(userId: string, now: Date = new Date()): Promise<DriverServicesSummary> {
@@ -100,6 +103,10 @@ export class DriverServicesService {
     const current = resolveDriverServiceTypes(driver.serviceTypes);
     const removed = current.filter((serviceType) => !next.includes(serviceType));
     await this.assertNoActiveOrders(driver.id, removed);
+
+    if (next.includes(ServiceType.TAXI) && !current.includes(ServiceType.TAXI)) {
+      await this.legalGate?.assertCanEnableTaxi(driver, now);
+    }
 
     for (const serviceType of next) {
       const unmet = await this.verificationService.findUnmetRequirementsForServiceType(

@@ -2198,6 +2198,54 @@ abstract class AppLocalizations {
   /// **'{count} zona'**
   String drvZonesCount(int count);
 
+  /// No description provided for @ernNetFromFares.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yo\'l haqidan sof'**
+  String get ernNetFromFares;
+
+  /// No description provided for @ernNetWithTips.
+  ///
+  /// In uz, this message translates to:
+  /// **'Jami sof tushum'**
+  String get ernNetWithTips;
+
+  /// No description provided for @ernShiftPass.
+  ///
+  /// In uz, this message translates to:
+  /// **'Smena'**
+  String get ernShiftPass;
+
+  /// No description provided for @ernTaxWithheld.
+  ///
+  /// In uz, this message translates to:
+  /// **'Soliq (1%)'**
+  String get ernTaxWithheld;
+
+  /// No description provided for @ernTips.
+  ///
+  /// In uz, this message translates to:
+  /// **'Chaqim (komissiyasiz)'**
+  String get ernTips;
+
+  /// No description provided for @errBalanceIs.
+  ///
+  /// In uz, this message translates to:
+  /// **'Balans: {balance}'**
+  String errBalanceIs(String balance);
+
+  /// No description provided for @errNeedVsBalance.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kerak: {required}, balans: {balance}'**
+  String errNeedVsBalance(String required, String balance);
+
+  /// No description provided for @errPriceVsBalance.
+  ///
+  /// In uz, this message translates to:
+  /// **'Narxi: {price}, balans: {balance}'**
+  String errPriceVsBalance(String price, String balance);
+
   /// No description provided for @fmtCurrencySom.
   ///
   /// In uz, this message translates to:
@@ -2299,6 +2347,318 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'O\'zbekcha'**
   String get languageUzbek;
+
+  /// No description provided for @lglBirthDate.
+  ///
+  /// In uz, this message translates to:
+  /// **'Tug\'ilgan sana'**
+  String get lglBirthDate;
+
+  /// No description provided for @lglBlockedBannerBody.
+  ///
+  /// In uz, this message translates to:
+  /// **'Huquqiy talablar bajarilmagan: {count} ta'**
+  String lglBlockedBannerBody(int count);
+
+  /// No description provided for @lglBlockedBannerTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Taksi uchun onlayn chiqa olmaysiz'**
+  String get lglBlockedBannerTitle;
+
+  /// No description provided for @lglClose.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yopish'**
+  String get lglClose;
+
+  /// No description provided for @lglCourierHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kuryer sifatida ishlashni davom ettirish uchun «Xizmat turlari» bo\'limida taksini o\'chiring.'**
+  String get lglCourierHint;
+
+  /// No description provided for @lglDocCarrierInsurance.
+  ///
+  /// In uz, this message translates to:
+  /// **'Tashuvchining javobgarlik sug\'urtasi'**
+  String get lglDocCarrierInsurance;
+
+  /// No description provided for @lglDocCarrierInsuranceHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Sug\'urta polisi — amal qilish muddati ko\'rinsin'**
+  String get lglDocCarrierInsuranceHint;
+
+  /// No description provided for @lglDocMedicalCheck.
+  ///
+  /// In uz, this message translates to:
+  /// **'Tibbiy ko\'rik ma\'lumotnomasi'**
+  String get lglDocMedicalCheck;
+
+  /// No description provided for @lglDocMedicalCheckHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yillik tibbiy ko\'rikdan o\'tganingiz haqida'**
+  String get lglDocMedicalCheckHint;
+
+  /// No description provided for @lglDocTaxiLicence.
+  ///
+  /// In uz, this message translates to:
+  /// **'Taksi litsenziya varaqasi'**
+  String get lglDocTaxiLicence;
+
+  /// No description provided for @lglDocTaxiLicenceHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hudud va amal qilish muddati ko\'rinsin'**
+  String get lglDocTaxiLicenceHint;
+
+  /// No description provided for @lglDocTechInspection.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yillik texnik ko\'rik'**
+  String get lglDocTechInspection;
+
+  /// No description provided for @lglDocTechInspectionHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Texnik ko\'rik guvohnomasi'**
+  String get lglDocTechInspectionHint;
+
+  /// No description provided for @lglDuplicatePinfl.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bu JShShIR boshqa haydovchi profilida ro\'yxatdan o\'tgan'**
+  String get lglDuplicatePinfl;
+
+  /// No description provided for @lglDuplicateTin.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bu STIR boshqa haydovchi profilida ro\'yxatdan o\'tgan'**
+  String get lglDuplicateTin;
+
+  /// No description provided for @lglEligibleBody.
+  ///
+  /// In uz, this message translates to:
+  /// **'Taksi buyurtmalarini qabul qilishingiz mumkin.'**
+  String get lglEligibleBody;
+
+  /// No description provided for @lglEligibleTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Barcha talablar bajarilgan'**
+  String get lglEligibleTitle;
+
+  /// No description provided for @lglFill.
+  ///
+  /// In uz, this message translates to:
+  /// **'To\'ldirish'**
+  String get lglFill;
+
+  /// No description provided for @lglGoOnlineBlockedBody.
+  ///
+  /// In uz, this message translates to:
+  /// **'Taksi uchun quyidagi talablar bajarilmagan:'**
+  String get lglGoOnlineBlockedBody;
+
+  /// No description provided for @lglGoOnlineBlockedTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Onlayn chiqib bo\'lmadi'**
+  String get lglGoOnlineBlockedTitle;
+
+  /// No description provided for @lglIndividualEntrepreneur.
+  ///
+  /// In uz, this message translates to:
+  /// **'YaTT (yakka tadbirkor)'**
+  String get lglIndividualEntrepreneur;
+
+  /// No description provided for @lglIntro.
+  ///
+  /// In uz, this message translates to:
+  /// **'Taksi sifatida ishlash uchun Vazirlar Mahkamasining 200-son qarori talablari. Ma\'lumotlar 1% soliq hisoboti va cheklarda ishlatiladi.'**
+  String get lglIntro;
+
+  /// No description provided for @lglLegalRequirement.
+  ///
+  /// In uz, this message translates to:
+  /// **'Taksi uchun huquqiy talab'**
+  String get lglLegalRequirement;
+
+  /// No description provided for @lglLicenceIssuedAt.
+  ///
+  /// In uz, this message translates to:
+  /// **'Haydovchilik guvohnomasi (B toifa) berilgan sana'**
+  String get lglLicenceIssuedAt;
+
+  /// No description provided for @lglLoadFailed.
+  ///
+  /// In uz, this message translates to:
+  /// **'Huquqiy profilni yuklab bo\'lmadi'**
+  String get lglLoadFailed;
+
+  /// No description provided for @lglLockedNote.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hujjatingiz tasdiqlangan. JShShIR, STIR, soliq maqomi va tug\'ilgan sanani o\'zgartirish uchun operatorga murojaat qiling.'**
+  String get lglLockedNote;
+
+  /// No description provided for @lglMenuSubtitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Soliq maqomi, JShShIR, litsenziya'**
+  String get lglMenuSubtitle;
+
+  /// No description provided for @lglNotEligibleTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bajarilmagan talablar'**
+  String get lglNotEligibleTitle;
+
+  /// No description provided for @lglOpenDocuments.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hujjatlarni yuklash'**
+  String get lglOpenDocuments;
+
+  /// No description provided for @lglOpenProfile.
+  ///
+  /// In uz, this message translates to:
+  /// **'Huquqiy profilni ochish'**
+  String get lglOpenProfile;
+
+  /// No description provided for @lglPinfl.
+  ///
+  /// In uz, this message translates to:
+  /// **'JShShIR (PINFL)'**
+  String get lglPinfl;
+
+  /// No description provided for @lglPinflHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'14 ta raqam — pasport yoki ID-kartada'**
+  String get lglPinflHint;
+
+  /// No description provided for @lglSave.
+  ///
+  /// In uz, this message translates to:
+  /// **'Saqlash'**
+  String get lglSave;
+
+  /// No description provided for @lglSaved.
+  ///
+  /// In uz, this message translates to:
+  /// **'Huquqiy profil saqlandi'**
+  String get lglSaved;
+
+  /// No description provided for @lglSelectDate.
+  ///
+  /// In uz, this message translates to:
+  /// **'Sanani tanlang'**
+  String get lglSelectDate;
+
+  /// No description provided for @lglSelectRegion.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hududni tanlang'**
+  String get lglSelectRegion;
+
+  /// No description provided for @lglSelfEmployed.
+  ///
+  /// In uz, this message translates to:
+  /// **'O\'zini o\'zi band qilgan'**
+  String get lglSelfEmployed;
+
+  /// No description provided for @lglStatusBlocking.
+  ///
+  /// In uz, this message translates to:
+  /// **'Taksi uchun onlayn chiqish to\'xtatilgan. Quyidagilarni to\'ldiring.'**
+  String get lglStatusBlocking;
+
+  /// No description provided for @lglStatusGrace.
+  ///
+  /// In uz, this message translates to:
+  /// **'{date} dan boshlab majburiy. Hozircha ishlashingiz mumkin.'**
+  String lglStatusGrace(String date);
+
+  /// No description provided for @lglStatusWarning.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hozircha ogohlantirish — ishlashingizga to\'sqinlik qilmaydi.'**
+  String get lglStatusWarning;
+
+  /// No description provided for @lglTaxStatus.
+  ///
+  /// In uz, this message translates to:
+  /// **'Soliq maqomi'**
+  String get lglTaxStatus;
+
+  /// No description provided for @lglTaxiLicenceNumber.
+  ///
+  /// In uz, this message translates to:
+  /// **'Taksi litsenziya varaqasi raqami'**
+  String get lglTaxiLicenceNumber;
+
+  /// No description provided for @lglTaxiLicenceRegion.
+  ///
+  /// In uz, this message translates to:
+  /// **'Litsenziya hududi'**
+  String get lglTaxiLicenceRegion;
+
+  /// No description provided for @lglTin.
+  ///
+  /// In uz, this message translates to:
+  /// **'STIR (INN)'**
+  String get lglTin;
+
+  /// No description provided for @lglTinHintOptional.
+  ///
+  /// In uz, this message translates to:
+  /// **'9 ta raqam — ixtiyoriy'**
+  String get lglTinHintOptional;
+
+  /// No description provided for @lglTinHintRequired.
+  ///
+  /// In uz, this message translates to:
+  /// **'9 ta raqam — YaTT uchun majburiy'**
+  String get lglTinHintRequired;
+
+  /// No description provided for @lglTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Huquqiy profil'**
+  String get lglTitle;
+
+  /// No description provided for @lglValPinflFormat.
+  ///
+  /// In uz, this message translates to:
+  /// **'JShShIR 14 ta raqamdan iborat bo\'lishi kerak'**
+  String get lglValPinflFormat;
+
+  /// No description provided for @lglValPinflRequired.
+  ///
+  /// In uz, this message translates to:
+  /// **'JShShIR kiriting'**
+  String get lglValPinflRequired;
+
+  /// No description provided for @lglValTaxStatusRequired.
+  ///
+  /// In uz, this message translates to:
+  /// **'Soliq maqomini tanlang'**
+  String get lglValTaxStatusRequired;
+
+  /// No description provided for @lglValTinFormat.
+  ///
+  /// In uz, this message translates to:
+  /// **'STIR 9 ta raqamdan iborat bo\'lishi kerak'**
+  String get lglValTinFormat;
+
+  /// No description provided for @lglValTinRequired.
+  ///
+  /// In uz, this message translates to:
+  /// **'YaTT uchun STIR majburiy'**
+  String get lglValTinRequired;
 
   /// No description provided for @paxAbout.
   ///
@@ -6032,6 +6392,438 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'E\'tibor talab qiladi'**
   String get shVerifUnknown;
+
+  /// No description provided for @shfActive.
+  ///
+  /// In uz, this message translates to:
+  /// **'Smena faol'**
+  String get shfActive;
+
+  /// No description provided for @shfAlreadyActive.
+  ///
+  /// In uz, this message translates to:
+  /// **'Sizda allaqachon faol smena bor'**
+  String get shfAlreadyActive;
+
+  /// No description provided for @shfBought.
+  ///
+  /// In uz, this message translates to:
+  /// **'Smena faollashtirildi'**
+  String get shfBought;
+
+  /// No description provided for @shfBuy.
+  ///
+  /// In uz, this message translates to:
+  /// **'Smena olish — {price}'**
+  String shfBuy(String price);
+
+  /// No description provided for @shfCancel.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bekor qilish'**
+  String get shfCancel;
+
+  /// No description provided for @shfComparison.
+  ///
+  /// In uz, this message translates to:
+  /// **'So\'nggi {days} kunda komissiyaga {commission} to\'ladingiz, smena bilan {passCost} bo\'lardi.'**
+  String shfComparison(int days, String commission, String passCost);
+
+  /// No description provided for @shfComparisonNoTrips.
+  ///
+  /// In uz, this message translates to:
+  /// **'So\'nggi {days} kunda safar bo\'lmadi — taqqoslash uchun ma\'lumot yo\'q.'**
+  String shfComparisonNoTrips(int days);
+
+  /// No description provided for @shfConfirm.
+  ///
+  /// In uz, this message translates to:
+  /// **'Sotib olish'**
+  String get shfConfirm;
+
+  /// No description provided for @shfConfirmBody.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hamyoningizdan {price} yechiladi. {hours} soat davomida «{services}» safarlaridan komissiya olinmaydi. 1% soliq odatdagidek ushlanadi.'**
+  String shfConfirmBody(String price, int hours, String services);
+
+  /// No description provided for @shfConfirmTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Smena sotib olinsinmi?'**
+  String get shfConfirmTitle;
+
+  /// No description provided for @shfHoursMinutes.
+  ///
+  /// In uz, this message translates to:
+  /// **'{hours} soat {minutes} daqiqa'**
+  String shfHoursMinutes(int hours, int minutes);
+
+  /// No description provided for @shfMinutes.
+  ///
+  /// In uz, this message translates to:
+  /// **'{minutes} daqiqa'**
+  String shfMinutes(int minutes);
+
+  /// No description provided for @shfRemaining.
+  ///
+  /// In uz, this message translates to:
+  /// **'{time} qoldi'**
+  String shfRemaining(String time);
+
+  /// No description provided for @shfSubtitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'{hours} soat komissiyasiz ishlang'**
+  String shfSubtitle(int hours);
+
+  /// No description provided for @shfTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Smena'**
+  String get shfTitle;
+
+  /// No description provided for @shfVerdictCommission.
+  ///
+  /// In uz, this message translates to:
+  /// **'Komissiya {amount} arzonroq tushdi'**
+  String shfVerdictCommission(String amount);
+
+  /// No description provided for @shfVerdictEqual.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ikkalasi bir xil'**
+  String get shfVerdictEqual;
+
+  /// No description provided for @shfVerdictShift.
+  ///
+  /// In uz, this message translates to:
+  /// **'Smena {amount} tejardi'**
+  String shfVerdictShift(String amount);
+
+  /// No description provided for @wdrAmountExceedsAvailable.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hozir ko\'pi bilan {amount} yechish mumkin'**
+  String wdrAmountExceedsAvailable(String amount);
+
+  /// No description provided for @wdrAvailable.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yechish mumkin: {amount}'**
+  String wdrAvailable(String amount);
+
+  /// No description provided for @wdrHoldNote.
+  ///
+  /// In uz, this message translates to:
+  /// **'Karta orqali to\'ldirilgan {amount} {days} kundan keyin yechish mumkin'**
+  String wdrHoldNote(String amount, String days);
+
+  /// No description provided for @wdrNothingAvailable.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hozircha yechib olinadigan mablag\' yo\'q'**
+  String get wdrNothingAvailable;
+
+  /// No description provided for @wltAmount.
+  ///
+  /// In uz, this message translates to:
+  /// **'Summa'**
+  String get wltAmount;
+
+  /// No description provided for @wltAmountHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Summani kiriting'**
+  String get wltAmountHint;
+
+  /// No description provided for @wltAmountRange.
+  ///
+  /// In uz, this message translates to:
+  /// **'{min} dan {max} gacha'**
+  String wltAmountRange(String min, String max);
+
+  /// No description provided for @wltCallFailed.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qo\'ng\'iroq qilib bo\'lmadi. Raqam: {phone}'**
+  String wltCallFailed(String phone);
+
+  /// No description provided for @wltCallOperator.
+  ///
+  /// In uz, this message translates to:
+  /// **'Operatorga qo\'ng\'iroq: {phone}'**
+  String wltCallOperator(String phone);
+
+  /// No description provided for @wltContinuePending.
+  ///
+  /// In uz, this message translates to:
+  /// **'To\'lovni davom ettirish'**
+  String get wltContinuePending;
+
+  /// No description provided for @wltCurrentBalance.
+  ///
+  /// In uz, this message translates to:
+  /// **'Joriy balans'**
+  String get wltCurrentBalance;
+
+  /// No description provided for @wltDisabledBody.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ilovadan to\'ldirish hozircha yoqilmagan. Operatorga qo\'ng\'iroq qiling — u hamyoningizni to\'ldiradi.'**
+  String get wltDisabledBody;
+
+  /// No description provided for @wltDisabledTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Operator orqali to\'ldirish'**
+  String get wltDisabledTitle;
+
+  /// No description provided for @wltDone.
+  ///
+  /// In uz, this message translates to:
+  /// **'Tayyor'**
+  String get wltDone;
+
+  /// No description provided for @wltFailedBody.
+  ///
+  /// In uz, this message translates to:
+  /// **'Pul yechilmadi. Qayta urinib ko\'ring yoki boshqa usulni tanlang.'**
+  String get wltFailedBody;
+
+  /// No description provided for @wltFailedTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'To\'lov o\'tmadi'**
+  String get wltFailedTitle;
+
+  /// No description provided for @wltHistory.
+  ///
+  /// In uz, this message translates to:
+  /// **'To\'ldirishlar tarixi'**
+  String get wltHistory;
+
+  /// No description provided for @wltHistoryEmpty.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hali to\'ldirish bo\'lmagan'**
+  String get wltHistoryEmpty;
+
+  /// No description provided for @wltNewBalance.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yangi balans: {balance}'**
+  String wltNewBalance(String balance);
+
+  /// No description provided for @wltNoSupportPhone.
+  ///
+  /// In uz, this message translates to:
+  /// **'Operator raqami topilmadi — qo\'llab-quvvatlash chatiga yozing.'**
+  String get wltNoSupportPhone;
+
+  /// No description provided for @wltOpenCheckoutAgain.
+  ///
+  /// In uz, this message translates to:
+  /// **'To\'lov sahifasini qayta ochish'**
+  String get wltOpenCheckoutAgain;
+
+  /// No description provided for @wltPay.
+  ///
+  /// In uz, this message translates to:
+  /// **'{amount} to\'lash'**
+  String wltPay(String amount);
+
+  /// No description provided for @wltProvider.
+  ///
+  /// In uz, this message translates to:
+  /// **'To\'lov usuli'**
+  String get wltProvider;
+
+  /// No description provided for @wltRefundClawbackFallback.
+  ///
+  /// In uz, this message translates to:
+  /// **'Mijozga karta to\'lovi qaytarildi — shu buyurtma bo\'yicha ulushingiz hamyondan yechildi.'**
+  String get wltRefundClawbackFallback;
+
+  /// No description provided for @wltReminderFallback.
+  ///
+  /// In uz, this message translates to:
+  /// **'Restoran va do\'kon bilan hisob-kitob hamyon orqali bo\'ladi — hamyoningizni to\'ldiring.'**
+  String get wltReminderFallback;
+
+  /// No description provided for @wltShowPending.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ochiq to\'lovlarni ko\'rish'**
+  String get wltShowPending;
+
+  /// No description provided for @wltStatusCancelled.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bekor qilindi'**
+  String get wltStatusCancelled;
+
+  /// No description provided for @wltStatusExpired.
+  ///
+  /// In uz, this message translates to:
+  /// **'Muddati o\'tdi'**
+  String get wltStatusExpired;
+
+  /// No description provided for @wltStatusFailed.
+  ///
+  /// In uz, this message translates to:
+  /// **'O\'tmadi'**
+  String get wltStatusFailed;
+
+  /// No description provided for @wltStatusPaid.
+  ///
+  /// In uz, this message translates to:
+  /// **'To\'landi'**
+  String get wltStatusPaid;
+
+  /// No description provided for @wltStatusPending.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kutilmoqda'**
+  String get wltStatusPending;
+
+  /// No description provided for @wltStillPending.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hali tasdiqlanmadi. Pul yechilgan bo\'lsa, u avtomatik tushadi — tarixda kuzating.'**
+  String get wltStillPending;
+
+  /// No description provided for @wltSuccessBody.
+  ///
+  /// In uz, this message translates to:
+  /// **'{amount} hamyoningizga tushdi'**
+  String wltSuccessBody(String amount);
+
+  /// No description provided for @wltSuccessTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hamyon to\'ldirildi'**
+  String get wltSuccessTitle;
+
+  /// No description provided for @wltTooManyPending.
+  ///
+  /// In uz, this message translates to:
+  /// **'Sizda {count} ta tugallanmagan to\'lov bor. Avval ularni yakunlang yoki bekor bo\'lishini kuting.'**
+  String wltTooManyPending(String count);
+
+  /// No description provided for @wltTooManyPendingNoCount.
+  ///
+  /// In uz, this message translates to:
+  /// **'Sizda tugallanmagan to\'lovlar ko\'p. Avval ularni yakunlang yoki bekor bo\'lishini kuting.'**
+  String get wltTooManyPendingNoCount;
+
+  /// No description provided for @wltTopUpShort.
+  ///
+  /// In uz, this message translates to:
+  /// **'To\'ldirish'**
+  String get wltTopUpShort;
+
+  /// No description provided for @wltTopUpTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hamyonni to\'ldirish'**
+  String get wltTopUpTitle;
+
+  /// No description provided for @wltTryAgain.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qayta urinish'**
+  String get wltTryAgain;
+
+  /// No description provided for @wltUpdGeneric.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hamyon yangilandi: {amount}'**
+  String wltUpdGeneric(String amount);
+
+  /// No description provided for @wltUpdManual.
+  ///
+  /// In uz, this message translates to:
+  /// **'Operator hamyonni tuzatdi: {amount}'**
+  String wltUpdManual(String amount);
+
+  /// No description provided for @wltUpdRefundClawback.
+  ///
+  /// In uz, this message translates to:
+  /// **'To\'lov mijozga qaytarildi — ulush hamyondan yechildi: {amount}'**
+  String wltUpdRefundClawback(String amount);
+
+  /// No description provided for @wltUpdShiftRefund.
+  ///
+  /// In uz, this message translates to:
+  /// **'Smena puli qaytarildi: {amount}'**
+  String wltUpdShiftRefund(String amount);
+
+  /// No description provided for @wltUpdTopup.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hamyon to\'ldirildi: {amount}'**
+  String wltUpdTopup(String amount);
+
+  /// No description provided for @wltUpdTopupReversal.
+  ///
+  /// In uz, this message translates to:
+  /// **'To\'ldirish bekor qilindi: {amount}'**
+  String wltUpdTopupReversal(String amount);
+
+  /// No description provided for @wltUpdVendorReversal.
+  ///
+  /// In uz, this message translates to:
+  /// **'Do\'konga o\'tkazma qaytarildi: {amount}'**
+  String wltUpdVendorReversal(String amount);
+
+  /// No description provided for @wltValAmountEmpty.
+  ///
+  /// In uz, this message translates to:
+  /// **'Summani kiriting'**
+  String get wltValAmountEmpty;
+
+  /// No description provided for @wltValAmountInvalid.
+  ///
+  /// In uz, this message translates to:
+  /// **'Faqat raqam kiriting'**
+  String get wltValAmountInvalid;
+
+  /// No description provided for @wltValAmountMax.
+  ///
+  /// In uz, this message translates to:
+  /// **'Eng ko\'p summa — {max}'**
+  String wltValAmountMax(String max);
+
+  /// No description provided for @wltValAmountMin.
+  ///
+  /// In uz, this message translates to:
+  /// **'Eng kam summa — {min}'**
+  String wltValAmountMin(String min);
+
+  /// No description provided for @wltVendorInsufficientBody.
+  ///
+  /// In uz, this message translates to:
+  /// **'Naqd buyurtmada tovar puli do\'konga hamyoningizdan o\'tkaziladi. Hamyonni to\'ldirib, qayta qabul qiling.'**
+  String get wltVendorInsufficientBody;
+
+  /// No description provided for @wltVendorInsufficientTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hamyonda mablag\' yetarli emas'**
+  String get wltVendorInsufficientTitle;
+
+  /// No description provided for @wltWaitingBody.
+  ///
+  /// In uz, this message translates to:
+  /// **'To\'lov tizimi tasdiqlashi bilan pul hamyonga tushadi. Odatda bir necha soniya.'**
+  String get wltWaitingBody;
+
+  /// No description provided for @wltWaitingTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'To\'lov tasdiqlanishi kutilmoqda'**
+  String get wltWaitingTitle;
 }
 
 class _AppLocalizationsDelegate

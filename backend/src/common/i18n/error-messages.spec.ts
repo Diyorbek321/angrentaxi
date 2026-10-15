@@ -47,6 +47,30 @@ describe('localizeMessage', () => {
     ).toBe("Oldingi safardan 12500 so'm to'lanmagan qarzingiz bor. Yangi buyurtmadan oldin hamyonni to'ldiring.");
   });
 
+  it("huquqiy darvoza: ichidagi sabablar va hujjat nomi ham ruschaga (ichma-ich)", () => {
+    const uz =
+      "Taksi uchun onlayn chiqa olmaysiz: JShShIR (PINFL, 14 raqam) kiritilmagan; " +
+      "Haydovchi kamida 21 yoshda bo'lishi shart (VMQ 200); " +
+      "«Texnik ko'rik» yuklanmagan, rad etilgan yoki muddati o'tgan. " +
+      "Ilovadagi «Hujjatlar» bo'limida to'ldiring.";
+    expect(localizeMessage(uz, 'ru')).toBe(
+      'Нельзя выйти на линию такси: Не указан ПИНФЛ (14 цифр); ' +
+        'Водителю должно быть не менее 21 лет (ПКМ № 200); ' +
+        '«Технический осмотр» не загружен, отклонён или просрочен. ' +
+        'Заполните раздел «Документы» в приложении.',
+    );
+    expect(localizeMessage(uz, 'uz')).toBe(uz);
+  });
+
+  it("kuryer: sotuvchiga o'tkazish uchun hamyon yetmaydi — ruscha", () => {
+    expect(
+      localizeMessage(
+        "Hamyonda mablag' yetarli emas: do'konga 120 000 so'm o'tkazish kerak, balansingiz 5 000 so'm. Avval hamyonni to'ldiring.",
+        'ru',
+      ),
+    ).toBe('Недостаточно средств: нужно перевести заведению 120 000 сум, на балансе 5 000 сум. Сначала пополните кошелёк.');
+  });
+
   it("lug'atda yo'q xabar o'zgarmay qaytadi", () => {
     expect(localizeMessage('pickupLat must be a number', 'ru')).toBe('pickupLat must be a number');
   });
@@ -101,5 +125,23 @@ describe('ERROR_CATALOGUE — kod bilan sinxron', () => {
         expect([e.source, extra]).toEqual([e.source, []]);
       }
     }
+  });
+});
+
+describe('security review 2026-10-15 — RU tarjimalari', () => {
+  it.each([
+    [
+      "Hujjatingiz tasdiqlangan: JShShIR, STIR, soliq maqomi va tug'ilgan sanani endi faqat dispetcher o'zgartira oladi. Qo'llab-quvvatlash xizmatiga murojaat qiling.",
+      'Ваш документ подтверждён',
+    ],
+    ["To'lanmagan to'ldirishlar juda ko'p (3 ta). Avvalgisini yakunlang yoki muddati o'tishini kuting.", '(3)'],
+    [
+      "Karta orqali to'ldirilgan 80 000 so'm 7 kun davomida yechib olinmaydi. Hozir yechish mumkin: 20 000 so'm.",
+      '80 000 сум нельзя вывести в течение 7 дн',
+    ],
+    ["Menejer bir martada ko'pi bilan 2 000 000 so'm tuzatishi mumkin. Kattaroq summa uchun adminga murojaat qiling.", '2 000 000 сум'],
+    ["Bu JShShIR boshqa haydovchi profilida ro'yxatdan o'tgan", 'ПИНФЛ'],
+  ])('%s', (source, expected) => {
+    expect(localizeMessage(source, 'ru')).toContain(expected);
   });
 });

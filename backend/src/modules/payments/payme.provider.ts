@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createHash, timingSafeEqual } from 'crypto';
+import { timingSafeEqual } from 'crypto';
 import axios from 'axios';
-import { IPaymentProvider, PaymentInitiateResult } from './payment.interface';
+import { IPaymentProvider, PaymentInitiateOptions, PaymentInitiateResult } from './payment.interface';
 
 /**
  * Constant-time string comparison for secrets/signatures.
@@ -21,15 +21,8 @@ function timingSafeCompare(a: string, b: string): boolean {
   return timingSafeEqual(bufA, bufB);
 }
 
-interface PaymeOrderParams {
-  m: string;      // merchant ID
-  ac: {           // account fields
-    order_id: string;
-  };
-  a: number;      // amount in tiyin (1 UZS = 100 tiyin)
-  l: string;      // language
-  c: string;      // callback URL
-}
+/** Payme Merchant API: Basic auth logini doim `Paycom`, paroli — merchant kaliti. */
+const PAYME_LOGIN = 'Paycom';
 
 @Injectable()
 export class PaymeProvider implements IPaymentProvider {
@@ -43,23 +36,34 @@ export class PaymeProvider implements IPaymentProvider {
     this.secretKey = this.configService.get<string>('PAYME_SECRET_KEY', '');
   }
 
+  /** Merchant kalitlari bormi — yo'q bo'lsa callback'lar baribir rad etiladi. */
+  isConfigured(): boolean {
+    return Boolean(this.merchantId && this.secretKey);
+  }
+
   async initiate(
     amount: number,
     orderId: string,
     _phone: string,
+    options: PaymentInitiateOptions = {},
   ): Promise<PaymentInitiateResult> {
     // Amount must be in tiyin (cents), 1 UZS = 100 tiyin
     const amountTiyin = Math.round(amount * 100);
 
-    const params: PaymeOrderParams = {
-      m: this.merchantId,
-      ac: { order_id: orderId },
-      a: amountTiyin,
-      l: 'ru',
-      c: `${this.configService.get('APP_URL', 'http://localhost:3000')}/payments/payme/callback`,
-    };
+    // Payme GET checkout (developer.help.paycom.uz → «Отправка чека по
+    // GET»): base64("m=<id>;ac.order_id=<ref>;a=<tiyin>;l=ru;c=<qaytish>").
+    // `c` — to'lovdan keyin BRAUZER qaytadigan manzil (ilova deep link'i).
+    // Ilgari bu yerda JSON va `c` = callback API'si turardi — u brauzer
+    // manzili emas (POST/JSON-RPC), foydalanuvchi xato sahifaga tushardi.
+    const params = [
+      `m=${this.merchantId}`,
+      `ac.order_id=${orderId}`,
+      `a=${amountTiyin}`,
+      'l=ru',
+      ...(options.returnUrl ? [`c=${options.returnUrl}`] : []),
+    ].join(';');
 
-    const encodedParams = Buffer.from(JSON.stringify(params)).toString('base64');
+    const encodedParams = Buffer.from(params).toString('base64');
     const checkoutUrl = `${this.apiUrl}/${encodedParams}`;
 
     this.logger.log(`Payme checkout initiated for order ${orderId}, amount: ${amount} UZS`);
@@ -136,20 +140,14 @@ export class PaymeProvider implements IPaymentProvider {
         return false;
       }
 
+      const login = decoded.slice(0, separatorIndex);
       const password = decoded.slice(separatorIndex + 1);
 
-      if (!password) {
+      if (login !== PAYME_LOGIN || !password) {
         return false;
       }
 
-      const expectedHash = createHash('sha1')
-        .update(`${this.merchantId}${this.secretKey}`)
-        .digest('hex');
-
-      return (
-        timingSafeCompare(password, this.secretKey) ||
-        timingSafeCompare(password, expectedHash)
-      );
+      return timingSafeCompare(password, this.secretKey);
     } catch {
       return false;
     }

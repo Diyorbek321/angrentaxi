@@ -16,9 +16,12 @@ import { OrdersModule } from '../orders/orders.module';
 import { MatchingModule } from '../matching/matching.module';
 import { TariffsModule } from '../tariffs/tariffs.module';
 import { SettingsModule } from '../settings/settings.module';
+import { VendorTinModule } from '../vendor-tin/vendor-tin.module';
 
 @Module({
   imports: [
+    // Admin: sotuvchi STIR'i (audit bilan).
+    VendorTinModule,
     TypeOrmModule.forFeature([Restaurant, MenuCategory, Dish, FoodOrder, Transaction]),
     forwardRef(() => RealtimeModule),
     UsersModule,

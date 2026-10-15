@@ -10,7 +10,9 @@
 
 import { AdBanner } from './entities/ad-banner.entity';
 import { AdBannerDailyStat } from './entities/ad-banner-daily-stat.entity';
+import { AuditLog } from './entities/audit-log.entity';
 import { City } from './entities/city.entity';
+import { CourierWalletReminder } from './entities/courier-wallet-reminder.entity';
 import { Dish } from './entities/dish.entity';
 import { DispatchOverride } from './entities/dispatch-override.entity';
 import { DriverBonusAward } from './entities/driver-bonus-award.entity';
@@ -19,7 +21,9 @@ import { DriverDocument } from './entities/driver-document.entity';
 import { DriverVerificationRequirement } from './entities/driver-verification-requirement.entity';
 import { DriverVerificationSubmission } from './entities/driver-verification-submission.entity';
 import { Driver } from './entities/driver.entity';
+import { DriverShiftPass } from './entities/driver-shift-pass.entity';
 import { FavoriteAddress } from './entities/favorite-address.entity';
+import { FiscalReceipt } from './entities/fiscal-receipt.entity';
 import { FoodOrder } from './entities/food-order.entity';
 import { LostItemReport } from './entities/lost-item-report.entity';
 import { MarketCategory } from './entities/market-category.entity';
@@ -50,12 +54,16 @@ import { TripTrackPoint } from './entities/trip-track-point.entity';
 import { Trip } from './entities/trip.entity';
 import { User } from './entities/user.entity';
 import { VehicleChangeRequest } from './entities/vehicle-change-request.entity';
+import { WalletTopup } from './entities/wallet-topup.entity';
+import { MerchantTransaction } from './entities/merchant-transaction.entity';
 import { WithdrawalRequest } from './entities/withdrawal-request.entity';
 
 export const ENTITIES = [
   AdBanner,
   AdBannerDailyStat,
+  AuditLog,
   City,
+  CourierWalletReminder,
   Dish,
   DispatchOverride,
   DriverBonusAward,
@@ -64,7 +72,9 @@ export const ENTITIES = [
   DriverVerificationRequirement,
   DriverVerificationSubmission,
   Driver,
+  DriverShiftPass,
   FavoriteAddress,
+  FiscalReceipt,
   FoodOrder,
   LostItemReport,
   MarketCategory,
@@ -95,5 +105,7 @@ export const ENTITIES = [
   Trip,
   User,
   VehicleChangeRequest,
+  WalletTopup,
+  MerchantTransaction,
   WithdrawalRequest,
 ];

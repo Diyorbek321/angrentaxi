@@ -2,6 +2,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Reflector } from '@nestjs/core';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
+import { WalletTopupsService } from './wallet-topups.service';
+import { PaymeMerchantService } from './merchant/payme-merchant.service';
+import { ClickShopService } from './merchant/click-shop.service';
 import { ROLES_KEY } from '../../common/decorators/roles.decorator';
 import { User, UserRole } from '../../database/entities/user.entity';
 import { WithdrawalOwnerType, WithdrawalStatus } from '../../database/entities/withdrawal-request.entity';
@@ -40,7 +43,13 @@ describe('PaymentsController - withdrawals', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [PaymentsController],
-      providers: [{ provide: PaymentsService, useValue: service }],
+      providers: [
+        { provide: PaymentsService, useValue: service },
+        // Hamyonni to'ldirish yo'llari (§11) — bu spec ularni sinamaydi.
+        { provide: WalletTopupsService, useValue: {} },
+        { provide: PaymeMerchantService, useValue: {} },
+        { provide: ClickShopService, useValue: {} },
+      ],
     }).compile();
 
     controller = module.get<PaymentsController>(PaymentsController);

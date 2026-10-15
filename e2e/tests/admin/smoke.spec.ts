@@ -21,6 +21,12 @@ const PAGES = [
   '/dashboard/staff',
   '/dashboard/global-settings',
   '/dashboard/settings',
+  '/dashboard/finance-settings',
+  '/dashboard/legal-compliance',
+  '/dashboard/tax-report',
+  '/dashboard/fiscal-receipts',
+  '/dashboard/shift-passes',
+  '/dashboard/audit-log',
 ];
 
 for (const path of PAGES) {

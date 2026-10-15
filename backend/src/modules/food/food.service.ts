@@ -284,6 +284,13 @@ export class FoodService implements OnModuleInit {
   // gross CREDIT leg for cash orders so a restaurant can't withdraw a net
   // payout for money it already collected directly).
   private async settleRestaurantEarnings(restaurant: Restaurant, order: FoodOrder): Promise<void> {
+    // Hamyon rejimida (e-tijorat qonuni 23-modda) tovar summasi va komissiya
+    // olib ketishda allaqachon daftarga yozilgan
+    // (`delivery/vendor-wallet-settlement.ts`) — ikkinchi marta yozilmaydi.
+    if (order.vendorWalletSettledAt) {
+      return;
+    }
+
     const commissionAmount = Math.round((order.totalPrice * restaurant.commissionRate) / 100);
     if (commissionAmount <= 0) {
       return;
@@ -462,7 +469,8 @@ export class FoodService implements OnModuleInit {
 
     this.realtimeGateway.emitToUser(order.customerId, 'food:order:courier', {
       orderId: order.id,
-      stage: event.kind,
+      // Qayta biriktirish — mijoz uchun yangi kuryer qabul qildi.
+      stage: event.kind === 'reassigned' ? 'accepted' : event.kind,
     });
   }
 

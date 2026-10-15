@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash, timingSafeEqual } from 'crypto';
-import { IPaymentProvider, PaymentInitiateResult } from './payment.interface';
+import { IPaymentProvider, PaymentInitiateOptions, PaymentInitiateResult } from './payment.interface';
 
 /**
  * Constant-time string comparison for secrets/signatures.
@@ -33,6 +33,11 @@ export class ClickProvider implements IPaymentProvider {
     this.serviceId = this.configService.get<string>('CLICK_SERVICE_ID', '');
   }
 
+  /** Merchant kalitlari bormi — yo'q bo'lsa callback'lar baribir rad etiladi. */
+  isConfigured(): boolean {
+    return Boolean(this.merchantId && this.secretKey && this.serviceId);
+  }
+
   async initiate(
     amount: number,
     orderId: string,
@@ -41,13 +46,17 @@ export class ClickProvider implements IPaymentProvider {
     // uchun turibdi (Payme uni ISHLATADI), shuning uchun olib tashlab
     // bo'lmaydi; ostki chiziq "ataylab ishlatilmayapti" degani.
     _phone: string,
+    options: PaymentInitiateOptions = {},
   ): Promise<PaymentInitiateResult> {
     const params = new URLSearchParams({
       service_id: this.serviceId,
       merchant_id: this.merchantId,
       amount: amount.toString(),
       transaction_param: orderId,
-      return_url: `${this.configService.get('APP_URL', 'http://localhost:3000')}/payments/click/return`,
+      // To'lovdan keyin brauzer qaytadigan manzil (hamyonni to'ldirishda —
+      // ilova deep link'i, `WALLET_TOPUP_RETURN_URL`).
+      return_url:
+        options.returnUrl ?? `${this.configService.get('APP_URL', 'http://localhost:3000')}/payments/click/return`,
       card_type: 'uzcard',
     });
 
@@ -112,7 +121,14 @@ export class ClickProvider implements IPaymentProvider {
         return false;
       }
 
-      const signatureString = `${click_trans_id}${service_id}${this.secretKey}${merchant_trans_id}${amount}${action}${sign_time}`;
+      // Click SHOP API: Complete (action = 1) imzosiga Prepare javobidagi
+      // `merchant_prepare_id` ham kiradi; Prepare (action = 0) imzosiga — yo'q.
+      const prepareId = (body as Record<string, unknown>)['merchant_prepare_id'];
+      const preparePart =
+        Number(action) === 1 && (typeof prepareId === 'string' || typeof prepareId === 'number')
+          ? String(prepareId)
+          : '';
+      const signatureString = `${click_trans_id}${service_id}${this.secretKey}${merchant_trans_id}${preparePart}${amount}${action}${sign_time}`;
 
       const expectedSignature = createHash('md5')
         .update(signatureString)

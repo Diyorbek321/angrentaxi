@@ -1,0 +1,399 @@
+{
+  "lglTitle": "Huquqiy profil",
+  "lglMenuSubtitle": "Soliq maqomi, JShShIR, litsenziya",
+  "lglIntro": "Taksi sifatida ishlash uchun Vazirlar Mahkamasining 200-son qarori talablari. Ma'lumotlar 1% soliq hisoboti va cheklarda ishlatiladi.",
+  "lglTaxStatus": "Soliq maqomi",
+  "lglSelfEmployed": "O'zini o'zi band qilgan",
+  "lglIndividualEntrepreneur": "YaTT (yakka tadbirkor)",
+  "lglPinfl": "JShShIR (PINFL)",
+  "lglPinflHint": "14 ta raqam — pasport yoki ID-kartada",
+  "lglTin": "STIR (INN)",
+  "lglTinHintRequired": "9 ta raqam — YaTT uchun majburiy",
+  "lglTinHintOptional": "9 ta raqam — ixtiyoriy",
+  "lglBirthDate": "Tug'ilgan sana",
+  "lglLicenceIssuedAt": "Haydovchilik guvohnomasi (B toifa) berilgan sana",
+  "lglTaxiLicenceNumber": "Taksi litsenziya varaqasi raqami",
+  "lglTaxiLicenceRegion": "Litsenziya hududi",
+  "lglSelectDate": "Sanani tanlang",
+  "lglSelectRegion": "Hududni tanlang",
+  "lglSave": "Saqlash",
+  "lglSaved": "Huquqiy profil saqlandi",
+  "lglLoadFailed": "Huquqiy profilni yuklab bo'lmadi",
+  "lglValPinflRequired": "JShShIR kiriting",
+  "lglValPinflFormat": "JShShIR 14 ta raqamdan iborat bo'lishi kerak",
+  "lglValTinRequired": "YaTT uchun STIR majburiy",
+  "lglValTinFormat": "STIR 9 ta raqamdan iborat bo'lishi kerak",
+  "lglValTaxStatusRequired": "Soliq maqomini tanlang",
+  "lglEligibleTitle": "Barcha talablar bajarilgan",
+  "lglEligibleBody": "Taksi buyurtmalarini qabul qilishingiz mumkin.",
+  "lglNotEligibleTitle": "Bajarilmagan talablar",
+  "lglStatusBlocking": "Taksi uchun onlayn chiqish to'xtatilgan. Quyidagilarni to'ldiring.",
+  "lglStatusGrace": "{date} dan boshlab majburiy. Hozircha ishlashingiz mumkin.",
+  "@lglStatusGrace": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "lglStatusWarning": "Hozircha ogohlantirish — ishlashingizga to'sqinlik qilmaydi.",
+  "lglOpenDocuments": "Hujjatlarni yuklash",
+  "lglBlockedBannerTitle": "Taksi uchun onlayn chiqa olmaysiz",
+  "lglBlockedBannerBody": "Huquqiy talablar bajarilmagan: {count} ta",
+  "@lglBlockedBannerBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lglFill": "To'ldirish",
+  "lglGoOnlineBlockedTitle": "Onlayn chiqib bo'lmadi",
+  "lglGoOnlineBlockedBody": "Taksi uchun quyidagi talablar bajarilmagan:",
+  "lglCourierHint": "Kuryer sifatida ishlashni davom ettirish uchun «Xizmat turlari» bo'limida taksini o'chiring.",
+  "lglOpenProfile": "Huquqiy profilni ochish",
+  "lglClose": "Yopish",
+  "lglDocTaxiLicence": "Taksi litsenziya varaqasi",
+  "lglDocTaxiLicenceHint": "Hudud va amal qilish muddati ko'rinsin",
+  "lglDocMedicalCheck": "Tibbiy ko'rik ma'lumotnomasi",
+  "lglDocMedicalCheckHint": "Yillik tibbiy ko'rikdan o'tganingiz haqida",
+  "lglDocCarrierInsurance": "Tashuvchining javobgarlik sug'urtasi",
+  "lglDocCarrierInsuranceHint": "Sug'urta polisi — amal qilish muddati ko'rinsin",
+  "lglDocTechInspection": "Yillik texnik ko'rik",
+  "lglDocTechInspectionHint": "Texnik ko'rik guvohnomasi",
+  "lglLegalRequirement": "Taksi uchun huquqiy talab",
+  "wltTopUpTitle": "Hamyonni to'ldirish",
+  "wltTopUpShort": "To'ldirish",
+  "wltCurrentBalance": "Joriy balans",
+  "wltAmount": "Summa",
+  "wltAmountHint": "Summani kiriting",
+  "wltAmountRange": "{min} dan {max} gacha",
+  "@wltAmountRange": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "wltValAmountEmpty": "Summani kiriting",
+  "wltValAmountInvalid": "Faqat raqam kiriting",
+  "wltValAmountMin": "Eng kam summa — {min}",
+  "@wltValAmountMin": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      }
+    }
+  },
+  "wltValAmountMax": "Eng ko'p summa — {max}",
+  "@wltValAmountMax": {
+    "placeholders": {
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "wltProvider": "To'lov usuli",
+  "wltPay": "{amount} to'lash",
+  "@wltPay": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "wltWaitingTitle": "To'lov tasdiqlanishi kutilmoqda",
+  "wltWaitingBody": "To'lov tizimi tasdiqlashi bilan pul hamyonga tushadi. Odatda bir necha soniya.",
+  "wltOpenCheckoutAgain": "To'lov sahifasini qayta ochish",
+  "wltSuccessTitle": "Hamyon to'ldirildi",
+  "wltSuccessBody": "{amount} hamyoningizga tushdi",
+  "@wltSuccessBody": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "wltNewBalance": "Yangi balans: {balance}",
+  "@wltNewBalance": {
+    "placeholders": {
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
+  "wltFailedTitle": "To'lov o'tmadi",
+  "wltFailedBody": "Pul yechilmadi. Qayta urinib ko'ring yoki boshqa usulni tanlang.",
+  "wltStillPending": "Hali tasdiqlanmadi. Pul yechilgan bo'lsa, u avtomatik tushadi — tarixda kuzating.",
+  "wltDone": "Tayyor",
+  "wltTryAgain": "Qayta urinish",
+  "wltHistory": "To'ldirishlar tarixi",
+  "wltHistoryEmpty": "Hali to'ldirish bo'lmagan",
+  "wltStatusPending": "Kutilmoqda",
+  "wltStatusPaid": "To'landi",
+  "wltStatusFailed": "O'tmadi",
+  "wltStatusCancelled": "Bekor qilindi",
+  "wltStatusExpired": "Muddati o'tdi",
+  "wltDisabledTitle": "Operator orqali to'ldirish",
+  "wltDisabledBody": "Ilovadan to'ldirish hozircha yoqilmagan. Operatorga qo'ng'iroq qiling — u hamyoningizni to'ldiradi.",
+  "wltCallOperator": "Operatorga qo'ng'iroq: {phone}",
+  "@wltCallOperator": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "wltCallFailed": "Qo'ng'iroq qilib bo'lmadi. Raqam: {phone}",
+  "@wltCallFailed": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "wltNoSupportPhone": "Operator raqami topilmadi — qo'llab-quvvatlash chatiga yozing.",
+  "wltUpdTopup": "Hamyon to'ldirildi: {amount}",
+  "@wltUpdTopup": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "wltUpdTopupReversal": "To'ldirish bekor qilindi: {amount}",
+  "@wltUpdTopupReversal": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "wltUpdManual": "Operator hamyonni tuzatdi: {amount}",
+  "@wltUpdManual": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "wltUpdShiftRefund": "Smena puli qaytarildi: {amount}",
+  "@wltUpdShiftRefund": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "wltUpdVendorReversal": "Do'konga o'tkazma qaytarildi: {amount}",
+  "@wltUpdVendorReversal": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "wltUpdGeneric": "Hamyon yangilandi: {amount}",
+  "@wltUpdGeneric": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "wltReminderFallback": "Restoran va do'kon bilan hisob-kitob hamyon orqali bo'ladi — hamyoningizni to'ldiring.",
+  "wltVendorInsufficientTitle": "Hamyonda mablag' yetarli emas",
+  "wltVendorInsufficientBody": "Naqd buyurtmada tovar puli do'konga hamyoningizdan o'tkaziladi. Hamyonni to'ldirib, qayta qabul qiling.",
+  "shfTitle": "Smena",
+  "shfSubtitle": "{hours} soat komissiyasiz ishlang",
+  "@shfSubtitle": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "shfBuy": "Smena olish — {price}",
+  "@shfBuy": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "shfActive": "Smena faol",
+  "shfRemaining": "{time} qoldi",
+  "@shfRemaining": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "shfHoursMinutes": "{hours} soat {minutes} daqiqa",
+  "@shfHoursMinutes": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "shfMinutes": "{minutes} daqiqa",
+  "@shfMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "shfComparison": "So'nggi {days} kunda komissiyaga {commission} to'ladingiz, smena bilan {passCost} bo'lardi.",
+  "@shfComparison": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      },
+      "commission": {
+        "type": "String"
+      },
+      "passCost": {
+        "type": "String"
+      }
+    }
+  },
+  "shfComparisonNoTrips": "So'nggi {days} kunda safar bo'lmadi — taqqoslash uchun ma'lumot yo'q.",
+  "@shfComparisonNoTrips": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "shfVerdictShift": "Smena {amount} tejardi",
+  "@shfVerdictShift": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "shfVerdictCommission": "Komissiya {amount} arzonroq tushdi",
+  "@shfVerdictCommission": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "shfVerdictEqual": "Ikkalasi bir xil",
+  "shfConfirmTitle": "Smena sotib olinsinmi?",
+  "shfConfirmBody": "Hamyoningizdan {price} yechiladi. {hours} soat davomida «{services}» safarlaridan komissiya olinmaydi. 1% soliq odatdagidek ushlanadi.",
+  "@shfConfirmBody": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      },
+      "hours": {
+        "type": "int"
+      },
+      "services": {
+        "type": "String"
+      }
+    }
+  },
+  "shfConfirm": "Sotib olish",
+  "shfBought": "Smena faollashtirildi",
+  "shfAlreadyActive": "Sizda allaqachon faol smena bor",
+  "shfCancel": "Bekor qilish",
+  "ernTaxWithheld": "Soliq (1%)",
+  "ernShiftPass": "Smena",
+  "errNeedVsBalance": "Kerak: {required}, balans: {balance}",
+  "@errNeedVsBalance": {
+    "placeholders": {
+      "required": {
+        "type": "String"
+      },
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
+  "errPriceVsBalance": "Narxi: {price}, balans: {balance}",
+  "@errPriceVsBalance": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      },
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
+  "errBalanceIs": "Balans: {balance}",
+  "@errBalanceIs": {
+    "placeholders": {
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
+  "ernTips": "Chaqim (komissiyasiz)",
+  "ernNetFromFares": "Yo'l haqidan sof",
+  "ernNetWithTips": "Jami sof tushum",
+  "wltUpdRefundClawback": "To'lov mijozga qaytarildi — ulush hamyondan yechildi: {amount}",
+  "@wltUpdRefundClawback": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "wltRefundClawbackFallback": "Mijozga karta to'lovi qaytarildi — shu buyurtma bo'yicha ulushingiz hamyondan yechildi.",
+  "wdrAvailable": "Yechish mumkin: {amount}",
+  "@wdrAvailable": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "wdrHoldNote": "Karta orqali to'ldirilgan {amount} {days} kundan keyin yechish mumkin",
+  "@wdrHoldNote": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "wdrAmountExceedsAvailable": "Hozir ko'pi bilan {amount} yechish mumkin",
+  "@wdrAmountExceedsAvailable": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "wdrNothingAvailable": "Hozircha yechib olinadigan mablag' yo'q",
+  "wltTooManyPending": "Sizda {count} ta tugallanmagan to'lov bor. Avval ularni yakunlang yoki bekor bo'lishini kuting.",
+  "@wltTooManyPending": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "wltTooManyPendingNoCount": "Sizda tugallanmagan to'lovlar ko'p. Avval ularni yakunlang yoki bekor bo'lishini kuting.",
+  "wltShowPending": "Ochiq to'lovlarni ko'rish",
+  "wltContinuePending": "To'lovni davom ettirish",
+  "lglLockedNote": "Hujjatingiz tasdiqlangan. JShShIR, STIR, soliq maqomi va tug'ilgan sanani o'zgartirish uchun operatorga murojaat qiling.",
+  "lglDuplicatePinfl": "Bu JShShIR boshqa haydovchi profilida ro'yxatdan o'tgan",
+  "lglDuplicateTin": "Bu STIR boshqa haydovchi profilida ro'yxatdan o'tgan"
+}

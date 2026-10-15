@@ -5,9 +5,10 @@ import { Global, Injectable, Logger, Module } from '@nestjs/common';
  *
  * `picked_up` is the ride's IN_PROGRESS: the courier has the bag and is on
  * the way. `cancelled` covers both "nobody took it" and a dispatcher cancel —
- * either way the vendor needs a new courier.
+ * either way the vendor needs a new courier. `reassigned` — a dispatcher moved
+ * the SAME ride to another courier (`previousCourierUserId` is the old one).
  */
-export type DeliveryEventKind = 'accepted' | 'arrived' | 'picked_up' | 'delivered' | 'cancelled';
+export type DeliveryEventKind = 'accepted' | 'arrived' | 'picked_up' | 'delivered' | 'cancelled' | 'reassigned';
 
 export interface DeliveryEvent {
   kind: DeliveryEventKind;
@@ -15,6 +16,12 @@ export interface DeliveryEvent {
   deliveryOrderId: string;
   foodOrderId: string | null;
   marketOrderId: string | null;
+  /** `reassigned`: dispetcher almashtirgan oldingi kuryer (`users.id`). */
+  previousCourierUserId?: string;
+}
+
+export interface DeliveryEventExtra {
+  previousCourierUserId?: string;
 }
 
 export type DeliveryListener = (event: DeliveryEvent) => Promise<void> | void;
@@ -54,12 +61,12 @@ export class DeliveryEventsService {
    * a vendor-side failure must not turn a completed trip into a 500 for the
    * courier. Failures are logged with both ids so they can be replayed.
    */
-  async publish(ride: DeliveryRide, kind: DeliveryEventKind): Promise<void> {
+  async publish(ride: DeliveryRide, kind: DeliveryEventKind, extra: DeliveryEventExtra = {}): Promise<void> {
     const foodOrderId = stringOrNull(ride.details?.foodOrderId);
     const marketOrderId = stringOrNull(ride.details?.marketOrderId);
     if (!foodOrderId && !marketOrderId) return;
 
-    const event: DeliveryEvent = { kind, deliveryOrderId: ride.id, foodOrderId, marketOrderId };
+    const event: DeliveryEvent = { kind, deliveryOrderId: ride.id, foodOrderId, marketOrderId, ...extra };
     for (const listener of this.listeners) {
       try {
         await listener(event);

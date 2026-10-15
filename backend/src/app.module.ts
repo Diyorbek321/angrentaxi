@@ -44,6 +44,11 @@ import { SafetyModule } from './modules/safety/safety.module';
 import { ReferralsModule } from './modules/referrals/referrals.module';
 import { AdsModule } from './modules/ads/ads.module';
 import { HealthModule } from './modules/health/health.module';
+import { FiscalModule } from './modules/fiscal/fiscal.module';
+import { TaxModule } from './modules/tax/tax.module';
+import { ShiftPassesModule } from './modules/shift-passes/shift-passes.module';
+import { AuditModule } from './modules/audit/audit.module';
+import { CourierWalletRemindersModule } from './modules/delivery/courier-wallet-reminders.module';
 import { ENTITIES } from './database/entities';
 
 @Module({
@@ -173,6 +178,11 @@ import { ENTITIES } from './database/entities';
     ReferralsModule,
     AdsModule,
     HealthModule,
+    FiscalModule,
+    TaxModule,
+    ShiftPassesModule,
+    AuditModule,
+    CourierWalletRemindersModule,
   ],
   providers: [
     // ThrottlerModule only configures the limits — nothing enforces them until

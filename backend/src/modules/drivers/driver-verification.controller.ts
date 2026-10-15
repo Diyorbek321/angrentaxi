@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Param,
   Patch,
   Post,
@@ -37,6 +38,8 @@ import {
   PendingVerificationEntry,
 } from './driver-verification.service';
 import { ReviewDriverVerificationDto } from './dto/review-driver-verification.dto';
+import { resolveLanguage, localizeMessage, AppLanguage } from '../../common/i18n/error-messages';
+import { localizeLegalDocument } from './legal-document-texts';
 
 /**
  * Davriy tekshiruv endpointlari.
@@ -60,8 +63,12 @@ export class DriverVerificationController {
       "Haydovchining tekshiruv ro'yxati va holati. Ro'yxat butunlay serverdan keladi.",
   })
   @ApiResponse({ status: 200, description: 'canGoOnline, blockedReason, items[]' })
-  async myVerification(@CurrentUser() user: User): Promise<DriverVerificationSummary> {
-    return this.verificationService.getSummaryForUser(user.id);
+  async myVerification(
+    @CurrentUser() user: User,
+    @Headers('accept-language') acceptLanguage?: string,
+  ): Promise<DriverVerificationSummary> {
+    const summary = await this.verificationService.getSummaryForUser(user.id);
+    return localizeVerificationSummary(summary, resolveLanguage(acceptLanguage));
   }
 
   @Post('me/verification/:code')
@@ -134,4 +141,21 @@ export class DriverVerificationController {
   ): Promise<DriverVerificationItem> {
     return this.verificationService.review(id, user.id, dto);
   }
+}
+
+/**
+ * Ilova tilida (RU): taksi huquqiy hujjatlari (VMQ 200) nomi/izohi va
+ * `blockedReason` (xato lug'ati orqali). Boshqa talablar matni bazada —
+ * o'zgarmaydi. `uz` — aynan o'sha obyekt.
+ */
+export function localizeVerificationSummary(
+  summary: DriverVerificationSummary,
+  language: AppLanguage,
+): DriverVerificationSummary {
+  if (language === 'uz') return summary;
+  return {
+    ...summary,
+    blockedReason: summary.blockedReason ? localizeMessage(summary.blockedReason, language) : null,
+    items: summary.items.map((item) => localizeLegalDocument(item, language)),
+  };
 }

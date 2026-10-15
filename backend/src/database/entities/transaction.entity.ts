@@ -50,6 +50,34 @@ export const TIP_LEDGER_TAG = 'tip';
 @Index('idx_transactions_user_id_created_at', ['userId', 'createdAt'])
 @Index('idx_transactions_order_id', ['orderId'])
 @Index('idx_transactions_external_id', ['externalId'])
+// Soliq ushlab qolish bir buyurtmaga bir marta (migratsiya 025). Entity'da
+// e'lon qilingan — aks holda dev'dagi `synchronize` qisman indeksni
+// "begona" deb o'chirib yuborardi (012 dagi indeks shunday yo'qolgan).
+@Index('uq_transactions_tax_withholding_order', ['orderId', 'userId'], {
+  unique: true,
+  where: "external_id = 'tax_withholding'",
+})
+// Sotuvchi bilan hamyon orqali hisob-kitob — har bir qator (kuryer DEBIT,
+// sotuvchi CREDIT) buyurtmaga bir marta (migratsiya 026). Entity'da e'lon
+// qilingan — yuqoridagi soliq indeksi bilan bir xil sabab.
+@Index('uq_transactions_vendor_settlement', ['externalId'], {
+  unique: true,
+  where: "external_id LIKE 'vendor_settlement_%'",
+})
+// Hamyonni to'ldirish (CREDIT `wallet_topup_<id>`, teskari DEBIT
+// `wallet_topup_reversal_<id>`) va smena qaytarimi (`shift_pass_refund_<id>`)
+// — har biri bir marta (migratsiya 027).
+@Index('uq_transactions_wallet_topup', ['externalId'], {
+  unique: true,
+  where: "external_id LIKE 'wallet_topup_%' OR external_id LIKE 'shift_pass_refund_%'",
+})
+// Karta qaytarimida haydovchi/sotuvchi ulushini qaytarib olish
+// (`refund_clawback_driver_<id>` / `refund_clawback_vendor_<id>`) — bir marta
+// (migratsiya 029, docs §23).
+@Index('uq_transactions_refund_clawback', ['externalId'], {
+  unique: true,
+  where: "external_id LIKE 'refund_clawback_%'",
+})
 @Entity('transactions')
 export class Transaction {
   @PrimaryGeneratedColumn('uuid')

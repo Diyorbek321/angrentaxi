@@ -15,11 +15,14 @@ import { Modal } from '@/components/ui/Modal';
 import { Skeleton, SkeletonTable } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { DriverStatusBadge } from '@/components/drivers/DriverStatusBadge';
+import { DriverLegalCard } from '@/components/drivers/DriverLegalCard';
 import { OrderStatusBadge } from '@/components/orders/OrderStatusBadge';
 import { driversApi, settingsApi, Driver, DriverTrip } from '@/lib/api';
 import { usePagination } from '@/hooks/usePagination';
 import { useToast } from '@/components/ui/Toast';
 import { driverRegisteredAt } from '@/lib/driver';
+import { apiErrorMessage, apiErrorTitle } from '@/lib/api-error';
+import { balanceAdjustmentErrorMessage, validateBalanceAdjustment } from '@/lib/balance-adjustment';
 import {
   formatDateShort,
   formatDateTime,
@@ -156,12 +159,14 @@ export default function DriverDetailPage() {
         setDriver(prev => prev ? { ...prev, status: 'active', blockReason: null } : null);
         toast({ title: 'Haydovchi blokdan chiqarildi', variant: 'success' });
       } else if (actionType === 'addFunds') {
-        const amount = parseFloat(fundsAmount);
-        if (!amount) {
-          toast({ title: 'Xatolik', description: 'Miqdorni kiriting', variant: 'error' });
+        // Butun so'm, ≠ 0, |summa| ≤ 5 mln — backend bilan bir xil (§25 #6).
+        const invalid = validateBalanceAdjustment(fundsAmount);
+        if (invalid) {
+          toast({ title: 'Xatolik', description: invalid, variant: 'error' });
           return;
         }
-        const res = await driversApi.addFunds(driver.id, amount, fundsNote.trim() || undefined);
+        const amount = Number(fundsAmount);
+        const res = await driversApi.addFunds(driver.id, amount, fundsNote.trim());
         setDriver(prev => prev ? { ...prev, ...(res.data.data as Partial<Driver>) } : null);
         toast({ title: 'Balans yangilandi', variant: 'success' });
       } else if (actionType === 'commissionRate') {
@@ -171,8 +176,12 @@ export default function DriverDetailPage() {
         setDriver(prev => prev ? { ...prev, ...(res.data.data as Partial<Driver>) } : null);
         toast({ title: 'Komissiya foizi yangilandi', variant: 'success' });
       }
-    } catch {
-      toast({ title: 'Xatolik', description: 'Amalni bajarishda xatolik', variant: 'error' });
+    } catch (err) {
+      const description =
+        actionType === 'addFunds'
+          ? balanceAdjustmentErrorMessage(err, 'Balansni yangilab boʻlmadi')
+          : apiErrorMessage(err, 'Amalni bajarishda xatolik');
+      toast({ title: apiErrorTitle(err, 'Xatolik'), description, variant: 'error' });
     } finally {
       setActionLoading(false);
       setActionType(null);
@@ -343,6 +352,8 @@ export default function DriverDetailPage() {
                 </KeyValue>
             </KeyValueList>
           </DetailCard>
+
+          <DriverLegalCard driverId={driver.id} />
         </div>
 
         <DataTable
@@ -384,6 +395,9 @@ export default function DriverDetailPage() {
               variant={actionType === 'block' ? 'danger' : 'primary'}
               isLoading={actionLoading}
               onClick={handleAction}
+              // Izoh majburiy (backend 400 qaytaradi) — amallar jurnaliga va
+              // haydovchiga push matniga tushadi.
+              disabled={actionType === 'addFunds' && !fundsNote.trim()}
             >
               Tasdiqlash
             </Button>
@@ -403,15 +417,19 @@ export default function DriverDetailPage() {
             <Input
               label="Miqdor (so'm)"
               type="number"
+              inputMode="numeric"
+              step={1}
               placeholder="Masalan: 50000 yoki -10000"
               value={fundsAmount}
               onChange={(e) => setFundsAmount(e.target.value)}
             />
             <Input
-              label="Izoh (ixtiyoriy)"
+              label="Izoh (majburiy)"
               placeholder="Masalan: naqd pul orqali to'ldirildi"
               value={fundsNote}
               onChange={(e) => setFundsNote(e.target.value)}
+              required
+              maxLength={200}
             />
           </div>
         )}

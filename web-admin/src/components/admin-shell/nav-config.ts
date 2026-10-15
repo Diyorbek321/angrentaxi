@@ -1,12 +1,17 @@
 import {
+  BadgePercent,
   BarChart2,
   Bell,
   Car,
   ClipboardList,
   FileCheck2,
   Gift,
+  History,
+  Landmark,
   LayoutDashboard,
   Megaphone,
+  Receipt,
+  Scale,
   Settings,
   ShieldAlert,
   ShieldCheck,
@@ -14,6 +19,7 @@ import {
   Store,
   Tag,
   Ticket,
+  Timer,
   Users,
   Wallet,
 } from 'lucide-react';
@@ -50,10 +56,17 @@ export const ADMIN_NAV: readonly NavGroup[] = [
     ],
   },
   {
-    title: 'Mijozlar va moliya',
+    title: 'Mijozlar',
+    items: [{ href: '/dashboard/users', label: 'Foydalanuvchilar', icon: Users }],
+  },
+  {
+    title: 'Moliya',
     items: [
-      { href: '/dashboard/users', label: 'Foydalanuvchilar', icon: Users },
       { href: WITHDRAWALS_HREF, label: 'Pul yechish', icon: Wallet },
+      { href: '/dashboard/shift-passes', label: 'Smenalar', icon: Timer },
+      { href: '/dashboard/tax-report', label: 'Soliq (1%) hisoboti', icon: Landmark },
+      { href: '/dashboard/fiscal-receipts', label: 'Fiskal cheklar', icon: Receipt },
+      { href: '/dashboard/finance-settings', label: 'Moliya sozlamalari', icon: BadgePercent },
     ],
   },
   {
@@ -72,6 +85,8 @@ export const ADMIN_NAV: readonly NavGroup[] = [
       { href: '/dashboard/reports', label: 'Hisobotlar', icon: BarChart2 },
       { href: '/dashboard/settings', label: 'Sozlamalar', icon: Settings },
       { href: '/dashboard/global-settings', label: 'Umumiy sozlamalar', icon: SlidersHorizontal },
+      { href: '/dashboard/legal-compliance', label: 'Huquqiy talablar', icon: Scale },
+      { href: '/dashboard/audit-log', label: 'Amallar jurnali', icon: History },
     ],
   },
 ];

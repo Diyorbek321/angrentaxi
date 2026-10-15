@@ -8,9 +8,13 @@ import { DriverDocumentsController } from './driver-documents.controller';
 import { DriverDocumentsService } from './driver-documents.service';
 import { DriverServicesController } from './driver-services.controller';
 import { DriverServicesService } from './driver-services.service';
+import { DriverLegalController } from './driver-legal.controller';
+import { DriverLegalService } from './driver-legal.service';
 import { DriverVerificationController } from './driver-verification.controller';
 import { DriverVerificationService } from './driver-verification.service';
 import { DriverVerificationRemindersService } from './driver-verification-reminders.service';
+import { DriverWalletAdjustmentsService } from './driver-wallet-adjustments.service';
+import { WalletNotifierService } from './wallet-notifier.service';
 import { RoadSpeedController } from './road-speed.controller';
 import { RoadSpeedService } from './road-speed.service';
 import { VehicleChangeController } from './vehicle-change.controller';
@@ -27,6 +31,7 @@ import { redisProvider, REDIS_CLIENT } from '../../config/redis.config';
 import { UsersModule } from '../users/users.module';
 import { RealtimeModule } from '../realtime/realtime.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
   imports: [
@@ -50,6 +55,9 @@ import { NotificationsModule } from '../notifications/notifications.module';
     // Tekshiruv eslatmalari (cron) uchun push kanali. Aylanma bog'liqlik
     // yo'q: NotificationsModule faqat UsersModule ni oladi.
     NotificationsModule,
+    // Huquqiy talablar sozlamasi (VMQ 200 majburlash sanasi, chegaralar).
+    // SettingsModule faqat TypeORM'ga tayanadi — aylanma bog'liqlik yo'q.
+    SettingsModule,
   ],
   // RoadSpeed* shu modulda turadi (alohida modul emas): u DriversService
   // yozadigan REDIS_CLIENT ning AYNI o'zidan foydalanadi. Alohida modulda
@@ -67,6 +75,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     DriverDocumentsController,
     VehicleChangeController,
     DriverServicesController,
+    DriverLegalController,
     DriversController,
     RoadSpeedController,
   ],
@@ -75,7 +84,10 @@ import { NotificationsModule } from '../notifications/notifications.module';
     DriverDocumentsService,
     DriverVerificationService,
     DriverServicesService,
+    DriverLegalService,
     DriverVerificationRemindersService,
+    WalletNotifierService,
+    DriverWalletAdjustmentsService,
     DriverUploadsStore,
     VehicleChangeService,
     RoadSpeedService,
@@ -88,7 +100,9 @@ import { NotificationsModule } from '../notifications/notifications.module';
     DriverDocumentsService,
     DriverVerificationService,
     DriverServicesService,
+    DriverLegalService,
     RoadSpeedService,
+    WalletNotifierService,
     REDIS_CLIENT,
   ],
 })

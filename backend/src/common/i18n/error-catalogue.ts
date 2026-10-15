@@ -15,6 +15,8 @@
  * ⚠️ Matn kodda o'zgarsa, `error-messages.spec.ts` yiqiladi — lug'atni ham
  * yangilang.
  */
+import { LEGAL_DOCUMENT_TEXTS } from '../../modules/drivers/legal-document-texts';
+
 export interface ErrorCatalogueEntry {
   source: string;
   uz?: string;
@@ -211,6 +213,93 @@ export const ERROR_CATALOGUE: readonly ErrorCatalogueEntry[] = [
     uz: 'Yetkazish hozircha ishlamayapti',
     ru: 'Доставка временно недоступна',
   },
+
+  // ─── Huquqiy talablar (VMQ 200) — LEGAL_NOT_ELIGIBLE ────────────────
+  {
+    source: "Taksi uchun onlayn chiqa olmaysiz: {0}. Ilovadagi «Hujjatlar» bo'limida to'ldiring.",
+    ru: 'Нельзя выйти на линию такси: {0}. Заполните раздел «Документы» в приложении.',
+  },
+  {
+    source: "«Taksi» xizmatini yoqib bo'lmadi: {0}. Ilovadagi «Hujjatlar» bo'limida to'ldiring.",
+    ru: 'Не удалось включить услугу «Такси»: {0}. Заполните раздел «Документы» в приложении.',
+  },
+  { source: "Tug'ilgan sana kiritilmagan", ru: 'Не указана дата рождения' },
+  { source: "Haydovchi kamida {0} yoshda bo'lishi shart (VMQ 200)", ru: 'Водителю должно быть не менее {0} лет (ПКМ № 200)' },
+  { source: 'Haydovchilik guvohnomasi berilgan sana kiritilmagan', ru: 'Не указана дата выдачи водительского удостоверения' },
+  { source: "B toifali haydovchilik staji kamida {0} yil bo'lishi shart", ru: 'Стаж вождения категории B должен быть не менее {0} лет' },
+  { source: 'Avtomobil ishlab chiqarilgan yili kiritilmagan', ru: 'Не указан год выпуска автомобиля' },
+  {
+    source: "Avtomobil {0} yildan eski — shahar ichida taksi sifatida ishlatib bo'lmaydi",
+    ru: 'Автомобилю больше {0} лет — его нельзя использовать как такси в городе',
+  },
+  {
+    source: "Soliq maqomi yo'q: o'zini o'zi band qilgan yoki YaTT sifatida ro'yxatdan o'ting",
+    ru: 'Нет налогового статуса: зарегистрируйтесь как самозанятый или ИП',
+  },
+  { source: 'JShShIR (PINFL, 14 raqam) kiritilmagan', ru: 'Не указан ПИНФЛ (14 цифр)' },
+  { source: 'YaTT uchun STIR (INN, 9 raqam) kiritilishi shart', ru: 'Для ИП обязательно указать ИНН (9 цифр)' },
+  {
+    source: "Taksi haydovchisi O'zbekiston Respublikasi fuqarosi bo'lishi shart",
+    ru: 'Водитель такси должен быть гражданином Республики Узбекистан',
+  },
+  { source: 'Taksi litsenziya varaqasi raqami kiritilmagan', ru: 'Не указан номер лицензионной карточки такси' },
+  { source: "«{0}» yuklanmagan, rad etilgan yoki muddati o'tgan", ru: '«{0}» не загружен, отклонён или просрочен' },
+  // Hujjat nomlari — yuqoridagi sabab ichida `{0}` bo'lib keladi.
+  ...Object.values(LEGAL_DOCUMENT_TEXTS).map((text) => ({ source: text.label, ru: text.ru.label })),
+
+  // ─── Smena (SHIFT_PASS_*) ────────────────────────────────────────────
+  { source: 'Smena hozircha mavjud emas', ru: 'Смена пока недоступна' },
+  {
+    source: 'Sizda faol smena bor — u tugagach yangisini oling',
+    ru: 'У вас уже есть активная смена — новую можно купить после её окончания',
+  },
+  {
+    source: "Hamyonda mablag' yetarli emas: smena narxi {0} so'm, balansingiz {1} so'm. Avval hamyonni to'ldiring.",
+    ru: 'Недостаточно средств: смена стоит {0} сум, на балансе {1} сум. Сначала пополните кошелёк.',
+  },
+
+  // ─── Sotuvchiga hamyon orqali o'tkazma (WALLET_INSUFFICIENT_FOR_VENDOR) ─
+  {
+    source:
+      "Hamyonda mablag' yetarli emas: do'konga {0} so'm o'tkazish kerak, balansingiz {1} so'm. Avval hamyonni to'ldiring.",
+    ru: 'Недостаточно средств: нужно перевести заведению {0} сум, на балансе {1} сум. Сначала пополните кошелёк.',
+  },
+
+  // ─── Hamyonni to'ldirish (WALLET_TOPUP_*) ────────────────────────────
+  {
+    source: "Hamyonni karta orqali to'ldirish hozircha yoqilmagan. Dispetcherga murojaat qiling.",
+    ru: 'Пополнение кошелька картой пока не включено. Обратитесь к диспетчеру.',
+  },
+  { source: "Summa {0} so'mdan {1} so'mgacha bo'lishi kerak", ru: 'Сумма должна быть от {0} до {1} сум' },
+  { source: "Bu to'lov tizimi hali ulanmagan. Boshqasini tanlang.", ru: 'Эта платёжная система ещё не подключена. Выберите другую.' },
+  {
+    source: "To'lov tizimiga ulanib bo'lmadi. Birozdan keyin urinib ko'ring.",
+    ru: 'Не удалось подключиться к платёжной системе. Попробуйте чуть позже.',
+  },
+  { source: "To'ldirish topilmadi", ru: 'Пополнение не найдено' },
+  {
+    source: "To'lanmagan to'ldirishlar juda ko'p ({0} ta). Avvalgisini yakunlang yoki muddati o'tishini kuting.",
+    ru: 'Слишком много неоплаченных пополнений ({0}). Завершите предыдущее или дождитесь истечения его срока.',
+  },
+
+  // ─── Xavfsizlik (security review 2026-10-15) ──────────────────────────
+  {
+    source: "Karta orqali to'ldirilgan {0} so'm {1} kun davomida yechib olinmaydi. Hozir yechish mumkin: {2} so'm.",
+    ru: 'Пополнение картой на {0} сум нельзя вывести в течение {1} дн. Сейчас доступно к выводу: {2} сум.',
+  },
+  {
+    source:
+      "Hujjatingiz tasdiqlangan: JShShIR, STIR, soliq maqomi va tug'ilgan sanani endi faqat dispetcher o'zgartira oladi. Qo'llab-quvvatlash xizmatiga murojaat qiling.",
+    ru: 'Ваш документ подтверждён: ПИНФЛ, ИНН, налоговый статус и дату рождения теперь может изменить только диспетчер. Обратитесь в службу поддержки.',
+  },
+  { source: "Bu JShShIR boshqa haydovchi profilida ro'yxatdan o'tgan", ru: 'Этот ПИНФЛ уже зарегистрирован у другого водителя' },
+  { source: "Bu STIR boshqa haydovchi profilida ro'yxatdan o'tgan", ru: 'Этот ИНН уже зарегистрирован у другого водителя' },
+  {
+    source: "Menejer bir martada ko'pi bilan {0} so'm tuzatishi mumkin. Kattaroq summa uchun adminga murojaat qiling.",
+    ru: 'Менеджер может скорректировать не более {0} сум за раз. Для большей суммы обратитесь к администратору.',
+  },
+  { source: "Summa butun son va {0} so'mdan oshmasligi kerak", ru: 'Сумма должна быть целым числом и не больше {0} сум' },
+  { source: "Summa butun so'mda bo'lishi kerak", ru: 'Сумма должна быть в целых сумах' },
 
   // ─── Boshqa ──────────────────────────────────────────────────────────
   { source: 'Favorite address not found', uz: 'Saqlangan manzil topilmadi', ru: 'Сохранённый адрес не найден' },

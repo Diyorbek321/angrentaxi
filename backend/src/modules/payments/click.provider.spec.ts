@@ -104,4 +104,35 @@ describe('ClickProvider - verifyCallbackSignature()', () => {
       provider.verifyCallbackSignature({ ...baseBody, sign_string: '' }),
     ).toBe(false);
   });
+
+  describe('Click SHOP API: prepare (0) / complete (1)', () => {
+    const sign = (parts: string) => createHash('md5').update(parts).digest('hex');
+
+    it("complete imzosiga merchant_prepare_id kiradi", () => {
+      const provider = makeProvider(configured);
+      const body = {
+        ...baseBody,
+        merchant_trans_id: 'topup_x',
+        action: 1,
+        merchant_prepare_id: 42,
+      };
+      const good = sign(`111${SERVICE_ID}${SECRET_KEY}topup_x42${body.amount}1${body.sign_time}`);
+      expect(provider.verifyCallbackSignature({ ...body, sign_string: good })).toBe(true);
+      // prepare_id'siz hisoblangan imzo complete uchun yaroqsiz.
+      const withoutPrepare = sign(`111${SERVICE_ID}${SECRET_KEY}topup_x${body.amount}1${body.sign_time}`);
+      expect(provider.verifyCallbackSignature({ ...body, sign_string: withoutPrepare })).toBe(false);
+    });
+
+    it("prepare imzosiga merchant_prepare_id kirmaydi", () => {
+      const provider = makeProvider(configured);
+      const body = { ...baseBody, merchant_trans_id: 'topup_x', action: 0 };
+      const good = sign(`111${SERVICE_ID}${SECRET_KEY}topup_x${body.amount}0${body.sign_time}`);
+      expect(provider.verifyCallbackSignature({ ...body, sign_string: good })).toBe(true);
+    });
+
+    it('isConfigured — uchala kalit kerak', () => {
+      expect(makeProvider(configured).isConfigured()).toBe(true);
+      expect(makeProvider({ CLICK_SERVICE_ID: SERVICE_ID }).isConfigured()).toBe(false);
+    });
+  });
 });

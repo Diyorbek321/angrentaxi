@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { attachAuthInterceptor } from './session';
 import type { DeliveryInfo } from './courier';
+import type { VendorWalletSettlement } from './vendor-cash';
 
 /**
  * Requests go to this app's own /api/proxy, not to the backend directly. The
@@ -102,6 +103,10 @@ export interface Store {
   deliveryMode: DeliveryMode;
   lowStockThreshold: number;
   status: 'active' | 'closed';
+  /** STIR (9 raqam) — fiskal chekda komitent sifatida (docs/LEGAL-COMPLIANCE.md §3). */
+  tin?: string | null;
+  /** Platforma komissiyasi, % — faqat o'qish. */
+  commissionRate?: number;
   /** Muqova rasmi kaliti (`lib/catalog-image.ts`); faqat o'qish — rasm alohida endpoint orqali. */
   imageKey?: string | null;
 }
@@ -184,6 +189,11 @@ export interface MarketOrder {
   vendorCashDisputedAt?: string | null;
   vendorCashDisputeResolvedAt?: string | null;
   vendorCashDisputeResolution?: string | null;
+  /** Hamyon rejimi: kuryer hamyonidan o'tkazilgan payt (lib/vendor-cash.ts). */
+  vendorWalletSettledAt?: string | null;
+  /** O'tkazma summalari, o'tkazma PAYTIDA saqlangan (§22); `null` — hamyon orqali o'tkazilmagan. */
+  vendorWalletSettlement?: VendorWalletSettlement | null;
+  vendorWalletReversalCount?: number;
 }
 
 export interface StockMovement {
@@ -222,6 +232,13 @@ export interface ReportsData {
   stockTurnover: number;
 }
 
+// ─── Platforma sozlamalari ─────────────────────────────────────────
+
+export const settingsApi = {
+  /** Hisob-kitob rejimi (amaldagi) va hamyonga o'tish sanasi — lib/vendor-settlement.ts. */
+  getPublic: () => api.get<ApiResponse<unknown>>('/settings/public'),
+};
+
 // ─── Vendor API ────────────────────────────────────────────────────
 
 export const marketApi = {
@@ -238,7 +255,7 @@ export const marketApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
   removeStoreImage: () => api.delete<ApiResponse<Store>>('/market/vendor/store/image'),
-  updateStore: (data: Partial<Pick<Store, 'name' | 'phone' | 'address' | 'lat' | 'lng' | 'workingHoursStart' | 'workingHoursEnd' | 'deliveryMode' | 'lowStockThreshold'>>) =>
+  updateStore: (data: Partial<Pick<Store, 'name' | 'phone' | 'address' | 'lat' | 'lng' | 'workingHoursStart' | 'workingHoursEnd' | 'deliveryMode' | 'lowStockThreshold' | 'tin'>>) =>
     api.patch<ApiResponse<Store>>('/market/vendor/store', data),
 
   getDashboard: () => api.get<ApiResponse<DashboardData>>('/market/vendor/dashboard'),

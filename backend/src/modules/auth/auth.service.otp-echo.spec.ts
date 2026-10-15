@@ -28,9 +28,9 @@ import { RefreshToken } from '../../database/entities/refresh-token.entity';
  */
 describe('AuthService — OTP kodini javobda qaytarish', () => {
   let service: AuthService;
-  let config: Record<string, string>;
+  let config: Record<string, unknown>;
 
-  async function build(overrides: Record<string, string> = {}): Promise<void> {
+  async function build(overrides: Record<string, unknown> = {}): Promise<void> {
     config = {
       OTP_BYPASS_ENABLED: 'true',
       OTP_BYPASS_CODE: '123456',
@@ -127,5 +127,23 @@ describe('AuthService — OTP kodini javobda qaytarish', () => {
     const result = await service.sendOtp('+998901234567');
 
     expect(result.code).toBeUndefined();
+  });
+
+  // ⚠️ Validatsiyadan keyin ConfigService boolean qaytaradi. Ilgari
+  // `OTP_BYPASS_ENABLED=false` → implicit conversion → `true` edi.
+  it('validatsiyadan o\'tgan `false` boolean bypass\'ni yoqmaydi', async () => {
+    await build({ OTP_BYPASS_ENABLED: false, OTP_ECHO_CODE: 'true' });
+
+    const result = await service.sendOtp('+998901234567');
+
+    expect(result.code).toBeUndefined();
+  });
+
+  it("productionda ikkinchi darvoza faqat aynan 'true' bilan ochiladi", async () => {
+    await build({ NODE_ENV: 'production', ALLOW_OTP_BYPASS_IN_PROD: '1', OTP_ECHO_CODE: 'true' });
+    expect((await service.sendOtp('+998901234567')).code).toBeUndefined();
+
+    await build({ NODE_ENV: 'production', ALLOW_OTP_BYPASS_IN_PROD: 'true', OTP_ECHO_CODE: 'true' });
+    expect((await service.sendOtp('+998901234567')).code).toBe('123456');
   });
 });

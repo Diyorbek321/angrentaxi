@@ -1,0 +1,126 @@
+import { BadRequestException } from '@nestjs/common';
+import { SettingsService } from './settings.service';
+
+/** Bosqich 2: sotuvchi hisob-kitob rejimi va smena sozlamalari. */
+describe('SettingsService — sotuvchi hisob-kitobi va smena', () => {
+  const DEFAULT_FROM = new Date('2026-12-12T00:00:00+05:00');
+
+  function build(overrides: Record<string, unknown> = {}) {
+    const row = {
+      id: 's1',
+      platformName: 'Angren Taxi',
+      supportPhone: '+998',
+      supportEmail: 'a@b.uz',
+      maintenanceMode: false,
+      deliveryFee: 7000,
+      maxCashVendorOrder: 200000,
+      vendorSettlementMode: 'cash',
+      vendorWalletSettlementFrom: DEFAULT_FROM,
+      shiftPassEnabled: false,
+      shiftPassPrice: 25000,
+      shiftPassDurationHours: 24,
+      shiftPassServiceTypes: ['taxi'],
+      ...overrides,
+    };
+    const repo = {
+      find: jest.fn(async () => [row]),
+      update: jest.fn(async (_id: string, changes: Record<string, unknown>) => {
+        Object.assign(row, changes);
+        return { affected: 1 };
+      }),
+    };
+    return { service: new SettingsService(repo as never), repo };
+  }
+
+  afterEach(() => jest.useRealTimers());
+
+  describe('vendor settlement', () => {
+    it('standart: cash, 2026-12-12 dan hamyon; bugun amalda — cash', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-10-15T12:00:00Z'));
+      const { service } = build();
+      await expect(service.getVendorSettlementSettings()).resolves.toEqual({
+        vendorSettlementMode: 'cash',
+        vendorWalletSettlementFrom: '2026-12-11T19:00:00.000Z',
+        effectiveVendorSettlementMode: 'cash',
+      });
+    });
+
+    it('sana kelgach amaldagi rejim — wallet', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-12-12T08:00:00+05:00'));
+      const { service } = build();
+      await expect(service.getEffectiveVendorSettlementMode()).resolves.toBe('wallet');
+    });
+
+    it('admin wallet ni yoqadi va sanani o‘zgartiradi/null qiladi', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-10-15T12:00:00Z'));
+      const { service, repo } = build();
+      const res = await service.updateVendorSettlementSettings({
+        vendorSettlementMode: 'wallet',
+        vendorWalletSettlementFrom: null,
+      });
+      expect(repo.update).toHaveBeenCalledWith('s1', {
+        vendorSettlementMode: 'wallet',
+        vendorWalletSettlementFrom: null,
+      });
+      expect(res).toEqual({
+        vendorSettlementMode: 'wallet',
+        vendorWalletSettlementFrom: null,
+        effectiveVendorSettlementMode: 'wallet',
+      });
+    });
+
+    it('noto‘g‘ri sana — 400', async () => {
+      const { service } = build();
+      await expect(
+        service.updateVendorSettlementSettings({ vendorWalletSettlementFrom: 'kecha' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe('shift pass', () => {
+    it('standart qiymatlar', async () => {
+      const { service } = build();
+      await expect(service.getShiftPassSettings()).resolves.toEqual({
+        shiftPassEnabled: false,
+        shiftPassPrice: 25000,
+        shiftPassDurationHours: 24,
+        shiftPassServiceTypes: ['taxi'],
+      });
+    });
+
+    it('faqat yuborilgan maydonlar o‘zgaradi; xizmat turlari takrorsiz', async () => {
+      const { service, repo } = build();
+      const res = await service.updateShiftPassSettings({
+        shiftPassEnabled: true,
+        shiftPassServiceTypes: ['taxi', 'cargo', 'taxi'],
+      });
+      expect(repo.update).toHaveBeenCalledWith('s1', {
+        shiftPassEnabled: true,
+        shiftPassServiceTypes: ['taxi', 'cargo'],
+      });
+      expect(res).toMatchObject({ shiftPassEnabled: true, shiftPassPrice: 25000, shiftPassServiceTypes: ['taxi', 'cargo'] });
+    });
+  });
+
+  describe('public settings', () => {
+    it('kuryer/sotuvchi ilovasi uchun amaldagi rejim qo‘shiladi', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-10-15T12:00:00Z'));
+      const { service } = build();
+      await expect(service.getPublicSettings()).resolves.toEqual({
+        platformName: 'Angren Taxi',
+        supportPhone: '+998',
+        deliveryFee: 7000,
+        maxCashVendorOrder: 200000,
+        vendorSettlementMode: 'cash',
+        vendorWalletSettlementFrom: '2026-12-11T19:00:00.000Z',
+        // 3-bosqich (§11): hamyonni to'ldirish — standart o'chiq.
+        walletTopupEnabled: false,
+        walletTopupMin: 10000,
+        walletTopupMax: 2000000,
+        walletTopupPresets: [50000, 100000, 200000],
+        // Ilova izohi uchun (#3a); menejer chegarasi public'ga chiqmaydi.
+        walletTopupHoldDays: 7,
+      });
+    });
+  });
+});

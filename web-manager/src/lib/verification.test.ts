@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PendingVerification } from './api';
-import { groupVerifications } from './verification';
+import { groupVerifications, isLegalDocument, validateValidUntil, verificationLabel } from './verification';
 
 const entry = (over: Partial<PendingVerification>): PendingVerification => ({
   id: 'x',
@@ -32,5 +32,24 @@ describe('groupVerifications', () => {
       entry({ id: 'old', driverId: 'd2', submittedAt: '2026-10-05T09:00:00Z' }),
     ]);
     expect(groups.map((g) => g.driverId)).toEqual(['d2', 'd1']);
+  });
+});
+
+describe('legal documents', () => {
+  it('4 ta yangi hujjat oʻzbekcha nomga ega (label boʻsh kelsa ham)', () => {
+    for (const code of ['taxi_licence', 'medical_check', 'carrier_insurance', 'tech_inspection']) {
+      expect(isLegalDocument(code)).toBe(true);
+      expect(verificationLabel({ code, label: '' })).not.toBe(code);
+      expect(verificationLabel({ code, label: code })).not.toBe(code);
+    }
+    expect(verificationLabel({ code: 'passport', label: 'Pasport' })).toBe('Pasport');
+    expect(isLegalDocument('passport')).toBe(false);
+  });
+
+  it('validUntil: boʻsh — ruxsat, oʻtgan sana — xato', () => {
+    expect(validateValidUntil('', '2026-10-15')).toBeNull();
+    expect(validateValidUntil('2027-03-14', '2026-10-15')).toBeNull();
+    expect(validateValidUntil('2026-10-15', '2026-10-15')).toMatch(/rad/);
+    expect(validateValidUntil('abc', '2026-10-15')).toMatch(/notoʻgʻri/);
   });
 });

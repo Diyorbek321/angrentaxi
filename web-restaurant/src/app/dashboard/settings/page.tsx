@@ -6,6 +6,7 @@ import { foodApi, Notifications, Restaurant, WorkingHoursDay } from '@/lib/api';
 import { useAsyncData, errorMessage } from '@/hooks/useAsyncData';
 import { catalogImageForm, catalogImageSrc, ImageChange } from '@/lib/catalog-image';
 import { usePageRefresh } from '@/components/shell';
+import { tinError } from '@/lib/tin';
 import { ImagePicker } from '@/components/ImagePicker';
 import { cn } from '@/components/ui/cn';
 import { Badge } from '@/components/ui/Badge';
@@ -27,6 +28,8 @@ interface Draft {
   hours: WorkingHoursDay[];
   radius: number;
   notifications: Notifications;
+  /** STIR (9 raqam) — fiskal chek uchun; bo'sh — kiritilmagan. */
+  tin: string;
   /** Saqlangan muqova kaliti va formadagi tanlov. */
   imageKey: string | null;
   image: ImageChange;
@@ -42,6 +45,7 @@ function toDraft(r: Restaurant): Draft {
     hours: r.hours ?? [],
     radius: r.deliveryRadiusKm,
     notifications: r.notifications,
+    tin: r.tin ?? '',
     imageKey: r.imageKey ?? null,
     image: { kind: 'keep' },
   };
@@ -112,6 +116,11 @@ export default function SettingsPage() {
 
   const save = async () => {
     if (!draft) return;
+    const tinInvalid = tinError(draft.tin);
+    if (tinInvalid) {
+      toast({ title: 'STIR notoʻgʻri', description: tinInvalid, variant: 'error' });
+      return;
+    }
     setSaving(true);
     try {
       const res = await foodApi.updateRestaurant({
@@ -123,6 +132,8 @@ export default function SettingsPage() {
         notifications: draft.notifications,
         lat: draft.lat ? Number(draft.lat) : undefined,
         lng: draft.lng ? Number(draft.lng) : undefined,
+        // Bo'sh — STIR olib tashlanadi (null), aks holda 9 raqam.
+        tin: draft.tin.trim() === '' ? null : draft.tin.trim(),
       });
       reset(res.data.data);
     } catch (err) {
@@ -288,6 +299,24 @@ export default function SettingsPage() {
                     ))}
                   </ul>
                 )}
+              </Card>
+
+              <Card padding="none">
+                <CardHeader title="Soliq maʼlumotlari" description="Fiskal chek uchun" />
+                <CardBody>
+                  <Input
+                    label="STIR (INN)"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    className="num"
+                    maxLength={9}
+                    placeholder="123456789"
+                    value={draft.tin}
+                    onChange={(e) => patch({ tin: e.target.value.replace(/\D/g, '') })}
+                    error={tinError(draft.tin) ?? undefined}
+                    hint="Fiskal chekda koʻrsatiladi. 9 ta raqam; kiritilmasa chekda restoran koʻrinmaydi."
+                  />
+                </CardBody>
               </Card>
 
               <Card padding="none">

@@ -44,7 +44,7 @@ import { OrderReceiptDto } from './dto/order-receipt.dto';
 import { FraudReviewDto } from './dto/fraud-review.dto';
 import { FraudReviewEntry, OrderFraudService } from './order-fraud.service';
 import { parseDeviceId } from './fraud-rules';
-import { VendorCashService } from '../delivery/vendor-cash.service';
+import { VendorCashService, VendorPaidResult } from '../delivery/vendor-cash.service';
 
 @ApiTags('Orders')
 @ApiBearerAuth('JWT-auth')
@@ -341,15 +341,17 @@ export class OrdersController {
   /**
    * Kuryer: "do'konga tovar pulini to'ladim" (naqd ovqat/market). Busiz
    * safarni boshlab bo'lmaydi — `VendorCashService.assertReadyForPickup`.
+   * Hamyon rejimida (`method: 'wallet'`) shu chaqiruv kuryer hamyonidan
+   * sotuvchi hisobiga o'tkazma qiladi; sotuvchi tasdig'i kerak emas.
    */
   @Patch(':id/vendor-paid')
   @Roles(UserRole.DRIVER)
-  @ApiOperation({ summary: "Kuryer do'konga tovar pulini to'ladi" })
+  @ApiOperation({ summary: "Kuryer do'konga tovar pulini to'ladi (naqd) yoki hamyondan o'tkazdi" })
   async markVendorPaid(
     @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<{ amount: number }> {
-    if (!this.vendorCash) return { amount: 0 };
+  ): Promise<VendorPaidResult> {
+    if (!this.vendorCash) return { amount: 0, method: 'cash' };
     return this.vendorCash.markPaidByCourier(user.id, id);
   }
 

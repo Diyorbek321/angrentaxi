@@ -1,5 +1,9 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
+import 'package:angren_taxi/features/driver/wallet/driver_wallet_events_host.dart';
+import 'package:angren_taxi/features/driver/wallet/driver_wallet_provider.dart';
+import 'package:angren_taxi/features/driver/wallet/wallet_error_messages.dart';
+import 'package:angren_taxi/features/driver/widgets/shift_pass_card.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/driver_bonus_progress.dart';
 import 'package:angren_taxi/shared/models/driver_earnings_breakdown.dart';
@@ -33,16 +37,13 @@ import 'package:provider/provider.dart';
 //   3. Davr (Bugun / Hafta / Oy) hero USTIDA turadi: u butun kartaning
 //      ma'nosini o'zgartiradi, shuning uchun raqamdan OLDIN o'qilishi kerak.
 //
-// ⚠️ CHAQIM (tips) QATORI YO'Q — MA'LUMOT YO'QLIGI UCHUN, unutilgani uchun
-// emas. Backend chaqimni alohida daftar yozuvi sifatida saqlaydi
-// (`transaction.external_id = 'tip'`, komissiyasiz — backend/src/modules/
-// orders/orders-tips.service.ts), lekin GET /orders/earnings/breakdown uni
-// qaytarmaydi: javobda faqat `gross` / `commission` / `net` / `trips` bor
-// (backend/src/modules/orders/orders-earnings.service.ts). Shu sababli
-// chaqim `gross` ichiga ham, `net` ichiga ham kirmaydi — ya'ni hamyondagi
-// pul bu ekrandagi sof daromaddan KATTA bo'lishi mumkin. To'liq zanjir
-// uchun avval backendga `tips` maydoni qo'shilishi kerak, keyin bu yerga
-// bitta `_LedgerRow` (kMintSoft, "+" bilan) qo'shiladi.
+// CHAQIM (tips, §22): backend `tips` va `netWithTips` qaytaradi. `net` —
+// faqat yo'l haqidan sof (chaqim kirmaydi). Chaqim > 0 bo'lsa zanjir:
+// … → "Yo'l haqidan sof" (net) → "+ Chaqim" → "Jami sof tushum"
+// (netWithTips), hero raqami ham netWithTips. Chaqim 0 bo'lsa avvalgidek
+// (netWithTips == net). ⚠️ Bu raqam hamyon o'zgarishi EMAS: naqd yo'l haqi
+// haydovchi qo'lida — hamyon qoldig'i alohida `_WalletRow` da
+// (`GET /payments/wallet`).
 //
 // Ranglar: siyoh yuzada haydovchining asosiy raqami kMintSoft (11.22:1) —
 // oq (17.5:1) qatorlar uchun qoldirilgan, shunda "pul" rangi ledger
@@ -112,8 +113,17 @@ class _EarningsScreenState extends State<EarningsScreen> {
       provider.loadWalletBalance();
       provider.loadEarningsBreakdown();
       provider.loadBonusProgress();
+      // Smena va to'ldirish sozlamalari. Provayder ixtiyoriy (eski vidjet
+      // testlari faqat DriverProvider bilan quradi) — yo'q bo'lsa bo'limlar
+      // chizilmaydi.
+      final wallet = _walletProvider(context);
+      wallet?.loadShiftPass();
+      wallet?.loadSettings();
     });
   }
+
+  static DriverWalletProvider? _walletProvider(BuildContext context) =>
+      Provider.of<DriverWalletProvider?>(context, listen: false);
 
   @override
   Widget build(BuildContext context) {
@@ -172,6 +182,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
 
           return RefreshIndicator(
             onRefresh: () async {
+              final wallet = _walletProvider(context);
               await provider.loadEarnings();
               await provider.loadOrderHistory();
               await provider.loadEarningsBreakdown();
@@ -179,6 +190,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
               // Yechish so'rovi tasdiqlangan yoki rad etilgan bo'lishi
               // mumkin — ikkalasi ham qoldiqni o'zgartiradi.
               await provider.loadWalletBalance();
+              await wallet?.loadShiftPass();
             },
             color: kPrimary,
             child: CustomScrollView(
@@ -187,6 +199,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                 SliverToBoxAdapter(
                   child: _buildEarningsHero(context, provider),
                 ),
+                SliverToBoxAdapter(child: _buildShiftPass(context)),
                 if (provider.bonusProgress.isNotEmpty)
                   SliverToBoxAdapter(
                     child: _buildBonusSection(context, provider),
@@ -320,7 +333,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
           ),
           const SizedBox(height: kSpace1),
           Text(
-            Formatters.formatPrice(period.net),
+            Formatters.formatPrice(period.netWithTips),
             key: const ValueKey('earnings_net_value'),
             style: const TextStyle(
               // Haydovchining ASOSIY raqami quyoshda o'qilishi kerak.
@@ -356,6 +369,38 @@ class _EarningsScreenState extends State<EarningsScreen> {
             ),
           ],
           const SizedBox(height: kSpace4),
+          // Hamyonni to'ldirish — qarz bo'lsa (onlayn chiqishni to'sadi)
+          // yoki kuryer hamyon rejimida do'konga to'lash uchun.
+          if (_walletProvider(context) != null) ...[
+            SizedBox(
+              width: double.infinity,
+              height: kControlHeightDriver,
+              child: OutlinedButton.icon(
+                key: const ValueKey('topup_open_button'),
+                onPressed: () =>
+                    Navigator.of(context).pushNamed(kDriverTopupRoute),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: kOnPrimary,
+                  side: BorderSide(
+                    color: kOnPrimary.withValues(alpha: 0.6),
+                    width: 1.5,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(kRadiusMd),
+                  ),
+                ),
+                icon: const Icon(Icons.add_card_rounded),
+                label: Text(
+                  context.l10n.wltTopUpTitle,
+                  style: const TextStyle(
+                    fontSize: kFontTitle,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: kSpace3),
+          ],
           SizedBox(
             width: double.infinity,
             // Haydovchi nishoni — `kControlHeight` (54, yo'lovchi uchun)
@@ -434,19 +479,71 @@ class _EarningsScreenState extends State<EarningsScreen> {
             valueColor: kWarningDark,
             valueKey: const ValueKey('earnings_commission_value'),
           ),
+          // 1% aylanma solig'i (PQ-247) — platforma soliq agenti sifatida
+          // ushlab qoladi. Ushlab qolish o'chiq bo'lsa ham qator turadi
+          // (0 so'm): haydovchi soliq hisobga olinganini/olinmaganini
+          // aniq ko'rsin.
+          _LedgerRow(
+            label: context.l10n.ernTaxWithheld,
+            value: '- ${Formatters.formatPrice(period.taxWithheld)}',
+            valueColor: kWarningDark,
+            valueKey: const ValueKey('earnings_tax_value'),
+          ),
+          // Smena — faqat davrda sotib olingan bo'lsa (aks holda doim 0 va
+          // smena ishlatmaydigan haydovchi uchun shovqin).
+          if (period.shiftPassCost > 0)
+            _LedgerRow(
+              label: context.l10n.ernShiftPass,
+              value: '- ${Formatters.formatPrice(period.shiftPassCost)}',
+              valueColor: kWarningDark,
+              valueKey: const ValueKey('earnings_shift_pass_value'),
+            ),
           Divider(
             height: kSpace5,
             thickness: 1,
             color: kOnPrimary.withValues(alpha: 0.18),
           ),
+          if (period.tips > 0) ...[
+            _LedgerRow(
+              label: context.l10n.ernNetFromFares,
+              value: Formatters.formatPrice(period.net),
+              valueKey: const ValueKey('earnings_fares_net_value'),
+            ),
+            _LedgerRow(
+              label: context.l10n.ernTips,
+              value: '+ ${Formatters.formatPrice(period.tips)}',
+              valueColor: kMintSoft,
+              valueKey: const ValueKey('earnings_tips_value'),
+            ),
+            Divider(
+              height: kSpace5,
+              thickness: 1,
+              color: kOnPrimary.withValues(alpha: 0.18),
+            ),
+          ],
           _LedgerRow(
-            label: context.l10n.drvYouKeep,
-            value: Formatters.formatPrice(period.net),
-            valueColor: kMintSoft,
+            label: period.tips > 0
+                ? context.l10n.ernNetWithTips
+                : context.l10n.drvYouKeep,
+            value: Formatters.formatPrice(period.netWithTips),
+            valueColor: period.netWithTips < 0 ? kWarningDark : kMintSoft,
+            valueKey: const ValueKey('earnings_ledger_net_value'),
             bold: true,
           ),
         ],
       ),
+    );
+  }
+
+  /// Smena kartasi — provayder bo'lmasa yoki smena o'chiq bo'lsa bo'sh.
+  Widget _buildShiftPass(BuildContext context) {
+    final wallet = Provider.of<DriverWalletProvider?>(context);
+    if (wallet == null || !wallet.shiftPass.enabled) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(kSpace4, 0, kSpace4, kSpace4),
+      child: ShiftPassCard(info: wallet.shiftPass),
     );
   }
 
@@ -556,8 +653,25 @@ class _WithdrawDialogState extends State<_WithdrawDialog> {
     }
     if (balance != null && amount > balance) {
       setState(
-        () => _validationError =
-            context.l10n.drvAmountExceedsWallet(Formatters.formatPrice(balance)),
+        () => _validationError = context.l10n
+            .drvAmountExceedsWallet(Formatters.formatPrice(balance)),
+      );
+      return;
+    }
+    // Karta to'ldirishlari ushlab turilgan (§25 #3a) — server ham shu
+    // chegarani qo'yadi (`WALLET_WITHDRAWAL_ON_HOLD`).
+    final available = provider.availableForWithdrawal;
+    if (available != null && amount > available) {
+      final note = withdrawalHoldNote(
+        held: provider.withdrawalHold,
+        holdDays: provider.withdrawalHoldDays,
+      );
+      final limit = available > 0
+          ? context.l10n
+              .wdrAmountExceedsAvailable(Formatters.formatPrice(available))
+          : context.l10n.wdrNothingAvailable;
+      setState(
+        () => _validationError = [limit, if (note != null) note].join('\n'),
       );
       return;
     }
@@ -573,6 +687,41 @@ class _WithdrawDialogState extends State<_WithdrawDialog> {
     if (success) {
       Navigator.of(context).pop();
     }
+  }
+
+  /// "Yechish mumkin: X" + ushlab turilgan karta to'ldirishi izohi. Ushlab
+  /// turilgan narsa yo'q bo'lsa — hech narsa (qoldiq qatori yetarli).
+  Widget _buildHoldInfo(BuildContext context, DriverProvider provider) {
+    final available = provider.availableForWithdrawal;
+    final note = withdrawalHoldNote(
+      held: provider.withdrawalHold,
+      holdDays: provider.withdrawalHoldDays,
+    );
+    if (available == null || note == null) return const SizedBox.shrink();
+    return Padding(
+      key: const ValueKey('withdraw_hold_info'),
+      padding: const EdgeInsets.only(bottom: kSpace3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            context.l10n.wdrAvailable(Formatters.formatPrice(available)),
+            key: const ValueKey('withdraw_available_text'),
+            style: const TextStyle(
+              color: kInk,
+              fontSize: kFontBody,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: kSpace1),
+          Text(
+            note,
+            key: const ValueKey('withdraw_hold_note'),
+            style: const TextStyle(color: kInkMuted, fontSize: kFontLabel),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -604,6 +753,7 @@ class _WithdrawDialogState extends State<_WithdrawDialog> {
                       ),
                     ),
                   ),
+                if (!provider.hasWalletDebt) _buildHoldInfo(context, provider),
                 TextField(
                   key: const ValueKey('withdraw_amount_field'),
                   controller: _amountController,

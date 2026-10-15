@@ -325,6 +325,25 @@ export class NotificationsService {
     await this.logNotification(driver.id, title, body, 'verification_due');
   }
 
+  /**
+   * Hamyon harakati haqida xabar (to'ldirish, qo'lda tuzatish, qaytarim,
+   * kuryerga hamyon eslatmasi). Matnni chaqiruvchi tuzadi — summa va sabab
+   * matnning o'zida turishi kerak (`notifyBonusAwarded` dagi sabab bilan).
+   */
+  async notifyWalletEvent(
+    recipient: User,
+    title: string,
+    body: string,
+    event: string,
+    data: Record<string, string> = {},
+  ): Promise<void> {
+    if (recipient.fcmToken) {
+      await this.firebaseService.sendPush(recipient.fcmToken, title, body, { event, ...data });
+    }
+
+    await this.logNotification(recipient.id, title, body, event);
+  }
+
   async sendOtpSms(phone: string, code: string): Promise<void> {
     await this.eskizService.sendSms(
       phone,

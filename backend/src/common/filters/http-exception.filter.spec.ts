@@ -1,5 +1,6 @@
 import { ArgumentsHost, BadRequestException, HttpStatus, Logger } from '@nestjs/common';
 import { HttpExceptionFilter } from './http-exception.filter';
+import { ERROR_CODES, codedBadRequest, codedConflict } from '../errors/coded-error';
 
 /**
  * Unhandled (non-HttpException) errors used to have their `message` copied
@@ -96,4 +97,47 @@ describe('HttpExceptionFilter', () => {
     filter.catch(new BadRequestException('Selected tariff is not available'), host);
     expect(lastBody()).toMatchObject({ message: 'Tanlangan tarif hozir mavjud emas' });
   });
+
+  describe('mashina o\'qiydigan kod (code / reasons / details)', () => {
+    it("oddiy xatoda yangi maydonlar YO'Q (konvert o'zgarmagan)", () => {
+      filter.catch(new BadRequestException('Phone number is invalid'), host);
+      expect(lastBody()).not.toHaveProperty('code');
+      expect(lastBody()).not.toHaveProperty('reasons');
+      expect(lastBody()).not.toHaveProperty('details');
+    });
+
+    it("kod, sabablar va tafsilotlar konvertga ko'chiriladi", () => {
+      filter.catch(
+        codedBadRequest(ERROR_CODES.legalNotEligible, "Smena hozircha mavjud emas", {
+          reasons: [{ code: 'pinfl_missing', message: 'JShShIR (PINFL, 14 raqam) kiritilmagan' }],
+          details: { balance: -500 },
+        }),
+        host,
+      );
+      expect(statusMock).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+      expect(lastBody()).toMatchObject({
+        success: false,
+        statusCode: 400,
+        code: 'LEGAL_NOT_ELIGIBLE',
+        reasons: [{ code: 'pinfl_missing', message: 'JShShIR (PINFL, 14 raqam) kiritilmagan' }],
+        details: { balance: -500 },
+      });
+    });
+
+    it("ruscha: xabar ham, har bir sabab ham o'giriladi; kod o'zgarmaydi", () => {
+      headers['accept-language'] = 'ru';
+      filter.catch(
+        codedConflict(ERROR_CODES.shiftPassActive, 'Sizda faol smena bor — u tugagach yangisini oling', {
+          reasons: [{ code: 'pinfl_missing', message: 'JShShIR (PINFL, 14 raqam) kiritilmagan' }],
+        }),
+        host,
+      );
+      expect(statusMock).toHaveBeenCalledWith(HttpStatus.CONFLICT);
+      const body = lastBody();
+      expect(body.code).toBe('SHIFT_PASS_ACTIVE');
+      expect(body.message).toBe('У вас уже есть активная смена — новую можно купить после её окончания');
+      expect(body.reasons).toEqual([{ code: 'pinfl_missing', message: 'Не указан ПИНФЛ (14 цифр)' }]);
+    });
+  });
 });
+

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { attachAuthInterceptor } from './session';
+import type { DriverLegalBrief } from './compliance-api';
 
 /**
  * Requests go to this app's own /api/proxy, not to the backend directly. The
@@ -202,6 +203,8 @@ export interface Driver {
    */
   walletBalance?: number;
   commissionRate?: number | null;
+  /** Huquqiy talablar qisqa xulosasi (`GET /drivers`, §22); `null` — hisoblab bo'lmadi. */
+  legal?: DriverLegalBrief | null;
 }
 
 export interface DriverTrip {
@@ -237,7 +240,7 @@ export const driversApi = {
   unblock: (userId: string) => api.patch<ApiResponse<User>>(`/users/${userId}/unblock`),
 
   // amount may be negative for a manual correction; positive tops up the balance.
-  addFunds: (id: string, amount: number, note?: string) =>
+  addFunds: (id: string, amount: number, note: string) =>
     api.patch<ApiResponse<Driver>>(`/drivers/${id}/balance`, { amount, note }),
 
   setCommissionRate: (id: string, commissionRate: number | null) =>
@@ -687,6 +690,8 @@ export interface StoreVendor {
   lng: number | null;
   status: 'active' | 'closed';
   owner: { phone: string; firstName: string | null; lastName: string | null };
+  /** Sotuvchining STIR'i (9 raqam) — fiskal chek komitenti. Sotuvchi o'zi kiritadi. */
+  tin?: string | null;
   createdAt: string;
 }
 
@@ -699,6 +704,8 @@ export interface RestaurantVendor {
   lng: number | null;
   status: 'active' | 'closed';
   owner: { phone: string; firstName: string | null; lastName: string | null };
+  /** Sotuvchining STIR'i (9 raqam) — fiskal chek komitenti. Sotuvchi o'zi kiritadi. */
+  tin?: string | null;
   createdAt: string;
 }
 
@@ -730,6 +737,9 @@ export const marketAdminApi = {
     api.post<ApiResponse<StoreVendor>>('/market/admin/stores', data),
   setStatus: (id: string, status: 'active' | 'closed') =>
     api.patch<ApiResponse<StoreVendor>>(`/market/admin/stores/${id}/status`, { status }),
+  /** Admin: STIR (9 raqam) yoki `null` — tozalash. Audit `vendor.tin_update` (§23). */
+  setTin: (id: string, tin: string | null) =>
+    api.patch<ApiResponse<StoreVendor>>(`/market/admin/stores/${id}/tin`, { tin }),
 };
 
 export const foodAdminApi = {
@@ -738,6 +748,9 @@ export const foodAdminApi = {
     api.post<ApiResponse<RestaurantVendor>>('/food/admin/restaurants', data),
   setStatus: (id: string, status: 'active' | 'closed') =>
     api.patch<ApiResponse<RestaurantVendor>>(`/food/admin/restaurants/${id}/status`, { status }),
+  /** Admin: STIR (9 raqam) yoki `null` — tozalash. Audit `vendor.tin_update` (§23). */
+  setTin: (id: string, tin: string | null) =>
+    api.patch<ApiResponse<RestaurantVendor>>(`/food/admin/restaurants/${id}/tin`, { tin }),
 };
 
 // ─── Ads (home-screen banners) ────────────────────────────────────

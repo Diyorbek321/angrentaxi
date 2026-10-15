@@ -372,6 +372,13 @@ export class MarketService implements OnModuleInit {
   // means the platform holds the funds, so the store is credited the gross
   // and debited the commission, netting to the payout the platform owes.
   private async settleStoreEarnings(store: Store, order: MarketOrder): Promise<void> {
+    // Hamyon rejimida (e-tijorat qonuni 23-modda) tovar summasi va komissiya
+    // olib ketishda allaqachon daftarga yozilgan
+    // (`delivery/vendor-wallet-settlement.ts`) — ikkinchi marta yozilmaydi.
+    if (order.vendorWalletSettledAt) {
+      return;
+    }
+
     const commissionAmount = Math.round((order.totalPrice * store.commissionRate) / 100);
     if (commissionAmount <= 0) {
       return;
@@ -528,7 +535,8 @@ export class MarketService implements OnModuleInit {
 
     this.realtimeGateway.emitToUser(order.customerId, 'market:order:courier', {
       orderId: order.id,
-      stage: event.kind,
+      // Qayta biriktirish — mijoz uchun yangi kuryer qabul qildi.
+      stage: event.kind === 'reassigned' ? 'accepted' : event.kind,
     });
   }
 

@@ -16,6 +16,11 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { DriversService } from './drivers.service';
+import { DriverPublicView, toDriverPublicView } from './driver-public-view';
+import {
+  DriverWalletAdjustmentsService,
+  DriverWithWallet,
+} from './driver-wallet-adjustments.service';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
 import { UpdateAmenitiesDto } from './dto/update-amenities.dto';
@@ -46,6 +51,7 @@ export class DriversController {
     private readonly driversService: DriversService,
     private readonly usersService: UsersService,
     private readonly realtimeGateway: RealtimeGateway,
+    private readonly walletAdjustments: DriverWalletAdjustmentsService,
   ) {}
 
   @Get()
@@ -59,11 +65,13 @@ export class DriversController {
     @Query('isOnline') isOnline?: string,
     @Query('search') search?: string,
   ) {
-    return this.driversService.findAll(Number(page), Number(limit), {
+    const result = await this.driversService.findAll(Number(page), Number(limit), {
       status,
       isOnline: isOnline === undefined ? undefined : isOnline === 'true',
       search,
     });
+    // PINFL/STIR/tug'ilgan sana — faqat `GET /drivers/:id/legal` da (#2).
+    return { ...result, drivers: result.drivers.map((driver) => toDriverPublicView(driver)) };
   }
 
   @Get('online')
@@ -132,8 +140,8 @@ export class DriversController {
   @ApiOperation({ summary: 'Get driver by ID (admin/manager only)' })
   @ApiParam({ name: 'id', description: 'Driver UUID' })
   @ApiResponse({ status: 200, description: 'Driver details' })
-  async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<Driver | null> {
-    return this.driversService.findById(id);
+  async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<DriverPublicView<Driver> | null> {
+    return toDriverPublicView(await this.driversService.findById(id));
   }
 
   @Patch(':id/approve')
@@ -144,7 +152,7 @@ export class DriversController {
   async approveDriver(@Param('id', ParseUUIDPipe) id: string) {
     const driver = await this.driversService.findByIdOrThrow(id);
     await this.usersService.updateStatus(driver.userId, UserStatus.ACTIVE);
-    return { ...driver, status: 'approved' };
+    return { ...toDriverPublicView(driver), status: 'approved' };
   }
 
   // Widened from ADMIN-only: a manager may now be granted DRIVERS_FINANCE
@@ -157,10 +165,13 @@ export class DriversController {
   @ApiOperation({ summary: "Add funds to (or deduct from) a driver's balance (admin, or manager with DRIVERS_FINANCE)" })
   @ApiParam({ name: 'id', description: 'Driver UUID' })
   async addFunds(
+    @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: AddFundsDto,
-  ): Promise<Driver> {
-    return this.driversService.addFunds(id, dto.amount, dto.note);
+  ): Promise<DriverPublicView<DriverWithWallet>> {
+    // Izoh majburiy; jurnal (`audit_logs`) + haydovchiga push —
+    // docs/LEGAL-COMPLIANCE.md §12. Menejer chegarasi — security review #6.
+    return toDriverPublicView(await this.walletAdjustments.adjust(user.id, id, dto.amount, dto.note, user.role));
   }
 
   @Patch(':id/commission-rate')
@@ -171,8 +182,8 @@ export class DriversController {
   async setCommissionRate(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: SetCommissionRateDto,
-  ): Promise<Driver> {
-    return this.driversService.setCommissionRate(id, dto.commissionRate ?? null);
+  ): Promise<DriverPublicView<Driver>> {
+    return toDriverPublicView(await this.driversService.setCommissionRate(id, dto.commissionRate ?? null));
   }
 
   @Patch(':id/tariff-tier')
@@ -186,8 +197,8 @@ export class DriversController {
   async setTariffTier(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: SetTariffTierDto,
-  ): Promise<Driver> {
-    return this.driversService.setApprovedTariffTier(id, dto.tier);
+  ): Promise<DriverPublicView<Driver>> {
+    return toDriverPublicView(await this.driversService.setApprovedTariffTier(id, dto.tier));
   }
 
   @Patch('status')

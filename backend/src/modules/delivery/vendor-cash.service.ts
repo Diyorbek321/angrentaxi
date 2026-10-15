@@ -8,7 +8,10 @@ import {
   Global,
   Injectable,
   Module,
+  Logger,
   NotFoundException,
+  OnModuleInit,
+  Optional,
   Param,
   Post,
   UseGuards,
@@ -23,7 +26,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
 import { Permission, User, UserRole } from '../../database/entities/user.entity';
 import { InjectRepository, TypeOrmModule } from '@nestjs/typeorm';
-import { IsNull, Not, Repository } from 'typeorm';
+import { DataSource, IsNull, Not, Repository } from 'typeorm';
 import { Order, OrderStatus } from '../../database/entities/order.entity';
 import { FoodOrder, FoodPaymentMethod } from '../../database/entities/food-order.entity';
 import { MarketOrder, MarketPaymentMethod } from '../../database/entities/market-order.entity';
@@ -33,6 +36,24 @@ import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { RealtimeModule } from '../realtime/realtime.module';
 import { VendorCashColumns } from './vendor-cash';
 import { ResolveCashDisputeDto } from './dto/resolve-cash-dispute.dto';
+import { Transaction } from '../../database/entities/transaction.entity';
+import { SettingsService } from '../settings/settings.service';
+import { SettingsModule } from '../settings/settings.module';
+import {
+  computeSpendableBalance,
+  computeWalletBalance,
+  computeWalletBalances,
+} from '../payments/wallet-balance.util';
+import { VendorSettlementMode } from './vendor-settlement-mode';
+import {
+  VendorWalletReversalResult,
+  VendorWalletSettlementResult,
+  insufficientWalletForVendor,
+  reverseVendorWalletSettlement,
+  settleVendorViaWallet,
+} from './vendor-wallet-settlement';
+import { DeliveryEvent, DeliveryEventsService } from './delivery-events.service';
+import type { NearbyDriver } from '../drivers/drivers.service';
 
 export type VendorKind = 'food' | 'market';
 
@@ -53,6 +74,13 @@ interface VendorOrderRef {
   order: (FoodOrder | MarketOrder) & VendorCashColumns;
   ownerUserId: string;
   vendorName: string;
+  commissionRate: number;
+}
+
+/** Kuryer "to'ladim" natijasi: qaysi yo'l bilan to'langani ilovaga ham kerak. */
+export interface VendorPaidResult {
+  amount: number;
+  method: VendorSettlementMode;
 }
 
 /**
@@ -64,7 +92,9 @@ interface VendorOrderRef {
  * bog'liqlik bo'lardi.
  */
 @Injectable()
-export class VendorCashService {
+export class VendorCashService implements OnModuleInit {
+  private readonly logger = new Logger(VendorCashService.name);
+
   constructor(
     @InjectRepository(Order) private readonly orderRepo: Repository<Order>,
     @InjectRepository(FoodOrder) private readonly foodOrderRepo: Repository<FoodOrder>,
@@ -72,10 +102,123 @@ export class VendorCashService {
     @InjectRepository(Restaurant) private readonly restaurantRepo: Repository<Restaurant>,
     @InjectRepository(Store) private readonly storeRepo: Repository<Store>,
     private readonly realtimeGateway: RealtimeGateway,
+    // Ixtiyoriy: ikkalasi bo'lmasa rejim doim 'cash' (bugungi xulq; eski
+    // qo'lda yig'iladigan spec'lar).
+    @Optional() private readonly settingsService?: SettingsService,
+    @Optional() private readonly dataSource?: DataSource,
+    // Kuryer safari bekor qilinganda hamyon o'tkazmasini teskari qilish
+    // uchun (§14). Global modul; ixtiyoriy — qo'lda yig'iladigan spec'lar.
+    @Optional() private readonly deliveryEvents?: DeliveryEventsService,
   ) {}
 
-  /** Kuryer do'konga tovar pulini to'ladi. */
-  async markPaidByCourier(courierUserId: string, rideId: string): Promise<{ amount: number }> {
+  onModuleInit(): void {
+    this.deliveryEvents?.subscribe((event) => this.onDeliveryEvent(event));
+  }
+
+  /**
+   * Hamyon rejimida matching filtri (§14): hamyonida tovar summasi bo'lmagan
+   * kuryerga naqd yetkazish TAKLIF QILINMAYDI. Balanslar bitta guruhlangan
+   * so'rovda; manfiy qoldiq — 0 (sarflab bo'lmaydi).
+   */
+  async filterCouriersByWallet<T extends Pick<NearbyDriver, 'userId'>>(
+    payVendor: number,
+    candidates: T[],
+  ): Promise<T[]> {
+    if (payVendor <= 0 || candidates.length === 0 || !this.dataSource) return candidates;
+    if ((await this.settlementMode()) !== 'wallet') return candidates;
+    const balances = await computeWalletBalances(
+      this.dataSource.manager,
+      candidates.map((candidate) => candidate.userId),
+    );
+    return candidates.filter(
+      (candidate) => Math.max(0, balances.get(candidate.userId) ?? 0) >= payVendor,
+    );
+  }
+
+  /**
+   * Olib ketilgandan keyin bekor qilingan yetkazish: hamyon o'tkazmasi teskari
+   * (§14). Yetkazilgan yoki o'tkazmasiz buyurtmada hech narsa qilmaydi.
+   */
+  async reverseWalletSettlement(
+    kind: VendorKind,
+    vendorOrderId: string,
+    deliveryOrderId?: string,
+    courierUserId?: string,
+  ): Promise<VendorWalletReversalResult> {
+    if (!this.dataSource) return { reversed: false, reason: 'not_found' };
+    const result = await this.dataSource.transaction((manager) =>
+      reverseVendorWalletSettlement(manager, { kind, vendorOrderId, deliveryOrderId, courierUserId }),
+    );
+    if (!result.reversed || !result.courierUserId) return result;
+
+    this.logger.log(
+      `Vendor wallet settlement reversed for ${kind} order ${vendorOrderId}: ${result.amount} so'm back to courier ${result.courierUserId}`,
+    );
+    if (result.vendorOwnerUserId) {
+      this.realtimeGateway.emitToUser(result.vendorOwnerUserId, 'vendor:wallet_reversed', {
+        kind,
+        vendorOrderId,
+        amount: result.amount,
+        commission: result.commission,
+      });
+    }
+    try {
+      const balance = await computeWalletBalance(
+        this.dataSource.getRepository(Transaction),
+        result.courierUserId,
+      );
+      this.realtimeGateway.emitToUser(result.courierUserId, 'wallet:updated', {
+        balance,
+        delta: result.amount ?? 0,
+        reason: 'vendor_settlement_reversal',
+        vendorOrderId,
+      });
+    } catch (err) {
+      this.logger.warn(`wallet:updated after reversal failed: ${(err as Error).message}`);
+    }
+    return result;
+  }
+
+  /**
+   * `cancelled` — safar bekor (§14); `reassigned` — dispetcher kuryerni
+   * almashtirdi (§19): oldingi kuryer hamyondan to'lagan bo'lsa, o'tkazmasi
+   * teskari, keyingi kuryer olib ketishda yangidan (`_N` belgilari) o'tkazadi.
+   */
+  private async onDeliveryEvent(event: DeliveryEvent): Promise<void> {
+    if (event.kind !== 'cancelled' && event.kind !== 'reassigned') return;
+    // Qayta biriktirishda faqat oldingi kuryerning o'tkazmasi.
+    const courier = event.kind === 'reassigned' ? event.previousCourierUserId : undefined;
+    if (event.kind === 'reassigned' && !courier) return;
+    if (event.foodOrderId) {
+      await this.reverseWalletSettlement('food', event.foodOrderId, event.deliveryOrderId, courier);
+    }
+    if (event.marketOrderId) {
+      await this.reverseWalletSettlement('market', event.marketOrderId, event.deliveryOrderId, courier);
+    }
+  }
+
+  /** Amaldagi rejim (`vendor-settlement-mode.ts`). */
+  async settlementMode(): Promise<VendorSettlementMode> {
+    if (!this.settingsService || !this.dataSource) return 'cash';
+    return this.settingsService.getEffectiveVendorSettlementMode();
+  }
+
+  /**
+   * Hamyon rejimida kuryer naqd buyurtmani faqat hamyonida tovar summasi
+   * bo'lsa qabul qiladi — aks holda olib ketishda o'tkazma bajarilmaydi.
+   */
+  async assertCanAccept(courierUserId: string, ride: Order): Promise<void> {
+    const amount = payVendorOf(ride);
+    if (amount <= 0 || (await this.settlementMode()) !== 'wallet') return;
+    const balance = await computeSpendableBalance(
+      this.dataSource!.getRepository(Transaction),
+      courierUserId,
+    );
+    if (balance < amount) throw insufficientWalletForVendor(amount, balance);
+  }
+
+  /** Kuryer do'konga tovar pulini to'ladi (naqd) yoki hamyondan o'tkazdi. */
+  async markPaidByCourier(courierUserId: string, rideId: string): Promise<VendorPaidResult> {
     const ride = await this.orderRepo.findOne({ where: { id: rideId } });
     if (!ride) throw new NotFoundException('Buyurtma topilmadi');
     if (ride.driverId !== courierUserId) {
@@ -91,6 +234,12 @@ export class VendorCashService {
 
     const ref = await this.vendorOrderOf(ride);
     if (!ref) throw new NotFoundException("Do'kon buyurtmasi topilmadi");
+
+    if ((await this.settlementMode()) === 'wallet') {
+      await this.settleViaWallet(courierUserId, ref, amount);
+      return { amount, method: 'wallet' };
+    }
+
     if (!ref.order.vendorCashPaidAt) {
       await this.repoFor(ref.kind).update(ref.order.id, { vendorCashPaidAt: new Date() });
     }
@@ -100,7 +249,7 @@ export class VendorCashService {
       vendorOrderId: ref.order.id,
       amount,
     });
-    return { amount };
+    return { amount, method: 'cash' };
   }
 
   /**
@@ -111,6 +260,13 @@ export class VendorCashService {
   async assertReadyForPickup(ride: Order): Promise<void> {
     if (payVendorOf(ride) <= 0) return;
     const ref = await this.vendorOrderOf(ride);
+    // Hamyon rejimida alohida "To'ladim" bosish shart emas: o'tkazma shu
+    // yerda bajariladi (bir martalik — oldin bosilgan bo'lsa hech narsa
+    // qilmaydi). Balans yetmasa safar boshlanmaydi.
+    if (ref && ride.driverId && (await this.settlementMode()) === 'wallet') {
+      await this.settleViaWallet(ride.driverId, ref, payVendorOf(ride));
+      return;
+    }
     if (ref && !ref.order.vendorCashPaidAt) {
       throw new BadRequestException(
         `Avval do'konga ${formatSom(payVendorOf(ride))} so'm to'lang va "To'ladim" ni bosing`,
@@ -129,6 +285,11 @@ export class VendorCashService {
     if (!ref) throw new NotFoundException('Buyurtma topilmadi');
     if (ref.ownerUserId !== ownerUserId) {
       throw new ForbiddenException('Bu buyurtma sizning do‘koningizniki emas');
+    }
+    if (ref.order.vendorWalletSettledAt) {
+      throw new BadRequestException(
+        "Bu buyurtma kuryer hamyoni orqali to'langan — tasdiqlash shart emas",
+      );
     }
     if (!ref.order.vendorCashPaidAt) {
       throw new BadRequestException("Kuryer hali to'lovni belgilamagan");
@@ -223,6 +384,40 @@ export class VendorCashService {
     ].sort((a, b) => b.disputedAt.localeCompare(a.disputedAt));
   }
 
+  /** Hamyon o'tkazmasi + sotuvchiga xabar (faqat haqiqatan o'tkazilganda). */
+  private async settleViaWallet(
+    courierUserId: string,
+    ref: VendorOrderRef,
+    amount: number,
+  ): Promise<VendorWalletSettlementResult> {
+    if (ref.order.vendorWalletSettledAt) {
+      return { settled: false, amount, commission: 0, net: amount };
+    }
+    const result = await this.dataSource!.transaction((manager) =>
+      settleVendorViaWallet(manager, {
+        kind: ref.kind,
+        vendorOrderId: ref.order.id,
+        vendorOrderTotalPrice: Number(ref.order.totalPrice),
+        vendorCommissionRate: ref.commissionRate,
+        vendorOwnerUserId: ref.ownerUserId,
+        courierUserId,
+        amount,
+        existingPaidAt: ref.order.vendorCashPaidAt ?? null,
+        round: (ref.order.vendorWalletReversalCount ?? 0) + 1,
+      }),
+    );
+    if (result.settled) {
+      this.realtimeGateway.emitToUser(ref.ownerUserId, 'vendor:wallet_settled', {
+        kind: ref.kind,
+        vendorOrderId: ref.order.id,
+        amount: result.amount,
+        commission: result.commission,
+        net: result.net,
+      });
+    }
+    return result;
+  }
+
   private repoFor(kind: VendorKind): Repository<FoodOrder | MarketOrder> {
     return (kind === 'food' ? this.foodOrderRepo : this.marketOrderRepo) as Repository<FoodOrder | MarketOrder>;
   }
@@ -239,17 +434,33 @@ export class VendorCashService {
       const order = await this.foodOrderRepo.findOne({ where: { id } });
       if (!order || order.paymentMethod !== FoodPaymentMethod.CASH) return null;
       const restaurant = await this.restaurantRepo.findOne({ where: { id: order.restaurantId } });
-      return restaurant ? { kind, order, ownerUserId: restaurant.ownerUserId, vendorName: restaurant.name } : null;
+      return restaurant
+        ? {
+            kind,
+            order,
+            ownerUserId: restaurant.ownerUserId,
+            vendorName: restaurant.name,
+            commissionRate: Number(restaurant.commissionRate ?? 0),
+          }
+        : null;
     }
     const order = await this.marketOrderRepo.findOne({ where: { id } });
     if (!order || order.paymentMethod !== MarketPaymentMethod.CASH) return null;
     const store = await this.storeRepo.findOne({ where: { id: order.storeId } });
-    return store ? { kind, order, ownerUserId: store.ownerUserId, vendorName: store.name } : null;
+    return store
+      ? {
+          kind,
+          order,
+          ownerUserId: store.ownerUserId,
+          vendorName: store.name,
+          commissionRate: Number(store.commissionRate ?? 0),
+        }
+      : null;
   }
 }
 
 /** Kuryer do'konga to'laydigan summa (`DeliveryRideDetails.payVendor`). */
-function payVendorOf(ride: Pick<Order, 'details'>): number {
+export function payVendorOf(ride: Pick<Order, 'details'>): number {
   const value = (ride.details as Record<string, unknown> | null)?.payVendor;
   return typeof value === 'number' && value > 0 ? value : 0;
 }
@@ -299,7 +510,13 @@ export class VendorCashController {
 
 @Global()
 @Module({
-  imports: [TypeOrmModule.forFeature([Order, FoodOrder, MarketOrder, Restaurant, Store]), RealtimeModule],
+  imports: [
+    TypeOrmModule.forFeature([Order, FoodOrder, MarketOrder, Restaurant, Store]),
+    RealtimeModule,
+    // Hisob-kitob rejimi (cash | wallet). SettingsModule faqat TypeORM'ga
+    // tayanadi — aylanma bog'liqlik yo'q.
+    SettingsModule,
+  ],
   controllers: [VendorCashController],
   providers: [VendorCashService],
   exports: [VendorCashService],

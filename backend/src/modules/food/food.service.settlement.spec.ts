@@ -82,6 +82,16 @@ describe('FoodService - restaurant earnings settlement on delivery', () => {
     );
   });
 
+  it("hamyon orqali hisoblangan buyurtmada komissiya QAYTA yozilmaydi (olib ketishda yozilgan)", async () => {
+    orderRepo.findOne.mockResolvedValue(
+      readyOrder({ paymentMethod: FoodPaymentMethod.CASH, vendorWalletSettledAt: new Date() }),
+    );
+
+    await service.advanceOrder('restaurant-1', 'food-order-1');
+
+    expect(transactionRepo.save).not.toHaveBeenCalled();
+  });
+
   it('books a gross CREDIT plus a commission DEBIT for a CARD order', async () => {
     orderRepo.findOne.mockResolvedValue(readyOrder({ paymentMethod: FoodPaymentMethod.CARD }));
 

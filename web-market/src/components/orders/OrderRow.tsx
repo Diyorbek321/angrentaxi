@@ -4,7 +4,7 @@ import { MessageSquareText } from 'lucide-react';
 import type { MarketOrder } from '@/lib/api';
 import { advanceLabelFor, DELIVERY_MODE_LABEL, orderCustomerName } from '@/lib/order-status';
 import { formatNumber, formatRelative, shortId } from '@/lib/format';
-import { vendorCashView } from '@/lib/vendor-cash';
+import { vendorCashView, type VendorSettlementMode } from '@/lib/vendor-cash';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -27,6 +27,7 @@ export function OrderRow({
   onOpen,
   onAdvance,
   advancing,
+  settlementMode,
 }: {
   order: MarketOrder;
   checked: boolean;
@@ -34,6 +35,8 @@ export function OrderRow({
   onOpen: () => void;
   onAdvance: () => void;
   advancing: boolean;
+  /** Hamyon rejimida naqd tasdig'i badge'i chiqmaydi. */
+  settlementMode?: VendorSettlementMode;
 }) {
   const isNew = o.status === 'new';
   const advanceLabel = advanceLabelFor(o);
@@ -72,7 +75,7 @@ export function OrderRow({
       <MoneyText value={o.totalPrice} className="text-right text-[13px] font-medium text-ink" />
       <span className="flex flex-wrap items-center gap-1">
         <StatusBadge status={o.status} />
-        <CashBadge order={o} />
+        <CashBadge order={o} mode={settlementMode} />
       </span>
       <span>
         {advanceLabel ? (
@@ -94,7 +97,15 @@ export function OrderRow({
 }
 
 /** Mobil (lg dan past): xuddi shu ma'lumot ixcham kartada. */
-export function OrderCardMobile({ order: o, onOpen }: { order: MarketOrder; onOpen: () => void }) {
+export function OrderCardMobile({
+  order: o,
+  onOpen,
+  settlementMode,
+}: {
+  order: MarketOrder;
+  onOpen: () => void;
+  settlementMode?: VendorSettlementMode;
+}) {
   const isNew = o.status === 'new';
   return (
     <button
@@ -116,7 +127,7 @@ export function OrderCardMobile({ order: o, onOpen }: { order: MarketOrder; onOp
         </span>
         <span className="flex flex-wrap items-center justify-end gap-1">
           <StatusBadge status={o.status} />
-          <CashBadge order={o} />
+          <CashBadge order={o} mode={settlementMode} />
         </span>
       </span>
       <span className="mt-2 flex items-center justify-between gap-3 text-xs text-muted">
@@ -129,10 +140,13 @@ export function OrderCardMobile({ order: o, onOpen }: { order: MarketOrder; onOp
   );
 }
 
-/** Kuryer "to'ladim" dedi — sotuvchi tasdig'i kerak; nizo — qizil. */
-function CashBadge({ order }: { order: MarketOrder }) {
-  const { step } = vendorCashView(order);
+/** Kuryer "to'ladim" dedi — sotuvchi tasdig'i kerak; nizo — qizil; hamyon teskarisi — neytral. */
+function CashBadge({ order, mode }: { order: MarketOrder; mode?: VendorSettlementMode }) {
+  const { step } = vendorCashView(order, { mode });
   if (step === 'awaiting_vendor') return <Badge variant="info">Naqd: tasdiqlang</Badge>;
   if (step === 'disputed') return <Badge variant="danger">Naqd nizo</Badge>;
+  // Hamyon o'tkazmasi teskari qilindi (§22 `vendorWalletSettlement.reversedAt`).
+  if (step === 'wallet_reversed') return <Badge variant="neutral">Qaytarildi</Badge>;
+  if (step === 'wallet_resettle_pending') return <Badge variant="info">Qayta oʻtkaziladi</Badge>;
   return null;
 }

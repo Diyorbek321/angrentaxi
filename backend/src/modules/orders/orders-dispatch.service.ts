@@ -171,6 +171,14 @@ export class OrdersDispatchService {
       status: 'busy',
     });
 
+    // Kuryer safari: oldingi kuryer sotuvchiga hamyondan to'lagan bo'lsa,
+    // o'tkazmasi teskari qilinadi (VendorCashService, §19).
+    if (previousDriverId) {
+      await this.deliveryEvents?.publish(updatedOrder, 'reassigned', {
+        previousCourierUserId: previousDriverId,
+      });
+    }
+
     if (previousDriverId) {
       const previousDriver = await this.driversService.findByUserId(previousDriverId);
       if (previousDriver) {

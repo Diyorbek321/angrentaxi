@@ -83,3 +83,53 @@ describe('validateEnv token TTLs', () => {
     );
   });
 });
+
+/**
+ * ⚠️ XAVFSIZLIK: `enableImplicitConversion` `Boolean("false") === true` qiladi.
+ * Ilgari `OTP_BYPASS_ENABLED=false` yozilgan server bypass'ni YOQIQ deb o'qirdi
+ * (ConfigService validatsiyadan o'tgan qiymatni qaytaradi). Endi barcha boolean
+ * env'lar `parseEnvBoolean` bilan aniq o'qiladi.
+ */
+describe('validateEnv boolean flags', () => {
+  it.each([
+    ['false', false],
+    ['FALSE', false],
+    ['0', false],
+    ['', false],
+    ['no', false],
+    ['off', false],
+    [false, false],
+    ['true', true],
+    ['TRUE', true],
+    ['1', true],
+    [true, true],
+  ])('OTP_BYPASS_ENABLED=%p → %p', (raw, expected) => {
+    expect(validateEnv({ ...baseEnv, OTP_BYPASS_ENABLED: raw }).OTP_BYPASS_ENABLED).toBe(expected);
+  });
+
+  it("ko'rsatilmagan bo'lsa — false", () => {
+    expect(validateEnv({ ...baseEnv }).OTP_BYPASS_ENABLED).toBe(false);
+  });
+
+  it("tushunarsiz qiymat ilovani ko'tarmaydi (jim yoqilmaydi)", () => {
+    expect(() => validateEnv({ ...baseEnv, OTP_BYPASS_ENABLED: 'yes please' })).toThrow(/OTP_BYPASS_ENABLED/);
+  });
+});
+
+describe('validateEnv wallet top-up / Click sozlamalari', () => {
+  it('standartlar', () => {
+    const config = validateEnv({ ...baseEnv });
+    expect(config.WALLET_TOPUP_RETURN_URL).toBe('');
+    expect(config.CLICK_PREPARE_TTL_MINUTES).toBe(60);
+  });
+
+  it('qiymatlarni qabul qiladi', () => {
+    const config = validateEnv({
+      ...baseEnv,
+      WALLET_TOPUP_RETURN_URL: 'angrengo://wallet/topup/{id}',
+      CLICK_PREPARE_TTL_MINUTES: '30',
+    });
+    expect(config.WALLET_TOPUP_RETURN_URL).toBe('angrengo://wallet/topup/{id}');
+    expect(config.CLICK_PREPARE_TTL_MINUTES).toBe(30);
+  });
+});

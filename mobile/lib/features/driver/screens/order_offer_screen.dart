@@ -5,10 +5,12 @@ import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
+import 'package:angren_taxi/features/driver/legal/legal_rejection.dart';
 import 'package:angren_taxi/features/driver/service_wording.dart';
 import 'package:angren_taxi/features/driver/widgets/delivery_info_card.dart';
 import 'package:angren_taxi/features/driver/widgets/parcel_info_card.dart';
 import 'package:angren_taxi/features/driver/widgets/trip_options_badges.dart';
+import 'package:angren_taxi/features/driver/widgets/vendor_wallet_insufficient_dialog.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
@@ -145,10 +147,22 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
       // haydovchiga ketgan bo'lsa yopiladi).
       _leaving = false;
       AppHaptics.error();
+      final message = provider.error ?? context.l10n.drvAcceptFailed;
+      // Hamyon rejimi (e-tijorat qonuni, 23-modda): naqd ovqat/market
+      // buyurtmasida tovar puli do'konga hamyondan o'tadi. Yetmasa —
+      // umumiy xato emas, aniq tushuntirish va "To'ldirish" tugmasi.
+      if (provider.errorKind == DriverErrorKind.vendorWalletInsufficient) {
+        final amounts = codedErrorAmountsText(provider.errorDetails);
+        provider.clearError();
+        await showVendorWalletInsufficientDialog(
+          context,
+          message,
+          amounts: amounts,
+        );
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content:
-                Text(provider.error ?? context.l10n.drvAcceptFailed)),
+        SnackBar(content: Text(message)),
       );
     }
   }

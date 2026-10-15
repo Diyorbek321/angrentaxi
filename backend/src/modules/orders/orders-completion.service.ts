@@ -47,6 +47,13 @@ import { meteredTariff } from '../tariffs/metered-rate';
 import { applyDiscount } from '../tariffs/fare-rounding';
 import { OrderFraudService } from './order-fraud.service';
 import { REFERRAL_BONUS_AMOUNT } from './referral-bonus';
+import { resolveCommissionRate } from './commission-policy';
+import { FinancePolicyService } from '../settings/finance-policy.service';
+import { CompletionFinancePolicy } from '../settings/legal-compliance-settings';
+import { TAX_WITHHOLDING_LEDGER_TAG, computeTaxWithholding } from '../tax/tax-withholding';
+import { FiscalReceiptsService } from '../fiscal/fiscal-receipts.service';
+import { Driver } from '../../database/entities/driver.entity';
+import { ShiftPassesService } from '../shift-passes/shift-passes.service';
 
 // Flat bonus (in so'm) credited to both a referred passenger and their
 // referrer the first time the referred passenger completes a trip. See the
@@ -81,6 +88,14 @@ export class OrdersCompletionService {
     @Optional() private readonly deliveryEvents?: DeliveryEventsService,
     @Optional() private readonly taximeterService?: TaximeterService,
     @Optional() private readonly fraudService?: OrderFraudService,
+    // Ixtiyoriy — `SettingsService` ni qo'lda soxtalashtiradigan spec'lar
+    // uchun. Yo'q bo'lsa: aksiya yo'q, soliq ushlab qolinmaydi (avvalgi xulq).
+    @Optional() private readonly financePolicy?: FinancePolicyService,
+    // Fiskal chek yozuvi — best-effort, yakunlashni hech qachon buzmaydi.
+    @Optional() private readonly fiscalReceipts?: FiscalReceiptsService,
+    // Smena (kunlik obuna) — faol bo'lsa komissiya 0. Ixtiyoriy: yo'q bo'lsa
+    // smena hisobga olinmaydi (avvalgi xulq).
+    @Optional() private readonly shiftPasses?: ShiftPassesService,
   ) {}
 
   async completeTrip(
@@ -278,14 +293,33 @@ export class OrdersCompletionService {
     const discountedFinalPrice = discounted.finalPrice;
     finalDiscountAmount = discounted.discountAmount;
 
-    // Commission: driver's own override rate if set, else the platform default.
+    // Commission: driver's own override rate if set, else the platform default
+    // — except during the launch promo, when taxi commission is 0, and while
+    // the driver holds a shift pass covering this ride (`commission-policy.ts`
+    // documents the precedence).
     const payoutDriver = order.driverId
       ? await this.driversService.findByUserId(order.driverId)
       : null;
-    const commissionRate =
-      payoutDriver?.commissionRate ?? (await this.settingsService.getDefaultCommissionRate());
+    const financePolicy = await this.loadFinancePolicy();
+    const commissionRate = resolveCommissionRate({
+      serviceType: order.serviceType,
+      driverRate: payoutDriver?.commissionRate ?? null,
+      defaultRate: financePolicy.defaultCommissionRate,
+      launchPromoUntil: financePolicy.launchPromoCommissionUntil,
+      now,
+      shiftPassActive: order.driverId
+        ? await this.shiftPassCovers(order.driverId, order.serviceType, now)
+        : false,
+    });
     const commissionAmount = Math.round((discountedFinalPrice * commissionRate) / 100);
     const netDriverEarning = discountedFinalPrice - commissionAmount;
+
+    // Soliq agenti sifatida ushlab qolish (PQ-247). Baza — komissiya bilan
+    // BIR XIL: chegirmadan keyingi yakuniy narx (`tax-withholding.ts` izohi).
+    // Kuryer safari (ovqat/market yetkazish) ham shu yo'ldan o'tadi.
+    const taxWithheld = payoutDriver
+      ? computeTaxWithholding(discountedFinalPrice, financePolicy.taxWithholding)
+      : 0;
 
     // Settlement — the order status, the passenger charge, both driver payout
     // legs and the wallet movement all describe the same money event, so they
@@ -423,6 +457,22 @@ export class OrdersCompletionService {
           });
         }
 
+        // Ushlab qolingan soliq — alohida qator (hisobot shu belgidan
+        // o'qiydi), holati komissiya bilan bir xil: karta puli yig'ilganda
+        // `settleOrderPayout` uni ham COMPLETED qiladi. Takror yozilmasligini
+        // `uq_transactions_tax_withholding_order` indeksi kafolatlaydi.
+        if (taxWithheld > 0) {
+          await manager.save(Transaction, {
+            userId: order.driverId,
+            orderId,
+            amount: taxWithheld,
+            type: TransactionType.DEBIT,
+            paymentMethod: order.paymentMethod,
+            status: chargeStatus,
+            externalId: TAX_WITHHOLDING_LEDGER_TAG,
+          });
+        }
+
         // The `drivers.balance` column tracks what the platform owes the
         // driver (or the driver owes the platform, when negative).
         //
@@ -439,9 +489,9 @@ export class OrdersCompletionService {
         let balanceDelta: number;
 
         if (order.paymentMethod === PaymentMethod.CASH) {
-          balanceDelta = -commissionAmount;
+          balanceDelta = 0 - commissionAmount - taxWithheld;
         } else if (isCollected) {
-          balanceDelta = netDriverEarning;
+          balanceDelta = netDriverEarning - taxWithheld;
         } else {
           balanceDelta = 0;
         }
@@ -507,6 +557,8 @@ export class OrdersCompletionService {
     // Food/market: marks the vendor order delivered and settles the vendor.
     await this.deliveryEvents?.publish(updatedOrder, 'delivered');
 
+    await this.recordFiscalReceipt(order, payoutDriver, discountedFinalPrice, commissionAmount);
+
     // Re-fetch: adjustBalance may have just flipped isOnline to false if the
     // commission deduction pushed the driver negative.
     const finishedDriver = await this.driversService.findByUserId(driverId);
@@ -566,6 +618,63 @@ export class OrdersCompletionService {
     return updatedOrder;
   }
 
+
+  /**
+   * Smena shu safarni qamraydimi. Xato bo'lsa — `false` (komissiya olinadi):
+   * yakunlash to'xtamaydi, noto'g'ri olingan komissiyani menejer qaytara oladi.
+   */
+  private async shiftPassCovers(driverUserId: string, serviceType: string, at: Date): Promise<boolean> {
+    if (!this.shiftPasses) return false;
+    try {
+      return await this.shiftPasses.hasActivePassFor(driverUserId, serviceType, at);
+    } catch (err) {
+      this.logger.error(`Shift pass lookup failed for driver ${driverUserId}: ${(err as Error).message}`);
+      return false;
+    }
+  }
+
+  /**
+   * Pul siyosati. Provayder ulanmagan bo'lsa (izolyatsiyadagi spec'lar) —
+   * avvalgi xulq: platforma standarti, aksiya yo'q, ushlab qolish yo'q.
+   */
+  private async loadFinancePolicy(): Promise<CompletionFinancePolicy> {
+    if (this.financePolicy) {
+      return this.financePolicy.get();
+    }
+    return {
+      defaultCommissionRate: await this.settingsService.getDefaultCommissionRate(),
+      launchPromoCommissionUntil: null,
+      taxWithholding: { enabled: false, ratePercent: 0 },
+    };
+  }
+
+  /**
+   * Fiskal chek yozuvi (komissioner modeli, komitent — haydovchi/kuryer).
+   * Settlement commit qilingandan KEYIN va try/catch ichida: chek xatosi
+   * hech qachon yakunlangan safarni 500 ga aylantirmaydi.
+   */
+  private async recordFiscalReceipt(
+    order: Order,
+    payoutDriver: Driver | null,
+    total: number,
+    commissionAmount: number,
+  ): Promise<void> {
+    if (!this.fiscalReceipts || !order.driverId) return;
+    try {
+      await this.fiscalReceipts.recordForRide({
+        orderId: order.id,
+        serviceType: order.serviceType,
+        paymentMethod: order.paymentMethod,
+        total,
+        commissionAmount,
+        principalUserId: order.driverId,
+        principalPinfl: payoutDriver?.pinfl ?? null,
+        principalTin: payoutDriver?.tin ?? null,
+      });
+    } catch (err) {
+      this.logger.error(`Fiskal chek yozilmadi (order ${order.id}): ${(err as Error).message}`);
+    }
+  }
 
   /**
    * Taksometr: izga oxirgi nuqta qo'shiladi (oxirgi ping'dan keyingi metrlar),

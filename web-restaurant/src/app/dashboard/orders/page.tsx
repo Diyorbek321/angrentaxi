@@ -2,10 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { shortId } from '@/lib/format';
-import { Inbox, Maximize2 } from 'lucide-react';
+import { Inbox, Info, Maximize2 } from 'lucide-react';
 import { foodApi, FoodOrder, Restaurant } from '@/lib/api';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
+import { useVendorSettlement } from '@/hooks/useVendorSettlement';
+import { walletSwitchNotice } from '@/lib/vendor-settlement';
+import type { VendorSettlementContext } from '@/lib/vendor-cash';
 import { NEXT_STATUS, statusMeta } from '@/lib/order-status';
 import { trackNewOrders } from '@/lib/order-alerts';
 import { useKiosk } from '@/lib/kiosk-context';
@@ -60,6 +63,15 @@ export default function OrdersPage() {
   useRealtimeRefresh(reload);
   usePageRefresh(reload);
   const orders = useMemo(() => data ?? [], [data]);
+
+  // Hisob-kitob rejimi (naqd / kuryer hamyoni) — hamyon rejimida naqd tasdig'i
+  // so'ralmaydi; o'tkazma summalari buyurtmaning o'zidan (`vendorWalletSettlement`).
+  const publicSettings = useVendorSettlement();
+  const settlement: VendorSettlementContext = useMemo(
+    () => ({ mode: publicSettings?.vendorSettlementMode }),
+    [publicSettings]
+  );
+  const switchNotice = walletSwitchNotice(publicSettings);
 
   // Taymer sekundlik — faqat ko'rsatkichni qayta chizadi, so'rov yubormaydi.
   useEffect(() => {
@@ -150,6 +162,18 @@ export default function OrdersPage() {
         />
       )}
 
+      {switchNotice && !kiosk && (
+        <p
+          role="note"
+          className="mb-4 flex items-start gap-2 rounded-ds-sm border border-info/30 bg-info-tint px-3 py-2 text-[13px] text-ink"
+        >
+          <Info size={14} aria-hidden className="mt-0.5 shrink-0 text-info-dark dark:text-info-light" />
+          <span>
+            {switchNotice}: kuryer tovar pulini naqd emas, hamyonidan oʻtkazadi — naqd tasdiqlash kerak boʻlmaydi.
+          </span>
+        </p>
+      )}
+
       {status === 'loading' && (
         <div className="flex flex-col gap-4" role="status" aria-label="Buyurtmalar yuklanmoqda">
           <Skeleton className="h-9 w-full max-w-md rounded-ds-sm" />
@@ -204,6 +228,7 @@ export default function OrdersPage() {
                   onReject={() => setRejectId(order.id)}
                   onRedispatch={() => redispatch(order)}
                   onCashDecision={(received) => decideCash(order, received)}
+                  settlement={settlement}
                 />
               ))}
             </div>

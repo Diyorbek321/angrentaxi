@@ -6,6 +6,8 @@ import 'package:angren_taxi/core/config/map_offline_region.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/features/driver/wallet/driver_push_events.dart';
+import 'package:angren_taxi/features/driver/wallet/wallet_deep_links.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart'
@@ -62,7 +64,12 @@ Future<void> main() async {
 
   if (firebaseReady) {
     _registerFcmToken();
+    _forwardPushMessages();
   }
+
+  // To'lovdan qaytish havolasi (`angrengo://wallet/topup/<id>`, §24).
+  // runApp'dan OLDIN — kuzatuvchi WidgetsApp'dan oldin turishi kerak.
+  DriverDeepLinks.instance.install();
 
   runApp(const AngrenTaxiApp(flavor: AppFlavor.driver));
 
@@ -95,6 +102,35 @@ Future<void> _registerFcmToken() async {
     }
   } catch (e) {
     debugPrint('[FCM Driver] Token registration failed: $e');
+  }
+}
+
+/// FCM xabarlarini ilova ichidagi shinaga uzatadi — hamyon hodisalari
+/// (`data.event`, docs/LEGAL-COMPLIANCE.md §17) shu yerdan
+/// `DriverWalletEventsHost` ga yetadi.
+void _forwardPushMessages() {
+  DriverPushMessage toMessage(RemoteMessage m, {required bool opened}) =>
+      DriverPushMessage(
+        data: Map<String, dynamic>.from(m.data),
+        title: m.notification?.title,
+        body: m.notification?.body,
+        opened: opened,
+      );
+
+  try {
+    FirebaseMessaging.onMessage.listen(
+      (m) => DriverPushBus.instance.add(toMessage(m, opened: false)),
+    );
+    FirebaseMessaging.onMessageOpenedApp.listen(
+      (m) => DriverPushBus.instance.add(toMessage(m, opened: true)),
+    );
+    FirebaseMessaging.instance.getInitialMessage().then((m) {
+      if (m != null) DriverPushBus.instance.add(toMessage(m, opened: true));
+    }).catchError((Object e) {
+      debugPrint('[FCM Driver] getInitialMessage failed: $e');
+    });
+  } catch (e) {
+    debugPrint('[FCM Driver] push forwarding failed: $e');
   }
 }
 

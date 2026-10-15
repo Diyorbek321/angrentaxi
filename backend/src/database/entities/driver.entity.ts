@@ -11,6 +11,16 @@ import { User } from './user.entity';
 import { ServiceType } from './order.entity';
 import { VehicleType } from './tariff.entity';
 
+/**
+ * Haydovchining soliq maqomi (PQ-247, Soliq kodeksi 465/470). `null` — maqom
+ * kiritilmagan: huquqiy majburlash yoqilganda bunday haydovchi taksiga
+ * chiqmaydi (`driver-legal-eligibility.ts`). PG enum emas — 006 dagi sabab.
+ */
+export enum DriverTaxStatus {
+  SELF_EMPLOYED = 'self_employed',
+  INDIVIDUAL_ENTREPRENEUR = 'individual_entrepreneur',
+}
+
 // Read-path indexes.
 // - user_id: DriversService.findByUserId is on the hot path of every driver
 //   request (auth -> driver profile) and of order accept/complete. The
@@ -26,6 +36,9 @@ import { VehicleType } from './tariff.entity';
 // - city_id: menejer panelidagi shahar bo'yicha haydovchi ro'yxati.
 //   ⚠️ Matching bu indeksdan foydalanmaydi (cityId izohiga qarang).
 @Index('idx_drivers_city_id', ['cityId'])
+// Bitta JShShIR/STIR — bitta haydovchi profili (security review #4, migratsiya 030).
+@Index('uq_drivers_pinfl', ['pinfl'], { unique: true, where: 'pinfl IS NOT NULL' })
+@Index('uq_drivers_tin', ['tin'], { unique: true, where: 'tin IS NOT NULL' })
 @Entity('drivers')
 export class Driver {
   @PrimaryGeneratedColumn('uuid')
@@ -155,6 +168,39 @@ export class Driver {
    */
   @Column({ name: 'city_id', type: 'uuid', nullable: true })
   cityId: string | null;
+
+  // ---------------------------------------------- huquqiy profil (migr. 025)
+  // VMQ 200 + PQ-247. Hammasi nullable: mavjud haydovchilarda bu ma'lumot
+  // yo'q, majburlash `legalComplianceEnforcedFrom` bilan alohida yoqiladi.
+
+  @Column({ name: 'tax_status', type: 'varchar', length: 30, nullable: true })
+  taxStatus: DriverTaxStatus | null;
+
+  // JShShIR — 14 raqam. Soliq agenti hisobotining kaliti.
+  @Column({ type: 'varchar', length: 14, nullable: true })
+  pinfl: string | null;
+
+  // STIR (INN) — 9 raqam, faqat YaTT uchun majburiy.
+  @Column({ type: 'varchar', length: 9, nullable: true })
+  tin: string | null;
+
+  // `date` ustunlari TypeORM'dan `YYYY-MM-DD` satr bo'lib keladi.
+  @Column({ name: 'birth_date', type: 'date', nullable: true })
+  birthDate: string | null;
+
+  @Column({ name: 'driving_licence_issued_at', type: 'date', nullable: true })
+  drivingLicenceIssuedAt: string | null;
+
+  @Column({ name: 'taxi_licence_number', type: 'varchar', length: 50, nullable: true })
+  taxiLicenceNumber: string | null;
+
+  // Litsenziya varaqasi berilgan viloyat. Erkin satr: `cities` jadvali
+  // shahar doiralarini saqlaydi, ma'muriy viloyatlarni emas.
+  @Column({ name: 'taxi_licence_region', type: 'varchar', length: 100, nullable: true })
+  taxiLicenceRegion: string | null;
+
+  @Column({ type: 'varchar', length: 2, default: 'UZ' })
+  citizenship: string;
 
   @UpdateDateColumn()
   updatedAt: Date;

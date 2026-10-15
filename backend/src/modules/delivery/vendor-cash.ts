@@ -36,6 +36,8 @@ export interface VendorCashColumns {
   vendorCashConfirmedAt: Date | null;
   vendorCashDisputedAt: Date | null;
   vendorCashDisputeResolvedAt?: Date | null;
+  /** Hamyon rejimida o'tkazma payti (migratsiya 026). */
+  vendorWalletSettledAt?: Date | null;
 }
 
 export function vendorCashState(isCash: boolean, order: VendorCashColumns): VendorCashState {

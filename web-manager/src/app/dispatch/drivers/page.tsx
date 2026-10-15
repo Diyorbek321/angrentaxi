@@ -1,13 +1,17 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Car, CheckCircle2, Download, RefreshCw, Star, UserCheck, Wallet } from 'lucide-react';
+import { Car, CheckCircle2, Download, RefreshCw, Scale, Star, UserCheck, Wallet } from 'lucide-react';
 import { getDriverRoster, approveDriverProfile, getCurrentUserProfile, DriverProfile } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
+import { IconButton } from '@/components/ui/IconButton';
+import { Tooltip } from '@/components/ui/Tooltip';
 import { Badge, BadgeVariant } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
 import { DriverFinanceModal } from '@/components/drivers/DriverFinanceModal';
 import { DriverTierModal, tierLabel } from '@/components/drivers/DriverTierModal';
+import { DriverLegalDrawer } from '@/components/drivers/DriverLegalDrawer';
+import { legalBriefBadge, legalBriefFromEligibility } from '@/lib/driver-legal';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { PageHeader } from '@/components/ui/PageHeader';
 import type { EmptyStateProps } from '@/components/ui/EmptyState';
@@ -61,14 +65,22 @@ export default function DriverRosterPage() {
   const [error, setError] = useState<string | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [canManageFinance, setCanManageFinance] = useState(false);
+  const [canApprove, setCanApprove] = useState(false);
 
   const [financeTarget, setFinanceTarget] = useState<DriverProfile | null>(null);
   const [tierTarget, setTierTarget] = useState<DriverProfile | null>(null);
+  const [legalTarget, setLegalTarget] = useState<DriverProfile | null>(null);
 
   useEffect(() => {
     getCurrentUserProfile()
-      .then((profile) => setCanManageFinance(profile.permissions.includes('drivers_finance')))
-      .catch(() => setCanManageFinance(false));
+      .then((profile) => {
+        setCanManageFinance(profile.permissions.includes('drivers_finance'));
+        setCanApprove(profile.permissions.includes('drivers_approve'));
+      })
+      .catch(() => {
+        setCanManageFinance(false);
+        setCanApprove(false);
+      });
   }, []);
 
   useEffect(() => {
@@ -314,6 +326,28 @@ export default function DriverRosterPage() {
       ),
     },
     {
+      key: 'legal',
+      header: 'Huquqiy talablar',
+      hideBelow: 'lg',
+      cell: (d) => {
+        // Roster carries a brief per driver (§22); the drawer fetches the full list.
+        const badge = legalBriefBadge(d.legal);
+        return (
+          <button
+            type="button"
+            onClick={() => setLegalTarget(d)}
+            title={badge.title}
+            aria-label={`Huquqiy profil: ${badge.label}`}
+            className="rounded-ds-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+          >
+            <Badge variant={badge.variant} size="sm">
+              {badge.label}
+            </Badge>
+          </button>
+        );
+      },
+    },
+    {
       key: 'online',
       header: 'Onlayn',
       hideBelow: 'md',
@@ -346,23 +380,28 @@ export default function DriverRosterPage() {
             </Button>
           )}
           {canManageFinance && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setFinanceTarget(d)}
-              leftIcon={<Wallet size={13} aria-hidden />}
-            >
-              Moliya
-            </Button>
+            <Tooltip content="Moliya">
+              <IconButton
+                aria-label={`${fullName(d.firstName, d.lastName)} — moliya`}
+                icon={<Wallet aria-hidden />}
+                onClick={() => setFinanceTarget(d)}
+              />
+            </Tooltip>
           )}
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setTierTarget(d)}
-            leftIcon={<Car size={13} aria-hidden />}
-          >
-            Tarif
-          </Button>
+          <Tooltip content="Huquqiy profil">
+            <IconButton
+              aria-label={`${fullName(d.firstName, d.lastName)} — huquqiy profil`}
+              icon={<Scale aria-hidden />}
+              onClick={() => setLegalTarget(d)}
+            />
+          </Tooltip>
+          <Tooltip content="Tarif darajasi">
+            <IconButton
+              aria-label={`${fullName(d.firstName, d.lastName)} — tarif darajasi`}
+              icon={<Car aria-hidden />}
+              onClick={() => setTierTarget(d)}
+            />
+          </Tooltip>
         </div>
       ),
     },
@@ -443,6 +482,17 @@ export default function DriverRosterPage() {
         driver={financeTarget}
         onClose={() => setFinanceTarget(null)}
         onUpdated={mergeDriver}
+      />
+
+      <DriverLegalDrawer
+        driver={legalTarget}
+        canEdit={canApprove}
+        onClose={() => setLegalTarget(null)}
+        onUpdated={(id, summary) =>
+          setDrivers((prev) =>
+            prev.map((d) => (d.id === id ? { ...d, legal: legalBriefFromEligibility(summary.eligibility) } : d))
+          )
+        }
       />
 
       <DriverTierModal

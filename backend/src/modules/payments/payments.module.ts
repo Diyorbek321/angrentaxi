@@ -14,6 +14,16 @@ import { WithdrawalRequest } from '../../database/entities/withdrawal-request.en
 import { MarketOrder } from '../../database/entities/market-order.entity';
 import { FoodOrder } from '../../database/entities/food-order.entity';
 import { DriversModule } from '../drivers/drivers.module';
+import { SettingsModule } from '../settings/settings.module';
+import { WalletTopup } from '../../database/entities/wallet-topup.entity';
+import { WalletTopupsService } from './wallet-topups.service';
+import { WalletTopupCallbacksService } from './wallet-topup-callbacks.service';
+import { MerchantTransaction } from '../../database/entities/merchant-transaction.entity';
+import { PaymentTargetsService } from './merchant/payment-targets.service';
+import { PaymeMerchantService } from './merchant/payme-merchant.service';
+import { ClickShopService } from './merchant/click-shop.service';
+import { FiscalModule } from '../fiscal/fiscal.module';
+import { OrderRefundClawbackService } from './order-refund-clawback.service';
 
 @Module({
   imports: [
@@ -26,9 +36,15 @@ import { DriversModule } from '../drivers/drivers.module';
       // taxi rides.
       MarketOrder,
       FoodOrder,
+      WalletTopup,
+      MerchantTransaction,
     ]),
     // settleOrderPayout credits drivers.balance when a card payment lands.
     DriversModule,
+    // Hamyonni to'ldirish sozlamalari (yoqilgan, min/max).
+    SettingsModule,
+    // Karta to'lovi qaytarilganda fiskal qaytarish cheki (§23).
+    FiscalModule,
   ],
   controllers: [PaymentsController],
   providers: [
@@ -36,6 +52,14 @@ import { DriversModule } from '../drivers/drivers.module';
     PaymeProvider,
     ClickProvider,
     UzcardProvider,
+    WalletTopupsService,
+    WalletTopupCallbacksService,
+    // Payme Merchant API / Click SHOP API — buyurtma va to'ldirish uchun umumiy.
+    PaymentTargetsService,
+    PaymeMerchantService,
+    ClickShopService,
+    // To'langan buyurtma qaytarilganda ulushni qaytarib olish (§23).
+    OrderRefundClawbackService,
     // Pul CHIQARISH yo'li. Payme/Click payout kalitlari kelganda faqat shu
     // bog'lanish o'zgaradi — `PaymentsService` ga tegilmaydi
     // (`payout.interface.ts` dagi izohga qarang).

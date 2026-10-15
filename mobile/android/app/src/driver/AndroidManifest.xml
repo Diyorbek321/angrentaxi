@@ -8,4 +8,30 @@
          qo'yadi. Foydalanuvchi sozlamalardan yoqadi. Yo'lovchi ilovasiga
          ATAYLAB kirmaydi. Kod: kotlin/uz/angren/taxi/DriverOverlay.kt -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <application>
+        <!-- Asosiy manifestdagi MainActivity bilan birlashadi (nomi bir xil). -->
+        <activity android:name=".MainActivity">
+            <!-- Flutter'ning o'z deep link mexanizmi (plagin/kanal yo'q):
+                 havola marshrut sifatida keladi — lib/features/driver/wallet/
+                 wallet_deep_links.dart. -->
+            <meta-data
+                android:name="flutter_deeplinking_enabled"
+                android:value="true" />
+
+            <!-- Hamyonni to'ldirishdan qaytish (docs/LEGAL-COMPLIANCE.md §24):
+                 angrengo://wallet/topup/<id>. Backend WALLET_TOPUP_RETURN_URL
+                 = angrengo://wallet/topup/{id}. Qaytish to'lovni
+                 TASDIQLAMAYDI — ilova holatni serverdan so'raydi. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="angrengo"
+                    android:host="wallet"
+                    android:pathPrefix="/topup/" />
+            </intent-filter>
+        </activity>
+    </application>
 </manifest>

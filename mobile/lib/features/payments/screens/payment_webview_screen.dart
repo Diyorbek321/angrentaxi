@@ -33,6 +33,10 @@ typedef OpenPaymentCheckout = Future<bool?> Function(
 /// (`/payments/{payme,click,uzcard}/callback`), which updates the
 /// transaction row backing `GET /payments/wallet` /
 /// `GET /payments/transactions` independently of what this screen reports.
+/// Ilovaning o'z sxemasi (`angrengo://…`) — to'lov sahifasidan qaytish.
+bool isAppReturnUrl(String url) =>
+    Uri.tryParse(url)?.scheme.toLowerCase() == 'angrengo';
+
 class PaymentWebViewScreen extends StatefulWidget {
   const PaymentWebViewScreen({super.key, required this.result});
 
@@ -54,6 +58,18 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
         NavigationDelegate(
+          // Hamyonni to'ldirishdan qaytish havolasi
+          // (`angrengo://wallet/topup/<id>`, WALLET_TOPUP_RETURN_URL): WebView
+          // bu sxemani ocholmaydi (ERR_UNKNOWN_URL_SCHEME) — sahifa yopiladi,
+          // chaqiruvchi ekran holatni serverdan so'raydi. Qaytish to'lovni
+          // tasdiqlamaydi.
+          onNavigationRequest: (request) {
+            if (isAppReturnUrl(request.url)) {
+              _finish(true);
+              return NavigationDecision.prevent;
+            }
+            return NavigationDecision.navigate;
+          },
           onPageStarted: (_) => setState(() => _loading = true),
           onPageFinished: (_) => setState(() => _loading = false),
           onWebResourceError: (error) => setState(() {

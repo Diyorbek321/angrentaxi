@@ -932,3 +932,42 @@ describe('DriverVerificationService.getFileForDownload', () => {
     ).rejects.toThrow(NotFoundException);
   });
 });
+
+describe('DriverVerificationService.getLegalDocumentStatesForDrivers (ro\'yxat uchun, N+1 siz)', () => {
+  const legal = (code: string, sortOrder: number) =>
+    requirement({ code, label: code, serviceType: ServiceType.TAXI, isRequired: false, sortOrder });
+
+  it("ikki so'rov: talablar + barcha haydovchilar yuborganlari; holat eng oxirgisi bo'yicha", async () => {
+    const { service, requirementRepository, submissionRepository } = buildService(
+      [legal('taxi_licence', 200), legal('medical_check', 210), requirement({ code: 'selfie' })],
+      [
+        submission({ driverId: 'driver-1', code: 'taxi_licence', reviewStatus: DriverVerificationReviewStatus.APPROVED, submittedAt: daysFromNow(-5) }),
+        submission({ driverId: 'driver-1', code: 'taxi_licence', reviewStatus: DriverVerificationReviewStatus.REJECTED, submittedAt: daysFromNow(-1) }),
+        submission({ driverId: 'driver-2', code: 'medical_check', reviewStatus: DriverVerificationReviewStatus.PENDING }),
+      ],
+    );
+    const courier: VerificationDriver = { id: 'driver-3', vehicleType: null, serviceTypes: [ServiceType.FOOD] };
+
+    const result = await service.getLegalDocumentStatesForDrivers(
+      [taxiDriver, { ...taxiDriver, id: 'driver-2' }, courier],
+      ['taxi_licence', 'medical_check'],
+      NOW,
+    );
+
+    expect(requirementRepository.find).toHaveBeenCalledTimes(1);
+    expect(submissionRepository.find).toHaveBeenCalledTimes(1);
+    expect(result.get('driver-1')).toEqual([
+      { code: 'taxi_licence', label: 'taxi_licence', status: 'rejected' },
+      { code: 'medical_check', label: 'medical_check', status: 'missing' },
+    ]);
+    expect(result.get('driver-2')?.map((d) => d.status)).toEqual(['missing', 'pending_review']);
+    // Taksi xizmati yo'q — taksi hujjatlari unga qo'llanmaydi.
+    expect(result.get('driver-3')).toEqual([]);
+  });
+
+  it("bo'sh ro'yxat — so'rovsiz", async () => {
+    const { service, requirementRepository } = buildService([]);
+    expect((await service.getLegalDocumentStatesForDrivers([], ['taxi_licence'], NOW)).size).toBe(0);
+    expect(requirementRepository.find).not.toHaveBeenCalled();
+  });
+});

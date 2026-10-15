@@ -202,6 +202,57 @@ export class DriverVerificationService {
   }
 
   /**
+   * Bir nechta haydovchining `codes` dagi talablar holati — IKKI so'rovda
+   * (talablar + hamma haydovchining yuborganlari). Haydovchilar ro'yxatidagi
+   * huquqiy xulosa uchun (`DriverLegalService.summarizeMany`): har biriga
+   * `getSummaryForDriver` N+1 bo'lardi. Holat qoidasi aynan o'sha
+   * (`resolveStatus`, qo'llanish — `findApplicableRequirements` filtri).
+   */
+  async getLegalDocumentStatesForDrivers(
+    drivers: readonly VerificationDriver[],
+    codes: readonly string[],
+    now: Date = new Date(),
+  ): Promise<Map<string, Array<{ code: string; label: string; status: DriverVerificationStatus }>>> {
+    const result = new Map<string, Array<{ code: string; label: string; status: DriverVerificationStatus }>>();
+    if (drivers.length === 0 || codes.length === 0) return result;
+
+    const requirements = await this.requirementRepository.find({
+      where: { isActive: true, code: In([...codes]) },
+      order: { sortOrder: 'ASC', code: 'ASC' },
+    });
+    const submissions =
+      requirements.length === 0
+        ? []
+        : await this.submissionRepository.find({
+            where: {
+              driverId: In(drivers.map((d) => d.id)),
+              code: In(requirements.map((r) => r.code)),
+            },
+            order: { submittedAt: 'DESC' },
+          });
+
+    // (driverId, code) → eng oxirgi yuborilgan (saralash DESC).
+    const latest = new Map<string, DriverVerificationSubmission>();
+    for (const row of submissions) {
+      const key = `${row.driverId}:${row.code}`;
+      if (!latest.has(key)) latest.set(key, row);
+    }
+
+    for (const driver of drivers) {
+      const applicable = this.filterApplicable(requirements, driver);
+      result.set(
+        driver.id,
+        applicable.map((requirement) => ({
+          code: requirement.code,
+          label: requirement.label,
+          status: this.resolveStatus(latest.get(`${driver.id}:${requirement.code}`) ?? null, now),
+        })),
+      );
+    }
+    return result;
+  }
+
+  /**
    * `goOnline` uchun darvozabon. Sabab o'zbekcha va aniq: haydovchi nima
    * qilishi kerakligini bir o'qishda tushunishi shart.
    */
@@ -221,11 +272,18 @@ export class DriverVerificationService {
       order: { sortOrder: 'ASC', code: 'ASC' },
     });
 
+    return this.filterApplicable(active, driver);
+  }
+
+  private filterApplicable(
+    requirements: DriverVerificationRequirement[],
+    driver: VerificationDriver,
+  ): DriverVerificationRequirement[] {
     const driverServiceTypes = resolveDriverServiceTypes(driver.serviceTypes);
 
     // `null` = "hammaga tegishli". Aynan shuning uchun filtr `!= null`
     // tekshiruvi bilan yozilgan: bo'sh qiymat cheklov EMAS.
-    return active.filter((requirement) => {
+    return requirements.filter((requirement) => {
       if (requirement.serviceType != null && !driverServiceTypes.includes(requirement.serviceType)) {
         return false;
       }

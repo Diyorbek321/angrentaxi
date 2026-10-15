@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
@@ -7,8 +8,12 @@ import 'package:angren_taxi/core/location/location_ping_gate.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/core/network/api_error.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
 import 'package:angren_taxi/core/storage/local_storage.dart';
+import 'package:angren_taxi/features/driver/legal/legal_rejection.dart';
+import 'package:angren_taxi/features/driver/wallet/wallet_error_messages.dart';
+import 'package:angren_taxi/features/driver/wallet/wallet_messages.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/driver.dart';
 import 'package:angren_taxi/shared/models/driver_bonus_progress.dart';
@@ -85,6 +90,18 @@ class DriverProvider extends ChangeNotifier {
 
   DriverProviderState _state = DriverProviderState.idle;
   String? _error;
+
+  /// Oxirgi xato TANILGAN turkumga tegishli bo'lsa (huquqiy blok, hamyon
+  /// yetishmasligi) — ekran oddiy snackbar o'rniga tushuntirish ko'rsatadi.
+  DriverErrorKind? _errorKind;
+
+  /// Oxirgi tanilgan xatoning konverti (`reasons[]`, `details` summalari).
+  ApiError? _errorDetails;
+
+  /// `wallet:updated` hodisalari — global xost snackbar ko'rsatadi,
+  /// to'ldirish ekrani esa o'z to'lovi tasdiqlanganini shu yerdan biladi.
+  final StreamController<WalletUpdate> _walletUpdates =
+      StreamController<WalletUpdate>.broadcast();
   Driver? _driver;
   DriverOnboardingStatus _onboardingStatus = DriverOnboardingStatus.unknown;
   Order? _activeOrder;
@@ -127,6 +144,12 @@ class DriverProvider extends ChangeNotifier {
   /// `null` = hali o'qilmagan (yoki so'rov yiqilgan). Bu 0 dan FARQ QILADI:
   /// nolni ko'rsatish "puling yo'q" degan yolg'on bo'lardi.
   double? _walletBalance;
+
+  /// Karta to'ldirishlaridan hozir USHLAB TURILGAN summa (§25 #3a) va
+  /// muddat (kun). `null` = server bermagan (eski server) — yechish chegarasi
+  /// faqat qoldiq bo'yicha.
+  double? _withdrawalHold;
+  int _withdrawalHoldDays = 0;
   DriverEarningsBreakdown _earningsBreakdown = DriverEarningsBreakdown.empty;
   List<DriverBonusProgress> _bonusProgress = [];
   DriverRatingStats _ratingStats = DriverRatingStats.empty;
@@ -141,6 +164,9 @@ class DriverProvider extends ChangeNotifier {
 
   DriverProviderState get state => _state;
   String? get error => _error;
+  DriverErrorKind? get errorKind => _errorKind;
+  ApiError? get errorDetails => _errorDetails;
+  Stream<WalletUpdate> get walletUpdates => _walletUpdates.stream;
   Driver? get driver => _driver;
   DriverOnboardingStatus get onboardingStatus => _onboardingStatus;
   Order? get activeOrder => _activeOrder;
@@ -167,6 +193,13 @@ class DriverProvider extends ChangeNotifier {
   /// Qoldiq manfiy — haydovchi platformaga qarzdor (asosan naqd
   /// safarlarning komissiyasi). Bunday holatda onlayn chiqib bo'lmaydi.
   bool get hasWalletDebt => (_walletBalance ?? 0) < 0;
+  double? get withdrawalHold => _withdrawalHold;
+  int get withdrawalHoldDays => _withdrawalHoldDays;
+
+  /// Yechish mumkin: `max(0, balance − hold)` — qoldiq realtime yangilansa
+  /// ham mos qoladi. `null` = noma'lum.
+  double? get availableForWithdrawal =>
+      withdrawableAmount(balance: _walletBalance, held: _withdrawalHold);
   bool get isSubmittingWithdrawal => _isSubmittingWithdrawal;
   String? get withdrawalError => _withdrawalError;
   Position? get lastKnownPosition => _lastKnownPosition;
@@ -212,6 +245,10 @@ class DriverProvider extends ChangeNotifier {
 
   void _setState(DriverProviderState state) {
     _state = state;
+    if (state != DriverProviderState.error) {
+      _errorKind = null;
+      _errorDetails = null;
+    }
     notifyListeners();
   }
 
@@ -572,6 +609,8 @@ class DriverProvider extends ChangeNotifier {
       _setState(DriverProviderState.success);
     } catch (e) {
       _error = extractErrorMessage(e);
+      _errorKind = classifyDriverError(e);
+      _errorDetails = ApiError.from(e);
       _setState(DriverProviderState.error);
     }
   }
@@ -600,6 +639,8 @@ class DriverProvider extends ChangeNotifier {
       }
     });
 
+    _socketService.on(SocketEvents.walletUpdated, _onWalletUpdated);
+
     _socketService.on(SocketEvents.orderCancelled, (data) {
       if (_activeOrder != null) {
         _activeOrder = _activeOrder!.copyWith(status: OrderStatus.cancelled);
@@ -608,6 +649,35 @@ class DriverProvider extends ChangeNotifier {
       _pendingOffer = null;
       notifyListeners();
     });
+  }
+
+  /// `wallet:updated` — server yangi qoldiqni o'zi yuboradi (daftardan),
+  /// shuning uchun qayta so'ralmaydi.
+  void _onWalletUpdated(dynamic data) {
+    final update = WalletUpdate.tryParse(data);
+    if (update == null) return;
+    applyWalletUpdate(update);
+  }
+
+  /// Realtime hodisani qo'llaydi (testlar ham shu orqali haydaydi).
+  void applyWalletUpdate(WalletUpdate update) {
+    _walletBalance = update.balance;
+    _applyHoldDelta(update);
+    notifyListeners();
+    if (!_walletUpdates.isClosed) _walletUpdates.add(update);
+  }
+
+  /// Karta to'ldirishi ushlab turiladi (muddat yoqilgan bo'lsa), teskari
+  /// o'tkazma esa ushlab turilganini kamaytiradi. Aniq qiymat keyingi
+  /// `GET /payments/wallet` da keladi.
+  void _applyHoldDelta(WalletUpdate update) {
+    final hold = _withdrawalHold;
+    if (hold == null || _withdrawalHoldDays <= 0) return;
+    if (update.reason == 'topup' && update.delta > 0) {
+      _withdrawalHold = hold + update.delta;
+    } else if (update.reason == 'topup_reversal') {
+      _withdrawalHold = math.max(0.0, hold - update.delta.abs());
+    }
   }
 
   Future<void> acceptOrder(String orderId) async {
@@ -622,6 +692,8 @@ class DriverProvider extends ChangeNotifier {
       _setState(DriverProviderState.success);
     } catch (e) {
       _error = extractErrorMessage(e);
+      _errorKind = classifyDriverError(e);
+      _errorDetails = ApiError.from(e);
       _setState(DriverProviderState.error);
     }
   }
@@ -913,6 +985,13 @@ class DriverProvider extends ChangeNotifier {
         throw const FormatException('wallet javobida raqamli balans yo\'q');
       }
       _walletBalance = balance;
+      // §25: eski server bu maydonlarni bermaydi — u holda chegara yo'q.
+      final available = (payload['availableForWithdrawal'] as num?)?.toDouble();
+      final hold = (payload['withdrawalHold'] as num?)?.toDouble();
+      _withdrawalHold = hold ??
+          (available == null ? null : math.max(0.0, balance - available));
+      _withdrawalHoldDays =
+          (payload['withdrawalHoldDays'] as num?)?.round() ?? 0;
       notifyListeners();
     } catch (e) {
       debugPrint('[DriverProvider] loadWalletBalance error: $e');
@@ -954,7 +1033,15 @@ class DriverProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _withdrawalError = extractErrorMessage(e);
+      final api = ApiError.from(e);
+      final onHold = withdrawalOnHoldMessage(api);
+      if (onHold != null) {
+        // Server aniq summalarni berdi — dialog ham shu bo'yicha tekshirsin.
+        _withdrawalHold = api!.amount('held') ?? _withdrawalHold;
+        _withdrawalHoldDays =
+            api.amount('holdDays')?.round() ?? _withdrawalHoldDays;
+      }
+      _withdrawalError = onHold ?? extractErrorMessage(e);
       _isSubmittingWithdrawal = false;
       notifyListeners();
       return false;
@@ -990,6 +1077,8 @@ class DriverProvider extends ChangeNotifier {
 
   void clearError() {
     _error = null;
+    _errorKind = null;
+    _errorDetails = null;
     if (_state == DriverProviderState.error) {
       _setState(DriverProviderState.idle);
     }
@@ -1000,6 +1089,8 @@ class DriverProvider extends ChangeNotifier {
     _stopLocationUpdates();
     _socketService.off(SocketEvents.newOrderOffer);
     _socketService.off(SocketEvents.orderCancelled);
+    _socketService.off(SocketEvents.walletUpdated, _onWalletUpdated);
+    _walletUpdates.close();
     super.dispose();
   }
 }

@@ -61,6 +61,8 @@ describe('DriverBonusesService', () => {
               saved.push({ entity, data });
               return { id: 'tx-1', ...data };
             }),
+            // `drivers.balance` sinxroni (syncDriverBalanceColumn) — §13.
+            query: jest.fn().mockResolvedValue([]),
           };
           return cb(manager);
         }),
@@ -129,7 +131,7 @@ describe('DriverBonusesService', () => {
       awardRepository.manager.transaction.mockImplementation(
         async (cb: (m: unknown) => Promise<void>) => {
           transactionOpen = true;
-          await cb({ save: jest.fn().mockResolvedValue({ id: 'tx-1' }) });
+          await cb({ save: jest.fn().mockResolvedValue({ id: 'tx-1' }), query: jest.fn().mockResolvedValue([]) });
           transactionOpen = false;
         },
       );

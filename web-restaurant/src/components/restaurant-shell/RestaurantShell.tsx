@@ -6,6 +6,7 @@ import { BellRing } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
+import { useWalletSettlementToasts } from '@/hooks/useVendorSettlement';
 import { foodApi, type FoodOrder, type Restaurant } from '@/lib/api';
 import { useKiosk } from '@/lib/kiosk-context';
 import { trackNewOrders, resetOrderAlerts } from '@/lib/order-alerts';
@@ -64,6 +65,8 @@ export function RestaurantShell({
   const chrome = useAsyncData<Chrome>(loadChrome, { pollMs: CHROME_POLL_MS, enabled: isAuthenticated });
   // Yangi buyurtma socket orqali darhol: ovozli signal ham shu yuklashdan chiqadi.
   useRealtimeRefresh(chrome.reload, isAuthenticated);
+  // Hamyon o'tkazmasi (va teskarisi) — qaysi sahifada bo'lmasin toast.
+  useWalletSettlementToasts(isAuthenticated);
 
   const restaurant = chrome.data?.restaurant ?? null;
   const newOrders = chrome.data?.newOrders ?? 0;

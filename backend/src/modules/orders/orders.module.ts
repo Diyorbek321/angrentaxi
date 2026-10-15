@@ -23,6 +23,8 @@ import { SurgeModule } from '../surge/surge.module';
 import { CitiesModule } from '../cities/cities.module';
 import { RoutingModule } from '../routing/routing.module';
 import { SettingsModule } from '../settings/settings.module';
+import { FiscalModule } from '../fiscal/fiscal.module';
+import { ShiftPassesModule } from '../shift-passes/shift-passes.module';
 
 @Module({
   imports: [
@@ -43,6 +45,12 @@ import { SettingsModule } from '../settings/settings.module';
     // (`resolveCityIdForPickup`). Modul eng quyi qatlamda — hech qanday
     // feature modulini olmaydi — shuning uchun aylanma bog'liqlik yo'q.
     CitiesModule,
+    // Yakunlangan safar uchun fiskal chek yozuvi. Eng quyi qatlam — orders'ni
+    // import qilmaydi, aylanma bog'liqlik yo'q.
+    FiscalModule,
+    // Smena: faol smena komissiyani 0 qiladi; daromad ekrani smena narxini
+    // ko'rsatadi. Modul orders'ni import qilmaydi — aylanma bog'liqlik yo'q.
+    ShiftPassesModule,
   ],
   controllers: [OrdersController],
   // ⚠️ `ScheduledOrdersService` ATAYLAB `ORDERS_PROVIDERS` dan TASHQARIDA.

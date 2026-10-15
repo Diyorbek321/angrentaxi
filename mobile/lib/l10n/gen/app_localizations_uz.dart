@@ -1194,6 +1194,36 @@ class AppLocalizationsUz extends AppLocalizations {
   }
 
   @override
+  String get ernNetFromFares => 'Yo\'l haqidan sof';
+
+  @override
+  String get ernNetWithTips => 'Jami sof tushum';
+
+  @override
+  String get ernShiftPass => 'Smena';
+
+  @override
+  String get ernTaxWithheld => 'Soliq (1%)';
+
+  @override
+  String get ernTips => 'Chaqim (komissiyasiz)';
+
+  @override
+  String errBalanceIs(String balance) {
+    return 'Balans: $balance';
+  }
+
+  @override
+  String errNeedVsBalance(String required, String balance) {
+    return 'Kerak: $required, balans: $balance';
+  }
+
+  @override
+  String errPriceVsBalance(String price, String balance) {
+    return 'Narxi: $price, balans: $balance';
+  }
+
+  @override
   String fmtCurrencySom(String amount) {
     return '$amount so\'m';
   }
@@ -1266,6 +1296,179 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get languageUzbek => 'O\'zbekcha';
+
+  @override
+  String get lglBirthDate => 'Tug\'ilgan sana';
+
+  @override
+  String lglBlockedBannerBody(int count) {
+    return 'Huquqiy talablar bajarilmagan: $count ta';
+  }
+
+  @override
+  String get lglBlockedBannerTitle => 'Taksi uchun onlayn chiqa olmaysiz';
+
+  @override
+  String get lglClose => 'Yopish';
+
+  @override
+  String get lglCourierHint =>
+      'Kuryer sifatida ishlashni davom ettirish uchun «Xizmat turlari» bo\'limida taksini o\'chiring.';
+
+  @override
+  String get lglDocCarrierInsurance => 'Tashuvchining javobgarlik sug\'urtasi';
+
+  @override
+  String get lglDocCarrierInsuranceHint =>
+      'Sug\'urta polisi — amal qilish muddati ko\'rinsin';
+
+  @override
+  String get lglDocMedicalCheck => 'Tibbiy ko\'rik ma\'lumotnomasi';
+
+  @override
+  String get lglDocMedicalCheckHint =>
+      'Yillik tibbiy ko\'rikdan o\'tganingiz haqida';
+
+  @override
+  String get lglDocTaxiLicence => 'Taksi litsenziya varaqasi';
+
+  @override
+  String get lglDocTaxiLicenceHint => 'Hudud va amal qilish muddati ko\'rinsin';
+
+  @override
+  String get lglDocTechInspection => 'Yillik texnik ko\'rik';
+
+  @override
+  String get lglDocTechInspectionHint => 'Texnik ko\'rik guvohnomasi';
+
+  @override
+  String get lglDuplicatePinfl =>
+      'Bu JShShIR boshqa haydovchi profilida ro\'yxatdan o\'tgan';
+
+  @override
+  String get lglDuplicateTin =>
+      'Bu STIR boshqa haydovchi profilida ro\'yxatdan o\'tgan';
+
+  @override
+  String get lglEligibleBody =>
+      'Taksi buyurtmalarini qabul qilishingiz mumkin.';
+
+  @override
+  String get lglEligibleTitle => 'Barcha talablar bajarilgan';
+
+  @override
+  String get lglFill => 'To\'ldirish';
+
+  @override
+  String get lglGoOnlineBlockedBody =>
+      'Taksi uchun quyidagi talablar bajarilmagan:';
+
+  @override
+  String get lglGoOnlineBlockedTitle => 'Onlayn chiqib bo\'lmadi';
+
+  @override
+  String get lglIndividualEntrepreneur => 'YaTT (yakka tadbirkor)';
+
+  @override
+  String get lglIntro =>
+      'Taksi sifatida ishlash uchun Vazirlar Mahkamasining 200-son qarori talablari. Ma\'lumotlar 1% soliq hisoboti va cheklarda ishlatiladi.';
+
+  @override
+  String get lglLegalRequirement => 'Taksi uchun huquqiy talab';
+
+  @override
+  String get lglLicenceIssuedAt =>
+      'Haydovchilik guvohnomasi (B toifa) berilgan sana';
+
+  @override
+  String get lglLoadFailed => 'Huquqiy profilni yuklab bo\'lmadi';
+
+  @override
+  String get lglLockedNote =>
+      'Hujjatingiz tasdiqlangan. JShShIR, STIR, soliq maqomi va tug\'ilgan sanani o\'zgartirish uchun operatorga murojaat qiling.';
+
+  @override
+  String get lglMenuSubtitle => 'Soliq maqomi, JShShIR, litsenziya';
+
+  @override
+  String get lglNotEligibleTitle => 'Bajarilmagan talablar';
+
+  @override
+  String get lglOpenDocuments => 'Hujjatlarni yuklash';
+
+  @override
+  String get lglOpenProfile => 'Huquqiy profilni ochish';
+
+  @override
+  String get lglPinfl => 'JShShIR (PINFL)';
+
+  @override
+  String get lglPinflHint => '14 ta raqam — pasport yoki ID-kartada';
+
+  @override
+  String get lglSave => 'Saqlash';
+
+  @override
+  String get lglSaved => 'Huquqiy profil saqlandi';
+
+  @override
+  String get lglSelectDate => 'Sanani tanlang';
+
+  @override
+  String get lglSelectRegion => 'Hududni tanlang';
+
+  @override
+  String get lglSelfEmployed => 'O\'zini o\'zi band qilgan';
+
+  @override
+  String get lglStatusBlocking =>
+      'Taksi uchun onlayn chiqish to\'xtatilgan. Quyidagilarni to\'ldiring.';
+
+  @override
+  String lglStatusGrace(String date) {
+    return '$date dan boshlab majburiy. Hozircha ishlashingiz mumkin.';
+  }
+
+  @override
+  String get lglStatusWarning =>
+      'Hozircha ogohlantirish — ishlashingizga to\'sqinlik qilmaydi.';
+
+  @override
+  String get lglTaxStatus => 'Soliq maqomi';
+
+  @override
+  String get lglTaxiLicenceNumber => 'Taksi litsenziya varaqasi raqami';
+
+  @override
+  String get lglTaxiLicenceRegion => 'Litsenziya hududi';
+
+  @override
+  String get lglTin => 'STIR (INN)';
+
+  @override
+  String get lglTinHintOptional => '9 ta raqam — ixtiyoriy';
+
+  @override
+  String get lglTinHintRequired => '9 ta raqam — YaTT uchun majburiy';
+
+  @override
+  String get lglTitle => 'Huquqiy profil';
+
+  @override
+  String get lglValPinflFormat =>
+      'JShShIR 14 ta raqamdan iborat bo\'lishi kerak';
+
+  @override
+  String get lglValPinflRequired => 'JShShIR kiriting';
+
+  @override
+  String get lglValTaxStatusRequired => 'Soliq maqomini tanlang';
+
+  @override
+  String get lglValTinFormat => 'STIR 9 ta raqamdan iborat bo\'lishi kerak';
+
+  @override
+  String get lglValTinRequired => 'YaTT uchun STIR majburiy';
 
   @override
   String get paxAbout => 'Dastur haqida';
@@ -3389,4 +3592,287 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get shVerifUnknown => 'E\'tibor talab qiladi';
+
+  @override
+  String get shfActive => 'Smena faol';
+
+  @override
+  String get shfAlreadyActive => 'Sizda allaqachon faol smena bor';
+
+  @override
+  String get shfBought => 'Smena faollashtirildi';
+
+  @override
+  String shfBuy(String price) {
+    return 'Smena olish — $price';
+  }
+
+  @override
+  String get shfCancel => 'Bekor qilish';
+
+  @override
+  String shfComparison(int days, String commission, String passCost) {
+    return 'So\'nggi $days kunda komissiyaga $commission to\'ladingiz, smena bilan $passCost bo\'lardi.';
+  }
+
+  @override
+  String shfComparisonNoTrips(int days) {
+    return 'So\'nggi $days kunda safar bo\'lmadi — taqqoslash uchun ma\'lumot yo\'q.';
+  }
+
+  @override
+  String get shfConfirm => 'Sotib olish';
+
+  @override
+  String shfConfirmBody(String price, int hours, String services) {
+    return 'Hamyoningizdan $price yechiladi. $hours soat davomida «$services» safarlaridan komissiya olinmaydi. 1% soliq odatdagidek ushlanadi.';
+  }
+
+  @override
+  String get shfConfirmTitle => 'Smena sotib olinsinmi?';
+
+  @override
+  String shfHoursMinutes(int hours, int minutes) {
+    return '$hours soat $minutes daqiqa';
+  }
+
+  @override
+  String shfMinutes(int minutes) {
+    return '$minutes daqiqa';
+  }
+
+  @override
+  String shfRemaining(String time) {
+    return '$time qoldi';
+  }
+
+  @override
+  String shfSubtitle(int hours) {
+    return '$hours soat komissiyasiz ishlang';
+  }
+
+  @override
+  String get shfTitle => 'Smena';
+
+  @override
+  String shfVerdictCommission(String amount) {
+    return 'Komissiya $amount arzonroq tushdi';
+  }
+
+  @override
+  String get shfVerdictEqual => 'Ikkalasi bir xil';
+
+  @override
+  String shfVerdictShift(String amount) {
+    return 'Smena $amount tejardi';
+  }
+
+  @override
+  String wdrAmountExceedsAvailable(String amount) {
+    return 'Hozir ko\'pi bilan $amount yechish mumkin';
+  }
+
+  @override
+  String wdrAvailable(String amount) {
+    return 'Yechish mumkin: $amount';
+  }
+
+  @override
+  String wdrHoldNote(String amount, String days) {
+    return 'Karta orqali to\'ldirilgan $amount $days kundan keyin yechish mumkin';
+  }
+
+  @override
+  String get wdrNothingAvailable => 'Hozircha yechib olinadigan mablag\' yo\'q';
+
+  @override
+  String get wltAmount => 'Summa';
+
+  @override
+  String get wltAmountHint => 'Summani kiriting';
+
+  @override
+  String wltAmountRange(String min, String max) {
+    return '$min dan $max gacha';
+  }
+
+  @override
+  String wltCallFailed(String phone) {
+    return 'Qo\'ng\'iroq qilib bo\'lmadi. Raqam: $phone';
+  }
+
+  @override
+  String wltCallOperator(String phone) {
+    return 'Operatorga qo\'ng\'iroq: $phone';
+  }
+
+  @override
+  String get wltContinuePending => 'To\'lovni davom ettirish';
+
+  @override
+  String get wltCurrentBalance => 'Joriy balans';
+
+  @override
+  String get wltDisabledBody =>
+      'Ilovadan to\'ldirish hozircha yoqilmagan. Operatorga qo\'ng\'iroq qiling — u hamyoningizni to\'ldiradi.';
+
+  @override
+  String get wltDisabledTitle => 'Operator orqali to\'ldirish';
+
+  @override
+  String get wltDone => 'Tayyor';
+
+  @override
+  String get wltFailedBody =>
+      'Pul yechilmadi. Qayta urinib ko\'ring yoki boshqa usulni tanlang.';
+
+  @override
+  String get wltFailedTitle => 'To\'lov o\'tmadi';
+
+  @override
+  String get wltHistory => 'To\'ldirishlar tarixi';
+
+  @override
+  String get wltHistoryEmpty => 'Hali to\'ldirish bo\'lmagan';
+
+  @override
+  String wltNewBalance(String balance) {
+    return 'Yangi balans: $balance';
+  }
+
+  @override
+  String get wltNoSupportPhone =>
+      'Operator raqami topilmadi — qo\'llab-quvvatlash chatiga yozing.';
+
+  @override
+  String get wltOpenCheckoutAgain => 'To\'lov sahifasini qayta ochish';
+
+  @override
+  String wltPay(String amount) {
+    return '$amount to\'lash';
+  }
+
+  @override
+  String get wltProvider => 'To\'lov usuli';
+
+  @override
+  String get wltRefundClawbackFallback =>
+      'Mijozga karta to\'lovi qaytarildi — shu buyurtma bo\'yicha ulushingiz hamyondan yechildi.';
+
+  @override
+  String get wltReminderFallback =>
+      'Restoran va do\'kon bilan hisob-kitob hamyon orqali bo\'ladi — hamyoningizni to\'ldiring.';
+
+  @override
+  String get wltShowPending => 'Ochiq to\'lovlarni ko\'rish';
+
+  @override
+  String get wltStatusCancelled => 'Bekor qilindi';
+
+  @override
+  String get wltStatusExpired => 'Muddati o\'tdi';
+
+  @override
+  String get wltStatusFailed => 'O\'tmadi';
+
+  @override
+  String get wltStatusPaid => 'To\'landi';
+
+  @override
+  String get wltStatusPending => 'Kutilmoqda';
+
+  @override
+  String get wltStillPending =>
+      'Hali tasdiqlanmadi. Pul yechilgan bo\'lsa, u avtomatik tushadi — tarixda kuzating.';
+
+  @override
+  String wltSuccessBody(String amount) {
+    return '$amount hamyoningizga tushdi';
+  }
+
+  @override
+  String get wltSuccessTitle => 'Hamyon to\'ldirildi';
+
+  @override
+  String wltTooManyPending(String count) {
+    return 'Sizda $count ta tugallanmagan to\'lov bor. Avval ularni yakunlang yoki bekor bo\'lishini kuting.';
+  }
+
+  @override
+  String get wltTooManyPendingNoCount =>
+      'Sizda tugallanmagan to\'lovlar ko\'p. Avval ularni yakunlang yoki bekor bo\'lishini kuting.';
+
+  @override
+  String get wltTopUpShort => 'To\'ldirish';
+
+  @override
+  String get wltTopUpTitle => 'Hamyonni to\'ldirish';
+
+  @override
+  String get wltTryAgain => 'Qayta urinish';
+
+  @override
+  String wltUpdGeneric(String amount) {
+    return 'Hamyon yangilandi: $amount';
+  }
+
+  @override
+  String wltUpdManual(String amount) {
+    return 'Operator hamyonni tuzatdi: $amount';
+  }
+
+  @override
+  String wltUpdRefundClawback(String amount) {
+    return 'To\'lov mijozga qaytarildi — ulush hamyondan yechildi: $amount';
+  }
+
+  @override
+  String wltUpdShiftRefund(String amount) {
+    return 'Smena puli qaytarildi: $amount';
+  }
+
+  @override
+  String wltUpdTopup(String amount) {
+    return 'Hamyon to\'ldirildi: $amount';
+  }
+
+  @override
+  String wltUpdTopupReversal(String amount) {
+    return 'To\'ldirish bekor qilindi: $amount';
+  }
+
+  @override
+  String wltUpdVendorReversal(String amount) {
+    return 'Do\'konga o\'tkazma qaytarildi: $amount';
+  }
+
+  @override
+  String get wltValAmountEmpty => 'Summani kiriting';
+
+  @override
+  String get wltValAmountInvalid => 'Faqat raqam kiriting';
+
+  @override
+  String wltValAmountMax(String max) {
+    return 'Eng ko\'p summa — $max';
+  }
+
+  @override
+  String wltValAmountMin(String min) {
+    return 'Eng kam summa — $min';
+  }
+
+  @override
+  String get wltVendorInsufficientBody =>
+      'Naqd buyurtmada tovar puli do\'konga hamyoningizdan o\'tkaziladi. Hamyonni to\'ldirib, qayta qabul qiling.';
+
+  @override
+  String get wltVendorInsufficientTitle => 'Hamyonda mablag\' yetarli emas';
+
+  @override
+  String get wltWaitingBody =>
+      'To\'lov tizimi tasdiqlashi bilan pul hamyonga tushadi. Odatda bir necha soniya.';
+
+  @override
+  String get wltWaitingTitle => 'To\'lov tasdiqlanishi kutilmoqda';
 }

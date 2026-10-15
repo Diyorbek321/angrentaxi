@@ -161,6 +161,11 @@ class SocketEvents {
   static const String newOrderOffer = 'new_order_offer';
   static const String orderCancelled = 'order:cancelled';
 
+  // Hamyon balansi o'zgardi (to'ldirish, qaytarim, qo'lda tuzatish, ...) —
+  // `{ balance, delta, reason, topupId?|auditLogId?|shiftPassId?|vendorOrderId? }`
+  // (docs/LEGAL-COMPLIANCE.md §17).
+  static const String walletUpdated = 'wallet:updated';
+
   // Passenger receives — these must match the literal strings orders.service.ts
   // emits via realtimeGateway.emitToUser(passengerId, ...). The backend emits
   // one distinct event per transition rather than a single generic

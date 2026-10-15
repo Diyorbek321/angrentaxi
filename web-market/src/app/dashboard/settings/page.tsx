@@ -16,6 +16,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { RadioGroup } from '@/components/ui/RadioGroup';
 import { SkeletonForm } from '@/components/ui/Skeleton';
 import { usePageRefresh } from '@/components/shell';
+import { tinError } from '@/lib/tin';
 
 const DELIVERY_OPTIONS = [
   { value: 'self' as const, label: "O'zi yetkazadi", description: "Do'kon o'z kuryeri bilan yetkazadi" },
@@ -40,6 +41,7 @@ export default function SettingsPage() {
   const [end, setEnd] = useState('22:00');
   const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>('platform');
   const [threshold, setThreshold] = useState('10');
+  const [tin, setTin] = useState('');
   const [image, setImage] = useState<ImageChange>({ kind: 'keep' });
   const [saving, setSaving] = useState(false);
 
@@ -56,6 +58,7 @@ export default function SettingsPage() {
     setEnd(store.workingHoursEnd);
     setDeliveryMode(store.deliveryMode);
     setThreshold(String(store.lowStockThreshold));
+    setTin(store.tin ?? '');
   }, [store]);
 
   // Saqlanmagan o'zgarish bormi — sticky saqlash paneli shunga qarab gapiradi.
@@ -71,9 +74,11 @@ export default function SettingsPage() {
       end !== store.workingHoursEnd ||
       deliveryMode !== store.deliveryMode ||
       threshold !== String(store.lowStockThreshold) ||
+      tin.trim() !== (store.tin ?? '') ||
       image.kind !== 'keep'
     );
-  }, [store, name, phone, address, lat, lng, start, end, deliveryMode, threshold, image]);
+  }, [store, name, phone, address, lat, lng, start, end, deliveryMode, threshold, tin, image]);
+  const tinInvalid = tinError(tin);
 
   const useCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -95,6 +100,10 @@ export default function SettingsPage() {
   };
 
   const save = async () => {
+    if (tinInvalid) {
+      toast({ title: 'STIR notoʻgʻri', description: tinInvalid, variant: 'error' });
+      return;
+    }
     setSaving(true);
     try {
       await marketApi.updateStore({
@@ -107,6 +116,8 @@ export default function SettingsPage() {
         lowStockThreshold: Math.max(0, Number(threshold) || 0),
         lat: lat ? Number(lat) : undefined,
         lng: lng ? Number(lng) : undefined,
+        // Bo'sh — STIR olib tashlanadi (null), aks holda 9 raqam.
+        tin: tin.trim() === '' ? null : tin.trim(),
       });
     } catch (err) {
       toast({ title: 'Xatolik', description: errorMessage(err, 'Saqlab bo‘lmadi'), variant: 'error' });
@@ -213,6 +224,25 @@ export default function SettingsPage() {
                   Kuryer buyurtmani shu manzildan olib ketadi — koordinatalar aniq bo&apos;lishi kerak.
                 </p>
               </div>
+            </CardBody>
+          </Card>
+
+          <Card padding="none">
+            <CardHeader title="Soliq maʼlumotlari" description="Fiskal chek uchun" divider />
+            <CardBody className="pt-4">
+              <Input
+                label="STIR (INN)"
+                inputMode="numeric"
+                autoComplete="off"
+                className="num"
+                wrapperClassName="max-w-[16rem]"
+                maxLength={9}
+                placeholder="123456789"
+                value={tin}
+                onChange={(e) => setTin(e.target.value.replace(/\D/g, ''))}
+                error={tinInvalid ?? undefined}
+                hint="Fiskal chekda koʻrsatiladi. 9 ta raqam; kiritilmasa chekda doʻkon koʻrinmaydi."
+              />
             </CardBody>
           </Card>
 

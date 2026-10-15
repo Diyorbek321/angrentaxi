@@ -12,14 +12,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, In, Repository } from 'typeorm';
 import Redis from 'ioredis';
 import { Driver } from '../../database/entities/driver.entity';
-import { computeWalletBalance } from '../payments/wallet-balance.util';
+import { computeWalletBalance, syncDriverBalanceColumn } from '../payments/wallet-balance.util';
 import { UserRole, UserStatus } from '../../database/entities/user.entity';
-import {
-  Transaction,
-  TransactionStatus,
-  TransactionType,
-} from '../../database/entities/transaction.entity';
-import { DRIVER_ACTIVE_ORDER_STATUSES, PaymentMethod } from '../../database/entities/order.entity';
+import { Transaction } from '../../database/entities/transaction.entity';
+import { DRIVER_ACTIVE_ORDER_STATUSES } from '../../database/entities/order.entity';
 import { REDIS_CLIENT } from '../../config/redis.config';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
@@ -27,12 +23,14 @@ import { UsersService } from '../users/users.service';
 import { RoadSpeedService } from './road-speed.service';
 import { TaximeterService } from '../taximeter/taximeter.service';
 import { DriverVerificationService } from './driver-verification.service';
+import { DriverLegalBrief, DriverLegalService } from './driver-legal.service';
 import {
   DEFAULT_DRIVER_SERVICE_TYPES,
   DriverCapabilityFilter,
   driverMatchesCapabilities,
 } from './driver-capabilities';
 import { normalizeTripOptions } from '../orders/trip-options';
+import { ERROR_CODES, codedBadRequest } from '../../common/errors/coded-error';
 
 export interface NearbyDriver {
   driverId: string;
@@ -136,6 +134,9 @@ export class DriversService {
     // Taksometr izi. Ixtiyoriy faqat izolyatsiyadagi unit testlar uchun —
     // ilovada `TaximeterModule` har doim ulangan.
     @Optional() private readonly taximeterService?: TaximeterService,
+    // VMQ 200 / PQ-247 darvozasi (faqat taksi). Ixtiyoriy — qo'lda
+    // yig'iladigan unit spec'lar uchun; ilovada har doim ulangan.
+    @Optional() private readonly legalGate?: DriverLegalService,
   ) {}
 
   async createProfile(userId: string, dto: CreateDriverDto): Promise<Driver> {
@@ -404,9 +405,11 @@ export class DriversService {
       );
 
       if (walletBalance < 0) {
-        throw new BadRequestException(
+        throw codedBadRequest(
+          ERROR_CODES.walletNegativeBalance,
           `Hisobingiz manfiy (${walletBalance.toLocaleString('uz-UZ')} so'm). ` +
             "Onlayn bo'lish uchun qarzni yoping.",
+          { details: { balance: walletBalance } },
         );
       }
     }
@@ -421,6 +424,9 @@ export class DriversService {
     // HIMOYA (a) va (b) izohlariga qarang.
     if (isOnline) {
       await this.verificationService.assertCanGoOnline(driver);
+      // Huquqiy talablar: `legalComplianceEnforcedFrom` o'chiq bo'lsa hech
+      // narsa qilmaydi (docs/LEGAL-COMPLIANCE.md).
+      await this.legalGate?.assertCanGoOnline(driver);
     }
 
     await this.driverRepository.update(driver.id, { isOnline });
@@ -760,25 +766,19 @@ export class DriversService {
     });
   }
 
-  // Pure balance mutation with no transaction record of its own — used by
-  // OrdersService after it has already written the CREDIT/DEBIT pair for a
-  // completed trip's payout + commission, so the ledger isn't double-counted.
-  // If the delta pushes the driver negative while online, take them offline
-  // immediately rather than leaving them online-but-blocked until their next
-  // toggle.
   /**
-   * Database half of a balance adjustment, runnable inside a caller's
-   * transaction so a wallet movement commits or rolls back together with the
-   * ledger rows that justify it (see OrdersCompletionService.completeTrip).
+   * `drivers.balance` ustunini chaqiruvchining tranzaksiyasi ichida DAFTARDAN
+   * qayta yozadi (`syncDriverBalanceColumn`). Daftar qatorlari (safar,
+   * komissiya, soliq, smena, chaqiq, to'ldirish) shu chaqiruvdan OLDIN
+   * yozilgan bo'lishi kerak.
    *
-   * The balance is incremented in SQL (`balance = balance + :delta`) rather
-   * than read-modify-written in JS: two settlements landing on the same driver
-   * concurrently would otherwise both read the old balance and the second
-   * write would silently swallow the first.
+   * ⚠️ `delta` endi FAQAT log/izoh uchun: ilgari `balance = balance + delta`
+   * edi va daftarga tegib, ustunga tegmaydigan harakatlar (yechish, sotuvchiga
+   * hamyon o'tkazmasi) ikkalasini ajratib yuborardi. Oflayn qilish ham daftar
+   * bo'yicha — onlayn darvoza (`setOnlineStatus`) bilan aynan bir qoida.
    *
-   * Deliberately does no Redis work — that side effect must not fire until the
-   * surrounding transaction has actually committed. The caller applies it via
-   * {@link takeOfflineInRedis} using the returned `wentOffline` flag.
+   * Redis'ga tegmaydi — chaqiruvchi commit'dan keyin `wentOffline` bo'yicha
+   * {@link takeOfflineInRedis} ni chaqiradi.
    */
   async adjustBalanceWithin(
     manager: EntityManager,
@@ -791,19 +791,12 @@ export class DriversService {
       throw new NotFoundException(`Driver for user ${userId} not found`);
     }
 
-    const [updated] = (await manager.query(
-      `UPDATE drivers
-          SET balance = balance + $1,
-              is_online = CASE WHEN balance + $1 < 0 THEN false ELSE is_online END
-        WHERE id = $2
-    RETURNING balance, is_online`,
-      [delta, driver.id],
-    ));
+    const synced = await syncDriverBalanceColumn(manager, userId);
+    this.logger.debug(
+      `Driver ${driver.id} balance synced from ledger: ${synced.balance} (movement ${delta})`,
+    );
 
-    const newBalance = parseFloat(updated?.balance ?? '0');
-    const wentOffline = driver.isOnline && updated?.is_online === false;
-
-    return { driverId: driver.id, newBalance, wentOffline };
+    return { driverId: driver.id, newBalance: synced.balance, wentOffline: synced.wentOffline };
   }
 
   /**
@@ -831,30 +824,6 @@ export class DriversService {
       driver: { ...driver, balance: newBalance, isOnline: wentOffline ? false : driver.isOnline },
       wentOffline,
     };
-  }
-
-  // Manual top-up/adjustment. `amount` may be negative for a correction. This
-  // is also the endpoint a future Telegram top-up bot will call.
-  async addFunds(driverId: string, amount: number, note?: string): Promise<Driver> {
-    const driver = await this.findByIdOrThrow(driverId);
-
-    await this.transactionRepository.save({
-      userId: driver.userId,
-      orderId: null,
-      amount: Math.abs(amount),
-      type: amount >= 0 ? TransactionType.CREDIT : TransactionType.DEBIT,
-      paymentMethod: PaymentMethod.CASH,
-      status: TransactionStatus.COMPLETED,
-      externalId: note ?? null,
-    });
-
-    // Atomic increment rather than a read-modify-write of `driver.balance`.
-    // Two concurrent top-ups (admin credit + Telegram bot, or a double-tap)
-    // both read the same starting balance and the second write silently
-    // discarded the first. Reuses the same SQL shape as adjustBalanceWithin.
-    await this.adjustBalanceWithin(this.driverRepository.manager, driver.userId, amount);
-
-    return this.findByIdOrThrow(driverId);
   }
 
   async setCommissionRate(driverId: string, commissionRate: number | null): Promise<Driver> {
@@ -905,6 +874,24 @@ export class DriversService {
     }
 
     const [drivers, total] = await qb.getManyAndCount();
-    return { drivers: await this.attachDisplayFields(drivers), total, page, limit };
+    const enriched = await this.attachDisplayFields(drivers);
+    return { drivers: await this.attachLegalBriefs(enriched), total, page, limit };
+  }
+
+  /**
+   * Ro'yxatdagi har haydovchiga `legal: { eligible, blocking, issueCount }`
+   * (VMQ 200) — bitta guruhlangan hisob (`DriverLegalService.summarizeMany`),
+   * N+1 emas. Hisob xato bersa ro'yxat buzilmaydi: `legal: null`.
+   */
+  private async attachLegalBriefs(drivers: Driver[]): Promise<Driver[]> {
+    let briefs = new Map<string, DriverLegalBrief>();
+    try {
+      briefs = (await this.legalGate?.summarizeMany(drivers)) ?? briefs;
+    } catch (err) {
+      this.logger.warn(`Haydovchilar huquqiy xulosasi hisoblanmadi: ${(err as Error).message}`);
+    }
+    return drivers.map((driver) =>
+      Object.assign(driver, { legal: briefs.get(driver.id) ?? null }),
+    );
   }
 }

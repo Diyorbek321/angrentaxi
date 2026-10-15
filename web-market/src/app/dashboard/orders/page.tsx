@@ -1,12 +1,15 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Check, ClipboardList } from 'lucide-react';
+import { Check, ClipboardList, Info } from 'lucide-react';
 import { marketApi, MarketOrder, MarketOrderStatus } from '@/lib/api';
+import { walletSwitchNotice } from '@/lib/vendor-settlement';
+import type { VendorSettlementContext } from '@/lib/vendor-cash';
 import { ORDER_STATUS, compareOrders } from '@/lib/order-status';
 import { errorMessage } from '@/lib/utils';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
+import { useVendorSettlement } from '@/hooks/useVendorSettlement';
 import { usePagination } from '@/hooks/usePagination';
 import { useToast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
@@ -53,6 +56,15 @@ export default function OrdersPage() {
     return () => clearInterval(interval);
   }, [reload]);
   useRealtimeRefresh(reload);
+
+  // Hisob-kitob rejimi (naqd / kuryer hamyoni) — ikkinchi darajali. O'tkazma
+  // summalari buyurtmaning o'zidan (`vendorWalletSettlement`, o'tkazma paytidagi).
+  const publicSettings = useVendorSettlement();
+  const settlement: VendorSettlementContext = useMemo(
+    () => ({ mode: publicSettings?.vendorSettlementMode }),
+    [publicSettings]
+  );
+  const switchNotice = walletSwitchNotice(publicSettings);
 
   const orders = useMemo(() => [...(data ?? [])].sort(compareOrders), [data]);
 
@@ -127,6 +139,18 @@ export default function OrdersPage() {
         title="Buyurtmalar"
         description="Navbat: yangilari tepada, ular ichida eng eskisi birinchi"
       />
+
+      {switchNotice && (
+        <p
+          role="note"
+          className="mb-3 flex items-start gap-2 rounded-ds-sm border border-info/30 bg-info-tint px-3 py-2 text-[13px] text-ink"
+        >
+          <Info size={14} aria-hidden className="mt-0.5 shrink-0 text-info-dark dark:text-info-light" />
+          <span>
+            {switchNotice}: kuryer tovar pulini naqd emas, hamyonidan oʻtkazadi — naqd tasdiqlash kerak boʻlmaydi.
+          </span>
+        </p>
+      )}
 
       {/* Holat zinapoyasi: Yangi → Yig'ilmoqda → Yuborildi → Yetkazildi. */}
       <div className="mb-3 flex flex-wrap items-center gap-3">
@@ -226,6 +250,7 @@ export default function OrdersPage() {
                   onOpen={() => setOpenOrderId(o.id)}
                   onAdvance={() => void advanceRow(o)}
                   advancing={advancingId === o.id}
+                  settlementMode={settlement.mode}
                 />
               ))}
             </ul>
@@ -236,7 +261,7 @@ export default function OrdersPage() {
           <ul className="space-y-2 lg:hidden">
             {paged.pageItems.map((o) => (
               <li key={o.id}>
-                <OrderCardMobile order={o} onOpen={() => setOpenOrderId(o.id)} />
+                <OrderCardMobile order={o} onOpen={() => setOpenOrderId(o.id)} settlementMode={settlement.mode} />
               </li>
             ))}
           </ul>
@@ -253,6 +278,7 @@ export default function OrdersPage() {
         onClose={() => setOpenOrderId(null)}
         onChanged={reload}
         onError={(msg) => toast({ title: 'Xatolik', description: msg, variant: 'error' })}
+        settlement={settlement}
       />
     </div>
   );

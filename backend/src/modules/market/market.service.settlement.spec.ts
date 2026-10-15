@@ -90,6 +90,16 @@ describe('MarketService - store earnings settlement on delivery', () => {
     );
   });
 
+  it("hamyon orqali hisoblangan buyurtmada komissiya QAYTA yozilmaydi (olib ketishda yozilgan)", async () => {
+    orderRepo.findOne.mockResolvedValue(
+      shippedOrder({ paymentMethod: MarketPaymentMethod.CASH, vendorWalletSettledAt: new Date() }),
+    );
+
+    await service.advanceOrder('store-1', 'market-order-1');
+
+    expect(transactionRepo.save).not.toHaveBeenCalled();
+  });
+
   it('books a gross CREDIT plus a commission DEBIT for a CARD order', async () => {
     orderRepo.findOne.mockResolvedValue(shippedOrder({ paymentMethod: MarketPaymentMethod.CARD }));
 

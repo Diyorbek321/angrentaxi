@@ -1,4 +1,5 @@
 import {
+  AfterLoad,
   Column,
   CreateDateColumn,
   Entity,
@@ -10,6 +11,10 @@ import {
 } from 'typeorm';
 import { Restaurant } from './restaurant.entity';
 import { User } from './user.entity';
+import {
+  VendorWalletSettlementView,
+  vendorWalletSettlementView,
+} from './vendor-wallet-settlement-view';
 
 export enum FoodOrderStatus {
   NEW = 'new',
@@ -152,6 +157,63 @@ export class FoodOrder {
 
   @Column({ name: 'vendor_cash_dispute_resolution', type: 'varchar', length: 500, nullable: true })
   vendorCashDisputeResolution: string | null;
+
+  // Hamyon rejimida (migratsiya 026) kuryer hamyonidan sotuvchi hisobiga
+  // o'tkazma qilingan payt. Qo'yilganda `vendorCashPaidAt` va
+  // `vendorCashConfirmedAt` ham qo'yiladi — sotuvchi tasdig'i kerak emas.
+  @Column({ name: 'vendor_wallet_settled_at', type: 'timestamptz', nullable: true })
+  vendorWalletSettledAt: Date | null;
+
+  // Olib ketilgandan keyin kuryer safari bekor qilinib, hamyon o'tkazmasi
+  // teskari qilingan marta soni (migratsiya 027). Keyingi o'tkazma
+  // qatorlari shu raqam bilan belgilanadi (`vendor-wallet-settlement.ts`):
+  // birinchi o'tkazma `..._<id>`, qayta o'tkazma `..._<id>_2` va h.k.
+  @Column({ name: 'vendor_wallet_reversal_count', type: 'int', default: 0 })
+  vendorWalletReversalCount: number;
+
+  // O'tkazma PAYTIDAGI summalar (migratsiya 029) — joriy komissiya stavkasidan
+  // qayta hisoblanmaydi. Teskari qilinganda saqlanib qoladi, `reversed_at`
+  // qo'yiladi. Ko'rinishi: `vendorWalletSettlement` (pastda).
+  @Column({
+    name: 'vendor_wallet_amount',
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+    transformer: {
+      to: (value: number | null) => value,
+      from: (value: string | null) => (value === null ? null : parseFloat(value)),
+    },
+  })
+  vendorWalletAmount: number | null;
+
+  @Column({
+    name: 'vendor_wallet_commission',
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+    transformer: {
+      to: (value: number | null) => value,
+      from: (value: string | null) => (value === null ? null : parseFloat(value)),
+    },
+  })
+  vendorWalletCommission: number | null;
+
+  @Column({ name: 'vendor_wallet_reversed_at', type: 'timestamptz', nullable: true })
+  vendorWalletReversedAt: Date | null;
+
+  /**
+   * JSON'dagi `vendorWalletSettlement: { amount, commission, net, settledAt,
+   * reversedAt, reversalCount } | null` — ustun emas, yuklanganda hisoblanadi.
+   */
+  vendorWalletSettlement?: VendorWalletSettlementView | null;
+
+  @AfterLoad()
+  // Ixtiyoriy (`?`): `{ ...order }` nusxalari ham shu tur bo'lib qolishi uchun.
+  computeVendorWalletSettlement?(): void {
+    this.vendorWalletSettlement = vendorWalletSettlementView(this);
+  }
 
   @CreateDateColumn()
   createdAt: Date;
