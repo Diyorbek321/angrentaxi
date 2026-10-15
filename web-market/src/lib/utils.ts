@@ -1,40 +1,11 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { formatDistanceToNowStrict } from 'date-fns';
-import { uz } from 'date-fns/locale';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function money(amount: number): string {
-  return Math.round(amount).toLocaleString('ru-RU').replace(/ /g, ' ') + " so'm";
-}
-
-/** Compact form for dense tables and stat tiles, where the unit is in the label. */
-export function moneyShort(amount: number): string {
-  return Math.round(amount).toLocaleString('ru-RU').replace(/ /g, ' ');
-}
-
-export function formatTime(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
-}
-
-/** "5 daqiqa oldin" — buyurtma qachon kelganini bir qarashda aytadi. */
-export function formatRelative(dateStr: string): string {
-  try {
-    return formatDistanceToNowStrict(new Date(dateStr), { addSuffix: true, locale: uz });
-  } catch {
-    return formatTime(dateStr);
-  }
-}
-
-/** Sana + vaqt, uz lokalida — harakatlar tarixi kabi ro'yxatlar uchun. */
-export function formatDateTime(dateStr: string): string {
-  const d = new Date(dateStr);
-  return `${d.toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit' })} ${formatTime(dateStr)}`;
-}
+// Pul, son, sana formatlash — `@/lib/format` (panel kit, yagona manba).
 
 /**
  * Klient tomonida CSV yuklab olish (backend'siz). BOM qo'shiladi — Excel

@@ -1,31 +1,22 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  DollarSign,
-  Download,
-  Info,
-  RefreshCw,
-  Wallet,
-} from 'lucide-react';
+import { CheckCircle2, Download, Info, RefreshCw, Wallet } from 'lucide-react';
 import { getAllWithdrawals, WithdrawalRequest, WithdrawalStatus } from '@/lib/api';
-import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge, BadgeVariant } from '@/components/ui/Badge';
-import { Tabs } from '@/components/ui/Tabs';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { StatTile } from '@/components/ui/StatTile';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { ErrorState } from '@/components/ui/ErrorState';
-import { FilterChip } from '@/components/ui/FilterChip';
-import { RetryBanner } from '@/components/ui/RetryBanner';
-import { SkeletonTable } from '@/components/ui/Skeleton';
+import { StatCard } from '@/components/ui/StatCard';
+import type { EmptyStateProps } from '@/components/ui/EmptyState';
+import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
+import { FilterBar } from '@/components/ui/FilterBar';
+import { MoneyText } from '@/components/ui/MoneyText';
+import { SkeletonStats } from '@/components/ui/Skeleton';
+import { PageBody } from '@/components/ui/PageBody';
 import { useToast } from '@/components/ui/Toast';
 import { downloadCsv } from '@/lib/csv';
-import { formatDateTime, formatMoney, formatNumber, formatPhone } from '@/lib/format';
+import { formatDateTime, formatNumber, formatPhone } from '@/lib/format';
 
 const PAGE_SIZES = [20, 50, 100] as const;
 
@@ -35,7 +26,7 @@ type StatusFilter = '' | WithdrawalStatus;
 // payout reads as info and the approved → paid progression stays green.
 const statusVariant: Record<WithdrawalStatus, BadgeVariant> = {
   pending: 'info',
-  approved: 'mint-soft',
+  approved: 'success',
   rejected: 'danger',
   paid: 'success',
 };
@@ -54,21 +45,12 @@ const ownerTypeLabel: Record<string, string> = {
 };
 
 // The queue's working set first: pending is what an operator watches.
-const STATUS_TABS: { value: StatusFilter; label: string }[] = [
+const STATUS_TABS: readonly { value: StatusFilter; label: string }[] = [
   { value: '', label: 'Hammasi' },
   { value: 'pending', label: 'Kutilmoqda' },
   { value: 'approved', label: 'Tasdiqlangan' },
   { value: 'paid', label: 'Toʻlangan' },
   { value: 'rejected', label: 'Rad etilgan' },
-];
-
-const HEADERS: { label: string; align?: 'right' }[] = [
-  { label: 'Soʻrovchi' },
-  { label: 'Turi' },
-  { label: 'Summa', align: 'right' },
-  { label: 'Karta / hisob' },
-  { label: 'Soʻralgan vaqt' },
-  { label: 'Status' },
 ];
 
 function requesterName(w: WithdrawalRequest): string {
@@ -123,8 +105,6 @@ export default function FinancePage() {
   const pending = rows.filter((w) => w.status === 'pending');
   const totalPendingAmount = pending.reduce((sum, w) => sum + w.amount, 0);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
-  const to = Math.min(page * pageSize, total);
 
   const handleExport = () => {
     if (rows.length === 0) return;
@@ -137,7 +117,7 @@ export default function FinancePage() {
         ownerTypeLabel[w.ownerType] ?? w.ownerType,
         w.amount,
         w.payoutDestination,
-        new Date(w.requestedAt).toLocaleString('uz-UZ'),
+        formatDateTime(w.requestedAt, { withYear: true }),
         statusLabel[w.status] ?? w.status,
       ])
     );
@@ -148,247 +128,174 @@ export default function FinancePage() {
     });
   };
 
-  const renderEmpty = () => {
-    // The cleared queue is a *good* state and says so — it is the one screen
-    // where "nothing here" is the outcome the operator is working toward.
-    if (statusFilter === 'pending') {
-      return (
-        <EmptyState
-          tone="positive"
-          icon={<CheckCircle2 size={22} />}
-          title="Barcha soʻrovlar koʻrib chiqildi ✓"
-          description="Kutayotgan pul yechish soʻrovi qolmadi."
-          action={
+  // The cleared queue is a *good* state and says so — it is the one screen
+  // where "nothing here" is the outcome the operator is working toward.
+  const empty: EmptyStateProps =
+    statusFilter === 'pending'
+      ? {
+          variant: 'cleared',
+          icon: <CheckCircle2 aria-hidden />,
+          title: 'Barcha soʻrovlar koʻrib chiqildi',
+          description: 'Kutayotgan pul yechish soʻrovi qolmadi.',
+          action: (
             <Button variant="secondary" size="sm" onClick={() => setStatusFilter('')}>
               Barcha soʻrovlar
             </Button>
-          }
-        />
-      );
-    }
-    if (statusFilter) {
-      return (
-        <EmptyState
-          icon={<Wallet size={22} />}
-          title={`«${statusLabel[statusFilter]}» holatidagi soʻrov yoʻq`}
-          description="Boshqa statusni tanlab koʻring."
-          action={
-            <Button variant="secondary" size="sm" onClick={() => setStatusFilter('')}>
-              Filtrni tozalash
-            </Button>
-          }
-        />
-      );
-    }
-    return (
-      <EmptyState
-        icon={<Wallet size={22} />}
-        title="Pul yechish soʻrovi yoʻq"
-        description="Haydovchi yoki sotuvchi pul yechishni soʻraganda shu navbatda koʻrinadi."
-      />
-    );
-  };
+          ),
+        }
+      : statusFilter
+      ? {
+          variant: 'no-results',
+          title: `«${statusLabel[statusFilter]}» holatidagi soʻrov yoʻq`,
+          description: 'Boshqa statusni tanlab koʻring.',
+          onClearFilters: () => setStatusFilter(''),
+        }
+      : {
+          variant: 'first-use',
+          icon: <Wallet aria-hidden />,
+          title: 'Pul yechish soʻrovi yoʻq',
+          description: 'Haydovchi yoki sotuvchi pul yechishni soʻraganda shu navbatda koʻrinadi.',
+        };
+
+  const columns: DataTableColumn<WithdrawalRequest>[] = [
+    {
+      key: 'requester',
+      header: 'Soʻrovchi',
+      cell: (w) => (
+        <div className="min-w-0">
+          <p className="text-ink font-medium truncate">{requesterName(w)}</p>
+          {w.driver?.phone && <p className="num text-subtle text-xs">{formatPhone(w.driver.phone)}</p>}
+        </div>
+      ),
+    },
+    {
+      key: 'type',
+      header: 'Turi',
+      hideBelow: 'md',
+      cell: (w) => (
+        <Badge variant="neutral" size="sm">
+          {ownerTypeLabel[w.ownerType] ?? w.ownerType}
+        </Badge>
+      ),
+    },
+    {
+      key: 'amount',
+      header: 'Summa',
+      numeric: true,
+      cell: (w) => <MoneyText value={w.amount} className="font-semibold text-ink" />,
+    },
+    {
+      key: 'destination',
+      header: 'Karta / hisob',
+      hideBelow: 'lg',
+      cell: (w) => <span className="font-mono text-xs text-muted">{w.payoutDestination || '—'}</span>,
+    },
+    {
+      key: 'requestedAt',
+      header: 'Soʻralgan vaqt',
+      className: 'num text-muted whitespace-nowrap',
+      cell: (w) => formatDateTime(w.requestedAt),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      cell: (w) => (
+        <Badge variant={statusVariant[w.status]} size="sm" dot>
+          {statusLabel[w.status] ?? w.status}
+        </Badge>
+      ),
+    },
+  ];
+
+  const chips = statusFilter
+    ? [{ key: 'status', label: `Status: ${statusLabel[statusFilter]}`, onRemove: () => setStatusFilter('') }]
+    : [];
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="px-5 py-4">
-        <PageHeader
-          title="Moliya"
-          description="Toʻlov navbati — haydovchi, Market sotuvchisi, restoran"
-          icon={<DollarSign size={17} />}
-          actions={
-            <>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleExport}
-                disabled={rows.length === 0}
-                leftIcon={<Download size={13} />}
-                title="Joriy sahifadagi yozuvlarni CSV sifatida yuklab olish"
-              >
-                CSV eksport
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={fetchData}
-                leftIcon={<RefreshCw size={13} />}
-              >
-                Yangilash
-              </Button>
-            </>
-          }
-        />
-
-        {/* Read-only surface — approving/paying happens in the admin panel. */}
-        <div className="flex items-start gap-2.5 rounded-ds-xs border border-info/30 bg-info-tint px-3.5 py-3 mb-4">
-          <Info size={15} className="text-info shrink-0 mt-0.5" />
-          <p className="text-sm text-info-deep dark:text-info-light leading-relaxed">
-            Bu sahifa faqat kuzatuv uchun. Toʻlovni tasdiqlash, rad etish yoki «toʻlandi» deb
-            belgilash Super Admin panelida bajariladi.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <StatTile
-            label="Kutilayotgan soʻrovlar"
-            value={isLoading && !hasLoadedOnce ? '—' : pending.length}
-            hint="joriy sahifada"
-            tone="info"
-            icon={<Wallet size={16} />}
-          />
-          <StatTile
-            label="Kutilayotgan summa"
-            value={isLoading && !hasLoadedOnce ? '—' : formatMoney(totalPendingAmount)}
-            hint="joriy sahifada"
-            tone="mint"
-            icon={<DollarSign size={16} />}
-          />
-        </div>
-
-        <div className="flex items-center gap-3 flex-wrap mb-3">
-          <Tabs
-            items={STATUS_TABS}
-            value={statusFilter}
-            onChange={(v) => setStatusFilter(v)}
-            size="sm"
-          />
-        </div>
-
-        {statusFilter && (
-          <div className="flex items-center gap-2 flex-wrap mb-3">
-            <FilterChip
-              label={`Status: ${statusLabel[statusFilter]}`}
-              onRemove={() => setStatusFilter('')}
-            />
-            <Button variant="ghost" size="sm" onClick={() => setStatusFilter('')}>
-              Hammasini tozalash
+    <PageBody>
+      <PageHeader
+        title="Moliya"
+        description="Toʻlov navbati — haydovchi, Market sotuvchisi, restoran"
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleExport}
+              disabled={rows.length === 0}
+              leftIcon={<Download size={13} aria-hidden />}
+              title="Joriy sahifadagi yozuvlarni CSV sifatida yuklab olish"
+            >
+              CSV eksport
             </Button>
-          </div>
-        )}
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={fetchData}
+              isLoading={isLoading && hasLoadedOnce}
+              leftIcon={<RefreshCw size={13} aria-hidden />}
+            >
+              Yangilash
+            </Button>
+          </>
+        }
+      />
 
-        {error && (
-          <RetryBanner
-            message={error}
-            onRetry={fetchData}
-            keepsLastData={rows.length > 0}
-            className="mb-3"
-          />
-        )}
-
-        {error && rows.length === 0 ? (
-          <ErrorState
-            message="Tarmoq yoki server xatosi. Qayta urinib koʻring."
-            onRetry={fetchData}
-          />
-        ) : isLoading && !hasLoadedOnce ? (
-          <SkeletonTable rows={6} cols={HEADERS.length} />
-        ) : rows.length === 0 ? (
-          <Card>{renderEmpty()}</Card>
-        ) : (
-          <Card padding="none" className="overflow-hidden">
-            <div className="overflow-auto max-h-[calc(100vh-22rem)]">
-              <table className="w-full text-sm text-left">
-                <thead className="text-subtle uppercase text-[10px] tracking-wider">
-                  <tr>
-                    {HEADERS.map((h, i) => (
-                      <th
-                        key={i}
-                        className={`sticky-th bg-surface-2 px-4 py-3 font-semibold whitespace-nowrap ${
-                          h.align === 'right' ? 'text-right' : ''
-                        }`}
-                      >
-                        {h.label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line">
-                  {rows.map((w) => (
-                    <tr key={w.id} className="hover:bg-surface-2/70 transition-colors">
-                      <td className="px-4 py-3">
-                        <p className="text-ink font-medium">{requesterName(w)}</p>
-                        <p className="text-subtle text-[11px] font-mono">
-                          {w.driver?.phone ? formatPhone(w.driver.phone) : ''}
-                        </p>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant="default" size="sm">
-                          {ownerTypeLabel[w.ownerType] ?? w.ownerType}
-                        </Badge>
-                      </td>
-                      {/* Money: mono, right-aligned, tabular — column scanning. */}
-                      <td className="px-4 py-3 font-mono font-semibold text-ink whitespace-nowrap text-right tabular-nums">
-                        {formatMoney(w.amount)}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs text-muted">
-                        {w.payoutDestination}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs text-muted whitespace-nowrap tabular-nums">
-                        {formatDateTime(w.requestedAt)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant={statusVariant[w.status]} size="sm" dot>
-                          {statusLabel[w.status] ?? w.status}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-xs text-muted border-t border-line">
-              <div className="flex items-center gap-3">
-                <span>
-                  <span className="font-mono tabular-nums">
-                    {from}–{to}
-                  </span>{' '}
-                  / jami <span className="font-mono tabular-nums">{formatNumber(total)}</span> soʻrov
-                </span>
-                <label className="flex items-center gap-1.5">
-                  <span className="text-subtle">Sahifada:</span>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => setPageSize(Number(e.target.value))}
-                    aria-label="Sahifadagi qatorlar soni"
-                    className="h-7 rounded-ds-xs border border-line bg-surface px-1.5 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-focus/40"
-                  >
-                    {PAGE_SIZES.map((size) => (
-                      <option key={size} value={size}>
-                        {size}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => p - 1)}
-                  leftIcon={<ChevronLeft size={13} />}
-                >
-                  Oldingi
-                </Button>
-                <span className="px-3 py-1.5 font-mono tabular-nums bg-surface-2 border border-line rounded-ds-xs">
-                  {page} / {totalPages}
-                </span>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  disabled={page * pageSize >= total}
-                  onClick={() => setPage((p) => p + 1)}
-                  rightIcon={<ChevronRight size={13} />}
-                >
-                  Keyingi
-                </Button>
-              </div>
-            </div>
-          </Card>
-        )}
+      {/* Read-only surface — approving/paying happens in the admin panel. */}
+      <div className="flex items-start gap-2.5 rounded-ds-sm border border-line bg-surface-2/60 px-3 py-2.5 mb-4">
+        <Info size={14} className="text-muted shrink-0 mt-0.5" aria-hidden />
+        <p className="text-[13px] text-muted leading-relaxed">
+          Bu sahifa faqat kuzatuv uchun. Toʻlovni tasdiqlash, rad etish yoki «toʻlandi» deb
+          belgilash Super Admin panelida bajariladi.
+        </p>
       </div>
-    </div>
+
+      {isLoading && !hasLoadedOnce ? (
+        <SkeletonStats count={2} className="mb-4" />
+      ) : (
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <StatCard
+            label="Kutilayotgan soʻrovlar"
+            value={formatNumber(pending.length)}
+            hint="joriy sahifada"
+          />
+          <StatCard
+            label="Kutilayotgan summa"
+            value={<MoneyText value={totalPendingAmount} />}
+            hint="joriy sahifada"
+          />
+        </div>
+      )}
+
+      <FilterBar chips={chips} onClearAll={() => setStatusFilter('')} className="mb-3">
+        <SegmentedControl
+          items={STATUS_TABS}
+          value={statusFilter}
+          onChange={setStatusFilter}
+          ariaLabel="Status boʻyicha filtr"
+        />
+      </FilterBar>
+
+      <DataTable
+        ariaLabel="Pul yechish soʻrovlari"
+        columns={columns}
+        rows={rows}
+        rowKey={(w) => w.id}
+        loading={isLoading && !hasLoadedOnce}
+        error={error}
+        onRetry={fetchData}
+        empty={empty}
+        maxHeightClassName="max-h-[calc(100vh-22rem)]"
+        pagination={{
+          page,
+          totalPages,
+          total,
+          pageSize,
+          onPageChange: setPage,
+          onPageSizeChange: setPageSize,
+          pageSizeOptions: PAGE_SIZES,
+        }}
+      />
+    </PageBody>
   );
 }

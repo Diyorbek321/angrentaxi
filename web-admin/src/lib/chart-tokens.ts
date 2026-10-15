@@ -23,3 +23,13 @@ export const CHART_COLORS = {
   /** Xato / bekor qilingan seriya. */
   danger: '#E5484D',
 } as const;
+
+/**
+ * Chart geometry (PANEL-UI-KIT §6): bars never wider than 32px, and a series
+ * with fewer than 3 points is not a trend — show an empty state instead of
+ * one giant bar.
+ */
+export const CHART_BAR_MAX_PX = 32;
+export const CHART_MIN_POINTS = 3;
+export const CHART_HEIGHT_PX = 240;
+export const CHART_NOT_ENOUGH_DATA = 'Grafik uchun maʼlumot yetarli emas';

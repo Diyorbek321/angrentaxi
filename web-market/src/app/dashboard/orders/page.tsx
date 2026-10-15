@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Check, ClipboardList, RefreshCw } from 'lucide-react';
-import { clsx } from 'clsx';
+import { Check, ClipboardList } from 'lucide-react';
 import { marketApi, MarketOrder, MarketOrderStatus } from '@/lib/api';
 import { ORDER_STATUS, compareOrders } from '@/lib/order-status';
 import { errorMessage } from '@/lib/utils';
@@ -18,9 +17,13 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Pagination } from '@/components/ui/Pagination';
 import { SkeletonTable } from '@/components/ui/Skeleton';
-import { Tabs, type TabItem } from '@/components/ui/Tabs';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { type TabItem } from '@/components/ui/Tabs';
+import { Checkbox } from '@/components/ui/Checkbox';
+import { cn } from '@/components/ui/cn';
 import { OrderDrawer } from '@/components/orders/OrderDrawer';
 import { ORDER_ROW_GRID, OrderCardMobile, OrderRow } from '@/components/orders/OrderRow';
+import { usePageRefresh } from '@/components/shell';
 
 type TabKey = 'all' | MarketOrderStatus;
 
@@ -40,6 +43,7 @@ export default function OrdersPage() {
     const res = await marketApi.getOrders();
     return res.data.data;
   });
+  usePageRefresh(reload);
 
   // Buyurtma navbati — yuqori templi yuza: sahifaning o'zi ham 30 soniyada
   // jimgina yangilanadi (nav badge bilan bir xil ritmda). Oxirgi ma'lumot
@@ -121,23 +125,12 @@ export default function OrdersPage() {
     <div>
       <PageHeader
         title="Buyurtmalar"
-        description="Yangi va faol buyurtmalar navbati"
-        icon={<ClipboardList size={18} aria-hidden />}
-        actions={
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => void reload()}
-            isLoading={isRefreshing}
-            leftIcon={<RefreshCw size={13} aria-hidden />}
-          >
-            Yangilash
-          </Button>
-        }
+        description="Navbat: yangilari tepada, ular ichida eng eskisi birinchi"
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <Tabs items={tabs} value={tab} onChange={setTab} size="sm" />
+      {/* Holat zinapoyasi: Yangi → Yig'ilmoqda → Yuborildi → Yetkazildi. */}
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <SegmentedControl items={tabs} value={tab} onChange={setTab} ariaLabel="Buyurtma holati" />
       </div>
 
       {/* Tanlov paneli: soni + amal QAMROVI aniq yozilgan — "nima bo'ladi"
@@ -146,16 +139,14 @@ export default function OrdersPage() {
         <div
           role="group"
           aria-label="Tanlanganlar uchun amallar"
-          className="mb-4 flex flex-wrap items-center gap-3 rounded-ds-sm border border-mint/30 bg-mint-tint px-3.5 py-2"
+          className="mb-3 flex h-11 flex-wrap items-center gap-3 rounded-ds-md border border-line bg-surface px-4"
         >
-          <span className="text-caption font-bold text-primary-text">
-            {selectedCount} ta tanlandi
-          </span>
-          <span className="text-caption text-muted">
+          <span className="num text-[13px] font-medium text-ink">{selectedCount} ta tanlandi</span>
+          <span className="hidden text-[13px] text-muted sm:inline">
             Faqat «Yangi» holatdagilar o&apos;tkaziladi — {selectedNewCount} ta
           </span>
           <div className="ml-auto flex items-center gap-2">
-            <Button size="sm" variant="secondary" onClick={() => setSelected({})}>
+            <Button size="sm" variant="ghost" onClick={() => setSelected({})}>
               Bekor qilish
             </Button>
             <Button
@@ -178,11 +169,12 @@ export default function OrdersPage() {
       {isLoading ? (
         <SkeletonTable rows={6} cols={5} />
       ) : error && orders.length === 0 ? (
-        <ErrorState message={error} onRetry={reload} />
+        <ErrorState message={error} onRetry={reload} retrying={isRefreshing} />
       ) : orders.length === 0 ? (
         <Card>
           <EmptyState
-            icon={<ClipboardList size={24} aria-hidden />}
+            variant="first-use"
+            icon={<ClipboardList aria-hidden />}
             title="Hali buyurtma yo'q"
             description="Mijoz birinchi buyurtma berganida u shu yerda, navbatning eng tepasida ko'rinadi."
           />
@@ -191,19 +183,16 @@ export default function OrdersPage() {
         <Card>
           {tab === 'new' ? (
             <EmptyState
-              tone="positive"
+              variant="cleared"
               title="Yangi buyurtma yo'q — hammasi qabul qilingan"
               description="Yangi buyurtma kelishi bilan shu yerda va tab sarlavhasida ko'rinadi."
             />
           ) : (
             <EmptyState
+              variant="no-results"
               title={`«${tab === 'all' ? 'Barchasi' : ORDER_STATUS[tab as MarketOrderStatus].label}» holatida buyurtma yo'q`}
-              description="Boshqa holatni tanlang yoki filtrni tozalang."
-              action={
-                <Button size="sm" variant="secondary" onClick={() => setTab('all')}>
-                  Barchasini ko&apos;rsatish
-                </Button>
-              }
+              description="Boshqa holatni tanlang."
+              onClearFilters={() => setTab('all')}
             />
           )}
         </Card>
@@ -212,20 +201,16 @@ export default function OrdersPage() {
           {/* Desktop: zich jadval. Sarlavha sahifa aylanishida yopishib turadi. */}
           <Card padding="none" className="hidden lg:block">
             <div
-              className={clsx(
+              className={cn(
                 ORDER_ROW_GRID,
-                'sticky top-14 z-20 rounded-t-ds-md border-b border-line bg-surface-2 px-4 py-2.5 text-micro uppercase text-muted'
+                'sticky top-0 z-10 h-9 rounded-t-ds-md border-b border-line bg-surface-2 px-4 text-[11px] font-semibold uppercase tracking-[0.04em] text-muted'
               )}
             >
-              <span>
-                <input
-                  type="checkbox"
-                  checked={pageAllSelected}
-                  onChange={toggleAllOnPage}
-                  aria-label="Sahifadagi hammasini tanlash"
-                  className="h-4 w-4 accent-brand"
-                />
-              </span>
+              <Checkbox
+                checked={pageAllSelected}
+                onCheckedChange={toggleAllOnPage}
+                aria-label="Sahifadagi hammasini tanlash"
+              />
               <span>Mijoz / buyurtma</span>
               <span className="text-right">Summa</span>
               <span>Holat</span>
@@ -248,7 +233,7 @@ export default function OrdersPage() {
           </Card>
 
           {/* Mobil: xuddi shu qatorlar karta ko'rinishida. */}
-          <ul className="space-y-2.5 lg:hidden">
+          <ul className="space-y-2 lg:hidden">
             {paged.pageItems.map((o) => (
               <li key={o.id}>
                 <OrderCardMobile order={o} onOpen={() => setOpenOrderId(o.id)} />

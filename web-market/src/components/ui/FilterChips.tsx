@@ -1,58 +1,39 @@
+// AUTO-SYNCED from web-manager — edit there, then run scripts/sync-panel-ui.sh
 'use client';
 
-import { X } from 'lucide-react';
+import { cn } from './cn';
+import { FilterChip as Chip } from './FilterChip';
 
+/** Data shape of one applied filter (web-admin / web-market `type FilterChip`). */
 export interface FilterChip {
   key: string;
   label: string;
   onRemove: () => void;
 }
 
-/**
- * Qo'llangan filtrlar — olib tashlanadigan chiplar + "Hammasini tozalash".
- * Yashirin faol filtr operatorni "ma'lumot noto'g'ri" degan xulosaga olib
- * boradi; shu qator turgani uchun mezonlar har doim ko'z oldida.
- */
-export function FilterChips({
-  chips,
-  onClearAll,
-  className,
-}: {
+export interface FilterChipsProps {
   chips: FilterChip[];
-  onClearAll: () => void;
+  onClearAll?: () => void;
   className?: string;
-}) {
-  if (chips.length === 0) return null;
+}
 
+/** Row of applied-filter chips + "Filtrlarni tozalash". Renders nothing when empty. */
+export function FilterChips({ chips, onClearAll, className }: FilterChipsProps) {
+  if (chips.length === 0) return null;
   return (
-    <div
-      role="group"
-      aria-label="Qo'llangan filtrlar"
-      className={'flex flex-wrap items-center gap-2 ' + (className ?? '')}
-    >
-      {chips.map((chip) => (
-        <span
-          key={chip.key}
-          className="inline-flex items-center gap-1 rounded-full border border-mint/30 bg-mint-tint py-1 pl-2.5 pr-1 text-caption font-semibold text-primary-text"
-        >
-          {chip.label}
-          <button
-            type="button"
-            aria-label={`${chip.label} filtrini olib tashlash`}
-            onClick={chip.onRemove}
-            className="flex h-5 w-5 items-center justify-center rounded-full transition-colors duration-fast hover:bg-mint/25"
-          >
-            <X size={11} aria-hidden />
-          </button>
-        </span>
+    <div role="group" aria-label="Faol filtrlar" className={cn('flex flex-wrap items-center gap-1.5', className)}>
+      {chips.map((c) => (
+        <Chip key={c.key} label={c.label} onRemove={c.onRemove} />
       ))}
-      <button
-        type="button"
-        onClick={onClearAll}
-        className="text-caption font-bold text-muted underline-offset-2 transition-colors duration-fast hover:text-ink hover:underline"
-      >
-        Hammasini tozalash
-      </button>
+      {onClearAll && chips.length > 0 && (
+        <button
+          type="button"
+          onClick={onClearAll}
+          className="h-6 px-1.5 rounded-ds-xs text-xs font-medium text-muted hover:text-ink hover:bg-surface-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+        >
+          Filtrlarni tozalash
+        </button>
+      )}
     </div>
   );
 }

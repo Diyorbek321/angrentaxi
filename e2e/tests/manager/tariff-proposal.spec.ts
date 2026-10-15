@@ -19,8 +19,8 @@ test('tariff: manager proposes, admin approves, then deletes the unused tariff',
   const form = page.getByRole('dialog');
   await form.getByLabel('Nomi').fill(name);
   await form.getByLabel('Boshlangʻich narx').fill('4000');
-  await form.getByLabel('Km narxi').fill('1700');
-  await form.getByLabel('Daqiqa narxi').fill('150');
+  await form.getByLabel('Km narxi', { exact: true }).fill('1700');
+  await form.getByLabel('Daqiqa narxi', { exact: true }).fill('150');
   await form.getByLabel('Min narx').fill('6000');
   await form.getByRole('button', { name: 'Taklif yuborish' }).click();
   await expectToast(page, `«${name}» tarifi taklif qilindi`);

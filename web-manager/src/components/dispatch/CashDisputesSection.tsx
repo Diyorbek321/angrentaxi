@@ -13,7 +13,10 @@ import { Textarea } from '@/components/ui/Textarea';
 import { useToast } from '@/components/ui/Toast';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
-import { formatDateTime, formatMoney, formatPhone } from '@/lib/format';
+import { RetryBanner } from '@/components/ui/RetryBanner';
+import { SkeletonCards } from '@/components/ui/Skeleton';
+import { MoneyText } from '@/components/ui/MoneyText';
+import { formatDateTime, formatMoney, formatPhone, shortId } from '@/lib/format';
 
 const POLL_MS = 30_000;
 
@@ -52,36 +55,43 @@ export function CashDisputesSection() {
   return (
     <section className="mb-8">
       <div className="mb-3 flex items-center gap-2">
-        <h2 className="text-sm font-semibold text-ink">Naqd nizolar</h2>
+        <h2 className="text-h3 text-ink">Naqd nizolar</h2>
         {disputes.length > 0 && (
           <Badge variant="danger" size="sm">
             {disputes.length}
           </Badge>
         )}
       </div>
-      {error ? (
-        <ErrorState compact message={error} onRetry={() => void load()} />
-      ) : loading ? null : disputes.length === 0 ? (
+      {error && disputes.length > 0 && (
+        <RetryBanner message={error} onRetry={load} keepsLastData className="mb-3" />
+      )}
+      {error && disputes.length === 0 ? (
+        <Card padding="none">
+          <ErrorState compact title={error} onRetry={load} />
+        </Card>
+      ) : loading ? (
+        <SkeletonCards count={2} height="h-[76px]" />
+      ) : disputes.length === 0 ? (
         <Card>
           <EmptyState
             compact
-            tone="positive"
-            icon={<Banknote size={20} />}
+            variant="cleared"
+            icon={<Banknote aria-hidden />}
             title="Nizo yoʻq"
             description="Sotuvchilar kuryerlardan tovar pulini olgan."
           />
         </Card>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
           {disputes.map((d) => (
-            <Card key={d.vendorOrderId} className="ring-1 ring-danger/30">
+            <Card key={d.vendorOrderId} className="border-danger/40">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-ink">
-                    {d.vendorName} — {formatMoney(d.amount)} olinmagan
+                    {d.vendorName} — <MoneyText value={d.amount} /> olinmagan
                   </p>
                   <p className="mt-1 text-xs text-muted">
-                    {d.kind === 'food' ? 'Ovqat' : 'Market'} · #{d.vendorOrderId.slice(0, 8)} · nizo{' '}
+                    {d.kind === 'food' ? 'Ovqat' : 'Market'} · <span className="font-mono">{shortId(d.vendorOrderId)}</span> · nizo{' '}
                     {formatDateTime(d.disputedAt)}
                     {d.courierPaidAt && ` · kuryer „toʻladim“ dedi ${formatDateTime(d.courierPaidAt)}`}
                   </p>
@@ -90,7 +100,7 @@ export function CashDisputesSection() {
                   {d.vendorPhone && (
                     <a
                       href={`tel:${d.vendorPhone}`}
-                      className="inline-flex items-center gap-1 font-mono text-primary-text hover:underline"
+                      className="num inline-flex items-center gap-1 text-primary-text hover:underline"
                     >
                       <Phone size={11} aria-hidden />
                       {formatPhone(d.vendorPhone)}
@@ -103,7 +113,7 @@ export function CashDisputesSection() {
                   )}
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="secondary"
                     leftIcon={<CheckCircle2 size={13} aria-hidden />}
                     onClick={() => setResolving(d)}
                   >

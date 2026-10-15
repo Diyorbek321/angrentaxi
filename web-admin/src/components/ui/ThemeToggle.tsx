@@ -1,15 +1,15 @@
+// AUTO-SYNCED from web-manager — edit there, then run scripts/sync-panel-ui.sh
 'use client';
 
 import { useEffect, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from './cn';
 import { applyTheme, getAppliedTheme, type Theme } from '@/lib/theme';
 
 /**
- * The theme itself is applied before hydration by the inline script in
- * app/layout.tsx. This component only mirrors and flips it — it must never
- * read localStorage during render, or the server/client output diverges.
- * Until mounted it renders a fixed placeholder icon so both passes match.
+ * Mirrors and flips the theme the pre-paint script in app/layout.tsx applied.
+ * Never reads localStorage during render; renders a fixed icon until mounted.
+ * Each panel's `@/lib/theme` owns its own storage key.
  */
 export function ThemeToggle({ className }: { className?: string }) {
   const [theme, setTheme] = useState<Theme | null>(null);
@@ -33,13 +33,13 @@ export function ThemeToggle({ className }: { className?: string }) {
       title={theme === null ? 'Mavzu' : label}
       aria-label={theme === null ? 'Mavzu' : label}
       className={cn(
-        'h-9 w-9 inline-flex items-center justify-center rounded-ds-sm border border-line',
-        'text-muted hover:text-ink hover:bg-surface-2 transition-colors duration-fast',
-        'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
+        'h-8 w-8 inline-flex items-center justify-center rounded-ds-sm text-muted',
+        'hover:text-ink hover:bg-surface-2 transition-colors',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus',
         className
       )}
     >
-      {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      {theme === 'dark' ? <Sun size={16} aria-hidden /> : <Moon size={16} aria-hidden />}
     </button>
   );
 }

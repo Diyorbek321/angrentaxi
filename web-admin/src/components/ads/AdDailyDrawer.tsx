@@ -6,13 +6,17 @@ import { format, parseISO } from 'date-fns';
 import { Drawer } from '@/components/ui/Drawer';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import { adsApi, type AdBanner, type AdDailyRow } from '@/lib/api';
 import { adCtr, dailyTotals, formatCtr } from '@/lib/ads';
 import { CHART_COLORS } from '@/lib/chart-tokens';
+import { formatNumber } from '@/lib/format';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 const DAYS = 30;
+/** Fewer points than this is not a trend — show an empty state instead. */
+const MIN_CHART_POINTS = 3;
 
 const shortDay = (day: string) => {
   try {
@@ -59,7 +63,7 @@ export function AdDailyDrawer({ ad, onClose }: { ad: AdBanner | null; onClose: (
       title={ad ? `«${ad.title}» — kunlik hisobot` : undefined}
       subtitle={
         totals
-          ? `Oxirgi ${DAYS} kun: ${totals.impressions.toLocaleString('uz-UZ')} ko'rish · ${totals.clicks.toLocaleString('uz-UZ')} bosish · CTR ${formatCtr(totals.ctr)}`
+          ? `Oxirgi ${DAYS} kun: ${formatNumber(totals.impressions)} ko'rish · ${formatNumber(totals.clicks)} bosish · CTR ${formatCtr(totals.ctr)}`
           : `Oxirgi ${DAYS} kun`
       }
       width="lg"
@@ -67,29 +71,37 @@ export function AdDailyDrawer({ ad, onClose }: { ad: AdBanner | null; onClose: (
       {error ? (
         <ErrorState compact message={error} onRetry={() => setAttempt((n) => n + 1)} />
       ) : !rows ? (
-        <Skeleton className="h-[220px] w-full rounded-ds-md" />
+        <div className="flex flex-col gap-5">
+          <Skeleton className="h-[220px] w-full rounded-ds-md" />
+          <Skeleton className="h-40 w-full rounded-ds-md" />
+        </div>
       ) : (
         <div className="flex flex-col gap-5">
+          {rows.length < MIN_CHART_POINTS ? (
+            <EmptyState compact title="Grafik uchun ma'lumot yetarli emas" />
+          ) : (
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={rows} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" />
+              <CartesianGrid vertical={false} />
               <XAxis dataKey="day" tickFormatter={shortDay} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
               <Tooltip
-                formatter={(value: number) => [value.toLocaleString('uz-UZ'), "Ko'rish"]}
+                formatter={(value: number) => [formatNumber(value), "Ko'rish"]}
                 labelFormatter={shortDay}
-                cursor={{ fill: 'rgba(16,160,100,0.08)' }}
               />
               <Bar
                 dataKey="impressions"
                 fill={CHART_COLORS.primary}
                 radius={[3, 3, 0, 0]}
+                maxBarSize={32}
                 isAnimationActive={!reducedMotion}
               />
             </BarChart>
           </ResponsiveContainer>
+          )}
 
-          <Table>
+          <div className="overflow-hidden rounded-ds-md border border-line">
+          <Table compact>
             <TableHeader>
               <TableRow>
                 <TableHead>Kun</TableHead>
@@ -102,20 +114,21 @@ export function AdDailyDrawer({ ad, onClose }: { ad: AdBanner | null; onClose: (
               {/* Yangisi tepada — odatda bugungi kun so'raladi. */}
               {[...rows].reverse().map((r) => (
                 <TableRow key={r.day}>
-                  <TableCell className="tabular-nums text-muted">{format(parseISO(r.day), 'dd.MM.yyyy')}</TableCell>
-                  <TableCell className="text-right font-mono tabular-nums text-ink">
-                    {r.impressions.toLocaleString('uz-UZ')}
+                  <TableCell className="num text-muted">{format(parseISO(r.day), 'dd.MM.yyyy')}</TableCell>
+                  <TableCell className="num text-right text-ink">
+                    {formatNumber(r.impressions)}
                   </TableCell>
-                  <TableCell className="text-right font-mono tabular-nums text-ink">
-                    {r.clicks.toLocaleString('uz-UZ')}
+                  <TableCell className="num text-right text-ink">
+                    {formatNumber(r.clicks)}
                   </TableCell>
-                  <TableCell className="text-right font-mono tabular-nums text-muted">
+                  <TableCell className="num text-right text-muted">
                     {formatCtr(adCtr(r))}
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+          </div>
         </div>
       )}
     </Drawer>

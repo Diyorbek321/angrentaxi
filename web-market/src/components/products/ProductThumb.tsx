@@ -22,7 +22,7 @@ export function ProductThumb({ product: p, onClick }: { product: Product; onClic
       aria-label={`${p.name} rasmini o'zgartirish`}
       title="Rasmni o'zgartirish"
       style={showImage ? undefined : hueTint(p.hue)}
-      className="group relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-ds-sm text-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+      className="group relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-ds-xs border border-line text-base focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-surface"
     >
       {showImage ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -34,7 +34,7 @@ export function ProductThumb({ product: p, onClick }: { product: Product; onClic
         aria-hidden
         className="absolute inset-0 flex items-center justify-center bg-ink/55 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
       >
-        <ImagePlus size={16} />
+        <ImagePlus size={14} />
       </span>
     </button>
   );

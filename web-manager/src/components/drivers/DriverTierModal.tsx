@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
+import { fullName } from '@/lib/format';
 
 export function tierLabel(tier: number): string {
   return TARIFF_TIERS.find((t) => t.tier === tier)?.label ?? String(tier);
@@ -36,7 +37,7 @@ export function DriverTierModal({ driver, onClose, onUpdated }: DriverTierModalP
       onClose();
       toast({
         title: `Tarif darajasi: ${tierLabel(tier)}`,
-        description: `${updated.firstName} ${updated.lastName} shu darajagacha buyurtma oladi.`,
+        description: `${fullName(updated.firstName, updated.lastName)} shu darajagacha buyurtma oladi.`,
         variant: 'success',
       });
     } catch (err) {
@@ -52,7 +53,7 @@ export function DriverTierModal({ driver, onClose, onUpdated }: DriverTierModalP
       isOpen={!!driver}
       onClose={onClose}
       title={
-        driver ? `${driver.firstName} ${driver.lastName} — tarif darajasi` : 'Tarif darajasi'
+        driver ? `${fullName(driver.firstName, driver.lastName)} — tarif darajasi` : 'Tarif darajasi'
       }
       size="sm"
     >

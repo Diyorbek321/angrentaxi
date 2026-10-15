@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Phone, RefreshCw, ShieldCheck, X } from 'lucide-react';
+import { CheckCircle2, Phone, RefreshCw, X } from 'lucide-react';
 import {
   getPendingVerifications,
   getVerificationFile,
@@ -14,13 +14,14 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
-import { Tabs } from '@/components/ui/Tabs';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Textarea } from '@/components/ui/Textarea';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { RetryBanner } from '@/components/ui/RetryBanner';
-import { SkeletonTable } from '@/components/ui/Skeleton';
+import { Skeleton, SkeletonCards } from '@/components/ui/Skeleton';
+import { PageBody } from '@/components/ui/PageBody';
 import { useToast } from '@/components/ui/Toast';
 import { formatDateTime, formatPhone } from '@/lib/format';
 
@@ -100,25 +101,29 @@ export default function VerificationPage() {
   };
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="px-5 py-4 max-w-6xl mx-auto">
+    <PageBody className="max-w-6xl">
         <PageHeader
           title="Koʻrik va selfi"
           description="Mashina koʻrigi 30 kunda, selfi 3 kunda. Muddat oʻtsa 1 kundan keyin haydovchi onlayn chiqa olmaydi."
-          icon={<ShieldCheck size={17} />}
           actions={
-            <Button variant="secondary" size="sm" onClick={() => void load()} leftIcon={<RefreshCw size={13} />}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void load()}
+              isLoading={isLoading && hasLoadedOnce}
+              leftIcon={<RefreshCw size={13} aria-hidden />}
+            >
               Yangilash
             </Button>
           }
         />
 
         <div className="mb-3">
-          <Tabs
-            items={TABS.map((t) => ({ ...t, label: counts[t.value] ? `${t.label} (${counts[t.value]})` : t.label }))}
+          <SegmentedControl
+            items={TABS.map((t) => ({ ...t, count: counts[t.value] || undefined }))}
             value={tab}
             onChange={setTab}
-            size="sm"
+            ariaLabel="Tekshiruv turi"
           />
         </div>
 
@@ -127,13 +132,16 @@ export default function VerificationPage() {
         )}
 
         {error && !hasLoadedOnce ? (
-          <ErrorState message={error} onRetry={() => void load()} />
+          <Card padding="none">
+            <ErrorState title={error} onRetry={() => void load()} retrying={isLoading} />
+          </Card>
         ) : isLoading && !hasLoadedOnce ? (
-          <SkeletonTable rows={3} cols={4} />
+          <SkeletonCards count={3} height="h-64" />
         ) : visible.length === 0 ? (
-          <Card>
+          <Card padding="none">
             <EmptyState
-              icon={<CheckCircle2 size={22} />}
+              variant="cleared"
+              icon={<CheckCircle2 aria-hidden />}
               title="Navbat boʻsh"
               description={`${KIND_LABEL[tab]} boʻyicha tekshiriladigan narsa qolmadi.`}
             />
@@ -155,7 +163,6 @@ export default function VerificationPage() {
             ))}
           </div>
         )}
-      </div>
 
       <Modal
         isOpen={rejecting !== null}
@@ -172,7 +179,7 @@ export default function VerificationPage() {
           rows={3}
           maxLength={300}
         />
-        <div className="mt-4 flex justify-end gap-2">
+        <div className="mt-4 pt-4 border-t border-line flex justify-end gap-2">
           <Button variant="secondary" onClick={() => setRejecting(null)}>
             Bekor qilish
           </Button>
@@ -181,7 +188,7 @@ export default function VerificationPage() {
           </Button>
         </div>
       </Modal>
-    </div>
+    </PageBody>
   );
 }
 
@@ -204,14 +211,14 @@ function GroupCard({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="info">{KIND_LABEL[group.kind]}</Badge>
-            <span className="text-xs text-subtle">{formatDateTime(group.submittedAt)}</span>
+            <Badge variant="neutral">{KIND_LABEL[group.kind]}</Badge>
+            <span className="num text-xs text-subtle">{formatDateTime(group.submittedAt)}</span>
           </div>
-          <p className="mt-1.5 text-sm font-semibold text-ink">{group.driverName ?? 'Haydovchi'}</p>
+          <p className="mt-1.5 text-[13px] font-semibold text-ink">{group.driverName ?? 'Haydovchi'}</p>
           {group.driverPhone && (
             <a
               href={`tel:${group.driverPhone}`}
-              className="inline-flex items-center gap-1 font-mono text-xs text-primary-text hover:underline"
+              className="num inline-flex items-center gap-1 text-xs text-primary-text hover:underline"
             >
               <Phone size={11} aria-hidden />
               {formatPhone(group.driverPhone)}
@@ -227,7 +234,7 @@ function GroupCard({
 
       <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {group.items.map((item) => (
-          <div key={item.id} className="rounded-lg border border-divider p-2">
+          <div key={item.id} className="rounded-ds-sm border border-line p-2">
             {item.kind === 'selfie' ? (
               <div className="grid grid-cols-2 gap-2">
                 <Photo id={item.referenceSubmissionId} caption="Avvalgi" />
@@ -287,7 +294,7 @@ function Photo({ id, caption }: { id: string | null; caption: string }) {
 
   return (
     <figure>
-      <div className="flex aspect-[3/4] items-center justify-center overflow-hidden rounded-md bg-surface-2">
+      <div className="flex aspect-[3/4] items-center justify-center overflow-hidden rounded-ds-xs bg-surface-2">
         {!id || failed ? (
           <span className="px-2 text-center text-[11px] text-subtle">{failed ? 'Ochilmadi' : 'Yoʻq'}</span>
         ) : url ? (
@@ -296,7 +303,7 @@ function Photo({ id, caption }: { id: string | null; caption: string }) {
             <img src={url} alt={caption} className="h-full w-full object-cover" />
           </a>
         ) : (
-          <span className="h-full w-full animate-pulse bg-surface-2" />
+          <Skeleton className="h-full w-full rounded-none" />
         )}
       </div>
       <figcaption className="mt-1 truncate text-xs text-muted">{caption}</figcaption>

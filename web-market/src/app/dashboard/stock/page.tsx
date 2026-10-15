@@ -1,28 +1,33 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, Boxes, Minus, Plus, RefreshCw } from 'lucide-react';
-import { clsx } from 'clsx';
-import { marketApi, Product, StockMovement, Store } from '@/lib/api';
-import { errorMessage, formatDateTime, hueTint } from '@/lib/utils';
+import { ArrowDown, ArrowUp, History, Minus, Plus, RefreshCw } from 'lucide-react';
+import { marketApi, type Product, type StockMovement, type Store } from '@/lib/api';
+import { errorMessage, hueTint } from '@/lib/utils';
+import { formatDateTime, formatNumber } from '@/lib/format';
+import { stockTone } from '@/lib/product-status';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { usePagination } from '@/hooks/usePagination';
 import { useToast } from '@/components/ui/Toast';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Card, CardTitle } from '@/components/ui/Card';
 import { DataErrorBanner } from '@/components/ui/DataErrorBanner';
-import { EmptyState } from '@/components/ui/EmptyState';
+import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { IconButton } from '@/components/ui/IconButton';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Pagination } from '@/components/ui/Pagination';
-import { Skeleton, SkeletonStats } from '@/components/ui/Skeleton';
-import { StatTile } from '@/components/ui/StatTile';
+import { SkeletonStats, SkeletonTable } from '@/components/ui/Skeleton';
+import { StatCard } from '@/components/ui/StatCard';
+import { cn } from '@/components/ui/cn';
+import { usePageRefresh } from '@/components/shell';
 
 interface StockData {
   products: Product[];
   movements: StockMovement[];
   store: Store;
 }
+
+const STEP = 5;
 
 export default function StockPage() {
   const { toast } = useToast();
@@ -36,17 +41,22 @@ export default function StockPage() {
     ]);
     return { products: p.data.data, movements: m.data.data, store: s.data.data };
   });
+  usePageRefresh(reload);
 
   const products = useMemo(() => data?.products ?? [], [data]);
   const movements = useMemo(() => data?.movements ?? [], [data]);
-  const threshold = data?.store.lowStockThreshold ?? 10;
+  // Do'konning haqiqiy chegarasi (Sozlamalar → Zaxira ogohlantirishi).
+  const threshold = data?.store.lowStockThreshold ?? 0;
 
   const outCount = products.filter((p) => p.stock === 0).length;
   const lowCount = products.filter((p) => p.stock > 0 && p.stock <= threshold).length;
 
-  // Kam qolgan/tugaganlar OLDINDA (eng kami tepada) — harakatlar tarixi ortda.
+  // Kritik birinchi: tugaganlar, keyin eng kami tepada; teng bo'lsa nom bo'yicha.
   const needRestock = useMemo(
-    () => products.filter((p) => p.stock <= threshold).sort((a, b) => a.stock - b.stock),
+    () =>
+      products
+        .filter((p) => p.stock <= threshold)
+        .sort((a, b) => a.stock - b.stock || a.name.localeCompare(b.name, 'uz')),
     [products, threshold]
   );
 
@@ -64,19 +74,129 @@ export default function StockPage() {
     }
   };
 
+  const restockColumns: DataTableColumn<Product>[] = [
+    {
+      key: 'name',
+      header: 'Mahsulot',
+      cell: (p) => (
+        <span className="flex min-w-0 items-center gap-2.5">
+          <span
+            aria-hidden
+            style={hueTint(p.hue)}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-ds-xs text-base"
+          >
+            {p.emoji}
+          </span>
+          <span className="truncate font-medium text-ink">{p.name}</span>
+        </span>
+      ),
+    },
+    {
+      key: 'state',
+      header: 'Holat',
+      width: 'w-32',
+      hideBelow: 'sm',
+      cell: (p) =>
+        p.stock === 0 ? <Badge variant="danger">Tugagan</Badge> : <Badge variant="neutral">Kam qolgan</Badge>,
+    },
+    {
+      key: 'stock',
+      header: 'Zaxira',
+      numeric: true,
+      width: 'w-28',
+      cell: (p) => (
+        <span className={stockTone(p.stock, threshold).text}>
+          {formatNumber(p.stock)} <span className="text-xs font-normal text-muted">{p.unit}</span>
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: <span className="sr-only">Amallar</span>,
+      align: 'right',
+      width: 'w-24',
+      cell: (p) => (
+        <span className="inline-flex items-center gap-1">
+          <IconButton
+            variant="secondary"
+            size="sm"
+            aria-label={`${p.name}: ${STEP} ta kamaytirish`}
+            disabled={busyId === p.id || p.stock === 0}
+            onClick={() => void bump(p, -STEP)}
+          >
+            <Minus aria-hidden />
+          </IconButton>
+          <IconButton
+            variant="secondary"
+            size="sm"
+            aria-label={`${p.name}: ${STEP} ta qo'shish`}
+            disabled={busyId === p.id}
+            onClick={() => void bump(p, STEP)}
+          >
+            <Plus aria-hidden />
+          </IconButton>
+        </span>
+      ),
+    },
+  ];
+
+  const movementColumns: DataTableColumn<StockMovement>[] = [
+    {
+      key: 'product',
+      header: 'Mahsulot',
+      cell: (m) => (
+        <span className="block min-w-0">
+          <span className="block truncate text-ink">{m.product.name}</span>
+          <span className="block truncate text-xs text-muted">{m.note || 'Qoʻlda tuzatish'}</span>
+        </span>
+      ),
+    },
+    {
+      key: 'at',
+      header: 'Vaqt',
+      numeric: true,
+      width: 'w-28',
+      hideBelow: 'sm',
+      cell: (m) => <span className="text-muted">{formatDateTime(m.createdAt)}</span>,
+    },
+    {
+      key: 'delta',
+      header: 'Oʻzgarish',
+      numeric: true,
+      width: 'w-24',
+      cell: (m) => {
+        const up = m.delta > 0;
+        return (
+          <span
+            className={cn(
+              'inline-flex items-center gap-1 font-medium',
+              up ? 'text-primary-text' : 'text-danger-dark dark:text-danger-light'
+            )}
+          >
+            {up ? <ArrowUp size={12} aria-hidden /> : <ArrowDown size={12} aria-hidden />}
+            {up ? '+' : ''}
+            {formatNumber(m.delta)}
+          </span>
+        );
+      },
+    },
+  ];
+
   return (
     <div>
       <PageHeader
         title="Zaxira"
-        description="Kam qolgan va tugagan mahsulotlar"
-        icon={<Boxes size={18} aria-hidden />}
+        description={
+          data
+            ? `Kam qolgan chegarasi: ${formatNumber(threshold)} — Sozlamalarda oʻzgartiriladi`
+            : 'Kam qolgan va tugagan mahsulotlar'
+        }
         actions={
           <Button
             variant="secondary"
-            size="sm"
             onClick={() => void reload()}
             isLoading={isRefreshing}
-            leftIcon={<RefreshCw size={13} aria-hidden />}
+            leftIcon={<RefreshCw size={14} aria-hidden />}
           >
             Yangilash
           </Button>
@@ -88,156 +208,69 @@ export default function StockPage() {
       {isLoading ? (
         <div className="space-y-4" aria-busy="true" aria-live="polite">
           <span className="sr-only">Yuklanmoqda</span>
-          <SkeletonStats count={2} />
-          <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
-            <Skeleton className="h-96 rounded-ds-md" />
-            <Skeleton className="h-96 rounded-ds-md" />
+          <SkeletonStats count={3} className="lg:grid-cols-3" />
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+            <SkeletonTable rows={6} cols={4} />
+            <SkeletonTable rows={6} cols={3} />
           </div>
         </div>
       ) : error && !data ? (
-        <ErrorState message={error} onRetry={reload} />
+        <ErrorState message={error} onRetry={reload} retrying={isRefreshing} />
       ) : data ? (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <StatTile
-              label="Tugagan mahsulotlar"
-              value={outCount}
-              tone={outCount > 0 ? 'danger' : 'muted'}
-              hint={outCount > 0 ? 'Sotuvdan chiqib ketgan' : 'Tugagani yo‘q'}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <StatCard
+              label="Tugagan"
+              value={formatNumber(outCount)}
+              tone={outCount > 0 ? 'danger' : 'neutral'}
+              hint={outCount > 0 ? 'Sotuvdan chiqib ketgan' : 'Tugagani yoʻq'}
             />
-            <StatTile
-              label={`Kam qolgan (≤${threshold})`}
-              value={lowCount}
-              tone={lowCount > 0 ? 'override' : 'muted'}
-              hint={lowCount > 0 ? "Tez orada to'ldiring" : 'Hammasi yetarli'}
+            <StatCard
+              label={`Kam qolgan (≤ ${formatNumber(threshold)})`}
+              value={formatNumber(lowCount)}
+              hint={lowCount > 0 ? 'Tez orada toʻldiring' : 'Hammasi yetarli'}
             />
+            <StatCard label="Jami mahsulot" value={formatNumber(products.length)} />
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
-            <Card padding="none">
-              <div className="border-b border-line px-4 py-3.5">
-                <CardTitle>To&apos;ldirish kerak</CardTitle>
-              </div>
-              {needRestock.length === 0 ? (
-                <EmptyState
-                  compact
-                  tone="positive"
-                  title="Barcha mahsulotlar yetarli"
-                  description="Zaxira chegaradan yuqori — hech narsa talab qilinmaydi."
-                />
-              ) : (
-                <ul className="divide-y divide-divider">
-                  {needRestock.map((p) => {
-                    const critical = p.stock === 0;
-                    return (
-                      <li key={p.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                        <span
-                          aria-hidden
-                          style={hueTint(p.hue)}
-                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-ds-sm text-base"
-                        >
-                          {p.emoji}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-body font-bold text-ink">{p.name}</p>
-                          <p
-                            className={clsx(
-                              'mt-0.5 text-caption font-bold',
-                              critical
-                                ? 'text-danger-deep dark:text-danger-light'
-                                : 'text-override-dark dark:text-override-light'
-                            )}
-                          >
-                            {critical ? 'Tugagan' : 'Kam qoldi'} — {p.stock} {p.unit}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            aria-label={`${p.name}: 5 ta kamaytirish`}
-                            disabled={busyId === p.id || p.stock === 0}
-                            onClick={() => void bump(p, -5)}
-                          >
-                            <Minus size={14} aria-hidden />
-                          </Button>
-                          <span
-                            className="w-14 rounded-ds-xs border border-line bg-surface-2 py-1.5 text-center font-mono text-body tabular-nums font-bold text-ink"
-                            aria-label={`Joriy zaxira: ${p.stock}`}
-                          >
-                            {p.stock}
-                          </span>
-                          <Button
-                            size="sm"
-                            aria-label={`${p.name}: 5 ta qo'shish`}
-                            disabled={busyId === p.id}
-                            onClick={() => void bump(p, 5)}
-                          >
-                            <Plus size={14} aria-hidden />
-                          </Button>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </Card>
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+            <DataTable
+              title="Toʻldirish kerak"
+              description="Kritik birinchi: tugaganlar, keyin eng kami"
+              ariaLabel="Toʻldirish kerak boʻlgan mahsulotlar"
+              columns={restockColumns}
+              rows={needRestock}
+              rowKey={(p) => p.id}
+              rowClassName={(p) => (p.stock === 0 ? 'bg-danger-tint/40' : undefined)}
+              empty={
+                products.length === 0
+                  ? {
+                      variant: 'first-use',
+                      title: 'Hali mahsulot yoʻq',
+                      description: 'Mahsulot qoʻshilgach zaxira shu yerda kuzatiladi.',
+                    }
+                  : {
+                      variant: 'cleared',
+                      title: 'Barcha mahsulotlar yetarli',
+                      description: 'Zaxira chegaradan yuqori — hech narsa talab qilinmaydi.',
+                    }
+              }
+            />
 
-            <Card padding="none">
-              <div className="border-b border-line px-4 py-3.5">
-                <CardTitle>Zaxira harakati</CardTitle>
-              </div>
-              {movements.length === 0 ? (
-                <EmptyState
-                  compact
-                  title="Harakat yo'q"
-                  description="Zaxira o'zgarganda yozuv shu yerda paydo bo'ladi."
-                />
-              ) : (
-                <>
-                  <ul className="divide-y divide-divider">
-                    {pagedMovements.pageItems.map((m) => {
-                      const up = m.delta > 0;
-                      return (
-                        <li key={m.id} className="flex items-center gap-3 px-4 py-2.5">
-                          <span
-                            aria-hidden
-                            className={clsx(
-                              'flex h-8 w-8 shrink-0 items-center justify-center rounded-ds-xs',
-                              up
-                                ? 'bg-mint-tint text-primary-text'
-                                : 'bg-danger/12 text-danger-deep dark:text-danger-light'
-                            )}
-                          >
-                            {up ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-caption font-semibold text-ink">
-                              {m.product.name}
-                            </p>
-                            <p className="mt-0.5 truncate text-caption text-subtle">
-                              {m.note || 'Qo‘lda tuzatish'} · {formatDateTime(m.createdAt)}
-                            </p>
-                          </div>
-                          <span
-                            className={clsx(
-                              'shrink-0 font-mono text-caption tabular-nums font-bold',
-                              up
-                                ? 'text-primary-text'
-                                : 'text-danger-deep dark:text-danger-light'
-                            )}
-                          >
-                            {up ? '+' : ''}
-                            {m.delta}
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  <Pagination paged={pagedMovements} />
-                </>
-              )}
-            </Card>
+            <DataTable
+              title="Zaxira harakati"
+              ariaLabel="Zaxira harakati"
+              compact
+              columns={movementColumns}
+              rows={pagedMovements.pageItems}
+              rowKey={(m) => m.id}
+              pagination={{ paged: pagedMovements }}
+              empty={{
+                icon: <History aria-hidden />,
+                title: 'Harakat yoʻq',
+                description: 'Zaxira oʻzgarganda yozuv shu yerda paydo boʻladi.',
+              }}
+            />
           </div>
         </div>
       ) : null}

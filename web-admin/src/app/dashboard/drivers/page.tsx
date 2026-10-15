@@ -2,28 +2,22 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Search, Car, Download, AlertTriangle } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Input } from '@/components/ui/Input';
-import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { ErrorState } from '@/components/ui/ErrorState';
-import { FilterChips, type FilterChip } from '@/components/ui/FilterChips';
-import { PaginationBar } from '@/components/ui/PaginationBar';
-import { SkeletonTable } from '@/components/ui/Skeleton';
-import { DriversTable, type DriverSortDir } from '@/components/drivers/DriversTable';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/Select';
+import { FilterBar } from '@/components/ui/FilterBar';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import type { FilterChip } from '@/components/ui/FilterChips';
+import type { SortState } from '@/components/ui/DataTable';
+import { Skeleton, SkeletonTable } from '@/components/ui/Skeleton';
+import { DriversTable } from '@/components/drivers/DriversTable';
 import { driversApi, Driver } from '@/lib/api';
 import { usePagination } from '@/hooks/usePagination';
 import { useToast } from '@/components/ui/Toast';
-import { debounce, formatCurrency, formatDate, formatRating, getFullName } from '@/lib/utils';
+import { debounce } from '@/lib/utils';
+import { formatDateShort, formatMoney, formatNumber, formatRating, fullName } from '@/lib/format';
 import { downloadCsv } from '@/lib/csv';
+import { driverRegisteredAt } from '@/lib/driver';
 import { DRIVER_STATUS_LABELS, type DriverStatus } from '@/lib/constants';
 
 const STATUS_FILTER_LABELS: Record<string, string> = {
@@ -40,7 +34,6 @@ function DriversPageInner() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   // `?status=pending` — yuqori bar qo'ng'irog'idan chuqur havola.
@@ -48,8 +41,7 @@ function DriversPageInner() {
     const initial = searchParams.get('status');
     return initial && initial in STATUS_FILTER_LABELS ? initial : 'all';
   });
-  const [sortField, setSortField] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<DriverSortDir>(null);
+  const [sort, setSort] = useState<SortState | null>(null);
 
   const fetchDrivers = useCallback(async () => {
     setIsLoading(true);
@@ -69,7 +61,6 @@ function DriversPageInner() {
       const total = payload?.total ?? 0;
       pagination.setTotal(total, Math.ceil(total / pagination.limit));
       setError(null);
-      setHasLoadedOnce(true);
     } catch {
       // Oxirgi muvaffaqiyatli qatorlar ekranda qoladi — banner + retry chiqadi.
       setError('Haydovchilarni yuklashda xatolik');
@@ -97,38 +88,24 @@ function DriversPageInner() {
     debouncedSearch(value);
   };
 
-  const handleSort = (field: string) => {
-    if (sortField !== field) {
-      setSortField(field);
-      setSortDir('asc');
-    } else if (sortDir === 'asc') {
-      setSortDir('desc');
-    } else {
-      setSortField(null);
-      setSortDir(null);
-    }
-  };
-
   const sortedDrivers = useMemo(() => {
-    if (!sortField || !sortDir) return drivers;
-    const dir = sortDir === 'asc' ? 1 : -1;
+    if (!sort) return drivers;
+    const dir = sort.direction === 'asc' ? 1 : -1;
     return [...drivers].sort((a, b) => {
-      switch (sortField) {
+      switch (sort.key) {
         case 'name':
-          return getFullName(a.firstName, a.lastName).localeCompare(
-            getFullName(b.firstName, b.lastName)
-          ) * dir;
+          return fullName(a.firstName, a.lastName).localeCompare(fullName(b.firstName, b.lastName)) * dir;
         case 'rating':
           return (a.rating - b.rating) * dir;
         case 'trips':
           return (a.totalTrips - b.totalTrips) * dir;
         case 'createdAt':
-          return a.createdAt.localeCompare(b.createdAt) * dir;
+          return (driverRegisteredAt(a) ?? '').localeCompare(driverRegisteredAt(b) ?? '') * dir;
         default:
           return 0;
       }
     });
-  }, [drivers, sortField, sortDir]);
+  }, [drivers, sort]);
 
   const clearAllFilters = () => {
     setSearchInput('');
@@ -166,7 +143,7 @@ function DriversPageInner() {
     downloadCsv<Driver>(
       `haydovchilar-${new Date().toISOString().slice(0, 10)}.csv`,
       [
-        { header: 'Haydovchi', value: (d) => getFullName(d.firstName, d.lastName) },
+        { header: 'Haydovchi', value: (d) => fullName(d.firstName, d.lastName) },
         { header: 'Telefon', value: (d) => d.phone },
         { header: 'Avtomobil', value: (d) => d.carModel },
         { header: 'Raqam', value: (d) => d.carNumber },
@@ -174,33 +151,33 @@ function DriversPageInner() {
         { header: 'Safarlar', value: (d) => d.totalTrips },
         {
           header: 'Hamyon',
-          value: (d) => (d.walletBalance !== undefined ? formatCurrency(d.walletBalance) : ''),
+          value: (d) => (d.walletBalance !== undefined ? formatMoney(d.walletBalance) : ''),
         },
         {
           header: 'Holat',
           value: (d) => DRIVER_STATUS_LABELS[d.status as DriverStatus] ?? d.status,
         },
         { header: 'Onlayn', value: (d) => (d.isOnline ? 'Ha' : "Yo'q") },
-        { header: "Ro'yxatdan o'tgan", value: (d) => formatDate(d.createdAt, 'dd.MM.yyyy') },
+        { header: "Ro'yxatdan o'tgan", value: (d) => formatDateShort(driverRegisteredAt(d)) },
       ],
       sortedDrivers
     );
     toast({ title: 'CSV yuklab olindi', description: `${sortedDrivers.length} ta qator`, variant: 'success' });
   };
 
-  const showFullError = error && !isLoading && drivers.length === 0 && !hasLoadedOnce;
-  const showErrorBanner = error && !isLoading && !showFullError;
+  const statusItems = [
+    { value: 'all', label: 'Hammasi' },
+    ...Object.entries(STATUS_FILTER_LABELS).map(([value, label]) => ({ value, label })),
+  ];
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="px-4 sm:px-6 py-5">
       <PageHeader
         title="Haydovchilar"
-        description={`Jami: ${pagination.total.toLocaleString('uz-UZ')} ta`}
-        icon={<Car className="h-4 w-4" aria-hidden="true" />}
+        description={`Jami: ${formatNumber(pagination.total)} ta`}
         actions={
           <Button
-            variant="outline"
-            size="sm"
+            variant="secondary"
             onClick={handleExportCsv}
             disabled={sortedDrivers.length === 0}
             leftIcon={<Download className="h-4 w-4" aria-hidden="true" />}
@@ -209,85 +186,47 @@ function DriversPageInner() {
           </Button>
         }
       />
-      <div className="space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="flex-1">
-            <Input
-              placeholder="Ism, telefon yoki avtomobil raqami bo'yicha qidirish..."
-              leftIcon={<Search className="h-4 w-4" aria-hidden="true" />}
-              value={searchInput}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              aria-label="Haydovchilarni qidirish"
+      <DriversTable
+        drivers={sortedDrivers}
+        isLoading={isLoading}
+        error={error}
+        onRetry={fetchDrivers}
+        sort={sort}
+        onSortChange={setSort}
+        hasActiveFilters={hasActiveFilters}
+        onClearFilters={clearAllFilters}
+        toolbar={
+          <FilterBar
+            search={searchInput}
+            onSearchChange={handleSearchChange}
+            searchPlaceholder="Ism, telefon yoki raqam…"
+            searchAriaLabel="Haydovchilarni qidirish"
+            chips={chips}
+            onClearAll={clearAllFilters}
+          >
+            <SegmentedControl
+              items={statusItems}
+              value={statusFilter}
+              onChange={(v) => {
+                setStatusFilter(v);
+                pagination.reset();
+              }}
+              ariaLabel="Holat boʻyicha filtr"
             />
-          </div>
-          <Select
-            value={statusFilter}
-            onValueChange={(v) => { setStatusFilter(v); pagination.reset(); }}
-          >
-            <SelectTrigger className="w-48" aria-label="Holat bo'yicha filtr">
-              <SelectValue placeholder="Holat" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Barcha holatlar</SelectItem>
-              <SelectItem value="online">{DRIVER_STATUS_LABELS.online}</SelectItem>
-              <SelectItem value="offline">{DRIVER_STATUS_LABELS.offline}</SelectItem>
-              <SelectItem value="pending">{DRIVER_STATUS_LABELS.pending}</SelectItem>
-              <SelectItem value="blocked">{DRIVER_STATUS_LABELS.blocked}</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <FilterChips chips={chips} onClearAll={clearAllFilters} />
-
-        {showErrorBanner && (
-          <div
-            role="alert"
-            className="flex flex-wrap items-center justify-between gap-3 rounded-ds-sm border border-danger/30 bg-danger-tint px-4 py-3"
-          >
-            <p className="flex items-center gap-2 text-body text-danger-deep dark:text-danger-light">
-              <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
-              {error} — oxirgi muvaffaqiyatli yuklangan ma&apos;lumot ko&apos;rsatilmoqda.
-            </p>
-            <Button variant="secondary" size="sm" onClick={fetchDrivers}>
-              Qayta urinish
-            </Button>
-          </div>
-        )}
-
-        {showFullError ? (
-          <Card>
-            <CardContent className="p-0">
-              <ErrorState message={error} onRetry={fetchDrivers} />
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardContent className="p-0">
-              <DriversTable
-                drivers={sortedDrivers}
-                isLoading={isLoading}
-                sortField={sortField}
-                sortDir={sortDir}
-                onSort={handleSort}
-                hasActiveFilters={hasActiveFilters}
-                onClearFilters={clearAllFilters}
-              />
-            </CardContent>
-          </Card>
-        )}
-
-        <PaginationBar
-          page={pagination.page}
-          limit={pagination.limit}
-          total={pagination.total}
-          totalPages={pagination.totalPages}
-          pageRange={pagination.pageRange}
-          canGoPrev={pagination.canGoPrev}
-          canGoNext={pagination.canGoNext}
-          onPageChange={pagination.goToPage}
-          onLimitChange={pagination.setLimit}
-        />
-      </div>
+          </FilterBar>
+        }
+        pagination={{
+          page: pagination.page,
+          limit: pagination.limit,
+          total: pagination.total,
+          totalPages: pagination.totalPages,
+          pageRange: pagination.pageRange,
+          canGoPrev: pagination.canGoPrev,
+          canGoNext: pagination.canGoNext,
+          onPageChange: pagination.goToPage,
+          onLimitChange: pagination.setLimit,
+        }}
+      />
     </div>
   );
 }
@@ -297,8 +236,9 @@ export default function DriversPage() {
   return (
     <Suspense
       fallback={
-        <div className="p-4 sm:p-6">
-          <SkeletonTable rows={8} cols={8} />
+        <div className="px-4 sm:px-6 py-5 space-y-5">
+          <Skeleton className="h-5 w-40" />
+          <SkeletonTable rows={10} cols={8} />
         </div>
       }
     >

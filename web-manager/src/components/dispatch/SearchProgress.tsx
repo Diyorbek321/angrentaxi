@@ -3,6 +3,7 @@
 import { Radar } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useNow } from './useNow';
+import { formatClock, formatDuration } from '@/lib/format';
 
 /**
  * Mirrors the backend's MatchingService.NO_DRIVER_TIMEOUT_MS — how long the
@@ -32,8 +33,15 @@ export function SearchProgress({
 
   const startedAt = new Date(createdAt).getTime();
   const elapsedMs = now == null ? 0 : Math.max(0, now - startedAt);
-  const elapsedSec = Math.floor(elapsedMs / 1000);
-  const windowSec = Math.round(AUTO_MATCH_WINDOW_MS / 1000);
+  // Clock format, never raw seconds ("184913s / 60s" read as noise): the
+  // live search shows "0:42 / 1:00"; once the window has passed the elapsed
+  // time is humanized ("Muddati oʻtgan · 2 kun 3 soat").
+  const timeText =
+    now == null
+      ? '—'
+      : elapsedMs >= AUTO_MATCH_WINDOW_MS
+      ? `Muddati oʻtgan · ${formatDuration(elapsedMs)}`
+      : `${formatClock(elapsedMs)} / ${formatClock(AUTO_MATCH_WINDOW_MS)}`;
   const ratio = Math.min(1, elapsedMs / AUTO_MATCH_WINDOW_MS);
   const expired = elapsedMs >= AUTO_MATCH_WINDOW_MS;
 
@@ -67,9 +75,7 @@ export function SearchProgress({
           <Radar size={12} className={expired ? undefined : 'animate-pulse'} />
           {expired ? 'Qidiruv oynasi tugadi' : `Avtomatik qidiruv — ~${offerRound}-taklif`}
         </span>
-        <span className="font-mono text-[11px] text-muted tabular-nums">
-          {now == null ? '—' : `${elapsedSec}s / ${windowSec}s`}
-        </span>
+        <span className="num text-[11px] text-muted whitespace-nowrap">{timeText}</span>
       </div>
       <div className="h-1.5 w-full rounded-full bg-surface-3 overflow-hidden">
         <div

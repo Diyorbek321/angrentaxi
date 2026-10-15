@@ -7,10 +7,12 @@ import { OrderStatusBadge } from '@/components/orders/OrderStatusBadge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Avatar } from '@/components/ui/Avatar';
+import { MoneyText } from '@/components/ui/MoneyText';
+import { PlateNumber } from '@/components/ui/PlateNumber';
 import { useToast } from '@/components/ui/Toast';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ORDER_STATUS_ACCENT, PAYMENT_METHOD_LABELS } from '@/lib/constants';
-import { formatMoney, formatMoneyApprox, formatPhone, formatRating, formatRelative, shortId } from '@/lib/format';
+import { formatPhone, formatRating, formatRelative, shortId } from '@/lib/format';
 import { AUTO_MATCH_WINDOW_MS, SearchProgress } from './SearchProgress';
 import { useNow } from './useNow';
 
@@ -114,11 +116,11 @@ export function OrderCard({
     >
       <div className={`h-0.5 w-full ${ORDER_STATUS_ACCENT[order.status]}`} />
 
-      <div className="p-3.5 space-y-3">
+      <div className="p-3 space-y-2.5 text-[13px]">
         {/* Header: id, status, age */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="font-mono text-xs font-semibold text-muted">{shortId(order.id)}</span>
+            <span className="font-mono text-xs font-medium text-muted">{shortId(order.id)}</span>
             <OrderStatusBadge status={order.status} size="sm" dot />
           </div>
           <span className="flex items-center gap-1 text-[11px] text-subtle shrink-0">
@@ -130,10 +132,10 @@ export function OrderCard({
         {/* Passenger */}
         <div className="flex items-center gap-2 min-w-0">
           <Avatar name={order.passenger?.name} size="xs" tone="muted" />
-          <span className="text-sm font-medium text-ink truncate">
-            {order.passenger?.name ?? 'Mijoz'}
+          <span className="text-[13px] font-medium text-ink truncate">
+            {order.passenger?.name || 'Mijoz'}
           </span>
-          <span className="ml-auto flex items-center gap-1 text-[11px] font-mono text-muted shrink-0">
+          <span className="ml-auto flex items-center gap-1 text-xs num text-muted shrink-0">
             <Phone size={11} />
             {formatPhone(order.passenger?.phone)}
           </span>
@@ -161,8 +163,8 @@ export function OrderCard({
           <div className="flex items-center gap-2 rounded-ds-xs bg-surface-2 border border-line px-2.5 py-2">
             <Avatar name={order.driver.name} size="xs" />
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium text-ink truncate">{order.driver.name}</p>
-              <p className="text-[11px] font-mono text-subtle truncate">{order.driver.carNumber}</p>
+              <p className="text-xs font-medium text-ink truncate">{order.driver.name || 'Ism kiritilmagan'}</p>
+              <PlateNumber plate={order.driver.carNumber} className="mt-0.5 h-[18px] text-[11px]" />
             </div>
             <span className="flex items-center gap-1 text-[11px] text-muted shrink-0">
               <Star size={11} className="text-primary" fill="currentColor" />
@@ -185,11 +187,11 @@ export function OrderCard({
             <span className="text-line-strong">·</span>
             <span className="shrink-0">{PAYMENT_METHOD_LABELS[order.paymentMethod]}</span>
           </span>
-          <span className="font-mono font-semibold text-ink shrink-0">
-            {order.finalPrice != null
-              ? formatMoney(order.finalPrice)
-              : formatMoneyApprox(order.estimatedPrice)}
-          </span>
+          {order.finalPrice != null ? (
+            <MoneyText value={order.finalPrice} className="font-semibold text-ink shrink-0" />
+          ) : (
+            <MoneyText value={order.estimatedPrice} approx className="font-semibold text-ink shrink-0" />
+          )}
         </div>
 
         {/* Actions — deliberately quiet. Assignment is the algorithm's job;
@@ -239,9 +241,9 @@ export function OrderCard({
         )}
       </div>
 
-      {/* Modal renders inline, not through a portal, so it sits inside the
-          card's click area — without this guard every click in the dialog
-          would also open the detail drawer behind it. */}
+      {/* The dialog is portalled, but React synthetic events still bubble
+          through the component tree — without this guard every click in the
+          dialog would also open the detail drawer behind it. */}
       <div onClick={(e) => e.stopPropagation()} role="presentation">
         <ConfirmDialog
           isOpen={confirming === 'cancel'}

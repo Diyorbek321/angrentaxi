@@ -27,7 +27,7 @@ export default function RootPage() {
         <Skeleton className="h-12 w-12 rounded-ds-md" />
         <Skeleton className="h-5 w-40" />
         <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-44 w-full rounded-ds-lg" />
+        <Skeleton className="h-44 w-full rounded-ds-md" />
       </div>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { UtensilsCrossed } from 'lucide-react';
-import { clsx } from 'clsx';
+import { cn } from '@/components/ui/cn';
 
 export interface DishImageProps {
   src?: string | null;
@@ -12,8 +12,7 @@ export interface DishImageProps {
 
 /**
  * Taom rasmi (`catalogImageSrc(dish.imageKey)`). Rasm bo'lmasa yoki
- * yuklanmasa dekorativ mint gradient chiziladi — u ma'no tashimaydi,
- * shuning uchun mint bo'lishi mumkin (DESIGN-TOKENS 3.4).
+ * yuklanmasa sokin neytral plitka + ikonka chiziladi.
  *
  * `next/image` emas, oddiy `<img>`: rasm manbasi ixtiyoriy tashqi host
  * bo'lishi mumkin va `next.config.js` da remotePatterns e'lon qilinmagan.
@@ -23,25 +22,12 @@ export function DishImage({ src, name, className }: DishImageProps) {
   const showImage = Boolean(src) && !failed;
 
   return (
-    <div
-      className={clsx(
-        'relative flex items-center justify-center overflow-hidden bg-gradient-mint',
-        className
-      )}
-    >
+    <div className={cn('relative flex shrink-0 items-center justify-center overflow-hidden bg-surface-2', className)}>
       {showImage ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={src as string}
-          alt={name}
-          onError={() => setFailed(true)}
-          className="h-full w-full object-cover"
-        />
+        <img src={src as string} alt={name} onError={() => setFailed(true)} className="h-full w-full object-cover" />
       ) : (
-        <span className="flex flex-col items-center gap-1 text-ink/80" aria-hidden>
-          <UtensilsCrossed size={26} />
-          <span className="text-micro uppercase">{name.slice(0, 2)}</span>
-        </span>
+        <UtensilsCrossed size={16} className="text-subtle" aria-hidden />
       )}
     </div>
   );

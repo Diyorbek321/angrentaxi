@@ -1,69 +1,44 @@
 'use client';
 
-import { useEffect, useState, ReactNode } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import {
-  ArrowLeft,
-  Ban,
-  Car,
-  CheckCircle2,
-  Clock,
-  CreditCard,
-  MapPin,
-  Package,
-  Phone,
-  Star,
-  User,
-  UserCog,
-} from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import { Ban, CheckCircle2, MapPin, Phone, Star, UserCog } from 'lucide-react';
 import { getOrderById, cancelOrder, completeOrder, Order } from '@/lib/api';
 import { OrderStatusBadge } from '@/components/orders/OrderStatusBadge';
 import { AssignDriverModal } from '@/components/dispatch/AssignDriverModal';
 import { useDispatchData } from '@/components/dispatch/DispatchDataContext';
 import { Button } from '@/components/ui/Button';
-import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Avatar } from '@/components/ui/Avatar';
+import { Card } from '@/components/ui/Card';
+import { MoneyText } from '@/components/ui/MoneyText';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { PlateNumber } from '@/components/ui/PlateNumber';
+import { PageBody } from '@/components/ui/PageBody';
+import { DetailCard, KeyValue, KeyValueList } from '@/components/ui/KeyValue';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { useToast } from '@/components/ui/Toast';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { PAYMENT_METHOD_LABELS } from '@/lib/constants';
 import { PARCEL_SIZE_LABELS, parcelInfo } from '@/lib/parcel';
-import {
-  formatDate,
-  formatDateTime,
-  formatMoney,
-  formatPhone,
-  formatRating,
-  shortId,
-} from '@/lib/format';
-
-function InfoRow({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="flex items-start justify-between gap-4 py-2 border-b border-line last:border-0">
-      <span className="text-sm text-muted shrink-0">{label}</span>
-      <span className="text-sm text-ink text-right min-w-0 break-words">{value}</span>
-    </div>
-  );
-}
+import { formatDateTime, formatPhone, formatRating, shortId } from '@/lib/format';
 
 function DetailSkeleton() {
   return (
-    <div className="max-w-4xl mx-auto px-5 py-5 space-y-5">
-      <Skeleton className="h-10 w-64" />
+    <PageBody width="narrow">
+      <Skeleton className="h-3 w-40 mb-2" />
+      <Skeleton className="h-7 w-56 mb-6" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-40 rounded-ds-sm" />
+          <Skeleton key={i} className="h-40 rounded-ds-md" />
         ))}
-        <Skeleton className="h-32 rounded-ds-sm md:col-span-2" />
+        <Skeleton className="h-28 rounded-ds-md md:col-span-2" />
       </div>
-    </div>
+    </PageBody>
   );
 }
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,14 +50,21 @@ export default function OrderDetailPage() {
   // Drivers come from the shell provider — no second live-drivers request.
   const { drivers } = useDispatchData();
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!id) return;
     setIsLoading(true);
     getOrderById(id)
-      .then(setOrder)
-      .catch(() => setError('Buyurtma topilmadi'))
+      .then((o) => {
+        setOrder(o);
+        setError(null);
+      })
+      .catch(() => setError('Buyurtmani yuklab boʻlmadi'))
       .finally(() => setIsLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   // The destructive act itself is gated by a confirmation; the OUTCOME is a
   // toast — non-blocking, so the operator is not interrupted twice.
@@ -129,55 +111,54 @@ export default function OrderDetailPage() {
   const canCancel = order && ['created', 'searching', 'accepted', 'arrived'].includes(order.status);
   const canComplete = order && order.status === 'in_progress';
 
-  if (isLoading) return <DetailSkeleton />;
+  if (isLoading && !order) return <DetailSkeleton />;
 
   if (error || !order) {
     return (
-      <div className="h-full flex items-center justify-center px-5">
-        <ErrorState
-          title={error ?? 'Buyurtma topilmadi'}
-          message="Havola eskirgan yoki buyurtma oʻchirilgan boʻlishi mumkin."
-          onRetry={() => router.back()}
-        />
-      </div>
+      <PageBody width="narrow">
+        <PageHeader title="Buyurtma" breadcrumbs={[{ label: 'Buyurtmalar', href: '/orders' }, { label: 'Buyurtma' }]} />
+        <Card padding="none">
+          <ErrorState
+            title={error ?? 'Buyurtma topilmadi'}
+            message="Tarmoq xatosi, eskirgan havola yoki oʻchirilgan buyurtma boʻlishi mumkin."
+            onRetry={load}
+            retrying={isLoading}
+          />
+        </Card>
+      </PageBody>
     );
   }
 
   const parcel = parcelInfo(order);
 
-  return (
-    <div className="h-full overflow-y-auto">
-      <div className="max-w-4xl mx-auto px-5 py-5 space-y-5">
-        {/* Back + header */}
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.back()}
-              leftIcon={<ArrowLeft size={14} />}
-            >
-              Orqaga
-            </Button>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-lg font-bold text-ink font-mono">{shortId(order.id)}</h1>
-                <OrderStatusBadge status={order.status} dot />
-              </div>
-              <p className="text-xs text-muted mt-0.5">
-                {formatDate(order.createdAt)} · {formatDateTime(order.createdAt)} da yaratilgan
-              </p>
-            </div>
-          </div>
+  const finished = order.cancelledAt ?? order.completedAt;
+  const timeline = [
+    { label: 'Yaratildi', ts: order.createdAt },
+    { label: 'Qabul qilindi', ts: order.acceptedAt },
+    { label: 'Yoʻlga chiqdi', ts: order.startedAt },
+    { label: order.cancelledAt ? 'Bekor qilindi' : 'Yakunlandi', ts: finished },
+  ];
 
-          {/* Actions — assignment is an amber, deliberate exception */}
-          <div className="flex items-center gap-2 flex-wrap">
+  return (
+    <PageBody width="narrow">
+      <PageHeader
+        breadcrumbs={[{ label: 'Buyurtmalar', href: '/orders' }, { label: shortId(order.id) }]}
+        title={
+          <span className="inline-flex items-center gap-2.5">
+            <span className="font-mono">{shortId(order.id)}</span>
+            <OrderStatusBadge status={order.status} dot />
+          </span>
+        }
+        description={<span className="num">{formatDateTime(order.createdAt, { withYear: true })} da yaratilgan</span>}
+        actions={
+          <>
+            {/* Assignment is an amber, deliberate exception */}
             {(canAssign || canReassign) && (
               <Button
                 size="sm"
                 variant="override"
                 onClick={() => setAssignModalOpen(true)}
-                leftIcon={<UserCog size={13} />}
+                leftIcon={<UserCog size={13} aria-hidden />}
               >
                 Qoʻlda aralashuv
               </Button>
@@ -188,7 +169,7 @@ export default function OrderDetailPage() {
                 variant="secondary"
                 onClick={() => setConfirming('complete')}
                 isLoading={isCompleting}
-                leftIcon={<CheckCircle2 size={13} />}
+                leftIcon={<CheckCircle2 size={13} aria-hidden />}
               >
                 Yakunlash
               </Button>
@@ -199,205 +180,140 @@ export default function OrderDetailPage() {
                 variant="danger"
                 onClick={() => setConfirming('cancel')}
                 isLoading={isCancelling}
-                leftIcon={<Ban size={13} />}
+                leftIcon={<Ban size={13} aria-hidden />}
               >
                 Bekor qilish
               </Button>
             )}
-          </div>
-        </div>
+          </>
+        }
+      />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Passenger */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User size={15} className="text-muted" />
-                Mijoz
-              </CardTitle>
-            </CardHeader>
-            <div className="flex items-center gap-3 mb-2">
-              <Avatar name={order.passenger?.name} size="md" tone="muted" />
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-ink truncate">
-                  {order.passenger?.name ?? '—'}
-                </p>
-                <p className="font-mono text-xs text-muted">
-                  {formatPhone(order.passenger?.phone)}
-                </p>
-              </div>
-              {order.passenger?.phone && (
-                <a
-                  href={`tel:${order.passenger.phone}`}
-                  className="ml-auto inline-flex items-center gap-1.5 rounded-ds-xs border border-line px-2.5 py-1.5 text-xs text-muted hover:text-ink hover:bg-surface-2 transition-colors"
-                >
-                  <Phone size={13} />
-                  Qoʻngʻiroq
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <DetailCard
+          title="Mijoz"
+          actions={
+            order.passenger?.phone ? (
+              <Button
+                href={`tel:${order.passenger.phone}`}
+                variant="secondary"
+                size="sm"
+                leftIcon={<Phone size={13} aria-hidden />}
+              >
+                Qoʻngʻiroq
+              </Button>
+            ) : undefined
+          }
+        >
+          <KeyValueList>
+            <KeyValue label="Ism">{order.passenger?.name || '—'}</KeyValue>
+            <KeyValue label="Telefon">
+              <span className="num">{formatPhone(order.passenger?.phone)}</span>
+            </KeyValue>
+          </KeyValueList>
+        </DetailCard>
+
+        {/* Parcel: who receives it. When the driver's PIN locks, the dispatcher
+            phones this number before completing the ride from here. */}
+        {parcel && (
+          <DetailCard title="Posilka">
+            <KeyValueList>
+              <KeyValue label="Qabul qiluvchi">{parcel.recipientName ?? '—'}</KeyValue>
+              <KeyValue label="Telefon">
+                <a href={`tel:${parcel.recipientPhone}`} className="num text-primary-text hover:underline">
+                  {formatPhone(parcel.recipientPhone)}
                 </a>
-              )}
-            </div>
-          </Card>
+              </KeyValue>
+              <KeyValue label="Nima">{parcel.itemDescription}</KeyValue>
+              <KeyValue label="Oʻlcham">{PARCEL_SIZE_LABELS[parcel.size]}</KeyValue>
+            </KeyValueList>
+          </DetailCard>
+        )}
 
-          {/* Parcel: who receives it. When the driver's PIN locks, the dispatcher
-              phones this number before completing the ride from here. */}
-          {parcel && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Package size={15} className="text-muted" />
-                  Posilka
-                </CardTitle>
-              </CardHeader>
-              <InfoRow label="Qabul qiluvchi" value={parcel.recipientName ?? '—'} />
-              <InfoRow
-                label="Telefon"
-                value={
-                  <a href={`tel:${parcel.recipientPhone}`} className="font-mono text-primary-text hover:underline">
-                    {formatPhone(parcel.recipientPhone)}
-                  </a>
-                }
-              />
-              <InfoRow label="Nima" value={parcel.itemDescription} />
-              <InfoRow label="Oʻlcham" value={PARCEL_SIZE_LABELS[parcel.size]} />
-            </Card>
-          )}
-
-          {/* Driver */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Car size={15} className="text-muted" />
-                Haydovchi
-              </CardTitle>
-            </CardHeader>
-            {order.driver ? (
-              <>
-                <InfoRow label="Ism" value={order.driver.name} />
-                <InfoRow
-                  label="Telefon"
-                  value={<span className="font-mono">{formatPhone(order.driver.phone)}</span>}
-                />
-                <InfoRow
-                  label="Mashina"
-                  value={
-                    <>
-                      {order.driver.carModel} —{' '}
-                      <span className="font-mono">{order.driver.carNumber}</span>
-                    </>
-                  }
-                />
-                <InfoRow
-                  label="Reyting"
-                  value={
-                    <span className="inline-flex items-center gap-1">
-                      <Star size={12} className="text-primary" fill="currentColor" />
-                      {formatRating(order.driver.rating)}
-                    </span>
-                  }
-                />
-              </>
-            ) : (
-              <p className="text-sm text-subtle py-2">
-                {order.status === 'searching'
-                  ? 'Tizim haydovchi qidirmoqda.'
-                  : 'Haydovchi tayinlanmagan.'}
-              </p>
-            )}
-          </Card>
-
-          {/* Route */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin size={15} className="text-muted" />
-                Marshrut
-              </CardTitle>
-            </CardHeader>
-            <div className="space-y-3">
-              <div className="flex items-start gap-2.5">
-                <span className="mt-1 h-2.5 w-2.5 rounded-full bg-mint-deep shrink-0 ring-2 ring-mint/25" />
-                <div className="min-w-0">
-                  <p className="text-xs text-subtle mb-0.5">Olib ketish</p>
-                  <p className="text-sm text-ink">{order.pickupAddress ?? '—'}</p>
-                  <p className="text-[11px] text-subtle mt-0.5 font-mono">
-                    {order.pickupLocation.coordinates[1].toFixed(6)},{' '}
-                    {order.pickupLocation.coordinates[0].toFixed(6)}
-                  </p>
-                </div>
-              </div>
-              <div className="border-t border-line" />
-              <div className="flex items-start gap-2.5">
-                <MapPin size={14} className="text-danger mt-0.5 shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-xs text-subtle mb-0.5">Tashlab ketish</p>
-                  <p className="text-sm text-ink">{order.dropoffAddress ?? '—'}</p>
-                  <p className="text-[11px] text-subtle mt-0.5 font-mono">
-                    {order.dropoffLocation.coordinates[1].toFixed(6)},{' '}
-                    {order.dropoffLocation.coordinates[0].toFixed(6)}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {/* Payment */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard size={15} className="text-muted" />
-                Toʻlov
-              </CardTitle>
-            </CardHeader>
-            <InfoRow label="Toʻlov turi" value={PAYMENT_METHOD_LABELS[order.paymentMethod]} />
-            <InfoRow label="Tarif" value={order.tariff?.name ?? '—'} />
-            <InfoRow
-              label="Taxminiy"
-              value={<span className="font-mono">{formatMoney(order.estimatedPrice)}</span>}
-            />
-            <InfoRow
-              label="Yakuniy"
-              value={
-                <span className="font-mono font-semibold">
-                  {order.finalPrice != null ? formatMoney(order.finalPrice) : '—'}
+        <DetailCard title="Haydovchi">
+          {order.driver ? (
+            <KeyValueList>
+              <KeyValue label="Ism">{order.driver.name || 'Ism kiritilmagan'}</KeyValue>
+              <KeyValue label="Telefon">
+                <span className="num">{formatPhone(order.driver.phone)}</span>
+              </KeyValue>
+              <KeyValue label="Mashina">
+                <span className="inline-flex items-center gap-2">
+                  {order.driver.carModel}
+                  <PlateNumber plate={order.driver.carNumber} />
                 </span>
-              }
-            />
-          </Card>
+              </KeyValue>
+              <KeyValue label="Reyting">
+                <span className="num inline-flex items-center gap-1">
+                  <Star size={12} className="text-primary" fill="currentColor" aria-hidden />
+                  {formatRating(order.driver.rating)}
+                </span>
+              </KeyValue>
+            </KeyValueList>
+          ) : (
+            <p className="text-[13px] text-subtle">
+              {order.status === 'searching' ? 'Tizim haydovchi qidirmoqda.' : 'Haydovchi tayinlanmagan.'}
+            </p>
+          )}
+        </DetailCard>
 
-          {/* Timeline */}
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock size={15} className="text-muted" />
-                Vaqt belgilari
-              </CardTitle>
-            </CardHeader>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[
-                { label: 'Yaratildi', ts: order.createdAt },
-                { label: 'Qabul qilindi', ts: order.acceptedAt },
-                { label: 'Yoʻlga chiqdi', ts: order.startedAt },
-                {
-                  label: order.cancelledAt ? 'Bekor qilindi' : 'Yakunlandi',
-                  ts: order.cancelledAt ?? order.completedAt,
-                },
-              ].map(({ label, ts }) => (
-                <div key={label}>
-                  <p className="text-xs text-subtle">{label}</p>
-                  <p className="text-sm text-ink mt-0.5 font-mono">
-                    {ts ? formatDateTime(ts) : '—'}
-                  </p>
-                </div>
-              ))}
-            </div>
-            {order.note && (
-              <div className="mt-4 pt-4 border-t border-line">
-                <p className="text-xs text-subtle mb-1">Izoh</p>
-                <p className="text-sm text-ink whitespace-pre-wrap">{order.note}</p>
+        <DetailCard title="Marshrut">
+          <div className="space-y-3 text-[13px]">
+            <div className="flex items-start gap-2.5">
+              <span className="mt-1 h-2.5 w-2.5 rounded-full bg-mint-deep shrink-0 ring-2 ring-mint/25" />
+              <div className="min-w-0">
+                <p className="text-xs text-subtle mb-0.5">Olib ketish</p>
+                <p className="text-ink">{order.pickupAddress ?? '—'}</p>
+                <p className="num text-[11px] text-subtle mt-0.5">
+                  {order.pickupLocation.coordinates[1].toFixed(6)},{' '}
+                  {order.pickupLocation.coordinates[0].toFixed(6)}
+                </p>
               </div>
-            )}
-          </Card>
-        </div>
+            </div>
+            <div className="border-t border-line" />
+            <div className="flex items-start gap-2.5">
+              <MapPin size={14} className="text-danger mt-0.5 shrink-0" aria-hidden />
+              <div className="min-w-0">
+                <p className="text-xs text-subtle mb-0.5">Tashlab ketish</p>
+                <p className="text-ink">{order.dropoffAddress ?? '—'}</p>
+                <p className="num text-[11px] text-subtle mt-0.5">
+                  {order.dropoffLocation.coordinates[1].toFixed(6)},{' '}
+                  {order.dropoffLocation.coordinates[0].toFixed(6)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </DetailCard>
+
+        <DetailCard title="Toʻlov">
+          <KeyValueList>
+            <KeyValue label="Toʻlov turi">{PAYMENT_METHOD_LABELS[order.paymentMethod]}</KeyValue>
+            <KeyValue label="Tarif">{order.tariff?.name ?? '—'}</KeyValue>
+            <KeyValue label="Taxminiy">
+              <MoneyText value={order.estimatedPrice} approx={order.finalPrice == null} />
+            </KeyValue>
+            <KeyValue label="Yakuniy">
+              <MoneyText value={order.finalPrice} className="font-semibold" />
+            </KeyValue>
+          </KeyValueList>
+        </DetailCard>
+
+        <DetailCard title="Vaqt belgilari" className="md:col-span-2">
+          <dl className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {timeline.map(({ label, ts }) => (
+              <div key={label}>
+                <dt className="text-xs text-subtle">{label}</dt>
+                <dd className="num text-[13px] text-ink mt-0.5">{ts ? formatDateTime(ts) : '—'}</dd>
+              </div>
+            ))}
+          </dl>
+          {order.note && (
+            <div className="mt-4 pt-4 border-t border-line">
+              <p className="text-xs text-subtle mb-1">Izoh</p>
+              <p className="text-[13px] text-ink whitespace-pre-wrap">{order.note}</p>
+            </div>
+          )}
+        </DetailCard>
       </div>
 
       <AssignDriverModal
@@ -442,6 +358,6 @@ export default function OrderDetailPage() {
         tone="default"
         isPending={isCompleting}
       />
-    </div>
+    </PageBody>
   );
 }

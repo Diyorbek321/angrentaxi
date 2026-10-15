@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import type { DeliveryMode, MarketOrder, MarketOrderStatus } from './api';
 import type { BadgeVariant } from '@/components/ui/Badge';
+import { fullName } from './format';
 
 /**
  * Buyurtma holati YANGI rang kiritmaydi — mavjud semantik tokenlarga
@@ -40,7 +41,7 @@ export const ORDER_STATUS: Record<MarketOrderStatus, OrderStatusMeta> = {
   shipped: {
     label: 'Yuborildi',
     hint: "Yo'lda",
-    variant: 'primary',
+    variant: 'neutral',
     Icon: Truck,
   },
   delivered: {
@@ -52,7 +53,7 @@ export const ORDER_STATUS: Record<MarketOrderStatus, OrderStatusMeta> = {
   cancelled: {
     label: 'Bekor qilindi',
     hint: 'Rad etilgan',
-    variant: 'danger',
+    variant: 'muted-danger',
     Icon: XCircle,
   },
 };
@@ -119,7 +120,7 @@ export const DELIVERY_MODE_LABEL: Record<DeliveryMode, string> = {
 
 /** Mijoz nomi — ism bo'lmasa telefon, u ham bo'lmasa neytral yozuv. */
 export function orderCustomerName(o: MarketOrder): string {
-  const name = [o.customer?.firstName, o.customer?.lastName].filter(Boolean).join(' ').trim();
+  const name = fullName(o.customer?.firstName, o.customer?.lastName, '');
   return name || o.customer?.phone || o.customerPhone || 'Mijoz';
 }
 

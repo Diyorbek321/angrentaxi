@@ -1,117 +1,45 @@
 'use client';
 
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts';
-import { format, parseISO } from 'date-fns';
-import { RevenueDataPoint } from '@/lib/api';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Skeleton } from '@/components/ui/Skeleton';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { CHART_COLORS } from '@/lib/chart-tokens';
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import type { RevenueDataPoint } from '@/lib/api';
+import { CHART_COLORS, CHART_HEIGHT_PX } from '@/lib/chart-tokens';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { ChartCard } from './ChartCard';
+import { formatAxisDate, formatCompact, formatTooltipMoney } from './axis';
 
 interface RevenueChartProps {
   data: RevenueDataPoint[];
   isLoading?: boolean;
+  description?: string;
 }
 
-const formatRevenue = (value: number) =>
-  new Intl.NumberFormat('uz-UZ', { notation: 'compact' }).format(value) + " so'm";
-
-const formatAxisDate = (dateStr: string) => {
-  try {
-    return format(parseISO(dateStr), 'dd.MM');
-  } catch {
-    return dateStr;
-  }
-};
-
-export function RevenueChart({ data, isLoading }: RevenueChartProps) {
+/** Revenue per day — position encodes quantity; horizontal grid only. */
+export function RevenueChart({ data, isLoading, description }: RevenueChartProps) {
   const reducedMotion = useReducedMotion();
-
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Daromad dinamikasi</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {/* Spinner emas — diagramma shakliga mos skeleton. */}
-          <Skeleton className="h-[300px] w-full rounded-ds-md" />
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!data || data.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Daromad dinamikasi</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <EmptyState
-            compact
-            title="Maʼlumot yoʻq"
-            description="Tanlangan davr uchun daromad maʼlumoti topilmadi."
-          />
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Daromad dinamikasi</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={data} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
-            {/* To'r, o'q va tooltip ranglari globals.css dagi `.recharts-*`
-                qoidalari orqali temaga bog'langan. */}
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis
-              dataKey="date"
-              tickFormatter={formatAxisDate}
-              tick={{ fontSize: 12 }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <YAxis
-              tickFormatter={formatRevenue}
-              tick={{ fontSize: 11 }}
-              axisLine={false}
-              tickLine={false}
-              width={80}
-            />
-            <Tooltip
-              formatter={(value: number) => [formatRevenue(value), 'Daromad']}
-              labelFormatter={formatAxisDate}
-              cursor={{ stroke: CHART_COLORS.primary, strokeOpacity: 0.3 }}
-            />
-            {/* Bitta seriyali diagrammada legenda sarlavhani takrorlaydi — olib
-                tashlandi. Harakat kamaytirilganda kirish animatsiyasi o'chadi. */}
-            <Line
-              type="monotone"
-              dataKey="revenue"
-              name="Daromad"
-              stroke={CHART_COLORS.primary}
-              strokeWidth={2.5}
-              dot={{ r: 4, fill: CHART_COLORS.primary, strokeWidth: 0 }}
-              activeDot={{ r: 6, fill: CHART_COLORS.primary }}
-              isAnimationActive={!reducedMotion}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </CardContent>
-    </Card>
+    <ChartCard title="Daromad dinamikasi" description={description} isLoading={isLoading} points={data?.length ?? 0}>
+      <ResponsiveContainer width="100%" height={CHART_HEIGHT_PX}>
+        <LineChart data={data} margin={{ top: 4, right: 8, left: -4, bottom: 0 }}>
+          <CartesianGrid vertical={false} />
+          <XAxis dataKey="date" tickFormatter={formatAxisDate} axisLine={false} tickLine={false} />
+          <YAxis tickFormatter={formatCompact} axisLine={false} tickLine={false} width={56} />
+          <Tooltip
+            formatter={(value: number) => [formatTooltipMoney(value), 'Daromad']}
+            labelFormatter={formatAxisDate}
+            cursor={{ stroke: CHART_COLORS.primary, strokeOpacity: 0.3 }}
+          />
+          <Line
+            type="monotone"
+            dataKey="revenue"
+            name="Daromad"
+            stroke={CHART_COLORS.primary}
+            strokeWidth={2}
+            dot={false}
+            activeDot={{ r: 4, fill: CHART_COLORS.primary, strokeWidth: 0 }}
+            isAnimationActive={!reducedMotion}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </ChartCard>
   );
 }

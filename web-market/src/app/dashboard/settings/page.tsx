@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Check, LocateFixed, Settings as SettingsIcon } from 'lucide-react';
-import { clsx } from 'clsx';
+import { useEffect, useMemo, useState } from 'react';
+import { Check, LocateFixed } from 'lucide-react';
 import { marketApi, Store, DeliveryMode } from '@/lib/api';
 import { errorMessage } from '@/lib/utils';
 import { useAsyncData } from '@/hooks/useAsyncData';
@@ -10,18 +9,26 @@ import { catalogImageForm, catalogImageSrc, ImageChange } from '@/lib/catalog-im
 import { ImagePicker } from '@/components/ImagePicker';
 import { useToast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
-import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { Input } from '@/components/ui/Input';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Skeleton } from '@/components/ui/Skeleton';
+import { RadioGroup } from '@/components/ui/RadioGroup';
+import { SkeletonForm } from '@/components/ui/Skeleton';
+import { usePageRefresh } from '@/components/shell';
+
+const DELIVERY_OPTIONS = [
+  { value: 'self' as const, label: "O'zi yetkazadi", description: "Do'kon o'z kuryeri bilan yetkazadi" },
+  { value: 'platform' as const, label: 'Platforma kuryeri', description: 'Angren Taxi kuryerlari yetkazadi' },
+];
 
 export default function SettingsPage() {
   const { toast } = useToast();
-  const { data: store, isLoading, error, reload } = useAsyncData<Store>(async () => {
+  const { data: store, isLoading, isRefreshing, error, reload } = useAsyncData<Store>(async () => {
     const res = await marketApi.getStore();
     return res.data.data;
   });
+  usePageRefresh(reload);
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -50,6 +57,23 @@ export default function SettingsPage() {
     setDeliveryMode(store.deliveryMode);
     setThreshold(String(store.lowStockThreshold));
   }, [store]);
+
+  // Saqlanmagan o'zgarish bormi — sticky saqlash paneli shunga qarab gapiradi.
+  const dirty = useMemo(() => {
+    if (!store) return false;
+    return (
+      name !== store.name ||
+      phone !== (store.phone ?? '') ||
+      address !== (store.address ?? '') ||
+      lat !== (store.lat != null ? String(store.lat) : '') ||
+      lng !== (store.lng != null ? String(store.lng) : '') ||
+      start !== store.workingHoursStart ||
+      end !== store.workingHoursEnd ||
+      deliveryMode !== store.deliveryMode ||
+      threshold !== String(store.lowStockThreshold) ||
+      image.kind !== 'keep'
+    );
+  }, [store, name, phone, address, lat, lng, start, end, deliveryMode, threshold, image]);
 
   const useCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -109,21 +133,20 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-3xl">
-      <PageHeader
-        title="Sozlamalar"
-        description="Do'kon profili va yetkazib berish"
-        icon={<SettingsIcon size={18} aria-hidden />}
-      />
+      <PageHeader title="Sozlamalar" description="Do'kon profili, yetkazib berish va zaxira ogohlantirishi" />
 
       {isLoading ? (
         <div className="space-y-4" aria-busy="true" aria-live="polite">
           <span className="sr-only">Yuklanmoqda</span>
-          <Skeleton className="h-72 rounded-ds-md" />
-          <Skeleton className="h-40 rounded-ds-md" />
-          <Skeleton className="h-32 rounded-ds-md" />
+          <Card>
+            <SkeletonForm fields={5} />
+          </Card>
+          <Card>
+            <SkeletonForm fields={2} />
+          </Card>
         </div>
       ) : error && !store ? (
-        <ErrorState message={error} onRetry={reload} />
+        <ErrorState message={error} onRetry={reload} retrying={isRefreshing} />
       ) : store ? (
         <form
           className="flex flex-col gap-4"
@@ -132,11 +155,9 @@ export default function SettingsPage() {
             void save();
           }}
         >
-          <Card padding="lg">
-            <CardHeader>
-              <CardTitle>Do&apos;kon ma&apos;lumotlari</CardTitle>
-            </CardHeader>
-            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+          <Card padding="none">
+            <CardHeader title="Do'kon ma'lumotlari" description="Mijoz ilovasida ko'rinadi" divider />
+            <CardBody className="grid grid-cols-1 gap-4 pt-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <ImagePicker
                   label="Muqova rasmi"
@@ -146,39 +167,41 @@ export default function SettingsPage() {
                   aspectClassName="aspect-[16/9]"
                 />
               </div>
-              <Input label="Do'kon nomi" value={name} onChange={(e) => setName(e.target.value)} />
+              <Input label="Do'kon nomi" value={name} onChange={(e) => setName(e.target.value)} required />
               <Input
                 label="Telefon"
-                mono
                 inputMode="tel"
+                className="num"
+                placeholder="+998 90 123 45 67"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
               />
-              <div className="sm:col-span-2">
-                <Input
-                  label="Olib ketish manzili"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                />
-              </div>
+              <Input
+                label="Olib ketish manzili"
+                wrapperClassName="sm:col-span-2"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+              />
               <Input
                 label="Kenglik (lat)"
-                mono
+                className="num"
+                inputMode="decimal"
                 value={lat}
                 onChange={(e) => setLat(e.target.value)}
                 placeholder="40.0956"
               />
               <Input
                 label="Uzunlik (lng)"
-                mono
+                className="num"
+                inputMode="decimal"
                 value={lng}
                 onChange={(e) => setLng(e.target.value)}
                 placeholder="70.9432"
               />
-              <div className="sm:col-span-2">
+              <div className="sm:col-span-2 flex flex-wrap items-center gap-3">
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="secondary"
                   size="sm"
                   onClick={useCurrentLocation}
                   isLoading={locating}
@@ -186,131 +209,77 @@ export default function SettingsPage() {
                 >
                   Hozirgi joylashuvni olish
                 </Button>
-                <p className="mt-1 text-caption text-subtle">
-                  Kuryer buyurtmani shu manzildan olib ketadi — koordinatalar aniq bo&apos;lishi
-                  kerak.
+                <p className="text-xs text-muted">
+                  Kuryer buyurtmani shu manzildan olib ketadi — koordinatalar aniq bo&apos;lishi kerak.
                 </p>
               </div>
-            </div>
+            </CardBody>
           </Card>
 
-          <Card padding="lg">
-            <CardHeader>
-              <CardTitle>Yetkazib berish usuli</CardTitle>
-            </CardHeader>
-            <div role="radiogroup" aria-label="Yetkazib berish usuli" className="flex flex-col gap-3 sm:flex-row">
-              <DeliveryOption
-                title="O'zi yetkazadi"
-                desc="Do'kon o'z kuryeri bilan yetkazadi"
-                active={deliveryMode === 'self'}
-                onClick={() => setDeliveryMode('self')}
+          <Card padding="none">
+            <CardHeader title="Yetkazib berish usuli" description="Har buyurtmada kim yetkazishini belgilaydi" divider />
+            <CardBody className="pt-4">
+              <RadioGroup<DeliveryMode>
+                name="deliveryMode"
+                options={DELIVERY_OPTIONS}
+                value={deliveryMode}
+                onChange={setDeliveryMode}
+                orientation="horizontal"
               />
-              <DeliveryOption
-                title="Platforma kuryeri"
-                desc="Angren Taxi kuryerlari yetkazadi"
-                active={deliveryMode === 'platform'}
-                onClick={() => setDeliveryMode('platform')}
+            </CardBody>
+          </Card>
+
+          <Card padding="none">
+            <CardHeader title="Ish vaqti" description="Har kuni bir xil" divider />
+            <CardBody className="flex flex-wrap gap-4 pt-4">
+              <Input
+                label="Ochilish"
+                type="time"
+                className="num"
+                wrapperClassName="w-36"
+                value={start}
+                onChange={(e) => setStart(e.target.value)}
               />
-            </div>
+              <Input
+                label="Yopilish"
+                type="time"
+                className="num"
+                wrapperClassName="w-36"
+                value={end}
+                onChange={(e) => setEnd(e.target.value)}
+              />
+            </CardBody>
           </Card>
 
-          <Card padding="lg">
-            <CardHeader>
-              <CardTitle>Ish vaqti</CardTitle>
-            </CardHeader>
-            <div className="flex flex-wrap items-end gap-3.5">
-              <div className="w-32">
-                <Input
-                  label="Ochilish"
-                  type="time"
-                  mono
-                  value={start}
-                  onChange={(e) => setStart(e.target.value)}
-                />
-              </div>
-              <div className="w-32">
-                <Input
-                  label="Yopilish"
-                  type="time"
-                  mono
-                  value={end}
-                  onChange={(e) => setEnd(e.target.value)}
-                />
-              </div>
-              <span className="pb-2.5 text-caption text-muted">Har kuni</span>
-            </div>
+          <Card padding="none">
+            <CardHeader title="Zaxira ogohlantirishi" divider />
+            <CardBody className="pt-4">
+              <Input
+                label="Kam zaxira chegarasi"
+                type="number"
+                className="num"
+                wrapperClassName="max-w-[12rem]"
+                min={0}
+                value={threshold}
+                onChange={(e) => setThreshold(e.target.value)}
+                hint="Zaxirasi shu sondan kam yoki teng mahsulotlar «Zaxira» va bosh sahifada ogohlantirish bo'lib chiqadi."
+              />
+            </CardBody>
           </Card>
 
-          <Card padding="lg">
-            <CardHeader>
-              <CardTitle>Zaxira ogohlantirishi</CardTitle>
-            </CardHeader>
-            <div className="flex flex-wrap items-end gap-3.5">
-              <div className="w-40">
-                <Input
-                  label="Kam zaxira chegarasi"
-                  type="number"
-                  mono
-                  min={0}
-                  value={threshold}
-                  onChange={(e) => setThreshold(e.target.value)}
-                />
-              </div>
-              <p className="max-w-sm pb-1 text-caption text-subtle">
-                Zaxirasi shu sondan kam yoki teng mahsulotlar «Zaxira» sahifasida va bosh
-                sahifada ogohlantirish sifatida chiqadi.
+          {/* Yopishqoq saqlash paneli: uzun formada tugma doim qo'l ostida. */}
+          <div className="sticky bottom-0 z-10 -mx-4 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+            <div className="flex max-w-3xl items-center justify-end gap-3">
+              <p className="mr-auto text-[13px] text-muted" aria-live="polite">
+                {dirty ? 'Saqlanmagan oʻzgarishlar bor' : 'Barcha oʻzgarishlar saqlangan'}
               </p>
+              <Button type="submit" isLoading={saving} disabled={!dirty && !saving} leftIcon={<Check size={14} aria-hidden />}>
+                Saqlash
+              </Button>
             </div>
-          </Card>
-
-          <div className="flex justify-end">
-            <Button type="submit" isLoading={saving} leftIcon={<Check size={15} aria-hidden />}>
-              Saqlash
-            </Button>
           </div>
         </form>
       ) : null}
     </div>
-  );
-}
-
-function DeliveryOption({
-  title,
-  desc,
-  active,
-  onClick,
-}: {
-  title: string;
-  desc: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={active}
-      onClick={onClick}
-      className={clsx(
-        'flex-1 rounded-ds-sm border p-4 text-left transition-colors duration-fast',
-        active
-          ? 'border-primary bg-mint-tint ring-1 ring-primary/30'
-          : 'border-line bg-surface hover:bg-surface-2'
-      )}
-    >
-      <span className="flex items-center justify-between gap-3">
-        <span className="text-body font-bold text-ink">{title}</span>
-        <span
-          aria-hidden
-          className={clsx(
-            'flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2',
-            active ? 'border-primary' : 'border-line-strong'
-          )}
-        >
-          {active && <span className="h-2 w-2 rounded-full bg-primary" />}
-        </span>
-      </span>
-      <span className="mt-1.5 block text-caption text-muted">{desc}</span>
-    </button>
   );
 }

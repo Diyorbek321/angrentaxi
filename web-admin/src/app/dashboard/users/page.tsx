@@ -1,77 +1,58 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  AlertTriangle,
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
-  Download,
-  Search,
-  SearchX,
-  Shield,
-  ShieldOff,
-  Users as UsersIcon,
-} from 'lucide-react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Download, Shield, ShieldOff, Users as UsersIcon } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
-import { Card, CardContent } from '@/components/ui/Card';
-import { PaginationBar } from '@/components/ui/PaginationBar';
-import { FilterChips, type FilterChip } from '@/components/ui/FilterChips';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/Table';
-import { SkeletonTable } from '@/components/ui/Skeleton';
+import { Avatar } from '@/components/ui/Avatar';
+import { Modal } from '@/components/ui/Modal';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { ErrorState } from '@/components/ui/ErrorState';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/Select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/Modal';
+import { FilterBar } from '@/components/ui/FilterBar';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import type { FilterChip } from '@/components/ui/FilterChips';
+import { DataTable, type DataTableColumn, type SortState } from '@/components/ui/DataTable';
+import { Skeleton, SkeletonTable } from '@/components/ui/Skeleton';
 import { usersApi, User } from '@/lib/api';
 import { usePagination } from '@/hooks/usePagination';
 import { useToast } from '@/components/ui/Toast';
-import { cn, debounce, formatDate, formatPhone, getFullName } from '@/lib/utils';
+import { debounce } from '@/lib/utils';
+import { formatDateShort, formatDateTime, formatNumber, formatPhone, fullName } from '@/lib/format';
 import { downloadCsv } from '@/lib/csv';
 import { USER_ROLE_LABELS, UserRole } from '@/lib/constants';
 
-type SortDir = 'asc' | 'desc' | null;
+const ROLE_ITEMS = [
+  { value: 'all', label: 'Hammasi' },
+  { value: 'passenger', label: USER_ROLE_LABELS.passenger },
+  { value: 'driver', label: USER_ROLE_LABELS.driver },
+  { value: 'admin', label: USER_ROLE_LABELS.admin },
+];
 
-export default function UsersPage() {
+function UsersPageInner() {
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  // `?q=` — topbar qidiruvidan chuqur havola.
+  const initialQuery = searchParams.get('q')?.trim() ?? '';
   const pagination = usePagination(20);
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState(initialQuery);
+  const [search, setSearch] = useState(initialQuery);
   const [role, setRole] = useState<string>('all');
   // Tasdiqlash modali FAQAT bloklash uchun — u og'ir oqibatli amal.
   // Blokdan chiqarish darhol bajariladi va undo-toast bilan himoyalanadi.
   const [blockTarget, setBlockTarget] = useState<User | null>(null);
   const [blockReason, setBlockReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
-  const [sortField, setSortField] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<SortDir>(null);
+  const [sort, setSort] = useState<SortState | null>(null);
+
+  // A new topbar search while already on this page.
+  useEffect(() => {
+    setSearchInput(initialQuery);
+    setSearch(initialQuery);
+  }, [initialQuery]);
 
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
@@ -87,7 +68,6 @@ export default function UsersPage() {
       const total = payload?.total ?? 0;
       pagination.setTotal(total, Math.ceil(total / pagination.limit));
       setError(null);
-      setHasLoadedOnce(true);
     } catch {
       // Oxirgi muvaffaqiyatli qatorlar ekranda qoladi; banner + retry chiqadi.
       setError("Foydalanuvchilarni yuklab bo'lmadi");
@@ -115,27 +95,14 @@ export default function UsersPage() {
     debouncedSearch(value);
   };
 
-  const handleSort = (field: string) => {
-    if (sortField !== field) {
-      setSortField(field);
-      setSortDir('asc');
-    } else if (sortDir === 'asc') {
-      setSortDir('desc');
-    } else {
-      setSortField(null);
-      setSortDir(null);
-    }
-  };
-
   // Sahifadagi yuklangan qatorlar ustida, mijoz tomonida tartiblash.
   const sortedUsers = useMemo(() => {
-    if (!sortField || !sortDir) return users;
-    const dir = sortDir === 'asc' ? 1 : -1;
+    if (!sort) return users;
+    const dir = sort.direction === 'asc' ? 1 : -1;
     return [...users].sort((a, b) => {
-      switch (sortField) {
+      switch (sort.key) {
         case 'name':
-          return getFullName(a.firstName || '', a.lastName || '')
-            .localeCompare(getFullName(b.firstName || '', b.lastName || '')) * dir;
+          return fullName(a.firstName, a.lastName).localeCompare(fullName(b.firstName, b.lastName)) * dir;
         case 'status':
           return a.status.localeCompare(b.status) * dir;
         case 'createdAt':
@@ -146,7 +113,7 @@ export default function UsersPage() {
           return 0;
       }
     });
-  }, [users, sortField, sortDir]);
+  }, [users, sort]);
 
   const clearAllFilters = () => {
     setSearchInput('');
@@ -179,7 +146,7 @@ export default function UsersPage() {
       await usersApi.block(blockTarget.id, blockReason.trim() || undefined);
       toast({
         title: 'Foydalanuvchi bloklandi',
-        description: `${getFullName(blockTarget.firstName || '', blockTarget.lastName || '')} endi tizimga kira olmaydi.`,
+        description: `${fullName(blockTarget.firstName, blockTarget.lastName)} endi tizimga kira olmaydi.`,
         variant: 'success',
       });
       setBlockTarget(null);
@@ -196,7 +163,7 @@ export default function UsersPage() {
   // toast esa "Qaytarish" (undo) tugmasini taklif qiladi (avvalgi sabab bilan
   // qayta bloklaydi).
   const handleUnblock = async (user: User) => {
-    const name = getFullName(user.firstName || '', user.lastName || '');
+    const name = fullName(user.firstName, user.lastName);
     const prevReason = user.blockReason ?? undefined;
     try {
       await usersApi.unblock(user.id);
@@ -231,12 +198,12 @@ export default function UsersPage() {
     downloadCsv<User>(
       `foydalanuvchilar-${new Date().toISOString().slice(0, 10)}.csv`,
       [
-        { header: 'Ism', value: (u) => getFullName(u.firstName || '', u.lastName || '') },
+        { header: 'Ism', value: (u) => fullName(u.firstName, u.lastName) },
         { header: 'Telefon', value: (u) => u.phone },
         { header: 'Rol', value: (u) => USER_ROLE_LABELS[u.role as UserRole] ?? u.role },
         { header: 'Holat', value: (u) => (u.status === 'active' ? 'Faol' : 'Bloklangan') },
         { header: 'Blok sababi', value: (u) => u.blockReason ?? '' },
-        { header: "Ro'yxatdan o'tgan", value: (u) => formatDate(u.createdAt) },
+        { header: "Ro'yxatdan o'tgan", value: (u) => formatDateTime(u.createdAt, { withYear: true }) },
         { header: 'Buyurtmalar', value: (u) => u.totalOrders ?? '' },
       ],
       sortedUsers
@@ -244,52 +211,97 @@ export default function UsersPage() {
     toast({ title: 'CSV yuklab olindi', description: `${sortedUsers.length} ta qator`, variant: 'success' });
   };
 
-  const SortableHead = ({
-    field,
-    children,
-    align = 'left',
-  }: {
-    field: string;
-    children: React.ReactNode;
-    align?: 'left' | 'right';
-  }) => {
-    const active = sortField === field && !!sortDir;
-    const Icon = !active ? ArrowUpDown : sortDir === 'asc' ? ArrowUp : ArrowDown;
-    return (
-      <TableHead
-        aria-sort={active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
-        className={align === 'right' ? 'text-right' : undefined}
-      >
-        <button
-          type="button"
-          onClick={() => handleSort(field)}
-          className={cn(
-            'inline-flex items-center gap-1 text-micro uppercase transition-colors duration-fast',
-            align === 'right' && 'flex-row-reverse',
-            'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface-2',
-            active ? 'text-primary-text' : 'text-muted hover:text-ink'
-          )}
-        >
-          {children}
-          <Icon className={cn('h-3 w-3', active ? 'text-primary-text' : 'text-subtle')} aria-hidden="true" />
-        </button>
-      </TableHead>
-    );
+  const closeBlock = () => {
+    setBlockTarget(null);
+    setBlockReason('');
   };
 
-  const showFullError = error && !isLoading && users.length === 0 && !hasLoadedOnce;
-  const showErrorBanner = error && !isLoading && !showFullError;
+  const columns: DataTableColumn<User>[] = [
+    {
+      key: 'name',
+      header: 'Foydalanuvchi',
+      sortable: true,
+      cell: (u) => (
+        <div className="flex items-center gap-2.5 min-w-0">
+          <Avatar firstName={u.firstName} lastName={u.lastName} size="sm" />
+          <span className="font-medium text-ink truncate max-w-[240px]">{fullName(u.firstName, u.lastName)}</span>
+        </div>
+      ),
+    },
+    { key: 'phone', header: 'Telefon', className: 'num whitespace-nowrap text-muted', cell: (u) => formatPhone(u.phone) },
+    {
+      key: 'role',
+      header: 'Rol',
+      cell: (u) => <Badge variant="neutral">{USER_ROLE_LABELS[u.role as UserRole] ?? u.role}</Badge>,
+    },
+    {
+      key: 'status',
+      header: 'Holat',
+      sortable: true,
+      cell: (u) => (
+        <span className="inline-flex items-center gap-2 min-w-0">
+          <Badge variant={u.status === 'active' ? 'success' : 'danger'} dot>
+            {u.status === 'active' ? 'Faol' : 'Bloklangan'}
+          </Badge>
+          {u.status === 'blocked' && u.blockReason && (
+            <span className="max-w-[160px] truncate text-xs text-subtle" title={u.blockReason}>
+              {u.blockReason}
+            </span>
+          )}
+        </span>
+      ),
+    },
+    {
+      key: 'createdAt',
+      header: "Ro'yxatdan o'tgan",
+      sortable: true,
+      hideBelow: 'xl',
+      className: 'num whitespace-nowrap text-muted',
+      cell: (u) => formatDateShort(u.createdAt),
+    },
+    {
+      key: 'totalOrders',
+      header: 'Buyurtmalar',
+      numeric: true,
+      sortable: true,
+      hideBelow: 'xl',
+      cell: (u) => (u.totalOrders != null ? formatNumber(u.totalOrders) : '—'),
+    },
+    {
+      key: 'action',
+      header: <span className="sr-only">Amal</span>,
+      align: 'right',
+      cell: (u) =>
+        u.status === 'active' ? (
+          <Button
+            variant="danger-ghost"
+            size="sm"
+            onClick={() => setBlockTarget(u)}
+            leftIcon={<ShieldOff className="h-3.5 w-3.5" aria-hidden="true" />}
+          >
+            Bloklash
+          </Button>
+        ) : (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => handleUnblock(u)}
+            leftIcon={<Shield className="h-3.5 w-3.5" aria-hidden="true" />}
+          >
+            Blokdan chiqarish
+          </Button>
+        ),
+    },
+  ];
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="px-4 sm:px-6 py-5">
       <PageHeader
         title="Foydalanuvchilar"
-        description={`Jami: ${pagination.total.toLocaleString('uz-UZ')} ta`}
-        icon={<UsersIcon className="h-4 w-4" aria-hidden="true" />}
+        description={`Jami: ${formatNumber(pagination.total)} ta`}
         actions={
           <Button
-            variant="outline"
-            size="sm"
+            variant="secondary"
             onClick={handleExportCsv}
             disabled={sortedUsers.length === 0}
             leftIcon={<Download className="h-4 w-4" aria-hidden="true" />}
@@ -298,219 +310,112 @@ export default function UsersPage() {
           </Button>
         }
       />
-      <div className="space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="flex-1">
-            <Input
-              placeholder="Telefon, ism yoki familiya bo'yicha qidirish..."
-              leftIcon={<Search className="h-4 w-4" aria-hidden="true" />}
-              value={searchInput}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              aria-label="Foydalanuvchilarni qidirish"
-            />
-          </div>
-          <Select value={role} onValueChange={(v) => { setRole(v); pagination.reset(); }}>
-            <SelectTrigger className="w-48" aria-label="Rol bo'yicha filtr">
-              <SelectValue placeholder="Rol" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Barcha rollar</SelectItem>
-              <SelectItem value="passenger">Yo&apos;lovchi</SelectItem>
-              <SelectItem value="driver">Haydovchi</SelectItem>
-              <SelectItem value="admin">Admin</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
 
-        <FilterChips chips={chips} onClearAll={clearAllFilters} />
-
-        {showErrorBanner && (
-          <div
-            role="alert"
-            className="flex flex-wrap items-center justify-between gap-3 rounded-ds-sm border border-danger/30 bg-danger-tint px-4 py-3"
+      <DataTable
+        ariaLabel="Foydalanuvchilar"
+        columns={columns}
+        rows={sortedUsers}
+        rowKey={(u) => u.id}
+        loading={isLoading}
+        error={error}
+        onRetry={fetchUsers}
+        sort={sort}
+        onSortChange={setSort}
+        maxHeightClassName="max-h-[calc(100vh-260px)]"
+        toolbar={
+          <FilterBar
+            search={searchInput}
+            onSearchChange={handleSearchChange}
+            searchPlaceholder="Telefon, ism yoki familiya…"
+            searchAriaLabel="Foydalanuvchilarni qidirish"
+            chips={chips}
+            onClearAll={clearAllFilters}
           >
-            <p className="flex items-center gap-2 text-body text-danger-deep dark:text-danger-light">
-              <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
-              {error} — oxirgi muvaffaqiyatli yuklangan ma&apos;lumot ko&apos;rsatilmoqda.
-            </p>
-            <Button variant="secondary" size="sm" onClick={fetchUsers}>
-              Qayta urinish
-            </Button>
-          </div>
-        )}
-
-        {showFullError ? (
-          <Card>
-            <CardContent className="p-0">
-              <ErrorState message={error} onRetry={fetchUsers} />
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardContent className="p-0">
-              {isLoading ? (
-                <SkeletonTable rows={8} cols={7} className="border-0" />
-              ) : sortedUsers.length === 0 ? (
-                hasActiveFilters ? (
-                  <EmptyState
-                    icon={<SearchX className="h-6 w-6" />}
-                    title="Hech narsa mos kelmadi"
-                    description="Tanlangan filtrlar bo'yicha foydalanuvchi topilmadi."
-                    action={
-                      <Button variant="secondary" size="sm" onClick={clearAllFilters}>
-                        Filtrlarni tozalash
-                      </Button>
-                    }
-                  />
-                ) : (
-                  <EmptyState
-                    icon={<UsersIcon className="h-6 w-6" />}
-                    title="Hozircha foydalanuvchi yo'q"
-                    description="Ilovada ro'yxatdan o'tgan foydalanuvchilar shu jadvalda ko'rinadi."
-                  />
-                )
-              ) : (
-                <Table stickyHeader containerClassName="max-h-[65vh]">
-                  <TableHeader>
-                    <TableRow>
-                      <SortableHead field="name">Foydalanuvchi</SortableHead>
-                      <TableHead>Telefon</TableHead>
-                      <TableHead>Rol</TableHead>
-                      <SortableHead field="status">Holat</SortableHead>
-                      <SortableHead field="createdAt">Ro&apos;yxatdan o&apos;tgan</SortableHead>
-                      <SortableHead field="totalOrders" align="right">
-                        Buyurtmalar
-                      </SortableHead>
-                      <TableHead className="text-right">Amal</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sortedUsers.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <div
-                              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-2 text-caption font-semibold text-muted"
-                              aria-hidden="true"
-                            >
-                              {user.firstName?.charAt(0) || '?'}
-                            </div>
-                            <span className="font-medium text-ink">
-                              {getFullName(user.firstName || '', user.lastName || '')}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-mono text-caption text-muted">
-                          {formatPhone(user.phone)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">
-                            {USER_ROLE_LABELS[user.role as UserRole] ?? user.role}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-0.5">
-                            <Badge variant={user.status === 'active' ? 'success' : 'destructive'} dot>
-                              {user.status === 'active' ? 'Faol' : 'Bloklangan'}
-                            </Badge>
-                            {user.status === 'blocked' && user.blockReason && (
-                              <span
-                                className="max-w-[180px] truncate text-caption text-subtle"
-                                title={user.blockReason}
-                              >
-                                {user.blockReason}
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-caption tabular-nums text-muted">
-                          {formatDate(user.createdAt, 'dd.MM.yyyy')}
-                        </TableCell>
-                        <TableCell className="text-right font-mono tabular-nums text-ink">
-                          {user.totalOrders ?? '—'}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {user.status === 'active' ? (
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => setBlockTarget(user)}
-                              leftIcon={<ShieldOff className="h-3.5 w-3.5" aria-hidden="true" />}
-                            >
-                              Bloklash
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="success"
-                              size="sm"
-                              onClick={() => handleUnblock(user)}
-                              leftIcon={<Shield className="h-3.5 w-3.5" aria-hidden="true" />}
-                            >
-                              Blokdan chiqarish
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        <PaginationBar
-          page={pagination.page}
-          limit={pagination.limit}
-          total={pagination.total}
-          totalPages={pagination.totalPages}
-          pageRange={pagination.pageRange}
-          canGoPrev={pagination.canGoPrev}
-          canGoNext={pagination.canGoNext}
-          onPageChange={pagination.goToPage}
-          onLimitChange={pagination.setLimit}
-        />
-      </div>
+            <SegmentedControl
+              items={ROLE_ITEMS}
+              value={role}
+              onChange={(v) => {
+                setRole(v);
+                pagination.reset();
+              }}
+              ariaLabel="Rol boʻyicha filtr"
+            />
+          </FilterBar>
+        }
+        isFiltered={hasActiveFilters}
+        onClearFilters={clearAllFilters}
+        emptyFiltered={{ title: 'Hech narsa mos kelmadi', description: "Tanlangan filtrlar bo'yicha foydalanuvchi topilmadi." }}
+        empty={{
+          variant: 'first-use',
+          icon: <UsersIcon aria-hidden />,
+          title: "Hozircha foydalanuvchi yo'q",
+          description: "Ilovada ro'yxatdan o'tgan foydalanuvchilar shu jadvalda ko'rinadi.",
+        }}
+        pagination={{
+          page: pagination.page,
+          limit: pagination.limit,
+          total: pagination.total,
+          totalPages: pagination.totalPages,
+          pageRange: pagination.pageRange,
+          canGoPrev: pagination.canGoPrev,
+          canGoNext: pagination.canGoNext,
+          onPageChange: pagination.goToPage,
+          onLimitChange: pagination.setLimit,
+        }}
+      />
 
       {/* Bloklash — OG'IR OQIBATLI amal: modal oqibatni aniq aytadi. */}
-      <Dialog
-        open={!!blockTarget}
-        onOpenChange={(open) => {
-          if (!open) { setBlockTarget(null); setBlockReason(''); }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Foydalanuvchini bloklash</DialogTitle>
-            <DialogDescription>
-              <strong>
-                {getFullName(blockTarget?.firstName || '', blockTarget?.lastName || '')}
-              </strong>{' '}
-              bloklanadi: tizimga kira olmaydi va yangi buyurtma bera olmaydi.
-              Keyin istalgan payt blokdan chiqarish mumkin.
-            </DialogDescription>
-          </DialogHeader>
-          <Input
-            label="Sabab (ixtiyoriy)"
-            placeholder="Masalan: qoidabuzarlik, spam..."
-            value={blockReason}
-            onChange={(e) => setBlockReason(e.target.value)}
-          />
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => { setBlockTarget(null); setBlockReason(''); }}>
+      <Modal
+        isOpen={!!blockTarget}
+        onClose={closeBlock}
+        tone="danger"
+        title="Foydalanuvchini bloklash"
+        description={
+          <>
+            <strong className="text-ink">{fullName(blockTarget?.firstName, blockTarget?.lastName)}</strong>{' '}
+            bloklanadi: tizimga kira olmaydi va yangi buyurtma bera olmaydi. Keyin istalgan payt blokdan
+            chiqarish mumkin.
+          </>
+        }
+        footer={
+          <>
+            <Button variant="secondary" onClick={closeBlock} disabled={actionLoading}>
               Bekor qilish
             </Button>
             <Button
-              variant="destructive"
+              variant="danger"
               isLoading={actionLoading}
               onClick={handleBlock}
               leftIcon={<ShieldOff className="h-3.5 w-3.5" aria-hidden="true" />}
             >
               Bloklash
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        }
+      >
+        <Input
+          label="Sabab (ixtiyoriy)"
+          placeholder="Masalan: qoidabuzarlik, spam..."
+          value={blockReason}
+          onChange={(e) => setBlockReason(e.target.value)}
+        />
+      </Modal>
     </div>
+  );
+}
+
+export default function UsersPage() {
+  // useSearchParams Next 14 build'ida Suspense chegarasini talab qiladi.
+  return (
+    <Suspense
+      fallback={
+        <div className="px-4 sm:px-6 py-5 space-y-5">
+          <Skeleton className="h-5 w-40" />
+          <SkeletonTable rows={10} cols={7} />
+        </div>
+      }
+    >
+      <UsersPageInner />
+    </Suspense>
   );
 }

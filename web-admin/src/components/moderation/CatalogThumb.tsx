@@ -16,11 +16,11 @@ export function CatalogThumb({ imageKey, name }: { imageKey?: string | null; nam
   if (!src || failed) {
     return (
       <span
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-ds-sm bg-surface-2 text-muted"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-ds-xs border border-line bg-surface-2 text-subtle"
         title="Rasm yo'q"
         aria-label="Rasm yo'q"
       >
-        <ImageOff className="h-4 w-4" aria-hidden="true" />
+        <ImageOff className="h-3.5 w-3.5" aria-hidden="true" />
       </span>
     );
   }
@@ -32,7 +32,7 @@ export function CatalogThumb({ imageKey, name }: { imageKey?: string | null; nam
       rel="noopener noreferrer"
       title="Rasmni kattalashtirib ko'rish"
       aria-label={`${name} rasmini kattalashtirib ko'rish`}
-      className="block h-10 w-10 shrink-0 overflow-hidden rounded-ds-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+      className="block h-8 w-8 shrink-0 overflow-hidden rounded-ds-xs border border-line focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={src} alt="" loading="lazy" onError={() => setFailed(true)} className="h-full w-full object-cover" />

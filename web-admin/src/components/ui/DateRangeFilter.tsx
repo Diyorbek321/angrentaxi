@@ -1,17 +1,17 @@
+// AUTO-SYNCED from web-manager — edit there, then run scripts/sync-panel-ui.sh
 'use client';
 
 import { format, subDays } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn } from './cn';
 import { Input } from './Input';
-
-const DATE_FMT = 'yyyy-MM-dd';
 
 export type DatePreset = 'today' | '7d' | '30d' | 'custom';
 
 export interface DateRangeValue {
   preset: DatePreset | null;
-  /** yyyy-MM-dd — API'ga `from`/`to` sifatida uzatiladi (reports bilan bir xil format). */
+  /** yyyy-MM-dd */
   from: string | null;
+  /** yyyy-MM-dd */
   to: string | null;
 }
 
@@ -24,83 +24,86 @@ export const DATE_PRESET_LABELS: Record<DatePreset, string> = {
   custom: 'Oraliq',
 };
 
-export function rangeForPreset(preset: DatePreset): { from: string; to: string } {
-  const today = format(new Date(), DATE_FMT);
-  switch (preset) {
-    case 'today':
-      return { from: today, to: today };
-    case '7d':
-      return { from: format(subDays(new Date(), 7), DATE_FMT), to: today };
-    case '30d':
-      return { from: format(subDays(new Date(), 30), DATE_FMT), to: today };
-    case 'custom':
-      return { from: today, to: today };
-  }
+const ISO = 'yyyy-MM-dd';
+
+export function rangeForPreset(preset: Exclude<DatePreset, 'custom'> | DatePreset): { from: string; to: string } {
+  const today = new Date();
+  const to = format(today, ISO);
+  if (preset === 'today') return { from: to, to };
+  if (preset === '7d') return { from: format(subDays(today, 6), ISO), to };
+  if (preset === '30d') return { from: format(subDays(today, 29), ISO), to };
+  return { from: format(subDays(today, 6), ISO), to };
 }
 
-interface DateRangeFilterProps {
+export interface DateRangeFilterProps {
   value: DateRangeValue;
   onChange: (value: DateRangeValue) => void;
+  /** Which presets to offer (default all four). */
+  presets?: DatePreset[];
   className?: string;
 }
 
 /**
- * Sana oralig'i tez-filtrlari: Bugun / 7 kun / 30 kun / Oraliq.
- * Preset ikkinchi bosishda BEKOR bo'ladi (filtr olib tashlanadi) — jadval
- * "hammasi" holatiga qaytadi. "Oraliq" ikkita sana maydonini ochadi.
+ * Segmented presets (Bugun / 7 kun / 30 kun / Oraliq). Clicking the active
+ * preset clears it. "Oraliq" reveals two linked date inputs.
  */
-export function DateRangeFilter({ value, onChange, className }: DateRangeFilterProps) {
-  const selectPreset = (preset: DatePreset) => {
-    if (value.preset === preset) {
+export function DateRangeFilter({
+  value,
+  onChange,
+  presets = ['today', '7d', '30d', 'custom'],
+  className,
+}: DateRangeFilterProps) {
+  const pick = (p: DatePreset) => {
+    if (value.preset === p) {
       onChange(EMPTY_DATE_RANGE);
       return;
     }
-    const range = rangeForPreset(preset);
-    onChange({ preset, from: range.from, to: range.to });
+    if (p === 'custom') {
+      const base = value.from && value.to ? { from: value.from, to: value.to } : rangeForPreset('7d');
+      onChange({ preset: 'custom', ...base });
+      return;
+    }
+    onChange({ preset: p, ...rangeForPreset(p) });
   };
 
   return (
     <div className={cn('flex flex-wrap items-center gap-2', className)}>
       <div
         role="group"
-        aria-label="Sana oralig'i"
-        className="inline-flex overflow-hidden rounded-ds-sm border border-line"
+        aria-label="Sana oraligʻi"
+        className="inline-flex items-center gap-0.5 p-0.5 rounded-ds-sm border border-line bg-surface-2"
       >
-        {(Object.keys(DATE_PRESET_LABELS) as DatePreset[]).map((preset, idx) => {
-          const active = value.preset === preset;
+        {presets.map((p) => {
+          const active = value.preset === p;
           return (
             <button
-              key={preset}
+              key={p}
               type="button"
               aria-pressed={active}
-              onClick={() => selectPreset(preset)}
+              onClick={() => pick(p)}
               className={cn(
-                'h-8 px-3 text-caption font-semibold transition-colors duration-fast',
-                idx > 0 && 'border-l border-line',
-                'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus',
-                active
-                  ? 'bg-primary text-white dark:bg-primary-on-dark'
-                  : 'bg-surface text-muted hover:bg-surface-2 hover:text-ink'
+                'h-7 px-2.5 rounded-[5px] text-[13px] font-medium whitespace-nowrap transition-colors',
+                'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus',
+                active ? 'bg-surface text-ink shadow-hairline' : 'text-muted hover:text-ink'
               )}
             >
-              {DATE_PRESET_LABELS[preset]}
+              {DATE_PRESET_LABELS[p]}
             </button>
           );
         })}
       </div>
-
       {value.preset === 'custom' && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <Input
             type="date"
             aria-label="Boshlanish sanasi"
             value={value.from ?? ''}
             max={value.to ?? undefined}
             onChange={(e) => onChange({ ...value, from: e.target.value || null })}
-            className="h-8 w-40 px-2 py-1 text-caption"
+            className="w-[9.5rem]"
           />
-          <span className="text-caption text-subtle" aria-hidden="true">
-            —
+          <span className="text-subtle" aria-hidden>
+            –
           </span>
           <Input
             type="date"
@@ -108,7 +111,7 @@ export function DateRangeFilter({ value, onChange, className }: DateRangeFilterP
             value={value.to ?? ''}
             min={value.from ?? undefined}
             onChange={(e) => onChange({ ...value, to: e.target.value || null })}
-            className="h-8 w-40 px-2 py-1 text-caption"
+            className="w-[9.5rem]"
           />
         </div>
       )}

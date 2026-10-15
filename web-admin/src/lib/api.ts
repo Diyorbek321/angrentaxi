@@ -179,7 +179,14 @@ export interface Driver {
   carNumber: string;
   carColor?: string;
   licenseNumber?: string;
-  createdAt: string;
+  /**
+   * NOT returned by GET /drivers or /drivers/:id — the driver profile entity
+   * has no createdAt. Registration date lives on the nested `user`; read it
+   * with `driverRegisteredAt()` (lib/driver.ts).
+   */
+  createdAt?: string;
+  /** Nested account row the backend embeds; only what the panel reads. */
+  user?: { createdAt?: string | null } | null;
   /** @deprecated Qaror va ko'rsatish uchun `walletBalance` ishlating. */
   balance?: number;
   /**

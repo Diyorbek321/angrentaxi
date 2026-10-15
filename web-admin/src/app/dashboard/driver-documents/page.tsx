@@ -1,9 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, ExternalLink, FileCheck2, Phone, X } from 'lucide-react';
+import { CheckCircle2, ExternalLink, Phone, X } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
@@ -11,9 +10,7 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Tabs } from '@/components/ui/Tabs';
 import { Drawer } from '@/components/ui/Drawer';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/Table';
-import { SkeletonTable } from '@/components/ui/Skeleton';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { ErrorState } from '@/components/ui/ErrorState';
+import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { useToast } from '@/components/ui/Toast';
 import {
   driverReviewApi,
@@ -23,7 +20,7 @@ import {
   VehicleFields,
 } from '@/lib/api';
 import { kycDocumentLabel, validateReview } from '@/lib/driver-review';
-import { formatDate } from '@/lib/utils';
+import { formatDateTime, NAME_FALLBACK } from '@/lib/format';
 
 type Tab = 'kyc' | 'periodic' | 'vehicle';
 
@@ -131,17 +128,45 @@ export default function DriverDocumentsPage() {
     });
   };
 
-  const showFullError = error && !isLoading && !hasLoadedOnce;
+  const columns: DataTableColumn<ReviewItem>[] = [
+    {
+      key: 'driver',
+      header: 'Haydovchi',
+      cell: (row) => (
+        <div className="min-w-0">
+          <span className="block font-medium text-ink truncate">{row.driverName ?? NAME_FALLBACK}</span>
+          {/* Raw phone on purpose: e2e and copy-paste search use this exact form. */}
+          {row.driverPhone && <span className="num text-xs text-muted">{row.driverPhone}</span>}
+        </div>
+      ),
+    },
+    { key: 'doc', header: 'Hujjat', cell: (row) => row.label },
+    {
+      key: 'submitted',
+      header: 'Yuborilgan',
+      className: 'num whitespace-nowrap text-muted',
+      cell: (row) => formatDateTime(row.submittedAt, { withYear: true }),
+    },
+    {
+      key: 'action',
+      header: <span className="sr-only">Amal</span>,
+      align: 'right',
+      cell: (row) => (
+        <Button size="sm" variant="secondary" onClick={() => setOpen(row)}>
+          Ko&apos;rib chiqish
+        </Button>
+      ),
+    },
+  ];
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="px-4 sm:px-6 py-5">
       <PageHeader
         title="Haydovchi hujjatlari"
         description="KYC hujjatlari, davriy tekshiruv va mashina o'zgarishlari — eng eskisi birinchi"
-        icon={<FileCheck2 className="h-4 w-4" aria-hidden="true" />}
       />
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         <Tabs
           ariaLabel="Hujjat turi"
           items={[
@@ -153,69 +178,22 @@ export default function DriverDocumentsPage() {
           onChange={(v) => setTab(v as Tab)}
         />
 
-        {error && hasLoadedOnce && !isLoading && (
-          <div
-            role="alert"
-            className="flex flex-wrap items-center justify-between gap-3 rounded-ds-sm border border-danger/30 bg-danger-tint px-4 py-3"
-          >
-            <p className="flex items-center gap-2 text-body text-danger-deep dark:text-danger-light">
-              <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
-              {error} — oxirgi yuklangan ro&apos;yxat ko&apos;rsatilmoqda.
-            </p>
-            <Button variant="secondary" size="sm" onClick={() => void load()}>
-              Qayta urinish
-            </Button>
-          </div>
-        )}
-
-        <Card>
-          <CardContent className="p-0">
-            {showFullError ? (
-              <ErrorState message={error} onRetry={() => void load()} />
-            ) : isLoading && !hasLoadedOnce ? (
-              <SkeletonTable rows={6} cols={4} className="border-0" />
-            ) : rows.length === 0 ? (
-              <EmptyState
-                tone="positive"
-                icon={<CheckCircle2 className="h-6 w-6" />}
-                title="Navbat bo'sh ✓"
-                description="Ko'rib chiqilishi kerak bo'lgan hujjat qolmadi."
-              />
-            ) : (
-              <Table stickyHeader containerClassName="max-h-[65vh]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Haydovchi</TableHead>
-                    <TableHead>Hujjat</TableHead>
-                    <TableHead>Yuborilgan</TableHead>
-                    <TableHead className="text-right">Amal</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell>
-                        <span className="block font-medium text-ink">{row.driverName ?? 'Ismsiz'}</span>
-                        {row.driverPhone && (
-                          <span className="font-mono text-caption text-muted">{row.driverPhone}</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-ink">{row.label}</TableCell>
-                      <TableCell className="font-mono text-caption tabular-nums text-muted">
-                        {formatDate(row.submittedAt)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button size="sm" onClick={() => setOpen(row)}>
-                          Ko&apos;rib chiqish
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+        <DataTable
+          ariaLabel="Hujjatlar navbati"
+          columns={columns}
+          rows={rows}
+          rowKey={(r) => r.id}
+          loading={isLoading && !hasLoadedOnce}
+          error={isLoading ? null : error}
+          onRetry={() => void load()}
+          maxHeightClassName="max-h-[calc(100vh-260px)]"
+          empty={{
+            variant: 'cleared',
+            icon: <CheckCircle2 aria-hidden />,
+            title: "Navbat bo'sh",
+            description: "Ko'rib chiqilishi kerak bo'lgan hujjat qolmadi.",
+          }}
+        />
       </div>
 
       <ReviewDrawer item={open} onClose={() => setOpen(null)} onDecided={onDecided} />
@@ -316,9 +294,9 @@ function ReviewDrawer({
       title={item.label}
       subtitle={
         <span className="inline-flex flex-wrap items-center gap-2">
-          {item.driverName ?? 'Ismsiz haydovchi'}
+          {item.driverName ?? NAME_FALLBACK}
           {item.driverPhone && (
-            <a href={`tel:${item.driverPhone}`} className="inline-flex items-center gap-1 font-mono hover:underline">
+            <a href={`tel:${item.driverPhone}`} className="num inline-flex items-center gap-1 hover:underline">
               <Phone className="h-3 w-3" aria-hidden="true" />
               {item.driverPhone}
             </a>
@@ -328,14 +306,13 @@ function ReviewDrawer({
       footer={
         <div className="space-y-3">
           {formError && (
-            <p role="alert" className="text-caption text-danger-deep dark:text-danger-light">
+            <p role="alert" className="text-xs text-danger-dark dark:text-danger-light">
               {formError}
             </p>
           )}
-          <div className="flex gap-2">
+          <div className="flex justify-end gap-2">
             <Button
-              variant="destructive"
-              className="flex-1"
+              variant="danger-ghost"
               isLoading={busy === 'reject'}
               disabled={busy !== null}
               leftIcon={<X className="h-4 w-4" aria-hidden="true" />}
@@ -344,7 +321,6 @@ function ReviewDrawer({
               Rad etish
             </Button>
             <Button
-              className="flex-1"
               isLoading={busy === 'approve'}
               disabled={busy !== null}
               leftIcon={<CheckCircle2 className="h-4 w-4" aria-hidden="true" />}
@@ -362,7 +338,7 @@ function ReviewDrawer({
         ) : (
           <div className="overflow-hidden rounded-ds-sm border border-line bg-surface-2">
             {fileError ? (
-              <p className="p-6 text-center text-body text-danger-deep dark:text-danger-light">
+              <p className="p-6 text-center text-[13px] text-danger-dark dark:text-danger-light">
                 Faylni ochib bo&apos;lmadi — u o&apos;chirilgan yoki saqlash xizmati javob bermadi.
               </p>
             ) : !fileUrl ? (
@@ -374,7 +350,7 @@ function ReviewDrawer({
                   href={fileUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 text-body font-semibold text-primary-text hover:underline"
+                  className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-primary-text hover:underline"
                 >
                   <ExternalLink className="h-4 w-4" aria-hidden="true" />
                   Hujjatni yangi oynada ochish
@@ -409,10 +385,10 @@ function ReviewDrawer({
   );
 }
 
-const VEHICLE_ROWS: Array<{ key: keyof VehicleFields; label: string }> = [
+const VEHICLE_ROWS: Array<{ key: keyof VehicleFields; label: string; code?: boolean }> = [
   { key: 'carModel', label: 'Rusumi' },
-  { key: 'carNumber', label: 'Davlat raqami' },
-  { key: 'licensePlate', label: 'Raqam (lotin)' },
+  { key: 'carNumber', label: 'Davlat raqami', code: true },
+  { key: 'licensePlate', label: 'Raqam (lotin)', code: true },
   { key: 'carYear', label: 'Yili' },
   { key: 'vehicleType', label: 'Transport turi' },
 ];
@@ -433,13 +409,14 @@ function VehicleDiff({ previous, proposed }: { previous: VehicleFields; proposed
         </TableRow>
       </TableHeader>
       <TableBody>
-        {VEHICLE_ROWS.map(({ key, label }) => {
+        {VEHICLE_ROWS.map(({ key, label, code }) => {
           const changed = previous[key] !== proposed[key];
+          const face = code ? 'font-mono text-xs whitespace-nowrap' : 'num';
           return (
             <TableRow key={key}>
               <TableCell className="text-muted">{label}</TableCell>
-              <TableCell className="font-mono text-ink">{show(previous[key])}</TableCell>
-              <TableCell className={changed ? 'font-mono font-semibold text-primary-text' : 'font-mono text-muted'}>
+              <TableCell className={`${face} text-ink`}>{show(previous[key])}</TableCell>
+              <TableCell className={`${face} ${changed ? 'font-semibold text-primary-text' : 'text-muted'}`}>
                 {show(proposed[key])}
                 {changed && <span className="sr-only"> (o&apos;zgargan)</span>}
               </TableCell>

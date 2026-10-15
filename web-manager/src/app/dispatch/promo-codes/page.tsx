@@ -4,23 +4,21 @@ import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { AlertTriangle, Download, Plus, RefreshCw, Search, Tag } from 'lucide-react';
+import { AlertTriangle, Download, Plus, RefreshCw, Tag } from 'lucide-react';
 import { getPromoCodes, createPromoCode, PromoCode } from '@/lib/api';
-import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
-import { Tabs } from '@/components/ui/Tabs';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { ErrorState } from '@/components/ui/ErrorState';
-import { FilterChip } from '@/components/ui/FilterChip';
-import { RetryBanner } from '@/components/ui/RetryBanner';
-import { SkeletonTable } from '@/components/ui/Skeleton';
+import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
+import { FilterBar } from '@/components/ui/FilterBar';
+import { MoneyText } from '@/components/ui/MoneyText';
+import { PageBody } from '@/components/ui/PageBody';
 import { useToast } from '@/components/ui/Toast';
 import { downloadCsv } from '@/lib/csv';
-import { formatDate, formatMoney, formatNumber } from '@/lib/format';
+import { formatDate, formatDateShort, formatNumber } from '@/lib/format';
 
 const optionalNumber = (label: string, max?: number) =>
   z
@@ -53,7 +51,7 @@ type FormData = z.infer<typeof schema>;
 
 type StatusFilter = 'all' | 'active' | 'inactive' | 'expiring';
 
-const STATUS_TABS: { value: StatusFilter; label: string }[] = [
+const STATUS_TABS: readonly { value: StatusFilter; label: string }[] = [
   { value: 'all', label: 'Hammasi' },
   { value: 'active', label: 'Faol' },
   { value: 'expiring', label: '7 kun ichida tugaydi' },
@@ -66,15 +64,6 @@ const STATUS_LABEL: Record<StatusFilter, string> = {
   expiring: '7 kun ichida tugaydi',
   inactive: 'Faol emas',
 };
-
-const HEADERS: { label: string; align?: 'right' }[] = [
-  { label: 'Kod' },
-  { label: 'Chegirma', align: 'right' },
-  { label: 'Ishlatilgan', align: 'right' },
-  { label: 'Min. summa', align: 'right' },
-  { label: 'Muddati' },
-  { label: 'Holati' },
-];
 
 function expiresWithin7Days(promo: PromoCode): boolean {
   if (!promo.expiresAt) return false;
@@ -189,7 +178,7 @@ export default function PromoCodesPage() {
         p.usedCount,
         p.maxUses ?? '',
         p.minOrderAmount,
-        p.expiresAt ? new Date(p.expiresAt).toLocaleDateString('uz-UZ') : '',
+        p.expiresAt ? formatDateShort(p.expiresAt) : '',
         p.isActive ? 'Faol' : 'Faol emas',
       ])
     );
@@ -201,182 +190,156 @@ export default function PromoCodesPage() {
 
   const showSkeleton = isLoading && !hasLoadedOnce;
 
-  return (
-    <div className="h-full overflow-y-auto">
-      <div className="px-5 py-4 max-w-5xl mx-auto">
-        <PageHeader
-          title="Promo kodlar"
-          description="Chegirma kodlarini yaratish va boshqarish"
-          icon={<Tag size={17} />}
-          actions={
-            <>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleExport}
-                disabled={rows.length === 0}
-                leftIcon={<Download size={13} />}
-              >
-                CSV eksport
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={fetchPromoCodes}
-                leftIcon={<RefreshCw size={13} />}
-              >
-                Yangilash
-              </Button>
-              <Button leftIcon={<Plus size={15} />} onClick={() => setIsModalOpen(true)} size="sm">
-                Yangi promo kod
-              </Button>
-            </>
-          }
-        />
-
-        <div className="flex items-center gap-3 flex-wrap mb-3">
-          <Input
-            placeholder="Kod boʻyicha qidirish"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            leftElement={<Search size={14} />}
-            className="w-56"
-            aria-label="Promo kodlarni qidirish"
-          />
-          <Tabs items={STATUS_TABS} value={statusFilter} onChange={setStatusFilter} size="sm" />
-        </div>
-
-        {hasFilters && (
-          <div className="flex items-center gap-2 flex-wrap mb-3">
-            {searchInput && (
-              <FilterChip
-                label={`Qidiruv: "${searchInput}"`}
-                onRemove={() => setSearchInput('')}
-              />
-            )}
-            {statusFilter !== 'all' && (
-              <FilterChip
-                label={`Holat: ${STATUS_LABEL[statusFilter]}`}
-                onRemove={() => setStatusFilter('all')}
-              />
-            )}
-            <Button variant="ghost" size="sm" onClick={clearFilters}>
-              Hammasini tozalash
-            </Button>
-          </div>
-        )}
-
-        {loadError && (
-          <RetryBanner
-            message={loadError}
-            onRetry={fetchPromoCodes}
-            keepsLastData={promoCodes.length > 0}
-            className="mb-3"
-          />
-        )}
-
-        {loadError && promoCodes.length === 0 ? (
-          <ErrorState
-            message="Tarmoq yoki server xatosi. Qayta urinib koʻring."
-            onRetry={fetchPromoCodes}
-          />
-        ) : showSkeleton ? (
-          <SkeletonTable rows={5} cols={HEADERS.length} />
-        ) : rows.length === 0 ? (
-          <Card>
-            {hasFilters ? (
-              <EmptyState
-                icon={<Search size={22} />}
-                title="Filtrga mos promo kod topilmadi"
-                description="Qidiruv soʻzini yoki holat filtrini oʻzgartirib koʻring."
-                action={
-                  <Button variant="secondary" size="sm" onClick={clearFilters}>
-                    Filtrlarni tozalash
-                  </Button>
-                }
-              />
-            ) : (
-              <EmptyState
-                icon={<Tag size={22} />}
-                title="Hali promo kod yaratilmagan"
-                description="Birinchi chegirma kodini yarating — u darhol amal qila boshlaydi."
-                action={
-                  <Button
-                    size="sm"
-                    leftIcon={<Plus size={14} />}
-                    onClick={() => setIsModalOpen(true)}
-                  >
-                    Yangi promo kod
-                  </Button>
-                }
-              />
-            )}
-          </Card>
+  const columns: DataTableColumn<PromoCode>[] = [
+    {
+      key: 'code',
+      header: 'Kod',
+      cell: (p) => <span className="font-mono font-semibold text-ink">{p.code}</span>,
+    },
+    {
+      key: 'discount',
+      header: 'Chegirma',
+      numeric: true,
+      cell: (p) =>
+        p.discountPercent != null ? (
+          <span className="text-ink">{p.discountPercent}%</span>
         ) : (
-          <Card padding="none" className="overflow-hidden">
-            <div className="overflow-auto max-h-[calc(100vh-16rem)]">
-              <table className="w-full text-sm text-left">
-                <thead className="text-subtle uppercase text-[10px] tracking-wider">
-                  <tr>
-                    {HEADERS.map((h, i) => (
-                      <th
-                        key={i}
-                        className={`sticky-th bg-surface-2 px-4 py-3 font-semibold whitespace-nowrap ${
-                          h.align === 'right' ? 'text-right' : ''
-                        }`}
-                      >
-                        {h.label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line">
-                  {rows.map((promo) => (
-                    <tr key={promo.id} className="hover:bg-surface-2/70 transition-colors">
-                      <td className="px-4 py-3">
-                        <span className="flex items-center gap-1.5 font-mono font-semibold text-ink">
-                          <Tag size={13} className="text-mint-deep shrink-0" aria-hidden />
-                          {promo.code}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 font-mono text-ink whitespace-nowrap text-right tabular-nums">
-                        {promo.discountPercent != null
-                          ? `${promo.discountPercent}%`
-                          : formatMoney(promo.discountFixed)}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-muted text-right tabular-nums">
-                        {formatNumber(promo.usedCount)}
-                        {promo.maxUses != null ? ` / ${formatNumber(promo.maxUses)}` : ''}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-muted whitespace-nowrap text-right tabular-nums">
-                        {formatMoney(promo.minOrderAmount)}
-                      </td>
-                      <td className="px-4 py-3 text-muted text-xs whitespace-nowrap tabular-nums">
-                        {promo.expiresAt ? formatDate(promo.expiresAt) : '—'}
-                        {expiresWithin7Days(promo) && (
-                          <span className="ml-2 text-info-deep dark:text-info-light">
-                            · tez orada
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant={promo.isActive ? 'success' : 'default'} size="sm" dot>
-                          {promo.isActive ? 'Faol' : 'Faol emas'}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <MoneyText value={p.discountFixed} className="text-ink" />
+        ),
+    },
+    {
+      key: 'used',
+      header: 'Ishlatilgan',
+      numeric: true,
+      cell: (p) => (
+        <span className="text-muted">
+          {formatNumber(p.usedCount)}
+          {p.maxUses != null ? ` / ${formatNumber(p.maxUses)}` : ''}
+        </span>
+      ),
+    },
+    {
+      key: 'min',
+      header: 'Min. summa',
+      numeric: true,
+      hideBelow: 'md',
+      cell: (p) => <MoneyText value={p.minOrderAmount} className="text-muted" />,
+    },
+    {
+      key: 'expires',
+      header: 'Muddati',
+      className: 'num text-muted whitespace-nowrap',
+      cell: (p) => (
+        <>
+          {p.expiresAt ? formatDate(p.expiresAt) : '—'}
+          {expiresWithin7Days(p) && <span className="ml-2 text-info-dark dark:text-info-light">· tez orada</span>}
+        </>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Holati',
+      cell: (p) => (
+        <Badge variant={p.isActive ? 'success' : 'neutral'} size="sm" dot>
+          {p.isActive ? 'Faol' : 'Faol emas'}
+        </Badge>
+      ),
+    },
+  ];
 
-            <div className="px-4 py-3 text-xs text-muted border-t border-line">
-              <span className="font-mono tabular-nums">{rows.length}</span> / jami{' '}
-              <span className="font-mono tabular-nums">{promoCodes.length}</span> ta promo kod
-            </div>
-          </Card>
-        )}
-      </div>
+  const chips = [
+    ...(searchInput
+      ? [{ key: 'q', label: `Qidiruv: "${searchInput}"`, onRemove: () => setSearchInput('') }]
+      : []),
+    ...(statusFilter !== 'all'
+      ? [{ key: 'status', label: `Holat: ${STATUS_LABEL[statusFilter]}`, onRemove: () => setStatusFilter('all') }]
+      : []),
+  ];
+
+  return (
+    <PageBody className="max-w-5xl">
+      <PageHeader
+        title="Promo kodlar"
+        description="Chegirma kodlarini yaratish va boshqarish"
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleExport}
+              disabled={rows.length === 0}
+              leftIcon={<Download size={13} aria-hidden />}
+            >
+              CSV eksport
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={fetchPromoCodes}
+              isLoading={isLoading && hasLoadedOnce}
+              leftIcon={<RefreshCw size={13} aria-hidden />}
+            >
+              Yangilash
+            </Button>
+            <Button leftIcon={<Plus size={14} aria-hidden />} onClick={() => setIsModalOpen(true)} size="sm">
+              Yangi promo kod
+            </Button>
+          </>
+        }
+      />
+
+      <FilterBar
+        search={searchInput}
+        onSearchChange={setSearchInput}
+        searchPlaceholder="Kod boʻyicha qidirish"
+        chips={chips}
+        onClearAll={clearFilters}
+        className="mb-3"
+      >
+        <SegmentedControl
+          items={STATUS_TABS}
+          value={statusFilter}
+          onChange={setStatusFilter}
+          ariaLabel="Holat boʻyicha filtr"
+        />
+      </FilterBar>
+
+      <DataTable
+        ariaLabel="Promo kodlar"
+        columns={columns}
+        rows={rows}
+        rowKey={(p) => p.id}
+        loading={showSkeleton}
+        error={loadError}
+        onRetry={fetchPromoCodes}
+        maxHeightClassName="max-h-[calc(100vh-16rem)]"
+        footer={
+          hasLoadedOnce && rows.length > 0 ? (
+            <span className="num">
+              {hasFilters
+                ? `${formatNumber(rows.length)} / jami ${formatNumber(promoCodes.length)} ta promo kod`
+                : `${formatNumber(rows.length)} ta promo kod`}
+            </span>
+          ) : undefined
+        }
+        isFiltered={hasFilters}
+        onClearFilters={clearFilters}
+        emptyFiltered={{
+          title: 'Filtrga mos promo kod topilmadi',
+          description: 'Qidiruv soʻzini yoki holat filtrini oʻzgartirib koʻring.',
+        }}
+        empty={{
+          variant: 'first-use',
+          icon: <Tag aria-hidden />,
+          title: 'Hali promo kod yaratilmagan',
+          description: 'Birinchi chegirma kodini yarating — u darhol amal qila boshlaydi.',
+          action: (
+            <Button size="sm" leftIcon={<Plus size={14} aria-hidden />} onClick={() => setIsModalOpen(true)}>
+              Yangi promo kod
+            </Button>
+          ),
+        }}
+      />
 
       <Modal
         isOpen={isModalOpen}
@@ -388,10 +351,10 @@ export default function PromoCodesPage() {
           {submitError && (
             <div
               role="alert"
-              className="flex items-start gap-2.5 rounded-ds-xs border border-danger/40 bg-danger-tint px-3.5 py-3"
+              className="flex items-start gap-2.5 rounded-ds-sm border border-danger/30 bg-danger-tint px-3 py-2"
             >
-              <AlertTriangle size={15} className="text-danger shrink-0 mt-0.5" />
-              <p className="text-sm text-danger-deep dark:text-danger-light">{submitError}</p>
+              <AlertTriangle size={15} className="text-danger shrink-0 mt-0.5" aria-hidden />
+              <p className="text-[13px] text-danger-dark dark:text-danger-light">{submitError}</p>
             </div>
           )}
 
@@ -408,7 +371,6 @@ export default function PromoCodesPage() {
               label="Chegirma (%)"
               type="number"
               placeholder="10"
-              mono
               {...register('discountPercent')}
               error={errors.discountPercent?.message}
             />
@@ -416,7 +378,6 @@ export default function PromoCodesPage() {
               label="Chegirma (soʻm)"
               type="number"
               placeholder="5000"
-              mono
               {...register('discountFixed')}
               error={errors.discountFixed?.message}
             />
@@ -426,7 +387,6 @@ export default function PromoCodesPage() {
               label="Max ishlatish soni"
               type="number"
               placeholder="100"
-              mono
               {...register('maxUses')}
               error={errors.maxUses?.message}
             />
@@ -434,7 +394,6 @@ export default function PromoCodesPage() {
               label="Min buyurtma summasi"
               type="number"
               placeholder="0"
-              mono
               {...register('minOrderAmount')}
               error={errors.minOrderAmount?.message}
             />
@@ -446,11 +405,16 @@ export default function PromoCodesPage() {
             {...register('expiresAt')}
             error={errors.expiresAt?.message}
           />
-          <Button type="submit" isLoading={isSubmitting} className="w-full">
-            Yaratish
-          </Button>
+          <div className="flex justify-end gap-2 pt-4 border-t border-line">
+            <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)}>
+              Bekor qilish
+            </Button>
+            <Button type="submit" isLoading={isSubmitting}>
+              Yaratish
+            </Button>
+          </div>
         </form>
       </Modal>
-    </div>
+    </PageBody>
   );
 }

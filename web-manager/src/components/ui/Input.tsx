@@ -1,64 +1,86 @@
-import { forwardRef, InputHTMLAttributes } from 'react';
-import { clsx } from 'clsx';
+// AUTO-SYNCED from web-manager — edit there, then run scripts/sync-panel-ui.sh
+'use client';
 
-export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
-  label?: string;
+import { forwardRef, useId, type InputHTMLAttributes, type ReactNode } from 'react';
+import { cn } from './cn';
+import { Field, controlBase, controlBorder, describedBy } from './Field';
+
+export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> {
+  label?: ReactNode;
   error?: string;
-  hint?: string;
-  leftElement?: React.ReactNode;
-  rightElement?: React.ReactNode;
-  /** Numbers, ids, phones and prices read better in the mono face. */
+  hint?: ReactNode;
+  /** Prefix slot (icon or text). Alias: `leftIcon`. */
+  leftElement?: ReactNode;
+  leftIcon?: ReactNode;
+  /** Suffix slot (icon, unit, button). Alias: `rightIcon`. */
+  rightElement?: ReactNode;
+  rightIcon?: ReactNode;
+  /** Monospace — ONLY for ids, plates, SKUs, codes. Numbers/money stay sans (`.num`). */
   mono?: boolean;
+  /** sm 28px · md 32px (default) · lg 40px. */
+  size?: 'sm' | 'md' | 'lg';
+  /** Classes for the outer wrapper. */
+  wrapperClassName?: string;
 }
+
+const heights = { sm: 'h-7 text-[13px]', md: 'h-8', lg: 'h-10' } as const;
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
   (
-    { label, error, hint, leftElement, rightElement, mono = false, className, id, ...props },
+    {
+      label,
+      error,
+      hint,
+      leftElement,
+      leftIcon,
+      rightElement,
+      rightIcon,
+      mono = false,
+      size = 'md',
+      wrapperClassName,
+      className,
+      id,
+      required,
+      type,
+      ...props
+    },
     ref
   ) => {
-    const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-');
-
+    const auto = useId();
+    const inputId = id ?? auto;
+    const left = leftElement ?? leftIcon;
+    const right = rightElement ?? rightIcon;
     return (
-      <div className="flex flex-col gap-1.5">
-        {label && (
-          <label htmlFor={inputId} className="text-xs font-medium text-muted">
-            {label}
-          </label>
-        )}
+      <Field id={inputId} label={label} hint={hint} error={error} required={required} className={wrapperClassName}>
         <div className="relative flex items-center">
-          {leftElement && (
-            <div className="absolute left-3 text-subtle pointer-events-none flex items-center">
-              {leftElement}
+          {left && (
+            <div className="absolute left-2.5 text-subtle pointer-events-none flex items-center [&_svg]:h-4 [&_svg]:w-4">
+              {left}
             </div>
           )}
           <input
             ref={ref}
             id={inputId}
-            className={clsx(
-              // h-9 matches the md button and the topbar controls, so mixed
-              // rows of inputs and buttons sit on one baseline.
-              'w-full h-9 bg-surface border rounded-ds-xs text-ink placeholder-subtle text-sm',
-              // `focus:` (not focus-visible) is right for text fields — a
-              // click into a field should light it up too. Ring colour is the
-              // theme-aware focus token (dark primary is invisible on dark).
-              'focus:outline-none focus:ring-2 focus:ring-focus/40 focus:border-focus',
-              'disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-2',
-              'transition-colors',
-              mono && 'font-mono tabular-nums',
-              error ? 'border-danger/60 focus:ring-danger/30 focus:border-danger' : 'border-line hover:border-line-strong',
-              leftElement ? 'pl-9' : 'pl-3',
-              rightElement ? 'pr-9' : 'pr-3',
+            type={type}
+            required={required}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={describedBy(inputId, error, hint)}
+            className={cn(
+              controlBase,
+              controlBorder(!!error),
+              heights[size],
+              mono ? 'font-mono' : type === 'number' && 'num',
+              left ? 'pl-8' : 'pl-2.5',
+              right ? 'pr-8' : 'pr-2.5',
               className
             )}
             {...props}
           />
-          {rightElement && (
-            <div className="absolute right-3 text-subtle flex items-center">{rightElement}</div>
+          {right && (
+            <div className="absolute right-2.5 text-subtle flex items-center [&_svg]:h-4 [&_svg]:w-4">{right}</div>
           )}
         </div>
-        {error && <p className="text-xs text-danger">{error}</p>}
-        {hint && !error && <p className="text-xs text-subtle">{hint}</p>}
-      </div>
+      </Field>
     );
   }
 );

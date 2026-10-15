@@ -1,56 +1,30 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import {
-  AlertTriangle,
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
-  Download,
-  Gift,
-  Plus,
-  Search,
-  SearchX,
-} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Download, Plus } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
-import { Switch } from '@/components/ui/Switch';
-import { FilterChips, type FilterChip } from '@/components/ui/FilterChips';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/Table';
-import {
+  Badge,
+  Button,
+  DataTable,
+  FilterBar,
+  Input,
+  Modal,
+  MoneyText,
+  PageHeader,
+  SegmentedControl,
   Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/Select';
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/Modal';
-import { SkeletonTable } from '@/components/ui/Skeleton';
-import { PageHeader } from '@/components/ui/PageHeader';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { ErrorState } from '@/components/ui/ErrorState';
+  Switch,
+  type DataTableColumn,
+  type FilterChipData,
+  type SortState,
+} from '@/components/ui';
 import { bonusRulesApi, BonusRule, BonusRuleCreateInput } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 import { downloadCsv } from '@/lib/csv';
-import { cn, formatCurrency, formatDate } from '@/lib/utils';
+import { formatDateShort, formatDateTime, formatNumber } from '@/lib/format';
 
 const bonusRuleSchema = z.object({
   name: z.string().min(2, 'Kamida 2 ta harf'),
@@ -61,7 +35,6 @@ const bonusRuleSchema = z.object({
 });
 
 type BonusRuleForm = z.infer<typeof bonusRuleSchema>;
-type SortDir = 'asc' | 'desc' | null;
 type StatusFilter = 'all' | 'active' | 'inactive';
 
 const ruleTypeLabel: Record<BonusRule['ruleType'], string> = {
@@ -74,48 +47,53 @@ const STATUS_LABELS: Record<Exclude<StatusFilter, 'all'>, string> = {
   inactive: 'Nofaol',
 };
 
+const STATUS_ITEMS: { value: StatusFilter; label: string }[] = [
+  { value: 'all', label: 'Hammasi' },
+  { value: 'active', label: 'Faol' },
+  { value: 'inactive', label: 'Nofaol' },
+];
+
+const RULE_TYPE_OPTIONS = [
+  { value: 'trip_count', label: 'Safar soni' },
+  { value: 'weekly_goal', label: 'Haftalik maqsad' },
+];
+
 export default function BonusesPage() {
   const { toast } = useToast();
   const [rules, setRules] = useState<BonusRule[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [sortField, setSortField] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<SortDir>(null);
+  const [sort, setSort] = useState<SortState | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const {
     register,
     handleSubmit,
     reset,
-    setValue,
     formState: { errors },
   } = useForm<BonusRuleForm>({ resolver: zodResolver(bonusRuleSchema) });
 
-  const fetchRules = async () => {
+  const fetchRules = useCallback(async () => {
     setIsLoading(true);
     try {
       const res = await bonusRulesApi.getAll();
       setRules(res.data.data);
       setError(null);
-      setHasLoadedOnce(true);
     } catch {
       // Oxirgi muvaffaqiyatli qatorlar ekranda qoladi; banner + retry chiqadi.
       setError("Bonus qoidalarini yuklab bo'lmadi");
-      toast({ title: 'Xatolik', description: 'Qoidalarni yuklashda xatolik', variant: 'error' });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchRules();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    void fetchRules();
+  }, [fetchRules]);
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -128,10 +106,10 @@ export default function BonusesPage() {
     if (statusFilter !== 'all') {
       rows = rows.filter((r) => (statusFilter === 'active' ? r.status === 'active' : r.status !== 'active'));
     }
-    if (sortField && sortDir) {
-      const dir = sortDir === 'asc' ? 1 : -1;
+    if (sort) {
+      const dir = sort.direction === 'asc' ? 1 : -1;
       rows = [...rows].sort((a, b) => {
-        switch (sortField) {
+        switch (sort.key) {
           case 'name':
             return a.name.localeCompare(b.name) * dir;
           case 'tripThreshold':
@@ -146,26 +124,14 @@ export default function BonusesPage() {
       });
     }
     return rows;
-  }, [rules, search, statusFilter, sortField, sortDir]);
-
-  const handleSort = (field: string) => {
-    if (sortField !== field) {
-      setSortField(field);
-      setSortDir('asc');
-    } else if (sortDir === 'asc') {
-      setSortDir('desc');
-    } else {
-      setSortField(null);
-      setSortDir(null);
-    }
-  };
+  }, [rules, search, statusFilter, sort]);
 
   const clearAllFilters = () => {
     setSearch('');
     setStatusFilter('all');
   };
 
-  const chips: FilterChip[] = [];
+  const chips: FilterChipData[] = [];
   if (search.trim()) {
     chips.push({ key: 'search', label: `Qidiruv: "${search.trim()}"`, onRemove: () => setSearch('') });
   }
@@ -248,60 +214,81 @@ export default function BonusesPage() {
         { header: 'Bonus summasi', value: (r) => r.bonusAmount },
         { header: 'Xizmat turi', value: (r) => r.serviceType ?? '' },
         { header: 'Holati', value: (r) => (r.status === 'active' ? 'Faol' : 'Nofaol') },
-        { header: 'Yaratilgan', value: (r) => formatDate(r.createdAt) },
+        { header: 'Yaratilgan', value: (r) => formatDateTime(r.createdAt, { withYear: true }) },
       ],
       filteredRows
     );
     toast({ title: 'CSV yuklab olindi', description: `${filteredRows.length} ta qator`, variant: 'success' });
   };
 
-  const SortableHead = ({
-    field,
-    children,
-    align = 'left',
-  }: {
-    field: string;
-    children: React.ReactNode;
-    align?: 'left' | 'right';
-  }) => {
-    const active = sortField === field && !!sortDir;
-    const Icon = !active ? ArrowUpDown : sortDir === 'asc' ? ArrowUp : ArrowDown;
-    return (
-      <TableHead
-        aria-sort={active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
-        className={align === 'right' ? 'text-right' : undefined}
-      >
-        <button
-          type="button"
-          onClick={() => handleSort(field)}
-          className={cn(
-            'inline-flex items-center gap-1 text-micro uppercase transition-colors duration-fast',
-            align === 'right' && 'flex-row-reverse',
-            'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface-2',
-            active ? 'text-primary-text' : 'text-muted hover:text-ink'
-          )}
-        >
-          {children}
-          <Icon className={cn('h-3 w-3', active ? 'text-primary-text' : 'text-subtle')} aria-hidden="true" />
-        </button>
-      </TableHead>
-    );
-  };
-
-  const showFullError = error && !isLoading && !hasLoadedOnce;
-  const showErrorBanner = error && !isLoading && hasLoadedOnce;
+  const columns: DataTableColumn<BonusRule>[] = [
+    {
+      key: 'name',
+      header: 'Qoida',
+      sortable: true,
+      cell: (r) => (
+        <div className="min-w-0">
+          <p className="truncate font-medium text-ink">{r.name}</p>
+          <p className="num text-xs text-subtle">{formatDateShort(r.createdAt)}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'ruleType',
+      header: 'Turi',
+      cell: (r) => <Badge variant="neutral">{ruleTypeLabel[r.ruleType]}</Badge>,
+    },
+    {
+      key: 'tripThreshold',
+      header: 'Safar chegarasi',
+      numeric: true,
+      sortable: true,
+      cell: (r) => formatNumber(r.tripThreshold),
+    },
+    {
+      key: 'bonusAmount',
+      header: 'Bonus',
+      numeric: true,
+      sortable: true,
+      cell: (r) => <MoneyText value={r.bonusAmount} className="font-medium" />,
+    },
+    {
+      key: 'serviceType',
+      header: 'Xizmat turi',
+      className: 'text-muted',
+      cell: (r) => r.serviceType || '—',
+    },
+    {
+      key: 'status',
+      header: 'Faol',
+      align: 'right',
+      cell: (rule) => (
+        <div className="flex items-center justify-end gap-2.5">
+          {/* Holat rang bilan emas, SO'Z bilan ham aytiladi. */}
+          <span className={rule.status === 'active' ? 'text-xs font-medium text-primary-text' : 'text-xs text-subtle'}>
+            {rule.status === 'active' ? 'Faol' : 'Nofaol'}
+          </span>
+          <Switch
+            size="sm"
+            checked={rule.status === 'active'}
+            disabled={togglingId === rule.id}
+            onCheckedChange={() => handleToggle(rule)}
+            aria-label={`«${rule.name}» qoidasini ${rule.status === 'active' ? "o'chirish" : 'yoqish'}`}
+          />
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="px-4 sm:px-6 py-5">
       <PageHeader
         title="Haydovchi bonuslari"
-        description={`Jami: ${rules.length.toLocaleString('uz-UZ')} ta qoida`}
-        icon={<Gift className="h-4 w-4" aria-hidden="true" />}
+        description={`Jami: ${formatNumber(rules.length)} ta qoida`}
         actions={
           <>
             <Button
-              variant="outline"
-              size="sm"
+              variant="secondary"
               onClick={handleExportCsv}
               disabled={filteredRows.length === 0}
               leftIcon={<Download className="h-4 w-4" aria-hidden="true" />}
@@ -314,212 +301,98 @@ export default function BonusesPage() {
           </>
         }
       />
-      <div className="space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="flex-1">
-            <Input
-              placeholder="Qoida nomi yoki xizmat turi bo'yicha qidirish..."
-              leftIcon={<Search className="h-4 w-4" aria-hidden="true" />}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              aria-label="Bonus qoidalarini qidirish"
-            />
-          </div>
-          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-            <SelectTrigger className="w-44" aria-label="Holat bo'yicha filtr">
-              <SelectValue placeholder="Holat" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Barcha holatlar</SelectItem>
-              <SelectItem value="active">Faol</SelectItem>
-              <SelectItem value="inactive">Nofaol</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
 
-        <FilterChips chips={chips} onClearAll={clearAllFilters} />
-
-        {showErrorBanner && (
-          <div
-            role="alert"
-            className="flex flex-wrap items-center justify-between gap-3 rounded-ds-sm border border-danger/30 bg-danger-tint px-4 py-3"
+      <DataTable
+        ariaLabel="Bonus qoidalari"
+        columns={columns}
+        rows={filteredRows}
+        rowKey={(r) => r.id}
+        loading={isLoading}
+        error={error}
+        onRetry={fetchRules}
+        sort={sort}
+        onSortChange={setSort}
+        maxHeightClassName="max-h-[65vh]"
+        toolbar={
+          <FilterBar
+            search={search}
+            onSearchChange={setSearch}
+            searchPlaceholder="Qoida nomi yoki xizmat turi…"
+            searchAriaLabel="Bonus qoidalarini qidirish"
+            chips={chips}
+            onClearAll={clearAllFilters}
           >
-            <p className="flex items-center gap-2 text-body text-danger-deep dark:text-danger-light">
-              <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
-              {error} — oxirgi muvaffaqiyatli yuklangan ma&apos;lumot ko&apos;rsatilmoqda.
-            </p>
-            <Button variant="secondary" size="sm" onClick={fetchRules}>
-              Qayta urinish
+            <SegmentedControl
+              ariaLabel="Holat bo'yicha filtr"
+              items={STATUS_ITEMS}
+              value={statusFilter}
+              onChange={setStatusFilter}
+            />
+          </FilterBar>
+        }
+        isFiltered={hasActiveFilters}
+        onClearFilters={clearAllFilters}
+        emptyFiltered={{ title: 'Hech narsa mos kelmadi', description: "Tanlangan filtrlar bo'yicha bonus qoidasi topilmadi." }}
+        empty={{
+          variant: 'first-use',
+          title: "Bonus qoidalari yo'q",
+          description: "Haydovchilarni rag'batlantirish uchun birinchi bonus qoidasini yarating.",
+          action: (
+            <Button size="sm" leftIcon={<Plus className="h-4 w-4" aria-hidden="true" />} onClick={openCreate}>
+              Birinchi qoidani yaratish
             </Button>
+          ),
+        }}
+      />
+
+      <Modal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title="Yangi bonus qoidasi"
+        footer={
+          <>
+            <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>
+              Bekor qilish
+            </Button>
+            <Button type="submit" form="bonus-rule-form" isLoading={saving}>
+              Yaratish
+            </Button>
+          </>
+        }
+      >
+        {/* Validatsiya xatolari maydonning O'ZIGA biriktiriladi (zod + Input error). */}
+        <form id="bonus-rule-form" onSubmit={handleSubmit(handleSave)} className="space-y-4" noValidate>
+          <Input
+            label="Qoida nomi"
+            placeholder="50 ta safar bonusi"
+            error={errors.name?.message}
+            {...register('name')}
+          />
+          <Select label="Qoida turi" options={RULE_TYPE_OPTIONS} error={errors.ruleType?.message} {...register('ruleType')} />
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Safar soni chegarasi"
+              type="number"
+              placeholder="50"
+              error={errors.tripThreshold?.message}
+              {...register('tripThreshold')}
+            />
+            <Input
+              label="Bonus summasi (so'm)"
+              type="number"
+              placeholder="50000"
+              error={errors.bonusAmount?.message}
+              {...register('bonusAmount')}
+            />
           </div>
-        )}
-
-        {showFullError ? (
-          <Card>
-            <CardContent className="p-0">
-              <ErrorState message={error} onRetry={fetchRules} />
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardContent className="p-0">
-              {isLoading && !hasLoadedOnce ? (
-                <SkeletonTable rows={6} cols={6} className="border-0" />
-              ) : filteredRows.length === 0 ? (
-                hasActiveFilters ? (
-                  <EmptyState
-                    icon={<SearchX className="h-6 w-6" />}
-                    title="Hech narsa mos kelmadi"
-                    description="Tanlangan filtrlar bo'yicha bonus qoidasi topilmadi."
-                    action={
-                      <Button variant="secondary" size="sm" onClick={clearAllFilters}>
-                        Filtrlarni tozalash
-                      </Button>
-                    }
-                  />
-                ) : (
-                  <EmptyState
-                    icon={<Gift className="h-6 w-6" />}
-                    title="Bonus qoidalari yo'q"
-                    description="Haydovchilarni rag'batlantirish uchun birinchi bonus qoidasini yarating."
-                    action={
-                      <Button size="sm" leftIcon={<Plus className="h-4 w-4" aria-hidden="true" />} onClick={openCreate}>
-                        Birinchi qoidani yaratish
-                      </Button>
-                    }
-                  />
-                )
-              ) : (
-                <Table stickyHeader containerClassName="max-h-[65vh]">
-                  <TableHeader>
-                    <TableRow>
-                      <SortableHead field="name">Qoida</SortableHead>
-                      <TableHead>Turi</TableHead>
-                      <SortableHead field="tripThreshold" align="right">
-                        Safar chegarasi
-                      </SortableHead>
-                      <SortableHead field="bonusAmount" align="right">
-                        Bonus
-                      </SortableHead>
-                      <TableHead>Xizmat turi</TableHead>
-                      <TableHead className="text-right">Faol</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredRows.map((rule) => (
-                      <TableRow key={rule.id}>
-                        <TableCell>
-                          <p className="font-medium text-ink">{rule.name}</p>
-                          <p className="text-caption tabular-nums text-subtle">
-                            {formatDate(rule.createdAt, 'dd.MM.yyyy')}
-                          </p>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="info">{ruleTypeLabel[rule.ruleType]}</Badge>
-                        </TableCell>
-                        <TableCell className="text-right font-mono tabular-nums text-ink">
-                          {rule.tripThreshold}
-                        </TableCell>
-                        <TableCell className="text-right font-mono font-medium tabular-nums text-ink">
-                          {formatCurrency(rule.bonusAmount)}
-                        </TableCell>
-                        <TableCell className="text-muted">{rule.serviceType ?? '—'}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center justify-end gap-2.5">
-                            {/* Holat rang bilan emas, SO'Z bilan ham aytiladi. */}
-                            <span
-                              className={cn(
-                                'text-caption font-semibold',
-                                rule.status === 'active' ? 'text-primary-text' : 'text-subtle'
-                              )}
-                            >
-                              {rule.status === 'active' ? 'Faol' : 'Nofaol'}
-                            </span>
-                            <Switch
-                              checked={rule.status === 'active'}
-                              disabled={togglingId === rule.id}
-                              onCheckedChange={() => handleToggle(rule)}
-                              aria-label={`«${rule.name}» qoidasini ${
-                                rule.status === 'active' ? "o'chirish" : 'yoqish'
-                              }`}
-                            />
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Yangi bonus qoidasi</DialogTitle>
-          </DialogHeader>
-          {/* Validatsiya xatolari maydonning O'ZIGA biriktiriladi (zod + Input error). */}
-          <form onSubmit={handleSubmit(handleSave)} className="space-y-4" noValidate>
-            <Input
-              label="Qoida nomi"
-              placeholder="50 ta safar bonusi"
-              error={errors.name?.message}
-              {...register('name')}
-            />
-            <div>
-              <label className="mb-1.5 block text-caption font-medium text-muted" htmlFor="ruleType">
-                Qoida turi
-              </label>
-              <Select
-                defaultValue="trip_count"
-                onValueChange={(v) => setValue('ruleType', v as BonusRuleForm['ruleType'])}
-              >
-                <SelectTrigger id="ruleType" className="w-full">
-                  <SelectValue placeholder="Qoida turi" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="trip_count">Safar soni</SelectItem>
-                  <SelectItem value="weekly_goal">Haftalik maqsad</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="Safar soni chegarasi"
-                type="number"
-                mono
-                placeholder="50"
-                error={errors.tripThreshold?.message}
-                {...register('tripThreshold')}
-              />
-              <Input
-                label="Bonus summasi (so'm)"
-                type="number"
-                mono
-                placeholder="50000"
-                error={errors.bonusAmount?.message}
-                {...register('bonusAmount')}
-              />
-            </div>
-            <Input
-              label="Xizmat turi (ixtiyoriy)"
-              placeholder="taxi"
-              hint="Bo'sh qoldirilsa qoida barcha xizmat turlariga qo'llanadi."
-              {...register('serviceType')}
-            />
-            <DialogFooter className="gap-2">
-              <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>
-                Bekor qilish
-              </Button>
-              <Button type="submit" isLoading={saving}>
-                Yaratish
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+          <Input
+            label="Xizmat turi (ixtiyoriy)"
+            placeholder="taxi"
+            hint="Bo'sh qoldirilsa qoida barcha xizmat turlariga qo'llanadi."
+            {...register('serviceType')}
+          />
+        </form>
+      </Modal>
     </div>
   );
 }

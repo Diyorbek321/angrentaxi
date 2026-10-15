@@ -1,26 +1,28 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, PackageSearch, Phone, RefreshCw } from 'lucide-react';
+import { CheckCircle2, RefreshCw } from 'lucide-react';
 import { closeLostItem, getLostItems, LostItemReport, LostItemStatus } from '@/lib/api';
 import { isFinal, LOST_ITEM_STATUS_LABEL, needsDispatcher } from '@/lib/lost-items';
 import { Card } from '@/components/ui/Card';
 import { Badge, type BadgeVariant } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
-import { Tabs } from '@/components/ui/Tabs';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Textarea } from '@/components/ui/Textarea';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { RetryBanner } from '@/components/ui/RetryBanner';
-import { SkeletonTable } from '@/components/ui/Skeleton';
+import { SkeletonCards } from '@/components/ui/Skeleton';
+import { PageBody } from '@/components/ui/PageBody';
+import { ContactBlock } from '@/components/dispatch/ContactBlock';
 import { useToast } from '@/components/ui/Toast';
-import { formatDateTime, formatPhone } from '@/lib/format';
+import { formatDateTime, shortId } from '@/lib/format';
 
 type Filter = 'active' | LostItemStatus;
 
-const TABS: { value: Filter; label: string }[] = [
+const TABS: readonly { value: Filter; label: string }[] = [
   { value: 'active', label: 'Ochiq' },
   { value: 'found', label: 'Topilgan' },
   { value: 'open', label: 'Javob kutilmoqda' },
@@ -29,11 +31,12 @@ const TABS: { value: Filter; label: string }[] = [
 ];
 
 const STATUS_VARIANT: Record<LostItemStatus, BadgeVariant> = {
-  open: 'info',
-  found: 'warning',
-  not_found: 'default',
+  // "Topilgan" waits on the dispatcher — info, not amber (amber = override only).
+  open: 'neutral',
+  found: 'info',
+  not_found: 'neutral',
   returned: 'success',
-  closed: 'default',
+  closed: 'neutral',
 };
 
 /**
@@ -99,21 +102,25 @@ export default function LostItemsPage() {
   };
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="px-5 py-4 max-w-5xl mx-auto">
+    <PageBody className="max-w-5xl">
         <PageHeader
           title="Yoʻqolgan buyumlar"
           description="Yoʻlovchi safarda qoldirgan narsalar — haydovchi javobi va topshirish"
-          icon={<PackageSearch size={17} />}
           actions={
-            <Button variant="secondary" size="sm" onClick={() => void load()} leftIcon={<RefreshCw size={13} />}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void load()}
+              isLoading={isLoading && hasLoadedOnce}
+              leftIcon={<RefreshCw size={13} aria-hidden />}
+            >
               Yangilash
             </Button>
           }
         />
 
         <div className="mb-3">
-          <Tabs items={TABS} value={filter} onChange={setFilter} size="sm" />
+          <SegmentedControl items={TABS} value={filter} onChange={setFilter} ariaLabel="Holat boʻyicha filtr" />
         </div>
 
         {error && hasLoadedOnce && (
@@ -121,40 +128,43 @@ export default function LostItemsPage() {
         )}
 
         {error && !hasLoadedOnce ? (
-          <ErrorState message={error} onRetry={() => void load()} />
+          <Card padding="none">
+            <ErrorState title={error} onRetry={() => void load()} retrying={isLoading} />
+          </Card>
         ) : isLoading && !hasLoadedOnce ? (
-          <SkeletonTable rows={4} cols={4} />
+          <SkeletonCards count={3} height="h-[120px]" />
         ) : items.length === 0 ? (
-          <Card>
+          <Card padding="none">
             <EmptyState
-              icon={<CheckCircle2 size={22} />}
+              variant="cleared"
+              icon={<CheckCircle2 aria-hidden />}
               title="Hech narsa yoʻq"
               description="Bu boʻlimda koʻrib chiqiladigan xabar qolmadi."
             />
           </Card>
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
             {items.map((item) => (
-              <Card key={item.id} className={needsDispatcher(item.status) && item.status === 'found' ? 'ring-1 ring-override/40' : ''}>
+              <Card key={item.id} className={needsDispatcher(item.status) && item.status === 'found' ? 'border-info/50' : undefined}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant={STATUS_VARIANT[item.status]}>{LOST_ITEM_STATUS_LABEL[item.status]}</Badge>
-                      <span className="font-mono text-xs text-subtle">
-                        #{item.orderId.slice(0, 8)} · {formatDateTime(item.createdAt)}
+                      <span className="num text-xs text-subtle">
+                        <span className="font-mono">{shortId(item.orderId)}</span> · {formatDateTime(item.createdAt)}
                       </span>
                     </div>
-                    <p className="mt-2 text-sm font-semibold text-ink">{item.description}</p>
+                    <p className="mt-2 text-[13px] font-semibold text-ink">{item.description}</p>
                     {item.driverNote && <p className="mt-1 text-xs text-muted">Haydovchi: {item.driverNote}</p>}
                     {item.operatorNote && <p className="mt-1 text-xs text-muted">Operator: {item.operatorNote}</p>}
                   </div>
                   <div className="grid grid-cols-1 gap-1 text-xs sm:grid-cols-2 sm:gap-4">
-                    <Contact label="Yoʻlovchi" name={item.passengerName} phone={item.passengerPhone} />
-                    <Contact label="Haydovchi" name={item.driverName} phone={item.driverPhone} />
+                    <ContactBlock label="Yoʻlovchi" name={item.passengerName} phone={item.passengerPhone} />
+                    <ContactBlock label="Haydovchi" name={item.driverName} phone={item.driverPhone} />
                   </div>
                 </div>
                 {!isFinal(item.status) && (
-                  <div className="mt-3 flex flex-wrap gap-2 border-t border-divider pt-3">
+                  <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">
                     <Button size="sm" onClick={() => setClosing({ item, status: 'returned' })}>
                       Qaytarildi
                     </Button>
@@ -167,7 +177,6 @@ export default function LostItemsPage() {
             ))}
           </div>
         )}
-      </div>
 
       <Modal
         isOpen={closing !== null}
@@ -184,7 +193,7 @@ export default function LostItemsPage() {
           rows={3}
           maxLength={500}
         />
-        <div className="mt-4 flex justify-end gap-2">
+        <div className="mt-4 pt-4 border-t border-line flex justify-end gap-2">
           <Button variant="secondary" onClick={() => setClosing(null)}>
             Bekor qilish
           </Button>
@@ -193,21 +202,7 @@ export default function LostItemsPage() {
           </Button>
         </div>
       </Modal>
-    </div>
+    </PageBody>
   );
 }
 
-function Contact({ label, name, phone }: { label: string; name: string | null; phone: string | null }) {
-  return (
-    <div>
-      <p className="text-[10px] uppercase tracking-wider text-subtle">{label}</p>
-      <p className="text-ink">{name ?? '—'}</p>
-      {phone && (
-        <a href={`tel:${phone}`} className="inline-flex items-center gap-1 font-mono text-primary-text hover:underline">
-          <Phone size={11} aria-hidden />
-          {formatPhone(phone)}
-        </a>
-      )}
-    </div>
-  );
-}

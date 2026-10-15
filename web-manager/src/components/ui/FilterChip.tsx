@@ -1,23 +1,37 @@
+// AUTO-SYNCED from web-manager — edit there, then run scripts/sync-panel-ui.sh
 'use client';
 
 import { X } from 'lucide-react';
+import { cn } from './cn';
+
+export interface FilterChipProps {
+  label: string;
+  onRemove: () => void;
+  className?: string;
+}
 
 /**
- * Removable applied-filter chip — active criteria stays visible above the
- * table, because hidden filters are how an operator ends up swearing the
- * data is wrong (data-tables.md).
+ * One removable applied-filter chip. Active criteria stay visible above the
+ * table — hidden filters are how an operator ends up swearing the data is
+ * wrong. Neutral (not mint): a filter is not a status.
  */
-export function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+export function FilterChip({ label, onRemove, className }: FilterChipProps) {
   return (
-    <span className="inline-flex items-center gap-1 h-7 pl-2.5 pr-1 rounded-full border border-mint/40 bg-mint-tint text-xs font-medium text-primary-text">
-      {label}
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 h-6 pl-2 pr-0.5 rounded-ds-sm border border-line bg-surface-2',
+        'text-xs font-medium text-ink max-w-[16rem]',
+        className
+      )}
+    >
+      <span className="truncate">{label}</span>
       <button
         type="button"
         onClick={onRemove}
         aria-label={`${label} filtrini olib tashlash`}
-        className="h-5 w-5 inline-flex items-center justify-center rounded-full hover:bg-surface-2 transition-colors"
+        className="h-5 w-5 shrink-0 inline-flex items-center justify-center rounded-ds-xs text-muted hover:text-ink hover:bg-surface-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
       >
-        <X size={11} />
+        <X size={12} aria-hidden />
       </button>
     </span>
   );

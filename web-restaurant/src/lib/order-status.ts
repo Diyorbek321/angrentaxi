@@ -26,7 +26,8 @@ export const ORDER_STATUS: Record<FoodOrderStatus, OrderStatusMeta> = {
   preparing: {
     label: 'Tayyorlanmoqda',
     hint: 'Oshxonada',
-    variant: 'warning',
+    // `warning` faqat qo'lda aralashuv uchun (PANEL-UI-KIT §5) — bu yerda emas.
+    variant: 'violet',
     Icon: ChefHat,
   },
   ready: {
@@ -38,13 +39,13 @@ export const ORDER_STATUS: Record<FoodOrderStatus, OrderStatusMeta> = {
   delivered: {
     label: 'Yetkazildi',
     hint: 'Yakunlangan',
-    variant: 'default',
+    variant: 'neutral',
     Icon: PackageCheck,
   },
   cancelled: {
     label: 'Bekor qilindi',
     hint: 'Rad etilgan',
-    variant: 'danger',
+    variant: 'muted-danger',
     Icon: XCircle,
   },
 };

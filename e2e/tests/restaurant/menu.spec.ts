@@ -72,8 +72,11 @@ test.describe('restaurant — menu', () => {
     await expectToast(page, `${name} — narx yangilandi`);
     expect((await findDish(name))?.price).toBe(29000);
 
-    await page.getByRole('button', { name: `${name} — tugagan deb belgilash` }).click();
-    await expect(page.getByRole('button', { name: `${name} — mavjud deb belgilash` })).toBeVisible();
+    // Mavjudlik — jadvaldagi "Sotuvda" switch'i (role="switch").
+    const onSale = page.getByRole('switch', { name: `${name} — sotuvda` });
+    await expect(onSale).toBeChecked();
+    await onSale.click();
+    await expect(onSale).not.toBeChecked();
     expect((await findDish(name))?.isAvailable).toBe(false);
 
     await page.getByRole('button', { name: `${name} — o'chirish` }).click();

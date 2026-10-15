@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
+import { PlateNumber } from '@/components/ui/PlateNumber';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useToast } from '@/components/ui/Toast';
 import { formatPhone, formatRating, shortId } from '@/lib/format';
@@ -46,7 +47,7 @@ export function AssignDriverModal({
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
-      d.name.toLowerCase().includes(q) ||
+      (d.name ?? '').toLowerCase().includes(q) ||
       d.carNumber.toLowerCase().includes(q) ||
       d.carModel.toLowerCase().includes(q) ||
       d.phone.includes(q)
@@ -98,7 +99,7 @@ export function AssignDriverModal({
       {order && (
         <div className="space-y-4">
           {/* Why this exists at all */}
-          <div className="flex items-start gap-2.5 rounded-ds-xs border border-override/40 bg-override/[0.08] p-3">
+          <div className="flex items-start gap-2.5 rounded-ds-sm border border-override/40 bg-override-tint p-3">
             <AlertTriangle size={15} className="text-override shrink-0 mt-0.5" />
             <p className="text-xs text-override-dark dark:text-override-light leading-relaxed">
               Buyurtmalarga haydovchi odatda <strong>avtomatik</strong> tayinlanadi. Bu oynadan
@@ -108,7 +109,7 @@ export function AssignDriverModal({
           </div>
 
           {/* Order summary */}
-          <div className="rounded-ds-xs border border-line bg-surface-2/60 p-3 space-y-2">
+          <div className="rounded-ds-sm border border-line bg-surface-2/60 p-3 space-y-2">
             <div className="flex items-start gap-2">
               <span className="mt-1 h-2 w-2 rounded-full bg-mint-deep shrink-0 ring-2 ring-mint/25" />
               <p className="text-xs text-ink">{order.pickupAddress ?? '—'}</p>
@@ -120,7 +121,7 @@ export function AssignDriverModal({
             {isReassign && order.driver && (
               <p className="text-xs text-muted pt-1 border-t border-line">
                 Hozirgi haydovchi: <strong className="text-ink">{order.driver.name}</strong>{' '}
-                <span className="font-mono">({order.driver.carNumber})</span> — yangi haydovchi
+                <PlateNumber plate={order.driver.carNumber} /> — yangi haydovchi
                 tanlansa, buyurtma unga oʻtkaziladi.
               </p>
             )}
@@ -153,7 +154,7 @@ export function AssignDriverModal({
           />
 
           {error && (
-            <p className="text-xs text-danger bg-danger/10 border border-danger/30 rounded-ds-xs px-3 py-2">
+            <p role="alert" className="text-xs text-danger-dark dark:text-danger-light bg-danger-tint border border-danger/30 rounded-ds-sm px-3 py-2">
               {error}
             </p>
           )}
@@ -178,13 +179,13 @@ export function AssignDriverModal({
               filteredDrivers.map((driver) => (
                 <div
                   key={driver.id}
-                  className="flex items-center gap-3 rounded-ds-xs border border-line bg-surface hover:border-line-strong px-3 py-2.5 transition-colors"
+                  className="flex items-center gap-3 rounded-ds-sm border border-line bg-surface hover:border-line-strong px-3 py-2 transition-colors"
                 >
                   <Avatar name={driver.name} size="sm" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-ink truncate">{driver.name}</p>
-                      <Badge variant="mint-soft" size="sm">
+                      <p className="text-[13px] font-medium text-ink truncate">{driver.name || 'Ism kiritilmagan'}</p>
+                      <Badge variant="success" size="sm">
                         Boʻsh
                       </Badge>
                     </div>
@@ -193,12 +194,12 @@ export function AssignDriverModal({
                         <Car size={11} />
                         {driver.carModel}
                       </span>
-                      <span className="font-mono">{driver.carNumber}</span>
+                      <PlateNumber plate={driver.carNumber} className="h-[18px] text-[11px]" />
                       <span className="flex items-center gap-1">
                         <Star size={11} className="text-primary" fill="currentColor" />
                         {formatRating(driver.rating)}
                       </span>
-                      <span className="font-mono hidden sm:inline">{formatPhone(driver.phone)}</span>
+                      <span className="num hidden sm:inline">{formatPhone(driver.phone)}</span>
                     </div>
                   </div>
 
@@ -220,7 +221,7 @@ export function AssignDriverModal({
             )}
           </div>
 
-          <p className="text-[11px] text-subtle text-center">
+          <p className="num text-[11px] text-subtle text-center">
             {freeDrivers.length} ta boʻsh haydovchi onlayn
           </p>
         </div>

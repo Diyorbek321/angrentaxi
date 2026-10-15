@@ -1,43 +1,28 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Download, Wallet } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
+import { CheckCircle2, Download, Wallet } from 'lucide-react';
+import { Badge, type BadgeVariant } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Tabs } from '@/components/ui/Tabs';
-import { PaginationBar } from '@/components/ui/PaginationBar';
-import { SkeletonTable } from '@/components/ui/Skeleton';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { ErrorState } from '@/components/ui/ErrorState';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/Table';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/Modal';
+import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
+import type { EmptyStateProps } from '@/components/ui/EmptyState';
+import { Modal } from '@/components/ui/Modal';
+import { MoneyText } from '@/components/ui/MoneyText';
 import { withdrawalsApi, WithdrawalRequest, WithdrawalStatus } from '@/lib/api';
 import { usePagination } from '@/hooks/usePagination';
 import { useToast } from '@/components/ui/Toast';
 import { downloadCsv } from '@/lib/csv';
-import { formatCurrency, formatDate, formatPhone, getFullName } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
+import { formatDateTime, formatMoney, formatPhone, fullName } from '@/lib/format';
 
-const statusBadgeVariant: Record<WithdrawalStatus, 'warning' | 'info' | 'destructive' | 'success'> = {
+// Pending = waiting on an admin's decision (amber); approved = info; paid = done.
+const statusBadgeVariant: Record<WithdrawalStatus, BadgeVariant> = {
   pending: 'warning',
   approved: 'info',
-  rejected: 'destructive',
+  rejected: 'danger',
   paid: 'success',
 };
 
@@ -65,14 +50,15 @@ const STATUS_TABS: { value: StatusFilter; label: string }[] = [
   { value: 'all', label: 'Barchasi' },
 ];
 
+const requesterName = (w: WithdrawalRequest) => fullName(w.driver?.firstName, w.driver?.lastName);
+
 export default function WithdrawalsPage() {
   const { toast } = useToast();
   const pagination = usePagination(20);
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
-  // Navbat sahifasi: standart ko'rinish — hal qilinishi KUTILAYOTGANLAR.
+  // Queue page: the default view is what still WAITS for a decision.
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending');
   const [target, setTarget] = useState<WithdrawalRequest | null>(null);
   const [action, setAction] = useState<Action | null>(null);
@@ -92,15 +78,14 @@ export default function WithdrawalsPage() {
       const total = payload?.total ?? 0;
       pagination.setTotal(total, Math.ceil(total / pagination.limit));
       setError(null);
-      setHasLoadedOnce(true);
     } catch {
-      // Oxirgi muvaffaqiyatli qatorlar ekranda qoladi; banner + retry chiqadi.
+      // Last good rows stay on screen; DataTable shows banner + retry.
       setError("Pul yechish so'rovlarini yuklab bo'lmadi");
       toast({ title: 'Xatolik', description: "Pul yechish so'rovlarini yuklashda xatolik", variant: 'error' });
     } finally {
       setIsLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.page, pagination.limit, statusFilter]);
 
   useEffect(() => {
@@ -119,6 +104,11 @@ export default function WithdrawalsPage() {
     setAdminNote('');
   };
 
+  const changeFilter = (v: StatusFilter) => {
+    setStatusFilter(v);
+    pagination.reset();
+  };
+
   const handleConfirm = async () => {
     if (!target || !action) return;
     setActionLoading(true);
@@ -131,10 +121,7 @@ export default function WithdrawalsPage() {
             : action === 'rejected'
             ? "So'rov rad etildi — summa hamyonga qaytadi"
             : "To'langan deb belgilandi",
-        description: `${formatCurrency(target.amount)} · ${getFullName(
-          target.driver?.firstName ?? '',
-          target.driver?.lastName ?? ''
-        )}`,
+        description: `${formatMoney(target.amount)} · ${requesterName(target)}`,
         variant: 'success',
       });
       closeAction();
@@ -151,10 +138,7 @@ export default function WithdrawalsPage() {
     downloadCsv<WithdrawalRequest>(
       `pul-yechish-${new Date().toISOString().slice(0, 10)}.csv`,
       [
-        {
-          header: "So'rov beruvchi",
-          value: (w) => getFullName(w.driver?.firstName ?? '', w.driver?.lastName ?? ''),
-        },
+        { header: "So'rov beruvchi", value: (w) => requesterName(w) },
         { header: 'Telefon', value: (w) => w.driver?.phone ?? '' },
         { header: 'Turi', value: (w) => ownerTypeLabel[w.ownerType] ?? w.ownerType },
         { header: 'Summa', value: (w) => w.amount },
@@ -168,237 +152,202 @@ export default function WithdrawalsPage() {
     toast({ title: 'CSV yuklab olindi', description: `${withdrawals.length} ta qator`, variant: 'success' });
   };
 
-  // Tasdiqlash — asosiy interaktiv harakat (yashil, oq matn).
-  // Rad etish — xavfli/bekor qiluvchi harakat.
-  // "To'landi" deb belgilash — pul tizim tashqarisida qo'lda o'tkazilgani
-  // uchun qo'lda aralashuv (amber, `override`).
-  const confirmButtonVariant =
-    action === 'rejected' ? 'destructive' : action === 'paid' ? 'override' : 'default';
+  // Approve = primary; reject = destructive; "paid" = manual off-system transfer → override (amber).
+  const confirmButtonVariant = action === 'rejected' ? 'danger' : action === 'paid' ? 'override' : 'primary';
 
-  const showFullError = error && !isLoading && !hasLoadedOnce;
-  const showErrorBanner = error && !isLoading && hasLoadedOnce;
-
-  const renderEmpty = () => {
-    if (statusFilter === 'pending') {
-      // HAQIQIY "tozalangan navbat" holati — bu yaxshi yangilik, muammo emas.
-      return (
-        <EmptyState
-          tone="positive"
-          icon={<CheckCircle2 className="h-6 w-6" />}
-          title="Navbat bo'sh ✓"
-          description="Barcha pul yechish so'rovlari ko'rib chiqilgan. Yangi so'rov kelganda shu yerda ko'rinadi."
-        />
-      );
-    }
-    return (
-      <EmptyState
-        icon={<Wallet className="h-6 w-6" />}
-        title="So'rovlar topilmadi"
-        description={`"${STATUS_TABS.find((t) => t.value === statusFilter)?.label}" holatida so'rov yo'q.`}
-        action={
-          statusFilter !== 'all' ? (
-            <Button variant="secondary" size="sm" onClick={() => { setStatusFilter('all'); pagination.reset(); }}>
-              Barchasini ko&apos;rish
+  const columns: DataTableColumn<WithdrawalRequest>[] = [
+    {
+      key: 'requester',
+      header: "So'rov beruvchi",
+      cell: (w) => (
+        <div className="min-w-0 leading-tight">
+          <p className="font-medium text-ink truncate">{requesterName(w)}</p>
+          <p className="num text-xs text-muted whitespace-nowrap">{formatPhone(w.driver?.phone)}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'type',
+      header: 'Turi',
+      hideBelow: 'xl',
+      cell: (w) => <Badge variant="neutral">{ownerTypeLabel[w.ownerType] ?? w.ownerType}</Badge>,
+    },
+    {
+      key: 'amount',
+      header: 'Summa',
+      numeric: true,
+      cell: (w) => <MoneyText value={w.amount} className="font-semibold" />,
+    },
+    {
+      key: 'destination',
+      header: "To'lov manzili",
+      cell: (w) => <span className="font-mono text-xs text-muted whitespace-nowrap">{w.payoutDestination}</span>,
+    },
+    {
+      key: 'status',
+      header: 'Holat',
+      cell: (w) => (
+        <div className="min-w-0">
+          <Badge variant={statusBadgeVariant[w.status]} dot>
+            {statusLabel[w.status]}
+          </Badge>
+          {w.adminNote && (
+            <p className="mt-0.5 max-w-[200px] truncate text-xs text-subtle" title={w.adminNote}>
+              {w.adminNote}
+            </p>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'requestedAt',
+      header: 'Sana',
+      hideBelow: 'xl',
+      cell: (w) => <span className="num text-muted whitespace-nowrap">{formatDateTime(w.requestedAt)}</span>,
+    },
+    {
+      key: 'actions',
+      header: <span className="sr-only">Amallar</span>,
+      align: 'right',
+      cell: (w) => (
+        <div className="flex justify-end gap-1.5 whitespace-nowrap">
+          {w.status === 'pending' && (
+            <>
+              <Button size="sm" variant="primary" onClick={() => openAction(w, 'approved')}>
+                Tasdiqlash
+              </Button>
+              <Button size="sm" variant="danger-ghost" onClick={() => openAction(w, 'rejected')}>
+                Rad etish
+              </Button>
+            </>
+          )}
+          {w.status === 'approved' && (
+            <Button size="sm" variant="override" onClick={() => openAction(w, 'paid')}>
+              To&apos;landi deb belgilash
             </Button>
-          ) : undefined
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  const empty: EmptyStateProps =
+    statusFilter === 'pending'
+      ? {
+          variant: 'cleared',
+          icon: <CheckCircle2 aria-hidden />,
+          title: "Navbat bo'sh",
+          description: "Barcha pul yechish so'rovlari ko'rib chiqilgan. Yangi so'rov kelganda shu yerda ko'rinadi.",
         }
-      />
-    );
-  };
+      : {
+          variant: statusFilter === 'all' ? 'first-use' : 'no-results',
+          icon: <Wallet aria-hidden />,
+          title: "So'rovlar topilmadi",
+          description:
+            statusFilter === 'all'
+              ? "Hozircha pul yechish so'rovlari yo'q."
+              : `"${STATUS_TABS.find((t) => t.value === statusFilter)?.label}" holatida so'rov yo'q.`,
+          onClearFilters: statusFilter !== 'all' ? () => changeFilter('all') : undefined,
+        };
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="px-4 sm:px-6 py-5">
       <PageHeader
-        title="Pul yechish so'rovlari"
+        title="Pul yechish"
         description="Haydovchi, Market va Eats — barcha to'lov so'rovlari bitta navbatda"
-        icon={<Wallet className="h-4 w-4" aria-hidden="true" />}
         actions={
           <Button
-            variant="outline"
-            size="sm"
+            variant="secondary"
             onClick={handleExportCsv}
             disabled={withdrawals.length === 0}
-            leftIcon={<Download className="h-4 w-4" aria-hidden="true" />}
+            leftIcon={<Download size={14} aria-hidden />}
           >
             CSV eksport
           </Button>
         }
       />
-      <div className="space-y-4">
-        <Tabs
-          ariaLabel="Holat bo'yicha filtr"
-          items={STATUS_TABS}
-          value={statusFilter}
-          onChange={(v) => { setStatusFilter(v as StatusFilter); pagination.reset(); }}
-        />
 
-        {showErrorBanner && (
-          <div
-            role="alert"
-            className="flex flex-wrap items-center justify-between gap-3 rounded-ds-sm border border-danger/30 bg-danger-tint px-4 py-3"
-          >
-            <p className="flex items-center gap-2 text-body text-danger-deep dark:text-danger-light">
-              <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
-              {error} — oxirgi muvaffaqiyatli yuklangan ma&apos;lumot ko&apos;rsatilmoqda.
-            </p>
-            <Button variant="secondary" size="sm" onClick={fetchWithdrawals}>
-              Qayta urinish
-            </Button>
-          </div>
-        )}
-
-        {showFullError ? (
-          <Card>
-            <CardContent className="p-0">
-              <ErrorState message={error} onRetry={fetchWithdrawals} />
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardContent className="p-0">
-              {isLoading ? (
-                <SkeletonTable rows={6} cols={7} className="border-0" />
-              ) : withdrawals.length === 0 ? (
-                renderEmpty()
-              ) : (
-                <Table stickyHeader containerClassName="max-h-[65vh]">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>So&apos;rov beruvchi</TableHead>
-                      <TableHead>Turi</TableHead>
-                      <TableHead className="text-right">Summa</TableHead>
-                      <TableHead>To&apos;lov manzili</TableHead>
-                      <TableHead>Holat</TableHead>
-                      <TableHead>Sana</TableHead>
-                      <TableHead className="text-right">Amallar</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {withdrawals.map((w) => (
-                      <TableRow key={w.id}>
-                        <TableCell>
-                          <p className="font-medium text-ink">
-                            {getFullName(w.driver?.firstName ?? '', w.driver?.lastName ?? '') || '—'}
-                          </p>
-                          <p className="font-mono text-caption text-subtle">
-                            {w.driver ? formatPhone(w.driver.phone) : '—'}
-                          </p>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">{ownerTypeLabel[w.ownerType] ?? w.ownerType}</Badge>
-                        </TableCell>
-                        <TableCell className="text-right font-mono font-semibold tabular-nums text-ink">
-                          {formatCurrency(w.amount)}
-                        </TableCell>
-                        <TableCell className="font-mono text-caption text-muted">
-                          {w.payoutDestination}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={statusBadgeVariant[w.status]} dot>
-                            {statusLabel[w.status]}
-                          </Badge>
-                          {w.adminNote && (
-                            <p className="mt-1 max-w-[200px] truncate text-caption text-subtle" title={w.adminNote}>
-                              {w.adminNote}
-                            </p>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-caption tabular-nums text-muted">
-                          {formatDate(w.requestedAt)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {w.status === 'pending' && (
-                            <div className="flex justify-end gap-2">
-                              <Button size="sm" variant="default" onClick={() => openAction(w, 'approved')}>
-                                Tasdiqlash
-                              </Button>
-                              <Button size="sm" variant="destructive" onClick={() => openAction(w, 'rejected')}>
-                                Rad etish
-                              </Button>
-                            </div>
-                          )}
-                          {w.status === 'approved' && (
-                            <Button size="sm" variant="override" onClick={() => openAction(w, 'paid')}>
-                              To&apos;landi deb belgilash
-                            </Button>
-                          )}
-                          {(w.status === 'paid' || w.status === 'rejected') && (
-                            <span className="text-caption text-subtle" aria-hidden="true">—</span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        <PaginationBar
-          page={pagination.page}
-          limit={pagination.limit}
-          total={pagination.total}
-          totalPages={pagination.totalPages}
-          pageRange={pagination.pageRange}
-          canGoPrev={pagination.canGoPrev}
-          canGoNext={pagination.canGoNext}
-          onPageChange={pagination.goToPage}
-          onLimitChange={pagination.setLimit}
-        />
-      </div>
-
-      {/* MOLIYAVIY amal — har doim aniq tasdiqlash: summa QAYTA ko'rsatiladi,
-          oqibat so'z bilan aytiladi. */}
-      <Dialog open={!!action} onOpenChange={(open) => !open && closeAction()}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {action === 'approved' && "So'rovni tasdiqlash"}
-              {action === 'rejected' && "So'rovni rad etish"}
-              {action === 'paid' && "To'langan deb belgilash"}
-            </DialogTitle>
-            <DialogDescription>
-              {action === 'approved' &&
-                "So'rov tasdiqlanadi. Pul haligacha o'tkazilmagan — buni haqiqatda o'tkazgach, \"To'langan\" deb belgilang."}
-              {action === 'rejected' &&
-                "So'rov rad etiladi va ushlab turilgan summa hamyonga qaytariladi."}
-              {action === 'paid' &&
-                "Faqat pulni haqiqatda (karta/bank orqali) o'tkazgandan keyin bosing — bu yerda avtomatik to'lov yo'q."}
-            </DialogDescription>
-          </DialogHeader>
-          {target && (
-            <div className="rounded-ds-md bg-surface-2 p-4">
-              <p className="text-caption text-muted">
-                {getFullName(target.driver?.firstName ?? '', target.driver?.lastName ?? '')} ·{' '}
-                {ownerTypeLabel[target.ownerType] ?? target.ownerType}
-              </p>
-              <p className="mt-1 font-mono text-h2 tabular-nums text-ink">
-                {formatCurrency(target.amount)}
-              </p>
-              <p className="mt-1 font-mono text-caption text-subtle">{target.payoutDestination}</p>
-            </div>
-          )}
-          <Input
-            label="Izoh (ixtiyoriy)"
-            placeholder={action === 'rejected' ? 'Rad etish sababi...' : "Masalan: Click orqali o'tkazildi"}
-            value={adminNote}
-            onChange={(e) => setAdminNote(e.target.value)}
+      <DataTable
+        ariaLabel="Pul yechish so'rovlari"
+        columns={columns}
+        rows={withdrawals}
+        rowKey={(w) => w.id}
+        loading={isLoading}
+        error={error}
+        onRetry={fetchWithdrawals}
+        empty={empty}
+        maxHeightClassName="max-h-[calc(100vh-260px)]"
+        toolbar={
+          <SegmentedControl
+            ariaLabel="Holat bo'yicha filtr"
+            items={STATUS_TABS}
+            value={statusFilter}
+            onChange={(v) => changeFilter(v as StatusFilter)}
           />
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={closeAction}>
+        }
+        pagination={{
+          page: pagination.page,
+          limit: pagination.limit,
+          total: pagination.total,
+          totalPages: pagination.totalPages,
+          pageRange: pagination.pageRange,
+          canGoPrev: pagination.canGoPrev,
+          canGoNext: pagination.canGoNext,
+          onPageChange: pagination.goToPage,
+          onLimitChange: pagination.setLimit,
+        }}
+      />
+
+      {/* Financial action — always an explicit confirmation: amount shown again, consequence named. */}
+      <Modal
+        isOpen={!!action}
+        onClose={closeAction}
+        tone={action === 'rejected' ? 'danger' : action === 'paid' ? 'override' : 'default'}
+        title={
+          action === 'approved'
+            ? "So'rovni tasdiqlash"
+            : action === 'rejected'
+            ? "So'rovni rad etish"
+            : "To'langan deb belgilash"
+        }
+        description={
+          action === 'approved'
+            ? "Pul haligacha o'tkazilmagan — haqiqatda o'tkazgach, \"To'langan\" deb belgilang."
+            : action === 'rejected'
+            ? "Ushlab turilgan summa hamyonga qaytariladi."
+            : "Faqat pulni haqiqatda (karta/bank orqali) o'tkazgandan keyin bosing — avtomatik to'lov yo'q."
+        }
+        footer={
+          <>
+            <Button variant="secondary" onClick={closeAction} disabled={actionLoading}>
               Bekor qilish
             </Button>
             <Button variant={confirmButtonVariant} isLoading={actionLoading} onClick={handleConfirm}>
               {action === 'approved' && target
-                ? `Tasdiqlash — ${formatCurrency(target.amount)}`
+                ? `Tasdiqlash — ${formatMoney(target.amount)}`
                 : action === 'rejected'
                 ? 'Rad etish'
                 : "To'landi deb belgilash"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        }
+      >
+        {target && (
+          <div className="mb-4 rounded-ds-md border border-line bg-surface-2 px-3 py-2.5">
+            <p className="text-xs text-muted">
+              {requesterName(target)} · {ownerTypeLabel[target.ownerType] ?? target.ownerType}
+            </p>
+            <MoneyText value={target.amount} className="mt-1 block text-h2 font-semibold text-ink" />
+            <p className="mt-1 font-mono text-xs text-subtle">{target.payoutDestination}</p>
+          </div>
+        )}
+        <Input
+          label="Izoh (ixtiyoriy)"
+          placeholder={action === 'rejected' ? 'Rad etish sababi…' : "Masalan: Click orqali o'tkazildi"}
+          value={adminNote}
+          onChange={(e) => setAdminNote(e.target.value)}
+        />
+      </Modal>
     </div>
   );
 }

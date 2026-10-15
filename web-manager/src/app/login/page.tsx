@@ -5,13 +5,15 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowRight, Car, Lock, Phone } from 'lucide-react';
+import { AlertCircle, ArrowRight, Car, Lock, Phone } from 'lucide-react';
 import { sendOtp, verifyOtp } from '@/lib/api';
 import { setUser, isAuthenticated } from '@/lib/auth';
 import { sanitizeNextPath } from '@/lib/route-guard';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { cn } from '@/components/ui/cn';
+import { formatPhone } from '@/lib/format';
 
 const phoneSchema = z.object({
   phone: z.string().min(9, 'Telefon raqamini kiriting'),
@@ -93,43 +95,59 @@ export default function LoginPage() {
     }
   };
 
-  return (
-    <div className="relative min-h-screen bg-bg flex items-center justify-center p-4 overflow-hidden">
-      {/* Mint glow, subtle in both themes */}
-      <div className="absolute -top-24 -right-24 w-96 h-96 bg-primary/10 blur-[120px] rounded-full pointer-events-none" />
-      <div className="absolute -bottom-32 -left-24 w-80 h-80 bg-primary/[0.07] blur-[120px] rounded-full pointer-events-none" />
+  const stepIndex = step === 'phone' ? 1 : 2;
 
-      <div className="absolute top-4 right-4 z-20">
+  return (
+    <div className="relative flex min-h-screen items-center justify-center bg-bg px-4 py-10">
+      <div className="absolute right-4 top-4">
         <ThemeToggle />
       </div>
 
-      <div className="relative w-full max-w-sm z-10">
-        <div className="flex flex-col items-center mb-8">
-          {/* Ink glyph on primary fill was 3.10:1 — the fill is the interactive
-              layer now, so the glyph is white (5.38:1, DESIGN-TOKENS §6.2). */}
-          <div className="h-14 w-14 rounded-ds-md bg-primary flex items-center justify-center mb-4 shadow-glow-primary">
-            <Car size={28} className="text-white" />
+      <main className="w-full max-w-sm">
+        <div className="mb-6 flex flex-col items-center gap-3 text-center">
+          <span
+            aria-hidden
+            className="flex h-10 w-10 items-center justify-center rounded-ds-sm bg-primary text-white dark:bg-primary-on-dark"
+          >
+            <Car size={20} />
+          </span>
+          <div>
+            <p className="text-title text-ink">Angren Taxi</p>
+            <p className="text-[13px] text-muted">Dispetcher paneli</p>
           </div>
-          <h1 className="text-2xl font-bold text-ink">Angren Taxi</h1>
-          <p className="text-muted text-sm mt-1">Dispetcher paneli</p>
         </div>
 
-        <div className="bg-surface border border-line rounded-ds-md p-6 shadow-card">
-          <h2 className="text-lg font-semibold text-ink mb-1">
-            {step === 'phone' ? 'Kirish' : 'Tasdiqlash kodi'}
-          </h2>
-          <p className="text-muted text-sm mb-6">
-            {step === 'phone'
-              ? 'Telefon raqamingizni kiriting'
-              : `${phone} raqamiga yuborilgan kodni kiriting`}
-          </p>
+        <div className="rounded-ds-md border border-line bg-surface p-6 shadow-card">
+          {/* Step indicator — meaning in words too, not colour alone. */}
+          <div className="mb-5">
+            <div className="flex items-center gap-1.5" aria-hidden="true">
+              <span className="h-1 flex-1 rounded-full bg-primary dark:bg-primary-on-dark" />
+              <span
+                className={cn(
+                  'h-1 flex-1 rounded-full transition-colors',
+                  step === 'otp' ? 'bg-primary dark:bg-primary-on-dark' : 'bg-surface-3'
+                )}
+              />
+            </div>
+            <p className="num mt-2 text-xs text-subtle">{stepIndex}-qadam / 2</p>
+          </div>
+
+          <div className="mb-5">
+            <h1 className="text-h2 text-ink">{step === 'phone' ? 'Panelga kirish' : 'Tasdiqlash kodi'}</h1>
+            <p className="mt-1 text-[13px] leading-relaxed text-muted">
+              {step === 'phone'
+                ? 'Telefon raqamingizni kiriting — SMS orqali bir martalik kod yuboramiz.'
+                : `${formatPhone(phone)} raqamiga yuborilgan 6 raqamli kodni kiriting.`}
+            </p>
+          </div>
 
           {authError && (
             <div
               role="alert"
-              className="mb-4 bg-danger-tint border border-danger/40 rounded-ds-xs p-3 text-danger-deep dark:text-danger-light text-sm"
+              className="mb-4 flex items-start gap-2 rounded-ds-sm border border-danger/30 bg-danger-tint px-3 py-2 text-[13px] text-danger-dark dark:text-danger-light"
             >
-              {authError}
+              <AlertCircle size={15} className="mt-px shrink-0" aria-hidden="true" />
+              <span>{authError}</span>
             </div>
           )}
 
@@ -138,10 +156,11 @@ export default function LoginPage() {
               <Input
                 label="Telefon raqam"
                 type="tel"
-                placeholder="+998901234568"
                 autoComplete="tel"
-                mono
-                leftElement={<Phone size={15} />}
+                autoFocus
+                placeholder="+998901234568"
+                className="num"
+                leftIcon={<Phone aria-hidden="true" />}
                 {...phoneForm.register('phone')}
                 error={phoneForm.formState.errors.phone?.message}
               />
@@ -150,8 +169,8 @@ export default function LoginPage() {
                 variant="primary"
                 size="lg"
                 isLoading={phoneForm.formState.isSubmitting}
-                className="w-full mt-2"
-                rightIcon={<ArrowRight size={16} />}
+                className="w-full"
+                rightIcon={<ArrowRight size={15} aria-hidden="true" />}
               >
                 Kod yuborish
               </Button>
@@ -162,19 +181,21 @@ export default function LoginPage() {
                 label="Tasdiqlash kodi"
                 type="text"
                 inputMode="numeric"
+                autoFocus
+                autoComplete="one-time-code"
                 placeholder="000000"
                 maxLength={6}
                 mono
-                leftElement={<Lock size={15} />}
+                leftIcon={<Lock aria-hidden="true" />}
                 {...otpForm.register('code')}
                 error={otpForm.formState.errors.code?.message}
               />
               {/* Dev-only helper note — informational blue; amber stays
                   reserved for manual override alone. */}
               {devOtpCode && (
-                <div className="rounded-ds-xs border border-info/40 bg-info-tint px-3 py-2 text-sm text-info-deep dark:text-info-light">
+                <div className="rounded-ds-sm border border-info/30 bg-info-tint px-3 py-2 text-[13px] text-info-dark dark:text-info-light">
                   <span className="font-semibold">TEST:</span> OTP kod —{' '}
-                  <span className="font-mono font-bold">{devOtpCode}</span> (avtomatik kiritildi)
+                  <span className="font-mono font-semibold">{devOtpCode}</span> (avtomatik kiritildi)
                 </div>
               )}
               <Button
@@ -182,26 +203,29 @@ export default function LoginPage() {
                 variant="primary"
                 size="lg"
                 isLoading={otpForm.formState.isSubmitting}
-                className="w-full mt-2"
-                rightIcon={<ArrowRight size={16} />}
+                className="w-full"
+                rightIcon={<ArrowRight size={15} aria-hidden="true" />}
               >
                 Kirish
               </Button>
-              <button
+              <Button
                 type="button"
-                onClick={() => { setStep('phone'); setDevOtpCode(''); setAuthError(null); }}
-                className="w-full text-center text-sm text-muted hover:text-ink transition-colors"
+                variant="ghost"
+                className="w-full"
+                onClick={() => {
+                  setStep('phone');
+                  setDevOtpCode('');
+                  setAuthError(null);
+                }}
               >
                 Raqamni oʻzgartirish
-              </button>
+              </Button>
             </form>
           )}
         </div>
 
-        <p className="text-center text-subtle text-xs mt-6">
-          Angren Taxi Dispetcher paneli v0.1.0
-        </p>
-      </div>
+        <p className="mt-6 text-center text-xs text-subtle">Angren Taxi · Dispetcher paneli</p>
+      </main>
     </div>
   );
 }

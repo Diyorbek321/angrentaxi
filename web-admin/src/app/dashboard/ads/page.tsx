@@ -1,37 +1,23 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useEffect, useState } from 'react';
-import { AlertTriangle, BarChart3, ExternalLink, Megaphone, Plus, Store, Trash2, UtensilsCrossed } from 'lucide-react';
-import { PageHeader } from '@/components/ui/PageHeader';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
-import { Switch } from '@/components/ui/Switch';
+import { useCallback, useEffect, useState } from 'react';
+import { BarChart3, ExternalLink, Plus, Store, Trash2, UtensilsCrossed } from 'lucide-react';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/Modal';
-import { SkeletonTable } from '@/components/ui/Skeleton';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { ErrorState } from '@/components/ui/ErrorState';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/Table';
+  Badge,
+  Button,
+  ConfirmDialog,
+  DataTable,
+  IconButton,
+  PageHeader,
+  Switch,
+  type DataTableColumn,
+} from '@/components/ui';
 import { useToast } from '@/components/ui/Toast';
 import { CreateAdDialog } from '@/components/ads/CreateAdDialog';
 import { adsApi, type AdBanner } from '@/lib/api';
 import { AD_LINK_LABELS, AD_STATE_LABELS, adCtr, adState, formatCtr, type AdState } from '@/lib/ads';
-import { formatDate } from '@/lib/utils';
+import { formatDateShort, formatNumber } from '@/lib/format';
 
 // Hisobot oynasi grafik (recharts) bilan — sahifa birinchi yuklanishiga
 // kirmasin; bo'lak sahifa chizilgandan keyin fonda yuklanadi.
@@ -41,18 +27,18 @@ const AdDailyDrawer = dynamic(
 );
 
 // Amber intizomi: amber faqat qo'lda aralashuv uchun — bu yerda yo'q.
-const STATE_BADGE: Record<AdState, 'success' | 'info' | 'secondary'> = {
+const STATE_BADGE: Record<AdState, 'success' | 'info' | 'neutral'> = {
   live: 'success',
   scheduled: 'info',
-  ended: 'secondary',
-  off: 'secondary',
+  ended: 'neutral',
+  off: 'neutral',
 };
 
 const LINK_ICON = { restaurant: UtensilsCrossed, store: Store, url: ExternalLink } as const;
 
 function windowText(ad: AdBanner): string {
-  const from = ad.startsAt ? formatDate(ad.startsAt, 'dd.MM.yyyy') : 'Hozirdan';
-  const to = ad.endsAt ? formatDate(ad.endsAt, 'dd.MM.yyyy') : 'muddatsiz';
+  const from = ad.startsAt ? formatDateShort(ad.startsAt) : 'Hozirdan';
+  const to = ad.endsAt ? formatDateShort(ad.endsAt) : 'muddatsiz';
   return `${from} — ${to}`;
 }
 
@@ -61,31 +47,28 @@ export default function AdsPage() {
   const [ads, setAds] = useState<AdBanner[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdBanner | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [reportTarget, setReportTarget] = useState<AdBanner | null>(null);
 
-  const fetchAds = async () => {
+  const fetchAds = useCallback(async () => {
     setIsLoading(true);
     try {
       const res = await adsApi.getAll();
       setAds(res.data.data);
       setError(null);
-      setHasLoadedOnce(true);
     } catch {
       setError("Bannerlarni yuklab bo'lmadi");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchAds();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    void fetchAds();
+  }, [fetchAds]);
 
   const handleToggle = async (ad: AdBanner) => {
     setTogglingId(ad.id);
@@ -120,146 +103,132 @@ export default function AdsPage() {
   };
 
   const liveCount = ads.filter((a) => adState(a) === 'live').length;
-  const showFullError = error && !isLoading && !hasLoadedOnce;
+
+  // Ustun tartibi e2e bilan bog'langan: 3 = Ko'rish, 5 = CTR.
+  const columns: DataTableColumn<AdBanner>[] = [
+    {
+      key: 'banner',
+      header: 'Banner',
+      cell: (ad) => {
+        const LinkIcon = ad.linkType === 'none' ? null : LINK_ICON[ad.linkType];
+        return (
+          <div className="flex items-center gap-3 min-w-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={adsApi.imageUrl(ad.id)}
+              alt=""
+              loading="lazy"
+              className="h-8 w-16 shrink-0 rounded-ds-xs border border-line bg-surface-2 object-cover"
+            />
+            <div className="min-w-0">
+              <p className="truncate font-medium text-ink">{ad.title}</p>
+              <p className="flex items-center gap-1 text-xs text-muted">
+                {LinkIcon && <LinkIcon className="h-3 w-3 shrink-0" aria-hidden="true" />}
+                <span className="truncate max-w-[260px]">
+                  {ad.linkType === 'url' ? ad.linkTarget : AD_LINK_LABELS[ad.linkType]}
+                </span>
+                <span className="num text-subtle">· #{ad.sortOrder}</span>
+              </p>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'window',
+      header: 'Muddat',
+      className: 'num whitespace-nowrap text-muted',
+      cell: (ad) => windowText(ad),
+    },
+    {
+      key: 'state',
+      header: 'Holati',
+      cell: (ad) => {
+        const state = adState(ad);
+        return (
+          <div className="flex items-center gap-2.5">
+            <Switch
+              size="sm"
+              checked={ad.isActive}
+              disabled={togglingId === ad.id}
+              onCheckedChange={() => handleToggle(ad)}
+              aria-label={`«${ad.title}» bannerini ${ad.isActive ? "o'chirish" : 'yoqish'}`}
+            />
+            <Badge variant={STATE_BADGE[state]} dot>
+              {AD_STATE_LABELS[state]}
+            </Badge>
+          </div>
+        );
+      },
+    },
+    { key: 'impressions', header: "Ko'rish", numeric: true, hideBelow: 'xl', cell: (ad) => formatNumber(ad.impressions) },
+    { key: 'clicks', header: 'Bosish', numeric: true, hideBelow: 'xl', cell: (ad) => formatNumber(ad.clicks) },
+    {
+      key: 'ctr',
+      header: 'CTR',
+      numeric: true,
+      className: 'text-muted',
+      cell: (ad) => formatCtr(adCtr(ad)),
+    },
+    {
+      key: 'actions',
+      header: <span className="sr-only">Amallar</span>,
+      align: 'right',
+      width: 'w-20',
+      cell: (ad) => (
+        <div className="flex items-center justify-end gap-0.5">
+          <IconButton size="sm" aria-label={`«${ad.title}» kunlik hisoboti`} onClick={() => setReportTarget(ad)}>
+            <BarChart3 aria-hidden />
+          </IconButton>
+          <IconButton
+            size="sm"
+            variant="danger-ghost"
+            aria-label={`«${ad.title}» bannerini o'chirish`}
+            onClick={() => setDeleteTarget(ad)}
+          >
+            <Trash2 aria-hidden />
+          </IconButton>
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="px-4 sm:px-6 py-5">
       <PageHeader
         title="Reklama"
-        description={`Bosh ekran karuseli · hozir ${liveCount} ta ko'rsatilmoqda, jami ${ads.length} ta`}
-        icon={<Megaphone className="h-4 w-4" aria-hidden="true" />}
+        description={
+          isLoading && ads.length === 0
+            ? 'Bosh ekran karuseli'
+            : `Bosh ekran karuseli · hozir ${liveCount} ta ko'rsatilmoqda, jami ${ads.length} ta`
+        }
         actions={
-          <Button size="sm" onClick={() => setCreateOpen(true)} leftIcon={<Plus className="h-4 w-4" aria-hidden="true" />}>
+          <Button onClick={() => setCreateOpen(true)} leftIcon={<Plus className="h-4 w-4" aria-hidden="true" />}>
             Banner qo&apos;shish
           </Button>
         }
       />
 
-      <div className="space-y-4">
-        {error && hasLoadedOnce && !isLoading && (
-          <div
-            role="alert"
-            className="flex flex-wrap items-center justify-between gap-3 rounded-ds-sm border border-danger/30 bg-danger-tint px-4 py-3"
-          >
-            <p className="flex items-center gap-2 text-body text-danger-deep dark:text-danger-light">
-              <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
-              {error} — oxirgi yuklangan ma&apos;lumot ko&apos;rsatilmoqda.
-            </p>
-            <Button variant="secondary" size="sm" onClick={fetchAds}>
-              Qayta urinish
+      <DataTable
+        ariaLabel="Reklama bannerlari"
+        columns={columns}
+        rows={ads}
+        rowKey={(ad) => ad.id}
+        loading={isLoading}
+        error={error}
+        onRetry={fetchAds}
+        empty={{
+          variant: 'first-use',
+          title: "Bannerlar yo'q",
+          description:
+            "Reklama beruvchi bilan kelishilgach, bannerni shu yerdan qo'shing — u yo'lovchilarning bosh ekranida ko'rinadi.",
+          action: (
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              Banner qo&apos;shish
             </Button>
-          </div>
-        )}
-
-        <Card>
-          <CardContent className="p-0">
-            {showFullError ? (
-              <ErrorState message={error} onRetry={fetchAds} />
-            ) : isLoading && !hasLoadedOnce ? (
-              <SkeletonTable rows={4} cols={7} className="border-0" />
-            ) : ads.length === 0 ? (
-              <EmptyState
-                icon={<Megaphone className="h-6 w-6" />}
-                title="Bannerlar yo'q"
-                description="Reklama beruvchi bilan kelishilgach, bannerni shu yerdan qo'shing — u yo'lovchilarning bosh ekranida ko'rinadi."
-                action={
-                  <Button size="sm" onClick={() => setCreateOpen(true)}>
-                    Banner qo&apos;shish
-                  </Button>
-                }
-              />
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Banner</TableHead>
-                    <TableHead>Muddat</TableHead>
-                    <TableHead>Holati</TableHead>
-                    <TableHead className="text-right">Ko&apos;rish</TableHead>
-                    <TableHead className="text-right">Bosish</TableHead>
-                    <TableHead className="text-right">CTR</TableHead>
-                    <TableHead className="text-right">Amal</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {ads.map((ad) => {
-                    const state = adState(ad);
-                    const LinkIcon = ad.linkType === 'none' ? null : LINK_ICON[ad.linkType];
-                    return (
-                      <TableRow key={ad.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={adsApi.imageUrl(ad.id)}
-                              alt=""
-                              loading="lazy"
-                              className="h-10 w-20 shrink-0 rounded-ds-sm border border-line bg-surface-2 object-cover"
-                            />
-                            <div className="min-w-0">
-                              <p className="truncate font-medium text-ink">{ad.title}</p>
-                              <p className="flex items-center gap-1 text-caption text-muted">
-                                {LinkIcon && <LinkIcon className="h-3 w-3 shrink-0" aria-hidden="true" />}
-                                <span className="truncate">
-                                  {ad.linkType === 'url' ? ad.linkTarget : AD_LINK_LABELS[ad.linkType]}
-                                </span>
-                                <span className="text-subtle">· #{ad.sortOrder}</span>
-                              </p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap text-caption tabular-nums text-muted">
-                          {windowText(ad)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <Switch
-                              checked={ad.isActive}
-                              disabled={togglingId === ad.id}
-                              onCheckedChange={() => handleToggle(ad)}
-                              aria-label={`«${ad.title}» bannerini ${ad.isActive ? "o'chirish" : 'yoqish'}`}
-                            />
-                            <Badge variant={STATE_BADGE[state]} dot>
-                              {AD_STATE_LABELS[state]}
-                            </Badge>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right font-mono tabular-nums text-ink">
-                          {ad.impressions.toLocaleString('uz-UZ')}
-                        </TableCell>
-                        <TableCell className="text-right font-mono tabular-nums text-ink">
-                          {ad.clicks.toLocaleString('uz-UZ')}
-                        </TableCell>
-                        <TableCell className="text-right font-mono tabular-nums text-muted">
-                          {formatCtr(adCtr(ad))}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setReportTarget(ad)}
-                            aria-label={`«${ad.title}» kunlik hisoboti`}
-                          >
-                            <BarChart3 className="h-4 w-4" aria-hidden="true" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setDeleteTarget(ad)}
-                            aria-label={`«${ad.title}» bannerini o'chirish`}
-                          >
-                            <Trash2 className="h-4 w-4" aria-hidden="true" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+          ),
+        }}
+      />
 
       <CreateAdDialog
         open={createOpen}
@@ -269,29 +238,23 @@ export default function AdsPage() {
 
       <AdDailyDrawer ad={reportTarget} onClose={() => setReportTarget(null)} />
 
-      {/* O'chirish qaytarilmaydi va hisoblagichlar (reklama beruvchi hisoboti)
-          ham yo'qoladi — shuning uchun tasdiqlash modali. Vaqtincha to'xtatish
-          uchun qatordagi kalit bor. */}
-      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Bannerni o&apos;chirish</DialogTitle>
-            <DialogDescription>
-              <strong>{deleteTarget?.title}</strong> butunlay o&apos;chiriladi — rasmi, ko&apos;rish va
-              bosish statistikasi (kunlik hisoboti bilan) ham yo&apos;qoladi. Vaqtincha to&apos;xtatish uchun kalitni
-              o&apos;chiring.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
-              Bekor qilish
-            </Button>
-            <Button variant="destructive" isLoading={deleting} onClick={handleDelete}>
-              O&apos;chirish
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* O'chirish qaytarilmaydi va hisoblagichlar ham yo'qoladi — shuning
+          uchun tasdiqlash. Vaqtincha to'xtatish uchun qatordagi kalit bor. */}
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        isPending={deleting}
+        title="Bannerni o'chirish"
+        confirmLabel="O'chirish"
+        description={
+          <>
+            <strong className="text-ink">{deleteTarget?.title}</strong> butunlay o&apos;chiriladi — rasmi,
+            ko&apos;rish va bosish statistikasi (kunlik hisoboti bilan) ham yo&apos;qoladi. Vaqtincha
+            to&apos;xtatish uchun kalitni o&apos;chiring.
+          </>
+        }
+      />
     </div>
   );
 }

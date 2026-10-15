@@ -1,35 +1,27 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Package, Plus, RefreshCw, Search } from 'lucide-react';
-import { clsx } from 'clsx';
+import { Package, Plus, RefreshCw } from 'lucide-react';
 import { marketApi, MarketCategory, Product, ProductPage, ProductStatus, Store } from '@/lib/api';
 import { PRODUCT_STATUS } from '@/lib/product-status';
 import { errorMessage } from '@/lib/utils';
+import { formatNumber } from '@/lib/format';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { useServerPagination } from '@/hooks/usePagination';
 import { useToast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { DataErrorBanner } from '@/components/ui/DataErrorBanner';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { ErrorState } from '@/components/ui/ErrorState';
-import { FilterChips, type FilterChip } from '@/components/ui/FilterChips';
-import { Input } from '@/components/ui/Input';
+import { DataTable } from '@/components/ui/DataTable';
+import { FilterBar } from '@/components/ui/FilterBar';
+import { type FilterChip } from '@/components/ui/FilterChips';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Pagination } from '@/components/ui/Pagination';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Select } from '@/components/ui/Select';
-import { SkeletonTable } from '@/components/ui/Skeleton';
-import { Tabs, type TabItem } from '@/components/ui/Tabs';
+import { type TabItem } from '@/components/ui/Tabs';
 import { AddProductModal } from '@/components/products/AddProductModal';
 import { ProductImageModal } from '@/components/products/ProductImageModal';
 import { BulkPriceModal, type BulkPriceChange } from '@/components/products/BulkPriceModal';
-import { BulkToolbar } from '@/components/products/BulkToolbar';
-import {
-  PRODUCT_ROW_GRID,
-  ProductCardMobile,
-  ProductRow,
-} from '@/components/products/ProductRow';
+import { productColumns } from '@/components/products/productColumns';
+import { usePageRefresh } from '@/components/shell';
 
 interface CatalogMeta {
   categories: MarketCategory[];
@@ -89,11 +81,13 @@ export default function ProductsPage() {
       ).data.data,
     [page, pageSize, search, tab, categoryId]
   );
+  usePageRefresh(reload);
 
   const products = useMemo(() => data?.products ?? [], [data]);
   const total = data?.total ?? 0;
   const categories = useMemo(() => meta.data?.categories ?? [], [meta.data]);
-  const threshold = meta.data?.store.lowStockThreshold ?? 10;
+  // Haqiqiy do'kon sozlamasi; u kelguncha faqat "tugagan" belgilanadi (soxta chegara yo'q).
+  const threshold = meta.data?.store.lowStockThreshold ?? 0;
   const paged = pager.toPaged(products, total);
 
   // Tanlangan qatorlar sahifadagi eng yangi nusxa bilan yangilanadi — inline
@@ -162,24 +156,19 @@ export default function ProductsPage() {
 
   const selectedProducts = Object.values(selected);
   const selectedIds = selectedProducts.map((p) => p.id);
-  const selectedCount = selectedIds.length;
-  const pageAllSelected = products.length > 0 && products.every((p) => selected[p.id]);
+  const selectedKeys = useMemo(() => new Set(Object.keys(selected)), [selected]);
 
-  const toggleOne = (p: Product) =>
+  // DataTable kalitlar to'plamini beradi; mahsulotning o'zi saqlanadi —
+  // tanlov sahifalar orasida yashaydi (ommaviy narx eski sahifadagini ham oladi).
+  const changeSelection = (keys: Set<string>) =>
     setSelected((s) => {
-      if (!s[p.id]) return { ...s, [p.id]: p };
-      const { [p.id]: _removed, ...rest } = s;
-      return rest;
+      const next: Record<string, Product> = {};
+      keys.forEach((k) => {
+        const p = s[k] ?? products.find((x) => x.id === k);
+        if (p) next[k] = p;
+      });
+      return next;
     });
-
-  const toggleAllOnPage = () => {
-    const pageIds = new Set(products.map((p) => p.id));
-    setSelected((s) =>
-      pageAllSelected
-        ? Object.fromEntries(Object.entries(s).filter(([id]) => !pageIds.has(id)))
-        : { ...s, ...Object.fromEntries(products.map((p) => [p.id, p])) }
-    );
-  };
 
   const patchProduct = async (id: string, patch: Parameters<typeof marketApi.updateProduct>[1]) => {
     try {
@@ -233,186 +222,123 @@ export default function ProductsPage() {
 
   const hasFilters = search !== '' || categoryId !== '' || tab !== 'all';
   const catalogEmpty = !hasFilters && total === 0;
+  // "Tugaganlar" tabi bo'sh = yaxshi xabar (filtr natijasi emas).
+  const outOfStockCleared = tab === 'out' && !search && !categoryId;
+
+  const columns = productColumns({
+    categoryName,
+    threshold,
+    onSavePrice: (p, v) => patchProduct(p.id, { price: v }),
+    onSaveStock: (p, v) => patchProduct(p.id, { stock: Math.max(0, v) }),
+    onSetStatus: (p, status) => void setStatus(p.id, status),
+    statusBusyId,
+    onEditImage: setImageFor,
+  });
+
+  const openAdd = () => setShowAdd(true);
 
   return (
     <div>
       <PageHeader
         title="Mahsulotlar"
-        description="Katalog, narx va zaxirani boshqaring"
-        icon={<Package size={18} aria-hidden />}
+        description={
+          data ? `${formatNumber(data.counts.all)} ta mahsulot · narx va zaxira jadvalda tahrirlanadi` : 'Katalog, narx va zaxira'
+        }
         actions={
           <>
             <Button
               variant="secondary"
-              size="sm"
               onClick={() => void reloadAll()}
               isLoading={isRefreshing}
-              leftIcon={<RefreshCw size={13} aria-hidden />}
+              leftIcon={<RefreshCw size={14} aria-hidden />}
             >
               Yangilash
             </Button>
-            <Button size="sm" onClick={() => setShowAdd(true)} leftIcon={<Plus size={14} aria-hidden />}>
+            <Button onClick={openAdd} leftIcon={<Plus size={14} aria-hidden />}>
               Mahsulot qo&apos;shish
             </Button>
           </>
         }
       />
 
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <Tabs items={tabs} value={tab} onChange={changeTab} size="sm" />
-        <div className="w-full sm:w-64">
-          <Input
-            aria-label="Mahsulot qidirish"
-            placeholder="Nomi yoki SKU bo'yicha qidirish"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            leftElement={<Search size={15} aria-hidden />}
-          />
-        </div>
-        <div className="w-full sm:w-52">
-          <Select
-            aria-label="Kategoriya bo'yicha filtrlash"
-            placeholder="Barcha kategoriyalar"
-            options={[
-              { value: '', label: 'Barcha kategoriyalar' },
-              ...categories.map((c) => ({ value: c.id, label: `${c.emoji} ${c.name}` })),
-            ]}
-            value={categoryId}
-            onChange={(e) => changeCategory(e.target.value)}
-          />
-        </div>
-      </div>
-
-      <FilterChips chips={chips} onClearAll={clearFilters} className="mb-3" />
-
-      <BulkToolbar
-        count={selectedCount}
-        busy={busy}
-        onSetStatus={(status) => void bulkSetStatus(status)}
-        onOpenPrice={() => setBulkPriceOpen(true)}
-        onClear={() => setSelected({})}
+      <DataTable
+        ariaLabel="Mahsulotlar"
+        columns={columns}
+        rows={catalogEmpty ? [] : products}
+        rowKey={(p) => p.id}
+        loading={isLoading || (isRefreshing && products.length === 0)}
+        error={error}
+        onRetry={reload}
+        selectable
+        rowLabel={(p) => p.name}
+        selectedKeys={selectedKeys}
+        onSelectionChange={changeSelection}
+        bulkActions={() => (
+          <>
+            <Button size="sm" variant="secondary" isLoading={busy} onClick={() => void bulkSetStatus('active')}>
+              Faollashtirish
+            </Button>
+            <Button size="sm" variant="secondary" isLoading={busy} onClick={() => void bulkSetStatus('hidden')}>
+              Yashirish
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => setBulkPriceOpen(true)}>
+              Narxni o&apos;zgartirish
+            </Button>
+          </>
+        )}
+        pagination={{ paged }}
+        toolbar={
+          <FilterBar
+            searchAriaLabel="Mahsulot qidirish"
+            searchPlaceholder="Nomi yoki SKU"
+            search={query}
+            onSearchChange={setQuery}
+            searchClassName="w-full sm:w-60"
+            chips={chips}
+            onClearAll={clearFilters}
+          >
+            <SegmentedControl items={tabs} value={tab} onChange={changeTab} ariaLabel="Mahsulot holati" />
+            <Select
+              aria-label="Kategoriya bo'yicha filtrlash"
+              options={[
+                { value: '', label: 'Barcha kategoriyalar' },
+                ...categories.map((c) => ({ value: c.id, label: `${c.emoji} ${c.name}` })),
+              ]}
+              value={categoryId}
+              onChange={(e) => changeCategory(e.target.value)}
+              wrapperClassName="w-full sm:w-52"
+            />
+          </FilterBar>
+        }
+        isFiltered={!catalogEmpty && !outOfStockCleared}
+        onClearFilters={clearFilters}
+        emptyFiltered={{ title: 'Hech narsa topilmadi', description: 'Filtr mezonlariga mos mahsulot yoʻq.' }}
+        empty={
+          catalogEmpty
+            ? {
+                variant: 'first-use',
+                icon: <Package aria-hidden />,
+                title: 'Katalog hali boʻsh',
+                description: 'Birinchi mahsulotni qoʻshsangiz, u shu yerda koʻrinadi.',
+                action: (
+                  <Button size="sm" onClick={openAdd} leftIcon={<Plus size={14} aria-hidden />}>
+                    Mahsulot qo&apos;shish
+                  </Button>
+                ),
+              }
+            : {
+                variant: 'cleared',
+                title: 'Tugagan mahsulot yoʻq',
+                description: 'Barcha mahsulotlar sotuvda — zaxira joyida.',
+              }
+        }
       />
 
-      {error && products.length > 0 && (
-        <DataErrorBanner message={error} onRetry={reload} retrying={isRefreshing} />
-      )}
-
-      {isLoading ? (
-        <SkeletonTable rows={8} cols={6} />
-      ) : error && products.length === 0 ? (
-        <ErrorState message={error} onRetry={reload} />
-      ) : catalogEmpty ? (
-        <Card>
-          <EmptyState
-            icon={<Package size={24} aria-hidden />}
-            title="Katalog hali bo’sh"
-            description="Birinchi mahsulotni qo'shsangiz, u shu yerda ko'rinadi."
-            action={
-              <Button size="sm" onClick={() => setShowAdd(true)} leftIcon={<Plus size={14} aria-hidden />}>
-                Mahsulot qo&apos;shish
-              </Button>
-            }
-          />
-        </Card>
-      ) : total === 0 ? (
-        <Card>
-          {tab === 'out' && !search && !categoryId ? (
-            <EmptyState
-              tone="positive"
-              title="Tugagan mahsulot yo'q"
-              description="Barcha mahsulotlar sotuvda — zaxira joyida."
-            />
-          ) : (
-            <EmptyState
-              title="Hech narsa topilmadi"
-              description="Filtr mezonlariga mos mahsulot yo'q."
-              action={
-                <Button size="sm" variant="secondary" onClick={clearFilters}>
-                  Filtrlarni tozalash
-                </Button>
-              }
-            />
-          )}
-        </Card>
-      ) : (
-        <>
-          {/* Desktop: tahrirlanadigan jadval, yopishqoq sarlavha bilan. */}
-          <Card padding="none" className="hidden lg:block">
-            <div
-              className={clsx(
-                PRODUCT_ROW_GRID,
-                'sticky top-14 z-20 rounded-t-ds-md border-b border-line bg-surface-2 px-4 py-2.5 text-micro uppercase text-muted'
-              )}
-            >
-              <span>
-                <input
-                  type="checkbox"
-                  checked={pageAllSelected}
-                  onChange={toggleAllOnPage}
-                  aria-label="Sahifadagi hammasini tanlash"
-                  className="h-4 w-4 accent-brand"
-                />
-              </span>
-              <span>Mahsulot</span>
-              <span className="hidden xl:block">Kategoriya</span>
-              <span className="text-right">Narx (so&apos;m)</span>
-              <span className="text-right">Zaxira</span>
-              <span>Holat</span>
-              <span>Amal</span>
-            </div>
-            <ul className="divide-y divide-divider">
-              {paged.pageItems.map((p) => (
-                <ProductRow
-                  key={p.id}
-                  product={p}
-                  categoryName={categoryName(p.categoryId)}
-                  threshold={threshold}
-                  checked={!!selected[p.id]}
-                  onCheck={() => toggleOne(p)}
-                  onSavePrice={(v) => patchProduct(p.id, { price: v })}
-                  onSaveStock={(v) => patchProduct(p.id, { stock: Math.max(0, v) })}
-                  onSetStatus={(status) => void setStatus(p.id, status)}
-                  statusBusy={statusBusyId === p.id}
-                  onEditImage={() => setImageFor(p)}
-                />
-              ))}
-            </ul>
-            <Pagination paged={paged} />
-          </Card>
-
-          {/* Mobil: bitta mahsulot — bitta karta. */}
-          <ul className="space-y-2.5 lg:hidden">
-            {paged.pageItems.map((p) => (
-              <li key={p.id}>
-                <ProductCardMobile
-                  product={p}
-                  categoryName={categoryName(p.categoryId)}
-                  threshold={threshold}
-                  checked={!!selected[p.id]}
-                  onCheck={() => toggleOne(p)}
-                  onSavePrice={(v) => patchProduct(p.id, { price: v })}
-                  onSaveStock={(v) => patchProduct(p.id, { stock: Math.max(0, v) })}
-                  onSetStatus={(status) => void setStatus(p.id, status)}
-                  statusBusy={statusBusyId === p.id}
-                  onEditImage={() => setImageFor(p)}
-                />
-              </li>
-            ))}
-          </ul>
-          <div className="mt-3 lg:hidden">
-            <Card padding="none">
-              <Pagination paged={paged} className="border-t-0" />
-            </Card>
-          </div>
-        </>
-      )}
-
       {hasFilters && total > 0 && (
-        <p className="mt-3 text-caption text-subtle">
+        <p className="num mt-2 text-xs text-muted">
           Filtr qo&apos;llangan: {total} ta mahsulot topildi
         </p>
       )}
-
       <AddProductModal
         isOpen={showAdd}
         categories={categories}

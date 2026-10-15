@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { clsx } from 'clsx';
 import type { Product } from '@/lib/api';
-import { moneyShort } from '@/lib/utils';
+import { formatNumber } from '@/lib/format';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
@@ -119,8 +119,8 @@ export function BulkPriceModal({
                   setFieldError(null);
                 }}
                 className={clsx(
-                  'flex-1 rounded-ds-sm border py-2 text-caption font-bold transition-colors duration-fast',
-                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
+                  'h-8 flex-1 rounded-ds-sm border text-[13px] font-medium transition-colors',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus',
                   mode === opt.key
                     ? 'border-primary bg-mint-tint text-primary-text'
                     : 'border-line text-muted hover:bg-surface-2 hover:text-ink'
@@ -133,7 +133,7 @@ export function BulkPriceModal({
 
           <Input
             type="number"
-            mono
+            className="num"
             autoFocus
             label={mode === 'set' ? "Yangi narx (so'm)" : "O'zgarish foizi"}
             hint={
@@ -165,15 +165,15 @@ export function BulkPriceModal({
         </div>
       ) : (
         <div className="space-y-4">
-          <p className="text-body text-muted">
+          <p className="text-sm text-muted">
             {mode === 'set'
-              ? `Barcha ${products.length} ta tanlangan mahsulotga ${moneyShort(Math.max(0, Math.round(num)))} so'm narx qo'yiladi.`
+              ? `Barcha ${products.length} ta tanlangan mahsulotga ${formatNumber(Math.max(0, Math.round(num)))} so'm narx qo'yiladi.`
               : `Tanlangan ${products.length} ta mahsulot narxi ${num > 0 ? `+${num}` : num}% ga o'zgartiriladi.`}{' '}
             <span className="font-semibold text-ink">{changedCount} ta narx o&apos;zgaradi.</span>
           </p>
 
           <div className="max-h-64 overflow-y-auto rounded-ds-sm border border-line">
-            <div className="grid grid-cols-[minmax(0,1fr)_110px_20px_110px] items-center gap-2 border-b border-line bg-surface-2 px-3 py-2 text-micro uppercase text-muted">
+            <div className="grid grid-cols-[minmax(0,1fr)_110px_20px_110px] items-center gap-2 border-b border-line bg-surface-2 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.04em] text-muted">
               <span>Mahsulot</span>
               <span className="text-right">Hozirgi</span>
               <span aria-hidden />
@@ -185,18 +185,18 @@ export function BulkPriceModal({
                   key={p.id}
                   className="grid grid-cols-[minmax(0,1fr)_110px_20px_110px] items-center gap-2 px-3 py-2"
                 >
-                  <span className="truncate text-caption font-semibold text-ink">{p.name}</span>
-                  <span className="text-right font-mono text-caption tabular-nums text-muted">
-                    {moneyShort(p.price)}
+                  <span className="truncate text-[13px] text-ink">{p.name}</span>
+                  <span className="num text-right text-[13px] text-muted">
+                    {formatNumber(p.price)}
                   </span>
                   <ArrowRight size={12} aria-hidden className="text-subtle" />
                   <span
                     className={clsx(
-                      'text-right font-mono text-caption tabular-nums font-bold',
+                      'num text-right text-[13px] font-medium',
                       newPrice === p.price ? 'text-muted' : 'text-primary-text'
                     )}
                   >
-                    {moneyShort(newPrice)}
+                    {formatNumber(newPrice)}
                   </span>
                 </li>
               ))}

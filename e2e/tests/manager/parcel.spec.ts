@@ -88,7 +88,7 @@ test.describe('parcel delivery', () => {
     await expect(page.locator(`a[href="tel:${PARCEL.recipientPhone}"]`)).toBeVisible();
     await page.getByRole('button', { name: 'Yakunlash' }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Yakunlash' }).click();
-    await expectToast(page, `Buyurtma #${order.id.slice(-6).toUpperCase()} yakunlandi`);
+    await expectToast(page, `Buyurtma #${order.id.slice(0, 6)} yakunlandi`);
     await expect.poll(async () => (await passenger.get<Order>(`/orders/${order.id}`)).status).toBe('completed');
   });
 

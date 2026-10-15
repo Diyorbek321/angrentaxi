@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { MessageCircle, MessagesSquare, Search, Send } from 'lucide-react';
+import { MessageCircle, MessagesSquare, Send } from 'lucide-react';
 import { clsx } from 'clsx';
 import {
   getSupportMessages,
@@ -17,7 +17,9 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Avatar } from '@/components/ui/Avatar';
-import { Tabs } from '@/components/ui/Tabs';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { SearchInput } from '@/components/ui/SearchInput';
+import { RetryBanner } from '@/components/ui/RetryBanner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -26,7 +28,7 @@ import { formatPhone, formatTime } from '@/lib/format';
 
 type ThreadFilter = 'all' | 'open' | 'closed';
 
-const THREAD_TABS: { value: ThreadFilter; label: string }[] = [
+const THREAD_TABS: readonly { value: ThreadFilter; label: string }[] = [
   { value: 'open', label: 'Ochiq' },
   { value: 'closed', label: 'Yopiq' },
   { value: 'all', label: 'Hammasi' },
@@ -180,71 +182,65 @@ export default function SupportPage() {
       <aside className="w-72 lg:w-80 shrink-0 border-r border-line bg-surface flex flex-col">
         <div className="px-4 py-3 border-b border-line shrink-0">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold text-ink">Qoʻllab-quvvatlash</h2>
+            <h1 className="text-title text-ink">Qoʻllab-quvvatlash</h1>
             {totalUnread > 0 && (
-              <Badge variant="danger" size="sm">
+              <Badge variant="info" size="sm">
                 {totalUnread} oʻqilmagan
               </Badge>
             )}
           </div>
-          <p className="text-xs text-muted mt-0.5">Mijoz va haydovchi murojaatlari</p>
+          <p className="text-[13px] text-muted mt-0.5">Mijoz va haydovchi murojaatlari</p>
         </div>
 
         <div className="px-3 pt-3 pb-2 space-y-2 shrink-0">
-          <Input
+          <SearchInput
             placeholder="Ism yoki telefon"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            leftElement={<Search size={14} />}
+            onChange={setSearch}
             aria-label="Murojaatlarni qidirish"
           />
-          <Tabs
+          <SegmentedControl
             items={THREAD_TABS}
             value={filter}
             onChange={setFilter}
             size="sm"
-            className="w-full"
+            ariaLabel="Murojaat holati"
           />
         </div>
 
         <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-2">
-          {threadsError ? (
+          {threadsError && threads.length > 0 && (
+            <RetryBanner message="Roʻyxatni yangilab boʻlmadi." onRetry={refetchThreads} keepsLastData />
+          )}
+          {threadsError && threads.length === 0 ? (
             <ErrorState
               compact
-              message="Murojaatlar roʻyxatini yuklab boʻlmadi."
+              title="Murojaatlar roʻyxatini yuklab boʻlmadi"
               onRetry={refetchThreads}
             />
-          ) : threadsLoading ? (
+          ) : threadsLoading && threads.length === 0 ? (
             <div aria-busy="true" className="space-y-2">
               {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-20 rounded-ds-sm" />
+                <Skeleton key={i} className="h-[84px] rounded-ds-sm" />
               ))}
             </div>
           ) : visibleThreads.length === 0 ? (
             hasThreadFilters ? (
               <EmptyState
                 compact
-                icon={<Search size={20} />}
+                variant="no-results"
                 title="Mos murojaat topilmadi"
                 description="Qidiruv yoki holat filtrini oʻzgartiring."
-                action={
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      setSearch('');
-                      setFilter('open');
-                    }}
-                  >
-                    Filtrlarni tozalash
-                  </Button>
-                }
+                onClearFilters={() => {
+                  setSearch('');
+                  setFilter('open');
+                }}
               />
             ) : (
               <EmptyState
                 compact
-                tone="positive"
-                icon={<MessageCircle size={20} />}
+                variant="cleared"
+                icon={<MessageCircle aria-hidden />}
                 title="Ochiq murojaat yoʻq"
                 description="Yangi murojaat kelsa shu yerda koʻrinadi."
               />
@@ -259,29 +255,29 @@ export default function SupportPage() {
                   'w-full text-left rounded-ds-sm border px-3 py-2.5 transition-colors',
                   'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
                   thread.id === selectedId
-                    ? 'border-primary bg-primary/[0.08]'
+                    ? 'border-line-strong bg-surface-2'
                     : 'border-line hover:bg-surface-2'
                 )}
               >
                 <div className="flex items-center gap-2">
                   <Avatar name={thread.userName} size="xs" tone="muted" />
-                  <span className="text-sm font-medium text-ink truncate">{thread.userName}</span>
+                  <span className="text-[13px] font-medium text-ink truncate">{thread.userName || 'Ism kiritilmagan'}</span>
                   {thread.unreadCount > 0 && (
-                    <Badge variant="danger" size="sm" className="ml-auto shrink-0">
+                    <Badge variant="info" size="sm" className="ml-auto shrink-0">
                       {thread.unreadCount}
                     </Badge>
                   )}
                 </div>
                 <div className="flex items-center justify-between gap-2 mt-1.5">
-                  <span className="text-[11px] font-mono text-muted truncate">
+                  <span className="num text-xs text-muted truncate">
                     {formatPhone(thread.userPhone)}
                   </span>
-                  <span className="text-[11px] text-subtle shrink-0 tabular-nums">
+                  <span className="num text-xs text-subtle shrink-0">
                     {thread.lastMessageAt ? formatTime(thread.lastMessageAt) : ''}
                   </span>
                 </div>
                 <Badge
-                  variant={thread.status === 'open' ? 'mint-soft' : 'default'}
+                  variant={thread.status === 'open' ? 'success' : 'neutral'}
                   size="sm"
                   className="mt-1.5"
                 >
@@ -298,7 +294,7 @@ export default function SupportPage() {
         {!selectedThread ? (
           <div className="flex-1 flex items-center justify-center p-6">
             <EmptyState
-              icon={<MessagesSquare size={22} />}
+              icon={<MessagesSquare aria-hidden />}
               title="Suhbat tanlanmagan"
               description="Chapdagi roʻyxatdan murojaatni tanlang."
             />
@@ -309,11 +305,11 @@ export default function SupportPage() {
               <div className="flex items-center gap-2.5 min-w-0">
                 <Avatar name={selectedThread.userName} size="sm" tone="muted" />
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-ink truncate">
-                    {selectedThread.userName}
+                  <p className="text-title text-ink truncate">
+                    {selectedThread.userName || 'Ism kiritilmagan'}
                   </p>
                   <p className="text-xs text-muted truncate">
-                    <span className="font-mono">{formatPhone(selectedThread.userPhone)}</span> ·{' '}
+                    <span className="num">{formatPhone(selectedThread.userPhone)}</span> ·{' '}
                     {selectedThread.userRole === 'driver' ? 'Haydovchi' : 'Yoʻlovchi'}
                   </p>
                 </div>
@@ -332,7 +328,7 @@ export default function SupportPage() {
               {messagesError ? (
                 <ErrorState
                   compact
-                  message={messagesError}
+                  title={messagesError}
                   onRetry={() => {
                     if (selectedId) loadMessages(selectedId);
                   }}
@@ -346,7 +342,7 @@ export default function SupportPage() {
               ) : messages.length === 0 ? (
                 <EmptyState
                   compact
-                  icon={<MessageCircle size={20} />}
+                  icon={<MessageCircle aria-hidden />}
                   title="Xabarlar yoʻq"
                   description="Suhbatni birinchi boʻlib boshlang."
                 />
@@ -361,14 +357,14 @@ export default function SupportPage() {
                     >
                       <div
                         className={clsx(
-                          'max-w-[72%] rounded-ds-md px-3.5 py-2.5 text-sm border',
+                          'max-w-[72%] rounded-ds-md px-3 py-2 text-[13px] border',
                           fromOperator
-                            ? 'bg-primary/12 border-primary/30 text-ink rounded-br-ds-xs'
+                            ? 'bg-mint-tint border-mint/30 text-ink rounded-br-ds-xs'
                             : 'bg-surface border-line text-ink rounded-bl-ds-xs'
                         )}
                       >
                         <p className="whitespace-pre-wrap break-words">{message.body}</p>
-                        <p className="text-[10px] text-subtle mt-1 text-right font-mono tabular-nums">
+                        <p className="num text-[11px] text-subtle mt-1 text-right">
                           {formatTime(message.createdAt)}
                         </p>
                       </div>
@@ -400,7 +396,7 @@ export default function SupportPage() {
                   disabled={!draft.trim()}
                   aria-label="Yuborish"
                 >
-                  <Send size={16} />
+                  <Send size={15} aria-hidden />
                 </Button>
               </div>
             </div>

@@ -1,19 +1,21 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Bell, Check, Clock, LocateFixed, MapPin, Settings as SettingsIcon, Smartphone, Volume2 } from 'lucide-react';
-import { clsx } from 'clsx';
+import { LocateFixed, MapPin } from 'lucide-react';
 import { foodApi, Notifications, Restaurant, WorkingHoursDay } from '@/lib/api';
 import { useAsyncData, errorMessage } from '@/hooks/useAsyncData';
-import { ImagePicker } from '@/components/ImagePicker';
 import { catalogImageForm, catalogImageSrc, ImageChange } from '@/lib/catalog-image';
+import { usePageRefresh } from '@/components/shell';
+import { ImagePicker } from '@/components/ImagePicker';
+import { cn } from '@/components/ui/cn';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { Input } from '@/components/ui/Input';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SkeletonForm } from '@/components/ui/Skeleton';
+import { Switch } from '@/components/ui/Switch';
 import { useToast } from '@/components/ui/Toast';
 
 interface Draft {
@@ -45,9 +47,22 @@ function toDraft(r: Restaurant): Draft {
   };
 }
 
+/** Rasm tanlovidan tashqari maydonlar — "saqlanmagan o'zgarish" bormi. */
+function isDirty(draft: Draft, baseline: Draft): boolean {
+  const strip = ({ image: _image, ...rest }: Draft) => rest;
+  return draft.image.kind !== 'keep' || JSON.stringify(strip(draft)) !== JSON.stringify(strip(baseline));
+}
+
+const NOTIFICATION_ROWS: { key: keyof Notifications; title: string; subtitle: string }[] = [
+  { key: 'sound', title: 'Yangi buyurtma ovozi', subtitle: 'Buyurtma kelganda signal chalinadi' },
+  { key: 'push', title: 'Push bildirishnomalar', subtitle: 'Brauzer bildirishnomalari' },
+  { key: 'sms', title: 'SMS xabarnoma', subtitle: 'Muhim voqealar haqida SMS' },
+];
+
 export default function SettingsPage() {
   const { toast } = useToast();
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [baseline, setBaseline] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
 
@@ -57,14 +72,25 @@ export default function SettingsPage() {
   }, []);
 
   const { data, status, error, reload } = useAsyncData<Restaurant>(load);
+  usePageRefresh(reload);
+
+  const reset = useCallback((r: Restaurant) => {
+    const next = toDraft(r);
+    setDraft(next);
+    setBaseline(next);
+  }, []);
 
   // Server javobi kelganda formani bir marta to'ldiramiz. Keyingi fon
   // yangilanishlari foydalanuvchi kiritgan matnni bosib ketmasligi kerak.
   useEffect(() => {
-    if (data && draft === null) setDraft(toDraft(data));
-  }, [data, draft]);
+    if (data && draft === null) reset(data);
+  }, [data, draft, reset]);
 
   const patch = (partial: Partial<Draft>) => setDraft((prev) => (prev ? { ...prev, ...partial } : prev));
+  const patchDay = (idx: number, partial: Partial<WorkingHoursDay>) =>
+    setDraft((prev) =>
+      prev ? { ...prev, hours: prev.hours.map((d, i) => (i === idx ? { ...d, ...partial } : d)) } : prev
+    );
 
   const useCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -98,7 +124,7 @@ export default function SettingsPage() {
         lat: draft.lat ? Number(draft.lat) : undefined,
         lng: draft.lng ? Number(draft.lng) : undefined,
       });
-      setDraft(toDraft(res.data.data));
+      reset(res.data.data);
     } catch (err) {
       toast({ title: 'Saqlab bo‘lmadi', description: errorMessage(err), variant: 'error' });
       setSaving(false);
@@ -108,10 +134,10 @@ export default function SettingsPage() {
     try {
       if (draft.image.kind === 'set') {
         const res = await foodApi.uploadRestaurantImage(await catalogImageForm(draft.image.file));
-        setDraft(toDraft(res.data.data));
+        reset(res.data.data);
       } else if (draft.image.kind === 'remove') {
         const res = await foodApi.removeRestaurantImage();
-        setDraft(toDraft(res.data.data));
+        reset(res.data.data);
       }
       toast({ title: 'Saqlandi', variant: 'success' });
     } catch (err) {
@@ -126,19 +152,11 @@ export default function SettingsPage() {
   };
 
   const openDays = draft?.hours.filter((h) => h.open).length ?? 0;
+  const dirty = draft != null && baseline != null && isDirty(draft, baseline);
 
   return (
-    <div className="mx-auto w-full max-w-4xl pb-4">
-      <PageHeader
-        title="Sozlamalar"
-        description="Restoran profili, ish vaqti va yetkazib berish"
-        icon={<SettingsIcon size={20} />}
-        actions={
-          <Button leftIcon={<Check size={16} />} isLoading={saving} disabled={!draft} onClick={save}>
-            Saqlash
-          </Button>
-        }
-      />
+    <div className="mx-auto w-full max-w-4xl">
+      <PageHeader title="Sozlamalar" description="Restoran profili, ish vaqti, yetkazib berish va bildirishnomalar" />
 
       {status === 'loading' && (
         <div className="grid gap-4 lg:grid-cols-2">
@@ -151,269 +169,188 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {status === 'error' && <ErrorState message={error} onRetry={reload} />}
+      {status === 'error' && <ErrorState title="Sozlamalarni yuklab boʻlmadi" message={error} onRetry={reload} />}
 
       {status === 'ready' && draft && (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card padding="lg">
-            <CardHeader>
-              <CardTitle>Restoran ma&apos;lumotlari</CardTitle>
-            </CardHeader>
-            <div className="flex flex-col gap-4">
-              <ImagePicker
-                label="Muqova rasmi"
-                currentSrc={catalogImageSrc(draft.imageKey)}
-                value={draft.image}
-                onChange={(image) => patch({ image })}
-                aspectClassName="aspect-[16/9]"
-              />
-              <Input label="Nomi" value={draft.name} onChange={(e) => patch({ name: e.target.value })} />
-              <Input
-                label="Telefon"
-                mono
-                inputMode="tel"
-                value={draft.phone}
-                onChange={(e) => patch({ phone: e.target.value })}
-                placeholder="+998901234567"
-              />
-              <Input
-                label="Manzil"
-                value={draft.address}
-                onChange={(e) => patch({ address: e.target.value })}
-                leftElement={<MapPin size={16} />}
-              />
-              <div className="grid gap-4 sm:grid-cols-2">
+        <>
+          <div className="grid items-start gap-4 lg:grid-cols-2">
+            <Card padding="none">
+              <CardHeader title="Restoran maʼlumotlari" description="Mijoz ilovasida koʻrinadi" />
+              <CardBody className="flex flex-col gap-4">
+                <ImagePicker
+                  label="Muqova rasmi"
+                  currentSrc={catalogImageSrc(draft.imageKey)}
+                  value={draft.image}
+                  onChange={(image) => patch({ image })}
+                  aspectClassName="aspect-[16/9]"
+                />
+                <Input label="Nomi" value={draft.name} onChange={(e) => patch({ name: e.target.value })} />
                 <Input
-                  label="Kenglik (lat)"
-                  mono
-                  value={draft.lat}
-                  onChange={(e) => patch({ lat: e.target.value })}
-                  placeholder="40.1050"
+                  label="Telefon"
+                  inputMode="tel"
+                  className="num"
+                  value={draft.phone}
+                  onChange={(e) => patch({ phone: e.target.value })}
+                  placeholder="+998901234567"
                 />
                 <Input
-                  label="Uzunlik (lng)"
-                  mono
-                  value={draft.lng}
-                  onChange={(e) => patch({ lng: e.target.value })}
-                  placeholder="70.9500"
+                  label="Manzil"
+                  value={draft.address}
+                  onChange={(e) => patch({ address: e.target.value })}
+                  leftElement={<MapPin size={15} />}
                 />
-              </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="self-start"
-                isLoading={locating}
-                leftIcon={<LocateFixed size={14} />}
-                onClick={useCurrentLocation}
-              >
-                Hozirgi joylashuvni olish
-              </Button>
-              <p className="text-caption text-subtle">
-                Kuryer buyurtmani shu nuqtadan oladi — koordinatalar aniq bo&apos;lishi kerak.
-              </p>
-            </div>
-          </Card>
-
-          <Card padding="lg">
-            <CardHeader>
-              <CardTitle>Ish vaqti</CardTitle>
-              <Badge variant={openDays > 0 ? 'success' : 'warning'} size="sm">
-                {openDays} kun ochiq
-              </Badge>
-            </CardHeader>
-
-            <ul className="flex flex-col gap-2">
-              {draft.hours.map((h, idx) => (
-                <li
-                  key={h.day}
-                  className={clsx(
-                    'flex flex-wrap items-center gap-3 rounded-ds-sm border px-3 py-2.5',
-                    h.open ? 'border-line bg-surface' : 'border-dashed border-line bg-surface-2/60'
-                  )}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Input
+                    label="Kenglik (lat)"
+                    inputMode="decimal"
+                    className="num"
+                    value={draft.lat}
+                    onChange={(e) => patch({ lat: e.target.value })}
+                    placeholder="40.1050"
+                  />
+                  <Input
+                    label="Uzunlik (lng)"
+                    inputMode="decimal"
+                    className="num"
+                    value={draft.lng}
+                    onChange={(e) => patch({ lng: e.target.value })}
+                    placeholder="70.9500"
+                    hint="Kuryer buyurtmani shu nuqtadan oladi"
+                  />
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="self-start"
+                  isLoading={locating}
+                  leftIcon={<LocateFixed size={14} />}
+                  onClick={useCurrentLocation}
                 >
-                  <span className="w-24 text-label text-ink">{h.day}</span>
+                  Hozirgi joylashuvni olish
+                </Button>
+              </CardBody>
+            </Card>
 
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={h.open}
-                    aria-label={`${h.day} — ${h.open ? 'ochiq' : 'dam olish kuni'}`}
-                    onClick={() =>
-                      patch({ hours: draft.hours.map((d, i) => (i === idx ? { ...d, open: !d.open } : d)) })
-                    }
-                    className={clsx(
-                      'flex h-7 w-12 shrink-0 items-center rounded-full p-0.5 transition-colors duration-fast',
-                      h.open ? 'bg-primary justify-end dark:bg-primary-on-dark' : 'bg-surface-3 justify-start'
-                    )}
-                  >
-                    <span className="block h-6 w-6 rounded-full bg-surface shadow-card" />
-                  </button>
-
-                  {h.open ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="time"
-                        aria-label={`${h.day} — ochilish vaqti`}
-                        value={h.from}
-                        onChange={(e) =>
-                          patch({
-                            hours: draft.hours.map((d, i) => (i === idx ? { ...d, from: e.target.value } : d)),
-                          })
-                        }
-                        className="rounded-ds-xs border border-line bg-surface px-2.5 py-1.5 font-mono text-body text-ink"
-                      />
-                      <span className="text-muted" aria-hidden>
-                        –
-                      </span>
-                      <input
-                        type="time"
-                        aria-label={`${h.day} — yopilish vaqti`}
-                        value={h.to}
-                        onChange={(e) =>
-                          patch({
-                            hours: draft.hours.map((d, i) => (i === idx ? { ...d, to: e.target.value } : d)),
-                          })
-                        }
-                        className="rounded-ds-xs border border-line bg-surface px-2.5 py-1.5 font-mono text-body text-ink"
-                      />
-                    </div>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 text-caption text-muted">
-                      <Clock size={13} aria-hidden />
-                      Dam olish kuni
-                    </span>
-                  )}
-                </li>
-              ))}
-              {draft.hours.length === 0 && (
-                <li className="rounded-ds-sm border border-dashed border-line px-3 py-6 text-center text-caption text-subtle">
-                  Ish vaqti jadvali hali sozlanmagan
-                </li>
-              )}
-            </ul>
-          </Card>
-
-          <Card padding="lg">
-            <CardHeader>
-              <CardTitle>Yetkazib berish zonasi</CardTitle>
-              <span className="font-mono text-title text-primary-text">{draft.radius} km</span>
-            </CardHeader>
-
-            <div
-              aria-hidden
-              className="relative mb-4 flex h-44 items-center justify-center overflow-hidden rounded-ds-sm border border-line bg-surface-2"
-            >
-              <span className="absolute h-36 w-36 rounded-full border border-mint/30" />
-              <span className="absolute h-24 w-24 rounded-full border border-mint/45 bg-mint/10" />
-              <span className="absolute h-12 w-12 rounded-full border border-mint/60 bg-mint/15" />
-              <span className="relative h-3.5 w-3.5 rounded-full bg-mint-deep" />
-            </div>
-
-            <label htmlFor="radius" className="text-caption font-semibold text-muted">
-              Radius: {draft.radius} km
-            </label>
-            <input
-              id="radius"
-              type="range"
-              min={1}
-              max={15}
-              step={1}
-              value={draft.radius}
-              onChange={(e) => patch({ radius: Number(e.target.value) })}
-              className="range-primary mt-2 w-full"
-            />
-            <div className="mt-1 flex justify-between font-mono text-micro text-subtle">
-              <span>1 km</span>
-              <span>15 km</span>
-            </div>
-          </Card>
-
-          <Card padding="lg">
-            <CardHeader>
-              <CardTitle>Bildirishnomalar</CardTitle>
-            </CardHeader>
             <div className="flex flex-col gap-4">
-              <NotifRow
-                icon={<Volume2 size={18} aria-hidden />}
-                title="Yangi buyurtma ovozi"
-                subtitle="Buyurtma kelganda signal chalinadi"
-                on={draft.notifications.sound}
-                onToggle={() =>
-                  patch({ notifications: { ...draft.notifications, sound: !draft.notifications.sound } })
-                }
-              />
-              <NotifRow
-                icon={<Bell size={18} aria-hidden />}
-                title="Push bildirishnomalar"
-                subtitle="Brauzer bildirishnomalari"
-                on={draft.notifications.push}
-                onToggle={() =>
-                  patch({ notifications: { ...draft.notifications, push: !draft.notifications.push } })
-                }
-              />
-              <NotifRow
-                icon={<Smartphone size={18} aria-hidden />}
-                title="SMS xabarnoma"
-                subtitle="Muhim voqealar haqida SMS"
-                on={draft.notifications.sms}
-                onToggle={() =>
-                  patch({ notifications: { ...draft.notifications, sms: !draft.notifications.sms } })
-                }
-              />
-            </div>
-          </Card>
+              <Card padding="none">
+                <CardHeader
+                  title="Ish vaqti"
+                  actions={
+                    <Badge variant={openDays > 0 ? 'neutral' : 'danger'} size="sm">
+                      {openDays} kun ochiq
+                    </Badge>
+                  }
+                  divider
+                />
+                {draft.hours.length === 0 ? (
+                  <p className="px-4 py-6 text-center text-[13px] text-muted">Ish vaqti jadvali hali sozlanmagan</p>
+                ) : (
+                  <ul className="divide-y divide-line">
+                    {draft.hours.map((h, idx) => (
+                      <li key={h.day} className="flex min-h-[48px] flex-wrap items-center gap-3 px-4 py-2">
+                        <Switch
+                          size="sm"
+                          checked={h.open}
+                          onCheckedChange={(open) => patchDay(idx, { open })}
+                          aria-label={`${h.day} — ochiq`}
+                        />
+                        <span className={cn('w-24 text-[13px] font-medium', h.open ? 'text-ink' : 'text-muted')}>
+                          {h.day}
+                        </span>
+                        {h.open ? (
+                          <div className="ml-auto flex items-center gap-1.5">
+                            <Input
+                              type="time"
+                              size="sm"
+                              aria-label={`${h.day} — ochilish vaqti`}
+                              value={h.from}
+                              onChange={(e) => patchDay(idx, { from: e.target.value })}
+                              className="num"
+                              wrapperClassName="w-28"
+                            />
+                            <span className="text-subtle" aria-hidden>
+                              –
+                            </span>
+                            <Input
+                              type="time"
+                              size="sm"
+                              aria-label={`${h.day} — yopilish vaqti`}
+                              value={h.to}
+                              onChange={(e) => patchDay(idx, { to: e.target.value })}
+                              className="num"
+                              wrapperClassName="w-28"
+                            />
+                          </div>
+                        ) : (
+                          <span className="ml-auto text-[13px] text-muted">Dam olish kuni</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Card>
 
-          <div className="lg:col-span-2 flex justify-end">
-            <Button size="lg" leftIcon={<Check size={16} />} isLoading={saving} onClick={save}>
-              O&apos;zgarishlarni saqlash
+              <Card padding="none">
+                <CardHeader title="Yetkazib berish zonasi" description="Restorandan maksimal masofa" />
+                <CardBody>
+                  <div className="flex items-baseline justify-between">
+                    <label htmlFor="radius" className="text-[13px] font-medium text-ink">
+                      Radius
+                    </label>
+                    <span className="num text-title text-ink">{draft.radius} km</span>
+                  </div>
+                  <input
+                    id="radius"
+                    type="range"
+                    min={1}
+                    max={15}
+                    step={1}
+                    value={draft.radius}
+                    onChange={(e) => patch({ radius: Number(e.target.value) })}
+                    className="range-primary mt-2 w-full"
+                  />
+                  <div className="num mt-1 flex justify-between text-[11px] text-subtle" aria-hidden>
+                    <span>1 km</span>
+                    <span>15 km</span>
+                  </div>
+                </CardBody>
+              </Card>
+
+              <Card padding="none">
+                <CardHeader title="Bildirishnomalar" divider />
+                <ul className="divide-y divide-line">
+                  {NOTIFICATION_ROWS.map((row) => (
+                    <li key={row.key} className="flex items-center gap-3 px-4 py-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[13px] font-medium text-ink">{row.title}</p>
+                        <p className="text-xs text-muted">{row.subtitle}</p>
+                      </div>
+                      <Switch
+                        checked={draft.notifications[row.key]}
+                        onCheckedChange={(on) => patch({ notifications: { ...draft.notifications, [row.key]: on } })}
+                        aria-label={row.title}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            </div>
+          </div>
+
+          {/* Yopishqoq saqlash paneli — uzun formaning qayerida bo'lmasin ko'rinadi. */}
+          <div className="sticky bottom-0 z-10 -mx-4 -mb-5 mt-5 flex items-center justify-end gap-2 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+            <p className={cn('mr-auto text-[13px]', dirty ? 'text-ink' : 'text-muted')} role="status">
+              {dirty ? 'Saqlanmagan oʻzgarishlar bor' : 'Barcha oʻzgarishlar saqlangan'}
+            </p>
+            <Button variant="secondary" disabled={!dirty || saving} onClick={() => baseline && setDraft(baseline)}>
+              Bekor qilish
+            </Button>
+            <Button isLoading={saving} disabled={!dirty} onClick={save}>
+              Saqlash
             </Button>
           </div>
-        </div>
+        </>
       )}
-    </div>
-  );
-}
-
-function NotifRow({
-  icon,
-  title,
-  subtitle,
-  on,
-  onToggle,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  subtitle: string;
-  on: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <div className="flex items-center gap-3">
-      <span
-        className={clsx(
-          'flex h-10 w-10 shrink-0 items-center justify-center rounded-ds-sm',
-          on ? 'bg-mint-tint text-primary-text' : 'bg-surface-2 text-subtle'
-        )}
-      >
-        {icon}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-label text-ink">{title}</p>
-        <p className="text-caption text-muted">{subtitle}</p>
-      </div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={on}
-        aria-label={`${title} — ${on ? 'yoqilgan' : "o'chirilgan"}`}
-        onClick={onToggle}
-        className={clsx(
-          'flex h-7 w-12 shrink-0 items-center rounded-full p-0.5 transition-colors duration-fast',
-          on ? 'bg-primary justify-end dark:bg-primary-on-dark' : 'bg-surface-3 justify-start'
-        )}
-      >
-        <span className="block h-6 w-6 rounded-full bg-surface shadow-card" />
-      </button>
     </div>
   );
 }

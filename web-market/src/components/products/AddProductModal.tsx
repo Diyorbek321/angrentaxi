@@ -109,7 +109,7 @@ export function AddProductModal({
           <Input
             label="Narx (so'm)"
             type="number"
-            mono
+            className="num"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
             placeholder="0"
@@ -117,7 +117,7 @@ export function AddProductModal({
           <Input
             label="Zaxira"
             type="number"
-            mono
+            className="num"
             value={stock}
             onChange={(e) => setStock(e.target.value)}
             placeholder="0"

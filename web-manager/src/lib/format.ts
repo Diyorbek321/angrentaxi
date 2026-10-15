@@ -1,106 +1,317 @@
+// AUTO-SYNCED from web-manager — edit there, then run scripts/sync-panel-ui.sh
 import { format, formatDistanceToNow } from 'date-fns';
 import { uz } from 'date-fns/locale';
 
 /**
- * Shared display formatting. Everything the operator reads — money, dates,
- * durations, ids — goes through here so the panel stays consistent and the
- * Uzbek locale lives in exactly one place.
+ * Display formatting for all four panels. Everything an operator reads —
+ * money, numbers, dates, durations, phones, names — goes through here so the
+ * panels stay consistent and the Uzbek locale lives in exactly one place.
+ *
+ * Rules (docs/design/PANEL-UI-KIT.md §3, §7):
+ *  - Missing value → "—" (em dash). Never "null", "undefined", "NaN".
+ *  - Money is NOT monospace: render the result in a `.num` element.
+ *  - Durations never go negative: an overdue timer reads "2 kun 3 soat kechikdi".
  */
 
-/** 125000 -> "125 000" */
+export const EMPTY = '—';
+
+type DateInput = string | number | Date | null | undefined;
+
+function isNum(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function toNumber(value: number | string | null | undefined): number | null {
+  if (value == null || value === '') return null;
+  const n = typeof value === 'string' ? Number(value) : value;
+  return isNum(n) ? n : null;
+}
+
+/** 125000 -> "125 000" (rounded to an integer; thin grouping with a plain space). */
 export function groupDigits(value: number): string {
   const rounded = Math.round(Math.abs(value));
   const grouped = String(rounded).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-  return value < 0 ? `-${grouped}` : grouped;
+  return value < 0 && rounded !== 0 ? `-${grouped}` : grouped;
 }
 
-/** 125000 -> "125 000 soʻm" */
-export function formatMoney(value: number | null | undefined): string {
-  if (value == null || Number.isNaN(value)) return '—';
-  return `${groupDigits(value)} soʻm`;
+export interface MoneyOptions {
+  /** Append " soʻm" (default true). Turn off when the unit is rendered separately. */
+  currency?: boolean;
+  /** Prefix "+" for positive values — for ledgers/adjustments. */
+  signed?: boolean;
 }
 
-/** Same as formatMoney but prefixed for not-yet-final prices. */
-export function formatMoneyApprox(value: number | null | undefined): string {
-  if (value == null || Number.isNaN(value)) return '—';
-  return `~${formatMoney(value)}`;
+/** 43500 -> "43 500 soʻm". Accepts numeric strings (API decimals). */
+export function formatMoney(
+  value: number | string | null | undefined,
+  options: MoneyOptions = {}
+): string {
+  const n = toNumber(value);
+  if (n == null) return EMPTY;
+  const { currency = true, signed = false } = options;
+  const sign = signed && n > 0 ? '+' : '';
+  return `${sign}${groupDigits(n)}${currency ? ' soʻm' : ''}`;
 }
 
-export function formatNumber(value: number | null | undefined): string {
-  if (value == null || Number.isNaN(value)) return '—';
-  return groupDigits(value);
+/** Not-yet-final price: "~43 500 soʻm". */
+export function formatMoneyApprox(value: number | string | null | undefined): string {
+  const formatted = formatMoney(value);
+  return formatted === EMPTY ? EMPTY : `~${formatted}`;
 }
 
-function toDate(value: string | number | Date): Date | null {
+/** 1234567 -> "1 234 567"; with `decimals` keeps a fixed fraction ("4.5"). */
+export function formatNumber(
+  value: number | string | null | undefined,
+  decimals = 0
+): string {
+  const n = toNumber(value);
+  if (n == null) return EMPTY;
+  if (decimals <= 0) return groupDigits(n);
+  const [int, frac] = Math.abs(n).toFixed(decimals).split('.');
+  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  return `${n < 0 ? '-' : ''}${grouped}.${frac}`;
+}
+
+/** 0.125 -> "12.5%" when `ratio`, else 12.5 -> "12.5%". */
+export function formatPercent(
+  value: number | null | undefined,
+  { ratio = false, decimals = 1 }: { ratio?: boolean; decimals?: number } = {}
+): string {
+  if (!isNum(value)) return EMPTY;
+  const pct = ratio ? value * 100 : value;
+  const fixed = pct.toFixed(decimals).replace(/\.0+$/, '');
+  return `${fixed}%`;
+}
+
+function toDate(value: DateInput): Date | null {
+  if (value == null || value === '') return null;
   const d = value instanceof Date ? value : new Date(value);
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
 /** "3 daqiqa oldin" */
-export function formatRelative(value: string | number | Date | null | undefined): string {
-  if (value == null) return '—';
+export function formatRelative(value: DateInput): string {
   const d = toDate(value);
-  if (!d) return '—';
+  if (!d) return EMPTY;
   return formatDistanceToNow(d, { addSuffix: true, locale: uz });
 }
 
 /** "14:32" */
-export function formatTime(value: string | number | Date | null | undefined): string {
-  if (value == null) return '—';
+export function formatTime(value: DateInput): string {
   const d = toDate(value);
-  return d ? format(d, 'HH:mm', { locale: uz }) : '—';
+  return d ? format(d, 'HH:mm', { locale: uz }) : EMPTY;
 }
 
 /** "31 iyul 2026" */
-export function formatDate(value: string | number | Date | null | undefined): string {
-  if (value == null) return '—';
+export function formatDate(value: DateInput): string {
   const d = toDate(value);
-  return d ? format(d, 'd MMMM yyyy', { locale: uz }) : '—';
+  return d ? format(d, 'd MMMM yyyy', { locale: uz }) : EMPTY;
 }
 
-/** "31 iyul, 14:32" */
-export function formatDateTime(value: string | number | Date | null | undefined): string {
-  if (value == null) return '—';
+/** "31.07.2026" — dense table cells. */
+export function formatDateShort(value: DateInput): string {
   const d = toDate(value);
-  return d ? format(d, 'd MMM, HH:mm', { locale: uz }) : '—';
+  return d ? format(d, 'dd.MM.yyyy') : EMPTY;
 }
 
-/** Elapsed wall-clock time, for "how long has this been unresolved" readouts. */
-export function formatDuration(ms: number): string {
-  if (!Number.isFinite(ms) || ms < 0) return '—';
-  const totalSeconds = Math.floor(ms / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  if (hours > 0) return `${hours} soat ${minutes} daq`;
-  if (minutes > 0) return `${minutes} daq ${seconds} son`;
+/** "31 iyul, 14:32" (`withYear` → "31 iyul 2026, 14:32"). */
+export function formatDateTime(value: DateInput, { withYear = false } = {}): string {
+  const d = toDate(value);
+  if (!d) return EMPTY;
+  return format(d, withYear ? 'd MMM yyyy, HH:mm' : 'd MMM, HH:mm', { locale: uz });
+}
+
+const SECOND = 1000;
+const MINUTE = 60 * SECOND;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
+
+/**
+ * Human duration, two largest units: "2 kun 3 soat", "1 soat 5 daq",
+ * "4 daq 10 son", "12 son". Never negative, never "hh:mm" with 6 digits.
+ */
+export function humanizeDuration(ms: number): string {
+  const abs = Math.abs(ms);
+  const days = Math.floor(abs / DAY);
+  const hours = Math.floor((abs % DAY) / HOUR);
+  const minutes = Math.floor((abs % HOUR) / MINUTE);
+  const seconds = Math.floor((abs % MINUTE) / SECOND);
+  if (days > 0) return hours > 0 ? `${days} kun ${hours} soat` : `${days} kun`;
+  if (hours > 0) return minutes > 0 ? `${hours} soat ${minutes} daq` : `${hours} soat`;
+  if (minutes > 0) return seconds > 0 ? `${minutes} daq ${seconds} son` : `${minutes} daq`;
   return `${seconds} son`;
 }
 
-/** Full uuid -> "#A1B2C3", the form dispatchers read aloud on calls. */
-export function shortId(id: string | null | undefined): string {
-  if (!id) return '—';
-  return `#${id.slice(-6).toUpperCase()}`;
+/**
+ * Elapsed wall-clock time ("how long has this been unresolved").
+ * Positive → humanized ("2 kun 3 soat"). Negative → "—" by default, or with
+ * `{ overdue: true }` treats the value as time past a deadline and reads
+ * "2 kun 3 soat kechikdi".
+ */
+export function formatDuration(
+  ms: number | null | undefined,
+  { overdue = false }: { overdue?: boolean } = {}
+): string {
+  if (!isNum(ms)) return EMPTY;
+  if (ms < 0) return overdue ? `${humanizeDuration(ms)} kechikdi` : EMPTY;
+  return humanizeDuration(ms);
 }
 
-/** "+998901234568" -> "+998 90 123 45 68" */
+/** Time past a deadline: "2 kun 3 soat kechikdi". */
+export function formatOverdue(ms: number | null | undefined): string {
+  if (!isNum(ms)) return EMPTY;
+  return `${humanizeDuration(ms)} kechikdi`;
+}
+
+/**
+ * Countdown to a deadline. Remaining ≥ 0 → "mm:ss" (or "h:mm:ss" past an
+ * hour, "2 kun 3 soat" past a day). Remaining < 0 → "N … kechikdi".
+ * This is what replaces the old `-126597:46` timers.
+ */
+export function formatCountdown(remainingMs: number | null | undefined): string {
+  if (!isNum(remainingMs)) return EMPTY;
+  if (remainingMs < 0) return formatOverdue(-remainingMs);
+  if (remainingMs >= DAY) return humanizeDuration(remainingMs);
+  const total = Math.floor(remainingMs / SECOND);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const mm = String(m).padStart(2, '0');
+  const ss = String(s).padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+/**
+ * Short elapsed/limit clock for live timers: "0:42", "1:00", "12:05",
+ * "1:02:03". Not for durations past a day — use formatDuration there.
+ * Negative / invalid → "—".
+ */
+export function formatClock(ms: number | null | undefined): string {
+  if (!isNum(ms) || ms < 0) return EMPTY;
+  const total = Math.floor(ms / SECOND);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const ss = String(total % 60).padStart(2, '0');
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`;
+}
+
+/**
+ * formatPrepTimer — oshxona taymeri — platforma ko'rayotgan soat. Muddat = buyurtma vaqti +
+ * eng uzoq tayyorlanadigan taomning `prepMinutes`i.
+ *
+ *  - vaqt bor   → "12:30" (qolgan vaqt)
+ *  - oxirgi 5 daq → "soon"
+ *  - kechikdi   → "Kechikmoqda · 2 soat 15 daq" — hech qachon "-126597:46"
+ *  - 24 soatdan eski → taymer ma'nosiz, buyurtma sanasi ko'rsatiladi
+ */
+export type PrepTimerState = 'ok' | 'soon' | 'late' | 'stale';
+
+export interface PrepTimer {
+  state: PrepTimerState;
+  /** Ko'rinadigan matn. */
+  text: string;
+  /** Ekran o'quvchi uchun to'liq jumla. */
+  label: string;
+}
+
+export interface PrepTimerOrder {
+  status: string;
+  createdAt: string;
+  items: ReadonlyArray<{ prepMinutes: number }>;
+}
+
+export const PREP_SOON_MS = 5 * MINUTE;
+export const PREP_STALE_AFTER_MS = DAY;
+
+export function formatPrepTimer(order: PrepTimerOrder, now: number): PrepTimer | null {
+  if (order.status !== 'new' && order.status !== 'preparing') return null;
+  const placed = new Date(order.createdAt).getTime();
+  if (Number.isNaN(placed)) return null;
+
+  const prepMinutes = Math.max(1, ...order.items.map((i) => i.prepMinutes || 0));
+  const remaining = placed + prepMinutes * MINUTE - now;
+
+  if (now - placed > PREP_STALE_AFTER_MS) {
+    const at = formatDateTime(placed);
+    return { state: 'stale', text: at, label: `Juda eski buyurtma — ${at} da tushgan` };
+  }
+  if (remaining < 0) {
+    const late = humanizeDuration(-remaining);
+    return { state: 'late', text: `Kechikmoqda · ${late}`, label: `Tayyorlash ${late} kechikmoqda` };
+  }
+  const left = formatCountdown(remaining);
+  return {
+    state: remaining <= PREP_SOON_MS ? 'soon' : 'ok',
+    text: left,
+    label: `Tayyorlash uchun ${left} qoldi`,
+  };
+}
+
+/**
+ * Order/entity reference used in EVERY panel (tables, drawers, toasts, CSV):
+ * "#" + the FIRST 6 characters, lowercase — "#a1b2c3". Render it `font-mono`.
+ * Vendors, dispatchers and couriers read this same number to each other.
+ */
+export function shortId(id: string | null | undefined): string {
+  if (!id) return EMPTY;
+  return `#${id.slice(0, 6).toLowerCase()}`;
+}
+
+/** "+998901234568" / "901234568" -> "+998 90 123 45 68". */
 export function formatPhone(phone: string | null | undefined): string {
-  if (!phone) return '—';
+  if (!phone) return EMPTY;
   const digits = phone.replace(/\D/g, '');
-  if (digits.length === 12 && digits.startsWith('998')) {
-    return `+${digits.slice(0, 3)} ${digits.slice(3, 5)} ${digits.slice(5, 8)} ${digits.slice(8, 10)} ${digits.slice(10)}`;
+  const full = digits.length === 9 ? `998${digits}` : digits;
+  if (full.length === 12 && full.startsWith('998')) {
+    return `+${full.slice(0, 3)} ${full.slice(3, 5)} ${full.slice(5, 8)} ${full.slice(8, 10)} ${full.slice(10)}`;
   }
   return phone;
 }
 
 /** Rating with a stable one-decimal shape ("4.8"). */
 export function formatRating(rating: number | null | undefined): string {
-  if (rating == null || Number.isNaN(rating)) return '—';
+  if (!isNum(rating)) return EMPTY;
   return rating.toFixed(1);
 }
 
 /** Distance in km, one decimal ("4.2 km"). */
 export function formatDistanceKm(km: number | null | undefined): string {
-  if (km == null || Number.isNaN(km)) return '—';
+  if (!isNum(km)) return EMPTY;
   return `${km.toFixed(1)} km`;
+}
+
+export const NAME_FALLBACK = 'Ism kiritilmagan';
+
+function clean(part: string | null | undefined): string {
+  if (part == null) return '';
+  const s = String(part).trim();
+  return s === 'null' || s === 'undefined' ? '' : s;
+}
+
+/**
+ * Null-safe name join: fullName('Ali', null) -> "Ali";
+ * fullName(null, null) -> "Ism kiritilmagan" (or the given fallback).
+ * Never produces "null null".
+ */
+export function fullName(
+  first: string | null | undefined,
+  last?: string | null,
+  fallback: string = NAME_FALLBACK
+): string {
+  const joined = [clean(first), clean(last)].filter(Boolean).join(' ');
+  return joined || fallback;
+}
+
+/**
+ * Up to two initials. Accepts a full name or (first, last). Returns "" when
+ * there is nothing to show — callers render an icon instead, never "NN".
+ */
+export function initials(first: string | null | undefined, last?: string | null): string {
+  const parts = last === undefined ? String(first ?? '').split(/\s+/) : [first, last];
+  return parts
+    .map(clean)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p.charAt(0).toLocaleUpperCase('uz'))
+    .join('');
 }

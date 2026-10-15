@@ -50,15 +50,15 @@ export function ImagePicker({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={inputId} className="text-caption font-semibold text-muted">
+      <label htmlFor={inputId} className="text-[13px] font-medium text-ink">
         {label}
       </label>
       <label
         htmlFor={inputId}
         className={clsx(
-          'flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-ds-md',
+          'flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-ds-sm',
           'border border-dashed border-line-strong bg-surface-2 text-muted transition-colors',
-          'hover:border-primary focus-within:ring-2 focus-within:ring-primary',
+          'hover:border-line-strong hover:bg-surface-3/50 focus-within:ring-2 focus-within:ring-focus',
           aspectClassName
         )}
       >
@@ -66,7 +66,7 @@ export function ImagePicker({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={previewSrc} alt="" className="h-full w-full object-cover" />
         ) : (
-          <span className="flex flex-col items-center gap-1 text-caption">
+          <span className="flex flex-col items-center gap-1 text-xs">
             <ImagePlus size={24} aria-hidden />
             Rasm tanlang — JPEG, PNG yoki WEBP
           </span>
@@ -111,7 +111,7 @@ export function ImagePicker({
         )}
       </div>
       {error && (
-        <p role="alert" className="text-caption text-danger-deep dark:text-danger-light">
+        <p role="alert" className="text-xs text-danger-dark dark:text-danger-light">
           {error}
         </p>
       )}

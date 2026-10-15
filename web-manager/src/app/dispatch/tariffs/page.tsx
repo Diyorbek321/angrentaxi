@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { AlertTriangle, Clock, Pencil, Plus, RefreshCw, Tag } from 'lucide-react';
+import { AlertTriangle, Pencil, Plus, RefreshCw, Tag } from 'lucide-react';
 import {
   getTariffs,
   getTariffChangeRequests,
@@ -12,7 +12,10 @@ import {
   Tariff,
   TariffChangeRequest,
 } from '@/lib/api';
-import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Card, CardBody, CardHeader } from '@/components/ui/Card';
+import { IconButton } from '@/components/ui/IconButton';
+import { MoneyText } from '@/components/ui/MoneyText';
+import { PageBody } from '@/components/ui/PageBody';
 import { Badge, BadgeVariant } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -54,11 +57,11 @@ const statusBadge: Record<TariffChangeRequest['status'], { label: string; varian
   rejected: { label: 'Rad etilgan', variant: 'danger' },
 };
 
-function TariffRow({ label, value }: { label: string; value: string }) {
+function TariffRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <span className="text-muted">{label}</span>
-      <span className="font-mono text-ink tabular-nums">{value}</span>
+      <dt className="text-muted">{label}</dt>
+      <dd className="num text-ink">{value}</dd>
     </div>
   );
 }
@@ -168,51 +171,55 @@ export default function TariffsPage() {
   const showSkeleton = isLoading && !hasLoadedOnce;
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="px-5 py-4 max-w-5xl mx-auto">
+    <PageBody className="max-w-5xl">
         <PageHeader
           title="Tariflar"
           description="Oʻzgarishlar admin tasdigʻidan soʻng kuchga kiradi"
-          icon={<Tag size={17} />}
           actions={
             <>
               <Button
                 variant="secondary"
                 size="sm"
                 onClick={fetchAll}
-                leftIcon={<RefreshCw size={13} />}
+                isLoading={isLoading && hasLoadedOnce}
+                leftIcon={<RefreshCw size={13} aria-hidden />}
               >
                 Yangilash
               </Button>
-              <Button leftIcon={<Plus size={15} />} onClick={openProposeNew} size="sm">
+              <Button leftIcon={<Plus size={14} aria-hidden />} onClick={openProposeNew} size="sm">
                 Yangi tarif taklif qilish
               </Button>
             </>
           }
         />
 
-        {loadError && (
-          <RetryBanner
-            message={loadError}
-            onRetry={fetchAll}
-            keepsLastData={tariffs.length > 0 || requests.length > 0}
-            className="mb-4"
-          />
+        {loadError && hasLoadedOnce && (
+          <RetryBanner message={loadError} onRetry={fetchAll} keepsLastData className="mb-4" />
         )}
 
         {loadError && !hasLoadedOnce ? (
-          <ErrorState message="Tarmoq yoki server xatosi. Qayta urinib koʻring." onRetry={fetchAll} />
+          <Card padding="none">
+            <ErrorState
+              title={loadError}
+              message="Tarmoq yoki server xatosi. Qayta urinib koʻring."
+              onRetry={fetchAll}
+              retrying={isLoading}
+            />
+          </Card>
         ) : (
           <div className="space-y-5">
-            <Card>
-              <CardHeader>
-                <CardTitle>Amaldagi tariflar</CardTitle>
-                {tariffs.length > 0 && (
-                  <Badge variant="mint-soft" size="sm">
-                    {tariffs.length}
-                  </Badge>
-                )}
-              </CardHeader>
+            <Card padding="none">
+              <CardHeader
+                title="Amaldagi tariflar"
+                actions={
+                  tariffs.length > 0 ? (
+                    <Badge variant="neutral" size="sm">
+                      {tariffs.length}
+                    </Badge>
+                  ) : undefined
+                }
+              />
+              <CardBody>
 
               {showSkeleton ? (
                 <div
@@ -220,17 +227,17 @@ export default function TariffsPage() {
                   aria-busy="true"
                 >
                   {Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className="h-44 rounded-ds-sm" />
+                    <Skeleton key={i} className="h-48 rounded-ds-md" />
                   ))}
                 </div>
               ) : tariffs.length === 0 ? (
                 <EmptyState
                   compact
-                  icon={<Tag size={20} />}
+                  icon={<Tag aria-hidden />}
                   title="Tarif yoʻq"
                   description="Birinchi tarifni taklif qiling — admin tasdiqlagach kuchga kiradi."
                   action={
-                    <Button size="sm" leftIcon={<Plus size={14} />} onClick={openProposeNew}>
+                    <Button size="sm" leftIcon={<Plus size={14} aria-hidden />} onClick={openProposeNew}>
                       Yangi tarif taklif qilish
                     </Button>
                   }
@@ -240,40 +247,39 @@ export default function TariffsPage() {
                   {tariffs.map((tariff) => (
                     <div
                       key={tariff.id}
-                      className="rounded-ds-sm border border-line bg-surface-2/50 p-4 space-y-2.5"
+                      className="rounded-ds-md border border-line bg-surface-2/50 p-3.5 space-y-2.5"
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <p className="font-semibold text-ink truncate">{tariff.name}</p>
+                        <p className="text-title text-ink truncate">{tariff.name}</p>
                         <div className="flex items-center gap-1 shrink-0">
                           {!tariff.isActive && (
-                            <Badge variant="default" size="sm">
+                            <Badge variant="neutral" size="sm">
                               Faol emas
                             </Badge>
                           )}
-                          <Button
-                            variant="ghost"
+                          <IconButton
                             size="sm"
                             onClick={() => openProposeEdit(tariff)}
                             aria-label={`${tariff.name} tarifini oʻzgartirishni taklif qilish`}
                           >
-                            <Pencil size={14} />
-                          </Button>
+                            <Pencil aria-hidden />
+                          </IconButton>
                         </div>
                       </div>
-                      <div className="text-xs space-y-1">
-                        <TariffRow label="Boshlangʻich" value={formatMoney(tariff.basePrice)} />
-                        <TariffRow label="Km narxi" value={formatMoney(tariff.pricePerKm)} />
+                      <dl className="text-[13px] space-y-1">
+                        <TariffRow label="Boshlangʻich" value={<MoneyText value={tariff.basePrice} />} />
+                        <TariffRow label="Km narxi" value={<MoneyText value={tariff.pricePerKm} />} />
                         <TariffRow
                           label="Taksometr km"
                           value={meteredPriceLabel(tariff.meteredPricePerKm, formatMoney)}
                         />
-                        <TariffRow label="Daqiqa narxi" value={formatMoney(tariff.pricePerMin)} />
-                        <TariffRow label="Min narx" value={formatMoney(tariff.minPrice)} />
+                        <TariffRow label="Daqiqa narxi" value={<MoneyText value={tariff.pricePerMin} />} />
+                        <TariffRow label="Min narx" value={<MoneyText value={tariff.minPrice} />} />
                         <TariffRow
                           label="Max narx"
-                          value={tariff.maxPrice ? formatMoney(tariff.maxPrice) : 'Cheklanmagan'}
+                          value={tariff.maxPrice ? <MoneyText value={tariff.maxPrice} /> : 'Cheklanmagan'}
                         />
-                      </div>
+                      </dl>
                       {tariff.surgeMultiplier !== 1 && (
                         <Badge variant="info" size="sm">
                           Oshirilgan ×{tariff.surgeMultiplier}
@@ -283,21 +289,24 @@ export default function TariffsPage() {
                   ))}
                 </div>
               )}
+              </CardBody>
             </Card>
 
             <TripOptionFeesCard />
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Mening takliflarim</CardTitle>
-                {/* Pending count is the number the operator is waiting on. */}
-                {pendingRequests.length > 0 && (
-                  <Badge variant="info" size="sm" dot>
-                    <Clock size={11} aria-hidden />
-                    {pendingRequests.length} ta kutilmoqda
-                  </Badge>
-                )}
-              </CardHeader>
+            <Card padding="none">
+              {/* Pending count is the number the operator is waiting on. */}
+              <CardHeader
+                title="Mening takliflarim"
+                actions={
+                  pendingRequests.length > 0 ? (
+                    <Badge variant="info" size="sm" dot>
+                      {pendingRequests.length} ta kutilmoqda
+                    </Badge>
+                  ) : undefined
+                }
+              />
+              <CardBody>
 
               {showSkeleton ? (
                 <div className="space-y-2" aria-busy="true">
@@ -307,7 +316,7 @@ export default function TariffsPage() {
               ) : requests.length === 0 ? (
                 <EmptyState
                   compact
-                  icon={<Tag size={20} />}
+                  icon={<Tag aria-hidden />}
                   title="Hali taklif yuborilmagan"
                   description="Tarif kartasidagi qalam belgisi orqali oʻzgarish taklif qiling."
                 />
@@ -316,11 +325,11 @@ export default function TariffsPage() {
                   {requests.map((req) => (
                     <div
                       key={req.id}
-                      className="flex items-center justify-between gap-3 rounded-ds-xs border border-line bg-surface-2/50 px-4 py-2.5"
+                      className="flex items-center justify-between gap-3 rounded-ds-sm border border-line px-3 py-2"
                     >
-                      <div className="text-sm text-ink min-w-0">
+                      <div className="text-[13px] text-ink min-w-0">
                         {req.action === 'create' ? 'Yangi tarif' : 'Tarif yangilash'}
-                        <span className="text-muted font-mono text-xs ml-2 tabular-nums">
+                        <span className="num text-muted text-xs ml-2">
                           {formatDateTime(req.createdAt)}
                         </span>
                         {req.reviewNote && (
@@ -334,10 +343,10 @@ export default function TariffsPage() {
                   ))}
                 </div>
               )}
+              </CardBody>
             </Card>
           </div>
         )}
-      </div>
 
       <Modal
         isOpen={isModalOpen}
@@ -349,10 +358,10 @@ export default function TariffsPage() {
           {submitError && (
             <div
               role="alert"
-              className="flex items-start gap-2.5 rounded-ds-xs border border-danger/40 bg-danger-tint px-3.5 py-3"
+              className="flex items-start gap-2.5 rounded-ds-sm border border-danger/30 bg-danger-tint px-3 py-2"
             >
-              <AlertTriangle size={15} className="text-danger shrink-0 mt-0.5" />
-              <p className="text-sm text-danger-deep dark:text-danger-light">{submitError}</p>
+              <AlertTriangle size={15} className="text-danger shrink-0 mt-0.5" aria-hidden />
+              <p className="text-[13px] text-danger-dark dark:text-danger-light">{submitError}</p>
             </div>
           )}
 
@@ -361,14 +370,12 @@ export default function TariffsPage() {
             <Input
               label="Boshlangʻich narx"
               type="number"
-              mono
               {...register('basePrice')}
               error={errors.basePrice?.message}
             />
             <Input
               label="Km narxi"
               type="number"
-              mono
               {...register('pricePerKm')}
               error={errors.pricePerKm?.message}
             />
@@ -377,14 +384,12 @@ export default function TariffsPage() {
             <Input
               label="Daqiqa narxi"
               type="number"
-              mono
               {...register('pricePerMin')}
               error={errors.pricePerMin?.message}
             />
             <Input
               label="Min narx"
               type="number"
-              mono
               {...register('minPrice')}
               error={errors.minPrice?.message}
             />
@@ -392,7 +397,6 @@ export default function TariffsPage() {
           <Input
             label="Taksometr km narxi (ixtiyoriy)"
             type="number"
-            mono
             hint="Manzilsiz safar uchun, odatda km narxidan biroz qimmat. Boʻsh — oddiy km narxi"
             {...register('meteredPricePerKm')}
             error={errors.meteredPricePerKm?.message}
@@ -400,16 +404,20 @@ export default function TariffsPage() {
           <Input
             label="Max narx (ixtiyoriy)"
             type="number"
-            mono
             hint="Boʻsh qoldirilsa narx cheklanmaydi"
             {...register('maxPrice')}
             error={errors.maxPrice?.message}
           />
-          <Button type="submit" isLoading={isSubmitting} className="w-full">
-            Taklif yuborish
-          </Button>
+          <div className="flex justify-end gap-2 pt-4 border-t border-line">
+            <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)}>
+              Bekor qilish
+            </Button>
+            <Button type="submit" isLoading={isSubmitting}>
+              Taklif yuborish
+            </Button>
+          </div>
         </form>
       </Modal>
-    </div>
+    </PageBody>
   );
 }

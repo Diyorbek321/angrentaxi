@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { AlertTriangle, ClipboardList, Download, RefreshCw, Search } from 'lucide-react';
+import { Download, RefreshCw } from 'lucide-react';
 import { getOrders, PaginatedResponse, Order } from '@/lib/api';
 import {
   OrderStatus,
@@ -11,15 +11,15 @@ import {
   PAYMENT_METHOD_LABELS,
 } from '@/lib/constants';
 import { ORDERS_PAGE_SIZES, OrdersTable } from '@/components/orders/OrdersTable';
-import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { FilterChip } from '@/components/ui/FilterChip';
+import { FilterBar } from '@/components/ui/FilterBar';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { PageBody } from '@/components/ui/PageBody';
 import { SkeletonTable } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
-import { formatNumber, formatPhone, formatTime, shortId } from '@/lib/format';
+import { formatDateTime, formatNumber, formatPhone, shortId } from '@/lib/format';
 import { downloadCsv } from '@/lib/csv';
 
 const statusOptions = [
@@ -32,7 +32,7 @@ const statusOptions = [
 
 type DatePreset = 'all' | 'today' | '7d' | '30d';
 
-const DATE_PRESETS: { value: DatePreset; label: string }[] = [
+const DATE_PRESETS: readonly { value: DatePreset; label: string }[] = [
   { value: 'all', label: 'Hammasi' },
   { value: 'today', label: 'Bugun' },
   { value: '7d', label: '7 kun' },
@@ -82,7 +82,7 @@ function exportOrdersCsv(orders: Order[]): void {
       o.driver?.carNumber ?? '',
       PAYMENT_METHOD_LABELS[o.paymentMethod],
       o.finalPrice ?? o.estimatedPrice ?? '',
-      new Date(o.createdAt).toLocaleString('uz-UZ'),
+      formatDateTime(o.createdAt, { withYear: true }),
     ])
   );
 }
@@ -192,150 +192,80 @@ function OrdersPageContent() {
   }, [searchQuery, statusFilter, datePreset]);
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
-      <div className="px-5 pt-4 shrink-0">
-        <PageHeader
-          title="Buyurtmalar"
-          icon={<ClipboardList size={17} />}
-          description={
-            data ? `Jami ${formatNumber(data.total)} ta buyurtma` : 'Yuklanmoqda…'
-          }
-          className="mb-4"
-          actions={
-            <>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleExport}
-                disabled={!data || data.data.length === 0}
-                leftIcon={<Download size={13} />}
-                title="Joriy sahifadagi yozuvlarni CSV sifatida yuklab olish"
-              >
-                CSV eksport
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={fetchOrders}
-                leftIcon={<RefreshCw size={13} />}
-              >
-                Yangilash
-              </Button>
-            </>
-          }
+    <PageBody>
+      <PageHeader
+        title="Buyurtmalar"
+        description={data ? `Jami ${formatNumber(data.total)} ta buyurtma` : 'Yuklanmoqda…'}
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleExport}
+              disabled={!data || data.data.length === 0}
+              leftIcon={<Download size={13} aria-hidden />}
+              title="Joriy sahifadagi yozuvlarni CSV sifatida yuklab olish"
+            >
+              CSV eksport
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={fetchOrders}
+              isLoading={isLoading && data != null}
+              leftIcon={<RefreshCw size={13} aria-hidden />}
+            >
+              Yangilash
+            </Button>
+          </>
+        }
+      />
+
+      <FilterBar
+        search={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Mijoz ismi yoki telefon boʻyicha"
+        chips={activeChips}
+        onClearAll={clearFilters}
+        className="mb-3"
+      >
+        <Select
+          options={statusOptions}
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          wrapperClassName="w-48"
+          aria-label="Status boʻyicha filtr"
         />
+        <SegmentedControl
+          items={DATE_PRESETS}
+          value={datePreset}
+          onChange={setDatePreset}
+          ariaLabel="Sana oraligʻi"
+        />
+      </FilterBar>
 
-        <div className="flex items-center gap-3 flex-wrap pb-3">
-          <Input
-            placeholder="Mijoz ismi yoki telefon boʻyicha"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            leftElement={<Search size={14} />}
-            className="w-64"
-            aria-label="Buyurtmalarni qidirish"
-          />
-          <Select
-            options={statusOptions}
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-48"
-            aria-label="Status boʻyicha filtr"
-          />
-          {/* Date-range presets — segmented, one active at a time. */}
-          <div
-            role="group"
-            aria-label="Sana oraligʻi"
-            className="inline-flex items-center rounded-ds-sm border border-line bg-surface-2/60 p-0.5"
-          >
-            {DATE_PRESETS.map((preset) => (
-              <button
-                key={preset.value}
-                type="button"
-                aria-pressed={datePreset === preset.value}
-                onClick={() => setDatePreset(preset.value)}
-                className={`h-8 px-2.5 rounded-ds-xs text-xs font-medium transition-colors ${
-                  datePreset === preset.value
-                    ? 'bg-surface text-ink shadow-card border border-line'
-                    : 'text-muted hover:text-ink border border-transparent'
-                }`}
-              >
-                {preset.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Applied filters as removable chips + one Clear all. */}
-        {activeChips.length > 0 && (
-          <div className="flex items-center gap-2 flex-wrap pb-3">
-            {activeChips.map((chip) => (
-              <FilterChip key={chip.key} label={chip.label} onRemove={chip.onRemove} />
-            ))}
-            <Button variant="ghost" size="sm" onClick={clearFilters}>
-              Hammasini tozalash
-            </Button>
-          </div>
-        )}
-
-        {/* A failed refresh names itself and keeps the last good rows below. */}
-        {error && (
-          <div
-            role="alert"
-            className="flex items-center gap-2.5 rounded-ds-xs border border-danger/40 bg-danger-tint px-3 py-2 mb-3"
-          >
-            <AlertTriangle size={14} className="text-danger shrink-0" />
-            <p className="text-xs text-danger-deep dark:text-danger-light flex-1">
-              {error}
-              {data && (
-                <span className="text-muted">
-                  {' '}
-                  Quyida oxirgi muvaffaqiyatli yuklangan maʼlumot koʻrsatilmoqda
-                  {` (${formatTime(Date.now())} dan oldingi holat)`}.
-                </span>
-              )}
-            </p>
-            <Button variant="secondary" size="sm" onClick={fetchOrders}>
-              Qayta urinish
-            </Button>
-          </div>
-        )}
-      </div>
-
-      <div className="flex-1 min-h-0 px-5 pb-5">
-        {error && !data ? (
-          <EmptyState
-            icon={<AlertTriangle size={22} />}
-            title="Buyurtmalarni yuklab boʻlmadi"
-            description="Tarmoq yoki server xatosi. Qayta urinib koʻring."
-            action={
-              <Button variant="secondary" size="sm" onClick={fetchOrders}>
-                Qayta urinish
-              </Button>
-            }
-          />
-        ) : (
-          <OrdersTable
-            data={
-              data ?? {
-                data: [],
-                total: 0,
-                page: 1,
-                limit: pageSize,
-                totalPages: 0,
-              }
-            }
-            currentPage={currentPage}
-            onPageChange={setCurrentPage}
-            pageSize={pageSize}
-            onPageSizeChange={setPageSize}
-            isLoading={isLoading}
-            hasFilters={hasFilters && !isTodayOnly}
-            onClearFilters={clearFilters}
-            isTodayView={isTodayOnly}
-          />
-        )}
-      </div>
-    </div>
+      <OrdersTable
+        data={
+          data ?? {
+            data: [],
+            total: 0,
+            page: 1,
+            limit: pageSize,
+            totalPages: 0,
+          }
+        }
+        currentPage={currentPage}
+        onPageChange={setCurrentPage}
+        pageSize={pageSize}
+        onPageSizeChange={setPageSize}
+        isLoading={isLoading}
+        error={error}
+        onRetry={fetchOrders}
+        hasFilters={hasFilters && !isTodayOnly}
+        onClearFilters={clearFilters}
+        isTodayView={isTodayOnly}
+      />
+    </PageBody>
   );
 }
 
@@ -344,9 +274,9 @@ export default function OrdersPage() {
   return (
     <Suspense
       fallback={
-        <div className="p-5">
+        <PageBody>
           <SkeletonTable rows={8} cols={7} />
-        </div>
+        </PageBody>
       }
     >
       <OrdersPageContent />

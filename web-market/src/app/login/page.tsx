@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Phone, Lock, ArrowRight, ShoppingBag } from 'lucide-react';
+import { Phone, Lock, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
@@ -107,71 +107,47 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-bg p-4">
-      {/* Decorative only — mint may fill a surface, but never carry meaning. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -left-40 -top-40 h-96 w-96 rounded-full bg-mint/20 blur-3xl"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-info/10 blur-3xl"
-      />
-
+    <div className="relative flex min-h-screen items-center justify-center bg-bg px-4 py-10">
       <div className="absolute right-4 top-4">
         <ThemeToggle />
       </div>
 
-      <div className="relative w-full max-w-md">
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-ds-md bg-gradient-cta shadow-cta">
-            <ShoppingBag className="h-7 w-7 text-white" aria-hidden />
-          </div>
-          <div>
-            <h1 className="text-h1 text-ink">Angren Market</h1>
-            <p className="text-body text-primary-text font-semibold">Sotuvchi paneli</p>
-          </div>
+      <div className="w-full max-w-sm">
+        <div className="mb-6 flex flex-col items-center text-center">
+          <span
+            aria-hidden
+            className="mb-3 flex h-10 w-10 items-center justify-center rounded-ds-sm bg-primary text-base font-semibold text-white dark:bg-primary-on-dark"
+          >
+            A
+          </span>
+          <h1 className="text-xl font-semibold text-ink">Angren Market</h1>
+          <p className="mt-0.5 text-[13px] text-muted">Sotuvchi paneli</p>
         </div>
 
-        <div className="surface-card p-6 sm:p-8">
-          {/* Two-step progress. `aria-valuenow` states the step for screen
-              readers, since the filled bar alone says nothing. */}
-          <div
-            className="mb-6 flex items-center gap-2"
-            role="progressbar"
-            aria-valuemin={1}
-            aria-valuemax={2}
-            aria-valuenow={step === 'phone' ? 1 : 2}
-            aria-label="Kirish bosqichi"
-          >
-            <div className="h-1.5 flex-1 rounded-full bg-primary" />
-            <div
-              className={`h-1.5 flex-1 rounded-full transition-colors duration-fast ${
-                step === 'otp' ? 'bg-primary' : 'bg-surface-3'
-              }`}
-            />
-          </div>
-
-          <div className="mb-6">
-            <h2 className="text-h2 text-ink">
-              {step === 'phone' ? 'Sotuvchi paneliga kirish' : 'Tasdiqlash kodi'}
+        <div className="rounded-ds-md border border-line bg-surface p-6 shadow-card">
+          <div className="mb-5">
+            <p className="num text-xs text-subtle" aria-live="polite">
+              {step === 'phone' ? '1-qadam / 2' : '2-qadam / 2'}
+            </p>
+            <h2 className="mt-1 text-base font-semibold text-ink">
+              {step === 'phone' ? 'Kirish' : 'Tasdiqlash kodi'}
             </h2>
-            <p className="mt-1.5 text-body text-muted">
+            <p className="mt-1 text-[13px] text-muted">
               {step === 'phone'
-                ? 'Telefon raqamingizni kiriting'
+                ? 'Telefon raqamingizni kiriting — SMS kod yuboramiz'
                 : `${phone} raqamiga yuborilgan 6 raqamli kodni kiriting`}
             </p>
           </div>
 
           {step === 'phone' ? (
-            <form onSubmit={phoneForm.handleSubmit(handleSendOtp)} className="space-y-4">
+            <form onSubmit={phoneForm.handleSubmit(handleSendOtp)} className="space-y-4" noValidate>
               <Input
                 label="Telefon raqam"
                 placeholder="+998901234567"
                 autoComplete="tel"
                 inputMode="tel"
-                mono
-                leftElement={<Phone className="h-4 w-4" aria-hidden />}
+                className="num"
+                leftElement={<Phone size={15} aria-hidden />}
                 error={phoneForm.formState.errors.phone?.message}
                 {...phoneForm.register('phone')}
               />
@@ -180,29 +156,28 @@ export default function LoginPage() {
                 size="lg"
                 className="w-full"
                 isLoading={isLoading}
-                rightIcon={<ArrowRight className="h-4 w-4" aria-hidden />}
+                rightIcon={<ArrowRight size={16} aria-hidden />}
               >
                 Kod yuborish
               </Button>
             </form>
           ) : (
-            <form onSubmit={otpForm.handleSubmit(handleVerifyOtp)} className="space-y-4">
+            <form onSubmit={otpForm.handleSubmit(handleVerifyOtp)} className="space-y-4" noValidate>
               <Input
                 label="Tasdiqlash kodi"
                 placeholder="000000"
                 maxLength={6}
                 mono
                 autoComplete="one-time-code"
-                leftElement={<Lock className="h-4 w-4" aria-hidden />}
+                leftElement={<Lock size={15} aria-hidden />}
                 error={otpForm.formState.errors.code?.message}
                 inputMode="numeric"
                 {...otpForm.register('code')}
               />
               {devOtpCode && (
-                <div className="rounded-ds-sm border border-info/40 bg-info-tint px-3 py-2 text-body text-ink">
-                  <span className="font-semibold">DEV:</span> OTP kod —{' '}
-                  <span className="font-mono font-bold">{devOtpCode}</span>{' '}
-                  <span className="text-muted">(avtomatik kiritildi)</span>
+                <div className="rounded-ds-sm border border-info/30 bg-info-tint px-3 py-2 text-[13px] text-info-dark dark:text-info-light">
+                  <span className="font-semibold">TEST:</span> OTP kod —{' '}
+                  <span className="font-mono font-semibold">{devOtpCode}</span> (avtomatik kiritildi)
                 </div>
               )}
               <Button
@@ -210,21 +185,18 @@ export default function LoginPage() {
                 size="lg"
                 className="w-full"
                 isLoading={isLoading}
-                rightIcon={<ArrowRight className="h-4 w-4" aria-hidden />}
+                rightIcon={<ArrowRight size={16} aria-hidden />}
               >
                 Kirish
               </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full"
-                onClick={() => setStep('phone')}
-              >
+              <Button type="button" variant="ghost" className="w-full" onClick={() => setStep('phone')}>
                 Raqamni o&apos;zgartirish
               </Button>
             </form>
           )}
         </div>
+
+        <p className="mt-6 text-center text-xs text-subtle">Angren Market · Sotuvchi paneli</p>
       </div>
     </div>
   );

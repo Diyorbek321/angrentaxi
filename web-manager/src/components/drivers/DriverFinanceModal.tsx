@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
-import { formatMoney } from '@/lib/format';
+import { MoneyText } from '@/components/ui/MoneyText';
+import { formatMoney, fullName } from '@/lib/format';
 
 export interface DriverFinanceModalProps {
   driver: DriverProfile | null;
@@ -77,7 +78,7 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
       setFundsNote('');
       toast({
         title: `${formatMoney(Math.abs(amount))} ${verb}`,
-        description: `${updated.firstName} ${updated.lastName} · yangi qoldiq ${formatMoney(
+        description: `${fullName(updated.firstName, updated.lastName)} · yangi qoldiq ${formatMoney(
           updated.walletBalance ?? 0
         )}`,
         variant: 'success',
@@ -110,7 +111,7 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
       toast({
         title:
           rate == null ? 'Platforma komissiyasi qoʻllanadi' : `Komissiya ${rate}% qilib saqlandi`,
-        description: `${updated.firstName} ${updated.lastName}`,
+        description: fullName(updated.firstName, updated.lastName),
         variant: 'success',
       });
     } catch (err) {
@@ -125,13 +126,13 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
     <Modal
       isOpen={!!driver}
       onClose={onClose}
-      title={current ? `${current.firstName} ${current.lastName} — moliya` : 'Moliya'}
+      title={current ? `${fullName(current.firstName, current.lastName)} — moliya` : 'Moliya'}
       subtitle="Pul harakati tasdiqlashdan soʻng amalga oshadi"
       size="md"
     >
       {current && (
         <div className="space-y-5">
-          <div className="rounded-ds-sm border border-line bg-surface-2/60 p-4 text-center">
+          <div className="rounded-ds-md border border-line bg-surface-2/60 p-4 text-center">
             {/* Daftardan hisoblangan qoldiq — haydovchi o'z ilovasida AYNAN
                 shu raqamni ko'radi. `balance` ustuni yechib olingan pulni
                 hisobga olmagani uchun bu yerda ishlatilmaydi. */}
@@ -139,17 +140,17 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
               {(current.walletBalance ?? 0) < 0 ? 'Qarz' : 'Hamyon'}
             </p>
             <p
-              className={`font-mono text-xl font-bold mt-1 tabular-nums ${
+              className={`num text-kpi mt-1 ${
                 (current.walletBalance ?? 0) < 0
                   ? 'text-danger-deep dark:text-danger-light'
-                  : 'text-primary-700 dark:text-primary-300'
+                  : 'text-ink'
               }`}
             >
-              {formatMoney(current.walletBalance ?? 0)}
+              <MoneyText value={current.walletBalance ?? 0} />
             </p>
             {current.commissionRate != null && (
               <p className="text-[11px] text-subtle mt-1">
-                Komissiya: <span className="font-mono">{current.commissionRate}%</span>
+                Komissiya: <span className="num">{current.commissionRate}%</span>
               </p>
             )}
           </div>
@@ -159,8 +160,7 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
             <Input
               placeholder="Summa (ayirish uchun manfiy son)"
               type="number"
-              mono
-              value={fundsAmount}
+                value={fundsAmount}
               onChange={(e) => {
                 setFundsAmount(e.target.value);
                 if (fundsError) setFundsError(null);
@@ -182,16 +182,12 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
               <div
                 role="alertdialog"
                 aria-label="Balans oʻzgarishini tasdiqlash"
-                className="rounded-ds-xs border border-override/40 bg-override/[0.06] p-3 space-y-3"
+                className="rounded-ds-sm border border-override/40 bg-override-tint p-3 space-y-3"
               >
-                <p className="text-sm text-ink">
-                  <span className="font-semibold">
-                    {current.firstName} {current.lastName}
-                  </span>{' '}
+                <p className="text-[13px] text-ink">
+                  <span className="font-semibold">{fullName(current.firstName, current.lastName)}</span>{' '}
                   hisobidan{' '}
-                  <span className="font-mono font-semibold tabular-nums">
-                    {formatMoney(Math.abs(Number(fundsAmount)))}
-                  </span>{' '}
+                  <MoneyText value={Math.abs(Number(fundsAmount))} className="font-semibold" />{' '}
                   {Number(fundsAmount) > 0 ? 'qoʻshiladi' : 'yechiladi'}.
                 </p>
                 <div className="flex gap-2">
@@ -232,8 +228,7 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
             <Input
               placeholder="% — boʻsh qoldirilsa platforma qiymati"
               type="number"
-              mono
-              value={commissionInput}
+                value={commissionInput}
               onChange={(e) => {
                 setCommissionInput(e.target.value);
                 if (commissionError) setCommissionError(null);

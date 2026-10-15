@@ -1,67 +1,84 @@
+// AUTO-SYNCED from web-manager — edit there, then run scripts/sync-panel-ui.sh
 'use client';
 
-import { cn } from '@/lib/utils';
+import type { ReactNode } from 'react';
+import { cn } from './cn';
 
 export interface SwitchProps {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   disabled?: boolean;
-  /**
-   * `danger` — yoqilishi XAVFLI rejimni bildiradigan switch (masalan,
-   * texnik profilaktika). Oddiy faol/nofaol holat uchun `primary`.
-   */
+  /** `danger` = turning it on is risky (e.g. maintenance mode). */
   tone?: 'primary' | 'danger';
+  /** `lg` = 44×26 thumb-friendly touch variant (kitchen / tablet). */
+  size?: 'sm' | 'md' | 'lg';
+  label?: ReactNode;
   'aria-label'?: string;
+  id?: string;
   className?: string;
 }
 
-/**
- * Inline holat almashtirgich — jadval qatoridagi faol/nofaol kabi QAYTARILADIGAN
- * amallar uchun. Tasdiqlash modali shart emas (doktrina: modal faqat
- * destruktiv/moliyaviy amalga); natija toast bilan aytiladi.
- *
- * Tugmacha ikkala temada ham oq: yo'lakcha yo `primary` (oq bilan 5.38:1),
- * yo `surface-3` + kuchli chegara — tokenli matn yuzasi bu yerda ko'rinmay
- * qolardi (global-settings dagi izohga qarang).
- */
+/** role="switch" toggle; 32×18 (28×16 `sm`, 44×26 `lg` touch). */
 export function Switch({
   checked,
   onCheckedChange,
   disabled = false,
   tone = 'primary',
-  'aria-label': ariaLabel,
+  size = 'md',
+  label,
+  id,
   className,
+  ...aria
 }: SwitchProps) {
-  return (
+  const control = (
     <button
       type="button"
       role="switch"
+      id={id}
       aria-checked={checked}
-      aria-label={ariaLabel}
+      aria-label={aria['aria-label']}
       disabled={disabled}
       onClick={() => onCheckedChange(!checked)}
       className={cn(
-        'relative h-6 w-11 shrink-0 rounded-full transition-colors duration-fast ease-standard',
+        'relative inline-flex shrink-0 items-center rounded-full border transition-colors',
         'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
-        'disabled:cursor-not-allowed disabled:opacity-50',
-        // Chegara ikkala holatda ham bor (yoqilganda shaffof) — aks holda
-        // absolute tugmacha 1px "sakraydi".
-        'border',
+        'disabled:opacity-50 disabled:cursor-not-allowed',
+        size === 'sm' ? 'h-4 w-7' : size === 'lg' ? 'h-[26px] w-11' : 'h-[18px] w-8',
         checked
           ? tone === 'danger'
-            ? 'border-transparent bg-danger'
-            : 'border-transparent bg-primary dark:bg-primary-on-dark'
-          : 'border-line-strong bg-surface-3',
-        className
+            ? 'bg-danger border-danger'
+            : 'bg-primary border-primary dark:bg-primary-on-dark dark:border-primary-on-dark'
+          : 'bg-surface-3 border-line-strong',
+        !label && className
       )}
     >
       <span
-        aria-hidden="true"
+        aria-hidden
         className={cn(
-          'absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-card transition-transform duration-fast ease-standard',
-          checked ? 'translate-x-5' : 'translate-x-0.5'
+          'inline-block rounded-full bg-white shadow-[0_1px_2px_rgb(0_0_0/0.2)] transition-transform',
+          size === 'sm' ? 'h-3 w-3' : size === 'lg' ? 'h-[22px] w-[22px]' : 'h-3.5 w-3.5',
+          checked
+            ? size === 'sm'
+              ? 'translate-x-3'
+              : size === 'lg'
+                ? 'translate-x-[19px]'
+                : 'translate-x-[15px]'
+            : 'translate-x-px'
         )}
       />
     </button>
+  );
+  if (!label) return control;
+  return (
+    <label
+      className={cn(
+        'inline-flex items-center gap-2 text-sm text-ink cursor-pointer',
+        size === 'lg' && 'min-h-touch gap-3 text-base',
+        className
+      )}
+    >
+      {control}
+      <span>{label}</span>
+    </label>
   );
 }

@@ -5,10 +5,13 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { AlertCircle, ArrowRight, Lock, Phone, Shield } from 'lucide-react';
+import { AlertCircle, ArrowRight, Lock, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { cn } from '@/components/ui/cn';
+import { formatPhone as formatPhoneDisplay } from '@/lib/format';
 import { authApi } from '@/lib/api';
 import { isValidUzPhone, formatPhone } from '@/lib/auth';
 import { sanitizeNextPath } from '@/lib/route-guard';
@@ -114,67 +117,60 @@ export default function LoginPage() {
     }
   };
 
-  return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-bg p-4">
-      {/* Decorative background orbs — brend rangi, dekorativ (aria-hidden). */}
-      <div
-        className="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full bg-primary/10 blur-[80px]"
-        aria-hidden="true"
-      />
-      <div
-        className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-info/10 blur-[100px]"
-        aria-hidden="true"
-      />
+  const stepIndex = step === 'phone' ? 1 : 2;
 
-      {/* Card */}
-      <div className="relative w-full max-w-md">
-        {/* Logo section */}
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-ds-md bg-gradient-cta shadow-cta">
-            <Shield className="h-7 w-7 text-white" aria-hidden="true" />
-          </div>
+  return (
+    <div className="relative flex min-h-screen items-center justify-center bg-bg px-4 py-10">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
+
+      <main className="w-full max-w-sm">
+        <div className="mb-6 flex flex-col items-center gap-3 text-center">
+          <span
+            aria-hidden
+            className="flex h-10 w-10 items-center justify-center rounded-ds-sm bg-primary text-base font-bold text-white dark:bg-primary-on-dark"
+          >
+            A
+          </span>
           <div>
-            <h1 className="text-h1 text-ink">Angren Taxi</h1>
-            <p className="text-body text-primary-text">Boshqaruv paneli</p>
+            <p className="text-title text-ink">Angren Taxi</p>
+            <p className="text-[13px] text-muted">Super Admin paneli</p>
           </div>
         </div>
 
-        {/* Card */}
-        <div className="rounded-ds-lg border border-line bg-surface p-8 shadow-pop">
-          {/* Qadam ko'rsatkichi — ma'no faqat rang bilan emas, so'z bilan ham. */}
-          <div className="mb-6">
-            <div className="flex items-center gap-2" aria-hidden="true">
-              <div className="h-1.5 flex-1 rounded-full bg-primary transition-colors duration-fast" />
-              <div
-                className={`h-1.5 flex-1 rounded-full transition-colors duration-fast ${
-                  step === 'otp' ? 'bg-primary' : 'bg-surface-2'
-                }`}
+        <div className="rounded-ds-md border border-line bg-surface p-6 shadow-card">
+          {/* Step indicator — meaning in words too, not colour alone. */}
+          <div className="mb-5">
+            <div className="flex items-center gap-1.5" aria-hidden="true">
+              <span className="h-1 flex-1 rounded-full bg-primary dark:bg-primary-on-dark" />
+              <span
+                className={cn(
+                  'h-1 flex-1 rounded-full transition-colors',
+                  step === 'otp' ? 'bg-primary dark:bg-primary-on-dark' : 'bg-surface-3'
+                )}
               />
             </div>
-            <p className="mt-2 text-caption text-subtle">
-              {step === 'phone' ? '1-qadam / 2' : '2-qadam / 2'}
-            </p>
+            <p className="num mt-2 text-xs text-subtle">{stepIndex}-qadam / 2</p>
           </div>
 
-          <div className="mb-6">
-            <h2 className="text-h2 text-ink">
-              {step === 'phone' ? 'Panelga kirish' : 'Tasdiqlash kodi'}
-            </h2>
-            <p className="mt-1.5 text-body leading-relaxed text-muted">
+          <div className="mb-5">
+            <h1 className="text-h2 text-ink">{step === 'phone' ? 'Panelga kirish' : 'Tasdiqlash kodi'}</h1>
+            <p className="mt-1 text-[13px] leading-relaxed text-muted">
               {step === 'phone'
                 ? 'Telefon raqamingizni kiriting — SMS orqali bir martalik kod yuboramiz.'
-                : `${phone} raqamiga yuborilgan 6 raqamli kodni kiriting.`}
+                : `${formatPhoneDisplay(phone)} raqamiga yuborilgan 6 raqamli kodni kiriting.`}
             </p>
           </div>
 
           {authError && (
-            <p
+            <div
               role="alert"
-              className="mb-4 flex items-start gap-2 rounded-ds-md border border-danger/30 bg-danger-tint px-3 py-2.5 text-body text-danger-deep dark:text-danger-light"
+              className="mb-4 flex items-start gap-2 rounded-ds-sm border border-danger/30 bg-danger-tint px-3 py-2 text-[13px] text-danger-dark dark:text-danger-light"
             >
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-              {authError}
-            </p>
+              <AlertCircle size={15} className="mt-px shrink-0" aria-hidden="true" />
+              <span>{authError}</span>
+            </div>
           )}
 
           {step === 'phone' ? (
@@ -185,17 +181,18 @@ export default function LoginPage() {
                 autoComplete="tel"
                 autoFocus
                 placeholder="+998901234567"
-                mono
-                leftIcon={<Phone className="h-4 w-4" aria-hidden="true" />}
+                className="num"
+                leftIcon={<Phone aria-hidden="true" />}
                 error={phoneForm.formState.errors.phone?.message}
                 {...phoneForm.register('phone')}
               />
               <Button
                 type="submit"
                 variant="primary"
+                size="lg"
                 className="w-full"
                 isLoading={isLoading}
-                rightIcon={<ArrowRight className="h-4 w-4" aria-hidden="true" />}
+                rightIcon={<ArrowRight size={15} aria-hidden="true" />}
               >
                 {isLoading ? 'Kod yuborilmoqda…' : 'Kod yuborish'}
               </Button>
@@ -210,42 +207,47 @@ export default function LoginPage() {
                 placeholder="000000"
                 maxLength={6}
                 mono
-                leftIcon={<Lock className="h-4 w-4" aria-hidden="true" />}
+                leftIcon={<Lock aria-hidden="true" />}
                 error={otpForm.formState.errors.code?.message}
                 inputMode="numeric"
                 {...otpForm.register('code')}
               />
+              {/* Dev-only helper — informational blue; amber stays reserved
+                  for manual overrides. */}
               {devOtpCode && (
-                <div className="rounded-ds-md border border-override/40 bg-override-tint px-3 py-2 text-body text-override-dark dark:text-override-light">
-                  <span className="font-semibold">DEV:</span> OTP kod —{' '}
-                  <span className="font-mono font-bold">{devOtpCode}</span>{' '}
-                  <span className="text-subtle">(avtomatik kiritildi)</span>
+                <div className="rounded-ds-sm border border-info/30 bg-info-tint px-3 py-2 text-[13px] text-info-dark dark:text-info-light">
+                  <span className="font-semibold">TEST:</span> OTP kod —{' '}
+                  <span className="font-mono font-semibold">{devOtpCode}</span> (avtomatik kiritildi)
                 </div>
               )}
               <Button
                 type="submit"
                 variant="primary"
+                size="lg"
                 className="w-full"
                 isLoading={isLoading}
-                rightIcon={<ArrowRight className="h-4 w-4" aria-hidden="true" />}
+                rightIcon={<ArrowRight size={15} aria-hidden="true" />}
               >
                 {isLoading ? 'Tekshirilmoqda…' : 'Kirish'}
               </Button>
-              <button
+              <Button
                 type="button"
-                className="w-full rounded-ds-xs py-1 text-center text-body text-muted transition-colors duration-fast hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+                variant="ghost"
+                className="w-full"
                 onClick={() => {
                   setStep('phone');
                   setDevOtpCode('');
                   setAuthError(null);
                 }}
               >
-                Raqamni o&apos;zgartirish
-              </button>
+                Raqamni oʻzgartirish
+              </Button>
             </form>
           )}
         </div>
-      </div>
+
+        <p className="mt-6 text-center text-xs text-subtle">Angren Taxi · Super Admin</p>
+      </main>
     </div>
   );
 }

@@ -1,3 +1,4 @@
+// AUTO-SYNCED from web-manager — edit there, then run scripts/sync-panel-ui.sh
 'use client';
 
 import {
@@ -5,96 +6,122 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
 } from 'react';
-import { AlertCircle, CheckCircle, Info, X } from 'lucide-react';
-import { clsx } from 'clsx';
+import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
+import { cn } from './cn';
 
 /**
- * Non-blocking feedback for routine actions (skill rule: optimistic updates +
- * toasts for routine acts; confirmation modals only for destructive ones).
- *
- * Ported from web-market's Toast pattern. web-market builds on
- * @radix-ui/react-toast; that package is not a dependency of this panel and
- * package.json is frozen, so this is a dependency-free implementation of the
- * same contract: `useToast().toast({ title, description?, variant? })`.
+ * Non-blocking feedback for routine actions. Bottom-right, 4s, optional
+ * action (e.g. "Qaytarish" undo). Dependency-free, same contract in every
+ * panel: `useToast().toast({ title, description?, variant?, action? })`.
  */
 
-type ToastVariant = 'default' | 'success' | 'error' | 'info';
+export type ToastVariant = 'default' | 'success' | 'error' | 'info';
 
-interface ToastItem {
-  id: string;
+export interface ToastAction {
+  label: string;
+  onClick: () => void | Promise<void>;
+  /** Screen-reader description of the action (Radix-compatible). */
+  altText?: string;
+}
+
+export interface ToastOptions {
   title: string;
   description?: string;
   variant?: ToastVariant;
+  action?: ToastAction;
+  /** ms; default 4000 (6000 when there is an action to reach). */
+  duration?: number;
 }
 
-interface ToastContextValue {
-  toast: (item: Omit<ToastItem, 'id'>) => void;
+interface ToastItem extends ToastOptions {
+  id: string;
 }
 
-const TOAST_DURATION_MS = 5000;
+export interface ToastContextValue {
+  toast: (item: ToastOptions) => void;
+  dismiss: (id?: string) => void;
+}
 
-/**
- * Tinted surfaces, never saturated fills: the semantic hue lives in the
- * border and the icon, the body stays readable in both themes. `success`
- * uses the mint *tint* with ink text — mint itself carries no meaning on a
- * light surface (2.12:1, see DESIGN-TOKENS.md §2.1).
- */
-const variantClasses: Record<ToastVariant, string> = {
-  default: 'bg-surface border-line',
-  success: 'bg-mint-tint border-mint/40',
-  error: 'bg-danger-tint border-danger/40',
-  info: 'bg-info-tint border-info/40',
-};
+const DEFAULT_DURATION_MS = 4000;
+const ACTION_DURATION_MS = 6000;
 
-/** The icon repeats what the tint says, so colour is never the only signal. */
 const variantIcons: Record<ToastVariant, ReactNode> = {
   default: null,
-  success: <CheckCircle size={18} className="text-primary-text shrink-0 mt-0.5" aria-hidden />,
-  error: (
-    <AlertCircle size={18} className="text-danger-deep dark:text-danger-light shrink-0 mt-0.5" aria-hidden />
-  ),
-  info: <Info size={18} className="text-info-deep dark:text-info-light shrink-0 mt-0.5" aria-hidden />,
+  success: <CheckCircle2 size={16} className="text-mint-deep dark:text-mint-soft shrink-0 mt-px" aria-hidden />,
+  error: <AlertCircle size={16} className="text-danger shrink-0 mt-px" aria-hidden />,
+  info: <Info size={16} className="text-info shrink-0 mt-px" aria-hidden />,
 };
 
-const ToastContext = createContext<ToastContextValue>({ toast: () => {} });
+const variantSr: Record<ToastVariant, string> = {
+  default: '',
+  success: 'Muvaffaqiyatli: ',
+  error: 'Xato: ',
+  info: 'Maʼlumot: ',
+};
+
+const ToastContext = createContext<ToastContextValue>({ toast: () => {}, dismiss: () => {} });
 
 export function useToast(): ToastContextValue {
   return useContext(ToastContext);
 }
 
 function ToastCard({ item, onDismiss }: { item: ToastItem; onDismiss: (id: string) => void }) {
-  // Each toast owns its dismiss timer; unmount (manual close) cancels it.
+  const [paused, setPaused] = useState(false);
+  const variant = item.variant ?? 'default';
+  const duration = item.duration ?? (item.action ? ACTION_DURATION_MS : DEFAULT_DURATION_MS);
+
   useEffect(() => {
-    const timer = setTimeout(() => onDismiss(item.id), TOAST_DURATION_MS);
+    if (paused) return;
+    const timer = setTimeout(() => onDismiss(item.id), duration);
     return () => clearTimeout(timer);
-  }, [item.id, onDismiss]);
+  }, [item.id, onDismiss, paused, duration]);
 
   return (
     <div
-      // role=status + the polite viewport below announce without interrupting.
-      role="status"
-      className={clsx(
-        'pointer-events-auto relative flex w-full items-start gap-3 overflow-hidden',
-        'rounded-ds-md border p-4 pr-9 shadow-pop text-ink animate-slide-up',
-        variantClasses[item.variant ?? 'default']
+      role={variant === 'error' ? 'alert' : 'status'}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+      className={cn(
+        'pointer-events-auto relative flex w-full items-start gap-2.5',
+        'rounded-ds-md border border-line bg-surface p-3 pr-9 shadow-pop animate-slide-up',
+        variant === 'error' && 'border-danger/40'
       )}
     >
-      {variantIcons[item.variant ?? 'default']}
-      <div className="min-w-0">
-        <p className="text-sm font-semibold text-ink">{item.title}</p>
-        {item.description && <p className="text-sm text-muted mt-0.5">{item.description}</p>}
+      {variantIcons[variant]}
+      <div className="min-w-0 flex-1">
+        <p className="text-[13px] font-semibold text-ink">
+          <span className="sr-only">{variantSr[variant]}</span>
+          {item.title}
+        </p>
+        {item.description && <p className="text-[13px] text-muted mt-0.5 break-words">{item.description}</p>}
+        {item.action && (
+          <button
+            type="button"
+            aria-label={item.action.altText ?? item.action.label}
+            onClick={() => {
+              void item.action?.onClick();
+              onDismiss(item.id);
+            }}
+            className="mt-2 text-[13px] font-semibold text-primary-text hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-focus rounded-ds-xs"
+          >
+            {item.action.label}
+          </button>
+        )}
       </div>
       <button
         type="button"
         aria-label="Yopish"
         onClick={() => onDismiss(item.id)}
-        className="absolute right-2 top-2 rounded-ds-xs p-1 text-muted transition-colors hover:text-ink hover:bg-surface-2"
+        className="absolute right-2 top-2 h-6 w-6 inline-flex items-center justify-center rounded-ds-xs text-subtle transition-colors hover:text-ink hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
       >
-        <X size={15} />
+        <X size={14} aria-hidden />
       </button>
     </div>
   );
@@ -104,23 +131,26 @@ export function ToastContextProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const counter = useRef(0);
 
-  const toast = useCallback((item: Omit<ToastItem, 'id'>) => {
+  const toast = useCallback((item: ToastOptions) => {
     counter.current += 1;
     const id = `t${counter.current}`;
-    setToasts((prev) => [...prev, { ...item, id }]);
+    // Max 4 on screen — the oldest leaves first.
+    setToasts((prev) => [...prev.slice(-3), { ...item, id }]);
   }, []);
 
-  const dismiss = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+  const dismiss = useCallback((id?: string) => {
+    setToasts((prev) => (id ? prev.filter((t) => t.id !== id) : []));
   }, []);
+
+  const value = useMemo(() => ({ toast, dismiss }), [toast, dismiss]);
 
   return (
-    <ToastContext.Provider value={{ toast }}>
+    <ToastContext.Provider value={value}>
       {children}
       <div
         aria-live="polite"
         aria-label="Bildirishnomalar"
-        className="pointer-events-none fixed top-0 right-0 z-[100] flex max-h-screen w-full flex-col gap-2 p-4 sm:max-w-[400px]"
+        className="pointer-events-none fixed bottom-0 right-0 z-[100] flex max-h-screen w-full flex-col gap-2 p-4 sm:max-w-[380px]"
       >
         {toasts.map((t) => (
           <ToastCard key={t.id} item={t} onDismiss={dismiss} />
@@ -129,3 +159,6 @@ export function ToastContextProvider({ children }: { children: ReactNode }) {
     </ToastContext.Provider>
   );
 }
+
+/** Alias for panels that call it `ToastProvider`. */
+export const ToastProvider = ToastContextProvider;

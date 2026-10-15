@@ -30,7 +30,7 @@ export const PRODUCT_STATUS: Record<ProductStatus, ProductStatusMeta> = {
   hidden: {
     label: 'Yashirilgan',
     segmentLabel: 'Yashirilgan',
-    variant: 'default',
+    variant: 'neutral',
     Icon: EyeOff,
   },
 };
@@ -50,10 +50,8 @@ export function stockTone(
   if (stock === 0)
     return { text: 'text-danger-deep dark:text-danger-light', label: 'Tugagan', level: 'out' };
   if (stock <= threshold)
-    return {
-      text: 'text-override-dark dark:text-override-light',
-      label: 'Kam qolgan',
-      level: 'low',
-    };
+    // Amber EMAS: u faqat qo'lda aralashuv uchun (PANEL-UI-KIT §5).
+    // Kam qolgan — qalin ink + yozuv; qizil faqat haqiqatan tugaganda.
+    return { text: 'text-ink font-semibold', label: 'Kam qolgan', level: 'low' };
   return { text: 'text-ink', label: 'Yetarli', level: 'ok' };
 }

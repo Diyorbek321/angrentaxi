@@ -1,15 +1,21 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Percent, Save } from 'lucide-react';
-import { PageHeader } from '@/components/ui/PageHeader';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { ErrorState } from '@/components/ui/ErrorState';
-import { SkeletonForm } from '@/components/ui/Skeleton';
+import { Save } from 'lucide-react';
+import {
+  Button,
+  Card,
+  CardBody,
+  CardFooter,
+  CardHeader,
+  ErrorState,
+  Input,
+  PageHeader,
+  RetryBanner,
+  SkeletonForm,
+  useToast,
+} from '@/components/ui';
 import { settingsApi } from '@/lib/api';
-import { useToast } from '@/components/ui/Toast';
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -34,9 +40,7 @@ export default function SettingsPage() {
         setHasLoadedOnce(true);
       })
       .catch(() => {
-        const message = 'Sozlamalarni yuklashda xatolik';
-        setError(message);
-        toast({ title: 'Xatolik', description: message, variant: 'error' });
+        setError('Sozlamalarni yuklab boʻlmadi.');
       })
       .finally(() => setIsLoading(false));
   };
@@ -91,49 +95,26 @@ export default function SettingsPage() {
   const showErrorBanner = error && !isLoading && hasLoadedOnce;
 
   return (
-    <div className="p-4 sm:p-6">
-      <PageHeader
-        title="Sozlamalar"
-        description="Platforma komissiyasi"
-        icon={<Percent className="h-4 w-4" aria-hidden="true" />}
-      />
+    <div className="px-4 sm:px-6 py-5">
+      <PageHeader title="Sozlamalar" description="Platforma komissiyasi" />
 
-      <div className="max-w-lg space-y-4">
+      <div className="max-w-xl space-y-4">
         {showErrorBanner && (
-          <div
-            role="alert"
-            className="flex flex-wrap items-center justify-between gap-3 rounded-ds-sm border border-danger/30 bg-danger-tint px-4 py-3"
-          >
-            <p className="flex items-center gap-2 text-body text-danger-deep dark:text-danger-light">
-              <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
-              {error} — oxirgi yuklangan qiymat ko&apos;rsatilmoqda.
-            </p>
-            <Button variant="secondary" size="sm" onClick={fetchCommission}>
-              Qayta urinish
-            </Button>
-          </div>
+          <RetryBanner message={error} onRetry={fetchCommission} keepsLastData retrying={isLoading} />
         )}
 
         {showFullError ? (
-          <Card>
-            <CardContent className="p-0">
-              <ErrorState message={error} onRetry={fetchCommission} />
-            </CardContent>
+          <Card padding="none">
+            <ErrorState message={error} onRetry={fetchCommission} />
           </Card>
         ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Percent className="h-4 w-4 text-primary-text" aria-hidden="true" />
-                Platforma komissiyasi
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-body leading-relaxed text-muted">
-                Har bir yakunlangan safardan haydovchi balansidan ushlab qolinadigan standart
-                komissiya foizi. Alohida haydovchilar uchun (masalan, reklama tashigani uchun)
-                haydovchi profilida boshqacha foiz belgilash mumkin.
-              </p>
+          <Card padding="none">
+            <CardHeader
+              title="Platforma komissiyasi"
+              description="Har bir yakunlangan safardan haydovchi balansidan ushlab qolinadigan standart foiz. Alohida haydovchi uchun profilida boshqa foiz belgilash mumkin."
+              divider
+            />
+            <CardBody className="pt-4">
               {isLoading && !hasLoadedOnce ? (
                 <SkeletonForm fields={1} />
               ) : (
@@ -143,42 +124,39 @@ export default function SettingsPage() {
                   min={0}
                   max={100}
                   step="0.1"
-                  mono
                   value={rate}
                   error={fieldError ?? undefined}
                   hint="0 dan 100 gacha. Masalan: 15 — safar summasining 15 foizi."
                   onChange={(e) => handleChange(e.target.value)}
+                  wrapperClassName="max-w-xs"
                 />
               )}
-
-              {/* Saqlash affordansi + "saqlanmagan o'zgarish" ko'rsatkichi. */}
-              <div className="flex flex-wrap items-center gap-3 border-t border-divider pt-4">
+            </CardBody>
+            <CardFooter className="justify-between">
+              <span className="text-xs text-muted" aria-live="polite">
+                {isDirty ? 'Saqlanmagan oʻzgarish bor' : 'Barcha oʻzgarishlar saqlangan'}
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  disabled={!isDirty || saving}
+                  onClick={() => {
+                    setRate(savedRate);
+                    setFieldError(null);
+                  }}
+                >
+                  Bekor qilish
+                </Button>
                 <Button
                   onClick={handleSave}
                   isLoading={saving}
                   disabled={isLoading || !isDirty}
-                  leftIcon={<Save className="h-4 w-4" aria-hidden="true" />}
+                  leftIcon={<Save size={14} aria-hidden="true" />}
                 >
                   Saqlash
                 </Button>
-                {isDirty ? (
-                  <span className="text-caption font-semibold text-override-dark dark:text-override-light">
-                    • Saqlanmagan o&apos;zgarish bor
-                  </span>
-                ) : (
-                  <span className="text-caption text-subtle">Barcha o&apos;zgarishlar saqlangan</span>
-                )}
-                {isDirty && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => { setRate(savedRate); setFieldError(null); }}
-                  >
-                    Bekor qilish
-                  </Button>
-                )}
               </div>
-            </CardContent>
+            </CardFooter>
           </Card>
         )}
       </div>

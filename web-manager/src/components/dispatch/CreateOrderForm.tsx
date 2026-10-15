@@ -15,6 +15,7 @@ import {
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
+import { MoneyText } from '@/components/ui/MoneyText';
 import { Textarea } from '@/components/ui/Textarea';
 import { useToast } from '@/components/ui/Toast';
 import { PAYMENT_METHOD, PAYMENT_METHOD_LABELS } from '@/lib/constants';
@@ -81,7 +82,7 @@ interface CreateOrderFormProps {
 
 function SectionTitle({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <h3 className="text-xs font-semibold uppercase tracking-wider text-subtle flex items-center gap-2">
+    <h3 className="text-[13px] font-semibold text-ink flex items-center gap-2 [&_svg]:text-subtle">
       {icon}
       {children}
     </h3>
@@ -209,18 +210,18 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {submitSuccess && (
-        <div className="flex items-start gap-2.5 rounded-ds-xs border border-primary/40 bg-primary/[0.08] p-3.5">
-          <CheckCircle2 size={16} className="text-primary-600 dark:text-primary-300 shrink-0 mt-0.5" />
-          <p className="text-sm text-primary-700 dark:text-primary-300">
+        <div role="status" className="flex items-start gap-2.5 rounded-ds-sm border border-mint/40 bg-mint-tint px-3 py-2.5">
+          <CheckCircle2 size={15} className="text-primary-text shrink-0 mt-0.5" aria-hidden />
+          <p className="text-[13px] text-primary-text">
             Buyurtma yaratildi. Tizim avtomatik ravishda haydovchi qidirishni boshladi.
           </p>
         </div>
       )}
 
       {submitError && (
-        <div className="flex items-start gap-2.5 rounded-ds-xs border border-danger/40 bg-danger/[0.08] p-3.5">
-          <AlertTriangle size={16} className="text-danger shrink-0 mt-0.5" />
-          <p className="text-sm text-danger">{submitError}</p>
+        <div role="alert" className="flex items-start gap-2.5 rounded-ds-sm border border-danger/30 bg-danger-tint px-3 py-2.5">
+          <AlertTriangle size={15} className="text-danger shrink-0 mt-0.5" aria-hidden />
+          <p className="text-[13px] text-danger-dark dark:text-danger-light">{submitError}</p>
         </div>
       )}
 
@@ -231,7 +232,6 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
           <Input
             label="Telefon *"
             placeholder="+998 90 123 45 67"
-            mono
             {...register('passengerPhone')}
             error={errors.passengerPhone?.message}
             leftElement={<Phone size={14} />}
@@ -265,7 +265,6 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
             placeholder="40.0956"
             type="number"
             step="any"
-            mono
             {...register('pickupLat')}
             error={errors.pickupLat?.message}
           />
@@ -274,7 +273,6 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
             placeholder="70.9432"
             type="number"
             step="any"
-            mono
             {...register('pickupLng')}
             error={errors.pickupLng?.message}
           />
@@ -299,7 +297,6 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
             placeholder="40.1050"
             type="number"
             step="any"
-            mono
             {...register('dropoffLat')}
             error={errors.dropoffLat?.message}
           />
@@ -308,7 +305,6 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
             placeholder="70.9510"
             type="number"
             step="any"
-            mono
             {...register('dropoffLng')}
             error={errors.dropoffLng?.message}
           />
@@ -344,7 +340,7 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
       />
 
       {/* Price estimate */}
-      <div className="rounded-ds-sm border border-line bg-surface-2/60 p-4 space-y-3">
+      <div className="rounded-ds-md border border-line bg-surface-2/60 p-4 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <SectionTitle icon={<Calculator size={13} />}>Taxminiy narx</SectionTitle>
           <Button
@@ -365,19 +361,19 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
           <div className="grid grid-cols-3 gap-3">
             <div className="text-center">
               <p className="text-[11px] text-subtle">Narx</p>
-              <p className="font-mono text-lg font-bold text-primary-700 dark:text-primary-300 leading-tight">
-                {formatMoney(priceEstimate.price)}
+              <p className="text-lg font-semibold text-ink leading-tight">
+                <MoneyText value={priceEstimate.price} />
               </p>
             </div>
             <div className="text-center">
               <p className="text-[11px] text-subtle">Masofa</p>
-              <p className="font-mono text-lg font-bold text-ink leading-tight">
+              <p className="num text-lg font-semibold text-ink leading-tight">
                 {formatDistanceKm(priceEstimate.distanceKm)}
               </p>
             </div>
             <div className="text-center">
               <p className="text-[11px] text-subtle">Vaqt</p>
-              <p className="font-mono text-lg font-bold text-ink leading-tight">
+              <p className="num text-lg font-semibold text-ink leading-tight">
                 ~{priceEstimate.durationMin} daq
               </p>
             </div>
@@ -389,9 +385,11 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
         )}
       </div>
 
-      <Button type="submit" variant="primary" size="lg" isLoading={isSubmitting} className="w-full">
-        Buyurtma yaratish
-      </Button>
+      <div className="flex items-center justify-end gap-2 pt-4 border-t border-line">
+        <Button type="submit" variant="primary" isLoading={isSubmitting}>
+          Buyurtma yaratish
+        </Button>
+      </div>
     </form>
   );
 }

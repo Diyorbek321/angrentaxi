@@ -28,7 +28,7 @@ test.describe('market — catalogue', () => {
     const renamed = `${name} yangi`;
 
     await page.goto('/dashboard/categories');
-    await page.getByRole('button', { name: 'Kategoriya', exact: true }).click();
+    await page.getByRole('button', { name: "Kategoriya qo'shish", exact: true }).click();
     await page.getByLabel('Kategoriya nomi').fill(name);
     await page.getByRole('button', { name: 'Saqlash' }).click();
     await expect(page.getByText(name, { exact: true })).toBeVisible();

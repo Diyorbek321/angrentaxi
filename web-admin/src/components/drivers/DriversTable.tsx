@@ -1,190 +1,133 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { ArrowDown, ArrowUp, ArrowUpDown, Star, Car, SearchX } from 'lucide-react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/Table';
-import { SkeletonTable } from '@/components/ui/Skeleton';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { Button } from '@/components/ui/Button';
+import { Car } from 'lucide-react';
 import { Avatar } from '@/components/ui/Avatar';
+import { DataTable, type DataTableColumn, type SortState } from '@/components/ui/DataTable';
+import { MoneyText } from '@/components/ui/MoneyText';
+import { PlateNumber } from '@/components/ui/PlateNumber';
+import type { PaginationProps } from '@/components/ui/Pagination';
 import { DriverStatusBadge } from './DriverStatusBadge';
-import { Driver } from '@/lib/api';
-import { cn, formatDate, getFullName, formatRating, formatCurrency } from '@/lib/utils';
-
-export type DriverSortDir = 'asc' | 'desc' | null;
+import type { Driver } from '@/lib/api';
+import { formatDateShort, formatNumber, formatPhone, formatRating, fullName } from '@/lib/format';
+import { driverRegisteredAt } from '@/lib/driver';
 
 interface DriversTableProps {
   drivers: Driver[];
   isLoading: boolean;
-  sortField?: string | null;
-  sortDir?: DriverSortDir;
-  onSort?: (field: string) => void;
+  error?: string | null;
+  onRetry?: () => void;
+  sort?: SortState | null;
+  onSortChange?: (sort: SortState | null) => void;
   hasActiveFilters?: boolean;
   onClearFilters?: () => void;
+  pagination?: PaginationProps;
+  toolbar?: React.ReactNode;
 }
+
+const columns: DataTableColumn<Driver>[] = [
+  {
+    key: 'name',
+    header: 'Haydovchi',
+    sortable: true,
+    cell: (d) => (
+      <div className="flex items-center gap-2.5 min-w-0">
+        <Avatar firstName={d.firstName} lastName={d.lastName} size="sm" />
+        <span className="font-medium text-ink truncate max-w-[220px]">{fullName(d.firstName, d.lastName)}</span>
+      </div>
+    ),
+  },
+  {
+    key: 'phone',
+    header: 'Telefon',
+    hideBelow: 'xl',
+    className: 'num whitespace-nowrap text-muted',
+    cell: (d) => formatPhone(d.phone),
+  },
+  {
+    key: 'car',
+    header: 'Avtomobil',
+    hideBelow: 'xl',
+    cell: (d) => (
+      <span className="whitespace-nowrap">
+        {d.carModel || '—'}
+        {d.carColor && <span className="text-muted"> · {d.carColor}</span>}
+      </span>
+    ),
+  },
+  { key: 'plate', header: 'Raqam', cell: (d) => <PlateNumber plate={d.carNumber} /> },
+  {
+    key: 'rating',
+    header: 'Reyting',
+    numeric: true,
+    sortable: true,
+    cell: (d) => formatRating(d.rating),
+  },
+  {
+    key: 'trips',
+    header: 'Safarlar',
+    numeric: true,
+    sortable: true,
+    cell: (d) => formatNumber(d.totalTrips),
+  },
+  {
+    key: 'balance',
+    header: 'Balans',
+    numeric: true,
+    cell: (d) => (d.walletBalance !== undefined ? <MoneyText value={d.walletBalance} signed /> : '—'),
+  },
+  {
+    key: 'status',
+    header: 'Holat',
+    cell: (d) => <DriverStatusBadge status={d.status} isOnline={d.isOnline} />,
+  },
+  {
+    key: 'createdAt',
+    header: 'Roʻyxatdan oʻtgan',
+    sortable: true,
+    hideBelow: 'xl',
+    className: 'num whitespace-nowrap text-muted',
+    cell: (d) => formatDateShort(driverRegisteredAt(d)),
+  },
+];
 
 export function DriversTable({
   drivers,
   isLoading,
-  sortField,
-  sortDir,
-  onSort,
+  error,
+  onRetry,
+  sort,
+  onSortChange,
   hasActiveFilters = false,
   onClearFilters,
+  pagination,
+  toolbar,
 }: DriversTableProps) {
   const router = useRouter();
-
-  const SortableHead = ({
-    field,
-    children,
-    align = 'left',
-  }: {
-    field: string;
-    children: React.ReactNode;
-    align?: 'left' | 'right';
-  }) => {
-    const active = sortField === field && !!sortDir;
-    const Icon = !active ? ArrowUpDown : sortDir === 'asc' ? ArrowUp : ArrowDown;
-    return (
-      <TableHead
-        aria-sort={active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
-        className={align === 'right' ? 'text-right' : undefined}
-      >
-        <button
-          type="button"
-          onClick={() => onSort?.(field)}
-          className={cn(
-            'inline-flex items-center gap-1 text-micro uppercase transition-colors duration-fast',
-            align === 'right' && 'flex-row-reverse',
-            'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface-2',
-            active ? 'text-primary-text' : 'text-muted hover:text-ink'
-          )}
-        >
-          {children}
-          <Icon
-            className={cn('h-3 w-3', active ? 'text-primary-text' : 'text-subtle')}
-            aria-hidden="true"
-          />
-        </button>
-      </TableHead>
-    );
-  };
-
-  if (isLoading) {
-    return <SkeletonTable rows={8} cols={8} className="border-0" />;
-  }
-
-  if (drivers.length === 0) {
-    if (hasActiveFilters) {
-      return (
-        <EmptyState
-          icon={<SearchX className="h-6 w-6" />}
-          title="Hech narsa mos kelmadi"
-          description="Tanlangan filtrlar bo'yicha haydovchi topilmadi."
-          action={
-            onClearFilters && (
-              <Button variant="secondary" size="sm" onClick={onClearFilters}>
-                Filtrlarni tozalash
-              </Button>
-            )
-          }
-        />
-      );
-    }
-    return (
-      <EmptyState
-        icon={<Car className="h-6 w-6" />}
-        title="Hozircha haydovchilar yo'q"
-        description="Haydovchilar ilova orqali ro'yxatdan o'tishi bilan shu jadvalda ko'rinadi."
-      />
-    );
-  }
-
   return (
-    <Table stickyHeader containerClassName="max-h-[65vh]">
-      <TableHeader>
-        <TableRow>
-          <SortableHead field="name">Haydovchi</SortableHead>
-          <TableHead>Telefon</TableHead>
-          <TableHead>Avtomobil</TableHead>
-          <TableHead>Raqam</TableHead>
-          <SortableHead field="rating" align="right">
-            Reyting
-          </SortableHead>
-          <SortableHead field="trips" align="right">
-            Safarlar
-          </SortableHead>
-          <TableHead>Holat</TableHead>
-          <SortableHead field="createdAt">Ro&apos;yxatdan o&apos;tgan</SortableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {drivers.map((driver) => (
-          <TableRow
-            key={driver.id}
-            className="cursor-pointer"
-            onClick={() => router.push(`/dashboard/drivers/${driver.id}`)}
-          >
-            <TableCell>
-              <div className="flex items-center gap-3">
-                <Avatar name={getFullName(driver.firstName, driver.lastName)} size="md" />
-                <div>
-                  <p className="font-medium text-ink">
-                    {getFullName(driver.firstName, driver.lastName)}
-                  </p>
-                  {driver.walletBalance !== undefined && (
-                    <p
-                      className={cn(
-                        'text-caption tabular-nums',
-                        driver.walletBalance < 0
-                          ? 'text-danger-deep dark:text-danger-light'
-                          : 'text-muted'
-                      )}
-                    >
-                      {formatCurrency(driver.walletBalance)}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </TableCell>
-            <TableCell className="text-muted">{driver.phone}</TableCell>
-            <TableCell>
-              <p className="font-medium text-ink">{driver.carModel}</p>
-              {driver.carColor && <p className="text-caption text-muted">{driver.carColor}</p>}
-            </TableCell>
-            <TableCell>
-              <span className="rounded-ds-xs bg-surface-2 px-2 py-1 font-mono text-caption font-semibold text-ink">
-                {driver.carNumber}
-              </span>
-            </TableCell>
-            <TableCell className="text-right">
-              <div className="inline-flex items-center gap-1">
-                {/* Reyting yulduzi — amber (docs §5: kWarningDark ga eng yaqin). */}
-                <Star className="h-3.5 w-3.5 fill-override text-override" aria-hidden="true" />
-                <span className="font-medium tabular-nums text-ink">
-                  {formatRating(driver.rating)}
-                </span>
-              </div>
-            </TableCell>
-            <TableCell className="text-right font-mono font-medium tabular-nums text-ink">
-              {driver.totalTrips}
-            </TableCell>
-            <TableCell>
-              <DriverStatusBadge status={driver.status} isOnline={driver.isOnline} />
-            </TableCell>
-            <TableCell className="text-caption tabular-nums text-muted">
-              {formatDate(driver.createdAt, 'dd.MM.yyyy')}
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <DataTable
+      ariaLabel="Haydovchilar"
+      columns={columns}
+      rows={drivers}
+      rowKey={(d) => d.id}
+      loading={isLoading}
+      error={error}
+      onRetry={onRetry}
+      sort={sort}
+      onSortChange={onSortChange}
+      onRowClick={(d) => router.push(`/dashboard/drivers/${d.id}`)}
+      maxHeightClassName="max-h-[calc(100vh-260px)]"
+      pagination={pagination}
+      toolbar={toolbar}
+      isFiltered={hasActiveFilters}
+      onClearFilters={onClearFilters}
+      emptyFiltered={{ title: 'Hech narsa mos kelmadi', description: 'Tanlangan filtrlar boʻyicha haydovchi topilmadi.' }}
+      empty={{
+        variant: 'first-use',
+        icon: <Car aria-hidden />,
+        title: 'Hozircha haydovchilar yoʻq',
+        description: 'Haydovchilar ilova orqali roʻyxatdan oʻtishi bilan shu jadvalda koʻrinadi.',
+      }}
+    />
   );
 }

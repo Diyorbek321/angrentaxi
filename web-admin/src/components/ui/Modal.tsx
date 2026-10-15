@@ -1,107 +1,299 @@
+// AUTO-SYNCED from web-manager — edit there, then run scripts/sync-panel-ui.sh
 'use client';
 
-import * as React from 'react';
-import * as DialogPrimitive from '@radix-ui/react-dialog';
+import {
+  createContext,
+  forwardRef,
+  useContext,
+  useId,
+  type HTMLAttributes,
+  type ReactNode,
+} from 'react';
 import { X } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from './cn';
+import { Portal } from './Portal';
+import { useDialog } from './use-dialog';
 
-// Radix Dialog handles the accessibility contract itself: focus is trapped
-// inside the panel, Esc closes, the rest of the page is aria-hidden, and focus
-// returns to the trigger on close. Do not replace it with a hand-rolled modal.
-const Dialog = DialogPrimitive.Root;
-const DialogTrigger = DialogPrimitive.Trigger;
-const DialogPortal = DialogPrimitive.Portal;
-const DialogClose = DialogPrimitive.Close;
+export type ModalSize = 'sm' | 'md' | 'lg' | 'xl';
+export type ModalTone = 'default' | 'override' | 'danger';
 
-const DialogOverlay = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Overlay>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
->(({ className, ...props }, ref) => (
-  <DialogPrimitive.Overlay
-    ref={ref}
-    className={cn('fixed inset-0 z-50 bg-[#04140F]/60 backdrop-blur-sm animate-fade-in', className)}
-    {...props}
-  />
-));
-DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
+export interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title?: ReactNode;
+  /** One line under the title — context, not instructions. */
+  subtitle?: ReactNode;
+  /** Alias of `subtitle`. */
+  description?: ReactNode;
+  children: ReactNode;
+  /** Sticky action row (right-aligned buttons). */
+  footer?: ReactNode;
+  size?: ModalSize;
+  /** `override` = deliberate manual intervention (amber edge); `danger` = destructive. */
+  tone?: ModalTone;
+  /** Hide the × button (the footer must then offer a way out). */
+  hideClose?: boolean;
+  className?: string;
+  /** Extra classes for the scrollable body. */
+  bodyClassName?: string;
+}
 
-const DialogContent = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
-  <DialogPortal>
-    <DialogOverlay />
-    <DialogPrimitive.Content
-      ref={ref}
+const sizeClasses: Record<ModalSize, string> = {
+  sm: 'max-w-sm',
+  md: 'max-w-md',
+  lg: 'max-w-lg',
+  xl: 'max-w-2xl',
+};
+
+const toneBar: Record<ModalTone, string | null> = {
+  default: null,
+  override: 'bg-override',
+  danger: 'bg-danger',
+};
+
+function CloseButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Yopish"
       className={cn(
-        'fixed left-[50%] top-[50%] z-50 grid max-h-[90vh] w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto',
-        'rounded-ds-xl border border-line bg-surface p-6 text-ink shadow-pop animate-slide-up',
-        className
+        'shrink-0 -mr-1 h-7 w-7 inline-flex items-center justify-center rounded-ds-sm text-muted',
+        'hover:text-ink hover:bg-surface-2 transition-colors',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus'
       )}
-      {...props}
+    >
+      <X size={16} aria-hidden />
+    </button>
+  );
+}
+
+/** Shared scrim + centred panel. Rendered through a portal. */
+function ModalFrame({
+  isOpen,
+  onClose,
+  size = 'md',
+  className,
+  labelledBy,
+  describedBy,
+  ariaLabel,
+  children,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  size?: ModalSize;
+  className?: string;
+  labelledBy?: string;
+  describedBy?: string;
+  ariaLabel?: string;
+  children: ReactNode;
+}) {
+  const ref = useDialog<HTMLDivElement>(isOpen, onClose);
+  if (!isOpen) return null;
+  return (
+    <Portal>
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim/55 animate-fade-in"
+        onMouseDown={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
+        role="presentation"
+      >
+        <div
+          ref={ref}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={labelledBy}
+          aria-describedby={describedBy}
+          aria-label={labelledBy ? undefined : ariaLabel}
+          tabIndex={-1}
+          className={cn(
+            'relative w-full max-h-[90vh] flex flex-col overflow-hidden',
+            'bg-surface border border-line rounded-ds-lg shadow-pop animate-scale-in',
+            'focus:outline-none',
+            sizeClasses[size],
+            className
+          )}
+        >
+          {children}
+        </div>
+      </div>
+    </Portal>
+  );
+}
+
+/**
+ * Centred dialog. Portal, scrim (`--scrim`), Esc, focus trap, focus return.
+ * Title 15px/600; body scrolls; footer sticks.
+ */
+export function Modal({
+  isOpen,
+  onClose,
+  title,
+  subtitle,
+  description,
+  children,
+  footer,
+  size = 'md',
+  tone = 'default',
+  hideClose = false,
+  className,
+  bodyClassName,
+}: ModalProps) {
+  const titleId = useId();
+  const descId = useId();
+  const sub = subtitle ?? description;
+  const bar = toneBar[tone];
+
+  return (
+    <ModalFrame
+      isOpen={isOpen}
+      onClose={onClose}
+      size={size}
+      className={className}
+      labelledBy={title ? titleId : undefined}
+      describedBy={sub ? descId : undefined}
+    >
+      {bar && <span aria-hidden className={cn('absolute inset-x-0 top-0 h-0.5', bar)} />}
+      {(title || !hideClose) && (
+        <div className="flex items-start justify-between gap-3 px-5 pt-4 pb-3 shrink-0">
+          <div className="min-w-0">
+            {title && (
+              <h2 id={titleId} className="text-title text-ink">
+                {title}
+              </h2>
+            )}
+            {sub && (
+              <div id={descId} className="text-[13px] text-muted mt-0.5">
+                {sub}
+              </div>
+            )}
+          </div>
+          {!hideClose && <CloseButton onClick={onClose} />}
+        </div>
+      )}
+      <div className={cn('overflow-y-auto flex-1 px-5 pb-5', !title && hideClose && 'pt-5', bodyClassName)}>
+        {children}
+      </div>
+      {footer && (
+        <div className="shrink-0 flex items-center justify-end gap-2 px-5 py-3 border-t border-line bg-surface-2/40">
+          {footer}
+        </div>
+      )}
+    </ModalFrame>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * Radix-compatible composition API (web-admin call sites):
+ *   <Dialog open onOpenChange><DialogContent className>
+ *     <DialogHeader><DialogTitle/><DialogDescription/></DialogHeader>
+ *     …<DialogFooter className="gap-2">…</DialogFooter>
+ *   </DialogContent></Dialog>
+ * Implemented on the same frame — no Radix dependency.
+ * ------------------------------------------------------------------------- */
+
+interface DialogCtx {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  titleId: string;
+  descId: string;
+}
+
+const DialogContext = createContext<DialogCtx | null>(null);
+
+function useDialogCtx(name: string): DialogCtx {
+  const ctx = useContext(DialogContext);
+  if (!ctx) throw new Error(`<${name}> must be used inside <Dialog>`);
+  return ctx;
+}
+
+export interface DialogProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  children: ReactNode;
+}
+
+export function Dialog({ open = false, onOpenChange, children }: DialogProps) {
+  const titleId = useId();
+  const descId = useId();
+  return (
+    <DialogContext.Provider
+      value={{ open, setOpen: (next) => onOpenChange?.(next), titleId, descId }}
     >
       {children}
-      <DialogPrimitive.Close
-        className={cn(
-          'absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-ds-sm text-muted',
-          'hover:bg-surface-2 hover:text-ink transition-colors duration-fast',
-          'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
-          'disabled:pointer-events-none'
-        )}
-      >
-        <X className="h-4 w-4" />
-        <span className="sr-only">Yopish</span>
-      </DialogPrimitive.Close>
-    </DialogPrimitive.Content>
-  </DialogPortal>
-));
-DialogContent.displayName = DialogPrimitive.Content.displayName;
+    </DialogContext.Provider>
+  );
+}
 
-const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn('flex flex-col space-y-1.5 pr-8 text-left', className)} {...props} />
+export interface DialogContentProps extends HTMLAttributes<HTMLDivElement> {
+  size?: ModalSize;
+  hideClose?: boolean;
+}
+
+export function DialogContent({
+  className,
+  children,
+  size = 'lg',
+  hideClose = false,
+}: DialogContentProps) {
+  const { open, setOpen, titleId, descId } = useDialogCtx('DialogContent');
+  const close = () => setOpen(false);
+  return (
+    <ModalFrame
+      isOpen={open}
+      onClose={close}
+      size={size}
+      labelledBy={titleId}
+      describedBy={descId}
+      className={cn('p-5 gap-4 overflow-y-auto', className)}
+    >
+      {!hideClose && (
+        <div className="absolute right-4 top-4">
+          <CloseButton onClick={close} />
+        </div>
+      )}
+      {children}
+    </ModalFrame>
+  );
+}
+
+export function DialogHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn('flex flex-col gap-1 pr-8', className)} {...props} />;
+}
+
+export function DialogFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={cn('flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-1', className)}
+      {...props}
+    />
+  );
+}
+
+export const DialogTitle = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadingElement>>(
+  ({ className, ...props }, ref) => {
+    const { titleId } = useDialogCtx('DialogTitle');
+    return <h2 ref={ref} id={titleId} className={cn('text-title text-ink', className)} {...props} />;
+  }
 );
-DialogHeader.displayName = 'DialogHeader';
+DialogTitle.displayName = 'DialogTitle';
 
-const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div
-    className={cn(
-      'flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:space-x-2 sm:gap-0',
-      className
-    )}
-    {...props}
-  />
-);
-DialogFooter.displayName = 'DialogFooter';
+export const DialogDescription = forwardRef<
+  HTMLParagraphElement,
+  HTMLAttributes<HTMLParagraphElement>
+>(({ className, ...props }, ref) => {
+  const { descId } = useDialogCtx('DialogDescription');
+  return <p ref={ref} id={descId} className={cn('text-[13px] text-muted', className)} {...props} />;
+});
+DialogDescription.displayName = 'DialogDescription';
 
-const DialogTitle = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Title>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
->(({ className, ...props }, ref) => (
-  <DialogPrimitive.Title
-    ref={ref}
-    className={cn('text-h3 leading-none text-ink', className)}
-    {...props}
-  />
-));
-DialogTitle.displayName = DialogPrimitive.Title.displayName;
-
-const DialogDescription = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Description>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>
->(({ className, ...props }, ref) => (
-  <DialogPrimitive.Description ref={ref} className={cn('text-body text-muted', className)} {...props} />
-));
-DialogDescription.displayName = DialogPrimitive.Description.displayName;
-
-export {
-  Dialog,
-  DialogPortal,
-  DialogOverlay,
-  DialogClose,
-  DialogTrigger,
-  DialogContent,
-  DialogHeader,
-  DialogFooter,
-  DialogTitle,
-  DialogDescription,
-};
+/** Closes the surrounding Dialog; renders its child button as-is otherwise. */
+export function DialogClose({ children }: { children: ReactNode }) {
+  const { setOpen } = useDialogCtx('DialogClose');
+  return (
+    <span className="contents" onClickCapture={() => setOpen(false)}>
+      {children}
+    </span>
+  );
+}

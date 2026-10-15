@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, Phone, RefreshCw, ShieldAlert } from 'lucide-react';
+import { CheckCircle2, RefreshCw } from 'lucide-react';
 import { FraudReviewEntry, getFraudReviewQueue, reviewFraud } from '@/lib/api';
 import { SIGNAL_LABEL, sortSignals } from '@/lib/fraud';
 import { Card } from '@/components/ui/Card';
@@ -13,9 +13,11 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { RetryBanner } from '@/components/ui/RetryBanner';
-import { SkeletonTable } from '@/components/ui/Skeleton';
+import { SkeletonCards } from '@/components/ui/Skeleton';
+import { PageBody } from '@/components/ui/PageBody';
+import { ContactBlock } from '@/components/dispatch/ContactBlock';
 import { useToast } from '@/components/ui/Toast';
-import { formatDateTime, formatMoney, formatPhone } from '@/lib/format';
+import { formatDateTime, formatDuration, formatMoney, shortId } from '@/lib/format';
 
 /**
  * Shubhali safarlar — haydovchi oʻzi oʻziga zakaz bergan boʻlishi mumkin.
@@ -73,14 +75,18 @@ export default function FraudReviewPage() {
   };
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="px-5 py-4 max-w-5xl mx-auto">
+    <PageBody className="max-w-5xl">
         <PageHeader
           title="Shubhali safarlar"
           description="Haydovchi oʻzi oʻziga zakaz bergan boʻlishi mumkin. Bonus va referal qaror chiqquncha ushlab turiladi."
-          icon={<ShieldAlert size={17} />}
           actions={
-            <Button variant="secondary" size="sm" onClick={() => void load()} leftIcon={<RefreshCw size={13} />}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void load()}
+              isLoading={isLoading && hasLoadedOnce}
+              leftIcon={<RefreshCw size={13} aria-hidden />}
+            >
               Yangilash
             </Button>
           }
@@ -91,47 +97,50 @@ export default function FraudReviewPage() {
         )}
 
         {error && !hasLoadedOnce ? (
-          <ErrorState message={error} onRetry={() => void load()} />
+          <Card padding="none">
+            <ErrorState title={error} onRetry={() => void load()} retrying={isLoading} />
+          </Card>
         ) : isLoading && !hasLoadedOnce ? (
-          <SkeletonTable rows={3} cols={4} />
+          <SkeletonCards count={3} height="h-[120px]" />
         ) : entries.length === 0 ? (
-          <Card>
+          <Card padding="none">
             <EmptyState
-              icon={<CheckCircle2 size={22} />}
+              variant="cleared"
+              icon={<CheckCircle2 aria-hidden />}
               title="Shubhali safar yoʻq"
               description="Yangi belgi chiqsa shu yerda paydo boʻladi."
             />
           </Card>
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
             {entries.map((entry) => (
               <Card key={entry.orderId}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       {sortSignals(entry.signals).map((s) => (
-                        <Badge key={s} variant={SIGNAL_LABEL[s].strong ? 'danger' : 'warning'}>
+                        <Badge key={s} variant={SIGNAL_LABEL[s].strong ? 'danger' : 'neutral'} dot>
                           {SIGNAL_LABEL[s].title}
                         </Badge>
                       ))}
                     </div>
-                    <p className="mt-2 text-sm text-ink">
+                    <p className="mt-2 text-[13px] text-ink">
                       {entry.pickupAddress ?? '—'} → {entry.dropoffAddress ?? 'Taksometr'}
                     </p>
-                    <p className="mt-1 font-mono text-xs text-subtle">
-                      #{entry.orderId.slice(0, 8)} · {entry.completedAt ? formatDateTime(entry.completedAt) : '—'} ·{' '}
-                      {formatMoney(entry.finalPrice)}
+                    <p className="mt-1 num text-xs text-subtle">
+                      <span className="font-mono">{shortId(entry.orderId)}</span> ·{' '}
+                      {entry.completedAt ? formatDateTime(entry.completedAt) : '—'} · {formatMoney(entry.finalPrice)}
                       {entry.distanceKm != null && ` · ${entry.distanceKm.toFixed(1)} km`}
-                      {entry.durationMin != null && ` · ${entry.durationMin} daq`}
+                      {entry.durationMin != null && ` · ${formatDuration(entry.durationMin * 60_000)}`}
                       {` · juftlikning jami safari: ${entry.pairTripsTotal}`}
                     </p>
                   </div>
                   <div className="grid grid-cols-1 gap-1 text-xs sm:grid-cols-2 sm:gap-4">
-                    <Contact label="Yoʻlovchi" name={entry.passengerName} phone={entry.passengerPhone} />
-                    <Contact label="Haydovchi" name={entry.driverName} phone={entry.driverPhone} />
+                    <ContactBlock label="Yoʻlovchi" name={entry.passengerName} phone={entry.passengerPhone} />
+                    <ContactBlock label="Haydovchi" name={entry.driverName} phone={entry.driverPhone} />
                   </div>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2 border-t border-divider pt-3">
+                <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">
                   <Button size="sm" onClick={() => setDeciding({ entry, approved: true })}>
                     Halol — bonusni qaytarish
                   </Button>
@@ -143,7 +152,6 @@ export default function FraudReviewPage() {
             ))}
           </div>
         )}
-      </div>
 
       <Modal
         isOpen={deciding !== null}
@@ -164,7 +172,7 @@ export default function FraudReviewPage() {
           rows={3}
           maxLength={300}
         />
-        <div className="mt-4 flex justify-end gap-2">
+        <div className="mt-4 pt-4 border-t border-line flex justify-end gap-2">
           <Button variant="secondary" onClick={() => setDeciding(null)}>
             Bekor qilish
           </Button>
@@ -173,21 +181,7 @@ export default function FraudReviewPage() {
           </Button>
         </div>
       </Modal>
-    </div>
+    </PageBody>
   );
 }
 
-function Contact({ label, name, phone }: { label: string; name: string | null; phone: string | null }) {
-  return (
-    <div>
-      <p className="text-[10px] uppercase tracking-wider text-subtle">{label}</p>
-      <p className="text-ink">{name ?? '—'}</p>
-      {phone && (
-        <a href={`tel:${phone}`} className="inline-flex items-center gap-1 font-mono text-primary-text hover:underline">
-          <Phone size={11} aria-hidden />
-          {formatPhone(phone)}
-        </a>
-      )}
-    </div>
-  );
-}

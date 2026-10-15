@@ -10,7 +10,7 @@ import {
   changedFees,
   validateFee,
 } from '@/lib/trip-option-fees';
-import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { ErrorState } from '@/components/ui/ErrorState';
@@ -87,22 +87,19 @@ export function TripOptionFeesCard() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div>
-          <CardTitle>Safar opsiyalari haqi</CardTitle>
-          <p className="mt-0.5 text-xs text-muted">
-            Narxga qoʻshiladi va chekda alohida qator boʻladi. Boʻsh — bepul.
-          </p>
-        </div>
-      </CardHeader>
+    <Card padding="none">
+      <CardHeader
+        title="Safar opsiyalari haqi"
+        description="Narxga qoʻshiladi va chekda alohida qator boʻladi. Boʻsh — bepul."
+      />
+      <CardBody>
 
       {loadError ? (
-        <ErrorState message={loadError} onRetry={load} />
+        <ErrorState compact title={loadError} onRetry={load} />
       ) : fees === null ? (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" aria-busy="true">
           {TRIP_OPTIONS.map(({ key }) => (
-            <Skeleton key={key} className="h-16" />
+            <Skeleton key={key} className="h-[52px]" />
           ))}
         </div>
       ) : (
@@ -117,10 +114,10 @@ export function TripOptionFeesCard() {
           {submitError && (
             <div
               role="alert"
-              className="flex items-start gap-2.5 rounded-ds-xs border border-danger/40 bg-danger-tint px-3.5 py-3"
+              className="flex items-start gap-2.5 rounded-ds-sm border border-danger/30 bg-danger-tint px-3 py-2"
             >
-              <AlertTriangle size={15} className="text-danger shrink-0 mt-0.5" />
-              <p className="text-sm text-danger-deep dark:text-danger-light">{submitError}</p>
+              <AlertTriangle size={15} className="text-danger shrink-0 mt-0.5" aria-hidden />
+              <p className="text-[13px] text-danger-dark dark:text-danger-light">{submitError}</p>
             </div>
           )}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -132,7 +129,6 @@ export function TripOptionFeesCard() {
                 inputMode="numeric"
                 min={0}
                 step={100}
-                mono
                 placeholder="0"
                 value={draft[key]}
                 onChange={(e) => setDraft((prev) => ({ ...prev, [key]: e.target.value }))}
@@ -140,7 +136,7 @@ export function TripOptionFeesCard() {
               />
             ))}
           </div>
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 pt-4 border-t border-line">
             <Button
               type="button"
               variant="secondary"
@@ -156,6 +152,7 @@ export function TripOptionFeesCard() {
           </div>
         </form>
       )}
+      </CardBody>
     </Card>
   );
 }

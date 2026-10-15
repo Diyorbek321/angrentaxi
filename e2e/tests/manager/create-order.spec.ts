@@ -33,7 +33,7 @@ test('call-centre order: create for a passenger, open it, cancel it', async ({ p
 
     await page.getByRole('button', { name: 'Bekor qilish' }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Bekor qilish' }).click();
-    await expectToast(page, `Buyurtma #${order.id.slice(-6).toUpperCase()} bekor qilindi`);
+    await expectToast(page, `Buyurtma #${order.id.slice(0, 6)} bekor qilindi`);
     await expect.poll(async () => (await api.get<Order>(`/orders/${order.id}`)).status).toBe('cancelled');
   } finally {
     // Never leave a live order searching for a driver.

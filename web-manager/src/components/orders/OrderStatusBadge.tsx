@@ -2,17 +2,18 @@ import { Badge, BadgeVariant } from '@/components/ui/Badge';
 import { OrderStatus, ORDER_STATUS_LABELS } from '@/lib/constants';
 
 // One lifecycle, one ramp (see ORDER_STATUS_ACCENT in lib/constants.ts):
-// neutral -> searching (animated mint tint — the machine working) -> info ->
-// mint light -> mint -> deep green -> red. Amber appears nowhere in the
-// lifecycle: it is reserved for the manual-override flow alone.
+// neutral -> searching (animated mint tint — the machine working) -> info
+// (driver assigned / arrived) -> success (on trip / done) -> danger tint
+// (cancelled). Amber appears nowhere in the lifecycle: it is reserved for the
+// manual-override flow alone.
 const statusVariantMap: Record<OrderStatus, BadgeVariant> = {
-  created: 'default',
+  created: 'neutral',
   searching: 'searching',
   accepted: 'info',
-  arrived: 'mint-soft',
-  in_progress: 'primary',
+  arrived: 'info',
+  in_progress: 'success',
   completed: 'success',
-  cancelled: 'danger',
+  cancelled: 'muted-danger',
 };
 
 interface OrderStatusBadgeProps {

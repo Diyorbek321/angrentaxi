@@ -1,59 +1,97 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { format, subDays } from 'date-fns';
+import { ArrowRight } from 'lucide-react';
 import {
-  Users,
-  Car,
-  ClipboardList,
-  Banknote,
-  Clock,
-  LayoutDashboard,
-  Inbox,
-  ArrowRight,
-} from 'lucide-react';
-import { PageHeader } from '@/components/ui/PageHeader';
-import { StatCard } from '@/components/ui/StatCard';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { ErrorState } from '@/components/ui/ErrorState';
-import { SkeletonStats, SkeletonCards } from '@/components/ui/Skeleton';
+  Avatar,
+  Button,
+  Card,
+  CardHeader,
+  DataTable,
+  ErrorState,
+  MoneyText,
+  PageHeader,
+  PlateNumber,
+  SkeletonStats,
+  StatCard,
+  type DataTableColumn,
+} from '@/components/ui';
 import { OrdersChart, RevenueChart } from '@/components/charts/lazy';
 import { OrderStatusBadge } from '@/components/orders/OrderStatusBadge';
 import { DriverStatusBadge } from '@/components/drivers/DriverStatusBadge';
 import {
   dashboardApi,
-  DashboardStats,
-  ordersApi,
   driversApi,
+  ordersApi,
   reportsApi,
-  Order,
-  Driver,
-  RevenueDataPoint,
+  type DashboardStats,
+  type Driver,
+  type Order,
+  type RevenueDataPoint,
 } from '@/lib/api';
-import { cn, formatCurrency, getFullName } from '@/lib/utils';
-import { useToast } from '@/components/ui/Toast';
+import { formatMoney, formatNumber, formatRating, formatTime, fullName } from '@/lib/format';
 
 const DATE_FMT = 'yyyy-MM-dd';
+const TREND_DAYS = 7;
 
-const viewAllLink = cn(
-  'inline-flex items-center gap-1 rounded-ds-xs text-caption font-semibold text-primary-text',
-  'transition-colors duration-fast hover:underline',
-  'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface'
-);
+function ViewAll({ href }: { href: string }) {
+  return (
+    <Button href={href} variant="ghost" size="sm" rightIcon={<ArrowRight size={13} aria-hidden />}>
+      Barchasi
+    </Button>
+  );
+}
+
+const orderColumns: DataTableColumn<Order>[] = [
+  {
+    key: 'passenger',
+    header: 'Yoʻlovchi',
+    cell: (o) => (
+      <div className="min-w-0">
+        <p className="truncate font-medium">{fullName(o.passenger?.firstName, o.passenger?.lastName)}</p>
+        <p className="truncate text-xs text-muted">{o.pickupAddress ?? '—'}</p>
+      </div>
+    ),
+    className: 'max-w-[220px]',
+  },
+  { key: 'time', header: 'Vaqt', cell: (o) => formatTime(o.createdAt), numeric: true, hideBelow: 'md' },
+  { key: 'status', header: 'Holat', cell: (o) => <OrderStatusBadge status={o.status} /> },
+  {
+    key: 'price',
+    header: 'Narx',
+    numeric: true,
+    cell: (o) => <MoneyText value={o.finalPrice ?? o.estimatedPrice} />,
+  },
+];
+
+const driverColumns: DataTableColumn<Driver>[] = [
+  {
+    key: 'name',
+    header: 'Haydovchi',
+    cell: (d) => (
+      <div className="flex items-center gap-2.5 min-w-0">
+        <Avatar firstName={d.firstName} lastName={d.lastName} size="xs" tone="mint" />
+        <span className="truncate font-medium">{fullName(d.firstName, d.lastName)}</span>
+      </div>
+    ),
+    className: 'max-w-[200px]',
+  },
+  { key: 'plate', header: 'Davlat raqami', cell: (d) => <PlateNumber plate={d.carNumber} /> },
+  { key: 'rating', header: 'Reyting', numeric: true, cell: (d) => formatRating(d.rating), hideBelow: 'md' },
+  { key: 'status', header: 'Holat', cell: (d) => <DriverStatusBadge status={d.status} isOnline={d.isOnline} /> },
+];
 
 /**
- * Teskari piramida: tepada "hammasi joyidami?" (5 ta KPI, eng muhimi chap
- * yuqorida), o'rtada harakatni tushuntiruvchi 7 kunlik trendlar, pastda
- * detal (oxirgi buyurtmalar, onlayn haydovchilar) va drill-down havolalar.
+ * Inverted pyramid: "are we OK?" KPIs on top (most important top-left),
+ * 7-day trends in the middle, recent detail at the bottom.
  *
- * DELTA YO'Q — bu qaror: /orders/stats o'tgan-davr taqqoslamasini bermaydi,
- * delta esa faqat haqiqiy ma'lumotdan chiziladi. Sparkline'lar reports
- * API'sining HAQIQIY 7 kunlik seriyasidan keladi.
+ * No deltas and no sparklines on purpose: /orders/stats has no previous
+ * period to compare against, and a delta is only drawn from real data.
  */
 export default function DashboardPage() {
-  const { toast } = useToast();
+  const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [onlineDrivers, setOnlineDrivers] = useState<Driver[]>([]);
@@ -76,219 +114,120 @@ export default function DashboardPage() {
       setOnlineDrivers(driversRes.data.data?.drivers ?? []);
       setError(null);
     } catch {
-      const message = "Ma'lumotlarni yuklashda xatolik";
-      setError(message);
-      toast({ title: 'Xatolik', description: message, variant: 'error' });
+      setError('Bosh sahifa maʼlumotlarini yuklab boʻlmadi.');
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, []);
 
-  // Trendlar alohida yuklanadi: KPI'lar birinchi, diagrammalar keyin —
-  // trend so'rovi yiqilsa ham yuqoridagi javob ekranda qoladi.
+  // Trends load separately: KPIs first, charts after — a failed trend request
+  // never blanks the numbers above it.
   const fetchTrends = useCallback(async () => {
     setTrendsLoading(true);
     try {
       const res = await reportsApi.getData({
-        from: format(subDays(new Date(), 7), DATE_FMT),
+        from: format(subDays(new Date(), TREND_DAYS), DATE_FMT),
         to: format(new Date(), DATE_FMT),
       });
       setTrendData(res.data.data?.revenueChart ?? []);
       setTrendsError(null);
     } catch {
-      setTrendsError('Trend maʼlumotlarini yuklashda xatolik');
+      setTrendsError('Trend maʼlumotlarini yuklab boʻlmadi.');
     } finally {
       setTrendsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchData();
-    fetchTrends();
+    void fetchData();
+    void fetchTrends();
   }, [fetchData, fetchTrends]);
 
-  const ordersSparkline = trendData.map((d) => d.orders);
-  const revenueSparkline = trendData.map((d) => d.revenue);
-
   return (
-    <div className="p-4 sm:p-6">
-      <PageHeader
-        title="Bosh sahifa"
-        description="Tizimning umumiy ko'rinishi"
-        icon={<LayoutDashboard className="h-4 w-4" />}
-      />
+    <div className="px-4 sm:px-6 py-5">
+      <PageHeader title="Bosh sahifa" description="Bugungi holat va soʻnggi 7 kunlik trendlar" />
 
-      {error ? (
-        <ErrorState message={error} onRetry={fetchData} />
+      {error && !stats ? (
+        <Card padding="none">
+          <ErrorState message={error} onRetry={fetchData} retrying={isLoading} />
+        </Card>
       ) : (
-        <div className="space-y-6">
-          {/* 1-qavat: KPI'lar — eng muhimi (bugungi buyurtmalar) chap yuqorida */}
-          {isLoading ? (
-            <SkeletonStats count={5} className="sm:grid-cols-2 xl:grid-cols-5" />
+        <div className="space-y-5">
+          {isLoading && !stats ? (
+            <SkeletonStats count={5} className="sm:grid-cols-3 xl:grid-cols-5" />
           ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+              <StatCard label="Bugungi buyurtmalar" value={formatNumber(stats?.ordersToday)} />
               <StatCard
-                title="Bugungi buyurtmalar"
-                value={stats?.ordersToday?.toLocaleString('uz-UZ') ?? '—'}
-                icon={<ClipboardList className="h-5 w-5" />}
-                variant="mint"
-                sparkline={ordersSparkline}
-                subtitle={ordersSparkline.length > 1 ? "So'nggi 7 kun" : undefined}
+                label="Bugungi daromad"
+                value={formatMoney(stats?.revenueToday, { currency: false })}
+                unit="soʻm"
               />
               <StatCard
-                title="Bugungi daromad"
-                value={stats ? formatCurrency(stats.revenueToday) : '—'}
-                icon={<Banknote className="h-5 w-5" />}
-                variant="violet"
-                sparkline={revenueSparkline}
-                subtitle={revenueSparkline.length > 1 ? "So'nggi 7 kun" : undefined}
+                label="Onlayn haydovchilar"
+                value={formatNumber(stats?.onlineDrivers)}
+                hint={stats ? `${formatNumber(stats.activeDrivers)} ta faol haydovchidan` : undefined}
               />
               <StatCard
-                title="Onlayn haydovchilar"
-                value={stats?.onlineDrivers?.toLocaleString('uz-UZ') ?? '—'}
-                subtitle={
-                  stats ? `${stats.activeDrivers.toLocaleString('uz-UZ')} ta faol haydovchidan` : undefined
-                }
-                icon={<Car className="h-5 w-5" />}
-                variant="info"
+                label="Tasdiq kutmoqda"
+                value={formatNumber(stats?.pendingDriverApprovals)}
+                hint="Haydovchi arizalari"
+                onClick={() => router.push('/dashboard/drivers?status=pending')}
               />
-              <StatCard
-                title="Tasdiqlanmagan"
-                value={stats?.pendingDriverApprovals?.toLocaleString('uz-UZ') ?? '—'}
-                subtitle="Haydovchi arizalari"
-                icon={<Clock className="h-5 w-5" />}
-                variant="override"
-              />
-              <StatCard
-                title="Jami foydalanuvchilar"
-                value={stats?.totalUsers?.toLocaleString('uz-UZ') ?? '—'}
-                icon={<Users className="h-5 w-5" />}
-                variant="neutral"
-              />
+              <StatCard label="Jami foydalanuvchilar" value={formatNumber(stats?.totalUsers)} />
             </div>
           )}
 
-          {/* 2-qavat: harakatni tushuntiruvchi trendlar (so'nggi 7 kun) */}
           {trendsError && !trendsLoading ? (
-            <Card>
-              <CardContent className="p-0">
-                <ErrorState compact message={trendsError} onRetry={fetchTrends} />
-              </CardContent>
+            <Card padding="none">
+              <CardHeader title="Trendlar" />
+              <ErrorState compact message={trendsError} onRetry={fetchTrends} />
             </Card>
           ) : (
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <OrdersChart data={trendData} isLoading={trendsLoading} />
-              <RevenueChart data={trendData} isLoading={trendsLoading} />
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+              <OrdersChart data={trendData} isLoading={trendsLoading} description="Soʻnggi 7 kun" />
+              <RevenueChart data={trendData} isLoading={trendsLoading} description="Soʻnggi 7 kun" />
             </div>
           )}
 
-          {/* 3-qavat: detal va drill-down */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {/* Recent orders */}
-            <Card>
-              <CardHeader className="flex-row items-center justify-between space-y-0">
-                <CardTitle>Oxirgi buyurtmalar</CardTitle>
-                <Link href="/dashboard/orders" className={viewAllLink}>
-                  Barchasini ko&apos;rish
-                  <ArrowRight className="h-3 w-3" aria-hidden="true" />
-                </Link>
-              </CardHeader>
-              <CardContent className="p-0">
-                {isLoading ? (
-                  <div className="p-4">
-                    <SkeletonCards count={5} height="h-12" />
-                  </div>
-                ) : recentOrders.length === 0 ? (
-                  <EmptyState
-                    compact
-                    icon={<Inbox className="h-5 w-5" />}
-                    title="Hozircha buyurtmalar yo'q"
-                    description="Yangi buyurtmalar shu yerda ko'rinadi."
-                  />
-                ) : (
-                  <ul className="divide-y divide-divider">
-                    {recentOrders.map((order) => (
-                      <li key={order.id}>
-                        <Link
-                          href={`/dashboard/orders/${order.id}`}
-                          className={cn(
-                            'flex items-center justify-between px-4 py-3 transition-colors duration-fast hover:bg-surface-2',
-                            'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus'
-                          )}
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate text-body font-medium text-ink">
-                              {getFullName(order.passenger.firstName, order.passenger.lastName)}
-                            </p>
-                            <p className="truncate text-caption text-muted">
-                              {order.pickupAddress ?? '—'}
-                            </p>
-                          </div>
-                          <div className="ml-4 flex shrink-0 items-center gap-3">
-                            <OrderStatusBadge status={order.status} />
-                            <span className="text-body font-semibold tabular-nums text-ink">
-                              {formatCurrency(order.finalPrice ?? order.estimatedPrice)}
-                            </span>
-                          </div>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+            <section aria-label="Oxirgi buyurtmalar" className="min-w-0">
+              <DataTable
+                title="Oxirgi buyurtmalar"
+                actions={<ViewAll href="/dashboard/orders" />}
+                ariaLabel="Oxirgi buyurtmalar"
+                columns={orderColumns}
+                rows={recentOrders}
+                rowKey={(o) => o.id}
+                loading={isLoading}
+                error={error}
+                onRetry={fetchData}
+                onRowClick={(o) => router.push(`/dashboard/orders/${o.id}`)}
+                empty={{
+                  title: 'Hozircha buyurtmalar yoʻq',
+                  description: 'Yangi buyurtmalar shu yerda koʻrinadi.',
+                }}
+              />
+            </section>
 
-            {/* Online drivers */}
-            <Card>
-              <CardHeader className="flex-row items-center justify-between space-y-0">
-                <CardTitle>Onlayn haydovchilar</CardTitle>
-                <Link href="/dashboard/drivers?status=online" className={viewAllLink}>
-                  Barchasini ko&apos;rish
-                  <ArrowRight className="h-3 w-3" aria-hidden="true" />
-                </Link>
-              </CardHeader>
-              <CardContent className="p-0">
-                {isLoading ? (
-                  <div className="p-4">
-                    <SkeletonCards count={5} height="h-12" />
-                  </div>
-                ) : onlineDrivers.length === 0 ? (
-                  <EmptyState
-                    compact
-                    icon={<Inbox className="h-5 w-5" />}
-                    title="Onlayn haydovchilar yo'q"
-                    description="Haydovchi onlayn bo'lishi bilan shu yerda ko'rinadi."
-                  />
-                ) : (
-                  <ul className="divide-y divide-divider">
-                    {onlineDrivers.map((driver) => (
-                      <li key={driver.id}>
-                        <Link
-                          href={`/dashboard/drivers/${driver.id}`}
-                          className={cn(
-                            'flex items-center justify-between px-4 py-3 transition-colors duration-fast hover:bg-surface-2',
-                            'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus'
-                          )}
-                        >
-                          <div className="flex min-w-0 items-center gap-3">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-mint-tint text-caption font-bold text-primary-text">
-                              {driver.firstName?.charAt(0)}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="truncate text-body font-medium text-ink">
-                                {getFullName(driver.firstName, driver.lastName)}
-                              </p>
-                              <p className="font-mono text-caption text-muted">{driver.carNumber}</p>
-                            </div>
-                          </div>
-                          <DriverStatusBadge status={driver.status} isOnline={driver.isOnline} />
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
+            <section aria-label="Onlayn haydovchilar" className="min-w-0">
+              <DataTable
+                title="Onlayn haydovchilar"
+                actions={<ViewAll href="/dashboard/drivers?status=online" />}
+                ariaLabel="Onlayn haydovchilar"
+                columns={driverColumns}
+                rows={onlineDrivers}
+                rowKey={(d) => d.id}
+                loading={isLoading}
+                error={error}
+                onRetry={fetchData}
+                onRowClick={(d) => router.push(`/dashboard/drivers/${d.id}`)}
+                empty={{
+                  title: 'Onlayn haydovchilar yoʻq',
+                  description: 'Haydovchi onlayn boʻlishi bilan shu yerda koʻrinadi.',
+                }}
+              />
+            </section>
           </div>
         </div>
       )}

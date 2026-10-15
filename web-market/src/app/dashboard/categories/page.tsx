@@ -2,20 +2,20 @@
 
 import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, Pencil, Plus, RefreshCw, Tags, Trash2 } from 'lucide-react';
-import { clsx } from 'clsx';
 import { marketApi, MarketCategory, Product } from '@/lib/api';
 import { errorMessage, hueTint } from '@/lib/utils';
+import { formatNumber } from '@/lib/format';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { useToast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataErrorBanner } from '@/components/ui/DataErrorBanner';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { ErrorState } from '@/components/ui/ErrorState';
-import { Modal } from '@/components/ui/Modal';
+import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
+import { IconButton } from '@/components/ui/IconButton';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { SkeletonCards } from '@/components/ui/Skeleton';
+import { Switch } from '@/components/ui/Switch';
 import { CategoryModal } from '@/components/categories/CategoryModal';
+import { usePageRefresh } from '@/components/shell';
 
 const HUES = [45, 200, 25, 280, 150, 320];
 
@@ -30,6 +30,7 @@ export default function CategoriesPage() {
   const [editing, setEditing] = useState<MarketCategory | null>(null);
   const [pendingDelete, setPendingDelete] = useState<MarketCategory | null>(null);
   const [reordering, setReordering] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const { data, isLoading, isRefreshing, error, reload } = useAsyncData<CategoriesData>(
     async () => {
@@ -37,6 +38,7 @@ export default function CategoriesPage() {
       return { categories: c.data.data, products: p.data.data };
     }
   );
+  usePageRefresh(reload);
 
   // Mijoz ilovasida ko'rinadigan tartib — sortOrder bo'yicha.
   const categories = useMemo(
@@ -85,6 +87,7 @@ export default function CategoriesPage() {
 
   const confirmRemove = async () => {
     if (!pendingDelete) return;
+    setDeleting(true);
     try {
       await marketApi.deleteCategory(pendingDelete.id);
       setPendingDelete(null);
@@ -92,6 +95,8 @@ export default function CategoriesPage() {
       toast({ title: "Kategoriya o'chirildi", variant: 'success' });
     } catch (err) {
       toast({ title: 'Xatolik', description: errorMessage(err), variant: 'error' });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -111,32 +116,129 @@ export default function CategoriesPage() {
     }
   };
 
+  const openCreate = () => {
+    setEditing(null);
+    setModalOpen(true);
+  };
+
+  const columns: DataTableColumn<MarketCategory>[] = [
+    {
+      key: 'order',
+      header: <span className="sr-only">Tartib</span>,
+      width: 'w-16',
+      cell: (c) => {
+        const i = categories.indexOf(c);
+        return (
+          // Tartib: drag emas — aniq yuqoriga/pastga tugmalar.
+          <span className="inline-flex items-center">
+            <IconButton
+              size="sm"
+              aria-label={`${c.name} — yuqoriga ko'tarish`}
+              disabled={i === 0 || reordering}
+              onClick={() => void move(i, -1)}
+            >
+              <ChevronUp aria-hidden />
+            </IconButton>
+            <IconButton
+              size="sm"
+              aria-label={`${c.name} — pastga tushirish`}
+              disabled={i === categories.length - 1 || reordering}
+              onClick={() => void move(i, 1)}
+            >
+              <ChevronDown aria-hidden />
+            </IconButton>
+          </span>
+        );
+      },
+    },
+    {
+      key: 'name',
+      header: 'Kategoriya',
+      cell: (c) => {
+        const i = categories.indexOf(c);
+        return (
+          <span className="flex min-w-0 items-center gap-2.5">
+            <span
+              aria-hidden
+              style={hueTint(HUES[i % HUES.length])}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-ds-xs text-base"
+            >
+              {c.emoji}
+            </span>
+            <span className={c.isActive ? 'truncate font-medium text-ink' : 'truncate font-medium text-muted'}>
+              {c.name}
+            </span>
+          </span>
+        );
+      },
+    },
+    {
+      key: 'count',
+      header: 'Mahsulot',
+      numeric: true,
+      width: 'w-28',
+      cell: (c) => `${formatNumber(productCount[c.id] ?? 0)} ta`,
+    },
+    {
+      key: 'active',
+      header: 'Faol',
+      width: 'w-20',
+      cell: (c) => (
+        <Switch
+          size="sm"
+          checked={c.isActive}
+          onCheckedChange={() => void toggle(c)}
+          aria-label={`${c.name} — faol holati`}
+        />
+      ),
+    },
+    {
+      key: 'actions',
+      header: <span className="sr-only">Amallar</span>,
+      align: 'right',
+      width: 'w-20',
+      cell: (c) => (
+        <span className="inline-flex items-center">
+          <IconButton
+            size="sm"
+            aria-label={`${c.name} kategoriyasini tahrirlash`}
+            onClick={() => {
+              setEditing(c);
+              setModalOpen(true);
+            }}
+          >
+            <Pencil aria-hidden />
+          </IconButton>
+          <IconButton
+            size="sm"
+            variant="danger-ghost"
+            aria-label={`${c.name} kategoriyasini o'chirish`}
+            onClick={() => setPendingDelete(c)}
+          >
+            <Trash2 aria-hidden />
+          </IconButton>
+        </span>
+      ),
+    },
+  ];
+
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-4xl">
       <PageHeader
         title="Kategoriyalar"
-        description="Mahsulot guruhlari va ularning mijozga ko'rinish tartibi"
-        icon={<Tags size={18} aria-hidden />}
+        description="Mahsulot guruhlari va ularning mijoz ilovasidagi tartibi"
         actions={
           <>
             <Button
               variant="secondary"
-              size="sm"
               onClick={() => void reload()}
               isLoading={isRefreshing}
-              leftIcon={<RefreshCw size={13} aria-hidden />}
+              leftIcon={<RefreshCw size={14} aria-hidden />}
             >
               Yangilash
             </Button>
-            <Button
-              size="sm"
-              onClick={() => {
-                setEditing(null);
-                setModalOpen(true);
-              }}
-              leftIcon={<Plus size={14} aria-hidden />}
-            >
-              Kategoriya
+            <Button onClick={openCreate} leftIcon={<Plus size={14} aria-hidden />}>
+              Kategoriya qo&apos;shish
             </Button>
           </>
         }
@@ -144,119 +246,26 @@ export default function CategoriesPage() {
 
       {error && data && <DataErrorBanner message={error} onRetry={reload} retrying={isRefreshing} />}
 
-      {isLoading ? (
-        <SkeletonCards count={4} height="h-[72px]" />
-      ) : error && categories.length === 0 ? (
-        <ErrorState message={error} onRetry={reload} />
-      ) : categories.length === 0 ? (
-        <Card>
-          <EmptyState
-            icon={<Tags size={24} aria-hidden />}
-            title="Kategoriya yo'q"
-            description="Kategoriyalar mahsulotlarni mijoz uchun guruhlaydi."
-            action={
-              <Button
-                size="sm"
-                onClick={() => {
-                  setEditing(null);
-                  setModalOpen(true);
-                }}
-                leftIcon={<Plus size={14} aria-hidden />}
-              >
-                Birinchi kategoriya
-              </Button>
-            }
-          />
-        </Card>
-      ) : (
-        <ul className="flex flex-col gap-2.5">
-          {categories.map((c, i) => (
-            <li key={c.id}>
-              <Card padding="sm" className="flex items-center gap-3">
-                {/* Tartib: drag emas — aniq yuqoriga/pastga tugmalar. */}
-                <span className="flex flex-col">
-                  <button
-                    type="button"
-                    aria-label={`${c.name} — yuqoriga ko'tarish`}
-                    disabled={i === 0 || reordering}
-                    onClick={() => void move(i, -1)}
-                    className="flex h-5 w-6 items-center justify-center rounded-ds-xs text-subtle transition-colors duration-fast hover:bg-surface-2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-35"
-                  >
-                    <ChevronUp size={14} aria-hidden />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`${c.name} — pastga tushirish`}
-                    disabled={i === categories.length - 1 || reordering}
-                    onClick={() => void move(i, 1)}
-                    className="flex h-5 w-6 items-center justify-center rounded-ds-xs text-subtle transition-colors duration-fast hover:bg-surface-2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-35"
-                  >
-                    <ChevronDown size={14} aria-hidden />
-                  </button>
-                </span>
-                <span
-                  aria-hidden
-                  style={hueTint(HUES[i % HUES.length])}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-ds-sm text-lg"
-                >
-                  {c.emoji}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-body font-bold text-ink">{c.name}</p>
-                  <p className="mt-0.5 text-caption text-muted">
-                    <span className="font-mono tabular-nums">{productCount[c.id] ?? 0}</span> ta
-                    mahsulot · {c.isActive ? 'Faol' : "O'chirilgan"}
-                  </p>
-                </div>
-
-                {/* Switch, not a styled div: role + aria-checked make the state
-                    readable, and the label says which category it belongs to. */}
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={c.isActive}
-                  aria-label={`${c.name} — faol holati`}
-                  onClick={() => void toggle(c)}
-                  className={clsx(
-                    'relative h-6 w-11 shrink-0 rounded-full transition-colors duration-fast',
-                    c.isActive ? 'bg-primary' : 'border border-line bg-surface-3'
-                  )}
-                >
-                  <span
-                    aria-hidden
-                    className={clsx(
-                      'absolute top-1 h-4 w-4 rounded-full bg-white shadow-card transition-all duration-fast',
-                      c.isActive ? 'left-6' : 'left-1'
-                    )}
-                  />
-                </button>
-
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  aria-label={`${c.name} kategoriyasini tahrirlash`}
-                  onClick={() => {
-                    setEditing(c);
-                    setModalOpen(true);
-                  }}
-                  className="shrink-0"
-                >
-                  <Pencil size={14} aria-hidden />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  aria-label={`${c.name} kategoriyasini o'chirish`}
-                  onClick={() => setPendingDelete(c)}
-                  className="shrink-0 hover:text-danger"
-                >
-                  <Trash2 size={15} aria-hidden />
-                </Button>
-              </Card>
-            </li>
-          ))}
-        </ul>
-      )}
+      <DataTable
+        ariaLabel="Kategoriyalar"
+        columns={columns}
+        rows={categories}
+        rowKey={(c) => c.id}
+        loading={isLoading}
+        error={data ? null : error}
+        onRetry={reload}
+        empty={{
+          variant: 'first-use',
+          icon: <Tags aria-hidden />,
+          title: "Kategoriya yo'q",
+          description: 'Kategoriyalar mahsulotlarni mijoz uchun guruhlaydi.',
+          action: (
+            <Button size="sm" onClick={openCreate} leftIcon={<Plus size={14} aria-hidden />}>
+              Birinchi kategoriya
+            </Button>
+          ),
+        }}
+      />
 
       <CategoryModal
         isOpen={modalOpen}
@@ -268,29 +277,23 @@ export default function CategoriesPage() {
         onSave={save}
       />
 
-      <Modal
+      <ConfirmDialog
         isOpen={!!pendingDelete}
         onClose={() => setPendingDelete(null)}
-        title="Kategoriyani o'chirish"
-        subtitle={pendingDelete?.name}
+        onConfirm={confirmRemove}
+        title={`«${pendingDelete?.name ?? ''}» kategoriyasini o'chirish`}
+        description={
+          <>
+            Bu amalni bekor qilib bo&apos;lmaydi.{' '}
+            {pendingDelete && (productCount[pendingDelete.id] ?? 0) > 0
+              ? `Ichidagi ${productCount[pendingDelete.id]} ta mahsulot kategoriyasiz qoladi.`
+              : 'Bu kategoriyada mahsulot yo‘q.'}
+          </>
+        }
+        confirmLabel="O'chirish"
         tone="danger"
-        size="sm"
-      >
-        <p className="text-body text-muted">
-          Bu amalni bekor qilib bo&apos;lmaydi.{' '}
-          {pendingDelete && (productCount[pendingDelete.id] ?? 0) > 0
-            ? `Ichidagi ${productCount[pendingDelete.id]} ta mahsulot kategoriyasiz qoladi.`
-            : 'Bu kategoriyada mahsulot yo‘q.'}
-        </p>
-        <div className="mt-5 flex justify-end gap-2.5">
-          <Button variant="secondary" onClick={() => setPendingDelete(null)}>
-            Bekor qilish
-          </Button>
-          <Button variant="danger" onClick={() => void confirmRemove()}>
-            O&apos;chirish
-          </Button>
-        </div>
-      </Modal>
+        isPending={deleting}
+      />
     </div>
   );
 }

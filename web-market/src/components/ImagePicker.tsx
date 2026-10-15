@@ -50,7 +50,7 @@ export function ImagePicker({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={inputId} className="text-caption font-semibold text-muted">
+      <label htmlFor={inputId} className="text-[13px] font-medium text-ink">
         {label}
       </label>
       <label

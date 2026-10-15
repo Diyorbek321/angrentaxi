@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Check, Pencil, X } from 'lucide-react';
-import { clsx } from 'clsx';
+import { cn } from '@/components/ui/cn';
 
 export interface InlineEditCellProps {
   value: number;
@@ -78,23 +78,21 @@ export function InlineEditCell({
         onClick={startEdit}
         aria-label={`${ariaLabel} — tahrirlash`}
         title="Tahrirlash"
-        className="group flex w-full items-center justify-end gap-1.5 rounded-ds-xs px-1.5 py-1 text-right transition-colors duration-fast hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+        className="group ml-auto flex h-7 items-center justify-end gap-1 rounded-ds-xs px-1.5 text-right transition-colors hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
       >
-        <span className={clsx('font-mono text-body tabular-nums font-bold', valueClassName ?? 'text-ink')}>
-          {display}
-        </span>
-        {unit && <span className="shrink-0 text-caption text-muted">{unit}</span>}
+        <span className={cn('num text-[13px] font-medium', valueClassName ?? 'text-ink')}>{display}</span>
+        {unit && <span className="shrink-0 text-xs text-muted">{unit}</span>}
         <Pencil
           size={12}
           aria-hidden
-          className="shrink-0 text-subtle transition-colors duration-fast group-hover:text-ink"
+          className="shrink-0 text-subtle opacity-60 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
         />
       </button>
     );
   }
 
   return (
-    <div className="w-full">
+    <div className="ml-auto w-full max-w-[180px]">
       <div className="flex items-center gap-1">
         <input
           type="number"
@@ -111,10 +109,10 @@ export function InlineEditCell({
             if (e.key === 'Enter') void save();
             if (e.key === 'Escape') cancel();
           }}
-          className={clsx(
-            'h-8 w-full min-w-0 rounded-ds-xs border bg-surface px-2 text-right font-mono text-body tabular-nums text-ink',
-            'focus:outline-none focus:ring-2 focus:ring-focus/35 focus:border-focus',
-            fieldError ? 'border-danger/60' : 'border-line'
+          className={cn(
+            'num h-7 w-full min-w-0 rounded-ds-sm border bg-surface px-2 text-right text-[13px] text-ink',
+            'focus:outline-none focus:ring-2 focus:ring-focus/30 focus:border-focus',
+            fieldError ? 'border-danger' : 'border-line'
           )}
         />
         <button
@@ -123,7 +121,7 @@ export function InlineEditCell({
           disabled={saving}
           aria-label="Saqlash"
           title="Saqlash"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-ds-xs bg-primary text-white transition-colors duration-fast hover:bg-primary-hover disabled:opacity-45"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-ds-sm bg-primary text-white transition-colors hover:bg-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-45"
         >
           <Check size={14} aria-hidden />
         </button>
@@ -133,13 +131,13 @@ export function InlineEditCell({
           disabled={saving}
           aria-label="Bekor qilish"
           title="Bekor qilish"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-ds-xs border border-line text-muted transition-colors duration-fast hover:bg-surface-2 hover:text-ink disabled:opacity-45"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-ds-sm border border-line text-muted transition-colors hover:bg-surface-2 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-45"
         >
           <X size={14} aria-hidden />
         </button>
       </div>
       {fieldError && (
-        <p role="alert" className="mt-1 text-right text-caption font-semibold text-danger-deep dark:text-danger-light">
+        <p role="alert" className="mt-1 text-right text-xs text-danger-dark dark:text-danger-light">
           {fieldError}
         </p>
       )}

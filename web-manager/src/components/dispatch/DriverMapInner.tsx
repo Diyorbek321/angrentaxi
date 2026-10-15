@@ -117,7 +117,7 @@ export default function DriverMapInner({ drivers, selectedOrder = null }: Driver
         >
           <Popup>
             <div className="text-xs">
-              <p className="font-semibold">{driver.name}</p>
+              <p className="font-semibold">{driver.name || 'Ism kiritilmagan'}</p>
               <p>
                 {driver.carModel} · {driver.carNumber}
               </p>

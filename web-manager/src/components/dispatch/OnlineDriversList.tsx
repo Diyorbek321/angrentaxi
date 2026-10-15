@@ -21,7 +21,7 @@ export function OnlineDriversList({
   onRefetch,
 }: OnlineDriversListProps) {
   if (isLoading && drivers.length === 0) {
-    return <SkeletonCards count={4} height="h-24" />;
+    return <SkeletonCards count={4} height="h-[88px]" />;
   }
 
   if (error) {
@@ -31,7 +31,7 @@ export function OnlineDriversList({
   if (drivers.length === 0) {
     return (
       <EmptyState
-        icon={<Users size={22} />}
+        icon={<Users aria-hidden />}
         title="Onlayn haydovchi yoʻq"
         description="Haydovchilar smenaga chiqishi bilan shu yerda koʻrinadi."
       />
@@ -45,7 +45,7 @@ export function OnlineDriversList({
     <div className="space-y-4">
       {availableDrivers.length > 0 && (
         <div className="space-y-2">
-          <h4 className="px-1 text-[10px] font-semibold uppercase tracking-wider text-subtle">
+          <h4 className="px-1 text-micro uppercase text-subtle">
             Boʻsh ({availableDrivers.length})
           </h4>
           {availableDrivers.map((driver) => (
@@ -56,7 +56,7 @@ export function OnlineDriversList({
 
       {busyDrivers.length > 0 && (
         <div className="space-y-2">
-          <h4 className="px-1 text-[10px] font-semibold uppercase tracking-wider text-subtle">
+          <h4 className="px-1 text-micro uppercase text-subtle">
             Band ({busyDrivers.length})
           </h4>
           {busyDrivers.map((driver) => (

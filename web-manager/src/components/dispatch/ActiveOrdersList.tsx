@@ -7,8 +7,9 @@ import { Order, Driver } from '@/lib/api';
 import { OrderCard } from './OrderCard';
 import { AssignDriverModal } from './AssignDriverModal';
 import { OrderDetailDrawer } from './OrderDetailDrawer';
-import { Tabs, type TabItem } from '@/components/ui/Tabs';
-import { SkeletonCards } from '@/components/ui/Skeleton';
+import { type TabItem } from '@/components/ui/Tabs';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { Skeleton, SkeletonCards } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 
@@ -71,7 +72,7 @@ export function ActiveOrdersList({
 
   const tabs: TabItem<OrderFilterTab>[] = [
     { value: 'all', label: 'Hammasi', count: counts.all },
-    { value: 'searching', label: 'Qidirilmoqda', count: counts.searching },
+    { value: 'searching', label: 'Qidiruv', count: counts.searching },
     { value: 'assigned', label: 'Tayinlangan', count: counts.assigned },
     { value: 'in_progress', label: 'Yoʻlda', count: counts.in_progress },
     { value: 'completed', label: 'Yakunlangan', count: counts.completed },
@@ -98,8 +99,8 @@ export function ActiveOrdersList({
   if (isLoading && orders.length === 0) {
     return (
       <div className="space-y-3">
-        <div className="h-9 w-full skeleton rounded-ds-sm" />
-        <SkeletonCards count={3} height="h-44" />
+        <Skeleton className="h-8 w-full rounded-ds-sm" />
+        <SkeletonCards count={3} height="h-40" />
       </div>
     );
   }
@@ -111,19 +112,26 @@ export function ActiveOrdersList({
   return (
     <>
       <div className="space-y-3">
-        <Tabs items={tabs} value={tab} onChange={setTab} size="sm" className="w-full" />
+        <SegmentedControl
+          items={tabs}
+          value={tab}
+          onChange={setTab}
+          size="sm"
+          ariaLabel="Buyurtmalar filtri"
+          fullWidth
+        />
 
         {visibleOrders.length === 0 ? (
           tab === 'completed' ? (
             <EmptyState
-              icon={<CheckCircle2 size={22} />}
-              tone="positive"
+              icon={<CheckCircle2 aria-hidden />}
+              variant="cleared"
               title="Yakunlangan buyurtmalar bu yerda qolmaydi"
               description="Buyurtma yakunlangach jonli oqimdan chiqadi."
               action={
                 <Link
                   href="/orders"
-                  className="text-sm font-semibold text-primary-600 dark:text-primary-300 hover:underline"
+                  className="text-[13px] font-medium text-primary-text hover:underline"
                 >
                   Buyurtmalar tarixiga oʻtish →
                 </Link>
@@ -131,20 +139,22 @@ export function ActiveOrdersList({
             />
           ) : counts.all === 0 ? (
             <EmptyState
-              icon={<Radar size={22} />}
-              tone="positive"
+              icon={<Radar aria-hidden />}
+              variant="cleared"
               title="Aktiv buyurtma yoʻq"
               description="Yangi buyurtma kelishi bilan shu yerda real vaqtda paydo boʻladi."
             />
           ) : (
             <EmptyState
+              variant="no-results"
               title="Bu filtrda buyurtma yoʻq"
               description="Boshqa filtrni tanlang yoki «Hammasi» ga qayting."
+              onClearFilters={() => setTab('all')}
               compact
             />
           )
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
             {visibleOrders.map((order) => (
               <OrderCard
                 key={order.id}
