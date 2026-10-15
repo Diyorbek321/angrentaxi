@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { MarketService } from './market.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -9,6 +9,7 @@ import { User, PASSENGER_APP_ROLES } from '../../database/entities/user.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
 import { CreateMarketOrderDto } from './dto/create-market-order.dto';
 import { OptionalPaginationDto } from '../../common/dto/optional-pagination.dto';
+import { CancelVendorOrderDto } from '../../common/dto/cancel-vendor-order.dto';
 
 @ApiTags('Market (storefront)')
 @ApiBearerAuth('JWT-auth')
@@ -51,5 +52,16 @@ export class MarketStorefrontController {
   @ApiOperation({ summary: 'Place a market order' })
   createOrder(@CurrentUser() user: User, @Body() dto: CreateMarketOrderDto) {
     return this.marketService.createOrder(user.id, user.phone, dto);
+  }
+
+  @Post('orders/:id/cancel')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Cancel my market order (only before the vendor accepts it)' })
+  cancelMyOrder(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CancelVendorOrderDto,
+  ) {
+    return this.marketService.cancelByCustomer(user.id, id, dto.reason);
   }
 }

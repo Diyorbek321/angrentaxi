@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/config/app_platform.dart';
 import 'package:angren_taxi/core/config/app_responsive.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
+import 'package:angren_taxi/core/push/push_notifications.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/auth/screens/otp_screen.dart';
 import 'package:angren_taxi/features/auth/screens/phone_screen.dart';
@@ -50,6 +53,28 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// Kirish holati o'zgarganda push tokenini serverga yozadi.
+///
+/// Ilgari token faqat sovuq startdan 3 s keyin yuborilardi: yangi
+/// o'rnatishda foydalanuvchi o'sha paytda hali OTP kiritayotgan bo'lardi,
+/// so'rov 401 bilan yo'qolardi va serverda ESKI token qolardi. Yo'lovchidan
+/// bildirishnoma ruxsati ham shu yerda — kirgandan keyin — so'raladi.
+AuthProvider _withPushBinding(AuthProvider auth, AppFlavor flavor) {
+  var wasAuthenticated = auth.isAuthenticated;
+  auth.addListener(() {
+    final now = auth.isAuthenticated;
+    if (now && !wasAuthenticated) {
+      final push = PushNotifications.instance;
+      unawaited(push.syncToken());
+      if (flavor == AppFlavor.passenger) unawaited(push.ensurePermission());
+    } else if (!now && wasAuthenticated) {
+      PushNotifications.instance.forgetSentToken();
+    }
+    wasAuthenticated = now;
+  });
+  return auth;
+}
+
 class AngrenTaxiApp extends StatelessWidget {
   const AngrenTaxiApp({super.key, required this.flavor});
 
@@ -64,7 +89,7 @@ class AngrenTaxiApp extends StatelessWidget {
           create: (_) => LocaleController(sl<SharedPreferences>()),
         ),
         ChangeNotifierProvider<AuthProvider>(
-            create: (_) => buildAuthProvider(flavor)),
+            create: (_) => _withPushBinding(buildAuthProvider(flavor), flavor)),
         ChangeNotifierProvider<SupportProvider>(
             create: (_) => buildSupportProvider()),
         if (flavor == AppFlavor.passenger)
@@ -171,13 +196,20 @@ class AngrenTaxiApp extends StatelessWidget {
               data: media.copyWith(
                 textScaler: media.textScaler.clamp(
                   minScaleFactor: 0.85,
-                  maxScaleFactor: wide ? 1.4 : 1.2,
+                  // 1.3 — ekranlar 360dp kenglikda shu shkalaga tekshirilgan
+                  // (test/widget/responsive_v5_test.dart).
+                  maxScaleFactor: wide ? 1.4 : 1.3,
                 ),
               ),
               // Haydovchi: ilovadan chiqqanda suzuvchi tugma va fonda
               // kelgan zakazda ilovani ekranga chiqarish. Shu yerda —
               // ekranlar almashganda qayta qurilmaydi.
-              child: flavor == AppFlavor.driver
+              // Navigator ORTIDAGI fon. Sahifa o'tishida yoki sahifa hali
+              // chizilmagan kadrda ko'rinadigan narsa — qora bo'sh yuza emas,
+              // ilova foni (`AppMotion` dagi qora chaqnash izohiga qarang).
+              child: ColoredBox(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                child: flavor == AppFlavor.driver
                   ? DriverBackgroundHost(
                       // Hamyon hodisalari (`wallet:updated`, push) — har
                       // qanday ekranda snackbar / to'ldirish ekraniga o'tish.
@@ -187,6 +219,7 @@ class AngrenTaxiApp extends StatelessWidget {
                       ),
                     )
                   : (child ?? const SizedBox.shrink()),
+              ),
             );
           },
           home: _AppEntryPoint(flavor: flavor),

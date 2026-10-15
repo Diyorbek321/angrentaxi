@@ -3,6 +3,7 @@ import 'package:angren_taxi/features/superapp/screens/restaurant_detail_screen.d
 import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/features/superapp/widgets/deals.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/food_restaurant.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
@@ -26,7 +27,10 @@ class _FoodListScreenState extends State<FoodListScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<FoodProvider>().loadRestaurants();
+      final food = context.read<FoodProvider>();
+      food.loadRestaurants();
+      // Chegirmalar lentasi mustaqil — sekin/yo'q bo'lsa ro'yxatni ushlamaydi.
+      food.loadActivePromotions();
     });
   }
 
@@ -61,12 +65,25 @@ class _FoodListScreenState extends State<FoodListScreen> {
                 else
                   // Dangasa ro'yxat — faqat ko'ringan kartalar quriladi.
                   ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, 110),
-                    itemCount: food.restaurants.length,
-                    itemBuilder: (context, i) {
+                    padding: const EdgeInsets.fromLTRB(0, 0, 0, 110),
+                    // 0-element — "Chegirmalar" lentasi (bo'sh bo'lsa o'zi
+                    // hech narsa chizmaydi): chegirmalar ENG TEPADA.
+                    itemCount: food.restaurants.length + 1,
+                    itemBuilder: (context, index) {
+                      if (index == 0) {
+                        return DealsCarousel(
+                          deals: food.activePromotions,
+                          onTap: (deal) => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => RestaurantDetailScreen(restaurantId: deal.vendorId),
+                            ),
+                          ),
+                        );
+                      }
+                      final i = index - 1;
                       final r = food.restaurants[i];
                       return Padding(
-                        padding: const EdgeInsets.only(bottom: kSpace4),
+                        padding: EdgeInsets.fromLTRB(kSpace4, i == 0 ? kSpace4 : 0, kSpace4, kSpace4),
                         child: _FoodCard(
                           restaurant: r,
                           onTap: () => Navigator.of(context).push(
@@ -124,6 +141,8 @@ class _FoodHeader extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: kFontH2, fontWeight: FontWeight.w800, color: agText)),
                 Text(context.l10n.saFoodSubtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                         fontSize: kFontCaption, fontWeight: FontWeight.w600, color: agSubtle)),
               ],
@@ -182,6 +201,12 @@ class _FoodCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                  if (r.activePromotion != null)
+                    Positioned(
+                      top: kSpace3,
+                      right: kSpace3,
+                      child: DiscountBadge(label: r.activePromotion!.shortLabel),
+                    ),
                   Positioned(
                     top: kSpace3,
                     left: kSpace3,
@@ -199,8 +224,18 @@ class _FoodCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(r.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                             fontWeight: FontWeight.w800, fontSize: kFontTitle, color: agText)),
+                    if (r.activePromotion case final promo? when promo.title.isNotEmpty) ...[
+                      const SizedBox(height: kSpace1),
+                      Text(promo.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: kFontCaption, color: kErrorDeep, fontWeight: FontWeight.w700)),
+                    ],
                     if (r.address != null) ...[
                       const SizedBox(height: kSpace1),
                       Text(r.address!,

@@ -43,6 +43,13 @@ abstract final class ApiErrorCode {
 
   /// 403 — menejer qo'lda tuzatish chegarasi (panellar); `details: { limit }`.
   static const manualAdjustmentLimit = 'MANUAL_ADJUSTMENT_LIMIT';
+
+  /// 409 — restoran/do'kon buyurtmani qabul qilgan, mijoz endi bekor
+  /// qila olmaydi (docs/specs/food-market-ux-v5.md §1).
+  static const orderCancelNotAllowed = 'ORDER_CANCEL_NOT_ALLOWED';
+
+  /// Promokod bu xizmat turiga tegishli emas (spec v5 §2).
+  static const promoNotApplicable = 'PROMO_NOT_APPLICABLE';
 }
 
 /// `reasons[]` elementi.

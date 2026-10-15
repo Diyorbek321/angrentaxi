@@ -8,6 +8,7 @@ import { MoneyText } from '@/components/ui/MoneyText';
 import { KeyValue, KeyValueList } from '@/components/ui/KeyValue';
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { customerNameOf, customerPhoneOf } from './OrderCard';
+import { AddressDetailsBlock, CustomerCancelNotice, DiscountLines } from './OrderExtras';
 
 export function OrderDrawer({
   order,
@@ -80,6 +81,9 @@ export function OrderDrawer({
         </KeyValue>
       </KeyValueList>
 
+      <CustomerCancelNotice order={order} />
+      <AddressDetailsBlock details={order.addressDetails} />
+
       {order.note && (
         <div className="rounded-ds-sm border border-override/40 bg-override-tint px-3 py-2.5">
           <p className="flex items-center gap-1.5 text-xs font-semibold text-override-dark dark:text-override-light">
@@ -108,6 +112,7 @@ export function OrderDrawer({
             </li>
           ))}
         </ul>
+        <DiscountLines order={order} className="mt-3 border-t border-line pt-3" />
         <div className="mt-3 flex items-center justify-between border-t border-line pt-3">
           <span className="text-body text-muted">
             Toʻlov: <span className="font-semibold text-ink">{order.paymentMethod === 'card' ? 'Karta' : 'Naqd'}</span>

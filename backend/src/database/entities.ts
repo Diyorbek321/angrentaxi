@@ -36,6 +36,7 @@ import { PlatformSettings } from './entities/platform-settings.entity';
 import { Product } from './entities/product.entity';
 import { PromoCode } from './entities/promo_code.entity';
 import { PromoCodeUsage } from './entities/promo_code_usage.entity';
+import { Promotion } from './entities/promotion.entity';
 import { PushNotificationLog } from './entities/push-notification-log.entity';
 import { Rating } from './entities/rating.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
@@ -87,6 +88,7 @@ export const ENTITIES = [
   Product,
   PromoCode,
   PromoCodeUsage,
+  Promotion,
   PushNotificationLog,
   Rating,
   RefreshToken,

@@ -1,15 +1,22 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/payments/payment_service.dart';
+import 'package:angren_taxi/core/push/push_notifications.dart';
 import 'package:angren_taxi/features/passenger/screens/map_picker_screen.dart';
 import 'package:angren_taxi/features/payments/screens/payment_webview_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/order_status_screen.dart';
 import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/market_provider.dart';
+import 'package:angren_taxi/features/superapp/state/promo_code_controller.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/features/superapp/widgets/checkout_extras.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
+import 'package:angren_taxi/shared/models/address_details.dart';
 import 'package:angren_taxi/shared/models/food_order.dart';
 import 'package:angren_taxi/shared/models/market_order.dart';
 import 'package:angren_taxi/shared/models/order.dart';
@@ -19,6 +26,7 @@ import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Order-level payment choice. 'cash' is settled with the courier on
 /// delivery; 'card' opens the real Payme/Click/Uzcard checkout via
@@ -64,6 +72,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   bool _resolvingAddress = true;
 
+  /// Promokod (spec v5 §2) — `food` yoki `market` xizmat turi bilan.
+  late final PromoCodeController _promo;
+
+  /// Podyezd/qavat/... (spec v5 §3).
+  final AddressDetailsController _details = AddressDetailsController();
+  bool _detailsPrefilled = false;
+
+  static const String _savedDetailsKey = 'checkout.addressDetails';
+
   String get _addressLabel =>
       _destination?.address ??
       (_resolvingAddress
@@ -77,6 +94,55 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     // interaction, and so the label and the coordinates start out describing
     // the same place. Tapping the row opens the map picker to change it.
     _prefillFromCurrentPosition();
+    final superapp = context.read<SuperappProvider>();
+    _promo = PromoCodeController(
+      apiClient: superapp.apiClient,
+      serviceType: superapp.activeKind == 'food' ? 'food' : 'market',
+    );
+    unawaited(_prefillAddressDetails());
+  }
+
+  @override
+  void dispose() {
+    _promo.dispose();
+    _details.dispose();
+    super.dispose();
+  }
+
+  /// Oxirgi buyurtmadagi (server) yoki shu qurilmada oxirgi kiritilgan
+  /// tafsilotlar bilan to'ldiradi — har safar podyezd/qavatni qayta
+  /// yozish shart emas.
+  Future<void> _prefillAddressDetails() async {
+    final fromOrders = context.read<FoodProvider>().lastAddressDetails ??
+        context.read<MarketProvider>().lastAddressDetails;
+    var details = fromOrders;
+    if (details == null) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final raw = prefs.getString(_savedDetailsKey);
+        if (raw != null) details = AddressDetails.tryParse(jsonDecode(raw));
+      } catch (e) {
+        debugPrint('[Checkout] saved address details unreadable: $e');
+      }
+    }
+    if (!mounted || details == null || !_details.isBlank) return;
+    setState(() {
+      _details.fill(details!);
+      _detailsPrefilled = true;
+    });
+  }
+
+  Future<void> _rememberAddressDetails(AddressDetails details) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (details.isEmpty) {
+        await prefs.remove(_savedDetailsKey);
+      } else {
+        await prefs.setString(_savedDetailsKey, jsonEncode(details.toJson()));
+      }
+    } catch (e) {
+      debugPrint('[Checkout] could not remember address details: $e');
+    }
   }
 
   Future<void> _prefillFromCurrentPosition() async {
@@ -246,6 +312,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     setState(() => _submitting = true);
 
+    // Savat o'zgargan bo'lsa (orqaga qaytib qo'shilgan), promokod yangi
+    // summaga qayta tekshiriladi — eski chegirma ko'rsatilib qolmasin.
+    if (_promo.needsRevalidation(superapp.cartSubtotal)) {
+      await _promo.apply(_promo.appliedCode!, amount: superapp.cartSubtotal);
+      if (!mounted) return;
+    }
+    final promoCode = _promo.appliedCode;
+    final details = _details.value;
+
     Object? order;
     String? error;
     if (kind == 'food') {
@@ -256,6 +331,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         deliveryLat: destination.lat,
         deliveryLng: destination.lng,
         paymentMethod: _effectiveMethod.name,
+        promoCode: promoCode,
+        addressDetails: details,
       );
       error = food.error;
     } else {
@@ -266,6 +343,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         deliveryLat: destination.lat,
         deliveryLng: destination.lng,
         paymentMethod: _effectiveMethod.name,
+        promoCode: promoCode,
+        addressDetails: details,
       );
       error = market.error;
     }
@@ -288,6 +367,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     // order already exists server-side, so we surface the error and let the
     // passenger retry payment or fall back to cash on delivery, instead of
     // silently losing their placed order.
+    unawaited(_rememberAddressDetails(details));
+    // Buyurtma holati push bilan keladi — Android 13+ da ruxsat shu
+    // lahzada so'raladi (ilgari faqat taksi buyurtmasida so'ralardi).
+    unawaited(PushNotifications.instance.ensurePermission());
+
     final placedOrderId = kind == 'food'
         ? (order as FoodOrder).id
         : (order as MarketOrder).id;
@@ -329,6 +413,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         builder: (_) => OrderStatusScreen(
           orderId: placedOrderId,
           paidOnline: paidOnline,
+          kind: kind == 'food' ? 'food' : 'market',
         ),
       ),
     );
@@ -345,6 +430,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           AgHeader(title: context.l10n.saCheckoutTitle, onBack: () => Navigator.of(context).pop()),
           Expanded(
             child: ListView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, kSpace6),
               children: [
                 _OptionCard(
@@ -376,6 +462,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
                 ],
                 const SizedBox(height: kSpace4),
+                AddressDetailsForm(
+                  controller: _details,
+                  prefilled: _detailsPrefilled,
+                  enabled: !_submitting,
+                ),
+                const SizedBox(height: kSpace4),
+                PromoCodeField(
+                  controller: _promo,
+                  amount: provider.cartSubtotal,
+                  enabled: !_submitting,
+                ),
+                const SizedBox(height: kSpace4),
                 Container(
                   padding: const EdgeInsets.all(kSpace4),
                   decoration: BoxDecoration(
@@ -388,19 +486,40 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       _row(context.l10n.saMarketProducts, Formatters.formatSom(provider.cartSubtotal)),
                       const SizedBox(height: kSpace3),
                       _row(context.l10n.saDelivery, Formatters.formatSom(provider.deliveryFee)),
+                      ListenableBuilder(
+                        listenable: _promo,
+                        builder: (context, _) => _promo.discount > 0
+                            ? Padding(
+                                padding: const EdgeInsets.only(top: kSpace3),
+                                child: _row(
+                                  context.l10n.saPromoDiscount,
+                                  '−${Formatters.formatSom(_promo.discount)}',
+                                  valueColor: agGreenText,
+                                  key: const ValueKey('promo-discount-line'),
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
                       const SizedBox(height: kSpace3),
                       const Divider(color: agBorder, height: 1),
                       const SizedBox(height: kSpace3),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(context.l10n.saTotal,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w800, fontSize: kFontTitle, color: agText)),
-                          Text(Formatters.formatSom(provider.cartTotal),
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w800, fontSize: kFontTitle, color: agText)),
-                        ],
+                      ListenableBuilder(
+                        listenable: _promo,
+                        builder: (context, _) => Row(
+                          children: [
+                            Expanded(
+                              child: Text(context.l10n.saTotal,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w800, fontSize: kFontTitle, color: agText)),
+                            ),
+                            Text(
+                                Formatters.formatSom(
+                                    (provider.cartTotal - _promo.discount).clamp(0, double.infinity)),
+                                key: const ValueKey('checkout-total'),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w800, fontSize: kFontTitle, color: agText)),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -421,15 +540,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
-  static Widget _row(String label, String value) => Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  static Widget _row(String label, String value, {Color valueColor = agText, Key? key}) => Row(
+        key: key,
         children: [
-          Text(label,
-              style: const TextStyle(
-                  fontSize: kFontLabel, color: agSubtle, fontWeight: FontWeight.w600)),
+          Expanded(
+            child: Text(label,
+                style: const TextStyle(
+                    fontSize: kFontLabel, color: agSubtle, fontWeight: FontWeight.w600)),
+          ),
+          const SizedBox(width: kSpace2),
           Text(value,
-              style: const TextStyle(
-                  fontSize: kFontLabel, color: agText, fontWeight: FontWeight.w700)),
+              style: TextStyle(
+                  fontSize: kFontLabel, color: valueColor, fontWeight: FontWeight.w700)),
         ],
       );
 }
@@ -489,6 +611,8 @@ class _OptionCard extends StatelessWidget {
                             fontWeight: FontWeight.w700, fontSize: kFontBody, color: agText)),
                     const SizedBox(height: 2),
                     Text(subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                             fontSize: kFontCaption, color: agSubtle, fontWeight: FontWeight.w500)),
                   ],

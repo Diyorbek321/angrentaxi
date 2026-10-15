@@ -267,6 +267,7 @@ export class OrdersCompletionService {
           promoCode.code,
           order.passengerId,
           finalPrice,
+          { serviceType: order.serviceType },
         );
         // apply() must succeed before the discount counts. It is the step that
         // atomically claims one of the code's remaining uses and can still

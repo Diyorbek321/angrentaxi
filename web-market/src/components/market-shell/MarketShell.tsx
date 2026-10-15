@@ -7,7 +7,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
 import { useWalletSettlementToasts } from '@/hooks/useVendorSettlement';
 import { marketApi, type Store } from '@/lib/api';
-import { fullName } from '@/lib/format';
+import { fullName, shortId } from '@/lib/format';
+import { disappearedIds, isCustomerCancelled } from '@/lib/order-extras';
 import { getSocket } from '@/lib/realtime';
 import { SIDEBAR_COOKIE } from '@/lib/ui-prefs';
 import {
@@ -23,6 +24,7 @@ import {
 import { Badge } from '@/components/ui/Badge';
 import { IconButton } from '@/components/ui/IconButton';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { useToast } from '@/components/ui/Toast';
 import { MARKET_NAV, ORDERS_HREF, STOCK_HREF } from './nav-config';
 import { useNewOrderChime } from './useNewOrderChime';
 
@@ -48,6 +50,29 @@ function useSocketConnected(enabled: boolean): boolean {
 }
 
 /**
+ * "Yangi" ro'yxatidan chiqqan buyurtmalarni tekshiradi: mijoz bekor qilgan
+ * bo'lsa — ovozsiz toast. Sotuvchi o'zi qabul qilgani ham shu yerdan o'tadi,
+ * lekin `cancelledBy` bo'lmagani uchun jim qoladi. Xato — jim (poll davom etadi).
+ */
+async function notifyCustomerCancels(
+  ids: readonly string[],
+  toast: ReturnType<typeof useToast>['toast']
+): Promise<void> {
+  const results = await Promise.allSettled(ids.slice(0, 10).map((id) => marketApi.getOrder(id)));
+  results.forEach((r) => {
+    if (r.status !== 'fulfilled') return;
+    const order = r.value.data.data;
+    if (!isCustomerCancelled(order)) return;
+    const reason = order.cancelReason?.trim();
+    toast({
+      title: `${shortId(order.id)} — mijoz bekor qildi`,
+      description: reason ? `Sabab: ${reason}` : 'Sabab koʻrsatilmagan',
+      variant: 'info',
+    });
+  });
+}
+
+/**
  * Sotuvchi paneli ramkasi: auth yo'naltirish, do'kon holati, yangi buyurtma
  * soni (30 s poll + socket turtkisi), tab sarlavhasi, ovozli signal. Chrome
  * — umumiy AppShell'dan. "Yangilandi" holati FAQAT topbar'dagi LiveStatus'da.
@@ -69,6 +94,11 @@ export function MarketShell({
   const [refreshing, setRefreshing] = useState(false);
   const hadData = useRef(false);
   const refreshPages = useRefreshAll();
+  const { toast } = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
+  /** Oldingi poll'dagi "yangi" buyurtmalar — ro'yxatdan chiqqani bekor qilingan bo'lishi mumkin. */
+  const prevNewIds = useRef<string[] | null>(null);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) router.replace('/login');
@@ -83,6 +113,10 @@ export function MarketShell({
       ]);
       setStore(storeRes.data.data);
       setNewOrdersCount(ordersRes.data.data.length);
+      const newIds = ordersRes.data.data.map((o) => o.id);
+      const gone = disappearedIds(prevNewIds.current, newIds);
+      prevNewIds.current = newIds;
+      if (gone.length > 0) void notifyCustomerCancels(gone, toastRef.current);
       setOutOfStockCount(dashRes.data.data.outOfStockCount);
       setLastUpdated(new Date());
       setPollFailed(false);

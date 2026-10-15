@@ -4,12 +4,37 @@ import { Repository } from 'typeorm';
 import { PromoCode } from '../../database/entities/promo_code.entity';
 import { PromoCodeUsage } from '../../database/entities/promo_code_usage.entity';
 import { CreatePromoCodeDto } from './dto/create-promo-code.dto';
+import { ServiceType } from '../../database/entities/order.entity';
+import { ERROR_CODES, codedBadRequest } from '../../common/errors/coded-error';
 
 export interface ValidatePromoResult {
   promoCodeId: string;
   discountAmount: number;
   finalAmount: number;
 }
+
+export interface ValidatePromoOptions {
+  /** Berilsa — `promo_codes.service_types` bilan solishtiriladi. */
+  serviceType?: ServiceType;
+}
+
+/** `POST /promo-codes/validate` javobi (docs/specs/food-market-ux-v5.md §2). */
+export interface PromoCheckResult extends Partial<ValidatePromoResult> {
+  valid: boolean;
+  /** Muvaffaqiyatda — promokod; `valid:false` da — xato kodi. */
+  code: string;
+  discountType?: 'percent' | 'fixed';
+  discountValue?: number;
+  message?: string;
+}
+
+/** Ovqat/market buyurtmasi — promokod ishlatilishi shu buyurtmaga yoziladi. */
+export interface VendorOrderRef {
+  kind: 'food' | 'market';
+  id: string;
+}
+
+const PROMO_NOT_APPLICABLE_MESSAGE = "Bu promokod ushbu xizmatda amal qilmaydi";
 
 @Injectable()
 export class PromoCodesService {
@@ -20,11 +45,65 @@ export class PromoCodesService {
     private readonly promoCodeUsageRepository: Repository<PromoCodeUsage>,
   ) {}
 
+  /**
+   * `orderAmount = null` — summa noma'lum (ilova faqat kodni tekshiryapti):
+   * eng kam summa tekshiruvi o'tkaziladi, chegirma 0.
+   */
   async validate(
     code: string,
     userId: string,
-    orderAmount: number,
+    orderAmount: number | null,
+    options: ValidatePromoOptions = {},
   ): Promise<ValidatePromoResult> {
+    const promoCode = await this.checkUsable(code, userId, orderAmount, options);
+    const amount = orderAmount ?? 0;
+    const discountAmount = this.calculateDiscount(promoCode, amount);
+    const finalAmount = Math.max(0, amount - discountAmount);
+
+    return {
+      promoCodeId: promoCode.id,
+      discountAmount,
+      finalAmount,
+    };
+  }
+
+  /**
+   * Ilova uchun tekshiruv. Xizmat turi mos kelmasa — 200 `{ valid:false,
+   * code:'PROMO_NOT_APPLICABLE' }`; boshqa xatolar avvalgidek 400 (eski
+   * taksi ilovasi shunga tayanadi).
+   */
+  async describe(
+    code: string,
+    userId: string,
+    input: { serviceType?: ServiceType; amount?: number | null },
+  ): Promise<PromoCheckResult> {
+    let result: ValidatePromoResult;
+    try {
+      result = await this.validate(code, userId, input.amount ?? null, { serviceType: input.serviceType });
+    } catch (err) {
+      const body = err instanceof BadRequestException ? (err.getResponse() as { code?: string }) : null;
+      if (body?.code === ERROR_CODES.promoNotApplicable) {
+        return { valid: false, code: ERROR_CODES.promoNotApplicable, message: PROMO_NOT_APPLICABLE_MESSAGE };
+      }
+      throw err;
+    }
+    const promoCode = await this.findById(result.promoCodeId);
+    const isPercent = promoCode.discountPercent !== null;
+    return {
+      valid: true,
+      code: promoCode.code,
+      discountType: isPercent ? 'percent' : 'fixed',
+      discountValue: Number(isPercent ? promoCode.discountPercent : promoCode.discountFixed ?? 0),
+      ...result,
+    };
+  }
+
+  private async checkUsable(
+    code: string,
+    userId: string,
+    orderAmount: number | null,
+    options: ValidatePromoOptions,
+  ): Promise<PromoCode> {
     const promoCode = await this.promoCodeRepository.findOne({
       where: { code: code.toUpperCase() },
     });
@@ -45,7 +124,16 @@ export class PromoCodesService {
       throw new BadRequestException('Promo code usage limit has been reached');
     }
 
-    if (orderAmount < promoCode.minOrderAmount) {
+    if (
+      options.serviceType &&
+      Array.isArray(promoCode.serviceTypes) &&
+      promoCode.serviceTypes.length > 0 &&
+      !promoCode.serviceTypes.includes(options.serviceType)
+    ) {
+      throw codedBadRequest(ERROR_CODES.promoNotApplicable, PROMO_NOT_APPLICABLE_MESSAGE);
+    }
+
+    if (orderAmount !== null && orderAmount < promoCode.minOrderAmount) {
       throw new BadRequestException(
         `Minimum order amount for this promo code is ${promoCode.minOrderAmount} UZS`,
       );
@@ -59,14 +147,7 @@ export class PromoCodesService {
       throw new BadRequestException('You have already used this promo code');
     }
 
-    const discountAmount = this.calculateDiscount(promoCode, orderAmount);
-    const finalAmount = Math.max(0, orderAmount - discountAmount);
-
-    return {
-      promoCodeId: promoCode.id,
-      discountAmount,
-      finalAmount,
-    };
+    return promoCode;
   }
 
   async findById(id: string): Promise<PromoCode> {
@@ -78,6 +159,47 @@ export class PromoCodesService {
   }
 
   async apply(promoCodeId: string, userId: string, orderId: string): Promise<void> {
+    await this.claimUse(promoCodeId);
+    await this.promoCodeUsageRepository.save({
+      promoCodeId,
+      userId,
+      orderId,
+    });
+  }
+
+  /**
+   * Ovqat/market: ishlatish buyurtma YARATILGANDA band qilinadi (chegirma
+   * darhol summaga kiradi — mijoz shu summani to'laydi). Bekor qilinsa
+   * `releaseForVendorOrder` qaytaradi — taksidagi "bekor qilingan safar
+   * promokodni yemaydi" qoidasi bilan bir xil natija.
+   */
+  async claimForVendorOrder(promoCodeId: string, userId: string, ref: VendorOrderRef): Promise<void> {
+    await this.claimUse(promoCodeId);
+    await this.promoCodeUsageRepository.save({
+      promoCodeId,
+      userId,
+      orderId: null,
+      foodOrderId: ref.kind === 'food' ? ref.id : null,
+      marketOrderId: ref.kind === 'market' ? ref.id : null,
+    });
+  }
+
+  async releaseForVendorOrder(promoCodeId: string, userId: string, ref: VendorOrderRef): Promise<void> {
+    const removed = await this.promoCodeUsageRepository.delete({
+      promoCodeId,
+      userId,
+      ...(ref.kind === 'food' ? { foodOrderId: ref.id } : { marketOrderId: ref.id }),
+    });
+    if (!removed.affected) return;
+    await this.promoCodeRepository
+      .createQueryBuilder()
+      .update(PromoCode)
+      .set({ usedCount: () => 'GREATEST("used_count" - 1, 0)' })
+      .where('id = :id', { id: promoCodeId })
+      .execute();
+  }
+
+  private async claimUse(promoCodeId: string): Promise<void> {
     const promoCode = await this.promoCodeRepository.findOne({ where: { id: promoCodeId } });
 
     if (!promoCode) {
@@ -102,12 +224,6 @@ export class PromoCodesService {
     if (!result.affected) {
       throw new BadRequestException('Promo code usage limit has been reached');
     }
-
-    await this.promoCodeUsageRepository.save({
-      promoCodeId,
-      userId,
-      orderId,
-    });
   }
 
   async create(dto: CreatePromoCodeDto): Promise<PromoCode> {
@@ -126,6 +242,7 @@ export class PromoCodesService {
       maxUses: dto.maxUses ?? null,
       minOrderAmount: dto.minOrderAmount ?? 0,
       expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
+      serviceTypes: dto.serviceTypes && dto.serviceTypes.length > 0 ? [...new Set(dto.serviceTypes)] : null,
       isActive: true,
       usedCount: 0,
     });

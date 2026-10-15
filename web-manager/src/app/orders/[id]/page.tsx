@@ -6,6 +6,7 @@ import { Ban, CheckCircle2, MapPin, Phone, Star, UserCog } from 'lucide-react';
 import { getOrderById, cancelOrder, completeOrder, Order } from '@/lib/api';
 import { OrderStatusBadge } from '@/components/orders/OrderStatusBadge';
 import { AssignDriverModal } from '@/components/dispatch/AssignDriverModal';
+import { DeliveryExtrasCard } from '@/components/orders/DeliveryExtras';
 import { useDispatchData } from '@/components/dispatch/DispatchDataContext';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -229,6 +230,8 @@ export default function OrderDetailPage() {
             </KeyValueList>
           </DetailCard>
         )}
+
+        <DeliveryExtrasCard order={order} />
 
         <DetailCard title="Haydovchi">
           {order.driver ? (

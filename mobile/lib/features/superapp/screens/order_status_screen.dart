@@ -1,5 +1,7 @@
+import 'package:angren_taxi/features/superapp/screens/vendor_order_detail_screen.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/features/superapp/widgets/vendor_cancel_flow.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -18,7 +20,11 @@ class OrderStatusScreen extends StatelessWidget {
     super.key,
     required this.orderId,
     required this.paidOnline,
+    this.kind,
   });
+
+  /// `food` / `market` — bekor qilish amali uchun. `null` — amal ko'rsatilmaydi.
+  final String? kind;
 
   /// Server-assigned id of the order that was just created.
   final String orderId;
@@ -30,12 +36,48 @@ class OrderStatusScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final kind = this.kind;
+    final order = kind == null ? null : findVendorOrder(context, kind, orderId);
     return Scaffold(
       backgroundColor: agSurface,
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: kSpace8),
-          child: _DoneView(orderId: orderId, paidOnline: paidOnline),
+      // Kichik ekranda (360×640) va katta shriftda tugmalar ekrandan
+      // chiqib ketmasligi uchun aylantiriladigan, markazlashtirilgan.
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: kSpace6, vertical: kSpace4),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight - kSpace8),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 480),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _DoneView(orderId: orderId, paidOnline: paidOnline),
+                      // Bekor qilish — ikkilamchi, lekin KO'RINADIGAN amal.
+                      // Restoran qabul qilgach o'chiq holda sababi bilan turadi.
+                      if (kind != null && order != null && order.isActive) ...[
+                        const SizedBox(height: kSpace4),
+                        VendorCancelAction(
+                          kind: kind,
+                          canCancel: order.canCancel,
+                          onCancel: () async {
+                            final cancelled =
+                                await runVendorCancelFlow(context, kind: kind, orderId: orderId);
+                            if (cancelled && context.mounted) {
+                              Navigator.of(context).popUntil((route) => route.isFirst);
+                              context.read<SuperappProvider>().tabIndex = 1;
+                            }
+                          },
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -104,7 +146,9 @@ class _DoneView extends StatelessWidget {
               onTap: () => _backToHome(context),
               behavior: HitTestBehavior.opaque,
               child: Container(
-                height: kControlHeight,
+                // Qat'iy balandlik emas — 1.3x shriftda matn kesilmasin.
+                constraints: const BoxConstraints(minHeight: kControlHeight),
+                padding: const EdgeInsets.symmetric(horizontal: kSpace4, vertical: kSpace2),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: agInk,
@@ -116,8 +160,13 @@ class _DoneView extends StatelessWidget {
                   children: [
                     const Icon(Icons.near_me_rounded, color: agOnPrimary, size: 21),
                     const SizedBox(width: kSpace2),
-                    Text(context.l10n.saViewOrders,
-                        style: const TextStyle(color: agOnPrimary, fontSize: kFontTitle, fontWeight: FontWeight.w800)),
+                    Flexible(
+                      child: Text(context.l10n.saViewOrders,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: agOnPrimary, fontSize: kFontTitle, fontWeight: FontWeight.w800)),
+                    ),
                   ],
                 ),
               ),

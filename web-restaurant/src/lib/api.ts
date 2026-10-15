@@ -2,6 +2,8 @@ import axios from 'axios';
 import { attachAuthInterceptor } from './session';
 import type { DeliveryInfo } from './courier';
 import type { VendorWalletSettlement } from './vendor-cash';
+import type { OrderV5Fields } from './order-extras';
+import type { DiscountType, Promotion, PromotionPayload } from './promotions';
 
 /**
  * Requests go to this app's own /api/proxy, not to the backend directly. The
@@ -145,6 +147,12 @@ export interface Dish {
    * `forbidNonWhitelisted` bilan ishlaydi va noma'lum maydon 400 qaytaradi.
    */
   imageKey?: string | null;
+  /**
+   * Faol aksiya qo'llangandagi narx (spec v5 §4) — vendor menyu API'si
+   * qaytarsa. Faqat O'QISH; PATCH/POST tanasiga qo'shmang.
+   */
+  finalPrice?: number | null;
+  discount?: { title: string; discountType: DiscountType; discountValue: number } | null;
 }
 
 export interface FoodOrderItem {
@@ -153,9 +161,13 @@ export interface FoodOrderItem {
   qty: number;
   price: number;
   prepMinutes: number;
+  /** v5: asl narx va aksiya chegirmasi (birlik uchun), bo'lsa. */
+  unitPrice?: number | null;
+  discountAmount?: number | null;
 }
 
-export interface FoodOrder {
+/** v5: manzil tafsilotlari, promokod/aksiya chegirmasi, mijoz bekor qilgani — lib/order-extras.ts. */
+export interface FoodOrder extends OrderV5Fields {
   id: string;
   restaurantId: string;
   customerId: string;
@@ -296,4 +308,14 @@ export const foodApi = {
   /** Naqd: kuryerdan tovar puli olindimi. `false` — dispetcherga nizo. */
   cashReceived: (id: string, received: boolean) =>
     api.patch<ApiResponse<{ ok: true }>>(`/food/vendor/orders/${id}/cash-received`, { received }),
+};
+
+// ─── Aksiyalar (spec v5 §4) ────────────────────────────────────────
+
+export const promotionsApi = {
+  list: () => api.get<ApiResponse<Promotion[]>>('/food/vendor/promotions'),
+  create: (data: PromotionPayload) => api.post<ApiResponse<Promotion>>('/food/vendor/promotions', data),
+  update: (id: string, data: Partial<PromotionPayload>) =>
+    api.patch<ApiResponse<Promotion>>(`/food/vendor/promotions/${id}`, data),
+  remove: (id: string) => api.delete<ApiResponse<{ deleted: boolean }>>(`/food/vendor/promotions/${id}`),
 };

@@ -1,10 +1,10 @@
-import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
-import 'package:angren_taxi/features/superapp/screens/courier_tracking_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/order_detail_screen.dart';
+import 'package:angren_taxi/features/superapp/screens/vendor_order_detail_screen.dart';
 import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/market_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/features/superapp/widgets/vendor_cancel_flow.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/courier_tracking.dart';
 import 'package:angren_taxi/shared/models/food_order.dart';
@@ -104,6 +104,7 @@ class _TrackedOrder {
     required this.stageIndex,
     required this.isActive,
     this.onTap,
+    this.onCancel,
   });
 
   final String id;
@@ -132,6 +133,10 @@ class _TrackedOrder {
 
   final bool isActive;
   final VoidCallback? onTap;
+
+  /// Kartadagi ikkilamchi "Bekor qilish" — faqat bekor qilish MUMKIN
+  /// bo'lgan buyurtmada (vendor hali qabul qilmagan).
+  final VoidCallback? onCancel;
 }
 
 class OrdersScreen extends StatefulWidget {
@@ -240,7 +245,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       vertical: _Vertical.food,
       title: context.l10n.saDishesCount(order.itemsCount),
       subtitle: _deliverySubtitle(ServiceCatalogEntry.food.label, order.id, order.isTrackable ? order.delivery : null),
-      amount: Formatters.formatSom(order.totalPrice),
+      amount: Formatters.formatSom(order.payableTotal),
       statusLabel: order.status.label,
       tone: switch (order.status) {
         FoodOrderStatus.cancelled => AppStatusTone.danger,
@@ -261,8 +266,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
         FoodOrderStatus.delivered => 3,
       },
       isActive: order.status.isActive,
-      onTap: order.isTrackable
-          ? () => _openCourierMap(ApiEndpoints.foodOrderById(order.id), order.delivery!)
+      // Tafsilot ekrani HAR DOIM ochiladi: tarkib, manzil, kuryer kuzatuvi
+      // va bekor qilish o'sha yerda. Ilgari kuryer chaqirilmagan buyurtma
+      // kartasi umuman bosilmasdi — bekor qilishni topib bo'lmasdi.
+      onTap: () => _openVendorDetail('food', order.id),
+      onCancel: order.canCancel
+          ? () => runVendorCancelFlow(context, kind: 'food', orderId: order.id)
           : null,
     );
   }
@@ -275,7 +284,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       vertical: _Vertical.market,
       title: context.l10n.saProductsCount(order.itemsCount),
       subtitle: _deliverySubtitle(ServiceCatalogEntry.market.label, order.id, order.isTrackable ? order.delivery : null),
-      amount: Formatters.formatSom(order.totalPrice),
+      amount: Formatters.formatSom(order.payableTotal),
       statusLabel: order.status.label,
       tone: switch (order.status) {
         MarketOrderStatus.cancelled => AppStatusTone.danger,
@@ -296,8 +305,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
         MarketOrderStatus.delivered => 3,
       },
       isActive: order.status.isActive,
-      onTap: order.isTrackable
-          ? () => _openCourierMap(ApiEndpoints.marketOrderById(order.id), order.delivery!)
+      // Tafsilot ekrani HAR DOIM ochiladi: tarkib, manzil, kuryer kuzatuvi
+      // va bekor qilish o'sha yerda. Ilgari kuryer chaqirilmagan buyurtma
+      // kartasi umuman bosilmasdi — bekor qilishni topib bo'lmasdi.
+      onTap: () => _openVendorDetail('market', order.id),
+      onCancel: order.canCancel
+          ? () => runVendorCancelFlow(context, kind: 'market', orderId: order.id)
           : null,
     );
   }
@@ -315,12 +328,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
     ].join(' · ');
   }
 
-  /// Kuryer kuzatuvi yopilgach ro'yxat yangilanadi — orada buyurtma
-  /// yetkazilgan bo'lishi mumkin.
-  Future<void> _openCourierMap(String refreshPath, CourierTracking delivery) async {
+  /// Tafsilot (va undan kuryer kuzatuvi) yopilgach ro'yxat yangilanadi —
+  /// orada buyurtma yetkazilgan bo'lishi mumkin.
+  Future<void> _openVendorDetail(String kind, String id) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => CourierTrackingScreen(refreshPath: refreshPath, initial: delivery),
+        builder: (_) => VendorOrderDetailScreen(kind: kind, orderId: id),
       ),
     );
     if (mounted) _reloadAll();
@@ -406,13 +419,21 @@ class _OrdersScreenState extends State<OrdersScreen> {
                           semanticsLabel: context.l10n.saBack),
                       const SizedBox(width: kSpace3),
                     ],
-                    Text(context.l10n.saOrdersTitle,
-                        style: const TextStyle(
-                            fontSize: kFontH1, fontWeight: FontWeight.w800, color: agText)),
+                    Expanded(
+                      child: Text(context.l10n.saOrdersTitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: kFontH1, fontWeight: FontWeight.w800, color: agText)),
+                    ),
                   ],
                 ),
                 const SizedBox(height: kSpace4),
-                Row(
+                // Wrap — tor ekranda katta shriftda chiplar ikkinchi qatorga
+                // o'tadi, ekrandan chiqib ketmaydi.
+                Wrap(
+                  spacing: kSpace2,
+                  runSpacing: kSpace2,
                   children: [
                     _SegChip(
                       label: context.l10n.saOrdersActive,
@@ -421,7 +442,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
                       onTap: () =>
                           setState(() => _chosenFilter = _OrdersFilter.active),
                     ),
-                    const SizedBox(width: kSpace2),
                     _SegChip(
                       label: context.l10n.saOrdersHistory,
                       count: history.length,
@@ -641,6 +661,17 @@ class _OrderCard extends StatelessWidget {
               accent: order.vertical.accent,
             ),
           ],
+          if (order.onCancel != null)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                key: ValueKey('order-card-cancel-${order.id}'),
+                style: TextButton.styleFrom(foregroundColor: kErrorDeep),
+                onPressed: order.onCancel,
+                icon: const Icon(Icons.close_rounded, size: 18),
+                label: Text(context.l10n.saCancelOrderAction),
+              ),
+            ),
         ],
       ),
     );

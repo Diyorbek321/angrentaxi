@@ -174,13 +174,20 @@ class _AgPrimaryButtonState extends State<AgPrimaryButton> {
                     ),
                   ]
                 : [
-                    Text(
+                    // Flexible — uzun yorliq (ruscha / 1.3x shrift) tor
+                    // ekranda tugmadan chiqib ketmasin.
+                    Flexible(
+                      child: Text(
                       widget.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
                       style: TextStyle(
                         color: fg,
                         fontSize: kFontTitle,
                         fontWeight: FontWeight.w800,
                       ),
+                    ),
                     ),
                     if (widget.icon != null) ...[
                       const SizedBox(width: kSpace2),
@@ -415,17 +422,22 @@ class AgCartBar extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: kSpace2),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: agOnPrimary,
-                  fontSize: kFontBody,
-                  fontWeight: FontWeight.w800,
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: agOnPrimary,
+                    fontSize: kFontBody,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: kSpace2),
               Text(
                 trailing,
+                maxLines: 1,
                 style: const TextStyle(
                   color: agOnPrimary,
                   fontSize: kFontTitle,
@@ -451,15 +463,20 @@ class AgSectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text(
-          text,
-          style: const TextStyle(
-            fontSize: kFontH3,
-            fontWeight: FontWeight.w800,
-            color: agText,
+        // Expanded — uzun sarlavha (ruscha, 1.3x shrift) "Hammasi"
+        // havolasini ekrandan itarib chiqarmasin.
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: kFontH3,
+              fontWeight: FontWeight.w800,
+              color: agText,
+            ),
           ),
         ),
-        const Spacer(),
         if (trailing != null)
           Semantics(
             button: onTrailingTap != null,
@@ -475,6 +492,7 @@ class AgSectionTitle extends StatelessWidget {
                 padding: const EdgeInsets.only(left: kSpace3),
                 child: Text(
                   trailing!,
+                  maxLines: 1,
                   style: const TextStyle(
                     fontSize: kFontLabel,
                     fontWeight: FontWeight.w700,

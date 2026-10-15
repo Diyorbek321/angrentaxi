@@ -9,6 +9,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { AddressDetails, VendorOrderCancelledBy } from './address-details';
 import { Restaurant } from './restaurant.entity';
 import { User } from './user.entity';
 import {
@@ -34,6 +35,10 @@ export interface FoodOrderItem {
   name: string;
   qty: number;
   price: number;
+  /** Asl narx (aksiyadan oldin) — v5 dan keyingi buyurtmalarda. */
+  unitPrice?: number;
+  /** Bir dona uchun aksiya chegirmasi (so'm): `unitPrice − price`. */
+  discountAmount?: number;
   prepMinutes: number;
 }
 
@@ -214,6 +219,60 @@ export class FoodOrder {
   computeVendorWalletSettlement?(): void {
     this.vendorWalletSettlement = vendorWalletSettlementView(this);
   }
+
+  // ---- Food/Market UX v5 (migratsiya 031) ----
+
+  /** `customer` — mijoz (faqat qabul qilinmagan holatda), `vendor` — rad etildi. */
+  @Column({ name: 'cancelled_by', type: 'varchar', length: 20, nullable: true })
+  cancelledBy: VendorOrderCancelledBy | null;
+
+  @Column({ name: 'cancel_reason', type: 'varchar', length: 200, nullable: true })
+  cancelReason: string | null;
+
+  @Column({ name: 'cancelled_at', type: 'timestamptz', nullable: true })
+  cancelledAt: Date | null;
+
+  @Column({ name: 'promo_code_id', type: 'uuid', nullable: true })
+  promoCodeId: string | null;
+
+  @Column({ name: 'promo_code', type: 'varchar', length: 50, nullable: true })
+  promoCode: string | null;
+
+  /**
+   * Promokod chegirmasi (so'm) — PLATFORMA hisobidan. `totalPrice` ga
+   * KIRMAYDI: `totalPrice` = tovar (aksiyadan keyin) + yetkazish, sotuvchi
+   * ulushi va komissiya shundan. Mijoz to'laydi: `totalPrice − promoDiscount`
+   * (`payableTotal`).
+   */
+  @Column({
+    name: 'promo_discount',
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    default: 0,
+    transformer: {
+      to: (value: number) => value,
+      from: (value: string) => parseFloat(value),
+    },
+  })
+  promoDiscount: number;
+
+  /** Aksiya chegirmasi yig'indisi (so'm) — SOTUVCHI hisobidan, qatorlarda allaqachon ayirilgan. */
+  @Column({
+    name: 'promotion_discount',
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    default: 0,
+    transformer: {
+      to: (value: number) => value,
+      from: (value: string) => parseFloat(value),
+    },
+  })
+  promotionDiscount: number;
+
+  @Column({ name: 'address_details', type: 'jsonb', nullable: true })
+  addressDetails: AddressDetails | null;
 
   @CreateDateColumn()
   createdAt: Date;

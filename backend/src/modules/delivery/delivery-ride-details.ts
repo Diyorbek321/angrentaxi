@@ -1,3 +1,5 @@
+import type { AddressDetails } from '../../database/entities/address-details';
+
 /**
  * What the courier sees about the bag they are carrying, stored on the
  * courier ride's `details` next to `foodOrderId`/`marketOrderId`.
@@ -20,6 +22,13 @@ export interface DeliveryRideDetails {
    * their own cash and recovers it — plus the delivery fee — at the door.
    */
   payVendor: number;
+  /**
+   * Promokod chegirmasi (so'm, PLATFORMA hisobidan): `collectCash` shuncha
+   * kam. Kuryerga platforma yetkazilganda qaytaradi (`promo-compensation.ts`).
+   */
+  promoDiscount: number;
+  /** Podyezd/qavat/domofon/mo'ljal/izoh (docs/specs/food-market-ux-v5.md §3). */
+  addressDetails: AddressDetails | null;
 }
 
 export function deliveryRideDetails(input: {
@@ -31,14 +40,20 @@ export function deliveryRideDetails(input: {
   /** Goods only — `totalPrice` minus the delivery fee. */
   itemsTotal: number;
   isCash: boolean;
+  /** Platforma hisobidan promokod chegirmasi (so'm). */
+  promoDiscount?: number;
+  addressDetails?: AddressDetails | null;
 }): DeliveryRideDetails {
+  const promoDiscount = Math.max(0, Math.round(input.promoDiscount ?? 0));
   return {
     vendorName: input.vendorName,
     vendorPhone: input.vendorPhone,
     customerPhone: input.customerPhone,
     itemsCount: input.itemsCount,
-    collectCash: input.isCash ? Math.round(input.totalPrice) : 0,
+    collectCash: input.isCash ? Math.max(0, Math.round(input.totalPrice) - promoDiscount) : 0,
     payVendor: input.isCash ? Math.round(input.itemsTotal) : 0,
+    promoDiscount,
+    addressDetails: input.addressDetails ?? null,
   };
 }
 

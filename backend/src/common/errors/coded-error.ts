@@ -41,6 +41,10 @@ export const ERROR_CODES = {
   legalProfileDuplicate: 'LEGAL_PROFILE_DUPLICATE',
   /** Menejer qo'lda tuzatish chegarasidan oshdi (403). `details: { limit }`. */
   manualAdjustmentLimit: 'MANUAL_ADJUSTMENT_LIMIT',
+  /** Promokod bu xizmat turiga tegishli emas (docs/specs/food-market-ux-v5.md §2). */
+  promoNotApplicable: 'PROMO_NOT_APPLICABLE',
+  /** Sotuvchi buyurtmani qabul qilgan — mijoz bekor qila olmaydi (409, §1). */
+  orderCancelNotAllowed: 'ORDER_CANCEL_NOT_ALLOWED',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];

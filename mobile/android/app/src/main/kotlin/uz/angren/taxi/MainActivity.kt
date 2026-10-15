@@ -39,6 +39,37 @@ class MainActivity : FlutterActivity() {
                 }
             }
 
+        // Push kanali ILOVA OCHILISHIDA yaratiladi — fonda kelgan push ham
+        // backend ko'rsatgan `angren_taxi_orders` kanaliga tushsin.
+        // Dart tomoni keyin tilga mos nom bilan yangilaydi.
+        PushNotifications.ensureChannels(applicationContext, "Buyurtmalar", "Buyurtma holati")
+
+        // Bildirishnomalar — lib/core/push/push_notifications.dart
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "uz.angren.taxi/push")
+            .setMethodCallHandler { call, result ->
+                val ctx = applicationContext
+                when (call.method) {
+                    "ensureChannels" -> {
+                        PushNotifications.ensureChannels(
+                            ctx,
+                            call.argument<String>("name") ?: "Buyurtmalar",
+                            call.argument<String>("description") ?: "",
+                        )
+                        result.success(null)
+                    }
+                    "areEnabled" -> result.success(PushNotifications.areEnabled(ctx))
+                    "show" -> {
+                        PushNotifications.show(
+                            ctx,
+                            call.argument<String>("title") ?: "",
+                            call.argument<String>("body") ?: "",
+                        )
+                        result.success(null)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+
         // Qurilma identifikatori — lib/core/platform/device_identity.dart
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "uz.angren.taxi/device")
             .setMethodCallHandler { call, result ->

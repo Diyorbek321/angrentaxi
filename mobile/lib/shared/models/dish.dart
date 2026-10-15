@@ -1,4 +1,5 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
+import 'package:angren_taxi/shared/models/vendor_promotion.dart';
 import 'package:angren_taxi/shared/widgets/catalog_image.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
@@ -25,6 +26,8 @@ class Dish extends Equatable {
     required this.isAvailable,
     required this.tags,
     this.imageKey,
+    this.finalPrice,
+    this.discount,
   });
 
   final String id;
@@ -36,6 +39,19 @@ class Dish extends Equatable {
   final bool isAvailable;
   final List<String> tags;
   final String? imageKey;
+
+  /// Restoran aksiyasidan keyingi narx (spec §4). Eski serverda `null`.
+  final double? finalPrice;
+
+  /// Qo'llangan aksiya belgisi. Eski serverda `null`.
+  final PromotionBadge? discount;
+
+  DiscountedPrice get _pricing =>
+      DiscountedPrice(price: price, finalPrice: finalPrice, discount: discount);
+
+  /// Mijoz to'laydigan narx — savatga shu tushadi.
+  double get effectivePrice => _pricing.effective;
+  bool get hasDiscount => _pricing.hasDiscount;
 
   String? get imageUrl => catalogImageUrl(imageKey);
 
@@ -55,9 +71,11 @@ class Dish extends Equatable {
       isAvailable: (json['isAvailable'] as bool?) ?? true,
       tags: ((json['tags'] as List<dynamic>?) ?? []).map((e) => e as String).toList(),
       imageKey: json['imageKey'] as String?,
+      finalPrice: (json['finalPrice'] as num?)?.toDouble(),
+      discount: PromotionBadge.tryParse(json['discount']),
     );
   }
 
   @override
-  List<Object?> get props => [id, categoryId, name, description, price, prepMinutes, isAvailable, tags, imageKey];
+  List<Object?> get props => [id, categoryId, name, description, price, prepMinutes, isAvailable, tags, imageKey, finalPrice, discount];
 }

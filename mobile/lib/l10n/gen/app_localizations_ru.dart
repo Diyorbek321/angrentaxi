@@ -1541,6 +1541,13 @@ class AppLocalizationsRu extends AppLocalizations {
   String get paxCancelScheduleTitle => 'Отменить поездку';
 
   @override
+  String get paxCancelTrip => 'Отменить поездку';
+
+  @override
+  String get paxCancelTripUnavailable =>
+      'Поездка началась — отменить уже нельзя';
+
+  @override
   String paxCardPaymentStartFailed(String error) {
     return 'Не удалось начать оплату: $error. Заказ принят, оплата пройдёт в конце поездки.';
   }
@@ -2267,6 +2274,40 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get saAddressApartment => 'Квартира';
+
+  @override
+  String get saAddressCourierNote => 'Комментарий курьеру';
+
+  @override
+  String get saAddressCourierNoteHint => 'Например: позвоните, когда приедете';
+
+  @override
+  String get saAddressDetailsPrefilled => 'Заполнено из прошлого заказа';
+
+  @override
+  String get saAddressDetailsSubtitle => 'Чтобы курьер быстрее вас нашёл';
+
+  @override
+  String get saAddressDetailsTitle => 'Детали адреса';
+
+  @override
+  String get saAddressEntrance => 'Подъезд';
+
+  @override
+  String get saAddressFloor => 'Этаж';
+
+  @override
+  String get saAddressIntercom => 'Домофон';
+
+  @override
+  String get saAddressLandmark => 'Ориентир';
+
+  @override
+  String get saAddressLandmarkHint =>
+      'Например: рядом со школой, зелёные ворота';
+
+  @override
   String get saAddressResolving => 'Определяем адрес…';
 
   @override
@@ -2296,6 +2337,57 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get saCancel => 'Отмена';
+
+  @override
+  String saCancelFailed(String message) {
+    return 'Не удалось отменить: $message';
+  }
+
+  @override
+  String get saCancelNotAllowedHint =>
+      'Заведение уже приняло заказ — чтобы отменить, напишите в поддержку';
+
+  @override
+  String get saCancelNotAllowedMarketHint =>
+      'Магазин уже принял заказ — чтобы отменить, напишите в поддержку';
+
+  @override
+  String get saCancelOrderAction => 'Отменить заказ';
+
+  @override
+  String get saCancelOrderConfirm => 'Да, отменить';
+
+  @override
+  String get saCancelOrderKeep => 'Нет, оставить';
+
+  @override
+  String get saCancelOrderReasonPrompt => 'Выберите причину (необязательно)';
+
+  @override
+  String get saCancelOrderTitle => 'Отменить заказ?';
+
+  @override
+  String get saCancelReasonChangedMind => 'Передумал';
+
+  @override
+  String get saCancelReasonHint => 'Опишите причину';
+
+  @override
+  String saCancelReasonLabel(String reason) {
+    return 'Причина: $reason';
+  }
+
+  @override
+  String get saCancelReasonOther => 'Другая причина';
+
+  @override
+  String get saCancelReasonTooLong => 'Слишком долго ждать';
+
+  @override
+  String get saCancelReasonWrongAddress => 'Неверный адрес';
+
+  @override
+  String get saCancelReasonWrongItems => 'Ошибся с выбором';
 
   @override
   String get saCargoAddressHint =>
@@ -2401,10 +2493,26 @@ class AppLocalizationsRu extends AppLocalizations {
   String get saContactOperator => 'Связаться с оператором';
 
   @override
+  String get saContactSupport => 'Написать в поддержку';
+
+  @override
   String get saCurrentAddress => 'Текущий адрес';
 
   @override
   String get saCurrentLocation => 'Текущее местоположение';
+
+  @override
+  String saDealMinOrder(String amount) {
+    return 'при заказе от $amount';
+  }
+
+  @override
+  String saDealUntil(String date) {
+    return 'до $date';
+  }
+
+  @override
+  String get saDealsTitle => 'Скидки';
 
   @override
   String get saDefaultUserName => 'Пользователь';
@@ -2417,6 +2525,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get saDestination => 'Куда';
+
+  @override
+  String get saDiscountLine => 'Скидка';
 
   @override
   String saDishesCount(int count) {
@@ -2561,6 +2672,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get saMenuEmptyTitle => 'Меню пустое';
 
   @override
+  String get saMenuOther => 'Другое';
+
+  @override
   String get saNoStoreYet => 'Магазинов пока нет';
 
   @override
@@ -2590,7 +2704,18 @@ class AppLocalizationsRu extends AppLocalizations {
   String get saOrderAccepted => 'Заказ принят';
 
   @override
+  String get saOrderCancelledToast => 'Заказ отменён';
+
+  @override
+  String saOrderDetailTitle(String number) {
+    return 'Заказ #$number';
+  }
+
+  @override
   String get saOrderHistory => 'История заказов';
+
+  @override
+  String get saOrderItems => 'Состав';
 
   @override
   String get saOrderNotSent => 'Не удалось отправить заказ';
@@ -2721,6 +2846,11 @@ class AppLocalizationsRu extends AppLocalizations {
   String get saPopularRestaurants => 'Популярные рестораны';
 
   @override
+  String saPriceWithDiscount(String now, String old) {
+    return 'Цена со скидкой $now, старая цена $old';
+  }
+
+  @override
   String get saProductDeliveryLabel => 'ДОСТАВКА';
 
   @override
@@ -2771,7 +2901,20 @@ class AppLocalizationsRu extends AppLocalizations {
   String get saPromoActive => 'АКТИВЕН';
 
   @override
+  String saPromoApplied(String code) {
+    return '$code применён';
+  }
+
+  @override
+  String get saPromoApply => 'Применить';
+
+  @override
   String get saPromoCodeCopied => 'Код скопирован';
+
+  @override
+  String saPromoCodeLine(String code) {
+    return 'Промокод $code';
+  }
 
   @override
   String saPromoCopyLabel(String code) {
@@ -2779,9 +2922,35 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get saPromoDiscount => 'Скидка по промокоду';
+
+  @override
+  String get saPromoEmpty => 'Сначала введите промокод';
+
+  @override
+  String get saPromoHint => 'Введите промокод';
+
+  @override
+  String get saPromoInvalid => 'Промокод недействителен';
+
+  @override
   String saPromoMinOrder(String amount) {
     return 'Мин. заказ: $amount';
   }
+
+  @override
+  String get saPromoNotApplicable =>
+      'Этот промокод не действует для этой услуги';
+
+  @override
+  String get saPromoRemove => 'Убрать';
+
+  @override
+  String get saPromoServerRecalc =>
+      'Итоговую скидку сервер рассчитает при оформлении';
+
+  @override
+  String get saPromoTitle => 'Промокод';
 
   @override
   String saPromoUntil(String date) {
@@ -2965,6 +3134,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get saTrackCancelled => 'Заказ отменён';
 
   @override
+  String get saTrackCourier => 'Следить за курьером на карте';
+
+  @override
   String get saTrackDelivered => 'Заказ доставлен';
 
   @override
@@ -3022,6 +3194,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get saTxnWithdrawal => 'Вывод средств';
+
+  @override
+  String get saVendorDiscountLine => 'Скидка заведения';
 
   @override
   String get saViewOrders => 'Посмотреть заказы';
@@ -3331,6 +3506,13 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get shPayStatusRefunded => 'Возвращено';
+
+  @override
+  String get shPushChannelOrders => 'Заказы';
+
+  @override
+  String get shPushChannelOrdersDescription =>
+      'Статус заказа, сообщения водителя и курьера';
 
   @override
   String shReceiptDate(String date) {

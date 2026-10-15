@@ -952,6 +952,8 @@
     }
   },
   "paxCancelScheduleTitle": "Rejani bekor qilish",
+  "paxCancelTrip": "Safarni bekor qilish",
+  "paxCancelTripUnavailable": "Safar boshlangan — endi bekor qilib bo'lmaydi",
   "paxCardPaymentStartFailed": "To'lovni hozir boshlab bo'lmadi: {error}. Buyurtma qabul qilindi, safar oxirida to'lov amalga oshiriladi.",
   "@paxCardPaymentStartFailed": {
     "placeholders": {
@@ -1443,6 +1445,17 @@
       }
     }
   },
+  "saAddressApartment": "Xonadon",
+  "saAddressCourierNote": "Kuryerga izoh",
+  "saAddressCourierNoteHint": "Masalan: kelganda qo'ng'iroq qiling",
+  "saAddressDetailsPrefilled": "Oxirgi buyurtmadan to'ldirildi",
+  "saAddressDetailsSubtitle": "Kuryer sizni tezroq topishi uchun",
+  "saAddressDetailsTitle": "Manzil tafsilotlari",
+  "saAddressEntrance": "Podyezd",
+  "saAddressFloor": "Qavat",
+  "saAddressIntercom": "Domofon",
+  "saAddressLandmark": "Mo'ljal",
+  "saAddressLandmarkHint": "Masalan: maktab yonida, yashil darvoza",
   "saAddressResolving": "Manzil aniqlanmoqda…",
   "saAngrenCity": "Angren shahri",
   "saBack": "Orqaga",
@@ -1466,6 +1479,35 @@
     }
   },
   "saCancel": "Bekor qilish",
+  "saCancelFailed": "Bekor qilib bo'lmadi: {message}",
+  "@saCancelFailed": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "saCancelNotAllowedHint": "Restoran buyurtmani qabul qildi — bekor qilish uchun qo'llab-quvvatlashga yozing",
+  "saCancelNotAllowedMarketHint": "Do'kon buyurtmani qabul qildi — bekor qilish uchun qo'llab-quvvatlashga yozing",
+  "saCancelOrderAction": "Buyurtmani bekor qilish",
+  "saCancelOrderConfirm": "Ha, bekor qilish",
+  "saCancelOrderKeep": "Yo'q, qoldirish",
+  "saCancelOrderReasonPrompt": "Sababini tanlang (ixtiyoriy)",
+  "saCancelOrderTitle": "Buyurtmani bekor qilasizmi?",
+  "saCancelReasonChangedMind": "Fikrimni o'zgartirdim",
+  "saCancelReasonHint": "Sababni yozing",
+  "saCancelReasonLabel": "Sabab: {reason}",
+  "@saCancelReasonLabel": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "saCancelReasonOther": "Boshqa sabab",
+  "saCancelReasonTooLong": "Juda uzoq kutish",
+  "saCancelReasonWrongAddress": "Manzil noto'g'ri",
+  "saCancelReasonWrongItems": "Noto'g'ri tanlabman",
   "saCargoAddressHint": "Manzillarni keyingi qadamda xaritadan tanlaysiz — aniq narx masofaga qarab o'sha yerda hisoblanadi.",
   "saCargoCallCourier": "Kuryer chaqirish",
   "saCargoCourier": "Kuryer",
@@ -1537,12 +1579,31 @@
   "saCompletedAt": "Yakunlandi",
   "saConfirmOrder": "Buyurtmani tasdiqlash",
   "saContactOperator": "Operator bilan bog'lanish",
+  "saContactSupport": "Qo'llab-quvvatlashga yozish",
   "saCurrentAddress": "Joriy manzil",
   "saCurrentLocation": "Joriy joylashuv",
+  "saDealMinOrder": "{amount} dan buyurtmada",
+  "@saDealMinOrder": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "saDealUntil": "{date} gacha",
+  "@saDealUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "saDealsTitle": "Chegirmalar",
   "saDefaultUserName": "Foydalanuvchi",
   "saDelivery": "Yetkazib berish",
   "saDeliveryAddress": "Yetkazib berish manzili",
   "saDestination": "Manzil",
+  "saDiscountLine": "Chegirma",
   "saDishesCount": "{count} ta taom",
   "@saDishesCount": {
     "placeholders": {
@@ -1607,6 +1668,7 @@
   "saMenu": "Menyu",
   "saMenuEmptyMessage": "Bu restoran hozircha taom qo'shmagan.",
   "saMenuEmptyTitle": "Menyu bo'sh",
+  "saMenuOther": "Boshqa",
   "saNoStoreYet": "Hozircha do'kon yo'q",
   "saNotificationUnreadLabel": "O'qilmagan: {title}",
   "@saNotificationUnreadLabel": {
@@ -1623,7 +1685,17 @@
   "saOpen": "Ochiq",
   "saOpenTripReceipt": "Safar chekini ochish",
   "saOrderAccepted": "Buyurtma qabul qilindi",
+  "saOrderCancelledToast": "Buyurtma bekor qilindi",
+  "saOrderDetailTitle": "Buyurtma #{number}",
+  "@saOrderDetailTitle": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
   "saOrderHistory": "Buyurtmalar tarixi",
+  "saOrderItems": "Tarkibi",
   "saOrderNotSent": "Buyurtma yuborilmadi",
   "saOrderNumber": "Buyurtma raqami: {number}",
   "@saOrderNumber": {
@@ -1690,6 +1762,17 @@
   },
   "saPickup": "Olib ketish",
   "saPopularRestaurants": "Mashhur restoranlar",
+  "saPriceWithDiscount": "Chegirmali narx {now}, eski narx {old}",
+  "@saPriceWithDiscount": {
+    "placeholders": {
+      "now": {
+        "type": "String"
+      },
+      "old": {
+        "type": "String"
+      }
+    }
+  },
   "saProductDeliveryLabel": "YETKAZISH",
   "saProductDeliveryValue": "15–25 daq",
   "saProductDescription": "Yangi va sifatli mahsulot, yaqin do'kondan tez yetkazib beriladi.",
@@ -1719,7 +1802,24 @@
   "saProfileSupport247": "24/7 qo'llab-quvvatlash xizmati",
   "saProfileTrips": "Safarlar",
   "saPromoActive": "FAOL",
+  "saPromoApplied": "{code} qo'llandi",
+  "@saPromoApplied": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "saPromoApply": "Qo'llash",
   "saPromoCodeCopied": "Kod nusxalandi",
+  "saPromoCodeLine": "Promokod {code}",
+  "@saPromoCodeLine": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
   "saPromoCopyLabel": "Promokodni nusxalash: {code}",
   "@saPromoCopyLabel": {
     "placeholders": {
@@ -1728,6 +1828,10 @@
       }
     }
   },
+  "saPromoDiscount": "Promokod chegirmasi",
+  "saPromoEmpty": "Avval promokodni kiriting",
+  "saPromoHint": "Promokodni kiriting",
+  "saPromoInvalid": "Promokod yaroqsiz",
   "saPromoMinOrder": "Min. buyurtma: {amount}",
   "@saPromoMinOrder": {
     "placeholders": {
@@ -1736,6 +1840,10 @@
       }
     }
   },
+  "saPromoNotApplicable": "Bu promokod ushbu xizmatga tegishli emas",
+  "saPromoRemove": "Olib tashlash",
+  "saPromoServerRecalc": "Yakuniy chegirmani server buyurtma yaratilganda hisoblaydi",
+  "saPromoTitle": "Promokod",
   "saPromoUntil": "{date}gacha",
   "@saPromoUntil": {
     "placeholders": {
@@ -1852,6 +1960,7 @@
   "saTotal": "Jami",
   "saTrackCallCourier": "Kuryerga qo'ng'iroq qilish",
   "saTrackCancelled": "Buyurtma bekor qilindi",
+  "saTrackCourier": "Kuryerni xaritada kuzatish",
   "saTrackDelivered": "Buyurtma yetkazildi",
   "saTrackOnTheWay": "Kuryer yo'lda",
   "saTrackOpenMap": "Kuryerni xaritada ko'rish",
@@ -1893,6 +2002,7 @@
   "saTxnTripEarning": "Safar daromadi",
   "saTxnTripPayment": "Safar to'lovi",
   "saTxnWithdrawal": "Pul yechish",
+  "saVendorDiscountLine": "Restoran/do'kon chegirmasi",
   "saViewOrders": "Buyurtmalarni koʻrish",
   "saViewReceipt": "Chekni ko'rish",
   "saWalletAllServices": "Barcha xizmatlar",
@@ -2091,6 +2201,8 @@
   "shPayStatusFailed": "Amalga oshmadi",
   "shPayStatusPaid": "To'landi",
   "shPayStatusRefunded": "Qaytarildi",
+  "shPushChannelOrders": "Buyurtmalar",
+  "shPushChannelOrdersDescription": "Buyurtma holati, haydovchi va kuryer xabarlari",
   "shReceiptDate": "Sana: {date}",
   "@shReceiptDate": {
     "placeholders": {

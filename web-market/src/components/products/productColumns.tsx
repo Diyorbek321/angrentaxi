@@ -8,6 +8,7 @@ import { ProductStatusBadge } from '@/components/StatusBadge';
 import type { DataTableColumn } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { IconButton } from '@/components/ui/IconButton';
+import { DiscountTag } from '@/components/promotions/DiscountTag';
 import { InlineEditCell } from './InlineEditCell';
 import { ProductThumb } from './ProductThumb';
 
@@ -107,13 +108,16 @@ export function productColumns(h: ProductColumnHandlers): DataTableColumn<Produc
       numeric: true,
       width: 'w-40',
       cell: (p) => (
-        <InlineEditCell
-          value={p.price}
-          display={formatNumber(p.price)}
-          unit="soʻm"
-          ariaLabel={`${p.name} narxi`}
-          onSave={(v) => h.onSavePrice(p, v)}
-        />
+        <span className="flex flex-col items-end">
+          <InlineEditCell
+            value={p.price}
+            display={formatNumber(p.price)}
+            unit="soʻm"
+            ariaLabel={`${p.name} narxi`}
+            onSave={(v) => h.onSavePrice(p, v)}
+          />
+          <DiscountTag item={p} />
+        </span>
       ),
     },
     {

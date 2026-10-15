@@ -282,6 +282,26 @@ export const ERROR_CATALOGUE: readonly ErrorCatalogueEntry[] = [
     ru: 'Слишком много неоплаченных пополнений ({0}). Завершите предыдущее или дождитесь истечения его срока.',
   },
 
+  // ─── Food/Market UX v5 (docs/specs/food-market-ux-v5.md) ─────────────
+  {
+    source: "Restoran buyurtmani qabul qildi — bekor qilish uchun qo'llab-quvvatlashga yozing",
+    ru: 'Ресторан уже принял заказ — для отмены напишите в поддержку',
+  },
+  {
+    source: "Do'kon buyurtmani qabul qildi — bekor qilish uchun qo'llab-quvvatlashga yozing",
+    ru: 'Магазин уже принял заказ — для отмены напишите в поддержку',
+  },
+  { source: 'Bu promokod ushbu xizmatda amal qilmaydi', ru: 'Этот промокод не действует для этого сервиса' },
+  { source: 'Aksiya topilmadi', ru: 'Акция не найдена' },
+  { source: "Foizli chegirma 1 dan 90 gacha bo'lishi kerak", ru: 'Процентная скидка должна быть от 1 до 90' },
+  { source: "Chegirma summasi 0 dan katta bo'lishi kerak", ru: 'Сумма скидки должна быть больше 0' },
+  { source: 'Aksiya tugash vaqti boshlanishidan keyin bo‘lishi kerak', ru: 'Окончание акции должно быть позже её начала' },
+  { source: 'Chegirma summasi taom narxidan kichik bo‘lishi kerak', ru: 'Сумма скидки должна быть меньше цены товара' },
+  { source: 'Kamida bitta kategoriya tanlang', ru: 'Выберите хотя бы одну категорию' },
+  { source: 'Kategoriya topilmadi', ru: 'Категория не найдена' },
+  { source: 'Kamida bitta taom yoki mahsulot tanlang', ru: 'Выберите хотя бы одно блюдо или товар' },
+  { source: 'Taom yoki mahsulot topilmadi', ru: 'Блюдо или товар не найдены' },
+
   // ─── Xavfsizlik (security review 2026-10-15) ──────────────────────────
   {
     source: "Karta orqali to'ldirilgan {0} so'm {1} kun davomida yechib olinmaydi. Hozir yechish mumkin: {2} so'm.",

@@ -155,6 +155,12 @@ class _AppVectorMapState extends State<AppVectorMap>
   ml.MapLibreMapController? _controller;
   bool _styleReady = false;
 
+  /// Uslub birinchi marta yuklandimi. Ungacha xarita platform view'i
+  /// ustida ilova fonidagi qoplama turadi: Android'da GL yuzasi birinchi
+  /// kadrni chizgunicha QORA bo'ladi va taksi bo'limiga o'tishda ekran
+  /// qorayib ochilgandek ko'rinardi.
+  bool _mapVisible = false;
+
   /// Uslub hujjati assetdan o'qilgunicha xarita qurilmaydi — aks holda
   /// MapLibre'ga bo'sh `styleString` beriladi.
   String? _styleDocument;
@@ -214,11 +220,17 @@ class _AppVectorMapState extends State<AppVectorMap>
   Future<void> _onMapCreated(ml.MapLibreMapController controller) async {
     _controller = controller;
     widget.onMapCreated?.call(controller);
+    // Zaxira: uslub yuklanmasa ham (tarmoq, plagin xatosi) qoplama abadiy
+    // turib qolmasin.
+    Future<void>.delayed(const Duration(seconds: 2), () {
+      if (mounted && !_mapVisible) setState(() => _mapVisible = true);
+    });
   }
 
   /// Simvollar faqat uslub yuklangandan keyin qo'shilishi mumkin — plagin
   /// hujjatlaridagi shart. Ikonalar ham shu yerda ro'yxatdan o'tkaziladi.
   Future<void> _onStyleLoaded() async {
+    if (!_mapVisible && mounted) setState(() => _mapVisible = true);
     final controller = _controller;
     if (controller == null) return;
 
@@ -585,6 +597,24 @@ class _AppVectorMapState extends State<AppVectorMap>
       );
     }
 
+    final background =
+        widget.style == AppMapStyle.dark ? kBackgroundDark : kBackground;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        _buildMap(styleDocument),
+        IgnorePointer(
+          child: AnimatedOpacity(
+            opacity: _mapVisible ? 0 : 1,
+            duration: kDurationBase,
+            child: ColoredBox(color: background),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMap(String styleDocument) {
     return ml.MapLibreMap(
       styleString: styleDocument,
       initialCameraPosition: ml.CameraPosition(

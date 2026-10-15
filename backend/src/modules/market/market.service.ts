@@ -7,6 +7,7 @@ import {
   OnModuleInit,
   Optional,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, MoreThanOrEqual, Repository } from 'typeorm';
 import { Store, StoreDeliveryMode, StoreStatus } from '../../database/entities/store.entity';
@@ -29,7 +30,7 @@ import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { BulkUpdateProductsDto } from './dto/bulk-update-products.dto';
 import { VendorProductQueryDto } from './dto/vendor-product-query.dto';
-import { browseVendorProducts, VendorProductPage } from './vendor-product-browse';
+import { browseVendorProducts } from './vendor-product-browse';
 import { CreateMarketOrderDto } from './dto/create-market-order.dto';
 import { CreateStoreAdminDto } from './dto/create-store-admin.dto';
 import { CatalogModerationQueryDto, likePattern } from '../../common/dto/catalog-moderation-query.dto';
@@ -46,6 +47,19 @@ import { DeliveryEvent, DeliveryEventsService } from '../delivery/delivery-event
 import { checkoutDeliveryFee, deliveryRideDetails } from '../delivery/delivery-ride-details';
 import { courierTracking } from '../delivery/delivery-tracking';
 import { assertCashWithinLimit } from '../delivery/vendor-cash';
+import { PromotionsService } from '../promotions/promotions.service';
+import { PromoCodesService } from '../promo-codes/promo-codes.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { Promotion, PromotionVendorType } from '../../database/entities/promotion.entity';
+import { priceCatalogItem, priceOrderLines, strongestPromotion } from '../promotions/promotion-pricing';
+import {
+  cancelNotAllowed,
+  cleanCancelReason,
+  customerCanCancel,
+  withCustomerFields,
+} from '../delivery/vendor-checkout';
+import { creditPromoCompensation } from '../delivery/promo-compensation';
+import { normalizeAddressDetails } from '../../common/dto/address-details.dto';
 
 // Rolling window the jsonb-item analytics (best sellers, category breakdown,
 // stock turnover) are computed over, plus a hard row cap in case a very busy
@@ -93,6 +107,10 @@ export class MarketService implements OnModuleInit {
     private readonly tariffsService: TariffsService,
     private readonly settingsService: SettingsService,
     @Optional() private readonly deliveryEvents?: DeliveryEventsService,
+    // v5 (docs/specs/food-market-ux-v5.md): aksiyalar, promokod, push.
+    @Optional() private readonly promotionsService?: PromotionsService,
+    @Optional() private readonly promoCodesService?: PromoCodesService,
+    @Optional() private readonly notificationsService?: NotificationsService,
   ) {}
 
   onModuleInit(): void {
@@ -190,12 +208,35 @@ export class MarketService implements OnModuleInit {
 
   // ---------- vendor: products ----------
 
-  listProducts(storeId: string): Promise<Product[]> {
-    return this.productRepo.find({ where: { storeId }, order: { createdAt: 'DESC' } });
+  /** Panel ro'yxati — har mahsulotda vitrinadagi kabi `finalPrice` / `discount` (spec §4). */
+  async listProducts(storeId: string) {
+    const [products, promotions] = await Promise.all([
+      this.productRepo.find({ where: { storeId }, order: { createdAt: 'DESC' } }),
+      this.activePromotions(storeId),
+    ]);
+    return products.map((product) => this.withProductPricing(product, promotions));
   }
 
-  browseProducts(storeId: string, query: VendorProductQueryDto): Promise<VendorProductPage> {
-    return browseVendorProducts(this.productRepo, storeId, query);
+  async browseProducts(storeId: string, query: VendorProductQueryDto) {
+    const [page, promotions] = await Promise.all([
+      browseVendorProducts(this.productRepo, storeId, query),
+      this.activePromotions(storeId),
+    ]);
+    return { ...page, products: page.products.map((product) => this.withProductPricing(product, promotions)) };
+  }
+
+  private activePromotions(storeId: string): Promise<Promotion[]> {
+    return this.promotionsService
+      ? this.promotionsService.activeForVendor(PromotionVendorType.STORE, storeId)
+      : Promise.resolve([]);
+  }
+
+  private withProductPricing(product: Product, promotions: readonly Promotion[]) {
+    const priced = priceCatalogItem(
+      { id: product.id, categoryId: product.categoryId, price: Number(product.price) },
+      promotions,
+    );
+    return { ...product, finalPrice: priced.finalPrice, discount: priced.discount };
   }
 
   createProduct(storeId: string, dto: CreateProductDto): Promise<Product> {
@@ -333,6 +374,17 @@ export class MarketService implements OnModuleInit {
         throw new ConflictException('Order status has already changed — refresh the board');
       }
       saved = { ...order, status: next };
+    } else if (order.status === MarketOrderStatus.NEW) {
+      // Shartli yozuv: mijoz shu lahzada bekor qilgan bo'lsa (v5 §1),
+      // yig'ish bekor qilingan buyurtmani "tiriltirmasin".
+      const result = await this.orderRepo.update(
+        { id: order.id, status: MarketOrderStatus.NEW },
+        { status: next },
+      );
+      if (!result.affected) {
+        throw new ConflictException('Order status has already changed — refresh the board');
+      }
+      saved = { ...order, status: next };
     } else {
       order.status = next;
       saved = await this.orderRepo.save(order);
@@ -351,7 +403,7 @@ export class MarketService implements OnModuleInit {
 
     if (next === MarketOrderStatus.DELIVERED) {
       const store = await this.storeRepo.findOneOrFail({ where: { id: storeId } });
-      await this.settleStoreEarnings(store, saved);
+      await this.settleDelivered(store, saved);
     }
 
     return this.withDelivery(saved);
@@ -371,6 +423,26 @@ export class MarketService implements OnModuleInit {
   // platform on top of cash it already has in hand. A CARD/online order
   // means the platform holds the funds, so the store is credited the gross
   // and debited the commission, netting to the payout the platform owes.
+  private async settleDelivered(store: Store, order: MarketOrder): Promise<void> {
+    await this.settleStoreEarnings(store, order);
+    // Promokod (platforma hisobidan): naqdni olgan tomonga farq qaytariladi.
+    const isCash = order.paymentMethod === MarketPaymentMethod.CASH;
+    if (!isCash || !(Number(order.promoDiscount ?? 0) > 0)) return;
+    let collectorUserId: string | null = store.ownerUserId;
+    if (order.deliveryOrderId) {
+      const ride = await this.ordersService.findByIdOrThrow(order.deliveryOrderId);
+      collectorUserId = ride.driverId ?? null;
+    }
+    await creditPromoCompensation(this.transactionRepo, {
+      kind: 'market',
+      vendorOrderId: order.id,
+      isCash,
+      promoDiscount: Number(order.promoDiscount),
+      collectorUserId,
+      collectorIsCourier: Boolean(order.deliveryOrderId),
+    });
+  }
+
   private async settleStoreEarnings(store: Store, order: MarketOrder): Promise<void> {
     // Hamyon rejimida (e-tijorat qonuni 23-modda) tovar summasi va komissiya
     // olib ketishda allaqachon daftarga yozilgan
@@ -452,6 +524,8 @@ export class MarketService implements OnModuleInit {
             // Tovar summasi — kuryer do'konga shuni to'laydi (`vendor-cash.ts`).
             itemsTotal: Number(order.totalPrice) - checkoutDeliveryFee(order),
             isCash: order.paymentMethod === MarketPaymentMethod.CASH,
+            promoDiscount: Number(order.promoDiscount ?? 0),
+            addressDetails: order.addressDetails ?? null,
           }),
         },
       },
@@ -508,7 +582,7 @@ export class MarketService implements OnModuleInit {
       if (!result.affected) return;
 
       const store = await this.storeRepo.findOneOrFail({ where: { id: order.storeId } });
-      await this.settleStoreEarnings(store, { ...order, status: MarketOrderStatus.DELIVERED });
+      await this.settleDelivered(store, { ...order, status: MarketOrderStatus.DELIVERED });
       for (const userId of [order.customerId, store.ownerUserId]) {
         this.realtimeGateway.emitToUser(userId, 'market:order:status', {
           orderId: order.id,
@@ -542,13 +616,13 @@ export class MarketService implements OnModuleInit {
 
   private async withDelivery(order: MarketOrder) {
     if (!order.deliveryOrderId) {
-      return { ...order, delivery: null };
+      return { ...withCustomerFields(order), delivery: null };
     }
     try {
       const deliveryOrder = await this.ordersService.findByIdOrThrow(order.deliveryOrderId);
       // Vendor panels read orderId/status/driverName/driverPhone; the customer
       // app also uses the car and the two points for its live courier map.
-      return { ...order, delivery: courierTracking(deliveryOrder) };
+      return { ...withCustomerFields(order), delivery: courierTracking(deliveryOrder) };
     } catch (err) {
       // A genuine failure here (DB down, bad join) used to be indistinguishable
       // from "no courier assigned yet": both returned delivery: null, so the
@@ -558,7 +632,7 @@ export class MarketService implements OnModuleInit {
       this.logger.error(
         `Failed to resolve delivery for market order ${order.id}: ${(err as Error).message}`,
       );
-      return { ...order, delivery: null };
+      return { ...withCustomerFields(order), delivery: null };
     }
   }
 
@@ -746,8 +820,18 @@ export class MarketService implements OnModuleInit {
 
   // ---------- storefront (customer) ----------
 
-  async listActiveStores(): Promise<Store[]> {
-    return this.storeRepo.find({ where: { status: StoreStatus.ACTIVE }, order: { name: 'ASC' } });
+  /** Har do'konga `activePromotion` (eng kattasi) yoki null (spec §4). */
+  async listActiveStores() {
+    const [stores, promotions] = await Promise.all([
+      this.storeRepo.find({ where: { status: StoreStatus.ACTIVE }, order: { name: 'ASC' } }),
+      this.promotionsService
+        ? this.promotionsService.activeByVendor(PromotionVendorType.STORE)
+        : Promise.resolve(new Map<string, Promotion[]>()),
+    ]);
+    return stores.map((store) => ({
+      ...store,
+      activePromotion: strongestPromotion(promotions.get(store.id) ?? []),
+    }));
   }
 
   async getStoreDetail(storeId: string) {
@@ -755,13 +839,24 @@ export class MarketService implements OnModuleInit {
     if (!store) {
       throw new NotFoundException('Store not found');
     }
-    const [categories, products] = await Promise.all([
+    const [categories, products, promotions] = await Promise.all([
       this.categoryRepo.find({ where: { storeId, isActive: true }, order: { sortOrder: 'ASC' } }),
       this.productRepo.find({ where: { storeId, status: ProductStatus.ACTIVE } }),
+      this.activePromotions(storeId),
     ]);
-    return { store, categories, products };
+    return {
+      store: { ...store, promotions, activePromotion: strongestPromotion(promotions) },
+      categories,
+      products: products.map((product) => this.withProductPricing(product, promotions)),
+      promotions,
+    };
   }
 
+  /**
+   * Narx serverda (spec §2, §4): avval aksiya (sotuvchi hisobidan, qatorga
+   * `price = finalPrice`, `unitPrice`, `discountAmount`), keyin promokod
+   * (platforma hisobidan, `promoDiscount`, `totalPrice` ga kirmaydi).
+   */
   async createOrder(customerId: string, customerPhone: string | null, dto: CreateMarketOrderDto) {
     const store = await this.storeRepo.findOne({ where: { id: dto.storeId } });
     if (!store) {
@@ -772,7 +867,7 @@ export class MarketService implements OnModuleInit {
     const products = await this.productRepo.find({ where: { storeId: store.id } });
     const byId = new Map(products.map((p) => [p.id, p]));
 
-    const items = dto.items.map((input) => {
+    const lines = dto.items.map((input) => {
       const product = byId.get(input.productId);
       if (!product || !productIds.includes(product.id)) {
         throw new NotFoundException(`Product ${input.productId} not found in this store`);
@@ -783,20 +878,32 @@ export class MarketService implements OnModuleInit {
       if (product.stock < input.qty) {
         throw new ConflictException(`Not enough stock for "${product.name}"`);
       }
-      return {
-        productId: product.id,
-        name: product.name,
-        qty: input.qty,
-        price: Number(product.price),
-        packed: false,
-      };
+      return { product, qty: input.qty };
     });
+
+    const priced = priceOrderLines(
+      lines.map(({ product, qty }) => ({
+        item: { id: product.id, categoryId: product.categoryId, price: Number(product.price) },
+        qty,
+      })),
+      await this.activePromotions(store.id),
+    );
+    const items = lines.map(({ product, qty }, index) => ({
+      productId: product.id,
+      name: product.name,
+      qty,
+      // Undiriladigan narx — komissiya, kuryer to'lovi va fiskal chek shundan.
+      price: priced.lines[index].finalPrice,
+      unitPrice: priced.lines[index].unitPrice,
+      discountAmount: priced.lines[index].discountPerUnit,
+      packed: false,
+    }));
 
     // The delivery fee is part of what the customer owes, so it belongs in
     // the recorded total. It used to exist only as a client-side constant in
     // the app, which meant the checkout screen showed one figure and the
     // order row, the vendor board and the receipt all showed a smaller one.
-    const itemsTotal = items.reduce((sum, i) => sum + i.qty * i.price, 0);
+    const itemsTotal = priced.itemsTotal;
     const deliveryFee = await this.settingsService.getDeliveryFee();
     const totalPrice = itemsTotal + deliveryFee;
 
@@ -812,39 +919,161 @@ export class MarketService implements OnModuleInit {
       await this.settingsService.getMaxCashVendorOrder(),
     );
 
-    for (const item of items) {
-      const product = byId.get(item.productId);
-      if (!product) continue;
-      await this.recordStockChange(
-        store.id,
-        product,
-        product.stock - item.qty,
-        `Buyurtma`,
-      );
+    // Promokod ham zaxiraga tegishdan oldin: yaroqsiz kod hech narsani band qilmaydi.
+    const promo = await this.resolvePromo(customerId, dto.promoCode, itemsTotal);
+    const orderId = randomUUID();
+    if (promo) {
+      await this.requirePromoCodes().claimForVendorOrder(promo.promoCodeId, customerId, { kind: 'market', id: orderId });
     }
-    const order = await this.orderRepo.save(
-      this.orderRepo.create({
-        storeId: store.id,
-        customerId,
-        items,
-        totalPrice,
-        deliveryAddress: dto.deliveryAddress,
-        deliveryLat: dto.deliveryLat,
-        deliveryLng: dto.deliveryLng,
-        deliveryMode,
-        paymentMethod: dto.paymentMethod ?? MarketPaymentMethod.CASH,
-        customerPhone,
-        note: dto.note ?? null,
-        status: MarketOrderStatus.NEW,
-      }),
-    );
+
+    let order: MarketOrder;
+    try {
+      for (const item of items) {
+        const product = byId.get(item.productId);
+        if (!product) continue;
+        await this.recordStockChange(store.id, product, product.stock - item.qty, `Buyurtma`);
+      }
+      order = await this.orderRepo.save(
+        this.orderRepo.create({
+          id: orderId,
+          storeId: store.id,
+          customerId,
+          items,
+          totalPrice,
+          deliveryAddress: dto.deliveryAddress,
+          deliveryLat: dto.deliveryLat,
+          deliveryLng: dto.deliveryLng,
+          deliveryMode,
+          paymentMethod: dto.paymentMethod ?? MarketPaymentMethod.CASH,
+          customerPhone,
+          note: dto.note ?? null,
+          status: MarketOrderStatus.NEW,
+          promoCodeId: promo?.promoCodeId ?? null,
+          promoCode: promo?.code ?? null,
+          promoDiscount: promo?.discount ?? 0,
+          promotionDiscount: priced.promotionDiscount,
+          addressDetails: normalizeAddressDetails(dto.addressDetails),
+          cancelledBy: null,
+          cancelReason: null,
+          cancelledAt: null,
+        }),
+      );
+    } catch (err) {
+      if (promo) {
+        await this.requirePromoCodes().releaseForVendorOrder(promo.promoCodeId, customerId, { kind: 'market', id: orderId });
+      }
+      throw err;
+    }
 
     this.realtimeGateway.emitToUser(store.ownerUserId, 'market:order:created', {
       orderId: order.id,
       storeId: store.id,
     });
 
-    return order;
+    return withCustomerFields(order);
+  }
+
+  private requirePromoCodes(): PromoCodesService {
+    if (!this.promoCodesService) {
+      throw new BadRequestException('Promo code not found');
+    }
+    return this.promoCodesService;
+  }
+
+  /** Promokod — tovar summasiga (aksiyadan keyin, yetkazishsiz); chegirma tovar summasidan oshmaydi. */
+  private async resolvePromo(
+    customerId: string,
+    code: string | undefined,
+    itemsTotal: number,
+  ): Promise<{ promoCodeId: string; code: string; discount: number } | null> {
+    const trimmed = code?.trim();
+    if (!trimmed) return null;
+    const result = await this.requirePromoCodes().validate(trimmed, customerId, itemsTotal, {
+      serviceType: ServiceType.MARKET,
+    });
+    return {
+      promoCodeId: result.promoCodeId,
+      code: trimmed.toUpperCase(),
+      discount: Math.min(itemsTotal, Math.max(0, Math.round(result.discountAmount))),
+    };
+  }
+
+  private async releasePromo(order: Pick<MarketOrder, 'id' | 'promoCodeId' | 'customerId'>): Promise<void> {
+    if (!order.promoCodeId || !this.promoCodesService) return;
+    try {
+      await this.promoCodesService.releaseForVendorOrder(order.promoCodeId, order.customerId, {
+        kind: 'market',
+        id: order.id,
+      });
+    } catch (err) {
+      this.logger.error(`Promokod bo'shatilmadi (market ${order.id}): ${(err as Error).message}`);
+    }
+  }
+
+  /**
+   * Mijoz bekor qilishi (spec §1): faqat do'kon QABUL QILMAGAN (`new`)
+   * buyurtma. Shartli yozuv; zaxira qaytariladi, promokod bo'shatiladi.
+   */
+  async cancelByCustomer(customerId: string, id: string, reason?: string) {
+    const order = await this.orderRepo.findOne({ where: { id, customerId } });
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+    if (!customerCanCancel(order)) {
+      throw cancelNotAllowed('market');
+    }
+    const changes = {
+      status: MarketOrderStatus.CANCELLED,
+      cancelledBy: 'customer' as const,
+      cancelReason: cleanCancelReason(reason),
+      cancelledAt: new Date(),
+    };
+    const result = await this.orderRepo.update({ id, customerId, status: MarketOrderStatus.NEW }, changes);
+    if (!result.affected) {
+      throw cancelNotAllowed('market');
+    }
+    const saved: MarketOrder = { ...order, ...changes };
+    await this.restoreStock(saved);
+    await this.releasePromo(saved);
+
+    const store = await this.storeRepo.findOne({ where: { id: order.storeId } });
+    if (store) {
+      this.realtimeGateway.emitToUser(store.ownerUserId, 'market:order:cancelled', {
+        orderId: saved.id,
+        cancelledBy: 'customer',
+        cancelReason: saved.cancelReason,
+      });
+      await this.pushVendorCancelled(store.ownerUserId, saved);
+    }
+    this.realtimeGateway.emitToUser(customerId, 'market:order:status', {
+      orderId: saved.id,
+      status: saved.status,
+    });
+    return this.withDelivery(saved);
+  }
+
+  private async restoreStock(order: MarketOrder): Promise<void> {
+    for (const item of order.items) {
+      try {
+        const product = await this.productRepo.findOne({ where: { id: item.productId, storeId: order.storeId } });
+        if (!product) continue;
+        await this.recordStockChange(order.storeId, product, product.stock + item.qty, 'Mijoz bekor qildi');
+      } catch (err) {
+        this.logger.error(`Zaxira qaytarilmadi (market ${order.id}, ${item.productId}): ${(err as Error).message}`);
+      }
+    }
+  }
+
+  private async pushVendorCancelled(ownerUserId: string, order: MarketOrder): Promise<void> {
+    if (!this.notificationsService) return;
+    try {
+      const owner = await this.usersService.findById(ownerUserId);
+      if (owner) {
+        await this.notificationsService.notifyVendorOrderCancelled(owner, 'market', order.id, order.cancelReason);
+      }
+    } catch (err) {
+      this.logger.warn(`Bekor qilish push'i yuborilmadi (market ${order.id}): ${(err as Error).message}`);
+    }
   }
 
   /**

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { BellRing } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -10,11 +10,14 @@ import { useWalletSettlementToasts } from '@/hooks/useVendorSettlement';
 import { foodApi, type FoodOrder, type Restaurant } from '@/lib/api';
 import { useKiosk } from '@/lib/kiosk-context';
 import { trackNewOrders, resetOrderAlerts } from '@/lib/order-alerts';
+import { createCancellationTracker } from '@/lib/order-extras';
+import { shortId } from '@/lib/format';
 import { SIDEBAR_COOKIE } from '@/lib/ui-prefs';
 import { AppShell, LiveDivider, LiveMetric, type NavGroup, type ShellUser } from '@/components/shell';
 import { Button } from '@/components/ui/Button';
 import { PollStatus } from '@/components/ui/PollStatus';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { useToast } from '@/components/ui/Toast';
 import { KioskFrame } from './KioskFrame';
 import { OpenToggle } from './OpenToggle';
 import { ORDERS_HREF, RESTAURANT_NAV } from './nav-config';
@@ -47,6 +50,11 @@ export function RestaurantShell({
   const refreshPages = useRefreshAll();
   const [togglingOpen, setTogglingOpen] = useState(false);
   const [manualRefresh, setManualRefresh] = useState(false);
+  const { toast } = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
+  // Mijoz bekor qilgan buyurtmalar — ramka poll'idan (va socket turtkisidan) aniqlanadi.
+  const cancelTrackerRef = useRef(createCancellationTracker());
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) router.replace('/login');
@@ -59,6 +67,14 @@ export function RestaurantShell({
     // Ovozli signal POLL natijasidan otiladi — operator ekranga qaramasa ham
     // eshitadi. Buyurtmalar sahifasining 15 s poll'i bilan dedup modul ichida.
     trackNewOrders(orders, restaurant?.notifications.sound ?? false);
+    // Ovozsiz: faqat toast — bekor qilish ish emas, oshxonani chalg'itmaydi.
+    cancelTrackerRef.current(orders).forEach((o) =>
+      toastRef.current({
+        title: `${shortId(o.id)} — mijoz bekor qildi`,
+        description: o.cancelReason?.trim() ? `Sabab: ${o.cancelReason.trim()}` : 'Sabab koʻrsatilmagan',
+        variant: 'info',
+      })
+    );
     return { restaurant, newOrders: orders.filter((o) => o.status === 'new').length };
   }, []);
 
@@ -105,6 +121,7 @@ export function RestaurantShell({
 
   const handleLogout = useCallback(async () => {
     resetOrderAlerts();
+    cancelTrackerRef.current = createCancellationTracker();
     await logout();
   }, [logout]);
 

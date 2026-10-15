@@ -10,6 +10,7 @@ import { usePageRefresh } from '@/components/shell';
 import { DishImage } from '@/components/DishImage';
 import { DishModal } from '@/components/menu/DishModal';
 import { InlinePrice } from '@/components/menu/InlinePrice';
+import { DiscountTag } from '@/components/promotions/DiscountTag';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
@@ -154,7 +155,12 @@ export default function MenuPage() {
       header: 'Narx',
       numeric: true,
       width: 'w-44',
-      cell: (dish) => <InlinePrice dish={dish} onSaved={applyDishUpdate} />,
+      cell: (dish) => (
+        <span className="flex flex-col items-end">
+          <InlinePrice dish={dish} onSaved={applyDishUpdate} />
+          <DiscountTag item={dish} />
+        </span>
+      ),
     },
     {
       key: 'available',

@@ -14,7 +14,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { PromoCodesService, ValidatePromoResult } from './promo-codes.service';
+import { PromoCheckResult, PromoCodesService } from './promo-codes.service';
 import { CreatePromoCodeDto } from './dto/create-promo-code.dto';
 import { ValidatePromoDto } from './dto/validate-promo.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -42,8 +42,11 @@ export class PromoCodesController {
   async validatePromo(
     @CurrentUser() user: User,
     @Body() dto: ValidatePromoDto,
-  ): Promise<ValidatePromoResult> {
-    return this.promoCodesService.validate(dto.code, user.id, dto.orderAmount);
+  ): Promise<PromoCheckResult> {
+    return this.promoCodesService.describe(dto.code, user.id, {
+      serviceType: dto.serviceType,
+      amount: dto.amount ?? dto.orderAmount ?? null,
+    });
   }
 
   @Get('active')

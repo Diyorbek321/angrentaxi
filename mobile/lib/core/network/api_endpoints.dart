@@ -188,6 +188,12 @@ class ApiEndpoints {
   static const String foodOrders = '/food/orders';
   static String foodOrderById(String id) => '/food/orders/$id';
 
+  // docs/specs/food-market-ux-v5.md — bekor qilish va aksiyalar.
+  static String foodOrderCancel(String id) => '/food/orders/$id/cancel';
+  static String marketOrderCancel(String id) => '/market/orders/$id/cancel';
+  // ?serviceType=food|market — bosh ekrandagi "Chegirmalar" lentasi.
+  static const String activePromotions = '/promotions/active';
+
   // Payments (Payme / Click / Uzcard online checkout)
   static const String paymentsInitiate = '/payments/initiate';
   static const String paymentsWallet = '/payments/wallet';

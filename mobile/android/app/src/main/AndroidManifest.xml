@@ -62,14 +62,33 @@
             </intent-filter>
         </activity>
 
-        <!-- Firebase Messaging Service -->
-        <service
-            android:name="com.google.firebase.messaging.FirebaseMessagingService"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
-            </intent-filter>
-        </service>
+        <!--
+            ⚠️ FirebaseMessagingService bu yerda E'LON QILINMAYDI.
+            Ilgari asosiy `com.google.firebase.messaging.FirebaseMessagingService`
+            shu yerda qayta e'lon qilingan edi. Manifest birlashtirilganda u
+            kutubxonaning priority="-500" filtri ustiga priority=0 li ikkinchi
+            MESSAGING_EVENT filtrini qo'shardi va birlashgan manifestda
+            firebase_messaging plaginining `FlutterFirebaseMessagingService`'idan
+            OLDIN turardi — FCM xabarlarni plagin emas, bazaviy servis olardi:
+            `onMessage` / `onBackgroundMessage` hech qachon chaqirilmasdi.
+            Servisni plagin o'zi e'lon qiladi.
+        -->
+
+        <!-- Backend `channelId: 'angren_taxi_orders'` yuboradi; kanal
+             MainActivity / PushNotifications.kt da yaratiladi. channelId'siz
+             push ham shu kanalga tushadi (jim "Miscellaneous" emas). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="angren_taxi_orders" />
+        <!-- Monoxrom status-bar ikonkasi. Rangli launcher ikonkasi Android 5+
+             da oq kvadrat bo'lib chiqadi yoki ayrim qobiqlarda butunlay
+             tashlab yuboriladi. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_accent" />
 
         <!-- Geolocator background service -->
         <service

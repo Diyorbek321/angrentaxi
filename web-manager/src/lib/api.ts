@@ -55,6 +55,8 @@ export interface PromoCode {
   expiresAt: string | null;
   isActive: boolean;
   createdAt: string;
+  /** Spec v5 §2: qaysi xizmatlarda amal qiladi; `null`/yo'q = hammasi. */
+  serviceTypes?: string[] | null;
 }
 
 export interface CreatePromoCodePayload {
@@ -64,6 +66,8 @@ export interface CreatePromoCodePayload {
   maxUses?: number;
   minOrderAmount?: number;
   expiresAt?: string;
+  /** Faqat tanlov bo'lsa yuboriladi — lib/promo-service-types.ts `serviceTypesPayload`. */
+  serviceTypes?: string[];
 }
 
 export type TariffChangeAction = 'create' | 'update';

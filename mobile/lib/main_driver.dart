@@ -5,7 +5,8 @@ import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/config/map_offline_region.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
-import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/core/push/push_notifications.dart';
+import 'package:angren_taxi/core/storage/local_storage.dart';
 import 'package:angren_taxi/features/driver/wallet/driver_push_events.dart';
 import 'package:angren_taxi/features/driver/wallet/wallet_deep_links.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -84,25 +85,17 @@ Future<void> main() async {
 }
 
 Future<void> _registerFcmToken() async {
-  try {
-    final messaging = FirebaseMessaging.instance;
-    // Bildirishnoma ruxsati bu yerda SO'RALMAYDI: ilova ochilgan zahoti,
-    // tushuntirishsiz chiqadigan dialog ko'pincha rad etiladi. Haydovchi uni
-    // "Ishga tayyorlik" oynasida, nima uchun kerakligini o'qib beradi.
-    // Android'da token ruxsatsiz ham olinadi.
-
-    final token = await messaging.getToken();
-    if (token != null) {
-      await Future<void>.delayed(const Duration(seconds: 2));
-      final apiClient = sl<ApiClient>();
-      await apiClient.post(
-        ApiEndpoints.registerFcmToken,
-        data: {'token': token, 'platform': 'android', 'role': 'driver'},
-      );
-    }
-  } catch (e) {
-    debugPrint('[FCM Driver] Token registration failed: $e');
-  }
+  // Bildirishnoma ruxsati bu yerda SO'RALMAYDI: ilova ochilgan zahoti,
+  // tushuntirishsiz chiqadigan dialog ko'pincha rad etiladi. Haydovchi uni
+  // "Ishga tayyorlik" oynasida, nima uchun kerakligini o'qib beradi.
+  final push = PushNotifications.instance
+    ..isUserEnabled = () => sl<LocalStorage>().getPushEnabled();
+  // Hamyon hodisalarini ilova o'zi snackbar bilan ko'rsatadi — old planda
+  // ikkinchi marta tizim bildirishnomasi chiqmasin.
+  push.shouldShowInForeground = (m) =>
+      driverPushAction(m.data['event']?.toString()) == DriverPushAction.none;
+  await push.start(api: sl<ApiClient>(), role: 'driver');
+  await push.syncToken();
 }
 
 /// FCM xabarlarini ilova ichidagi shinaga uzatadi — hamyon hodisalari

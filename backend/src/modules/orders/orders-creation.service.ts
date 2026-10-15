@@ -449,6 +449,7 @@ export class OrdersCreationService {
         dto.promoCode,
         passengerId,
         estimatedPrice,
+        { serviceType: dto.serviceType ?? ServiceType.TAXI },
       );
       discountAmount = promoResult.discountAmount;
       promoCodeId = promoResult.promoCodeId;

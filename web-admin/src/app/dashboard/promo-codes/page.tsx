@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Download } from 'lucide-react';
+import { Download, Plus } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -20,6 +20,9 @@ import { usePagination } from '@/hooks/usePagination';
 import { useToast } from '@/components/ui/Toast';
 import { downloadCsv } from '@/lib/csv';
 import { formatDateShort, formatDateTime, formatMoney, formatNumber } from '@/lib/format';
+import { serviceTypesLabel } from '@/lib/promo-service-types';
+import { CreatePromoCodeModal } from '@/components/promo/CreatePromoCodeModal';
+import { ServiceTypesCell } from '@/components/promo/ServiceTypePicker';
 
 type StatusFilter = 'all' | 'active' | 'inactive';
 
@@ -49,6 +52,7 @@ export default function PromoCodesPage() {
   const [sort, setSort] = useState<SortState | null>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<PromoCode | null>(null);
   const [deactivating, setDeactivating] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   const fetchPromoCodes = useCallback(async () => {
     setIsLoading(true);
@@ -162,6 +166,7 @@ export default function PromoCodesPage() {
         { header: 'Limit', value: (p) => p.maxUses ?? '' },
         { header: 'Min. summa', value: (p) => p.minOrderAmount },
         { header: 'Muddati', value: (p) => (p.expiresAt ? formatDateShort(p.expiresAt) : '') },
+        { header: 'Xizmatlar', value: (p) => serviceTypesLabel(p.serviceTypes) },
         { header: 'Holati', value: (p) => (p.isActive ? 'Faol' : 'Faol emas') },
         { header: 'Yaratilgan', value: (p) => formatDateTime(p.createdAt, { withYear: true }) },
       ],
@@ -195,6 +200,12 @@ export default function PromoCodesPage() {
           {p.maxUses != null && <span className="text-muted"> / {formatNumber(p.maxUses)}</span>}
         </>
       ),
+    },
+    {
+      key: 'services',
+      header: 'Xizmatlar',
+      hideBelow: 'lg',
+      cell: (p) => <ServiceTypesCell value={p.serviceTypes} />,
     },
     {
       key: 'minOrderAmount',
@@ -238,14 +249,19 @@ export default function PromoCodesPage() {
         title="Promo kodlar"
         description={`Jami: ${formatNumber(promoCodes.length)} ta`}
         actions={
-          <Button
-            variant="secondary"
-            onClick={handleExportCsv}
-            disabled={filteredRows.length === 0}
-            leftIcon={<Download className="h-4 w-4" aria-hidden="true" />}
-          >
-            CSV eksport
-          </Button>
+          <>
+            <Button
+              variant="secondary"
+              onClick={handleExportCsv}
+              disabled={filteredRows.length === 0}
+              leftIcon={<Download className="h-4 w-4" aria-hidden="true" />}
+            >
+              CSV eksport
+            </Button>
+            <Button leftIcon={<Plus className="h-4 w-4" aria-hidden="true" />} onClick={() => setCreating(true)}>
+              Yangi promo kod
+            </Button>
+          </>
         }
       />
 
@@ -290,8 +306,12 @@ export default function PromoCodesPage() {
         empty={{
           variant: 'first-use',
           title: "Promo kodlar yo'q",
-          description:
-            "Chegirma kodlari marketing bo'limida yaratiladi — yaratilgani shu jadvalda ko'rinadi.",
+          description: 'Birinchi chegirma kodini yarating — u darhol amal qila boshlaydi.',
+          action: (
+            <Button size="sm" leftIcon={<Plus className="h-4 w-4" aria-hidden="true" />} onClick={() => setCreating(true)}>
+              Yangi promo kod
+            </Button>
+          ),
         }}
         pagination={{
           page: safePage,
@@ -300,6 +320,16 @@ export default function PromoCodesPage() {
           totalPages,
           onPageChange: pagination.goToPage,
           onLimitChange: pagination.setLimit,
+        }}
+      />
+
+      <CreatePromoCodeModal
+        isOpen={creating}
+        onClose={() => setCreating(false)}
+        onCreated={async (code) => {
+          setCreating(false);
+          toast({ title: `«${code}» promo kodi yaratildi`, description: 'Kod darhol amal qila boshlaydi.', variant: 'success' });
+          await fetchPromoCodes();
         }}
       />
 

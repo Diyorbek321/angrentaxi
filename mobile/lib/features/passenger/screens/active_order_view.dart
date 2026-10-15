@@ -21,6 +21,7 @@ import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:angren_taxi/shared/widgets/app_pressable.dart';
 import 'package:angren_taxi/shared/widgets/app_status_badge.dart';
 import 'package:angren_taxi/shared/widgets/app_vector_map.dart';
+import 'package:angren_taxi/shared/widgets/cancel_order_sheet.dart';
 import 'package:angren_taxi/shared/widgets/waiting_charge_ticker.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
@@ -312,6 +313,8 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
           ),
           const SizedBox(height: kSpace3),
           _buildActions(order),
+          const SizedBox(height: kSpace2),
+          _buildCancelButton(order),
         ],
       ),
     );
@@ -359,12 +362,6 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
   // --------------------------------------------------------------------
   Widget _buildActions(Order order) {
     final driver = order.driver;
-    // Bekor qilish shartlari o'zgarmagan: haydovchi izlanayotganda yoki
-    // endi tayinlanganda. So'rov uchayotganda tugma vaqtincha o'chadi.
-    final canCancel = !widget.isBusy &&
-        (order.status == OrderStatus.searching ||
-            order.status == OrderStatus.driverAssigned);
-
     return AgActionRow(
       items: [
         AgActionItem(
@@ -384,12 +381,52 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
           label: context.l10n.paxReferralShare,
           onTap: () => _shareTrip(order),
         ),
-        AgActionItem(
-          icon: Icons.close_rounded,
-          label: context.l10n.paxCancel,
-          destructive: true,
-          onTap: canCancel ? _confirmCancel : null,
+      ],
+    );
+  }
+
+  /// Bekor qilish holatlari backend bilan bir xil
+  /// (`orders-dispatch.service.ts` → created/searching/accepted/arrived).
+  static bool isCancellable(OrderStatus status) => const {
+        OrderStatus.pending,
+        OrderStatus.searching,
+        OrderStatus.driverAssigned,
+        OrderStatus.driverEnRoute,
+        OrderStatus.driverArrived,
+      }.contains(status);
+
+  // ⚠️ "Bekor qilishni topa olmadim" (2026-10-16 sinovi). Ilgari bekor
+  // qilish amallar qatoridagi to'rtinchi kichik ikonka edi — ko'pchilik uni
+  // "ulashish" yonidagi bezak deb o'tkazib yuborardi. Endi u yozuvli,
+  // to'liq kenglikdagi IKKILAMCHI tugma (konturli, to'ldirilmagan — eng
+  // buzg'unchi amal ekrandagi eng og'ir element bo'lmasin). Mumkin bo'lmasa
+  // yo'qolmaydi: o'chiq holda sababi bilan turadi.
+  Widget _buildCancelButton(Order order) {
+    final allowed = isCancellable(order.status);
+    final enabled = allowed && !widget.isBusy;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        OutlinedButton.icon(
+          key: const ValueKey('taxi-cancel-button'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: kErrorDeep,
+            side: BorderSide(color: enabled ? kErrorBorder : kLine),
+            minimumSize: const Size.fromHeight(kControlHeightSm),
+          ),
+          onPressed: enabled ? _confirmCancel : null,
+          icon: const Icon(Icons.close_rounded, size: 20),
+          label: Text(context.l10n.paxCancelTrip),
         ),
+        if (!allowed)
+          Padding(
+            padding: const EdgeInsets.only(top: kSpace1),
+            child: Text(
+              context.l10n.paxCancelTripUnavailable,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: kFontCaption, color: kInkMuted),
+            ),
+          ),
       ],
     );
   }
@@ -988,78 +1025,18 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
       ];
   static String get _otherCancelReason => AppL10n.current.paxCancelReasonOther;
 
-  void _confirmCancel() {
-    String selectedReason = _cancelReasons.first;
-    final customReasonController = TextEditingController();
-
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          return AlertDialog(
-            title: Text(context.l10n.paxCancelReasonTitle),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    context.l10n.paxCancelReasonPrompt,
-                    style: const TextStyle(color: kInkMuted, fontSize: kFontLabel),
-                  ),
-                  for (final reason in _cancelReasons)
-                    RadioListTile<String>(
-                      contentPadding: EdgeInsets.zero,
-                      dense: true,
-                      value: reason,
-                      groupValue: selectedReason,
-                      title: Text(reason),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setDialogState(() => selectedReason = value);
-                        }
-                      },
-                    ),
-                  if (selectedReason == _otherCancelReason)
-                    Padding(
-                      padding:
-                          const EdgeInsets.only(top: kSpace1, bottom: kSpace1),
-                      child: TextField(
-                        controller: customReasonController,
-                        autofocus: true,
-                        maxLines: 2,
-                        decoration: InputDecoration(
-                          hintText: context.l10n.paxCancelReasonHint,
-                          border: const OutlineInputBorder(),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: Text(context.l10n.paxNo),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-                  final reason = selectedReason == _otherCancelReason
-                      ? customReasonController.text.trim()
-                      : selectedReason;
-                  widget.onCancel(reason.isEmpty ? null : reason);
-                },
-                child: Text(
-                  context.l10n.paxCancelConfirmYes,
-                  style: const TextStyle(color: kErrorDeep),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
+  Future<void> _confirmCancel() async {
+    final choice = await showCancelOrderSheet(
+      context,
+      title: context.l10n.paxCancelReasonTitle,
+      prompt: context.l10n.paxCancelReasonPrompt,
+      reasons: _cancelReasons,
+      otherReason: _otherCancelReason,
+      confirmLabel: context.l10n.paxCancelConfirmYes,
+      keepLabel: context.l10n.paxNo,
     );
+    if (choice == null || !mounted) return;
+    widget.onCancel(choice.reason);
   }
 }
 

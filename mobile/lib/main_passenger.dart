@@ -5,7 +5,8 @@ import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/config/map_offline_region.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
-import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/core/push/push_notifications.dart';
+import 'package:angren_taxi/core/storage/local_storage.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart'
@@ -78,26 +79,15 @@ Future<void> main() async {
 }
 
 Future<void> _registerFcmToken() async {
-  try {
-    final messaging = FirebaseMessaging.instance;
-    // Bildirishnoma ruxsati bu yerda SO'RALMAYDI — birinchi buyurtma
-    // berilganda so'raladi (tariff_select_screen), o'sha paytda "haydovchi
-    // keldi" xabari aniq ma'noga ega. Android'da token ruxsatsiz ham olinadi.
-
-    final token = await messaging.getToken();
-    if (token == null) return;
-
-    // Wait for auth to settle before calling API
-    await Future<void>.delayed(const Duration(seconds: 3));
-
-    final apiClient = sl<ApiClient>();
-    await apiClient.post(
-      ApiEndpoints.registerFcmToken,
-      data: {'token': token, 'platform': 'android', 'role': 'passenger'},
-    );
-  } catch (e) {
-    debugPrint('[FCM] Token registration failed: $e');
-  }
+  // Kanal, old plandagi xabarlar va `onTokenRefresh` — PushNotifications.
+  // Bildirishnoma RUXSATI kirishdan keyin so'raladi (app.dart → AuthProvider
+  // tinglovchisi) va yana buyurtma berilganda (taksi/ovqat/market).
+  final push = PushNotifications.instance
+    ..isUserEnabled = () => sl<LocalStorage>().getPushEnabled();
+  await push.start(api: sl<ApiClient>(), role: 'passenger');
+  // Kirilmagan bo'lsa 401 — kirishdan keyin AuthProvider tinglovchisi
+  // qayta yuboradi.
+  await push.syncToken();
 }
 
 /// Firebase dev/mock rejimida ixtiyoriy: haqiqiy google-services

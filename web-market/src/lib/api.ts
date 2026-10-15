@@ -2,6 +2,8 @@ import axios from 'axios';
 import { attachAuthInterceptor } from './session';
 import type { DeliveryInfo } from './courier';
 import type { VendorWalletSettlement } from './vendor-cash';
+import type { OrderV5Fields } from './order-extras';
+import type { DiscountType, Promotion, PromotionPayload } from './promotions';
 
 /**
  * Requests go to this app's own /api/proxy, not to the backend directly. The
@@ -137,6 +139,9 @@ export interface Product {
    * aylanadi. Faqat O'QISH — PATCH/POST tanasiga qo'shmang (`forbidNonWhitelisted`).
    */
   imageKey?: string | null;
+  /** Faol aksiya qo'llangandagi narx (spec v5 §4) — API qaytarsa. Faqat O'QISH. */
+  finalPrice?: number | null;
+  discount?: { title: string; discountType: DiscountType; discountValue: number } | null;
 }
 
 export interface ProductBrowseQuery {
@@ -162,9 +167,13 @@ export interface OrderItem {
   qty: number;
   price: number;
   packed: boolean;
+  /** v5: asl narx va aksiya chegirmasi (birlik uchun), bo'lsa. */
+  unitPrice?: number | null;
+  discountAmount?: number | null;
 }
 
-export interface MarketOrder {
+/** v5: manzil tafsilotlari, promokod/aksiya chegirmasi, mijoz bekor qilgani — lib/order-extras.ts. */
+export interface MarketOrder extends OrderV5Fields {
   id: string;
   storeId: string;
   customerId: string;
@@ -316,4 +325,14 @@ export const marketApi = {
   /** Naqd: kuryerdan tovar puli olindimi. `false` — dispetcherga nizo. */
   cashReceived: (orderId: string, received: boolean) =>
     api.patch<ApiResponse<{ ok: true }>>(`/market/vendor/orders/${orderId}/cash-received`, { received }),
+};
+
+// ─── Aksiyalar (spec v5 §4) ────────────────────────────────────────
+
+export const promotionsApi = {
+  list: () => api.get<ApiResponse<Promotion[]>>('/market/vendor/promotions'),
+  create: (data: PromotionPayload) => api.post<ApiResponse<Promotion>>('/market/vendor/promotions', data),
+  update: (id: string, data: Partial<PromotionPayload>) =>
+    api.patch<ApiResponse<Promotion>>(`/market/vendor/promotions/${id}`, data),
+  remove: (id: string) => api.delete<ApiResponse<{ deleted: boolean }>>(`/market/vendor/promotions/${id}`),
 };

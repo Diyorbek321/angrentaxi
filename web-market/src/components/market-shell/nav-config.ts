@@ -1,4 +1,4 @@
-import { BarChart3, Boxes, ClipboardList, LayoutGrid, Package, Settings, Tags } from 'lucide-react';
+import { BadgePercent, BarChart3, Boxes, ClipboardList, LayoutGrid, Package, Settings, Tags } from 'lucide-react';
 import type { NavGroup } from '@/components/shell';
 
 export const ORDERS_HREF = '/dashboard/orders';
@@ -22,6 +22,7 @@ export const MARKET_NAV: readonly NavGroup[] = [
     items: [
       { href: '/dashboard/products', label: 'Mahsulotlar', icon: Package },
       { href: '/dashboard/categories', label: 'Kategoriyalar', icon: Tags },
+      { href: '/dashboard/promotions', label: 'Chegirmalar', icon: BadgePercent },
       { href: STOCK_HREF, label: 'Zaxira', icon: Boxes },
     ],
   },

@@ -754,3 +754,39 @@ respond @payme_cb 403
 - `PATCH /drivers/me/legal` — 403 `LEGAL_PROFILE_LOCKED`, 409 `LEGAL_PROFILE_DUPLICATE`.
 - `PATCH /drivers/:id/balance` — kasr/±5 mln dan katta → 400; menejer chegarasi → 403.
 - UZPS callback javobi: yangi `message` qiymatlari `NOT_CONFIRMED`, `INVALID_REQUEST`.
+
+---
+
+## 26. Aksiya va promokod: kim ko'taradi, chek va hisob-kitob (migratsiya 031)
+
+Manba: `docs/specs/food-market-ux-v5.md` §2, §4. Ovqat/market buyurtmasida ikki xil chegirma:
+
+| | Aksiya (`promotions`) | Promokod (`promo_codes`) |
+|---|---|---|
+| Kim beradi | sotuvchi (panelda o'zi) | platforma (admin/menejer) |
+| Kim ko'taradi | **sotuvchi** | **platforma** |
+| Qayerda | qator narxi: `items[].price = finalPrice`, `unitPrice` (asl), `discountAmount` (bir dona) | `promoDiscount` ustuni, `totalPrice` ga KIRMAYDI |
+| Tartib | avval | keyin (aksiyadan keyingi tovar summasiga) |
+
+- **`totalPrice` = tovar (aksiyadan keyin) + yetkazish** — ma'nosi o'zgarmagan. Shu sabab
+  sotuvchi komissiyasi (`round(totalPrice × rate / 100)`), hamyon o'tkazmasi (`payVendor` =
+  aksiyali tovar summasi), yetkazilgandagi `settle*Earnings` va fiskal chek (`total` = tovar
+  qismi) **chegirmali (haqiqiy) narxdan** hisoblanadi — aksiya sotuvchi ulushini kamaytiradi.
+- Mijoz to'laydi: `payableTotal = totalPrice − promoDiscount` (JSON'da). Naqd buyurtmada kuryer
+  `collectCash = totalPrice − promoDiscount` oladi (`DeliveryRideDetails.promoDiscount`).
+- **Promokod qoplanishi** (`delivery/promo-compensation.ts`): naqd buyurtma yetkazilganda
+  (komissiya bilan bir xil shartli o'tishda, bir martalik) naqdni olgan tomonga — platforma
+  kuryeri yoki o'zi yetkazgan sotuvchi — `CREDIT promoDiscount`, `external_id =
+  '<food|market>_order_promo_<id>'`, `payment_method = wallet`; kuryer bo'lsa `drivers.balance`
+  keshi yangilanadi. Natijada sotuvchi ham, kuryer ham promokodsiz buyurtmadagidek oladi.
+  Karta buyurtmasida yozuv yo'q: mijozdan kam undiriladi, sotuvchiga odatdagidek to'liq
+  `totalPrice` CREDIT — farq platforma xarajati.
+- **Fiskal chek:** komitent (sotuvchi/kuryer) cheki o'z sotuv summasi bilan (aksiyadan keyingi
+  tovar / yetkazish haqi). Promokod — platformaning mijoz nomidan qisman to'lovi (marketing
+  xarajati); chekda alohida "platforma to'lagan" qatori OFD integratsiyasida qo'shilishi kerak
+  (provayder hali `noop`) — **yurist/buxgalter bilan tasdiqlang**.
+- Promokod ishlatilishi ovqat/market buyurtmasida **yaratilganda** band qilinadi
+  (`promo_code_usages.food_order_id|market_order_id`), mijoz yoki sotuvchi bekor qilsa
+  bo'shatiladi (qator o'chadi, `used_count − 1`). Taksida avvalgidek safar yakunida.
+- Ochiq: yetkazilgan buyurtma refund'ida (`order-refund-clawback`) promokod qoplanishi qaytarib
+  olinmaydi — kerak bo'lsa alohida.

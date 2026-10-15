@@ -19,6 +19,8 @@ import { PageBody } from '@/components/ui/PageBody';
 import { useToast } from '@/components/ui/Toast';
 import { downloadCsv } from '@/lib/csv';
 import { formatDate, formatDateShort, formatNumber } from '@/lib/format';
+import { serviceTypesLabel, serviceTypesPayload, type PromoServiceType } from '@/lib/promo-service-types';
+import { ServiceTypePicker, ServiceTypesCell } from '@/components/promo/ServiceTypePicker';
 
 const optionalNumber = (label: string, max?: number) =>
   z
@@ -82,6 +84,7 @@ export default function PromoCodesPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [serviceTypes, setServiceTypes] = useState<PromoServiceType[]>([]);
 
   const {
     register,
@@ -119,8 +122,10 @@ export default function PromoCodesPage() {
         maxUses: data.maxUses ? Number(data.maxUses) : undefined,
         minOrderAmount: data.minOrderAmount ? Number(data.minOrderAmount) : undefined,
         expiresAt: data.expiresAt || undefined,
+        ...serviceTypesPayload(serviceTypes),
       });
       reset();
+      setServiceTypes([]);
       setIsModalOpen(false);
       toast({
         title: `«${code}» promo kodi yaratildi`,
@@ -169,6 +174,7 @@ export default function PromoCodesPage() {
         'Limit',
         'Min. summa (soʻm)',
         'Muddati',
+        'Xizmatlar',
         'Holati',
       ],
       rows.map((p) => [
@@ -179,6 +185,7 @@ export default function PromoCodesPage() {
         p.maxUses ?? '',
         p.minOrderAmount,
         p.expiresAt ? formatDateShort(p.expiresAt) : '',
+        serviceTypesLabel(p.serviceTypes),
         p.isActive ? 'Faol' : 'Faol emas',
       ])
     );
@@ -217,6 +224,12 @@ export default function PromoCodesPage() {
           {p.maxUses != null ? ` / ${formatNumber(p.maxUses)}` : ''}
         </span>
       ),
+    },
+    {
+      key: 'services',
+      header: 'Xizmatlar',
+      hideBelow: 'lg',
+      cell: (p) => <ServiceTypesCell value={p.serviceTypes} />,
     },
     {
       key: 'min',
@@ -398,6 +411,7 @@ export default function PromoCodesPage() {
               error={errors.minOrderAmount?.message}
             />
           </div>
+          <ServiceTypePicker value={serviceTypes} onChange={setServiceTypes} disabled={isSubmitting} />
           <Input
             label="Amal qilish muddati"
             type="date"

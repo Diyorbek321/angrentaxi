@@ -344,6 +344,30 @@ export class NotificationsService {
     await this.logNotification(recipient.id, title, body, event);
   }
 
+  /**
+   * Sotuvchiga: mijoz qabul qilinmagan ovqat/market buyurtmasini bekor qildi
+   * (docs/specs/food-market-ux-v5.md §1).
+   */
+  async notifyVendorOrderCancelled(
+    owner: User,
+    kind: 'food' | 'market',
+    orderId: string,
+    reason: string | null,
+  ): Promise<void> {
+    const title = 'Buyurtma bekor qilindi';
+    const body = reason ? `Mijoz buyurtmani bekor qildi: ${reason}` : 'Mijoz buyurtmani bekor qildi';
+    const event = `${kind}_order_cancelled`;
+    if (owner.fcmToken) {
+      await this.firebaseService.sendPush(owner.fcmToken, title, body, {
+        event,
+        orderId,
+        cancelledBy: 'customer',
+        reason: reason ?? '',
+      });
+    }
+    await this.logNotification(owner.id, title, body, event);
+  }
+
   async sendOtpSms(phone: string, code: string): Promise<void> {
     await this.eskizService.sendSms(
       phone,

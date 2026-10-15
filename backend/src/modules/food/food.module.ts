@@ -16,6 +16,10 @@ import { OrdersModule } from '../orders/orders.module';
 import { MatchingModule } from '../matching/matching.module';
 import { TariffsModule } from '../tariffs/tariffs.module';
 import { SettingsModule } from '../settings/settings.module';
+import { PromotionsModule } from '../promotions/promotions.module';
+import { PromoCodesModule } from '../promo-codes/promo-codes.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { FoodPromotionsController } from './food-promotions.controller';
 import { VendorTinModule } from '../vendor-tin/vendor-tin.module';
 
 @Module({
@@ -29,8 +33,11 @@ import { VendorTinModule } from '../vendor-tin/vendor-tin.module';
     MatchingModule,
     TariffsModule,
     SettingsModule,
+    PromotionsModule,
+    PromoCodesModule,
+    NotificationsModule,
   ],
-  controllers: [FoodVendorController, FoodStorefrontController, FoodAdminController],
+  controllers: [FoodVendorController, FoodPromotionsController, FoodStorefrontController, FoodAdminController],
   providers: [FoodService, FoodImagesService],
   exports: [FoodService],
 })

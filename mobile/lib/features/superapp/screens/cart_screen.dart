@@ -151,11 +151,12 @@ class _CartBody extends StatelessWidget {
                     child: _DashedDivider(),
                   ),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(context.l10n.saTotal,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w800, fontSize: kFontTitle, color: agText)),
+                      Expanded(
+                        child: Text(context.l10n.saTotal,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w800, fontSize: kFontTitle, color: agText)),
+                      ),
                       Text(Formatters.formatSom(total),
                           style: const TextStyle(
                               fontWeight: FontWeight.w800, fontSize: kFontTitle, color: agText)),
@@ -251,19 +252,23 @@ class _CartRow extends StatelessWidget {
                 // `kInkSubtle` yozuvda ishlatilmaydi.
                 Text(
                   '${Formatters.formatSom(item.price)} × ${item.qty}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: kFontCaption,
                       color: kInkMuted),
                 ),
+                // Qator jami nom ostida — ilgari alohida ustunda turardi va
+                // 360dp + katta shriftda miqdor tugmalarini ekrandan itarardi.
+                Text(
+                  Formatters.formatSom(item.lineTotal),
+                  maxLines: 1,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w800, fontSize: kFontBody, color: agText),
+                ),
               ],
             ),
-          ),
-          const SizedBox(width: kSpace2),
-          Text(
-            Formatters.formatSom(item.lineTotal),
-            style: const TextStyle(
-                fontWeight: FontWeight.w800, fontSize: kFontBody, color: agText),
           ),
           const SizedBox(width: kSpace2),
           Container(
@@ -346,11 +351,13 @@ class _SummaryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label,
-            style: const TextStyle(
-                fontSize: kFontLabel, color: agSubtle, fontWeight: FontWeight.w600)),
+        Expanded(
+          child: Text(label,
+              style: const TextStyle(
+                  fontSize: kFontLabel, color: agSubtle, fontWeight: FontWeight.w600)),
+        ),
+        const SizedBox(width: kSpace2),
         Text(value,
             style: const TextStyle(
                 fontSize: kFontLabel, color: agText, fontWeight: FontWeight.w700)),

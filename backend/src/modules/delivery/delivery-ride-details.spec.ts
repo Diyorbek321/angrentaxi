@@ -41,6 +41,20 @@ describe('deliveryRideDetails', () => {
   it('on a cash order the courier pays the vendor for the goods only', () => {
     expect(deliveryRideDetails({ ...base, isCash: true }).payVendor).toBe(64000);
   });
+
+  it('v5: a platform-funded promo code lowers what the courier collects, not what the vendor gets', () => {
+    const details = deliveryRideDetails({ ...base, isCash: true, promoDiscount: 9000 });
+    expect(details.collectCash).toBe(62000);
+    expect(details.payVendor).toBe(64000);
+    expect(details.promoDiscount).toBe(9000);
+  });
+
+  it('v5: carries the address details for the courier screen (null when absent)', () => {
+    expect(deliveryRideDetails({ ...base, isCash: false }).addressDetails).toBeNull();
+    expect(
+      deliveryRideDetails({ ...base, isCash: false, addressDetails: { entrance: '3', floor: '7' } }).addressDetails,
+    ).toEqual({ entrance: '3', floor: '7' });
+  });
 });
 
 describe('agreedFareBreakdown', () => {

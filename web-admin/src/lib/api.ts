@@ -600,10 +600,25 @@ export interface PromoCode {
   expiresAt: string | null;
   isActive: boolean;
   createdAt: string;
+  /** Spec v5 §2: qaysi xizmatlarda amal qiladi; `null`/yo'q = hammasi. */
+  serviceTypes?: string[] | null;
+}
+
+export interface CreatePromoCodePayload {
+  code: string;
+  discountPercent?: number;
+  discountFixed?: number;
+  maxUses?: number;
+  minOrderAmount?: number;
+  expiresAt?: string;
+  /** Faqat tanlov bo'lsa yuboriladi — lib/promo-service-types.ts `serviceTypesPayload`. */
+  serviceTypes?: string[];
 }
 
 export const promoCodesApi = {
   getAll: () => api.get<ApiResponse<PromoCode[]>>('/promo-codes'),
+
+  create: (payload: CreatePromoCodePayload) => api.post<ApiResponse<PromoCode>>('/promo-codes', payload),
 
   deactivate: (id: string) => api.delete<ApiResponse<PromoCode>>(`/promo-codes/${id}`),
 };

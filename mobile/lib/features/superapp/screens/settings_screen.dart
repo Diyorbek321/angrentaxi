@@ -2,6 +2,7 @@ import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/core/push/push_notifications.dart';
 import 'package:angren_taxi/core/storage/local_storage.dart';
 import 'package:angren_taxi/features/superapp/screens/support_screen.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
@@ -36,12 +37,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await sl<LocalStorage>().savePushEnabled(enabled);
 
     try {
-      final token = enabled ? await FirebaseMessaging.instance.getToken() : null;
-      await sl<ApiClient>().post(
-        ApiEndpoints.registerFcmToken,
-        // A null token unregisters this device server-side.
-        data: {'fcmToken': token},
-      );
+      final push = PushNotifications.instance;
+      if (enabled) {
+        await push.ensurePermission();
+        final token = await FirebaseMessaging.instance.getToken();
+        if (token != null) {
+          // ⚠️ Kalit `token` — ilgari `fcmToken` yuborilardi va server
+          // (`forbidNonWhitelisted`) har safar 400 qaytarardi.
+          await sl<ApiClient>().post(
+            ApiEndpoints.registerFcmToken,
+            data: {'token': token, 'platform': 'android', 'role': 'passenger'},
+          );
+        }
+      } else {
+        // Serverda tokenni o'chiradigan endpoint yo'q — qurilmadagi FCM
+        // tokeni o'chiriladi, shunda eski tokenga yuborilgan push yetmaydi.
+        await FirebaseMessaging.instance.deleteToken();
+        push.forgetSentToken();
+      }
     } catch (e) {
       debugPrint('[Settings] push toggle sync failed: $e');
       if (mounted) {

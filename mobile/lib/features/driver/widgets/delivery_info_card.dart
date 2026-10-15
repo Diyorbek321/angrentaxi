@@ -1,5 +1,6 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
+import 'package:angren_taxi/shared/models/address_details.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:flutter/material.dart';
@@ -114,8 +115,53 @@ class DeliveryInfoCard extends StatelessWidget {
                 ),
             ],
           ),
+          // Mijoz manzili tafsilotlari — kuryer eshikni topishi uchun
+          // (yetkazishga ketayotganda va taklifda).
+          if (stage != DeliveryCardStage.pickup && delivery.addressDetails != null) ...[
+            const SizedBox(height: kSpace3),
+            _AddressDetailsLines(details: delivery.addressDetails!),
+          ],
         ],
       ),
+    );
+  }
+}
+
+class _AddressDetailsLines extends StatelessWidget {
+  const _AddressDetailsLines({required this.details});
+  final AddressDetails details;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final d = details;
+    final parts = <String>[
+      if (d.entrance != null) '${l10n.saAddressEntrance} ${d.entrance}',
+      if (d.floor != null) '${l10n.saAddressFloor} ${d.floor}',
+      if (d.apartment != null) '${l10n.saAddressApartment} ${d.apartment}',
+      if (d.intercom != null) '${l10n.saAddressIntercom} ${d.intercom}',
+    ];
+    const style = TextStyle(fontSize: kFontBody, color: kInk, fontWeight: FontWeight.w600);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(Icons.apartment_rounded, color: kInkMuted, size: 22),
+        const SizedBox(width: kSpace2),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (parts.isNotEmpty) Text(parts.join(' · '), style: style),
+              if (d.landmark != null) Text('${l10n.saAddressLandmark}: ${d.landmark}', style: style),
+              if (d.courierNote != null)
+                Text(
+                  '${l10n.saAddressCourierNote}: ${d.courierNote}',
+                  style: const TextStyle(fontSize: kFontLabel, color: kInkMuted),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

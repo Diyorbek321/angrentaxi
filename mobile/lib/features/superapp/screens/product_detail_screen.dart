@@ -19,7 +19,8 @@ class ProductDetailScreen extends StatelessWidget {
 
   String get _id => marketProduct.id;
   String get _name => marketProduct.name;
-  double get _price => marketProduct.price;
+  // Aksiya bo'lsa — chegirmali narx (spec v5 §4); savatga ham shu tushadi.
+  double get _price => marketProduct.effectivePrice;
   String get _unit => marketProduct.unit;
   Color get _color => marketProduct.color;
   IconData get _icon => marketProduct.icon;

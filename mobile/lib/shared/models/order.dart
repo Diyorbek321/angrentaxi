@@ -1,4 +1,5 @@
 import 'package:angren_taxi/l10n/l10n.dart';
+import 'package:angren_taxi/shared/models/address_details.dart';
 import 'package:angren_taxi/shared/models/driver.dart';
 import 'package:angren_taxi/shared/models/parcel_info.dart';
 import 'package:angren_taxi/shared/models/trip_option.dart';
@@ -114,9 +115,14 @@ class DeliveryInfo extends Equatable {
     this.payVendor = 0,
     this.vendorPhone,
     this.customerPhone,
+    this.addressDetails,
   });
 
   final String vendorName;
+
+  /// Podyezd/qavat/xonadon/domofon/mo'ljal/izoh — mijoz checkout'da
+  /// kiritadi (docs/specs/food-market-ux-v5.md §3, `details.addressDetails`).
+  final AddressDetails? addressDetails;
   final String? vendorPhone;
   final String? customerPhone;
   final int itemsCount;
@@ -163,12 +169,13 @@ class DeliveryInfo extends Equatable {
         final num n => n.round(),
         _ => 0,
       },
+      addressDetails: AddressDetails.tryParse(details['addressDetails']),
     );
   }
 
   @override
   List<Object?> get props =>
-      [vendorName, vendorPhone, customerPhone, itemsCount, collectCash, payVendor];
+      [vendorName, vendorPhone, customerPhone, itemsCount, collectCash, payVendor, addressDetails];
 }
 
 class OrderLocation extends Equatable {

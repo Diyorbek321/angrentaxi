@@ -27,6 +27,9 @@ class SuperappProvider extends ChangeNotifier {
 
   final ApiClient _apiClient;
 
+  /// Checkout'dagi promokod tekshiruvi uchun (`PromoCodeController`).
+  ApiClient get apiClient => _apiClient;
+
   final List<CartItem> _cart = [];
   double? _walletBalance;
   bool _walletLoading = false;

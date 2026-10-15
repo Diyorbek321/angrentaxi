@@ -9,6 +9,7 @@ import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { VendorCashStrip } from '@/components/VendorCashStrip';
 import type { VendorSettlementContext } from '@/lib/vendor-cash';
 import { CourierStrip } from './CourierStrip';
+import { AddressShortLine, CustomerCancelNotice, DiscountLines } from './OrderExtras';
 import { PrepTimerChip } from './PrepTimerChip';
 
 export interface OrderCardProps {
@@ -107,6 +108,8 @@ export function OrderCard({
         <MapPin size={13} className="shrink-0" aria-hidden />
         <span className="truncate">{order.deliveryAddress || '—'}</span>
       </p>
+      <AddressShortLine details={order.addressDetails} className="mt-0.5" />
+      <CustomerCancelNotice order={order} className="mt-3" />
 
       {/* Taomlar ro'yxati — oshxona bosmasdan ko'radi. */}
       <ul className={cn('mt-3 flex flex-col gap-1 border-t border-line pt-3', kiosk ? 'text-h3 font-medium' : 'text-body')}>
@@ -134,6 +137,8 @@ export function OrderCard({
           <p className="mt-0.5 text-body text-ink">{order.rejectReason}</p>
         </div>
       )}
+
+      <DiscountLines order={order} className="mt-3 border-t border-line pt-3" />
 
       <div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-3">
         <span className="inline-flex items-center gap-1.5 text-[13px] text-muted">

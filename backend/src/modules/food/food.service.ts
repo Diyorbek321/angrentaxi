@@ -7,6 +7,7 @@ import {
   OnModuleInit,
   Optional,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThanOrEqual, Not, Repository } from 'typeorm';
 import { Restaurant, RestaurantStatus, WorkingHoursDay } from '../../database/entities/restaurant.entity';
@@ -37,6 +38,19 @@ import { DeliveryEvent, DeliveryEventsService } from '../delivery/delivery-event
 import { checkoutDeliveryFee, deliveryRideDetails } from '../delivery/delivery-ride-details';
 import { assertCashWithinLimit } from '../delivery/vendor-cash';
 import { courierTracking } from '../delivery/delivery-tracking';
+import { PromotionsService } from '../promotions/promotions.service';
+import { PromoCodesService } from '../promo-codes/promo-codes.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { Promotion, PromotionVendorType } from '../../database/entities/promotion.entity';
+import { priceCatalogItem, priceOrderLines, strongestPromotion } from '../promotions/promotion-pricing';
+import {
+  cancelNotAllowed,
+  cleanCancelReason,
+  customerCanCancel,
+  withCustomerFields,
+} from '../delivery/vendor-checkout';
+import { creditPromoCompensation } from '../delivery/promo-compensation';
+import { normalizeAddressDetails } from '../../common/dto/address-details.dto';
 
 // Rolling window for the analytics that cannot be expressed as a single SQL
 // aggregate (per-dish totals live in a jsonb `items` column), plus a hard row
@@ -86,6 +100,10 @@ export class FoodService implements OnModuleInit {
     private readonly tariffsService: TariffsService,
     private readonly settingsService: SettingsService,
     @Optional() private readonly deliveryEvents?: DeliveryEventsService,
+    // v5 (docs/specs/food-market-ux-v5.md): aksiyalar, promokod, push.
+    @Optional() private readonly promotionsService?: PromotionsService,
+    @Optional() private readonly promoCodesService?: PromoCodesService,
+    @Optional() private readonly notificationsService?: NotificationsService,
   ) {}
 
   onModuleInit(): void {
@@ -150,8 +168,27 @@ export class FoodService implements OnModuleInit {
 
   // ---------- vendor: dishes ----------
 
-  listDishes(restaurantId: string): Promise<Dish[]> {
-    return this.dishRepo.find({ where: { restaurantId }, order: { createdAt: 'DESC' } });
+  /** Panel ro'yxati — har taomda vitrinadagi kabi `finalPrice` / `discount` (spec §4). */
+  async listDishes(restaurantId: string) {
+    const [dishes, promotions] = await Promise.all([
+      this.dishRepo.find({ where: { restaurantId }, order: { createdAt: 'DESC' } }),
+      this.activePromotions(restaurantId),
+    ]);
+    return dishes.map((dish) => this.withDishPricing(dish, promotions));
+  }
+
+  private activePromotions(restaurantId: string): Promise<Promotion[]> {
+    return this.promotionsService
+      ? this.promotionsService.activeForVendor(PromotionVendorType.RESTAURANT, restaurantId)
+      : Promise.resolve([]);
+  }
+
+  private withDishPricing(dish: Dish, promotions: readonly Promotion[]) {
+    const priced = priceCatalogItem(
+      { id: dish.id, categoryId: dish.categoryId, price: Number(dish.price) },
+      promotions,
+    );
+    return { ...dish, finalPrice: priced.finalPrice, discount: priced.discount };
   }
 
   createDish(restaurantId: string, dto: CreateDishDto): Promise<Dish> {
@@ -219,8 +256,16 @@ export class FoodService implements OnModuleInit {
     if (order.status !== FoodOrderStatus.NEW) {
       throw new BadRequestException('Only new orders can be accepted');
     }
-    order.status = FoodOrderStatus.PREPARING;
-    const saved = await this.orderRepo.save(order);
+    // Shartli yozuv: mijoz shu lahzada bekor qilgan bo'lsa (v5 §1), qabul
+    // bekor qilingan buyurtmani "tiriltirmasin".
+    const result = await this.orderRepo.update(
+      { id: order.id, status: FoodOrderStatus.NEW },
+      { status: FoodOrderStatus.PREPARING },
+    );
+    if (!result.affected) {
+      throw new ConflictException('Order status has already changed — refresh the board');
+    }
+    const saved: FoodOrder = { ...order, status: FoodOrderStatus.PREPARING };
     this.realtimeGateway.emitToUser(saved.customerId, 'food:order:status', {
       orderId: saved.id,
       status: saved.status,
@@ -272,7 +317,7 @@ export class FoodService implements OnModuleInit {
 
     if (next === FoodOrderStatus.DELIVERED) {
       const restaurant = await this.restaurantRepo.findOneOrFail({ where: { id: restaurantId } });
-      await this.settleRestaurantEarnings(restaurant, saved);
+      await this.settleDelivered(restaurant, saved);
     }
 
     return this.withDelivery(saved);
@@ -283,6 +328,26 @@ export class FoodService implements OnModuleInit {
   // OrdersService.completeTrip's driver payout, but deliberately skips the
   // gross CREDIT leg for cash orders so a restaurant can't withdraw a net
   // payout for money it already collected directly).
+  private async settleDelivered(restaurant: Restaurant, order: FoodOrder): Promise<void> {
+    await this.settleRestaurantEarnings(restaurant, order);
+    // Promokod (platforma hisobidan): naqdni olgan tomonga farq qaytariladi.
+    const isCash = order.paymentMethod === FoodPaymentMethod.CASH;
+    if (!isCash || !(Number(order.promoDiscount ?? 0) > 0)) return;
+    let collectorUserId: string | null = restaurant.ownerUserId;
+    if (order.deliveryOrderId) {
+      const ride = await this.ordersService.findByIdOrThrow(order.deliveryOrderId);
+      collectorUserId = ride.driverId ?? null;
+    }
+    await creditPromoCompensation(this.transactionRepo, {
+      kind: 'food',
+      vendorOrderId: order.id,
+      isCash,
+      promoDiscount: Number(order.promoDiscount),
+      collectorUserId,
+      collectorIsCourier: Boolean(order.deliveryOrderId),
+    });
+  }
+
   private async settleRestaurantEarnings(restaurant: Restaurant, order: FoodOrder): Promise<void> {
     // Hamyon rejimida (e-tijorat qonuni 23-modda) tovar summasi va komissiya
     // olib ketishda allaqachon daftarga yozilgan
@@ -329,7 +394,11 @@ export class FoodService implements OnModuleInit {
     }
     order.status = FoodOrderStatus.CANCELLED;
     order.rejectReason = reason;
+    order.cancelledBy = 'vendor';
+    order.cancelReason = cleanCancelReason(reason);
+    order.cancelledAt = new Date();
     const saved = await this.orderRepo.save(order);
+    await this.releasePromo(saved);
     this.realtimeGateway.emitToUser(saved.customerId, 'food:order:status', {
       orderId: saved.id,
       status: saved.status,
@@ -380,6 +449,8 @@ export class FoodService implements OnModuleInit {
             // Tovar summasi — kuryer do'konga shuni to'laydi (`vendor-cash.ts`).
             itemsTotal: Number(order.totalPrice) - checkoutDeliveryFee(order),
             isCash: order.paymentMethod === FoodPaymentMethod.CASH,
+            promoDiscount: Number(order.promoDiscount ?? 0),
+            addressDetails: order.addressDetails ?? null,
           }),
         },
       },
@@ -440,7 +511,7 @@ export class FoodService implements OnModuleInit {
       const restaurant = await this.restaurantRepo.findOneOrFail({
         where: { id: order.restaurantId },
       });
-      await this.settleRestaurantEarnings(restaurant, { ...order, status: FoodOrderStatus.DELIVERED });
+      await this.settleDelivered(restaurant, { ...order, status: FoodOrderStatus.DELIVERED });
       for (const userId of [order.customerId, restaurant.ownerUserId]) {
         this.realtimeGateway.emitToUser(userId, 'food:order:status', {
           orderId: order.id,
@@ -476,13 +547,13 @@ export class FoodService implements OnModuleInit {
 
   private async withDelivery(order: FoodOrder) {
     if (!order.deliveryOrderId) {
-      return { ...order, delivery: null };
+      return { ...withCustomerFields(order), delivery: null };
     }
     try {
       const deliveryOrder = await this.ordersService.findByIdOrThrow(order.deliveryOrderId);
       // Vendor panels read orderId/status/driverName/driverPhone; the customer
       // app also uses the car and the two points for its live courier map.
-      return { ...order, delivery: courierTracking(deliveryOrder) };
+      return { ...withCustomerFields(order), delivery: courierTracking(deliveryOrder) };
     } catch (err) {
       // A genuine failure here (DB down, bad join) used to be indistinguishable
       // from "no courier assigned yet": both returned delivery: null, so the
@@ -492,7 +563,7 @@ export class FoodService implements OnModuleInit {
       this.logger.error(
         `Failed to resolve delivery for food order ${order.id}: ${(err as Error).message}`,
       );
-      return { ...order, delivery: null };
+      return { ...withCustomerFields(order), delivery: null };
     }
   }
 
@@ -644,23 +715,61 @@ export class FoodService implements OnModuleInit {
 
   // ---------- storefront (customer) ----------
 
-  listActiveRestaurants(): Promise<Restaurant[]> {
-    return this.restaurantRepo.find({ where: { status: RestaurantStatus.ACTIVE }, order: { name: 'ASC' } });
+  /** Har restoranga `activePromotion` (eng kattasi) yoki null (spec §4). */
+  async listActiveRestaurants() {
+    const [restaurants, promotions] = await Promise.all([
+      this.restaurantRepo.find({ where: { status: RestaurantStatus.ACTIVE }, order: { name: 'ASC' } }),
+      this.promotionsService
+        ? this.promotionsService.activeByVendor(PromotionVendorType.RESTAURANT)
+        : Promise.resolve(new Map<string, Promotion[]>()),
+    ]);
+    return restaurants.map((restaurant) => ({
+      ...restaurant,
+      activePromotion: strongestPromotion(promotions.get(restaurant.id) ?? []),
+    }));
   }
 
+  /**
+   * Restoran tafsiloti (spec §4–§5): `categories: [{ id, name, sortOrder,
+   * itemCount }]` (bo'sh kategoriyalarsiz), taomlarda `price` (asl),
+   * `finalPrice`, `discount`, `categoryId`; restoranda `promotions` (faol) va
+   * `activePromotion`. `promotions` qulaylik uchun yuqori darajada ham bor.
+   */
   async getRestaurantDetail(restaurantId: string) {
     const restaurant = await this.restaurantRepo.findOne({ where: { id: restaurantId } });
     if (!restaurant) {
       throw new NotFoundException('Restaurant not found');
     }
-    const [categories, dishes] = await Promise.all([
+    const [categories, dishes, promotions] = await Promise.all([
       this.categoryRepo.find({ where: { restaurantId }, order: { sortOrder: 'ASC' } }),
       this.dishRepo.find({ where: { restaurantId, isAvailable: true } }),
+      this.activePromotions(restaurantId),
     ]);
-    return { restaurant, categories, dishes };
+    const counts = new Map<string, number>();
+    for (const dish of dishes) {
+      if (dish.categoryId) counts.set(dish.categoryId, (counts.get(dish.categoryId) ?? 0) + 1);
+    }
+    return {
+      restaurant: { ...restaurant, promotions, activePromotion: strongestPromotion(promotions) },
+      categories: categories
+        .filter((category) => (counts.get(category.id) ?? 0) > 0)
+        .map((category) => ({
+          id: category.id,
+          name: category.name,
+          sortOrder: category.sortOrder,
+          itemCount: counts.get(category.id) ?? 0,
+        })),
+      dishes: dishes.map((dish) => this.withDishPricing(dish, promotions)),
+      promotions,
+    };
   }
 
-  async createOrder(customerId: string, customerPhone: string | null, dto: CreateFoodOrderDto): Promise<FoodOrder> {
+  /**
+   * Narx serverda (spec §2, §4): avval aksiya (sotuvchi hisobidan, qatorga
+   * `price = finalPrice`, `unitPrice`, `discountAmount`), keyin promokod
+   * (platforma hisobidan, `promoDiscount`, `totalPrice` ga kirmaydi).
+   */
+  async createOrder(customerId: string, customerPhone: string | null, dto: CreateFoodOrderDto) {
     const restaurant = await this.restaurantRepo.findOne({ where: { id: dto.restaurantId } });
     if (!restaurant) {
       throw new NotFoundException('Restaurant not found');
@@ -669,7 +778,7 @@ export class FoodService implements OnModuleInit {
     const dishes = await this.dishRepo.find({ where: { restaurantId: restaurant.id } });
     const byId = new Map(dishes.map((d) => [d.id, d]));
 
-    const items = dto.items.map((input) => {
+    const lines = dto.items.map((input) => {
       const dish = byId.get(input.dishId);
       if (!dish) {
         throw new NotFoundException(`Dish ${input.dishId} not found in this restaurant`);
@@ -677,20 +786,32 @@ export class FoodService implements OnModuleInit {
       if (!dish.isAvailable) {
         throw new ConflictException(`"${dish.name}" is not available`);
       }
-      return {
-        dishId: dish.id,
-        name: dish.name,
-        qty: input.qty,
-        price: Number(dish.price),
-        prepMinutes: dish.prepMinutes,
-      };
+      return { dish, qty: input.qty };
     });
+
+    const priced = priceOrderLines(
+      lines.map(({ dish, qty }) => ({
+        item: { id: dish.id, categoryId: dish.categoryId, price: Number(dish.price) },
+        qty,
+      })),
+      await this.activePromotions(restaurant.id),
+    );
+    const items = lines.map(({ dish, qty }, index) => ({
+      dishId: dish.id,
+      name: dish.name,
+      qty,
+      // Undiriladigan narx — komissiya, kuryer to'lovi va fiskal chek shundan.
+      price: priced.lines[index].finalPrice,
+      unitPrice: priced.lines[index].unitPrice,
+      discountAmount: priced.lines[index].discountPerUnit,
+      prepMinutes: dish.prepMinutes,
+    }));
 
     // The delivery fee is part of what the customer owes, so it belongs in
     // the recorded total. It used to exist only as a client-side constant in
     // the app, which meant the checkout screen showed one figure and the
     // order row, the vendor board and the receipt all showed a smaller one.
-    const itemsTotal = items.reduce((sum, i) => sum + i.qty * i.price, 0);
+    const itemsTotal = priced.itemsTotal;
     const deliveryFee = await this.settingsService.getDeliveryFee();
     const totalPrice = itemsTotal + deliveryFee;
     // Kuryer tovarni restorandan o'z pulidan oladi — naqd chegaralangan
@@ -700,28 +821,143 @@ export class FoodService implements OnModuleInit {
       totalPrice,
       await this.settingsService.getMaxCashVendorOrder(),
     );
-    const order = await this.orderRepo.save(
-      this.orderRepo.create({
-        restaurantId: restaurant.id,
-        customerId,
-        items,
-        totalPrice,
-        deliveryAddress: dto.deliveryAddress,
-        deliveryLat: dto.deliveryLat,
-        deliveryLng: dto.deliveryLng,
-        customerPhone,
-        paymentMethod: dto.paymentMethod ?? FoodPaymentMethod.CASH,
-        note: dto.note ?? null,
-        status: FoodOrderStatus.NEW,
-      }),
-    );
+
+    const promo = await this.resolvePromo(customerId, dto.promoCode, itemsTotal);
+    const orderId = randomUUID();
+    if (promo) {
+      await this.requirePromoCodes().claimForVendorOrder(promo.promoCodeId, customerId, { kind: 'food', id: orderId });
+    }
+
+    let order: FoodOrder;
+    try {
+      order = await this.orderRepo.save(
+        this.orderRepo.create({
+          id: orderId,
+          restaurantId: restaurant.id,
+          customerId,
+          items,
+          totalPrice,
+          deliveryAddress: dto.deliveryAddress,
+          deliveryLat: dto.deliveryLat,
+          deliveryLng: dto.deliveryLng,
+          customerPhone,
+          paymentMethod: dto.paymentMethod ?? FoodPaymentMethod.CASH,
+          note: dto.note ?? null,
+          status: FoodOrderStatus.NEW,
+          promoCodeId: promo?.promoCodeId ?? null,
+          promoCode: promo?.code ?? null,
+          promoDiscount: promo?.discount ?? 0,
+          promotionDiscount: priced.promotionDiscount,
+          addressDetails: normalizeAddressDetails(dto.addressDetails),
+          cancelledBy: null,
+          cancelReason: null,
+          cancelledAt: null,
+        }),
+      );
+    } catch (err) {
+      if (promo) {
+        await this.requirePromoCodes().releaseForVendorOrder(promo.promoCodeId, customerId, { kind: 'food', id: orderId });
+      }
+      throw err;
+    }
 
     this.realtimeGateway.emitToUser(restaurant.ownerUserId, 'food:order:created', {
       orderId: order.id,
       restaurantId: restaurant.id,
     });
 
-    return order;
+    return withCustomerFields(order);
+  }
+
+  private requirePromoCodes(): PromoCodesService {
+    if (!this.promoCodesService) {
+      throw new BadRequestException('Promo code not found');
+    }
+    return this.promoCodesService;
+  }
+
+  /** Promokod — tovar summasiga (aksiyadan keyin, yetkazishsiz); chegirma tovar summasidan oshmaydi. */
+  private async resolvePromo(
+    customerId: string,
+    code: string | undefined,
+    itemsTotal: number,
+  ): Promise<{ promoCodeId: string; code: string; discount: number } | null> {
+    const trimmed = code?.trim();
+    if (!trimmed) return null;
+    const result = await this.requirePromoCodes().validate(trimmed, customerId, itemsTotal, {
+      serviceType: ServiceType.FOOD,
+    });
+    return {
+      promoCodeId: result.promoCodeId,
+      code: trimmed.toUpperCase(),
+      discount: Math.min(itemsTotal, Math.max(0, Math.round(result.discountAmount))),
+    };
+  }
+
+  private async releasePromo(order: Pick<FoodOrder, 'id' | 'promoCodeId' | 'customerId'>): Promise<void> {
+    if (!order.promoCodeId || !this.promoCodesService) return;
+    try {
+      await this.promoCodesService.releaseForVendorOrder(order.promoCodeId, order.customerId, {
+        kind: 'food',
+        id: order.id,
+      });
+    } catch (err) {
+      this.logger.error(`Promokod bo'shatilmadi (food ${order.id}): ${(err as Error).message}`);
+    }
+  }
+
+  /**
+   * Mijoz bekor qilishi (spec §1): faqat restoran QABUL QILMAGAN (`new`)
+   * buyurtma. Shartli yozuv — restoran shu lahzada qabul qilsa, yutqazgan
+   * tomon 409 oladi.
+   */
+  async cancelByCustomer(customerId: string, id: string, reason?: string) {
+    const order = await this.orderRepo.findOne({ where: { id, customerId } });
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+    if (!customerCanCancel(order)) {
+      throw cancelNotAllowed('food');
+    }
+    const changes = {
+      status: FoodOrderStatus.CANCELLED,
+      cancelledBy: 'customer' as const,
+      cancelReason: cleanCancelReason(reason),
+      cancelledAt: new Date(),
+    };
+    const result = await this.orderRepo.update({ id, customerId, status: FoodOrderStatus.NEW }, changes);
+    if (!result.affected) {
+      throw cancelNotAllowed('food');
+    }
+    const saved: FoodOrder = { ...order, ...changes };
+    await this.releasePromo(saved);
+
+    const restaurant = await this.restaurantRepo.findOne({ where: { id: order.restaurantId } });
+    if (restaurant) {
+      this.realtimeGateway.emitToUser(restaurant.ownerUserId, 'food:order:cancelled', {
+        orderId: saved.id,
+        cancelledBy: 'customer',
+        cancelReason: saved.cancelReason,
+      });
+      await this.pushVendorCancelled(restaurant.ownerUserId, saved);
+    }
+    this.realtimeGateway.emitToUser(customerId, 'food:order:status', {
+      orderId: saved.id,
+      status: saved.status,
+    });
+    return this.withDelivery(saved);
+  }
+
+  private async pushVendorCancelled(ownerUserId: string, order: FoodOrder): Promise<void> {
+    if (!this.notificationsService) return;
+    try {
+      const owner = await this.usersService.findById(ownerUserId);
+      if (owner) {
+        await this.notificationsService.notifyVendorOrderCancelled(owner, 'food', order.id, order.cancelReason);
+      }
+    } catch (err) {
+      this.logger.warn(`Bekor qilish push'i yuborilmadi (food ${order.id}): ${(err as Error).message}`);
+    }
   }
 
   /**

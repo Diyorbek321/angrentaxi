@@ -16,6 +16,8 @@ import type { WalletReversedEvent, WalletSettledEvent } from '@/lib/vendor-settl
 /** Backend sotuvchiga yuboradigan, ro'yxatni yangilashni talab qiladigan hodisalar. */
 export const VENDOR_REFRESH_EVENTS = [
   'market:order:created',
+  // Mijoz buyurtmani bekor qildi (spec v5 §1) — nom backend bilan kelishiladi.
+  'market:order:cancelled',
   'market:delivery:failed',
   'vendor:cash_paid',
   'vendor:cash_dispute_resolved',

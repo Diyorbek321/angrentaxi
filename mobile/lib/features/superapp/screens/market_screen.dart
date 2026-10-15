@@ -4,6 +4,7 @@ import 'package:angren_taxi/features/superapp/screens/product_detail_screen.dart
 import 'package:angren_taxi/features/superapp/state/market_provider.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/features/superapp/widgets/deals.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/market_product.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
@@ -30,6 +31,7 @@ class _MarketScreenState extends State<MarketScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final market = context.read<MarketProvider>();
+      market.loadActivePromotions();
       await market.loadStore(storeId: widget.storeId);
       if (mounted && market.store != null) {
         context.read<SuperappProvider>().setActiveContext('market', market.store!.id);
@@ -39,7 +41,7 @@ class _MarketScreenState extends State<MarketScreen> {
 
   void _add(BuildContext context, MarketProduct p) {
     context.read<SuperappProvider>().addToCart(
-          CartItem(id: p.id, name: p.name, price: p.price, qty: 1, icon: p.icon, color: p.color, imageUrl: p.imageUrl),
+          CartItem(id: p.id, name: p.name, price: p.effectivePrice, qty: 1, icon: p.icon, color: p.color, imageUrl: p.imageUrl),
         );
   }
 
@@ -108,9 +110,13 @@ class _MarketScreenState extends State<MarketScreen> {
                         child: Icon(Icons.search_rounded, size: 21, color: agSubtle),
                       ),
                       const SizedBox(width: kSpace2),
-                      Text(context.l10n.saMarketSearchHint,
+                      Expanded(
+                        child: Text(context.l10n.saMarketSearchHint,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                               fontSize: kFontBody, fontWeight: FontWeight.w600, color: agSubtle)),
+                      ),
                     ],
                   ),
                 ),
@@ -137,10 +143,22 @@ class _MarketScreenState extends State<MarketScreen> {
                         children: [
                           CustomScrollView(
                             slivers: [
+                              // Chegirmalar — ENG TEPADA (bo'sh bo'lsa ko'rinmaydi).
+                              SliverToBoxAdapter(
+                                child: DealsCarousel(
+                                  deals: market.activePromotions,
+                                  onTap: (deal) {
+                                    if (deal.vendorId != market.store?.id) {
+                                      market.loadStore(storeId: deal.vendorId);
+                                    }
+                                  },
+                                ),
+                              ),
                               if (market.categories.isNotEmpty)
                                 SliverToBoxAdapter(
                                   child: SizedBox(
-                                    height: 92,
+                                    // Matn shkalasi bilan o'sadi — 1.3x da nom kesilmaydi.
+                                    height: 88 + 18 * MediaQuery.textScalerOf(context).scale(1),
                                     child: ListView.separated(
                                       scrollDirection: Axis.horizontal,
                                       padding: const EdgeInsets.fromLTRB(
@@ -163,11 +181,17 @@ class _MarketScreenState extends State<MarketScreen> {
                                                   style: const TextStyle(fontSize: 24)),
                                             ),
                                             const SizedBox(height: kSpace2),
-                                            Text(c.name,
+                                            SizedBox(
+                                              width: 64,
+                                              child: Text(c.name,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                textAlign: TextAlign.center,
                                                 style: const TextStyle(
                                                     fontSize: kFontMicro,
                                                     fontWeight: FontWeight.w700,
                                                     color: agText)),
+                                            ),
                                           ],
                                         );
                                       },
@@ -188,11 +212,13 @@ class _MarketScreenState extends State<MarketScreen> {
                               SliverPadding(
                                 padding: const EdgeInsets.fromLTRB(kSpace4, 0, kSpace4, 110),
                                 sliver: SliverGrid(
-                                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 2,
+                                  // Planshetda ko'proq ustun; karta balandligi matn
+                                  // shkalasiga moslashadi (qat'iy nisbat 1.3x da toshardi).
+                                  gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                                    maxCrossAxisExtent: 220,
                                     mainAxisSpacing: kSpace3,
                                     crossAxisSpacing: kSpace3,
-                                    childAspectRatio: 0.78,
+                                    mainAxisExtent: 128 + 108 * MediaQuery.textScalerOf(context).scale(1),
                                   ),
                                   delegate: SliverChildBuilderDelegate(
                                     (context, i) => _ProductCard(
@@ -260,9 +286,10 @@ class _ProductCard extends StatelessWidget {
               Expanded(
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(kRadiusSm),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: CatalogImage(
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                    CatalogImage(
                       imageUrl: p.imageUrl,
                       placeholder: Container(
                         alignment: Alignment.center,
@@ -272,6 +299,13 @@ class _ProductCard extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (p.hasDiscount && p.discount != null)
+                      Positioned(
+                        left: kSpace1,
+                        top: kSpace1,
+                        child: DiscountBadge(label: p.discount!.shortLabel, dense: true),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -288,11 +322,11 @@ class _ProductCard extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: Text(Formatters.formatSom(p.price),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w800, fontSize: kFontLabel, color: agText)),
+                    child: PriceTag(
+                      price: p.effectivePrice,
+                      oldPrice: p.hasDiscount ? p.price : null,
+                      fontSize: kFontLabel,
+                    ),
                   ),
                   Semantics(
                     button: true,

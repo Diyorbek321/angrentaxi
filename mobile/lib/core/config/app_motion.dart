@@ -90,7 +90,19 @@ class SharedAxisPageTransitionsBuilder extends PageTransitionsBuilder {
   ) {
     if (AppMotion.reduced(context)) return child;
 
-    // Kiruvchi ekran: o'ngdan 30dp + fade in (oxirgi 70% da).
+    // ⚠️ "QORA CHAQNASH" ILDIZI (2026-10-16 qurilma sinovi).
+    //
+    // Ilgari chiquvchi ekran animatsiyaning DASTLABKI 30% ida 0 gacha
+    // o'chardi, kiruvchi ekran esa faqat 30% dan KEYIN paydo bo'la
+    // boshlardi. Ikkalasi bitta kontrollerda: t≈0.3 atrofida IKKALA sahifa
+    // ham shaffof edi, ularning ostida esa hech narsa yo'q — Flutter
+    // yuzasi qora rangda tozalanadi (Android oynasi foni ham `Theme.Black`
+    // edi). Natija: har bir o'tishda ekran ~100 ms qorayib, keyin ochilardi.
+    //
+    // Endi chiquvchi ekran SHAFFOFLANMAYDI (faqat yengil siljiydi va
+    // kiruvchi ekran ostida qoladi), kiruvchi ekran esa birinchi kadrdan
+    // paydo bo'la boshlaydi. Har bir lahzada kamida bitta sahifa to'liq
+    // ko'rinadi — orada bo'sh kadr yo'q.
     final slideIn = Tween<Offset>(
       begin: const Offset(0.06, 0),
       end: Offset.zero,
@@ -98,10 +110,10 @@ class SharedAxisPageTransitionsBuilder extends PageTransitionsBuilder {
 
     final fadeIn = CurvedAnimation(
       parent: animation,
-      curve: const Interval(0.3, 1, curve: Curves.easeOut),
+      curve: const Interval(0, 0.6, curve: Curves.easeOut),
     );
 
-    // Chiquvchi (ostidagi) ekran: chapga 30dp + fade out (dastlabki 30% da).
+    // Chiquvchi (ostidagi) ekran: faqat chapga 30dp — shaffoflik yo'q.
     final slideOut = Tween<Offset>(
       begin: Offset.zero,
       end: const Offset(-0.06, 0),
@@ -109,21 +121,11 @@ class SharedAxisPageTransitionsBuilder extends PageTransitionsBuilder {
       CurvedAnimation(parent: secondaryAnimation, curve: AppMotion.emphasized),
     );
 
-    final fadeOut = Tween<double>(begin: 1, end: 0).animate(
-      CurvedAnimation(
-        parent: secondaryAnimation,
-        curve: const Interval(0, 0.3, curve: Curves.easeIn),
-      ),
-    );
-
     return SlideTransition(
       position: slideOut,
-      child: FadeTransition(
-        opacity: fadeOut,
-        child: SlideTransition(
-          position: slideIn,
-          child: FadeTransition(opacity: fadeIn, child: child),
-        ),
+      child: SlideTransition(
+        position: slideIn,
+        child: FadeTransition(opacity: fadeIn, child: child),
       ),
     );
   }
@@ -164,7 +166,8 @@ Route<T> fadeThroughRoute<T>(Widget page, {String? name}) {
       if (AppMotion.reduced(context)) return child;
       final fade = CurvedAnimation(
         parent: animation,
-        curve: const Interval(0.35, 1, curve: Curves.easeOut),
+        // 0 dan — kechikish oralig'ida ekran bo'sh turmasin.
+        curve: const Interval(0, 0.65, curve: Curves.easeOut),
       );
       final scale = Tween<double>(begin: 0.96, end: 1).animate(
         CurvedAnimation(parent: animation, curve: AppMotion.emphasized),

@@ -6,11 +6,14 @@ import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
 import 'package:angren_taxi/core/storage/json_cache.dart';
 import 'package:angren_taxi/features/superapp/models/cart_item.dart';
+import 'package:angren_taxi/features/superapp/state/vendor_order_actions.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
+import 'package:angren_taxi/shared/models/address_details.dart';
 import 'package:angren_taxi/shared/models/market_category.dart';
 import 'package:angren_taxi/shared/models/market_order.dart';
 import 'package:angren_taxi/shared/models/market_product.dart';
 import 'package:angren_taxi/shared/models/market_store.dart';
+import 'package:angren_taxi/shared/models/vendor_promotion.dart';
 import 'package:flutter/foundation.dart';
 
 enum MarketProviderState { idle, loading, success, error }
@@ -43,6 +46,7 @@ class MarketProvider extends ChangeNotifier {
   List<MarketProduct> _products = [];
   MarketOrder? _activeOrder;
   List<MarketOrder> _orderHistory = [];
+  List<ActivePromotion> _activePromotions = [];
 
   MarketProviderState get state => _state;
   String? get error => _error;
@@ -52,6 +56,22 @@ class MarketProvider extends ChangeNotifier {
   MarketOrder? get activeOrder => _activeOrder;
   List<MarketOrder> get orderHistory => List.unmodifiable(_orderHistory);
   bool get hasActiveOrder => _activeOrder != null && _activeOrder!.status.isActive;
+
+  /// Market bosh ekranidagi "Chegirmalar" lentasi (spec v5 §4).
+  List<ActivePromotion> get activePromotions => _activePromotions;
+
+  AddressDetails? get lastAddressDetails {
+    final orders = [..._orderHistory]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    for (final o in orders) {
+      if (o.addressDetails != null) return o.addressDetails;
+    }
+    return null;
+  }
+
+  Future<void> loadActivePromotions() async {
+    _activePromotions = await fetchActivePromotions(_apiClient, 'market');
+    notifyListeners();
+  }
 
   void _setState(MarketProviderState state) {
     _state = state;
@@ -139,6 +159,8 @@ class MarketProvider extends ChangeNotifier {
     required double deliveryLat,
     required double deliveryLng,
     String paymentMethod = 'cash',
+    String? promoCode,
+    AddressDetails? addressDetails,
   }) async {
     if (_store == null || items.isEmpty) return null;
 
@@ -146,14 +168,18 @@ class MarketProvider extends ChangeNotifier {
     try {
       final response = await _apiClient.post(
         ApiEndpoints.marketOrders,
-        data: {
-          'storeId': _store!.id,
-          'items': items.map((c) => {'productId': c.id, 'qty': c.qty}).toList(),
-          'deliveryAddress': deliveryAddress,
-          'deliveryLat': deliveryLat,
-          'deliveryLng': deliveryLng,
-          'paymentMethod': paymentMethod,
-        },
+        data: withOrderExtras(
+          {
+            'storeId': _store!.id,
+            'items': items.map((c) => {'productId': c.id, 'qty': c.qty}).toList(),
+            'deliveryAddress': deliveryAddress,
+            'deliveryLat': deliveryLat,
+            'deliveryLng': deliveryLng,
+            'paymentMethod': paymentMethod,
+          },
+          promoCode: promoCode,
+          addressDetails: addressDetails,
+        ),
       );
       final data = (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
       _activeOrder = MarketOrder.fromJson(data);
@@ -205,6 +231,41 @@ class MarketProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('[MarketProvider] loadOrderHistory error: $e');
     }
+  }
+
+  /// Mijoz buyurtmani bekor qiladi (spec v5 §1).
+  Future<VendorCancelResult> cancelOrder(String orderId, {String? reason}) async {
+    final result = await postVendorCancel(
+      _apiClient,
+      ApiEndpoints.marketOrderCancel(orderId),
+      reason: reason,
+    );
+    if (result.isCancelled) {
+      MarketOrder? updated;
+      try {
+        if (result.order != null) updated = MarketOrder.fromJson(result.order!);
+      } catch (e) {
+        debugPrint('[MarketProvider] cancel response unreadable: $e');
+      }
+      MarketOrder next(MarketOrder o) => updated ?? o.copyWith(status: MarketOrderStatus.cancelled);
+      _orderHistory = [for (final o in _orderHistory) o.id == orderId ? next(o) : o];
+      if (_activeOrder?.id == orderId) {
+        _activeOrder = next(_activeOrder!);
+        if (!_activeOrder!.status.isActive) {
+          _socketService.off(SocketEvents.marketOrderStatus);
+        }
+      }
+      notifyListeners();
+    } else if (result.outcome == VendorCancelOutcome.notAllowed) {
+      await loadOrderHistory();
+    }
+    return result;
+  }
+
+  @visibleForTesting
+  void debugSetOrderHistory(List<MarketOrder> orders) {
+    _orderHistory = orders;
+    notifyListeners();
   }
 
   void clearActiveOrder() {

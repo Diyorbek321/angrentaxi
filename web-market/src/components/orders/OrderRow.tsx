@@ -5,6 +5,7 @@ import type { MarketOrder } from '@/lib/api';
 import { advanceLabelFor, DELIVERY_MODE_LABEL, orderCustomerName } from '@/lib/order-status';
 import { formatNumber, formatRelative, shortId } from '@/lib/format';
 import { vendorCashView, type VendorSettlementMode } from '@/lib/vendor-cash';
+import { customerCancelText, isCustomerCancelled } from '@/lib/order-extras';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -74,7 +75,7 @@ export function OrderRow({
       </button>
       <MoneyText value={o.totalPrice} className="text-right text-[13px] font-medium text-ink" />
       <span className="flex flex-wrap items-center gap-1">
-        <StatusBadge status={o.status} />
+        <OrderStateBadge order={o} />
         <CashBadge order={o} mode={settlementMode} />
       </span>
       <span>
@@ -126,7 +127,7 @@ export function OrderCardMobile({
           </span>
         </span>
         <span className="flex flex-wrap items-center justify-end gap-1">
-          <StatusBadge status={o.status} />
+          <OrderStateBadge order={o} />
           <CashBadge order={o} mode={settlementMode} />
         </span>
       </span>
@@ -149,4 +150,16 @@ function CashBadge({ order, mode }: { order: MarketOrder; mode?: VendorSettlemen
   if (step === 'wallet_reversed') return <Badge variant="neutral">Qaytarildi</Badge>;
   if (step === 'wallet_resettle_pending') return <Badge variant="info">Qayta oʻtkaziladi</Badge>;
   return null;
+}
+
+/** Mijoz bekor qilgan bo'lsa — "Mijoz bekor qildi" (sabab tooltip'da), aks holda odatdagi holat. */
+function OrderStateBadge({ order }: { order: MarketOrder }) {
+  if (isCustomerCancelled(order)) {
+    return (
+      <Badge variant="muted-danger" title={customerCancelText(order)}>
+        Mijoz bekor qildi
+      </Badge>
+    );
+  }
+  return <StatusBadge status={order.status} />;
 }

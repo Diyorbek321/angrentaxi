@@ -1,5 +1,15 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsLatitude, IsLongitude, IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import {
+  IsLatitude,
+  IsLongitude,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+  ValidateNested,
+} from 'class-validator';
+import { AddressDetailsDto } from '../../../common/dto/address-details.dto';
 
 export class CreateFavoriteAddressDto {
   @ApiProperty({
@@ -29,4 +39,10 @@ export class CreateFavoriteAddressDto {
   @ApiProperty({ description: 'Longitude', example: 70.1436 })
   @IsLongitude()
   lng: number;
+
+  @ApiPropertyOptional({ type: AddressDetailsDto, nullable: true })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AddressDetailsDto)
+  addressDetails?: AddressDetailsDto | null;
 }

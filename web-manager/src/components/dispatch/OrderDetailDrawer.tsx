@@ -21,6 +21,7 @@ import { MoneyText } from '@/components/ui/MoneyText';
 import { KeyValue, KeyValueList } from '@/components/ui/KeyValue';
 import { PlateNumber } from '@/components/ui/PlateNumber';
 import { OrderStatusBadge } from '@/components/orders/OrderStatusBadge';
+import { DeliveryExtrasContent, deliveryExtras } from '@/components/orders/DeliveryExtras';
 import { PAYMENT_METHOD_LABELS } from '@/lib/constants';
 import {
   formatDateTime,
@@ -130,6 +131,7 @@ export function OrderDetailDrawer({ order, isOpen, onClose }: OrderDetailDrawerP
   if (!order) return null;
 
   const t = order.tariff;
+  const extras = deliveryExtras(order);
 
   return (
     <Drawer
@@ -226,6 +228,12 @@ export function OrderDetailDrawer({ order, isOpen, onClose }: OrderDetailDrawerP
           </div>
         )}
       </Section>
+
+      {extras.hasContent && (
+        <Section icon={<MapPin size={12} />} title="Yetkazish tafsilotlari">
+          <DeliveryExtrasContent order={order} />
+        </Section>
+      )}
 
       <Section icon={<Receipt size={12} />} title="Narx tafsiloti">
         <KeyValueList className="rounded-ds-xs border border-line bg-surface px-3 py-2">

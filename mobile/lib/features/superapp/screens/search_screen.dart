@@ -202,7 +202,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                           title: p.name,
                                           sub: context.l10n.saSearchMarketUnit(p.unit),
                                           trailing: Text(
-                                            Formatters.formatSom(p.price),
+                                            Formatters.formatSom(p.effectivePrice),
                                             style: const TextStyle(
                                                 fontWeight: FontWeight.w800,
                                                 fontSize: kFontLabel,

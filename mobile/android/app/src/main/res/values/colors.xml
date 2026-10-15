@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- lib/core/config/app_theme.dart → kBackground. Flutter yuzasi ortidagi
+         oyna foni: u ko'rinadigan har qanday lahzada (sahifa o'tishi, xarita
+         platform view'i ulanishi, klaviatura o'lchami o'zgarishi) ekran
+         QORA emas, ilova fonida qoladi. -->
+    <color name="app_background">#FFF4F7F8</color>
+    <!-- kPrimary — bildirishnoma aksenti. -->
+    <color name="notification_accent">#FF0C7A4D</color>
+</resources>

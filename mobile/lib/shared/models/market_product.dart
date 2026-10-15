@@ -1,3 +1,4 @@
+import 'package:angren_taxi/shared/models/vendor_promotion.dart';
 import 'package:angren_taxi/shared/widgets/catalog_image.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
@@ -14,6 +15,8 @@ class MarketProduct extends Equatable {
     required this.emoji,
     required this.hue,
     this.imageKey,
+    this.finalPrice,
+    this.discount,
   });
 
   final String id;
@@ -26,6 +29,17 @@ class MarketProduct extends Equatable {
   final String emoji;
   final int hue;
   final String? imageKey;
+
+  /// Do'kon aksiyasidan keyingi narx (spec §4). Eski serverda `null`.
+  final double? finalPrice;
+  final PromotionBadge? discount;
+
+  DiscountedPrice get _pricing =>
+      DiscountedPrice(price: price, finalPrice: finalPrice, discount: discount);
+
+  /// Mijoz to'laydigan narx — savatga shu tushadi.
+  double get effectivePrice => _pricing.effective;
+  bool get hasDiscount => _pricing.hasDiscount;
 
   String? get imageUrl => catalogImageUrl(imageKey);
 
@@ -49,11 +63,13 @@ class MarketProduct extends Equatable {
       emoji: (json['emoji'] as String?) ?? '📦',
       hue: (json['hue'] as num?)?.toInt() ?? 45,
       imageKey: json['imageKey'] as String?,
+      finalPrice: (json['finalPrice'] as num?)?.toDouble(),
+      discount: PromotionBadge.tryParse(json['discount']),
     );
   }
 
   @override
-  List<Object?> get props => [id, categoryId, name, price, stock, unit, status, emoji, hue, imageKey];
+  List<Object?> get props => [id, categoryId, name, price, stock, unit, status, emoji, hue, imageKey, finalPrice, discount];
 }
 
 /// Best-effort emoji → Material icon mapping so existing icon-based product

@@ -38,6 +38,7 @@ import { SupportModule } from './modules/support/support.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { MarketModule } from './modules/market/market.module';
 import { FoodModule } from './modules/food/food.module';
+import { PromotionsModule } from './modules/promotions/promotions.module';
 import { FavoritesModule } from './modules/favorites/favorites.module';
 import { TripChatModule } from './modules/trip-chat/trip-chat.module';
 import { SafetyModule } from './modules/safety/safety.module';
@@ -173,6 +174,7 @@ import { ENTITIES } from './database/entities';
     SettingsModule,
     MarketModule,
     FoodModule,
+    PromotionsModule,
     TripChatModule,
     SafetyModule,
     ReferralsModule,

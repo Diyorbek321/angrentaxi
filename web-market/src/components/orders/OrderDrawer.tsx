@@ -22,6 +22,7 @@ import { Drawer } from '@/components/ui/Drawer';
 import { MoneyText } from '@/components/ui/MoneyText';
 import { KeyValue, KeyValueList } from '@/components/ui/KeyValue';
 import { cn } from '@/components/ui/cn';
+import { AddressDetailsBlock, CustomerCancelNotice, DiscountLines } from './OrderExtras';
 
 export interface OrderDrawerProps {
   order: MarketOrder | null;
@@ -104,6 +105,7 @@ export function OrderDrawer({ order, onClose, onChanged, onError, settlement }: 
       subtitle={`${orderCustomerName(order)} · ${formatRelative(order.createdAt)} (${formatTime(order.createdAt)})`}
       footer={
         <div className="space-y-3">
+          <DiscountLines order={order} />
           <div className="flex items-center justify-between">
             <span className="text-[13px] text-muted">Jami summa</span>
             <MoneyText value={order.totalPrice} className="text-base font-semibold text-ink" />
@@ -137,6 +139,8 @@ export function OrderDrawer({ order, onClose, onChanged, onError, settlement }: 
       {order.status === 'shipped' && order.deliveryMode === 'platform' && (
         <CourierStrip order={order} busy={busy} onRedispatch={() => void redispatch()} />
       )}
+
+      <CustomerCancelNotice order={order} />
 
       {/* Naqd + platforma kuryeri: kuryer tovar pulini do'konga to'laydi. */}
       {order.deliveryMode === 'platform' &&
@@ -181,6 +185,8 @@ export function OrderDrawer({ order, onClose, onChanged, onError, settlement }: 
           )}
         </KeyValueList>
       )}
+
+      <AddressDetailsBlock details={order.addressDetails} />
 
       <div>
         <p className="mb-2 text-[13px] font-medium text-muted">

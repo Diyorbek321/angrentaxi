@@ -5,6 +5,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import type { ServiceType } from './order.entity';
 
 @Entity('promo_codes')
 export class PromoCode {
@@ -61,6 +62,13 @@ export class PromoCode {
 
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
+
+  /**
+   * Qaysi xizmatlarda ishlaydi (migratsiya 031): `null` — hammasida
+   * (mavjud kodlar), aks holda faqat ro'yxatdagilarda (`ServiceType`).
+   */
+  @Column({ name: 'service_types', type: 'jsonb', nullable: true })
+  serviceTypes: ServiceType[] | null;
 
   @CreateDateColumn()
   createdAt: Date;

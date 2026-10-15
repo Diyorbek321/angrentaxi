@@ -1543,6 +1543,13 @@ class AppLocalizationsUz extends AppLocalizations {
   String get paxCancelScheduleTitle => 'Rejani bekor qilish';
 
   @override
+  String get paxCancelTrip => 'Safarni bekor qilish';
+
+  @override
+  String get paxCancelTripUnavailable =>
+      'Safar boshlangan — endi bekor qilib bo\'lmaydi';
+
+  @override
   String paxCardPaymentStartFailed(String error) {
     return 'To\'lovni hozir boshlab bo\'lmadi: $error. Buyurtma qabul qilindi, safar oxirida to\'lov amalga oshiriladi.';
   }
@@ -2271,6 +2278,40 @@ class AppLocalizationsUz extends AppLocalizations {
   }
 
   @override
+  String get saAddressApartment => 'Xonadon';
+
+  @override
+  String get saAddressCourierNote => 'Kuryerga izoh';
+
+  @override
+  String get saAddressCourierNoteHint =>
+      'Masalan: kelganda qo\'ng\'iroq qiling';
+
+  @override
+  String get saAddressDetailsPrefilled => 'Oxirgi buyurtmadan to\'ldirildi';
+
+  @override
+  String get saAddressDetailsSubtitle => 'Kuryer sizni tezroq topishi uchun';
+
+  @override
+  String get saAddressDetailsTitle => 'Manzil tafsilotlari';
+
+  @override
+  String get saAddressEntrance => 'Podyezd';
+
+  @override
+  String get saAddressFloor => 'Qavat';
+
+  @override
+  String get saAddressIntercom => 'Domofon';
+
+  @override
+  String get saAddressLandmark => 'Mo\'ljal';
+
+  @override
+  String get saAddressLandmarkHint => 'Masalan: maktab yonida, yashil darvoza';
+
+  @override
   String get saAddressResolving => 'Manzil aniqlanmoqda…';
 
   @override
@@ -2300,6 +2341,57 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get saCancel => 'Bekor qilish';
+
+  @override
+  String saCancelFailed(String message) {
+    return 'Bekor qilib bo\'lmadi: $message';
+  }
+
+  @override
+  String get saCancelNotAllowedHint =>
+      'Restoran buyurtmani qabul qildi — bekor qilish uchun qo\'llab-quvvatlashga yozing';
+
+  @override
+  String get saCancelNotAllowedMarketHint =>
+      'Do\'kon buyurtmani qabul qildi — bekor qilish uchun qo\'llab-quvvatlashga yozing';
+
+  @override
+  String get saCancelOrderAction => 'Buyurtmani bekor qilish';
+
+  @override
+  String get saCancelOrderConfirm => 'Ha, bekor qilish';
+
+  @override
+  String get saCancelOrderKeep => 'Yo\'q, qoldirish';
+
+  @override
+  String get saCancelOrderReasonPrompt => 'Sababini tanlang (ixtiyoriy)';
+
+  @override
+  String get saCancelOrderTitle => 'Buyurtmani bekor qilasizmi?';
+
+  @override
+  String get saCancelReasonChangedMind => 'Fikrimni o\'zgartirdim';
+
+  @override
+  String get saCancelReasonHint => 'Sababni yozing';
+
+  @override
+  String saCancelReasonLabel(String reason) {
+    return 'Sabab: $reason';
+  }
+
+  @override
+  String get saCancelReasonOther => 'Boshqa sabab';
+
+  @override
+  String get saCancelReasonTooLong => 'Juda uzoq kutish';
+
+  @override
+  String get saCancelReasonWrongAddress => 'Manzil noto\'g\'ri';
+
+  @override
+  String get saCancelReasonWrongItems => 'Noto\'g\'ri tanlabman';
 
   @override
   String get saCargoAddressHint =>
@@ -2405,10 +2497,26 @@ class AppLocalizationsUz extends AppLocalizations {
   String get saContactOperator => 'Operator bilan bog\'lanish';
 
   @override
+  String get saContactSupport => 'Qo\'llab-quvvatlashga yozish';
+
+  @override
   String get saCurrentAddress => 'Joriy manzil';
 
   @override
   String get saCurrentLocation => 'Joriy joylashuv';
+
+  @override
+  String saDealMinOrder(String amount) {
+    return '$amount dan buyurtmada';
+  }
+
+  @override
+  String saDealUntil(String date) {
+    return '$date gacha';
+  }
+
+  @override
+  String get saDealsTitle => 'Chegirmalar';
 
   @override
   String get saDefaultUserName => 'Foydalanuvchi';
@@ -2421,6 +2529,9 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get saDestination => 'Manzil';
+
+  @override
+  String get saDiscountLine => 'Chegirma';
 
   @override
   String saDishesCount(int count) {
@@ -2566,6 +2677,9 @@ class AppLocalizationsUz extends AppLocalizations {
   String get saMenuEmptyTitle => 'Menyu bo\'sh';
 
   @override
+  String get saMenuOther => 'Boshqa';
+
+  @override
   String get saNoStoreYet => 'Hozircha do\'kon yo\'q';
 
   @override
@@ -2595,7 +2709,18 @@ class AppLocalizationsUz extends AppLocalizations {
   String get saOrderAccepted => 'Buyurtma qabul qilindi';
 
   @override
+  String get saOrderCancelledToast => 'Buyurtma bekor qilindi';
+
+  @override
+  String saOrderDetailTitle(String number) {
+    return 'Buyurtma #$number';
+  }
+
+  @override
   String get saOrderHistory => 'Buyurtmalar tarixi';
+
+  @override
+  String get saOrderItems => 'Tarkibi';
 
   @override
   String get saOrderNotSent => 'Buyurtma yuborilmadi';
@@ -2727,6 +2852,11 @@ class AppLocalizationsUz extends AppLocalizations {
   String get saPopularRestaurants => 'Mashhur restoranlar';
 
   @override
+  String saPriceWithDiscount(String now, String old) {
+    return 'Chegirmali narx $now, eski narx $old';
+  }
+
+  @override
   String get saProductDeliveryLabel => 'YETKAZISH';
 
   @override
@@ -2778,7 +2908,20 @@ class AppLocalizationsUz extends AppLocalizations {
   String get saPromoActive => 'FAOL';
 
   @override
+  String saPromoApplied(String code) {
+    return '$code qo\'llandi';
+  }
+
+  @override
+  String get saPromoApply => 'Qo\'llash';
+
+  @override
   String get saPromoCodeCopied => 'Kod nusxalandi';
+
+  @override
+  String saPromoCodeLine(String code) {
+    return 'Promokod $code';
+  }
 
   @override
   String saPromoCopyLabel(String code) {
@@ -2786,9 +2929,34 @@ class AppLocalizationsUz extends AppLocalizations {
   }
 
   @override
+  String get saPromoDiscount => 'Promokod chegirmasi';
+
+  @override
+  String get saPromoEmpty => 'Avval promokodni kiriting';
+
+  @override
+  String get saPromoHint => 'Promokodni kiriting';
+
+  @override
+  String get saPromoInvalid => 'Promokod yaroqsiz';
+
+  @override
   String saPromoMinOrder(String amount) {
     return 'Min. buyurtma: $amount';
   }
+
+  @override
+  String get saPromoNotApplicable => 'Bu promokod ushbu xizmatga tegishli emas';
+
+  @override
+  String get saPromoRemove => 'Olib tashlash';
+
+  @override
+  String get saPromoServerRecalc =>
+      'Yakuniy chegirmani server buyurtma yaratilganda hisoblaydi';
+
+  @override
+  String get saPromoTitle => 'Promokod';
 
   @override
   String saPromoUntil(String date) {
@@ -2974,6 +3142,9 @@ class AppLocalizationsUz extends AppLocalizations {
   String get saTrackCancelled => 'Buyurtma bekor qilindi';
 
   @override
+  String get saTrackCourier => 'Kuryerni xaritada kuzatish';
+
+  @override
   String get saTrackDelivered => 'Buyurtma yetkazildi';
 
   @override
@@ -3031,6 +3202,9 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get saTxnWithdrawal => 'Pul yechish';
+
+  @override
+  String get saVendorDiscountLine => 'Restoran/do\'kon chegirmasi';
 
   @override
   String get saViewOrders => 'Buyurtmalarni koʻrish';
@@ -3340,6 +3514,13 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get shPayStatusRefunded => 'Qaytarildi';
+
+  @override
+  String get shPushChannelOrders => 'Buyurtmalar';
+
+  @override
+  String get shPushChannelOrdersDescription =>
+      'Buyurtma holati, haydovchi va kuryer xabarlari';
 
   @override
   String shReceiptDate(String date) {

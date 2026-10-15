@@ -164,6 +164,9 @@ describe('FoodService — courier delivery bridge', () => {
             collectCash: 75000,
             // Kuryer restoranga tovar pulini to'laydi: 75 000 − 10 000 yetkazish.
             payVendor: 65000,
+            // v5: promokod yo'q, manzil tafsilotlari yo'q.
+            promoDiscount: 0,
+            addressDetails: null,
           },
         }),
         // 75 000 total − 65 000 of food = the 10 000 delivery fee the
