@@ -6,6 +6,7 @@ import { REDIS_CLIENT } from '../../config/redis.config';
 import { Driver } from '../../database/entities/driver.entity';
 import { ServiceType } from '../../database/entities/order.entity';
 import { resolveDriverServiceTypes } from '../drivers/driver-capabilities';
+import { DRIVERS_ONLINE_KEY, DRIVER_PRESENCE_PREFIX } from '../drivers/driver-presence.keys';
 
 /** Where an eligible taxi driver stands. */
 export interface DriverPosition {
@@ -13,13 +14,6 @@ export interface DriverPosition {
   lng: number;
 }
 
-/**
- * ⚠️ `DriversService` dagi kalitlar bilan AYNAN bir xil bo'lishi shart
- * (`DRIVERS_ONLINE_KEY`, `DRIVER_PRESENCE_PREFIX` — u yerda eksport
- * qilinmagan). O'zgarsa, ikkala joyda ham o'zgartiring.
- */
-const DRIVERS_ONLINE_KEY = 'drivers:online';
-const DRIVER_PRESENCE_PREFIX = 'driver:presence:';
 
 interface EligibilityRow {
   id: string;

@@ -36,6 +36,7 @@ import {
 } from './driver-capabilities';
 import { normalizeTripOptions } from '../orders/trip-options';
 import { ERROR_CODES, codedBadRequest } from '../../common/errors/coded-error';
+import { DRIVERS_ONLINE_KEY, DRIVER_PRESENCE_PREFIX } from './driver-presence.keys';
 
 export interface NearbyDriver {
   driverId: string;
@@ -71,7 +72,6 @@ interface OnlineDriverRow {
   current_order_id: string | null;
 }
 
-const DRIVERS_ONLINE_KEY = 'drivers:online';
 
 /**
  * Haydovchining JONLI MAVJUDLIGI — `is_online` dan ALOHIDA tushuncha.
@@ -94,8 +94,8 @@ const DRIVERS_ONLINE_KEY = 'drivers:online';
  *                  avtomatik to'xtaydi.
  *
  * Buyurtma faqat IKKALASI ham rost bo'lganda taklif qilinadi.
+ * Kalitlar — `driver-presence.keys.ts`.
  */
-const DRIVER_PRESENCE_PREFIX = 'driver:presence:';
 
 /**
  * Mavjudlik kalitining umri.

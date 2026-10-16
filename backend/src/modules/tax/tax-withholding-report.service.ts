@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order } from '../../database/entities/order.entity';
+import { driverGrossFareSql } from '../orders/commission-policy';
 import {
   TAX_WITHHOLDING_LEDGER_TAG,
   TaxReportRow,
@@ -44,12 +45,9 @@ interface RawReportRow {
   order_count: string | number;
 }
 
-/** Soliq bazasi — chegirmagacha yo'l haqi (taksi promosini platforma to'laydi, §26a). */
-export const TAX_REPORT_GROSS_SQL = 'o.final_price + COALESCE(o.discount_amount, 0)';
-
 /**
  * Oyma-oy: har bir haydovchi/kuryer bo'yicha yalpi daromad (komissiya bilan
- * bir xil baza — chegirmagacha yo'l haqi, `TAX_REPORT_GROSS_SQL`), ushlab qolingan soliq va buyurtmalar
+ * bir xil baza — `driverGrossFareSql`), ushlab qolingan soliq va buyurtmalar
  * soni. Oy — `completed_at` bo'yicha, Toshkent kalendari.
  *
  * Soliq qatori bitta buyurtmaga ko'pi bilan bitta (unikal indeks), shuning
@@ -60,7 +58,7 @@ const REPORT_SQL = `
   SELECT o.driver_id                                   AS user_id,
          u.first_name, u.last_name, u.phone,
          d.pinfl, d.tin, d.tax_status,
-         COALESCE(SUM(${TAX_REPORT_GROSS_SQL}), 0) AS gross_income,
+         COALESCE(SUM(${driverGrossFareSql('c')}), 0) AS gross_income,
          COALESCE(SUM(t.amount) FILTER (WHERE t.status = 'completed'), 0) AS withheld_amount,
          COALESCE(SUM(t.amount) FILTER (WHERE t.status = 'pending'), 0)   AS pending_withheld_amount,
          COUNT(o.id)                                   AS order_count
@@ -71,6 +69,10 @@ const REPORT_SQL = `
            ON t.order_id = o.id
           AND t.user_id = o.driver_id
           AND t.external_id = '${TAX_WITHHOLDING_LEDGER_TAG}'
+    LEFT JOIN transactions c
+           ON c.order_id = o.id
+          AND c.user_id = o.driver_id
+          AND c.external_id = 'commission'
    WHERE o.status = 'completed'
      AND o.driver_id IS NOT NULL
      AND o.completed_at >= $1

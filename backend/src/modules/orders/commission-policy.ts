@@ -84,6 +84,21 @@ export interface RideFareSplit {
   driverEarning: number;
 }
 
+/**
+ * Safarning komissiya va 1% soliq olingan BAZASI — haydovchi yalpi daromadi
+ * (daromad ekrani va soliq hisoboti). `o` — `orders`, `commissionAlias` —
+ * shu buyurtmaning `'commission'` daftar qatori (LEFT JOIN).
+ *
+ * ⚠️ NEGA `final_price + discount_amount` emas: promo kodni platforma
+ * to'lashidan (§26a) OLDINGI safarlarda baza chegirmali narx edi. `driver_earning
+ * + komissiya` ikkala davrda ham aynan o'sha bazani beradi, o'tgan oylar
+ * hisobotida esa ushlangan soliq bilan mos qoladi. Komissiyasiz safarda qator
+ * yo'q (0). `driver_earning` yo'q eng eski qatorlar — `final_price`.
+ */
+export function driverGrossFareSql(commissionAlias: string): string {
+  return `COALESCE(o.driver_earning + COALESCE(${commissionAlias}.amount, 0), o.final_price, o.estimated_price)`;
+}
+
 export function splitRideFare(grossFare: number, discount: number, commissionRate: number): RideFareSplit {
   const discounted = applyDiscount(grossFare, discount);
   const commissionAmount = Math.round((grossFare * commissionRate) / 100);

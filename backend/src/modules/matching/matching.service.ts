@@ -16,6 +16,7 @@ import { OsrmService } from '../routing/osrm.service';
 import { REDIS_CLIENT } from '../../config/redis.config';
 import { DeliveryEventsService } from '../delivery/delivery-events.service';
 import { VendorCashService, payVendorOf } from '../delivery/vendor-cash.service';
+import { NO_DRIVERS_CANCEL_REASON } from './matching.constants';
 
 interface DriverQueue {
   orderId: string;
@@ -77,7 +78,7 @@ export const SEARCH_RADIUS_STEPS_KM = [2, 3, 5] as const;
  * tarmoq kechikishi tufayli rad etilmasin.
  */
 export const OFFER_ACCEPT_GRACE_SECONDS = 5;
-export const NO_DRIVERS_CANCEL_REASON = 'No drivers available';
+export { NO_DRIVERS_CANCEL_REASON };
 
 const BATCH_SIZE = 3;
 // Reaper: navbatsiz qolgan CREATED/SEARCHING buyurtma qidiruv muddati + shu

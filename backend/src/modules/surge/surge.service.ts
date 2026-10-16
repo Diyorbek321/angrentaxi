@@ -10,6 +10,7 @@ import {
 } from 'h3-js';
 import { Order } from '../../database/entities/order.entity';
 import { DriverPosition, TaxiSupplyService } from './taxi-supply.service';
+import { NO_DRIVERS_CANCEL_REASON } from '../matching/matching.constants';
 
 export interface SurgeSnapshot {
   multiplier: number;
@@ -56,8 +57,6 @@ interface DemandRow extends PickupRow {
   lifetime_s: number | string;
 }
 
-/** `MatchingService` nobody-accepted cancel reason — real, unmet demand. */
-const NO_DRIVERS_CANCEL_REASON = 'No drivers available';
 
 /**
  * Demand-based surge.

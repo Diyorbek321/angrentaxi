@@ -10,15 +10,7 @@ import { Transaction } from '../../database/entities/transaction.entity';
 import { DriverEarningsBreakdown, DriverEarningsPeriod } from './orders.types';
 import { TAX_WITHHOLDING_LEDGER_TAG } from '../tax/tax-withholding';
 import { ShiftPassesService } from '../shift-passes/shift-passes.service';
-
-/**
- * Haydovchining bitta safardagi yalpi yo'l haqi. Taksi promo kodini platforma
- * to'laydi (LEGAL-COMPLIANCE §26a): `final_price` — yo'lovchi to'lagani,
- * chegirma esa haydovchiga alohida qoplanadi, shuning uchun yalpi daromad
- * chegirmagacha bo'lgan summa.
- */
-export const DRIVER_GROSS_FARE_SQL =
-  'COALESCE(o.final_price, o.estimated_price) + COALESCE(o.discount_amount, 0)';
+import { driverGrossFareSql } from './commission-policy';
 
 @Injectable()
 export class OrdersEarningsService {
@@ -92,7 +84,7 @@ export class OrdersEarningsService {
         'tx.order_id = o.id AND tx.user_id = o.driver_id AND tx.external_id = :taxExternalId',
         { taxExternalId: TAX_WITHHOLDING_LEDGER_TAG },
       )
-      .select(`COALESCE(SUM(${DRIVER_GROSS_FARE_SQL}), 0)`, 'gross')
+      .select(`COALESCE(SUM(${driverGrossFareSql('t')}), 0)`, 'gross')
       .addSelect('COALESCE(SUM(t.amount), 0)', 'commission')
       .addSelect('COALESCE(SUM(tx.amount), 0)', 'tax')
       // Chaqiq (tips) — buyurtmaning o'z ustuni (har buyurtmada bitta qiymat;

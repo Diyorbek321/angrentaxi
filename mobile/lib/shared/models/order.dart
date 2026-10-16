@@ -230,6 +230,7 @@ class Order extends Equatable {
     this.scheduledAt,
     this.serviceType = kServiceTypeTaxi,
     this.arrivedAt,
+    this.serverWaitingStartsAt,
     this.freeWaitMinutes = kDefaultFreeWaitMinutes,
     this.waitingPricePerMinute = kDefaultWaitingPricePerMinute,
     this.delivery,
@@ -309,13 +310,22 @@ class Order extends Equatable {
   /// Kutish hisobi qachondan boshlanadi. Rejalashtirilgan safarda haydovchi
   /// ko'pincha erta keladi — yo'lovchi belgilangan vaqtgacha kutishga majbur
   /// emas, shuning uchun `max(arrivedAt, scheduledAt)`. Server yakuniy narxni
-  /// aynan shu qoida bilan hisoblaydi (`waitingStartOf`).
+  /// aynan shu qoida bilan hisoblaydi (`waitingStartOf`) va natijani
+  /// `waitingStartsAt` bilan yuboradi — u bo'lsa, o'shani olamiz (qoida
+  /// serverda o'zgarsa ham hisoblagich yakuniy narx bilan mos qoladi).
+  /// Eski server bermaydi — o'zimiz hisoblaymiz.
   DateTime? get waitingStartsAt {
+    final fromServer = serverWaitingStartsAt;
+    if (fromServer != null) return fromServer;
     final arrived = arrivedAt;
     if (arrived == null) return null;
     final scheduled = scheduledAt;
     return scheduled != null && scheduled.isAfter(arrived) ? scheduled : arrived;
   }
+
+  /// Serverning `waitingStartsAt` maydoni (ixtiyoriy). To'g'ridan-to'g'ri
+  /// emas, [waitingStartsAt] orqali o'qing.
+  final DateTime? serverWaitingStartsAt;
 
   /// Bepul kutish oynasi, daqiqa. Buyurtma tarifidan keladi.
   ///
@@ -422,6 +432,9 @@ class Order extends Equatable {
       arrivedAt: json['arrivedAt'] is String
           ? DateTime.tryParse(json['arrivedAt'] as String)?.toLocal()
           : null,
+      serverWaitingStartsAt: json['waitingStartsAt'] is String
+          ? DateTime.tryParse(json['waitingStartsAt'] as String)?.toLocal()
+          : null,
       // ⚠️ ORQAGA MOSLIK: eski server bu maydonlarni umuman yubormaydi.
       // `?? zaxira` ularni standart tarifga qaytaradi.
       freeWaitMinutes:
@@ -463,6 +476,7 @@ class Order extends Equatable {
         'scheduledAt': scheduledAt?.toIso8601String(),
         'serviceType': serviceType,
         'arrivedAt': arrivedAt?.toIso8601String(),
+        'waitingStartsAt': serverWaitingStartsAt?.toIso8601String(),
         'freeWaitMinutes': freeWaitMinutes,
         'waitingPricePerMinute': waitingPricePerMinute,
         'isMetered': isMetered,
@@ -534,6 +548,11 @@ class Order extends Equatable {
       // (`_refreshActiveOrder` / `checkActiveOrder`), ya'ni eskirgan
       // `arrivedAt` u yerda tabiiy ravishda yo'qoladi.
       arrivedAt: arrivedAt ?? this.arrivedAt,
+      // Kelish yoki reja vaqti o'zgarsa, serverning eski hisobi endi to'g'ri
+      // emas — keyingi `fromJson` gacha o'zimiz hisoblaymiz.
+      serverWaitingStartsAt: arrivedAt == null && scheduledAt == null
+          ? serverWaitingStartsAt
+          : null,
       freeWaitMinutes: freeWaitMinutes ?? this.freeWaitMinutes,
       waitingPricePerMinute:
           waitingPricePerMinute ?? this.waitingPricePerMinute,
@@ -574,6 +593,7 @@ class Order extends Equatable {
         // yo'q maydon o'zgarsa `copyWith` natijasi eskisiga TENG deb
         // topilardi va kutish hisoblagichi yangilanmasdi.
         arrivedAt,
+        serverWaitingStartsAt,
         freeWaitMinutes,
         waitingPricePerMinute,
         delivery,

@@ -908,3 +908,8 @@ sanalmaydi); taklif — onlayn, faol, taksi xizmatidagi haydovchilar.
 - Dev'da `DB_SYNC=true` va daftarda takroriy `withdrawal_refund_%` /
   `referral_bonus_%` bo'lsa, synchronize yiqiladi (entity'da unikal
   indeks) — avval takrorlarni tuzating.
+- Soliq hisoboti va haydovchi daromadi bazasi — `driver_earning +
+  komissiya` (`driverGrossFareSql`). Yangi safarda bu chegirmagacha narx,
+  §26a dan OLDINGI safarlarda — chegirmali narx (o'sha paytda komissiya va
+  1% soliq shundan olingan). O'tgan oylar hisoboti ushlangan soliq bilan
+  mos qoladi.
