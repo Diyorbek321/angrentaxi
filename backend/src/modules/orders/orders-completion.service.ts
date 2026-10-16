@@ -4,10 +4,17 @@
 // ledger entries, wallet adjustment, bonus evaluation, and the first-trip
 // referral bonus. Separated from OrdersLifecycleService because this single
 // transition carries far more business rules than all the others combined.
-import { BadRequestException, ForbiddenException, Injectable, Logger, Optional } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  Optional,
+} from '@nestjs/common';
 import { DeliveryEventsService } from '../delivery/delivery-events.service';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, QueryFailedError, Repository } from 'typeorm';
 import { TaximeterService } from '../taximeter/taximeter.service';
 import { Order, OrderStatus, PaymentMethod, ServiceType } from '../../database/entities/order.entity';
 import {
@@ -18,6 +25,8 @@ import {
 } from './parcel';
 import { Trip } from '../../database/entities/trip.entity';
 import {
+  FARE_BONUS_LEDGER_TAG,
+  FARE_BONUS_SPEND_LEDGER_TAG,
   Transaction,
   TransactionStatus,
   TransactionType,
@@ -34,20 +43,21 @@ import { OrdersQueryService } from './orders-query.service';
 import { OsrmService } from '../routing/osrm.service';
 import { RoutedDistancePricing } from './routed-distance-pricing';
 import {
+  computeBonusBalance,
   computeSpendableBalance,
   lockWalletForUpdate,
 } from '../payments/wallet-balance.util';
 import {
   computeWaitingMinutes,
   waitingSettingsOf,
+  waitingStartOf,
   withWaitingFare,
 } from '../tariffs/waiting-charge';
 import { withOptionsFare } from './trip-option-fees';
 import { meteredTariff } from '../tariffs/metered-rate';
-import { applyDiscount } from '../tariffs/fare-rounding';
 import { OrderFraudService } from './order-fraud.service';
 import { REFERRAL_BONUS_AMOUNT } from './referral-bonus';
-import { resolveCommissionRate } from './commission-policy';
+import { RideFareSplit, resolveCommissionRate, splitRideFare } from './commission-policy';
 import { FinancePolicyService } from '../settings/finance-policy.service';
 import { CompletionFinancePolicy } from '../settings/legal-compliance-settings';
 import { TAX_WITHHOLDING_LEDGER_TAG, computeTaxWithholding } from '../tax/tax-withholding';
@@ -56,9 +66,47 @@ import { Driver } from '../../database/entities/driver.entity';
 import { ShiftPassesService } from '../shift-passes/shift-passes.service';
 
 // Flat bonus (in so'm) credited to both a referred passenger and their
-// referrer the first time the referred passenger completes a trip. See the
-// referral-bonus block at the end of completeTrip, and
-// ReferralsService.getMyReferralInfo which sums these by externalId prefix.
+// referrer the first time the referred passenger completes a trip. See
+// `creditFirstRideReferralBonus`, and ReferralsService.getMyReferralInfo which
+// sums these by externalId prefix.
+
+/**
+ * Naqd + promokodli safarda platformaning haydovchiga chegirma qoplamasi
+ * CREDIT'i (`delivery/promo-compensation.ts` dagi `<kind>_order_promo_<id>`
+ * bilan bir uslub). Buyurtmaga xos — bir safar uchun bitta.
+ */
+export const RIDE_PROMO_COMPENSATION_TAG = (orderId: string): string => `ride_promo_${orderId}`;
+
+/** Referal "birinchi safar" sanog'iga kiradigan — yo'lovchining O'Z safarlari. */
+const REFERRAL_RIDE_SERVICE_TYPES: readonly ServiceType[] = [
+  ServiceType.TAXI,
+  ServiceType.CARGO,
+  ServiceType.PARCEL,
+];
+
+/** Ovqat/market kuryer safari — buyurtma `details` ida sotuvchi buyurtmasi id'si bor. */
+function isVendorDeliveryRide(order: Pick<Order, 'details'>): boolean {
+  return (
+    typeof order.details?.foodOrderId === 'string' ||
+    typeof order.details?.marketOrderId === 'string'
+  );
+}
+
+function isUniqueViolation(err: unknown): boolean {
+  return (
+    err instanceof QueryFailedError &&
+    (err.driverError as { code?: string } | undefined)?.code === '23505'
+  );
+}
+
+/**
+ * Hamyon bilan to'langan summaning yo'lovchi BONUSIDAN qoplangan qismi.
+ * Avval haqiqiy pul (`balance − bonus`) sarflanadi, yetmagani — bonusdan.
+ */
+export function bonusFundedPart(amount: number, balance: number, bonus: number): number {
+  const realMoney = Math.max(0, balance - Math.max(0, bonus));
+  return Math.min(Math.max(0, bonus), Math.max(0, amount - realMoney));
+}
 
 @Injectable()
 export class OrdersCompletionService {
@@ -213,12 +261,16 @@ export class OrdersCompletionService {
     // ketdim" gacha RESTORAN/DO'KON oldida kutadi — bu sotuvchining
     // tayyorlash vaqti, mijozniki emas. Mijozdan undirish uni boshqa
     // birovning kechikishi uchun jazolardi.
-    const isVendorDelivery =
-      typeof order.details?.foodOrderId === 'string' ||
-      typeof order.details?.marketOrderId === 'string';
-    const waitingMinutes = isVendorDelivery
+    //
+    // Rejalashtirilgan safarda oyna `scheduledAt` dan oldin boshlanmaydi
+    // (`waitingStartOf`).
+    const waitingMinutes = isVendorDeliveryRide(order)
       ? 0
-      : computeWaitingMinutes(order.arrivedAt, trip?.startTime ?? null, freeWaitMinutes);
+      : computeWaitingMinutes(
+          waitingStartOf(order.arrivedAt, order.scheduledAt),
+          trip?.startTime ?? null,
+          freeWaitMinutes,
+        );
 
     const fareBreakdown = withWaitingFare(
       rideFare,
@@ -247,52 +299,11 @@ export class OrdersCompletionService {
       );
     }
 
-    // Update trip
-    if (trip) {
-      await this.tripRepository.update(trip.id, {
-        endTime: now,
-        actualDistanceKm,
-        actualDurationMin,
-      });
-    }
-
-    // Re-apply the promo discount against the final amount (may differ from the
-    // original estimate since it's recomputed from actual distance/duration), and
-    // only now record actual usage — a cancelled trip never consumed the promo.
-    let finalDiscountAmount = 0;
-    if (order.promoCodeId) {
-      try {
-        const promoCode = await this.promoCodesService.findById(order.promoCodeId);
-        const promoResult = await this.promoCodesService.validate(
-          promoCode.code,
-          order.passengerId,
-          finalPrice,
-          { serviceType: order.serviceType },
-        );
-        // apply() must succeed before the discount counts. It is the step that
-        // atomically claims one of the code's remaining uses and can still
-        // fail here (the limit was taken by a concurrent completion), so the
-        // assignment happens only after it returns.
-        await this.promoCodesService.apply(order.promoCodeId, order.passengerId, orderId);
-        finalDiscountAmount = promoResult.discountAmount;
-      } catch (err) {
-        // Promo became invalid between order creation and completion (expired,
-        // limit hit by a concurrent order) — degrade gracefully to full price
-        // rather than failing trip completion.
-        //
-        // The discount is explicitly cleared: it used to be assigned before
-        // apply(), so a code that failed to claim a use still discounted the
-        // fare, handing out a free discount the promo never recorded.
-        finalDiscountAmount = 0;
-        this.logger.warn(
-          `Promo code re-validation failed at completion for order ${orderId}, charging full price: ${err}`,
-        );
-      }
-    }
-    // 100 so'mga yaxlitlanadi; chegirma shunga moslashadi (`applyDiscount`).
-    const discounted = applyDiscount(finalPrice, finalDiscountAmount);
-    const discountedFinalPrice = discounted.finalPrice;
-    finalDiscountAmount = discounted.discountAmount;
+    // Promokod OLDINDAN faqat TEKSHIRILADI (o'qish). Uni band qilish —
+    // `apply()` — tranzaksiya ichida, buyurtma da'vo qilingandan KEYIN:
+    // ikki parallel yakunlashdan yutqazgani promokodning bitta ishlatilishini
+    // behuda yeb qo'ymasin.
+    const promo = await this.validatePromoForCompletion(order, finalPrice);
 
     // Commission: driver's own override rate if set, else the platform default
     // — except during the launch promo, when taxi commission is 0, and while
@@ -312,14 +323,19 @@ export class OrdersCompletionService {
         ? await this.shiftPassCovers(order.driverId, order.serviceType, now)
         : false,
     });
-    const commissionAmount = Math.round((discountedFinalPrice * commissionRate) / 100);
-    const netDriverEarning = discountedFinalPrice - commissionAmount;
+
+    // ⚠️ PROMOKODNI PLATFORMA TO'LAYDI (biznes qarori, 2026-10-16). Komissiya
+    // va soliq CHEGIRMASIZ narxdan; yo'lovchi chegirmali summani to'laydi
+    // (`splitRideFare`). Ilgari ikkalasi ham chegirmali narxdan olinardi —
+    // 20 000 lik safarda 5 000 promokod haydovchiga 15 000 − 1 500 berardi,
+    // naqdda esa farqni hech kim qoplamasdi: chegirmani haydovchi to'lardi.
+    let split = splitRideFare(finalPrice, promo?.discountAmount ?? 0, commissionRate);
 
     // Soliq agenti sifatida ushlab qolish (PQ-247). Baza — komissiya bilan
-    // BIR XIL: chegirmadan keyingi yakuniy narx (`tax-withholding.ts` izohi).
-    // Kuryer safari (ovqat/market yetkazish) ham shu yo'ldan o'tadi.
+    // BIR XIL: chegirmasiz yo'l haqi, ya'ni haydovchining haqiqiy daromadi
+    // (chegirmani platforma qoplaydi). Kuryer safari ham shu yo'ldan o'tadi.
     const taxWithheld = payoutDriver
-      ? computeTaxWithholding(discountedFinalPrice, financePolicy.taxWithholding)
+      ? computeTaxWithholding(split.grossFare, financePolicy.taxWithholding)
       : 0;
 
     // Settlement — the order status, the passenger charge, both driver payout
@@ -336,6 +352,39 @@ export class OrdersCompletionService {
     let walletShortfall = 0;
 
     await this.dataSource.transaction(async (manager) => {
+      // ⚠️ DA'VO — tranzaksiyadagi BIRINCHI yozuv. Yuqoridagi holat
+      // tekshiruvi oddiy o'qish: haydovchining ikki marta bosishi, qayta
+      // urinish yoki haydovchi bilan dispetcherning `completeByDispatcher`
+      // poygasi ikkalasini ham o'tkazib yuborardi va har biri to'liq
+      // hisob-kitobni yozardi — yo'lovchidan ikki marta, haydovchiga ikki
+      // marta, komissiya, referal va chek ham ikki martadan. Shartli UPDATE
+      // qatorni qulflaydi: ikkinchisi birinchisi commit bo'lishini kutadi,
+      // keyin 0 qator ko'radi va bitta ham pul yozuvisiz rad etiladi.
+      //
+      // Chek ma'lumotlari (`fareBreakdown`) AYNI SHU tranzaksiyada yoziladi:
+      // chek — pul harakatining qog'ozdagi aksi, ular ajralib qolsa chek
+      // yolg'on gapiradi.
+      const claim = await manager.update(
+        Order,
+        { id: orderId, status: OrderStatus.IN_PROGRESS },
+        {
+          status: OrderStatus.COMPLETED,
+          finalPrice: split.passengerPays,
+          discountAmount: split.discountAmount || null,
+          driverEarning: split.driverEarning,
+          fareBreakdown,
+          completedAt: now,
+        },
+      );
+      if (!claim.affected) {
+        throw new ConflictException('Order is no longer in progress');
+      }
+
+      if (promo) {
+        split = await this.claimPromoUse(manager, order, promo.promoCodeId, split, commissionRate);
+      }
+      const passengerPays = split.passengerPays;
+
       // Is the fare actually collected at this moment?
       //
       //  - CASH:   yes. The driver took the money directly from the passenger;
@@ -352,6 +401,7 @@ export class OrdersCompletionService {
       // balance check at all, so a passenger with an empty wallet could take
       // unlimited rides and every one of them paid the driver.
       let chargeStatus: TransactionStatus;
+      let bonusFundedFare = 0;
 
       if (order.paymentMethod === PaymentMethod.CASH) {
         chargeStatus = TransactionStatus.COMPLETED;
@@ -366,17 +416,24 @@ export class OrdersCompletionService {
           order.passengerId,
         );
 
-        if (balance >= discountedFinalPrice) {
+        if (balance >= passengerPays) {
           chargeStatus = TransactionStatus.COMPLETED;
+          // Avval haqiqiy pul sarflanadi, yetmagan qismi — bonusdan. Bonusdan
+          // qoplangan qism haydovchiga yechib bo'lmaydigan bo'lib tushadi.
+          bonusFundedFare = bonusFundedPart(
+            passengerPays,
+            balance,
+            await computeBonusBalance(manager, order.passengerId),
+          );
         } else {
           // The ride physically happened, so it is not cancellable here. The
           // charge is recorded as an unpaid receivable and the passenger is
           // blocked from ordering again until it clears
           // (OrdersCreationService checks for outstanding debt).
           chargeStatus = TransactionStatus.PENDING;
-          walletShortfall = discountedFinalPrice - balance;
+          walletShortfall = passengerPays - balance;
           this.logger.warn(
-            `Wallet balance ${balance} is short of fare ${discountedFinalPrice} for order ` +
+            `Wallet balance ${balance} is short of fare ${passengerPays} for order ` +
               `${orderId}; recording an unpaid charge for passenger ${order.passengerId}`,
           );
         }
@@ -384,28 +441,24 @@ export class OrdersCompletionService {
         chargeStatus = TransactionStatus.PENDING;
       }
 
-      await manager.update(Order, orderId, {
-        status: OrderStatus.COMPLETED,
-        finalPrice: discountedFinalPrice,
-        discountAmount: finalDiscountAmount || null,
-        driverEarning: netDriverEarning,
-        // Chek ma'lumotlari AYNI SHU tranzaksiyada yoziladi: chek — pul
-        // harakatining qog'ozdagi aksi, ular ajralib qolsa chek yolg'on
-        // gapiradi.
-        fareBreakdown,
-        completedAt: now,
-      });
-
-      // Passenger charge.
-      await manager.save(Transaction, {
-        userId: order.passengerId,
-        orderId,
-        amount: discountedFinalPrice,
-        type: TransactionType.DEBIT,
-        paymentMethod: order.paymentMethod,
-        status: chargeStatus,
-        externalId: null,
-      });
+      // Passenger charge — chegirmali summa. Bonusdan qoplangan qism alohida
+      // `FARE_BONUS_SPEND_LEDGER_TAG` qatori: u yo'lovchining bonus hisobini
+      // kamaytiradi (jami DEBIT o'zgarmaydi). Bonussiz safarda — bitta qator.
+      const chargeParts = [
+        { amount: passengerPays - bonusFundedFare, externalId: null },
+        { amount: bonusFundedFare, externalId: FARE_BONUS_SPEND_LEDGER_TAG },
+      ].filter((part) => part.amount > 0);
+      for (const part of chargeParts) {
+        await manager.save(Transaction, {
+          userId: order.passengerId,
+          orderId,
+          amount: part.amount,
+          type: TransactionType.DEBIT,
+          paymentMethod: order.paymentMethod,
+          status: chargeStatus,
+          externalId: part.externalId,
+        });
+      }
 
       // Driver payout.
       //
@@ -413,16 +466,18 @@ export class OrdersCompletionService {
       // kim ushlab turgani boshqa:
       //
       //  - Naqd: haydovchi summani yo'lovchidan QO'LIGA olgan, platforma unga
-      //    tegmagan. Demak platforma haydovchiga hech narsa qarz emas —
-      //    aksincha, haydovchi platformaga komissiya qarzdor. Daftarga FAQAT
-      //    komissiya DEBIT'i tushadi.
+      //    tegmagan. Demak platforma haydovchiga safar puli qarz emas —
+      //    aksincha, haydovchi platformaga komissiya qarzdor. Daftarga
+      //    komissiya DEBIT'i tushadi, promokod bo'lsa — chegirma qoplamasi
+      //    CREDIT'i (haydovchi qo'liga shuncha KAM olgan).
       //
       //  - Naqd bo'lmagan: pulni platforma ushlab turadi, ya'ni haydovchiga
-      //    sof to'lovni qarz. Daftar ikkala oyoqni ham yozadi (to'liq summa
-      //    CREDIT + komissiya DEBIT) va ikkalasi yo'lovchi to'lovi holatini
-      //    oladi — pul HAQIQATAN yig'ilmaguncha yechib bo'lmaydi.
-      //    `PaymentsService.settleOrderPayout` provayder javobi kelganda
-      //    ularni COMPLETED ga o'tkazadi.
+      //    sof to'lovni qarz. Daftar ikkala oyoqni ham yozadi (CHEGIRMASIZ
+      //    to'liq summa CREDIT + komissiya DEBIT) va ikkalasi yo'lovchi
+      //    to'lovi holatini oladi — pul HAQIQATAN yig'ilmaguncha yechib
+      //    bo'lmaydi. `PaymentsService.settleOrderPayout` provayder javobi
+      //    kelganda ularni COMPLETED ga o'tkazadi. Yo'lovchi to'lagani bilan
+      //    CREDIT orasidagi farq — platformaning promokod xarajati.
       //
       // ⚠️ NEGA MUHIM: ilgari naqd safarda ham to'liq summa CREDIT bo'lib
       // yozilardi va `chargeStatus` naqd uchun COMPLETED edi. Ya'ni
@@ -432,25 +487,51 @@ export class OrdersCompletionService {
       // mumkin edi: bir marta yo'lovchidan, ikkinchi marta platformadan
       // yechib.
       const platformHoldsFare = order.paymentMethod !== PaymentMethod.CASH;
+      const promoCompensation = platformHoldsFare ? 0 : split.discountAmount;
 
       if (order.driverId && payoutDriver) {
         if (platformHoldsFare) {
+          // Bonusdan qoplangan qism alohida, yechib bo'lmaydigan qator
+          // (`FARE_BONUS_LEDGER_TAG`); jami CREDIT o'zgarmaydi.
+          const fareParts = [
+            { amount: split.grossFare - bonusFundedFare, externalId: null },
+            { amount: bonusFundedFare, externalId: FARE_BONUS_LEDGER_TAG },
+          ].filter((part) => part.amount > 0);
+          for (const part of fareParts) {
+            await manager.save(Transaction, {
+              userId: order.driverId,
+              orderId,
+              amount: part.amount,
+              type: TransactionType.CREDIT,
+              paymentMethod: order.paymentMethod,
+              status: chargeStatus,
+              externalId: part.externalId,
+            });
+          }
+        }
+
+        // Naqd + promokod: haydovchi yo'lovchidan chegirmali summani oldi —
+        // platforma farqni hamyoniga qoplaydi. Bu HAQIQIY pul (u yig'a
+        // olmagan naqd), shuning uchun darhol COMPLETED va yechib olinadi.
+        // Teg buyurtmaga xos — bir safar uchun ikki marta yozilmaydi
+        // (yuqoridagi da'vo bilan birga).
+        if (promoCompensation > 0) {
           await manager.save(Transaction, {
             userId: order.driverId,
             orderId,
-            amount: discountedFinalPrice,
+            amount: promoCompensation,
             type: TransactionType.CREDIT,
-            paymentMethod: order.paymentMethod,
-            status: chargeStatus,
-            externalId: null,
+            paymentMethod: PaymentMethod.WALLET,
+            status: TransactionStatus.COMPLETED,
+            externalId: RIDE_PROMO_COMPENSATION_TAG(orderId),
           });
         }
 
-        if (commissionAmount > 0) {
+        if (split.commissionAmount > 0) {
           await manager.save(Transaction, {
             userId: order.driverId,
             orderId,
-            amount: commissionAmount,
+            amount: split.commissionAmount,
             type: TransactionType.DEBIT,
             paymentMethod: order.paymentMethod,
             status: chargeStatus,
@@ -478,9 +559,9 @@ export class OrdersCompletionService {
         // driver (or the driver owes the platform, when negative).
         //
         //  - CASH: the driver already pocketed the fare, so only the
-        //    commission owed back to the platform lands here. The balance
-        //    trends negative by design — that is the amount the driver must
-        //    eventually top up.
+        //    commission owed back to the platform lands here (plus the promo
+        //    compensation the platform owes him). The balance trends negative
+        //    by design — that is the amount the driver must eventually top up.
         //  - Collected non-cash: the platform holds the money, so it owes the
         //    driver the net payout.
         //  - Uncollected non-cash: nothing has been collected, so nothing is
@@ -490,9 +571,9 @@ export class OrdersCompletionService {
         let balanceDelta: number;
 
         if (order.paymentMethod === PaymentMethod.CASH) {
-          balanceDelta = 0 - commissionAmount - taxWithheld;
+          balanceDelta = promoCompensation - split.commissionAmount - taxWithheld;
         } else if (isCollected) {
-          balanceDelta = netDriverEarning - taxWithheld;
+          balanceDelta = split.driverEarning - taxWithheld;
         } else {
           balanceDelta = 0;
         }
@@ -507,6 +588,19 @@ export class OrdersCompletionService {
         payoutDriverId = adjustment.driverId;
       }
     });
+
+    // Bu yerdan pastdagi hamma narsa faqat da'voni YUTGAN chaqiruvda ishlaydi.
+    const discountedFinalPrice = split.passengerPays;
+
+    // Safar yozuvi — haqiqiy masofa va davomiylik. Da'vodan keyin: yutqazgan
+    // parallel chaqiruv tugash vaqtini qayta yozmasin.
+    if (trip) {
+      await this.tripRepository.update(trip.id, {
+        endTime: now,
+        actualDistanceKm,
+        actualDurationMin,
+      });
+    }
 
     // Redis is not part of the transaction, so the driver is only dropped from
     // the online set once the negative balance is actually durable.
@@ -558,7 +652,9 @@ export class OrdersCompletionService {
     // Food/market: marks the vendor order delivered and settles the vendor.
     await this.deliveryEvents?.publish(updatedOrder, 'delivered');
 
-    await this.recordFiscalReceipt(order, payoutDriver, discountedFinalPrice, commissionAmount);
+    // Chek jami — yo'lovchi HAQIQATAN to'lagan summa; komissiya chegirmasiz
+    // narxdan (promokodni platforma ko'taradi).
+    await this.recordFiscalReceipt(order, payoutDriver, discountedFinalPrice, split.commissionAmount);
 
     // Re-fetch: adjustBalance may have just flipped isOnline to false if the
     // commission deduction pushed the driver negative.
@@ -574,42 +670,10 @@ export class OrdersCompletionService {
       }
     }
 
-    // Referral bonus: if this passenger was referred by another user and this
-    // is their first-ever completed trip, credit both the passenger and their
-    // referrer a fixed bonus. Best-effort — a bonus-crediting bug must never
-    // break trip completion, which is the actually critical operation here.
-    try {
-      // Shubhali safarda referal ushlab qolinadi — menejer tasdiqlasa
-      // `creditReferralBonus` beradi.
-      if (passenger?.referredByUserId && !suspicious) {
-        const completedOrdersCount = await this.orderRepository.count({
-          where: { passengerId: order.passengerId, status: OrderStatus.COMPLETED },
-        });
-
-        if (completedOrdersCount === 1) {
-          await this.transactionRepository.save({
-            userId: order.passengerId,
-            orderId,
-            amount: REFERRAL_BONUS_AMOUNT,
-            type: TransactionType.CREDIT,
-            paymentMethod: PaymentMethod.WALLET,
-            status: TransactionStatus.COMPLETED,
-            externalId: `referral_bonus_passenger_${order.id}`,
-          });
-
-          await this.transactionRepository.save({
-            userId: passenger.referredByUserId,
-            orderId,
-            amount: REFERRAL_BONUS_AMOUNT,
-            type: TransactionType.CREDIT,
-            paymentMethod: PaymentMethod.WALLET,
-            status: TransactionStatus.COMPLETED,
-            externalId: `referral_bonus_referrer_${order.id}`,
-          });
-        }
-      }
-    } catch (err) {
-      this.logger.warn(`Referral bonus crediting failed for order ${orderId}: ${err}`);
+    // Shubhali safarda referal ushlab qolinadi — menejer tasdiqlasa
+    // `creditReferralBonus` beradi.
+    if (passenger?.referredByUserId && !suspicious) {
+      await this.creditFirstRideReferralBonus(order, passenger.referredByUserId);
     }
 
     this.logger.log(
@@ -617,6 +681,125 @@ export class OrdersCompletionService {
     );
 
     return updatedOrder;
+  }
+
+  /**
+   * Promokodni yakuniy narxga qarshi QAYTA tekshiradi (o'qish, band qilmaydi).
+   * Yaroqsiz bo'lib qolgan bo'lsa (muddati o'tgan, limit tugagan) — `null`,
+   * ya'ni to'liq narx: yakunlash bu sababli buzilmaydi.
+   */
+  private async validatePromoForCompletion(
+    order: Order,
+    finalPrice: number,
+  ): Promise<{ promoCodeId: string; discountAmount: number } | null> {
+    if (!order.promoCodeId) return null;
+    try {
+      const promoCode = await this.promoCodesService.findById(order.promoCodeId);
+      const result = await this.promoCodesService.validate(
+        promoCode.code,
+        order.passengerId,
+        finalPrice,
+        { serviceType: order.serviceType },
+      );
+      return { promoCodeId: order.promoCodeId, discountAmount: result.discountAmount };
+    } catch (err) {
+      this.logger.warn(
+        `Promo code re-validation failed at completion for order ${order.id}, charging full price: ${err}`,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Promokodning bitta ishlatilishini band qiladi — faqat da'voni yutgan
+   * tranzaksiya ichidan. apply() must succeed before the discount counts: it
+   * atomically claims one of the code's remaining uses and can still fail
+   * here (the limit was taken by a concurrent order). Then the trip is
+   * charged in full and the already-written order row is corrected — the
+   * discount is never handed out without a recorded use.
+   */
+  private async claimPromoUse(
+    manager: EntityManager,
+    order: Order,
+    promoCodeId: string,
+    split: RideFareSplit,
+    commissionRate: number,
+  ): Promise<RideFareSplit> {
+    try {
+      await this.promoCodesService.apply(promoCodeId, order.passengerId, order.id, manager);
+      return split;
+    } catch (err) {
+      this.logger.warn(
+        `Promo code could not be claimed at completion for order ${order.id}, charging full price: ${err}`,
+      );
+      const fullPrice = splitRideFare(split.grossFare, 0, commissionRate);
+      await manager.update(Order, order.id, {
+        finalPrice: fullPrice.passengerPays,
+        discountAmount: null,
+        driverEarning: fullPrice.driverEarning,
+      });
+      return fullPrice;
+    }
+  }
+
+  /**
+   * Referral bonus: if this passenger was referred by another user and this
+   * is their first-ever completed OWN ride, credit both the passenger and
+   * their referrer a fixed bonus. Best-effort — a bonus-crediting bug must
+   * never break trip completion, which is the actually critical operation.
+   *
+   * Faqat yo'lovchining O'Z safarlari sanaladi (taksi/yuk/posilka). Ovqat/
+   * market kuryer safari ham `passengerId = mijoz` bilan yaratiladi — ilgari
+   * u sanalardi: kuryer safaridan keyingi birinchi taksi "ikkinchi" bo'lib
+   * qolardi, kuryer safarining o'zi esa "birinchi" deb bonus berardi.
+   */
+  private async creditFirstRideReferralBonus(order: Order, referrerUserId: string): Promise<void> {
+    // `serviceType` yo'q (eski qator / qo'lda yig'ilgan obyekt) — taksi,
+    // yaratishdagi standart bilan bir xil.
+    const serviceType = order.serviceType ?? ServiceType.TAXI;
+    if (!REFERRAL_RIDE_SERVICE_TYPES.includes(serviceType) || isVendorDeliveryRide(order)) {
+      return;
+    }
+    try {
+      const completedOwnRides = await this.orderRepository.count({
+        where: {
+          passengerId: order.passengerId,
+          status: OrderStatus.COMPLETED,
+          serviceType: In(REFERRAL_RIDE_SERVICE_TYPES),
+        },
+      });
+      if (completedOwnRides !== 1) return;
+
+      await this.saveReferralCredit(order, order.passengerId, `referral_bonus_passenger_${order.id}`);
+      await this.saveReferralCredit(order, referrerUserId, `referral_bonus_referrer_${order.id}`);
+    } catch (err) {
+      this.logger.warn(`Referral bonus crediting failed for order ${order.id}: ${err}`);
+    }
+  }
+
+  /**
+   * Bitta referal CREDIT'i. Takror (`23505` — referal bonusiga qo'yilgan
+   * unique index) — bonus allaqachon berilgan: jurnalga yoziladi va davom
+   * etiladi, yakunlash yiqilmaydi.
+   */
+  private async saveReferralCredit(order: Order, userId: string, externalId: string): Promise<void> {
+    try {
+      await this.transactionRepository.save({
+        userId,
+        orderId: order.id,
+        amount: REFERRAL_BONUS_AMOUNT,
+        type: TransactionType.CREDIT,
+        paymentMethod: PaymentMethod.WALLET,
+        status: TransactionStatus.COMPLETED,
+        externalId,
+      });
+    } catch (err) {
+      if (isUniqueViolation(err)) {
+        this.logger.warn(`Referral bonus ${externalId} already credited (unique index) — skipped`);
+        return;
+      }
+      throw err;
+    }
   }
 
 

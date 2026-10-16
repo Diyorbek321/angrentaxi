@@ -36,6 +36,35 @@ export enum TransactionStatus {
  */
 export const TIP_LEDGER_TAG = 'tip';
 
+/**
+ * Haydovchiga chaqimning to'lovchi BONUSIDAN qoplangan qismi (CREDIT).
+ *
+ * NEGA ALOHIDA BELGI: bonus pul yechib olinmaydi (docs/LEGAL-COMPLIANCE.md).
+ * Yo'lovchi to'ldira olmaydi, ya'ni uning hamyoni amalda bonus — u bonusni
+ * chaqim qilib haydovchiga bersa va bu oddiy `'tip'` bo'lib yozilsa, bonus
+ * naqd pulga aylanardi. Bu qator `computeWithdrawableBalance` da bonus deb
+ * sanaladi. To'lovchi tomoni o'zgarmaydi — bitta `'tip'` DEBIT.
+ */
+export const TIP_BONUS_LEDGER_TAG = 'tip_bonus';
+
+/**
+ * Hamyon bilan to'langan safarda yo'l haqining yo'lovchi BONUSIDAN qoplangan
+ * qismi — haydovchiga CREDIT. `TIP_BONUS_LEDGER_TAG` bilan bir xil sabab:
+ * aks holda "soxta yo'lovchini taklif qilish → bonus → hamyon bilan safar →
+ * naqd yechish" yo'li ochiq qolardi. Hamyon harakati o'zgarmaydi, faqat
+ * yechib olish huquqi (`computeWithdrawableBalance` bonus deb sanaydi).
+ */
+export const FARE_BONUS_LEDGER_TAG = 'fare_bonus';
+
+/**
+ * Yuqoridagining yo'lovchi tomoni: hamyon bilan to'langan safar DEBIT'ining
+ * BONUSDAN qoplangan qismi alohida qator. U bonus hisobini kamaytiradi
+ * (`BONUS_CONSUMING_DEBIT_SQL`); aks holda sarflangan bonus hisobda qolib,
+ * keyingi haqiqiy pulli safarda haydovchi daromadini `fare_bonus` qilib
+ * qulflardi. Hamyon qoldig'i uchun oddiy DEBIT — jami o'zgarmaydi.
+ */
+export const FARE_BONUS_SPEND_LEDGER_TAG = 'fare_bonus_spend';
+
 // Read-path indexes.
 // - user_id + created_at: PaymentsService.getTransactionHistory (paginated,
 //   newest-first) and computeBalance / the referral bonus SUM, which both
@@ -77,6 +106,18 @@ export const TIP_LEDGER_TAG = 'tip';
 @Index('uq_transactions_refund_clawback', ['externalId'], {
   unique: true,
   where: "external_id LIKE 'refund_clawback_%'",
+})
+// Yechish qaytarimi (`withdrawal_refund_<id>`) va referal bonusi
+// (`referral_bonus_{passenger|referrer}_<orderId>`) — har biri bir marta
+// (migratsiya 033). Ikki parallel REJECT yoki ikki marta yakunlangan safar
+// pulni ikki marta yoza olmaydi.
+@Index('uq_transactions_withdrawal_refund', ['externalId'], {
+  unique: true,
+  where: "external_id LIKE 'withdrawal_refund_%'",
+})
+@Index('uq_transactions_referral_bonus', ['externalId'], {
+  unique: true,
+  where: "external_id LIKE 'referral_bonus_%'",
 })
 @Entity('transactions')
 export class Transaction {

@@ -17,6 +17,7 @@ describe('FoodService - restaurant earnings settlement on delivery', () => {
   let restaurantRepo: { findOneOrFail: jest.Mock };
   let transactionRepo: { save: jest.Mock };
   let realtimeGateway: { emitToUser: jest.Mock };
+  let fiscalReceipts: { recordForVendorOrder: jest.Mock };
   let service: FoodService;
 
   const restaurant = {
@@ -31,7 +32,11 @@ describe('FoodService - restaurant earnings settlement on delivery', () => {
       restaurantId: 'restaurant-1',
       customerId: 'customer-1',
       status: FoodOrderStatus.READY,
-      items: [],
+      // Tovar 70 000 + yetkazish 10 000 = 80 000.
+      items: [
+        { dishId: 'd1', name: 'Osh', qty: 2, price: 30000, prepMinutes: 10 },
+        { dishId: 'd2', name: 'Non', qty: 2, price: 5000, prepMinutes: 1 },
+      ],
       totalPrice: 80000,
       paymentMethod: FoodPaymentMethod.CASH,
       deliveryOrderId: null,
@@ -47,6 +52,7 @@ describe('FoodService - restaurant earnings settlement on delivery', () => {
     restaurantRepo = { findOneOrFail: jest.fn().mockResolvedValue(restaurant) };
     transactionRepo = { save: jest.fn().mockImplementation((tx) => Promise.resolve({ id: 'tx-1', ...tx })) };
     realtimeGateway = { emitToUser: jest.fn() };
+    fiscalReceipts = { recordForVendorOrder: jest.fn().mockResolvedValue(null) };
 
     service = new FoodService(
       restaurantRepo as never,
@@ -60,6 +66,11 @@ describe('FoodService - restaurant earnings settlement on delivery', () => {
       {} as never, // matchingService — unused by advanceOrder
       {} as never, // tariffsService — unused by advanceOrder
       {} as never, // settingsService — only used when creating an order
+      undefined, // deliveryEvents
+      undefined, // promotionsService
+      undefined, // promoCodesService
+      undefined, // notificationsService
+      fiscalReceipts as never,
     );
   });
 
@@ -73,7 +84,7 @@ describe('FoodService - restaurant earnings settlement on delivery', () => {
       expect.objectContaining({
         userId: 'restaurant-owner-1',
         orderId: null,
-        amount: 12000, // 15% of 80,000
+        amount: 10500, // 15% of the 70 000 items — never of the 10 000 delivery fee
         type: TransactionType.DEBIT,
         paymentMethod: PaymentMethod.CASH,
         status: TransactionStatus.COMPLETED,
@@ -92,7 +103,7 @@ describe('FoodService - restaurant earnings settlement on delivery', () => {
     expect(transactionRepo.save).not.toHaveBeenCalled();
   });
 
-  it('books a gross CREDIT plus a commission DEBIT for a CARD order', async () => {
+  it("o'z kuryeri (self-delivery) CARD: sotuvchiga tovar + yetkazish haqi, komissiya faqat tovardan", async () => {
     orderRepo.findOne.mockResolvedValue(readyOrder({ paymentMethod: FoodPaymentMethod.CARD }));
 
     await service.advanceOrder('restaurant-1', 'food-order-1');
@@ -102,7 +113,7 @@ describe('FoodService - restaurant earnings settlement on delivery', () => {
       1,
       expect.objectContaining({
         userId: 'restaurant-owner-1',
-        amount: 80000,
+        amount: 80000, // yetkazish haqi sotuvchining o'z daromadi
         type: TransactionType.CREDIT,
         paymentMethod: PaymentMethod.CARD,
         externalId: 'food_order_food-order-1',
@@ -112,7 +123,7 @@ describe('FoodService - restaurant earnings settlement on delivery', () => {
       2,
       expect.objectContaining({
         userId: 'restaurant-owner-1',
-        amount: 12000,
+        amount: 10500,
         type: TransactionType.DEBIT,
         paymentMethod: PaymentMethod.CARD,
         externalId: 'food_order_commission_food-order-1',
@@ -126,6 +137,37 @@ describe('FoodService - restaurant earnings settlement on delivery', () => {
 
     await service.advanceOrder('restaurant-1', 'food-order-1');
 
+    expect(transactionRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('0% komissiyada ham CARD buyurtma sotuvchiga kreditlanadi (faqat komissiya qatori yo‘q)', async () => {
+    restaurantRepo.findOneOrFail.mockResolvedValue({ ...restaurant, commissionRate: 0 });
+    orderRepo.findOne.mockResolvedValue(readyOrder({ paymentMethod: FoodPaymentMethod.CARD }));
+
+    await service.advanceOrder('restaurant-1', 'food-order-1');
+
+    expect(transactionRepo.save).toHaveBeenCalledTimes(1);
+    expect(transactionRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: 80000, type: TransactionType.CREDIT, externalId: 'food_order_food-order-1' }),
+    );
+  });
+
+  it("o'zi yetkazgan buyurtmaga sotuvchi fiskal cheki BIR MARTA yoziladi", async () => {
+    orderRepo.findOne.mockResolvedValue(readyOrder());
+
+    await service.advanceOrder('restaurant-1', 'food-order-1');
+
+    expect(fiscalReceipts.recordForVendorOrder).toHaveBeenCalledTimes(1);
+    expect(fiscalReceipts.recordForVendorOrder).toHaveBeenCalledWith('food', 'food-order-1');
+  });
+
+  it("qo'lda 'yetkazildi' poygani yutqazsa (409) — chek ham, komissiya ham yo'q", async () => {
+    orderRepo.findOne.mockResolvedValue(readyOrder());
+    orderRepo.update.mockResolvedValue({ affected: 0 });
+
+    await expect(service.advanceOrder('restaurant-1', 'food-order-1')).rejects.toThrow();
+
+    expect(fiscalReceipts.recordForVendorOrder).not.toHaveBeenCalled();
     expect(transactionRepo.save).not.toHaveBeenCalled();
   });
 

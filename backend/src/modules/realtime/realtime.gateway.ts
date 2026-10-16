@@ -162,7 +162,18 @@ export class RealtimeGateway
   }
 
   afterInit(_server: Server): void {
+    // Bloklangan foydalanuvchi ochiq socketlari bilan qolmasin: handshake va
+    // WsJwtGuard faqat yangi ulanish/kiruvchi hodisani to'xtatadi, server
+    // yuboradigan takliflar esa ochiq socketga oqishda davom etardi.
+    this.usersService.onUserBlocked?.((userId) => this.disconnectUser(userId));
     this.logger.log('WebSocket Gateway initialized on namespace /ws');
+  }
+
+  /** Drops every live socket of [userId] and stops their presence heartbeat. */
+  async disconnectUser(userId: string): Promise<void> {
+    this.connectedDrivers.delete(userId);
+    this.verifiedDriverOrder.delete(userId);
+    this.server.in(`user:${userId}`).disconnectSockets(true);
   }
 
   async handleConnection(client: Socket): Promise<void> {

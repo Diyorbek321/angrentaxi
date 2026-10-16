@@ -6,7 +6,12 @@ import { Trip } from '../../database/entities/trip.entity';
 import { UserRole } from '../../database/entities/user.entity';
 import { TariffsService } from '../tariffs/tariffs.service';
 import { withOptionsFare } from './trip-option-fees';
-import { computeWaitingMinutes, waitingSettingsOf, withWaitingFare } from '../tariffs/waiting-charge';
+import {
+  computeWaitingMinutes,
+  waitingSettingsOf,
+  waitingStartOf,
+  withWaitingFare,
+} from '../tariffs/waiting-charge';
 import { meteredTariff } from '../tariffs/metered-rate';
 import { TaximeterService } from '../taximeter/taximeter.service';
 import { OrdersQueryService } from './orders-query.service';
@@ -61,7 +66,11 @@ export class OrdersMeterService {
 
     const tariff = await this.tariffsService.findById(order.tariffId);
     const { freeWaitMinutes, waitingPricePerMinute } = waitingSettingsOf(tariff);
-    const waitingMinutes = computeWaitingMinutes(order.arrivedAt, trip?.startTime ?? null, freeWaitMinutes);
+    const waitingMinutes = computeWaitingMinutes(
+      waitingStartOf(order.arrivedAt, order.scheduledAt),
+      trip?.startTime ?? null,
+      freeWaitMinutes,
+    );
     // Yakuniy narx bilan bir xil: muzlatilgan opsiya haqi + kutish.
     const breakdown = withWaitingFare(
       withOptionsFare(

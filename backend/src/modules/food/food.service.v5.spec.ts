@@ -354,12 +354,12 @@ describe('FoodService — UX v5', () => {
   });
 
   describe('promo compensation on delivery (cash, courier collected less)', () => {
-    it('credits the courier the promo discount; commission is still on totalPrice', async () => {
+    it('credits the vendor the promo discount; commission is on the full items (promo does not shrink it)', async () => {
       const ready = {
         customerId: 'cust-1',
         restaurantId: 'rest-1',
         status: FoodOrderStatus.READY,
-        items: [],
+        items: [{ dishId: 'd1', name: 'Osh', qty: 2, price: 30000, prepMinutes: 10 }],
         totalPrice: 60000,
         promoDiscount: 5300,
         paymentMethod: FoodPaymentMethod.CASH,

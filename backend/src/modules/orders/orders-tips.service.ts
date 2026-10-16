@@ -13,6 +13,7 @@ import {
   PaymentMethod,
 } from '../../database/entities/order.entity';
 import {
+  TIP_BONUS_LEDGER_TAG,
   TIP_LEDGER_TAG,
   Transaction,
   TransactionStatus,
@@ -21,6 +22,7 @@ import {
 import { Trip } from '../../database/entities/trip.entity';
 import { DriversService } from '../drivers/drivers.service';
 import {
+  computeBonusBalance,
   computeSpendableBalance,
   lockWalletForUpdate,
 } from '../payments/wallet-balance.util';
@@ -118,6 +120,18 @@ export class OrdersTipsService {
         );
       }
 
+      // ⚠️ BONUSDAN CHAQIM NAQDGA AYLANMAYDI (pul auditi #3). Yo'lovchi
+      // hamyonni to'ldira olmaydi, ya'ni uning qoldig'i amalda bonus. Chaqimning
+      // to'lovchi BONUSIDAN qoplangan qismi haydovchiga `tip_bonus` bo'lib
+      // tushadi va yechib olinmaydi; qolgani — oddiy `tip`. Aks holda: soxta
+      // yo'lovchini taklif qil → ikkalang referal bonusini ol → yo'lovchi uni
+      // chaqim qilib ber → yech. To'lovchining sarflanmagan bonusi QULF ichida.
+      //
+      // DEBIT'dan OLDIN o'lchanadi: 'tip' bonus sarflovchi DEBIT, yozilgach shu
+      // tranzaksiya ichidagi SQL pulni allaqachon kamaytirgan bo'lardi va
+      // bonusdan berilgan chaqim oddiy 'tip' bo'lib ketardi.
+      const payerBonus = await computeBonusBalance(manager, passengerId);
+
       await transactionRepo.save({
         userId: passengerId,
         orderId,
@@ -128,15 +142,17 @@ export class OrdersTipsService {
         externalId: TIP_LEDGER_TAG,
       });
 
-      await transactionRepo.save({
-        userId: driverId,
-        orderId,
-        amount: dto.amount,
-        type: TransactionType.CREDIT,
-        paymentMethod: PaymentMethod.WALLET,
-        status: TransactionStatus.COMPLETED,
-        externalId: TIP_LEDGER_TAG,
-      });
+      for (const part of splitTipFunding(dto.amount, payerBonus)) {
+        await transactionRepo.save({
+          userId: driverId,
+          orderId,
+          amount: part.amount,
+          type: TransactionType.CREDIT,
+          paymentMethod: PaymentMethod.WALLET,
+          status: TransactionStatus.COMPLETED,
+          externalId: part.tag,
+        });
+      }
 
       // ⚠️ BU YERDA KOMISSIYA DEBIT QATORI YO'Q — ataylab.
       // Haydovchi to'liq summani oladi.
@@ -205,4 +221,20 @@ export class OrdersTipsService {
       );
     }
   }
+}
+
+/**
+ * Chaqimni to'lovchi bonusi bo'yicha bo'ladi: avval bonus qismi
+ * (`tip_bonus`), keyin naqd qismi (`tip`). Nol summali qator yozilmaydi.
+ */
+export function splitTipFunding(
+  amount: number,
+  payerBonus: number,
+): Array<{ amount: number; tag: string }> {
+  const bonusPart = Math.min(amount, Math.max(0, payerBonus));
+  const cashPart = amount - bonusPart;
+  return [
+    { amount: bonusPart, tag: TIP_BONUS_LEDGER_TAG },
+    { amount: cashPart, tag: TIP_LEDGER_TAG },
+  ].filter((part) => part.amount > 0);
 }

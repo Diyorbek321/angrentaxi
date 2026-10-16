@@ -111,4 +111,19 @@ export class WithdrawalRequest {
    */
   @Column({ name: 'payout_reference', type: 'varchar', nullable: true })
   payoutReference: string | null;
+
+  /**
+   * Pul chiqarish BOSHLANGAN vaqt — PAID uchun single-flight da'vosi
+   * (migratsiya 033). `PaymentsService.processWithdrawal` provayderni
+   * chaqirishdan OLDIN `APPROVED AND payout_started_at IS NULL` shartida
+   * yozadi: ikki admin bir vaqtda "to'landi" bossa, faqat bittasi yuboradi.
+   * Provayder yiqilsa `NULL` ga qaytariladi (qayta urinish mumkin).
+   *
+   * ⚠️ Jarayon yuborish o'rtasida o'lsa qiymat qoladi va so'rov qayta
+   * yuborilmaydi — bu ATAYLAB: pul ketgan-ketmaganini provayderdan qo'lda
+   * tekshirib, keyin ustunni tozalash kerak. Ikki marta to'lashdan ko'ra
+   * to'xtab qolish arzon.
+   */
+  @Column({ name: 'payout_started_at', type: 'timestamptz', nullable: true })
+  payoutStartedAt: Date | null;
 }

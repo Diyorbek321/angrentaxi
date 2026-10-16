@@ -6975,6 +6975,12 @@ abstract class AppLocalizations {
   /// **'Yechish mumkin: {amount}'**
   String wdrAvailable(String amount);
 
+  /// No description provided for @wdrBonusNote.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bonus {amount} — komissiya va smenaga sarflanadi, yechib bo\'lmaydi'**
+  String wdrBonusNote(String amount);
+
   /// No description provided for @wdrHoldNote.
   ///
   /// In uz, this message translates to:

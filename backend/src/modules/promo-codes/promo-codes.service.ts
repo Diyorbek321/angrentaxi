@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { PromoCode } from '../../database/entities/promo_code.entity';
 import { PromoCodeUsage } from '../../database/entities/promo_code_usage.entity';
 import { CreatePromoCodeDto } from './dto/create-promo-code.dto';
@@ -158,9 +158,17 @@ export class PromoCodesService {
     return promoCode;
   }
 
-  async apply(promoCodeId: string, userId: string, orderId: string): Promise<void> {
-    await this.claimUse(promoCodeId);
-    await this.promoCodeUsageRepository.save({
+  /**
+   * `manager` — safar yakunining tranzaksiyasi: hisoblagich va foydalanish
+   * yozuvi pul yozuvlari bilan birga commit/rollback bo'ladi. Aks holda
+   * rollback'dan keyin promokod "yeyilgan" bo'lib qolar, qayta urinish esa
+   * ikkinchi foydalanishni yerdi.
+   */
+  async apply(promoCodeId: string, userId: string, orderId: string, manager?: EntityManager): Promise<void> {
+    const promoRepo = manager?.getRepository(PromoCode) ?? this.promoCodeRepository;
+    const usageRepo = manager?.getRepository(PromoCodeUsage) ?? this.promoCodeUsageRepository;
+    await this.claimUse(promoCodeId, promoRepo);
+    await usageRepo.save({
       promoCodeId,
       userId,
       orderId,
@@ -199,8 +207,11 @@ export class PromoCodesService {
       .execute();
   }
 
-  private async claimUse(promoCodeId: string): Promise<void> {
-    const promoCode = await this.promoCodeRepository.findOne({ where: { id: promoCodeId } });
+  private async claimUse(
+    promoCodeId: string,
+    promoRepo: Repository<PromoCode> = this.promoCodeRepository,
+  ): Promise<void> {
+    const promoCode = await promoRepo.findOne({ where: { id: promoCodeId } });
 
     if (!promoCode) {
       throw new NotFoundException(`Promo code with id ${promoCodeId} not found`);
@@ -213,7 +224,7 @@ export class PromoCodesService {
     // moment both read the same count and write count+1, so a code could be
     // redeemed past its maxUses — validate() reads the stale counter and both
     // callers pass. The conditional UPDATE makes the loser touch 0 rows.
-    const result = await this.promoCodeRepository
+    const result = await promoRepo
       .createQueryBuilder()
       .update(PromoCode)
       .set({ usedCount: () => '"used_count" + 1' })

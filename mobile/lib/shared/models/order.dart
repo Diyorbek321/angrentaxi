@@ -306,6 +306,17 @@ class Order extends Equatable {
   /// (UTC+5) ekranda 5 soatlik xato ko'rinardi.
   final DateTime? arrivedAt;
 
+  /// Kutish hisobi qachondan boshlanadi. Rejalashtirilgan safarda haydovchi
+  /// ko'pincha erta keladi — yo'lovchi belgilangan vaqtgacha kutishga majbur
+  /// emas, shuning uchun `max(arrivedAt, scheduledAt)`. Server yakuniy narxni
+  /// aynan shu qoida bilan hisoblaydi (`waitingStartOf`).
+  DateTime? get waitingStartsAt {
+    final arrived = arrivedAt;
+    if (arrived == null) return null;
+    final scheduled = scheduledAt;
+    return scheduled != null && scheduled.isAfter(arrived) ? scheduled : arrived;
+  }
+
   /// Bepul kutish oynasi, daqiqa. Buyurtma tarifidan keladi.
   ///
   /// Maydon javobda umuman bo'lmasa (eski server) zaxira qiymat

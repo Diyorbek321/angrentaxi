@@ -288,7 +288,7 @@ describe('FiscalReceiptsService', () => {
   });
 
   describe('recordForVendorOrder', () => {
-    it('ovqat — komitent restoran, summa tovar qismi (yetkazish haqisiz)', async () => {
+    it('ovqat (platforma kuryeri) — komitent restoran, summa va komissiya tovar qismidan (yetkazish haqisiz)', async () => {
       const service = build();
       foodOrders.findOne.mockResolvedValue({
         id: 'food-1',
@@ -296,6 +296,7 @@ describe('FiscalReceiptsService', () => {
         totalPrice: 57000,
         items: [{ qty: 2, price: 25000 }],
         paymentMethod: 'cash',
+        deliveryOrderId: 'ride-1',
       });
       restaurants.findOne.mockResolvedValue({ id: 'rest-1', tin: '123456789', commissionRate: 10 });
 
@@ -309,10 +310,48 @@ describe('FiscalReceiptsService', () => {
           principalId: 'rest-1',
           principalTin: '123456789',
           total: 50000,
-          commissionAmount: 5700,
+          // 10% × 50 000 tovar — chek summasi bilan mos (ilgari 5 700 = 57 000 dan).
+          commissionAmount: 5000,
           paymentMethod: 'cash',
         }),
       );
+    });
+
+    it("o'zi yetkazgan buyurtma — chekda yetkazish haqi ham (sotuvchining o'z xizmati), komissiya faqat tovardan", async () => {
+      const service = build();
+      foodOrders.findOne.mockResolvedValue({
+        id: 'food-2',
+        restaurantId: 'rest-1',
+        totalPrice: 58000,
+        items: [{ qty: 1, price: 50000 }],
+        paymentMethod: 'card',
+        deliveryOrderId: null,
+      });
+      restaurants.findOne.mockResolvedValue({ id: 'rest-1', tin: '123456789', commissionRate: 12 });
+
+      const receipt = await service.recordForVendorOrder('food', 'food-2');
+
+      expect(receipt).toEqual(expect.objectContaining({ orderId: 'food-2', total: 58000, commissionAmount: 6000 }));
+    });
+
+    it('takroriy chaqiruv (qo‘lda yetkazildi + kechikkan hodisa) — bitta chek', async () => {
+      const service = build();
+      foodOrders.findOne.mockResolvedValue({
+        id: 'food-3',
+        restaurantId: 'rest-1',
+        totalPrice: 50000,
+        items: [{ qty: 1, price: 50000 }],
+        paymentMethod: 'cash',
+        deliveryOrderId: null,
+      });
+      restaurants.findOne.mockResolvedValue({ id: 'rest-1', tin: null, commissionRate: 10 });
+
+      const first = await service.recordForVendorOrder('food', 'food-3');
+      const second = await service.recordForVendorOrder('food', 'food-3');
+
+      expect(second?.id).toBe(first?.id);
+      expect(rows.filter((r) => r.orderId === 'food-3')).toHaveLength(1);
+      expect(repo.create).toHaveBeenCalledTimes(1);
     });
 
     it("market — komitent do'kon", async () => {

@@ -92,7 +92,7 @@ export class OrdersController {
    * Uni `ScheduledOrdersService` cron'i `scheduled_at` dan
    * SCHEDULED_DISPATCH_LEAD_MINUTES oldin ishga tushiradi. Bu yerda
    * `startSearch` chaqirilsa, ertangi safar uchun haydovchi BUGUN
-   * qidirilardi va 60 soniyadan keyin "haydovchi topilmadi" deb bekor
+   * qidirilardi va 3 daqiqadan keyin "haydovchi topilmadi" deb bekor
    * bo'lardi.
    */
   private startSearchUnlessScheduled(order: Order): void {

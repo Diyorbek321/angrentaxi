@@ -790,3 +790,121 @@ Manba: `docs/specs/food-market-ux-v5.md` §2, §4. Ovqat/market buyurtmasida ikk
   bo'shatiladi (qator o'chadi, `used_count − 1`). Taksida avvalgidek safar yakunida.
 - Ochiq: yetkazilgan buyurtma refund'ida (`order-refund-clawback`) promokod qoplanishi qaytarib
   olinmaydi — kerak bo'lsa alohida.
+
+## 27. Pul oqimi auditi tuzatishlari (2026-10-16, migratsiya 033)
+
+Besh agentli audit (hamyon, buyurtma pullari, bir vaqtdagi amallar,
+algoritmlar) topgan xatolar va egasi tasdiqlagan to'rt biznes qarori.
+
+### 27.1 Bonus pul yechib olinmaydi
+
+Bonus pullar — haydovchi bonuslari (`bonus_rule_id`), referal bonuslari
+(ikkala tomon, `referral_bonus_*`), bonus hisobidan berilgan chaqiriq
+(`tip_bonus`) va hamyon bilan to'langan safar haqining yo'lovchi bonusidan
+qoplangan qismi (`fare_bonus`) — hamyonda SARFLANADI, lekin yechib
+olinmaydi. Bonus birinchi navbatda platforma to'lovlariga ketadi: komissiya,
+1% soliq ushlovi, smena xaridi va sotuvchi komissiyasi. Hisob XRONOLOGIK:
+bonusdan oldingi to'lovlar uni kamaytirmaydi.
+
+`yechish mumkin = max(0, balans − ushlab turilgan karta to'ldirishlari −
+sarflanmagan bonus)`; sarflanmagan bonus `GET /payments/wallet` da
+`bonusBalance` bo'lib alohida chiqadi, haydovchi ilovasi uni izoh bilan
+ko'rsatadi. Qo'lda tuzatish, promo kompensatsiya, safar daromadi va
+ushlov muddati o'tgan to'ldirishlar — yechib olinadi.
+
+Yo'lovchi hamyonini to'ldira olmaydi, ya'ni uning qoldig'i amalda bonus.
+Shuning uchun u bonusni chaqiriq yoki hamyon bilan safar orqali
+haydovchiga o'tkazsa, haydovchiga ham yechib bo'lmaydigan bo'lib tushadi
+("soxta yo'lovchini taklif qilish → bonus → naqd" yo'li yopilgan).
+
+Yo'lovchining NAQD yoki KARTA to'lovi hamyon qoldig'ini kamaytirmaydi
+(ilgari naqd safar referal bonusini "yeb" qo'yardi); haydovchining naqd
+safar komissiyasi va soliq qarzi esa hisobga olinadi.
+
+Yechish so'rovi: butun so'm, 10 000 – 99 999 999.
+
+### 27.2 Taksi promo kodini platforma to'laydi
+
+§26 dagi ovqat/market modeli kabi. Yo'lovchi chegirmali narxni to'laydi
+(`orders.final_price`, chek jami). Komissiya va 1% soliq CHEGIRMAGACHA yo'l
+haqidan (`fare_breakdown.total`), `driver_earning = chegirmagacha − komissiya`
+— haydovchi promo bilan ham, promosiz ham bir xil topadi. Karta/hamyon:
+haydovchiga chegirmagacha to'liq summa CREDIT. Naqd: haydovchi chegirmali
+summani qo'liga oladi, platforma chegirmani darhol yechib olinadigan
+hamyoniga qoplaydi (`ride_promo_<orderId>`, buyurtmaga bitta).
+
+Misol: 20 000 yo'l haqi, 5 000 promo, 10% komissiya → yo'lovchi 15 000,
+komissiya 2 000, soliq 200, haydovchi sof 18 000 − 200; platforma xarajati
+5 000. Daromad va 1% soliq hisobotlari yalpi daromadni
+`final_price + discount_amount` dan oladi.
+
+⚠️ Buxgalter uchun ochiq savol: chekda jami 15 000 va komissiya 2 000
+turadi; platforma qoplagan 5 000 — marketing xarajati. OFD chegirma
+qatorini talab qiladimi — aniqlash kerak.
+
+### 27.3 Sotuvchi komissiyasi faqat tovardan
+
+Restoran/do'kon komissiyasi tovar summasidan (`totalPrice − yetkazish
+haqi`, aksiyadan keyingi narxlar), hech qachon yetkazish haqidan emas:
+50 000 tovar + 8 000 yetkazish, 12% → 6 000 (ilgari 6 960). Platforma
+kuryeri yetkazsa sotuvchi `tovar − komissiya` oladi (yetkazish haqi
+kuryerniki); sotuvchi o'zi yetkazsa yetkazish haqi uning daromadi
+(komissiyasiz) va chek buyurtma "yetkazildi" deb belgilanganda bir marta
+yoziladi. Hamyon rejimi, yetkazishdagi hisob-kitob va chek bitta formulani
+(`vendorOrderCommission`) ishlatadi.
+
+### 27.4 Haydovchi qidiruvi
+
+3 daqiqa (ilgari 60 s), radius 2 → 3 → 5 km — joriy radiusda bo'sh
+haydovchi qolmaganda kengayadi. Taklif 15 s. Topilmasa yo'lovchiga push
+ham boradi. Haydovchi faqat O'ZIGA taklif qilingan buyurtmani qabul qila
+oladi (taklif tugagach ~5 s imtiyoz), aks holda 409; dispetcherning qo'lda
+biriktirishi bundan mustasno, lekin band haydovchiga biriktirib bo'lmaydi
+(409). Bloklangan haydovchi darhol oflayn bo'ladi va taklif olmaydi.
+Yo'lovchi bekor qilsa yoki vaqt tugasa, taklifni ko'rib turgan haydovchiga
+`order:cancelled {orderId}` boradi. Xato tufayli "qidirilmoqda"da qolgan
+buyurtmalarni har 30 s reaper yopadi.
+
+Surge talabi — oxirgi 10 daqiqada taksi buyurtma bergan ALOHIDA
+yo'lovchilar (60 s ichida bekor qilinganlar va kuryer safarlari
+sanalmaydi); taklif — onlayn, faol, taksi xizmatidagi haydovchilar.
+
+### 27.5 Bir vaqtdagi amallar
+
+- Safar ikki marta yakunlanmaydi: tranzaksiya ichidagi birinchi yozuv —
+  `WHERE status = 'in_progress'` shartli da'vo; yutqazgan chaqiruv 409.
+- Yechish so'rovini tasdiqlash/rad etish/to'landi — shartli o'tish;
+  qaytarim bir marta (`uq_transactions_withdrawal_refund`), provayder bir
+  marta (`withdrawal_requests.payout_started_at`). Jarayon provayder
+  chaqiruvi o'rtasida o'lsa, so'rov `approved` + `payout_started_at`
+  bilan qoladi: admin provayderda tekshirib, ustunni qo'lda tozalaydi.
+- Referal bonusi buyurtmaga bir marta (`uq_transactions_referral_bonus`).
+- Rejalashtirilgan safarda kutish `max(arrivedAt, scheduledAt)` dan
+  hisoblanadi (yakuniy narx, taksometr va ilova hisoblagichi bir xil).
+
+### 27.6 Kod ko'rigidan keyingi tuzatishlar va deploy eslatmalari
+
+- Chaqim: to'lovchining bonusi DEBIT yozilishidan OLDIN o'lchanadi
+  (aks holda bonusdan berilgan chaqim oddiy `tip` bo'lib, naqdga aylanardi).
+- Hamyon bilan safar: yo'lovchi DEBIT'ining bonus qismi alohida
+  `fare_bonus_spend` qatori — u bonus hisobini kamaytiradi. Jami DEBIT
+  o'zgarmaydi; yo'lovchi tarixida bitta safar ikki qator bo'lib ko'rinishi
+  mumkin.
+- Promokod safar yakuni tranzaksiyasi ICHIDA band qilinadi (rollback
+  bo'lsa foydalanish ham qaytadi).
+- Buyurtma qulfi (`matching:lock:<id>`): TTL 30 s, bo'shatish — Lua
+  compare-and-delete (faqat o'z tokeni).
+- **Migratsiya 033 deploy'da:** `drivers.balance` keshini yangi formula
+  bilan qayta hisoblaydi. Naqd/karta bilan safar qilgan foydalanuvchilar
+  qoldig'i bir martalik OSHADI — bu eski xato tuzatilishi (avval ular
+  noto'g'ri ayirilgan edi). Prod'da deploy'dan oldin va keyin
+  `SELECT sum(balance) FROM drivers` ni solishtiring.
+- **Osilib qolgan to'lov** (`approved` + `payout_started_at` bor, `paid`
+  emas): avval provayder kabinetida pul ketganini tekshiring. Ketgan
+  bo'lsa — `UPDATE withdrawal_requests SET status='paid', processed_at=now()
+  WHERE id=$1 AND status='approved'`; ketmagan bo'lsa —
+  `UPDATE withdrawal_requests SET payout_started_at=NULL WHERE id=$1` va
+  paneldan qayta "to'landi" bosing.
+- Dev'da `DB_SYNC=true` va daftarda takroriy `withdrawal_refund_%` /
+  `referral_bonus_%` bo'lsa, synchronize yiqiladi (entity'da unikal
+  indeks) — avval takrorlarni tuzating.

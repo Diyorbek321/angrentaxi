@@ -42,6 +42,7 @@ describe('PaymentsService - withdrawals', () => {
     save: jest.Mock;
     find: jest.Mock;
     findOne: jest.Mock;
+    update: jest.Mock;
   };
   let queryBuilderMock: { select: jest.Mock; where: jest.Mock; getRawOne: jest.Mock };
   // Pul CHIQARISH adapteri — testlar undan nima so'ralganini tekshiradi.
@@ -76,6 +77,8 @@ describe('PaymentsService - withdrawals', () => {
       ),
       find: jest.fn(),
       findOne: jest.fn(),
+      // processWithdrawal — shartli da'vo (`update({ id, status })`).
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
     };
 
     // requestWithdrawal wraps its balance-check-then-insert in

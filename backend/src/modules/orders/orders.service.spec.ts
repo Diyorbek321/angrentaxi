@@ -120,6 +120,10 @@ describe('OrdersService - atomic status transitions (TOCTOU race guard)', () => 
     // transaction, so the mock hands the callback an EntityManager that routes
     // back to the same queryBuilder/save mocks the assertions below inspect.
     const transactionalManager = {
+      // Busy-driver guard (advisory lock + active-order count); the new
+      // driver is always free here.
+      query: jest.fn().mockResolvedValue([]),
+      count: jest.fn().mockResolvedValue(0),
       createQueryBuilder: jest.fn().mockReturnValue(queryBuilderMock),
       save: jest.fn((_entity: unknown, data: unknown) =>
         dispatchOverrideRepository.save(data),

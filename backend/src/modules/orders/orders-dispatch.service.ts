@@ -13,8 +13,8 @@ import {
 } from '@nestjs/common';
 import { DeliveryEventsService } from '../delivery/delivery-events.service';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Order, OrderStatus } from '../../database/entities/order.entity';
+import { In, Repository } from 'typeorm';
+import { DRIVER_ACTIVE_ORDER_STATUSES, Order, OrderStatus } from '../../database/entities/order.entity';
 import { DispatchOverride } from '../../database/entities/dispatch-override.entity';
 import { UserRole } from '../../database/entities/user.entity';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
@@ -23,6 +23,7 @@ import { UsersService } from '../users/users.service';
 import { DriversService } from '../drivers/drivers.service';
 import { OrdersQueryService } from './orders-query.service';
 import { OrderStatusTransitionService } from './order-status-transition.service';
+import { MatchingService } from '../matching/matching.service';
 
 @Injectable()
 export class OrdersDispatchService {
@@ -40,7 +41,27 @@ export class OrdersDispatchService {
     // Optional only so unit tests that build this service by hand keep
     // compiling; DeliveryEventsModule is global, so the app always has it.
     @Optional() private readonly deliveryEvents?: DeliveryEventsService,
+    // Qidiruvdagi buyurtma bekor/qo'lda biriktirilganda matching navbatini
+    // yopish uchun. Ilovada har doim bor (OrdersModule → MatchingModule).
+    @Optional() private readonly matching?: MatchingService,
   ) {}
+
+  /** Statuses in which MatchingService may still be offering the order. */
+  private static isInSearch(status: OrderStatus): boolean {
+    return status === OrderStatus.CREATED || status === OrderStatus.SEARCHING;
+  }
+
+  /** Never lets a matching hiccup fail a cancel/assignment that already committed. */
+  private async closeSearch(orderId: string, reason?: string, exceptDriverId?: string): Promise<void> {
+    if (!this.matching) return;
+    try {
+      await (exceptDriverId === undefined
+        ? this.matching.cancelSearch(orderId, reason)
+        : this.matching.cancelSearch(orderId, reason, exceptDriverId));
+    } catch (err) {
+      this.logger.warn(`Could not close matching search for ${orderId}: ${(err as Error).message}`);
+    }
+  }
 
   // Manual driver assignment/reassignment — the exception path under the
   // automated-dispatch model (MatchingService handles the normal case with
@@ -93,6 +114,20 @@ export class OrdersDispatchService {
     // of a reassignable status, which rolls the transaction back so no audit
     // entry is written for an override that didn't happen.
     await this.dispatchOverrideRepository.manager.transaction(async (manager) => {
+      // Qo'lda biriktirish ataylab taklif darvozasini chetlab o'tadi, lekin
+      // band haydovchiga IKKINCHI safarni bermaydi. Qulf kaliti
+      // `acceptForDriver` niki bilan bir xil — bir vaqtdagi qabul va
+      // biriktirish bitta haydovchi uchun navbatma-navbat bajariladi.
+      await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
+        `order-accept:${newDriver.userId}`,
+      ]);
+      const active = await manager.count(Order, {
+        where: { driverId: newDriver.userId, status: In([...DRIVER_ACTIVE_ORDER_STATUSES]) },
+      });
+      if (active > 0) {
+        throw new ConflictException('Selected driver already has an active order');
+      }
+
       const result = await manager
         .createQueryBuilder()
         .update(Order)
@@ -126,6 +161,12 @@ export class OrdersDispatchService {
     });
 
     const updatedOrder = await this.queryService.findByIdOrThrow(orderId);
+
+    // Matching hali shu buyurtmani boshqa haydovchiga taklif qilayotgan
+    // bo'lishi mumkin — taklif yopiladi (yangi haydovchiga "bekor" bormaydi).
+    if (OrdersDispatchService.isInSearch(order.status)) {
+      await this.closeSearch(orderId, 'Assigned by dispatcher', newDriver.userId);
+    }
 
     // The previous driver (if any) loses this order — reuse the cancellation
     // event so the driver app's existing handler dismisses it immediately.
@@ -240,6 +281,13 @@ export class OrdersDispatchService {
     });
 
     const updatedOrder = await this.queryService.findByIdOrThrow(orderId);
+
+    // ⚠️ Qidiruv paytida `order.driverId` hali null — taklifni ko'rib turgan
+    // haydovchini faqat matching navbati biladi. Ilgari unga hech narsa
+    // bormasdi: taklif ekranida qolib, "qabul" bosganda xato olardi.
+    if (OrdersDispatchService.isInSearch(order.status)) {
+      await this.closeSearch(orderId, reason);
+    }
 
     // Notify both parties
     if (order.passengerId !== userId) {

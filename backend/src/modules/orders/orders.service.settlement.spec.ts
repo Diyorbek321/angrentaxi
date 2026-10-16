@@ -188,10 +188,12 @@ describe('completeTrip settlement atomicity', () => {
 
     expect(transactionSpy).toHaveBeenCalledTimes(1);
 
-    // Order status update went through the transaction manager...
+    // Order status update went through the transaction manager — as a
+    // CONDITIONAL claim (`WHERE status = 'in_progress'`), so a second
+    // concurrent completion cannot settle the same trip again...
     expect(managerUpdate).toHaveBeenCalledWith(
       Order,
-      ORDER_ID,
+      { id: ORDER_ID, status: OrderStatus.IN_PROGRESS },
       expect.objectContaining({ status: OrderStatus.COMPLETED }),
     );
     // ...and so did the ledger rows: the passenger charge plus the driver's

@@ -1,15 +1,21 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { cellToBoundary, cellToLatLng, gridDisk, latLngToCell } from 'h3-js';
+import {
+  cellToBoundary,
+  cellToLatLng,
+  greatCircleDistance,
+  gridDisk,
+  latLngToCell,
+} from 'h3-js';
 import { Order } from '../../database/entities/order.entity';
-import { DriversService } from '../drivers/drivers.service';
+import { DriverPosition, TaxiSupplyService } from './taxi-supply.service';
 
 export interface SurgeSnapshot {
   multiplier: number;
-  /** Ride requests in the zone over [DEMAND_WINDOW_MINUTES]. */
+  /** Distinct passengers asking for a taxi in the zone over [DEMAND_WINDOW_MINUTES]. */
   demand: number;
-  /** Drivers currently online in the zone. */
+  /** Taxi drivers online, present and active in the zone. */
   supply: number;
   /** H3 index of the zone the pickup fell in — useful for logs/analytics. */
   zone: string;
@@ -34,11 +40,24 @@ export interface SurgeZone extends SurgeSnapshot {
   boundary: [number, number][];
 }
 
-/** Pickup coordinates as the demand query returns them. */
+/** Pickup coordinates of one counted request. */
 interface PickupRow {
   lat: number;
   lng: number;
 }
+
+/** A taxi order inside the demand window, as the demand query returns it. */
+interface DemandRow extends PickupRow {
+  passenger_id: string;
+  status: string;
+  cancel_reason: string | null;
+  driver_id: string | null;
+  /** Seconds between creation and the last write (cancellation, for a cancelled row). */
+  lifetime_s: number | string;
+}
+
+/** `MatchingService` nobody-accepted cancel reason — real, unmet demand. */
+const NO_DRIVERS_CANCEL_REASON = 'No drivers available';
 
 /**
  * Demand-based surge.
@@ -71,6 +90,13 @@ export class SurgeService {
 
   private static readonly DEMAND_WINDOW_MINUTES = 10;
 
+  /**
+   * Haydovchi biriktirilmasdan shu muddat ichida bekor qilingan buyurtma —
+   * yo'lovchining fikr o'zgarishi (noto'g'ri manzil, narxni ko'rib qaytdi),
+   * talab EMAS.
+   */
+  private static readonly QUICK_CANCEL_SECONDS = 60;
+
   /** Ceiling. Matches the bound the manual admin control already enforced. */
   static readonly MAX_MULTIPLIER = 2.0;
 
@@ -102,7 +128,7 @@ export class SurgeService {
   constructor(
     @InjectRepository(Order)
     private readonly orderRepository: Repository<Order>,
-    private readonly driversService: DriversService,
+    private readonly taxiSupply: TaxiSupplyService,
   ) {}
 
   /**
@@ -116,19 +142,15 @@ export class SurgeService {
     const zone = latLngToCell(lat, lng, SurgeService.ZONE_RESOLUTION);
 
     try {
-      const [pickups, supply] = await Promise.all([
+      const [pickups, drivers] = await Promise.all([
         this.recentPickups(),
-        this.driversService.countOnlineDriversNear(
-          lat,
-          lng,
-          SurgeService.SUPPLY_RADIUS_KM,
-        ),
+        this.taxiSupply.positionsNear(lat, lng, SurgeService.SUPPLY_RADIUS_KM),
       ]);
 
       return SurgeService.snapshotOf(
         zone,
         SurgeService.bucketPickups(pickups),
-        supply,
+        drivers.length,
       );
     } catch (err) {
       this.logger.error(`Surge calculation failed: ${(err as Error).message}`);
@@ -145,9 +167,9 @@ export class SurgeService {
    * same neighbour ring, same ratio. Anything else and drivers chase colour
    * that pays nothing.
    *
-   * Recent pickups are read once for the whole disc instead of once per cell;
-   * only supply still costs a lookup per hexagon, which is what MAX_MAP_RINGS
-   * bounds.
+   * Recent pickups AND supply are each read once for the whole disc: supply
+   * over a radius reaching every cell's centre plus SUPPLY_RADIUS_KM, then
+   * counted per cell in memory with the same 2 km reach as snapshotFor.
    */
   async zonesAround(
     lat: number,
@@ -158,14 +180,15 @@ export class SurgeService {
     const cells = gridDisk(centre, SurgeService.boundedRings(rings));
 
     try {
-      const [pickups, supplies] = await Promise.all([
+      const centres = cells.map((cell) => cellToLatLng(cell));
+      const [pickups, drivers] = await Promise.all([
         this.recentPickups(),
-        Promise.all(cells.map((cell) => this.supplyIn(cell))),
+        this.taxiSupply.positionsNear(lat, lng, SurgeService.discRadiusKm([lat, lng], centres)),
       ]);
       const byCell = SurgeService.bucketPickups(pickups);
 
       return cells.map((cell, index) => ({
-        ...SurgeService.snapshotOf(cell, byCell, supplies[index]),
+        ...SurgeService.snapshotOf(cell, byCell, SurgeService.supplyWithinReach(centres[index], drivers)),
         boundary: SurgeService.ringOf(cell),
       }));
     } catch (err) {
@@ -245,15 +268,21 @@ export class SurgeService {
     );
   }
 
-  /** Drivers online around a cell, measured from its centre. */
-  private supplyIn(cell: string): Promise<number> {
-    const [lat, lng] = cellToLatLng(cell);
+  /** Drivers within SUPPLY_RADIUS_KM of a cell centre — the per-cell supply of the map. */
+  private static supplyWithinReach(centre: [number, number], drivers: DriverPosition[]): number {
+    return drivers.filter(
+      (driver) =>
+        greatCircleDistance(centre, [driver.lat, driver.lng], 'km') <= SurgeService.SUPPLY_RADIUS_KM,
+    ).length;
+  }
 
-    return this.driversService.countOnlineDriversNear(
-      lat,
-      lng,
-      SurgeService.SUPPLY_RADIUS_KM,
+  /** One supply read that covers every cell's reach: farthest cell centre + SUPPLY_RADIUS_KM. */
+  private static discRadiusKm(origin: [number, number], centres: [number, number][]): number {
+    const farthest = centres.reduce(
+      (max, centre) => Math.max(max, greatCircleDistance(origin, centre, 'km')),
+      0,
     );
+    return farthest + SurgeService.SUPPLY_RADIUS_KM;
   }
 
   /**
@@ -279,7 +308,19 @@ export class SurgeService {
   }
 
   /**
-   * Pickup coordinates of every ride requested inside the demand window.
+   * Pickup coordinates of the taxi demand inside the window — ONE per passenger.
+   *
+   * Surge o'z muvaffaqiyatsizligidan oziqlanmasin: ilgari har bir buyurtma
+   * sanalardi — bo'sh hududda bitta yo'lovchi 3 marta qayta urinsa (har
+   * gal "No drivers available"), talab 3 bo'lib narx 2.0× ga sakrardi.
+   * Endi:
+   *   · faqat `service_type = 'taxi'` — ovqat/market kuryer safarlari, yuk
+   *     va posilka taksi talabi emas;
+   *   · yo'lovchi boshiga BITTA (eng so'nggi so'rovi) — qayta urinishlar
+   *     talabni ko'paytirmaydi; "No drivers available" bilan bekor
+   *     qilingan so'rov esa haqiqiy qondirilmagan talab bo'lib qoladi;
+   *   · haydovchi biriktirilmasdan QUICK_CANCEL_SECONDS ichida bekor
+   *     qilingan buyurtma (yo'lovchi fikrini o'zgartirgan) tashlanadi.
    *
    * Bucketing happens in JS rather than SQL because Postgres has no H3
    * function here; the window is short and a city's order rate is small, so
@@ -293,15 +334,52 @@ export class SurgeService {
    * qilayotgan yo'lovchilardan ortiqcha pul olinardi.
    */
   private async recentPickups(): Promise<PickupRow[]> {
-    const rows: PickupRow[] = await this.orderRepository.query(
-      `SELECT ST_Y(pickup_location::geometry) AS lat,
-              ST_X(pickup_location::geometry) AS lng
+    const rows: DemandRow[] = await this.orderRepository.query(
+      `SELECT passenger_id,
+              ST_Y(pickup_location::geometry) AS lat,
+              ST_X(pickup_location::geometry) AS lng,
+              status,
+              cancel_reason,
+              driver_id,
+              EXTRACT(EPOCH FROM (updated_at - created_at)) AS lifetime_s
          FROM orders
         WHERE created_at > NOW() - INTERVAL '${SurgeService.DEMAND_WINDOW_MINUTES} minutes'
-          AND status <> 'scheduled'`,
+          AND status <> 'scheduled'
+          AND service_type = 'taxi'
+        ORDER BY created_at DESC`,
     );
 
-    return rows ?? [];
+    return SurgeService.demandPickups(rows ?? []);
+  }
+
+  /**
+   * Rows (newest first) → one pickup per passenger, quick passenger cancels
+   * dropped. Pure, so the demand definition is unit-testable without SQL.
+   */
+  private static demandPickups(rows: DemandRow[]): PickupRow[] {
+    const latestByPassenger = new Map<string, PickupRow>();
+
+    for (const row of rows) {
+      if (SurgeService.isQuickPassengerCancel(row)) continue;
+      if (latestByPassenger.has(row.passenger_id)) continue;
+      latestByPassenger.set(row.passenger_id, { lat: row.lat, lng: row.lng });
+    }
+
+    return [...latestByPassenger.values()];
+  }
+
+  /**
+   * Bekor qilingan, haydovchi biriktirilmagan, "No drivers available" EMAS va
+   * bir daqiqa ichida — yo'lovchi (yoki dispetcher) o'zi qaytargan buyurtma.
+   * `orders` da `cancelled_by` yo'q, shuning uchun shu belgilar bo'yicha.
+   */
+  private static isQuickPassengerCancel(row: DemandRow): boolean {
+    return (
+      row.status === 'cancelled' &&
+      row.cancel_reason !== NO_DRIVERS_CANCEL_REASON &&
+      !row.driver_id &&
+      Number(row.lifetime_s) <= SurgeService.QUICK_CANCEL_SECONDS
+    );
   }
 
   /** Requests per H3 cell, so a zone's demand is a lookup rather than a scan. */

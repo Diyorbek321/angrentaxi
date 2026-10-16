@@ -13,6 +13,7 @@ import {
 } from '../../database/entities/transaction.entity';
 import { TariffsService } from '../tariffs/tariffs.service';
 import { agreedFareBreakdown } from '../tariffs/fare-breakdown';
+import { applyDiscount } from '../tariffs/fare-rounding';
 import { normalizeTripOptions } from './trip-options';
 import { tripOptionCharges, withOptionsFare } from './trip-option-fees';
 import { TripOptionCharge } from '../tariffs/fare-breakdown';
@@ -451,8 +452,11 @@ export class OrdersCreationService {
         estimatedPrice,
         { serviceType: dto.serviceType ?? ServiceType.TAXI },
       );
-      discountAmount = promoResult.discountAmount;
       promoCodeId = promoResult.promoCodeId;
+      // Yakunlashdagi bilan BIR XIL yaxlitlash (`applyDiscount`): foizli
+      // promokodda taxmin `23 400 − 3 510 = 19 890` bo'lib qolardi, yakunda
+      // esa 19 900 undirilardi — yo'lovchi ko'rgan narx chekdan farq qilardi.
+      discountAmount = applyDiscount(estimatedPrice, promoResult.discountAmount).discountAmount;
     }
     const finalEstimatedPrice = Math.max(0, estimatedPrice - discountAmount);
 

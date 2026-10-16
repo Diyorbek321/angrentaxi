@@ -1,5 +1,5 @@
 import { syncDriverBalanceColumn } from '../payments/wallet-balance.util';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { Order, PaymentMethod } from '../../database/entities/order.entity';
 import {
   Transaction,
@@ -9,6 +9,9 @@ import {
 
 /** Taklif qilgan va taklif qilingan yo'lovchiga beriladigan bonus, so'm. */
 export const REFERRAL_BONUS_AMOUNT = 5000;
+
+/** Postgres `unique_violation`. */
+const UNIQUE_VIOLATION = '23505';
 
 /**
  * Shubhali deb ushlab qolingan safar menejer tomonidan tasdiqlanganda
@@ -45,22 +48,33 @@ export async function creditReferralBonus(
   )) as Array<{ id: string }>;
   if (first?.id !== orderId) return false;
 
-  const transactions = orderRepository.manager.getRepository(Transaction);
-  for (const [userId, tag] of [
-    [passengerId, 'passenger'],
-    [referrerId, 'referrer'],
-  ] as const) {
-    await transactions.save({
-      userId,
-      orderId,
-      amount: REFERRAL_BONUS_AMOUNT,
-      type: TransactionType.CREDIT,
-      paymentMethod: PaymentMethod.WALLET,
-      status: TransactionStatus.COMPLETED,
-      externalId: `referral_bonus_${tag}_${orderId}`,
+  // Ikkala qator BITTA tranzaksiyada — biri yozilib, ikkinchisi yiqilib
+  // qolmasin. Parallel yozuv (masalan, yakunlash bloki bilan) bo'lsa,
+  // `uq_transactions_referral_bonus` (migratsiya 033) ikkinchisini rad etadi —
+  // bu "allaqachon berilgan", xato emas.
+  try {
+    await orderRepository.manager.transaction(async (manager: EntityManager) => {
+      const transactions = manager.getRepository(Transaction);
+      for (const [userId, tag] of [
+        [passengerId, 'passenger'],
+        [referrerId, 'referrer'],
+      ] as const) {
+        await transactions.save({
+          userId,
+          orderId,
+          amount: REFERRAL_BONUS_AMOUNT,
+          type: TransactionType.CREDIT,
+          paymentMethod: PaymentMethod.WALLET,
+          status: TransactionStatus.COMPLETED,
+          externalId: `referral_bonus_${tag}_${orderId}`,
+        });
+        // Taklif qilgan haydovchi bo'lsa — `drivers.balance` keshi (§13); aks holda no-op.
+        await syncDriverBalanceColumn(manager, userId);
+      }
     });
-    // Taklif qilgan haydovchi bo'lsa — `drivers.balance` keshi (§13); aks holda no-op.
-    await syncDriverBalanceColumn(orderRepository.manager, userId);
+  } catch (err) {
+    if ((err as { code?: string }).code === UNIQUE_VIOLATION) return false;
+    throw err;
   }
   return true;
 }

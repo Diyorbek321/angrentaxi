@@ -100,7 +100,7 @@ describe('reverseVendorWalletSettlement', () => {
 
     const result = await h.reverse();
     expect(result).toEqual(
-      expect.objectContaining({ reversed: true, courierUserId: 'courier-1', amount: 145000, commission: 15200 }),
+      expect.objectContaining({ reversed: true, courierUserId: 'courier-1', amount: 145000, commission: 14500 }),
     );
     expect(h.ledger.slice(3)).toEqual([
       expect.objectContaining({
@@ -119,7 +119,7 @@ describe('reverseVendorWalletSettlement', () => {
       expect.objectContaining({
         userId: 'owner-1',
         type: TransactionType.CREDIT,
-        amount: 15200,
+        amount: 14500,
         externalId: 'vendor_settlement_reversal_commission_fo-1',
       }),
     ]);
@@ -305,7 +305,7 @@ describe("hamyon o'tkazmasi summalari buyurtmada saqlanadi", () => {
     expect(h.order()).toEqual(
       expect.objectContaining({
         vendorWalletAmount: 145000,
-        vendorWalletCommission: 15200,
+        vendorWalletCommission: 14500,
         vendorWalletSettledAt: expect.any(Date),
       }),
     );
@@ -314,7 +314,7 @@ describe("hamyon o'tkazmasi summalari buyurtmada saqlanadi", () => {
     expect(h.order()).toEqual(
       expect.objectContaining({
         vendorWalletAmount: 145000,
-        vendorWalletCommission: 15200,
+        vendorWalletCommission: 14500,
         vendorWalletSettledAt: null,
         vendorWalletReversedAt: expect.any(Date),
         vendorWalletReversalCount: 1,

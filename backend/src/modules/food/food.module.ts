@@ -21,6 +21,7 @@ import { PromoCodesModule } from '../promo-codes/promo-codes.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { FoodPromotionsController } from './food-promotions.controller';
 import { VendorTinModule } from '../vendor-tin/vendor-tin.module';
+import { FiscalModule } from '../fiscal/fiscal.module';
 
 @Module({
   imports: [
@@ -35,6 +36,8 @@ import { VendorTinModule } from '../vendor-tin/vendor-tin.module';
     SettingsModule,
     PromotionsModule,
     PromoCodesModule,
+    // Sotuvchi o'zi yetkazgan buyurtma cheki (settleDelivered).
+    FiscalModule,
     NotificationsModule,
   ],
   controllers: [FoodVendorController, FoodPromotionsController, FoodStorefrontController, FoodAdminController],

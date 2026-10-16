@@ -197,6 +197,28 @@ describe('OrdersQueryService — kutish shartnomasi har bir o\'qish yo\'lida', (
     });
   });
 
+  describe('waitingStartsAt — kutish hisobi qachondan', () => {
+    it('oddiy safar — arrivedAt bilan bir xil', async () => {
+      const order = await service.findByIdOrThrow('order-1');
+      expect((order as unknown as { waitingStartsAt: Date }).waitingStartsAt).toEqual(ARRIVED_AT);
+    });
+
+    it('rejalashtirilgan safarda erta kelgan haydovchi — belgilangan vaqtdan', async () => {
+      const scheduledAt = new Date('2026-08-29T10:10:00.000Z');
+      findOne.mockResolvedValue(orderRow({ scheduledAt } as never));
+      const order = await service.findByIdOrThrow('order-1');
+      expect((order as unknown as { waitingStartsAt: Date }).waitingStartsAt).toEqual(scheduledAt);
+      // arrivedAt o'zgarmaydi — "haydovchi keldi" vaqti sifatida qoladi.
+      expect(contractOf(order).arrivedAt).toEqual(ARRIVED_AT);
+    });
+
+    it('haydovchi kelmagan — null', async () => {
+      findOne.mockResolvedValue(orderRow({ arrivedAt: null } as never));
+      const order = await service.findByIdOrThrow('order-1');
+      expect((order as unknown as { waitingStartsAt: Date | null }).waitingStartsAt).toBeNull();
+    });
+  });
+
   describe('arrivedAt', () => {
     it('haydovchi hali "keldim" bosmagan — null, hisoblagich ko\'rsatilmaydi', async () => {
       findOne.mockResolvedValue(orderRow({ arrivedAt: null }));

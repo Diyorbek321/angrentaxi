@@ -4,6 +4,7 @@ import {
   DEFAULT_WAITING_PRICE_PER_MINUTE,
   computeWaitingMinutes,
   waitingSettingsOf,
+  waitingStartOf,
   withWaitingFare,
 } from './waiting-charge';
 
@@ -244,5 +245,28 @@ describe('withWaitingFare — 100 so\'mga yaxlitlash', () => {
   it('kutish yo\'q bo\'lsa kelishilgan summaga tegilmaydi', () => {
     const agreed = rideFare({ baseFare: 5050, distanceFare: 0, timeFare: 0, total: 5050 });
     expect(withWaitingFare(agreed, 0, 350).total).toBe(5050);
+  });
+});
+
+describe('waitingStartOf', () => {
+  const arrived = new Date('2026-10-16T09:54:00Z');
+  const scheduled = new Date('2026-10-16T10:00:00Z');
+
+  it('oddiy safar — haydovchi kelgan lahza', () => {
+    expect(waitingStartOf(arrived, null)).toBe(arrived);
+  });
+
+  it('rejalashtirilgan safarda erta kelgan haydovchi — belgilangan vaqtdan', () => {
+    expect(waitingStartOf(arrived, scheduled)).toBe(scheduled);
+  });
+
+  it('kech kelgan haydovchi — o\'zi kelgan lahzadan', () => {
+    const late = new Date('2026-10-16T10:05:00Z');
+    expect(waitingStartOf(late, scheduled)).toBe(late);
+  });
+
+  it('kelmagan yoki buzuq sana — xavfsiz', () => {
+    expect(waitingStartOf(null, scheduled)).toBeNull();
+    expect(waitingStartOf(arrived, 'buzuq')).toBe(arrived);
   });
 });

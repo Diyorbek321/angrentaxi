@@ -27,7 +27,13 @@ const ORDER = 'order-1';
 // `computeWalletBalance` va `lockWalletForUpdate` — util funksiyalar,
 // shuning uchun modul darajasida almashtiriladi.
 let mockBalance = 100000;
+// To'lovchining sarflanmagan BONUS qoldig'i (referal va h.k.).
+let mockBonus = 0;
+// Haqiqiy SQL kabi: shu tranzaksiyada yozilgan bonus sarflovchi DEBIT ('tip')
+// keyingi `computeBonusBalance` da pulni allaqachon kamaytirgan bo'ladi.
+let mockBonusSpent = 0;
 jest.mock('../payments/wallet-balance.util', () => ({
+  computeBonusBalance: jest.fn(async () => Math.max(0, mockBonus - mockBonusSpent)),
   computeWalletBalance: jest.fn(async () => mockBalance),
   // Chaqim yo'lovchining hamyonidan SARFLANADI, ya'ni qirqilgan qoldiq
   // ishlatiladi — manfiy balans hech qachon "sarflasa bo'ladi" bo'lib
@@ -72,6 +78,9 @@ describe('OrdersTipsService', () => {
       getRepository: () => ({
         save: jest.fn(async (row: Record<string, unknown>) => {
           savedRows.push(row);
+          if (row.type === TransactionType.DEBIT && row.externalId === 'tip') {
+            mockBonusSpent += Number(row.amount);
+          }
           return row;
         }),
       }),
@@ -91,6 +100,8 @@ describe('OrdersTipsService', () => {
 
   beforeEach(() => {
     mockBalance = 100000;
+    mockBonus = 0;
+    mockBonusSpent = 0;
   });
 
   describe('ruxsat va holat tekshiruvlari', () => {
@@ -223,5 +234,47 @@ describe('OrdersTipsService', () => {
       service.addTip(PASSENGER, ORDER, { amount: 5000 }),
     ).resolves.toMatchObject({ tipAmount: 5000 });
     expect(savedRows).toHaveLength(2);
+  });
+
+  describe("bonusdan berilgan chaqim naqd pulga aylanmaydi (audit #3)", () => {
+    // Ekspluatatsiya: haydovchi soxta yo'lovchini taklif qiladi, ikkalasi
+    // referal bonusini oladi, yo'lovchi bonusni chaqim qilib haydovchiga
+    // beradi — haydovchi uni naqd qilib yechardi.
+    const credits = () => savedRows.filter((r) => r.type === TransactionType.CREDIT);
+
+    it("to'liq bonusdan — haydovchiga BITTA 'tip_bonus' CREDIT", async () => {
+      mockBonus = 5000;
+      service = build(baseOrder());
+      await service.addTip(PASSENGER, ORDER, { amount: 5000 });
+
+      expect(credits()).toEqual([
+        expect.objectContaining({ userId: DRIVER, amount: 5000, externalId: 'tip_bonus' }),
+      ]);
+      // To'lovchidan bitta 'tip' DEBIT — chek va boshqa filtrlar o'zgarmaydi.
+      expect(savedRows.filter((r) => r.type === TransactionType.DEBIT)).toEqual([
+        expect.objectContaining({ userId: PASSENGER, amount: 5000, externalId: 'tip' }),
+      ]);
+      expect(adjustBalanceWithin).toHaveBeenCalledWith(expect.anything(), DRIVER, 5000);
+    });
+
+    it("qisman bonus — 'tip_bonus' (bonus qismi) + 'tip' (qolgani)", async () => {
+      mockBonus = 2000;
+      service = build(baseOrder());
+      await service.addTip(PASSENGER, ORDER, { amount: 5000 });
+
+      expect(credits()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ userId: DRIVER, amount: 2000, externalId: 'tip_bonus' }),
+          expect.objectContaining({ userId: DRIVER, amount: 3000, externalId: 'tip' }),
+        ]),
+      );
+      expect(credits()).toHaveLength(2);
+    });
+
+    it("bonus yo'q — avvalgidek bitta 'tip' CREDIT", async () => {
+      service = build(baseOrder());
+      await service.addTip(PASSENGER, ORDER, { amount: 5000 });
+      expect(credits()).toEqual([expect.objectContaining({ amount: 5000, externalId: 'tip' })]);
+    });
   });
 });

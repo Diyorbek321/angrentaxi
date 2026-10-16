@@ -6,8 +6,9 @@
  * aylanmasi 1 mlrd so'mgacha YaTT daromadidan 1% aylanma solig'ini ushlab
  * qoladi va har bir shaxs bo'yicha hisobot beradi.
  *
- * DAROMAD BAZASI = komissiya bilan BIR XIL baza: chegirmadan keyingi yakuniy
- * yo'l haqi (`discountedFinalPrice`, `orders.final_price`). Sabab: komissioner
+ * DAROMAD BAZASI = komissiya bilan BIR XIL baza: CHEGIRMAGACHA yo'l haqi
+ * (`fare_breakdown.total`; promo chegirmasini platforma qoplaydi — §26a,
+ * `orders.final_price + orders.discount_amount`). Sabab: komissioner
  * modelida haydovchi (komitent) butun summani mijozdan oladi, platforma
  * komissiyasi — uning xarajati, aylanmani kamaytirmaydi. Chaqiriq (tip)
  * bazaga KIRMAYDI — u alohida oqim (`orders-tips.service.ts`).

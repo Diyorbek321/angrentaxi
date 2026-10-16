@@ -3936,6 +3936,11 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String wdrBonusNote(String amount) {
+    return 'Бонус $amount — расходуется на комиссию и смены, вывести нельзя';
+  }
+
+  @override
   String wdrHoldNote(String amount, String days) {
     return 'Пополнение картой $amount можно будет вывести через $days дн.';
   }

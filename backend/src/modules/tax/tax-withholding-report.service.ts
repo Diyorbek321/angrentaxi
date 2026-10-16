@@ -44,9 +44,12 @@ interface RawReportRow {
   order_count: string | number;
 }
 
+/** Soliq bazasi — chegirmagacha yo'l haqi (taksi promosini platforma to'laydi, §26a). */
+export const TAX_REPORT_GROSS_SQL = 'o.final_price + COALESCE(o.discount_amount, 0)';
+
 /**
  * Oyma-oy: har bir haydovchi/kuryer bo'yicha yalpi daromad (komissiya bilan
- * bir xil baza — `orders.final_price`), ushlab qolingan soliq va buyurtmalar
+ * bir xil baza — chegirmagacha yo'l haqi, `TAX_REPORT_GROSS_SQL`), ushlab qolingan soliq va buyurtmalar
  * soni. Oy — `completed_at` bo'yicha, Toshkent kalendari.
  *
  * Soliq qatori bitta buyurtmaga ko'pi bilan bitta (unikal indeks), shuning
@@ -57,7 +60,7 @@ const REPORT_SQL = `
   SELECT o.driver_id                                   AS user_id,
          u.first_name, u.last_name, u.phone,
          d.pinfl, d.tin, d.tax_status,
-         COALESCE(SUM(o.final_price), 0)               AS gross_income,
+         COALESCE(SUM(${TAX_REPORT_GROSS_SQL}), 0) AS gross_income,
          COALESCE(SUM(t.amount) FILTER (WHERE t.status = 'completed'), 0) AS withheld_amount,
          COALESCE(SUM(t.amount) FILTER (WHERE t.status = 'pending'), 0)   AS pending_withheld_amount,
          COUNT(o.id)                                   AS order_count

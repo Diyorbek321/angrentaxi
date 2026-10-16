@@ -26,6 +26,7 @@
  * platforma daromadi emas, smena yoki aksiya uni o'chirmaydi.
  */
 import { ServiceType } from '../../database/entities/order.entity';
+import { applyDiscount } from '../tariffs/fare-rounding';
 
 export const LAUNCH_PROMO_COMMISSION_RATE = 0;
 export const SHIFT_PASS_COMMISSION_RATE = 0;
@@ -57,4 +58,40 @@ export function resolveCommissionRate(input: CommissionRateInput): number {
   return input.driverRate != null
     ? Math.min(input.driverRate, LAUNCH_PROMO_COMMISSION_RATE)
     : LAUNCH_PROMO_COMMISSION_RATE;
+}
+
+/**
+ * Safar pulining taqsimoti — promokod chegirmasini PLATFORMA ko'taradi
+ * (biznes qarori, 2026-10-16; ovqat/market bilan bir xil model —
+ * `delivery/promo-compensation.ts`, docs/LEGAL-COMPLIANCE.md §26).
+ *
+ *  · yo'lovchi chegirmali, 100 so'mga yaxlitlangan summani to'laydi;
+ *  · komissiya (va 1% soliq) CHEGIRMASIZ narxdan — haydovchi daromadi
+ *    promokodli va promokodsiz safarda bir xil;
+ *  · naqdda haydovchi qo'liga kam oladi, farqni platforma hamyoniga
+ *    qoplaydi (`promoCompensation`), naqd bo'lmaganda esa haydovchiga
+ *    to'liq narx CREDIT qilinadi.
+ */
+export interface RideFareSplit {
+  /** Chegirmasiz yo'l haqi — komissiya, soliq va haydovchi CREDIT'i bazasi. */
+  grossFare: number;
+  /** Yo'lovchi to'laydigan summa (`order.finalPrice`, chek jami). */
+  passengerPays: number;
+  /** Yaxlitlashdan keyingi haqiqiy chegirma: `grossFare − passengerPays`. */
+  discountAmount: number;
+  commissionAmount: number;
+  /** `grossFare − commissionAmount` (`order.driverEarning`). */
+  driverEarning: number;
+}
+
+export function splitRideFare(grossFare: number, discount: number, commissionRate: number): RideFareSplit {
+  const discounted = applyDiscount(grossFare, discount);
+  const commissionAmount = Math.round((grossFare * commissionRate) / 100);
+  return {
+    grossFare,
+    passengerPays: discounted.finalPrice,
+    discountAmount: discounted.discountAmount,
+    commissionAmount,
+    driverEarning: grossFare - commissionAmount,
+  };
 }

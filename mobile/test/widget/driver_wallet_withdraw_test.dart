@@ -393,6 +393,38 @@ void main() {
     );
   });
 
+  testWidgets('bonus yechilmaydi: izoh va chegara bonusni ayiradi',
+      (tester) async {
+    when(() => mockApiClient.get(ApiEndpoints.paymentsWallet)).thenAnswer(
+      (_) async => _jsonResponse(ApiEndpoints.paymentsWallet, {
+        'success': true,
+        'data': {
+          'userId': 'user-1',
+          'balance': 50000,
+          'availableForWithdrawal': 35000,
+          'withdrawalHold': 0,
+          'withdrawalHoldDays': 7,
+          'bonusBalance': 15000,
+        },
+      }),
+    );
+
+    await pumpEarningsScreen(tester);
+    await openWithdrawDialog(tester);
+
+    expect(
+      (tester.widget(find.byKey(const ValueKey('withdraw_available_text')))
+              as Text)
+          .data,
+      contains(Formatters.formatPrice(35000)),
+    );
+    final note =
+        (tester.widget(find.byKey(const ValueKey('withdraw_hold_note'))) as Text)
+            .data!;
+    expect(note, contains(Formatters.formatPrice(15000)));
+    expect(note, contains('komissiya'));
+  });
+
   testWidgets('server WALLET_WITHDRAWAL_ON_HOLD qaytarsa — ilova tilidagi izoh',
       (tester) async {
     when(

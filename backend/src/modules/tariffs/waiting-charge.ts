@@ -163,3 +163,20 @@ export function withWaitingFare(
     ? withWaiting
     : withRounding(withWaiting);
 }
+
+/**
+ * Kutish oynasining boshi. Rejalashtirilgan safarda haydovchi ko'pincha
+ * ERTA keladi (u `scheduledAt` dan oldin bo'shatiladi) — yo'lovchi belgilangan
+ * vaqtgacha kutishga majbur emas, shuning uchun hisob `max(arrivedAt,
+ * scheduledAt)` dan boshlanadi. Oddiy safarda — `arrivedAt`.
+ */
+export function waitingStartOf(
+  arrivedAt: Date | string | null | undefined,
+  scheduledAt: Date | string | null | undefined,
+): Date | string | null {
+  if (arrivedAt == null) return null;
+  if (scheduledAt == null) return arrivedAt;
+  const scheduledMs = new Date(scheduledAt).getTime();
+  if (Number.isNaN(scheduledMs)) return arrivedAt;
+  return scheduledMs > new Date(arrivedAt).getTime() ? scheduledAt : arrivedAt;
+}

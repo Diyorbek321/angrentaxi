@@ -711,7 +711,7 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
     if (order.arrivedAt == null) return const SizedBox.shrink();
 
     return WaitingChargeTicker(
-      arrivedAt: order.arrivedAt,
+      arrivedAt: order.waitingStartsAt,
       freeWaitMinutes: order.freeWaitMinutes,
       waitingPricePerMinute: order.waitingPricePerMinute,
       builder: (context, charge) {

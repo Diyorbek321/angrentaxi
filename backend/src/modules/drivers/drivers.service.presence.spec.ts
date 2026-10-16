@@ -1,3 +1,4 @@
+import { ledgerBalanceSql } from '../payments/wallet-balance.util';
 import { DriversService } from './drivers.service';
 
 /**
@@ -220,6 +221,22 @@ describe('DriversService — jonli mavjudlik', () => {
       // Eski ustun javobda qoladi (admin vositalari hali o'qiydi), lekin
       // u endi ko'rsatiladigan raqam EMAS.
       expect(driver['balance']).toBe(999999);
+    });
+
+    it('qoldiq hamyon bilan BIR XIL formuladan (ledgerBalanceSql) hisoblanadi', async () => {
+      // Yo'lovchi sifatida naqd/karta to'lovlari hamyonni kamaytirmaydi —
+      // panel ham aynan shu qoidani ishlatishi kerak.
+      driverRepository.findOne.mockResolvedValueOnce({
+        id: 'd3',
+        userId: 'user-d3',
+        user: { firstName: null, lastName: null, phone: '+998900000003' },
+      });
+      driverRepository.query.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+
+      await service.findById('d3');
+
+      const balanceSql = driverRepository.query.mock.calls[1][0] as string;
+      expect(balanceSql).toContain(ledgerBalanceSql());
     });
 
     it('daftarda yozuvi yo\'q haydovchi 0 oladi', async () => {

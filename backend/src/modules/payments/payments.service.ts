@@ -7,7 +7,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, Raw, Repository } from 'typeorm';
+import { DataSource, EntityManager, IsNull, Raw, Repository } from 'typeorm';
 import { TAX_WITHHOLDING_LEDGER_TAG } from '../tax/tax-withholding';
 import {
   Transaction,
@@ -41,7 +41,7 @@ import { ERROR_CODES, codedBadRequest } from '../../common/errors/coded-error';
 import { formatSom } from '../delivery/vendor-wallet-settlement';
 import { MoneyContext } from './money-context';
 import { sameSomAmount, strictTiyin } from './tiyin';
-import { IPayoutProvider, PAYOUT_PROVIDER } from './payout.interface';
+import { IPayoutProvider, PAYOUT_PROVIDER, PayoutResult } from './payout.interface';
 import { DriversService } from '../drivers/drivers.service';
 import {
   UzcardTopupResponse,
@@ -68,6 +68,12 @@ export interface WalletBalance {
   /** Hozir ushlab turilgan summa. */
   withdrawalHold: number;
   withdrawalHoldDays: number;
+  /**
+   * Sarflanmagan bonus (haydovchi/referal bonusi, bonusdan chaqim) — komissiya,
+   * soliq va smenaga sarflanadi, lekin yechib olinmaydi (audit #2).
+   * `availableForWithdrawal` undan allaqachon ayirilgan. Qo'shimcha maydon.
+   */
+  bonusBalance: number;
 }
 
 /**
@@ -519,13 +525,14 @@ export class PaymentsService {
   async getWalletBalance(userId: string): Promise<WalletBalance> {
     const balance = await this.computeBalance(this.transactionRepository, userId);
     const holdDays = await this.withdrawalHoldDays();
-    const { available, held } = await computeWithdrawableBalance(this.dataSource, userId, balance, holdDays);
+    const { available, held, bonus } = await computeWithdrawableBalance(this.dataSource, userId, balance, holdDays);
     return {
       userId,
       balance,
       availableForWithdrawal: available,
       withdrawalHold: held,
       withdrawalHoldDays: holdDays,
+      bonusBalance: bonus,
     };
   }
 
@@ -682,14 +689,14 @@ export class PaymentsService {
         );
       }
 
-      // Yangi karta to'ldirishlari yechib olinmaydi (#3a) — shu qulf ichida.
-      const { available, held } = await computeWithdrawableBalance(manager, driverId, balance, holdDays);
+      // Yangi karta to'ldirishlari (#3a) va sarflanmagan bonus (audit #2)
+      // yechib olinmaydi — shu qulf ichida.
+      const { available, held, bonus } = await computeWithdrawableBalance(manager, driverId, balance, holdDays);
       if (dto.amount > available) {
         throw codedBadRequest(
           ERROR_CODES.walletWithdrawalOnHold,
-          `Karta orqali to'ldirilgan ${formatSom(held)} so'm ${holdDays} kun davomida yechib olinmaydi. ` +
-            `Hozir yechish mumkin: ${formatSom(available)} so'm.`,
-          { details: { available, held, holdDays } },
+          withdrawalBlockedMessage({ available, held, bonus, holdDays }),
+          { details: { available, held, holdDays, bonus } },
         );
       }
 
@@ -760,6 +767,13 @@ export class PaymentsService {
     return withdrawal;
   }
 
+  // ⚠️ HOLAT O'ZGARISHI — SHARTLI DA'VO (pul auditi #1). Ilgari qator
+  // qulfsiz o'qilib, oxirida to'liq `save` qilinardi: ikki parallel REJECT
+  // pulni ikki marta qaytarardi, REJECT va APPROVE ikkalasi o'tib, so'rov ham
+  // to'langan, ham qaytarilgan bo'lardi, ikki PAID esa provayderni ikki marta
+  // chaqirardi. Endi har bir o'tish `UPDATE ... WHERE id AND status =
+  // <kutilgan>` bilan boshlanadi; 1 qator ta'sirlanmasa — hech qanday pul
+  // harakatisiz xato. Qaytarim CREDIT va holat — BITTA tranzaksiyada.
   async processWithdrawal(
     id: string,
     dto: ProcessWithdrawalDto,
@@ -779,66 +793,175 @@ export class PaymentsService {
       );
     }
 
-    if (dto.status === WithdrawalStatus.PAID && withdrawal.status !== WithdrawalStatus.APPROVED) {
-      throw new BadRequestException(
-        `Only approved withdrawal requests can be marked as paid, current status is ${withdrawal.status}`,
-      );
-    }
-
-    if (dto.status === WithdrawalStatus.REJECTED) {
-      // Reverse the hold placed at request time.
-      await this.transactionRepository.save({
-        userId: withdrawal.driverId,
-        orderId: null,
-        amount: withdrawal.amount,
-        type: TransactionType.CREDIT,
-        paymentMethod: PaymentMethod.WALLET,
-        status: TransactionStatus.COMPLETED,
-        externalId: `withdrawal_refund_${withdrawal.id}`,
-      });
-      // `drivers.balance` — daftarning keshi (§13). Best-effort: qaytarim
-      // daftarda allaqachon turibdi, kesh keyingi harakatda baribir tenglashadi.
-      try {
-        await syncDriverBalanceColumn(this.dataSource.manager, withdrawal.driverId);
-      } catch (err) {
-        this.logger.warn(`drivers.balance sync after withdrawal refund failed: ${(err as Error).message}`);
-      }
-    }
-
-    // Pul CHIQARISH aynan shu yerdan o'tadi. Hozirgi amalga oshirish —
-    // qo'lda o'tkazma, ya'ni tarmoqqa chiqmaydi va faqat jurnalga yozadi.
-    //
-    // ⚠️ NEGA chaqiruv hozir yoziladi. Payme/Click payout kalitlari
-    // kelganda `payments.module.ts` dagi bitta bog'lanish o'zgaradi va bu
-    // metod o'zgarishsiz qoladi. Aks holda o'sha kuni pul chiqarish
-    // mantig'ining o'rtasiga tarmoq chaqiruvi kiritish kerak bo'lardi —
-    // pul kodiga eng yomon paytda tegish.
-    //
-    // ⚠️ Provayder yiqilsa holat O'ZGARMAYDI (xato yuqoriga otiladi):
-    // "to'landi" deb belgilab qo'yib, keyin pul ketmagan bo'lishi
-    // haydovchining pulini yo'q qilardi — u daftarda yechilgan, aslida
-    // esa hech qayerga bormagan.
-    let payoutReference: string | null = withdrawal.payoutReference;
-
     if (dto.status === WithdrawalStatus.PAID) {
-      const result = await this.payoutProvider.send({
+      if (withdrawal.status !== WithdrawalStatus.APPROVED) {
+        throw new BadRequestException(
+          `Only approved withdrawal requests can be marked as paid, current status is ${withdrawal.status}`,
+        );
+      }
+      return this.payWithdrawal(withdrawal, dto);
+    }
+
+    return this.decideWithdrawal(withdrawal, dto);
+  }
+
+  /** PENDING → APPROVED / REJECTED. REJECT ushlab qolishni qaytaradi. */
+  private async decideWithdrawal(
+    withdrawal: WithdrawalRequest,
+    dto: ProcessWithdrawalDto,
+  ): Promise<WithdrawalRequest> {
+    const patch = {
+      status: dto.status,
+      adminNote: dto.adminNote ?? withdrawal.adminNote,
+      processedAt: new Date(),
+    };
+
+    await this.dataSource.transaction(async (manager: EntityManager) => {
+      const claimed = await manager
+        .getRepository(WithdrawalRequest)
+        .update({ id: withdrawal.id, status: WithdrawalStatus.PENDING }, patch);
+      if (!claimed.affected) {
+        throw new BadRequestException(
+          `Withdrawal request ${withdrawal.id} is no longer pending — it was processed concurrently`,
+        );
+      }
+
+      if (dto.status === WithdrawalStatus.REJECTED) {
+        // Ushlab qolishni qaytarish — da'vo bilan bir tranzaksiyada, hamyon
+        // qulfi ostida. `uq_transactions_withdrawal_refund` ikkinchi qavat.
+        await lockWalletForUpdate(manager, withdrawal.driverId);
+        await manager.getRepository(Transaction).save({
+          userId: withdrawal.driverId,
+          orderId: null,
+          amount: withdrawal.amount,
+          type: TransactionType.CREDIT,
+          paymentMethod: PaymentMethod.WALLET,
+          status: TransactionStatus.COMPLETED,
+          externalId: `withdrawal_refund_${withdrawal.id}`,
+        });
+        // `drivers.balance` — daftarning keshi (§13); sotuvchi uchun no-op.
+        await syncDriverBalanceColumn(manager, withdrawal.driverId);
+      }
+    });
+
+    return { ...withdrawal, ...patch };
+  }
+
+  /**
+   * APPROVED → PAID. Pul CHIQARISH aynan shu yerdan o'tadi. Hozirgi amalga
+   * oshirish — qo'lda o'tkazma, ya'ni tarmoqqa chiqmaydi va faqat jurnalga
+   * yozadi.
+   *
+   * ⚠️ NEGA chaqiruv hozir yoziladi. Payme/Click payout kalitlari
+   * kelganda `payments.module.ts` dagi bitta bog'lanish o'zgaradi va bu
+   * metod o'zgarishsiz qoladi. Aks holda o'sha kuni pul chiqarish
+   * mantig'ining o'rtasiga tarmoq chaqiruvi kiritish kerak bo'lardi —
+   * pul kodiga eng yomon paytda tegish.
+   *
+   * ⚠️ SINGLE-FLIGHT: provayderdan OLDIN `payoutStartedAt` shartli da'vo
+   * qilinadi — ikki admin bir vaqtda bossa, faqat bittasi yuboradi
+   * (`withdrawalId` — provayder uchun idempotentlik kaliti ham).
+   *
+   * ⚠️ Provayder yiqilsa holat O'ZGARMAYDI (xato yuqoriga otiladi, da'vo
+   * bo'shatiladi): "to'landi" deb belgilab qo'yib, keyin pul ketmagan
+   * bo'lishi haydovchining pulini yo'q qilardi — u daftarda yechilgan,
+   * aslida esa hech qayerga bormagan.
+   */
+  private async payWithdrawal(
+    withdrawal: WithdrawalRequest,
+    dto: ProcessWithdrawalDto,
+  ): Promise<WithdrawalRequest> {
+    if (withdrawal.payoutStartedAt) {
+      throw new BadRequestException(this.payoutInProgressMessage(withdrawal.id));
+    }
+
+    const payoutStartedAt = new Date();
+    const claimed = await this.withdrawalRepository.update(
+      { id: withdrawal.id, status: WithdrawalStatus.APPROVED, payoutStartedAt: IsNull() },
+      { payoutStartedAt },
+    );
+    if (!claimed.affected) {
+      throw new BadRequestException(this.payoutInProgressMessage(withdrawal.id));
+    }
+
+    let result: PayoutResult;
+    try {
+      result = await this.payoutProvider.send({
         amount: withdrawal.amount,
         destination: withdrawal.payoutDestination,
         withdrawalId: withdrawal.id,
       });
-      payoutReference = result.reference;
-      this.logger.log(
-        `Withdrawal ${withdrawal.id} paid via ${this.payoutProvider.name}` +
-          (result.reference ? ` (ref ${result.reference})` : ''),
+    } catch (err) {
+      await this.releasePayoutClaim(withdrawal.id, payoutStartedAt);
+      throw err;
+    }
+    this.logger.log(
+      `Withdrawal ${withdrawal.id} paid via ${this.payoutProvider.name}` +
+        (result.reference ? ` (ref ${result.reference})` : ''),
+    );
+
+    const patch = {
+      status: WithdrawalStatus.PAID,
+      adminNote: dto.adminNote ?? withdrawal.adminNote,
+      payoutReference: result.reference ?? withdrawal.payoutReference,
+      processedAt: new Date(),
+    };
+    const done = await this.withdrawalRepository.update(
+      { id: withdrawal.id, status: WithdrawalStatus.APPROVED, payoutStartedAt },
+      patch,
+    );
+    if (!done.affected) {
+      // Pul KETDI, lekin holat yozilmadi. Da'vo turibdi — qayta yuborilmaydi.
+      this.logger.error(
+        `Withdrawal ${withdrawal.id} was sent (ref ${result.reference ?? '—'}) but its PAID status was not saved — fix manually`,
       );
     }
-
-    return this.withdrawalRepository.save({
-      ...withdrawal,
-      status: dto.status,
-      adminNote: dto.adminNote ?? withdrawal.adminNote,
-      payoutReference,
-      processedAt: new Date(),
-    });
+    return { ...withdrawal, ...patch, payoutStartedAt };
   }
+
+  private payoutInProgressMessage(id: string): string {
+    return (
+      `Withdrawal request ${id} is no longer approved or its payout is already in progress. ` +
+      'If a previous attempt was interrupted, check the provider before clearing payout_started_at.'
+    );
+  }
+
+  /** Provayder yiqildi — keyingi urinish uchun da'voni bo'shatadi (best-effort). */
+  private async releasePayoutClaim(id: string, payoutStartedAt: Date): Promise<void> {
+    try {
+      await this.withdrawalRepository.update(
+        { id, status: WithdrawalStatus.APPROVED, payoutStartedAt },
+        { payoutStartedAt: null },
+      );
+    } catch (err) {
+      this.logger.error(`Could not release payout claim for withdrawal ${id}: ${(err as Error).message}`);
+    }
+  }
+}
+
+/**
+ * Yechish rad etilganda — nima ushlab turilganini aniq aytadi. Bu yerga faqat
+ * `amount <= balance` bo'lganda yetiladi, ya'ni ushlov yoki bonus albatta bor.
+ */
+function withdrawalBlockedMessage(input: { available: number; held: number; bonus: number; holdDays: number }): string {
+  // Uch xil TO'LIQ jumla — har biri ERROR_CATALOGUE da ruscha tarjimaga ega
+  // (bo'laklardan yig'ilgan matnni katalog tanimaydi).
+  const available = formatSom(input.available);
+  if (input.held > 0 && input.bonus > 0) {
+    return (
+      `Karta orqali to'ldirilgan ${formatSom(input.held)} so'm ${input.holdDays} kun davomida va bonus ` +
+      `${formatSom(input.bonus)} so'm yechib olinmaydi (bonus faqat komissiya, soliq va smenaga sarflanadi). ` +
+      `Hozir yechish mumkin: ${available} so'm.`
+    );
+  }
+  if (input.bonus > 0) {
+    return (
+      `Bonus ${formatSom(input.bonus)} so'm yechib olinmaydi — u faqat komissiya, soliq va smenaga sarflanadi. ` +
+      `Hozir yechish mumkin: ${available} so'm.`
+    );
+  }
+  return (
+    `Karta orqali to'ldirilgan ${formatSom(input.held)} so'm ${input.holdDays} kun davomida yechib olinmaydi. ` +
+    `Hozir yechish mumkin: ${available} so'm.`
+  );
 }

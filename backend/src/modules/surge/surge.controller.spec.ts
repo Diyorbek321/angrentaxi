@@ -12,11 +12,24 @@ function cellsIn(rings: number): number {
 
 describe('SurgeController', () => {
   let orderRepository: { query: jest.Mock };
-  let driversService: { countOnlineDriversNear: jest.Mock };
+  let supply: { positionsNear: jest.Mock };
   let controller: SurgeController;
 
-  /** Rows as the pickup-coordinate query returns them. */
+  /** Rows as the demand query returns them — one live request per passenger. */
   function requests(count: number, at = CENTRE) {
+    return Array.from({ length: count }, (_, i) => ({
+      passenger_id: `passenger-${i}`,
+      lat: at.lat,
+      lng: at.lng,
+      status: 'searching',
+      cancel_reason: null,
+      driver_id: null,
+      lifetime_s: 5,
+    }));
+  }
+
+  /** Eligible taxi drivers standing on the centre (within every ring-1 cell's reach). */
+  function drivers(count: number, at = CENTRE) {
     return Array.from({ length: count }, () => ({ lat: at.lat, lng: at.lng }));
   }
 
@@ -34,18 +47,18 @@ describe('SurgeController', () => {
   }
 
   /** Puts the whole city at one demand/supply ratio and returns the map. */
-  async function mapWith(demand: number, supply: number) {
+  async function mapWith(demand: number, onHand: number) {
     orderRepository.query.mockResolvedValue(requests(demand));
-    driversService.countOnlineDriversNear.mockResolvedValue(supply);
+    supply.positionsNear.mockResolvedValue(drivers(onHand));
 
     return controller.zones({ lat: CENTRE.lat, lng: CENTRE.lng, rings: 1 });
   }
 
   beforeEach(() => {
     orderRepository = { query: jest.fn().mockResolvedValue([]) };
-    driversService = { countOnlineDriversNear: jest.fn().mockResolvedValue(0) };
+    supply = { positionsNear: jest.fn().mockResolvedValue([]) };
     controller = new SurgeController(
-      new SurgeService(orderRepository as never, driversService as never),
+      new SurgeService(orderRepository as never, supply as never),
     );
   });
 
@@ -217,7 +230,7 @@ describe('SurgeController', () => {
   describe('quiet and empty maps', () => {
     it('draws an all-normal map when the city has no orders at all', async () => {
       orderRepository.query.mockResolvedValue([]);
-      driversService.countOnlineDriversNear.mockResolvedValue(4);
+      supply.positionsNear.mockResolvedValue(drivers(4));
 
       const result = await controller.zones({
         lat: CENTRE.lat,
@@ -238,7 +251,7 @@ describe('SurgeController', () => {
       // Demand sits on the centre; the outer ring of a 4-ring disc is well
       // outside the centre's neighbour ring and must stay untouched.
       orderRepository.query.mockResolvedValue(requests(20));
-      driversService.countOnlineDriversNear.mockResolvedValue(2);
+      supply.positionsNear.mockResolvedValue(drivers(2));
 
       const result = await controller.zones({
         lat: CENTRE.lat,
@@ -267,7 +280,7 @@ describe('SurgeController', () => {
 
     it('clears the map when the driver count is unavailable', async () => {
       orderRepository.query.mockResolvedValue(requests(20));
-      driversService.countOnlineDriversNear.mockRejectedValue(
+      supply.positionsNear.mockRejectedValue(
         new Error('redis down'),
       );
 
@@ -282,13 +295,35 @@ describe('SurgeController', () => {
   });
 
   describe('cost', () => {
-    it('reads recent demand once for the whole map, not once per hexagon', async () => {
+    it('reads demand and supply once for the whole map, not once per hexagon', async () => {
       await controller.zones({ lat: CENTRE.lat, lng: CENTRE.lng, rings: 4 });
 
       expect(orderRepository.query).toHaveBeenCalledTimes(1);
-      expect(driversService.countOnlineDriversNear).toHaveBeenCalledTimes(
-        cellsIn(4),
-      );
+      // Bitta keng o'qish — har hexagon uchun alohida Redis+DB so'rovi emas.
+      expect(supply.positionsNear).toHaveBeenCalledTimes(1);
+    });
+
+    it('reads supply over a radius that covers every cell plus its reach', async () => {
+      await controller.zones({ lat: CENTRE.lat, lng: CENTRE.lng, rings: 4 });
+
+      const [lat, lng, radiusKm] = supply.positionsNear.mock.calls[0];
+      expect([lat, lng]).toEqual([CENTRE.lat, CENTRE.lng]);
+      // 4 halqa ≈ 3.7 km gacha hexagon markazi + 2 km yetib borish radiusi.
+      expect(radiusKm).toBeGreaterThan(5);
+      expect(radiusKm).toBeLessThan(7);
+    });
+
+    it('counts a driver only for cells within reach of where they stand', async () => {
+      // 6 requests on the centre. 4 drivers standing on it → 1.3x; the same
+      // 4 drivers ~5 km east are out of the centre's reach → the ceiling.
+      orderRepository.query.mockResolvedValue(requests(6));
+      supply.positionsNear.mockResolvedValue(drivers(4));
+      const near = await controller.zones({ lat: CENTRE.lat, lng: CENTRE.lng, rings: 4 });
+      expect(centreFeature(near.features).properties.multiplier).toBe(1.3);
+
+      supply.positionsNear.mockResolvedValue(drivers(4, { lat: CENTRE.lat, lng: CENTRE.lng + 0.06 }));
+      const far = await controller.zones({ lat: CENTRE.lat, lng: CENTRE.lng, rings: 4 });
+      expect(centreFeature(far.features).properties.multiplier).toBe(SurgeService.MAX_MULTIPLIER);
     });
   });
 });

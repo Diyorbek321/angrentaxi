@@ -1146,6 +1146,7 @@
   "shfVerdictShift": "Смена сэкономила бы {amount}",
   "wdrAmountExceedsAvailable": "Сейчас можно вывести не больше {amount}",
   "wdrAvailable": "Доступно к выводу: {amount}",
+  "wdrBonusNote": "Бонус {amount} — расходуется на комиссию и смены, вывести нельзя",
   "wdrHoldNote": "Пополнение картой {amount} можно будет вывести через {days} дн.",
   "wdrNothingAvailable": "Сейчас нет средств, доступных к выводу",
   "wltAmount": "Сумма",

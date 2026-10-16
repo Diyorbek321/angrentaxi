@@ -22,11 +22,12 @@ import { ERROR_CODES, codedBadRequest } from '../../common/errors/coded-error';
  *   · kuryer   DEBIT  tovar summasi       `vendor_settlement_debit_<id>`
  *   · sotuvchi CREDIT tovar summasi       `vendor_settlement_credit_<id>`
  *   · sotuvchi DEBIT  komissiya           `vendor_settlement_commission_<id>`
- * Sotuvchining sof tushumi = tovar − komissiya. Komissiya formulasi bugungi
- * bilan AYNAN bir xil (`food.service` / `market.service`):
- * `round(totalPrice × commissionRate / 100)` — shu sabab yetkazilganda
- * `settle*Earnings` hamyon orqali hisoblangan buyurtmaga komissiyani
- * QAYTA yozmaydi (`vendorWalletSettledAt` belgisi).
+ * Sotuvchining sof tushumi = tovar − komissiya. Komissiya FAQAT tovardan
+ * (`round(tovar × commissionRate / 100)`, yetkazish haqisiz —
+ * `vendor-checkout.ts` `vendorOrderCommission`, `settle*Earnings` va fiskal
+ * chek bilan bir xil) — shu sabab yetkazilganda `settle*Earnings` hamyon
+ * orqali hisoblangan buyurtmaga komissiyani QAYTA yozmaydi
+ * (`vendorWalletSettledAt` belgisi).
  *
  * Bir martalik: buyurtmadagi shartli yozuv (`vendor_wallet_settled_at IS
  * NULL`) + `uq_transactions_vendor_settlement` unikal indeksi.
@@ -58,8 +59,9 @@ export const VENDOR_SETTLEMENT_REVERSAL_TAG = {
     `vendor_settlement_reversal_commission_${vendorOrderId}${roundSuffix(round)}`,
 } as const;
 
-export function vendorCommissionAmount(totalPrice: number, commissionRate: number): number {
-  return Math.round((Number(totalPrice) * Number(commissionRate)) / 100);
+/** `base` — FAQAT tovar summasi (yetkazish haqisiz); qarang `vendorOrderCommission`. */
+export function vendorCommissionAmount(base: number, commissionRate: number): number {
+  return Math.round((Number(base) * Number(commissionRate)) / 100);
 }
 
 /** `WALLET_INSUFFICIENT_FOR_VENDOR` — `details: { required, balance }` (so'm). */
@@ -75,11 +77,15 @@ export function insufficientWalletForVendor(amount: number, balance: number): Ba
 export interface VendorWalletSettlementInput {
   kind: 'food' | 'market';
   vendorOrderId: string;
+  /**
+   * Faqat ma'lumot uchun — komissiya bazasi EMAS: komissiya `amount` (tovar)
+   * dan olinadi, `totalPrice` esa yetkazish haqini ham o'z ichiga oladi.
+   */
   vendorOrderTotalPrice: number;
   vendorCommissionRate: number;
   vendorOwnerUserId: string;
   courierUserId: string;
-  /** Tovar summasi (`DeliveryRideDetails.payVendor`). */
+  /** Tovar summasi (`DeliveryRideDetails.payVendor`) — komissiya bazasi ham shu. */
   amount: number;
   /** Mavjud bo'lsa saqlanadi (kuryer avval naqd rejimda belgilagan bo'lishi mumkin). */
   existingPaidAt: Date | null;
@@ -99,7 +105,10 @@ export async function settleVendorViaWallet(
   manager: EntityManager,
   input: VendorWalletSettlementInput,
 ): Promise<VendorWalletSettlementResult> {
-  const commission = vendorCommissionAmount(input.vendorOrderTotalPrice, input.vendorCommissionRate);
+  // Komissiya FAQAT tovardan: `amount` = `totalPrice − yetkazish haqi`
+  // (`deliveryRideDetails.payVendor`). Ilgari `totalPrice` dan olinardi —
+  // yetkazish haqiga ham komissiya tushardi.
+  const commission = vendorCommissionAmount(input.amount, input.vendorCommissionRate);
   const summary = { amount: input.amount, commission, net: input.amount - commission };
 
   // Qulf tartibi (#3b/#9): ikkala hamyon (saralangan), keyin buyurtma qatori —

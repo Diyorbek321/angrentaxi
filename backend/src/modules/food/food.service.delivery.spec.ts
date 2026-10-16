@@ -61,6 +61,7 @@ describe('FoodService — courier delivery bridge', () => {
     const matchingService = { startSearch: jest.fn().mockResolvedValue(undefined) };
     const tariffsService = { findAll: jest.fn().mockResolvedValue([{ id: 'tariff-food' }]) };
 
+    const fiscalReceipts = { recordForVendorOrder: jest.fn().mockResolvedValue(null) };
     const service = new FoodService(
       restaurantRepo as never,
       {} as never,
@@ -74,9 +75,22 @@ describe('FoodService — courier delivery bridge', () => {
       tariffsService as never,
       {} as never,
       events,
+      undefined,
+      undefined,
+      undefined,
+      fiscalReceipts as never,
     );
     service.onModuleInit();
-    return { service, events, orderRepo, transactionRepo, realtimeGateway, ordersService, matchingService };
+    return {
+      service,
+      events,
+      orderRepo,
+      transactionRepo,
+      realtimeGateway,
+      ordersService,
+      matchingService,
+      fiscalReceipts,
+    };
   }
 
   const ride = (id = 'ride-1') => ({ id, details: { foodOrderId: 'food-1' } });
@@ -90,13 +104,33 @@ describe('FoodService — courier delivery bridge', () => {
       { id: 'food-1', status: FoodOrderStatus.READY },
       { status: FoodOrderStatus.DELIVERED },
     );
-    // Cash order: only the commission debit (7 500 = 10% of 75 000).
+    // Cash order: only the commission debit — 10% of the 65 000 items
+    // (6 500), never of the 10 000 delivery fee (was 7 500 on the total).
     expect(transactionRepo.save).toHaveBeenCalledTimes(1);
-    expect(transactionRepo.save).toHaveBeenCalledWith(expect.objectContaining({ amount: 7500 }));
+    expect(transactionRepo.save).toHaveBeenCalledWith(expect.objectContaining({ amount: 6500 }));
     expect(realtimeGateway.emitToUser).toHaveBeenCalledWith('customer-1', 'food:order:status', {
       orderId: 'food-1',
       status: FoodOrderStatus.DELIVERED,
     });
+  });
+
+  it('platforma kuryeri CARD: sotuvchiga faqat tovar (65 000) − komissiya; yetkazish haqi kuryerniki', async () => {
+    const { events, transactionRepo, fiscalReceipts } = build(order({ paymentMethod: FoodPaymentMethod.CARD }));
+
+    await events.publish(ride(), 'delivered');
+
+    expect(transactionRepo.save).toHaveBeenCalledTimes(2);
+    expect(transactionRepo.save).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ userId: 'owner-1', amount: 65000, externalId: 'food_order_food-1' }),
+    );
+    expect(transactionRepo.save).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ userId: 'owner-1', amount: 6500, externalId: 'food_order_commission_food-1' }),
+    );
+    // Kuryer yetkazgan buyurtma cheki `FiscalReceiptsService` ning o'z
+    // obunasidan yoziladi — bu yerdan ikkinchi marta chaqirilmaydi.
+    expect(fiscalReceipts.recordForVendorOrder).not.toHaveBeenCalled();
   });
 
   it('does not settle twice when the restaurant already marked it delivered', async () => {

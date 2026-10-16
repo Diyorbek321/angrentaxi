@@ -6,13 +6,18 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  OnModuleInit,
   Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, In, Repository } from 'typeorm';
 import Redis from 'ioredis';
 import { Driver } from '../../database/entities/driver.entity';
-import { computeWalletBalance, syncDriverBalanceColumn } from '../payments/wallet-balance.util';
+import {
+  computeWalletBalance,
+  computeWalletBalances,
+  syncDriverBalanceColumn,
+} from '../payments/wallet-balance.util';
 import { UserRole, UserStatus } from '../../database/entities/user.entity';
 import { Transaction } from '../../database/entities/transaction.entity';
 import { DRIVER_ACTIVE_ORDER_STATUSES } from '../../database/entities/order.entity';
@@ -115,7 +120,7 @@ const CANDIDATE_LIMIT = 10;
 const WIDE_GEO_FETCH_LIMIT = 50;
 
 @Injectable()
-export class DriversService {
+export class DriversService implements OnModuleInit {
   private readonly logger = new Logger(DriversService.name);
 
   constructor(
@@ -138,6 +143,30 @@ export class DriversService {
     // yig'iladigan unit spec'lar uchun; ilovada har doim ulangan.
     @Optional() private readonly legalGate?: DriverLegalService,
   ) {}
+
+  onModuleInit(): void {
+    // Bloklangan haydovchi darhol oflayn — aks holda u geo-to'plamda qolib
+    // taklif olishda davom etardi (UsersService.blockUser).
+    this.usersService.onUserBlocked?.((userId) => this.forceOffline(userId));
+  }
+
+  /**
+   * Takes a driver out of matching regardless of their intent (block):
+   * `is_online=false`, out of the geo set, presence cleared. No-op for a
+   * user without a driver profile.
+   */
+  async forceOffline(userId: string): Promise<void> {
+    const driver = await this.findByUserId(userId);
+    if (!driver) return;
+    await this.markOffline(driver.id);
+    this.logger.log(`Driver ${driver.id} forced offline (user ${userId} blocked)`);
+  }
+
+  private async markOffline(driverId: string): Promise<void> {
+    await this.driverRepository.update(driverId, { isOnline: false });
+    await this.redis.zrem(DRIVERS_ONLINE_KEY, driverId);
+    await this.clearPresence(driverId);
+  }
 
   async createProfile(userId: string, dto: CreateDriverDto): Promise<Driver> {
     const existing = await this.driverRepository.findOne({ where: { userId } });
@@ -254,26 +283,12 @@ export class DriversService {
    *
    * ⚠️ NEGA halqa ichida `computeWalletBalance` emas: 50 ta haydovchili
    * sahifa 50 ta alohida agregat so'rov bo'lardi. Formula
-   * `wallet-balance.util.ts` dagi bilan AYNAN bir xil bo'lishi shart —
+   * `wallet-balance.util.ts` dagining O'ZI (`computeWalletBalances`) —
    * ikki joyda ikki xil hisob ikki xil javob beradi.
    */
   private async walletBalancesFor(userIds: string[]): Promise<Map<string, number>> {
     if (userIds.length === 0) return new Map();
-
-    const rows: Array<{ user_id: string; balance: string }> =
-      await this.driverRepository.query(
-        `SELECT user_id,
-                COALESCE(SUM(CASE WHEN type = 'credit' AND status = 'completed'
-                                  THEN amount ELSE 0 END), 0)
-              - COALESCE(SUM(CASE WHEN type = 'debit' AND status = 'completed'
-                                  THEN amount ELSE 0 END), 0) AS balance
-           FROM transactions
-          WHERE user_id = ANY($1)
-          GROUP BY user_id`,
-        [userIds],
-      );
-
-    return new Map(rows.map((r) => [r.user_id, parseFloat(r.balance)]));
+    return computeWalletBalances(this.driverRepository, userIds);
   }
 
   async getProfile(userId: string): Promise<Driver> {
@@ -386,6 +401,10 @@ export class DriversService {
   async setOnlineStatus(userId: string, isOnline: boolean): Promise<Driver> {
     const driver = await this.findByUserIdOrThrow(userId);
 
+    if (isOnline && driver.user?.status === UserStatus.BLOCKED) {
+      throw new ForbiddenException('Your account is blocked');
+    }
+
     if (isOnline && driver.user?.status === UserStatus.PENDING) {
       throw new BadRequestException(
         'Your account is awaiting admin approval before you can go online',
@@ -429,13 +448,11 @@ export class DriversService {
       await this.legalGate?.assertCanGoOnline(driver);
     }
 
-    await this.driverRepository.update(driver.id, { isOnline });
-
     if (!isOnline) {
-      await this.redis.zrem(DRIVERS_ONLINE_KEY, driver.id);
-      await this.clearPresence(driver.id);
+      await this.markOffline(driver.id);
       this.logger.log(`Driver ${driver.id} went offline, removed from Redis`);
     } else {
+      await this.driverRepository.update(driver.id, { isOnline });
       // Add to Redis geo if we have a location
       const updatedDriver = await this.driverRepository.findOne({
         where: { id: driver.id },
@@ -513,8 +530,10 @@ export class DriversService {
   async touchPresence(userIds: string[]): Promise<void> {
     if (userIds.length === 0) return;
 
+    // ⚠️ Faqat ACTIVE foydalanuvchilar: bloklangan haydovchining ulanib
+    // qolgan socketi yurak urishi bilan uni qayta "tirik" qila olmasin.
     const drivers = await this.driverRepository.find({
-      where: { userId: In(userIds), isOnline: true },
+      where: { userId: In(userIds), isOnline: true, user: { status: UserStatus.ACTIVE } },
       select: ['id'],
     });
 
@@ -613,8 +632,10 @@ export class DriversService {
       // Imkoniyat filtri ham SHU YERDA, bitta so'rov natijasi ustida
       // bajariladi: GEORADIUS faqat ID qaytaradi, ya'ni haydovchi turlarini
       // Redis bilmaydi. Har bir nomzod uchun alohida so'rov N+1 bo'lardi.
+      // Faqat ACTIVE foydalanuvchilar — bloklangan (yoki tasdiq kutayotgan)
+      // haydovchi geo-to'plamda qolib ketgan bo'lsa ham nomzod bo'lmaydi.
       const drivers = await this.driverRepository.find({
-        where: { id: In(hits.map((h) => h.driverId)) },
+        where: { id: In(hits.map((h) => h.driverId)), user: { status: UserStatus.ACTIVE } },
         select: ['id', 'userId', 'approvedTariffTier', 'serviceTypes', 'vehicleType', 'amenities'],
       });
       const byId = new Map(drivers.map((d) => [d.id, d]));

@@ -3,7 +3,7 @@
 // atomically (TOCTOU guard), and fans the result out to the passenger and the
 // dispatcher board. Trip completion is heavy enough (settlement, promo,
 // referral bonuses) that it lives in OrdersCompletionService instead.
-import { BadRequestException, ForbiddenException, Injectable, Logger, Optional } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TaximeterService } from '../taximeter/taximeter.service';
@@ -18,6 +18,7 @@ import { OrderStatusTransitionService } from './order-status-transition.service'
 import { waitingSettingsOf } from '../tariffs/waiting-charge';
 import { DeliveryEventsService } from '../delivery/delivery-events.service';
 import { VendorCashService } from '../delivery/vendor-cash.service';
+import { MatchingService } from '../matching/matching.service';
 
 @Injectable()
 export class OrdersLifecycleService {
@@ -39,6 +40,9 @@ export class OrdersLifecycleService {
     @Optional() private readonly deliveryEvents?: DeliveryEventsService,
     @Optional() private readonly taximeterService?: TaximeterService,
     @Optional() private readonly vendorCash?: VendorCashService,
+    // Taklif darvozasi. OrdersModule MatchingModule'ni import qiladi, ya'ni
+    // ilovada har doim bor; ixtiyoriy faqat qo'lda yig'iladigan spec'lar uchun.
+    @Optional() private readonly matching?: MatchingService,
   ) {}
 
   async acceptOrder(driverId: string, orderId: string): Promise<Order> {
@@ -52,6 +56,16 @@ export class OrdersLifecycleService {
 
     if (order.driverId) {
       throw new BadRequestException('Order already has a driver');
+    }
+
+    // ⚠️ Faqat O'ZIGA taklif qilingan haydovchi. Ilgari SEARCHING buyurtmani
+    // ID sini bilgan har qanday haydovchi olib qo'yardi — navbat, radius va
+    // ETA tartibi chetlab o'tilardi. Band belgisi taklif + qisqa grace
+    // (OFFER_ACCEPT_GRACE_SECONDS) yashaydi, ya'ni 15-soniyadagi kech "qabul"
+    // ham o'tadi. Dispetcherning qo'lda biriktirishi bu yo'ldan o'tmaydi
+    // (OrdersDispatchService.reassignDriver).
+    if (this.matching && !(await this.matching.isOfferedTo(driverId, orderId))) {
+      throw new ConflictException('This order is not (or no longer) offered to you');
     }
 
     // Hamyon rejimida (e-tijorat qonuni 23-modda) naqd ovqat/market

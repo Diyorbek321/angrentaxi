@@ -8,15 +8,30 @@ import 'package:angren_taxi/shared/utils/formatters.dart';
 // HAMYON: YECHISH USHLAB TURILISHI VA OCHIQ TO'LDIRISHLAR
 // (docs/LEGAL-COMPLIANCE.md §21, §25 #3a / #13).
 //
-// `available = max(0, balance − held)`: karta orqali to'ldirilgan pul
-// `holdDays` kun davomida komissiya/smenaga sarflanadi, lekin yechilmaydi.
+// `available = max(0, balance − held − bonus)`: karta orqali to'ldirilgan
+// pul `holdDays` kun davomida, bonus esa doim komissiya/smenaga sarflanadi,
+// lekin yechilmaydi.
 // ============================================================================
 
 /// Yechish mumkin bo'lgan summa. Ushlab turilgan summa noma'lum (eski
 /// server) yoki qoldiq o'qilmagan bo'lsa — `null` (chegarani server qo'yadi).
-double? withdrawableAmount({required double? balance, required double? held}) {
+///
+/// Bonus (haydovchi/referal bonusi) ham ayiriladi: u komissiya va smenaga
+/// sarflanadi, lekin yechib olinmaydi. Eski server `bonus` bermaydi — 0.
+double? withdrawableAmount({
+  required double? balance,
+  required double? held,
+  double? bonus,
+}) {
   if (balance == null || held == null) return null;
-  return math.max(0.0, balance - held);
+  return math.max(0.0, balance - held - (bonus ?? 0));
+}
+
+/// "Bonus X — komissiya va smenaga sarflanadi, yechib bo'lmaydi".
+/// Bonus yo'q yoki noma'lum — `null`.
+String? withdrawalBonusNote(double? bonus) {
+  if (bonus == null || bonus <= 0) return null;
+  return AppL10n.current.wdrBonusNote(Formatters.formatPrice(bonus));
 }
 
 /// "Karta orqali to'ldirilgan X so'm N kundan keyin yechish mumkin".
@@ -37,8 +52,10 @@ String? withdrawalOnHoldMessage(ApiError? error) {
     held: error.amount('held'),
     holdDays: error.amount('holdDays')?.round() ?? 0,
   );
+  final bonusNote = withdrawalBonusNote(error.amount('bonus'));
   final lines = <String>[
     if (note != null) note,
+    if (bonusNote != null) bonusNote,
     if (available != null)
       available > 0
           ? l10n.wdrAmountExceedsAvailable(Formatters.formatPrice(available))

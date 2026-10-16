@@ -3946,6 +3946,11 @@ class AppLocalizationsUz extends AppLocalizations {
   }
 
   @override
+  String wdrBonusNote(String amount) {
+    return 'Bonus $amount — komissiya va smenaga sarflanadi, yechib bo\'lmaydi';
+  }
+
+  @override
   String wdrHoldNote(String amount, String days) {
     return 'Karta orqali to\'ldirilgan $amount $days kundan keyin yechish mumkin';
   }

@@ -22,9 +22,12 @@ import { PromoCodesModule } from '../promo-codes/promo-codes.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { MarketPromotionsController } from './market-promotions.controller';
 import { VendorTinModule } from '../vendor-tin/vendor-tin.module';
+import { FiscalModule } from '../fiscal/fiscal.module';
 
 @Module({
   imports: [
+    // Sotuvchi o'zi yetkazgan buyurtma cheki (settleDelivered).
+    FiscalModule,
     // Admin: sotuvchi STIR'i (audit bilan).
     VendorTinModule,
     TypeOrmModule.forFeature([Store, MarketCategory, Product, StockMovement, MarketOrder, Transaction]),

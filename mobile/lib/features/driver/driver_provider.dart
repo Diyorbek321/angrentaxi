@@ -149,6 +149,7 @@ class DriverProvider extends ChangeNotifier {
   /// muddat (kun). `null` = server bermagan (eski server) — yechish chegarasi
   /// faqat qoldiq bo'yicha.
   double? _withdrawalHold;
+  double? _withdrawalBonus;
   int _withdrawalHoldDays = 0;
   DriverEarningsBreakdown _earningsBreakdown = DriverEarningsBreakdown.empty;
   List<DriverBonusProgress> _bonusProgress = [];
@@ -198,8 +199,15 @@ class DriverProvider extends ChangeNotifier {
 
   /// Yechish mumkin: `max(0, balance − hold)` — qoldiq realtime yangilansa
   /// ham mos qoladi. `null` = noma'lum.
-  double? get availableForWithdrawal =>
-      withdrawableAmount(balance: _walletBalance, held: _withdrawalHold);
+  double? get availableForWithdrawal => withdrawableAmount(
+        balance: _walletBalance,
+        held: _withdrawalHold,
+        bonus: _withdrawalBonus,
+      );
+
+  /// Sarflanmagan bonus — komissiya/smenaga ketadi, yechilmaydi.
+  /// `null` — eski server (maydon yo'q).
+  double? get withdrawalBonus => _withdrawalBonus;
   bool get isSubmittingWithdrawal => _isSubmittingWithdrawal;
   String? get withdrawalError => _withdrawalError;
   Position? get lastKnownPosition => _lastKnownPosition;
@@ -221,6 +229,12 @@ class DriverProvider extends ChangeNotifier {
   // (`newOrderOffer`), uni vidjet testida haydash uchun butun socket
   // qatlamini soxtalashtirish kerak bo'lardi. Taklif ekrani esa aynan shu
   // maydonga qarab quriladi.
+  @visibleForTesting
+  void debugSetActiveOrderForTest(Order order) {
+    _activeOrder = order;
+    notifyListeners();
+  }
+
   @visibleForTesting
   void debugSetPendingOfferForTest(Order offer) {
     _pendingOffer = offer;
@@ -641,14 +655,25 @@ class DriverProvider extends ChangeNotifier {
 
     _socketService.on(SocketEvents.walletUpdated, _onWalletUpdated);
 
-    _socketService.on(SocketEvents.orderCancelled, (data) {
-      if (_activeOrder != null) {
-        _activeOrder = _activeOrder!.copyWith(status: OrderStatus.cancelled);
-        notifyListeners();
-      }
+    _socketService.on(SocketEvents.orderCancelled, applyOrderCancelled);
+  }
+
+  /// `order:cancelled {orderId, reason}` — faqat O'SHA buyurtmaga tegadi.
+  ///
+  /// Server bu hodisani taklif paytida ham yuboradi (qidiruv tugadi,
+  /// yo'lovchi bekor qildi, boshqa haydovchi oldi). `orderId` ga qaramaslik
+  /// haydovchining FAOL safarini ham "bekor" qilib qo'yardi. `orderId` siz
+  /// eski xabar — avvalgi xulq (testlar ham shu orqali haydaydi).
+  void applyOrderCancelled(dynamic data) {
+    final orderId = data is Map ? data['orderId'] as String? : null;
+    final active = _activeOrder;
+    if (active != null && (orderId == null || active.id == orderId)) {
+      _activeOrder = active.copyWith(status: OrderStatus.cancelled);
+    }
+    if (orderId == null || _pendingOffer?.id == orderId) {
       _pendingOffer = null;
-      notifyListeners();
-    });
+    }
+    notifyListeners();
   }
 
   /// `wallet:updated` — server yangi qoldiqni o'zi yuboradi (daftardan),
@@ -694,6 +719,10 @@ class DriverProvider extends ChangeNotifier {
       _error = extractErrorMessage(e);
       _errorKind = classifyDriverError(e);
       _errorDetails = ApiError.from(e);
+      // 409/400 — taklif endi bu haydovchiniki emas (vaqti tugadi, boshqasi
+      // oldi, bekor qilindi). Eskirgan kartani ekranda qoldirmaymiz.
+      final status = _errorDetails?.statusCode;
+      if (status == 409 || status == 400) _pendingOffer = null;
       _setState(DriverProviderState.error);
     }
   }
@@ -992,6 +1021,7 @@ class DriverProvider extends ChangeNotifier {
           (available == null ? null : math.max(0.0, balance - available));
       _withdrawalHoldDays =
           (payload['withdrawalHoldDays'] as num?)?.round() ?? 0;
+      _withdrawalBonus = (payload['bonusBalance'] as num?)?.toDouble();
       notifyListeners();
     } catch (e) {
       debugPrint('[DriverProvider] loadWalletBalance error: $e');

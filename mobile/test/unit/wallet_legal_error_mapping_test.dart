@@ -71,6 +71,29 @@ void main() {
       expect(withdrawableAmount(balance: 5000, held: null), isNull);
     });
 
+    test('withdrawableAmount bonusni ham ayiradi (bonus yechilmaydi)', () {
+      expect(withdrawableAmount(balance: 100000, held: 30000, bonus: 20000), 50000);
+      expect(withdrawableAmount(balance: 15000, held: 0, bonus: 20000), 0);
+      // Eski server bonus bermaydi — avvalgi hisob.
+      expect(withdrawableAmount(balance: 100000, held: 0, bonus: null), 100000);
+    });
+
+    test('withdrawalBonusNote — bonus summasi; yo\'q/0 — null', () {
+      final note = withdrawalBonusNote(15000)!;
+      expect(note, contains(Formatters.formatPrice(15000)));
+      expect(note, contains('komissiya'));
+      expect(withdrawalBonusNote(0), isNull);
+      expect(withdrawalBonusNote(null), isNull);
+    });
+
+    test('WALLET_WITHDRAWAL_ON_HOLD — bonus izohi ham chiqadi', () {
+      final message = withdrawalOnHoldMessage(_api(
+        ApiErrorCode.walletWithdrawalOnHold,
+        {'available': 0, 'held': 0, 'holdDays': 7, 'bonus': 15000},
+      ))!;
+      expect(message, contains(Formatters.formatPrice(15000)));
+    });
+
     test('withdrawalHoldNote — summa va kun; yo\'q/0 kun — null', () {
       final note = withdrawalHoldNote(held: 50000, holdDays: 7)!;
       expect(note, contains(Formatters.formatPrice(50000)));

@@ -40,6 +40,21 @@ describe('OrdersMeterService.reading', () => {
     expect(reading.fare).toBe(13900);
   });
 
+  it('rejalashtirilgan safarda kutish belgilangan vaqtdan hisoblanadi', async () => {
+    const service = build({
+      id: 'o-1', isMetered: true, status: OrderStatus.IN_PROGRESS, tariffId: 't-1',
+      // Haydovchi 10:10 da keldi, safar 10:16 ga belgilangan, 10:18 da boshlandi →
+      // 2 daqiqa kutish, 3 tasi bepul → kutish haqi yo'q.
+      arrivedAt: new Date('2026-10-06T10:10:00Z'),
+      scheduledAt: new Date('2026-10-06T10:16:00Z'),
+    });
+
+    const reading = await service.reading('o-1', passenger, NOW);
+
+    expect(reading.waitingFare).toBe(0);
+    expect(reading.fare).toBe(11400);
+  });
+
   it("adds the trip option fee frozen in the order's quote", async () => {
     const service = build({
       id: 'o-1', isMetered: true, status: OrderStatus.IN_PROGRESS, tariffId: 't-1',

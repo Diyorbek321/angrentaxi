@@ -21,7 +21,7 @@ import { DriversService } from '../drivers/drivers.service';
 import { PaginatedOrders } from './orders.types';
 import { Trip } from '../../database/entities/trip.entity';
 import { SCHEDULED_LIST_LIMIT } from './scheduled-orders.constants';
-import { waitingSettingsOf } from '../tariffs/waiting-charge';
+import { waitingSettingsOf, waitingStartOf } from '../tariffs/waiting-charge';
 
 // Upper bound on the dispatcher board feed (see getActiveOrders). Sized well
 // above any realistic number of simultaneously in-flight orders for a single
@@ -390,6 +390,10 @@ export class OrdersQueryService {
       // javoblarda u yuklanmasligi mumkin.
       const waiting = waitingSettingsOf(order.tariff ?? {});
       orderRecord.arrivedAt = order.arrivedAt ?? null;
+      // Kutish hisobi shu lahzadan boshlanadi: rejalashtirilgan safarda erta
+      // kelgan haydovchi uchun — belgilangan vaqtdan (yakuniy narx bilan bir
+      // xil qoida, `waitingStartOf`). Mobil hisoblagich shuni ishlatadi.
+      orderRecord.waitingStartsAt = waitingStartOf(order.arrivedAt, order.scheduledAt) ?? null;
       orderRecord.freeWaitMinutes = waiting.freeWaitMinutes;
       orderRecord.waitingPricePerMinute = waiting.waitingPricePerMinute;
     }

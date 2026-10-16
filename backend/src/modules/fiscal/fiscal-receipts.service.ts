@@ -22,7 +22,7 @@ import { MarketOrder } from '../../database/entities/market-order.entity';
 import { Restaurant } from '../../database/entities/restaurant.entity';
 import { Store } from '../../database/entities/store.entity';
 import { PaymentMethod, ServiceType } from '../../database/entities/order.entity';
-import { checkoutDeliveryFee } from '../delivery/delivery-ride-details';
+import { isSelfDelivered, vendorItemsTotal, vendorOrderCommission } from '../delivery/vendor-checkout';
 import { SettingsService } from '../settings/settings.service';
 import { DeliveryEventsService } from '../delivery/delivery-events.service';
 import { FISCAL_PROVIDER, FiscalProvider, FiscalReceiptPayload } from './fiscal-provider';
@@ -233,8 +233,14 @@ export class FiscalReceiptsService implements OnModuleInit {
 
   /**
    * Sotuvchi tovari. Summa — TOVAR qismi (yetkazish haqi kuryer safarining
-   * o'z chekida). Komissiya — food/market servislari daftarga yozgan bilan
-   * bir xil formula: `round(totalPrice × commissionRate / 100)`.
+   * o'z chekida); sotuvchi O'ZI yetkazgan bo'lsa (kuryer safari yo'q) —
+   * tovar + yetkazish haqi, chunki u sotuvchining o'z xizmati va boshqa chek
+   * uni qamramaydi. Komissiya — daftar bilan bir xil, FAQAT tovardan
+   * (`vendorOrderCommission`).
+   *
+   * Ikki manba: kuryer safarining `delivered` hodisasi (`onModuleInit`) va
+   * sotuvchining qo'lda "yetkazildi"si (food/market `settleDelivered`).
+   * Bir martalik — `createAndSend` mavjud chekni qaytaradi.
    */
   async recordForVendorOrder(kind: 'food' | 'market', vendorOrderId: string): Promise<FiscalReceipt | null> {
     return this.safely(vendorOrderId, async () => {
@@ -396,10 +402,15 @@ export class FiscalReceiptsService implements OnModuleInit {
   private vendorDraft(
     serviceType: 'food' | 'market',
     principalType: FiscalPrincipalType,
-    order: { id: string; totalPrice: number; items: ReadonlyArray<{ qty: number; price: number }>; paymentMethod: string },
+    order: {
+      id: string;
+      totalPrice: number;
+      items: ReadonlyArray<{ qty: number; price: number }>;
+      paymentMethod: string;
+      deliveryOrderId?: string | null;
+    },
     vendor: { id: string; tin: string | null; commissionRate: number },
   ): ReceiptDraft {
-    const totalPrice = Number(order.totalPrice);
     return {
       orderId: order.id,
       serviceType,
@@ -407,8 +418,8 @@ export class FiscalReceiptsService implements OnModuleInit {
       principalId: vendor.id,
       principalPinfl: null,
       principalTin: vendor.tin ?? null,
-      total: totalPrice - checkoutDeliveryFee({ totalPrice, items: order.items }),
-      commissionAmount: Math.round((totalPrice * Number(vendor.commissionRate)) / 100),
+      total: isSelfDelivered(order) ? Math.round(Number(order.totalPrice)) : vendorItemsTotal(order),
+      commissionAmount: vendorOrderCommission(order, Number(vendor.commissionRate)),
       paymentMethod: toReceiptPaymentMethod(order.paymentMethod),
     };
   }

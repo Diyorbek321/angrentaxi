@@ -205,7 +205,7 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
     return Padding(
       padding: const EdgeInsets.only(top: kSpace6),
       child: WaitingChargeTicker(
-        arrivedAt: order.arrivedAt,
+        arrivedAt: order.waitingStartsAt,
         freeWaitMinutes: order.freeWaitMinutes,
         waitingPricePerMinute: order.waitingPricePerMinute,
         clock: widget.clock,
@@ -519,7 +519,7 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
     DriverServiceWording wording,
   ) {
     final charge = computeWaitingCharge(
-      arrivedAt: order.arrivedAt,
+      arrivedAt: order.waitingStartsAt,
       now: DateTime.now(),
       freeWaitMinutes: order.freeWaitMinutes,
       waitingPricePerMinute: order.waitingPricePerMinute,

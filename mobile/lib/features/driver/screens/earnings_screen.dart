@@ -662,16 +662,19 @@ class _WithdrawDialogState extends State<_WithdrawDialog> {
     // chegarani qo'yadi (`WALLET_WITHDRAWAL_ON_HOLD`).
     final available = provider.availableForWithdrawal;
     if (available != null && amount > available) {
-      final note = withdrawalHoldNote(
-        held: provider.withdrawalHold,
-        holdDays: provider.withdrawalHoldDays,
-      );
+      final note = [
+        withdrawalHoldNote(
+          held: provider.withdrawalHold,
+          holdDays: provider.withdrawalHoldDays,
+        ),
+        withdrawalBonusNote(provider.withdrawalBonus),
+      ].whereType<String>().join('\n');
       final limit = available > 0
           ? context.l10n
               .wdrAmountExceedsAvailable(Formatters.formatPrice(available))
           : context.l10n.wdrNothingAvailable;
       setState(
-        () => _validationError = [limit, if (note != null) note].join('\n'),
+        () => _validationError = [limit, if (note.isNotEmpty) note].join('\n'),
       );
       return;
     }
@@ -693,11 +696,15 @@ class _WithdrawDialogState extends State<_WithdrawDialog> {
   /// turilgan narsa yo'q bo'lsa — hech narsa (qoldiq qatori yetarli).
   Widget _buildHoldInfo(BuildContext context, DriverProvider provider) {
     final available = provider.availableForWithdrawal;
-    final note = withdrawalHoldNote(
-      held: provider.withdrawalHold,
-      holdDays: provider.withdrawalHoldDays,
-    );
-    if (available == null || note == null) return const SizedBox.shrink();
+    final notes = [
+      withdrawalHoldNote(
+        held: provider.withdrawalHold,
+        holdDays: provider.withdrawalHoldDays,
+      ),
+      withdrawalBonusNote(provider.withdrawalBonus),
+    ].whereType<String>().toList();
+    if (available == null || notes.isEmpty) return const SizedBox.shrink();
+    final note = notes.join('\n');
     return Padding(
       key: const ValueKey('withdraw_hold_info'),
       padding: const EdgeInsets.only(bottom: kSpace3),

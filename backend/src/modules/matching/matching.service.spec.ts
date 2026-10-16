@@ -13,7 +13,7 @@ describe('MatchingService (Redis-backed queue)', () => {
   let driversService: { getNearbyDrivers: jest.Mock };
   let osrmService: { durationsTo: jest.Mock };
   let realtimeGateway: { emitToUser: jest.Mock };
-  let notificationsService: { notifyNewOrderOffer: jest.Mock };
+  let notificationsService: { notifyNewOrderOffer: jest.Mock; notifyOrderCancelled: jest.Mock };
   let usersService: { findById: jest.Mock };
   let tariffsService: { findById: jest.Mock };
   let redis: {
@@ -22,6 +22,7 @@ describe('MatchingService (Redis-backed queue)', () => {
     get: jest.Mock;
     set: jest.Mock;
     del: jest.Mock;
+    eval: jest.Mock;
     sadd: jest.Mock;
     srem: jest.Mock;
     smembers: jest.Mock;
@@ -58,7 +59,7 @@ describe('MatchingService (Redis-backed queue)', () => {
   beforeEach(() => {
     orderRepository = {
       findOne: jest.fn().mockResolvedValue(makeOrder()),
-      update: jest.fn().mockResolvedValue(undefined),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
       query: jest
         .fn()
         .mockResolvedValueOnce([{ lat: 40.1, lng: 69.1 }]) // startSearch's pickup coords query
@@ -66,7 +67,10 @@ describe('MatchingService (Redis-backed queue)', () => {
     };
     driversService = { getNearbyDrivers: jest.fn().mockResolvedValue([]) };
     realtimeGateway = { emitToUser: jest.fn() };
-    notificationsService = { notifyNewOrderOffer: jest.fn().mockResolvedValue(undefined) };
+    notificationsService = {
+      notifyNewOrderOffer: jest.fn().mockResolvedValue(undefined),
+      notifyOrderCancelled: jest.fn().mockResolvedValue(undefined),
+    };
     usersService = { findById: jest.fn().mockResolvedValue({ id: 'u', fcmToken: null }) };
     tariffsService = {
       // Taksi tariflarida `vehicleType` null — transport turi bo'yicha filtr
@@ -94,6 +98,10 @@ describe('MatchingService (Redis-backed queue)', () => {
         store.delete(key);
         return Promise.resolve(1);
       }),
+      // Order-lock release: atomic compare-and-delete script.
+      eval: jest.fn((_script: string, _n: number, key: string, token: string) =>
+        Promise.resolve(store.get(key) === token && store.delete(key) ? 1 : 0),
+      ),
       sadd: jest.fn((_key: string, member: string) => {
         activeSet.add(member);
         return Promise.resolve(1);
@@ -253,7 +261,7 @@ describe('MatchingService (Redis-backed queue)', () => {
 
     it('keeps searching instead of cancelling once every driver in the queue has declined', async () => {
       // The order used to be cancelled the instant the last driver in the
-      // first batch declined, throwing away most of the 60s search window.
+      // first batch declined, throwing away most of the search window.
       // Now the queue stays active so the sweep can re-search for drivers who
       // come online in the meantime.
       driversService.getNearbyDrivers.mockResolvedValue([makeDriver('driver-a', 1)]);
@@ -300,14 +308,15 @@ describe('MatchingService (Redis-backed queue)', () => {
       driversService.getNearbyDrivers.mockResolvedValue([]);
       await service.startSearch(orderId);
 
-      // Jump past the 60s no-driver deadline.
+      // Jump past the 3-minute no-driver deadline (SEARCH_DEADLINE_MS).
       const realNow = Date.now();
-      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(realNow + 61_000);
+      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(realNow + 181_000);
       await service.sweepExpiredOffers();
       nowSpy.mockRestore();
 
+      // Conditional: only SEARCHING → CANCELLED, never over an accept.
       expect(orderRepository.update).toHaveBeenCalledWith(
-        orderId,
+        { id: orderId, status: OrderStatus.SEARCHING },
         expect.objectContaining({ status: OrderStatus.CANCELLED }),
       );
       expect(redis.activeSet.has(orderId)).toBe(false);
@@ -449,12 +458,12 @@ describe('MatchingService (Redis-backed queue)', () => {
       expect(JSON.parse(redis.store.get('matching:queue:order-1')!).drivers).toEqual([]);
 
       const realNow = Date.now();
-      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(realNow + 61_000);
+      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(realNow + 181_000);
       await service.sweepExpiredOffers();
       nowSpy.mockRestore();
 
       expect(orderRepository.update).toHaveBeenCalledWith(
-        orderId,
+        { id: orderId, status: OrderStatus.SEARCHING },
         expect.objectContaining({
           status: OrderStatus.CANCELLED,
           cancelReason: 'No drivers available',
@@ -599,7 +608,7 @@ describe('MatchingService (Redis-backed queue)', () => {
 
     it('ovqat buyurtmasi ham qayta-qidiruvda filtrni saqlaydi', async () => {
       // Restoran «tayyor» bosganda atrofda kuryer bo'lmasligi odatiy hol;
-      // navbat 60 soniya davomida qayta-qidiradi va o'sha paytda ham
+      // navbat qidiruv muddati (3 daqiqa) davomida qayta-qidiradi va o'sha paytda ham
       // buyurtma taksichilarga tarqalib ketmasligi kerak.
       deliveryOrder(ServiceType.FOOD);
       usePool([sedan('taxi-only', 0.3)]);
@@ -775,7 +784,7 @@ describe('MatchingService (Redis-backed queue)', () => {
       await service.sweepExpiredOffers();
 
       expect(orderRepository.update).toHaveBeenCalledWith(
-        orderId,
+        { id: orderId, status: OrderStatus.SEARCHING },
         expect.objectContaining({ status: OrderStatus.CANCELLED }),
       );
     });

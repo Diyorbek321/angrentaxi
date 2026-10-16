@@ -309,6 +309,16 @@ export const ERROR_CATALOGUE: readonly ErrorCatalogueEntry[] = [
   },
   {
     source:
+      "Karta orqali to'ldirilgan {0} so'm {1} kun davomida va bonus {2} so'm yechib olinmaydi (bonus faqat komissiya, soliq va smenaga sarflanadi). Hozir yechish mumkin: {3} so'm.",
+    ru: 'Пополнение картой на {0} сум (в течение {1} дн.) и бонус {2} сум нельзя вывести (бонус расходуется только на комиссию, налог и смену). Сейчас доступно к выводу: {3} сум.',
+  },
+  {
+    source:
+      "Bonus {0} so'm yechib olinmaydi — u faqat komissiya, soliq va smenaga sarflanadi. Hozir yechish mumkin: {1} so'm.",
+    ru: 'Бонус {0} сум нельзя вывести — он расходуется только на комиссию, налог и смену. Сейчас доступно к выводу: {1} сум.',
+  },
+  {
+    source:
       "Hujjatingiz tasdiqlangan: JShShIR, STIR, soliq maqomi va tug'ilgan sanani endi faqat dispetcher o'zgartira oladi. Qo'llab-quvvatlash xizmatiga murojaat qiling.",
     ru: 'Ваш документ подтверждён: ПИНФЛ, ИНН, налоговый статус и дату рождения теперь может изменить только диспетчер. Обратитесь в службу поддержки.',
   },

@@ -128,7 +128,7 @@ describe('VendorCashService — hamyon rejimi', () => {
         }),
         expect.objectContaining({
           userId: 'owner-1',
-          amount: 15200,
+          amount: 14500,
           type: TransactionType.DEBIT,
           externalId: 'vendor_settlement_commission_fo-1',
         }),
@@ -139,7 +139,7 @@ describe('VendorCashService — hamyon rejimi', () => {
       expect(gateway.emitToUser).toHaveBeenCalledWith(
         'owner-1',
         'vendor:wallet_settled',
-        expect.objectContaining({ vendorOrderId: 'fo-1', amount: 145000, commission: 15200, net: 129800 }),
+        expect.objectContaining({ vendorOrderId: 'fo-1', amount: 145000, commission: 14500, net: 130500 }),
       );
     });
 

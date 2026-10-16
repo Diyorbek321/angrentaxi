@@ -39,6 +39,8 @@ describe('MatchingService — hamyon rejimida kuryer filtri', () => {
         return 'OK';
       }),
       del: jest.fn(async (k: string) => store.delete(k)),
+      // Qulfni bo'shatish (compare-and-delete).
+      eval: jest.fn(async (_s: string, _n: number, k: string, t: string) => (store.get(k) === t && store.delete(k) ? 1 : 0)),
       sadd: jest.fn(async (_k: string, m: string) => active.add(m)),
       srem: jest.fn(async (_k: string, m: string) => active.delete(m)),
       smembers: jest.fn(async () => [...active]),

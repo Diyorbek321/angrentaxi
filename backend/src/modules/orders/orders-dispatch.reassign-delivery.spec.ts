@@ -17,6 +17,9 @@ describe('OrdersDispatchService.reassignDriver — kuryer safari hodisasi', () =
     };
     const updated = { ...order, driverId: 'driver-2', status: OrderStatus.ACCEPTED };
     const manager = {
+      // Yangi haydovchi bo'shmi — qulf + faol buyurtmalar soni (0 = bo'sh).
+      query: jest.fn(async () => []),
+      count: jest.fn(async () => 0),
       createQueryBuilder: () => {
         const qb = {
           update: () => qb,

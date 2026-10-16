@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
   ConflictException,
@@ -10,8 +11,18 @@ import { ALL_PERMISSIONS, Permission, User, UserRole, UserStatus } from '../../d
 import { UpdateUserDto } from './dto/update-user.dto';
 import { generateUniqueReferralCode } from '../../common/utils/referral-code.util';
 
+/** Called after a user is blocked; failures are logged, never fail the block. */
+export type UserBlockedListener = (userId: string) => Promise<void>;
+
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+  // Bloklash oqibatlari (haydovchini oflayn qilish, socketlarni uzish)
+  // ro'yxatdan o'tgan tinglovchilar orqali: DriversService va RealtimeGateway
+  // ikkalasi ham UsersService ga bog'liq — bu yerdan ularni to'g'ridan-to'g'ri
+  // chaqirish aylanma bog'liqlik bo'lardi.
+  private readonly blockListeners: UserBlockedListener[] = [];
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -120,10 +131,28 @@ export class UsersService {
     await this.userRepository.update(id, { fcmToken });
   }
 
+  /** Registers a side effect of blocking (see blockListeners). */
+  onUserBlocked(listener: UserBlockedListener): void {
+    this.blockListeners.push(listener);
+  }
+
   async blockUser(id: string, reason?: string): Promise<User> {
     const user = await this.findByIdOrThrow(id);
     const blockReason = reason?.trim() || null;
     await this.userRepository.update(id, { status: UserStatus.BLOCKED, blockReason });
+
+    // ⚠️ Ilgari bloklash faqat status yozardi: bloklangan haydovchi onlayn,
+    // geo-to'plamda qolib, taklif olishda davom etardi. Status allaqachon
+    // yozilgan — tinglovchi xatosi bloklashni bekor qilmaydi.
+    const results = await Promise.allSettled(this.blockListeners.map((listener) => listener(id)));
+    results.forEach((result) => {
+      if (result.status === 'rejected') {
+        this.logger.error(
+          `Block side effect failed for user ${id}: ${(result.reason as Error)?.message ?? result.reason}`,
+        );
+      }
+    });
+
     return { ...user, status: UserStatus.BLOCKED, blockReason };
   }
 

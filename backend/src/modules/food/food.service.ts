@@ -51,6 +51,8 @@ import {
   withCustomerFields,
 } from '../delivery/vendor-checkout';
 import { creditPromoCompensation } from '../delivery/promo-compensation';
+import { isSelfDelivered, vendorOrderCommission, vendorRevenue } from '../delivery/vendor-checkout';
+import { FiscalReceiptsService } from '../fiscal/fiscal-receipts.service';
 import { normalizeAddressDetails } from '../../common/dto/address-details.dto';
 
 // Rolling window for the analytics that cannot be expressed as a single SQL
@@ -105,6 +107,10 @@ export class FoodService implements OnModuleInit {
     @Optional() private readonly promotionsService?: PromotionsService,
     @Optional() private readonly promoCodesService?: PromoCodesService,
     @Optional() private readonly notificationsService?: NotificationsService,
+    // O'zi yetkazgan buyurtmaning sotuvchi cheki (kuryer yetkazganini
+    // FiscalReceiptsService o'zi `delivered` hodisasidan yozadi). Ixtiyoriy —
+    // qo'lda yig'iladigan spec'lar uchun.
+    @Optional() private readonly fiscalReceipts?: FiscalReceiptsService,
   ) {}
 
   onModuleInit(): void {
@@ -331,6 +337,11 @@ export class FoodService implements OnModuleInit {
   // payout for money it already collected directly).
   private async settleDelivered(restaurant: Restaurant, order: FoodOrder): Promise<void> {
     await this.settleRestaurantEarnings(restaurant, order);
+    // Kuryer safari yo'q — chekni hech qanday `delivered` hodisasi yozmaydi.
+    // Bir martalik: `createAndSend` mavjud chekni qaytaradi; xato chiqarmaydi.
+    if (isSelfDelivered(order)) {
+      await this.fiscalReceipts?.recordForVendorOrder('food', order.id);
+    }
     // Promokod (platforma hisobidan): naqdni olgan tomonga farq qaytariladi.
     const isCash = order.paymentMethod === FoodPaymentMethod.CASH;
     if (!isCash || !(Number(order.promoDiscount ?? 0) > 0)) return;
@@ -357,19 +368,21 @@ export class FoodService implements OnModuleInit {
       return;
     }
 
-    const commissionAmount = Math.round((order.totalPrice * restaurant.commissionRate) / 100);
-    if (commissionAmount <= 0) {
-      return;
-    }
+    // Komissiya FAQAT tovardan, yetkazish haqidan hech qachon
+    // (`vendorOrderCommission`). Sotuvchi tushumi: platforma kuryeri
+    // yetkazsa — tovar (yetkazish haqi kuryer safarining to'lovi); o'zi
+    // yetkazsa — tovar + yetkazish haqi (`vendorRevenue`).
+    const commissionAmount = vendorOrderCommission(order, Number(restaurant.commissionRate));
+    const revenue = vendorRevenue(order);
 
     const isCash = order.paymentMethod === FoodPaymentMethod.CASH;
     const paymentMethod = isCash ? PaymentMethod.CASH : PaymentMethod.CARD;
 
-    if (!isCash) {
+    if (!isCash && revenue > 0) {
       await this.transactionRepo.save({
         userId: restaurant.ownerUserId,
         orderId: null,
-        amount: order.totalPrice,
+        amount: revenue,
         type: TransactionType.CREDIT,
         paymentMethod,
         status: TransactionStatus.COMPLETED,
@@ -377,6 +390,9 @@ export class FoodService implements OnModuleInit {
       });
     }
 
+    if (commissionAmount <= 0) {
+      return;
+    }
     await this.transactionRepo.save({
       userId: restaurant.ownerUserId,
       orderId: null,
@@ -684,7 +700,11 @@ export class FoodService implements OnModuleInit {
     const topDishes = [...dishSold.values()].sort((a, b) => b.qty - a.qty).slice(0, 5);
 
     const gross = inRange.reduce((sum, o) => sum + Number(o.totalPrice), 0);
-    const commission = Math.round(gross * (restaurant.commissionRate / 100));
+    // Komissiya FAQAT tovardan (yetkazish haqisiz) — daftar bilan bir xil.
+    const commission = inRange.reduce(
+      (sum, o) => sum + vendorOrderCommission(o, Number(restaurant.commissionRate)),
+      0,
+    );
 
     return {
       revenue,

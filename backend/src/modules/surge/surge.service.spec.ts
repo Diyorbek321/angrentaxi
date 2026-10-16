@@ -7,18 +7,42 @@ const FAR_AWAY = { lat: 40.5, lng: 69.6 };
 
 describe('SurgeService', () => {
   let orderRepository: { query: jest.Mock };
-  let driversService: { countOnlineDriversNear: jest.Mock };
+  let supply: { positionsNear: jest.Mock };
   let service: SurgeService;
 
-  /** Rows as the pickup-coordinate query returns them. */
-  function requests(count: number, at = PICKUP) {
+  interface DemandRowFixture {
+    passenger_id: string;
+    lat: number;
+    lng: number;
+    status: string;
+    cancel_reason: string | null;
+    driver_id: string | null;
+    lifetime_s: number;
+  }
+
+  /** Rows as the demand query returns them — one live request per passenger. */
+  function requests(count: number, at = PICKUP, overrides: Partial<DemandRowFixture> = {}): DemandRowFixture[] {
+    return Array.from({ length: count }, (_, i) => ({
+      passenger_id: `passenger-${i}`,
+      lat: at.lat,
+      lng: at.lng,
+      status: 'searching',
+      cancel_reason: null,
+      driver_id: null,
+      lifetime_s: 5,
+      ...overrides,
+    }));
+  }
+
+  /** Eligible taxi drivers' positions, as TaxiSupplyService returns them. */
+  function drivers(count: number, at = PICKUP) {
     return Array.from({ length: count }, () => ({ lat: at.lat, lng: at.lng }));
   }
 
   beforeEach(() => {
     orderRepository = { query: jest.fn().mockResolvedValue([]) };
-    driversService = { countOnlineDriversNear: jest.fn().mockResolvedValue(0) };
-    service = new SurgeService(orderRepository as never, driversService as never);
+    supply = { positionsNear: jest.fn().mockResolvedValue([]) };
+    service = new SurgeService(orderRepository as never, supply as never);
   });
 
   describe('multiplierFor', () => {
@@ -52,7 +76,7 @@ describe('SurgeService', () => {
     it('stays at 1.0 while requests are too few to mean anything', async () => {
       // 2 requests and zero drivers would otherwise hit the ceiling.
       orderRepository.query.mockResolvedValue(requests(2));
-      driversService.countOnlineDriversNear.mockResolvedValue(0);
+      supply.positionsNear.mockResolvedValue(drivers(0));
 
       const snapshot = await service.snapshotFor(PICKUP.lat, PICKUP.lng);
 
@@ -62,7 +86,7 @@ describe('SurgeService', () => {
 
     it('surges once demand outruns the drivers on hand', async () => {
       orderRepository.query.mockResolvedValue(requests(8));
-      driversService.countOnlineDriversNear.mockResolvedValue(4);
+      supply.positionsNear.mockResolvedValue(drivers(4));
 
       const snapshot = await service.snapshotFor(PICKUP.lat, PICKUP.lng);
 
@@ -74,7 +98,7 @@ describe('SurgeService', () => {
         ...requests(2),
         ...requests(20, FAR_AWAY),
       ]);
-      driversService.countOnlineDriversNear.mockResolvedValue(1);
+      supply.positionsNear.mockResolvedValue(drivers(1));
 
       const snapshot = await service.snapshotFor(PICKUP.lat, PICKUP.lng);
 
@@ -91,7 +115,7 @@ describe('SurgeService', () => {
       );
 
       orderRepository.query.mockResolvedValue(requests(6, neighbour));
-      driversService.countOnlineDriversNear.mockResolvedValue(3);
+      supply.positionsNear.mockResolvedValue(drivers(3));
 
       const snapshot = await service.snapshotFor(PICKUP.lat, PICKUP.lng);
 
@@ -109,7 +133,7 @@ describe('SurgeService', () => {
 
     it('never surges when the driver count is unavailable', async () => {
       orderRepository.query.mockResolvedValue(requests(20));
-      driversService.countOnlineDriversNear.mockRejectedValue(
+      supply.positionsNear.mockRejectedValue(
         new Error('redis down'),
       );
 
@@ -139,6 +163,83 @@ describe('SurgeService', () => {
 
       const sql = orderRepository.query.mock.calls[0][0] as string;
       expect(sql).toContain("status <> 'scheduled'");
+    });
+  });
+
+  /**
+   * Surge o'z muvaffaqiyatsizligidan oziqlanmasligi kerak: bo'sh hududda
+   * bitta yo'lovchi 3 marta qayta urinsa, talab 3 bo'lib 2.0× chiqardi.
+   */
+  describe('demand definition', () => {
+    it('counts one passenger retrying in an empty zone once — no surge', async () => {
+      // Bir yo'lovchi: ikki marta "No drivers available", uchinchisi qidiruvda.
+      orderRepository.query.mockResolvedValue([
+        ...requests(1, PICKUP, { passenger_id: 'p-1' }),
+        ...requests(2, PICKUP, {
+          passenger_id: 'p-1',
+          status: 'cancelled',
+          cancel_reason: 'No drivers available',
+          lifetime_s: 120,
+        }),
+      ]);
+      supply.positionsNear.mockResolvedValue([]);
+
+      const snapshot = await service.snapshotFor(PICKUP.lat, PICKUP.lng);
+
+      expect(snapshot.demand).toBe(1);
+      expect(snapshot.multiplier).toBe(1.0);
+    });
+
+    it('keeps no-driver cancellations as real demand (distinct passengers)', async () => {
+      orderRepository.query.mockResolvedValue(
+        requests(3, PICKUP, { status: 'cancelled', cancel_reason: 'No drivers available', lifetime_s: 20 }),
+      );
+      supply.positionsNear.mockResolvedValue([]);
+
+      const snapshot = await service.snapshotFor(PICKUP.lat, PICKUP.lng);
+
+      expect(snapshot.demand).toBe(3);
+      expect(snapshot.multiplier).toBe(SurgeService.MAX_MULTIPLIER);
+    });
+
+    it('drops orders the passenger cancelled within a minute of creating them', async () => {
+      orderRepository.query.mockResolvedValue([
+        ...requests(3, PICKUP, { status: 'cancelled', cancel_reason: null, lifetime_s: 30 }).map((row, i) => ({
+          ...row,
+          passenger_id: `quick-${i}`,
+        })),
+        ...requests(2),
+      ]);
+
+      const snapshot = await service.snapshotFor(PICKUP.lat, PICKUP.lng);
+
+      expect(snapshot.demand).toBe(2);
+    });
+
+    it('still counts a cancellation that came after the first minute, or after a driver accepted', async () => {
+      orderRepository.query.mockResolvedValue([
+        { ...requests(1, PICKUP, { status: 'cancelled', lifetime_s: 300 })[0], passenger_id: 'late' },
+        { ...requests(1, PICKUP, { status: 'cancelled', driver_id: 'd-1', lifetime_s: 30 })[0], passenger_id: 'driver' },
+      ]);
+
+      const snapshot = await service.snapshotFor(PICKUP.lat, PICKUP.lng);
+
+      expect(snapshot.demand).toBe(2);
+    });
+
+    it('reads only taxi-service orders (no food/market courier rides)', async () => {
+      await service.snapshotFor(PICKUP.lat, PICKUP.lng);
+
+      const sql = orderRepository.query.mock.calls[0][0] as string;
+      expect(sql).toContain("service_type = 'taxi'");
+      // Bir yo'lovchining eng so'nggi so'rovi birinchi keladi — dedup shunga tayanadi.
+      expect(sql).toContain('ORDER BY created_at DESC');
+    });
+
+    it('asks the supply side for taxi drivers within the reach radius of the pickup', async () => {
+      await service.snapshotFor(PICKUP.lat, PICKUP.lng);
+
+      expect(supply.positionsNear).toHaveBeenCalledWith(PICKUP.lat, PICKUP.lng, 2);
     });
   });
 });
