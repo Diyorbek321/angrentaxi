@@ -64,6 +64,7 @@ import { TAX_WITHHOLDING_LEDGER_TAG, computeTaxWithholding } from '../tax/tax-wi
 import { FiscalReceiptsService } from '../fiscal/fiscal-receipts.service';
 import { Driver } from '../../database/entities/driver.entity';
 import { ShiftPassesService } from '../shift-passes/shift-passes.service';
+import { completeTripIfDone } from '../intercity/intercity-seat-ledger';
 
 // Flat bonus (in so'm) credited to both a referred passenger and their
 // referrer the first time the referred passenger completes a trip. See
@@ -82,6 +83,8 @@ const REFERRAL_RIDE_SERVICE_TYPES: readonly ServiceType[] = [
   ServiceType.TAXI,
   ServiceType.CARGO,
   ServiceType.PARCEL,
+  // Shaharlararo band ham yo'lovchining o'z safari (kuryer safari emas).
+  ServiceType.INTERCITY,
 ];
 
 /** Ovqat/market kuryer safari — buyurtma `details` ida sotuvchi buyurtmasi id'si bor. */
@@ -264,7 +267,11 @@ export class OrdersCompletionService {
     //
     // Rejalashtirilgan safarda oyna `scheduledAt` dan oldin boshlanmaydi
     // (`waitingStartOf`).
-    const waitingMinutes = isVendorDeliveryRide(order)
+    //
+    // ⚠️ SHAHARLARARODA HAM KUTISH HAQI YO'Q. Yig'ishda haydovchi bir necha
+    // yo'lovchini ketma-ket oladi va har birining "yetib keldim" lahzasi
+    // boshqalarnikiga bog'liq — narx yo'nalish bo'yicha qat'iy.
+    const waitingMinutes = isVendorDeliveryRide(order) || order.serviceType === ServiceType.INTERCITY
       ? 0
       : computeWaitingMinutes(
           waitingStartOf(order.arrivedAt, order.scheduledAt),
@@ -378,6 +385,12 @@ export class OrdersCompletionService {
       );
       if (!claim.affected) {
         throw new ConflictException('Order is no longer in progress');
+      }
+
+      // Shaharlararo: oxirgi band yakunlansa qatnov ham yopiladi — AYNI
+      // tranzaksiyada, ya'ni shu buyurtma allaqachon COMPLETED deb ko'rinadi.
+      if (order.intercityTripId) {
+        await completeTripIfDone(manager, order.intercityTripId, now);
       }
 
       if (promo) {

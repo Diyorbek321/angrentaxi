@@ -75,7 +75,8 @@ function build(options: { enabled?: boolean; existing?: Array<{ departureAt: Dat
       options.comfortTier === null ? null : { tier: options.comfortTier ?? 3 },
     ),
   };
-  const manager = { query: jest.fn(async () => [{ id: 'trip-1' }]) };
+  // Haqiqiy TypeORM shakli: UPDATE ... RETURNING → `[rows, affected]`.
+  const manager = { query: jest.fn(async () => [[{ id: 'trip-1' }], 1] as unknown) };
   const dataSource = { transaction: jest.fn(async (cb: (m: typeof manager) => unknown) => cb(manager)) };
   const settings = {
     isIntercityEnabled: jest.fn(async () => options.enabled ?? true),
@@ -235,7 +236,7 @@ describe('IntercityTripsService', () => {
 
       const sqls = (manager.query.mock.calls as unknown[][]).map((call) => String(call[0]));
       expect(sqls[0]).toContain('UPDATE "intercity_trips"');
-      expect(sqls[0]).toContain(`"status" IN ('open', 'full')`);
+      expect(sqls[0]).toContain(`"status" IN ('open', 'full', 'boarding')`);
       expect(sqls[1]).toContain('UPDATE "orders"');
       expect(sqls[1]).toContain('"intercity_trip_id"');
       expect((manager.query.mock.calls[0] as unknown[])[1]).toEqual(
@@ -245,7 +246,7 @@ describe('IntercityTripsService', () => {
 
     it("yo'lga chiqqan qatnov — 409 INTERCITY_TRIP_NOT_CANCELLABLE", async () => {
       const { service, manager, tripRepository } = build();
-      manager.query.mockResolvedValueOnce([] as never);
+      manager.query.mockResolvedValueOnce([[], 0] as never);
       tripRepository.findOne.mockResolvedValueOnce(trip({ status: IntercityTripStatus.IN_PROGRESS }) as never);
       await expect(service.cancelByDriver('user-1', 'trip-1', 'x', NOW)).rejects.toMatchObject({
         response: { code: 'INTERCITY_TRIP_NOT_CANCELLABLE' },
@@ -254,7 +255,7 @@ describe('IntercityTripsService', () => {
 
     it('begona yoki mavjud bo‘lmagan qatnov — 404', async () => {
       const { service, manager, tripRepository } = build();
-      manager.query.mockResolvedValueOnce([] as never);
+      manager.query.mockResolvedValueOnce([[], 0] as never);
       tripRepository.findOne.mockResolvedValueOnce(null as never);
       await expect(service.cancelByDriver('user-1', 'trip-1', 'x', NOW)).rejects.toMatchObject({
         response: { code: 'INTERCITY_TRIP_NOT_FOUND' },

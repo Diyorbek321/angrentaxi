@@ -224,6 +224,14 @@ export class OrdersLifecycleService {
       throw new ForbiddenException('You are not the driver for this order');
     }
 
+    // Shaharlararo band ALOHIDA boshlanmaydi: yo'lovchilar qatnov jo'naganda
+    // birga yo'lga chiqadi (`IntercityLifecycleService.depart`). Alohida
+    // boshlangan band jo'nashdan oldin yakunlanib, qatnovni `boarding` da
+    // qotirib qo'yardi — uni na jo'natib, na cron bilan yopib bo'lardi.
+    if (order.intercityTripId) {
+      throw new BadRequestException("Shaharlararo qatnovda yo'lovchilar «Jo'nash» tugmasi bilan birga yo'lga chiqadi");
+    }
+
     // Naqd ovqat/market: kuryer do'konga tovar pulini to'lamaguncha tovarni
     // olib keta olmaydi (`delivery/vendor-cash.ts`).
     await this.vendorCash?.assertReadyForPickup(order);

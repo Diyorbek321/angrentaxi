@@ -7,7 +7,7 @@
 import { ConflictException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Between, LessThan } from 'typeorm';
+import { Between, IsNull, LessThan } from 'typeorm';
 import { Order, OrderStatus } from '../../database/entities/order.entity';
 import { MatchingService } from '../matching/matching.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -105,6 +105,9 @@ describe('ScheduledOrdersService', () => {
           where: {
             status: OrderStatus.SCHEDULED,
             scheduledAt: Between(expectedFloor, expectedCutoff),
+            // Shaharlararo band — qatnovniki, haydovchisi ma'lum; uni
+            // qidiruvga chiqarish tasodifiy haydovchiga taklif qilardi.
+            intercityTripId: IsNull(),
           },
         }),
       );
@@ -266,6 +269,8 @@ describe('ScheduledOrdersService', () => {
           where: {
             status: OrderStatus.SCHEDULED,
             scheduledAt: LessThan(expectedCutoff),
+            // Shaharlararo bandni o'z cron'i yopadi (`intercity-trips.cron.ts`).
+            intercityTripId: IsNull(),
           },
         }),
       );

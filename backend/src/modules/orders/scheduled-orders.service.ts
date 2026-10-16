@@ -7,7 +7,7 @@
 import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, LessThan, Repository } from 'typeorm';
+import { Between, IsNull, LessThan, Repository } from 'typeorm';
 import { Order, OrderStatus } from '../../database/entities/order.entity';
 import { MatchingService } from '../matching/matching.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -115,6 +115,10 @@ export class ScheduledOrdersService {
       where: {
         status: OrderStatus.SCHEDULED,
         scheduledAt: Between(staleCutoff, cutoff),
+        // ⚠️ SHAHARLARARO BAND QIDIRUVGA CHIQMAYDI: uning haydovchisi qatnov
+        // egasi, buyurtma esa "Yig'ishni boshlash" bilan faollashadi.
+        // Busiz cron uni 10 daqiqa oldin tasodifiy haydovchiga taklif qilardi.
+        intercityTripId: IsNull(),
       },
       order: { scheduledAt: 'ASC' },
       take: SCHEDULED_DISPATCH_BATCH,
@@ -256,6 +260,9 @@ export class ScheduledOrdersService {
       where: {
         status: OrderStatus.SCHEDULED,
         scheduledAt: LessThan(cutoff),
+        // Shaharlararo bandni qatnov bilan birga `IntercityTripsCron` yopadi —
+        // bu yerda yopilsa, joyi qatnovga qaytmay qolardi.
+        intercityTripId: IsNull(),
       },
       take: SCHEDULED_DISPATCH_BATCH,
       select: ['id'],

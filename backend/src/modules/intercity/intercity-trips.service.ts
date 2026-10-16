@@ -24,6 +24,7 @@ import { IntercityDriverGate } from './intercity-driver-gate';
 import { parseTashkentDate, tashkentDayRange } from './intercity-time';
 import { evaluateTripPublish, findOverlappingDeparture } from './intercity-trip-policy';
 import { IntercityTripView, toIntercityTripView } from './intercity-trip-view';
+import { returnedRows } from './intercity-seat-ledger';
 
 /**
  * Comfort klass uchun haydovchi darajasi — taksi "Komfort" tarifining
@@ -40,6 +41,13 @@ const DEFAULT_PAGE_SIZE = 20;
 
 /** Haydovchi bekor qilganda bandlarga yoziladigan sabab. */
 const DRIVER_CANCELLED_BOOKING_REASON = 'Haydovchi qatnovni bekor qildi';
+
+/**
+ * Haydovchi bekor qila oladigan holatlar. `boarding` ham: yo'lovchilarni
+ * yig'ayotganda mashina buzilishi mumkin — yo'lga chiqmaguncha qatnovni
+ * to'xtatish mumkin bo'lishi kerak.
+ */
+const CANCELLABLE_BY_DRIVER_SQL = `'open', 'full', 'boarding'`;
 
 /** Bandni bekor qilib bo'lmaydigan (allaqachon yakunlangan) holatlar. */
 const FINISHED_ORDER_STATUSES: readonly OrderStatus[] = [OrderStatus.COMPLETED, OrderStatus.CANCELLED];
@@ -159,7 +167,7 @@ export class IntercityTripsService {
 
   /**
    * Haydovchi o'z qatnovini bekor qiladi — faqat yo'lga chiqmasdan
-   * (`open`/`full`). Bog'langan bandlar SHU tranzaksiyada bekor qilinadi:
+   * (`open`/`full`/`boarding`). Bog'langan bandlar SHU tranzaksiyada bekor qilinadi:
    * qatnov bekor, band esa "tirik" qolib ketishi yo'lovchini kutib
    * qoldirardi.
    *
@@ -178,12 +186,17 @@ export class IntercityTripsService {
     if (!driver) throw new NotFoundException('Driver profile not found');
 
     const cancelled = await this.dataSource.transaction(async (manager) => {
-      const rows: Array<{ id: string }> = await manager.query(
-        `UPDATE "intercity_trips"
-            SET "status" = 'cancelled', "cancel_reason" = $3, "cancelled_at" = $4, "updated_at" = now()
-          WHERE "id" = $1 AND "driver_id" = $2 AND "status" IN ('open', 'full')
-          RETURNING "id"`,
-        [tripId, driver.id, reason, now],
+      // ⚠️ `returnedRows`: UPDATE ... RETURNING natijasi `[rows, count]` —
+      // `result.length === 0` bu yerda hech qachon rost bo'lmasdi va yo'lga
+      // chiqqan qatnovning bandlari ham jimgina bekor qilinardi.
+      const rows = returnedRows<{ id: string }>(
+        await manager.query(
+          `UPDATE "intercity_trips"
+              SET "status" = 'cancelled', "cancel_reason" = $3, "cancelled_at" = $4, "updated_at" = now()
+            WHERE "id" = $1 AND "driver_id" = $2 AND "status" IN (${CANCELLABLE_BY_DRIVER_SQL})
+            RETURNING "id"`,
+          [tripId, driver.id, reason, now],
+        ),
       );
       if (rows.length === 0) return false;
       await manager.query(
@@ -275,7 +288,7 @@ export class IntercityTripsService {
     return { items: rows.map(toIntercityTripView), total, page, limit };
   }
 
-  private async getView(tripId: string): Promise<IntercityTripView> {
+  async getView(tripId: string): Promise<IntercityTripView> {
     const trip = await this.tripRepository.findOne({ where: { id: tripId }, relations: TRIP_RELATIONS });
     if (!trip) throw this.notFound();
     return toIntercityTripView(trip);

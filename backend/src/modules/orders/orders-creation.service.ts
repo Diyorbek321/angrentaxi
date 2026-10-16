@@ -6,11 +6,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order, OrderStatus, PaymentMethod, ServiceType } from '../../database/entities/order.entity';
 import { generateDeliveryPin, parseParcelDetails } from './parcel';
-import {
-  Transaction,
-  TransactionStatus,
-  TransactionType,
-} from '../../database/entities/transaction.entity';
+import { Transaction } from '../../database/entities/transaction.entity';
 import { TariffsService } from '../tariffs/tariffs.service';
 import { agreedFareBreakdown } from '../tariffs/fare-breakdown';
 import { applyDiscount } from '../tariffs/fare-rounding';
@@ -28,6 +24,7 @@ import { SurgeService } from '../surge/surge.service';
 import { CitiesService } from '../cities/cities.service';
 import { haversineDistance, haversineRouteDistance } from './orders.distance.util';
 import { OrdersQueryService } from './orders-query.service';
+import { outstandingWalletDebt } from './outstanding-wallet-debt';
 import { OsrmService } from '../routing/osrm.service';
 import {
   MS_PER_MINUTE,
@@ -225,18 +222,9 @@ export class OrdersCreationService {
    * chetlab o'tadigan yo'lga aylanardi.
    */
   async getOutstandingWalletDebt(passengerId: string): Promise<number> {
-    const result = await this.transactionRepository
-      .createQueryBuilder('t')
-      .select('COALESCE(SUM(t.amount), 0)', 'debt')
-      .where('t.userId = :passengerId', { passengerId })
-      .andWhere('t.type = :type', { type: TransactionType.DEBIT })
-      .andWhere('t.status = :status', { status: TransactionStatus.PENDING })
-      .andWhere('t.paymentMethod = :method', { method: PaymentMethod.WALLET })
-      .andWhere('t.orderId IS NOT NULL')
-      .getRawOne<{ debt: string }>();
-
-    return parseFloat(result?.debt ?? '0');
+    return outstandingWalletDebt(this.transactionRepository, passengerId);
   }
+
 
   /**
    * `dto.scheduledAt` ni tekshirib `Date` ga o'giradi. `undefined` bo'lsa —

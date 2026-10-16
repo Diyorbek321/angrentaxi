@@ -63,6 +63,17 @@ export const ERROR_CODES = {
   intercityTripNotFound: 'INTERCITY_TRIP_NOT_FOUND',
   /** Qatnov bu holatda bekor qilinmaydi (yo'lga chiqqan/tugagan) — 409. */
   intercityTripNotCancellable: 'INTERCITY_TRIP_NOT_CANCELLABLE',
+  /** Band so'rovi qoidaga zid (joylar soni, to'lov, olish/tushish hududi) — 400, `reasons[]`. */
+  intercityBookingInvalid: 'INTERCITY_BOOKING_INVALID',
+  /** Joy qolmagan / butun mashina olingan / qatnov yopilgan — 409. */
+  intercitySeatsUnavailable: 'INTERCITY_SEATS_UNAVAILABLE',
+  /** Yo'lovchining shu qatnovda faol bandi bor — 409. */
+  intercityAlreadyBooked: 'INTERCITY_ALREADY_BOOKED',
+  intercityBookingNotFound: 'INTERCITY_BOOKING_NOT_FOUND',
+  /** Band bu holatda bekor qilinmaydi (yig'ish boshlangan/yakunlangan) — 409. */
+  intercityBookingNotCancellable: 'INTERCITY_BOOKING_NOT_CANCELLABLE',
+  /** Qatnov amali hozir mumkin emas (yig'ish/jo'nash/kelmadi) — 409, `details.reason`. */
+  intercityTripActionNotAllowed: 'INTERCITY_TRIP_ACTION_NOT_ALLOWED',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];

@@ -491,7 +491,8 @@ describe('OrdersCompletionService — pul xatolari tuzatishlari', () => {
       expect(where.status).toBe(OrderStatus.COMPLETED);
       const serviceTypes = (where.serviceType as { value: ServiceType[] }).value;
       expect([...serviceTypes].sort()).toEqual(
-        [ServiceType.CARGO, ServiceType.PARCEL, ServiceType.TAXI].sort(),
+        // Shaharlararo band — yo'lovchining o'z safari (2026-10-17 qarori).
+        [ServiceType.CARGO, ServiceType.INTERCITY, ServiceType.PARCEL, ServiceType.TAXI].sort(),
       );
       expect(h.referralSave).toHaveBeenCalledTimes(2);
     });

@@ -19,6 +19,7 @@ import {
   Order,
   OrderStatus,
   PaymentMethod,
+  ServiceType,
 } from '../../database/entities/order.entity';
 import { Tariff } from '../../database/entities/tariff.entity';
 import { Trip } from '../../database/entities/trip.entity';
@@ -123,6 +124,7 @@ const sumOfLines = (b: FareBreakdown) =>
 describe('completeTrip — kutish haqi HAQIQIY oqimda', () => {
   let service: OrdersService;
   let managerUpdate: jest.Mock;
+  let managerQuery: jest.Mock;
 
   /**
    * @param order          `completeTrip` ko'radigan buyurtma (arrivedAt shu yerda).
@@ -135,9 +137,12 @@ describe('completeTrip — kutish haqi HAQIQIY oqimda', () => {
     tripStartTime: Date | null,
   ): Promise<void> {
     managerUpdate = jest.fn().mockResolvedValue({ affected: 1 });
+    // TypeORM UPDATE ... RETURNING shakli — shaharlararo qatnovni yopish.
+    managerQuery = jest.fn().mockResolvedValue([[{ id: 'intercity-trip-1' }], 1]);
 
     const txManager = {
       update: managerUpdate,
+      query: managerQuery,
       save: jest.fn().mockImplementation((_e: unknown, v: unknown) => Promise.resolve(v)),
     } as unknown as EntityManager;
 
@@ -347,6 +352,43 @@ describe('completeTrip — kutish haqi HAQIQIY oqimda', () => {
         expect(persisted().finalPrice).toBe(43200);
       },
     );
+  });
+
+  describe('shaharlararo band — kutish yo\'q, oxirgi band qatnovni yopadi', () => {
+    it("haydovchi 20 daqiqa kutsa ham qat'iy narx o'zgarmaydi", async () => {
+      // Yig'ishda haydovchi bir necha yo'lovchini ketma-ket oladi — bir
+      // yo'lovchining kutishi boshqasiga yozilmasligi kerak, narx qat'iy.
+      await build(
+        {
+          isFixedPrice: true,
+          fareBreakdown: quote(),
+          arrivedAt: ARRIVED_AT,
+          serviceType: ServiceType.INTERCITY,
+          intercityTripId: 'intercity-trip-1',
+        },
+        tariffWithWaiting(),
+        min(20),
+      );
+
+      await service.completeTrip(DRIVER_USER_ID, ORDER_ID);
+
+      expect(persisted().fareBreakdown.waitingFare).toBe(0);
+      expect(persisted().finalPrice).toBe(43200);
+      // Yakunlash tranzaksiyasi ichida qatnov yopilishi so'raladi.
+      const tripClose = (managerQuery.mock.calls as unknown[][]).find((call) =>
+        String(call[0]).includes('"intercity_trips"'),
+      );
+      expect(tripClose?.[1]).toEqual(['intercity-trip-1', expect.any(Date)]);
+    });
+
+    it('taksi safari — qatnovga oid so\'rov YUBORILMAYDI (regressiya)', async () => {
+      await build({ isFixedPrice: true, fareBreakdown: quote(), arrivedAt: ARRIVED_AT }, tariffWithWaiting(), min(8));
+      await service.completeTrip(DRIVER_USER_ID, ORDER_ID);
+      expect(
+        (managerQuery.mock.calls as unknown[][]).some((call) => String(call[0]).includes('"intercity_trips"')),
+      ).toBe(false);
+      expect(persisted().fareBreakdown.waitingFare).toBe(2500);
+    });
   });
 
   describe('chegara xulqi — nizo chiqadigan aniq nuqta', () => {
