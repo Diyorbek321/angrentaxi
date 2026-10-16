@@ -11,18 +11,23 @@ import 'package:angren_taxi/features/superapp/screens/food_list_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/market_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/notifications_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/parcel_screen.dart';
+import 'package:angren_taxi/features/superapp/screens/product_detail_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/restaurant_detail_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/search_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/wallet_screen.dart';
 import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/market_provider.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
+import 'package:angren_taxi/features/superapp/state/trending_products_controller.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/features/superapp/widgets/market_cart_flow.dart';
+import 'package:angren_taxi/features/superapp/widgets/trending_products_slivers.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/ad_banner.dart';
 import 'package:angren_taxi/shared/models/food_order.dart';
 import 'package:angren_taxi/shared/models/food_restaurant.dart';
 import 'package:angren_taxi/shared/models/market_order.dart';
+import 'package:angren_taxi/shared/models/market_product.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/service_catalog.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
@@ -80,12 +85,16 @@ const double _kSecondaryIconSize = 24;
 /// Angren Go bosh ekrani — taksi imtiyozli hero, ikkilamchi xizmatlar
 /// qatori, birlashtirilgan faol buyurtma kartasi va mashhur restoranlar.
 class HomeTab extends StatefulWidget {
-  const HomeTab({super.key, this.adsService});
+  const HomeTab({super.key, this.adsService, this.trending});
 
   /// Testlar uchun. Berilmasa — `sl` dagi [ApiClient] bilan; u ham
   /// ro'yxatdan o'tmagan bo'lsa (izolyatsiyadagi vidjet testlari) reklama
   /// karuseli umuman chizilmaydi.
   final AdsService? adsService;
+
+  /// Testlar uchun. Berilmasa — `sl` dagi [ApiClient] bilan; u ham yo'q
+  /// bo'lsa trend lentasi chizilmaydi (reklama karuseli bilan bir xil qoida).
+  final TrendingProductsController? trending;
 
   @override
   State<HomeTab> createState() => _HomeTabState();
@@ -94,6 +103,11 @@ class HomeTab extends StatefulWidget {
 class _HomeTabState extends State<HomeTab> {
   late final AdsService? _ads = widget.adsService ??
       (sl.isRegistered<ApiClient>() ? AdsService(sl<ApiClient>()) : null);
+
+  // O'zimiz yaratgan bo'lsak — o'zimiz yopamiz (test bergani testniki).
+  late final bool _ownsTrending = widget.trending == null;
+  late final TrendingProductsController? _trending = widget.trending ??
+      (sl.isRegistered<ApiClient>() ? TrendingProductsController(sl<ApiClient>()) : null);
 
   @override
   void initState() {
@@ -106,7 +120,47 @@ class _HomeTabState extends State<HomeTab> {
       // Delivery fee comes from the server so the cart total always matches
       // what the order will actually be recorded as.
       superapp.loadPlatformSettings();
+      _trending?.loadMore();
     });
+  }
+
+  @override
+  void dispose() {
+    if (_ownsTrending) _trending?.dispose();
+    super.dispose();
+  }
+
+  /// Pastga yaqinlashganda keyingi sahifa. Xato bo'lsa avtomatik qayta
+  /// urinilmaydi (har aylantirishda so'rov yog'ilardi) — "Qayta urinish" bor.
+  bool _onScroll(ScrollNotification notification) {
+    final trending = _trending;
+    if (trending != null &&
+        !trending.hasError &&
+        notification.metrics.extentAfter < kTrendingPrefetchExtent) {
+      trending.loadMore();
+    }
+    return false;
+  }
+
+  void _openProduct(BuildContext context, MarketProduct product) {
+    _push(context, ProductDetailScreen(marketProduct: product));
+  }
+
+  Future<void> _addProduct(BuildContext context, MarketProduct product) async {
+    final added = await addMarketProductToCart(context, product);
+    if (!added || !context.mounted) return;
+    // Bosh sahifada savat paneli yo'q — qo'shilgani va savatga yo'l ko'rinsin.
+    final messenger = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(context.l10n.saAddedToCart),
+        duration: const Duration(seconds: 2),
+        action: SnackBarAction(
+          label: context.l10n.saGoToCart,
+          onPressed: () => context.read<SuperappProvider>().tabIndex = 2,
+        ),
+      ),
+    );
   }
 
   void _openTaxi(BuildContext context) {
@@ -217,12 +271,9 @@ class _HomeTabState extends State<HomeTab> {
     final active = _activeOrder(context);
     final ads = _ads;
 
-    return ColoredBox(
-      // Qatlamli yuza: ekran foni `kSurface2`, ustidagi bloklar oq.
-      color: kSurface2,
-      child: ListView(
-        padding: const EdgeInsets.only(bottom: 100),
-        children: [
+    final trending = _trending;
+
+    final top = <Widget>[
           _Hero(
             balance: balance,
             unreadCount: unread,
@@ -277,7 +328,35 @@ class _HomeTabState extends State<HomeTab> {
             onOpen: (r) =>
                 _push(context, RestaurantDetailScreen(restaurantId: r.id)),
           ),
-        ],
+    ];
+
+    Widget scrollView() => CustomScrollView(
+          slivers: [
+            SliverList(delegate: SliverChildListDelegate(top)),
+            // Trend lentasi restoranlardan KEYIN: pastga aylantirgan sari
+            // mahsulotlar yuklanadi (cheksiz lenta).
+            if (trending != null)
+              ...trendingProductSlivers(
+                context,
+                trending,
+                onOpen: (p) => _openProduct(context, p),
+                onAdd: (p) => _addProduct(context, p),
+              ),
+            const SliverToBoxAdapter(child: SizedBox(height: 100)),
+          ],
+        );
+
+    return ColoredBox(
+      // Qatlamli yuza: ekran foni `kSurface2`, ustidagi bloklar oq.
+      color: kSurface2,
+      child: NotificationListener<ScrollNotification>(
+        onNotification: _onScroll,
+        child: trending == null
+            ? scrollView()
+            : ListenableBuilder(
+                listenable: trending,
+                builder: (context, _) => scrollView(),
+              ),
       ),
     );
   }

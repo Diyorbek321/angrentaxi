@@ -35,11 +35,14 @@ import 'package:angren_taxi/features/superapp/screens/cargo_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/food_list_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/home_tab.dart';
 import 'package:angren_taxi/features/superapp/screens/market_screen.dart';
+import 'package:angren_taxi/features/superapp/screens/product_detail_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/restaurant_detail_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/search_screen.dart';
 import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/market_provider.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
+import 'package:angren_taxi/features/superapp/state/trending_products_controller.dart';
+import 'package:angren_taxi/features/superapp/widgets/market_product_card.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/shared/widgets/ag_map_fab.dart';
 import 'package:dio/dio.dart';
@@ -140,7 +143,11 @@ void main() {
     notificationsProvider = NotificationsProvider(apiClient: apiClient);
   });
 
-  Future<void> pumpHome(WidgetTester tester, {AdsService? adsService}) async {
+  Future<void> pumpHome(
+    WidgetTester tester, {
+    AdsService? adsService,
+    TrendingProductsController? trending,
+  }) async {
     await tester.pumpWidget(
       MultiProvider(
         providers: [
@@ -161,7 +168,8 @@ void main() {
                   body: Center(child: Text('taxi-flow-stub')),
                 ),
           },
-          home: Scaffold(body: HomeTab(adsService: adsService)),
+          home: Scaffold(
+              body: HomeTab(adsService: adsService, trending: trending)),
         ),
       ),
     );
@@ -670,6 +678,82 @@ void main() {
       final page = recorder.lastBuiltPage(homeContext(tester));
       expect(page, isA<RestaurantDetailScreen>());
       expect((page as RestaurantDetailScreen).restaurantId, 'rest-1');
+    });
+  });
+
+  group('trenddagi mahsulotlar lentasi', () {
+    // Ekranda gorizontal ro'yxatlar ham bor — asosiy VERTIKAL lenta.
+    final mainScroll = find
+        .byWidgetPredicate((w) =>
+            w is Scrollable && w.axisDirection == AxisDirection.down)
+        .first;
+    Map<String, dynamic> product(String id) => {
+          'id': id,
+          'categoryId': null,
+          'name': 'Mahsulot $id',
+          'price': 5000,
+          'stock': 4,
+          'status': 'active',
+          'storeId': 's1',
+          'store': {'id': 's1', 'name': 'Bozorcha'},
+        };
+
+    void answerPage(int page, List<String> ids, {required bool hasMore}) {
+      when(() => apiClient.get(ApiEndpoints.marketTrending,
+              params: {'page': page, 'limit': 4}))
+          .thenAnswer((_) async => _json(ApiEndpoints.marketTrending, {
+                'items': ids.map(product).toList(),
+                'page': page,
+                'limit': 4,
+                'hasMore': hasMore,
+              }));
+    }
+
+    testWidgets("restoranlardan keyin sarlavha va mahsulotlar do'kon nomi bilan",
+        (tester) async {
+      answerPage(1, ['a', 'b'], hasMore: false);
+      await pumpHome(tester,
+          trending: TrendingProductsController(apiClient, pageSize: 4));
+
+      final title = find.text('Trenddagi mahsulotlar');
+      await tester.scrollUntilVisible(title, 300, scrollable: mainScroll);
+      expect(title, findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Mahsulot b'), 300, scrollable: mainScroll);
+      expect(find.byType(MarketProductCard), findsNWidgets(2));
+      expect(find.text('Bozorcha'), findsWidgets);
+    });
+
+    testWidgets('pastga aylantirganda keyingi sahifa yuklanadi', (tester) async {
+      answerPage(1, ['a', 'b', 'c', 'd'], hasMore: true);
+      answerPage(2, ['e', 'f'], hasMore: false);
+      await pumpHome(tester,
+          trending: TrendingProductsController(apiClient, pageSize: 4));
+
+      await tester.scrollUntilVisible(find.text('Mahsulot f'), 400, scrollable: mainScroll);
+      expect(find.text('Mahsulot f'), findsOneWidget);
+      verify(() => apiClient.get(ApiEndpoints.marketTrending,
+          params: {'page': 2, 'limit': 4})).called(1);
+    });
+
+    testWidgets("mahsulot bosilsa mahsulot sahifasi ochiladi", (tester) async {
+      answerPage(1, ['a'], hasMore: false);
+      await pumpHome(tester,
+          trending: TrendingProductsController(apiClient, pageSize: 4));
+
+      final card = find.text('Mahsulot a');
+      await tester.scrollUntilVisible(card, 300, scrollable: mainScroll);
+      await tester.tap(card);
+      await tester.pump();
+
+      final page = recorder.lastBuiltPage(homeContext(tester));
+      expect(page, isA<ProductDetailScreen>());
+    });
+
+    testWidgets("mahsulot umuman yo'q — bo'lim ko'rinmaydi", (tester) async {
+      answerPage(1, [], hasMore: false);
+      await pumpHome(tester,
+          trending: TrendingProductsController(apiClient, pageSize: 4));
+      expect(find.text('Trenddagi mahsulotlar'), findsNothing);
     });
   });
 }

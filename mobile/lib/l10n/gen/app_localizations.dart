@@ -4082,6 +4082,12 @@ abstract class AppLocalizations {
   /// **'Savatga · {price}'**
   String saAddToCartWithPrice(String price);
 
+  /// No description provided for @saAddedToCart.
+  ///
+  /// In uz, this message translates to:
+  /// **'Savatga qo\'shildi'**
+  String get saAddedToCart;
+
   /// No description provided for @saAddressApartment.
   ///
   /// In uz, this message translates to:
@@ -5024,6 +5030,24 @@ abstract class AppLocalizations {
   /// **'Buyurtmalar'**
   String get saOrdersTitle;
 
+  /// No description provided for @saOtherStoreBody.
+  ///
+  /// In uz, this message translates to:
+  /// **'Savatda boshqa do\'kon mahsulotlari bor. Bitta buyurtma faqat bitta do\'kondan bo\'ladi. Savatni tozalab, {store} dan qo\'shamizmi?'**
+  String saOtherStoreBody(String store);
+
+  /// No description provided for @saOtherStoreConfirm.
+  ///
+  /// In uz, this message translates to:
+  /// **'Tozalab qo\'shish'**
+  String get saOtherStoreConfirm;
+
+  /// No description provided for @saOtherStoreTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Boshqa do\'kon'**
+  String get saOtherStoreTitle;
+
   /// No description provided for @saParcelContinue.
   ///
   /// In uz, this message translates to:
@@ -5660,6 +5684,12 @@ abstract class AppLocalizations {
   /// **'Qidirilmoqda'**
   String get saStageSearching;
 
+  /// No description provided for @saStoreUnavailable.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bu do\'kon hozir buyurtma qabul qilmayapti'**
+  String get saStoreUnavailable;
+
   /// No description provided for @saSubmitting.
   ///
   /// In uz, this message translates to:
@@ -5803,6 +5833,18 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Kuryer joylashuvi kutilmoqda…'**
   String get saTrackWaitingLocation;
+
+  /// No description provided for @saTrendingLoadFailed.
+  ///
+  /// In uz, this message translates to:
+  /// **'Mahsulotlar yuklanmadi'**
+  String get saTrendingLoadFailed;
+
+  /// No description provided for @saTrendingProducts.
+  ///
+  /// In uz, this message translates to:
+  /// **'Trenddagi mahsulotlar'**
+  String get saTrendingProducts;
 
   /// No description provided for @saTxnBonus.
   ///

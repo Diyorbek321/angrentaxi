@@ -89,6 +89,8 @@ class ApiEndpoints {
   static const String driverOrderHistory = '/orders/history';
   // Socket qayta ulanganda o'tkazib yuborilgan taklifni tiklash.
   static const String currentOffer = '/orders/offer/current';
+  // Bosh sahifa: trenddagi market mahsulotlari (sahifalangan).
+  static const String marketTrending = '/market/trending';
   static String acceptOrder(String id) => '/orders/$id/accept';
   static String declineOrder(String id) => '/orders/$id/decline';
   static String arrivedAtPickup(String id) => '/orders/$id/arrived';

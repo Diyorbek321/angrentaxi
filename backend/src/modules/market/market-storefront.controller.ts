@@ -25,6 +25,14 @@ export class MarketStorefrontController {
     return this.marketService.listActiveStores();
   }
 
+  @Get('trending')
+  @ApiOperation({ summary: "Bosh sahifa: trenddagi mahsulotlar (7 kunlik sotuv, so'ng yangilari)" })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  listTrending(@Query() pagination: OptionalPaginationDto) {
+    return this.marketService.listTrendingProducts(pagination.page, pagination.limit);
+  }
+
   // Pagination is optional on purpose: the mobile client calls this with no
   // query string and expects a plain array back, so the parameters only exist
   // for callers that want to page further back than the default window.

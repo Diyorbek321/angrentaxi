@@ -1445,6 +1445,7 @@
       }
     }
   },
+  "saAddedToCart": "Savatga qo'shildi",
   "saAddressApartment": "Xonadon",
   "saAddressCourierNote": "Kuryerga izoh",
   "saAddressCourierNoteHint": "Masalan: kelganda qo'ng'iroq qiling",
@@ -1768,6 +1769,16 @@
   "saOrdersNoHistoryMessage": "Yakunlangan buyurtmalar shu yerda saqlanadi.",
   "saOrdersNoHistoryTitle": "Buyurtmalar tarixi yo'q",
   "saOrdersTitle": "Buyurtmalar",
+  "saOtherStoreBody": "Savatda boshqa do'kon mahsulotlari bor. Bitta buyurtma faqat bitta do'kondan bo'ladi. Savatni tozalab, {store} dan qo'shamizmi?",
+  "@saOtherStoreBody": {
+    "placeholders": {
+      "store": {
+        "type": "String"
+      }
+    }
+  },
+  "saOtherStoreConfirm": "Tozalab qo'shish",
+  "saOtherStoreTitle": "Boshqa do'kon",
   "saParcelContinue": "Manzilni tanlash",
   "saParcelPinInfo": "Haydovchi posilkani faqat PIN kod bilan topshiradi. Kodni buyurtma berganingizdan keyin ko'rasiz — uni qabul qiluvchiga ayting.",
   "saParcelRecipientName": "Qabul qiluvchi ismi (ixtiyoriy)",
@@ -2008,6 +2019,7 @@
     }
   },
   "saStageSearching": "Qidirilmoqda",
+  "saStoreUnavailable": "Bu do'kon hozir buyurtma qabul qilmayapti",
   "saSubmitting": "Yuborilmoqda...",
   "saSupportCall": "Qo'ng'iroq",
   "saSupportCallSub": "{phone} · bepul",
@@ -2039,6 +2051,8 @@
   "saTrackSearching": "Kuryer qidirilmoqda",
   "saTrackTitle": "Kuryer xaritada",
   "saTrackWaitingLocation": "Kuryer joylashuvi kutilmoqda…",
+  "saTrendingLoadFailed": "Mahsulotlar yuklanmadi",
+  "saTrendingProducts": "Trenddagi mahsulotlar",
   "saTxnBonus": "Bonus",
   "saTxnCommission": "Platforma komissiyasi",
   "saTxnCredit": "kirim",

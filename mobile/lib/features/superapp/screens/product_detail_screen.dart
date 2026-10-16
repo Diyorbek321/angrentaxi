@@ -1,7 +1,7 @@
-import 'package:angren_taxi/features/superapp/models/cart_item.dart';
 import 'package:angren_taxi/features/superapp/screens/cart_screen.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/features/superapp/widgets/market_cart_flow.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/market_product.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
@@ -17,7 +17,6 @@ class ProductDetailScreen extends StatelessWidget {
 
   final MarketProduct marketProduct;
 
-  String get _id => marketProduct.id;
   String get _name => marketProduct.name;
   // Aksiya bo'lsa — chegirmali narx (spec v5 §4); savatga ham shu tushadi.
   double get _price => marketProduct.effectivePrice;
@@ -27,19 +26,9 @@ class ProductDetailScreen extends StatelessWidget {
   String get _emoji => marketProduct.emoji;
   bool get _isAvailable => marketProduct.isAvailable;
 
-  void _add(BuildContext context) {
-    context.read<SuperappProvider>().addToCart(
-          CartItem(
-            id: _id,
-            name: _name,
-            price: _price,
-            qty: 1,
-            icon: _icon,
-            color: _color,
-            imageUrl: marketProduct.imageUrl,
-          ),
-        );
-  }
+  // Bosh sahifa lentasidan ochilganda mahsulot boshqa do'konniki bo'lishi
+  // mumkin — savatni o'sha do'konga bog'lash va so'rash shu oqimda.
+  void _add(BuildContext context) => addMarketProductToCart(context, marketProduct);
 
   @override
   Widget build(BuildContext context) {
@@ -99,7 +88,10 @@ class ProductDetailScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(context.l10n.saProductStoreUnit(_unit),
+                      Text(
+                          marketProduct.storeName?.isNotEmpty ?? false
+                              ? '${marketProduct.storeName} · $_unit'
+                              : context.l10n.saProductStoreUnit(_unit),
                           style: const TextStyle(
                               fontSize: kFontCaption, color: agMuted, fontWeight: FontWeight.w700)),
                       const SizedBox(height: kSpace1),

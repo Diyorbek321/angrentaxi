@@ -2274,6 +2274,9 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get saAddedToCart => 'Добавлено в корзину';
+
+  @override
   String get saAddressApartment => 'Квартира';
 
   @override
@@ -2807,6 +2810,17 @@ class AppLocalizationsRu extends AppLocalizations {
   String get saOrdersTitle => 'Заказы';
 
   @override
+  String saOtherStoreBody(String store) {
+    return 'В корзине товары из другого магазина. Один заказ — только из одного магазина. Очистить корзину и добавить из $store?';
+  }
+
+  @override
+  String get saOtherStoreConfirm => 'Очистить и добавить';
+
+  @override
+  String get saOtherStoreTitle => 'Другой магазин';
+
+  @override
   String get saParcelContinue => 'Выбрать адрес';
 
   @override
@@ -3167,6 +3181,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get saStageSearching => 'Поиск';
 
   @override
+  String get saStoreUnavailable => 'Этот магазин сейчас не принимает заказы';
+
+  @override
   String get saSubmitting => 'Отправляем...';
 
   @override
@@ -3240,6 +3257,12 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get saTrackWaitingLocation => 'Ожидаем местоположение курьера…';
+
+  @override
+  String get saTrendingLoadFailed => 'Не удалось загрузить товары';
+
+  @override
+  String get saTrendingProducts => 'Популярные товары';
 
   @override
   String get saTxnBonus => 'Бонус';

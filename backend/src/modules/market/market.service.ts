@@ -9,7 +9,8 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, MoreThanOrEqual, Repository } from 'typeorm';
+import { Between, In, MoreThanOrEqual, Repository } from 'typeorm';
+import { trendingProductIds } from './market-trending';
 import { Store, StoreDeliveryMode, StoreStatus } from '../../database/entities/store.entity';
 import { MarketCategory } from '../../database/entities/market-category.entity';
 import { Product, ProductStatus } from '../../database/entities/product.entity';
@@ -76,6 +77,9 @@ const ANALYTICS_MAX_PRODUCTS = 2000;
 // Dashboard list sizes. Both were previously derived by slicing a full-table
 // read; they are now the query's own LIMIT.
 const RECENT_ORDERS_LIMIT = 5;
+// Bosh sahifa trend lentasi sahifasi (ilova 20 tadan yuklaydi).
+const TRENDING_DEFAULT_LIMIT = 20;
+const TRENDING_MAX_LIMIT = 50;
 const LOW_STOCK_LIST_LIMIT = 50;
 
 // Default page size for a customer's own order history. Kept generous so the
@@ -849,6 +853,40 @@ export class MarketService implements OnModuleInit {
       ...store,
       activePromotion: strongestPromotion(promotions.get(store.id) ?? []),
     }));
+  }
+
+  /**
+   * Bosh sahifadagi "Trenddagi mahsulotlar" lentasi (tartib — `market-trending.ts`).
+   * Narx vitrinadagi kabi aksiya bilan; har mahsulotda do'koni (faqat id va
+   * nom): ilova savat qaysi do'konga tegishli ekanini shundan biladi.
+   * `limit + 1` so'raladi — ortiqchasi bo'lsa `hasMore`.
+   */
+  async listTrendingProducts(page = 1, limit = TRENDING_DEFAULT_LIMIT) {
+    const safeLimit = Math.min(Math.max(Math.trunc(limit) || TRENDING_DEFAULT_LIMIT, 1), TRENDING_MAX_LIMIT);
+    const safePage = Math.max(Math.trunc(page) || 1, 1);
+    const ids = await trendingProductIds(
+      (sql, params) => this.productRepo.query(sql, params),
+      safeLimit + 1,
+      (safePage - 1) * safeLimit,
+    );
+    const pageIds = ids.slice(0, safeLimit);
+    if (pageIds.length === 0) return { items: [], page: safePage, limit: safeLimit, hasMore: false };
+
+    const [products, promotions] = await Promise.all([
+      this.productRepo.find({ where: { id: In(pageIds) }, relations: { store: true } }),
+      this.promotionsService
+        ? this.promotionsService.activeByVendor(PromotionVendorType.STORE)
+        : Promise.resolve(new Map<string, Promotion[]>()),
+    ]);
+    const byId = new Map(products.map((product) => [product.id, product]));
+    const items = pageIds
+      .map((id) => byId.get(id))
+      .filter((product): product is Product => product !== undefined)
+      .map(({ store, ...product }) => ({
+        ...this.withProductPricing(product as Product, promotions.get(product.storeId) ?? []),
+        store: { id: store?.id ?? product.storeId, name: store?.name ?? '' },
+      }));
+    return { items, page: safePage, limit: safeLimit, hasMore: ids.length > safeLimit };
   }
 
   async getStoreDetail(storeId: string) {

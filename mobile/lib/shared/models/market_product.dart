@@ -17,6 +17,8 @@ class MarketProduct extends Equatable {
     this.imageKey,
     this.finalPrice,
     this.discount,
+    this.storeId,
+    this.storeName,
   });
 
   final String id;
@@ -33,6 +35,12 @@ class MarketProduct extends Equatable {
   /// Do'kon aksiyasidan keyingi narx (spec §4). Eski serverda `null`.
   final double? finalPrice;
   final PromotionBadge? discount;
+
+  /// Mahsulot do'koni. Savat bitta do'konga bog'langan — bosh sahifa
+  /// lentasidan qo'shilganda shunga qarab "boshqa do'kon" so'raladi.
+  /// `storeName` faqat lenta javobida (`store: {id, name}`) keladi.
+  final String? storeId;
+  final String? storeName;
 
   DiscountedPrice get _pricing =>
       DiscountedPrice(price: price, finalPrice: finalPrice, discount: discount);
@@ -65,11 +73,15 @@ class MarketProduct extends Equatable {
       imageKey: json['imageKey'] as String?,
       finalPrice: (json['finalPrice'] as num?)?.toDouble(),
       discount: PromotionBadge.tryParse(json['discount']),
+      storeId: (json['storeId'] as String?) ??
+          (json['store'] is Map ? (json['store'] as Map)['id'] as String? : null),
+      storeName: json['store'] is Map ? (json['store'] as Map)['name'] as String? : null,
     );
   }
 
   @override
-  List<Object?> get props => [id, categoryId, name, price, stock, unit, status, emoji, hue, imageKey, finalPrice, discount];
+  List<Object?> get props =>
+      [id, categoryId, name, price, stock, unit, status, emoji, hue, imageKey, finalPrice, discount, storeId, storeName];
 }
 
 /// Best-effort emoji → Material icon mapping so existing icon-based product

@@ -248,5 +248,12 @@
   "saTrackDelivered": "Заказ доставлен",
   "saTrackCancelled": "Заказ отменён",
   "saTrackCallCourier": "Позвонить курьеру",
-  "saTrackOpenMap": "Курьер на карте"
+  "saTrackOpenMap": "Курьер на карте",
+  "saTrendingProducts": "Популярные товары",
+  "saTrendingLoadFailed": "Не удалось загрузить товары",
+  "saOtherStoreTitle": "Другой магазин",
+  "saOtherStoreBody": "В корзине товары из другого магазина. Один заказ — только из одного магазина. Очистить корзину и добавить из {store}?",
+  "saOtherStoreConfirm": "Очистить и добавить",
+  "saStoreUnavailable": "Этот магазин сейчас не принимает заказы",
+  "saAddedToCart": "Добавлено в корзину"
 }

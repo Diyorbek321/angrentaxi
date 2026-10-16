@@ -2278,6 +2278,9 @@ class AppLocalizationsUz extends AppLocalizations {
   }
 
   @override
+  String get saAddedToCart => 'Savatga qo\'shildi';
+
+  @override
   String get saAddressApartment => 'Xonadon';
 
   @override
@@ -2812,6 +2815,17 @@ class AppLocalizationsUz extends AppLocalizations {
   String get saOrdersTitle => 'Buyurtmalar';
 
   @override
+  String saOtherStoreBody(String store) {
+    return 'Savatda boshqa do\'kon mahsulotlari bor. Bitta buyurtma faqat bitta do\'kondan bo\'ladi. Savatni tozalab, $store dan qo\'shamizmi?';
+  }
+
+  @override
+  String get saOtherStoreConfirm => 'Tozalab qo\'shish';
+
+  @override
+  String get saOtherStoreTitle => 'Boshqa do\'kon';
+
+  @override
   String get saParcelContinue => 'Manzilni tanlash';
 
   @override
@@ -3173,6 +3187,9 @@ class AppLocalizationsUz extends AppLocalizations {
   String get saStageSearching => 'Qidirilmoqda';
 
   @override
+  String get saStoreUnavailable => 'Bu do\'kon hozir buyurtma qabul qilmayapti';
+
+  @override
   String get saSubmitting => 'Yuborilmoqda...';
 
   @override
@@ -3248,6 +3265,12 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get saTrackWaitingLocation => 'Kuryer joylashuvi kutilmoqda…';
+
+  @override
+  String get saTrendingLoadFailed => 'Mahsulotlar yuklanmadi';
+
+  @override
+  String get saTrendingProducts => 'Trenddagi mahsulotlar';
 
   @override
   String get saTxnBonus => 'Bonus';
