@@ -5,6 +5,7 @@ import 'package:angren_taxi/core/config/app_platform.dart';
 import 'package:angren_taxi/core/config/app_responsive.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
+import 'package:angren_taxi/core/observability/crash_reporting.dart';
 import 'package:angren_taxi/core/push/push_notifications.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/auth/screens/otp_screen.dart';
@@ -61,8 +62,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// bildirishnoma ruxsati ham shu yerda — kirgandan keyin — so'raladi.
 AuthProvider _withPushBinding(AuthProvider auth, AppFlavor flavor) {
   var wasAuthenticated = auth.isAuthenticated;
+  CrashReporting.setUserId(auth.currentUser?.id);
   auth.addListener(() {
     final now = auth.isAuthenticated;
+    if (now != wasAuthenticated) CrashReporting.setUserId(now ? auth.currentUser?.id : null);
     if (now && !wasAuthenticated) {
       final push = PushNotifications.instance;
       unawaited(push.syncToken());

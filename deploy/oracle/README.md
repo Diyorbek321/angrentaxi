@@ -238,6 +238,24 @@ sudo deploy/oracle/install-timers.sh
 `deploy/oracle/restore.sh r2:daily/<fayl>.dump.gpg` — oxirgi nusxadan
 tiklash ishlashini tekshirib turing. Ishlatilmagan backup — backup emas.
 
+### Xatolarni kuzatish (Sentry)
+
+Bepul Developer tarif (oyiga 5 000 xato) yetadi. sentry.io → ikkita loyiha:
+**Node.js** (backend) va **Flutter** (ikkala ilova bitta loyihada, `flavor`
+tegi bilan ajraladi).
+
+- **Backend**: `.env.prod` ga `SENTRY_DSN=<Node DSN>` →
+  `deploy/oracle/deploy.sh <branch>`. Faqat 5xx xatolar yuboriladi (4xx —
+  mijozniki); reliz = commit sha.
+- **Ilova**: `mobile/.env.dart-defines.json` ga `"SENTRY_DSN": "<Flutter DSN>"`
+  → `tool/build_release.sh`. Steklarni o'qish uchun `SENTRY_AUTH_TOKEN`,
+  `SENTRY_ORG`, `SENTRY_PROJECT` bilan yig'ing (simvollar yuklanadi).
+- **Shaxsiy ma'lumot** (ZRU-547, 27¹-modda — ma'lumot O'zbekistonda
+  saqlanishi kerak): IP, telefon, so'rov tanasi, cookie va Authorization
+  yuborilmaydi, telefon raqamlari `+998***` ga almashtiriladi; faqat
+  foydalanuvchi UUID qoladi. Sentry loyiha sozlamalarida ham **Security &
+  Privacy → Prevent Storing of IP Addresses** ni yoqing.
+
 ## 11. Tekshirish
 
 - `https://api.<domen>/api/v1/health` → 200

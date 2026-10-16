@@ -70,6 +70,7 @@ dependencies:
   flutter_svg: ^2.2.3
   permission_handler: ^11.3.1
   cached_network_image: ^3.4.0
+  sentry_flutter: ^8.14.2
 
 dev_dependencies:
   flutter_test:
@@ -85,6 +86,7 @@ dev_dependencies:
   # Faking url_launcher's platform interface in widget tests (see
   # test/widget/driver_navigation_test.dart).
   url_launcher_platform_interface: ^2.3.2
+  sentry_dart_plugin: ^3.4.0
 
 flutter:
   uses-material-design: true

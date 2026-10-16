@@ -180,6 +180,8 @@ services:
       APP_URL: https://api.${DOMAIN:?set DOMAIN}
       CORS_ORIGIN: https://admin.${DOMAIN},https://manager.${DOMAIN},https://market.${DOMAIN},https://restaurant.${DOMAIN}${CORS_EXTRA_ORIGINS:-}
       TZ: Asia/Tashkent
+      # Sentry'da xato qaysi commitdan ekanini ko'rsatadi (deploy.sh beradi).
+      SENTRY_RELEASE: ${IMAGE_TAG:-}
     volumes:
       # Used only while STORAGE_DRIVER=local; harmless with s3.
       - backend_uploads:/app/uploads

@@ -59,6 +59,19 @@ subprojects {
     }
 }
 
+// sentry_flutter 8.x o'z build.gradle'ida `languageVersion = "1.6"` qo'yadi,
+// Kotlin 2.x esa 1.6 ni qabul qilmaydi ("Language version 1.6 is no longer
+// supported"). 9.x ga o'tish firebase_* 2.x/14.x bilan to'qnashadi (web ^1.1),
+// shuning uchun faqat shu plaginning Kotlin tilini 1.8 ga ko'taramiz —
+// uning kodi 1.8 da o'zgarishsiz kompilyatsiya bo'ladi.
+subprojects { p ->
+    if (p.name == "sentry_flutter") {
+        p.tasks.matching { it.name.startsWith("compile") && it.name.endsWith("Kotlin") }.configureEach { t ->
+            t.kotlinOptions.languageVersion = "1.8"
+            t.kotlinOptions.apiVersion = "1.8"
+        }
+    }
+}
 
 tasks.register("clean", Delete) {
     delete rootProject.buildDir

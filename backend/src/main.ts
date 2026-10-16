@@ -1,4 +1,3 @@
-import * as Sentry from '@sentry/node';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
@@ -10,16 +9,10 @@ import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { resolveCorsOrigin } from './config/cors-origin.util';
+import { initErrorReporting } from './common/observability/error-reporting';
 
-// Init Sentry before app starts
-const sentryDsn = process.env.SENTRY_DSN;
-if (sentryDsn) {
-  Sentry.init({
-    dsn: sentryDsn,
-    environment: process.env.NODE_ENV || 'development',
-    tracesSampleRate: 0.1,
-  });
-}
+// Sentry ilova yaratilishidan oldin (SENTRY_DSN bo'lmasa o'chiq).
+initErrorReporting();
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);

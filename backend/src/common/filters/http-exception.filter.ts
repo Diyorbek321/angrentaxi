@@ -13,6 +13,7 @@ import {
   paymeError,
   paymeRequestId,
 } from '../../modules/payments/merchant/payme-rpc';
+import { reportException } from '../observability/error-reporting';
 
 /** Payme Merchant API yo'li — javob har doim HTTP 200 + JSON-RPC 2.0. */
 const PAYME_CALLBACK_PATH = /\/payments\/payme\/callback\/?$/;
@@ -88,6 +89,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         this.logger.error(
           `Payme callback failed: ${exception instanceof Error ? exception.message : String(exception)}`,
         );
+        reportException(exception, { method: request.method, path: request.path ?? request.url, statusCode: 500 });
       }
       response
         .status(HttpStatus.OK)
@@ -129,6 +131,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
       }
     } else {
       this.logger.error(`Unhandled non-Error exception: ${String(exception)}`);
+    }
+
+    // 4xx — mijoz xatosi, Sentry'ga emas; 5xx — bizniki.
+    if (statusCode >= HttpStatus.INTERNAL_SERVER_ERROR) {
+      reportException(exception, { method: request.method, path: request.url, statusCode });
     }
 
     // Ilova tiliga qarab UZ yoki RU (`common/i18n/error-catalogue.ts`).

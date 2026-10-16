@@ -5,6 +5,7 @@ import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/config/map_offline_region.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
+import 'package:angren_taxi/core/observability/crash_reporting.dart';
 import 'package:angren_taxi/core/push/push_notifications.dart';
 import 'package:angren_taxi/core/storage/local_storage.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -66,7 +67,11 @@ Future<void> main() async {
     _registerFcmToken();
   }
 
-  runApp(const AngrenTaxiApp(flavor: AppFlavor.passenger));
+  // Yiqilishlar Sentry'ga (SENTRY_DSN bo'lmasa — oddiy runApp).
+  await CrashReporting.run(
+    flavor: AppFlavor.passenger,
+    appRunner: () => runApp(const AngrenTaxiApp(flavor: AppFlavor.passenger)),
+  );
 
   // Angren xaritasini fonda offline bazaga yuklash. Kechiktirilgan — birinchi
   // ekran o'z so'rovlari bilan tarmoq uchun raqobatlashmasin.

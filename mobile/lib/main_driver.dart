@@ -5,6 +5,7 @@ import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/config/map_offline_region.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
+import 'package:angren_taxi/core/observability/crash_reporting.dart';
 import 'package:angren_taxi/core/push/push_notifications.dart';
 import 'package:angren_taxi/core/storage/local_storage.dart';
 import 'package:angren_taxi/features/driver/wallet/driver_push_events.dart';
@@ -72,7 +73,11 @@ Future<void> main() async {
   // runApp'dan OLDIN — kuzatuvchi WidgetsApp'dan oldin turishi kerak.
   DriverDeepLinks.instance.install();
 
-  runApp(const AngrenTaxiApp(flavor: AppFlavor.driver));
+  // Yiqilishlar Sentry'ga (SENTRY_DSN bo'lmasa — oddiy runApp).
+  await CrashReporting.run(
+    flavor: AppFlavor.driver,
+    appRunner: () => runApp(const AngrenTaxiApp(flavor: AppFlavor.driver)),
+  );
 
   // Angren xaritasini fonda offline bazaga yuklash. Kechiktirilgan — birinchi
   // ekran o'z so'rovlari bilan tarmoq uchun raqobatlashmasin.

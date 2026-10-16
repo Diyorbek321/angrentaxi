@@ -15,6 +15,11 @@
 # Play Market uchun APK emas, `flutter build appbundle` — u bo'lishni o'zi
 # qiladi (shu bayroqlar bilan, `--split-per-abi` siz).
 #
+# Sentry: `SENTRY_DSN` ni `.env.dart-defines.json` ga yozing — ilova
+# yiqilishlarni yuboradi. `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`
+# ham berilsa, har reliz simvollari va obfuskatsiya xaritasi Sentry'ga
+# yuklanadi (aks holda Sentry'dagi stek o'qib bo'lmas bo'ladi).
+#
 # Ishlatish (mobile/ ichidan):
 #   API_BASE_URL=https://<domen>/api/v1 WS_URL=https://<domen> tool/build_release.sh
 set -euo pipefail
@@ -32,15 +37,28 @@ else
   defines_args=(--dart-define-from-file="$defines_file")
 fi
 
+version="$(sed -n 's/^version: *//p' pubspec.yaml)"
+
 for flavor in passenger driver; do
   echo "==> $flavor"
   flutter build apk --release \
     --flavor "$flavor" -t "lib/main_${flavor}.dart" \
     --split-per-abi \
     --obfuscate --split-debug-info="build/symbols/$flavor" \
+    --extra-gen-snapshot-options=--save-obfuscation-map="build/symbols/$flavor/obfuscation.map.json" \
     "${defines_args[@]}" \
     --dart-define=API_BASE_URL="$API_BASE_URL" \
     --dart-define=WS_URL="$WS_URL"
+
+  if [[ -n "${SENTRY_AUTH_TOKEN:-}" ]]; then
+    # Reliz nomi ilovaniki bilan bir xil bo'lishi shart: <applicationId>@<version>.
+    dart run sentry_dart_plugin \
+      --sentry-define=release="uz.angren.taxi.${flavor}@${version}" \
+      --sentry-define=upload_debug_symbols=true \
+      --sentry-define=upload_source_maps=false \
+      --sentry-define=symbols_path="build/symbols/$flavor" \
+      --sentry-define=dart_symbol_map_path="build/symbols/$flavor/obfuscation.map.json"
+  fi
 done
 
 echo
