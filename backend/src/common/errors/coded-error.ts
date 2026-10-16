@@ -54,6 +54,15 @@ export const ERROR_CODES = {
   intercityDisabled: 'INTERCITY_DISABLED',
   /** Yo'nalish narxlari qoidaga zid (400). `reasons[]` — har bir buzilgan qoida. */
   intercityRouteInvalid: 'INTERCITY_ROUTE_INVALID',
+  /** Haydovchi "Shaharlararo" xizmatini yoqmagan — 403. */
+  intercityServiceNotEnabled: 'INTERCITY_SERVICE_NOT_ENABLED',
+  /** Qatnov e'loni qoidaga zid (`reasons[]` da sabablar) — 400. */
+  intercityTripInvalid: 'INTERCITY_TRIP_INVALID',
+  /** Haydovchining ±3 soat ichida boshqa qatnovi bor — 409. */
+  intercityTripOverlap: 'INTERCITY_TRIP_OVERLAP',
+  intercityTripNotFound: 'INTERCITY_TRIP_NOT_FOUND',
+  /** Qatnov bu holatda bekor qilinmaydi (yo'lga chiqqan/tugagan) — 409. */
+  intercityTripNotCancellable: 'INTERCITY_TRIP_NOT_CANCELLABLE',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];

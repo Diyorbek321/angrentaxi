@@ -342,4 +342,49 @@ export const ERROR_CATALOGUE: readonly ErrorCatalogueEntry[] = [
   { source: 'No route found', uz: 'Marshrut topilmadi', ru: 'Маршрут не найден' },
   { source: 'A user with this phone number already exists', uz: "Bu raqam bilan foydalanuvchi allaqachon bor", ru: 'Пользователь с этим номером уже существует' },
   { source: 'Shahar topilmadi: {0}', ru: 'Город не найден: {0}' },
+
+  // ─── Shaharlararo ───────────────────────────────────────────────────
+  { source: 'Shaharlararo qatnov hozircha mavjud emas', ru: 'Междугородние поездки пока недоступны' },
+  {
+    source: "Shaharlararo qatnov faqat qatnovlar ro'yxatidan band qilinadi",
+    ru: 'Междугороднюю поездку можно забронировать только из списка рейсов',
+  },
+  {
+    source: "Avval «Xizmatlar» bo'limida «Shaharlararo» ni yoqing",
+    ru: 'Сначала включите «Междугородние» в разделе «Услуги»',
+  },
+  {
+    source: "Hisobingiz manfiy ({0} so'm). Qatnov e'lon qilish uchun qarzni yoping.",
+    ru: 'Ваш баланс отрицательный ({0} сум). Погасите долг, чтобы опубликовать рейс.',
+  },
+  { source: 'Shaharlararo uchun hujjatlar yetishmaydi: {0}', ru: 'Для междугородних не хватает документов: {0}' },
+  {
+    source: "«Shaharlararo» qatnov uchun hujjatlar yetarli emas: {0}. Ilovadagi «Hujjatlar» bo'limida to'ldiring.",
+    ru: 'Недостаточно документов для междугородних поездок: {0}. Заполните раздел «Документы» в приложении.',
+  },
+  { source: "Qatnov kamida {0} daqiqa oldin e'lon qilinadi", ru: 'Рейс нужно публиковать минимум за {0} мин' },
+  {
+    source: "Qatnovni ko'pi bilan {0} kun oldinga e'lon qilish mumkin",
+    ru: 'Рейс можно опубликовать не более чем на {0} дн. вперёд',
+  },
+  {
+    source: "O'rindiqlar soni {0}–{1} oralig'ida bo'lishi kerak",
+    ru: 'Количество мест должно быть от {0} до {1}',
+  },
+  { source: "Bu yo'nalishda Comfort klass yo'q", ru: 'На этом направлении нет класса Comfort' },
+  {
+    source: 'Comfort qatnov uchun avtomobilingiz Comfort darajasiga tasdiqlanmagan',
+    ru: 'Ваш автомобиль не подтверждён для класса Comfort',
+  },
+  {
+    source: 'Shu vaqtga yaqin (±3 soat) boshqa qatnovingiz bor',
+    ru: 'У вас уже есть рейс близко к этому времени (±3 ч)',
+  },
+  {
+    source: "Yo'lga chiqqan yoki yakunlangan qatnovni bekor qilib bo'lmaydi",
+    ru: 'Нельзя отменить рейс, который уже в пути или завершён',
+  },
+  { source: 'Qatnov topilmadi', ru: 'Рейс не найден' },
+  { source: "Yo'nalish topilmadi yoki faol emas", ru: 'Направление не найдено или неактивно' },
+  { source: "Sana noto'g'ri (YYYY-MM-DD)", ru: 'Неверная дата (ГГГГ-ММ-ДД)' },
 ];

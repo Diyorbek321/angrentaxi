@@ -154,4 +154,26 @@ describe('OrdersService.create — taksometr (manzilsiz)', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(orderRepository.query).not.toHaveBeenCalled();
   });
+
+  // Shaharlararo band FAQAT qatnov orqali (o'rindiq hisobi atomik). Oddiy
+  // buyurtma yo'li uni yaratsa, o'rindiq hisobi va qatnov chetlab o'tilardi.
+  it('refuses an intercity order through the generic create path', async () => {
+    await expect(
+      service.create('passenger-1', {
+        tariffId: 'tariff-1', ...PICKUP, dropoffLat: 41.03, dropoffLng: 70.17,
+        serviceType: ServiceType.INTERCITY,
+      } as CreateOrderDto),
+    ).rejects.toThrow('Shaharlararo');
+    expect(orderRepository.query).not.toHaveBeenCalled();
+  });
+
+  it('refuses a plain order on the intercity tariff', async () => {
+    tariff.serviceType = ServiceType.INTERCITY;
+    await expect(
+      service.create('passenger-1', {
+        tariffId: 'tariff-1', ...PICKUP, dropoffLat: 41.03, dropoffLng: 70.17,
+      } as CreateOrderDto),
+    ).rejects.toThrow('Shaharlararo');
+    expect(orderRepository.query).not.toHaveBeenCalled();
+  });
 });

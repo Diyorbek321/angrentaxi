@@ -124,8 +124,13 @@ describe('SettingsService — sotuvchi hisob-kitobi va smena', () => {
         walletTopupPresets: [50000, 100000, 200000],
         // Ilova izohi uchun (#3a); menejer chegarasi public'ga chiqmaydi.
         walletTopupHoldDays: 7,
-        // Shaharlararo (034): standart o'chiq — ilova kafelni yashiradi.
+        // Shaharlararo (034/036): standart o'chiq — ilova kafelni yashiradi;
+        // qolganlari ilovada band/e'lon oynalari uchun.
         intercityEnabled: false,
+        intercityFreeCancelMinutes: 60,
+        intercityMaxSeatsPerBooking: 4,
+        intercityMinLeadMinutes: 30,
+        intercityMaxAheadDays: 7,
       });
     });
   });
@@ -133,14 +138,20 @@ describe('SettingsService — sotuvchi hisob-kitobi va smena', () => {
   describe('shaharlararo', () => {
     it("standart o'chiq (ustun hali yo'q eski qatorda ham)", async () => {
       const { service } = build();
-      await expect(service.getIntercitySettings()).resolves.toEqual({ intercityEnabled: false });
+      await expect(service.getIntercitySettings()).resolves.toEqual({
+        intercityEnabled: false,
+        intercityFreeCancelMinutes: 60,
+        intercityMaxSeatsPerBooking: 4,
+        intercityMinLeadMinutes: 30,
+        intercityMaxAheadDays: 7,
+      });
       await expect(service.isIntercityEnabled()).resolves.toBe(false);
     });
 
     it('admin yoqadi — public sozlamada ham ko‘rinadi', async () => {
       jest.useFakeTimers().setSystemTime(new Date('2026-10-15T12:00:00Z'));
       const { service, repo } = build();
-      await expect(service.updateIntercitySettings({ intercityEnabled: true })).resolves.toEqual({
+      await expect(service.updateIntercitySettings({ intercityEnabled: true })).resolves.toMatchObject({
         intercityEnabled: true,
       });
       expect(repo.update).toHaveBeenCalledWith('s1', { intercityEnabled: true });
@@ -150,8 +161,41 @@ describe('SettingsService — sotuvchi hisob-kitobi va smena', () => {
 
     it("bo'sh PATCH hech narsani yozmaydi", async () => {
       const { service, repo } = build({ intercityEnabled: true });
-      await expect(service.updateIntercitySettings({})).resolves.toEqual({ intercityEnabled: true });
+      await expect(service.updateIntercitySettings({})).resolves.toMatchObject({ intercityEnabled: true });
       expect(repo.update).not.toHaveBeenCalled();
+    });
+
+    it('036: bekor qilish oynasi, o\'rindiq va e\'lon oralig\'i yoziladi', async () => {
+      const { service, repo } = build();
+      await expect(
+        service.updateIntercitySettings({
+          intercityFreeCancelMinutes: 120,
+          intercityMaxSeatsPerBooking: 3,
+          intercityMinLeadMinutes: 60,
+          intercityMaxAheadDays: 3,
+        }),
+      ).resolves.toEqual({
+        intercityEnabled: false,
+        intercityFreeCancelMinutes: 120,
+        intercityMaxSeatsPerBooking: 3,
+        intercityMinLeadMinutes: 60,
+        intercityMaxAheadDays: 3,
+      });
+      expect(repo.update).toHaveBeenCalledWith('s1', {
+        intercityFreeCancelMinutes: 120,
+        intercityMaxSeatsPerBooking: 3,
+        intercityMinLeadMinutes: 60,
+        intercityMaxAheadDays: 3,
+      });
+    });
+
+    it('saqlangan qiymatlar o\'qiladi', async () => {
+      const { service } = build({ intercityEnabled: true, intercityMaxAheadDays: 14, intercityMinLeadMinutes: 0 });
+      await expect(service.getIntercitySettings()).resolves.toMatchObject({
+        intercityEnabled: true,
+        intercityMaxAheadDays: 14,
+        intercityMinLeadMinutes: 0,
+      });
     });
   });
 });

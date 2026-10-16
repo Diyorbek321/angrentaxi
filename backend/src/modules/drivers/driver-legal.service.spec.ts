@@ -152,6 +152,19 @@ describe('DriverLegalService', () => {
     });
   });
 
+  describe('assertCanCarryIntercity', () => {
+    it('shaharlararo ham yo‘lovchi tashish — taksi talablari qo‘llanadi', async () => {
+      const { service } = build({ enforcedFrom: '2026-10-01T00:00:00.000Z' });
+      const courier = { ...incomplete, serviceTypes: [ServiceType.FOOD] };
+      await expect(service.assertCanCarryIntercity(courier as never, now)).rejects.toThrow('Shaharlararo');
+    });
+
+    it('majburlash o‘chiq — o‘tkazadi', async () => {
+      const { service } = build();
+      await expect(service.assertCanCarryIntercity(incomplete as never, now)).resolves.toBeUndefined();
+    });
+  });
+
   describe('profil', () => {
     it("haydovchining o'z profili + xulosa", async () => {
       const { service } = build();

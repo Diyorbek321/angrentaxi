@@ -78,7 +78,7 @@ describe('huquqiy darvoza ulanishi', () => {
   });
 
   describe('DriverServicesService.updateForUser — taksini yoqish', () => {
-    function build(legalGate: { assertCanEnableTaxi: jest.Mock }) {
+    function build(legalGate: { assertCanEnableTaxi: jest.Mock; assertCanCarryIntercity?: jest.Mock }) {
       const driverRepository = {
         findOne: jest.fn(async () => driver),
         save: jest.fn(async (value: unknown) => value),
@@ -90,6 +90,7 @@ describe('huquqiy darvoza ulanishi', () => {
         orderRepository as never,
         verification as never,
         legalGate as never,
+        { isIntercityEnabled: jest.fn(async () => true) } as never,
       );
     }
 
@@ -103,6 +104,19 @@ describe('huquqiy darvoza ulanishi', () => {
         build(gate).updateForUser('user-1', [ServiceType.FOOD, ServiceType.TAXI]),
       ).rejects.toBeInstanceOf(BadRequestException);
       expect(gate.assertCanEnableTaxi).toHaveBeenCalledWith(driver, expect.any(Date));
+    });
+
+    it('shaharlararo YANGI yoqilayotganda ham darvoza tekshiradi', async () => {
+      const gate = {
+        assertCanEnableTaxi: jest.fn(),
+        assertCanCarryIntercity: jest.fn(async () => {
+          throw new BadRequestException('«Shaharlararo» qatnov uchun hujjatlar yetarli emas: ...');
+        }),
+      };
+      await expect(
+        build(gate).updateForUser('user-1', [ServiceType.FOOD, ServiceType.INTERCITY]),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(gate.assertCanCarryIntercity).toHaveBeenCalledWith(driver, expect.any(Date));
     });
 
     it('taksi so‘ralmasa darvoza chaqirilmaydi', async () => {

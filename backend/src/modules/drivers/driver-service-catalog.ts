@@ -41,6 +41,10 @@ const CATALOG_TEXT: Record<ServiceType, { label: string; description: string }> 
     label: 'Posilka',
     description: 'Shahar ichida buyum va hujjat yetkazish (PIN bilan topshiriladi)',
   },
+  [ServiceType.INTERCITY]: {
+    label: 'Shaharlararo',
+    description: "Qatnov e'lon qilasiz, yo'lovchilar o'rindiq yoki butun mashinani band qiladi",
+  },
 };
 
 /**
@@ -55,6 +59,7 @@ const CATALOG_ORDER: readonly ServiceType[] = [
   ServiceType.FOOD,
   ServiceType.MARKET,
   ServiceType.PARCEL,
+  ServiceType.INTERCITY,
 ];
 
 export const DRIVER_SERVICE_CATALOG: readonly DriverServiceCatalogEntry[] = CATALOG_ORDER.map(

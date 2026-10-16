@@ -242,6 +242,24 @@ export class PlatformSettings {
   @Column({ name: 'intercity_enabled', type: 'boolean', default: false })
   intercityEnabled: boolean;
 
+  // Shaharlararo (migratsiya 036). Jo'nashdan shuncha daqiqa oldingacha
+  // yo'lovchi bandini bepul bekor qiladi.
+  @Column({ name: 'intercity_free_cancel_minutes', type: 'int', default: 60 })
+  intercityFreeCancelMinutes: number;
+
+  // Bitta bandda nechta o'rindiq olish mumkin (butun mashina — alohida tur).
+  @Column({ name: 'intercity_max_seats_per_booking', type: 'int', default: 4 })
+  intercityMaxSeatsPerBooking: number;
+
+  // Qatnov kamida shuncha daqiqa oldin e'lon qilinadi — yo'lovchilar band
+  // qilishga ulgurishi uchun.
+  @Column({ name: 'intercity_min_lead_minutes', type: 'int', default: 30 })
+  intercityMinLeadMinutes: number;
+
+  // Eng ko'pi bilan shuncha kun oldinga e'lon qilish mumkin.
+  @Column({ name: 'intercity_max_ahead_days', type: 'int', default: 7 })
+  intercityMaxAheadDays: number;
+
   @UpdateDateColumn()
   updatedAt: Date;
 }

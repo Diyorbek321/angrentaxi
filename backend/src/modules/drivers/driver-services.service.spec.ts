@@ -152,6 +152,40 @@ function buildHarness(options: {
 
 describe('DriverServicesService', () => {
   describe('GET /drivers/me/services', () => {
+    it("«Shaharlararo» faqat funksiya yoqilganda ko'rinadi", async () => {
+      const { driverRepo, orderRepo } = buildHarness({});
+      const verification = { findUnmetRequirementsForServiceType: jest.fn(async () => []) };
+      const build = (enabled: boolean) =>
+        new DriverServicesService(
+          driverRepo as never,
+          orderRepo as never,
+          verification as never,
+          undefined,
+          { isIntercityEnabled: jest.fn(async () => enabled) } as never,
+        );
+
+      const off = await build(false).getForUser('user-1', NOW);
+      expect(off.options.map((o) => o.serviceType)).not.toContain(ServiceType.INTERCITY);
+
+      const on = await build(true).getForUser('user-1', NOW);
+      expect(on.options.map((o) => o.serviceType)).toContain(ServiceType.INTERCITY);
+    });
+
+    it("funksiya o'chiq bo'lsa shaharlararoni yoqib bo'lmaydi", async () => {
+      const { driverRepo, orderRepo } = buildHarness({});
+      const verification = { findUnmetRequirementsForServiceType: jest.fn(async () => []) };
+      const service = new DriverServicesService(
+        driverRepo as never,
+        orderRepo as never,
+        verification as never,
+        undefined,
+        { isIntercityEnabled: jest.fn(async () => false) } as never,
+      );
+      await expect(
+        service.updateForUser('user-1', [ServiceType.TAXI, ServiceType.INTERCITY], NOW),
+      ).rejects.toMatchObject({ response: { code: 'INTERCITY_DISABLED' } });
+    });
+
     it("kontrakt shaklini qaytaradi: nom va izoh SERVERDAN", async () => {
       const { service } = buildHarness({});
 

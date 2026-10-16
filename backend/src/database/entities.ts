@@ -27,6 +27,7 @@ import { FiscalReceipt } from './entities/fiscal-receipt.entity';
 import { FoodOrder } from './entities/food-order.entity';
 import { IntercityPoint } from './entities/intercity-point.entity';
 import { IntercityRoute } from './entities/intercity-route.entity';
+import { IntercityTrip } from './entities/intercity-trip.entity';
 import { LostItemReport } from './entities/lost-item-report.entity';
 import { MarketCategory } from './entities/market-category.entity';
 import { MarketOrder } from './entities/market-order.entity';
@@ -81,6 +82,7 @@ export const ENTITIES = [
   FoodOrder,
   IntercityPoint,
   IntercityRoute,
+  IntercityTrip,
   LostItemReport,
   MarketCategory,
   MarketOrder,

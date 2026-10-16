@@ -1,4 +1,5 @@
 import {
+  Check,
   Column,
   CreateDateColumn,
   Entity,
@@ -12,6 +13,13 @@ import { User } from './user.entity';
 import { Tariff } from './tariff.entity';
 import { PromoCode } from './promo_code.entity';
 import { FareBreakdown } from '../../modules/tariffs/fare-breakdown';
+import { IntercityTrip } from './intercity-trip.entity';
+
+/** Shaharlararo band turi: o'rindiq(lar) yoki butun mashina. */
+export enum IntercityBookingKind {
+  SEAT = 'seat',
+  WHOLE_CAR = 'whole_car',
+}
 
 export enum OrderStatus {
   /**
@@ -61,6 +69,9 @@ export enum ServiceType {
   // Shahar ichida buyum/hujjat yetkazish — taksi oqimi + PIN bilan topshirish
   // (modules/orders/parcel.ts).
   PARCEL = 'parcel',
+  // Shaharlararo qatnovdagi band (o'rindiq yoki butun mashina) — narx
+  // yo'nalishdan, qatnov `intercity_trips` da (modules/intercity).
+  INTERCITY = 'intercity',
 }
 
 // Read-path indexes. Every hot orders query filters by owner or status and
@@ -91,6 +102,10 @@ export enum ServiceType {
 //   "shu shahar buyurtmalari" filtri. Ko'p shaharli bo'lgach har bir
 //   hisobot so'rovi shu ustundan boshlanadi.
 @Index('idx_orders_city_id_created_at', ['cityId', 'createdAt'])
+// Shaharlararo band ustunlari (migratsiya 036). Entity'da ham e'lon
+// qilingan: aks holda dev'dagi `synchronize` ularni "begona" deb o'chirardi.
+@Check('chk_orders_booking_kind', `"booking_kind" IS NULL OR "booking_kind" IN ('seat', 'whole_car')`)
+@Check('chk_orders_seats_positive', '"seats" IS NULL OR "seats" BETWEEN 1 AND 8')
 @Entity('orders')
 export class Order {
   @PrimaryGeneratedColumn('uuid')
@@ -452,6 +467,26 @@ export class Order {
    */
   @Column({ name: 'scheduled_at', type: 'timestamptz', nullable: true })
   scheduledAt: Date | null;
+
+  /**
+   * Shaharlararo band — qaysi qatnovga (migratsiya 036). `null` — oddiy
+   * buyurtma. O'rindiq hisobi qatnov qatorida, bu yerda faqat bog'lanish:
+   * pul (komissiya, ushlash, chek) shu buyurtma bo'yicha ketadi.
+   */
+  @Index('idx_orders_intercity_trip_id')
+  @Column({ name: 'intercity_trip_id', type: 'uuid', nullable: true })
+  intercityTripId: string | null;
+
+  @ManyToOne(() => IntercityTrip, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'intercity_trip_id', foreignKeyConstraintName: 'fk_orders_intercity_trip' })
+  intercityTrip?: IntercityTrip | null;
+
+  /** Band qilingan o'rindiqlar soni (butun mashinada — qatnov o'rindiqlari). */
+  @Column({ name: 'seats', type: 'int', nullable: true })
+  seats: number | null;
+
+  @Column({ name: 'booking_kind', type: 'varchar', length: 10, nullable: true })
+  bookingKind: IntercityBookingKind | null;
 
   /**
    * Buyurtma qaysi shaharda yaratilgan — OLISH NUQTASIDAN aniqlanadi.

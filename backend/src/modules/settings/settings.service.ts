@@ -199,8 +199,11 @@ export class SettingsService {
 
   async updateIntercitySettings(changes: IntercitySettingsChanges): Promise<IntercitySettings> {
     const settings = await this.getOrCreate();
-    if (changes.intercityEnabled === undefined) return toIntercitySettings(settings);
-    const update: Partial<PlatformSettings> = { intercityEnabled: changes.intercityEnabled };
+    // Faqat yuborilgan maydonlar yoziladi — `undefined` lar tashlanadi.
+    const update: Partial<PlatformSettings> = Object.fromEntries(
+      Object.entries(changes).filter(([, value]) => value !== undefined),
+    );
+    if (Object.keys(update).length === 0) return toIntercitySettings(settings);
     await this.settingsRepository.update(settings.id, update);
     return toIntercitySettings({ ...settings, ...update });
   }
@@ -465,9 +468,25 @@ function toVendorSettlementSettings(
   };
 }
 
+/** Ustun qo'shilmagan eski qatorda (`undefined`) — migratsiya 036 standartlari. */
+const INTERCITY_DEFAULTS = {
+  freeCancelMinutes: 60,
+  maxSeatsPerBooking: 4,
+  minLeadMinutes: 30,
+  maxAheadDays: 7,
+} as const;
+
 function toIntercitySettings(settings: PlatformSettings): IntercitySettings {
-  // `=== true`: ustun qo'shilmagan eski qator (`undefined`) ham o'chiq.
-  return { intercityEnabled: settings.intercityEnabled === true };
+  return {
+    // `=== true`: ustun qo'shilmagan eski qator (`undefined`) ham o'chiq.
+    intercityEnabled: settings.intercityEnabled === true,
+    intercityFreeCancelMinutes:
+      settings.intercityFreeCancelMinutes ?? INTERCITY_DEFAULTS.freeCancelMinutes,
+    intercityMaxSeatsPerBooking:
+      settings.intercityMaxSeatsPerBooking ?? INTERCITY_DEFAULTS.maxSeatsPerBooking,
+    intercityMinLeadMinutes: settings.intercityMinLeadMinutes ?? INTERCITY_DEFAULTS.minLeadMinutes,
+    intercityMaxAheadDays: settings.intercityMaxAheadDays ?? INTERCITY_DEFAULTS.maxAheadDays,
+  };
 }
 
 function toShiftPassSettings(settings: PlatformSettings): ShiftPassSettings {

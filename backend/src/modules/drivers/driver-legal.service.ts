@@ -242,6 +242,21 @@ export class DriverLegalService {
     }
   }
 
+  /**
+   * Shaharlararo qatnov e'lon qilish va xizmatni yoqish darvozasi — bu ham
+   * yo'lovchi tashish, shuning uchun taksi bilan BIR XIL talablar (VMQ 200).
+   */
+  async assertCanCarryIntercity(driver: LegalDriver, now: Date = new Date()): Promise<void> {
+    const status = await this.evaluate({ ...driver, serviceTypes: [ServiceType.TAXI] }, now);
+    if (status.blocking) {
+      throw codedBadRequest(
+        ERROR_CODES.legalNotEligible,
+        `«Shaharlararo» qatnov uchun hujjatlar yetarli emas: ${this.joinReasons(status.reasons)}. Ilovadagi «Hujjatlar» bo'limida to'ldiring.`,
+        { reasons: status.reasons },
+      );
+    }
+  }
+
   // ------------------------------------------------------------- ichki
 
   private async findOrThrow(where: { id: string } | { userId: string }): Promise<Driver> {

@@ -11,6 +11,8 @@ import {
   VerificationDriver,
 } from './driver-verification.service';
 import { DriverLegalService } from './driver-legal.service';
+import { SettingsService } from '../settings/settings.service';
+import { ERROR_CODES, codedNotFound } from '../../common/errors/coded-error';
 
 /** `GET/PATCH /drivers/me/services` javobidagi bitta element. */
 export interface DriverServiceOption {
@@ -67,6 +69,9 @@ export class DriverServicesService {
     private readonly verificationService: DriverVerificationService,
     // VMQ 200 darvozasi — taksini YANGI yoqishda. Ixtiyoriy: unit spec'lar.
     @Optional() private readonly legalGate?: DriverLegalService,
+    // "Shaharlararo" faqat funksiya yoqilganda ko'rinadi/yoqiladi. Ixtiyoriy:
+    // berilmasa (unit spec'lar) — o'chiq deb hisoblanadi.
+    @Optional() private readonly settings?: SettingsService,
   ) {}
 
   async getForUser(userId: string, now: Date = new Date()): Promise<DriverServicesSummary> {
@@ -107,6 +112,13 @@ export class DriverServicesService {
     if (next.includes(ServiceType.TAXI) && !current.includes(ServiceType.TAXI)) {
       await this.legalGate?.assertCanEnableTaxi(driver, now);
     }
+    // Shaharlararo ham yo'lovchi tashish — xuddi shu VMQ 200 talablari.
+    if (next.includes(ServiceType.INTERCITY) && !current.includes(ServiceType.INTERCITY)) {
+      if (!(await this.isIntercityOffered())) {
+        throw codedNotFound(ERROR_CODES.intercityDisabled, 'Shaharlararo qatnov hozircha mavjud emas');
+      }
+      await this.legalGate?.assertCanCarryIntercity(driver, now);
+    }
 
     for (const serviceType of next) {
       const unmet = await this.verificationService.findUnmetRequirementsForServiceType(
@@ -132,8 +144,15 @@ export class DriverServicesService {
   ): Promise<DriverServicesSummary> {
     const enabled = [...resolveDriverServiceTypes(driver.serviceTypes)];
 
+    // Funksiya o'chiq bo'lsa "Shaharlararo" katalogda ko'rinmaydi — haydovchi
+    // yoqib, hech qachon ishlamaydigan tugmaga qarab o'tirmasin.
+    const intercityOffered = await this.isIntercityOffered();
+    const catalog = DRIVER_SERVICE_CATALOG.filter(
+      (entry) => intercityOffered || entry.serviceType !== ServiceType.INTERCITY,
+    );
+
     const options: DriverServiceOption[] = [];
-    for (const entry of DRIVER_SERVICE_CATALOG) {
+    for (const entry of catalog) {
       const unmet = await this.verificationService.findUnmetRequirementsForServiceType(
         driver,
         entry.serviceType,
@@ -156,6 +175,10 @@ export class DriverServicesService {
     }
 
     return { enabled, options };
+  }
+
+  private async isIntercityOffered(): Promise<boolean> {
+    return (await this.settings?.isIntercityEnabled()) ?? false;
   }
 
   private async findDriverByUserId(userId: string): Promise<Driver> {

@@ -85,13 +85,25 @@ export interface PublicSettings {
   walletTopupPresets: number[];
   /** Karta to'ldirishi shuncha kun yechib olinmaydi (ilova izohi uchun). */
   walletTopupHoldDays: number;
-  /** Shaharlararo qatnov yoqilganmi (migratsiya 034). */
+  /** Shaharlararo qatnov yoqilganmi (034) va band/e'lon chegaralari (036). */
   intercityEnabled: boolean;
+  intercityFreeCancelMinutes: number;
+  intercityMaxSeatsPerBooking: number;
+  intercityMinLeadMinutes: number;
+  intercityMaxAheadDays: number;
 }
 
 /** `GET/PATCH /settings/intercity`. */
 export interface IntercitySettings {
   intercityEnabled: boolean;
+  /** Jo'nashdan shuncha daqiqa oldingacha bekor qilish bepul. */
+  intercityFreeCancelMinutes: number;
+  /** Bitta bandda nechta o'rindiq olish mumkin. */
+  intercityMaxSeatsPerBooking: number;
+  /** Qatnov kamida shuncha daqiqa oldin e'lon qilinadi. */
+  intercityMinLeadMinutes: number;
+  /** Ko'pi bilan shuncha kun oldinga e'lon qilinadi. */
+  intercityMaxAheadDays: number;
 }
 
 export type IntercitySettingsChanges = Partial<IntercitySettings>;

@@ -335,6 +335,16 @@ export class OrdersCreationService {
       throw new BadRequestException('Selected tariff is not available');
     }
 
+    // Shaharlararo band FAQAT qatnov orqali (`IntercityModule`): o'rindiq
+    // hisobi `intercity_trips` da atomik. Bu umumiy yo'l uni yaratsa, qatnov
+    // ham, o'rindiq hisobi ham chetlab o'tilardi.
+    if (
+      dto.serviceType === ServiceType.INTERCITY ||
+      tariff.serviceType === (ServiceType.INTERCITY as string)
+    ) {
+      throw new BadRequestException("Shaharlararo qatnov faqat qatnovlar ro'yxatidan band qilinadi");
+    }
+
     // Posilka faqat posilka tarifi bilan va aksincha: posilka tarifi bilan
     // berilgan oddiy safar PIN tekshiruvini chetlab o'tardi, taksi tarifi
     // bilan berilgan posilka esa posilka xizmatini yoqmagan haydovchiga borardi.
