@@ -11,9 +11,15 @@ import { PermissionsGuard } from '../auth/permissions.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { CancelIntercityTripDto } from './dto/cancel-intercity-trip.dto';
 import { ManageIntercityTripsQueryDto } from './dto/manage-intercity-trips-query.dto';
+import { IntercityBookingsService } from './intercity-bookings.service';
+import { IntercityBookingManageView } from './intercity-booking-manage-view';
 import { PublishIntercityTripDto } from './dto/publish-intercity-trip.dto';
 import { SearchIntercityTripsDto } from './dto/search-intercity-trips.dto';
-import { IntercityTripPage, IntercityTripsService } from './intercity-trips.service';
+import {
+  IntercityTripManagePage,
+  IntercityTripPage,
+  IntercityTripsService,
+} from './intercity-trips.service';
 import { IntercityTripView } from './intercity-trip-view';
 
 /**
@@ -33,7 +39,10 @@ import { IntercityTripView } from './intercity-trip-view';
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Controller('intercity')
 export class IntercityTripsController {
-  constructor(private readonly trips: IntercityTripsService) {}
+  constructor(
+    private readonly trips: IntercityTripsService,
+    private readonly bookings: IntercityBookingsService,
+  ) {}
 
   @Post('trips')
   @Roles(UserRole.DRIVER)
@@ -56,8 +65,33 @@ export class IntercityTripsController {
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
   @RequirePermissions(Permission.DISPATCH)
   @ApiOperation({ summary: 'Dispetcher: qatnovlar holat/kun bo‘yicha' })
-  listForManage(@Query() query: ManageIntercityTripsQueryDto): Promise<IntercityTripPage> {
+  listForManage(@Query() query: ManageIntercityTripsQueryDto): Promise<IntercityTripManagePage> {
     return this.trips.listForManage(query);
+  }
+
+  /** ⚠️ Yo'lovchi telefoni bor — faqat dispetcher yo'li. */
+  @Get('trips/:id/bookings/manage')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DISPATCH)
+  @ApiParam({ name: 'id', description: 'Qatnov UUID' })
+  @ApiOperation({ summary: "Dispetcher: qatnovning bandlari (yo'lovchi ismi va telefoni bilan)" })
+  listBookingsForManage(@Param('id', ParseUUIDPipe) id: string): Promise<IntercityBookingManageView[]> {
+    return this.bookings.listForManage(id);
+  }
+
+  /** Joylar qaytadi (yo'lovchi yo'li bilan bir xil tranzaksiya), yo'lovchiga xabar boradi. */
+  @Post('bookings/:orderId/cancel/manage')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DISPATCH)
+  @ApiParam({ name: 'orderId', description: 'Band (buyurtma) UUID' })
+  @ApiOperation({ summary: "Dispetcher: yo'lovchining bandini bekor qilish (faqat yig'ish boshlanmaguncha)" })
+  @ApiResponse({ status: 409, description: 'INTERCITY_BOOKING_NOT_CANCELLABLE' })
+  cancelBookingForManage(
+    @Param('orderId', ParseUUIDPipe) orderId: string,
+    @Body() dto: CancelIntercityTripDto,
+  ): Promise<IntercityBookingManageView> {
+    return this.bookings.cancelForManage(orderId, dto.reason);
   }
 
   @Get('trips')

@@ -24,6 +24,7 @@ import { DriversService } from '../drivers/drivers.service';
 import { OrdersQueryService } from './orders-query.service';
 import { OrderStatusTransitionService } from './order-status-transition.service';
 import { MatchingService } from '../matching/matching.service';
+import { ERROR_CODES, codedBadRequest } from '../../common/errors/coded-error';
 
 @Injectable()
 export class OrdersDispatchService {
@@ -63,6 +64,20 @@ export class OrdersDispatchService {
     }
   }
 
+  /**
+   * Shaharlararo bandlar faqat `/intercity/...` yo'llari orqali bekor
+   * qilinadi (yo'lovchi: `bookings/:id/cancel`, haydovchi: `no-show` yoki
+   * qatnovni bekor qilish, dispetcher: `bookings/:id/cancel/manage`).
+   */
+  private static assertNotIntercity(order: Pick<Order, 'intercityTripId'>): void {
+    if (order.intercityTripId) {
+      throw codedBadRequest(
+        ERROR_CODES.intercityUseIntercityEndpoint,
+        "Shaharlararo band faqat «Shaharlararo» bo'limi orqali bekor qilinadi yoki o'zgartiriladi",
+      );
+    }
+  }
+
   // Manual driver assignment/reassignment — the exception path under the
   // automated-dispatch model (MatchingService handles the normal case with
   // zero human input, see MatchingService.startSearch). `performedByUserId`
@@ -76,6 +91,9 @@ export class OrdersDispatchService {
     reason: string,
   ): Promise<Order> {
     const order = await this.queryService.findByIdOrThrow(orderId);
+    // Shaharlararo band qatnov egasiga bog'langan — boshqa haydovchiga
+    // berilsa qatnov va band ajralib qoladi.
+    OrdersDispatchService.assertNotIntercity(order);
 
     const reassignableStatuses: OrderStatus[] = [
       OrderStatus.CREATED,
@@ -244,6 +262,9 @@ export class OrdersDispatchService {
     reason?: string,
   ): Promise<Order> {
     const order = await this.queryService.findByIdOrThrow(orderId);
+    // Bu yo'l o'rindiq hisobini (seats_taken) va kech bekor qilish/kelmaslik
+    // belgilarini bilmaydi — qatnovda "arvoh" band joy qolardi.
+    OrdersDispatchService.assertNotIntercity(order);
 
     const cancellableStatuses: OrderStatus[] = [
       // Rejalashtirilgan safar bajarilishidan OLDIN bekor qilinishi kerak —

@@ -123,6 +123,21 @@ export async function releaseSeats(
  * bo'lgani qatnovni yopadi (UPDATE qatorni qulflaydi va shartni qayta
  * tekshiradi).
  */
+/**
+ * Qatnov qatorini tranzaksiya oxirigacha qulflaydi. Bandni yakunlash
+ * tranzaksiyasining BIRINCHI buyrug'i bo'lishi shart.
+ *
+ * NEGA: ikki band bir vaqtda yakunlansa, READ COMMITTED da har bir
+ * tranzaksiya ikkinchisining bandini hali `in_progress` deb ko'radi —
+ * `completeTripIfDone` ikkalasida ham 0 qator yangilaydi va qatnov abadiy
+ * `in_progress` da qoladi. Qulf yakunlashlarni navbatga qo'yadi: ikkinchisi
+ * birinchisining COMMIT'ini kutadi va uning bandini allaqachon `completed`
+ * deb ko'radi.
+ */
+export async function lockTripForCompletion(manager: EntityManager, tripId: string): Promise<void> {
+  await manager.query(`SELECT 1 FROM "intercity_trips" WHERE "id" = $1 FOR UPDATE`, [tripId]);
+}
+
 export async function completeTripIfDone(
   manager: EntityManager,
   tripId: string,

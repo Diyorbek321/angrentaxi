@@ -9,6 +9,8 @@ import { Tariff } from '../../database/entities/tariff.entity';
 import { Transaction } from '../../database/entities/transaction.entity';
 import { DriversModule } from '../drivers/drivers.module';
 import { SettingsModule } from '../settings/settings.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { RealtimeModule } from '../realtime/realtime.module';
 import { IntercityController, IntercityManageController } from './intercity.controller';
 import { IntercityDriverGate } from './intercity-driver-gate';
 import { IntercityPointsService } from './intercity-points.service';
@@ -19,10 +21,12 @@ import { IntercityBookingsController } from './intercity-bookings.controller';
 import { IntercityBookingsService } from './intercity-bookings.service';
 import { IntercityLifecycleService } from './intercity-lifecycle.service';
 import { IntercityTripsCron } from './intercity-trips.cron';
+import { IntercityNotifier } from './intercity-notifier';
 
 /**
  * Shaharlararo qatnov. 1-qadam: nuqtalar, yo'nalishlar, qat'iy narxlar.
  * 2–3-qadam: haydovchi e'lon qiladigan qatnovlar va yo'lovchi qidiruvi.
+ * 6-qadam: realtime hodisalar + push (`intercity-events.ts`, `IntercityNotifier`).
  * 4–5-qadam: band qilish/bekor qilish (atomik o'rindiq hisobi —
  * `intercity-seat-ledger.ts`), yig'ish → jo'nash, avtomatik yopish cron'i.
  * Har bir band — `orders` qatori; yakunlash `OrdersCompletionService` da
@@ -37,6 +41,9 @@ import { IntercityTripsCron } from './intercity-trips.cron';
     TypeOrmModule.forFeature([IntercityPoint, IntercityRoute, IntercityTrip, Driver, Tariff, Transaction, Order]),
     SettingsModule,
     DriversModule,
+    // 6-qadam: `intercity:*` hodisalari va push (IntercityNotifier).
+    RealtimeModule,
+    NotificationsModule,
   ],
   controllers: [IntercityController, IntercityManageController, IntercityTripsController, IntercityBookingsController],
   providers: [
@@ -47,6 +54,7 @@ import { IntercityTripsCron } from './intercity-trips.cron';
     IntercityBookingsService,
     IntercityLifecycleService,
     IntercityTripsCron,
+    IntercityNotifier,
   ],
   exports: [IntercityPointsService, IntercityRoutesService, IntercityTripsService],
 })

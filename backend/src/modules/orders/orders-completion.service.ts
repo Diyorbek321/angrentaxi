@@ -64,7 +64,8 @@ import { TAX_WITHHOLDING_LEDGER_TAG, computeTaxWithholding } from '../tax/tax-wi
 import { FiscalReceiptsService } from '../fiscal/fiscal-receipts.service';
 import { Driver } from '../../database/entities/driver.entity';
 import { ShiftPassesService } from '../shift-passes/shift-passes.service';
-import { completeTripIfDone } from '../intercity/intercity-seat-ledger';
+import { completeTripIfDone, lockTripForCompletion } from '../intercity/intercity-seat-ledger';
+import { publishTripUpdated } from '../intercity/intercity-events';
 
 // Flat bonus (in so'm) credited to both a referred passenger and their
 // referrer the first time the referred passenger completes a trip. See
@@ -359,6 +360,13 @@ export class OrdersCompletionService {
     let walletShortfall = 0;
 
     await this.dataSource.transaction(async (manager) => {
+      // Shaharlararo: qatnov qulfi da'vodan HAM oldin — bir qatnovning
+      // parallel yakunlashlari navbatlashadi (`lockTripForCompletion`).
+      // Taksi safarida bu so'rov umuman yuborilmaydi.
+      if (order.intercityTripId) {
+        await lockTripForCompletion(manager, order.intercityTripId);
+      }
+
       // ⚠️ DA'VO — tranzaksiyadagi BIRINCHI yozuv. Yuqoridagi holat
       // tekshiruvi oddiy o'qish: haydovchining ikki marta bosishi, qayta
       // urinish yoki haydovchi bilan dispetcherning `completeByDispatcher`
@@ -662,6 +670,16 @@ export class OrdersCompletionService {
     }
 
     this.realtimeGateway.emitToManagers('order:completed', updatedOrder);
+    if (order.intercityTripId) {
+      // Shaharlararo: qatnov holati (oxirgi band bo'lsa — 'completed')
+      // haydovchi va menejerlarga. COMMIT'dan keyin; yiqilsa yakunlash
+      // baribir muvaffaqiyatli — pul allaqachon yozilgan.
+      try {
+        await publishTripUpdated(this.orderRepository, this.realtimeGateway, order.intercityTripId);
+      } catch (err) {
+        this.logger.warn(`Intercity qatnov ${order.intercityTripId} holati e'lon qilinmadi: ${err}`);
+      }
+    }
     // Food/market: marks the vendor order delivered and settles the vendor.
     await this.deliveryEvents?.publish(updatedOrder, 'delivered');
 

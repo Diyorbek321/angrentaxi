@@ -1,5 +1,5 @@
 import { DataSource, EntityManager, QueryRunner } from 'typeorm';
-import { claimSeats, claimWholeCar, releaseSeats } from './intercity-seat-ledger';
+import { claimSeats, claimWholeCar, completeTripIfDone, lockTripForCompletion, releaseSeats } from './intercity-seat-ledger';
 
 /**
  * O'rindiq hisobining POYGA isboti — haqiqiy Postgres'da, IKKI ulanish bilan.
@@ -57,6 +57,10 @@ describeDb('intercity-seat-ledger — parallel band (Postgres)', () => {
     await ds.query(`CREATE SCHEMA IF NOT EXISTS "${SCHEMA}"`);
     await ds.query(
       `CREATE TABLE IF NOT EXISTS "${SCHEMA}"."intercity_trips" (LIKE public."intercity_trips" INCLUDING DEFAULTS INCLUDING CONSTRAINTS)`,
+    );
+    // Yakunlash poygasi uchun minimal `orders` — faqat `completeTripIfDone` o'qiydigan ustunlar.
+    await ds.query(
+      `CREATE TABLE IF NOT EXISTS "${SCHEMA}"."orders" ("id" uuid PRIMARY KEY, "intercity_trip_id" uuid, "status" varchar(20))`,
     );
     a = ds.createQueryRunner();
     b = ds.createQueryRunner();
@@ -140,5 +144,59 @@ describeDb('intercity-seat-ledger — parallel band (Postgres)', () => {
   it("CHECK oxirgi himoya: seats_taken > seats_total bazada rad etiladi", async () => {
     await seedTrip({ seatsTotal: 4, seatsTaken: 4 });
     await expect(a.query(`UPDATE "intercity_trips" SET "seats_taken" = 5 WHERE "id" = $1`, [TRIP])).rejects.toThrow();
+  });
+
+  describe("yakunlash poygasi — oxirgi ikki band bir vaqtda yakunlanadi", () => {
+    const O1 = '00000000-0000-0000-0000-0000000000d1';
+    const O2 = '00000000-0000-0000-0000-0000000000d2';
+
+    const seedInProgress = async () => {
+      await seedTrip({ seatsTotal: 4, seatsTaken: 2 });
+      await a.query(`UPDATE "intercity_trips" SET "status" = 'in_progress' WHERE "id" = $1`, [TRIP]);
+      await a.query(`DELETE FROM "orders"`);
+      await a.query(
+        `INSERT INTO "orders" ("id", "intercity_trip_id", "status") VALUES ($1, $3, 'in_progress'), ($2, $3, 'in_progress')`,
+        [O1, O2, TRIP],
+      );
+    };
+    const complete = (runner: QueryRunner, orderId: string) =>
+      runner.query(`UPDATE "orders" SET "status" = 'completed' WHERE "id" = $1`, [orderId]);
+
+    it("NAZORAT: qulfsiz har biri ikkinchisini hali in_progress ko'radi — qatnov qotib qoladi", async () => {
+      await seedInProgress();
+      await a.startTransaction();
+      await b.startTransaction();
+      await complete(a, O1);
+      await complete(b, O2);
+      const closedByA = await completeTripIfDone(asManager(a), TRIP, NOW);
+      const closedByB = await completeTripIfDone(asManager(b), TRIP, NOW);
+      await a.commitTransaction();
+      await b.commitTransaction();
+
+      expect([closedByA, closedByB]).toEqual([false, false]);
+      await expect(readTrip()).resolves.toMatchObject({ status: 'in_progress' });
+    });
+
+    it("lockTripForCompletion bilan: ikkinchisi kutadi va qatnovni yopadi", async () => {
+      await seedInProgress();
+      await a.startTransaction();
+      await b.startTransaction();
+      await lockTripForCompletion(asManager(a), TRIP);
+      await complete(a, O1);
+      // B qulfda kutadi — A commit qilmaguncha davom etmaydi.
+      const bDone = (async () => {
+        await lockTripForCompletion(asManager(b), TRIP);
+        await complete(b, O2);
+        return completeTripIfDone(asManager(b), TRIP, NOW);
+      })();
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      const closedByA = await completeTripIfDone(asManager(a), TRIP, NOW);
+      await a.commitTransaction();
+      const closedByB = await bDone;
+      await b.commitTransaction();
+
+      expect([closedByA, closedByB]).toEqual([false, true]);
+      await expect(readTrip()).resolves.toMatchObject({ status: 'completed' });
+    });
   });
 });

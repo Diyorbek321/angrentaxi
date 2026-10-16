@@ -1,4 +1,4 @@
-import { parseTashkentDate, tashkentDateOf, tashkentDayRange } from './intercity-time';
+import { formatTashkentTime, parseTashkentDate, tashkentDateOf, tashkentDayRange } from './intercity-time';
 
 describe('intercity-time', () => {
   describe('tashkentDayRange', () => {
@@ -34,6 +34,16 @@ describe('intercity-time', () => {
     it("UTC 19:00 dan keyin Toshkentda ertangi kun", () => {
       expect(tashkentDateOf(new Date('2026-10-16T18:59:59.000Z'))).toBe('2026-10-16');
       expect(tashkentDateOf(new Date('2026-10-16T19:00:00.000Z'))).toBe('2026-10-17');
+    });
+  });
+
+  describe('formatTashkentTime', () => {
+    it('Toshkent vaqtida HH:MM (UTC+5)', () => {
+      expect(formatTashkentTime(new Date('2026-10-17T02:05:00.000Z'))).toBe('07:05');
+    });
+
+    it('UTC kechqurun — Toshkentda ertasi tong', () => {
+      expect(formatTashkentTime(new Date('2026-10-17T20:30:00.000Z'))).toBe('01:30');
     });
   });
 });

@@ -125,6 +125,8 @@ describe('completeTrip — kutish haqi HAQIQIY oqimda', () => {
   let service: OrdersService;
   let managerUpdate: jest.Mock;
   let managerQuery: jest.Mock;
+  let gateway: { emitToUser: jest.Mock; emitToManagers: jest.Mock };
+  let orderRepoQuery: jest.Mock;
 
   /**
    * @param order          `completeTrip` ko'radigan buyurtma (arrivedAt shu yerda).
@@ -139,6 +141,24 @@ describe('completeTrip — kutish haqi HAQIQIY oqimda', () => {
     managerUpdate = jest.fn().mockResolvedValue({ affected: 1 });
     // TypeORM UPDATE ... RETURNING shakli — shaharlararo qatnovni yopish.
     managerQuery = jest.fn().mockResolvedValue([[{ id: 'intercity-trip-1' }], 1]);
+    gateway = { emitToUser: jest.fn(), emitToManagers: jest.fn() };
+    orderRepoQuery = jest.fn().mockImplementation(async (sql: string) =>
+      // Shaharlararo: yakunlashdan keyin qatnov holati o'qiladi (intercity-events.ts).
+      sql.includes('FROM "intercity_trips" t')
+        ? [
+            {
+              id: 'intercity-trip-1',
+              status: 'completed',
+              seats_taken: 2,
+              seats_total: 4,
+              whole_car_booked: false,
+              departure_at: new Date('2026-10-20T02:00:00.000Z'),
+              driver_user_id: DRIVER_USER_ID,
+              passenger_ids: [],
+            },
+          ]
+        : [{ distance_meters: '5000' }],
+    );
 
     const txManager = {
       update: managerUpdate,
@@ -175,7 +195,7 @@ describe('completeTrip — kutish haqi HAQIQIY oqimda', () => {
           provide: getRepositoryToken(Order),
           useValue: {
             // 5 km — hisoblagich rejimidagi haqiqiy masofa.
-            query: jest.fn().mockResolvedValue([{ distance_meters: '5000' }]),
+            query: orderRepoQuery,
             update: jest.fn().mockResolvedValue({}),
             count: jest.fn().mockResolvedValue(5),
           },
@@ -207,7 +227,7 @@ describe('completeTrip — kutish haqi HAQIQIY oqimda', () => {
         },
         {
           provide: RealtimeGateway,
-          useValue: { emitToUser: jest.fn(), emitToManagers: jest.fn() },
+          useValue: gateway,
         },
         {
           provide: NotificationsService,
@@ -376,9 +396,79 @@ describe('completeTrip — kutish haqi HAQIQIY oqimda', () => {
       expect(persisted().finalPrice).toBe(43200);
       // Yakunlash tranzaksiyasi ichida qatnov yopilishi so'raladi.
       const tripClose = (managerQuery.mock.calls as unknown[][]).find((call) =>
-        String(call[0]).includes('"intercity_trips"'),
+        String(call[0]).includes('UPDATE "intercity_trips"'),
       );
       expect(tripClose?.[1]).toEqual(['intercity-trip-1', expect.any(Date)]);
+    });
+
+    it("yakunlangach (COMMIT'dan keyin) qatnov holati e'lon qilinadi — intercity:trip:updated", async () => {
+      await build(
+        {
+          isFixedPrice: true,
+          fareBreakdown: quote(),
+          arrivedAt: ARRIVED_AT,
+          serviceType: ServiceType.INTERCITY,
+          intercityTripId: 'intercity-trip-1',
+        },
+        tariffWithWaiting(),
+        min(1),
+      );
+
+      await service.completeTrip(DRIVER_USER_ID, ORDER_ID);
+
+      expect(gateway.emitToManagers).toHaveBeenCalledWith(
+        'intercity:trip:updated',
+        expect.objectContaining({ tripId: 'intercity-trip-1', status: 'completed' }),
+      );
+      expect(gateway.emitToUser).toHaveBeenCalledWith(
+        DRIVER_USER_ID,
+        'intercity:trip:updated',
+        expect.objectContaining({ tripId: 'intercity-trip-1' }),
+      );
+    });
+
+    it("poyga: qatnov qatori buyurtma da'vosidan OLDIN qulflanadi (parallel yakunlashlar navbatlashadi)", async () => {
+      // Ikki band bir vaqtda yakunlansa, qulfsiz har biri ikkinchisini hali
+      // in_progress deb ko'rardi va qatnov abadiy in_progress da qolardi.
+      await build(
+        {
+          isFixedPrice: true,
+          fareBreakdown: quote(),
+          arrivedAt: ARRIVED_AT,
+          serviceType: ServiceType.INTERCITY,
+          intercityTripId: 'intercity-trip-1',
+        },
+        tariffWithWaiting(),
+        min(1),
+      );
+
+      await service.completeTrip(DRIVER_USER_ID, ORDER_ID);
+
+      const [lockSql, lockParams] = managerQuery.mock.calls[0] as [string, unknown[]];
+      expect(lockSql).toContain('FOR UPDATE');
+      expect(lockSql).toContain('"intercity_trips"');
+      expect(lockParams).toEqual(['intercity-trip-1']);
+      expect(managerQuery.mock.invocationCallOrder[0]).toBeLessThan(managerUpdate.mock.invocationCallOrder[0]);
+    });
+
+    it("qatnov holatini o'qish yiqilsa ham yakunlash muvaffaqiyatli", async () => {
+      await build(
+        {
+          isFixedPrice: true,
+          fareBreakdown: quote(),
+          arrivedAt: ARRIVED_AT,
+          serviceType: ServiceType.INTERCITY,
+          intercityTripId: 'intercity-trip-1',
+        },
+        tariffWithWaiting(),
+        min(1),
+      );
+      orderRepoQuery.mockImplementation(async (sql: string) => {
+        if (sql.includes('FROM "intercity_trips" t')) throw new Error('db hiccup');
+        return [{ distance_meters: '5000' }];
+      });
+
+      await expect(service.completeTrip(DRIVER_USER_ID, ORDER_ID)).resolves.toBeDefined();
     });
 
     it('taksi safari — qatnovga oid so\'rov YUBORILMAYDI (regressiya)', async () => {
@@ -387,6 +477,7 @@ describe('completeTrip — kutish haqi HAQIQIY oqimda', () => {
       expect(
         (managerQuery.mock.calls as unknown[][]).some((call) => String(call[0]).includes('"intercity_trips"')),
       ).toBe(false);
+      expect(gateway.emitToManagers.mock.calls.some((call) => String(call[0]).startsWith('intercity:'))).toBe(false);
       expect(persisted().fareBreakdown.waitingFare).toBe(2500);
     });
   });

@@ -83,6 +83,7 @@ function build(options: { enabled?: boolean; existing?: Array<{ departureAt: Dat
     getIntercitySettings: jest.fn(async () => SETTINGS),
   };
   const gate = { loadPublisher: jest.fn(async () => DRIVER) };
+  const notifier = { tripCancelled: jest.fn(async () => undefined) };
   const service = new IntercityTripsService(
     tripRepository as never,
     routeRepository as never,
@@ -91,8 +92,9 @@ function build(options: { enabled?: boolean; existing?: Array<{ departureAt: Dat
     dataSource as never,
     settings as never,
     gate as never,
+    notifier as never,
   );
-  return { service, tripRepository, routeRepository, manager, gate, tariffRepository };
+  return { service, tripRepository, routeRepository, manager, gate, tariffRepository, notifier };
 }
 
 const publishDto = (overrides: Record<string, unknown> = {}) => ({
@@ -221,6 +223,20 @@ describe('IntercityTripsService', () => {
       expect(order).toEqual({ departureAt: 'ASC' });
     });
 
+    it("kun oralig'i yarim ochiq [boshi, oxiri): ertasi 00:00 dagi qatnov ikki kunda chiqmaydi", async () => {
+      const { service, tripRepository } = build();
+      tripRepository.find.mockResolvedValueOnce([] as never);
+      await service.search('route-1', '2026-10-17', NOW);
+
+      const [{ where }] = tripRepository.find.mock.calls[0] as unknown as [
+        { where: { departureAt: { type: string; value: Array<{ type: string; value: Date }> } } },
+      ];
+      expect(where.departureAt.type).toBe('and');
+      expect(where.departureAt.value.map((op) => op.type)).toEqual(['moreThanOrEqual', 'lessThan']);
+      // Oxiri — ertasi Toshkent kunining 00:00 i (UTC 19:00), u KIRMAYDI.
+      expect(where.departureAt.value[1].value).toEqual(new Date('2026-10-17T19:00:00.000Z'));
+    });
+
     it("noto'g'ri sana — 400", async () => {
       const { service } = build();
       await expect(service.search('route-1', '2026-02-30', NOW)).rejects.toBeInstanceOf(
@@ -242,6 +258,26 @@ describe('IntercityTripsService', () => {
       expect((manager.query.mock.calls[0] as unknown[])[1]).toEqual(
         expect.arrayContaining(['trip-1', 'driver-1', 'Mashina buzildi']),
       );
+    });
+
+    it("COMMIT'dan keyin bandi yopilgan yo'lovchilarga xabar (haydovchi sababi bilan)", async () => {
+      const { service, manager, notifier } = build();
+      manager.query
+        .mockResolvedValueOnce([[{ id: 'trip-1' }], 1] as never)
+        .mockResolvedValueOnce([[{ passenger_id: 'p1' }, { passenger_id: 'p2' }], 2] as never);
+      await service.cancelByDriver('user-1', 'trip-1', 'Mashina buzildi', NOW);
+
+      const ordersSql = String((manager.query.mock.calls[1] as unknown[])[0]);
+      expect(ordersSql).toContain('RETURNING "passenger_id"');
+      expect(notifier.tripCancelled).toHaveBeenCalledWith('trip-1', 'Mashina buzildi', ['p1', 'p2'], 'driver');
+    });
+
+    it("bekor qilib bo'lmasa xabar ham yo'q", async () => {
+      const { service, manager, tripRepository, notifier } = build();
+      manager.query.mockResolvedValueOnce([[], 0] as never);
+      tripRepository.findOne.mockResolvedValueOnce(trip({ status: IntercityTripStatus.IN_PROGRESS }) as never);
+      await expect(service.cancelByDriver('user-1', 'trip-1', 'x', NOW)).rejects.toBeDefined();
+      expect(notifier.tripCancelled).not.toHaveBeenCalled();
     });
 
     it("yo'lga chiqqan qatnov — 409 INTERCITY_TRIP_NOT_CANCELLABLE", async () => {
@@ -276,6 +312,24 @@ describe('IntercityTripsService', () => {
         total: 1,
         page: 1,
       });
+    });
+
+    it("menejer ro'yxatida haydovchi telefoni va wholeCarBooked bor, haydovchining o'z ro'yxatida telefon yo'q", async () => {
+      const { service } = build();
+      const manage = await service.listForManage({});
+      expect(manage.items[0]).toMatchObject({ wholeCarBooked: false, driver: { phone: '+998901112233' } });
+
+      const mine = await service.listMine('user-1', {});
+      expect(JSON.stringify(mine)).not.toContain('+998901112233');
+    });
+
+    it("menejer kun filtri ham yarim ochiq oraliq", async () => {
+      const { service, tripRepository } = build();
+      await service.listForManage({ date: '2026-10-17' });
+      const [{ where }] = tripRepository.findAndCount.mock.calls[0] as unknown as [
+        { where: { departureAt: { type: string; value: Array<{ type: string }> } } },
+      ];
+      expect(where.departureAt.value.map((op) => op.type)).toEqual(['moreThanOrEqual', 'lessThan']);
     });
   });
 });

@@ -145,6 +145,10 @@ export class IntercityTrip {
   @Column({ name: 'completed_at', type: 'timestamptz', nullable: true })
   completedAt: Date | null;
 
+  /** Jo'nashdan 1 soat oldingi eslatma yuborilgan lahza (bir martalik, migr. 037). */
+  @Column({ name: 'reminder_sent_at', type: 'timestamptz', nullable: true })
+  reminderSentAt: Date | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

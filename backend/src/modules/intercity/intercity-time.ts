@@ -39,3 +39,8 @@ export function tashkentDayRange(date: string): DayRange {
 export function tashkentDateOf(at: Date): string {
   return new Date(at.getTime() + TASHKENT_OFFSET_MS).toISOString().slice(0, 10);
 }
+
+/** Berilgan lahza Toshkent vaqtida `HH:MM` — push matnlari uchun ("07:05 da jo'nash"). */
+export function formatTashkentTime(at: Date): string {
+  return new Date(at.getTime() + TASHKENT_OFFSET_MS).toISOString().slice(11, 16);
+}

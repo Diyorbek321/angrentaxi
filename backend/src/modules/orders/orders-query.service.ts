@@ -18,6 +18,11 @@ import { Order, OrderStatus, ServiceType } from '../../database/entities/order.e
 import { DispatchOverride } from '../../database/entities/dispatch-override.entity';
 import { UserRole } from '../../database/entities/user.entity';
 import { DriversService } from '../drivers/drivers.service';
+import {
+  IntercityContactTrip,
+  redactUnrevealedDriverPhone,
+} from '../intercity/intercity-contact-redaction';
+import { IntercityTripStatus } from '../../database/entities/intercity-trip.entity';
 import { PaginatedOrders } from './orders.types';
 import { Trip } from '../../database/entities/trip.entity';
 import { SCHEDULED_LIST_LIMIT } from './scheduled-orders.constants';
@@ -61,7 +66,8 @@ export class OrdersQueryService {
       relations: ['passenger', 'driver', 'tariff'],
     });
 
-    return { orders: await this.attachDisplayFields(orders), total, page, limit };
+    const shown = await this.redactIntercityContacts(await this.attachDisplayFields(orders));
+    return { orders: shown, total, page, limit };
   }
 
   async getDriverHistory(
@@ -141,7 +147,7 @@ export class OrdersQueryService {
       relations: ['passenger', 'driver', 'tariff'],
     });
 
-    return this.attachDisplayFields(orders);
+    return this.redactIntercityContacts(await this.attachDisplayFields(orders));
   }
 
   async findByIdOrThrow(id: string): Promise<Order> {
@@ -186,8 +192,19 @@ export class OrdersQueryService {
       throw new ForbiddenException('You are not authorized to view this order');
     }
 
-    // Posilka PIN — faqat yuboruvchiga (u qabul qiluvchiga aytadi). Haydovchi
-    // uni HECH QACHON ko'rmasligi kerak: aks holda tekshiruv ma'nosiz bo'lardi.
+    // Shaharlararo: yo'lovchiga haydovchi telefoni faqat jo'nashga yaqin
+    // ochiladi (haydovchi va menejer o'zgarishsiz ko'radi).
+    if (isPassenger && !isStaff && order.intercityTripId) {
+      const [shown] = await this.redactIntercityContacts([order]);
+      return this.withDeliveryPinIfSender(shown, isPassenger, id);
+    }
+
+    return this.withDeliveryPinIfSender(order, isPassenger, id);
+  }
+
+  // Posilka PIN — faqat yuboruvchiga (u qabul qiluvchiga aytadi). Haydovchi
+  // uni HECH QACHON ko'rmasligi kerak: aks holda tekshiruv ma'nosiz bo'lardi.
+  private async withDeliveryPinIfSender(order: Order, isPassenger: boolean, id: string): Promise<Order> {
     if (isPassenger && order.serviceType === ServiceType.PARCEL) {
       const [row] = (await this.orderRepository.query(
         'SELECT delivery_pin FROM orders WHERE id = $1',
@@ -195,8 +212,27 @@ export class OrdersQueryService {
       )) as Array<{ delivery_pin: string | null }>;
       return { ...order, deliveryPin: row?.delivery_pin ?? null };
     }
-
     return order;
+  }
+
+  /**
+   * Yo'lovchiga qaytadigan ro'yxatlarda shaharlararo bandlarning haydovchi
+   * telefonini yashiradi (`redactUnrevealedDriverPhone`). Bandsiz sahifada
+   * bazaga murojaat yo'q; aks holda bitta `ANY` so'rovi.
+   */
+  private async redactIntercityContacts(orders: Order[], now: Date = new Date()): Promise<Order[]> {
+    const tripIds = [...new Set(orders.map((o) => o.intercityTripId).filter((id): id is string => !!id))];
+    if (tripIds.length === 0) return orders;
+    const rows = (await this.orderRepository.query(
+      `SELECT "id", "status", "departure_at" FROM "intercity_trips" WHERE "id" = ANY($1)`,
+      [tripIds],
+    )) as Array<{ id: string; status: IntercityTripStatus; departure_at: Date | string }>;
+    const tripsById = new Map<string, IntercityContactTrip>(
+      rows.map((row) => [row.id, { status: row.status, departureAt: new Date(row.departure_at) }]),
+    );
+    return orders.map((order) =>
+      redactUnrevealedDriverPhone(order, order.intercityTripId ? tripsById.get(order.intercityTripId) : undefined, now),
+    );
   }
 
   /**

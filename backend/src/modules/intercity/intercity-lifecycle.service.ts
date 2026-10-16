@@ -15,9 +15,18 @@ import { boardingBlocker, departBlocker } from './intercity-lifecycle-policy';
 import { returnedRows } from './intercity-seat-ledger';
 import { IntercityTripView } from './intercity-trip-view';
 import { IntercityTripsService } from './intercity-trips.service';
+import { IntercityNotifier } from './intercity-notifier';
 
 /** Haydovchi "kelmadi" deb belgilaganda bandga yoziladigan sabab. */
 export const NO_SHOW_BOOKING_REASON = "Yo'lovchi kelmadi";
+
+/**
+ * Yig'ishda oxirgi tirik band ham "kelmadi" bo'lsa qatnov shu sabab bilan
+ * yopiladi — aks holda u abadiy 'boarding' da qolardi (haydovchi ilovani
+ * tashlab ketsa) va haydovchi BAND hisoblanib, shahar ichidagi buyurtma
+ * ololmasdi.
+ */
+export const NO_PASSENGERS_TRIP_REASON = 'no_passengers';
 
 /** Kelmagan yo'lovchi belgisi (`orders.fraud_signals`), ko'rib chiqish navbatisiz. */
 export const INTERCITY_NO_SHOW_SIGNAL = 'intercity_no_show';
@@ -46,6 +55,7 @@ export class IntercityLifecycleService {
     private readonly dataSource: DataSource,
     private readonly settings: SettingsService,
     private readonly trips: IntercityTripsService,
+    private readonly notifier: IntercityNotifier,
   ) {}
 
   /**
@@ -87,7 +97,10 @@ export class IntercityLifecycleService {
         [tripId, OrderStatus.ACCEPTED, OrderStatus.SCHEDULED],
       );
     });
-    // TODO(intercity, 6-qadam): yo'lovchilarga `order:accepted` + push.
+    // `order:accepted` ATAYLAB yuborilmaydi: yo'lovchi ilovasi uni oddiy
+    // taksi oqimi deb qabul qilib, joriy safar ekraniga sakrardi. Shaharlararo
+    // ekranlari `intercity:trip:updated` (status 'boarding') ni tinglaydi.
+    await this.notifier.boardingStarted(tripId);
     this.logger.log(`Intercity qatnov ${tripId}: yig'ish boshlandi (${active} band)`);
     return this.trips.getView(tripId);
   }
@@ -130,7 +143,7 @@ export class IntercityLifecycleService {
         );
       }
     });
-    // TODO(intercity, 6-qadam): yo'lovchilarga `order:in_progress`.
+    await this.notifier.departed(tripId);
     this.logger.log(`Intercity qatnov ${tripId}: jo'nadi`);
     return this.trips.getView(tripId);
   }
@@ -153,7 +166,7 @@ export class IntercityLifecycleService {
       throw this.notAllowed('WRONG_STATUS', "«Kelmadi» faqat yo'lovchilarni yig'ish paytida belgilanadi");
     }
 
-    await this.dataSource.transaction(async (manager) => {
+    const tripClosed = await this.dataSource.transaction(async (manager) => {
       const rows = returnedRows<{ id: string }>(
         await manager.query(
           `UPDATE "orders"
@@ -165,7 +178,27 @@ export class IntercityLifecycleService {
         ),
       );
       if (rows.length === 0) throw this.notAllowed('WRONG_STATUS', "Band holati o'zgargan");
+      const closed = returnedRows<{ id: string }>(
+        await manager.query(
+          `UPDATE "intercity_trips" t
+              SET "status" = 'cancelled', "cancel_reason" = $2, "cancelled_at" = $3, "updated_at" = now()
+            WHERE t."id" = $1 AND t."status" = 'boarding'
+              AND NOT EXISTS (
+                SELECT 1 FROM "orders" o
+                 WHERE o."intercity_trip_id" = t."id"
+                   AND o."status" NOT IN ('completed', 'cancelled'))
+            RETURNING t."id"`,
+          [trip.id, NO_PASSENGERS_TRIP_REASON, now],
+        ),
+      );
+      return closed.length > 0;
     });
+    if (tripClosed) {
+      // Yo'lovchilar yo'q (hammasi kelmadi) — faqat haydovchi va menejerlar.
+      await this.notifier.tripCancelled(trip.id, NO_PASSENGERS_TRIP_REASON, [], 'system');
+    } else {
+      await this.notifier.noShow(trip.id);
+    }
     this.logger.log(`Intercity band ${orderId}: yo'lovchi kelmadi (${now.toISOString()})`);
     return this.trips.getView(trip.id);
   }

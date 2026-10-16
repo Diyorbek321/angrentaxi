@@ -37,10 +37,25 @@ export interface IntercityTripView {
   seatsLeft: number;
   /** Butun mashina hali olinishi mumkin: hech kim o'rindiq olmagan. */
   wholeCarAvailable: boolean;
+  /** Butun mashina allaqachon band qilingan (o'rindiq sotilmaydi). */
+  wholeCarBooked: boolean;
   seatPrice: number;
   wholeCarPrice: number;
   driver: IntercityTripDriverView | null;
   cancelReason: string | null;
+}
+
+/** Faqat dispetcher/admin uchun — haydovchiga qo'ng'iroq qilish kerak bo'ladi. */
+export interface IntercityTripManageDriverView extends IntercityTripDriverView {
+  phone: string | null;
+}
+
+/**
+ * Menejer ko'rinishi. ⚠️ Faqat `trips/manage` (MANAGER/ADMIN + DISPATCH)
+ * qaytaradi — ommaviy yo'llarda HECH QACHON ishlatilmaydi.
+ */
+export interface IntercityTripManageView extends Omit<IntercityTripView, 'driver'> {
+  driver: IntercityTripManageDriverView | null;
 }
 
 export type IntercityTripWithRelations = IntercityTrip & {
@@ -77,9 +92,18 @@ export function toIntercityTripView(trip: IntercityTripWithRelations): Intercity
     seatsLeft,
     wholeCarAvailable:
       trip.status === IntercityTripStatus.OPEN && trip.seatsTaken === 0 && !trip.wholeCarBooked,
+    wholeCarBooked: trip.wholeCarBooked,
     seatPrice: trip.seatPrice,
     wholeCarPrice: trip.wholeCarPrice,
     driver: toDriverView(trip.driver),
     cancelReason: trip.cancelReason,
+  };
+}
+
+export function toIntercityTripManageView(trip: IntercityTripWithRelations): IntercityTripManageView {
+  const view = toIntercityTripView(trip);
+  return {
+    ...view,
+    driver: view.driver ? { ...view.driver, phone: trip.driver?.user?.phone ?? null } : null,
   };
 }

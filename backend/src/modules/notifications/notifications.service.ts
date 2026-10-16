@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { FirebaseService } from './firebase.service';
 import { EskizService } from './eskiz.service';
 import { User, UserRole } from '../../database/entities/user.entity';
@@ -342,6 +342,40 @@ export class NotificationsService {
     }
 
     await this.logNotification(recipient.id, title, body, event);
+  }
+
+  /**
+   * Bir nechta foydalanuvchiga id bo'yicha bir xil xabar (shaharlararo:
+   * qatnovdagi barcha yo'lovchilar). Chaqiruvchida faqat id bor — `User`
+   * qatorlarini shu yerda bitta so'rov bilan oladi.
+   *
+   * Har biri ALOHIDA himoyalangan: bitta eskirgan token qolgan yo'lovchilarni
+   * xabarsiz qoldirmasligi kerak (`broadcast` dagi bilan bir xil qoida), va
+   * push hech qachon chaqiruvchining so'rovini yiqitmaydi.
+   */
+  async notifyUserIds(
+    userIds: readonly string[],
+    title: string,
+    body: string,
+    event: string,
+    data: Record<string, string> = {},
+  ): Promise<void> {
+    const unique = [...new Set(userIds)];
+    if (unique.length === 0) return;
+
+    const users = await this.userRepository.find({ where: { id: In(unique) } });
+    for (const user of users) {
+      if (user.fcmToken) {
+        try {
+          await this.firebaseService.sendPush(user.fcmToken, title, body, { event, ...data });
+        } catch (error) {
+          this.logger.warn(
+            `Push failed for user ${user.id} (event=${event}): ${error instanceof Error ? error.message : error}`,
+          );
+        }
+      }
+      await this.logNotification(user.id, title, body, event);
+    }
   }
 
   /**

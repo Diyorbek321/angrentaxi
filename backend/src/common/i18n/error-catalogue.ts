@@ -346,6 +346,10 @@ export const ERROR_CATALOGUE: readonly ErrorCatalogueEntry[] = [
   // ─── Shaharlararo ───────────────────────────────────────────────────
   { source: 'Shaharlararo qatnov hozircha mavjud emas', ru: 'Междугородние поездки пока недоступны' },
   {
+    source: "Shaharlararo band faqat «Shaharlararo» bo'limi orqali bekor qilinadi yoki o'zgartiriladi",
+    ru: 'Междугородную бронь можно отменить или изменить только в разделе «Междугородние»',
+  },
+  {
     source: "Shaharlararo qatnov faqat qatnovlar ro'yxatidan band qilinadi",
     ru: 'Междугороднюю поездку можно забронировать только из списка рейсов',
   },

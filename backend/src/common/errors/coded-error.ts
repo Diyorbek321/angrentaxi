@@ -74,6 +74,11 @@ export const ERROR_CODES = {
   intercityBookingNotCancellable: 'INTERCITY_BOOKING_NOT_CANCELLABLE',
   /** Qatnov amali hozir mumkin emas (yig'ish/jo'nash/kelmadi) — 409, `details.reason`. */
   intercityTripActionNotAllowed: 'INTERCITY_TRIP_ACTION_NOT_ALLOWED',
+  /**
+   * Shaharlararo band umumiy `/orders` yo'li bilan bekor qilinmaydi/qayta
+   * biriktirilmaydi — o'rindiq hisobi chetlab o'tilardi. 400; `/intercity/...` ishlating.
+   */
+  intercityUseIntercityEndpoint: 'INTERCITY_USE_INTERCITY_ENDPOINT',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];

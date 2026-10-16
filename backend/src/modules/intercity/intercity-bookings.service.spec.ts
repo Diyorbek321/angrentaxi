@@ -42,6 +42,9 @@ function build(options: { enabled?: boolean; debt?: number } = {}) {
   const tripRepository = { findOne: jest.fn(async () => tripRow()) };
   const bookingOrder = {
     id: 'order-1',
+    passengerId: 'pax-1',
+    createdAt: NOW,
+    updatedAt: NOW,
     status: OrderStatus.SCHEDULED,
     bookingKind: IntercityBookingKind.SEAT,
     seats: 2,
@@ -56,6 +59,9 @@ function build(options: { enabled?: boolean; debt?: number } = {}) {
   const orderRepository = {
     findOne: jest.fn(async () => bookingOrder),
     findAndCount: jest.fn(async () => [[bookingOrder], 1]),
+    find: jest.fn(async () => [
+      { ...bookingOrder, passenger: { firstName: 'Jasur', lastName: null, phone: '+998901234567' }, createdAt: NOW, updatedAt: NOW, cancelReason: null },
+    ]),
   };
   const tariffRepository = { findOne: jest.fn(async () => ({ id: 'tariff-intercity' })) };
   const transactionRepository = {
@@ -101,6 +107,11 @@ function build(options: { enabled?: boolean; debt?: number } = {}) {
       intercityMaxAheadDays: 7,
     })),
   };
+  const notifier = {
+    bookingCreated: jest.fn(async () => undefined),
+    bookingCancelled: jest.fn(async () => undefined),
+    bookingCancelledByDispatcher: jest.fn(async () => undefined),
+  };
   const service = new IntercityBookingsService(
     tripRepository as never,
     orderRepository as never,
@@ -108,8 +119,9 @@ function build(options: { enabled?: boolean; debt?: number } = {}) {
     transactionRepository as never,
     dataSource as never,
     settings as never,
+    notifier as never,
   );
-  return { service, manager, answers, orderRepository, tripRepository };
+  return { service, manager, answers, orderRepository, tripRepository, notifier };
 }
 
 const sqlCalls = (manager: { query: jest.Mock }) =>
@@ -150,6 +162,24 @@ describe('IntercityBookingsService.book', () => {
     expect(claim?.sql).toContain('"seats_taken" = 0');
     const insert = calls.find((call) => call.sql.includes('INSERT INTO "orders"'));
     expect(insert?.params).toEqual(expect.arrayContaining([100000, 4, 'whole_car']));
+  });
+
+  it("muvaffaqiyatli band — COMMIT'dan keyin haydovchiga xabar (bookingCreated)", async () => {
+    const { service, notifier } = build();
+    await service.book('pax-1', 'trip-1', dto(), NOW);
+    expect(notifier.bookingCreated).toHaveBeenCalledWith({
+      tripId: 'trip-1',
+      orderId: 'order-1',
+      seats: 2,
+      bookingKind: 'seat',
+    });
+  });
+
+  it("band rad etilsa xabar yuborilmaydi", async () => {
+    const { service, answers, notifier } = build();
+    answers.claimSeats = updated([]);
+    await expect(service.book('pax-1', 'trip-1', dto(), NOW)).rejects.toBeDefined();
+    expect(notifier.bookingCreated).not.toHaveBeenCalled();
   });
 
   it("joy qolmagan (UPDATE 0 qator) — 409 INTERCITY_SEATS_UNAVAILABLE, buyurtma yozilmaydi", async () => {
@@ -210,6 +240,17 @@ describe('IntercityBookingsService.cancel', () => {
     expect(release?.params).toEqual(['trip-1', 2, false, NOW]);
   });
 
+  it("bekor qilingach haydovchiga xabar (bookingCancelled) — qaytgan joylar bilan", async () => {
+    const { service, notifier } = build();
+    await service.cancel('pax-1', 'order-1', NOW);
+    expect(notifier.bookingCancelled).toHaveBeenCalledWith({
+      tripId: 'trip-1',
+      orderId: 'order-1',
+      seats: 2,
+      bookingKind: 'seat',
+    });
+  });
+
   it("jo'nashga 30 daqiqa qolganda — ruxsat, lekin kech bekor qilish belgisi yoziladi", async () => {
     const { service, manager } = build();
     await service.cancel('pax-1', 'order-1', new Date('2026-10-20T06:30:00.000Z'));
@@ -255,5 +296,68 @@ describe('IntercityBookingsService.listMine', () => {
     const { service } = build();
     const page = await service.listMine('pax-1', {}, new Date('2026-10-20T06:30:00.000Z'));
     expect(page.items[0].driverPhone).toBe('+998901112233');
+  });
+});
+
+describe('IntercityBookingsService.listForManage', () => {
+  it("qatnov bandlari yo'lovchi telefoni bilan, yaratilish tartibida", async () => {
+    const { service, orderRepository } = build();
+    const items = await service.listForManage('trip-1');
+
+    expect(items).toEqual([
+      expect.objectContaining({ orderId: 'order-1', passenger: { name: 'Jasur', phone: '+998901234567' }, seats: 2 }),
+    ]);
+    const [options] = orderRepository.find.mock.calls[0] as unknown as [
+      { where: Record<string, unknown>; order: Record<string, string>; relations: Record<string, unknown> },
+    ];
+    expect(options.where).toMatchObject({ intercityTripId: 'trip-1' });
+    expect(options.order).toEqual({ createdAt: 'ASC' });
+    expect(options.relations).toMatchObject({ passenger: true });
+  });
+
+  it('qatnov topilmasa — 404 INTERCITY_TRIP_NOT_FOUND', async () => {
+    const { service, tripRepository } = build();
+    tripRepository.findOne.mockResolvedValueOnce(null as never);
+    await expect(service.listForManage('missing')).rejects.toMatchObject({
+      response: { code: 'INTERCITY_TRIP_NOT_FOUND' },
+    });
+  });
+
+  it("flag o'chiq — 404", async () => {
+    const { service } = build({ enabled: false });
+    await expect(service.listForManage('trip-1')).rejects.toMatchObject({ response: { code: 'INTERCITY_DISABLED' } });
+  });
+});
+
+describe('IntercityBookingsService.cancelForManage', () => {
+  it("dispetcher: joylar qaytadi, kech bekor qilish belgisi QO'YILMAYDI, sabab yoziladi, ikkala tomonga xabar", async () => {
+    const { service, manager, notifier } = build();
+    await service.cancelForManage('order-1', 'Haydovchi kasal', new Date('2026-10-20T06:30:00.000Z'));
+
+    const calls = sqlCalls(manager);
+    const cancel = calls.find((call) => call.sql.includes('UPDATE "orders"'));
+    // Jo'nashga 30 daqiqa qolgan bo'lsa ham — yo'lovchi aybdor emas.
+    expect(cancel?.params).toEqual(expect.arrayContaining(['order-1', false]));
+    expect(cancel?.params?.some((param) => String(param).includes('Haydovchi kasal'))).toBe(true);
+    expect(calls.some((call) => call.sql.includes('GREATEST("seats_taken"'))).toBe(true);
+    expect(notifier.bookingCancelled).toHaveBeenCalledWith(expect.objectContaining({ tripId: 'trip-1', orderId: 'order-1' }));
+    expect(notifier.bookingCancelledByDispatcher).toHaveBeenCalledWith('pax-1', 'trip-1', 'order-1', 'Haydovchi kasal');
+  });
+
+  it("yig'ish boshlangan band — 409 INTERCITY_BOOKING_NOT_CANCELLABLE", async () => {
+    const { service, orderRepository, notifier } = build();
+    orderRepository.findOne.mockResolvedValueOnce({ id: 'order-1', status: OrderStatus.ACCEPTED, passengerId: 'pax-1' } as never);
+    await expect(service.cancelForManage('order-1', 'x', NOW)).rejects.toMatchObject({
+      response: { code: 'INTERCITY_BOOKING_NOT_CANCELLABLE' },
+    });
+    expect(notifier.bookingCancelled).not.toHaveBeenCalled();
+  });
+
+  it("yo'q band — 404", async () => {
+    const { service, orderRepository } = build();
+    orderRepository.findOne.mockResolvedValueOnce(null as never);
+    await expect(service.cancelForManage('order-x', 'x', NOW)).rejects.toMatchObject({
+      response: { code: 'INTERCITY_BOOKING_NOT_FOUND' },
+    });
   });
 });

@@ -25,6 +25,8 @@ import { CreateIntercityBookingDto } from './dto/create-intercity-booking.dto';
 import { evaluateBooking, isLateCancel, seatReleaseOf } from './intercity-booking-policy';
 import { IntercityBookingView, toIntercityBookingView } from './intercity-booking-view';
 import { claimSeats, claimWholeCar, releaseSeats, returnedRows } from './intercity-seat-ledger';
+import { IntercityNotifier } from './intercity-notifier';
+import { IntercityBookingManageView, toIntercityBookingManageView } from './intercity-booking-manage-view';
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -51,6 +53,15 @@ const TRIP_RELATIONS = {
   route: { originPoint: true, destinationPoint: true },
   driver: { user: true },
 } as const;
+
+interface ReleasedBooking {
+  intercity_trip_id: string;
+  seats: number | null;
+  booking_kind: IntercityBookingKind | null;
+}
+
+/** Dispetcher bekor qilganda buyurtmaga yoziladigan sabab prefiksi. */
+export const DISPATCHER_CANCELLED_BOOKING_REASON = 'Dispetcher bekor qildi';
 
 export interface IntercityBookingPage {
   items: IntercityBookingView[];
@@ -81,6 +92,7 @@ export class IntercityBookingsService {
     @InjectDataSource()
     private readonly dataSource: DataSource,
     private readonly settings: SettingsService,
+    private readonly notifier: IntercityNotifier,
   ) {}
 
   async book(
@@ -192,8 +204,15 @@ export class IntercityBookingsService {
       );
       return inserted[0].id;
     });
-    // TODO(intercity, 6-qadam): haydovchiga `intercity:booking:created` +
-    // push, qatnov kuzatuvchilariga `intercity:trip:updated`.
+    // COMMIT'dan KEYIN: haydovchi bandni ko'radi, boshqa qidiruvchilar —
+    // yangi bo'sh joylar sonini. Xabar yiqilsa ham band saqlangan (notifier
+    // xato tashlamaydi).
+    await this.notifier.bookingCreated({
+      tripId,
+      orderId,
+      seats: evaluation.seats,
+      bookingKind: dto.kind,
+    });
 
     this.logger.log(
       `Intercity band ${orderId}: qatnov ${tripId}, ${evaluation.seats} joy (${dto.kind}), ${evaluation.price} so'm`,
@@ -238,7 +257,81 @@ export class IntercityBookingsService {
     const departureAt = order.intercityTrip?.departureAt ?? order.scheduledAt ?? now;
     const late = isLateCancel(departureAt, now, settings.intercityFreeCancelMinutes);
 
-    await this.dataSource.transaction(async (manager) => {
+    const released = await this.releaseBooking(orderId, passengerId, PASSENGER_CANCELLED_BOOKING_REASON, late, now);
+    await this.notifier.bookingCancelled({
+      tripId: released.intercity_trip_id,
+      orderId,
+      seats: released.seats ?? 0,
+      bookingKind: released.booking_kind ?? IntercityBookingKind.SEAT,
+    });
+
+    if (late) {
+      this.logger.warn(`Intercity band ${orderId}: kech bekor qilindi (jo'nashga ${settings.intercityFreeCancelMinutes} daqiqadan kam)`);
+    }
+    return this.getView(orderId, passengerId, now);
+  }
+
+  /**
+   * Dispetcher yo'lovchining SCHEDULED bandini bekor qiladi (masalan,
+   * telefon orqali so'raldi). Yo'lovchi yo'li bilan AYNI tranzaksiya —
+   * joylar qaytadi; kech bekor qilish belgisi QO'YILMAYDI (yo'lovchi aybdor
+   * emas bo'lishi mumkin), sabab buyurtmaga yoziladi.
+   */
+  async cancelForManage(orderId: string, reason: string, now: Date = new Date()): Promise<IntercityBookingManageView> {
+    await this.assertEnabled();
+    const order = await this.orderRepository.findOne({
+      where: { id: orderId, serviceType: ServiceType.INTERCITY },
+    });
+    if (!order) throw this.bookingNotFound();
+    if (order.status !== OrderStatus.SCHEDULED) throw this.notCancellable(order.status);
+
+    const released = await this.releaseBooking(
+      orderId,
+      order.passengerId,
+      `${DISPATCHER_CANCELLED_BOOKING_REASON}: ${reason}`,
+      false,
+      now,
+    );
+    await this.notifier.bookingCancelled({
+      tripId: released.intercity_trip_id,
+      orderId,
+      seats: released.seats ?? 0,
+      bookingKind: released.booking_kind ?? IntercityBookingKind.SEAT,
+    });
+    await this.notifier.bookingCancelledByDispatcher(order.passengerId, released.intercity_trip_id, orderId, reason);
+
+    const reloaded = await this.orderRepository.findOne({ where: { id: orderId }, relations: { passenger: true } });
+    return toIntercityBookingManageView(reloaded ?? order);
+  }
+
+  /** Dispetcher: qatnovning BARCHA bandlari (bekor qilinganlari ham), yo'lovchi telefoni bilan. */
+  async listForManage(tripId: string): Promise<IntercityBookingManageView[]> {
+    await this.assertEnabled();
+    const trip = await this.tripRepository.findOne({ where: { id: tripId }, select: { id: true } });
+    if (!trip) throw codedNotFound(ERROR_CODES.intercityTripNotFound, 'Qatnov topilmadi');
+    const orders = await this.orderRepository.find({
+      where: { intercityTripId: tripId, serviceType: ServiceType.INTERCITY },
+      relations: { passenger: true },
+      order: { createdAt: 'ASC' },
+    });
+    return orders.map(toIntercityBookingManageView);
+  }
+
+  // ---------------------------------------------------------------- ichki
+
+  /**
+   * SCHEDULED bandni bekor qiladi va joylarni qaytaradi — BITTA tranzaksiyada:
+   * aks holda joy "yo'qolib" qolardi yoki ikki marta qaytardi. Yo'lovchi va
+   * dispetcher yo'llari shu bitta joydan o'tadi.
+   */
+  private releaseBooking(
+    orderId: string,
+    passengerId: string,
+    reason: string,
+    late: boolean,
+    now: Date,
+  ): Promise<ReleasedBooking> {
+    return this.dataSource.transaction(async (manager) => {
       const rows = returnedRows<{ intercity_trip_id: string; seats: number | null; booking_kind: IntercityBookingKind | null }>(
         await manager.query(
           `UPDATE "orders"
@@ -252,7 +345,7 @@ export class IntercityBookingsService {
             orderId,
             passengerId,
             OrderStatus.CANCELLED,
-            PASSENGER_CANCELLED_BOOKING_REASON,
+            reason,
             late,
             JSON.stringify([INTERCITY_LATE_CANCEL_SIGNAL]),
           ],
@@ -267,16 +360,9 @@ export class IntercityBookingsService {
         seatReleaseOf({ bookingKind: row.booking_kind, seats: row.seats }),
         now,
       );
+      return row;
     });
-    // TODO(intercity, 6-qadam): haydovchiga `intercity:booking:cancelled`.
-
-    if (late) {
-      this.logger.warn(`Intercity band ${orderId}: kech bekor qilindi (jo'nashga ${settings.intercityFreeCancelMinutes} daqiqadan kam)`);
-    }
-    return this.getView(orderId, passengerId, now);
   }
-
-  // ---------------------------------------------------------------- ichki
 
   private async assertNoActiveBooking(manager: EntityManager, tripId: string, passengerId: string): Promise<void> {
     const existing = returnedRows<{ id: string }>(

@@ -33,6 +33,29 @@ describe('IntercityTripsController', () => {
     expect(reflector.get(PERMISSIONS_KEY, proto.listForManage)).toEqual([Permission.DISPATCH]);
   });
 
+  it('qatnov bandlari (menejer) — menejer/admin + DISPATCH, GET trips/:id/bookings/manage', async () => {
+    expect(reflector.get(ROLES_KEY, proto.listBookingsForManage)).toEqual([UserRole.MANAGER, UserRole.ADMIN]);
+    expect(reflector.get(PERMISSIONS_KEY, proto.listBookingsForManage)).toEqual([Permission.DISPATCH]);
+    expect(reflector.get(PATH_METADATA, proto.listBookingsForManage)).toBe('trips/:id/bookings/manage');
+
+    const bookings = { listForManage: jest.fn().mockResolvedValue(['b']) };
+    const controller = new IntercityTripsController({} as never, bookings as never);
+    await expect(controller.listBookingsForManage('t1')).resolves.toEqual(['b']);
+    expect(bookings.listForManage).toHaveBeenCalledWith('t1');
+  });
+
+  it('bandni dispetcher bekor qiladi — menejer/admin + DISPATCH, POST bookings/:orderId/cancel/manage', async () => {
+    expect(reflector.get(ROLES_KEY, proto.cancelBookingForManage)).toEqual([UserRole.MANAGER, UserRole.ADMIN]);
+    expect(reflector.get(PERMISSIONS_KEY, proto.cancelBookingForManage)).toEqual([Permission.DISPATCH]);
+    expect(reflector.get(PATH_METADATA, proto.cancelBookingForManage)).toBe('bookings/:orderId/cancel/manage');
+    expect(reflector.get(METHOD_METADATA, proto.cancelBookingForManage)).toBe(1); // POST
+
+    const bookings = { cancelForManage: jest.fn().mockResolvedValue('cancelled') };
+    const controller = new IntercityTripsController({} as never, bookings as never);
+    await expect(controller.cancelBookingForManage('o1', { reason: 'Telefon orqali' })).resolves.toBe('cancelled');
+    expect(bookings.cancelForManage).toHaveBeenCalledWith('o1', 'Telefon orqali');
+  });
+
   it("literal yo'llar `trips/:id` dan OLDIN e'lon qilingan (marshrut to'qnashmasin)", () => {
     const getPaths = Object.getOwnPropertyNames(proto)
       .filter((name) => name !== 'constructor')
@@ -50,7 +73,7 @@ describe('IntercityTripsController', () => {
       cancelByDriver: jest.fn().mockResolvedValue('cancelled'),
       search: jest.fn().mockResolvedValue('found'),
     };
-    const controller = new IntercityTripsController(trips as never);
+    const controller = new IntercityTripsController(trips as never, {} as never);
     const user = { id: 'user-1' } as never;
     const dto = { routeId: 'r1', departureAt: '2026-10-18T02:00:00.000Z', tripClass: IntercityTripClass.START };
 

@@ -50,6 +50,12 @@ function build(
   const dataSource = { transaction: jest.fn(async (cb: (m: typeof manager) => unknown) => cb(manager)) };
   const settings = { isIntercityEnabled: jest.fn(async () => true) };
   const trips = { getView: jest.fn(async () => ({ id: 'trip-1' })) };
+  const notifier = {
+    boardingStarted: jest.fn(async () => undefined),
+    departed: jest.fn(async () => undefined),
+    noShow: jest.fn(async () => undefined),
+    tripCancelled: jest.fn(async () => undefined),
+  };
   const service = new IntercityLifecycleService(
     tripRepository as never,
     orderRepository as never,
@@ -57,8 +63,9 @@ function build(
     dataSource as never,
     settings as never,
     trips as never,
+    notifier as never,
   );
-  return { service, manager, orderRepository, tripRepository };
+  return { service, manager, orderRepository, tripRepository, notifier };
 }
 
 const sqls = (manager: { query: jest.Mock }) =>
@@ -103,6 +110,54 @@ describe('IntercityLifecycleService.startBoarding', () => {
   });
 });
 
+describe('IntercityLifecycleService — xabarlar COMMIT dan keyin', () => {
+  it("startBoarding → boardingStarted", async () => {
+    const { service, notifier } = build();
+    await service.startBoarding('driver-user-1', 'trip-1', IN_WINDOW);
+    expect(notifier.boardingStarted).toHaveBeenCalledWith('trip-1');
+  });
+
+  it("rad etilgan startBoarding — xabar yo'q", async () => {
+    const { service, notifier } = build({ busyCityOrders: 1 });
+    await expect(service.startBoarding('driver-user-1', 'trip-1', IN_WINDOW)).rejects.toBeDefined();
+    expect(notifier.boardingStarted).not.toHaveBeenCalled();
+  });
+
+  it("depart → departed", async () => {
+    const { service, notifier } = build({
+      trip: { status: IntercityTripStatus.BOARDING },
+      bookings: [{ id: 'order-1', status: OrderStatus.ARRIVED }],
+    });
+    await service.depart('driver-user-1', 'trip-1', IN_WINDOW);
+    expect(notifier.departed).toHaveBeenCalledWith('trip-1');
+  });
+
+  it("markNoShow, boshqa yo'lovchilar bor → noShow, qatnov yopilmaydi", async () => {
+    const { service, notifier, manager } = build({ trip: { status: IntercityTripStatus.BOARDING } });
+    manager.query.mockImplementation(async (sql: string) => {
+      if (sql.includes('UPDATE "intercity_trips"')) return [[], 0];
+      if (sql.includes('UPDATE "orders"')) return [[{ id: 'order-1' }], 1];
+      throw new Error(`unexpected SQL ${sql}`);
+    });
+    await service.markNoShow('driver-user-1', 'order-1', IN_WINDOW);
+    expect(notifier.noShow).toHaveBeenCalledWith('trip-1');
+    expect(notifier.tripCancelled).not.toHaveBeenCalled();
+  });
+
+  it("markNoShow oxirgi tirik bandda → qatnov SHU tranzaksiyada 'no_passengers' bilan yopiladi", async () => {
+    const { service, notifier, manager } = build({ trip: { status: IntercityTripStatus.BOARDING } });
+    await service.markNoShow('driver-user-1', 'order-1', IN_WINDOW);
+
+    const close = sqls(manager).find((c) => c.sql.includes('UPDATE "intercity_trips"'));
+    expect(close?.sql).toContain(`"status" = 'boarding'`);
+    expect(close?.sql).toContain('NOT EXISTS');
+    expect(close?.sql).toContain("NOT IN ('completed', 'cancelled')");
+    expect(close?.params).toEqual(['trip-1', 'no_passengers', IN_WINDOW]);
+    expect(notifier.tripCancelled).toHaveBeenCalledWith('trip-1', 'no_passengers', [], 'system');
+    expect(notifier.noShow).not.toHaveBeenCalled();
+  });
+});
+
 describe('IntercityLifecycleService.depart', () => {
   it("hamma olingan: qatnov → in_progress, ARRIVED bandlar → IN_PROGRESS + safar yozuvi", async () => {
     const { service, manager } = build({
@@ -140,7 +195,6 @@ describe('IntercityLifecycleService.markNoShow', () => {
     const { service, manager } = build({ trip: { status: IntercityTripStatus.BOARDING } });
     await service.markNoShow('driver-user-1', 'order-1', IN_WINDOW);
     const calls = sqls(manager);
-    expect(calls).toHaveLength(1);
     expect(calls[0].sql).toContain('UPDATE "orders"');
     expect(calls[0].sql).toContain(`"status" IN ('accepted', 'arrived')`);
     expect(calls.some((c) => c.sql.includes('"seats_taken"'))).toBe(false);

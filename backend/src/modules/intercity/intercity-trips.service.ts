@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { Between, DataSource, FindOptionsWhere, In, Repository } from 'typeorm';
+import { And, DataSource, FindOperator, FindOptionsWhere, In, LessThan, MoreThanOrEqual, Repository } from 'typeorm';
 import {
   ERROR_CODES,
   codedBadRequest,
@@ -21,9 +21,16 @@ import { CancelIntercityTripDto } from './dto/cancel-intercity-trip.dto';
 import { ManageIntercityTripsQueryDto } from './dto/manage-intercity-trips-query.dto';
 import { PublishIntercityTripDto } from './dto/publish-intercity-trip.dto';
 import { IntercityDriverGate } from './intercity-driver-gate';
+import { IntercityNotifier } from './intercity-notifier';
 import { parseTashkentDate, tashkentDayRange } from './intercity-time';
 import { evaluateTripPublish, findOverlappingDeparture } from './intercity-trip-policy';
-import { IntercityTripView, toIntercityTripView } from './intercity-trip-view';
+import {
+  IntercityTripManageView,
+  IntercityTripView,
+  IntercityTripWithRelations,
+  toIntercityTripManageView,
+  toIntercityTripView,
+} from './intercity-trip-view';
 import { returnedRows } from './intercity-seat-ledger';
 
 /**
@@ -64,6 +71,23 @@ export interface IntercityTripPage {
   limit: number;
 }
 
+/** Menejer ro'yxati — haydovchi telefoni bilan (`toIntercityTripManageView`). */
+export interface IntercityTripManagePage {
+  items: IntercityTripManageView[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+/**
+ * Toshkent kuni oralig'i — YARIM OCHIQ [boshi, oxiri). `Between` ikkala
+ * chegarani ham kiritadi: ertasi 00:00 dagi qatnov ikki kunning ro'yxatida
+ * chiqardi.
+ */
+function withinDay(from: Date, to: Date): FindOperator<Date> {
+  return And(MoreThanOrEqual(from), LessThan(to));
+}
+
 /**
  * Shaharlararo qatnovlar: haydovchi e'lon qiladi, yo'lovchi qidiradi.
  *
@@ -84,6 +108,7 @@ export class IntercityTripsService {
     private readonly dataSource: DataSource,
     private readonly settings: SettingsService,
     private readonly gate: IntercityDriverGate,
+    private readonly notifier: IntercityNotifier,
   ) {}
 
   // ---------------------------------------------------------------- haydovchi
@@ -185,7 +210,7 @@ export class IntercityTripsService {
     const driver = await this.driverRepository.findOne({ where: { userId } });
     if (!driver) throw new NotFoundException('Driver profile not found');
 
-    const cancelled = await this.dataSource.transaction(async (manager) => {
+    const cancelled = await this.dataSource.transaction(async (manager): Promise<string[] | null> => {
       // ⚠️ `returnedRows`: UPDATE ... RETURNING natijasi `[rows, count]` —
       // `result.length === 0` bu yerda hech qachon rost bo'lmasdi va yo'lga
       // chiqqan qatnovning bandlari ham jimgina bekor qilinardi.
@@ -198,21 +223,26 @@ export class IntercityTripsService {
           [tripId, driver.id, reason, now],
         ),
       );
-      if (rows.length === 0) return false;
-      await manager.query(
-        `UPDATE "orders"
-            SET "status" = $2, "cancel_reason" = $3, "updated_at" = now()
-          WHERE "intercity_trip_id" = $1 AND "status" NOT IN (${FINISHED_ORDER_STATUSES.map(
-            (_, index) => `$${index + 4}`,
-          ).join(', ')})`,
-        [tripId, OrderStatus.CANCELLED, DRIVER_CANCELLED_BOOKING_REASON, ...FINISHED_ORDER_STATUSES],
+      if (rows.length === 0) return null;
+      const closedBookings = returnedRows<{ passenger_id: string }>(
+        await manager.query(
+          `UPDATE "orders"
+              SET "status" = $2, "cancel_reason" = $3, "updated_at" = now()
+            WHERE "intercity_trip_id" = $1 AND "status" NOT IN (${FINISHED_ORDER_STATUSES.map(
+              (_, index) => `$${index + 4}`,
+            ).join(', ')})
+            RETURNING "passenger_id"`,
+          [tripId, OrderStatus.CANCELLED, DRIVER_CANCELLED_BOOKING_REASON, ...FINISHED_ORDER_STATUSES],
+        ),
       );
-      return true;
+      return closedBookings.map((booking) => booking.passenger_id);
     });
-    // TODO(intercity, 6-qadam): bandi bekor bo'lgan yo'lovchilarga push +
-    // `intercity:trip:cancelled` hodisasi.
 
-    if (!cancelled) {
+    if (cancelled) {
+      // Tranzaksiyadan keyin bu yo'lovchilar endi "faol" emas — ro'yxat shu
+      // UPDATE ning o'zidan olinadi.
+      await this.notifier.tripCancelled(tripId, reason, cancelled, 'driver');
+    } else {
       const existing = await this.tripRepository.findOne({ where: { id: tripId, driverId: driver.id } });
       if (!existing) throw this.notFound();
       throw codedConflict(
@@ -240,7 +270,7 @@ export class IntercityTripsService {
       where: {
         routeId,
         status: IntercityTripStatus.OPEN,
-        departureAt: Between(earliest, to),
+        departureAt: withinDay(earliest, to),
       },
       relations: TRIP_RELATIONS,
       order: { departureAt: 'ASC' },
@@ -255,27 +285,30 @@ export class IntercityTripsService {
 
   // ---------------------------------------------------------------- menejer
 
-  async listForManage(query: ManageIntercityTripsQueryDto): Promise<IntercityTripPage> {
+  async listForManage(query: ManageIntercityTripsQueryDto): Promise<IntercityTripManagePage> {
     await this.assertEnabled();
     const where: FindOptionsWhere<IntercityTrip> = {
       ...(query.status ? { status: query.status } : {}),
       ...(query.date && parseTashkentDate(query.date)
         ? (() => {
             const { from, to } = tashkentDayRange(query.date);
-            return { departureAt: Between(from, to) };
+            return { departureAt: withinDay(from, to) };
           })()
         : {}),
     };
-    return this.page(where, query, 'ASC');
+    return this.page(where, query, 'ASC', toIntercityTripManageView);
   }
 
   // ---------------------------------------------------------------- ichki
 
-  private async page(
+  private async page<V = IntercityTripView>(
     where: FindOptionsWhere<IntercityTrip>,
     pagination: { page?: number; limit?: number },
     direction: 'ASC' | 'DESC',
-  ): Promise<IntercityTripPage> {
+    toView: (trip: IntercityTripWithRelations) => V = toIntercityTripView as unknown as (
+      trip: IntercityTripWithRelations,
+    ) => V,
+  ): Promise<{ items: V[]; total: number; page: number; limit: number }> {
     const page = Math.max(1, pagination.page ?? 1);
     const limit = pagination.limit ?? DEFAULT_PAGE_SIZE;
     const [rows, total] = await this.tripRepository.findAndCount({
@@ -285,7 +318,7 @@ export class IntercityTripsService {
       skip: (page - 1) * limit,
       take: limit,
     });
-    return { items: rows.map(toIntercityTripView), total, page, limit };
+    return { items: rows.map(toView), total, page, limit };
   }
 
   async getView(tripId: string): Promise<IntercityTripView> {
