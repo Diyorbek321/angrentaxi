@@ -16,6 +16,7 @@ import {
   useToast,
 } from '@/components/ui';
 import { settingsApi, type GlobalSettings } from '@/lib/api';
+import { validateDeliverySettings } from '@/lib/delivery-settings';
 
 const EMPTY_FORM: GlobalSettings = {
   platformName: '',
@@ -23,6 +24,10 @@ const EMPTY_FORM: GlobalSettings = {
   supportEmail: '',
   maintenanceMode: false,
   maxCashVendorOrder: 200000,
+  deliveryFee: 7000,
+  freeDeliveryFrom: 0,
+  deliveryEtaMinMinutes: 30,
+  deliveryEtaMaxMinutes: 50,
 };
 
 type FieldErrors = Partial<Record<keyof GlobalSettings, string>>;
@@ -74,7 +79,7 @@ export default function GlobalSettingsPage() {
     if (!Number.isFinite(values.maxCashVendorOrder) || values.maxCashVendorOrder < 0) {
       errors.maxCashVendorOrder = "Musbat summa kiriting (0 — cheklanmagan)";
     }
-    return errors;
+    return { ...errors, ...validateDeliverySettings(values) };
   };
 
   const update = <K extends keyof GlobalSettings>(key: K, value: GlobalSettings[K]) => {
@@ -176,6 +181,62 @@ export default function GlobalSettingsPage() {
                   onChange={(e) => update('maxCashVendorOrder', Number(e.target.value))}
                   wrapperClassName="max-w-xs"
                 />
+              </CardBody>
+            </Card>
+
+            {/* Mijoz ilovasi: "Yetkazish 7 000 soʻm · 30–50 daq · 100 000 soʻmdan bepul".
+                Bepul chegara aksiyadan keyingi tovar summasiga qaraydi (backend
+                settings/delivery-pricing.ts). */}
+            <Card padding="none">
+              <CardHeader title="Ovqat va market: yetkazish" divider />
+              <CardBody className="space-y-4 pt-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Input
+                    label="Yetkazish haqi, soʻm"
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    step={500}
+                    value={String(form.deliveryFee)}
+                    error={fieldErrors.deliveryFee}
+                    onChange={(e) => update('deliveryFee', Number(e.target.value))}
+                  />
+                  <Input
+                    label="Bepul yetkazish chegarasi (soʻm, 0 — oʻchiq)"
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    step={1000}
+                    value={String(form.freeDeliveryFrom)}
+                    error={fieldErrors.freeDeliveryFrom}
+                    hint="Tovar summasi (aksiyadan keyin, promokoddan oldin) shunga yetsa yetkazish bepul."
+                    onChange={(e) => update('freeDeliveryFrom', Number(e.target.value))}
+                  />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Input
+                    label="Yetkazish vaqti, eng kami (daq)"
+                    type="number"
+                    inputMode="numeric"
+                    min={5}
+                    max={240}
+                    step={5}
+                    value={String(form.deliveryEtaMinMinutes)}
+                    error={fieldErrors.deliveryEtaMinMinutes}
+                    onChange={(e) => update('deliveryEtaMinMinutes', Number(e.target.value))}
+                  />
+                  <Input
+                    label="Yetkazish vaqti, eng koʻpi (daq)"
+                    type="number"
+                    inputMode="numeric"
+                    min={5}
+                    max={240}
+                    step={5}
+                    value={String(form.deliveryEtaMaxMinutes)}
+                    error={fieldErrors.deliveryEtaMaxMinutes}
+                    onChange={(e) => update('deliveryEtaMaxMinutes', Number(e.target.value))}
+                  />
+                </div>
               </CardBody>
             </Card>
 

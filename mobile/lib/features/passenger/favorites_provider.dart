@@ -1,6 +1,7 @@
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/shared/models/address_details.dart';
 import 'package:angren_taxi/shared/models/favorite_address.dart';
 import 'package:flutter/foundation.dart';
 
@@ -51,6 +52,7 @@ class FavoritesProvider extends ChangeNotifier {
     required String address,
     required double lat,
     required double lng,
+    AddressDetails? addressDetails,
   }) async {
     try {
       final response = await _apiClient.post(
@@ -60,6 +62,9 @@ class FavoritesProvider extends ChangeNotifier {
           'address': address,
           'lat': lat,
           'lng': lng,
+          // Bo'sh tafsilot yuborilmaydi — eski server maydonni bilmaydi.
+          if (addressDetails != null && !addressDetails.isEmpty)
+            'addressDetails': addressDetails.toJson(),
         },
       );
       final data = response.data as Map<String, dynamic>;

@@ -15,6 +15,7 @@ import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
 import 'package:angren_taxi/features/notifications/notifications_provider.dart';
+import 'package:angren_taxi/features/passenger/favorites_provider.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
 import 'package:angren_taxi/features/superapp/models/cart_item.dart';
 import 'package:angren_taxi/features/superapp/screens/cart_screen.dart';
@@ -189,6 +190,7 @@ void main() {
         providers: [
           ChangeNotifierProvider<FoodProvider>.value(value: food),
           ChangeNotifierProvider<MarketProvider>.value(value: market),
+          ChangeNotifierProvider<FavoritesProvider>(create: (_) => FavoritesProvider(apiClient: api)),
           ChangeNotifierProvider<SuperappProvider>.value(value: superapp),
           ChangeNotifierProvider<OrderProvider>.value(value: orders),
           ChangeNotifierProvider<NotificationsProvider>.value(value: notifications),

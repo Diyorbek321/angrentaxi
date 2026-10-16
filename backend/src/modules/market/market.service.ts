@@ -45,6 +45,7 @@ import { SettingsService } from '../settings/settings.service';
 import { clampPageSize } from '../../common/utils/pagination.util';
 import { DeliveryEvent, DeliveryEventsService } from '../delivery/delivery-events.service';
 import { checkoutDeliveryFee, deliveryRideDetails } from '../delivery/delivery-ride-details';
+import { appliedDeliveryFee } from '../settings/delivery-pricing';
 import { courierTracking } from '../delivery/delivery-tracking';
 import { assertCashWithinLimit } from '../delivery/vendor-cash';
 import { PromotionsService } from '../promotions/promotions.service';
@@ -903,8 +904,13 @@ export class MarketService implements OnModuleInit {
     // the recorded total. It used to exist only as a client-side constant in
     // the app, which meant the checkout screen showed one figure and the
     // order row, the vendor board and the receipt all showed a smaller one.
+    //
+    // Bepul yetkazish (docs/specs/food-market-ux-v5.md §7): chegara aksiyadan
+    // KEYINGI, promokoddan OLDINGI tovar summasiga qaraydi. Qo'llangan haq
+    // `totalPrice` ga kiradi — kuryer safari, chek va JSON'dagi `deliveryFee`
+    // shundan (`checkoutDeliveryFee`) olinadi, ya'ni bepulda hammasi 0.
     const itemsTotal = priced.itemsTotal;
-    const deliveryFee = await this.settingsService.getDeliveryFee();
+    const deliveryFee = appliedDeliveryFee(await this.settingsService.getDeliveryPricing(), itemsTotal);
     const totalPrice = itemsTotal + deliveryFee;
 
     // Naqd chegarasi ZAXIRAGA TEGISHDAN OLDIN: rad etilgan buyurtma

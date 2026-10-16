@@ -4136,6 +4136,24 @@ abstract class AppLocalizations {
   /// **'Domofon'**
   String get saAddressIntercom;
 
+  /// No description provided for @saAddressLabelHome.
+  ///
+  /// In uz, this message translates to:
+  /// **'Uy'**
+  String get saAddressLabelHome;
+
+  /// No description provided for @saAddressLabelParents.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ota-onam'**
+  String get saAddressLabelParents;
+
+  /// No description provided for @saAddressLabelWork.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ish'**
+  String get saAddressLabelWork;
+
   /// No description provided for @saAddressLandmark.
   ///
   /// In uz, this message translates to:
@@ -4153,6 +4171,18 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Manzil aniqlanmoqda…'**
   String get saAddressResolving;
+
+  /// No description provided for @saAddressSaveFailed.
+  ///
+  /// In uz, this message translates to:
+  /// **'Manzilni saqlab bo\'lmadi: {message}'**
+  String saAddressSaveFailed(String message);
+
+  /// No description provided for @saAddressSaved.
+  ///
+  /// In uz, this message translates to:
+  /// **'Manzil saqlandi — keyingi safar bir bosishda tanlanadi'**
+  String get saAddressSaved;
 
   /// No description provided for @saAngrenCity.
   ///
@@ -4526,11 +4556,35 @@ abstract class AppLocalizations {
   /// **'Yetkazib berish manzili'**
   String get saDeliveryAddress;
 
+  /// No description provided for @saDeliveryEta.
+  ///
+  /// In uz, this message translates to:
+  /// **'{min}–{max} daq'**
+  String saDeliveryEta(int min, int max);
+
+  /// No description provided for @saDeliveryFree.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bepul'**
+  String get saDeliveryFree;
+
+  /// No description provided for @saDeliveryInfoLabel.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yetkazish {fee}, {eta}'**
+  String saDeliveryInfoLabel(String fee, String eta);
+
   /// No description provided for @saDestination.
   ///
   /// In uz, this message translates to:
   /// **'Manzil'**
   String get saDestination;
+
+  /// No description provided for @saDialogCancel.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bekor'**
+  String get saDialogCancel;
 
   /// No description provided for @saDiscountLine.
   ///
@@ -4645,6 +4699,24 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Ovqat yetkazish'**
   String get saFoodTitle;
+
+  /// No description provided for @saFreeDeliveryFrom.
+  ///
+  /// In uz, this message translates to:
+  /// **'{amount} dan bepul yetkazish'**
+  String saFreeDeliveryFrom(String amount);
+
+  /// No description provided for @saFreeDeliveryReached.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yetkazish bepul!'**
+  String get saFreeDeliveryReached;
+
+  /// No description provided for @saFreeDeliveryRemaining.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bepul yetkazishgacha yana {amount}'**
+  String saFreeDeliveryRemaining(String amount);
 
   /// No description provided for @saGoToCart.
   ///
@@ -5324,6 +5396,54 @@ abstract class AppLocalizations {
   /// **'Yangilash'**
   String get saRefresh;
 
+  /// No description provided for @saReorderAction.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yana buyurtma qilish'**
+  String get saReorderAction;
+
+  /// No description provided for @saReorderLoading.
+  ///
+  /// In uz, this message translates to:
+  /// **'Menyu tekshirilmoqda…'**
+  String get saReorderLoading;
+
+  /// No description provided for @saReorderNothingAvailable.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bu buyurtmadagi mahsulotlar hozir mavjud emas'**
+  String get saReorderNothingAvailable;
+
+  /// No description provided for @saReorderPartial.
+  ///
+  /// In uz, this message translates to:
+  /// **'{count} ta mahsulot hozir yo\'q yoki kamroq — qolganlari savatga qo\'shildi'**
+  String saReorderPartial(int count);
+
+  /// No description provided for @saReorderReplaceConfirm.
+  ///
+  /// In uz, this message translates to:
+  /// **'Almashtirish'**
+  String get saReorderReplaceConfirm;
+
+  /// No description provided for @saReorderReplaceMessage.
+  ///
+  /// In uz, this message translates to:
+  /// **'Savatdagi joriy mahsulotlar o\'chiriladi va o\'rniga shu buyurtma qo\'yiladi.'**
+  String get saReorderReplaceMessage;
+
+  /// No description provided for @saReorderReplaceTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Savat almashtirilsinmi?'**
+  String get saReorderReplaceTitle;
+
+  /// No description provided for @saReorderUnavailable.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bu joy hozir buyurtma qabul qilmayapti'**
+  String get saReorderUnavailable;
+
   /// No description provided for @saRestaurantNotFound.
   ///
   /// In uz, this message translates to:
@@ -5335,6 +5455,30 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Restoranlar topilmadi'**
   String get saRestaurantsNotFound;
+
+  /// No description provided for @saSave.
+  ///
+  /// In uz, this message translates to:
+  /// **'Saqlash'**
+  String get saSave;
+
+  /// No description provided for @saSaveAddressAction.
+  ///
+  /// In uz, this message translates to:
+  /// **'Saqlash'**
+  String get saSaveAddressAction;
+
+  /// No description provided for @saSaveAddressHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Nomi, masalan: Uy'**
+  String get saSaveAddressHint;
+
+  /// No description provided for @saSaveAddressTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Manzilni saqlash'**
+  String get saSaveAddressTitle;
 
   /// No description provided for @saSavedAddresses.
   ///

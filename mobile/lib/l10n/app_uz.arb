@@ -1454,9 +1454,21 @@
   "saAddressEntrance": "Podyezd",
   "saAddressFloor": "Qavat",
   "saAddressIntercom": "Domofon",
+  "saAddressLabelHome": "Uy",
+  "saAddressLabelParents": "Ota-onam",
+  "saAddressLabelWork": "Ish",
   "saAddressLandmark": "Mo'ljal",
   "saAddressLandmarkHint": "Masalan: maktab yonida, yashil darvoza",
   "saAddressResolving": "Manzil aniqlanmoqda…",
+  "saAddressSaveFailed": "Manzilni saqlab bo'lmadi: {message}",
+  "@saAddressSaveFailed": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "saAddressSaved": "Manzil saqlandi — keyingi safar bir bosishda tanlanadi",
   "saAngrenCity": "Angren shahri",
   "saBack": "Orqaga",
   "saBackToHome": "Bosh sahifaga",
@@ -1602,7 +1614,31 @@
   "saDefaultUserName": "Foydalanuvchi",
   "saDelivery": "Yetkazib berish",
   "saDeliveryAddress": "Yetkazib berish manzili",
+  "saDeliveryEta": "{min}–{max} daq",
+  "@saDeliveryEta": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "saDeliveryFree": "Bepul",
+  "saDeliveryInfoLabel": "Yetkazish {fee}, {eta}",
+  "@saDeliveryInfoLabel": {
+    "placeholders": {
+      "fee": {
+        "type": "String"
+      },
+      "eta": {
+        "type": "String"
+      }
+    }
+  },
   "saDestination": "Manzil",
+  "saDialogCancel": "Bekor",
   "saDiscountLine": "Chegirma",
   "saDishesCount": "{count} ta taom",
   "@saDishesCount": {
@@ -1629,6 +1665,23 @@
   "saFoodNoRestaurantsTitle": "Restoran topilmadi",
   "saFoodSubtitle": "Angren · 20–40 daqiqa",
   "saFoodTitle": "Ovqat yetkazish",
+  "saFreeDeliveryFrom": "{amount} dan bepul yetkazish",
+  "@saFreeDeliveryFrom": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "saFreeDeliveryReached": "Yetkazish bepul!",
+  "saFreeDeliveryRemaining": "Bepul yetkazishgacha yana {amount}",
+  "@saFreeDeliveryRemaining": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "saGoToCart": "Savatga o'tish",
   "saGoToHome": "Bosh sahifaga o'tish",
   "saHelpCenter": "Yordam markazi",
@@ -1857,8 +1910,27 @@
   "saQtyDecrease": "Miqdorni kamaytirish",
   "saQtyIncrease": "Miqdorni oshirish",
   "saRefresh": "Yangilash",
+  "saReorderAction": "Yana buyurtma qilish",
+  "saReorderLoading": "Menyu tekshirilmoqda…",
+  "saReorderNothingAvailable": "Bu buyurtmadagi mahsulotlar hozir mavjud emas",
+  "saReorderPartial": "{count} ta mahsulot hozir yo'q yoki kamroq — qolganlari savatga qo'shildi",
+  "@saReorderPartial": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "saReorderReplaceConfirm": "Almashtirish",
+  "saReorderReplaceMessage": "Savatdagi joriy mahsulotlar o'chiriladi va o'rniga shu buyurtma qo'yiladi.",
+  "saReorderReplaceTitle": "Savat almashtirilsinmi?",
+  "saReorderUnavailable": "Bu joy hozir buyurtma qabul qilmayapti",
   "saRestaurantNotFound": "Restoran topilmadi",
   "saRestaurantsNotFound": "Restoranlar topilmadi",
+  "saSave": "Saqlash",
+  "saSaveAddressAction": "Saqlash",
+  "saSaveAddressHint": "Nomi, masalan: Uy",
+  "saSaveAddressTitle": "Manzilni saqlash",
   "saSavedAddresses": "Saqlangan manzillar",
   "saSearch": "Qidiruv",
   "saSearchClear": "Qidiruvni tozalash",

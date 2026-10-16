@@ -86,7 +86,10 @@ describe('MarketService — bounded vendor queries', () => {
         // tests never create an order, so a fixed value is enough.
         {
           provide: SettingsService,
-          useValue: { getDeliveryFee: jest.fn().mockResolvedValue(7000) },
+          useValue: {
+            getDeliveryFee: jest.fn().mockResolvedValue(7000),
+            getDeliveryPricing: jest.fn().mockResolvedValue({ deliveryFee: 7000, freeDeliveryFrom: 0 }),
+          },
         },
       ],
     }).compile();

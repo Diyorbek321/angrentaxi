@@ -287,6 +287,13 @@ export interface GlobalSettings {
   maintenanceMode: boolean;
   /** Naqd ovqat/market buyurtmasi chegarasi, so'm. 0 — cheklanmagan. */
   maxCashVendorOrder: number;
+  /** Ovqat/market yetkazish haqi, so'm. */
+  deliveryFee: number;
+  /** Bepul yetkazish chegarasi, so'm (aksiyadan keyingi tovar summasi); 0 — o'chiq. */
+  freeDeliveryFrom: number;
+  /** Yetkazish vaqti oralig'i, daqiqa (5–240, eng kami ≤ eng ko'pi). */
+  deliveryEtaMinMinutes: number;
+  deliveryEtaMaxMinutes: number;
 }
 
 export const settingsApi = {

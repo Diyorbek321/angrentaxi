@@ -72,6 +72,7 @@ describe('FoodService — UX v5', () => {
     const ordersService = { findByIdOrThrow: jest.fn().mockResolvedValue({ id: 'ride-1', driverId: 'courier-1' }) };
     const settingsService = {
       getDeliveryFee: jest.fn().mockResolvedValue(7000),
+      getDeliveryPricing: jest.fn().mockResolvedValue({ deliveryFee: 7000, freeDeliveryFrom: 0 }),
       getMaxCashVendorOrder: jest.fn().mockResolvedValue(0),
     };
     const promotionsService = {
@@ -104,6 +105,7 @@ describe('FoodService — UX v5', () => {
     );
     return {
       service,
+      settingsService,
       orderRepo,
       transactionRepo,
       realtimeGateway,
@@ -146,12 +148,32 @@ describe('FoodService — UX v5', () => {
       expect(order.promoCode).toBe('OSH10');
       expect(order.promoDiscount).toBe(5300);
       expect(order.payableTotal).toBe(54700);
+      expect(order.deliveryFee).toBe(7000);
       expect(order.canCancel).toBe(true);
       expect(order.addressDetails).toEqual({ entrance: '2', floor: '4', courierNote: "Qo'ng'iroq qiling" });
       expect(promoCodesService.claimForVendorOrder).toHaveBeenCalledWith('pc-1', 'cust-1', {
         kind: 'food',
         id: order.id,
       });
+    });
+
+    it("bepul yetkazish (§7): tovar summasi chegaraga yetsa yetkazish 0, promokod tovar summasidan", async () => {
+      const { service, settingsService, promoCodesService } = build();
+      // Aksiyadan keyingi tovar 53 000 (aksiyasiz 65 000 — chegaradan yuqori bo'lsa ham hisobga olinmaydi).
+      settingsService.getDeliveryPricing.mockResolvedValue({ deliveryFee: 7000, freeDeliveryFrom: 53000 });
+      const order = await service.createOrder('cust-1', null, { ...orderDto, promoCode: 'OSH10' });
+      expect(order.totalPrice).toBe(53000);
+      expect(order.deliveryFee).toBe(0);
+      expect(promoCodesService.validate).toHaveBeenCalledWith('OSH10', 'cust-1', 53000, expect.anything());
+      expect(order.payableTotal).toBe(53000 - 5300);
+    });
+
+    it('bepul yetkazish chegarasi aksiyadan KEYINGI summaga qaraydi', async () => {
+      const { service, settingsService } = build();
+      settingsService.getDeliveryPricing.mockResolvedValue({ deliveryFee: 7000, freeDeliveryFrom: 60000 });
+      const order = await service.createOrder('cust-1', null, orderDto);
+      expect(order.totalPrice).toBe(60000);
+      expect(order.deliveryFee).toBe(7000);
     });
 
     it('promo discount never exceeds the goods total', async () => {

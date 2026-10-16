@@ -59,7 +59,10 @@ export function deliveryRideDetails(input: {
 
 /**
  * The delivery fee the customer paid at checkout, recovered from the order
- * itself: checkout stores `totalPrice = Σ(qty × price) + deliveryFee`.
+ * itself: checkout stores `totalPrice = Σ(qty × price) + deliveryFee`, where
+ * `deliveryFee` is the APPLIED fee — 0 when the goods reached the
+ * free-delivery threshold (`settings/delivery-pricing.ts`). So a free order
+ * yields 0 here, never today's flat fee.
  *
  * Read back from the order rather than from today's platform setting, so an
  * admin changing the fee between checkout and "ready" cannot change what this

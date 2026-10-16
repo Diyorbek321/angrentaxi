@@ -2301,6 +2301,15 @@ class AppLocalizationsRu extends AppLocalizations {
   String get saAddressIntercom => 'Домофон';
 
   @override
+  String get saAddressLabelHome => 'Дом';
+
+  @override
+  String get saAddressLabelParents => 'Родители';
+
+  @override
+  String get saAddressLabelWork => 'Работа';
+
+  @override
   String get saAddressLandmark => 'Ориентир';
 
   @override
@@ -2309,6 +2318,15 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get saAddressResolving => 'Определяем адрес…';
+
+  @override
+  String saAddressSaveFailed(String message) {
+    return 'Не удалось сохранить адрес: $message';
+  }
+
+  @override
+  String get saAddressSaved =>
+      'Адрес сохранён — в следующий раз выберите одним нажатием';
 
   @override
   String get saAngrenCity => 'г. Ангрен';
@@ -2524,7 +2542,23 @@ class AppLocalizationsRu extends AppLocalizations {
   String get saDeliveryAddress => 'Адрес доставки';
 
   @override
+  String saDeliveryEta(int min, int max) {
+    return '$min–$max мин';
+  }
+
+  @override
+  String get saDeliveryFree => 'Бесплатно';
+
+  @override
+  String saDeliveryInfoLabel(String fee, String eta) {
+    return 'Доставка $fee, $eta';
+  }
+
+  @override
   String get saDestination => 'Куда';
+
+  @override
+  String get saDialogCancel => 'Отмена';
 
   @override
   String get saDiscountLine => 'Скидка';
@@ -2589,6 +2623,19 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get saFoodTitle => 'Доставка еды';
+
+  @override
+  String saFreeDeliveryFrom(String amount) {
+    return 'Бесплатная доставка от $amount';
+  }
+
+  @override
+  String get saFreeDeliveryReached => 'Доставка бесплатно!';
+
+  @override
+  String saFreeDeliveryRemaining(String amount) {
+    return 'До бесплатной доставки ещё $amount';
+  }
 
   @override
   String get saGoToCart => 'Перейти в корзину';
@@ -2973,10 +3020,50 @@ class AppLocalizationsRu extends AppLocalizations {
   String get saRefresh => 'Обновить';
 
   @override
+  String get saReorderAction => 'Повторить заказ';
+
+  @override
+  String get saReorderLoading => 'Проверяем меню…';
+
+  @override
+  String get saReorderNothingAvailable =>
+      'Товаров из этого заказа сейчас нет в наличии';
+
+  @override
+  String saReorderPartial(int count) {
+    return '$count поз. нет в наличии или меньше — остальное добавлено в корзину';
+  }
+
+  @override
+  String get saReorderReplaceConfirm => 'Заменить';
+
+  @override
+  String get saReorderReplaceMessage =>
+      'Текущие товары в корзине будут удалены, вместо них — этот заказ.';
+
+  @override
+  String get saReorderReplaceTitle => 'Заменить корзину?';
+
+  @override
+  String get saReorderUnavailable => 'Заведение сейчас не принимает заказы';
+
+  @override
   String get saRestaurantNotFound => 'Ресторан не найден';
 
   @override
   String get saRestaurantsNotFound => 'Рестораны не найдены';
+
+  @override
+  String get saSave => 'Сохранить';
+
+  @override
+  String get saSaveAddressAction => 'Сохранить';
+
+  @override
+  String get saSaveAddressHint => 'Название, например: Дом';
+
+  @override
+  String get saSaveAddressTitle => 'Сохранить адрес';
 
   @override
   String get saSavedAddresses => 'Сохранённые адреса';

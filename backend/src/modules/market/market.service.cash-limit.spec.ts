@@ -33,6 +33,7 @@ describe('MarketService.createOrder — naqd chegarasi', () => {
       {} as never,
       {
         getDeliveryFee: jest.fn().mockResolvedValue(7000),
+        getDeliveryPricing: jest.fn().mockResolvedValue({ deliveryFee: 7000, freeDeliveryFrom: 0 }),
         getMaxCashVendorOrder: jest.fn().mockResolvedValue(200000),
       } as never,
     );

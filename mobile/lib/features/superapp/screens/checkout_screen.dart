@@ -6,6 +6,7 @@ import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/payments/payment_service.dart';
 import 'package:angren_taxi/core/push/push_notifications.dart';
+import 'package:angren_taxi/features/passenger/favorites_provider.dart';
 import 'package:angren_taxi/features/passenger/screens/map_picker_screen.dart';
 import 'package:angren_taxi/features/payments/screens/payment_webview_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/order_status_screen.dart';
@@ -15,8 +16,10 @@ import 'package:angren_taxi/features/superapp/state/promo_code_controller.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/features/superapp/widgets/checkout_extras.dart';
+import 'package:angren_taxi/features/superapp/widgets/saved_address_bar.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/address_details.dart';
+import 'package:angren_taxi/shared/models/favorite_address.dart';
 import 'package:angren_taxi/shared/models/food_order.dart';
 import 'package:angren_taxi/shared/models/market_order.dart';
 import 'package:angren_taxi/shared/models/order.dart';
@@ -100,6 +103,58 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       serviceType: superapp.activeKind == 'food' ? 'food' : 'market',
     );
     unawaited(_prefillAddressDetails());
+    // Kadrdan keyin: `loadFavorites` darhol `notifyListeners` qiladi —
+    // build/initState ichida chaqirilsa provayder daraxti yiqiladi.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final favorites = context.read<FavoritesProvider>();
+      if (favorites.state == FavoritesProviderState.idle) {
+        unawaited(favorites.loadFavorites());
+      }
+    });
+  }
+
+  bool _savingAddress = false;
+
+  /// Saqlangan manzil tanlandi: nuqta va uning tafsilotlari. Tafsiloti
+  /// yo'q manzilda forma tozalanadi — boshqa uyning podyezdi qolib ketmasin.
+  void _selectFavorite(FavoriteAddress favorite) {
+    setState(() {
+      _destination = OrderLocation(
+        address: favorite.address,
+        lat: favorite.lat,
+        lng: favorite.lng,
+      );
+      _resolvingAddress = false;
+      _details.fill(favorite.addressDetails ?? const AddressDetails());
+      _detailsPrefilled = favorite.addressDetails != null;
+    });
+  }
+
+  /// Joriy nuqtani (podyezd/qavati bilan) saqlangan manzillarga qo'shadi.
+  Future<void> _saveCurrentAddress() async {
+    final destination = _destination;
+    if (destination == null || _savingAddress) return;
+    final favorites = context.read<FavoritesProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
+    final label = await askAddressLabel(context);
+    if (label == null || !mounted) return;
+    setState(() => _savingAddress = true);
+    final ok = await favorites.addFavorite(
+      label: label,
+      address: destination.address,
+      lat: destination.lat,
+      lng: destination.lng,
+      addressDetails: _details.value,
+    );
+    if (!mounted) return;
+    setState(() => _savingAddress = false);
+    messenger.showSnackBar(SnackBar(
+      content: Text(ok
+          ? l10n.saAddressSaved
+          : l10n.saAddressSaveFailed(favorites.error ?? l10n.saErrorOccurred)),
+    ));
   }
 
   @override
@@ -441,6 +496,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   subtitle: _addressLabel,
                   onTap: _editAddress,
                 ),
+                Builder(builder: (context) {
+                  final favorites = context.watch<FavoritesProvider>().favorites;
+                  final isSaved = favorites.any((f) => SavedAddressBar.sameSpot(f, _destination));
+                  final canSave = _destination != null && !isSaved && !_savingAddress;
+                  if (favorites.isEmpty && !canSave) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: kSpace3),
+                    child: SavedAddressBar(
+                      favorites: favorites,
+                      selected: _destination,
+                      onSelect: _selectFavorite,
+                      onSave: canSave ? _saveCurrentAddress : null,
+                      enabled: !_submitting,
+                    ),
+                  );
+                }),
                 const SizedBox(height: kSpace4),
                 _OptionCard(
                   iconBg: kInfoLight,
@@ -485,7 +556,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     children: [
                       _row(context.l10n.saMarketProducts, Formatters.formatSom(provider.cartSubtotal)),
                       const SizedBox(height: kSpace3),
-                      _row(context.l10n.saDelivery, Formatters.formatSom(provider.deliveryFee)),
+                      _row(
+                          context.l10n.saDelivery,
+                          provider.isFreeDelivery
+                              ? context.l10n.saDeliveryFree
+                              : Formatters.formatSom(provider.deliveryFee)),
                       ListenableBuilder(
                         listenable: _promo,
                         builder: (context, _) => _promo.discount > 0

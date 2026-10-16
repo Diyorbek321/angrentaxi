@@ -5,6 +5,7 @@ import 'package:angren_taxi/features/superapp/state/market_provider.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/features/superapp/widgets/deals.dart';
+import 'package:angren_taxi/features/superapp/widgets/delivery_info.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/market_product.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
@@ -120,6 +121,8 @@ class _MarketScreenState extends State<MarketScreen> {
                     ],
                   ),
                 ),
+                const SizedBox(height: kSpace2),
+                const DeliveryInfoStrip(),
               ],
             ),
           ),

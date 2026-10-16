@@ -5,6 +5,7 @@ import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/features/superapp/widgets/deals.dart';
+import 'package:angren_taxi/features/superapp/widgets/delivery_info.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/dish.dart';
 import 'package:angren_taxi/shared/models/food_restaurant.dart';
@@ -392,6 +393,8 @@ class _RestaurantInfo extends StatelessWidget {
               ],
             ),
           ],
+          const SizedBox(height: kSpace2),
+          const DeliveryInfoStrip(),
           // Restoranning faol aksiyalari — menyudan OLDIN, ko'zga tashlanadigan joyda.
           if (promotions.isNotEmpty) ...[
             const SizedBox(height: kSpace3),

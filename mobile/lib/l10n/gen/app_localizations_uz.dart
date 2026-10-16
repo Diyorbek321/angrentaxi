@@ -2306,6 +2306,15 @@ class AppLocalizationsUz extends AppLocalizations {
   String get saAddressIntercom => 'Domofon';
 
   @override
+  String get saAddressLabelHome => 'Uy';
+
+  @override
+  String get saAddressLabelParents => 'Ota-onam';
+
+  @override
+  String get saAddressLabelWork => 'Ish';
+
+  @override
   String get saAddressLandmark => 'Mo\'ljal';
 
   @override
@@ -2313,6 +2322,15 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get saAddressResolving => 'Manzil aniqlanmoqda…';
+
+  @override
+  String saAddressSaveFailed(String message) {
+    return 'Manzilni saqlab bo\'lmadi: $message';
+  }
+
+  @override
+  String get saAddressSaved =>
+      'Manzil saqlandi — keyingi safar bir bosishda tanlanadi';
 
   @override
   String get saAngrenCity => 'Angren shahri';
@@ -2528,7 +2546,23 @@ class AppLocalizationsUz extends AppLocalizations {
   String get saDeliveryAddress => 'Yetkazib berish manzili';
 
   @override
+  String saDeliveryEta(int min, int max) {
+    return '$min–$max daq';
+  }
+
+  @override
+  String get saDeliveryFree => 'Bepul';
+
+  @override
+  String saDeliveryInfoLabel(String fee, String eta) {
+    return 'Yetkazish $fee, $eta';
+  }
+
+  @override
   String get saDestination => 'Manzil';
+
+  @override
+  String get saDialogCancel => 'Bekor';
 
   @override
   String get saDiscountLine => 'Chegirma';
@@ -2593,6 +2627,19 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get saFoodTitle => 'Ovqat yetkazish';
+
+  @override
+  String saFreeDeliveryFrom(String amount) {
+    return '$amount dan bepul yetkazish';
+  }
+
+  @override
+  String get saFreeDeliveryReached => 'Yetkazish bepul!';
+
+  @override
+  String saFreeDeliveryRemaining(String amount) {
+    return 'Bepul yetkazishgacha yana $amount';
+  }
 
   @override
   String get saGoToCart => 'Savatga o\'tish';
@@ -2979,10 +3026,50 @@ class AppLocalizationsUz extends AppLocalizations {
   String get saRefresh => 'Yangilash';
 
   @override
+  String get saReorderAction => 'Yana buyurtma qilish';
+
+  @override
+  String get saReorderLoading => 'Menyu tekshirilmoqda…';
+
+  @override
+  String get saReorderNothingAvailable =>
+      'Bu buyurtmadagi mahsulotlar hozir mavjud emas';
+
+  @override
+  String saReorderPartial(int count) {
+    return '$count ta mahsulot hozir yo\'q yoki kamroq — qolganlari savatga qo\'shildi';
+  }
+
+  @override
+  String get saReorderReplaceConfirm => 'Almashtirish';
+
+  @override
+  String get saReorderReplaceMessage =>
+      'Savatdagi joriy mahsulotlar o\'chiriladi va o\'rniga shu buyurtma qo\'yiladi.';
+
+  @override
+  String get saReorderReplaceTitle => 'Savat almashtirilsinmi?';
+
+  @override
+  String get saReorderUnavailable => 'Bu joy hozir buyurtma qabul qilmayapti';
+
+  @override
   String get saRestaurantNotFound => 'Restoran topilmadi';
 
   @override
   String get saRestaurantsNotFound => 'Restoranlar topilmadi';
+
+  @override
+  String get saSave => 'Saqlash';
+
+  @override
+  String get saSaveAddressAction => 'Saqlash';
+
+  @override
+  String get saSaveAddressHint => 'Nomi, masalan: Uy';
+
+  @override
+  String get saSaveAddressTitle => 'Manzilni saqlash';
 
   @override
   String get saSavedAddresses => 'Saqlangan manzillar';

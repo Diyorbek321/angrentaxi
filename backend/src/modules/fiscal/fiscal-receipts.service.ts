@@ -118,6 +118,9 @@ export class FiscalReceiptsService implements OnModuleInit {
   }
 
   async recordForRide(input: RideReceiptInput): Promise<FiscalReceipt | null> {
+    // 0 so'mlik sotuv cheki ma'nosiz — masalan bepul yetkazish buyurtmasining
+    // kuryer safari (docs/specs/food-market-ux-v5.md §7).
+    if (!(input.total > 0)) return null;
     return this.safely(input.orderId, () =>
       this.createAndSend({
         orderId: input.orderId,

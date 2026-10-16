@@ -2,12 +2,18 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
   IsEmail,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
 } from 'class-validator';
+import {
+  DELIVERY_ETA_MINUTES_MAX,
+  DELIVERY_ETA_MINUTES_MIN,
+} from '../delivery-pricing';
 
 export class UpdateGlobalSettingsDto {
   @ApiPropertyOptional({ example: 'Angren Taxi' })
@@ -50,4 +56,27 @@ export class UpdateGlobalSettingsDto {
   @IsNumber()
   @Min(0)
   maxCashVendorOrder?: number;
+
+  @ApiPropertyOptional({
+    example: 100000,
+    description: "Bepul yetkazish chegarasi, so'm (tovar summasi aksiyadan keyin, promokoddan oldin); 0 — o'chiq",
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  freeDeliveryFrom?: number;
+
+  @ApiPropertyOptional({ example: 30, description: 'Yetkazish vaqti, eng kami (daqiqa)' })
+  @IsOptional()
+  @IsInt()
+  @Min(DELIVERY_ETA_MINUTES_MIN)
+  @Max(DELIVERY_ETA_MINUTES_MAX)
+  deliveryEtaMinMinutes?: number;
+
+  @ApiPropertyOptional({ example: 50, description: "Yetkazish vaqti, eng ko'pi (daqiqa); eng kamidan kichik emas" })
+  @IsOptional()
+  @IsInt()
+  @Min(DELIVERY_ETA_MINUTES_MIN)
+  @Max(DELIVERY_ETA_MINUTES_MAX)
+  deliveryEtaMaxMinutes?: number;
 }

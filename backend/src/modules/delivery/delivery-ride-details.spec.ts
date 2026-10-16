@@ -67,3 +67,31 @@ describe('agreedFareBreakdown', () => {
     expect(b.distanceKm).toBe(3.2);
   });
 });
+
+describe('bepul yetkazish (docs/specs/food-market-ux-v5.md §7)', () => {
+  const freeOrder = {
+    totalPrice: 120000,
+    items: [
+      { qty: 2, price: 50000 },
+      { qty: 1, price: 20000 },
+    ],
+  };
+
+  it("bepul buyurtmada yetkazish haqi 0 — bugungi sozlama (7 000) emas", () => {
+    expect(checkoutDeliveryFee(freeOrder)).toBe(0);
+  });
+
+  it("kuryer naqdda faqat tovar summasini oladi va do'konga shuni to'laydi", () => {
+    const details = deliveryRideDetails({
+      vendorName: 'Mix Burger',
+      vendorPhone: null,
+      customerPhone: null,
+      itemsCount: 3,
+      totalPrice: freeOrder.totalPrice,
+      itemsTotal: freeOrder.totalPrice - checkoutDeliveryFee(freeOrder),
+      isCash: true,
+    });
+    expect(details.collectCash).toBe(120000);
+    expect(details.payVendor).toBe(120000);
+  });
+});

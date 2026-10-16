@@ -1,4 +1,5 @@
 import { ERROR_CODES, codedConflict } from '../../common/errors/coded-error';
+import { checkoutDeliveryFee } from './delivery-ride-details';
 
 /**
  * Ovqat/market buyurtmasining mijozga ko'rinadigan qismi
@@ -9,6 +10,8 @@ import { ERROR_CODES, codedConflict } from '../../common/errors/coded-error';
  *    komissiya, hamyon o'tkazmasi va fiskal chek shu summadan — o'zgarmagan.
  *  · `promoDiscount` — promokod, PLATFORMA hisobidan; mijoz
  *    `payableTotal = totalPrice − promoDiscount` to'laydi.
+ *  · `deliveryFee` (JSON) — buyurtmada QO'LLANGAN yetkazish haqi
+ *    (`totalPrice − Σ qty × price`); bepul yetkazishda 0 (§7).
  */
 
 /** Mijoz faqat sotuvchi QABUL QILMAGAN buyurtmani bekor qila oladi. */
@@ -22,11 +25,21 @@ export function payableTotal(order: { totalPrice: number; promoDiscount?: number
   return Math.max(0, Math.round(Number(order.totalPrice) - Number(order.promoDiscount ?? 0)));
 }
 
-/** Buyurtma JSON'iga `canCancel` va `payableTotal` qo'shiladi. */
-export function withCustomerFields<T extends { status: string; totalPrice: number; promoDiscount?: number | null }>(
-  order: T,
-): T & { canCancel: boolean; payableTotal: number } {
-  return { ...order, canCancel: customerCanCancel(order), payableTotal: payableTotal(order) };
+/** Buyurtma JSON'iga `canCancel`, `payableTotal` va `deliveryFee` qo'shiladi. */
+export function withCustomerFields<
+  T extends {
+    status: string;
+    totalPrice: number;
+    promoDiscount?: number | null;
+    items: ReadonlyArray<{ qty: number; price: number }>;
+  },
+>(order: T): T & { canCancel: boolean; payableTotal: number; deliveryFee: number } {
+  return {
+    ...order,
+    canCancel: customerCanCancel(order),
+    payableTotal: payableTotal(order),
+    deliveryFee: checkoutDeliveryFee({ totalPrice: Number(order.totalPrice), items: order.items }),
+  };
 }
 
 export function cancelNotAllowed(kind: 'food' | 'market') {

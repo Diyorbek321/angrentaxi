@@ -77,6 +77,7 @@ describe('MarketService — UX v5', () => {
     const ordersService = { findByIdOrThrow: jest.fn().mockResolvedValue({ id: 'ride-1', driverId: 'courier-1' }) };
     const settingsService = {
       getDeliveryFee: jest.fn().mockResolvedValue(7000),
+      getDeliveryPricing: jest.fn().mockResolvedValue({ deliveryFee: 7000, freeDeliveryFrom: 0 }),
       getMaxCashVendorOrder: jest.fn().mockResolvedValue(0),
     };
     const promotionsService = {
@@ -107,7 +108,16 @@ describe('MarketService — UX v5', () => {
       promoCodesService as never,
       notificationsService as never,
     );
-    return { service, orderRepo, productRepo, movementRepo, transactionRepo, realtimeGateway, promoCodesService };
+    return {
+      service,
+      settingsService,
+      orderRepo,
+      productRepo,
+      movementRepo,
+      transactionRepo,
+      realtimeGateway,
+      promoCodesService,
+    };
   }
 
   it('createOrder: promotion then promo code, address details, stock taken', async () => {
@@ -129,9 +139,28 @@ describe('MarketService — UX v5', () => {
     expect(order.totalPrice).toBe(26000 + 7000);
     expect(promoCodesService.validate).toHaveBeenCalledWith('bozor', 'cust-1', 26000, { serviceType: ServiceType.MARKET });
     expect(order).toMatchObject({ promoCode: 'BOZOR', promoDiscount: 3000, payableTotal: 30000, canCancel: true });
+    expect(order.deliveryFee).toBe(7000);
     expect(order.addressDetails).toEqual({ apartment: '12', intercom: '12K' });
     expect(promoCodesService.claimForVendorOrder).toHaveBeenCalledWith('pc-1', 'cust-1', { kind: 'market', id: order.id });
     expect(productRepo.save).toHaveBeenCalledWith(expect.objectContaining({ id: 'p1', stock: 8 }));
+  });
+
+  it("createOrder: bepul yetkazish (§7) — tovar summasi chegaraga yetsa yetkazish 0", async () => {
+    const { service, settingsService } = build();
+    settingsService.getDeliveryPricing.mockResolvedValue({ deliveryFee: 7000, freeDeliveryFrom: 26000 });
+    const order = await service.createOrder('cust-1', null, {
+      storeId: 'store-1',
+      items: [
+        { productId: 'p1', qty: 2 },
+        { productId: 'p2', qty: 1 },
+      ],
+      deliveryAddress: 'Navoiy 5',
+      deliveryLat: 41,
+      deliveryLng: 70,
+    });
+    expect(order.totalPrice).toBe(26000);
+    expect(order.deliveryFee).toBe(0);
+    expect(order.payableTotal).toBe(26000);
   });
 
   it('cancelByCustomer: NEW → cancelled, stock returned, promo freed, vendor event', async () => {

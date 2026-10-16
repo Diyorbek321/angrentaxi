@@ -67,6 +67,14 @@ export interface PublicSettings {
   supportPhone: string;
   deliveryFee: number;
   maxCashVendorOrder: number;
+  /**
+   * Bepul yetkazish chegarasi, so'm (tovar summasi aksiyadan keyin,
+   * promokoddan oldin); 0 — o'chiq (docs/specs/food-market-ux-v5.md §7).
+   */
+  freeDeliveryFrom: number;
+  /** Yetkazish vaqti oralig'i, daqiqa ("30–50 daq"). */
+  deliveryEtaMinMinutes: number;
+  deliveryEtaMaxMinutes: number;
   /** AMALDAGI rejim (sana hisobga olingan). */
   vendorSettlementMode: VendorSettlementMode;
   vendorWalletSettlementFrom: string | null;

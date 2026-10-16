@@ -21,6 +21,44 @@ import {
   VendorSettlementMode,
   effectiveVendorSettlementMode,
 } from '../delivery/vendor-settlement-mode';
+import {
+  DEFAULT_DELIVERY_ETA_MAX_MINUTES,
+  DEFAULT_DELIVERY_ETA_MIN_MINUTES,
+  DEFAULT_FREE_DELIVERY_FROM,
+  DeliveryEta,
+  DeliveryPricing,
+  assertDeliveryEtaRange,
+} from './delivery-pricing';
+
+/** `GET/PATCH /settings/global` shakli. */
+export interface GlobalSettings extends DeliveryEta {
+  platformName: string;
+  supportPhone: string;
+  supportEmail: string;
+  maintenanceMode: boolean;
+  deliveryFee: number;
+  maxCashVendorOrder: number;
+  /** Bepul yetkazish chegarasi, so'm; 0 — o'chiq. */
+  freeDeliveryFrom: number;
+}
+
+export type GlobalSettingsChanges = Partial<GlobalSettings>;
+
+/**
+ * PATCH faqat shu ustunlarga yozadi — DTO'dan tashqari kalit (`id`,
+ * komissiya, STIR...) `repository.update` ga hech qachon o'tmaydi.
+ */
+const GLOBAL_SETTINGS_FIELDS: ReadonlyArray<keyof GlobalSettings> = [
+  'platformName',
+  'supportPhone',
+  'supportEmail',
+  'maintenanceMode',
+  'deliveryFee',
+  'maxCashVendorOrder',
+  'freeDeliveryFrom',
+  'deliveryEtaMinMinutes',
+  'deliveryEtaMaxMinutes',
+];
 
 @Injectable()
 export class SettingsService {
@@ -213,6 +251,9 @@ export class SettingsService {
       supportPhone: settings.supportPhone,
       deliveryFee: settings.deliveryFee,
       maxCashVendorOrder: settings.maxCashVendorOrder,
+      // Ilova: "Yetkazish 7 000 so'm · 30–50 daq · 100 000 so'mdan bepul" (§7).
+      freeDeliveryFrom: toDeliveryPricing(settings).freeDeliveryFrom,
+      ...toDeliveryEta(settings),
       vendorSettlementMode: vendor.effectiveVendorSettlementMode,
       vendorWalletSettlementFrom: vendor.vendorWalletSettlementFrom,
       ...publicWalletTopupSettings(toWalletTopupSettings(settings)),
@@ -223,6 +264,14 @@ export class SettingsService {
   async getDeliveryFee(): Promise<number> {
     const { deliveryFee } = await this.getOrCreate();
     return deliveryFee;
+  }
+
+  /**
+   * Yetkazish haqi va bepul yetkazish chegarasi — ovqat/market buyurtmasi
+   * yaratilganda `appliedDeliveryFee` bilan (`delivery-pricing.ts`).
+   */
+  async getDeliveryPricing(): Promise<DeliveryPricing> {
+    return toDeliveryPricing(await this.getOrCreate());
   }
 
   /** Naqd ovqat/market buyurtmasi chegarasi (so'm). */
@@ -252,38 +301,64 @@ export class SettingsService {
     return merged;
   }
 
-  async getGlobalSettings(): Promise<{
-    platformName: string;
-    supportPhone: string;
-    supportEmail: string;
-    maintenanceMode: boolean;
-    deliveryFee: number;
-    maxCashVendorOrder: number;
-  }> {
-    const { platformName, supportPhone, supportEmail, maintenanceMode, deliveryFee, maxCashVendorOrder } =
-      await this.getOrCreate();
-    return { platformName, supportPhone, supportEmail, maintenanceMode, deliveryFee, maxCashVendorOrder };
+  async getGlobalSettings(): Promise<GlobalSettings> {
+    return toGlobalSettings(await this.getOrCreate());
   }
 
-  async updateGlobalSettings(dto: {
-    platformName?: string;
-    supportPhone?: string;
-    supportEmail?: string;
-    maintenanceMode?: boolean;
-    deliveryFee?: number;
-    maxCashVendorOrder?: number;
-  }): Promise<{
-    platformName: string;
-    supportPhone: string;
-    supportEmail: string;
-    maintenanceMode: boolean;
-    deliveryFee: number;
-    maxCashVendorOrder: number;
-  }> {
+  /**
+   * Faqat yuborilgan (va ruxsat etilgan) maydonlar o'zgaradi. Yetkazish
+   * vaqti joriy qiymat bilan birlashtirilgach tekshiriladi: faqat `min`
+   * yuborilsa ham u saqlangan `max` dan oshmasin.
+   */
+  async updateGlobalSettings(changes: GlobalSettingsChanges): Promise<GlobalSettings> {
     const settings = await this.getOrCreate();
-    await this.settingsRepository.update(settings.id, dto);
-    return this.getGlobalSettings();
+    const update = Object.fromEntries(
+      GLOBAL_SETTINGS_FIELDS.filter((field) => changes[field] !== undefined).map((field) => [
+        field,
+        changes[field],
+      ]),
+    ) as Partial<PlatformSettings>;
+    const current = toDeliveryEta(settings);
+    assertDeliveryEtaRange(
+      update.deliveryEtaMinMinutes ?? current.deliveryEtaMinMinutes,
+      update.deliveryEtaMaxMinutes ?? current.deliveryEtaMaxMinutes,
+    );
+    if (Object.keys(update).length > 0) {
+      await this.settingsRepository.update(settings.id, update);
+    }
+    return toGlobalSettings({ ...settings, ...update });
   }
+}
+
+function toGlobalSettings(settings: PlatformSettings): GlobalSettings {
+  return {
+    platformName: settings.platformName,
+    supportPhone: settings.supportPhone,
+    supportEmail: settings.supportEmail,
+    maintenanceMode: settings.maintenanceMode,
+    deliveryFee: settings.deliveryFee,
+    maxCashVendorOrder: settings.maxCashVendorOrder,
+    freeDeliveryFrom: toDeliveryPricing(settings).freeDeliveryFrom,
+    ...toDeliveryEta(settings),
+  };
+}
+
+function toDeliveryPricing(
+  settings: Partial<Pick<PlatformSettings, 'deliveryFee' | 'freeDeliveryFrom'>>,
+): DeliveryPricing {
+  return {
+    deliveryFee: Number(settings.deliveryFee),
+    freeDeliveryFrom: Number(settings.freeDeliveryFrom ?? DEFAULT_FREE_DELIVERY_FROM),
+  };
+}
+
+function toDeliveryEta(
+  settings: Partial<Pick<PlatformSettings, 'deliveryEtaMinMinutes' | 'deliveryEtaMaxMinutes'>>,
+): DeliveryEta {
+  return {
+    deliveryEtaMinMinutes: Number(settings.deliveryEtaMinMinutes ?? DEFAULT_DELIVERY_ETA_MIN_MINUTES),
+    deliveryEtaMaxMinutes: Number(settings.deliveryEtaMaxMinutes ?? DEFAULT_DELIVERY_ETA_MAX_MINUTES),
+  };
 }
 
 function parseOptionalDate(value: string | null, field: string): Date | null {

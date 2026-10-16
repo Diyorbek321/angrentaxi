@@ -4,6 +4,7 @@ import 'package:angren_taxi/features/superapp/screens/vendor_order_detail_screen
 import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/market_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/features/superapp/widgets/reorder_flow.dart';
 import 'package:angren_taxi/features/superapp/widgets/vendor_cancel_flow.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/courier_tracking.dart';
@@ -105,6 +106,7 @@ class _TrackedOrder {
     required this.isActive,
     this.onTap,
     this.onCancel,
+    this.onReorder,
   });
 
   final String id;
@@ -137,6 +139,10 @@ class _TrackedOrder {
   /// Kartadagi ikkilamchi "Bekor qilish" — faqat bekor qilish MUMKIN
   /// bo'lgan buyurtmada (vendor hali qabul qilmagan).
   final VoidCallback? onCancel;
+
+  /// "Yana buyurtma qilish" — faqat tugagan buyurtmada (kichik shaharda
+  /// odamlar bir xil narsani qayta-qayta buyuradi).
+  final VoidCallback? onReorder;
 }
 
 class OrdersScreen extends StatefulWidget {
@@ -234,7 +240,18 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   builder: (_) => OrderDetailScreen(order: order),
                 ),
               ),
+      onReorder: order.status == OrderStatus.completed && !isCargo && !order.isMetered
+          ? () => _repeatRide(order)
+          : null,
     );
+  }
+
+  /// Taksi safarini takrorlash — o'sha nuqtalar bilan tarif tanlashga.
+  void _repeatRide(Order order) {
+    context.read<OrderProvider>()
+      ..setPendingPickup(order.pickup)
+      ..setPendingDropoff(order.dropoff);
+    Navigator.of(context).pushNamed('/passenger/tariff');
   }
 
   _TrackedOrder _fromFood(FoodOrder order) {
@@ -273,6 +290,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       onCancel: order.canCancel
           ? () => runVendorCancelFlow(context, kind: 'food', orderId: order.id)
           : null,
+      onReorder: order.status.isActive ? null : () => runReorderFlow(context, order),
     );
   }
 
@@ -312,6 +330,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       onCancel: order.canCancel
           ? () => runVendorCancelFlow(context, kind: 'market', orderId: order.id)
           : null,
+      onReorder: order.status.isActive ? null : () => runReorderFlow(context, order),
     );
   }
 
@@ -670,6 +689,17 @@ class _OrderCard extends StatelessWidget {
                 onPressed: order.onCancel,
                 icon: const Icon(Icons.close_rounded, size: 18),
                 label: Text(context.l10n.saCancelOrderAction),
+              ),
+            ),
+          if (order.onReorder != null)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                key: ValueKey('order-card-reorder-${order.id}'),
+                style: TextButton.styleFrom(foregroundColor: agGreenText),
+                onPressed: order.onReorder,
+                icon: const Icon(Icons.replay_rounded, size: 18),
+                label: Text(context.l10n.saReorderAction),
               ),
             ),
         ],

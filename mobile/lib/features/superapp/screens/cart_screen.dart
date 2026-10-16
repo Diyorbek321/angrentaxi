@@ -2,6 +2,7 @@ import 'package:angren_taxi/features/superapp/models/cart_item.dart';
 import 'package:angren_taxi/features/superapp/screens/checkout_screen.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/features/superapp/widgets/delivery_info.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/ag_map_fab.dart';
@@ -136,6 +137,10 @@ class _CartBody extends StatelessWidget {
               ),
             ),
             const SizedBox(height: kSpace4),
+            if (provider.freeDeliveryFrom != null) ...[
+              const FreeDeliveryProgress(),
+              const SizedBox(height: kSpace4),
+            ],
             AgSurfaceCard(
               child: Column(
                 children: [
@@ -143,7 +148,10 @@ class _CartBody extends StatelessWidget {
                     if (i > 0) const SizedBox(height: kSpace3),
                     _SummaryRow(
                       lines[i].label,
-                      Formatters.formatSom(lines[i].amount),
+                      // Bepul yetkazish — "0 so'm" emas, aniq so'z.
+                      i == 1 && provider.isFreeDelivery
+                          ? context.l10n.saDeliveryFree
+                          : Formatters.formatSom(lines[i].amount),
                     ),
                   ],
                   const Padding(

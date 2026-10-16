@@ -3,6 +3,7 @@ import 'package:angren_taxi/features/superapp/screens/courier_tracking_screen.da
 import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/market_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/features/superapp/widgets/reorder_flow.dart';
 import 'package:angren_taxi/features/superapp/widgets/vendor_cancel_flow.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/address_details.dart';
@@ -36,6 +37,7 @@ class VendorOrderView {
     this.cancelReason,
     this.delivery,
     this.trackPath,
+    this.source,
   });
 
   final String kind;
@@ -55,6 +57,9 @@ class VendorOrderView {
   final String? cancelReason;
   final CourierTracking? delivery;
   final String? trackPath;
+
+  /// Asl buyurtma (`FoodOrder`/`MarketOrder`) — "Yana buyurtma qilish" uchun.
+  final Object? source;
 
   factory VendorOrderView.food(FoodOrder o) => VendorOrderView(
         kind: 'food',
@@ -78,6 +83,7 @@ class VendorOrderView {
         cancelReason: o.cancelReason,
         delivery: o.isTrackable ? o.delivery : null,
         trackPath: ApiEndpoints.foodOrderById(o.id),
+        source: o,
       );
 
   factory VendorOrderView.market(MarketOrder o) => VendorOrderView(
@@ -102,6 +108,7 @@ class VendorOrderView {
         cancelReason: o.cancelReason,
         delivery: o.isTrackable ? o.delivery : null,
         trackPath: ApiEndpoints.marketOrderById(o.id),
+        source: o,
       );
 }
 
@@ -202,6 +209,14 @@ class VendorOrderDetailScreen extends StatelessWidget {
                           kind: kind,
                           canCancel: order.canCancel,
                           onCancel: () => runVendorCancelFlow(context, kind: kind, orderId: orderId),
+                        ),
+                      ],
+                      if (!order.isActive && order.source != null) ...[
+                        const SizedBox(height: kSpace5),
+                        AgPrimaryButton(
+                          key: const ValueKey('vendor-reorder-button'),
+                          label: context.l10n.saReorderAction,
+                          onPressed: () => runReorderFlow(context, order.source!),
                         ),
                       ],
                     ],

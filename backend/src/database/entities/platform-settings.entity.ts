@@ -68,6 +68,30 @@ export class PlatformSettings {
   })
   maxCashVendorOrder: number;
 
+  // Bepul yetkazish chegarasi, so'm (migratsiya 032): tovar summasi (aksiyadan
+  // keyin, promokoddan oldin) shunga yetsa yetkazish haqi 0
+  // (`settings/delivery-pricing.ts`). 0 — o'chiq.
+  @Column({
+    name: 'free_delivery_from',
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    default: 0,
+    transformer: {
+      to: (value: number) => value,
+      from: (value: string) => parseFloat(value),
+    },
+  })
+  freeDeliveryFrom: number;
+
+  // Yetkazish vaqti oralig'i, daqiqa (migratsiya 032) — ilova "30–50 daq"
+  // ko'rsatadi. Faqat ma'lumot: hech narsa shunga qarab bloklanmaydi.
+  @Column({ name: 'delivery_eta_min_minutes', type: 'int', default: 30 })
+  deliveryEtaMinMinutes: number;
+
+  @Column({ name: 'delivery_eta_max_minutes', type: 'int', default: 50 })
+  deliveryEtaMaxMinutes: number;
+
   // Safar opsiyalari haqi, so'm (migratsiya 023): `{ child_seat: 5000 }`.
   // Menejer belgilaydi; o'qish `normalizeTripOptionFees` orqali.
   @Column({ name: 'trip_option_fees', type: 'jsonb', default: () => "'{}'" })

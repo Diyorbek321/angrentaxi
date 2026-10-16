@@ -171,3 +171,39 @@ ilovasi uchun kuryer safari `details.addressDetails` (+ `details.promoDiscount`)
 `categoryId: null`. Market kategoriyalari shakli o'zgarmagan.
 
 Pul oqimi va fiskal chek — `docs/LEGAL-COMPLIANCE.md` §26.
+
+## 7. Bepul yetkazish va yetkazish vaqti (2026-10-16)
+
+Mijoz ilovasi: **"Yetkazish 7 000 so'm · 30–50 daq · 100 000 so'mdan bepul"**. Migratsiya
+`032_delivery_threshold_eta.ts` — `platform_settings` ga:
+
+| Ustun | Tur | Standart | Ma'nosi |
+|---|---|---|---|
+| `free_delivery_from` | `numeric(12,2)` | 0 | Bepul yetkazish chegarasi, so'm; **0 — o'chiq** |
+| `delivery_eta_min_minutes` | `int` | 30 | Yetkazish vaqti, eng kami (daq) |
+| `delivery_eta_max_minutes` | `int` | 50 | Yetkazish vaqti, eng ko'pi (daq) |
+
+- **Qoida** (`settings/delivery-pricing.ts` → `appliedDeliveryFee`): qo'llangan haq =
+  `freeDeliveryFrom > 0 && itemsTotal ≥ freeDeliveryFrom ? 0 : deliveryFee`. `itemsTotal` —
+  tovar summasi **aksiyadan KEYIN, promokoddan OLDIN** (`priceOrderLines().itemsTotal`, promokod
+  ham shu summaga tekshiriladi). Ovqat va market `createOrder` da bir xil;
+  `SettingsService.getDeliveryPricing()` → `{ deliveryFee, freeDeliveryFrom }`.
+- `totalPrice = itemsTotal + qo'llangan haq` — bepulda `totalPrice = itemsTotal`. Yetkazish
+  haqi alohida saqlanmaydi: hamma joyda `checkoutDeliveryFee(order) = totalPrice − Σ qty × price`
+  dan olinadi, shuning uchun bepul buyurtmada kuryer safari narxi (`agreedFare`), `payVendor`,
+  `collectCash`, sotuvchi fiskal cheki (`total` = tovar) — hech birida "7 000" qatori yo'q.
+- Buyurtma JSON'i (mijoz javoblari, `withCustomerFields`): yangi **`deliveryFee`** —
+  qo'llangan haq (bepulda 0), `canCancel`/`payableTotal` yonida.
+- Fiskal: 0 so'mlik safar (bepul yetkazish kuryeri) uchun chek **yozilmaydi**
+  (`recordForRide`, `total ≤ 0`).
+- `GET /settings/public` va `GET/PATCH /settings/global`: `freeDeliveryFrom`,
+  `deliveryEtaMinMinutes`, `deliveryEtaMaxMinutes`. Validatsiya: `freeDeliveryFrom ≥ 0`;
+  vaqt butun son 5–240; joriy qiymat bilan birlashtirilgach `min ≤ max`, aks holda 400
+  (o'zbekcha xabar), hech narsa yozilmaydi. PATCH endi faqat ruxsat etilgan maydonlarni
+  bazaga yozadi (DTO'dan tashqari kalit o'tmaydi).
+- Admin panel → "Umumiy sozlamalar" → "Ovqat va market: yetkazish" (haq, chegara, vaqt).
+- Vaqt — faqat ma'lumot (ilova ko'rsatadi), hech narsani bloklamaydi.
+- **OCHIQ (yoqishdan oldin hal qiling):** bepul buyurtmada kuryer safari `agreedFare = 0` —
+  kuryer yetkazish uchun hech narsa olmaydi. Kim to'lashi (platforma kuryerga CREDIT qiladimi,
+  promokod qoplanishi kabi — `delivery/promo-compensation.ts`) — biznes/buxgalter qarori.
+  Shu hal bo'lmaguncha `freeDeliveryFrom = 0` (o'chiq) qoldiring.

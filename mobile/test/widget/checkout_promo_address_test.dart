@@ -8,6 +8,7 @@ import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/core/payments/payment_service.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
+import 'package:angren_taxi/features/passenger/favorites_provider.dart';
 import 'package:angren_taxi/features/superapp/models/cart_item.dart';
 import 'package:angren_taxi/features/superapp/screens/checkout_screen.dart';
 import 'package:angren_taxi/features/superapp/state/food_provider.dart';
@@ -91,6 +92,7 @@ void main() {
         providers: [
           ChangeNotifierProvider<SuperappProvider>.value(value: superapp),
           ChangeNotifierProvider<MarketProvider>.value(value: market),
+          ChangeNotifierProvider<FavoritesProvider>(create: (_) => FavoritesProvider(apiClient: api)),
           ChangeNotifierProvider<FoodProvider>(
             create: (_) => FoodProvider(apiClient: api, socketService: SocketService()),
           ),

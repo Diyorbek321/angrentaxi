@@ -50,7 +50,37 @@ class SuperappProvider extends ChangeNotifier {
   bool get isCartEmpty => _cart.isEmpty;
   int get cartCount => _cart.fold(0, (sum, c) => sum + c.qty);
   double get cartSubtotal => _cart.fold(0, (sum, c) => sum + c.lineTotal);
-  double get deliveryFee => _cart.isEmpty ? 0 : _deliveryFee;
+  double get deliveryFee {
+    if (_cart.isEmpty || isFreeDelivery) return 0;
+    return _deliveryFee;
+  }
+
+  /// Bepul yetkazish chegarasi bo'lmasa ham yetkazish narxi (vitrina uchun).
+  double get baseDeliveryFee => _deliveryFee;
+
+  /// Server `freeDeliveryFrom` (so'm). `null` yoki 0 — bepul yetkazish yo'q.
+  /// Qoida server bilan bir xil: tovar summasi (aksiyadan keyin, promokodsiz)
+  /// chegaraga TENG yoki undan katta bo'lsa yetkazish 0.
+  double? _freeDeliveryFrom;
+  double? get freeDeliveryFrom =>
+      (_freeDeliveryFrom ?? 0) > 0 ? _freeDeliveryFrom : null;
+
+  bool get isFreeDelivery {
+    final from = freeDeliveryFrom;
+    return from != null && _cart.isNotEmpty && cartSubtotal >= from;
+  }
+
+  /// Bepul yetkazishgacha qolgan summa; chegara yo'q yoki yetgan — `null`.
+  double? get freeDeliveryRemaining {
+    final from = freeDeliveryFrom;
+    if (from == null || _cart.isEmpty || cartSubtotal >= from) return null;
+    return from - cartSubtotal;
+  }
+
+  /// Taxminiy yetkazish vaqti, daqiqa (server `deliveryEtaMin/MaxMinutes`).
+  /// Eski server bermaydi — `null`, ilova vaqtni ko'rsatmaydi.
+  ({int min, int max})? _deliveryEta;
+  ({int min, int max})? get deliveryEta => _deliveryEta;
 
   /// Naqd ovqat/market buyurtmasi chegarasi (server `max_cash_vendor_order`).
   /// Kuryer tovarni do'kondan o'z pulidan oladi — katta summa faqat karta.
@@ -62,6 +92,18 @@ class SuperappProvider extends ChangeNotifier {
   bool get cashAllowed {
     final limit = _maxCashVendorOrder;
     return limit == null || limit <= 0 || cartTotal <= limit;
+  }
+
+  @visibleForTesting
+  void debugSetDeliveryPricingForTest({
+    double? deliveryFee,
+    double? freeDeliveryFrom,
+    ({int min, int max})? eta,
+  }) {
+    if (deliveryFee != null) _deliveryFee = deliveryFee;
+    _freeDeliveryFrom = freeDeliveryFrom;
+    _deliveryEta = eta;
+    notifyListeners();
   }
 
   @visibleForTesting
@@ -130,6 +172,13 @@ class SuperappProvider extends ChangeNotifier {
       final payload = envelope['data'] as Map<String, dynamic>;
       final fee = (payload['deliveryFee'] as num?)?.toDouble();
       if (fee != null) _deliveryFee = fee;
+      _freeDeliveryFrom =
+          (payload['freeDeliveryFrom'] as num?)?.toDouble() ?? _freeDeliveryFrom;
+      final etaMin = (payload['deliveryEtaMinMinutes'] as num?)?.toInt();
+      final etaMax = (payload['deliveryEtaMaxMinutes'] as num?)?.toInt();
+      if (etaMin != null && etaMax != null && etaMin > 0 && etaMax >= etaMin) {
+        _deliveryEta = (min: etaMin, max: etaMax);
+      }
       _maxCashVendorOrder =
           (payload['maxCashVendorOrder'] as num?)?.toDouble() ?? _maxCashVendorOrder;
       notifyListeners();

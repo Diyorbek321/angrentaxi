@@ -111,6 +111,10 @@ describe('SettingsService — sotuvchi hisob-kitobi va smena', () => {
         supportPhone: '+998',
         deliveryFee: 7000,
         maxCashVendorOrder: 200000,
+        // UX v5 §7: bepul yetkazish standart o'chiq, vaqt 30–50 daq.
+        freeDeliveryFrom: 0,
+        deliveryEtaMinMinutes: 30,
+        deliveryEtaMaxMinutes: 50,
         vendorSettlementMode: 'cash',
         vendorWalletSettlementFrom: '2026-12-11T19:00:00.000Z',
         // 3-bosqich (§11): hamyonni to'ldirish — standart o'chiq.

@@ -218,6 +218,14 @@ describe('FiscalReceiptsService', () => {
       );
     });
 
+    it("0 so'mlik safar (bepul yetkazish kuryeri, §7) — chek yozilmaydi, null", async () => {
+      const service = build();
+      await expect(
+        service.recordForRide({ ...ride, serviceType: ServiceType.FOOD, total: 0, commissionAmount: 0 }),
+      ).resolves.toBeNull();
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
     it("hamyon/karta to'lovi chekda 'card'", async () => {
       const service = build();
       const receipt = await service.recordForRide({ ...ride, paymentMethod: PaymentMethod.WALLET });
