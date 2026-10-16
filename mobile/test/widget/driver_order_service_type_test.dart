@@ -466,6 +466,20 @@ void main() {
       verifyNever(() => apiClient.patch(ApiEndpoints.completeTrip(_orderId), data: any(named: 'data')));
     });
   });
+
+  group('qayta ulanganda tiklangan taklif', () {
+    // Server qolgan soniyalarni beradi; ekran 15 dan emas, shundan sanaydi.
+    testWidgets('hisoblagich QOLGAN soniyalardan boshlanadi', (tester) async {
+      await pumpOfferScreen(tester, {..._orderJson(status: 'searching'), 'timeoutSeconds': 7});
+      expect(find.text('7'), findsOneWidget);
+      expect(find.text('15'), findsNothing);
+    });
+
+    testWidgets('yangi taklif (socket) — to\'liq muddat', (tester) async {
+      await pumpOfferScreen(tester, _orderJson(status: 'searching'));
+      expect(find.text('15'), findsOneWidget);
+    });
+  });
 }
 
 class _NoRouteService implements RouteService {

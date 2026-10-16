@@ -57,7 +57,7 @@ Holat belgisi: ✅ tayyor va sinalgan · ⚠️ qisman / qo'lda · ❌ yo'q (bo'
 | **Ta'sir** | Ilova fonda bo'lsa xabarlar kelmaydi |
 | **A** | FCM ✅ |
 | **B** | Ilova ochiq bo'lsa — socket; yo'lovchi ilovasi har 10 s so'raydi (polling) ✅ |
-| **Bo'shliq** | **Haydovchiga taklif faqat socket orqali** keladi: socket uzilib qayta ulansa, taklif qayta yuklanmaydi ❌ (§ Bo'shliqlar #4) |
+| **Haydovchi taklifi** | Socket orqali keladi; socket qayta ulanganda va ilova fondan qaytganda `GET /orders/offer/current` dan tiklanadi (qolgan soniyalar bilan) ✅. Bu so'rov ham ishlamasa — avvalgidek socket kutiladi |
 
 ## 6. Marshrut (OSRM) / xarita
 
@@ -137,7 +137,7 @@ Holat belgisi: ✅ tayyor va sinalgan · ⚠️ qisman / qo'lda · ❌ yo'q (bo'
 | 1 | Backend Redis'ga qayta ulanishdan taslim bo'ladi | Yuqori — taksi to'xtaydi | kod | ✅ tuzatildi |
 | 2 | Monitoring faqat "tirikmi"ni tekshiradi, "tayyormi"ni emas (Redis/DB o'chsa ham "sog'lom") | Yuqori | kod | ✅ tuzatildi |
 | 3 | Backup xato bersa xabar yo'q | Yuqori | kod | ✅ tuzatildi |
-| 4 | Haydovchi taklifi socket qayta ulanganda tiklanmaydi | O'rta | kod (mobil + API) | ochiq |
+| 4 | Haydovchi taklifi socket qayta ulanganda tiklanmaydi | O'rta | kod (mobil + API) | ✅ tuzatildi |
 | 5 | Eskiz sozlanmagan bo'lsa prod'da yolg'on "SMS yuborildi" | O'rta | kod | ✅ tuzatildi |
 | 6 | Eskiz 401 qayta urinishida jo'natuvchi nomi qattiq yozilgan | Past | kod | ✅ tuzatildi |
 | 7 | To'lov provayderi so'rovlarida timeout yo'q | O'rta | kod | ✅ tuzatildi |

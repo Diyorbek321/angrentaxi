@@ -39,12 +39,16 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
   @override
   void initState() {
     super.initState();
-    _secondsLeft = AppConfig.orderOfferTimeout.inSeconds;
+    // Qayta ulanganda tiklangan taklifda server QOLGAN soniyalarni beradi —
+    // hisoblagich undan boshlanadi (aks holda 8 s qolganda "15" ko'rinardi).
+    final full = AppConfig.orderOfferTimeout.inSeconds;
+    final left = context.read<DriverProvider>().pendingOffer?.offerTimeoutSeconds;
+    _secondsLeft = (left == null || left <= 0 || left > full) ? full : left;
 
     _progressController = AnimationController(
       vsync: this,
       duration: AppConfig.orderOfferTimeout,
-    )..forward();
+    )..forward(from: 1 - _secondsLeft / full);
 
     // Buyurtma taklifi keldi — haydovchi telefonga qaramayotgan bo'lishi
     // mumkin (yo'lda, cho'ntakda). Bu ilovadagi eng kuchli haptik signal

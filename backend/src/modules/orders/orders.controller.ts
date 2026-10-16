@@ -199,6 +199,19 @@ export class OrdersController {
     return this.ordersService.getScheduledOrders(user.id);
   }
 
+  /**
+   * Haydovchiga hozir ko'rsatilayotgan taklif (yo'q bo'lsa `null`). Taklif
+   * socket orqali keladi; uzilish paytidagi hodisa yo'qoladi — ilova qayta
+   * ulanganda / fondan qaytganda shu bilan tiklaydi.
+   * ⚠️ `@Get(':id')` DAN OLDIN turishi shart.
+   */
+  @Get('offer/current')
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({ summary: 'Haydovchining joriy buyurtma taklifi (socket qayta ulanganda tiklash uchun)' })
+  async getCurrentOffer(@CurrentUser() user: User): Promise<Record<string, unknown> | null> {
+    return this.matchingService.currentOfferFor(user.id);
+  }
+
   @Get('earnings')
   @Roles(UserRole.DRIVER)
   @ApiOperation({ summary: "Get the current driver's earnings for today" })

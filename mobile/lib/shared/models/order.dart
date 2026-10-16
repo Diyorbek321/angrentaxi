@@ -231,6 +231,7 @@ class Order extends Equatable {
     this.serviceType = kServiceTypeTaxi,
     this.arrivedAt,
     this.serverWaitingStartsAt,
+    this.offerTimeoutSeconds,
     this.freeWaitMinutes = kDefaultFreeWaitMinutes,
     this.waitingPricePerMinute = kDefaultWaitingPricePerMinute,
     this.delivery,
@@ -322,6 +323,11 @@ class Order extends Equatable {
     final scheduled = scheduledAt;
     return scheduled != null && scheduled.isAfter(arrived) ? scheduled : arrived;
   }
+
+  /// Taklif paketidagi `timeoutSeconds` — taklif ekranida QOLGAN soniyalar.
+  /// Socket orqali yangi taklifda to'liq muddat; qayta ulanganda tiklangan
+  /// taklifda — qolgani. Taklif bo'lmagan javoblarda `null`.
+  final int? offerTimeoutSeconds;
 
   /// Serverning `waitingStartsAt` maydoni (ixtiyoriy). To'g'ridan-to'g'ri
   /// emas, [waitingStartsAt] orqali o'qing.
@@ -432,6 +438,7 @@ class Order extends Equatable {
       arrivedAt: json['arrivedAt'] is String
           ? DateTime.tryParse(json['arrivedAt'] as String)?.toLocal()
           : null,
+      offerTimeoutSeconds: (json['timeoutSeconds'] as num?)?.toInt(),
       serverWaitingStartsAt: json['waitingStartsAt'] is String
           ? DateTime.tryParse(json['waitingStartsAt'] as String)?.toLocal()
           : null,
@@ -550,6 +557,7 @@ class Order extends Equatable {
       arrivedAt: arrivedAt ?? this.arrivedAt,
       // Kelish yoki reja vaqti o'zgarsa, serverning eski hisobi endi to'g'ri
       // emas — keyingi `fromJson` gacha o'zimiz hisoblaymiz.
+      offerTimeoutSeconds: offerTimeoutSeconds,
       serverWaitingStartsAt: arrivedAt == null && scheduledAt == null
           ? serverWaitingStartsAt
           : null,
@@ -594,6 +602,7 @@ class Order extends Equatable {
         // topilardi va kutish hisoblagichi yangilanmasdi.
         arrivedAt,
         serverWaitingStartsAt,
+        offerTimeoutSeconds,
         freeWaitMinutes,
         waitingPricePerMinute,
         delivery,

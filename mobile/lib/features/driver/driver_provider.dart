@@ -277,6 +277,30 @@ class DriverProvider extends ChangeNotifier {
       _startLocationUpdates();
     }
     _listenToSocketEvents();
+    _socketService.addReconnectListener(_onSocketReconnected);
+  }
+
+  void _onSocketReconnected() => resyncPendingOffer();
+
+  /// Taklifni serverdan tiklaydi (`GET /orders/offer/current`).
+  ///
+  /// B reja: taklif faqat socket orqali keladi va uzilish paytidagi hodisa
+  /// yo'qoladi — socket qayta ulanganda va ilova fondan qaytganda chaqiriladi.
+  /// Server "taklif yo'q" desa, eskirgan karta yopiladi. So'rov xato bersa —
+  /// hech narsa o'zgarmaydi (socket hodisasi baribir kelishi mumkin).
+  Future<void> resyncPendingOffer() async {
+    if (_activeOrder?.isActive ?? false) return;
+    try {
+      final response = await _apiClient.get(ApiEndpoints.currentOffer);
+      final body = response.data;
+      final data = body is Map<String, dynamic> ? body['data'] : null;
+      final offer = data is Map<String, dynamic> ? Order.fromJson(data) : null;
+      if (offer?.id == _pendingOffer?.id && offer != null) return;
+      _pendingOffer = offer;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[DriverProvider] resyncPendingOffer error: $e');
+    }
   }
 
   Future<void> loadProfile() async {
@@ -1119,6 +1143,7 @@ class DriverProvider extends ChangeNotifier {
     _stopLocationUpdates();
     _socketService.off(SocketEvents.newOrderOffer);
     _socketService.off(SocketEvents.orderCancelled);
+    _socketService.removeReconnectListener(_onSocketReconnected);
     _socketService.off(SocketEvents.walletUpdated, _onWalletUpdated);
     _walletUpdates.close();
     super.dispose();

@@ -604,76 +604,13 @@ export class MatchingService {
       return;
     }
 
-    // Pickup/dropoff are opaque PostGIS geometry columns on the entity — the
-    // mobile client's shared Order model expects plain {address, lat, lng},
-    // same shape OrdersService.attachDisplayFields attaches on REST responses.
-    const coordsResult = await this.orderRepository.query(
-      `SELECT ST_Y(pickup_location::geometry) as pickup_lat,
-              ST_X(pickup_location::geometry) as pickup_lng,
-              ST_Y(dropoff_location::geometry) as dropoff_lat,
-              ST_X(dropoff_location::geometry) as dropoff_lng
-       FROM orders WHERE id = $1`,
-      [orderId],
-    );
-    const coords = (coordsResult as Array<{
-      pickup_lat: string;
-      pickup_lng: string;
-      dropoff_lat: string;
-      dropoff_lng: string;
-    }>)[0];
-
     // Emit to driver via WebSocket, shaped to match the mobile Order model
     // (Order.fromJson) directly rather than a bespoke offer-only shape.
-    this.realtimeGateway.emitToUser(driver.userId, 'new_order_offer', {
-      id: order.id,
-      passengerId: order.passengerId,
-      pickup: {
-        address: order.pickupAddress,
-        lat: parseFloat(coords.pickup_lat),
-        lng: parseFloat(coords.pickup_lng),
-      },
-      dropoff: {
-        address: order.dropoffAddress,
-        lat: parseFloat(coords.dropoff_lat),
-        lng: parseFloat(coords.dropoff_lng),
-      },
-      status: order.status,
-      estimatedPrice: order.estimatedPrice,
-      // Taksometr: manzil yo'q (`dropoff` = olish nuqtasi), narx — "kamida".
-      // Busiz ilova "A → A" va eng kam narxni yakuniy summa deb ko'rsatardi.
-      isMetered: order.isMetered,
-      isFixedPrice: order.isFixedPrice,
-      createdAt: order.createdAt,
-      paymentMethod: order.paymentMethod,
-      // ⚠️ `distanceKm` — haydovchidan OLISH NUQTASIGACHA (eski nom).
-      distanceKm: driver.distanceKm,
-      // Safarning o'zi: buyurtmada qotirilgan baholash. Haydovchi taklifni
-      // narxga qarab emas, "qancha yuraman" ga qarab ham tortadi.
-      // Taksometrda baholash yo'q — `null`.
-      tripDistanceKm: order.fareBreakdown?.distanceKm ?? null,
-      tripDurationMin: order.fareBreakdown?.durationMin ?? null,
-      timeoutSeconds: OFFER_TIMEOUT_MS / 1000,
-      // ⚠️ XIZMAT TURI TAKLIF PAKETIDA BO'LISHI SHART.
-      //
-      // Ilova taklif kartochkasini AYNAN shu maydondan quradi
-      // (`DriverServiceWording.of(order.serviceType)`), va maydon kelmasa
-      // u ataylab `taxi` ga qaytadi. Ya'ni maydonsiz paket xato bermaydi —
-      // JIMGINA yolg'on ko'rsatadi: haydovchi ovqat yetkazish taklifida
-      // «Taksi» yorlig'ini, «Olish joyi» va «Yo'lovchigacha» matnlarini
-      // ko'rardi, holbuki olish nuqtasi restoran. U qabul qilgandan
-      // KEYINGINA, REST javobi kelganda matnlar to'g'rilanardi — ya'ni
-      // haydovchi qarorni noto'g'ri ma'lumot asosida qabul qilardi.
-      //
-      // Zaxira `TAXI`: ustun qo'shilishidan oldingi buyurtmalarda qiymat
-      // bo'sh bo'lishi mumkin, ular esa aynan taksi buyurtmalari.
-      serviceType: order.serviceType ?? ServiceType.TAXI,
-      // Food/market: vendor, item count and the cash to collect at the door
-      // (see deliveryRideDetails). The courier decides whether to take the
-      // offer on these — a 150 000 so'm cash handover is not a taxi ride.
-      details: order.details ?? null,
-      // Haydovchi taklifda "bola o'rindig'i kerak" ni ko'rishi shart.
-      options: order.options ?? [],
-    });
+    this.realtimeGateway.emitToUser(
+      driver.userId,
+      'new_order_offer',
+      await this.buildOfferPayload(order, driver.distanceKm, OFFER_TIMEOUT_MS / 1000),
+    );
 
     // Push KUTILMAYDI: sekin/osilgan FCM taklif oqimini (va shu paytdagi
     // rad etishni) to'xtatib turmasligi kerak.
@@ -782,6 +719,106 @@ export class MatchingService {
     // Nobody in this batch is free: no outstanding offer, so the next sweep
     // tick re-searches (until the overall deadline).
     await this.saveQueue({ ...queue, currentIndex: queue.drivers.length, offerExpiresAt: 0 });
+  }
+
+  /**
+   * Haydovchiga HOZIR ko'rsatilayotgan taklif — `new_order_offer` bilan bir
+   * xil paket, `timeoutSeconds` esa QOLGAN soniyalar. Topilmasa `null`.
+   *
+   * B reja: taklif faqat socket orqali keladi va socket uzilgan paytdagi
+   * hodisa yo'qoladi. Ilova qayta ulanganda / fondan qaytganda shu orqali
+   * taklifni tiklaydi. Muddati o'tgan (grace ichida bo'lsa ham) taklif
+   * qaytarilmaydi — haydovchiga qabul qilib bo'lmaydigan karta ko'rsatilmasin.
+   */
+  async currentOfferFor(driverUserId: string): Promise<Record<string, unknown> | null> {
+    const orderId = await this.redis.get(this.driverHoldKey(driverUserId));
+    if (!orderId) return null;
+
+    const queue = await this.getQueue(orderId);
+    const current = queue?.drivers[queue.currentIndex];
+    const msLeft = (queue?.offerExpiresAt ?? 0) - Date.now();
+    if (!queue || current?.userId !== driverUserId || msLeft <= 0) return null;
+
+    const order = await this.orderRepository.findOne({ where: { id: orderId } });
+    if (order?.status !== OrderStatus.SEARCHING) return null;
+
+    return this.buildOfferPayload(order, current.distanceKm, Math.ceil(msLeft / 1000));
+  }
+
+  private async buildOfferPayload(
+    order: Order,
+    distanceKm: number,
+    timeoutSeconds: number,
+  ): Promise<Record<string, unknown>> {
+    const orderId = order.id;
+    // Pickup/dropoff are opaque PostGIS geometry columns on the entity — the
+    // mobile client's shared Order model expects plain {address, lat, lng},
+    // same shape OrdersService.attachDisplayFields attaches on REST responses.
+    const coordsResult = await this.orderRepository.query(
+      `SELECT ST_Y(pickup_location::geometry) as pickup_lat,
+              ST_X(pickup_location::geometry) as pickup_lng,
+              ST_Y(dropoff_location::geometry) as dropoff_lat,
+              ST_X(dropoff_location::geometry) as dropoff_lng
+       FROM orders WHERE id = $1`,
+      [orderId],
+    );
+    const coords = (coordsResult as Array<{
+      pickup_lat: string;
+      pickup_lng: string;
+      dropoff_lat: string;
+      dropoff_lng: string;
+    }>)[0];
+
+    return {
+      id: order.id,
+      passengerId: order.passengerId,
+      pickup: {
+        address: order.pickupAddress,
+        lat: parseFloat(coords.pickup_lat),
+        lng: parseFloat(coords.pickup_lng),
+      },
+      dropoff: {
+        address: order.dropoffAddress,
+        lat: parseFloat(coords.dropoff_lat),
+        lng: parseFloat(coords.dropoff_lng),
+      },
+      status: order.status,
+      estimatedPrice: order.estimatedPrice,
+      // Taksometr: manzil yo'q (`dropoff` = olish nuqtasi), narx — "kamida".
+      // Busiz ilova "A → A" va eng kam narxni yakuniy summa deb ko'rsatardi.
+      isMetered: order.isMetered,
+      isFixedPrice: order.isFixedPrice,
+      createdAt: order.createdAt,
+      paymentMethod: order.paymentMethod,
+      // ⚠️ `distanceKm` — haydovchidan OLISH NUQTASIGACHA (eski nom).
+      distanceKm,
+      // Safarning o'zi: buyurtmada qotirilgan baholash. Haydovchi taklifni
+      // narxga qarab emas, "qancha yuraman" ga qarab ham tortadi.
+      // Taksometrda baholash yo'q — `null`.
+      tripDistanceKm: order.fareBreakdown?.distanceKm ?? null,
+      tripDurationMin: order.fareBreakdown?.durationMin ?? null,
+      timeoutSeconds,
+      // ⚠️ XIZMAT TURI TAKLIF PAKETIDA BO'LISHI SHART.
+      //
+      // Ilova taklif kartochkasini AYNAN shu maydondan quradi
+      // (`DriverServiceWording.of(order.serviceType)`), va maydon kelmasa
+      // u ataylab `taxi` ga qaytadi. Ya'ni maydonsiz paket xato bermaydi —
+      // JIMGINA yolg'on ko'rsatadi: haydovchi ovqat yetkazish taklifida
+      // «Taksi» yorlig'ini, «Olish joyi» va «Yo'lovchigacha» matnlarini
+      // ko'rardi, holbuki olish nuqtasi restoran. U qabul qilgandan
+      // KEYINGINA, REST javobi kelganda matnlar to'g'rilanardi — ya'ni
+      // haydovchi qarorni noto'g'ri ma'lumot asosida qabul qilardi.
+      //
+      // Zaxira `TAXI`: ustun qo'shilishidan oldingi buyurtmalarda qiymat
+      // bo'sh bo'lishi mumkin, ular esa aynan taksi buyurtmalari.
+      serviceType: order.serviceType ?? ServiceType.TAXI,
+      // Food/market: vendor, item count and the cash to collect at the door
+      // (see deliveryRideDetails). The courier decides whether to take the
+      // offer on these — a 150 000 so'm cash handover is not a taxi ride.
+      details: order.details ?? null,
+      // Haydovchi taklifda "bola o'rindig'i kerak" ni ko'rishi shart.
+      options: order.options ?? [],
+    };
   }
 
   private driverHoldKey(driverUserId: string): string {

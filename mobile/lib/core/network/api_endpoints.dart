@@ -87,6 +87,8 @@ class ApiEndpoints {
   // and is kept for the existing headline figure).
   static const String driverEarningsBreakdown = '/orders/earnings/breakdown';
   static const String driverOrderHistory = '/orders/history';
+  // Socket qayta ulanganda o'tkazib yuborilgan taklifni tiklash.
+  static const String currentOffer = '/orders/offer/current';
   static String acceptOrder(String id) => '/orders/$id/accept';
   static String declineOrder(String id) => '/orders/$id/decline';
   static String arrivedAtPickup(String id) => '/orders/$id/arrived';

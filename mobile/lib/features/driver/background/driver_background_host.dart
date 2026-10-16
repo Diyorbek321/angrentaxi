@@ -50,6 +50,11 @@ class _DriverBackgroundHostState extends State<DriverBackgroundHost> with Widget
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _bridge.onLifecycle(state);
+    // Fonda socket uxlab qolgan bo'lishi mumkin — o'tkazib yuborilgan taklif
+    // serverdan tiklanadi.
+    if (state == AppLifecycleState.resumed && _driver.isOnline) {
+      _driver.resyncPendingOffer();
+    }
   }
 
   @override

@@ -436,4 +436,46 @@ describe('MatchingService — dispetcherlik tuzatishlari', () => {
       await expect(service.cancelSearch('nothing')).resolves.toBeUndefined();
     });
   });
+
+  describe('8. currentOfferFor — socket qayta ulanganda taklifni tiklash', () => {
+    const offerPayload = () =>
+      realtimeGateway.emitToUser.mock.calls.find(([, event]) => event === 'new_order_offer')![2] as Record<string, unknown>;
+
+    it('joriy taklif egasiga — socket yuborgan paket bilan bir xil, qolgan soniyalar bilan', async () => {
+      driversService.getNearbyDrivers.mockResolvedValue([makeDriver('driver-a', 1.4)]);
+      await service.startSearch(orderId);
+
+      await withNow(6_000, async () => {
+        const offer = await service.currentOfferFor('driver-a');
+        expect(offer).toEqual({ ...offerPayload(), timeoutSeconds: 9 });
+      });
+    });
+
+    it('boshqa haydovchiga — null', async () => {
+      driversService.getNearbyDrivers.mockResolvedValue([makeDriver('driver-a')]);
+      await service.startSearch(orderId);
+      await expect(service.currentOfferFor('driver-b')).resolves.toBeNull();
+    });
+
+    it('taklif vaqti tugagan (grace ichida ham) — null, eskirgan karta ko‘rsatilmaydi', async () => {
+      driversService.getNearbyDrivers.mockResolvedValue([makeDriver('driver-a')]);
+      await service.startSearch(orderId);
+      await withNow(16_000, async () => {
+        await expect(service.currentOfferFor('driver-a')).resolves.toBeNull();
+      });
+    });
+
+    it('buyurtma endi SEARCHING emas — null', async () => {
+      driversService.getNearbyDrivers.mockResolvedValue([makeDriver('driver-a')]);
+      await service.startSearch(orderId);
+      orderRepository.findOne.mockResolvedValue(makeOrder({ status: OrderStatus.CANCELLED }));
+      await expect(service.currentOfferFor('driver-a')).resolves.toBeNull();
+    });
+
+    it('band belgisi yo‘q — Redis/Postgres’ga ortiqcha so‘rov yo‘q', async () => {
+      orderRepository.findOne.mockClear();
+      await expect(service.currentOfferFor('driver-a')).resolves.toBeNull();
+      expect(orderRepository.findOne).not.toHaveBeenCalled();
+    });
+  });
 });
