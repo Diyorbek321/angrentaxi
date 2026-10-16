@@ -8,6 +8,7 @@ import {
   PackageSearch,
   PlusCircle,
   Radar,
+  Route,
   ScrollText,
   ShieldAlert,
   ShieldCheck,
@@ -36,6 +37,7 @@ export const DISPATCH_NAV: readonly NavGroup[] = [
       { href: EXCEPTIONS_HREF, label: 'Istisnolar', icon: AlertTriangle, permission: 'dispatch' },
       { href: '/orders', label: 'Buyurtmalar', icon: ClipboardList, permission: 'dispatch' },
       { href: '/create-order', label: 'Buyurtma yaratish', icon: PlusCircle, permission: 'dispatch' },
+      { href: '/dispatch/intercity', label: 'Shaharlararo', icon: Route, permission: 'dispatch' },
     ],
   },
   {

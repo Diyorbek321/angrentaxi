@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   Megaphone,
   Receipt,
+  Route,
   Scale,
   Settings,
   ShieldAlert,
@@ -46,6 +47,7 @@ export const ADMIN_NAV: readonly NavGroup[] = [
       { href: DRIVERS_HREF, label: 'Haydovchilar', icon: Car },
       { href: '/dashboard/driver-documents', label: 'Hujjatlar', icon: FileCheck2 },
       { href: '/dashboard/tariffs', label: 'Tariflar', icon: Tag },
+      { href: '/dashboard/intercity', label: 'Shaharlararo', icon: Route },
     ],
   },
   {

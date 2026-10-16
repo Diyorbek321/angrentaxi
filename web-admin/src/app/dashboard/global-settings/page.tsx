@@ -17,6 +17,7 @@ import {
 } from '@/components/ui';
 import { settingsApi, type GlobalSettings } from '@/lib/api';
 import { validateDeliverySettings } from '@/lib/delivery-settings';
+import { IntercitySettingsCard } from '@/components/intercity/IntercitySettingsCard';
 
 const EMPTY_FORM: GlobalSettings = {
   platformName: '',
@@ -239,6 +240,9 @@ export default function GlobalSettingsPage() {
                 </div>
               </CardBody>
             </Card>
+
+            {/* O'z endpointi va saqlash tugmasi bor — umumiy formaning "dirty" holatiga kirmaydi. */}
+            <IntercitySettingsCard />
 
             <Card padding="none">
               <CardHeader title="Texnik profilaktika" divider />

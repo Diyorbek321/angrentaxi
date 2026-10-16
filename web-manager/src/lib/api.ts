@@ -136,7 +136,7 @@ export interface Order {
   estimatedPrice: number;
   finalPrice: number | null;
   note: string | null;
-  // 'taxi' | 'cargo' | 'food' | 'market' | 'parcel'; details carry the
+  // 'taxi' | 'cargo' | 'food' | 'market' | 'parcel' | 'intercity'; details carry the
   // vertical's payload (for a parcel: recipient and item — see lib/parcel.ts).
   serviceType?: string;
   details?: Record<string, unknown> | null;

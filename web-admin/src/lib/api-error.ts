@@ -33,6 +33,8 @@ export const API_ERROR_TITLE: Readonly<Record<string, string>> = {
   LEGAL_PROFILE_LOCKED: 'Huquqiy profil qulflangan',
   LEGAL_PROFILE_DUPLICATE: 'Takroriy JShShIR yoki STIR',
   MANUAL_ADJUSTMENT_LIMIT: 'Tuzatish chegarasidan oshdi',
+  INTERCITY_DISABLED: 'Shaharlararo oʻchirilgan',
+  INTERCITY_ROUTE_INVALID: 'Yoʻnalish narxlari notoʻgʻri',
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {

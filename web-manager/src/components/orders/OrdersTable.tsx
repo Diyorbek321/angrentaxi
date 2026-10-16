@@ -6,6 +6,8 @@ import { CalendarCheck, Eye } from 'lucide-react';
 import { Order, PaginatedResponse } from '@/lib/api';
 import { PAYMENT_METHOD_LABELS } from '@/lib/constants';
 import { OrderStatusBadge } from './OrderStatusBadge';
+import { Badge } from '@/components/ui/Badge';
+import { serviceTypeLabel } from '@/lib/intercity';
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import { Tooltip } from '@/components/ui/Tooltip';
@@ -89,6 +91,11 @@ export function OrdersTable({
       hideBelow: 'md',
       cell: (o) => (
         <div className="min-w-0">
+          {o.serviceType === 'intercity' && (
+            <Badge size="sm" variant="info" className="mb-0.5">
+              {serviceTypeLabel(o.serviceType)}
+            </Badge>
+          )}
           <p className="text-ink truncate">{o.pickupAddress ?? '—'}</p>
           <p className="text-muted truncate text-xs">→ {o.dropoffAddress ?? '—'}</p>
         </div>
