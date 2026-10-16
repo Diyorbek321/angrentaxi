@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Runs every minute (install-timers.sh). Checks the public health endpoint and
+# Runs every minute (install-timers.sh). Checks the public READINESS endpoint
+# (Postgres + Redis answer — liveness alone stays 200 while Redis is down and
+# no driver can be matched) and
 # the container health states; after ALERT_AFTER_FAILURES consecutive failures
 # sends ONE Telegram alert, and one "recovered" message when it comes back.
 # Telegram is optional — without TELEGRAM_* it only logs to the journal.
@@ -8,19 +10,12 @@ set -uo pipefail
 load_env
 
 threshold="${ALERT_AFTER_FAILURES:-3}"
-url="${HEALTH_URL:-https://api.${DOMAIN}/api/v1/health}"
+url="${HEALTH_URL:-https://api.${DOMAIN}/api/v1/health/ready}"
 mkdir -p "$STATE_DIR"
 count_file="$STATE_DIR/health-failures"
 alerted_file="$STATE_DIR/health-alerted"
 
-notify() {
-  log "$1"
-  [[ -n "${TELEGRAM_BOT_TOKEN:-}" && -n "${TELEGRAM_CHAT_ID:-}" ]] || return 0
-  curl -sS -m 10 -o /dev/null \
-    "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-    --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
-    --data-urlencode "text=$1" || warn "telegram send failed"
-}
+notify() { telegram_notify "$1"; }
 
 problems=()
 code="$(curl -sS -o /dev/null -m 10 -w '%{http_code}' "$url" 2>/dev/null)" || code=000

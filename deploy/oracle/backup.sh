@@ -60,7 +60,8 @@ case "$kind" in
 esac
 
 if [[ "$local_only" == "1" || -z "${BACKUP_S3_BUCKET:-}" ]]; then
-  [[ -z "${BACKUP_S3_BUCKET:-}" ]] && warn "BACKUP_S3_BUCKET empty — backup stays on this VM only"
+  # VM o'lsa, faqat VM'dagi backup ham u bilan ketadi — har kecha eslatamiz.
+  [[ -z "${BACKUP_S3_BUCKET:-}" ]] && telegram_notify "⚠️ Angren (${DOMAIN:-?}): backup faqat VM'da qoldi — BACKUP_S3_BUCKET bo'sh, R2'ga yuborilmadi"
   exit 0
 fi
 

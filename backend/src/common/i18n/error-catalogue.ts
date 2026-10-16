@@ -299,6 +299,10 @@ export const ERROR_CATALOGUE: readonly ErrorCatalogueEntry[] = [
   { source: 'Chegirma summasi taom narxidan kichik bo‘lishi kerak', ru: 'Сумма скидки должна быть меньше цены товара' },
   { source: 'Kamida bitta kategoriya tanlang', ru: 'Выберите хотя бы одну категорию' },
   { source: 'Kategoriya topilmadi', ru: 'Категория не найдена' },
+  {
+    source: "SMS xizmati vaqtincha ishlamayapti. Birozdan keyin qayta urinib ko'ring.",
+    ru: 'SMS-сервис временно недоступен. Попробуйте ещё раз чуть позже.',
+  },
   { source: 'Kamida bitta taom yoki mahsulot tanlang', ru: 'Выберите хотя бы одно блюдо или товар' },
   { source: 'Taom yoki mahsulot topilmadi', ru: 'Блюдо или товар не найдены' },
 

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { timingSafeEqual } from 'crypto';
 import axios from 'axios';
 import { IPaymentProvider, PaymentInitiateOptions, PaymentInitiateResult } from './payment.interface';
+import { PAYMENT_PROVIDER_TIMEOUT_MS } from './provider-http';
 
 /**
  * Constant-time string comparison for secrets/signatures.
@@ -92,6 +93,7 @@ export class PaymeProvider implements IPaymentProvider {
             Authorization: `Basic ${credentials}`,
             'Content-Type': 'application/json',
           },
+          timeout: PAYMENT_PROVIDER_TIMEOUT_MS,
         },
       );
 

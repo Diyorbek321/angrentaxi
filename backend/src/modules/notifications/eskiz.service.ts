@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
 
@@ -14,6 +14,9 @@ interface EskizSendResponse {
   status: string;
   message?: string;
 }
+
+/** Foydalanuvchiga ko'rinadi (ruschasi — `ERROR_CATALOGUE`). */
+export const SMS_UNAVAILABLE_MESSAGE = "SMS xizmati vaqtincha ishlamayapti. Birozdan keyin qayta urinib ko'ring.";
 
 @Injectable()
 export class EskizService {
@@ -33,65 +36,57 @@ export class EskizService {
   async sendSms(phone: string, message: string): Promise<void> {
     const email = this.configService.get<string>('ESKIZ_EMAIL', '');
     if (!email || email === 'your@email.com') {
+      // ⚠️ Prod'da jim o'tkazib yuborish — foydalanuvchini aldash: "SMS
+      // yuborildi" deydi, kod esa hech qachon kelmaydi. Dev'da kod jurnalda.
+      if (this.configService.get<string>('NODE_ENV') === 'production') {
+        this.logger.error('ESKIZ_EMAIL is not set in production — OTP SMS cannot be sent');
+        throw new ServiceUnavailableException(SMS_UNAVAILABLE_MESSAGE);
+      }
       this.logger.warn(`[DEV] SMS skipped for ${phone}: ${message}`);
       return;
     }
-    const token = await this.getToken();
 
     const formattedPhone = phone.replace('+', '');
-
     try {
-      const response = await this.client.post<EskizSendResponse>(
-        '/message/sms/send',
-        {
-          mobile_phone: formattedPhone,
-          message,
-          // ESKIZ_FROM is documented in every .env file but used to be ignored
-          // in favour of this hardcoded value, so changing the approved sender
-          // id required a code change and a redeploy.
-          from: this.configService.get<string>('ESKIZ_FROM') || '4546',
-          callback_url: '',
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-
-      this.logger.log(
-        `SMS sent to ${phone}, id: ${response.data.id}, status: ${response.data.status}`,
-      );
+      await this.postSms(await this.getToken(), formattedPhone, message, phone);
     } catch (err) {
       const error = err as { response?: { status?: number; data?: unknown }; message: string };
-
-      if (error.response?.status === 401) {
-        // Token expired, refresh and retry
-        this.token = null;
-        this.tokenExpiresAt = null;
-        const newToken = await this.getToken();
-
-        await this.client.post<EskizSendResponse>(
-          '/message/sms/send',
-          {
-            mobile_phone: formattedPhone,
-            message,
-            from: '4546',
-            callback_url: '',
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${newToken}`,
-              'Content-Type': 'application/json',
-            },
-          },
-        );
-      } else {
+      if (error.response?.status !== 401) {
         this.logger.error(`SMS send failed: ${error.message}`, error.response?.data);
-        throw new Error(`Failed to send SMS: ${error.message}`);
+        throw new ServiceUnavailableException(SMS_UNAVAILABLE_MESSAGE);
+      }
+      // Token muddati tugagan — yangilab, BIR marta qayta urinamiz.
+      this.token = null;
+      this.tokenExpiresAt = null;
+      try {
+        await this.postSms(await this.getToken(), formattedPhone, message, phone);
+      } catch (retryErr) {
+        this.logger.error(`SMS send failed after token refresh: ${(retryErr as Error).message}`);
+        throw new ServiceUnavailableException(SMS_UNAVAILABLE_MESSAGE);
       }
     }
+  }
+
+  private async postSms(token: string, mobilePhone: string, message: string, phone: string): Promise<void> {
+    const response = await this.client.post<EskizSendResponse>(
+      '/message/sms/send',
+      {
+        mobile_phone: mobilePhone,
+        message,
+        // ESKIZ_FROM is documented in every .env file but used to be ignored
+        // in favour of this hardcoded value (the 401 retry still was), so
+        // changing the approved sender id required a code change.
+        from: this.configService.get<string>('ESKIZ_FROM') || '4546',
+        callback_url: '',
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      },
+    );
+    this.logger.log(`SMS sent to ${phone}, id: ${response.data.id}, status: ${response.data.status}`);
   }
 
   private async getToken(): Promise<string> {

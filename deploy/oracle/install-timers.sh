@@ -2,6 +2,9 @@
 # Installs systemd timers (idempotent) for:
 #   angren-backup.timer  — backup.sh nightly at 03:30 (server TZ Asia/Tashkent)
 #   angren-health.timer  — healthcheck-alert.sh every minute
+#   angren-failure@.service — Telegram alert when the backup unit FAILS
+#                              (OnFailure=; a failed backup used to be
+#                              visible only in the journal)
 #
 #   sudo deploy/oracle/install-timers.sh
 # Logs: journalctl -u angren-backup -u angren-health
@@ -16,6 +19,7 @@ cat > /etc/systemd/system/angren-backup.service <<UNIT
 Description=Angren PostgreSQL backup (local + R2)
 After=docker.service
 Requires=docker.service
+OnFailure=angren-failure@%n.service
 
 [Service]
 Type=oneshot
@@ -37,6 +41,16 @@ RandomizedDelaySec=5min
 
 [Install]
 WantedBy=timers.target
+UNIT
+
+cat > /etc/systemd/system/angren-failure@.service <<UNIT
+[Unit]
+Description=Angren failure alert for %i
+
+[Service]
+Type=oneshot
+User=$RUN_AS
+ExecStart=$ORACLE_DIR/notify-failure.sh %i
 UNIT
 
 cat > /etc/systemd/system/angren-health.service <<UNIT

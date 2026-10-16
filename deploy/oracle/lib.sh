@@ -27,6 +27,17 @@ load_env() {
   set +a
 }
 
+# telegram_notify <text> — logs it and, when TELEGRAM_BOT_TOKEN and
+# TELEGRAM_CHAT_ID are set, sends it to Telegram. Never fails the caller.
+telegram_notify() {
+  log "$1"
+  [[ -n "${TELEGRAM_BOT_TOKEN:-}" && -n "${TELEGRAM_CHAT_ID:-}" ]] || return 0
+  curl -sS -m 10 -o /dev/null \
+    "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+    --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+    --data-urlencode "text=$1" || warn "telegram send failed"
+}
+
 # dc <compose args...> — docker compose bound to the prod file + env file.
 dc() {
   docker compose -p "$COMPOSE_PROJECT" -f "$COMPOSE_FILE_PATH" --env-file "$ENV_FILE" "$@"

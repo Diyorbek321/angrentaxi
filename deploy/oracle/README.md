@@ -227,12 +227,19 @@ sudo deploy/oracle/install-timers.sh
 - **Backup**: har kuni 03:30 (Toshkent) — `pg_dump` (custom, siqilgan) →
   `/var/backups/angren/daily` (7 ta) + yakshanba `weekly` (4 ta) → GPG bilan
   shifrlab R2'ga. Deploy oldidan avtomatik `predeploy` nusxa ham olinadi.
-- **Monitoring**: har daqiqada `https://api.<domen>/api/v1/health` va
-  konteyner holati. 3 marta ketma-ket xato → Telegram xabari, tiklanganda
+- **Monitoring**: har daqiqada `https://api.<domen>/api/v1/health/ready`
+  (Postgres + Redis javob beradimi — oddiy `/health` Redis o'chganda ham 200
+  qaytaradi) va konteyner holati. 3 marta ketma-ket xato → Telegram xabari, tiklanganda
   yana xabar. `.env.prod` da `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
   (@BotFather → bot yarating → botga yozing →
   `https://api.telegram.org/bot<TOKEN>/getUpdates` dan chat id).
 - Loglar: `journalctl -u angren-backup -u angren-health --since today`.
+- **Backup xatosi**: backup xato bilan tugasa (`OnFailure=`) Telegram'ga
+  xabar (`notify-failure.sh`); R2 sozlanmagan bo'lsa — har kecha ogohlantirish.
+  Skriptlar yangilangach `install-timers.sh` ni **qayta ishga tushiring**.
+- **Tashqi monitor** (VM butunlay o'lsa, ichidagi monitor jim qoladi):
+  UptimeRobot (bepul) → `https://api.<domen>/api/v1/health/ready`, 5 daqiqa,
+  Telegram/email. To'liq B rejalar — `docs/CONTINGENCY-PLAN.md`.
 
 **Tiklash mashqi (oyiga bir marta):**
 

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { createHmac, timingSafeEqual } from 'crypto';
 import axios from 'axios';
 import { IPaymentProvider, PaymentInitiateOptions, PaymentInitiateResult } from './payment.interface';
+import { PAYMENT_PROVIDER_TIMEOUT_MS } from './provider-http';
 
 /**
  * Constant-time string comparison for secrets/signatures.
@@ -73,6 +74,7 @@ export class UzcardProvider implements IPaymentProvider {
         headers: {
           'X-Api-Key': this.configService.get<string>('UZCARD_API_KEY', ''),
         },
+        timeout: PAYMENT_PROVIDER_TIMEOUT_MS,
       },
     );
 
@@ -114,6 +116,7 @@ export class UzcardProvider implements IPaymentProvider {
           headers: {
             'X-Api-Key': this.configService.get<string>('UZCARD_API_KEY', ''),
           },
+          timeout: PAYMENT_PROVIDER_TIMEOUT_MS,
         },
       );
       return typeof response.data?.status === 'string' ? response.data.status : null;
