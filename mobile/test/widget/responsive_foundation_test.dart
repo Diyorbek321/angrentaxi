@@ -173,6 +173,66 @@ void main() {
       expect(rect.bottom, greaterThan(600));
     });
 
+    testWidgets(
+        'sheet kontenti 3 tugmali Android navigatsiya paneli ostida qolmaydi',
+        (tester) async {
+      // Android 15 edge-to-edge: tizim paneli (~48dp) ilova ustida chiziladi.
+      const size = Size(390, 800);
+      const navBar = 48.0;
+      await pumpAt(
+        tester,
+        size,
+        Builder(
+          builder: (context) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              padding: const EdgeInsets.only(bottom: navBar),
+              viewPadding: const EdgeInsets.only(bottom: navBar),
+            ),
+            child: harness(size),
+          ),
+        ),
+      );
+
+      final rect = tester.getRect(find.byKey(const Key('content')));
+      expect(rect.bottom, lessThanOrEqualTo(size.height - navBar));
+    });
+
+    testWidgets(
+        'baland kontent xaritani butunlay yopmaydi va panel ichida aylanadi',
+        (tester) async {
+      // Kichik telefon + katta shrift: haydovchi paneli ekrandan baland.
+      const size = Size(360, 640);
+      await pumpAt(
+        tester,
+        size,
+        Scaffold(
+          body: Stack(
+            children: [
+              const SizedBox.expand(),
+              AdaptiveMapPanel(
+                animateIn: false,
+                child: Container(key: const Key('tall'), height: 1000),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      final panelTop = tester.getTopLeft(find.byType(SingleChildScrollView)).dy;
+      // Tepada xaritaning kamida 120dp qismi ochiq qoladi.
+      expect(panelTop, greaterThanOrEqualTo(100));
+
+      // Pastki qism (asosiy amallar) darhol ko'rinadi...
+      final tall = find.byKey(const Key('tall'));
+      expect(tester.getRect(tall).bottom, lessThanOrEqualTo(size.height));
+
+      // ...tepadagi ma'lumot esa pastga surib ochiladi.
+      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, 2000));
+      await tester.pump();
+      expect(tester.getRect(tall).top, greaterThanOrEqualTo(panelTop));
+    });
+
     testWidgets('keng ekranda chapdagi tor yon panel', (tester) async {
       const size = Size(1000, 800);
       await pumpAt(tester, size, harness(size));

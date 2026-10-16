@@ -190,122 +190,125 @@ class _DriverLegalScreenState extends State<DriverLegalScreen> {
     return Scaffold(
       backgroundColor: kSurface2,
       appBar: AppBar(title: Text(l10n.lglTitle)),
-      body: Consumer<DriverLegalProvider>(
-        builder: (context, provider, _) {
-          if (provider.summary == null && provider.isLoading) {
-            return const AppSkeletonList(itemCount: 5, hasTrailing: false);
-          }
-          if (provider.summary == null && provider.loadError != null) {
-            return AppErrorState(
-              message: provider.loadError ?? l10n.lglLoadFailed,
-              onRetry: provider.load,
-            );
-          }
-          final locked = provider.isProfileLocked;
-          return Form(
-            key: _formKey,
-            child: ListView(
-              padding: const EdgeInsets.all(kSpace4),
-              children: [
-                LegalEligibilityCard(
-                  eligibility: provider.eligibility,
-                  onOpenDocuments: () =>
-                      Navigator.of(context).pushNamed('/driver/verification'),
-                ),
-                const SizedBox(height: kSpace4),
-                Text(
-                  l10n.lglIntro,
-                  style: const TextStyle(
-                    fontSize: kFontLabel,
-                    color: kInkMuted,
-                    height: 1.4,
+      body: SafeArea(
+        top: false,
+        child: Consumer<DriverLegalProvider>(
+          builder: (context, provider, _) {
+            if (provider.summary == null && provider.isLoading) {
+              return const AppSkeletonList(itemCount: 5, hasTrailing: false);
+            }
+            if (provider.summary == null && provider.loadError != null) {
+              return AppErrorState(
+                message: provider.loadError ?? l10n.lglLoadFailed,
+                onRetry: provider.load,
+              );
+            }
+            final locked = provider.isProfileLocked;
+            return Form(
+              key: _formKey,
+              child: ListView(
+                padding: const EdgeInsets.all(kSpace4),
+                children: [
+                  LegalEligibilityCard(
+                    eligibility: provider.eligibility,
+                    onOpenDocuments: () =>
+                        Navigator.of(context).pushNamed('/driver/verification'),
                   ),
-                ),
-                if (locked) ...[
                   const SizedBox(height: kSpace4),
-                  _LockedNote(text: l10n.lglLockedNote),
-                ],
-                const SizedBox(height: kSpace4),
-                _buildTaxStatus(context, locked: locked),
-                const SizedBox(height: kSpace4),
-                AppTextField(
-                  key: const ValueKey('legal_pinfl_field'),
-                  controller: _pinfl,
-                  label: l10n.lglPinfl,
-                  hint: l10n.lglPinflHint,
-                  enabled: !locked,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(14),
-                  ],
-                  validator: (v) =>
-                      _duplicateError(LegalSaveErrorKind.duplicatePinfl, v) ??
-                      LegalValidators.pinfl(v),
-                ),
-                const SizedBox(height: kSpace4),
-                AppTextField(
-                  key: const ValueKey('legal_tin_field'),
-                  controller: _tin,
-                  label: l10n.lglTin,
-                  enabled: !locked,
-                  hint: _taxStatus == DriverTaxStatus.individualEntrepreneur
-                      ? l10n.lglTinHintRequired
-                      : l10n.lglTinHintOptional,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(9),
-                  ],
-                  validator: (v) =>
-                      _duplicateError(LegalSaveErrorKind.duplicateTin, v) ??
-                      LegalValidators.tin(v, taxStatus: _taxStatus),
-                ),
-                const SizedBox(height: kSpace4),
-                _DateField(
-                  key: const ValueKey('legal_birth_date'),
-                  label: l10n.lglBirthDate,
-                  value: _birthDate,
-                  onTap: locked
-                      ? null
-                      : () => _pickDate(
-                            initial: _birthDate,
-                            onPicked: (d) => setState(() => _birthDate = d),
-                          ),
-                ),
-                const SizedBox(height: kSpace4),
-                _DateField(
-                  key: const ValueKey('legal_licence_date'),
-                  label: l10n.lglLicenceIssuedAt,
-                  value: _licenceIssuedAt,
-                  onTap: () => _pickDate(
-                    initial: _licenceIssuedAt,
-                    onPicked: (d) => setState(() => _licenceIssuedAt = d),
+                  Text(
+                    l10n.lglIntro,
+                    style: const TextStyle(
+                      fontSize: kFontLabel,
+                      color: kInkMuted,
+                      height: 1.4,
+                    ),
                   ),
-                ),
-                const SizedBox(height: kSpace4),
-                AppTextField(
-                  key: const ValueKey('legal_taxi_licence_field'),
-                  controller: _licenceNumber,
-                  label: l10n.lglTaxiLicenceNumber,
-                  hint: 'TL-000123',
-                  inputFormatters: [LengthLimitingTextInputFormatter(50)],
-                ),
-                const SizedBox(height: kSpace4),
-                _buildRegion(context, provider.profile.taxiLicenceRegion),
-                const SizedBox(height: kSpace6),
-                AppButton(
-                  key: const ValueKey('legal_save_button'),
-                  label: l10n.lglSave,
-                  height: kControlHeightDriver,
-                  isLoading: provider.isSaving,
-                  onPressed: provider.isSaving ? null : () => _save(provider),
-                ),
-                const SizedBox(height: kSpace6),
-              ],
-            ),
-          );
-        },
+                  if (locked) ...[
+                    const SizedBox(height: kSpace4),
+                    _LockedNote(text: l10n.lglLockedNote),
+                  ],
+                  const SizedBox(height: kSpace4),
+                  _buildTaxStatus(context, locked: locked),
+                  const SizedBox(height: kSpace4),
+                  AppTextField(
+                    key: const ValueKey('legal_pinfl_field'),
+                    controller: _pinfl,
+                    label: l10n.lglPinfl,
+                    hint: l10n.lglPinflHint,
+                    enabled: !locked,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(14),
+                    ],
+                    validator: (v) =>
+                        _duplicateError(LegalSaveErrorKind.duplicatePinfl, v) ??
+                        LegalValidators.pinfl(v),
+                  ),
+                  const SizedBox(height: kSpace4),
+                  AppTextField(
+                    key: const ValueKey('legal_tin_field'),
+                    controller: _tin,
+                    label: l10n.lglTin,
+                    enabled: !locked,
+                    hint: _taxStatus == DriverTaxStatus.individualEntrepreneur
+                        ? l10n.lglTinHintRequired
+                        : l10n.lglTinHintOptional,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(9),
+                    ],
+                    validator: (v) =>
+                        _duplicateError(LegalSaveErrorKind.duplicateTin, v) ??
+                        LegalValidators.tin(v, taxStatus: _taxStatus),
+                  ),
+                  const SizedBox(height: kSpace4),
+                  _DateField(
+                    key: const ValueKey('legal_birth_date'),
+                    label: l10n.lglBirthDate,
+                    value: _birthDate,
+                    onTap: locked
+                        ? null
+                        : () => _pickDate(
+                              initial: _birthDate,
+                              onPicked: (d) => setState(() => _birthDate = d),
+                            ),
+                  ),
+                  const SizedBox(height: kSpace4),
+                  _DateField(
+                    key: const ValueKey('legal_licence_date'),
+                    label: l10n.lglLicenceIssuedAt,
+                    value: _licenceIssuedAt,
+                    onTap: () => _pickDate(
+                      initial: _licenceIssuedAt,
+                      onPicked: (d) => setState(() => _licenceIssuedAt = d),
+                    ),
+                  ),
+                  const SizedBox(height: kSpace4),
+                  AppTextField(
+                    key: const ValueKey('legal_taxi_licence_field'),
+                    controller: _licenceNumber,
+                    label: l10n.lglTaxiLicenceNumber,
+                    hint: 'TL-000123',
+                    inputFormatters: [LengthLimitingTextInputFormatter(50)],
+                  ),
+                  const SizedBox(height: kSpace4),
+                  _buildRegion(context, provider.profile.taxiLicenceRegion),
+                  const SizedBox(height: kSpace6),
+                  AppButton(
+                    key: const ValueKey('legal_save_button'),
+                    label: l10n.lglSave,
+                    height: kControlHeightDriver,
+                    isLoading: provider.isSaving,
+                    onPressed: provider.isSaving ? null : () => _save(provider),
+                  ),
+                  const SizedBox(height: kSpace6),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

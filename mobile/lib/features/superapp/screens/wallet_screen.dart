@@ -210,12 +210,16 @@ class _BalanceCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(
-                      context.l10n.saWalletBalanceTitle,
-                      style: TextStyle(
-                        color: agOnPrimary.withValues(alpha: 0.75),
-                        fontSize: kFontLabel,
-                        fontWeight: FontWeight.w700,
+                    Flexible(
+                      child: Text(
+                        context.l10n.saWalletBalanceTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: agOnPrimary.withValues(alpha: 0.75),
+                          fontSize: kFontLabel,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                     const Spacer(),

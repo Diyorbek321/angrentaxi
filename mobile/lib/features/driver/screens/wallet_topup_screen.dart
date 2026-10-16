@@ -268,30 +268,33 @@ class _WalletTopupScreenState extends State<WalletTopupScreen> {
     return Scaffold(
       backgroundColor: kSurface2,
       appBar: AppBar(title: Text(l10n.wltTopUpTitle)),
-      body: ListView(
-        padding: const EdgeInsets.all(kSpace4),
-        children: [
-          WalletBalanceTile(balance: balance),
-          const SizedBox(height: kSpace4),
-          if (!wallet.settingsLoaded)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(kSpace6),
-                child: CircularProgressIndicator(color: kPrimary),
-              ),
-            )
-          else if (!wallet.settings.walletTopupEnabled)
-            OperatorTopupCard(phone: wallet.settings.supportPhone)
-          else
-            _buildPhase(context, wallet, balance),
-          const SizedBox(height: kSpace6),
-          TopupHistorySection(
-            key: _historyKey,
-            topups: wallet.topups,
-            onContinue: _phase == _Phase.form ? _continueTopup : null,
-          ),
-          const SizedBox(height: kSpace6),
-        ],
+      body: SafeArea(
+        top: false,
+        child: ListView(
+          padding: const EdgeInsets.all(kSpace4),
+          children: [
+            WalletBalanceTile(balance: balance),
+            const SizedBox(height: kSpace4),
+            if (!wallet.settingsLoaded)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(kSpace6),
+                  child: CircularProgressIndicator(color: kPrimary),
+                ),
+              )
+            else if (!wallet.settings.walletTopupEnabled)
+              OperatorTopupCard(phone: wallet.settings.supportPhone)
+            else
+              _buildPhase(context, wallet, balance),
+            const SizedBox(height: kSpace6),
+            TopupHistorySection(
+              key: _historyKey,
+              topups: wallet.topups,
+              onContinue: _phase == _Phase.form ? _continueTopup : null,
+            ),
+            const SizedBox(height: kSpace6),
+          ],
+        ),
       ),
     );
   }

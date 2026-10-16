@@ -200,12 +200,17 @@ class AppOutlinedButton extends StatelessWidget {
                       icon!,
                       const SizedBox(width: kSpace2)
                     ],
-                    Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: kFontTitle,
-                        fontWeight: FontWeight.w600,
-                        color: effectiveText,
+                    // Katta shriftda uzun yozuv tugmadan toshib chiqmasin.
+                    Flexible(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: kFontTitle,
+                          fontWeight: FontWeight.w600,
+                          color: effectiveText,
+                        ),
                       ),
                     ),
                   ],

@@ -71,34 +71,37 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n.paxEditProfile)),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(kSpace5),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AppTextField(
-              controller: _firstNameController,
-              label: context.l10n.paxFirstName,
-              hint: context.l10n.paxFirstNameHint,
-            ),
-            const SizedBox(height: kSpace4),
-            AppTextField(
-              controller: _lastNameController,
-              label: context.l10n.paxLastName,
-              hint: context.l10n.paxLastNameHint,
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: kSpace3),
-              // Xato MATNI kErrorDeep (6.47:1) — kError (3.91:1) faqat ikona.
-              InlineErrorWidget(message: _error!),
+      body: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(kSpace5),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppTextField(
+                controller: _firstNameController,
+                label: context.l10n.paxFirstName,
+                hint: context.l10n.paxFirstNameHint,
+              ),
+              const SizedBox(height: kSpace4),
+              AppTextField(
+                controller: _lastNameController,
+                label: context.l10n.paxLastName,
+                hint: context.l10n.paxLastNameHint,
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: kSpace3),
+                // Xato MATNI kErrorDeep (6.47:1) — kError (3.91:1) faqat ikona.
+                InlineErrorWidget(message: _error!),
+              ],
+              const SizedBox(height: kSpace6),
+              AppButton(
+                label: context.l10n.paxSave,
+                isLoading: _saving,
+                onPressed: _saving ? null : _save,
+              ),
             ],
-            const SizedBox(height: kSpace6),
-            AppButton(
-              label: context.l10n.paxSave,
-              isLoading: _saving,
-              onPressed: _saving ? null : _save,
-            ),
-          ],
+          ),
         ),
       ),
     );

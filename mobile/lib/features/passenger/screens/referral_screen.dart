@@ -139,14 +139,17 @@ class _ReferralScreenState extends State<ReferralScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kBackground,
-      body: Column(
-        children: [
-          AgHeader(
-            title: context.l10n.paxReferralTitle,
-            onBack: () => Navigator.of(context).pop(),
-          ),
-          Expanded(child: _buildBody()),
-        ],
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            AgHeader(
+              title: context.l10n.paxReferralTitle,
+              onBack: () => Navigator.of(context).pop(),
+            ),
+            Expanded(child: _buildBody()),
+          ],
+        ),
       ),
     );
   }

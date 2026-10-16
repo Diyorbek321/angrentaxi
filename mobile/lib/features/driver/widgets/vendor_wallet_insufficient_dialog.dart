@@ -19,6 +19,8 @@ Future<void> showVendorWalletInsufficientDialog(
       final l10n = dialogContext.l10n;
       return AlertDialog(
         key: const ValueKey('vendor_wallet_insufficient_dialog'),
+        // Kichik ekran + katta shriftda kontent ekranga sig'maydi.
+        scrollable: true,
         icon: const Icon(
           Icons.account_balance_wallet_outlined,
           color: kWarningDeep,

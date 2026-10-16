@@ -132,145 +132,148 @@ class _EarningsScreenState extends State<EarningsScreen> {
       // Ikkalasi BIRGA ishlatiladi — oq fon ustidagi oq karta ajralmaydi.
       backgroundColor: kSurface2,
       appBar: AppBar(title: Text(context.l10n.drvEarnings)),
-      body: Consumer<DriverProvider>(
-        builder: (context, provider, _) {
-          // Uch holat: yuklanmoqda → SKELETON (spinner emas),
-          // xato → AppErrorState, bo'sh ro'yxatlar → AppEmptyState.
-          if (provider.state == DriverProviderState.loading &&
-              provider.orderHistory.isEmpty) {
-            return const SingleChildScrollView(
-              child: AppSkeletonGroup(
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, 0),
-                      child: AppSkeleton(
-                        width: double.infinity,
-                        height: 44,
-                        radius: kRadiusFull,
+      body: SafeArea(
+        top: false,
+        child: Consumer<DriverProvider>(
+          builder: (context, provider, _) {
+            // Uch holat: yuklanmoqda → SKELETON (spinner emas),
+            // xato → AppErrorState, bo'sh ro'yxatlar → AppEmptyState.
+            if (provider.state == DriverProviderState.loading &&
+                provider.orderHistory.isEmpty) {
+              return const SingleChildScrollView(
+                child: AppSkeletonGroup(
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, 0),
+                        child: AppSkeleton(
+                          width: double.infinity,
+                          height: 44,
+                          radius: kRadiusFull,
+                        ),
                       ),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.all(kSpace4),
-                      child: AppSkeleton(
-                        width: double.infinity,
-                        height: 260,
-                        radius: kRadiusLg,
+                      Padding(
+                        padding: EdgeInsets.all(kSpace4),
+                        child: AppSkeleton(
+                          width: double.infinity,
+                          height: 260,
+                          radius: kRadiusLg,
+                        ),
                       ),
-                    ),
-                    AppSkeletonTile(hasTrailing: true),
-                    SizedBox(height: kSpace3),
-                    AppSkeletonTile(hasTrailing: true),
-                    SizedBox(height: kSpace3),
-                    AppSkeletonTile(hasTrailing: true),
-                  ],
+                      AppSkeletonTile(hasTrailing: true),
+                      SizedBox(height: kSpace3),
+                      AppSkeletonTile(hasTrailing: true),
+                      SizedBox(height: kSpace3),
+                      AppSkeletonTile(hasTrailing: true),
+                    ],
+                  ),
                 ),
+              );
+            }
+  
+            if (provider.state == DriverProviderState.error &&
+                provider.orderHistory.isEmpty) {
+              return AppErrorState(
+                message: provider.error ?? context.l10n.drvErrorOccurred,
+                onRetry: () {
+                  provider.loadEarnings();
+                  provider.loadOrderHistory();
+                },
+              );
+            }
+  
+            return RefreshIndicator(
+              onRefresh: () async {
+                final wallet = _walletProvider(context);
+                await provider.loadEarnings();
+                await provider.loadOrderHistory();
+                await provider.loadEarningsBreakdown();
+                await provider.loadBonusProgress();
+                // Yechish so'rovi tasdiqlangan yoki rad etilgan bo'lishi
+                // mumkin — ikkalasi ham qoldiqni o'zgartiradi.
+                await provider.loadWalletBalance();
+                await wallet?.loadShiftPass();
+              },
+              color: kPrimary,
+              child: CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(child: _buildPeriodChips()),
+                  SliverToBoxAdapter(
+                    child: _buildEarningsHero(context, provider),
+                  ),
+                  SliverToBoxAdapter(child: _buildShiftPass(context)),
+                  if (provider.bonusProgress.isNotEmpty)
+                    SliverToBoxAdapter(
+                      child: _buildBonusSection(context, provider),
+                    ),
+                  SliverToBoxAdapter(
+                    child: _SectionHeader(context.l10n.drvWithdrawRequests),
+                  ),
+                  if (provider.withdrawals.isEmpty)
+                    // Bo'sh holat OQ kartada: `AppEmptyState` ikonkasi
+                    // `kSurface2` doira ichida chiziladi va ekran foni ham
+                    // `kSurface2` — kartasiz u fonda butunlay yo'qolardi.
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(kSpace4, 0, kSpace4, kSpace2),
+                        child: AgSurfaceCard(
+                          padding: EdgeInsets.zero,
+                          child: AppEmptyState(
+                            icon: Icons.request_quote_outlined,
+                            title: context.l10n.drvNoRequestsYet,
+                            compact: true,
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) => _WithdrawalCard(
+                          withdrawal: provider.withdrawals[index],
+                        ),
+                        childCount: provider.withdrawals.length,
+                      ),
+                    ),
+                  SliverToBoxAdapter(
+                    child: _SectionHeader(context.l10n.drvOrderHistory),
+                  ),
+                  if (provider.orderHistory.isEmpty)
+                    // A plain padded box rather than SliverFillRemaining: the
+                    // withdrawal-requests section above this one means the
+                    // remaining viewport space can be smaller than this
+                    // content's intrinsic height, and SliverFillRemaining
+                    // forces its child into exactly that (possibly too small)
+                    // space, overflowing instead of just taking what it needs.
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(kSpace4, 0, kSpace4, kSpace2),
+                        child: AgSurfaceCard(
+                          padding: EdgeInsets.zero,
+                          child: AppEmptyState(
+                            icon: Icons.history,
+                            title: context.l10n.drvNoOrderHistory,
+                            compact: true,
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) => _DriverOrderCard(
+                          order: provider.orderHistory[index],
+                        ),
+                        childCount: provider.orderHistory.length,
+                      ),
+                    ),
+                  // Oxirgi karta tizim jest paneli ostida qolmasin.
+                  const SliverToBoxAdapter(child: SizedBox(height: kSpace6)),
+                ],
               ),
             );
-          }
-
-          if (provider.state == DriverProviderState.error &&
-              provider.orderHistory.isEmpty) {
-            return AppErrorState(
-              message: provider.error ?? context.l10n.drvErrorOccurred,
-              onRetry: () {
-                provider.loadEarnings();
-                provider.loadOrderHistory();
-              },
-            );
-          }
-
-          return RefreshIndicator(
-            onRefresh: () async {
-              final wallet = _walletProvider(context);
-              await provider.loadEarnings();
-              await provider.loadOrderHistory();
-              await provider.loadEarningsBreakdown();
-              await provider.loadBonusProgress();
-              // Yechish so'rovi tasdiqlangan yoki rad etilgan bo'lishi
-              // mumkin — ikkalasi ham qoldiqni o'zgartiradi.
-              await provider.loadWalletBalance();
-              await wallet?.loadShiftPass();
-            },
-            color: kPrimary,
-            child: CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(child: _buildPeriodChips()),
-                SliverToBoxAdapter(
-                  child: _buildEarningsHero(context, provider),
-                ),
-                SliverToBoxAdapter(child: _buildShiftPass(context)),
-                if (provider.bonusProgress.isNotEmpty)
-                  SliverToBoxAdapter(
-                    child: _buildBonusSection(context, provider),
-                  ),
-                SliverToBoxAdapter(
-                  child: _SectionHeader(context.l10n.drvWithdrawRequests),
-                ),
-                if (provider.withdrawals.isEmpty)
-                  // Bo'sh holat OQ kartada: `AppEmptyState` ikonkasi
-                  // `kSurface2` doira ichida chiziladi va ekran foni ham
-                  // `kSurface2` — kartasiz u fonda butunlay yo'qolardi.
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(kSpace4, 0, kSpace4, kSpace2),
-                      child: AgSurfaceCard(
-                        padding: EdgeInsets.zero,
-                        child: AppEmptyState(
-                          icon: Icons.request_quote_outlined,
-                          title: context.l10n.drvNoRequestsYet,
-                          compact: true,
-                        ),
-                      ),
-                    ),
-                  )
-                else
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) => _WithdrawalCard(
-                        withdrawal: provider.withdrawals[index],
-                      ),
-                      childCount: provider.withdrawals.length,
-                    ),
-                  ),
-                SliverToBoxAdapter(
-                  child: _SectionHeader(context.l10n.drvOrderHistory),
-                ),
-                if (provider.orderHistory.isEmpty)
-                  // A plain padded box rather than SliverFillRemaining: the
-                  // withdrawal-requests section above this one means the
-                  // remaining viewport space can be smaller than this
-                  // content's intrinsic height, and SliverFillRemaining
-                  // forces its child into exactly that (possibly too small)
-                  // space, overflowing instead of just taking what it needs.
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(kSpace4, 0, kSpace4, kSpace2),
-                      child: AgSurfaceCard(
-                        padding: EdgeInsets.zero,
-                        child: AppEmptyState(
-                          icon: Icons.history,
-                          title: context.l10n.drvNoOrderHistory,
-                          compact: true,
-                        ),
-                      ),
-                    ),
-                  )
-                else
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) => _DriverOrderCard(
-                        order: provider.orderHistory[index],
-                      ),
-                      childCount: provider.orderHistory.length,
-                    ),
-                  ),
-                // Oxirgi karta tizim jest paneli ostida qolmasin.
-                const SliverToBoxAdapter(child: SizedBox(height: kSpace6)),
-              ],
-            ),
-          );
-        },
+          },
+        ),
       ),
     );
   }

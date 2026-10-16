@@ -170,17 +170,20 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
     return Scaffold(
       backgroundColor: agBg,
-      body: Column(
-        children: [
-          AgHeader(
-            title: context.l10n.paxReceiptTitle,
-            subtitle: receipt != null && receipt.orderNumber.isNotEmpty
-                ? context.l10n.paxReceiptOrderNumber(receipt.orderNumber)
-                : null,
-            onBack: () => Navigator.of(context).pop(),
-          ),
-          Expanded(child: ResponsiveContent(child: _body(receipt))),
-        ],
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            AgHeader(
+              title: context.l10n.paxReceiptTitle,
+              subtitle: receipt != null && receipt.orderNumber.isNotEmpty
+                  ? context.l10n.paxReceiptOrderNumber(receipt.orderNumber)
+                  : null,
+              onBack: () => Navigator.of(context).pop(),
+            ),
+            Expanded(child: ResponsiveContent(child: _body(receipt))),
+          ],
+        ),
       ),
     );
   }

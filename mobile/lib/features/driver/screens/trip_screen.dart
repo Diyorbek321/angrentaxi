@@ -490,57 +490,61 @@ class _TripScreenState extends State<TripScreen> {
   void _showSosSheet(Order order) {
     showModalBottomSheet<void>(
       context: context,
+      // Katta shriftda kontent standart 9/16 balandlikka sig'maydi.
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(kRadiusXl)),
       ),
       builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            kSpace4,
-            kSpace5,
-            kSpace4,
-            kSpace6,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                context.l10n.drvEmergencyHelp,
-                style: const TextStyle(
-                  fontSize: kFontH2,
-                  fontWeight: FontWeight.w800,
-                  color: kInk,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              kSpace4,
+              kSpace5,
+              kSpace4,
+              kSpace6,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  context.l10n.drvEmergencyHelp,
+                  style: const TextStyle(
+                    fontSize: kFontH2,
+                    fontWeight: FontWeight.w800,
+                    color: kInk,
+                  ),
                 ),
-              ),
-              const SizedBox(height: kSpace1 + 2),
-              Text(
-                context.l10n.drvSafetyNote,
-                style: const TextStyle(color: kInkMuted, fontSize: kFontLabel),
-              ),
-              const SizedBox(height: kSpace5),
-              AppButton(
-                label: context.l10n.drvEmergencyCall,
-                // kError + oq matn 3.91:1 (AA emas) → kErrorDeep 6.47:1.
-                backgroundColor: kErrorDeep,
-                foregroundColor: kOnPrimary,
-                // Haydovchi asosiy amali — harakatdagi qo'l uchun 64dp.
-                height: kControlHeightDriver,
-                onPressed: () {
-                  Navigator.of(sheetContext).pop();
-                  _callEmergency();
-                },
-              ),
-              const SizedBox(height: kSpace3),
-              AppButton(
-                label: context.l10n.drvNotifyDispatchers,
-                height: kControlHeightDriver,
-                onPressed: () {
-                  Navigator.of(sheetContext).pop();
-                  _alertDispatchers(order.id);
-                },
-              ),
-            ],
+                const SizedBox(height: kSpace1 + 2),
+                Text(
+                  context.l10n.drvSafetyNote,
+                  style: const TextStyle(color: kInkMuted, fontSize: kFontLabel),
+                ),
+                const SizedBox(height: kSpace5),
+                AppButton(
+                  label: context.l10n.drvEmergencyCall,
+                  // kError + oq matn 3.91:1 (AA emas) → kErrorDeep 6.47:1.
+                  backgroundColor: kErrorDeep,
+                  foregroundColor: kOnPrimary,
+                  // Haydovchi asosiy amali — harakatdagi qo'l uchun 64dp.
+                  height: kControlHeightDriver,
+                  onPressed: () {
+                    Navigator.of(sheetContext).pop();
+                    _callEmergency();
+                  },
+                ),
+                const SizedBox(height: kSpace3),
+                AppButton(
+                  label: context.l10n.drvNotifyDispatchers,
+                  height: kControlHeightDriver,
+                  onPressed: () {
+                    Navigator.of(sheetContext).pop();
+                    _alertDispatchers(order.id);
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1088,13 +1092,15 @@ class _TripScreenState extends State<TripScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            context.l10n.drvEstimatedEarnings,
-            style: const TextStyle(
-              // Siyoh ustida kMintSoft 11.22:1.
-              color: kMintSoft,
-              fontSize: kFontLabel,
-              fontWeight: FontWeight.w600,
+          Flexible(
+            child: Text(
+              context.l10n.drvEstimatedEarnings,
+              style: const TextStyle(
+                // Siyoh ustida kMintSoft 11.22:1.
+                color: kMintSoft,
+                fontSize: kFontLabel,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           Text(

@@ -224,7 +224,13 @@ class _OrderHistoryCard extends StatelessWidget {
         expand: false,
         builder: (ctx, scrollController) => SingleChildScrollView(
           controller: scrollController,
-          padding: const EdgeInsets.all(kSpace5),
+          // Oxirgi qator tizim navigatsiya paneli ostida qolmasin.
+          padding: EdgeInsets.fromLTRB(
+            kSpace5,
+            kSpace5,
+            kSpace5,
+            kSpace5 + MediaQuery.paddingOf(ctx).bottom,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

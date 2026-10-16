@@ -18,68 +18,71 @@ class PassengerProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n.paxProfileTitle)),
-      body: Consumer<AuthProvider>(
-        builder: (context, auth, _) {
-          final user = auth.currentUser;
-          if (user == null) return const SizedBox.shrink();
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(kSpace5),
-            child: Column(
-              children: [
-                _buildAvatar(user.displayName),
-                const SizedBox(height: kSpace5),
-                Text(
-                  user.displayName,
-                  style: const TextStyle(
-                    fontSize: kFontH1,
-                    fontWeight: FontWeight.w800,
-                    color: kInk,
+      body: SafeArea(
+        top: false,
+        child: Consumer<AuthProvider>(
+          builder: (context, auth, _) {
+            final user = auth.currentUser;
+            if (user == null) return const SizedBox.shrink();
+  
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(kSpace5),
+              child: Column(
+                children: [
+                  _buildAvatar(user.displayName),
+                  const SizedBox(height: kSpace5),
+                  Text(
+                    user.displayName,
+                    style: const TextStyle(
+                      fontSize: kFontH1,
+                      fontWeight: FontWeight.w800,
+                      color: kInk,
+                    ),
                   ),
-                ),
-                const SizedBox(height: kSpace1),
-                Text(
-                  Formatters.formatPhone(user.phone),
-                  style: const TextStyle(color: kInkMuted),
-                ),
-                if (user.rating != null) ...[
-                  const SizedBox(height: kSpace2),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Yorug' fonda ko'rinishi shart bo'lgan mint —
-                      // kMintDeep (kMint oq ustida atigi 2.12:1).
-                      const ExcludeSemantics(
-                        child: Icon(Icons.star, color: kMintDeep, size: 18),
-                      ),
-                      const SizedBox(width: kSpace1),
-                      Text(
-                        context.l10n.paxRatingValue(
-                          Formatters.formatRating(user.rating!),
+                  const SizedBox(height: kSpace1),
+                  Text(
+                    Formatters.formatPhone(user.phone),
+                    style: const TextStyle(color: kInkMuted),
+                  ),
+                  if (user.rating != null) ...[
+                    const SizedBox(height: kSpace2),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Yorug' fonda ko'rinishi shart bo'lgan mint —
+                        // kMintDeep (kMint oq ustida atigi 2.12:1).
+                        const ExcludeSemantics(
+                          child: Icon(Icons.star, color: kMintDeep, size: 18),
                         ),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: kInk,
+                        const SizedBox(width: kSpace1),
+                        Text(
+                          context.l10n.paxRatingValue(
+                            Formatters.formatRating(user.rating!),
+                          ),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: kInk,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: kSpace8),
+                  _buildStatsRow(context, user.totalTrips ?? 0),
+                  const SizedBox(height: kSpace6),
+                  _buildMenuList(context),
+                  const SizedBox(height: kSpace6),
+                  AppButton(
+                    label: context.l10n.paxLogout,
+                    onPressed: () => _confirmLogout(context, auth),
+                    backgroundColor: kError,
+                    foregroundColor: kOnPrimary,
                   ),
                 ],
-                const SizedBox(height: kSpace8),
-                _buildStatsRow(context, user.totalTrips ?? 0),
-                const SizedBox(height: kSpace6),
-                _buildMenuList(context),
-                const SizedBox(height: kSpace6),
-                AppButton(
-                  label: context.l10n.paxLogout,
-                  onPressed: () => _confirmLogout(context, auth),
-                  backgroundColor: kError,
-                  foregroundColor: kOnPrimary,
-                ),
-              ],
-            ),
-          );
-        },
+              ),
+            );
+          },
+        ),
       ),
     );
   }

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:angren_taxi/core/config/app_motion.dart';
 import 'package:angren_taxi/core/config/app_responsive.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
@@ -20,6 +22,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 // ⚠️ `Stack` ning bevosita bolasi sifatida ishlatiladi (ichida `Positioned`
 // qaytaradi).
 // ============================================================================
+
+/// Sheet rejimida panel ustida doim ko'rinib turadigan xarita balandligi.
+const double _kMinMapPeek = 120;
 
 /// Xarita ustidagi moslashuvchan panel.
 ///
@@ -92,9 +97,17 @@ class AdaptiveMapPanel extends StatelessWidget {
             gutter,
             kSpace3,
             gutter,
-            // Pastdagi sheet tizim jest paneli ustiga tushmasligi kerak;
-            // yon panel esa allaqachon `SafeArea` ichida.
-            side ? gutter : kSpace8,
+            // Pastdagi sheet tizim navigatsiya paneli ostiga tushmasligi
+            // kerak; yon panel esa allaqachon `SafeArea` ichida.
+            // ⚠️ Qat'iy kSpace8 yetmaydi: 3 tugmali Android paneli ~48dp,
+            // Android 15 (targetSdk 35) esa ilovani majburan edge-to-edge
+            // qiladi — tugmalar yarmigacha panel ostida qolardi.
+            side
+                ? gutter
+                : math.max(
+                    kSpace8,
+                    kSpace4 + MediaQuery.paddingOf(context).bottom,
+                  ),
           ),
       decoration: BoxDecoration(
         color: layered ? scheme.surfaceContainer : scheme.surface,
@@ -127,7 +140,22 @@ class AdaptiveMapPanel extends StatelessWidget {
             ),
             const SizedBox(height: kSpace4),
           ],
-          child,
+          // Sheet rejimida kontent ekranga sig'masa (kichik telefon,
+          // kattalashtirilgan shrift) panel ichida aylanadi — tepasi
+          // status bar ostiga chiqib ketmaydi. Yon panel o'zi aylanadi.
+          // `reverse`: aylanish PASTGA bog'langan — asosiy amallar (surib
+          // yakunlash va h.k.) bosh barmoq ostida doim ko'rinadi, tepadagi
+          // ma'lumot esa yuqoriga surib ko'riladi.
+          if (side)
+            child
+          else
+            Flexible(
+              child: SingleChildScrollView(
+                reverse: true,
+                physics: const ClampingScrollPhysics(),
+                child: child,
+              ),
+            ),
         ],
       ),
     );
@@ -149,7 +177,22 @@ class AdaptiveMapPanel extends StatelessWidget {
                 ));
 
     if (!side) {
-      return Positioned(bottom: 0, left: 0, right: 0, child: animated);
+      // Panel xaritani butunlay yopmasligi kerak: tepada status bar va
+      // xaritaning kamida [_kMinMapPeek] qismi ochiq qoladi.
+      final media = MediaQuery.of(context);
+      final maxHeight = math.max(
+        0.0,
+        media.size.height - media.padding.top - _kMinMapPeek,
+      );
+      return Positioned(
+        bottom: 0,
+        left: 0,
+        right: 0,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: maxHeight),
+          child: animated,
+        ),
+      );
     }
 
     return Positioned(
@@ -163,8 +206,10 @@ class AdaptiveMapPanel extends StatelessWidget {
             width: context.sidePanelWidth,
             // Kontent balandligi ekranga sig'masligi mumkin (kichik
             // landshaft telefon) — markazlashtiriladi va skroll qilinadi.
+            // Sheet rejimidagidek pastga bog'langan: amallar doim ko'rinadi.
             child: Center(
               child: SingleChildScrollView(
+                reverse: true,
                 physics: const ClampingScrollPhysics(),
                 child: animated,
               ),

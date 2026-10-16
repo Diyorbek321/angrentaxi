@@ -61,75 +61,78 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
         foregroundColor: kInk,
         elevation: 0,
       ),
-      body: Consumer<DriverProvider>(
-        builder: (context, provider, _) {
-          final order = provider.activeOrder;
-          if (order == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          // Ovqat buyurtmasida bu ekran RESTORANDA ochiladi, taksida —
-          // yo'lovchi oldida. Barcha matn shu jadvaldan.
-          final wording = order.wording;
-
-          // ⚠️ Baland ekranda tugmalar PASTDA yopishib turadi, past
-          // ekranda esa sahifa aylanadi. Oddiy `Column` + `Spacer` da
-          // matn uzunroq turlarda (masalan "Yetkazishni boshlash") kichik
-          // telefonlarda pastki qismi kesilib qolardi.
-          return LayoutBuilder(
-            builder: (context, constraints) => SingleChildScrollView(
-              padding: const EdgeInsets.all(kSpace4),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight - kSpace8,
-                ),
-                child: IntrinsicHeight(
-                  child: Column(
-                    children: [
-                      const SizedBox(height: kSpace5),
-                      _buildArrivedBanner(wording),
-                      // Oraliq blokning O'ZIDA: `arrivedAt` yo'q buyurtmada
-                      // (eski yozuv yoki "keldim" bosilmagan) blok umuman
-                      // chizilmaydi va bu yerda 48dp bo'sh joy qolib
-                      // ketmasligi kerak.
-                      _buildWaitingBlock(order),
-                      const SizedBox(height: kSpace6),
-                      // Yo'lovchi ko'rinmasa haydovchi birinchi qo'ng'iroq
-                      // qiladi — tugma shu ekranda bo'lishi shart.
-                      PassengerContactCard(order: order, wording: wording),
-                      const SizedBox(height: kSpace4),
-                      _buildOrderInfo(order, wording),
-                      if (order.options.isNotEmpty) ...[
+      body: SafeArea(
+        top: false,
+        child: Consumer<DriverProvider>(
+          builder: (context, provider, _) {
+            final order = provider.activeOrder;
+            if (order == null) {
+              return const Center(child: CircularProgressIndicator());
+            }
+  
+            // Ovqat buyurtmasida bu ekran RESTORANDA ochiladi, taksida —
+            // yo'lovchi oldida. Barcha matn shu jadvaldan.
+            final wording = order.wording;
+  
+            // ⚠️ Baland ekranda tugmalar PASTDA yopishib turadi, past
+            // ekranda esa sahifa aylanadi. Oddiy `Column` + `Spacer` da
+            // matn uzunroq turlarda (masalan "Yetkazishni boshlash") kichik
+            // telefonlarda pastki qismi kesilib qolardi.
+            return LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                padding: const EdgeInsets.all(kSpace4),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight - kSpace8,
+                  ),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      children: [
+                        const SizedBox(height: kSpace5),
+                        _buildArrivedBanner(wording),
+                        // Oraliq blokning O'ZIDA: `arrivedAt` yo'q buyurtmada
+                        // (eski yozuv yoki "keldim" bosilmagan) blok umuman
+                        // chizilmaydi va bu yerda 48dp bo'sh joy qolib
+                        // ketmasligi kerak.
+                        _buildWaitingBlock(order),
+                        const SizedBox(height: kSpace6),
+                        // Yo'lovchi ko'rinmasa haydovchi birinchi qo'ng'iroq
+                        // qiladi — tugma shu ekranda bo'lishi shart.
+                        PassengerContactCard(order: order, wording: wording),
                         const SizedBox(height: kSpace4),
-                        TripOptionsBadges(options: order.options),
-                      ],
-                      // Restoran/do'kon oldida: nima olinadi, sotuvchi
-                      // telefoni va mijozdan olinadigan naqd.
-                      if (order.delivery != null) ...[
+                        _buildOrderInfo(order, wording),
+                        if (order.options.isNotEmpty) ...[
+                          const SizedBox(height: kSpace4),
+                          TripOptionsBadges(options: order.options),
+                        ],
+                        // Restoran/do'kon oldida: nima olinadi, sotuvchi
+                        // telefoni va mijozdan olinadigan naqd.
+                        if (order.delivery != null) ...[
+                          const SizedBox(height: kSpace4),
+                          DeliveryInfoCard(
+                            delivery: order.delivery!,
+                            stage: DeliveryCardStage.pickup,
+                          ),
+                        ],
+                        if (order.parcel != null) ...[
+                          const SizedBox(height: kSpace4),
+                          ParcelInfoCard(
+                            parcel: order.parcel!,
+                            stage: DeliveryCardStage.pickup,
+                          ),
+                        ],
+                        const Spacer(),
+                        const SizedBox(height: kSpace6),
+                        _buildActionButtons(order, provider, wording),
                         const SizedBox(height: kSpace4),
-                        DeliveryInfoCard(
-                          delivery: order.delivery!,
-                          stage: DeliveryCardStage.pickup,
-                        ),
                       ],
-                      if (order.parcel != null) ...[
-                        const SizedBox(height: kSpace4),
-                        ParcelInfoCard(
-                          parcel: order.parcel!,
-                          stage: DeliveryCardStage.pickup,
-                        ),
-                      ],
-                      const Spacer(),
-                      const SizedBox(height: kSpace6),
-                      _buildActionButtons(order, provider, wording),
-                      const SizedBox(height: kSpace4),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
