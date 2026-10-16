@@ -2336,6 +2336,396 @@ abstract class AppLocalizations {
   /// **'Kecha, {time}'**
   String fmtYesterdayAt(String time);
 
+  /// No description provided for @icBookTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Joy band qilish'**
+  String get icBookTitle;
+
+  /// No description provided for @icBooked.
+  ///
+  /// In uz, this message translates to:
+  /// **'Joy band qilindi'**
+  String get icBooked;
+
+  /// No description provided for @icCallDriver.
+  ///
+  /// In uz, this message translates to:
+  /// **'Haydovchiga qo\'ng\'iroq'**
+  String get icCallDriver;
+
+  /// No description provided for @icCancelBooking.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bandni bekor qilish'**
+  String get icCancelBooking;
+
+  /// No description provided for @icCancelConfirmNo.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yo\'q'**
+  String get icCancelConfirmNo;
+
+  /// No description provided for @icCancelConfirmTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bandni bekor qilasizmi?'**
+  String get icCancelConfirmTitle;
+
+  /// No description provided for @icCancelConfirmYes.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ha, bekor qilish'**
+  String get icCancelConfirmYes;
+
+  /// No description provided for @icCancelled.
+  ///
+  /// In uz, this message translates to:
+  /// **'Band bekor qilindi'**
+  String get icCancelled;
+
+  /// No description provided for @icChooseOnMap.
+  ///
+  /// In uz, this message translates to:
+  /// **'Xaritadan tanlang'**
+  String get icChooseOnMap;
+
+  /// No description provided for @icClassComfort.
+  ///
+  /// In uz, this message translates to:
+  /// **'Comfort'**
+  String get icClassComfort;
+
+  /// No description provided for @icClassStart.
+  ///
+  /// In uz, this message translates to:
+  /// **'Start'**
+  String get icClassStart;
+
+  /// No description provided for @icConfirm.
+  ///
+  /// In uz, this message translates to:
+  /// **'Band qilish'**
+  String get icConfirm;
+
+  /// No description provided for @icDepartsIn.
+  ///
+  /// In uz, this message translates to:
+  /// **'Jo\'nashga {time} qoldi'**
+  String icDepartsIn(String time);
+
+  /// No description provided for @icDeparture.
+  ///
+  /// In uz, this message translates to:
+  /// **'Jo\'nash'**
+  String get icDeparture;
+
+  /// No description provided for @icDriverPhoneHidden.
+  ///
+  /// In uz, this message translates to:
+  /// **'Haydovchi raqami jo\'nashdan 1 soat oldin ochiladi'**
+  String get icDriverPhoneHidden;
+
+  /// No description provided for @icDriverUnknown.
+  ///
+  /// In uz, this message translates to:
+  /// **'Haydovchi'**
+  String get icDriverUnknown;
+
+  /// No description provided for @icDropoff.
+  ///
+  /// In uz, this message translates to:
+  /// **'Tushish joyi'**
+  String get icDropoff;
+
+  /// No description provided for @icDropoffFixed.
+  ///
+  /// In uz, this message translates to:
+  /// **'{place} — qat\'iy to\'xtash joyi. Shahar ichiga kirish alohida hisoblanadi.'**
+  String icDropoffFixed(String place);
+
+  /// No description provided for @icDurationHm.
+  ///
+  /// In uz, this message translates to:
+  /// **'{hours} soat {minutes} daq'**
+  String icDurationHm(int hours, int minutes);
+
+  /// No description provided for @icDurationM.
+  ///
+  /// In uz, this message translates to:
+  /// **'{minutes} daq'**
+  String icDurationM(int minutes);
+
+  /// No description provided for @icErrAlreadyBooked.
+  ///
+  /// In uz, this message translates to:
+  /// **'Siz bu qatnovda allaqachon joy band qilgansiz'**
+  String get icErrAlreadyBooked;
+
+  /// No description provided for @icErrDisabled.
+  ///
+  /// In uz, this message translates to:
+  /// **'Shaharlararo xizmati hozircha o\'chirilgan'**
+  String get icErrDisabled;
+
+  /// No description provided for @icErrGeneric.
+  ///
+  /// In uz, this message translates to:
+  /// **'Amalni bajarib bo\'lmadi. Qayta urinib ko\'ring'**
+  String get icErrGeneric;
+
+  /// No description provided for @icErrNotCancellable.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bu bandni endi bekor qilib bo\'lmaydi'**
+  String get icErrNotCancellable;
+
+  /// No description provided for @icErrSeatsUnavailable.
+  ///
+  /// In uz, this message translates to:
+  /// **'Afsus, bu joylar band bo\'lib qoldi. Ma\'lumot yangilandi.'**
+  String get icErrSeatsUnavailable;
+
+  /// No description provided for @icFreeCancelUntil.
+  ///
+  /// In uz, this message translates to:
+  /// **'{time} gacha bepul bekor qilish mumkin'**
+  String icFreeCancelUntil(String time);
+
+  /// No description provided for @icFrom.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qayerdan'**
+  String get icFrom;
+
+  /// No description provided for @icInsideArea.
+  ///
+  /// In uz, this message translates to:
+  /// **'{place} ichida'**
+  String icInsideArea(String place);
+
+  /// No description provided for @icKindSeat.
+  ///
+  /// In uz, this message translates to:
+  /// **'Joy'**
+  String get icKindSeat;
+
+  /// No description provided for @icKindWholeCar.
+  ///
+  /// In uz, this message translates to:
+  /// **'Butun mashina'**
+  String get icKindWholeCar;
+
+  /// No description provided for @icLateCancelWarning.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bepul bekor qilish muddati o\'tgan. Bekor qilish qayd etiladi — ko\'p takrorlansa band qilish cheklanishi mumkin.'**
+  String get icLateCancelWarning;
+
+  /// No description provided for @icLoadError.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ma\'lumot yuklanmadi'**
+  String get icLoadError;
+
+  /// No description provided for @icMyBookings.
+  ///
+  /// In uz, this message translates to:
+  /// **'Mening bandlarim'**
+  String get icMyBookings;
+
+  /// No description provided for @icNoBookings.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hali band qilingan qatnov yo\'q'**
+  String get icNoBookings;
+
+  /// No description provided for @icNoRoutes.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hozircha yo\'nalishlar yo\'q'**
+  String get icNoRoutes;
+
+  /// No description provided for @icNoSeatsLeft.
+  ///
+  /// In uz, this message translates to:
+  /// **'Joy qolmagan'**
+  String get icNoSeatsLeft;
+
+  /// No description provided for @icNoTripsHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Boshqa kunni tanlab ko\'ring'**
+  String get icNoTripsHint;
+
+  /// No description provided for @icNoTripsTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bu kunga qatnov yo\'q'**
+  String get icNoTripsTitle;
+
+  /// No description provided for @icOutsideArea.
+  ///
+  /// In uz, this message translates to:
+  /// **'Manzil {place} hududidan tashqarida'**
+  String icOutsideArea(String place);
+
+  /// No description provided for @icPaymentCash.
+  ///
+  /// In uz, this message translates to:
+  /// **'To\'lov: naqd, haydovchiga'**
+  String get icPaymentCash;
+
+  /// No description provided for @icPickup.
+  ///
+  /// In uz, this message translates to:
+  /// **'Olib ketish manzili'**
+  String get icPickup;
+
+  /// No description provided for @icRetry.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qayta urinish'**
+  String get icRetry;
+
+  /// No description provided for @icSearchTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Shaharlararo'**
+  String get icSearchTitle;
+
+  /// No description provided for @icSeatPrice.
+  ///
+  /// In uz, this message translates to:
+  /// **'1 joy — {price}'**
+  String icSeatPrice(String price);
+
+  /// No description provided for @icSeatsBooked.
+  ///
+  /// In uz, this message translates to:
+  /// **'{count} joy'**
+  String icSeatsBooked(int count);
+
+  /// No description provided for @icSeatsCount.
+  ///
+  /// In uz, this message translates to:
+  /// **'Joylar soni'**
+  String get icSeatsCount;
+
+  /// No description provided for @icSeatsDecrease.
+  ///
+  /// In uz, this message translates to:
+  /// **'Joyni kamaytirish'**
+  String get icSeatsDecrease;
+
+  /// No description provided for @icSeatsIncrease.
+  ///
+  /// In uz, this message translates to:
+  /// **'Joyni ko\'paytirish'**
+  String get icSeatsIncrease;
+
+  /// No description provided for @icSeatsLeft.
+  ///
+  /// In uz, this message translates to:
+  /// **'{count} ta joy bo\'sh'**
+  String icSeatsLeft(int count);
+
+  /// No description provided for @icStatusAccepted.
+  ///
+  /// In uz, this message translates to:
+  /// **'Haydovchi yig\'ishni boshladi'**
+  String get icStatusAccepted;
+
+  /// No description provided for @icStatusArrived.
+  ///
+  /// In uz, this message translates to:
+  /// **'Haydovchi keldi'**
+  String get icStatusArrived;
+
+  /// No description provided for @icStatusCancelled.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bekor qilingan'**
+  String get icStatusCancelled;
+
+  /// No description provided for @icStatusCompleted.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yakunlandi'**
+  String get icStatusCompleted;
+
+  /// No description provided for @icStatusInProgress.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yo\'lda'**
+  String get icStatusInProgress;
+
+  /// No description provided for @icStatusScheduled.
+  ///
+  /// In uz, this message translates to:
+  /// **'Band qilingan'**
+  String get icStatusScheduled;
+
+  /// No description provided for @icSwap.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yo\'nalishni almashtirish'**
+  String get icSwap;
+
+  /// No description provided for @icTileSubtitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Toshkent, Olmaliq, Ohangaron — joy yoki butun mashina'**
+  String get icTileSubtitle;
+
+  /// No description provided for @icTileTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Shaharlararo'**
+  String get icTileTitle;
+
+  /// No description provided for @icTo.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qayerga'**
+  String get icTo;
+
+  /// No description provided for @icToday.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bugun'**
+  String get icToday;
+
+  /// No description provided for @icTomorrow.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ertaga'**
+  String get icTomorrow;
+
+  /// No description provided for @icTotal.
+  ///
+  /// In uz, this message translates to:
+  /// **'Jami'**
+  String get icTotal;
+
+  /// No description provided for @icTripCancelled.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qatnov bekor qilindi'**
+  String get icTripCancelled;
+
+  /// No description provided for @icWholeCarPrice.
+  ///
+  /// In uz, this message translates to:
+  /// **'Butun mashina — {price}'**
+  String icWholeCarPrice(String price);
+
+  /// No description provided for @icWholeCarUnavailable.
+  ///
+  /// In uz, this message translates to:
+  /// **'Butun mashina: joylar allaqachon band'**
+  String get icWholeCarUnavailable;
+
   /// No description provided for @languageRussian.
   ///
   /// In uz, this message translates to:
@@ -6680,6 +7070,12 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Ovqat'**
   String get shServiceFoodShort;
+
+  /// No description provided for @shServiceIntercityShort.
+  ///
+  /// In uz, this message translates to:
+  /// **'Shaharlararo'**
+  String get shServiceIntercityShort;
 
   /// No description provided for @shServiceMarket.
   ///

@@ -1293,6 +1293,228 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get icBookTitle => 'Бронирование';
+
+  @override
+  String get icBooked => 'Место забронировано';
+
+  @override
+  String get icCallDriver => 'Позвонить водителю';
+
+  @override
+  String get icCancelBooking => 'Отменить бронь';
+
+  @override
+  String get icCancelConfirmNo => 'Нет';
+
+  @override
+  String get icCancelConfirmTitle => 'Отменить бронь?';
+
+  @override
+  String get icCancelConfirmYes => 'Да, отменить';
+
+  @override
+  String get icCancelled => 'Бронь отменена';
+
+  @override
+  String get icChooseOnMap => 'Выберите на карте';
+
+  @override
+  String get icClassComfort => 'Comfort';
+
+  @override
+  String get icClassStart => 'Start';
+
+  @override
+  String get icConfirm => 'Забронировать';
+
+  @override
+  String icDepartsIn(String time) {
+    return 'До отправления: $time';
+  }
+
+  @override
+  String get icDeparture => 'Отправление';
+
+  @override
+  String get icDriverPhoneHidden =>
+      'Номер водителя откроется за 1 час до отправления';
+
+  @override
+  String get icDriverUnknown => 'Водитель';
+
+  @override
+  String get icDropoff => 'Место высадки';
+
+  @override
+  String icDropoffFixed(String place) {
+    return '$place — фиксированная остановка. Въезд в город оплачивается отдельно.';
+  }
+
+  @override
+  String icDurationHm(int hours, int minutes) {
+    return '$hours ч $minutes мин';
+  }
+
+  @override
+  String icDurationM(int minutes) {
+    return '$minutes мин';
+  }
+
+  @override
+  String get icErrAlreadyBooked => 'Вы уже забронировали место в этом рейсе';
+
+  @override
+  String get icErrDisabled => 'Межгород пока отключён';
+
+  @override
+  String get icErrGeneric =>
+      'Не удалось выполнить действие. Попробуйте ещё раз';
+
+  @override
+  String get icErrNotCancellable => 'Эту бронь уже нельзя отменить';
+
+  @override
+  String get icErrSeatsUnavailable =>
+      'К сожалению, эти места уже заняли. Данные обновлены.';
+
+  @override
+  String icFreeCancelUntil(String time) {
+    return 'Бесплатная отмена до $time';
+  }
+
+  @override
+  String get icFrom => 'Откуда';
+
+  @override
+  String icInsideArea(String place) {
+    return 'В пределах: $place';
+  }
+
+  @override
+  String get icKindSeat => 'Место';
+
+  @override
+  String get icKindWholeCar => 'Вся машина';
+
+  @override
+  String get icLateCancelWarning =>
+      'Срок бесплатной отмены прошёл. Отмена будет зафиксирована — при частых отменах бронирование может быть ограничено.';
+
+  @override
+  String get icLoadError => 'Не удалось загрузить данные';
+
+  @override
+  String get icMyBookings => 'Мои брони';
+
+  @override
+  String get icNoBookings => 'Забронированных рейсов пока нет';
+
+  @override
+  String get icNoRoutes => 'Пока нет направлений';
+
+  @override
+  String get icNoSeatsLeft => 'Мест нет';
+
+  @override
+  String get icNoTripsHint => 'Попробуйте выбрать другой день';
+
+  @override
+  String get icNoTripsTitle => 'На этот день рейсов нет';
+
+  @override
+  String icOutsideArea(String place) {
+    return 'Адрес вне зоны: $place';
+  }
+
+  @override
+  String get icPaymentCash => 'Оплата: наличными водителю';
+
+  @override
+  String get icPickup => 'Адрес посадки';
+
+  @override
+  String get icRetry => 'Повторить';
+
+  @override
+  String get icSearchTitle => 'Межгород';
+
+  @override
+  String icSeatPrice(String price) {
+    return '1 место — $price';
+  }
+
+  @override
+  String icSeatsBooked(int count) {
+    return 'Мест: $count';
+  }
+
+  @override
+  String get icSeatsCount => 'Количество мест';
+
+  @override
+  String get icSeatsDecrease => 'Уменьшить количество мест';
+
+  @override
+  String get icSeatsIncrease => 'Увеличить количество мест';
+
+  @override
+  String icSeatsLeft(int count) {
+    return 'Свободно мест: $count';
+  }
+
+  @override
+  String get icStatusAccepted => 'Водитель начал сбор';
+
+  @override
+  String get icStatusArrived => 'Водитель на месте';
+
+  @override
+  String get icStatusCancelled => 'Отменено';
+
+  @override
+  String get icStatusCompleted => 'Завершено';
+
+  @override
+  String get icStatusInProgress => 'В пути';
+
+  @override
+  String get icStatusScheduled => 'Забронировано';
+
+  @override
+  String get icSwap => 'Поменять направление';
+
+  @override
+  String get icTileSubtitle =>
+      'Ташкент, Алмалык, Ахангаран — место или вся машина';
+
+  @override
+  String get icTileTitle => 'Межгород';
+
+  @override
+  String get icTo => 'Куда';
+
+  @override
+  String get icToday => 'Сегодня';
+
+  @override
+  String get icTomorrow => 'Завтра';
+
+  @override
+  String get icTotal => 'Итого';
+
+  @override
+  String get icTripCancelled => 'Рейс отменён';
+
+  @override
+  String icWholeCarPrice(String price) {
+    return 'Вся машина — $price';
+  }
+
+  @override
+  String get icWholeCarUnavailable => 'Вся машина: места уже заняты';
+
+  @override
   String get languageRussian => 'Русский';
 
   @override
@@ -3757,6 +3979,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get shServiceFoodShort => 'Еда';
+
+  @override
+  String get shServiceIntercityShort => 'Межгород';
 
   @override
   String get shServiceMarket => 'Доставка из магазина';

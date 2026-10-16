@@ -41,6 +41,7 @@ class ServiceCatalogEntry {
         kServiceTypeFood => AppL10n.current.shServiceFoodShort,
         kServiceTypeMarket => AppL10n.current.shServiceMarketShort,
         kServiceTypeParcel => AppL10n.current.shServiceParcelShort,
+        kServiceTypeIntercity => AppL10n.current.shServiceIntercityShort,
         _ => AppL10n.current.shServiceTaxi,
       };
 
@@ -71,6 +72,15 @@ class ServiceCatalogEntry {
     icon: Icons.inventory_2_rounded,
   );
 
+  /// ⚠️ [all] ga KIRMAYDI: shaharlararo xarita sheet'idagi chip emas — u
+  /// qat'iy narxli jadval xizmati, o'z ekrani bor va faqat server flag'i
+  /// yoqilganda bosh sahifada ko'rinadi. [of] uni baribir taniydi, shunda
+  /// buyurtmalar tarixida intercity bandi "Taksi" deb chiqmaydi.
+  static const ServiceCatalogEntry intercity = ServiceCatalogEntry._(
+    serviceType: kServiceTypeIntercity,
+    icon: Icons.route_rounded,
+  );
+
   /// Yo'lovchi bosh ekranidagi chiplar tartibi.
   ///
   /// Taksi BIRINCHI va sukut bo'yicha tanlangan — sessiyalarning katta
@@ -85,6 +95,7 @@ class ServiceCatalogEntry {
 
   /// Noma'lum tur kelsa taksiga tushadi — hech qachon `null` qaytarmaydi.
   static ServiceCatalogEntry of(String serviceType) {
+    if (serviceType == kServiceTypeIntercity) return intercity;
     for (final entry in all) {
       if (entry.serviceType == serviceType) return entry;
     }

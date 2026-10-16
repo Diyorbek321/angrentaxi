@@ -87,6 +87,8 @@ const String kServiceTypeCargo = 'cargo';
 const String kServiceTypeFood = 'food';
 const String kServiceTypeMarket = 'market';
 const String kServiceTypeParcel = 'parcel';
+/// Shaharlararo band — har biri alohida buyurtma (features/intercity).
+const String kServiceTypeIntercity = 'intercity';
 
 /// Xom qiymatni normallashtiradi.
 ///

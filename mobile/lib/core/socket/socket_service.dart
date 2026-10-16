@@ -199,6 +199,12 @@ class SocketEvents {
   // Food (passenger receives)
   static const String foodOrderStatus = 'food:order:status';
 
+  // Shaharlararo (backend 6-qadam): o'rindiqlar/holat o'zgardi yoki
+  // haydovchi qatnovni bekor qildi. Payload: {tripId, status, seatsTaken,
+  // seatsTotal, wholeCarBooked, departureAt} va {tripId, reason}.
+  static const String intercityTripUpdated = 'intercity:trip:updated';
+  static const String intercityTripCancelled = 'intercity:trip:cancelled';
+
   // Support chat
   static const String supportMessageSend = 'support:message'; // client emit
   static const String supportMessageNew =

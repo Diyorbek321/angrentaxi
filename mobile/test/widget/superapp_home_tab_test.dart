@@ -29,6 +29,7 @@ import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
 import 'package:angren_taxi/features/ads/ad_carousel.dart';
 import 'package:angren_taxi/features/ads/ads_service.dart';
+import 'package:angren_taxi/features/intercity/screens/intercity_search_screen.dart';
 import 'package:angren_taxi/features/notifications/notifications_provider.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
 import 'package:angren_taxi/features/superapp/screens/cargo_screen.dart';
@@ -356,6 +357,38 @@ void main() {
 
       expect(recorder.lastBuiltPage(context), isA<SearchScreen>());
       handle.dispose();
+    });
+  });
+
+  group('HomeTab — shaharlararo plitkasi', () {
+    testWidgets("server flag'i o'chiq bo'lsa plitka ko'rinmaydi",
+        (tester) async {
+      await pumpHome(tester);
+
+      expect(find.byKey(const ValueKey('intercity_home_tile')), findsNothing);
+    });
+
+    testWidgets("intercityEnabled=true bo'lsa plitka chiqadi va qidiruvni ochadi",
+        (tester) async {
+      when(() => apiClient.get(ApiEndpoints.settingsPublic)).thenAnswer(
+        (_) async => _json(ApiEndpoints.settingsPublic, {
+          'deliveryFee': 7000,
+          'intercityEnabled': true,
+          'intercityMaxSeatsPerBooking': 3,
+        }),
+      );
+      await pumpHome(tester);
+
+      final tile = find.byKey(const ValueKey('intercity_home_tile'));
+      expect(tile, findsOneWidget);
+      expect(superappProvider.intercity.maxSeatsPerBooking, 3);
+
+      await tester.ensureVisible(tile);
+      await tester.tap(tile);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.byType(IntercitySearchScreen), findsOneWidget);
     });
   });
 

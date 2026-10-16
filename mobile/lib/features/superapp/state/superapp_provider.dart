@@ -1,6 +1,7 @@
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/features/intercity/models/intercity_models.dart';
 import 'package:angren_taxi/features/superapp/models/cart_item.dart';
 import 'package:angren_taxi/features/superapp/models/wallet_transaction.dart';
 import 'package:flutter/foundation.dart';
@@ -106,6 +107,18 @@ class SuperappProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Shaharlararo sozlamalari (`intercityEnabled` va h.k.). Server javob
+  /// bermaguncha — O'CHIQ: plitka ko'rinmaydi, ya'ni flag yoqilmagan
+  /// serverga hech qachon so'rov ketmaydi.
+  IntercityPublicSettings _intercity = IntercityPublicSettings.disabled;
+  IntercityPublicSettings get intercity => _intercity;
+
+  @visibleForTesting
+  void debugSetIntercityForTest(IntercityPublicSettings value) {
+    _intercity = value;
+    notifyListeners();
+  }
+
   @visibleForTesting
   void debugSetMaxCashVendorOrderForTest(double? value) {
     _maxCashVendorOrder = value;
@@ -181,6 +194,7 @@ class SuperappProvider extends ChangeNotifier {
       }
       _maxCashVendorOrder =
           (payload['maxCashVendorOrder'] as num?)?.toDouble() ?? _maxCashVendorOrder;
+      _intercity = IntercityPublicSettings.fromJson(payload);
       notifyListeners();
     } catch (e) {
       // Keep the last known fee. A settings blip must not block checkout;

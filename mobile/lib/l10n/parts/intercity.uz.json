@@ -1,0 +1,148 @@
+{
+  "shServiceIntercityShort": "Shaharlararo",
+  "icTileTitle": "Shaharlararo",
+  "icTileSubtitle": "Toshkent, Olmaliq, Ohangaron — joy yoki butun mashina",
+  "icSearchTitle": "Shaharlararo",
+  "icFrom": "Qayerdan",
+  "icTo": "Qayerga",
+  "icSwap": "Yo'nalishni almashtirish",
+  "icToday": "Bugun",
+  "icTomorrow": "Ertaga",
+  "icNoRoutes": "Hozircha yo'nalishlar yo'q",
+  "icNoTripsTitle": "Bu kunga qatnov yo'q",
+  "icNoTripsHint": "Boshqa kunni tanlab ko'ring",
+  "icLoadError": "Ma'lumot yuklanmadi",
+  "icRetry": "Qayta urinish",
+  "icClassStart": "Start",
+  "icClassComfort": "Comfort",
+  "icSeatsLeft": "{count} ta joy bo'sh",
+  "@icSeatsLeft": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "icNoSeatsLeft": "Joy qolmagan",
+  "icSeatPrice": "1 joy — {price}",
+  "@icSeatPrice": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "icWholeCarPrice": "Butun mashina — {price}",
+  "@icWholeCarPrice": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "icWholeCarUnavailable": "Butun mashina: joylar allaqachon band",
+  "icDriverUnknown": "Haydovchi",
+  "icBookTitle": "Joy band qilish",
+  "icKindSeat": "Joy",
+  "icKindWholeCar": "Butun mashina",
+  "icSeatsCount": "Joylar soni",
+  "icSeatsDecrease": "Joyni kamaytirish",
+  "icSeatsIncrease": "Joyni ko'paytirish",
+  "icPickup": "Olib ketish manzili",
+  "icInsideArea": "{place} ichida",
+  "@icInsideArea": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "icDropoff": "Tushish joyi",
+  "icDropoffFixed": "{place} — qat'iy to'xtash joyi. Shahar ichiga kirish alohida hisoblanadi.",
+  "@icDropoffFixed": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "icChooseOnMap": "Xaritadan tanlang",
+  "icOutsideArea": "Manzil {place} hududidan tashqarida",
+  "@icOutsideArea": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "icTotal": "Jami",
+  "icPaymentCash": "To'lov: naqd, haydovchiga",
+  "icConfirm": "Band qilish",
+  "icBooked": "Joy band qilindi",
+  "icErrSeatsUnavailable": "Afsus, bu joylar band bo'lib qoldi. Ma'lumot yangilandi.",
+  "icErrAlreadyBooked": "Siz bu qatnovda allaqachon joy band qilgansiz",
+  "icErrDisabled": "Shaharlararo xizmati hozircha o'chirilgan",
+  "icErrNotCancellable": "Bu bandni endi bekor qilib bo'lmaydi",
+  "icErrGeneric": "Amalni bajarib bo'lmadi. Qayta urinib ko'ring",
+  "icMyBookings": "Mening bandlarim",
+  "icNoBookings": "Hali band qilingan qatnov yo'q",
+  "icStatusScheduled": "Band qilingan",
+  "icStatusAccepted": "Haydovchi yig'ishni boshladi",
+  "icStatusArrived": "Haydovchi keldi",
+  "icStatusInProgress": "Yo'lda",
+  "icStatusCompleted": "Yakunlandi",
+  "icStatusCancelled": "Bekor qilingan",
+  "icDepartsIn": "Jo'nashga {time} qoldi",
+  "@icDepartsIn": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "icDurationHm": "{hours} soat {minutes} daq",
+  "@icDurationHm": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "icDurationM": "{minutes} daq",
+  "@icDurationM": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "icDeparture": "Jo'nash",
+  "icSeatsBooked": "{count} joy",
+  "@icSeatsBooked": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "icDriverPhoneHidden": "Haydovchi raqami jo'nashdan 1 soat oldin ochiladi",
+  "icCallDriver": "Haydovchiga qo'ng'iroq",
+  "icCancelBooking": "Bandni bekor qilish",
+  "icFreeCancelUntil": "{time} gacha bepul bekor qilish mumkin",
+  "@icFreeCancelUntil": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "icLateCancelWarning": "Bepul bekor qilish muddati o'tgan. Bekor qilish qayd etiladi — ko'p takrorlansa band qilish cheklanishi mumkin.",
+  "icCancelConfirmTitle": "Bandni bekor qilasizmi?",
+  "icCancelConfirmYes": "Ha, bekor qilish",
+  "icCancelConfirmNo": "Yo'q",
+  "icCancelled": "Band bekor qilindi",
+  "icTripCancelled": "Qatnov bekor qilindi"
+}

@@ -3,6 +3,8 @@ import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/features/ads/ad_carousel.dart';
 import 'package:angren_taxi/features/ads/ads_service.dart';
+import 'package:angren_taxi/features/intercity/screens/intercity_search_screen.dart';
+import 'package:angren_taxi/features/intercity/widgets/intercity_home_tile.dart';
 import 'package:angren_taxi/features/notifications/notifications_provider.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
 import 'package:angren_taxi/features/passenger/screens/home_screen.dart' show PassengerHomeScreen;
@@ -267,6 +269,9 @@ class _HomeTabState extends State<HomeTab> {
         context.select<SuperappProvider, double?>((p) => p.walletBalance);
     final unread =
         context.select<NotificationsProvider, int>((p) => p.unreadCount);
+    // Server flag'i yoqilmaguncha plitka umuman chizilmaydi.
+    final intercityEnabled =
+        context.select<SuperappProvider, bool>((p) => p.intercity.enabled);
     final food = context.watch<FoodProvider>();
     final restaurants = food.restaurants;
     final active = _activeOrder(context);
@@ -302,6 +307,22 @@ class _HomeTabState extends State<HomeTab> {
               .animate()
               .fadeIn(delay: 80.ms, duration: 400.ms)
               .slideY(begin: 0.15, curve: Curves.easeOut),
+          if (intercityEnabled) ...[
+            const SizedBox(height: kSpace3),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: context.gutter),
+              child: ResponsiveContent(
+                child: IntercityHomeTile(
+                  onTap: () => _push(
+                    context,
+                    IntercitySearchScreen(
+                      settings: context.read<SuperappProvider>().intercity,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
           // Reklama taksi va xizmatlardan KEYIN: asosiy vazifa (safar)
           // birinchi ekranda turadi, banner uni pastga surmaydi.
           if (ads != null) ...[

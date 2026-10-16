@@ -1,0 +1,89 @@
+import 'package:angren_taxi/core/network/api_error.dart';
+import 'package:angren_taxi/features/intercity/models/intercity_models.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
+
+/// Server kodlari (backend/src/common/errors/coded-error.ts).
+abstract final class IntercityErrorCode {
+  static const disabled = 'INTERCITY_DISABLED';
+  static const seatsUnavailable = 'INTERCITY_SEATS_UNAVAILABLE';
+  static const alreadyBooked = 'INTERCITY_ALREADY_BOOKED';
+  static const bookingInvalid = 'INTERCITY_BOOKING_INVALID';
+  static const bookingNotCancellable = 'INTERCITY_BOOKING_NOT_CANCELLABLE';
+}
+
+/// Foydalanuvchiga ko'rsatiladigan matn.
+///
+/// Ma'lum kodlar ilova tilida; `INTERCITY_BOOKING_INVALID` da server
+/// `reasons[]` matnlari (allaqachon foydalanuvchi tilida — server xato
+/// katalogi `Accept-Language` bo'yicha tarjima qiladi) qatorlab beriladi.
+String intercityErrorMessage(Object? error) {
+  final l10n = AppL10n.current;
+  final api = ApiError.from(error);
+  switch (api?.code) {
+    case IntercityErrorCode.disabled:
+      return l10n.icErrDisabled;
+    case IntercityErrorCode.seatsUnavailable:
+      return l10n.icErrSeatsUnavailable;
+    case IntercityErrorCode.alreadyBooked:
+      return l10n.icErrAlreadyBooked;
+    case IntercityErrorCode.bookingNotCancellable:
+      return l10n.icErrNotCancellable;
+    case IntercityErrorCode.bookingInvalid:
+      final reasons = api!.reasons.map((r) => r.message).join('\n');
+      return reasons.isNotEmpty ? reasons : (api.message ?? l10n.icErrGeneric);
+  }
+  return api?.message ?? l10n.icErrGeneric;
+}
+
+bool isSeatsUnavailable(Object? error) =>
+    ApiError.from(error)?.code == IntercityErrorCode.seatsUnavailable;
+
+String intercityBookingStatusLabel(String status) {
+  final l10n = AppL10n.current;
+  return switch (status) {
+    'accepted' => l10n.icStatusAccepted,
+    'arrived' => l10n.icStatusArrived,
+    'in_progress' => l10n.icStatusInProgress,
+    'completed' => l10n.icStatusCompleted,
+    'cancelled' => l10n.icStatusCancelled,
+    _ => l10n.icStatusScheduled,
+  };
+}
+
+String intercityClassLabel(String tripClass) =>
+    tripClass == IntercityTripClass.comfort
+        ? AppL10n.current.icClassComfort
+        : AppL10n.current.icClassStart;
+
+String _two(int v) => v.toString().padLeft(2, '0');
+
+/// "07:30" — Toshkent vaqti.
+String formatTashkentTime(DateTime instant) {
+  final t = toTashkent(instant);
+  return '${_two(t.hour)}:${_two(t.minute)}';
+}
+
+/// "18.10 · 07:30" — Toshkent vaqti.
+String formatTashkentDayTime(DateTime instant) {
+  final t = toTashkent(instant);
+  return '${_two(t.day)}.${_two(t.month)} · ${_two(t.hour)}:${_two(t.minute)}';
+}
+
+/// "2 soat 15 daq" / "40 daq". Manfiy qiymat — 0.
+String formatIntercityDuration(Duration d) {
+  final l10n = AppL10n.current;
+  final minutes = d.isNegative ? 0 : d.inMinutes;
+  final hours = minutes ~/ 60;
+  return hours > 0
+      ? l10n.icDurationHm(hours, minutes % 60)
+      : l10n.icDurationM(minutes);
+}
+
+/// Sana chipi: "Bugun", "Ertaga", keyin "20.10".
+String intercityDayChipLabel(String dateKey, int index) {
+  final l10n = AppL10n.current;
+  if (index == 0) return l10n.icToday;
+  if (index == 1) return l10n.icTomorrow;
+  final parts = dateKey.split('-');
+  return parts.length == 3 ? '${parts[2]}.${parts[1]}' : dateKey;
+}

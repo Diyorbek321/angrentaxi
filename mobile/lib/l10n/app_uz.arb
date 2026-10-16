@@ -848,6 +848,151 @@
       }
     }
   },
+  "icBookTitle": "Joy band qilish",
+  "icBooked": "Joy band qilindi",
+  "icCallDriver": "Haydovchiga qo'ng'iroq",
+  "icCancelBooking": "Bandni bekor qilish",
+  "icCancelConfirmNo": "Yo'q",
+  "icCancelConfirmTitle": "Bandni bekor qilasizmi?",
+  "icCancelConfirmYes": "Ha, bekor qilish",
+  "icCancelled": "Band bekor qilindi",
+  "icChooseOnMap": "Xaritadan tanlang",
+  "icClassComfort": "Comfort",
+  "icClassStart": "Start",
+  "icConfirm": "Band qilish",
+  "icDepartsIn": "Jo'nashga {time} qoldi",
+  "@icDepartsIn": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "icDeparture": "Jo'nash",
+  "icDriverPhoneHidden": "Haydovchi raqami jo'nashdan 1 soat oldin ochiladi",
+  "icDriverUnknown": "Haydovchi",
+  "icDropoff": "Tushish joyi",
+  "icDropoffFixed": "{place} — qat'iy to'xtash joyi. Shahar ichiga kirish alohida hisoblanadi.",
+  "@icDropoffFixed": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "icDurationHm": "{hours} soat {minutes} daq",
+  "@icDurationHm": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "icDurationM": "{minutes} daq",
+  "@icDurationM": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "icErrAlreadyBooked": "Siz bu qatnovda allaqachon joy band qilgansiz",
+  "icErrDisabled": "Shaharlararo xizmati hozircha o'chirilgan",
+  "icErrGeneric": "Amalni bajarib bo'lmadi. Qayta urinib ko'ring",
+  "icErrNotCancellable": "Bu bandni endi bekor qilib bo'lmaydi",
+  "icErrSeatsUnavailable": "Afsus, bu joylar band bo'lib qoldi. Ma'lumot yangilandi.",
+  "icFreeCancelUntil": "{time} gacha bepul bekor qilish mumkin",
+  "@icFreeCancelUntil": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "icFrom": "Qayerdan",
+  "icInsideArea": "{place} ichida",
+  "@icInsideArea": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "icKindSeat": "Joy",
+  "icKindWholeCar": "Butun mashina",
+  "icLateCancelWarning": "Bepul bekor qilish muddati o'tgan. Bekor qilish qayd etiladi — ko'p takrorlansa band qilish cheklanishi mumkin.",
+  "icLoadError": "Ma'lumot yuklanmadi",
+  "icMyBookings": "Mening bandlarim",
+  "icNoBookings": "Hali band qilingan qatnov yo'q",
+  "icNoRoutes": "Hozircha yo'nalishlar yo'q",
+  "icNoSeatsLeft": "Joy qolmagan",
+  "icNoTripsHint": "Boshqa kunni tanlab ko'ring",
+  "icNoTripsTitle": "Bu kunga qatnov yo'q",
+  "icOutsideArea": "Manzil {place} hududidan tashqarida",
+  "@icOutsideArea": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "icPaymentCash": "To'lov: naqd, haydovchiga",
+  "icPickup": "Olib ketish manzili",
+  "icRetry": "Qayta urinish",
+  "icSearchTitle": "Shaharlararo",
+  "icSeatPrice": "1 joy — {price}",
+  "@icSeatPrice": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "icSeatsBooked": "{count} joy",
+  "@icSeatsBooked": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "icSeatsCount": "Joylar soni",
+  "icSeatsDecrease": "Joyni kamaytirish",
+  "icSeatsIncrease": "Joyni ko'paytirish",
+  "icSeatsLeft": "{count} ta joy bo'sh",
+  "@icSeatsLeft": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "icStatusAccepted": "Haydovchi yig'ishni boshladi",
+  "icStatusArrived": "Haydovchi keldi",
+  "icStatusCancelled": "Bekor qilingan",
+  "icStatusCompleted": "Yakunlandi",
+  "icStatusInProgress": "Yo'lda",
+  "icStatusScheduled": "Band qilingan",
+  "icSwap": "Yo'nalishni almashtirish",
+  "icTileSubtitle": "Toshkent, Olmaliq, Ohangaron — joy yoki butun mashina",
+  "icTileTitle": "Shaharlararo",
+  "icTo": "Qayerga",
+  "icToday": "Bugun",
+  "icTomorrow": "Ertaga",
+  "icTotal": "Jami",
+  "icTripCancelled": "Qatnov bekor qilindi",
+  "icWholeCarPrice": "Butun mashina — {price}",
+  "@icWholeCarPrice": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "icWholeCarUnavailable": "Butun mashina: joylar allaqachon band",
   "languageRussian": "Русский",
   "languageUzbek": "O'zbekcha",
   "lglBirthDate": "Tug'ilgan sana",
@@ -2463,6 +2608,7 @@
   "shServiceCargoShort": "Yuk",
   "shServiceFood": "Ovqat yetkazish",
   "shServiceFoodShort": "Ovqat",
+  "shServiceIntercityShort": "Shaharlararo",
   "shServiceMarket": "Do'kon yetkazish",
   "shServiceMarketShort": "Market",
   "shServiceParcelShort": "Posilka",

@@ -815,7 +815,12 @@ class OrderProvider extends ChangeNotifier {
       // aks holda ovqat buyurtmasi bergan odam bosh ekranda "haydovchi
       // yo'lda" taksi ekraniga qulflanib qolardi. Kuryerni u ovqat/market
       // buyurtmasi ekranida kuzatadi.
-      final active = orders.where((o) => o.isActive && !o.isDelivery);
+      // Shaharlararo bandi ham shunday: yig'ish boshlanganda u ACCEPTED
+      // bo'ladi, lekin uni "Mening bandlarim" ekrani kuzatadi.
+      final active = orders.where((o) =>
+          o.isActive &&
+          !o.isDelivery &&
+          o.serviceType != kServiceTypeIntercity);
       if (active.isNotEmpty) {
         _activeOrder = active.first;
         _listenToOrderEvents();

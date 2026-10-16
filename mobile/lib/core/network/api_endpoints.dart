@@ -207,6 +207,17 @@ class ApiEndpoints {
   /// Customer-facing platform settings (support phone, delivery fee).
   static const String settingsPublic = '/settings/public';
 
+  // Shaharlararo (backend/src/modules/intercity). Flag o'chiq bo'lsa
+  // hammasi 404 INTERCITY_DISABLED qaytaradi.
+  static const String intercityRoutes = '/intercity/routes';
+  static const String intercityTrips = '/intercity/trips';
+  static String intercityTrip(String id) => '/intercity/trips/$id';
+  static String intercityTripBookings(String id) =>
+      '/intercity/trips/$id/bookings';
+  static const String intercityMyBookings = '/intercity/bookings/me';
+  static String intercityBookingCancel(String orderId) =>
+      '/intercity/bookings/$orderId/cancel';
+
   /// Safar opsiyalari haqi (`{"child_seat": 5000}`) — menejer belgilaydi.
   static const String tripOptionFees = '/settings/trip-option-fees';
   static const String paymentsTransactions = '/payments/transactions';

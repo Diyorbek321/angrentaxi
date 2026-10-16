@@ -1292,6 +1292,228 @@ class AppLocalizationsUz extends AppLocalizations {
   }
 
   @override
+  String get icBookTitle => 'Joy band qilish';
+
+  @override
+  String get icBooked => 'Joy band qilindi';
+
+  @override
+  String get icCallDriver => 'Haydovchiga qo\'ng\'iroq';
+
+  @override
+  String get icCancelBooking => 'Bandni bekor qilish';
+
+  @override
+  String get icCancelConfirmNo => 'Yo\'q';
+
+  @override
+  String get icCancelConfirmTitle => 'Bandni bekor qilasizmi?';
+
+  @override
+  String get icCancelConfirmYes => 'Ha, bekor qilish';
+
+  @override
+  String get icCancelled => 'Band bekor qilindi';
+
+  @override
+  String get icChooseOnMap => 'Xaritadan tanlang';
+
+  @override
+  String get icClassComfort => 'Comfort';
+
+  @override
+  String get icClassStart => 'Start';
+
+  @override
+  String get icConfirm => 'Band qilish';
+
+  @override
+  String icDepartsIn(String time) {
+    return 'Jo\'nashga $time qoldi';
+  }
+
+  @override
+  String get icDeparture => 'Jo\'nash';
+
+  @override
+  String get icDriverPhoneHidden =>
+      'Haydovchi raqami jo\'nashdan 1 soat oldin ochiladi';
+
+  @override
+  String get icDriverUnknown => 'Haydovchi';
+
+  @override
+  String get icDropoff => 'Tushish joyi';
+
+  @override
+  String icDropoffFixed(String place) {
+    return '$place — qat\'iy to\'xtash joyi. Shahar ichiga kirish alohida hisoblanadi.';
+  }
+
+  @override
+  String icDurationHm(int hours, int minutes) {
+    return '$hours soat $minutes daq';
+  }
+
+  @override
+  String icDurationM(int minutes) {
+    return '$minutes daq';
+  }
+
+  @override
+  String get icErrAlreadyBooked =>
+      'Siz bu qatnovda allaqachon joy band qilgansiz';
+
+  @override
+  String get icErrDisabled => 'Shaharlararo xizmati hozircha o\'chirilgan';
+
+  @override
+  String get icErrGeneric => 'Amalni bajarib bo\'lmadi. Qayta urinib ko\'ring';
+
+  @override
+  String get icErrNotCancellable => 'Bu bandni endi bekor qilib bo\'lmaydi';
+
+  @override
+  String get icErrSeatsUnavailable =>
+      'Afsus, bu joylar band bo\'lib qoldi. Ma\'lumot yangilandi.';
+
+  @override
+  String icFreeCancelUntil(String time) {
+    return '$time gacha bepul bekor qilish mumkin';
+  }
+
+  @override
+  String get icFrom => 'Qayerdan';
+
+  @override
+  String icInsideArea(String place) {
+    return '$place ichida';
+  }
+
+  @override
+  String get icKindSeat => 'Joy';
+
+  @override
+  String get icKindWholeCar => 'Butun mashina';
+
+  @override
+  String get icLateCancelWarning =>
+      'Bepul bekor qilish muddati o\'tgan. Bekor qilish qayd etiladi — ko\'p takrorlansa band qilish cheklanishi mumkin.';
+
+  @override
+  String get icLoadError => 'Ma\'lumot yuklanmadi';
+
+  @override
+  String get icMyBookings => 'Mening bandlarim';
+
+  @override
+  String get icNoBookings => 'Hali band qilingan qatnov yo\'q';
+
+  @override
+  String get icNoRoutes => 'Hozircha yo\'nalishlar yo\'q';
+
+  @override
+  String get icNoSeatsLeft => 'Joy qolmagan';
+
+  @override
+  String get icNoTripsHint => 'Boshqa kunni tanlab ko\'ring';
+
+  @override
+  String get icNoTripsTitle => 'Bu kunga qatnov yo\'q';
+
+  @override
+  String icOutsideArea(String place) {
+    return 'Manzil $place hududidan tashqarida';
+  }
+
+  @override
+  String get icPaymentCash => 'To\'lov: naqd, haydovchiga';
+
+  @override
+  String get icPickup => 'Olib ketish manzili';
+
+  @override
+  String get icRetry => 'Qayta urinish';
+
+  @override
+  String get icSearchTitle => 'Shaharlararo';
+
+  @override
+  String icSeatPrice(String price) {
+    return '1 joy — $price';
+  }
+
+  @override
+  String icSeatsBooked(int count) {
+    return '$count joy';
+  }
+
+  @override
+  String get icSeatsCount => 'Joylar soni';
+
+  @override
+  String get icSeatsDecrease => 'Joyni kamaytirish';
+
+  @override
+  String get icSeatsIncrease => 'Joyni ko\'paytirish';
+
+  @override
+  String icSeatsLeft(int count) {
+    return '$count ta joy bo\'sh';
+  }
+
+  @override
+  String get icStatusAccepted => 'Haydovchi yig\'ishni boshladi';
+
+  @override
+  String get icStatusArrived => 'Haydovchi keldi';
+
+  @override
+  String get icStatusCancelled => 'Bekor qilingan';
+
+  @override
+  String get icStatusCompleted => 'Yakunlandi';
+
+  @override
+  String get icStatusInProgress => 'Yo\'lda';
+
+  @override
+  String get icStatusScheduled => 'Band qilingan';
+
+  @override
+  String get icSwap => 'Yo\'nalishni almashtirish';
+
+  @override
+  String get icTileSubtitle =>
+      'Toshkent, Olmaliq, Ohangaron — joy yoki butun mashina';
+
+  @override
+  String get icTileTitle => 'Shaharlararo';
+
+  @override
+  String get icTo => 'Qayerga';
+
+  @override
+  String get icToday => 'Bugun';
+
+  @override
+  String get icTomorrow => 'Ertaga';
+
+  @override
+  String get icTotal => 'Jami';
+
+  @override
+  String get icTripCancelled => 'Qatnov bekor qilindi';
+
+  @override
+  String icWholeCarPrice(String price) {
+    return 'Butun mashina — $price';
+  }
+
+  @override
+  String get icWholeCarUnavailable => 'Butun mashina: joylar allaqachon band';
+
+  @override
   String get languageRussian => 'Русский';
 
   @override
@@ -3766,6 +3988,9 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get shServiceFoodShort => 'Ovqat';
+
+  @override
+  String get shServiceIntercityShort => 'Shaharlararo';
 
   @override
   String get shServiceMarket => 'Do\'kon yetkazish';
