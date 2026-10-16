@@ -91,6 +91,61 @@ class IntercityRepository {
     return _list(_data(res.data)).map(IntercityBooking.fromJson).toList();
   }
 
+  // ---------------------------------------------------------------- haydovchi
+
+  /// Ochiq sozlamalar (`/settings/public`) — e'lon oynasi uchun.
+  Future<IntercityPublicSettings> publicSettings() async {
+    final res = await _api.get(ApiEndpoints.settingsPublic);
+    final data = _data(res.data);
+    return data is Map
+        ? IntercityPublicSettings.fromJson(Map<String, dynamic>.from(data))
+        : IntercityPublicSettings.disabled;
+  }
+
+  /// Narx serverda yo'nalishdan nusxalanadi — bu yerda yuborilmaydi.
+  Future<IntercityTrip> publishTrip({
+    required String routeId,
+    required DateTime departureAt,
+    int? seatsTotal,
+    required String tripClass,
+  }) async {
+    final res = await _api.post(
+      ApiEndpoints.intercityTrips,
+      data: {
+        'routeId': routeId,
+        'departureAt': departureAt.toUtc().toIso8601String(),
+        if (seatsTotal != null) 'seatsTotal': seatsTotal,
+        'tripClass': tripClass,
+      },
+    );
+    return _trip(res.data);
+  }
+
+  Future<List<IntercityTrip>> myTrips() async {
+    final res = await _api.get(
+      ApiEndpoints.intercityMyTrips,
+      params: {'page': 1, 'limit': 50},
+    );
+    return _list(_data(res.data)).map(IntercityTrip.fromJson).toList();
+  }
+
+  Future<IntercityTrip> cancelTrip(String id, {required String reason}) async {
+    final res = await _api.post(
+      ApiEndpoints.intercityTripCancel(id),
+      data: {'reason': reason},
+    );
+    return _trip(res.data);
+  }
+
+  Future<IntercityTrip> startBoarding(String id) async =>
+      _trip((await _api.post(ApiEndpoints.intercityTripStartBoarding(id))).data);
+
+  Future<IntercityTrip> depart(String id) async =>
+      _trip((await _api.post(ApiEndpoints.intercityTripDepart(id))).data);
+
+  static IntercityTrip _trip(dynamic body) =>
+      IntercityTrip.fromJson(Map<String, dynamic>.from(_data(body) as Map));
+
   Future<IntercityBooking> cancelBooking(String orderId) async {
     final res = await _api.post(ApiEndpoints.intercityBookingCancel(orderId));
     return IntercityBooking.fromJson(

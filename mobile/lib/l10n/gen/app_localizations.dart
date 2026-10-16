@@ -2444,6 +2444,180 @@ abstract class AppLocalizations {
   /// **'{place} — qat\'iy to\'xtash joyi. Shahar ichiga kirish alohida hisoblanadi.'**
   String icDropoffFixed(String place);
 
+  /// No description provided for @icDrvCancelReasonHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Sabab (masalan: mashina buzildi)'**
+  String get icDrvCancelReasonHint;
+
+  /// No description provided for @icDrvCancelReasonRequired.
+  ///
+  /// In uz, this message translates to:
+  /// **'Sababni yozing'**
+  String get icDrvCancelReasonRequired;
+
+  /// No description provided for @icDrvCancelTrip.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qatnovni bekor qilish'**
+  String get icDrvCancelTrip;
+
+  /// No description provided for @icDrvCancelTripBody.
+  ///
+  /// In uz, this message translates to:
+  /// **'Barcha yo\'lovchilar bandi bekor qilinadi va ularga xabar boradi. Tez-tez bekor qilish reytingga ta\'sir qiladi.'**
+  String get icDrvCancelTripBody;
+
+  /// No description provided for @icDrvClass.
+  ///
+  /// In uz, this message translates to:
+  /// **'Klass'**
+  String get icDrvClass;
+
+  /// No description provided for @icDrvComfortUnavailable.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bu yo\'nalishda Comfort narxi yo\'q'**
+  String get icDrvComfortUnavailable;
+
+  /// No description provided for @icDrvDeparture.
+  ///
+  /// In uz, this message translates to:
+  /// **'Jo\'nash vaqti'**
+  String get icDrvDeparture;
+
+  /// No description provided for @icDrvEntrySubtitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qatnov e\'lon qiling — yo\'lovchilar o\'zi yoziladi'**
+  String get icDrvEntrySubtitle;
+
+  /// No description provided for @icDrvEntryTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Shaharlararo qatnovlarim'**
+  String get icDrvEntryTitle;
+
+  /// No description provided for @icDrvInFlight.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qatnovingizda yo\'lovchilar kutmoqda'**
+  String get icDrvInFlight;
+
+  /// No description provided for @icDrvMyTripsTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qatnovlarim'**
+  String get icDrvMyTripsTitle;
+
+  /// No description provided for @icDrvNewTrip.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yangi qatnov'**
+  String get icDrvNewTrip;
+
+  /// No description provided for @icDrvNextTrip.
+  ///
+  /// In uz, this message translates to:
+  /// **'Keyingi qatnov'**
+  String get icDrvNextTrip;
+
+  /// No description provided for @icDrvNoTrips.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hali qatnov yo\'q'**
+  String get icDrvNoTrips;
+
+  /// No description provided for @icDrvNoTripsHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Birinchi qatnovingizni e\'lon qiling'**
+  String get icDrvNoTripsHint;
+
+  /// No description provided for @icDrvPast.
+  ///
+  /// In uz, this message translates to:
+  /// **'O\'tgan'**
+  String get icDrvPast;
+
+  /// No description provided for @icDrvPickDeparture.
+  ///
+  /// In uz, this message translates to:
+  /// **'Sana va vaqtni tanlang'**
+  String get icDrvPickDeparture;
+
+  /// No description provided for @icDrvPrice.
+  ///
+  /// In uz, this message translates to:
+  /// **'Narx (yo\'lovchi to\'laydi)'**
+  String get icDrvPrice;
+
+  /// No description provided for @icDrvPublish.
+  ///
+  /// In uz, this message translates to:
+  /// **'E\'lon qilish'**
+  String get icDrvPublish;
+
+  /// No description provided for @icDrvPublishTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qatnov e\'lon qilish'**
+  String get icDrvPublishTitle;
+
+  /// No description provided for @icDrvPublished.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qatnov e\'lon qilindi'**
+  String get icDrvPublished;
+
+  /// No description provided for @icDrvRoute.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yo\'nalish'**
+  String get icDrvRoute;
+
+  /// No description provided for @icDrvSeats.
+  ///
+  /// In uz, this message translates to:
+  /// **'Joylar soni'**
+  String get icDrvSeats;
+
+  /// No description provided for @icDrvSeatsTaken.
+  ///
+  /// In uz, this message translates to:
+  /// **'{taken}/{total} joy band'**
+  String icDrvSeatsTaken(int taken, int total);
+
+  /// No description provided for @icDrvTooFar.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qatnov ko\'pi bilan {days} kun oldin e\'lon qilinadi'**
+  String icDrvTooFar(int days);
+
+  /// No description provided for @icDrvTooSoon.
+  ///
+  /// In uz, this message translates to:
+  /// **'Jo\'nash kamida {minutes} daqiqadan keyin bo\'lishi kerak'**
+  String icDrvTooSoon(int minutes);
+
+  /// No description provided for @icDrvTripCancelled.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qatnov bekor qilindi'**
+  String get icDrvTripCancelled;
+
+  /// No description provided for @icDrvUpcoming.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kelgusi'**
+  String get icDrvUpcoming;
+
+  /// No description provided for @icDrvWholeCarBooked.
+  ///
+  /// In uz, this message translates to:
+  /// **'Butun mashina band'**
+  String get icDrvWholeCarBooked;
+
   /// No description provided for @icDurationHm.
   ///
   /// In uz, this message translates to:
@@ -2468,6 +2642,12 @@ abstract class AppLocalizations {
   /// **'Shaharlararo xizmati hozircha o\'chirilgan'**
   String get icErrDisabled;
 
+  /// No description provided for @icErrDriverBusy.
+  ///
+  /// In uz, this message translates to:
+  /// **'Avval faol shahar safarini yakunlang'**
+  String get icErrDriverBusy;
+
   /// No description provided for @icErrGeneric.
   ///
   /// In uz, this message translates to:
@@ -2485,6 +2665,30 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Afsus, bu joylar band bo\'lib qoldi. Ma\'lumot yangilandi.'**
   String get icErrSeatsUnavailable;
+
+  /// No description provided for @icErrServiceNotEnabled.
+  ///
+  /// In uz, this message translates to:
+  /// **'Avval \"Xizmat turlari\" bo\'limida Shaharlararo xizmatini yoqing'**
+  String get icErrServiceNotEnabled;
+
+  /// No description provided for @icErrTripActionNotAllowed.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bu amal qatnovning hozirgi holatida mumkin emas'**
+  String get icErrTripActionNotAllowed;
+
+  /// No description provided for @icErrTripNotCancellable.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yo\'lga chiqqan qatnovni bekor qilib bo\'lmaydi'**
+  String get icErrTripNotCancellable;
+
+  /// No description provided for @icErrTripOverlap.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bu vaqtga yaqin (±3 soat) sizda boshqa qatnov bor'**
+  String get icErrTripOverlap;
 
   /// No description provided for @icFreeCancelUntil.
   ///
@@ -2708,11 +2912,47 @@ abstract class AppLocalizations {
   /// **'Jami'**
   String get icTotal;
 
+  /// No description provided for @icTripBoarding.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yig\'ilmoqda'**
+  String get icTripBoarding;
+
   /// No description provided for @icTripCancelled.
   ///
   /// In uz, this message translates to:
   /// **'Qatnov bekor qilindi'**
   String get icTripCancelled;
+
+  /// No description provided for @icTripCancelledStatus.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bekor qilingan'**
+  String get icTripCancelledStatus;
+
+  /// No description provided for @icTripCompleted.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yakunlangan'**
+  String get icTripCompleted;
+
+  /// No description provided for @icTripFull.
+  ///
+  /// In uz, this message translates to:
+  /// **'To\'la'**
+  String get icTripFull;
+
+  /// No description provided for @icTripInProgress.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yo\'lda'**
+  String get icTripInProgress;
+
+  /// No description provided for @icTripOpen.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ochiq'**
+  String get icTripOpen;
 
   /// No description provided for @icWholeCarPrice.
   ///

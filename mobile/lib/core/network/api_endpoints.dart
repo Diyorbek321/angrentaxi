@@ -215,6 +215,14 @@ class ApiEndpoints {
   static String intercityTripBookings(String id) =>
       '/intercity/trips/$id/bookings';
   static const String intercityMyBookings = '/intercity/bookings/me';
+  // Haydovchi: e'lon, qatnovlarim, bekor qilish, yig'ish, jo'nash, kelmadi.
+  static const String intercityMyTrips = '/intercity/trips/mine';
+  static String intercityTripCancel(String id) => '/intercity/trips/$id/cancel';
+  static String intercityTripStartBoarding(String id) =>
+      '/intercity/trips/$id/start-boarding';
+  static String intercityTripDepart(String id) => '/intercity/trips/$id/depart';
+  static String intercityBookingNoShow(String orderId) =>
+      '/intercity/bookings/$orderId/no-show';
   static String intercityBookingCancel(String orderId) =>
       '/intercity/bookings/$orderId/cancel';
 

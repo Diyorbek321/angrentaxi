@@ -144,5 +144,69 @@
   "icCancelConfirmYes": "Ha, bekor qilish",
   "icCancelConfirmNo": "Yo'q",
   "icCancelled": "Band bekor qilindi",
-  "icTripCancelled": "Qatnov bekor qilindi"
+  "icTripCancelled": "Qatnov bekor qilindi",
+  "icErrServiceNotEnabled": "Avval \"Xizmat turlari\" bo'limida Shaharlararo xizmatini yoqing",
+  "icErrTripOverlap": "Bu vaqtga yaqin (±3 soat) sizda boshqa qatnov bor",
+  "icErrTripNotCancellable": "Yo'lga chiqqan qatnovni bekor qilib bo'lmaydi",
+  "icErrTripActionNotAllowed": "Bu amal qatnovning hozirgi holatida mumkin emas",
+  "icErrDriverBusy": "Avval faol shahar safarini yakunlang",
+  "icTripOpen": "Ochiq",
+  "icTripFull": "To'la",
+  "icTripBoarding": "Yig'ilmoqda",
+  "icTripInProgress": "Yo'lda",
+  "icTripCompleted": "Yakunlangan",
+  "icTripCancelledStatus": "Bekor qilingan",
+  "icDrvEntryTitle": "Shaharlararo qatnovlarim",
+  "icDrvEntrySubtitle": "Qatnov e'lon qiling — yo'lovchilar o'zi yoziladi",
+  "icDrvNextTrip": "Keyingi qatnov",
+  "icDrvInFlight": "Qatnovingizda yo'lovchilar kutmoqda",
+  "icDrvSeatsTaken": "{taken}/{total} joy band",
+  "@icDrvSeatsTaken": {
+    "placeholders": {
+      "taken": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "icDrvWholeCarBooked": "Butun mashina band",
+  "icDrvPublishTitle": "Qatnov e'lon qilish",
+  "icDrvRoute": "Yo'nalish",
+  "icDrvDeparture": "Jo'nash vaqti",
+  "icDrvPickDeparture": "Sana va vaqtni tanlang",
+  "icDrvSeats": "Joylar soni",
+  "icDrvClass": "Klass",
+  "icDrvComfortUnavailable": "Bu yo'nalishda Comfort narxi yo'q",
+  "icDrvPrice": "Narx (yo'lovchi to'laydi)",
+  "icDrvPublish": "E'lon qilish",
+  "icDrvPublished": "Qatnov e'lon qilindi",
+  "icDrvTooSoon": "Jo'nash kamida {minutes} daqiqadan keyin bo'lishi kerak",
+  "@icDrvTooSoon": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "icDrvTooFar": "Qatnov ko'pi bilan {days} kun oldin e'lon qilinadi",
+  "@icDrvTooFar": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "icDrvMyTripsTitle": "Qatnovlarim",
+  "icDrvUpcoming": "Kelgusi",
+  "icDrvPast": "O'tgan",
+  "icDrvNoTrips": "Hali qatnov yo'q",
+  "icDrvNoTripsHint": "Birinchi qatnovingizni e'lon qiling",
+  "icDrvNewTrip": "Yangi qatnov",
+  "icDrvCancelTrip": "Qatnovni bekor qilish",
+  "icDrvCancelTripBody": "Barcha yo'lovchilar bandi bekor qilinadi va ularga xabar boradi. Tez-tez bekor qilish reytingga ta'sir qiladi.",
+  "icDrvCancelReasonHint": "Sabab (masalan: mashina buzildi)",
+  "icDrvCancelReasonRequired": "Sababni yozing",
+  "icDrvTripCancelled": "Qatnov bekor qilindi"
 }

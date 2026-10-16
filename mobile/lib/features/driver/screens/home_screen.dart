@@ -19,6 +19,7 @@ import 'package:angren_taxi/features/driver/wallet/wallet_deep_links.dart';
 import 'package:angren_taxi/features/driver/widgets/driver_earnings_hero.dart';
 import 'package:angren_taxi/features/driver/widgets/driver_verification_notice.dart';
 import 'package:angren_taxi/features/driver/widgets/legal_block_sheet.dart';
+import 'package:angren_taxi/features/intercity/widgets/intercity_driver_entry_card.dart';
 import 'package:angren_taxi/features/passenger/map_camera_insets.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/driver_bonus_progress.dart';
@@ -601,6 +602,13 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
         ],
         const SizedBox(height: kSpace3),
         _buildDemandMapLink(),
+        // Shaharlararo: flag o'chiq bo'lsa karta O'ZI yashirinadi (bo'sh
+        // joy ham qolmaydi), shuning uchun oraliq kartaning ichida emas —
+        // u faqat chizilganda paydo bo'ladi.
+        IntercityDriverEntryCard(
+          hasPassengersWaiting: driverProvider.hasIntercityInFlight,
+          spacingTop: kSpace3,
+        ),
         const SizedBox(height: kSpace4),
         Semantics(
           button: true,

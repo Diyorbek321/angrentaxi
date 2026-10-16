@@ -176,6 +176,12 @@ class DriverProvider extends ChangeNotifier {
   double get todayEarnings => _todayEarnings;
   bool get isOnline => _isOnline;
   bool get hasActiveOrder => _activeOrder != null;
+
+  bool _hasIntercityInFlight = false;
+
+  /// Shaharlararo qatnovda faol band bor (yig'ish/yo'lda). Bosh ekran
+  /// shunda "Shaharlararo qatnovlarim" ga yo'naltiradi.
+  bool get hasIntercityInFlight => _hasIntercityInFlight;
   List<DriverDocument> get documents => List.unmodifiable(_documents);
   Map<DriverDocumentType, DriverDocumentUploadState>
       get documentUploadStates => Map.unmodifiable(_documentUploadStates);
@@ -930,8 +936,15 @@ class DriverProvider extends ChangeNotifier {
       final orders = ordersJson
           .map((e) => Order.fromJson(e as Map<String, dynamic>))
           .toList();
-      final active = orders.where((o) => o.isActive);
+      // ⚠️ Shaharlararo bandlari SHAHAR SAFARI EMAS: yig'ish boshlangach ular
+      // ACCEPTED/ARRIVED/IN_PROGRESS bo'ladi, lekin o'z ekrani va o'z
+      // amallari bor (`/orders/:id/start` ular uchun 400). Bu yerda olinsa
+      // bosh ekran haydovchini taksi oqimiga qulflab qo'yardi.
+      final active = orders.where(
+          (o) => o.isActive && o.serviceType != kServiceTypeIntercity);
       _activeOrder = active.isEmpty ? null : active.first;
+      _hasIntercityInFlight = orders.any(
+          (o) => o.isActive && o.serviceType == kServiceTypeIntercity);
       notifyListeners();
     } catch (e) {
       debugPrint('[DriverProvider] checkActiveOrder error: $e');

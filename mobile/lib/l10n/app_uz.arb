@@ -880,6 +880,59 @@
       }
     }
   },
+  "icDrvCancelReasonHint": "Sabab (masalan: mashina buzildi)",
+  "icDrvCancelReasonRequired": "Sababni yozing",
+  "icDrvCancelTrip": "Qatnovni bekor qilish",
+  "icDrvCancelTripBody": "Barcha yo'lovchilar bandi bekor qilinadi va ularga xabar boradi. Tez-tez bekor qilish reytingga ta'sir qiladi.",
+  "icDrvClass": "Klass",
+  "icDrvComfortUnavailable": "Bu yo'nalishda Comfort narxi yo'q",
+  "icDrvDeparture": "Jo'nash vaqti",
+  "icDrvEntrySubtitle": "Qatnov e'lon qiling — yo'lovchilar o'zi yoziladi",
+  "icDrvEntryTitle": "Shaharlararo qatnovlarim",
+  "icDrvInFlight": "Qatnovingizda yo'lovchilar kutmoqda",
+  "icDrvMyTripsTitle": "Qatnovlarim",
+  "icDrvNewTrip": "Yangi qatnov",
+  "icDrvNextTrip": "Keyingi qatnov",
+  "icDrvNoTrips": "Hali qatnov yo'q",
+  "icDrvNoTripsHint": "Birinchi qatnovingizni e'lon qiling",
+  "icDrvPast": "O'tgan",
+  "icDrvPickDeparture": "Sana va vaqtni tanlang",
+  "icDrvPrice": "Narx (yo'lovchi to'laydi)",
+  "icDrvPublish": "E'lon qilish",
+  "icDrvPublishTitle": "Qatnov e'lon qilish",
+  "icDrvPublished": "Qatnov e'lon qilindi",
+  "icDrvRoute": "Yo'nalish",
+  "icDrvSeats": "Joylar soni",
+  "icDrvSeatsTaken": "{taken}/{total} joy band",
+  "@icDrvSeatsTaken": {
+    "placeholders": {
+      "taken": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "icDrvTooFar": "Qatnov ko'pi bilan {days} kun oldin e'lon qilinadi",
+  "@icDrvTooFar": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "icDrvTooSoon": "Jo'nash kamida {minutes} daqiqadan keyin bo'lishi kerak",
+  "@icDrvTooSoon": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "icDrvTripCancelled": "Qatnov bekor qilindi",
+  "icDrvUpcoming": "Kelgusi",
+  "icDrvWholeCarBooked": "Butun mashina band",
   "icDurationHm": "{hours} soat {minutes} daq",
   "@icDurationHm": {
     "placeholders": {
@@ -901,9 +954,14 @@
   },
   "icErrAlreadyBooked": "Siz bu qatnovda allaqachon joy band qilgansiz",
   "icErrDisabled": "Shaharlararo xizmati hozircha o'chirilgan",
+  "icErrDriverBusy": "Avval faol shahar safarini yakunlang",
   "icErrGeneric": "Amalni bajarib bo'lmadi. Qayta urinib ko'ring",
   "icErrNotCancellable": "Bu bandni endi bekor qilib bo'lmaydi",
   "icErrSeatsUnavailable": "Afsus, bu joylar band bo'lib qoldi. Ma'lumot yangilandi.",
+  "icErrServiceNotEnabled": "Avval \"Xizmat turlari\" bo'limida Shaharlararo xizmatini yoqing",
+  "icErrTripActionNotAllowed": "Bu amal qatnovning hozirgi holatida mumkin emas",
+  "icErrTripNotCancellable": "Yo'lga chiqqan qatnovni bekor qilib bo'lmaydi",
+  "icErrTripOverlap": "Bu vaqtga yaqin (±3 soat) sizda boshqa qatnov bor",
   "icFreeCancelUntil": "{time} gacha bepul bekor qilish mumkin",
   "@icFreeCancelUntil": {
     "placeholders": {
@@ -983,7 +1041,13 @@
   "icToday": "Bugun",
   "icTomorrow": "Ertaga",
   "icTotal": "Jami",
+  "icTripBoarding": "Yig'ilmoqda",
   "icTripCancelled": "Qatnov bekor qilindi",
+  "icTripCancelledStatus": "Bekor qilingan",
+  "icTripCompleted": "Yakunlangan",
+  "icTripFull": "To'la",
+  "icTripInProgress": "Yo'lda",
+  "icTripOpen": "Ochiq",
   "icWholeCarPrice": "Butun mashina — {price}",
   "@icWholeCarPrice": {
     "placeholders": {

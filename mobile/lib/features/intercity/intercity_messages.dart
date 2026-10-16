@@ -9,6 +9,13 @@ abstract final class IntercityErrorCode {
   static const alreadyBooked = 'INTERCITY_ALREADY_BOOKED';
   static const bookingInvalid = 'INTERCITY_BOOKING_INVALID';
   static const bookingNotCancellable = 'INTERCITY_BOOKING_NOT_CANCELLABLE';
+  // Haydovchi.
+  static const serviceNotEnabled = 'INTERCITY_SERVICE_NOT_ENABLED';
+  static const tripInvalid = 'INTERCITY_TRIP_INVALID';
+  static const tripOverlap = 'INTERCITY_TRIP_OVERLAP';
+  static const tripNotCancellable = 'INTERCITY_TRIP_NOT_CANCELLABLE';
+  static const tripActionNotAllowed = 'INTERCITY_TRIP_ACTION_NOT_ALLOWED';
+  static const driverBusy = 'DRIVER_BUSY';
 }
 
 /// Foydalanuvchiga ko'rsatiladigan matn.
@@ -28,7 +35,18 @@ String intercityErrorMessage(Object? error) {
       return l10n.icErrAlreadyBooked;
     case IntercityErrorCode.bookingNotCancellable:
       return l10n.icErrNotCancellable;
+    case IntercityErrorCode.serviceNotEnabled:
+      return l10n.icErrServiceNotEnabled;
+    case IntercityErrorCode.tripOverlap:
+      return l10n.icErrTripOverlap;
+    case IntercityErrorCode.tripNotCancellable:
+      return l10n.icErrTripNotCancellable;
+    case IntercityErrorCode.tripActionNotAllowed:
+      return l10n.icErrTripActionNotAllowed;
+    case IntercityErrorCode.driverBusy:
+      return l10n.icErrDriverBusy;
     case IntercityErrorCode.bookingInvalid:
+    case IntercityErrorCode.tripInvalid:
       final reasons = api!.reasons.map((r) => r.message).join('\n');
       return reasons.isNotEmpty ? reasons : (api.message ?? l10n.icErrGeneric);
   }
@@ -87,3 +105,20 @@ String intercityDayChipLabel(String dateKey, int index) {
   final parts = dateKey.split('-');
   return parts.length == 3 ? '${parts[2]}.${parts[1]}' : dateKey;
 }
+
+/// Qatnov (haydovchi e'loni) holati.
+String intercityTripStatusLabel(String status) {
+  final l10n = AppL10n.current;
+  return switch (status) {
+    IntercityTripStatus.full => l10n.icTripFull,
+    IntercityTripStatus.boarding => l10n.icTripBoarding,
+    IntercityTripStatus.inProgress => l10n.icTripInProgress,
+    IntercityTripStatus.completed => l10n.icTripCompleted,
+    IntercityTripStatus.cancelled => l10n.icTripCancelledStatus,
+    _ => l10n.icTripOpen,
+  };
+}
+
+/// "Angren → Rohat krugi".
+String intercityRouteLabel(String origin, String destination) =>
+    '$origin → $destination';

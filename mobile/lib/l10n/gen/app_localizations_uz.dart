@@ -1351,6 +1351,101 @@ class AppLocalizationsUz extends AppLocalizations {
   }
 
   @override
+  String get icDrvCancelReasonHint => 'Sabab (masalan: mashina buzildi)';
+
+  @override
+  String get icDrvCancelReasonRequired => 'Sababni yozing';
+
+  @override
+  String get icDrvCancelTrip => 'Qatnovni bekor qilish';
+
+  @override
+  String get icDrvCancelTripBody =>
+      'Barcha yo\'lovchilar bandi bekor qilinadi va ularga xabar boradi. Tez-tez bekor qilish reytingga ta\'sir qiladi.';
+
+  @override
+  String get icDrvClass => 'Klass';
+
+  @override
+  String get icDrvComfortUnavailable => 'Bu yo\'nalishda Comfort narxi yo\'q';
+
+  @override
+  String get icDrvDeparture => 'Jo\'nash vaqti';
+
+  @override
+  String get icDrvEntrySubtitle =>
+      'Qatnov e\'lon qiling — yo\'lovchilar o\'zi yoziladi';
+
+  @override
+  String get icDrvEntryTitle => 'Shaharlararo qatnovlarim';
+
+  @override
+  String get icDrvInFlight => 'Qatnovingizda yo\'lovchilar kutmoqda';
+
+  @override
+  String get icDrvMyTripsTitle => 'Qatnovlarim';
+
+  @override
+  String get icDrvNewTrip => 'Yangi qatnov';
+
+  @override
+  String get icDrvNextTrip => 'Keyingi qatnov';
+
+  @override
+  String get icDrvNoTrips => 'Hali qatnov yo\'q';
+
+  @override
+  String get icDrvNoTripsHint => 'Birinchi qatnovingizni e\'lon qiling';
+
+  @override
+  String get icDrvPast => 'O\'tgan';
+
+  @override
+  String get icDrvPickDeparture => 'Sana va vaqtni tanlang';
+
+  @override
+  String get icDrvPrice => 'Narx (yo\'lovchi to\'laydi)';
+
+  @override
+  String get icDrvPublish => 'E\'lon qilish';
+
+  @override
+  String get icDrvPublishTitle => 'Qatnov e\'lon qilish';
+
+  @override
+  String get icDrvPublished => 'Qatnov e\'lon qilindi';
+
+  @override
+  String get icDrvRoute => 'Yo\'nalish';
+
+  @override
+  String get icDrvSeats => 'Joylar soni';
+
+  @override
+  String icDrvSeatsTaken(int taken, int total) {
+    return '$taken/$total joy band';
+  }
+
+  @override
+  String icDrvTooFar(int days) {
+    return 'Qatnov ko\'pi bilan $days kun oldin e\'lon qilinadi';
+  }
+
+  @override
+  String icDrvTooSoon(int minutes) {
+    return 'Jo\'nash kamida $minutes daqiqadan keyin bo\'lishi kerak';
+  }
+
+  @override
+  String get icDrvTripCancelled => 'Qatnov bekor qilindi';
+
+  @override
+  String get icDrvUpcoming => 'Kelgusi';
+
+  @override
+  String get icDrvWholeCarBooked => 'Butun mashina band';
+
+  @override
   String icDurationHm(int hours, int minutes) {
     return '$hours soat $minutes daq';
   }
@@ -1368,6 +1463,9 @@ class AppLocalizationsUz extends AppLocalizations {
   String get icErrDisabled => 'Shaharlararo xizmati hozircha o\'chirilgan';
 
   @override
+  String get icErrDriverBusy => 'Avval faol shahar safarini yakunlang';
+
+  @override
   String get icErrGeneric => 'Amalni bajarib bo\'lmadi. Qayta urinib ko\'ring';
 
   @override
@@ -1376,6 +1474,22 @@ class AppLocalizationsUz extends AppLocalizations {
   @override
   String get icErrSeatsUnavailable =>
       'Afsus, bu joylar band bo\'lib qoldi. Ma\'lumot yangilandi.';
+
+  @override
+  String get icErrServiceNotEnabled =>
+      'Avval \"Xizmat turlari\" bo\'limida Shaharlararo xizmatini yoqing';
+
+  @override
+  String get icErrTripActionNotAllowed =>
+      'Bu amal qatnovning hozirgi holatida mumkin emas';
+
+  @override
+  String get icErrTripNotCancellable =>
+      'Yo\'lga chiqqan qatnovni bekor qilib bo\'lmaydi';
+
+  @override
+  String get icErrTripOverlap =>
+      'Bu vaqtga yaqin (±3 soat) sizda boshqa qatnov bor';
 
   @override
   String icFreeCancelUntil(String time) {
@@ -1503,7 +1617,25 @@ class AppLocalizationsUz extends AppLocalizations {
   String get icTotal => 'Jami';
 
   @override
+  String get icTripBoarding => 'Yig\'ilmoqda';
+
+  @override
   String get icTripCancelled => 'Qatnov bekor qilindi';
+
+  @override
+  String get icTripCancelledStatus => 'Bekor qilingan';
+
+  @override
+  String get icTripCompleted => 'Yakunlangan';
+
+  @override
+  String get icTripFull => 'To\'la';
+
+  @override
+  String get icTripInProgress => 'Yo\'lda';
+
+  @override
+  String get icTripOpen => 'Ochiq';
 
   @override
   String icWholeCarPrice(String price) {

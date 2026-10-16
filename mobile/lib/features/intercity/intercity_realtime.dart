@@ -18,16 +18,32 @@ mixin IntercityRealtimeRefresh<T extends StatefulWidget> on State<T> {
     onTripEvent(tripId);
   }
 
-  void subscribeIntercity([SocketService? socket]) {
+  /// [driver] — haydovchi ekranlari band hodisalarini ham tinglaydi
+  /// (server ularni faqat qatnov egasiga yuboradi).
+  void subscribeIntercity([SocketService? socket, bool driver = false]) {
     _socket = socket ??
         (sl.isRegistered<SocketService>() ? sl<SocketService>() : null);
-    _socket?.on(SocketEvents.intercityTripUpdated, _handle);
-    _socket?.on(SocketEvents.intercityTripCancelled, _handle);
+    for (final event in _events(driver)) {
+      _socket?.on(event, _handle);
+    }
+    _driver = driver;
   }
 
   void unsubscribeIntercity() {
-    _socket?.off(SocketEvents.intercityTripUpdated, _handle);
-    _socket?.off(SocketEvents.intercityTripCancelled, _handle);
+    for (final event in _events(_driver)) {
+      _socket?.off(event, _handle);
+    }
     _socket = null;
   }
+
+  bool _driver = false;
+
+  static List<String> _events(bool driver) => [
+        SocketEvents.intercityTripUpdated,
+        SocketEvents.intercityTripCancelled,
+        if (driver) ...[
+          SocketEvents.intercityBookingCreated,
+          SocketEvents.intercityBookingCancelled,
+        ],
+      ];
 }

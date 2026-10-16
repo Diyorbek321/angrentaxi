@@ -205,6 +205,46 @@ void main() {
     expect(find.byKey(const ValueKey('service_item_food')), findsOneWidget);
   });
 
+  testWidgets(
+      "Shaharlararo — kod o'zgarishisiz serverdan keladi va saqlanadi",
+      (tester) async {
+    final options = [
+      _option(serviceType: 'taxi', label: 'Taksi', enabled: true),
+      _option(
+        serviceType: 'intercity',
+        label: 'Shaharlararo',
+        description: "Angren — Toshkent va boshqa yo'nalishlar",
+      ),
+    ];
+    stubServices(options: options);
+    stubSaveSuccess([
+      options[0],
+      {...options[1], 'enabled': true},
+    ]);
+
+    await pumpScreen(tester);
+
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('service_label_intercity')))
+          .data,
+      'Shaharlararo',
+    );
+
+    await tester.tap(find.byKey(const ValueKey('service_toggle_intercity')));
+    await pumpUntilQuiet(tester);
+    await tester.tap(find.byKey(const ValueKey('driver_services_save')));
+    await pumpUntilQuiet(tester);
+
+    final body = verify(
+      () => apiClient.patch(
+        ApiEndpoints.driverServices,
+        data: captureAny(named: 'data'),
+      ),
+    ).captured.single as Map;
+    expect(body['serviceTypes'], ['taxi', 'intercity']);
+  });
+
   testWidgets("server yubormagan tur ekranda YO'Q", (tester) async {
     // Ilova `market` ni "biladi", lekin server uni taklif qilmadi —
     // demak ekranda ham bo'lmasligi kerak.

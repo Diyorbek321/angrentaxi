@@ -204,6 +204,9 @@ class SocketEvents {
   // seatsTotal, wholeCarBooked, departureAt} va {tripId, reason}.
   static const String intercityTripUpdated = 'intercity:trip:updated';
   static const String intercityTripCancelled = 'intercity:trip:cancelled';
+  // Faqat haydovchiga: o'z qatnoviga yangi band / band bekor qilindi.
+  static const String intercityBookingCreated = 'intercity:booking:created';
+  static const String intercityBookingCancelled = 'intercity:booking:cancelled';
 
   // Support chat
   static const String supportMessageSend = 'support:message'; // client emit

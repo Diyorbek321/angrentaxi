@@ -193,6 +193,7 @@ class IntercityTrip extends Equatable {
     required this.seatsTotal,
     required this.seatsLeft,
     required this.wholeCarAvailable,
+    this.wholeCarBooked = false,
     required this.seatPrice,
     required this.wholeCarPrice,
     this.driver,
@@ -217,6 +218,7 @@ class IntercityTrip extends Equatable {
       seatsTotal: _int(json['seatsTotal']),
       seatsLeft: _int(json['seatsLeft']),
       wholeCarAvailable: json['wholeCarAvailable'] == true,
+      wholeCarBooked: json['wholeCarBooked'] == true,
       seatPrice: _num(json['seatPrice']),
       wholeCarPrice: _num(json['wholeCarPrice']),
       driver: driver is Map
@@ -236,18 +238,25 @@ class IntercityTrip extends Equatable {
   final int seatsTotal;
   final int seatsLeft;
   final bool wholeCarAvailable;
+
+  /// Butun mashina olingan — o'rindiq sotilmaydi (`seatsLeft` 0).
+  final bool wholeCarBooked;
   final double seatPrice;
   final double wholeCarPrice;
   final IntercityTripDriver? driver;
   final String? cancelReason;
 
   bool get isComfort => tripClass == IntercityTripClass.comfort;
+
+  /// Band qilingan joylar. Server `seatsTaken` ni ommaviy ko'rinishda
+  /// bermaydi; butun mashinada `seatsLeft` 0, ya'ni hisob baribir to'g'ri.
+  int get seatsTaken => seatsTotal - seatsLeft;
   bool get isBookable => status == IntercityTripStatus.open && seatsLeft > 0;
   bool get isCancelled => status == IntercityTripStatus.cancelled;
 
   @override
   List<Object?> get props =>
-      [id, status, seatsLeft, wholeCarAvailable, departureAt, cancelReason];
+      [id, status, seatsLeft, wholeCarAvailable, wholeCarBooked, departureAt, cancelReason];
 }
 
 /// Yo'lovchi bandi — server tomonda bitta `orders` qatori.
@@ -320,6 +329,8 @@ class IntercityPublicSettings extends Equatable {
     this.enabled = false,
     this.freeCancelMinutes = 60,
     this.maxSeatsPerBooking = 4,
+    this.minLeadMinutes = 30,
+    this.maxAheadDays = 7,
   });
 
   factory IntercityPublicSettings.fromJson(Map<String, dynamic> json) =>
@@ -331,6 +342,12 @@ class IntercityPublicSettings extends Equatable {
         maxSeatsPerBooking: json['intercityMaxSeatsPerBooking'] is num
             ? _int(json['intercityMaxSeatsPerBooking'])
             : 4,
+        minLeadMinutes: json['intercityMinLeadMinutes'] is num
+            ? _int(json['intercityMinLeadMinutes'])
+            : 30,
+        maxAheadDays: json['intercityMaxAheadDays'] is num
+            ? _int(json['intercityMaxAheadDays'])
+            : 7,
       );
 
   static const disabled = IntercityPublicSettings();
@@ -339,6 +356,13 @@ class IntercityPublicSettings extends Equatable {
   final int freeCancelMinutes;
   final int maxSeatsPerBooking;
 
+  /// Haydovchi e'loni: jo'nash kamida shuncha daqiqa keyin bo'lishi kerak.
+  final int minLeadMinutes;
+
+  /// Haydovchi e'loni: jo'nash ko'pi bilan shuncha kun oldin.
+  final int maxAheadDays;
+
   @override
-  List<Object?> get props => [enabled, freeCancelMinutes, maxSeatsPerBooking];
+  List<Object?> get props =>
+      [enabled, freeCancelMinutes, maxSeatsPerBooking, minLeadMinutes, maxAheadDays];
 }

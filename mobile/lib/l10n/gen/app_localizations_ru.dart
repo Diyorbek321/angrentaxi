@@ -1352,6 +1352,101 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get icDrvCancelReasonHint => 'Причина (например: сломалась машина)';
+
+  @override
+  String get icDrvCancelReasonRequired => 'Укажите причину';
+
+  @override
+  String get icDrvCancelTrip => 'Отменить рейс';
+
+  @override
+  String get icDrvCancelTripBody =>
+      'Брони всех пассажиров будут отменены, им придёт уведомление. Частые отмены влияют на рейтинг.';
+
+  @override
+  String get icDrvClass => 'Класс';
+
+  @override
+  String get icDrvComfortUnavailable => 'На этом маршруте нет цены Comfort';
+
+  @override
+  String get icDrvDeparture => 'Время отправления';
+
+  @override
+  String get icDrvEntrySubtitle =>
+      'Опубликуйте рейс — пассажиры запишутся сами';
+
+  @override
+  String get icDrvEntryTitle => 'Мои междугородние рейсы';
+
+  @override
+  String get icDrvInFlight => 'В вашем рейсе ждут пассажиры';
+
+  @override
+  String get icDrvMyTripsTitle => 'Мои рейсы';
+
+  @override
+  String get icDrvNewTrip => 'Новый рейс';
+
+  @override
+  String get icDrvNextTrip => 'Следующий рейс';
+
+  @override
+  String get icDrvNoTrips => 'Рейсов пока нет';
+
+  @override
+  String get icDrvNoTripsHint => 'Опубликуйте первый рейс';
+
+  @override
+  String get icDrvPast => 'Прошедшие';
+
+  @override
+  String get icDrvPickDeparture => 'Выберите дату и время';
+
+  @override
+  String get icDrvPrice => 'Цена (платит пассажир)';
+
+  @override
+  String get icDrvPublish => 'Опубликовать';
+
+  @override
+  String get icDrvPublishTitle => 'Опубликовать рейс';
+
+  @override
+  String get icDrvPublished => 'Рейс опубликован';
+
+  @override
+  String get icDrvRoute => 'Маршрут';
+
+  @override
+  String get icDrvSeats => 'Количество мест';
+
+  @override
+  String icDrvSeatsTaken(int taken, int total) {
+    return 'Занято $taken/$total';
+  }
+
+  @override
+  String icDrvTooFar(int days) {
+    return 'Рейс можно опубликовать не более чем за $days дн.';
+  }
+
+  @override
+  String icDrvTooSoon(int minutes) {
+    return 'Отправление — не раньше чем через $minutes мин';
+  }
+
+  @override
+  String get icDrvTripCancelled => 'Рейс отменён';
+
+  @override
+  String get icDrvUpcoming => 'Предстоящие';
+
+  @override
+  String get icDrvWholeCarBooked => 'Машина выкуплена целиком';
+
+  @override
   String icDurationHm(int hours, int minutes) {
     return '$hours ч $minutes мин';
   }
@@ -1368,6 +1463,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get icErrDisabled => 'Межгород пока отключён';
 
   @override
+  String get icErrDriverBusy => 'Сначала завершите активную поездку по городу';
+
+  @override
   String get icErrGeneric =>
       'Не удалось выполнить действие. Попробуйте ещё раз';
 
@@ -1377,6 +1475,20 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get icErrSeatsUnavailable =>
       'К сожалению, эти места уже заняли. Данные обновлены.';
+
+  @override
+  String get icErrServiceNotEnabled =>
+      'Сначала включите услугу «Межгород» в разделе «Виды услуг»';
+
+  @override
+  String get icErrTripActionNotAllowed =>
+      'Это действие недоступно в текущем статусе рейса';
+
+  @override
+  String get icErrTripNotCancellable => 'Рейс в пути нельзя отменить';
+
+  @override
+  String get icErrTripOverlap => 'У вас уже есть рейс в пределах ±3 часов';
 
   @override
   String icFreeCancelUntil(String time) {
@@ -1504,7 +1616,25 @@ class AppLocalizationsRu extends AppLocalizations {
   String get icTotal => 'Итого';
 
   @override
+  String get icTripBoarding => 'Посадка';
+
+  @override
   String get icTripCancelled => 'Рейс отменён';
+
+  @override
+  String get icTripCancelledStatus => 'Отменён';
+
+  @override
+  String get icTripCompleted => 'Завершён';
+
+  @override
+  String get icTripFull => 'Заполнен';
+
+  @override
+  String get icTripInProgress => 'В пути';
+
+  @override
+  String get icTripOpen => 'Открыт';
 
   @override
   String icWholeCarPrice(String price) {
