@@ -11,6 +11,7 @@ import { CreateIntercityBookingDto } from './dto/create-intercity-booking.dto';
 import { IntercityBookingPage, IntercityBookingsService } from './intercity-bookings.service';
 import { IntercityBookingView } from './intercity-booking-view';
 import { IntercityLifecycleService } from './intercity-lifecycle.service';
+import { IntercityDriverBookingView } from './intercity-booking-driver-view';
 import { IntercityTripView } from './intercity-trip-view';
 
 /**
@@ -60,6 +61,18 @@ export class IntercityBookingsController {
   }
 
   // ---------------------------------------------------------------- haydovchi
+
+  /** Yig'ish ekrani: o'z qatnovining bandlari (yo'lovchi telefoni vaqti kelganda). */
+  @Get('trips/:id/bookings')
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({ summary: "Haydovchi: o'z qatnovining bandlari (olish/tushish koordinatalari bilan)" })
+  @ApiResponse({ status: 404, description: 'INTERCITY_TRIP_NOT_FOUND — begona yoki mavjud emas' })
+  listTripBookings(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) tripId: string,
+  ): Promise<IntercityDriverBookingView[]> {
+    return this.lifecycle.listBookingsForDriver(user.id, tripId);
+  }
 
   @Post('trips/:id/start-boarding')
   @HttpCode(HttpStatus.OK)

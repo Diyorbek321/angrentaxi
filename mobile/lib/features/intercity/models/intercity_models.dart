@@ -323,6 +323,81 @@ class IntercityBooking extends Equatable {
   List<Object?> get props => [orderId, status, price, trip, driverPhone];
 }
 
+double? _numOrNull(dynamic v) =>
+    v == null ? null : (v is num ? v.toDouble() : double.tryParse('$v'));
+
+/// Haydovchi ko'radigan band (`GET /intercity/trips/:id/bookings`,
+/// backend `intercity-booking-driver-view.ts`).
+///
+/// Koordinatalar — yo'lovchilarni eng yaqinidan boshlab yig'ish uchun.
+/// Telefon server ochgandagina keladi (yig'ish boshlangan yoki jo'nashga
+/// ≤60 daqiqa), aks holda `null`.
+class IntercityDriverBooking extends Equatable {
+  const IntercityDriverBooking({
+    required this.orderId,
+    required this.status,
+    this.seats,
+    this.bookingKind,
+    required this.price,
+    required this.passengerName,
+    this.passengerPhone,
+    this.pickupAddress,
+    this.pickupLat,
+    this.pickupLng,
+    this.dropoffAddress,
+    this.dropoffLat,
+    this.dropoffLng,
+  });
+
+  factory IntercityDriverBooking.fromJson(Map<String, dynamic> json) {
+    final passenger = json['passenger'];
+    final p = passenger is Map ? passenger : const {};
+    return IntercityDriverBooking(
+      orderId: '${json['orderId']}',
+      status: _str(json['status']) ?? 'scheduled',
+      seats: json['seats'] == null ? null : _int(json['seats']),
+      bookingKind: _str(json['bookingKind']),
+      price: _num(json['price']),
+      passengerName: _str(p['name']) ?? '',
+      passengerPhone: _str(p['phone']),
+      pickupAddress: _str(json['pickupAddress']),
+      pickupLat: _numOrNull(json['pickupLat']),
+      pickupLng: _numOrNull(json['pickupLng']),
+      dropoffAddress: _str(json['dropoffAddress']),
+      dropoffLat: _numOrNull(json['dropoffLat']),
+      dropoffLng: _numOrNull(json['dropoffLng']),
+    );
+  }
+
+  final String orderId;
+  final String status;
+  final int? seats;
+  final String? bookingKind;
+  final double price;
+  final String passengerName;
+  final String? passengerPhone;
+  final String? pickupAddress;
+  final double? pickupLat;
+  final double? pickupLng;
+  final String? dropoffAddress;
+  final double? dropoffLat;
+  final double? dropoffLng;
+
+  bool get isWholeCar => bookingKind == IntercityBookingKind.wholeCar;
+
+  /// Hali mashinada yoki olinishi kutilmoqda.
+  bool get isLive =>
+      status == 'scheduled' ||
+      status == 'accepted' ||
+      status == 'arrived' ||
+      status == 'in_progress';
+
+  bool get hasPickupPoint => pickupLat != null && pickupLng != null;
+
+  @override
+  List<Object?> get props => [orderId, status, price, passengerPhone];
+}
+
 /// `GET /settings/public` dagi shaharlararo qismi.
 class IntercityPublicSettings extends Equatable {
   const IntercityPublicSettings({

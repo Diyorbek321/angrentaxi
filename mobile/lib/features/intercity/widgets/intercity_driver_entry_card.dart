@@ -4,6 +4,7 @@ import 'package:angren_taxi/features/intercity/intercity_driver_policy.dart';
 import 'package:angren_taxi/features/intercity/intercity_messages.dart';
 import 'package:angren_taxi/features/intercity/models/intercity_models.dart';
 import 'package:angren_taxi/features/intercity/screens/driver_intercity_trips_screen.dart';
+import 'package:angren_taxi/features/intercity/screens/intercity_trip_run_screen.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/widgets/ag_map_fab.dart';
 import 'package:angren_taxi/shared/widgets/app_pressable.dart';
@@ -72,13 +73,25 @@ class _IntercityDriverEntryCardState extends State<IntercityDriverEntryCard> {
     }
   }
 
+  /// Yig'ish yoki yo'l davom etayotgan bo'lsa — to'g'ridan-to'g'ri qatnov
+  /// ekraniga: haydovchi yo'lovchilar oldida ro'yxat orqali qidirmasin.
+  bool _isRunning(IntercityTrip? trip) =>
+      trip != null &&
+      (widget.hasPassengersWaiting ||
+          trip.status == IntercityTripStatus.boarding ||
+          trip.status == IntercityTripStatus.inProgress);
+
   Future<void> _open() async {
+    final next = _next;
     await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => DriverIntercityTripsScreen(
-        repository: _repo,
-        settings: _settings,
-        now: widget.now,
-      ),
+      builder: (_) => _isRunning(next)
+          ? IntercityTripRunScreen(
+              trip: next!, repository: _repo, now: widget.now)
+          : DriverIntercityTripsScreen(
+              repository: _repo,
+              settings: _settings,
+              now: widget.now,
+            ),
     ));
     if (mounted) await _load();
   }

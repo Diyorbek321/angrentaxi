@@ -1000,6 +1000,54 @@
   "icPaymentCash": "To'lov: naqd, haydovchiga",
   "icPickup": "Olib ketish manzili",
   "icRetry": "Qayta urinish",
+  "icRunArrived": "Yetib keldim",
+  "icRunCall": "Qo'ng'iroq qilish",
+  "icRunCancelledTitle": "Qatnov bekor qilingan",
+  "icRunClose": "Yopish",
+  "icRunCollectCash": "Naqd oling: {amount}",
+  "@icRunCollectCash": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "icRunCompletedTitle": "Qatnov yakunlandi",
+  "icRunDepart": "Surib yo'lga chiqing",
+  "icRunDepartHint": "Avval har bir yo'lovchini oling yoki «Kelmadi» deb belgilang",
+  "icRunDropOff": "Tushirdim",
+  "icRunNoBookings": "Hali hech kim band qilmagan",
+  "icRunNoShow": "Kelmadi",
+  "icRunNoShowBody": "Band bekor qilinadi, joy qaytarilmaydi. Yo'lovchiga qo'ng'iroq qilib ko'rdingizmi?",
+  "icRunNoShowConfirm": "Ha, kelmadi",
+  "icRunNoShowTitle": "Yo'lovchi kelmadimi?",
+  "icRunPassengers": "Yo'lovchilar",
+  "icRunPhoneLater": "Raqam jo'nashga 60 daqiqa qolganda ochiladi",
+  "icRunPickedUp": "Olindi",
+  "icRunReasonNoBookings": "Qatnovda faol yo'lovchi yo'q",
+  "icRunReasonPending": "Hali olinmagan yo'lovchi bor — oling yoki «Kelmadi» deb belgilang",
+  "icRunReasonTooEarly": "Yig'ish jo'nashdan 60 daqiqa oldin ochiladi",
+  "icRunReasonWrongStatus": "Qatnov holati o'zgargan, ro'yxat yangilandi",
+  "icRunSeats": "{count} joy",
+  "@icRunSeats": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "icRunStartBoarding": "Yig'ishni boshlash",
+  "icRunStartBoardingHint": "Jo'nashdan 60 daqiqa oldin yoki mashina to'lganda ochiladi",
+  "icRunTitle": "Qatnov",
+  "icRunTotalCash": "Jami naqd: {amount}",
+  "@icRunTotalCash": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "icRunWholeCar": "Butun mashina",
   "icSearchTitle": "Shaharlararo",
   "icSeatPrice": "1 joy — {price}",
   "@icSeatPrice": {

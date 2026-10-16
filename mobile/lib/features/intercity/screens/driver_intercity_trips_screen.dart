@@ -5,21 +5,21 @@ import 'package:angren_taxi/features/intercity/intercity_messages.dart';
 import 'package:angren_taxi/features/intercity/intercity_realtime.dart';
 import 'package:angren_taxi/features/intercity/models/intercity_models.dart';
 import 'package:angren_taxi/features/intercity/screens/intercity_publish_screen.dart';
+import 'package:angren_taxi/features/intercity/screens/intercity_trip_run_screen.dart';
 import 'package:angren_taxi/features/intercity/widgets/intercity_cancel_trip_dialog.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/widgets/ag_map_fab.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
+import 'package:angren_taxi/shared/widgets/app_pressable.dart';
 import 'package:angren_taxi/shared/widgets/app_status_badge.dart';
 import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:flutter/material.dart';
 
 /// Haydovchining shaharlararo qatnovlari: kelgusi (jo'nash bo'yicha) va
-/// o'tgan. Yangi qatnov e'lon qilish va bekor qilish shu yerdan.
-///
-/// ⚠️ Yig'ish/jo'nash/tushirish ekrani HALI YO'Q — server haydovchiga
-/// qatnovdagi bandlar ro'yxatini (yo'lovchi, olib ketish nuqtasi) bermaydi.
-/// U qo'shilguncha bu ekran faqat e'lon va bekor qilishni boshqaradi.
+/// o'tgan. Yangi qatnov e'lon qilish va bekor qilish shu yerdan; qatorni
+/// bosish qatnov ekrani (`IntercityTripRunScreen`) — yo'lovchilar, yig'ish,
+/// jo'nash va tushirish.
 class DriverIntercityTripsScreen extends StatefulWidget {
   const DriverIntercityTripsScreen({
     super.key,
@@ -111,7 +111,8 @@ class _DriverIntercityTripsScreenState extends State<DriverIntercityTripsScreen>
       body: SafeArea(top: false, child: _body()),
       bottomNavigationBar: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(kSpace4, kSpace2, kSpace4, kSpace3),
+          padding:
+              const EdgeInsets.fromLTRB(kSpace4, kSpace2, kSpace4, kSpace3),
           child: AppButton(
             key: const ValueKey('ic_trips_new'),
             label: l10n.icDrvNewTrip,
@@ -161,56 +162,76 @@ class _DriverIntercityTripsScreenState extends State<DriverIntercityTripsScreen>
     );
   }
 
+  Future<void> _openTrip(IntercityTrip trip) async {
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => IntercityTripRunScreen(
+        trip: trip,
+        repository: _repo,
+        now: widget.now,
+      ),
+    ));
+    if (mounted) await _load();
+  }
+
   Widget _tile(IntercityTrip trip) {
     final l10n = context.l10n;
     return Padding(
       padding: const EdgeInsets.only(bottom: kSpace3),
-      child: AgSurfaceCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    intercityRouteLabel(trip.originName, trip.destinationName),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: kFontBodyLg,
-                      fontWeight: FontWeight.w700,
-                      color: kInk,
+      child: AppPressable(
+        key: ValueKey('ic_trip_open_${trip.id}'),
+        onTap: () => _openTrip(trip),
+        semanticsLabel:
+            intercityRouteLabel(trip.originName, trip.destinationName),
+        pressedScale: 0.98,
+        minTapTarget: false,
+        child: AgSurfaceCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      intercityRouteLabel(
+                          trip.originName, trip.destinationName),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: kFontBodyLg,
+                        fontWeight: FontWeight.w700,
+                        color: kInk,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: kSpace2),
-                AppStatusBadge(
-                  label: intercityTripStatusLabel(trip.status),
-                  tone: _tone(trip.status),
-                  dense: true,
+                  const SizedBox(width: kSpace2),
+                  AppStatusBadge(
+                    label: intercityTripStatusLabel(trip.status),
+                    tone: _tone(trip.status),
+                    dense: true,
+                  ),
+                ],
+              ),
+              const SizedBox(height: kSpace1),
+              Text(
+                '${formatTashkentDayTime(trip.departureAt)} · '
+                '${intercityClassLabel(trip.tripClass)} · '
+                '${trip.wholeCarBooked ? l10n.icDrvWholeCarBooked : l10n.icDrvSeatsTaken(trip.seatsTaken, trip.seatsTotal)}',
+                style: const TextStyle(fontSize: kFontLabel, color: kInkMuted),
+              ),
+              if (canCancelTrip(trip)) ...[
+                const SizedBox(height: kSpace2),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    key: ValueKey('ic_trip_cancel_${trip.id}'),
+                    onPressed: () => _cancel(trip),
+                    style: TextButton.styleFrom(foregroundColor: kErrorDeep),
+                    child: Text(l10n.icDrvCancelTrip),
+                  ),
                 ),
               ],
-            ),
-            const SizedBox(height: kSpace1),
-            Text(
-              '${formatTashkentDayTime(trip.departureAt)} · '
-              '${intercityClassLabel(trip.tripClass)} · '
-              '${trip.wholeCarBooked ? l10n.icDrvWholeCarBooked : l10n.icDrvSeatsTaken(trip.seatsTaken, trip.seatsTotal)}',
-              style: const TextStyle(fontSize: kFontLabel, color: kInkMuted),
-            ),
-            if (canCancelTrip(trip)) ...[
-              const SizedBox(height: kSpace2),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  key: ValueKey('ic_trip_cancel_${trip.id}'),
-                  onPressed: () => _cancel(trip),
-                  style: TextButton.styleFrom(foregroundColor: kErrorDeep),
-                  child: Text(l10n.icDrvCancelTrip),
-                ),
-              ),
             ],
-          ],
+          ),
         ),
       ),
     );

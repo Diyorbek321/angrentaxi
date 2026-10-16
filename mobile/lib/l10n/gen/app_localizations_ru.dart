@@ -1549,6 +1549,99 @@ class AppLocalizationsRu extends AppLocalizations {
   String get icRetry => 'Повторить';
 
   @override
+  String get icRunArrived => 'Я на месте';
+
+  @override
+  String get icRunCall => 'Позвонить';
+
+  @override
+  String get icRunCancelledTitle => 'Рейс отменён';
+
+  @override
+  String get icRunClose => 'Закрыть';
+
+  @override
+  String icRunCollectCash(String amount) {
+    return 'Возьмите наличными: $amount';
+  }
+
+  @override
+  String get icRunCompletedTitle => 'Рейс завершён';
+
+  @override
+  String get icRunDepart => 'Сдвиньте, чтобы выехать';
+
+  @override
+  String get icRunDepartHint =>
+      'Сначала заберите каждого пассажира или отметьте «Не пришёл»';
+
+  @override
+  String get icRunDropOff => 'Высадил';
+
+  @override
+  String get icRunNoBookings => 'Пока никто не забронировал';
+
+  @override
+  String get icRunNoShow => 'Не пришёл';
+
+  @override
+  String get icRunNoShowBody =>
+      'Бронь будет отменена, место не вернётся. Вы звонили пассажиру?';
+
+  @override
+  String get icRunNoShowConfirm => 'Да, не пришёл';
+
+  @override
+  String get icRunNoShowTitle => 'Пассажир не пришёл?';
+
+  @override
+  String get icRunPassengers => 'Пассажиры';
+
+  @override
+  String get icRunPhoneLater => 'Номер откроется за 60 минут до отправления';
+
+  @override
+  String get icRunPickedUp => 'Забран';
+
+  @override
+  String get icRunReasonNoBookings => 'В рейсе нет активных пассажиров';
+
+  @override
+  String get icRunReasonPending =>
+      'Есть незабранные пассажиры — заберите или отметьте «Не пришёл»';
+
+  @override
+  String get icRunReasonTooEarly =>
+      'Сбор открывается за 60 минут до отправления';
+
+  @override
+  String get icRunReasonWrongStatus =>
+      'Статус рейса изменился, список обновлён';
+
+  @override
+  String icRunSeats(int count) {
+    return '$count мест';
+  }
+
+  @override
+  String get icRunStartBoarding => 'Начать сбор';
+
+  @override
+  String get icRunStartBoardingHint =>
+      'Доступно за 60 минут до отправления или когда машина заполнена';
+
+  @override
+  String get icRunTitle => 'Рейс';
+
+  @override
+  String icRunTotalCash(String amount) {
+    return 'Всего наличными: $amount';
+  }
+
+  @override
+  String get icRunWholeCar => 'Вся машина';
+
+  @override
   String get icSearchTitle => 'Межгород';
 
   @override

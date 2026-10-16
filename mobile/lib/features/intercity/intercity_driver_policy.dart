@@ -92,3 +92,47 @@ class IntercityDriverTrips {
 
   IntercityTrip? get next => upcoming.isEmpty ? null : upcoming.first;
 }
+
+// ---------------------------------------------------------------- qatnovni boshqarish
+
+/// Yig'ish tartibi: tirik bandlar oldin — haydovchidan eng yaqin olish
+/// nuqtasidan boshlab; koordinatasizlar tiriklar oxirida; yakunlangan va
+/// bekor qilinganlar eng pastda (haydovchi ularni ko'rsin, lekin ular
+/// yo'lda xalaqit bermasin). Joylashuv noma'lum bo'lsa — server tartibi.
+///
+/// Kirish ro'yxati o'zgarmaydi — yangi ro'yxat qaytadi.
+List<IntercityDriverBooking> orderBookingsNearestFirst(
+  List<IntercityDriverBooking> bookings, {
+  double? fromLat,
+  double? fromLng,
+}) {
+  final live = bookings.where((b) => b.isLive).toList();
+  final finished = bookings.where((b) => !b.isLive).toList();
+  if (fromLat != null && fromLng != null) {
+    double distance(IntercityDriverBooking b) => b.hasPickupPoint
+        ? haversineKm(fromLat, fromLng, b.pickupLat!, b.pickupLng!)
+        : double.infinity;
+    // `sort` barqaror emas — teng masofada asl tartibni indeks saqlaydi.
+    final indexed = live.asMap().entries.toList()
+      ..sort((a, b) {
+        final byDistance = distance(a.value).compareTo(distance(b.value));
+        return byDistance != 0 ? byDistance : a.key.compareTo(b.key);
+      });
+    return List.unmodifiable([...indexed.map((e) => e.value), ...finished]);
+  }
+  return List.unmodifiable([...live, ...finished]);
+}
+
+/// "Yo'lga chiqish": server `departBlocker` bilan bir xil — qatnov
+/// `boarding`, kamida bitta tirik band va har bir tirik yo'lovchi olingan.
+bool canDepart(String tripStatus, List<IntercityDriverBooking> bookings) {
+  if (tripStatus != IntercityTripStatus.boarding) return false;
+  final live = bookings.where((b) => b.isLive).toList();
+  if (live.isEmpty) return false;
+  return live.every((b) => b.status == 'arrived' || b.status == 'in_progress');
+}
+
+/// Yo'lovchilardan olingan naqd — faqat yakunlangan bandlar.
+double intercityCashTotal(List<IntercityDriverBooking> bookings) => bookings
+    .where((b) => b.status == 'completed')
+    .fold(0, (sum, b) => sum + b.price);

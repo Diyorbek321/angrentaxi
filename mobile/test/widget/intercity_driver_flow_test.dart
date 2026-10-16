@@ -4,6 +4,7 @@ import 'package:angren_taxi/features/intercity/data/intercity_repository.dart';
 import 'package:angren_taxi/features/intercity/models/intercity_models.dart';
 import 'package:angren_taxi/features/intercity/screens/driver_intercity_trips_screen.dart';
 import 'package:angren_taxi/features/intercity/screens/intercity_publish_screen.dart';
+import 'package:angren_taxi/features/intercity/screens/intercity_trip_run_screen.dart';
 import 'package:angren_taxi/features/intercity/widgets/intercity_driver_entry_card.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -87,6 +88,14 @@ class FakeDriverRepository extends IntercityRepository {
 
   @override
   Future<List<IntercityTrip>> myTrips() async => trips;
+
+  @override
+  Future<IntercityTrip> trip(String id) async =>
+      trips.firstWhere((t) => t.id == id, orElse: () => _trip(id: id));
+
+  @override
+  Future<List<IntercityDriverBooking>> tripBookings(String tripId) async =>
+      const [];
 
   @override
   Future<IntercityTrip> publishTrip({
@@ -292,6 +301,49 @@ void main() {
       await _settle(tester);
 
       expect(find.byKey(const ValueKey('ic_trip_cancel_run')), findsNothing);
+    });
+
+    testWidgets('qatorni bosish qatnov ekranini ochadi', (tester) async {
+      repo.trips = [_trip(id: 'a')];
+      await tester.pumpWidget(_app(DriverIntercityTripsScreen(
+        repository: repo,
+        now: () => _now,
+      )));
+      await _settle(tester);
+
+      await tester.tap(find.byKey(const ValueKey('ic_trip_open_a')));
+      await _settle(tester);
+
+      expect(find.byType(IntercityTripRunScreen), findsOneWidget);
+    });
+  });
+
+  group('bosh ekran kartasi — yo\'ldagi qatnov', () {
+    testWidgets("yig'ish boshlangan qatnov — to'g'ri qatnov ekraniga", (tester) async {
+      repo.trips = [_trip(id: 'b', status: 'boarding')];
+      await tester.pumpWidget(_app(Scaffold(
+        body: IntercityDriverEntryCard(repository: repo, now: () => _now),
+      )));
+      await _settle(tester);
+
+      await tester.tap(find.byKey(const ValueKey('ic_driver_entry')));
+      await _settle(tester);
+
+      expect(find.byType(IntercityTripRunScreen), findsOneWidget);
+      expect(find.byType(DriverIntercityTripsScreen), findsNothing);
+    });
+
+    testWidgets("faqat kutilayotgan qatnov — ro'yxat ekraniga", (tester) async {
+      repo.trips = [_trip(id: 'o')];
+      await tester.pumpWidget(_app(Scaffold(
+        body: IntercityDriverEntryCard(repository: repo, now: () => _now),
+      )));
+      await _settle(tester);
+
+      await tester.tap(find.byKey(const ValueKey('ic_driver_entry')));
+      await _settle(tester);
+
+      expect(find.byType(DriverIntercityTripsScreen), findsOneWidget);
     });
   });
 }

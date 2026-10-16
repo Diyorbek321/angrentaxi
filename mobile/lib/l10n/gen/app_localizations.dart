@@ -2792,6 +2792,168 @@ abstract class AppLocalizations {
   /// **'Qayta urinish'**
   String get icRetry;
 
+  /// No description provided for @icRunArrived.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yetib keldim'**
+  String get icRunArrived;
+
+  /// No description provided for @icRunCall.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qo\'ng\'iroq qilish'**
+  String get icRunCall;
+
+  /// No description provided for @icRunCancelledTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qatnov bekor qilingan'**
+  String get icRunCancelledTitle;
+
+  /// No description provided for @icRunClose.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yopish'**
+  String get icRunClose;
+
+  /// No description provided for @icRunCollectCash.
+  ///
+  /// In uz, this message translates to:
+  /// **'Naqd oling: {amount}'**
+  String icRunCollectCash(String amount);
+
+  /// No description provided for @icRunCompletedTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qatnov yakunlandi'**
+  String get icRunCompletedTitle;
+
+  /// No description provided for @icRunDepart.
+  ///
+  /// In uz, this message translates to:
+  /// **'Surib yo\'lga chiqing'**
+  String get icRunDepart;
+
+  /// No description provided for @icRunDepartHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Avval har bir yo\'lovchini oling yoki «Kelmadi» deb belgilang'**
+  String get icRunDepartHint;
+
+  /// No description provided for @icRunDropOff.
+  ///
+  /// In uz, this message translates to:
+  /// **'Tushirdim'**
+  String get icRunDropOff;
+
+  /// No description provided for @icRunNoBookings.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hali hech kim band qilmagan'**
+  String get icRunNoBookings;
+
+  /// No description provided for @icRunNoShow.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kelmadi'**
+  String get icRunNoShow;
+
+  /// No description provided for @icRunNoShowBody.
+  ///
+  /// In uz, this message translates to:
+  /// **'Band bekor qilinadi, joy qaytarilmaydi. Yo\'lovchiga qo\'ng\'iroq qilib ko\'rdingizmi?'**
+  String get icRunNoShowBody;
+
+  /// No description provided for @icRunNoShowConfirm.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ha, kelmadi'**
+  String get icRunNoShowConfirm;
+
+  /// No description provided for @icRunNoShowTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yo\'lovchi kelmadimi?'**
+  String get icRunNoShowTitle;
+
+  /// No description provided for @icRunPassengers.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yo\'lovchilar'**
+  String get icRunPassengers;
+
+  /// No description provided for @icRunPhoneLater.
+  ///
+  /// In uz, this message translates to:
+  /// **'Raqam jo\'nashga 60 daqiqa qolganda ochiladi'**
+  String get icRunPhoneLater;
+
+  /// No description provided for @icRunPickedUp.
+  ///
+  /// In uz, this message translates to:
+  /// **'Olindi'**
+  String get icRunPickedUp;
+
+  /// No description provided for @icRunReasonNoBookings.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qatnovda faol yo\'lovchi yo\'q'**
+  String get icRunReasonNoBookings;
+
+  /// No description provided for @icRunReasonPending.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hali olinmagan yo\'lovchi bor — oling yoki «Kelmadi» deb belgilang'**
+  String get icRunReasonPending;
+
+  /// No description provided for @icRunReasonTooEarly.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yig\'ish jo\'nashdan 60 daqiqa oldin ochiladi'**
+  String get icRunReasonTooEarly;
+
+  /// No description provided for @icRunReasonWrongStatus.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qatnov holati o\'zgargan, ro\'yxat yangilandi'**
+  String get icRunReasonWrongStatus;
+
+  /// No description provided for @icRunSeats.
+  ///
+  /// In uz, this message translates to:
+  /// **'{count} joy'**
+  String icRunSeats(int count);
+
+  /// No description provided for @icRunStartBoarding.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yig\'ishni boshlash'**
+  String get icRunStartBoarding;
+
+  /// No description provided for @icRunStartBoardingHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Jo\'nashdan 60 daqiqa oldin yoki mashina to\'lganda ochiladi'**
+  String get icRunStartBoardingHint;
+
+  /// No description provided for @icRunTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qatnov'**
+  String get icRunTitle;
+
+  /// No description provided for @icRunTotalCash.
+  ///
+  /// In uz, this message translates to:
+  /// **'Jami naqd: {amount}'**
+  String icRunTotalCash(String amount);
+
+  /// No description provided for @icRunWholeCar.
+  ///
+  /// In uz, this message translates to:
+  /// **'Butun mashina'**
+  String get icRunWholeCar;
+
   /// No description provided for @icSearchTitle.
   ///
   /// In uz, this message translates to:

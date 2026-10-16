@@ -23,7 +23,7 @@ describe('IntercityBookingsController', () => {
   });
 
   it("yig'ish, jo'nash va «kelmadi» — faqat haydovchi", () => {
-    for (const handler of [proto.startBoarding, proto.depart, proto.noShow]) {
+    for (const handler of [proto.startBoarding, proto.depart, proto.noShow, proto.listTripBookings]) {
       expect(reflector.get(ROLES_KEY, handler)).toEqual([UserRole.DRIVER]);
     }
   });
@@ -38,6 +38,7 @@ describe('IntercityBookingsController', () => {
       startBoarding: jest.fn().mockResolvedValue('boarding'),
       depart: jest.fn().mockResolvedValue('departed'),
       markNoShow: jest.fn().mockResolvedValue('noshow'),
+      listBookingsForDriver: jest.fn().mockResolvedValue([]),
     };
     const controller = new IntercityBookingsController(bookings as never, lifecycle as never);
     const user = { id: 'user-1' } as never;
@@ -57,5 +58,7 @@ describe('IntercityBookingsController', () => {
     expect(lifecycle.depart).toHaveBeenCalledWith('user-1', 'trip-1');
     await controller.noShow(user, 'order-1');
     expect(lifecycle.markNoShow).toHaveBeenCalledWith('user-1', 'order-1');
+    await controller.listTripBookings(user, 'trip-1');
+    expect(lifecycle.listBookingsForDriver).toHaveBeenCalledWith('user-1', 'trip-1');
   });
 });

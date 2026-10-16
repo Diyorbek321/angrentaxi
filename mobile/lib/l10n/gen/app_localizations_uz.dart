@@ -1550,6 +1550,99 @@ class AppLocalizationsUz extends AppLocalizations {
   String get icRetry => 'Qayta urinish';
 
   @override
+  String get icRunArrived => 'Yetib keldim';
+
+  @override
+  String get icRunCall => 'Qo\'ng\'iroq qilish';
+
+  @override
+  String get icRunCancelledTitle => 'Qatnov bekor qilingan';
+
+  @override
+  String get icRunClose => 'Yopish';
+
+  @override
+  String icRunCollectCash(String amount) {
+    return 'Naqd oling: $amount';
+  }
+
+  @override
+  String get icRunCompletedTitle => 'Qatnov yakunlandi';
+
+  @override
+  String get icRunDepart => 'Surib yo\'lga chiqing';
+
+  @override
+  String get icRunDepartHint =>
+      'Avval har bir yo\'lovchini oling yoki «Kelmadi» deb belgilang';
+
+  @override
+  String get icRunDropOff => 'Tushirdim';
+
+  @override
+  String get icRunNoBookings => 'Hali hech kim band qilmagan';
+
+  @override
+  String get icRunNoShow => 'Kelmadi';
+
+  @override
+  String get icRunNoShowBody =>
+      'Band bekor qilinadi, joy qaytarilmaydi. Yo\'lovchiga qo\'ng\'iroq qilib ko\'rdingizmi?';
+
+  @override
+  String get icRunNoShowConfirm => 'Ha, kelmadi';
+
+  @override
+  String get icRunNoShowTitle => 'Yo\'lovchi kelmadimi?';
+
+  @override
+  String get icRunPassengers => 'Yo\'lovchilar';
+
+  @override
+  String get icRunPhoneLater => 'Raqam jo\'nashga 60 daqiqa qolganda ochiladi';
+
+  @override
+  String get icRunPickedUp => 'Olindi';
+
+  @override
+  String get icRunReasonNoBookings => 'Qatnovda faol yo\'lovchi yo\'q';
+
+  @override
+  String get icRunReasonPending =>
+      'Hali olinmagan yo\'lovchi bor — oling yoki «Kelmadi» deb belgilang';
+
+  @override
+  String get icRunReasonTooEarly =>
+      'Yig\'ish jo\'nashdan 60 daqiqa oldin ochiladi';
+
+  @override
+  String get icRunReasonWrongStatus =>
+      'Qatnov holati o\'zgargan, ro\'yxat yangilandi';
+
+  @override
+  String icRunSeats(int count) {
+    return '$count joy';
+  }
+
+  @override
+  String get icRunStartBoarding => 'Yig\'ishni boshlash';
+
+  @override
+  String get icRunStartBoardingHint =>
+      'Jo\'nashdan 60 daqiqa oldin yoki mashina to\'lganda ochiladi';
+
+  @override
+  String get icRunTitle => 'Qatnov';
+
+  @override
+  String icRunTotalCash(String amount) {
+    return 'Jami naqd: $amount';
+  }
+
+  @override
+  String get icRunWholeCar => 'Butun mashina';
+
+  @override
   String get icSearchTitle => 'Shaharlararo';
 
   @override

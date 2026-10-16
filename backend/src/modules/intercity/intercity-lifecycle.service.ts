@@ -11,7 +11,12 @@ import {
   ServiceType,
 } from '../../database/entities/order.entity';
 import { SettingsService } from '../settings/settings.service';
-import { boardingBlocker, departBlocker } from './intercity-lifecycle-policy';
+import { boardingBlocker, departBlocker, revealsDriverContact } from './intercity-lifecycle-policy';
+import {
+  IntercityDriverBookingRow,
+  IntercityDriverBookingView,
+  toIntercityDriverBookingView,
+} from './intercity-booking-driver-view';
 import { returnedRows } from './intercity-seat-ledger';
 import { IntercityTripView } from './intercity-trip-view';
 import { IntercityTripsService } from './intercity-trips.service';
@@ -201,6 +206,40 @@ export class IntercityLifecycleService {
     }
     this.logger.log(`Intercity band ${orderId}: yo'lovchi kelmadi (${now.toISOString()})`);
     return this.trips.getView(trip.id);
+  }
+
+  /**
+   * Haydovchi o'z qatnovining bandlarini ko'radi — yig'ish ekrani shu
+   * ro'yxatdan quriladi. Bekor qilinganlar ham qaytadi (haydovchi kim
+   * chiqib ketganini ko'rsin), tartib — band qilingan vaqt bo'yicha;
+   * eng yaqindan tartiblash ilovada (haydovchi joylashuvi faqat u yerda).
+   */
+  async listBookingsForDriver(
+    userId: string,
+    tripId: string,
+    now: Date = new Date(),
+  ): Promise<IntercityDriverBookingView[]> {
+    await this.assertEnabled();
+    const driver = await this.loadDriver(userId);
+    const trip = await this.loadOwnTrip(tripId, driver.id);
+    const rows: IntercityDriverBookingRow[] = await this.dataSource.query(
+      `SELECT o."id", o."status", o."seats", o."booking_kind", o."estimated_price", o."final_price",
+              u."first_name", u."last_name", u."phone",
+              o."pickup_address",
+              ST_Y(o."pickup_location"::geometry) AS pickup_lat,
+              ST_X(o."pickup_location"::geometry) AS pickup_lng,
+              o."dropoff_address",
+              ST_Y(o."dropoff_location"::geometry) AS dropoff_lat,
+              ST_X(o."dropoff_location"::geometry) AS dropoff_lng,
+              o."created_at"
+         FROM "orders" o
+         JOIN "users" u ON u."id" = o."passenger_id"
+        WHERE o."intercity_trip_id" = $1
+        ORDER BY o."created_at" ASC`,
+      [tripId],
+    );
+    const revealPhone = revealsDriverContact(trip.status, trip.departureAt, now);
+    return rows.map((row) => toIntercityDriverBookingView(row, revealPhone));
   }
 
   // ---------------------------------------------------------------- ichki

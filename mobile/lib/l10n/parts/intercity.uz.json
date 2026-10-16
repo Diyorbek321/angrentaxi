@@ -208,5 +208,53 @@
   "icDrvCancelTripBody": "Barcha yo'lovchilar bandi bekor qilinadi va ularga xabar boradi. Tez-tez bekor qilish reytingga ta'sir qiladi.",
   "icDrvCancelReasonHint": "Sabab (masalan: mashina buzildi)",
   "icDrvCancelReasonRequired": "Sababni yozing",
-  "icDrvTripCancelled": "Qatnov bekor qilindi"
+  "icDrvTripCancelled": "Qatnov bekor qilindi",
+  "icRunTitle": "Qatnov",
+  "icRunPassengers": "Yo'lovchilar",
+  "icRunNoBookings": "Hali hech kim band qilmagan",
+  "icRunStartBoarding": "Yig'ishni boshlash",
+  "icRunStartBoardingHint": "Jo'nashdan 60 daqiqa oldin yoki mashina to'lganda ochiladi",
+  "icRunArrived": "Yetib keldim",
+  "icRunPickedUp": "Olindi",
+  "icRunNoShow": "Kelmadi",
+  "icRunNoShowTitle": "Yo'lovchi kelmadimi?",
+  "icRunNoShowBody": "Band bekor qilinadi, joy qaytarilmaydi. Yo'lovchiga qo'ng'iroq qilib ko'rdingizmi?",
+  "icRunNoShowConfirm": "Ha, kelmadi",
+  "icRunClose": "Yopish",
+  "icRunDepart": "Surib yo'lga chiqing",
+  "icRunDepartHint": "Avval har bir yo'lovchini oling yoki «Kelmadi» deb belgilang",
+  "icRunDropOff": "Tushirdim",
+  "icRunCollectCash": "Naqd oling: {amount}",
+  "@icRunCollectCash": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "icRunCompletedTitle": "Qatnov yakunlandi",
+  "icRunTotalCash": "Jami naqd: {amount}",
+  "@icRunTotalCash": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "icRunCancelledTitle": "Qatnov bekor qilingan",
+  "icRunCall": "Qo'ng'iroq qilish",
+  "icRunPhoneLater": "Raqam jo'nashga 60 daqiqa qolganda ochiladi",
+  "icRunWholeCar": "Butun mashina",
+  "icRunSeats": "{count} joy",
+  "@icRunSeats": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "icRunReasonTooEarly": "Yig'ish jo'nashdan 60 daqiqa oldin ochiladi",
+  "icRunReasonNoBookings": "Qatnovda faol yo'lovchi yo'q",
+  "icRunReasonPending": "Hali olinmagan yo'lovchi bor — oling yoki «Kelmadi» deb belgilang",
+  "icRunReasonWrongStatus": "Qatnov holati o'zgargan, ro'yxat yangilandi"
 }

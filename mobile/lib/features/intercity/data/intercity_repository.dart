@@ -143,6 +143,31 @@ class IntercityRepository {
   Future<IntercityTrip> depart(String id) async =>
       _trip((await _api.post(ApiEndpoints.intercityTripDepart(id))).data);
 
+  /// O'z qatnovining bandlari (yig'ish ekrani). Koordinatalar bilan.
+  Future<List<IntercityDriverBooking>> tripBookings(String tripId) async {
+    final res = await _api.get(ApiEndpoints.intercityTripBookings(tripId));
+    return _list(_data(res.data))
+        .map(IntercityDriverBooking.fromJson)
+        .toList(growable: false);
+  }
+
+  /// Yo'lovchi oldiga yetib keldim — mavjud buyurtma yo'li (`/orders/:id/arrived`).
+  Future<void> markArrived(String orderId) async {
+    await _api.patch(ApiEndpoints.arrivedAtPickup(orderId));
+  }
+
+  /// "Kelmadi": band bekor, joy qaytarilmaydi.
+  Future<IntercityTrip> noShow(String orderId) async =>
+      _trip((await _api.post(ApiEndpoints.intercityBookingNoShow(orderId))).data);
+
+  /// Yo'lovchini tushirdim — mavjud `/orders/:id/complete`: komissiya,
+  /// 1% ushlash va chek shu yerda yoziladi. ⚠️ `DriverProvider.completeTrip`
+  /// EMAS: u shahar safarining holatini (faol buyurtma, kunlik daromad)
+  /// o'zgartiradi va safardan keyingi ekranlarni ochadi.
+  Future<void> completeBooking(String orderId) async {
+    await _api.patch(ApiEndpoints.completeTrip(orderId), data: const {});
+  }
+
   static IntercityTrip _trip(dynamic body) =>
       IntercityTrip.fromJson(Map<String, dynamic>.from(_data(body) as Map));
 
