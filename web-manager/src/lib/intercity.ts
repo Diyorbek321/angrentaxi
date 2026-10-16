@@ -30,11 +30,18 @@ export interface IntercityTripView {
   seatsTotal: number;
   seatsLeft: number;
   wholeCarAvailable: boolean;
-  /** Hozirgi backend bermaydi — bo'lsa "Butun mashina" belgisi chiqadi. */
+  /** Bitta band butun mashinani olgan — joylar soni bilan farqlab bo'lmaydi. */
   wholeCarBooked?: boolean;
   seatPrice: number;
   wholeCarPrice: number;
-  driver: { firstName: string | null; rating: number; carModel: string | null; plate: string | null } | null;
+  driver: {
+    firstName: string | null;
+    rating: number;
+    carModel: string | null;
+    plate: string | null;
+    /** Faqat `/intercity/trips/manage` ko'rinishida — yo'lovchiga hech qachon. */
+    phone?: string | null;
+  } | null;
   cancelReason: string | null;
 }
 
@@ -110,4 +117,98 @@ export const SERVICE_TYPE_LABELS: Readonly<Record<string, string>> = {
 export function serviceTypeLabel(serviceType: string | null | undefined): string {
   if (!serviceType) return SERVICE_TYPE_LABELS.taxi;
   return SERVICE_TYPE_LABELS[serviceType] ?? serviceType;
+}
+
+// ─── Bandlar (dispetcher) ───────────────────────────────────────────────────
+
+/** Backend `OrderStatus` — intercity bandi `scheduled` dan boshlanadi. */
+export type IntercityBookingStatus =
+  | 'scheduled'
+  | 'accepted'
+  | 'arrived'
+  | 'in_progress'
+  | 'completed'
+  | 'cancelled';
+export type IntercityBookingKind = 'seat' | 'whole_car';
+
+/** `GET /intercity/trips/:id/bookings/manage` qatori (intercity-booking-manage-view.ts). */
+export interface IntercityBookingManage {
+  orderId: string;
+  passenger: { name: string; phone: string | null };
+  seats: number | null;
+  bookingKind: IntercityBookingKind | null;
+  status: IntercityBookingStatus;
+  pickupAddress: string | null;
+  dropoffAddress: string | null;
+  price: number;
+  createdAt: string;
+  cancelledAt: string | null;
+  cancelReason: string | null;
+}
+
+export const INTERCITY_BOOKING_STATUS_LABELS: Record<IntercityBookingStatus, string> = {
+  scheduled: 'Band qilingan',
+  accepted: 'Yigʻilmoqda',
+  arrived: 'Haydovchi keldi',
+  in_progress: 'Yoʻlda',
+  completed: 'Yetkazildi',
+  cancelled: 'Bekor qilingan',
+};
+
+export const INTERCITY_BOOKING_STATUS_BADGE: Record<IntercityBookingStatus, BadgeVariant> = {
+  scheduled: 'neutral',
+  accepted: 'info',
+  arrived: 'info',
+  in_progress: 'success',
+  completed: 'success',
+  cancelled: 'muted-danger',
+};
+
+export function bookingKindLabel(booking: Pick<IntercityBookingManage, 'bookingKind' | 'seats'>): string {
+  if (booking.bookingKind === 'whole_car') return 'Butun mashina';
+  return `${booking.seats ?? 1} joy`;
+}
+
+/**
+ * Dispetcher bandni faqat yig'ish boshlanmasdan bekor qila oladi — backend
+ * `cancel/manage` ham shu shartni tekshiradi; tugma noto'g'ri holatda
+ * ko'rinmasin.
+ */
+export function canDispatcherCancel(booking: Pick<IntercityBookingManage, 'status'>): boolean {
+  return booking.status === 'scheduled';
+}
+
+/** `intercity:trip:updated` yuki (backend intercity-events.ts). */
+export interface IntercityTripUpdatedPayload {
+  tripId: string;
+  status: IntercityTripStatus;
+  seatsTaken: number;
+  seatsTotal: number;
+  wholeCarBooked: boolean;
+  departureAt: string;
+}
+
+/**
+ * Socket hodisasini ro'yxatdagi qatnovga qo'llaydi (yangi nusxa). Ro'yxatda
+ * yo'q qatnov — `null`: chaqiruvchi to'liq qayta yuklaydi (yangi e'lon yoki
+ * boshqa kun).
+ */
+export function applyTripUpdate(
+  page: IntercityTripPage,
+  payload: IntercityTripUpdatedPayload,
+): IntercityTripPage | null {
+  const index = page.items.findIndex((trip) => trip.id === payload.tripId);
+  if (index === -1) return null;
+  const current = page.items[index];
+  const seatsLeft = payload.wholeCarBooked ? 0 : Math.max(0, payload.seatsTotal - payload.seatsTaken);
+  const updated: IntercityTripView = {
+    ...current,
+    status: payload.status,
+    seatsTotal: payload.seatsTotal,
+    seatsLeft,
+    wholeCarBooked: payload.wholeCarBooked,
+    wholeCarAvailable: payload.status === 'open' && payload.seatsTaken === 0 && !payload.wholeCarBooked,
+    departureAt: payload.departureAt,
+  };
+  return { ...page, items: page.items.map((trip, i) => (i === index ? updated : trip)) };
 }

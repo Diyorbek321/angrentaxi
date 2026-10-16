@@ -33,6 +33,10 @@ export const API_ERROR_TITLE: Readonly<Record<string, string>> = {
   LEGAL_PROFILE_LOCKED: 'Huquqiy profil qulflangan',
   LEGAL_PROFILE_DUPLICATE: 'Takroriy JShShIR yoki STIR',
   MANUAL_ADJUSTMENT_LIMIT: 'Tuzatish chegarasidan oshdi',
+  INTERCITY_DISABLED: 'Shaharlararo oʻchirilgan',
+  INTERCITY_TRIP_ACTION_NOT_ALLOWED: 'Bu holatda amalni bajarib boʻlmaydi',
+  INTERCITY_USE_INTERCITY_ENDPOINT: 'Shaharlararo bandi alohida bekor qilinadi',
+  INTERCITY_BOOKING_NOT_CANCELLABLE: 'Bandni endi bekor qilib boʻlmaydi',
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {

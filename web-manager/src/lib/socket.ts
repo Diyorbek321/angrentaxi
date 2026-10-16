@@ -76,6 +76,9 @@ export const SOCKET_EVENTS = {
   JOIN_SUPPORT_THREAD: 'join:support:thread',
   LEAVE_SUPPORT_THREAD: 'leave:support:thread',
 
+  // Intercity (server → managers): backend intercity-events.ts
+  INTERCITY_TRIP_UPDATED: 'intercity:trip:updated',
+
   // Connection events
   CONNECT: 'connect',
   DISCONNECT: 'disconnect',

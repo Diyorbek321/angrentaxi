@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { TripBookings } from '@/components/intercity/TripBookings';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
@@ -12,30 +13,34 @@ import { PageBody } from '@/components/ui/PageBody';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { PollStatus } from '@/components/ui/PollStatus';
 import { Select } from '@/components/ui/Select';
-import { formatDateTime, formatMoney, formatRating, formatTime } from '@/lib/format';
+import { formatDateTime, formatMoney, formatPhone, formatRating, formatTime } from '@/lib/format';
 import { getIntercityTrips } from '@/lib/intercity-api';
 import {
   INTERCITY_STATUS_BADGE,
   INTERCITY_STATUS_LABELS,
   INTERCITY_TRIP_STATUSES,
   addDays,
+  applyTripUpdate,
   isWholeCarBooked,
   seatsTaken,
   tashkentDate,
   tripClassLabel,
   type IntercityTripPage,
   type IntercityTripStatus,
+  type IntercityTripUpdatedPayload,
   type IntercityTripView,
 } from '@/lib/intercity';
+import { SOCKET_EVENTS, subscribeToSocket } from '@/lib/socket';
 
 const PAGE_SIZE = 50;
 
 /**
- * TODO(intercity 6-qadam): backend `intercity:trip:updated` socket hodisasini
- * chiqarsa — so'rov o'rniga shunga obuna bo'ling (lib/socket.ts SOCKET_EVENTS).
- * Hozircha qatnovlar soatlab oldin e'lon qilinadi, 30 soniyalik so'rov yetarli.
+ * Asosiy manba — `intercity:trip:updated` socket hodisasi. Sekin so'rov faqat
+ * zaxira: socket uzilib qolgan paytda o'tkazib yuborilgan hodisalar va yangi
+ * e'lon qilingan qatnovlar (hodisa faqat mavjud qatnovga keladi) baribir
+ * ko'rinsin.
  */
-const POLL_MS = 30_000;
+const FALLBACK_POLL_MS = 60_000;
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Barcha holatlar' },
@@ -56,6 +61,11 @@ export default function IntercityTripsPage() {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
   const [selected, setSelected] = useState<IntercityTripView | null>(null);
+  const [bookingsRefreshKey, setBookingsRefreshKey] = useState(0);
+  const selectedIdRef = useRef<string | null>(null);
+  selectedIdRef.current = selected?.id ?? null;
+  const dataRef = useRef<IntercityTripPage | null>(null);
+  dataRef.current = data;
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -73,8 +83,36 @@ export default function IntercityTripsPage() {
 
   useEffect(() => {
     void load();
-    const timer = setInterval(() => void load(), POLL_MS);
+    const timer = setInterval(() => void load(), FALLBACK_POLL_MS);
     return () => clearInterval(timer);
+  }, [load]);
+
+  useEffect(() => {
+    const handleTripUpdated = (payload: IntercityTripUpdatedPayload) => {
+      const current = dataRef.current;
+      const next = current ? applyTripUpdate(current, payload) : null;
+      if (next) {
+        setData(next);
+        setLastUpdatedAt(Date.now());
+      }
+      if (selectedIdRef.current === payload.tripId) {
+        setSelected((prev) => {
+          if (!prev) return prev;
+          const next = applyTripUpdate({ items: [prev], total: 1, page: 1, limit: 1 }, payload);
+          return next ? next.items[0] : prev;
+        });
+        setBookingsRefreshKey((key) => key + 1);
+      }
+      // Ro'yxatda yo'q qatnov (yangi e'lon, boshqa sahifa) — to'liq yuklash.
+      // Boshqa kundagi qatnov ham shu yo'ldan o'tadi; so'rov arzon, hodisa kam.
+      if (current && !next) void load();
+    };
+    return subscribeToSocket((socket) => {
+      socket.on(SOCKET_EVENTS.INTERCITY_TRIP_UPDATED, handleTripUpdated);
+      return () => {
+        socket.off(SOCKET_EVENTS.INTERCITY_TRIP_UPDATED, handleTripUpdated);
+      };
+    });
   }, [load]);
 
   const today = tashkentDate();
@@ -232,7 +270,7 @@ export default function IntercityTripsPage() {
         onClose={() => setSelected(null)}
         title={selected ? routeName(selected) : ''}
         subtitle={selected ? `${formatDateTime(selected.departureAt)} · ${tripClassLabel(selected.tripClass)}` : undefined}
-        size="md"
+        size="lg"
       >
         {selected && (
           <div className="grid grid-cols-2 gap-x-4 gap-y-3">
@@ -264,11 +302,29 @@ export default function IntercityTripsPage() {
             <KeyValue label="Mashina">
               {[selected.driver?.carModel, selected.driver?.plate].filter(Boolean).join(' · ') || '—'}
             </KeyValue>
+            <KeyValue label="Haydovchi telefoni">
+              {selected.driver?.phone ? (
+                <a href={`tel:${selected.driver.phone}`} className="num hover:underline">
+                  {formatPhone(selected.driver.phone)}
+                </a>
+              ) : (
+                '—'
+              )}
+            </KeyValue>
+            {isWholeCarBooked(selected) && (
+              <KeyValue label="Band turi">
+                <Badge size="sm">Butun mashina</Badge>
+              </KeyValue>
+            )}
             {selected.cancelReason && (
               <div className="col-span-2">
                 <KeyValue label="Bekor qilish sababi">{selected.cancelReason}</KeyValue>
               </div>
             )}
+            <div className="col-span-2 mt-2">
+              <p className="mb-2 text-sm font-medium text-ink">Yoʻlovchilar</p>
+              <TripBookings tripId={selected.id} refreshKey={bookingsRefreshKey} onChanged={load} />
+            </div>
           </div>
         )}
       </Modal>

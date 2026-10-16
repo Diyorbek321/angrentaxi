@@ -4,7 +4,12 @@ import {
   INTERCITY_STATUS_LABELS,
   INTERCITY_TRIP_STATUSES,
   SERVICE_TYPE_LABELS,
+  INTERCITY_BOOKING_STATUS_BADGE,
+  INTERCITY_BOOKING_STATUS_LABELS,
   addDays,
+  applyTripUpdate,
+  bookingKindLabel,
+  canDispatcherCancel,
   isWholeCarBooked,
   seatsTaken,
   serviceTypeLabel,
@@ -80,5 +85,56 @@ describe('yorliqlar', () => {
     expect(serviceTypeLabel('parcel')).toBe('Posilka');
     expect(serviceTypeLabel(undefined)).toBe('Taksi');
     expect(serviceTypeLabel('drone')).toBe('drone');
+  });
+});
+
+describe('bandlar', () => {
+  it('band turi: butun mashina yoki joylar soni', () => {
+    expect(bookingKindLabel({ bookingKind: 'whole_car', seats: 4 })).toBe('Butun mashina');
+    expect(bookingKindLabel({ bookingKind: 'seat', seats: 2 })).toBe('2 joy');
+    expect(bookingKindLabel({ bookingKind: null, seats: null })).toBe('1 joy');
+  });
+
+  it("dispetcher faqat yig'ish boshlanmagan bandni bekor qiladi", () => {
+    expect(canDispatcherCancel({ status: 'scheduled' })).toBe(true);
+    for (const status of ['accepted', 'arrived', 'in_progress', 'completed', 'cancelled'] as const) {
+      expect(canDispatcherCancel({ status })).toBe(false);
+    }
+  });
+
+  it('har bir band holatining yorlig\'i va belgisi bor', () => {
+    for (const status of Object.keys(INTERCITY_BOOKING_STATUS_LABELS) as (keyof typeof INTERCITY_BOOKING_STATUS_LABELS)[]) {
+      expect(INTERCITY_BOOKING_STATUS_LABELS[status]).toBeTruthy();
+      expect(INTERCITY_BOOKING_STATUS_BADGE[status]).toBeTruthy();
+    }
+  });
+});
+
+describe('applyTripUpdate', () => {
+  const page = { items: [TRIP, { ...TRIP, id: 't2' }], total: 2, page: 1, limit: 50 };
+  const payload = {
+    tripId: 't1',
+    status: 'full' as const,
+    seatsTaken: 4,
+    seatsTotal: 4,
+    wholeCarBooked: true,
+    departureAt: TRIP.departureAt,
+  };
+
+  it('faqat mos qatnovni yangilaydi va asl sahifani o‘zgartirmaydi', () => {
+    const next = applyTripUpdate(page, payload);
+    expect(next).not.toBeNull();
+    expect(next!.items[0]).toMatchObject({ status: 'full', seatsLeft: 0, wholeCarBooked: true, wholeCarAvailable: false });
+    expect(next!.items[1]).toBe(page.items[1]);
+    expect(page.items[0].status).toBe('open');
+  });
+
+  it("joy bo'shasa butun mashina yana mumkin", () => {
+    const next = applyTripUpdate(page, { ...payload, status: 'open', seatsTaken: 0, wholeCarBooked: false });
+    expect(next!.items[0]).toMatchObject({ seatsLeft: 4, wholeCarAvailable: true });
+  });
+
+  it("ro'yxatda yo'q qatnov — null (to'liq qayta yuklash)", () => {
+    expect(applyTripUpdate(page, { ...payload, tripId: 'boshqa' })).toBeNull();
   });
 });
