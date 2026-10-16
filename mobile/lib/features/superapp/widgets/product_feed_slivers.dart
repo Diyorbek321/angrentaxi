@@ -1,5 +1,5 @@
 import 'package:angren_taxi/core/config/app_responsive.dart';
-import 'package:angren_taxi/features/superapp/state/trending_products_controller.dart';
+import 'package:angren_taxi/features/superapp/state/product_feed_controller.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/features/superapp/widgets/market_product_card.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
@@ -12,15 +12,17 @@ import 'package:flutter/material.dart';
 /// oxiriga yetmasidan mahsulotlar tayyor turadi.
 const double kTrendingPrefetchExtent = 800;
 
-/// Bosh sahifadagi "Trenddagi mahsulotlar" bo'limi — `CustomScrollView`
-/// ichiga qo'yiladigan sliver'lar: sarlavha, 2 ustunli to'r va pastki holat
-/// (yuklanmoqda / xato + qayta urinish).
+/// Mahsulot lentasi bo'limi — `CustomScrollView` ichiga qo'yiladigan
+/// sliver'lar: sarlavha ([title], `null` — sarlavhasiz), 2 ustunli to'r va
+/// pastki holat (yuklanmoqda / xato + qayta urinish). Bosh sahifadagi trend
+/// lentasi va market sahifasidagi qidiruv natijalari.
 ///
-/// Hech narsa yo'q va boshqa sahifa ham yo'q (do'konlarda mahsulot yo'q) —
-/// bo'lim butunlay yashiriladi, bo'sh sarlavha osilib turmaydi.
-List<Widget> trendingProductSlivers(
+/// Hech narsa yo'q va boshqa sahifa ham yo'q — bo'lim butunlay yashiriladi,
+/// bo'sh sarlavha osilib turmaydi (bo'sh holatni chaqiruvchi o'zi ko'rsatadi).
+List<Widget> productFeedSlivers(
   BuildContext context,
-  TrendingProductsController trending, {
+  ProductFeedController trending, {
+  required String? title,
   required void Function(MarketProduct product) onOpen,
   required void Function(MarketProduct product) onAdd,
 }) {
@@ -30,10 +32,12 @@ List<Widget> trendingProductSlivers(
   final gutter = context.gutter;
   return [
     SliverToBoxAdapter(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(gutter, kSpace6, gutter, kSpace3),
-        child: AgSectionTitle(context.l10n.saTrendingProducts),
-      ),
+      child: title == null
+          ? const SizedBox(height: kSpace4)
+          : Padding(
+              padding: EdgeInsets.fromLTRB(gutter, kSpace6, gutter, kSpace3),
+              child: AgSectionTitle(title),
+            ),
     ),
     if (items.isEmpty && !trending.hasError)
       SliverToBoxAdapter(

@@ -11,6 +11,8 @@ import { randomUUID } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, In, MoreThanOrEqual, Repository } from 'typeorm';
 import { trendingProductIds } from './market-trending';
+import { normalizeProductQuery, searchProductIds } from './market-product-search';
+import { toPublicStore } from './public-store';
 import { Store, StoreDeliveryMode, StoreStatus } from '../../database/entities/store.entity';
 import { MarketCategory } from '../../database/entities/market-category.entity';
 import { Product, ProductStatus } from '../../database/entities/product.entity';
@@ -80,6 +82,14 @@ const RECENT_ORDERS_LIMIT = 5;
 // Bosh sahifa trend lentasi sahifasi (ilova 20 tadan yuklaydi).
 const TRENDING_DEFAULT_LIMIT = 20;
 const TRENDING_MAX_LIMIT = 50;
+
+/** Sahifa ≥ 1, limit 1..TRENDING_MAX_LIMIT (lenta va qidiruv uchun umumiy). */
+function productPaging(page: number, limit: number): { safePage: number; safeLimit: number } {
+  return {
+    safeLimit: Math.min(Math.max(Math.trunc(limit) || TRENDING_DEFAULT_LIMIT, 1), TRENDING_MAX_LIMIT),
+    safePage: Math.max(Math.trunc(page) || 1, 1),
+  };
+}
 const LOW_STOCK_LIST_LIMIT = 50;
 
 // Default page size for a customer's own order history. Kept generous so the
@@ -850,7 +860,7 @@ export class MarketService implements OnModuleInit {
         : Promise.resolve(new Map<string, Promotion[]>()),
     ]);
     return stores.map((store) => ({
-      ...store,
+      ...toPublicStore(store),
       activePromotion: strongestPromotion(promotions.get(store.id) ?? []),
     }));
   }
@@ -862,15 +872,41 @@ export class MarketService implements OnModuleInit {
    * `limit + 1` so'raladi — ortiqchasi bo'lsa `hasMore`.
    */
   async listTrendingProducts(page = 1, limit = TRENDING_DEFAULT_LIMIT) {
-    const safeLimit = Math.min(Math.max(Math.trunc(limit) || TRENDING_DEFAULT_LIMIT, 1), TRENDING_MAX_LIMIT);
-    const safePage = Math.max(Math.trunc(page) || 1, 1);
+    const { safePage, safeLimit } = productPaging(page, limit);
     const ids = await trendingProductIds(
       (sql, params) => this.productRepo.query(sql, params),
       safeLimit + 1,
       (safePage - 1) * safeLimit,
     );
-    const pageIds = ids.slice(0, safeLimit);
-    if (pageIds.length === 0) return { items: [], page: safePage, limit: safeLimit, hasMore: false };
+    return this.productCardPage(ids, safePage, safeLimit);
+  }
+
+  /**
+   * Market sahifasidagi qidiruv — BARCHA ochiq do'konlar bo'yicha
+   * (`market-product-search.ts`). Natija lenta bilan bir xil shaklda: har
+   * mahsulotda do'koni, savat shu orqali to'g'ri do'konga bog'lanadi.
+   */
+  async searchProducts(rawQuery: string | undefined, page = 1, limit = TRENDING_DEFAULT_LIMIT) {
+    const { safePage, safeLimit } = productPaging(page, limit);
+    const q = normalizeProductQuery(rawQuery);
+    if (!q) return { items: [], page: safePage, limit: safeLimit, hasMore: false };
+    const ids = await searchProductIds(
+      (sql, params) => this.productRepo.query(sql, params),
+      q,
+      safeLimit + 1,
+      (safePage - 1) * safeLimit,
+    );
+    return this.productCardPage(ids, safePage, safeLimit);
+  }
+
+  /**
+   * Tartiblangan `ids` (`limit + 1` ta so'ralgan) → mahsulot kartochkalari:
+   * vitrinadagi aksiya narxi va do'koni (faqat id va nom). Ortiqchasi
+   * bo'lsa `hasMore`.
+   */
+  private async productCardPage(ids: string[], page: number, limit: number) {
+    const pageIds = ids.slice(0, limit);
+    if (pageIds.length === 0) return { items: [], page, limit, hasMore: false };
 
     const [products, promotions] = await Promise.all([
       this.productRepo.find({ where: { id: In(pageIds) }, relations: { store: true } }),
@@ -886,7 +922,7 @@ export class MarketService implements OnModuleInit {
         ...this.withProductPricing(product as Product, promotions.get(product.storeId) ?? []),
         store: { id: store?.id ?? product.storeId, name: store?.name ?? '' },
       }));
-    return { items, page: safePage, limit: safeLimit, hasMore: ids.length > safeLimit };
+    return { items, page, limit, hasMore: ids.length > limit };
   }
 
   async getStoreDetail(storeId: string) {
@@ -900,7 +936,7 @@ export class MarketService implements OnModuleInit {
       this.activePromotions(storeId),
     ]);
     return {
-      store: { ...store, promotions, activePromotion: strongestPromotion(promotions) },
+      store: { ...toPublicStore(store), promotions, activePromotion: strongestPromotion(promotions) },
       categories,
       products: products.map((product) => this.withProductPricing(product, promotions)),
       promotions,

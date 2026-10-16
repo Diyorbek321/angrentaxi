@@ -9,6 +9,7 @@ import { User, PASSENGER_APP_ROLES } from '../../database/entities/user.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
 import { CreateMarketOrderDto } from './dto/create-market-order.dto';
 import { OptionalPaginationDto } from '../../common/dto/optional-pagination.dto';
+import { SearchProductsDto } from './dto/search-products.dto';
 import { CancelVendorOrderDto } from '../../common/dto/cancel-vendor-order.dto';
 
 @ApiTags('Market (storefront)')
@@ -31,6 +32,12 @@ export class MarketStorefrontController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   listTrending(@Query() pagination: OptionalPaginationDto) {
     return this.marketService.listTrendingProducts(pagination.page, pagination.limit);
+  }
+
+  @Get('products/search')
+  @ApiOperation({ summary: "Barcha ochiq do'konlar bo'yicha mahsulot qidiruvi" })
+  searchProducts(@Query() dto: SearchProductsDto) {
+    return this.marketService.searchProducts(dto.q, dto.page, dto.limit);
   }
 
   // Pagination is optional on purpose: the mobile client calls this with no

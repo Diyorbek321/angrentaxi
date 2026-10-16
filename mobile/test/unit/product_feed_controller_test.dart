@@ -2,7 +2,7 @@
 // takrorni tashlash, xatoda mavjud ro'yxatni saqlash.
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
-import 'package:angren_taxi/features/superapp/state/trending_products_controller.dart';
+import 'package:angren_taxi/features/superapp/state/product_feed_controller.dart';
 import 'package:angren_taxi/shared/models/market_product.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -33,11 +33,11 @@ Response<dynamic> _page(List<Map<String, dynamic>> items, {required bool hasMore
 
 void main() {
   late _MockApiClient api;
-  late TrendingProductsController controller;
+  late ProductFeedController controller;
 
   setUp(() {
     api = _MockApiClient();
-    controller = TrendingProductsController(api, pageSize: 2);
+    controller = ProductFeedController(api, pageSize: 2);
   });
 
   void answerPage(int page, List<Map<String, dynamic>> items, {required bool hasMore}) {

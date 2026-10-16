@@ -54,6 +54,7 @@ import { creditPromoCompensation } from '../delivery/promo-compensation';
 import { isSelfDelivered, vendorOrderCommission, vendorRevenue } from '../delivery/vendor-checkout';
 import { FiscalReceiptsService } from '../fiscal/fiscal-receipts.service';
 import { normalizeAddressDetails } from '../../common/dto/address-details.dto';
+import { toPublicRestaurant } from './public-restaurant';
 
 // Rolling window for the analytics that cannot be expressed as a single SQL
 // aggregate (per-dish totals live in a jsonb `items` column), plus a hard row
@@ -745,7 +746,7 @@ export class FoodService implements OnModuleInit {
         : Promise.resolve(new Map<string, Promotion[]>()),
     ]);
     return restaurants.map((restaurant) => ({
-      ...restaurant,
+      ...toPublicRestaurant(restaurant),
       activePromotion: strongestPromotion(promotions.get(restaurant.id) ?? []),
     }));
   }
@@ -771,7 +772,7 @@ export class FoodService implements OnModuleInit {
       if (dish.categoryId) counts.set(dish.categoryId, (counts.get(dish.categoryId) ?? 0) + 1);
     }
     return {
-      restaurant: { ...restaurant, promotions, activePromotion: strongestPromotion(promotions) },
+      restaurant: { ...toPublicRestaurant(restaurant), promotions, activePromotion: strongestPromotion(promotions) },
       categories: categories
         .filter((category) => (counts.get(category.id) ?? 0) > 0)
         .map((category) => ({

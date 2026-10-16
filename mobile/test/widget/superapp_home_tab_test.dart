@@ -34,14 +34,14 @@ import 'package:angren_taxi/features/passenger/order_provider.dart';
 import 'package:angren_taxi/features/superapp/screens/cargo_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/food_list_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/home_tab.dart';
-import 'package:angren_taxi/features/superapp/screens/market_screen.dart';
+import 'package:angren_taxi/features/superapp/screens/market_home_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/product_detail_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/restaurant_detail_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/search_screen.dart';
 import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/market_provider.dart';
+import 'package:angren_taxi/features/superapp/state/product_feed_controller.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
-import 'package:angren_taxi/features/superapp/state/trending_products_controller.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/features/superapp/widgets/market_product_card.dart';
 import 'package:angren_taxi/shared/widgets/ag_map_fab.dart';
@@ -146,7 +146,7 @@ void main() {
   Future<void> pumpHome(
     WidgetTester tester, {
     AdsService? adsService,
-    TrendingProductsController? trending,
+    ProductFeedController? trending,
   }) async {
     await tester.pumpWidget(
       MultiProvider(
@@ -317,14 +317,17 @@ void main() {
       expect(recorder.lastBuiltPage(context), isA<FoodListScreen>());
     });
 
-    testWidgets("marketga bosilsa market ekraniga o'tadi", (tester) async {
+    testWidgets("marketga bosilsa do'konlar + qidiruv sahifasiga o'tadi", (tester) async {
       await pumpHome(tester);
       final context = homeContext(tester);
 
       await tester.tap(find.text('Market'));
       await tester.pump();
 
-      expect(recorder.lastBuiltPage(context), isA<MarketScreen>());
+      expect(recorder.lastBuiltPage(context), isA<MarketHomeScreen>());
+      // Sahifa haqiqatan ochiladi (do'konlar yuklanadi) — o'tish animatsiyasi
+      // va yuklashlar tugasin.
+      await tester.pump(const Duration(seconds: 1));
     });
 
     testWidgets("yuk xizmatiga bosilsa cargo ekraniga o'tadi", (tester) async {
@@ -713,7 +716,7 @@ void main() {
         (tester) async {
       answerPage(1, ['a', 'b'], hasMore: false);
       await pumpHome(tester,
-          trending: TrendingProductsController(apiClient, pageSize: 4));
+          trending: ProductFeedController(apiClient, pageSize: 4));
 
       final title = find.text('Trenddagi mahsulotlar');
       await tester.scrollUntilVisible(title, 300, scrollable: mainScroll);
@@ -727,7 +730,7 @@ void main() {
       answerPage(1, ['a', 'b', 'c', 'd'], hasMore: true);
       answerPage(2, ['e', 'f'], hasMore: false);
       await pumpHome(tester,
-          trending: TrendingProductsController(apiClient, pageSize: 4));
+          trending: ProductFeedController(apiClient, pageSize: 4));
 
       await tester.scrollUntilVisible(find.text('Mahsulot f'), 400, scrollable: mainScroll);
       expect(find.text('Mahsulot f'), findsOneWidget);
@@ -738,7 +741,7 @@ void main() {
     testWidgets("mahsulot bosilsa mahsulot sahifasi ochiladi", (tester) async {
       answerPage(1, ['a'], hasMore: false);
       await pumpHome(tester,
-          trending: TrendingProductsController(apiClient, pageSize: 4));
+          trending: ProductFeedController(apiClient, pageSize: 4));
 
       final card = find.text('Mahsulot a');
       await tester.scrollUntilVisible(card, 300, scrollable: mainScroll);
@@ -752,7 +755,7 @@ void main() {
     testWidgets("mahsulot umuman yo'q — bo'lim ko'rinmaydi", (tester) async {
       answerPage(1, [], hasMore: false);
       await pumpHome(tester,
-          trending: TrendingProductsController(apiClient, pageSize: 4));
+          trending: ProductFeedController(apiClient, pageSize: 4));
       expect(find.text('Trenddagi mahsulotlar'), findsNothing);
     });
   });

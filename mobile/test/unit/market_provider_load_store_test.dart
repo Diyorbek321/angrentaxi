@@ -73,4 +73,39 @@ void main() {
     expect(market.state, MarketProviderState.success);
     expect(market.store?.id, 'first');
   });
+
+  group("loadStores — market sahifasidagi do'konlar ro'yxati", () {
+    test("ro'yxat va aksiya belgisi o'qiladi; tanlangan do'konga tegilmaydi", () async {
+      when(() => api.get('/market/stores')).thenAnswer(
+        (_) async => ok('/market/stores', [
+          {
+            ...store('first'),
+            'activePromotion': {'title': 'Sut −10%', 'discountType': 'percent', 'discountValue': 10},
+          },
+          store('second'),
+        ]),
+      );
+
+      await market.loadStores();
+
+      expect(market.stores.map((s) => s.id), ['first', 'second']);
+      expect(market.stores.first.activePromotion?.title, 'Sut −10%');
+      expect(market.stores.last.activePromotion, isNull);
+      expect(market.storesLoading, isFalse);
+      expect(market.storesError, isNull);
+      expect(market.store, isNull);
+    });
+
+    test("xato — mavjud ro'yxat saqlanadi, xato ko'rsatiladi", () async {
+      await market.loadStores();
+      when(() => api.get('/market/stores')).thenThrow(
+        DioException(requestOptions: RequestOptions(path: '/market/stores')),
+      );
+
+      await market.loadStores();
+
+      expect(market.stores, hasLength(2));
+      expect(market.storesError, isNotNull);
+    });
+  });
 }

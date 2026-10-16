@@ -2712,7 +2712,14 @@ class AppLocalizationsUz extends AppLocalizations {
   String get saMarketProducts => 'Mahsulotlar';
 
   @override
+  String get saMarketSearchAllHint =>
+      'Mahsulot qidirish — barcha do\'konlardan';
+
+  @override
   String get saMarketSearchHint => 'Mahsulot qidirish…';
+
+  @override
+  String get saMarketStores => 'Do\'konlar';
 
   @override
   String get saMarketSubtitle => '15–25 daqiqa · Yaqin do\'kon';

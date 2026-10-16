@@ -1,3 +1,4 @@
+import 'package:angren_taxi/shared/models/vendor_promotion.dart';
 import 'package:angren_taxi/shared/widgets/catalog_image.dart';
 import 'package:equatable/equatable.dart';
 
@@ -10,6 +11,7 @@ class MarketStore extends Equatable {
     required this.workingHoursStart,
     required this.workingHoursEnd,
     this.imageKey,
+    this.activePromotion,
   });
 
   final String id;
@@ -19,6 +21,9 @@ class MarketStore extends Equatable {
   final String workingHoursStart;
   final String workingHoursEnd;
   final String? imageKey;
+
+  /// Do'konning eng kuchli faol aksiyasi (ro'yxat kartochkasidagi belgi).
+  final PromotionBadge? activePromotion;
 
   String? get imageUrl => catalogImageUrl(imageKey);
 
@@ -31,9 +36,11 @@ class MarketStore extends Equatable {
       workingHoursStart: (json['workingHoursStart'] as String?) ?? '08:00',
       workingHoursEnd: (json['workingHoursEnd'] as String?) ?? '22:00',
       imageKey: json['imageKey'] as String?,
+      activePromotion: PromotionBadge.tryParse(json['activePromotion']),
     );
   }
 
   @override
-  List<Object?> get props => [id, name, address, deliveryMode, workingHoursStart, workingHoursEnd, imageKey];
+  List<Object?> get props =>
+      [id, name, address, deliveryMode, workingHoursStart, workingHoursEnd, imageKey, activePromotion];
 }

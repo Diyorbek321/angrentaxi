@@ -255,5 +255,7 @@
   "saOtherStoreBody": "В корзине товары из другого магазина. Один заказ — только из одного магазина. Очистить корзину и добавить из {store}?",
   "saOtherStoreConfirm": "Очистить и добавить",
   "saStoreUnavailable": "Этот магазин сейчас не принимает заказы",
-  "saAddedToCart": "Добавлено в корзину"
+  "saAddedToCart": "Добавлено в корзину",
+  "saMarketSearchAllHint": "Поиск товаров во всех магазинах",
+  "saMarketStores": "Магазины"
 }

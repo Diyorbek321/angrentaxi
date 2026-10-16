@@ -4844,11 +4844,23 @@ abstract class AppLocalizations {
   /// **'Mahsulotlar'**
   String get saMarketProducts;
 
+  /// No description provided for @saMarketSearchAllHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Mahsulot qidirish — barcha do\'konlardan'**
+  String get saMarketSearchAllHint;
+
   /// No description provided for @saMarketSearchHint.
   ///
   /// In uz, this message translates to:
   /// **'Mahsulot qidirish…'**
   String get saMarketSearchHint;
+
+  /// No description provided for @saMarketStores.
+  ///
+  /// In uz, this message translates to:
+  /// **'Do\'konlar'**
+  String get saMarketStores;
 
   /// No description provided for @saMarketSubtitle.
   ///

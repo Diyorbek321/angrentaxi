@@ -211,6 +211,9 @@ class DemoEngine {
     if (path.contains('/market/stores/')) {
       return _ok(DemoData.storeDetail());
     }
+    if (path.endsWith('/market/trending') || path.endsWith('/market/products/search')) {
+      return _ok(DemoData.productFeed());
+    }
     if (path.endsWith('/food/orders') ||
         path.endsWith('/market/orders') ||
         path.endsWith('/ads/active') ||

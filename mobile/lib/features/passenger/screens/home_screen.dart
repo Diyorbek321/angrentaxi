@@ -13,7 +13,7 @@ import 'package:angren_taxi/features/passenger/screens/rate_driver_screen.dart';
 import 'package:angren_taxi/features/passenger/widgets/coverage_notice.dart';
 import 'package:angren_taxi/features/superapp/screens/cargo_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/food_list_screen.dart';
-import 'package:angren_taxi/features/superapp/screens/market_screen.dart';
+import 'package:angren_taxi/features/superapp/screens/market_home_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/parcel_screen.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/favorite_address.dart';
@@ -452,7 +452,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
       case kServiceTypeFood:
         _push(const FoodListScreen());
       case kServiceTypeMarket:
-        _push(const MarketScreen());
+        _push(const MarketHomeScreen());
     }
   }
 

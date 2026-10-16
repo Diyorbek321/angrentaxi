@@ -322,6 +322,18 @@ describe('FoodService — UX v5', () => {
   });
 
   describe('storefront', () => {
+    it("xaridorga restoran sirlari chiqmaydi (egasi, STIR, telefon, komissiya)", async () => {
+      const { service } = build();
+      const payload = JSON.stringify([
+        await service.listActiveRestaurants(),
+        await service.getRestaurantDetail('rest-1'),
+      ]);
+      for (const secret of ['ownerUserId', 'owner-1', 'commissionRate', '"tin"', '"phone"', 'notifications']) {
+        expect(payload).not.toContain(secret);
+      }
+      expect(payload).toContain('Osh Markazi');
+    });
+
     it('restaurant list carries activePromotion (strongest) or null', async () => {
       const { service } = build();
       const list = await service.listActiveRestaurants();

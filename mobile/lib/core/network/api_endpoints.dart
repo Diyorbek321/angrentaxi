@@ -91,6 +91,8 @@ class ApiEndpoints {
   static const String currentOffer = '/orders/offer/current';
   // Bosh sahifa: trenddagi market mahsulotlari (sahifalangan).
   static const String marketTrending = '/market/trending';
+  // Market sahifasi: barcha do'konlar bo'yicha mahsulot qidiruvi.
+  static const String marketProductSearch = '/market/products/search';
   static String acceptOrder(String id) => '/orders/$id/accept';
   static String declineOrder(String id) => '/orders/$id/decline';
   static String arrivedAtPickup(String id) => '/orders/$id/arrived';

@@ -286,4 +286,16 @@ class DemoData {
           {'id': 'demo-p-2', 'categoryId': 'demo-mcat-1', 'name': 'Sut 1 l', 'price': 12000, 'stock': 20},
         ],
       };
+
+  /// Trend lentasi va mahsulot qidiruvi — `{items, hasMore}`, har mahsulotda
+  /// do'koni (demo'da qidiruv so'rovi bo'yicha filtrlanmaydi).
+  static Map<String, dynamic> productFeed() => {
+        'items': [
+          for (final p in storeDetail()['products'] as List<Map<String, dynamic>>)
+            {...p, 'storeId': store()['id'], 'store': store()},
+        ],
+        'page': 1,
+        'limit': 20,
+        'hasMore': false,
+      };
 }

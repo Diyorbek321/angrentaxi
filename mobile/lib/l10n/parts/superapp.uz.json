@@ -519,5 +519,7 @@
   },
   "saOtherStoreConfirm": "Tozalab qo'shish",
   "saStoreUnavailable": "Bu do'kon hozir buyurtma qabul qilmayapti",
-  "saAddedToCart": "Savatga qo'shildi"
+  "saAddedToCart": "Savatga qo'shildi",
+  "saMarketSearchAllHint": "Mahsulot qidirish — barcha do'konlardan",
+  "saMarketStores": "Do'konlar"
 }

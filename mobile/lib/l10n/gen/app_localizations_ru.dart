@@ -2707,7 +2707,13 @@ class AppLocalizationsRu extends AppLocalizations {
   String get saMarketProducts => 'Товары';
 
   @override
+  String get saMarketSearchAllHint => 'Поиск товаров во всех магазинах';
+
+  @override
   String get saMarketSearchHint => 'Поиск товаров…';
+
+  @override
+  String get saMarketStores => 'Магазины';
 
   @override
   String get saMarketSubtitle => '15–25 минут · Ближайший магазин';

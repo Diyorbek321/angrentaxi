@@ -8,6 +8,7 @@ import 'package:angren_taxi/features/passenger/order_provider.dart';
 import 'package:angren_taxi/features/passenger/screens/home_screen.dart' show PassengerHomeScreen;
 import 'package:angren_taxi/features/superapp/screens/cargo_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/food_list_screen.dart';
+import 'package:angren_taxi/features/superapp/screens/market_home_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/market_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/notifications_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/parcel_screen.dart';
@@ -17,11 +18,11 @@ import 'package:angren_taxi/features/superapp/screens/search_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/wallet_screen.dart';
 import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/market_provider.dart';
+import 'package:angren_taxi/features/superapp/state/product_feed_controller.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
-import 'package:angren_taxi/features/superapp/state/trending_products_controller.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/features/superapp/widgets/market_cart_flow.dart';
-import 'package:angren_taxi/features/superapp/widgets/trending_products_slivers.dart';
+import 'package:angren_taxi/features/superapp/widgets/product_feed_slivers.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/ad_banner.dart';
 import 'package:angren_taxi/shared/models/food_order.dart';
@@ -94,7 +95,7 @@ class HomeTab extends StatefulWidget {
 
   /// Testlar uchun. Berilmasa — `sl` dagi [ApiClient] bilan; u ham yo'q
   /// bo'lsa trend lentasi chizilmaydi (reklama karuseli bilan bir xil qoida).
-  final TrendingProductsController? trending;
+  final ProductFeedController? trending;
 
   @override
   State<HomeTab> createState() => _HomeTabState();
@@ -106,8 +107,8 @@ class _HomeTabState extends State<HomeTab> {
 
   // O'zimiz yaratgan bo'lsak — o'zimiz yopamiz (test bergani testniki).
   late final bool _ownsTrending = widget.trending == null;
-  late final TrendingProductsController? _trending = widget.trending ??
-      (sl.isRegistered<ApiClient>() ? TrendingProductsController(sl<ApiClient>()) : null);
+  late final ProductFeedController? _trending = widget.trending ??
+      (sl.isRegistered<ApiClient>() ? ProductFeedController(sl<ApiClient>()) : null);
 
   @override
   void initState() {
@@ -296,7 +297,7 @@ class _HomeTabState extends State<HomeTab> {
             onCargo: () => _push(context, const CargoScreen()),
             onParcel: () => _push(context, const ParcelScreen()),
             onFood: () => _push(context, const FoodListScreen()),
-            onMarket: () => _push(context, const MarketScreen()),
+            onMarket: () => _push(context, const MarketHomeScreen()),
           )
               .animate()
               .fadeIn(delay: 80.ms, duration: 400.ms)
@@ -336,9 +337,10 @@ class _HomeTabState extends State<HomeTab> {
             // Trend lentasi restoranlardan KEYIN: pastga aylantirgan sari
             // mahsulotlar yuklanadi (cheksiz lenta).
             if (trending != null)
-              ...trendingProductSlivers(
+              ...productFeedSlivers(
                 context,
                 trending,
+                title: context.l10n.saTrendingProducts,
                 onOpen: (p) => _openProduct(context, p),
                 onAdd: (p) => _addProduct(context, p),
               ),

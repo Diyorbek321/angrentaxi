@@ -3,17 +3,27 @@ import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/shared/models/market_product.dart';
 import 'package:flutter/foundation.dart';
 
-/// Bosh sahifadagi "Trenddagi mahsulotlar" cheksiz lentasi.
+/// Market mahsulotlarining sahifalangan, cheksiz lentasi — `{items, hasMore}`
+/// qaytaradigan har qanday endpoint uchun:
+///  · bosh sahifadagi "Trenddagi mahsulotlar" (`GET /market/trending`, sukut);
+///  · market sahifasidagi qidiruv (`GET /market/products/search`, `q` bilan).
 ///
-/// Sahifalab yuklaydi (`GET /market/trending`). Tartibni server belgilaydi:
-/// 7 kunlik sotuv, sotuv kam bo'lsa — yangi mahsulotlar (bo'lim bo'sh
-/// qolmaydi). Xato bo'lsa yuklangan ro'yxat saqlanadi va keyingi urinish
-/// O'SHA sahifani so'raydi — lenta tushib qolmaydi.
-class TrendingProductsController extends ChangeNotifier {
-  TrendingProductsController(this._api, {this.pageSize = 20});
+/// Tartibni server belgilaydi. Xato bo'lsa yuklangan ro'yxat saqlanadi va
+/// keyingi urinish O'SHA sahifani so'raydi — lenta tushib qolmaydi.
+class ProductFeedController extends ChangeNotifier {
+  ProductFeedController(
+    this._api, {
+    this.pageSize = 20,
+    this.endpoint = ApiEndpoints.marketTrending,
+    this.extraParams = const {},
+  });
 
   final ApiClient _api;
   final int pageSize;
+  final String endpoint;
+
+  /// Har so'rovga qo'shiladi (masalan qidiruvda `{'q': ...}`).
+  final Map<String, dynamic> extraParams;
 
   final List<MarketProduct> _items = [];
   final Set<String> _ids = {};
@@ -36,8 +46,8 @@ class TrendingProductsController extends ChangeNotifier {
     notifyListeners();
     try {
       final response = await _api.get(
-        ApiEndpoints.marketTrending,
-        params: {'page': _loadedPages + 1, 'limit': pageSize},
+        endpoint,
+        params: {...extraParams, 'page': _loadedPages + 1, 'limit': pageSize},
       );
       final body = response.data as Map<String, dynamic>;
       final data = body['data'] as Map<String, dynamic>;
@@ -51,7 +61,7 @@ class TrendingProductsController extends ChangeNotifier {
       _hasMore = data['hasMore'] == true && raw.isNotEmpty;
       _hasError = false;
     } catch (e) {
-      debugPrint('[TrendingProducts] load failed: $e');
+      debugPrint('[ProductFeed] $endpoint load failed: $e');
       _hasError = true;
     } finally {
       _loading = false;

@@ -47,6 +47,10 @@ class MarketProvider extends ChangeNotifier {
   MarketOrder? _activeOrder;
   List<MarketOrder> _orderHistory = [];
   List<ActivePromotion> _activePromotions = [];
+  List<MarketStore> _stores = [];
+  bool _storesLoading = false;
+  bool _storesLoaded = false;
+  String? _storesError;
 
   MarketProviderState get state => _state;
   String? get error => _error;
@@ -56,6 +60,36 @@ class MarketProvider extends ChangeNotifier {
   MarketOrder? get activeOrder => _activeOrder;
   List<MarketOrder> get orderHistory => List.unmodifiable(_orderHistory);
   bool get hasActiveOrder => _activeOrder != null && _activeOrder!.status.isActive;
+
+  /// Market sahifasidagi do'konlar ro'yxati. Tanlangan do'kon ([store]) va
+  /// uning katalogidan ALOHIDA holat: ro'yxat yuklanishi ochiq turgan
+  /// do'kon ekranini "yuklanmoqda" ga o'tkazmasin.
+  List<MarketStore> get stores => List.unmodifiable(_stores);
+  bool get storesLoading => _storesLoading;
+
+  /// Ro'yxat kamida bir marta muvaffaqiyatli keldi — bo'sh ro'yxat endi
+  /// "do'kon yo'q" degani, "hali yuklanmagan" emas.
+  bool get storesLoaded => _storesLoaded;
+  String? get storesError => _storesError;
+
+  /// Xato bo'lsa avvalgi ro'yxat saqlanadi (ekran bo'shab qolmasin).
+  Future<void> loadStores() async {
+    _storesLoading = true;
+    notifyListeners();
+    try {
+      final response = await _apiClient.get(ApiEndpoints.marketStores);
+      final list = (response.data as Map<String, dynamic>)['data'] as List<dynamic>;
+      _stores = list.map((e) => MarketStore.fromJson(e as Map<String, dynamic>)).toList();
+      _storesError = null;
+      _storesLoaded = true;
+    } catch (e) {
+      debugPrint('[MarketProvider] loadStores error: $e');
+      _storesError = extractErrorMessage(e);
+    } finally {
+      _storesLoading = false;
+      notifyListeners();
+    }
+  }
 
   /// Market bosh ekranidagi "Chegirmalar" lentasi (spec v5 §4).
   List<ActivePromotion> get activePromotions => _activePromotions;
@@ -81,8 +115,8 @@ class MarketProvider extends ChangeNotifier {
   /// Loads a store with its catalogue.
   ///
   /// [storeId] comes from an ad banner pointing at one particular store.
-  /// Without it the first listed store opens — there is a single store
-  /// today; a store picker replaces that once there are several.
+  /// Without it the first listed store opens (fallback for search and for a
+  /// banner whose store is gone); the store picker is `MarketHomeScreen`.
   ///
   /// A banner can outlive its store (deactivated, deleted), so if the
   /// requested store fails to load we fall back to the first one rather
