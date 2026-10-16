@@ -69,13 +69,7 @@ command -v rclone >/dev/null || die "rclone not installed (bootstrap.sh installs
 [[ -n "${BACKUP_GPG_PASSPHRASE:-}" && "$BACKUP_GPG_PASSPHRASE" != CHANGE_ME ]] \
   || die "BACKUP_GPG_PASSPHRASE not set — refusing to upload personal data unencrypted"
 
-# rclone remote "r2" defined purely through env — no config file on disk.
-export RCLONE_CONFIG_R2_TYPE=s3
-export RCLONE_CONFIG_R2_PROVIDER=Cloudflare
-export RCLONE_CONFIG_R2_ACCESS_KEY_ID="$BACKUP_S3_ACCESS_KEY_ID"
-export RCLONE_CONFIG_R2_SECRET_ACCESS_KEY="$BACKUP_S3_SECRET_ACCESS_KEY"
-export RCLONE_CONFIG_R2_ENDPOINT="$BACKUP_S3_ENDPOINT"
-export RCLONE_CONFIG_R2_NO_CHECK_BUCKET=true
+r2_env
 
 enc="$(mktemp --suffix=.gpg)"
 trap 'rm -f "$enc"' EXIT
@@ -85,7 +79,7 @@ gpg --batch --yes --quiet --symmetric --cipher-algo AES256 \
 remote_dirs=("$kind")
 [[ "$kind" == "daily" && "$(date +%u)" == "7" ]] && remote_dirs+=(weekly)
 for d in "${remote_dirs[@]}"; do
-  rclone copyto --s3-no-check-bucket "$enc" "r2:$BACKUP_S3_BUCKET/$d/$(basename "$file").gpg"
+  rclone copyto "$enc" "r2:$BACKUP_S3_BUCKET/$d/$(basename "$file").gpg"
   log "uploaded r2:$BACKUP_S3_BUCKET/$d/$(basename "$file").gpg"
 done
 

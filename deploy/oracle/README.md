@@ -234,9 +234,22 @@ sudo deploy/oracle/install-timers.sh
   `https://api.telegram.org/bot<TOKEN>/getUpdates` dan chat id).
 - Loglar: `journalctl -u angren-backup -u angren-health --since today`.
 
-**Tiklash mashqi (oyiga bir marta tavsiya):**
-`deploy/oracle/restore.sh r2:daily/<fayl>.dump.gpg` — oxirgi nusxadan
-tiklash ishlashini tekshirib turing. Ishlatilmagan backup — backup emas.
+**Tiklash mashqi (oyiga bir marta):**
+
+```bash
+journalctl -u angren-backup -n 20   # oxirgi yuklangan fayl nomi
+deploy/oracle/restore.sh r2:daily/<fayl>.dump.gpg --drill
+```
+
+`--drill` nusxani R2'dan olib, shifrini ochib, **vaqtinchalik**
+`<DB_NAME>_drill` bazaga tiklaydi, PostGIS va jadvallarni tekshiradi
+(`drill OK: ... users=N, orders=M`) va uni o'chiradi — ishlayotgan baza va
+ilovaga tegmaydi. `--drill` siz — haqiqiy tiklash (bazani ALMASHTIRADI).
+Ishlatilmagan backup — backup emas.
+
+**Shifr paroli** (`BACKUP_GPG_PASSPHRASE`) faqat `.env.prod` da: server
+yo'qolsa, R2'dagi nusxalar u parolsiz ochilmaydi — parolni server tashqarisida
+(parol menejeri) saqlang.
 
 ### Xatolarni kuzatish (Sentry)
 

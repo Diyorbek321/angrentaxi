@@ -54,3 +54,17 @@ wait_healthy() {
 psql_exec() {
   dc exec -T postgres psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d "${2:-$DB_NAME}" -tAc "$1"
 }
+
+# r2_env — rclone remote "r2" defined purely through env (no config file on
+# disk) from the BACKUP_S3_* variables.
+# NO_HEAD: rclone 1.60 (Ubuntu apt) re-reads every upload with
+# `HEAD ?versionId=`, which R2 answers 501 Not Implemented — the upload itself
+# succeeded, but the copy is reported failed and retried. R2 already verifies
+# the Content-MD5 rclone sends with the PUT, so the extra HEAD adds nothing.
+r2_env() {
+  export RCLONE_CONFIG_R2_TYPE=s3 RCLONE_CONFIG_R2_PROVIDER=Cloudflare \
+    RCLONE_CONFIG_R2_ACCESS_KEY_ID="${BACKUP_S3_ACCESS_KEY_ID:?BACKUP_S3_ACCESS_KEY_ID not set}" \
+    RCLONE_CONFIG_R2_SECRET_ACCESS_KEY="${BACKUP_S3_SECRET_ACCESS_KEY:?BACKUP_S3_SECRET_ACCESS_KEY not set}" \
+    RCLONE_CONFIG_R2_ENDPOINT="${BACKUP_S3_ENDPOINT:?BACKUP_S3_ENDPOINT not set}" \
+    RCLONE_CONFIG_R2_NO_CHECK_BUCKET=true RCLONE_CONFIG_R2_NO_HEAD=true
+}
