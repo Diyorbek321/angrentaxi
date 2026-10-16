@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import * as dotenv from 'dotenv';
+import { seedIntercity } from './intercity-seed';
 
 dotenv.config();
 
@@ -342,6 +343,9 @@ async function seed(): Promise<void> {
       VALUES ($1, $2, 8500, 'debit', 'cash', 'completed');
     `, [passenger1.id, sampleOrder.id]);
 
+    // Shaharlararo nuqtalar va yo'nalishlar (funksiya o'zi o'chiq).
+    await seedIntercity(queryRunner);
+
     await queryRunner.commitTransaction();
 
     console.log('\n=== SEED COMPLETED SUCCESSFULLY ===');
@@ -353,6 +357,7 @@ async function seed(): Promise<void> {
     console.log('Driver:   +998901234572 (Bobur Nazarov) - Chevrolet Nexia, OFFLINE [taxi]');
     console.log('Driver:   +998901234573 (Jasur Ergashev) - GAZelle Next (van), ONLINE [cargo]');
     console.log('Tariffs: Standard, Comfort, Business + 3 cargo + Ovqat/Market yetkazish');
+    console.log('Intercity: Angren↔Toshkent (Rohat), Angren↔Olmaliq, Angren↔Ohangaron (intercityEnabled=false)');
     console.log('===================================\n');
   } catch (err) {
     await queryRunner.rollbackTransaction();

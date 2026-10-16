@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 
 /**
  * Mashina o'qiydigan xato kodlari (docs/LEGAL-COMPLIANCE.md §21).
@@ -45,6 +50,10 @@ export const ERROR_CODES = {
   promoNotApplicable: 'PROMO_NOT_APPLICABLE',
   /** Sotuvchi buyurtmani qabul qilgan — mijoz bekor qila olmaydi (409, §1). */
   orderCancelNotAllowed: 'ORDER_CANCEL_NOT_ALLOWED',
+  /** Shaharlararo qatnov o'chiq (`intercityEnabled = false`) — 404. */
+  intercityDisabled: 'INTERCITY_DISABLED',
+  /** Yo'nalish narxlari qoidaga zid (400). `reasons[]` — har bir buzilgan qoida. */
+  intercityRouteInvalid: 'INTERCITY_ROUTE_INVALID',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
@@ -91,4 +100,12 @@ export function codedForbidden(
   extras: CodedErrorExtras = {},
 ): ForbiddenException {
   return new ForbiddenException(body(code, message, extras));
+}
+
+export function codedNotFound(
+  code: ErrorCode,
+  message: string,
+  extras: CodedErrorExtras = {},
+): NotFoundException {
+  return new NotFoundException(body(code, message, extras));
 }

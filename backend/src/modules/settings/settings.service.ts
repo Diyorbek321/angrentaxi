@@ -10,6 +10,8 @@ import {
   LegalComplianceSettings,
   LegalComplianceSettingsChanges,
   PublicSettings,
+  IntercitySettings,
+  IntercitySettingsChanges,
   ShiftPassSettings,
   ShiftPassSettingsChanges,
   VendorSettlementSettings,
@@ -185,6 +187,24 @@ export class SettingsService {
     return toShiftPassSettings(await this.getOrCreate());
   }
 
+  /** Shaharlararo qatnov (migratsiya 034) — standart o'chiq. */
+  async getIntercitySettings(): Promise<IntercitySettings> {
+    return toIntercitySettings(await this.getOrCreate());
+  }
+
+  /** `IntercityModule` har so'rovda shunga qaraydi: o'chiq bo'lsa 404. */
+  async isIntercityEnabled(): Promise<boolean> {
+    return (await this.getIntercitySettings()).intercityEnabled;
+  }
+
+  async updateIntercitySettings(changes: IntercitySettingsChanges): Promise<IntercitySettings> {
+    const settings = await this.getOrCreate();
+    if (changes.intercityEnabled === undefined) return toIntercitySettings(settings);
+    const update: Partial<PlatformSettings> = { intercityEnabled: changes.intercityEnabled };
+    await this.settingsRepository.update(settings.id, update);
+    return toIntercitySettings({ ...settings, ...update });
+  }
+
   async updateShiftPassSettings(changes: ShiftPassSettingsChanges): Promise<ShiftPassSettings> {
     const settings = await this.getOrCreate();
     const { shiftPassServiceTypes, ...rest } = changes;
@@ -257,6 +277,8 @@ export class SettingsService {
       vendorSettlementMode: vendor.effectiveVendorSettlementMode,
       vendorWalletSettlementFrom: vendor.vendorWalletSettlementFrom,
       ...publicWalletTopupSettings(toWalletTopupSettings(settings)),
+      // Ilova "Shaharlararo" kafelini shunga qarab ko'rsatadi/yashiradi.
+      ...toIntercitySettings(settings),
     };
   }
 
@@ -441,6 +463,11 @@ function toVendorSettlementSettings(
     vendorWalletSettlementFrom: from ? from.toISOString() : null,
     effectiveVendorSettlementMode: effectiveVendorSettlementMode(settings.vendorSettlementMode, from, now),
   };
+}
+
+function toIntercitySettings(settings: PlatformSettings): IntercitySettings {
+  // `=== true`: ustun qo'shilmagan eski qator (`undefined`) ham o'chiq.
+  return { intercityEnabled: settings.intercityEnabled === true };
 }
 
 function toShiftPassSettings(settings: PlatformSettings): ShiftPassSettings {

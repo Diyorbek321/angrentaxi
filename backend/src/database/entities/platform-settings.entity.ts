@@ -237,6 +237,11 @@ export class PlatformSettings {
   @Column({ name: 'platform_tin', type: 'varchar', length: 9, nullable: true })
   platformTin: string | null;
 
+  // Shaharlararo qatnov (migratsiya 034). Standart o'chiq: yo'nalishlar
+  // sozlangan bo'lsa ham, yo'lovchi va haydovchiga hech narsa ko'rinmaydi.
+  @Column({ name: 'intercity_enabled', type: 'boolean', default: false })
+  intercityEnabled: boolean;
+
   @UpdateDateColumn()
   updatedAt: Date;
 }

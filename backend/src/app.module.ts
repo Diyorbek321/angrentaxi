@@ -48,6 +48,7 @@ import { HealthModule } from './modules/health/health.module';
 import { FiscalModule } from './modules/fiscal/fiscal.module';
 import { TaxModule } from './modules/tax/tax.module';
 import { ShiftPassesModule } from './modules/shift-passes/shift-passes.module';
+import { IntercityModule } from './modules/intercity/intercity.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { CourierWalletRemindersModule } from './modules/delivery/courier-wallet-reminders.module';
 import { ENTITIES } from './database/entities';
@@ -183,6 +184,7 @@ import { ENTITIES } from './database/entities';
     FiscalModule,
     TaxModule,
     ShiftPassesModule,
+    IntercityModule,
     AuditModule,
     CourierWalletRemindersModule,
   ],

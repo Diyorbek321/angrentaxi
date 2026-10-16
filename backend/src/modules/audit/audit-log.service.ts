@@ -14,6 +14,10 @@ export const AUDIT_ACTIONS = {
   paymentRefundClawback: 'payment.refund_clawback',
   /** Haydovchi PINFL/STIR/soliq maqomi o'zgardi (o'zi yoki menejer). `metadata.changes` — niqoblangan. */
   driverLegalUpdate: 'driver.legal_update',
+  /** Shaharlararo yo'nalish yaratildi — qat'iy narxlar. `metadata.prices`. */
+  intercityRouteCreate: 'intercity_route.create',
+  /** Shaharlararo yo'nalish narxi/holati o'zgardi. `metadata.before`/`after`. */
+  intercityRouteUpdate: 'intercity_route.update',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

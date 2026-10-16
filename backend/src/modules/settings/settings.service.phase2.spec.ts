@@ -124,7 +124,34 @@ describe('SettingsService — sotuvchi hisob-kitobi va smena', () => {
         walletTopupPresets: [50000, 100000, 200000],
         // Ilova izohi uchun (#3a); menejer chegarasi public'ga chiqmaydi.
         walletTopupHoldDays: 7,
+        // Shaharlararo (034): standart o'chiq — ilova kafelni yashiradi.
+        intercityEnabled: false,
       });
+    });
+  });
+
+  describe('shaharlararo', () => {
+    it("standart o'chiq (ustun hali yo'q eski qatorda ham)", async () => {
+      const { service } = build();
+      await expect(service.getIntercitySettings()).resolves.toEqual({ intercityEnabled: false });
+      await expect(service.isIntercityEnabled()).resolves.toBe(false);
+    });
+
+    it('admin yoqadi — public sozlamada ham ko‘rinadi', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-10-15T12:00:00Z'));
+      const { service, repo } = build();
+      await expect(service.updateIntercitySettings({ intercityEnabled: true })).resolves.toEqual({
+        intercityEnabled: true,
+      });
+      expect(repo.update).toHaveBeenCalledWith('s1', { intercityEnabled: true });
+      await expect(service.isIntercityEnabled()).resolves.toBe(true);
+      await expect(service.getPublicSettings()).resolves.toMatchObject({ intercityEnabled: true });
+    });
+
+    it("bo'sh PATCH hech narsani yozmaydi", async () => {
+      const { service, repo } = build({ intercityEnabled: true });
+      await expect(service.updateIntercitySettings({})).resolves.toEqual({ intercityEnabled: true });
+      expect(repo.update).not.toHaveBeenCalled();
     });
   });
 });

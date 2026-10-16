@@ -85,7 +85,16 @@ export interface PublicSettings {
   walletTopupPresets: number[];
   /** Karta to'ldirishi shuncha kun yechib olinmaydi (ilova izohi uchun). */
   walletTopupHoldDays: number;
+  /** Shaharlararo qatnov yoqilganmi (migratsiya 034). */
+  intercityEnabled: boolean;
 }
+
+/** `GET/PATCH /settings/intercity`. */
+export interface IntercitySettings {
+  intercityEnabled: boolean;
+}
+
+export type IntercitySettingsChanges = Partial<IntercitySettings>;
 
 /** Haydovchi/kuryer hamyonini Payme/Click orqali to'ldirish (§11). */
 export interface WalletTopupSettings {

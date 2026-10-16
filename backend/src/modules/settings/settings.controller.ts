@@ -9,6 +9,7 @@ import { UpdateLaunchPromoDto } from './dto/update-launch-promo.dto';
 import { UpdateVendorSettlementDto } from './dto/update-vendor-settlement.dto';
 import { UpdateShiftPassSettingsDto } from './dto/update-shift-pass-settings.dto';
 import { UpdateWalletTopupDto } from './dto/update-wallet-topup.dto';
+import { UpdateIntercitySettingsDto } from './dto/update-intercity-settings.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
@@ -115,6 +116,21 @@ export class SettingsController {
   @ApiOperation({ summary: 'Update driver shift pass settings (admin only)' })
   async updateShiftPass(@Body() dto: UpdateShiftPassSettingsDto) {
     return this.settingsService.updateShiftPassSettings(dto);
+  }
+
+  /** Shaharlararo qatnov (migratsiya 034) — standart o'chiq. */
+  @Get('intercity')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Intercity rides settings (enabled flag)' })
+  async getIntercity() {
+    return this.settingsService.getIntercitySettings();
+  }
+
+  @Patch('intercity')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Enable/disable intercity rides (admin only)' })
+  async updateIntercity(@Body() dto: UpdateIntercitySettingsDto) {
+    return this.settingsService.updateIntercitySettings(dto);
   }
 
   /** Hamyonni Payme/Click orqali to'ldirish — docs/LEGAL-COMPLIANCE.md §11. */
