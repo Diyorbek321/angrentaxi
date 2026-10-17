@@ -164,7 +164,20 @@ export class DriverVerificationService {
     driver: VerificationDriver,
     now: Date = new Date(),
   ): Promise<DriverVerificationSummary> {
-    const requirements = await this.findApplicableRequirements(driver);
+    const active = await this.findActiveRequirements();
+    const applicable = this.filterApplicable(active, driver);
+    // Hali yoqilmagan xizmatning qoidalari (termo-sumka) ham ro'yxatda
+    // chiqadi: aks holda xizmatni yoqish uchun tasdiq kerak, tasdiq uchun
+    // band esa faqat xizmat yoqilganda ko'rinardi — haydovchi hech qachon
+    // yuklay olmasdi. Ular onlayn chiqishni BLOKLAMAYDI (`isRequired: false`).
+    const applicableCodes = new Set(applicable.map((r) => r.code));
+    const unlockable = this.filterUnlockable(active, driver).filter(
+      (r) => !applicableCodes.has(r.code),
+    );
+    const requirements = [
+      ...applicable,
+      ...unlockable.map((r) => ({ ...r, isRequired: false })),
+    ];
     if (requirements.length === 0) {
       return { canGoOnline: true, blockedReason: null, items: [] };
     }
@@ -267,12 +280,28 @@ export class DriverVerificationService {
   async findApplicableRequirements(
     driver: VerificationDriver,
   ): Promise<DriverVerificationRequirement[]> {
-    const active = await this.requirementRepository.find({
+    return this.filterApplicable(await this.findActiveRequirements(), driver);
+  }
+
+  private findActiveRequirements(): Promise<DriverVerificationRequirement[]> {
+    return this.requirementRepository.find({
       where: { isActive: true },
       order: { sortOrder: 'ASC', code: 'ASC' },
     });
+  }
 
-    return this.filterApplicable(active, driver);
+  /** Haydovchi hali yoqmagan xizmatlarning (transport turi mos) qoidalari. */
+  private filterUnlockable(
+    requirements: DriverVerificationRequirement[],
+    driver: VerificationDriver,
+  ): DriverVerificationRequirement[] {
+    const driverServiceTypes = resolveDriverServiceTypes(driver.serviceTypes);
+    return requirements.filter(
+      (requirement) =>
+        requirement.serviceType != null &&
+        !driverServiceTypes.includes(requirement.serviceType) &&
+        (requirement.vehicleType == null || driver.vehicleType === requirement.vehicleType),
+    );
   }
 
   private filterApplicable(

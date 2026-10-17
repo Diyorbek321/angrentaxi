@@ -271,9 +271,39 @@ describe('DriverVerificationService — qo\'llanish doirasi', () => {
     expect(van.items.map((i) => i.code)).toEqual(['common', 'van_only']);
   });
 
-  it('xizmat turiga bog\'liq qoida faqat o\'sha xizmatda chiqadi', async () => {
+  it("yoqilmagan xizmat qoidasi ro'yxatda chiqadi, lekin onlayn chiqishni bloklamaydi", async () => {
+    // Aks holda tuzoq: "Ovqat yetkazish"ni yoqish uchun termo-sumka tasdig'i
+    // kerak, termo-sumka bandi esa faqat xizmat yoqilganda ko'rinardi —
+    // haydovchi uni hech qachon yuklay olmasdi.
     const { service } = buildService([
-      requirement({ code: 'cargo_only', serviceType: ServiceType.CARGO }),
+      requirement({ code: 'thermal_bag_photo', serviceType: ServiceType.FOOD }),
+    ]);
+
+    const summary = await service.getSummaryForDriver(taxiDriver, NOW);
+
+    expect(summary.items.map((i) => i.code)).toEqual(['thermal_bag_photo']);
+    expect(summary.items[0].status).toBe('missing');
+    expect(summary.items[0].isRequired).toBe(false);
+    expect(summary.canGoOnline).toBe(true);
+  });
+
+  it('yoqilgan xizmat qoidasi majburiy va bloklaydi', async () => {
+    const { service } = buildService([
+      requirement({ code: 'thermal_bag_photo', serviceType: ServiceType.FOOD }),
+    ]);
+
+    const summary = await service.getSummaryForDriver(
+      { id: 'driver-1', vehicleType: null, serviceTypes: [ServiceType.TAXI, ServiceType.FOOD] },
+      NOW,
+    );
+
+    expect(summary.items[0].isRequired).toBe(true);
+    expect(summary.canGoOnline).toBe(false);
+  });
+
+  it('yoqilmagan xizmat qoidasi boshqa transport turiga tegishli bo\'lsa chiqmaydi', async () => {
+    const { service } = buildService([
+      requirement({ code: 'van_cargo', serviceType: ServiceType.CARGO, vehicleType: VehicleType.VAN }),
     ]);
 
     const summary = await service.getSummaryForDriver(taxiDriver, NOW);

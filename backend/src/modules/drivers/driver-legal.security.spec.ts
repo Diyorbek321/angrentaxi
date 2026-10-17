@@ -51,6 +51,10 @@ describe('DriverLegalService — security', () => {
     };
     const verificationService = {
       getSummaryForDriver: jest.fn(async () => ({ items: options.documents ?? [] })),
+      getLegalDocumentStatesForDrivers: jest.fn(
+        async (drivers: Array<{ id: string }>) =>
+          new Map(drivers.map((d) => [d.id, options.documents ?? []])),
+      ),
     };
     const auditLog = { record: jest.fn(async (entry: Record<string, unknown>) => ({ id: 'audit-1', ...entry })) };
     const service = new DriverLegalService(

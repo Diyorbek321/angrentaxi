@@ -381,10 +381,14 @@ export class DriverLegalService {
 
   /** Taksi huquqiy hujjatlari (migratsiya 025) — tekshiruv tizimidan holat. */
   private async legalDocuments(driver: LegalDriver, now: Date) {
-    const summary = await this.verificationService.getSummaryForDriver(driver, now);
-    return summary.items
-      .filter((item) => LEGAL_REQUIREMENT_CODES.includes(item.code))
-      .map((item) => ({ code: item.code, label: item.label, status: item.status }));
+    // Xulosadan (`getSummaryForDriver`) EMAS: u yoqilmagan xizmat qoidalarini
+    // ham ko'rsatadi, huquqiy xulosaga esa faqat haydovchiga qo'llanadigani kerak.
+    const states = await this.verificationService.getLegalDocumentStatesForDrivers(
+      [driver],
+      LEGAL_REQUIREMENT_CODES,
+      now,
+    );
+    return states.get(driver.id) ?? [];
   }
 
   private async resolveSettings(): Promise<ResolvedLegalSettings> {
