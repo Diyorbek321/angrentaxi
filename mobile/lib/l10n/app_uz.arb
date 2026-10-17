@@ -848,6 +848,11 @@
       }
     }
   },
+  "icAddressFilterClear": "Manzilni tozalash",
+  "icAddressFilterDropoff": "Tushish manzilim (ixtiyoriy)",
+  "icAddressFilterHint": "Manzilni tanlasangiz, sizning tomonga boradigan qatnovlar belgilanadi",
+  "icAddressFilterPickup": "Olinish manzilim (ixtiyoriy)",
+  "icAllDistricts": "Hamma tumanlar",
   "icBasePrice": "Qatnov narxi",
   "icBookTitle": "Joy band qilish",
   "icBooked": "Joy band qilindi",
@@ -954,10 +959,26 @@
     }
   },
   "icErrAlreadyBooked": "Siz bu qatnovda allaqachon joy band qilgansiz",
+  "icErrDetourTooLong": "Bu qatnov sizning manzilingizga katta aylanma qiladi (+{minutes} daq). Boshqa qatnovni tanlang.",
+  "@icErrDetourTooLong": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
   "icErrDisabled": "Shaharlararo xizmati hozircha o'chirilgan",
   "icErrDriverBusy": "Avval faol shahar safarini yakunlang",
   "icErrGeneric": "Amalni bajarib bo'lmadi. Qayta urinib ko'ring",
   "icErrNotCancellable": "Bu bandni endi bekor qilib bo'lmaydi",
+  "icErrOutOfZone": "Bu qatnov sizning tumaningizga bormaydi ({zones}). Boshqa qatnovni tanlang.",
+  "@icErrOutOfZone": {
+    "placeholders": {
+      "zones": {
+        "type": "String"
+      }
+    }
+  },
   "icErrSeatsUnavailable": "Afsus, bu joylar band bo'lib qoldi. Ma'lumot yangilandi.",
   "icErrServiceNotEnabled": "Avval \"Xizmat turlari\" bo'limida Shaharlararo xizmatini yoqing",
   "icErrTripActionNotAllowed": "Bu amal qatnovning hozirgi holatida mumkin emas",
@@ -1006,6 +1027,16 @@
       }
     }
   },
+  "icFitDetour": "+{minutes} daq aylanma",
+  "@icFitDetour": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "icFitOtherDistrict": "Boshqa tumanga",
+  "icFitYourWay": "Sizning tomonga",
   "icFreeCancelUntil": "{time} gacha bepul bekor qilish mumkin",
   "@icFreeCancelUntil": {
     "placeholders": {
@@ -1053,6 +1084,7 @@
     }
   },
   "icPaymentCash": "To'lov: naqd, haydovchiga",
+  "icPickAnotherTrip": "Boshqa qatnovni yoki manzilni tanlang",
   "icPickup": "Olib ketish manzili",
   "icPlaceAtPoint": "{place}da",
   "@icPlaceAtPoint": {
@@ -1064,8 +1096,44 @@
   },
   "icPlaceFromAddress": "Manzilimdan",
   "icPlaceToAddress": "Manzilimgacha",
+  "icPublishDistrictsDestination": "Tushirish tumanlari ({place})",
+  "@icPublishDistrictsDestination": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "icPublishDistrictsHint": "Faqat tanlangan tumanlardagi yo'lovchilar band qila oladi — mashina shahar bo'ylab tarqalib ketmaydi",
+  "icPublishDistrictsOrigin": "Olish tumanlari ({place})",
+  "@icPublishDistrictsOrigin": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "icQuoteDetour": "Manzilingiz mashinani +{minutes} daq aylantiradi (ko'pi bilan {limit} daq)",
+  "@icQuoteDetour": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
   "icQuoteFailed": "Narxni hisoblab bo'lmadi",
   "icQuoteLoading": "Narx hisoblanmoqda…",
+  "icQuoteOutOfZone": "Bu qatnov faqat shu tumanlarga boradi: {zones}",
+  "@icQuoteOutOfZone": {
+    "placeholders": {
+      "zones": {
+        "type": "String"
+      }
+    }
+  },
   "icQuoteRetry": "Qayta urinish",
   "icRetry": "Qayta urinish",
   "icRunArrived": "Yetib keldim",
@@ -1084,6 +1152,14 @@
   "icRunDepart": "Surib yo'lga chiqing",
   "icRunDepartHint": "Avval har bir yo'lovchini oling yoki «Kelmadi» deb belgilang",
   "icRunDropOff": "Tushirdim",
+  "icRunEtaFromPrev": "~{minutes} daq",
+  "@icRunEtaFromPrev": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
   "icRunExtension": "Shahar ichida +{km} km ({place})",
   "@icRunExtension": {
     "placeholders": {
@@ -1095,11 +1171,21 @@
       }
     }
   },
+  "icRunNavigate": "Navigatsiya",
   "icRunNoBookings": "Hali hech kim band qilmagan",
   "icRunNoShow": "Kelmadi",
   "icRunNoShowBody": "Band bekor qilinadi, joy qaytarilmaydi. Yo'lovchiga qo'ng'iroq qilib ko'rdingizmi?",
   "icRunNoShowConfirm": "Ha, kelmadi",
   "icRunNoShowTitle": "Yo'lovchi kelmadimi?",
+  "icRunOrderNearest": "Eng yaqindan tartib",
+  "icRunOrderOptimized": "Eng qisqa yo'l tartibi · jami ~{minutes} daq",
+  "@icRunOrderOptimized": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
   "icRunPassengers": "Yo'lovchilar",
   "icRunPhoneLater": "Raqam jo'nashga 60 daqiqa qolganda ochiladi",
   "icRunPickedUp": "Olindi",
@@ -1117,6 +1203,17 @@
   },
   "icRunStartBoarding": "Yig'ishni boshlash",
   "icRunStartBoardingHint": "Jo'nashdan 60 daqiqa oldin yoki mashina to'lganda ochiladi",
+  "icRunTerminal": "Keyin {place}: ~{minutes} daq",
+  "@icRunTerminal": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
   "icRunTitle": "Qatnov",
   "icRunTotalCash": "Jami naqd: {amount}",
   "@icRunTotalCash": {
@@ -1172,6 +1269,14 @@
   "icTripCancelled": "Qatnov bekor qilindi",
   "icTripCancelledStatus": "Bekor qilingan",
   "icTripCompleted": "Yakunlangan",
+  "icTripDistricts": "Tumanlar: {zones}",
+  "@icTripDistricts": {
+    "placeholders": {
+      "zones": {
+        "type": "String"
+      }
+    }
+  },
   "icTripFull": "To'la",
   "icTripInProgress": "Yo'lda",
   "icTripOpen": "Ochiq",

@@ -335,5 +335,110 @@
         "type": "String"
       }
     }
+  },
+  "icErrOutOfZone": "Bu qatnov sizning tumaningizga bormaydi ({zones}). Boshqa qatnovni tanlang.",
+  "@icErrOutOfZone": {
+    "placeholders": {
+      "zones": {
+        "type": "String"
+      }
+    }
+  },
+  "icErrDetourTooLong": "Bu qatnov sizning manzilingizga katta aylanma qiladi (+{minutes} daq). Boshqa qatnovni tanlang.",
+  "@icErrDetourTooLong": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "icFitYourWay": "Sizning tomonga",
+  "icFitOtherDistrict": "Boshqa tumanga",
+  "icFitDetour": "+{minutes} daq aylanma",
+  "@icFitDetour": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "icTripDistricts": "Tumanlar: {zones}",
+  "@icTripDistricts": {
+    "placeholders": {
+      "zones": {
+        "type": "String"
+      }
+    }
+  },
+  "icAddressFilterDropoff": "Tushish manzilim (ixtiyoriy)",
+  "icAddressFilterPickup": "Olinish manzilim (ixtiyoriy)",
+  "icAddressFilterHint": "Manzilni tanlasangiz, sizning tomonga boradigan qatnovlar belgilanadi",
+  "icAddressFilterClear": "Manzilni tozalash",
+  "icQuoteOutOfZone": "Bu qatnov faqat shu tumanlarga boradi: {zones}",
+  "@icQuoteOutOfZone": {
+    "placeholders": {
+      "zones": {
+        "type": "String"
+      }
+    }
+  },
+  "icQuoteDetour": "Manzilingiz mashinani +{minutes} daq aylantiradi (ko'pi bilan {limit} daq)",
+  "@icQuoteDetour": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "icPickAnotherTrip": "Boshqa qatnovni yoki manzilni tanlang",
+  "icPublishDistrictsOrigin": "Olish tumanlari ({place})",
+  "@icPublishDistrictsOrigin": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "icPublishDistrictsDestination": "Tushirish tumanlari ({place})",
+  "@icPublishDistrictsDestination": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "icAllDistricts": "Hamma tumanlar",
+  "icPublishDistrictsHint": "Faqat tanlangan tumanlardagi yo'lovchilar band qila oladi — mashina shahar bo'ylab tarqalib ketmaydi",
+  "icRunEtaFromPrev": "~{minutes} daq",
+  "@icRunEtaFromPrev": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "icRunNavigate": "Navigatsiya",
+  "icRunOrderOptimized": "Eng qisqa yo'l tartibi · jami ~{minutes} daq",
+  "@icRunOrderOptimized": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "icRunOrderNearest": "Eng yaqindan tartib",
+  "icRunTerminal": "Keyin {place}: ~{minutes} daq",
+  "@icRunTerminal": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
   }
 }

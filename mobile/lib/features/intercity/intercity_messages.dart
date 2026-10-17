@@ -10,6 +10,9 @@ abstract final class IntercityErrorCode {
   static const alreadyBooked = 'INTERCITY_ALREADY_BOOKED';
   static const bookingInvalid = 'INTERCITY_BOOKING_INVALID';
   static const bookingNotCancellable = 'INTERCITY_BOOKING_NOT_CANCELLABLE';
+  // Tumanlar va aylanma (backend 039).
+  static const outOfZone = 'INTERCITY_OUT_OF_ZONE';
+  static const detourTooLong = 'INTERCITY_DETOUR_TOO_LONG';
   // Haydovchi.
   static const serviceNotEnabled = 'INTERCITY_SERVICE_NOT_ENABLED';
   static const tripInvalid = 'INTERCITY_TRIP_INVALID';
@@ -36,6 +39,12 @@ String intercityErrorMessage(Object? error) {
       return l10n.icErrAlreadyBooked;
     case IntercityErrorCode.bookingNotCancellable:
       return l10n.icErrNotCancellable;
+    case IntercityErrorCode.outOfZone:
+      final zones = '${api!.details['zones'] ?? ''}'.trim();
+      return l10n.icErrOutOfZone(zones.isEmpty ? '—' : zones);
+    case IntercityErrorCode.detourTooLong:
+      final minutes = api!.details['addedMinutes'];
+      return l10n.icErrDetourTooLong(minutes is num ? minutes.toInt() : 0);
     case IntercityErrorCode.serviceNotEnabled:
       return l10n.icErrServiceNotEnabled;
     case IntercityErrorCode.tripOverlap:
@@ -56,6 +65,16 @@ String intercityErrorMessage(Object? error) {
 
 bool isSeatsUnavailable(Object? error) =>
     ApiError.from(error)?.code == IntercityErrorCode.seatsUnavailable;
+
+/// Qatnov yo'lovchi manziliga mos emas (tuman/aylanma) — boshqasini tanlash kerak.
+bool isTripMismatch(Object? error) {
+  final code = ApiError.from(error)?.code;
+  return code == IntercityErrorCode.outOfZone || code == IntercityErrorCode.detourTooLong;
+}
+
+/// Tumanlar ro'yxati: "Yunusobod, Chilonzor".
+String intercityDistrictNames(Iterable<IntercityDistrict> districts) =>
+    districts.map((d) => d.name).join(', ');
 
 String intercityBookingStatusLabel(String status) {
   final l10n = AppL10n.current;

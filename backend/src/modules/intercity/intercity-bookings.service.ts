@@ -24,7 +24,9 @@ import { FareBreakdown, IntercityExtensionCharge } from '../tariffs/fare-breakdo
 import { CreateIntercityBookingDto } from './dto/create-intercity-booking.dto';
 import { evaluateBooking, isLateCancel, seatReleaseOf } from './intercity-booking-policy';
 import { IntercityBookingView, toIntercityBookingView } from './intercity-booking-view';
-import { claimSeats, claimWholeCar, releaseSeats, returnedRows } from './intercity-seat-ledger';
+import { claimSeats, claimWholeCar, lockTripForCompletion, releaseSeats, returnedRows } from './intercity-seat-ledger';
+import { BookingFit, FitTrip, IntercityFitService } from './intercity-fit.service';
+import { IntercityZonesService } from './intercity-zones.service';
 import { IntercityNotifier } from './intercity-notifier';
 import { IntercityBookingManageView, toIntercityBookingManageView } from './intercity-booking-manage-view';
 import { composeIntercityFare } from './intercity-extension';
@@ -78,6 +80,17 @@ export interface IntercityQuoteView {
   /** "Shahar ichiga davom" qatorlari — bo'sh bo'lsa davom yo'q. */
   extensions: IntercityExtensionCharge[];
   total: number;
+  /** Manzil haydovchi tanlagan tumanlardami (false bo'lsa band 409 bo'ladi). */
+  zoneOk: boolean;
+  /** Mos bo'lmagan tomon va qatnov boradigan tumanlar. */
+  outOfZone: { side: 'origin' | 'destination'; zoneNames: string[] } | null;
+  /** O'rindiq bandi mashinani shahar ichida shuncha daqiqa ortiqcha aylantiradi. */
+  detourMinutes: number | null;
+  /** false — marshrut xizmati javob bermadi (band baribir o'tadi). */
+  detourChecked: boolean;
+  detourTooLong: boolean;
+  /** Sozlama: 0 — aylanma tekshiruvi o'chiq. */
+  maxDetourMinutes: number;
 }
 
 /** Band uchun yuklangan qatnov — yo'nalish, ikkala nuqta va haydovchi BOR. */
@@ -122,6 +135,8 @@ export class IntercityBookingsService {
     private readonly settings: SettingsService,
     private readonly notifier: IntercityNotifier,
     private readonly extensionPricer: IntercityExtensionPricer,
+    private readonly fit: IntercityFitService,
+    private readonly zones: IntercityZonesService,
   ) {}
 
   /**
@@ -134,6 +149,14 @@ export class IntercityBookingsService {
     if (!settings.intercityEnabled) throw this.disabled();
     const trip = await this.loadTripForBooking(tripId);
     const priced = await this.priceBooking(trip, dto, settings.intercityMaxSeatsPerBooking);
+    const fit = await this.fit.check({
+      trip: this.fitTrip(trip),
+      zones: await this.zones.zonesOfTrip(tripId),
+      pickup: dto.pickup,
+      dropoff: dto.dropoff,
+      seatBooking: dto.kind === IntercityBookingKind.SEAT,
+      maxDetourMinutes: settings.intercityMaxDetourMinutes,
+    });
     return {
       tripId,
       kind: dto.kind,
@@ -141,6 +164,12 @@ export class IntercityBookingsService {
       basePrice: priced.fare.baseFare,
       extensions: priced.fare.intercityExtensions ?? [],
       total: priced.fare.total,
+      zoneOk: fit.zoneOk,
+      outOfZone: fit.outOfZone,
+      detourMinutes: fit.detourMinutes,
+      detourChecked: fit.detourChecked,
+      detourTooLong: fit.detourTooLong,
+      maxDetourMinutes: settings.intercityMaxDetourMinutes,
     };
   }
 
@@ -156,6 +185,20 @@ export class IntercityBookingsService {
     const trip = await this.loadTripForBooking(tripId);
     const paymentMethod = dto.paymentMethod ?? PaymentMethod.CASH;
     const { seats, fare } = await this.priceBooking(trip, dto, settings.intercityMaxSeatsPerBooking);
+
+    // Tumanlar — tranzaksiyadan OLDIN (tarmoqsiz, qatnov tumanlari e'londan
+    // keyin o'zgarmaydi). Aylanma esa quyida, qatnov qatori qulfi ostida.
+    const zones = await this.zones.zonesOfTrip(tripId);
+    const zoneFit = await this.fit.check({
+      trip: this.fitTrip(trip),
+      zones,
+      pickup: dto.pickup,
+      dropoff: dto.dropoff,
+      seatBooking: false,
+      maxDetourMinutes: 0,
+    });
+    if (!zoneFit.zoneOk) throw this.outOfZone(zoneFit);
+    const measureDetour = dto.kind === IntercityBookingKind.SEAT && settings.intercityMaxDetourMinutes > 0;
 
     // Oddiy buyurtma bilan BIR XIL darvoza (`outstanding-wallet-debt.ts`).
     const debt = await outstandingWalletDebt(this.transactionRepository, passengerId);
@@ -176,6 +219,29 @@ export class IntercityBookingsService {
         `intercity-book:${tripId}:${passengerId}`,
       ]);
       await this.assertNoActiveBooking(manager, tripId, passengerId);
+
+      if (measureDetour) {
+        // ⚠️ Qatnov qatori QULFI ostida: ikki parallel band bir-birining
+        // manzilini ko'rmay, ikkalasi ham "aylanma yo'q" deb o'tib ketmasin.
+        // Qulfdan keyingi SELECT (READ COMMITTED) avvalgisining yozuvini ko'radi.
+        await lockTripForCompletion(manager, tripId);
+        const detour = await this.fit.check({
+          trip: this.fitTrip(trip),
+          zones,
+          pickup: dto.pickup,
+          dropoff: dto.dropoff,
+          seatBooking: true,
+          maxDetourMinutes: settings.intercityMaxDetourMinutes,
+          executor: manager,
+        });
+        if (detour.detourTooLong) {
+          throw codedConflict(
+            ERROR_CODES.intercityDetourTooLong,
+            `Bu qatnov sizning manzilingizga katta aylanma qiladi (+${detour.detourMinutes} daqiqa). Boshqa qatnovni tanlang`,
+            { details: { addedMinutes: detour.detourMinutes, limit: settings.intercityMaxDetourMinutes } },
+          );
+        }
+      }
 
       const claimed =
         dto.kind === IntercityBookingKind.WHOLE_CAR
@@ -386,6 +452,19 @@ export class IntercityBookingsService {
       );
       return row;
     });
+  }
+
+  private fitTrip(trip: BookableTrip): FitTrip {
+    return { id: trip.id, origin: trip.route.originPoint, destination: trip.route.destinationPoint };
+  }
+
+  private outOfZone(fit: BookingFit) {
+    const zoneNames = fit.outOfZone?.zoneNames ?? [];
+    return codedConflict(
+      ERROR_CODES.intercityOutOfZone,
+      `Bu qatnov sizning tumaningizga bormaydi (faqat: ${zoneNames.join(', ')}). Boshqa qatnovni tanlang`,
+      { details: { side: fit.outOfZone?.side ?? null, zones: zoneNames.join(', ') } },
+    );
   }
 
   private async loadTripForBooking(tripId: string): Promise<BookableTrip> {

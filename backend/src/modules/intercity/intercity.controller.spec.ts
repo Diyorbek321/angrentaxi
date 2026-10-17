@@ -25,7 +25,7 @@ describe('Intercity controllers', () => {
       create: jest.fn().mockResolvedValue('created'),
       update: jest.fn().mockResolvedValue('updated'),
     };
-    const controller = new IntercityManageController(routes as never, {} as never);
+    const controller = new IntercityManageController(routes as never, {} as never, {} as never);
     const dto = { originPointId: 'a', destinationPointId: 'b', seatPrice: 1, wholeCarPrice: 1 };
 
     await expect(controller.createRoute({ id: 'admin-1' } as never, dto)).resolves.toBe('created');
@@ -34,5 +34,20 @@ describe('Intercity controllers', () => {
     );
     expect(routes.create).toHaveBeenCalledWith('admin-1', dto);
     expect(routes.update).toHaveBeenCalledWith('admin-1', 'r1', { seatPrice: 2 });
+  });
+
+  it('tumanlar: nuqta ichida yaratish va alohida yangilash', async () => {
+    const zones = {
+      listForPoint: jest.fn().mockResolvedValue(['z']),
+      create: jest.fn().mockResolvedValue('created'),
+      update: jest.fn().mockResolvedValue('updated'),
+    };
+    const controller = new IntercityManageController({} as never, {} as never, zones as never);
+    const dto = { name: 'Yunusobod', centerLat: 41.365, centerLng: 69.288, radiusKm: 4 };
+    await expect(controller.listZones('p1')).resolves.toEqual(['z']);
+    await expect(controller.createZone('p1', dto)).resolves.toBe('created');
+    expect(zones.create).toHaveBeenCalledWith('p1', dto);
+    await expect(controller.updateZone('z1', { isActive: false })).resolves.toBe('updated');
+    expect(zones.update).toHaveBeenCalledWith('z1', { isActive: false });
   });
 });

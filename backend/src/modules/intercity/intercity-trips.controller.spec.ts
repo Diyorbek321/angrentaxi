@@ -39,7 +39,7 @@ describe('IntercityTripsController', () => {
     expect(reflector.get(PATH_METADATA, proto.listBookingsForManage)).toBe('trips/:id/bookings/manage');
 
     const bookings = { listForManage: jest.fn().mockResolvedValue(['b']) };
-    const controller = new IntercityTripsController({} as never, bookings as never);
+    const controller = new IntercityTripsController({} as never, bookings as never, {} as never);
     await expect(controller.listBookingsForManage('t1')).resolves.toEqual(['b']);
     expect(bookings.listForManage).toHaveBeenCalledWith('t1');
   });
@@ -51,7 +51,7 @@ describe('IntercityTripsController', () => {
     expect(reflector.get(METHOD_METADATA, proto.cancelBookingForManage)).toBe(1); // POST
 
     const bookings = { cancelForManage: jest.fn().mockResolvedValue('cancelled') };
-    const controller = new IntercityTripsController({} as never, bookings as never);
+    const controller = new IntercityTripsController({} as never, bookings as never, {} as never);
     await expect(controller.cancelBookingForManage('o1', { reason: 'Telefon orqali' })).resolves.toBe('cancelled');
     expect(bookings.cancelForManage).toHaveBeenCalledWith('o1', 'Telefon orqali');
   });
@@ -73,7 +73,7 @@ describe('IntercityTripsController', () => {
       cancelByDriver: jest.fn().mockResolvedValue('cancelled'),
       search: jest.fn().mockResolvedValue('found'),
     };
-    const controller = new IntercityTripsController(trips as never, {} as never);
+    const controller = new IntercityTripsController(trips as never, {} as never, {} as never);
     const user = { id: 'user-1' } as never;
     const dto = { routeId: 'r1', departureAt: '2026-10-18T02:00:00.000Z', tripClass: IntercityTripClass.START };
 
@@ -84,6 +84,26 @@ describe('IntercityTripsController', () => {
     await controller.cancel(user, 't1', { reason: 'Buzildi' });
     expect(trips.cancelByDriver).toHaveBeenCalledWith('user-1', 't1', 'Buzildi');
     await controller.search({ routeId: 'r1', date: '2026-10-18' });
-    expect(trips.search).toHaveBeenCalledWith('r1', '2026-10-18');
+    expect(trips.search).toHaveBeenCalledWith('r1', '2026-10-18', expect.any(Date), {
+      pickup: undefined,
+      dropoff: undefined,
+    });
+    await controller.search({ routeId: 'r1', date: '2026-10-18', dropoffLat: 41.36, dropoffLng: 69.29 });
+    expect(trips.search).toHaveBeenLastCalledWith('r1', '2026-10-18', expect.any(Date), {
+      pickup: undefined,
+      dropoff: { lat: 41.36, lng: 69.29 },
+    });
+  });
+
+  it("bekatlar rejasi — faqat haydovchi, GET trips/:id/route-plan, joy ixtiyoriy", async () => {
+    expect(reflector.get(ROLES_KEY, proto.getRoutePlan)).toEqual([UserRole.DRIVER]);
+    expect(reflector.get(PATH_METADATA, proto.getRoutePlan)).toBe('trips/:id/route-plan');
+    const routePlan = { planForDriver: jest.fn().mockResolvedValue('plan') };
+    const controller = new IntercityTripsController({} as never, {} as never, routePlan as never);
+    const user = { id: 'user-1' } as never;
+    await expect(controller.getRoutePlan(user, 't1', {})).resolves.toBe('plan');
+    expect(routePlan.planForDriver).toHaveBeenCalledWith('user-1', 't1', undefined);
+    await controller.getRoutePlan(user, 't1', { fromLat: 41.3, fromLng: 69.3 });
+    expect(routePlan.planForDriver).toHaveBeenLastCalledWith('user-1', 't1', { lat: 41.3, lng: 69.3 });
   });
 });

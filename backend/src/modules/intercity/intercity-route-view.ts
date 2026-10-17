@@ -14,7 +14,23 @@ export interface IntercityPointView {
    * taklif qiladi; aniq narx `POST /intercity/trips/:id/quote` dan.
    */
   extension: { maxKm: number; pricePerKm: number; comfortPricePerKm: number } | null;
+  /**
+   * Davom hududidagi faol tumanlar (migratsiya 039). Haydovchi e'londa
+   * tanlaydi; yo'lovchi ilovasi manzilni qaysi tumanga tushishini ko'rsatadi.
+   * Davom o'chiq bo'lsa — bo'sh.
+   */
+  zones: IntercityZoneView[];
 }
+
+export interface IntercityZoneView {
+  id: string;
+  name: string;
+  centerLat: number;
+  centerLng: number;
+  radiusKm: number;
+}
+
+type ZoneLike = IntercityZoneView & { pointId: string };
 
 /**
  * `GET /intercity/routes` elementi.
@@ -33,14 +49,20 @@ export interface IntercityRouteView {
   seatsDefault: number;
 }
 
-export function toIntercityPointView(point: IntercityPoint): IntercityPointView {
+export function toIntercityPointView(point: IntercityPoint, zones: readonly ZoneLike[] = []): IntercityPointView {
+  const extension = pointExtensionView(point);
   return {
     id: point.id,
     name: point.name,
     centerLat: point.centerLat,
     centerLng: point.centerLng,
     radiusKm: point.radiusKm,
-    extension: pointExtensionView(point),
+    extension,
+    zones: extension
+      ? zones
+          .filter((zone) => zone.pointId === point.id)
+          .map(({ id, name, centerLat, centerLng, radiusKm }) => ({ id, name, centerLat, centerLng, radiusKm }))
+      : [],
   };
 }
 
@@ -54,6 +76,7 @@ function pointExtensionView(point: IntercityPoint): IntercityPointView['extensio
 /** `originPoint`/`destinationPoint` yuklangan bo'lishi shart. */
 export function toIntercityRouteView(
   route: IntercityRoute & { originPoint: IntercityPoint; destinationPoint: IntercityPoint },
+  zones: readonly ZoneLike[] = [],
 ): IntercityRouteView {
   const comfort =
     route.comfortSeatPrice !== null && route.comfortWholeCarPrice !== null
@@ -61,8 +84,8 @@ export function toIntercityRouteView(
       : null;
   return {
     id: route.id,
-    origin: toIntercityPointView(route.originPoint),
-    destination: toIntercityPointView(route.destinationPoint),
+    origin: toIntercityPointView(route.originPoint, zones),
+    destination: toIntercityPointView(route.destinationPoint, zones),
     seatPrice: route.seatPrice,
     wholeCarPrice: route.wholeCarPrice,
     comfort,

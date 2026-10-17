@@ -45,6 +45,12 @@ const NUMERIC_FIELDS: readonly { key: NumericKey; label: string; hint: string; m
     hint: 'Shundan uzoq kelajakka qatnov eʼlon qilinmaydi.',
     max: 30,
   },
+  {
+    key: 'intercityMaxDetourMinutes',
+    label: 'Shahar ichida eng koʻp aylanma, daqiqa',
+    hint: 'Yangi yoʻlovchi mashinani shundan koʻp aylantirsa, band qilinmaydi. 0 — tekshiruv oʻchiq.',
+    max: 120,
+  },
 ];
 
 /**

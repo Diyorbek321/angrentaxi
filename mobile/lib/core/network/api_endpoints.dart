@@ -223,6 +223,8 @@ class ApiEndpoints {
   static String intercityTripStartBoarding(String id) =>
       '/intercity/trips/$id/start-boarding';
   static String intercityTripDepart(String id) => '/intercity/trips/$id/depart';
+  static String intercityTripRoutePlan(String id) =>
+      '/intercity/trips/$id/route-plan';
   static String intercityBookingNoShow(String orderId) =>
       '/intercity/bookings/$orderId/no-show';
   static String intercityBookingCancel(String orderId) =>

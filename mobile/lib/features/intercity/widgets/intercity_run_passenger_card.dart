@@ -21,6 +21,9 @@ class IntercityRunPassengerCard extends StatelessWidget {
     required this.onNoShow,
     required this.onDropOff,
     required this.onCall,
+    this.sequence,
+    this.etaMinutes,
+    this.onNavigate,
   });
 
   final IntercityDriverBooking booking;
@@ -30,6 +33,15 @@ class IntercityRunPassengerCard extends StatelessWidget {
   final VoidCallback onNoShow;
   final VoidCallback onDropOff;
   final ValueChanged<String> onCall;
+
+  /// Bekatlar rejasidagi tartib raqami (1, 2, 3…); rejasiz — null.
+  final int? sequence;
+
+  /// Oldingi bekatdan taxminiy daqiqa.
+  final int? etaMinutes;
+
+  /// Faqat KEYINGI bekatda — tashqi navigatorni ochadi.
+  final VoidCallback? onNavigate;
 
   bool get _boarding => tripStatus == IntercityTripStatus.boarding;
   bool get _onTheRoad => tripStatus == IntercityTripStatus.inProgress;
@@ -57,6 +69,10 @@ class IntercityRunPassengerCard extends StatelessWidget {
             children: [
               Row(
                 children: [
+                  if (sequence != null && b.isLive) ...[
+                    _SequenceDot(sequence: sequence!),
+                    const SizedBox(width: kSpace2),
+                  ],
                   Expanded(
                     child: Text(
                       b.passengerName,
@@ -101,6 +117,12 @@ class IntercityRunPassengerCard extends StatelessWidget {
                     style:
                         const TextStyle(fontSize: kFontLabel, color: kInkMuted),
                   ),
+                  if (etaMinutes != null && b.isLive)
+                    Text(
+                      l10n.icRunEtaFromPrev(etaMinutes!),
+                      key: ValueKey('ic_run_eta_$id'),
+                      style: const TextStyle(fontSize: kFontLabel, fontWeight: FontWeight.w700, color: kInk),
+                    ),
                 ],
               ),
               if (address != null) ...[
@@ -123,6 +145,18 @@ class IntercityRunPassengerCard extends StatelessWidget {
                     fontSize: kFontLabel,
                     fontWeight: FontWeight.w600,
                     color: kInkMuted,
+                  ),
+                ),
+              ],
+              if (onNavigate != null) ...[
+                const SizedBox(height: kSpace2),
+                SizedBox(
+                  height: kControlHeightDriver,
+                  child: OutlinedButton.icon(
+                    key: ValueKey('ic_run_navigate_$id'),
+                    onPressed: onNavigate,
+                    icon: const Icon(Icons.navigation_rounded),
+                    label: Text(l10n.icRunNavigate),
                   ),
                 ),
               ],
@@ -213,3 +247,25 @@ class IntercityRunPassengerCard extends StatelessWidget {
         _ => AppStatusTone.neutral,
       };
 }
+
+/// Bekat tartib raqami — haydovchi "kim keyingi" ni bir qarashda ko'rsin.
+class _SequenceDot extends StatelessWidget {
+  const _SequenceDot({required this.sequence});
+
+  final int sequence;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 28,
+      height: 28,
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(color: kInk, shape: BoxShape.circle),
+      child: Text(
+        '$sequence',
+        style: const TextStyle(fontSize: kFontLabel, fontWeight: FontWeight.w800, color: kOnPrimary),
+      ),
+    );
+  }
+}
+

@@ -123,6 +123,50 @@ List<IntercityDriverBooking> orderBookingsNearestFirst(
   return List.unmodifiable([...live, ...finished]);
 }
 
+/// Bekatlar rejasi bo'yicha tartib (`GET /intercity/trips/:id/route-plan`):
+/// rejadagi tirik bandlar tartib raqami bo'yicha, rejaga hali tushmagan
+/// tirik band (masalan, reja yuklangandan keyin kelgan) — eng yaqindan,
+/// tugaganlar oxirida. Reja yo'q/bo'sh — [orderBookingsNearestFirst].
+List<IntercityDriverBooking> orderBookingsByPlan(
+  List<IntercityDriverBooking> bookings,
+  IntercityRoutePlan? plan, {
+  double? fromLat,
+  double? fromLng,
+}) {
+  if (plan == null || plan.stops.isEmpty) {
+    return orderBookingsNearestFirst(bookings, fromLat: fromLat, fromLng: fromLng);
+  }
+  final rank = {for (final stop in plan.stops) stop.orderId: stop.sequence};
+  final live = bookings.where((b) => b.isLive).toList();
+  final planned = live.where((b) => rank.containsKey(b.orderId)).toList()
+    ..sort((a, b) => rank[a.orderId]!.compareTo(rank[b.orderId]!));
+  final unplanned = orderBookingsNearestFirst(
+    live.where((b) => !rank.containsKey(b.orderId)).toList(),
+    fromLat: fromLat,
+    fromLng: fromLng,
+  );
+  final finished = bookings.where((b) => !b.isLive);
+  return List.unmodifiable([...planned, ...unplanned, ...finished]);
+}
+
+/// Haydovchining KEYINGI bekati — "Navigatsiya" faqat shunda ko'rsatiladi.
+/// Olish bosqichida yetib kelingan (`arrived`) yo'lovchi allaqachon mashinada.
+IntercityRouteStop? nextPlannedStop(
+  IntercityRoutePlan? plan,
+  List<IntercityDriverBooking> bookings, {
+  required bool onTheRoad,
+}) {
+  if (plan == null) return null;
+  final pending = {
+    for (final b in bookings)
+      if (onTheRoad ? b.status == 'in_progress' : (b.status == 'accepted' || b.status == 'scheduled')) b.orderId,
+  };
+  for (final stop in plan.stops) {
+    if (pending.contains(stop.orderId)) return stop;
+  }
+  return null;
+}
+
 /// "Yo'lga chiqish": server `departBlocker` bilan bir xil — qatnov
 /// `boarding`, kamida bitta tirik band va har bir tirik yo'lovchi olingan.
 bool canDepart(String tripStatus, List<IntercityDriverBooking> bookings) {

@@ -255,7 +255,7 @@ describe('IntercityRoutesService', () => {
       const [view] = await service.listPublic();
       expect(view).toEqual({
         id: expect.any(String),
-        origin: { id: 'angren', name: 'Angren', centerLat: 40, centerLng: 70, radiusKm: 10, extension: null },
+        origin: { id: 'angren', name: 'Angren', centerLat: 40, centerLng: 70, radiusKm: 10, extension: null, zones: [] },
         destination: {
           id: 'rohat',
           name: 'Rohat krugi (Toshkent)',
@@ -263,6 +263,7 @@ describe('IntercityRoutesService', () => {
           centerLng: 70,
           radiusKm: 10,
           extension: null,
+          zones: [],
         },
         seatPrice: 25000,
         wholeCarPrice: 100000,

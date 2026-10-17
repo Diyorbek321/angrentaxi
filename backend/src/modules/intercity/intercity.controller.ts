@@ -17,6 +17,10 @@ import { CreateIntercityPointDto } from './dto/create-intercity-point.dto';
 import { UpdateIntercityPointDto } from './dto/update-intercity-point.dto';
 import { CreateIntercityRouteDto } from './dto/create-intercity-route.dto';
 import { UpdateIntercityRouteDto } from './dto/update-intercity-route.dto';
+import { CreateIntercityZoneDto } from './dto/create-intercity-zone.dto';
+import { UpdateIntercityZoneDto } from './dto/update-intercity-zone.dto';
+import { IntercityZonesService } from './intercity-zones.service';
+import { IntercityZone } from '../../database/entities/intercity-zone.entity';
 
 /** Ommaviy: yo'lovchi va haydovchi ilovasi uchun yo'nalishlar va narxlar. */
 @ApiTags('Intercity')
@@ -48,6 +52,7 @@ export class IntercityManageController {
   constructor(
     private readonly routes: IntercityRoutesService,
     private readonly points: IntercityPointsService,
+    private readonly zones: IntercityZonesService,
   ) {}
 
   @Get('points/manage')
@@ -70,6 +75,28 @@ export class IntercityManageController {
     @Body() dto: UpdateIntercityPointDto,
   ): Promise<IntercityPoint> {
     return this.points.update(id, dto);
+  }
+
+  @Get('points/manage/:id/zones')
+  @ApiParam({ name: 'id', description: 'Nuqta UUID' })
+  @ApiOperation({ summary: 'Nuqta tumanlari, nofaollari bilan' })
+  listZones(@Param('id', ParseUUIDPipe) id: string): Promise<IntercityZone[]> {
+    return this.zones.listForPoint(id);
+  }
+
+  @Post('points/manage/:id/zones')
+  @ApiParam({ name: 'id', description: 'Nuqta UUID' })
+  @ApiOperation({ summary: "Nuqtaga tuman qo'shish (Yunusobod, Chilonzor...)" })
+  @ApiResponse({ status: 409, description: 'Shu nomli tuman allaqachon bor' })
+  createZone(@Param('id', ParseUUIDPipe) id: string, @Body() dto: CreateIntercityZoneDto): Promise<IntercityZone> {
+    return this.zones.create(id, dto);
+  }
+
+  @Patch('zones/manage/:id')
+  @ApiParam({ name: 'id', description: 'Tuman UUID' })
+  @ApiOperation({ summary: 'Tumanni yangilash / faolsizlantirish' })
+  updateZone(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateIntercityZoneDto): Promise<IntercityZone> {
+    return this.zones.update(id, dto);
   }
 
   @Get('routes/manage')

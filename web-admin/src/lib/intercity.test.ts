@@ -8,6 +8,10 @@ import {
   validateIntercitySettings,
   validatePointForm,
   validateRouteForm,
+  validateZoneForm,
+  presetZonesToCreate,
+  hasExtension,
+  TASHKENT_ZONE_PRESET,
   type IntercityRouteForm,
 } from './intercity';
 
@@ -107,6 +111,7 @@ describe('validateIntercitySettings', () => {
     intercityMaxSeatsPerBooking: 4,
     intercityMinLeadMinutes: 30,
     intercityMaxAheadDays: 7,
+    intercityMaxDetourMinutes: 15,
   };
 
   it('standart qiymatlar to‘g‘ri', () => {
@@ -121,6 +126,8 @@ describe('validateIntercitySettings', () => {
     expect(validateIntercitySettings({ ...SETTINGS, intercityMaxAheadDays: 0 }).intercityMaxAheadDays).toBeDefined();
     expect(validateIntercitySettings({ ...SETTINGS, intercityMaxAheadDays: 31 }).intercityMaxAheadDays).toBeDefined();
     expect(validateIntercitySettings({ ...SETTINGS, intercityMinLeadMinutes: 1.5 }).intercityMinLeadMinutes).toBeDefined();
+    expect(validateIntercitySettings({ ...SETTINGS, intercityMaxDetourMinutes: 0 })).toEqual({});
+    expect(validateIntercitySettings({ ...SETTINGS, intercityMaxDetourMinutes: 121 }).intercityMaxDetourMinutes).toBeDefined();
   });
 });
 
@@ -198,3 +205,33 @@ describe('formatPointExtension', () => {
   });
 });
 
+
+describe('tumanlar', () => {
+  it('validateZoneForm — nom, koordinata, radius 0.3–30 km', () => {
+    expect(validateZoneForm({ name: 'Yunusobod', centerLat: 41.365, centerLng: 69.288, radiusKm: 4 })).toEqual({});
+    const bad = validateZoneForm({ name: ' ', centerLat: 95, centerLng: Number.NaN, radiusKm: 31 });
+    expect(Object.keys(bad).sort()).toEqual(['centerLat', 'centerLng', 'name', 'radiusKm']);
+    expect(validateZoneForm({ name: 'X', centerLat: 41, centerLng: 69, radiusKm: 0.2 }).radiusKm).toBeDefined();
+  });
+
+  it("Toshkent tayyor ro'yxati — 12 tuman, radius 4 km", () => {
+    expect(TASHKENT_ZONE_PRESET).toHaveLength(12);
+    expect(TASHKENT_ZONE_PRESET.every((zone) => zone.radiusKm === 4)).toBe(true);
+    expect(TASHKENT_ZONE_PRESET.map((zone) => zone.name)).toContain('Yunusobod');
+    for (const zone of TASHKENT_ZONE_PRESET) expect(validateZoneForm(zone)).toEqual({});
+  });
+
+  it("tayyor ro'yxat: mavjud nomlar (katta-kichik harfsiz) qayta yaratilmaydi, tartib raqami ro'yxatdagi o'rni", () => {
+    const toCreate = presetZonesToCreate([{ name: 'yunusobod' }, { name: 'Chilonzor' }]);
+    expect(toCreate).toHaveLength(10);
+    expect(toCreate.map((zone) => zone.name)).not.toContain('Yunusobod');
+    expect(toCreate[0].sortOrder).toBe(0);
+    expect(toCreate[9]).toMatchObject({ name: 'Yangihayot', sortOrder: 11 });
+  });
+
+  it("hasExtension — tumanlar faqat davom yoqilgan nuqtada", () => {
+    expect(hasExtension({ extensionMaxKm: 30, extensionPricePerKm: 2000 })).toBe(true);
+    expect(hasExtension({ extensionMaxKm: 0, extensionPricePerKm: 2000 })).toBe(false);
+    expect(hasExtension({ extensionMaxKm: 30, extensionPricePerKm: 0 })).toBe(false);
+  });
+});

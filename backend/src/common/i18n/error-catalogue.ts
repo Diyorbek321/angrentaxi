@@ -412,4 +412,19 @@ export const ERROR_CATALOGUE: readonly ErrorCatalogueEntry[] = [
   { source: "«Kelmadi» faqat yo'lovchilarni yig'ish paytida belgilanadi", ru: '«Не пришёл» можно отметить только во время сбора пассажиров' },
   { source: "Band holati o'zgargan", ru: 'Статус брони изменился' },
   { source: "Shaharlararo qatnovda yo'lovchilar «Jo'nash» tugmasi bilan birga yo'lga chiqadi", ru: 'В междугороднем рейсе пассажиры отправляются вместе по кнопке «Отправиться»' },
+  // ─── Shaharlararo: tumanlar va aylanma (039) ─────────────────────────
+  { source: "Bu nuqtada shahar ichiga davom yo'q — tuman tanlab bo'lmaydi", ru: 'В этом пункте нет продолжения по городу — районы выбрать нельзя' },
+  { source: 'Tanlangan tuman bu nuqtaga tegishli emas yoki faol emas', ru: 'Выбранный район не относится к этому пункту или неактивен' },
+  { source: "Tuman nomi bo'sh bo'lishi mumkin emas", ru: 'Название района не может быть пустым' },
+  { source: "Tuman radiusi {0}–{1} km bo'lishi kerak", ru: 'Радиус района должен быть {0}–{1} км' },
+  { source: 'Bu nuqtada shu nomli tuman allaqachon bor', ru: 'В этом пункте уже есть район с таким названием' },
+  { source: 'Tuman topilmadi', ru: 'Район не найден' },
+  {
+    source: 'Bu qatnov sizning tumaningizga bormaydi (faqat: {0}). Boshqa qatnovni tanlang',
+    ru: 'Этот рейс не едет в ваш район (только: {0}). Выберите другой рейс',
+  },
+  {
+    source: 'Bu qatnov sizning manzilingizga katta aylanma qiladi (+{0} daqiqa). Boshqa qatnovni tanlang',
+    ru: 'Этому рейсу придётся сильно отклониться к вашему адресу (+{0} мин). Выберите другой рейс',
+  },
 ];

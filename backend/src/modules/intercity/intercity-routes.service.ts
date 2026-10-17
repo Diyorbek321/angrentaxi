@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { QueryFailedError, Repository } from 'typeorm';
 import { ERROR_CODES, codedNotFound } from '../../common/errors/coded-error';
@@ -11,6 +6,7 @@ import { IntercityPoint } from '../../database/entities/intercity-point.entity';
 import { IntercityRoute } from '../../database/entities/intercity-route.entity';
 import { AUDIT_ACTIONS, AuditLogService } from '../audit/audit-log.service';
 import { SettingsService } from '../settings/settings.service';
+import { IntercityZonesService } from './intercity-zones.service';
 import { CreateIntercityRouteDto } from './dto/create-intercity-route.dto';
 import { UpdateIntercityRouteDto } from './dto/update-intercity-route.dto';
 import { IntercityRoutePrices, assertIntercityRoutePrices } from './intercity-route-policy';
@@ -49,6 +45,8 @@ export class IntercityRoutesService {
     private readonly points: IntercityPointsService,
     private readonly settings: SettingsService,
     private readonly audit: AuditLogService,
+    // Ixtiyoriy: tumanlar ommaviy ro'yxatga qo'shiladi (migratsiya 039).
+    @Optional() private readonly zones?: IntercityZonesService,
   ) {}
 
   /**
@@ -66,11 +64,12 @@ export class IntercityRoutesService {
       relations: { originPoint: true, destinationPoint: true },
       order: { sortOrder: 'ASC', createdAt: 'ASC' },
     });
-    return routes
-      .filter((route): route is RouteWithPoints =>
-        Boolean(route.originPoint?.isActive && route.destinationPoint?.isActive),
-      )
-      .map(toIntercityRouteView);
+    const open = routes.filter((route): route is RouteWithPoints =>
+      Boolean(route.originPoint?.isActive && route.destinationPoint?.isActive),
+    );
+    const pointIds = [...new Set(open.flatMap((route) => [route.originPointId, route.destinationPointId]))];
+    const zones = this.zones ? await this.zones.listActiveForPoints(pointIds) : [];
+    return open.map((route) => toIntercityRouteView(route, zones));
   }
 
   /** Admin paneli uchun — nofaollari va nuqtalari bilan. */

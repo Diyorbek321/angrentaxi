@@ -43,6 +43,19 @@ export interface IntercityTripView {
     phone?: string | null;
   } | null;
   cancelReason: string | null;
+  /** Haydovchi tanlagan tumanlar (backend 039); bo'sh — butun davom hududi. */
+  zones?: {
+    origin: Array<{ id: string; name: string }>;
+    destination: Array<{ id: string; name: string }>;
+  };
+}
+
+/**
+ * Bir tomon tumanlari — modalda ko'rsatish uchun. Bo'sh ro'yxat "hamma
+ * tumanlar" degani (haydovchi cheklamagan), "tuman yo'q" emas.
+ */
+export function zonesLabel(zones: ReadonlyArray<{ name: string }> | undefined): string {
+  return zones && zones.length > 0 ? zones.map((zone) => zone.name).join(', ') : 'Hamma tumanlar';
 }
 
 export interface IntercityTripPage {

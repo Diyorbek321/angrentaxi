@@ -7,6 +7,7 @@ import 'package:angren_taxi/features/intercity/screens/intercity_bookings_screen
 import 'package:angren_taxi/features/intercity/widgets/intercity_trip_card.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
+import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
 import 'package:flutter/material.dart';
 
@@ -22,10 +23,14 @@ class IntercitySearchScreen extends StatefulWidget {
     this.settings = IntercityPublicSettings.disabled,
     this.repository,
     this.now,
+    this.pickLocation,
   });
 
   final IntercityPublicSettings settings;
   final IntercityRepository? repository;
+
+  /// Manzil tanlash — testlarda xarita o'rniga soxtasi.
+  final IntercityLocationPicker? pickLocation;
 
   /// Testlar uchun soat.
   final DateTime Function()? now;
@@ -44,6 +49,10 @@ class _IntercitySearchScreenState extends State<IntercitySearchScreen> {
   String? _destinationId;
   int _dayIndex = 0;
   late final List<String> _days = upcomingTashkentDays(_now());
+
+  /// Ixtiyoriy yo'lovchi manzili (davom yoqilgan tomonda) — qatnovlar
+  /// "sizning tomonga / boshqa tumanga / aylanma" deb belgilanadi.
+  OrderLocation? _myAddress;
 
   List<IntercityTrip>? _trips;
   Object? _tripsError;
@@ -103,6 +112,19 @@ class _IntercitySearchScreenState extends State<IntercitySearchScreen> {
     ];
   }
 
+  /// Qaysi tomonda manzil so'raladi: avval tushirish (Angren → Toshkent),
+  /// u yerda davom bo'lmasa — olish (Toshkent → Angren).
+  bool? get _addressIsDropoff {
+    final route = _route;
+    if (route == null) return null;
+    if (route.destination.extension != null) return true;
+    if (route.origin.extension != null) return false;
+    return null;
+  }
+
+  IntercityPlace? _placeOf(OrderLocation? location) =>
+      location == null ? null : IntercityPlace(lat: location.lat, lng: location.lng, address: location.address);
+
   bool get _canSwap =>
       (_routes ?? const <IntercityRoute>[]).any(
         (r) => r.origin.id == _destinationId && r.destination.id == _originId,
@@ -120,8 +142,14 @@ class _IntercitySearchScreenState extends State<IntercitySearchScreen> {
       _tripsError = null;
     });
     try {
-      final trips =
-          await _repo.searchTrips(routeId: route.id, date: _days[_dayIndex]);
+      final dropoffSide = _addressIsDropoff;
+      final place = _placeOf(_myAddress);
+      final trips = await _repo.searchTrips(
+        routeId: route.id,
+        date: _days[_dayIndex],
+        pickup: dropoffSide == false ? place : null,
+        dropoff: dropoffSide == true ? place : null,
+      );
       // Tez almashtirishda eski javob yangisining ustiga yozilmasin.
       if (!mounted || request != _tripsRequest) return;
       setState(() => _trips = trips);
@@ -136,6 +164,7 @@ class _IntercitySearchScreenState extends State<IntercitySearchScreen> {
 
   void _selectOrigin(String id) {
     setState(() {
+      _myAddress = null;
       _originId = id;
       final dests = _destinations;
       if (!dests.any((p) => p.id == _destinationId)) {
@@ -146,16 +175,42 @@ class _IntercitySearchScreenState extends State<IntercitySearchScreen> {
   }
 
   void _selectDestination(String id) {
-    setState(() => _destinationId = id);
+    setState(() {
+      _destinationId = id;
+      _myAddress = null;
+    });
     _loadTrips();
   }
 
   void _swap() {
     setState(() {
+      // Manzil nuqtaga nisbatan — tomonlar almashsa ma'nosini yo'qotadi.
+      _myAddress = null;
       final o = _originId;
       _originId = _destinationId;
       _destinationId = o;
     });
+    _loadTrips();
+  }
+
+  Future<void> _chooseAddress() async {
+    final route = _route;
+    final dropoffSide = _addressIsDropoff;
+    if (route == null || dropoffSide == null) return;
+    final l10n = context.l10n;
+    final picker = widget.pickLocation ?? intercityMapPicker;
+    final result = await picker(
+      context,
+      title: dropoffSide ? l10n.icAddressFilterDropoff : l10n.icAddressFilterPickup,
+      area: dropoffSide ? route.destination : route.origin,
+    );
+    if (result == null || !mounted) return;
+    setState(() => _myAddress = result);
+    await _loadTrips();
+  }
+
+  void _clearAddress() {
+    setState(() => _myAddress = null);
     _loadTrips();
   }
 
@@ -174,6 +229,10 @@ class _IntercitySearchScreenState extends State<IntercitySearchScreen> {
           route: route,
           settings: widget.settings,
           repository: _repo,
+          pickLocation: widget.pickLocation,
+          // Qidiruvda tanlangan manzil band oynasida takror so'ralmaydi.
+          initialPickup: _addressIsDropoff == false ? _myAddress : null,
+          initialDropoff: _addressIsDropoff == true ? _myAddress : null,
         ),
       ),
     );
@@ -282,6 +341,17 @@ class _IntercitySearchScreenState extends State<IntercitySearchScreen> {
               ),
             ),
           ),
+          if (_addressIsDropoff != null) ...[
+            const SizedBox(height: kSpace3),
+            _AddressFilter(
+              label: _addressIsDropoff! ? l10n.icAddressFilterDropoff : l10n.icAddressFilterPickup,
+              address: _myAddress?.address,
+              hint: l10n.icAddressFilterHint,
+              clearLabel: l10n.icAddressFilterClear,
+              onTap: _chooseAddress,
+              onClear: _myAddress == null ? null : _clearAddress,
+            ),
+          ],
           const SizedBox(height: kSpace4),
           ..._tripsSection(context),
         ],
@@ -374,3 +444,75 @@ class _PointPicker extends StatelessWidget {
     );
   }
 }
+
+/// "Tushish manzilim (ixtiyoriy)" — tanlansa qatnovlar moslik bo'yicha belgilanadi.
+class _AddressFilter extends StatelessWidget {
+  const _AddressFilter({
+    required this.label,
+    required this.address,
+    required this.hint,
+    required this.clearLabel,
+    required this.onTap,
+    this.onClear,
+  });
+
+  final String label;
+  final String? address;
+  final String hint;
+  final String clearLabel;
+  final VoidCallback onTap;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      key: const ValueKey('intercity_address_filter'),
+      color: agSurface,
+      borderRadius: BorderRadius.circular(agRadiusMd),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(agRadiusMd),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(kSpace4, kSpace3, kSpace2, kSpace3),
+          child: Row(
+            children: [
+              const Icon(Icons.place_rounded, color: agGreenText),
+              const SizedBox(width: kSpace3),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(fontSize: kFontCaption, fontWeight: FontWeight.w700, color: agSubtle),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      address ?? hint,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: address == null ? kFontLabel : kFontBody,
+                        fontWeight: address == null ? FontWeight.w400 : FontWeight.w700,
+                        color: address == null ? agSubtle : agText,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (onClear != null)
+                IconButton(
+                  tooltip: clearLabel,
+                  onPressed: onClear,
+                  icon: const Icon(Icons.close_rounded, color: agMuted),
+                )
+              else
+                const Icon(Icons.chevron_right_rounded, color: agMuted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+

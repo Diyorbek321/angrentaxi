@@ -10,6 +10,7 @@ import {
   applyTripUpdate,
   bookingKindLabel,
   canDispatcherCancel,
+  zonesLabel,
   isWholeCarBooked,
   seatsTaken,
   serviceTypeLabel,
@@ -136,5 +137,15 @@ describe('applyTripUpdate', () => {
 
   it("ro'yxatda yo'q qatnov — null (to'liq qayta yuklash)", () => {
     expect(applyTripUpdate(page, { ...payload, tripId: 'boshqa' })).toBeNull();
+  });
+});
+
+describe('zonesLabel', () => {
+  it("tanlanmagan — hamma tumanlar (cheklov yo'q)", () => {
+    expect(zonesLabel(undefined)).toBe('Hamma tumanlar');
+    expect(zonesLabel([])).toBe('Hamma tumanlar');
+  });
+  it('tanlanganlar vergul bilan', () => {
+    expect(zonesLabel([{ name: 'Yunusobod' }, { name: "Mirzo Ulug'bek" }])).toBe("Yunusobod, Mirzo Ulug'bek");
   });
 });

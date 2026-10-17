@@ -21,6 +21,8 @@ import {
   IntercityTripsService,
 } from './intercity-trips.service';
 import { IntercityTripView } from './intercity-trip-view';
+import { RoutePlanQueryDto } from './dto/route-plan-query.dto';
+import { IntercityRoutePlanService, IntercityRoutePlanView } from './intercity-route-plan.service';
 
 /**
  * Shaharlararo qatnovlar. Funksiya o'chiq bo'lsa hamma yo'l 404
@@ -42,6 +44,7 @@ export class IntercityTripsController {
   constructor(
     private readonly trips: IntercityTripsService,
     private readonly bookings: IntercityBookingsService,
+    private readonly routePlan: IntercityRoutePlanService,
   ) {}
 
   @Post('trips')
@@ -95,9 +98,35 @@ export class IntercityTripsController {
   }
 
   @Get('trips')
-  @ApiOperation({ summary: "Yo'nalish va Toshkent kuni bo'yicha ochiq qatnovlar" })
+  @ApiOperation({
+    summary: "Yo'nalish va Toshkent kuni bo'yicha ochiq qatnovlar",
+    description: "Ixtiyoriy pickupLat/Lng, dropoffLat/Lng — har qatnovga `fit` (sizning tomonga / boshqa tumanga / aylanma)",
+  })
   search(@Query() query: SearchIntercityTripsDto): Promise<IntercityTripView[]> {
-    return this.trips.search(query.routeId, query.date);
+    const pickup =
+      query.pickupLat !== undefined && query.pickupLng !== undefined
+        ? { lat: query.pickupLat, lng: query.pickupLng }
+        : undefined;
+    const dropoff =
+      query.dropoffLat !== undefined && query.dropoffLng !== undefined
+        ? { lat: query.dropoffLat, lng: query.dropoffLng }
+        : undefined;
+    return this.trips.search(query.routeId, query.date, new Date(), { pickup, dropoff });
+  }
+
+  /** Haydovchi: bekatlar tartibi (kimni birinchi olish/tushirish) — eng qisqa yo'l bo'yicha. */
+  @Get('trips/:id/route-plan')
+  @Roles(UserRole.DRIVER)
+  @ApiParam({ name: 'id', description: 'Qatnov UUID' })
+  @ApiOperation({ summary: "Haydovchi: shahar ichidagi bekatlar tartibi va oraliq vaqtlar" })
+  getRoutePlan(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: RoutePlanQueryDto,
+  ): Promise<IntercityRoutePlanView> {
+    const from =
+      query.fromLat !== undefined && query.fromLng !== undefined ? { lat: query.fromLat, lng: query.fromLng } : undefined;
+    return this.routePlan.planForDriver(user.id, id, from);
   }
 
   @Get('trips/:id')

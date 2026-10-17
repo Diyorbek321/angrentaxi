@@ -38,7 +38,16 @@ const dto = (overrides: Record<string, unknown> = {}) => ({
 /** TypeORM UPDATE ... RETURNING shakli. */
 const updated = (rows: unknown[]) => [rows, rows.length];
 
-function build(options: { enabled?: boolean; debt?: number; trip?: Record<string, unknown> } = {}) {
+function build(
+  options: {
+    enabled?: boolean;
+    debt?: number;
+    trip?: Record<string, unknown>;
+    maxDetour?: number;
+    fit?: Record<string, unknown>;
+    detourFit?: Record<string, unknown>;
+  } = {},
+) {
   const tripRepository = { findOne: jest.fn(async () => tripRow(options.trip)) };
   const bookingOrder = {
     id: 'order-1',
@@ -87,6 +96,7 @@ function build(options: { enabled?: boolean; debt?: number; trip?: Record<string
   const manager = {
     query: jest.fn(async (sql: string) => {
       if (sql.includes('pg_advisory_xact_lock')) return answers.advisory;
+      if (sql.includes('FOR UPDATE')) return [];
       if (sql.includes('SELECT "id" FROM "orders"')) return answers.existing;
       if (sql.includes('"whole_car_booked" = true')) return answers.claimWholeCar;
       if (sql.includes('"seats_taken" = "seats_taken" +')) return answers.claimSeats;
@@ -105,6 +115,7 @@ function build(options: { enabled?: boolean; debt?: number; trip?: Record<string
       intercityMaxSeatsPerBooking: 4,
       intercityMinLeadMinutes: 30,
       intercityMaxAheadDays: 7,
+      intercityMaxDetourMinutes: options.maxDetour ?? 15,
     })),
   };
   const notifier = {
@@ -123,6 +134,13 @@ function build(options: { enabled?: boolean; debt?: number; trip?: Record<string
       estimated: false,
     })),
   };
+  const okFit = { zoneOk: true, outOfZone: null, detourChecked: true, detourMinutes: 0, detourTooLong: false };
+  const fit = {
+    check: jest.fn(async (input: { seatBooking: boolean }) =>
+      input.seatBooking ? { ...okFit, ...(options.detourFit ?? {}) } : { ...okFit, ...(options.fit ?? {}) },
+    ),
+  };
+  const zones = { zonesOfTrip: jest.fn(async () => ({ origin: [], destination: [] })) };
   const service = new IntercityBookingsService(
     tripRepository as never,
     orderRepository as never,
@@ -132,8 +150,10 @@ function build(options: { enabled?: boolean; debt?: number; trip?: Record<string
     settings as never,
     notifier as never,
     pricer as never,
+    fit as never,
+    zones as never,
   );
-  return { service, manager, answers, orderRepository, tripRepository, notifier, pricer, dataSource };
+  return { service, manager, answers, orderRepository, tripRepository, notifier, pricer, dataSource, fit, zones };
 }
 
 const sqlCalls = (manager: { query: jest.Mock }) =>
@@ -393,6 +413,12 @@ describe('IntercityBookingsService — shahar ichiga davom', () => {
       basePrice: 50_000,
       extensions: [{ side: 'dropoff', pointName: 'Rohat krugi', km: 12.4, pricePerKm: 2000, fare: 25_000, estimated: false }],
       total: 75_000,
+      zoneOk: true,
+      outOfZone: null,
+      detourMinutes: 0,
+      detourChecked: true,
+      detourTooLong: false,
+      maxDetourMinutes: 15,
     });
     expect(pricer.charge).toHaveBeenCalledTimes(1);
     expect(dataSource.transaction).not.toHaveBeenCalled();
@@ -439,6 +465,56 @@ describe('IntercityBookingsService — shahar ichiga davom', () => {
     await service.book('pax-1', 'trip-1', dto({ kind: IntercityBookingKind.WHOLE_CAR, dropoff: tashkentHome }), NOW);
     const insert = sqlCalls(manager).find((call) => call.sql.includes('INSERT INTO "orders"'));
     expect(insert?.params[9]).toBe(125_000);
+  });
+});
+
+describe('IntercityBookingsService — tumanlar va aylanma', () => {
+  const outOfZone = { zoneOk: false, outOfZone: { side: 'destination', zoneNames: ['Yunusobod', 'Chilonzor'] }, detourMinutes: null };
+
+  it("quote: tumandan tashqari — xato emas, ilova ogohlantiradi", async () => {
+    const { service, fit } = build({ fit: outOfZone, detourFit: outOfZone });
+    const quote = await service.quote('trip-1', dto());
+    expect(quote).toMatchObject({ zoneOk: false, outOfZone: { side: 'destination', zoneNames: ['Yunusobod', 'Chilonzor'] } });
+    expect(fit.check).toHaveBeenCalledWith(expect.objectContaining({ seatBooking: true, maxDetourMinutes: 15 }));
+  });
+
+  it("band: tumandan tashqari — 409 INTERCITY_OUT_OF_ZONE, tranzaksiya ochilmaydi", async () => {
+    const { service, dataSource } = build({ fit: outOfZone });
+    await expect(service.book('pax-1', 'trip-1', dto(), NOW)).rejects.toMatchObject({
+      status: 409,
+      response: { code: 'INTERCITY_OUT_OF_ZONE', details: { side: 'destination', zones: 'Yunusobod, Chilonzor' } },
+    });
+    expect(dataSource.transaction).not.toHaveBeenCalled();
+  });
+
+  it("band: aylanma chegaradan ko'p — 409, qatnov qulfi ostida tekshiriladi, joy olinmaydi", async () => {
+    const { service, manager, fit } = build({ detourFit: { detourMinutes: 22, detourTooLong: true } });
+    await expect(service.book('pax-1', 'trip-1', dto(), NOW)).rejects.toMatchObject({
+      response: { code: 'INTERCITY_DETOUR_TOO_LONG', details: { addedMinutes: 22, limit: 15 } },
+    });
+    const calls = sqlCalls(manager).map((call) => call.sql);
+    const lockAt = calls.findIndex((sql) => sql.includes('FOR UPDATE'));
+    expect(lockAt).toBeGreaterThan(-1);
+    expect(calls.some((sql) => sql.includes('"seats_taken" = "seats_taken" +'))).toBe(false);
+    // Qulfdan keyingi tekshiruv tranzaksiya menejeri orqali (raqib band ko'rinadi).
+    expect(fit.check).toHaveBeenLastCalledWith(expect.objectContaining({ seatBooking: true, executor: manager }));
+  });
+
+  it("band: aylanma o'lchanmadi (OSRM yo'q) — band o'tadi", async () => {
+    const { service, manager } = build({ detourFit: { detourChecked: false, detourMinutes: null, detourTooLong: false } });
+    await service.book('pax-1', 'trip-1', dto(), NOW);
+    expect(sqlCalls(manager).some((call) => call.sql.includes('INSERT INTO "orders"'))).toBe(true);
+  });
+
+  it("butun mashina yoki chegara 0 — qulf ham, aylanma ham yo'q", async () => {
+    const whole = build();
+    await whole.service.book('pax-1', 'trip-1', dto({ kind: IntercityBookingKind.WHOLE_CAR, seats: undefined }), NOW);
+    expect(sqlCalls(whole.manager).some((call) => call.sql.includes('FOR UPDATE'))).toBe(false);
+
+    const off = build({ maxDetour: 0 });
+    await off.service.book('pax-1', 'trip-1', dto(), NOW);
+    expect(sqlCalls(off.manager).some((call) => call.sql.includes('FOR UPDATE'))).toBe(false);
+    expect(off.fit.check).toHaveBeenCalledTimes(1);
   });
 });
 

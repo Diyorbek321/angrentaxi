@@ -260,6 +260,12 @@ export class PlatformSettings {
   @Column({ name: 'intercity_max_ahead_days', type: 'int', default: 7 })
   intercityMaxAheadDays: number;
 
+  // Bitta o'rindiq bandi haydovchining shahar ichidagi yo'lini ko'pi bilan
+  // shuncha daqiqaga uzaytirishi mumkin (`intercity-detour.ts`, migr 039).
+  // 0 — tekshiruv o'chiq.
+  @Column({ name: 'intercity_max_detour_minutes', type: 'int', default: 15 })
+  intercityMaxDetourMinutes: number;
+
   @UpdateDateColumn()
   updatedAt: Date;
 }

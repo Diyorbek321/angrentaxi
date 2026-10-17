@@ -103,6 +103,8 @@ class FakeDriverRepository extends IntercityRepository {
     required DateTime departureAt,
     int? seatsTotal,
     required String tripClass,
+    List<String> originDistrictIds = const [],
+    List<String> destinationDistrictIds = const [],
   }) async {
     if (publishError != null) throw publishError!;
     published.add({

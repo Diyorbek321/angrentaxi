@@ -3,6 +3,7 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { And, DataSource, FindOperator, FindOptionsWhere, In, LessThan, MoreThanOrEqual, Repository } from 'typeorm';
 import {
   ERROR_CODES,
+  ErrorReason,
   codedBadRequest,
   codedConflict,
   codedNotFound,
@@ -14,6 +15,8 @@ import {
   IntercityTripStatus,
 } from '../../database/entities/intercity-trip.entity';
 import { IntercityRoute } from '../../database/entities/intercity-route.entity';
+import { IntercityTripZone, IntercityZoneSide } from '../../database/entities/intercity-trip-zone.entity';
+import { IntercityPoint } from '../../database/entities/intercity-point.entity';
 import { OrderStatus, ServiceType } from '../../database/entities/order.entity';
 import { Tariff } from '../../database/entities/tariff.entity';
 import { SettingsService } from '../settings/settings.service';
@@ -27,11 +30,25 @@ import { evaluateTripPublish, findOverlappingDeparture } from './intercity-trip-
 import {
   IntercityTripManageView,
   IntercityTripView,
+  IntercityTripViewExtras,
   IntercityTripWithRelations,
   toIntercityTripManageView,
   toIntercityTripView,
 } from './intercity-trip-view';
 import { returnedRows } from './intercity-seat-ledger';
+import { evaluatePublishZones } from './intercity-zone-policy';
+import { IntercityZonesService, TripZones } from './intercity-zones.service';
+import { IntercityFitService } from './intercity-fit.service';
+import { LatLng } from './intercity-detour.service';
+
+/** Qidiruvdagi ixtiyoriy yo'lovchi manzili — `fit` belgisi uchun. */
+export interface SearchAddress {
+  pickup?: LatLng;
+  dropoff?: LatLng;
+}
+
+const extensionEnabled = (point: IntercityPoint | undefined): boolean =>
+  (point?.extensionMaxKm ?? 0) > 0 && (point?.extensionPricePerKm ?? 0) > 0;
 
 /**
  * Comfort klass uchun haydovchi darajasi — taksi "Komfort" tarifining
@@ -109,6 +126,8 @@ export class IntercityTripsService {
     private readonly settings: SettingsService,
     private readonly gate: IntercityDriverGate,
     private readonly notifier: IntercityNotifier,
+    private readonly zones: IntercityZonesService,
+    private readonly fit: IntercityFitService,
   ) {}
 
   // ---------------------------------------------------------------- haydovchi
@@ -135,12 +154,12 @@ export class IntercityTripsService {
       minLeadMinutes: settings.intercityMinLeadMinutes,
       maxAheadDays: settings.intercityMaxAheadDays,
     });
-    if (!result.ok) {
-      throw codedBadRequest(
-        ERROR_CODES.intercityTripInvalid,
-        result.reasons.map((reason) => reason.message).join('; '),
-        { reasons: result.reasons },
-      );
+    const chosen = await this.resolvePublishZones(route, dto.originZoneIds ?? [], dto.destinationZoneIds ?? []);
+    const reasons = [...(result.ok ? [] : result.reasons), ...(chosen.ok ? [] : chosen.reasons)];
+    if (!result.ok || !chosen.ok) {
+      throw codedBadRequest(ERROR_CODES.intercityTripInvalid, reasons.map((reason) => reason.message).join('; '), {
+        reasons,
+      });
     }
 
     // ⚠️ Bir vaqtdagi ikki e'lon ikkalasi ham shu tekshiruvdan o'tishi
@@ -162,8 +181,7 @@ export class IntercityTripsService {
       );
     }
 
-    const saved = await this.tripRepository.save(
-      this.tripRepository.create({
+    const draft = this.tripRepository.create({
         routeId: route.id,
         driverId: driver.id,
         tripClass: dto.tripClass,
@@ -175,9 +193,9 @@ export class IntercityTripsService {
         seatPrice: result.seatPrice,
         wholeCarPrice: result.wholeCarPrice,
         cancelReason: null,
-      }),
-    );
-    return toIntercityTripView({ ...saved, route, driver });
+      });
+    const saved = await this.saveWithZones(draft, chosen.zones);
+    return toIntercityTripView({ ...saved, route, driver }, { zones: chosen.zones });
   }
 
   async listMine(
@@ -257,7 +275,12 @@ export class IntercityTripsService {
   // ---------------------------------------------------------------- yo'lovchi
 
   /** Berilgan Toshkent kunidagi ochiq qatnovlar, jo'nash vaqti bo'yicha. */
-  async search(routeId: string, date: string, now: Date = new Date()): Promise<IntercityTripView[]> {
+  async search(
+    routeId: string,
+    date: string,
+    now: Date = new Date(),
+    address: SearchAddress = {},
+  ): Promise<IntercityTripView[]> {
     await this.assertEnabled();
     if (parseTashkentDate(date) === null) {
       throw new BadRequestException("Sana noto'g'ri (YYYY-MM-DD)");
@@ -275,7 +298,22 @@ export class IntercityTripsService {
       relations: TRIP_RELATIONS,
       order: { departureAt: 'ASC' },
     });
-    return trips.map(toIntercityTripView);
+    if (trips.length === 0) return [];
+
+    const zonesByTrip = await this.zones.zonesOfTrips(trips.map((trip) => trip.id));
+    const settings = await this.settings.getIntercitySettings();
+    const fits = await this.fit.fitForSearch(
+      trips.flatMap((trip) =>
+        trip.route?.originPoint && trip.route.destinationPoint
+          ? [{ id: trip.id, origin: trip.route.originPoint, destination: trip.route.destinationPoint }]
+          : [],
+      ),
+      address,
+      settings.intercityMaxDetourMinutes,
+    );
+    return trips.map((trip) =>
+      toIntercityTripView(trip, { zones: zonesByTrip.get(trip.id), fit: fits.get(trip.id) ?? null }),
+    );
   }
 
   async getPublic(tripId: string, _now: Date = new Date()): Promise<IntercityTripView> {
@@ -305,8 +343,9 @@ export class IntercityTripsService {
     where: FindOptionsWhere<IntercityTrip>,
     pagination: { page?: number; limit?: number },
     direction: 'ASC' | 'DESC',
-    toView: (trip: IntercityTripWithRelations) => V = toIntercityTripView as unknown as (
+    toView: (trip: IntercityTripWithRelations, extras: IntercityTripViewExtras) => V = toIntercityTripView as unknown as (
       trip: IntercityTripWithRelations,
+      extras: IntercityTripViewExtras,
     ) => V,
   ): Promise<{ items: V[]; total: number; page: number; limit: number }> {
     const page = Math.max(1, pagination.page ?? 1);
@@ -318,13 +357,63 @@ export class IntercityTripsService {
       skip: (page - 1) * limit,
       take: limit,
     });
-    return { items: rows.map(toView), total, page, limit };
+    const zonesByTrip = await this.zones.zonesOfTrips(rows.map((row) => row.id));
+    return { items: rows.map((row) => toView(row, { zones: zonesByTrip.get(row.id) })), total, page, limit };
   }
 
   async getView(tripId: string): Promise<IntercityTripView> {
     const trip = await this.tripRepository.findOne({ where: { id: tripId }, relations: TRIP_RELATIONS });
     if (!trip) throw this.notFound();
-    return toIntercityTripView(trip);
+    return toIntercityTripView(trip, { zones: await this.zones.zonesOfTrip(tripId) });
+  }
+
+  /**
+   * E'londagi tumanlar: shu tomon nuqtasiga tegishli, faol va nuqtada
+   * "shahar ichiga davom" yoqilgan bo'lishi kerak. Bo'sh — hamma tumanlar.
+   */
+  private async resolvePublishZones(
+    route: IntercityRoute,
+    originIds: readonly string[],
+    destinationIds: readonly string[],
+  ): Promise<{ ok: true; zones: TripZones } | { ok: false; reasons: ErrorReason[] }> {
+    if (originIds.length === 0 && destinationIds.length === 0) {
+      return { ok: true, zones: { origin: [], destination: [] } };
+    }
+    const available = await this.zones.listActiveForPoints([route.originPointId, route.destinationPointId]);
+    const origin = evaluatePublishZones(originIds, route.originPointId, extensionEnabled(route.originPoint), available);
+    const destination = evaluatePublishZones(
+      destinationIds,
+      route.destinationPointId,
+      extensionEnabled(route.destinationPoint),
+      available,
+    );
+    if (!origin.ok || !destination.ok) {
+      return { ok: false, reasons: [...(origin.ok ? [] : origin.reasons), ...(destination.ok ? [] : destination.reasons)] };
+    }
+    const byId = new Map(available.map((zone) => [zone.id, zone]));
+    return {
+      ok: true,
+      zones: {
+        origin: origin.zoneIds.map((id) => byId.get(id)!),
+        destination: destination.zoneIds.map((id) => byId.get(id)!),
+      },
+    };
+  }
+
+  /** Tumanli e'lon — qatnov va tumanlari BITTA tranzaksiyada (yarim e'lon qolmasin). */
+  private async saveWithZones(draft: IntercityTrip, zones: TripZones): Promise<IntercityTrip> {
+    if (zones.origin.length === 0 && zones.destination.length === 0) {
+      return this.tripRepository.save(draft);
+    }
+    return this.dataSource.transaction(async (manager) => {
+      const saved = await manager.save(IntercityTrip, draft);
+      const rows = [
+        ...zones.origin.map((zone) => ({ tripId: saved.id, zoneId: zone.id, side: IntercityZoneSide.ORIGIN })),
+        ...zones.destination.map((zone) => ({ tripId: saved.id, zoneId: zone.id, side: IntercityZoneSide.DESTINATION })),
+      ];
+      await manager.insert(IntercityTripZone, rows);
+      return saved;
+    });
   }
 
   /** Faol yo'nalish, ikkala uchi ham faol — aks holda 404. */

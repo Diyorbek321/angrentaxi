@@ -28,6 +28,8 @@ import { FoodOrder } from './entities/food-order.entity';
 import { IntercityPoint } from './entities/intercity-point.entity';
 import { IntercityRoute } from './entities/intercity-route.entity';
 import { IntercityTrip } from './entities/intercity-trip.entity';
+import { IntercityZone } from './entities/intercity-zone.entity';
+import { IntercityTripZone } from './entities/intercity-trip-zone.entity';
 import { LostItemReport } from './entities/lost-item-report.entity';
 import { MarketCategory } from './entities/market-category.entity';
 import { MarketOrder } from './entities/market-order.entity';
@@ -83,6 +85,8 @@ export const ENTITIES = [
   IntercityPoint,
   IntercityRoute,
   IntercityTrip,
+  IntercityZone,
+  IntercityTripZone,
   LostItemReport,
   MarketCategory,
   MarketOrder,

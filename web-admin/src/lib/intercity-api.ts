@@ -10,6 +10,8 @@ import type {
   IntercityRoute,
   IntercityRouteForm,
   IntercitySettings,
+  IntercityZone,
+  IntercityZoneForm,
 } from './intercity';
 
 type RouteUpdate = Partial<Omit<IntercityRouteForm, 'originPointId' | 'destinationPointId'>> & {
@@ -22,6 +24,13 @@ export const intercityApi = {
     api.post<ApiResponse<IntercityPoint>>('/intercity/points/manage', dto),
   updatePoint: (id: string, dto: Partial<IntercityPointForm> & { isActive?: boolean }) =>
     api.patch<ApiResponse<IntercityPoint>>(`/intercity/points/manage/${id}`, dto),
+
+  getZones: (pointId: string) =>
+    api.get<ApiResponse<IntercityZone[]>>(`/intercity/points/manage/${pointId}/zones`),
+  createZone: (pointId: string, dto: IntercityZoneForm & { sortOrder?: number; isActive?: boolean }) =>
+    api.post<ApiResponse<IntercityZone>>(`/intercity/points/manage/${pointId}/zones`, dto),
+  updateZone: (id: string, dto: Partial<IntercityZoneForm> & { isActive?: boolean }) =>
+    api.patch<ApiResponse<IntercityZone>>(`/intercity/zones/manage/${id}`, dto),
 
   getRoutes: () => api.get<ApiResponse<IntercityRoute[]>>('/intercity/routes/manage'),
   createRoute: (dto: IntercityRouteForm & { isActive?: boolean }) =>

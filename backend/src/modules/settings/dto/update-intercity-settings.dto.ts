@@ -37,4 +37,12 @@ export class UpdateIntercitySettingsDto {
   @Min(1)
   @Max(30)
   intercityMaxAheadDays?: number;
+
+  // 0 — tekshiruv o'chiq; 2 soatdan ko'pi tekshiruvni ma'nosiz qiladi.
+  @ApiPropertyOptional({ example: 15, description: "O'rindiq bandi shahar ichidagi yo'lni ko'pi bilan necha daqiqa uzaytiradi (0 — o'chiq)" })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(120)
+  intercityMaxDetourMinutes?: number;
 }

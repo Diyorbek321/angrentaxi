@@ -1,6 +1,9 @@
 import 'dart:math' as math;
 
+import 'package:angren_taxi/features/intercity/models/intercity_fit_models.dart';
 import 'package:equatable/equatable.dart';
+
+export 'package:angren_taxi/features/intercity/models/intercity_fit_models.dart';
 
 // ============================================================================
 // SHAHARLARARO — server modellari (backend/src/modules/intercity/*-view.ts).
@@ -101,6 +104,7 @@ class IntercityPoint extends Equatable {
     required this.centerLng,
     required this.radiusKm,
     this.extension,
+    this.districts = const [],
   });
 
   factory IntercityPoint.fromJson(Map<String, dynamic> json) {
@@ -114,6 +118,7 @@ class IntercityPoint extends Equatable {
       extension: extension is Map
           ? IntercityPointExtension.fromJson(Map<String, dynamic>.from(extension))
           : null,
+      districts: intercityDistrictsFromJson(json['zones']),
     );
   }
 
@@ -130,6 +135,9 @@ class IntercityPoint extends Equatable {
 
   /// `null` — davom o'chiq: manzil radius ichida bo'lishi shart.
   final IntercityPointExtension? extension;
+
+  /// Davom hududidagi faol tumanlar (migratsiya 039); davom o'chiq — bo'sh.
+  final List<IntercityDistrict> districts;
 
   bool get isFixedStand => radiusKm <= fixedStandMaxRadiusKm;
 
@@ -154,7 +162,7 @@ class IntercityPoint extends Equatable {
 
   @override
   List<Object?> get props =>
-      [id, name, centerLat, centerLng, radiusKm, extension];
+      [id, name, centerLat, centerLng, radiusKm, extension, districts];
 }
 
 double haversineKm(double lat1, double lng1, double lat2, double lng2) {
@@ -256,6 +264,9 @@ class IntercityTrip extends Equatable {
     required this.wholeCarPrice,
     this.driver,
     this.cancelReason,
+    this.originDistricts = const [],
+    this.destinationDistricts = const [],
+    this.fit,
   });
 
   factory IntercityTrip.fromJson(Map<String, dynamic> json) {
@@ -265,6 +276,9 @@ class IntercityTrip extends Equatable {
     String nameOf(String key) =>
         route[key] is Map ? '${(route[key] as Map)['name'] ?? ''}' : '';
     final driver = json['driver'];
+    final zones = json['zones'] is Map
+        ? Map<String, dynamic>.from(json['zones'] as Map)
+        : const <String, dynamic>{};
     return IntercityTrip(
       id: '${json['id']}',
       routeId: '${route['id'] ?? ''}',
@@ -283,6 +297,9 @@ class IntercityTrip extends Equatable {
           ? IntercityTripDriver.fromJson(Map<String, dynamic>.from(driver))
           : null,
       cancelReason: _str(json['cancelReason']),
+      originDistricts: intercityDistrictsFromJson(zones['origin']),
+      destinationDistricts: intercityDistrictsFromJson(zones['destination']),
+      fit: IntercityTripFit.fromJson(json['fit']),
     );
   }
 
@@ -304,6 +321,13 @@ class IntercityTrip extends Equatable {
   final IntercityTripDriver? driver;
   final String? cancelReason;
 
+  /// Haydovchi tanlagan tumanlar; bo'sh — butun davom hududi.
+  final List<IntercityDistrict> originDistricts;
+  final List<IntercityDistrict> destinationDistricts;
+
+  /// Faqat yo'lovchi manzili bilan qidirilganda.
+  final IntercityTripFit? fit;
+
   bool get isComfort => tripClass == IntercityTripClass.comfort;
 
   /// Band qilingan joylar. Server `seatsTaken` ni ommaviy ko'rinishda
@@ -314,7 +338,7 @@ class IntercityTrip extends Equatable {
 
   @override
   List<Object?> get props =>
-      [id, status, seatsLeft, wholeCarAvailable, wholeCarBooked, departureAt, cancelReason];
+      [id, status, seatsLeft, wholeCarAvailable, wholeCarBooked, departureAt, cancelReason, fit];
 }
 
 /// Yo'lovchi bandi — server tomonda bitta `orders` qatori.
@@ -368,20 +392,25 @@ class IntercityQuote extends Equatable {
     required this.basePrice,
     required this.extensions,
     required this.total,
+    this.fit = IntercityQuoteFit.ok,
   });
 
   factory IntercityQuote.fromJson(Map<String, dynamic> json) => IntercityQuote(
         basePrice: _num(json['basePrice']),
         extensions: _extensions(json['extensions']),
         total: _num(json['total']),
+        fit: IntercityQuoteFit.fromJson(json),
       );
 
   final double basePrice;
   final List<IntercityExtensionCharge> extensions;
   final double total;
 
+  /// Tuman va aylanma — band qilishdan oldin ogohlantirish (039).
+  final IntercityQuoteFit fit;
+
   @override
-  List<Object?> get props => [basePrice, extensions, total];
+  List<Object?> get props => [basePrice, extensions, total, fit];
 }
 
 class IntercityBooking extends Equatable {
@@ -543,6 +572,7 @@ class IntercityPublicSettings extends Equatable {
     this.maxSeatsPerBooking = 4,
     this.minLeadMinutes = 30,
     this.maxAheadDays = 7,
+    this.maxDetourMinutes = 15,
   });
 
   factory IntercityPublicSettings.fromJson(Map<String, dynamic> json) =>
@@ -560,6 +590,9 @@ class IntercityPublicSettings extends Equatable {
         maxAheadDays: json['intercityMaxAheadDays'] is num
             ? _int(json['intercityMaxAheadDays'])
             : 7,
+        maxDetourMinutes: json['intercityMaxDetourMinutes'] is num
+            ? _int(json['intercityMaxDetourMinutes'])
+            : 15,
       );
 
   static const disabled = IntercityPublicSettings();
@@ -574,7 +607,10 @@ class IntercityPublicSettings extends Equatable {
   /// Haydovchi e'loni: jo'nash ko'pi bilan shuncha kun oldin.
   final int maxAheadDays;
 
+  /// O'rindiq bandi shahar ichidagi yo'lni ko'pi bilan shuncha daqiqa uzaytiradi; 0 — o'chiq.
+  final int maxDetourMinutes;
+
   @override
   List<Object?> get props =>
-      [enabled, freeCancelMinutes, maxSeatsPerBooking, minLeadMinutes, maxAheadDays];
+      [enabled, freeCancelMinutes, maxSeatsPerBooking, minLeadMinutes, maxAheadDays, maxDetourMinutes];
 }

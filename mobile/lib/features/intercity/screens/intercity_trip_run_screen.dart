@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
@@ -20,6 +22,9 @@ import 'package:url_launcher/url_launcher.dart';
 /// Haydovchi joylashuvi (yig'ish tartibi uchun). `null` — noma'lum.
 typedef IntercityLocate = Future<({double lat, double lng})?> Function();
 
+/// Tashqi navigatorni ochish — testlarda soxtasi.
+typedef IntercityNavigate = Future<void> Function(BuildContext context, double lat, double lng);
+
 /// Haydovchi o'z shaharlararo qatnovini boshqaradi:
 /// open/full → yig'ishni boshlash; boarding → har yo'lovchi "Yetib keldim" /
 /// "Kelmadi", hammasi olingach surib jo'nash; in_progress → har yo'lovchi
@@ -37,11 +42,13 @@ class IntercityTripRunScreen extends StatefulWidget {
     this.locate,
     this.now,
     this.subscribeRealtime = true,
+    this.navigate,
   });
 
   final IntercityTrip trip;
   final IntercityRepository? repository;
   final IntercityLocate? locate;
+  final IntercityNavigate? navigate;
   final DateTime Function()? now;
 
   /// Testlarda socket yo'q — obuna o'chiriladi.
@@ -57,6 +64,9 @@ class _IntercityTripRunScreenState extends State<IntercityTripRunScreen>
       widget.repository ?? IntercityRepository();
   late IntercityTrip _trip = widget.trip;
   List<IntercityDriverBooking>? _bookings;
+
+  /// Bekatlar rejasi (eng qisqa yo'l). Yuklanmasa — "eng yaqindan" tartib.
+  IntercityRoutePlan? _plan;
   ({double lat, double lng})? _here;
   Object? _error;
   bool _busy = false;
@@ -86,7 +96,11 @@ class _IntercityTripRunScreenState extends State<IntercityTripRunScreen>
     final locate = widget.locate ?? _deviceLocation;
     try {
       final here = await locate();
-      if (mounted && here != null) setState(() => _here = here);
+      if (mounted && here != null) {
+        setState(() => _here = here);
+        // Birinchi oraliq vaqti haydovchi joyidan hisoblanadi.
+        await _loadPlan();
+      }
     } catch (_) {
       // Joylashuvsiz ham ishlaydi — server tartibi qoladi.
     }
@@ -113,6 +127,36 @@ class _IntercityTripRunScreenState extends State<IntercityTripRunScreen>
       });
     } catch (e) {
       if (mounted) setState(() => _error = e);
+    }
+    await _loadPlan();
+  }
+
+  /// Reja ixtiyoriy: xato bo'lsa jim — ekran "eng yaqindan" tartib bilan ishlayveradi.
+  Future<void> _loadPlan() async {
+    try {
+      final plan = await _repo.routePlan(_trip.id, fromLat: _here?.lat, fromLng: _here?.lng);
+      if (mounted) setState(() => _plan = plan);
+    } catch (_) {
+      if (mounted) setState(() => _plan = null);
+    }
+  }
+
+  Future<void> _navigateTo(IntercityRouteStop stop) async {
+    final open = widget.navigate ?? _openExternalNavigation;
+    await open(context, stop.lat, stop.lng);
+  }
+
+  /// `demand_map_screen` bilan bir xil naqsh: Androidda `geo:`, iOS'da Apple Maps.
+  static Future<void> _openExternalNavigation(BuildContext context, double lat, double lng) async {
+    final uri = Platform.isIOS
+        ? Uri.parse('https://maps.apple.com/?daddr=$lat,$lng')
+        : Uri.parse('geo:0,0?q=$lat,$lng');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.drvNavAppNotFound)),
+      );
     }
   }
 
@@ -212,11 +256,15 @@ class _IntercityTripRunScreenState extends State<IntercityTripRunScreen>
     if (bookings == null) {
       return const Center(child: CircularProgressIndicator());
     }
-    final ordered = orderBookingsNearestFirst(
+    final plan = _planForCurrentPhase();
+    final ordered = orderBookingsByPlan(
       bookings,
+      plan,
       fromLat: _here?.lat,
       fromLng: _here?.lng,
     );
+    final stops = plan?.byOrderId ?? const <String, IntercityRouteStop>{};
+    final next = nextPlannedStop(plan, bookings, onTheRoad: _trip.status == IntercityTripStatus.inProgress);
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
@@ -239,6 +287,7 @@ class _IntercityTripRunScreenState extends State<IntercityTripRunScreen>
               color: kInkMuted,
             ),
           ),
+          if (plan != null && plan.stops.isNotEmpty) _planLine(plan),
           const SizedBox(height: kSpace2),
           if (ordered.isEmpty)
             AppEmptyState(
@@ -256,8 +305,37 @@ class _IntercityTripRunScreenState extends State<IntercityTripRunScreen>
               onDropOff: () =>
                   _run(() => _repo.completeBooking(booking.orderId)),
               onCall: _call,
+              sequence: stops[booking.orderId]?.sequence,
+              etaMinutes: stops[booking.orderId]?.etaMinutesFromPrev,
+              onNavigate: next != null && next.orderId == booking.orderId ? () => _navigateTo(next) : null,
             ),
         ],
+      ),
+    );
+  }
+
+  /// Reja joriy bosqichga tegishli bo'lsagina (yig'ishda — olish, yo'lda — tushirish).
+  IntercityRoutePlan? _planForCurrentPhase() {
+    final plan = _plan;
+    if (plan == null) return null;
+    final onTheRoad = _trip.status == IntercityTripStatus.inProgress;
+    return plan.phase == (onTheRoad ? 'dropoff' : 'pickup') ? plan : null;
+  }
+
+  Widget _planLine(IntercityRoutePlan plan) {
+    final l10n = context.l10n;
+    final total = plan.totalMinutes;
+    final terminal = plan.terminalEtaMinutes;
+    final lines = [
+      if (plan.optimized && total != null) l10n.icRunOrderOptimized(total) else l10n.icRunOrderNearest,
+      if (terminal != null) l10n.icRunTerminal(plan.pointName, terminal),
+    ];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: kSpace1),
+      child: Text(
+        lines.join('\n'),
+        key: const ValueKey('ic_run_plan_line'),
+        style: const TextStyle(fontSize: kFontLabel, color: kInkMuted),
       ),
     );
   }

@@ -131,6 +131,7 @@ describe('SettingsService — sotuvchi hisob-kitobi va smena', () => {
         intercityMaxSeatsPerBooking: 4,
         intercityMinLeadMinutes: 30,
         intercityMaxAheadDays: 7,
+        intercityMaxDetourMinutes: 15,
       });
     });
   });
@@ -144,6 +145,7 @@ describe('SettingsService — sotuvchi hisob-kitobi va smena', () => {
         intercityMaxSeatsPerBooking: 4,
         intercityMinLeadMinutes: 30,
         intercityMaxAheadDays: 7,
+        intercityMaxDetourMinutes: 15,
       });
       await expect(service.isIntercityEnabled()).resolves.toBe(false);
     });
@@ -180,6 +182,7 @@ describe('SettingsService — sotuvchi hisob-kitobi va smena', () => {
         intercityMaxSeatsPerBooking: 3,
         intercityMinLeadMinutes: 60,
         intercityMaxAheadDays: 3,
+        intercityMaxDetourMinutes: 15,
       });
       expect(repo.update).toHaveBeenCalledWith('s1', {
         intercityFreeCancelMinutes: 120,
@@ -187,6 +190,14 @@ describe('SettingsService — sotuvchi hisob-kitobi va smena', () => {
         intercityMinLeadMinutes: 60,
         intercityMaxAheadDays: 3,
       });
+    });
+
+    it("039: aylanma chegarasi yoziladi (0 — o'chiq)", async () => {
+      const { service, repo } = build();
+      await expect(service.updateIntercitySettings({ intercityMaxDetourMinutes: 0 })).resolves.toMatchObject({
+        intercityMaxDetourMinutes: 0,
+      });
+      expect(repo.update).toHaveBeenCalledWith('s1', { intercityMaxDetourMinutes: 0 });
     });
 
     it('saqlangan qiymatlar o\'qiladi', async () => {

@@ -57,6 +57,27 @@ export interface IntercitySettings {
   intercityMaxSeatsPerBooking: number;
   intercityMinLeadMinutes: number;
   intercityMaxAheadDays: number;
+  /** Oʻrindiq bandi shahar ichidagi yoʻlni koʻpi bilan shuncha daqiqa uzaytiradi; 0 — oʻchiq. */
+  intercityMaxDetourMinutes: number;
+}
+
+/** "Shahar ichiga davom" hududidagi tuman (backend migratsiya 039). */
+export interface IntercityZone {
+  id: string;
+  pointId: string;
+  name: string;
+  centerLat: number;
+  centerLng: number;
+  radiusKm: number;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export interface IntercityZoneForm {
+  name: string;
+  centerLat: number;
+  centerLng: number;
+  radiusKm: number;
 }
 
 // ─── Formalar ───────────────────────────────────────────────────────
@@ -212,7 +233,70 @@ export function validateIntercitySettings(form: IntercitySettings): FormErrors<I
       : { intercityMaxSeatsPerBooking: '1–8 oʻrindiq' }),
     ...(intInRange(form.intercityMinLeadMinutes, 0, 720) ? {} : { intercityMinLeadMinutes: '0–720 daqiqa' }),
     ...(intInRange(form.intercityMaxAheadDays, 1, 30) ? {} : { intercityMaxAheadDays: '1–30 kun' }),
+    ...(intInRange(form.intercityMaxDetourMinutes, 0, 120)
+      ? {}
+      : { intercityMaxDetourMinutes: '0–120 daqiqa (0 — oʻchiq)' }),
   };
+}
+
+// ─── Tumanlar ───────────────────────────────────────────────────────
+
+/** Backend `INTERCITY_ZONE_RADIUS_*` va jadval CHECK'i bilan bir xil. */
+export const INTERCITY_ZONE_RADIUS_MIN_KM = 0.3;
+export const INTERCITY_ZONE_RADIUS_MAX_KM = 30;
+
+export function validateZoneForm(form: IntercityZoneForm): FormErrors<IntercityZoneForm> {
+  return {
+    ...(form.name.trim().length > 0 && form.name.trim().length <= 80 ? {} : { name: 'Nomi 1–80 belgi' }),
+    ...(Number.isFinite(form.centerLat) && form.centerLat >= -90 && form.centerLat <= 90
+      ? {}
+      : { centerLat: 'Kenglik −90…90' }),
+    ...(Number.isFinite(form.centerLng) && form.centerLng >= -180 && form.centerLng <= 180
+      ? {}
+      : { centerLng: 'Uzunlik −180…180' }),
+    ...(Number.isFinite(form.radiusKm) &&
+    form.radiusKm >= INTERCITY_ZONE_RADIUS_MIN_KM &&
+    form.radiusKm <= INTERCITY_ZONE_RADIUS_MAX_KM
+      ? {}
+      : { radiusKm: `${INTERCITY_ZONE_RADIUS_MIN_KM}–${INTERCITY_ZONE_RADIUS_MAX_KM} km` }),
+  };
+}
+
+/** Tumanlar faqat "shahar ichiga davom" yoqilgan nuqtada maʼnoli. */
+export function hasExtension(point: Pick<IntercityPoint, 'extensionMaxKm' | 'extensionPricePerKm'>): boolean {
+  return (point.extensionMaxKm ?? 0) > 0 && (point.extensionPricePerKm ?? 0) > 0;
+}
+
+/**
+ * Toshkent tumanlari — bir tugma bilan yaratiladigan tayyor roʻyxat.
+ *
+ * ⚠️ Markazlar TAXMINIY (tuman markazi atrofida), radius hammasida 4 km.
+ * Admin keyin xaritaga qarab aniqlashtiradi — chegaradagi uylar ikki
+ * tumanga tushishi yoki hech biriga tushmasligi mumkin.
+ */
+export const TASHKENT_ZONE_PRESET: readonly IntercityZoneForm[] = [
+  { name: 'Bektemir', centerLat: 41.209, centerLng: 69.334, radiusKm: 4 },
+  { name: 'Chilonzor', centerLat: 41.275, centerLng: 69.204, radiusKm: 4 },
+  { name: 'Mirobod', centerLat: 41.288, centerLng: 69.276, radiusKm: 4 },
+  { name: 'Mirzo Ulugʻbek', centerLat: 41.335, centerLng: 69.337, radiusKm: 4 },
+  { name: 'Olmazor', centerLat: 41.355, centerLng: 69.216, radiusKm: 4 },
+  { name: 'Sergeli', centerLat: 41.227, centerLng: 69.219, radiusKm: 4 },
+  { name: 'Shayxontohur', centerLat: 41.326, centerLng: 69.238, radiusKm: 4 },
+  { name: 'Uchtepa', centerLat: 41.29, centerLng: 69.165, radiusKm: 4 },
+  { name: 'Yakkasaroy', centerLat: 41.285, centerLng: 69.255, radiusKm: 4 },
+  { name: 'Yashnobod', centerLat: 41.29, centerLng: 69.335, radiusKm: 4 },
+  { name: 'Yunusobod', centerLat: 41.365, centerLng: 69.288, radiusKm: 4 },
+  { name: 'Yangihayot', centerLat: 41.205, centerLng: 69.235, radiusKm: 4 },
+];
+
+/** Tayyor roʻyxatdan hali yoʻqlari (nom boʻyicha, katta-kichik harfsiz), tartib raqami bilan. */
+export function presetZonesToCreate(
+  existing: ReadonlyArray<{ name: string }>,
+): Array<IntercityZoneForm & { sortOrder: number }> {
+  const taken = new Set(existing.map((zone) => zone.name.trim().toLocaleLowerCase('uz')));
+  return TASHKENT_ZONE_PRESET.map((zone, index) => ({ ...zone, sortOrder: index })).filter(
+    (zone) => !taken.has(zone.name.toLocaleLowerCase('uz')),
+  );
 }
 
 // ─── Formatlash ─────────────────────────────────────────────────────

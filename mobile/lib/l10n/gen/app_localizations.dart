@@ -2336,6 +2336,36 @@ abstract class AppLocalizations {
   /// **'Kecha, {time}'**
   String fmtYesterdayAt(String time);
 
+  /// No description provided for @icAddressFilterClear.
+  ///
+  /// In uz, this message translates to:
+  /// **'Manzilni tozalash'**
+  String get icAddressFilterClear;
+
+  /// No description provided for @icAddressFilterDropoff.
+  ///
+  /// In uz, this message translates to:
+  /// **'Tushish manzilim (ixtiyoriy)'**
+  String get icAddressFilterDropoff;
+
+  /// No description provided for @icAddressFilterHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Manzilni tanlasangiz, sizning tomonga boradigan qatnovlar belgilanadi'**
+  String get icAddressFilterHint;
+
+  /// No description provided for @icAddressFilterPickup.
+  ///
+  /// In uz, this message translates to:
+  /// **'Olinish manzilim (ixtiyoriy)'**
+  String get icAddressFilterPickup;
+
+  /// No description provided for @icAllDistricts.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hamma tumanlar'**
+  String get icAllDistricts;
+
   /// No description provided for @icBasePrice.
   ///
   /// In uz, this message translates to:
@@ -2642,6 +2672,12 @@ abstract class AppLocalizations {
   /// **'Siz bu qatnovda allaqachon joy band qilgansiz'**
   String get icErrAlreadyBooked;
 
+  /// No description provided for @icErrDetourTooLong.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bu qatnov sizning manzilingizga katta aylanma qiladi (+{minutes} daq). Boshqa qatnovni tanlang.'**
+  String icErrDetourTooLong(int minutes);
+
   /// No description provided for @icErrDisabled.
   ///
   /// In uz, this message translates to:
@@ -2665,6 +2701,12 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Bu bandni endi bekor qilib bo\'lmaydi'**
   String get icErrNotCancellable;
+
+  /// No description provided for @icErrOutOfZone.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bu qatnov sizning tumaningizga bormaydi ({zones}). Boshqa qatnovni tanlang.'**
+  String icErrOutOfZone(String zones);
 
   /// No description provided for @icErrSeatsUnavailable.
   ///
@@ -2719,6 +2761,24 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Manzil → {place}: {km} km × {price}'**
   String icExtensionPickupLine(String place, String km, String price);
+
+  /// No description provided for @icFitDetour.
+  ///
+  /// In uz, this message translates to:
+  /// **'+{minutes} daq aylanma'**
+  String icFitDetour(int minutes);
+
+  /// No description provided for @icFitOtherDistrict.
+  ///
+  /// In uz, this message translates to:
+  /// **'Boshqa tumanga'**
+  String get icFitOtherDistrict;
+
+  /// No description provided for @icFitYourWay.
+  ///
+  /// In uz, this message translates to:
+  /// **'Sizning tomonga'**
+  String get icFitYourWay;
 
   /// No description provided for @icFreeCancelUntil.
   ///
@@ -2816,6 +2876,12 @@ abstract class AppLocalizations {
   /// **'To\'lov: naqd, haydovchiga'**
   String get icPaymentCash;
 
+  /// No description provided for @icPickAnotherTrip.
+  ///
+  /// In uz, this message translates to:
+  /// **'Boshqa qatnovni yoki manzilni tanlang'**
+  String get icPickAnotherTrip;
+
   /// No description provided for @icPickup.
   ///
   /// In uz, this message translates to:
@@ -2840,6 +2906,30 @@ abstract class AppLocalizations {
   /// **'Manzilimgacha'**
   String get icPlaceToAddress;
 
+  /// No description provided for @icPublishDistrictsDestination.
+  ///
+  /// In uz, this message translates to:
+  /// **'Tushirish tumanlari ({place})'**
+  String icPublishDistrictsDestination(String place);
+
+  /// No description provided for @icPublishDistrictsHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Faqat tanlangan tumanlardagi yo\'lovchilar band qila oladi — mashina shahar bo\'ylab tarqalib ketmaydi'**
+  String get icPublishDistrictsHint;
+
+  /// No description provided for @icPublishDistrictsOrigin.
+  ///
+  /// In uz, this message translates to:
+  /// **'Olish tumanlari ({place})'**
+  String icPublishDistrictsOrigin(String place);
+
+  /// No description provided for @icQuoteDetour.
+  ///
+  /// In uz, this message translates to:
+  /// **'Manzilingiz mashinani +{minutes} daq aylantiradi (ko\'pi bilan {limit} daq)'**
+  String icQuoteDetour(int minutes, int limit);
+
   /// No description provided for @icQuoteFailed.
   ///
   /// In uz, this message translates to:
@@ -2851,6 +2941,12 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Narx hisoblanmoqda…'**
   String get icQuoteLoading;
+
+  /// No description provided for @icQuoteOutOfZone.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bu qatnov faqat shu tumanlarga boradi: {zones}'**
+  String icQuoteOutOfZone(String zones);
 
   /// No description provided for @icQuoteRetry.
   ///
@@ -2918,11 +3014,23 @@ abstract class AppLocalizations {
   /// **'Tushirdim'**
   String get icRunDropOff;
 
+  /// No description provided for @icRunEtaFromPrev.
+  ///
+  /// In uz, this message translates to:
+  /// **'~{minutes} daq'**
+  String icRunEtaFromPrev(int minutes);
+
   /// No description provided for @icRunExtension.
   ///
   /// In uz, this message translates to:
   /// **'Shahar ichida +{km} km ({place})'**
   String icRunExtension(String km, String place);
+
+  /// No description provided for @icRunNavigate.
+  ///
+  /// In uz, this message translates to:
+  /// **'Navigatsiya'**
+  String get icRunNavigate;
 
   /// No description provided for @icRunNoBookings.
   ///
@@ -2953,6 +3061,18 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Yo\'lovchi kelmadimi?'**
   String get icRunNoShowTitle;
+
+  /// No description provided for @icRunOrderNearest.
+  ///
+  /// In uz, this message translates to:
+  /// **'Eng yaqindan tartib'**
+  String get icRunOrderNearest;
+
+  /// No description provided for @icRunOrderOptimized.
+  ///
+  /// In uz, this message translates to:
+  /// **'Eng qisqa yo\'l tartibi · jami ~{minutes} daq'**
+  String icRunOrderOptimized(int minutes);
 
   /// No description provided for @icRunPassengers.
   ///
@@ -3013,6 +3133,12 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Jo\'nashdan 60 daqiqa oldin yoki mashina to\'lganda ochiladi'**
   String get icRunStartBoardingHint;
+
+  /// No description provided for @icRunTerminal.
+  ///
+  /// In uz, this message translates to:
+  /// **'Keyin {place}: ~{minutes} daq'**
+  String icRunTerminal(String place, int minutes);
 
   /// No description provided for @icRunTitle.
   ///
@@ -3175,6 +3301,12 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Yakunlangan'**
   String get icTripCompleted;
+
+  /// No description provided for @icTripDistricts.
+  ///
+  /// In uz, this message translates to:
+  /// **'Tumanlar: {zones}'**
+  String icTripDistricts(String zones);
 
   /// No description provided for @icTripFull.
   ///

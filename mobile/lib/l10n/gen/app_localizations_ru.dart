@@ -1293,6 +1293,22 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get icAddressFilterClear => 'Очистить адрес';
+
+  @override
+  String get icAddressFilterDropoff => 'Мой адрес высадки (необязательно)';
+
+  @override
+  String get icAddressFilterHint =>
+      'Укажите адрес — отметим рейсы, которые едут в вашу сторону';
+
+  @override
+  String get icAddressFilterPickup => 'Мой адрес посадки (необязательно)';
+
+  @override
+  String get icAllDistricts => 'Все районы';
+
+  @override
   String get icBasePrice => 'Цена рейса';
 
   @override
@@ -1463,6 +1479,11 @@ class AppLocalizationsRu extends AppLocalizations {
   String get icErrAlreadyBooked => 'Вы уже забронировали место в этом рейсе';
 
   @override
+  String icErrDetourTooLong(int minutes) {
+    return 'Этому рейсу придётся сильно отклониться к вашему адресу (+$minutes мин). Выберите другой рейс.';
+  }
+
+  @override
   String get icErrDisabled => 'Межгород пока отключён';
 
   @override
@@ -1474,6 +1495,11 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get icErrNotCancellable => 'Эту бронь уже нельзя отменить';
+
+  @override
+  String icErrOutOfZone(String zones) {
+    return 'Этот рейс не едет в ваш район ($zones). Выберите другой рейс.';
+  }
 
   @override
   String get icErrSeatsUnavailable =>
@@ -1510,6 +1536,17 @@ class AppLocalizationsRu extends AppLocalizations {
   String icExtensionPickupLine(String place, String km, String price) {
     return 'Адрес → $place: $km км × $price';
   }
+
+  @override
+  String icFitDetour(int minutes) {
+    return '+$minutes мин крюк';
+  }
+
+  @override
+  String get icFitOtherDistrict => 'В другой район';
+
+  @override
+  String get icFitYourWay => 'В вашу сторону';
 
   @override
   String icFreeCancelUntil(String time) {
@@ -1569,6 +1606,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get icPaymentCash => 'Оплата: наличными водителю';
 
   @override
+  String get icPickAnotherTrip => 'Выберите другой рейс или адрес';
+
+  @override
   String get icPickup => 'Адрес посадки';
 
   @override
@@ -1583,10 +1623,34 @@ class AppLocalizationsRu extends AppLocalizations {
   String get icPlaceToAddress => 'До моего адреса';
 
   @override
+  String icPublishDistrictsDestination(String place) {
+    return 'Районы высадки ($place)';
+  }
+
+  @override
+  String get icPublishDistrictsHint =>
+      'Бронировать смогут только пассажиры из выбранных районов — машина не будет кружить по городу';
+
+  @override
+  String icPublishDistrictsOrigin(String place) {
+    return 'Районы посадки ($place)';
+  }
+
+  @override
+  String icQuoteDetour(int minutes, int limit) {
+    return 'Ваш адрес добавит машине +$minutes мин крюка (не более $limit мин)';
+  }
+
+  @override
   String get icQuoteFailed => 'Не удалось рассчитать цену';
 
   @override
   String get icQuoteLoading => 'Считаем цену…';
+
+  @override
+  String icQuoteOutOfZone(String zones) {
+    return 'Этот рейс едет только в районы: $zones';
+  }
 
   @override
   String get icQuoteRetry => 'Повторить';
@@ -1625,9 +1689,17 @@ class AppLocalizationsRu extends AppLocalizations {
   String get icRunDropOff => 'Высадил';
 
   @override
+  String icRunEtaFromPrev(int minutes) {
+    return '~$minutes мин';
+  }
+
+  @override
   String icRunExtension(String km, String place) {
     return 'По городу +$km км ($place)';
   }
+
+  @override
+  String get icRunNavigate => 'Навигация';
 
   @override
   String get icRunNoBookings => 'Пока никто не забронировал';
@@ -1644,6 +1716,14 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get icRunNoShowTitle => 'Пассажир не пришёл?';
+
+  @override
+  String get icRunOrderNearest => 'Порядок от ближайшего';
+
+  @override
+  String icRunOrderOptimized(int minutes) {
+    return 'Кратчайший порядок · всего ~$minutes мин';
+  }
 
   @override
   String get icRunPassengers => 'Пассажиры';
@@ -1680,6 +1760,11 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get icRunStartBoardingHint =>
       'Доступно за 60 минут до отправления или когда машина заполнена';
+
+  @override
+  String icRunTerminal(String place, int minutes) {
+    return 'Затем $place: ~$minutes мин';
+  }
 
   @override
   String get icRunTitle => 'Рейс';
@@ -1770,6 +1855,11 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get icTripCompleted => 'Завершён';
+
+  @override
+  String icTripDistricts(String zones) {
+    return 'Районы: $zones';
+  }
 
   @override
   String get icTripFull => 'Заполнен';

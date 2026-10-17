@@ -81,6 +81,16 @@ export const ERROR_CODES = {
    * biriktirilmaydi — o'rindiq hisobi chetlab o'tilardi. 400; `/intercity/...` ishlating.
    */
   intercityUseIntercityEndpoint: 'INTERCITY_USE_INTERCITY_ENDPOINT',
+  /**
+   * Manzil haydovchi tanlagan tumanlardan tashqarida (409).
+   * `details: { side: 'origin'|'destination', zones: "Yunusobod, Chilonzor" }`.
+   */
+  intercityOutOfZone: 'INTERCITY_OUT_OF_ZONE',
+  /**
+   * O'rindiq bandi mashinani shahar ichida chegaradan ko'p aylantiradi (409).
+   * `details: { addedMinutes, limit }`.
+   */
+  intercityDetourTooLong: 'INTERCITY_DETOUR_TOO_LONG',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];

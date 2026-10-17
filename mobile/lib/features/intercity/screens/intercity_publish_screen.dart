@@ -53,6 +53,10 @@ class _IntercityPublishScreenState extends State<IntercityPublishScreen> {
   String? _error;
   bool _busy = false;
 
+  /// Tanlangan tumanlar; bo'sh — "Hamma tumanlar" (server cheklamaydi).
+  Set<String> _originDistricts = {};
+  Set<String> _destinationDistricts = {};
+
   DateTime _now() => (widget.now ?? DateTime.now)();
 
   IntercityPublishWindow get _window =>
@@ -82,6 +86,9 @@ class _IntercityPublishScreenState extends State<IntercityPublishScreen> {
     _route = route;
     _seats = route.seatsDefault;
     if (!route.hasComfort) _class = IntercityTripClass.start;
+    // Tumanlar nuqtaga tegishli — yo'nalish almashsa eski tanlov ma'nosiz.
+    _originDistricts = {};
+    _destinationDistricts = {};
     _error = null;
   }
 
@@ -156,6 +163,8 @@ class _IntercityPublishScreenState extends State<IntercityPublishScreen> {
         departureAt: _departure!,
         seatsTotal: _seats,
         tripClass: _class,
+        originDistrictIds: _originDistricts.toList(),
+        destinationDistrictIds: _destinationDistricts.toList(),
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -269,6 +278,20 @@ class _IntercityPublishScreenState extends State<IntercityPublishScreen> {
               style: const TextStyle(fontSize: kFontCaption, color: kInkMuted),
             ),
           ),
+        ..._districtSection(
+          title: l10n.icPublishDistrictsOrigin(route.origin.name),
+          point: route.origin,
+          selected: _originDistricts,
+          onChanged: (next) => setState(() => _originDistricts = next),
+          keyPrefix: 'origin',
+        ),
+        ..._districtSection(
+          title: l10n.icPublishDistrictsDestination(route.destination.name),
+          point: route.destination,
+          selected: _destinationDistricts,
+          onChanged: (next) => setState(() => _destinationDistricts = next),
+          keyPrefix: 'destination',
+        ),
         const SizedBox(height: kSpace5),
         _Label(l10n.icDrvPrice),
         Text(
@@ -294,6 +317,51 @@ class _IntercityPublishScreenState extends State<IntercityPublishScreen> {
         ),
       ],
     );
+  }
+
+  /// Tumanlari bor nuqta uchun: "Hamma tumanlar" + har tuman chipi
+  /// (bir nechtasini tanlash mumkin). Tumansiz nuqtada hech narsa chizilmaydi.
+  List<Widget> _districtSection({
+    required String title,
+    required IntercityPoint point,
+    required Set<String> selected,
+    required ValueChanged<Set<String>> onChanged,
+    required String keyPrefix,
+  }) {
+    if (point.districts.isEmpty) return const [];
+    final l10n = context.l10n;
+    return [
+      const SizedBox(height: kSpace5),
+      _Label(title),
+      Wrap(
+        spacing: kSpace2,
+        runSpacing: kSpace2,
+        children: [
+          FilterChip(
+            key: ValueKey('ic_publish_${keyPrefix}_all'),
+            label: Text(l10n.icAllDistricts),
+            selected: selected.isEmpty,
+            onSelected: _busy ? null : (_) => onChanged({}),
+          ),
+          for (final district in point.districts)
+            FilterChip(
+              key: ValueKey('ic_publish_${keyPrefix}_${district.id}'),
+              label: Text(district.name),
+              selected: selected.contains(district.id),
+              onSelected: _busy
+                  ? null
+                  : (on) => onChanged(
+                        on ? {...selected, district.id} : ({...selected}..remove(district.id)),
+                      ),
+            ),
+        ],
+      ),
+      const SizedBox(height: kSpace1),
+      Text(
+        l10n.icPublishDistrictsHint,
+        style: const TextStyle(fontSize: kFontCaption, color: kInkMuted),
+      ),
+    ];
   }
 
   double _seatPrice(IntercityRoute r) => _class == IntercityTripClass.comfort

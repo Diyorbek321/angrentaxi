@@ -15,6 +15,7 @@ const SETTINGS = {
   intercityMaxSeatsPerBooking: 4,
   intercityMinLeadMinutes: 30,
   intercityMaxAheadDays: 7,
+  intercityMaxDetourMinutes: 15,
 };
 
 const ROUTE = {
@@ -60,7 +61,16 @@ const trip = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-function build(options: { enabled?: boolean; existing?: Array<{ departureAt: Date }>; comfortTier?: number | null } = {}) {
+function build(
+  options: {
+    enabled?: boolean;
+    existing?: Array<{ departureAt: Date }>;
+    comfortTier?: number | null;
+    zones?: Array<Record<string, unknown>>;
+    fits?: Map<string, unknown>;
+    route?: Record<string, unknown>;
+  } = {},
+) {
   const tripRepository = {
     find: jest.fn(async () => options.existing ?? []),
     findOne: jest.fn(async () => trip()),
@@ -68,7 +78,7 @@ function build(options: { enabled?: boolean; existing?: Array<{ departureAt: Dat
     create: jest.fn((value: Record<string, unknown>) => value),
     save: jest.fn(async (value: Record<string, unknown>) => ({ id: 'trip-1', ...value })),
   };
-  const routeRepository = { findOne: jest.fn(async () => ROUTE) };
+  const routeRepository = { findOne: jest.fn(async () => options.route ?? ROUTE) };
   const driverRepository = { findOne: jest.fn(async () => DRIVER) };
   const tariffRepository = {
     findOne: jest.fn(async () =>
@@ -76,7 +86,11 @@ function build(options: { enabled?: boolean; existing?: Array<{ departureAt: Dat
     ),
   };
   // Haqiqiy TypeORM shakli: UPDATE ... RETURNING → `[rows, affected]`.
-  const manager = { query: jest.fn(async () => [[{ id: 'trip-1' }], 1] as unknown) };
+  const manager = {
+    query: jest.fn(async () => [[{ id: 'trip-1' }], 1] as unknown),
+    save: jest.fn(async (_entity: unknown, value: Record<string, unknown>) => ({ id: 'trip-1', ...value })),
+    insert: jest.fn(async () => undefined),
+  };
   const dataSource = { transaction: jest.fn(async (cb: (m: typeof manager) => unknown) => cb(manager)) };
   const settings = {
     isIntercityEnabled: jest.fn(async () => options.enabled ?? true),
@@ -84,6 +98,12 @@ function build(options: { enabled?: boolean; existing?: Array<{ departureAt: Dat
   };
   const gate = { loadPublisher: jest.fn(async () => DRIVER) };
   const notifier = { tripCancelled: jest.fn(async () => undefined) };
+  const zones = {
+    zonesOfTrips: jest.fn(async (ids: string[]) => new Map(ids.map((id) => [id, { origin: [], destination: [] }]))),
+    zonesOfTrip: jest.fn(async () => ({ origin: [], destination: [] })),
+    listActiveForPoints: jest.fn(async () => options.zones ?? []),
+  };
+  const fit = { fitForSearch: jest.fn(async () => options.fits ?? new Map()) };
   const service = new IntercityTripsService(
     tripRepository as never,
     routeRepository as never,
@@ -93,8 +113,10 @@ function build(options: { enabled?: boolean; existing?: Array<{ departureAt: Dat
     settings as never,
     gate as never,
     notifier as never,
+    zones as never,
+    fit as never,
   );
-  return { service, tripRepository, routeRepository, manager, gate, tariffRepository, notifier };
+  return { service, tripRepository, routeRepository, manager, gate, tariffRepository, notifier, zones, fit, dataSource };
 }
 
 const publishDto = (overrides: Record<string, unknown> = {}) => ({
@@ -206,6 +228,88 @@ describe('IntercityTripsService', () => {
       await expect(service.publish('user-1', publishDto() as never, NOW)).rejects.toBeInstanceOf(
         NotFoundException,
       );
+    });
+  });
+
+  describe('publish — tumanlar', () => {
+    const ROHAT_EXT = {
+      ...ROUTE,
+      destinationPoint: { ...ROUTE.destinationPoint, extensionMaxKm: 30, extensionPricePerKm: 2000 },
+    };
+    const zone = (id: string, pointId: string, name: string) => ({
+      id,
+      pointId,
+      name,
+      isActive: true,
+      centerLat: 41.3,
+      centerLng: 69.3,
+      radiusKm: 4,
+    });
+
+    it("tanlangan tumanlar qatnov bilan BITTA tranzaksiyada yoziladi va view'da ko'rinadi", async () => {
+      const { service, manager, tripRepository, dataSource } = build({
+        route: ROHAT_EXT,
+        zones: [zone('z-yun', 'p-rohat', 'Yunusobod'), zone('z-mir', 'p-rohat', "Mirzo Ulug'bek")],
+      });
+      const view = await service.publish('user-1', publishDto({ destinationZoneIds: ['z-yun', 'z-mir'] }) as never, NOW);
+
+      expect(dataSource.transaction).toHaveBeenCalled();
+      expect(tripRepository.save).not.toHaveBeenCalled();
+      expect(manager.insert).toHaveBeenCalledWith(expect.anything(), [
+        { tripId: 'trip-1', zoneId: 'z-yun', side: 'destination' },
+        { tripId: 'trip-1', zoneId: 'z-mir', side: 'destination' },
+      ]);
+      expect(view.zones).toEqual({
+        origin: [],
+        destination: [
+          { id: 'z-yun', name: 'Yunusobod' },
+          { id: 'z-mir', name: "Mirzo Ulug'bek" },
+        ],
+      });
+    });
+
+    it("tumansiz e'lon — eski yo'l (tranzaksiyasiz)", async () => {
+      const { service, tripRepository, manager } = build({ route: ROHAT_EXT });
+      await service.publish('user-1', publishDto() as never, NOW);
+      expect(tripRepository.save).toHaveBeenCalled();
+      expect(manager.insert).not.toHaveBeenCalled();
+    });
+
+    it("boshqa nuqtaning tumani yoki davomsiz nuqtaga tuman — 400 INTERCITY_TRIP_INVALID", async () => {
+      const { service } = build({ route: ROHAT_EXT, zones: [zone('z-olm', 'p-olmaliq', 'Olmaliq')] });
+      await expect(
+        service.publish('user-1', publishDto({ destinationZoneIds: ['z-olm'] }) as never, NOW),
+      ).rejects.toMatchObject({
+        response: { code: 'INTERCITY_TRIP_INVALID', reasons: [{ code: 'ZONE_NOT_AVAILABLE' }] },
+      });
+      // Angren (olish tomoni) da davom yo'q.
+      await expect(
+        service.publish('user-1', publishDto({ originZoneIds: ['z-olm'] }) as never, NOW),
+      ).rejects.toMatchObject({
+        response: { code: 'INTERCITY_TRIP_INVALID', reasons: [{ code: 'ZONE_EXTENSION_DISABLED' }] },
+      });
+    });
+  });
+
+  describe('search — manzil bilan', () => {
+    it("manzil fit hisobiga uzatiladi va har qatnovga belgi qo'shiladi", async () => {
+      const fitValue = { fit: 'detour', addedMinutes: 22, detourChecked: true, zoneNames: [] };
+      const { service, fit } = build({ fits: new Map([['trip-1', fitValue]]) });
+      const { tripRepository } = { tripRepository: (service as unknown as { tripRepository: { find: jest.Mock } }).tripRepository };
+      tripRepository.find.mockResolvedValueOnce([trip()]);
+      const dropoff = { lat: 41.365, lng: 69.288 };
+      const views = await service.search('route-1', '2026-10-17', NOW, { dropoff });
+      expect(fit.fitForSearch).toHaveBeenCalledWith([expect.objectContaining({ id: 'trip-1' })], { dropoff }, 15);
+      expect(views[0].fit).toEqual(fitValue);
+    });
+
+    it("manzilsiz — fit null", async () => {
+      const { service } = build();
+      const { tripRepository } = { tripRepository: (service as unknown as { tripRepository: { find: jest.Mock } }).tripRepository };
+      tripRepository.find.mockResolvedValueOnce([trip()]);
+      const views = await service.search('route-1', '2026-10-17', NOW);
+      expect(views[0].fit).toBeNull();
+      expect(views[0].zones).toEqual({ origin: [], destination: [] });
     });
   });
 

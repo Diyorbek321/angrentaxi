@@ -48,13 +48,22 @@ class IntercityRepository {
     return _list(_data(res.data)).map(IntercityRoute.fromJson).toList();
   }
 
+  /// [pickup]/[dropoff] — ixtiyoriy yo'lovchi manzili: berilsa har qatnovga
+  /// `fit` (sizning tomonga / boshqa tumanga / aylanma) qo'shiladi.
   Future<List<IntercityTrip>> searchTrips({
     required String routeId,
     required String date,
+    IntercityPlace? pickup,
+    IntercityPlace? dropoff,
   }) async {
     final res = await _api.get(
       ApiEndpoints.intercityTrips,
-      params: {'routeId': routeId, 'date': date},
+      params: {
+        'routeId': routeId,
+        'date': date,
+        if (pickup != null) ...{'pickupLat': pickup.lat, 'pickupLng': pickup.lng},
+        if (dropoff != null) ...{'dropoffLat': dropoff.lat, 'dropoffLng': dropoff.lng},
+      },
     );
     return _list(_data(res.data)).map(IntercityTrip.fromJson).toList();
   }
@@ -131,11 +140,14 @@ class IntercityRepository {
   }
 
   /// Narx serverda yo'nalishdan nusxalanadi — bu yerda yuborilmaydi.
+  /// Tumanlar bo'sh — "hamma tumanlar" (server shunday tushunadi).
   Future<IntercityTrip> publishTrip({
     required String routeId,
     required DateTime departureAt,
     int? seatsTotal,
     required String tripClass,
+    List<String> originDistrictIds = const [],
+    List<String> destinationDistrictIds = const [],
   }) async {
     final res = await _api.post(
       ApiEndpoints.intercityTrips,
@@ -144,6 +156,8 @@ class IntercityRepository {
         'departureAt': departureAt.toUtc().toIso8601String(),
         if (seatsTotal != null) 'seatsTotal': seatsTotal,
         'tripClass': tripClass,
+        if (originDistrictIds.isNotEmpty) 'originZoneIds': originDistrictIds,
+        if (destinationDistrictIds.isNotEmpty) 'destinationZoneIds': destinationDistrictIds,
       },
     );
     return _trip(res.data);
@@ -177,6 +191,18 @@ class IntercityRepository {
     return _list(_data(res.data))
         .map(IntercityDriverBooking.fromJson)
         .toList(growable: false);
+  }
+
+  /// Bekatlar tartibi (kimni birinchi olish/tushirish). [fromLat]/[fromLng] —
+  /// haydovchining hozirgi joyi (olish bosqichida birinchi oraliq vaqti uchun).
+  Future<IntercityRoutePlan> routePlan(String tripId, {double? fromLat, double? fromLng}) async {
+    final res = await _api.get(
+      ApiEndpoints.intercityTripRoutePlan(tripId),
+      params: {
+        if (fromLat != null && fromLng != null) ...{'fromLat': fromLat, 'fromLng': fromLng},
+      },
+    );
+    return IntercityRoutePlan.fromJson(Map<String, dynamic>.from(_data(res.data) as Map));
   }
 
   /// Yo'lovchi oldiga yetib keldim — mavjud buyurtma yo'li (`/orders/:id/arrived`).

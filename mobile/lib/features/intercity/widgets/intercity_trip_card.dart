@@ -25,8 +25,14 @@ class IntercityTripCard extends StatelessWidget {
         .whereType<String>()
         .join(' · ');
     final bookable = trip.isBookable;
+    final fit = trip.fit;
+    // Yo'lovchi manzili bilan qidirilganda mos bo'lmagan qatnov xiralashadi —
+    // ochilsa ham server band qilishni rad etadi, lekin yo'lovchi tafsilotni
+    // ko'ra oladi (masalan, manzilini o'zgartirish uchun).
+    final mismatch = fit != null && !fit.isOk;
+    final districts = [...trip.originDistricts, ...trip.destinationDistricts];
 
-    return AppPressable(
+    final card = AppPressable(
       onTap: bookable ? onTap : null,
       child: Container(
         padding: const EdgeInsets.all(kSpace4),
@@ -108,6 +114,19 @@ class IntercityTripCard extends StatelessWidget {
                 style: const TextStyle(fontSize: kFontLabel, color: agSubtle),
               ),
             ],
+            if (districts.isNotEmpty) ...[
+              const SizedBox(height: kSpace1),
+              Text(
+                l10n.icTripDistricts(intercityDistrictNames(districts)),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: kFontLabel, color: agSubtle),
+              ),
+            ],
+            if (fit != null) ...[
+              const SizedBox(height: kSpace2),
+              _FitBadge(fit: fit),
+            ],
             const SizedBox(height: kSpace3),
             Text(
               l10n.icSeatPrice(Formatters.formatPrice(trip.seatPrice)),
@@ -131,6 +150,41 @@ class IntercityTripCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+    return mismatch ? Opacity(opacity: 0.55, child: card) : card;
+  }
+}
+
+/// "Sizning tomonga" / "Boshqa tumanga" / "+N daq aylanma".
+class _FitBadge extends StatelessWidget {
+  const _FitBadge({required this.fit});
+
+  final IntercityTripFit fit;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    // Matn rangi — "Deep" tokenlar: oq kartada kError/kWarning AA kontrastga
+    // yetmaydi (kWarning 2.1:1).
+    final (label, icon, color) = fit.isOutOfZone
+        ? (l10n.icFitOtherDistrict, Icons.block_rounded, kErrorDeep)
+        : fit.isDetour
+            ? (l10n.icFitDetour(fit.addedMinutes ?? 0), Icons.alt_route_rounded, kWarningDeep)
+            : (l10n.icFitYourWay, Icons.check_circle_rounded, agGreenText);
+    return Row(
+      key: ValueKey('intercity_fit_${fit.fit}'),
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: kSpace1),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: kFontLabel, fontWeight: FontWeight.w700, color: color),
+          ),
+        ),
+      ],
     );
   }
 }

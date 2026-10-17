@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Pencil, Plus } from 'lucide-react';
+import { MapPinned, Pencil, Plus } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -15,10 +15,17 @@ import {
   type DataTableColumn,
 } from '@/components/ui';
 import { PointFormModal } from '@/components/intercity/PointFormModal';
+import { PointZonesModal } from '@/components/intercity/PointZonesModal';
 import { RouteFormModal } from '@/components/intercity/RouteFormModal';
 import { apiErrorMessage, apiErrorTitle } from '@/lib/api-error';
 import { intercityApi } from '@/lib/intercity-api';
-import { formatPointExtension, routeLabel, type IntercityPoint, type IntercityRoute } from '@/lib/intercity';
+import {
+  formatPointExtension,
+  hasExtension,
+  routeLabel,
+  type IntercityPoint,
+  type IntercityRoute,
+} from '@/lib/intercity';
 
 type Tab = 'routes' | 'points';
 
@@ -47,6 +54,7 @@ export default function IntercityPage() {
     open: false,
     point: null,
   });
+  const [zonesFor, setZonesFor] = useState<IntercityPoint | null>(null);
 
   const fetchAll = useCallback(async () => {
     setIsLoading(true);
@@ -200,15 +208,22 @@ export default function IntercityPage() {
       key: 'actions',
       header: <span className="sr-only">Amallar</span>,
       align: 'right',
-      width: 'w-12',
+      width: 'w-24',
       cell: (p) => (
-        <IconButton
-          size="sm"
-          aria-label={`${p.name} nuqtasini tahrirlash`}
-          onClick={() => setPointForm({ open: true, point: p })}
-        >
-          <Pencil aria-hidden />
-        </IconButton>
+        <div className="flex justify-end gap-1">
+          {hasExtension(p) ? (
+            <IconButton size="sm" aria-label={`${p.name} tumanlari`} onClick={() => setZonesFor(p)}>
+              <MapPinned aria-hidden />
+            </IconButton>
+          ) : null}
+          <IconButton
+            size="sm"
+            aria-label={`${p.name} nuqtasini tahrirlash`}
+            onClick={() => setPointForm({ open: true, point: p })}
+          >
+            <Pencil aria-hidden />
+          </IconButton>
+        </div>
       ),
     },
   ];
@@ -313,6 +328,7 @@ export default function IntercityPage() {
         onClose={() => setPointForm((prev) => ({ ...prev, open: false }))}
         onSaved={fetchAll}
       />
+      <PointZonesModal open={zonesFor !== null} point={zonesFor} onClose={() => setZonesFor(null)} />
     </div>
   );
 }

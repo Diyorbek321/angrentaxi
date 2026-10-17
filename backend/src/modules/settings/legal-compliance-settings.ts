@@ -91,6 +91,7 @@ export interface PublicSettings {
   intercityMaxSeatsPerBooking: number;
   intercityMinLeadMinutes: number;
   intercityMaxAheadDays: number;
+  intercityMaxDetourMinutes: number;
 }
 
 /** `GET/PATCH /settings/intercity`. */
@@ -104,6 +105,8 @@ export interface IntercitySettings {
   intercityMinLeadMinutes: number;
   /** Ko'pi bilan shuncha kun oldinga e'lon qilinadi. */
   intercityMaxAheadDays: number;
+  /** O'rindiq bandi shahar ichidagi yo'lni ko'pi bilan shuncha daqiqa uzaytiradi; 0 — o'chiq (039). */
+  intercityMaxDetourMinutes: number;
 }
 
 export type IntercitySettingsChanges = Partial<IntercitySettings>;

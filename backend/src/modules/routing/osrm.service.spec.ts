@@ -31,6 +31,40 @@ describe('OsrmService', () => {
     });
   });
 
+  describe('durationMatrix', () => {
+    const coords: Coordinate[] = [
+      [69.36, 41.26],
+      [69.29, 41.36],
+      [69.21, 41.22],
+    ];
+
+    it('returns the full n×n matrix with nulls kept', async () => {
+      get.mockResolvedValueOnce({
+        data: { code: 'Ok', durations: [[0, 600, 700], [610, 0, null], [690, 900, 0]] },
+      });
+      await expect(makeService('http://osrm:5000').durationMatrix(coords)).resolves.toEqual([
+        [0, 600, 700],
+        [610, 0, null],
+        [690, 900, 0],
+      ]);
+      const [url, options] = get.mock.calls[0] as [string, { timeout: number }];
+      expect(url).toBe('/table/v1/driving/69.36,41.26;69.29,41.36;69.21,41.22');
+      expect(options.timeout).toBe(3000);
+    });
+
+    it('a single coordinate needs no call', async () => {
+      await expect(makeService('http://osrm:5000').durationMatrix([coords[0]])).resolves.toEqual([[0]]);
+      expect(get).not.toHaveBeenCalled();
+    });
+
+    it('returns null when OSRM fails or answers badly', async () => {
+      get.mockRejectedValueOnce(new Error('timeout'));
+      await expect(makeService('http://osrm:5000').durationMatrix(coords)).resolves.toBeNull();
+      get.mockResolvedValueOnce({ data: { code: 'NoTable' } });
+      await expect(makeService('http://osrm:5000').durationMatrix(coords)).resolves.toBeNull();
+    });
+  });
+
   describe('durationsTo', () => {
     const sources: Coordinate[] = [
       [69.1, 40.1],

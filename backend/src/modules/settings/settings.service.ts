@@ -474,6 +474,7 @@ const INTERCITY_DEFAULTS = {
   maxSeatsPerBooking: 4,
   minLeadMinutes: 30,
   maxAheadDays: 7,
+  maxDetourMinutes: 15,
 } as const;
 
 function toIntercitySettings(settings: PlatformSettings): IntercitySettings {
@@ -486,6 +487,7 @@ function toIntercitySettings(settings: PlatformSettings): IntercitySettings {
       settings.intercityMaxSeatsPerBooking ?? INTERCITY_DEFAULTS.maxSeatsPerBooking,
     intercityMinLeadMinutes: settings.intercityMinLeadMinutes ?? INTERCITY_DEFAULTS.minLeadMinutes,
     intercityMaxAheadDays: settings.intercityMaxAheadDays ?? INTERCITY_DEFAULTS.maxAheadDays,
+    intercityMaxDetourMinutes: settings.intercityMaxDetourMinutes ?? INTERCITY_DEFAULTS.maxDetourMinutes,
   };
 }
 

@@ -23,6 +23,23 @@ export interface IntercityTripDriverView {
   plate: string | null;
 }
 
+/** Haydovchi tanlagan tuman (yo'lovchiga "qaysi tomonga boradi" ko'rinadi). */
+export interface IntercityTripZoneView {
+  id: string;
+  name: string;
+}
+
+/**
+ * Yo'lovchi manzili bilan qidirilganda: qatnov unga mosmi (`intercity-fit.service.ts`).
+ * `out_of_zone` — boshqa tumanga; `detour` — mashinani ortiqcha aylantiradi.
+ */
+export interface IntercityTripFitView {
+  fit: 'ok' | 'out_of_zone' | 'detour';
+  addedMinutes: number | null;
+  detourChecked: boolean;
+  zoneNames: string[];
+}
+
 export interface IntercityTripView {
   id: string;
   route: {
@@ -43,6 +60,19 @@ export interface IntercityTripView {
   wholeCarPrice: number;
   driver: IntercityTripDriverView | null;
   cancelReason: string | null;
+  /** Tomonlar bo'yicha tanlangan tumanlar; bo'sh — butun davom hududi. */
+  zones: { origin: IntercityTripZoneView[]; destination: IntercityTripZoneView[] };
+  /** Faqat yo'lovchi manzili bilan qidirilganda; aks holda null. */
+  fit: IntercityTripFitView | null;
+}
+
+/** View'ga qo'shimcha: tumanlar va qidiruv belgisi (ikkalasi ixtiyoriy). */
+export interface IntercityTripViewExtras {
+  zones?: {
+    origin: ReadonlyArray<{ id: string; name: string }>;
+    destination: ReadonlyArray<{ id: string; name: string }>;
+  };
+  fit?: IntercityTripFitView | null;
 }
 
 /** Faqat dispetcher/admin uchun — haydovchiga qo'ng'iroq qilish kerak bo'ladi. */
@@ -73,7 +103,12 @@ function toDriverView(driver: (Driver & { user?: User }) | undefined): Intercity
   };
 }
 
-export function toIntercityTripView(trip: IntercityTripWithRelations): IntercityTripView {
+const zoneView = (zone: { id: string; name: string }): IntercityTripZoneView => ({ id: zone.id, name: zone.name });
+
+export function toIntercityTripView(
+  trip: IntercityTripWithRelations,
+  extras: IntercityTripViewExtras = {},
+): IntercityTripView {
   const seatsLeft = trip.wholeCarBooked ? 0 : trip.seatsTotal - trip.seatsTaken;
   return {
     id: trip.id,
@@ -97,11 +132,19 @@ export function toIntercityTripView(trip: IntercityTripWithRelations): Intercity
     wholeCarPrice: trip.wholeCarPrice,
     driver: toDriverView(trip.driver),
     cancelReason: trip.cancelReason,
+    zones: {
+      origin: (extras.zones?.origin ?? []).map(zoneView),
+      destination: (extras.zones?.destination ?? []).map(zoneView),
+    },
+    fit: extras.fit ?? null,
   };
 }
 
-export function toIntercityTripManageView(trip: IntercityTripWithRelations): IntercityTripManageView {
-  const view = toIntercityTripView(trip);
+export function toIntercityTripManageView(
+  trip: IntercityTripWithRelations,
+  extras: IntercityTripViewExtras = {},
+): IntercityTripManageView {
+  const view = toIntercityTripView(trip, extras);
   return {
     ...view,
     driver: view.driver ? { ...view.driver, phone: trip.driver?.user?.phone ?? null } : null,

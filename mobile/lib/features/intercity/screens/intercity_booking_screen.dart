@@ -22,7 +22,8 @@ typedef IntercityLocationPicker = Future<OrderLocation?> Function(
   required IntercityPoint area,
 });
 
-Future<OrderLocation?> _mapPicker(
+/// Standart xarita tanlovi (qidiruv ekrani ham ishlatadi).
+Future<OrderLocation?> intercityMapPicker(
   BuildContext context, {
   required String title,
   required IntercityPoint area,
@@ -46,6 +47,8 @@ class IntercityBookingScreen extends StatefulWidget {
     this.settings = IntercityPublicSettings.disabled,
     this.repository,
     this.pickLocation,
+    this.initialPickup,
+    this.initialDropoff,
   });
 
   final IntercityTrip trip;
@@ -53,6 +56,10 @@ class IntercityBookingScreen extends StatefulWidget {
   final IntercityPublicSettings settings;
   final IntercityRepository? repository;
   final IntercityLocationPicker? pickLocation;
+
+  /// Qidiruvda tanlangan manzil — shu yerda "Manzilimgacha/Manzilimdan" tayyor.
+  final OrderLocation? initialPickup;
+  final OrderLocation? initialDropoff;
 
   @override
   State<IntercityBookingScreen> createState() => _IntercityBookingScreenState();
@@ -72,10 +79,12 @@ class _IntercityBookingScreenState extends State<IntercityBookingScreen> {
   late IntercityTrip _trip = widget.trip;
   String _kind = IntercityBookingKind.seat;
   int _seats = 1;
-  OrderLocation? _pickup;
-  OrderLocation? _dropoff;
-  late _PlaceMode _pickupMode = _defaultMode(_origin);
-  late _PlaceMode _dropoffMode = _defaultMode(_destination);
+  late OrderLocation? _pickup = widget.initialPickup;
+  late OrderLocation? _dropoff = widget.initialDropoff;
+  late _PlaceMode _pickupMode =
+      widget.initialPickup != null ? _PlaceMode.address : _defaultMode(_origin);
+  late _PlaceMode _dropoffMode =
+      widget.initialDropoff != null ? _PlaceMode.address : _defaultMode(_destination);
   bool _submitting = false;
 
   // "Shahar ichiga davom" narxi — faqat serverdan (mijoz hisoblamaydi).
@@ -134,13 +143,28 @@ class _IntercityBookingScreenState extends State<IntercityBookingScreen> {
   /// Davom bo'lsa — server narxi; aks holda qat'iy narx (server bilan teng).
   double? get _total => _needsQuote ? _quote?.total : _basePrice;
 
+  /// Server baribir rad etadigan band (boshqa tuman / katta aylanma).
+  bool get _quoteBlocks => _needsQuote && (_quote?.fit.blocksBooking ?? false);
+
   bool get _canSubmit =>
       !_submitting &&
       _placesValid &&
       _quoteReady &&
+      !_quoteBlocks &&
       (_kind == IntercityBookingKind.wholeCar
           ? _trip.wholeCarAvailable
           : _trip.seatsLeft > 0);
+
+  @override
+  void initState() {
+    super.initState();
+    // Qidiruvdan kelgan manzil bilan narx va moslik darhol so'raladi.
+    if (widget.initialPickup != null || widget.initialDropoff != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _scheduleQuote();
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -201,7 +225,7 @@ class _IntercityBookingScreenState extends State<IntercityBookingScreen> {
   Future<void> _choose({required bool pickup}) async {
     final l10n = context.l10n;
     final area = pickup ? _origin : _destination;
-    final picker = widget.pickLocation ?? _mapPicker;
+    final picker = widget.pickLocation ?? intercityMapPicker;
     final result = await picker(
       context,
       title: pickup ? l10n.icPickup : l10n.icDropoff,
@@ -464,6 +488,7 @@ class _IntercityBookingScreenState extends State<IntercityBookingScreen> {
               extensions: quote.extensions,
             ),
             const SizedBox(height: kSpace1),
+            if (quote.fit.blocksBooking) _fitWarning(context, quote.fit),
           ],
           Row(
             children: [
@@ -490,6 +515,38 @@ class _IntercityBookingScreenState extends State<IntercityBookingScreen> {
             isLoading: _submitting,
             isEnabled: _canSubmit,
             onPressed: _canSubmit ? _submit : null,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Tuman yoki aylanma sabab band bo'lmaydi — nima uchunligi va nima qilish.
+  Widget _fitWarning(BuildContext context, IntercityQuoteFit fit) {
+    final l10n = context.l10n;
+    final reason = !fit.zoneOk
+        ? l10n.icQuoteOutOfZone(fit.zoneNames.join(', '))
+        : l10n.icQuoteDetour(fit.detourMinutes ?? 0, fit.maxDetourMinutes);
+    return Container(
+      key: const ValueKey('intercity_fit_warning'),
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: kSpace2),
+      padding: const EdgeInsets.all(kSpace3),
+      decoration: BoxDecoration(
+        color: agBg,
+        borderRadius: BorderRadius.circular(agRadiusMd),
+        border: Border.all(color: kErrorDeep.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.alt_route_rounded, color: kErrorDeep, size: 20),
+          const SizedBox(width: kSpace2),
+          Expanded(
+            child: Text(
+              '$reason\n${l10n.icPickAnotherTrip}',
+              style: const TextStyle(fontSize: kFontLabel, color: kErrorDeep, fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),

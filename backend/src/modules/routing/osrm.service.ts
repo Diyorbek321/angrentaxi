@@ -119,6 +119,41 @@ export class OsrmService {
   }
 
   /**
+   * Full driving-time matrix between `coords` (seconds, `m[i][j]` = i → j).
+   *
+   * Used to order a shared intercity car's city stops and to measure how far
+   * a new passenger would make the car detour. Asymmetric on purpose: one-way
+   * streets make i → j and j → i differ. Unroutable pairs are null; a failed
+   * call is null altogether — callers fail open (allow the booking, skip the
+   * optimisation) rather than block a ride on a router outage.
+   */
+  async durationMatrix(
+    coords: readonly Coordinate[],
+    timeoutMs = 3000,
+  ): Promise<(number | null)[][] | null> {
+    if (coords.length === 0) return [];
+    if (coords.length === 1) return [[0]];
+
+    try {
+      const { data } = await this.http.get<{
+        code: string;
+        durations?: (number | null)[][];
+      }>(`/table/v1/driving/${OsrmService.toParam(coords)}`, {
+        params: { annotations: 'duration' },
+        timeout: timeoutMs,
+      });
+
+      if (data.code !== 'Ok' || !data.durations || data.durations.length !== coords.length) {
+        return null;
+      }
+      return data.durations.map((row) => coords.map((_, j) => row?.[j] ?? null));
+    } catch (err) {
+      this.logger.warn(`OSRM /table (matrix) failed: ${(err as Error).message}`);
+      return null;
+    }
+  }
+
+  /**
    * Snaps a raw GPS trace onto roads and reports the distance actually driven.
    *
    * OSRM caps a match at 100 coordinates, so a long trip is matched in

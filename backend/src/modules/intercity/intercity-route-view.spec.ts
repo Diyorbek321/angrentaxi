@@ -36,3 +36,20 @@ describe('toIntercityPointView — shahar ichiga davom', () => {
     });
   });
 });
+
+describe('toIntercityPointView — tumanlar', () => {
+  const zones = [
+    { id: 'z-yun', pointId: 'rohat', name: 'Yunusobod', centerLat: 41.365, centerLng: 69.288, radiusKm: 4 },
+    { id: 'z-olm', pointId: 'olmaliq', name: 'Olmaliq markaz', centerLat: 40.84, centerLng: 69.6, radiusKm: 3 },
+  ];
+
+  it('davom yoqilgan nuqtada faqat o‘z tumanlari', () => {
+    expect(toIntercityPointView(point({ extensionMaxKm: 30, extensionPricePerKm: 2000 }), zones).zones).toEqual([
+      { id: 'z-yun', name: 'Yunusobod', centerLat: 41.365, centerLng: 69.288, radiusKm: 4 },
+    ]);
+  });
+
+  it("davom o'chiq — tumanlar ko'rsatilmaydi", () => {
+    expect(toIntercityPointView(point(), zones).zones).toEqual([]);
+  });
+});

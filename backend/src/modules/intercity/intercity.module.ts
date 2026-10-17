@@ -24,6 +24,12 @@ import { IntercityLifecycleService } from './intercity-lifecycle.service';
 import { IntercityTripsCron } from './intercity-trips.cron';
 import { IntercityNotifier } from './intercity-notifier';
 import { IntercityExtensionPricer } from './intercity-extension-pricer';
+import { IntercityZone } from '../../database/entities/intercity-zone.entity';
+import { IntercityTripZone } from '../../database/entities/intercity-trip-zone.entity';
+import { IntercityZonesService } from './intercity-zones.service';
+import { IntercityDetourService } from './intercity-detour.service';
+import { IntercityFitService } from './intercity-fit.service';
+import { IntercityRoutePlanService } from './intercity-route-plan.service';
 
 /**
  * Shaharlararo qatnov. 1-qadam: nuqtalar, yo'nalishlar, qat'iy narxlar.
@@ -40,7 +46,17 @@ import { IntercityExtensionPricer } from './intercity-extension-pricer';
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([IntercityPoint, IntercityRoute, IntercityTrip, Driver, Tariff, Transaction, Order]),
+    TypeOrmModule.forFeature([
+      IntercityPoint,
+      IntercityRoute,
+      IntercityTrip,
+      IntercityZone,
+      IntercityTripZone,
+      Driver,
+      Tariff,
+      Transaction,
+      Order,
+    ]),
     SettingsModule,
     DriversModule,
     // 6-qadam: `intercity:*` hodisalari va push (IntercityNotifier).
@@ -60,6 +76,11 @@ import { IntercityExtensionPricer } from './intercity-extension-pricer';
     IntercityTripsCron,
     IntercityNotifier,
     IntercityExtensionPricer,
+    // Tumanlar, aylanma va haydovchi bekatlar tartibi (migratsiya 039).
+    IntercityZonesService,
+    IntercityDetourService,
+    IntercityFitService,
+    IntercityRoutePlanService,
   ],
   exports: [IntercityPointsService, IntercityRoutesService, IntercityTripsService],
 })

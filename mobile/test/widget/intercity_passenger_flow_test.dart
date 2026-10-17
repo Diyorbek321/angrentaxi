@@ -121,6 +121,8 @@ class FakeIntercityRepository extends IntercityRepository {
   Future<List<IntercityTrip>> searchTrips({
     required String routeId,
     required String date,
+    IntercityPlace? pickup,
+    IntercityPlace? dropoff,
   }) async {
     searches.add('$routeId@$date');
     return onSearch(routeId, date);

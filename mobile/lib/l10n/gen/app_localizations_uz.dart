@@ -1292,6 +1292,22 @@ class AppLocalizationsUz extends AppLocalizations {
   }
 
   @override
+  String get icAddressFilterClear => 'Manzilni tozalash';
+
+  @override
+  String get icAddressFilterDropoff => 'Tushish manzilim (ixtiyoriy)';
+
+  @override
+  String get icAddressFilterHint =>
+      'Manzilni tanlasangiz, sizning tomonga boradigan qatnovlar belgilanadi';
+
+  @override
+  String get icAddressFilterPickup => 'Olinish manzilim (ixtiyoriy)';
+
+  @override
+  String get icAllDistricts => 'Hamma tumanlar';
+
+  @override
   String get icBasePrice => 'Qatnov narxi';
 
   @override
@@ -1463,6 +1479,11 @@ class AppLocalizationsUz extends AppLocalizations {
       'Siz bu qatnovda allaqachon joy band qilgansiz';
 
   @override
+  String icErrDetourTooLong(int minutes) {
+    return 'Bu qatnov sizning manzilingizga katta aylanma qiladi (+$minutes daq). Boshqa qatnovni tanlang.';
+  }
+
+  @override
   String get icErrDisabled => 'Shaharlararo xizmati hozircha o\'chirilgan';
 
   @override
@@ -1473,6 +1494,11 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get icErrNotCancellable => 'Bu bandni endi bekor qilib bo\'lmaydi';
+
+  @override
+  String icErrOutOfZone(String zones) {
+    return 'Bu qatnov sizning tumaningizga bormaydi ($zones). Boshqa qatnovni tanlang.';
+  }
 
   @override
   String get icErrSeatsUnavailable =>
@@ -1511,6 +1537,17 @@ class AppLocalizationsUz extends AppLocalizations {
   String icExtensionPickupLine(String place, String km, String price) {
     return 'Manzil → $place: $km km × $price';
   }
+
+  @override
+  String icFitDetour(int minutes) {
+    return '+$minutes daq aylanma';
+  }
+
+  @override
+  String get icFitOtherDistrict => 'Boshqa tumanga';
+
+  @override
+  String get icFitYourWay => 'Sizning tomonga';
 
   @override
   String icFreeCancelUntil(String time) {
@@ -1570,6 +1607,9 @@ class AppLocalizationsUz extends AppLocalizations {
   String get icPaymentCash => 'To\'lov: naqd, haydovchiga';
 
   @override
+  String get icPickAnotherTrip => 'Boshqa qatnovni yoki manzilni tanlang';
+
+  @override
   String get icPickup => 'Olib ketish manzili';
 
   @override
@@ -1584,10 +1624,34 @@ class AppLocalizationsUz extends AppLocalizations {
   String get icPlaceToAddress => 'Manzilimgacha';
 
   @override
+  String icPublishDistrictsDestination(String place) {
+    return 'Tushirish tumanlari ($place)';
+  }
+
+  @override
+  String get icPublishDistrictsHint =>
+      'Faqat tanlangan tumanlardagi yo\'lovchilar band qila oladi — mashina shahar bo\'ylab tarqalib ketmaydi';
+
+  @override
+  String icPublishDistrictsOrigin(String place) {
+    return 'Olish tumanlari ($place)';
+  }
+
+  @override
+  String icQuoteDetour(int minutes, int limit) {
+    return 'Manzilingiz mashinani +$minutes daq aylantiradi (ko\'pi bilan $limit daq)';
+  }
+
+  @override
   String get icQuoteFailed => 'Narxni hisoblab bo\'lmadi';
 
   @override
   String get icQuoteLoading => 'Narx hisoblanmoqda…';
+
+  @override
+  String icQuoteOutOfZone(String zones) {
+    return 'Bu qatnov faqat shu tumanlarga boradi: $zones';
+  }
 
   @override
   String get icQuoteRetry => 'Qayta urinish';
@@ -1626,9 +1690,17 @@ class AppLocalizationsUz extends AppLocalizations {
   String get icRunDropOff => 'Tushirdim';
 
   @override
+  String icRunEtaFromPrev(int minutes) {
+    return '~$minutes daq';
+  }
+
+  @override
   String icRunExtension(String km, String place) {
     return 'Shahar ichida +$km km ($place)';
   }
+
+  @override
+  String get icRunNavigate => 'Navigatsiya';
 
   @override
   String get icRunNoBookings => 'Hali hech kim band qilmagan';
@@ -1645,6 +1717,14 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get icRunNoShowTitle => 'Yo\'lovchi kelmadimi?';
+
+  @override
+  String get icRunOrderNearest => 'Eng yaqindan tartib';
+
+  @override
+  String icRunOrderOptimized(int minutes) {
+    return 'Eng qisqa yo\'l tartibi · jami ~$minutes daq';
+  }
 
   @override
   String get icRunPassengers => 'Yo\'lovchilar';
@@ -1681,6 +1761,11 @@ class AppLocalizationsUz extends AppLocalizations {
   @override
   String get icRunStartBoardingHint =>
       'Jo\'nashdan 60 daqiqa oldin yoki mashina to\'lganda ochiladi';
+
+  @override
+  String icRunTerminal(String place, int minutes) {
+    return 'Keyin $place: ~$minutes daq';
+  }
 
   @override
   String get icRunTitle => 'Qatnov';
@@ -1771,6 +1856,11 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get icTripCompleted => 'Yakunlangan';
+
+  @override
+  String icTripDistricts(String zones) {
+    return 'Tumanlar: $zones';
+  }
 
   @override
   String get icTripFull => 'To\'la';

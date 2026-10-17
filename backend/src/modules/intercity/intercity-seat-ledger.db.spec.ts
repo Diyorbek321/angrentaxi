@@ -199,4 +199,29 @@ describeDb('intercity-seat-ledger — parallel band (Postgres)', () => {
       await expect(readTrip()).resolves.toMatchObject({ status: 'completed' });
     });
   });
+
+  it("aylanma qayta tekshiruvi: qatnov qulfidan keyin B raqib A ning bandini ko'radi", async () => {
+    await seedTrip({ seatsTotal: 4, seatsTaken: 0 });
+    await a.query(`DELETE FROM "orders"`);
+
+    await a.startTransaction();
+    await lockTripForCompletion(asManager(a), TRIP);
+    await a.query(`INSERT INTO "orders" ("id", "intercity_trip_id", "status") VALUES (gen_random_uuid(), $1, 'scheduled')`, [TRIP]);
+
+    await b.startTransaction();
+    // B qulfda kutadi — A hali commit qilmagan.
+    const bLocked = lockTripForCompletion(asManager(b), TRIP).then(() =>
+      b.query(
+        `SELECT count(*)::int AS live FROM "orders" WHERE "intercity_trip_id" = $1 AND "status" NOT IN ('completed', 'cancelled')`,
+        [TRIP],
+      ),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    await a.commitTransaction();
+
+    const [{ live }] = (await bLocked) as Array<{ live: number }>;
+    await b.commitTransaction();
+    // B aylanmani A ning manzili BILAN o'lchaydi — ikkalasi "aylanma yo'q" deb o'tib ketmaydi.
+    expect(live).toBe(1);
+  });
 });

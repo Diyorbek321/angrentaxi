@@ -29,6 +29,7 @@ import {
   type IntercityTripStatus,
   type IntercityTripUpdatedPayload,
   type IntercityTripView,
+  zonesLabel,
 } from '@/lib/intercity';
 import { SOCKET_EVENTS, subscribeToSocket } from '@/lib/socket';
 
@@ -310,6 +311,12 @@ export default function IntercityTripsPage() {
               ) : (
                 '—'
               )}
+            </KeyValue>
+            <KeyValue label={`Olish tumanlari (${selected.route.origin.name})`}>
+              {zonesLabel(selected.zones?.origin)}
+            </KeyValue>
+            <KeyValue label={`Tushirish tumanlari (${selected.route.destination.name})`}>
+              {zonesLabel(selected.zones?.destination)}
             </KeyValue>
             {isWholeCarBooked(selected) && (
               <KeyValue label="Band turi">
