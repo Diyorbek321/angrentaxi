@@ -392,9 +392,12 @@ class _DemandMapScreenState extends State<DemandMapScreen>
         borderRadius: BorderRadius.circular(kRadiusMd),
         boxShadow: kShadowCard,
       ),
-      alignment: Alignment.centerLeft,
+      // ⚠️ `alignment` YO'Q: u Container'ni ota-ona bergan butun balandlikka
+      // cho'zardi — sarlavha ekranni yopuvchi oq ustunga aylanardi.
+      // Vertikal markaz `minHeight` + Column'ning `center` i bilan.
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(

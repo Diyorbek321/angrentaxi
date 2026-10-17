@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:angren_taxi/core/config/app_motion.dart';
 import 'package:angren_taxi/core/config/app_responsive.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
@@ -47,6 +48,8 @@ class AdaptiveMapPanel extends StatelessWidget {
     this.crossAxisAlignment = CrossAxisAlignment.start,
     this.animateIn = true,
     this.layered = false,
+    this.collapsed = false,
+    this.onCollapsedChanged,
   });
 
   final Widget child;
@@ -83,6 +86,14 @@ class AdaptiveMapPanel extends StatelessWidget {
   /// chegarasiz. Ikkalasi birga ishlatilmasa qatlam ko'rinmaydi: oq ustidagi
   /// oq karta ajralmaydi.
   final bool layered;
+
+  /// Sheet yig'ilganmi. Yig'ilgan kontentni chaqiruvchi o'zi quradi
+  /// (masalan faqat asosiy amal) — panel faqat tutqichni boshqaradi.
+  final bool collapsed;
+
+  /// Berilsa, tutqich HAQIQIY bo'ladi: bosish almashtiradi, pastga surish
+  /// yig'adi, yuqoriga — ochadi. Berilmasa tutqich faqat bezak (eski xulq).
+  final ValueChanged<bool>? onCollapsedChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -121,23 +132,7 @@ class AdaptiveMapPanel extends StatelessWidget {
         crossAxisAlignment: crossAxisAlignment,
         children: [
           if (showHandle && !side) ...[
-            Center(
-              child: ExcludeSemantics(
-                child: Container(
-                  width: 44,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    // Qatlamli rejimda panel foni allaqachon
-                    // `surfaceContainer`; tutqich undan bir pog'ona
-                    // yuqori bo'lmasa ko'rinmay qoladi.
-                    color: layered
-                        ? scheme.outline
-                        : scheme.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(kRadiusFull),
-                  ),
-                ),
-              ),
-            ),
+            _buildHandle(context, scheme),
             const SizedBox(height: kSpace4),
           ],
           // Sheet rejimida kontent ekranga sig'masa (kichik telefon,
@@ -216,6 +211,43 @@ class AdaptiveMapPanel extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildHandle(BuildContext context, ColorScheme scheme) {
+    final bar = Center(
+      child: Container(
+        width: 44,
+        height: 5,
+        decoration: BoxDecoration(
+          // Qatlamli rejimda panel foni allaqachon `surfaceContainer`;
+          // tutqich undan bir pog'ona yuqori bo'lmasa ko'rinmay qoladi.
+          color: layered ? scheme.outline : scheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(kRadiusFull),
+        ),
+      ),
+    );
+
+    final onChanged = onCollapsedChanged;
+    if (onChanged == null) return ExcludeSemantics(child: bar);
+
+    return Semantics(
+      button: true,
+      label:
+          collapsed ? context.l10n.shPanelExpand : context.l10n.shPanelCollapse,
+      child: GestureDetector(
+        key: const ValueKey('adaptive_map_panel_handle'),
+        behavior: HitTestBehavior.opaque,
+        onTap: () => onChanged(!collapsed),
+        onVerticalDragEnd: (details) {
+          final velocity = details.primaryVelocity ?? 0;
+          if (velocity > 0 && !collapsed) onChanged(true);
+          if (velocity < 0 && collapsed) onChanged(false);
+        },
+        // 5px chiziqni barmoq topa olmaydi — bosish maydoni panel eni
+        // bo'ylab va kamida 24dp balandlikda.
+        child: SizedBox(height: kSpace6, child: bar),
       ),
     );
   }

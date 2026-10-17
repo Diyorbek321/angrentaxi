@@ -140,5 +140,7 @@
   "shMeterAtLeast": "от {price}",
   "shMeterNoDestination": "Без адреса — таксометр",
   "shManeuverRerouting": "Вы отклонились от маршрута. Маршрут перестраивается.",
-  "shFareOptionOther": "Дополнительная опция"
+  "shFareOptionOther": "Дополнительная опция",
+  "shPanelCollapse": "Свернуть панель",
+  "shPanelExpand": "Развернуть панель"
 }

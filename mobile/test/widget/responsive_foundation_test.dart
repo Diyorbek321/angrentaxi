@@ -233,6 +233,52 @@ void main() {
       expect(tester.getRect(tall).top, greaterThanOrEqualTo(panelTop));
     });
 
+    testWidgets(
+        'onCollapsedChanged berilsa tutqich bosiladi va pastga surilganda yig\'adi',
+        (tester) async {
+      const size = Size(390, 800);
+      final changes = <bool>[];
+      Widget build(bool collapsed) => Scaffold(
+            body: Stack(
+              children: [
+                const SizedBox.expand(),
+                AdaptiveMapPanel(
+                  animateIn: false,
+                  collapsed: collapsed,
+                  onCollapsedChanged: changes.add,
+                  child: Container(key: const Key('content'), height: 100),
+                ),
+              ],
+            ),
+          );
+
+      await pumpAt(tester, size, build(false));
+      final handle = find.byKey(const ValueKey('adaptive_map_panel_handle'));
+      expect(find.bySemanticsLabel("Panelni yig'ish"), findsOneWidget);
+
+      await tester.tap(handle);
+      await tester.fling(handle, const Offset(0, 200), 1000);
+      // Yuqoriga surish ochiq panelda hech narsa qilmaydi.
+      await tester.fling(handle, const Offset(0, -200), 1000);
+      expect(changes, [true, true]);
+
+      await pumpAt(tester, size, build(true));
+      expect(find.bySemanticsLabel('Panelni ochish'), findsOneWidget);
+      await tester.fling(handle, const Offset(0, -200), 1000);
+      expect(changes, [true, true, false]);
+    });
+
+    testWidgets('onCollapsedChanged berilmasa tutqich bezak, bosilmaydi',
+        (tester) async {
+      const size = Size(390, 800);
+      await pumpAt(tester, size, harness(size));
+
+      expect(
+        find.byKey(const ValueKey('adaptive_map_panel_handle')),
+        findsNothing,
+      );
+    });
+
     testWidgets('keng ekranda chapdagi tor yon panel', (tester) async {
       const size = Size(1000, 800);
       await pumpAt(tester, size, harness(size));

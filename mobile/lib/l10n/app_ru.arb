@@ -1226,6 +1226,8 @@
   "shOtpSentPrefix": "Код отправлен на номер ",
   "shOtpSentSuffix": " ",
   "shOtpTitle": "Подтверждение",
+  "shPanelCollapse": "Свернуть панель",
+  "shPanelExpand": "Развернуть панель",
   "shPayMethodCard": "Карта",
   "shPayMethodCash": "Наличные",
   "shPayMethodWallet": "Кошелёк",

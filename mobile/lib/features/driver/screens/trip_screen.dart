@@ -88,6 +88,10 @@ class _TripScreenState extends State<TripScreen> {
   /// shundan hisoblanadi (`map_camera_insets.dart` dagi izohga qarang).
   final GlobalKey _panelContentKey = GlobalKey();
 
+  /// Sheet yig'ilgan — xarita deyarli butun ekranda, pastda faqat
+  /// "yakunlash" qoladi (haydovchi yo'lni ko'rishi kerak, kartalarni emas).
+  bool _panelCollapsed = false;
+
   /// Oxirgi o'lchangan sheet kontenti balandligi. Faqat kameraga ta'sir
   /// qiladi, vidjet daraxtiga emas — shuning uchun `setState` yo'q.
   double? _panelContentHeight;
@@ -892,63 +896,80 @@ class _TripScreenState extends State<TripScreen> {
     return AdaptiveMapPanel(
       layered: true,
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      child: Column(
-        key: _panelContentKey,
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildDestinationCard(order, wording),
-          const SizedBox(height: kSpace2),
-          _buildClientCard(order, wording),
-          const SizedBox(height: kSpace2),
-          // Kuryer: eshik oldida qancha naqd olinishi — topshirishdan
-          // oldingi eng muhim raqam, daromad kartasidan yuqorida.
-          if (order.delivery != null) ...[
-            DeliveryInfoCard(
-              delivery: order.delivery!,
-              stage: DeliveryCardStage.dropoff,
-            ),
-            const SizedBox(height: kSpace2),
-          ],
-          // Posilka: kimga topshiriladi — PIN kodni haydovchi undan so'raydi.
-          if (order.parcel != null) ...[
-            ParcelInfoCard(
-              parcel: order.parcel!,
-              stage: DeliveryCardStage.dropoff,
-            ),
-            const SizedBox(height: kSpace2),
-          ],
-          // Taksometr: oldindan hisoblangan daromad yo'q — o'rnida jonli
-          // hisoblagich (yo'lovchi ham aynan shu sonni ko'radi).
-          if (order.isMetered)
-            LiveMeterCard(
-              orderId: order.id,
-              service: _meterService,
-              minFare: order.estimatedPrice,
+      collapsed: _panelCollapsed,
+      onCollapsedChanged: (value) => setState(() => _panelCollapsed = value),
+      child: _panelCollapsed
+          ? Column(
+              key: _panelContentKey,
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [_buildCompleteAction(order, wording, busy)],
             )
-          else
-            _buildEarningsCard(order),
-          const SizedBox(height: kSpace4),
-          _buildActionRow(order, wording),
-          // 12dp — ikkilamchi qator bilan QAYTARIB BO'LMAYDIGAN amal
-          // orasidagi bo'shliq (o'lcham qoidasi).
-          const SizedBox(height: kSpace3),
-          if (busy)
-            // Surish bajarildi, so'rov yo'lda. Balandlik AYNAN o'sha (64) —
-            // panel sakramaydi, ya'ni kamera ham qayta hisoblanmaydi.
-            AppButton(
-              label: wording.completeActionLabel,
-              onPressed: null,
-              isLoading: true,
-              height: kControlHeightDriver,
-            )
-          else
-            AgSlideAction(
-              label: wording.completeActionLabel,
-              onCompleted: () => _onCompleteTrip(order, wording),
+          : Column(
+              key: _panelContentKey,
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildDestinationCard(order, wording),
+                const SizedBox(height: kSpace2),
+                _buildClientCard(order, wording),
+                const SizedBox(height: kSpace2),
+                // Kuryer: eshik oldida qancha naqd olinishi — topshirishdan
+                // oldingi eng muhim raqam, daromad kartasidan yuqorida.
+                if (order.delivery != null) ...[
+                  DeliveryInfoCard(
+                    delivery: order.delivery!,
+                    stage: DeliveryCardStage.dropoff,
+                  ),
+                  const SizedBox(height: kSpace2),
+                ],
+                // Posilka: kimga topshiriladi — PIN kodni haydovchi undan so'raydi.
+                if (order.parcel != null) ...[
+                  ParcelInfoCard(
+                    parcel: order.parcel!,
+                    stage: DeliveryCardStage.dropoff,
+                  ),
+                  const SizedBox(height: kSpace2),
+                ],
+                // Taksometr: oldindan hisoblangan daromad yo'q — o'rnida jonli
+                // hisoblagich (yo'lovchi ham aynan shu sonni ko'radi).
+                if (order.isMetered)
+                  LiveMeterCard(
+                    orderId: order.id,
+                    service: _meterService,
+                    minFare: order.estimatedPrice,
+                  )
+                else
+                  _buildEarningsCard(order),
+                const SizedBox(height: kSpace4),
+                _buildActionRow(order, wording),
+                // 12dp — ikkilamchi qator bilan QAYTARIB BO'LMAYDIGAN amal
+                // orasidagi bo'shliq (o'lcham qoidasi).
+                const SizedBox(height: kSpace3),
+                _buildCompleteAction(order, wording, busy),
+              ],
             ),
-        ],
-      ),
+    );
+  }
+
+  Widget _buildCompleteAction(
+    Order order,
+    DriverServiceWording wording,
+    bool busy,
+  ) {
+    if (busy) {
+      // Surish bajarildi, so'rov yo'lda. Balandlik AYNAN o'sha (64) —
+      // panel sakramaydi, ya'ni kamera ham qayta hisoblanmaydi.
+      return AppButton(
+        label: wording.completeActionLabel,
+        onPressed: null,
+        isLoading: true,
+        height: kControlHeightDriver,
+      );
+    }
+    return AgSlideAction(
+      label: wording.completeActionLabel,
+      onCompleted: () => _onCompleteTrip(order, wording),
     );
   }
 

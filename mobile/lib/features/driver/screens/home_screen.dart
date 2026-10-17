@@ -589,7 +589,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
             ),
           ),
         DriverEarningsHero(
-          todayEarnings: driverProvider.todayEarnings,
+          // Bugun ham, hafta ham SOF (komissiya va soliqdan keyin): ilgari
+          // bugun yalpi edi va "Hafta" bugundan kam chiqardi (10 900 / 9 810).
+          todayEarnings: driverProvider.earningsBreakdown.today.net,
           todayTrips: driverProvider.earningsBreakdown.today.trips,
           weekNet: driverProvider.earningsBreakdown.week.net,
           isOnline: isOnline,

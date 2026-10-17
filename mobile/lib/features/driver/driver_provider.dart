@@ -842,6 +842,8 @@ class DriverProvider extends ChangeNotifier {
           completedOrder.actualPrice ?? completedOrder.estimatedPrice;
       _activeOrder = null;
       _setState(DriverProviderState.success);
+      // Bosh ekrandagi sof daromad shu taqsimotdan — safar qo'shilsin.
+      unawaited(loadEarningsBreakdown());
     } catch (e) {
       _error = extractErrorMessage(e);
       _setState(DriverProviderState.error);

@@ -4203,6 +4203,12 @@ class AppLocalizationsUz extends AppLocalizations {
   String get shOtpTitle => 'Tasdiqlash';
 
   @override
+  String get shPanelCollapse => 'Panelni yig\'ish';
+
+  @override
+  String get shPanelExpand => 'Panelni ochish';
+
+  @override
   String get shPayMethodCard => 'Karta';
 
   @override

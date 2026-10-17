@@ -7455,6 +7455,18 @@ abstract class AppLocalizations {
   /// **'Tasdiqlash'**
   String get shOtpTitle;
 
+  /// No description provided for @shPanelCollapse.
+  ///
+  /// In uz, this message translates to:
+  /// **'Panelni yig\'ish'**
+  String get shPanelCollapse;
+
+  /// No description provided for @shPanelExpand.
+  ///
+  /// In uz, this message translates to:
+  /// **'Panelni ochish'**
+  String get shPanelExpand;
+
   /// No description provided for @shPayMethodCard.
   ///
   /// In uz, this message translates to:

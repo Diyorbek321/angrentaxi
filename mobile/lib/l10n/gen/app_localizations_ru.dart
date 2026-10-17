@@ -4192,6 +4192,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get shOtpTitle => 'Подтверждение';
 
   @override
+  String get shPanelCollapse => 'Свернуть панель';
+
+  @override
+  String get shPanelExpand => 'Развернуть панель';
+
+  @override
   String get shPayMethodCard => 'Карта';
 
   @override

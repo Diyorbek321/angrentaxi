@@ -2724,6 +2724,8 @@
   "shOtpSentPrefix": "Kod ",
   "shOtpSentSuffix": " raqamiga yuborildi",
   "shOtpTitle": "Tasdiqlash",
+  "shPanelCollapse": "Panelni yig'ish",
+  "shPanelExpand": "Panelni ochish",
   "shPayMethodCard": "Karta",
   "shPayMethodCash": "Naqd pul",
   "shPayMethodWallet": "Hamyon",
