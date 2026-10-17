@@ -1293,6 +1293,9 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get icBasePrice => 'Цена рейса';
+
+  @override
   String get icBookTitle => 'Бронирование';
 
   @override
@@ -1491,6 +1494,24 @@ class AppLocalizationsRu extends AppLocalizations {
   String get icErrTripOverlap => 'У вас уже есть рейс в пределах ±3 часов';
 
   @override
+  String icExtensionDropoffLine(String place, String km, String price) {
+    return '$place → адрес: $km км × $price';
+  }
+
+  @override
+  String get icExtensionEstimated => 'расстояние приблизительное';
+
+  @override
+  String icExtensionHint(String place, String maxKm, String price) {
+    return 'До $maxKm км от «$place» · +$price/км';
+  }
+
+  @override
+  String icExtensionPickupLine(String place, String km, String price) {
+    return 'Адрес → $place: $km км × $price';
+  }
+
+  @override
   String icFreeCancelUntil(String time) {
     return 'Бесплатная отмена до $time';
   }
@@ -1540,10 +1561,35 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String icOutsideExtension(String place, String maxKm) {
+    return 'Адрес дальше $maxKm км от «$place»';
+  }
+
+  @override
   String get icPaymentCash => 'Оплата: наличными водителю';
 
   @override
   String get icPickup => 'Адрес посадки';
+
+  @override
+  String icPlaceAtPoint(String place) {
+    return 'У «$place»';
+  }
+
+  @override
+  String get icPlaceFromAddress => 'От моего адреса';
+
+  @override
+  String get icPlaceToAddress => 'До моего адреса';
+
+  @override
+  String get icQuoteFailed => 'Не удалось рассчитать цену';
+
+  @override
+  String get icQuoteLoading => 'Считаем цену…';
+
+  @override
+  String get icQuoteRetry => 'Повторить';
 
   @override
   String get icRetry => 'Повторить';
@@ -1577,6 +1623,11 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get icRunDropOff => 'Высадил';
+
+  @override
+  String icRunExtension(String km, String place) {
+    return 'По городу +$km км ($place)';
+  }
 
   @override
   String get icRunNoBookings => 'Пока никто не забронировал';

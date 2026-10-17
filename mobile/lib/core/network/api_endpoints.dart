@@ -214,6 +214,8 @@ class ApiEndpoints {
   static String intercityTrip(String id) => '/intercity/trips/$id';
   static String intercityTripBookings(String id) =>
       '/intercity/trips/$id/bookings';
+  // Narx (shahar ichiga davom bilan) — band qilmaydi.
+  static String intercityTripQuote(String id) => '/intercity/trips/$id/quote';
   static const String intercityMyBookings = '/intercity/bookings/me';
   // Haydovchi: e'lon, qatnovlarim, bekor qilish, yig'ish, jo'nash, kelmadi.
   static const String intercityMyTrips = '/intercity/trips/mine';

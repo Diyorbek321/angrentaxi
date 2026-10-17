@@ -54,6 +54,8 @@ export const ERROR_CODES = {
   intercityDisabled: 'INTERCITY_DISABLED',
   /** Yo'nalish narxlari qoidaga zid (400). `reasons[]` — har bir buzilgan qoida. */
   intercityRouteInvalid: 'INTERCITY_ROUTE_INVALID',
+  /** Nuqtaning "shahar ichiga davom" sozlamasi qoidaga zid (400). `reasons[]`. */
+  intercityPointInvalid: 'INTERCITY_POINT_INVALID',
   /** Haydovchi "Shaharlararo" xizmatini yoqmagan — 403. */
   intercityServiceNotEnabled: 'INTERCITY_SERVICE_NOT_ENABLED',
   /** Qatnov e'loni qoidaga zid (`reasons[]` da sabablar) — 400. */

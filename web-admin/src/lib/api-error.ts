@@ -35,6 +35,7 @@ export const API_ERROR_TITLE: Readonly<Record<string, string>> = {
   MANUAL_ADJUSTMENT_LIMIT: 'Tuzatish chegarasidan oshdi',
   INTERCITY_DISABLED: 'Shaharlararo oʻchirilgan',
   INTERCITY_ROUTE_INVALID: 'Yoʻnalish narxlari notoʻgʻri',
+  INTERCITY_POINT_INVALID: 'Nuqtaning davom sozlamasi notoʻgʻri',
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {

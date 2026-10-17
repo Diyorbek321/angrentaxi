@@ -223,7 +223,7 @@ export class IntercityLifecycleService {
     const driver = await this.loadDriver(userId);
     const trip = await this.loadOwnTrip(tripId, driver.id);
     const rows: IntercityDriverBookingRow[] = await this.dataSource.query(
-      `SELECT o."id", o."status", o."seats", o."booking_kind", o."estimated_price", o."final_price",
+      `SELECT o."id", o."status", o."seats", o."booking_kind", o."estimated_price", o."final_price", o."fare_breakdown",
               u."first_name", u."last_name", u."phone",
               o."pickup_address",
               ST_Y(o."pickup_location"::geometry) AS pickup_lat,

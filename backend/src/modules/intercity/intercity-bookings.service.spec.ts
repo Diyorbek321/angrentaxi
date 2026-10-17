@@ -38,8 +38,8 @@ const dto = (overrides: Record<string, unknown> = {}) => ({
 /** TypeORM UPDATE ... RETURNING shakli. */
 const updated = (rows: unknown[]) => [rows, rows.length];
 
-function build(options: { enabled?: boolean; debt?: number } = {}) {
-  const tripRepository = { findOne: jest.fn(async () => tripRow()) };
+function build(options: { enabled?: boolean; debt?: number; trip?: Record<string, unknown> } = {}) {
+  const tripRepository = { findOne: jest.fn(async () => tripRow(options.trip)) };
   const bookingOrder = {
     id: 'order-1',
     passengerId: 'pax-1',
@@ -112,6 +112,17 @@ function build(options: { enabled?: boolean; debt?: number } = {}) {
     bookingCancelled: jest.fn(async () => undefined),
     bookingCancelledByDispatcher: jest.fn(async () => undefined),
   };
+  // Deterministik: 12.4 km × narx — OSRM testda chaqirilmaydi.
+  const pricer = {
+    charge: jest.fn(async (side: 'pickup' | 'dropoff', point: { name: string }, _class: unknown, _address: unknown) => ({
+      side,
+      pointName: point.name,
+      km: 12.4,
+      pricePerKm: 2000,
+      fare: 25_000,
+      estimated: false,
+    })),
+  };
   const service = new IntercityBookingsService(
     tripRepository as never,
     orderRepository as never,
@@ -120,8 +131,9 @@ function build(options: { enabled?: boolean; debt?: number } = {}) {
     dataSource as never,
     settings as never,
     notifier as never,
+    pricer as never,
   );
-  return { service, manager, answers, orderRepository, tripRepository, notifier };
+  return { service, manager, answers, orderRepository, tripRepository, notifier, pricer, dataSource };
 }
 
 const sqlCalls = (manager: { query: jest.Mock }) =>
@@ -361,3 +373,72 @@ describe('IntercityBookingsService.cancelForManage', () => {
     });
   });
 });
+
+describe('IntercityBookingsService — shahar ichiga davom', () => {
+  // Rohat krugi 30 km gacha davom bilan; manzil Toshkent ichida (~10 km).
+  const rohatExtended = { ...rohat, extensionMaxKm: 30, extensionPricePerKm: 2000, extensionComfortPricePerKm: 2500 };
+  const extendedTrip = {
+    route: { id: 'route-1', originPointId: angren.id, destinationPointId: rohat.id, originPoint: angren, destinationPoint: rohatExtended },
+  };
+  const tashkentHome = { lat: rohat.centerLat + 0.09, lng: rohat.centerLng, address: 'Toshkent, Chilonzor 5' };
+
+  it('quote: asosiy narx + davom, bazaga yozmaydi', async () => {
+    const { service, dataSource, pricer } = build({ trip: extendedTrip });
+    const quote = await service.quote('trip-1', dto({ dropoff: tashkentHome }));
+
+    expect(quote).toEqual({
+      tripId: 'trip-1',
+      kind: IntercityBookingKind.SEAT,
+      seats: 2,
+      basePrice: 50_000,
+      extensions: [{ side: 'dropoff', pointName: 'Rohat krugi', km: 12.4, pricePerKm: 2000, fare: 25_000, estimated: false }],
+      total: 75_000,
+    });
+    expect(pricer.charge).toHaveBeenCalledTimes(1);
+    expect(dataSource.transaction).not.toHaveBeenCalled();
+  });
+
+  it('quote: ikkala manzil nuqta ichida — davom yo\'q, OSRM chaqirilmaydi', async () => {
+    const { service, pricer } = build({ trip: extendedTrip });
+    const quote = await service.quote('trip-1', dto());
+    expect(quote).toMatchObject({ basePrice: 50_000, extensions: [], total: 50_000 });
+    expect(pricer.charge).not.toHaveBeenCalled();
+  });
+
+  it('quote: davom chegarasidan tashqari — 400 INTERCITY_BOOKING_INVALID', async () => {
+    const { service } = build({ trip: extendedTrip });
+    await expect(
+      service.quote('trip-1', dto({ dropoff: { lat: rohat.centerLat + 0.5, lng: rohat.centerLng, address: 'Uzoq' } })),
+    ).rejects.toMatchObject({ response: { code: 'INTERCITY_BOOKING_INVALID' } });
+  });
+
+  it('quote: flag o\'chiq — 404', async () => {
+    const { service } = build({ enabled: false, trip: extendedTrip });
+    await expect(service.quote('trip-1', dto())).rejects.toMatchObject({ response: { code: 'INTERCITY_DISABLED' } });
+  });
+
+  it('book: buyurtma narxi va fare_breakdown quote bilan AYNAN bir xil (server qayta hisoblaydi)', async () => {
+    const { service, manager } = build({ trip: extendedTrip });
+    const request = dto({ dropoff: tashkentHome });
+    const quote = await service.quote('trip-1', request);
+    await service.book('pax-1', 'trip-1', request, NOW);
+
+    const insert = sqlCalls(manager).find((call) => call.sql.includes('INSERT INTO "orders"'));
+    // INSERT parametrlari: … 7-8 manzillar, 9 estimated_price, … 13 fare_breakdown.
+    const estimatedPrice = insert?.params[9];
+    const fare = JSON.parse(String(insert?.params[13]));
+    expect(estimatedPrice).toBe(quote.total);
+    expect(fare.total).toBe(quote.total);
+    expect(fare.baseFare).toBe(quote.basePrice);
+    expect(fare.distanceFare).toBe(25_000);
+    expect(fare.intercityExtensions).toEqual(quote.extensions);
+  });
+
+  it('book: butun mashina + davom — davom bir marta (manzil bitta)', async () => {
+    const { service, manager } = build({ trip: extendedTrip });
+    await service.book('pax-1', 'trip-1', dto({ kind: IntercityBookingKind.WHOLE_CAR, dropoff: tashkentHome }), NOW);
+    const insert = sqlCalls(manager).find((call) => call.sql.includes('INSERT INTO "orders"'));
+    expect(insert?.params[9]).toBe(125_000);
+  });
+});
+

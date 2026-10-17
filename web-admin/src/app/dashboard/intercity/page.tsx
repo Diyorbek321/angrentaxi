@@ -18,7 +18,7 @@ import { PointFormModal } from '@/components/intercity/PointFormModal';
 import { RouteFormModal } from '@/components/intercity/RouteFormModal';
 import { apiErrorMessage, apiErrorTitle } from '@/lib/api-error';
 import { intercityApi } from '@/lib/intercity-api';
-import { routeLabel, type IntercityPoint, type IntercityRoute } from '@/lib/intercity';
+import { formatPointExtension, routeLabel, type IntercityPoint, type IntercityRoute } from '@/lib/intercity';
 
 type Tab = 'routes' | 'points';
 
@@ -190,6 +190,12 @@ export default function IntercityPage() {
       cell: (p) => `${p.centerLat.toFixed(5)}, ${p.centerLng.toFixed(5)}`,
     },
     { key: 'radius', header: 'Radius', numeric: true, cell: (p) => `${p.radiusKm} km` },
+    {
+      key: 'extension',
+      header: 'Shahar ichiga davom',
+      hideBelow: 'md',
+      cell: (p) => <span className="num">{formatPointExtension(p)}</span>,
+    },
     {
       key: 'actions',
       header: <span className="sr-only">Amallar</span>,

@@ -10,6 +10,7 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateIf,
 } from 'class-validator';
 
 export class CreateIntercityPointDto {
@@ -36,6 +37,29 @@ export class CreateIntercityPointDto {
   @Min(0.5)
   @Max(50)
   radiusKm: number;
+
+  /** Davom chegarasi (km, to'g'ri chiziq). 0 — o'chiq. Qoidalar: `intercity-point-policy.ts`. */
+  @ApiPropertyOptional({ example: 30, default: 0, description: "Shahar ichiga davom: max km (0 — o'chiq)" })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(60)
+  extensionMaxKm?: number;
+
+  @ApiPropertyOptional({ example: 2000, default: 0, description: "Davom narxi, Start (so'm/km)" })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(50_000)
+  extensionPricePerKm?: number;
+
+  @ApiPropertyOptional({ example: 2500, nullable: true, description: "Davom narxi, Comfort (so'm/km); null — Start narxi" })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsInt()
+  @Min(0)
+  @Max(50_000)
+  extensionComfortPricePerKm?: number | null;
 
   @ApiPropertyOptional({ example: true, default: true })
   @IsOptional()

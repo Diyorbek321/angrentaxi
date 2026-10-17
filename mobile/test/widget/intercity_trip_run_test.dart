@@ -293,4 +293,57 @@ void main() {
     expect(find.byType(AgSlideAction), findsNothing);
     expect(find.text('Yetib keldim'), findsNothing);
   });
+
+  testWidgets("yo'lda: shahar ichiga davom — manzil km si va JAMI naqd", (tester) async {
+    const extension = IntercityExtensionCharge(
+      side: 'dropoff',
+      pointName: 'Rohat krugi',
+      km: 12.4,
+      pricePerKm: 2000,
+      fare: 25000,
+    );
+    await _pump(tester, _trip('in_progress'), [
+      IntercityDriverBooking(
+        orderId: 'x',
+        status: 'in_progress',
+        seats: 1,
+        bookingKind: 'seat',
+        price: 50000,
+        passengerName: 'Jasur',
+        pickupAddress: 'Angren, Navoiy 12',
+        dropoffAddress: 'Toshkent, Chilonzor 5',
+        extensions: const [extension],
+      ),
+    ]);
+
+    expect(find.text('Toshkent, Chilonzor 5'), findsOneWidget);
+    expect(find.text('Shahar ichida +12.4 km (Rohat krugi)'), findsOneWidget);
+    expect(find.textContaining(RegExp(r'Naqd oling: 50\s000')), findsOneWidget);
+  });
+
+  testWidgets("yig'ishda faqat OLISH tomoni davomi ko'rsatiladi", (tester) async {
+    const dropoffExtension = IntercityExtensionCharge(
+      side: 'dropoff',
+      pointName: 'Rohat krugi',
+      km: 12.4,
+      pricePerKm: 2000,
+      fare: 25000,
+    );
+    await _pump(tester, _trip('boarding'), [
+      IntercityDriverBooking(
+        orderId: 'x',
+        status: 'accepted',
+        seats: 1,
+        bookingKind: 'seat',
+        price: 50000,
+        passengerName: 'Jasur',
+        pickupAddress: 'Angren, Navoiy 12',
+        dropoffAddress: 'Toshkent, Chilonzor 5',
+        extensions: const [dropoffExtension],
+      ),
+    ]);
+
+    expect(find.textContaining('Shahar ichida'), findsNothing);
+  });
 }
+

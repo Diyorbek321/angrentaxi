@@ -256,5 +256,84 @@
   "icRunReasonTooEarly": "Yig'ish jo'nashdan 60 daqiqa oldin ochiladi",
   "icRunReasonNoBookings": "Qatnovda faol yo'lovchi yo'q",
   "icRunReasonPending": "Hali olinmagan yo'lovchi bor — oling yoki «Kelmadi» deb belgilang",
-  "icRunReasonWrongStatus": "Qatnov holati o'zgargan, ro'yxat yangilandi"
+  "icRunReasonWrongStatus": "Qatnov holati o'zgargan, ro'yxat yangilandi",
+  "icPlaceAtPoint": "{place}da",
+  "icPlaceToAddress": "Manzilimgacha",
+  "icPlaceFromAddress": "Manzilimdan",
+  "icExtensionHint": "{place}dan {maxKm} km gacha · {price}/km qo'shiladi",
+  "icExtensionDropoffLine": "{place} → manzil: {km} km × {price}",
+  "icExtensionPickupLine": "Manzil → {place}: {km} km × {price}",
+  "icExtensionEstimated": "taxminiy masofa",
+  "icOutsideExtension": "Manzil {place}dan {maxKm} km dan uzoqda",
+  "icBasePrice": "Qatnov narxi",
+  "icQuoteLoading": "Narx hisoblanmoqda…",
+  "icQuoteFailed": "Narxni hisoblab bo'lmadi",
+  "icQuoteRetry": "Qayta urinish",
+  "icRunExtension": "Shahar ichida +{km} km ({place})",
+  "@icPlaceAtPoint": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "@icExtensionHint": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      },
+      "maxKm": {
+        "type": "String"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "@icExtensionDropoffLine": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      },
+      "km": {
+        "type": "String"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "@icExtensionPickupLine": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      },
+      "km": {
+        "type": "String"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "@icOutsideExtension": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      },
+      "maxKm": {
+        "type": "String"
+      }
+    }
+  },
+  "@icRunExtension": {
+    "placeholders": {
+      "km": {
+        "type": "String"
+      },
+      "place": {
+        "type": "String"
+      }
+    }
+  }
 }

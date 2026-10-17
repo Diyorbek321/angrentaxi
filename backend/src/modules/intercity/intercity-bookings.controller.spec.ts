@@ -17,7 +17,7 @@ describe('IntercityBookingsController', () => {
   });
 
   it("band qilish, o'z bandlari va bekor qilish — faqat yo'lovchi", () => {
-    for (const handler of [proto.book, proto.listMine, proto.cancel]) {
+    for (const handler of [proto.book, proto.quote, proto.listMine, proto.cancel]) {
       expect(reflector.get(ROLES_KEY, handler)).toEqual([UserRole.PASSENGER]);
     }
   });
@@ -33,6 +33,7 @@ describe('IntercityBookingsController', () => {
       book: jest.fn().mockResolvedValue('booked'),
       listMine: jest.fn().mockResolvedValue('mine'),
       cancel: jest.fn().mockResolvedValue('cancelled'),
+      quote: jest.fn().mockResolvedValue('quoted'),
     };
     const lifecycle = {
       startBoarding: jest.fn().mockResolvedValue('boarding'),
@@ -48,6 +49,8 @@ describe('IntercityBookingsController', () => {
       dropoff: { lat: 41.3, lng: 69.3, address: 'b' },
     };
 
+    await expect(controller.quote('trip-1', dto)).resolves.toBe('quoted');
+    expect(bookings.quote).toHaveBeenCalledWith('trip-1', dto);
     await expect(controller.book(user, 'trip-1', dto)).resolves.toBe('booked');
     expect(bookings.book).toHaveBeenCalledWith('user-1', 'trip-1', dto);
     await controller.cancel(user, 'order-1');

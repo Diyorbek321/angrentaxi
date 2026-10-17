@@ -29,11 +29,17 @@ const codes = (result: ReturnType<typeof evaluateBooking>): string[] =>
 
 describe('evaluateBooking', () => {
   it("o'rindiq: narx = joylar × o'rindiq narxi", () => {
-    expect(evaluateBooking(valid, context)).toEqual({ ok: true, seats: 2, price: 50000 });
+    expect(evaluateBooking(valid, context)).toEqual({
+      ok: true,
+      seats: 2,
+      price: 50000,
+      pickupZone: 'inside',
+      dropoffZone: 'inside',
+    });
   });
 
   it("o'rindiq soni berilmasa — 1 joy", () => {
-    expect(evaluateBooking({ ...valid, seats: undefined }, context)).toEqual({
+    expect(evaluateBooking({ ...valid, seats: undefined }, context)).toMatchObject({
       ok: true,
       seats: 1,
       price: 25000,
@@ -43,7 +49,7 @@ describe('evaluateBooking', () => {
   it('butun mashina: barcha joylar, butun mashina narxi (seats e\'tiborsiz)', () => {
     expect(
       evaluateBooking({ ...valid, kind: IntercityBookingKind.WHOLE_CAR, seats: 1 }, context),
-    ).toEqual({ ok: true, seats: 4, price: 100000 });
+    ).toMatchObject({ ok: true, seats: 4, price: 100000 });
   });
 
   it.each([0, -1, 1.5, 5])("o'rindiq soni %p — rad etiladi", (seats) => {
@@ -149,3 +155,40 @@ describe('isLateCancel', () => {
     expect(isLateCancel(departureAt, new Date('2026-10-20T06:59:00Z'), 0)).toBe(false);
   });
 });
+
+describe('evaluateBooking — shahar ichiga davom', () => {
+  // Rohat krugi: 1.5 km radius, 30 km gacha davom.
+  const rohatWithExtension = { ...rohat, extensionMaxKm: 30, extensionPricePerKm: 2000 };
+  const extended = { ...context, destination: rohatWithExtension };
+  // Rohatdan ~10 km shimolda (Toshkent ichi).
+  const tashkentHome = { lat: rohat.centerLat + 0.09, lng: rohat.centerLng };
+
+  it('davom yoqilgan nuqtada radiusdan tashqari manzil qabul qilinadi — zona extension', () => {
+    expect(evaluateBooking({ ...valid, dropoff: tashkentHome }, extended)).toMatchObject({
+      ok: true,
+      price: 50000,
+      dropoffZone: 'extension',
+    });
+  });
+
+  it('davom o\'chiq nuqtada xuddi shu manzil rad etiladi', () => {
+    expect(codes(evaluateBooking({ ...valid, dropoff: tashkentHome }, context))).toEqual([
+      INTERCITY_BOOKING_REASONS.dropoffOutsideDestination,
+    ]);
+  });
+
+  it('davom chegarasidan uzoq — rad etiladi', () => {
+    const far = { lat: rohat.centerLat + 0.4, lng: rohat.centerLng }; // ~44 km
+    expect(codes(evaluateBooking({ ...valid, dropoff: far }, extended))).toEqual([
+      INTERCITY_BOOKING_REASONS.dropoffOutsideDestination,
+    ]);
+  });
+
+  it('teskari yo\'nalish: Toshkentdagi uydan olish — pickup zonasi extension', () => {
+    const reverse = { ...context, origin: rohatWithExtension, destination: angren };
+    expect(
+      evaluateBooking({ ...valid, pickup: tashkentHome, dropoff: { lat: 40.0956, lng: 70.9432 } }, reverse),
+    ).toMatchObject({ ok: true, pickupZone: 'extension', dropoffZone: 'inside' });
+  });
+});
+

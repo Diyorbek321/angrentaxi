@@ -41,6 +41,11 @@ class IntercityRunPassengerCard extends StatelessWidget {
     final id = b.orderId;
     final phone = b.passengerPhone;
     final address = _onTheRoad ? b.dropoffAddress : b.pickupAddress;
+    // Hozirgi bosqichga tegishli davom: yig'ishda — olish tomoni, yo'lda —
+    // tushirish tomoni. Haydovchi "nega summa ko'p" ni shu qatordan biladi.
+    final extension = b.extensions
+        .where((c) => c.isDropoff == _onTheRoad)
+        .firstOrNull;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: kSpace3),
@@ -105,6 +110,20 @@ class IntercityRunPassengerCard extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: kFontBody, color: kInk),
+                ),
+              ],
+              if (extension != null) ...[
+                const SizedBox(height: kSpace1),
+                Text(
+                  l10n.icRunExtension(
+                    extension.km.toStringAsFixed(1),
+                    extension.pointName,
+                  ),
+                  style: const TextStyle(
+                    fontSize: kFontLabel,
+                    fontWeight: FontWeight.w600,
+                    color: kInkMuted,
+                  ),
                 ),
               ],
               if (phone == null && b.isLive && !_onTheRoad) ...[

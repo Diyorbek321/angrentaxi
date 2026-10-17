@@ -12,6 +12,7 @@
 // bazaga YOZILGAN qiymatlar tekshiriladi, hamda haqiqiy `driverArrived`
 // yuborgan socket paketi o'qiladi.
 import { BadRequestException } from '@nestjs/common';
+import { composeIntercityFare } from '../intercity/intercity-extension';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource, EntityManager } from 'typeorm';
@@ -399,6 +400,34 @@ describe('completeTrip — kutish haqi HAQIQIY oqimda', () => {
         String(call[0]).includes('UPDATE "intercity_trips"'),
       );
       expect(tripClose?.[1]).toEqual(['intercity-trip-1', expect.any(Date)]);
+    });
+
+    it('shahar ichiga davom bilan: yakuniy narx = asosiy + davom, qatorlar chekda saqlanadi', async () => {
+      const extension = {
+        side: 'dropoff' as const,
+        pointName: 'Rohat krugi',
+        km: 12.4,
+        pricePerKm: 2000,
+        fare: 25_000,
+        estimated: false,
+      };
+      await build(
+        {
+          isFixedPrice: true,
+          fareBreakdown: composeIntercityFare(50_000, [extension], 60),
+          arrivedAt: ARRIVED_AT,
+          serviceType: ServiceType.INTERCITY,
+          intercityTripId: 'intercity-trip-1',
+        },
+        tariffWithWaiting(),
+        min(20),
+      );
+
+      await service.completeTrip(DRIVER_USER_ID, ORDER_ID);
+
+      expect(persisted().finalPrice).toBe(75_000);
+      expect(persisted().fareBreakdown.distanceFare).toBe(25_000);
+      expect(persisted().fareBreakdown.intercityExtensions).toEqual([extension]);
     });
 
     it("yakunlangach (COMMIT'dan keyin) qatnov holati e'lon qilinadi — intercity:trip:updated", async () => {

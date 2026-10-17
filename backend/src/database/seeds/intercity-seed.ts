@@ -13,6 +13,8 @@ interface PointSeed {
   lat: number;
   lng: number;
   radiusKm: number;
+  /** "Shahar ichiga davom" (migratsiya 038); yo'q — o'chiq. */
+  extension?: { maxKm: number; pricePerKm: number; comfortPricePerKm: number | null };
 }
 
 interface RouteSeed {
@@ -26,12 +28,18 @@ interface RouteSeed {
 
 const POINTS: readonly PointSeed[] = [
   { key: 'angren', name: 'Angren', lat: 40.0956, lng: 70.9432, radiusKm: 12 },
-  // ⚠️ "Rohat krugi" — Toshkentdagi aylanma, qat'iy olish/tushirish joyi,
-  // butun Toshkent EMAS. Koordinata TAXMINIY (shahar markazi): admin
-  // panelda aylanmaning aniq joyini qo'yishi shart. Radius kichik (1.5 km):
-  // narx Rohat krugigacha; shahar ichiga davom etish keyinroq alohida
-  // narxlanadi (intercity-route.entity.ts dagi TODO).
-  { key: 'rohat', name: 'Rohat krugi (Toshkent)', lat: 41.3111, lng: 69.2797, radiusKm: 1.5 },
+  // "Rohat krugi" — Toshkentdagi aylanma, qat'iy olish/tushirish joyi, butun
+  // Toshkent EMAS. Koordinata egasidan (41°16'04.9"N 69°22'00.5"E). Narx
+  // aylanmagacha; undan shahar ichiga davom — yo'l km haqi: Start 2 000,
+  // Comfort 2 500 so'm/km (egasi qarori, 2026-10-17), 30 km gacha.
+  {
+    key: 'rohat',
+    name: 'Rohat krugi (Toshkent)',
+    lat: 41.268028,
+    lng: 69.366806,
+    radiusKm: 1.5,
+    extension: { maxKm: 30, pricePerKm: 2000, comfortPricePerKm: 2500 },
+  },
   { key: 'olmaliq', name: 'Olmaliq', lat: 40.8447, lng: 69.5986, radiusKm: 10 },
   { key: 'ohangaron', name: 'Ohangaron', lat: 40.9064, lng: 69.6383, radiusKm: 8 },
 ];
@@ -61,9 +69,19 @@ export async function seedIntercity(queryRunner: QueryRunner): Promise<void> {
   const ids = new Map<string, string>();
   for (const [index, point] of POINTS.entries()) {
     const [row] = await queryRunner.query(
-      `INSERT INTO intercity_points (name, center_lat, center_lng, radius_km, sort_order)
-       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-      [point.name, point.lat, point.lng, point.radiusKm, index],
+      `INSERT INTO intercity_points (name, center_lat, center_lng, radius_km, sort_order,
+         extension_max_km, extension_price_per_km, extension_comfort_price_per_km)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+      [
+        point.name,
+        point.lat,
+        point.lng,
+        point.radiusKm,
+        index,
+        point.extension?.maxKm ?? 0,
+        point.extension?.pricePerKm ?? 0,
+        point.extension?.comfortPricePerKm ?? null,
+      ],
     );
     ids.set(point.key, row.id);
   }

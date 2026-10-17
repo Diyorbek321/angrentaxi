@@ -1,6 +1,6 @@
 import { ErrorReason } from '../../common/errors/coded-error';
 import { IntercityBookingKind, PaymentMethod } from '../../database/entities/order.entity';
-import { IntercityCircle, isInsidePoint } from './intercity-geo';
+import { PointZone, ZonePoint, zoneOf } from './intercity-extension';
 
 /** `reasons[].code` qiymatlari — kontrakt: o'zgartirmang, faqat qo'shing. */
 export const INTERCITY_BOOKING_REASONS = {
@@ -32,13 +32,18 @@ export interface IntercityBookingRequest {
 
 export interface IntercityBookingContext {
   trip: { seatPrice: number; wholeCarPrice: number; seatsTotal: number };
-  origin: IntercityCircle;
-  destination: IntercityCircle;
+  /** Davom maydonlari bo'lsa radiusdan tashqari manzil ham qabul qilinadi. */
+  origin: ZonePoint;
+  destination: ZonePoint;
   maxSeatsPerBooking: number;
 }
 
 export type IntercityBookingEvaluation =
-  | { ok: true; seats: number; price: number }
+  /**
+   * `price` — qat'iy asosiy narx (nuqtadan nuqtagacha). `extension` zonali
+   * tomon uchun km haqi servisda yo'l masofasidan qo'shiladi.
+   */
+  | { ok: true; seats: number; price: number; pickupZone: PointZone; dropoffZone: PointZone }
   | { ok: false; reasons: ErrorReason[] };
 
 const reason = (code: string, message: string): ErrorReason => ({ code, message });
@@ -66,6 +71,8 @@ export function evaluateBooking(
   context: IntercityBookingContext,
 ): IntercityBookingEvaluation {
   const seats = seatsFor(request, context);
+  const pickupZone = zoneOf(context.origin, request.pickup.lat, request.pickup.lng);
+  const dropoffZone = zoneOf(context.destination, request.dropoff.lat, request.dropoff.lng);
   const maxSeats = Math.min(context.maxSeatsPerBooking, context.trip.seatsTotal);
   const isWholeCar = request.kind === IntercityBookingKind.WHOLE_CAR;
 
@@ -76,17 +83,17 @@ export function evaluateBooking(
     ...(!SUPPORTED_PAYMENT_METHODS.includes(request.paymentMethod)
       ? [reason(INTERCITY_BOOKING_REASONS.paymentUnsupported, "Shaharlararo qatnov hozircha faqat naqd to'lanadi")]
       : []),
-    ...(!isInsidePoint(context.origin, request.pickup.lat, request.pickup.lng)
+    ...(pickupZone === 'outside'
       ? [reason(INTERCITY_BOOKING_REASONS.pickupOutsideOrigin, "Olib ketish joyi qatnov boshlanadigan shahar ichida bo'lishi kerak")]
       : []),
-    ...(!isInsidePoint(context.destination, request.dropoff.lat, request.dropoff.lng)
+    ...(dropoffZone === 'outside'
       ? [reason(INTERCITY_BOOKING_REASONS.dropoffOutsideDestination, "Tushish joyi qatnov manzili hududida bo'lishi kerak")]
       : []),
   ];
   if (reasons.length > 0) return { ok: false, reasons };
 
   const price = isWholeCar ? context.trip.wholeCarPrice : seats * context.trip.seatPrice;
-  return { ok: true, seats, price };
+  return { ok: true, seats, price, pickupZone, dropoffZone };
 }
 
 export interface SeatRelease {

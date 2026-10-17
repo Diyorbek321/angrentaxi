@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   INTERCITY_MAX_PRICE,
+  formatPointExtension,
   parseOptionalPrice,
   routeLabel,
   toRoutePayload,
@@ -75,7 +76,15 @@ describe('validateRouteForm', () => {
 });
 
 describe('validatePointForm', () => {
-  const POINT = { name: 'Angren', centerLat: 41.0167, centerLng: 70.1436, radiusKm: 12 };
+  const POINT = {
+    name: 'Angren',
+    centerLat: 41.0167,
+    centerLng: 70.1436,
+    radiusKm: 12,
+    extensionMaxKm: 0,
+    extensionPricePerKm: 0,
+    extensionComfortPricePerKm: null,
+  };
 
   it("to'g'ri nuqta", () => {
     expect(validatePointForm(POINT)).toEqual({});
@@ -138,3 +147,54 @@ describe('formatlash', () => {
     expect(update).toMatchObject({ seatPrice: 25000, comfortSeatPrice: 30000 });
   });
 });
+
+describe('validatePointForm — shahar ichiga davom', () => {
+  // Egasi bergan Rohat krugi qiymatlari.
+  const ROHAT = {
+    name: 'Rohat krugi (Toshkent)',
+    centerLat: 41.268028,
+    centerLng: 69.366806,
+    radiusKm: 1.5,
+    extensionMaxKm: 30,
+    extensionPricePerKm: 2000,
+    extensionComfortPricePerKm: 2500 as number | null,
+  };
+
+  it("Rohat qiymatlari to'g'ri; Comfort bo'sh ham bo'ladi", () => {
+    expect(validatePointForm(ROHAT)).toEqual({});
+    expect(validatePointForm({ ...ROHAT, extensionComfortPricePerKm: null })).toEqual({});
+  });
+
+  it('backend qoidalari bilan bir xil', () => {
+    expect(validatePointForm({ ...ROHAT, extensionMaxKm: 61 }).extensionMaxKm).toBeDefined();
+    expect(validatePointForm({ ...ROHAT, extensionMaxKm: 1 }).extensionMaxKm).toBeDefined();
+    expect(validatePointForm({ ...ROHAT, extensionPricePerKm: 0 }).extensionPricePerKm).toBeDefined();
+    expect(validatePointForm({ ...ROHAT, extensionPricePerKm: 1999.5 }).extensionPricePerKm).toBeDefined();
+    expect(validatePointForm({ ...ROHAT, extensionComfortPricePerKm: 1500 }).extensionComfortPricePerKm).toBeDefined();
+  });
+
+  it("davom o'chiq bo'lsa narx tekshirilmaydi", () => {
+    expect(
+      validatePointForm({ ...ROHAT, extensionMaxKm: 0, extensionPricePerKm: 0, extensionComfortPricePerKm: null })
+    ).toEqual({});
+  });
+});
+
+describe('formatPointExtension', () => {
+  it("o'chiq — tire", () => {
+    expect(formatPointExtension({ extensionMaxKm: 0, extensionPricePerKm: 0, extensionComfortPricePerKm: null })).toBe('—');
+  });
+
+  it('Start va Comfort narxi bilan', () => {
+    expect(
+      formatPointExtension({ extensionMaxKm: 30, extensionPricePerKm: 2000, extensionComfortPricePerKm: 2500 })
+    ).toBe('30 km · 2 000 / 2 500 soʻm/km');
+  });
+
+  it("Comfort berilmagan — faqat Start", () => {
+    expect(
+      formatPointExtension({ extensionMaxKm: 30, extensionPricePerKm: 2000, extensionComfortPricePerKm: null })
+    ).toBe('30 km · 2 000 soʻm/km');
+  });
+});
+

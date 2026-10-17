@@ -1,4 +1,5 @@
 import {
+  Check,
   Column,
   CreateDateColumn,
   Entity,
@@ -24,6 +25,10 @@ const decimal = {
  * butun Toshkentni emas, anglatadi.
  */
 @Index('idx_intercity_points_is_active_sort_order', ['isActive', 'sortOrder'])
+@Check(
+  'chk_intercity_points_extension_non_negative',
+  `"extension_max_km" >= 0 AND "extension_price_per_km" >= 0 AND ("extension_comfort_price_per_km" IS NULL OR "extension_comfort_price_per_km" >= 0)`,
+)
 @Entity('intercity_points')
 export class IntercityPoint {
   @PrimaryGeneratedColumn('uuid')
@@ -43,6 +48,22 @@ export class IntercityPoint {
 
   // Faol emas = yangi yo'nalishga tanlab bo'lmaydi. Qator O'CHIRILMAYDI —
   // unga bog'langan yo'nalishlar va qatnovlar tarixi ma'nosini yo'qotmasin.
+  /**
+   * "Shahar ichiga davom" (`intercity-extension.ts`, migratsiya 038): nuqta
+   * markazidan shu km gacha (to'g'ri chiziq) manzilga eltish/olish mumkin,
+   * yo'l km uchun haq bilan. 0 — davom o'chiq.
+   */
+  @Column({ name: 'extension_max_km', type: 'decimal', precision: 6, scale: 2, default: 0, transformer: decimal })
+  extensionMaxKm: number;
+
+  /** Start, so'm/km. */
+  @Column({ name: 'extension_price_per_km', type: 'int', default: 0 })
+  extensionPricePerKm: number;
+
+  /** Comfort, so'm/km; null — Start narxi. */
+  @Column({ name: 'extension_comfort_price_per_km', type: 'int', nullable: true })
+  extensionComfortPricePerKm: number | null;
+
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean;
 

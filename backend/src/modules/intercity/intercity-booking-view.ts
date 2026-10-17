@@ -1,5 +1,6 @@
 import { IntercityBookingKind, Order, OrderStatus, PaymentMethod } from '../../database/entities/order.entity';
 import { revealsDriverContact } from './intercity-lifecycle-policy';
+import { IntercityPriceBreakdown, intercityPriceBreakdown } from './intercity-price-breakdown';
 import { IntercityTripView, IntercityTripWithRelations, toIntercityTripView } from './intercity-trip-view';
 
 /**
@@ -7,7 +8,7 @@ import { IntercityTripView, IntercityTripWithRelations, toIntercityTripView } fr
  * tafsilotlari + haydovchi telefoni — faqat vaqti kelganda
  * (`revealsDriverContact`).
  */
-export interface IntercityBookingView {
+export interface IntercityBookingView extends IntercityPriceBreakdown {
   orderId: string;
   status: OrderStatus;
   bookingKind: IntercityBookingKind | null;
@@ -33,7 +34,8 @@ export type IntercityBookingOrder = Pick<
   | 'pickupAddress'
   | 'dropoffAddress'
   | 'cancelReason'
-> & { intercityTrip?: IntercityTripWithRelations | null };
+> &
+  Partial<Pick<Order, 'fareBreakdown'>> & { intercityTrip?: IntercityTripWithRelations | null };
 
 export function toIntercityBookingView(order: IntercityBookingOrder, now: Date): IntercityBookingView {
   const trip = order.intercityTrip ?? null;
@@ -41,12 +43,14 @@ export function toIntercityBookingView(order: IntercityBookingOrder, now: Date):
     trip !== null &&
     order.status !== OrderStatus.CANCELLED &&
     revealsDriverContact(trip.status, trip.departureAt, now);
+  const price = order.finalPrice ?? order.estimatedPrice;
   return {
     orderId: order.id,
     status: order.status,
     bookingKind: order.bookingKind,
     seats: order.seats,
-    price: order.finalPrice ?? order.estimatedPrice,
+    price,
+    ...intercityPriceBreakdown(order.fareBreakdown, price),
     paymentMethod: order.paymentMethod,
     pickupAddress: order.pickupAddress,
     dropoffAddress: order.dropoffAddress,

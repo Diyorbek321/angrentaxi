@@ -39,10 +39,9 @@ const nullableDecimal = {
  * o'zgarmaydi.
  *
  * Narx nuqtaGACHA (masalan, "Rohat krugi (Toshkent)" aylanmasigacha).
- * TODO(intercity): nuqtadan nariga — shahar ichiga davom etish — alohida
- * narxlanadi (yo'nalish bo'yicha "shahar ichi davomi", nuqta radiusidan
- * tashqaridagi har km uchun). Hozircha qurilmagan: manzil nuqta doirasida
- * bo'lishi shart.
+ * Nuqtadan nariga — shahar ichiga davom — NUQTA bo'yicha narxlanadi
+ * (`IntercityPoint.extension*`, `intercity-extension.ts`): ikkala yo'nalish
+ * bir xil davom narxini ishlatadi.
  */
 @Index('uq_intercity_routes_origin_destination', ['originPointId', 'destinationPointId'], {
   unique: true,

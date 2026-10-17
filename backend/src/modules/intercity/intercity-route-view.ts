@@ -8,6 +8,12 @@ export interface IntercityPointView {
   centerLat: number;
   centerLng: number;
   radiusKm: number;
+  /**
+   * "Shahar ichiga davom": null — o'chiq, manzil radius ichida bo'lishi
+   * shart. Bor bo'lsa ilova radiusdan tashqari (maxKm gacha) manzilni
+   * taklif qiladi; aniq narx `POST /intercity/trips/:id/quote` dan.
+   */
+  extension: { maxKm: number; pricePerKm: number; comfortPricePerKm: number } | null;
 }
 
 /**
@@ -34,7 +40,15 @@ export function toIntercityPointView(point: IntercityPoint): IntercityPointView 
     centerLat: point.centerLat,
     centerLng: point.centerLng,
     radiusKm: point.radiusKm,
+    extension: pointExtensionView(point),
   };
+}
+
+function pointExtensionView(point: IntercityPoint): IntercityPointView['extension'] {
+  const maxKm = point.extensionMaxKm ?? 0;
+  const pricePerKm = point.extensionPricePerKm ?? 0;
+  if (maxKm <= 0 || pricePerKm <= 0) return null;
+  return { maxKm, pricePerKm, comfortPricePerKm: point.extensionComfortPricePerKm ?? pricePerKm };
 }
 
 /** `originPoint`/`destinationPoint` yuklangan bo'lishi shart. */

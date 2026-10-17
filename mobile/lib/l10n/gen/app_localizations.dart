@@ -2336,6 +2336,12 @@ abstract class AppLocalizations {
   /// **'Kecha, {time}'**
   String fmtYesterdayAt(String time);
 
+  /// No description provided for @icBasePrice.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qatnov narxi'**
+  String get icBasePrice;
+
   /// No description provided for @icBookTitle.
   ///
   /// In uz, this message translates to:
@@ -2690,6 +2696,30 @@ abstract class AppLocalizations {
   /// **'Bu vaqtga yaqin (±3 soat) sizda boshqa qatnov bor'**
   String get icErrTripOverlap;
 
+  /// No description provided for @icExtensionDropoffLine.
+  ///
+  /// In uz, this message translates to:
+  /// **'{place} → manzil: {km} km × {price}'**
+  String icExtensionDropoffLine(String place, String km, String price);
+
+  /// No description provided for @icExtensionEstimated.
+  ///
+  /// In uz, this message translates to:
+  /// **'taxminiy masofa'**
+  String get icExtensionEstimated;
+
+  /// No description provided for @icExtensionHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'{place}dan {maxKm} km gacha · {price}/km qo\'shiladi'**
+  String icExtensionHint(String place, String maxKm, String price);
+
+  /// No description provided for @icExtensionPickupLine.
+  ///
+  /// In uz, this message translates to:
+  /// **'Manzil → {place}: {km} km × {price}'**
+  String icExtensionPickupLine(String place, String km, String price);
+
   /// No description provided for @icFreeCancelUntil.
   ///
   /// In uz, this message translates to:
@@ -2774,6 +2804,12 @@ abstract class AppLocalizations {
   /// **'Manzil {place} hududidan tashqarida'**
   String icOutsideArea(String place);
 
+  /// No description provided for @icOutsideExtension.
+  ///
+  /// In uz, this message translates to:
+  /// **'Manzil {place}dan {maxKm} km dan uzoqda'**
+  String icOutsideExtension(String place, String maxKm);
+
   /// No description provided for @icPaymentCash.
   ///
   /// In uz, this message translates to:
@@ -2785,6 +2821,42 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Olib ketish manzili'**
   String get icPickup;
+
+  /// No description provided for @icPlaceAtPoint.
+  ///
+  /// In uz, this message translates to:
+  /// **'{place}da'**
+  String icPlaceAtPoint(String place);
+
+  /// No description provided for @icPlaceFromAddress.
+  ///
+  /// In uz, this message translates to:
+  /// **'Manzilimdan'**
+  String get icPlaceFromAddress;
+
+  /// No description provided for @icPlaceToAddress.
+  ///
+  /// In uz, this message translates to:
+  /// **'Manzilimgacha'**
+  String get icPlaceToAddress;
+
+  /// No description provided for @icQuoteFailed.
+  ///
+  /// In uz, this message translates to:
+  /// **'Narxni hisoblab bo\'lmadi'**
+  String get icQuoteFailed;
+
+  /// No description provided for @icQuoteLoading.
+  ///
+  /// In uz, this message translates to:
+  /// **'Narx hisoblanmoqda…'**
+  String get icQuoteLoading;
+
+  /// No description provided for @icQuoteRetry.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qayta urinish'**
+  String get icQuoteRetry;
 
   /// No description provided for @icRetry.
   ///
@@ -2845,6 +2917,12 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Tushirdim'**
   String get icRunDropOff;
+
+  /// No description provided for @icRunExtension.
+  ///
+  /// In uz, this message translates to:
+  /// **'Shahar ichida +{km} km ({place})'**
+  String icRunExtension(String km, String place);
 
   /// No description provided for @icRunNoBookings.
   ///

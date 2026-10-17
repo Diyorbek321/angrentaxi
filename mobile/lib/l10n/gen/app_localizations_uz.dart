@@ -1292,6 +1292,9 @@ class AppLocalizationsUz extends AppLocalizations {
   }
 
   @override
+  String get icBasePrice => 'Qatnov narxi';
+
+  @override
   String get icBookTitle => 'Joy band qilish';
 
   @override
@@ -1492,6 +1495,24 @@ class AppLocalizationsUz extends AppLocalizations {
       'Bu vaqtga yaqin (±3 soat) sizda boshqa qatnov bor';
 
   @override
+  String icExtensionDropoffLine(String place, String km, String price) {
+    return '$place → manzil: $km km × $price';
+  }
+
+  @override
+  String get icExtensionEstimated => 'taxminiy masofa';
+
+  @override
+  String icExtensionHint(String place, String maxKm, String price) {
+    return '${place}dan $maxKm km gacha · $price/km qo\'shiladi';
+  }
+
+  @override
+  String icExtensionPickupLine(String place, String km, String price) {
+    return 'Manzil → $place: $km km × $price';
+  }
+
+  @override
   String icFreeCancelUntil(String time) {
     return '$time gacha bepul bekor qilish mumkin';
   }
@@ -1541,10 +1562,35 @@ class AppLocalizationsUz extends AppLocalizations {
   }
 
   @override
+  String icOutsideExtension(String place, String maxKm) {
+    return 'Manzil ${place}dan $maxKm km dan uzoqda';
+  }
+
+  @override
   String get icPaymentCash => 'To\'lov: naqd, haydovchiga';
 
   @override
   String get icPickup => 'Olib ketish manzili';
+
+  @override
+  String icPlaceAtPoint(String place) {
+    return '${place}da';
+  }
+
+  @override
+  String get icPlaceFromAddress => 'Manzilimdan';
+
+  @override
+  String get icPlaceToAddress => 'Manzilimgacha';
+
+  @override
+  String get icQuoteFailed => 'Narxni hisoblab bo\'lmadi';
+
+  @override
+  String get icQuoteLoading => 'Narx hisoblanmoqda…';
+
+  @override
+  String get icQuoteRetry => 'Qayta urinish';
 
   @override
   String get icRetry => 'Qayta urinish';
@@ -1578,6 +1624,11 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get icRunDropOff => 'Tushirdim';
+
+  @override
+  String icRunExtension(String km, String place) {
+    return 'Shahar ichida +$km km ($place)';
+  }
 
   @override
   String get icRunNoBookings => 'Hali hech kim band qilmagan';

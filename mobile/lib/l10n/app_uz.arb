@@ -848,6 +848,7 @@
       }
     }
   },
+  "icBasePrice": "Qatnov narxi",
   "icBookTitle": "Joy band qilish",
   "icBooked": "Joy band qilindi",
   "icCallDriver": "Haydovchiga qo'ng'iroq",
@@ -962,6 +963,49 @@
   "icErrTripActionNotAllowed": "Bu amal qatnovning hozirgi holatida mumkin emas",
   "icErrTripNotCancellable": "Yo'lga chiqqan qatnovni bekor qilib bo'lmaydi",
   "icErrTripOverlap": "Bu vaqtga yaqin (±3 soat) sizda boshqa qatnov bor",
+  "icExtensionDropoffLine": "{place} → manzil: {km} km × {price}",
+  "@icExtensionDropoffLine": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      },
+      "km": {
+        "type": "String"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "icExtensionEstimated": "taxminiy masofa",
+  "icExtensionHint": "{place}dan {maxKm} km gacha · {price}/km qo'shiladi",
+  "@icExtensionHint": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      },
+      "maxKm": {
+        "type": "String"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "icExtensionPickupLine": "Manzil → {place}: {km} km × {price}",
+  "@icExtensionPickupLine": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      },
+      "km": {
+        "type": "String"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
+  },
   "icFreeCancelUntil": "{time} gacha bepul bekor qilish mumkin",
   "@icFreeCancelUntil": {
     "placeholders": {
@@ -997,8 +1041,32 @@
       }
     }
   },
+  "icOutsideExtension": "Manzil {place}dan {maxKm} km dan uzoqda",
+  "@icOutsideExtension": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      },
+      "maxKm": {
+        "type": "String"
+      }
+    }
+  },
   "icPaymentCash": "To'lov: naqd, haydovchiga",
   "icPickup": "Olib ketish manzili",
+  "icPlaceAtPoint": "{place}da",
+  "@icPlaceAtPoint": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "icPlaceFromAddress": "Manzilimdan",
+  "icPlaceToAddress": "Manzilimgacha",
+  "icQuoteFailed": "Narxni hisoblab bo'lmadi",
+  "icQuoteLoading": "Narx hisoblanmoqda…",
+  "icQuoteRetry": "Qayta urinish",
   "icRetry": "Qayta urinish",
   "icRunArrived": "Yetib keldim",
   "icRunCall": "Qo'ng'iroq qilish",
@@ -1016,6 +1084,17 @@
   "icRunDepart": "Surib yo'lga chiqing",
   "icRunDepartHint": "Avval har bir yo'lovchini oling yoki «Kelmadi» deb belgilang",
   "icRunDropOff": "Tushirdim",
+  "icRunExtension": "Shahar ichida +{km} km ({place})",
+  "@icRunExtension": {
+    "placeholders": {
+      "km": {
+        "type": "String"
+      },
+      "place": {
+        "type": "String"
+      }
+    }
+  },
   "icRunNoBookings": "Hali hech kim band qilmagan",
   "icRunNoShow": "Kelmadi",
   "icRunNoShowBody": "Band bekor qilinadi, joy qaytarilmaydi. Yo'lovchiga qo'ng'iroq qilib ko'rdingizmi?",

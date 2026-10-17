@@ -20,13 +20,18 @@ import { Transaction } from '../../database/entities/transaction.entity';
 import { haversineDistance } from '../orders/orders.distance.util';
 import { outstandingWalletDebt } from '../orders/outstanding-wallet-debt';
 import { SettingsService } from '../settings/settings.service';
-import { agreedFareBreakdown } from '../tariffs/fare-breakdown';
+import { FareBreakdown, IntercityExtensionCharge } from '../tariffs/fare-breakdown';
 import { CreateIntercityBookingDto } from './dto/create-intercity-booking.dto';
 import { evaluateBooking, isLateCancel, seatReleaseOf } from './intercity-booking-policy';
 import { IntercityBookingView, toIntercityBookingView } from './intercity-booking-view';
 import { claimSeats, claimWholeCar, releaseSeats, returnedRows } from './intercity-seat-ledger';
 import { IntercityNotifier } from './intercity-notifier';
 import { IntercityBookingManageView, toIntercityBookingManageView } from './intercity-booking-manage-view';
+import { composeIntercityFare } from './intercity-extension';
+import { IntercityExtensionPricer } from './intercity-extension-pricer';
+import { IntercityPoint } from '../../database/entities/intercity-point.entity';
+import { IntercityRoute } from '../../database/entities/intercity-route.entity';
+import { Driver } from '../../database/entities/driver.entity';
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -63,6 +68,29 @@ interface ReleasedBooking {
 /** Dispetcher bekor qilganda buyurtmaga yoziladigan sabab prefiksi. */
 export const DISPATCHER_CANCELLED_BOOKING_REASON = 'Dispetcher bekor qildi';
 
+/** `POST /intercity/trips/:id/quote` — band qilishdan OLDIN ko'rsatiladigan narx. */
+export interface IntercityQuoteView {
+  tripId: string;
+  kind: IntercityBookingKind;
+  seats: number;
+  /** Qat'iy narx (nuqtadan nuqtagacha). */
+  basePrice: number;
+  /** "Shahar ichiga davom" qatorlari — bo'sh bo'lsa davom yo'q. */
+  extensions: IntercityExtensionCharge[];
+  total: number;
+}
+
+/** Band uchun yuklangan qatnov — yo'nalish, ikkala nuqta va haydovchi BOR. */
+type BookableTrip = IntercityTrip & {
+  route: IntercityRoute & { originPoint: IntercityPoint; destinationPoint: IntercityPoint };
+  driver: Driver;
+};
+
+interface PricedBooking {
+  seats: number;
+  fare: FareBreakdown;
+}
+
 export interface IntercityBookingPage {
   items: IntercityBookingView[];
   total: number;
@@ -93,7 +121,28 @@ export class IntercityBookingsService {
     private readonly dataSource: DataSource,
     private readonly settings: SettingsService,
     private readonly notifier: IntercityNotifier,
+    private readonly extensionPricer: IntercityExtensionPricer,
   ) {}
+
+  /**
+   * Band qilmasdan narx: ilova tasdiqlash tugmasidan oldin ko'rsatadi.
+   * `book` AYNAN shu hisobni qayta bajaradi — mijoz yuborgan raqamlarga
+   * hech qachon ishonilmaydi.
+   */
+  async quote(tripId: string, dto: CreateIntercityBookingDto): Promise<IntercityQuoteView> {
+    const settings = await this.settings.getIntercitySettings();
+    if (!settings.intercityEnabled) throw this.disabled();
+    const trip = await this.loadTripForBooking(tripId);
+    const priced = await this.priceBooking(trip, dto, settings.intercityMaxSeatsPerBooking);
+    return {
+      tripId,
+      kind: dto.kind,
+      seats: priced.seats,
+      basePrice: priced.fare.baseFare,
+      extensions: priced.fare.intercityExtensions ?? [],
+      total: priced.fare.total,
+    };
+  }
 
   async book(
     passengerId: string,
@@ -104,28 +153,9 @@ export class IntercityBookingsService {
     const settings = await this.settings.getIntercitySettings();
     if (!settings.intercityEnabled) throw this.disabled();
 
-    const trip = await this.tripRepository.findOne({ where: { id: tripId }, relations: TRIP_RELATIONS });
-    if (!trip?.route?.originPoint || !trip.route.destinationPoint || !trip.driver) {
-      throw codedNotFound(ERROR_CODES.intercityTripNotFound, 'Qatnov topilmadi');
-    }
-
+    const trip = await this.loadTripForBooking(tripId);
     const paymentMethod = dto.paymentMethod ?? PaymentMethod.CASH;
-    const evaluation = evaluateBooking(
-      { kind: dto.kind, seats: dto.seats, paymentMethod, pickup: dto.pickup, dropoff: dto.dropoff },
-      {
-        trip,
-        origin: trip.route.originPoint,
-        destination: trip.route.destinationPoint,
-        maxSeatsPerBooking: settings.intercityMaxSeatsPerBooking,
-      },
-    );
-    if (!evaluation.ok) {
-      throw codedBadRequest(
-        ERROR_CODES.intercityBookingInvalid,
-        evaluation.reasons.map((reason) => reason.message).join('; '),
-        { reasons: evaluation.reasons },
-      );
-    }
+    const { seats, fare } = await this.priceBooking(trip, dto, settings.intercityMaxSeatsPerBooking);
 
     // Oddiy buyurtma bilan BIR XIL darvoza (`outstanding-wallet-debt.ts`).
     const debt = await outstandingWalletDebt(this.transactionRepository, passengerId);
@@ -138,12 +168,6 @@ export class IntercityBookingsService {
 
     const tariffId = await this.intercityTariffId();
     const driverUserId = trip.driver.userId;
-    const distanceKm = haversineDistance(dto.pickup.lat, dto.pickup.lng, dto.dropoff.lat, dto.dropoff.lng);
-    const fare = agreedFareBreakdown(
-      evaluation.price,
-      Math.round(distanceKm * 100) / 100,
-      Math.ceil(distanceKm * INTERCITY_MINUTES_PER_KM),
-    );
 
     const orderId = await this.dataSource.transaction(async (manager) => {
       // Bitta yo'lovchining bir qatnovga ikki parallel bandini navbatga
@@ -156,7 +180,7 @@ export class IntercityBookingsService {
       const claimed =
         dto.kind === IntercityBookingKind.WHOLE_CAR
           ? await claimWholeCar(manager, tripId, now)
-          : await claimSeats(manager, tripId, evaluation.seats, now);
+          : await claimSeats(manager, tripId, seats, now);
       if (!claimed) {
         throw codedConflict(
           ERROR_CODES.intercitySeatsUnavailable,
@@ -187,7 +211,7 @@ export class IntercityBookingsService {
             dto.dropoff.lat,
             dto.pickup.address,
             dto.dropoff.address,
-            evaluation.price,
+            fare.total,
             // SCHEDULED: haydovchi allaqachon ma'lum, lekin u yo'lovchilarni
             // yig'ishni boshlaguncha (`start-boarding`) buyurtma haydovchini
             // BAND qilmaydi — u shu orada shahar ichida ishlay oladi.
@@ -197,7 +221,7 @@ export class IntercityBookingsService {
             JSON.stringify(fare),
             trip.departureAt,
             tripId,
-            evaluation.seats,
+            seats,
             dto.kind,
           ],
         ),
@@ -210,12 +234,12 @@ export class IntercityBookingsService {
     await this.notifier.bookingCreated({
       tripId,
       orderId,
-      seats: evaluation.seats,
+      seats,
       bookingKind: dto.kind,
     });
 
     this.logger.log(
-      `Intercity band ${orderId}: qatnov ${tripId}, ${evaluation.seats} joy (${dto.kind}), ${evaluation.price} so'm`,
+      `Intercity band ${orderId}: qatnov ${tripId}, ${seats} joy (${dto.kind}), ${fare.total} so'm`,
     );
     return this.getView(orderId, passengerId, now);
   }
@@ -362,6 +386,54 @@ export class IntercityBookingsService {
       );
       return row;
     });
+  }
+
+  private async loadTripForBooking(tripId: string): Promise<BookableTrip> {
+    const trip = await this.tripRepository.findOne({ where: { id: tripId }, relations: TRIP_RELATIONS });
+    if (!trip?.route?.originPoint || !trip.route.destinationPoint || !trip.driver) {
+      throw codedNotFound(ERROR_CODES.intercityTripNotFound, 'Qatnov topilmadi');
+    }
+    return trip as BookableTrip;
+  }
+
+  /**
+   * Qoidalar + qat'iy narx + "shahar ichiga davom" (nuqta radiusidan
+   * tashqaridagi har tomon uchun yo'l km haqi). `quote` va `book` uchun
+   * YAGONA hisob — ikkalasi bir xil raqam beradi.
+   */
+  private async priceBooking(
+    trip: BookableTrip,
+    dto: CreateIntercityBookingDto,
+    maxSeatsPerBooking: number,
+  ): Promise<PricedBooking> {
+    const origin = trip.route.originPoint;
+    const destination = trip.route.destinationPoint;
+    const paymentMethod = dto.paymentMethod ?? PaymentMethod.CASH;
+    const evaluation = evaluateBooking(
+      { kind: dto.kind, seats: dto.seats, paymentMethod, pickup: dto.pickup, dropoff: dto.dropoff },
+      { trip, origin, destination, maxSeatsPerBooking },
+    );
+    if (!evaluation.ok) {
+      throw codedBadRequest(
+        ERROR_CODES.intercityBookingInvalid,
+        evaluation.reasons.map((reason) => reason.message).join('; '),
+        { reasons: evaluation.reasons },
+      );
+    }
+
+    const extensions = await Promise.all([
+      ...(evaluation.pickupZone === 'extension'
+        ? [this.extensionPricer.charge('pickup', origin, trip.tripClass, dto.pickup)]
+        : []),
+      ...(evaluation.dropoffZone === 'extension'
+        ? [this.extensionPricer.charge('dropoff', destination, trip.tripClass, dto.dropoff)]
+        : []),
+    ]);
+    const distanceKm = haversineDistance(dto.pickup.lat, dto.pickup.lng, dto.dropoff.lat, dto.dropoff.lng);
+    return {
+      seats: evaluation.seats,
+      fare: composeIntercityFare(evaluation.price, extensions, Math.ceil(distanceKm * INTERCITY_MINUTES_PER_KM)),
+    };
   }
 
   private async assertNoActiveBooking(manager: EntityManager, tripId: string, passengerId: string): Promise<void> {

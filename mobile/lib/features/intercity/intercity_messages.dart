@@ -1,6 +1,7 @@
 import 'package:angren_taxi/core/network/api_error.dart';
 import 'package:angren_taxi/features/intercity/models/intercity_models.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
+import 'package:angren_taxi/shared/utils/formatters.dart';
 
 /// Server kodlari (backend/src/common/errors/coded-error.ts).
 abstract final class IntercityErrorCode {
@@ -122,3 +123,18 @@ String intercityTripStatusLabel(String status) {
 /// "Angren → Rohat krugi".
 String intercityRouteLabel(String origin, String destination) =>
     '$origin → $destination';
+
+/// Km: butun bo'lsa "30", aks holda bitta kasr bilan "12.4".
+String formatIntercityKm(double km) =>
+    km == km.roundToDouble() ? km.toInt().toString() : km.toStringAsFixed(1);
+
+/// "Rohat krugi → manzil: 12.4 km × 2 000 so'm" (olishda teskari tartib).
+String intercityExtensionLine(
+    AppLocalizations l10n, IntercityExtensionCharge charge) {
+  final km = charge.km.toStringAsFixed(1);
+  final price = Formatters.formatPrice(charge.pricePerKm);
+  return charge.isDropoff
+      ? l10n.icExtensionDropoffLine(charge.pointName, km, price)
+      : l10n.icExtensionPickupLine(charge.pointName, km, price);
+}
+

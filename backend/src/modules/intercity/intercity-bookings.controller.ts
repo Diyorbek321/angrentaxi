@@ -8,7 +8,7 @@ import { User, UserRole } from '../../database/entities/user.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { CreateIntercityBookingDto } from './dto/create-intercity-booking.dto';
-import { IntercityBookingPage, IntercityBookingsService } from './intercity-bookings.service';
+import { IntercityBookingPage, IntercityBookingsService, IntercityQuoteView } from './intercity-bookings.service';
 import { IntercityBookingView } from './intercity-booking-view';
 import { IntercityLifecycleService } from './intercity-lifecycle.service';
 import { IntercityDriverBookingView } from './intercity-booking-driver-view';
@@ -30,6 +30,22 @@ export class IntercityBookingsController {
   ) {}
 
   // ---------------------------------------------------------------- yo'lovchi
+
+  /**
+   * Narxni oldindan ko'rish ("shahar ichiga davom" bilan). Hech narsa band
+   * qilinmaydi; `bookings` bir xil hisobni serverda qayta bajaradi.
+   */
+  @Post('trips/:id/quote')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.PASSENGER)
+  @ApiOperation({ summary: "Band narxi: qat'iy narx + shahar ichiga davom (km) — band qilmaydi" })
+  @ApiResponse({ status: 400, description: 'INTERCITY_BOOKING_INVALID — sabablar `reasons[]` da' })
+  quote(
+    @Param('id', ParseUUIDPipe) tripId: string,
+    @Body() dto: CreateIntercityBookingDto,
+  ): Promise<IntercityQuoteView> {
+    return this.bookings.quote(tripId, dto);
+  }
 
   @Post('trips/:id/bookings')
   @Roles(UserRole.PASSENGER)

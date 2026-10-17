@@ -131,5 +131,18 @@
   "icRunReasonTooEarly": "Сбор открывается за 60 минут до отправления",
   "icRunReasonNoBookings": "В рейсе нет активных пассажиров",
   "icRunReasonPending": "Есть незабранные пассажиры — заберите или отметьте «Не пришёл»",
-  "icRunReasonWrongStatus": "Статус рейса изменился, список обновлён"
+  "icRunReasonWrongStatus": "Статус рейса изменился, список обновлён",
+  "icPlaceAtPoint": "У «{place}»",
+  "icPlaceToAddress": "До моего адреса",
+  "icPlaceFromAddress": "От моего адреса",
+  "icExtensionHint": "До {maxKm} км от «{place}» · +{price}/км",
+  "icExtensionDropoffLine": "{place} → адрес: {km} км × {price}",
+  "icExtensionPickupLine": "Адрес → {place}: {km} км × {price}",
+  "icExtensionEstimated": "расстояние приблизительное",
+  "icOutsideExtension": "Адрес дальше {maxKm} км от «{place}»",
+  "icBasePrice": "Цена рейса",
+  "icQuoteLoading": "Считаем цену…",
+  "icQuoteFailed": "Не удалось рассчитать цену",
+  "icQuoteRetry": "Повторить",
+  "icRunExtension": "По городу +{km} км ({place})"
 }

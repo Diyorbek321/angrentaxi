@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { IntercityPoint } from '../../database/entities/intercity-point.entity';
 import { CreateIntercityPointDto } from './dto/create-intercity-point.dto';
 import { UpdateIntercityPointDto } from './dto/update-intercity-point.dto';
+import { assertIntercityPointExtension } from './intercity-point-policy';
 
 /**
  * Shaharlararo yo'nalish uchlari (Angren, Rohat krugi (Toshkent)...).
@@ -24,24 +25,33 @@ export class IntercityPointsService {
   }
 
   async create(dto: CreateIntercityPointDto): Promise<IntercityPoint> {
-    return this.pointRepository.save(
-      this.pointRepository.create({
-        name: dto.name.trim(),
-        centerLat: dto.centerLat,
-        centerLng: dto.centerLng,
-        radiusKm: dto.radiusKm,
-        isActive: dto.isActive ?? true,
-        sortOrder: dto.sortOrder ?? 0,
-      }),
-    );
+    const point = {
+      name: dto.name.trim(),
+      centerLat: dto.centerLat,
+      centerLng: dto.centerLng,
+      radiusKm: dto.radiusKm,
+      extensionMaxKm: dto.extensionMaxKm ?? 0,
+      extensionPricePerKm: dto.extensionPricePerKm ?? 0,
+      extensionComfortPricePerKm: dto.extensionComfortPricePerKm ?? null,
+      isActive: dto.isActive ?? true,
+      sortOrder: dto.sortOrder ?? 0,
+    };
+    assertIntercityPointExtension(point);
+    return this.pointRepository.save(this.pointRepository.create(point));
   }
 
+  /**
+   * Qoida BIRLASHTIRILGAN natijaga qo'llanadi: faqat radiusni kichraytirish
+   * ham mavjud davom chegarasini radiusdan kichik qilib qo'yishi mumkin.
+   */
   async update(id: string, dto: UpdateIntercityPointDto): Promise<IntercityPoint> {
     const existing = await this.findOneOrThrow(id);
     const changes = Object.fromEntries(
       Object.entries({ ...dto, name: dto.name?.trim() }).filter(([, value]) => value !== undefined),
     );
-    return this.pointRepository.save({ ...existing, ...changes });
+    const merged = { ...existing, ...changes };
+    assertIntercityPointExtension(merged);
+    return this.pointRepository.save(merged);
   }
 
   /**

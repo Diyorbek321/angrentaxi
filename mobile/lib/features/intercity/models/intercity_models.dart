@@ -61,6 +61,38 @@ String? _str(dynamic v) {
 }
 
 /// Yo'nalish uchi — markaz va radius (masalan "Rohat krugi", r = 1.5 km).
+/// Manzil nuqtaga nisbatan qayerda (server `intercity-extension.ts`
+/// `zoneOf` bilan bir xil qoida).
+enum IntercityZone { inside, extension, outside }
+
+/// "Shahar ichiga davom": nuqtadan [maxKm] gacha (to'g'ri chiziq) manzilga
+/// eltish/olish mumkin, YO'L km uchun qo'shimcha haq bilan. Aniq summa —
+/// serverdan (`POST /intercity/trips/:id/quote`).
+class IntercityPointExtension extends Equatable {
+  const IntercityPointExtension({
+    required this.maxKm,
+    required this.pricePerKm,
+    required this.comfortPricePerKm,
+  });
+
+  factory IntercityPointExtension.fromJson(Map<String, dynamic> json) =>
+      IntercityPointExtension(
+        maxKm: _num(json['maxKm']),
+        pricePerKm: _num(json['pricePerKm']),
+        comfortPricePerKm: _num(json['comfortPricePerKm'] ?? json['pricePerKm']),
+      );
+
+  final double maxKm;
+  final double pricePerKm;
+  final double comfortPricePerKm;
+
+  double rateFor(String tripClass) =>
+      tripClass == IntercityTripClass.comfort ? comfortPricePerKm : pricePerKm;
+
+  @override
+  List<Object?> get props => [maxKm, pricePerKm, comfortPricePerKm];
+}
+
 class IntercityPoint extends Equatable {
   const IntercityPoint({
     required this.id,
@@ -68,15 +100,22 @@ class IntercityPoint extends Equatable {
     required this.centerLat,
     required this.centerLng,
     required this.radiusKm,
+    this.extension,
   });
 
-  factory IntercityPoint.fromJson(Map<String, dynamic> json) => IntercityPoint(
-        id: '${json['id']}',
-        name: '${json['name'] ?? ''}',
-        centerLat: _num(json['centerLat']),
-        centerLng: _num(json['centerLng']),
-        radiusKm: _num(json['radiusKm']),
-      );
+  factory IntercityPoint.fromJson(Map<String, dynamic> json) {
+    final extension = json['extension'];
+    return IntercityPoint(
+      id: '${json['id']}',
+      name: '${json['name'] ?? ''}',
+      centerLat: _num(json['centerLat']),
+      centerLng: _num(json['centerLng']),
+      radiusKm: _num(json['radiusKm']),
+      extension: extension is Map
+          ? IntercityPointExtension.fromJson(Map<String, dynamic>.from(extension))
+          : null,
+    );
+  }
 
   /// Shu radiusdan kichik nuqta — shahar emas, qat'iy TO'XTASH JOYI
   /// (aylanma, bekat). U yerda manzil tanlatish ma'nosiz: yo'lovchi aynan
@@ -89,14 +128,33 @@ class IntercityPoint extends Equatable {
   final double centerLng;
   final double radiusKm;
 
+  /// `null` — davom o'chiq: manzil radius ichida bo'lishi shart.
+  final IntercityPointExtension? extension;
+
   bool get isFixedStand => radiusKm <= fixedStandMaxRadiusKm;
 
   /// Server bilan bir xil qoida (`intercity-geo.ts`, haversine).
   bool contains(double lat, double lng) =>
       haversineKm(centerLat, centerLng, lat, lng) <= radiusKm;
 
+  /// Davom chegarasi TO'G'RI CHIZIQ bo'yicha (narx esa yo'l km dan).
+  IntercityZone zoneOf(double lat, double lng) {
+    final km = haversineKm(centerLat, centerLng, lat, lng);
+    if (km <= radiusKm) return IntercityZone.inside;
+    final ext = extension;
+    final enabled = ext != null && ext.maxKm > 0 && ext.pricePerKm > 0;
+    return enabled && km <= ext.maxKm
+        ? IntercityZone.extension
+        : IntercityZone.outside;
+  }
+
+  /// Manzil qabul qilinadimi (radius ichi yoki davom hududi).
+  bool allows(double lat, double lng) =>
+      zoneOf(lat, lng) != IntercityZone.outside;
+
   @override
-  List<Object?> get props => [id, name, centerLat, centerLng, radiusKm];
+  List<Object?> get props =>
+      [id, name, centerLat, centerLng, radiusKm, extension];
 }
 
 double haversineKm(double lat1, double lng1, double lat2, double lng2) {
@@ -260,6 +318,72 @@ class IntercityTrip extends Equatable {
 }
 
 /// Yo'lovchi bandi — server tomonda bitta `orders` qatori.
+/// Bandning bir tomondagi davomi (backend `IntercityExtensionCharge`).
+class IntercityExtensionCharge extends Equatable {
+  const IntercityExtensionCharge({
+    required this.side,
+    required this.pointName,
+    required this.km,
+    required this.pricePerKm,
+    required this.fare,
+    this.estimated = false,
+  });
+
+  factory IntercityExtensionCharge.fromJson(Map<String, dynamic> json) =>
+      IntercityExtensionCharge(
+        side: _str(json['side']) ?? 'dropoff',
+        pointName: '${json['pointName'] ?? ''}',
+        km: _num(json['km']),
+        pricePerKm: _num(json['pricePerKm']),
+        fare: _num(json['fare']),
+        estimated: json['estimated'] == true,
+      );
+
+  /// 'pickup' | 'dropoff'.
+  final String side;
+  final String pointName;
+  final double km;
+  final double pricePerKm;
+  final double fare;
+
+  /// Marshrut xizmati javob bermagan — masofa taxminiy.
+  final bool estimated;
+
+  bool get isDropoff => side == 'dropoff';
+
+  @override
+  List<Object?> get props => [side, pointName, km, pricePerKm, fare, estimated];
+}
+
+List<IntercityExtensionCharge> _extensions(dynamic raw) => raw is List
+    ? raw
+        .whereType<Map>()
+        .map((e) => IntercityExtensionCharge.fromJson(Map<String, dynamic>.from(e)))
+        .toList(growable: false)
+    : const [];
+
+/// `POST /intercity/trips/:id/quote` — band qilishdan oldingi narx.
+class IntercityQuote extends Equatable {
+  const IntercityQuote({
+    required this.basePrice,
+    required this.extensions,
+    required this.total,
+  });
+
+  factory IntercityQuote.fromJson(Map<String, dynamic> json) => IntercityQuote(
+        basePrice: _num(json['basePrice']),
+        extensions: _extensions(json['extensions']),
+        total: _num(json['total']),
+      );
+
+  final double basePrice;
+  final List<IntercityExtensionCharge> extensions;
+  final double total;
+
+  @override
+  List<Object?> get props => [basePrice, extensions, total];
+}
+
 class IntercityBooking extends Equatable {
   const IntercityBooking({
     required this.orderId,
@@ -273,11 +397,15 @@ class IntercityBooking extends Equatable {
     this.cancelReason,
     this.trip,
     this.driverPhone,
-  });
+    double? basePrice,
+    this.extensions = const [],
+  }) : basePrice = basePrice ?? price;
 
   factory IntercityBooking.fromJson(Map<String, dynamic> json) {
     final trip = json['trip'];
     return IntercityBooking(
+      basePrice: _numOrNull(json['basePrice']),
+      extensions: _extensions(json['extensions']),
       orderId: '${json['orderId']}',
       status: _str(json['status']) ?? 'scheduled',
       bookingKind: _str(json['bookingKind']),
@@ -305,6 +433,10 @@ class IntercityBooking extends Equatable {
   final String? cancelReason;
   final IntercityTrip? trip;
   final String? driverPhone;
+
+  /// Qat'iy narx (nuqtadan nuqtagacha); [price] — davom bilan JAMI.
+  final double basePrice;
+  final List<IntercityExtensionCharge> extensions;
 
   bool get isWholeCar => bookingKind == IntercityBookingKind.wholeCar;
   bool get isCancelled => status == 'cancelled';
@@ -347,6 +479,7 @@ class IntercityDriverBooking extends Equatable {
     this.dropoffAddress,
     this.dropoffLat,
     this.dropoffLng,
+    this.extensions = const [],
   });
 
   factory IntercityDriverBooking.fromJson(Map<String, dynamic> json) {
@@ -366,6 +499,7 @@ class IntercityDriverBooking extends Equatable {
       dropoffAddress: _str(json['dropoffAddress']),
       dropoffLat: _numOrNull(json['dropoffLat']),
       dropoffLng: _numOrNull(json['dropoffLng']),
+      extensions: _extensions(json['extensions']),
     );
   }
 
@@ -382,6 +516,9 @@ class IntercityDriverBooking extends Equatable {
   final String? dropoffAddress;
   final double? dropoffLat;
   final double? dropoffLng;
+
+  /// "Shahar ichiga davom" qatorlari — [price] ularni allaqachon o'z ichiga oladi.
+  final List<IntercityExtensionCharge> extensions;
 
   bool get isWholeCar => bookingKind == IntercityBookingKind.wholeCar;
 

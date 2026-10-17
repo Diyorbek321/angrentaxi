@@ -1,5 +1,6 @@
 import { IntercityBookingKind, OrderStatus } from '../../database/entities/order.entity';
 import { IntercityDriverBookingRow, toIntercityDriverBookingView } from './intercity-booking-driver-view';
+import { composeIntercityFare } from './intercity-extension';
 
 describe('toIntercityDriverBookingView', () => {
   const row: IntercityDriverBookingRow = {
@@ -9,6 +10,7 @@ describe('toIntercityDriverBookingView', () => {
     booking_kind: IntercityBookingKind.SEAT,
     estimated_price: '50000.00',
     final_price: null,
+    fare_breakdown: null,
     first_name: 'Ali',
     last_name: 'Valiyev',
     phone: '+998901112233',
@@ -28,6 +30,8 @@ describe('toIntercityDriverBookingView', () => {
       seats: 2,
       bookingKind: IntercityBookingKind.SEAT,
       price: 50000,
+      basePrice: 50000,
+      extensions: [],
       passenger: { name: 'Ali Valiyev', phone: '+998901112233' },
       pickupAddress: 'Angren, Navoiy 12',
       pickupLat: 40.0956,
@@ -56,5 +60,14 @@ describe('toIntercityDriverBookingView', () => {
     expect(view.pickupLat).toBeNull();
     expect(view.pickupLng).toBeNull();
     expect(view.passenger.name).toBe('');
+  });
+
+  it('davomli band: haydovchi JAMI naqdni va davom qatorini ko\'radi', () => {
+    const extension = { side: 'dropoff' as const, pointName: 'Rohat krugi', km: 12.4, pricePerKm: 2000, fare: 25_000, estimated: false };
+    const view = toIntercityDriverBookingView(
+      { ...row, estimated_price: '75000.00', fare_breakdown: composeIntercityFare(50_000, [extension], 60) },
+      true,
+    );
+    expect(view).toMatchObject({ price: 75_000, basePrice: 50_000, extensions: [extension] });
   });
 });

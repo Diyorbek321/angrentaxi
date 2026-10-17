@@ -112,8 +112,32 @@ export interface FareBreakdown {
    */
   roundingAdjustment: number;
 
+  /**
+   * Shaharlararo "shahar ichiga davom" qatorlari (nuqtadan manzilgacha km
+   * haqi). Ularning yig'indisi `distanceFare` da — invariant o'zgarmaydi,
+   * bu maydon faqat chekda har tomonni alohida ko'rsatish uchun.
+   * Boshqa xizmatlarda va eski safarlarda YO'Q.
+   */
+  intercityExtensions?: IntercityExtensionCharge[];
+
   /** Yakuniy summa. `calculatePrice()` natijasi bilan AYNAN teng. */
   total: number;
+}
+
+/** Shaharlararo bandning bir tomondagi davomi (olish yoki tushish). */
+export interface IntercityExtensionCharge {
+  side: 'pickup' | 'dropoff';
+  /** Davom hisoblangan nuqta nomi ("Rohat krugi"). */
+  pointName: string;
+  /** Nuqta markazidan manzilgacha yo'l masofasi, 0.1 km aniqlikda. */
+  km: number;
+  pricePerKm: number;
+  fare: number;
+  /**
+   * Marshrut xizmati javob bermadi — masofa to'g'ri chiziq × 1.3 bilan
+   * taxmin qilingan. Menejer shubhali narxni shu belgi bo'yicha topadi.
+   */
+  estimated: boolean;
 }
 
 /**

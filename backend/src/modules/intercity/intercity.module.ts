@@ -11,6 +11,7 @@ import { DriversModule } from '../drivers/drivers.module';
 import { SettingsModule } from '../settings/settings.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { RealtimeModule } from '../realtime/realtime.module';
+import { RoutingModule } from '../routing/routing.module';
 import { IntercityController, IntercityManageController } from './intercity.controller';
 import { IntercityDriverGate } from './intercity-driver-gate';
 import { IntercityPointsService } from './intercity-points.service';
@@ -22,6 +23,7 @@ import { IntercityBookingsService } from './intercity-bookings.service';
 import { IntercityLifecycleService } from './intercity-lifecycle.service';
 import { IntercityTripsCron } from './intercity-trips.cron';
 import { IntercityNotifier } from './intercity-notifier';
+import { IntercityExtensionPricer } from './intercity-extension-pricer';
 
 /**
  * Shaharlararo qatnov. 1-qadam: nuqtalar, yo'nalishlar, qat'iy narxlar.
@@ -44,6 +46,8 @@ import { IntercityNotifier } from './intercity-notifier';
     // 6-qadam: `intercity:*` hodisalari va push (IntercityNotifier).
     RealtimeModule,
     NotificationsModule,
+    // "Shahar ichiga davom" — yo'l masofasi (`IntercityExtensionPricer`).
+    RoutingModule,
   ],
   controllers: [IntercityController, IntercityManageController, IntercityTripsController, IntercityBookingsController],
   providers: [
@@ -55,6 +59,7 @@ import { IntercityNotifier } from './intercity-notifier';
     IntercityLifecycleService,
     IntercityTripsCron,
     IntercityNotifier,
+    IntercityExtensionPricer,
   ],
   exports: [IntercityPointsService, IntercityRoutesService, IntercityTripsService],
 })

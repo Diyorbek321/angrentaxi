@@ -1,4 +1,6 @@
 import { IntercityBookingKind, OrderStatus } from '../../database/entities/order.entity';
+import { FareBreakdown } from '../tariffs/fare-breakdown';
+import { IntercityPriceBreakdown, intercityPriceBreakdown } from './intercity-price-breakdown';
 
 /**
  * Haydovchi uchun qatnov bandi (`GET intercity/trips/:id/bookings`).
@@ -9,11 +11,12 @@ import { IntercityBookingKind, OrderStatus } from '../../database/entities/order
  * boshlangan yoki jo'nashga ≤60 daqiqa). Kunlar oldin ochilsa, band
  * platformadan tashqariga ko'chib ketardi.
  */
-export interface IntercityDriverBookingView {
+export interface IntercityDriverBookingView extends IntercityPriceBreakdown {
   orderId: string;
   status: OrderStatus;
   seats: number | null;
   bookingKind: IntercityBookingKind | null;
+  /** Haydovchi yo'lovchidan oladigan JAMI naqd — davom bilan. */
   price: number;
   passenger: { name: string; phone: string | null };
   pickupAddress: string | null;
@@ -33,6 +36,7 @@ export interface IntercityDriverBookingRow {
   booking_kind: IntercityBookingKind | null;
   estimated_price: string;
   final_price: string | null;
+  fare_breakdown: FareBreakdown | null;
   first_name: string | null;
   last_name: string | null;
   phone: string | null;
@@ -52,12 +56,14 @@ export function toIntercityDriverBookingView(
   revealPhone: boolean,
 ): IntercityDriverBookingView {
   const name = [row.first_name, row.last_name].filter(Boolean).join(' ');
+  const price = Number(row.final_price ?? row.estimated_price);
   return {
     orderId: row.id,
     status: row.status,
     seats: row.seats,
     bookingKind: row.booking_kind,
-    price: Number(row.final_price ?? row.estimated_price),
+    price,
+    ...intercityPriceBreakdown(row.fare_breakdown, price),
     passenger: { name, phone: revealPhone ? row.phone : null },
     pickupAddress: row.pickup_address,
     pickupLat: toNumberOrNull(row.pickup_lat),

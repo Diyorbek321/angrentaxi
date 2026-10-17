@@ -6,6 +6,7 @@ import 'package:angren_taxi/features/intercity/data/intercity_repository.dart';
 import 'package:angren_taxi/features/intercity/intercity_messages.dart';
 import 'package:angren_taxi/features/intercity/intercity_realtime.dart';
 import 'package:angren_taxi/features/intercity/models/intercity_models.dart';
+import 'package:angren_taxi/features/intercity/widgets/intercity_price_breakdown.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
@@ -238,6 +239,10 @@ class _IntercityBookingDetailScreenState
         if (_booking.dropoffAddress != null)
           _Row(label: l10n.icDropoff, value: _booking.dropoffAddress!),
         const Divider(height: kSpace6),
+        IntercityPriceBreakdown(
+          basePrice: _booking.basePrice,
+          extensions: _booking.extensions,
+        ),
         _Row(
           label: l10n.icTotal,
           value: Formatters.formatPrice(_booking.price),

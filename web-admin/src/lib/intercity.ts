@@ -12,6 +12,9 @@ export const INTERCITY_SEATS_MIN = 1;
 export const INTERCITY_SEATS_MAX = 8;
 export const INTERCITY_RADIUS_MIN_KM = 0.5;
 export const INTERCITY_RADIUS_MAX_KM = 50;
+/** "Shahar ichiga davom" chegaralari — backend `intercity-point-policy.ts` bilan bir xil. */
+export const INTERCITY_EXTENSION_MAX_KM = 60;
+export const INTERCITY_EXTENSION_MAX_PRICE_PER_KM = 50_000;
 
 // ─── Server shakllari (manage endpointlari entity'ni qaytaradi) ─────
 
@@ -21,6 +24,12 @@ export interface IntercityPoint {
   centerLat: number;
   centerLng: number;
   radiusKm: number;
+  /** "Shahar ichiga davom": 0 — o'chiq. */
+  extensionMaxKm: number;
+  /** Start, soʻm/km. */
+  extensionPricePerKm: number;
+  /** Comfort, soʻm/km; `null` — Start narxi. */
+  extensionComfortPricePerKm: number | null;
   isActive: boolean;
   sortOrder: number;
 }
@@ -57,7 +66,15 @@ export interface IntercityPointForm {
   centerLat: number;
   centerLng: number;
   radiusKm: number;
+  extensionMaxKm: number;
+  extensionPricePerKm: number;
+  extensionComfortPricePerKm: number | null;
 }
+
+type PointExtension = Pick<
+  IntercityPointForm,
+  'extensionMaxKm' | 'extensionPricePerKm' | 'extensionComfortPricePerKm'
+>;
 
 export interface IntercityRouteForm {
   originPointId: string;
@@ -144,7 +161,40 @@ export function validatePointForm(form: IntercityPointForm): FormErrors<Intercit
     ...(radiusValid
       ? {}
       : { radiusKm: `Radius ${INTERCITY_RADIUS_MIN_KM}–${INTERCITY_RADIUS_MAX_KM} km` }),
+    ...validatePointExtension(form),
   };
+}
+
+const isPricePerKm = (value: number): boolean =>
+  Number.isInteger(value) && value >= 0 && value <= INTERCITY_EXTENSION_MAX_PRICE_PER_KM;
+
+/** Backend `validateIntercityPointExtension` bilan bir xil qoidalar. */
+function validatePointExtension(form: IntercityPointForm): FormErrors<IntercityPointForm> {
+  const { extensionMaxKm: maxKm, extensionPricePerKm: start, extensionComfortPricePerKm: comfort } = form;
+  const maxKmValid = Number.isFinite(maxKm) && maxKm >= 0 && maxKm <= INTERCITY_EXTENSION_MAX_KM;
+  const enabled = maxKmValid && maxKm > 0;
+  if (!maxKmValid) return { extensionMaxKm: `0–${INTERCITY_EXTENSION_MAX_KM} km (0 — oʻchiq)` };
+  if (!enabled) return {};
+  const priceText = `1–${INTERCITY_EXTENSION_MAX_PRICE_PER_KM.toLocaleString('ru-RU')} soʻm, butun son`;
+  return {
+    ...(maxKm > form.radiusKm ? {} : { extensionMaxKm: 'Radiusdan katta boʻlishi kerak' }),
+    ...(isPricePerKm(start) && start > 0 ? {} : { extensionPricePerKm: priceText }),
+    ...(comfort === null || (isPricePerKm(comfort) && comfort >= start)
+      ? {}
+      : { extensionComfortPricePerKm: 'Start narxidan kam boʻlmasin' }),
+  };
+}
+
+/** Jadval uchun: "30 km · 2 000 / 2 500 soʻm/km" yoki "—". */
+export function formatPointExtension(point: PointExtension): string {
+  if (point.extensionMaxKm <= 0 || point.extensionPricePerKm <= 0) return '—';
+  const group = (value: number) => String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  const comfort = point.extensionComfortPricePerKm;
+  const prices =
+    comfort === null || comfort === point.extensionPricePerKm
+      ? group(point.extensionPricePerKm)
+      : `${group(point.extensionPricePerKm)} / ${group(comfort)}`;
+  return `${point.extensionMaxKm} km · ${prices} soʻm/km`;
 }
 
 function intInRange(value: number, min: number, max: number): boolean {

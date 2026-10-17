@@ -65,6 +65,22 @@ class IntercityRepository {
         Map<String, dynamic>.from(_data(res.data) as Map));
   }
 
+  /// Band va narx so'rovi uchun BIR XIL tana — server ikkalasida bir xil
+  /// hisob qiladi, shuning uchun ko'rsatilgan narx band narxi bilan teng.
+  static Map<String, dynamic> _bookingBody({
+    required String kind,
+    int? seats,
+    required IntercityPlace pickup,
+    required IntercityPlace dropoff,
+  }) =>
+      {
+        'kind': kind,
+        if (kind == IntercityBookingKind.seat) 'seats': seats ?? 1,
+        'pickup': pickup.toJson(),
+        'dropoff': dropoff.toJson(),
+        'paymentMethod': 'cash',
+      };
+
   Future<IntercityBooking> book({
     required String tripId,
     required String kind,
@@ -74,15 +90,27 @@ class IntercityRepository {
   }) async {
     final res = await _api.post(
       ApiEndpoints.intercityTripBookings(tripId),
-      data: {
-        'kind': kind,
-        if (kind == IntercityBookingKind.seat) 'seats': seats ?? 1,
-        'pickup': pickup.toJson(),
-        'dropoff': dropoff.toJson(),
-        'paymentMethod': 'cash',
-      },
+      data: _bookingBody(
+          kind: kind, seats: seats, pickup: pickup, dropoff: dropoff),
     );
     return IntercityBooking.fromJson(
+        Map<String, dynamic>.from(_data(res.data) as Map));
+  }
+
+  /// "Shahar ichiga davom" bilan narx — hech narsa band qilinmaydi.
+  Future<IntercityQuote> quote({
+    required String tripId,
+    required String kind,
+    int? seats,
+    required IntercityPlace pickup,
+    required IntercityPlace dropoff,
+  }) async {
+    final res = await _api.post(
+      ApiEndpoints.intercityTripQuote(tripId),
+      data: _bookingBody(
+          kind: kind, seats: seats, pickup: pickup, dropoff: dropoff),
+    );
+    return IntercityQuote.fromJson(
         Map<String, dynamic>.from(_data(res.data) as Map));
   }
 
