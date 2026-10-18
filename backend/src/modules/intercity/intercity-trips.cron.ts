@@ -11,6 +11,7 @@ import {
 } from './intercity-lifecycle-policy';
 import { returnedRows } from './intercity-seat-ledger';
 import { IntercityNotifier } from './intercity-notifier';
+import { IntercityRequestsService } from './intercity-requests.service';
 
 /** Qatnovning tugamagan bandlari (korrelyatsiyalangan: tashqi alias `t`). */
 const LIVE_BOOKINGS_SQL = `SELECT 1 FROM "orders" o
@@ -55,6 +56,7 @@ export class IntercityTripsCron {
   constructor(
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly notifier: IntercityNotifier,
+    private readonly requests: IntercityRequestsService,
   ) {}
 
   @Cron(CronExpression.EVERY_5_MINUTES, { name: 'intercity-trips-expiry' })
@@ -76,6 +78,11 @@ export class IntercityTripsCron {
       await this.sweepStuckTrips();
     } catch (err) {
       this.logger.error(`Shaharlararo qotgan qatnovlarni yopish yiqildi: ${err}`);
+    }
+    try {
+      await this.requests.expireDue();
+    } catch (err) {
+      this.logger.error(`Shaharlararo so'rovlarni eskirtirish yiqildi: ${err}`);
     }
   }
 

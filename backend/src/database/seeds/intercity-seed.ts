@@ -27,7 +27,7 @@ interface RouteSeed {
 }
 
 const POINTS: readonly PointSeed[] = [
-  { key: 'angren', name: 'Angren', lat: 40.0956, lng: 70.9432, radiusKm: 12 },
+  { key: 'angren', name: 'Angren', lat: 41.0167, lng: 70.1436, radiusKm: 12 },
   // "Rohat krugi" — Toshkentdagi aylanma, qat'iy olish/tushirish joyi, butun
   // Toshkent EMAS. Koordinata egasidan (41°16'04.9"N 69°22'00.5"E). Narx
   // aylanmagacha; undan shahar ichiga davom — yo'l km haqi: Start 2 000,

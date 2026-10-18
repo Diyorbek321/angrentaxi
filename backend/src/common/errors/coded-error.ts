@@ -91,6 +91,13 @@ export const ERROR_CODES = {
    * `details: { addedMinutes, limit }`.
    */
   intercityDetourTooLong: 'INTERCITY_DETOUR_TOO_LONG',
+  /** So'rov qoidalari buzilgan (400) — sabablar `reasons[]` da (`intercity-request-policy.ts`). */
+  intercityRequestInvalid: 'INTERCITY_REQUEST_INVALID',
+  intercityRequestNotFound: 'INTERCITY_REQUEST_NOT_FOUND',
+  /** Yo'lovchida allaqachon ochiq so'rov bor (409). `details: { requestId }`. */
+  intercityRequestAlreadyOpen: 'INTERCITY_REQUEST_ALREADY_OPEN',
+  /** So'rov endi ochiq emas — boshqa haydovchi oldi, bekor yoki eskirgan (409). `details: { status }`. */
+  intercityRequestClosed: 'INTERCITY_REQUEST_CLOSED',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];

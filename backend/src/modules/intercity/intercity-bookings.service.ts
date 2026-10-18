@@ -1,6 +1,6 @@
-import { BadRequestException, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import {
   ERROR_CODES,
   codedBadRequest,
@@ -30,6 +30,7 @@ import { IntercityZonesService } from './intercity-zones.service';
 import { IntercityNotifier } from './intercity-notifier';
 import { IntercityBookingManageView, toIntercityBookingManageView } from './intercity-booking-manage-view';
 import { composeIntercityFare } from './intercity-extension';
+import { assertNoActiveBooking, insertBookingOrder, intercityTariffId } from './intercity-booking-writer';
 import { IntercityExtensionPricer } from './intercity-extension-pricer';
 import { IntercityPoint } from '../../database/entities/intercity-point.entity';
 import { IntercityRoute } from '../../database/entities/intercity-route.entity';
@@ -209,7 +210,7 @@ export class IntercityBookingsService {
       );
     }
 
-    const tariffId = await this.intercityTariffId();
+    const tariffId = await intercityTariffId(this.tariffRepository);
     const driverUserId = trip.driver.userId;
 
     const orderId = await this.dataSource.transaction(async (manager) => {
@@ -218,7 +219,7 @@ export class IntercityBookingsService {
       await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
         `intercity-book:${tripId}:${passengerId}`,
       ]);
-      await this.assertNoActiveBooking(manager, tripId, passengerId);
+      await assertNoActiveBooking(manager, tripId, passengerId);
 
       if (measureDetour) {
         // ⚠️ Qatnov qatori QULFI ostida: ikki parallel band bir-birining
@@ -256,43 +257,19 @@ export class IntercityBookingsService {
         );
       }
 
-      const inserted = returnedRows<{ id: string }>(
-        await manager.query(
-          `INSERT INTO "orders" ("passenger_id", "driver_id", "tariff_id", "pickup_location", "dropoff_location",
-             "pickup_address", "dropoff_address", "estimated_price", "status", "payment_method",
-             "service_type", "fare_breakdown", "is_fixed_price", "scheduled_at",
-             "intercity_trip_id", "seats", "booking_kind")
-           VALUES ($1, $2, $3,
-             ST_SetSRID(ST_MakePoint($4, $5), 4326),
-             ST_SetSRID(ST_MakePoint($6, $7), 4326),
-             $8, $9, $10, $11, $12, $13::jsonb, true, $14, $15, $16, $17)
-           RETURNING "id"`,
-          [
-            passengerId,
-            driverUserId,
-            tariffId,
-            dto.pickup.lng,
-            dto.pickup.lat,
-            dto.dropoff.lng,
-            dto.dropoff.lat,
-            dto.pickup.address,
-            dto.dropoff.address,
-            fare.total,
-            // SCHEDULED: haydovchi allaqachon ma'lum, lekin u yo'lovchilarni
-            // yig'ishni boshlaguncha (`start-boarding`) buyurtma haydovchini
-            // BAND qilmaydi — u shu orada shahar ichida ishlay oladi.
-            OrderStatus.SCHEDULED,
-            paymentMethod,
-            ServiceType.INTERCITY,
-            JSON.stringify(fare),
-            trip.departureAt,
-            tripId,
-            seats,
-            dto.kind,
-          ],
-        ),
-      );
-      return inserted[0].id;
+      return insertBookingOrder(manager, {
+        passengerId,
+        driverUserId,
+        tariffId,
+        tripId,
+        departureAt: trip.departureAt,
+        seats,
+        kind: dto.kind,
+        pickup: dto.pickup,
+        dropoff: dto.dropoff,
+        fare,
+        paymentMethod,
+      });
     });
     // COMMIT'dan KEYIN: haydovchi bandni ko'radi, boshqa qidiruvchilar —
     // yangi bo'sh joylar sonini. Xabar yiqilsa ham band saqlangan (notifier
@@ -515,23 +492,6 @@ export class IntercityBookingsService {
     };
   }
 
-  private async assertNoActiveBooking(manager: EntityManager, tripId: string, passengerId: string): Promise<void> {
-    const existing = returnedRows<{ id: string }>(
-      await manager.query(
-        `SELECT "id" FROM "orders"
-          WHERE "intercity_trip_id" = $1 AND "passenger_id" = $2
-            AND "status" NOT IN ('completed', 'cancelled')
-          LIMIT 1`,
-        [tripId, passengerId],
-      ),
-    );
-    if (existing.length > 0) {
-      throw codedConflict(ERROR_CODES.intercityAlreadyBooked, 'Bu qatnovda sizning bandingiz allaqachon bor', {
-        details: { orderId: existing[0].id },
-      });
-    }
-  }
-
   private async getView(orderId: string, passengerId: string, now: Date): Promise<IntercityBookingView> {
     const order = await this.orderRepository.findOne({
       where: { id: orderId, passengerId },
@@ -539,20 +499,6 @@ export class IntercityBookingsService {
     });
     if (!order) throw this.bookingNotFound();
     return toIntercityBookingView(order, now);
-  }
-
-  /** 035 migratsiyasi qo'ygan "Shaharlararo" tarifi (`orders.tariff_id` NOT NULL). */
-  private async intercityTariffId(): Promise<string> {
-    const tariff = await this.tariffRepository.findOne({
-      where: { serviceType: ServiceType.INTERCITY },
-      select: { id: true },
-      order: { createdAt: 'ASC' },
-    });
-    if (!tariff) {
-      // Migratsiya tushmagan — konfiguratsiya xatosi, yo'lovchining emas.
-      throw new InternalServerErrorException('Intercity tariff is missing (migration 035)');
-    }
-    return tariff.id;
   }
 
   private async assertEnabled(): Promise<void> {

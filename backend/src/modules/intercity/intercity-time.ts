@@ -44,3 +44,9 @@ export function tashkentDateOf(at: Date): string {
 export function formatTashkentTime(at: Date): string {
   return new Date(at.getTime() + TASHKENT_OFFSET_MS).toISOString().slice(11, 16);
 }
+
+/** "18.10" — Toshkent vaqti bo'yicha kun va oy. */
+export function formatTashkentDayMonth(at: Date): string {
+  const iso = new Date(at.getTime() + TASHKENT_OFFSET_MS).toISOString();
+  return `${iso.slice(8, 10)}.${iso.slice(5, 7)}`;
+}

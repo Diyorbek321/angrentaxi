@@ -30,10 +30,15 @@ import { IntercityZonesService } from './intercity-zones.service';
 import { IntercityDetourService } from './intercity-detour.service';
 import { IntercityFitService } from './intercity-fit.service';
 import { IntercityRoutePlanService } from './intercity-route-plan.service';
+import { IntercityRequest } from '../../database/entities/intercity-request.entity';
+import { IntercityRequestsController } from './intercity-requests.controller';
+import { IntercityRequestsService } from './intercity-requests.service';
+import { IntercityRequestAcceptService } from './intercity-request-accept.service';
 
 /**
  * Shaharlararo qatnov. 1-qadam: nuqtalar, yo'nalishlar, qat'iy narxlar.
  * 2–3-qadam: haydovchi e'lon qiladigan qatnovlar va yo'lovchi qidiruvi.
+ * 10-qadam: yo'lovchi so'rovlari doskasi (`intercity-requests.service.ts`).
  * 6-qadam: realtime hodisalar + push (`intercity-events.ts`, `IntercityNotifier`).
  * 4–5-qadam: band qilish/bekor qilish (atomik o'rindiq hisobi —
  * `intercity-seat-ledger.ts`), yig'ish → jo'nash, avtomatik yopish cron'i.
@@ -52,6 +57,7 @@ import { IntercityRoutePlanService } from './intercity-route-plan.service';
       IntercityTrip,
       IntercityZone,
       IntercityTripZone,
+      IntercityRequest,
       Driver,
       Tariff,
       Transaction,
@@ -65,7 +71,13 @@ import { IntercityRoutePlanService } from './intercity-route-plan.service';
     // "Shahar ichiga davom" — yo'l masofasi (`IntercityExtensionPricer`).
     RoutingModule,
   ],
-  controllers: [IntercityController, IntercityManageController, IntercityTripsController, IntercityBookingsController],
+  controllers: [
+    IntercityController,
+    IntercityManageController,
+    IntercityTripsController,
+    IntercityBookingsController,
+    IntercityRequestsController,
+  ],
   providers: [
     IntercityPointsService,
     IntercityRoutesService,
@@ -81,6 +93,9 @@ import { IntercityRoutePlanService } from './intercity-route-plan.service';
     IntercityDetourService,
     IntercityFitService,
     IntercityRoutePlanService,
+    // 10-qadam: yo'lovchi so'rovlari doskasi (migratsiya 041).
+    IntercityRequestsService,
+    IntercityRequestAcceptService,
   ],
   exports: [IntercityPointsService, IntercityRoutesService, IntercityTripsService],
 })

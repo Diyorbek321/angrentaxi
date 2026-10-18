@@ -428,7 +428,8 @@ export class IntercityTripsService {
     return route;
   }
 
-  private async resolveComfortTier(): Promise<number> {
+  /** Comfort klass uchun kerakli haydovchi darajasi (so'rovlar doskasi ham shuni o'qiydi). */
+  async resolveComfortTier(): Promise<number> {
     const tariff = await this.tariffRepository.findOne({
       where: { serviceType: ServiceType.TAXI, name: COMFORT_TARIFF_NAME, isActive: true },
       select: { id: true, tier: true },

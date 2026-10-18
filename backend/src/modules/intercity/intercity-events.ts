@@ -16,7 +16,24 @@ export const INTERCITY_EVENTS = {
   BOOKING_CREATED: 'intercity:booking:created',
   /** {@link IntercityBookingEventPayload} → haydovchi. */
   BOOKING_CANCELLED: 'intercity:booking:cancelled',
+  /** `IntercityRequestView` → shaharlararo haydovchilar (doskaga yangi so'rov). */
+  REQUEST_CREATED: 'intercity:request:created',
+  /** `IntercityRequestView` → haydovchilar (yo'lovchi narxni oshirdi). */
+  REQUEST_UPDATED: 'intercity:request:updated',
+  /** {@link IntercityRequestClosedPayload} → haydovchilar (doskadan olib tashlash). */
+  REQUEST_CLOSED: 'intercity:request:closed',
+  /** {@link IntercityRequestClosedPayload} → so'rov egasi (qabul qilindi yoki eskirdi). */
+  REQUEST_RESOLVED: 'intercity:request:resolved',
 } as const;
+
+export interface IntercityRequestClosedPayload {
+  requestId: string;
+  /** `accepted` | `cancelled` | `expired`. */
+  status: string;
+  /** Faqat `accepted` da. */
+  tripId?: string;
+  orderId?: string;
+}
 
 export interface IntercityTripUpdatedPayload {
   tripId: string;

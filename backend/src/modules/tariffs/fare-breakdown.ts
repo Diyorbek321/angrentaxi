@@ -120,6 +120,13 @@ export interface FareBreakdown {
    */
   intercityExtensions?: IntercityExtensionCharge[];
 
+  /**
+   * Shaharlararo so'rovda yo'lovchi o'zi qo'shgan summa (haydovchi tez
+   * topilsin deb). Summa `surgeFare` ICHIDA — invariant o'zgarmaydi, bu
+   * maydon faqat chekdagi qator nomi uchun. Boshqa hollarda YO'Q.
+   */
+  intercityBonus?: number;
+
   /** Yakuniy summa. `calculatePrice()` natijasi bilan AYNAN teng. */
   total: number;
 }

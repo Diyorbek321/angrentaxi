@@ -25,7 +25,14 @@ function build(
     departureReminder: jest.fn(async () => undefined),
     tripUpdated: jest.fn(async () => undefined),
   };
-  return { cron: new IntercityTripsCron(dataSource as never, notifier as never), dataSource, manager, notifier };
+  const requests = { expireDue: jest.fn(async () => 0) };
+  return {
+    cron: new IntercityTripsCron(dataSource as never, notifier as never, requests as never),
+    dataSource,
+    manager,
+    notifier,
+    requests,
+  };
 }
 
 const tripUpdates = (manager: { query: jest.Mock }) =>
@@ -134,6 +141,17 @@ describe('IntercityTripsCron.sendDepartureReminders', () => {
     expect(remind).toHaveBeenCalled();
     expect(sweep).toHaveBeenCalled();
     void dataSource;
+  });
+
+  it("tick: qatnov ishlari yiqilsa ham so'rovlar eskiradi", async () => {
+    const { cron, requests } = build([]);
+    jest.spyOn(cron, 'expireTrips').mockRejectedValue(new Error('boom'));
+    jest.spyOn(cron, 'sendDepartureReminders').mockRejectedValue(new Error('boom'));
+    jest.spyOn(cron, 'sweepStuckTrips').mockRejectedValue(new Error('boom'));
+    requests.expireDue.mockRejectedValueOnce(new Error('boom'));
+
+    await expect(cron.handleTick()).resolves.toBeUndefined();
+    expect(requests.expireDue).toHaveBeenCalled();
   });
 });
 

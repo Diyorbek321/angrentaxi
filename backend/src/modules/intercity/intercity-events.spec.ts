@@ -23,6 +23,10 @@ describe('intercity-events', () => {
       TRIP_CANCELLED: 'intercity:trip:cancelled',
       BOOKING_CREATED: 'intercity:booking:created',
       BOOKING_CANCELLED: 'intercity:booking:cancelled',
+      REQUEST_CREATED: 'intercity:request:created',
+      REQUEST_UPDATED: 'intercity:request:updated',
+      REQUEST_CLOSED: 'intercity:request:closed',
+      REQUEST_RESOLVED: 'intercity:request:resolved',
     });
   });
 
