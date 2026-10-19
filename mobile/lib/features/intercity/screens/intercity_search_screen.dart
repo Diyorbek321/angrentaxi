@@ -2,8 +2,11 @@ import 'package:angren_taxi/core/config/app_responsive.dart';
 import 'package:angren_taxi/features/intercity/data/intercity_repository.dart';
 import 'package:angren_taxi/features/intercity/intercity_messages.dart';
 import 'package:angren_taxi/features/intercity/models/intercity_models.dart';
+import 'package:angren_taxi/features/intercity/models/intercity_request_models.dart';
 import 'package:angren_taxi/features/intercity/screens/intercity_booking_screen.dart';
 import 'package:angren_taxi/features/intercity/screens/intercity_bookings_screen.dart';
+import 'package:angren_taxi/features/intercity/screens/intercity_request_screen.dart';
+import 'package:angren_taxi/features/intercity/screens/intercity_requests_screen.dart';
 import 'package:angren_taxi/features/intercity/widgets/intercity_trip_card.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
@@ -245,6 +248,41 @@ class _IntercitySearchScreenState extends State<IntercitySearchScreen> {
     }
   }
 
+  /// Mos qatnov yo'q — so'rov: tanlangan kun va manzil tayyor holda.
+  Future<void> _openRequest() async {
+    final route = _route;
+    if (route == null) return;
+    final request = await Navigator.of(context).push<IntercityRequest>(
+      MaterialPageRoute(
+        builder: (_) => IntercityRequestScreen(
+          route: route,
+          settings: widget.settings,
+          repository: _repo,
+          pickLocation: widget.pickLocation,
+          initialDate: _days[_dayIndex],
+          initialPickup: _addressIsDropoff == false ? _myAddress : null,
+          initialDropoff: _addressIsDropoff == true ? _myAddress : null,
+          now: widget.now,
+        ),
+      ),
+    );
+    if (!mounted || request == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.icReqCreated)));
+    _openRequests();
+  }
+
+  void _openRequests() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => IntercityRequestsScreen(
+          settings: widget.settings,
+          repository: _repo,
+          now: widget.now,
+        ),
+      ),
+    );
+  }
+
   void _openBookings() {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -268,10 +306,22 @@ class _IntercitySearchScreenState extends State<IntercitySearchScreen> {
             AgHeader(
               title: l10n.icSearchTitle,
               onBack: () => Navigator.of(context).maybePop(),
-              trailing: AgIconButton(
-                icon: Icons.confirmation_number_outlined,
-                onTap: _openBookings,
-                semanticsLabel: l10n.icMyBookings,
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AgIconButton(
+                    key: const ValueKey('ic_open_requests'),
+                    icon: Icons.campaign_outlined,
+                    onTap: _openRequests,
+                    semanticsLabel: l10n.icReqMineTitle,
+                  ),
+                  const SizedBox(width: kSpace2),
+                  AgIconButton(
+                    icon: Icons.confirmation_number_outlined,
+                    onTap: _openBookings,
+                    semanticsLabel: l10n.icMyBookings,
+                  ),
+                ],
               ),
             ),
             Expanded(
@@ -388,8 +438,9 @@ class _IntercitySearchScreenState extends State<IntercitySearchScreen> {
           compact: true,
           icon: Icons.event_busy_rounded,
           title: l10n.icNoTripsTitle,
-          message: l10n.icNoTripsHint,
+          message: l10n.icReqNoTripsHint,
         ),
+        _RequestCta(onTap: _openRequest),
       ];
     }
     return [
@@ -397,6 +448,7 @@ class _IntercitySearchScreenState extends State<IntercitySearchScreen> {
         IntercityTripCard(trip: trip, onTap: () => _openTrip(trip)),
         const SizedBox(height: kSpace3),
       ],
+      _RequestCta(onTap: _openRequest),
     ];
   }
 }
@@ -516,3 +568,50 @@ class _AddressFilter extends StatelessWidget {
   }
 }
 
+
+/// "Mos vaqt topilmadimi? So'rov qoldiring" — haydovchilarga push boradi.
+class _RequestCta extends StatelessWidget {
+  const _RequestCta({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Material(
+      key: const ValueKey('ic_request_cta'),
+      color: agSurface,
+      borderRadius: BorderRadius.circular(agRadiusMd),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(agRadiusMd),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(kSpace4),
+          child: Row(
+            children: [
+              const Icon(Icons.campaign_outlined, color: agGreenText),
+              const SizedBox(width: kSpace3),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.icReqCtaTitle,
+                      style: const TextStyle(fontSize: kFontBody, fontWeight: FontWeight.w700, color: agText),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      l10n.icReqCtaSubtitle,
+                      style: const TextStyle(fontSize: kFontCaption, color: agSubtle),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: agMuted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

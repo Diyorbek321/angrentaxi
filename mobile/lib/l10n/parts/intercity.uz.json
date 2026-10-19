@@ -440,5 +440,103 @@
         "type": "int"
       }
     }
-  }
+  },
+  "icErrRequestAlreadyOpen": "Sizda allaqachon ochiq so'rov bor — avval uni bekor qiling yoki narxini oshiring",
+  "icErrRequestClosed": "So'rov endi ochiq emas: uni boshqa haydovchi oldi yoki muddati tugadi",
+  "icErrRequestNotFound": "So'rov topilmadi",
+  "icReqTitle": "So'rov qoldirish",
+  "icReqIntro": "Mos qatnov topilmasa, so'rov qoldiring: haydovchilarga xabar boradi va birinchi qabul qilgan haydovchi sizni olib ketadi.",
+  "icReqCtaTitle": "Mos vaqt topilmadimi?",
+  "icReqCtaSubtitle": "So'rov qoldiring — haydovchilar o'zlari taklif qiladi",
+  "icReqNoTripsHint": "Boshqa kunni tanlang yoki so'rov qoldiring",
+  "icReqWindowTitle": "Qachon jo'nash qulay",
+  "icReqWindowFrom": "Dan",
+  "icReqWindowTo": "Gacha",
+  "icReqWindowHint": "Haydovchi shu oraliqdagi istalgan vaqtda jo'naydi. Oraliq tugaguncha haydovchi topilmasa, so'rov o'zi yopiladi.",
+  "icReqWindowInvalid": "Oraliq oxiri boshidan keyin bo'lishi kerak",
+  "icReqWindowTooShort": "Oraliq kamida {minutes} daqiqa bo'lishi kerak",
+  "@icReqWindowTooShort": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "icReqWindowTooLong": "Oraliq ko'pi bilan {hours} soat bo'lishi mumkin",
+  "@icReqWindowTooLong": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "icReqWindowTooSoon": "Oraliq juda erta tugaydi — kechroq vaqtni tanlang",
+  "icReqWindowTooFar": "So'rovni ko'pi bilan {days} kun oldinga qoldirish mumkin",
+  "@icReqWindowTooFar": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "icReqBonusTitle": "Narxni oshirish",
+  "icReqBonusHint": "Ixtiyoriy: haydovchi tezroq topiladi",
+  "icReqBonusIncrease": "Narxni oshirish",
+  "icReqBonusDecrease": "Narxni kamaytirish",
+  "icReqSubmit": "So'rov qoldirish",
+  "icReqCreated": "So'rov yuborildi — haydovchi topilsa xabar beramiz",
+  "icReqMineTitle": "Mening so'rovlarim",
+  "icReqMineEmpty": "Hozircha so'rovlar yo'q",
+  "icReqMineEmptyHint": "Mos qatnov topilmasa, qidiruv ekranidan so'rov qoldiring",
+  "icReqSeats": "{count} joy",
+  "@icReqSeats": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "icReqStatusOpen": "Haydovchi kutilmoqda",
+  "icReqStatusAccepted": "Qabul qilindi",
+  "icReqStatusCancelled": "Bekor qilindi",
+  "icReqStatusExpired": "Muddati tugadi",
+  "icReqWaiting": "Haydovchilar ko'rmoqda",
+  "icReqFound": "Haydovchi topildi — band yaratildi",
+  "icReqOpenBooking": "Bandni ko'rish",
+  "icReqRaise": "Narxni oshirish",
+  "icReqRaiseTitle": "Narxni oshirish",
+  "icReqRaiseHint": "Narxni faqat oshirish mumkin; yangi narx haydovchilar doskasida darhol ko'rinadi.",
+  "icReqRaiseConfirm": "Oshirish",
+  "icReqRaised": "Narx oshirildi",
+  "icReqCancel": "Bekor qilish",
+  "icReqCancelTitle": "So'rovni bekor qilasizmi?",
+  "icReqCancelBody": "Haydovchilar uni endi ko'rmaydi.",
+  "icReqCancelKeep": "Yo'q",
+  "icReqCancelConfirm": "Ha, bekor qilish",
+  "icReqCancelled": "So'rov bekor qilindi",
+  "icReqBoardTitle": "Yo'lovchi so'rovlari",
+  "icReqBoardShort": "So'rovlar",
+  "icReqBoardEmpty": "Hozircha ochiq so'rov yo'q",
+  "icReqBoardEmptyHint": "Yangi so'rov tushsa, push keladi va ro'yxat o'zi yangilanadi",
+  "icReqBoardBonus": "shundan qo'shimcha {amount}",
+  "@icReqBoardBonus": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "icReqAccept": "Qabul qilish",
+  "icReqAcceptTitle": "So'rovni qabul qilish",
+  "icReqAcceptPickTrip": "Qaysi qatnovingizga qo'shilsin",
+  "icReqAcceptPickTime": "Jo'nash vaqtini tanlang",
+  "icReqAcceptNewTripHint": "Shu vaqtga yangi qatnov ochiladi; qolgan joylar boshqa yo'lovchilarga ochiq bo'ladi.",
+  "icReqAcceptTooLate": "Bu oraliqqa ulgurib bo'lmaydi",
+  "icReqAcceptConfirm": "Qabul qilish",
+  "icReqAcceptedExisting": "Yo'lovchi qatnovingizga qo'shildi",
+  "icReqAcceptedNewTrip": "Yangi qatnov ochildi, yo'lovchi qo'shildi",
+  "icReqAcceptSlotPassed": "Tanlangan vaqt o'tib ketdi — kechroq vaqtni tanlang",
+  "icReqAcceptNoRoom": "Joy yetmaydi",
+  "icReqAcceptNoRoomHint": "Bu oraliqdagi qatnovingizda joy yetmaydi, shuning uchun so'rovni qabul qilib bo'lmaydi.",
+  "icReqAcceptOverlap": "Bu oraliq boshqa qatnovingiz bilan to'qnashadi (orada kamida 3 soat bo'lishi kerak)"
 }

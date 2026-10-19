@@ -207,6 +207,14 @@ class SocketEvents {
   // Faqat haydovchiga: o'z qatnoviga yangi band / band bekor qilindi.
   static const String intercityBookingCreated = 'intercity:booking:created';
   static const String intercityBookingCancelled = 'intercity:booking:cancelled';
+  // So'rovlar doskasi (10-qadam). Haydovchilarga: yangi so'rov / narx
+  // oshirildi (payload — so'rov ko'rinishi) / yopildi ({requestId, status}).
+  // Yo'lovchiga: haydovchi topildi yoki muddat tugadi ({requestId, status,
+  // tripId?, orderId?}).
+  static const String intercityRequestCreated = 'intercity:request:created';
+  static const String intercityRequestUpdated = 'intercity:request:updated';
+  static const String intercityRequestClosed = 'intercity:request:closed';
+  static const String intercityRequestResolved = 'intercity:request:resolved';
 
   // Support chat
   static const String supportMessageSend = 'support:message'; // client emit

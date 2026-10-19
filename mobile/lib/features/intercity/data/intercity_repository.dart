@@ -2,6 +2,7 @@ import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/features/intercity/models/intercity_models.dart';
+import 'package:angren_taxi/features/intercity/models/intercity_request_models.dart';
 
 /// Bandlash uchun manzil — server `IntercityBookingPlaceDto`.
 class IntercityPlace {
@@ -126,6 +127,135 @@ class IntercityRepository {
   Future<List<IntercityBooking>> myBookings() async {
     final res = await _api.get(ApiEndpoints.intercityMyBookings);
     return _list(_data(res.data)).map(IntercityBooking.fromJson).toList();
+  }
+
+  // ------------------------------------------------- so'rovlar (yo'lovchi)
+
+  /// So'rov va uning narxi uchun BIR XIL tana (band tanasidagi kabi).
+  static Map<String, dynamic> _requestBody({
+    required String routeId,
+    required String tripClass,
+    required String kind,
+    int? seats,
+    required IntercityPlace pickup,
+    required IntercityPlace dropoff,
+    required DateTime windowStart,
+    required DateTime windowEnd,
+    int bonus = 0,
+  }) =>
+      {
+        'routeId': routeId,
+        'tripClass': tripClass,
+        ..._bookingBody(kind: kind, seats: seats, pickup: pickup, dropoff: dropoff),
+        'windowStart': windowStart.toUtc().toIso8601String(),
+        'windowEnd': windowEnd.toUtc().toIso8601String(),
+        if (bonus > 0) 'bonus': bonus,
+      };
+
+  /// Saqlamasdan narx: qat'iy tarif + davom + oshirish.
+  Future<IntercityRequestQuote> requestQuote({
+    required String routeId,
+    required String tripClass,
+    required String kind,
+    int? seats,
+    required IntercityPlace pickup,
+    required IntercityPlace dropoff,
+    required DateTime windowStart,
+    required DateTime windowEnd,
+    int bonus = 0,
+  }) async {
+    final res = await _api.post(
+      ApiEndpoints.intercityRequestQuote,
+      data: _requestBody(
+        routeId: routeId,
+        tripClass: tripClass,
+        kind: kind,
+        seats: seats,
+        pickup: pickup,
+        dropoff: dropoff,
+        windowStart: windowStart,
+        windowEnd: windowEnd,
+        bonus: bonus,
+      ),
+    );
+    return IntercityRequestQuote.fromJson(Map<String, dynamic>.from(_data(res.data) as Map));
+  }
+
+  Future<IntercityRequest> createRequest({
+    required String routeId,
+    required String tripClass,
+    required String kind,
+    int? seats,
+    required IntercityPlace pickup,
+    required IntercityPlace dropoff,
+    required DateTime windowStart,
+    required DateTime windowEnd,
+    int bonus = 0,
+  }) async {
+    final res = await _api.post(
+      ApiEndpoints.intercityRequests,
+      data: _requestBody(
+        routeId: routeId,
+        tripClass: tripClass,
+        kind: kind,
+        seats: seats,
+        pickup: pickup,
+        dropoff: dropoff,
+        windowStart: windowStart,
+        windowEnd: windowEnd,
+        bonus: bonus,
+      ),
+    );
+    return _request(res.data);
+  }
+
+  Future<List<IntercityRequest>> myRequests() async {
+    final res = await _api.get(
+      ApiEndpoints.intercityMyRequests,
+      params: {'page': 1, 'limit': 30},
+    );
+    return _list(_data(res.data)).map(IntercityRequest.fromJson).toList(growable: false);
+  }
+
+  /// [bonus] — yangi JAMI qo'shimcha (avvalgisidan katta), farq emas.
+  Future<IntercityRequest> raiseRequestBonus(String id, int bonus) async {
+    final res = await _api.post(ApiEndpoints.intercityRequestBonus(id), data: {'bonus': bonus});
+    return _request(res.data);
+  }
+
+  Future<IntercityRequest> cancelRequest(String id) async =>
+      _request((await _api.post(ApiEndpoints.intercityRequestCancel(id))).data);
+
+  static IntercityRequest _request(dynamic body) =>
+      IntercityRequest.fromJson(Map<String, dynamic>.from(_data(body) as Map));
+
+  // ------------------------------------------------- so'rovlar (haydovchi)
+
+  /// Ochiq so'rovlar (eng erta oraliq birinchi). Comfort so'rovlar faqat
+  /// Comfort'ga ruxsati bor haydovchiga keladi — filtr serverda.
+  Future<List<IntercityRequest>> requestBoard({String? routeId}) async {
+    final res = await _api.get(
+      ApiEndpoints.intercityRequestBoard,
+      params: {if (routeId != null) 'routeId': routeId},
+    );
+    return _list(_data(res.data)).map(IntercityRequest.fromJson).toList(growable: false);
+  }
+
+  /// [tripId] — mavjud qatnovga; aks holda [departureAt] bilan yangi qatnov
+  /// (server oraliqdagi mos qatnovni o'zi ham topadi).
+  Future<IntercityRequestAcceptance> acceptRequest(
+    String id, {
+    String? tripId,
+    DateTime? departureAt,
+  }) async {
+    final res = await _api.post(
+      ApiEndpoints.intercityRequestAccept(id),
+      data: {
+        if (tripId != null) 'tripId': tripId,
+        if (departureAt != null) 'departureAt': departureAt.toUtc().toIso8601String(),
+      },
+    );
+    return IntercityRequestAcceptance.fromJson(Map<String, dynamic>.from(_data(res.data) as Map));
   }
 
   // ---------------------------------------------------------------- haydovchi

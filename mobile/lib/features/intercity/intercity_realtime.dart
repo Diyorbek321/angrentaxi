@@ -47,3 +47,42 @@ mixin IntercityRealtimeRefresh<T extends StatefulWidget> on State<T> {
         ],
       ];
 }
+
+/// So'rovlar doskasi hodisalari. Haydovchi: yangi / narx oshirildi / yopildi;
+/// yo'lovchi: haydovchi topildi yoki muddat tugadi. Socket yo'q bo'lsa jim.
+mixin IntercityRequestRealtime<T extends StatefulWidget> on State<T> {
+  SocketService? _requestSocket;
+  bool _requestDriver = false;
+
+  /// [requestId] — payload'dagi `requestId` yoki `id`; `null` — tanilmadi.
+  void onRequestEvent(String? requestId);
+
+  void _handleRequest(dynamic payload) {
+    if (!mounted) return;
+    final id = payload is Map ? (payload['requestId'] ?? payload['id'])?.toString() : null;
+    onRequestEvent(id);
+  }
+
+  void subscribeRequests({SocketService? socket, bool driver = false}) {
+    _requestSocket = socket ?? (sl.isRegistered<SocketService>() ? sl<SocketService>() : null);
+    _requestDriver = driver;
+    for (final event in _requestEvents(driver)) {
+      _requestSocket?.on(event, _handleRequest);
+    }
+  }
+
+  void unsubscribeRequests() {
+    for (final event in _requestEvents(_requestDriver)) {
+      _requestSocket?.off(event, _handleRequest);
+    }
+    _requestSocket = null;
+  }
+
+  static List<String> _requestEvents(bool driver) => driver
+      ? const [
+          SocketEvents.intercityRequestCreated,
+          SocketEvents.intercityRequestUpdated,
+          SocketEvents.intercityRequestClosed,
+        ]
+      : const [SocketEvents.intercityRequestResolved];
+}

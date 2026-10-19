@@ -5,6 +5,7 @@ import 'package:angren_taxi/features/intercity/intercity_messages.dart';
 import 'package:angren_taxi/features/intercity/intercity_realtime.dart';
 import 'package:angren_taxi/features/intercity/models/intercity_models.dart';
 import 'package:angren_taxi/features/intercity/screens/intercity_publish_screen.dart';
+import 'package:angren_taxi/features/intercity/screens/intercity_request_board_screen.dart';
 import 'package:angren_taxi/features/intercity/screens/intercity_trip_run_screen.dart';
 import 'package:angren_taxi/features/intercity/widgets/intercity_cancel_trip_dialog.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
@@ -91,6 +92,14 @@ class _DriverIntercityTripsScreenState extends State<DriverIntercityTripsScreen>
     if (published == true) await _load();
   }
 
+  /// Yo'lovchi so'rovlari — qabul qilingani shu ro'yxatga qatnov bo'lib tushadi.
+  Future<void> _openBoard() async {
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => IntercityRequestBoardScreen(repository: _repo, now: widget.now),
+    ));
+    if (mounted) await _load();
+  }
+
   Future<void> _cancel(IntercityTrip trip) async {
     final cancelled = await showIntercityCancelTripDialog(
       context,
@@ -107,7 +116,17 @@ class _DriverIntercityTripsScreenState extends State<DriverIntercityTripsScreen>
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.icDrvMyTripsTitle)),
+      appBar: AppBar(
+        title: Text(l10n.icDrvMyTripsTitle),
+        actions: [
+          TextButton.icon(
+            key: const ValueKey('ic_trips_requests'),
+            onPressed: _openBoard,
+            icon: const Icon(Icons.campaign_outlined),
+            label: Text(l10n.icReqBoardShort),
+          ),
+        ],
+      ),
       body: SafeArea(top: false, child: _body()),
       bottomNavigationBar: SafeArea(
         child: Padding(

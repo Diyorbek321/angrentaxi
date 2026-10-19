@@ -2708,6 +2708,24 @@ abstract class AppLocalizations {
   /// **'Bu qatnov sizning tumaningizga bormaydi ({zones}). Boshqa qatnovni tanlang.'**
   String icErrOutOfZone(String zones);
 
+  /// No description provided for @icErrRequestAlreadyOpen.
+  ///
+  /// In uz, this message translates to:
+  /// **'Sizda allaqachon ochiq so\'rov bor — avval uni bekor qiling yoki narxini oshiring'**
+  String get icErrRequestAlreadyOpen;
+
+  /// No description provided for @icErrRequestClosed.
+  ///
+  /// In uz, this message translates to:
+  /// **'So\'rov endi ochiq emas: uni boshqa haydovchi oldi yoki muddati tugadi'**
+  String get icErrRequestClosed;
+
+  /// No description provided for @icErrRequestNotFound.
+  ///
+  /// In uz, this message translates to:
+  /// **'So\'rov topilmadi'**
+  String get icErrRequestNotFound;
+
   /// No description provided for @icErrSeatsUnavailable.
   ///
   /// In uz, this message translates to:
@@ -2953,6 +2971,366 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Qayta urinish'**
   String get icQuoteRetry;
+
+  /// No description provided for @icReqAccept.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qabul qilish'**
+  String get icReqAccept;
+
+  /// No description provided for @icReqAcceptConfirm.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qabul qilish'**
+  String get icReqAcceptConfirm;
+
+  /// No description provided for @icReqAcceptNewTripHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Shu vaqtga yangi qatnov ochiladi; qolgan joylar boshqa yo\'lovchilarga ochiq bo\'ladi.'**
+  String get icReqAcceptNewTripHint;
+
+  /// No description provided for @icReqAcceptNoRoom.
+  ///
+  /// In uz, this message translates to:
+  /// **'Joy yetmaydi'**
+  String get icReqAcceptNoRoom;
+
+  /// No description provided for @icReqAcceptNoRoomHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bu oraliqdagi qatnovingizda joy yetmaydi, shuning uchun so\'rovni qabul qilib bo\'lmaydi.'**
+  String get icReqAcceptNoRoomHint;
+
+  /// No description provided for @icReqAcceptOverlap.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bu oraliq boshqa qatnovingiz bilan to\'qnashadi (orada kamida 3 soat bo\'lishi kerak)'**
+  String get icReqAcceptOverlap;
+
+  /// No description provided for @icReqAcceptPickTime.
+  ///
+  /// In uz, this message translates to:
+  /// **'Jo\'nash vaqtini tanlang'**
+  String get icReqAcceptPickTime;
+
+  /// No description provided for @icReqAcceptPickTrip.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qaysi qatnovingizga qo\'shilsin'**
+  String get icReqAcceptPickTrip;
+
+  /// No description provided for @icReqAcceptSlotPassed.
+  ///
+  /// In uz, this message translates to:
+  /// **'Tanlangan vaqt o\'tib ketdi — kechroq vaqtni tanlang'**
+  String get icReqAcceptSlotPassed;
+
+  /// No description provided for @icReqAcceptTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'So\'rovni qabul qilish'**
+  String get icReqAcceptTitle;
+
+  /// No description provided for @icReqAcceptTooLate.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bu oraliqqa ulgurib bo\'lmaydi'**
+  String get icReqAcceptTooLate;
+
+  /// No description provided for @icReqAcceptedExisting.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yo\'lovchi qatnovingizga qo\'shildi'**
+  String get icReqAcceptedExisting;
+
+  /// No description provided for @icReqAcceptedNewTrip.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yangi qatnov ochildi, yo\'lovchi qo\'shildi'**
+  String get icReqAcceptedNewTrip;
+
+  /// No description provided for @icReqBoardBonus.
+  ///
+  /// In uz, this message translates to:
+  /// **'shundan qo\'shimcha {amount}'**
+  String icReqBoardBonus(String amount);
+
+  /// No description provided for @icReqBoardEmpty.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hozircha ochiq so\'rov yo\'q'**
+  String get icReqBoardEmpty;
+
+  /// No description provided for @icReqBoardEmptyHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yangi so\'rov tushsa, push keladi va ro\'yxat o\'zi yangilanadi'**
+  String get icReqBoardEmptyHint;
+
+  /// No description provided for @icReqBoardShort.
+  ///
+  /// In uz, this message translates to:
+  /// **'So\'rovlar'**
+  String get icReqBoardShort;
+
+  /// No description provided for @icReqBoardTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yo\'lovchi so\'rovlari'**
+  String get icReqBoardTitle;
+
+  /// No description provided for @icReqBonusDecrease.
+  ///
+  /// In uz, this message translates to:
+  /// **'Narxni kamaytirish'**
+  String get icReqBonusDecrease;
+
+  /// No description provided for @icReqBonusHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ixtiyoriy: haydovchi tezroq topiladi'**
+  String get icReqBonusHint;
+
+  /// No description provided for @icReqBonusIncrease.
+  ///
+  /// In uz, this message translates to:
+  /// **'Narxni oshirish'**
+  String get icReqBonusIncrease;
+
+  /// No description provided for @icReqBonusTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Narxni oshirish'**
+  String get icReqBonusTitle;
+
+  /// No description provided for @icReqCancel.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bekor qilish'**
+  String get icReqCancel;
+
+  /// No description provided for @icReqCancelBody.
+  ///
+  /// In uz, this message translates to:
+  /// **'Haydovchilar uni endi ko\'rmaydi.'**
+  String get icReqCancelBody;
+
+  /// No description provided for @icReqCancelConfirm.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ha, bekor qilish'**
+  String get icReqCancelConfirm;
+
+  /// No description provided for @icReqCancelKeep.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yo\'q'**
+  String get icReqCancelKeep;
+
+  /// No description provided for @icReqCancelTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'So\'rovni bekor qilasizmi?'**
+  String get icReqCancelTitle;
+
+  /// No description provided for @icReqCancelled.
+  ///
+  /// In uz, this message translates to:
+  /// **'So\'rov bekor qilindi'**
+  String get icReqCancelled;
+
+  /// No description provided for @icReqCreated.
+  ///
+  /// In uz, this message translates to:
+  /// **'So\'rov yuborildi — haydovchi topilsa xabar beramiz'**
+  String get icReqCreated;
+
+  /// No description provided for @icReqCtaSubtitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'So\'rov qoldiring — haydovchilar o\'zlari taklif qiladi'**
+  String get icReqCtaSubtitle;
+
+  /// No description provided for @icReqCtaTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Mos vaqt topilmadimi?'**
+  String get icReqCtaTitle;
+
+  /// No description provided for @icReqFound.
+  ///
+  /// In uz, this message translates to:
+  /// **'Haydovchi topildi — band yaratildi'**
+  String get icReqFound;
+
+  /// No description provided for @icReqIntro.
+  ///
+  /// In uz, this message translates to:
+  /// **'Mos qatnov topilmasa, so\'rov qoldiring: haydovchilarga xabar boradi va birinchi qabul qilgan haydovchi sizni olib ketadi.'**
+  String get icReqIntro;
+
+  /// No description provided for @icReqMineEmpty.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hozircha so\'rovlar yo\'q'**
+  String get icReqMineEmpty;
+
+  /// No description provided for @icReqMineEmptyHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Mos qatnov topilmasa, qidiruv ekranidan so\'rov qoldiring'**
+  String get icReqMineEmptyHint;
+
+  /// No description provided for @icReqMineTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Mening so\'rovlarim'**
+  String get icReqMineTitle;
+
+  /// No description provided for @icReqNoTripsHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Boshqa kunni tanlang yoki so\'rov qoldiring'**
+  String get icReqNoTripsHint;
+
+  /// No description provided for @icReqOpenBooking.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bandni ko\'rish'**
+  String get icReqOpenBooking;
+
+  /// No description provided for @icReqRaise.
+  ///
+  /// In uz, this message translates to:
+  /// **'Narxni oshirish'**
+  String get icReqRaise;
+
+  /// No description provided for @icReqRaiseConfirm.
+  ///
+  /// In uz, this message translates to:
+  /// **'Oshirish'**
+  String get icReqRaiseConfirm;
+
+  /// No description provided for @icReqRaiseHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Narxni faqat oshirish mumkin; yangi narx haydovchilar doskasida darhol ko\'rinadi.'**
+  String get icReqRaiseHint;
+
+  /// No description provided for @icReqRaiseTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Narxni oshirish'**
+  String get icReqRaiseTitle;
+
+  /// No description provided for @icReqRaised.
+  ///
+  /// In uz, this message translates to:
+  /// **'Narx oshirildi'**
+  String get icReqRaised;
+
+  /// No description provided for @icReqSeats.
+  ///
+  /// In uz, this message translates to:
+  /// **'{count} joy'**
+  String icReqSeats(int count);
+
+  /// No description provided for @icReqStatusAccepted.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qabul qilindi'**
+  String get icReqStatusAccepted;
+
+  /// No description provided for @icReqStatusCancelled.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bekor qilindi'**
+  String get icReqStatusCancelled;
+
+  /// No description provided for @icReqStatusExpired.
+  ///
+  /// In uz, this message translates to:
+  /// **'Muddati tugadi'**
+  String get icReqStatusExpired;
+
+  /// No description provided for @icReqStatusOpen.
+  ///
+  /// In uz, this message translates to:
+  /// **'Haydovchi kutilmoqda'**
+  String get icReqStatusOpen;
+
+  /// No description provided for @icReqSubmit.
+  ///
+  /// In uz, this message translates to:
+  /// **'So\'rov qoldirish'**
+  String get icReqSubmit;
+
+  /// No description provided for @icReqTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'So\'rov qoldirish'**
+  String get icReqTitle;
+
+  /// No description provided for @icReqWaiting.
+  ///
+  /// In uz, this message translates to:
+  /// **'Haydovchilar ko\'rmoqda'**
+  String get icReqWaiting;
+
+  /// No description provided for @icReqWindowFrom.
+  ///
+  /// In uz, this message translates to:
+  /// **'Dan'**
+  String get icReqWindowFrom;
+
+  /// No description provided for @icReqWindowHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Haydovchi shu oraliqdagi istalgan vaqtda jo\'naydi. Oraliq tugaguncha haydovchi topilmasa, so\'rov o\'zi yopiladi.'**
+  String get icReqWindowHint;
+
+  /// No description provided for @icReqWindowInvalid.
+  ///
+  /// In uz, this message translates to:
+  /// **'Oraliq oxiri boshidan keyin bo\'lishi kerak'**
+  String get icReqWindowInvalid;
+
+  /// No description provided for @icReqWindowTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qachon jo\'nash qulay'**
+  String get icReqWindowTitle;
+
+  /// No description provided for @icReqWindowTo.
+  ///
+  /// In uz, this message translates to:
+  /// **'Gacha'**
+  String get icReqWindowTo;
+
+  /// No description provided for @icReqWindowTooFar.
+  ///
+  /// In uz, this message translates to:
+  /// **'So\'rovni ko\'pi bilan {days} kun oldinga qoldirish mumkin'**
+  String icReqWindowTooFar(int days);
+
+  /// No description provided for @icReqWindowTooLong.
+  ///
+  /// In uz, this message translates to:
+  /// **'Oraliq ko\'pi bilan {hours} soat bo\'lishi mumkin'**
+  String icReqWindowTooLong(int hours);
+
+  /// No description provided for @icReqWindowTooShort.
+  ///
+  /// In uz, this message translates to:
+  /// **'Oraliq kamida {minutes} daqiqa bo\'lishi kerak'**
+  String icReqWindowTooShort(int minutes);
+
+  /// No description provided for @icReqWindowTooSoon.
+  ///
+  /// In uz, this message translates to:
+  /// **'Oraliq juda erta tugaydi — kechroq vaqtni tanlang'**
+  String get icReqWindowTooSoon;
 
   /// No description provided for @icRetry.
   ///

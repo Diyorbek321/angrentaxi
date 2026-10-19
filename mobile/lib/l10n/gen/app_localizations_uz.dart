@@ -1501,6 +1501,17 @@ class AppLocalizationsUz extends AppLocalizations {
   }
 
   @override
+  String get icErrRequestAlreadyOpen =>
+      'Sizda allaqachon ochiq so\'rov bor — avval uni bekor qiling yoki narxini oshiring';
+
+  @override
+  String get icErrRequestClosed =>
+      'So\'rov endi ochiq emas: uni boshqa haydovchi oldi yoki muddati tugadi';
+
+  @override
+  String get icErrRequestNotFound => 'So\'rov topilmadi';
+
+  @override
   String get icErrSeatsUnavailable =>
       'Afsus, bu joylar band bo\'lib qoldi. Ma\'lumot yangilandi.';
 
@@ -1655,6 +1666,210 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get icQuoteRetry => 'Qayta urinish';
+
+  @override
+  String get icReqAccept => 'Qabul qilish';
+
+  @override
+  String get icReqAcceptConfirm => 'Qabul qilish';
+
+  @override
+  String get icReqAcceptNewTripHint =>
+      'Shu vaqtga yangi qatnov ochiladi; qolgan joylar boshqa yo\'lovchilarga ochiq bo\'ladi.';
+
+  @override
+  String get icReqAcceptNoRoom => 'Joy yetmaydi';
+
+  @override
+  String get icReqAcceptNoRoomHint =>
+      'Bu oraliqdagi qatnovingizda joy yetmaydi, shuning uchun so\'rovni qabul qilib bo\'lmaydi.';
+
+  @override
+  String get icReqAcceptOverlap =>
+      'Bu oraliq boshqa qatnovingiz bilan to\'qnashadi (orada kamida 3 soat bo\'lishi kerak)';
+
+  @override
+  String get icReqAcceptPickTime => 'Jo\'nash vaqtini tanlang';
+
+  @override
+  String get icReqAcceptPickTrip => 'Qaysi qatnovingizga qo\'shilsin';
+
+  @override
+  String get icReqAcceptSlotPassed =>
+      'Tanlangan vaqt o\'tib ketdi — kechroq vaqtni tanlang';
+
+  @override
+  String get icReqAcceptTitle => 'So\'rovni qabul qilish';
+
+  @override
+  String get icReqAcceptTooLate => 'Bu oraliqqa ulgurib bo\'lmaydi';
+
+  @override
+  String get icReqAcceptedExisting => 'Yo\'lovchi qatnovingizga qo\'shildi';
+
+  @override
+  String get icReqAcceptedNewTrip =>
+      'Yangi qatnov ochildi, yo\'lovchi qo\'shildi';
+
+  @override
+  String icReqBoardBonus(String amount) {
+    return 'shundan qo\'shimcha $amount';
+  }
+
+  @override
+  String get icReqBoardEmpty => 'Hozircha ochiq so\'rov yo\'q';
+
+  @override
+  String get icReqBoardEmptyHint =>
+      'Yangi so\'rov tushsa, push keladi va ro\'yxat o\'zi yangilanadi';
+
+  @override
+  String get icReqBoardShort => 'So\'rovlar';
+
+  @override
+  String get icReqBoardTitle => 'Yo\'lovchi so\'rovlari';
+
+  @override
+  String get icReqBonusDecrease => 'Narxni kamaytirish';
+
+  @override
+  String get icReqBonusHint => 'Ixtiyoriy: haydovchi tezroq topiladi';
+
+  @override
+  String get icReqBonusIncrease => 'Narxni oshirish';
+
+  @override
+  String get icReqBonusTitle => 'Narxni oshirish';
+
+  @override
+  String get icReqCancel => 'Bekor qilish';
+
+  @override
+  String get icReqCancelBody => 'Haydovchilar uni endi ko\'rmaydi.';
+
+  @override
+  String get icReqCancelConfirm => 'Ha, bekor qilish';
+
+  @override
+  String get icReqCancelKeep => 'Yo\'q';
+
+  @override
+  String get icReqCancelTitle => 'So\'rovni bekor qilasizmi?';
+
+  @override
+  String get icReqCancelled => 'So\'rov bekor qilindi';
+
+  @override
+  String get icReqCreated =>
+      'So\'rov yuborildi — haydovchi topilsa xabar beramiz';
+
+  @override
+  String get icReqCtaSubtitle =>
+      'So\'rov qoldiring — haydovchilar o\'zlari taklif qiladi';
+
+  @override
+  String get icReqCtaTitle => 'Mos vaqt topilmadimi?';
+
+  @override
+  String get icReqFound => 'Haydovchi topildi — band yaratildi';
+
+  @override
+  String get icReqIntro =>
+      'Mos qatnov topilmasa, so\'rov qoldiring: haydovchilarga xabar boradi va birinchi qabul qilgan haydovchi sizni olib ketadi.';
+
+  @override
+  String get icReqMineEmpty => 'Hozircha so\'rovlar yo\'q';
+
+  @override
+  String get icReqMineEmptyHint =>
+      'Mos qatnov topilmasa, qidiruv ekranidan so\'rov qoldiring';
+
+  @override
+  String get icReqMineTitle => 'Mening so\'rovlarim';
+
+  @override
+  String get icReqNoTripsHint => 'Boshqa kunni tanlang yoki so\'rov qoldiring';
+
+  @override
+  String get icReqOpenBooking => 'Bandni ko\'rish';
+
+  @override
+  String get icReqRaise => 'Narxni oshirish';
+
+  @override
+  String get icReqRaiseConfirm => 'Oshirish';
+
+  @override
+  String get icReqRaiseHint =>
+      'Narxni faqat oshirish mumkin; yangi narx haydovchilar doskasida darhol ko\'rinadi.';
+
+  @override
+  String get icReqRaiseTitle => 'Narxni oshirish';
+
+  @override
+  String get icReqRaised => 'Narx oshirildi';
+
+  @override
+  String icReqSeats(int count) {
+    return '$count joy';
+  }
+
+  @override
+  String get icReqStatusAccepted => 'Qabul qilindi';
+
+  @override
+  String get icReqStatusCancelled => 'Bekor qilindi';
+
+  @override
+  String get icReqStatusExpired => 'Muddati tugadi';
+
+  @override
+  String get icReqStatusOpen => 'Haydovchi kutilmoqda';
+
+  @override
+  String get icReqSubmit => 'So\'rov qoldirish';
+
+  @override
+  String get icReqTitle => 'So\'rov qoldirish';
+
+  @override
+  String get icReqWaiting => 'Haydovchilar ko\'rmoqda';
+
+  @override
+  String get icReqWindowFrom => 'Dan';
+
+  @override
+  String get icReqWindowHint =>
+      'Haydovchi shu oraliqdagi istalgan vaqtda jo\'naydi. Oraliq tugaguncha haydovchi topilmasa, so\'rov o\'zi yopiladi.';
+
+  @override
+  String get icReqWindowInvalid =>
+      'Oraliq oxiri boshidan keyin bo\'lishi kerak';
+
+  @override
+  String get icReqWindowTitle => 'Qachon jo\'nash qulay';
+
+  @override
+  String get icReqWindowTo => 'Gacha';
+
+  @override
+  String icReqWindowTooFar(int days) {
+    return 'So\'rovni ko\'pi bilan $days kun oldinga qoldirish mumkin';
+  }
+
+  @override
+  String icReqWindowTooLong(int hours) {
+    return 'Oraliq ko\'pi bilan $hours soat bo\'lishi mumkin';
+  }
+
+  @override
+  String icReqWindowTooShort(int minutes) {
+    return 'Oraliq kamida $minutes daqiqa bo\'lishi kerak';
+  }
+
+  @override
+  String get icReqWindowTooSoon =>
+      'Oraliq juda erta tugaydi — kechroq vaqtni tanlang';
 
   @override
   String get icRetry => 'Qayta urinish';

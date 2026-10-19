@@ -229,6 +229,17 @@ class ApiEndpoints {
       '/intercity/bookings/$orderId/no-show';
   static String intercityBookingCancel(String orderId) =>
       '/intercity/bookings/$orderId/cancel';
+  // Yo'lovchi so'rovlari doskasi (10-qadam): mos qatnov yo'q — so'rov.
+  static const String intercityRequests = '/intercity/requests';
+  static const String intercityRequestQuote = '/intercity/requests/quote';
+  static const String intercityMyRequests = '/intercity/requests/me';
+  static const String intercityRequestBoard = '/intercity/requests/board';
+  static String intercityRequestBonus(String id) =>
+      '/intercity/requests/$id/bonus';
+  static String intercityRequestCancel(String id) =>
+      '/intercity/requests/$id/cancel';
+  static String intercityRequestAccept(String id) =>
+      '/intercity/requests/$id/accept';
 
   /// Safar opsiyalari haqi (`{"child_seat": 5000}`) — menejer belgilaydi.
   static const String tripOptionFees = '/settings/trip-option-fees';

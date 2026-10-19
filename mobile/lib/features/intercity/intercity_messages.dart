@@ -1,5 +1,6 @@
 import 'package:angren_taxi/core/network/api_error.dart';
 import 'package:angren_taxi/features/intercity/models/intercity_models.dart';
+import 'package:angren_taxi/features/intercity/models/intercity_request_models.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 
@@ -20,6 +21,11 @@ abstract final class IntercityErrorCode {
   static const tripNotCancellable = 'INTERCITY_TRIP_NOT_CANCELLABLE';
   static const tripActionNotAllowed = 'INTERCITY_TRIP_ACTION_NOT_ALLOWED';
   static const driverBusy = 'DRIVER_BUSY';
+  // Yo'lovchi so'rovlari (backend 041).
+  static const requestInvalid = 'INTERCITY_REQUEST_INVALID';
+  static const requestNotFound = 'INTERCITY_REQUEST_NOT_FOUND';
+  static const requestAlreadyOpen = 'INTERCITY_REQUEST_ALREADY_OPEN';
+  static const requestClosed = 'INTERCITY_REQUEST_CLOSED';
 }
 
 /// Foydalanuvchiga ko'rsatiladigan matn.
@@ -55,12 +61,25 @@ String intercityErrorMessage(Object? error) {
       return l10n.icErrTripActionNotAllowed;
     case IntercityErrorCode.driverBusy:
       return l10n.icErrDriverBusy;
+    case IntercityErrorCode.requestNotFound:
+      return l10n.icErrRequestNotFound;
+    case IntercityErrorCode.requestAlreadyOpen:
+      return l10n.icErrRequestAlreadyOpen;
+    case IntercityErrorCode.requestClosed:
+      return l10n.icErrRequestClosed;
     case IntercityErrorCode.bookingInvalid:
     case IntercityErrorCode.tripInvalid:
+    case IntercityErrorCode.requestInvalid:
       final reasons = api!.reasons.map((r) => r.message).join('\n');
       return reasons.isNotEmpty ? reasons : (api.message ?? l10n.icErrGeneric);
   }
   return api?.message ?? l10n.icErrGeneric;
+}
+
+/// So'rov endi ochiq emas (boshqa haydovchi oldi / bekor / muddati o'tdi).
+bool isRequestClosed(Object? error) {
+  final code = ApiError.from(error)?.code;
+  return code == IntercityErrorCode.requestClosed || code == IntercityErrorCode.requestNotFound;
 }
 
 bool isSeatsUnavailable(Object? error) =>
@@ -105,6 +124,25 @@ String formatTashkentTime(DateTime instant) {
 String formatTashkentDayTime(DateTime instant) {
   final t = toTashkent(instant);
   return '${_two(t.day)}.${_two(t.month)} · ${_two(t.hour)}:${_two(t.minute)}';
+}
+
+/// "18.10 · 14:00–16:00" — so'rov oralig'i (Toshkent vaqti). Oraliq kun
+/// chegarasidan o'tsa oxiriga ham sana qo'yiladi: "18.10 · 22:00 – 19.10 · 02:00".
+String formatTashkentWindow(DateTime start, DateTime end) {
+  final sameDay = tashkentDateKey(start) == tashkentDateKey(end);
+  return sameDay
+      ? '${formatTashkentDayTime(start)}–${formatTashkentTime(end)}'
+      : '${formatTashkentDayTime(start)} – ${formatTashkentDayTime(end)}';
+}
+
+String intercityRequestStatusLabel(String status) {
+  final l10n = AppL10n.current;
+  return switch (status) {
+    IntercityRequestStatus.accepted => l10n.icReqStatusAccepted,
+    IntercityRequestStatus.cancelled => l10n.icReqStatusCancelled,
+    IntercityRequestStatus.expired => l10n.icReqStatusExpired,
+    _ => l10n.icReqStatusOpen,
+  };
 }
 
 /// "2 soat 15 daq" / "40 daq". Manfiy qiymat — 0.

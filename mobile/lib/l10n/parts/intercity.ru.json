@@ -166,5 +166,103 @@
   "icRunNavigate": "Навигация",
   "icRunOrderOptimized": "Кратчайший порядок · всего ~{minutes} мин",
   "icRunOrderNearest": "Порядок от ближайшего",
-  "icRunTerminal": "Затем {place}: ~{minutes} мин"
+  "icRunTerminal": "Затем {place}: ~{minutes} мин",
+  "icErrRequestAlreadyOpen": "У вас уже есть открытая заявка — сначала отмените её или поднимите цену",
+  "icErrRequestClosed": "Заявка больше не открыта: её взял другой водитель или истёк срок",
+  "icErrRequestNotFound": "Заявка не найдена",
+  "icReqTitle": "Оставить заявку",
+  "icReqIntro": "Если подходящей поездки нет, оставьте заявку: водители получат уведомление, и первый принявший вас заберёт.",
+  "icReqCtaTitle": "Не нашли удобное время?",
+  "icReqCtaSubtitle": "Оставьте заявку — водители сами откликнутся",
+  "icReqNoTripsHint": "Выберите другой день или оставьте заявку",
+  "icReqWindowTitle": "Когда удобно выехать",
+  "icReqWindowFrom": "С",
+  "icReqWindowTo": "До",
+  "icReqWindowHint": "Водитель выедет в любое время в этом интервале. Если до конца интервала водитель не найдётся, заявка закроется сама.",
+  "icReqWindowInvalid": "Конец интервала должен быть позже начала",
+  "icReqWindowTooShort": "Интервал должен быть не меньше {minutes} минут",
+  "@icReqWindowTooShort": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "icReqWindowTooLong": "Интервал может быть не больше {hours} часов",
+  "@icReqWindowTooLong": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "icReqWindowTooSoon": "Интервал заканчивается слишком рано — выберите время позже",
+  "icReqWindowTooFar": "Заявку можно оставить не более чем на {days} дн. вперёд",
+  "@icReqWindowTooFar": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "icReqBonusTitle": "Поднять цену",
+  "icReqBonusHint": "Необязательно: водитель найдётся быстрее",
+  "icReqBonusIncrease": "Поднять цену",
+  "icReqBonusDecrease": "Снизить цену",
+  "icReqSubmit": "Оставить заявку",
+  "icReqCreated": "Заявка отправлена — сообщим, когда найдётся водитель",
+  "icReqMineTitle": "Мои заявки",
+  "icReqMineEmpty": "Заявок пока нет",
+  "icReqMineEmptyHint": "Если подходящей поездки нет, оставьте заявку на экране поиска",
+  "icReqSeats": "Мест: {count}",
+  "@icReqSeats": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "icReqStatusOpen": "Ждём водителя",
+  "icReqStatusAccepted": "Принята",
+  "icReqStatusCancelled": "Отменена",
+  "icReqStatusExpired": "Срок истёк",
+  "icReqWaiting": "Водители видят заявку",
+  "icReqFound": "Водитель найден — бронь создана",
+  "icReqOpenBooking": "Открыть бронь",
+  "icReqRaise": "Поднять цену",
+  "icReqRaiseTitle": "Поднять цену",
+  "icReqRaiseHint": "Цену можно только повысить; новая цена сразу появится у водителей.",
+  "icReqRaiseConfirm": "Поднять",
+  "icReqRaised": "Цена повышена",
+  "icReqCancel": "Отменить",
+  "icReqCancelTitle": "Отменить заявку?",
+  "icReqCancelBody": "Водители больше не увидят её.",
+  "icReqCancelKeep": "Нет",
+  "icReqCancelConfirm": "Да, отменить",
+  "icReqCancelled": "Заявка отменена",
+  "icReqBoardTitle": "Заявки пассажиров",
+  "icReqBoardShort": "Заявки",
+  "icReqBoardEmpty": "Открытых заявок пока нет",
+  "icReqBoardEmptyHint": "Когда появится новая заявка, придёт push и список обновится сам",
+  "icReqBoardBonus": "из них надбавка {amount}",
+  "@icReqBoardBonus": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "icReqAccept": "Принять",
+  "icReqAcceptTitle": "Принять заявку",
+  "icReqAcceptPickTrip": "В какую поездку добавить",
+  "icReqAcceptPickTime": "Выберите время выезда",
+  "icReqAcceptNewTripHint": "На это время откроется новая поездка; остальные места будут доступны другим пассажирам.",
+  "icReqAcceptTooLate": "К этому интервалу уже не успеть",
+  "icReqAcceptConfirm": "Принять",
+  "icReqAcceptedExisting": "Пассажир добавлен в вашу поездку",
+  "icReqAcceptedNewTrip": "Открыта новая поездка, пассажир добавлен",
+  "icReqAcceptSlotPassed": "Выбранное время уже прошло — выберите время позже",
+  "icReqAcceptNoRoom": "Не хватает мест",
+  "icReqAcceptNoRoomHint": "В вашей поездке в этом интервале не хватает мест, поэтому заявку принять нельзя.",
+  "icReqAcceptOverlap": "Этот интервал пересекается с другой вашей поездкой (между ними должно быть не меньше 3 часов)"
 }

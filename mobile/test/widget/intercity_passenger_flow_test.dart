@@ -205,7 +205,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text("Bu kunga qatnov yo'q"), findsOneWidget);
-      expect(find.text("Boshqa kunni tanlab ko'ring"), findsOneWidget);
+      expect(find.text("Boshqa kunni tanlang yoki so'rov qoldiring"), findsOneWidget);
+      // Qatnov yo'q — so'rov qoldirish taklifi.
+      expect(find.byKey(const ValueKey('ic_request_cta')), findsOneWidget);
     });
 
     testWidgets("almashtirish teskari yo'nalishni, kun chipi sanani so'raydi",

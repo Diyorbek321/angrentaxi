@@ -1502,6 +1502,17 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get icErrRequestAlreadyOpen =>
+      'У вас уже есть открытая заявка — сначала отмените её или поднимите цену';
+
+  @override
+  String get icErrRequestClosed =>
+      'Заявка больше не открыта: её взял другой водитель или истёк срок';
+
+  @override
+  String get icErrRequestNotFound => 'Заявка не найдена';
+
+  @override
   String get icErrSeatsUnavailable =>
       'К сожалению, эти места уже заняли. Данные обновлены.';
 
@@ -1654,6 +1665,207 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get icQuoteRetry => 'Повторить';
+
+  @override
+  String get icReqAccept => 'Принять';
+
+  @override
+  String get icReqAcceptConfirm => 'Принять';
+
+  @override
+  String get icReqAcceptNewTripHint =>
+      'На это время откроется новая поездка; остальные места будут доступны другим пассажирам.';
+
+  @override
+  String get icReqAcceptNoRoom => 'Не хватает мест';
+
+  @override
+  String get icReqAcceptNoRoomHint =>
+      'В вашей поездке в этом интервале не хватает мест, поэтому заявку принять нельзя.';
+
+  @override
+  String get icReqAcceptOverlap =>
+      'Этот интервал пересекается с другой вашей поездкой (между ними должно быть не меньше 3 часов)';
+
+  @override
+  String get icReqAcceptPickTime => 'Выберите время выезда';
+
+  @override
+  String get icReqAcceptPickTrip => 'В какую поездку добавить';
+
+  @override
+  String get icReqAcceptSlotPassed =>
+      'Выбранное время уже прошло — выберите время позже';
+
+  @override
+  String get icReqAcceptTitle => 'Принять заявку';
+
+  @override
+  String get icReqAcceptTooLate => 'К этому интервалу уже не успеть';
+
+  @override
+  String get icReqAcceptedExisting => 'Пассажир добавлен в вашу поездку';
+
+  @override
+  String get icReqAcceptedNewTrip => 'Открыта новая поездка, пассажир добавлен';
+
+  @override
+  String icReqBoardBonus(String amount) {
+    return 'из них надбавка $amount';
+  }
+
+  @override
+  String get icReqBoardEmpty => 'Открытых заявок пока нет';
+
+  @override
+  String get icReqBoardEmptyHint =>
+      'Когда появится новая заявка, придёт push и список обновится сам';
+
+  @override
+  String get icReqBoardShort => 'Заявки';
+
+  @override
+  String get icReqBoardTitle => 'Заявки пассажиров';
+
+  @override
+  String get icReqBonusDecrease => 'Снизить цену';
+
+  @override
+  String get icReqBonusHint => 'Необязательно: водитель найдётся быстрее';
+
+  @override
+  String get icReqBonusIncrease => 'Поднять цену';
+
+  @override
+  String get icReqBonusTitle => 'Поднять цену';
+
+  @override
+  String get icReqCancel => 'Отменить';
+
+  @override
+  String get icReqCancelBody => 'Водители больше не увидят её.';
+
+  @override
+  String get icReqCancelConfirm => 'Да, отменить';
+
+  @override
+  String get icReqCancelKeep => 'Нет';
+
+  @override
+  String get icReqCancelTitle => 'Отменить заявку?';
+
+  @override
+  String get icReqCancelled => 'Заявка отменена';
+
+  @override
+  String get icReqCreated =>
+      'Заявка отправлена — сообщим, когда найдётся водитель';
+
+  @override
+  String get icReqCtaSubtitle => 'Оставьте заявку — водители сами откликнутся';
+
+  @override
+  String get icReqCtaTitle => 'Не нашли удобное время?';
+
+  @override
+  String get icReqFound => 'Водитель найден — бронь создана';
+
+  @override
+  String get icReqIntro =>
+      'Если подходящей поездки нет, оставьте заявку: водители получат уведомление, и первый принявший вас заберёт.';
+
+  @override
+  String get icReqMineEmpty => 'Заявок пока нет';
+
+  @override
+  String get icReqMineEmptyHint =>
+      'Если подходящей поездки нет, оставьте заявку на экране поиска';
+
+  @override
+  String get icReqMineTitle => 'Мои заявки';
+
+  @override
+  String get icReqNoTripsHint => 'Выберите другой день или оставьте заявку';
+
+  @override
+  String get icReqOpenBooking => 'Открыть бронь';
+
+  @override
+  String get icReqRaise => 'Поднять цену';
+
+  @override
+  String get icReqRaiseConfirm => 'Поднять';
+
+  @override
+  String get icReqRaiseHint =>
+      'Цену можно только повысить; новая цена сразу появится у водителей.';
+
+  @override
+  String get icReqRaiseTitle => 'Поднять цену';
+
+  @override
+  String get icReqRaised => 'Цена повышена';
+
+  @override
+  String icReqSeats(int count) {
+    return 'Мест: $count';
+  }
+
+  @override
+  String get icReqStatusAccepted => 'Принята';
+
+  @override
+  String get icReqStatusCancelled => 'Отменена';
+
+  @override
+  String get icReqStatusExpired => 'Срок истёк';
+
+  @override
+  String get icReqStatusOpen => 'Ждём водителя';
+
+  @override
+  String get icReqSubmit => 'Оставить заявку';
+
+  @override
+  String get icReqTitle => 'Оставить заявку';
+
+  @override
+  String get icReqWaiting => 'Водители видят заявку';
+
+  @override
+  String get icReqWindowFrom => 'С';
+
+  @override
+  String get icReqWindowHint =>
+      'Водитель выедет в любое время в этом интервале. Если до конца интервала водитель не найдётся, заявка закроется сама.';
+
+  @override
+  String get icReqWindowInvalid => 'Конец интервала должен быть позже начала';
+
+  @override
+  String get icReqWindowTitle => 'Когда удобно выехать';
+
+  @override
+  String get icReqWindowTo => 'До';
+
+  @override
+  String icReqWindowTooFar(int days) {
+    return 'Заявку можно оставить не более чем на $days дн. вперёд';
+  }
+
+  @override
+  String icReqWindowTooLong(int hours) {
+    return 'Интервал может быть не больше $hours часов';
+  }
+
+  @override
+  String icReqWindowTooShort(int minutes) {
+    return 'Интервал должен быть не меньше $minutes минут';
+  }
+
+  @override
+  String get icReqWindowTooSoon =>
+      'Интервал заканчивается слишком рано — выберите время позже';
 
   @override
   String get icRetry => 'Повторить';
