@@ -7,6 +7,7 @@ import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/observability/crash_reporting.dart';
 import 'package:angren_taxi/core/push/push_notifications.dart';
+import 'package:angren_taxi/core/push/push_tap_router.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/auth/screens/otp_screen.dart';
 import 'package:angren_taxi/features/auth/screens/phone_screen.dart';
@@ -48,6 +49,7 @@ import 'package:angren_taxi/features/superapp/state/market_provider.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/support/support_provider.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
+import 'package:angren_taxi/push_tap_host.dart';
 import 'package:angren_taxi/shared/widgets/loading_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -72,6 +74,8 @@ AuthProvider _withPushBinding(AuthProvider auth, AppFlavor flavor) {
       if (flavor == AppFlavor.passenger) unawaited(push.ensurePermission());
     } else if (!now && wasAuthenticated) {
       PushNotifications.instance.forgetSentToken();
+      // Chiqilgan: push bosilsa ekran kirishdan keyingi bosh ekranni kutsin.
+      PushTapRouter.instance.markNotReady();
     }
     wasAuthenticated = now;
   });
@@ -212,7 +216,10 @@ class AngrenTaxiApp extends StatelessWidget {
               // ilova foni (`AppMotion` dagi qora chaqnash izohiga qarang).
               child: ColoredBox(
                 color: Theme.of(context).scaffoldBackgroundColor,
-                child: flavor == AppFlavor.driver
+                // Push bosilganda tegishli ekran (shaharlararo, chat, ...).
+                child: PushTapHost(
+                  navigatorKey: sl<GlobalKey<NavigatorState>>(),
+                  child: flavor == AppFlavor.driver
                   ? DriverBackgroundHost(
                       // Hamyon hodisalari (`wallet:updated`, push) — har
                       // qanday ekranda snackbar / to'ldirish ekraniga o'tish.
@@ -222,6 +229,7 @@ class AngrenTaxiApp extends StatelessWidget {
                       ),
                     )
                   : (child ?? const SizedBox.shrink()),
+                ),
               ),
             );
           },

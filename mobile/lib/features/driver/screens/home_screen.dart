@@ -5,6 +5,7 @@ import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/core/network/api_error.dart';
+import 'package:angren_taxi/core/push/push_tap_router.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/driver/legal/driver_legal_provider.dart';
@@ -129,6 +130,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       DriverPushBus.instance.markReady();
       // To'lov sahifasidan qaytish havolasi (sovuq start) — xuddi shunday.
       DriverDeepLinks.instance.markReady();
+      // Shaharlararo / chat / tekshiruv pushlari — xuddi shunday.
+      PushTapRouter.instance.markReady();
     });
   }
 

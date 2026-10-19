@@ -4,8 +4,25 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import android.provider.Settings
 import io.flutter.plugin.common.MethodChannel
+import android.content.Intent
 
 class MainActivity : FlutterActivity() {
+    private var pushChannel: MethodChannel? = null
+
+    /** Ilova ochiq turganda chiqqan bildirishnoma bosildi → Dart (`tapped`). */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        takePushData(intent)?.let { pushChannel?.invokeMethod("tapped", it) }
+    }
+
+    /** Bir marta o'qiladi: ekran burilganda yoki qayta ochilganda takrorlanmasin. */
+    private fun takePushData(intent: Intent?): String? {
+        val data = intent?.getStringExtra(PushNotifications.EXTRA_PUSH_DATA) ?: return null
+        intent.removeExtra(PushNotifications.EXTRA_PUSH_DATA)
+        return data
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         // Kanal nomi Dart tomonida: lib/core/platform/driver_overlay.dart
@@ -45,7 +62,8 @@ class MainActivity : FlutterActivity() {
         PushNotifications.ensureChannels(applicationContext, "Buyurtmalar", "Buyurtma holati")
 
         // Bildirishnomalar — lib/core/push/push_notifications.dart
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "uz.angren.taxi/push")
+        pushChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "uz.angren.taxi/push")
+        pushChannel!!
             .setMethodCallHandler { call, result ->
                 val ctx = applicationContext
                 when (call.method) {
@@ -63,9 +81,12 @@ class MainActivity : FlutterActivity() {
                             ctx,
                             call.argument<String>("title") ?: "",
                             call.argument<String>("body") ?: "",
+                            call.argument<Map<String, String>>("data") ?: emptyMap(),
                         )
                         result.success(null)
                     }
+                    // Sovuq start shu bildirishnoma bosilib bo'lgan bo'lsa.
+                    "takeLaunchTap" -> result.success(takePushData(intent))
                     else -> result.notImplemented()
                 }
             }

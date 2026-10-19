@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:angren_taxi/core/config/app_haptics.dart';
+import 'package:angren_taxi/core/push/push_tap_router.dart';
 import 'package:angren_taxi/features/superapp/screens/cart_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/home_tab.dart';
 import 'package:angren_taxi/features/superapp/screens/orders_screen.dart';
@@ -34,10 +35,23 @@ import 'package:provider/provider.dart';
 
 /// Root Angren Go shell hosting the four primary tabs behind a floating,
 /// frosted-glass navigation bar — a 1:1 port of the prototype's bottom nav.
-class SuperappShell extends StatelessWidget {
+class SuperappShell extends StatefulWidget {
   const SuperappShell({super.key});
 
-  static List<_TabDef> _tabs(BuildContext context) => [
+  @override
+  State<SuperappShell> createState() => _SuperappShellState();
+}
+
+class _SuperappShellState extends State<SuperappShell> {
+  @override
+  void initState() {
+    super.initState();
+    // Ilova yopiq turganda bosilgan push (shaharlararo, chat) endi ochilishi
+    // mumkin — kirish tugadi, bosh ekran chizildi.
+    WidgetsBinding.instance.addPostFrameCallback((_) => PushTapRouter.instance.markReady());
+  }
+
+  List<_TabDef> _tabs(BuildContext context) => [
         _TabDef(context.l10n.saTabHome, Icons.home_outlined, Icons.home_rounded),
         _TabDef(context.l10n.saTabOrders, Icons.receipt_long_outlined, Icons.receipt_long_rounded),
         _TabDef(context.l10n.saCart, Icons.shopping_bag_outlined, Icons.shopping_bag_rounded),

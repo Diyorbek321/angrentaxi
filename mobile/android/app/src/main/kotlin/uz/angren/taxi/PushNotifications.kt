@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import org.json.JSONObject
 import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.os.Build
@@ -56,13 +57,25 @@ object PushNotifications {
         (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
             .areNotificationsEnabled()
 
-    fun show(context: Context, title: String, body: String) {
+    /** Bosilganda Flutter'ga qaytariladigan push ma'lumoti (`data.event`, `tripId`, ...). */
+    const val EXTRA_PUSH_DATA = "uz.angren.taxi.PUSH_DATA"
+
+    /**
+     * Ilova ochiq turganda kelgan push uchun bildirishnoma. [data] — FCM
+     * `data` qismi: bosilganda [EXTRA_PUSH_DATA] orqali Dart'ga qaytadi va
+     * tegishli ekran ochiladi (fonda kelgan pushni FCM o'zi shunday qiladi).
+     */
+    fun show(context: Context, title: String, body: String, data: Map<String, String> = emptyMap()) {
         ensureChannels(context, "Buyurtmalar", "Buyurtma holati")
+        val id = nextId++
+        val intent = Intent(context, MainActivity::class.java).addFlags(
+            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT,
+        )
+        if (data.isNotEmpty()) intent.putExtra(EXTRA_PUSH_DATA, JSONObject(data).toString())
+        // requestCode har bildirishnomaga alohida — aks holda FLAG_UPDATE_CURRENT
+        // oldingi bildirishnomaning ma'lumotini oxirgisiniki bilan almashtirardi.
         val open = PendingIntent.getActivity(
-            context, 0,
-            Intent(context, MainActivity::class.java).addFlags(
-                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT,
-            ),
+            context, id, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         @Suppress("DEPRECATION")
@@ -84,7 +97,7 @@ object PushNotifications {
             .build()
         try {
             (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
-                .notify(nextId++, notification)
+                .notify(id, notification)
         } catch (_: SecurityException) {
             // POST_NOTIFICATIONS berilmagan — Dart tomoni ruxsatni so'raydi.
         }

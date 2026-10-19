@@ -7,6 +7,7 @@ import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/observability/crash_reporting.dart';
 import 'package:angren_taxi/core/push/push_notifications.dart';
+import 'package:angren_taxi/core/push/push_tap_router.dart';
 import 'package:angren_taxi/core/storage/local_storage.dart';
 import 'package:angren_taxi/features/driver/wallet/driver_push_events.dart';
 import 'package:angren_taxi/features/driver/wallet/wallet_deep_links.dart';
@@ -63,6 +64,8 @@ Future<void> main() async {
     setupServiceLocator().then((_) => true),
   ]);
   final firebaseReady = results[3];
+  // Push bosilganda ochiladigan ekranlar — haydovchi to'plami.
+  PushTapRouter.instance = PushTapRouter(driver: true);
 
   if (firebaseReady) {
     _registerFcmToken();
@@ -97,6 +100,8 @@ Future<void> _registerFcmToken() async {
     ..isUserEnabled = () => sl<LocalStorage>().getPushEnabled();
   // Hamyon hodisalarini ilova o'zi snackbar bilan ko'rsatadi — old planda
   // ikkinchi marta tizim bildirishnomasi chiqmasin.
+  // FCM bosishlarini `_forwardPushMessages` uzatadi (getInitialMessage bir martalik).
+  push.forwardFcmTaps = false;
   push.shouldShowInForeground = (m) =>
       driverPushAction(m.data['event']?.toString()) == DriverPushAction.none;
   await push.start(api: sl<ApiClient>(), role: 'driver');
@@ -119,11 +124,14 @@ void _forwardPushMessages() {
     FirebaseMessaging.onMessage.listen(
       (m) => DriverPushBus.instance.add(toMessage(m, opened: false)),
     );
-    FirebaseMessaging.onMessageOpenedApp.listen(
-      (m) => DriverPushBus.instance.add(toMessage(m, opened: true)),
-    );
+    FirebaseMessaging.onMessageOpenedApp.listen((m) {
+      DriverPushBus.instance.add(toMessage(m, opened: true));
+      PushTapRouter.instance.handle(m.data);
+    });
     FirebaseMessaging.instance.getInitialMessage().then((m) {
-      if (m != null) DriverPushBus.instance.add(toMessage(m, opened: true));
+      if (m == null) return;
+      DriverPushBus.instance.add(toMessage(m, opened: true));
+      PushTapRouter.instance.handle(m.data);
     }).catchError((Object e) {
       debugPrint('[FCM Driver] getInitialMessage failed: $e');
     });

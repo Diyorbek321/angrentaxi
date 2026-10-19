@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/core/push/push_tap_router.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -41,10 +43,17 @@ class PushNotifications {
   String? _lastSentToken;
   StreamSubscription<String>? _refreshSub;
   StreamSubscription<RemoteMessage>? _foregroundSub;
+  StreamSubscription<RemoteMessage>? _openedSub;
 
   /// Old planda kelgan xabarni ko'rsatishdan oldin tekshiradi. `false` —
   /// ilova xabarni o'zi ko'rsatadi (masalan haydovchi hamyoni snackbar'i).
   bool Function(RemoteMessage message)? shouldShowInForeground;
+
+  /// `false` — FCM bosishlarini (`onMessageOpenedApp`, `getInitialMessage`)
+  /// chaqiruvchi o'zi uzatadi. Haydovchi ilovasi ularni hamyon shinasi uchun
+  /// allaqachon tinglaydi, `getInitialMessage` esa bir martalik — ikkinchi
+  /// chaqiruv bo'sh qaytishi mumkin.
+  bool forwardFcmTaps = true;
 
   /// Sozlamalardagi "Bildirishnomalar" tugmasi — o'chirilgan bo'lsa token
   /// serverga yuborilmaydi.
@@ -68,6 +77,7 @@ class PushNotifications {
     await ensureChannels();
 
     _foregroundSub = FirebaseMessaging.onMessage.listen(_onForegroundMessage);
+    _listenForTaps();
     _refreshSub = FirebaseMessaging.instance.onTokenRefresh.listen(
       (token) => unawaited(_sendToken(token)),
       onError: (Object e) => debugPrint('[Push] onTokenRefresh: $e'),
@@ -100,15 +110,53 @@ class PushNotifications {
     final title = notification.title ?? '';
     final body = notification.body ?? '';
     if (title.isEmpty && body.isEmpty) return;
-    unawaited(showLocal(title: title, body: body));
+    unawaited(showLocal(title: title, body: body, data: message.data));
   }
 
   /// Tizim bildirishnomasini darhol ko'rsatadi (`angren_taxi_orders` kanali).
-  Future<void> showLocal({required String title, required String body}) async {
+  /// [data] bosilganda qaytadi — tegishli ekran ochiladi ([PushTapRouter]).
+  Future<void> showLocal({
+    required String title,
+    required String body,
+    Map<String, dynamic> data = const {},
+  }) async {
     try {
-      await _channel.invokeMethod<void>('show', {'title': title, 'body': body});
+      await _channel.invokeMethod<void>('show', {
+        'title': title,
+        'body': body,
+        'data': {for (final e in data.entries) e.key: '${e.value}'},
+      });
     } catch (e) {
       debugPrint('[Push] show: $e');
+    }
+  }
+
+  /// Push bosilishining uch manbasi → [PushTapRouter].
+  void _listenForTaps() {
+    final router = PushTapRouter.instance;
+    if (forwardFcmTaps) {
+      _openedSub = FirebaseMessaging.onMessageOpenedApp.listen((m) => router.handle(m.data));
+      FirebaseMessaging.instance.getInitialMessage().then((m) {
+        if (m != null) router.handle(m.data);
+      }).catchError((Object e) {
+        debugPrint('[Push] getInitialMessage: $e');
+      });
+    }
+    _channel.setMethodCallHandler((call) async {
+      if (call.method == 'tapped') _handleLocalTap(call.arguments);
+    });
+    _channel.invokeMethod<String>('takeLaunchTap').then(_handleLocalTap).catchError((Object e) {
+      debugPrint('[Push] takeLaunchTap: $e');
+    });
+  }
+
+  void _handleLocalTap(dynamic json) {
+    if (json is! String || json.isEmpty) return;
+    try {
+      final data = jsonDecode(json);
+      if (data is Map) PushTapRouter.instance.handle(Map<String, dynamic>.from(data));
+    } catch (e) {
+      debugPrint('[Push] tap data: $e');
     }
   }
 
@@ -164,12 +212,15 @@ class PushNotifications {
   Future<void> debugReset() async {
     await _refreshSub?.cancel();
     await _foregroundSub?.cancel();
+    await _openedSub?.cancel();
     _refreshSub = null;
     _foregroundSub = null;
+    _openedSub = null;
     _started = false;
     _lastSentToken = null;
     _api = null;
     shouldShowInForeground = null;
     isUserEnabled = null;
+    forwardFcmTaps = true;
   }
 }
