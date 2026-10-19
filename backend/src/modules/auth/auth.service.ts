@@ -13,6 +13,7 @@ import { Otp } from '../../database/entities/otp.entity';
 import { User, UserRole, UserStatus } from '../../database/entities/user.entity';
 import { RefreshToken } from '../../database/entities/refresh-token.entity';
 import { EskizService } from '../notifications/eskiz.service';
+import { OTP_TTL_MINUTES, otpSmsText } from '../notifications/sms-texts';
 import { generateUniqueReferralCode } from '../../common/utils/referral-code.util';
 import {
   DEFAULT_ACCESS_TTL,
@@ -115,7 +116,7 @@ export class AuthService {
     // In dev/bypass mode use the fixed bypass code so testers can always log in
     // with a known value; otherwise generate a random 6-digit code.
     const code = otpBypassEnabled ? bypassCode : this.generateOtpCode();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
 
     await this.otpRepository.save({
       phone,
@@ -152,10 +153,7 @@ export class AuthService {
         : { message: 'OTP sent successfully' };
     }
 
-    await this.eskizService.sendSms(
-      phone,
-      `Angren Taxi: Your verification code is ${code}. Valid for 5 minutes.`,
-    );
+    await this.eskizService.sendSms(phone, otpSmsText(code));
 
     return { message: 'OTP sent successfully' };
   }

@@ -654,7 +654,7 @@ export class MatchingService {
     // Notify passenger
     this.realtimeGateway.emitToUser(passengerId, 'no_drivers_found', {
       orderId,
-      message: 'No drivers available in your area. Please try again later.',
+      message: "Yaqin atrofda bo'sh haydovchi topilmadi. Birozdan keyin qayta urinib ko'ring.",
     });
 
     this.logger.log(`Order ${orderId} cancelled — no drivers found`);

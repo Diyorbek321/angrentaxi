@@ -183,8 +183,8 @@ describe('NotificationsService', () => {
 
       expect(firebaseService.sendPush).toHaveBeenCalledWith(
         'a-real-looking-fcm-token',
-        'Driver Arrived',
-        'Your driver has arrived at the pickup location',
+        'Haydovchi yetib keldi',
+        'Haydovchi olish joyida sizni kutmoqda',
         expect.objectContaining({ event: 'driver_arrived' }),
       );
       expect(notificationLogRepository.save).toHaveBeenCalled();

@@ -2,6 +2,14 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { FirebaseService } from './firebase.service';
+import {
+  driverArrivedText,
+  newOrderOfferText,
+  orderAcceptedText,
+  orderCancelledText,
+  tripCompletedText,
+} from './order-notification-texts';
+import { otpSmsText } from './sms-texts';
 import { EskizService } from './eskiz.service';
 import { User, UserRole } from '../../database/entities/user.entity';
 import { Order } from '../../database/entities/order.entity';
@@ -114,10 +122,7 @@ export class NotificationsService {
     driver: Driver,
     order: Order,
   ): Promise<void> {
-    const driverUser = driver.user;
-    const driverName = `${driverUser?.firstName ?? ""} ${driverUser?.lastName ?? ""}`.trim() || "Driver" || 'Driver';
-    const title = 'Driver Found!';
-    const body = `${driverName} is on the way to pick you up`;
+    const { title, body } = orderAcceptedText(driver.user);
 
     if (passenger.fcmToken) {
       await this.firebaseService.sendPush(
@@ -138,8 +143,7 @@ export class NotificationsService {
   }
 
   async notifyDriverArrived(passenger: User, order: Order): Promise<void> {
-    const title = 'Driver Arrived';
-    const body = 'Your driver has arrived at the pickup location';
+    const { title, body } = driverArrivedText();
 
     if (passenger.fcmToken) {
       await this.firebaseService.sendPush(
@@ -157,8 +161,7 @@ export class NotificationsService {
   }
 
   async notifyTripCompleted(passenger: User, finalPrice: number, order: Order): Promise<void> {
-    const title = 'Trip Completed';
-    const body = `Your trip is complete. Total: ${finalPrice.toLocaleString()} UZS`;
+    const { title, body } = tripCompletedText(finalPrice);
 
     if (passenger.fcmToken) {
       await this.firebaseService.sendPush(
@@ -177,8 +180,7 @@ export class NotificationsService {
   }
 
   async notifyNewOrderOffer(driver: User, order: Order): Promise<void> {
-    const title = 'New Order';
-    const body = `New ride request from ${order.pickupAddress || 'nearby location'}`;
+    const { title, body } = newOrderOfferText(order.pickupAddress);
 
     if (driver.fcmToken) {
       await this.firebaseService.sendPush(
@@ -203,8 +205,7 @@ export class NotificationsService {
     order: Order,
     reason?: string,
   ): Promise<void> {
-    const title = 'Order Cancelled';
-    const body = reason ? `Order cancelled: ${reason}` : 'Order has been cancelled';
+    const { title, body } = orderCancelledText(reason);
 
     if (targetUser.fcmToken) {
       await this.firebaseService.sendPush(
@@ -403,10 +404,7 @@ export class NotificationsService {
   }
 
   async sendOtpSms(phone: string, code: string): Promise<void> {
-    await this.eskizService.sendSms(
-      phone,
-      `Angren Taxi: Your verification code is ${code}. Valid for 5 minutes.`,
-    );
+    await this.eskizService.sendSms(phone, otpSmsText(code));
   }
 
   // Caller's own notification history, newest first. Flat-capped list (no
