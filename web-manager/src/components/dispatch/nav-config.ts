@@ -4,6 +4,7 @@ import {
   DollarSign,
   Gift,
   LayoutDashboard,
+  Megaphone,
   MessageCircle,
   PackageSearch,
   PlusCircle,
@@ -37,7 +38,9 @@ export const DISPATCH_NAV: readonly NavGroup[] = [
       { href: EXCEPTIONS_HREF, label: 'Istisnolar', icon: AlertTriangle, permission: 'dispatch' },
       { href: '/orders', label: 'Buyurtmalar', icon: ClipboardList, permission: 'dispatch' },
       { href: '/create-order', label: 'Buyurtma yaratish', icon: PlusCircle, permission: 'dispatch' },
-      { href: '/dispatch/intercity', label: 'Shaharlararo', icon: Route, permission: 'dispatch' },
+      // `exact`: aks holda so'rovlar sahifasida ikkala band ham yonib turardi.
+      { href: '/dispatch/intercity', label: 'Shaharlararo', icon: Route, permission: 'dispatch', exact: true },
+      { href: '/dispatch/intercity/requests', label: 'Yoʻlovchi soʻrovlari', icon: Megaphone, permission: 'dispatch' },
     ],
   },
   {

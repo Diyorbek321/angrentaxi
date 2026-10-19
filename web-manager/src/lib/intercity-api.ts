@@ -4,6 +4,7 @@
  */
 import { apiClient, type ApiResponse } from './api';
 import type { IntercityBookingManage, IntercityTripPage, IntercityTripStatus } from './intercity';
+import type { IntercityRequestPage, IntercityRequestStatus } from './intercity-requests';
 
 export interface IntercityTripsQuery {
   /** `YYYY-MM-DD`, Toshkent kuni. */
@@ -37,5 +38,18 @@ export async function cancelIntercityBooking(orderId: string, reason: string): P
     `/intercity/bookings/${encodeURIComponent(orderId)}/cancel/manage`,
     { reason },
   );
+  return res.data.data;
+}
+
+export interface IntercityRequestsQuery {
+  status?: IntercityRequestStatus;
+  page?: number;
+  limit?: number;
+}
+
+/** Yo'lovchi so'rovlari (yangisi birinchi), yo'lovchi telefoni bilan. */
+export async function getIntercityRequests(query: IntercityRequestsQuery): Promise<IntercityRequestPage> {
+  const params = Object.fromEntries(Object.entries(query).filter(([, value]) => value !== undefined && value !== ''));
+  const res = await apiClient.get<ApiResponse<IntercityRequestPage>>('/intercity/requests/manage', { params });
   return res.data.data;
 }
