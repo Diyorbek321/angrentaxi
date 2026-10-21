@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import { cn } from './cn';
 import { applyTheme, getAppliedTheme, type Theme } from '@/lib/theme';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 /**
  * Mirrors and flips the theme the pre-paint script in app/layout.tsx applied.
@@ -24,14 +25,15 @@ export function ThemeToggle({ className }: { className?: string }) {
     setTheme(next);
   };
 
-  const label = theme === 'dark' ? 'Yorugʻ rejimga oʻtish' : 'Qorongʻi rejimga oʻtish';
+  const m = kitT().theme;
+  const label = theme === null ? m.generic : theme === 'dark' ? m.toLight : m.toDark;
 
   return (
     <button
       type="button"
       onClick={toggle}
-      title={theme === null ? 'Mavzu' : label}
-      aria-label={theme === null ? 'Mavzu' : label}
+      title={label}
+      aria-label={label}
       className={cn(
         'h-8 w-8 inline-flex items-center justify-center rounded-ds-sm text-muted',
         'hover:text-ink hover:bg-surface-2 transition-colors',

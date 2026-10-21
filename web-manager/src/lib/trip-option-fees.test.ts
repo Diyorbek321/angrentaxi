@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { TRIP_OPTIONS, changedFees, validateFee } from './trip-option-fees';
+import { tripOptions, changedFees, validateFee } from './trip-option-fees';
 
 describe('safar opsiyalari haqi', () => {
   it("to'rtala opsiya backend kalitlari bilan", () => {
-    expect(TRIP_OPTIONS.map((o) => o.key)).toEqual([
+    expect(tripOptions().map((o) => o.key)).toEqual([
       'child_seat',
       'pet',
       'air_conditioner',

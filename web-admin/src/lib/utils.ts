@@ -1,7 +1,8 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { format, parseISO, isValid } from 'date-fns';
-import { uz } from 'date-fns/locale';
+import { ru, uz } from 'date-fns/locale';
+import { getLocale } from './i18n/core';
 import {
   formatMoney,
   formatPhone as formatPhoneCanonical,
@@ -22,7 +23,7 @@ export function formatDate(dateStr: string, fmt = 'dd.MM.yyyy HH:mm'): string {
   try {
     const date = parseISO(dateStr);
     if (!isValid(date)) return dateStr;
-    return format(date, fmt, { locale: uz });
+    return format(date, fmt, { locale: getLocale() === 'ru' ? ru : uz });
   } catch {
     return dateStr;
   }

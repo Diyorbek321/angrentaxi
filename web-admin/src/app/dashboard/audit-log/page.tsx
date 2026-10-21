@@ -12,21 +12,22 @@ import { Select } from '@/components/ui/Select';
 import { usePagination } from '@/hooks/usePagination';
 import { auditLogApi, type AuditLogEntry } from '@/lib/compliance-api';
 import { isUuid } from '@/lib/compliance';
-import { AUDIT_ACTION_LABELS, AUDIT_TARGET_LABELS, labelOf } from '@/lib/compliance-labels';
+import { auditActionLabels, auditTargetLabels, labelOf } from '@/lib/compliance-labels';
 import { auditActorView } from '@/lib/audit-actor';
 import { formatDateTime, formatPhone, shortId } from '@/lib/format';
+import { t } from '@/locales';
 
-const ACTION_OPTIONS = [
-  { value: '', label: 'Barcha amallar' },
-  ...Object.entries(AUDIT_ACTION_LABELS).map(([value, label]) => ({ value, label })),
+const actionOptions = () => [
+  { value: '', label: t().audit.allActions },
+  ...Object.entries(auditActionLabels()).map(([value, label]) => ({ value, label })),
 ];
-const TARGET_OPTIONS = [
-  { value: '', label: 'Barcha obyektlar' },
-  ...Object.entries(AUDIT_TARGET_LABELS).map(([value, label]) => ({ value, label })),
+const targetOptions = () => [
+  { value: '', label: t().audit.allTargets },
+  ...Object.entries(auditTargetLabels()).map(([value, label]) => ({ value, label })),
 ];
 
 function TargetCell({ e }: { e: AuditLogEntry }) {
-  const label = labelOf(AUDIT_TARGET_LABELS, e.targetType);
+  const label = labelOf(auditTargetLabels(), e.targetType);
   if (e.targetType === 'driver' && e.targetId) {
     return (
       <span>
@@ -47,7 +48,7 @@ function TargetCell({ e }: { e: AuditLogEntry }) {
 /** Kim bajardi (§22 `actor`): ism + rol, telefon ostida; tizim amali alohida. */
 function ActorCell({ e }: { e: AuditLogEntry }) {
   const view = auditActorView(e.actor, e.actorUserId, formatPhone);
-  if (view.isSystem) return <Badge variant="neutral">Tizim</Badge>;
+  if (view.isSystem) return <Badge variant="neutral">{t().audit.actor.system}</Badge>;
   return (
     <div className="min-w-0 leading-tight">
       <p className="truncate text-ink">
@@ -61,49 +62,54 @@ function ActorCell({ e }: { e: AuditLogEntry }) {
   );
 }
 
-const columns: DataTableColumn<AuditLogEntry>[] = [
-  {
-    key: 'createdAt',
-    header: 'Sana',
-    cell: (e) => <span className="num whitespace-nowrap text-muted">{formatDateTime(e.createdAt, { withYear: true })}</span>,
-  },
-  {
-    key: 'action',
-    header: 'Amal',
-    cell: (e) => <Badge variant="neutral">{labelOf(AUDIT_ACTION_LABELS, e.action)}</Badge>,
-  },
-  { key: 'target', header: 'Obyekt', cell: (e) => <TargetCell e={e} /> },
-  {
-    key: 'amount',
-    header: 'Summa',
-    numeric: true,
-    cell: (e) =>
-      e.amount != null && Number(e.amount) !== 0 ? (
-        <MoneyText value={e.amount} signed={e.action === 'wallet.manual_adjustment'} />
-      ) : (
-        <span className="text-subtle">—</span>
+function auditColumns(): DataTableColumn<AuditLogEntry>[] {
+  const m = t().audit;
+  return [
+    {
+      key: 'createdAt',
+      header: m.colDate,
+      cell: (e) => <span className="num whitespace-nowrap text-muted">{formatDateTime(e.createdAt, { withYear: true })}</span>,
+    },
+    {
+      key: 'action',
+      header: m.colAction,
+      cell: (e) => <Badge variant="neutral">{labelOf(auditActionLabels(), e.action)}</Badge>,
+    },
+    { key: 'target', header: m.colTarget, cell: (e) => <TargetCell e={e} /> },
+    {
+      key: 'amount',
+      header: m.colAmount,
+      numeric: true,
+      cell: (e) =>
+        e.amount != null && Number(e.amount) !== 0 ? (
+          <MoneyText value={e.amount} signed={e.action === 'wallet.manual_adjustment'} />
+        ) : (
+          <span className="text-subtle">—</span>
+        ),
+    },
+    {
+      key: 'note',
+      header: m.colNote,
+      className: 'max-w-[320px]',
+      cell: (e) => (
+        <p className="truncate text-ink" title={e.note ?? undefined}>
+          {e.note || '—'}
+        </p>
       ),
-  },
-  {
-    key: 'note',
-    header: 'Izoh',
-    className: 'max-w-[320px]',
-    cell: (e) => (
-      <p className="truncate text-ink" title={e.note ?? undefined}>
-        {e.note || '—'}
-      </p>
-    ),
-  },
-  {
-    key: 'actor',
-    header: 'Bajaruvchi',
-    hideBelow: 'xl',
-    cell: (e) => <ActorCell e={e} />,
-  },
-];
+    },
+    {
+      key: 'actor',
+      header: m.colActor,
+      hideBelow: 'xl',
+      cell: (e) => <ActorCell e={e} />,
+    },
+  ];
+}
 
 /** Pul bilan bog'liq qo'lda amallar jurnali (`audit_logs`) — LEGAL-COMPLIANCE §12. */
 export default function AuditLogPage() {
+  const m = t().audit;
+  const columns = auditColumns();
   const pagination = usePagination(20);
   const [rows, setRows] = useState<AuditLogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -130,7 +136,7 @@ export default function AuditLogPage() {
       pagination.setTotal(data.total, Math.max(1, Math.ceil(data.total / pagination.limit)));
       setError(null);
     } catch {
-      setError('Amallar jurnalini yuklab boʻlmadi');
+      setError(m.loadFailed);
     } finally {
       setIsLoading(false);
     }
@@ -151,11 +157,11 @@ export default function AuditLogPage() {
   return (
     <div className="px-4 sm:px-6 py-5">
       <PageHeader
-        title="Amallar jurnali"
-        description="Hamyonni qoʻlda tuzatish, smenani bekor qilish, STIR oʻzgarishi va karta qaytarimi — kim, qachon, qancha va nima uchun"
+        title={m.title}
+        description={m.description}
       />
       <DataTable
-        ariaLabel="Amallar jurnali"
+        ariaLabel={m.title}
         columns={columns}
         rows={rows}
         rowKey={(e) => e.id}
@@ -172,31 +178,31 @@ export default function AuditLogPage() {
         empty={{
           variant: 'first-use',
           icon: <History aria-hidden />,
-          title: 'Jurnal boʻsh',
-          description: 'Hamyon qoʻlda tuzatilganda yoki smena bekor qilinganda yozuv shu yerda paydo boʻladi.',
+          title: m.emptyTitle,
+          description: m.emptyDesc,
         }}
         toolbar={
           <div className="flex flex-wrap items-start gap-2">
             <Select
-              aria-label="Amal turi"
-              options={ACTION_OPTIONS}
+              aria-label={m.actionType}
+              options={actionOptions()}
               value={action}
               onChange={(e) => change(setAction)(e.target.value)}
               wrapperClassName="w-56"
             />
             <Select
-              aria-label="Obyekt turi"
-              options={TARGET_OPTIONS}
+              aria-label={m.targetType}
+              options={targetOptions()}
               value={targetType}
               onChange={(e) => change(setTargetType)(e.target.value)}
               wrapperClassName="w-44"
             />
             <Input
-              aria-label="Obyekt ID"
-              placeholder="Obyekt ID (toʻliq UUID)"
+              aria-label={m.targetId}
+              placeholder={m.targetIdPlaceholder}
               mono
               value={targetId}
-              error={targetIdValid ? undefined : 'Toʻliq UUID kiriting'}
+              error={targetIdValid ? undefined : m.targetIdError}
               onChange={(e) => change(setTargetId)(e.target.value)}
               wrapperClassName="w-72"
             />

@@ -117,9 +117,12 @@ describe('WalletTopupsService', () => {
       expect(h.notifier.balanceChanged).toHaveBeenCalledWith('user-1', {
         delta: 50000,
         reason: 'topup',
-        push: expect.objectContaining({ body: "Hamyoningiz 50 000 so'mga to'ldirildi" }),
+        push: expect.objectContaining({ event: 'wallet_topup_paid' }),
         extra: { topupId: TOPUP_ID },
       });
+      const push = h.notifier.balanceChanged.mock.calls[0][1].push;
+      expect(push.text('uz').body).toBe("Hamyoningiz 50 000 so'mga to'ldirildi");
+      expect(push.text('ru').body).toBe('Кошелёк пополнен на 50 000 сум');
 
       const replay = await h.service.markPaid(TOPUP_ID, { amount: 50000, externalId: 'click_1' });
       expect(replay.kind).toBe('already_paid');

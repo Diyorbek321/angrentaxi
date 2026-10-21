@@ -15,18 +15,22 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { SkeletonCards, SkeletonStats } from '@/components/ui/Skeleton';
 import { StatCard } from '@/components/ui/StatCard';
+import { t } from '@/locales';
 
 type Range = '7' | '30';
 
-const RANGES: { value: Range; label: string }[] = [
-  { value: '7', label: '7 kun' },
-  { value: '30', label: '30 kun' },
-];
+const RANGE_VALUES: readonly Range[] = ['7', '30'];
+
+/** Backend kun qisqartmasi ("Du") → faol tildagi yozuv; tanilmasa — o'zi. */
+function dayLabel(day: string): string {
+  return t().reports.weekdaysShort[day] ?? day;
+}
 
 /** Y o'qi uchun ixcham pul: 1 200 000 → "1.2 mln", 45 000 → "45 ming". */
 function compactMoney(v: number): string {
-  if (v >= 1_000_000) return `${formatNumber(v / 1_000_000, v % 1_000_000 === 0 ? 0 : 1)} mln`;
-  if (v >= 1_000) return `${formatNumber(v / 1_000)} ming`;
+  const m = t().reports;
+  if (v >= 1_000_000) return m.million(formatNumber(v / 1_000_000, v % 1_000_000 === 0 ? 0 : 1));
+  if (v >= 1_000) return m.thousand(formatNumber(v / 1_000));
   return formatNumber(v);
 }
 
@@ -51,36 +55,40 @@ function csvCell(value: string | number): string {
 }
 
 function exportCsv(data: ReportsData, range: Range) {
+  const c = t().reports.csv;
   const lines: string[] = [];
-  lines.push('Kunlik tushum');
-  lines.push("Kun,Tushum (so'm)");
-  data.revenue.forEach((r) => lines.push(`${csvCell(r.day)},${Math.round(r.total)}`));
+  lines.push(c.dailyRevenue);
+  lines.push(c.dailyHeader);
+  data.revenue.forEach((r) => lines.push(`${csvCell(dayLabel(r.day))},${Math.round(r.total)}`));
   lines.push('');
-  lines.push("Eng ko'p sotilgan taomlar");
-  lines.push('Taom,Soni');
+  lines.push(c.topDishes);
+  lines.push(c.topHeader);
   data.topDishes.forEach((t) => lines.push(`${csvCell(t.name)},${t.qty}`));
   lines.push('');
-  lines.push("Soatlar bo'yicha yuklama");
-  lines.push('Soat,Buyurtmalar');
+  lines.push(c.hourly);
+  lines.push(c.hourlyHeader);
   data.hourly.forEach((h) => lines.push(`${h.hour}:00,${h.count}`));
   lines.push('');
-  lines.push("To'lov xulosasi");
-  lines.push(`Jami tushum,${Math.round(data.payout.gross)}`);
-  lines.push(`Komissiya (${data.payout.commissionRate}%),${Math.round(data.payout.commission)}`);
-  lines.push(`Sof to'lov,${Math.round(data.payout.net)}`);
-  lines.push(`Buyurtmalar,${data.payout.orders}`);
+  lines.push(c.payout);
+  lines.push(`${csvCell(c.gross)},${Math.round(data.payout.gross)}`);
+  lines.push(`${csvCell(c.commission(data.payout.commissionRate))},${Math.round(data.payout.commission)}`);
+  lines.push(`${csvCell(c.net)},${Math.round(data.payout.net)}`);
+  lines.push(`${csvCell(c.orders)},${data.payout.orders}`);
 
   // BOM — Excel UTF-8 ni to'g'ri ochishi uchun.
   const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `hisobot-${range}kun-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = c.fileName(range, new Date().toISOString().slice(0, 10));
   a.click();
   URL.revokeObjectURL(url);
 }
 
 export default function ReportsPage() {
+  const m = t();
+  const rm = m.reports;
+  const ranges = RANGE_VALUES.map((value) => ({ value, label: rm.range(value) }));
   const [range, setRange] = useState<Range>('7');
 
   const load = useCallback(async (): Promise<ReportsData> => {
@@ -100,11 +108,11 @@ export default function ReportsPage() {
     return rows.map((r, i) => ({
       // Kun nomlari takrorlanadi (30 kunda 4 ta "Du") — kalit indeks bilan.
       key: `d${i}`,
-      label: i % every === 0 || i === rows.length - 1 ? r.day : '',
+      label: i % every === 0 || i === rows.length - 1 ? dayLabel(r.day) : '',
       value: r.total,
-      title: `${r.day}: ${formatMoney(r.total)}`,
+      title: rm.revenueBarTitle(dayLabel(r.day), formatMoney(r.total)),
     }));
-  }, [data]);
+  }, [data, rm]);
 
   const peakHour = useMemo(() => {
     const hourly = data?.hourly ?? [];
@@ -121,9 +129,9 @@ export default function ReportsPage() {
         key: `h${h.hour}`,
         label: h.hour % 3 === 0 ? String(h.hour) : '',
         value: h.count,
-        title: `${h.hour}:00 — ${formatNumber(h.count)} ta buyurtma`,
+        title: rm.hourBarTitle(h.hour, formatNumber(h.count)),
       })),
-    [data]
+    [data, rm]
   );
 
   const maxDish = data?.topDishes[0]?.qty || 1;
@@ -131,18 +139,18 @@ export default function ReportsPage() {
   return (
     <div className="mx-auto w-full max-w-6xl">
       <PageHeader
-        title="Hisobotlar"
-        description="Tushum, ommabop taomlar va soatlik yuklama"
+        title={rm.title}
+        description={rm.description}
         actions={
           <>
-            <SegmentedControl items={RANGES} value={range} onChange={setRange} label="Hisobot davri" />
+            <SegmentedControl items={ranges} value={range} onChange={setRange} label={rm.rangeLabel} />
             <Button
               variant="secondary"
               leftIcon={<Download size={14} />}
               disabled={!data}
               onClick={() => data && exportCsv(data, range)}
             >
-              CSV yuklab olish
+              {rm.downloadCsv}
             </Button>
           </>
         }
@@ -155,58 +163,56 @@ export default function ReportsPage() {
         </div>
       )}
 
-      {status === 'error' && <ErrorState title="Hisobotni yuklab boʻlmadi" message={error} onRetry={reload} />}
+      {status === 'error' && <ErrorState title={rm.loadFailed} message={error} onRetry={reload} />}
 
       {status === 'ready' && data && (
         <div className="flex flex-col gap-5">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard label="Jami tushum" value={formatMoney(data.payout.gross, { currency: false })} unit="soʻm" />
+            <StatCard label={rm.grossRevenue} value={formatMoney(data.payout.gross, { currency: false })} unit={m.common.som} />
             <StatCard
-              label={`Komissiya (${data.payout.commissionRate}%)`}
+              label={rm.commission(data.payout.commissionRate)}
               value={formatMoney(data.payout.commission, { currency: false })}
-              unit="soʻm"
-              hint="Platforma ulushi"
+              unit={m.common.som}
+              hint={rm.platformShare}
             />
             <StatCard
-              label="Sof toʻlov"
+              label={rm.netPayout}
               value={formatMoney(data.payout.net, { currency: false })}
-              unit="soʻm"
-              hint="Sizga oʻtkaziladi"
+              unit={m.common.som}
+              hint={rm.paidToYou}
             />
-            <StatCard label="Buyurtmalar" value={formatNumber(data.payout.orders)} />
+            <StatCard label={rm.orders} value={formatNumber(data.payout.orders)} />
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">
             <Card padding="none">
               <CardHeader
-                title="Kunlik tushum"
+                title={rm.dailyRevenue}
                 description={
                   delta
-                    ? `Oxirgi ${delta.secondDays} kun kunlik oʻrtachasi avvalgi ${delta.firstDays} kunga nisbatan ${
-                        delta.pct >= 0 ? '+' : ''
-                      }${delta.pct}%`
-                    : `Soʻnggi ${range} kun`
+                    ? rm.deltaDescription(delta.secondDays, delta.firstDays, `${delta.pct >= 0 ? '+' : ''}${delta.pct}`)
+                    : rm.lastDays(range)
                 }
               />
               <CardBody>
                 <BarChart
                   data={revenueBars}
                   formatTick={compactMoney}
-                  ariaLabel={`Soʻnggi ${range} kunlik tushum`}
+                  ariaLabel={rm.lastDaysRevenueAria(range)}
                 />
               </CardBody>
             </Card>
 
             <Card padding="none">
-              <CardHeader title="Eng koʻp sotilgan taomlar" description="Dona boʻyicha" />
+              <CardHeader title={rm.topDishes} description={rm.byUnits} />
               <CardBody>
                 {data.topDishes.length === 0 ? (
                   <EmptyState
                     compact
                     variant="first-use"
                     icon={<Inbox size={20} />}
-                    title="Maʼlumot yigʻilmagan"
-                    description="Kamida bitta yakunlangan buyurtma kerak."
+                    title={rm.noDataTitle}
+                    description={rm.noDataDescription}
                   />
                 ) : (
                   <ol className="flex flex-col gap-3">
@@ -214,7 +220,7 @@ export default function ReportsPage() {
                       <li key={`${t.name}-${i}`}>
                         <div className="mb-1 flex justify-between gap-3 text-[13px]">
                           <span className="truncate font-medium text-ink">{t.name}</span>
-                          <span className="num text-muted">{formatNumber(t.qty)} ta</span>
+                          <span className="num text-muted">{m.common.count(formatNumber(t.qty))}</span>
                         </div>
                         <div className="h-1.5 rounded-full bg-surface-2">
                           <div
@@ -232,9 +238,9 @@ export default function ReportsPage() {
 
           <Card padding="none">
             <CardHeader
-              title="Soatlar boʻyicha yuklama"
+              title={rm.hourlyLoad}
               description={
-                peakHour ? `Eng band soat: ${peakHour.hour}:00 — ${formatNumber(peakHour.count)} ta buyurtma` : 'Buyurtmalar soni'
+                peakHour ? rm.peakHour(peakHour.hour, formatNumber(peakHour.count)) : rm.ordersCount
               }
             />
             <CardBody>
@@ -243,7 +249,7 @@ export default function ReportsPage() {
                 formatTick={(v) => formatNumber(v, Number.isInteger(v) ? 0 : 1)}
                 highlightKey={peakHour ? `h${peakHour.hour}` : null}
                 heightClassName="h-40"
-                ariaLabel="Soatlar boʻyicha buyurtmalar soni"
+                ariaLabel={rm.hourlyAria}
               />
             </CardBody>
           </Card>

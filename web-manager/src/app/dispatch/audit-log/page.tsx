@@ -19,17 +19,21 @@ import { SkeletonCards } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
 import { downloadCsv } from '@/lib/csv';
 import { formatDateTime, shortId } from '@/lib/format';
+import { t } from '@/locales';
 
 const PAGE_SIZES = [20, 50, 100] as const;
 
 type DatePreset = 'all' | 'today' | '7d' | '30d';
 
-const DATE_PRESETS: readonly { value: DatePreset; label: string }[] = [
-  { value: 'all', label: 'Hammasi' },
-  { value: 'today', label: 'Bugun' },
-  { value: '7d', label: '7 kun' },
-  { value: '30d', label: '30 kun' },
-];
+function datePresets(): readonly { value: DatePreset; label: string }[] {
+  const p = t().control.auditLog.presets;
+  return [
+    { value: 'all', label: p.all },
+    { value: 'today', label: p.today },
+    { value: '7d', label: p.days7 },
+    { value: '30d', label: p.days30 },
+  ];
+}
 
 function presetCutoff(preset: DatePreset): number | null {
   if (preset === 'all') return null;
@@ -46,17 +50,18 @@ function presetCutoff(preset: DatePreset): number | null {
  * nowhere else on this page.
  */
 function OverrideRecord({ override }: { override: DispatchOverride }) {
+  const ma = t().control.auditLog;
   return (
     <li className="relative border-l-2 border-l-override px-4 py-3">
       <div className="flex flex-wrap items-center gap-2 mb-2">
         <Badge variant="override" size="sm">
           <UserCog size={11} aria-hidden />
-          Qoʻlda aralashuv
+          {ma.override}
         </Badge>
         <Link
           href={`/orders/${override.orderId}`}
           className="font-mono text-xs text-primary-text hover:underline"
-          aria-label={`Buyurtma ${shortId(override.orderId)}`}
+          aria-label={ma.orderAria(shortId(override.orderId))}
         >
           {shortId(override.orderId)}
         </Link>
@@ -70,11 +75,11 @@ function OverrideRecord({ override }: { override: DispatchOverride }) {
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-muted">
         <span className="inline-flex items-center gap-1">
-          <span className="text-subtle">Operator:</span>
+          <span className="text-subtle">{ma.operatorLabel}</span>
           <span className="font-mono">{shortId(override.performedByUserId)}</span>
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="text-subtle">Haydovchi:</span>
+          <span className="text-subtle">{ma.driverLabel}</span>
           <span className="font-mono">{shortId(override.previousDriverId)}</span>
           <ArrowRight size={11} className="text-override" aria-hidden />
           <span className="font-mono text-ink">{shortId(override.newDriverId)}</span>
@@ -85,6 +90,8 @@ function OverrideRecord({ override }: { override: DispatchOverride }) {
 }
 
 export default function AuditLogPage() {
+  const m = t();
+  const ma = m.control.auditLog;
   const { toast } = useToast();
 
   const [overrides, setOverrides] = useState<DispatchOverride[]>([]);
@@ -113,7 +120,7 @@ export default function AuditLogPage() {
       setError(null);
     } catch (err) {
       console.error('Failed to load dispatch overrides:', err);
-      setError('Amallar tarixini yuklab boʻlmadi.');
+      setError(t().control.auditLog.loadFailed);
     } finally {
       setIsLoading(false);
       setHasLoadedOnce(true);
@@ -158,7 +165,7 @@ export default function AuditLogPage() {
     if (filtered.length === 0) return;
     downloadCsv(
       'amallar-tarixi',
-      ['Vaqt', 'Buyurtma', 'Operator', 'Oldingi haydovchi', 'Yangi haydovchi', 'Sabab'],
+      ma.csvHeaders,
       filtered.map((o) => [
         formatDateTime(o.createdAt, { withYear: true }),
         shortId(o.orderId),
@@ -169,8 +176,8 @@ export default function AuditLogPage() {
       ])
     );
     toast({
-      title: `${filtered.length} ta yozuv CSV faylga eksport qilindi`,
-      description: 'Joriy sahifadagi yozuvlar — filtrlar hisobga olingan.',
+      title: ma.exported(filtered.length),
+      description: ma.exportedDescription,
       variant: 'success',
     });
   };
@@ -180,27 +187,27 @@ export default function AuditLogPage() {
     if (searchInput) {
       chips.push({
         key: 'q',
-        label: `Qidiruv: "${searchInput}"`,
+        label: ma.searchChip(searchInput),
         onRemove: () => setSearchInput(''),
       });
     }
     if (datePreset !== 'all') {
       chips.push({
         key: 'date',
-        label: `Sana: ${DATE_PRESETS.find((p) => p.value === datePreset)?.label}`,
+        label: ma.dateChip(datePresets().find((p) => p.value === datePreset)?.label ?? ''),
         onRemove: () => setDatePreset('all'),
       });
     }
     return chips;
-  }, [searchInput, datePreset]);
+  }, [searchInput, datePreset, ma]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
     <PageBody className="max-w-5xl">
       <PageHeader
-        title="Amallar tarixi"
-        description="Har bir qoʻlda aralashuv — kim qilgani, qaysi buyurtma va nima sababdan"
+        title={ma.title}
+        description={ma.description}
         actions={
           <>
             <Button
@@ -209,9 +216,9 @@ export default function AuditLogPage() {
               onClick={handleExport}
               disabled={filtered.length === 0}
               leftIcon={<Download size={13} aria-hidden />}
-              title="Joriy sahifadagi yozuvlarni CSV sifatida yuklab olish"
+              title={ma.exportTitle}
             >
-              CSV eksport
+              {ma.exportCsv}
             </Button>
             <Button
               variant="secondary"
@@ -220,7 +227,7 @@ export default function AuditLogPage() {
               isLoading={isLoading && hasLoadedOnce}
               leftIcon={<RefreshCw size={13} aria-hidden />}
             >
-              Yangilash
+              {m.common.refresh}
             </Button>
           </>
         }
@@ -229,17 +236,17 @@ export default function AuditLogPage() {
       <FilterBar
         search={searchInput}
         onSearchChange={setSearchInput}
-        searchPlaceholder="Sabab, buyurtma yoki haydovchi boʻyicha"
+        searchPlaceholder={ma.searchPlaceholder}
         chips={activeChips}
         onClearAll={clearFilters}
         className="mb-3"
-        actions={<span className="text-xs text-subtle">Filtrlar joriy sahifadagi yozuvlarga qoʻllanadi</span>}
+        actions={<span className="text-xs text-subtle">{ma.filtersNote}</span>}
       >
         <SegmentedControl
-          items={DATE_PRESETS}
+          items={datePresets()}
           value={datePreset}
           onChange={setDatePreset}
-          ariaLabel="Sana oraligʻi"
+          ariaLabel={ma.dateRangeAria}
         />
       </FilterBar>
 
@@ -251,7 +258,7 @@ export default function AuditLogPage() {
         <Card padding="none">
           <ErrorState
             title={error}
-            message="Tarmoq yoki server xatosi. Qayta urinib koʻring."
+            message={ma.errorMessage}
             onRetry={fetchOverrides}
             retrying={isLoading}
           />
@@ -263,16 +270,16 @@ export default function AuditLogPage() {
           {hasFilters ? (
             <EmptyState
               variant="no-results"
-              title="Filtrga mos yozuv topilmadi"
-              description="Qidiruv soʻzini yoki sana oraligʻini oʻzgartirib koʻring."
+              title={ma.noResultsTitle}
+              description={ma.noResultsDescription}
               onClearFilters={clearFilters}
             />
           ) : (
             <EmptyState
               variant="cleared"
               icon={<ShieldCheck aria-hidden />}
-              title="Hali aralashuv boʻlmagan"
-              description="Barcha buyurtmalarga haydovchi avtomatik tayinlangan. Qoʻlda tayinlash yoki almashtirish boʻlsa, shu yerda sababi bilan koʻrinadi."
+              title={ma.emptyTitle}
+              description={ma.emptyDescription}
             />
           )}
         </Card>

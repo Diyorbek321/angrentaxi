@@ -15,6 +15,7 @@ import {
   type IntercityZone,
   type IntercityZoneForm,
 } from '@/lib/intercity';
+import { t } from '@/locales';
 
 interface PointZonesModalProps {
   open: boolean;
@@ -45,6 +46,9 @@ const toForm = (draft: Draft): IntercityZoneForm => ({
  * mashina shaharning qarama-qarshi chekkalariga tarqalib ketmaydi.
  */
 export function PointZonesModal({ open, point, onClose }: PointZonesModalProps) {
+  const m = t();
+  const zm = m.intercity.zones;
+  const fm = m.intercity.pointForm;
   const { toast } = useToast();
   const [zones, setZones] = useState<IntercityZone[]>([]);
   const [loading, setLoading] = useState(false);
@@ -64,7 +68,7 @@ export function PointZonesModal({ open, point, onClose }: PointZonesModalProps) 
       setZones(res.data.data);
       setLoadError(null);
     } catch {
-      setLoadError('Tumanlarni yuklab boʻlmadi');
+      setLoadError(t().intercity.zones.loadError);
     } finally {
       setLoading(false);
     }
@@ -106,18 +110,18 @@ export function PointZonesModal({ open, point, onClose }: PointZonesModalProps) 
     try {
       if (editing) {
         await intercityApi.updateZone(editing.id, form);
-        toast({ title: 'Tuman yangilandi', variant: 'success' });
+        toast({ title: zm.updated, variant: 'success' });
       } else {
         await intercityApi.createZone(point.id, { ...form, sortOrder: zones.length });
-        toast({ title: 'Tuman qoʻshildi', variant: 'success' });
+        toast({ title: zm.added, variant: 'success' });
       }
       setEditing(null);
       setDraft(EMPTY);
       await load();
     } catch (err) {
       toast({
-        title: apiErrorTitle(err, 'Saqlab boʻlmadi'),
-        description: apiErrorMessage(err, 'Tumanni saqlashda xatolik'),
+        title: apiErrorTitle(err, fm.saveFailed),
+        description: apiErrorMessage(err, zm.saveError),
         variant: 'error',
       });
     } finally {
@@ -130,7 +134,7 @@ export function PointZonesModal({ open, point, onClose }: PointZonesModalProps) 
     if (!point) return;
     const missing = presetZonesToCreate(zones);
     if (missing.length === 0) {
-      toast({ title: 'Barcha tumanlar allaqachon bor', variant: 'success' });
+      toast({ title: zm.allExist, variant: 'success' });
       return;
     }
     setSeeding(true);
@@ -141,14 +145,14 @@ export function PointZonesModal({ open, point, onClose }: PointZonesModalProps) 
         created += 1;
       }
       toast({
-        title: `${created} ta tuman qoʻshildi`,
-        description: 'Markazlar taxminiy — xaritaga qarab aniqlashtiring.',
+        title: zm.seeded(created),
+        description: zm.seededHint,
         variant: 'success',
       });
     } catch (err) {
       toast({
-        title: apiErrorTitle(err, `${created} ta qoʻshildi, keyingisida xatolik`),
-        description: apiErrorMessage(err, 'Tumanlarni yaratib boʻlmadi'),
+        title: apiErrorTitle(err, zm.seedPartial(created)),
+        description: apiErrorMessage(err, zm.seedError),
         variant: 'error',
       });
     } finally {
@@ -164,8 +168,8 @@ export function PointZonesModal({ open, point, onClose }: PointZonesModalProps) 
       setZones((prev) => prev.map((z) => (z.id === zone.id ? res.data.data : z)));
     } catch (err) {
       toast({
-        title: apiErrorTitle(err, 'Xatolik'),
-        description: apiErrorMessage(err, 'Holatni oʻzgartirib boʻlmadi'),
+        title: apiErrorTitle(err, m.common.error),
+        description: apiErrorMessage(err, m.common.statusChangeFailedAlt),
         variant: 'error',
       });
     } finally {
@@ -176,12 +180,12 @@ export function PointZonesModal({ open, point, onClose }: PointZonesModalProps) 
   const columns: DataTableColumn<IntercityZone>[] = [
     {
       key: 'name',
-      header: 'Tuman',
+      header: zm.colZone,
       cell: (z) => <span className={z.isActive ? 'font-medium text-ink' : 'font-medium text-muted'}>{z.name}</span>,
     },
     {
       key: 'status',
-      header: 'Holati',
+      header: m.common.statusAlt,
       cell: (z) => (
         <div className="flex items-center gap-2">
           <Switch
@@ -189,27 +193,27 @@ export function PointZonesModal({ open, point, onClose }: PointZonesModalProps) 
             checked={z.isActive}
             disabled={togglingId === z.id}
             onCheckedChange={() => void toggle(z)}
-            aria-label={`${z.name}: ${z.isActive ? 'faolsizlantirish' : 'faollashtirish'}`}
+            aria-label={`${z.name}: ${z.isActive ? m.intercity.page.deactivate : m.intercity.page.activate}`}
           />
-          <Badge variant={z.isActive ? 'success' : 'neutral'}>{z.isActive ? 'Faol' : 'Nofaol'}</Badge>
+          <Badge variant={z.isActive ? 'success' : 'neutral'}>{z.isActive ? m.common.active : m.common.inactive}</Badge>
         </div>
       ),
     },
     {
       key: 'coords',
-      header: 'Markaz',
+      header: m.intercity.page.colCenter,
       hideBelow: 'md',
       className: 'num whitespace-nowrap text-muted',
       cell: (z) => `${z.centerLat.toFixed(4)}, ${z.centerLng.toFixed(4)}`,
     },
-    { key: 'radius', header: 'Radius', numeric: true, cell: (z) => `${z.radiusKm} km` },
+    { key: 'radius', header: m.intercity.page.colRadius, numeric: true, cell: (z) => `${z.radiusKm} km` },
     {
       key: 'actions',
-      header: <span className="sr-only">Amallar</span>,
+      header: <span className="sr-only">{m.common.actions}</span>,
       align: 'right',
       width: 'w-12',
       cell: (z) => (
-        <IconButton size="sm" aria-label={`${z.name} tumanini tahrirlash`} onClick={() => startEdit(z)}>
+        <IconButton size="sm" aria-label={zm.edit(z.name)} onClick={() => startEdit(z)}>
           <Pencil aria-hidden />
         </IconButton>
       ),
@@ -221,17 +225,17 @@ export function PointZonesModal({ open, point, onClose }: PointZonesModalProps) 
       isOpen={open}
       onClose={onClose}
       size="lg"
-      title={point ? `${point.name} — tumanlar` : 'Tumanlar'}
-      description="Haydovchi eʼlonda tumanlarni tanlaydi; boshqa tumandagi yoʻlovchi bu qatnovni band qila olmaydi."
+      title={point ? zm.titleFor(point.name) : zm.title}
+      description={zm.description}
       footer={
         <Button type="button" variant="secondary" onClick={onClose}>
-          Yopish
+          {m.common.close}
         </Button>
       }
     >
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs text-muted">{zones.length > 0 ? `${zones.length} ta tuman` : 'Hali tuman yoʻq'}</p>
+          <p className="text-xs text-muted">{zones.length > 0 ? zm.count(zones.length) : zm.none}</p>
           <Button
             size="sm"
             variant="secondary"
@@ -240,12 +244,12 @@ export function PointZonesModal({ open, point, onClose }: PointZonesModalProps) 
             disabled={loading || Boolean(loadError)}
             onClick={() => void seedPreset()}
           >
-            Toshkent tumanlari (tayyor roʻyxat)
+            {zm.preset}
           </Button>
         </div>
 
         <DataTable
-          ariaLabel="Nuqta tumanlari"
+          ariaLabel={zm.tableAria}
           columns={columns}
           rows={zones}
           rowKey={(z) => z.id}
@@ -255,15 +259,15 @@ export function PointZonesModal({ open, point, onClose }: PointZonesModalProps) 
           rowClassName={(z) => (z.isActive ? undefined : 'bg-surface-2/40')}
           empty={{
             variant: 'first-use',
-            title: 'Tumanlar yoʻq',
-            description: 'Tayyor roʻyxatni qoʻshing yoki tumanni qoʻlda kiriting.',
+            title: zm.empty,
+            description: zm.emptyHint,
           }}
         />
 
         <form onSubmit={save} className="space-y-3 rounded-ds-sm border border-line bg-surface-2 p-3" noValidate>
-          <p className="text-sm font-medium text-ink">{editing ? `“${editing.name}” ni tahrirlash` : 'Yangi tuman'}</p>
+          <p className="text-sm font-medium text-ink">{editing ? zm.editing(editing.name) : zm.newZone}</p>
           <Input
-            label="Nomi"
+            label={fm.name}
             placeholder="Yunusobod"
             value={draft.name}
             error={errors.name}
@@ -271,7 +275,7 @@ export function PointZonesModal({ open, point, onClose }: PointZonesModalProps) 
           />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Input
-              label="Kenglik (lat)"
+              label={fm.lat}
               inputMode="decimal"
               className="num"
               placeholder="41.365"
@@ -280,7 +284,7 @@ export function PointZonesModal({ open, point, onClose }: PointZonesModalProps) 
               onChange={(e) => update('centerLat', e.target.value)}
             />
             <Input
-              label="Uzunlik (lng)"
+              label={fm.lng}
               inputMode="decimal"
               className="num"
               placeholder="69.288"
@@ -289,7 +293,7 @@ export function PointZonesModal({ open, point, onClose }: PointZonesModalProps) 
               onChange={(e) => update('centerLng', e.target.value)}
             />
             <Input
-              label="Radius, km"
+              label={fm.radius}
               type="number"
               inputMode="decimal"
               min={INTERCITY_ZONE_RADIUS_MIN_KM}
@@ -312,11 +316,11 @@ export function PointZonesModal({ open, point, onClose }: PointZonesModalProps) 
                   setErrors({});
                 }}
               >
-                Bekor qilish
+                {m.common.cancel}
               </Button>
             ) : null}
             <Button type="submit" size="sm" isLoading={saving}>
-              {editing ? 'Saqlash' : 'Qoʻshish'}
+              {editing ? m.common.save : m.common.add}
             </Button>
           </div>
         </form>

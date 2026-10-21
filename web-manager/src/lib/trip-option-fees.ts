@@ -1,3 +1,4 @@
+import { t } from '@/locales';
 /**
  * Safar opsiyalari uchun qo'shimcha haq (backend: `orders/trip-option-fees.ts`,
  * `PATCH /settings/trip-option-fees`). Menejer belgilaydi; buyurtma
@@ -10,20 +11,20 @@ export type TripOptionFees = Partial<Record<TripOptionKey, number>>;
 /** Backend `UpdateTripOptionFeesDto` bilan bir xil chegara. */
 export const TRIP_OPTION_FEE_MAX = 100_000;
 
-export const TRIP_OPTIONS: ReadonlyArray<{ key: TripOptionKey; label: string }> = [
-  { key: 'child_seat', label: 'Bola oʻrindigʻi' },
-  { key: 'pet', label: 'Hayvon bilan' },
-  { key: 'air_conditioner', label: 'Konditsioner' },
-  { key: 'big_luggage', label: 'Katta bagaj' },
-];
+const TRIP_OPTION_KEYS: readonly TripOptionKey[] = ['child_seat', 'pet', 'air_conditioner', 'big_luggage'];
+
+export function tripOptions(): ReadonlyArray<{ key: TripOptionKey; label: string }> {
+  const labels = t().lib.tripOptions;
+  return TRIP_OPTION_KEYS.map((key) => ({ key, label: labels[key] }));
+}
 
 /** Xato matni yoki `null`. Bo'sh maydon — "haqsiz" (0). */
 export function validateFee(raw: string): string | null {
   const text = raw.trim();
   if (text === '') return null;
-  if (!/^\d+$/.test(text)) return 'Butun musbat son kiriting';
+  if (!/^\d+$/.test(text)) return t().lib.tripOptionFee.positiveInt;
   if (Number(text) > TRIP_OPTION_FEE_MAX) {
-    return `${TRIP_OPTION_FEE_MAX.toLocaleString('ru-RU')} soʻmdan oshmasin`;
+    return t().lib.tripOptionFee.max(TRIP_OPTION_FEE_MAX.toLocaleString('ru-RU'));
   }
   return null;
 }
@@ -34,7 +35,7 @@ export function changedFees(
   draft: Record<TripOptionKey, string>
 ): TripOptionFees {
   const changes: TripOptionFees = {};
-  for (const { key } of TRIP_OPTIONS) {
+  for (const key of TRIP_OPTION_KEYS) {
     const next = draft[key].trim() === '' ? 0 : Number(draft[key]);
     if (next !== (current[key] ?? 0)) changes[key] = next;
   }

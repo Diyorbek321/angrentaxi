@@ -1,6 +1,7 @@
 import { BarChart3 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { formatMoney, formatNumber } from '@/lib/format';
+import { t } from '@/locales';
 
 export interface ColumnDatum {
   label: string;
@@ -12,8 +13,9 @@ const TICKS = 4;
 
 /** O'q yozuvi uchun qisqa son: 1 250 000 → "1,3 mln", 45 000 → "45 ming". */
 function compact(n: number): string {
-  if (n >= 1_000_000) return `${formatNumber(n / 1_000_000, n % 1_000_000 === 0 ? 0 : 1)} mln`;
-  if (n >= 1_000) return `${formatNumber(Math.round(n / 1_000))} ming`;
+  const m = t().charts;
+  if (n >= 1_000_000) return m.million(formatNumber(n / 1_000_000, n % 1_000_000 === 0 ? 0 : 1));
+  if (n >= 1_000) return m.thousand(formatNumber(Math.round(n / 1_000)));
   return formatNumber(n);
 }
 
@@ -45,8 +47,8 @@ export function ColumnChart({
       <EmptyState
         compact
         icon={<BarChart3 aria-hidden />}
-        title="Grafik uchun maʼlumot yetarli emas"
-        description="Kamida 3 kunlik savdo kerak."
+        title={t().charts.notEnoughTitle}
+        description={t().charts.notEnoughDescription}
       />
     );
   }

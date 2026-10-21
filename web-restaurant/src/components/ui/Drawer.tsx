@@ -6,6 +6,7 @@ import { X } from 'lucide-react';
 import { cn } from './cn';
 import { Portal } from './Portal';
 import { useDialog } from './use-dialog';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 export type DrawerWidth = 'sm' | 'md' | 'lg' | 'xl';
 
@@ -83,7 +84,7 @@ export function Drawer({
             <button
               type="button"
               onClick={onClose}
-              aria-label="Yopish"
+              aria-label={kitT().common.close}
               className={cn(
                 'shrink-0 self-center h-8 w-8 inline-flex items-center justify-center rounded-ds-sm text-muted',
                 'hover:text-ink hover:bg-surface-2 transition-colors',

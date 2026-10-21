@@ -1,6 +1,7 @@
 import { BarChart3 } from 'lucide-react';
 import { cn } from '@/components/ui/cn';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { t } from '@/locales';
 
 export interface BarDatum {
   key: string;
@@ -49,13 +50,14 @@ export function BarChart({
 }: BarChartProps) {
   const nonZero = data.filter((d) => d.value > 0).length;
   if (data.length < minPoints || nonZero === 0) {
+    const m = t().reports;
     return (
       <EmptyState
         compact
         variant="first-use"
         icon={<BarChart3 size={20} />}
-        title={nonZero === 0 ? 'Bu davrda maʼlumot yoʻq' : 'Grafik uchun maʼlumot yetarli emas'}
-        description="Buyurtmalar koʻpaygach grafik toʻladi."
+        title={nonZero === 0 ? m.chartNoData : m.chartNotEnough}
+        description={m.chartHint}
       />
     );
   }

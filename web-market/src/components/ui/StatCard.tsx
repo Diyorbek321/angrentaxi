@@ -2,6 +2,7 @@
 import type { ReactNode } from 'react';
 import { cn } from './cn';
 import { Skeleton } from './Skeleton';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 export type StatTone = 'neutral' | 'mint' | 'info' | 'violet' | 'override' | 'danger' | 'muted';
 /** Legacy colour names (web-admin) → canonical tones. */
@@ -121,7 +122,7 @@ function Delta({ delta }: { delta: StatDelta }) {
         )}
       >
         {flat ? '0%' : `${up ? '▲' : '▼'} ${Math.abs(delta.value).toFixed(Math.abs(delta.value) < 10 ? 1 : 0)}%`}
-        <span className="sr-only">{flat ? ' oʻzgarmadi' : up ? ' oshdi' : ' kamaydi'}</span>
+        <span className="sr-only"> {flat ? kitT().statCard.flat : up ? kitT().statCard.up : kitT().statCard.down}</span>
       </span>
       {delta.label && <span className="text-subtle">{delta.label}</span>}
     </span>

@@ -13,6 +13,17 @@ export function resolveLanguage(header: string | string[] | undefined): AppLangu
   return primary === 'ru' || primary.startsWith('ru-') ? 'ru' : 'uz';
 }
 
+/**
+ * Faqat bizning mijozlar yuboradigan ANIQ qiymat (`uz` yoki `ru`), aks holda
+ * `null`. Foydalanuvchining saqlangan tilini yangilash uchun: brauzerning
+ * o'zi qo'yadigan "ru-RU,ru;q=0.9,en;q=0.8" kabi sarlavha tanlov emas —
+ * u bilan tilni almashtirsak, odam tanlamagan tilda push oladi.
+ */
+export function explicitLanguage(header: string | string[] | undefined): AppLanguage | null {
+  const raw = (Array.isArray(header) ? header[0] : header)?.trim().toLowerCase();
+  return raw === 'uz' || raw === 'ru' ? raw : null;
+}
+
 interface CompiledEntry {
   pattern: RegExp;
   entry: ErrorCatalogueEntry;

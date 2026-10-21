@@ -12,22 +12,24 @@ import { Modal } from '@/components/ui/Modal';
 import { Avatar } from '@/components/ui/Avatar';
 import { usersApi, User, Permission, ALL_PERMISSIONS } from '@/lib/api';
 import {
-  PERMISSION_GROUPS,
-  PERMISSION_LABELS_UZ,
-  PERMISSION_SHORT_LABELS_UZ,
+  permissionGroups,
+  permissionLabels,
+  permissionShortLabels,
 } from '@/lib/permission-labels';
 import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/lib/utils';
 import { formatPhone, fullName } from '@/lib/format';
+import { t } from '@/locales';
 
 function PermissionSummary({ perms }: { perms: Permission[] }) {
-  if (perms.length === 0) return <Badge variant="danger">Hech qanday ruxsat yo&apos;q</Badge>;
-  if (perms.length === ALL_PERMISSIONS.length) return <Badge variant="success">To&apos;liq (barcha bo&apos;limlar)</Badge>;
+  const m = t().staff;
+  if (perms.length === 0) return <Badge variant="danger">{m.noPermissions}</Badge>;
+  if (perms.length === ALL_PERMISSIONS.length) return <Badge variant="success">{m.fullAccess}</Badge>;
   return (
     <div className="flex flex-wrap gap-1">
       {perms.slice(0, 3).map((p) => (
         <Badge key={p} variant="neutral">
-          {PERMISSION_SHORT_LABELS_UZ[p] ?? p}
+          {permissionShortLabels()[p] ?? p}
         </Badge>
       ))}
       {perms.length > 3 && (
@@ -35,7 +37,7 @@ function PermissionSummary({ perms }: { perms: Permission[] }) {
           variant="neutral"
           title={perms
             .slice(3)
-            .map((p) => PERMISSION_SHORT_LABELS_UZ[p] ?? p)
+            .map((p) => permissionShortLabels()[p] ?? p)
             .join(', ')}
         >
           +{perms.length - 3}
@@ -46,6 +48,8 @@ function PermissionSummary({ perms }: { perms: Permission[] }) {
 }
 
 export default function StaffRolesPage() {
+  const c = t().common;
+  const m = t().staff;
   const { toast } = useToast();
   const [managers, setManagers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -63,8 +67,8 @@ export default function StaffRolesPage() {
       setError(null);
     } catch {
       // Last good rows stay on screen; DataTable shows banner + retry.
-      setError("Xodimlarni yuklab bo'lmadi");
-      toast({ title: 'Xatolik', description: 'Xodimlarni yuklashda xatolik', variant: 'error' });
+      setError(m.loadFailed);
+      toast({ title: c.error, description: m.loadError, variant: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -78,8 +82,8 @@ export default function StaffRolesPage() {
   const filteredManagers = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return managers;
-    return managers.filter((m) =>
-      [fullName(m.firstName, m.lastName, ''), m.phone].join(' ').toLowerCase().includes(q)
+    return managers.filter((u) =>
+      [fullName(u.firstName, u.lastName, ''), u.phone].join(' ').toLowerCase().includes(q)
     );
   }, [managers, search]);
 
@@ -115,16 +119,16 @@ export default function StaffRolesPage() {
     try {
       await usersApi.updatePermissions(editTarget.id, draftPermissions);
       setManagers((prev) =>
-        prev.map((m) => (m.id === editTarget.id ? { ...m, permissions: draftPermissions } : m))
+        prev.map((u) => (u.id === editTarget.id ? { ...u, permissions: draftPermissions } : u))
       );
       toast({
-        title: 'Ruxsatlar yangilandi',
-        description: `${fullName(editTarget.firstName, editTarget.lastName)} — ${draftPermissions.length} ta bo'limga kira oladi.`,
+        title: m.updated,
+        description: m.updatedDesc(fullName(editTarget.firstName, editTarget.lastName), draftPermissions.length),
         variant: 'success',
       });
       closeEdit();
     } catch {
-      toast({ title: 'Xatolik', description: 'Ruxsatlarni saqlashda xatolik', variant: 'error' });
+      toast({ title: c.error, description: m.saveError, variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -133,7 +137,7 @@ export default function StaffRolesPage() {
   const columns: DataTableColumn<User>[] = [
     {
       key: 'name',
-      header: 'Xodim',
+      header: m.colStaff,
       cell: (u) => (
         <div className="flex items-center gap-2.5 min-w-0">
           <Avatar firstName={u.firstName} lastName={u.lastName} size="sm" />
@@ -144,10 +148,10 @@ export default function StaffRolesPage() {
         </div>
       ),
     },
-    { key: 'perms', header: 'Ruxsatlar', cell: (u) => <PermissionSummary perms={u.permissions ?? []} /> },
+    { key: 'perms', header: m.colPermissions, cell: (u) => <PermissionSummary perms={u.permissions ?? []} /> },
     {
       key: 'actions',
-      header: <span className="sr-only">Amal</span>,
+      header: <span className="sr-only">{c.action}</span>,
       align: 'right',
       cell: (u) => (
         <Button
@@ -156,7 +160,7 @@ export default function StaffRolesPage() {
           onClick={() => openEdit(u)}
           leftIcon={<ShieldCheck size={13} aria-hidden />}
         >
-          Ruxsatlarni tahrirlash
+          {m.editPermissions}
         </Button>
       ),
     },
@@ -167,12 +171,12 @@ export default function StaffRolesPage() {
   return (
     <div className="px-4 sm:px-6 py-5">
       <PageHeader
-        title="Xodimlar va ruxsatlar"
-        description="Har bir menejer qaysi bo'limlarga kira olishini belgilang — masalan, faqat dispetcherlik yoki to'liq boshqaruv"
+        title={m.title}
+        description={m.description}
       />
 
       <DataTable
-        ariaLabel="Xodimlar"
+        ariaLabel={m.tableAria}
         columns={columns}
         rows={filteredManagers}
         rowKey={(u) => u.id}
@@ -184,19 +188,18 @@ export default function StaffRolesPage() {
           <FilterBar
             search={search}
             onSearchChange={setSearch}
-            searchPlaceholder="Ism yoki telefon…"
-            searchAriaLabel="Xodimlarni qidirish"
+            searchPlaceholder={m.searchPlaceholder}
+            searchAriaLabel={m.searchAria}
           />
         }
         isFiltered={q !== ''}
         onClearFilters={() => setSearch('')}
-        emptyFiltered={{ title: 'Hech narsa mos kelmadi', description: `"${q}" bo'yicha xodim topilmadi.` }}
+        emptyFiltered={{ title: m.emptyFilteredTitle, description: m.emptyFilteredDesc(q) }}
         empty={{
           variant: 'first-use',
           icon: <Users aria-hidden />,
-          title: 'Manager rolidagi hisoblar topilmadi',
-          description:
-            "Manager roli bilan hisob yaratilgach, u shu yerda ko'rinadi va ruxsatlarini shu yerdan belgilaysiz.",
+          title: m.emptyTitle,
+          description: m.emptyDesc,
         }}
       />
 
@@ -204,38 +207,38 @@ export default function StaffRolesPage() {
         isOpen={!!editTarget}
         onClose={closeEdit}
         size="lg"
-        title={editTarget ? `${fullName(editTarget.firstName, editTarget.lastName)} — ruxsatlar` : 'Ruxsatlar'}
-        description="ADMIN har doim hammasiga kira oladi — bu ro'yxat faqat MANAGER hisoblari uchun."
+        title={editTarget ? m.modalTitle(fullName(editTarget.firstName, editTarget.lastName)) : m.colPermissions}
+        description={m.modalDesc}
         footer={
           <>
             <p className="mr-auto num text-xs text-muted">
-              Tanlangan: {draftPermissions.length} / {ALL_PERMISSIONS.length}
-              {isDirty && <span className="ml-2 text-ink">· saqlanmagan</span>}
+              {m.selected(draftPermissions.length, ALL_PERMISSIONS.length)}
+              {isDirty && <span className="ml-2 text-ink">{m.unsaved}</span>}
             </p>
             <Button variant="secondary" onClick={closeEdit} disabled={saving}>
-              Bekor qilish
+              {c.cancel}
             </Button>
             <Button isLoading={saving} disabled={!isDirty} onClick={handleSave}>
-              Saqlash
+              {c.save}
             </Button>
           </>
         }
       >
         <div className="flex flex-wrap gap-2 mb-4">
           <Button size="sm" variant="secondary" onClick={() => applyPreset('all')}>
-            Barchasi (to&apos;liq menejer)
+            {m.presetAll}
           </Button>
           <Button size="sm" variant="secondary" onClick={() => applyPreset('dispatch-only')}>
-            Faqat dispetcherlik
+            {m.presetDispatch}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => applyPreset('none')}>
-            Tozalash
+            {m.presetClear}
           </Button>
         </div>
 
         {/* Permissions grouped by DOMAIN — the operator thinks "which section". */}
         <div className="space-y-4">
-          {PERMISSION_GROUPS.map((group) => (
+          {permissionGroups().map((group) => (
             <fieldset key={group.title}>
               <legend className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-subtle">
                 {group.title}
@@ -248,7 +251,7 @@ export default function StaffRolesPage() {
                       <Checkbox
                         checked={checked}
                         onCheckedChange={() => togglePermission(perm)}
-                        label={PERMISSION_LABELS_UZ[perm]}
+                        label={permissionLabels()[perm]}
                       />
                     </div>
                   );

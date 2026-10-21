@@ -11,6 +11,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { useToast } from '@/components/ui/Toast';
+import { t } from '@/locales';
 
 interface Errors {
   name?: string;
@@ -29,6 +30,8 @@ export function DishModal({
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
+  const m = t();
+  const dm = m.dish;
   const { toast } = useToast();
   const [name, setName] = useState(dish?.name ?? '');
   const [description, setDescription] = useState(dish?.description ?? '');
@@ -42,9 +45,9 @@ export function DishModal({
 
   const validate = () => {
     const next: Errors = {};
-    if (!name.trim()) next.name = 'Nomi majburiy';
-    if (!price.trim() || Number(price) <= 0) next.price = "Narx 0 dan katta bo'lishi kerak";
-    if (Number(prep) <= 0) next.prep = "Tayyorlash vaqti 0 dan katta bo'lishi kerak";
+    if (!name.trim()) next.name = dm.nameRequired;
+    if (!price.trim() || Number(price) <= 0) next.price = dm.pricePositive;
+    if (Number(prep) <= 0) next.prep = dm.prepPositive;
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -69,7 +72,7 @@ export function DishModal({
       const res = dish ? await foodApi.updateDish(dish.id, payload) : await foodApi.createDish(payload);
       savedId = res.data.data.id;
     } catch (err) {
-      toast({ title: 'Saqlab bo‘lmadi', description: errorMessage(err), variant: 'error' });
+      toast({ title: m.common.saveFailedAlt, description: errorMessage(err), variant: 'error' });
       setSaving(false);
       return;
     }
@@ -78,9 +81,9 @@ export function DishModal({
     try {
       if (image.kind === 'set') await foodApi.uploadDishImage(savedId, await catalogImageForm(image.file));
       if (image.kind === 'remove') await foodApi.removeDishImage(savedId);
-      toast({ title: dish ? 'Taom yangilandi' : "Taom qo'shildi", variant: 'success' });
+      toast({ title: dish ? dm.updated : dm.added, variant: 'success' });
     } catch (err) {
-      toast({ title: 'Taom saqlandi, lekin rasm yangilanmadi', description: errorMessage(err), variant: 'error' });
+      toast({ title: dm.imageFailed, description: errorMessage(err), variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -92,39 +95,39 @@ export function DishModal({
       isOpen
       onClose={onClose}
       size="lg"
-      title={dish ? 'Taomni tahrirlash' : "Yangi taom qo'shish"}
-      subtitle={dish ? dish.name : 'Menyuga yangi pozitsiya'}
+      title={dish ? dm.editTitle : dm.newTitle}
+      subtitle={dish ? dish.name : dm.newSubtitle}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
-            Bekor qilish
+            {m.common.cancel}
           </Button>
           <Button isLoading={saving} onClick={save}>
-            Saqlash
+            {m.common.save}
           </Button>
         </>
       }
     >
       <div className="flex flex-col gap-4">
-        <ImagePicker label="Rasm" currentSrc={catalogImageSrc(dish?.imageKey)} value={image} onChange={setImage} />
+        <ImagePicker label={dm.image} currentSrc={catalogImageSrc(dish?.imageKey)} value={image} onChange={setImage} />
         <Input
-          label="Nomi"
+          label={m.common.name}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Masalan: Klassik burger"
+          placeholder={dm.namePlaceholder}
           error={errors.name}
           autoFocus
         />
         <Textarea
-          label="Tavsif"
+          label={dm.description}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
-          placeholder="Qisqacha tarkib va oʻziga xosligi"
+          placeholder={dm.descriptionPlaceholder}
         />
         <div className="grid gap-4 sm:grid-cols-2">
           <Input
-            label="Narxi (so'm)"
+            label={dm.price}
             type="number"
             min={0}
             inputMode="numeric"
@@ -135,7 +138,7 @@ export function DishModal({
             error={errors.price}
           />
           <Input
-            label="Tayyorlash (daqiqa)"
+            label={dm.prep}
             type="number"
             min={1}
             inputMode="numeric"
@@ -147,18 +150,18 @@ export function DishModal({
           />
         </div>
         <Select
-          label="Kategoriya"
+          label={dm.category}
           value={categoryId}
           onChange={(e) => setCategoryId(e.target.value)}
-          placeholder={categories.length === 0 ? 'Avval kategoriya yarating' : undefined}
+          placeholder={categories.length === 0 ? dm.createCategoryFirst : undefined}
           options={categories.map((c) => ({ value: c.id, label: c.name }))}
         />
         <Input
-          label="Teglar"
+          label={dm.tags}
           value={tags}
           onChange={(e) => setTags(e.target.value)}
-          placeholder="Achchiq, Vegetarian"
-          hint="Vergul bilan ajrating"
+          placeholder={dm.tagsPlaceholder}
+          hint={dm.tagsHint}
         />
       </div>
     </Modal>

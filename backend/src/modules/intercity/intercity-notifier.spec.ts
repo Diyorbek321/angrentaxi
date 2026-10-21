@@ -1,4 +1,5 @@
 import { IntercityNotifier } from './intercity-notifier';
+import type { LocalizedPush } from '../notifications/push-text';
 
 const snapshotRow = (overrides: Record<string, unknown> = {}) => ({
   id: 'trip-1',
@@ -22,7 +23,17 @@ describe('IntercityNotifier', () => {
     db = { query: jest.fn().mockResolvedValue([snapshotRow()]) };
     gateway = { emitToUser: jest.fn(), emitToManagers: jest.fn() };
     notifications = { notifyUserIds: jest.fn().mockResolvedValue(undefined) };
-    notifier = new IntercityNotifier(db as never, gateway as never, notifications as never);
+    // Asserts below read the Uzbek text as (ids, title, body, event, data);
+    // the Russian variants are covered in order-notification-texts.spec.ts.
+    const service = {
+      notifyUserIds: (ids: string[], text: LocalizedPush, event: string, data?: Record<string, string>) => {
+        const { title, body } = text('uz');
+        return data === undefined
+          ? notifications.notifyUserIds(ids, title, body, event)
+          : notifications.notifyUserIds(ids, title, body, event, data);
+      },
+    };
+    notifier = new IntercityNotifier(db as never, gateway as never, service as never);
   });
 
   const emittedTo = (event: string) =>

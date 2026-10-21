@@ -11,6 +11,7 @@ import {
   type IntercityPoint,
   type IntercityPointForm,
 } from '@/lib/intercity';
+import { t } from '@/locales';
 
 interface PointFormModalProps {
   open: boolean;
@@ -56,6 +57,8 @@ const toForm = (draft: Draft): IntercityPointForm => ({
 });
 
 export function PointFormModal({ open, point, onClose, onSaved }: PointFormModalProps) {
+  const m = t();
+  const fm = m.intercity.pointForm;
   const { toast } = useToast();
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [errors, setErrors] = useState<FormErrors<IntercityPointForm>>({});
@@ -96,17 +99,17 @@ export function PointFormModal({ open, point, onClose, onSaved }: PointFormModal
     try {
       if (point) {
         await intercityApi.updatePoint(point.id, form);
-        toast({ title: 'Nuqta yangilandi', variant: 'success' });
+        toast({ title: fm.updated, variant: 'success' });
       } else {
         await intercityApi.createPoint(form);
-        toast({ title: 'Nuqta qoʻshildi', variant: 'success' });
+        toast({ title: fm.added, variant: 'success' });
       }
       onClose();
       await onSaved();
     } catch (err) {
       toast({
-        title: apiErrorTitle(err, 'Saqlab boʻlmadi'),
-        description: apiErrorMessage(err, 'Nuqtani saqlashda xatolik'),
+        title: apiErrorTitle(err, fm.saveFailed),
+        description: apiErrorMessage(err, fm.saveError),
         variant: 'error',
       });
     } finally {
@@ -118,30 +121,30 @@ export function PointFormModal({ open, point, onClose, onSaved }: PointFormModal
     <Modal
       isOpen={open}
       onClose={onClose}
-      title={point ? 'Nuqtani tahrirlash' : 'Yangi nuqta'}
-      description="Yoʻlovchini olish va tushirish manzili shu doira ichida boʻlishi kerak."
+      title={point ? fm.editTitle : fm.newTitle}
+      description={fm.description}
       footer={
         <>
           <Button type="button" variant="secondary" onClick={onClose}>
-            Bekor qilish
+            {m.common.cancel}
           </Button>
           <Button type="submit" form="intercity-point-form" isLoading={saving}>
-            {point ? 'Saqlash' : 'Qoʻshish'}
+            {point ? m.common.save : m.common.add}
           </Button>
         </>
       }
     >
       <form id="intercity-point-form" onSubmit={save} className="space-y-4" noValidate>
         <Input
-          label="Nomi"
-          placeholder="Angren, Rohat krugi (Toshkent)…"
+          label={fm.name}
+          placeholder={fm.namePlaceholder}
           value={draft.name}
           error={errors.name}
           onChange={(e) => update('name', e.target.value)}
         />
         <div className="grid grid-cols-2 gap-3">
           <Input
-            label="Kenglik (lat)"
+            label={fm.lat}
             inputMode="decimal"
             className="num"
             placeholder="41.0167"
@@ -150,7 +153,7 @@ export function PointFormModal({ open, point, onClose, onSaved }: PointFormModal
             onChange={(e) => update('centerLat', e.target.value)}
           />
           <Input
-            label="Uzunlik (lng)"
+            label={fm.lng}
             inputMode="decimal"
             className="num"
             placeholder="70.1436"
@@ -160,7 +163,7 @@ export function PointFormModal({ open, point, onClose, onSaved }: PointFormModal
           />
         </div>
         <Input
-          label="Radius, km"
+          label={fm.radius}
           type="number"
           inputMode="decimal"
           min={0.5}
@@ -168,18 +171,17 @@ export function PointFormModal({ open, point, onClose, onSaved }: PointFormModal
           step={0.5}
           value={draft.radiusKm}
           error={errors.radiusKm}
-          hint="Bekat yoki aylanma uchun 1–2 km, butun shahar uchun 8–15 km."
+          hint={fm.radiusHint}
           onChange={(e) => update('radiusKm', e.target.value)}
           wrapperClassName="max-w-[12rem]"
         />
         <fieldset className="space-y-3 rounded-ds-sm border border-line bg-surface-2 p-3">
-          <legend className="px-1 text-sm font-medium text-ink">Shahar ichiga davom</legend>
+          <legend className="px-1 text-sm font-medium text-ink">{fm.extensionLegend}</legend>
           <p className="text-xs text-muted">
-            Yoʻlovchi nuqtadan uzoqroq manzilni tanlasa, nuqtadan manzilgacha yoʻl kilometri uchun qoʻshimcha haq
-            olinadi (500 soʻmga yuqoriga yaxlitlanadi). 0 km — oʻchiq.
+            {fm.extensionHint}
           </p>
           <Input
-            label="Eng uzoq masofa, km"
+            label={fm.maxKm}
             type="number"
             inputMode="decimal"
             min={0}
@@ -187,13 +189,13 @@ export function PointFormModal({ open, point, onClose, onSaved }: PointFormModal
             step={1}
             value={draft.extensionMaxKm}
             error={errors.extensionMaxKm}
-            hint="Nuqta markazidan toʻgʻri chiziq boʻyicha. Toshkent uchun ~30 km."
+            hint={fm.maxKmHint}
             onChange={(e) => update('extensionMaxKm', e.target.value)}
             wrapperClassName="max-w-[12rem]"
           />
           <div className="grid grid-cols-2 gap-3">
             <Input
-              label="Start, soʻm/km"
+              label={fm.startPerKm}
               type="number"
               inputMode="numeric"
               min={0}
@@ -204,13 +206,13 @@ export function PointFormModal({ open, point, onClose, onSaved }: PointFormModal
               onChange={(e) => update('extensionPricePerKm', e.target.value)}
             />
             <Input
-              label="Comfort, soʻm/km"
+              label={fm.comfortPerKm}
               type="number"
               inputMode="numeric"
               min={0}
               step={100}
               className="num"
-              placeholder="Start narxida"
+              placeholder={fm.comfortPlaceholder}
               value={draft.extensionComfortPricePerKm}
               error={errors.extensionComfortPricePerKm}
               onChange={(e) => update('extensionComfortPricePerKm', e.target.value)}

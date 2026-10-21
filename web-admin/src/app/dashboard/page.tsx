@@ -32,6 +32,7 @@ import {
   type RevenueDataPoint,
 } from '@/lib/api';
 import { formatMoney, formatNumber, formatRating, formatTime, fullName } from '@/lib/format';
+import { t } from '@/locales';
 
 const DATE_FMT = 'yyyy-MM-dd';
 const TREND_DAYS = 7;
@@ -39,49 +40,55 @@ const TREND_DAYS = 7;
 function ViewAll({ href }: { href: string }) {
   return (
     <Button href={href} variant="ghost" size="sm" rightIcon={<ArrowRight size={13} aria-hidden />}>
-      Barchasi
+      {t().common.allAlt}
     </Button>
   );
 }
 
-const orderColumns: DataTableColumn<Order>[] = [
-  {
-    key: 'passenger',
-    header: 'Yoʻlovchi',
-    cell: (o) => (
-      <div className="min-w-0">
-        <p className="truncate font-medium">{fullName(o.passenger?.firstName, o.passenger?.lastName)}</p>
-        <p className="truncate text-xs text-muted">{o.pickupAddress ?? '—'}</p>
-      </div>
-    ),
-    className: 'max-w-[220px]',
-  },
-  { key: 'time', header: 'Vaqt', cell: (o) => formatTime(o.createdAt), numeric: true, hideBelow: 'md' },
-  { key: 'status', header: 'Holat', cell: (o) => <OrderStatusBadge status={o.status} /> },
-  {
-    key: 'price',
-    header: 'Narx',
-    numeric: true,
-    cell: (o) => <MoneyText value={o.finalPrice ?? o.estimatedPrice} />,
-  },
-];
+function orderColumns(): DataTableColumn<Order>[] {
+  const m = t().dashboard.columns;
+  return [
+    {
+      key: 'passenger',
+      header: m.passenger,
+      cell: (o) => (
+        <div className="min-w-0">
+          <p className="truncate font-medium">{fullName(o.passenger?.firstName, o.passenger?.lastName)}</p>
+          <p className="truncate text-xs text-muted">{o.pickupAddress ?? '—'}</p>
+        </div>
+      ),
+      className: 'max-w-[220px]',
+    },
+    { key: 'time', header: m.time, cell: (o) => formatTime(o.createdAt), numeric: true, hideBelow: 'md' },
+    { key: 'status', header: m.status, cell: (o) => <OrderStatusBadge status={o.status} /> },
+    {
+      key: 'price',
+      header: m.price,
+      numeric: true,
+      cell: (o) => <MoneyText value={o.finalPrice ?? o.estimatedPrice} />,
+    },
+  ];
+}
 
-const driverColumns: DataTableColumn<Driver>[] = [
-  {
-    key: 'name',
-    header: 'Haydovchi',
-    cell: (d) => (
-      <div className="flex items-center gap-2.5 min-w-0">
-        <Avatar firstName={d.firstName} lastName={d.lastName} size="xs" tone="mint" />
-        <span className="truncate font-medium">{fullName(d.firstName, d.lastName)}</span>
-      </div>
-    ),
-    className: 'max-w-[200px]',
-  },
-  { key: 'plate', header: 'Davlat raqami', cell: (d) => <PlateNumber plate={d.carNumber} /> },
-  { key: 'rating', header: 'Reyting', numeric: true, cell: (d) => formatRating(d.rating), hideBelow: 'md' },
-  { key: 'status', header: 'Holat', cell: (d) => <DriverStatusBadge status={d.status} isOnline={d.isOnline} /> },
-];
+function driverColumns(): DataTableColumn<Driver>[] {
+  const m = t().dashboard.columns;
+  return [
+    {
+      key: 'name',
+      header: m.driver,
+      cell: (d) => (
+        <div className="flex items-center gap-2.5 min-w-0">
+          <Avatar firstName={d.firstName} lastName={d.lastName} size="xs" tone="mint" />
+          <span className="truncate font-medium">{fullName(d.firstName, d.lastName)}</span>
+        </div>
+      ),
+      className: 'max-w-[200px]',
+    },
+    { key: 'plate', header: m.plate, cell: (d) => <PlateNumber plate={d.carNumber} /> },
+    { key: 'rating', header: m.rating, numeric: true, cell: (d) => formatRating(d.rating), hideBelow: 'md' },
+    { key: 'status', header: m.status, cell: (d) => <DriverStatusBadge status={d.status} isOnline={d.isOnline} /> },
+  ];
+}
 
 /**
  * Inverted pyramid: "are we OK?" KPIs on top (most important top-left),
@@ -91,6 +98,7 @@ const driverColumns: DataTableColumn<Driver>[] = [
  * period to compare against, and a delta is only drawn from real data.
  */
 export default function DashboardPage() {
+  const m = t().dashboard;
   const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
@@ -114,7 +122,7 @@ export default function DashboardPage() {
       setOnlineDrivers(driversRes.data.data?.drivers ?? []);
       setError(null);
     } catch {
-      setError('Bosh sahifa maʼlumotlarini yuklab boʻlmadi.');
+      setError(m.loadFailed);
     } finally {
       setIsLoading(false);
     }
@@ -132,7 +140,7 @@ export default function DashboardPage() {
       setTrendData(res.data.data?.revenueChart ?? []);
       setTrendsError(null);
     } catch {
-      setTrendsError('Trend maʼlumotlarini yuklab boʻlmadi.');
+      setTrendsError(m.trendsFailed);
     } finally {
       setTrendsLoading(false);
     }
@@ -145,7 +153,7 @@ export default function DashboardPage() {
 
   return (
     <div className="px-4 sm:px-6 py-5">
-      <PageHeader title="Bosh sahifa" description="Bugungi holat va soʻnggi 7 kunlik trendlar" />
+      <PageHeader title={m.title} description={m.description} />
 
       {error && !stats ? (
         <Card padding="none">
@@ -157,46 +165,46 @@ export default function DashboardPage() {
             <SkeletonStats count={5} className="sm:grid-cols-3 xl:grid-cols-5" />
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-              <StatCard label="Bugungi buyurtmalar" value={formatNumber(stats?.ordersToday)} />
+              <StatCard label={m.ordersToday} value={formatNumber(stats?.ordersToday)} />
               <StatCard
-                label="Bugungi daromad"
+                label={m.revenueToday}
                 value={formatMoney(stats?.revenueToday, { currency: false })}
-                unit="soʻm"
+                unit={m.som}
               />
               <StatCard
-                label="Onlayn haydovchilar"
+                label={m.onlineDrivers}
                 value={formatNumber(stats?.onlineDrivers)}
-                hint={stats ? `${formatNumber(stats.activeDrivers)} ta faol haydovchidan` : undefined}
+                hint={stats ? m.ofActiveDrivers(formatNumber(stats.activeDrivers)) : undefined}
               />
               <StatCard
-                label="Tasdiq kutmoqda"
+                label={m.pendingApprovals}
                 value={formatNumber(stats?.pendingDriverApprovals)}
-                hint="Haydovchi arizalari"
+                hint={m.driverApplications}
                 onClick={() => router.push('/dashboard/drivers?status=pending')}
               />
-              <StatCard label="Jami foydalanuvchilar" value={formatNumber(stats?.totalUsers)} />
+              <StatCard label={m.totalUsers} value={formatNumber(stats?.totalUsers)} />
             </div>
           )}
 
           {trendsError && !trendsLoading ? (
             <Card padding="none">
-              <CardHeader title="Trendlar" />
+              <CardHeader title={m.trends} />
               <ErrorState compact message={trendsError} onRetry={fetchTrends} />
             </Card>
           ) : (
             <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-              <OrdersChart data={trendData} isLoading={trendsLoading} description="Soʻnggi 7 kun" />
-              <RevenueChart data={trendData} isLoading={trendsLoading} description="Soʻnggi 7 kun" />
+              <OrdersChart data={trendData} isLoading={trendsLoading} description={m.last7Days} />
+              <RevenueChart data={trendData} isLoading={trendsLoading} description={m.last7Days} />
             </div>
           )}
 
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-            <section aria-label="Oxirgi buyurtmalar" className="min-w-0">
+            <section aria-label={m.recentOrders} className="min-w-0">
               <DataTable
-                title="Oxirgi buyurtmalar"
+                title={m.recentOrders}
                 actions={<ViewAll href="/dashboard/orders" />}
-                ariaLabel="Oxirgi buyurtmalar"
-                columns={orderColumns}
+                ariaLabel={m.recentOrders}
+                columns={orderColumns()}
                 rows={recentOrders}
                 rowKey={(o) => o.id}
                 loading={isLoading}
@@ -204,18 +212,18 @@ export default function DashboardPage() {
                 onRetry={fetchData}
                 onRowClick={(o) => router.push(`/dashboard/orders/${o.id}`)}
                 empty={{
-                  title: 'Hozircha buyurtmalar yoʻq',
-                  description: 'Yangi buyurtmalar shu yerda koʻrinadi.',
+                  title: m.noOrders,
+                  description: m.noOrdersDesc,
                 }}
               />
             </section>
 
-            <section aria-label="Onlayn haydovchilar" className="min-w-0">
+            <section aria-label={m.onlineDrivers} className="min-w-0">
               <DataTable
-                title="Onlayn haydovchilar"
+                title={m.onlineDrivers}
                 actions={<ViewAll href="/dashboard/drivers?status=online" />}
-                ariaLabel="Onlayn haydovchilar"
-                columns={driverColumns}
+                ariaLabel={m.onlineDrivers}
+                columns={driverColumns()}
                 rows={onlineDrivers}
                 rowKey={(d) => d.id}
                 loading={isLoading}
@@ -223,8 +231,8 @@ export default function DashboardPage() {
                 onRetry={fetchData}
                 onRowClick={(d) => router.push(`/dashboard/drivers/${d.id}`)}
                 empty={{
-                  title: 'Onlayn haydovchilar yoʻq',
-                  description: 'Haydovchi onlayn boʻlishi bilan shu yerda koʻrinadi.',
+                  title: m.noDrivers,
+                  description: m.noDriversDesc,
                 }}
               />
             </section>

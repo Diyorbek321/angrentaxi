@@ -23,25 +23,31 @@ import { formatDateShort, formatDateTime, formatMoney, formatNumber } from '@/li
 import { serviceTypesLabel } from '@/lib/promo-service-types';
 import { CreatePromoCodeModal } from '@/components/promo/CreatePromoCodeModal';
 import { ServiceTypesCell } from '@/components/promo/ServiceTypePicker';
+import { t } from '@/locales';
 
 type StatusFilter = 'all' | 'active' | 'inactive';
 
-const STATUS_LABELS: Record<Exclude<StatusFilter, 'all'>, string> = {
-  active: 'Faol',
-  inactive: 'Faol emas',
-};
+function statusLabels(): Record<Exclude<StatusFilter, 'all'>, string> {
+  const p = t().promo.page;
+  return { active: p.active, inactive: p.inactive };
+}
 
-const STATUS_ITEMS: { value: StatusFilter; label: string }[] = [
-  { value: 'all', label: 'Hammasi' },
-  { value: 'active', label: 'Faol' },
-  { value: 'inactive', label: 'Faol emas' },
-];
+function statusItems(): { value: StatusFilter; label: string }[] {
+  const p = t().promo.page;
+  return [
+    { value: 'all', label: p.all },
+    { value: 'active', label: p.active },
+    { value: 'inactive', label: p.inactive },
+  ];
+}
 
 function discountText(promo: PromoCode): string {
   return promo.discountPercent != null ? `${promo.discountPercent}%` : formatMoney(promo.discountFixed ?? 0);
 }
 
 export default function PromoCodesPage() {
+  const m = t();
+  const p0 = m.promo.page;
   const { toast } = useToast();
   const pagination = usePagination(20);
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
@@ -62,7 +68,7 @@ export default function PromoCodesPage() {
       setError(null);
     } catch {
       // Oxirgi muvaffaqiyatli qatorlar ekranda qoladi; banner + retry chiqadi.
-      setError("Promo kodlarni yuklab bo'lmadi");
+      setError(p0.loadError);
     } finally {
       setIsLoading(false);
     }
@@ -117,7 +123,7 @@ export default function PromoCodesPage() {
   if (search.trim()) {
     chips.push({
       key: 'search',
-      label: `Qidiruv: "${search.trim()}"`,
+      label: p0.chipSearch(search.trim()),
       onRemove: () => {
         setSearch('');
         pagination.reset();
@@ -127,7 +133,7 @@ export default function PromoCodesPage() {
   if (statusFilter !== 'all') {
     chips.push({
       key: 'status',
-      label: `Holat: ${STATUS_LABELS[statusFilter]}`,
+      label: p0.chipStatus(statusLabels()[statusFilter]),
       onRemove: () => {
         setStatusFilter('all');
         pagination.reset();
@@ -143,13 +149,13 @@ export default function PromoCodesPage() {
       await promoCodesApi.deactivate(deactivateTarget.id);
       setPromoCodes((prev) => prev.map((p) => (p.id === deactivateTarget.id ? { ...p, isActive: false } : p)));
       toast({
-        title: `«${deactivateTarget.code}» faolsizlantirildi`,
-        description: "Bundan buyon yangi buyurtmalarga qo'llanilmaydi.",
+        title: p0.deactivated(deactivateTarget.code),
+        description: p0.deactivatedDesc,
         variant: 'success',
       });
       setDeactivateTarget(null);
     } catch {
-      toast({ title: 'Xatolik', description: 'Faolsizlantirishda xatolik', variant: 'error' });
+      toast({ title: m.common.error, description: p0.deactivateFailed, variant: 'error' });
     } finally {
       setDeactivating(false);
     }
@@ -158,40 +164,40 @@ export default function PromoCodesPage() {
   const handleExportCsv = () => {
     if (filteredRows.length === 0) return;
     downloadCsv<PromoCode>(
-      `promo-kodlar-${new Date().toISOString().slice(0, 10)}.csv`,
+      p0.csvFile(new Date().toISOString().slice(0, 10)),
       [
-        { header: 'Kod', value: (p) => p.code },
-        { header: 'Chegirma', value: (p) => discountText(p) },
-        { header: 'Ishlatilgan', value: (p) => p.usedCount },
-        { header: 'Limit', value: (p) => p.maxUses ?? '' },
-        { header: 'Min. summa', value: (p) => p.minOrderAmount },
-        { header: 'Muddati', value: (p) => (p.expiresAt ? formatDateShort(p.expiresAt) : '') },
-        { header: 'Xizmatlar', value: (p) => serviceTypesLabel(p.serviceTypes) },
-        { header: 'Holati', value: (p) => (p.isActive ? 'Faol' : 'Faol emas') },
-        { header: 'Yaratilgan', value: (p) => formatDateTime(p.createdAt, { withYear: true }) },
+        { header: p0.colCode, value: (p) => p.code },
+        { header: p0.colDiscount, value: (p) => discountText(p) },
+        { header: p0.colUsed, value: (p) => p.usedCount },
+        { header: p0.colLimit, value: (p) => p.maxUses ?? '' },
+        { header: p0.colMinAmount, value: (p) => p.minOrderAmount },
+        { header: p0.colExpires, value: (p) => (p.expiresAt ? formatDateShort(p.expiresAt) : '') },
+        { header: p0.colServices, value: (p) => serviceTypesLabel(p.serviceTypes) },
+        { header: p0.colStatus, value: (p) => (p.isActive ? p0.active : p0.inactive) },
+        { header: p0.colCreated, value: (p) => formatDateTime(p.createdAt, { withYear: true }) },
       ],
       filteredRows
     );
-    toast({ title: 'CSV yuklab olindi', description: `${filteredRows.length} ta qator`, variant: 'success' });
+    toast({ title: p0.csvDone, description: p0.csvRows(filteredRows.length), variant: 'success' });
   };
 
   const columns: DataTableColumn<PromoCode>[] = [
     {
       key: 'code',
-      header: 'Kod',
+      header: p0.colCode,
       sortable: true,
       cell: (p) => <span className="font-mono text-[13px] font-medium text-ink whitespace-nowrap">{p.code}</span>,
     },
     {
       key: 'discount',
-      header: 'Chegirma',
+      header: p0.colDiscount,
       numeric: true,
       cell: (p) =>
         p.discountPercent != null ? `${p.discountPercent}%` : <MoneyText value={p.discountFixed ?? 0} />,
     },
     {
       key: 'usedCount',
-      header: 'Ishlatilgan',
+      header: p0.colUsed,
       numeric: true,
       sortable: true,
       cell: (p) => (
@@ -203,41 +209,41 @@ export default function PromoCodesPage() {
     },
     {
       key: 'services',
-      header: 'Xizmatlar',
+      header: p0.colServices,
       hideBelow: 'lg',
       cell: (p) => <ServiceTypesCell value={p.serviceTypes} />,
     },
     {
       key: 'minOrderAmount',
-      header: 'Min. summa',
+      header: p0.colMinAmount,
       numeric: true,
       hideBelow: 'md',
       cell: (p) => <MoneyText value={p.minOrderAmount} className="text-muted" />,
     },
     {
       key: 'expiresAt',
-      header: 'Muddati',
+      header: p0.colExpires,
       sortable: true,
       className: 'num whitespace-nowrap text-muted',
       cell: (p) => (p.expiresAt ? formatDateShort(p.expiresAt) : '—'),
     },
     {
       key: 'status',
-      header: 'Holati',
+      header: p0.colStatus,
       cell: (p) => (
         <Badge variant={p.isActive ? 'success' : 'neutral'} dot>
-          {p.isActive ? 'Faol' : 'Faol emas'}
+          {p.isActive ? p0.active : p0.inactive}
         </Badge>
       ),
     },
     {
       key: 'actions',
-      header: <span className="sr-only">Amallar</span>,
+      header: <span className="sr-only">{p0.colActions}</span>,
       align: 'right',
       cell: (p) =>
         p.isActive ? (
           <Button variant="danger-ghost" size="sm" onClick={() => setDeactivateTarget(p)}>
-            Faolsizlantirish
+            {p0.deactivate}
           </Button>
         ) : null,
     },
@@ -246,8 +252,8 @@ export default function PromoCodesPage() {
   return (
     <div className="px-4 sm:px-6 py-5">
       <PageHeader
-        title="Promo kodlar"
-        description={`Jami: ${formatNumber(promoCodes.length)} ta`}
+        title={p0.title}
+        description={p0.total(formatNumber(promoCodes.length))}
         actions={
           <>
             <Button
@@ -256,17 +262,17 @@ export default function PromoCodesPage() {
               disabled={filteredRows.length === 0}
               leftIcon={<Download className="h-4 w-4" aria-hidden="true" />}
             >
-              CSV eksport
+              {p0.exportCsv}
             </Button>
             <Button leftIcon={<Plus className="h-4 w-4" aria-hidden="true" />} onClick={() => setCreating(true)}>
-              Yangi promo kod
+              {p0.newCode}
             </Button>
           </>
         }
       />
 
       <DataTable
-        ariaLabel="Promo kodlar"
+        ariaLabel={p0.title}
         columns={columns}
         rows={pagedRows}
         rowKey={(p) => p.id}
@@ -283,15 +289,15 @@ export default function PromoCodesPage() {
               setSearch(v);
               pagination.reset();
             }}
-            searchPlaceholder="Kod bo'yicha qidirish…"
-            searchAriaLabel="Promo kodlarni qidirish"
+            searchPlaceholder={p0.searchPlaceholder}
+            searchAriaLabel={p0.searchAria}
             searchClassName="w-full sm:w-64"
             chips={chips}
             onClearAll={clearAllFilters}
           >
             <SegmentedControl
-              ariaLabel="Holat bo'yicha filtr"
-              items={STATUS_ITEMS}
+              ariaLabel={p0.statusFilter}
+              items={statusItems()}
               value={statusFilter}
               onChange={(v) => {
                 setStatusFilter(v);
@@ -302,14 +308,14 @@ export default function PromoCodesPage() {
         }
         isFiltered={hasActiveFilters}
         onClearFilters={clearAllFilters}
-        emptyFiltered={{ title: 'Hech narsa mos kelmadi', description: "Tanlangan filtrlar bo'yicha promo kod topilmadi." }}
+        emptyFiltered={{ title: p0.noMatchTitle, description: p0.noMatchDesc }}
         empty={{
           variant: 'first-use',
-          title: "Promo kodlar yo'q",
-          description: 'Birinchi chegirma kodini yarating — u darhol amal qila boshlaydi.',
+          title: p0.emptyTitle,
+          description: p0.emptyDesc,
           action: (
             <Button size="sm" leftIcon={<Plus className="h-4 w-4" aria-hidden="true" />} onClick={() => setCreating(true)}>
-              Yangi promo kod
+              {p0.newCode}
             </Button>
           ),
         }}
@@ -328,7 +334,7 @@ export default function PromoCodesPage() {
         onClose={() => setCreating(false)}
         onCreated={async (code) => {
           setCreating(false);
-          toast({ title: `«${code}» promo kodi yaratildi`, description: 'Kod darhol amal qila boshlaydi.', variant: 'success' });
+          toast({ title: p0.created(code), description: p0.createdDesc, variant: 'success' });
           await fetchPromoCodes();
         }}
       />
@@ -340,14 +346,13 @@ export default function PromoCodesPage() {
         onClose={() => setDeactivateTarget(null)}
         onConfirm={handleDeactivate}
         isPending={deactivating}
-        title="Promo kodni faolsizlantirish"
-        confirmLabel="Faolsizlantirish"
+        title={p0.deactivateTitle}
+        confirmLabel={p0.deactivate}
         description={
           <>
             <strong className="font-mono text-ink">{deactivateTarget?.code}</strong> (
-            {deactivateTarget ? discountText(deactivateTarget) : ''}) faolsizlantiriladi va bundan buyon yangi
-            buyurtmalarga qo&apos;llanilmaydi. Kodni keyin qayta yoqib bo&apos;lmaydi — kerak bo&apos;lsa yangi kod
-            yaratiladi.
+            {deactivateTarget ? discountText(deactivateTarget) : ''}
+            {p0.deactivateBody}
           </>
         }
       />

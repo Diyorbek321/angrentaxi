@@ -16,7 +16,8 @@ import { Skeleton, SkeletonTable } from '@/components/ui/Skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { dashboardApi, withdrawalsApi } from '@/lib/api';
 import { SIDEBAR_COOKIE } from '@/lib/ui-prefs';
-import { ADMIN_NAV, DRIVERS_HREF, PENDING_DRIVERS_HREF, WITHDRAWALS_HREF } from './nav-config';
+import { t } from '@/locales';
+import { adminNav, DRIVERS_HREF, PENDING_DRIVERS_HREF, WITHDRAWALS_HREF } from './nav-config';
 
 const PENDING_POLL_MS = 60_000;
 
@@ -93,6 +94,7 @@ export function AdminShell({
   children: ReactNode;
   initialCollapsed?: boolean;
 }) {
+  const m = t();
   const router = useRouter();
   const { user, isAuthenticated, isLoading, logout } = useAuth();
 
@@ -105,15 +107,15 @@ export function AdminShell({
   const shellUser: ShellUser | null = useMemo(
     () =>
       user
-        ? { firstName: user.firstName, lastName: user.lastName, phone: user.phone, role: 'Administrator' }
+        ? { firstName: user.firstName, lastName: user.lastName, phone: user.phone, role: m.shell.roleAdministrator }
         : null,
-    [user]
+    [user, m]
   );
 
   // Badges are bound to real pending state and vanish at 0.
   const nav: NavGroup[] = useMemo(
     () =>
-      ADMIN_NAV.map((group) => ({
+      adminNav().map((group) => ({
         ...group,
         items: group.items.map((item) => {
           if (item.href === DRIVERS_HREF) return { ...item, badge: counts.driverApprovals };
@@ -135,14 +137,14 @@ export function AdminShell({
       <LiveMetric
         icon={<Car aria-hidden />}
         value={counts.driverApprovals}
-        label="Tasdiq kutayotgan haydovchilar"
+        label={m.shell.pendingDrivers}
         href={PENDING_DRIVERS_HREF}
         loading={loadingCounts && counts.driverApprovals == null}
       />
       <LiveMetric
         icon={<Wallet aria-hidden />}
         value={counts.withdrawals}
-        label="Pul yechish so'rovlari"
+        label={m.shell.pendingWithdrawals}
         href={WITHDRAWALS_HREF}
         loading={loadingCounts && counts.withdrawals == null}
       />
@@ -160,7 +162,7 @@ export function AdminShell({
       initialCollapsed={initialCollapsed}
       collapseCookie={SIDEBAR_COOKIE}
       onSearch={handleSearch}
-      searchPlaceholder="Foydalanuvchi, telefon…"
+      searchPlaceholder={m.shell.searchPlaceholder}
       live={isAuthenticated ? live : null}
     >
       {isLoading ? <ContentSkeleton /> : isAuthenticated ? children : null}

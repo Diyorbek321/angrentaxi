@@ -13,6 +13,7 @@ import { legalBriefBadge } from '@/lib/driver-legal';
 import type { Driver } from '@/lib/api';
 import { formatDateShort, formatNumber, formatPhone, formatRating, fullName } from '@/lib/format';
 import { driverRegisteredAt } from '@/lib/driver';
+import { t } from '@/locales';
 
 interface DriversTableProps {
   drivers: Driver[];
@@ -27,84 +28,87 @@ interface DriversTableProps {
   toolbar?: React.ReactNode;
 }
 
-const columns: DataTableColumn<Driver>[] = [
-  {
-    key: 'name',
-    header: 'Haydovchi',
-    sortable: true,
-    cell: (d) => (
-      <div className="flex items-center gap-2.5 min-w-0">
-        <Avatar firstName={d.firstName} lastName={d.lastName} size="sm" />
-        <span className="font-medium text-ink truncate max-w-[220px]">{fullName(d.firstName, d.lastName)}</span>
-      </div>
-    ),
-  },
-  {
-    key: 'phone',
-    header: 'Telefon',
-    hideBelow: 'xl',
-    className: 'num whitespace-nowrap text-muted',
-    cell: (d) => formatPhone(d.phone),
-  },
-  {
-    key: 'car',
-    header: 'Avtomobil',
-    hideBelow: 'xl',
-    cell: (d) => (
-      <span className="whitespace-nowrap">
-        {d.carModel || '—'}
-        {d.carColor && <span className="text-muted"> · {d.carColor}</span>}
-      </span>
-    ),
-  },
-  { key: 'plate', header: 'Raqam', cell: (d) => <PlateNumber plate={d.carNumber} /> },
-  {
-    key: 'rating',
-    header: 'Reyting',
-    numeric: true,
-    sortable: true,
-    cell: (d) => formatRating(d.rating),
-  },
-  {
-    key: 'trips',
-    header: 'Safarlar',
-    numeric: true,
-    sortable: true,
-    cell: (d) => formatNumber(d.totalTrips),
-  },
-  {
-    key: 'balance',
-    header: 'Balans',
-    numeric: true,
-    cell: (d) => (d.walletBalance !== undefined ? <MoneyText value={d.walletBalance} signed /> : '—'),
-  },
-  {
-    key: 'status',
-    header: 'Holat',
-    cell: (d) => <DriverStatusBadge status={d.status} isOnline={d.isOnline} />,
-  },
-  {
-    key: 'legal',
-    header: 'Huquqiy',
-    hideBelow: 'lg',
-    cell: (d) => {
-      const badge = legalBriefBadge(d.legal);
-      return (
-        <span title={badge.title}>
-          <Badge variant={badge.variant}>{badge.label}</Badge>
-        </span>
-      );
+function buildColumns(): DataTableColumn<Driver>[] {
+  const m = t().drivers.table;
+  return [
+    {
+      key: 'name',
+      header: m.driver,
+      sortable: true,
+      cell: (d) => (
+        <div className="flex items-center gap-2.5 min-w-0">
+          <Avatar firstName={d.firstName} lastName={d.lastName} size="sm" />
+          <span className="font-medium text-ink truncate max-w-[220px]">{fullName(d.firstName, d.lastName)}</span>
+        </div>
+      ),
     },
-  },
-  {
-    key: 'createdAt',
-    header: 'Roʻyxatdan oʻtgan',
-    sortable: true,
-    hideBelow: 'xl',
-    className: 'num whitespace-nowrap text-muted',
-    cell: (d) => formatDateShort(driverRegisteredAt(d)),
-  },
-];
+    {
+      key: 'phone',
+      header: m.phone,
+      hideBelow: 'xl',
+      className: 'num whitespace-nowrap text-muted',
+      cell: (d) => formatPhone(d.phone),
+    },
+    {
+      key: 'car',
+      header: m.car,
+      hideBelow: 'xl',
+      cell: (d) => (
+        <span className="whitespace-nowrap">
+          {d.carModel || '—'}
+          {d.carColor && <span className="text-muted"> · {d.carColor}</span>}
+        </span>
+      ),
+    },
+    { key: 'plate', header: m.plate, cell: (d) => <PlateNumber plate={d.carNumber} /> },
+    {
+      key: 'rating',
+      header: m.rating,
+      numeric: true,
+      sortable: true,
+      cell: (d) => formatRating(d.rating),
+    },
+    {
+      key: 'trips',
+      header: m.trips,
+      numeric: true,
+      sortable: true,
+      cell: (d) => formatNumber(d.totalTrips),
+    },
+    {
+      key: 'balance',
+      header: m.balance,
+      numeric: true,
+      cell: (d) => (d.walletBalance !== undefined ? <MoneyText value={d.walletBalance} signed /> : '—'),
+    },
+    {
+      key: 'status',
+      header: m.status,
+      cell: (d) => <DriverStatusBadge status={d.status} isOnline={d.isOnline} />,
+    },
+    {
+      key: 'legal',
+      header: m.legal,
+      hideBelow: 'lg',
+      cell: (d) => {
+        const badge = legalBriefBadge(d.legal);
+        return (
+          <span title={badge.title}>
+            <Badge variant={badge.variant}>{badge.label}</Badge>
+          </span>
+        );
+      },
+    },
+    {
+      key: 'createdAt',
+      header: m.registered,
+      sortable: true,
+      hideBelow: 'xl',
+      className: 'num whitespace-nowrap text-muted',
+      cell: (d) => formatDateShort(driverRegisteredAt(d)),
+    },
+  ];
+}
 
 export function DriversTable({
   drivers,
@@ -119,10 +123,11 @@ export function DriversTable({
   toolbar,
 }: DriversTableProps) {
   const router = useRouter();
+  const m = t().drivers.table;
   return (
     <DataTable
-      ariaLabel="Haydovchilar"
-      columns={columns}
+      ariaLabel={m.ariaLabel}
+      columns={buildColumns()}
       rows={drivers}
       rowKey={(d) => d.id}
       loading={isLoading}
@@ -136,12 +141,12 @@ export function DriversTable({
       toolbar={toolbar}
       isFiltered={hasActiveFilters}
       onClearFilters={onClearFilters}
-      emptyFiltered={{ title: 'Hech narsa mos kelmadi', description: 'Tanlangan filtrlar boʻyicha haydovchi topilmadi.' }}
+      emptyFiltered={{ title: m.emptyFilteredTitle, description: m.emptyFilteredDescription }}
       empty={{
         variant: 'first-use',
         icon: <Car aria-hidden />,
-        title: 'Hozircha haydovchilar yoʻq',
-        description: 'Haydovchilar ilova orqali roʻyxatdan oʻtishi bilan shu jadvalda koʻrinadi.',
+        title: m.emptyTitle,
+        description: m.emptyDescription,
       }}
     />
   );

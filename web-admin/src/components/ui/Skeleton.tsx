@@ -1,6 +1,7 @@
 // AUTO-SYNCED from web-manager — edit there, then run scripts/sync-panel-ui.sh
 import type { HTMLAttributes, ReactNode } from 'react';
 import { cn } from './cn';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 /** Shimmer block. Accepts any div attribute. */
 export function Skeleton({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
@@ -10,7 +11,7 @@ export function Skeleton({ className, ...props }: HTMLAttributes<HTMLDivElement>
 function Frame({ className, children }: { className?: string; children: ReactNode }) {
   return (
     <div role="status" aria-busy="true" aria-live="polite" className={className}>
-      <span className="sr-only">Yuklanmoqda…</span>
+      <span className="sr-only">{kitT().common.loading}</span>
       {children}
     </div>
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import { cn } from '@/components/ui/cn';
+import { t } from '@/locales';
 
 export interface OpenToggleProps {
   isOpen: boolean;
@@ -18,13 +19,14 @@ export interface OpenToggleProps {
  * kabi ko'rinmasligi kerak.
  */
 export function OpenToggle({ isOpen, unknown = false, busy, onToggle, large = false }: OpenToggleProps) {
+  const m = t().shell.openToggle;
   return (
     <button
       type="button"
       onClick={onToggle}
       disabled={busy || unknown}
       aria-pressed={unknown ? undefined : isOpen}
-      title={isOpen ? 'Qabulni yopish (pauza)' : 'Qabulni ochish'}
+      title={isOpen ? m.closeTitle : m.openTitle}
       className={cn(
         'inline-flex shrink-0 items-center gap-2 rounded-ds-sm border font-medium whitespace-nowrap transition-colors',
         'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-60',
@@ -40,8 +42,8 @@ export function OpenToggle({ isOpen, unknown = false, busy, onToggle, large = fa
         aria-hidden
         className={cn('h-2 w-2 rounded-full', unknown ? 'bg-subtle' : isOpen ? 'bg-mint-deep' : 'bg-danger')}
       />
-      {unknown ? 'Restoran' : isOpen ? 'Ochiq' : 'Yopiq'}
-      <span className="sr-only">{unknown ? '' : isOpen ? '— yopish uchun bosing' : '— ochish uchun bosing'}</span>
+      {unknown ? m.unknown : isOpen ? m.open : m.closed}
+      <span className="sr-only">{unknown ? '' : isOpen ? m.srClose : m.srOpen}</span>
     </button>
   );
 }

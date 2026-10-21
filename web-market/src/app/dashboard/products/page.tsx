@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Package, Plus, RefreshCw } from 'lucide-react';
 import { marketApi, MarketCategory, Product, ProductPage, ProductStatus, Store } from '@/lib/api';
-import { PRODUCT_STATUS } from '@/lib/product-status';
+import { productStatusMeta } from '@/lib/product-status';
 import { errorMessage } from '@/lib/utils';
 import { formatNumber } from '@/lib/format';
 import { useAsyncData } from '@/hooks/useAsyncData';
@@ -22,6 +22,7 @@ import { ProductImageModal } from '@/components/products/ProductImageModal';
 import { BulkPriceModal, type BulkPriceChange } from '@/components/products/BulkPriceModal';
 import { productColumns } from '@/components/products/productColumns';
 import { usePageRefresh } from '@/components/shell';
+import { t } from '@/locales';
 
 interface CatalogMeta {
   categories: MarketCategory[];
@@ -37,6 +38,8 @@ const TAB_ORDER: TabKey[] = ['all', 'active', 'out', 'hidden'];
 const SEARCH_DEBOUNCE_MS = 300;
 
 export default function ProductsPage() {
+  const m = t();
+  const pm = m.products;
   const { toast } = useToast();
   const [tab, setTab] = useState<TabKey>('all');
   /** Tanlov sahifalar orasida saqlanadi — shuning uchun mahsulotning o'zi saqlanadi. */
@@ -111,7 +114,7 @@ export default function ProductsPage() {
     () =>
       TAB_ORDER.map((value) => ({
         value,
-        label: value === 'all' ? 'Barchasi' : PRODUCT_STATUS[value].segmentLabel,
+        label: value === 'all' ? t().common.all : productStatusMeta(value).segmentLabel,
         count: data?.counts[value] ?? 0,
       })),
     [data]
@@ -133,13 +136,13 @@ export default function ProductsPage() {
 
   const chips: FilterChip[] = [
     ...(query.trim()
-      ? [{ key: 'q', label: `Qidiruv: «${query.trim()}»`, onRemove: () => setQuery('') }]
+      ? [{ key: 'q', label: pm.searchChip(query.trim()), onRemove: () => setQuery('') }]
       : []),
     ...(categoryId
       ? [
           {
             key: 'cat',
-            label: `Kategoriya: ${categoryName(categoryId)}`,
+            label: pm.categoryChip(categoryName(categoryId)),
             onRemove: () => changeCategory(''),
           },
         ]
@@ -174,9 +177,9 @@ export default function ProductsPage() {
     try {
       await marketApi.updateProduct(id, patch);
       await reload();
-      toast({ title: 'Saqlandi', variant: 'success' });
+      toast({ title: m.common.saved, variant: 'success' });
     } catch (err) {
-      toast({ title: 'Xatolik', description: errorMessage(err), variant: 'error' });
+      toast({ title: m.common.error, description: errorMessage(err), variant: 'error' });
       await reload();
     }
   };
@@ -196,9 +199,9 @@ export default function ProductsPage() {
       await marketApi.bulkUpdateProducts(selectedIds, status);
       setSelected({});
       await reload();
-      toast({ title: `${selectedIds.length} ta mahsulot yangilandi`, variant: 'success' });
+      toast({ title: pm.updated(selectedIds.length), variant: 'success' });
     } catch (err) {
-      toast({ title: 'Xatolik', description: errorMessage(err), variant: 'error' });
+      toast({ title: m.common.error, description: errorMessage(err), variant: 'error' });
     } finally {
       setBusy(false);
     }
@@ -213,9 +216,9 @@ export default function ProductsPage() {
       setBulkPriceOpen(false);
       setSelected({});
       await reload();
-      toast({ title: `${changes.length} ta narx yangilandi`, variant: 'success' });
+      toast({ title: pm.pricesUpdated(changes.length), variant: 'success' });
     } catch (err) {
-      toast({ title: 'Xatolik', description: errorMessage(err), variant: 'error' });
+      toast({ title: m.common.error, description: errorMessage(err), variant: 'error' });
       await reload();
     }
   };
@@ -240,9 +243,9 @@ export default function ProductsPage() {
   return (
     <div>
       <PageHeader
-        title="Mahsulotlar"
+        title={pm.title}
         description={
-          data ? `${formatNumber(data.counts.all)} ta mahsulot · narx va zaxira jadvalda tahrirlanadi` : 'Katalog, narx va zaxira'
+          data ? pm.description(formatNumber(data.counts.all)) : pm.descriptionLoading
         }
         actions={
           <>
@@ -252,17 +255,17 @@ export default function ProductsPage() {
               isLoading={isRefreshing}
               leftIcon={<RefreshCw size={14} aria-hidden />}
             >
-              Yangilash
+              {m.common.refresh}
             </Button>
             <Button onClick={openAdd} leftIcon={<Plus size={14} aria-hidden />}>
-              Mahsulot qo&apos;shish
+              {pm.add}
             </Button>
           </>
         }
       />
 
       <DataTable
-        ariaLabel="Mahsulotlar"
+        ariaLabel={pm.title}
         columns={columns}
         rows={catalogEmpty ? [] : products}
         rowKey={(p) => p.id}
@@ -276,32 +279,32 @@ export default function ProductsPage() {
         bulkActions={() => (
           <>
             <Button size="sm" variant="secondary" isLoading={busy} onClick={() => void bulkSetStatus('active')}>
-              Faollashtirish
+              {pm.activate}
             </Button>
             <Button size="sm" variant="secondary" isLoading={busy} onClick={() => void bulkSetStatus('hidden')}>
-              Yashirish
+              {pm.hide}
             </Button>
             <Button size="sm" variant="secondary" onClick={() => setBulkPriceOpen(true)}>
-              Narxni o&apos;zgartirish
+              {pm.changePrice}
             </Button>
           </>
         )}
         pagination={{ paged }}
         toolbar={
           <FilterBar
-            searchAriaLabel="Mahsulot qidirish"
-            searchPlaceholder="Nomi yoki SKU"
+            searchAriaLabel={pm.searchAria}
+            searchPlaceholder={pm.searchPlaceholder}
             search={query}
             onSearchChange={setQuery}
             searchClassName="w-full sm:w-60"
             chips={chips}
             onClearAll={clearFilters}
           >
-            <SegmentedControl items={tabs} value={tab} onChange={changeTab} ariaLabel="Mahsulot holati" />
+            <SegmentedControl items={tabs} value={tab} onChange={changeTab} ariaLabel={pm.statusAria} />
             <Select
-              aria-label="Kategoriya bo'yicha filtrlash"
+              aria-label={pm.categoryFilterAria}
               options={[
-                { value: '', label: 'Barcha kategoriyalar' },
+                { value: '', label: pm.allCategories },
                 ...categories.map((c) => ({ value: c.id, label: `${c.emoji} ${c.name}` })),
               ]}
               value={categoryId}
@@ -312,31 +315,31 @@ export default function ProductsPage() {
         }
         isFiltered={!catalogEmpty && !outOfStockCleared}
         onClearFilters={clearFilters}
-        emptyFiltered={{ title: 'Hech narsa topilmadi', description: 'Filtr mezonlariga mos mahsulot yoʻq.' }}
+        emptyFiltered={{ title: pm.nothingFound, description: pm.nothingFoundDescription }}
         empty={
           catalogEmpty
             ? {
                 variant: 'first-use',
                 icon: <Package aria-hidden />,
-                title: 'Katalog hali boʻsh',
-                description: 'Birinchi mahsulotni qoʻshsangiz, u shu yerda koʻrinadi.',
+                title: pm.catalogEmpty,
+                description: pm.catalogEmptyDescription,
                 action: (
                   <Button size="sm" onClick={openAdd} leftIcon={<Plus size={14} aria-hidden />}>
-                    Mahsulot qo&apos;shish
+                    {pm.add}
                   </Button>
                 ),
               }
             : {
                 variant: 'cleared',
-                title: 'Tugagan mahsulot yoʻq',
-                description: 'Barcha mahsulotlar sotuvda — zaxira joyida.',
+                title: pm.noOutOfStock,
+                description: pm.noOutOfStockDescription,
               }
         }
       />
 
       {hasFilters && total > 0 && (
         <p className="num mt-2 text-xs text-muted">
-          Filtr qo&apos;llangan: {total} ta mahsulot topildi
+          {pm.filtered(total)}
         </p>
       )}
       <AddProductModal
@@ -346,9 +349,9 @@ export default function ProductsPage() {
         onCreated={async () => {
           setShowAdd(false);
           await reload();
-          toast({ title: "Mahsulot qo'shildi", variant: 'success' });
+          toast({ title: pm.added, variant: 'success' });
         }}
-        onError={(msg) => toast({ title: 'Xatolik', description: msg, variant: 'error' })}
+        onError={(msg) => toast({ title: m.common.error, description: msg, variant: 'error' })}
       />
 
       {imageFor && (
@@ -358,9 +361,9 @@ export default function ProductsPage() {
           onSaved={async () => {
             setImageFor(null);
             await reload();
-            toast({ title: 'Rasm yangilandi', variant: 'success' });
+            toast({ title: pm.imageUpdated, variant: 'success' });
           }}
-          onError={(msg) => toast({ title: 'Xatolik', description: msg, variant: 'error' })}
+          onError={(msg) => toast({ title: m.common.error, description: msg, variant: 'error' })}
         />
       )}
 

@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { cn } from './cn';
 import { SearchInput } from './SearchInput';
 import { FilterChips, type FilterChip } from './FilterChips';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 export interface FilterBarProps {
   /** Search box (omit both to hide). */
@@ -32,7 +33,7 @@ export interface FilterBarProps {
 export function FilterBar({
   search,
   onSearchChange,
-  searchPlaceholder = 'Qidirish…',
+  searchPlaceholder,
   searchAriaLabel,
   onSearchClear,
   searchClassName = 'w-full sm:w-72',
@@ -51,7 +52,7 @@ export function FilterBar({
             value={search ?? ''}
             onChange={onSearchChange}
             onClear={onSearchClear}
-            placeholder={searchPlaceholder}
+            placeholder={searchPlaceholder ?? kitT().common.search}
             aria-label={searchAriaLabel}
             wrapperClassName={searchClassName}
           />

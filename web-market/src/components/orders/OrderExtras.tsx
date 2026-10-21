@@ -11,6 +11,7 @@ import {
 import { KeyValue, KeyValueList } from '@/components/ui/KeyValue';
 import { MoneyText } from '@/components/ui/MoneyText';
 import { cn } from '@/components/ui/cn';
+import { t } from '@/locales';
 
 /**
  * Buyurtmaning v5 bloklari (docs/specs/food-market-ux-v5.md): manzil
@@ -34,9 +35,10 @@ export function AddressShortLine({ details, className }: { details?: AddressDeta
 export function AddressDetailsBlock({ details }: { details?: AddressDetails | null }) {
   const lines = addressDetailLines(details);
   if (lines.length === 0) return null;
+  const title = t().orderExtras.addressDetails;
   return (
-    <section aria-label="Manzil tafsilotlari" className="rounded-ds-sm border border-line px-3 py-2.5">
-      <h3 className="mb-1.5 text-xs font-semibold text-subtle">Manzil tafsilotlari</h3>
+    <section aria-label={title} className="rounded-ds-sm border border-line px-3 py-2.5">
+      <h3 className="mb-1.5 text-xs font-semibold text-subtle">{title}</h3>
       <KeyValueList>
         {lines.map((l) => (
           <KeyValue key={l.key} label={l.label}>
@@ -55,11 +57,12 @@ export function AddressDetailsBlock({ details }: { details?: AddressDetails | nu
 export function DiscountLines({ order, className }: { order: OrderV5Fields; className?: string }) {
   const d = orderDiscounts(order);
   if (!d.hasAny) return null;
+  const m = t().orderExtras;
   return (
     <dl className={cn('flex flex-col gap-1 text-[13px]', className)}>
       {d.promotionDiscount > 0 && (
         <div className="flex items-center justify-between gap-3">
-          <dt className="text-muted">Aksiya chegirmasi</dt>
+          <dt className="text-muted">{m.promotionDiscount}</dt>
           <dd className="font-medium text-ink">
             −<MoneyText value={d.promotionDiscount} />
           </dd>
@@ -69,7 +72,7 @@ export function DiscountLines({ order, className }: { order: OrderV5Fields; clas
         <div className="flex items-center justify-between gap-3">
           <dt className="inline-flex items-center gap-1.5 text-muted">
             <Tag size={12} aria-hidden />
-            Promokod
+            {m.promoCode}
             {d.promoCode && <span className="font-mono text-ink">{d.promoCode}</span>}
           </dt>
           <dd className="text-right">
@@ -80,7 +83,7 @@ export function DiscountLines({ order, className }: { order: OrderV5Fields; clas
             ) : (
               '—'
             )}
-            <span className="block text-[11px] text-subtle">platforma hisobidan</span>
+            <span className="block text-[11px] text-subtle">{m.platformCovers}</span>
           </dd>
         </div>
       )}

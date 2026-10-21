@@ -23,22 +23,24 @@ import { RetryBanner } from '@/components/ui/RetryBanner';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
 import { downloadCsv } from '@/lib/csv';
-import { formatMoney, formatNumber, formatPhone } from '@/lib/format';
-
-const ruleTypeLabel: Record<DriverBonusRule['ruleType'], string> = {
-  trip_count: 'Safar soni',
-  weekly_goal: 'Haftalik maqsad',
-};
+import { formatMoney, formatNumber, formatPhone, nameFallback } from '@/lib/format';
+import { t } from '@/locales';
 
 type RuleFilter = 'active' | 'inactive' | 'all';
 
-const RULE_TABS: readonly { value: RuleFilter; label: string }[] = [
-  { value: 'active', label: 'Faol' },
-  { value: 'inactive', label: 'Faol emas' },
-  { value: 'all', label: 'Hammasi' },
-];
+function ruleTabs(): readonly { value: RuleFilter; label: string }[] {
+  const m = t();
+  return [
+    { value: 'active', label: m.drivers.bonuses.active },
+    { value: 'inactive', label: m.drivers.bonuses.inactive },
+    { value: 'all', label: m.common.all },
+  ];
+}
 
 export default function BonusesPage() {
+  const m = t();
+  const b = m.drivers.bonuses;
+  const ruleTypeLabel: Record<DriverBonusRule['ruleType'], string> = b.ruleType;
   const { toast } = useToast();
 
   const [rules, setRules] = useState<DriverBonusRule[]>([]);
@@ -61,7 +63,7 @@ export default function BonusesPage() {
         setRules(r);
         setRulesError(null);
       })
-      .catch(() => setRulesError('Bonus qoidalarini yuklab boʻlmadi.'))
+      .catch(() => setRulesError(t().drivers.bonuses.rulesLoadError))
       .finally(() => {
         setIsLoading(false);
         setHasLoadedOnce(true);
@@ -79,7 +81,7 @@ export default function BonusesPage() {
         setProgress(p);
         setProgressError(null);
       })
-      .catch(() => setProgressError('Haydovchi progressini yuklab boʻlmadi.'))
+      .catch(() => setProgressError(t().drivers.bonuses.progressLoadError))
       .finally(() => setProgressLoading(false));
   };
 
@@ -109,18 +111,18 @@ export default function BonusesPage() {
     if (visibleRules.length === 0) return;
     downloadCsv(
       'bonus-qoidalari',
-      ['Nomi', 'Turi', 'Safar chegarasi', 'Bonus (soʻm)', 'Xizmat turi', 'Holati'],
+      [b.csv.name, b.csv.type, b.csv.threshold, b.csv.bonus, b.csv.serviceType, b.csv.status],
       visibleRules.map((r) => [
         r.name,
         ruleTypeLabel[r.ruleType],
         r.tripThreshold,
         r.bonusAmount,
-        r.serviceType ?? 'Barchasi',
-        r.status === 'active' ? 'Faol' : 'Faol emas',
+        r.serviceType ?? b.allServices,
+        r.status === 'active' ? b.active : b.inactive,
       ])
     );
     toast({
-      title: `${visibleRules.length} ta qoida CSV faylga eksport qilindi`,
+      title: b.exported(visibleRules.length),
       variant: 'success',
     });
   };
@@ -130,8 +132,8 @@ export default function BonusesPage() {
   return (
     <PageBody className="max-w-5xl">
         <PageHeader
-          title="Bonuslar"
-          description="Bonus qoidalari va haydovchi progressi (qoidalarni faqat admin qoʻsha oladi)"
+          title={b.title}
+          description={b.description}
           actions={
             <>
               <Button
@@ -141,7 +143,7 @@ export default function BonusesPage() {
                 disabled={visibleRules.length === 0}
                 leftIcon={<Download size={13} aria-hidden />}
               >
-                CSV eksport
+                {m.drivers.list.export}
               </Button>
               <Button
                 variant="secondary"
@@ -150,7 +152,7 @@ export default function BonusesPage() {
                 isLoading={isLoading && hasLoadedOnce}
                 leftIcon={<RefreshCw size={13} aria-hidden />}
               >
-                Yangilash
+                {m.common.refresh}
               </Button>
             </>
           }
@@ -163,15 +165,15 @@ export default function BonusesPage() {
         <div className="space-y-5">
           <Card padding="none">
             <CardHeader
-              title="Bonus qoidalari"
-              description={activeCount > 0 ? `${activeCount} ta faol qoida` : undefined}
+              title={b.rulesTitle}
+              description={activeCount > 0 ? b.activeCount(activeCount) : undefined}
               actions={
                 <SegmentedControl
-                  items={RULE_TABS}
+                  items={ruleTabs()}
                   value={ruleFilter}
                   onChange={setRuleFilter}
                   size="sm"
-                  ariaLabel="Qoidalar filtri"
+                  ariaLabel={b.filterAria}
                 />
               }
             />
@@ -181,7 +183,7 @@ export default function BonusesPage() {
               <ErrorState
                 compact
                 title={rulesError}
-                message="Tarmoq yoki server xatosi. Qayta urinib koʻring."
+                message={b.networkError}
                 onRetry={loadRules}
                 retrying={isLoading}
               />
@@ -201,16 +203,16 @@ export default function BonusesPage() {
                 icon={<Gift aria-hidden />}
                 title={
                   ruleFilter === 'active'
-                    ? 'Faol bonus qoidasi yoʻq'
+                    ? b.emptyActive
                     : ruleFilter === 'inactive'
-                    ? 'Oʻchirilgan qoida yoʻq'
-                    : 'Bonus qoidasi yoʻq'
+                    ? b.emptyInactive
+                    : b.emptyAll
                 }
-                description="Yangi qoidalar admin panelida qoʻshiladi."
+                description={b.emptyDesc}
                 action={
                   ruleFilter !== 'all' && rules.length > 0 ? (
                     <Button variant="secondary" size="sm" onClick={() => setRuleFilter('all')}>
-                      Barcha qoidalar
+                      {b.allRules}
                     </Button>
                   ) : undefined
                 }
@@ -229,12 +231,11 @@ export default function BonusesPage() {
                       </Badge>
                     </div>
                     <p className="text-[13px] text-muted">
-                      Har <span className="num text-ink">{formatNumber(rule.tripThreshold)}</span> safar
-                      uchun <MoneyText value={rule.bonusAmount} className="font-semibold text-ink" />
+                      {b.everyBefore}<span className="num text-ink">{formatNumber(rule.tripThreshold)}</span>{b.everyAfter}<MoneyText value={rule.bonusAmount} className="font-semibold text-ink" />
                     </p>
                     <div className="flex items-center gap-2">
                       <Badge variant={rule.status === 'active' ? 'success' : 'neutral'} size="sm" dot>
-                        {rule.status === 'active' ? 'Faol' : 'Faol emas'}
+                        {rule.status === 'active' ? b.active : b.inactive}
                       </Badge>
                       {rule.serviceType && (
                         <span className="text-[11px] text-subtle truncate">{rule.serviceType}</span>
@@ -249,7 +250,7 @@ export default function BonusesPage() {
 
           <Card padding="none">
             <CardHeader
-              title="Haydovchi progressi"
+              title={b.progressTitle}
               actions={
                 selectedDriver ? (
                   <Button
@@ -259,7 +260,7 @@ export default function BonusesPage() {
                     isLoading={progressLoading}
                     leftIcon={<RefreshCw size={13} aria-hidden />}
                   >
-                    Yangilash
+                    {m.common.refresh}
                   </Button>
                 ) : undefined
               }
@@ -267,15 +268,15 @@ export default function BonusesPage() {
 
             <CardBody className="space-y-4">
               <Select
-                label="Onlayn haydovchini tanlang"
+                label={b.selectLabel}
                 value={selectedDriverId}
                 onChange={(e) => setSelectedDriverId(e.target.value)}
-                placeholder={drivers.length === 0 ? 'Onlayn haydovchi yoʻq' : 'Haydovchi tanlang'}
+                placeholder={drivers.length === 0 ? b.noOnline : b.selectPlaceholder}
                 disabled={drivers.length === 0}
-                hint="Roʻyxatda hozir onlayn boʻlgan haydovchilar koʻrinadi"
+                hint={b.selectHint}
                 options={drivers.map((d) => ({
                   value: d.id,
-                  label: `${d.name || 'Ism kiritilmagan'} — ${formatPhone(d.phone)}`,
+                  label: `${d.name || nameFallback()} — ${formatPhone(d.phone)}`,
                 }))}
               />
 
@@ -296,15 +297,15 @@ export default function BonusesPage() {
                 <EmptyState
                   compact
                   icon={<Users aria-hidden />}
-                  title="Haydovchi tanlanmagan"
-                  description="Progressni koʻrish uchun yuqoridan haydovchini tanlang."
+                  title={b.noDriver}
+                  description={b.noDriverDesc}
                 />
               ) : progress.length === 0 ? (
                 <EmptyState
                   compact
                   icon={<Gift aria-hidden />}
-                  title="Bu haydovchi uchun faol qoida yoʻq"
-                  description="Faol bonus qoidalari mavjud emas."
+                  title={b.noRules}
+                  description={b.noRulesDesc}
                 />
               ) : (
                 <div className="space-y-2">
@@ -331,7 +332,7 @@ export default function BonusesPage() {
                           aria-valuenow={percent}
                           aria-valuemin={0}
                           aria-valuemax={100}
-                          aria-label={`${p.name} progressi`}
+                          aria-label={b.progressAria(p.name)}
                         >
                           <div
                             className={`h-full rounded-full transition-[width] ${
@@ -342,10 +343,8 @@ export default function BonusesPage() {
                         </div>
                         <p className="num text-xs text-subtle">
                           {done
-                            ? `Maqsadga yetdi — ${formatMoney(p.bonusAmount)} bonus`
-                            : `Yana ${p.tripThreshold - p.currentCount} safar · ${formatMoney(
-                                p.bonusAmount
-                              )}`}
+                            ? b.reached(formatMoney(p.bonusAmount))
+                            : b.remaining(p.tripThreshold - p.currentCount, formatMoney(p.bonusAmount))}
                         </p>
                       </div>
                     );

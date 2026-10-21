@@ -7,6 +7,14 @@ import {
   setSessionCookies,
 } from "@/lib/server/auth-cookies";
 import { crossOriginRejection, isSameOrigin } from "@/lib/server/same-origin";
+import { getServerLocale } from "@/lib/i18n/server";
+import { t } from "@/locales";
+
+/** Cookie'dagi tilda xabarlar (route handler — so'rov paytida chaqiriladi). */
+function routeMessages() {
+  getServerLocale();
+  return t().shell;
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,7 +58,7 @@ export async function POST(req: NextRequest) {
     // A network blip is not proof the session is gone — keep the cookies so the
     // next attempt can still succeed.
     return NextResponse.json(
-      { success: false, message: "Serverga ulanib boʻlmadi" },
+      { success: false, message: routeMessages().route.serverUnreachable },
       { status: 502 },
     );
   }

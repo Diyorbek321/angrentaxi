@@ -1,0 +1,31 @@
+import type { Messages } from '../uz';
+
+export const reports: Messages['reports'] = {
+  loadError: 'Не удалось загрузить отчёт.',
+  vsPrevPreset: (preset: string) => `к предыдущему периоду (${preset})`,
+  vsPrevPeriod: 'к предыдущему периоду',
+  col: {
+    date: 'Дата',
+    revenue: 'Доход',
+    orders: 'Заказы',
+    driver: 'Водитель',
+    phone: 'Телефон',
+    trips: 'Поездки',
+    rating: 'Рейтинг',
+  },
+  csvDownloaded: 'CSV скачан',
+  days: (n: number) => `${n} дн.`,
+  drivers: (n: number) => `Водителей: ${n}`,
+  title: 'Отчёты',
+  comparison: (from: string, to: string) => ` · сравнение: ${from} — ${to}`,
+  csvExport: 'Экспорт CSV',
+  totalRevenue: 'Общий доход',
+  sum: 'сум',
+  totalOrders: 'Всего заказов',
+  avgOrder: 'Средний заказ',
+  newUsers: 'Новые пользователи',
+  topDrivers: 'Топ водителей',
+  topDriversDesc: 'По доходу за выбранный период',
+  emptyTitle: 'За этот период данных нет',
+  emptyDesc: 'В выбранном периоде не было завершённых поездок — попробуйте другой период.',
+};

@@ -1,4 +1,6 @@
 import type { FoodOrder, FoodOrderStatus } from '@/lib/api';
+import { t } from '@/locales';
+import { uz } from '@/locales/uz';
 
 /**
  * Navbat OSHXONA HOLATI bo'yicha (Uber Eats naqshi): Yangi / Tayyorlanmoqda /
@@ -9,20 +11,39 @@ export type QueueTab = 'new' | 'preparing' | 'ready' | 'done';
 
 export const TAB_ORDER: ReadonlyArray<QueueTab> = ['new', 'preparing', 'ready', 'done'];
 
-export const TAB_LABEL: Record<QueueTab, string> = {
-  new: 'Yangi',
-  preparing: 'Tayyorlanmoqda',
-  ready: 'Tayyor',
-  done: 'Yakunlangan',
-};
+/** Tab yozuvi faol tilda — render paytida chaqiriladi. */
+export function tabLabel(tab: QueueTab): string {
+  return t().orders.tabs[tab];
+}
 
-export const REJECT_REASONS = [
-  'Ingredientlar tugagan',
-  'Oshxona band',
-  'Ish vaqti tugadi',
-  'Manzil yetkazib berish zonasidan tashqarida',
-  'Boshqa sabab',
-] as const;
+export type RejectReasonKey = keyof typeof uz.orders.rejectReasons;
+
+export const REJECT_REASON_KEYS: ReadonlyArray<RejectReasonKey> = [
+  'ingredients',
+  'kitchenBusy',
+  'closingTime',
+  'outOfZone',
+  'other',
+];
+
+/**
+ * API'ga (va mijozga) yuboriladigan matn — panel tilidan qat'i nazar DOIM
+ * o'zbekcha: mijoz ilovasi o'zbekcha va backend matnni o'zgartirmaydi.
+ */
+export function rejectReasonValue(key: RejectReasonKey): string {
+  return uz.orders.rejectReasons[key];
+}
+
+/** Ekranda ko'rsatiladigan yozuv (faol til). */
+export function rejectReasonLabel(key: RejectReasonKey): string {
+  return t().orders.rejectReasons[key];
+}
+
+/** Yuborilgan o'zbekcha matn → faol tildagi yozuv (toast uchun); tanilmasa — o'zi. */
+export function rejectReasonDisplay(value: string): string {
+  const key = REJECT_REASON_KEYS.find((k) => rejectReasonValue(k) === value);
+  return key ? rejectReasonLabel(key) : value;
+}
 
 export function tabOf(status: FoodOrderStatus): QueueTab {
   if (status === 'new' || status === 'preparing' || status === 'ready') return status;

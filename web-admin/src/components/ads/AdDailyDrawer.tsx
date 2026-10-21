@@ -13,6 +13,7 @@ import { adCtr, dailyTotals, formatCtr } from '@/lib/ads';
 import { CHART_COLORS } from '@/lib/chart-tokens';
 import { formatNumber } from '@/lib/format';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { t } from '@/locales';
 
 const DAYS = 30;
 /** Fewer points than this is not a trend — show an empty state instead. */
@@ -35,6 +36,7 @@ const shortDay = (day: string) => {
  * faqat jadvaldagi jami sonda.
  */
 export function AdDailyDrawer({ ad, onClose }: { ad: AdBanner | null; onClose: () => void }) {
+  const m = t().ads.daily;
   const reducedMotion = useReducedMotion();
   const [rows, setRows] = useState<AdDailyRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +50,7 @@ export function AdDailyDrawer({ ad, onClose }: { ad: AdBanner | null; onClose: (
     adsApi
       .daily(ad.id, DAYS)
       .then((res) => !cancelled && setRows(res.data.data))
-      .catch(() => !cancelled && setError("Hisobotni yuklab bo'lmadi"));
+      .catch(() => !cancelled && setError(m.loadError));
     return () => {
       cancelled = true;
     };
@@ -60,11 +62,11 @@ export function AdDailyDrawer({ ad, onClose }: { ad: AdBanner | null; onClose: (
     <Drawer
       isOpen={!!ad}
       onClose={onClose}
-      title={ad ? `«${ad.title}» — kunlik hisobot` : undefined}
+      title={ad ? m.title(ad.title) : undefined}
       subtitle={
         totals
-          ? `Oxirgi ${DAYS} kun: ${formatNumber(totals.impressions)} ko'rish · ${formatNumber(totals.clicks)} bosish · CTR ${formatCtr(totals.ctr)}`
-          : `Oxirgi ${DAYS} kun`
+          ? m.subtitleTotals(DAYS, formatNumber(totals.impressions), formatNumber(totals.clicks), formatCtr(totals.ctr))
+          : m.subtitle(DAYS)
       }
       width="lg"
     >
@@ -78,7 +80,7 @@ export function AdDailyDrawer({ ad, onClose }: { ad: AdBanner | null; onClose: (
       ) : (
         <div className="flex flex-col gap-5">
           {rows.length < MIN_CHART_POINTS ? (
-            <EmptyState compact title="Grafik uchun ma'lumot yetarli emas" />
+            <EmptyState compact title={m.notEnoughData} />
           ) : (
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={rows} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
@@ -86,7 +88,7 @@ export function AdDailyDrawer({ ad, onClose }: { ad: AdBanner | null; onClose: (
               <XAxis dataKey="day" tickFormatter={shortDay} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
               <Tooltip
-                formatter={(value: number) => [formatNumber(value), "Ko'rish"]}
+                formatter={(value: number) => [formatNumber(value), m.impressions]}
                 labelFormatter={shortDay}
               />
               <Bar
@@ -104,9 +106,9 @@ export function AdDailyDrawer({ ad, onClose }: { ad: AdBanner | null; onClose: (
           <Table compact>
             <TableHeader>
               <TableRow>
-                <TableHead>Kun</TableHead>
-                <TableHead className="text-right">Ko&apos;rish</TableHead>
-                <TableHead className="text-right">Bosish</TableHead>
+                <TableHead>{m.colDay}</TableHead>
+                <TableHead className="text-right">{m.colImpressions}</TableHead>
+                <TableHead className="text-right">{m.colClicks}</TableHead>
                 <TableHead className="text-right">CTR</TableHead>
               </TableRow>
             </TableHeader>

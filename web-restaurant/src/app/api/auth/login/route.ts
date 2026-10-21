@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { API_BASE_URL } from "@/lib/server/api-config";
 import { clientIpHeaders } from "@/lib/server/client-ip";
+import { requestLocale, requestMessages } from "@/lib/server/request-locale";
 import { setSessionCookies } from "@/lib/server/auth-cookies";
 import { crossOriginRejection, isSameOrigin } from "@/lib/server/same-origin";
 
@@ -16,6 +17,7 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(req: NextRequest) {
   if (!isSameOrigin(req)) return crossOriginRejection();
+  const m = requestMessages(req).api;
 
   let body: { phone?: unknown; code?: unknown };
   try {
@@ -31,7 +33,7 @@ export async function POST(req: NextRequest) {
   const code = typeof body.code === "string" ? body.code.trim() : "";
   if (!phone || !code) {
     return NextResponse.json(
-      { success: false, message: "Telefon raqam va kod talab qilinadi" },
+      { success: false, message: m.phoneAndCodeRequired },
       { status: 400 },
     );
   }
@@ -43,13 +45,15 @@ export async function POST(req: NextRequest) {
       headers: {
         ...clientIpHeaders(req.headers),
         "Content-Type": "application/json",
+        // Backend xatosi ("kod noto'g'ri" va h.k.) panel tilida qaytsin.
+        "Accept-Language": requestLocale(req),
       },
       body: JSON.stringify({ phone, code }),
       cache: "no-store",
     });
   } catch {
     return NextResponse.json(
-      { success: false, message: "Serverga ulanib boʻlmadi" },
+      { success: false, message: m.serverUnreachable },
       { status: 502 },
     );
   }
@@ -65,7 +69,7 @@ export async function POST(req: NextRequest) {
 
   if (!upstream.ok || !payload?.data?.accessToken || !payload.data.user) {
     return NextResponse.json(
-      { success: false, message: payload?.message || "Notoʻgʻri kod" },
+      { success: false, message: payload?.message || m.wrongCode },
       { status: upstream.ok ? 502 : upstream.status },
     );
   }
@@ -79,7 +83,7 @@ export async function POST(req: NextRequest) {
   // of account from being planted in this panel's cookie at all.
   if (user.role !== "restaurant") {
     return NextResponse.json(
-      { success: false, message: "Bu panel faqat restoranlar uchun" },
+      { success: false, message: m.restaurantsOnly },
       { status: 403 },
     );
   }

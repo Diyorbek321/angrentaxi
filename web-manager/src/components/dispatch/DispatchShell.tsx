@@ -17,8 +17,9 @@ import {
   type ShellUser,
 } from '@/components/shell';
 import { IconButton } from '@/components/ui/IconButton';
-import { DISPATCH_NAV, EXCEPTIONS_HREF } from './nav-config';
+import { dispatchNav, EXCEPTIONS_HREF } from './nav-config';
 import { DispatchDataProvider, useDispatchData } from './DispatchDataContext';
+import { t } from '@/locales';
 
 const EXCEPTIONS_POLL_MS = 30_000;
 
@@ -58,25 +59,26 @@ function DispatchLiveSlot({
   canSeeExceptions: boolean;
 }) {
   const { orders, ordersLoading, drivers, driversLoading } = useDispatchData();
+  const m = t().dispatch.shell;
   return (
     <>
       <LiveMetric
         icon={<Car aria-hidden />}
         value={orders.length}
-        label="Aktiv buyurtmalar"
+        label={m.activeOrders}
         loading={ordersLoading && orders.length === 0}
       />
       <LiveMetric
         icon={<Users aria-hidden />}
         value={drivers.length}
-        label="Onlayn haydovchilar"
+        label={m.onlineDrivers}
         loading={driversLoading && drivers.length === 0}
       />
       {canSeeExceptions && (
         <LiveMetric
           icon={<AlertTriangle aria-hidden />}
           value={exceptionsCount}
-          label="Istisnolar"
+          label={m.exceptions}
           href={EXCEPTIONS_HREF}
           tone={exceptionsCount > 0 ? 'danger' : 'neutral'}
         />
@@ -101,6 +103,7 @@ export function DispatchShell({
   initialCollapsed?: boolean;
 }) {
   const router = useRouter();
+  const m = t().dispatch.shell;
 
   const [permissions, setPermissions] = useState<string[] | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -117,7 +120,7 @@ export function DispatchShell({
   // (hydration mismatch otherwise).
   useEffect(() => {
     const u = getUser();
-    if (u) setUser({ firstName: u.firstName, lastName: u.lastName, phone: u.phone, role: 'Dispetcher' });
+    if (u) setUser({ firstName: u.firstName, lastName: u.lastName, phone: u.phone, role: t().dispatch.shell.roleDispatcher });
   }, []);
 
   useEffect(() => {
@@ -125,7 +128,7 @@ export function DispatchShell({
       .then((profile) => {
         setIsAdmin(profile.role === 'admin');
         setPermissions(profile.permissions);
-        if (profile.role === 'admin') setUser((u) => (u ? { ...u, role: 'Administrator' } : u));
+        if (profile.role === 'admin') setUser((u) => (u ? { ...u, role: t().dispatch.shell.roleAdmin } : u));
       })
       .catch(() => setPermissions([]));
   }, []);
@@ -168,7 +171,7 @@ export function DispatchShell({
   // Exceptions badge bound to the live count (danger only when > 0).
   const nav: NavGroup[] = useMemo(
     () =>
-      DISPATCH_NAV.map((group) => ({
+      dispatchNav().map((group) => ({
         ...group,
         items: group.items.map((item) =>
           item.href === EXCEPTIONS_HREF
@@ -193,7 +196,7 @@ export function DispatchShell({
   return (
     <DispatchDataProvider>
       <AppShell
-        brand={{ name: 'Angren Taxi', subtitle: 'Dispetcher', href: '/dispatch' }}
+        brand={{ name: 'Angren Taxi', subtitle: m.brandSubtitle, href: '/dispatch' }}
         nav={nav}
         can={can}
         user={user}
@@ -201,13 +204,13 @@ export function DispatchShell({
         initialCollapsed={initialCollapsed}
         collapseCookie={SIDEBAR_COOKIE}
         onSearch={handleSearch}
-        searchPlaceholder="Buyurtma, mijoz, telefon…"
+        searchPlaceholder={m.searchPlaceholder}
         mainClassName="overflow-hidden"
         live={<DispatchLiveSlot exceptionsCount={exceptionsCount} canSeeExceptions={canSeeExceptions} />}
         actions={
           canSeeExceptions ? (
             <IconButton
-              aria-label={exceptionsCount > 0 ? `Bildirishnomalar: ${exceptionsCount}` : 'Bildirishnomalar'}
+              aria-label={exceptionsCount > 0 ? m.notificationsCount(exceptionsCount) : m.notifications}
               badge={exceptionsCount > 0}
               onClick={() => router.push(EXCEPTIONS_HREF)}
             >

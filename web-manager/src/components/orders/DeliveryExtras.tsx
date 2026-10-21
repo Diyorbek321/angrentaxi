@@ -7,6 +7,7 @@ import {
   type OrderV5Fields,
 } from '@/lib/order-extras';
 import { DetailCard } from '@/components/ui/KeyValue';
+import { t } from '@/locales';
 import { AddressDetailsBlock, CustomerCancelNotice, DiscountLines } from './OrderExtras';
 
 /**
@@ -38,7 +39,7 @@ export function DeliveryExtrasContent({ order }: { order: Order }) {
 export function DeliveryExtrasCard({ order, className }: { order: Order; className?: string }) {
   if (!deliveryExtras(order).hasContent) return null;
   return (
-    <DetailCard title="Yetkazish tafsilotlari" className={className}>
+    <DetailCard title={t().orders.extras.deliveryDetails} className={className}>
       <DeliveryExtrasContent order={order} />
     </DetailCard>
   );

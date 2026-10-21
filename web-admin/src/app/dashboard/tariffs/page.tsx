@@ -20,8 +20,11 @@ import { tariffsApi, tariffChangeRequestsApi, type Tariff, type TariffChangeRequ
 import { useToast } from '@/components/ui/Toast';
 import { formatDateShort, formatMoney } from '@/lib/format';
 import { meteredPriceLabel } from '@/lib/metered-price';
+import { t } from '@/locales';
 
 export default function TariffsPage() {
+  const m = t();
+  const tm = m.tariffs.page;
   const { toast } = useToast();
   const [tariffs, setTariffs] = useState<Tariff[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,7 +45,7 @@ export default function TariffsPage() {
       setTariffs(res.data.data);
       setLoadError(null);
     } catch {
-      setLoadError('Tariflarni yuklashda xatolik');
+      setLoadError(t().tariffs.page.loadError);
     } finally {
       setIsLoading(false);
     }
@@ -55,7 +58,7 @@ export default function TariffsPage() {
       setRequests(res.data.data);
       setRequestsError(null);
     } catch {
-      setRequestsError('Takliflarni yuklashda xatolik');
+      setRequestsError(t().tariffs.page.requestsLoadError);
     } finally {
       setRequestsLoading(false);
     }
@@ -83,9 +86,9 @@ export default function TariffsPage() {
     try {
       const res = await tariffsApi.toggleActive(tariff.id, !tariff.isActive);
       replaceTariff(res.data.data);
-      toast({ title: res.data.data.isActive ? 'Tarif yoqildi' : "Tarif o'chirildi", variant: 'success' });
+      toast({ title: res.data.data.isActive ? tm.enabled : tm.disabled, variant: 'success' });
     } catch {
-      toast({ title: 'Xatolik', description: "Holatni o'zgartirib bo'lmadi", variant: 'error' });
+      toast({ title: m.common.error, description: m.common.statusChangeFailed, variant: 'error' });
     } finally {
       setTogglingId(null);
     }
@@ -96,7 +99,7 @@ export default function TariffsPage() {
     setDeleting(true);
     try {
       await tariffsApi.delete(deleteTarget.id);
-      toast({ title: "Tarif o'chirildi", variant: 'success' });
+      toast({ title: tm.deleted, variant: 'success' });
       setDeleteTarget(null);
       await fetchTariffs();
     } catch (err) {
@@ -104,8 +107,8 @@ export default function TariffsPage() {
       // active one of its service) — show that, not a generic failure.
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "Tarifni o'chirishda xatolik";
-      toast({ title: "O'chirib bo'lmadi", description: message, variant: 'error' });
+        tm.deleteError;
+      toast({ title: tm.deleteFailed, description: message, variant: 'error' });
     } finally {
       setDeleting(false);
     }
@@ -116,7 +119,7 @@ export default function TariffsPage() {
   const columns: DataTableColumn<Tariff>[] = [
     {
       key: 'name',
-      header: 'Tarif',
+      header: tm.colTariff,
       cell: (t) => (
         <div className="min-w-0 max-w-[240px]">
           <p className={t.isActive ? 'truncate font-medium text-ink' : 'truncate font-medium text-muted'}>{t.name}</p>
@@ -126,7 +129,7 @@ export default function TariffsPage() {
     },
     {
       key: 'status',
-      header: 'Holati',
+      header: m.common.statusAlt,
       cell: (t) => (
         <div className="flex items-center gap-2">
           <Switch
@@ -134,19 +137,19 @@ export default function TariffsPage() {
             checked={t.isActive}
             disabled={togglingId === t.id}
             onCheckedChange={() => handleToggle(t)}
-            aria-label={`${t.name} tarifini ${t.isActive ? 'faolsizlantirish' : 'faollashtirish'}`}
+            aria-label={tm.toggleAria(t.name, t.isActive)}
           />
-          <Badge variant={t.isActive ? 'success' : 'neutral'}>{t.isActive ? 'Faol' : 'Nofaol'}</Badge>
+          <Badge variant={t.isActive ? 'success' : 'neutral'}>{t.isActive ? m.common.active : m.common.inactive}</Badge>
         </div>
       ),
     },
-    { key: 'basePrice', header: "Boshlang'ich", numeric: true, cell: (t) => <MoneyText value={t.basePrice} /> },
-    { key: 'minPrice', header: 'Minimum', numeric: true, cell: (t) => <MoneyText value={t.minPrice} /> },
-    { key: 'pricePerKm', header: '1 km', numeric: true, cell: (t) => <MoneyText value={t.pricePerKm} /> },
-    { key: 'pricePerMin', header: '1 daqiqa', numeric: true, cell: (t) => <MoneyText value={t.pricePerMin} /> },
+    { key: 'basePrice', header: tm.colBase, numeric: true, cell: (t) => <MoneyText value={t.basePrice} /> },
+    { key: 'minPrice', header: tm.colMin, numeric: true, cell: (t) => <MoneyText value={t.minPrice} /> },
+    { key: 'pricePerKm', header: tm.colKm, numeric: true, cell: (t) => <MoneyText value={t.pricePerKm} /> },
+    { key: 'pricePerMin', header: tm.colMin1, numeric: true, cell: (t) => <MoneyText value={t.pricePerMin} /> },
     {
       key: 'metered',
-      header: 'Taksometr km',
+      header: tm.colMetered,
       numeric: true,
       hideBelow: 'xl',
       cell: (t) =>
@@ -158,39 +161,39 @@ export default function TariffsPage() {
     },
     {
       key: 'maxPrice',
-      header: 'Maksimum',
+      header: tm.colMax,
       numeric: true,
       hideBelow: 'xl',
-      cell: (t) => (t.maxPrice != null ? <MoneyText value={t.maxPrice} /> : <span className="text-muted">Cheklanmagan</span>),
+      cell: (t) => (t.maxPrice != null ? <MoneyText value={t.maxPrice} /> : <span className="text-muted">{tm.unlimited}</span>),
     },
     {
       key: 'surge',
-      header: 'Talab koef.',
+      header: tm.colSurge,
       hideBelow: 'xl',
       numeric: true,
       cell: (t) => <SurgeCell tariff={t} onSaved={replaceTariff} />,
     },
     {
       key: 'updatedAt',
-      header: 'Yangilangan',
+      header: tm.colUpdated,
       hideBelow: 'xl',
       className: 'num whitespace-nowrap text-muted',
       cell: (t) => formatDateShort(t.updatedAt),
     },
     {
       key: 'actions',
-      header: <span className="sr-only">Amallar</span>,
+      header: <span className="sr-only">{m.common.actions}</span>,
       align: 'right',
       width: 'w-20',
       cell: (t) => (
         <div className="flex items-center justify-end gap-0.5">
-          <IconButton size="sm" aria-label={`${t.name} tarifini tahrirlash`} onClick={() => openEdit(t)}>
+          <IconButton size="sm" aria-label={tm.editAria(t.name)} onClick={() => openEdit(t)}>
             <Pencil aria-hidden />
           </IconButton>
           <IconButton
             size="sm"
             variant="danger-ghost"
-            aria-label={`${t.name} tarifini o'chirish`}
+            aria-label={tm.deleteAria(t.name)}
             onClick={() => setDeleteTarget(t)}
           >
             <Trash2 aria-hidden />
@@ -203,22 +206,22 @@ export default function TariffsPage() {
   return (
     <div className="px-4 sm:px-6 py-5">
       <PageHeader
-        title="Tariflar"
+        title={tm.title}
         description={
           tariffs.length > 0
-            ? `${tariffs.length} ta tarif · ${activeCount} tasi faol`
-            : 'Narx siyosatini boshqaring'
+            ? tm.summary(tariffs.length, activeCount)
+            : tm.descriptionEmpty
         }
         actions={
           <Button leftIcon={<Plus className="h-4 w-4" aria-hidden="true" />} onClick={openCreate}>
-            Yangi tarif
+            {tm.newTariff}
           </Button>
         }
       />
 
       <div className="space-y-5">
         <DataTable
-          ariaLabel="Tariflar ro'yxati"
+          ariaLabel={tm.tableAria}
           columns={columns}
           rows={tariffs}
           rowKey={(t) => t.id}
@@ -228,11 +231,11 @@ export default function TariffsPage() {
           rowClassName={(t) => (t.isActive ? undefined : 'bg-surface-2/40')}
           empty={{
             variant: 'first-use',
-            title: "Tariflar yo'q",
-            description: 'Narx siyosati birinchi tarifdan boshlanadi.',
+            title: tm.empty,
+            description: tm.emptyHint,
             action: (
               <Button size="sm" onClick={openCreate}>
-                Birinchi tarifni yarating
+                {tm.createFirst}
               </Button>
             ),
           }}
@@ -259,12 +262,12 @@ export default function TariffsPage() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
         isPending={deleting}
-        title="Tarifni o'chirish"
-        confirmLabel="O'chirish"
+        title={tm.deleteTitle}
+        confirmLabel={tm.deleteConfirm}
         description={
           <>
-            <strong className="text-ink">{deleteTarget?.name}</strong> tarifini o&apos;chirmoqchimisiz? Bu amalni
-            bekor qilib bo&apos;lmaydi.
+            <strong className="text-ink">{deleteTarget?.name}</strong>
+            {tm.deleteQuestion}
           </>
         }
       />

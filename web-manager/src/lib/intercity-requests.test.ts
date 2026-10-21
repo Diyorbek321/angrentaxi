@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   INTERCITY_REQUEST_STATUSES,
   INTERCITY_REQUEST_STATUS_BADGE,
-  INTERCITY_REQUEST_STATUS_LABELS,
+  intercityRequestStatusLabels,
   formatRequestWindow,
   requestKindLabel,
   requestRouteName,
@@ -31,7 +31,7 @@ describe('formatRequestWindow', () => {
 describe('yorliqlar', () => {
   it('har holatda yorliq va badge bor', () => {
     for (const status of INTERCITY_REQUEST_STATUSES) {
-      expect(INTERCITY_REQUEST_STATUS_LABELS[status]).toBeTruthy();
+      expect(intercityRequestStatusLabels()[status]).toBeTruthy();
       expect(INTERCITY_REQUEST_STATUS_BADGE[status]).toBeTruthy();
     }
   });

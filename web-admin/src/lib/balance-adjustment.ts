@@ -5,19 +5,21 @@
  */
 import { apiErrorDetailNumber, apiErrorMessage, parseApiError } from './api-error';
 import { formatMoney } from './format';
+import { t } from '@/locales';
 
 /** Backend DTO chegarasi (admin uchun ham). */
 export const BALANCE_ADJUSTMENT_MAX = 5_000_000;
 
 /** Kiritilgan summani tekshiradi; to'g'ri bo'lsa `null`. */
 export function validateBalanceAdjustment(raw: string): string | null {
+  const m = t().drivers.balance;
   const text = raw.trim();
-  if (!text) return 'Noldan farqli summa kiriting';
+  if (!text) return m.nonZero;
   const amount = Number(text);
-  if (Number.isNaN(amount) || amount === 0) return 'Noldan farqli summa kiriting';
-  if (!Number.isInteger(amount)) return 'Summa butun soʻmda boʻlishi kerak';
+  if (Number.isNaN(amount) || amount === 0) return m.nonZero;
+  if (!Number.isInteger(amount)) return m.wholeSum;
   if (Math.abs(amount) > BALANCE_ADJUSTMENT_MAX) {
-    return `Bitta tuzatish ${formatMoney(BALANCE_ADJUSTMENT_MAX)} dan oshmasligi kerak`;
+    return m.maxSingle(formatMoney(BALANCE_ADJUSTMENT_MAX));
   }
   return null;
 }
@@ -26,9 +28,8 @@ export function validateBalanceAdjustment(raw: string): string | null {
 export function manualAdjustmentLimitMessage(err: unknown): string | null {
   if (parseApiError(err).code !== 'MANUAL_ADJUSTMENT_LIMIT') return null;
   const limit = apiErrorDetailNumber(err, 'limit');
-  return limit == null
-    ? 'Bu summa menejer chegarasidan katta. Admin bilan bogʻlaning.'
-    : `Menejer bitta tuzatishda koʻpi bilan ${formatMoney(limit)} oʻzgartira oladi. Kattaroq summa uchun admin bilan bogʻlaning.`;
+  const m = t().drivers.balance;
+  return limit == null ? m.managerLimitUnknown : m.managerLimit(formatMoney(limit));
 }
 
 /** Tuzatish xatosi uchun foydalanuvchi matni (kod → aniq matn, aks holda server/zaxira). */

@@ -12,21 +12,30 @@ import { sanitizeNextPath } from '@/lib/route-guard';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { LanguageToggle } from '@/components/ui';
 import { cn } from '@/components/ui/cn';
 import { formatPhone } from '@/lib/format';
+import { t } from '@/locales';
 
-const phoneSchema = z.object({
-  phone: z.string().min(9, 'Telefon raqamini kiriting'),
-});
+// Sxemalar funksiya ichida: xabarlar joriy tilda (chaqirilgan paytda) olinadi.
+function phoneSchema() {
+  return z.object({
+    phone: z.string().min(9, t().orders.login.phoneRequired),
+  });
+}
 
-const otpSchema = z.object({
-  code: z.string().length(6, '6 raqamli kod kiriting').regex(/^\d+$/, 'Faqat raqamlar'),
-});
+function otpSchema() {
+  const m = t().orders.login;
+  return z.object({
+    code: z.string().length(6, m.codeLength).regex(/^\d+$/, m.digitsOnly),
+  });
+}
 
-type PhoneForm = z.infer<typeof phoneSchema>;
-type OtpForm = z.infer<typeof otpSchema>;
+type PhoneForm = z.infer<ReturnType<typeof phoneSchema>>;
+type OtpForm = z.infer<ReturnType<typeof otpSchema>>;
 
 export default function LoginPage() {
+  const m = t().orders.login;
   const router = useRouter();
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [phone, setPhone] = useState('');
@@ -52,12 +61,12 @@ export default function LoginPage() {
   }, [router]);
 
   const phoneForm = useForm<PhoneForm>({
-    resolver: zodResolver(phoneSchema),
+    resolver: zodResolver(phoneSchema()),
     defaultValues: { phone: '' },
   });
 
   const otpForm = useForm<OtpForm>({
-    resolver: zodResolver(otpSchema),
+    resolver: zodResolver(otpSchema()),
     defaultValues: { code: '' },
   });
 
@@ -73,7 +82,7 @@ export default function LoginPage() {
         otpForm.setValue('code', res.code);
       }
     } catch {
-      setAuthError('Kod yuborishda xatolik. Raqamni tekshiring.');
+      setAuthError(m.sendFailed);
     }
   };
 
@@ -90,7 +99,7 @@ export default function LoginPage() {
       setAuthError(
         err instanceof Error && err.message
           ? err.message
-          : 'Notoʻgʻri kod. Qaytadan urinib koʻring.'
+          : m.invalidCode
       );
     }
   };
@@ -99,7 +108,8 @@ export default function LoginPage() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-bg px-4 py-10">
-      <div className="absolute right-4 top-4">
+      <div className="absolute right-4 top-4 flex items-center gap-2">
+        <LanguageToggle />
         <ThemeToggle />
       </div>
 
@@ -113,7 +123,7 @@ export default function LoginPage() {
           </span>
           <div>
             <p className="text-title text-ink">Angren Taxi</p>
-            <p className="text-[13px] text-muted">Dispetcher paneli</p>
+            <p className="text-[13px] text-muted">{m.panelName}</p>
           </div>
         </div>
 
@@ -129,15 +139,15 @@ export default function LoginPage() {
                 )}
               />
             </div>
-            <p className="num mt-2 text-xs text-subtle">{stepIndex}-qadam / 2</p>
+            <p className="num mt-2 text-xs text-subtle">{m.step(stepIndex)}</p>
           </div>
 
           <div className="mb-5">
-            <h1 className="text-h2 text-ink">{step === 'phone' ? 'Panelga kirish' : 'Tasdiqlash kodi'}</h1>
+            <h1 className="text-h2 text-ink">{step === 'phone' ? m.titlePhone : m.titleOtp}</h1>
             <p className="mt-1 text-[13px] leading-relaxed text-muted">
               {step === 'phone'
-                ? 'Telefon raqamingizni kiriting — SMS orqali bir martalik kod yuboramiz.'
-                : `${formatPhone(phone)} raqamiga yuborilgan 6 raqamli kodni kiriting.`}
+                ? m.hintPhone
+                : m.hintOtp(formatPhone(phone))}
             </p>
           </div>
 
@@ -154,7 +164,7 @@ export default function LoginPage() {
           {step === 'phone' ? (
             <form onSubmit={phoneForm.handleSubmit(handleSendOtp)} className="space-y-4" noValidate>
               <Input
-                label="Telefon raqam"
+                label={m.phoneLabel}
                 type="tel"
                 autoComplete="tel"
                 autoFocus
@@ -172,13 +182,13 @@ export default function LoginPage() {
                 className="w-full"
                 rightIcon={<ArrowRight size={15} aria-hidden="true" />}
               >
-                Kod yuborish
+                {m.sendCode}
               </Button>
             </form>
           ) : (
             <form onSubmit={otpForm.handleSubmit(handleVerifyOtp)} className="space-y-4" noValidate>
               <Input
-                label="Tasdiqlash kodi"
+                label={m.titleOtp}
                 type="text"
                 inputMode="numeric"
                 autoFocus
@@ -194,8 +204,8 @@ export default function LoginPage() {
                   reserved for manual override alone. */}
               {devOtpCode && (
                 <div className="rounded-ds-sm border border-info/30 bg-info-tint px-3 py-2 text-[13px] text-info-dark dark:text-info-light">
-                  <span className="font-semibold">TEST:</span> OTP kod —{' '}
-                  <span className="font-mono font-semibold">{devOtpCode}</span> (avtomatik kiritildi)
+                  <span className="font-semibold">TEST:</span> {m.devOtp}{' '}
+                  <span className="font-mono font-semibold">{devOtpCode}</span> {m.devOtpAuto}
                 </div>
               )}
               <Button
@@ -206,7 +216,7 @@ export default function LoginPage() {
                 className="w-full"
                 rightIcon={<ArrowRight size={15} aria-hidden="true" />}
               >
-                Kirish
+                {m.submit}
               </Button>
               <Button
                 type="button"
@@ -218,13 +228,13 @@ export default function LoginPage() {
                   setAuthError(null);
                 }}
               >
-                Raqamni oʻzgartirish
+                {m.changePhone}
               </Button>
             </form>
           )}
         </div>
 
-        <p className="mt-6 text-center text-xs text-subtle">Angren Taxi · Dispetcher paneli</p>
+        <p className="mt-6 text-center text-xs text-subtle">Angren Taxi · {m.panelName}</p>
       </main>
     </div>
   );

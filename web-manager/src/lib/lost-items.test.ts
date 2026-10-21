@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isFinal, LOST_ITEM_STATUS_LABEL, needsDispatcher } from './lost-items';
+import { isFinal, lostItemStatusLabels, needsDispatcher } from './lost-items';
 
 describe('lost item states', () => {
   it('a found item needs the dispatcher to arrange the handover', () => {
@@ -15,7 +15,7 @@ describe('lost item states', () => {
 
   it('every status has a label', () => {
     for (const s of ['open', 'found', 'not_found', 'returned', 'closed'] as const) {
-      expect(LOST_ITEM_STATUS_LABEL[s]).toBeTruthy();
+      expect(lostItemStatusLabels()[s]).toBeTruthy();
     }
   });
 });

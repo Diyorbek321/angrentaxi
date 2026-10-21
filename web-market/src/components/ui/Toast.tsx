@@ -13,6 +13,7 @@ import {
 } from 'react';
 import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
 import { cn } from './cn';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 /**
  * Non-blocking feedback for routine actions. Bottom-right, 4s, optional
@@ -57,12 +58,10 @@ const variantIcons: Record<ToastVariant, ReactNode> = {
   info: <Info size={16} className="text-info shrink-0 mt-px" aria-hidden />,
 };
 
-const variantSr: Record<ToastVariant, string> = {
-  default: '',
-  success: 'Muvaffaqiyatli: ',
-  error: 'Xato: ',
-  info: 'Maʼlumot: ',
-};
+/** Screen-reader prefix; read at render time so it follows the active locale. */
+function variantSr(variant: ToastVariant): string {
+  return variant === 'default' ? '' : kitT().toast[variant];
+}
 
 const ToastContext = createContext<ToastContextValue>({ toast: () => {}, dismiss: () => {} });
 
@@ -97,7 +96,7 @@ function ToastCard({ item, onDismiss }: { item: ToastItem; onDismiss: (id: strin
       {variantIcons[variant]}
       <div className="min-w-0 flex-1">
         <p className="text-[13px] font-semibold text-ink">
-          <span className="sr-only">{variantSr[variant]}</span>
+          <span className="sr-only">{variantSr(variant)}</span>
           {item.title}
         </p>
         {item.description && <p className="text-[13px] text-muted mt-0.5 break-words">{item.description}</p>}
@@ -117,7 +116,7 @@ function ToastCard({ item, onDismiss }: { item: ToastItem; onDismiss: (id: strin
       </div>
       <button
         type="button"
-        aria-label="Yopish"
+        aria-label={kitT().common.close}
         onClick={() => onDismiss(item.id)}
         className="absolute right-2 top-2 h-6 w-6 inline-flex items-center justify-center rounded-ds-xs text-subtle transition-colors hover:text-ink hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
       >
@@ -149,7 +148,7 @@ export function ToastContextProvider({ children }: { children: ReactNode }) {
       {children}
       <div
         aria-live="polite"
-        aria-label="Bildirishnomalar"
+        aria-label={kitT().toast.region}
         className="pointer-events-none fixed bottom-0 right-0 z-[100] flex max-h-screen w-full flex-col gap-2 p-4 sm:max-w-[380px]"
       >
         {toasts.map((t) => (

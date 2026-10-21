@@ -10,8 +10,9 @@ import { SettingsSection } from '@/components/settings/SettingsSection';
 import { useResource } from '@/hooks/useResource';
 import { financeSettingsApi, type ShiftPassSettings } from '@/lib/compliance-api';
 import { apiErrorMessage } from '@/lib/compliance';
-import { SERVICE_TYPE_LABELS, SHIFT_SERVICE_TYPES } from '@/lib/compliance-labels';
+import { serviceTypeLabels, SHIFT_SERVICE_TYPES } from '@/lib/compliance-labels';
 import { formatMoney } from '@/lib/format';
+import { t } from '@/locales';
 
 interface Form {
   enabled: boolean;
@@ -32,23 +33,27 @@ const toForm = (s: ShiftPassSettings): Form => ({
 const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
 
 function validate(f: Form): Errors {
+  const v = t().finance.shiftPass;
   const errors: Errors = {};
   const price = Number(f.price);
   const hours = Number(f.hours);
   if (!Number.isInteger(price) || price < 1000 || price > 10_000_000) {
-    errors.price = "1 000 dan 10 000 000 so'mgacha butun son";
+    errors.price = v.priceRange;
   }
-  if (!Number.isInteger(hours) || hours < 1 || hours > 168) errors.hours = '1 dan 168 soatgacha';
-  if (f.serviceTypes.length === 0) errors.serviceTypes = 'Kamida bitta xizmat turini tanlang';
+  if (!Number.isInteger(hours) || hours < 1 || hours > 168) errors.hours = v.hoursRange;
+  if (f.serviceTypes.length === 0) errors.serviceTypes = v.serviceTypesRequired;
   return errors;
 }
 
 /** Smena (kunlik obuna) — LEGAL-COMPLIANCE §8. */
 export function ShiftPassSettingsCard() {
+  const m = t();
+  const f = m.finance.shiftPass;
+  const labels = serviceTypeLabels();
   const { toast } = useToast();
   const res = useResource(
     () => financeSettingsApi.getShiftPass().then((r) => r.data.data),
-    'Smena sozlamalarini yuklab boʻlmadi.'
+    f.loadError
   );
   const [form, setForm] = useState<Form | null>(null);
   const [errors, setErrors] = useState<Errors>({});
@@ -88,9 +93,9 @@ export function ShiftPassSettingsCard() {
         shiftPassServiceTypes: form.serviceTypes,
       });
       res.setData(r.data.data);
-      toast({ title: 'Saqlandi', description: 'Smena sozlamalari yangilandi.', variant: 'success' });
+      toast({ title: m.finance.saved, description: f.savedDesc, variant: 'success' });
     } catch (err) {
-      toast({ title: 'Xatolik', description: apiErrorMessage(err, 'Saqlashda xatolik'), variant: 'error' });
+      toast({ title: m.common.error, description: apiErrorMessage(err, m.common.saveError), variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -105,12 +110,12 @@ export function ShiftPassSettingsCard() {
 
   return (
     <SettingsSection
-      title="Haydovchi smenasi"
-      description="Haydovchi har safar uchun komissiya oʻrniga kunlik smena sotib olishi mumkin: smena davomida tanlangan xizmatlarda komissiya 0%. 1% soliq baribir ushlanadi."
+      title={f.title}
+      description={f.description}
       badge={
         res.data ? (
           <Badge variant={res.data.shiftPassEnabled ? 'success' : 'neutral'} dot={res.data.shiftPassEnabled}>
-            {res.data.shiftPassEnabled ? 'Yoqilgan' : 'Oʻchiq'}
+            {res.data.shiftPassEnabled ? m.finance.enabled : m.finance.disabled}
           </Badge>
         ) : null
       }
@@ -129,16 +134,16 @@ export function ShiftPassSettingsCard() {
       {form && (
         <>
           <div className="flex items-center justify-between gap-4">
-            <p className="text-sm font-medium text-ink">Smena sotuvi</p>
+            <p className="text-sm font-medium text-ink">{f.sales}</p>
             <Switch
               checked={form.enabled}
               onCheckedChange={(v) => update({ enabled: v })}
-              aria-label="Smena sotuvi"
+              aria-label={f.sales}
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
-              label="Narxi, soʻm"
+              label={f.priceLabel}
               type="number"
               inputMode="numeric"
               min={1000}
@@ -149,7 +154,7 @@ export function ShiftPassSettingsCard() {
               onChange={(e) => update({ price: e.target.value })}
             />
             <Input
-              label="Davomiyligi, soat"
+              label={f.hoursLabel}
               type="number"
               inputMode="numeric"
               min={1}
@@ -160,12 +165,12 @@ export function ShiftPassSettingsCard() {
             />
           </div>
           <fieldset>
-            <legend className="mb-2 text-[13px] font-medium text-ink">Smena qamraydigan xizmatlar</legend>
+            <legend className="mb-2 text-[13px] font-medium text-ink">{f.servicesLegend}</legend>
             <div className="flex flex-wrap gap-x-5 gap-y-2">
               {SHIFT_SERVICE_TYPES.map((type) => (
                 <Checkbox
                   key={type}
-                  label={SERVICE_TYPE_LABELS[type]}
+                  label={labels[type]}
                   checked={form.serviceTypes.includes(type)}
                   onCheckedChange={(on) => toggleType(type, on)}
                 />

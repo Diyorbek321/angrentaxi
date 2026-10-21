@@ -6,6 +6,8 @@ import { Driver } from '../../database/entities/driver.entity';
 import { DriverVerificationRequirement } from '../../database/entities/driver-verification-requirement.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { userLanguage } from '../notifications/push-text';
+import { localizeLegalDocument } from './legal-document-texts';
 import {
   DriverVerificationItem,
   DriverVerificationService,
@@ -149,7 +151,9 @@ export class DriverVerificationRemindersService {
       if (driver.user) {
         await this.notificationsService.notifyVerificationDue(
           driver.user,
-          due.map((item) => item.label),
+          // Taksi huquqiy hujjatlari nomi ruschaga tarjima qilinadi; boshqa
+          // talablar nomi bazada bitta tilda — o'zgarmaydi.
+          due.map((item) => localizeLegalDocument(item, userLanguage(driver.user)).label),
           hasOverdue,
         );
       }

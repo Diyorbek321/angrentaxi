@@ -20,16 +20,19 @@ import { useToast } from '@/components/ui/Toast';
 import { debounce } from '@/lib/utils';
 import { formatDateShort, formatDateTime, formatNumber, formatPhone, fullName } from '@/lib/format';
 import { downloadCsv } from '@/lib/csv';
-import { USER_ROLE_LABELS, UserRole } from '@/lib/constants';
+import { userRoleLabels, UserRole } from '@/lib/constants';
+import { t } from '@/locales';
 
-const ROLE_ITEMS = [
-  { value: 'all', label: 'Hammasi' },
-  { value: 'passenger', label: USER_ROLE_LABELS.passenger },
-  { value: 'driver', label: USER_ROLE_LABELS.driver },
-  { value: 'admin', label: USER_ROLE_LABELS.admin },
+const roleItems = () => [
+  { value: 'all', label: t().users.all },
+  { value: 'passenger', label: userRoleLabels().passenger },
+  { value: 'driver', label: userRoleLabels().driver },
+  { value: 'admin', label: userRoleLabels().admin },
 ];
 
 function UsersPageInner() {
+  const m = t();
+  const u0 = m.users;
   const { toast } = useToast();
   const searchParams = useSearchParams();
   // `?q=` — topbar qidiruvidan chuqur havola.
@@ -70,8 +73,8 @@ function UsersPageInner() {
       setError(null);
     } catch {
       // Oxirgi muvaffaqiyatli qatorlar ekranda qoladi; banner + retry chiqadi.
-      setError("Foydalanuvchilarni yuklab bo'lmadi");
-      toast({ title: 'Xatolik', description: 'Foydalanuvchilarni yuklashda xatolik', variant: 'error' });
+      setError(u0.loadError);
+      toast({ title: m.common.error, description: u0.loadErrorToast, variant: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -126,14 +129,14 @@ function UsersPageInner() {
   if (search) {
     chips.push({
       key: 'search',
-      label: `Qidiruv: "${search}"`,
+      label: u0.chipSearch(search),
       onRemove: () => { setSearchInput(''); setSearch(''); pagination.reset(); },
     });
   }
   if (role !== 'all') {
     chips.push({
       key: 'role',
-      label: `Rol: ${USER_ROLE_LABELS[role as UserRole] ?? role}`,
+      label: u0.chipRole(userRoleLabels()[role as UserRole] ?? role),
       onRemove: () => { setRole('all'); pagination.reset(); },
     });
   }
@@ -145,15 +148,15 @@ function UsersPageInner() {
     try {
       await usersApi.block(blockTarget.id, blockReason.trim() || undefined);
       toast({
-        title: 'Foydalanuvchi bloklandi',
-        description: `${fullName(blockTarget.firstName, blockTarget.lastName)} endi tizimga kira olmaydi.`,
+        title: u0.blocked,
+        description: u0.blockedDesc(fullName(blockTarget.firstName, blockTarget.lastName)),
         variant: 'success',
       });
       setBlockTarget(null);
       setBlockReason('');
       await fetchUsers();
     } catch {
-      toast({ title: 'Xatolik', description: 'Bloklashda xatolik', variant: 'error' });
+      toast({ title: m.common.error, description: u0.blockFailed, variant: 'error' });
     } finally {
       setActionLoading(false);
     }
@@ -171,44 +174,44 @@ function UsersPageInner() {
         prev.map((u) => (u.id === user.id ? { ...u, status: 'active', blockReason: null } : u))
       );
       toast({
-        title: 'Blokdan chiqarildi',
-        description: `${name} yana tizimga kira oladi.`,
+        title: u0.unblocked,
+        description: u0.unblockedDesc(name),
         variant: 'success',
         action: {
-          label: 'Qaytarish',
-          altText: 'Blokni qaytarish',
+          label: u0.undo,
+          altText: u0.undoAlt,
           onClick: async () => {
             try {
               await usersApi.block(user.id, prevReason);
-              toast({ title: 'Blok qaytarildi', description: `${name} yana bloklandi.`, variant: 'info' });
+              toast({ title: u0.reblocked, description: u0.reblockedDesc(name), variant: 'info' });
               await fetchUsers();
             } catch {
-              toast({ title: 'Xatolik', description: "Blokni qaytarib bo'lmadi", variant: 'error' });
+              toast({ title: m.common.error, description: u0.reblockFailed, variant: 'error' });
             }
           },
         },
       });
     } catch {
-      toast({ title: 'Xatolik', description: "Blokdan chiqarib bo'lmadi", variant: 'error' });
+      toast({ title: m.common.error, description: u0.unblockFailed, variant: 'error' });
     }
   };
 
   const handleExportCsv = () => {
     if (sortedUsers.length === 0) return;
     downloadCsv<User>(
-      `foydalanuvchilar-${new Date().toISOString().slice(0, 10)}.csv`,
+      u0.csvFile(new Date().toISOString().slice(0, 10)),
       [
-        { header: 'Ism', value: (u) => fullName(u.firstName, u.lastName) },
-        { header: 'Telefon', value: (u) => u.phone },
-        { header: 'Rol', value: (u) => USER_ROLE_LABELS[u.role as UserRole] ?? u.role },
-        { header: 'Holat', value: (u) => (u.status === 'active' ? 'Faol' : 'Bloklangan') },
-        { header: 'Blok sababi', value: (u) => u.blockReason ?? '' },
-        { header: "Ro'yxatdan o'tgan", value: (u) => formatDateTime(u.createdAt, { withYear: true }) },
-        { header: 'Buyurtmalar', value: (u) => u.totalOrders ?? '' },
+        { header: u0.colName, value: (u) => fullName(u.firstName, u.lastName) },
+        { header: u0.colPhone, value: (u) => u.phone },
+        { header: u0.colRole, value: (u) => userRoleLabels()[u.role as UserRole] ?? u.role },
+        { header: u0.colStatus, value: (u) => (u.status === 'active' ? u0.statusActive : u0.statusBlocked) },
+        { header: u0.colBlockReason, value: (u) => u.blockReason ?? '' },
+        { header: u0.colRegistered, value: (u) => formatDateTime(u.createdAt, { withYear: true }) },
+        { header: u0.colOrders, value: (u) => u.totalOrders ?? '' },
       ],
       sortedUsers
     );
-    toast({ title: 'CSV yuklab olindi', description: `${sortedUsers.length} ta qator`, variant: 'success' });
+    toast({ title: u0.csvDone, description: u0.csvRows(sortedUsers.length), variant: 'success' });
   };
 
   const closeBlock = () => {
@@ -219,7 +222,7 @@ function UsersPageInner() {
   const columns: DataTableColumn<User>[] = [
     {
       key: 'name',
-      header: 'Foydalanuvchi',
+      header: u0.colUser,
       sortable: true,
       cell: (u) => (
         <div className="flex items-center gap-2.5 min-w-0">
@@ -228,20 +231,20 @@ function UsersPageInner() {
         </div>
       ),
     },
-    { key: 'phone', header: 'Telefon', className: 'num whitespace-nowrap text-muted', cell: (u) => formatPhone(u.phone) },
+    { key: 'phone', header: u0.colPhone, className: 'num whitespace-nowrap text-muted', cell: (u) => formatPhone(u.phone) },
     {
       key: 'role',
-      header: 'Rol',
-      cell: (u) => <Badge variant="neutral">{USER_ROLE_LABELS[u.role as UserRole] ?? u.role}</Badge>,
+      header: u0.colRole,
+      cell: (u) => <Badge variant="neutral">{userRoleLabels()[u.role as UserRole] ?? u.role}</Badge>,
     },
     {
       key: 'status',
-      header: 'Holat',
+      header: u0.colStatus,
       sortable: true,
       cell: (u) => (
         <span className="inline-flex items-center gap-2 min-w-0">
           <Badge variant={u.status === 'active' ? 'success' : 'danger'} dot>
-            {u.status === 'active' ? 'Faol' : 'Bloklangan'}
+            {u.status === 'active' ? u0.statusActive : u0.statusBlocked}
           </Badge>
           {u.status === 'blocked' && u.blockReason && (
             <span className="max-w-[160px] truncate text-xs text-subtle" title={u.blockReason}>
@@ -253,7 +256,7 @@ function UsersPageInner() {
     },
     {
       key: 'createdAt',
-      header: "Ro'yxatdan o'tgan",
+      header: u0.colRegistered,
       sortable: true,
       hideBelow: 'xl',
       className: 'num whitespace-nowrap text-muted',
@@ -261,7 +264,7 @@ function UsersPageInner() {
     },
     {
       key: 'totalOrders',
-      header: 'Buyurtmalar',
+      header: u0.colOrders,
       numeric: true,
       sortable: true,
       hideBelow: 'xl',
@@ -269,7 +272,7 @@ function UsersPageInner() {
     },
     {
       key: 'action',
-      header: <span className="sr-only">Amal</span>,
+      header: <span className="sr-only">{u0.colAction}</span>,
       align: 'right',
       cell: (u) =>
         u.status === 'active' ? (
@@ -279,7 +282,7 @@ function UsersPageInner() {
             onClick={() => setBlockTarget(u)}
             leftIcon={<ShieldOff className="h-3.5 w-3.5" aria-hidden="true" />}
           >
-            Bloklash
+            {u0.block}
           </Button>
         ) : (
           <Button
@@ -288,7 +291,7 @@ function UsersPageInner() {
             onClick={() => handleUnblock(u)}
             leftIcon={<Shield className="h-3.5 w-3.5" aria-hidden="true" />}
           >
-            Blokdan chiqarish
+            {u0.unblock}
           </Button>
         ),
     },
@@ -297,8 +300,8 @@ function UsersPageInner() {
   return (
     <div className="px-4 sm:px-6 py-5">
       <PageHeader
-        title="Foydalanuvchilar"
-        description={`Jami: ${formatNumber(pagination.total)} ta`}
+        title={u0.title}
+        description={u0.total(formatNumber(pagination.total))}
         actions={
           <Button
             variant="secondary"
@@ -306,13 +309,13 @@ function UsersPageInner() {
             disabled={sortedUsers.length === 0}
             leftIcon={<Download className="h-4 w-4" aria-hidden="true" />}
           >
-            CSV eksport
+            {u0.exportCsv}
           </Button>
         }
       />
 
       <DataTable
-        ariaLabel="Foydalanuvchilar"
+        ariaLabel={u0.title}
         columns={columns}
         rows={sortedUsers}
         rowKey={(u) => u.id}
@@ -326,30 +329,30 @@ function UsersPageInner() {
           <FilterBar
             search={searchInput}
             onSearchChange={handleSearchChange}
-            searchPlaceholder="Telefon, ism yoki familiya…"
-            searchAriaLabel="Foydalanuvchilarni qidirish"
+            searchPlaceholder={u0.searchPlaceholder}
+            searchAriaLabel={u0.searchAria}
             chips={chips}
             onClearAll={clearAllFilters}
           >
             <SegmentedControl
-              items={ROLE_ITEMS}
+              items={roleItems()}
               value={role}
               onChange={(v) => {
                 setRole(v);
                 pagination.reset();
               }}
-              ariaLabel="Rol boʻyicha filtr"
+              ariaLabel={u0.roleFilter}
             />
           </FilterBar>
         }
         isFiltered={hasActiveFilters}
         onClearFilters={clearAllFilters}
-        emptyFiltered={{ title: 'Hech narsa mos kelmadi', description: "Tanlangan filtrlar bo'yicha foydalanuvchi topilmadi." }}
+        emptyFiltered={{ title: u0.noMatchTitle, description: u0.noMatchDesc }}
         empty={{
           variant: 'first-use',
           icon: <UsersIcon aria-hidden />,
-          title: "Hozircha foydalanuvchi yo'q",
-          description: "Ilovada ro'yxatdan o'tgan foydalanuvchilar shu jadvalda ko'rinadi.",
+          title: u0.emptyTitle,
+          description: u0.emptyDesc,
         }}
         pagination={{
           page: pagination.page,
@@ -369,18 +372,17 @@ function UsersPageInner() {
         isOpen={!!blockTarget}
         onClose={closeBlock}
         tone="danger"
-        title="Foydalanuvchini bloklash"
+        title={u0.blockTitle}
         description={
           <>
             <strong className="text-ink">{fullName(blockTarget?.firstName, blockTarget?.lastName)}</strong>{' '}
-            bloklanadi: tizimga kira olmaydi va yangi buyurtma bera olmaydi. Keyin istalgan payt blokdan
-            chiqarish mumkin.
+            {u0.blockBody}
           </>
         }
         footer={
           <>
             <Button variant="secondary" onClick={closeBlock} disabled={actionLoading}>
-              Bekor qilish
+              {m.common.cancel}
             </Button>
             <Button
               variant="danger"
@@ -388,14 +390,14 @@ function UsersPageInner() {
               onClick={handleBlock}
               leftIcon={<ShieldOff className="h-3.5 w-3.5" aria-hidden="true" />}
             >
-              Bloklash
+              {u0.block}
             </Button>
           </>
         }
       >
         <Input
-          label="Sabab (ixtiyoriy)"
-          placeholder="Masalan: qoidabuzarlik, spam..."
+          label={u0.reason}
+          placeholder={u0.reasonPlaceholder}
           value={blockReason}
           onChange={(e) => setBlockReason(e.target.value)}
         />

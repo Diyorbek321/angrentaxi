@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { cn } from '../ui/cn';
 import { formatNumber } from '@/lib/format';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 export interface LiveMetricProps {
   icon?: ReactNode;
@@ -54,7 +55,7 @@ export function LiveMetric({ icon, value, label, loading = false, tone = 'neutra
     href && 'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus',
     className
   );
-  const a11y = `${label}: ${loading ? 'yuklanmoqda' : formatNumber(value ?? null)}`;
+  const a11y = `${label}: ${loading ? kitT().live.metricLoading : formatNumber(value ?? null)}`;
   return href ? (
     <Link href={href} title={label} aria-label={a11y} className={cls}>
       {body}

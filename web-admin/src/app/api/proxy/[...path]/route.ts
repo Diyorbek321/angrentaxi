@@ -4,6 +4,14 @@ import { clientIpHeaders } from "@/lib/server/client-ip";
 import { ACCESS_TOKEN_COOKIE } from "@/lib/server/auth-cookies";
 import { crossOriginRejection, isSameOrigin } from "@/lib/server/same-origin";
 import { cacheControlFor } from "@/lib/server/proxy-cache";
+import { getServerLocale } from "@/lib/i18n/server";
+import { t } from "@/locales";
+
+/** Cookie'dagi tilda xabarlar (route handler — so'rov paytida chaqiriladi). */
+function routeMessages() {
+  getServerLocale();
+  return t().shell;
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -89,7 +97,7 @@ async function forward(
     });
   } catch {
     return NextResponse.json(
-      { success: false, message: "Serverga ulanib boʻlmadi" },
+      { success: false, message: routeMessages().route.serverUnreachable },
       { status: 502 },
     );
   }

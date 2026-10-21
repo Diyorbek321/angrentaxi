@@ -1,3 +1,5 @@
+import { t } from '@/locales';
+
 export const ORDER_STATUS = {
   CREATED: 'created',
   SEARCHING: 'searching',
@@ -29,15 +31,9 @@ export type PaymentMethod = (typeof PAYMENT_METHOD)[keyof typeof PAYMENT_METHOD]
 // Every user-facing status string lives here. Pages must read from these
 // maps rather than writing their own Uzbek text, so a wording change is a
 // one-line edit and the panel never drifts out of sync with itself.
-export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  created: 'Yaratildi',
-  searching: 'Qidirilmoqda',
-  accepted: 'Qabul qilindi',
-  arrived: 'Yetib keldi',
-  in_progress: 'Yoʻlda',
-  completed: 'Yakunlandi',
-  cancelled: 'Bekor qilindi',
-};
+export function orderStatusLabels(): Record<OrderStatus, string> {
+  return t().lib.orderStatus;
+}
 
 /**
  * Status accent colour — the ONE lifecycle ramp, used identically by the feed
@@ -82,17 +78,13 @@ export const MAP_COLORS = {
   markerInk: '#06231A',
 } as const;
 
-export const DRIVER_STATUS_LABELS: Record<DriverStatus, string> = {
-  online: 'Boʻsh',
-  busy: 'Band',
-  offline: 'Oflayn',
-};
+export function driverStatusLabels(): Record<DriverStatus, string> {
+  return t().lib.driverStatus;
+}
 
-export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  cash: 'Naqd',
-  card: 'Karta',
-  wallet: 'Hamyon',
-};
+export function paymentMethodLabels(): Record<PaymentMethod, string> {
+  return t().lib.paymentMethod;
+}
 
 export const ACTIVE_ORDER_STATUSES: OrderStatus[] = [
   'created',

@@ -2,6 +2,7 @@
 'use client';
 
 import { RetryBanner } from './RetryBanner';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 export interface DataErrorBannerProps {
   message?: string | null;
@@ -15,7 +16,7 @@ export interface DataErrorBannerProps {
 export function DataErrorBanner({ message, onRetry, retrying = false, lastUpdatedAt, className }: DataErrorBannerProps) {
   return (
     <RetryBanner
-      title="Yangilab boʻlmadi"
+      title={kitT().retryBanner.refreshFailed}
       message={message}
       onRetry={onRetry}
       retrying={retrying}

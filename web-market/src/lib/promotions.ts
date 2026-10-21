@@ -1,4 +1,5 @@
 import { formatMoney } from './format';
+import { t } from '@/locales';
 
 /**
  * Vendor aksiyalari (chegirmalar) — docs/specs/food-market-ux-v5.md §4.
@@ -76,26 +77,21 @@ export const DESCRIPTION_MAX = 200;
 export const PERCENT_MIN = 1;
 export const PERCENT_MAX = 90;
 
-export const DISCOUNT_TYPE_LABEL: Record<DiscountType, string> = {
-  percent: 'Foiz (%)',
-  fixed: 'Summa (soʻm)',
-};
+export function discountTypeLabel(type: DiscountType): string {
+  return t().promotions.discountType[type];
+}
 
-export const SCOPE_LABEL: Record<PromotionScope, string> = {
-  all: 'Butun katalog',
-  category: 'Kategoriyalar',
-  items: 'Tanlangan pozitsiyalar',
-};
+export function scopeLabel(scope: PromotionScope): string {
+  return t().promotions.scope[scope];
+}
 
 // ─── Holat (segmentlar) ─────────────────────────────────────────────
 
 export type PromotionPhase = 'active' | 'scheduled' | 'ended';
 
-export const PHASE_LABEL: Record<PromotionPhase, string> = {
-  active: 'Faol',
-  scheduled: 'Rejalashtirilgan',
-  ended: 'Tugagan',
-};
+export function phaseLabel(phase: PromotionPhase): string {
+  return t().promotions.phase[phase];
+}
 
 const time = (iso: string | null | undefined): number => (iso ? new Date(iso).getTime() : NaN);
 
@@ -220,45 +216,46 @@ const isWholeNumber = (v: string) => /^\d+$/.test(v.trim());
  * `items` — vendorning katalogi (summa chegarasini tekshirish uchun).
  */
 export function validatePromotion(form: PromotionForm, items: readonly CatalogItem[] = []): PromotionFormErrors {
+  const m = t().promotions.validation;
   const errors: PromotionFormErrors = {};
   const title = form.title.trim();
-  if (!title) errors.title = 'Nomini kiriting';
-  else if (title.length > TITLE_MAX) errors.title = `Koʻpi bilan ${TITLE_MAX} ta belgi`;
+  if (!title) errors.title = m.titleRequired;
+  else if (title.length > TITLE_MAX) errors.title = m.maxChars(TITLE_MAX);
 
   if (form.description.trim().length > DESCRIPTION_MAX) {
-    errors.description = `Koʻpi bilan ${DESCRIPTION_MAX} ta belgi`;
+    errors.description = m.maxChars(DESCRIPTION_MAX);
   }
 
   const rawValue = form.discountValue.trim();
   const value = Number(rawValue);
-  if (!rawValue) errors.discountValue = 'Chegirma qiymatini kiriting';
-  else if (!isWholeNumber(rawValue)) errors.discountValue = 'Butun musbat son kiriting';
+  if (!rawValue) errors.discountValue = m.valueRequired;
+  else if (!isWholeNumber(rawValue)) errors.discountValue = m.wholePositive;
   else if (form.discountType === 'percent' && (value < PERCENT_MIN || value > PERCENT_MAX)) {
-    errors.discountValue = `Foiz ${PERCENT_MIN} dan ${PERCENT_MAX} gacha boʻlishi kerak`;
+    errors.discountValue = m.percentRange(PERCENT_MIN, PERCENT_MAX);
   } else if (form.discountType === 'fixed') {
-    if (value <= 0) errors.discountValue = 'Summa 0 dan katta boʻlishi kerak';
+    if (value <= 0) errors.discountValue = m.fixedPositive;
     else {
       const prices = coveredItems(form, items).map((i) => Number(i.price)).filter((p) => p > 0);
       const cheapest = prices.length > 0 ? Math.min(...prices) : null;
       if (cheapest != null && value >= cheapest) {
-        errors.discountValue = `Summa eng arzon pozitsiya narxidan (${formatMoney(cheapest)}) kichik boʻlishi kerak`;
+        errors.discountValue = m.fixedBelowCheapest(formatMoney(cheapest));
       }
     }
   }
 
-  if (form.scope === 'category' && form.categoryIds.length === 0) errors.categoryIds = 'Kamida bitta kategoriya tanlang';
-  if (form.scope === 'items' && form.itemIds.length === 0) errors.itemIds = 'Kamida bitta pozitsiya tanlang';
+  if (form.scope === 'category' && form.categoryIds.length === 0) errors.categoryIds = m.pickCategory;
+  if (form.scope === 'items' && form.itemIds.length === 0) errors.itemIds = m.pickItem;
 
   const min = form.minOrderAmount.trim();
-  if (min && !isWholeNumber(min)) errors.minOrderAmount = 'Butun musbat summa kiriting';
+  if (min && !isWholeNumber(min)) errors.minOrderAmount = m.wholeAmount;
 
   const starts = fromLocalInput(form.startsAt);
-  if (!starts) errors.startsAt = 'Boshlanish vaqtini kiriting';
+  if (!starts) errors.startsAt = m.startRequired;
   if (form.endsAt) {
     const ends = fromLocalInput(form.endsAt);
-    if (!ends) errors.endsAt = 'Sana notoʻgʻri';
+    if (!ends) errors.endsAt = m.badDate;
     else if (starts && new Date(ends).getTime() <= new Date(starts).getTime()) {
-      errors.endsAt = 'Tugash vaqti boshlanishdan keyin boʻlishi kerak';
+      errors.endsAt = m.endAfterStart;
     }
   }
   return errors;

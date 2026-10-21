@@ -5,6 +5,7 @@ import { ImagePlus, Trash2, Undo2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { Button } from '@/components/ui/Button';
 import { CATALOG_IMAGE_TYPES, ImageChange, validateCatalogImage } from '@/lib/catalog-image';
+import { t } from '@/locales';
 
 export interface ImagePickerProps {
   label: string;
@@ -27,6 +28,7 @@ export function ImagePicker({
   onChange,
   aspectClassName = 'aspect-[4/3]',
 }: ImagePickerProps) {
+  const m = t();
   const inputId = useId();
   const [error, setError] = useState<string | null>(null);
 
@@ -68,7 +70,7 @@ export function ImagePicker({
         ) : (
           <span className="flex flex-col items-center gap-1 text-xs">
             <ImagePlus size={24} aria-hidden />
-            Rasm tanlang — JPEG, PNG yoki WEBP
+            {m.image.pick}
           </span>
         )}
         <input
@@ -95,7 +97,7 @@ export function ImagePicker({
               onChange({ kind: 'keep' });
             }}
           >
-            Bekor qilish
+            {m.common.cancel}
           </Button>
         )}
         {previewSrc && (
@@ -106,7 +108,7 @@ export function ImagePicker({
             leftIcon={<Trash2 size={14} />}
             onClick={() => onChange(currentSrc ? { kind: 'remove' } : { kind: 'keep' })}
           >
-            Rasmni olib tashlash
+            {m.image.remove}
           </Button>
         )}
       </div>

@@ -5,10 +5,11 @@ import L from 'leaflet';
 import { useEffect } from 'react';
 import { Driver, Order } from '@/lib/api';
 import { MAP_COLORS } from '@/lib/constants';
-import { formatRating, shortId } from '@/lib/format';
+import { formatRating, shortId, nameFallback } from '@/lib/format';
 import { MAP_TILE_URL } from '@/lib/map-config';
 
 import 'leaflet/dist/leaflet.css';
+import { t } from '@/locales';
 
 // Default Angren city center — used when no driver locations are available yet.
 const DEFAULT_CENTER: [number, number] = [40.0956, 70.9432];
@@ -97,6 +98,8 @@ export default function DriverMapInner({ drivers, selectedOrder = null }: Driver
     : null;
 
   const routePoints = [pickup, dropoff].filter(Boolean) as [number, number][];
+  const m = t().dispatch.map;
+  const labels = t().lib.driverStatus;
 
   return (
     <MapContainer center={points[0] ?? DEFAULT_CENTER} zoom={13} className="h-full w-full">
@@ -117,12 +120,12 @@ export default function DriverMapInner({ drivers, selectedOrder = null }: Driver
         >
           <Popup>
             <div className="text-xs">
-              <p className="font-semibold">{driver.name || 'Ism kiritilmagan'}</p>
+              <p className="font-semibold">{driver.name || nameFallback()}</p>
               <p>
                 {driver.carModel} · {driver.carNumber}
               </p>
               <p>
-                {driver.currentOrderId ? 'Band' : 'Boʻsh'} · ⭐ {formatRating(driver.rating)}
+                {driver.currentOrderId ? labels.busy : labels.online} · ⭐ {formatRating(driver.rating)}
               </p>
             </div>
           </Popup>
@@ -140,7 +143,7 @@ export default function DriverMapInner({ drivers, selectedOrder = null }: Driver
         <Marker position={pickup} icon={PICKUP_ICON}>
           <Popup>
             <div className="text-xs">
-              <p className="font-semibold">Olib ketish</p>
+              <p className="font-semibold">{m.pickup}</p>
               <p>{selectedOrder?.pickupAddress ?? '—'}</p>
               <p>{selectedOrder ? shortId(selectedOrder.id) : ''}</p>
             </div>
@@ -152,7 +155,7 @@ export default function DriverMapInner({ drivers, selectedOrder = null }: Driver
         <Marker position={dropoff} icon={DROPOFF_ICON}>
           <Popup>
             <div className="text-xs">
-              <p className="font-semibold">Tashlab ketish</p>
+              <p className="font-semibold">{m.dropoff}</p>
               <p>{selectedOrder?.dropoffAddress ?? '—'}</p>
             </div>
           </Popup>

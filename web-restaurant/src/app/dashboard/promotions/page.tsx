@@ -3,9 +3,8 @@
 import { useCallback } from 'react';
 import { foodApi, promotionsApi } from '@/lib/api';
 import { PromotionsScreen } from '@/components/promotions/PromotionsScreen';
-import type { PromotionCatalog, PromotionVocabulary } from '@/components/promotions/types';
-
-const VOCAB: PromotionVocabulary = { item: 'taom', allItems: 'Butun menyu' };
+import type { PromotionCatalog } from '@/components/promotions/types';
+import { t } from '@/locales';
 
 /** Restoran aksiyalari — docs/specs/food-market-ux-v5.md §4. Katalog — mavjud menyu API'si. */
 export default function PromotionsPage() {
@@ -17,5 +16,5 @@ export default function PromotionsPage() {
     };
   }, []);
 
-  return <PromotionsScreen api={promotionsApi} loadCatalog={loadCatalog} vocab={VOCAB} />;
+  return <PromotionsScreen api={promotionsApi} loadCatalog={loadCatalog} vocab={t().promotions.vocab} />;
 }

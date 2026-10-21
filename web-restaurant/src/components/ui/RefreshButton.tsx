@@ -4,6 +4,7 @@
 import { RotateCw } from 'lucide-react';
 import { cn } from './cn';
 import { IconButton } from './IconButton';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 export interface RefreshButtonProps {
   onRefresh: () => void | Promise<void>;
@@ -15,7 +16,7 @@ export interface RefreshButtonProps {
 export function RefreshButton({ onRefresh, isRefreshing = false, className }: RefreshButtonProps) {
   return (
     <IconButton
-      aria-label="Yangilash"
+      aria-label={kitT().common.refresh}
       size="sm"
       onClick={() => void onRefresh()}
       disabled={isRefreshing}

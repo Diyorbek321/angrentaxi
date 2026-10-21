@@ -21,6 +21,7 @@ import {
   type TopupErrors,
 } from '@/lib/compliance';
 import { formatMoney } from '@/lib/format';
+import { t } from '@/locales';
 
 interface Form {
   enabled: boolean;
@@ -54,10 +55,12 @@ const toValues = (f: Form) => ({
 
 /** Hamyonni Payme/Click/UZPS orqali o'zi to'ldirish — LEGAL-COMPLIANCE §11. */
 export function WalletTopupCard() {
+  const m = t();
+  const f = m.finance.walletTopup;
   const { toast } = useToast();
   const res = useResource(
     () => financeSettingsApi.getWalletTopup().then((r) => r.data.data),
-    'Hamyon toʻldirish sozlamalarini yuklab boʻlmadi.'
+    f.loadError
   );
   const [form, setForm] = useState<Form | null>(null);
   const [newPreset, setNewPreset] = useState('');
@@ -103,9 +106,9 @@ export function WalletTopupCard() {
     try {
       const r = await financeSettingsApi.updateWalletTopup({ walletTopupEnabled: form.enabled, ...toValues(form) });
       res.setData(r.data.data);
-      toast({ title: 'Saqlandi', description: 'Hamyon toʻldirish sozlamalari yangilandi.', variant: 'success' });
+      toast({ title: m.finance.saved, description: f.savedDesc, variant: 'success' });
     } catch (err) {
-      toast({ title: 'Xatolik', description: apiErrorMessage(err, 'Saqlashda xatolik'), variant: 'error' });
+      toast({ title: m.common.error, description: apiErrorMessage(err, m.common.saveError), variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -113,12 +116,12 @@ export function WalletTopupCard() {
 
   return (
     <SettingsSection
-      title="Hamyonni toʻldirish (Payme / Click / UZPS)"
-      description="Haydovchi va kuryer hamyonini ilovadan oʻzi toʻldiradi. Merchant kalitlari ulangandan keyin yoqing."
+      title={f.title}
+      description={f.description}
       badge={
         res.data ? (
           <Badge variant={res.data.walletTopupEnabled ? 'success' : 'neutral'} dot={res.data.walletTopupEnabled}>
-            {res.data.walletTopupEnabled ? 'Yoqilgan' : 'Oʻchiq'}
+            {res.data.walletTopupEnabled ? m.finance.enabled : m.finance.disabled}
           </Badge>
         ) : null
       }
@@ -137,19 +140,19 @@ export function WalletTopupCard() {
       {form && (
         <>
           <div className="flex items-center justify-between gap-4">
-            <p className="text-sm font-medium text-ink">Ilovada «Hamyonni toʻldirish» tugmasi</p>
+            <p className="text-sm font-medium text-ink">{f.buttonToggle}</p>
             <Switch
               checked={form.enabled}
               onCheckedChange={(v) => update({ enabled: v })}
-              aria-label="Hamyonni toʻldirish"
+              aria-label={f.toggleAria}
             />
           </div>
           {form.enabled && !saved?.enabled && (
-            <Notice>Toʻlov tizimi kalitlari sozlanmagan boʻlsa, haydovchi «Bu toʻlov tizimi hali ulanmagan» xatosini koʻradi.</Notice>
+            <Notice>{f.keysNotice}</Notice>
           )}
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
-              label="Minimum, soʻm"
+              label={f.minLabel}
               type="number"
               inputMode="numeric"
               step={1000}
@@ -158,7 +161,7 @@ export function WalletTopupCard() {
               onChange={(e) => update({ min: e.target.value })}
             />
             <Input
-              label="Maksimum, soʻm"
+              label={f.maxLabel}
               type="number"
               inputMode="numeric"
               step={1000}
@@ -169,7 +172,7 @@ export function WalletTopupCard() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
-              label="Yechishdan ushlab turish, kun"
+              label={f.holdLabel}
               type="number"
               inputMode="numeric"
               min={0}
@@ -177,11 +180,11 @@ export function WalletTopupCard() {
               step={1}
               value={form.holdDays}
               error={errors.walletTopupHoldDays}
-              hint="Karta orqali toʻldirilgan pul shu muddat yechib olinmaydi (komissiya va smenaga sarflanadi). 0 — oʻchiq."
+              hint={f.holdHint}
               onChange={(e) => update({ holdDays: e.target.value })}
             />
             <Input
-              label="Menejer qoʻlda tuzatish chegarasi, soʻm"
+              label={f.managerLimitLabel}
               type="number"
               inputMode="numeric"
               min={0}
@@ -189,19 +192,19 @@ export function WalletTopupCard() {
               step={100000}
               value={form.managerLimit}
               error={errors.manualAdjustmentManagerLimit}
-              hint={`Menejer bitta tuzatishda koʻpi bilan shuncha qoʻshadi/ayiradi. Admin — ${formatMoney(MANUAL_ADJUSTMENT_LIMIT_MAX)} gacha.`}
+              hint={f.managerLimitHint(formatMoney(MANUAL_ADJUSTMENT_LIMIT_MAX))}
               onChange={(e) => update({ managerLimit: e.target.value })}
             />
           </div>
           <div>
             <p className="mb-2 text-[13px] font-medium text-ink">
-              Tayyor summalar{' '}
+              {f.presets}{' '}
               <span className="font-normal text-muted">
                 ({form.presets.length}/{TOPUP_MAX_PRESETS})
               </span>
             </p>
-            <ul className="flex flex-wrap gap-2" aria-label="Tayyor summalar">
-              {form.presets.length === 0 && <li className="text-xs text-muted">Tayyor summa yoʻq</li>}
+            <ul className="flex flex-wrap gap-2" aria-label={f.presets}>
+              {form.presets.length === 0 && <li className="text-xs text-muted">{f.noPresets}</li>}
               {form.presets.map((p) => (
                 <li
                   key={p}
@@ -211,7 +214,7 @@ export function WalletTopupCard() {
                   <button
                     type="button"
                     className="inline-flex h-5 w-5 items-center justify-center rounded-ds-xs text-muted hover:bg-surface-3 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    aria-label={`${formatMoney(p)} ni olib tashlash`}
+                    aria-label={f.removePreset(formatMoney(p))}
                     onClick={() => update({ presets: form.presets.filter((x) => x !== p) })}
                   >
                     <X size={12} aria-hidden="true" />
@@ -221,7 +224,7 @@ export function WalletTopupCard() {
             </ul>
             <div className="mt-3 flex items-end gap-2">
               <Input
-                label="Yangi summa, soʻm"
+                label={f.newPresetLabel}
                 type="number"
                 inputMode="numeric"
                 step={1000}
@@ -241,7 +244,7 @@ export function WalletTopupCard() {
                 disabled={!newPreset || form.presets.length >= TOPUP_MAX_PRESETS}
                 leftIcon={<Plus size={14} aria-hidden="true" />}
               >
-                Qoʻshish
+                {f.add}
               </Button>
             </div>
             {errors.walletTopupPresets && (

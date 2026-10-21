@@ -1,4 +1,5 @@
 import type { BadgeVariant } from '@/components/ui/Badge';
+import { t } from '@/locales';
 
 /**
  * Shaharlararo qatnovlar — backend `IntercityTripView` (modules/intercity/
@@ -55,7 +56,7 @@ export interface IntercityTripView {
  * tumanlar" degani (haydovchi cheklamagan), "tuman yo'q" emas.
  */
 export function zonesLabel(zones: ReadonlyArray<{ name: string }> | undefined): string {
-  return zones && zones.length > 0 ? zones.map((zone) => zone.name).join(', ') : 'Hamma tumanlar';
+  return zones && zones.length > 0 ? zones.map((zone) => zone.name).join(', ') : t().lib.intercity.allZones;
 }
 
 export interface IntercityTripPage {
@@ -65,14 +66,9 @@ export interface IntercityTripPage {
   limit: number;
 }
 
-export const INTERCITY_STATUS_LABELS: Record<IntercityTripStatus, string> = {
-  open: 'Joy bor',
-  full: 'Toʻla',
-  boarding: 'Yoʻlovchi yigʻmoqda',
-  in_progress: 'Yoʻlda',
-  completed: 'Yakunlandi',
-  cancelled: 'Bekor qilindi',
-};
+export function intercityStatusLabels(): Record<IntercityTripStatus, string> {
+  return t().lib.intercity.status;
+}
 
 // Amber ('override') ATAYLAB yo'q — u qo'lda aralashuv uchun saqlangan.
 export const INTERCITY_STATUS_BADGE: Record<IntercityTripStatus, BadgeVariant> = {
@@ -118,18 +114,14 @@ export function addDays(date: string, days: number): string {
 }
 
 /** Buyurtma `serviceType` yorliqlari (backend ServiceType enum). */
-export const SERVICE_TYPE_LABELS: Readonly<Record<string, string>> = {
-  taxi: 'Taksi',
-  cargo: 'Yuk',
-  food: 'Ovqat',
-  market: 'Market',
-  parcel: 'Posilka',
-  intercity: 'Shaharlararo',
-};
+export function serviceTypeLabels(): Readonly<Record<string, string>> {
+  return t().lib.serviceType;
+}
 
 export function serviceTypeLabel(serviceType: string | null | undefined): string {
-  if (!serviceType) return SERVICE_TYPE_LABELS.taxi;
-  return SERVICE_TYPE_LABELS[serviceType] ?? serviceType;
+  const labels = serviceTypeLabels();
+  if (!serviceType) return labels.taxi;
+  return labels[serviceType] ?? serviceType;
 }
 
 // ─── Bandlar (dispetcher) ───────────────────────────────────────────────────
@@ -159,14 +151,9 @@ export interface IntercityBookingManage {
   cancelReason: string | null;
 }
 
-export const INTERCITY_BOOKING_STATUS_LABELS: Record<IntercityBookingStatus, string> = {
-  scheduled: 'Band qilingan',
-  accepted: 'Yigʻilmoqda',
-  arrived: 'Haydovchi keldi',
-  in_progress: 'Yoʻlda',
-  completed: 'Yetkazildi',
-  cancelled: 'Bekor qilingan',
-};
+export function intercityBookingStatusLabels(): Record<IntercityBookingStatus, string> {
+  return t().lib.intercity.bookingStatus;
+}
 
 export const INTERCITY_BOOKING_STATUS_BADGE: Record<IntercityBookingStatus, BadgeVariant> = {
   scheduled: 'neutral',
@@ -178,8 +165,8 @@ export const INTERCITY_BOOKING_STATUS_BADGE: Record<IntercityBookingStatus, Badg
 };
 
 export function bookingKindLabel(booking: Pick<IntercityBookingManage, 'bookingKind' | 'seats'>): string {
-  if (booking.bookingKind === 'whole_car') return 'Butun mashina';
-  return `${booking.seats ?? 1} joy`;
+  if (booking.bookingKind === 'whole_car') return t().lib.intercity.wholeCar;
+  return t().lib.intercity.seats(booking.seats ?? 1);
 }
 
 /**

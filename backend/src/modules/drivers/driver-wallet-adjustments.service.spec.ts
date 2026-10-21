@@ -86,11 +86,12 @@ describe('DriverWalletAdjustmentsService', () => {
     expect(ctx.notifier.balanceChanged).toHaveBeenCalledWith('user-1', {
       delta: 50000,
       reason: 'manual_adjustment',
-      push: expect.objectContaining({
-        body: "Hamyoningizga 50 000 so'm qo'shildi: Naqd kassaga topshirdi",
-      }),
+      push: expect.objectContaining({ event: 'wallet_manual_adjustment' }),
       extra: { auditLogId: 'audit-1' },
     });
+    const { push } = ctx.notifier.balanceChanged.mock.calls[0][1];
+    expect(push.text('uz').body).toBe("Hamyoningizga 50 000 so'm qo'shildi: Naqd kassaga topshirdi");
+    expect(push.text('ru').body).toBe('На кошелёк зачислено 50 000 сум: Naqd kassaga topshirdi');
     expect(result).toEqual(expect.objectContaining({ id: 'driver-1', walletBalance: 60000 }));
   });
 
@@ -103,7 +104,7 @@ describe('DriverWalletAdjustmentsService', () => {
     expect(ctx.driversService.takeOfflineInRedis).toHaveBeenCalledWith('driver-1', expect.any(String));
     const notice = ctx.notifier.balanceChanged.mock.calls[0][1];
     expect(notice.delta).toBe(-15000);
-    expect(notice.push.body).toBe("Hamyoningizdan 15 000 so'm yechildi (tuzatish): Ikki marta yozilgan");
+    expect(notice.push.text('uz').body).toBe("Hamyoningizdan 15 000 so'm yechildi (tuzatish): Ikki marta yozilgan");
   });
 
   it("izohsiz — 400 va hech narsa yozilmaydi", async () => {

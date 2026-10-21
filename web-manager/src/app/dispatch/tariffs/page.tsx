@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -29,33 +29,39 @@ import { useToast } from '@/components/ui/Toast';
 import { formatDateTime, formatMoney } from '@/lib/format';
 import { TripOptionFeesCard } from '@/components/tariffs/TripOptionFeesCard';
 import { meteredPriceField, meteredPriceLabel } from '@/lib/metered-price';
+import { t } from '@/locales';
 
 // Every message is Uzbek and attaches to its own field — a form that reports
 // "Expected number" in English is a form the operator cannot fix.
-const schema = z
-  .object({
-    name: z.string().min(2, 'Nomi kamida 2 ta belgi boʻlsin'),
-    basePrice: z.coerce.number({ invalid_type_error: 'Raqam kiriting' }).min(0, 'Manfiy boʻlmasin'),
-    pricePerKm: z.coerce.number({ invalid_type_error: 'Raqam kiriting' }).min(0, 'Manfiy boʻlmasin'),
-    meteredPricePerKm: meteredPriceField,
-    pricePerMin: z.coerce
-      .number({ invalid_type_error: 'Raqam kiriting' })
-      .min(0, 'Manfiy boʻlmasin'),
-    minPrice: z.coerce.number({ invalid_type_error: 'Raqam kiriting' }).min(0, 'Manfiy boʻlmasin'),
-    maxPrice: z.coerce.number({ invalid_type_error: 'Raqam kiriting' }).min(0).optional(),
-  })
-  .refine((data) => data.maxPrice == null || data.maxPrice === 0 || data.maxPrice >= data.minPrice, {
-    message: 'Max narx min narxdan kichik boʻlmasligi kerak',
-    path: ['maxPrice'],
-  });
+// Built at call time so messages follow the active language.
+function buildSchema() {
+  const v = t().ops.tariffs.validation;
+  return z
+    .object({
+      name: z.string().min(2, v.nameMin),
+      basePrice: z.coerce.number({ invalid_type_error: v.number }).min(0, v.nonNegative),
+      pricePerKm: z.coerce.number({ invalid_type_error: v.number }).min(0, v.nonNegative),
+      meteredPricePerKm: meteredPriceField(),
+      pricePerMin: z.coerce.number({ invalid_type_error: v.number }).min(0, v.nonNegative),
+      minPrice: z.coerce.number({ invalid_type_error: v.number }).min(0, v.nonNegative),
+      maxPrice: z.coerce.number({ invalid_type_error: v.number }).min(0).optional(),
+    })
+    .refine((data) => data.maxPrice == null || data.maxPrice === 0 || data.maxPrice >= data.minPrice, {
+      message: v.maxBelowMin,
+      path: ['maxPrice'],
+    });
+}
 
-type FormData = z.infer<typeof schema>;
+type FormData = z.infer<ReturnType<typeof buildSchema>>;
 
-const statusBadge: Record<TariffChangeRequest['status'], { label: string; variant: BadgeVariant }> = {
-  pending: { label: 'Kutilmoqda', variant: 'info' },
-  approved: { label: 'Tasdiqlangan', variant: 'success' },
-  rejected: { label: 'Rad etilgan', variant: 'danger' },
-};
+function statusBadges(): Record<TariffChangeRequest['status'], { label: string; variant: BadgeVariant }> {
+  const s = t().ops.tariffs.requestStatus;
+  return {
+    pending: { label: s.pending, variant: 'info' },
+    approved: { label: s.approved, variant: 'success' },
+    rejected: { label: s.rejected, variant: 'danger' },
+  };
+}
 
 function TariffRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -67,7 +73,11 @@ function TariffRow({ label, value }: { label: string; value: React.ReactNode }) 
 }
 
 export default function TariffsPage() {
+  const m = t();
+  const tm = m.ops.tariffs;
   const { toast } = useToast();
+  const schema = useMemo(() => buildSchema(), []);
+  const statusBadge = statusBadges();
 
   const [tariffs, setTariffs] = useState<Tariff[]>([]);
   const [requests, setRequests] = useState<TariffChangeRequest[]>([]);
@@ -96,7 +106,7 @@ export default function TariffsPage() {
       setRequests(requestsData);
       setLoadError(null);
     } catch {
-      setLoadError('Maʼlumotlarni yuklab boʻlmadi.');
+      setLoadError(t().ops.tariffs.loadFailed);
     } finally {
       setIsLoading(false);
       setHasLoadedOnce(true);
@@ -151,16 +161,16 @@ export default function TariffsPage() {
       setIsModalOpen(false);
       toast({
         title: editingTariff
-          ? `«${editingTariff.name}» oʻzgarishi taklif qilindi`
-          : `«${data.name}» tarifi taklif qilindi`,
-        description: 'Admin tasdigʻidan soʻng kuchga kiradi.',
+          ? tm.changeProposed(editingTariff.name)
+          : tm.tariffProposed(data.name),
+        description: tm.proposedDescription,
         variant: 'success',
       });
       await fetchAll();
     } catch (err) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        'Taklif yuborib boʻlmadi';
+        tm.submitFailed;
       // Stays inside the modal, next to the form that produced it — the
       // operator's input is still on screen and still editable.
       setSubmitError(message);
@@ -173,8 +183,8 @@ export default function TariffsPage() {
   return (
     <PageBody className="max-w-5xl">
         <PageHeader
-          title="Tariflar"
-          description="Oʻzgarishlar admin tasdigʻidan soʻng kuchga kiradi"
+          title={tm.title}
+          description={tm.description}
           actions={
             <>
               <Button
@@ -184,10 +194,10 @@ export default function TariffsPage() {
                 isLoading={isLoading && hasLoadedOnce}
                 leftIcon={<RefreshCw size={13} aria-hidden />}
               >
-                Yangilash
+                {m.common.refresh}
               </Button>
               <Button leftIcon={<Plus size={14} aria-hidden />} onClick={openProposeNew} size="sm">
-                Yangi tarif taklif qilish
+                {tm.proposeNew}
               </Button>
             </>
           }
@@ -201,7 +211,7 @@ export default function TariffsPage() {
           <Card padding="none">
             <ErrorState
               title={loadError}
-              message="Tarmoq yoki server xatosi. Qayta urinib koʻring."
+              message={tm.networkError}
               onRetry={fetchAll}
               retrying={isLoading}
             />
@@ -210,7 +220,7 @@ export default function TariffsPage() {
           <div className="space-y-5">
             <Card padding="none">
               <CardHeader
-                title="Amaldagi tariflar"
+                title={tm.currentTitle}
                 actions={
                   tariffs.length > 0 ? (
                     <Badge variant="neutral" size="sm">
@@ -234,11 +244,11 @@ export default function TariffsPage() {
                 <EmptyState
                   compact
                   icon={<Tag aria-hidden />}
-                  title="Tarif yoʻq"
-                  description="Birinchi tarifni taklif qiling — admin tasdiqlagach kuchga kiradi."
+                  title={tm.emptyTitle}
+                  description={tm.emptyDescription}
                   action={
                     <Button size="sm" leftIcon={<Plus size={14} aria-hidden />} onClick={openProposeNew}>
-                      Yangi tarif taklif qilish
+                      {tm.proposeNew}
                     </Button>
                   }
                 />
@@ -254,35 +264,35 @@ export default function TariffsPage() {
                         <div className="flex items-center gap-1 shrink-0">
                           {!tariff.isActive && (
                             <Badge variant="neutral" size="sm">
-                              Faol emas
+                              {tm.inactive}
                             </Badge>
                           )}
                           <IconButton
                             size="sm"
                             onClick={() => openProposeEdit(tariff)}
-                            aria-label={`${tariff.name} tarifini oʻzgartirishni taklif qilish`}
+                            aria-label={tm.proposeEditAria(tariff.name)}
                           >
                             <Pencil aria-hidden />
                           </IconButton>
                         </div>
                       </div>
                       <dl className="text-[13px] space-y-1">
-                        <TariffRow label="Boshlangʻich" value={<MoneyText value={tariff.basePrice} />} />
-                        <TariffRow label="Km narxi" value={<MoneyText value={tariff.pricePerKm} />} />
+                        <TariffRow label={tm.base} value={<MoneyText value={tariff.basePrice} />} />
+                        <TariffRow label={tm.perKm} value={<MoneyText value={tariff.pricePerKm} />} />
                         <TariffRow
-                          label="Taksometr km"
+                          label={tm.meteredKm}
                           value={meteredPriceLabel(tariff.meteredPricePerKm, formatMoney)}
                         />
-                        <TariffRow label="Daqiqa narxi" value={<MoneyText value={tariff.pricePerMin} />} />
-                        <TariffRow label="Min narx" value={<MoneyText value={tariff.minPrice} />} />
+                        <TariffRow label={tm.perMin} value={<MoneyText value={tariff.pricePerMin} />} />
+                        <TariffRow label={tm.minPrice} value={<MoneyText value={tariff.minPrice} />} />
                         <TariffRow
-                          label="Max narx"
-                          value={tariff.maxPrice ? <MoneyText value={tariff.maxPrice} /> : 'Cheklanmagan'}
+                          label={tm.maxPrice}
+                          value={tariff.maxPrice ? <MoneyText value={tariff.maxPrice} /> : tm.unlimited}
                         />
                       </dl>
                       {tariff.surgeMultiplier !== 1 && (
                         <Badge variant="info" size="sm">
-                          Oshirilgan ×{tariff.surgeMultiplier}
+                          {tm.surge(tariff.surgeMultiplier)}
                         </Badge>
                       )}
                     </div>
@@ -297,11 +307,11 @@ export default function TariffsPage() {
             <Card padding="none">
               {/* Pending count is the number the operator is waiting on. */}
               <CardHeader
-                title="Mening takliflarim"
+                title={tm.myRequests}
                 actions={
                   pendingRequests.length > 0 ? (
                     <Badge variant="info" size="sm" dot>
-                      {pendingRequests.length} ta kutilmoqda
+                      {tm.pendingCount(pendingRequests.length)}
                     </Badge>
                   ) : undefined
                 }
@@ -317,8 +327,8 @@ export default function TariffsPage() {
                 <EmptyState
                   compact
                   icon={<Tag aria-hidden />}
-                  title="Hali taklif yuborilmagan"
-                  description="Tarif kartasidagi qalam belgisi orqali oʻzgarish taklif qiling."
+                  title={tm.noRequestsTitle}
+                  description={tm.noRequestsDescription}
                 />
               ) : (
                 <div className="space-y-2">
@@ -328,7 +338,7 @@ export default function TariffsPage() {
                       className="flex items-center justify-between gap-3 rounded-ds-sm border border-line px-3 py-2"
                     >
                       <div className="text-[13px] text-ink min-w-0">
-                        {req.action === 'create' ? 'Yangi tarif' : 'Tarif yangilash'}
+                        {req.action === 'create' ? tm.actionCreate : tm.actionUpdate}
                         <span className="num text-muted text-xs ml-2">
                           {formatDateTime(req.createdAt)}
                         </span>
@@ -351,8 +361,8 @@ export default function TariffsPage() {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingTariff ? `Tarif taklifi: ${editingTariff.name}` : 'Yangi tarif taklifi'}
-        subtitle="Taklif admin tasdigʻiga yuboriladi"
+        title={editingTariff ? tm.modalEditTitle(editingTariff.name) : tm.modalNewTitle}
+        subtitle={tm.modalSubtitle}
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
           {submitError && (
@@ -365,16 +375,16 @@ export default function TariffsPage() {
             </div>
           )}
 
-          <Input label="Nomi" {...register('name')} error={errors.name?.message} />
+          <Input label={tm.fields.name} {...register('name')} error={errors.name?.message} />
           <div className="grid grid-cols-2 gap-4">
             <Input
-              label="Boshlangʻich narx"
+              label={tm.fields.basePrice}
               type="number"
               {...register('basePrice')}
               error={errors.basePrice?.message}
             />
             <Input
-              label="Km narxi"
+              label={tm.perKm}
               type="number"
               {...register('pricePerKm')}
               error={errors.pricePerKm?.message}
@@ -382,38 +392,38 @@ export default function TariffsPage() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Input
-              label="Daqiqa narxi"
+              label={tm.perMin}
               type="number"
               {...register('pricePerMin')}
               error={errors.pricePerMin?.message}
             />
             <Input
-              label="Min narx"
+              label={tm.minPrice}
               type="number"
               {...register('minPrice')}
               error={errors.minPrice?.message}
             />
           </div>
           <Input
-            label="Taksometr km narxi (ixtiyoriy)"
+            label={tm.fields.meteredPrice}
             type="number"
-            hint="Manzilsiz safar uchun, odatda km narxidan biroz qimmat. Boʻsh — oddiy km narxi"
+            hint={tm.fields.meteredHint}
             {...register('meteredPricePerKm')}
             error={errors.meteredPricePerKm?.message}
           />
           <Input
-            label="Max narx (ixtiyoriy)"
+            label={tm.fields.maxPrice}
             type="number"
-            hint="Boʻsh qoldirilsa narx cheklanmaydi"
+            hint={tm.fields.maxHint}
             {...register('maxPrice')}
             error={errors.maxPrice?.message}
           />
           <div className="flex justify-end gap-2 pt-4 border-t border-line">
             <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)}>
-              Bekor qilish
+              {m.common.cancel}
             </Button>
             <Button type="submit" isLoading={isSubmitting}>
-              Taklif yuborish
+              {tm.submit}
             </Button>
           </div>
         </form>

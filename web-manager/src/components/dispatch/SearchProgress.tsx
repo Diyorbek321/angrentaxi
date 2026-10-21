@@ -4,6 +4,7 @@ import { Radar } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useNow } from './useNow';
 import { formatClock, formatDuration } from '@/lib/format';
+import { t } from '@/locales';
 
 /**
  * Mirrors the backend's MatchingService.NO_DRIVER_TIMEOUT_MS — how long the
@@ -30,6 +31,7 @@ export function SearchProgress({
   // Null until mounted — see useNow: Date.now() during render would trip a
   // hydration mismatch.
   const now = useNow(1000);
+  const m = t().dispatch.search;
 
   const startedAt = new Date(createdAt).getTime();
   const elapsedMs = now == null ? 0 : Math.max(0, now - startedAt);
@@ -40,7 +42,7 @@ export function SearchProgress({
     now == null
       ? '—'
       : elapsedMs >= AUTO_MATCH_WINDOW_MS
-      ? `Muddati oʻtgan · ${formatDuration(elapsedMs)}`
+      ? m.overdue(formatDuration(elapsedMs))
       : `${formatClock(elapsedMs)} / ${formatClock(AUTO_MATCH_WINDOW_MS)}`;
   const ratio = Math.min(1, elapsedMs / AUTO_MATCH_WINDOW_MS);
   const expired = elapsedMs >= AUTO_MATCH_WINDOW_MS;
@@ -73,7 +75,7 @@ export function SearchProgress({
           )}
         >
           <Radar size={12} className={expired ? undefined : 'animate-pulse'} />
-          {expired ? 'Qidiruv oynasi tugadi' : `Avtomatik qidiruv — ~${offerRound}-taklif`}
+          {expired ? m.windowEnded : m.autoSearch(offerRound)}
         </span>
         <span className="num text-[11px] text-muted whitespace-nowrap">{timeText}</span>
       </div>
@@ -88,8 +90,8 @@ export function SearchProgress({
       </div>
       <p className="text-[11px] text-subtle mt-1.5 leading-snug">
         {expired
-          ? 'Tizim haydovchi topa olmadi — Istisnolar boʻlimida hal qilinadi.'
-          : 'Har ~15 soniyada keyingi eng yaqin haydovchiga taklif yuboriladi.'}
+          ? m.expiredNote
+          : m.activeNote}
       </p>
     </div>
   );

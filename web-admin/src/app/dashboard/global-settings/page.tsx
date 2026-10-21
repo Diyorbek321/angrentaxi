@@ -18,6 +18,7 @@ import {
 import { settingsApi, type GlobalSettings } from '@/lib/api';
 import { validateDeliverySettings } from '@/lib/delivery-settings';
 import { IntercitySettingsCard } from '@/components/intercity/IntercitySettingsCard';
+import { t } from '@/locales';
 
 const EMPTY_FORM: GlobalSettings = {
   platformName: '',
@@ -34,6 +35,9 @@ const EMPTY_FORM: GlobalSettings = {
 type FieldErrors = Partial<Record<keyof GlobalSettings, string>>;
 
 export default function GlobalSettingsPage() {
+  const c = t().common;
+  const s = t().settings;
+  const m = s.global;
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -55,7 +59,7 @@ export default function GlobalSettingsPage() {
         setHasLoadedOnce(true);
       })
       .catch(() => {
-        setError('Sozlamalarni yuklab boʻlmadi.');
+        setError(s.loadFailed);
       })
       .finally(() => setIsLoading(false));
   };
@@ -70,15 +74,15 @@ export default function GlobalSettingsPage() {
   // Validatsiya har bir maydonning O'ZIGA biriktiriladi — toast emas.
   const validate = (values: GlobalSettings): FieldErrors => {
     const errors: FieldErrors = {};
-    if (!values.platformName.trim()) errors.platformName = 'Platforma nomini kiriting';
+    if (!values.platformName.trim()) errors.platformName = m.errPlatformName;
     if (values.supportPhone.trim() && !/^\+?\d[\d\s-]{7,}$/.test(values.supportPhone.trim())) {
-      errors.supportPhone = "Noto'g'ri telefon format (+998XXXXXXXXX)";
+      errors.supportPhone = m.errPhone;
     }
     if (values.supportEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.supportEmail.trim())) {
-      errors.supportEmail = "Noto'g'ri email manzil";
+      errors.supportEmail = m.errEmail;
     }
     if (!Number.isFinite(values.maxCashVendorOrder) || values.maxCashVendorOrder < 0) {
-      errors.maxCashVendorOrder = "Musbat summa kiriting (0 — cheklanmagan)";
+      errors.maxCashVendorOrder = m.errMaxCash;
     }
     return { ...errors, ...validateDeliverySettings(values) };
   };
@@ -100,9 +104,9 @@ export default function GlobalSettingsPage() {
       const res = await settingsApi.updateGlobal(form);
       setForm(res.data.data);
       setSaved(res.data.data);
-      toast({ title: 'Saqlandi', description: 'Umumiy sozlamalar yangilandi.', variant: 'success' });
+      toast({ title: s.saved, description: m.savedDesc, variant: 'success' });
     } catch {
-      toast({ title: 'Xatolik', description: 'Saqlashda xatolik', variant: 'error' });
+      toast({ title: c.error, description: c.saveError, variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -114,8 +118,8 @@ export default function GlobalSettingsPage() {
   return (
     <div className="px-4 sm:px-6 py-5">
       <PageHeader
-        title="Umumiy sozlamalar"
-        description="Platforma nomi, aloqa va texnik profilaktika rejimi"
+        title={m.title}
+        description={m.description}
       />
 
       <div className="max-w-2xl space-y-4">
@@ -134,18 +138,18 @@ export default function GlobalSettingsPage() {
         ) : (
           <div className="space-y-4">
             <Card padding="none">
-              <CardHeader title="Platforma va aloqa" divider />
+              <CardHeader title={m.contactTitle} divider />
               <CardBody className="space-y-4 pt-4">
                 <Input
-                  label="Platforma nomi"
+                  label={m.platformName}
                   value={form.platformName}
                   error={fieldErrors.platformName}
-                  hint="Ilova va SMS xabarlarida koʻrinadigan nom."
+                  hint={m.platformNameHint}
                   onChange={(e) => update('platformName', e.target.value)}
                 />
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Input
-                    label="Qoʻllab-quvvatlash telefoni"
+                    label={m.supportPhone}
                     type="tel"
                     className="num"
                     placeholder="+998901234567"
@@ -154,7 +158,7 @@ export default function GlobalSettingsPage() {
                     onChange={(e) => update('supportPhone', e.target.value)}
                   />
                   <Input
-                    label="Qoʻllab-quvvatlash emaili"
+                    label={m.supportEmail}
                     type="email"
                     placeholder="support@angrentaxi.uz"
                     value={form.supportEmail}
@@ -168,17 +172,17 @@ export default function GlobalSettingsPage() {
             {/* Food/market: the courier buys the goods with their own cash
                 (backend delivery/vendor-cash.ts) — cash only up to this sum. */}
             <Card padding="none">
-              <CardHeader title="Ovqat va market: naqd toʻlov" divider />
+              <CardHeader title={m.cashTitle} divider />
               <CardBody className="pt-4">
                 <Input
-                  label="Naqd buyurtma chegarasi, soʻm"
+                  label={m.maxCash}
                   type="number"
                   inputMode="numeric"
                   min={0}
                   step={1000}
                   value={String(form.maxCashVendorOrder)}
                   error={fieldErrors.maxCashVendorOrder}
-                  hint="Kuryer tovarni doʻkondan oʻz pulidan sotib oladi. Bundan katta buyurtma faqat karta bilan. 0 — cheklanmagan."
+                  hint={m.maxCashHint}
                   onChange={(e) => update('maxCashVendorOrder', Number(e.target.value))}
                   wrapperClassName="max-w-xs"
                 />
@@ -189,11 +193,11 @@ export default function GlobalSettingsPage() {
                 Bepul chegara aksiyadan keyingi tovar summasiga qaraydi (backend
                 settings/delivery-pricing.ts). */}
             <Card padding="none">
-              <CardHeader title="Ovqat va market: yetkazish" divider />
+              <CardHeader title={m.deliveryTitle} divider />
               <CardBody className="space-y-4 pt-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Input
-                    label="Yetkazish haqi, soʻm"
+                    label={m.deliveryFee}
                     type="number"
                     inputMode="numeric"
                     min={0}
@@ -203,20 +207,20 @@ export default function GlobalSettingsPage() {
                     onChange={(e) => update('deliveryFee', Number(e.target.value))}
                   />
                   <Input
-                    label="Bepul yetkazish chegarasi (soʻm, 0 — oʻchiq)"
+                    label={m.freeDeliveryFrom}
                     type="number"
                     inputMode="numeric"
                     min={0}
                     step={1000}
                     value={String(form.freeDeliveryFrom)}
                     error={fieldErrors.freeDeliveryFrom}
-                    hint="Tovar summasi (aksiyadan keyin, promokoddan oldin) shunga yetsa yetkazish bepul."
+                    hint={m.freeDeliveryHint}
                     onChange={(e) => update('freeDeliveryFrom', Number(e.target.value))}
                   />
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Input
-                    label="Yetkazish vaqti, eng kami (daq)"
+                    label={m.etaMin}
                     type="number"
                     inputMode="numeric"
                     min={5}
@@ -227,7 +231,7 @@ export default function GlobalSettingsPage() {
                     onChange={(e) => update('deliveryEtaMinMinutes', Number(e.target.value))}
                   />
                   <Input
-                    label="Yetkazish vaqti, eng koʻpi (daq)"
+                    label={m.etaMax}
                     type="number"
                     inputMode="numeric"
                     min={5}
@@ -245,20 +249,18 @@ export default function GlobalSettingsPage() {
             <IntercitySettingsCard />
 
             <Card padding="none">
-              <CardHeader title="Texnik profilaktika" divider />
+              <CardHeader title={m.maintenanceTitle} divider />
               <CardBody className="space-y-3 pt-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-ink">Profilaktika rejimi</p>
-                    <p className="mt-0.5 text-xs text-muted">
-                      Faqat belgi sifatida saqlanadi — hozircha haqiqiy soʻrovlarni bloklamaydi.
-                    </p>
+                    <p className="text-sm font-medium text-ink">{m.maintenanceMode}</p>
+                    <p className="mt-0.5 text-xs text-muted">{m.maintenanceHint}</p>
                   </div>
                   <Switch
                     checked={form.maintenanceMode}
                     onCheckedChange={(v) => update('maintenanceMode', v)}
                     tone="danger"
-                    aria-label="Texnik profilaktika rejimi"
+                    aria-label={m.maintenanceAria}
                   />
                 </div>
                 {form.maintenanceMode && (
@@ -269,8 +271,7 @@ export default function GlobalSettingsPage() {
                       aria-hidden="true"
                     />
                     <p className="text-xs leading-relaxed text-danger-dark dark:text-danger-light">
-                      Belgi yoqildi, lekin bu real trafikni bloklamaydi — bu qadam ataylab
-                      qoʻshilmagan (jonli tizimga taʼsir qiladigan oʻzgarish alohida tasdiq talab qiladi).
+                      {m.maintenanceWarning}
                     </p>
                   </div>
                 )}
@@ -279,7 +280,7 @@ export default function GlobalSettingsPage() {
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
               <span className="text-xs text-muted" aria-live="polite">
-                {isDirty ? 'Saqlanmagan oʻzgarish bor' : 'Barcha oʻzgarishlar saqlangan'}
+                {isDirty ? s.dirty : s.clean}
               </span>
               <div className="flex items-center gap-2">
                 <Button
@@ -290,7 +291,7 @@ export default function GlobalSettingsPage() {
                     setFieldErrors({});
                   }}
                 >
-                  Bekor qilish
+                  {c.cancel}
                 </Button>
                 <Button
                   onClick={handleSave}
@@ -298,7 +299,7 @@ export default function GlobalSettingsPage() {
                   disabled={!isDirty}
                   leftIcon={<Save size={14} aria-hidden="true" />}
                 >
-                  Saqlash
+                  {c.save}
                 </Button>
               </div>
             </div>

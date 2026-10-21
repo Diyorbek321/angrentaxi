@@ -10,6 +10,7 @@ import { In, Repository } from 'typeorm';
 import { ALL_PERMISSIONS, Permission, User, UserRole, UserStatus } from '../../database/entities/user.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { generateUniqueReferralCode } from '../../common/utils/referral-code.util';
+import type { AppLanguage } from '../../common/i18n/error-messages';
 
 /** Called after a user is blocked; failures are logged, never fail the block. */
 export type UserBlockedListener = (userId: string) => Promise<void>;
@@ -129,6 +130,10 @@ export class UsersService {
 
   async updateFcmToken(id: string, fcmToken: string): Promise<void> {
     await this.userRepository.update(id, { fcmToken });
+  }
+
+  async updateLanguage(id: string, language: AppLanguage): Promise<void> {
+    await this.userRepository.update(id, { language });
   }
 
   /** Registers a side effect of blocking (see blockListeners). */

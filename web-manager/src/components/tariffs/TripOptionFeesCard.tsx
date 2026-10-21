@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { getTripOptionFees, updateTripOptionFees } from '@/lib/api';
 import {
-  TRIP_OPTIONS,
+  tripOptions,
   TripOptionFees,
   TripOptionKey,
   changedFees,
@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/Input';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
+import { t } from '@/locales';
 
 type Draft = Record<TripOptionKey, string>;
 
@@ -34,6 +35,8 @@ function toDraft(fees: TripOptionFees): Draft {
  * berilgan buyurtmaning haqi o'sha paytda muzlatilgan.
  */
 export function TripOptionFeesCard() {
+  const m = t();
+  const fm = m.ops.tripOptionFees;
   const { toast } = useToast();
   const [fees, setFees] = useState<TripOptionFees | null>(null);
   const [draft, setDraft] = useState<Draft>(toDraft({}));
@@ -48,7 +51,7 @@ export function TripOptionFeesCard() {
       setFees(data);
       setDraft(toDraft(data));
     } catch {
-      setLoadError('Opsiya narxlarini yuklab boʻlmadi.');
+      setLoadError(t().ops.tripOptionFees.loadFailed);
     }
   };
 
@@ -57,7 +60,7 @@ export function TripOptionFeesCard() {
   }, []);
 
   const errors = Object.fromEntries(
-    TRIP_OPTIONS.map(({ key }) => [key, validateFee(draft[key])])
+    tripOptions().map(({ key }) => [key, validateFee(draft[key])])
   ) as Record<TripOptionKey, string | null>;
   const hasErrors = Object.values(errors).some(Boolean);
   const changes = fees ? changedFees(fees, draft) : {};
@@ -72,14 +75,14 @@ export function TripOptionFeesCard() {
       setFees(updated);
       setDraft(toDraft(updated));
       toast({
-        title: 'Opsiya narxlari saqlandi',
-        description: 'Yangi buyurtmalarga darhol qoʻllanadi.',
+        title: fm.saved,
+        description: fm.savedDescription,
         variant: 'success',
       });
     } catch (err) {
       setSubmitError(
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-          'Saqlab boʻlmadi'
+          fm.saveFailed
       );
     } finally {
       setSaving(false);
@@ -89,8 +92,8 @@ export function TripOptionFeesCard() {
   return (
     <Card padding="none">
       <CardHeader
-        title="Safar opsiyalari haqi"
-        description="Narxga qoʻshiladi va chekda alohida qator boʻladi. Boʻsh — bepul."
+        title={fm.title}
+        description={fm.description}
       />
       <CardBody>
 
@@ -98,7 +101,7 @@ export function TripOptionFeesCard() {
         <ErrorState compact title={loadError} onRetry={load} />
       ) : fees === null ? (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" aria-busy="true">
-          {TRIP_OPTIONS.map(({ key }) => (
+          {tripOptions().map(({ key }) => (
             <Skeleton key={key} className="h-[52px]" />
           ))}
         </div>
@@ -121,10 +124,10 @@ export function TripOptionFeesCard() {
             </div>
           )}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {TRIP_OPTIONS.map(({ key, label }) => (
+            {tripOptions().map(({ key, label }) => (
               <Input
                 key={key}
-                label={`${label}, soʻm`}
+                label={fm.fieldLabel(label)}
                 type="number"
                 inputMode="numeric"
                 min={0}
@@ -144,10 +147,10 @@ export function TripOptionFeesCard() {
               disabled={!isDirty || saving}
               onClick={() => setDraft(toDraft(fees))}
             >
-              Bekor qilish
+              {m.common.cancel}
             </Button>
             <Button type="submit" size="sm" isLoading={saving} disabled={!isDirty || hasErrors}>
-              Saqlash
+              {m.common.save}
             </Button>
           </div>
         </form>

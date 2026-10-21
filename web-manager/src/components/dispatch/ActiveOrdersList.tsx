@@ -12,6 +12,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Skeleton, SkeletonCards } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { t } from '@/locales';
 
 type OrderFilterTab = 'all' | 'searching' | 'assigned' | 'in_progress' | 'completed';
 
@@ -70,12 +71,13 @@ export function ActiveOrdersList({
     [orders]
   );
 
+  const m = t().dispatch.feed;
   const tabs: TabItem<OrderFilterTab>[] = [
-    { value: 'all', label: 'Hammasi', count: counts.all },
-    { value: 'searching', label: 'Qidiruv', count: counts.searching },
-    { value: 'assigned', label: 'Tayinlangan', count: counts.assigned },
-    { value: 'in_progress', label: 'Yoʻlda', count: counts.in_progress },
-    { value: 'completed', label: 'Yakunlangan', count: counts.completed },
+    { value: 'all', label: t().common.all, count: counts.all },
+    { value: 'searching', label: m.tabSearching, count: counts.searching },
+    { value: 'assigned', label: m.tabAssigned, count: counts.assigned },
+    { value: 'in_progress', label: m.tabInProgress, count: counts.in_progress },
+    { value: 'completed', label: m.tabCompleted, count: counts.completed },
   ];
 
   const visibleOrders = useMemo(() => orders.filter((o) => matchesTab(o, tab)), [orders, tab]);
@@ -106,7 +108,7 @@ export function ActiveOrdersList({
   }
 
   if (error) {
-    return <ErrorState title="Buyurtmalarni yuklab boʻlmadi" message={error} onRetry={onRefetch} />;
+    return <ErrorState title={m.loadFailed} message={error} onRetry={onRefetch} />;
   }
 
   return (
@@ -117,7 +119,7 @@ export function ActiveOrdersList({
           value={tab}
           onChange={setTab}
           size="sm"
-          ariaLabel="Buyurtmalar filtri"
+          ariaLabel={m.filterAria}
           fullWidth
         />
 
@@ -126,14 +128,14 @@ export function ActiveOrdersList({
             <EmptyState
               icon={<CheckCircle2 aria-hidden />}
               variant="cleared"
-              title="Yakunlangan buyurtmalar bu yerda qolmaydi"
-              description="Buyurtma yakunlangach jonli oqimdan chiqadi."
+              title={m.completedEmptyTitle}
+              description={m.completedEmptyDesc}
               action={
                 <Link
                   href="/orders"
                   className="text-[13px] font-medium text-primary-text hover:underline"
                 >
-                  Buyurtmalar tarixiga oʻtish →
+                  {m.goToHistory}
                 </Link>
               }
             />
@@ -141,14 +143,14 @@ export function ActiveOrdersList({
             <EmptyState
               icon={<Radar aria-hidden />}
               variant="cleared"
-              title="Aktiv buyurtma yoʻq"
-              description="Yangi buyurtma kelishi bilan shu yerda real vaqtda paydo boʻladi."
+              title={m.emptyTitle}
+              description={m.emptyDesc}
             />
           ) : (
             <EmptyState
               variant="no-results"
-              title="Bu filtrda buyurtma yoʻq"
-              description="Boshqa filtrni tanlang yoki «Hammasi» ga qayting."
+              title={m.noResultsTitle}
+              description={m.noResultsDesc}
               onClearFilters={() => setTab('all')}
               compact
             />

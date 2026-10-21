@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { t } from '@/locales';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -36,7 +37,7 @@ export function hueTint(hue: number): { background: string } {
 }
 
 /** Human-readable error text for a failed request, never an empty string. */
-export function errorMessage(err: unknown, fallback = "Ma'lumotni yuklab bo'lmadi"): string {
+export function errorMessage(err: unknown, fallback: string = t().common.loadFailed): string {
   const fromAxios = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
   if (fromAxios) return fromAxios;
   if (err instanceof Error && err.message) return err.message;

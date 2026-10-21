@@ -1,3 +1,5 @@
+import { t } from '@/locales';
+
 /**
  * Courier ride attached to a vendor order (backend `withDelivery`).
  * `status` is the ride's order status: created → searching → accepted →
@@ -25,24 +27,25 @@ export interface CourierState {
  * the vendor can also fix by re-dispatching.
  */
 export function courierState(delivery: DeliveryInfo | null | undefined): CourierState {
+  const m = t().courier;
   if (!delivery) {
-    return { tone: 'failed', label: 'Kuryer chaqirilmagan', canRedispatch: true };
+    return { tone: 'failed', label: m.notDispatched, canRedispatch: true };
   }
   switch (delivery.status) {
     case 'created':
     case 'searching':
-      return { tone: 'waiting', label: 'Kuryer izlanmoqda…', canRedispatch: false };
+      return { tone: 'waiting', label: m.searching, canRedispatch: false };
     case 'accepted':
-      return { tone: 'active', label: 'Kuryer kelyapti', canRedispatch: false };
+      return { tone: 'active', label: m.accepted, canRedispatch: false };
     case 'arrived':
-      return { tone: 'active', label: 'Kuryer yetib keldi', canRedispatch: false };
+      return { tone: 'active', label: m.arrived, canRedispatch: false };
     case 'in_progress':
-      return { tone: 'active', label: 'Kuryer yo‘lda', canRedispatch: false };
+      return { tone: 'active', label: m.inProgress, canRedispatch: false };
     case 'completed':
-      return { tone: 'done', label: 'Yetkazildi', canRedispatch: false };
+      return { tone: 'done', label: m.completed, canRedispatch: false };
     case 'cancelled':
-      return { tone: 'failed', label: 'Kuryer topilmadi', canRedispatch: true };
+      return { tone: 'failed', label: m.notFound, canRedispatch: true };
     default:
-      return { tone: 'waiting', label: 'Kuryer holati noma’lum', canRedispatch: false };
+      return { tone: 'waiting', label: m.unknown, canRedispatch: false };
   }
 }

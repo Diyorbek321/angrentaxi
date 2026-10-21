@@ -4,6 +4,7 @@
 import { cn } from '../ui/cn';
 import { RefreshButton } from '../ui/RefreshButton';
 import { formatTime } from '@/lib/format';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 export type LiveState = 'live' | 'connecting' | 'reconnecting' | 'stale' | 'offline';
 
@@ -22,13 +23,10 @@ export interface LiveStatusProps {
   className?: string;
 }
 
-const LABEL: Record<LiveState, string> = {
-  live: 'Jonli',
-  connecting: 'Ulanmoqda',
-  reconnecting: 'Qayta ulanmoqda',
-  stale: 'Eskirgan',
-  offline: 'Aloqa yoʻq',
-};
+/** Pill label for a state — read at render time so it follows the active locale. */
+export function liveStateLabel(state: LiveState): string {
+  return kitT().live[state];
+}
 
 /**
  * The ONE freshness readout per screen (topbar live slot). Calm when live
@@ -78,10 +76,10 @@ function StatusPill({
         />
       </span>
       <span className={cn('font-medium', state === 'live' ? 'text-ink' : undefined, compact && 'hidden sm:inline')}>
-        {LABEL[state]}
+        {liveStateLabel(state)}
       </span>
       {at && (
-        <span className={cn('num', compact && 'hidden md:inline', !bad && 'text-subtle')}>· {at} holatiga</span>
+        <span className={cn('num', compact && 'hidden md:inline', !bad && 'text-subtle')}>· {kitT().live.asOf(at)}</span>
       )}
     </div>
   );

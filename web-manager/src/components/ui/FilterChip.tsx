@@ -3,6 +3,7 @@
 
 import { X } from 'lucide-react';
 import { cn } from './cn';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 export interface FilterChipProps {
   label: string;
@@ -28,7 +29,7 @@ export function FilterChip({ label, onRemove, className }: FilterChipProps) {
       <button
         type="button"
         onClick={onRemove}
-        aria-label={`${label} filtrini olib tashlash`}
+        aria-label={kitT().filters.remove(label)}
         className="h-5 w-5 shrink-0 inline-flex items-center justify-center rounded-ds-xs text-muted hover:text-ink hover:bg-surface-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
       >
         <X size={12} aria-hidden />

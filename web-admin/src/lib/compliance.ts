@@ -4,6 +4,8 @@
  */
 
 /** Toshkent UTC+5, yozgi vaqt yo'q. Backend sanalarni ISO qabul qiladi. */
+import { t } from '@/locales';
+
 export const TASHKENT_OFFSET = '+05:00';
 const TASHKENT_OFFSET_MS = 5 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -96,7 +98,7 @@ export function isTin(value: string): boolean {
 export function validateOptionalTin(value: string): string | null {
   const v = value.trim();
   if (v === '') return null;
-  return isTin(v) ? null : "STIR 9 ta raqamdan iborat bo'lishi kerak";
+  return isTin(v) ? null : t().compliance.validation.tinDigits;
 }
 
 // ─── Wallet top-up ───────────────────────────────────────────────
@@ -127,26 +129,27 @@ export function normalizePresets(presets: readonly number[]): number[] {
 }
 
 export function validateTopupSettings(form: TopupForm): TopupErrors {
+  const v = t().finance.walletTopup.validation;
   const errors: TopupErrors = {};
   const { walletTopupMin: min, walletTopupMax: max, walletTopupPresets: presets } = form;
   const intIn = (n: number) => Number.isInteger(n) && n >= TOPUP_LIMIT_MIN && n <= TOPUP_LIMIT_MAX;
-  if (!intIn(min)) errors.walletTopupMin = "1 000 dan 100 000 000 so'mgacha butun son";
-  if (!intIn(max)) errors.walletTopupMax = "1 000 dan 100 000 000 so'mgacha butun son";
-  else if (!errors.walletTopupMin && max < min) errors.walletTopupMax = 'Maksimum minimumdan kichik';
+  if (!intIn(min)) errors.walletTopupMin = v.limitRange;
+  if (!intIn(max)) errors.walletTopupMax = v.limitRange;
+  else if (!errors.walletTopupMin && max < min) errors.walletTopupMax = v.maxBelowMin;
   if (presets.length > TOPUP_MAX_PRESETS) {
-    errors.walletTopupPresets = `Ko'pi bilan ${TOPUP_MAX_PRESETS} ta tayyor summa`;
+    errors.walletTopupPresets = v.tooManyPresets(TOPUP_MAX_PRESETS);
   } else if (presets.some((p) => !Number.isInteger(p) || p < min || p > max)) {
-    errors.walletTopupPresets = 'Har bir tayyor summa minimum va maksimum oralig\'ida bo\'lishi kerak';
+    errors.walletTopupPresets = v.presetOutOfRange;
   }
   const intRange = (n: number, max: number) => Number.isInteger(n) && n >= 0 && n <= max;
   if (form.walletTopupHoldDays !== undefined && !intRange(form.walletTopupHoldDays, TOPUP_HOLD_DAYS_MAX)) {
-    errors.walletTopupHoldDays = `0 dan ${TOPUP_HOLD_DAYS_MAX} gacha butun kun`;
+    errors.walletTopupHoldDays = v.holdDaysRange(TOPUP_HOLD_DAYS_MAX);
   }
   if (
     form.manualAdjustmentManagerLimit !== undefined &&
     !intRange(form.manualAdjustmentManagerLimit, MANUAL_ADJUSTMENT_LIMIT_MAX)
   ) {
-    errors.manualAdjustmentManagerLimit = "0 dan 5 000 000 so'mgacha butun son";
+    errors.manualAdjustmentManagerLimit = v.managerLimitRange;
   }
   return errors;
 }
@@ -178,16 +181,17 @@ export function describeVendorSettlement(
 ): string {
   const fromDate = isoToTashkentDate(s.vendorWalletSettlementFrom);
   const label = fromDate ? fromDate.split('-').reverse().join('.') : null;
+  const v = t().finance.vendorSettlement.describe;
   if (s.vendorSettlementMode === 'wallet') {
-    return 'Hamyon rejimi qo\'lda yoqilgan: kuryer do\'konga hamyonidan o\'tkazadi.';
+    return v.walletManual;
   }
   if (!s.vendorWalletSettlementFrom || !label) {
-    return 'Naqd rejim: kuryer do\'konga naqd to\'laydi. Avtomatik o\'tish sanasi belgilanmagan.';
+    return v.cashNoDate;
   }
   if (now.getTime() >= Date.parse(s.vendorWalletSettlementFrom)) {
-    return `${label} dan avtomatik hamyon rejimi amalda.`;
+    return v.walletAuto(label);
   }
-  return `Hozir naqd rejim. ${label} dan avtomatik hamyon rejimi.`;
+  return v.cashUntil(label);
 }
 
 // ─── Fiscal ──────────────────────────────────────────────────────

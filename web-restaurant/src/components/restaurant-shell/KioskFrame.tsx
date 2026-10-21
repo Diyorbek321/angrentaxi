@@ -3,6 +3,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Minimize2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { intlLocale } from '@/lib/i18n/core';
+import { t } from '@/locales';
 
 export interface KioskFrameProps {
   title: string;
@@ -17,7 +19,7 @@ export interface KioskFrameProps {
 function useClock(): string {
   const [clock, setClock] = useState('');
   useEffect(() => {
-    const tick = () => setClock(new Date().toLocaleTimeString('uz-UZ', { hour12: false }));
+    const tick = () => setClock(new Date().toLocaleTimeString(intlLocale(), { hour12: false }));
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
@@ -42,7 +44,7 @@ export function KioskFrame({ title, status, openToggle, banner, onExit, children
         </span>
         {openToggle}
         <Button variant="secondary" size="lg" leftIcon={<Minimize2 size={16} />} onClick={onExit}>
-          Kioskdan chiqish
+          {t().shell.exitKiosk}
         </Button>
       </header>
       {banner}

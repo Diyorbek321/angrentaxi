@@ -5,6 +5,7 @@ import type { MarketCategory } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
+import { t } from '@/locales';
 
 /** Bitta modal — yaratish ham, tahrirlash ham (`category` berilsa). */
 export function CategoryModal({
@@ -18,6 +19,7 @@ export function CategoryModal({
   onClose: () => void;
   onSave: (data: { name: string; emoji: string }) => Promise<void>;
 }) {
+  const m = t();
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState('🛒');
   const [saving, setSaving] = useState(false);
@@ -43,7 +45,7 @@ export function CategoryModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={category ? 'Kategoriyani tahrirlash' : 'Yangi kategoriya'}
+      title={category ? m.categories.editTitle : m.categories.newTitle}
       subtitle={category?.name}
       size="sm"
     >
@@ -57,7 +59,7 @@ export function CategoryModal({
         <div className="flex gap-3">
           <div className="w-20">
             <Input
-              label="Belgi"
+              label={m.categories.emoji}
               value={emoji}
               maxLength={2}
               onChange={(e) => setEmoji(e.target.value)}
@@ -66,20 +68,20 @@ export function CategoryModal({
           </div>
           <div className="flex-1">
             <Input
-              label="Kategoriya nomi"
+              label={m.categories.name}
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Masalan: Ichimliklar"
+              placeholder={m.categories.namePlaceholder}
             />
           </div>
         </div>
         <div className="flex justify-end gap-2.5">
           <Button type="button" variant="secondary" onClick={onClose}>
-            Bekor qilish
+            {m.common.cancel}
           </Button>
           <Button type="submit" disabled={!name.trim()} isLoading={saving}>
-            Saqlash
+            {m.common.save}
           </Button>
         </div>
       </form>

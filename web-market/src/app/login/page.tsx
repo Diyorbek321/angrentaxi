@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,28 +9,38 @@ import { Phone, Lock, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { LanguageToggle } from '@/components/ui';
 import { useToast } from '@/components/ui/Toast';
 import { authApi } from '@/lib/api';
 import { isValidUzPhone, formatPhone } from '@/lib/auth';
 import { errorMessage } from '@/lib/utils';
 import { sanitizeNextPath } from '@/lib/route-guard';
 import { useAuth } from '@/hooks/useAuth';
+import { t } from '@/locales';
 
-const phoneSchema = z.object({
-  phone: z
-    .string()
-    .min(9, 'Telefon raqamini kiriting')
-    .refine((v) => isValidUzPhone(v), "Noto'g'ri telefon raqam (+998XXXXXXXXX)"),
-});
+// Sxemalar funksiya ichida: xato matnlari joriy tilda bo'lishi uchun.
+function phoneSchema() {
+  const m = t().login;
+  return z.object({
+    phone: z
+      .string()
+      .min(9, m.phoneRequired)
+      .refine((v) => isValidUzPhone(v), m.phoneInvalid),
+  });
+}
 
-const otpSchema = z.object({
-  code: z.string().length(6, '6 raqamli kod kiriting').regex(/^\d+$/, 'Faqat raqamlar'),
-});
+function otpSchema() {
+  const m = t().login;
+  return z.object({
+    code: z.string().length(6, m.codeLength).regex(/^\d+$/, m.digitsOnly),
+  });
+}
 
-type PhoneForm = z.infer<typeof phoneSchema>;
-type OtpForm = z.infer<typeof otpSchema>;
+type PhoneForm = z.infer<ReturnType<typeof phoneSchema>>;
+type OtpForm = z.infer<ReturnType<typeof otpSchema>>;
 
 export default function LoginPage() {
+  const m = t();
   const router = useRouter();
   const { login } = useAuth();
   const { toast } = useToast();
@@ -51,11 +61,13 @@ export default function LoginPage() {
     setNextPath(sanitizeNextPath(param));
   }, []);
 
+  const phoneResolver = useMemo(() => zodResolver(phoneSchema()), []);
+  const otpResolver = useMemo(() => zodResolver(otpSchema()), []);
   const phoneForm = useForm<PhoneForm>({
-    resolver: zodResolver(phoneSchema),
+    resolver: phoneResolver,
     defaultValues: { phone: '' },
   });
-  const otpForm = useForm<OtpForm>({ resolver: zodResolver(otpSchema), defaultValues: { code: '' } });
+  const otpForm = useForm<OtpForm>({ resolver: otpResolver, defaultValues: { code: '' } });
 
   const handleSendOtp = async (data: PhoneForm) => {
     setIsLoading(true);
@@ -70,14 +82,14 @@ export default function LoginPage() {
         otpForm.setValue('code', code);
       }
       toast({
-        title: 'Kod yuborildi',
-        description: code ? `[DEV] Kod: ${code}` : `${normalized} raqamiga SMS kod yuborildi`,
+        title: m.login.codeSent,
+        description: code ? m.login.devCode(code) : m.login.smsSent(normalized),
         variant: 'success',
       });
     } catch (err: unknown) {
       toast({
-        title: 'Xatolik',
-        description: errorMessage(err, 'Kod yuborishda xatolik yuz berdi'),
+        title: m.common.error,
+        description: errorMessage(err, m.login.sendFailed),
         variant: 'error',
       });
     } finally {
@@ -93,12 +105,12 @@ export default function LoginPage() {
       // the wrong kind of account. Only the profile comes back here.
       const user = await authApi.verifyOtp(phone, data.code);
       login(user);
-      toast({ title: 'Muvaffaqiyatli kirildi', variant: 'success' });
+      toast({ title: m.login.loggedIn, variant: 'success' });
       router.push(nextPath);
     } catch (err: unknown) {
       toast({
-        title: 'Xatolik',
-        description: errorMessage(err, "Noto'g'ri kod"),
+        title: m.common.error,
+        description: errorMessage(err, m.login.wrongCode),
         variant: 'error',
       });
     } finally {
@@ -108,7 +120,8 @@ export default function LoginPage() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-bg px-4 py-10">
-      <div className="absolute right-4 top-4">
+      <div className="absolute right-4 top-4 flex items-center gap-2">
+        <LanguageToggle />
         <ThemeToggle />
       </div>
 
@@ -120,29 +133,29 @@ export default function LoginPage() {
           >
             A
           </span>
-          <h1 className="text-xl font-semibold text-ink">Angren Market</h1>
-          <p className="mt-0.5 text-[13px] text-muted">Sotuvchi paneli</p>
+          <h1 className="text-xl font-semibold text-ink">{m.brand.name}</h1>
+          <p className="mt-0.5 text-[13px] text-muted">{m.brand.subtitle}</p>
         </div>
 
         <div className="rounded-ds-md border border-line bg-surface p-6 shadow-card">
           <div className="mb-5">
             <p className="num text-xs text-subtle" aria-live="polite">
-              {step === 'phone' ? '1-qadam / 2' : '2-qadam / 2'}
+              {step === 'phone' ? m.login.step1 : m.login.step2}
             </p>
             <h2 className="mt-1 text-base font-semibold text-ink">
-              {step === 'phone' ? 'Kirish' : 'Tasdiqlash kodi'}
+              {step === 'phone' ? m.login.signIn : m.login.codeTitle}
             </h2>
             <p className="mt-1 text-[13px] text-muted">
               {step === 'phone'
-                ? 'Telefon raqamingizni kiriting — SMS kod yuboramiz'
-                : `${phone} raqamiga yuborilgan 6 raqamli kodni kiriting`}
+                ? m.login.phoneHint
+                : m.login.codeHint(phone)}
             </p>
           </div>
 
           {step === 'phone' ? (
             <form onSubmit={phoneForm.handleSubmit(handleSendOtp)} className="space-y-4" noValidate>
               <Input
-                label="Telefon raqam"
+                label={m.login.phoneLabel}
                 placeholder="+998901234567"
                 autoComplete="tel"
                 inputMode="tel"
@@ -158,13 +171,13 @@ export default function LoginPage() {
                 isLoading={isLoading}
                 rightIcon={<ArrowRight size={16} aria-hidden />}
               >
-                Kod yuborish
+                {m.login.sendCode}
               </Button>
             </form>
           ) : (
             <form onSubmit={otpForm.handleSubmit(handleVerifyOtp)} className="space-y-4" noValidate>
               <Input
-                label="Tasdiqlash kodi"
+                label={m.login.codeTitle}
                 placeholder="000000"
                 maxLength={6}
                 mono
@@ -176,8 +189,8 @@ export default function LoginPage() {
               />
               {devOtpCode && (
                 <div className="rounded-ds-sm border border-info/30 bg-info-tint px-3 py-2 text-[13px] text-info-dark dark:text-info-light">
-                  <span className="font-semibold">TEST:</span> OTP kod —{' '}
-                  <span className="font-mono font-semibold">{devOtpCode}</span> (avtomatik kiritildi)
+                  <span className="font-semibold">TEST:</span> {m.login.testOtp}{' '}
+                  <span className="font-mono font-semibold">{devOtpCode}</span> {m.login.autoFilled}
                 </div>
               )}
               <Button
@@ -187,16 +200,16 @@ export default function LoginPage() {
                 isLoading={isLoading}
                 rightIcon={<ArrowRight size={16} aria-hidden />}
               >
-                Kirish
+                {m.login.signIn}
               </Button>
               <Button type="button" variant="ghost" className="w-full" onClick={() => setStep('phone')}>
-                Raqamni o&apos;zgartirish
+                {m.login.changeNumber}
               </Button>
             </form>
           )}
         </div>
 
-        <p className="mt-6 text-center text-xs text-subtle">Angren Market · Sotuvchi paneli</p>
+        <p className="mt-6 text-center text-xs text-subtle">{m.brand.footer}</p>
       </div>
     </div>
   );

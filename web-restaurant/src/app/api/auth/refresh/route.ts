@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { API_BASE_URL } from "@/lib/server/api-config";
 import { clientIpHeaders } from "@/lib/server/client-ip";
+import { requestMessages } from "@/lib/server/request-locale";
 import {
   REFRESH_TOKEN_COOKIE,
   clearSessionCookies,
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest) {
     // A network blip is not proof the session is gone — keep the cookies so the
     // next attempt can still succeed.
     return NextResponse.json(
-      { success: false, message: "Serverga ulanib boʻlmadi" },
+      { success: false, message: requestMessages(req).api.serverUnreachable },
       { status: 502 },
     );
   }

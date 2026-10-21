@@ -21,6 +21,7 @@ import { Skeleton, SkeletonStats, SkeletonTable } from '@/components/ui/Skeleton
 import { StatCard } from '@/components/ui/StatCard';
 import { cn } from '@/components/ui/cn';
 import { usePageRefresh } from '@/components/shell';
+import { t } from '@/locales';
 
 interface HomeData {
   dashboard: DashboardData;
@@ -35,6 +36,7 @@ const ORDERS_HREF = '/dashboard/orders';
 const STOCK_HREF = '/dashboard/stock';
 
 export default function DashboardPage() {
+  const m = t();
   const router = useRouter();
   const { data, isLoading, isRefreshing, error, reload } = useAsyncData<HomeData>(async () => {
     const [dash, newOrders] = await Promise.all([marketApi.getDashboard(), marketApi.getOrders('new')]);
@@ -50,7 +52,7 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <PageHeader title="Bosh sahifa" description="Bugungi savdo va zaxira holati" />
+      <PageHeader title={m.dashboard.title} description={m.dashboard.description} />
 
       {error && data && <DataErrorBanner message={error} onRetry={reload} retrying={isRefreshing} />}
 
@@ -65,7 +67,9 @@ export default function DashboardPage() {
   );
 }
 
-const recentColumns: DataTableColumn<RecentOrder>[] = [
+function recentColumns(): DataTableColumn<RecentOrder>[] {
+  const m = t();
+  return [
   {
     key: 'id',
     header: 'ID',
@@ -74,20 +78,21 @@ const recentColumns: DataTableColumn<RecentOrder>[] = [
   },
   {
     key: 'customer',
-    header: 'Mijoz',
+    header: m.dashboard.colCustomer,
     cell: (o) => <span className="block truncate text-ink">{o.customer?.trim() || '—'}</span>,
   },
   {
     key: 'items',
-    header: 'Mahsulot',
+    header: m.common.product,
     numeric: true,
     hideBelow: 'md',
-    cell: (o) => `${formatNumber(o.itemsCount)} ta`,
+    cell: (o) => m.common.count(formatNumber(o.itemsCount)),
   },
-  { key: 'time', header: 'Vaqt', numeric: true, hideBelow: 'sm', cell: (o) => formatTime(o.createdAt) },
-  { key: 'total', header: 'Summa', numeric: true, cell: (o) => <MoneyText value={o.totalPrice} /> },
-  { key: 'status', header: 'Holat', width: 'w-36', cell: (o) => <StatusBadge status={o.status} /> },
-];
+  { key: 'time', header: m.common.time, numeric: true, hideBelow: 'sm', cell: (o) => formatTime(o.createdAt) },
+  { key: 'total', header: m.common.sum, numeric: true, cell: (o) => <MoneyText value={o.totalPrice} /> },
+  { key: 'status', header: m.common.status, width: 'w-36', cell: (o) => <StatusBadge status={o.status} /> },
+  ];
+}
 
 function DashboardBody({
   data: { dashboard: d, newOrdersCount },
@@ -96,23 +101,25 @@ function DashboardBody({
   data: HomeData;
   onNavigate: (href: string) => void;
 }) {
+  const m = t();
+  const dm = m.dashboard;
   const lowCount = d.lowStock.length;
 
   return (
     <div className="space-y-4">
       {/* API o'tgan davr bilan solishtirishni bermaydi — delta/sparkline YO'Q. */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Bugungi buyurtmalar" value={formatNumber(d.todayOrdersCount)} />
-        <StatCard label="Bugungi tushum" value={formatNumber(d.todayRevenue)} unit="soʻm" />
+        <StatCard label={dm.todayOrders} value={formatNumber(d.todayOrdersCount)} />
+        <StatCard label={dm.todayRevenue} value={formatNumber(d.todayRevenue)} unit={m.common.som} />
         <StatCard
-          label="Faol mahsulotlar"
+          label={dm.activeProducts}
           value={formatNumber(d.activeProductsCount)}
-          hint={`${formatNumber(d.hiddenProductsCount)} ta yashirilgan`}
+          hint={dm.hidden(formatNumber(d.hiddenProductsCount))}
         />
         <StatCard
-          label={`Kam qolgan (≤ ${formatNumber(d.lowStockThreshold)})`}
+          label={m.common.lowStock(formatNumber(d.lowStockThreshold))}
           value={formatNumber(lowCount)}
-          hint={lowCount > 0 ? 'Tez orada toʻldiring' : 'Hammasi yetarli'}
+          hint={lowCount > 0 ? m.common.refillSoon : m.common.allEnough}
         />
       </div>
 
@@ -121,15 +128,15 @@ function DashboardBody({
           icon={newOrdersCount > 0 ? <BellRing aria-hidden /> : <CheckCircle2 aria-hidden />}
           title={
             newOrdersCount > 0
-              ? `${formatNumber(newOrdersCount)} ta yangi buyurtma`
-              : 'Yangi buyurtma yoʻq'
+              ? dm.newOrders(formatNumber(newOrdersCount))
+              : dm.noNewOrders
           }
           description={
             newOrdersCount > 0
-              ? 'Qabul qilinishini kutmoqda — yigʻishni boshlang'
-              : 'Hammasi qabul qilingan'
+              ? dm.awaitingAccept
+              : dm.allAccepted
           }
-          cta="Buyurtmalarga oʻtish"
+          cta={dm.toOrders}
           primary={newOrdersCount > 0}
           onClick={() => onNavigate(ORDERS_HREF)}
         />
@@ -137,17 +144,17 @@ function DashboardBody({
           icon={d.outOfStockCount > 0 ? <CircleOff aria-hidden /> : <CheckCircle2 aria-hidden />}
           title={
             d.outOfStockCount > 0
-              ? `${formatNumber(d.outOfStockCount)} ta mahsulot tugagan`
-              : 'Tugagan mahsulot yoʻq'
+              ? dm.outOfStock(formatNumber(d.outOfStockCount))
+              : dm.noOutOfStock
           }
           description={
             d.outOfStockCount > 0
-              ? `Sotuvdan chiqib qolgan${lowCount > 0 ? ` · yana ${formatNumber(lowCount)} ta kam qolgan` : ''}`
+              ? dm.outOfSale(lowCount > 0 ? formatNumber(lowCount) : null)
               : lowCount > 0
-                ? `${formatNumber(lowCount)} ta mahsulot kam qolgan`
-                : 'Zaxira yetarli'
+                ? dm.lowCount(formatNumber(lowCount))
+                : dm.stockEnough
           }
-          cta="Zaxirani toʻldirish"
+          cta={dm.refill}
           danger={d.outOfStockCount > 0}
           onClick={() => onNavigate(STOCK_HREF)}
         />
@@ -155,39 +162,39 @@ function DashboardBody({
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
         <DataTable
-          title="Soʻnggi buyurtmalar"
+          title={dm.recentOrders}
           actions={
             <Button variant="ghost" size="sm" href={ORDERS_HREF} rightIcon={<ArrowRight size={14} aria-hidden />}>
-              Barchasi
+              {m.common.all}
             </Button>
           }
-          ariaLabel="Soʻnggi buyurtmalar"
+          ariaLabel={dm.recentOrders}
           compact
-          columns={recentColumns}
+          columns={recentColumns()}
           rows={d.recentOrders}
           rowKey={(o) => o.id}
           onRowClick={() => onNavigate(ORDERS_HREF)}
           empty={{
             icon: <ClipboardList aria-hidden />,
-            title: 'Hali buyurtma yoʻq',
-            description: 'Yangi buyurtma kelganda shu yerda koʻrinadi.',
+            title: dm.noOrdersYet,
+            description: dm.noOrdersDescription,
           }}
         />
 
         <Card padding="none">
-          <CardHeader title="Bugungi sotuvlar" description="Eng koʻp sotilgan mahsulotlar" />
+          <CardHeader title={dm.todaySales} description={dm.bestSellers} />
           <div className="px-4 pb-4">
             {d.bestSellers.length === 0 ? (
               <EmptyState
                 compact
                 icon={<Trophy aria-hidden />}
-                title="Hali sotuv yoʻq"
-                description="Birinchi sotuvdan keyin reyting shakllanadi."
+                title={m.common.noSalesYet}
+                description={m.common.ratingAfterFirstSale}
               />
             ) : (
               <RankedBars
-                ariaLabel="Bugun eng koʻp sotilgan mahsulotlar"
-                unit="dona"
+                ariaLabel={dm.bestSellersToday}
+                unit={m.common.unitPcs}
                 items={d.bestSellers.map((b) => ({ label: b.name, value: b.sold }))}
               />
             )}
@@ -256,7 +263,7 @@ function ActionBanner({
 function DashboardSkeleton() {
   return (
     <div className="space-y-4" aria-busy="true" aria-live="polite">
-      <span className="sr-only">Yuklanmoqda</span>
+      <span className="sr-only">{t().common.loading}</span>
       <SkeletonStats count={4} className="xl:grid-cols-4" />
       <div className="grid gap-3 md:grid-cols-2">
         <Skeleton className="h-[62px] rounded-ds-md" />

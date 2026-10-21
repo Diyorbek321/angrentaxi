@@ -17,7 +17,7 @@ import { formatDateTime, formatMoney, formatPhone, formatRating, formatTime } fr
 import { getIntercityTrips } from '@/lib/intercity-api';
 import {
   INTERCITY_STATUS_BADGE,
-  INTERCITY_STATUS_LABELS,
+  intercityStatusLabels,
   INTERCITY_TRIP_STATUSES,
   addDays,
   applyTripUpdate,
@@ -32,6 +32,7 @@ import {
   zonesLabel,
 } from '@/lib/intercity';
 import { SOCKET_EVENTS, subscribeToSocket } from '@/lib/socket';
+import { t } from '@/locales';
 
 const PAGE_SIZE = 50;
 
@@ -43,10 +44,12 @@ const PAGE_SIZE = 50;
  */
 const FALLBACK_POLL_MS = 60_000;
 
-const STATUS_OPTIONS = [
-  { value: '', label: 'Barcha holatlar' },
-  ...INTERCITY_TRIP_STATUSES.map((status) => ({ value: status, label: INTERCITY_STATUS_LABELS[status] })),
-];
+function statusOptions() {
+  return [
+    { value: '', label: t().control.intercity.allStatuses },
+    ...INTERCITY_TRIP_STATUSES.map((status) => ({ value: status, label: intercityStatusLabels()[status] })),
+  ];
+}
 
 function routeName(trip: IntercityTripView): string {
   return `${trip.route.origin.name || '—'} → ${trip.route.destination.name || '—'}`;
@@ -54,6 +57,8 @@ function routeName(trip: IntercityTripView): string {
 
 /** Dispetcher: kun bo'yicha shaharlararo qatnovlar, to'lishi va holati. */
 export default function IntercityTripsPage() {
+  const m = t();
+  const mi = m.control.intercity;
   const [date, setDate] = useState(() => tashkentDate());
   const [status, setStatus] = useState<IntercityTripStatus | ''>('');
   const [page, setPage] = useState(1);
@@ -76,7 +81,7 @@ export default function IntercityTripsPage() {
       setError(null);
       setLastUpdatedAt(Date.now());
     } catch {
-      setError('Qatnovlarni yuklab boʻlmadi');
+      setError(t().control.intercity.loadFailed);
     } finally {
       setIsLoading(false);
     }
@@ -125,24 +130,24 @@ export default function IntercityTripsPage() {
   const columns: DataTableColumn<IntercityTripView>[] = [
     {
       key: 'departure',
-      header: 'Joʻnash',
+      header: mi.departure,
       className: 'num whitespace-nowrap',
       cell: (t) => <span className="font-medium text-ink">{formatTime(t.departureAt)}</span>,
     },
     {
       key: 'route',
-      header: 'Yoʻnalish',
+      header: mi.route,
       cell: (t) => <span className="text-ink">{routeName(t)}</span>,
     },
-    { key: 'class', header: 'Klass', hideBelow: 'md', cell: (t) => tripClassLabel(t.tripClass) },
+    { key: 'class', header: mi.tripClass, hideBelow: 'md', cell: (t) => tripClassLabel(t.tripClass) },
     {
       key: 'driver',
-      header: 'Haydovchi',
+      header: mi.driver,
       hideBelow: 'lg',
       cell: (t) =>
         t.driver ? (
           <div className="min-w-0">
-            <p className="truncate text-ink">{t.driver.firstName ?? 'Haydovchi'}</p>
+            <p className="truncate text-ink">{t.driver.firstName ?? mi.driver}</p>
             <p className="truncate text-xs text-muted">
               {[t.driver.carModel, t.driver.plate].filter(Boolean).join(' · ') || '—'}
             </p>
@@ -153,11 +158,11 @@ export default function IntercityTripsPage() {
     },
     {
       key: 'seats',
-      header: 'Oʻrindiq',
+      header: mi.seat,
       numeric: true,
       cell: (t) => (
         <div className="flex items-center justify-end gap-2">
-          {isWholeCarBooked(t) && <Badge size="sm">Butun mashina</Badge>}
+          {isWholeCarBooked(t) && <Badge size="sm">{m.lib.intercity.wholeCar}</Badge>}
           <span>
             {seatsTaken(t)}/{t.seatsTotal}
           </span>
@@ -166,16 +171,16 @@ export default function IntercityTripsPage() {
     },
     {
       key: 'status',
-      header: 'Holati',
+      header: mi.status,
       cell: (t) => (
         <Badge variant={INTERCITY_STATUS_BADGE[t.status]} size="sm" dot>
-          {INTERCITY_STATUS_LABELS[t.status]}
+          {intercityStatusLabels()[t.status]}
         </Badge>
       ),
     },
     {
       key: 'actions',
-      header: <span className="sr-only">Amallar</span>,
+      header: <span className="sr-only">{mi.actions}</span>,
       align: 'right',
       cell: (t) => (
         <Button
@@ -186,7 +191,7 @@ export default function IntercityTripsPage() {
             setSelected(t);
           }}
         >
-          Batafsil
+          {mi.details}
         </Button>
       ),
     },
@@ -198,15 +203,15 @@ export default function IntercityTripsPage() {
   return (
     <PageBody>
       <PageHeader
-        title="Shaharlararo"
-        description={data ? `${data.total} ta qatnov · ${date}` : 'Kun boʻyicha qatnovlar va ularning toʻlishi'}
+        title={mi.title}
+        description={data ? mi.tripsCount(data.total, date) : mi.description}
         actions={
           <PollStatus lastUpdatedAt={lastUpdatedAt} isRefreshing={isLoading} onRefresh={load} error={error} />
         }
       />
 
       <DataTable
-        ariaLabel="Shaharlararo qatnovlar"
+        ariaLabel={mi.tableAria}
         columns={columns}
         rows={rows}
         rowKey={(t) => t.id}
@@ -221,35 +226,35 @@ export default function IntercityTripsPage() {
           setPage(1);
         }}
         empty={{
-          title: 'Bu kunga qatnov yoʻq',
-          description: 'Haydovchilar ilovadan qatnov eʼlon qilganda shu yerda paydo boʻladi.',
+          title: mi.emptyTitle,
+          description: mi.emptyDescription,
         }}
         toolbar={
           <FilterBar>
             <div className="flex items-center gap-1">
               <Button size="sm" variant={date === today ? 'secondary' : 'ghost'} onClick={() => setDay(today)}>
-                Bugun
+                {mi.today}
               </Button>
               <Button
                 size="sm"
                 variant={date === addDays(today, 1) ? 'secondary' : 'ghost'}
                 onClick={() => setDay(addDays(today, 1))}
               >
-                Ertaga
+                {mi.tomorrow}
               </Button>
             </div>
             <Input
               type="date"
               size="sm"
-              aria-label="Joʻnash kuni"
+              aria-label={mi.departureDay}
               value={date}
               onChange={(e) => e.target.value && setDay(e.target.value)}
               wrapperClassName="w-40"
             />
             <Select
               size="sm"
-              aria-label="Holat"
-              options={STATUS_OPTIONS}
+              aria-label={mi.statusAria}
+              options={statusOptions()}
               value={status}
               onChange={(e) => {
                 setStatus(e.target.value as IntercityTripStatus | '');
@@ -275,35 +280,35 @@ export default function IntercityTripsPage() {
       >
         {selected && (
           <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-            <KeyValue label="Holati">
+            <KeyValue label={mi.status}>
               <Badge variant={INTERCITY_STATUS_BADGE[selected.status]} size="sm" dot>
-                {INTERCITY_STATUS_LABELS[selected.status]}
+                {intercityStatusLabels()[selected.status]}
               </Badge>
             </KeyValue>
-            <KeyValue label="Oʻrindiqlar">
+            <KeyValue label={mi.seats}>
               <span className="num">
-                {seatsTaken(selected)} band · {selected.seatsLeft} boʻsh · jami {selected.seatsTotal}
+                {mi.seatsSummary(seatsTaken(selected), selected.seatsLeft, selected.seatsTotal)}
               </span>
             </KeyValue>
-            <KeyValue label="Oʻrindiq narxi">
+            <KeyValue label={mi.seatPrice}>
               <span className="num">{formatMoney(selected.seatPrice)}</span>
             </KeyValue>
-            <KeyValue label="Butun mashina">
+            <KeyValue label={m.lib.intercity.wholeCar}>
               <span className="num">{formatMoney(selected.wholeCarPrice)}</span>
             </KeyValue>
-            <KeyValue label="Haydovchi">
+            <KeyValue label={mi.driver}>
               {selected.driver ? (
                 <span>
-                  {selected.driver.firstName ?? 'Haydovchi'} · ★ {formatRating(selected.driver.rating)}
+                  {selected.driver.firstName ?? mi.driver} · ★ {formatRating(selected.driver.rating)}
                 </span>
               ) : (
                 '—'
               )}
             </KeyValue>
-            <KeyValue label="Mashina">
+            <KeyValue label={mi.car}>
               {[selected.driver?.carModel, selected.driver?.plate].filter(Boolean).join(' · ') || '—'}
             </KeyValue>
-            <KeyValue label="Haydovchi telefoni">
+            <KeyValue label={mi.driverPhone}>
               {selected.driver?.phone ? (
                 <a href={`tel:${selected.driver.phone}`} className="num hover:underline">
                   {formatPhone(selected.driver.phone)}
@@ -312,24 +317,24 @@ export default function IntercityTripsPage() {
                 '—'
               )}
             </KeyValue>
-            <KeyValue label={`Olish tumanlari (${selected.route.origin.name})`}>
+            <KeyValue label={mi.pickupZones(selected.route.origin.name)}>
               {zonesLabel(selected.zones?.origin)}
             </KeyValue>
-            <KeyValue label={`Tushirish tumanlari (${selected.route.destination.name})`}>
+            <KeyValue label={mi.dropoffZones(selected.route.destination.name)}>
               {zonesLabel(selected.zones?.destination)}
             </KeyValue>
             {isWholeCarBooked(selected) && (
-              <KeyValue label="Band turi">
-                <Badge size="sm">Butun mashina</Badge>
+              <KeyValue label={mi.bookingType}>
+                <Badge size="sm">{m.lib.intercity.wholeCar}</Badge>
               </KeyValue>
             )}
             {selected.cancelReason && (
               <div className="col-span-2">
-                <KeyValue label="Bekor qilish sababi">{selected.cancelReason}</KeyValue>
+                <KeyValue label={mi.cancelReason}>{selected.cancelReason}</KeyValue>
               </div>
             )}
             <div className="col-span-2 mt-2">
-              <p className="mb-2 text-sm font-medium text-ink">Yoʻlovchilar</p>
+              <p className="mb-2 text-sm font-medium text-ink">{mi.passengers}</p>
               <TripBookings tripId={selected.id} refreshKey={bookingsRefreshKey} onChanged={load} />
             </div>
           </div>

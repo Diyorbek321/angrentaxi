@@ -18,7 +18,7 @@ import { getIntercityRequests } from '@/lib/intercity-api';
 import {
   INTERCITY_REQUEST_STATUSES,
   INTERCITY_REQUEST_STATUS_BADGE,
-  INTERCITY_REQUEST_STATUS_LABELS,
+  intercityRequestStatusLabels,
   formatRequestWindow,
   requestKindLabel,
   requestRouteName,
@@ -27,6 +27,7 @@ import {
   type IntercityRequestStatus,
 } from '@/lib/intercity-requests';
 import { SOCKET_EVENTS, subscribeToSocket } from '@/lib/socket';
+import { t } from '@/locales';
 
 const PAGE_SIZE = 50;
 
@@ -39,10 +40,12 @@ const FALLBACK_POLL_MS = 60_000;
  */
 const SOCKET_RELOAD_DEBOUNCE_MS = 500;
 
-const STATUS_OPTIONS = [
-  { value: '', label: 'Barcha holatlar' },
-  ...INTERCITY_REQUEST_STATUSES.map((status) => ({ value: status, label: INTERCITY_REQUEST_STATUS_LABELS[status] })),
-];
+function statusOptions() {
+  return [
+    { value: '', label: t().control.requests.allStatuses },
+    ...INTERCITY_REQUEST_STATUSES.map((status) => ({ value: status, label: intercityRequestStatusLabels()[status] })),
+  ];
+}
 
 /**
  * Dispetcher: mos qatnov topmagan yo'lovchilarning so'rovlari. Ochiq so'rov
@@ -50,6 +53,7 @@ const STATUS_OPTIONS = [
  * haydovchilarga aytadi — qabul qilish faqat haydovchi ilovasida.
  */
 export default function IntercityRequestsPage() {
+  const mr = t().control.requests;
   // Standart — ochiqlar: dispetcherga kerakli ish shular.
   const [status, setStatus] = useState<IntercityRequestStatus | ''>('open');
   const [page, setPage] = useState(1);
@@ -72,7 +76,7 @@ export default function IntercityRequestsPage() {
       setLastUpdatedAt(Date.now());
       setSelected((prev) => (prev ? (result.items.find((r) => r.id === prev.id) ?? prev) : prev));
     } catch {
-      if (seq === loadSeq.current) setError('Soʻrovlarni yuklab boʻlmadi');
+      if (seq === loadSeq.current) setError(t().control.requests.loadFailed);
     } finally {
       if (seq === loadSeq.current) setIsLoading(false);
     }
@@ -110,61 +114,61 @@ export default function IntercityRequestsPage() {
   const columns: DataTableColumn<IntercityRequestManage>[] = [
     {
       key: 'window',
-      header: 'Joʻnash oraligʻi',
+      header: mr.window,
       className: 'num whitespace-nowrap',
       cell: (r) => <span className="font-medium text-ink">{formatRequestWindow(r.windowStart, r.windowEnd)}</span>,
     },
     {
       key: 'route',
-      header: 'Yoʻnalish',
+      header: mr.route,
       cell: (r) => <span className="text-ink">{requestRouteName(r)}</span>,
     },
     {
       key: 'what',
-      header: 'Nima',
+      header: mr.what,
       hideBelow: 'md',
       cell: (r) => `${requestKindLabel(r)} · ${tripClassLabel(r.tripClass)}`,
     },
     {
       key: 'passenger',
-      header: 'Yoʻlovchi',
+      header: mr.passenger,
       hideBelow: 'lg',
       cell: (r) => (
         <div className="min-w-0">
-          <p className="truncate text-ink">{r.passengerName ?? 'Yoʻlovchi'}</p>
+          <p className="truncate text-ink">{r.passengerName ?? mr.passenger}</p>
           <p className="num truncate text-xs text-muted">{formatPhone(r.passengerPhone)}</p>
         </div>
       ),
     },
     {
       key: 'price',
-      header: 'Narx',
+      header: mr.price,
       numeric: true,
       cell: (r) => (
         <div className="text-right">
           <p className="num text-ink">{formatMoney(r.total)}</p>
-          {r.bonus > 0 && <p className="num text-xs text-muted">{formatMoney(r.bonus, { signed: true })} oshirilgan</p>}
+          {r.bonus > 0 && <p className="num text-xs text-muted">{mr.raised(formatMoney(r.bonus, { signed: true }))}</p>}
         </div>
       ),
     },
     {
       key: 'status',
-      header: 'Holati',
+      header: mr.status,
       cell: (r) => (
         <Badge variant={INTERCITY_REQUEST_STATUS_BADGE[r.status]} size="sm" dot>
-          {INTERCITY_REQUEST_STATUS_LABELS[r.status]}
+          {intercityRequestStatusLabels()[r.status]}
         </Badge>
       ),
     },
     {
       key: 'created',
-      header: 'Qoldirilgan',
+      header: mr.created,
       hideBelow: 'lg',
       cell: (r) => <RelativeTime value={r.createdAt} className="text-muted" />,
     },
     {
       key: 'actions',
-      header: <span className="sr-only">Amallar</span>,
+      header: <span className="sr-only">{mr.actions}</span>,
       align: 'right',
       cell: (r) => (
         <Button
@@ -175,7 +179,7 @@ export default function IntercityRequestsPage() {
             setSelected(r);
           }}
         >
-          Batafsil
+          {mr.details}
         </Button>
       ),
     },
@@ -187,11 +191,11 @@ export default function IntercityRequestsPage() {
   return (
     <PageBody>
       <PageHeader
-        title="Yoʻlovchi soʻrovlari"
+        title={mr.title}
         description={
           data
-            ? `${data.total} ta soʻrov${status ? ` · ${INTERCITY_REQUEST_STATUS_LABELS[status].toLowerCase()}` : ''}`
-            : 'Mos qatnov topmagan yoʻlovchilar — haydovchilar ilovadan qabul qiladi'
+            ? `${mr.count(data.total)}${status ? ` · ${intercityRequestStatusLabels()[status].toLowerCase()}` : ''}`
+            : mr.description
         }
         actions={
           <PollStatus lastUpdatedAt={lastUpdatedAt} isRefreshing={isLoading} onRefresh={load} error={error} />
@@ -199,7 +203,7 @@ export default function IntercityRequestsPage() {
       />
 
       <DataTable
-        ariaLabel="Yoʻlovchi soʻrovlari"
+        ariaLabel={mr.title}
         columns={columns}
         rows={rows}
         rowKey={(r) => r.id}
@@ -214,15 +218,15 @@ export default function IntercityRequestsPage() {
           setPage(1);
         }}
         empty={{
-          title: status === 'open' ? 'Ochiq soʻrov yoʻq' : 'Soʻrov yoʻq',
-          description: 'Yoʻlovchi mos qatnov topmay soʻrov qoldirganda shu yerda paydo boʻladi.',
+          title: status === 'open' ? mr.emptyOpen : mr.empty,
+          description: mr.emptyDescription,
         }}
         toolbar={
           <FilterBar>
             <Select
               size="sm"
-              aria-label="Holat"
-              options={STATUS_OPTIONS}
+              aria-label={mr.statusAria}
+              options={statusOptions()}
               value={status}
               onChange={(e) => {
                 setStatus(e.target.value as IntercityRequestStatus | '');
@@ -253,18 +257,19 @@ export default function IntercityRequestsPage() {
 }
 
 function RequestDetails({ request }: { request: IntercityRequestManage }) {
+  const mr = t().control.requests;
   return (
     <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-      <KeyValue label="Holati">
+      <KeyValue label={mr.status}>
         <Badge variant={INTERCITY_REQUEST_STATUS_BADGE[request.status]} size="sm" dot>
-          {INTERCITY_REQUEST_STATUS_LABELS[request.status]}
+          {intercityRequestStatusLabels()[request.status]}
         </Badge>
       </KeyValue>
-      <KeyValue label="Nima">
+      <KeyValue label={mr.what}>
         {requestKindLabel(request)} · {tripClassLabel(request.tripClass)}
       </KeyValue>
-      <KeyValue label="Yoʻlovchi">{request.passengerName ?? '—'}</KeyValue>
-      <KeyValue label="Telefon">
+      <KeyValue label={mr.passenger}>{request.passengerName ?? '—'}</KeyValue>
+      <KeyValue label={mr.phone}>
         {request.passengerPhone ? (
           <a href={`tel:${request.passengerPhone}`} className="num hover:underline">
             {formatPhone(request.passengerPhone)}
@@ -273,24 +278,24 @@ function RequestDetails({ request }: { request: IntercityRequestManage }) {
           '—'
         )}
       </KeyValue>
-      <KeyValue label="Olish manzili">{request.pickup.address || '—'}</KeyValue>
-      <KeyValue label="Tushirish manzili">{request.dropoff.address || '—'}</KeyValue>
-      <KeyValue label="Tarif narxi">
+      <KeyValue label={mr.pickupAddress}>{request.pickup.address || '—'}</KeyValue>
+      <KeyValue label={mr.dropoffAddress}>{request.dropoff.address || '—'}</KeyValue>
+      <KeyValue label={mr.basePrice}>
         <span className="num">{formatMoney(request.basePrice)}</span>
       </KeyValue>
-      <KeyValue label="Yoʻlovchi oshirgan">
+      <KeyValue label={mr.passengerBonus}>
         <span className="num">{request.bonus > 0 ? formatMoney(request.bonus, { signed: true }) : '—'}</span>
       </KeyValue>
-      <KeyValue label="Jami">
+      <KeyValue label={mr.total}>
         <span className="num font-medium text-ink">{formatMoney(request.total)}</span>
       </KeyValue>
-      <KeyValue label="Qoldirilgan">
+      <KeyValue label={mr.created}>
         <RelativeTime value={request.createdAt} />
       </KeyValue>
       {request.status === 'accepted' && (
         <div className="col-span-2">
-          <KeyValue label="Natija">
-            Haydovchi qabul qildi — band «Shaharlararo» sahifasidagi qatnovda.
+          <KeyValue label={mr.result}>
+            {mr.acceptedResult}
           </KeyValue>
         </div>
       )}

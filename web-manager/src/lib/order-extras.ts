@@ -1,3 +1,4 @@
+import { t } from '@/locales';
 /**
  * Buyurtmaning v5 qo'shimchalari — docs/specs/food-market-ux-v5.md §1–§4:
  * manzil tafsilotlari, promokod / aksiya chegirmalari va mijoz bekor qilgani.
@@ -28,13 +29,14 @@ export interface OrderV5Fields {
   canCancel?: boolean;
 }
 
-const ADDRESS_FIELDS: ReadonlyArray<{ key: keyof AddressDetails; label: string; short?: string }> = [
-  { key: 'entrance', label: 'Podyezd', short: 'podyezd' },
-  { key: 'floor', label: 'Qavat', short: 'qavat' },
-  { key: 'apartment', label: 'Xonadon', short: 'xonadon' },
-  { key: 'intercom', label: 'Domofon', short: 'domofon' },
-  { key: 'landmark', label: 'Moʻljal' },
-  { key: 'courierNote', label: 'Kuryerga izoh' },
+/** Spec tartibi; yorliqlar joriy tilda `t().lib.address` dan. */
+const ADDRESS_FIELD_KEYS: ReadonlyArray<keyof AddressDetails> = [
+  'entrance',
+  'floor',
+  'apartment',
+  'intercom',
+  'landmark',
+  'courierNote',
 ];
 
 export interface AddressDetailLine {
@@ -48,7 +50,9 @@ const clean = (v: unknown): string => (typeof v === 'string' ? v.trim() : typeof
 /** To'ldirilgan maydonlar, spec tartibida. Bo'sh/null → chiqmaydi. */
 export function addressDetailLines(details: AddressDetails | null | undefined): AddressDetailLine[] {
   if (!details || typeof details !== 'object') return [];
-  return ADDRESS_FIELDS.flatMap(({ key, label }) => {
+  const labels = t().lib.address;
+  return ADDRESS_FIELD_KEYS.flatMap((key) => {
+    const label = labels[key];
     const value = clean(details[key]);
     return value ? [{ key, label, value }] : [];
   });
@@ -65,10 +69,11 @@ export function formatAddressShort(details: AddressDetails | null | undefined): 
   const floor = clean(details.floor);
   const apartment = clean(details.apartment);
   const intercom = clean(details.intercom);
-  if (entrance) parts.push(`${entrance}-podyezd`);
-  if (floor) parts.push(`${floor}-qavat`);
-  if (apartment) parts.push(`${apartment}-xonadon`);
-  if (intercom) parts.push(`domofon ${intercom}`);
+  const m = t().lib.address;
+  if (entrance) parts.push(m.entranceShort(entrance));
+  if (floor) parts.push(m.floorShort(floor));
+  if (apartment) parts.push(m.apartmentShort(apartment));
+  if (intercom) parts.push(m.intercomShort(intercom));
   return parts.join(' · ');
 }
 
@@ -105,7 +110,7 @@ export function isCustomerCancelled(order: { status: string } & OrderV5Fields): 
 /** "Mijoz bekor qildi" + sabab (bo'lsa). */
 export function customerCancelText(order: OrderV5Fields): string {
   const reason = clean(order.cancelReason);
-  return reason ? `Mijoz bekor qildi: ${reason}` : 'Mijoz bekor qildi';
+  return reason ? t().lib.customerCancelledReason(reason) : t().lib.customerCancelled;
 }
 
 export interface TrackedOrder extends OrderV5Fields {

@@ -9,6 +9,7 @@ import { KeyValue, KeyValueList } from '@/components/ui/KeyValue';
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { customerNameOf, customerPhoneOf } from './OrderCard';
 import { AddressDetailsBlock, CustomerCancelNotice, DiscountLines } from './OrderExtras';
+import { t } from '@/locales';
 
 export function OrderDrawer({
   order,
@@ -24,6 +25,7 @@ export function OrderDrawer({
   onReject: () => void;
 }) {
   if (!order) return null;
+  const m = t().orders;
   const advanceLabel = advanceLabelFor(order);
   const phone = customerPhoneOf(order);
 
@@ -32,7 +34,7 @@ export function OrderDrawer({
       isOpen
       onClose={onClose}
       width="md"
-      title={<>Buyurtma <span className="font-mono">{shortId(order.id)}</span></>}
+      title={<>{m.drawer.title} <span className="font-mono">{shortId(order.id)}</span></>}
       subtitle={
         <span className="flex items-center gap-2">
           <OrderStatusBadge status={order.status} size="sm" />
@@ -44,7 +46,7 @@ export function OrderDrawer({
           <div className="flex w-full gap-2">
             {order.status === 'new' && (
               <Button variant="danger-ghost" size="lg" onClick={onReject}>
-                Rad etish
+                {m.card.reject}
               </Button>
             )}
             {advanceLabel && (
@@ -57,10 +59,10 @@ export function OrderDrawer({
       }
     >
       <KeyValueList className="rounded-ds-sm border border-line px-3 py-2.5">
-        <KeyValue label="Mijoz">
+        <KeyValue label={m.drawer.customer}>
           <span className="font-semibold">{customerNameOf(order)}</span>
         </KeyValue>
-        <KeyValue label="Telefon">
+        <KeyValue label={m.drawer.phone}>
           {phone ? (
             <a
               href={`tel:${phone}`}
@@ -73,7 +75,7 @@ export function OrderDrawer({
             '—'
           )}
         </KeyValue>
-        <KeyValue label="Manzil">
+        <KeyValue label={m.drawer.address}>
           <span className="inline-flex items-start gap-1.5">
             <MapPin size={13} aria-hidden className="mt-0.5 shrink-0 text-subtle" />
             {order.deliveryAddress || '—'}
@@ -88,7 +90,7 @@ export function OrderDrawer({
         <div className="rounded-ds-sm border border-override/40 bg-override-tint px-3 py-2.5">
           <p className="flex items-center gap-1.5 text-xs font-semibold text-override-dark dark:text-override-light">
             <MessageSquareWarning size={13} aria-hidden />
-            Mijoz izohi
+            {m.card.customerNote}
           </p>
           <p className="mt-0.5 text-body font-semibold text-ink">{order.note}</p>
         </div>
@@ -96,13 +98,13 @@ export function OrderDrawer({
 
       {order.rejectReason && (
         <div className="rounded-ds-sm border border-danger/30 bg-danger-tint px-3 py-2.5">
-          <p className="text-xs font-semibold text-danger-dark dark:text-danger-light">Rad etish sababi</p>
+          <p className="text-xs font-semibold text-danger-dark dark:text-danger-light">{m.card.rejectReason}</p>
           <p className="mt-0.5 text-body text-ink">{order.rejectReason}</p>
         </div>
       )}
 
       <div>
-        <h3 className="text-xs font-semibold text-subtle">Tarkibi</h3>
+        <h3 className="text-xs font-semibold text-subtle">{m.drawer.items}</h3>
         <ul className="mt-1 divide-y divide-line">
           {order.items.map((it, i) => (
             <li key={`${it.dishId}-${i}`} className="flex items-center gap-3 py-2.5 text-body">
@@ -115,7 +117,7 @@ export function OrderDrawer({
         <DiscountLines order={order} className="mt-3 border-t border-line pt-3" />
         <div className="mt-3 flex items-center justify-between border-t border-line pt-3">
           <span className="text-body text-muted">
-            Toʻlov: <span className="font-semibold text-ink">{order.paymentMethod === 'card' ? 'Karta' : 'Naqd'}</span>
+            {m.drawer.payment} <span className="font-semibold text-ink">{order.paymentMethod === 'card' ? m.card.card : m.card.cash}</span>
           </span>
           <MoneyText value={order.totalPrice} className="text-h2 text-ink" />
         </div>

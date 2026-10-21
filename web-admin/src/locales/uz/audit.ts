@@ -1,0 +1,33 @@
+export const audit = {
+  title: 'Amallar jurnali',
+  description:
+    'Hamyonni qoʻlda tuzatish, smenani bekor qilish, STIR oʻzgarishi va karta qaytarimi — kim, qachon, qancha va nima uchun',
+  allActions: 'Barcha amallar',
+  allTargets: 'Barcha obyektlar',
+  colDate: 'Sana',
+  colAction: 'Amal',
+  colTarget: 'Obyekt',
+  colAmount: 'Summa',
+  colNote: 'Izoh',
+  colActor: 'Bajaruvchi',
+  loadFailed: 'Amallar jurnalini yuklab boʻlmadi',
+  emptyTitle: 'Jurnal boʻsh',
+  emptyDesc: 'Hamyon qoʻlda tuzatilganda yoki smena bekor qilinganda yozuv shu yerda paydo boʻladi.',
+  actionType: 'Amal turi',
+  targetType: 'Obyekt turi',
+  targetId: 'Obyekt ID',
+  targetIdPlaceholder: 'Obyekt ID (toʻliq UUID)',
+  targetIdError: 'Toʻliq UUID kiriting',
+  actor: {
+    deletedUser: 'Foydalanuvchi oʻchirilgan',
+    system: 'Tizim',
+  },
+  roleLabels: {
+    admin: 'Admin',
+    manager: 'Menejer',
+    driver: 'Haydovchi',
+    passenger: 'Yoʻlovchi',
+    market: 'Doʻkon',
+    restaurant: 'Restoran',
+  } as Record<string, string>,
+};

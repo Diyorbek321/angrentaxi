@@ -1,12 +1,9 @@
 import type { LostItemStatus } from './api';
+import { t } from '@/locales';
 
-export const LOST_ITEM_STATUS_LABEL: Record<LostItemStatus, string> = {
-  open: 'Haydovchi javobini kutmoqda',
-  found: 'Topildi — topshirishni kelishing',
-  not_found: 'Haydovchi topmadi',
-  returned: 'Qaytarildi',
-  closed: 'Yopildi',
-};
+export function lostItemStatusLabels(): Record<LostItemStatus, string> {
+  return t().lib.lostItemStatus;
+}
 
 /**
  * What the dispatcher should do next. `found` is the only state that needs a

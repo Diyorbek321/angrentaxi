@@ -3,6 +3,8 @@ import { API_BASE_URL } from "@/lib/server/api-config";
 import { clientIpHeaders } from "@/lib/server/client-ip";
 import { setSessionCookies } from "@/lib/server/auth-cookies";
 import { crossOriginRejection, isSameOrigin } from "@/lib/server/same-origin";
+import { getServerLocale } from "@/lib/i18n/server";
+import { t } from "@/locales";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,6 +17,7 @@ export const dynamic = "force-dynamic";
  * profile is returned, because the panel chrome needs a name to render.
  */
 export async function POST(req: NextRequest) {
+  const locale = getServerLocale();
   if (!isSameOrigin(req)) return crossOriginRejection();
 
   let body: { phone?: unknown; code?: unknown };
@@ -31,7 +34,7 @@ export async function POST(req: NextRequest) {
   const code = typeof body.code === "string" ? body.code.trim() : "";
   if (!phone || !code) {
     return NextResponse.json(
-      { success: false, message: "Telefon raqam va kod talab qilinadi" },
+      { success: false, message: t().lib.authRoute.phoneAndCodeRequired },
       { status: 400 },
     );
   }
@@ -43,13 +46,14 @@ export async function POST(req: NextRequest) {
       headers: {
         ...clientIpHeaders(req.headers),
         "Content-Type": "application/json",
+        "Accept-Language": locale,
       },
       body: JSON.stringify({ phone, code }),
       cache: "no-store",
     });
   } catch {
     return NextResponse.json(
-      { success: false, message: "Serverga ulanib boʻlmadi" },
+      { success: false, message: t().lib.authRoute.serverUnreachable },
       { status: 502 },
     );
   }
@@ -65,7 +69,7 @@ export async function POST(req: NextRequest) {
 
   if (!upstream.ok || !payload?.data?.accessToken || !payload.data.user) {
     return NextResponse.json(
-      { success: false, message: payload?.message || "Notoʻgʻri kod" },
+      { success: false, message: payload?.message || t().lib.invalidCode },
       { status: upstream.ok ? 502 : upstream.status },
     );
   }
@@ -78,7 +82,7 @@ export async function POST(req: NextRequest) {
   // a driver's valid token from being planted in a dispatcher cookie.
   if (user.role !== "manager" && user.role !== "admin") {
     return NextResponse.json(
-      { success: false, message: "Bu panel faqat menejerlar uchun." },
+      { success: false, message: t().lib.authRoute.managersOnly },
       { status: 403 },
     );
   }

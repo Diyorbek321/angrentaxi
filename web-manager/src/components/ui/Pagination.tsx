@@ -4,6 +4,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from './cn';
 import { formatNumber } from '@/lib/format';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 export const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
 
@@ -93,7 +94,7 @@ export function Pagination(props: PaginationProps) {
 
   return (
     <nav
-      aria-label="Sahifalash"
+      aria-label={kitT().pagination.nav}
       className={cn(
         'flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2.5 border-t border-line text-[13px]',
         className
@@ -103,7 +104,7 @@ export function Pagination(props: PaginationProps) {
         {rangeLabel && <span className="num whitespace-nowrap">{rangeLabel}</span>}
         {onSizeChange && pageSize != null && (
           <label className="flex items-center gap-2 whitespace-nowrap">
-            <span className="hidden sm:inline">Sahifada</span>
+            <span className="hidden sm:inline">{kitT().pagination.perPage}</span>
             <select
               value={pageSize}
               onChange={(e) => onSizeChange(Number(e.target.value))}
@@ -126,7 +127,7 @@ export function Pagination(props: PaginationProps) {
             className={btn}
             onClick={() => onPageChange(page - 1)}
             disabled={!canPrev}
-            aria-label="Oldingi sahifa"
+            aria-label={kitT().pagination.prev}
           >
             <ChevronLeft size={15} aria-hidden />
           </button>
@@ -158,7 +159,7 @@ export function Pagination(props: PaginationProps) {
             className={btn}
             onClick={() => onPageChange(page + 1)}
             disabled={!canNext}
-            aria-label="Keyingi sahifa"
+            aria-label={kitT().pagination.next}
           >
             <ChevronRight size={15} aria-hidden />
           </button>

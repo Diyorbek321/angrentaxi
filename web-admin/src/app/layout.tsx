@@ -3,6 +3,8 @@ import localFont from 'next/font/local';
 import './globals.css';
 import { Providers } from './providers';
 import { THEME_INIT_SCRIPT } from '@/lib/theme';
+import { getServerLocale } from '@/lib/i18n/server';
+import { t } from '@/locales';
 
 // Self-hosted (not next/font/google) so the build never depends on a live
 // fetch to Google's font CDN at build time.
@@ -28,18 +30,23 @@ const jetbrainsMono = localFont({
   display: 'swap',
 });
 
-export const metadata: Metadata = {
-  title: 'Angren Taxi — Admin Panel',
-  description: 'Angren Taxi platformasini boshqarish paneli',
-};
+export function generateMetadata(): Metadata {
+  getServerLocale();
+  const m = t();
+  return {
+    title: m.meta.title,
+    description: m.meta.description,
+  };
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = getServerLocale();
   return (
     // suppressHydrationWarning: the inline script below adds `.dark` to <html>
     // before React hydrates, so the server markup and the live DOM differ by
     // that one class on purpose.
     <html
-      lang="uz"
+      lang={locale}
       className={`${manrope.variable} ${jetbrainsMono.variable}`}
       suppressHydrationWarning
     >
@@ -47,7 +54,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className="font-sans bg-bg text-ink">
-        <Providers>{children}</Providers>
+        <Providers locale={locale}>{children}</Providers>
       </body>
     </html>
   );

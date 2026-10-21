@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/Badge';
 import { MoneyText } from '@/components/ui/MoneyText';
 import { Select } from '@/components/ui/Select';
 import type { PromotionCatalogItem, PromotionVocabulary } from './types';
+import { t } from '@/locales';
 
 /**
  * Mijoz ilovasida narx qanday ko'rinadi: asl narx chizilgan, yakuniy narx
@@ -20,6 +21,7 @@ export function PricePreview({
   items: readonly PromotionCatalogItem[];
   vocab: PromotionVocabulary;
 }) {
+  const m = t().promotions;
   const covered = useMemo(() => coveredItems(form, items), [form, items]);
   const [pickedId, setPickedId] = useState<string>('');
   const item = covered.find((i) => i.id === pickedId) ?? covered[0] ?? null;
@@ -27,12 +29,12 @@ export function PricePreview({
   const preview = item ? pricePreview(Number(item.price), form.discountType, Number.isFinite(value) ? value : 0) : null;
 
   return (
-    <section aria-label="Narx koʻrinishi" className="rounded-ds-sm border border-line bg-surface-2/50 p-3">
+    <section aria-label={m.previewAria} className="rounded-ds-sm border border-line bg-surface-2/50 p-3">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-semibold text-subtle">Mijoz koʻradigan narx</p>
+        <p className="text-xs font-semibold text-subtle">{m.previewTitle}</p>
         {covered.length > 1 && (
           <Select
-            aria-label={`Koʻrish uchun ${vocab.item}`}
+            aria-label={vocab.previewItemAria}
             size="sm"
             value={item?.id ?? ''}
             onChange={(e) => setPickedId(e.target.value)}
@@ -44,7 +46,7 @@ export function PricePreview({
 
       {!item || !preview ? (
         <p className="mt-2 text-[13px] text-muted">
-          Qamrovda {vocab.item} yoʻq — koʻrinishni chizish uchun {vocab.item} yoki kategoriya tanlang.
+          {vocab.emptyCoverage}
         </p>
       ) : (
         <div className="mt-2 flex items-center justify-between gap-3">

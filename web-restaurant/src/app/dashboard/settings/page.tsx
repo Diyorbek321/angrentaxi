@@ -18,6 +18,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { SkeletonForm } from '@/components/ui/Skeleton';
 import { Switch } from '@/components/ui/Switch';
 import { useToast } from '@/components/ui/Toast';
+import { t } from '@/locales';
 
 interface Draft {
   name: string;
@@ -57,13 +58,16 @@ function isDirty(draft: Draft, baseline: Draft): boolean {
   return draft.image.kind !== 'keep' || JSON.stringify(strip(draft)) !== JSON.stringify(strip(baseline));
 }
 
-const NOTIFICATION_ROWS: { key: keyof Notifications; title: string; subtitle: string }[] = [
-  { key: 'sound', title: 'Yangi buyurtma ovozi', subtitle: 'Buyurtma kelganda signal chalinadi' },
-  { key: 'push', title: 'Push bildirishnomalar', subtitle: 'Brauzer bildirishnomalari' },
-  { key: 'sms', title: 'SMS xabarnoma', subtitle: 'Muhim voqealar haqida SMS' },
-];
+const NOTIFICATION_KEYS: readonly (keyof Notifications)[] = ['sound', 'push', 'sms'];
+
+/** Backend saqlagan kun nomi (`Dushanba`) → faol tildagi yozuv. Saqlangan qiymat o'zgarmaydi. */
+function dayName(day: string): string {
+  return t().settings.weekdays[day] ?? day;
+}
 
 export default function SettingsPage() {
+  const m = t();
+  const sm = m.settings;
   const { toast } = useToast();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [baseline, setBaseline] = useState<Draft | null>(null);
@@ -98,7 +102,7 @@ export default function SettingsPage() {
 
   const useCurrentLocation = () => {
     if (!navigator.geolocation) {
-      toast({ title: 'Joylashuv qo‘llab-quvvatlanmaydi', variant: 'error' });
+      toast({ title: sm.geoUnsupported, variant: 'error' });
       return;
     }
     setLocating(true);
@@ -108,7 +112,7 @@ export default function SettingsPage() {
         setLocating(false);
       },
       () => {
-        toast({ title: 'Joylashuvga ruxsat berilmadi', variant: 'error' });
+        toast({ title: sm.geoDenied, variant: 'error' });
         setLocating(false);
       }
     );
@@ -118,7 +122,7 @@ export default function SettingsPage() {
     if (!draft) return;
     const tinInvalid = tinError(draft.tin);
     if (tinInvalid) {
-      toast({ title: 'STIR notoʻgʻri', description: tinInvalid, variant: 'error' });
+      toast({ title: sm.tinInvalid, description: tinInvalid, variant: 'error' });
       return;
     }
     setSaving(true);
@@ -137,7 +141,7 @@ export default function SettingsPage() {
       });
       reset(res.data.data);
     } catch (err) {
-      toast({ title: 'Saqlab bo‘lmadi', description: errorMessage(err), variant: 'error' });
+      toast({ title: m.common.saveFailedAlt, description: errorMessage(err), variant: 'error' });
       setSaving(false);
       return;
     }
@@ -150,10 +154,10 @@ export default function SettingsPage() {
         const res = await foodApi.removeRestaurantImage();
         reset(res.data.data);
       }
-      toast({ title: 'Saqlandi', variant: 'success' });
+      toast({ title: sm.saved, variant: 'success' });
     } catch (err) {
       toast({
-        title: 'Maʼlumotlar saqlandi, lekin muqova yangilanmadi',
+        title: sm.coverFailed,
         description: errorMessage(err),
         variant: 'error',
       });
@@ -167,7 +171,7 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto w-full max-w-4xl">
-      <PageHeader title="Sozlamalar" description="Restoran profili, ish vaqti, yetkazib berish va bildirishnomalar" />
+      <PageHeader title={sm.title} description={sm.description} />
 
       {status === 'loading' && (
         <div className="grid gap-4 lg:grid-cols-2">
@@ -180,24 +184,24 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {status === 'error' && <ErrorState title="Sozlamalarni yuklab boʻlmadi" message={error} onRetry={reload} />}
+      {status === 'error' && <ErrorState title={sm.loadFailed} message={error} onRetry={reload} />}
 
       {status === 'ready' && draft && (
         <>
           <div className="grid items-start gap-4 lg:grid-cols-2">
             <Card padding="none">
-              <CardHeader title="Restoran maʼlumotlari" description="Mijoz ilovasida koʻrinadi" />
+              <CardHeader title={sm.profileTitle} description={sm.profileDescription} />
               <CardBody className="flex flex-col gap-4">
                 <ImagePicker
-                  label="Muqova rasmi"
+                  label={sm.cover}
                   currentSrc={catalogImageSrc(draft.imageKey)}
                   value={draft.image}
                   onChange={(image) => patch({ image })}
                   aspectClassName="aspect-[16/9]"
                 />
-                <Input label="Nomi" value={draft.name} onChange={(e) => patch({ name: e.target.value })} />
+                <Input label={m.common.name} value={draft.name} onChange={(e) => patch({ name: e.target.value })} />
                 <Input
-                  label="Telefon"
+                  label={sm.phone}
                   inputMode="tel"
                   className="num"
                   value={draft.phone}
@@ -205,14 +209,14 @@ export default function SettingsPage() {
                   placeholder="+998901234567"
                 />
                 <Input
-                  label="Manzil"
+                  label={sm.address}
                   value={draft.address}
                   onChange={(e) => patch({ address: e.target.value })}
                   leftElement={<MapPin size={15} />}
                 />
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Input
-                    label="Kenglik (lat)"
+                    label={sm.lat}
                     inputMode="decimal"
                     className="num"
                     value={draft.lat}
@@ -220,13 +224,13 @@ export default function SettingsPage() {
                     placeholder="40.1050"
                   />
                   <Input
-                    label="Uzunlik (lng)"
+                    label={sm.lng}
                     inputMode="decimal"
                     className="num"
                     value={draft.lng}
                     onChange={(e) => patch({ lng: e.target.value })}
                     placeholder="70.9500"
-                    hint="Kuryer buyurtmani shu nuqtadan oladi"
+                    hint={sm.lngHint}
                   />
                 </div>
                 <Button
@@ -237,7 +241,7 @@ export default function SettingsPage() {
                   leftIcon={<LocateFixed size={14} />}
                   onClick={useCurrentLocation}
                 >
-                  Hozirgi joylashuvni olish
+                  {sm.useLocation}
                 </Button>
               </CardBody>
             </Card>
@@ -245,16 +249,16 @@ export default function SettingsPage() {
             <div className="flex flex-col gap-4">
               <Card padding="none">
                 <CardHeader
-                  title="Ish vaqti"
+                  title={sm.hoursTitle}
                   actions={
                     <Badge variant={openDays > 0 ? 'neutral' : 'danger'} size="sm">
-                      {openDays} kun ochiq
+                      {sm.daysOpen(openDays)}
                     </Badge>
                   }
                   divider
                 />
                 {draft.hours.length === 0 ? (
-                  <p className="px-4 py-6 text-center text-[13px] text-muted">Ish vaqti jadvali hali sozlanmagan</p>
+                  <p className="px-4 py-6 text-center text-[13px] text-muted">{sm.hoursEmpty}</p>
                 ) : (
                   <ul className="divide-y divide-line">
                     {draft.hours.map((h, idx) => (
@@ -263,17 +267,17 @@ export default function SettingsPage() {
                           size="sm"
                           checked={h.open}
                           onCheckedChange={(open) => patchDay(idx, { open })}
-                          aria-label={`${h.day} — ochiq`}
+                          aria-label={sm.dayOpenAria(dayName(h.day))}
                         />
                         <span className={cn('w-24 text-[13px] font-medium', h.open ? 'text-ink' : 'text-muted')}>
-                          {h.day}
+                          {dayName(h.day)}
                         </span>
                         {h.open ? (
                           <div className="ml-auto flex items-center gap-1.5">
                             <Input
                               type="time"
                               size="sm"
-                              aria-label={`${h.day} — ochilish vaqti`}
+                              aria-label={sm.dayFromAria(dayName(h.day))}
                               value={h.from}
                               onChange={(e) => patchDay(idx, { from: e.target.value })}
                               className="num"
@@ -285,7 +289,7 @@ export default function SettingsPage() {
                             <Input
                               type="time"
                               size="sm"
-                              aria-label={`${h.day} — yopilish vaqti`}
+                              aria-label={sm.dayToAria(dayName(h.day))}
                               value={h.to}
                               onChange={(e) => patchDay(idx, { to: e.target.value })}
                               className="num"
@@ -293,7 +297,7 @@ export default function SettingsPage() {
                             />
                           </div>
                         ) : (
-                          <span className="ml-auto text-[13px] text-muted">Dam olish kuni</span>
+                          <span className="ml-auto text-[13px] text-muted">{sm.dayOff}</span>
                         )}
                       </li>
                     ))}
@@ -302,10 +306,10 @@ export default function SettingsPage() {
               </Card>
 
               <Card padding="none">
-                <CardHeader title="Soliq maʼlumotlari" description="Fiskal chek uchun" />
+                <CardHeader title={sm.taxTitle} description={sm.taxDescription} />
                 <CardBody>
                   <Input
-                    label="STIR (INN)"
+                    label={sm.tinLabel}
                     inputMode="numeric"
                     autoComplete="off"
                     className="num"
@@ -314,19 +318,19 @@ export default function SettingsPage() {
                     value={draft.tin}
                     onChange={(e) => patch({ tin: e.target.value.replace(/\D/g, '') })}
                     error={tinError(draft.tin) ?? undefined}
-                    hint="Fiskal chekda koʻrsatiladi. 9 ta raqam; kiritilmasa chekda restoran koʻrinmaydi."
+                    hint={sm.tinHint}
                   />
                 </CardBody>
               </Card>
 
               <Card padding="none">
-                <CardHeader title="Yetkazib berish zonasi" description="Restorandan maksimal masofa" />
+                <CardHeader title={sm.zoneTitle} description={sm.zoneDescription} />
                 <CardBody>
                   <div className="flex items-baseline justify-between">
                     <label htmlFor="radius" className="text-[13px] font-medium text-ink">
-                      Radius
+                      {sm.radius}
                     </label>
-                    <span className="num text-title text-ink">{draft.radius} km</span>
+                    <span className="num text-title text-ink">{sm.km(draft.radius)}</span>
                   </div>
                   <input
                     id="radius"
@@ -339,16 +343,16 @@ export default function SettingsPage() {
                     className="range-primary mt-2 w-full"
                   />
                   <div className="num mt-1 flex justify-between text-[11px] text-subtle" aria-hidden>
-                    <span>1 km</span>
-                    <span>15 km</span>
+                    <span>{sm.km(1)}</span>
+                    <span>{sm.km(15)}</span>
                   </div>
                 </CardBody>
               </Card>
 
               <Card padding="none">
-                <CardHeader title="Bildirishnomalar" divider />
+                <CardHeader title={sm.notificationsTitle} divider />
                 <ul className="divide-y divide-line">
-                  {NOTIFICATION_ROWS.map((row) => (
+                  {NOTIFICATION_KEYS.map((key) => ({ key, ...sm.notifications[key] })).map((row) => (
                     <li key={row.key} className="flex items-center gap-3 px-4 py-3">
                       <div className="min-w-0 flex-1">
                         <p className="text-[13px] font-medium text-ink">{row.title}</p>
@@ -369,13 +373,13 @@ export default function SettingsPage() {
           {/* Yopishqoq saqlash paneli — uzun formaning qayerida bo'lmasin ko'rinadi. */}
           <div className="sticky bottom-0 z-10 -mx-4 -mb-5 mt-5 flex items-center justify-end gap-2 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
             <p className={cn('mr-auto text-[13px]', dirty ? 'text-ink' : 'text-muted')} role="status">
-              {dirty ? 'Saqlanmagan oʻzgarishlar bor' : 'Barcha oʻzgarishlar saqlangan'}
+              {dirty ? sm.dirty : sm.clean}
             </p>
             <Button variant="secondary" disabled={!dirty || saving} onClick={() => baseline && setDraft(baseline)}>
-              Bekor qilish
+              {m.common.cancel}
             </Button>
             <Button isLoading={saving} disabled={!dirty} onClick={save}>
-              Saqlash
+              {m.common.save}
             </Button>
           </div>
         </>

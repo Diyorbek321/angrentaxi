@@ -15,9 +15,9 @@ import { apiErrorTitle } from '@/lib/api-error';
 import {
   buildDriverLegalPatch,
   hasMaskedLegalIds,
-  LEGAL_DUPLICATE_MESSAGE,
   legalDuplicateField,
-  TAX_STATUS_LABELS,
+  legalDuplicateMessage,
+  taxStatusLabels,
   toDriverLegalForm,
   validateDriverLegalForm,
   type DriverLegalErrors,
@@ -25,37 +25,42 @@ import {
 } from '@/lib/driver-legal';
 import { formatDateShort } from '@/lib/format';
 import { DriverLegalModal } from './DriverLegalModal';
+import { t } from '@/locales';
 
 const Mono = ({ value }: { value: string | null }) =>
   value ? <span className="font-mono text-xs">{value}</span> : <span className="text-subtle">—</span>;
 
 function EligibilityBadge({ e }: { e: DriverLegalSummary['eligibility'] }) {
+  const m = t().drivers.legal.card;
   if (e.eligible) {
     return (
       <Badge variant="success" dot>
-        Talablarga mos
+        {m.eligible}
       </Badge>
     );
   }
   return (
     <Badge variant={e.blocking ? 'danger' : 'neutral'} dot>
-      {e.blocking ? 'Taksi bloklangan' : 'Mos emas'}
+      {e.blocking ? m.taxiBlocked : m.notEligible}
     </Badge>
   );
 }
 
 function enforcementText(e: DriverLegalSummary['eligibility']): string {
-  if (e.enforced) return 'Majburlanmoqda';
-  if (e.enforcedFrom) return `Muhlat: ${formatDateShort(e.enforcedFrom)} gacha`;
-  return 'Majburlanmaydi (faqat ogohlantirish)';
+  const m = t().drivers.legal.card;
+  if (e.enforced) return m.enforced;
+  if (e.enforcedFrom) return m.enforcedFrom(formatDateShort(e.enforcedFrom));
+  return m.notEnforced;
 }
 
 /** VMQ 200 / PQ-247 huquqiy profili — `GET/PATCH /drivers/:id/legal`. */
 export function DriverLegalCard({ driverId }: { driverId: string }) {
   const { toast } = useToast();
+  const m = t().drivers.legal.card;
+  const mc = t().common;
   const res = useResource(
     () => driverLegalApi.get(driverId).then((r) => r.data.data),
-    'Huquqiy profilni yuklab boʻlmadi',
+    m.loadError,
     [driverId]
   );
   const [form, setForm] = useState<DriverLegalForm | null>(null);
@@ -92,14 +97,14 @@ export function DriverLegalCard({ driverId }: { driverId: string }) {
       const r = await driverLegalApi.update(driverId, patch);
       res.setData(r.data.data);
       setForm(null);
-      toast({ title: 'Huquqiy profil yangilandi', variant: 'success' });
+      toast({ title: m.updated, variant: 'success' });
     } catch (err) {
       // 409 LEGAL_PROFILE_DUPLICATE — xato tegishli maydon ostida, forma ochiq qoladi.
       const duplicate = legalDuplicateField(err);
-      if (duplicate) setErrors((prev) => ({ ...prev, [duplicate]: LEGAL_DUPLICATE_MESSAGE[duplicate] }));
+      if (duplicate) setErrors((prev) => ({ ...prev, [duplicate]: legalDuplicateMessage(duplicate) }));
       toast({
-        title: apiErrorTitle(err, 'Xatolik'),
-        description: duplicate ? LEGAL_DUPLICATE_MESSAGE[duplicate] : apiErrorMessage(err, 'Saqlashda xatolik'),
+        title: apiErrorTitle(err, mc.error),
+        description: duplicate ? legalDuplicateMessage(duplicate) : apiErrorMessage(err, mc.saveError),
         variant: 'error',
       });
     } finally {
@@ -111,14 +116,14 @@ export function DriverLegalCard({ driverId }: { driverId: string }) {
   // shuning uchun tahrirlash tugmasi ko'rsatilmaydi (§25 #2).
   const masked = summary ? hasMaskedLegalIds(summary.profile) : false;
   const actions = summary && !masked ? (
-    <Button variant="ghost" size="icon-sm" aria-label="Huquqiy profilni tahrirlash" onClick={openEdit}>
+    <Button variant="ghost" size="icon-sm" aria-label={m.editAria} onClick={openEdit}>
       <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
     </Button>
   ) : null;
 
   return (
     <>
-      <DetailCard title="Huquqiy profil" actions={actions}>
+      <DetailCard title={m.title} actions={actions}>
         {!summary && res.error && !res.loading ? (
           <ErrorState message={res.error} onRetry={res.reload} compact />
         ) : !summary ? (
@@ -141,30 +146,30 @@ export function DriverLegalCard({ driverId }: { driverId: string }) {
             )}
             {masked && (
               <p className="text-xs text-muted">
-                JShShIR va STIR niqoblangan — toʻliq qiymat va tahrirlash «Haydovchilarni tasdiqlash» ruxsati bilan.
+                {m.masked}
               </p>
             )}
             <KeyValueList>
-              <KeyValue label="Soliq maqomi">
-                {summary.profile.taxStatus ? TAX_STATUS_LABELS[summary.profile.taxStatus] : '—'}
+              <KeyValue label={m.taxStatus}>
+                {summary.profile.taxStatus ? taxStatusLabels()[summary.profile.taxStatus] : '—'}
               </KeyValue>
-              <KeyValue label="JShShIR">
+              <KeyValue label={m.pinfl}>
                 <Mono value={summary.profile.pinfl} />
               </KeyValue>
-              <KeyValue label="STIR">
+              <KeyValue label={m.tin}>
                 <Mono value={summary.profile.tin} />
               </KeyValue>
-              <KeyValue label="Tugʻilgan sana">
+              <KeyValue label={m.birthDate}>
                 <span className="num">{formatDateShort(summary.profile.birthDate)}</span>
               </KeyValue>
-              <KeyValue label="Guvohnoma berilgan">
+              <KeyValue label={m.licenceIssued}>
                 <span className="num">{formatDateShort(summary.profile.drivingLicenceIssuedAt)}</span>
               </KeyValue>
-              <KeyValue label="Taksi litsenziyasi">
+              <KeyValue label={m.taxiLicence}>
                 <Mono value={summary.profile.taxiLicenceNumber} />
               </KeyValue>
-              <KeyValue label="Litsenziya hududi">{summary.profile.taxiLicenceRegion || '—'}</KeyValue>
-              <KeyValue label="Fuqarolik">{summary.profile.citizenship || '—'}</KeyValue>
+              <KeyValue label={m.licenceRegion}>{summary.profile.taxiLicenceRegion || '—'}</KeyValue>
+              <KeyValue label={m.citizenship}>{summary.profile.citizenship || '—'}</KeyValue>
             </KeyValueList>
           </div>
         )}

@@ -17,6 +17,7 @@ import { useToast } from '@/components/ui/Toast';
 import { downloadCsv } from '@/lib/csv';
 import { formatDate } from '@/lib/utils';
 import { formatDateTime, formatMoney, formatPhone, fullName } from '@/lib/format';
+import { t } from '@/locales';
 
 // Pending = waiting on an admin's decision (amber); approved = info; paid = done.
 const statusBadgeVariant: Record<WithdrawalStatus, BadgeVariant> = {
@@ -26,33 +27,23 @@ const statusBadgeVariant: Record<WithdrawalStatus, BadgeVariant> = {
   paid: 'success',
 };
 
-const statusLabel: Record<WithdrawalStatus, string> = {
-  pending: 'Kutilmoqda',
-  approved: 'Tasdiqlangan',
-  rejected: 'Rad etilgan',
-  paid: "To'langan",
-};
-
-const ownerTypeLabel: Record<string, string> = {
-  driver: 'Haydovchi',
-  vendor: 'Market sotuvchi',
-  restaurant: 'Restoran',
-};
-
 type Action = 'approved' | 'rejected' | 'paid';
 type StatusFilter = WithdrawalStatus | 'all';
-
-const STATUS_TABS: { value: StatusFilter; label: string }[] = [
-  { value: 'pending', label: 'Kutilmoqda' },
-  { value: 'approved', label: 'Tasdiqlangan' },
-  { value: 'paid', label: "To'langan" },
-  { value: 'rejected', label: 'Rad etilgan' },
-  { value: 'all', label: 'Barchasi' },
-];
 
 const requesterName = (w: WithdrawalRequest) => fullName(w.driver?.firstName, w.driver?.lastName);
 
 export default function WithdrawalsPage() {
+  const m = t();
+  const w$ = m.finance.withdrawals;
+  const statusLabel = w$.status;
+  const ownerTypeLabel: Record<string, string> = w$.ownerType;
+  const STATUS_TABS: { value: StatusFilter; label: string }[] = [
+    { value: 'pending', label: statusLabel.pending },
+    { value: 'approved', label: statusLabel.approved },
+    { value: 'paid', label: statusLabel.paid },
+    { value: 'rejected', label: statusLabel.rejected },
+    { value: 'all', label: m.common.allAlt },
+  ];
   const { toast } = useToast();
   const pagination = usePagination(20);
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
@@ -80,8 +71,8 @@ export default function WithdrawalsPage() {
       setError(null);
     } catch {
       // Last good rows stay on screen; DataTable shows banner + retry.
-      setError("Pul yechish so'rovlarini yuklab bo'lmadi");
-      toast({ title: 'Xatolik', description: "Pul yechish so'rovlarini yuklashda xatolik", variant: 'error' });
+      setError(w$.loadError);
+      toast({ title: m.common.error, description: w$.loadErrorToast, variant: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -117,17 +108,17 @@ export default function WithdrawalsPage() {
       toast({
         title:
           action === 'approved'
-            ? "So'rov tasdiqlandi"
+            ? w$.toastApproved
             : action === 'rejected'
-            ? "So'rov rad etildi — summa hamyonga qaytadi"
-            : "To'langan deb belgilandi",
+            ? w$.toastRejected
+            : w$.toastPaid,
         description: `${formatMoney(target.amount)} · ${requesterName(target)}`,
         variant: 'success',
       });
       closeAction();
       fetchWithdrawals();
     } catch {
-      toast({ title: 'Xatolik', description: 'Amalni bajarishda xatolik', variant: 'error' });
+      toast({ title: m.common.error, description: m.common.actionFailed, variant: 'error' });
     } finally {
       setActionLoading(false);
     }
@@ -138,18 +129,18 @@ export default function WithdrawalsPage() {
     downloadCsv<WithdrawalRequest>(
       `pul-yechish-${new Date().toISOString().slice(0, 10)}.csv`,
       [
-        { header: "So'rov beruvchi", value: (w) => requesterName(w) },
-        { header: 'Telefon', value: (w) => w.driver?.phone ?? '' },
-        { header: 'Turi', value: (w) => ownerTypeLabel[w.ownerType] ?? w.ownerType },
-        { header: 'Summa', value: (w) => w.amount },
-        { header: "To'lov manzili", value: (w) => w.payoutDestination },
-        { header: 'Holat', value: (w) => statusLabel[w.status] },
-        { header: "So'ralgan sana", value: (w) => formatDate(w.requestedAt) },
-        { header: 'Izoh', value: (w) => w.adminNote ?? '' },
+        { header: w$.col.requester, value: (w) => requesterName(w) },
+        { header: w$.col.phone, value: (w) => w.driver?.phone ?? '' },
+        { header: w$.col.type, value: (w) => ownerTypeLabel[w.ownerType] ?? w.ownerType },
+        { header: w$.col.amount, value: (w) => w.amount },
+        { header: w$.col.destination, value: (w) => w.payoutDestination },
+        { header: w$.col.status, value: (w) => statusLabel[w.status] },
+        { header: w$.col.requestedAt, value: (w) => formatDate(w.requestedAt) },
+        { header: w$.col.note, value: (w) => w.adminNote ?? '' },
       ],
       withdrawals
     );
-    toast({ title: 'CSV yuklab olindi', description: `${withdrawals.length} ta qator`, variant: 'success' });
+    toast({ title: m.finance.csvDownloaded, description: m.finance.csvRows(withdrawals.length), variant: 'success' });
   };
 
   // Approve = primary; reject = destructive; "paid" = manual off-system transfer → override (amber).
@@ -158,7 +149,7 @@ export default function WithdrawalsPage() {
   const columns: DataTableColumn<WithdrawalRequest>[] = [
     {
       key: 'requester',
-      header: "So'rov beruvchi",
+      header: w$.col.requester,
       cell: (w) => (
         <div className="min-w-0 leading-tight">
           <p className="font-medium text-ink truncate">{requesterName(w)}</p>
@@ -168,24 +159,24 @@ export default function WithdrawalsPage() {
     },
     {
       key: 'type',
-      header: 'Turi',
+      header: w$.col.type,
       hideBelow: 'xl',
       cell: (w) => <Badge variant="neutral">{ownerTypeLabel[w.ownerType] ?? w.ownerType}</Badge>,
     },
     {
       key: 'amount',
-      header: 'Summa',
+      header: w$.col.amount,
       numeric: true,
       cell: (w) => <MoneyText value={w.amount} className="font-semibold" />,
     },
     {
       key: 'destination',
-      header: "To'lov manzili",
+      header: w$.col.destination,
       cell: (w) => <span className="font-mono text-xs text-muted whitespace-nowrap">{w.payoutDestination}</span>,
     },
     {
       key: 'status',
-      header: 'Holat',
+      header: w$.col.status,
       cell: (w) => (
         <div className="min-w-0">
           <Badge variant={statusBadgeVariant[w.status]} dot>
@@ -201,29 +192,29 @@ export default function WithdrawalsPage() {
     },
     {
       key: 'requestedAt',
-      header: 'Sana',
+      header: w$.col.date,
       hideBelow: 'xl',
       cell: (w) => <span className="num text-muted whitespace-nowrap">{formatDateTime(w.requestedAt)}</span>,
     },
     {
       key: 'actions',
-      header: <span className="sr-only">Amallar</span>,
+      header: <span className="sr-only">{m.common.actions}</span>,
       align: 'right',
       cell: (w) => (
         <div className="flex justify-end gap-1.5 whitespace-nowrap">
           {w.status === 'pending' && (
             <>
               <Button size="sm" variant="primary" onClick={() => openAction(w, 'approved')}>
-                Tasdiqlash
+                {m.common.confirm}
               </Button>
               <Button size="sm" variant="danger-ghost" onClick={() => openAction(w, 'rejected')}>
-                Rad etish
+                {w$.reject}
               </Button>
             </>
           )}
           {w.status === 'approved' && (
             <Button size="sm" variant="override" onClick={() => openAction(w, 'paid')}>
-              To&apos;landi deb belgilash
+              {w$.markPaid}
             </Button>
           )}
         </div>
@@ -236,25 +227,25 @@ export default function WithdrawalsPage() {
       ? {
           variant: 'cleared',
           icon: <CheckCircle2 aria-hidden />,
-          title: "Navbat bo'sh",
-          description: "Barcha pul yechish so'rovlari ko'rib chiqilgan. Yangi so'rov kelganda shu yerda ko'rinadi.",
+          title: w$.emptyQueueTitle,
+          description: w$.emptyQueueDesc,
         }
       : {
           variant: statusFilter === 'all' ? 'first-use' : 'no-results',
           icon: <Wallet aria-hidden />,
-          title: "So'rovlar topilmadi",
+          title: w$.notFoundTitle,
           description:
             statusFilter === 'all'
-              ? "Hozircha pul yechish so'rovlari yo'q."
-              : `"${STATUS_TABS.find((t) => t.value === statusFilter)?.label}" holatida so'rov yo'q.`,
+              ? w$.noneYet
+              : w$.noneInStatus(STATUS_TABS.find((s) => s.value === statusFilter)?.label ?? ''),
           onClearFilters: statusFilter !== 'all' ? () => changeFilter('all') : undefined,
         };
 
   return (
     <div className="px-4 sm:px-6 py-5">
       <PageHeader
-        title="Pul yechish"
-        description="Haydovchi, Market va Eats — barcha to'lov so'rovlari bitta navbatda"
+        title={w$.title}
+        description={w$.description}
         actions={
           <Button
             variant="secondary"
@@ -262,13 +253,13 @@ export default function WithdrawalsPage() {
             disabled={withdrawals.length === 0}
             leftIcon={<Download size={14} aria-hidden />}
           >
-            CSV eksport
+            {m.finance.csvExport}
           </Button>
         }
       />
 
       <DataTable
-        ariaLabel="Pul yechish so'rovlari"
+        ariaLabel={w$.tableAria}
         columns={columns}
         rows={withdrawals}
         rowKey={(w) => w.id}
@@ -279,7 +270,7 @@ export default function WithdrawalsPage() {
         maxHeightClassName="max-h-[calc(100vh-260px)]"
         toolbar={
           <SegmentedControl
-            ariaLabel="Holat bo'yicha filtr"
+            ariaLabel={m.common.statusFilter}
             items={STATUS_TABS}
             value={statusFilter}
             onChange={(v) => changeFilter(v as StatusFilter)}
@@ -305,29 +296,29 @@ export default function WithdrawalsPage() {
         tone={action === 'rejected' ? 'danger' : action === 'paid' ? 'override' : 'default'}
         title={
           action === 'approved'
-            ? "So'rovni tasdiqlash"
+            ? w$.modalApproveTitle
             : action === 'rejected'
-            ? "So'rovni rad etish"
-            : "To'langan deb belgilash"
+            ? w$.modalRejectTitle
+            : w$.modalPaidTitle
         }
         description={
           action === 'approved'
-            ? "Pul haligacha o'tkazilmagan — haqiqatda o'tkazgach, \"To'langan\" deb belgilang."
+            ? w$.modalApproveDesc
             : action === 'rejected'
-            ? "Ushlab turilgan summa hamyonga qaytariladi."
-            : "Faqat pulni haqiqatda (karta/bank orqali) o'tkazgandan keyin bosing — avtomatik to'lov yo'q."
+            ? w$.modalRejectDesc
+            : w$.modalPaidDesc
         }
         footer={
           <>
             <Button variant="secondary" onClick={closeAction} disabled={actionLoading}>
-              Bekor qilish
+              {m.common.cancel}
             </Button>
             <Button variant={confirmButtonVariant} isLoading={actionLoading} onClick={handleConfirm}>
               {action === 'approved' && target
-                ? `Tasdiqlash — ${formatMoney(target.amount)}`
+                ? w$.confirmApprove(formatMoney(target.amount))
                 : action === 'rejected'
-                ? 'Rad etish'
-                : "To'landi deb belgilash"}
+                ? w$.reject
+                : w$.markPaid}
             </Button>
           </>
         }
@@ -342,8 +333,8 @@ export default function WithdrawalsPage() {
           </div>
         )}
         <Input
-          label="Izoh (ixtiyoriy)"
-          placeholder={action === 'rejected' ? 'Rad etish sababi…' : "Masalan: Click orqali o'tkazildi"}
+          label={w$.noteLabel}
+          placeholder={action === 'rejected' ? w$.rejectReasonPh : w$.notePh}
           value={adminNote}
           onChange={(e) => setAdminNote(e.target.value)}
         />

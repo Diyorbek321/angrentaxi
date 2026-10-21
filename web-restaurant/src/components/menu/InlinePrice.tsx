@@ -9,6 +9,7 @@ import { controlBase, controlBorder } from '@/components/ui/Field';
 import { IconButton } from '@/components/ui/IconButton';
 import { MoneyText } from '@/components/ui/MoneyText';
 import { useToast } from '@/components/ui/Toast';
+import { t } from '@/locales';
 
 /**
  * Bir maydonlik tuzatish uchun to'liq forma ochilmaydi — narx joyida
@@ -16,6 +17,7 @@ import { useToast } from '@/components/ui/Toast';
  * yangilashni qo'llaydi, faqat `price` yuboriladi.
  */
 export function InlinePrice({ dish, onSaved }: { dish: Dish; onSaved: (updated: Dish) => void }) {
+  const m = t().inlinePrice;
   const { toast } = useToast();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState('');
@@ -29,7 +31,7 @@ export function InlinePrice({ dish, onSaved }: { dish: Dish; onSaved: (updated: 
   const commit = async () => {
     const price = Number(value);
     if (!value.trim() || !Number.isFinite(price) || price <= 0) {
-      toast({ title: "Narx 0 dan katta bo'lishi kerak", variant: 'error' });
+      toast({ title: t().dish.pricePositive, variant: 'error' });
       return;
     }
     if (price === dish.price) {
@@ -40,10 +42,10 @@ export function InlinePrice({ dish, onSaved }: { dish: Dish; onSaved: (updated: 
     try {
       const res = await foodApi.updateDish(dish.id, { price });
       onSaved(res.data.data);
-      toast({ title: `${dish.name} — narx yangilandi`, variant: 'success' });
+      toast({ title: m.priceUpdated(dish.name), variant: 'success' });
       setEditing(false);
     } catch (err) {
-      toast({ title: 'Narxni saqlab bo‘lmadi', description: errorMessage(err), variant: 'error' });
+      toast({ title: m.saveFailed, description: errorMessage(err), variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -53,7 +55,7 @@ export function InlinePrice({ dish, onSaved }: { dish: Dish; onSaved: (updated: 
     return (
       <span className="inline-flex items-center justify-end gap-0.5">
         <MoneyText value={dish.price} className="font-medium text-ink" />
-        <IconButton size="sm" aria-label={`${dish.name} — narxini o'zgartirish`} title="Narxni oʻzgartirish" onClick={start}>
+        <IconButton size="sm" aria-label={m.editAria(dish.name)} title={m.editTitle} onClick={start}>
           <Pencil aria-hidden />
         </IconButton>
       </span>
@@ -74,13 +76,13 @@ export function InlinePrice({ dish, onSaved }: { dish: Dish; onSaved: (updated: 
           if (e.key === 'Enter') void commit();
           if (e.key === 'Escape') setEditing(false);
         }}
-        aria-label={`${dish.name} — yangi narx (so'm)`}
+        aria-label={m.inputAria(dish.name)}
         className={cn(controlBase, controlBorder(false), 'num h-7 w-24 px-2 text-right text-[13px]')}
       />
-      <IconButton size="sm" variant="secondary" aria-label="Narxni saqlash" disabled={saving} onClick={commit}>
+      <IconButton size="sm" variant="secondary" aria-label={m.saveAria} disabled={saving} onClick={commit}>
         <Check aria-hidden />
       </IconButton>
-      <IconButton size="sm" aria-label="Tahrirni bekor qilish" disabled={saving} onClick={() => setEditing(false)}>
+      <IconButton size="sm" aria-label={m.cancelAria} disabled={saving} onClick={() => setEditing(false)}>
         <X aria-hidden />
       </IconButton>
     </span>

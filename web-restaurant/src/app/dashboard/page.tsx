@@ -16,27 +16,30 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { StaleDataBanner } from '@/components/ui/PollStatus';
 import { SkeletonStats, SkeletonTable } from '@/components/ui/Skeleton';
 import { StatCard } from '@/components/ui/StatCard';
+import { t, type Messages } from '@/locales';
 
 type RecentOrder = DashboardData['recentOrders'][number];
 
-const COLUMNS: DataTableColumn<RecentOrder>[] = [
+// Funksiya: ustun sarlavhalari faol tilda (modul darajasida qotib qolmasin).
+const columns = (m: Messages['dashboard'], common: Messages['common']): DataTableColumn<RecentOrder>[] => [
   {
     key: 'customer',
-    header: 'Mijoz',
+    header: m.colCustomer,
     cell: (o) => (
       <div className="min-w-0">
-        <p className="truncate font-medium text-ink">{o.customer?.trim() || 'Mijoz'}</p>
+        <p className="truncate font-medium text-ink">{o.customer?.trim() || m.customerFallback}</p>
         <p className="font-mono text-xs text-subtle">{shortId(o.id)}</p>
       </div>
     ),
   },
-  { key: 'items', header: 'Taomlar', numeric: true, cell: (o) => `${formatNumber(o.itemsCount)} ta`, hideBelow: 'sm' },
-  { key: 'total', header: 'Summa', numeric: true, cell: (o) => <MoneyText value={o.totalPrice} /> },
-  { key: 'status', header: 'Holat', cell: (o) => <OrderStatusBadge status={o.status} size="sm" /> },
-  { key: 'time', header: 'Vaqt', numeric: true, cell: (o) => formatTime(o.createdAt), hideBelow: 'md' },
+  { key: 'items', header: m.colItems, numeric: true, cell: (o) => common.count(formatNumber(o.itemsCount)), hideBelow: 'sm' },
+  { key: 'total', header: m.colTotal, numeric: true, cell: (o) => <MoneyText value={o.totalPrice} /> },
+  { key: 'status', header: m.colStatus, cell: (o) => <OrderStatusBadge status={o.status} size="sm" /> },
+  { key: 'time', header: m.colTime, numeric: true, cell: (o) => formatTime(o.createdAt), hideBelow: 'md' },
 ];
 
 export default function DashboardPage() {
+  const { dashboard: m, common } = t();
   const load = useCallback(async (): Promise<DashboardData> => {
     const res = await foodApi.getDashboard();
     return res.data.data;
@@ -50,7 +53,7 @@ export default function DashboardPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <PageHeader title="Bosh sahifa" description="Bugungi faoliyat koʻrsatkichlari" />
+      <PageHeader title={m.title} description={m.description} />
 
       {status === 'loading' && (
         <div className="flex flex-col gap-5">
@@ -68,50 +71,50 @@ export default function DashboardPage() {
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
-              label="Bugungi buyurtmalar"
+              label={m.todayOrders}
               value={formatNumber(data.todayOrdersCount)}
               icon={<ClipboardList aria-hidden />}
               live
             />
             <StatCard
-              label="Bugungi tushum"
+              label={m.todayRevenue}
               value={formatMoney(data.todayRevenue, { currency: false })}
-              unit="soʻm"
+              unit={common.som}
               icon={<Wallet aria-hidden />}
             />
             <StatCard
-              label="Oʻrtacha tayyorlash"
+              label={m.avgPrep}
               value={formatNumber(data.avgPrepMinutes)}
-              unit="daq"
+              unit={m.minutesUnit}
               icon={<Clock aria-hidden />}
-              hint="Oxirgi 30 kun boʻyicha"
+              hint={m.last30Days}
             />
             <StatCard
-              label="Faol taomlar"
+              label={m.activeDishes}
               value={formatNumber(data.activeDishesCount)}
               icon={<UtensilsCrossed aria-hidden />}
             />
           </div>
 
           <DataTable
-            title="Soʻnggi buyurtmalar"
+            title={m.recentOrders}
             actions={
               <Button variant="ghost" size="sm" href="/dashboard/orders">
-                Barchasi
+                {m.all}
               </Button>
             }
-            ariaLabel="Soʻnggi buyurtmalar"
-            columns={COLUMNS}
+            ariaLabel={m.recentOrders}
+            columns={columns(m, common)}
             rows={data.recentOrders}
             rowKey={(o) => o.id}
             empty={{
               variant: 'first-use',
               icon: <Inbox size={20} />,
-              title: 'Bugun hali buyurtma yoʻq',
-              description: 'Yangi buyurtma kelganda u shu yerda va Buyurtmalar sahifasida koʻrinadi.',
+              title: m.emptyTitle,
+              description: m.emptyDescription,
               action: (
                 <Button variant="secondary" href="/dashboard/orders">
-                  Buyurtmalar navbati
+                  {m.queueButton}
                 </Button>
               ),
             }}

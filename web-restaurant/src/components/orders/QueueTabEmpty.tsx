@@ -2,6 +2,7 @@ import { BellRing, ChefHat, Inbox, PackageCheck } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import type { QueueTab } from './queue';
+import { t } from '@/locales';
 
 /**
  * Bo'sh tab — uch xil ma'no: yangi navbat bo'shligi YAXSHI (`cleared`),
@@ -16,14 +17,15 @@ export function QueueTabEmpty({
   newCount: number;
   onGoToNew: () => void;
 }) {
+  const m = t().orders.empty;
   if (tab === 'new') {
     return (
       <EmptyState
         variant="cleared"
         tone="positive"
         icon={<BellRing size={20} />}
-        title="Yangi buyurtma yoʻq"
-        description="Hammasi qabul qilingan. Yangisi kelganda signal chalinadi va shu tab hisoblagichi yonadi."
+        title={m.newTitle}
+        description={m.newDescription}
       />
     );
   }
@@ -32,16 +34,16 @@ export function QueueTabEmpty({
       <EmptyState
         variant="cleared"
         icon={<ChefHat size={20} />}
-        title="Oshxonada buyurtma yoʻq"
+        title={m.preparingTitle}
         description={
           newCount > 0
-            ? `Yangi tabda ${newCount} ta buyurtma qabul kutmoqda.`
-            : 'Yangi buyurtma qabul qilinganda u shu yerga tushadi.'
+            ? m.preparingWaiting(newCount)
+            : m.preparingDescription
         }
         action={
           newCount > 0 ? (
             <Button variant="secondary" onClick={onGoToNew}>
-              Yangi buyurtmalarga oʻtish
+              {m.goToNew}
             </Button>
           ) : undefined
         }
@@ -53,8 +55,8 @@ export function QueueTabEmpty({
       <EmptyState
         variant="cleared"
         icon={<PackageCheck size={20} />}
-        title="Topshirishga tayyor buyurtma yoʻq"
-        description="«Tayyor deb belgilash» bosilgan buyurtmalar shu yerda kuryerni kutadi."
+        title={m.readyTitle}
+        description={m.readyDescription}
       />
     );
   }
@@ -62,8 +64,8 @@ export function QueueTabEmpty({
     <EmptyState
       variant="cleared"
       icon={<Inbox size={20} />}
-      title="Yakunlangan buyurtma yoʻq"
-      description="Yetkazilgan va bekor qilingan buyurtmalar jurnali shu yerda koʻrinadi."
+      title={m.doneTitle}
+      description={m.doneDescription}
     />
   );
 }

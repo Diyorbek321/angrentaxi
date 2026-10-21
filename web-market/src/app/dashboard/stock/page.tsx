@@ -20,6 +20,8 @@ import { SkeletonStats, SkeletonTable } from '@/components/ui/Skeleton';
 import { StatCard } from '@/components/ui/StatCard';
 import { cn } from '@/components/ui/cn';
 import { usePageRefresh } from '@/components/shell';
+import { getLocale } from '@/lib/i18n/core';
+import { t } from '@/locales';
 
 interface StockData {
   products: Product[];
@@ -30,6 +32,8 @@ interface StockData {
 const STEP = 5;
 
 export default function StockPage() {
+  const m = t();
+  const sm = m.stock;
   const { toast } = useToast();
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -56,7 +60,7 @@ export default function StockPage() {
     () =>
       products
         .filter((p) => p.stock <= threshold)
-        .sort((a, b) => a.stock - b.stock || a.name.localeCompare(b.name, 'uz')),
+        .sort((a, b) => a.stock - b.stock || a.name.localeCompare(b.name, getLocale())),
     [products, threshold]
   );
 
@@ -68,7 +72,7 @@ export default function StockPage() {
       await marketApi.updateProduct(p.id, { stock: Math.max(0, p.stock + delta) });
       await reload();
     } catch (err) {
-      toast({ title: 'Xatolik', description: errorMessage(err), variant: 'error' });
+      toast({ title: m.common.error, description: errorMessage(err), variant: 'error' });
     } finally {
       setBusyId(null);
     }
@@ -77,7 +81,7 @@ export default function StockPage() {
   const restockColumns: DataTableColumn<Product>[] = [
     {
       key: 'name',
-      header: 'Mahsulot',
+      header: m.common.product,
       cell: (p) => (
         <span className="flex min-w-0 items-center gap-2.5">
           <span
@@ -93,26 +97,30 @@ export default function StockPage() {
     },
     {
       key: 'state',
-      header: 'Holat',
+      header: m.common.status,
       width: 'w-32',
       hideBelow: 'sm',
       cell: (p) =>
-        p.stock === 0 ? <Badge variant="danger">Tugagan</Badge> : <Badge variant="neutral">Kam qolgan</Badge>,
+        p.stock === 0 ? (
+          <Badge variant="danger">{m.productStatus.stockOut}</Badge>
+        ) : (
+          <Badge variant="neutral">{m.productStatus.stockLow}</Badge>
+        ),
     },
     {
       key: 'stock',
-      header: 'Zaxira',
+      header: m.common.stock,
       numeric: true,
       width: 'w-28',
       cell: (p) => (
         <span className={stockTone(p.stock, threshold).text}>
-          {formatNumber(p.stock)} <span className="text-xs font-normal text-muted">{p.unit}</span>
+          {formatNumber(p.stock)} <span className="text-xs font-normal text-muted">{m.units[p.unit] ?? p.unit}</span>
         </span>
       ),
     },
     {
       key: 'actions',
-      header: <span className="sr-only">Amallar</span>,
+      header: <span className="sr-only">{m.common.actions}</span>,
       align: 'right',
       width: 'w-24',
       cell: (p) => (
@@ -120,7 +128,7 @@ export default function StockPage() {
           <IconButton
             variant="secondary"
             size="sm"
-            aria-label={`${p.name}: ${STEP} ta kamaytirish`}
+            aria-label={sm.decrease(p.name, STEP)}
             disabled={busyId === p.id || p.stock === 0}
             onClick={() => void bump(p, -STEP)}
           >
@@ -129,7 +137,7 @@ export default function StockPage() {
           <IconButton
             variant="secondary"
             size="sm"
-            aria-label={`${p.name}: ${STEP} ta qo'shish`}
+            aria-label={sm.increase(p.name, STEP)}
             disabled={busyId === p.id}
             onClick={() => void bump(p, STEP)}
           >
@@ -143,29 +151,29 @@ export default function StockPage() {
   const movementColumns: DataTableColumn<StockMovement>[] = [
     {
       key: 'product',
-      header: 'Mahsulot',
-      cell: (m) => (
+      header: m.common.product,
+      cell: (mv) => (
         <span className="block min-w-0">
-          <span className="block truncate text-ink">{m.product.name}</span>
-          <span className="block truncate text-xs text-muted">{m.note || 'Qoʻlda tuzatish'}</span>
+          <span className="block truncate text-ink">{mv.product.name}</span>
+          <span className="block truncate text-xs text-muted">{mv.note || sm.manualFix}</span>
         </span>
       ),
     },
     {
       key: 'at',
-      header: 'Vaqt',
+      header: m.common.time,
       numeric: true,
       width: 'w-28',
       hideBelow: 'sm',
-      cell: (m) => <span className="text-muted">{formatDateTime(m.createdAt)}</span>,
+      cell: (mv) => <span className="text-muted">{formatDateTime(mv.createdAt)}</span>,
     },
     {
       key: 'delta',
-      header: 'Oʻzgarish',
+      header: sm.change,
       numeric: true,
       width: 'w-24',
-      cell: (m) => {
-        const up = m.delta > 0;
+      cell: (mv) => {
+        const up = mv.delta > 0;
         return (
           <span
             className={cn(
@@ -175,7 +183,7 @@ export default function StockPage() {
           >
             {up ? <ArrowUp size={12} aria-hidden /> : <ArrowDown size={12} aria-hidden />}
             {up ? '+' : ''}
-            {formatNumber(m.delta)}
+            {formatNumber(mv.delta)}
           </span>
         );
       },
@@ -185,11 +193,11 @@ export default function StockPage() {
   return (
     <div>
       <PageHeader
-        title="Zaxira"
+        title={sm.title}
         description={
           data
-            ? `Kam qolgan chegarasi: ${formatNumber(threshold)} — Sozlamalarda oʻzgartiriladi`
-            : 'Kam qolgan va tugagan mahsulotlar'
+            ? sm.description(formatNumber(threshold))
+            : sm.descriptionLoading
         }
         actions={
           <Button
@@ -198,7 +206,7 @@ export default function StockPage() {
             isLoading={isRefreshing}
             leftIcon={<RefreshCw size={14} aria-hidden />}
           >
-            Yangilash
+            {m.common.refresh}
           </Button>
         }
       />
@@ -207,7 +215,7 @@ export default function StockPage() {
 
       {isLoading ? (
         <div className="space-y-4" aria-busy="true" aria-live="polite">
-          <span className="sr-only">Yuklanmoqda</span>
+          <span className="sr-only">{m.common.loading}</span>
           <SkeletonStats count={3} className="lg:grid-cols-3" />
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
             <SkeletonTable rows={6} cols={4} />
@@ -220,24 +228,24 @@ export default function StockPage() {
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <StatCard
-              label="Tugagan"
+              label={m.productStatus.stockOut}
               value={formatNumber(outCount)}
               tone={outCount > 0 ? 'danger' : 'neutral'}
-              hint={outCount > 0 ? 'Sotuvdan chiqib ketgan' : 'Tugagani yoʻq'}
+              hint={outCount > 0 ? sm.outOfSale : sm.noneOut}
             />
             <StatCard
-              label={`Kam qolgan (≤ ${formatNumber(threshold)})`}
+              label={m.common.lowStock(formatNumber(threshold))}
               value={formatNumber(lowCount)}
-              hint={lowCount > 0 ? 'Tez orada toʻldiring' : 'Hammasi yetarli'}
+              hint={lowCount > 0 ? m.common.refillSoon : m.common.allEnough}
             />
-            <StatCard label="Jami mahsulot" value={formatNumber(products.length)} />
+            <StatCard label={sm.totalProducts} value={formatNumber(products.length)} />
           </div>
 
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
             <DataTable
-              title="Toʻldirish kerak"
-              description="Kritik birinchi: tugaganlar, keyin eng kami"
-              ariaLabel="Toʻldirish kerak boʻlgan mahsulotlar"
+              title={sm.needRefill}
+              description={sm.needRefillDescription}
+              ariaLabel={sm.needRefillAria}
               columns={restockColumns}
               rows={needRestock}
               rowKey={(p) => p.id}
@@ -246,29 +254,29 @@ export default function StockPage() {
                 products.length === 0
                   ? {
                       variant: 'first-use',
-                      title: 'Hali mahsulot yoʻq',
-                      description: 'Mahsulot qoʻshilgach zaxira shu yerda kuzatiladi.',
+                      title: sm.noProducts,
+                      description: sm.noProductsDescription,
                     }
                   : {
                       variant: 'cleared',
-                      title: 'Barcha mahsulotlar yetarli',
-                      description: 'Zaxira chegaradan yuqori — hech narsa talab qilinmaydi.',
+                      title: sm.allEnough,
+                      description: sm.allEnoughDescription,
                     }
               }
             />
 
             <DataTable
-              title="Zaxira harakati"
-              ariaLabel="Zaxira harakati"
+              title={sm.movements}
+              ariaLabel={sm.movements}
               compact
               columns={movementColumns}
               rows={pagedMovements.pageItems}
-              rowKey={(m) => m.id}
+              rowKey={(mv) => mv.id}
               pagination={{ paged: pagedMovements }}
               empty={{
                 icon: <History aria-hidden />,
-                title: 'Harakat yoʻq',
-                description: 'Zaxira oʻzgarganda yozuv shu yerda paydo boʻladi.',
+                title: sm.noMovements,
+                description: sm.noMovementsDescription,
               }}
             />
           </div>

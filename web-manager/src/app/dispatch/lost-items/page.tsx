@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { CheckCircle2, RefreshCw } from 'lucide-react';
 import { closeLostItem, getLostItems, LostItemReport, LostItemStatus } from '@/lib/api';
-import { isFinal, LOST_ITEM_STATUS_LABEL, needsDispatcher } from '@/lib/lost-items';
+import { isFinal, lostItemStatusLabels, needsDispatcher } from '@/lib/lost-items';
 import { Card } from '@/components/ui/Card';
 import { Badge, type BadgeVariant } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -19,16 +19,20 @@ import { PageBody } from '@/components/ui/PageBody';
 import { ContactBlock } from '@/components/dispatch/ContactBlock';
 import { useToast } from '@/components/ui/Toast';
 import { formatDateTime, shortId } from '@/lib/format';
+import { t } from '@/locales';
 
 type Filter = 'active' | LostItemStatus;
 
-const TABS: readonly { value: Filter; label: string }[] = [
-  { value: 'active', label: 'Ochiq' },
-  { value: 'found', label: 'Topilgan' },
-  { value: 'open', label: 'Javob kutilmoqda' },
-  { value: 'returned', label: 'Qaytarilgan' },
-  { value: 'closed', label: 'Yopilgan' },
-];
+function tabs(): readonly { value: Filter; label: string }[] {
+  const tab = t().control.lostItems.tabs;
+  return [
+    { value: 'active', label: tab.active },
+    { value: 'found', label: tab.found },
+    { value: 'open', label: tab.open },
+    { value: 'returned', label: tab.returned },
+    { value: 'closed', label: tab.closed },
+  ];
+}
 
 const STATUS_VARIANT: Record<LostItemStatus, BadgeVariant> = {
   // "Topilgan" waits on the dispatcher — info, not amber (amber = override only).
@@ -47,6 +51,8 @@ const STATUS_VARIANT: Record<LostItemStatus, BadgeVariant> = {
  * "Topilgan" yuqorida: aynan u odam harakatini kutadi.
  */
 export default function LostItemsPage() {
+  const m = t();
+  const ml = m.control.lostItems;
   const { toast } = useToast();
   const [filter, setFilter] = useState<Filter>('active');
   const [items, setItems] = useState<LostItemReport[]>([]);
@@ -72,7 +78,7 @@ export default function LostItemsPage() {
       setError(null);
       setHasLoadedOnce(true);
     } catch {
-      setError("Yoʻqolgan buyumlarni yuklab boʻlmadi");
+      setError(t().control.lostItems.loadFailed);
     } finally {
       setIsLoading(false);
     }
@@ -88,14 +94,14 @@ export default function LostItemsPage() {
     try {
       await closeLostItem(closing.item.id, closing.status, note.trim() || undefined);
       toast({
-        title: closing.status === 'returned' ? 'Qaytarildi deb belgilandi' : 'Yopildi',
+        title: closing.status === 'returned' ? ml.markedReturned : ml.closed,
         variant: 'success',
       });
       setClosing(null);
       setNote('');
       await load();
     } catch {
-      toast({ title: 'Saqlab boʻlmadi', variant: 'error' });
+      toast({ title: ml.saveFailed, variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -104,8 +110,8 @@ export default function LostItemsPage() {
   return (
     <PageBody className="max-w-5xl">
         <PageHeader
-          title="Yoʻqolgan buyumlar"
-          description="Yoʻlovchi safarda qoldirgan narsalar — haydovchi javobi va topshirish"
+          title={ml.title}
+          description={ml.description}
           actions={
             <Button
               variant="secondary"
@@ -114,13 +120,13 @@ export default function LostItemsPage() {
               isLoading={isLoading && hasLoadedOnce}
               leftIcon={<RefreshCw size={13} aria-hidden />}
             >
-              Yangilash
+              {m.common.refresh}
             </Button>
           }
         />
 
         <div className="mb-3">
-          <SegmentedControl items={TABS} value={filter} onChange={setFilter} ariaLabel="Holat boʻyicha filtr" />
+          <SegmentedControl items={tabs()} value={filter} onChange={setFilter} ariaLabel={ml.filterAria} />
         </div>
 
         {error && hasLoadedOnce && (
@@ -138,8 +144,8 @@ export default function LostItemsPage() {
             <EmptyState
               variant="cleared"
               icon={<CheckCircle2 aria-hidden />}
-              title="Hech narsa yoʻq"
-              description="Bu boʻlimda koʻrib chiqiladigan xabar qolmadi."
+              title={ml.emptyTitle}
+              description={ml.emptyDescription}
             />
           </Card>
         ) : (
@@ -149,27 +155,27 @@ export default function LostItemsPage() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant={STATUS_VARIANT[item.status]}>{LOST_ITEM_STATUS_LABEL[item.status]}</Badge>
+                      <Badge variant={STATUS_VARIANT[item.status]}>{lostItemStatusLabels()[item.status]}</Badge>
                       <span className="num text-xs text-subtle">
                         <span className="font-mono">{shortId(item.orderId)}</span> · {formatDateTime(item.createdAt)}
                       </span>
                     </div>
                     <p className="mt-2 text-[13px] font-semibold text-ink">{item.description}</p>
-                    {item.driverNote && <p className="mt-1 text-xs text-muted">Haydovchi: {item.driverNote}</p>}
-                    {item.operatorNote && <p className="mt-1 text-xs text-muted">Operator: {item.operatorNote}</p>}
+                    {item.driverNote && <p className="mt-1 text-xs text-muted">{ml.driverNote(item.driverNote)}</p>}
+                    {item.operatorNote && <p className="mt-1 text-xs text-muted">{ml.operatorNote(item.operatorNote)}</p>}
                   </div>
                   <div className="grid grid-cols-1 gap-1 text-xs sm:grid-cols-2 sm:gap-4">
-                    <ContactBlock label="Yoʻlovchi" name={item.passengerName} phone={item.passengerPhone} />
-                    <ContactBlock label="Haydovchi" name={item.driverName} phone={item.driverPhone} />
+                    <ContactBlock label={ml.passenger} name={item.passengerName} phone={item.passengerPhone} />
+                    <ContactBlock label={ml.driver} name={item.driverName} phone={item.driverPhone} />
                   </div>
                 </div>
                 {!isFinal(item.status) && (
                   <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">
                     <Button size="sm" onClick={() => setClosing({ item, status: 'returned' })}>
-                      Qaytarildi
+                      {ml.returned}
                     </Button>
                     <Button size="sm" variant="secondary" onClick={() => setClosing({ item, status: 'closed' })}>
-                      Qaytarilmasdan yopish
+                      {ml.closeWithoutReturn}
                     </Button>
                   </div>
                 )}
@@ -181,13 +187,13 @@ export default function LostItemsPage() {
       <Modal
         isOpen={closing !== null}
         onClose={() => setClosing(null)}
-        title={closing?.status === 'returned' ? 'Buyum qaytarildi' : 'Xabarni yopish'}
+        title={closing?.status === 'returned' ? ml.returnedTitle : ml.closeTitle}
         subtitle={closing?.item.description}
         size="md"
       >
         <Textarea
-          label="Izoh (ixtiyoriy)"
-          placeholder="Masalan: ofisda yoʻlovchiga topshirildi"
+          label={ml.note}
+          placeholder={ml.notePlaceholder}
           value={note}
           onChange={(e) => setNote(e.target.value)}
           rows={3}
@@ -195,10 +201,10 @@ export default function LostItemsPage() {
         />
         <div className="mt-4 pt-4 border-t border-line flex justify-end gap-2">
           <Button variant="secondary" onClick={() => setClosing(null)}>
-            Bekor qilish
+            {m.common.cancel}
           </Button>
           <Button isLoading={saving} onClick={() => void confirmClose()}>
-            Saqlash
+            {m.common.save}
           </Button>
         </div>
       </Modal>

@@ -5,13 +5,17 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { tashkentToday } from '@/lib/compliance';
-import { TAX_STATUS_LABELS, type DriverLegalErrors, type DriverLegalForm } from '@/lib/driver-legal';
+import { taxStatusLabels, type DriverLegalErrors, type DriverLegalForm } from '@/lib/driver-legal';
+import { t } from '@/locales';
 
-const TAX_STATUS_OPTIONS = [
-  { value: '', label: 'Kiritilmagan' },
-  { value: 'self_employed', label: TAX_STATUS_LABELS.self_employed },
-  { value: 'individual_entrepreneur', label: TAX_STATUS_LABELS.individual_entrepreneur },
-];
+function taxStatusOptions() {
+  const labels = taxStatusLabels();
+  return [
+    { value: '', label: t().drivers.legal.modal.notEntered },
+    { value: 'self_employed', label: labels.self_employed },
+    { value: 'individual_entrepreneur', label: labels.individual_entrepreneur },
+  ];
+}
 
 const digits = (v: string) => v.replace(/\D/g, '');
 
@@ -28,20 +32,22 @@ export interface DriverLegalModalProps {
 /** Huquqiy profilni tuzatish — menejer hujjat bilan solishtirib kiritadi. */
 export function DriverLegalModal({ form, errors, saving, onChange, onClose, onSave }: DriverLegalModalProps) {
   const today = tashkentToday();
+  const m = t().drivers.legal.modal;
+  const mc = t().common;
   return (
     <Modal
       isOpen={!!form}
       onClose={saving ? () => undefined : onClose}
-      title="Huquqiy profilni tahrirlash"
-      description="Maʼlumotni hujjat (pasport, guvohnoma, litsenziya) bilan solishtirib kiriting. Boʻsh maydon — tozalanadi."
+      title={m.title}
+      description={m.description}
       size="lg"
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={saving}>
-            Bekor qilish
+            {mc.cancel}
           </Button>
           <Button onClick={onSave} isLoading={saving}>
-            Saqlash
+            {mc.save}
           </Button>
         </>
       }
@@ -56,43 +62,43 @@ export function DriverLegalModal({ form, errors, saving, onChange, onClose, onSa
           noValidate
         >
           <Select
-            label="Soliq maqomi"
-            options={TAX_STATUS_OPTIONS}
+            label={m.taxStatus}
+            options={taxStatusOptions()}
             value={form.taxStatus}
             onChange={(e) => onChange({ taxStatus: e.target.value as DriverLegalForm['taxStatus'] })}
           />
           <Input
-            label="Fuqarolik"
+            label={m.citizenship}
             mono
             maxLength={2}
             value={form.citizenship}
             error={errors.citizenship}
-            hint="ISO kod, masalan UZ"
+            hint={m.citizenshipHint}
             onChange={(e) => onChange({ citizenship: e.target.value.toUpperCase() })}
           />
           <Input
-            label="JShShIR (PINFL)"
+            label={m.pinfl}
             mono
             inputMode="numeric"
             maxLength={14}
-            placeholder="14 ta raqam"
+            placeholder={m.digits(14)}
             value={form.pinfl}
             error={errors.pinfl}
             onChange={(e) => onChange({ pinfl: digits(e.target.value) })}
           />
           <Input
-            label="STIR (INN)"
+            label={m.tin}
             mono
             inputMode="numeric"
             maxLength={9}
-            placeholder="9 ta raqam"
+            placeholder={m.digits(9)}
             value={form.tin}
             error={errors.tin}
-            hint={form.taxStatus === 'individual_entrepreneur' ? 'YaTT uchun majburiy' : undefined}
+            hint={form.taxStatus === 'individual_entrepreneur' ? m.tinRequiredIe : undefined}
             onChange={(e) => onChange({ tin: digits(e.target.value) })}
           />
           <Input
-            label="Tugʻilgan sana"
+            label={m.birthDate}
             type="date"
             max={today}
             value={form.birthDate}
@@ -100,7 +106,7 @@ export function DriverLegalModal({ form, errors, saving, onChange, onClose, onSa
             onChange={(e) => onChange({ birthDate: e.target.value })}
           />
           <Input
-            label="Guvohnoma berilgan sana (B toifa)"
+            label={m.licenceIssued}
             type="date"
             max={today}
             value={form.drivingLicenceIssuedAt}
@@ -108,7 +114,7 @@ export function DriverLegalModal({ form, errors, saving, onChange, onClose, onSa
             onChange={(e) => onChange({ drivingLicenceIssuedAt: e.target.value })}
           />
           <Input
-            label="Taksi litsenziya raqami"
+            label={m.taxiLicence}
             mono
             maxLength={50}
             value={form.taxiLicenceNumber}
@@ -116,9 +122,9 @@ export function DriverLegalModal({ form, errors, saving, onChange, onClose, onSa
             onChange={(e) => onChange({ taxiLicenceNumber: e.target.value })}
           />
           <Input
-            label="Litsenziya hududi"
+            label={m.licenceRegion}
             maxLength={100}
-            placeholder="Masalan: Toshkent viloyati"
+            placeholder={m.licenceRegionPlaceholder}
             value={form.taxiLicenceRegion}
             error={errors.taxiLicenceRegion}
             onChange={(e) => onChange({ taxiLicenceRegion: e.target.value })}

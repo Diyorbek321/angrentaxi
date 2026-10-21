@@ -8,7 +8,6 @@ import {
   Card,
   DataTable,
   DateRangeFilter,
-  DATE_PRESET_LABELS,
   ErrorState,
   MoneyText,
   PageHeader,
@@ -20,10 +19,12 @@ import {
   type DataTableColumn,
   type DateRangeValue,
 } from '@/components/ui';
+import { datePresetLabel } from '@/components/ui/DateRangeFilter';
 import { OrdersChart, RevenueChart } from '@/components/charts/lazy';
 import { reportsApi, type ReportData, type RevenueDataPoint, type TopDriver } from '@/lib/api';
 import { downloadCsv } from '@/lib/csv';
 import { formatDateShort, formatMoney, formatNumber, formatPhone, formatRating, fullName } from '@/lib/format';
+import { t } from '@/locales';
 
 const DATE_FMT = 'yyyy-MM-dd';
 
@@ -40,6 +41,8 @@ function pctChange(current: number, previous: number): number | null {
 }
 
 export default function ReportsPage() {
+  const m = t();
+  const r$ = m.reports;
   const { toast } = useToast();
   const [data, setData] = useState<ReportData | null>(null);
   /** Oldingi (teng uzunlikdagi) davr — taqqoslash deltasi FAQAT shundan. */
@@ -83,7 +86,7 @@ export default function ReportsPage() {
       setHasLoadedOnce(true);
     } catch {
       // Oxirgi muvaffaqiyatli hisobot ekranda qoladi; banner + retry chiqadi.
-      setError('Hisobotni yuklab boʻlmadi.');
+      setError(r$.loadError);
     } finally {
       setIsLoading(false);
     }
@@ -95,8 +98,8 @@ export default function ReportsPage() {
   }, [fetchReport]);
 
   const comparisonLabel = range.preset
-    ? `oldingi ${DATE_PRESET_LABELS[range.preset].toLowerCase()}ga nisbatan`
-    : 'oldingi davrga nisbatan';
+    ? r$.vsPrevPreset(datePresetLabel(range.preset).toLowerCase())
+    : r$.vsPrevPeriod;
 
   /** Delta faqat ikkala davr ham bor bo'lganda quriladi. */
   const trendFor = (pick: (r: ReportData) => number) => {
@@ -114,13 +117,13 @@ export default function ReportsPage() {
     downloadCsv<RevenueDataPoint>(
       `hisobot-${from}-${to}.csv`,
       [
-        { header: 'Sana', value: (p) => p.date },
-        { header: 'Daromad', value: (p) => p.revenue },
-        { header: 'Buyurtmalar', value: (p) => p.orders },
+        { header: r$.col.date, value: (p) => p.date },
+        { header: r$.col.revenue, value: (p) => p.revenue },
+        { header: r$.col.orders, value: (p) => p.orders },
       ],
       revenueSeries
     );
-    toast({ title: 'CSV yuklab olindi', description: `${revenueSeries.length} ta kun`, variant: 'success' });
+    toast({ title: r$.csvDownloaded, description: r$.days(revenueSeries.length), variant: 'success' });
   };
 
   const handleExportDrivers = () => {
@@ -129,15 +132,15 @@ export default function ReportsPage() {
     downloadCsv<TopDriver>(
       `top-haydovchilar-${from}-${to}.csv`,
       [
-        { header: 'Haydovchi', value: (d) => fullName(d.firstName, d.lastName) },
-        { header: 'Telefon', value: (d) => d.phone },
-        { header: 'Safarlar', value: (d) => d.totalTrips },
-        { header: 'Daromad', value: (d) => d.totalRevenue },
-        { header: 'Reyting', value: (d) => formatRating(d.rating) },
+        { header: r$.col.driver, value: (d) => fullName(d.firstName, d.lastName) },
+        { header: r$.col.phone, value: (d) => d.phone },
+        { header: r$.col.trips, value: (d) => d.totalTrips },
+        { header: r$.col.revenue, value: (d) => d.totalRevenue },
+        { header: r$.col.rating, value: (d) => formatRating(d.rating) },
       ],
       drivers
     );
-    toast({ title: 'CSV yuklab olindi', description: `${drivers.length} ta haydovchi`, variant: 'success' });
+    toast({ title: r$.csvDownloaded, description: r$.drivers(drivers.length), variant: 'success' });
   };
 
   const showFullError = error && !isLoading && !hasLoadedOnce;
@@ -153,27 +156,27 @@ export default function ReportsPage() {
     },
     {
       key: 'name',
-      header: 'Haydovchi',
+      header: r$.col.driver,
       cell: (d) => <span className="font-medium">{fullName(d.firstName, d.lastName)}</span>,
     },
     {
       key: 'phone',
-      header: 'Telefon',
+      header: r$.col.phone,
       hideBelow: 'md',
       cell: (d) => <span className="num whitespace-nowrap text-muted">{formatPhone(d.phone)}</span>,
     },
-    { key: 'trips', header: 'Safarlar', numeric: true, cell: (d) => formatNumber(d.totalTrips) },
-    { key: 'revenue', header: 'Daromad', numeric: true, cell: (d) => <MoneyText value={d.totalRevenue} /> },
-    { key: 'rating', header: 'Reyting', numeric: true, cell: (d) => formatRating(d.rating) },
+    { key: 'trips', header: r$.col.trips, numeric: true, cell: (d) => formatNumber(d.totalTrips) },
+    { key: 'revenue', header: r$.col.revenue, numeric: true, cell: (d) => <MoneyText value={d.totalRevenue} /> },
+    { key: 'rating', header: r$.col.rating, numeric: true, cell: (d) => formatRating(d.rating) },
   ];
 
   return (
     <div className="px-4 sm:px-6 py-5">
       <PageHeader
-        title="Hisobotlar"
+        title={r$.title}
         description={`${formatDateShort(from)} — ${formatDateShort(to)}${
           previous && previousRange
-            ? ` · taqqoslash: ${formatDateShort(previousRange.from)} — ${formatDateShort(previousRange.to)}`
+            ? r$.comparison(formatDateShort(previousRange.from), formatDateShort(previousRange.to))
             : ''
         }`}
         actions={
@@ -183,7 +186,7 @@ export default function ReportsPage() {
             disabled={revenueSeries.length === 0}
             leftIcon={<Download size={14} aria-hidden />}
           >
-            CSV eksport
+            {r$.csvExport}
           </Button>
         }
       />
@@ -211,27 +214,27 @@ export default function ReportsPage() {
             ) : (
               <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
                 <StatCard
-                  label="Jami daromad"
+                  label={r$.totalRevenue}
                   value={formatMoney(data?.stats.totalRevenue, { currency: false })}
-                  unit="soʻm"
+                  unit={r$.sum}
                   delta={trendFor((r) => r.stats.totalRevenue)}
                   isLoading={isLoading}
                 />
                 <StatCard
-                  label="Jami buyurtmalar"
+                  label={r$.totalOrders}
                   value={formatNumber(data?.stats.totalOrders)}
                   delta={trendFor((r) => r.stats.totalOrders)}
                   isLoading={isLoading}
                 />
                 <StatCard
-                  label="Oʻrtacha buyurtma"
+                  label={r$.avgOrder}
                   value={formatMoney(data?.stats.avgOrderValue, { currency: false })}
-                  unit="soʻm"
+                  unit={r$.sum}
                   delta={trendFor((r) => r.stats.avgOrderValue)}
                   isLoading={isLoading}
                 />
                 <StatCard
-                  label="Yangi foydalanuvchilar"
+                  label={r$.newUsers}
                   value={formatNumber(data?.stats.newUsers)}
                   delta={trendFor((r) => r.stats.newUsers)}
                   isLoading={isLoading}
@@ -245,8 +248,8 @@ export default function ReportsPage() {
             </div>
 
             <DataTable
-              title="Top haydovchilar"
-              description="Tanlangan davrdagi daromad boʻyicha"
+              title={r$.topDrivers}
+              description={r$.topDriversDesc}
               actions={
                 <Button
                   variant="secondary"
@@ -258,15 +261,15 @@ export default function ReportsPage() {
                   CSV
                 </Button>
               }
-              ariaLabel="Top haydovchilar"
+              ariaLabel={r$.topDrivers}
               columns={driverColumns}
               rows={data?.topDrivers ?? []}
               rowKey={(d) => d.id}
               loading={firstLoad}
               maxHeightClassName="max-h-[55vh]"
               empty={{
-                title: 'Bu davrda maʼlumot yoʻq',
-                description: 'Tanlangan davrda yakunlangan safar boʻlmagan — boshqa davrni tanlab koʻring.',
+                title: r$.emptyTitle,
+                description: r$.emptyDesc,
               }}
             />
           </>

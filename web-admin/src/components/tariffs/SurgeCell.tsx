@@ -5,6 +5,7 @@ import { Check, Pencil, X } from 'lucide-react';
 import { Badge, Button, IconButton, Input } from '@/components/ui';
 import { tariffsApi, type Tariff } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
+import { t } from '@/locales';
 
 export const SURGE_MIN = 1;
 export const SURGE_MAX = 3;
@@ -12,7 +13,7 @@ export const SURGE_MAX = 3;
 export function validateSurge(raw: string): string | null {
   const value = parseFloat(raw);
   if (Number.isNaN(value) || value < SURGE_MIN || value > SURGE_MAX) {
-    return `${SURGE_MIN.toFixed(1)} dan ${SURGE_MAX.toFixed(1)} gacha bo'lishi kerak`;
+    return t().tariffs.surge.range(SURGE_MIN.toFixed(1), SURGE_MAX.toFixed(1));
   }
   return null;
 }
@@ -28,6 +29,7 @@ interface SurgeCellProps {
  * A raised multiplier is a human override of the normal price → amber.
  */
 export function SurgeCell({ tariff, onSaved }: SurgeCellProps) {
+  const sm = t().tariffs.surge;
   const { toast } = useToast();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState('');
@@ -58,9 +60,9 @@ export function SurgeCell({ tariff, onSaved }: SurgeCellProps) {
       const res = await tariffsApi.setSurge(tariff.id, parseFloat(value));
       onSaved(res.data.data);
       cancel();
-      toast({ title: 'Narx koeffitsienti yangilandi', variant: 'success' });
+      toast({ title: sm.updated, variant: 'success' });
     } catch {
-      setError("Saqlashda xatolik — qayta urinib ko'ring");
+      setError(sm.saveError);
     } finally {
       setSaving(false);
     }
@@ -77,7 +79,7 @@ export function SurgeCell({ tariff, onSaved }: SurgeCellProps) {
         ) : (
           <span className="num text-muted">{tariff.surgeMultiplier.toFixed(1)}x</span>
         )}
-        <IconButton size="sm" aria-label={`${tariff.name} narx koeffitsientini tahrirlash`} onClick={start}>
+        <IconButton size="sm" aria-label={sm.editAria(tariff.name)} onClick={start}>
           <Pencil aria-hidden />
         </IconButton>
       </div>
@@ -106,7 +108,7 @@ export function SurgeCell({ tariff, onSaved }: SurgeCellProps) {
             }
             if (e.key === 'Escape') cancel();
           }}
-          aria-label={`${tariff.name} narx koeffitsienti`}
+          aria-label={sm.inputAria(tariff.name)}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
           wrapperClassName="w-20"
@@ -117,11 +119,11 @@ export function SurgeCell({ tariff, onSaved }: SurgeCellProps) {
           isLoading={saving}
           disabled={!!validateSurge(value)}
           onClick={() => void apply()}
-          aria-label="Koeffitsientni saqlash"
+          aria-label={sm.saveAria}
         >
           <Check className="h-3.5 w-3.5" aria-hidden="true" />
         </Button>
-        <Button size="icon-sm" variant="secondary" disabled={saving} onClick={cancel} aria-label="Tahrirni bekor qilish">
+        <Button size="icon-sm" variant="secondary" disabled={saving} onClick={cancel} aria-label={sm.cancelAria}>
           <X className="h-3.5 w-3.5" aria-hidden="true" />
         </Button>
       </div>
@@ -129,7 +131,7 @@ export function SurgeCell({ tariff, onSaved }: SurgeCellProps) {
         id={errorId}
         className={error ? 'text-xs text-danger-dark dark:text-danger-light' : 'num text-xs text-subtle'}
       >
-        {error ?? `${SURGE_MIN.toFixed(1)}–${SURGE_MAX.toFixed(1)} · Enter — saqlash`}
+        {error ?? sm.hint(SURGE_MIN.toFixed(1), SURGE_MAX.toFixed(1))}
       </p>
     </div>
   );

@@ -25,40 +25,48 @@ import { bonusRulesApi, BonusRule, BonusRuleCreateInput } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 import { downloadCsv } from '@/lib/csv';
 import { formatDateShort, formatDateTime, formatNumber } from '@/lib/format';
+import { t } from '@/locales';
 
-const bonusRuleSchema = z.object({
-  name: z.string().min(2, 'Kamida 2 ta harf'),
-  ruleType: z.enum(['trip_count', 'weekly_goal']),
-  tripThreshold: z.coerce.number().int().min(1, "Kamida 1 bo'lishi kerak"),
-  bonusAmount: z.coerce.number().min(0, "Manfiy qiymat bo'lmasin"),
-  serviceType: z.string().optional(),
-});
+/** Sxema va yorliqlar funksiya ichida — matnlar joriy tilda chiqishi uchun. */
+function bonusRuleSchema() {
+  const v = t().bonuses;
+  return z.object({
+    name: z.string().min(2, v.minLetters),
+    ruleType: z.enum(['trip_count', 'weekly_goal']),
+    tripThreshold: z.coerce.number().int().min(1, v.minOne),
+    bonusAmount: z.coerce.number().min(0, v.nonNegative),
+    serviceType: z.string().optional(),
+  });
+}
 
-type BonusRuleForm = z.infer<typeof bonusRuleSchema>;
+type BonusRuleForm = z.infer<ReturnType<typeof bonusRuleSchema>>;
 type StatusFilter = 'all' | 'active' | 'inactive';
 
-const ruleTypeLabel: Record<BonusRule['ruleType'], string> = {
-  trip_count: 'Safar soni',
-  weekly_goal: 'Haftalik maqsad',
+const ruleTypeLabel = (type: BonusRule['ruleType']): string => {
+  const m = t().bonuses;
+  return type === 'trip_count' ? m.typeTripCount : m.typeWeeklyGoal;
 };
 
-const STATUS_LABELS: Record<Exclude<StatusFilter, 'all'>, string> = {
-  active: 'Faol',
-  inactive: 'Nofaol',
+const statusLabel = (status: Exclude<StatusFilter, 'all'>): string =>
+  status === 'active' ? t().common.active : t().common.inactive;
+
+const statusItems = (): { value: StatusFilter; label: string }[] => {
+  const c = t().common;
+  return [
+    { value: 'all', label: c.all },
+    { value: 'active', label: c.active },
+    { value: 'inactive', label: c.inactive },
+  ];
 };
 
-const STATUS_ITEMS: { value: StatusFilter; label: string }[] = [
-  { value: 'all', label: 'Hammasi' },
-  { value: 'active', label: 'Faol' },
-  { value: 'inactive', label: 'Nofaol' },
-];
-
-const RULE_TYPE_OPTIONS = [
-  { value: 'trip_count', label: 'Safar soni' },
-  { value: 'weekly_goal', label: 'Haftalik maqsad' },
+const ruleTypeOptions = () => [
+  { value: 'trip_count', label: ruleTypeLabel('trip_count') },
+  { value: 'weekly_goal', label: ruleTypeLabel('weekly_goal') },
 ];
 
 export default function BonusesPage() {
+  const m = t();
+  const bm = m.bonuses;
   const { toast } = useToast();
   const [rules, setRules] = useState<BonusRule[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -75,7 +83,7 @@ export default function BonusesPage() {
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<BonusRuleForm>({ resolver: zodResolver(bonusRuleSchema) });
+  } = useForm<BonusRuleForm>({ resolver: zodResolver(bonusRuleSchema()) });
 
   const fetchRules = useCallback(async () => {
     setIsLoading(true);
@@ -85,7 +93,7 @@ export default function BonusesPage() {
       setError(null);
     } catch {
       // Oxirgi muvaffaqiyatli qatorlar ekranda qoladi; banner + retry chiqadi.
-      setError("Bonus qoidalarini yuklab bo'lmadi");
+      setError(t().bonuses.loadError);
     } finally {
       setIsLoading(false);
     }
@@ -100,7 +108,7 @@ export default function BonusesPage() {
     let rows = rules;
     if (q) {
       rows = rows.filter((r) =>
-        [r.name, ruleTypeLabel[r.ruleType], r.serviceType ?? ''].join(' ').toLowerCase().includes(q)
+        [r.name, ruleTypeLabel(r.ruleType), r.serviceType ?? ''].join(' ').toLowerCase().includes(q)
       );
     }
     if (statusFilter !== 'all') {
@@ -133,12 +141,12 @@ export default function BonusesPage() {
 
   const chips: FilterChipData[] = [];
   if (search.trim()) {
-    chips.push({ key: 'search', label: `Qidiruv: "${search.trim()}"`, onRemove: () => setSearch('') });
+    chips.push({ key: 'search', label: bm.chipSearch(search.trim()), onRemove: () => setSearch('') });
   }
   if (statusFilter !== 'all') {
     chips.push({
       key: 'status',
-      label: `Holat: ${STATUS_LABELS[statusFilter]}`,
+      label: bm.chipStatus(statusLabel(statusFilter)),
       onRemove: () => setStatusFilter('all'),
     });
   }
@@ -161,14 +169,14 @@ export default function BonusesPage() {
       };
       await bonusRulesApi.create(payload);
       toast({
-        title: 'Bonus qoidasi yaratildi',
-        description: `«${data.name}» ro'yxatga qo'shildi.`,
+        title: bm.created,
+        description: bm.createdDescription(data.name),
         variant: 'success',
       });
       setModalOpen(false);
       await fetchRules();
     } catch {
-      toast({ title: 'Xatolik', description: 'Qoidani saqlashda xatolik', variant: 'error' });
+      toast({ title: m.common.error, description: bm.saveError, variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -188,16 +196,13 @@ export default function BonusesPage() {
       const res = await bonusRulesApi.update(rule.id, { status: next });
       setRules((prev) => prev.map((r) => (r.id === rule.id ? res.data.data : r)));
       toast({
-        title: next === 'active' ? `«${rule.name}» yoqildi` : `«${rule.name}» o'chirildi`,
-        description:
-          next === 'active'
-            ? 'Haydovchilar bu bonusni yig\'a boshlaydi.'
-            : 'Yangi bonus hisoblanmaydi; allaqachon berilganlari saqlanadi.',
+        title: next === 'active' ? bm.enabledToast(rule.name) : bm.disabledToast(rule.name),
+        description: next === 'active' ? bm.enabledHint : bm.disabledHint,
         variant: 'success',
       });
     } catch {
       setRules((prev) => prev.map((r) => (r.id === rule.id ? rule : r)));
-      toast({ title: 'Xatolik', description: "Holatni o'zgartirib bo'lmadi", variant: 'error' });
+      toast({ title: m.common.error, description: m.common.statusChangeFailed, variant: 'error' });
     } finally {
       setTogglingId(null);
     }
@@ -206,25 +211,25 @@ export default function BonusesPage() {
   const handleExportCsv = () => {
     if (filteredRows.length === 0) return;
     downloadCsv<BonusRule>(
-      `bonus-qoidalari-${new Date().toISOString().slice(0, 10)}.csv`,
+      bm.csvFile(new Date().toISOString().slice(0, 10)),
       [
-        { header: 'Nomi', value: (r) => r.name },
-        { header: 'Turi', value: (r) => ruleTypeLabel[r.ruleType] },
-        { header: 'Safar chegarasi', value: (r) => r.tripThreshold },
-        { header: 'Bonus summasi', value: (r) => r.bonusAmount },
-        { header: 'Xizmat turi', value: (r) => r.serviceType ?? '' },
-        { header: 'Holati', value: (r) => (r.status === 'active' ? 'Faol' : 'Nofaol') },
-        { header: 'Yaratilgan', value: (r) => formatDateTime(r.createdAt, { withYear: true }) },
+        { header: bm.csvName, value: (r) => r.name },
+        { header: bm.colType, value: (r) => ruleTypeLabel(r.ruleType) },
+        { header: bm.colThreshold, value: (r) => r.tripThreshold },
+        { header: bm.csvAmount, value: (r) => r.bonusAmount },
+        { header: bm.colService, value: (r) => r.serviceType ?? '' },
+        { header: m.common.statusAlt, value: (r) => (r.status === 'active' ? m.common.active : m.common.inactive) },
+        { header: bm.csvCreated, value: (r) => formatDateTime(r.createdAt, { withYear: true }) },
       ],
       filteredRows
     );
-    toast({ title: 'CSV yuklab olindi', description: `${filteredRows.length} ta qator`, variant: 'success' });
+    toast({ title: bm.csvDone, description: bm.csvRows(filteredRows.length), variant: 'success' });
   };
 
   const columns: DataTableColumn<BonusRule>[] = [
     {
       key: 'name',
-      header: 'Qoida',
+      header: bm.colRule,
       sortable: true,
       cell: (r) => (
         <div className="min-w-0">
@@ -235,45 +240,45 @@ export default function BonusesPage() {
     },
     {
       key: 'ruleType',
-      header: 'Turi',
-      cell: (r) => <Badge variant="neutral">{ruleTypeLabel[r.ruleType]}</Badge>,
+      header: bm.colType,
+      cell: (r) => <Badge variant="neutral">{ruleTypeLabel(r.ruleType)}</Badge>,
     },
     {
       key: 'tripThreshold',
-      header: 'Safar chegarasi',
+      header: bm.colThreshold,
       numeric: true,
       sortable: true,
       cell: (r) => formatNumber(r.tripThreshold),
     },
     {
       key: 'bonusAmount',
-      header: 'Bonus',
+      header: bm.colBonus,
       numeric: true,
       sortable: true,
       cell: (r) => <MoneyText value={r.bonusAmount} className="font-medium" />,
     },
     {
       key: 'serviceType',
-      header: 'Xizmat turi',
+      header: bm.colService,
       className: 'text-muted',
       cell: (r) => r.serviceType || '—',
     },
     {
       key: 'status',
-      header: 'Faol',
+      header: m.common.active,
       align: 'right',
       cell: (rule) => (
         <div className="flex items-center justify-end gap-2.5">
           {/* Holat rang bilan emas, SO'Z bilan ham aytiladi. */}
           <span className={rule.status === 'active' ? 'text-xs font-medium text-primary-text' : 'text-xs text-subtle'}>
-            {rule.status === 'active' ? 'Faol' : 'Nofaol'}
+            {rule.status === 'active' ? m.common.active : m.common.inactive}
           </span>
           <Switch
             size="sm"
             checked={rule.status === 'active'}
             disabled={togglingId === rule.id}
             onCheckedChange={() => handleToggle(rule)}
-            aria-label={`«${rule.name}» qoidasini ${rule.status === 'active' ? "o'chirish" : 'yoqish'}`}
+            aria-label={bm.toggleAria(rule.name, rule.status === 'active')}
           />
         </div>
       ),
@@ -283,8 +288,8 @@ export default function BonusesPage() {
   return (
     <div className="px-4 sm:px-6 py-5">
       <PageHeader
-        title="Haydovchi bonuslari"
-        description={`Jami: ${formatNumber(rules.length)} ta qoida`}
+        title={bm.title}
+        description={bm.total(formatNumber(rules.length))}
         actions={
           <>
             <Button
@@ -293,17 +298,17 @@ export default function BonusesPage() {
               disabled={filteredRows.length === 0}
               leftIcon={<Download className="h-4 w-4" aria-hidden="true" />}
             >
-              CSV eksport
+              {bm.csvExport}
             </Button>
             <Button leftIcon={<Plus className="h-4 w-4" aria-hidden="true" />} onClick={openCreate}>
-              Yangi qoida
+              {bm.newRule}
             </Button>
           </>
         }
       />
 
       <DataTable
-        ariaLabel="Bonus qoidalari"
+        ariaLabel={bm.tableAria}
         columns={columns}
         rows={filteredRows}
         rowKey={(r) => r.id}
@@ -317,14 +322,14 @@ export default function BonusesPage() {
           <FilterBar
             search={search}
             onSearchChange={setSearch}
-            searchPlaceholder="Qoida nomi yoki xizmat turi…"
-            searchAriaLabel="Bonus qoidalarini qidirish"
+            searchPlaceholder={bm.searchPlaceholder}
+            searchAriaLabel={bm.searchAria}
             chips={chips}
             onClearAll={clearAllFilters}
           >
             <SegmentedControl
-              ariaLabel="Holat bo'yicha filtr"
-              items={STATUS_ITEMS}
+              ariaLabel={m.common.statusFilter}
+              items={statusItems()}
               value={statusFilter}
               onChange={setStatusFilter}
             />
@@ -332,14 +337,14 @@ export default function BonusesPage() {
         }
         isFiltered={hasActiveFilters}
         onClearFilters={clearAllFilters}
-        emptyFiltered={{ title: 'Hech narsa mos kelmadi', description: "Tanlangan filtrlar bo'yicha bonus qoidasi topilmadi." }}
+        emptyFiltered={{ title: bm.noMatch, description: bm.noMatchHint }}
         empty={{
           variant: 'first-use',
-          title: "Bonus qoidalari yo'q",
-          description: "Haydovchilarni rag'batlantirish uchun birinchi bonus qoidasini yarating.",
+          title: bm.empty,
+          description: bm.emptyHint,
           action: (
             <Button size="sm" leftIcon={<Plus className="h-4 w-4" aria-hidden="true" />} onClick={openCreate}>
-              Birinchi qoidani yaratish
+              {bm.createFirst}
             </Button>
           ),
         }}
@@ -348,14 +353,14 @@ export default function BonusesPage() {
       <Modal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        title="Yangi bonus qoidasi"
+        title={bm.modalTitle}
         footer={
           <>
             <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>
-              Bekor qilish
+              {m.common.cancel}
             </Button>
             <Button type="submit" form="bonus-rule-form" isLoading={saving}>
-              Yaratish
+              {bm.create}
             </Button>
           </>
         }
@@ -363,22 +368,22 @@ export default function BonusesPage() {
         {/* Validatsiya xatolari maydonning O'ZIGA biriktiriladi (zod + Input error). */}
         <form id="bonus-rule-form" onSubmit={handleSubmit(handleSave)} className="space-y-4" noValidate>
           <Input
-            label="Qoida nomi"
-            placeholder="50 ta safar bonusi"
+            label={bm.ruleName}
+            placeholder={bm.ruleNamePlaceholder}
             error={errors.name?.message}
             {...register('name')}
           />
-          <Select label="Qoida turi" options={RULE_TYPE_OPTIONS} error={errors.ruleType?.message} {...register('ruleType')} />
+          <Select label={bm.ruleType} options={ruleTypeOptions()} error={errors.ruleType?.message} {...register('ruleType')} />
           <div className="grid grid-cols-2 gap-3">
             <Input
-              label="Safar soni chegarasi"
+              label={bm.threshold}
               type="number"
               placeholder="50"
               error={errors.tripThreshold?.message}
               {...register('tripThreshold')}
             />
             <Input
-              label="Bonus summasi (so'm)"
+              label={bm.amount}
               type="number"
               placeholder="50000"
               error={errors.bonusAmount?.message}
@@ -386,9 +391,9 @@ export default function BonusesPage() {
             />
           </div>
           <Input
-            label="Xizmat turi (ixtiyoriy)"
+            label={bm.service}
             placeholder="taxi"
-            hint="Bo'sh qoldirilsa qoida barcha xizmat turlariga qo'llanadi."
+            hint={bm.serviceHint}
             {...register('serviceType')}
           />
         </form>

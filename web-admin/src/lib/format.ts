@@ -1,11 +1,17 @@
 // AUTO-SYNCED from web-manager — edit there, then run scripts/sync-panel-ui.sh
 import { format, formatDistanceToNow } from 'date-fns';
-import { uz } from 'date-fns/locale';
+import type { Locale as DateFnsLocale } from 'date-fns';
+import { ru, uz } from 'date-fns/locale';
+import { getLocale } from '@/lib/i18n/core';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 /**
  * Display formatting for all four panels. Everything an operator reads —
  * money, numbers, dates, durations, phones, names — goes through here so the
- * panels stay consistent and the Uzbek locale lives in exactly one place.
+ * panels stay consistent and the locale lives in exactly one place. Wording
+ * follows the active panel locale (`getLocale()`): Uzbek by default, Russian
+ * when the operator switches ("43 500 сум", "2 д 3 ч"). Uzbek output must stay
+ * byte-identical — e2e tests read it.
  *
  * Rules (docs/design/PANEL-UI-KIT.md §3, §7):
  *  - Missing value → "—" (em dash). Never "null", "undefined", "NaN".
@@ -16,6 +22,11 @@ import { uz } from 'date-fns/locale';
 export const EMPTY = '—';
 
 type DateInput = string | number | Date | null | undefined;
+
+/** date-fns locale for the active panel locale. */
+function dfLocale(): DateFnsLocale {
+  return getLocale() === 'ru' ? ru : uz;
+}
 
 function isNum(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
@@ -35,7 +46,7 @@ export function groupDigits(value: number): string {
 }
 
 export interface MoneyOptions {
-  /** Append " soʻm" (default true). Turn off when the unit is rendered separately. */
+  /** Append " soʻm" / " сум" (default true). Turn off when the unit is rendered separately. */
   currency?: boolean;
   /** Prefix "+" for positive values — for ledgers/adjustments. */
   signed?: boolean;
@@ -50,7 +61,7 @@ export function formatMoney(
   if (n == null) return EMPTY;
   const { currency = true, signed = false } = options;
   const sign = signed && n > 0 ? '+' : '';
-  return `${sign}${groupDigits(n)}${currency ? ' soʻm' : ''}`;
+  return `${sign}${groupDigits(n)}${currency ? ` ${kitT().format.currency}` : ''}`;
 }
 
 /** Not-yet-final price: "~43 500 soʻm". */
@@ -93,19 +104,19 @@ function toDate(value: DateInput): Date | null {
 export function formatRelative(value: DateInput): string {
   const d = toDate(value);
   if (!d) return EMPTY;
-  return formatDistanceToNow(d, { addSuffix: true, locale: uz });
+  return formatDistanceToNow(d, { addSuffix: true, locale: dfLocale() });
 }
 
 /** "14:32" */
 export function formatTime(value: DateInput): string {
   const d = toDate(value);
-  return d ? format(d, 'HH:mm', { locale: uz }) : EMPTY;
+  return d ? format(d, 'HH:mm', { locale: dfLocale() }) : EMPTY;
 }
 
 /** "31 iyul 2026" */
 export function formatDate(value: DateInput): string {
   const d = toDate(value);
-  return d ? format(d, 'd MMMM yyyy', { locale: uz }) : EMPTY;
+  return d ? format(d, 'd MMMM yyyy', { locale: dfLocale() }) : EMPTY;
 }
 
 /** "31.07.2026" — dense table cells. */
@@ -118,7 +129,7 @@ export function formatDateShort(value: DateInput): string {
 export function formatDateTime(value: DateInput, { withYear = false } = {}): string {
   const d = toDate(value);
   if (!d) return EMPTY;
-  return format(d, withYear ? 'd MMM yyyy, HH:mm' : 'd MMM, HH:mm', { locale: uz });
+  return format(d, withYear ? 'd MMM yyyy, HH:mm' : 'd MMM, HH:mm', { locale: dfLocale() });
 }
 
 const SECOND = 1000;
@@ -128,7 +139,8 @@ const DAY = 24 * HOUR;
 
 /**
  * Human duration, two largest units: "2 kun 3 soat", "1 soat 5 daq",
- * "4 daq 10 son", "12 son". Never negative, never "hh:mm" with 6 digits.
+ * "4 daq 10 son", "12 son" (ru: "2 д 3 ч", "1 ч 5 мин", "4 мин 10 с").
+ * Never negative, never "hh:mm" with 6 digits.
  */
 export function humanizeDuration(ms: number): string {
   const abs = Math.abs(ms);
@@ -136,10 +148,11 @@ export function humanizeDuration(ms: number): string {
   const hours = Math.floor((abs % DAY) / HOUR);
   const minutes = Math.floor((abs % HOUR) / MINUTE);
   const seconds = Math.floor((abs % MINUTE) / SECOND);
-  if (days > 0) return hours > 0 ? `${days} kun ${hours} soat` : `${days} kun`;
-  if (hours > 0) return minutes > 0 ? `${hours} soat ${minutes} daq` : `${hours} soat`;
-  if (minutes > 0) return seconds > 0 ? `${minutes} daq ${seconds} son` : `${minutes} daq`;
-  return `${seconds} son`;
+  const u = kitT().format.units;
+  if (days > 0) return hours > 0 ? `${days} ${u.day} ${hours} ${u.hour}` : `${days} ${u.day}`;
+  if (hours > 0) return minutes > 0 ? `${hours} ${u.hour} ${minutes} ${u.minute}` : `${hours} ${u.hour}`;
+  if (minutes > 0) return seconds > 0 ? `${minutes} ${u.minute} ${seconds} ${u.second}` : `${minutes} ${u.minute}`;
+  return `${seconds} ${u.second}`;
 }
 
 /**
@@ -153,14 +166,14 @@ export function formatDuration(
   { overdue = false }: { overdue?: boolean } = {}
 ): string {
   if (!isNum(ms)) return EMPTY;
-  if (ms < 0) return overdue ? `${humanizeDuration(ms)} kechikdi` : EMPTY;
+  if (ms < 0) return overdue ? kitT().format.overdue(humanizeDuration(ms)) : EMPTY;
   return humanizeDuration(ms);
 }
 
-/** Time past a deadline: "2 kun 3 soat kechikdi". */
+/** Time past a deadline: "2 kun 3 soat kechikdi" / "просрочено на 2 д 3 ч". */
 export function formatOverdue(ms: number | null | undefined): string {
   if (!isNum(ms)) return EMPTY;
-  return `${humanizeDuration(ms)} kechikdi`;
+  return kitT().format.overdue(humanizeDuration(ms));
 }
 
 /**
@@ -231,19 +244,21 @@ export function formatPrepTimer(order: PrepTimerOrder, now: number): PrepTimer |
   const prepMinutes = Math.max(1, ...order.items.map((i) => i.prepMinutes || 0));
   const remaining = placed + prepMinutes * MINUTE - now;
 
+  const m = kitT().format.prep;
+
   if (now - placed > PREP_STALE_AFTER_MS) {
     const at = formatDateTime(placed);
-    return { state: 'stale', text: at, label: `Juda eski buyurtma — ${at} da tushgan` };
+    return { state: 'stale', text: at, label: m.staleLabel(at) };
   }
   if (remaining < 0) {
     const late = humanizeDuration(-remaining);
-    return { state: 'late', text: `Kechikmoqda · ${late}`, label: `Tayyorlash ${late} kechikmoqda` };
+    return { state: 'late', text: m.lateText(late), label: m.lateLabel(late) };
   }
   const left = formatCountdown(remaining);
   return {
     state: remaining <= PREP_SOON_MS ? 'soon' : 'ok',
     text: left,
-    label: `Tayyorlash uchun ${left} qoldi`,
+    label: m.leftLabel(left),
   };
 }
 
@@ -280,6 +295,15 @@ export function formatDistanceKm(km: number | null | undefined): string {
   return `${km.toFixed(1)} km`;
 }
 
+/** "Ism kiritilmagan" / "Имя не указано" — in the active locale. */
+export function nameFallback(): string {
+  return kitT().format.nameFallback;
+}
+
+/**
+ * @deprecated Uzbek-only constant kept so old imports compile. Use
+ * `nameFallback()` — it follows the active locale.
+ */
 export const NAME_FALLBACK = 'Ism kiritilmagan';
 
 function clean(part: string | null | undefined): string {
@@ -290,16 +314,16 @@ function clean(part: string | null | undefined): string {
 
 /**
  * Null-safe name join: fullName('Ali', null) -> "Ali";
- * fullName(null, null) -> "Ism kiritilmagan" (or the given fallback).
+ * fullName(null, null) -> "Ism kiritilmagan" / "Имя не указано" (or the given fallback).
  * Never produces "null null".
  */
 export function fullName(
   first: string | null | undefined,
   last?: string | null,
-  fallback: string = NAME_FALLBACK
+  fallback?: string
 ): string {
   const joined = [clean(first), clean(last)].filter(Boolean).join(' ');
-  return joined || fallback;
+  return joined || (fallback ?? nameFallback());
 }
 
 /**
@@ -307,11 +331,12 @@ export function fullName(
  * there is nothing to show — callers render an icon instead, never "NN".
  */
 export function initials(first: string | null | undefined, last?: string | null): string {
+  const locale = getLocale();
   const parts = last === undefined ? String(first ?? '').split(/\s+/) : [first, last];
   return parts
     .map(clean)
     .filter(Boolean)
     .slice(0, 2)
-    .map((p) => p.charAt(0).toLocaleUpperCase('uz'))
+    .map((p) => p.charAt(0).toLocaleUpperCase(locale))
     .join('');
 }

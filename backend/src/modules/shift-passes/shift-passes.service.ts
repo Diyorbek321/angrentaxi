@@ -29,6 +29,7 @@ import {
 import { AUDIT_ACTIONS, AuditLogService } from '../audit/audit-log.service';
 import { WalletNotifierService } from '../drivers/wallet-notifier.service';
 import { formatSom } from '../delivery/vendor-wallet-settlement';
+import { localized } from '../notifications/push-text';
 
 /** Hamyon daftaridagi smena qatori belgisi: `shift_pass_<passId>`. */
 export const SHIFT_PASS_LEDGER_PREFIX = 'shift_pass_';
@@ -188,8 +189,16 @@ export class ShiftPassesService {
         delta: result.refundAmount,
         reason: 'shift_pass_refund',
         push: {
-          title: 'Smena bekor qilindi',
-          body: `Smenangiz bekor qilindi: hamyoningizga ${formatSom(result.refundAmount)} so'm qaytarildi`,
+          text: localized({
+            uz: {
+              title: 'Smena bekor qilindi',
+              body: `Smenangiz bekor qilindi: hamyoningizga ${formatSom(result.refundAmount)} so'm qaytarildi`,
+            },
+            ru: {
+              title: 'Смена отменена',
+              body: `Ваша смена отменена: на кошелёк возвращено ${formatSom(result.refundAmount)} сум`,
+            },
+          }),
           event: 'shift_pass_cancelled',
         },
         extra: { shiftPassId: result.pass.id },

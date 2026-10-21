@@ -14,56 +14,63 @@ import { useResource } from '@/hooks/useResource';
 import { taxReportApi, type TaxReportEntry } from '@/lib/compliance-api';
 import { currentTashkentMonth, isValidMonth } from '@/lib/compliance';
 import { taxReportFilename, triggerBlobDownload } from '@/lib/download';
-import { TAX_STATUS_LABELS } from '@/lib/driver-legal';
-import { formatNumber, formatPhone } from '@/lib/format';
+import { taxStatusLabels } from '@/lib/driver-legal';
+import { formatNumber, formatPhone, nameFallback } from '@/lib/format';
+import { t } from '@/locales';
 
 const Mono = ({ value }: { value: string | null }) =>
   value ? <span className="font-mono text-xs text-ink">{value}</span> : <span className="text-subtle">—</span>;
 
-const columns: DataTableColumn<TaxReportEntry>[] = [
+const getColumns = (): DataTableColumn<TaxReportEntry>[] => {
+  const c = t().compliance.taxReport.col;
+  return [
   {
     key: 'name',
-    header: 'Haydovchi / kuryer',
+    header: c.name,
     cell: (r) => (
       <div className="min-w-0 leading-tight">
-        <p className="truncate font-medium text-ink">{r.name?.trim() || 'Ism kiritilmagan'}</p>
+        <p className="truncate font-medium text-ink">{r.name?.trim() || nameFallback()}</p>
         <p className="num whitespace-nowrap text-xs text-muted">{formatPhone(r.phone)}</p>
       </div>
     ),
   },
-  { key: 'pinfl', header: 'JShShIR', cell: (r) => <Mono value={r.pinfl} /> },
-  { key: 'tin', header: 'STIR', hideBelow: 'xl', cell: (r) => <Mono value={r.tin} /> },
+  { key: 'pinfl', header: c.pinfl, cell: (r) => <Mono value={r.pinfl} /> },
+  { key: 'tin', header: c.tin, hideBelow: 'xl', cell: (r) => <Mono value={r.tin} /> },
   {
     key: 'status',
-    header: 'Soliq maqomi',
+    header: c.taxStatus,
     hideBelow: 'lg',
     cell: (r) =>
       r.taxStatus ? (
-        <Badge variant="neutral">{TAX_STATUS_LABELS[r.taxStatus as keyof typeof TAX_STATUS_LABELS] ?? r.taxStatus}</Badge>
+        <Badge variant="neutral">{taxStatusLabels()[r.taxStatus as keyof ReturnType<typeof taxStatusLabels>] ?? r.taxStatus}</Badge>
       ) : (
-        <Badge variant="muted-danger">Kiritilmagan</Badge>
+        <Badge variant="muted-danger">{c.notEntered}</Badge>
       ),
   },
-  { key: 'gross', header: 'Daromad', numeric: true, cell: (r) => <MoneyText value={r.grossIncome} /> },
+  { key: 'gross', header: c.gross, numeric: true, cell: (r) => <MoneyText value={r.grossIncome} /> },
   {
     key: 'withheld',
-    header: 'Ushlangan',
+    header: c.withheld,
     numeric: true,
     cell: (r) => <MoneyText value={r.withheldAmount} className="font-semibold" />,
   },
   {
     key: 'pending',
-    header: 'Kutilmoqda',
+    header: c.pending,
     numeric: true,
     hideBelow: 'lg',
     cell: (r) =>
       r.pendingWithheldAmount > 0 ? <MoneyText value={r.pendingWithheldAmount} className="text-muted" /> : <span className="text-subtle">—</span>,
   },
-  { key: 'orders', header: 'Buyurtmalar', numeric: true, cell: (r) => <span className="num">{formatNumber(r.orderCount)}</span> },
-];
+  { key: 'orders', header: c.orders, numeric: true, cell: (r) => <span className="num">{formatNumber(r.orderCount)}</span> },
+  ];
+};
 
 /** 1% aylanma soligʻi — soliq agenti oylik hisoboti (PQ-247, LEGAL-COMPLIANCE §2). */
 export default function TaxReportPage() {
+  const m = t();
+  const r$ = m.compliance.taxReport;
+  const columns = getColumns();
   const { toast } = useToast();
   const [month, setMonth] = useState(() => currentTashkentMonth());
   const [downloading, setDownloading] = useState(false);
@@ -71,7 +78,7 @@ export default function TaxReportPage() {
 
   const res = useResource(
     () => (valid ? taxReportApi.get(month).then((r) => r.data.data) : Promise.resolve(null)),
-    'Soliq hisobotini yuklab boʻlmadi.',
+    r$.loadError,
     [month, valid]
   );
   const report = res.data;
@@ -82,9 +89,9 @@ export default function TaxReportPage() {
     try {
       const r = await taxReportApi.csv(month);
       triggerBlobDownload(r.data, taxReportFilename(month));
-      toast({ title: 'CSV yuklab olindi', description: taxReportFilename(month), variant: 'success' });
+      toast({ title: m.finance.csvDownloaded, description: taxReportFilename(month), variant: 'success' });
     } catch {
-      toast({ title: 'Xatolik', description: 'CSV faylni yuklab boʻlmadi', variant: 'error' });
+      toast({ title: m.common.error, description: r$.csvError, variant: 'error' });
     } finally {
       setDownloading(false);
     }
@@ -95,8 +102,8 @@ export default function TaxReportPage() {
   return (
     <div className="px-4 sm:px-6 py-5">
       <PageHeader
-        title="Soliq (1%) hisoboti"
-        description="Har bir haydovchi/kuryer boʻyicha daromad va ushlab qolingan aylanma soligʻi (oy — yakunlangan sana, Toshkent)"
+        title={r$.title}
+        description={r$.description}
         actions={
           <Button
             variant="secondary"
@@ -105,34 +112,34 @@ export default function TaxReportPage() {
             disabled={!valid || rows.length === 0}
             leftIcon={<Download size={14} aria-hidden="true" />}
           >
-            CSV yuklab olish
+            {r$.downloadCsv}
           </Button>
         }
       />
 
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Yalpi daromad" value={<MoneyText value={report?.totals.grossIncome ?? 0} />} isLoading={statsLoading} />
+        <StatCard label={r$.grossIncome} value={<MoneyText value={report?.totals.grossIncome ?? 0} />} isLoading={statsLoading} />
         <StatCard
-          label="Ushlab qolingan"
+          label={r$.withheldStat}
           value={<MoneyText value={report?.totals.withheldAmount ?? 0} />}
-          hint="Byudjetga oʻtkazish — qoʻlda (CSV asosida)"
+          hint={r$.withheldHint}
           isLoading={statsLoading}
         />
         <StatCard
-          label="Kutilmoqda"
+          label={r$.col.pending}
           value={<MoneyText value={report?.totals.pendingWithheldAmount ?? 0} />}
-          hint="Karta puli hali yigʻilmagan safarlar"
+          hint={r$.pendingHint}
           isLoading={statsLoading}
         />
         <StatCard
-          label="Buyurtmalar"
+          label={r$.col.orders}
           value={<span className="num">{formatNumber(report?.totals.orderCount ?? 0)}</span>}
           isLoading={statsLoading}
         />
       </div>
 
       <DataTable
-        ariaLabel="Soliq hisoboti"
+        ariaLabel={r$.tableAria}
         columns={columns}
         rows={rows}
         rowKey={(r) => r.userId}
@@ -142,10 +149,10 @@ export default function TaxReportPage() {
         toolbar={
           <Input
             type="month"
-            aria-label="Hisobot oyi"
+            aria-label={r$.monthAria}
             value={month}
             max={currentTashkentMonth()}
-            error={valid ? undefined : 'Oyni tanlang'}
+            error={valid ? undefined : r$.pickMonth}
             onChange={(e) => setMonth(e.target.value)}
             wrapperClassName="w-44"
           />
@@ -153,12 +160,10 @@ export default function TaxReportPage() {
         empty={{
           variant: 'first-use',
           icon: <Receipt aria-hidden />,
-          title: 'Bu oyda maʼlumot yoʻq',
-          description: valid
-            ? 'Tanlangan oyda yakunlangan safar yoki ushlab qolingan soliq yoʻq. Ushlab qolish «Huquqiy talablar» sahifasida yoqiladi.'
-            : 'Hisobot oyini tanlang.',
+          title: r$.emptyTitle,
+          description: valid ? r$.emptyDesc : r$.emptyPickMonth,
         }}
-        footer={rows.length > 0 ? <span className="num">{formatNumber(rows.length)} ta shaxs</span> : undefined}
+        footer={rows.length > 0 ? <span className="num">{r$.persons(formatNumber(rows.length))}</span> : undefined}
         maxHeightClassName="max-h-[calc(100vh-360px)]"
       />
     </div>

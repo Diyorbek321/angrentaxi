@@ -3,6 +3,14 @@ import { API_BASE_URL } from "@/lib/server/api-config";
 import { clientIpHeaders } from "@/lib/server/client-ip";
 import { setSessionCookies } from "@/lib/server/auth-cookies";
 import { crossOriginRejection, isSameOrigin } from "@/lib/server/same-origin";
+import { getServerLocale } from "@/lib/i18n/server";
+import { t } from "@/locales";
+
+/** Cookie'dagi tilda xabarlar (route handler — so'rov paytida chaqiriladi). */
+function routeMessages() {
+  getServerLocale();
+  return t().shell;
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,7 +57,7 @@ export async function POST(req: NextRequest) {
     });
   } catch {
     return NextResponse.json(
-      { success: false, message: "Serverga ulanib boʻlmadi" },
+      { success: false, message: routeMessages().route.serverUnreachable },
       { status: 502 },
     );
   }
@@ -65,7 +73,7 @@ export async function POST(req: NextRequest) {
 
   if (!upstream.ok || !payload?.data?.accessToken || !payload.data.user) {
     return NextResponse.json(
-      { success: false, message: payload?.message || "Notoʻgʻri kod" },
+      { success: false, message: payload?.message || routeMessages().wrongCode },
       { status: upstream.ok ? 502 : upstream.status },
     );
   }
@@ -78,7 +86,7 @@ export async function POST(req: NextRequest) {
   // a driver's valid token from being planted in a super-admin cookie.
   if (user.role !== "admin") {
     return NextResponse.json(
-      { success: false, message: "Bu panel faqat administratorlar uchun." },
+      { success: false, message: routeMessages().route.adminsOnly },
       { status: 403 },
     );
   }

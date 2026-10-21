@@ -1,5 +1,6 @@
 import { formatDateShort, formatMoney } from '@/lib/format';
 import type { VendorSettlementMode } from '@/lib/vendor-cash';
+import { t } from '@/locales';
 
 /**
  * `GET /settings/public` dan sotuvchi paneliga kerakli qism
@@ -43,19 +44,21 @@ export function walletSwitchNotice(settings: VendorPublicSettings | null, now: n
   if (!settings || settings.vendorSettlementMode !== 'cash' || !settings.vendorWalletSettlementFrom) return null;
   const at = Date.parse(settings.vendorWalletSettlementFrom);
   if (!Number.isFinite(at) || at <= now) return null;
-  return `${formatDateShort(at)} dan hisob-kitob kuryer hamyoni orqali boʻladi`;
+  return t().settlement.switchNotice(formatDateShort(at));
 }
 
 export function walletSettledToast(e: WalletSettledEvent): { title: string; description: string } {
+  const m = t().settlement;
   return {
-    title: 'Kuryer hamyonidan toʻlandi',
-    description: `Tovar ${formatMoney(e.amount)} · komissiya ${formatMoney(e.commission)} · sof ${formatMoney(e.net)}`,
+    title: m.settledTitle,
+    description: m.settledDescription(formatMoney(e.amount), formatMoney(e.commission), formatMoney(e.net)),
   };
 }
 
 export function walletReversedToast(e: WalletReversedEvent): { title: string; description: string } {
+  const m = t().settlement;
   return {
-    title: 'Hamyon oʻtkazmasi qaytarildi',
-    description: `Kuryer safari bekor qilindi — ${formatMoney(e.amount)} kuryerga qaytdi`,
+    title: m.reversedTitle,
+    description: m.reversedDescription(formatMoney(e.amount)),
   };
 }

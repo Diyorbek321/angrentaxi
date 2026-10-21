@@ -7,8 +7,8 @@ import { getOrders, PaginatedResponse, Order } from '@/lib/api';
 import {
   OrderStatus,
   ORDER_STATUS,
-  ORDER_STATUS_LABELS,
-  PAYMENT_METHOD_LABELS,
+  orderStatusLabels,
+  paymentMethodLabels,
 } from '@/lib/constants';
 import { ORDERS_PAGE_SIZES, OrdersTable } from '@/components/orders/OrdersTable';
 import { Select } from '@/components/ui/Select';
@@ -21,23 +21,30 @@ import { SkeletonTable } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
 import { formatDateTime, formatNumber, formatPhone, shortId } from '@/lib/format';
 import { downloadCsv } from '@/lib/csv';
+import { t } from '@/locales';
 
-const statusOptions = [
-  { value: '', label: 'Barcha statuslar' },
-  ...Object.values(ORDER_STATUS).map((status) => ({
-    value: status,
-    label: ORDER_STATUS_LABELS[status],
-  })),
-];
+function statusOptions() {
+  const labels = orderStatusLabels();
+  return [
+    { value: '', label: t().orders.list.allStatuses },
+    ...Object.values(ORDER_STATUS).map((status) => ({
+      value: status,
+      label: labels[status],
+    })),
+  ];
+}
 
 type DatePreset = 'all' | 'today' | '7d' | '30d';
 
-const DATE_PRESETS: readonly { value: DatePreset; label: string }[] = [
-  { value: 'all', label: 'Hammasi' },
-  { value: 'today', label: 'Bugun' },
-  { value: '7d', label: '7 kun' },
-  { value: '30d', label: '30 kun' },
-];
+function datePresets(): readonly { value: DatePreset; label: string }[] {
+  const m = t().orders.list;
+  return [
+    { value: 'all', label: t().common.all },
+    { value: 'today', label: m.today },
+    { value: '7d', label: m.days7 },
+    { value: '30d', label: m.days30 },
+  ];
+}
 
 function presetToDateFrom(preset: DatePreset): string | undefined {
   if (preset === 'all') return undefined;
@@ -55,21 +62,22 @@ function presetToDateFrom(preset: DatePreset): string | undefined {
  * endpoint. The spreadsheet is the operator's universal escape hatch.
  */
 function exportOrdersCsv(orders: Order[]): void {
+  const c = t().orders.csv;
   const header = [
     'ID',
-    'Mijoz',
-    'Telefon',
-    'Olib ketish',
-    'Tashlab ketish',
-    'Status',
-    'Haydovchi',
-    'Mashina',
-    'Toʻlov',
-    'Narx (soʻm)',
-    'Yaratildi',
+    c.customer,
+    c.phone,
+    c.pickup,
+    c.dropoff,
+    c.status,
+    c.driver,
+    c.car,
+    c.payment,
+    c.price,
+    c.created,
   ];
   downloadCsv(
-    'buyurtmalar',
+    c.fileName,
     header,
     orders.map((o) => [
       shortId(o.id),
@@ -77,10 +85,10 @@ function exportOrdersCsv(orders: Order[]): void {
       formatPhone(o.passenger?.phone),
       o.pickupAddress ?? '',
       o.dropoffAddress ?? '',
-      ORDER_STATUS_LABELS[o.status],
+      orderStatusLabels()[o.status],
       o.driver?.name ?? '',
       o.driver?.carNumber ?? '',
-      PAYMENT_METHOD_LABELS[o.paymentMethod],
+      paymentMethodLabels()[o.paymentMethod],
       o.finalPrice ?? o.estimatedPrice ?? '',
       formatDateTime(o.createdAt, { withYear: true }),
     ])
@@ -93,6 +101,9 @@ function OrdersPageContent() {
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get('q') ?? '';
   const { toast } = useToast();
+  const m = t();
+  const ml = m.orders.list;
+  const DATE_PRESETS = datePresets();
 
   const [data, setData] = useState<PaginatedResponse<Order> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -130,7 +141,7 @@ function OrdersPageContent() {
       console.error('Failed to fetch orders:', err);
       // The last good rows stay on screen — a table that silently blanks on
       // a failed request is lying; the banner below names the failure.
-      setError('Buyurtmalarni yangilab boʻlmadi.');
+      setError(t().orders.list.loadFailed);
     } finally {
       setIsLoading(false);
     }
@@ -159,8 +170,8 @@ function OrdersPageContent() {
     if (rows.length === 0) return;
     exportOrdersCsv(rows);
     toast({
-      title: `${rows.length} ta buyurtma CSV faylga eksport qilindi`,
-      description: 'Joriy sahifadagi yozuvlar — filtrlar hisobga olingan.',
+      title: ml.exported(rows.length),
+      description: ml.exportedHint,
       variant: 'success',
     });
   };
@@ -170,21 +181,21 @@ function OrdersPageContent() {
     if (searchQuery) {
       chips.push({
         key: 'q',
-        label: `Qidiruv: "${searchQuery}"`,
+        label: ml.chipSearch(searchQuery),
         onRemove: () => setSearchQuery(''),
       });
     }
     if (statusFilter) {
       chips.push({
         key: 'status',
-        label: `Status: ${ORDER_STATUS_LABELS[statusFilter as OrderStatus]}`,
+        label: ml.chipStatus(orderStatusLabels()[statusFilter as OrderStatus]),
         onRemove: () => setStatusFilter(''),
       });
     }
     if (datePreset !== 'all') {
       chips.push({
         key: 'date',
-        label: `Sana: ${DATE_PRESETS.find((p) => p.value === datePreset)?.label}`,
+        label: ml.chipDate(DATE_PRESETS.find((p) => p.value === datePreset)?.label ?? ''),
         onRemove: () => setDatePreset('all'),
       });
     }
@@ -194,8 +205,8 @@ function OrdersPageContent() {
   return (
     <PageBody>
       <PageHeader
-        title="Buyurtmalar"
-        description={data ? `Jami ${formatNumber(data.total)} ta buyurtma` : 'Yuklanmoqda…'}
+        title={ml.title}
+        description={data ? ml.total(formatNumber(data.total)) : m.common.loading}
         actions={
           <>
             <Button
@@ -204,9 +215,9 @@ function OrdersPageContent() {
               onClick={handleExport}
               disabled={!data || data.data.length === 0}
               leftIcon={<Download size={13} aria-hidden />}
-              title="Joriy sahifadagi yozuvlarni CSV sifatida yuklab olish"
+              title={ml.exportTitle}
             >
-              CSV eksport
+              {ml.export}
             </Button>
             <Button
               variant="secondary"
@@ -215,7 +226,7 @@ function OrdersPageContent() {
               isLoading={isLoading && data != null}
               leftIcon={<RefreshCw size={13} aria-hidden />}
             >
-              Yangilash
+              {m.common.refresh}
             </Button>
           </>
         }
@@ -224,23 +235,23 @@ function OrdersPageContent() {
       <FilterBar
         search={searchQuery}
         onSearchChange={setSearchQuery}
-        searchPlaceholder="Mijoz ismi yoki telefon boʻyicha"
+        searchPlaceholder={ml.searchPlaceholder}
         chips={activeChips}
         onClearAll={clearFilters}
         className="mb-3"
       >
         <Select
-          options={statusOptions}
+          options={statusOptions()}
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
           wrapperClassName="w-48"
-          aria-label="Status boʻyicha filtr"
+          aria-label={ml.statusFilter}
         />
         <SegmentedControl
           items={DATE_PRESETS}
           value={datePreset}
           onChange={setDatePreset}
-          ariaLabel="Sana oraligʻi"
+          ariaLabel={ml.dateRange}
         />
       </FilterBar>
 

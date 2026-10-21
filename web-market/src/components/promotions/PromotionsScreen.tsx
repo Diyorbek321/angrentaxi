@@ -5,7 +5,7 @@ import { BadgePercent, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { errorMessage } from '@/lib/utils';
 import {
-  PHASE_LABEL,
+  phaseLabel,
   discountLabel,
   isPaused,
   promotionPhase,
@@ -27,6 +27,7 @@ import { Switch } from '@/components/ui/Switch';
 import { useToast } from '@/components/ui/Toast';
 import { PromotionModal } from './PromotionModal';
 import type { PromotionCatalog, PromotionVocabulary, PromotionsApiLike } from './types';
+import { t } from '@/locales';
 
 interface ScreenData {
   promotions: Promotion[];
@@ -35,11 +36,6 @@ interface ScreenData {
 
 const PHASES: readonly PromotionPhase[] = ['active', 'scheduled', 'ended'];
 
-const EMPTY_COPY: Record<PromotionPhase, { title: string; description: string }> = {
-  active: { title: 'Faol aksiya yoʻq', description: 'Hozir mijozlarga hech qanday chegirma koʻrinmayapti.' },
-  scheduled: { title: 'Rejalashtirilgan aksiya yoʻq', description: 'Kelajakda boshlanadigan aksiyalar shu yerda turadi.' },
-  ended: { title: 'Tugagan aksiya yoʻq', description: 'Muddati oʻtgan yoki oʻchirilgan aksiyalar shu yerda.' },
-};
 
 /**
  * "Chegirmalar" sahifasi — restoran va market panellarida bir xil.
@@ -55,6 +51,8 @@ export function PromotionsScreen({
   loadCatalog: () => Promise<PromotionCatalog>;
   vocab: PromotionVocabulary;
 }) {
+  const m = t();
+  const pm = m.promotions;
   const { toast } = useToast();
   const [phase, setPhase] = useState<PromotionPhase>('active');
   const [editing, setEditing] = useState<Promotion | 'new' | null>(null);
@@ -82,16 +80,16 @@ export function PromotionsScreen({
     return map;
   }, [promotions]);
 
-  const phaseItems = PHASES.map((value) => ({ value, label: PHASE_LABEL[value], count: byPhase[value].length }));
+  const phaseItems = PHASES.map((value) => ({ value, label: phaseLabel(value), count: byPhase[value].length }));
 
   const scopeText = (p: Promotion): string => {
     if (p.scope === 'all') return vocab.allItems;
     if (p.scope === 'category') {
       const ids = p.categoryIds ?? [];
       const names = ids.map((id) => catalog.categories.find((c) => c.id === id)?.name).filter(Boolean);
-      return names.length > 0 && names.length <= 2 ? names.join(', ') : `${formatNumber(ids.length)} ta kategoriya`;
+      return names.length > 0 && names.length <= 2 ? names.join(', ') : pm.categoriesCount(formatNumber(ids.length));
     }
-    return `${formatNumber((p.itemIds ?? []).length)} ta ${vocab.item}`;
+    return vocab.itemCount(formatNumber((p.itemIds ?? []).length));
   };
 
   const save = async (payload: PromotionPayload) => {
@@ -99,11 +97,11 @@ export function PromotionsScreen({
     try {
       if (current && current !== 'new') await api.update(current.id, payload);
       else await api.create(payload);
-      toast({ title: current && current !== 'new' ? 'Aksiya saqlandi' : `«${payload.title}» yaratildi`, variant: 'success' });
+      toast({ title: current && current !== 'new' ? pm.saved : pm.created(payload.title), variant: 'success' });
       setEditing(null);
       await reload();
     } catch (err) {
-      toast({ title: 'Saqlab boʻlmadi', description: errorMessage(err), variant: 'error' });
+      toast({ title: pm.saveFailed, description: errorMessage(err), variant: 'error' });
       throw err;
     }
   };
@@ -112,10 +110,10 @@ export function PromotionsScreen({
     setBusyId(p.id);
     try {
       await api.update(p.id, { isActive: !p.isActive });
-      toast({ title: p.isActive ? `«${p.title}» oʻchirildi` : `«${p.title}» yoqildi`, variant: 'success' });
+      toast({ title: p.isActive ? pm.disabled(p.title) : pm.enabled(p.title), variant: 'success' });
       await reload();
     } catch (err) {
-      toast({ title: 'Holatni oʻzgartirib boʻlmadi', description: errorMessage(err), variant: 'error' });
+      toast({ title: pm.toggleFailed, description: errorMessage(err), variant: 'error' });
     } finally {
       setBusyId(null);
     }
@@ -126,9 +124,9 @@ export function PromotionsScreen({
     setRemovePending(true);
     try {
       await api.remove(removing.id);
-      toast({ title: `«${removing.title}» oʻchirildi`, variant: 'success' });
+      toast({ title: pm.deleted(removing.title), variant: 'success' });
     } catch (err) {
-      toast({ title: 'Oʻchirib boʻlmadi', description: errorMessage(err), variant: 'error' });
+      toast({ title: pm.deleteFailed, description: errorMessage(err), variant: 'error' });
     } finally {
       setRemovePending(false);
       setRemoving(null);
@@ -139,7 +137,7 @@ export function PromotionsScreen({
   const columns: DataTableColumn<Promotion>[] = [
     {
       key: 'title',
-      header: 'Aksiya',
+      header: pm.colPromotion,
       className: 'max-w-[280px]',
       cell: (p) => (
         <div className="min-w-0">
@@ -150,35 +148,35 @@ export function PromotionsScreen({
     },
     {
       key: 'discount',
-      header: 'Chegirma',
+      header: pm.colDiscount,
       cell: (p) => (
         <Badge variant="success" size="md">
           {discountLabel(p.discountType, p.discountValue)}
         </Badge>
       ),
     },
-    { key: 'scope', header: 'Qamrov', hideBelow: 'md', cell: (p) => scopeText(p) },
+    { key: 'scope', header: pm.colScope, hideBelow: 'md', cell: (p) => scopeText(p) },
     {
       key: 'min',
-      header: 'Min. buyurtma',
+      header: pm.colMinOrder,
       numeric: true,
       hideBelow: 'xl',
       cell: (p) => (p.minOrderAmount ? <MoneyText value={p.minOrderAmount} className="text-muted" /> : '—'),
     },
     {
       key: 'period',
-      header: 'Muddat',
+      header: pm.colPeriod,
       hideBelow: 'lg',
       className: 'num whitespace-nowrap text-muted',
       cell: (p) => (
         <>
-          {formatDateTime(p.startsAt)} — {p.endsAt ? formatDateTime(p.endsAt) : 'muddatsiz'}
+          {formatDateTime(p.startsAt)} — {p.endsAt ? formatDateTime(p.endsAt) : pm.noEnd}
         </>
       ),
     },
     {
       key: 'active',
-      header: 'Faol',
+      header: m.common.active,
       width: 'w-36',
       cell: (p) => (
         <span className="flex items-center gap-2">
@@ -186,11 +184,11 @@ export function PromotionsScreen({
             checked={p.isActive}
             disabled={busyId === p.id}
             onCheckedChange={() => void toggleActive(p)}
-            aria-label={`${p.title} — faol`}
+            aria-label={pm.activeAria(p.title)}
           />
           {isPaused(p, now) && (
             <Badge variant="neutral" size="sm">
-              Oʻchirilgan
+              {pm.paused}
             </Badge>
           )}
         </span>
@@ -198,15 +196,15 @@ export function PromotionsScreen({
     },
     {
       key: 'actions',
-      header: <span className="sr-only">Amallar</span>,
+      header: <span className="sr-only">{m.common.actions}</span>,
       align: 'right',
       width: 'w-24',
       cell: (p) => (
         <div className="flex items-center justify-end gap-0.5">
-          <IconButton aria-label={`${p.title} — tahrirlash`} onClick={() => setEditing(p)}>
+          <IconButton aria-label={pm.editAria(p.title)} onClick={() => setEditing(p)}>
             <Pencil aria-hidden />
           </IconButton>
-          <IconButton variant="danger-ghost" aria-label={`${p.title} — oʻchirish`} onClick={() => setRemoving(p)}>
+          <IconButton variant="danger-ghost" aria-label={pm.deleteAria(p.title)} onClick={() => setRemoving(p)}>
             <Trash2 aria-hidden />
           </IconButton>
         </div>
@@ -220,21 +218,21 @@ export function PromotionsScreen({
   return (
     <div className="mx-auto w-full max-w-6xl">
       <PageHeader
-        title="Chegirmalar"
+        title={pm.title}
         description={
           status === 'ready'
-            ? `${formatNumber(byPhase.active.length)} ta faol · ${formatNumber(byPhase.scheduled.length)} ta rejalashtirilgan`
-            : 'Aksiyalar — chegirma sizning hisobingizdan, mijozga darhol koʻrinadi'
+            ? pm.summary(formatNumber(byPhase.active.length), formatNumber(byPhase.scheduled.length))
+            : pm.descriptionLoading
         }
         actions={
           <Button leftIcon={<Plus size={15} />} onClick={() => setEditing('new')} disabled={status !== 'ready'}>
-            Yangi aksiya
+            {pm.newPromotion}
           </Button>
         }
       />
 
       <DataTable
-        ariaLabel="Aksiyalar"
+        ariaLabel={pm.tableAria}
         columns={columns}
         rows={rows}
         rowKey={(p) => p.id}
@@ -244,19 +242,19 @@ export function PromotionsScreen({
         rowClassName={(p) => (promotionPhase(p, now) === 'ended' ? 'bg-surface-2/40' : undefined)}
         toolbar={
           hasAny ? (
-            <SegmentedControl items={phaseItems} value={phase} onChange={setPhase} label="Aksiya holati boʻyicha" />
+            <SegmentedControl items={phaseItems} value={phase} onChange={setPhase} label={pm.phaseAria} />
           ) : undefined
         }
         isFiltered={hasAny}
-        emptyFiltered={{ variant: 'cleared', icon: <BadgePercent size={20} />, ...EMPTY_COPY[phase], onClearFilters: undefined }}
+        emptyFiltered={{ variant: 'cleared', icon: <BadgePercent size={20} />, ...pm.empty[phase], onClearFilters: undefined }}
         empty={{
           variant: 'first-use',
           icon: <BadgePercent size={20} />,
-          title: 'Hali aksiya yoʻq',
-          description: `Chegirma ${vocab.item}ingizni mijoz ilovasidagi «Chegirmalar» lentasiga chiqaradi.`,
+          title: pm.emptyTitle,
+          description: vocab.emptyDescription,
           action: (
             <Button leftIcon={<Plus size={15} />} onClick={() => setEditing('new')}>
-              Birinchi aksiyani yaratish
+              {pm.createFirst}
             </Button>
           ),
         }}
@@ -277,13 +275,13 @@ export function PromotionsScreen({
         onClose={() => setRemoving(null)}
         onConfirm={confirmRemove}
         isPending={removePending}
-        title="Aksiyani oʻchirish"
+        title={pm.deleteTitle}
         description={
           removing
-            ? `«${removing.title}» butunlay oʻchiriladi va mijozlarga chegirma koʻrinmay qoladi. Vaqtincha toʻxtatish uchun «Faol» tugmasini oʻchirish yetarli.`
+            ? pm.deleteDescription(removing.title)
             : undefined
         }
-        confirmLabel="O'chirish"
+        confirmLabel={m.common.delete}
       />
     </div>
   );

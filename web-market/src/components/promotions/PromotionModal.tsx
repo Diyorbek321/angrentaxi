@@ -3,7 +3,6 @@
 import { useMemo, useState } from 'react';
 import {
   DESCRIPTION_MAX,
-  DISCOUNT_TYPE_LABEL,
   PERCENT_MAX,
   PERCENT_MIN,
   TITLE_MAX,
@@ -12,6 +11,7 @@ import {
   toPromotionPayload,
   toggleId,
   validatePromotion,
+  discountTypeLabel,
   type DiscountType,
   type Promotion,
   type PromotionForm,
@@ -30,11 +30,10 @@ import { Switch } from '@/components/ui/Switch';
 import { Textarea } from '@/components/ui/Textarea';
 import { PricePreview } from './PricePreview';
 import type { PromotionCatalog, PromotionVocabulary } from './types';
+import { getLocale } from '@/lib/i18n/core';
+import { t } from '@/locales';
 
-const TYPE_ITEMS: ReadonlyArray<{ value: DiscountType; label: string }> = [
-  { value: 'percent', label: DISCOUNT_TYPE_LABEL.percent },
-  { value: 'fixed', label: DISCOUNT_TYPE_LABEL.fixed },
-];
+const DISCOUNT_TYPES: readonly DiscountType[] = ['percent', 'fixed'];
 
 export function PromotionModal({
   promotion,
@@ -51,6 +50,9 @@ export function PromotionModal({
   /** Xato bo'lsa throw qiladi — modal ochiq qoladi. */
   onSubmit: (payload: PromotionPayload) => Promise<void>;
 }) {
+  const m = t();
+  const p = m.promotions;
+  const typeItems = DISCOUNT_TYPES.map((value) => ({ value, label: discountTypeLabel(value) }));
   const [form, setForm] = useState<PromotionForm>(() =>
     promotion ? promotionToForm(promotion) : emptyPromotionForm()
   );
@@ -67,13 +69,14 @@ export function PromotionModal({
     () =>
       (['all', 'category', 'items'] as const).map((value) => ({
         value,
-        label: value === 'all' ? vocab.allItems : value === 'category' ? 'Kategoriyalar' : `Tanlangan ${vocab.item}lar`,
+        label: value === 'all' ? vocab.allItems : value === 'category' ? p.categories : vocab.selectedItems,
       })),
-    [vocab]
+    [vocab, p]
   );
 
-  const q = itemQuery.trim().toLocaleLowerCase('uz');
-  const visibleItems = catalog.items.filter((i) => !q || i.name.toLocaleLowerCase('uz').includes(q));
+  const lang = getLocale();
+  const q = itemQuery.trim().toLocaleLowerCase(lang);
+  const visibleItems = catalog.items.filter((i) => !q || i.name.toLocaleLowerCase(lang).includes(q));
 
   const submit = async () => {
     const next = validatePromotion(form, catalog.items);
@@ -94,15 +97,15 @@ export function PromotionModal({
       isOpen
       onClose={onClose}
       size="xl"
-      title={promotion ? 'Aksiyani tahrirlash' : 'Yangi aksiya'}
-      subtitle="Chegirma restoran/doʻkon hisobidan — komissiya chegirmali narxdan hisoblanadi"
+      title={promotion ? p.editTitle : p.newPromotion}
+      subtitle={p.subtitle}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={submitting}>
-            Bekor qilish
+            {m.common.cancel}
           </Button>
           <Button isLoading={submitting} onClick={() => void submit()}>
-            {promotion ? 'Saqlash' : 'Yaratish'}
+            {promotion ? m.common.save : p.create}
           </Button>
         </>
       }
@@ -116,17 +119,17 @@ export function PromotionModal({
         }}
       >
         <Input
-          label="Nomi"
+          label={p.name}
           value={form.title}
           maxLength={TITLE_MAX}
-          placeholder="Masalan: Tushlik vaqti −20%"
+          placeholder={p.namePlaceholder}
           onChange={(e) => set('title', e.target.value)}
           error={errors.title}
           hint={`${form.title.trim().length}/${TITLE_MAX}`}
           autoFocus
         />
         <Textarea
-          label="Tavsif (ixtiyoriy)"
+          label={p.descriptionOptional}
           rows={2}
           value={form.description}
           maxLength={DESCRIPTION_MAX}
@@ -137,48 +140,48 @@ export function PromotionModal({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
-            <span className="text-[13px] font-medium text-ink">Chegirma turi</span>
+            <span className="text-[13px] font-medium text-ink">{p.type}</span>
             <SegmentedControl
-              items={TYPE_ITEMS}
+              items={typeItems}
               value={form.discountType}
               onChange={(v) => set('discountType', v)}
-              label="Chegirma turi"
+              label={p.type}
               fullWidth
             />
           </div>
           <Input
-            label={form.discountType === 'percent' ? 'Foiz' : 'Summa'}
+            label={form.discountType === 'percent' ? p.percent : p.amount}
             type="number"
             inputMode="numeric"
             min={form.discountType === 'percent' ? PERCENT_MIN : 1}
             max={form.discountType === 'percent' ? PERCENT_MAX : undefined}
             value={form.discountValue}
             onChange={(e) => set('discountValue', e.target.value)}
-            rightElement={<span className="text-xs text-muted">{form.discountType === 'percent' ? '%' : 'soʻm'}</span>}
+            rightElement={<span className="text-xs text-muted">{form.discountType === 'percent' ? '%' : m.common.som}</span>}
             error={errors.discountValue}
             hint={
               form.discountType === 'percent'
                 ? `${PERCENT_MIN}–${PERCENT_MAX}%`
-                : `Qamrovdagi eng arzon ${vocab.item} narxidan kichik`
+                : vocab.fixedHint
             }
           />
         </div>
 
         <div className="flex flex-col gap-2">
-          <span className="text-[13px] font-medium text-ink">Qamrov</span>
+          <span className="text-[13px] font-medium text-ink">{p.scopeLabel}</span>
           <SegmentedControl
             items={scopeItems}
             value={form.scope}
             onChange={(v: PromotionScope) => set('scope', v)}
-            label="Aksiya qamrovi"
+            label={p.scopeAria}
             fullWidth
           />
 
           {form.scope === 'category' && (
             <fieldset className="rounded-ds-sm border border-line">
-              <legend className="sr-only">Kategoriyalar</legend>
+              <legend className="sr-only">{p.categories}</legend>
               {catalog.categories.length === 0 ? (
-                <p className="p-3 text-[13px] text-muted">Kategoriya yoʻq — avval «Kategoriyalar» boʻlimida yarating.</p>
+                <p className="p-3 text-[13px] text-muted">{p.noCategories}</p>
               ) : (
                 <ul className="max-h-48 divide-y divide-line overflow-y-auto">
                   {catalog.categories.map((c) => {
@@ -189,7 +192,7 @@ export function PromotionModal({
                           checked={form.categoryIds.includes(c.id)}
                           onCheckedChange={() => set('categoryIds', toggleId(form.categoryIds, c.id))}
                           label={c.name}
-                          description={`${formatNumber(count)} ta ${vocab.item}`}
+                          description={vocab.itemCount(formatNumber(count))}
                         />
                       </li>
                     );
@@ -204,22 +207,22 @@ export function PromotionModal({
 
           {form.scope === 'items' && (
             <fieldset className="rounded-ds-sm border border-line">
-              <legend className="sr-only">{`${vocab.item}lar`}</legend>
+              <legend className="sr-only">{vocab.itemsLegend}</legend>
               <div className="flex items-center gap-2 border-b border-line p-2">
                 <SearchInput
                   value={itemQuery}
                   onChange={setItemQuery}
                   onClear={() => setItemQuery('')}
-                  placeholder={`${vocab.item} nomi…`}
-                  aria-label={`${vocab.item}larni qidirish`}
+                  placeholder={vocab.itemNamePlaceholder}
+                  aria-label={vocab.searchItemsAria}
                   size="sm"
                   wrapperClassName="flex-1"
                 />
-                <span className="num shrink-0 text-xs text-muted">{formatNumber(form.itemIds.length)} ta tanlandi</span>
+                <span className="num shrink-0 text-xs text-muted">{p.selectedCount(formatNumber(form.itemIds.length))}</span>
               </div>
               {visibleItems.length === 0 ? (
                 <p className="p-3 text-[13px] text-muted">
-                  {catalog.items.length === 0 ? `Katalogda ${vocab.item} yoʻq.` : 'Qidiruvga mos natija yoʻq.'}
+                  {catalog.items.length === 0 ? vocab.noItemsInCatalog : p.noMatches}
                 </p>
               ) : (
                 <ul className="max-h-56 divide-y divide-line overflow-y-auto">
@@ -246,36 +249,36 @@ export function PromotionModal({
 
         <div className="grid gap-4 sm:grid-cols-3">
           <Input
-            label="Min. buyurtma (ixtiyoriy)"
+            label={p.minOrderOptional}
             type="number"
             inputMode="numeric"
             min={0}
             value={form.minOrderAmount}
             onChange={(e) => set('minOrderAmount', e.target.value)}
-            rightElement={<span className="text-xs text-muted">soʻm</span>}
+            rightElement={<span className="text-xs text-muted">{m.common.som}</span>}
             error={errors.minOrderAmount}
           />
           <Input
-            label="Boshlanishi"
+            label={p.startsAt}
             type="datetime-local"
             value={form.startsAt}
             onChange={(e) => set('startsAt', e.target.value)}
             error={errors.startsAt}
           />
           <Input
-            label="Tugashi (ixtiyoriy)"
+            label={p.endsAtOptional}
             type="datetime-local"
             value={form.endsAt}
             onChange={(e) => set('endsAt', e.target.value)}
             error={errors.endsAt}
-            hint="Boʻsh — muddatsiz"
+            hint={p.emptyNoEnd}
           />
         </div>
 
         <Switch
           checked={form.isActive}
           onCheckedChange={(v) => set('isActive', v)}
-          label={form.isActive ? 'Faol — muddat ichida mijozlarga koʻrinadi' : 'Oʻchirilgan — mijozlarga koʻrinmaydi'}
+          label={form.isActive ? p.activeOn : p.activeOff}
         />
         <button type="submit" className="hidden" aria-hidden tabIndex={-1} />
       </form>

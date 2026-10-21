@@ -1,6 +1,7 @@
 import { CheckCircle2, CircleOff, EyeOff, type LucideIcon } from 'lucide-react';
 import type { ProductStatus } from './api';
 import type { BadgeVariant } from '@/components/ui/Badge';
+import { t } from '@/locales';
 
 /**
  * Mahsulot holati (katalog) — buyurtma holatidan alohida lug'at, lekin xuddi
@@ -14,29 +15,17 @@ export interface ProductStatusMeta {
   Icon: LucideIcon;
 }
 
-export const PRODUCT_STATUS: Record<ProductStatus, ProductStatusMeta> = {
-  active: {
-    label: 'Faol',
-    segmentLabel: 'Sotuvda',
-    variant: 'success',
-    Icon: CheckCircle2,
-  },
-  out: {
-    label: 'Tugagan',
-    segmentLabel: 'Tugagan',
-    variant: 'danger',
-    Icon: CircleOff,
-  },
-  hidden: {
-    label: 'Yashirilgan',
-    segmentLabel: 'Yashirilgan',
-    variant: 'neutral',
-    Icon: EyeOff,
-  },
+/** Rang va ikonka — tilga bog'liq emas. Yozuvlar `productStatusMeta` da, joriy tilda. */
+const PRODUCT_STATUS_STYLE: Record<ProductStatus, Pick<ProductStatusMeta, 'variant' | 'Icon'>> = {
+  active: { variant: 'success', Icon: CheckCircle2 },
+  out: { variant: 'danger', Icon: CircleOff },
+  hidden: { variant: 'neutral', Icon: EyeOff },
 };
 
 export function productStatusMeta(status: string): ProductStatusMeta {
-  return PRODUCT_STATUS[status as ProductStatus] ?? PRODUCT_STATUS.hidden;
+  const key: ProductStatus = status in PRODUCT_STATUS_STYLE ? (status as ProductStatus) : 'hidden';
+  const m = t().productStatus;
+  return { label: m.label[key], segmentLabel: m.segment[key], ...PRODUCT_STATUS_STYLE[key] };
 }
 
 /**
@@ -47,11 +36,12 @@ export function stockTone(
   stock: number,
   threshold: number
 ): { text: string; label: string; level: 'out' | 'low' | 'ok' } {
+  const m = t().productStatus;
   if (stock === 0)
-    return { text: 'text-danger-deep dark:text-danger-light', label: 'Tugagan', level: 'out' };
+    return { text: 'text-danger-deep dark:text-danger-light', label: m.stockOut, level: 'out' };
   if (stock <= threshold)
     // Amber EMAS: u faqat qo'lda aralashuv uchun (PANEL-UI-KIT §5).
     // Kam qolgan — qalin ink + yozuv; qizil faqat haqiqatan tugaganda.
-    return { text: 'text-ink font-semibold', label: 'Kam qolgan', level: 'low' };
-  return { text: 'text-ink', label: 'Yetarli', level: 'ok' };
+    return { text: 'text-ink font-semibold', label: m.stockLow, level: 'low' };
+  return { text: 'text-ink', label: m.stockOk, level: 'ok' };
 }

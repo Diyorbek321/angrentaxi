@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   INTERCITY_STATUS_BADGE,
-  INTERCITY_STATUS_LABELS,
+  intercityStatusLabels,
   INTERCITY_TRIP_STATUSES,
-  SERVICE_TYPE_LABELS,
+  serviceTypeLabels,
   INTERCITY_BOOKING_STATUS_BADGE,
-  INTERCITY_BOOKING_STATUS_LABELS,
+  intercityBookingStatusLabels,
   addDays,
   applyTripUpdate,
   bookingKindLabel,
@@ -65,7 +65,7 @@ describe("o'rindiqlar", () => {
 describe('yorliqlar', () => {
   it('har bir holatning yorlig‘i va badge rangi bor', () => {
     for (const status of INTERCITY_TRIP_STATUSES) {
-      expect(INTERCITY_STATUS_LABELS[status]).toBeTruthy();
+      expect(intercityStatusLabels()[status]).toBeTruthy();
       expect(INTERCITY_STATUS_BADGE[status]).toBeTruthy();
     }
   });
@@ -81,7 +81,7 @@ describe('yorliqlar', () => {
   });
 
   it('xizmat turi: intercity — Shaharlararo, nomaʼlum — oʻzi', () => {
-    expect(SERVICE_TYPE_LABELS.intercity).toBe('Shaharlararo');
+    expect(serviceTypeLabels().intercity).toBe('Shaharlararo');
     expect(serviceTypeLabel('intercity')).toBe('Shaharlararo');
     expect(serviceTypeLabel('parcel')).toBe('Posilka');
     expect(serviceTypeLabel(undefined)).toBe('Taksi');
@@ -104,8 +104,8 @@ describe('bandlar', () => {
   });
 
   it('har bir band holatining yorlig\'i va belgisi bor', () => {
-    for (const status of Object.keys(INTERCITY_BOOKING_STATUS_LABELS) as (keyof typeof INTERCITY_BOOKING_STATUS_LABELS)[]) {
-      expect(INTERCITY_BOOKING_STATUS_LABELS[status]).toBeTruthy();
+    for (const status of Object.keys(intercityBookingStatusLabels()) as (keyof ReturnType<typeof intercityBookingStatusLabels>)[]) {
+      expect(intercityBookingStatusLabels()[status]).toBeTruthy();
       expect(INTERCITY_BOOKING_STATUS_BADGE[status]).toBeTruthy();
     }
   });

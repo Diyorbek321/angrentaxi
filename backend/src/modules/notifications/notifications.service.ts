@@ -9,7 +9,17 @@ import {
   orderCancelledText,
   tripCompletedText,
 } from './order-notification-texts';
+import {
+  bonusAwardedText,
+  lostItemAnsweredText,
+  lostItemReportedText,
+  supportReplyText,
+  vendorOrderCancelledText,
+  verificationDueText,
+} from './misc-notification-texts';
+import { LocalizedPush, userLanguage } from './push-text';
 import { otpSmsText } from './sms-texts';
+import type { AppLanguage } from '../../common/i18n/error-messages';
 import { EskizService } from './eskiz.service';
 import { User, UserRole } from '../../database/entities/user.entity';
 import { Order } from '../../database/entities/order.entity';
@@ -122,7 +132,7 @@ export class NotificationsService {
     driver: Driver,
     order: Order,
   ): Promise<void> {
-    const { title, body } = orderAcceptedText(driver.user);
+    const { title, body } = orderAcceptedText(driver.user, userLanguage(passenger));
 
     if (passenger.fcmToken) {
       await this.firebaseService.sendPush(
@@ -143,7 +153,7 @@ export class NotificationsService {
   }
 
   async notifyDriverArrived(passenger: User, order: Order): Promise<void> {
-    const { title, body } = driverArrivedText();
+    const { title, body } = driverArrivedText(userLanguage(passenger));
 
     if (passenger.fcmToken) {
       await this.firebaseService.sendPush(
@@ -161,7 +171,7 @@ export class NotificationsService {
   }
 
   async notifyTripCompleted(passenger: User, finalPrice: number, order: Order): Promise<void> {
-    const { title, body } = tripCompletedText(finalPrice);
+    const { title, body } = tripCompletedText(finalPrice, userLanguage(passenger));
 
     if (passenger.fcmToken) {
       await this.firebaseService.sendPush(
@@ -180,7 +190,7 @@ export class NotificationsService {
   }
 
   async notifyNewOrderOffer(driver: User, order: Order): Promise<void> {
-    const { title, body } = newOrderOfferText(order.pickupAddress);
+    const { title, body } = newOrderOfferText(order.pickupAddress, userLanguage(driver));
 
     if (driver.fcmToken) {
       await this.firebaseService.sendPush(
@@ -205,7 +215,7 @@ export class NotificationsService {
     order: Order,
     reason?: string,
   ): Promise<void> {
-    const { title, body } = orderCancelledText(reason);
+    const { title, body } = orderCancelledText(reason, userLanguage(targetUser));
 
     if (targetUser.fcmToken) {
       await this.firebaseService.sendPush(
@@ -229,8 +239,7 @@ export class NotificationsService {
    * Yo'lovchi telefoni ATAYLAB yo'q: topshirishni dispetcher tashkil qiladi.
    */
   async notifyLostItemReported(driver: User, description: string): Promise<void> {
-    const title = "Yo'lovchi buyum qoldirgan";
-    const body = `Mashinangizni tekshiring: ${description}`;
+    const { title, body } = lostItemReportedText(description, userLanguage(driver));
     if (driver.fcmToken) {
       await this.firebaseService.sendPush(driver.fcmToken, title, body, { event: 'lost_item_reported' });
     }
@@ -239,10 +248,7 @@ export class NotificationsService {
 
   /** Yo'lovchiga: haydovchi buyumni topdimi-yo'qmi. */
   async notifyLostItemAnswered(passenger: User, found: boolean): Promise<void> {
-    const title = "Yo'qolgan buyum";
-    const body = found
-      ? 'Haydovchi buyumingizni topdi — operator siz bilan bog\'lanib qaytarishni kelishadi.'
-      : 'Haydovchi mashinadan buyumingizni topmadi.';
+    const { title, body } = lostItemAnsweredText(found, userLanguage(passenger));
     if (passenger.fcmToken) {
       await this.firebaseService.sendPush(passenger.fcmToken, title, body, { event: 'lost_item_answered' });
     }
@@ -250,8 +256,7 @@ export class NotificationsService {
   }
 
   async notifySupportReply(recipient: User): Promise<void> {
-    const title = 'Qo\'llab-quvvatlash xizmati';
-    const body = 'Operatordan yangi xabar keldi';
+    const { title, body } = supportReplyText(userLanguage(recipient));
 
     if (recipient.fcmToken) {
       await this.firebaseService.sendPush(
@@ -280,8 +285,7 @@ export class NotificationsService {
    * "25000" ni esa o'qishga to'xtaydi.
    */
   async notifyBonusAwarded(driver: User, bonusName: string, amount: number): Promise<void> {
-    const title = 'Bonus hisobingizga tushdi';
-    const body = `${bonusName}: ${amount.toLocaleString('uz-UZ')} so'm hisobingizga qo'shildi`;
+    const { title, body } = bonusAwardedText(bonusName, amount, userLanguage(driver));
 
     if (driver.fcmToken) {
       await this.firebaseService.sendPush(driver.fcmToken, title, body, {
@@ -310,11 +314,7 @@ export class NotificationsService {
     labels: string[],
     hasOverdue: boolean,
   ): Promise<void> {
-    const title = hasOverdue ? 'Tekshiruv muddati o‘tdi' : 'Tekshiruv muddati yaqinlashdi';
-    const listed = labels.join(', ');
-    const body = hasOverdue
-      ? `${listed} — muddati o‘tgan. Yangilamasangiz onlayn chiqa olmaysiz.`
-      : `${listed} — muddati tugayapti. Iltimos, yangilab qo‘ying.`;
+    const { title, body } = verificationDueText(labels, hasOverdue, userLanguage(driver));
 
     if (driver.fcmToken) {
       await this.firebaseService.sendPush(driver.fcmToken, title, body, {
@@ -333,11 +333,11 @@ export class NotificationsService {
    */
   async notifyWalletEvent(
     recipient: User,
-    title: string,
-    body: string,
+    text: LocalizedPush,
     event: string,
     data: Record<string, string> = {},
   ): Promise<void> {
+    const { title, body } = text(userLanguage(recipient));
     if (recipient.fcmToken) {
       await this.firebaseService.sendPush(recipient.fcmToken, title, body, { event, ...data });
     }
@@ -356,8 +356,7 @@ export class NotificationsService {
    */
   async notifyUserIds(
     userIds: readonly string[],
-    title: string,
-    body: string,
+    text: LocalizedPush,
     event: string,
     data: Record<string, string> = {},
   ): Promise<void> {
@@ -366,6 +365,7 @@ export class NotificationsService {
 
     const users = await this.userRepository.find({ where: { id: In(unique) } });
     for (const user of users) {
+      const { title, body } = text(userLanguage(user));
       if (user.fcmToken) {
         try {
           await this.firebaseService.sendPush(user.fcmToken, title, body, { event, ...data });
@@ -389,8 +389,7 @@ export class NotificationsService {
     orderId: string,
     reason: string | null,
   ): Promise<void> {
-    const title = 'Buyurtma bekor qilindi';
-    const body = reason ? `Mijoz buyurtmani bekor qildi: ${reason}` : 'Mijoz buyurtmani bekor qildi';
+    const { title, body } = vendorOrderCancelledText(reason, userLanguage(owner));
     const event = `${kind}_order_cancelled`;
     if (owner.fcmToken) {
       await this.firebaseService.sendPush(owner.fcmToken, title, body, {
@@ -403,8 +402,8 @@ export class NotificationsService {
     await this.logNotification(owner.id, title, body, event);
   }
 
-  async sendOtpSms(phone: string, code: string): Promise<void> {
-    await this.eskizService.sendSms(phone, otpSmsText(code));
+  async sendOtpSms(phone: string, code: string, language: AppLanguage = 'uz'): Promise<void> {
+    await this.eskizService.sendSms(phone, otpSmsText(code, language));
   }
 
   // Caller's own notification history, newest first. Flat-capped list (no

@@ -1,4 +1,5 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
+import 'package:angren_taxi/core/push/push_notifications.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -44,7 +45,9 @@ Future<void> showLanguagePicker(BuildContext context) {
                 groupValue: controller.locale,
                 title: Text(languageName(sheetContext, locale)),
                 onChanged: (value) {
-                  if (value != null) controller.setLocale(value);
+                  if (value != null) {
+                    controller.setLocale(value).then((_) => _announceLanguage());
+                  }
                   Navigator.of(sheetContext).pop();
                 },
               ),
@@ -53,4 +56,14 @@ Future<void> showLanguagePicker(BuildContext context) {
       ),
     ),
   );
+}
+
+/// Server push/SMS tilini `Accept-Language` sarlavhasidan oladi (har so'rovda
+/// yangilanadi). Til almashgach ilova yopilsa, keyingi push eski tilda kelmasin
+/// deb token yangi sarlavha bilan darhol qayta yuboriladi. Kirilmagan yoki
+/// Firebase tayyor bo'lmasa — jim o'tib ketadi.
+void _announceLanguage() {
+  final push = PushNotifications.instance;
+  push.forgetSentToken();
+  push.syncToken();
 }

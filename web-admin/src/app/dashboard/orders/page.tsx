@@ -23,18 +23,23 @@ import { formatMoney, formatNumber, fullName, shortId } from '@/lib/format';
 import { downloadCsv } from '@/lib/csv';
 import {
   ORDER_STATUSES,
-  ORDER_STATUS_LABELS,
-  PAYMENT_METHOD_LABELS,
+  orderStatusLabels,
+  paymentMethodLabels,
   type OrderStatus,
   type PaymentMethod,
 } from '@/lib/constants';
+import { t } from '@/locales';
 
-const STATUS_OPTIONS = [
-  { value: 'all', label: 'Barcha holatlar' },
-  ...Object.values(ORDER_STATUSES).map((value) => ({ value, label: ORDER_STATUS_LABELS[value] })),
-];
+function statusOptions() {
+  return [
+    { value: 'all', label: t().orders.list.allStatuses },
+    ...Object.values(ORDER_STATUSES).map((value) => ({ value, label: orderStatusLabels()[value] })),
+  ];
+}
 
 export default function OrdersPage() {
+  const m = t().orders.list;
+  const mc = t().common;
   const { toast } = useToast();
   const pagination = usePagination(20);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -65,8 +70,8 @@ export default function OrdersPage() {
       setError(null);
     } catch {
       // Last good rows stay on screen; DataTable shows a retry banner above them.
-      setError('Buyurtmalarni yuklashda xatolik');
-      toast({ title: 'Xatolik', description: 'Buyurtmalarni yuklashda xatolik', variant: 'error' });
+      setError(m.loadError);
+      toast({ title: mc.error, description: m.loadError, variant: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -121,7 +126,7 @@ export default function OrdersPage() {
   if (search) {
     chips.push({
       key: 'search',
-      label: `Qidiruv: "${search}"`,
+      label: m.chipSearch(search),
       onRemove: () => {
         setSearchInput('');
         setSearch('');
@@ -132,7 +137,7 @@ export default function OrdersPage() {
   if (statusFilter !== 'all') {
     chips.push({
       key: 'status',
-      label: `Holat: ${ORDER_STATUS_LABELS[statusFilter as OrderStatus] ?? statusFilter}`,
+      label: m.chipStatus(orderStatusLabels()[statusFilter as OrderStatus] ?? statusFilter),
       onRemove: () => {
         setStatusFilter('all');
         pagination.reset();
@@ -144,8 +149,8 @@ export default function OrdersPage() {
       key: 'date',
       label:
         dateRange.preset === 'custom'
-          ? `Sana: ${dateRange.from ?? '…'} — ${dateRange.to ?? '…'}`
-          : `Sana: ${DATE_PRESET_LABELS[dateRange.preset]}`,
+          ? m.chipDate(`${dateRange.from ?? '…'} — ${dateRange.to ?? '…'}`)
+          : m.chipDate(DATE_PRESET_LABELS[dateRange.preset]),
       onRemove: () => {
         setDateRange(EMPTY_DATE_RANGE);
         pagination.reset();
@@ -156,37 +161,38 @@ export default function OrdersPage() {
   const handleExportCsv = () => {
     if (sortedOrders.length === 0) return;
     // No new API call — the loaded rows on screen are exported.
+    const csv = m.csv;
     downloadCsv<Order>(
       `buyurtmalar-${new Date().toISOString().slice(0, 10)}.csv`,
       [
         { header: 'ID', value: (o) => shortId(o.id) },
-        { header: "Yo'lovchi", value: (o) => fullName(o.passenger.firstName, o.passenger.lastName) },
-        { header: "Yo'lovchi telefoni", value: (o) => o.passenger.phone },
+        { header: csv.passenger, value: (o) => fullName(o.passenger.firstName, o.passenger.lastName) },
+        { header: csv.passengerPhone, value: (o) => o.passenger.phone },
         {
-          header: 'Haydovchi',
+          header: csv.driver,
           value: (o) => (o.driver ? fullName(o.driver.firstName, o.driver.lastName) : ''),
         },
-        { header: 'Avtomobil raqami', value: (o) => o.driver?.carNumber ?? '' },
-        { header: "Boshlang'ich manzil", value: (o) => o.pickupAddress ?? '' },
-        { header: 'Manzil', value: (o) => o.dropoffAddress ?? '' },
-        { header: 'Holat', value: (o) => ORDER_STATUS_LABELS[o.status as OrderStatus] ?? o.status },
-        { header: 'Narx', value: (o) => formatMoney(orderPrice(o)) },
+        { header: csv.carNumber, value: (o) => o.driver?.carNumber ?? '' },
+        { header: csv.pickup, value: (o) => o.pickupAddress ?? '' },
+        { header: csv.dropoff, value: (o) => o.dropoffAddress ?? '' },
+        { header: csv.status, value: (o) => orderStatusLabels()[o.status as OrderStatus] ?? o.status },
+        { header: csv.price, value: (o) => formatMoney(orderPrice(o)) },
         {
-          header: "To'lov",
-          value: (o) => PAYMENT_METHOD_LABELS[o.paymentMethod as PaymentMethod] ?? o.paymentMethod,
+          header: csv.payment,
+          value: (o) => paymentMethodLabels()[o.paymentMethod as PaymentMethod] ?? o.paymentMethod,
         },
-        { header: 'Sana', value: (o) => formatDate(o.createdAt) },
+        { header: csv.date, value: (o) => formatDate(o.createdAt) },
       ],
       sortedOrders
     );
-    toast({ title: 'CSV yuklab olindi', description: `${sortedOrders.length} ta qator`, variant: 'success' });
+    toast({ title: m.csvDone, description: m.csvRows(sortedOrders.length), variant: 'success' });
   };
 
   return (
     <div className="px-4 sm:px-6 py-5">
       <PageHeader
-        title="Buyurtmalar"
-        description={`Jami: ${formatNumber(pagination.total)} ta`}
+        title={m.title}
+        description={m.total(formatNumber(pagination.total))}
         actions={
           <Button
             variant="secondary"
@@ -194,7 +200,7 @@ export default function OrdersPage() {
             disabled={sortedOrders.length === 0}
             leftIcon={<Download size={14} aria-hidden />}
           >
-            CSV eksport
+            {m.csvExport}
           </Button>
         }
       />
@@ -212,8 +218,8 @@ export default function OrdersPage() {
           <FilterBar
             search={searchInput}
             onSearchChange={handleSearchChange}
-            searchPlaceholder="ID, yoʻlovchi yoki haydovchi…"
-            searchAriaLabel="Buyurtmalarni qidirish"
+            searchPlaceholder={m.searchPlaceholder}
+            searchAriaLabel={m.searchAria}
             chips={chips}
             onClearAll={clearAllFilters}
           >
@@ -225,13 +231,13 @@ export default function OrdersPage() {
               }}
             />
             <Select
-              options={STATUS_OPTIONS}
+              options={statusOptions()}
               value={statusFilter}
               onChange={(e) => {
                 setStatusFilter(e.target.value);
                 pagination.reset();
               }}
-              aria-label="Holat boʻyicha filtr"
+              aria-label={mc.statusFilterAlt}
               wrapperClassName="w-48"
             />
           </FilterBar>

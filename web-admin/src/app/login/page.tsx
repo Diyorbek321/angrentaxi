@@ -10,31 +10,39 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { LanguageToggle } from '@/components/ui';
 import { cn } from '@/components/ui/cn';
 import { formatPhone as formatPhoneDisplay } from '@/lib/format';
 import { authApi } from '@/lib/api';
 import { isValidUzPhone, formatPhone } from '@/lib/auth';
 import { sanitizeNextPath } from '@/lib/route-guard';
 import { useAuth } from '@/hooks/useAuth';
+import { t } from '@/locales';
 
-const phoneSchema = z.object({
-  phone: z
-    .string()
-    .min(9, 'Telefon raqamini kiriting')
-    .refine((v) => isValidUzPhone(v), 'Noto\'g\'ri telefon raqam (+998XXXXXXXXX)'),
-});
+// Schemas are built per render so validation messages follow the active locale.
+const makePhoneSchema = () => {
+  const v = t().login.validation;
+  return z.object({
+    phone: z
+      .string()
+      .min(9, v.phoneRequired)
+      .refine((value) => isValidUzPhone(value), v.phoneInvalid),
+  });
+};
 
-const otpSchema = z.object({
-  code: z
-    .string()
-    .length(6, '6 raqamli kod kiriting')
-    .regex(/^\d+$/, 'Faqat raqamlar'),
-});
+const makeOtpSchema = () => {
+  const v = t().login.validation;
+  return z.object({
+    code: z.string().length(6, v.codeLength).regex(/^\d+$/, v.digitsOnly),
+  });
+};
 
-type PhoneForm = z.infer<typeof phoneSchema>;
-type OtpForm = z.infer<typeof otpSchema>;
+type PhoneForm = z.infer<ReturnType<typeof makePhoneSchema>>;
+type OtpForm = z.infer<ReturnType<typeof makeOtpSchema>>;
 
 export default function LoginPage() {
+  const c = t().common;
+  const m = t().login;
   const router = useRouter();
   const { login } = useAuth();
   const { toast } = useToast();
@@ -57,12 +65,12 @@ export default function LoginPage() {
   }, []);
 
   const phoneForm = useForm<PhoneForm>({
-    resolver: zodResolver(phoneSchema),
+    resolver: zodResolver(makePhoneSchema()),
     defaultValues: { phone: '' },
   });
 
   const otpForm = useForm<OtpForm>({
-    resolver: zodResolver(otpSchema),
+    resolver: zodResolver(makeOtpSchema()),
     defaultValues: { code: '' },
   });
 
@@ -80,16 +88,16 @@ export default function LoginPage() {
         otpForm.setValue('code', code);
       }
       toast({
-        title: 'Kod yuborildi',
-        description: code ? `[DEV] Kod: ${code}` : `${normalized} raqamiga SMS kod yuborildi`,
+        title: m.codeSent,
+        description: code ? m.devCode(code) : m.codeSentTo(normalized),
         variant: 'success',
       });
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        'Kod yuborishda xatolik yuz berdi';
+        m.sendError;
       setAuthError(message);
-      toast({ title: 'Xatolik', description: message, variant: 'error' });
+      toast({ title: c.error, description: message, variant: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -103,15 +111,15 @@ export default function LoginPage() {
       // never reaches this code — only the profile comes back.
       const user = await authApi.verifyOtp(phone, data.code);
       login(user);
-      toast({ title: 'Muvaffaqiyatli kirildi', variant: 'success' });
+      toast({ title: m.loggedIn, variant: 'success' });
       router.push(nextPath);
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         (err instanceof Error && err.message ? err.message : null) ||
-        'Noto\'g\'ri kod';
+        m.wrongCode;
       setAuthError(message);
-      toast({ title: 'Xatolik', description: message, variant: 'error' });
+      toast({ title: c.error, description: message, variant: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -121,7 +129,8 @@ export default function LoginPage() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-bg px-4 py-10">
-      <div className="absolute right-4 top-4">
+      <div className="absolute right-4 top-4 flex items-center gap-2">
+        <LanguageToggle />
         <ThemeToggle />
       </div>
 
@@ -135,7 +144,7 @@ export default function LoginPage() {
           </span>
           <div>
             <p className="text-title text-ink">Angren Taxi</p>
-            <p className="text-[13px] text-muted">Super Admin paneli</p>
+            <p className="text-[13px] text-muted">{m.panelName}</p>
           </div>
         </div>
 
@@ -151,15 +160,15 @@ export default function LoginPage() {
                 )}
               />
             </div>
-            <p className="num mt-2 text-xs text-subtle">{stepIndex}-qadam / 2</p>
+            <p className="num mt-2 text-xs text-subtle">{m.step(stepIndex)}</p>
           </div>
 
           <div className="mb-5">
-            <h1 className="text-h2 text-ink">{step === 'phone' ? 'Panelga kirish' : 'Tasdiqlash kodi'}</h1>
+            <h1 className="text-h2 text-ink">{step === 'phone' ? m.title : m.codeLabel}</h1>
             <p className="mt-1 text-[13px] leading-relaxed text-muted">
               {step === 'phone'
-                ? 'Telefon raqamingizni kiriting — SMS orqali bir martalik kod yuboramiz.'
-                : `${formatPhoneDisplay(phone)} raqamiga yuborilgan 6 raqamli kodni kiriting.`}
+                ? m.phoneHint
+                : m.codeHint(formatPhoneDisplay(phone))}
             </p>
           </div>
 
@@ -176,7 +185,7 @@ export default function LoginPage() {
           {step === 'phone' ? (
             <form onSubmit={phoneForm.handleSubmit(handleSendOtp)} className="space-y-4" noValidate>
               <Input
-                label="Telefon raqam"
+                label={m.phoneLabel}
                 type="tel"
                 autoComplete="tel"
                 autoFocus
@@ -194,13 +203,13 @@ export default function LoginPage() {
                 isLoading={isLoading}
                 rightIcon={<ArrowRight size={15} aria-hidden="true" />}
               >
-                {isLoading ? 'Kod yuborilmoqda…' : 'Kod yuborish'}
+                {isLoading ? m.sending : m.send}
               </Button>
             </form>
           ) : (
             <form onSubmit={otpForm.handleSubmit(handleVerifyOtp)} className="space-y-4" noValidate>
               <Input
-                label="Tasdiqlash kodi"
+                label={m.codeLabel}
                 type="text"
                 autoFocus
                 autoComplete="one-time-code"
@@ -216,8 +225,8 @@ export default function LoginPage() {
                   for manual overrides. */}
               {devOtpCode && (
                 <div className="rounded-ds-sm border border-info/30 bg-info-tint px-3 py-2 text-[13px] text-info-dark dark:text-info-light">
-                  <span className="font-semibold">TEST:</span> OTP kod —{' '}
-                  <span className="font-mono font-semibold">{devOtpCode}</span> (avtomatik kiritildi)
+                  <span className="font-semibold">TEST:</span> {m.devOtpPrefix}{' '}
+                  <span className="font-mono font-semibold">{devOtpCode}</span> {m.devOtpSuffix}
                 </div>
               )}
               <Button
@@ -228,7 +237,7 @@ export default function LoginPage() {
                 isLoading={isLoading}
                 rightIcon={<ArrowRight size={15} aria-hidden="true" />}
               >
-                {isLoading ? 'Tekshirilmoqda…' : 'Kirish'}
+                {isLoading ? m.verifying : m.submit}
               </Button>
               <Button
                 type="button"
@@ -240,7 +249,7 @@ export default function LoginPage() {
                   setAuthError(null);
                 }}
               >
-                Raqamni oʻzgartirish
+                {m.changeNumber}
               </Button>
             </form>
           )}

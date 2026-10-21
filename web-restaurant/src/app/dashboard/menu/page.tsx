@@ -22,6 +22,8 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Select } from '@/components/ui/Select';
 import { Switch } from '@/components/ui/Switch';
 import { useToast } from '@/components/ui/Toast';
+import { intlLocale } from '@/lib/i18n/core';
+import { t } from '@/locales';
 
 interface MenuData {
   dishes: Dish[];
@@ -31,9 +33,10 @@ interface MenuData {
 /** Katalog HOLAT bo'yicha birinchi bo'linadi (Ozon naqshi): sotuvda / tugagan. */
 type AvailFilter = 'all' | 'on' | 'off';
 
-const AVAIL_LABEL: Record<AvailFilter, string> = { all: 'Barchasi', on: 'Sotuvda', off: 'Tugagan' };
-
 export default function MenuPage() {
+  const m = t();
+  const mm = m.menu;
+  const AVAIL_LABEL: Record<AvailFilter, string> = mm.avail;
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState<string>('all');
@@ -54,8 +57,8 @@ export default function MenuPage() {
   const dishes = useMemo(() => data?.dishes ?? [], [data]);
   const categories = useMemo(() => data?.categories ?? [], [data]);
   const categoryName = useCallback(
-    (id: string | null) => categories.find((c) => c.id === id)?.name ?? 'Kategoriyasiz',
-    [categories]
+    (id: string | null) => categories.find((c) => c.id === id)?.name ?? mm.uncategorized,
+    [categories, mm]
   );
 
   const availItems = useMemo(
@@ -64,15 +67,15 @@ export default function MenuPage() {
       { value: 'on' as const, label: AVAIL_LABEL.on, count: dishes.filter((d) => d.isAvailable).length },
       { value: 'off' as const, label: AVAIL_LABEL.off, count: dishes.filter((d) => !d.isAvailable).length },
     ],
-    [dishes]
+    [dishes, AVAIL_LABEL]
   );
 
-  const q = search.trim().toLocaleLowerCase('uz');
+  const q = search.trim().toLocaleLowerCase(intlLocale());
   const filtered = dishes.filter(
     (d) =>
       (catFilter === 'all' || d.categoryId === catFilter) &&
       (availFilter === 'all' || (availFilter === 'on' ? d.isAvailable : !d.isAvailable)) &&
-      (!q || d.name.toLocaleLowerCase('uz').includes(q))
+      (!q || d.name.toLocaleLowerCase(intlLocale()).includes(q))
   );
 
   const clearFilters = () => {
@@ -83,12 +86,12 @@ export default function MenuPage() {
 
   const chips: FilterChip[] = [
     ...(catFilter !== 'all'
-      ? [{ key: 'cat', label: `Kategoriya: ${categoryName(catFilter)}`, onRemove: () => setCatFilter('all') }]
+      ? [{ key: 'cat', label: mm.chipCategory(categoryName(catFilter)), onRemove: () => setCatFilter('all') }]
       : []),
     ...(availFilter !== 'all'
-      ? [{ key: 'avail', label: `Holat: ${AVAIL_LABEL[availFilter]}`, onRemove: () => setAvailFilter('all') }]
+      ? [{ key: 'avail', label: mm.chipStatus(AVAIL_LABEL[availFilter]), onRemove: () => setAvailFilter('all') }]
       : []),
-    ...(q ? [{ key: 'q', label: `Qidiruv: ${search.trim()}`, onRemove: () => setSearch('') }] : []),
+    ...(q ? [{ key: 'q', label: mm.chipSearch(search.trim()), onRemove: () => setSearch('') }] : []),
   ];
 
   const applyDishUpdate = (updated: Dish) =>
@@ -103,11 +106,11 @@ export default function MenuPage() {
       const updated = res.data.data;
       applyDishUpdate(updated);
       toast({
-        title: updated.isAvailable ? `${updated.name} — sotuvda` : `${updated.name} — tugagan`,
+        title: updated.isAvailable ? mm.nowOnSale(updated.name) : mm.nowSoldOut(updated.name),
         variant: 'success',
       });
     } catch (err) {
-      toast({ title: 'Holatni o‘zgartirib bo‘lmadi', description: errorMessage(err), variant: 'error' });
+      toast({ title: mm.statusChangeFailed, description: errorMessage(err), variant: 'error' });
     } finally {
       setBusyId(null);
     }
@@ -118,9 +121,9 @@ export default function MenuPage() {
     setRemovePending(true);
     try {
       await foodApi.deleteDish(removing.id);
-      toast({ title: `${removing.name} o‘chirildi`, variant: 'success' });
+      toast({ title: mm.removed(removing.name), variant: 'success' });
     } catch (err) {
-      toast({ title: 'O‘chirib bo‘lmadi', description: errorMessage(err), variant: 'error' });
+      toast({ title: mm.removeFailed, description: errorMessage(err), variant: 'error' });
     } finally {
       setRemovePending(false);
       setRemoving(null);
@@ -131,28 +134,28 @@ export default function MenuPage() {
   const columns: DataTableColumn<Dish>[] = [
     {
       key: 'dish',
-      header: 'Taom',
+      header: mm.colDish,
       cell: (dish) => (
         <div className="flex min-w-0 items-center gap-3">
           <DishImage src={catalogImageSrc(dish.imageKey)} name={dish.name} className="h-10 w-10 rounded-ds-sm" />
           <div className="min-w-0">
             <p className="truncate font-medium text-ink">{dish.name}</p>
-            <p className="line-clamp-1 text-xs text-muted">{dish.description || 'Tavsif kiritilmagan'}</p>
+            <p className="line-clamp-1 text-xs text-muted">{dish.description || mm.noDescription}</p>
           </div>
         </div>
       ),
     },
-    { key: 'category', header: 'Kategoriya', hideBelow: 'md', cell: (dish) => categoryName(dish.categoryId) },
+    { key: 'category', header: mm.colCategory, hideBelow: 'md', cell: (dish) => categoryName(dish.categoryId) },
     {
       key: 'prep',
-      header: 'Tayyorlash',
+      header: mm.colPrep,
       numeric: true,
       hideBelow: 'lg',
-      cell: (dish) => `${formatNumber(dish.prepMinutes)} daq`,
+      cell: (dish) => mm.prepMinutes(formatNumber(dish.prepMinutes)),
     },
     {
       key: 'price',
-      header: 'Narx',
+      header: mm.colPrice,
       numeric: true,
       width: 'w-44',
       cell: (dish) => (
@@ -164,17 +167,17 @@ export default function MenuPage() {
     },
     {
       key: 'available',
-      header: 'Sotuvda',
+      header: mm.colAvailable,
       width: 'w-32',
       cell: (dish) => (
         <Switch
           checked={dish.isAvailable}
           disabled={busyId === dish.id}
           onCheckedChange={() => toggleAvailability(dish)}
-          aria-label={`${dish.name} — sotuvda`}
+          aria-label={mm.onSaleAria(dish.name)}
           label={
             <span className={dish.isAvailable ? 'text-ink' : 'text-muted'}>
-              {dish.isAvailable ? 'Sotuvda' : 'Tugagan'}
+              {dish.isAvailable ? AVAIL_LABEL.on : AVAIL_LABEL.off}
             </span>
           }
         />
@@ -182,15 +185,15 @@ export default function MenuPage() {
     },
     {
       key: 'actions',
-      header: <span className="sr-only">Amallar</span>,
+      header: <span className="sr-only">{m.common.actions}</span>,
       align: 'right',
       width: 'w-24',
       cell: (dish) => (
         <div className="flex items-center justify-end gap-0.5">
-          <IconButton aria-label={`${dish.name} — tahrirlash`} onClick={() => setEditing(dish)}>
+          <IconButton aria-label={mm.editAria(dish.name)} onClick={() => setEditing(dish)}>
             <Pencil aria-hidden />
           </IconButton>
-          <IconButton variant="danger-ghost" aria-label={`${dish.name} — o'chirish`} onClick={() => setRemoving(dish)}>
+          <IconButton variant="danger-ghost" aria-label={mm.deleteAria(dish.name)} onClick={() => setRemoving(dish)}>
             <Trash2 aria-hidden />
           </IconButton>
         </div>
@@ -203,21 +206,21 @@ export default function MenuPage() {
   return (
     <div className="mx-auto w-full max-w-6xl">
       <PageHeader
-        title="Menyu"
+        title={mm.title}
         description={
           status === 'ready'
-            ? `${formatNumber(dishes.length)} ta taom · ${formatNumber(availItems[2].count)} ta tugagan`
-            : 'Taomlar, narxlar va mavjudlik'
+            ? mm.summary(formatNumber(dishes.length), formatNumber(availItems[2].count))
+            : mm.description
         }
         actions={
           <Button leftIcon={<Plus size={15} />} onClick={() => setEditing('new')}>
-            Yangi taom
+            {mm.newDish}
           </Button>
         }
       />
 
       <DataTable
-        ariaLabel="Menyu taomlari"
+        ariaLabel={mm.tableAria}
         columns={columns}
         rows={filtered}
         rowKey={(d) => d.id}
@@ -230,7 +233,7 @@ export default function MenuPage() {
             <FilterBar
               search={search}
               onSearchChange={setSearch}
-              searchPlaceholder="Taom nomi…"
+              searchPlaceholder={mm.searchPlaceholder}
               chips={chips}
               onClearAll={clearFilters}
             >
@@ -238,16 +241,16 @@ export default function MenuPage() {
                 items={availItems}
                 value={availFilter}
                 onChange={setAvailFilter}
-                label="Mavjudlik boʻyicha filtr"
+                label={mm.availFilter}
               />
               {categories.length > 0 && (
                 <Select
-                  aria-label="Kategoriya boʻyicha filtr"
+                  aria-label={mm.categoryFilter}
                   value={catFilter}
                   onChange={(e) => setCatFilter(e.target.value)}
                   wrapperClassName="w-full sm:w-52"
                   options={[
-                    { value: 'all', label: 'Barcha kategoriyalar' },
+                    { value: 'all', label: mm.allCategories },
                     ...categories.map((c) => ({ value: c.id, label: c.name })),
                   ]}
                 />
@@ -257,15 +260,15 @@ export default function MenuPage() {
         }
         isFiltered={hasDishes}
         onClearFilters={clearFilters}
-        emptyFiltered={{ title: 'Filtrga mos taom yoʻq', description: 'Tanlangan holat, kategoriya va qidiruv boʻyicha hech narsa topilmadi.' }}
+        emptyFiltered={{ title: mm.emptyFilteredTitle, description: mm.emptyFilteredDescription }}
         empty={{
           variant: 'first-use',
           icon: <UtensilsCrossed size={20} />,
-          title: 'Menyu hali boʻsh',
-          description: 'Birinchi taomni qoʻshing — u mijozlarga darhol koʻrinadi.',
+          title: mm.emptyTitle,
+          description: mm.emptyDescription,
           action: (
             <Button leftIcon={<Plus size={15} />} onClick={() => setEditing('new')}>
-              Yangi taom qoʻshish
+              {mm.emptyAction}
             </Button>
           ),
         }}
@@ -288,13 +291,13 @@ export default function MenuPage() {
         onClose={() => setRemoving(null)}
         onConfirm={confirmRemove}
         isPending={removePending}
-        title="Taomni oʻchirish"
+        title={mm.removeTitle}
         description={
           removing
-            ? `${removing.name} menyudan butunlay olib tashlanadi. Vaqtincha yashirish uchun «Sotuvda» tugmasini oʻchirish yetarli.`
+            ? mm.removeDescription(removing.name)
             : undefined
         }
-        confirmLabel="O'chirish"
+        confirmLabel={m.common.delete}
       />
     </div>
   );

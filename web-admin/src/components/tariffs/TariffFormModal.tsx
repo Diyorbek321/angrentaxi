@@ -8,20 +8,26 @@ import { Button, Checkbox, Input, Modal } from '@/components/ui';
 import { tariffsApi, type Tariff, type TariffCreateInput } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 import { meteredPriceField } from '@/lib/metered-price';
+import { t } from '@/locales';
 
-const tariffSchema = z.object({
-  name: z.string().min(2, 'Kamida 2 ta harf'),
-  description: z.string().optional(),
-  basePrice: z.coerce.number().min(0, "Manfiy qiymat bo'lmasin"),
-  pricePerKm: z.coerce.number().min(0, "Manfiy qiymat bo'lmasin"),
-  meteredPricePerKm: meteredPriceField,
-  pricePerMin: z.coerce.number().min(0, "Manfiy qiymat bo'lmasin"),
-  minPrice: z.coerce.number().min(0, "Manfiy qiymat bo'lmasin"),
-  maxPrice: z.coerce.number().min(0, "Manfiy qiymat bo'lmasin").optional(),
-  isActive: z.boolean().optional(),
-});
+/** Sxema funksiya ichida — xato matnlari joriy tilda chiqishi uchun. */
+function tariffSchema() {
+  const v = t().tariffs.form;
+  const money = () => z.coerce.number().min(0, v.nonNegative);
+  return z.object({
+    name: z.string().min(2, v.minLetters),
+    description: z.string().optional(),
+    basePrice: money(),
+    pricePerKm: money(),
+    meteredPricePerKm: meteredPriceField,
+    pricePerMin: money(),
+    minPrice: money(),
+    maxPrice: money().optional(),
+    isActive: z.boolean().optional(),
+  });
+}
 
-type TariffForm = z.infer<typeof tariffSchema>;
+type TariffForm = z.infer<ReturnType<typeof tariffSchema>>;
 
 const EMPTY: TariffForm = {
   name: '',
@@ -44,6 +50,8 @@ interface TariffFormModalProps {
 }
 
 export function TariffFormModal({ open, tariff, onClose, onSaved }: TariffFormModalProps) {
+  const m = t();
+  const fm = m.tariffs.form;
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const {
@@ -51,7 +59,7 @@ export function TariffFormModal({ open, tariff, onClose, onSaved }: TariffFormMo
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<TariffForm>({ resolver: zodResolver(tariffSchema) });
+  } = useForm<TariffForm>({ resolver: zodResolver(tariffSchema()) });
 
   useEffect(() => {
     if (!open) return;
@@ -88,15 +96,15 @@ export function TariffFormModal({ open, tariff, onClose, onSaved }: TariffFormMo
       };
       if (tariff) {
         await tariffsApi.update(tariff.id, payload);
-        toast({ title: 'Tarif yangilandi', variant: 'success' });
+        toast({ title: fm.updated, variant: 'success' });
       } else {
         await tariffsApi.create(payload);
-        toast({ title: 'Tarif yaratildi', variant: 'success' });
+        toast({ title: fm.created, variant: 'success' });
       }
       onClose();
       await onSaved();
     } catch {
-      toast({ title: 'Xatolik', description: 'Tarifni saqlashda xatolik', variant: 'error' });
+      toast({ title: m.common.error, description: fm.saveError, variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -107,72 +115,72 @@ export function TariffFormModal({ open, tariff, onClose, onSaved }: TariffFormMo
       isOpen={open}
       onClose={onClose}
       size="lg"
-      title={tariff ? 'Tarifni tahrirlash' : 'Yangi tarif'}
+      title={tariff ? fm.editTitle : fm.newTitle}
       footer={
         <>
           <Button type="button" variant="secondary" onClick={onClose}>
-            Bekor qilish
+            {m.common.cancel}
           </Button>
           <Button type="submit" form="tariff-form" isLoading={saving}>
-            {tariff ? 'Saqlash' : 'Yaratish'}
+            {tariff ? m.common.save : fm.create}
           </Button>
         </>
       }
     >
       <form id="tariff-form" onSubmit={handleSubmit(save)} className="space-y-4" noValidate>
         <Input
-          label="Tarif nomi"
-          placeholder="Standart, Premium, Ekonom..."
+          label={fm.name}
+          placeholder={fm.namePlaceholder}
           error={errors.name?.message}
           {...register('name')}
         />
-        <Input label="Tavsif (ixtiyoriy)" placeholder="Qisqacha tavsif..." {...register('description')} />
+        <Input label={fm.description} placeholder={fm.descriptionPlaceholder} {...register('description')} />
         <div className="grid grid-cols-2 gap-3">
           <Input
-            label="Boshlang'ich narx (so'm)"
+            label={fm.basePrice}
             type="number"
             placeholder="5000"
             error={errors.basePrice?.message}
             {...register('basePrice')}
           />
           <Input
-            label="Minimum narx (so'm)"
+            label={fm.minPrice}
             type="number"
             placeholder="8000"
             error={errors.minPrice?.message}
             {...register('minPrice')}
           />
           <Input
-            label="1 km narxi (so'm)"
+            label={fm.pricePerKm}
             type="number"
             placeholder="1500"
             error={errors.pricePerKm?.message}
             {...register('pricePerKm')}
           />
           <Input
-            label="1 min narxi (so'm)"
+            label={fm.pricePerMin}
             type="number"
             placeholder="300"
             error={errors.pricePerMin?.message}
             {...register('pricePerMin')}
           />
           <Input
-            label="Taksometr 1 km (ixtiyoriy)"
+            label={fm.metered}
             type="number"
             placeholder="1800"
-            hint="Manzilsiz safar uchun. Bo'sh — oddiy km narxi"
+            hint={fm.meteredHint}
             error={errors.meteredPricePerKm?.message}
             {...register('meteredPricePerKm')}
           />
           <Input
-            label="Maksimal narx (ixtiyoriy)"
+            label={fm.maxPrice}
             type="number"
             placeholder="50000"
             error={errors.maxPrice?.message}
             {...register('maxPrice')}
           />
         </div>
-        <Checkbox label="Darhol faol qilish" {...register('isActive')} />
+        <Checkbox label={fm.activateNow} {...register('isActive')} />
       </form>
     </Modal>
   );

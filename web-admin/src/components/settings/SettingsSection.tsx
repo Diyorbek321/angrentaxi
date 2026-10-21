@@ -7,6 +7,7 @@ import { Card, CardBody, CardFooter, CardHeader } from '@/components/ui/Card';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { RetryBanner } from '@/components/ui/RetryBanner';
 import { SkeletonForm } from '@/components/ui/Skeleton';
+import { t } from '@/locales';
 
 export interface SettingsSectionProps {
   title: string;
@@ -44,6 +45,8 @@ export function SettingsSection({
   onSave,
   children,
 }: SettingsSectionProps) {
+  const c = t().common;
+  const s = t().settings;
   const fullError = error && !loading && !hasLoaded;
   return (
     <Card padding="none">
@@ -60,11 +63,11 @@ export function SettingsSection({
           </CardBody>
           <CardFooter className="justify-between">
             <span className="text-xs text-muted" aria-live="polite">
-              {dirty ? 'Saqlanmagan oʻzgarish bor' : 'Barcha oʻzgarishlar saqlangan'}
+              {dirty ? s.dirty : s.clean}
             </span>
             <div className="flex items-center gap-2">
               <Button variant="secondary" disabled={!dirty || saving} onClick={onReset}>
-                Bekor qilish
+                {c.cancel}
               </Button>
               <Button
                 onClick={onSave}
@@ -72,7 +75,7 @@ export function SettingsSection({
                 disabled={!hasLoaded || !dirty}
                 leftIcon={<Save size={14} aria-hidden="true" />}
               >
-                Saqlash
+                {c.save}
               </Button>
             </div>
           </CardFooter>

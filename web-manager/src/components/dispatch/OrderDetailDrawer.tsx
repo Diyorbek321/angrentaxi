@@ -22,14 +22,16 @@ import { KeyValue, KeyValueList } from '@/components/ui/KeyValue';
 import { PlateNumber } from '@/components/ui/PlateNumber';
 import { OrderStatusBadge } from '@/components/orders/OrderStatusBadge';
 import { DeliveryExtrasContent, deliveryExtras } from '@/components/orders/DeliveryExtras';
-import { PAYMENT_METHOD_LABELS } from '@/lib/constants';
+import { paymentMethodLabels } from '@/lib/constants';
 import {
   formatDateTime,
   formatPhone,
   formatRating,
   formatRelative,
+  nameFallback,
   shortId,
 } from '@/lib/format';
+import { t } from '@/locales';
 
 const HISTORY_LIMIT = 5;
 
@@ -57,6 +59,7 @@ function Section({
 function PassengerHistory({ order }: { order: Order }) {
   const [history, setHistory] = useState<Order[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const m = t().dispatch.orderDrawer;
 
   useEffect(() => {
     let cancelled = false;
@@ -84,7 +87,7 @@ function PassengerHistory({ order }: { order: Order }) {
   }, [order.id, order.passenger?.phone]);
 
   if (failed) {
-    return <p className="text-xs text-subtle">Mijoz tarixini yuklab boʻlmadi.</p>;
+    return <p className="text-xs text-subtle">{m.historyFailed}</p>;
   }
 
   if (history == null) {
@@ -98,7 +101,7 @@ function PassengerHistory({ order }: { order: Order }) {
   }
 
   if (history.length === 0) {
-    return <p className="text-xs text-subtle">Bu mijozning boshqa buyurtmasi topilmadi.</p>;
+    return <p className="text-xs text-subtle">{m.historyEmpty}</p>;
   }
 
   return (
@@ -130,7 +133,8 @@ interface OrderDetailDrawerProps {
 export function OrderDetailDrawer({ order, isOpen, onClose }: OrderDetailDrawerProps) {
   if (!order) return null;
 
-  const t = order.tariff;
+  const tariff = order.tariff;
+  const m = t().dispatch.orderDrawer;
   const extras = deliveryExtras(order);
 
   return (
@@ -138,7 +142,7 @@ export function OrderDetailDrawer({ order, isOpen, onClose }: OrderDetailDrawerP
       isOpen={isOpen}
       onClose={onClose}
       width="lg"
-      title={`Buyurtma ${shortId(order.id)}`}
+      title={m.title(shortId(order.id))}
       subtitle={
         <span className="flex items-center gap-2">
           <OrderStatusBadge status={order.status} size="sm" dot />
@@ -149,17 +153,16 @@ export function OrderDetailDrawer({ order, isOpen, onClose }: OrderDetailDrawerP
       <div className="flex items-center gap-2 rounded-ds-xs border border-line bg-surface-2/60 px-3 py-2">
         <Eye size={14} className="text-muted shrink-0" />
         <p className="text-xs text-muted leading-snug">
-          Faqat koʻrish uchun. Haydovchi tayinlash tizim tomonidan avtomatik bajariladi —
-          aralashuv faqat Istisnolar boʻlimidan yoki kartadagi «Qoʻlda aralashuv» tugmasidan.
+          {m.readOnlyNote}
         </p>
       </div>
 
-      <Section icon={<User size={12} />} title="Mijoz">
+      <Section icon={<User size={12} />} title={m.customer}>
         <div className="rounded-ds-xs border border-line bg-surface px-3 py-2.5 flex items-center gap-3">
           <Avatar name={order.passenger?.name} size="md" tone="muted" />
           <div className="min-w-0">
             <p className="text-sm font-medium text-ink truncate">
-              {order.passenger?.name || 'Mijoz'}
+              {order.passenger?.name || m.customer}
             </p>
             <p className="num text-xs text-muted">{formatPhone(order.passenger?.phone)}</p>
           </div>
@@ -169,13 +172,13 @@ export function OrderDetailDrawer({ order, isOpen, onClose }: OrderDetailDrawerP
               className="ml-auto inline-flex items-center gap-1.5 rounded-ds-xs border border-line px-2.5 py-1.5 text-xs text-muted hover:text-ink hover:bg-surface-2 transition-colors"
             >
               <Phone size={13} />
-              Qoʻngʻiroq
+              {m.call}
             </a>
           )}
         </div>
       </Section>
 
-      <Section icon={<MapPin size={12} />} title="Marshrut">
+      <Section icon={<MapPin size={12} />} title={m.route}>
         <div className="rounded-ds-xs border border-line bg-surface px-3 py-2.5 space-y-3">
           <div className="flex items-start gap-2.5">
             <span className="mt-1 h-2.5 w-2.5 rounded-full bg-mint-deep shrink-0 ring-2 ring-mint/25" />
@@ -202,12 +205,12 @@ export function OrderDetailDrawer({ order, isOpen, onClose }: OrderDetailDrawerP
         </div>
       </Section>
 
-      <Section icon={<Car size={12} />} title="Haydovchi">
+      <Section icon={<Car size={12} />} title={m.driver}>
         {order.driver ? (
           <div className="rounded-ds-xs border border-line bg-surface px-3 py-2.5 flex items-center gap-3">
             <Avatar name={order.driver.name} size="md" />
             <div className="min-w-0">
-              <p className="text-sm font-medium text-ink truncate">{order.driver.name || 'Ism kiritilmagan'}</p>
+              <p className="text-sm font-medium text-ink truncate">{order.driver.name || nameFallback()}</p>
               <p className="text-xs text-muted truncate">
                 {order.driver.carModel} ·{' '}
                 <PlateNumber plate={order.driver.carNumber} />
@@ -222,35 +225,35 @@ export function OrderDetailDrawer({ order, isOpen, onClose }: OrderDetailDrawerP
           <div className="rounded-ds-xs border border-dashed border-line px-3 py-3">
             <p className="text-xs text-subtle">
               {order.status === 'searching'
-                ? 'Tizim eng yaqin haydovchini qidirmoqda.'
-                : 'Haydovchi tayinlanmagan.'}
+                ? m.searchingNearest
+                : m.noDriver}
             </p>
           </div>
         )}
       </Section>
 
       {extras.hasContent && (
-        <Section icon={<MapPin size={12} />} title="Yetkazish tafsilotlari">
+        <Section icon={<MapPin size={12} />} title={m.deliveryDetails}>
           <DeliveryExtrasContent order={order} />
         </Section>
       )}
 
-      <Section icon={<Receipt size={12} />} title="Narx tafsiloti">
+      <Section icon={<Receipt size={12} />} title={m.priceDetails}>
         <KeyValueList className="rounded-ds-xs border border-line bg-surface px-3 py-2">
-          <KeyValue label="Tarif">{t?.name ?? '—'}</KeyValue>
-          <KeyValue label="Boshlangʻich narx"><MoneyText value={t?.basePrice} /></KeyValue>
-          <KeyValue label="Har km uchun"><MoneyText value={t?.pricePerKm} /></KeyValue>
-          <KeyValue label="Har daqiqa uchun"><MoneyText value={t?.pricePerMin} /></KeyValue>
-          <KeyValue label="Minimal narx"><MoneyText value={t?.minPrice} /></KeyValue>
-          {t?.surgeMultiplier != null && t.surgeMultiplier !== 1 && (
-            <KeyValue label="Oshirilgan koeffitsient">
+          <KeyValue label={m.tariff}>{tariff?.name ?? '—'}</KeyValue>
+          <KeyValue label={m.basePrice}><MoneyText value={tariff?.basePrice} /></KeyValue>
+          <KeyValue label={m.perKm}><MoneyText value={tariff?.pricePerKm} /></KeyValue>
+          <KeyValue label={m.perMin}><MoneyText value={tariff?.pricePerMin} /></KeyValue>
+          <KeyValue label={m.minPrice}><MoneyText value={tariff?.minPrice} /></KeyValue>
+          {tariff?.surgeMultiplier != null && tariff.surgeMultiplier !== 1 && (
+            <KeyValue label={m.surge}>
               <Badge variant="info" size="sm">
-                ×{t.surgeMultiplier}
+                ×{tariff.surgeMultiplier}
               </Badge>
             </KeyValue>
           )}
-          <KeyValue label="Toʻlov turi">{PAYMENT_METHOD_LABELS[order.paymentMethod]}</KeyValue>
-          <KeyValue label={order.finalPrice != null ? 'Yakuniy narx' : 'Taxminiy narx'}>
+          <KeyValue label={m.paymentMethod}>{paymentMethodLabels()[order.paymentMethod]}</KeyValue>
+          <KeyValue label={order.finalPrice != null ? m.finalPrice : m.estimatedPrice}>
             {order.finalPrice != null ? (
               <MoneyText value={order.finalPrice} className="font-semibold text-ink" />
             ) : (
@@ -261,35 +264,35 @@ export function OrderDetailDrawer({ order, isOpen, onClose }: OrderDetailDrawerP
       </Section>
 
       {order.note && (
-        <Section icon={<Receipt size={12} />} title="Izoh">
+        <Section icon={<Receipt size={12} />} title={m.note}>
           <p className="rounded-ds-xs border border-line bg-surface px-3 py-2.5 text-sm text-ink whitespace-pre-wrap">
             {order.note}
           </p>
         </Section>
       )}
 
-      <Section icon={<Clock size={12} />} title="Vaqt belgilari">
+      <Section icon={<Clock size={12} />} title={m.timestamps}>
         <KeyValueList className="rounded-ds-xs border border-line bg-surface px-3 py-2">
-          <KeyValue label="Yaratildi"><span className="num">{formatDateTime(order.createdAt)}</span></KeyValue>
+          <KeyValue label={m.createdAt}><span className="num">{formatDateTime(order.createdAt)}</span></KeyValue>
           {/* acceptedAt/startedAt/completedAt are not separate columns on the
               backend today — rendered only when the API actually sends them. */}
           {order.acceptedAt && (
-            <KeyValue label="Qabul qilindi"><span className="num">{formatDateTime(order.acceptedAt)}</span></KeyValue>
+            <KeyValue label={m.acceptedAt}><span className="num">{formatDateTime(order.acceptedAt)}</span></KeyValue>
           )}
           {order.startedAt && (
-            <KeyValue label="Yoʻlga chiqdi"><span className="num">{formatDateTime(order.startedAt)}</span></KeyValue>
+            <KeyValue label={m.startedAt}><span className="num">{formatDateTime(order.startedAt)}</span></KeyValue>
           )}
           {order.completedAt && (
-            <KeyValue label="Yakunlandi"><span className="num">{formatDateTime(order.completedAt)}</span></KeyValue>
+            <KeyValue label={m.completedAt}><span className="num">{formatDateTime(order.completedAt)}</span></KeyValue>
           )}
           {order.cancelledAt && (
-            <KeyValue label="Bekor qilindi"><span className="num">{formatDateTime(order.cancelledAt)}</span></KeyValue>
+            <KeyValue label={m.cancelledAt}><span className="num">{formatDateTime(order.cancelledAt)}</span></KeyValue>
           )}
-          <KeyValue label="Oxirgi yangilanish"><span className="num">{formatDateTime(order.updatedAt)}</span></KeyValue>
+          <KeyValue label={m.updatedAt}><span className="num">{formatDateTime(order.updatedAt)}</span></KeyValue>
         </KeyValueList>
       </Section>
 
-      <Section icon={<History size={12} />} title="Mijozning oxirgi buyurtmalari">
+      <Section icon={<History size={12} />} title={m.recentOrders}>
         <PassengerHistory order={order} />
       </Section>
     </Drawer>

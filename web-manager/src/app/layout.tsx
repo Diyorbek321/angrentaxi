@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import localFont from 'next/font/local';
 import './globals.css';
 import { THEME_INIT_SCRIPT } from '@/lib/theme';
+import { getServerLocale } from '@/lib/i18n/server';
+import { t } from '@/locales';
 import { Providers } from './providers';
 
 // Self-hosted (not next/font/google) so the build never depends on a live
@@ -28,22 +30,24 @@ const jetbrainsMono = localFont({
   display: 'swap',
 });
 
-export const metadata: Metadata = {
-  title: 'Angren Taxi — Dispetcher paneli',
-  description: 'Angren Taxi uchun jonli buyurtma boshqaruvi va dispetcher paneli',
-};
+export function generateMetadata(): Metadata {
+  getServerLocale();
+  const m = t().meta;
+  return { title: m.title, description: m.description };
+}
 
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const locale = getServerLocale();
   return (
     // suppressHydrationWarning: the inline script below adds/removes the
     // `dark` class before hydration, so the server HTML and the DOM React
     // sees differ by design on this one element.
     <html
-      lang="uz"
+      lang={locale}
       suppressHydrationWarning
       className={`${manrope.variable} ${jetbrainsMono.variable}`}
     >
@@ -51,7 +55,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className="font-sans antialiased bg-bg text-ink">
-        <Providers>{children}</Providers>
+        <Providers locale={locale}>{children}</Providers>
       </body>
     </html>
   );

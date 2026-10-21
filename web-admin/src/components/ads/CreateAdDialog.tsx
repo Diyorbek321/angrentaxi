@@ -18,12 +18,13 @@ import {
 } from '@/lib/api';
 import {
   AD_IMAGE_TYPES,
-  AD_LINK_LABELS,
+  adLinkLabels,
   buildAdFormData,
   validateAdForm,
   type AdFormErrors,
   type AdFormInput,
 } from '@/lib/ads';
+import { t } from '@/locales';
 
 const EMPTY_FORM: AdFormInput = {
   title: '',
@@ -51,10 +52,13 @@ function errorMessage(err: unknown): string {
   const message = (err as { response?: { data?: { message?: string | string[] } } })?.response?.data
     ?.message;
   if (Array.isArray(message)) return message.join(', ');
-  return message || "Bannerni saqlab bo'lmadi";
+  return message || t().ads.create.saveFailed;
 }
 
 export function CreateAdDialog({ open, onOpenChange, onCreated }: CreateAdDialogProps) {
+  const m = t();
+  const c = m.ads.create;
+  const linkLabels = adLinkLabels();
   const { toast } = useToast();
   const [form, setForm] = useState<AdFormInput>(EMPTY_FORM);
   const [errors, setErrors] = useState<AdFormErrors>({});
@@ -89,7 +93,7 @@ export function CreateAdDialog({ open, onOpenChange, onCreated }: CreateAdDialog
         }))
       )
       .catch(() =>
-        toast({ title: 'Xatolik', description: "Sotuvchilar ro'yxatini yuklab bo'lmadi", variant: 'error' })
+        toast({ title: m.common.error, description: c.vendorsLoadFailed, variant: 'error' })
       );
   }, [form.linkType, vendors, toast]);
 
@@ -108,10 +112,10 @@ export function CreateAdDialog({ open, onOpenChange, onCreated }: CreateAdDialog
     try {
       const res = await adsApi.create(buildAdFormData(form));
       onCreated(res.data.data);
-      toast({ title: 'Banner qo\'shildi', description: res.data.data.title, variant: 'success' });
+      toast({ title: c.added, description: res.data.data.title, variant: 'success' });
       onOpenChange(false);
     } catch (err) {
-      toast({ title: 'Xatolik', description: errorMessage(err), variant: 'error' });
+      toast({ title: m.common.error, description: errorMessage(err), variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -120,9 +124,9 @@ export function CreateAdDialog({ open, onOpenChange, onCreated }: CreateAdDialog
   const vendorKind = form.linkType === 'restaurant' || form.linkType === 'store' ? form.linkType : null;
   const vendorOptions = vendorKind ? vendors[vendorKind] : null;
 
-  const linkTypeOptions = (Object.keys(AD_LINK_LABELS) as AdLinkType[]).map((type) => ({
+  const linkTypeOptions = (Object.keys(linkLabels) as AdLinkType[]).map((type) => ({
     value: type,
-    label: AD_LINK_LABELS[type],
+    label: linkLabels[type],
   }));
 
   return (
@@ -130,31 +134,31 @@ export function CreateAdDialog({ open, onOpenChange, onCreated }: CreateAdDialog
       isOpen={open}
       onClose={() => onOpenChange(false)}
       size="lg"
-      title="Yangi banner"
-      description="Yo'lovchi ilovasining bosh ekranidagi karuselda ko'rinadi. Rasm keyin o'zgarmaydi — boshqa rasm uchun yangi banner yarating."
+      title={c.title}
+      description={c.description}
       footer={
         <>
           <Button variant="secondary" onClick={() => onOpenChange(false)}>
-            Bekor qilish
+            {m.common.cancel}
           </Button>
           <Button type="submit" form="create-ad-form" isLoading={saving}>
-            Saqlash
+            {m.common.save}
           </Button>
         </>
       }
     >
       <form id="create-ad-form" onSubmit={handleSubmit} className="space-y-4" noValidate>
-        <Field id="ad-image" label="Rasm (2:1, ≤ 2 MB)" error={errors.image}>
+        <Field id="ad-image" label={c.image} error={errors.image}>
           <label
             className="flex aspect-[2/1] w-full cursor-pointer items-center justify-center overflow-hidden rounded-ds-md border border-dashed border-line-strong bg-surface-2 text-muted transition-colors hover:border-primary focus-within:ring-2 focus-within:ring-focus"
           >
             {previewUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={previewUrl} alt="Tanlangan rasm" className="h-full w-full object-cover" />
+              <img src={previewUrl} alt={c.imageAlt} className="h-full w-full object-cover" />
             ) : (
               <span className="flex flex-col items-center gap-1 text-xs">
                 <ImagePlus className="h-5 w-5" aria-hidden="true" />
-                JPEG, PNG yoki WEBP tanlang
+                {c.imagePick}
               </span>
             )}
             <input
@@ -168,17 +172,17 @@ export function CreateAdDialog({ open, onOpenChange, onCreated }: CreateAdDialog
         </Field>
 
         <Input
-          label="Nomi (faqat admin uchun)"
+          label={c.name}
           value={form.title}
           maxLength={120}
           onChange={(e) => update('title', e.target.value)}
           error={errors.title}
-          placeholder="Masalan: Lavash Center — oktyabr aksiyasi"
+          placeholder={c.namePlaceholder}
         />
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Select
-            label="Bosilganda"
+            label={c.onClick}
             options={linkTypeOptions}
             value={form.linkType}
             onChange={(e) => {
@@ -189,7 +193,7 @@ export function CreateAdDialog({ open, onOpenChange, onCreated }: CreateAdDialog
 
           {form.linkType === 'url' && (
             <Input
-              label="Havola"
+              label={c.link}
               value={form.linkTarget}
               onChange={(e) => update('linkTarget', e.target.value)}
               error={errors.linkTarget}
@@ -200,9 +204,9 @@ export function CreateAdDialog({ open, onOpenChange, onCreated }: CreateAdDialog
 
           {vendorKind && (
             <Select
-              label={AD_LINK_LABELS[vendorKind]}
+              label={linkLabels[vendorKind]}
               options={(vendorOptions ?? []).map((v) => ({ value: v.id, label: v.name }))}
-              placeholder={vendorOptions ? 'Tanlang' : 'Yuklanmoqda…'}
+              placeholder={vendorOptions ? c.pick : m.common.loading}
               disabled={!vendorOptions}
               value={form.linkTarget}
               onChange={(e) => update('linkTarget', e.target.value)}
@@ -214,16 +218,16 @@ export function CreateAdDialog({ open, onOpenChange, onCreated }: CreateAdDialog
         <div className="grid gap-4 sm:grid-cols-2">
           <Input
             type="datetime-local"
-            label="Boshlanishi"
-            hint="Bo'sh — darhol"
+            label={c.startsAt}
+            hint={c.startsAtHint}
             value={form.startsAt}
             onChange={(e) => update('startsAt', e.target.value)}
             error={errors.startsAt}
           />
           <Input
             type="datetime-local"
-            label="Tugashi"
-            hint="Bo'sh — muddatsiz"
+            label={c.endsAt}
+            hint={c.endsAtHint}
             value={form.endsAt}
             onChange={(e) => update('endsAt', e.target.value)}
             error={errors.endsAt}
@@ -235,8 +239,8 @@ export function CreateAdDialog({ open, onOpenChange, onCreated }: CreateAdDialog
             type="number"
             min={0}
             max={1000}
-            label="Tartib"
-            hint="Kichigi oldinda"
+            label={c.sortOrder}
+            hint={c.sortOrderHint}
             value={form.sortOrder}
             onChange={(e) => update('sortOrder', e.target.value)}
             error={errors.sortOrder}
@@ -245,8 +249,8 @@ export function CreateAdDialog({ open, onOpenChange, onCreated }: CreateAdDialog
             <Switch
               checked={form.isActive}
               onCheckedChange={(v) => update('isActive', v)}
-              label={form.isActive ? 'Yoqilgan' : "O'chirilgan"}
-              aria-label="Banner yoqilgan"
+              label={form.isActive ? c.on : c.off}
+              aria-label={c.activeAria}
             />
           </div>
         </div>

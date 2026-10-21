@@ -19,13 +19,16 @@ import {
   tashkentToday,
 } from '@/lib/compliance';
 import { formatDateShort } from '@/lib/format';
+import { t } from '@/locales';
 
 /** Komissiya: standart foiz (faqat ko'rish) + ishga tushirish aksiyasi (0% taksi). */
 export function CommissionPromoCard() {
+  const m = t();
+  const f = m.finance.commission;
   const { toast } = useToast();
   const res = useResource(
     () => financeSettingsApi.getCommission().then((r) => r.data.data),
-    'Komissiya sozlamalarini yuklab boʻlmadi.'
+    f.loadError
   );
   const saved = res.data;
   const savedDate = isoToTashkentDate(saved?.launchPromoCommissionUntil);
@@ -48,8 +51,8 @@ export function CommissionPromoCard() {
 
   const validate = (): string | null => {
     if (!enabled) return null;
-    if (!isIsoDate(date)) return 'Sanani kiriting';
-    if (date <= tashkentToday()) return 'Aksiya tugash sanasi kelajakda boʻlishi kerak';
+    if (!isIsoDate(date)) return m.finance.enterDate;
+    if (date <= tashkentToday()) return f.endDateFuture;
     return null;
   };
 
@@ -65,15 +68,15 @@ export function CommissionPromoCard() {
       const r = await financeSettingsApi.setLaunchPromo(nextDate ? tashkentDateToIso(nextDate) : null);
       res.setData(r.data.data);
       toast({
-        title: 'Saqlandi',
+        title: m.finance.saved,
         description: nextDate
-          ? `Taksi komissiyasi ${formatDateShort(tashkentDateToIso(nextDate))} gacha 0%.`
-          : 'Ishga tushirish aksiyasi oʻchirildi.',
+          ? f.savedUntil(formatDateShort(tashkentDateToIso(nextDate)))
+          : f.promoDisabled,
         variant: 'success',
       });
       setConfirming(false);
     } catch (err) {
-      toast({ title: 'Xatolik', description: apiErrorMessage(err, 'Saqlashda xatolik'), variant: 'error' });
+      toast({ title: m.common.error, description: apiErrorMessage(err, m.common.saveError), variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -82,18 +85,18 @@ export function CommissionPromoCard() {
   const badge = saved ? (
     saved.launchPromoActive ? (
       <Badge variant="success" dot>
-        Aksiya faol
+        {f.promoActive}
       </Badge>
     ) : (
-      <Badge variant="neutral">Aksiya yoʻq</Badge>
+      <Badge variant="neutral">{f.noPromo}</Badge>
     )
   ) : null;
 
   return (
     <>
       <SettingsSection
-        title="Komissiya va ishga tushirish aksiyasi"
-        description="Aksiya davomida taksi safarlaridan komissiya olinmaydi (yuk, posilka, yetkazish — odatdagidek)."
+        title={f.title}
+        description={f.description}
         badge={badge}
         loading={res.loading}
         error={res.error}
@@ -106,18 +109,18 @@ export function CommissionPromoCard() {
         onSave={requestSave}
       >
         <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
-          <span className="text-muted">Standart komissiya</span>
+          <span className="text-muted">{f.defaultRate}</span>
           <span className="flex items-baseline gap-3">
             <span className="num font-semibold text-ink">{saved?.defaultCommissionRate ?? '—'}%</span>
             <Link href="/dashboard/settings" className="text-xs text-primary-text hover:underline">
-              Oʻzgartirish
+              {f.change}
             </Link>
           </span>
         </div>
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-sm font-medium text-ink">Ishga tushirish aksiyasi</p>
-            <p className="mt-0.5 text-xs text-muted">Belgilangan sanagacha taksi komissiyasi 0%.</p>
+            <p className="text-sm font-medium text-ink">{f.launchPromo}</p>
+            <p className="mt-0.5 text-xs text-muted">{f.launchPromoHint}</p>
           </div>
           <Switch
             checked={enabled}
@@ -125,12 +128,12 @@ export function CommissionPromoCard() {
               setEnabled(v);
               setFieldError(null);
             }}
-            aria-label="Ishga tushirish aksiyasi"
+            aria-label={f.launchPromo}
           />
         </div>
         {enabled && (
           <Input
-            label="Aksiya tugash sanasi (shu kun 00:00 gacha, Toshkent)"
+            label={f.endDateLabel}
             type="date"
             value={date}
             min={tashkentToday()}
@@ -143,7 +146,7 @@ export function CommissionPromoCard() {
           />
         )}
         {saved?.launchPromoActive === false && savedDate && (
-          <Notice tone="neutral">Aksiya {formatDateShort(saved.launchPromoCommissionUntil)} da tugagan.</Notice>
+          <Notice tone="neutral">{f.endedOn(formatDateShort(saved.launchPromoCommissionUntil))}</Notice>
         )}
       </SettingsSection>
 
@@ -153,12 +156,12 @@ export function CommissionPromoCard() {
         onConfirm={save}
         isPending={saving}
         tone="default"
-        title={nextDate ? 'Aksiyani saqlash' : 'Aksiyani oʻchirish'}
-        confirmLabel="Saqlash"
+        title={nextDate ? f.confirmSaveTitle : f.confirmDisableTitle}
+        confirmLabel={m.common.save}
         description={
           nextDate
-            ? `${formatDateShort(tashkentDateToIso(nextDate))} gacha yakunlangan taksi safarlaridan komissiya olinmaydi — platforma daromadi shu davrda kamayadi.`
-            : 'Taksi safarlaridan yana standart (yoki shaxsiy) komissiya olinadi.'
+            ? f.confirmSaveBody(formatDateShort(tashkentDateToIso(nextDate)))
+            : f.confirmDisableBody
         }
       />
     </>

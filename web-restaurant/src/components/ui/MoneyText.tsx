@@ -1,6 +1,7 @@
 // AUTO-SYNCED from web-manager — edit there, then run scripts/sync-panel-ui.sh
 import { cn } from './cn';
 import { formatMoney } from '@/lib/format';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 export interface MoneyTextProps {
   value: number | string | null | undefined;
@@ -21,7 +22,7 @@ export function MoneyText({ value, currency = true, signed = false, approx = fal
     <span className={cn('num whitespace-nowrap', negative && 'text-danger-dark dark:text-danger-light', className)}>
       {approx && '~'}
       {amount}
-      {currency && <span className="ml-1 text-[0.85em] font-normal text-muted">soʻm</span>}
+      {currency && <span className="ml-1 text-[0.85em] font-normal text-muted">{kitT().format.currency}</span>}
     </span>
   );
 }

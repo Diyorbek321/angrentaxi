@@ -16,6 +16,7 @@ import { StatCard } from '@/components/ui/StatCard';
 import { MoneyText } from '@/components/ui/MoneyText';
 import { PageBody } from '@/components/ui/PageBody';
 import { formatNumber, formatPercent, formatTime } from '@/lib/format';
+import { t } from '@/locales';
 
 const DAY_MS = 86_400_000;
 
@@ -32,7 +33,7 @@ function AttentionRow({ href, icon, children }: { href: string; icon: React.Reac
           <span className="truncate">{children}</span>
         </span>
         <span className="flex items-center gap-1 text-xs font-medium text-muted shrink-0">
-          Koʻrib chiqish
+          {t().dispatch.overview.review}
           <ChevronRight size={14} aria-hidden />
         </span>
       </Link>
@@ -46,6 +47,7 @@ export default function ManagerOverviewPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loadedAt, setLoadedAt] = useState<number | null>(null);
+  const m = t().dispatch.overview;
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -58,7 +60,7 @@ export default function ManagerOverviewPage() {
     } catch (err) {
       console.error('Failed to load overview:', err);
       // The last good snapshot stays on screen; the banner names the failure.
-      setError('Statistikani yuklab boʻlmadi.');
+      setError(t().dispatch.overview.loadFailedBanner);
     } finally {
       setIsLoading(false);
     }
@@ -84,9 +86,9 @@ export default function ManagerOverviewPage() {
   return (
     <PageBody>
       <PageHeader
-        title="Umumiy koʻrinish"
+        title={m.title}
         description={
-          loadedAt ? `Bugungi koʻrsatkichlar · ${formatTime(loadedAt)} holatiga` : 'Bugungi koʻrsatkichlar'
+          loadedAt ? m.subtitleAt(formatTime(loadedAt)) : m.subtitle
         }
         actions={
           <Button
@@ -96,7 +98,7 @@ export default function ManagerOverviewPage() {
             isLoading={isLoading && stats != null}
             leftIcon={<RefreshCw size={13} aria-hidden />}
           >
-            Yangilash
+            {t().common.refresh}
           </Button>
         }
       />
@@ -114,8 +116,8 @@ export default function ManagerOverviewPage() {
       {error && !stats ? (
         <Card>
           <ErrorState
-            title="Statistikani yuklab boʻlmadi"
-            message="Tarmoq yoki server xatosi. Qayta urinib koʻring."
+            title={m.loadFailed}
+            message={m.loadFailedDesc}
             onRetry={fetchData}
             retrying={isLoading}
           />
@@ -129,24 +131,24 @@ export default function ManagerOverviewPage() {
             <SkeletonStats count={4} />
           ) : stats ? (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <StatCard label="Bugungi tushum" value={<MoneyText value={stats.revenueToday} />} />
+              <StatCard label={m.revenueToday} value={<MoneyText value={stats.revenueToday} />} />
               <StatCard
-                label="Bugungi buyurtmalar"
+                label={m.ordersToday}
                 value={formatNumber(stats.ordersToday)}
-                hint={`${formatNumber(stats.completedToday)} tasi yakunlandi`}
+                hint={m.completedHint(formatNumber(stats.completedToday))}
               />
               <StatCard
-                label="Bekor qilish ulushi"
+                label={m.cancelRate}
                 value={formatPercent(stats.cancellationRateToday)}
-                hint="bugungi buyurtmalardan"
+                hint={m.cancelRateHint}
               />
-              <StatCard label="Oʻrtacha safar narxi" value={<MoneyText value={stats.avgTripPriceToday} />} />
+              <StatCard label={m.avgTripPrice} value={<MoneyText value={stats.avgTripPriceToday} />} />
             </div>
           ) : null}
 
           <Card padding="none">
             <CardHeader
-              title="Eʼtibor talab qiladi"
+              title={m.attention}
               actions={attentionCount > 0 ? <Badge variant="neutral">{attentionCount}</Badge> : undefined}
               divider
             />
@@ -160,25 +162,24 @@ export default function ManagerOverviewPage() {
                 compact
                 variant="cleared"
                 icon={<CheckCircle2 aria-hidden />}
-                title="Hozircha hech narsa talab qilinmaydi"
-                description="Tasdiq kutayotgan haydovchi ham, tugayotgan promo kod ham yoʻq."
+                title={m.attentionEmpty}
+                description={m.attentionEmptyDesc}
               />
             ) : (
               <ul className="divide-y divide-line">
                 {stats && stats.pendingDriverApprovals > 0 && (
                   <AttentionRow href="/dispatch/drivers" icon={<Users aria-hidden />}>
-                    <span className="num font-semibold">{stats.pendingDriverApprovals}</span> ta haydovchi
-                    tasdiq kutmoqda
+                    <span className="num font-semibold">{stats.pendingDriverApprovals}</span> {m.pendingDrivers}
                   </AttentionRow>
                 )}
                 {expiringPromos.map((p) => (
                   <AttentionRow key={p.id} href="/dispatch/promo-codes" icon={<Tag aria-hidden />}>
-                    <span className="font-mono">{p.code}</span> — 7 kun ichida tugaydi ·{' '}
+                    <span className="font-mono">{p.code}</span> — {m.promoExpiring} ·{' '}
                     <span className="num">
                       {p.usedCount}
                       {p.maxUses ? `/${p.maxUses}` : ''}
                     </span>{' '}
-                    marta ishlatilgan
+                    {m.timesUsed}
                   </AttentionRow>
                 ))}
               </ul>
@@ -186,19 +187,19 @@ export default function ManagerOverviewPage() {
           </Card>
 
           <section>
-            <h2 className="text-h3 text-ink mb-3">Platforma boʻyicha jami</h2>
+            <h2 className="text-h3 text-ink mb-3">{m.platformTotals}</h2>
             {firstLoad ? (
               <SkeletonStats count={4} />
             ) : stats ? (
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <StatCard size="sm" label="Jami foydalanuvchilar" value={formatNumber(stats.totalUsers)} />
-                <StatCard size="sm" label="Jami buyurtmalar" value={formatNumber(stats.totalOrders)} />
-                <StatCard size="sm" label="Bugungi yangi mijozlar" value={formatNumber(stats.newCustomersToday)} />
+                <StatCard size="sm" label={m.totalUsers} value={formatNumber(stats.totalUsers)} />
+                <StatCard size="sm" label={m.totalOrders} value={formatNumber(stats.totalOrders)} />
+                <StatCard size="sm" label={m.newCustomersToday} value={formatNumber(stats.newCustomersToday)} />
                 <StatCard
                   size="sm"
-                  label="Faol haydovchilar"
+                  label={m.activeDrivers}
                   value={formatNumber(stats.activeDrivers)}
-                  hint={`hozir onlayn: ${formatNumber(stats.onlineDrivers)}`}
+                  hint={m.onlineNow(formatNumber(stats.onlineDrivers))}
                 />
               </div>
             ) : null}

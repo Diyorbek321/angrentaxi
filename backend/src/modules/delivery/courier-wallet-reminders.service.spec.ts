@@ -2,6 +2,7 @@ import {
   CourierWalletRemindersService,
   formatUzbekDayMonth,
 } from './courier-wallet-reminders.service';
+import type { LocalizedPush } from '../notifications/push-text';
 
 /**
  * 2026-12-12 dan oldin kuryerlarga ogohlantirish (docs/LEGAL-COMPLIANCE.md §16):
@@ -59,11 +60,17 @@ describe('CourierWalletRemindersService', () => {
     const res = await h.service.sendReminders(new Date('2026-11-28T05:00:00Z'));
     expect(res.notified).toBe(2);
     expect(h.notifications.notifyWalletEvent).toHaveBeenCalledWith(
-      { id: 'courier-1', fcmToken: 'tok-1' },
-      expect.any(String),
-      "12-dekabrdan restoran/do'kon bilan hisob-kitob hamyon orqali bo'ladi — hamyoningizni to'ldiring",
+      expect.objectContaining({ id: 'courier-1', fcmToken: 'tok-1' }),
+      expect.any(Function),
       'courier_wallet_settlement_reminder',
       expect.objectContaining({ effectiveFrom: FROM }),
+    );
+    const text = (h.notifications.notifyWalletEvent.mock.calls[0] as unknown[])[1] as LocalizedPush;
+    expect(text('uz').body).toBe(
+      "12-dekabrdan restoran/do'kon bilan hisob-kitob hamyon orqali bo'ladi — hamyoningizni to'ldiring",
+    );
+    expect(text('ru').body).toBe(
+      'С 12 декабря расчёты с ресторанами и магазинами идут через кошелёк — пополните кошелёк',
     );
     // Toshkent sanasi bilan idempotent.
     expect(h.query).toHaveBeenCalledWith(expect.stringContaining('ON CONFLICT DO NOTHING'), ['courier-1', '2026-11-28']);

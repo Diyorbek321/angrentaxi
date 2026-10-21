@@ -1,6 +1,7 @@
 // AUTO-SYNCED from web-manager — edit there, then run scripts/sync-panel-ui.sh
 import { fullName } from '@/lib/format';
 import type { NavGroup, NavItem, ShellUser } from './types';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 export function isNavItemActive(pathname: string, item: Pick<NavItem, 'href' | 'exact' | 'activePrefixes'>): boolean {
   if (pathname === item.href) return true;
@@ -28,7 +29,7 @@ export function shellUserName(user: ShellUser | null | undefined): string {
     return user.name.trim();
   }
   const n = fullName(user.firstName, user.lastName, '');
-  return n || user.phone || 'Foydalanuvchi';
+  return n || user.phone || kitT().shell.userFallback;
 }
 
 /** Client-side cookie write for the collapse flag; the server layout reads it. */

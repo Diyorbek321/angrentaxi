@@ -11,6 +11,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { DiscountTag } from '@/components/promotions/DiscountTag';
 import { InlineEditCell } from './InlineEditCell';
 import { ProductThumb } from './ProductThumb';
+import { t } from '@/locales';
 
 export interface ProductColumnHandlers {
   categoryName: (id: string | null) => string;
@@ -29,15 +30,16 @@ export interface ProductColumnHandlers {
  * tugagani/yashirilgani bir bosishda sotuvga qaytadi.
  */
 function RowActions({ product: p, busy, h }: { product: Product; busy: boolean; h: ProductColumnHandlers }) {
+  const m = t().products;
   const set = (status: ProductStatus) => h.onSetStatus(p, status);
   return (
     <span className="flex items-center justify-end gap-0.5">
       {p.status === 'active' ? (
-        <IconButton aria-label="Sotuvdan yashirish" size="sm" disabled={busy} onClick={() => set('hidden')}>
+        <IconButton aria-label={m.hideFromSale} size="sm" disabled={busy} onClick={() => set('hidden')}>
           <EyeOff aria-hidden />
         </IconButton>
       ) : (
-        <IconButton aria-label="Sotuvga qaytarish" size="sm" disabled={busy} onClick={() => set('active')}>
+        <IconButton aria-label={m.returnToSale} size="sm" disabled={busy} onClick={() => set('active')}>
           {p.status === 'hidden' ? <Eye aria-hidden /> : <CheckCircle2 aria-hidden />}
         </IconButton>
       )}
@@ -46,19 +48,19 @@ function RowActions({ product: p, busy, h }: { product: Product; busy: boolean; 
         minWidth={200}
         items={[
           ...(p.status === 'active'
-            ? [{ label: 'Tugadi deb belgilash', icon: <CircleOff aria-hidden />, disabled: busy, onSelect: () => set('out') }]
+            ? [{ label: m.markOut, icon: <CircleOff aria-hidden />, disabled: busy, onSelect: () => set('out') }]
             : []),
           ...(p.status !== 'hidden'
-            ? [{ label: 'Sotuvdan yashirish', icon: <EyeOff aria-hidden />, disabled: busy, onSelect: () => set('hidden') }]
+            ? [{ label: m.hideFromSale, icon: <EyeOff aria-hidden />, disabled: busy, onSelect: () => set('hidden') }]
             : []),
           ...(p.status !== 'active'
-            ? [{ label: 'Sotuvga qaytarish', icon: <Eye aria-hidden />, disabled: busy, onSelect: () => set('active') }]
+            ? [{ label: m.returnToSale, icon: <Eye aria-hidden />, disabled: busy, onSelect: () => set('active') }]
             : []),
           { type: 'separator' as const },
-          { label: 'Rasmni oʻzgartirish', icon: <ImagePlus aria-hidden />, onSelect: () => h.onEditImage(p) },
+          { label: m.changeImage, icon: <ImagePlus aria-hidden />, onSelect: () => h.onEditImage(p) },
         ]}
         trigger={(t) => (
-          <IconButton {...t} ref={t.ref} size="sm" aria-label={`${p.name} — boshqa amallar`}>
+          <IconButton {...t} ref={t.ref} size="sm" aria-label={m.moreActions(p.name)}>
             <MoreHorizontal aria-hidden />
           </IconButton>
         )}
@@ -68,10 +70,11 @@ function RowActions({ product: p, busy, h }: { product: Product; busy: boolean; 
 }
 
 export function productColumns(h: ProductColumnHandlers): DataTableColumn<Product>[] {
+  const m = t();
   return [
     {
       key: 'name',
-      header: 'Mahsulot',
+      header: m.common.product,
       // Cap the name below xl so a long product title can't push the money
       // and status columns off a 1024px screen (it truncates, title= has it).
       className: 'max-w-[240px] xl:max-w-none',
@@ -97,14 +100,14 @@ export function productColumns(h: ProductColumnHandlers): DataTableColumn<Produc
     },
     {
       key: 'category',
-      header: 'Kategoriya',
+      header: m.common.category,
       width: 'w-40',
       hideBelow: 'xl',
       cell: (p) => <span className="block truncate text-muted">{h.categoryName(p.categoryId)}</span>,
     },
     {
       key: 'price',
-      header: 'Narx',
+      header: m.products.colPrice,
       numeric: true,
       width: 'w-40',
       cell: (p) => (
@@ -112,8 +115,8 @@ export function productColumns(h: ProductColumnHandlers): DataTableColumn<Produc
           <InlineEditCell
             value={p.price}
             display={formatNumber(p.price)}
-            unit="soʻm"
-            ariaLabel={`${p.name} narxi`}
+            unit={m.common.som}
+            ariaLabel={m.products.priceAria(p.name)}
             onSave={(v) => h.onSavePrice(p, v)}
           />
           <DiscountTag item={p} />
@@ -122,7 +125,7 @@ export function productColumns(h: ProductColumnHandlers): DataTableColumn<Produc
     },
     {
       key: 'stock',
-      header: 'Zaxira',
+      header: m.common.stock,
       numeric: true,
       width: 'w-36',
       cell: (p) => {
@@ -131,8 +134,8 @@ export function productColumns(h: ProductColumnHandlers): DataTableColumn<Produc
           <InlineEditCell
             value={p.stock}
             display={formatNumber(p.stock)}
-            unit={p.unit}
-            ariaLabel={`${p.name} zaxirasi — ${tone.label}`}
+            unit={m.units[p.unit] ?? p.unit}
+            ariaLabel={m.products.stockAria(p.name, tone.label)}
             valueClassName={tone.text}
             onSave={(v) => h.onSaveStock(p, v)}
           />
@@ -141,13 +144,13 @@ export function productColumns(h: ProductColumnHandlers): DataTableColumn<Produc
     },
     {
       key: 'status',
-      header: 'Holat',
+      header: m.common.status,
       width: 'w-32',
       cell: (p) => <ProductStatusBadge status={p.status} />,
     },
     {
       key: 'actions',
-      header: <span className="sr-only">Amallar</span>,
+      header: <span className="sr-only">{m.common.actions}</span>,
       align: 'right',
       width: 'w-20',
       cell: (p) => <RowActions product={p} busy={h.statusBusyId === p.id} h={h} />,

@@ -8,9 +8,11 @@ import { Avatar } from '../ui/Avatar';
 import { IconButton } from '../ui/IconButton';
 import { Kbd } from '../ui/Kbd';
 import { ThemeToggle } from '../ui/ThemeToggle';
+import { LanguageToggle } from '../ui/LanguageToggle';
 import { DropdownMenu, type DropdownItem } from '../ui/DropdownMenu';
 import { shellUserName } from './nav-utils';
 import type { ShellUser } from './types';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 export interface TopbarProps {
   /** Left slot: panel-specific live readouts + the single LiveStatus. */
@@ -22,6 +24,8 @@ export interface TopbarProps {
   searchPlaceholder?: string;
   /** Show the built-in theme toggle (default true). */
   showThemeToggle?: boolean;
+  /** Show the UZ | RU language switch before the theme toggle (default true). */
+  showLanguageToggle?: boolean;
   user?: ShellUser | null;
   onLogout?: () => void | Promise<void>;
   userMenuItems?: DropdownItem[];
@@ -87,8 +91,9 @@ export function Topbar({
   live,
   actions,
   onSearch,
-  searchPlaceholder = 'Qidirish…',
+  searchPlaceholder,
   showThemeToggle = true,
+  showLanguageToggle = true,
   user,
   onLogout,
   userMenuItems = [],
@@ -99,7 +104,7 @@ export function Topbar({
   const items: DropdownItem[] = [
     ...userMenuItems,
     ...(userMenuItems.length && onLogout ? [{ type: 'separator' as const }] : []),
-    ...(onLogout ? [{ label: 'Chiqish', icon: <LogOut aria-hidden />, danger: true, onSelect: () => void onLogout() }] : []),
+    ...(onLogout ? [{ label: kitT().common.logout, icon: <LogOut aria-hidden />, danger: true, onSelect: () => void onLogout() }] : []),
   ];
 
   return (
@@ -110,16 +115,17 @@ export function Topbar({
       )}
     >
       {onOpenMobileNav && (
-        <IconButton aria-label="Menyuni ochish" onClick={onOpenMobileNav} className="lg:hidden">
+        <IconButton aria-label={kitT().shell.openMenu} onClick={onOpenMobileNav} className="lg:hidden">
           <Menu aria-hidden />
         </IconButton>
       )}
 
       <div className="flex items-center gap-1.5 min-w-0 overflow-x-auto no-scrollbar">{live}</div>
 
-      <div className="ml-auto flex items-center gap-1.5 shrink-0">
-        {onSearch && <SearchBox onSearch={onSearch} placeholder={searchPlaceholder} />}
+      <div className="ml-auto flex items-center gap-1 sm:gap-1.5 shrink-0">
+        {onSearch && <SearchBox onSearch={onSearch} placeholder={searchPlaceholder ?? kitT().common.search} />}
         {actions}
+        {showLanguageToggle && <LanguageToggle className="shrink-0" />}
         {showThemeToggle && <ThemeToggle />}
         {user !== undefined && (
           <DropdownMenu
@@ -135,7 +141,7 @@ export function Topbar({
               <button
                 type="button"
                 {...p}
-                aria-label={`Profil: ${name}`}
+                aria-label={kitT().shell.profile(name)}
                 className="ml-1 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
               >
                 <Avatar name={name === '—' ? null : name} size="md" />

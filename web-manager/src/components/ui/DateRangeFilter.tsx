@@ -4,6 +4,7 @@
 import { format, subDays } from 'date-fns';
 import { cn } from './cn';
 import { Input } from './Input';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 export type DatePreset = 'today' | '7d' | '30d' | 'custom';
 
@@ -17,12 +18,23 @@ export interface DateRangeValue {
 
 export const EMPTY_DATE_RANGE: DateRangeValue = { preset: null, from: null, to: null };
 
-export const DATE_PRESET_LABELS: Record<DatePreset, string> = {
-  today: 'Bugun',
-  '7d': '7 kun',
-  '30d': '30 kun',
-  custom: 'Oraliq',
-};
+/** Preset label in the active locale. */
+export function datePresetLabel(preset: DatePreset): string {
+  return kitT().dateRange.presets[preset];
+}
+
+/**
+ * Back-compat map: each key is a getter, so `DATE_PRESET_LABELS[p]` read during
+ * render follows the active locale. New code: `datePresetLabel(p)`.
+ */
+export const DATE_PRESET_LABELS: Readonly<Record<DatePreset, string>> = Object.freeze(
+  Object.defineProperties({} as Record<DatePreset, string>, {
+    today: { enumerable: true, get: () => datePresetLabel('today') },
+    '7d': { enumerable: true, get: () => datePresetLabel('7d') },
+    '30d': { enumerable: true, get: () => datePresetLabel('30d') },
+    custom: { enumerable: true, get: () => datePresetLabel('custom') },
+  })
+);
 
 const ISO = 'yyyy-MM-dd';
 
@@ -70,7 +82,7 @@ export function DateRangeFilter({
     <div className={cn('flex flex-wrap items-center gap-2', className)}>
       <div
         role="group"
-        aria-label="Sana oraligʻi"
+        aria-label={kitT().dateRange.group}
         className="inline-flex items-center gap-0.5 p-0.5 rounded-ds-sm border border-line bg-surface-2"
       >
         {presets.map((p) => {
@@ -87,7 +99,7 @@ export function DateRangeFilter({
                 active ? 'bg-surface text-ink shadow-hairline' : 'text-muted hover:text-ink'
               )}
             >
-              {DATE_PRESET_LABELS[p]}
+              {datePresetLabel(p)}
             </button>
           );
         })}
@@ -96,7 +108,7 @@ export function DateRangeFilter({
         <div className="flex items-center gap-1.5">
           <Input
             type="date"
-            aria-label="Boshlanish sanasi"
+            aria-label={kitT().dateRange.from}
             value={value.from ?? ''}
             max={value.to ?? undefined}
             onChange={(e) => onChange({ ...value, from: e.target.value || null })}
@@ -107,7 +119,7 @@ export function DateRangeFilter({
           </span>
           <Input
             type="date"
-            aria-label="Tugash sanasi"
+            aria-label={kitT().dateRange.to}
             value={value.to ?? ''}
             min={value.from ?? undefined}
             onChange={(e) => onChange({ ...value, to: e.target.value || null })}

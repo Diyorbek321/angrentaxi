@@ -17,8 +17,10 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Skeleton, SkeletonStats } from '@/components/ui/Skeleton';
 import { StatCard } from '@/components/ui/StatCard';
 import { usePageRefresh } from '@/components/shell';
+import { t } from '@/locales';
 
 export default function ReportsPage() {
+  const m = t();
   const { data, isLoading, isRefreshing, error, reload } = useAsyncData<ReportsData>(async () => {
     const res = await marketApi.getReports();
     return res.data.data;
@@ -27,30 +29,31 @@ export default function ReportsPage() {
 
   const exportCsv = () => {
     if (!data) return;
+    const csv = m.reports.csv;
     const rows: Array<Array<string | number>> = [
-      ['Haftalik tushum'],
-      ['Kun', "Tushum (so'm)"],
+      [csv.weeklyRevenue],
+      [csv.day, csv.revenue],
       ...data.weeklyRevenue.map((d) => [d.day, d.total]),
       [],
-      ['Kategoriya bo‘yicha taqsimot'],
-      ['Kategoriya', "Tushum (so'm)", 'Ulush (%)'],
+      [csv.byCategory],
+      [m.common.category, csv.revenue, csv.share],
       ...data.categoryBreakdown.map((c) => [c.name, c.total, c.pct]),
       [],
-      ['Eng ko‘p sotilganlar'],
-      ['Mahsulot', 'Sotilgan (dona)'],
+      [csv.bestSellers],
+      [m.common.product, csv.sold],
       ...data.bestSellers.map((b) => [b.name, b.sold]),
       [],
-      ['Zaxira aylanishi', data.stockTurnover],
+      [csv.turnover, data.stockTurnover],
     ];
     const stamp = new Date().toISOString().slice(0, 10);
-    downloadCsv(`angren-market-hisobot-${stamp}.csv`, rows);
+    downloadCsv(csv.fileName(stamp), rows);
   };
 
   return (
     <div>
       <PageHeader
-        title="Hisobotlar"
-        description="Oxirgi 7 kunlik savdo tahlili"
+        title={m.reports.title}
+        description={m.reports.description}
         actions={
           <>
             <Button
@@ -59,7 +62,7 @@ export default function ReportsPage() {
               isLoading={isRefreshing}
               leftIcon={<RefreshCw size={14} aria-hidden />}
             >
-              Yangilash
+              {m.common.refresh}
             </Button>
             <Button
               variant="secondary"
@@ -67,7 +70,7 @@ export default function ReportsPage() {
               disabled={!data}
               leftIcon={<Download size={14} aria-hidden />}
             >
-              CSV yuklab olish
+              {m.reports.exportCsv}
             </Button>
           </>
         }
@@ -77,7 +80,7 @@ export default function ReportsPage() {
 
       {isLoading ? (
         <div className="space-y-4" aria-busy="true" aria-live="polite">
-          <span className="sr-only">Yuklanmoqda</span>
+          <span className="sr-only">{m.common.loading}</span>
           <SkeletonStats count={4} />
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
             <Skeleton className="h-72 rounded-ds-md" />
@@ -97,6 +100,8 @@ export default function ReportsPage() {
 function ReportsBody({ data }: { data: ReportsData }) {
   // Davr xulosasi — FAQAT real ma'lumotdan. API o'tgan hafta bilan
   // solishtirishni bermaydi, shuning uchun delta YO'Q.
+  const m = t();
+  const r = m.reports;
   const summary = useMemo(() => {
     const weekTotal = data.weeklyRevenue.reduce((s, d) => s + d.total, 0);
     const days = data.weeklyRevenue.length || 1;
@@ -110,44 +115,44 @@ function ReportsBody({ data }: { data: ReportsData }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Haftalik tushum" value={formatNumber(summary.weekTotal)} unit="soʻm" />
-        <StatCard label="Oʻrtacha kunlik" value={formatNumber(summary.avgPerDay)} unit="soʻm" />
+        <StatCard label={r.weeklyRevenue} value={formatNumber(summary.weekTotal)} unit={m.common.som} />
+        <StatCard label={r.avgDaily} value={formatNumber(summary.avgPerDay)} unit={m.common.som} />
         <StatCard
-          label="Eng yaxshi kun"
+          label={r.bestDay}
           value={summary.best && summary.best.total > 0 ? summary.best.day : '—'}
-          hint={summary.best && summary.best.total > 0 ? formatMoney(summary.best.total) : 'Hali sotuv yoʻq'}
+          hint={summary.best && summary.best.total > 0 ? formatMoney(summary.best.total) : m.common.noSalesYet}
         />
         <StatCard
-          label="Zaxira aylanishi"
+          label={r.turnover}
           value={`${formatNumber(data.stockTurnover, data.stockTurnover % 1 === 0 ? 0 : 1)}×`}
-          hint="Joriy zaxiraga nisbatan"
+          hint={r.turnoverHint}
         />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <Card padding="none">
-          <CardHeader title="Kunlik tushum" description={`Jami ${formatMoney(summary.weekTotal)}`} />
+          <CardHeader title={r.dailyRevenue} description={r.totalOf(formatMoney(summary.weekTotal))} />
           <div className="px-4 pb-4 pt-2">
             <ColumnChart
-              ariaLabel="Kunlik tushum"
+              ariaLabel={r.dailyRevenue}
               data={data.weeklyRevenue.map((d) => ({ label: d.day, value: d.total }))}
             />
           </div>
         </Card>
 
         <Card padding="none">
-          <CardHeader title="Kategoriya boʻyicha" description="Tushum ulushi" />
+          <CardHeader title={r.byCategory} description={r.revenueShare} />
           <div className="px-4 pb-4">
             {data.categoryBreakdown.length === 0 ? (
               <EmptyState
                 compact
                 icon={<PieChart aria-hidden />}
-                title="Hali maʼlumot yoʻq"
-                description="Sotuv boshlangach kategoriyalar ulushi shu yerda chiqadi."
+                title={r.noData}
+                description={r.noDataDescription}
               />
             ) : (
               <RankedBars
-                ariaLabel="Kategoriya boʻyicha tushum"
+                ariaLabel={r.byCategoryAria}
                 items={data.categoryBreakdown.map((c) => ({
                   label: c.name,
                   value: c.total,
@@ -160,19 +165,19 @@ function ReportsBody({ data }: { data: ReportsData }) {
       </div>
 
       <Card padding="none" className="max-w-3xl">
-        <CardHeader title="Eng koʻp sotilganlar" description="Dona hisobida" />
+        <CardHeader title={r.bestSellers} description={r.inPieces} />
         <div className="px-4 pb-4">
           {data.bestSellers.length === 0 ? (
             <EmptyState
               compact
               icon={<Trophy aria-hidden />}
-              title="Hali sotuv yoʻq"
-              description="Birinchi sotuvdan keyin reyting shakllanadi."
+              title={m.common.noSalesYet}
+              description={m.common.ratingAfterFirstSale}
             />
           ) : (
             <RankedBars
-              ariaLabel="Eng koʻp sotilgan mahsulotlar"
-              unit="dona"
+              ariaLabel={r.bestSellersAria}
+              unit={m.common.unitPcs}
               items={data.bestSellers.map((b) => ({ label: b.name, value: b.sold }))}
             />
           )}

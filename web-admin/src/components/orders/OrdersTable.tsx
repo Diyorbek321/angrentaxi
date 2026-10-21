@@ -9,81 +9,85 @@ import { PlateNumber } from '@/components/ui/PlateNumber';
 import { OrderStatusBadge } from './OrderStatusBadge';
 import type { Order } from '@/lib/api';
 import { formatDateTime, formatPhone, fullName, shortId } from '@/lib/format';
-import { PAYMENT_METHOD_LABELS, type PaymentMethod } from '@/lib/constants';
+import { paymentMethodLabels, type PaymentMethod } from '@/lib/constants';
+import { t } from '@/locales';
 
 export function orderPrice(order: Order): number {
   return order.finalPrice ?? order.estimatedPrice;
 }
 
-const COLUMNS: DataTableColumn<Order>[] = [
-  {
-    key: 'id',
-    header: 'ID',
-    sortable: true,
-    width: 'w-24',
-    cell: (o) => <span className="font-mono text-xs text-muted whitespace-nowrap">{shortId(o.id)}</span>,
-  },
-  {
-    key: 'passenger',
-    header: 'Yoʻlovchi',
-    cell: (o) => (
-      <div className="min-w-0 leading-tight">
-        <p className="font-medium text-ink truncate">{fullName(o.passenger.firstName, o.passenger.lastName)}</p>
-        <p className="num text-xs text-muted whitespace-nowrap">{formatPhone(o.passenger.phone)}</p>
-      </div>
-    ),
-  },
-  {
-    key: 'driver',
-    header: 'Haydovchi',
-    hideBelow: 'md',
-    cell: (o) =>
-      o.driver ? (
+function buildColumns(): DataTableColumn<Order>[] {
+  const m = t().orders.table;
+  return [
+    {
+      key: 'id',
+      header: 'ID',
+      sortable: true,
+      width: 'w-24',
+      cell: (o) => <span className="font-mono text-xs text-muted whitespace-nowrap">{shortId(o.id)}</span>,
+    },
+    {
+      key: 'passenger',
+      header: m.passenger,
+      cell: (o) => (
         <div className="min-w-0 leading-tight">
-          <p className="font-medium text-ink truncate">{fullName(o.driver.firstName, o.driver.lastName)}</p>
-          {o.driver.carNumber && <PlateNumber plate={o.driver.carNumber} className="mt-0.5" />}
+          <p className="font-medium text-ink truncate">{fullName(o.passenger.firstName, o.passenger.lastName)}</p>
+          <p className="num text-xs text-muted whitespace-nowrap">{formatPhone(o.passenger.phone)}</p>
         </div>
-      ) : (
-        <span className="text-subtle">—</span>
       ),
-  },
-  {
-    key: 'route',
-    header: 'Manzil',
-    hideBelow: 'xl',
-    className: 'max-w-[240px]',
-    cell: (o) => (
-      <div className="min-w-0 leading-tight">
-        <p className="truncate text-ink">{o.pickupAddress ?? '—'}</p>
-        <p className="truncate text-xs text-muted">{o.dropoffAddress ?? '—'}</p>
-      </div>
-    ),
-  },
-  { key: 'status', header: 'Holat', sortable: true, cell: (o) => <OrderStatusBadge status={o.status} /> },
-  {
-    key: 'price',
-    header: 'Narx',
-    numeric: true,
-    sortable: true,
-    cell: (o) => <MoneyText value={orderPrice(o)} className="font-medium" />,
-  },
-  {
-    key: 'payment',
-    header: 'Toʻlov',
-    hideBelow: 'xl',
-    cell: (o) => (
-      <span className="text-muted whitespace-nowrap">
-        {PAYMENT_METHOD_LABELS[o.paymentMethod as PaymentMethod] ?? o.paymentMethod}
-      </span>
-    ),
-  },
-  {
-    key: 'createdAt',
-    header: 'Sana',
-    sortable: true,
-    cell: (o) => <span className="num text-muted whitespace-nowrap">{formatDateTime(o.createdAt)}</span>,
-  },
-];
+    },
+    {
+      key: 'driver',
+      header: m.driver,
+      hideBelow: 'md',
+      cell: (o) =>
+        o.driver ? (
+          <div className="min-w-0 leading-tight">
+            <p className="font-medium text-ink truncate">{fullName(o.driver.firstName, o.driver.lastName)}</p>
+            {o.driver.carNumber && <PlateNumber plate={o.driver.carNumber} className="mt-0.5" />}
+          </div>
+        ) : (
+          <span className="text-subtle">—</span>
+        ),
+    },
+    {
+      key: 'route',
+      header: m.route,
+      hideBelow: 'xl',
+      className: 'max-w-[240px]',
+      cell: (o) => (
+        <div className="min-w-0 leading-tight">
+          <p className="truncate text-ink">{o.pickupAddress ?? '—'}</p>
+          <p className="truncate text-xs text-muted">{o.dropoffAddress ?? '—'}</p>
+        </div>
+      ),
+    },
+    { key: 'status', header: m.status, sortable: true, cell: (o) => <OrderStatusBadge status={o.status} /> },
+    {
+      key: 'price',
+      header: m.price,
+      numeric: true,
+      sortable: true,
+      cell: (o) => <MoneyText value={orderPrice(o)} className="font-medium" />,
+    },
+    {
+      key: 'payment',
+      header: m.payment,
+      hideBelow: 'xl',
+      cell: (o) => (
+        <span className="text-muted whitespace-nowrap">
+          {paymentMethodLabels()[o.paymentMethod as PaymentMethod] ?? o.paymentMethod}
+        </span>
+      ),
+    },
+    {
+      key: 'createdAt',
+      header: m.date,
+      sortable: true,
+      cell: (o) => <span className="num text-muted whitespace-nowrap">{formatDateTime(o.createdAt)}</span>,
+    },
+  ];
+}
 
 interface OrdersTableProps {
   orders: Order[];
@@ -112,10 +116,11 @@ export function OrdersTable({
   toolbar,
 }: OrdersTableProps) {
   const router = useRouter();
+  const m = t().orders.table;
   return (
     <DataTable
-      ariaLabel="Buyurtmalar"
-      columns={COLUMNS}
+      ariaLabel={m.ariaLabel}
+      columns={buildColumns()}
       rows={orders}
       rowKey={(o) => o.id}
       loading={isLoading}
@@ -129,12 +134,12 @@ export function OrdersTable({
       toolbar={toolbar}
       isFiltered={hasActiveFilters}
       onClearFilters={onClearFilters}
-      emptyFiltered={{ title: 'Hech narsa mos kelmadi', description: 'Tanlangan filtrlar boʻyicha buyurtma topilmadi.' }}
+      emptyFiltered={{ title: m.emptyFilteredTitle, description: m.emptyFilteredDescription }}
       empty={{
         variant: 'first-use',
         icon: <ClipboardList aria-hidden />,
-        title: 'Hozircha buyurtmalar yoʻq',
-        description: 'Yoʻlovchilar buyurtma berishi bilan ular shu jadvalda paydo boʻladi.',
+        title: m.emptyTitle,
+        description: m.emptyDescription,
       }}
     />
   );

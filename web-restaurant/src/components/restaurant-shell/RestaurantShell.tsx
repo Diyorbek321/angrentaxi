@@ -20,10 +20,10 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
 import { KioskFrame } from './KioskFrame';
 import { OpenToggle } from './OpenToggle';
-import { ORDERS_HREF, RESTAURANT_NAV } from './nav-config';
+import { ORDERS_HREF, restaurantNav } from './nav-config';
+import { t } from '@/locales';
 import { useRefreshAll } from '@/components/shell';
 
-const BASE_TITLE = 'Angren Taxi — Restoran paneli';
 const CHROME_POLL_MS = 30_000;
 
 interface Chrome {
@@ -44,6 +44,7 @@ export function RestaurantShell({
   children: ReactNode;
   initialCollapsed?: boolean;
 }) {
+  const m = t().shell;
   const router = useRouter();
   const { user, isLoading, isAuthenticated, logout } = useAuth();
   const { kiosk, setKiosk } = useKiosk();
@@ -68,10 +69,12 @@ export function RestaurantShell({
     // eshitadi. Buyurtmalar sahifasining 15 s poll'i bilan dedup modul ichida.
     trackNewOrders(orders, restaurant?.notifications.sound ?? false);
     // Ovozsiz: faqat toast — bekor qilish ish emas, oshxonani chalg'itmaydi.
+    // Matnlar shu yerda olinadi (callback barqaror, til almashsa daraxt qayta o'rnatiladi).
+    const sm = t().shell;
     cancelTrackerRef.current(orders).forEach((o) =>
       toastRef.current({
-        title: `${shortId(o.id)} — mijoz bekor qildi`,
-        description: o.cancelReason?.trim() ? `Sabab: ${o.cancelReason.trim()}` : 'Sabab koʻrsatilmagan',
+        title: sm.customerCancelled(shortId(o.id)),
+        description: o.cancelReason?.trim() ? sm.cancelReason(o.cancelReason.trim()) : sm.noCancelReason,
         variant: 'info',
       })
     );
@@ -90,9 +93,10 @@ export function RestaurantShell({
 
   // Fon vkladkasi ham yangi buyurtmani ko'rsatadi: brauzer tab sarlavhasida son.
   useEffect(() => {
-    document.title = newOrders > 0 ? `(${newOrders}) Yangi buyurtma — ${BASE_TITLE}` : BASE_TITLE;
+    const base = t().shell.baseTitle;
+    document.title = newOrders > 0 ? t().shell.titleWithNew(newOrders, base) : base;
     return () => {
-      document.title = BASE_TITLE;
+      document.title = base;
     };
   }, [newOrders]);
 
@@ -127,7 +131,7 @@ export function RestaurantShell({
 
   const nav: NavGroup[] = useMemo(
     () =>
-      RESTAURANT_NAV.map((group) => ({
+      restaurantNav().map((group) => ({
         ...group,
         items: group.items.map((item) =>
           item.href === ORDERS_HREF ? { ...item, badge: newOrders } : item
@@ -137,14 +141,14 @@ export function RestaurantShell({
   );
 
   const shellUser: ShellUser | null = user
-    ? { firstName: user.firstName, lastName: user.lastName, phone: user.phone, role: 'Restoran menejeri' }
+    ? { firstName: user.firstName, lastName: user.lastName, phone: user.phone, role: m.role }
     : null;
 
   if (isLoading || !isAuthenticated) {
     return (
       <div className="min-h-screen bg-bg flex items-center justify-center p-6">
         <div role="status" aria-live="polite" className="w-full max-w-sm flex flex-col items-center gap-3">
-          <span className="sr-only">Sessiya tekshirilmoqda</span>
+          <span className="sr-only">{m.checkingSession}</span>
           <Skeleton className="h-10 w-10 rounded-ds-sm" />
           <Skeleton className="h-3.5 w-40" />
         </div>
@@ -182,10 +186,10 @@ export function RestaurantShell({
     >
       <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-danger" />
       <p className="min-w-0 flex-1 text-[13px] font-medium text-danger-dark dark:text-danger-light">
-        Qabul yopiq — mijozlar hozir buyurtma bera olmaydi.
+        {m.pausedBanner}
       </p>
       <Button variant="secondary" size="sm" isLoading={togglingOpen} onClick={toggleOpen}>
-        Qabulni ochish
+        {m.openIntake}
       </Button>
     </div>
   );
@@ -206,7 +210,7 @@ export function RestaurantShell({
 
   return (
     <AppShell
-      brand={{ name: 'Angren Taxi', subtitle: restaurant?.name ?? 'Restoran', href: '/dashboard' }}
+      brand={{ name: 'Angren Taxi', subtitle: restaurant?.name ?? m.restaurantFallback, href: '/dashboard' }}
       nav={nav}
       user={shellUser}
       onLogout={handleLogout}
@@ -221,7 +225,7 @@ export function RestaurantShell({
           <LiveMetric
             icon={<BellRing aria-hidden />}
             value={newOrders}
-            label="Yangi buyurtmalar"
+            label={m.newOrders}
             href={ORDERS_HREF}
             tone={newOrders > 0 ? 'attention' : 'neutral'}
             loading={chrome.status === 'loading'}

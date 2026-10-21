@@ -21,6 +21,7 @@ import {
   type EnforcementPhase,
 } from '@/lib/compliance';
 import { formatDateShort } from '@/lib/format';
+import { t } from '@/locales';
 
 interface Form {
   enforce: boolean;
@@ -52,14 +53,16 @@ const intIn = (v: string, min: number, max: number) => {
 };
 
 function validate(f: Form): Errors {
+  const m = t();
+  const v = m.compliance.legal.validation;
   const e: Errors = {};
-  if (f.enforce && !isIsoDate(f.enforceDate)) e.enforceDate = 'Sanani kiriting';
-  if (!intIn(f.minAge, 18, 70)) e.minAge = '18 dan 70 gacha butun son';
-  if (!intIn(f.experience, 0, 30)) e.experience = '0 dan 30 gacha butun son';
-  if (!intIn(f.vehicleAge, 1, 50)) e.vehicleAge = '1 dan 50 gacha butun son';
+  if (f.enforce && !isIsoDate(f.enforceDate)) e.enforceDate = m.finance.enterDate;
+  if (!intIn(f.minAge, 18, 70)) e.minAge = v.intRange(18, 70);
+  if (!intIn(f.experience, 0, 30)) e.experience = v.intRange(0, 30);
+  if (!intIn(f.vehicleAge, 1, 50)) e.vehicleAge = v.intRange(1, 50);
   const rate = Number(f.taxRate);
   if (!/^\d{1,3}(\.\d{1,2})?$/.test(f.taxRate.trim()) || rate > 100) {
-    e.taxRate = '0 dan 100 gacha, koʻpi bilan 2 kasr xona';
+    e.taxRate = v.taxRate;
   }
   const tinError = validateOptionalTin(f.platformTin);
   if (tinError) e.platformTin = tinError;
@@ -76,41 +79,47 @@ const toDto = (f: Form): LegalComplianceSettings => ({
   platformTin: f.platformTin.trim() === '' ? null : f.platformTin.trim(),
 });
 
-const PHASE_BADGE: Record<EnforcementPhase, { label: string; variant: 'neutral' | 'info' | 'danger' }> = {
-  off: { label: 'Majburlanmaydi', variant: 'neutral' },
-  grace: { label: 'Muhlat davri', variant: 'info' },
-  enforced: { label: 'Majburlanmoqda', variant: 'danger' },
+const phaseBadge = (): Record<EnforcementPhase, { label: string; variant: 'neutral' | 'info' | 'danger' }> => {
+  const p = t().compliance.legal.phase;
+  return {
+    off: { label: p.off, variant: 'neutral' },
+    grace: { label: p.grace, variant: 'info' },
+    enforced: { label: p.enforced, variant: 'danger' },
+  };
 };
 
 function EnforcementNotice({ phase, date }: { phase: EnforcementPhase; date: string }) {
+  const n = t().compliance.legal.notice;
   if (phase === 'off') {
     return (
       <Notice tone="neutral">
-        Talablar majburlanmaydi: yetishmayotgan maʼlumotlar haydovchi ilovasida faqat ogohlantirish sifatida koʻrinadi.
+        {n.off}
       </Notice>
     );
   }
-  const consequence =
-    'talablarga javob bermaydigan haydovchi taksi uchun onlayn chiqa olmaydi va «Taksi» xizmatini yoqa olmaydi. Kuryer va yuk tashuvchi bloklanmaydi — taksi va kuryer ikkalasi yoqilgan haydovchi taksini oʻchirib, kuryer sifatida ishlashni davom ettirishi mumkin.';
+  const consequence = n.consequence;
   if (phase === 'grace') {
     return (
-      <Notice tone="info" title={`Muhlat: ${date} gacha`}>
-        Haydovchilar maʼlumotlarini toʻldirishga ulguradi. Shu kundan {consequence}
+      <Notice tone="info" title={n.graceTitle(date)}>
+        {n.graceBody} {consequence}
       </Notice>
     );
   }
   return (
-    <Notice tone="danger" title="Talablar majburlanmoqda">
-      Hozirdan {consequence}
+    <Notice tone="danger" title={n.enforcedTitle}>
+      {n.enforcedBody} {consequence}
     </Notice>
   );
 }
 
 export default function LegalCompliancePage() {
+  const m = t();
+  const l$ = m.compliance.legal;
+  const PHASE_BADGE = phaseBadge();
   const { toast } = useToast();
   const res = useResource(
     () => financeSettingsApi.getLegalCompliance().then((r) => r.data.data),
-    'Huquqiy talablar sozlamalarini yuklab boʻlmadi.'
+    l$.loadError
   );
   const [form, setForm] = useState<Form | null>(null);
   const [errors, setErrors] = useState<Errors>({});
@@ -150,10 +159,10 @@ export default function LegalCompliancePage() {
         dateChanged ? { ...rest, legalComplianceEnforcedFrom } : rest
       );
       res.setData(r.data.data);
-      toast({ title: 'Saqlandi', description: 'Huquqiy talablar sozlamalari yangilandi.', variant: 'success' });
+      toast({ title: m.finance.saved, description: l$.savedDesc, variant: 'success' });
       setConfirming(false);
     } catch (err) {
-      toast({ title: 'Xatolik', description: apiErrorMessage(err, 'Saqlashda xatolik'), variant: 'error' });
+      toast({ title: m.common.error, description: apiErrorMessage(err, m.common.saveError), variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -174,13 +183,13 @@ export default function LegalCompliancePage() {
   return (
     <div className="px-4 sm:px-6 py-5">
       <PageHeader
-        title="Huquqiy talablar"
-        description="VMQ 200 haydovchi talablari, 1% soliqni ushlab qolish (PQ-247) va platforma STIR'i"
+        title={l$.title}
+        description={l$.description}
       />
       <div className="max-w-3xl space-y-4">
         <SettingsSection
-          title="Haydovchi talablari va soliq"
-          description="Standart holatda hech narsa majburlanmaydi va soliq ushlanmaydi."
+          title={l$.sectionTitle}
+          description={l$.sectionDesc}
           badge={
             res.data ? (
               <Badge variant={PHASE_BADGE[savedPhase].variant} dot>
@@ -207,22 +216,22 @@ export default function LegalCompliancePage() {
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <p id="enforce-title" className="text-sm font-medium text-ink">
-                      Talablarni majburlash (taksi)
+                      {l$.enforceTitle}
                     </p>
                     <p className="mt-0.5 text-xs text-muted">
-                      Kelajak sana — muhlat davri; oʻtgan sana — darhol majburlanadi.
+                      {l$.enforceHint}
                     </p>
                   </div>
                   <Switch
                     checked={form.enforce}
                     onCheckedChange={(v) => update({ enforce: v })}
                     tone="danger"
-                    aria-label="Talablarni majburlash"
+                    aria-label={l$.enforceAria}
                   />
                 </div>
                 {form.enforce && (
                   <Input
-                    label="Majburlash sanasi (Toshkent, 00:00 dan)"
+                    label={l$.enforceDateLabel}
                     type="date"
                     value={form.enforceDate}
                     error={errors.enforceDate}
@@ -235,7 +244,7 @@ export default function LegalCompliancePage() {
 
               <div className="grid gap-4 border-t border-line pt-4 sm:grid-cols-3">
                 <Input
-                  label="Minimal yosh"
+                  label={l$.minAge}
                   type="number"
                   inputMode="numeric"
                   value={form.minAge}
@@ -244,21 +253,21 @@ export default function LegalCompliancePage() {
                   onChange={(e) => update({ minAge: e.target.value })}
                 />
                 <Input
-                  label="Haydash staji, yil"
+                  label={l$.experience}
                   type="number"
                   inputMode="numeric"
                   value={form.experience}
                   error={errors.experience}
-                  hint="B toifasi, VMQ 200: 3"
+                  hint={l$.experienceHint}
                   onChange={(e) => update({ experience: e.target.value })}
                 />
                 <Input
-                  label="Mashina yoshi, max yil"
+                  label={l$.vehicleAge}
                   type="number"
                   inputMode="numeric"
                   value={form.vehicleAge}
                   error={errors.vehicleAge}
-                  hint="Shahar ichida, VMQ 200: 15"
+                  hint={l$.vehicleAgeHint}
                   onChange={(e) => update({ vehicleAge: e.target.value })}
                 />
               </div>
@@ -267,22 +276,21 @@ export default function LegalCompliancePage() {
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <p id="tax-title" className="text-sm font-medium text-ink">
-                      Aylanma soligʻini ushlab qolish
+                      {l$.taxTitle}
                     </p>
                     <p className="mt-0.5 text-xs text-muted">
-                      Har yakunlangan safar/yetkazishdan (yakuniy narx) haydovchi hamyonidan ushlanadi. Smena yoki
-                      aksiya uni oʻchirmaydi.
+                      {l$.taxHint}
                     </p>
                   </div>
                   <Switch
                     checked={form.taxEnabled}
                     onCheckedChange={(v) => update({ taxEnabled: v })}
-                    aria-label="Soliqni ushlab qolish"
+                    aria-label={l$.taxAria}
                   />
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Input
-                    label="Stavka, %"
+                    label={l$.rate}
                     type="number"
                     inputMode="decimal"
                     step="0.01"
@@ -292,14 +300,14 @@ export default function LegalCompliancePage() {
                     onChange={(e) => update({ taxRate: e.target.value })}
                   />
                   <Input
-                    label="Platforma STIR'i"
+                    label={l$.platformTin}
                     inputMode="numeric"
                     mono
                     maxLength={9}
-                    placeholder="9 ta raqam"
+                    placeholder={l$.tinPh}
                     value={form.platformTin}
                     error={errors.platformTin}
-                    hint="Smena fiskal yozuvida sotuvchi sifatida. Boʻsh — kiritilmagan."
+                    hint={l$.tinHint}
                     onChange={(e) => update({ platformTin: e.target.value.replace(/\D/g, '') })}
                   />
                 </div>
@@ -315,21 +323,20 @@ export default function LegalCompliancePage() {
         onConfirm={persist}
         isPending={saving}
         tone={becomesEnforced ? 'danger' : 'default'}
-        title="Oʻzgarishlarni tasdiqlash"
-        confirmLabel="Saqlash"
+        title={l$.confirmTitle}
+        confirmLabel={m.common.save}
         description={
           <ul className="list-disc space-y-1.5 pl-4">
             {becomesEnforced && (
               <li>
-                Talablar <strong>darhol</strong> majburlanadi: javob bermaydigan haydovchilar taksi uchun onlayn chiqa
-                olmaydi.
+                {l$.confirmEnforceBefore} <strong>{l$.confirmEnforceStrong}</strong> {l$.confirmEnforceAfter}
               </li>
             )}
             {taxChanged && form && (
               <li>
                 {form.taxEnabled
-                  ? `Keyingi yakunlangan safarlardan ${form.taxRate}% soliq haydovchi hamyonidan ushlanadi.`
-                  : 'Soliq ushlab qolish toʻxtatiladi — platforma soliq agenti majburiyatini qoʻlda bajaradi.'}
+                  ? l$.confirmTaxOn(form.taxRate)
+                  : l$.confirmTaxOff}
               </li>
             )}
           </ul>

@@ -12,7 +12,8 @@ import { Avatar } from '@/components/ui/Avatar';
 import { PlateNumber } from '@/components/ui/PlateNumber';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useToast } from '@/components/ui/Toast';
-import { formatPhone, formatRating, shortId } from '@/lib/format';
+import { formatPhone, formatRating, nameFallback, shortId } from '@/lib/format';
+import { t } from '@/locales';
 
 interface AssignDriverModalProps {
   isOpen: boolean;
@@ -36,6 +37,7 @@ export function AssignDriverModal({
   const [assigningDriverId, setAssigningDriverId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const m = t().dispatch.assign;
 
   const isReassign = !!order?.driver;
   const reasonValid = reason.trim().length >= MIN_REASON_LENGTH;
@@ -67,13 +69,13 @@ export function AssignDriverModal({
       setSearchQuery('');
       setReason('');
       toast({
-        title: `Qoʻlda aralashuv: ${driver.name} tayinlandi`,
-        description: `Buyurtma ${shortId(order.id)} · sabab amallar tarixiga yozildi.`,
+        title: m.assignedToast(driver.name ?? ''),
+        description: m.assignedToastDesc(shortId(order.id)),
         variant: 'success',
       });
     } catch (err) {
       console.error('Assign failed:', err);
-      setError('Haydovchini tayinlab boʻlmadi. Qaytadan urinib koʻring.');
+      setError(m.assignFailed);
     } finally {
       setAssigningDriverId(null);
     }
@@ -93,8 +95,8 @@ export function AssignDriverModal({
       onClose={handleClose}
       tone="override"
       size="xl"
-      title={isReassign ? 'Qoʻlda aralashuv — haydovchini almashtirish' : 'Qoʻlda aralashuv — haydovchi tayinlash'}
-      subtitle={order ? `Buyurtma ${shortId(order.id)}` : undefined}
+      title={isReassign ? m.titleReassign : m.titleAssign}
+      subtitle={order ? m.orderSubtitle(shortId(order.id)) : undefined}
     >
       {order && (
         <div className="space-y-4">
@@ -102,9 +104,7 @@ export function AssignDriverModal({
           <div className="flex items-start gap-2.5 rounded-ds-sm border border-override/40 bg-override-tint p-3">
             <AlertTriangle size={15} className="text-override shrink-0 mt-0.5" />
             <p className="text-xs text-override-dark dark:text-override-light leading-relaxed">
-              Buyurtmalarga haydovchi odatda <strong>avtomatik</strong> tayinlanadi. Bu oynadan
-              faqat istisno holatlarda foydalaning — haydovchi topilmadi, SOS, mashina buzildi va
-              hokazo. Har bir aralashuv sababi bilan amallar tarixiga yoziladi.
+              {m.introBefore}<strong>{m.introStrong}</strong>{m.introAfter}
             </p>
           </div>
 
@@ -120,34 +120,33 @@ export function AssignDriverModal({
             </div>
             {isReassign && order.driver && (
               <p className="text-xs text-muted pt-1 border-t border-line">
-                Hozirgi haydovchi: <strong className="text-ink">{order.driver.name}</strong>{' '}
-                <PlateNumber plate={order.driver.carNumber} /> — yangi haydovchi
-                tanlansa, buyurtma unga oʻtkaziladi.
+                {m.currentDriver} <strong className="text-ink">{order.driver.name}</strong>{' '}
+                <PlateNumber plate={order.driver.carNumber} /> {m.currentDriverNote}
               </p>
             )}
           </div>
 
           {/* Reason — required, recorded in the dispatch override audit log */}
           <Textarea
-            label="Aralashuv sababi (majburiy)"
-            placeholder="Masalan: haydovchi topilmadi, mijoz 20 daqiqa kutdi"
+            label={m.reasonLabel}
+            placeholder={m.reasonPlaceholder}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             rows={2}
             error={
               reason.length > 0 && !reasonValid
-                ? `Sabab kamida ${MIN_REASON_LENGTH} belgidan iborat boʻlishi kerak.`
+                ? m.reasonMin(MIN_REASON_LENGTH)
                 : undefined
             }
             hint={
               reasonValid
-                ? 'Sabab yozildi — endi haydovchi tanlashingiz mumkin.'
-                : 'Sabab kiritilmaguncha tayinlash tugmalari oʻchiq turadi.'
+                ? m.reasonOk
+                : m.reasonHint
             }
           />
 
           <Input
-            placeholder="Ism, mashina raqami yoki telefon boʻyicha qidirish"
+            placeholder={m.searchPlaceholder}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             leftElement={<Search size={14} />}
@@ -166,12 +165,12 @@ export function AssignDriverModal({
                 compact
                 title={
                   freeDrivers.length === 0
-                    ? 'Boʻsh haydovchi yoʻq'
-                    : 'Qidiruvga mos haydovchi topilmadi'
+                    ? m.noFreeDrivers
+                    : m.noMatches
                 }
                 description={
                   freeDrivers.length === 0
-                    ? 'Hozircha barcha onlayn haydovchilar band.'
+                    ? m.allBusy
                     : undefined
                 }
               />
@@ -184,9 +183,9 @@ export function AssignDriverModal({
                   <Avatar name={driver.name} size="sm" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="text-[13px] font-medium text-ink truncate">{driver.name || 'Ism kiritilmagan'}</p>
+                      <p className="text-[13px] font-medium text-ink truncate">{driver.name || nameFallback()}</p>
                       <Badge variant="success" size="sm">
-                        Boʻsh
+                        {m.free}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-2.5 mt-0.5 text-[11px] text-muted">
@@ -211,10 +210,10 @@ export function AssignDriverModal({
                     onClick={() => handleAssign(driver)}
                     isLoading={assigningDriverId === driver.id}
                     disabled={assigningDriverId !== null || !reasonValid}
-                    title={!reasonValid ? 'Avval sababni kiriting' : undefined}
+                    title={!reasonValid ? m.enterReasonFirst : undefined}
                     leftIcon={<UserCog size={13} />}
                   >
-                    {isReassign ? 'Almashtirish' : 'Tayinlash'}
+                    {isReassign ? m.reassign : m.assign}
                   </Button>
                 </div>
               ))
@@ -222,7 +221,7 @@ export function AssignDriverModal({
           </div>
 
           <p className="num text-[11px] text-subtle text-center">
-            {freeDrivers.length} ta boʻsh haydovchi onlayn
+            {m.freeOnline(freeDrivers.length)}
           </p>
         </div>
       )}

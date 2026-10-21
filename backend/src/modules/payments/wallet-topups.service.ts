@@ -31,6 +31,7 @@ import { MoneyContext } from './money-context';
 import { sameSomAmount } from './tiyin';
 import { ConfigService } from '@nestjs/config';
 import { PaymentInitiateOptions } from './payment.interface';
+import { localized } from '../notifications/push-text';
 
 /**
  * Provayderga yuboriladigan merchant havolasi: `topup_<uuid>`. Buyurtma
@@ -337,8 +338,10 @@ export class WalletTopupsService {
       delta: amount,
       reason: 'topup',
       push: {
-        title: "Hamyon to'ldirildi",
-        body: `Hamyoningiz ${formatSom(amount)} so'mga to'ldirildi`,
+        text: localized({
+          uz: { title: "Hamyon to'ldirildi", body: `Hamyoningiz ${formatSom(amount)} so'mga to'ldirildi` },
+          ru: { title: 'Кошелёк пополнен', body: `Кошелёк пополнен на ${formatSom(amount)} сум` },
+        }),
         event: 'wallet_topup_paid',
       },
       extra: { topupId },
@@ -418,8 +421,16 @@ export class WalletTopupsService {
       delta: -amount,
       reason: 'topup_reversal',
       push: {
-        title: "To'lov bekor qilindi",
-        body: `Hamyonni ${formatSom(amount)} so'mga to'ldirish bekor qilindi — summa hamyondan qaytarib olindi`,
+        text: localized({
+          uz: {
+            title: "To'lov bekor qilindi",
+            body: `Hamyonni ${formatSom(amount)} so'mga to'ldirish bekor qilindi — summa hamyondan qaytarib olindi`,
+          },
+          ru: {
+            title: 'Платёж отменён',
+            body: `Пополнение кошелька на ${formatSom(amount)} сум отменено — сумма списана с кошелька`,
+          },
+        }),
         event: 'wallet_topup_reversed',
       },
       extra: { topupId },

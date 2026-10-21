@@ -7,6 +7,8 @@ import {
   setSessionCookies,
 } from "@/lib/server/auth-cookies";
 import { crossOriginRejection, isSameOrigin } from "@/lib/server/same-origin";
+import { getServerLocale } from "@/lib/i18n/server";
+import { t } from "@/locales";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,6 +25,7 @@ export const dynamic = "force-dynamic";
  * `setSessionCookies` leaves the refresh cookie untouched when no new one arrives.
  */
 export async function POST(req: NextRequest) {
+  getServerLocale();
   if (!isSameOrigin(req)) return crossOriginRejection();
 
   const refreshToken = req.cookies.get(REFRESH_TOKEN_COOKIE)?.value;
@@ -50,7 +53,7 @@ export async function POST(req: NextRequest) {
     // A network blip is not proof the session is gone — keep the cookies so the
     // next attempt can still succeed.
     return NextResponse.json(
-      { success: false, message: "Serverga ulanib boʻlmadi" },
+      { success: false, message: t().lib.authRoute.serverUnreachable },
       { status: 502 },
     );
   }

@@ -26,27 +26,29 @@ import {
   CreateStoreVendorInput,
   CreateRestaurantVendorInput,
 } from '@/lib/api';
+import { t } from '@/locales';
 
 type Tab = 'stores' | 'restaurants';
 type Vendor = StoreVendor | RestaurantVendor;
 type StatusFilter = 'all' | 'active' | 'closed';
 
-const STATUS_LABELS: Record<Vendor['status'], string> = {
-  active: 'Faol',
-  closed: 'Yopiq',
-};
-
-const STATUS_ITEMS: { value: StatusFilter; label: string }[] = [
-  { value: 'all', label: 'Hammasi' },
-  { value: 'active', label: 'Faol' },
-  { value: 'closed', label: 'Yopiq' },
-];
+function statusItems(): { value: StatusFilter; label: string }[] {
+  const v = t().vendors;
+  return [
+    { value: 'all', label: v.all },
+    { value: 'active', label: v.status.active },
+    { value: 'closed', label: v.status.closed },
+  ];
+}
 
 function ownerName(v: Vendor): string {
   return fullName(v.owner.firstName, v.owner.lastName, '—');
 }
 
 export default function VendorsPage() {
+  const m = t();
+  const vm = m.vendors;
+  const STATUS_LABELS: Record<Vendor['status'], string> = vm.status;
   const { toast } = useToast();
   const pagination = usePagination(20);
   const [tab, setTab] = useState<Tab>('stores');
@@ -76,8 +78,8 @@ export default function VendorsPage() {
       setError(null);
     } catch {
       // Last good rows stay on screen; DataTable shows banner + retry.
-      setError('Sotuvchilarni yuklashda xatolik');
-      toast({ title: 'Xatolik', description: 'Sotuvchilarni yuklashda xatolik', variant: 'error' });
+      setError(vm.loadError);
+      toast({ title: m.common.error, description: vm.loadError, variant: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -139,7 +141,7 @@ export default function VendorsPage() {
   if (search.trim()) {
     chips.push({
       key: 'search',
-      label: `Qidiruv: "${search.trim()}"`,
+      label: vm.chipSearch(search.trim()),
       onRemove: () => {
         setSearch('');
         pagination.reset();
@@ -149,7 +151,7 @@ export default function VendorsPage() {
   if (statusFilter !== 'all') {
     chips.push({
       key: 'status',
-      label: `Holat: ${STATUS_LABELS[statusFilter]}`,
+      label: vm.chipStatus(STATUS_LABELS[statusFilter]),
       onRemove: () => {
         setStatusFilter('all');
         pagination.reset();
@@ -170,15 +172,12 @@ export default function VendorsPage() {
         setRestaurants((prev) => prev.map((r) => (r.id === v.id ? { ...r, status: next } : r)));
       }
       toast({
-        title: next === 'closed' ? `«${v.name}» yopildi` : `«${v.name}» ochildi`,
-        description:
-          next === 'closed'
-            ? "Mijozlar ilovasida ko'rinmaydi va yangi buyurtma qabul qilmaydi."
-            : 'Mijozlar ilovasida yana buyurtma qabul qiladi.',
+        title: next === 'closed' ? vm.closedToast(v.name) : vm.openedToast(v.name),
+        description: next === 'closed' ? vm.closedDesc : vm.openedDesc,
         variant: 'success',
       });
     } catch {
-      toast({ title: 'Xatolik', description: "Holatni o'zgartirib bo'lmadi", variant: 'error' });
+      toast({ title: m.common.error, description: vm.statusChangeFailed, variant: 'error' });
     } finally {
       setTogglingId(null);
     }
@@ -187,33 +186,33 @@ export default function VendorsPage() {
   const handleExportCsv = () => {
     if (filteredRows.length === 0) return;
     downloadCsv<Vendor>(
-      `${tab === 'stores' ? 'dokonlar' : 'restoranlar'}-${new Date().toISOString().slice(0, 10)}.csv`,
+      vm.csvFile(tab === 'stores', new Date().toISOString().slice(0, 10)),
       [
-        { header: 'Nomi', value: (v) => v.name },
-        { header: 'Egasi', value: (v) => ownerName(v) },
-        { header: 'Telefon', value: (v) => v.owner.phone },
-        { header: 'Manzil', value: (v) => v.address ?? '' },
-        { header: 'STIR', value: (v) => v.tin ?? '' },
-        { header: 'Holat', value: (v) => STATUS_LABELS[v.status] },
-        { header: "Qo'shilgan sana", value: (v) => formatDate(v.createdAt) },
+        { header: vm.colName, value: (v) => v.name },
+        { header: vm.colOwner, value: (v) => ownerName(v) },
+        { header: vm.colPhone, value: (v) => v.owner.phone },
+        { header: vm.colAddress, value: (v) => v.address ?? '' },
+        { header: vm.colTin, value: (v) => v.tin ?? '' },
+        { header: vm.colStatus, value: (v) => STATUS_LABELS[v.status] },
+        { header: vm.colAddedDate, value: (v) => formatDate(v.createdAt) },
       ],
       filteredRows
     );
-    toast({ title: 'CSV yuklab olindi', description: `${filteredRows.length} ta qator`, variant: 'success' });
+    toast({ title: vm.csvDone, description: vm.csvRows(filteredRows.length), variant: 'success' });
   };
 
-  const addLabel = tab === 'stores' ? "Yangi do'kon" : 'Yangi restoran';
+  const addLabel = tab === 'stores' ? vm.newStore : vm.newRestaurant;
 
   const columns: DataTableColumn<Vendor>[] = [
     {
       key: 'name',
-      header: 'Nomi',
+      header: vm.colName,
       sortable: true,
       cell: (v) => <span className="font-medium text-ink">{v.name}</span>,
     },
     {
       key: 'owner',
-      header: 'Egasi',
+      header: vm.colOwner,
       cell: (v) => (
         <div className="min-w-0 leading-tight">
           <p className="text-ink truncate">{ownerName(v)}</p>
@@ -223,7 +222,7 @@ export default function VendorsPage() {
     },
     {
       key: 'address',
-      header: 'Manzil',
+      header: vm.colAddress,
       hideBelow: 'lg',
       className: 'max-w-[240px]',
       cell: (v) => (
@@ -236,18 +235,14 @@ export default function VendorsPage() {
       // Fiskal chekda komitent STIR'i (LEGAL-COMPLIANCE §3). Sotuvchi o'zi
       // kiritadi; admin bu yerdan tuzatadi (§23, audit `vendor.tin_update`).
       key: 'tin',
-      header: 'STIR',
+      header: vm.colTin,
       hideBelow: 'lg',
       cell: (v) => (
         <button
           type="button"
           onClick={() => setTinTarget({ kind: tab, id: v.id, name: v.name, tin: v.tin })}
-          aria-label={`STIRni tahrirlash: ${v.name}`}
-          title={
-            v.tin
-              ? 'STIRni tahrirlash'
-              : "Sotuvchi STIR kiritmagan — chek butun summani platforma aylanmasi deb ko'rsatadi"
-          }
+          aria-label={vm.editTinAria(v.name)}
+          title={v.tin ? vm.editTin : vm.noTinHint}
           className="group inline-flex items-center gap-1.5 rounded-ds-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
           {v.tin ? (
@@ -261,7 +256,7 @@ export default function VendorsPage() {
     },
     {
       key: 'status',
-      header: 'Holat',
+      header: vm.colStatus,
       sortable: true,
       cell: (v) => (
         <Badge variant={v.status === 'active' ? 'success' : 'neutral'} dot>
@@ -271,14 +266,14 @@ export default function VendorsPage() {
     },
     {
       key: 'createdAt',
-      header: "Qo'shilgan",
+      header: vm.colAdded,
       sortable: true,
       hideBelow: 'md',
       cell: (v) => <span className="num text-muted whitespace-nowrap">{formatDateShort(v.createdAt)}</span>,
     },
     {
       key: 'actions',
-      header: <span className="sr-only">Amal</span>,
+      header: <span className="sr-only">{vm.colAction}</span>,
       align: 'right',
       cell: (v) => (
         <Button
@@ -287,7 +282,7 @@ export default function VendorsPage() {
           isLoading={togglingId === v.id}
           onClick={() => toggleStatus(v)}
         >
-          {v.status === 'active' ? 'Yopish' : 'Ochish'}
+          {v.status === 'active' ? vm.close : vm.open}
         </Button>
       ),
     },
@@ -296,8 +291,8 @@ export default function VendorsPage() {
   return (
     <div className="px-4 sm:px-6 py-5">
       <PageHeader
-        title="Sotuvchilar"
-        description="Market do'konlari va restoranlarni boshqarish"
+        title={vm.title}
+        description={vm.description}
         actions={
           <>
             <Button
@@ -306,7 +301,7 @@ export default function VendorsPage() {
               disabled={filteredRows.length === 0}
               leftIcon={<Download size={14} aria-hidden />}
             >
-              CSV eksport
+              {vm.exportCsv}
             </Button>
             <Button leftIcon={<Plus size={14} aria-hidden />} onClick={() => setShowAdd(true)}>
               {addLabel}
@@ -316,11 +311,11 @@ export default function VendorsPage() {
       />
 
       <Tabs
-        ariaLabel="Sotuvchi turi"
+        ariaLabel={vm.tabsAria}
         className="mb-4"
         items={[
-          { value: 'stores', label: "Do'konlar", count: stores.length },
-          { value: 'restaurants', label: 'Restoranlar', count: restaurants.length },
+          { value: 'stores', label: vm.stores, count: stores.length },
+          { value: 'restaurants', label: vm.restaurants, count: restaurants.length },
         ]}
         value={tab}
         onChange={(v) => {
@@ -330,7 +325,7 @@ export default function VendorsPage() {
       />
 
       <DataTable
-        ariaLabel={tab === 'stores' ? "Do'konlar" : 'Restoranlar'}
+        ariaLabel={tab === 'stores' ? vm.stores : vm.restaurants}
         columns={columns}
         rows={pagedRows}
         rowKey={(v) => v.id}
@@ -347,14 +342,14 @@ export default function VendorsPage() {
               setSearch(v);
               pagination.reset();
             }}
-            searchPlaceholder="Nomi, egasi, telefon yoki manzil…"
-            searchAriaLabel="Sotuvchilarni qidirish"
+            searchPlaceholder={vm.searchPlaceholder}
+            searchAriaLabel={vm.searchAria}
             chips={chips}
             onClearAll={clearAllFilters}
           >
             <SegmentedControl
-              ariaLabel="Holat bo'yicha filtr"
-              items={STATUS_ITEMS}
+              ariaLabel={vm.statusFilter}
+              items={statusItems()}
               value={statusFilter}
               onChange={(v) => {
                 setStatusFilter(v as StatusFilter);
@@ -365,12 +360,12 @@ export default function VendorsPage() {
         }
         isFiltered={hasActiveFilters}
         onClearFilters={clearAllFilters}
-        emptyFiltered={{ title: 'Hech narsa mos kelmadi', description: `Tanlangan filtrlar bo'yicha ${tab === 'stores' ? "do'kon" : 'restoran'} topilmadi.` }}
+        emptyFiltered={{ title: vm.noMatchTitle, description: tab === 'stores' ? vm.noMatchStores : vm.noMatchRestaurants }}
         empty={{
           variant: 'first-use',
           icon: tab === 'stores' ? <Store aria-hidden /> : <UtensilsCrossed aria-hidden />,
-          title: tab === 'stores' ? "Hali do'kon yo'q" : "Hali restoran yo'q",
-          description: "Birinchi sotuvchini qo'shing — u darhol o'z panelida ishlay boshlaydi.",
+          title: tab === 'stores' ? vm.emptyStores : vm.emptyRestaurants,
+          description: vm.emptyDesc,
           action: (
             <Button size="sm" leftIcon={<Plus size={14} aria-hidden />} onClick={() => setShowAdd(true)}>
               {addLabel}
@@ -415,6 +410,8 @@ function AddVendorModal({
   onClose: () => void;
   onCreated: () => Promise<void>;
 }) {
+  const m = t();
+  const a = m.vendors.add;
   const { toast } = useToast();
   const [phone, setPhone] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -430,12 +427,12 @@ function AddVendorModal({
 
   const validate = (): boolean => {
     const errors: Record<string, string> = {};
-    if (!phone.trim()) errors.phone = 'Telefon raqamini kiriting';
+    if (!phone.trim()) errors.phone = a.phoneRequired;
     else if (!/^\+?998\d{9}$/.test(phone.trim().replace(/[\s-]/g, '')))
-      errors.phone = "Noto'g'ri format (+998XXXXXXXXX)";
-    if (!name.trim()) errors.name = 'Nomini kiriting';
-    if (lat && Number.isNaN(Number(lat))) errors.lat = "Raqam bo'lishi kerak";
-    if (lng && Number.isNaN(Number(lng))) errors.lng = "Raqam bo'lishi kerak";
+      errors.phone = a.phoneFormat;
+    if (!name.trim()) errors.name = a.nameRequired;
+    if (lat && Number.isNaN(Number(lat))) errors.lat = a.mustBeNumber;
+    if (lng && Number.isNaN(Number(lng))) errors.lng = a.mustBeNumber;
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -469,7 +466,7 @@ function AddVendorModal({
         };
         await foodAdminApi.create(input);
       }
-      toast({ title: "Sotuvchi qo'shildi", variant: 'success' });
+      toast({ title: a.added, variant: 'success' });
       setPhone(''); setFirstName(''); setLastName(''); setName('');
       setAddress(''); setVendorPhone(''); setLat(''); setLng('');
       setFieldErrors({});
@@ -477,8 +474,8 @@ function AddVendorModal({
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "Sotuvchi qo'shishda xatolik";
-      toast({ title: 'Xatolik', description: message, variant: 'error' });
+        a.addFailed;
+      toast({ title: m.common.error, description: message, variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -489,22 +486,22 @@ function AddVendorModal({
       isOpen={open}
       onClose={onClose}
       size="lg"
-      title={kind === 'stores' ? "Yangi do'kon qo'shish" : "Yangi restoran qo'shish"}
-      description="Sotuvchi darhol o'z panelida ishlay boshlaydi."
+      title={kind === 'stores' ? a.titleStore : a.titleRestaurant}
+      description={a.description}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={saving}>
-            Bekor qilish
+            {m.common.cancel}
           </Button>
           <Button onClick={save} isLoading={saving}>
-            Saqlash
+            {m.common.save}
           </Button>
         </>
       }
     >
       <div className="flex flex-col gap-3.5">
         <Input
-          label="Egasi telefon raqami"
+          label={a.ownerPhone}
           placeholder="+998901234599"
           type="tel"
           className="num"
@@ -514,20 +511,20 @@ function AddVendorModal({
           required
         />
         <div className="grid grid-cols-2 gap-3">
-          <Input label="Ismi" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-          <Input label="Familiyasi" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+          <Input label={a.firstName} value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+          <Input label={a.lastName} value={lastName} onChange={(e) => setLastName(e.target.value)} />
         </div>
         <Input
-          label={kind === 'stores' ? "Do'kon nomi" : 'Restoran nomi'}
+          label={kind === 'stores' ? a.storeName : a.restaurantName}
           value={name}
           error={fieldErrors.name}
           onChange={(e) => setName(e.target.value)}
           required
         />
-        <Input label="Manzil" value={address} onChange={(e) => setAddress(e.target.value)} />
+        <Input label={a.address} value={address} onChange={(e) => setAddress(e.target.value)} />
         <Input
-          label="Kontakt telefon"
-          hint="Ixtiyoriy — egasinikidan farqli bo'lsa"
+          label={a.contactPhone}
+          hint={a.contactPhoneHint}
           type="tel"
           className="num"
           value={vendorPhone}
@@ -535,7 +532,7 @@ function AddVendorModal({
         />
         <div className="grid grid-cols-2 gap-3">
           <Input
-            label="Lat (kenglik)"
+            label={a.lat}
             placeholder="40.0956"
             inputMode="decimal"
             className="num"
@@ -544,7 +541,7 @@ function AddVendorModal({
             onChange={(e) => setLat(e.target.value)}
           />
           <Input
-            label="Lng (uzunlik)"
+            label={a.lng}
             placeholder="70.9432"
             inputMode="decimal"
             className="num"
@@ -554,8 +551,7 @@ function AddVendorModal({
           />
         </div>
         <p className="text-xs text-muted">
-          Koordinatalar kuryer yuborish uchun kerak — hozir qoldirilsa, keyinroq sotuvchi o&apos;zi
-          Sozlamalar bo&apos;limidan kiritishi mumkin.
+          {a.coordsNote}
         </p>
       </div>
     </Modal>

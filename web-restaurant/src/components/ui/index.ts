@@ -50,6 +50,7 @@ export * from './Table';
 export * from './Tabs';
 export * from './Textarea';
 export * from './ThemeToggle';
+export * from './LanguageToggle';
 export * from './Toast';
 export * from './Tooltip';
 export { cn } from './cn';

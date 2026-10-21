@@ -9,6 +9,7 @@ import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { filterNav, writeCollapseCookie } from './nav-utils';
 import type { NavGroup, ShellBrand, ShellUser } from './types';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 export interface AppShellProps {
   brand: ShellBrand;
@@ -26,6 +27,8 @@ export interface AppShellProps {
   actions?: ReactNode;
   onSearch?: (query: string) => void;
   searchPlaceholder?: string;
+  /** Topbar UZ | RU switch (default true). */
+  showLanguageToggle?: boolean;
   /**
    * Read the collapse cookie in the SERVER layout and pass it here, so the
    * first HTML already has the right width (no flash).
@@ -57,6 +60,7 @@ export function AppShell({
   actions,
   onSearch,
   searchPlaceholder,
+  showLanguageToggle,
   initialCollapsed = false,
   collapseCookie,
   banner,
@@ -99,7 +103,7 @@ export function AppShell({
         href="#main"
         className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[80] focus:rounded-ds-sm focus:bg-surface focus:px-3 focus:py-2 focus:text-sm focus:shadow-pop"
       >
-        Asosiy kontentga oʻtish
+        {kitT().shell.skipToContent}
       </a>
       <Sidebar
         brand={brand}
@@ -119,6 +123,7 @@ export function AppShell({
           actions={actions}
           onSearch={onSearch}
           searchPlaceholder={searchPlaceholder}
+          showLanguageToggle={showLanguageToggle}
           user={user}
           onLogout={onLogout}
           userMenuItems={userMenuItems}

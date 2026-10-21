@@ -18,6 +18,7 @@ import { Skeleton, SkeletonStats } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
 import { downloadCsv } from '@/lib/csv';
 import { formatDateTime, formatNumber, formatTime, shortId } from '@/lib/format';
+import { t } from '@/locales';
 
 // One page of overrides is what the report reads; the caveat under the KPI
 // row says so rather than implying the whole history was summed.
@@ -25,11 +26,14 @@ const FETCH_LIMIT = 100;
 
 type Period = 'today' | '7d' | '30d';
 
-const PERIODS: readonly { value: Period; label: string }[] = [
-  { value: 'today', label: 'Bugun' },
-  { value: '7d', label: '7 kun' },
-  { value: '30d', label: '30 kun' },
-];
+function periods(): readonly { value: Period; label: string }[] {
+  const p = t().drivers.shiftReport.periods;
+  return [
+    { value: 'today', label: p.today },
+    { value: '7d', label: p.d7 },
+    { value: '30d', label: p.d30 },
+  ];
+}
 
 function periodStart(period: Period): Date {
   const from = new Date();
@@ -39,6 +43,9 @@ function periodStart(period: Period): Date {
 }
 
 export default function ShiftReportPage() {
+  const m = t();
+  const sr = m.drivers.shiftReport;
+  const PERIODS = periods();
   const { toast } = useToast();
 
   const [overrides, setOverrides] = useState<DispatchOverride[]>([]);
@@ -60,7 +67,7 @@ export default function ShiftReportPage() {
       setError(null);
     } catch (err) {
       console.error('Failed to load shift report:', err);
-      setError('Smena hisobotini yuklab boʻlmadi.');
+      setError(t().drivers.shiftReport.loadError);
     } finally {
       setIsLoading(false);
       setHasLoadedOnce(true);
@@ -84,7 +91,7 @@ export default function ShiftReportPage() {
     if (inPeriod.length === 0) return;
     downloadCsv(
       `smena-hisoboti-${period}`,
-      ['Vaqt', 'Buyurtma', 'Operator', 'Oldingi haydovchi', 'Yangi haydovchi', 'Sabab'],
+      [sr.csv.time, sr.csv.order, sr.csv.operator, sr.csv.prevDriver, sr.csv.newDriver, sr.csv.reason],
       inPeriod.map((o) => [
         formatDateTime(o.createdAt, { withYear: true }),
         shortId(o.orderId),
@@ -95,8 +102,8 @@ export default function ShiftReportPage() {
       ])
     );
     toast({
-      title: `${inPeriod.length} ta aralashuv CSV faylga eksport qilindi`,
-      description: `Davr: ${periodLabel}`,
+      title: sr.exported(inPeriod.length),
+      description: sr.periodDesc(periodLabel),
       variant: 'success',
     });
   };
@@ -106,8 +113,8 @@ export default function ShiftReportPage() {
   return (
     <PageBody className="max-w-5xl">
         <PageHeader
-          title="Smena hisoboti"
-          description="Operator hal qilgan istisnolar — davr boʻyicha"
+          title={sr.title}
+          description={sr.description}
           actions={
             <>
               <Button
@@ -116,9 +123,9 @@ export default function ShiftReportPage() {
                 onClick={handleExport}
                 disabled={inPeriod.length === 0}
                 leftIcon={<Download size={13} aria-hidden />}
-                title="Tanlangan davr yozuvlarini CSV sifatida yuklab olish"
+                title={sr.exportTitle}
               >
-                CSV eksport
+                {m.drivers.list.export}
               </Button>
               <Button
                 variant="secondary"
@@ -127,7 +134,7 @@ export default function ShiftReportPage() {
                 isLoading={isLoading && hasLoadedOnce}
                 leftIcon={<RefreshCw size={13} aria-hidden />}
               >
-                Yangilash
+                {m.common.refresh}
               </Button>
             </>
           }
@@ -138,7 +145,7 @@ export default function ShiftReportPage() {
           items={PERIODS}
           value={period}
           onChange={setPeriod}
-          ariaLabel="Hisobot davri"
+          ariaLabel={sr.periodAria}
           className="mb-4"
         />
 
@@ -150,7 +157,7 @@ export default function ShiftReportPage() {
           <Card padding="none">
             <ErrorState
               title={error}
-              message="Tarmoq yoki server xatosi. Qayta urinib koʻring."
+              message={m.drivers.bonuses.networkError}
               onRetry={fetchData}
               retrying={isLoading}
             />
@@ -163,36 +170,35 @@ export default function ShiftReportPage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {/* Amber = a human stepped in: the one KPI that earns it. */}
                 <StatCard
-                  label={`Qoʻlda aralashuvlar · ${periodLabel}`}
+                  label={sr.overridesKpi(periodLabel)}
                   value={formatNumber(inPeriod.length)}
                   tone={inPeriod.length > 0 ? 'override' : 'neutral'}
-                  hint="Har biri sababi bilan amallar tarixiga yozilgan"
+                  hint={sr.overridesHint}
                 />
                 {/* The SOS endpoint returns today's figures only — the label
                     says «bugun» in every period so the number is never read
                     as the selected range. */}
                 <StatCard
-                  label="Yopilgan SOS · bugun"
+                  label={sr.sosResolved}
                   value={formatNumber(sos?.resolvedToday ?? 0)}
-                  hint={sos && sos.stillOpen > 0 ? `${sos.stillOpen} tasi hali ochiq` : 'Ochiq signal qolmadi'}
+                  hint={sos && sos.stillOpen > 0 ? sr.stillOpen(sos.stillOpen) : sr.noOpen}
                 />
                 <StatCard
-                  label="Ochiq SOS signallari"
+                  label={sr.sosOpen}
                   value={formatNumber(sos?.stillOpen ?? 0)}
                   tone={sos && sos.stillOpen > 0 ? 'danger' : 'neutral'}
-                  hint={sos && sos.stillOpen > 0 ? 'Istisnolar sahifasida koʻrib chiqing' : 'Hammasi yopilgan'}
+                  hint={sos && sos.stillOpen > 0 ? sr.reviewExceptions : sr.allClosed}
                 />
               </div>
             )}
 
             <p className="text-xs text-subtle -mt-3">
-              Aralashuvlar oxirgi {FETCH_LIMIT} ta yozuvdan hisoblanadi. SOS koʻrsatkichlari faqat
-              bugungi kun uchun mavjud.
+              {sr.caveat(FETCH_LIMIT)}
             </p>
 
             <Card padding="none" className="overflow-hidden">
               <CardHeader
-                title={`Aralashuvlar · ${periodLabel}`}
+                title={sr.listTitle(periodLabel)}
                 divider
                 actions={
                   !showSkeleton && inPeriod.length > 0 ? (
@@ -216,10 +222,10 @@ export default function ShiftReportPage() {
                   icon={<CheckCircle2 aria-hidden />}
                   title={
                     period === 'today'
-                      ? 'Bugun qoʻlda aralashuv boʻlmadi'
-                      : `Bu davrda (${periodLabel}) aralashuv boʻlmadi`
+                      ? sr.emptyToday
+                      : sr.emptyPeriod(periodLabel)
                   }
-                  description="Tizim barcha buyurtmalarni oʻzi taqsimladi."
+                  description={sr.emptyDesc}
                 />
               ) : (
                 <ul className="divide-y divide-line">
@@ -239,7 +245,7 @@ export default function ShiftReportPage() {
                             {shortId(o.orderId)}
                           </Link>
                           <Badge variant="override" size="sm">
-                            Qoʻlda aralashuv
+                            {sr.override}
                           </Badge>
                         </div>
                         <p className="text-[13px] text-ink mt-1 break-words">{o.reason}</p>

@@ -15,6 +15,7 @@ import {
   validateBalanceAdjustment,
 } from '@/lib/balance-adjustment';
 import { DriverAuditHistory } from './DriverAuditHistory';
+import { t } from '@/locales';
 
 export interface DriverFinanceModalProps {
   driver: DriverProfile | null;
@@ -32,6 +33,8 @@ export interface DriverFinanceModalProps {
  * slip past. Commission is a setting, not a transfer: it gets a toast.
  */
 export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinanceModalProps) {
+  const m = t();
+  const f = m.drivers.finance;
   const { toast } = useToast();
   const [current, setCurrent] = useState<DriverProfile | null>(driver);
   const [fundsAmount, setFundsAmount] = useState('');
@@ -74,7 +77,7 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
     }
     // Izoh majburiy: amallar jurnaliga va haydovchiga push matniga tushadi.
     if (!fundsNote.trim()) {
-      setFundsNoteError('Izoh majburiy — sababini yozing');
+      setFundsNoteError(f.noteRequired);
       return;
     }
     setFundsError(null);
@@ -85,7 +88,7 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
   const handleAddFunds = async () => {
     if (!current) return;
     const amount = Number(fundsAmount);
-    const verb = amount > 0 ? 'qoʻshiladi' : 'yechiladi';
+    const verb = amount > 0 ? f.added : f.withdrawn;
     setFundsConfirm(false);
 
     setSaving('funds');
@@ -97,9 +100,7 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
       setHistoryKey((k) => k + 1);
       toast({
         title: `${formatMoney(Math.abs(amount))} ${verb}`,
-        description: `${fullName(updated.firstName, updated.lastName)} · yangi qoldiq ${formatMoney(
-          updated.walletBalance ?? 0
-        )}`,
+        description: f.newBalance(fullName(updated.firstName, updated.lastName), formatMoney(updated.walletBalance ?? 0)),
         variant: 'success',
       });
     } catch (err) {
@@ -108,8 +109,8 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
       const limitMessage = manualAdjustmentLimitMessage(err);
       if (limitMessage) setFundsError(limitMessage);
       toast({
-        title: apiErrorTitle(err, 'Balansni yangilab boʻlmadi'),
-        description: balanceAdjustmentErrorMessage(err, 'Summa oʻzgarmadi. Qayta urinib koʻring.'),
+        title: apiErrorTitle(err, f.balanceError),
+        description: balanceAdjustmentErrorMessage(err, f.balanceErrorDesc),
         variant: 'error',
       });
     } finally {
@@ -122,7 +123,7 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
     const trimmed = commissionInput.trim();
     const rate = trimmed === '' ? null : Number(trimmed);
     if (rate != null && (Number.isNaN(rate) || rate < 0 || rate > 100)) {
-      setCommissionError('0 dan 100 gacha foiz kiriting');
+      setCommissionError(f.commissionRange);
       return;
     }
     setCommissionError(null);
@@ -132,13 +133,13 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
       applyUpdate(updated);
       toast({
         title:
-          rate == null ? 'Platforma komissiyasi qoʻllanadi' : `Komissiya ${rate}% qilib saqlandi`,
+          rate == null ? f.commissionDefault : f.commissionSaved(rate),
         description: fullName(updated.firstName, updated.lastName),
         variant: 'success',
       });
     } catch (err) {
       console.error('Set commission rate failed:', err);
-      toast({ title: 'Komissiya foizini yangilab boʻlmadi', variant: 'error' });
+      toast({ title: f.commissionError, variant: 'error' });
     } finally {
       setSaving(null);
     }
@@ -148,8 +149,8 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
     <Modal
       isOpen={!!driver}
       onClose={onClose}
-      title={current ? `${fullName(current.firstName, current.lastName)} — moliya` : 'Moliya'}
-      subtitle="Pul harakati tasdiqlashdan soʻng amalga oshadi"
+      title={current ? f.title(fullName(current.firstName, current.lastName)) : f.titleShort}
+      subtitle={f.subtitle}
       size="md"
     >
       {current && (
@@ -159,7 +160,7 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
                 shu raqamni ko'radi. `balance` ustuni yechib olingan pulni
                 hisobga olmagani uchun bu yerda ishlatilmaydi. */}
             <p className="text-xs text-muted">
-              {(current.walletBalance ?? 0) < 0 ? 'Qarz' : 'Hamyon'}
+              {(current.walletBalance ?? 0) < 0 ? f.debt : f.wallet}
             </p>
             <p
               className={`num text-kpi mt-1 ${
@@ -172,15 +173,15 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
             </p>
             {current.commissionRate != null && (
               <p className="text-[11px] text-subtle mt-1">
-                Komissiya: <span className="num">{current.commissionRate}%</span>
+                {f.commissionLabel} <span className="num">{current.commissionRate}%</span>
               </p>
             )}
           </div>
 
           <div className="space-y-2">
-            <p className="text-sm font-medium text-ink">Balansni toʻldirish / tuzatish</p>
+            <p className="text-sm font-medium text-ink">{f.topUpTitle}</p>
             <Input
-              placeholder="Summa (ayirish uchun manfiy son)"
+              placeholder={f.amountPlaceholder}
               type="number"
               inputMode="numeric"
               step={1}
@@ -190,20 +191,20 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
                 if (fundsError) setFundsError(null);
               }}
               error={fundsError ?? undefined}
-              aria-label="Summa"
+              aria-label={f.amount}
               // Locked while confirming: the figure in the confirmation must be
               // the figure that gets applied.
               disabled={fundsConfirm}
             />
             <Input
-              placeholder="Izoh (majburiy)"
+              placeholder={f.notePlaceholder}
               value={fundsNote}
               onChange={(e) => {
                 setFundsNote(e.target.value);
                 if (fundsNoteError) setFundsNoteError(null);
               }}
               error={fundsNoteError ?? undefined}
-              aria-label="Izoh"
+              aria-label={f.note}
               required
               maxLength={200}
               disabled={fundsConfirm}
@@ -211,14 +212,14 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
             {fundsConfirm && current ? (
               <div
                 role="alertdialog"
-                aria-label="Balans oʻzgarishini tasdiqlash"
+                aria-label={f.confirmAria}
                 className="rounded-ds-sm border border-override/40 bg-override-tint p-3 space-y-3"
               >
                 <p className="text-[13px] text-ink">
-                  <span className="font-semibold">{fullName(current.firstName, current.lastName)}</span>{' '}
-                  hisobidan{' '}
+                  <span className="font-semibold">{fullName(current.firstName, current.lastName)}</span>
+                  {f.confirmMid}
                   <MoneyText value={Math.abs(Number(fundsAmount))} className="font-semibold" />{' '}
-                  {Number(fundsAmount) > 0 ? 'qoʻshiladi' : 'yechiladi'}.
+                  {Number(fundsAmount) > 0 ? f.added : f.withdrawn}.
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -227,7 +228,7 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
                     onClick={() => setFundsConfirm(false)}
                     className="flex-1"
                   >
-                    Bekor qilish
+                    {m.common.cancel}
                   </Button>
                   <Button
                     size="sm"
@@ -236,7 +237,7 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
                     isLoading={saving === 'funds'}
                     className="flex-1"
                   >
-                    Tasdiqlash
+                    {m.common.confirm}
                   </Button>
                 </div>
               </div>
@@ -248,7 +249,7 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
                 isLoading={saving === 'funds'}
                 className="w-full"
               >
-                Qoʻllash
+                {f.apply}
               </Button>
             )}
           </div>
@@ -258,9 +259,9 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
           </div>
 
           <div className="space-y-2 pt-4 border-t border-line">
-            <p className="text-sm font-medium text-ink">Komissiya foizi</p>
+            <p className="text-sm font-medium text-ink">{f.commissionTitle}</p>
             <Input
-              placeholder="% — boʻsh qoldirilsa platforma qiymati"
+              placeholder={f.commissionPlaceholder}
               type="number"
                 value={commissionInput}
               onChange={(e) => {
@@ -268,7 +269,7 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
                 if (commissionError) setCommissionError(null);
               }}
               error={commissionError ?? undefined}
-              aria-label="Komissiya foizi"
+              aria-label={f.commissionTitle}
             />
             <Button
               size="sm"
@@ -277,7 +278,7 @@ export function DriverFinanceModal({ driver, onClose, onUpdated }: DriverFinance
               isLoading={saving === 'commission'}
               className="w-full"
             >
-              Saqlash
+              {m.common.save}
             </Button>
           </div>
         </div>

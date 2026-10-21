@@ -14,6 +14,7 @@ import {
   type IntercityRoute,
   type IntercityRouteForm,
 } from '@/lib/intercity';
+import { t } from '@/locales';
 
 interface RouteFormModalProps {
   open: boolean;
@@ -65,6 +66,8 @@ const fromRoute = (route: IntercityRoute): Draft => ({
 });
 
 export function RouteFormModal({ open, route, points, onClose, onSaved }: RouteFormModalProps) {
+  const m = t();
+  const fm = m.intercity.routeForm;
   const { toast } = useToast();
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [errors, setErrors] = useState<FormErrors<IntercityRouteForm>>({});
@@ -101,10 +104,10 @@ export function RouteFormModal({ open, route, points, onClose, onSaved }: RouteF
     try {
       if (route) {
         await intercityApi.updateRoute(route.id, toRoutePayload(form, 'update'));
-        toast({ title: 'Yoʻnalish yangilandi', variant: 'success' });
+        toast({ title: fm.updated, variant: 'success' });
       } else {
         await intercityApi.createRoute(form);
-        toast({ title: 'Yoʻnalish qoʻshildi', variant: 'success' });
+        toast({ title: fm.added, variant: 'success' });
       }
       onClose();
       await onSaved();
@@ -114,8 +117,8 @@ export function RouteFormModal({ open, route, points, onClose, onSaved }: RouteF
         setServerReasons(parsed.reasons.map((r) => r.message));
       } else {
         toast({
-          title: apiErrorTitle(err, 'Saqlab boʻlmadi'),
-          description: parsed.message ?? 'Yoʻnalishni saqlashda xatolik',
+          title: apiErrorTitle(err, m.intercity.pointForm.saveFailed),
+          description: parsed.message ?? fm.saveError,
           variant: 'error',
         });
       }
@@ -129,15 +132,15 @@ export function RouteFormModal({ open, route, points, onClose, onSaved }: RouteF
       isOpen={open}
       onClose={onClose}
       size="lg"
-      title={route ? 'Yoʻnalishni tahrirlash' : 'Yangi yoʻnalish'}
-      description="Har bir yoʻnalish bir tomonga: Angren → Toshkent va Toshkent → Angren alohida qoʻshiladi."
+      title={route ? fm.editTitle : fm.newTitle}
+      description={fm.description}
       footer={
         <>
           <Button type="button" variant="secondary" onClick={onClose}>
-            Bekor qilish
+            {m.common.cancel}
           </Button>
           <Button type="submit" form="intercity-route-form" isLoading={saving}>
-            {route ? 'Saqlash' : 'Qoʻshish'}
+            {route ? m.common.save : m.common.add}
           </Button>
         </>
       }
@@ -146,22 +149,22 @@ export function RouteFormModal({ open, route, points, onClose, onSaved }: RouteF
         {route ? (
           // Uchlar o'zgarmaydi: boshqa uchlar — boshqa yo'nalish (backend PATCH ham qabul qilmaydi).
           <div className="rounded-ds-sm border border-line bg-surface-2 px-3 py-2">
-            <p className="text-xs text-muted">Yoʻnalish</p>
+            <p className="text-xs text-muted">{fm.route}</p>
             <p className="text-sm font-medium text-ink">{routeLabel(route)}</p>
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             <Select
-              label="Qayerdan"
-              placeholder="Nuqtani tanlang"
+              label={fm.from}
+              placeholder={fm.pickPoint}
               options={pointOptions}
               value={draft.originPointId}
               error={errors.originPointId}
               onChange={(e) => update('originPointId', e.target.value)}
             />
             <Select
-              label="Qayerga"
-              placeholder="Nuqtani tanlang"
+              label={fm.to}
+              placeholder={fm.pickPoint}
               options={pointOptions}
               value={draft.destinationPointId}
               error={errors.destinationPointId}
@@ -174,7 +177,7 @@ export function RouteFormModal({ open, route, points, onClose, onSaved }: RouteF
           <legend className="text-sm font-medium text-ink">Start</legend>
           <div className="grid grid-cols-2 gap-3">
             <Input
-              label="Oʻrindiq narxi, soʻm"
+              label={fm.seatPrice}
               type="number"
               inputMode="numeric"
               min={1}
@@ -185,7 +188,7 @@ export function RouteFormModal({ open, route, points, onClose, onSaved }: RouteF
               onChange={(e) => update('seatPrice', e.target.value)}
             />
             <Input
-              label="Butun mashina, soʻm"
+              label={fm.wholePrice}
               type="number"
               inputMode="numeric"
               min={1}
@@ -202,7 +205,7 @@ export function RouteFormModal({ open, route, points, onClose, onSaved }: RouteF
           <legend className="text-sm font-medium text-ink">Comfort</legend>
           <div className="grid grid-cols-2 gap-3">
             <Input
-              label="Oʻrindiq narxi, soʻm"
+              label={fm.seatPrice}
               type="number"
               inputMode="numeric"
               min={1}
@@ -213,7 +216,7 @@ export function RouteFormModal({ open, route, points, onClose, onSaved }: RouteF
               onChange={(e) => update('comfortSeatPrice', e.target.value)}
             />
             <Input
-              label="Butun mashina, soʻm"
+              label={fm.wholePrice}
               type="number"
               inputMode="numeric"
               min={1}
@@ -224,11 +227,11 @@ export function RouteFormModal({ open, route, points, onClose, onSaved }: RouteF
               onChange={(e) => update('comfortWholeCarPrice', e.target.value)}
             />
           </div>
-          <p className="text-xs text-muted">Ikkalasi boʻsh — bu yoʻnalishda Comfort yoʻq.</p>
+          <p className="text-xs text-muted">{fm.comfortEmptyHint}</p>
         </fieldset>
 
         <Input
-          label="Mashinadagi oʻrindiqlar"
+          label={fm.seats}
           type="number"
           inputMode="numeric"
           min={1}
@@ -236,7 +239,7 @@ export function RouteFormModal({ open, route, points, onClose, onSaved }: RouteF
           step={1}
           value={draft.seatsDefault}
           error={errors.seatsDefault}
-          hint="Haydovchi qatnov eʼlon qilganda shundan koʻp joy bera olmaydi."
+          hint={fm.seatsHint}
           onChange={(e) => update('seatsDefault', e.target.value)}
           wrapperClassName="max-w-[12rem]"
         />

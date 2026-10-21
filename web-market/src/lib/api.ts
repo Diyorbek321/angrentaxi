@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { attachAuthInterceptor } from './session';
+import { getLocale } from './i18n/core';
 import type { DeliveryInfo } from './courier';
 import type { VendorWalletSettlement } from './vendor-cash';
 import type { OrderV5Fields } from './order-extras';
@@ -18,7 +19,8 @@ export const API_PROXY_BASE_URL = '/api/proxy';
 
 const api = axios.create({
   baseURL: API_PROXY_BASE_URL,
-  // Panel o'zbekcha: server xatolari ham o'zbekcha (brauzer tili ruscha bo'lsa ham).
+  // Server xatolari panel tilida (brauzer tilida emas) — pastdagi interceptor
+  // har so'rovda joriy panel tilini qo'yadi.
   headers: { 'Content-Type': 'application/json', 'Accept-Language': 'uz' },
   // Same-origin now, so the session cookie rides along automatically.
   withCredentials: true,
@@ -27,6 +29,11 @@ const api = axios.create({
 // Handles 401 -> single-flight refresh -> retry. See lib/session.ts for why the
 // refresh must never run more than once at a time.
 attachAuthInterceptor(api);
+
+api.interceptors.request.use((config) => {
+  config.headers.set('Accept-Language', getLocale());
+  return config;
+});
 
 export default api;
 

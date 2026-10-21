@@ -1,3 +1,5 @@
+import { t } from '@/locales';
+
 /**
  * Recharts SVG'ga rang MATN sifatida (`stroke`/`fill` proplari) beriladi —
  * u yerda Tailwind klassi ham, `rgb(var(--token))` ham ishlamaydi. Shuning
@@ -32,4 +34,6 @@ export const CHART_COLORS = {
 export const CHART_BAR_MAX_PX = 32;
 export const CHART_MIN_POINTS = 3;
 export const CHART_HEIGHT_PX = 240;
-export const CHART_NOT_ENOUGH_DATA = 'Grafik uchun maʼlumot yetarli emas';
+export function chartNotEnoughData(): string {
+  return t().dashboard.chart.notEnoughData;
+}

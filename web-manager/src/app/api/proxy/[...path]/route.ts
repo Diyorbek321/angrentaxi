@@ -3,6 +3,8 @@ import { API_BASE_URL } from "@/lib/server/api-config";
 import { clientIpHeaders } from "@/lib/server/client-ip";
 import { ACCESS_TOKEN_COOKIE } from "@/lib/server/auth-cookies";
 import { crossOriginRejection, isSameOrigin } from "@/lib/server/same-origin";
+import { getServerLocale } from "@/lib/i18n/server";
+import { t } from "@/locales";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,6 +51,7 @@ async function forward(
   req: NextRequest,
   segments: string[],
 ): Promise<NextResponse> {
+  getServerLocale();
   if (!SAFE_METHODS.has(req.method) && !isSameOrigin(req)) {
     return crossOriginRejection();
   }
@@ -88,7 +91,7 @@ async function forward(
     });
   } catch {
     return NextResponse.json(
-      { success: false, message: "Serverga ulanib boʻlmadi" },
+      { success: false, message: t().lib.authRoute.serverUnreachable },
       { status: 502 },
     );
   }

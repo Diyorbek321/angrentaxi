@@ -12,6 +12,8 @@ export interface DeliverySettingsValues {
   deliveryEtaMaxMinutes: number;
 }
 
+import { t } from '@/locales';
+
 export type DeliverySettingsErrors = Partial<Record<keyof DeliverySettingsValues, string>>;
 
 export const DELIVERY_ETA_MIN = 5;
@@ -26,11 +28,12 @@ function isNonNegative(value: number): boolean {
 }
 
 export function validateDeliverySettings(values: DeliverySettingsValues): DeliverySettingsErrors {
+  const v = t().finance.delivery;
   const errors: DeliverySettingsErrors = {};
-  const etaRange = `${DELIVERY_ETA_MIN}–${DELIVERY_ETA_MAX} oraligʻida butun daqiqa kiriting`;
-  if (!isNonNegative(values.deliveryFee)) errors.deliveryFee = 'Musbat summa kiriting';
+  const etaRange = v.etaRange(DELIVERY_ETA_MIN, DELIVERY_ETA_MAX);
+  if (!isNonNegative(values.deliveryFee)) errors.deliveryFee = v.positiveAmount;
   if (!isNonNegative(values.freeDeliveryFrom)) {
-    errors.freeDeliveryFrom = 'Musbat summa kiriting (0 — oʻchiq)';
+    errors.freeDeliveryFrom = v.positiveAmountOrOff;
   }
   if (!isEtaMinutes(values.deliveryEtaMinMinutes)) errors.deliveryEtaMinMinutes = etaRange;
   if (!isEtaMinutes(values.deliveryEtaMaxMinutes)) {
@@ -39,7 +42,7 @@ export function validateDeliverySettings(values: DeliverySettingsValues): Delive
     !errors.deliveryEtaMinMinutes &&
     values.deliveryEtaMinMinutes > values.deliveryEtaMaxMinutes
   ) {
-    errors.deliveryEtaMaxMinutes = 'Eng koʻpi eng kamidan kichik boʻlmasin';
+    errors.deliveryEtaMaxMinutes = v.maxBelowMin;
   }
   return errors;
 }

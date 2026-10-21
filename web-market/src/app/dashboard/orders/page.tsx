@@ -5,7 +5,7 @@ import { Check, ClipboardList, Info } from 'lucide-react';
 import { marketApi, MarketOrder, MarketOrderStatus } from '@/lib/api';
 import { walletSwitchNotice } from '@/lib/vendor-settlement';
 import type { VendorSettlementContext } from '@/lib/vendor-cash';
-import { ORDER_STATUS, compareOrders } from '@/lib/order-status';
+import { orderStatusMeta, compareOrders } from '@/lib/order-status';
 import { errorMessage } from '@/lib/utils';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
@@ -27,6 +27,7 @@ import { cn } from '@/components/ui/cn';
 import { OrderDrawer } from '@/components/orders/OrderDrawer';
 import { ORDER_ROW_GRID, OrderCardMobile, OrderRow } from '@/components/orders/OrderRow';
 import { usePageRefresh } from '@/components/shell';
+import { t } from '@/locales';
 
 type TabKey = 'all' | MarketOrderStatus;
 
@@ -35,6 +36,8 @@ const TAB_ORDER: TabKey[] = ['all', 'new', 'packing', 'shipped', 'delivered', 'c
 const POLL_INTERVAL_MS = 30_000;
 
 export default function OrdersPage() {
+  const m = t();
+  const om = m.orders;
   const { toast } = useToast();
   const [tab, setTab] = useState<TabKey>('all');
   const [selected, setSelected] = useState<Record<string, boolean>>({});
@@ -80,7 +83,7 @@ export default function OrdersPage() {
     for (const o of orders) counts[o.status] = (counts[o.status] ?? 0) + 1;
     return TAB_ORDER.map((value) => ({
       value,
-      label: value === 'all' ? 'Barchasi' : ORDER_STATUS[value].label,
+      label: value === 'all' ? t().common.all : orderStatusMeta(value).label,
       count: counts[value] ?? 0,
     }));
   }, [orders]);
@@ -111,9 +114,9 @@ export default function OrdersPage() {
       await Promise.all(targets.map((o) => marketApi.advanceOrder(o.id)));
       setSelected({});
       await reload();
-      toast({ title: `${targets.length} ta buyurtma yig'ishga o'tkazildi`, variant: 'success' });
+      toast({ title: om.movedToPacking(targets.length), variant: 'success' });
     } catch (err) {
-      toast({ title: 'Xatolik', description: errorMessage(err), variant: 'error' });
+      toast({ title: m.common.error, description: errorMessage(err), variant: 'error' });
     } finally {
       setBusy(false);
     }
@@ -125,7 +128,7 @@ export default function OrdersPage() {
       await marketApi.advanceOrder(o.id);
       await reload();
     } catch (err) {
-      toast({ title: 'Xatolik', description: errorMessage(err), variant: 'error' });
+      toast({ title: m.common.error, description: errorMessage(err), variant: 'error' });
     } finally {
       setAdvancingId(null);
     }
@@ -136,8 +139,8 @@ export default function OrdersPage() {
   return (
     <div>
       <PageHeader
-        title="Buyurtmalar"
-        description="Navbat: yangilari tepada, ular ichida eng eskisi birinchi"
+        title={om.title}
+        description={om.description}
       />
 
       {switchNotice && (
@@ -147,14 +150,14 @@ export default function OrdersPage() {
         >
           <Info size={14} aria-hidden className="mt-0.5 shrink-0 text-info-dark dark:text-info-light" />
           <span>
-            {switchNotice}: kuryer tovar pulini naqd emas, hamyonidan oʻtkazadi — naqd tasdiqlash kerak boʻlmaydi.
+            {om.switchNotice(switchNotice)}
           </span>
         </p>
       )}
 
       {/* Holat zinapoyasi: Yangi → Yig'ilmoqda → Yuborildi → Yetkazildi. */}
       <div className="mb-3 flex flex-wrap items-center gap-3">
-        <SegmentedControl items={tabs} value={tab} onChange={setTab} ariaLabel="Buyurtma holati" />
+        <SegmentedControl items={tabs} value={tab} onChange={setTab} ariaLabel={om.statusAria} />
       </div>
 
       {/* Tanlov paneli: soni + amal QAMROVI aniq yozilgan — "nima bo'ladi"
@@ -162,16 +165,16 @@ export default function OrdersPage() {
       {selectedCount > 0 && (
         <div
           role="group"
-          aria-label="Tanlanganlar uchun amallar"
+          aria-label={om.selectionActions}
           className="mb-3 flex h-11 flex-wrap items-center gap-3 rounded-ds-md border border-line bg-surface px-4"
         >
-          <span className="num text-[13px] font-medium text-ink">{selectedCount} ta tanlandi</span>
+          <span className="num text-[13px] font-medium text-ink">{om.selected(selectedCount)}</span>
           <span className="hidden text-[13px] text-muted sm:inline">
-            Faqat «Yangi» holatdagilar o&apos;tkaziladi — {selectedNewCount} ta
+            {om.onlyNew(selectedNewCount)}
           </span>
           <div className="ml-auto flex items-center gap-2">
             <Button size="sm" variant="ghost" onClick={() => setSelected({})}>
-              Bekor qilish
+              {m.common.cancel}
             </Button>
             <Button
               size="sm"
@@ -180,7 +183,7 @@ export default function OrdersPage() {
               onClick={() => void bulkPack()}
               leftIcon={<Check size={14} aria-hidden />}
             >
-              Yig&apos;ishga o&apos;tkazish ({selectedNewCount})
+              {om.toPacking(selectedNewCount)}
             </Button>
           </div>
         </div>
@@ -199,8 +202,8 @@ export default function OrdersPage() {
           <EmptyState
             variant="first-use"
             icon={<ClipboardList aria-hidden />}
-            title="Hali buyurtma yo'q"
-            description="Mijoz birinchi buyurtma berganida u shu yerda, navbatning eng tepasida ko'rinadi."
+            title={om.emptyTitle}
+            description={om.emptyDescription}
           />
         </Card>
       ) : filtered.length === 0 ? (
@@ -208,14 +211,14 @@ export default function OrdersPage() {
           {tab === 'new' ? (
             <EmptyState
               variant="cleared"
-              title="Yangi buyurtma yo'q — hammasi qabul qilingan"
-              description="Yangi buyurtma kelishi bilan shu yerda va tab sarlavhasida ko'rinadi."
+              title={om.noNewTitle}
+              description={om.noNewDescription}
             />
           ) : (
             <EmptyState
               variant="no-results"
-              title={`«${tab === 'all' ? 'Barchasi' : ORDER_STATUS[tab as MarketOrderStatus].label}» holatida buyurtma yo'q`}
-              description="Boshqa holatni tanlang."
+              title={om.noInStatus(tab === 'all' ? m.common.all : orderStatusMeta(tab as MarketOrderStatus).label)}
+              description={om.pickOther}
               onClearFilters={() => setTab('all')}
             />
           )}
@@ -233,12 +236,12 @@ export default function OrdersPage() {
               <Checkbox
                 checked={pageAllSelected}
                 onCheckedChange={toggleAllOnPage}
-                aria-label="Sahifadagi hammasini tanlash"
+                aria-label={om.selectAllOnPage}
               />
-              <span>Mijoz / buyurtma</span>
-              <span className="text-right">Summa</span>
-              <span>Holat</span>
-              <span>Amal</span>
+              <span>{om.colCustomer}</span>
+              <span className="text-right">{m.common.sum}</span>
+              <span>{m.common.status}</span>
+              <span>{om.colAction}</span>
             </div>
             <ul className="divide-y divide-divider">
               {paged.pageItems.map((o) => (
@@ -277,7 +280,7 @@ export default function OrdersPage() {
         order={openOrder}
         onClose={() => setOpenOrderId(null)}
         onChanged={reload}
-        onError={(msg) => toast({ title: 'Xatolik', description: msg, variant: 'error' })}
+        onError={(msg) => toast({ title: m.common.error, description: msg, variant: 'error' })}
         settlement={settlement}
       />
     </div>

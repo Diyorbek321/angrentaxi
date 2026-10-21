@@ -4,6 +4,7 @@ import { courierState, type CourierTone } from '@/lib/courier';
 import { formatPhone } from '@/lib/format';
 import { cn } from '@/components/ui/cn';
 import { Button } from '@/components/ui/Button';
+import { t } from '@/locales';
 
 const toneClasses: Record<CourierTone, string> = {
   waiting: 'border-info/30 bg-info-tint text-info-dark dark:text-info-light',
@@ -60,7 +61,7 @@ export function CourierStrip({
           isLoading={busy}
           onClick={onRedispatch}
         >
-          Kuryerni qayta chaqirish
+          {t().courier.redispatch}
         </Button>
       )}
     </div>

@@ -9,6 +9,7 @@ import { Tooltip } from '../ui/Tooltip';
 import { DropdownMenu, type DropdownItem } from '../ui/DropdownMenu';
 import { isNavItemActive, shellUserName } from './nav-utils';
 import type { NavGroup, NavItem, ShellBrand, ShellUser } from './types';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 export interface SidebarProps {
   brand: ShellBrand;
@@ -131,7 +132,7 @@ export function Sidebar({
     ...userMenuItems,
     ...(userMenuItems.length && onLogout ? [{ type: 'separator' as const }] : []),
     ...(onLogout
-      ? [{ label: 'Chiqish', icon: <LogOut aria-hidden />, danger: true, onSelect: () => void onLogout() }]
+      ? [{ label: kitT().common.logout, icon: <LogOut aria-hidden />, danger: true, onSelect: () => void onLogout() }]
       : []),
   ];
 
@@ -146,7 +147,7 @@ export function Sidebar({
       )}
 
       <aside
-        aria-label="Yon panel"
+        aria-label={kitT().shell.sidebar}
         className={cn(
           'z-40 shrink-0 flex flex-col bg-surface border-r border-line',
           'fixed inset-y-0 left-0 lg:static transition-[width,transform] duration-200 ease-standard',
@@ -173,7 +174,7 @@ export function Sidebar({
         </div>
 
         {/* Navigation */}
-        <nav aria-label="Asosiy navigatsiya" className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2">
+        <nav aria-label={kitT().shell.mainNav} className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2">
           {groups.map((group, gi) => (
             <div key={group.title ?? `g${gi}`} className={gi > 0 ? 'mt-4' : undefined}>
               {group.title &&
@@ -202,11 +203,11 @@ export function Sidebar({
 
         {/* Bottom: collapse + user */}
         <div className="shrink-0 border-t border-line p-2 space-y-1">
-          <Tooltip content="Panelni yoyish" side="right" disabled={!rail}>
+          <Tooltip content={kitT().shell.expand} side="right" disabled={!rail}>
             <button
               type="button"
               onClick={onToggleCollapsed}
-              aria-label={rail ? 'Panelni yoyish' : 'Panelni yigʻish'}
+              aria-label={rail ? kitT().shell.expand : kitT().shell.collapse}
               aria-expanded={!rail}
               className={cn(
                 'hidden lg:flex items-center gap-2.5 h-8 rounded-ds-sm text-[13px] text-muted',
@@ -216,7 +217,7 @@ export function Sidebar({
               )}
             >
               {rail ? <ChevronsRight size={16} aria-hidden /> : <ChevronsLeft size={16} aria-hidden />}
-              {!rail && <span>Yigʻish</span>}
+              {!rail && <span>{kitT().shell.collapseShort}</span>}
             </button>
           </Tooltip>
 
@@ -237,7 +238,7 @@ export function Sidebar({
                   type="button"
                   {...p}
                   ref={p.ref}
-                  aria-label={`Foydalanuvchi menyusi: ${name}`}
+                  aria-label={kitT().shell.userMenu(name)}
                   className={cn(
                     'flex items-center gap-2.5 rounded-ds-sm text-left transition-colors hover:bg-surface-2',
                     'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus',

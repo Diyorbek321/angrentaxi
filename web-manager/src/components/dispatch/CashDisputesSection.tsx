@@ -17,6 +17,7 @@ import { RetryBanner } from '@/components/ui/RetryBanner';
 import { SkeletonCards } from '@/components/ui/Skeleton';
 import { MoneyText } from '@/components/ui/MoneyText';
 import { formatDateTime, formatMoney, formatPhone, shortId } from '@/lib/format';
+import { t } from '@/locales';
 
 const POLL_MS = 30_000;
 
@@ -34,13 +35,14 @@ export function CashDisputesSection() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [resolving, setResolving] = useState<CashDispute | null>(null);
+  const m = t().dispatch.cashDisputes;
 
   const load = useCallback(async () => {
     try {
       setDisputes(await getCashDisputes());
       setError(null);
     } catch {
-      setError('Naqd nizolarni yuklab boʻlmadi');
+      setError(t().dispatch.cashDisputes.loadFailed);
     } finally {
       setLoading(false);
     }
@@ -55,7 +57,7 @@ export function CashDisputesSection() {
   return (
     <section className="mb-8">
       <div className="mb-3 flex items-center gap-2">
-        <h2 className="text-h3 text-ink">Naqd nizolar</h2>
+        <h2 className="text-h3 text-ink">{m.title}</h2>
         {disputes.length > 0 && (
           <Badge variant="danger" size="sm">
             {disputes.length}
@@ -77,8 +79,8 @@ export function CashDisputesSection() {
             compact
             variant="cleared"
             icon={<Banknote aria-hidden />}
-            title="Nizo yoʻq"
-            description="Sotuvchilar kuryerlardan tovar pulini olgan."
+            title={m.emptyTitle}
+            description={m.emptyDesc}
           />
         </Card>
       ) : (
@@ -88,12 +90,12 @@ export function CashDisputesSection() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-ink">
-                    {d.vendorName} — <MoneyText value={d.amount} /> olinmagan
+                    {d.vendorName} — <MoneyText value={d.amount} /> {m.notReceived}
                   </p>
                   <p className="mt-1 text-xs text-muted">
-                    {d.kind === 'food' ? 'Ovqat' : 'Market'} · <span className="font-mono">{shortId(d.vendorOrderId)}</span> · nizo{' '}
+                    {d.kind === 'food' ? t().lib.serviceType.food : t().lib.serviceType.market} · <span className="font-mono">{shortId(d.vendorOrderId)}</span> · {m.disputed}{' '}
                     {formatDateTime(d.disputedAt)}
-                    {d.courierPaidAt && ` · kuryer „toʻladim“ dedi ${formatDateTime(d.courierPaidAt)}`}
+                    {d.courierPaidAt && ` · ${m.courierPaid(formatDateTime(d.courierPaidAt))}`}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3 text-xs">
@@ -108,7 +110,7 @@ export function CashDisputesSection() {
                   )}
                   {d.deliveryOrderId && (
                     <Link href={`/orders/${d.deliveryOrderId}`} className="text-primary-text hover:underline">
-                      Kuryer safari →
+                      {m.courierTrip}
                     </Link>
                   )}
                   <Button
@@ -117,7 +119,7 @@ export function CashDisputesSection() {
                     leftIcon={<CheckCircle2 size={13} aria-hidden />}
                     onClick={() => setResolving(d)}
                   >
-                    Hal qilindi
+                    {m.resolve}
                   </Button>
                 </div>
               </div>
@@ -149,6 +151,7 @@ function ResolveDisputeModal({
   onResolved: (d: CashDispute) => void;
 }) {
   const { toast } = useToast();
+  const m = t().dispatch.cashDisputes;
   const [note, setNote] = useState('');
   const [touched, setTouched] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -168,13 +171,13 @@ function ResolveDisputeModal({
     setSaving(true);
     try {
       await resolveCashDispute(dispute.kind, dispute.vendorOrderId, note);
-      toast({ title: `${dispute.vendorName}: nizo yopildi`, variant: 'success' });
+      toast({ title: m.closedToast(dispute.vendorName), variant: 'success' });
       onResolved(dispute);
     } catch (err) {
       console.error('Resolve cash dispute failed:', err);
       toast({
-        title: 'Nizoni yopib boʻlmadi',
-        description: 'Boshqa dispetcher yopgan boʻlishi mumkin — roʻyxatni yangilang.',
+        title: m.closeFailed,
+        description: m.closeFailedDesc,
         variant: 'error',
       });
     } finally {
@@ -186,7 +189,7 @@ function ResolveDisputeModal({
     <Modal
       isOpen
       onClose={onClose}
-      title="Nizo hal qilindi"
+      title={m.modalTitle}
       subtitle={`${dispute.vendorName} — ${formatMoney(dispute.amount)}`}
       size="md"
     >
@@ -198,22 +201,22 @@ function ResolveDisputeModal({
         }}
       >
         <Textarea
-          label="Qanday hal qilindi"
-          placeholder="Masalan: kuryer pulni doʻkonga olib bordi, sotuvchi tasdiqladi"
+          label={m.noteLabel}
+          placeholder={m.notePlaceholder}
           value={note}
           maxLength={RESOLUTION_MAX}
           onChange={(e) => setNote(e.target.value)}
           onBlur={() => setTouched(true)}
           error={touched ? validation ?? undefined : undefined}
-          hint="Izoh sotuvchiga ham koʻrinadi."
+          hint={m.noteHint}
           autoFocus
         />
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>
-            Bekor qilish
+            {t().common.cancel}
           </Button>
           <Button type="submit" isLoading={saving}>
-            Yopish
+            {t().common.close}
           </Button>
         </div>
       </form>

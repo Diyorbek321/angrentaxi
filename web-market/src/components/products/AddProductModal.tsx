@@ -9,12 +9,9 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
+import { t } from '@/locales';
 
-const UNIT_OPTIONS = [
-  { value: 'dona', label: 'dona' },
-  { value: 'kg', label: 'kg' },
-  { value: 'litr', label: 'litr' },
-];
+const UNITS: readonly ProductUnit[] = ['dona', 'kg', 'litr'];
 
 export function AddProductModal({
   isOpen,
@@ -29,6 +26,8 @@ export function AddProductModal({
   onCreated: () => Promise<void>;
   onError: (message: string) => void;
 }) {
+  const m = t();
+  const unitOptions = UNITS.map((u) => ({ value: u, label: m.units[u] ?? u }));
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
   const [price, setPrice] = useState('');
@@ -63,7 +62,7 @@ export function AddProductModal({
       try {
         await marketApi.uploadProductImage(createdId, await catalogImageForm(image.file));
       } catch (err) {
-        onError(`Mahsulot qo'shildi, lekin rasm yuklanmadi: ${errorMessage(err)}`);
+        onError(m.products.addedImageFailed(errorMessage(err)));
       }
     }
     setName('');
@@ -76,7 +75,7 @@ export function AddProductModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Yangi mahsulot" size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title={m.products.newProduct} size="lg">
       <form
         className="space-y-4"
         onSubmit={(e) => {
@@ -85,21 +84,21 @@ export function AddProductModal({
         }}
       >
         <ImagePicker
-          label="Rasm (ixtiyoriy)"
+          label={m.products.imageOptional}
           currentSrc={null}
           value={image}
           onChange={setImage}
           aspectClassName="aspect-[2/1]"
         />
         <Input
-          label="Nomi"
+          label={m.products.name}
           autoFocus
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Masalan: Guruch Lazer 1kg"
+          placeholder={m.products.namePlaceholder}
         />
         <Input
-          label="SKU / Shtrix-kod"
+          label={m.products.sku}
           mono
           value={sku}
           onChange={(e) => setSku(e.target.value)}
@@ -107,7 +106,7 @@ export function AddProductModal({
         />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Input
-            label="Narx (so'm)"
+            label={m.products.priceSom}
             type="number"
             className="num"
             value={price}
@@ -115,7 +114,7 @@ export function AddProductModal({
             placeholder="0"
           />
           <Input
-            label="Zaxira"
+            label={m.common.stock}
             type="number"
             className="num"
             value={stock}
@@ -123,27 +122,27 @@ export function AddProductModal({
             placeholder="0"
           />
           <Select
-            label="Birlik"
-            options={UNIT_OPTIONS}
+            label={m.products.unit}
+            options={unitOptions}
             value={unit}
             onChange={(e) => setUnit(e.target.value as ProductUnit)}
           />
         </div>
         <Select
-          label="Kategoriya"
-          placeholder={categories.length ? 'Kategoriyani tanlang' : 'Kategoriya yo’q'}
+          label={m.common.category}
+          placeholder={categories.length ? m.products.pickCategory : m.products.noCategory}
           options={categories.map((c) => ({ value: c.id, label: `${c.emoji} ${c.name}` }))}
           value={categoryId}
           onChange={(e) => setCategoryId(e.target.value)}
-          hint={categories.length ? undefined : "Avval kategoriya qo'shing"}
+          hint={categories.length ? undefined : m.products.addCategoryFirst}
         />
 
         <div className="flex justify-end gap-2.5 pt-1">
           <Button type="button" variant="secondary" onClick={onClose}>
-            Bekor qilish
+            {m.common.cancel}
           </Button>
           <Button type="submit" disabled={!name.trim()} isLoading={saving}>
-            Qo&apos;shish
+            {m.products.addButton}
           </Button>
         </div>
       </form>

@@ -7,6 +7,7 @@ import {
   setSessionCookies,
 } from "@/lib/server/auth-cookies";
 import { crossOriginRejection, isSameOrigin } from "@/lib/server/same-origin";
+import { routeMessages } from "@/lib/server/route-messages";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest) {
     // A network blip is not proof the session is gone — keep the cookies so the
     // next attempt can still succeed.
     return NextResponse.json(
-      { success: false, message: "Serverga ulanib boʻlmadi" },
+      { success: false, message: routeMessages(req).serverUnreachable },
       { status: 502 },
     );
   }

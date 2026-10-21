@@ -16,6 +16,7 @@ import { useToast } from '@/components/ui/Toast';
 import { debounce } from '@/lib/utils';
 import { usePagination } from '@/hooks/usePagination';
 import { CatalogThumb } from '@/components/moderation/CatalogThumb';
+import { t } from '@/locales';
 
 type Tab = 'products' | 'dishes';
 
@@ -26,11 +27,14 @@ interface DeleteTarget {
   vendor: string;
 }
 
-const PRODUCT_STATUS: Record<string, { label: string; variant: BadgeVariant }> = {
-  active: { label: 'Faol', variant: 'success' },
-  out: { label: 'Tugagan', variant: 'neutral' },
-  hidden: { label: 'Yashirin', variant: 'neutral' },
-};
+function productStatus(): Record<string, { label: string; variant: BadgeVariant }> {
+  const s = t().moderation.productStatus;
+  return {
+    active: { label: s.active, variant: 'success' },
+    out: { label: s.out, variant: 'neutral' },
+    hidden: { label: s.hidden, variant: 'neutral' },
+  };
+}
 
 function NameCell({ name, imageKey }: { name: string; imageKey?: string | null }) {
   return (
@@ -42,6 +46,9 @@ function NameCell({ name, imageKey }: { name: string; imageKey?: string | null }
 }
 
 export default function ModerationPage() {
+  const m = t();
+  const mo = m.moderation;
+  const PRODUCT_STATUS = productStatus();
   const { toast } = useToast();
   // Most-used first (the product queue is bigger).
   const [tab, setTab] = useState<Tab>('products');
@@ -76,8 +83,8 @@ export default function ModerationPage() {
       }
       setError(null);
     } catch {
-      setError('Moderatsiya navbatini yuklashda xatolik');
-      toast({ title: 'Xatolik', description: 'Moderatsiya navbatini yuklashda xatolik', variant: 'error' });
+      setError(mo.loadError);
+      toast({ title: m.common.error, description: mo.loadError, variant: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -129,13 +136,13 @@ export default function ModerationPage() {
       // Reload from the server: the next page's item fills the gap.
       await load();
       toast({
-        title: `«${deleteTarget.name}» o'chirildi`,
-        description: 'Sotuvchi katalogidan butunlay olib tashlandi.',
+        title: mo.deleted(deleteTarget.name),
+        description: mo.deletedDesc,
         variant: 'success',
       });
       setDeleteTarget(null);
     } catch {
-      toast({ title: 'Xatolik', description: "O'chirishda xatolik", variant: 'error' });
+      toast({ title: m.common.error, description: mo.deleteFailed, variant: 'error' });
     } finally {
       setDeleting(false);
     }
@@ -146,20 +153,20 @@ export default function ModerationPage() {
       size="sm"
       variant="danger-ghost"
       leftIcon={<Trash2 size={13} aria-hidden />}
-      aria-label={`${target.name} — o'chirish`}
+      aria-label={mo.deleteAria(target.name)}
       onClick={() => setDeleteTarget(target)}
     >
-      O&apos;chirish
+      {mo.delete}
     </Button>
   );
 
   const productColumns: DataTableColumn<ModeratedProduct>[] = [
-    { key: 'name', header: 'Mahsulot', cell: (p) => <NameCell name={p.name} imageKey={p.imageKey} /> },
-    { key: 'vendor', header: "Do'kon", cell: (p) => <span className="text-muted">{p.store?.name ?? '—'}</span> },
-    { key: 'price', header: 'Narx', numeric: true, cell: (p) => <MoneyText value={p.price} /> },
+    { key: 'name', header: mo.colProduct, cell: (p) => <NameCell name={p.name} imageKey={p.imageKey} /> },
+    { key: 'vendor', header: mo.colStore, cell: (p) => <span className="text-muted">{p.store?.name ?? '—'}</span> },
+    { key: 'price', header: mo.colPrice, numeric: true, cell: (p) => <MoneyText value={p.price} /> },
     {
       key: 'status',
-      header: 'Holat',
+      header: mo.colStatus,
       cell: (p) => {
         const s = PRODUCT_STATUS[p.status];
         return <Badge variant={s?.variant ?? 'neutral'}>{s?.label ?? p.status}</Badge>;
@@ -167,28 +174,28 @@ export default function ModerationPage() {
     },
     {
       key: 'actions',
-      header: <span className="sr-only">Amal</span>,
+      header: <span className="sr-only">{mo.colAction}</span>,
       align: 'right',
       cell: (p) => deleteButton({ kind: 'products', id: p.id, name: p.name, vendor: p.store?.name ?? '—' }),
     },
   ];
 
   const dishColumns: DataTableColumn<ModeratedDish>[] = [
-    { key: 'name', header: 'Taom', cell: (d) => <NameCell name={d.name} imageKey={d.imageKey} /> },
-    { key: 'vendor', header: 'Restoran', cell: (d) => <span className="text-muted">{d.restaurant?.name ?? '—'}</span> },
-    { key: 'price', header: 'Narx', numeric: true, cell: (d) => <MoneyText value={d.price} /> },
+    { key: 'name', header: mo.colDish, cell: (d) => <NameCell name={d.name} imageKey={d.imageKey} /> },
+    { key: 'vendor', header: mo.colRestaurant, cell: (d) => <span className="text-muted">{d.restaurant?.name ?? '—'}</span> },
+    { key: 'price', header: mo.colPrice, numeric: true, cell: (d) => <MoneyText value={d.price} /> },
     {
       key: 'status',
-      header: 'Holat',
+      header: mo.colStatus,
       cell: (d) => (
         <Badge variant={d.isAvailable ? 'success' : 'neutral'} dot>
-          {d.isAvailable ? 'Mavjud' : 'Tugagan'}
+          {d.isAvailable ? mo.available : mo.outOfStock}
         </Badge>
       ),
     },
     {
       key: 'actions',
-      header: <span className="sr-only">Amal</span>,
+      header: <span className="sr-only">{mo.colAction}</span>,
       align: 'right',
       cell: (d) => deleteButton({ kind: 'dishes', id: d.id, name: d.name, vendor: d.restaurant?.name ?? '—' }),
     },
@@ -197,19 +204,16 @@ export default function ModerationPage() {
   const empty: EmptyStateProps = q
     ? {
         variant: 'no-results',
-        title: 'Hech narsa mos kelmadi',
-        description: `"${q}" bo'yicha ${tab === 'products' ? 'mahsulot' : 'taom'} topilmadi.`,
+        title: mo.noMatchTitle,
+        description: tab === 'products' ? mo.noMatchProducts(q) : mo.noMatchDishes(q),
         onClearFilters: clearSearch,
       }
     : {
         // An empty queue is a HEALTHY state.
         variant: 'cleared',
         icon: <CheckCircle2 aria-hidden />,
-        title: "Navbat bo'sh",
-        description:
-          tab === 'products'
-            ? "Ko'rib chiqilishi kerak bo'lgan mahsulot qolmadi."
-            : "Ko'rib chiqilishi kerak bo'lgan taom qolmadi.",
+        title: mo.queueEmpty,
+        description: tab === 'products' ? mo.queueEmptyProducts : mo.queueEmptyDishes,
       };
 
   const tablePagination = {
@@ -229,8 +233,8 @@ export default function ModerationPage() {
       search={searchInput}
       onSearchChange={handleSearchChange}
       onSearchClear={clearSearch}
-      searchPlaceholder="Nomi yoki sotuvchi…"
-      searchAriaLabel="Moderatsiya navbatida qidirish"
+      searchPlaceholder={mo.searchPlaceholder}
+      searchAriaLabel={mo.searchAria}
     />
   );
 
@@ -247,16 +251,16 @@ export default function ModerationPage() {
   return (
     <div className="px-4 sm:px-6 py-5">
       <PageHeader
-        title="Moderatsiya"
-        description="Barcha do'kon va restoranlar bo'yicha mahsulot va taomlarni ko'rib chiqish"
+        title={mo.title}
+        description={mo.description}
       />
 
       <Tabs
-        ariaLabel="Moderatsiya turi"
+        ariaLabel={mo.tabsAria}
         className="mb-4"
         items={[
-          { value: 'products', label: 'Mahsulotlar', count: totals.products },
-          { value: 'dishes', label: 'Taomlar', count: totals.dishes },
+          { value: 'products', label: mo.products, count: totals.products },
+          { value: 'dishes', label: mo.dishes, count: totals.dishes },
         ]}
         value={tab}
         onChange={(v) => {
@@ -266,9 +270,9 @@ export default function ModerationPage() {
       />
 
       {tab === 'products' ? (
-        <DataTable ariaLabel="Mahsulotlar" columns={productColumns} rows={products} rowKey={(p) => p.id} {...common} />
+        <DataTable ariaLabel={mo.products} columns={productColumns} rows={products} rowKey={(p) => p.id} {...common} />
       ) : (
-        <DataTable ariaLabel="Taomlar" columns={dishColumns} rows={dishes} rowKey={(d) => d.id} {...common} />
+        <DataTable ariaLabel={mo.dishes} columns={dishColumns} rows={dishes} rowKey={(d) => d.id} {...common} />
       )}
 
       {/* Destructive — always confirmed; the consequence and the name are spelled out. */}
@@ -277,14 +281,14 @@ export default function ModerationPage() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
         isPending={deleting}
-        title={deleteTarget?.kind === 'products' ? "Mahsulotni o'chirish" : "Taomni o'chirish"}
+        title={deleteTarget?.kind === 'products' ? mo.deleteProduct : mo.deleteDish}
         description={
           <>
-            <strong className="text-ink">«{deleteTarget?.name}»</strong> ({deleteTarget?.vendor}) katalogdan
-            butunlay o&apos;chiriladi va mijozlarga ko&apos;rinmay qoladi. Bu amalni ortga qaytarib bo&apos;lmaydi.
+            <strong className="text-ink">«{deleteTarget?.name}»</strong> ({deleteTarget?.vendor})
+            {mo.deleteBody}
           </>
         }
-        confirmLabel="O'chirish"
+        confirmLabel={mo.delete}
       />
     </div>
   );

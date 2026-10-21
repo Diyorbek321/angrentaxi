@@ -3,6 +3,7 @@
 
 import { cn } from './cn';
 import { FilterChip as Chip } from './FilterChip';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 /** Data shape of one applied filter (web-admin / web-market `type FilterChip`). */
 export interface FilterChip {
@@ -21,7 +22,7 @@ export interface FilterChipsProps {
 export function FilterChips({ chips, onClearAll, className }: FilterChipsProps) {
   if (chips.length === 0) return null;
   return (
-    <div role="group" aria-label="Faol filtrlar" className={cn('flex flex-wrap items-center gap-1.5', className)}>
+    <div role="group" aria-label={kitT().filters.active} className={cn('flex flex-wrap items-center gap-1.5', className)}>
       {chips.map((c) => (
         <Chip key={c.key} label={c.label} onRemove={c.onRemove} />
       ))}
@@ -31,7 +32,7 @@ export function FilterChips({ chips, onClearAll, className }: FilterChipsProps) 
           onClick={onClearAll}
           className="h-6 px-1.5 rounded-ds-xs text-xs font-medium text-muted hover:text-ink hover:bg-surface-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
-          Filtrlarni tozalash
+          {kitT().common.clearFilters}
         </button>
       )}
     </div>

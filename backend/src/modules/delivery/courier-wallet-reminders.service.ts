@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm';
 import { User } from '../../database/entities/user.entity';
 import { SettingsService } from '../settings/settings.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { LocalizedPush, localized } from '../notifications/push-text';
 
 /** Sanadan necha kun oldin ogohlantirish boshlanadi. */
 export const COURIER_REMINDER_WINDOW_DAYS = 14;
@@ -19,6 +20,34 @@ const UZ_MONTHS = [
 export function formatUzbekDayMonth(at: Date): string {
   const local = new Date(at.getTime() + TASHKENT_OFFSET_MS);
   return `${local.getUTCDate()}-${UZ_MONTHS[local.getUTCMonth()]}`;
+}
+
+// Rus tilida oy qaratqich kelishigida: "12 декабря".
+const RU_MONTHS_GENITIVE = [
+  'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
+] as const;
+
+/** Toshkent sanasi bo'yicha `12 декабря`. */
+export function formatRussianDayMonth(at: Date): string {
+  const local = new Date(at.getTime() + TASHKENT_OFFSET_MS);
+  return `${local.getUTCDate()} ${RU_MONTHS_GENITIVE[local.getUTCMonth()]}`;
+}
+
+/** Kuryerga hamyon orqali hisob-kitob boshlanishi haqida eslatma. */
+export function courierWalletReminderText(from: Date): LocalizedPush {
+  return localized({
+    uz: {
+      title: 'Hamyon orqali hisob-kitob',
+      body:
+        `${formatUzbekDayMonth(from)}dan restoran/do'kon bilan hisob-kitob hamyon orqali bo'ladi — ` +
+        `hamyoningizni to'ldiring`,
+    },
+    ru: {
+      title: 'Расчёты через кошелёк',
+      body: `С ${formatRussianDayMonth(from)} расчёты с ресторанами и магазинами идут через кошелёк — пополните кошелёк`,
+    },
+  });
 }
 
 function tashkentDate(at: Date): string {
@@ -74,17 +103,15 @@ export class CourierWalletRemindersService {
     }
 
     const couriers = (await this.dataSource.query(
-      `SELECT d.user_id, u.fcm_token
+      `SELECT d.user_id, u.fcm_token, u.language
          FROM drivers d JOIN users u ON u.id = d.user_id
         WHERE d.service_types ?| ARRAY['food', 'market']
           AND u.status = 'active'`,
       [],
-    )) as Array<{ user_id: string; fcm_token: string | null }>;
+    )) as Array<{ user_id: string; fcm_token: string | null; language: string | null }>;
 
     const day = tashkentDate(now);
-    const body =
-      `${formatUzbekDayMonth(from)}dan restoran/do'kon bilan hisob-kitob hamyon orqali bo'ladi — ` +
-      `hamyoningizni to'ldiring`;
+    const text = courierWalletReminderText(from);
     let notified = 0;
     for (const courier of couriers) {
       try {
@@ -95,9 +122,8 @@ export class CourierWalletRemindersService {
         )) as unknown[];
         if (!Array.isArray(inserted) || inserted.length === 0) continue;
         await this.notificationsService.notifyWalletEvent(
-          { id: courier.user_id, fcmToken: courier.fcm_token } as User,
-          'Hamyon orqali hisob-kitob',
-          body,
+          { id: courier.user_id, fcmToken: courier.fcm_token, language: courier.language } as User,
+          text,
           'courier_wallet_settlement_reminder',
           { effectiveFrom: settings.vendorWalletSettlementFrom },
         );

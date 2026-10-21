@@ -5,7 +5,8 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
 import { PlateNumber } from '@/components/ui/PlateNumber';
-import { formatPhone, formatRating, formatRelative } from '@/lib/format';
+import { formatPhone, formatRating, formatRelative, nameFallback } from '@/lib/format';
+import { t } from '@/locales';
 
 interface DriverCardProps {
   driver: Driver;
@@ -14,6 +15,7 @@ interface DriverCardProps {
 export function DriverCard({ driver }: DriverCardProps) {
   // Same rule as the map pins: mint means free, grey means on a trip.
   const isBusy = driver.status === 'busy' || !!driver.currentOrderId;
+  const labels = t().lib.driverStatus;
 
   return (
     <Card padding="sm" hoverable>
@@ -30,7 +32,7 @@ export function DriverCard({ driver }: DriverCardProps) {
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-[13px] font-medium text-ink truncate">{driver.name || 'Ism kiritilmagan'}</p>
+            <p className="text-[13px] font-medium text-ink truncate">{driver.name || nameFallback()}</p>
             <span className="flex items-center gap-1 shrink-0 text-xs text-muted">
               <Star size={12} className="text-primary" fill="currentColor" />
               {formatRating(driver.rating)}
@@ -48,11 +50,11 @@ export function DriverCard({ driver }: DriverCardProps) {
           <div className="flex items-center justify-between gap-2 mt-2">
             {isBusy ? (
               <Badge variant="neutral" size="sm" dot>
-                Band
+                {labels.busy}
               </Badge>
             ) : (
               <Badge variant="success" size="sm" dot>
-                Boʻsh
+                {labels.online}
               </Badge>
             )}
             <span className="flex items-center gap-1 text-[11px] text-subtle shrink-0">

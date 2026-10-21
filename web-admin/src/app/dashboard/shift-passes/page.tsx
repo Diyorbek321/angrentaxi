@@ -18,13 +18,18 @@ import { usePagination } from '@/hooks/usePagination';
 import { useResource } from '@/hooks/useResource';
 import { shiftPassesApi, type AdminShiftPass } from '@/lib/compliance-api';
 import { apiErrorMessage, dateRangeToIso, estimateShiftRefund } from '@/lib/compliance';
-import { labelOf, SERVICE_TYPE_LABELS, SHIFT_STATUS_BADGE, SHIFT_STATUS_LABELS } from '@/lib/compliance-labels';
-import { formatDateTime, formatMoney, formatNumber, formatPhone } from '@/lib/format';
+import { labelOf, serviceTypeLabels, SHIFT_STATUS_BADGE, shiftStatusLabels } from '@/lib/compliance-labels';
+import { formatDateTime, formatMoney, formatNumber, formatPhone, nameFallback } from '@/lib/format';
+import { t } from '@/locales';
 
 const DEFAULT_RANGE: DateRangeValue = { preset: '30d', ...rangeForPreset('30d') };
 
 /** Haydovchi smenalari (kunlik obuna) — LEGAL-COMPLIANCE §8, §15. */
 export default function ShiftPassesPage() {
+  const m = t();
+  const s$ = m.finance.shiftPasses;
+  const SERVICE_TYPE_LABELS = serviceTypeLabels();
+  const SHIFT_STATUS_LABELS = shiftStatusLabels();
   const { toast } = useToast();
   const [range, setRange] = useState<DateRangeValue>(DEFAULT_RANGE);
   const [target, setTarget] = useState<AdminShiftPass | null>(null);
@@ -39,7 +44,7 @@ export default function ShiftPassesPage() {
       shiftPassesApi
         .list({ ...dateRangeToIso(range), page: pagination.page, limit: pagination.limit })
         .then((r) => r.data.data),
-    'Smenalarni yuklab boʻlmadi',
+    s$.loadError,
     [range, pagination.page, pagination.limit]
   );
   const data = res.data;
@@ -70,14 +75,14 @@ export default function ShiftPassesPage() {
       const r = await shiftPassesApi.cancel(target.id, { refund, reason: reason.trim() });
       const refunded = r.data.data.refundAmount ?? 0;
       toast({
-        title: 'Smena bekor qilindi',
-        description: refunded > 0 ? `${formatMoney(refunded)} hamyonga qaytarildi.` : 'Pul qaytarilmadi.',
+        title: s$.cancelled,
+        description: refunded > 0 ? s$.refunded(formatMoney(refunded)) : s$.notRefunded,
         variant: 'success',
       });
       setTarget(null);
       void res.reload();
     } catch (err) {
-      toast({ title: 'Xatolik', description: apiErrorMessage(err, 'Smenani bekor qilib boʻlmadi'), variant: 'error' });
+      toast({ title: m.common.error, description: apiErrorMessage(err, s$.cancelError), variant: 'error' });
     } finally {
       setCancelling(false);
     }
@@ -86,17 +91,17 @@ export default function ShiftPassesPage() {
   const columns: DataTableColumn<AdminShiftPass>[] = [
     {
       key: 'driver',
-      header: 'Haydovchi',
+      header: s$.col.driver,
       cell: (p) => (
         <div className="min-w-0 leading-tight">
-          <p className="truncate font-medium text-ink">{p.driverName?.trim() || 'Ism kiritilmagan'}</p>
+          <p className="truncate font-medium text-ink">{p.driverName?.trim() || nameFallback()}</p>
           <p className="num whitespace-nowrap text-xs text-muted">{formatPhone(p.driverPhone)}</p>
         </div>
       ),
     },
     {
       key: 'period',
-      header: 'Davr',
+      header: s$.col.period,
       cell: (p) => (
         <div className="num whitespace-nowrap text-xs leading-tight">
           <p className="text-ink">{formatDateTime(p.startsAt)}</p>
@@ -106,16 +111,16 @@ export default function ShiftPassesPage() {
     },
     {
       key: 'services',
-      header: 'Xizmatlar',
+      header: s$.col.services,
       hideBelow: 'xl',
       cell: (p) => (
         <span className="text-muted">{p.serviceTypes.map((s) => labelOf(SERVICE_TYPE_LABELS, s)).join(', ') || '—'}</span>
       ),
     },
-    { key: 'price', header: 'Narx', numeric: true, cell: (p) => <MoneyText value={p.price} /> },
+    { key: 'price', header: s$.col.price, numeric: true, cell: (p) => <MoneyText value={p.price} /> },
     {
       key: 'status',
-      header: 'Holat',
+      header: m.common.status,
       cell: (p) => (
         <Badge variant={SHIFT_STATUS_BADGE[p.status]} dot={p.status === 'active'}>
           {SHIFT_STATUS_LABELS[p.status]}
@@ -124,12 +129,12 @@ export default function ShiftPassesPage() {
     },
     {
       key: 'actions',
-      header: <span className="sr-only">Amallar</span>,
+      header: <span className="sr-only">{m.common.actions}</span>,
       align: 'right',
       cell: (p) =>
         p.status !== 'cancelled' ? (
           <Button size="sm" variant="danger-ghost" onClick={() => openCancel(p)}>
-            Bekor qilish
+            {m.common.cancel}
           </Button>
         ) : null,
     },
@@ -140,38 +145,38 @@ export default function ShiftPassesPage() {
   return (
     <div className="px-4 sm:px-6 py-5">
       <PageHeader
-        title="Smenalar"
-        description="Haydovchilar sotib olgan kunlik smenalar (davrda boshlanganlar). Sozlamalar — «Moliya sozlamalari»."
+        title={s$.title}
+        description={s$.description}
       />
 
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
-          label="Smenalar"
+          label={s$.title}
           value={<span className="num">{formatNumber(data?.totals.count ?? 0)}</span>}
-          hint="Bekor qilinganlar bilan"
+          hint={s$.withCancelled}
           isLoading={statsLoading}
         />
         <StatCard
-          label="Daromad"
+          label={s$.revenue}
           value={<MoneyText value={data?.totals.revenue ?? 0} />}
-          hint="Bekor qilinganlarsiz"
+          hint={s$.withoutCancelled}
           isLoading={statsLoading}
         />
         <StatCard
-          label="Hozir faol"
+          label={s$.activeNow}
           value={<span className="num">{formatNumber(data?.totals.activeNow ?? 0)}</span>}
-          hint="Butun davr boʻyicha"
+          hint={s$.wholePeriod}
           isLoading={statsLoading}
         />
         <StatCard
-          label="Bekor qilingan"
+          label={s$.cancelledStat}
           value={<span className="num">{formatNumber(data?.totals.cancelled ?? 0)}</span>}
           isLoading={statsLoading}
         />
       </div>
 
       <DataTable
-        ariaLabel="Smenalar"
+        ariaLabel={s$.title}
         columns={columns}
         rows={data?.items ?? []}
         rowKey={(p) => p.id}
@@ -182,14 +187,14 @@ export default function ShiftPassesPage() {
         empty={{
           variant: 'first-use',
           icon: <Timer aria-hidden />,
-          title: 'Smenalar yoʻq',
+          title: s$.emptyTitle,
           description: (
             <>
-              Bu davrda smena sotib olinmagan. Smena sotuvi{' '}
+              {s$.emptyBefore}{' '}
               <Link href="/dashboard/finance-settings" className="text-primary-text hover:underline">
-                Moliya sozlamalari
+                {s$.emptyLink}
               </Link>
-              da yoqiladi.
+              {s$.emptyAfter}
             </>
           ),
         }}
@@ -213,29 +218,28 @@ export default function ShiftPassesPage() {
         onConfirm={confirmCancel}
         isPending={cancelling}
         tone="danger"
-        title="Smenani bekor qilish"
-        confirmLabel={refund && estimate > 0 ? `Bekor qilish va ~${formatMoney(estimate)} qaytarish` : 'Bekor qilish'}
+        title={s$.cancelTitle}
+        confirmLabel={refund && estimate > 0 ? s$.cancelAndRefund(formatMoney(estimate)) : m.common.cancel}
         confirmDisabled={!reason.trim()}
         description={
           target
-            ? `${target.driverName?.trim() || formatPhone(target.driverPhone)} · ${formatMoney(target.price)}. Smena darhol tugaydi, haydovchiga push yuboriladi va amallar jurnaliga yoziladi.`
+            ? s$.cancelDesc(target.driverName?.trim() || formatPhone(target.driverPhone), formatMoney(target.price))
             : undefined
         }
       >
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-4 rounded-ds-sm border border-line bg-surface-2 px-3 py-2.5">
             <div className="min-w-0">
-              <p className="text-sm font-medium text-ink">Qolgan vaqt uchun pulni qaytarish</p>
+              <p className="text-sm font-medium text-ink">{s$.refundRemaining}</p>
               <p className="mt-0.5 text-xs text-muted">
-                Taxminan <span className="num">{formatMoney(estimate)}</span> — aniq summa bekor qilingan paytda
-                hisoblanadi.
+                {s$.approx} <span className="num">{formatMoney(estimate)}</span> {s$.approxAfter}
               </p>
             </div>
-            <Switch checked={refund} onCheckedChange={setRefund} aria-label="Pulni qaytarish" />
+            <Switch checked={refund} onCheckedChange={setRefund} aria-label={s$.refundAria} />
           </div>
           <Textarea
-            label="Sabab (majburiy)"
-            placeholder="Masalan: texnik nosozlik tufayli"
+            label={s$.reasonLabel}
+            placeholder={s$.reasonPh}
             value={reason}
             maxLength={500}
             rows={3}

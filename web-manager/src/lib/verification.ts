@@ -1,4 +1,5 @@
 import type { PendingVerification, VerificationKind } from './api';
+import { t } from '@/locales';
 
 /** One driver's pending submissions of one kind — reviewed together. */
 export interface VerificationGroup {
@@ -45,31 +46,28 @@ export function groupVerifications(entries: PendingVerification[]): Verification
   return Array.from(groups.values()).sort((a, b) => a.submittedAt.localeCompare(b.submittedAt));
 }
 
-export const KIND_LABEL: Record<VerificationKind, string> = {
-  vehicle_photo: 'Mashina koʻrigi',
-  selfie: 'Selfi',
-  document: 'Hujjat',
-};
+export function kindLabels(): Record<VerificationKind, string> {
+  return t().lib.verificationKind;
+}
 
 /**
  * VMQ 200 bo'yicha taksi hujjatlari (migratsiya 025). Backend `label` ni
  * o'zi yuboradi; bu xarita — u bo'sh kelsa yoki eski backend bo'lsa zaxira.
  */
-export const LEGAL_DOCUMENT_LABEL: Record<string, string> = {
-  taxi_licence: 'Taksi litsenziya varaqasi',
-  medical_check: 'Tibbiy koʻrik maʼlumotnomasi',
-  carrier_insurance: 'Tashuvchi javobgarlik sugʻurtasi',
-  tech_inspection: 'Texnik koʻrik',
-};
+export function legalDocumentLabels(): Record<string, string> {
+  return t().lib.legalDocument;
+}
+
+const LEGAL_DOCUMENT_CODES = ['taxi_licence', 'medical_check', 'carrier_insurance', 'tech_inspection'];
 
 export function isLegalDocument(code: string): boolean {
-  return code in LEGAL_DOCUMENT_LABEL;
+  return LEGAL_DOCUMENT_CODES.includes(code);
 }
 
 export function verificationLabel(entry: Pick<PendingVerification, 'code' | 'label'>): string {
   const label = entry.label?.trim();
   if (label && label !== entry.code) return label;
-  return LEGAL_DOCUMENT_LABEL[entry.code] ?? label ?? entry.code;
+  return legalDocumentLabels()[entry.code] ?? label ?? entry.code;
 }
 
 /**
@@ -81,8 +79,8 @@ export function validateValidUntil(value: string, today: string): string | null 
   const v = value.trim();
   if (!v) return null;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(v) || Number.isNaN(new Date(`${v}T00:00:00Z`).getTime())) {
-    return 'Sana notoʻgʻri';
+    return t().lib.validUntil.invalidDate;
   }
-  if (v <= today) return 'Muddati oʻtgan hujjatni rad eting';
+  if (v <= today) return t().lib.validUntil.expired;
   return null;
 }

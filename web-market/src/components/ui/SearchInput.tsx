@@ -6,6 +6,7 @@ import { Search, X } from 'lucide-react';
 import { cn } from './cn';
 import { controlBase, controlBorder } from './Field';
 import { Kbd } from './Kbd';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 export interface SearchInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size' | 'onChange' | 'value'> {
   value: string;
@@ -26,7 +27,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
       onClear,
       shortcut,
       size = 'md',
-      placeholder = 'Qidirish…',
+      placeholder,
       wrapperClassName,
       className,
       'aria-label': ariaLabel,
@@ -35,6 +36,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
     ref
   ) => {
     const clear = onClear ?? (() => onChange(''));
+    const hint = placeholder ?? kitT().common.search;
     return (
       <div className={cn('relative flex items-center min-w-0', wrapperClassName)}>
         <Search size={15} aria-hidden className="absolute left-2.5 text-subtle pointer-events-none" />
@@ -43,8 +45,8 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
           type="search"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          aria-label={ariaLabel ?? placeholder}
+          placeholder={hint}
+          aria-label={ariaLabel ?? hint}
           className={cn(
             controlBase,
             controlBorder(false),
@@ -58,7 +60,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
           <button
             type="button"
             onClick={clear}
-            aria-label="Qidiruvni tozalash"
+            aria-label={kitT().common.clearSearch}
             className="absolute right-1.5 h-5 w-5 inline-flex items-center justify-center rounded-ds-xs text-subtle hover:text-ink hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           >
             <X size={13} aria-hidden />

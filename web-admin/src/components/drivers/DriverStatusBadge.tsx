@@ -1,5 +1,5 @@
 import { Badge, type BadgeVariant } from '@/components/ui/Badge';
-import { DRIVER_STATUS_LABELS, type DriverStatus } from '@/lib/constants';
+import { driverStatusLabels, type DriverStatus } from '@/lib/constants';
 
 interface DriverStatusBadgeProps {
   status: string;
@@ -25,7 +25,7 @@ export function DriverStatusBadge({ status, isOnline, className }: DriverStatusB
   const s = effectiveDriverStatus(status, isOnline);
   return (
     <Badge variant={VARIANT[s]} dot className={className}>
-      {DRIVER_STATUS_LABELS[s] ?? status}
+      {driverStatusLabels()[s] ?? status}
     </Badge>
   );
 }

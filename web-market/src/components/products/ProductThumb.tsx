@@ -5,6 +5,7 @@ import { ImagePlus } from 'lucide-react';
 import type { Product } from '@/lib/api';
 import { catalogImageSrc } from '@/lib/catalog-image';
 import { hueTint } from '@/lib/utils';
+import { t } from '@/locales';
 
 /**
  * Jadvaldagi mahsulot belgisi: rasm bo'lsa rasm, bo'lmasa emoji. Bosilganda
@@ -19,8 +20,8 @@ export function ProductThumb({ product: p, onClick }: { product: Product; onClic
     <button
       type="button"
       onClick={onClick}
-      aria-label={`${p.name} rasmini o'zgartirish`}
-      title="Rasmni o'zgartirish"
+      aria-label={t().products.thumbAria(p.name)}
+      title={t().products.thumbTitle}
       style={showImage ? undefined : hueTint(p.hue)}
       className="group relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-ds-xs border border-line text-base focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-surface"
     >

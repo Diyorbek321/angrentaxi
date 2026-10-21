@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { t } from '@/locales';
 
 /**
  * Taksometr (manzilsiz safar) km narxi — ixtiyoriy maydon. Bo'sh qoldirilsa
@@ -9,18 +10,18 @@ import { z } from 'zod';
  * bepul" degani bo'lib qolardi, shuning uchun bo'sh qiymat avval `null`ga
  * o'giriladi.
  */
-export const meteredPriceField = z.preprocess(
-  (value) => (value === '' || value === undefined || value === null ? null : value),
-  z.coerce
-    .number({ invalid_type_error: 'Raqam kiriting' })
-    .min(0, "Manfiy bo'lmasin")
-    .nullable()
-);
+export function meteredPriceField() {
+  const m = t().lib.meteredPrice;
+  return z.preprocess(
+    (value) => (value === '' || value === undefined || value === null ? null : value),
+    z.coerce.number({ invalid_type_error: m.number }).min(0, m.nonNegative).nullable()
+  );
+}
 
 /** Tarif kartasidagi qiymat: o'rnatilmagan bo'lsa oddiy km narxi amal qiladi. */
 export function meteredPriceLabel(
   value: number | null | undefined,
   format: (amount: number) => string
 ): string {
-  return value == null ? 'Oddiy km narxi' : format(value);
+  return value == null ? t().lib.meteredPrice.default : format(value);
 }

@@ -22,10 +22,11 @@ import {
 import { tariffChangeRequestsApi, type TariffChangeRequest } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 import { formatDateTime } from '@/lib/format';
+import { t } from '@/locales';
 
-const actionLabel: Record<TariffChangeRequest['action'], string> = {
-  create: 'Yangi',
-  update: 'Yangilash',
+const actionLabel = (action: TariffChangeRequest['action']): string => {
+  const m = t().tariffs.requests;
+  return action === 'create' ? m.actionCreate : m.actionUpdate;
 };
 
 // Kutilayotgan taklif — admin qarorini kutayotgan qo'lda aralashuv → amber.
@@ -35,10 +36,9 @@ const statusVariant: Record<TariffChangeRequest['status'], BadgeVariant> = {
   rejected: 'danger',
 };
 
-const statusLabel: Record<TariffChangeRequest['status'], string> = {
-  pending: 'Kutilmoqda',
-  approved: 'Tasdiqlangan',
-  rejected: 'Rad etilgan',
+const statusLabel = (status: TariffChangeRequest['status']): string => {
+  const m = t().tariffs.requests;
+  return { pending: m.pending, approved: m.approved, rejected: m.rejected }[status];
 };
 
 interface TariffRequestsCardProps {
@@ -52,6 +52,8 @@ interface TariffRequestsCardProps {
 
 /** Managers' tariff proposals — approve (applies immediately) or reject. */
 export function TariffRequestsCard({ requests, loading, error, onRetry, onReviewed }: TariffRequestsCardProps) {
+  const m = t();
+  const rm = m.tariffs.requests;
   const { toast } = useToast();
   const [reviewRequest, setReviewRequest] = useState<TariffChangeRequest | null>(null);
   const [reviewAction, setReviewAction] = useState<'approve' | 'reject' | null>(null);
@@ -72,15 +74,15 @@ export function TariffRequestsCard({ requests, loading, error, onRetry, onReview
     try {
       if (reviewAction === 'approve') {
         await tariffChangeRequestsApi.approve(reviewRequest.id, reviewNote.trim() || undefined);
-        toast({ title: 'Taklif tasdiqlandi', variant: 'success' });
+        toast({ title: rm.approvedToast, variant: 'success' });
       } else {
         await tariffChangeRequestsApi.reject(reviewRequest.id, reviewNote.trim() || undefined);
-        toast({ title: 'Taklif rad etildi', variant: 'success' });
+        toast({ title: rm.rejectedToast, variant: 'success' });
       }
       close();
       await onReviewed();
     } catch {
-      toast({ title: 'Xatolik', description: "Taklifni ko'rib chiqishda xatolik", variant: 'error' });
+      toast({ title: m.common.error, description: rm.reviewError, variant: 'error' });
     } finally {
       setReviewing(false);
     }
@@ -96,9 +98,9 @@ export function TariffRequestsCard({ requests, loading, error, onRetry, onReview
       <Card padding="none" className="overflow-hidden">
         <CardHeader
           divider
-          title={<span id="tariff-requests-heading">Boshqaruvchilar takliflari</span>}
-          description="Tasdiqlangan taklif darhol tariflarga qo'llaniladi"
-          actions={pending > 0 ? <Badge variant="warning">{pending} ta kutilmoqda</Badge> : undefined}
+          title={<span id="tariff-requests-heading">{rm.title}</span>}
+          description={rm.description}
+          actions={pending > 0 ? <Badge variant="warning">{rm.pendingCount(pending)}</Badge> : undefined}
         />
         {loading && requests.length === 0 ? (
           <SkeletonTable rows={3} cols={4} className="border-0 rounded-none" />
@@ -108,19 +110,19 @@ export function TariffRequestsCard({ requests, loading, error, onRetry, onReview
           <EmptyState
             compact
             variant="cleared"
-            title="Hozircha takliflar yo'q"
-            description="Boshqaruvchilar yuborgan takliflar shu yerda ko'rinadi."
+            title={rm.empty}
+            description={rm.emptyHint}
           />
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Tarif</TableHead>
-                <TableHead>Amal</TableHead>
-                <TableHead>Holati</TableHead>
-                <TableHead>Yuborilgan</TableHead>
+                <TableHead>{rm.colTariff}</TableHead>
+                <TableHead>{rm.colAction}</TableHead>
+                <TableHead>{m.common.statusAlt}</TableHead>
+                <TableHead>{rm.colSent}</TableHead>
                 <TableHead className="text-right">
-                  <span className="sr-only">Qaror</span>
+                  <span className="sr-only">{rm.colDecision}</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -128,14 +130,14 @@ export function TariffRequestsCard({ requests, loading, error, onRetry, onReview
               {requests.map((req) => (
                 <TableRow key={req.id}>
                   <TableCell className="font-medium">
-                    {(req.proposedChanges as { name?: string }).name ?? 'Tarif'}
+                    {(req.proposedChanges as { name?: string }).name ?? rm.fallbackName}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="neutral">{actionLabel[req.action]}</Badge>
+                    <Badge variant="neutral">{actionLabel(req.action)}</Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant={statusVariant[req.status]} dot>
-                      {statusLabel[req.status]}
+                      {statusLabel(req.status)}
                     </Badge>
                   </TableCell>
                   <TableCell className="num whitespace-nowrap text-muted">
@@ -145,10 +147,10 @@ export function TariffRequestsCard({ requests, loading, error, onRetry, onReview
                     {req.status === 'pending' && (
                       <div className="flex justify-end gap-1.5">
                         <Button size="sm" variant="secondary" onClick={() => open(req, 'reject')}>
-                          Rad etish
+                          {rm.reject}
                         </Button>
                         <Button size="sm" onClick={() => open(req, 'approve')}>
-                          Tasdiqlash
+                          {m.common.confirm}
                         </Button>
                       </div>
                     )}
@@ -165,30 +167,30 @@ export function TariffRequestsCard({ requests, loading, error, onRetry, onReview
         onClose={close}
         size="sm"
         tone={reviewAction === 'reject' ? 'danger' : 'default'}
-        title={reviewAction === 'approve' ? 'Taklifni tasdiqlash' : 'Taklifni rad etish'}
+        title={reviewAction === 'approve' ? rm.approveTitle : rm.rejectTitle}
         description={
           reviewAction === 'approve'
-            ? "Ushbu taklifni tasdiqlasangiz, o'zgarishlar darhol tariflarga qo'llaniladi."
-            : 'Ushbu taklifni rad etmoqchimisiz?'
+            ? rm.approveDescription
+            : rm.rejectDescription
         }
         footer={
           <>
             <Button variant="secondary" onClick={close}>
-              Bekor qilish
+              {m.common.cancel}
             </Button>
             <Button
               variant={reviewAction === 'approve' ? 'primary' : 'danger'}
               isLoading={reviewing}
               onClick={handleReview}
             >
-              {reviewAction === 'approve' ? 'Tasdiqlash' : 'Rad etish'}
+              {reviewAction === 'approve' ? m.common.confirm : rm.reject}
             </Button>
           </>
         }
       >
         <Input
-          label="Izoh (ixtiyoriy)"
-          placeholder="Sababini yozing..."
+          label={rm.note}
+          placeholder={rm.notePlaceholder}
           value={reviewNote}
           onChange={(e) => setReviewNote(e.target.value)}
         />

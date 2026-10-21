@@ -5,6 +5,7 @@
 import type { DriverLegalBrief, DriverLegalPatch, DriverLegalProfile, DriverTaxStatus } from './compliance-api';
 import { isIsoDate, isPinfl, isTin } from './compliance';
 import { apiErrorDetailText, parseApiError } from './api-error';
+import { t } from '@/locales';
 
 export interface DriverLegalForm {
   taxStatus: DriverTaxStatus | '';
@@ -19,10 +20,10 @@ export interface DriverLegalForm {
 
 export type DriverLegalErrors = Partial<Record<keyof DriverLegalForm, string>>;
 
-export const TAX_STATUS_LABELS: Record<DriverTaxStatus, string> = {
-  self_employed: "O'zini o'zi band qilgan",
-  individual_entrepreneur: 'YaTT',
-};
+/** Soliq maqomi yorliqlari — render paytida chaqiring (til shu paytda olinadi). */
+export function taxStatusLabels(): Record<DriverTaxStatus, string> {
+  return t().drivers.legal.taxStatus;
+}
 
 export function toDriverLegalForm(p: DriverLegalProfile): DriverLegalForm {
   return {
@@ -39,32 +40,33 @@ export function toDriverLegalForm(p: DriverLegalProfile): DriverLegalForm {
 
 /** `today` — `YYYY-MM-DD` (Toshkent), kelajak sanalarni rad etish uchun. */
 export function validateDriverLegalForm(form: DriverLegalForm, today: string): DriverLegalErrors {
+  const m = t().drivers.legal.errors;
   const errors: DriverLegalErrors = {};
   const pinfl = form.pinfl.trim();
   const tin = form.tin.trim();
   // Niqoblangan (o'zgartirilmaydigan) qiymat tekshirilmaydi.
   if (pinfl && !isMaskedLegalId(pinfl) && !isPinfl(pinfl)) {
-    errors.pinfl = "JShShIR 14 ta raqamdan iborat bo'lishi kerak";
+    errors.pinfl = m.pinfl;
   }
-  if (tin && !isMaskedLegalId(tin) && !isTin(tin)) errors.tin = "STIR 9 ta raqamdan iborat bo'lishi kerak";
+  if (tin && !isMaskedLegalId(tin) && !isTin(tin)) errors.tin = m.tin;
 
   const birth = form.birthDate.trim();
   if (birth) {
-    if (!isIsoDate(birth)) errors.birthDate = "Noto'g'ri sana";
-    else if (birth > today) errors.birthDate = "Tug'ilgan sana kelajakda bo'lishi mumkin emas";
+    if (!isIsoDate(birth)) errors.birthDate = m.invalidDate;
+    else if (birth > today) errors.birthDate = m.birthFuture;
   }
   const licence = form.drivingLicenceIssuedAt.trim();
   if (licence) {
-    if (!isIsoDate(licence)) errors.drivingLicenceIssuedAt = "Noto'g'ri sana";
-    else if (licence > today) errors.drivingLicenceIssuedAt = "Sana kelajakda bo'lishi mumkin emas";
+    if (!isIsoDate(licence)) errors.drivingLicenceIssuedAt = m.invalidDate;
+    else if (licence > today) errors.drivingLicenceIssuedAt = m.dateFuture;
     else if (birth && !errors.birthDate && licence <= birth) {
-      errors.drivingLicenceIssuedAt = "Guvohnoma tug'ilgan sanadan keyin berilgan bo'lishi kerak";
+      errors.drivingLicenceIssuedAt = m.licenceAfterBirth;
     }
   }
-  if (form.taxiLicenceNumber.trim().length > 50) errors.taxiLicenceNumber = "Ko'pi bilan 50 belgi";
-  if (form.taxiLicenceRegion.trim().length > 100) errors.taxiLicenceRegion = "Ko'pi bilan 100 belgi";
+  if (form.taxiLicenceNumber.trim().length > 50) errors.taxiLicenceNumber = m.maxChars(50);
+  if (form.taxiLicenceRegion.trim().length > 100) errors.taxiLicenceRegion = m.maxChars(100);
   if (!/^[A-Z]{2}$/.test(form.citizenship.trim())) {
-    errors.citizenship = '2 harfli ISO kod (masalan UZ)';
+    errors.citizenship = m.citizenship;
   }
   return errors;
 }
@@ -112,19 +114,20 @@ export interface LegalBriefBadge {
  * muhlat davridagi kamchilik — info.
  */
 export function legalBriefBadge(brief: DriverLegalBrief | null | undefined): LegalBriefBadge {
-  if (!brief) return { label: "Noma'lum", variant: 'neutral', title: "Holatni hisoblab bo'lmadi" };
+  const m = t().drivers.legal.brief;
+  if (!brief) return { label: m.unknown, variant: 'neutral', title: m.unknownTitle };
   if (brief.eligible || brief.issueCount === 0) {
-    return { label: 'Talablarga javob beradi', variant: 'success', title: 'VMQ 200 talablari bajarilgan' };
+    return { label: m.eligible, variant: 'success', title: m.eligibleTitle };
   }
   const count = brief.issueCount;
   if (brief.blocking) {
     return {
-      label: `Bloklangan · ${count}`,
+      label: m.blocked(count),
       variant: 'danger',
-      title: `${count} ta kamchilik — taksi uchun onlayn chiqa olmaydi`,
+      title: m.blockedTitle(count),
     };
   }
-  return { label: `${count} ta kamchilik`, variant: 'info', title: "Kamchiliklar ro'yxati haydovchi sahifasida" };
+  return { label: m.issues(count), variant: 'info', title: m.issuesTitle };
 }
 
 // ─── Niqob va takror (docs/LEGAL-COMPLIANCE.md §25 #2, #4) ───────────
@@ -142,10 +145,10 @@ export function hasMaskedLegalIds(profile: Pick<DriverLegalProfile, 'pinfl' | 't
   return isMaskedLegalId(profile.pinfl) || isMaskedLegalId(profile.tin);
 }
 
-export const LEGAL_DUPLICATE_MESSAGE: Record<'pinfl' | 'tin', string> = {
-  pinfl: 'Bu JShShIR boshqa haydovchi profilida roʻyxatdan oʻtgan',
-  tin: 'Bu STIR boshqa haydovchi profilida roʻyxatdan oʻtgan',
-};
+/** 409 takror xabari maydon bo'yicha — render/handler paytida chaqiring. */
+export function legalDuplicateMessage(field: 'pinfl' | 'tin'): string {
+  return t().drivers.legal.duplicate[field];
+}
 
 /** 409 `LEGAL_PROFILE_DUPLICATE` — qaysi maydon (`details.field`); boshqa xato — `null`. */
 export function legalDuplicateField(err: unknown): 'pinfl' | 'tin' | null {

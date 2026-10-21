@@ -15,6 +15,7 @@ import { WalletNotifierService } from './wallet-notifier.service';
 import { UserRole } from '../../database/entities/user.entity';
 import { SettingsService, DEFAULT_MANUAL_ADJUSTMENT_MANAGER_LIMIT } from '../settings/settings.service';
 import { ERROR_CODES, codedForbidden } from '../../common/errors/coded-error';
+import { localized } from '../notifications/push-text';
 
 /** Bitta qo'lda tuzatishning mutlaq chegarasi (admin uchun ham), so'm. */
 export const MANUAL_ADJUSTMENT_MAX = 5_000_000;
@@ -117,18 +118,20 @@ export class DriverWalletAdjustmentsService {
     await this.notifier.balanceChanged(driver.userId, {
       delta: amount,
       reason: 'manual_adjustment',
-      push:
-        amount > 0
-          ? {
-              title: "Hamyon to'ldirildi",
-              body: `Hamyoningizga ${sum} so'm qo'shildi: ${note}`,
-              event: 'wallet_manual_adjustment',
-            }
-          : {
-              title: 'Hamyon tuzatildi',
-              body: `Hamyoningizdan ${sum} so'm yechildi (tuzatish): ${note}`,
-              event: 'wallet_manual_adjustment',
-            },
+      push: {
+        // `note` — operator yozgan izoh, tarjima qilinmaydi.
+        text:
+          amount > 0
+            ? localized({
+                uz: { title: "Hamyon to'ldirildi", body: `Hamyoningizga ${sum} so'm qo'shildi: ${note}` },
+                ru: { title: 'Кошелёк пополнен', body: `На кошелёк зачислено ${sum} сум: ${note}` },
+              })
+            : localized({
+                uz: { title: 'Hamyon tuzatildi', body: `Hamyoningizdan ${sum} so'm yechildi (tuzatish): ${note}` },
+                ru: { title: 'Корректировка кошелька', body: `С кошелька списано ${sum} сум (корректировка): ${note}` },
+              }),
+        event: 'wallet_manual_adjustment',
+      },
       extra: { auditLogId: result.auditId },
     });
 

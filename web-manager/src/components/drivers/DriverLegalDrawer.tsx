@@ -10,13 +10,13 @@ import {
 } from '@/lib/api';
 import { apiErrorTitle } from '@/lib/api-error';
 import {
-  TAX_STATUS_LABEL,
-  TAX_STATUS_OPTIONS,
+  taxStatusLabels,
+  taxStatusOptions,
   apiErrorMessage,
   buildLegalPatch,
   enforcementText,
   hasMaskedLegalIds,
-  LEGAL_DUPLICATE_MESSAGE,
+  legalDuplicateMessages,
   legalDuplicateField,
   legalBadge,
   legalFormFromProfile,
@@ -34,6 +34,7 @@ import { SkeletonForm } from '@/components/ui/Skeleton';
 import { KeyValue, KeyValueList } from '@/components/ui/KeyValue';
 import { useToast } from '@/components/ui/Toast';
 import { formatDate, fullName } from '@/lib/format';
+import { t } from '@/locales';
 
 export interface DriverLegalDrawerProps {
   driver: DriverProfile | null;
@@ -51,6 +52,8 @@ const todayIso = () => new Date().toISOString().slice(0, 10);
  * va majburlash holati. Tahrirlash — drivers_approve ruxsati bilan.
  */
 export function DriverLegalDrawer({ driver, canEdit, onClose, onUpdated }: DriverLegalDrawerProps) {
+  const m = t();
+  const lg = m.drivers.legal;
   const { toast } = useToast();
   const [summary, setSummary] = useState<DriverLegalSummary | null>(null);
   const [loading, setLoading] = useState(false);
@@ -70,7 +73,7 @@ export function DriverLegalDrawer({ driver, canEdit, onClose, onUpdated }: Drive
       setSummary(result);
       setError(null);
     } catch (err) {
-      setError(apiErrorMessage(err, 'Huquqiy profilni yuklab boʻlmadi'));
+      setError(apiErrorMessage(err, t().drivers.legal.loadError));
     } finally {
       setLoading(false);
     }
@@ -115,19 +118,19 @@ export function DriverLegalDrawer({ driver, canEdit, onClose, onUpdated }: Drive
       setEditing(false);
       onUpdated?.(driverId, updated);
       toast({
-        title: 'Huquqiy profil saqlandi',
+        title: lg.saved,
         description: legalBadge(updated.eligibility).label,
         variant: 'success',
       });
     } catch (err) {
       // 409 LEGAL_PROFILE_DUPLICATE — xato tegishli maydon ostida, forma ochiq qoladi.
       const duplicate = legalDuplicateField(err);
-      if (duplicate) setErrors((prev) => ({ ...prev, [duplicate]: LEGAL_DUPLICATE_MESSAGE[duplicate] }));
+      if (duplicate) setErrors((prev) => ({ ...prev, [duplicate]: legalDuplicateMessages()[duplicate] }));
       toast({
-        title: apiErrorTitle(err, 'Saqlab boʻlmadi'),
+        title: apiErrorTitle(err, lg.saveError),
         description: duplicate
-          ? LEGAL_DUPLICATE_MESSAGE[duplicate]
-          : apiErrorMessage(err, 'Qayta urinib koʻring yoki ruxsatingizni tekshiring.'),
+          ? legalDuplicateMessages()[duplicate]
+          : apiErrorMessage(err, lg.saveErrorDesc),
         variant: 'error',
       });
     } finally {
@@ -143,16 +146,16 @@ export function DriverLegalDrawer({ driver, canEdit, onClose, onUpdated }: Drive
   const footer = !summary || !editable ? undefined : editing ? (
       <div className="flex justify-end gap-2">
         <Button variant="secondary" size="sm" onClick={() => setEditing(false)} disabled={saving}>
-          Bekor qilish
+          {m.common.cancel}
         </Button>
         <Button size="sm" onClick={() => void save()} isLoading={saving}>
-          Saqlash
+          {m.common.save}
         </Button>
       </div>
     ) : (
       <div className="flex justify-end">
         <Button variant="secondary" size="sm" onClick={startEdit}>
-          Tahrirlash
+          {m.common.edit}
         </Button>
       </div>
     );
@@ -161,13 +164,13 @@ export function DriverLegalDrawer({ driver, canEdit, onClose, onUpdated }: Drive
     <Drawer
       isOpen={!!driver}
       onClose={onClose}
-      title="Huquqiy profil"
+      title={lg.title}
       subtitle={driver ? fullName(driver.firstName, driver.lastName) : undefined}
       width="lg"
       footer={footer}
     >
       {error && !summary ? (
-        <ErrorState title="Huquqiy profilni yuklab boʻlmadi" message={error} onRetry={load} retrying={loading} />
+        <ErrorState title={lg.loadError} message={error} onRetry={load} retrying={loading} />
       ) : !summary ? (
         <SkeletonForm fields={6} />
       ) : (
@@ -180,11 +183,11 @@ export function DriverLegalDrawer({ driver, canEdit, onClose, onUpdated }: Drive
           )}
           {masked && (
             <p className="text-xs text-subtle">
-              JShShIR va STIR niqoblangan — toʻliq qiymat «Drivers Approve» ruxsati bilan koʻrinadi.
+              {lg.masked}
             </p>
           )}
           {!editable && (
-            <p className="text-xs text-subtle">Tahrirlash uchun «Drivers Approve» ruxsati kerak.</p>
+            <p className="text-xs text-subtle">{lg.noEditPermission}</p>
           )}
         </div>
       )}
@@ -195,8 +198,9 @@ export function DriverLegalDrawer({ driver, canEdit, onClose, onUpdated }: Drive
 function EligibilitySection({ summary }: { summary: DriverLegalSummary }) {
   const e = summary.eligibility;
   const badge = legalBadge(e);
+  const lg = t().drivers.legal;
   return (
-    <section aria-label="Talablarga moslik" className="space-y-2">
+    <section aria-label={lg.eligibilityAria} className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <Badge
           variant={badge.variant}
@@ -212,12 +216,12 @@ function EligibilitySection({ summary }: { summary: DriverLegalSummary }) {
           {badge.label}
         </Badge>
         <Badge variant={e.enforced ? 'danger' : 'neutral'} size="md">
-          {e.enforced ? 'Majburlanadi' : 'Majburlanmaydi'}
+          {e.enforced ? lg.enforced : lg.notEnforced}
         </Badge>
       </div>
       <p className="text-xs text-muted">{enforcementText(e, formatDate)}</p>
       {e.appliesToTaxi && e.reasons.length > 0 && (
-        <ul className="space-y-1.5" aria-label="Kamchiliklar">
+        <ul className="space-y-1.5" aria-label={lg.issuesAria}>
           {e.reasons.map((r) => (
             <li
               key={r.code}
@@ -229,7 +233,7 @@ function EligibilitySection({ summary }: { summary: DriverLegalSummary }) {
             >
               <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden />
               <span>
-                <span className="sr-only">{e.blocking ? 'Bloklaydi: ' : 'Ogohlantirish: '}</span>
+                <span className="sr-only">{e.blocking ? lg.blocks : lg.warning}</span>
                 {r.message}
               </span>
             </li>
@@ -242,21 +246,22 @@ function EligibilitySection({ summary }: { summary: DriverLegalSummary }) {
 
 function ProfileView({ summary }: { summary: DriverLegalSummary }) {
   const p = summary.profile;
-  const dash = <span className="text-subtle">Kiritilmagan</span>;
+  const lg = t().drivers.legal;
+  const dash = <span className="text-subtle">{t().lib.taxStatusNotSet}</span>;
   return (
     <KeyValueList>
-      <KeyValue label="Soliq maqomi">{p.taxStatus ? TAX_STATUS_LABEL[p.taxStatus] : dash}</KeyValue>
-      <KeyValue label="JShShIR (PINFL)">{p.pinfl ? <span className="font-mono">{p.pinfl}</span> : dash}</KeyValue>
-      <KeyValue label="STIR">{p.tin ? <span className="font-mono">{p.tin}</span> : dash}</KeyValue>
-      <KeyValue label="Tugʻilgan sana">{p.birthDate ? formatDate(p.birthDate) : dash}</KeyValue>
-      <KeyValue label="Guvohnoma berilgan">
+      <KeyValue label={lg.taxStatus}>{p.taxStatus ? taxStatusLabels()[p.taxStatus] : dash}</KeyValue>
+      <KeyValue label={lg.pinfl}>{p.pinfl ? <span className="font-mono">{p.pinfl}</span> : dash}</KeyValue>
+      <KeyValue label={lg.tin}>{p.tin ? <span className="font-mono">{p.tin}</span> : dash}</KeyValue>
+      <KeyValue label={lg.birthDate}>{p.birthDate ? formatDate(p.birthDate) : dash}</KeyValue>
+      <KeyValue label={lg.licenceIssued}>
         {p.drivingLicenceIssuedAt ? formatDate(p.drivingLicenceIssuedAt) : dash}
       </KeyValue>
-      <KeyValue label="Taksi litsenziyasi">
+      <KeyValue label={lg.taxiLicence}>
         {p.taxiLicenceNumber ? <span className="font-mono">{p.taxiLicenceNumber}</span> : dash}
       </KeyValue>
-      <KeyValue label="Litsenziya hududi">{p.taxiLicenceRegion || dash}</KeyValue>
-      <KeyValue label="Fuqarolik">{p.citizenship}</KeyValue>
+      <KeyValue label={lg.licenceRegion}>{p.taxiLicenceRegion || dash}</KeyValue>
+      <KeyValue label={lg.citizenship}>{p.citizenship}</KeyValue>
     </KeyValueList>
   );
 }
@@ -271,56 +276,57 @@ function LegalForm({
   onChange: <K extends keyof LegalFormValues>(key: K, value: LegalFormValues[K]) => void;
 }) {
   const digits = (v: string, max: number) => v.replace(/\D/g, '').slice(0, max);
+  const lg = t().drivers.legal;
   return (
     <form
       className="grid grid-cols-1 gap-3 sm:grid-cols-2"
       onSubmit={(e) => e.preventDefault()}
-      aria-label="Huquqiy profilni tahrirlash"
+      aria-label={lg.editAria}
       noValidate
     >
       <Select
-        label="Soliq maqomi"
-        options={TAX_STATUS_OPTIONS}
+        label={lg.taxStatus}
+        options={taxStatusOptions()}
         value={values.taxStatus}
         onChange={(e) => onChange('taxStatus', e.target.value as LegalFormValues['taxStatus'])}
         error={errors.taxStatus}
         wrapperClassName="sm:col-span-2"
       />
       <Input
-        label="JShShIR (PINFL)"
+        label={lg.pinfl}
         inputMode="numeric"
         mono
         value={values.pinfl}
         onChange={(e) => onChange('pinfl', digits(e.target.value, 14))}
         error={errors.pinfl}
-        hint="14 ta raqam"
+        hint={lg.pinflHint}
       />
       <Input
-        label="STIR"
+        label={lg.tin}
         inputMode="numeric"
         mono
         value={values.tin}
         onChange={(e) => onChange('tin', digits(e.target.value, 9))}
         error={errors.tin}
-        hint="9 ta raqam — YaTT uchun majburiy"
+        hint={lg.tinHint}
       />
       <Input
-        label="Tugʻilgan sana"
+        label={lg.birthDate}
         type="date"
         value={values.birthDate}
         onChange={(e) => onChange('birthDate', e.target.value)}
         error={errors.birthDate}
       />
       <Input
-        label="Guvohnoma berilgan sana"
+        label={lg.licenceIssuedDate}
         type="date"
         value={values.drivingLicenceIssuedAt}
         onChange={(e) => onChange('drivingLicenceIssuedAt', e.target.value)}
         error={errors.drivingLicenceIssuedAt}
-        hint="B toifasi, staj hisobi uchun"
+        hint={lg.licenceHint}
       />
       <Input
-        label="Taksi litsenziya varaqasi raqami"
+        label={lg.taxiLicenceNumber}
         mono
         maxLength={50}
         value={values.taxiLicenceNumber}
@@ -328,19 +334,19 @@ function LegalForm({
         error={errors.taxiLicenceNumber}
       />
       <Input
-        label="Litsenziya hududi"
+        label={lg.licenceRegion}
         maxLength={100}
         value={values.taxiLicenceRegion}
         onChange={(e) => onChange('taxiLicenceRegion', e.target.value)}
         error={errors.taxiLicenceRegion}
       />
       <Input
-        label="Fuqarolik"
+        label={lg.citizenship}
         maxLength={2}
         value={values.citizenship}
         onChange={(e) => onChange('citizenship', e.target.value.toUpperCase())}
         error={errors.citizenship}
-        hint="ISO kod, masalan UZ"
+        hint={lg.citizenshipHint}
       />
     </form>
   );

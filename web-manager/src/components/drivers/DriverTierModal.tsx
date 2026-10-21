@@ -7,9 +7,11 @@ import { Select } from '@/components/ui/Select';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { fullName } from '@/lib/format';
+import { t } from '@/locales';
 
 export function tierLabel(tier: number): string {
-  return TARIFF_TIERS.find((t) => t.tier === tier)?.label ?? String(tier);
+  const names: Record<number, string> = t().drivers.tier.names;
+  return names[tier] ?? TARIFF_TIERS.find((item) => item.tier === tier)?.label ?? String(tier);
 }
 
 export interface DriverTierModalProps {
@@ -20,6 +22,8 @@ export interface DriverTierModalProps {
 
 /** The highest tariff tier this driver's car has been vetted for. */
 export function DriverTierModal({ driver, onClose, onUpdated }: DriverTierModalProps) {
+  const m = t();
+  const tm = m.drivers.tier;
   const { toast } = useToast();
   const [tier, setTier] = useState(driver?.approvedTariffTier ?? 1);
   const [saving, setSaving] = useState(false);
@@ -36,13 +40,13 @@ export function DriverTierModal({ driver, onClose, onUpdated }: DriverTierModalP
       onUpdated(updated);
       onClose();
       toast({
-        title: `Tarif darajasi: ${tierLabel(tier)}`,
-        description: `${fullName(updated.firstName, updated.lastName)} shu darajagacha buyurtma oladi.`,
+        title: tm.savedTitle(tierLabel(tier)),
+        description: tm.savedDesc(fullName(updated.firstName, updated.lastName)),
         variant: 'success',
       });
     } catch (err) {
       console.error('Set tariff tier failed:', err);
-      toast({ title: 'Tarif darajasini yangilab boʻlmadi', variant: 'error' });
+      toast({ title: tm.saveError, variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -53,20 +57,18 @@ export function DriverTierModal({ driver, onClose, onUpdated }: DriverTierModalP
       isOpen={!!driver}
       onClose={onClose}
       title={
-        driver ? `${fullName(driver.firstName, driver.lastName)} — tarif darajasi` : 'Tarif darajasi'
+        driver ? tm.modalTitle(fullName(driver.firstName, driver.lastName)) : tm.label
       }
       size="sm"
     >
       {driver && (
         <div className="space-y-4">
           <p className="text-xs text-muted leading-relaxed">
-            Bu haydovchi qatnasha oladigan eng yuqori tarif — mashinasi
-            {driver.carYear != null ? ` (${driver.carYear}-yil)` : ''} koʻrib chiqilgach
-            belgilanadi.
+            {tm.hint(driver.carYear)}
           </p>
           <Select
-            label="Tarif darajasi"
-            options={TARIFF_TIERS.map((t) => ({ value: String(t.tier), label: t.label }))}
+            label={tm.label}
+            options={TARIFF_TIERS.map((item) => ({ value: String(item.tier), label: tierLabel(item.tier) }))}
             value={String(tier)}
             onChange={(e) => setTier(Number(e.target.value))}
           />
@@ -77,7 +79,7 @@ export function DriverTierModal({ driver, onClose, onUpdated }: DriverTierModalP
             isLoading={saving}
             className="w-full"
           >
-            Saqlash
+            {m.common.save}
           </Button>
         </div>
       )}

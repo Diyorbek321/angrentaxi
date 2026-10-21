@@ -8,6 +8,8 @@
  * va mijoz ilovasi har safar shu faylni yuklaydi.
  */
 
+import { t } from '@/locales';
+
 export const CATALOG_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 
 /** Tanlangan asl fayl chegarasi — kichraytirishdan oldin. */
@@ -29,9 +31,9 @@ export function catalogImageSrc(imageKey: string | null | undefined): string | n
 /** Foydalanuvchiga ko'rsatiladigan xato yoki `null`. */
 export function validateCatalogImage(file: { type: string; size: number }): string | null {
   if (!(CATALOG_IMAGE_TYPES as readonly string[]).includes(file.type)) {
-    return 'Faqat JPEG, PNG yoki WEBP rasm';
+    return t().catalogImage.badType;
   }
-  if (file.size > MAX_SOURCE_BYTES) return 'Rasm juda katta (15 MB dan oshmasin)';
+  if (file.size > MAX_SOURCE_BYTES) return t().catalogImage.tooLarge;
   return null;
 }
 
@@ -44,7 +46,7 @@ export function fitWithin(width: number, height: number, max = MAX_EDGE_PX): { w
 function canvasToJpeg(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error('Rasmni tayyorlab boʻlmadi'))),
+      (blob) => (blob ? resolve(blob) : reject(new Error(t().catalogImage.prepareFailed))),
       'image/jpeg',
       quality
     );
@@ -54,14 +56,14 @@ function canvasToJpeg(canvas: HTMLCanvasElement, quality: number): Promise<Blob>
 /** Brauzerda kichraytirib JPEG qiladi; 2 MB ga sig'masa xato. */
 export async function prepareCatalogImage(file: File): Promise<Blob> {
   const bitmap = await createImageBitmap(file).catch(() => {
-    throw new Error('Rasmni oʻqib boʻlmadi');
+    throw new Error(t().catalogImage.readFailed);
   });
   const { width, height } = fitWithin(bitmap.width, bitmap.height);
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Rasmni tayyorlab boʻlmadi');
+  if (!ctx) throw new Error(t().catalogImage.prepareFailed);
   // PNG shaffof joylari JPEG'da qora bo'lib qolmasin.
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, width, height);
@@ -72,7 +74,7 @@ export async function prepareCatalogImage(file: File): Promise<Blob> {
     const blob = await canvasToJpeg(canvas, quality);
     if (blob.size <= MAX_UPLOAD_BYTES) return blob;
   }
-  throw new Error('Rasm juda katta (2 MB ga sigʻmadi)');
+  throw new Error(t().catalogImage.tooLargeAfter);
 }
 
 /** Backend kutgan multipart: bitta `image` maydoni. */

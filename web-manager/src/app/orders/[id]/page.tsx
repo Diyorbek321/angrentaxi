@@ -19,9 +19,10 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { useToast } from '@/components/ui/Toast';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { PAYMENT_METHOD_LABELS } from '@/lib/constants';
-import { PARCEL_SIZE_LABELS, parcelInfo } from '@/lib/parcel';
-import { formatDateTime, formatPhone, formatRating, shortId } from '@/lib/format';
+import { paymentMethodLabels } from '@/lib/constants';
+import { parcelSizeLabels, parcelInfo } from '@/lib/parcel';
+import { formatDateTime, formatPhone, formatRating, nameFallback, shortId } from '@/lib/format';
+import { t } from '@/locales';
 
 function DetailSkeleton() {
   return (
@@ -40,6 +41,8 @@ function DetailSkeleton() {
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const m = t();
+  const d = m.orders.detail;
   const [order, setOrder] = useState<Order | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +62,7 @@ export default function OrderDetailPage() {
         setOrder(o);
         setError(null);
       })
-      .catch(() => setError('Buyurtmani yuklab boʻlmadi'))
+      .catch(() => setError(t().orders.detail.loadFailed))
       .finally(() => setIsLoading(false));
   }, [id]);
 
@@ -76,11 +79,11 @@ export default function OrderDetailPage() {
     try {
       const updated = await cancelOrder(order.id, 'Cancelled by dispatcher');
       setOrder(updated);
-      toast({ title: `Buyurtma ${shortId(order.id)} bekor qilindi`, variant: 'info' });
+      toast({ title: d.cancelled(shortId(order.id)), variant: 'info' });
     } catch {
       toast({
-        title: 'Buyurtmani bekor qilib boʻlmadi',
-        description: 'Qaytadan urinib koʻring.',
+        title: d.cancelFailed,
+        description: d.tryAgain,
         variant: 'error',
       });
     } finally {
@@ -95,11 +98,11 @@ export default function OrderDetailPage() {
     try {
       const updated = await completeOrder(order.id);
       setOrder(updated);
-      toast({ title: `Buyurtma ${shortId(order.id)} yakunlandi`, variant: 'success' });
+      toast({ title: d.completed(shortId(order.id)), variant: 'success' });
     } catch {
       toast({
-        title: 'Buyurtmani yakunlab boʻlmadi',
-        description: 'Qaytadan urinib koʻring.',
+        title: d.completeFailed,
+        description: d.tryAgain,
         variant: 'error',
       });
     } finally {
@@ -117,11 +120,11 @@ export default function OrderDetailPage() {
   if (error || !order) {
     return (
       <PageBody width="narrow">
-        <PageHeader title="Buyurtma" breadcrumbs={[{ label: 'Buyurtmalar', href: '/orders' }, { label: 'Buyurtma' }]} />
+        <PageHeader title={d.title} breadcrumbs={[{ label: m.orders.list.title, href: '/orders' }, { label: d.title }]} />
         <Card padding="none">
           <ErrorState
-            title={error ?? 'Buyurtma topilmadi'}
-            message="Tarmoq xatosi, eskirgan havola yoki oʻchirilgan buyurtma boʻlishi mumkin."
+            title={error ?? d.notFound}
+            message={d.notFoundHint}
             onRetry={load}
             retrying={isLoading}
           />
@@ -134,23 +137,23 @@ export default function OrderDetailPage() {
 
   const finished = order.cancelledAt ?? order.completedAt;
   const timeline = [
-    { label: 'Yaratildi', ts: order.createdAt },
-    { label: 'Qabul qilindi', ts: order.acceptedAt },
-    { label: 'Yoʻlga chiqdi', ts: order.startedAt },
-    { label: order.cancelledAt ? 'Bekor qilindi' : 'Yakunlandi', ts: finished },
+    { label: d.tlCreated, ts: order.createdAt },
+    { label: d.tlAccepted, ts: order.acceptedAt },
+    { label: d.tlStarted, ts: order.startedAt },
+    { label: order.cancelledAt ? d.tlCancelled : d.tlCompleted, ts: finished },
   ];
 
   return (
     <PageBody width="narrow">
       <PageHeader
-        breadcrumbs={[{ label: 'Buyurtmalar', href: '/orders' }, { label: shortId(order.id) }]}
+        breadcrumbs={[{ label: m.orders.list.title, href: '/orders' }, { label: shortId(order.id) }]}
         title={
           <span className="inline-flex items-center gap-2.5">
             <span className="font-mono">{shortId(order.id)}</span>
             <OrderStatusBadge status={order.status} dot />
           </span>
         }
-        description={<span className="num">{formatDateTime(order.createdAt, { withYear: true })} da yaratilgan</span>}
+        description={<span className="num">{d.createdAt(formatDateTime(order.createdAt, { withYear: true }))}</span>}
         actions={
           <>
             {/* Assignment is an amber, deliberate exception */}
@@ -161,7 +164,7 @@ export default function OrderDetailPage() {
                 onClick={() => setAssignModalOpen(true)}
                 leftIcon={<UserCog size={13} aria-hidden />}
               >
-                Qoʻlda aralashuv
+                {d.manualOverride}
               </Button>
             )}
             {canComplete && (
@@ -172,7 +175,7 @@ export default function OrderDetailPage() {
                 isLoading={isCompleting}
                 leftIcon={<CheckCircle2 size={13} aria-hidden />}
               >
-                Yakunlash
+                {d.complete}
               </Button>
             )}
             {canCancel && (
@@ -183,7 +186,7 @@ export default function OrderDetailPage() {
                 isLoading={isCancelling}
                 leftIcon={<Ban size={13} aria-hidden />}
               >
-                Bekor qilish
+                {m.common.cancel}
               </Button>
             )}
           </>
@@ -192,7 +195,7 @@ export default function OrderDetailPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <DetailCard
-          title="Mijoz"
+          title={d.customer}
           actions={
             order.passenger?.phone ? (
               <Button
@@ -201,14 +204,14 @@ export default function OrderDetailPage() {
                 size="sm"
                 leftIcon={<Phone size={13} aria-hidden />}
               >
-                Qoʻngʻiroq
+                {d.call}
               </Button>
             ) : undefined
           }
         >
           <KeyValueList>
-            <KeyValue label="Ism">{order.passenger?.name || '—'}</KeyValue>
-            <KeyValue label="Telefon">
+            <KeyValue label={d.name}>{order.passenger?.name || '—'}</KeyValue>
+            <KeyValue label={d.phone}>
               <span className="num">{formatPhone(order.passenger?.phone)}</span>
             </KeyValue>
           </KeyValueList>
@@ -217,36 +220,36 @@ export default function OrderDetailPage() {
         {/* Parcel: who receives it. When the driver's PIN locks, the dispatcher
             phones this number before completing the ride from here. */}
         {parcel && (
-          <DetailCard title="Posilka">
+          <DetailCard title={d.parcel}>
             <KeyValueList>
-              <KeyValue label="Qabul qiluvchi">{parcel.recipientName ?? '—'}</KeyValue>
-              <KeyValue label="Telefon">
+              <KeyValue label={d.recipient}>{parcel.recipientName ?? '—'}</KeyValue>
+              <KeyValue label={d.phone}>
                 <a href={`tel:${parcel.recipientPhone}`} className="num text-primary-text hover:underline">
                   {formatPhone(parcel.recipientPhone)}
                 </a>
               </KeyValue>
-              <KeyValue label="Nima">{parcel.itemDescription}</KeyValue>
-              <KeyValue label="Oʻlcham">{PARCEL_SIZE_LABELS[parcel.size]}</KeyValue>
+              <KeyValue label={d.item}>{parcel.itemDescription}</KeyValue>
+              <KeyValue label={d.size}>{parcelSizeLabels()[parcel.size]}</KeyValue>
             </KeyValueList>
           </DetailCard>
         )}
 
         <DeliveryExtrasCard order={order} />
 
-        <DetailCard title="Haydovchi">
+        <DetailCard title={d.driver}>
           {order.driver ? (
             <KeyValueList>
-              <KeyValue label="Ism">{order.driver.name || 'Ism kiritilmagan'}</KeyValue>
-              <KeyValue label="Telefon">
+              <KeyValue label={d.name}>{order.driver.name || nameFallback()}</KeyValue>
+              <KeyValue label={d.phone}>
                 <span className="num">{formatPhone(order.driver.phone)}</span>
               </KeyValue>
-              <KeyValue label="Mashina">
+              <KeyValue label={d.car}>
                 <span className="inline-flex items-center gap-2">
                   {order.driver.carModel}
                   <PlateNumber plate={order.driver.carNumber} />
                 </span>
               </KeyValue>
-              <KeyValue label="Reyting">
+              <KeyValue label={d.rating}>
                 <span className="num inline-flex items-center gap-1">
                   <Star size={12} className="text-primary" fill="currentColor" aria-hidden />
                   {formatRating(order.driver.rating)}
@@ -255,17 +258,17 @@ export default function OrderDetailPage() {
             </KeyValueList>
           ) : (
             <p className="text-[13px] text-subtle">
-              {order.status === 'searching' ? 'Tizim haydovchi qidirmoqda.' : 'Haydovchi tayinlanmagan.'}
+              {order.status === 'searching' ? d.searchingDriver : d.noDriver}
             </p>
           )}
         </DetailCard>
 
-        <DetailCard title="Marshrut">
+        <DetailCard title={d.route}>
           <div className="space-y-3 text-[13px]">
             <div className="flex items-start gap-2.5">
               <span className="mt-1 h-2.5 w-2.5 rounded-full bg-mint-deep shrink-0 ring-2 ring-mint/25" />
               <div className="min-w-0">
-                <p className="text-xs text-subtle mb-0.5">Olib ketish</p>
+                <p className="text-xs text-subtle mb-0.5">{d.pickup}</p>
                 <p className="text-ink">{order.pickupAddress ?? '—'}</p>
                 <p className="num text-[11px] text-subtle mt-0.5">
                   {order.pickupLocation.coordinates[1].toFixed(6)},{' '}
@@ -277,7 +280,7 @@ export default function OrderDetailPage() {
             <div className="flex items-start gap-2.5">
               <MapPin size={14} className="text-danger mt-0.5 shrink-0" aria-hidden />
               <div className="min-w-0">
-                <p className="text-xs text-subtle mb-0.5">Tashlab ketish</p>
+                <p className="text-xs text-subtle mb-0.5">{d.dropoff}</p>
                 <p className="text-ink">{order.dropoffAddress ?? '—'}</p>
                 <p className="num text-[11px] text-subtle mt-0.5">
                   {order.dropoffLocation.coordinates[1].toFixed(6)},{' '}
@@ -288,20 +291,20 @@ export default function OrderDetailPage() {
           </div>
         </DetailCard>
 
-        <DetailCard title="Toʻlov">
+        <DetailCard title={d.payment}>
           <KeyValueList>
-            <KeyValue label="Toʻlov turi">{PAYMENT_METHOD_LABELS[order.paymentMethod]}</KeyValue>
-            <KeyValue label="Tarif">{order.tariff?.name ?? '—'}</KeyValue>
-            <KeyValue label="Taxminiy">
+            <KeyValue label={d.paymentMethod}>{paymentMethodLabels()[order.paymentMethod]}</KeyValue>
+            <KeyValue label={d.tariff}>{order.tariff?.name ?? '—'}</KeyValue>
+            <KeyValue label={d.estimated}>
               <MoneyText value={order.estimatedPrice} approx={order.finalPrice == null} />
             </KeyValue>
-            <KeyValue label="Yakuniy">
+            <KeyValue label={d.final}>
               <MoneyText value={order.finalPrice} className="font-semibold" />
             </KeyValue>
           </KeyValueList>
         </DetailCard>
 
-        <DetailCard title="Vaqt belgilari" className="md:col-span-2">
+        <DetailCard title={d.timestamps} className="md:col-span-2">
           <dl className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {timeline.map(({ label, ts }) => (
               <div key={label}>
@@ -312,7 +315,7 @@ export default function OrderDetailPage() {
           </dl>
           {order.note && (
             <div className="mt-4 pt-4 border-t border-line">
-              <p className="text-xs text-subtle mb-1">Izoh</p>
+              <p className="text-xs text-subtle mb-1">{d.note}</p>
               <p className="text-[13px] text-ink whitespace-pre-wrap">{order.note}</p>
             </div>
           )}
@@ -334,15 +337,14 @@ export default function OrderDetailPage() {
         isOpen={confirming === 'cancel'}
         onClose={() => setConfirming(null)}
         onConfirm={handleCancel}
-        title="Buyurtma bekor qilinsinmi?"
+        title={d.cancelConfirmTitle}
         description={
           <>
-            <span className="font-mono">{shortId(order.id)}</span> bekor qilinadi.
-            Buni ortga qaytarib boʻlmaydi.
+            <span className="font-mono">{shortId(order.id)}</span>{d.cancelConfirmBody}
           </>
         }
-        confirmLabel="Bekor qilish"
-        cancelLabel="Yoʻq"
+        confirmLabel={m.common.cancel}
+        cancelLabel={m.common.no}
         tone="danger"
         isPending={isCancelling}
       />
@@ -350,14 +352,13 @@ export default function OrderDetailPage() {
         isOpen={confirming === 'complete'}
         onClose={() => setConfirming(null)}
         onConfirm={handleComplete}
-        title="Buyurtma yakunlansinmi?"
+        title={d.completeConfirmTitle}
         description={
           <>
-            <span className="font-mono">{shortId(order.id)}</span> yakunlangan deb
-            belgilanadi va yoʻlovchidan haq undiriladi.
+            <span className="font-mono">{shortId(order.id)}</span>{d.completeConfirmBody}
           </>
         }
-        confirmLabel="Yakunlash"
+        confirmLabel={d.complete}
         tone="default"
         isPending={isCompleting}
       />

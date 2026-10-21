@@ -26,19 +26,25 @@ import {
   type IntercityPoint,
   type IntercityRoute,
 } from '@/lib/intercity';
+import { t } from '@/locales';
 
 type Tab = 'routes' | 'points';
 
-const TABS = [
-  { value: 'routes', label: 'Yoʻnalishlar' },
-  { value: 'points', label: 'Nuqtalar' },
-] as const;
+const tabs = () => {
+  const m = t().intercity.page;
+  return [
+    { value: 'routes', label: m.tabRoutes },
+    { value: 'points', label: m.tabPoints },
+  ] as const;
+};
 
 /**
  * Shaharlararo yo'nalishlar va nuqtalar. O'chirish yo'q — faqat faolsizlantirish:
  * eski qatnov va bandlar tarixi yo'nalishga bog'langan.
  */
 export default function IntercityPage() {
+  const m = t();
+  const pm = m.intercity.page;
   const { toast } = useToast();
   const [tab, setTab] = useState<Tab>('routes');
   const [points, setPoints] = useState<IntercityPoint[]>([]);
@@ -64,7 +70,7 @@ export default function IntercityPage() {
       setRoutes(routesRes.data.data);
       setLoadError(null);
     } catch {
-      setLoadError('Shaharlararo maʼlumotlarini yuklab boʻlmadi');
+      setLoadError(t().intercity.page.loadError);
     } finally {
       setIsLoading(false);
     }
@@ -81,11 +87,11 @@ export default function IntercityPage() {
       // PATCH javobida nuqtalar yuklanmagan bo'lishi mumkin — nomlarni eskisidan saqlaymiz.
       const next = { ...route, ...res.data.data, originPoint: route.originPoint, destinationPoint: route.destinationPoint };
       setRoutes((prev) => prev.map((r) => (r.id === route.id ? next : r)));
-      toast({ title: next.isActive ? 'Yoʻnalish yoqildi' : 'Yoʻnalish oʻchirildi', variant: 'success' });
+      toast({ title: next.isActive ? pm.routeOn : pm.routeOff, variant: 'success' });
     } catch (err) {
       toast({
-        title: apiErrorTitle(err, 'Xatolik'),
-        description: apiErrorMessage(err, 'Holatni oʻzgartirib boʻlmadi'),
+        title: apiErrorTitle(err, m.common.error),
+        description: apiErrorMessage(err, m.common.statusChangeFailedAlt),
         variant: 'error',
       });
     } finally {
@@ -98,11 +104,11 @@ export default function IntercityPage() {
     try {
       const res = await intercityApi.updatePoint(point.id, { isActive: !point.isActive });
       setPoints((prev) => prev.map((p) => (p.id === point.id ? res.data.data : p)));
-      toast({ title: res.data.data.isActive ? 'Nuqta yoqildi' : 'Nuqta oʻchirildi', variant: 'success' });
+      toast({ title: res.data.data.isActive ? pm.pointOn : pm.pointOff, variant: 'success' });
     } catch (err) {
       toast({
-        title: apiErrorTitle(err, 'Xatolik'),
-        description: apiErrorMessage(err, 'Holatni oʻzgartirib boʻlmadi'),
+        title: apiErrorTitle(err, m.common.error),
+        description: apiErrorMessage(err, m.common.statusChangeFailedAlt),
         variant: 'error',
       });
     } finally {
@@ -117,30 +123,30 @@ export default function IntercityPage() {
         checked={isActive}
         disabled={togglingId === id}
         onCheckedChange={onToggle}
-        aria-label={`${label}: ${isActive ? 'faolsizlantirish' : 'faollashtirish'}`}
+        aria-label={`${label}: ${isActive ? pm.deactivate : pm.activate}`}
       />
-      <Badge variant={isActive ? 'success' : 'neutral'}>{isActive ? 'Faol' : 'Nofaol'}</Badge>
+      <Badge variant={isActive ? 'success' : 'neutral'}>{isActive ? m.common.active : m.common.inactive}</Badge>
     </div>
   );
 
   const routeColumns: DataTableColumn<IntercityRoute>[] = [
     {
       key: 'route',
-      header: 'Yoʻnalish',
+      header: pm.colRoute,
       cell: (r) => (
         <span className={r.isActive ? 'font-medium text-ink' : 'font-medium text-muted'}>{routeLabel(r)}</span>
       ),
     },
     {
       key: 'status',
-      header: 'Holati',
+      header: m.common.statusAlt,
       cell: (r) => activeSwitch(r.id, routeLabel(r), r.isActive, () => void toggleRoute(r)),
     },
-    { key: 'seat', header: 'Start · oʻrindiq', numeric: true, cell: (r) => <MoneyText value={r.seatPrice} /> },
-    { key: 'whole', header: 'Start · butun mashina', numeric: true, cell: (r) => <MoneyText value={r.wholeCarPrice} /> },
+    { key: 'seat', header: pm.colStartSeat, numeric: true, cell: (r) => <MoneyText value={r.seatPrice} /> },
+    { key: 'whole', header: pm.colStartWhole, numeric: true, cell: (r) => <MoneyText value={r.wholeCarPrice} /> },
     {
       key: 'comfortSeat',
-      header: 'Comfort · oʻrindiq',
+      header: pm.colComfortSeat,
       numeric: true,
       hideBelow: 'lg',
       cell: (r) =>
@@ -152,7 +158,7 @@ export default function IntercityPage() {
     },
     {
       key: 'comfortWhole',
-      header: 'Comfort · butun mashina',
+      header: pm.colComfortWhole,
       numeric: true,
       hideBelow: 'lg',
       cell: (r) =>
@@ -162,16 +168,16 @@ export default function IntercityPage() {
           <MoneyText value={r.comfortWholeCarPrice} />
         ),
     },
-    { key: 'seats', header: 'Oʻrindiq', numeric: true, hideBelow: 'md', cell: (r) => r.seatsDefault },
+    { key: 'seats', header: pm.colSeats, numeric: true, hideBelow: 'md', cell: (r) => r.seatsDefault },
     {
       key: 'actions',
-      header: <span className="sr-only">Amallar</span>,
+      header: <span className="sr-only">{m.common.actions}</span>,
       align: 'right',
       width: 'w-12',
       cell: (r) => (
         <IconButton
           size="sm"
-          aria-label={`${routeLabel(r)} yoʻnalishini tahrirlash`}
+          aria-label={pm.editRoute(routeLabel(r))}
           onClick={() => setRouteForm({ open: true, route: r })}
         >
           <Pencil aria-hidden />
@@ -183,42 +189,42 @@ export default function IntercityPage() {
   const pointColumns: DataTableColumn<IntercityPoint>[] = [
     {
       key: 'name',
-      header: 'Nuqta',
+      header: pm.colPoint,
       cell: (p) => <span className={p.isActive ? 'font-medium text-ink' : 'font-medium text-muted'}>{p.name}</span>,
     },
     {
       key: 'status',
-      header: 'Holati',
+      header: m.common.statusAlt,
       cell: (p) => activeSwitch(p.id, p.name, p.isActive, () => void togglePoint(p)),
     },
     {
       key: 'coords',
-      header: 'Markaz',
+      header: pm.colCenter,
       className: 'num whitespace-nowrap text-muted',
       cell: (p) => `${p.centerLat.toFixed(5)}, ${p.centerLng.toFixed(5)}`,
     },
-    { key: 'radius', header: 'Radius', numeric: true, cell: (p) => `${p.radiusKm} km` },
+    { key: 'radius', header: pm.colRadius, numeric: true, cell: (p) => `${p.radiusKm} km` },
     {
       key: 'extension',
-      header: 'Shahar ichiga davom',
+      header: pm.colExtension,
       hideBelow: 'md',
       cell: (p) => <span className="num">{formatPointExtension(p)}</span>,
     },
     {
       key: 'actions',
-      header: <span className="sr-only">Amallar</span>,
+      header: <span className="sr-only">{m.common.actions}</span>,
       align: 'right',
       width: 'w-24',
       cell: (p) => (
         <div className="flex justify-end gap-1">
           {hasExtension(p) ? (
-            <IconButton size="sm" aria-label={`${p.name} tumanlari`} onClick={() => setZonesFor(p)}>
+            <IconButton size="sm" aria-label={pm.pointZones(p.name)} onClick={() => setZonesFor(p)}>
               <MapPinned aria-hidden />
             </IconButton>
           ) : null}
           <IconButton
             size="sm"
-            aria-label={`${p.name} nuqtasini tahrirlash`}
+            aria-label={pm.editPoint(p.name)}
             onClick={() => setPointForm({ open: true, point: p })}
           >
             <Pencil aria-hidden />
@@ -234,39 +240,39 @@ export default function IntercityPage() {
   return (
     <div className="px-4 sm:px-6 py-5">
       <PageHeader
-        title="Shaharlararo"
+        title={pm.title}
         description={
           routes.length > 0
-            ? `${routes.length} ta yoʻnalish · ${activeRoutes} tasi faol · ${points.length} ta nuqta`
-            : 'Yoʻnalishlar, qatʼiy narxlar va olish/tushirish nuqtalari'
+            ? pm.summary(routes.length, activeRoutes, points.length)
+            : pm.descriptionEmpty
         }
         actions={
           tab === 'routes' ? (
             <Button
               leftIcon={<Plus className="h-4 w-4" aria-hidden="true" />}
               disabled={!canCreateRoute}
-              title={canCreateRoute ? undefined : 'Avval kamida 2 ta faol nuqta qoʻshing'}
+              title={canCreateRoute ? undefined : pm.needPoints}
               onClick={() => setRouteForm({ open: true, route: null })}
             >
-              Yangi yoʻnalish
+              {pm.newRoute}
             </Button>
           ) : (
             <Button
               leftIcon={<Plus className="h-4 w-4" aria-hidden="true" />}
               onClick={() => setPointForm({ open: true, point: null })}
             >
-              Yangi nuqta
+              {pm.newPoint}
             </Button>
           )
         }
       />
 
       <div className="space-y-4">
-        <Tabs items={TABS} value={tab} onChange={setTab} ariaLabel="Shaharlararo boʻlimlari" />
+        <Tabs items={tabs()} value={tab} onChange={setTab} ariaLabel={pm.sectionsAria} />
 
         {tab === 'routes' ? (
           <DataTable
-            ariaLabel="Shaharlararo yoʻnalishlar"
+            ariaLabel={pm.routesAria}
             columns={routeColumns}
             rows={routes}
             rowKey={(r) => r.id}
@@ -276,24 +282,24 @@ export default function IntercityPage() {
             rowClassName={(r) => (r.isActive ? undefined : 'bg-surface-2/40')}
             empty={{
               variant: 'first-use',
-              title: 'Yoʻnalishlar yoʻq',
+              title: pm.noRoutes,
               description: canCreateRoute
-                ? 'Birinchi yoʻnalishni qoʻshing, masalan Angren → Rohat krugi.'
-                : 'Avval “Nuqtalar” boʻlimida kamida ikkita nuqta qoʻshing.',
+                ? pm.noRoutesHint
+                : pm.noRoutesNeedPoints,
               action: canCreateRoute ? (
                 <Button size="sm" onClick={() => setRouteForm({ open: true, route: null })}>
-                  Yoʻnalish qoʻshish
+                  {pm.addRoute}
                 </Button>
               ) : (
                 <Button size="sm" onClick={() => setTab('points')}>
-                  Nuqtalarga oʻtish
+                  {pm.goToPoints}
                 </Button>
               ),
             }}
           />
         ) : (
           <DataTable
-            ariaLabel="Shaharlararo nuqtalar"
+            ariaLabel={pm.pointsAria}
             columns={pointColumns}
             rows={points}
             rowKey={(p) => p.id}
@@ -303,11 +309,11 @@ export default function IntercityPage() {
             rowClassName={(p) => (p.isActive ? undefined : 'bg-surface-2/40')}
             empty={{
               variant: 'first-use',
-              title: 'Nuqtalar yoʻq',
-              description: 'Angren, Rohat krugi (Toshkent), Olmaliq… — har biri markaz va radius bilan.',
+              title: pm.noPoints,
+              description: pm.noPointsHint,
               action: (
                 <Button size="sm" onClick={() => setPointForm({ open: true, point: null })}>
-                  Nuqta qoʻshish
+                  {pm.addPoint}
                 </Button>
               ),
             }}

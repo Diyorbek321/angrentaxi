@@ -17,13 +17,19 @@ import { RadioGroup } from '@/components/ui/RadioGroup';
 import { SkeletonForm } from '@/components/ui/Skeleton';
 import { usePageRefresh } from '@/components/shell';
 import { tinError } from '@/lib/tin';
+import { t } from '@/locales';
 
-const DELIVERY_OPTIONS = [
-  { value: 'self' as const, label: "O'zi yetkazadi", description: "Do'kon o'z kuryeri bilan yetkazadi" },
-  { value: 'platform' as const, label: 'Platforma kuryeri', description: 'Angren Taxi kuryerlari yetkazadi' },
-];
+function deliveryOptions() {
+  const m = t().settings;
+  return [
+    { value: 'self' as const, label: m.deliverySelf, description: m.deliverySelfDescription },
+    { value: 'platform' as const, label: m.deliveryPlatform, description: m.deliveryPlatformDescription },
+  ];
+}
 
 export default function SettingsPage() {
+  const m = t();
+  const s = m.settings;
   const { toast } = useToast();
   const { data: store, isLoading, isRefreshing, error, reload } = useAsyncData<Store>(async () => {
     const res = await marketApi.getStore();
@@ -82,7 +88,7 @@ export default function SettingsPage() {
 
   const useCurrentLocation = () => {
     if (!navigator.geolocation) {
-      toast({ title: 'Joylashuv qo‘llab-quvvatlanmaydi', variant: 'error' });
+      toast({ title: s.geoUnsupported, variant: 'error' });
       return;
     }
     setLocating(true);
@@ -93,7 +99,7 @@ export default function SettingsPage() {
         setLocating(false);
       },
       () => {
-        toast({ title: 'Joylashuvga ruxsat berilmadi', variant: 'error' });
+        toast({ title: s.geoDenied, variant: 'error' });
         setLocating(false);
       }
     );
@@ -101,7 +107,7 @@ export default function SettingsPage() {
 
   const save = async () => {
     if (tinInvalid) {
-      toast({ title: 'STIR notoʻgʻri', description: tinInvalid, variant: 'error' });
+      toast({ title: s.tinInvalid, description: tinInvalid, variant: 'error' });
       return;
     }
     setSaving(true);
@@ -120,7 +126,7 @@ export default function SettingsPage() {
         tin: tin.trim() === '' ? null : tin.trim(),
       });
     } catch (err) {
-      toast({ title: 'Xatolik', description: errorMessage(err, 'Saqlab bo‘lmadi'), variant: 'error' });
+      toast({ title: m.common.error, description: errorMessage(err, s.saveFailed), variant: 'error' });
       setSaving(false);
       return;
     }
@@ -129,11 +135,11 @@ export default function SettingsPage() {
       if (image.kind === 'set') await marketApi.uploadStoreImage(await catalogImageForm(image.file));
       else if (image.kind === 'remove') await marketApi.removeStoreImage();
       setImage({ kind: 'keep' });
-      toast({ title: 'Saqlandi', variant: 'success' });
+      toast({ title: m.common.saved, variant: 'success' });
     } catch (err) {
       toast({
-        title: 'Maʼlumotlar saqlandi, lekin muqova yangilanmadi',
-        description: errorMessage(err, 'Rasmni saqlab boʻlmadi'),
+        title: s.coverFailed,
+        description: errorMessage(err, s.imageSaveFailed),
         variant: 'error',
       });
     } finally {
@@ -144,11 +150,11 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-3xl">
-      <PageHeader title="Sozlamalar" description="Do'kon profili, yetkazib berish va zaxira ogohlantirishi" />
+      <PageHeader title={s.title} description={s.description} />
 
       {isLoading ? (
         <div className="space-y-4" aria-busy="true" aria-live="polite">
-          <span className="sr-only">Yuklanmoqda</span>
+          <span className="sr-only">{m.common.loading}</span>
           <Card>
             <SkeletonForm fields={5} />
           </Card>
@@ -167,20 +173,20 @@ export default function SettingsPage() {
           }}
         >
           <Card padding="none">
-            <CardHeader title="Do'kon ma'lumotlari" description="Mijoz ilovasida ko'rinadi" divider />
+            <CardHeader title={s.storeInfo} description={s.storeInfoDescription} divider />
             <CardBody className="grid grid-cols-1 gap-4 pt-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <ImagePicker
-                  label="Muqova rasmi"
+                  label={s.cover}
                   currentSrc={catalogImageSrc(store.imageKey)}
                   value={image}
                   onChange={setImage}
                   aspectClassName="aspect-[16/9]"
                 />
               </div>
-              <Input label="Do'kon nomi" value={name} onChange={(e) => setName(e.target.value)} required />
+              <Input label={s.storeName} value={name} onChange={(e) => setName(e.target.value)} required />
               <Input
-                label="Telefon"
+                label={s.phone}
                 inputMode="tel"
                 className="num"
                 placeholder="+998 90 123 45 67"
@@ -188,13 +194,13 @@ export default function SettingsPage() {
                 onChange={(e) => setPhone(e.target.value)}
               />
               <Input
-                label="Olib ketish manzili"
+                label={s.pickupAddress}
                 wrapperClassName="sm:col-span-2"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
               />
               <Input
-                label="Kenglik (lat)"
+                label={s.lat}
                 className="num"
                 inputMode="decimal"
                 value={lat}
@@ -202,7 +208,7 @@ export default function SettingsPage() {
                 placeholder="40.0956"
               />
               <Input
-                label="Uzunlik (lng)"
+                label={s.lng}
                 className="num"
                 inputMode="decimal"
                 value={lng}
@@ -218,20 +224,20 @@ export default function SettingsPage() {
                   isLoading={locating}
                   leftIcon={<LocateFixed size={14} aria-hidden />}
                 >
-                  Hozirgi joylashuvni olish
+                  {s.useLocation}
                 </Button>
                 <p className="text-xs text-muted">
-                  Kuryer buyurtmani shu manzildan olib ketadi — koordinatalar aniq bo&apos;lishi kerak.
+                  {s.locationHint}
                 </p>
               </div>
             </CardBody>
           </Card>
 
           <Card padding="none">
-            <CardHeader title="Soliq maʼlumotlari" description="Fiskal chek uchun" divider />
+            <CardHeader title={s.tax} description={s.taxDescription} divider />
             <CardBody className="pt-4">
               <Input
-                label="STIR (INN)"
+                label={s.tin}
                 inputMode="numeric"
                 autoComplete="off"
                 className="num"
@@ -241,17 +247,17 @@ export default function SettingsPage() {
                 value={tin}
                 onChange={(e) => setTin(e.target.value.replace(/\D/g, ''))}
                 error={tinInvalid ?? undefined}
-                hint="Fiskal chekda koʻrsatiladi. 9 ta raqam; kiritilmasa chekda doʻkon koʻrinmaydi."
+                hint={s.tinHint}
               />
             </CardBody>
           </Card>
 
           <Card padding="none">
-            <CardHeader title="Yetkazib berish usuli" description="Har buyurtmada kim yetkazishini belgilaydi" divider />
+            <CardHeader title={s.deliveryMethod} description={s.deliveryMethodDescription} divider />
             <CardBody className="pt-4">
               <RadioGroup<DeliveryMode>
                 name="deliveryMode"
-                options={DELIVERY_OPTIONS}
+                options={deliveryOptions()}
                 value={deliveryMode}
                 onChange={setDeliveryMode}
                 orientation="horizontal"
@@ -260,10 +266,10 @@ export default function SettingsPage() {
           </Card>
 
           <Card padding="none">
-            <CardHeader title="Ish vaqti" description="Har kuni bir xil" divider />
+            <CardHeader title={s.hours} description={s.hoursDescription} divider />
             <CardBody className="flex flex-wrap gap-4 pt-4">
               <Input
-                label="Ochilish"
+                label={s.opens}
                 type="time"
                 className="num"
                 wrapperClassName="w-36"
@@ -271,7 +277,7 @@ export default function SettingsPage() {
                 onChange={(e) => setStart(e.target.value)}
               />
               <Input
-                label="Yopilish"
+                label={s.closes}
                 type="time"
                 className="num"
                 wrapperClassName="w-36"
@@ -282,17 +288,17 @@ export default function SettingsPage() {
           </Card>
 
           <Card padding="none">
-            <CardHeader title="Zaxira ogohlantirishi" divider />
+            <CardHeader title={s.stockAlert} divider />
             <CardBody className="pt-4">
               <Input
-                label="Kam zaxira chegarasi"
+                label={s.threshold}
                 type="number"
                 className="num"
                 wrapperClassName="max-w-[12rem]"
                 min={0}
                 value={threshold}
                 onChange={(e) => setThreshold(e.target.value)}
-                hint="Zaxirasi shu sondan kam yoki teng mahsulotlar «Zaxira» va bosh sahifada ogohlantirish bo'lib chiqadi."
+                hint={s.thresholdHint}
               />
             </CardBody>
           </Card>
@@ -301,10 +307,10 @@ export default function SettingsPage() {
           <div className="sticky bottom-0 z-10 -mx-4 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
             <div className="flex max-w-3xl items-center justify-end gap-3">
               <p className="mr-auto text-[13px] text-muted" aria-live="polite">
-                {dirty ? 'Saqlanmagan oʻzgarishlar bor' : 'Barcha oʻzgarishlar saqlangan'}
+                {dirty ? s.dirty : s.clean}
               </p>
               <Button type="submit" isLoading={saving} disabled={!dirty && !saving} leftIcon={<Check size={14} aria-hidden />}>
-                Saqlash
+                {m.common.save}
               </Button>
             </div>
           </div>

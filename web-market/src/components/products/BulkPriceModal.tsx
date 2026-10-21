@@ -8,6 +8,7 @@ import { formatNumber } from '@/lib/format';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
+import { t } from '@/locales';
 
 export interface BulkPriceChange {
   id: string;
@@ -40,6 +41,8 @@ export function BulkPriceModal({
   onClose: () => void;
   onApply: (changes: BulkPriceChange[]) => Promise<void>;
 }) {
+  const m = t();
+  const b = m.bulkPrice;
   const [mode, setMode] = useState<Mode>('set');
   const [value, setValue] = useState('');
   const [step, setStep] = useState<'form' | 'preview'>('form');
@@ -66,11 +69,11 @@ export function BulkPriceModal({
 
   const toPreview = () => {
     if (!valid) {
-      setFieldError('Raqam kiriting');
+      setFieldError(m.products.enterNumber);
       return;
     }
     if (mode === 'set' && num < 0) {
-      setFieldError('Narx manfiy bo‘lolmaydi');
+      setFieldError(b.negative);
       return;
     }
     setFieldError(null);
@@ -96,17 +99,17 @@ export function BulkPriceModal({
     <Modal
       isOpen={isOpen}
       onClose={close}
-      title="Narxni ommaviy o'zgartirish"
-      subtitle={`Faqat tanlangan ${products.length} ta mahsulotga qo'llanadi`}
+      title={b.title}
+      subtitle={b.subtitle(products.length)}
       size="lg"
     >
       {step === 'form' ? (
         <div className="space-y-4">
-          <div role="radiogroup" aria-label="O'zgartirish usuli" className="flex gap-2">
+          <div role="radiogroup" aria-label={b.methodAria} className="flex gap-2">
             {(
               [
-                { key: 'set', label: 'Aniq narx' },
-                { key: 'pct', label: 'Foizda (%)' },
+                { key: 'set', label: b.exact },
+                { key: 'pct', label: b.percent },
               ] as const
             ).map((opt) => (
               <button
@@ -135,11 +138,11 @@ export function BulkPriceModal({
             type="number"
             className="num"
             autoFocus
-            label={mode === 'set' ? "Yangi narx (so'm)" : "O'zgarish foizi"}
+            label={mode === 'set' ? b.newPrice : b.changePct}
             hint={
               mode === 'pct'
-                ? 'Masalan: -10 (arzonlashtirish) yoki 15 (qimmatlashtirish)'
-                : "Tanlangan barcha mahsulotlarga BIR XIL narx qo'yiladi"
+                ? b.pctHint
+                : b.setHint
             }
             error={fieldError ?? undefined}
             value={value}
@@ -151,7 +154,7 @@ export function BulkPriceModal({
 
           <div className="flex gap-2.5">
             <Button variant="secondary" className="flex-1" onClick={close}>
-              Bekor qilish
+              {m.common.cancel}
             </Button>
             <Button
               className="flex-1"
@@ -159,7 +162,7 @@ export function BulkPriceModal({
               onClick={toPreview}
               rightIcon={<ArrowRight size={14} aria-hidden />}
             >
-              Ko&apos;rib chiqish
+              {b.review}
             </Button>
           </div>
         </div>
@@ -167,17 +170,17 @@ export function BulkPriceModal({
         <div className="space-y-4">
           <p className="text-sm text-muted">
             {mode === 'set'
-              ? `Barcha ${products.length} ta tanlangan mahsulotga ${formatNumber(Math.max(0, Math.round(num)))} so'm narx qo'yiladi.`
-              : `Tanlangan ${products.length} ta mahsulot narxi ${num > 0 ? `+${num}` : num}% ga o'zgartiriladi.`}{' '}
-            <span className="font-semibold text-ink">{changedCount} ta narx o&apos;zgaradi.</span>
+              ? b.setSummary(products.length, formatNumber(Math.max(0, Math.round(num))))
+              : b.pctSummary(products.length, num > 0 ? `+${num}` : String(num))}{' '}
+            <span className="font-semibold text-ink">{b.willChange(changedCount)}</span>
           </p>
 
           <div className="max-h-64 overflow-y-auto rounded-ds-sm border border-line">
             <div className="grid grid-cols-[minmax(0,1fr)_110px_20px_110px] items-center gap-2 border-b border-line bg-surface-2 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.04em] text-muted">
-              <span>Mahsulot</span>
-              <span className="text-right">Hozirgi</span>
+              <span>{m.common.product}</span>
+              <span className="text-right">{b.current}</span>
               <span aria-hidden />
-              <span className="text-right">Yangi</span>
+              <span className="text-right">{b.new}</span>
             </div>
             <ul className="divide-y divide-divider">
               {changes.map(({ product: p, newPrice }) => (
@@ -205,7 +208,7 @@ export function BulkPriceModal({
 
           <div className="flex gap-2.5">
             <Button variant="secondary" className="flex-1" onClick={() => setStep('form')}>
-              Orqaga
+              {b.back}
             </Button>
             <Button
               className="flex-1"
@@ -213,7 +216,7 @@ export function BulkPriceModal({
               disabled={changedCount === 0}
               onClick={() => void apply()}
             >
-              Qo&apos;llash ({changedCount} ta)
+              {b.apply(changedCount)}
             </Button>
           </div>
         </div>

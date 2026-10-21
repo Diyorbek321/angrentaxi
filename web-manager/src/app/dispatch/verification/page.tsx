@@ -12,7 +12,7 @@ import {
 import {
   groupVerifications,
   isLegalDocument,
-  KIND_LABEL,
+  kindLabels,
   validateValidUntil,
   verificationLabel,
   VerificationGroup,
@@ -32,12 +32,16 @@ import { Skeleton, SkeletonCards } from '@/components/ui/Skeleton';
 import { PageBody } from '@/components/ui/PageBody';
 import { useToast } from '@/components/ui/Toast';
 import { formatDateTime, formatPhone } from '@/lib/format';
+import { t } from '@/locales';
 
-const TABS: { value: VerificationKind; label: string }[] = [
-  { value: 'vehicle_photo', label: 'Mashina koʻrigi' },
-  { value: 'selfie', label: 'Selfi' },
-  { value: 'document', label: 'Hujjatlar' },
-];
+function tabs(): { value: VerificationKind; label: string }[] {
+  const v = t().drivers.verification.tabs;
+  return [
+    { value: 'vehicle_photo', label: v.vehicle_photo },
+    { value: 'selfie', label: v.selfie },
+    { value: 'document', label: v.document },
+  ];
+}
 
 /**
  * Haydovchilarning davriy tekshiruvi: mashina koʻrigi (30 kunda), selfi
@@ -48,6 +52,8 @@ const TABS: { value: VerificationKind; label: string }[] = [
  * haydovchi jabr koʻrmaydi, faqat nazorat kechikadi.
  */
 export default function VerificationPage() {
+  const m = t();
+  const v = m.drivers.verification;
   const { toast } = useToast();
   const [tab, setTab] = useState<VerificationKind>('vehicle_photo');
   const [entries, setEntries] = useState<PendingVerification[]>([]);
@@ -68,7 +74,7 @@ export default function VerificationPage() {
       setError(null);
       setHasLoadedOnce(true);
     } catch {
-      setError('Tekshiruv navbatini yuklab boʻlmadi');
+      setError(t().drivers.verification.loadError);
     } finally {
       setIsLoading(false);
     }
@@ -99,9 +105,9 @@ export default function VerificationPage() {
         });
       }
       setEntries((prev) => prev.filter((e) => !ids.includes(e.id)));
-      toast({ title: approved ? 'Tasdiqlandi' : 'Rad etildi', variant: 'success' });
+      toast({ title: approved ? v.approved : v.rejected, variant: 'success' });
     } catch {
-      toast({ title: 'Saqlab boʻlmadi', description: 'Navbat yangilanadi', variant: 'error' });
+      toast({ title: v.saveError, description: v.saveErrorDesc, variant: 'error' });
       await load();
     } finally {
       setBusyIds((prev) => new Set(Array.from(prev).filter((id) => !ids.includes(id))));
@@ -137,8 +143,8 @@ export default function VerificationPage() {
   return (
     <PageBody className="max-w-6xl">
         <PageHeader
-          title="Koʻrik va selfi"
-          description="Mashina koʻrigi 30 kunda, selfi 3 kunda, hujjat — oʻzidagi muddatgacha. Muddat oʻtsa 1 kundan keyin haydovchi onlayn chiqa olmaydi."
+          title={v.title}
+          description={v.description}
           actions={
             <Button
               variant="secondary"
@@ -147,17 +153,17 @@ export default function VerificationPage() {
               isLoading={isLoading && hasLoadedOnce}
               leftIcon={<RefreshCw size={13} aria-hidden />}
             >
-              Yangilash
+              {m.common.refresh}
             </Button>
           }
         />
 
         <div className="mb-3">
           <SegmentedControl
-            items={TABS.map((t) => ({ ...t, count: counts[t.value] || undefined }))}
+            items={tabs().map((item) => ({ ...item, count: counts[item.value] || undefined }))}
             value={tab}
             onChange={setTab}
-            ariaLabel="Tekshiruv turi"
+            ariaLabel={v.kindAria}
           />
         </div>
 
@@ -176,8 +182,8 @@ export default function VerificationPage() {
             <EmptyState
               variant="cleared"
               icon={<CheckCircle2 aria-hidden />}
-              title="Navbat boʻsh"
-              description={`${KIND_LABEL[tab]} boʻyicha tekshiriladigan narsa qolmadi.`}
+              title={v.empty}
+              description={v.emptyDesc(kindLabels()[tab])}
             />
           </Card>
         ) : (
@@ -211,13 +217,13 @@ export default function VerificationPage() {
       <Modal
         isOpen={rejecting !== null}
         onClose={() => setRejecting(null)}
-        title="Rad etish"
-        subtitle={rejecting ? `${verificationLabel(rejecting)} — ${rejecting.driverName ?? 'Haydovchi'}` : undefined}
+        title={v.reject}
+        subtitle={rejecting ? `${verificationLabel(rejecting)} — ${rejecting.driverName ?? v.driver}` : undefined}
         size="md"
       >
         <Textarea
-          label="Sabab (haydovchiga koʻrinadi)"
-          placeholder="Masalan: bagaj yopiq, ichi koʻrinmayapti"
+          label={v.reasonLabel}
+          placeholder={v.reasonPlaceholder}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           rows={3}
@@ -225,10 +231,10 @@ export default function VerificationPage() {
         />
         <div className="mt-4 pt-4 border-t border-line flex justify-end gap-2">
           <Button variant="secondary" onClick={() => setRejecting(null)}>
-            Bekor qilish
+            {m.common.cancel}
           </Button>
           <Button variant="danger" disabled={!reason.trim()} onClick={() => void confirmReject()}>
-            Rad etish
+            {v.reject}
           </Button>
         </div>
       </Modal>
@@ -256,15 +262,17 @@ function GroupCard({
   onValidUntilChange: (id: string, value: string) => void;
 }) {
   const anyBusy = group.items.some((i) => busyIds.has(i.id));
+  const m = t();
+  const v = m.drivers.verification;
   return (
     <Card>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="neutral">{KIND_LABEL[group.kind]}</Badge>
+            <Badge variant="neutral">{kindLabels()[group.kind]}</Badge>
             <span className="num text-xs text-subtle">{formatDateTime(group.submittedAt)}</span>
           </div>
-          <p className="mt-1.5 text-[13px] font-semibold text-ink">{group.driverName ?? 'Haydovchi'}</p>
+          <p className="mt-1.5 text-[13px] font-semibold text-ink">{group.driverName ?? v.driver}</p>
           {group.driverPhone && (
             <a
               href={`tel:${group.driverPhone}`}
@@ -277,7 +285,7 @@ function GroupCard({
         </div>
         {group.items.length > 1 && (
           <Button size="sm" isLoading={anyBusy} onClick={onApproveAll}>
-            Hammasini tasdiqlash ({group.items.length})
+            {v.approveAll(group.items.length)}
           </Button>
         )}
       </div>
@@ -287,8 +295,8 @@ function GroupCard({
           <div key={item.id} className="rounded-ds-sm border border-line p-2">
             {item.kind === 'selfie' ? (
               <div className="grid grid-cols-2 gap-2">
-                <Photo id={item.referenceSubmissionId} caption="Avvalgi" />
-                <Photo id={item.id} caption="Yangi" />
+                <Photo id={item.referenceSubmissionId} caption={v.previous} />
+                <Photo id={item.id} caption={v.newPhoto} />
               </div>
             ) : (
               <Photo id={item.id} caption={verificationLabel(item)} />
@@ -298,30 +306,30 @@ function GroupCard({
                 type="date"
                 size="sm"
                 wrapperClassName="mt-2"
-                label="Amal qilish muddati"
-                aria-label={`${verificationLabel(item)} — amal qilish muddati`}
+                label={v.validUntil}
+                aria-label={v.validUntilAria(verificationLabel(item))}
                 value={validUntil[item.id] ?? ''}
                 onChange={(e) => onValidUntilChange(item.id, e.target.value)}
                 error={validUntilErrors[item.id]}
                 hint={
                   isLegalDocument(item.code)
-                    ? 'Hujjatdagi sana. Kiritilmasa — 365 kun'
-                    : 'Hujjatdagi sana (ixtiyoriy)'
+                    ? v.validUntilHintLegal
+                    : v.validUntilHint
                 }
                 disabled={busyIds.has(item.id)}
               />
             )}
             {item.kind === 'selfie' && !item.referenceSubmissionId && (
-              <p className="mt-1 text-[11px] text-muted">Solishtirish uchun avvalgi selfi yoki pasport yoʻq</p>
+              <p className="mt-1 text-[11px] text-muted">{v.noReference}</p>
             )}
             <div className="mt-2 flex gap-1.5">
               <Button size="sm" className="flex-1" disabled={busyIds.has(item.id)} onClick={() => onApprove(item)}>
-                Tasdiqlash
+                {m.common.confirm}
               </Button>
               <Button
                 size="sm"
                 variant="secondary"
-                aria-label={`${verificationLabel(item)} — rad etish`}
+                aria-label={v.rejectAria(verificationLabel(item))}
                 disabled={busyIds.has(item.id)}
                 onClick={() => onReject(item)}
               >
@@ -345,6 +353,7 @@ function Photo({ id, caption }: { id: string | null; caption: string }) {
   // `<img>` ularni ko'rsata olmaydi, havola beramiz.
   const [isPdf, setIsPdf] = useState(false);
   const [failed, setFailed] = useState(false);
+  const v = t().drivers.verification;
 
   useEffect(() => {
     if (!id) return;
@@ -368,7 +377,7 @@ function Photo({ id, caption }: { id: string | null; caption: string }) {
     <figure>
       <div className="flex aspect-[3/4] items-center justify-center overflow-hidden rounded-ds-xs bg-surface-2">
         {!id || failed ? (
-          <span className="px-2 text-center text-[11px] text-subtle">{failed ? 'Ochilmadi' : 'Yoʻq'}</span>
+          <span className="px-2 text-center text-[11px] text-subtle">{failed ? v.openFailed : v.none}</span>
         ) : url && isPdf ? (
           <a
             href={url}
@@ -376,7 +385,7 @@ function Photo({ id, caption }: { id: string | null; caption: string }) {
             rel="noreferrer"
             className="px-2 text-center text-xs font-medium text-primary-text hover:underline"
           >
-            PDF faylni ochish
+            {v.openPdf}
           </a>
         ) : url ? (
           <a href={url} target="_blank" rel="noreferrer" className="h-full w-full">

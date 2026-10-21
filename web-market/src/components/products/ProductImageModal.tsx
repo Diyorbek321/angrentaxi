@@ -7,6 +7,7 @@ import { errorMessage } from '@/lib/utils';
 import { ImagePicker } from '@/components/ImagePicker';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
+import { t } from '@/locales';
 
 /** Mavjud mahsulot rasmini yuklash, almashtirish yoki olib tashlash. */
 export function ProductImageModal({
@@ -20,6 +21,7 @@ export function ProductImageModal({
   onSaved: () => Promise<void>;
   onError: (message: string) => void;
 }) {
+  const m = t();
   const [image, setImage] = useState<ImageChange>({ kind: 'keep' });
   const [saving, setSaving] = useState(false);
 
@@ -33,17 +35,17 @@ export function ProductImageModal({
       }
       await onSaved();
     } catch (err) {
-      onError(errorMessage(err, 'Rasmni saqlab boʻlmadi'));
+      onError(errorMessage(err, m.products.imageSaveFailed));
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Modal isOpen onClose={onClose} title="Mahsulot rasmi" subtitle={product.name} size="md">
+    <Modal isOpen onClose={onClose} title={m.products.imageTitle} subtitle={product.name} size="md">
       <div className="space-y-4">
         <ImagePicker
-          label="Rasm"
+          label={m.products.image}
           currentSrc={catalogImageSrc(product.imageKey)}
           value={image}
           onChange={setImage}
@@ -51,10 +53,10 @@ export function ProductImageModal({
         />
         <div className="flex justify-end gap-2.5">
           <Button type="button" variant="secondary" onClick={onClose}>
-            Bekor qilish
+            {m.common.cancel}
           </Button>
           <Button type="button" disabled={image.kind === 'keep'} isLoading={saving} onClick={save}>
-            Saqlash
+            {m.common.save}
           </Button>
         </div>
       </div>

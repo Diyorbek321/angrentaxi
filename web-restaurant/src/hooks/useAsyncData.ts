@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { t } from '@/locales';
 
 export type AsyncStatus = 'loading' | 'ready' | 'error';
 
@@ -24,7 +25,7 @@ export function errorMessage(err: unknown): string {
   const response = (err as { response?: { data?: { message?: string } } })?.response;
   if (response?.data?.message) return response.data.message;
   if (err instanceof Error && err.message) return err.message;
-  return "Server bilan bog'lanib bo'lmadi";
+  return t().common.serverUnreachable;
 }
 
 /**

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { API_BASE_URL } from "@/lib/server/api-config";
 import { clientIpHeaders } from "@/lib/server/client-ip";
+import { requestMessages } from "@/lib/server/request-locale";
 import { ACCESS_TOKEN_COOKIE } from "@/lib/server/auth-cookies";
 import { crossOriginRejection, isSameOrigin } from "@/lib/server/same-origin";
 import { cacheControlFor } from "@/lib/server/proxy-cache";
@@ -89,7 +90,7 @@ async function forward(
     });
   } catch {
     return NextResponse.json(
-      { success: false, message: "Serverga ulanib boʻlmadi" },
+      { success: false, message: requestMessages(req).api.serverUnreachable },
       { status: 502 },
     );
   }

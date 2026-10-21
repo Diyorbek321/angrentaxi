@@ -16,8 +16,12 @@ import {
   useToast,
 } from '@/components/ui';
 import { settingsApi } from '@/lib/api';
+import { t } from '@/locales';
 
 export default function SettingsPage() {
+  const c = t().common;
+  const s = t().settings;
+  const m = s.commission;
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -40,7 +44,7 @@ export default function SettingsPage() {
         setHasLoadedOnce(true);
       })
       .catch(() => {
-        setError('Sozlamalarni yuklab boʻlmadi.');
+        setError(s.loadFailed);
       })
       .finally(() => setIsLoading(false));
   };
@@ -55,9 +59,9 @@ export default function SettingsPage() {
   // Validatsiya maydonning O'ZIGA biriktiriladi — toast emas.
   const validate = (value: string): string | null => {
     const parsed = parseFloat(value);
-    if (value.trim() === '') return 'Foizni kiriting';
-    if (Number.isNaN(parsed)) return "Raqam bo'lishi kerak";
-    if (parsed < 0 || parsed > 100) return "0 dan 100 gacha bo'lishi kerak";
+    if (value.trim() === '') return m.errRequired;
+    if (Number.isNaN(parsed)) return m.errNumber;
+    if (parsed < 0 || parsed > 100) return m.errRange;
     return null;
   };
 
@@ -80,12 +84,12 @@ export default function SettingsPage() {
       setSavedRate(String(value));
       setRate(String(value));
       toast({
-        title: 'Saqlandi',
-        description: `Standart komissiya foizi ${value}% qilib belgilandi.`,
+        title: s.saved,
+        description: m.savedDesc(value),
         variant: 'success',
       });
     } catch {
-      toast({ title: 'Xatolik', description: 'Saqlashda xatolik', variant: 'error' });
+      toast({ title: c.error, description: c.saveError, variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -96,7 +100,7 @@ export default function SettingsPage() {
 
   return (
     <div className="px-4 sm:px-6 py-5">
-      <PageHeader title="Sozlamalar" description="Platforma komissiyasi" />
+      <PageHeader title={m.pageTitle} description={m.title} />
 
       <div className="max-w-xl space-y-4">
         {showErrorBanner && (
@@ -110,8 +114,8 @@ export default function SettingsPage() {
         ) : (
           <Card padding="none">
             <CardHeader
-              title="Platforma komissiyasi"
-              description="Har bir yakunlangan safardan haydovchi balansidan ushlab qolinadigan standart foiz. Alohida haydovchi uchun profilida boshqa foiz belgilash mumkin."
+              title={m.title}
+              description={m.description}
               divider
             />
             <CardBody className="pt-4">
@@ -119,14 +123,14 @@ export default function SettingsPage() {
                 <SkeletonForm fields={1} />
               ) : (
                 <Input
-                  label="Standart komissiya foizi, %"
+                  label={m.rateLabel}
                   type="number"
                   min={0}
                   max={100}
                   step="0.1"
                   value={rate}
                   error={fieldError ?? undefined}
-                  hint="0 dan 100 gacha. Masalan: 15 — safar summasining 15 foizi."
+                  hint={m.rateHint}
                   onChange={(e) => handleChange(e.target.value)}
                   wrapperClassName="max-w-xs"
                 />
@@ -134,7 +138,7 @@ export default function SettingsPage() {
             </CardBody>
             <CardFooter className="justify-between">
               <span className="text-xs text-muted" aria-live="polite">
-                {isDirty ? 'Saqlanmagan oʻzgarish bor' : 'Barcha oʻzgarishlar saqlangan'}
+                {isDirty ? s.dirty : s.clean}
               </span>
               <div className="flex items-center gap-2">
                 <Button
@@ -145,7 +149,7 @@ export default function SettingsPage() {
                     setFieldError(null);
                   }}
                 >
-                  Bekor qilish
+                  {c.cancel}
                 </Button>
                 <Button
                   onClick={handleSave}
@@ -153,7 +157,7 @@ export default function SettingsPage() {
                   disabled={isLoading || !isDirty}
                   leftIcon={<Save size={14} aria-hidden="true" />}
                 >
-                  Saqlash
+                  {c.save}
                 </Button>
               </div>
             </CardFooter>

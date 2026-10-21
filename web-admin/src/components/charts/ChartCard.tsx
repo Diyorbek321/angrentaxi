@@ -2,7 +2,8 @@ import type { ReactNode } from 'react';
 import { BarChart3 } from 'lucide-react';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { CHART_HEIGHT_PX, CHART_MIN_POINTS, CHART_NOT_ENOUGH_DATA } from '@/lib/chart-tokens';
+import { CHART_HEIGHT_PX, CHART_MIN_POINTS, chartNotEnoughData } from '@/lib/chart-tokens';
+import { t } from '@/locales';
 
 export interface ChartCardProps {
   title: string;
@@ -33,8 +34,8 @@ export function ChartCard({ title, description, isLoading = false, points, child
               <BarChart3 size={16} aria-hidden />
             </span>
             <div className="min-w-0">
-              <p className="text-[13px] font-medium text-ink">{CHART_NOT_ENOUGH_DATA}</p>
-              <p className="text-xs text-muted mt-0.5">Kamida 3 kunlik maʼlumot toʻplanganda trend koʻrinadi.</p>
+              <p className="text-[13px] font-medium text-ink">{chartNotEnoughData()}</p>
+              <p className="text-xs text-muted mt-0.5">{t().dashboard.chart.notEnoughHint}</p>
             </div>
           </div>
         ) : (

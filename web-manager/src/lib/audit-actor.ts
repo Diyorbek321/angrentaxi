@@ -1,14 +1,11 @@
 import type { AuditLogActor } from './api';
+import { nameFallback } from './format';
+import { t } from '@/locales';
 
 /** `users.role` → o'zbekcha nom (backend `UserRole`). */
-export const AUDIT_ROLE_LABEL: Readonly<Record<string, string>> = {
-  admin: 'Admin',
-  manager: 'Menejer',
-  driver: 'Haydovchi',
-  passenger: 'Yoʻlovchi',
-  market: 'Doʻkon',
-  restaurant: 'Restoran',
-};
+export function auditRoleLabels(): Readonly<Record<string, string>> {
+  return t().lib.auditRole;
+}
 
 export interface AuditActorView {
   /** Asosiy matn: ism → telefon → "Foydalanuvchi oʻchirilgan" / "Tizim". */
@@ -30,9 +27,9 @@ export function auditActorView(
 ): AuditActorView {
   if (!actor) {
     return actorUserId
-      ? { name: 'Foydalanuvchi oʻchirilgan', role: null, isSystem: false }
-      : { name: 'Tizim', role: null, isSystem: true };
+      ? { name: t().lib.auditActor.deleted, role: null, isSystem: false }
+      : { name: t().lib.auditActor.system, role: null, isSystem: true };
   }
-  const name = actor.name?.trim() || (actor.phone ? formatPhone(actor.phone) : 'Ism kiritilmagan');
-  return { name, role: AUDIT_ROLE_LABEL[actor.role] ?? actor.role, isSystem: false };
+  const name = actor.name?.trim() || (actor.phone ? formatPhone(actor.phone) : nameFallback());
+  return { name, role: auditRoleLabels()[actor.role] ?? actor.role, isSystem: false };
 }

@@ -1,5 +1,7 @@
 import axios from 'axios';
 import { attachAuthInterceptor } from './session';
+import { getLocale } from './i18n/core';
+import { t } from '@/locales';
 import type { DeliveryInfo } from './courier';
 import type { VendorWalletSettlement } from './vendor-cash';
 import type { OrderV5Fields } from './order-extras';
@@ -18,8 +20,7 @@ export const API_PROXY_BASE_URL = '/api/proxy';
 
 const api = axios.create({
   baseURL: API_PROXY_BASE_URL,
-  // Panel o'zbekcha: server xatolari ham o'zbekcha (brauzer tili ruscha bo'lsa ham).
-  headers: { 'Content-Type': 'application/json', 'Accept-Language': 'uz' },
+  headers: { 'Content-Type': 'application/json' },
   // Same-origin now, so the session cookie rides along automatically.
   withCredentials: true,
 });
@@ -27,6 +28,13 @@ const api = axios.create({
 // Handles 401 -> single-flight refresh -> retry. See lib/session.ts for why the
 // refresh must never run more than once at a time.
 attachAuthInterceptor(api);
+
+// Server xatolari panel tilida (brauzer tilidan qat'i nazar): backend faqat
+// aniq `uz` / `ru` qiymatini qabul qiladi (common/i18n/error-messages.ts).
+api.interceptors.request.use((config) => {
+  config.headers.set('Accept-Language', getLocale());
+  return config;
+});
 
 export default api;
 
@@ -71,7 +79,7 @@ export const authApi = {
       | null;
 
     if (!res.ok || !payload?.data?.user) {
-      throw new Error(payload?.message || "Noto'g'ri kod");
+      throw new Error(payload?.message || t().api.wrongCodeClient);
     }
 
     return payload.data.user;

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { MoneyText } from '@/components/ui/MoneyText';
 import { formatDateTime } from '@/lib/format';
 import { VendorCashFields, vendorCashView, type VendorSettlementContext } from '@/lib/vendor-cash';
+import { t } from '@/locales';
 
 /**
  * Naqd buyurtma: kuryer tovar pulini do'konga to'laydi. Sotuvchi "oldim" yoki
@@ -27,6 +28,7 @@ export function VendorCashStrip({
   /** Hisob-kitob rejimi (`GET /settings/public`). Summalar buyurtmaning o'zidan (`vendorWalletSettlement`). */
   settlement?: VendorSettlementContext;
 }) {
+  const m = t().vendorCash;
   const { step, amount, resolution, commission, net, reversedAt, reversalCount } = vendorCashView(order, settlement);
   if (step === 'none') return null;
   const text = large ? 'text-body-lg' : 'text-[13px]';
@@ -36,7 +38,9 @@ export function VendorCashStrip({
     return (
       <p className={cn('mt-3 flex flex-wrap items-center gap-1.5 text-muted', text)}>
         <Wallet size={14} aria-hidden />
-        Olib ketishda kuryer hamyonidan <MoneyText value={amount} className="text-ink" /> oʻtkaziladi — naqd olmang
+        {m.walletPendingBefore}
+        <MoneyText value={amount} className="text-ink" />
+        {m.walletPendingAfter}
       </p>
     );
   }
@@ -46,20 +50,20 @@ export function VendorCashStrip({
       <div role="status" className={cn('mt-3 rounded-ds-sm border border-line bg-surface-2 p-3', text)}>
         <p className="flex items-center gap-1.5 font-medium text-primary-text">
           <Wallet size={14} aria-hidden />
-          {reversalCount ? 'Yangi kuryer hamyonidan qayta toʻlandi' : 'Kuryer hamyonidan toʻlandi'}
+          {reversalCount ? m.walletResettled : m.walletSettled}
         </p>
         <dl className="mt-2 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1">
-          <dt className="text-muted">Tovar summasi</dt>
+          <dt className="text-muted">{m.goodsAmount}</dt>
           <dd className="text-right">
             <MoneyText value={amount} />
           </dd>
           {commission != null && net != null && (
             <>
-              <dt className="text-muted">Komissiya</dt>
+              <dt className="text-muted">{m.commission}</dt>
               <dd className="text-right">
                 <MoneyText value={-commission} />
               </dd>
-              <dt className="font-medium text-ink">Sof tushum</dt>
+              <dt className="font-medium text-ink">{m.net}</dt>
               <dd className="text-right font-medium text-ink">
                 <MoneyText value={net} />
               </dd>
@@ -76,12 +80,14 @@ export function VendorCashStrip({
       <div role="status" className={cn('mt-3 rounded-ds-sm border border-line bg-surface-2 p-3', text)}>
         <p className="flex flex-wrap items-center gap-1.5 font-medium text-ink">
           <Undo2 size={14} aria-hidden />
-          Qaytarildi — <MoneyText value={amount} /> kuryer hamyoniga qaytdi
+          {m.reversedBefore}
+          <MoneyText value={amount} />
+          {m.reversedAfter}
         </p>
         <p className="mt-1 text-muted">
           {step === 'wallet_resettle_pending'
-            ? 'Yangi kuryer biriktirildi — olib ketishda summa qayta oʻtkaziladi.'
-            : 'Hozircha sizga hisoblanmagan. Yangi kuryer olib ketganda qayta oʻtkaziladi.'}
+            ? m.resettlePending
+            : m.reversedHint}
           {reversedAt && <span className="num"> · {formatDateTime(reversedAt)}</span>}
         </p>
       </div>
@@ -92,7 +98,9 @@ export function VendorCashStrip({
     return (
       <p className={cn('mt-3 flex flex-wrap items-center gap-1.5 text-muted', text)}>
         <Banknote size={14} aria-hidden />
-        Kuryer tovar uchun <MoneyText value={amount} className="font-semibold text-ink" /> naqd toʻlaydi — oling
+        {m.awaitingCourierBefore}
+        <MoneyText value={amount} className="font-semibold text-ink" />
+        {m.awaitingCourierAfter}
       </p>
     );
   }
@@ -101,7 +109,9 @@ export function VendorCashStrip({
     return (
       <p className={cn('mt-3 flex flex-wrap items-center gap-1.5 text-primary-text', text)}>
         <CheckCircle2 size={14} aria-hidden />
-        Kuryerdan <MoneyText value={amount} /> olindi
+        {m.confirmedBefore}
+        <MoneyText value={amount} />
+        {m.confirmedAfter}
       </p>
     );
   }
@@ -111,7 +121,8 @@ export function VendorCashStrip({
       <p role="status" className={cn('mt-3 flex items-start gap-1.5 text-primary-text', text)}>
         <CheckCircle2 size={14} aria-hidden className="mt-0.5 shrink-0" />
         <span>
-          Nizo hal qilindi{resolution ? <span className="text-muted"> — {resolution}</span> : null}
+          {m.resolved}
+          {resolution ? <span className="text-muted"> — {resolution}</span> : null}
         </span>
       </p>
     );
@@ -127,7 +138,7 @@ export function VendorCashStrip({
         )}
       >
         <AlertTriangle size={14} aria-hidden />
-        Pul olinmadi — dispetcherga yuborildi, siz bilan bogʻlanadi
+        {m.disputed}
       </p>
     );
   }
@@ -137,14 +148,16 @@ export function VendorCashStrip({
     <div role="status" className="mt-3 rounded-ds-sm border border-override/40 bg-override-tint p-3">
       <p className={cn('flex flex-wrap items-center gap-1.5 font-semibold text-ink', large ? 'text-body-lg' : 'text-body')}>
         <Banknote size={15} aria-hidden />
-        Kuryer <MoneyText value={amount} /> toʻladim dedi. Oldingizmi?
+        {m.awaitingVendorBefore}
+        <MoneyText value={amount} />
+        {m.awaitingVendorAfter}
       </p>
       <div className="mt-2 flex gap-2">
         <Button size="kitchen" className="flex-1" isLoading={busy} onClick={() => onDecide(true)}>
-          Ha, oldim
+          {m.yesReceived}
         </Button>
         <Button size="kitchen" variant="danger-ghost" disabled={busy} onClick={() => onDecide(false)}>
-          Olmadim
+          {m.notReceived}
         </Button>
       </div>
     </div>

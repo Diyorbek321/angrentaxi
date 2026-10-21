@@ -10,6 +10,7 @@ import {
 import type { DeliveryMode, MarketOrder, MarketOrderStatus } from './api';
 import type { BadgeVariant } from '@/components/ui/Badge';
 import { fullName } from './format';
+import { t } from '@/locales';
 
 /**
  * Buyurtma holati YANGI rang kiritmaydi — mavjud semantik tokenlarga
@@ -25,41 +26,19 @@ export interface OrderStatusMeta {
   Icon: LucideIcon;
 }
 
-export const ORDER_STATUS: Record<MarketOrderStatus, OrderStatusMeta> = {
-  new: {
-    label: 'Yangi',
-    hint: "Yig'ish kutilmoqda",
-    variant: 'info',
-    Icon: BellRing,
-  },
-  packing: {
-    label: "Yig'ilmoqda",
-    hint: 'Mahsulotlar yig‘ilyapti',
-    variant: 'violet',
-    Icon: PackageOpen,
-  },
-  shipped: {
-    label: 'Yuborildi',
-    hint: "Yo'lda",
-    variant: 'neutral',
-    Icon: Truck,
-  },
-  delivered: {
-    label: 'Yetkazildi',
-    hint: 'Yakunlangan',
-    variant: 'success',
-    Icon: PackageCheck,
-  },
-  cancelled: {
-    label: 'Bekor qilindi',
-    hint: 'Rad etilgan',
-    variant: 'muted-danger',
-    Icon: XCircle,
-  },
+/** Rang va ikonka — tilga bog'liq emas. Yozuvlar `orderStatusMeta` da, joriy tilda. */
+const ORDER_STATUS_STYLE: Record<MarketOrderStatus, Pick<OrderStatusMeta, 'variant' | 'Icon'>> = {
+  new: { variant: 'info', Icon: BellRing },
+  packing: { variant: 'violet', Icon: PackageOpen },
+  shipped: { variant: 'neutral', Icon: Truck },
+  delivered: { variant: 'success', Icon: PackageCheck },
+  cancelled: { variant: 'muted-danger', Icon: XCircle },
 };
 
 export function orderStatusMeta(status: string): OrderStatusMeta {
-  return ORDER_STATUS[status as MarketOrderStatus] ?? ORDER_STATUS.new;
+  const key: MarketOrderStatus = status in ORDER_STATUS_STYLE ? (status as MarketOrderStatus) : 'new';
+  const m = t().orderStatus;
+  return { label: m.label[key], hint: m.hint[key], ...ORDER_STATUS_STYLE[key] };
 }
 
 /**
@@ -73,17 +52,14 @@ export const NEXT_STATUS: Partial<Record<MarketOrderStatus, MarketOrderStatus>> 
 };
 
 /** Keyingi bosqichga o'tkazadigan YAGONA tugmaning yozuvi. */
-export const ADVANCE_LABEL: Partial<Record<MarketOrderStatus, string>> = {
-  new: "Yig'ishni boshlash",
-  packing: 'Yuborildi deb belgilash',
-  shipped: 'Yetkazildi deb belgilash',
-};
+export function advanceLabel(status: MarketOrderStatus): string | undefined {
+  return t().orderStatus.advance[status];
+}
 
 /** Yakuniy holatlar uchun passiv yozuv (tugma chiqmaydi). */
-export const TERMINAL_LABEL: Partial<Record<MarketOrderStatus, string>> = {
-  delivered: 'Buyurtma yakunlangan',
-  cancelled: 'Buyurtma bekor qilingan',
-};
+export function terminalLabel(status: MarketOrderStatus): string | undefined {
+  return t().orderStatus.terminal[status];
+}
 
 /**
  * Navbatning standart tartibi: eng shoshilinch tepada. Yangi buyurtmalar
@@ -113,15 +89,14 @@ export function compareOrders(a: MarketOrder, b: MarketOrder): number {
  * Buyurtma kartasida aniq yozuv bo'lib turadi: "kim yetkazadi" savoli
  * har bir buyurtmada hal qiluvchi.
  */
-export const DELIVERY_MODE_LABEL: Record<DeliveryMode, string> = {
-  self: "Do'kon yetkazadi",
-  platform: 'Platforma kuryeri',
-};
+export function deliveryModeLabel(mode: DeliveryMode): string {
+  return t().orderStatus.deliveryMode[mode];
+}
 
 /** Mijoz nomi — ism bo'lmasa telefon, u ham bo'lmasa neytral yozuv. */
 export function orderCustomerName(o: MarketOrder): string {
   const name = fullName(o.customer?.firstName, o.customer?.lastName, '');
-  return name || o.customer?.phone || o.customerPhone || 'Mijoz';
+  return name || o.customer?.phone || o.customerPhone || t().orderStatus.customerFallback;
 }
 
 export function orderCustomerPhone(o: MarketOrder): string | null {
@@ -139,5 +114,5 @@ export function advanceLabelFor(order: {
   deliveryOrderId?: string | null;
 }): string | undefined {
   if (NEXT_STATUS[order.status] === 'delivered' && order.deliveryOrderId) return undefined;
-  return ADVANCE_LABEL[order.status];
+  return advanceLabel(order.status);
 }

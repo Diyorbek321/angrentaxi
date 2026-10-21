@@ -20,7 +20,8 @@ import {
   VehicleFields,
 } from '@/lib/api';
 import { kycDocumentLabel, validateReview } from '@/lib/driver-review';
-import { formatDateTime, NAME_FALLBACK } from '@/lib/format';
+import { formatDateTime, nameFallback } from '@/lib/format';
+import { t } from '@/locales';
 
 type Tab = 'kyc' | 'periodic' | 'vehicle';
 
@@ -53,7 +54,7 @@ function fromVehicleChange(entry: PendingVehicleChange): ReviewItem {
     id: entry.id,
     driverName: entry.driverName,
     driverPhone: entry.driverPhone,
-    label: 'Mashinani almashtirish',
+    label: t().driverDocs.vehicleChange,
     submittedAt: entry.createdAt,
     vehicle: { previous: entry.previous, proposed: entry.proposed },
   };
@@ -80,6 +81,7 @@ function fromVerification(entry: PendingVerification): ReviewItem {
  */
 export default function DriverDocumentsPage() {
   const { toast } = useToast();
+  const m = t().driverDocs;
   const [tab, setTab] = useState<Tab>('kyc');
   const [kyc, setKyc] = useState<ReviewItem[]>([]);
   const [periodic, setPeriodic] = useState<ReviewItem[]>([]);
@@ -103,10 +105,11 @@ export default function DriverDocumentsPage() {
       setError(null);
       setHasLoadedOnce(true);
     } catch {
-      setError('Hujjatlar navbatini yuklashda xatolik');
+      setError(m.loadError);
     } finally {
       setIsLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -122,8 +125,8 @@ export default function DriverDocumentsPage() {
     else setVehicle(remove);
     setOpen(null);
     toast({
-      title: approved ? 'Tasdiqlandi' : 'Rad etildi',
-      description: `${item.driverName ?? item.driverPhone ?? 'Haydovchi'} — ${item.label}`,
+      title: approved ? m.approved : m.rejected,
+      description: `${item.driverName ?? item.driverPhone ?? m.driverFallback} — ${item.label}`,
       variant: approved ? 'success' : 'info',
     });
   };
@@ -131,29 +134,29 @@ export default function DriverDocumentsPage() {
   const columns: DataTableColumn<ReviewItem>[] = [
     {
       key: 'driver',
-      header: 'Haydovchi',
+      header: m.table.driver,
       cell: (row) => (
         <div className="min-w-0">
-          <span className="block font-medium text-ink truncate">{row.driverName ?? NAME_FALLBACK}</span>
+          <span className="block font-medium text-ink truncate">{row.driverName ?? nameFallback()}</span>
           {/* Raw phone on purpose: e2e and copy-paste search use this exact form. */}
           {row.driverPhone && <span className="num text-xs text-muted">{row.driverPhone}</span>}
         </div>
       ),
     },
-    { key: 'doc', header: 'Hujjat', cell: (row) => row.label },
+    { key: 'doc', header: m.table.document, cell: (row) => row.label },
     {
       key: 'submitted',
-      header: 'Yuborilgan',
+      header: m.table.submitted,
       className: 'num whitespace-nowrap text-muted',
       cell: (row) => formatDateTime(row.submittedAt, { withYear: true }),
     },
     {
       key: 'action',
-      header: <span className="sr-only">Amal</span>,
+      header: <span className="sr-only">{t().common.action}</span>,
       align: 'right',
       cell: (row) => (
         <Button size="sm" variant="secondary" onClick={() => setOpen(row)}>
-          Ko&apos;rib chiqish
+          {m.table.review}
         </Button>
       ),
     },
@@ -162,24 +165,24 @@ export default function DriverDocumentsPage() {
   return (
     <div className="px-4 sm:px-6 py-5">
       <PageHeader
-        title="Haydovchi hujjatlari"
-        description="KYC hujjatlari, davriy tekshiruv va mashina o'zgarishlari — eng eskisi birinchi"
+        title={m.title}
+        description={m.description}
       />
 
       <div className="space-y-3">
         <Tabs
-          ariaLabel="Hujjat turi"
+          ariaLabel={m.tabs.aria}
           items={[
-            { value: 'kyc', label: 'KYC hujjatlari', count: kyc.length },
-            { value: 'periodic', label: 'Davriy tekshiruv', count: periodic.length },
-            { value: 'vehicle', label: "Mashina o'zgarishi", count: vehicle.length },
+            { value: 'kyc', label: m.tabs.kyc, count: kyc.length },
+            { value: 'periodic', label: m.tabs.periodic, count: periodic.length },
+            { value: 'vehicle', label: m.tabs.vehicle, count: vehicle.length },
           ]}
           value={tab}
           onChange={(v) => setTab(v as Tab)}
         />
 
         <DataTable
-          ariaLabel="Hujjatlar navbati"
+          ariaLabel={m.table.aria}
           columns={columns}
           rows={rows}
           rowKey={(r) => r.id}
@@ -190,8 +193,8 @@ export default function DriverDocumentsPage() {
           empty={{
             variant: 'cleared',
             icon: <CheckCircle2 aria-hidden />,
-            title: "Navbat bo'sh",
-            description: "Ko'rib chiqilishi kerak bo'lgan hujjat qolmadi.",
+            title: m.table.emptyTitle,
+            description: m.table.emptyDescription,
           }}
         />
       </div>
@@ -211,6 +214,7 @@ function ReviewDrawer({
   onDecided: (item: ReviewItem, approved: boolean) => void;
 }) {
   const { toast } = useToast();
+  const m = t().driverDocs.drawer;
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [fileType, setFileType] = useState<string>('');
   const [fileError, setFileError] = useState(false);
@@ -280,7 +284,7 @@ function ReviewDrawer({
       }
       onDecided(item, approved);
     } catch {
-      toast({ title: 'Saqlab bo‘lmadi', description: 'Qayta urinib ko‘ring', variant: 'error' });
+      toast({ title: m.saveFailed, description: m.tryAgain, variant: 'error' });
     } finally {
       setBusy(null);
     }
@@ -294,7 +298,7 @@ function ReviewDrawer({
       title={item.label}
       subtitle={
         <span className="inline-flex flex-wrap items-center gap-2">
-          {item.driverName ?? NAME_FALLBACK}
+          {item.driverName ?? nameFallback()}
           {item.driverPhone && (
             <a href={`tel:${item.driverPhone}`} className="num inline-flex items-center gap-1 hover:underline">
               <Phone className="h-3 w-3" aria-hidden="true" />
@@ -318,7 +322,7 @@ function ReviewDrawer({
               leftIcon={<X className="h-4 w-4" aria-hidden="true" />}
               onClick={() => void decide(false)}
             >
-              Rad etish
+              {m.reject}
             </Button>
             <Button
               isLoading={busy === 'approve'}
@@ -326,7 +330,7 @@ function ReviewDrawer({
               leftIcon={<CheckCircle2 className="h-4 w-4" aria-hidden="true" />}
               onClick={() => void decide(true)}
             >
-              Tasdiqlash
+              {t().common.confirm}
             </Button>
           </div>
         </div>
@@ -339,7 +343,7 @@ function ReviewDrawer({
           <div className="overflow-hidden rounded-ds-sm border border-line bg-surface-2">
             {fileError ? (
               <p className="p-6 text-center text-[13px] text-danger-dark dark:text-danger-light">
-                Faylni ochib bo&apos;lmadi — u o&apos;chirilgan yoki saqlash xizmati javob bermadi.
+                {m.fileError}
               </p>
             ) : !fileUrl ? (
               <div className="skeleton h-72 w-full" aria-hidden />
@@ -353,7 +357,7 @@ function ReviewDrawer({
                   className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-primary-text hover:underline"
                 >
                   <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                  Hujjatni yangi oynada ochish
+                  {m.openInNewTab}
                 </a>
               </div>
             ) : (
@@ -366,16 +370,16 @@ function ReviewDrawer({
         {item.tab === 'periodic' && (
           <Input
             type="date"
-            label="Amal qilish muddati (hujjatda yozilgan bo'lsa)"
-            hint="Bo'sh qoldirilsa, tekshiruv davriyligi bo'yicha hisoblanadi"
+            label={m.validUntil}
+            hint={m.validUntilHint}
             value={validUntil}
             onChange={(e) => setValidUntil(e.target.value)}
           />
         )}
 
         <Textarea
-          label="Rad etish sababi"
-          placeholder="Masalan: rasm xira, davlat raqami o'qilmayapti"
+          label={m.reason}
+          placeholder={m.reasonPlaceholder}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           rows={3}
@@ -385,13 +389,16 @@ function ReviewDrawer({
   );
 }
 
-const VEHICLE_ROWS: Array<{ key: keyof VehicleFields; label: string; code?: boolean }> = [
-  { key: 'carModel', label: 'Rusumi' },
-  { key: 'carNumber', label: 'Davlat raqami', code: true },
-  { key: 'licensePlate', label: 'Raqam (lotin)', code: true },
-  { key: 'carYear', label: 'Yili' },
-  { key: 'vehicleType', label: 'Transport turi' },
-];
+function vehicleRows(): Array<{ key: keyof VehicleFields; label: string; code?: boolean }> {
+  const m = t().driverDocs.vehicle;
+  return [
+    { key: 'carModel', label: m.model },
+    { key: 'carNumber', label: m.plate, code: true },
+    { key: 'licensePlate', label: m.plateLatin, code: true },
+    { key: 'carYear', label: m.year },
+    { key: 'vehicleType', label: m.type },
+  ];
+}
 
 /**
  * Eski → yangi. O'zgargan qator ajratib ko'rsatiladi: menejer "faqat raqam
@@ -399,17 +406,18 @@ const VEHICLE_ROWS: Array<{ key: keyof VehicleFields; label: string; code?: bool
  */
 function VehicleDiff({ previous, proposed }: { previous: VehicleFields; proposed: VehicleFields }) {
   const show = (v: string | number | null) => (v === null || v === '' ? '—' : String(v));
+  const m = t().driverDocs.vehicle;
   return (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Maydon</TableHead>
-          <TableHead>Hozir</TableHead>
-          <TableHead>So&apos;ralgan</TableHead>
+          <TableHead>{m.field}</TableHead>
+          <TableHead>{m.current}</TableHead>
+          <TableHead>{m.requested}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {VEHICLE_ROWS.map(({ key, label, code }) => {
+        {vehicleRows().map(({ key, label, code }) => {
           const changed = previous[key] !== proposed[key];
           const face = code ? 'font-mono text-xs whitespace-nowrap' : 'num';
           return (
@@ -418,7 +426,7 @@ function VehicleDiff({ previous, proposed }: { previous: VehicleFields; proposed
               <TableCell className={`${face} text-ink`}>{show(previous[key])}</TableCell>
               <TableCell className={`${face} ${changed ? 'font-semibold text-primary-text' : 'text-muted'}`}>
                 {show(proposed[key])}
-                {changed && <span className="sr-only"> (o&apos;zgargan)</span>}
+                {changed && <span className="sr-only"> {m.changed}</span>}
               </TableCell>
             </TableRow>
           );

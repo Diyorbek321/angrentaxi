@@ -11,14 +11,10 @@ import { MoneyText } from '@/components/ui/MoneyText';
 import { SkeletonText } from '@/components/ui/Skeleton';
 import { formatDateTime, formatPhone } from '@/lib/format';
 import { auditActorView } from '@/lib/audit-actor';
+import { t } from '@/locales';
 
 const PAGE_SIZE = 5;
 
-const ACTION_LABEL: Record<string, string> = {
-  'wallet.manual_adjustment': 'Qoʻlda tuzatish',
-  'shift_pass.cancel': 'Smena bekor qilindi',
-  'payment.refund_clawback': 'Karta qaytarimi — ulush qaytarib olindi',
-};
 
 function AuditActor({ entry }: { entry: AuditLogEntry }) {
   const view = auditActorView(entry.actor, entry.actorUserId, formatPhone);
@@ -42,6 +38,8 @@ export interface DriverAuditHistoryProps {
  * Kim, qachon, qancha va nega — izoh majburiy bo'lgani uchun har yozuvda bor.
  */
 export function DriverAuditHistory({ driverId, refreshKey = 0 }: DriverAuditHistoryProps) {
+  const a = t().drivers.audit;
+  const actionLabel: Record<string, string> = a.actions;
   const [items, setItems] = useState<AuditLogEntry[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -65,7 +63,7 @@ export function DriverAuditHistory({ driverId, refreshKey = 0 }: DriverAuditHist
         setError(null);
         setLoadedOnce(true);
       } catch (err) {
-        setError(apiErrorMessage(err, 'Amallar tarixini yuklab boʻlmadi'));
+        setError(apiErrorMessage(err, t().drivers.audit.loadError));
       } finally {
         setLoading(false);
       }
@@ -80,18 +78,18 @@ export function DriverAuditHistory({ driverId, refreshKey = 0 }: DriverAuditHist
   }, [load, refreshKey]);
 
   return (
-    <section aria-label="Amallar tarixi" className="space-y-2">
-      <p className="text-sm font-medium text-ink">Amallar tarixi</p>
+    <section aria-label={a.title} className="space-y-2">
+      <p className="text-sm font-medium text-ink">{a.title}</p>
       {error && !loadedOnce ? (
-        <ErrorState compact title="Tarixni yuklab boʻlmadi" message={error} onRetry={() => load(1)} retrying={loading} />
+        <ErrorState compact title={a.loadErrorShort} message={error} onRetry={() => load(1)} retrying={loading} />
       ) : !loadedOnce ? (
         <SkeletonText lines={3} />
       ) : items.length === 0 ? (
         <EmptyState
           variant="first-use"
           icon={<History aria-hidden />}
-          title="Qoʻlda amal boʻlmagan"
-          description="Balans tuzatishlari izohi bilan shu yerda koʻrinadi."
+          title={a.empty}
+          description={a.emptyDesc}
         />
       ) : (
         <>
@@ -99,7 +97,7 @@ export function DriverAuditHistory({ driverId, refreshKey = 0 }: DriverAuditHist
             {items.map((entry) => (
               <li key={entry.id} className="px-3 py-2 text-[13px]">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-ink font-medium">{ACTION_LABEL[entry.action] ?? entry.action}</span>
+                  <span className="text-ink font-medium">{actionLabel[entry.action] ?? entry.action}</span>
                   {entry.amount != null && (
                     <MoneyText
                       value={entry.amount}
@@ -120,7 +118,7 @@ export function DriverAuditHistory({ driverId, refreshKey = 0 }: DriverAuditHist
           {error && <p className="text-xs text-danger-deep dark:text-danger-light">{error}</p>}
           {items.length < total && (
             <Button variant="ghost" size="sm" className="w-full" onClick={() => load(page + 1)} isLoading={loading}>
-              Yana koʻrsatish ({total - items.length})
+              {a.more(total - items.length)}
             </Button>
           )}
         </>

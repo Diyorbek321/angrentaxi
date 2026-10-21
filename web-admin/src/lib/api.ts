@@ -1,5 +1,7 @@
 import axios from 'axios';
 import { attachAuthInterceptor } from './session';
+import { t } from '@/locales';
+import { getLocale } from '@/lib/i18n/core';
 import type { DriverLegalBrief } from './compliance-api';
 
 /**
@@ -17,11 +19,16 @@ const api = axios.create({
   baseURL: API_PROXY_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
-    // Panel o'zbekcha: server xatolari ham o'zbekcha (brauzer tili ruscha bo'lsa ham).
-    'Accept-Language': 'uz',
   },
   // Same-origin now, so the session cookie rides along automatically.
   withCredentials: true,
+});
+
+// Server xatolari panel tilida keladi (brauzer tilidan qat'i nazar) —
+// til har so'rovda o'qiladi, chunki foydalanuvchi uni sahifada almashtiradi.
+api.interceptors.request.use((request) => {
+  request.headers.set('Accept-Language', getLocale());
+  return request;
 });
 
 // Handles 401 → single-flight refresh → retry. See lib/session.ts for why the
@@ -72,7 +79,7 @@ export const authApi = {
       | null;
 
     if (!res.ok || !payload?.data?.user) {
-      throw new Error(payload?.message || 'Notoʻgʻri kod');
+      throw new Error(payload?.message || t().shell.wrongCode);
     }
 
     return payload.data.user;

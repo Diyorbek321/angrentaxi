@@ -25,10 +25,10 @@ import { Badge } from '@/components/ui/Badge';
 import { IconButton } from '@/components/ui/IconButton';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
-import { MARKET_NAV, ORDERS_HREF, STOCK_HREF } from './nav-config';
+import { marketNav, ORDERS_HREF, STOCK_HREF } from './nav-config';
+import { t } from '@/locales';
 import { useNewOrderChime } from './useNewOrderChime';
 
-const BASE_TITLE = 'Angren Market — Sotuvchi paneli';
 const POLL_INTERVAL_MS = 30_000;
 
 /** Socket ulanganmi — "Jonli" faqat push kanali tirik bo'lganda yoziladi. */
@@ -64,9 +64,10 @@ async function notifyCustomerCancels(
     const order = r.value.data.data;
     if (!isCustomerCancelled(order)) return;
     const reason = order.cancelReason?.trim();
+    const m = t().shell;
     toast({
-      title: `${shortId(order.id)} — mijoz bekor qildi`,
-      description: reason ? `Sabab: ${reason}` : 'Sabab koʻrsatilmagan',
+      title: m.customerCancelled(shortId(order.id)),
+      description: reason ? m.reason(reason) : m.noReason,
       variant: 'info',
     });
   });
@@ -84,6 +85,7 @@ export function MarketShell({
   children: ReactNode;
   initialCollapsed?: boolean;
 }) {
+  const m = t();
   const router = useRouter();
   const { user, isLoading, isAuthenticated, logout } = useAuth();
   const [store, setStore] = useState<Store | null>(null);
@@ -153,12 +155,11 @@ export function MarketShell({
 
   // Fon tabida ham ko'rinsin: yangi buyurtma soni brauzer tab sarlavhasida.
   useEffect(() => {
+    const baseTitle = t().meta.title;
     document.title =
-      newOrdersCount && newOrdersCount > 0
-        ? `(${newOrdersCount}) Yangi buyurtma — Angren Market`
-        : BASE_TITLE;
+      newOrdersCount && newOrdersCount > 0 ? t().shell.newOrdersTitle(newOrdersCount) : baseTitle;
     return () => {
-      document.title = BASE_TITLE;
+      document.title = baseTitle;
     };
   }, [newOrdersCount]);
 
@@ -176,7 +177,7 @@ export function MarketShell({
 
   const nav: NavGroup[] = useMemo(
     () =>
-      MARKET_NAV.map((group) => ({
+      marketNav().map((group) => ({
         ...group,
         items: group.items.map((item) => {
           if (item.href === ORDERS_HREF) return { ...item, badge: newOrdersCount ?? 0 };
@@ -193,20 +194,21 @@ export function MarketShell({
   // ikkinchi qatorda egasi.
   const shellUser: ShellUser | null = useMemo(() => {
     if (!user) return null;
-    const owner = fullName(user.firstName, user.lastName, 'Sotuvchi');
+    const seller = t().shell.seller;
+    const owner = fullName(user.firstName, user.lastName, seller);
     return {
       name: store?.name ?? null,
       firstName: store ? null : user.firstName,
       lastName: store ? null : user.lastName,
       phone: user.phone,
-      role: store ? owner : 'Sotuvchi',
+      role: store ? owner : seller,
     };
   }, [user, store]);
 
   if (isLoading || !isAuthenticated) {
     return (
       <div className="flex h-screen bg-bg" aria-busy="true" aria-live="polite">
-        <span className="sr-only">Yuklanmoqda</span>
+        <span className="sr-only">{m.common.loading}</span>
         <div className="hidden w-sidebar shrink-0 border-r border-line bg-surface p-3 lg:block">
           <Skeleton className="h-8 w-full" />
           <div className="mt-6 space-y-2">
@@ -231,7 +233,7 @@ export function MarketShell({
 
   return (
     <AppShell
-      brand={{ name: 'Angren Market', subtitle: 'Sotuvchi paneli', href: '/dashboard' }}
+      brand={{ name: m.brand.name, subtitle: m.brand.subtitle, href: '/dashboard' }}
       nav={nav}
       user={shellUser}
       onLogout={logout}
@@ -242,13 +244,13 @@ export function MarketShell({
         <>
           {storeOpen !== null && (
             <Badge variant={storeOpen ? 'success' : 'neutral'} dot className="mr-1 shrink-0">
-              {storeOpen ? 'Ochiq' : 'Yopiq'}
+              {storeOpen ? m.shell.open : m.shell.closed}
             </Badge>
           )}
           <LiveMetric
             icon={<BellRing aria-hidden />}
             value={newOrdersCount}
-            label="Yangi buyurtmalar"
+            label={m.shell.newOrders}
             loading={newOrdersCount === null}
             href={ORDERS_HREF}
             tone={newOrdersCount && newOrdersCount > 0 ? 'attention' : 'neutral'}
@@ -256,7 +258,7 @@ export function MarketShell({
           <LiveMetric
             icon={<CircleOff aria-hidden />}
             value={outOfStockCount}
-            label="Tugagan mahsulotlar"
+            label={m.shell.outOfStock}
             loading={outOfStockCount === null}
             href={STOCK_HREF}
             tone={outOfStockCount && outOfStockCount > 0 ? 'danger' : 'neutral'}
@@ -273,7 +275,7 @@ export function MarketShell({
       actions={
         <>
           <IconButton
-            aria-label={chime.enabled ? 'Ovozli signalni oʻchirish' : 'Ovozli signalni yoqish'}
+            aria-label={chime.enabled ? m.shell.chimeOff : m.shell.chimeOn}
             aria-pressed={chime.enabled}
             onClick={chime.toggle}
           >

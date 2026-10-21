@@ -21,6 +21,7 @@ import { downloadCsv } from '@/lib/csv';
 import { formatDate, formatDateShort, formatNumber } from '@/lib/format';
 import { serviceTypesLabel, serviceTypesPayload, type PromoServiceType } from '@/lib/promo-service-types';
 import { ServiceTypePicker, ServiceTypesCell } from '@/components/promo/ServiceTypePicker';
+import { t } from '@/locales';
 
 const optionalNumber = (label: string, max?: number) =>
   z
@@ -31,41 +32,41 @@ const optionalNumber = (label: string, max?: number) =>
       { message: label }
     );
 
-const schema = z
-  .object({
-    code: z
-      .string()
-      .min(3, 'Kamida 3 ta belgi')
-      .max(50, 'Koʻpi bilan 50 ta belgi')
-      .regex(/^[A-Za-z0-9_-]+$/, 'Faqat harf, raqam, - va _'),
-    discountPercent: optionalNumber('0 dan 100 gacha foiz kiriting', 100),
-    discountFixed: optionalNumber('Musbat summa kiriting'),
-    maxUses: optionalNumber('Musbat son kiriting'),
-    minOrderAmount: optionalNumber('Musbat summa kiriting'),
-    expiresAt: z.string().optional(),
-  })
-  .refine((data) => data.discountPercent || data.discountFixed, {
-    message: 'Foiz yoki summa chegirmasidan birini kiriting',
-    path: ['discountPercent'],
-  });
+// Built at call time so messages follow the active language.
+function buildSchema() {
+  const v = t().ops.promo.validation;
+  return z
+    .object({
+      code: z
+        .string()
+        .min(3, v.codeMin)
+        .max(50, v.codeMax)
+        .regex(/^[A-Za-z0-9_-]+$/, v.codeChars),
+      discountPercent: optionalNumber(v.percent, 100),
+      discountFixed: optionalNumber(v.positiveAmount),
+      maxUses: optionalNumber(v.positiveNumber),
+      minOrderAmount: optionalNumber(v.positiveAmount),
+      expiresAt: z.string().optional(),
+    })
+    .refine((data) => data.discountPercent || data.discountFixed, {
+      message: v.discountRequired,
+      path: ['discountPercent'],
+    });
+}
 
-type FormData = z.infer<typeof schema>;
+type FormData = z.infer<ReturnType<typeof buildSchema>>;
 
 type StatusFilter = 'all' | 'active' | 'inactive' | 'expiring';
 
-const STATUS_TABS: readonly { value: StatusFilter; label: string }[] = [
-  { value: 'all', label: 'Hammasi' },
-  { value: 'active', label: 'Faol' },
-  { value: 'expiring', label: '7 kun ichida tugaydi' },
-  { value: 'inactive', label: 'Faol emas' },
-];
+function statusLabels(): Record<StatusFilter, string> {
+  const s = t().ops.promo.status;
+  return { all: t().common.all, active: s.active, expiring: s.expiring, inactive: s.inactive };
+}
 
-const STATUS_LABEL: Record<StatusFilter, string> = {
-  all: 'Hammasi',
-  active: 'Faol',
-  expiring: '7 kun ichida tugaydi',
-  inactive: 'Faol emas',
-};
+function statusTabs(): readonly { value: StatusFilter; label: string }[] {
+  const labels = statusLabels();
+  return (['all', 'active', 'expiring', 'inactive'] as const).map((value) => ({ value, label: labels[value] }));
+}
 
 function expiresWithin7Days(promo: PromoCode): boolean {
   if (!promo.expiresAt) return false;
@@ -74,7 +75,12 @@ function expiresWithin7Days(promo: PromoCode): boolean {
 }
 
 export default function PromoCodesPage() {
+  const m = t();
+  const pm = m.ops.promo;
   const { toast } = useToast();
+  const schema = useMemo(() => buildSchema(), []);
+  const STATUS_LABEL = statusLabels();
+  const STATUS_TABS = statusTabs();
 
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -100,7 +106,7 @@ export default function PromoCodesPage() {
       setPromoCodes(data);
       setLoadError(null);
     } catch {
-      setLoadError('Promo kodlarni yuklab boʻlmadi.');
+      setLoadError(t().ops.promo.loadFailed);
     } finally {
       setIsLoading(false);
       setHasLoadedOnce(true);
@@ -128,15 +134,15 @@ export default function PromoCodesPage() {
       setServiceTypes([]);
       setIsModalOpen(false);
       toast({
-        title: `«${code}» promo kodi yaratildi`,
-        description: 'Kod darhol amal qila boshlaydi.',
+        title: pm.created(code),
+        description: pm.createdDescription,
         variant: 'success',
       });
       await fetchPromoCodes();
     } catch (err) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        'Promo kod yaratib boʻlmadi';
+        pm.createFailed;
       setSubmitError(message);
     }
   };
@@ -167,15 +173,15 @@ export default function PromoCodesPage() {
     downloadCsv(
       'promo-kodlar',
       [
-        'Kod',
-        'Chegirma (%)',
-        'Chegirma (soʻm)',
-        'Ishlatilgan',
-        'Limit',
-        'Min. summa (soʻm)',
-        'Muddati',
-        'Xizmatlar',
-        'Holati',
+        pm.csv.code,
+        pm.csv.discountPercent,
+        pm.csv.discountFixed,
+        pm.csv.used,
+        pm.csv.limit,
+        pm.csv.minAmount,
+        pm.csv.expires,
+        pm.csv.services,
+        pm.csv.status,
       ],
       rows.map((p) => [
         p.code,
@@ -186,11 +192,11 @@ export default function PromoCodesPage() {
         p.minOrderAmount,
         p.expiresAt ? formatDateShort(p.expiresAt) : '',
         serviceTypesLabel(p.serviceTypes),
-        p.isActive ? 'Faol' : 'Faol emas',
+        p.isActive ? pm.status.active : pm.status.inactive,
       ])
     );
     toast({
-      title: `${rows.length} ta promo kod CSV faylga eksport qilindi`,
+      title: pm.exported(rows.length),
       variant: 'success',
     });
   };
@@ -200,12 +206,12 @@ export default function PromoCodesPage() {
   const columns: DataTableColumn<PromoCode>[] = [
     {
       key: 'code',
-      header: 'Kod',
+      header: pm.columns.code,
       cell: (p) => <span className="font-mono font-semibold text-ink">{p.code}</span>,
     },
     {
       key: 'discount',
-      header: 'Chegirma',
+      header: pm.columns.discount,
       numeric: true,
       cell: (p) =>
         p.discountPercent != null ? (
@@ -216,7 +222,7 @@ export default function PromoCodesPage() {
     },
     {
       key: 'used',
-      header: 'Ishlatilgan',
+      header: pm.columns.used,
       numeric: true,
       cell: (p) => (
         <span className="text-muted">
@@ -227,34 +233,34 @@ export default function PromoCodesPage() {
     },
     {
       key: 'services',
-      header: 'Xizmatlar',
+      header: pm.columns.services,
       hideBelow: 'lg',
       cell: (p) => <ServiceTypesCell value={p.serviceTypes} />,
     },
     {
       key: 'min',
-      header: 'Min. summa',
+      header: pm.columns.minAmount,
       numeric: true,
       hideBelow: 'md',
       cell: (p) => <MoneyText value={p.minOrderAmount} className="text-muted" />,
     },
     {
       key: 'expires',
-      header: 'Muddati',
+      header: pm.columns.expires,
       className: 'num text-muted whitespace-nowrap',
       cell: (p) => (
         <>
           {p.expiresAt ? formatDate(p.expiresAt) : '—'}
-          {expiresWithin7Days(p) && <span className="ml-2 text-info-dark dark:text-info-light">· tez orada</span>}
+          {expiresWithin7Days(p) && <span className="ml-2 text-info-dark dark:text-info-light">{pm.soon}</span>}
         </>
       ),
     },
     {
       key: 'status',
-      header: 'Holati',
+      header: pm.columns.status,
       cell: (p) => (
         <Badge variant={p.isActive ? 'success' : 'neutral'} size="sm" dot>
-          {p.isActive ? 'Faol' : 'Faol emas'}
+          {p.isActive ? pm.status.active : pm.status.inactive}
         </Badge>
       ),
     },
@@ -262,18 +268,18 @@ export default function PromoCodesPage() {
 
   const chips = [
     ...(searchInput
-      ? [{ key: 'q', label: `Qidiruv: "${searchInput}"`, onRemove: () => setSearchInput('') }]
+      ? [{ key: 'q', label: pm.chipSearch(searchInput), onRemove: () => setSearchInput('') }]
       : []),
     ...(statusFilter !== 'all'
-      ? [{ key: 'status', label: `Holat: ${STATUS_LABEL[statusFilter]}`, onRemove: () => setStatusFilter('all') }]
+      ? [{ key: 'status', label: pm.chipStatus(STATUS_LABEL[statusFilter]), onRemove: () => setStatusFilter('all') }]
       : []),
   ];
 
   return (
     <PageBody className="max-w-5xl">
       <PageHeader
-        title="Promo kodlar"
-        description="Chegirma kodlarini yaratish va boshqarish"
+        title={pm.title}
+        description={pm.description}
         actions={
           <>
             <Button
@@ -283,7 +289,7 @@ export default function PromoCodesPage() {
               disabled={rows.length === 0}
               leftIcon={<Download size={13} aria-hidden />}
             >
-              CSV eksport
+              {pm.exportCsv}
             </Button>
             <Button
               variant="secondary"
@@ -292,10 +298,10 @@ export default function PromoCodesPage() {
               isLoading={isLoading && hasLoadedOnce}
               leftIcon={<RefreshCw size={13} aria-hidden />}
             >
-              Yangilash
+              {m.common.refresh}
             </Button>
             <Button leftIcon={<Plus size={14} aria-hidden />} onClick={() => setIsModalOpen(true)} size="sm">
-              Yangi promo kod
+              {pm.newCode}
             </Button>
           </>
         }
@@ -304,7 +310,7 @@ export default function PromoCodesPage() {
       <FilterBar
         search={searchInput}
         onSearchChange={setSearchInput}
-        searchPlaceholder="Kod boʻyicha qidirish"
+        searchPlaceholder={pm.searchPlaceholder}
         chips={chips}
         onClearAll={clearFilters}
         className="mb-3"
@@ -313,12 +319,12 @@ export default function PromoCodesPage() {
           items={STATUS_TABS}
           value={statusFilter}
           onChange={setStatusFilter}
-          ariaLabel="Holat boʻyicha filtr"
+          ariaLabel={pm.statusFilterAria}
         />
       </FilterBar>
 
       <DataTable
-        ariaLabel="Promo kodlar"
+        ariaLabel={pm.title}
         columns={columns}
         rows={rows}
         rowKey={(p) => p.id}
@@ -330,25 +336,25 @@ export default function PromoCodesPage() {
           hasLoadedOnce && rows.length > 0 ? (
             <span className="num">
               {hasFilters
-                ? `${formatNumber(rows.length)} / jami ${formatNumber(promoCodes.length)} ta promo kod`
-                : `${formatNumber(rows.length)} ta promo kod`}
+                ? pm.footerFiltered(formatNumber(rows.length), formatNumber(promoCodes.length))
+                : pm.footer(formatNumber(rows.length))}
             </span>
           ) : undefined
         }
         isFiltered={hasFilters}
         onClearFilters={clearFilters}
         emptyFiltered={{
-          title: 'Filtrga mos promo kod topilmadi',
-          description: 'Qidiruv soʻzini yoki holat filtrini oʻzgartirib koʻring.',
+          title: pm.emptyFilteredTitle,
+          description: pm.emptyFilteredDescription,
         }}
         empty={{
           variant: 'first-use',
           icon: <Tag aria-hidden />,
-          title: 'Hali promo kod yaratilmagan',
-          description: 'Birinchi chegirma kodini yarating — u darhol amal qila boshlaydi.',
+          title: pm.emptyTitle,
+          description: pm.emptyDescription,
           action: (
             <Button size="sm" leftIcon={<Plus size={14} aria-hidden />} onClick={() => setIsModalOpen(true)}>
-              Yangi promo kod
+              {pm.newCode}
             </Button>
           ),
         }}
@@ -357,8 +363,8 @@ export default function PromoCodesPage() {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title="Yangi promo kod"
-        subtitle="Kod yaratilgach darhol amal qiladi"
+        title={pm.newCode}
+        subtitle={pm.modalSubtitle}
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
           {submitError && (
@@ -372,23 +378,23 @@ export default function PromoCodesPage() {
           )}
 
           <Input
-            label="Kod"
+            label={pm.fields.code}
             placeholder="ANGREN10"
             mono
-            hint="Katta harfga oʻgiriladi"
+            hint={pm.fields.codeHint}
             {...register('code')}
             error={errors.code?.message}
           />
           <div className="grid grid-cols-2 gap-4">
             <Input
-              label="Chegirma (%)"
+              label={pm.fields.discountPercent}
               type="number"
               placeholder="10"
               {...register('discountPercent')}
               error={errors.discountPercent?.message}
             />
             <Input
-              label="Chegirma (soʻm)"
+              label={pm.fields.discountFixed}
               type="number"
               placeholder="5000"
               {...register('discountFixed')}
@@ -397,14 +403,14 @@ export default function PromoCodesPage() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Input
-              label="Max ishlatish soni"
+              label={pm.fields.maxUses}
               type="number"
               placeholder="100"
               {...register('maxUses')}
               error={errors.maxUses?.message}
             />
             <Input
-              label="Min buyurtma summasi"
+              label={pm.fields.minOrderAmount}
               type="number"
               placeholder="0"
               {...register('minOrderAmount')}
@@ -413,18 +419,18 @@ export default function PromoCodesPage() {
           </div>
           <ServiceTypePicker value={serviceTypes} onChange={setServiceTypes} disabled={isSubmitting} />
           <Input
-            label="Amal qilish muddati"
+            label={pm.fields.expiresAt}
             type="date"
-            hint="Boʻsh qoldirilsa muddatsiz"
+            hint={pm.fields.expiresHint}
             {...register('expiresAt')}
             error={errors.expiresAt?.message}
           />
           <div className="flex justify-end gap-2 pt-4 border-t border-line">
             <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)}>
-              Bekor qilish
+              {m.common.cancel}
             </Button>
             <Button type="submit" isLoading={isSubmitting}>
-              Yaratish
+              {pm.create}
             </Button>
           </div>
         </form>

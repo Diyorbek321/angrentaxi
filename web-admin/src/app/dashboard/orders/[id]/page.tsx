@@ -19,9 +19,12 @@ import { orderPrice } from '@/components/orders/OrdersTable';
 import { ordersApi, Order } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 import { formatDateTime, formatPhone, fullName, shortId } from '@/lib/format';
-import { PAYMENT_METHOD_LABELS, PaymentMethod } from '@/lib/constants';
+import { paymentMethodLabels, PaymentMethod } from '@/lib/constants';
+import { t } from '@/locales';
 
-const BACK_CRUMB = { label: 'Buyurtmalar', href: '/dashboard/orders' };
+function backCrumb() {
+  return { label: t().orders.detail.backCrumb, href: '/dashboard/orders' };
+}
 
 function formatCoords(p: Order['pickupLocation'] | undefined): string {
   if (!p?.coordinates) return '—';
@@ -71,6 +74,9 @@ export default function OrderDetailPage() {
   const params = useParams();
   const { toast } = useToast();
   const orderId = params.id as string;
+  const m = t().orders.detail;
+  const mc = t().common;
+  const BACK_CRUMB = backCrumb();
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -86,11 +92,12 @@ export default function OrderDetailPage() {
       setOrder(res.data.data);
       setLoadError(null);
     } catch {
-      setLoadError('Buyurtma maʼlumotlarini yuklab boʻlmadi');
-      toast({ title: 'Xatolik', description: "Buyurtma ma'lumotlarini yuklashda xatolik", variant: 'error' });
+      setLoadError(m.loadFailed);
+      toast({ title: mc.error, description: m.loadError, variant: 'error' });
     } finally {
       setIsLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId, toast]);
 
   useEffect(() => {
@@ -104,9 +111,9 @@ export default function OrderDetailPage() {
       const res = await ordersApi.cancel(order.id, cancelReason);
       setOrder(res.data.data);
       setShowCancelModal(false);
-      toast({ title: 'Buyurtma bekor qilindi', variant: 'success' });
+      toast({ title: m.cancelled, variant: 'success' });
     } catch {
-      toast({ title: 'Xatolik', description: 'Buyurtmani bekor qilishda xatolik', variant: 'error' });
+      toast({ title: mc.error, description: m.cancelError, variant: 'error' });
     } finally {
       setCancelLoading(false);
     }
@@ -118,16 +125,16 @@ export default function OrderDetailPage() {
     return (
       <div className="px-4 sm:px-6 py-5">
         <PageHeader
-          breadcrumbs={[BACK_CRUMB, { label: 'Buyurtma' }]}
-          title="Buyurtma"
+          breadcrumbs={[BACK_CRUMB, { label: m.order }]}
+          title={m.order}
           actions={
             <Button variant="secondary" href="/dashboard/orders" leftIcon={<ArrowLeft size={14} aria-hidden />}>
-              Buyurtmalarga qaytish
+              {m.backToOrders}
             </Button>
           }
         />
         <Card padding="none">
-          <ErrorState message={loadError ?? 'Buyurtma topilmadi'} onRetry={fetchOrder} />
+          <ErrorState message={loadError ?? m.notFound} onRetry={fetchOrder} />
         </Card>
       </div>
     );
@@ -142,7 +149,7 @@ export default function OrderDetailPage() {
         breadcrumbs={[BACK_CRUMB, { label: id }]}
         title={
           <span className="inline-flex items-center gap-2.5">
-            Buyurtma <span className="font-mono">{id}</span>
+            {m.order} <span className="font-mono">{id}</span>
             <OrderStatusBadge status={order.status} />
           </span>
         }
@@ -159,7 +166,7 @@ export default function OrderDetailPage() {
               onClick={() => setShowCancelModal(true)}
               leftIcon={<XCircle size={14} aria-hidden />}
             >
-              Bekor qilish
+              {mc.cancel}
             </Button>
           )
         }
@@ -167,37 +174,37 @@ export default function OrderDetailPage() {
 
       {order.cancelReason && (
         <div className="mb-4 rounded-ds-md border border-danger/30 bg-danger-tint px-3 py-2 text-[13px] text-danger-dark dark:text-danger-light">
-          Bekor qilish sababi: {order.cancelReason}
+          {m.cancelReason(order.cancelReason)}
         </div>
       )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <DetailCard title="Yoʻnalish">
+        <DetailCard title={m.route}>
           <KeyValueList>
-            <KeyValue label="Boshlangʻich nuqta">{order.pickupAddress ?? '—'}</KeyValue>
-            <KeyValue label="Koordinata">
+            <KeyValue label={m.pickup}>{order.pickupAddress ?? '—'}</KeyValue>
+            <KeyValue label={m.coordinates}>
               <span className="num text-muted">{formatCoords(order.pickupLocation)}</span>
             </KeyValue>
-            <KeyValue label="Manzil">{order.dropoffAddress ?? '—'}</KeyValue>
-            <KeyValue label="Koordinata">
+            <KeyValue label={m.dropoff}>{order.dropoffAddress ?? '—'}</KeyValue>
+            <KeyValue label={m.coordinates}>
               <span className="num text-muted">{formatCoords(order.dropoffLocation)}</span>
             </KeyValue>
           </KeyValueList>
         </DetailCard>
 
-        <DetailCard title="Toʻlov">
+        <DetailCard title={m.payment}>
           <KeyValueList>
-            <KeyValue label="Narx">
+            <KeyValue label={m.price}>
               <MoneyText value={orderPrice(order)} className="text-sm font-semibold" />
             </KeyValue>
-            <KeyValue label="Toʻlov usuli">
-              {PAYMENT_METHOD_LABELS[order.paymentMethod as PaymentMethod] ?? order.paymentMethod}
+            <KeyValue label={m.paymentMethod}>
+              {paymentMethodLabels()[order.paymentMethod as PaymentMethod] ?? order.paymentMethod}
             </KeyValue>
-            <KeyValue label="Tarif">{order.tariff?.name ?? '—'}</KeyValue>
+            <KeyValue label={m.tariff}>{order.tariff?.name ?? '—'}</KeyValue>
           </KeyValueList>
         </DetailCard>
 
-        <DetailCard title="Yoʻlovchi">
+        <DetailCard title={m.passenger}>
           <PersonBlock
             firstName={order.passenger.firstName}
             lastName={order.passenger.lastName}
@@ -210,7 +217,7 @@ export default function OrderDetailPage() {
           </KeyValueList>
         </DetailCard>
 
-        <DetailCard title="Haydovchi">
+        <DetailCard title={m.driver}>
           {order.driver ? (
             <>
               <PersonBlock
@@ -219,14 +226,14 @@ export default function OrderDetailPage() {
                 phone={order.driver.phone}
               />
               <KeyValueList>
-                <KeyValue label="Avtomobil">{order.driver.carModel || '—'}</KeyValue>
-                <KeyValue label="Davlat raqami">
+                <KeyValue label={m.car}>{order.driver.carModel || '—'}</KeyValue>
+                <KeyValue label={m.plate}>
                   <PlateNumber plate={order.driver.carNumber} />
                 </KeyValue>
               </KeyValueList>
             </>
           ) : (
-            <p className="py-4 text-center text-[13px] text-subtle">Haydovchi tayinlanmagan</p>
+            <p className="py-4 text-center text-[13px] text-subtle">{m.noDriver}</p>
           )}
         </DetailCard>
       </div>
@@ -234,13 +241,13 @@ export default function OrderDetailPage() {
       <Modal
         isOpen={showCancelModal}
         onClose={() => setShowCancelModal(false)}
-        title="Buyurtmani bekor qilish"
-        description="Sabab yoʻlovchi va haydovchiga koʻrsatiladi."
+        title={m.cancelTitle}
+        description={m.cancelDescription}
         tone="danger"
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowCancelModal(false)} disabled={cancelLoading}>
-              Ortga
+              {m.back}
             </Button>
             <Button
               variant="danger"
@@ -248,14 +255,14 @@ export default function OrderDetailPage() {
               disabled={!cancelReason.trim()}
               onClick={handleCancel}
             >
-              Bekor qilish
+              {mc.cancel}
             </Button>
           </>
         }
       >
         <Textarea
-          label="Sabab"
-          placeholder="Bekor qilish sababini kiriting…"
+          label={m.reason}
+          placeholder={m.reasonPlaceholder}
           value={cancelReason}
           onChange={(e) => setCancelReason(e.target.value)}
           rows={3}

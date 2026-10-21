@@ -6,6 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import type { AppLanguage } from '../../common/i18n/error-messages';
 
 export enum UserRole {
   PASSENGER = 'passenger',
@@ -122,6 +123,12 @@ export class User {
 
   @Column({ nullable: true, type: 'varchar' })
   fcmToken: string | null;
+
+  // Push / SMS / bildirishnoma jurnali shu tilda yoziladi. Ilova har so'rovda
+  // `Accept-Language: uz|ru` yuboradi — `JwtStrategy` farq bo'lsa yangilaydi,
+  // shuning uchun alohida "tilni saqlash" chaqiruvi yo'q.
+  @Column({ type: 'varchar', length: 2, default: 'uz' })
+  language: AppLanguage;
 
   // Short shareable code identifying this user as a referrer. Auto-generated
   // at user creation (see generateUniqueReferralCode) and never changes.

@@ -8,6 +8,7 @@ import { useToast } from '@/components/ui/Toast';
 import { foodAdminApi, marketAdminApi } from '@/lib/api';
 import { apiErrorMessage } from '@/lib/api-error';
 import { isTinChanged, parseTinInput } from '@/lib/vendor-tin';
+import { t } from '@/locales';
 
 export interface VendorTinTarget {
   kind: 'stores' | 'restaurants';
@@ -28,6 +29,8 @@ export interface VendorTinModalProps {
  * amallar jurnaliga yoziladi.
  */
 export function VendorTinModal({ target, onClose, onSaved }: VendorTinModalProps) {
+  const m = t();
+  const tm = m.vendors.tin;
   const { toast } = useToast();
   const [value, setValue] = useState('');
   const [error, setError] = useState<string | undefined>();
@@ -56,13 +59,13 @@ export function VendorTinModal({ target, onClose, onSaved }: VendorTinModalProps
       const saved = res.data.data?.tin ?? parsed.tin;
       onSaved(target.kind, target.id, saved);
       toast({
-        title: saved ? 'STIR saqlandi' : 'STIR olib tashlandi',
-        description: `«${target.name}» — oʻzgarish amallar jurnaliga yozildi.`,
+        title: saved ? tm.saved : tm.removed,
+        description: tm.savedDesc(target.name),
         variant: 'success',
       });
       onClose();
     } catch (err) {
-      setError(apiErrorMessage(err, 'STIRni saqlab boʻlmadi'));
+      setError(apiErrorMessage(err, tm.saveFailed));
     } finally {
       setSaving(false);
     }
@@ -72,21 +75,21 @@ export function VendorTinModal({ target, onClose, onSaved }: VendorTinModalProps
     <Modal
       isOpen={!!target}
       onClose={onClose}
-      title="STIR (INN)"
-      description={target ? `«${target.name}» — fiskal chekda komitent STIR'i sifatida koʻrsatiladi.` : undefined}
+      title={tm.title}
+      description={target ? tm.description(target.name) : undefined}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={saving}>
-            Bekor qilish
+            {m.common.cancel}
           </Button>
           <Button onClick={save} isLoading={saving}>
-            Saqlash
+            {m.common.save}
           </Button>
         </>
       }
     >
       <Input
-        label="STIR"
+        label={tm.label}
         placeholder="123456789"
         inputMode="numeric"
         autoComplete="off"
@@ -94,7 +97,7 @@ export function VendorTinModal({ target, onClose, onSaved }: VendorTinModalProps
         maxLength={11}
         value={value}
         error={error}
-        hint="9 ta raqam. Boʻsh qoldirilsa STIR olib tashlanadi."
+        hint={tm.hint}
         onChange={(e) => {
           setValue(e.target.value);
           setError(undefined);

@@ -4,6 +4,7 @@
 import type { ReactNode } from 'react';
 import { Modal } from './Modal';
 import { Button } from './Button';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 export interface ConfirmDialogProps {
   isOpen: boolean;
@@ -35,8 +36,8 @@ export function ConfirmDialog({
   title,
   description,
   children,
-  confirmLabel = 'Tasdiqlash',
-  cancelLabel = 'Bekor qilish',
+  confirmLabel,
+  cancelLabel,
   tone = 'danger',
   isPending = false,
   confirmDisabled = false,
@@ -52,7 +53,7 @@ export function ConfirmDialog({
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={isPending}>
-            {cancelLabel}
+            {cancelLabel ?? kitT().common.cancel}
           </Button>
           <Button
             variant={confirmVariant}
@@ -60,7 +61,7 @@ export function ConfirmDialog({
             isLoading={isPending}
             disabled={confirmDisabled}
           >
-            {confirmLabel}
+            {confirmLabel ?? kitT().confirm.ok}
           </Button>
         </>
       }

@@ -27,6 +27,7 @@ import { PageBody } from '@/components/ui/PageBody';
 import { useToast } from '@/components/ui/Toast';
 import { formatDateTime, formatDuration, formatPhone, shortId } from '@/lib/format';
 import { clsx } from 'clsx';
+import { t } from '@/locales';
 
 const PAGE_LIMIT = 10;
 const SOS_POLL_MS = 15_000;
@@ -56,7 +57,7 @@ function OpenFor({ since }: { since: string }) {
           : 'text-subtle'
       )}
     >
-      {formatDuration(Math.max(0, age))} beri
+      {t().ops.exceptions.openFor(formatDuration(Math.max(0, age)))}
     </span>
   );
 }
@@ -70,6 +71,7 @@ function SosCard({
   onResolved: (id: string) => void;
   onOverride: (order: Order) => void;
 }) {
+  const em = t().ops.exceptions;
   const [isResolving, setIsResolving] = useState(false);
   const { toast } = useToast();
   // A minute-level clock is enough for threshold checks (OpenFor ticks by
@@ -100,12 +102,12 @@ function SosCard({
     try {
       await resolveSosAlert(alert.id);
       onResolved(alert.id);
-      toast({ title: 'SOS signali hal qilindi', variant: 'success' });
+      toast({ title: em.sosResolved, variant: 'success' });
     } catch (err) {
       console.error('Resolve SOS failed:', err);
       toast({
-        title: 'Signalni yopib boʻlmadi',
-        description: 'Qaytadan urinib koʻring.',
+        title: em.sosResolveFailed,
+        description: em.tryAgain,
         variant: 'error',
       });
     } finally {
@@ -135,13 +137,13 @@ function SosCard({
                 SOS
               </Badge>
               <span className="text-xs text-muted">
-                {alert.reportedByRole === 'driver' ? 'Haydovchi' : 'Mijoz'} yubordi
+                {em.reportedBy(alert.reportedByRole === 'driver' ? em.driver : em.customer)}
               </span>
               <OpenFor since={alert.createdAt} />
             </div>
 
             <p className="text-[13px] text-ink mt-2">
-              {order?.passenger?.name || 'Mijoz'} · buyurtma{' '}
+              {order?.passenger?.name || em.customer} · {em.order}{' '}
               <span className="font-mono">{shortId(alert.orderId)}</span>
             </p>
 
@@ -167,11 +169,11 @@ function SosCard({
               className="flex-1 min-w-[9rem]"
               leftIcon={<PhoneCall size={13} aria-hidden />}
             >
-              Mijozga qoʻngʻiroq
+              {em.callCustomer}
             </Button>
           ) : (
             <Button size="sm" variant="secondary" disabled className="flex-1 min-w-[9rem]">
-              Telefon yuklanmoqda…
+              {em.phoneLoading}
             </Button>
           )}
 
@@ -183,7 +185,7 @@ function SosCard({
               onClick={() => order && onOverride(order)}
               className="flex-1 min-w-[9rem]"
             >
-              Qoʻlda aralashuv
+              {em.manualOverride}
             </Button>
           )}
 
@@ -195,7 +197,7 @@ function SosCard({
             leftIcon={<CheckCircle2 size={13} />}
             className="flex-1 min-w-[8rem]"
           >
-            Hal qilindi
+            {em.resolved}
           </Button>
         </div>
       </div>
@@ -213,6 +215,7 @@ function NoDriverCard({ order }: { order: Order }) {
   const now = useNow(30_000);
   const ageMs = now == null ? 0 : now - new Date(order.createdAt).getTime();
   const escalation = ageMs >= AGE_CRITICAL_MS ? 2 : ageMs >= AGE_WARN_MS ? 1 : 0;
+  const em = t().ops.exceptions;
 
   return (
     <Card
@@ -235,7 +238,7 @@ function NoDriverCard({ order }: { order: Order }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[13px] font-medium text-ink truncate">
-              {order.passenger?.name || 'Mijoz'}
+              {order.passenger?.name || em.customer}
             </span>
             <span className="font-mono text-[11px] text-muted">{shortId(order.id)}</span>
             <OpenFor since={order.createdAt} />
@@ -250,12 +253,12 @@ function NoDriverCard({ order }: { order: Order }) {
           {order.passenger?.phone && (
             <Button
               href={`tel:${order.passenger.phone}`}
-              aria-label="Qoʻngʻiroq"
+              aria-label={em.call}
               variant="secondary"
               size="sm"
               leftIcon={<PhoneCall size={13} aria-hidden />}
             >
-              <span className="hidden sm:inline">Qoʻngʻiroq</span>
+              <span className="hidden sm:inline">{em.call}</span>
             </Button>
           )}
           {/* Opening a fresh order is the routine remedy here, not an
@@ -264,10 +267,10 @@ function NoDriverCard({ order }: { order: Order }) {
             href="/create-order"
             size="sm"
             variant="secondary"
-            aria-label="Yangi buyurtma"
+            aria-label={em.newOrder}
             leftIcon={<PlusCircle size={13} aria-hidden />}
           >
-            <span className="hidden sm:inline">Yangi buyurtma</span>
+            <span className="hidden sm:inline">{em.newOrder}</span>
           </Button>
         </div>
       </div>
@@ -290,6 +293,8 @@ function SectionTitle({ title, count }: { title: string; count: number }) {
 }
 
 export default function ExceptionsPage() {
+  const m = t();
+  const em = m.ops.exceptions;
   const { drivers } = useDispatchData();
 
   const [sosAlerts, setSosAlerts] = useState<SosAlert[]>([]);
@@ -315,7 +320,7 @@ export default function ExceptionsPage() {
     } catch (err) {
       console.error('Failed to load SOS alerts:', err);
       // The last good list stays on screen; the banner names the failure.
-      setSosError('SOS signallarini yuklab boʻlmadi');
+      setSosError(t().ops.exceptions.sosLoadFailed);
     } finally {
       setSosLoading(false);
     }
@@ -331,7 +336,7 @@ export default function ExceptionsPage() {
       setNoDriversLoaded(true);
     } catch (err) {
       console.error('Failed to load no-drivers-found exceptions:', err);
-      setNoDriversError('Buyurtmalarni yuklab boʻlmadi');
+      setNoDriversError(t().ops.exceptions.ordersLoadFailed);
     } finally {
       setNoDriversLoading(false);
     }
@@ -363,9 +368,9 @@ export default function ExceptionsPage() {
   return (
     <PageBody className="max-w-5xl">
       <PageHeader
-        title="Istisnolar"
+        title={em.title}
         // Poll-based page — the cadence is stated, never silent.
-        description="Avtomatik tizim oʻzi hal qila olmagan holatlar · SOS har 15 soniyada yangilanadi"
+        description={em.description}
         actions={
           <Button
             variant="secondary"
@@ -377,7 +382,7 @@ export default function ExceptionsPage() {
             isLoading={sosLoading && sosLoaded}
             leftIcon={<RefreshCw size={13} aria-hidden />}
           >
-            Yangilash
+            {m.common.refresh}
           </Button>
         }
       />
@@ -388,15 +393,15 @@ export default function ExceptionsPage() {
           <EmptyState
             variant="cleared"
             icon={<ShieldCheck aria-hidden />}
-            title="Hammasi avtomatik ishlayapti"
-            description="Haydovchilar tizim tomonidan tayinlanmoqda, xavfsizlik signallari yoʻq. Aralashuv talab qilinmaydi."
+            title={em.allClearTitle}
+            description={em.allClearDescription}
           />
         </Card>
       )}
 
       {/* SOS — always first, always red */}
       <section className="mb-8" aria-live="assertive">
-        <SectionTitle title="SOS / Xavfsizlik" count={sosAlerts.length} />
+        <SectionTitle title={em.sosSection} count={sosAlerts.length} />
 
         {sosError && sosLoaded && (
           <RetryBanner message={sosError} onRetry={fetchSos} keepsLastData className="mb-3" />
@@ -415,8 +420,8 @@ export default function ExceptionsPage() {
                 compact
                 variant="cleared"
                 icon={<ShieldCheck aria-hidden />}
-                title="Aktiv SOS signali yoʻq"
-                description="Barcha safarlar xavfsiz kechmoqda."
+                title={em.noSosTitle}
+                description={em.noSosDescription}
               />
             </Card>
           )
@@ -439,11 +444,9 @@ export default function ExceptionsPage() {
 
       {/* No drivers found */}
       <section>
-        <SectionTitle title="Haydovchi topilmadi" count={noDriversTotal} />
+        <SectionTitle title={em.noDriverSection} count={noDriversTotal} />
         <p className="text-[13px] text-muted -mt-1.5 mb-3 leading-relaxed max-w-3xl">
-          Matching servis qidiruv oynasidan keyin taslim boʻlgan buyurtmalar. Bunday buyurtma
-          allaqachon bekor qilingan — unga haydovchi biriktirib boʻlmaydi. Mijoz qayta murojaat
-          qilsa, «Buyurtma yaratish» orqali yangi buyurtma oching.
+          {em.noDriverExplainer}
         </p>
 
         {noDriversError && noDriversLoaded && (
@@ -468,8 +471,8 @@ export default function ExceptionsPage() {
                 compact
                 variant="cleared"
                 icon={<CheckCircle2 aria-hidden />}
-                title="Bunday holat yoʻq"
-                description="Soʻnggi buyurtmalarning barchasiga haydovchi topilgan."
+                title={em.noDriverEmptyTitle}
+                description={em.noDriverEmptyDescription}
               />
             </Card>
           )

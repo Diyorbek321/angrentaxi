@@ -17,7 +17,7 @@ import { OrderCard } from '@/components/orders/OrderCard';
 import { OrderDrawer } from '@/components/orders/OrderDrawer';
 import { QueueTabEmpty } from '@/components/orders/QueueTabEmpty';
 import { RejectModal } from '@/components/orders/RejectModal';
-import { groupOrders, TAB_LABEL, TAB_ORDER, type QueueTab } from '@/components/orders/queue';
+import { groupOrders, rejectReasonDisplay, tabLabel, TAB_ORDER, type QueueTab } from '@/components/orders/queue';
 import { cn } from '@/components/ui/cn';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -27,10 +27,13 @@ import { StaleDataBanner } from '@/components/ui/PollStatus';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Skeleton, SkeletonCards } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
+import { t } from '@/locales';
 
 const ORDERS_POLL_MS = 15_000;
 
 export default function OrdersPage() {
+  const m = t();
+  const om = m.orders;
   const { toast } = useToast();
   const { kiosk, setKiosk } = useKiosk();
   const [tab, setTab] = useState<QueueTab>('new');
@@ -81,7 +84,7 @@ export default function OrdersPage() {
 
   const grouped = useMemo(() => groupOrders(orders), [orders]);
   const tabItems = useMemo(
-    () => TAB_ORDER.map((t) => ({ value: t, label: TAB_LABEL[t], count: grouped[t].length })),
+    () => TAB_ORDER.map((tab) => ({ value: tab, label: tabLabel(tab), count: grouped[tab].length })),
     [grouped]
   );
 
@@ -92,7 +95,7 @@ export default function OrdersPage() {
       await reload();
       toast({ title: ok, variant: 'success' });
     } catch {
-      toast({ title: fail, description: 'Qayta urinib koʻring', variant: 'error' });
+      toast({ title: fail, description: m.common.retry, variant: 'error' });
     } finally {
       setBusyId(null);
     }
@@ -103,8 +106,8 @@ export default function OrdersPage() {
     return runAction(
       order,
       () => (order.status === 'new' ? foodApi.acceptOrder(order.id) : foodApi.advanceOrder(order.id)),
-      `${shortId(order.id)} — ${next ? statusMeta(next).label : 'yangilandi'}`,
-      'Holatni oʻzgartirib boʻlmadi'
+      `${shortId(order.id)} — ${next ? statusMeta(next).label : om.updated}`,
+      om.statusChangeFailed
     );
   };
 
@@ -112,8 +115,8 @@ export default function OrdersPage() {
     runAction(
       order,
       () => foodApi.redispatchOrder(order.id),
-      `${shortId(order.id)} — kuryer qayta izlanmoqda`,
-      'Kuryerni chaqirib boʻlmadi'
+      om.courierResearching(shortId(order.id)),
+      om.courierCallFailed
     );
 
   const decideCash = async (order: FoodOrder, received: boolean) => {
@@ -122,11 +125,11 @@ export default function OrdersPage() {
       await foodApi.cashReceived(order.id, received);
       await reload();
       toast({
-        title: received ? 'Naqd pul olindi' : 'Dispetcherga xabar berildi',
+        title: received ? om.cashReceived : om.dispatcherNotified,
         variant: received ? 'success' : 'info',
       });
     } catch {
-      toast({ title: 'Saqlab boʻlmadi', description: 'Qayta urinib koʻring', variant: 'error' });
+      toast({ title: m.common.saveFailed, description: m.common.retry, variant: 'error' });
     } finally {
       setBusyId(null);
     }
@@ -136,9 +139,9 @@ export default function OrdersPage() {
     if (!rejectId) return;
     try {
       await foodApi.rejectOrder(rejectId, reason);
-      toast({ title: 'Buyurtma rad etildi', description: reason, variant: 'info' });
+      toast({ title: om.rejected, description: rejectReasonDisplay(reason), variant: 'info' });
     } catch {
-      toast({ title: 'Rad etib boʻlmadi', variant: 'error' });
+      toast({ title: om.rejectFailed, variant: 'error' });
     } finally {
       setRejectId(null);
       await reload();
@@ -152,11 +155,11 @@ export default function OrdersPage() {
     <div className="flex flex-col">
       {!kiosk && (
         <PageHeader
-          title="Buyurtmalar"
-          description="Oshxona navbati — har tabda eng eski buyurtma birinchi"
+          title={om.title}
+          description={om.description}
           actions={
             <Button variant="secondary" leftIcon={<Maximize2 size={14} />} onClick={() => setKiosk(true)}>
-              Oshxona ekrani
+              {om.kioskButton}
             </Button>
           }
         />
@@ -169,19 +172,20 @@ export default function OrdersPage() {
         >
           <Info size={14} aria-hidden className="mt-0.5 shrink-0 text-info-dark dark:text-info-light" />
           <span>
-            {switchNotice}: kuryer tovar pulini naqd emas, hamyonidan oʻtkazadi — naqd tasdiqlash kerak boʻlmaydi.
+            {switchNotice}
+            {om.switchNoticeTail}
           </span>
         </p>
       )}
 
       {status === 'loading' && (
-        <div className="flex flex-col gap-4" role="status" aria-label="Buyurtmalar yuklanmoqda">
+        <div className="flex flex-col gap-4" role="status" aria-label={om.loading}>
           <Skeleton className="h-9 w-full max-w-md rounded-ds-sm" />
           <SkeletonCards count={6} height="h-64" columns />
         </div>
       )}
 
-      {status === 'error' && <ErrorState title="Buyurtmalarni yuklab boʻlmadi" message={error} onRetry={reload} />}
+      {status === 'error' && <ErrorState title={om.loadFailed} message={error} onRetry={reload} />}
 
       {status === 'ready' && (
         <div className="flex flex-col gap-4">
@@ -192,7 +196,7 @@ export default function OrdersPage() {
             items={tabItems}
             value={tab}
             onChange={setTab}
-            label="Oshxona holati boʻyicha navbat"
+            label={om.queueLabel}
             // Planshet: barmoq uchun 40px segmentlar; kioskda butun qator.
             size="lg"
             fullWidth={kiosk}
@@ -204,8 +208,8 @@ export default function OrdersPage() {
               variant="first-use"
               tone="positive"
               icon={<Inbox size={20} />}
-              title="Hozircha buyurtma yoʻq"
-              description="Yangi buyurtma kelganda ovozli signal chalinadi, karta shu yerda paydo boʻladi va yon menyuda hisoblanadi."
+              title={om.emptyTitle}
+              description={om.emptyDescription}
             />
           ) : visible.length === 0 ? (
             <QueueTabEmpty tab={tab} newCount={grouped.new.length} onGoToNew={() => setTab('new')} />

@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Inbox, SearchX } from 'lucide-react';
 import { cn } from './cn';
 import { Button } from './Button';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 export type EmptyStateVariant = 'first-use' | 'cleared' | 'no-results';
 
@@ -72,7 +73,7 @@ export function EmptyState({
         <div className="mt-1 flex items-center gap-2">
           {variant === 'no-results' && onClearFilters && (
             <Button variant="secondary" size="sm" onClick={onClearFilters}>
-              Filtrlarni tozalash
+              {kitT().common.clearFilters}
             </Button>
           )}
           {action}

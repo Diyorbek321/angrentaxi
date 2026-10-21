@@ -2,13 +2,33 @@ import type { Promotion, PromotionPayload } from '@/lib/promotions';
 
 /**
  * Aksiya ekranini vendorga moslash: restoran — "taom/menyu", market —
- * "mahsulot/katalog". Komponentlar restoran va market panellarida bir xil.
+ * "mahsulot/katalog". To'liq iboralar (so'z qo'shimchalari tilga bog'liq —
+ * ruschada "${item}lar" yasab bo'lmaydi); qiymat panel lug'atidan
+ * (`t().promotions.vocab`).
  */
 export interface PromotionVocabulary {
-  /** "taom" / "mahsulot" */
-  item: string;
-  /** "Butun menyu" / "Butun katalog" */
+  /** "Butun katalog" */
   allItems: string;
+  /** "Tanlangan mahsulotlar" — qamrov segmenti. */
+  selectedItems: string;
+  /** "mahsulotlar" — fieldset legend. */
+  itemsLegend: string;
+  /** "mahsulot nomi…" */
+  itemNamePlaceholder: string;
+  /** "mahsulotlarni qidirish" */
+  searchItemsAria: string;
+  /** "Koʻrish uchun mahsulot" */
+  previewItemAria: string;
+  /** "N ta mahsulot" (N — formatlangan son). */
+  itemCount: (n: string) => string;
+  /** Summa chegirmasi maslahati. */
+  fixedHint: string;
+  /** "Katalogda mahsulot yoʻq." */
+  noItemsInCatalog: string;
+  /** Narx ko'rinishi: qamrov bo'sh. */
+  emptyCoverage: string;
+  /** Birinchi aksiya bo'sh holati tavsifi. */
+  emptyDescription: string;
 }
 
 export interface PromotionCatalogItem {

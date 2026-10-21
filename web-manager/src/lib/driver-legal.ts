@@ -6,6 +6,7 @@ import type {
   DriverTaxStatus,
 } from './api';
 import { apiErrorDetailText, parseApiError } from './api-error';
+import { t } from '@/locales';
 
 /**
  * Haydovchining huquqiy profili (VMQ 200 / PQ-247) — panel tomoni.
@@ -13,16 +14,18 @@ import { apiErrorDetailText, parseApiError } from './api-error';
  * Backend qoidalari: docs/LEGAL-COMPLIANCE.md §1, `update-driver-legal.dto.ts`.
  */
 
-export const TAX_STATUS_LABEL: Record<DriverTaxStatus, string> = {
-  self_employed: 'Oʻzini oʻzi band qilgan',
-  individual_entrepreneur: 'Yakka tartibdagi tadbirkor (YaTT)',
-};
+export function taxStatusLabels(): Record<DriverTaxStatus, string> {
+  return t().lib.taxStatus;
+}
 
-export const TAX_STATUS_OPTIONS: readonly { value: '' | DriverTaxStatus; label: string }[] = [
-  { value: '', label: 'Kiritilmagan' },
-  { value: 'self_employed', label: TAX_STATUS_LABEL.self_employed },
-  { value: 'individual_entrepreneur', label: TAX_STATUS_LABEL.individual_entrepreneur },
-];
+export function taxStatusOptions(): readonly { value: '' | DriverTaxStatus; label: string }[] {
+  const labels = taxStatusLabels();
+  return [
+    { value: '', label: t().lib.taxStatusNotSet },
+    { value: 'self_employed', label: labels.self_employed },
+    { value: 'individual_entrepreneur', label: labels.individual_entrepreneur },
+  ];
+}
 
 /** Formadagi qiymatlar — hammasi satr, bo'sh satr = "kiritilmagan". */
 export interface LegalFormValues {
@@ -62,36 +65,37 @@ function isRealDate(value: string): boolean {
 
 /** `today` — YYYY-MM-DD (testlar uchun tashqaridan beriladi). */
 export function validateLegalForm(values: LegalFormValues, today: string): LegalFormErrors {
+  const m = t().lib.legalForm;
   const errors: LegalFormErrors = {};
   const pinfl = values.pinfl.trim();
   const tin = values.tin.trim();
 
   // Niqoblangan (o'zgartirilmaydigan) qiymat tekshirilmaydi.
   if (pinfl && !isMaskedLegalId(pinfl) && !/^\d{14}$/.test(pinfl)) {
-    errors.pinfl = 'JShShIR 14 ta raqamdan iborat boʻlishi kerak';
+    errors.pinfl = m.pinflDigits;
   }
   // YaTT'da STIR yo'qligi forma xatosi EMAS — qisman saqlash mumkin bo'lsin;
   // u eligibility sabablarida (`tin_missing`) ko'rinadi.
-  if (tin && !isMaskedLegalId(tin) && !/^\d{9}$/.test(tin)) errors.tin = 'STIR 9 ta raqamdan iborat boʻlishi kerak';
+  if (tin && !isMaskedLegalId(tin) && !/^\d{9}$/.test(tin)) errors.tin = m.tinDigits;
 
   for (const key of ['birthDate', 'drivingLicenceIssuedAt'] as const) {
     const v = values[key].trim();
     if (!v) continue;
-    if (!isRealDate(v)) errors[key] = 'Sana notoʻgʻri';
-    else if (v > today) errors[key] = 'Sana kelajakda boʻlishi mumkin emas';
-    else if (v < '1900-01-01') errors[key] = 'Sana juda eski';
+    if (!isRealDate(v)) errors[key] = m.invalidDate;
+    else if (v > today) errors[key] = m.futureDate;
+    else if (v < '1900-01-01') errors[key] = m.tooOld;
   }
 
   const birth = values.birthDate.trim();
   const licence = values.drivingLicenceIssuedAt.trim();
   if (!errors.birthDate && !errors.drivingLicenceIssuedAt && birth && licence && licence <= birth) {
-    errors.drivingLicenceIssuedAt = 'Guvohnoma tugʻilgan sanadan keyin berilgan boʻlishi kerak';
+    errors.drivingLicenceIssuedAt = m.licenceAfterBirth;
   }
 
-  if (values.taxiLicenceNumber.trim().length > 50) errors.taxiLicenceNumber = 'Koʻpi bilan 50 belgi';
-  if (values.taxiLicenceRegion.trim().length > 100) errors.taxiLicenceRegion = 'Koʻpi bilan 100 belgi';
+  if (values.taxiLicenceNumber.trim().length > 50) errors.taxiLicenceNumber = m.max50;
+  if (values.taxiLicenceRegion.trim().length > 100) errors.taxiLicenceRegion = m.max100;
   if (!/^[A-Z]{2}$/.test(values.citizenship.trim())) {
-    errors.citizenship = '2 harfli ISO kod (masalan UZ)';
+    errors.citizenship = m.citizenship;
   }
   return errors;
 }
@@ -141,18 +145,19 @@ export interface LegalBadge {
  * (panel qoidasi) — muhlat davridagi kamchilik "e'tibor bering", ya'ni info.
  */
 export function legalBadge(e: DriverLegalEligibility): LegalBadge {
+  const m = t().lib.legalBadge;
   if (!e.appliesToTaxi) {
-    return { label: 'Taksi emas', variant: 'neutral', title: 'Talablar faqat taksi xizmatiga tegishli' };
+    return { label: m.notTaxi, variant: 'neutral', title: m.notTaxiTitle };
   }
   if (e.eligible || e.reasons.length === 0) {
-    return { label: 'Talablarga javob beradi', variant: 'success', title: 'VMQ 200 talablari bajarilgan' };
+    return { label: m.eligible, variant: 'success', title: m.eligibleTitle };
   }
   const count = e.reasons.length;
   const list = e.reasons.map((r) => r.message).join('; ');
   if (e.blocking) {
-    return { label: `Bloklangan · ${count} ta kamchilik`, variant: 'danger', title: list };
+    return { label: m.blocked(count), variant: 'danger', title: list };
   }
-  return { label: `${count} ta kamchilik`, variant: 'info', title: list };
+  return { label: m.issues(count), variant: 'info', title: list };
 }
 
 /**
@@ -162,21 +167,22 @@ export function legalBadge(e: DriverLegalEligibility): LegalBadge {
  * haydovchida ham kamchiliklar sanaladi, lekin `blocking` hech qachon true emas.
  */
 export function legalBriefBadge(brief: DriverLegalBrief | null | undefined): LegalBadge {
+  const m = t().lib.legalBadge;
   if (!brief) {
-    return { label: 'Nomaʼlum', variant: 'neutral', title: 'Holatni hisoblab boʻlmadi — profilni oching' };
+    return { label: m.unknown, variant: 'neutral', title: m.unknownTitle };
   }
   if (brief.eligible || brief.issueCount === 0) {
-    return { label: 'Talablarga javob beradi', variant: 'success', title: 'VMQ 200 talablari bajarilgan' };
+    return { label: m.eligible, variant: 'success', title: m.eligibleTitle };
   }
   const count = brief.issueCount;
   if (brief.blocking) {
     return {
-      label: `Bloklangan · ${count} ta kamchilik`,
+      label: m.blocked(count),
       variant: 'danger',
-      title: 'Taksi uchun onlayn chiqa olmaydi — roʻyxat profilda',
+      title: m.blockedTitle,
     };
   }
-  return { label: `${count} ta kamchilik`, variant: 'info', title: 'Kamchiliklar roʻyxati profilda' };
+  return { label: m.issues(count), variant: 'info', title: m.issuesTitle };
 }
 
 /** Drawer tahriridan keyin jadval qatorini yangilash uchun. */
@@ -186,9 +192,10 @@ export function legalBriefFromEligibility(e: DriverLegalEligibility): DriverLega
 
 /** Drawer sarlavhasidagi majburlash holati matni. */
 export function enforcementText(e: DriverLegalEligibility, formatDate: (iso: string) => string): string {
-  if (e.enforced) return 'Majburlanmoqda — kamchiligi bor haydovchi taksi uchun onlayn chiqa olmaydi';
-  if (e.enforcedFrom) return `Muhlat davri — ${formatDate(e.enforcedFrom)} dan majburlanadi`;
-  return 'Majburlanmaydi — kamchiliklar faqat ogohlantirish';
+  const m = t().lib.enforcement;
+  if (e.enforced) return m.enforced;
+  if (e.enforcedFrom) return m.grace(formatDate(e.enforcedFrom));
+  return m.notEnforced;
 }
 
 /** Backend xato konverti — `code`/`reasons` bilan ([api-error.ts]). */
@@ -209,10 +216,9 @@ export function hasMaskedLegalIds(profile: Pick<DriverLegalProfile, 'pinfl' | 't
   return isMaskedLegalId(profile.pinfl) || isMaskedLegalId(profile.tin);
 }
 
-export const LEGAL_DUPLICATE_MESSAGE: Record<'pinfl' | 'tin', string> = {
-  pinfl: 'Bu JShShIR boshqa haydovchi profilida roʻyxatdan oʻtgan',
-  tin: 'Bu STIR boshqa haydovchi profilida roʻyxatdan oʻtgan',
-};
+export function legalDuplicateMessages(): Record<'pinfl' | 'tin', string> {
+  return t().lib.legalDuplicate;
+}
 
 /** 409 `LEGAL_PROFILE_DUPLICATE` — qaysi maydon (`details.field`); boshqa xato — `null`. */
 export function legalDuplicateField(err: unknown): 'pinfl' | 'tin' | null {

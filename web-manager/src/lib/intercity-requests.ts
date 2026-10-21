@@ -1,5 +1,6 @@
 import type { BadgeVariant } from '@/components/ui/Badge';
 import type { IntercityBookingKind, IntercityTripClass } from './intercity';
+import { t } from '@/locales';
 
 /**
  * Yo'lovchi so'rovlari doskasi — backend `IntercityRequestManageView`
@@ -49,12 +50,9 @@ export interface IntercityRequestPage {
   limit: number;
 }
 
-export const INTERCITY_REQUEST_STATUS_LABELS: Record<IntercityRequestStatus, string> = {
-  open: 'Haydovchi kutilmoqda',
-  accepted: 'Qabul qilindi',
-  cancelled: 'Bekor qilindi',
-  expired: 'Muddati tugadi',
-};
+export function intercityRequestStatusLabels(): Record<IntercityRequestStatus, string> {
+  return t().lib.intercity.requestStatus;
+}
 
 // Amber ('override') ATAYLAB yo'q — u qo'lda aralashuv uchun saqlangan.
 export const INTERCITY_REQUEST_STATUS_BADGE: Record<IntercityRequestStatus, BadgeVariant> = {
@@ -69,7 +67,7 @@ export function requestRouteName(request: Pick<IntercityRequestManage, 'originNa
 }
 
 export function requestKindLabel(request: Pick<IntercityRequestManage, 'kind' | 'seats'>): string {
-  return request.kind === 'whole_car' ? 'Butun mashina' : `${request.seats} joy`;
+  return request.kind === 'whole_car' ? t().lib.intercity.wholeCar : t().lib.intercity.seats(request.seats);
 }
 
 const TASHKENT_PARTS = new Intl.DateTimeFormat('en-GB', {

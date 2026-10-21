@@ -3,6 +3,7 @@ import { API_BASE_URL } from "@/lib/server/api-config";
 import { clientIpHeaders } from "@/lib/server/client-ip";
 import { ACCESS_TOKEN_COOKIE } from "@/lib/server/auth-cookies";
 import { crossOriginRejection, isSameOrigin } from "@/lib/server/same-origin";
+import { routeMessages } from "@/lib/server/route-messages";
 import { cacheControlFor } from "@/lib/server/proxy-cache";
 
 export const runtime = "nodejs";
@@ -89,7 +90,7 @@ async function forward(
     });
   } catch {
     return NextResponse.json(
-      { success: false, message: "Serverga ulanib boʻlmadi" },
+      { success: false, message: routeMessages(req).serverUnreachable },
       { status: 502 },
     );
   }

@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { CalendarCheck, Eye } from 'lucide-react';
 import { Order, PaginatedResponse } from '@/lib/api';
-import { PAYMENT_METHOD_LABELS } from '@/lib/constants';
+import { paymentMethodLabels } from '@/lib/constants';
 import { OrderStatusBadge } from './OrderStatusBadge';
 import { Badge } from '@/components/ui/Badge';
 import { serviceTypeLabel } from '@/lib/intercity';
@@ -15,7 +15,8 @@ import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { MoneyText } from '@/components/ui/MoneyText';
 import { PlateNumber } from '@/components/ui/PlateNumber';
 import type { EmptyStateProps } from '@/components/ui/EmptyState';
-import { formatDateTime, formatPhone, shortId } from '@/lib/format';
+import { formatDateTime, formatPhone, nameFallback, shortId } from '@/lib/format';
+import { t } from '@/locales';
 
 export const ORDERS_PAGE_SIZES = [20, 50, 100] as const;
 
@@ -55,6 +56,7 @@ export function OrdersTable({
   onClearFilters,
   isTodayView = false,
 }: OrdersTableProps) {
+  const m = t().orders.table;
   const router = useRouter();
   const open = (order: Order) => router.push(`/orders/${order.id}`);
 
@@ -73,10 +75,10 @@ export function OrdersTable({
   const columns: DataTableColumn<Order>[] = [
     {
       key: 'customer',
-      header: 'Mijoz',
+      header: m.customer,
       cell: (o) => (
         <div className="min-w-0">
-          <p className="text-ink font-medium truncate">{o.passenger?.name || 'Mijoz'}</p>
+          <p className="text-ink font-medium truncate">{o.passenger?.name || m.customer}</p>
           <p className="text-subtle text-xs whitespace-nowrap">
             <span className="font-mono">{shortId(o.id)}</span>
             <span className="num"> · {formatPhone(o.passenger?.phone)}</span>
@@ -86,7 +88,7 @@ export function OrdersTable({
     },
     {
       key: 'route',
-      header: 'Marshrut',
+      header: m.route,
       className: 'max-w-[260px]',
       hideBelow: 'md',
       cell: (o) => (
@@ -103,17 +105,17 @@ export function OrdersTable({
     },
     {
       key: 'status',
-      header: 'Status',
+      header: m.status,
       cell: (o) => <OrderStatusBadge status={o.status} size="sm" dot />,
     },
     {
       key: 'driver',
-      header: 'Haydovchi',
+      header: m.driver,
       hideBelow: 'xl',
       cell: (o) =>
         o.driver ? (
           <div className="min-w-0 flex items-center gap-2">
-            <span className="text-ink truncate">{o.driver.name || 'Ism kiritilmagan'}</span>
+            <span className="text-ink truncate">{o.driver.name || nameFallback()}</span>
             <PlateNumber plate={o.driver.carNumber} className="shrink-0" />
           </div>
         ) : (
@@ -122,32 +124,32 @@ export function OrdersTable({
     },
     {
       key: 'payment',
-      header: 'Toʻlov',
+      header: m.payment,
       hideBelow: '2xl',
-      cell: (o) => <span className="text-muted whitespace-nowrap">{PAYMENT_METHOD_LABELS[o.paymentMethod]}</span>,
+      cell: (o) => <span className="text-muted whitespace-nowrap">{paymentMethodLabels()[o.paymentMethod]}</span>,
     },
-    { key: 'price', header: 'Narx', numeric: true, cell: (o) => <OrderPrice order={o} /> },
+    { key: 'price', header: m.price, numeric: true, cell: (o) => <OrderPrice order={o} /> },
     {
       key: 'createdAt',
-      header: 'Sana',
+      header: m.date,
       hideBelow: 'xl',
       className: 'num text-muted whitespace-nowrap',
       cell: (o) => formatDateTime(o.createdAt),
     },
     {
       key: 'actions',
-      header: <span className="sr-only">Amallar</span>,
+      header: <span className="sr-only">{m.actions}</span>,
       align: 'right',
       width: 'w-12',
       // Icon-only: a labelled "Koʻrish" button cost ~110px and clipped the
       // table at 1440. The whole row opens the order too; the button keeps
       // the keyboard/screen-reader path with the same accessible name.
       cell: (o) => (
-        <Tooltip content="Koʻrish" side="left">
+        <Tooltip content={m.view} side="left">
           <IconButton
             size="sm"
             title=""
-            aria-label="Buyurtmani koʻrish"
+            aria-label={m.viewOrder}
             onClick={(e) => {
               e.stopPropagation();
               open(o);
@@ -165,31 +167,31 @@ export function OrdersTable({
   const empty: EmptyStateProps = hasFilters
     ? {
         variant: 'no-results',
-        title: 'Filtrga mos buyurtma topilmadi',
-        description: 'Qidiruv soʻzini, statusni yoki sana oraligʻini oʻzgartirib koʻring.',
+        title: m.emptyFilteredTitle,
+        description: m.emptyFilteredHint,
         onClearFilters,
       }
     : isTodayView
     ? {
         variant: 'cleared',
         icon: <CalendarCheck aria-hidden />,
-        title: 'Bugun hali buyurtma yoʻq',
-        description: 'Birinchi buyurtma kelishi bilan shu jadvalda koʻrinadi.',
+        title: m.emptyTodayTitle,
+        description: m.emptyTodayHint,
         action: onClearFilters ? (
           <Button variant="secondary" size="sm" onClick={onClearFilters}>
-            Butun tarixni koʻrish
+            {m.showAllHistory}
           </Button>
         ) : undefined,
       }
     : {
         variant: 'first-use',
-        title: 'Buyurtmalar yoʻq',
-        description: 'Yangi buyurtmalar shu roʻyxatda paydo boʻladi.',
+        title: m.emptyTitle,
+        description: m.emptyHint,
       };
 
   return (
     <DataTable
-      ariaLabel="Buyurtmalar"
+      ariaLabel={t().orders.list.title}
       columns={columns}
       rows={rows}
       rowKey={(o) => o.id}

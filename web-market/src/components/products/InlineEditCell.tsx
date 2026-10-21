@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Check, Pencil, X } from 'lucide-react';
 import { cn } from '@/components/ui/cn';
+import { t } from '@/locales';
 
 export interface InlineEditCellProps {
   value: number;
@@ -31,6 +32,7 @@ export function InlineEditCell({
   onSave,
   valueClassName,
 }: InlineEditCellProps) {
+  const m = t();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [fieldError, setFieldError] = useState<string | null>(null);
@@ -50,11 +52,11 @@ export function InlineEditCell({
   const save = async () => {
     const num = Number(draft);
     if (draft.trim() === '' || Number.isNaN(num)) {
-      setFieldError('Raqam kiriting');
+      setFieldError(m.products.enterNumber);
       return;
     }
     if (num < min) {
-      setFieldError(`Kamida ${min}`);
+      setFieldError(m.products.atLeast(min));
       return;
     }
     if (num === value) {
@@ -76,8 +78,8 @@ export function InlineEditCell({
       <button
         type="button"
         onClick={startEdit}
-        aria-label={`${ariaLabel} — tahrirlash`}
-        title="Tahrirlash"
+        aria-label={m.products.editAria(ariaLabel)}
+        title={m.common.edit}
         className="group ml-auto flex h-7 items-center justify-end gap-1 rounded-ds-xs px-1.5 text-right transition-colors hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
       >
         <span className={cn('num text-[13px] font-medium', valueClassName ?? 'text-ink')}>{display}</span>
@@ -119,8 +121,8 @@ export function InlineEditCell({
           type="button"
           onClick={() => void save()}
           disabled={saving}
-          aria-label="Saqlash"
-          title="Saqlash"
+          aria-label={m.common.save}
+          title={m.common.save}
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-ds-sm bg-primary text-white transition-colors hover:bg-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-45"
         >
           <Check size={14} aria-hidden />
@@ -129,8 +131,8 @@ export function InlineEditCell({
           type="button"
           onClick={cancel}
           disabled={saving}
-          aria-label="Bekor qilish"
-          title="Bekor qilish"
+          aria-label={m.common.cancel}
+          title={m.common.cancel}
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-ds-sm border border-line text-muted transition-colors hover:bg-surface-2 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-45"
         >
           <X size={14} aria-hidden />

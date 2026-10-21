@@ -5,8 +5,8 @@ import { Check, MapPin, MessageSquareText, Phone, Truck } from 'lucide-react';
 import { marketApi, MarketOrder } from '@/lib/api';
 import {
   advanceLabelFor,
-  DELIVERY_MODE_LABEL,
-  TERMINAL_LABEL,
+  deliveryModeLabel,
+  terminalLabel,
   orderCustomerName,
   orderCustomerPhone,
 } from '@/lib/order-status';
@@ -23,6 +23,7 @@ import { MoneyText } from '@/components/ui/MoneyText';
 import { KeyValue, KeyValueList } from '@/components/ui/KeyValue';
 import { cn } from '@/components/ui/cn';
 import { AddressDetailsBlock, CustomerCancelNotice, DiscountLines } from './OrderExtras';
+import { t } from '@/locales';
 
 export interface OrderDrawerProps {
   order: MarketOrder | null;
@@ -44,6 +45,7 @@ export function OrderDrawer({ order, onClose, onChanged, onError, settlement }: 
 
   if (!order) return null;
 
+  const m = t();
   const packedCount = order.items.filter((i) => i.packed).length;
   const advanceLabel = advanceLabelFor(order);
   const phone = orderCustomerPhone(order);
@@ -101,13 +103,13 @@ export function OrderDrawer({ order, onClose, onChanged, onError, settlement }: 
     <Drawer
       isOpen
       onClose={onClose}
-      title={`Buyurtma ${shortId(order.id)}`}
+      title={m.orders.drawerTitle(shortId(order.id))}
       subtitle={`${orderCustomerName(order)} · ${formatRelative(order.createdAt)} (${formatTime(order.createdAt)})`}
       footer={
         <div className="space-y-3">
           <DiscountLines order={order} />
           <div className="flex items-center justify-between">
-            <span className="text-[13px] text-muted">Jami summa</span>
+            <span className="text-[13px] text-muted">{m.orders.total}</span>
             <MoneyText value={order.totalPrice} className="text-base font-semibold text-ink" />
           </div>
           {advanceLabel ? (
@@ -116,7 +118,7 @@ export function OrderDrawer({ order, onClose, onChanged, onError, settlement }: 
             </Button>
           ) : (
             <p className="py-2 text-center text-sm font-medium text-muted">
-              {TERMINAL_LABEL[order.status] ?? 'Kuryer topshirgach oʻzi yakunlanadi'}
+              {terminalLabel(order.status) ?? m.orders.autoComplete}
             </p>
           )}
         </div>
@@ -128,11 +130,11 @@ export function OrderDrawer({ order, onClose, onChanged, onError, settlement }: 
           {/* Yetkazish rejimi — haqiqiy sozlama (`deliveryMode`): kim
               yetkazishini karta o'zi aytadi, taxmin qoldirmaydi. */}
           <Badge variant="neutral" icon={<Truck aria-hidden />}>
-            {DELIVERY_MODE_LABEL[order.deliveryMode]}
+            {deliveryModeLabel(order.deliveryMode)}
           </Badge>
         </div>
         <span className="num text-[13px] font-medium text-muted">
-          Yig&apos;ildi: {packedCount}/{order.items.length}
+          {m.orders.packed(packedCount, order.items.length)}
         </span>
       </div>
 
@@ -159,7 +161,7 @@ export function OrderDrawer({ order, onClose, onChanged, onError, settlement }: 
         <div className="rounded-ds-sm border border-info/30 bg-info-tint p-3">
           <p className="flex items-center gap-1.5 text-xs font-medium text-info-dark dark:text-info-light">
             <MessageSquareText size={12} aria-hidden />
-            Mijoz izohi
+            {m.orders.customerNote}
           </p>
           <p className="mt-1 text-sm font-medium text-ink">{order.note}</p>
         </div>
@@ -168,7 +170,7 @@ export function OrderDrawer({ order, onClose, onChanged, onError, settlement }: 
       {(phone || order.deliveryAddress) && (
         <KeyValueList className="rounded-ds-sm border border-line px-3 py-2.5">
           {phone && (
-            <KeyValue label="Mijoz telefoni">
+            <KeyValue label={m.orders.customerPhone}>
               <a href={`tel:${phone}`} className="num inline-flex items-center gap-1.5 font-medium text-primary-text hover:underline">
                 <Phone size={13} aria-hidden />
                 {formatPhone(phone)}
@@ -176,7 +178,7 @@ export function OrderDrawer({ order, onClose, onChanged, onError, settlement }: 
             </KeyValue>
           )}
           {order.deliveryAddress && (
-            <KeyValue label="Yetkazish manzili">
+            <KeyValue label={m.orders.deliveryAddress}>
               <span className="inline-flex items-start gap-1.5">
                 <MapPin size={13} aria-hidden className="mt-0.5 shrink-0 text-subtle" />
                 {order.deliveryAddress}
@@ -190,7 +192,7 @@ export function OrderDrawer({ order, onClose, onChanged, onError, settlement }: 
 
       <div>
         <p className="mb-2 text-[13px] font-medium text-muted">
-          Yig&apos;ish ro&apos;yxati — {order.items.length} ta mahsulot
+          {m.orders.packList(order.items.length)}
         </p>
         <ul className="space-y-1">
           {order.items.map((it, index) => (
@@ -277,7 +279,7 @@ function CourierStrip({
       )}
       {state.canRedispatch && (
         <Button variant="secondary" size="sm" className="mt-2 w-full" isLoading={busy} onClick={onRedispatch}>
-          Kuryerni qayta chaqirish
+          {t().courier.redispatch}
         </Button>
       )}
     </div>

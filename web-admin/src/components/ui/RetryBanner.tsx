@@ -5,6 +5,7 @@ import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { cn } from './cn';
 import { Button } from './Button';
 import { formatTime } from '@/lib/format';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 export interface RetryBannerProps {
   /** What failed, named plainly ("Buyurtmalarni yangilab boʻlmadi."). */
@@ -39,7 +40,8 @@ export function RetryBanner({
 }: RetryBannerProps) {
   const busy = retrying ?? isRetrying ?? false;
   const at = lastUpdatedAt != null ? formatTime(lastUpdatedAt) : null;
-  const headline = title ?? message ?? 'Maʼlumotni yangilab boʻlmadi.';
+  const m = kitT().retryBanner;
+  const headline = title ?? message ?? m.title;
   const detail = title ? message : null;
   return (
     <div
@@ -56,7 +58,7 @@ export function RetryBanner({
           <p className="text-muted truncate">
             {detail}
             {detail && keepsLastData && ' · '}
-            {keepsLastData && (at ? `Ekranda ${at} holatidagi maʼlumot.` : 'Ekranda oxirgi yuklangan maʼlumot.')}
+            {keepsLastData && (at ? m.keptAt(at) : m.kept)}
           </p>
         )}
       </div>
@@ -67,7 +69,7 @@ export function RetryBanner({
         isLoading={busy}
         leftIcon={<RefreshCw size={13} aria-hidden />}
       >
-        Qayta urinish
+        {kitT().common.retry}
       </Button>
     </div>
   );

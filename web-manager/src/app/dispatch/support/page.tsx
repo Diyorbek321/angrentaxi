@@ -24,17 +24,24 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
-import { formatPhone, formatTime } from '@/lib/format';
+import { formatPhone, formatTime, nameFallback } from '@/lib/format';
+import { t } from '@/locales';
 
 type ThreadFilter = 'all' | 'open' | 'closed';
 
-const THREAD_TABS: readonly { value: ThreadFilter; label: string }[] = [
-  { value: 'open', label: 'Ochiq' },
-  { value: 'closed', label: 'Yopiq' },
-  { value: 'all', label: 'Hammasi' },
-];
+function threadTabs(): readonly { value: ThreadFilter; label: string }[] {
+  const m = t();
+  return [
+    { value: 'open', label: m.ops.support.open },
+    { value: 'closed', label: m.ops.support.closed },
+    { value: 'all', label: m.common.all },
+  ];
+}
 
 export default function SupportPage() {
+  const m = t();
+  const sm = m.ops.support;
+  const THREAD_TABS = threadTabs();
   const { toast } = useToast();
   const {
     threads,
@@ -105,7 +112,7 @@ export default function SupportPage() {
         // Named, never swallowed — the operator must know the conversation is
         // incomplete rather than assume the customer wrote nothing.
         setMessages([]);
-        setMessagesError('Xabarlarni yuklab boʻlmadi.');
+        setMessagesError(t().ops.support.messagesLoadFailed);
       })
       .finally(() => setMessagesLoading(false));
   }, []);
@@ -145,8 +152,8 @@ export default function SupportPage() {
     } catch (err) {
       console.error('Failed to send support message:', err);
       toast({
-        title: 'Xabar yuborilmadi',
-        description: 'Matn saqlanib qoldi — qayta yuborib koʻring.',
+        title: sm.sendFailed,
+        description: sm.sendFailedDescription,
         variant: 'error',
       });
     } finally {
@@ -162,13 +169,13 @@ export default function SupportPage() {
       await setSupportThreadStatus(selectedThread.id, nextStatus);
       await refetchThreads();
       toast({
-        title: nextStatus === 'closed' ? 'Murojaat yopildi' : 'Murojaat qayta ochildi',
+        title: nextStatus === 'closed' ? sm.threadClosed : sm.threadReopened,
         description: selectedThread.userName,
         variant: 'success',
       });
     } catch (err) {
       console.error('Failed to change support thread status:', err);
-      toast({ title: 'Murojaat holatini oʻzgartirib boʻlmadi', variant: 'error' });
+      toast({ title: sm.statusChangeFailed, variant: 'error' });
     } finally {
       setStatusSaving(false);
     }
@@ -182,40 +189,40 @@ export default function SupportPage() {
       <aside className="w-72 lg:w-80 shrink-0 border-r border-line bg-surface flex flex-col">
         <div className="px-4 py-3 border-b border-line shrink-0">
           <div className="flex items-center justify-between gap-2">
-            <h1 className="text-title text-ink">Qoʻllab-quvvatlash</h1>
+            <h1 className="text-title text-ink">{sm.title}</h1>
             {totalUnread > 0 && (
               <Badge variant="info" size="sm">
-                {totalUnread} oʻqilmagan
+                {sm.unread(totalUnread)}
               </Badge>
             )}
           </div>
-          <p className="text-[13px] text-muted mt-0.5">Mijoz va haydovchi murojaatlari</p>
+          <p className="text-[13px] text-muted mt-0.5">{sm.subtitle}</p>
         </div>
 
         <div className="px-3 pt-3 pb-2 space-y-2 shrink-0">
           <SearchInput
-            placeholder="Ism yoki telefon"
+            placeholder={sm.searchPlaceholder}
             value={search}
             onChange={setSearch}
-            aria-label="Murojaatlarni qidirish"
+            aria-label={sm.searchAria}
           />
           <SegmentedControl
             items={THREAD_TABS}
             value={filter}
             onChange={setFilter}
             size="sm"
-            ariaLabel="Murojaat holati"
+            ariaLabel={sm.statusAria}
           />
         </div>
 
         <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-2">
           {threadsError && threads.length > 0 && (
-            <RetryBanner message="Roʻyxatni yangilab boʻlmadi." onRetry={refetchThreads} keepsLastData />
+            <RetryBanner message={sm.listRefreshFailed} onRetry={refetchThreads} keepsLastData />
           )}
           {threadsError && threads.length === 0 ? (
             <ErrorState
               compact
-              title="Murojaatlar roʻyxatini yuklab boʻlmadi"
+              title={sm.listLoadFailed}
               onRetry={refetchThreads}
             />
           ) : threadsLoading && threads.length === 0 ? (
@@ -229,8 +236,8 @@ export default function SupportPage() {
               <EmptyState
                 compact
                 variant="no-results"
-                title="Mos murojaat topilmadi"
-                description="Qidiruv yoki holat filtrini oʻzgartiring."
+                title={sm.noResultsTitle}
+                description={sm.noResultsDescription}
                 onClearFilters={() => {
                   setSearch('');
                   setFilter('open');
@@ -241,8 +248,8 @@ export default function SupportPage() {
                 compact
                 variant="cleared"
                 icon={<MessageCircle aria-hidden />}
-                title="Ochiq murojaat yoʻq"
-                description="Yangi murojaat kelsa shu yerda koʻrinadi."
+                title={sm.emptyTitle}
+                description={sm.emptyDescription}
               />
             )
           ) : (
@@ -261,7 +268,7 @@ export default function SupportPage() {
               >
                 <div className="flex items-center gap-2">
                   <Avatar name={thread.userName} size="xs" tone="muted" />
-                  <span className="text-[13px] font-medium text-ink truncate">{thread.userName || 'Ism kiritilmagan'}</span>
+                  <span className="text-[13px] font-medium text-ink truncate">{thread.userName || nameFallback()}</span>
                   {thread.unreadCount > 0 && (
                     <Badge variant="info" size="sm" className="ml-auto shrink-0">
                       {thread.unreadCount}
@@ -281,7 +288,7 @@ export default function SupportPage() {
                   size="sm"
                   className="mt-1.5"
                 >
-                  {thread.status === 'open' ? 'Ochiq' : 'Yopiq'}
+                  {thread.status === 'open' ? sm.open : sm.closed}
                 </Badge>
               </button>
             ))
@@ -295,8 +302,8 @@ export default function SupportPage() {
           <div className="flex-1 flex items-center justify-center p-6">
             <EmptyState
               icon={<MessagesSquare aria-hidden />}
-              title="Suhbat tanlanmagan"
-              description="Chapdagi roʻyxatdan murojaatni tanlang."
+              title={sm.noSelectionTitle}
+              description={sm.noSelectionDescription}
             />
           </div>
         ) : (
@@ -306,11 +313,11 @@ export default function SupportPage() {
                 <Avatar name={selectedThread.userName} size="sm" tone="muted" />
                 <div className="min-w-0">
                   <p className="text-title text-ink truncate">
-                    {selectedThread.userName || 'Ism kiritilmagan'}
+                    {selectedThread.userName || nameFallback()}
                   </p>
                   <p className="text-xs text-muted truncate">
                     <span className="num">{formatPhone(selectedThread.userPhone)}</span> ·{' '}
-                    {selectedThread.userRole === 'driver' ? 'Haydovchi' : 'Yoʻlovchi'}
+                    {selectedThread.userRole === 'driver' ? m.lib.auditRole.driver : m.lib.auditRole.passenger}
                   </p>
                 </div>
               </div>
@@ -320,7 +327,7 @@ export default function SupportPage() {
                 onClick={handleToggleStatus}
                 isLoading={statusSaving}
               >
-                {selectedThread.status === 'open' ? 'Yopish' : 'Qayta ochish'}
+                {selectedThread.status === 'open' ? m.common.close : sm.reopen}
               </Button>
             </div>
 
@@ -343,8 +350,8 @@ export default function SupportPage() {
                 <EmptyState
                   compact
                   icon={<MessageCircle aria-hidden />}
-                  title="Xabarlar yoʻq"
-                  description="Suhbatni birinchi boʻlib boshlang."
+                  title={sm.noMessagesTitle}
+                  description={sm.noMessagesDescription}
                 />
               ) : (
                 messages.map((message) => {
@@ -386,15 +393,15 @@ export default function SupportPage() {
                       handleSend();
                     }
                   }}
-                  placeholder="Javob yozing…"
+                  placeholder={sm.replyPlaceholder}
                   className="flex-1"
-                  aria-label="Javob matni"
+                  aria-label={sm.replyAria}
                 />
                 <Button
                   onClick={handleSend}
                   isLoading={sending}
                   disabled={!draft.trim()}
-                  aria-label="Yuborish"
+                  aria-label={sm.send}
                 >
                   <Send size={15} aria-hidden />
                 </Button>

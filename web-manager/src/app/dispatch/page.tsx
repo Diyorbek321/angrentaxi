@@ -11,13 +11,17 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Order } from '@/lib/api';
 import { formatNumber } from '@/lib/format';
+import { t } from '@/locales';
 
 type DriversView = 'map' | 'list';
 
-const DRIVERS_VIEWS = [
-  { value: 'map', label: 'Xarita', icon: <MapIcon size={13} aria-hidden /> },
-  { value: 'list', label: 'Roʻyxat', icon: <List size={13} aria-hidden /> },
-] as const;
+function driversViews() {
+  const m = t().dispatch.live;
+  return [
+    { value: 'map', label: m.viewMap, icon: <MapIcon size={13} aria-hidden /> },
+    { value: 'list', label: m.viewList, icon: <List size={13} aria-hidden /> },
+  ] as const;
+}
 
 /** Section header for the two live panels: title + count + optional controls. */
 function PanelHeader({
@@ -43,6 +47,7 @@ function PanelHeader({
 }
 
 export default function DispatchPage() {
+  const m = t().dispatch.live;
   // Orders and drivers come from the shell-level provider, so the topbar
   // counters and this screen share one set of requests and socket listeners.
   const {
@@ -85,10 +90,10 @@ export default function DispatchPage() {
     <div className="h-full flex flex-col bg-bg">
       <div className="px-4 sm:px-6 py-3 border-b border-line bg-surface flex items-center justify-between gap-3 shrink-0">
         <div className="min-w-0">
-          <h1 className="text-h1 text-ink">Jonli dispetcher</h1>
+          <h1 className="text-h1 text-ink">{m.title}</h1>
           <p className="text-[13px] text-muted">
-            <span className="num">{formatNumber(searchingCount)}</span> ta buyurtma qidiruvda ·{' '}
-            <span className="num">{formatNumber(freeDriversCount)}</span> ta boʻsh haydovchi
+            <span className="num">{formatNumber(searchingCount)}</span> {m.searchingSuffix} ·{' '}
+            <span className="num">{formatNumber(freeDriversCount)}</span> {m.freeDriversSuffix}
           </p>
         </div>
         <Button
@@ -98,7 +103,7 @@ export default function DispatchPage() {
           isLoading={isRefreshing}
           leftIcon={<RefreshCw size={13} aria-hidden />}
         >
-          Yangilash
+          {t().common.refresh}
         </Button>
       </div>
 
@@ -108,10 +113,10 @@ export default function DispatchPage() {
       <div className="flex flex-col xl:flex-row flex-1 min-h-0">
         {/* Left: order feed */}
         <section
-          aria-label="Aktiv buyurtmalar"
+          aria-label={m.activeOrders}
           className="flex-1 xl:flex-none xl:w-[40%] xl:min-w-[540px] xl:max-w-[560px] min-h-0 border-b xl:border-b-0 xl:border-r border-line flex flex-col overflow-hidden"
         >
-          <PanelHeader title="Aktiv buyurtmalar" count={orders.length} />
+          <PanelHeader title={m.activeOrders} count={orders.length} />
           <div className="flex-1 overflow-y-auto p-3" aria-live="polite">
             <ActiveOrdersList
               orders={orders}
@@ -128,14 +133,14 @@ export default function DispatchPage() {
         </section>
 
         {/* Right: live map / driver list */}
-        <section aria-label="Onlayn haydovchilar" className="flex-1 min-h-0 flex flex-col overflow-hidden">
-          <PanelHeader title="Onlayn haydovchilar" count={drivers.length}>
+        <section aria-label={m.onlineDrivers} className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <PanelHeader title={m.onlineDrivers} count={drivers.length}>
             <SegmentedControl
-              items={DRIVERS_VIEWS}
+              items={driversViews()}
               value={driversView}
               onChange={setDriversView}
               size="sm"
-              ariaLabel="Haydovchilar koʻrinishi"
+              ariaLabel={m.driversViewAria}
             />
           </PanelHeader>
 
@@ -149,7 +154,7 @@ export default function DispatchPage() {
               />
             ) : driversError ? (
               <ErrorState
-                title="Haydovchilarni yuklab boʻlmadi"
+                title={m.driversLoadFailed}
                 message={driversError}
                 onRetry={refetchDrivers}
                 className="h-full"

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { CheckCircle2, RefreshCw } from 'lucide-react';
 import { FraudReviewEntry, getFraudReviewQueue, reviewFraud } from '@/lib/api';
-import { SIGNAL_LABEL, sortSignals } from '@/lib/fraud';
+import { signalLabels, sortSignals } from '@/lib/fraud';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -18,6 +18,7 @@ import { PageBody } from '@/components/ui/PageBody';
 import { ContactBlock } from '@/components/dispatch/ContactBlock';
 import { useToast } from '@/components/ui/Toast';
 import { formatDateTime, formatDuration, formatMoney, shortId } from '@/lib/format';
+import { t } from '@/locales';
 
 /**
  * Shubhali safarlar — haydovchi oʻzi oʻziga zakaz bergan boʻlishi mumkin.
@@ -28,6 +29,8 @@ import { formatDateTime, formatDuration, formatMoney, shortId } from '@/lib/form
  * "Haydovchilar" boʻlimida).
  */
 export default function FraudReviewPage() {
+  const m = t();
+  const mf = m.control.fraud;
   const { toast } = useToast();
   const [entries, setEntries] = useState<FraudReviewEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,7 +47,7 @@ export default function FraudReviewPage() {
       setError(null);
       setHasLoadedOnce(true);
     } catch {
-      setError('Shubhali safarlarni yuklab boʻlmadi');
+      setError(t().control.fraud.loadFailed);
     } finally {
       setIsLoading(false);
     }
@@ -61,13 +64,13 @@ export default function FraudReviewPage() {
       await reviewFraud(deciding.entry.orderId, deciding.approved, note.trim() || undefined);
       setEntries((prev) => prev.filter((e) => e.orderId !== deciding.entry.orderId));
       toast({
-        title: deciding.approved ? 'Halol deb belgilandi — bonus qaytarildi' : 'Firibgarlik deb belgilandi',
+        title: deciding.approved ? mf.markedHonest : mf.markedFraud,
         variant: 'success',
       });
       setDeciding(null);
       setNote('');
     } catch {
-      toast({ title: 'Saqlab boʻlmadi', variant: 'error' });
+      toast({ title: mf.saveFailed, variant: 'error' });
       await load();
     } finally {
       setSaving(false);
@@ -77,8 +80,8 @@ export default function FraudReviewPage() {
   return (
     <PageBody className="max-w-5xl">
         <PageHeader
-          title="Shubhali safarlar"
-          description="Haydovchi oʻzi oʻziga zakaz bergan boʻlishi mumkin. Bonus va referal qaror chiqquncha ushlab turiladi."
+          title={mf.title}
+          description={mf.description}
           actions={
             <Button
               variant="secondary"
@@ -87,7 +90,7 @@ export default function FraudReviewPage() {
               isLoading={isLoading && hasLoadedOnce}
               leftIcon={<RefreshCw size={13} aria-hidden />}
             >
-              Yangilash
+              {m.common.refresh}
             </Button>
           }
         />
@@ -107,8 +110,8 @@ export default function FraudReviewPage() {
             <EmptyState
               variant="cleared"
               icon={<CheckCircle2 aria-hidden />}
-              title="Shubhali safar yoʻq"
-              description="Yangi belgi chiqsa shu yerda paydo boʻladi."
+              title={mf.emptyTitle}
+              description={mf.emptyDescription}
             />
           </Card>
         ) : (
@@ -119,33 +122,33 @@ export default function FraudReviewPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       {sortSignals(entry.signals).map((s) => (
-                        <Badge key={s} variant={SIGNAL_LABEL[s].strong ? 'danger' : 'neutral'} dot>
-                          {SIGNAL_LABEL[s].title}
+                        <Badge key={s} variant={signalLabels()[s].strong ? 'danger' : 'neutral'} dot>
+                          {signalLabels()[s].title}
                         </Badge>
                       ))}
                     </div>
                     <p className="mt-2 text-[13px] text-ink">
-                      {entry.pickupAddress ?? '—'} → {entry.dropoffAddress ?? 'Taksometr'}
+                      {entry.pickupAddress ?? '—'} → {entry.dropoffAddress ?? mf.taximeter}
                     </p>
                     <p className="mt-1 num text-xs text-subtle">
                       <span className="font-mono">{shortId(entry.orderId)}</span> ·{' '}
                       {entry.completedAt ? formatDateTime(entry.completedAt) : '—'} · {formatMoney(entry.finalPrice)}
                       {entry.distanceKm != null && ` · ${entry.distanceKm.toFixed(1)} km`}
                       {entry.durationMin != null && ` · ${formatDuration(entry.durationMin * 60_000)}`}
-                      {` · juftlikning jami safari: ${entry.pairTripsTotal}`}
+                      {` · ${mf.pairTrips(entry.pairTripsTotal)}`}
                     </p>
                   </div>
                   <div className="grid grid-cols-1 gap-1 text-xs sm:grid-cols-2 sm:gap-4">
-                    <ContactBlock label="Yoʻlovchi" name={entry.passengerName} phone={entry.passengerPhone} />
-                    <ContactBlock label="Haydovchi" name={entry.driverName} phone={entry.driverPhone} />
+                    <ContactBlock label={mf.passenger} name={entry.passengerName} phone={entry.passengerPhone} />
+                    <ContactBlock label={mf.driver} name={entry.driverName} phone={entry.driverPhone} />
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">
                   <Button size="sm" onClick={() => setDeciding({ entry, approved: true })}>
-                    Halol — bonusni qaytarish
+                    {mf.honestAction}
                   </Button>
                   <Button size="sm" variant="danger" onClick={() => setDeciding({ entry, approved: false })}>
-                    Firibgarlik
+                    {mf.fraud}
                   </Button>
                 </div>
               </Card>
@@ -156,17 +159,17 @@ export default function FraudReviewPage() {
       <Modal
         isOpen={deciding !== null}
         onClose={() => setDeciding(null)}
-        title={deciding?.approved ? 'Safar halol' : 'Firibgarlik'}
+        title={deciding?.approved ? mf.honestTitle : mf.fraud}
         subtitle={
           deciding?.approved
-            ? 'Safar bonus va referal hisobiga qoʻshiladi.'
-            : 'Safar bonus hisobiga hech qachon kirmaydi. Haydovchini bloklash — “Haydovchilar” boʻlimida.'
+            ? mf.honestSubtitle
+            : mf.fraudSubtitle
         }
         size="md"
       >
         <Textarea
-          label="Izoh (ixtiyoriy)"
-          placeholder={deciding?.approved ? 'Masalan: haydovchi onasini olib yurgan' : 'Masalan: ikkala ilova bitta telefonda'}
+          label={mf.note}
+          placeholder={deciding?.approved ? mf.honestPlaceholder : mf.fraudPlaceholder}
           value={note}
           onChange={(e) => setNote(e.target.value)}
           rows={3}
@@ -174,10 +177,10 @@ export default function FraudReviewPage() {
         />
         <div className="mt-4 pt-4 border-t border-line flex justify-end gap-2">
           <Button variant="secondary" onClick={() => setDeciding(null)}>
-            Bekor qilish
+            {m.common.cancel}
           </Button>
           <Button variant={deciding?.approved ? 'primary' : 'danger'} isLoading={saving} onClick={() => void confirm()}>
-            Saqlash
+            {m.common.save}
           </Button>
         </div>
       </Modal>

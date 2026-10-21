@@ -2,7 +2,7 @@
 
 import { MessageSquareText } from 'lucide-react';
 import type { MarketOrder } from '@/lib/api';
-import { advanceLabelFor, DELIVERY_MODE_LABEL, orderCustomerName } from '@/lib/order-status';
+import { advanceLabelFor, deliveryModeLabel, orderCustomerName } from '@/lib/order-status';
 import { formatNumber, formatRelative, shortId } from '@/lib/format';
 import { vendorCashView, type VendorSettlementMode } from '@/lib/vendor-cash';
 import { customerCancelText, isCustomerCancelled } from '@/lib/order-extras';
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { MoneyText } from '@/components/ui/MoneyText';
 import { cn } from '@/components/ui/cn';
+import { t } from '@/locales';
 
 /** Ustunlar: tanlash · mijoz/buyurtma · summa · holat · amal. Sarlavha qatori ham shu grid'dan. */
 export const ORDER_ROW_GRID =
@@ -39,6 +40,7 @@ export function OrderRow({
   /** Hamyon rejimida naqd tasdig'i badge'i chiqmaydi. */
   settlementMode?: VendorSettlementMode;
 }) {
+  const m = t().orders;
   const isNew = o.status === 'new';
   const advanceLabel = advanceLabelFor(o);
   return (
@@ -52,7 +54,7 @@ export function OrderRow({
       )}
     >
       {isNew && <span aria-hidden className="absolute bottom-0 left-0 top-0 w-0.5 bg-primary dark:bg-mint" />}
-      <Checkbox checked={checked} onCheckedChange={onCheck} aria-label={`${shortId(o.id)} buyurtmasini tanlash`} />
+      <Checkbox checked={checked} onCheckedChange={onCheck} aria-label={m.selectOrder(shortId(o.id))} />
       <button
         type="button"
         onClick={onOpen}
@@ -61,15 +63,15 @@ export function OrderRow({
         <span className="flex items-center gap-1.5">
           <span className="truncate text-[13px] font-medium text-ink hover:underline">{orderCustomerName(o)}</span>
           {o.note && (
-            <MessageSquareText size={13} aria-label="Mijoz izohi bor" className="shrink-0 text-info-dark dark:text-info-light" />
+            <MessageSquareText size={13} aria-label={m.hasNote} className="shrink-0 text-info-dark dark:text-info-light" />
           )}
         </span>
         <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted">
           <span className="shrink-0 font-mono text-ink">{shortId(o.id)}</span>
           <span aria-hidden>·</span>
           <span className="truncate">
-            {formatRelative(o.createdAt)} · <span className="num">{formatNumber(itemsCount(o))}</span> ta ·{' '}
-            {DELIVERY_MODE_LABEL[o.deliveryMode]}
+            {formatRelative(o.createdAt)} · <span className="num">{formatNumber(itemsCount(o))}</span> {m.itemsShort} ·{' '}
+            {deliveryModeLabel(o.deliveryMode)}
           </span>
         </span>
       </button>
@@ -107,6 +109,7 @@ export function OrderCardMobile({
   onOpen: () => void;
   settlementMode?: VendorSettlementMode;
 }) {
+  const m = t().orders;
   const isNew = o.status === 'new';
   return (
     <button
@@ -133,7 +136,7 @@ export function OrderCardMobile({
       </span>
       <span className="mt-2 flex items-center justify-between gap-3 text-xs text-muted">
         <span className="truncate">
-          <span className="num">{formatNumber(itemsCount(o))}</span> ta mahsulot · {DELIVERY_MODE_LABEL[o.deliveryMode]}
+          <span className="num">{formatNumber(itemsCount(o))}</span> {m.itemsLong} · {deliveryModeLabel(o.deliveryMode)}
         </span>
         <MoneyText value={o.totalPrice} className="shrink-0 text-[13px] font-medium text-ink" />
       </span>
@@ -144,11 +147,12 @@ export function OrderCardMobile({
 /** Kuryer "to'ladim" dedi — sotuvchi tasdig'i kerak; nizo — qizil; hamyon teskarisi — neytral. */
 function CashBadge({ order, mode }: { order: MarketOrder; mode?: VendorSettlementMode }) {
   const { step } = vendorCashView(order, { mode });
-  if (step === 'awaiting_vendor') return <Badge variant="info">Naqd: tasdiqlang</Badge>;
-  if (step === 'disputed') return <Badge variant="danger">Naqd nizo</Badge>;
+  const m = t().orders;
+  if (step === 'awaiting_vendor') return <Badge variant="info">{m.cashConfirm}</Badge>;
+  if (step === 'disputed') return <Badge variant="danger">{m.cashDispute}</Badge>;
   // Hamyon o'tkazmasi teskari qilindi (§22 `vendorWalletSettlement.reversedAt`).
-  if (step === 'wallet_reversed') return <Badge variant="neutral">Qaytarildi</Badge>;
-  if (step === 'wallet_resettle_pending') return <Badge variant="info">Qayta oʻtkaziladi</Badge>;
+  if (step === 'wallet_reversed') return <Badge variant="neutral">{m.reversed}</Badge>;
+  if (step === 'wallet_resettle_pending') return <Badge variant="info">{m.resettle}</Badge>;
   return null;
 }
 
@@ -157,7 +161,7 @@ function OrderStateBadge({ order }: { order: MarketOrder }) {
   if (isCustomerCancelled(order)) {
     return (
       <Badge variant="muted-danger" title={customerCancelText(order)}>
-        Mijoz bekor qildi
+        {t().orderExtras.customerCancelled}
       </Badge>
     );
   }

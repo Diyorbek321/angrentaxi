@@ -1,5 +1,5 @@
 import { Badge, type BadgeVariant } from '@/components/ui/Badge';
-import { ORDER_STATUS_LABELS, type OrderStatus } from '@/lib/constants';
+import { orderStatusLabels, type OrderStatus } from '@/lib/constants';
 
 interface OrderStatusBadgeProps {
   status: string;
@@ -18,7 +18,7 @@ const ORDER_STATUS_VARIANT: Record<OrderStatus, BadgeVariant> = {
 };
 
 export function OrderStatusBadge({ status, className }: OrderStatusBadgeProps) {
-  const label = ORDER_STATUS_LABELS[status as OrderStatus] ?? status;
+  const label = orderStatusLabels()[status as OrderStatus] ?? status;
   const variant = ORDER_STATUS_VARIANT[status as OrderStatus] ?? 'neutral';
   return (
     <Badge variant={variant} dot className={className}>

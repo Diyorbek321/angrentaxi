@@ -1,4 +1,5 @@
 import type { Order } from './api';
+import { t } from '@/locales';
 
 /** Mirrors backend `ParcelDetails` (modules/orders/parcel.ts). */
 export interface ParcelInfo {
@@ -8,11 +9,9 @@ export interface ParcelInfo {
   size: 'small' | 'medium' | 'large';
 }
 
-export const PARCEL_SIZE_LABELS: Record<ParcelInfo['size'], string> = {
-  small: 'Kichik (kalit, hujjat)',
-  medium: "O'rta (sumka, quti)",
-  large: 'Katta (bagajga sig\'adi)',
-};
+export function parcelSizeLabels(): Record<ParcelInfo['size'], string> {
+  return t().lib.parcelSize;
+}
 
 /** The parcel payload of an order, or null for every other kind of ride. */
 export function parcelInfo(order: Pick<Order, 'serviceType' | 'details'>): ParcelInfo | null {

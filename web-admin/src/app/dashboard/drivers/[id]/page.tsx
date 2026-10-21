@@ -31,51 +31,40 @@ import {
   formatRating,
   fullName,
 } from '@/lib/format';
+import { t } from '@/locales';
 
 type ActionType = 'approve' | 'block' | 'unblock' | 'addFunds' | 'commissionRate';
 
-const ACTION_TITLES: Record<ActionType, string> = {
-  approve: 'Haydovchini tasdiqlash',
-  block: 'Haydovchini bloklash',
-  unblock: 'Blokdan chiqarish',
-  addFunds: "Hisobni to'ldirish",
-  commissionRate: 'Komissiya foizini belgilash',
-};
-
-const ACTION_DESCRIPTIONS: Record<ActionType, string> = {
-  approve: 'Bu haydovchi tizimda ishlash huquqini oladi. Tasdiqlaysizmi?',
-  block: "Bu haydovchi tizimdan bloklanadi. Ishlashni to'xtatadi.",
-  unblock: "Bu haydovchi yana tizimda ishlash imkoniyatiga ega bo'ladi.",
-  addFunds: "Musbat miqdor balansni to'ldiradi, manfiy miqdor ushlab qoladi (masalan, tuzatish uchun).",
-  commissionRate:
-    "Ushbu haydovchi uchun alohida komissiya foizi (masalan, reklama tashigani uchun kamroq). Bo'sh qoldirsangiz, standart foiz qo'llanadi.",
-};
-
-const tripColumns: DataTableColumn<DriverTrip>[] = [
-  {
-    key: 'route',
-    header: "Yo'nalish",
-    cell: (t) => (
-      <div className="min-w-0 max-w-[320px]">
-        <p className="truncate text-ink">{t.pickupAddress ?? '—'}</p>
-        <p className="truncate text-xs text-muted">{t.dropoffAddress ?? '—'}</p>
-      </div>
-    ),
-  },
-  { key: 'price', header: 'Narx', numeric: true, cell: (t) => <MoneyText value={t.finalPrice ?? t.estimatedPrice} /> },
-  { key: 'status', header: 'Holat', cell: (t) => <OrderStatusBadge status={t.status} /> },
-  {
-    key: 'date',
-    header: 'Sana',
-    className: 'num whitespace-nowrap text-muted',
-    cell: (t) => formatDateTime(t.createdAt, { withYear: true }),
-  },
-];
+function buildTripColumns(): DataTableColumn<DriverTrip>[] {
+  const m = t().drivers.detail.trips;
+  return [
+    {
+      key: 'route',
+      header: m.route,
+      cell: (t) => (
+        <div className="min-w-0 max-w-[320px]">
+          <p className="truncate text-ink">{t.pickupAddress ?? '—'}</p>
+          <p className="truncate text-xs text-muted">{t.dropoffAddress ?? '—'}</p>
+        </div>
+      ),
+    },
+    { key: 'price', header: m.price, numeric: true, cell: (t) => <MoneyText value={t.finalPrice ?? t.estimatedPrice} /> },
+    { key: 'status', header: m.status, cell: (t) => <OrderStatusBadge status={t.status} /> },
+    {
+      key: 'date',
+      header: m.date,
+      className: 'num whitespace-nowrap text-muted',
+      cell: (t) => formatDateTime(t.createdAt, { withYear: true }),
+    },
+  ];
+}
 
 export default function DriverDetailPage() {
   const params = useParams();
   const { toast } = useToast();
   const driverId = params.id as string;
+  const m = t().drivers.detail;
+  const mc = t().common;
 
   const [driver, setDriver] = useState<Driver | null>(null);
   const [trips, setTrips] = useState<DriverTrip[]>([]);
@@ -100,10 +89,11 @@ export default function DriverDetailPage() {
       setDriver(res.data.data);
       setLoadError(null);
     } catch {
-      setLoadError("Haydovchi ma'lumotlarini yuklashda xatolik");
+      setLoadError(m.loadError);
     } finally {
       setIsLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [driverId]);
 
   useEffect(() => {
@@ -130,8 +120,8 @@ export default function DriverDetailPage() {
       const total = payload?.total ?? 0;
       tripsPagination.setTotal(total, Math.ceil(total / tripsPagination.limit));
     } catch {
-      setTripsError('Safarlarni yuklashda xatolik');
-      toast({ title: 'Xatolik', description: 'Safarlarni yuklashda xatolik', variant: 'error' });
+      setTripsError(m.tripsLoadError);
+      toast({ title: mc.error, description: m.tripsLoadError, variant: 'error' });
     } finally {
       setTripsLoading(false);
     }
@@ -149,39 +139,39 @@ export default function DriverDetailPage() {
       if (actionType === 'approve') {
         const res = await driversApi.approve(driver.id);
         setDriver(prev => prev ? { ...prev, ...(res.data.data as Partial<Driver>) } : null);
-        toast({ title: 'Haydovchi tasdiqlandi', variant: 'success' });
+        toast({ title: m.toast.approved, variant: 'success' });
       } else if (actionType === 'block') {
         await driversApi.block(driver.userId, blockReason.trim() || undefined);
         setDriver(prev => prev ? { ...prev, status: 'blocked', blockReason: blockReason.trim() || null } : null);
-        toast({ title: 'Haydovchi bloklandi', variant: 'success' });
+        toast({ title: m.toast.blocked, variant: 'success' });
       } else if (actionType === 'unblock') {
         await driversApi.unblock(driver.userId);
         setDriver(prev => prev ? { ...prev, status: 'active', blockReason: null } : null);
-        toast({ title: 'Haydovchi blokdan chiqarildi', variant: 'success' });
+        toast({ title: m.toast.unblocked, variant: 'success' });
       } else if (actionType === 'addFunds') {
         // Butun so'm, ≠ 0, |summa| ≤ 5 mln — backend bilan bir xil (§25 #6).
         const invalid = validateBalanceAdjustment(fundsAmount);
         if (invalid) {
-          toast({ title: 'Xatolik', description: invalid, variant: 'error' });
+          toast({ title: mc.error, description: invalid, variant: 'error' });
           return;
         }
         const amount = Number(fundsAmount);
         const res = await driversApi.addFunds(driver.id, amount, fundsNote.trim());
         setDriver(prev => prev ? { ...prev, ...(res.data.data as Partial<Driver>) } : null);
-        toast({ title: 'Balans yangilandi', variant: 'success' });
+        toast({ title: m.toast.balanceUpdated, variant: 'success' });
       } else if (actionType === 'commissionRate') {
         const trimmed = commissionInput.trim();
         const rate = trimmed === '' ? null : parseFloat(trimmed);
         const res = await driversApi.setCommissionRate(driver.id, rate);
         setDriver(prev => prev ? { ...prev, ...(res.data.data as Partial<Driver>) } : null);
-        toast({ title: 'Komissiya foizi yangilandi', variant: 'success' });
+        toast({ title: m.toast.commissionUpdated, variant: 'success' });
       }
     } catch (err) {
       const description =
         actionType === 'addFunds'
-          ? balanceAdjustmentErrorMessage(err, 'Balansni yangilab boʻlmadi')
-          : apiErrorMessage(err, 'Amalni bajarishda xatolik');
-      toast({ title: apiErrorTitle(err, 'Xatolik'), description, variant: 'error' });
+          ? balanceAdjustmentErrorMessage(err, m.toast.balanceFailed)
+          : apiErrorMessage(err, mc.actionFailed);
+      toast({ title: apiErrorTitle(err, mc.error), description, variant: 'error' });
     } finally {
       setActionLoading(false);
       setActionType(null);
@@ -200,7 +190,7 @@ export default function DriverDetailPage() {
     setCommissionInput('');
   };
 
-  const crumbsBase = { label: 'Haydovchilar', href: '/dashboard/drivers' };
+  const crumbsBase = { label: m.backCrumb, href: '/dashboard/drivers' };
 
   if (isLoading && !driver) {
     return (
@@ -221,7 +211,7 @@ export default function DriverDetailPage() {
   if (!driver) {
     return (
       <div className="px-4 sm:px-6 py-5">
-        <PageHeader title="Haydovchi" breadcrumbs={[crumbsBase, { label: 'Topilmadi' }]} />
+        <PageHeader title={m.driver} breadcrumbs={[crumbsBase, { label: m.notFound }]} />
         <Card padding="none">
           <ErrorState message={loadError} onRetry={fetchDriver} />
         </Card>
@@ -250,7 +240,7 @@ export default function DriverDetailPage() {
               onClick={() => setActionType('addFunds')}
               leftIcon={<Wallet className="h-4 w-4" aria-hidden="true" />}
             >
-              Hisobni to&apos;ldirish
+              {m.actions.addFunds}
             </Button>
             {driver.status !== 'blocked' ? (
               <Button
@@ -258,7 +248,7 @@ export default function DriverDetailPage() {
                 onClick={() => setActionType('block')}
                 leftIcon={<ShieldOff className="h-4 w-4" aria-hidden="true" />}
               >
-                Bloklash
+                {m.actions.block}
               </Button>
             ) : (
               <Button
@@ -266,7 +256,7 @@ export default function DriverDetailPage() {
                 onClick={() => setActionType('unblock')}
                 leftIcon={<Shield className="h-4 w-4" aria-hidden="true" />}
               >
-                Blokdan chiqarish
+                {m.actions.unblock}
               </Button>
             )}
             {driver.status === 'pending' && (
@@ -275,7 +265,7 @@ export default function DriverDetailPage() {
                 onClick={() => setActionType('approve')}
                 leftIcon={<CheckCircle className="h-4 w-4" aria-hidden="true" />}
               >
-                Tasdiqlash
+                {mc.confirm}
               </Button>
             )}
           </>
@@ -284,63 +274,63 @@ export default function DriverDetailPage() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 items-start">
         <div className="space-y-4">
-          <DetailCard title="Profil">
+          <DetailCard title={m.profile.title}>
             <KeyValueList>
-                <KeyValue label="Telefon">
+                <KeyValue label={m.profile.phone}>
                   <span className="num">{formatPhone(driver.phone)}</span>
                 </KeyValue>
-                <KeyValue label="Avtomobil">
+                <KeyValue label={m.profile.car}>
                   {driver.carModel || '—'}
                   {driver.carColor ? ` · ${driver.carColor}` : ''}
                 </KeyValue>
-                <KeyValue label="Davlat raqami">
+                <KeyValue label={m.profile.plate}>
                   <PlateNumber plate={driver.carNumber} />
                 </KeyValue>
                 {driver.licenseNumber && (
-                  <KeyValue label="Guvohnoma">
+                  <KeyValue label={m.profile.licence}>
                     <span className="font-mono text-xs">{driver.licenseNumber}</span>
                   </KeyValue>
                 )}
-                <KeyValue label="Reyting">
+                <KeyValue label={m.profile.rating}>
                   <span className="num">{formatRating(driver.rating)}</span>
                 </KeyValue>
-                <KeyValue label="Safarlar">
+                <KeyValue label={m.profile.trips}>
                   <span className="num">{formatNumber(driver.totalTrips)}</span>
                 </KeyValue>
-                <KeyValue label="Ro'yxatdan o'tgan">
+                <KeyValue label={m.profile.registered}>
                   <span className="num">{formatDateShort(driverRegisteredAt(driver))}</span>
                 </KeyValue>
                 {driver.status === 'blocked' && (
-                  <KeyValue label="Blok sababi">
+                  <KeyValue label={m.profile.blockReason}>
                     <span className="text-danger-dark dark:text-danger-light">{driver.blockReason || '—'}</span>
                   </KeyValue>
                 )}
             </KeyValueList>
           </DetailCard>
 
-          <DetailCard title="Moliya">
+          <DetailCard title={m.finance.title}>
             <KeyValueList>
                 {/* Manba — DAFTAR (`walletBalance`), `balance` ustuni EMAS. */}
-                <KeyValue label={debt ? 'Qarz' : 'Hamyon'}>
+                <KeyValue label={debt ? m.finance.debt : m.finance.wallet}>
                   {driver.walletBalance !== undefined ? (
                     <MoneyText value={driver.walletBalance} signed className="font-semibold" />
                   ) : (
                     '—'
                   )}
                 </KeyValue>
-                <KeyValue label="Komissiya">
+                <KeyValue label={m.finance.commission}>
                   <span className="inline-flex items-center gap-1.5">
                     <span className="num">
                       {driver.commissionRate != null
                         ? `${driver.commissionRate}%`
                         : defaultCommissionRate != null
-                          ? `Standart (${defaultCommissionRate}%)`
-                          : 'Standart'}
+                          ? m.finance.defaultRate(defaultCommissionRate)
+                          : m.finance.default}
                     </span>
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      aria-label="Komissiya foizini o'zgartirish"
+                      aria-label={m.finance.editCommissionAria}
                       onClick={() => {
                         setCommissionInput(driver.commissionRate != null ? String(driver.commissionRate) : '');
                         setActionType('commissionRate');
@@ -357,16 +347,16 @@ export default function DriverDetailPage() {
         </div>
 
         <DataTable
-          title="Safarlar tarixi"
+          title={m.trips.title}
           className="lg:col-span-2"
-          ariaLabel="Safarlar tarixi"
-          columns={tripColumns}
+          ariaLabel={m.trips.title}
+          columns={buildTripColumns()}
           rows={trips}
           rowKey={(t) => t.id}
           loading={tripsLoading}
           error={tripsError}
           onRetry={fetchTrips}
-          empty={{ title: "Safarlar yo'q", description: 'Haydovchi hali safar qilmagan.' }}
+          empty={{ title: m.trips.emptyTitle, description: m.trips.emptyDescription }}
           pagination={{
             page: tripsPagination.page,
             totalPages: tripsPagination.totalPages,
@@ -383,13 +373,13 @@ export default function DriverDetailPage() {
       <Modal
         isOpen={!!actionType}
         onClose={closeModal}
-        title={actionType ? ACTION_TITLES[actionType] : undefined}
-        description={actionType ? ACTION_DESCRIPTIONS[actionType] : undefined}
+        title={actionType ? m.actionTitles[actionType] : undefined}
+        description={actionType ? m.actionDescriptions[actionType] : undefined}
         tone={actionType === 'block' ? 'danger' : 'default'}
         footer={
           <>
             <Button variant="secondary" onClick={closeModal} disabled={actionLoading}>
-              Bekor qilish
+              {mc.cancel}
             </Button>
             <Button
               variant={actionType === 'block' ? 'danger' : 'primary'}
@@ -399,15 +389,15 @@ export default function DriverDetailPage() {
               // haydovchiga push matniga tushadi.
               disabled={actionType === 'addFunds' && !fundsNote.trim()}
             >
-              Tasdiqlash
+              {mc.confirm}
             </Button>
           </>
         }
       >
         {actionType === 'block' && (
           <Input
-            label="Sabab (ixtiyoriy)"
-            placeholder="Masalan: qoidabuzarlik, shikoyatlar..."
+            label={m.modal.blockReason}
+            placeholder={m.modal.blockReasonPlaceholder}
             value={blockReason}
             onChange={(e) => setBlockReason(e.target.value)}
           />
@@ -415,17 +405,17 @@ export default function DriverDetailPage() {
         {actionType === 'addFunds' && (
           <div className="space-y-3">
             <Input
-              label="Miqdor (so'm)"
+              label={m.modal.amount}
               type="number"
               inputMode="numeric"
               step={1}
-              placeholder="Masalan: 50000 yoki -10000"
+              placeholder={m.modal.amountPlaceholder}
               value={fundsAmount}
               onChange={(e) => setFundsAmount(e.target.value)}
             />
             <Input
-              label="Izoh (majburiy)"
-              placeholder="Masalan: naqd pul orqali to'ldirildi"
+              label={m.modal.note}
+              placeholder={m.modal.notePlaceholder}
               value={fundsNote}
               onChange={(e) => setFundsNote(e.target.value)}
               required
@@ -435,9 +425,9 @@ export default function DriverDetailPage() {
         )}
         {actionType === 'commissionRate' && (
           <Input
-            label={`Komissiya foizi, % (standart: ${defaultCommissionRate ?? '—'}%)`}
+            label={m.modal.commissionLabel(defaultCommissionRate ?? '—')}
             type="number"
-            placeholder="Bo'sh — standart foiz qo'llanadi"
+            placeholder={m.modal.commissionPlaceholder}
             value={commissionInput}
             onChange={(e) => setCommissionInput(e.target.value)}
           />

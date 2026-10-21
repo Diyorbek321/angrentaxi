@@ -17,6 +17,7 @@ import { PageBody } from '@/components/ui/PageBody';
 import { useToast } from '@/components/ui/Toast';
 import { downloadCsv } from '@/lib/csv';
 import { formatDateTime, formatNumber, formatPhone } from '@/lib/format';
+import { t } from '@/locales';
 
 const PAGE_SIZES = [20, 50, 100] as const;
 
@@ -31,33 +32,28 @@ const statusVariant: Record<WithdrawalStatus, BadgeVariant> = {
   paid: 'success',
 };
 
-const statusLabel: Record<WithdrawalStatus, string> = {
-  pending: 'Kutilmoqda',
-  approved: 'Tasdiqlangan',
-  rejected: 'Rad etilgan',
-  paid: 'Toʻlangan',
-};
-
-const ownerTypeLabel: Record<string, string> = {
-  driver: 'Haydovchi',
-  vendor: 'Market sotuvchisi',
-  restaurant: 'Restoran',
-};
-
 // The queue's working set first: pending is what an operator watches.
-const STATUS_TABS: readonly { value: StatusFilter; label: string }[] = [
-  { value: '', label: 'Hammasi' },
-  { value: 'pending', label: 'Kutilmoqda' },
-  { value: 'approved', label: 'Tasdiqlangan' },
-  { value: 'paid', label: 'Toʻlangan' },
-  { value: 'rejected', label: 'Rad etilgan' },
-];
+function statusTabs(): readonly { value: StatusFilter; label: string }[] {
+  const m = t();
+  const s = m.drivers.financePage.status;
+  return [
+    { value: '', label: m.common.all },
+    { value: 'pending', label: s.pending },
+    { value: 'approved', label: s.approved },
+    { value: 'paid', label: s.paid },
+    { value: 'rejected', label: s.rejected },
+  ];
+}
 
 function requesterName(w: WithdrawalRequest): string {
   return [w.driver?.firstName, w.driver?.lastName].filter(Boolean).join(' ') || '—';
 }
 
 export default function FinancePage() {
+  const m = t();
+  const fp = m.drivers.financePage;
+  const statusLabel: Record<WithdrawalStatus, string> = fp.status;
+  const ownerTypeLabel: Record<string, string> = fp.ownerType;
   const { toast } = useToast();
 
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
@@ -78,7 +74,7 @@ export default function FinancePage() {
       setError(null);
     } catch (err) {
       console.error('Failed to load withdrawals:', err);
-      setError('Pul yechish soʻrovlarini yuklab boʻlmadi.');
+      setError(fp.loadError);
     } finally {
       setIsLoading(false);
       setHasLoadedOnce(true);
@@ -110,7 +106,7 @@ export default function FinancePage() {
     if (rows.length === 0) return;
     downloadCsv(
       'pul-yechish-sorovlari',
-      ['Soʻrovchi', 'Telefon', 'Turi', 'Summa (soʻm)', 'Karta / hisob', 'Soʻralgan vaqt', 'Status'],
+      [fp.csv.requester, fp.csv.phone, fp.csv.type, fp.csv.amount, fp.csv.destination, fp.csv.requestedAt, fp.csv.status],
       rows.map((w) => [
         requesterName(w),
         w.driver?.phone ? formatPhone(w.driver.phone) : '',
@@ -122,8 +118,8 @@ export default function FinancePage() {
       ])
     );
     toast({
-      title: `${rows.length} ta soʻrov CSV faylga eksport qilindi`,
-      description: 'Joriy sahifadagi yozuvlar — filtrlar hisobga olingan.',
+      title: fp.exported(rows.length),
+      description: m.drivers.list.exportedDesc,
       variant: 'success',
     });
   };
@@ -135,32 +131,32 @@ export default function FinancePage() {
       ? {
           variant: 'cleared',
           icon: <CheckCircle2 aria-hidden />,
-          title: 'Barcha soʻrovlar koʻrib chiqildi',
-          description: 'Kutayotgan pul yechish soʻrovi qolmadi.',
+          title: fp.emptyPending,
+          description: fp.emptyPendingDesc,
           action: (
             <Button variant="secondary" size="sm" onClick={() => setStatusFilter('')}>
-              Barcha soʻrovlar
+              {fp.allRequests}
             </Button>
           ),
         }
       : statusFilter
       ? {
           variant: 'no-results',
-          title: `«${statusLabel[statusFilter]}» holatidagi soʻrov yoʻq`,
-          description: 'Boshqa statusni tanlab koʻring.',
+          title: fp.emptyStatus(statusLabel[statusFilter]),
+          description: fp.emptyStatusDesc,
           onClearFilters: () => setStatusFilter(''),
         }
       : {
           variant: 'first-use',
           icon: <Wallet aria-hidden />,
-          title: 'Pul yechish soʻrovi yoʻq',
-          description: 'Haydovchi yoki sotuvchi pul yechishni soʻraganda shu navbatda koʻrinadi.',
+          title: fp.emptyFirst,
+          description: fp.emptyFirstDesc,
         };
 
   const columns: DataTableColumn<WithdrawalRequest>[] = [
     {
       key: 'requester',
-      header: 'Soʻrovchi',
+      header: fp.col.requester,
       cell: (w) => (
         <div className="min-w-0">
           <p className="text-ink font-medium truncate">{requesterName(w)}</p>
@@ -170,7 +166,7 @@ export default function FinancePage() {
     },
     {
       key: 'type',
-      header: 'Turi',
+      header: fp.col.type,
       hideBelow: 'md',
       cell: (w) => (
         <Badge variant="neutral" size="sm">
@@ -180,25 +176,25 @@ export default function FinancePage() {
     },
     {
       key: 'amount',
-      header: 'Summa',
+      header: fp.col.amount,
       numeric: true,
       cell: (w) => <MoneyText value={w.amount} className="font-semibold text-ink" />,
     },
     {
       key: 'destination',
-      header: 'Karta / hisob',
+      header: fp.col.destination,
       hideBelow: 'lg',
       cell: (w) => <span className="font-mono text-xs text-muted">{w.payoutDestination || '—'}</span>,
     },
     {
       key: 'requestedAt',
-      header: 'Soʻralgan vaqt',
+      header: fp.col.requestedAt,
       className: 'num text-muted whitespace-nowrap',
       cell: (w) => formatDateTime(w.requestedAt),
     },
     {
       key: 'status',
-      header: 'Status',
+      header: fp.col.status,
       cell: (w) => (
         <Badge variant={statusVariant[w.status]} size="sm" dot>
           {statusLabel[w.status] ?? w.status}
@@ -208,14 +204,14 @@ export default function FinancePage() {
   ];
 
   const chips = statusFilter
-    ? [{ key: 'status', label: `Status: ${statusLabel[statusFilter]}`, onRemove: () => setStatusFilter('') }]
+    ? [{ key: 'status', label: m.drivers.list.chipStatus(statusLabel[statusFilter]), onRemove: () => setStatusFilter('') }]
     : [];
 
   return (
     <PageBody>
       <PageHeader
-        title="Moliya"
-        description="Toʻlov navbati — haydovchi, Market sotuvchisi, restoran"
+        title={fp.title}
+        description={fp.description}
         actions={
           <>
             <Button
@@ -224,9 +220,9 @@ export default function FinancePage() {
               onClick={handleExport}
               disabled={rows.length === 0}
               leftIcon={<Download size={13} aria-hidden />}
-              title="Joriy sahifadagi yozuvlarni CSV sifatida yuklab olish"
+              title={m.drivers.list.exportTitle}
             >
-              CSV eksport
+              {m.drivers.list.export}
             </Button>
             <Button
               variant="secondary"
@@ -235,7 +231,7 @@ export default function FinancePage() {
               isLoading={isLoading && hasLoadedOnce}
               leftIcon={<RefreshCw size={13} aria-hidden />}
             >
-              Yangilash
+              {m.common.refresh}
             </Button>
           </>
         }
@@ -245,8 +241,7 @@ export default function FinancePage() {
       <div className="flex items-start gap-2.5 rounded-ds-sm border border-line bg-surface-2/60 px-3 py-2.5 mb-4">
         <Info size={14} className="text-muted shrink-0 mt-0.5" aria-hidden />
         <p className="text-[13px] text-muted leading-relaxed">
-          Bu sahifa faqat kuzatuv uchun. Toʻlovni tasdiqlash, rad etish yoki «toʻlandi» deb
-          belgilash Super Admin panelida bajariladi.
+          {fp.readOnlyNote}
         </p>
       </div>
 
@@ -255,29 +250,29 @@ export default function FinancePage() {
       ) : (
         <div className="grid grid-cols-2 gap-3 mb-4">
           <StatCard
-            label="Kutilayotgan soʻrovlar"
+            label={fp.pendingCount}
             value={formatNumber(pending.length)}
-            hint="joriy sahifada"
+            hint={fp.onPage}
           />
           <StatCard
-            label="Kutilayotgan summa"
+            label={fp.pendingAmount}
             value={<MoneyText value={totalPendingAmount} />}
-            hint="joriy sahifada"
+            hint={fp.onPage}
           />
         </div>
       )}
 
       <FilterBar chips={chips} onClearAll={() => setStatusFilter('')} className="mb-3">
         <SegmentedControl
-          items={STATUS_TABS}
+          items={statusTabs()}
           value={statusFilter}
           onChange={setStatusFilter}
-          ariaLabel="Status boʻyicha filtr"
+          ariaLabel={m.drivers.list.statusFilterAria}
         />
       </FilterBar>
 
       <DataTable
-        ariaLabel="Pul yechish soʻrovlari"
+        ariaLabel={fp.tableAria}
         columns={columns}
         rows={rows}
         rowKey={(w) => w.id}

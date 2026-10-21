@@ -16,6 +16,8 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Switch } from '@/components/ui/Switch';
 import { CategoryModal } from '@/components/categories/CategoryModal';
 import { usePageRefresh } from '@/components/shell';
+import { getLocale } from '@/lib/i18n/core';
+import { t } from '@/locales';
 
 const HUES = [45, 200, 25, 280, 150, 320];
 
@@ -25,6 +27,8 @@ interface CategoriesData {
 }
 
 export default function CategoriesPage() {
+  const m = t();
+  const cm = m.categories;
   const { toast } = useToast();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<MarketCategory | null>(null);
@@ -44,7 +48,7 @@ export default function CategoriesPage() {
   const categories = useMemo(
     () =>
       [...(data?.categories ?? [])].sort(
-        (a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'uz')
+        (a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, getLocale())
       ),
     [data]
   );
@@ -62,7 +66,7 @@ export default function CategoriesPage() {
       await marketApi.updateCategory(c.id, { isActive: !c.isActive });
       await reload();
     } catch (err) {
-      toast({ title: 'Xatolik', description: errorMessage(err), variant: 'error' });
+      toast({ title: m.common.error, description: errorMessage(err), variant: 'error' });
     }
   };
 
@@ -79,7 +83,7 @@ export default function CategoriesPage() {
       ]);
       await reload();
     } catch (err) {
-      toast({ title: 'Xatolik', description: errorMessage(err), variant: 'error' });
+      toast({ title: m.common.error, description: errorMessage(err), variant: 'error' });
     } finally {
       setReordering(false);
     }
@@ -92,9 +96,9 @@ export default function CategoriesPage() {
       await marketApi.deleteCategory(pendingDelete.id);
       setPendingDelete(null);
       await reload();
-      toast({ title: "Kategoriya o'chirildi", variant: 'success' });
+      toast({ title: cm.deleted, variant: 'success' });
     } catch (err) {
-      toast({ title: 'Xatolik', description: errorMessage(err), variant: 'error' });
+      toast({ title: m.common.error, description: errorMessage(err), variant: 'error' });
     } finally {
       setDeleting(false);
     }
@@ -110,9 +114,9 @@ export default function CategoriesPage() {
       setModalOpen(false);
       setEditing(null);
       await reload();
-      toast({ title: editing ? 'Saqlandi' : "Kategoriya qo'shildi", variant: 'success' });
+      toast({ title: editing ? m.common.saved : cm.added, variant: 'success' });
     } catch (err) {
-      toast({ title: 'Xatolik', description: errorMessage(err), variant: 'error' });
+      toast({ title: m.common.error, description: errorMessage(err), variant: 'error' });
     }
   };
 
@@ -124,7 +128,7 @@ export default function CategoriesPage() {
   const columns: DataTableColumn<MarketCategory>[] = [
     {
       key: 'order',
-      header: <span className="sr-only">Tartib</span>,
+      header: <span className="sr-only">{cm.order}</span>,
       width: 'w-16',
       cell: (c) => {
         const i = categories.indexOf(c);
@@ -133,7 +137,7 @@ export default function CategoriesPage() {
           <span className="inline-flex items-center">
             <IconButton
               size="sm"
-              aria-label={`${c.name} — yuqoriga ko'tarish`}
+              aria-label={cm.moveUp(c.name)}
               disabled={i === 0 || reordering}
               onClick={() => void move(i, -1)}
             >
@@ -141,7 +145,7 @@ export default function CategoriesPage() {
             </IconButton>
             <IconButton
               size="sm"
-              aria-label={`${c.name} — pastga tushirish`}
+              aria-label={cm.moveDown(c.name)}
               disabled={i === categories.length - 1 || reordering}
               onClick={() => void move(i, 1)}
             >
@@ -153,7 +157,7 @@ export default function CategoriesPage() {
     },
     {
       key: 'name',
-      header: 'Kategoriya',
+      header: m.common.category,
       cell: (c) => {
         const i = categories.indexOf(c);
         return (
@@ -174,34 +178,34 @@ export default function CategoriesPage() {
     },
     {
       key: 'count',
-      header: 'Mahsulot',
+      header: m.common.product,
       numeric: true,
       width: 'w-28',
-      cell: (c) => `${formatNumber(productCount[c.id] ?? 0)} ta`,
+      cell: (c) => m.common.count(formatNumber(productCount[c.id] ?? 0)),
     },
     {
       key: 'active',
-      header: 'Faol',
+      header: m.common.active,
       width: 'w-20',
       cell: (c) => (
         <Switch
           size="sm"
           checked={c.isActive}
           onCheckedChange={() => void toggle(c)}
-          aria-label={`${c.name} — faol holati`}
+          aria-label={cm.activeAria(c.name)}
         />
       ),
     },
     {
       key: 'actions',
-      header: <span className="sr-only">Amallar</span>,
+      header: <span className="sr-only">{m.common.actions}</span>,
       align: 'right',
       width: 'w-20',
       cell: (c) => (
         <span className="inline-flex items-center">
           <IconButton
             size="sm"
-            aria-label={`${c.name} kategoriyasini tahrirlash`}
+            aria-label={cm.editAria(c.name)}
             onClick={() => {
               setEditing(c);
               setModalOpen(true);
@@ -212,7 +216,7 @@ export default function CategoriesPage() {
           <IconButton
             size="sm"
             variant="danger-ghost"
-            aria-label={`${c.name} kategoriyasini o'chirish`}
+            aria-label={cm.deleteAria(c.name)}
             onClick={() => setPendingDelete(c)}
           >
             <Trash2 aria-hidden />
@@ -225,8 +229,8 @@ export default function CategoriesPage() {
   return (
     <div className="max-w-4xl">
       <PageHeader
-        title="Kategoriyalar"
-        description="Mahsulot guruhlari va ularning mijoz ilovasidagi tartibi"
+        title={cm.title}
+        description={cm.description}
         actions={
           <>
             <Button
@@ -235,10 +239,10 @@ export default function CategoriesPage() {
               isLoading={isRefreshing}
               leftIcon={<RefreshCw size={14} aria-hidden />}
             >
-              Yangilash
+              {m.common.refresh}
             </Button>
             <Button onClick={openCreate} leftIcon={<Plus size={14} aria-hidden />}>
-              Kategoriya qo&apos;shish
+              {cm.add}
             </Button>
           </>
         }
@@ -247,7 +251,7 @@ export default function CategoriesPage() {
       {error && data && <DataErrorBanner message={error} onRetry={reload} retrying={isRefreshing} />}
 
       <DataTable
-        ariaLabel="Kategoriyalar"
+        ariaLabel={cm.title}
         columns={columns}
         rows={categories}
         rowKey={(c) => c.id}
@@ -257,11 +261,11 @@ export default function CategoriesPage() {
         empty={{
           variant: 'first-use',
           icon: <Tags aria-hidden />,
-          title: "Kategoriya yo'q",
-          description: 'Kategoriyalar mahsulotlarni mijoz uchun guruhlaydi.',
+          title: cm.emptyTitle,
+          description: cm.emptyDescription,
           action: (
             <Button size="sm" onClick={openCreate} leftIcon={<Plus size={14} aria-hidden />}>
-              Birinchi kategoriya
+              {cm.first}
             </Button>
           ),
         }}
@@ -281,16 +285,16 @@ export default function CategoriesPage() {
         isOpen={!!pendingDelete}
         onClose={() => setPendingDelete(null)}
         onConfirm={confirmRemove}
-        title={`«${pendingDelete?.name ?? ''}» kategoriyasini o'chirish`}
+        title={cm.deleteTitle(pendingDelete?.name ?? '')}
         description={
           <>
-            Bu amalni bekor qilib bo&apos;lmaydi.{' '}
+            {cm.irreversible}{' '}
             {pendingDelete && (productCount[pendingDelete.id] ?? 0) > 0
-              ? `Ichidagi ${productCount[pendingDelete.id]} ta mahsulot kategoriyasiz qoladi.`
-              : 'Bu kategoriyada mahsulot yo‘q.'}
+              ? cm.orphaned(productCount[pendingDelete.id])
+              : cm.noProducts}
           </>
         }
-        confirmLabel="O'chirish"
+        confirmLabel={m.common.delete}
         tone="danger"
         isPending={deleting}
       />

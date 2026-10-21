@@ -1,5 +1,6 @@
 // AUTO-SYNCED from web-manager — edit there, then run scripts/sync-panel-ui.sh
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { setActiveLocale } from '@/lib/i18n/core';
 import {
   EMPTY,
   formatClock,
@@ -20,6 +21,7 @@ import {
   groupDigits,
   humanizeDuration,
   initials,
+  nameFallback,
   PREP_STALE_AFTER_MS,
   shortId,
 } from './format';
@@ -192,5 +194,80 @@ describe('formatPrepTimer (kitchen timer)', () => {
 
   it('survives an order with no items', () => {
     expect(formatPrepTimer(order('new', T0, []), T0)).toMatchObject({ state: 'soon', text: '01:00' });
+  });
+});
+
+describe('Russian locale', () => {
+  const T0 = Date.parse('2026-10-15T10:00:00Z');
+  const order = (status: string, createdAt: number, prep: number[] = [15]) => ({
+    status,
+    createdAt: new Date(createdAt).toISOString(),
+    items: prep.map((prepMinutes) => ({ prepMinutes })),
+  });
+
+  afterEach(() => setActiveLocale('uz'));
+
+  it('formats money in сум', () => {
+    setActiveLocale('ru');
+    expect(formatMoney(43500)).toBe('43 500 сум');
+    expect(formatMoney(1500, { signed: true })).toBe('+1 500 сум');
+    expect(formatMoney(1500, { currency: false })).toBe('1 500');
+    expect(formatMoneyApprox(9000)).toBe('~9 000 сум');
+    expect(formatMoney(null)).toBe(EMPTY);
+  });
+
+  it('formats dates with Russian month names', () => {
+    setActiveLocale('ru');
+    const d = new Date(2026, 6, 31, 14, 32);
+    expect(formatDate(d)).toBe('31 июля 2026');
+    expect(formatTime(d)).toBe('14:32');
+    expect(formatDateTime(d)).toMatch(/^31 июл\S*, 14:32$/);
+    expect(formatRelative(Date.now() - 5 * MIN)).toBe('5 минут назад');
+  });
+
+  it('humanizes durations with Russian units', () => {
+    setActiveLocale('ru');
+    expect(humanizeDuration(2 * DAY + 3 * HOUR + 10 * MIN)).toBe('2 д 3 ч');
+    expect(humanizeDuration(HOUR + 5 * MIN)).toBe('1 ч 5 мин');
+    expect(humanizeDuration(4 * MIN + 10_000)).toBe('4 мин 10 с');
+    expect(humanizeDuration(12_000)).toBe('12 с');
+    expect(formatCountdown(2 * DAY + HOUR)).toBe('2 д 1 ч');
+  });
+
+  it('reads overdue time as "просрочено на …"', () => {
+    setActiveLocale('ru');
+    expect(formatOverdue(2 * DAY + 3 * HOUR)).toBe('просрочено на 2 д 3 ч');
+    expect(formatDuration(-(2 * DAY + 3 * HOUR), { overdue: true })).toBe('просрочено на 2 д 3 ч');
+    expect(formatCountdown(-(126597 * MIN + 46_000))).toBe('просрочено на 87 д 21 ч');
+  });
+
+  it('localizes the kitchen timer', () => {
+    setActiveLocale('ru');
+    const late = formatPrepTimer(order('preparing', T0), T0 + 15 * MIN + (2 * 60 + 15) * MIN);
+    expect(late).toMatchObject({
+      state: 'late',
+      text: 'Задержка · 2 ч 15 мин',
+      label: 'Приготовление задерживается на 2 ч 15 мин',
+    });
+    const ok = formatPrepTimer(order('new', T0, [5, 15]), T0 + 2 * MIN + 30_000);
+    expect(ok).toMatchObject({ state: 'ok', text: '12:30', label: 'До готовности осталось 12:30' });
+    const stale = formatPrepTimer(order('new', T0), T0 + PREP_STALE_AFTER_MS + MIN);
+    expect(stale?.label).toMatch(/^Очень старый заказ — поступил /);
+  });
+
+  it('uses the Russian name fallback and initials', () => {
+    setActiveLocale('ru');
+    expect(nameFallback()).toBe('Имя не указано');
+    expect(fullName(null, null)).toBe('Имя не указано');
+    expect(fullName('  ', undefined, '—')).toBe('—');
+    expect(initials('алишер валиев')).toBe('АВ');
+  });
+
+  it('switches back to Uzbek byte-for-byte', () => {
+    setActiveLocale('ru');
+    setActiveLocale('uz');
+    expect(formatMoney(43500)).toBe('43 500 soʻm');
+    expect(formatOverdue(2 * DAY + 3 * HOUR)).toBe('2 kun 3 soat kechikdi');
+    expect(nameFallback()).toBe('Ism kiritilmagan');
   });
 });

@@ -14,6 +14,7 @@ import {
 } from './intercity-events';
 import { formatTashkentDayMonth, formatTashkentTime } from './intercity-time';
 import type { IntercityRequestView } from './intercity-request-view';
+import { intercityPush } from './intercity-push-texts';
 import { IntercityBookingKind } from '../../database/entities/order.entity';
 
 /**
@@ -39,8 +40,7 @@ export type IntercityCancelledBy = 'driver' | 'system';
  * Har bir qism ALOHIDA himoyalangan: snapshot o'qilmasa ham bekor qilingan
  * yo'lovchilar `trip:cancelled` ni baribir oladi.
  *
- * Push matnlari o'zbekcha — foydalanuvchida til maydoni yo'q, mavjud
- * buyurtma pushlari bilan bir xil.
+ * Push matnlari har foydalanuvchiga o'z tilida (`intercity-push-texts.ts`).
  */
 @Injectable()
 export class IntercityNotifier {
@@ -59,11 +59,9 @@ export class IntercityNotifier {
     if (!snapshot) return;
     await this.safely('booking:created', async () => {
       this.gateway.emitToUser(snapshot.driverUserId, INTERCITY_EVENTS.BOOKING_CREATED, event);
-      const what = event.bookingKind === 'whole_car' ? 'butun mashina' : `${event.seats} joy`;
       await this.notifications.notifyUserIds(
         [snapshot.driverUserId],
-        `Yangi band: ${what}`,
-        `${this.departure(snapshot)} dagi qatnovingizga yo'lovchi yozildi`,
+        intercityPush.bookingCreated(event.bookingKind === 'whole_car', event.seats, this.departure(snapshot)),
         'intercity_booking_created',
         { tripId: event.tripId, orderId: event.orderId },
       );
@@ -76,11 +74,9 @@ export class IntercityNotifier {
     if (!snapshot) return;
     await this.safely('booking:cancelled', async () => {
       this.gateway.emitToUser(snapshot.driverUserId, INTERCITY_EVENTS.BOOKING_CANCELLED, event);
-      const what = event.bookingKind === 'whole_car' ? 'Butun mashina' : `${event.seats} joy`;
       await this.notifications.notifyUserIds(
         [snapshot.driverUserId],
-        'Band bekor qilindi',
-        `${what} bo'shadi — ${this.departure(snapshot)} dagi qatnov`,
+        intercityPush.bookingCancelled(event.bookingKind === 'whole_car', event.seats, this.departure(snapshot)),
         'intercity_booking_cancelled',
         { tripId: event.tripId, orderId: event.orderId },
       );
@@ -97,8 +93,7 @@ export class IntercityNotifier {
     await this.safely('booking:cancelled by dispatcher', () =>
       this.notifications.notifyUserIds(
         [passengerId],
-        'Bandingiz bekor qilindi',
-        `Dispetcher shaharlararo bandingizni bekor qildi: ${reason}`,
+        intercityPush.bookingCancelledByDispatcher(reason),
         'intercity_booking_cancelled_by_dispatcher',
         { tripId, orderId },
       ),
@@ -112,8 +107,7 @@ export class IntercityNotifier {
     await this.safely('boarding', () =>
       this.notifications.notifyUserIds(
         snapshot.passengerIds,
-        "Haydovchi yo'lga chiqdi",
-        'Haydovchi sizni olishga kelmoqda',
+        intercityPush.boardingStarted(),
         'intercity_boarding_started',
         { tripId },
       ),
@@ -155,14 +149,13 @@ export class IntercityNotifier {
       }
     });
     // Tizim sababi ("stale", "no_bookings") — ichki kod, yo'lovchiga ko'rsatilmaydi.
-    const body =
-      by === 'driver'
-        ? `Haydovchi qatnovni bekor qildi: ${reason}. Boshqa qatnov tanlang.`
-        : "Haydovchi qatnovni boshlamadi — bandingiz bekor qilindi. Boshqa qatnov tanlang.";
     await this.safely('trip:cancelled push', () =>
-      this.notifications.notifyUserIds(passengerIds, 'Qatnov bekor qilindi', body, 'intercity_trip_cancelled', {
-        tripId,
-      }),
+      this.notifications.notifyUserIds(
+        passengerIds,
+        intercityPush.tripCancelled(by === 'driver', reason),
+        'intercity_trip_cancelled',
+        { tripId },
+      ),
     );
   }
 
@@ -174,16 +167,14 @@ export class IntercityNotifier {
       const time = this.departure(snapshot);
       await this.notifications.notifyUserIds(
         [snapshot.driverUserId],
-        'Qatnovingizga 1 soat qoldi',
-        `${time} da jo'nash · ${snapshot.passengerIds.length} ta yo'lovchi`,
+        intercityPush.driverReminder(time, snapshot.passengerIds.length),
         'intercity_departure_reminder',
         { tripId },
       );
       if (snapshot.passengerIds.length > 0) {
         await this.notifications.notifyUserIds(
           snapshot.passengerIds,
-          'Qatnovga 1 soat qoldi',
-          `${time} da jo'nash. Olish manzilida tayyor turing.`,
+          intercityPush.passengerReminder(time),
           'intercity_departure_reminder',
           { tripId },
         );
@@ -201,11 +192,15 @@ export class IntercityNotifier {
         this.gateway.emitToUser(userId, INTERCITY_EVENTS.REQUEST_CREATED, request);
       }
       this.gateway.emitToManagers(INTERCITY_EVENTS.REQUEST_CREATED, request);
-      const what = request.kind === IntercityBookingKind.WHOLE_CAR ? 'butun mashina' : `${request.seats} joy`;
       await this.notifications.notifyUserIds(
         driverUserIds,
-        `Yangi so'rov: ${request.originName ?? ''} → ${request.destinationName ?? ''}`,
-        `${this.windowText(request)} · ${what} · ${request.total.toLocaleString('uz-UZ')} so'm`,
+        intercityPush.requestCreated(
+          `${request.originName ?? ''} → ${request.destinationName ?? ''}`,
+          this.windowText(request),
+          request.kind === IntercityBookingKind.WHOLE_CAR,
+          request.seats,
+          request.total,
+        ),
         'intercity_request_created',
         { requestId: request.id },
       );
@@ -248,8 +243,7 @@ export class IntercityNotifier {
       this.gateway.emitToUser(passengerId, INTERCITY_EVENTS.REQUEST_RESOLVED, payload);
       await this.notifications.notifyUserIds(
         [passengerId],
-        'Haydovchi topildi',
-        `So'rovingiz qabul qilindi — jo'nash ${formatTashkentTime(departureAt)} da`,
+        intercityPush.requestAccepted(formatTashkentTime(departureAt)),
         'intercity_request_accepted',
         { requestId, tripId, orderId },
       );
@@ -264,8 +258,7 @@ export class IntercityNotifier {
       this.gateway.emitToUser(passengerId, INTERCITY_EVENTS.REQUEST_RESOLVED, payload);
       await this.notifications.notifyUserIds(
         [passengerId],
-        'Haydovchi topilmadi',
-        "So'rovingiz vaqti tugadi. Boshqa vaqtni tanlab yana so'rov qoldiring.",
+        intercityPush.requestExpired(),
         'intercity_request_expired',
         { requestId },
       );

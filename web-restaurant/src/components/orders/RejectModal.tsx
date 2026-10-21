@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { cn } from '@/components/ui/cn';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
-import { REJECT_REASONS } from './queue';
+import { REJECT_REASON_KEYS, rejectReasonLabel, rejectReasonValue } from './queue';
+import { t } from '@/locales';
 
 /** Rad etish sababi majburiy — mijozga shu matn yuboriladi. */
 export function RejectModal({
@@ -16,6 +17,7 @@ export function RejectModal({
   onClose: () => void;
   onConfirm: (reason: string) => void | Promise<void>;
 }) {
+  const m = t();
   const [reason, setReason] = useState('');
   const [pending, setPending] = useState(false);
 
@@ -41,24 +43,27 @@ export function RejectModal({
       isOpen={isOpen}
       onClose={onClose}
       tone="danger"
-      title="Buyurtmani rad etish"
-      subtitle="Sababni tanlang — mijozga shu matn yuboriladi."
+      title={m.orders.reject.title}
+      subtitle={m.orders.reject.subtitle}
       footer={
         <>
           <Button variant="secondary" size="lg" onClick={onClose}>
-            Bekor qilish
+            {m.common.cancel}
           </Button>
           <Button variant="danger" size="lg" disabled={!reason} isLoading={pending} onClick={confirm}>
-            Rad etish
+            {m.orders.reject.confirm}
           </Button>
         </>
       }
     >
       <fieldset className="flex flex-col gap-1.5">
-        <legend className="sr-only">Rad etish sababi</legend>
-        {REJECT_REASONS.map((r) => (
+        <legend className="sr-only">{m.orders.reject.legend}</legend>
+        {REJECT_REASON_KEYS.map((key) => {
+          // `r` — API'ga ketadigan o'zbekcha matn; yozuv esa faol tilda.
+          const r = rejectReasonValue(key);
+          return (
           <label
-            key={r}
+            key={key}
             className={cn(
               'flex min-h-touch cursor-pointer items-center gap-3 rounded-ds-sm border px-3 text-body transition-colors',
               reason === r ? 'border-primary bg-mint-tint text-ink' : 'border-line bg-surface text-ink hover:bg-surface-2'
@@ -72,9 +77,10 @@ export function RejectModal({
               onChange={() => setReason(r)}
               className="h-4 w-4 accent-[rgb(var(--primary-text))]"
             />
-            <span className="font-medium">{r}</span>
+            <span className="font-medium">{rejectReasonLabel(key)}</span>
           </label>
-        ))}
+          );
+        })}
       </fieldset>
     </Modal>
   );

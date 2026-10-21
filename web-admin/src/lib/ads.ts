@@ -1,4 +1,5 @@
 import type { AdBanner, AdLinkType, AdDailyRow } from './api';
+import { t } from '@/locales';
 
 /**
  * Reklama sahifasining sof mantig'i — React'siz, testlanadigan.
@@ -16,19 +17,15 @@ export function adState(ad: Pick<AdBanner, 'isActive' | 'startsAt' | 'endsAt'>, 
   return 'live';
 }
 
-export const AD_STATE_LABELS: Record<AdState, string> = {
-  live: "Ko'rsatilmoqda",
-  scheduled: 'Rejalashtirilgan',
-  ended: 'Muddati tugagan',
-  off: "O'chirilgan",
-};
+/** Render paytida chaqiring — faol tildagi yorliqlar. */
+export function adStateLabels(): Record<AdState, string> {
+  return t().ads.state;
+}
 
-export const AD_LINK_LABELS: Record<AdLinkType, string> = {
-  none: "Havolasiz",
-  restaurant: 'Restoran',
-  store: "Do'kon",
-  url: 'Tashqi havola',
-};
+/** Tartib: none, restaurant, store, url (forma variantlari shu tartibda). */
+export function adLinkLabels(): Record<AdLinkType, string> {
+  return t().ads.link;
+}
 
 /** Bosish/ko'rish foizi; ko'rish bo'lmasa `null` (0% emas — bu boshqa narsa). */
 export function adCtr(ad: Pick<AdBanner, 'impressions' | 'clicks'>): number | null {
@@ -73,27 +70,28 @@ export type AdFormErrors = Partial<Record<keyof AdFormInput, string>>;
  * yuborishdan oldin xatoni maydon yonida ko'rishi uchun.
  */
 export function validateAdForm(input: AdFormInput): AdFormErrors {
+  const v = t().ads.validation;
   const errors: AdFormErrors = {};
-  if (input.title.trim().length < 2) errors.title = 'Kamida 2 ta belgi';
+  if (input.title.trim().length < 2) errors.title = v.titleMin;
 
-  if (!input.image) errors.image = 'Rasm tanlang';
-  else if (!AD_IMAGE_TYPES.includes(input.image.type)) errors.image = 'Faqat JPEG, PNG yoki WEBP';
-  else if (input.image.size > AD_IMAGE_MAX_BYTES) errors.image = 'Rasm 2 MB dan katta';
+  if (!input.image) errors.image = v.imageRequired;
+  else if (!AD_IMAGE_TYPES.includes(input.image.type)) errors.image = v.imageType;
+  else if (input.image.size > AD_IMAGE_MAX_BYTES) errors.image = v.imageSize;
 
   const target = input.linkTarget.trim();
   if (input.linkType === 'url' && !/^https:\/\/[^\s/]+\.[^\s]+/.test(target)) {
-    errors.linkTarget = 'https:// bilan boshlanadigan havola kiriting';
+    errors.linkTarget = v.urlInvalid;
   }
   if ((input.linkType === 'restaurant' || input.linkType === 'store') && !target) {
-    errors.linkTarget = input.linkType === 'restaurant' ? 'Restoranni tanlang' : "Do'konni tanlang";
+    errors.linkTarget = input.linkType === 'restaurant' ? v.restaurantRequired : v.storeRequired;
   }
 
   if (input.startsAt && input.endsAt && new Date(input.endsAt) <= new Date(input.startsAt)) {
-    errors.endsAt = 'Tugash boshlanishdan keyin bo\'lishi kerak';
+    errors.endsAt = v.endAfterStart;
   }
 
   const order = Number(input.sortOrder || '0');
-  if (!Number.isInteger(order) || order < 0 || order > 1000) errors.sortOrder = '0–1000 butun son';
+  if (!Number.isInteger(order) || order < 0 || order > 1000) errors.sortOrder = v.sortOrder;
 
   return errors;
 }

@@ -11,6 +11,7 @@ import type { VendorSettlementContext } from '@/lib/vendor-cash';
 import { CourierStrip } from './CourierStrip';
 import { AddressShortLine, CustomerCancelNotice, DiscountLines } from './OrderExtras';
 import { PrepTimerChip } from './PrepTimerChip';
+import { t } from '@/locales';
 
 export interface OrderCardProps {
   order: FoodOrder;
@@ -32,7 +33,7 @@ export function customerPhoneOf(order: FoodOrder): string | null {
 }
 
 export function customerNameOf(order: FoodOrder): string {
-  return fullName(order.customer?.firstName, order.customer?.lastName, 'Mijoz');
+  return fullName(order.customer?.firstName, order.customer?.lastName, t().orders.card.customerFallback);
 }
 
 /**
@@ -53,6 +54,8 @@ export function OrderCard({
   onCashDecision,
   settlement,
 }: OrderCardProps) {
+  const m = t();
+  const c = m.orders.card;
   const timer = formatPrepTimer(order, now);
   const advanceLabel = advanceLabelFor(order);
   const isNew = order.status === 'new';
@@ -62,7 +65,7 @@ export function OrderCard({
 
   return (
     <article
-      aria-label={`Buyurtma №${order.id.slice(0, 6)}`}
+      aria-label={c.aria(order.id.slice(0, 6))}
       className={cn(
         'flex flex-col rounded-ds-md border bg-surface shadow-card',
         kiosk ? 'p-5' : 'p-4',
@@ -82,10 +85,12 @@ export function OrderCard({
             )}
           >
             {no}
-            <span className="sr-only"> — tafsilotlarni ochish</span>
+            <span className="sr-only">{c.openDetails}</span>
           </button>
           <p className={cn('text-muted', kiosk ? 'text-body' : 'text-xs')}>
-            <span className="num">{formatTime(order.createdAt)}</span> da tushgan
+            {c.receivedBefore}
+            <span className="num">{formatTime(order.createdAt)}</span>
+            {c.receivedAfter}
           </p>
         </div>
         {timer && <PrepTimerChip timer={timer} large={kiosk} />}
@@ -125,7 +130,7 @@ export function OrderCard({
         <div className="mt-3 rounded-ds-sm border border-override/40 bg-override-tint px-3 py-2.5">
           <p className="flex items-center gap-1.5 text-xs font-semibold text-override-dark dark:text-override-light">
             <MessageSquareWarning size={13} aria-hidden />
-            Mijoz izohi
+            {c.customerNote}
           </p>
           <p className={cn('mt-0.5 font-semibold text-ink', kiosk ? 'text-body-lg' : 'text-body')}>{order.note}</p>
         </div>
@@ -133,7 +138,7 @@ export function OrderCard({
 
       {order.rejectReason && (
         <div className="mt-3 rounded-ds-sm border border-danger/30 bg-danger-tint px-3 py-2.5">
-          <p className="text-xs font-semibold text-danger-dark dark:text-danger-light">Rad etish sababi</p>
+          <p className="text-xs font-semibold text-danger-dark dark:text-danger-light">{c.rejectReason}</p>
           <p className="mt-0.5 text-body text-ink">{order.rejectReason}</p>
         </div>
       )}
@@ -143,7 +148,7 @@ export function OrderCard({
       <div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-3">
         <span className="inline-flex items-center gap-1.5 text-[13px] text-muted">
           {order.paymentMethod === 'card' ? <CreditCard size={13} aria-hidden /> : <Banknote size={13} aria-hidden />}
-          {order.paymentMethod === 'card' ? 'Karta' : 'Naqd'}
+          {order.paymentMethod === 'card' ? c.card : c.cash}
         </span>
         <MoneyText value={order.totalPrice} className={cn('font-semibold text-ink', kiosk ? 'text-h2' : 'text-title')} />
       </div>
@@ -181,9 +186,9 @@ export function OrderCard({
               className={cn(kiosk && 'min-h-[56px] text-h3')}
               disabled={busy}
               onClick={onReject}
-              aria-label={`${no} buyurtmasini rad etish`}
+              aria-label={c.rejectAria(no)}
             >
-              Rad etish
+              {c.reject}
             </Button>
           )}
         </div>

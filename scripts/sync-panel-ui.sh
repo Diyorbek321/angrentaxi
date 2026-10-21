@@ -7,6 +7,7 @@
 # Source of truth (docs/design/PANEL-UI-KIT.md §1), all inside web-manager/:
 #   src/components/ui/**      mirrored (extra files in the target are removed)
 #   src/components/shell/**   mirrored
+#   src/lib/i18n/**           mirrored (UZ/RU yadrosi + kit matnlari)
 #   src/lib/format.ts, src/lib/format.test.ts
 #   src/styles/tokens.css
 #   tailwind.preset.js
@@ -19,7 +20,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$ROOT/web-manager"
 TARGETS=(web-admin web-market web-restaurant)
-MIRROR_DIRS=(src/components/ui src/components/shell)
+MIRROR_DIRS=(src/components/ui src/components/shell src/lib/i18n)
 FILES=(src/lib/format.ts src/lib/format.test.ts src/styles/tokens.css tailwind.preset.js)
 HEADER='AUTO-SYNCED from web-manager'
 

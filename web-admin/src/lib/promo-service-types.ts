@@ -3,19 +3,20 @@
  * `serviceTypes: null` (yoki bo'sh) = hammasi. web-admin va web-manager'da bir xil.
  */
 
+import { t } from '@/locales';
+
 export const PROMO_SERVICE_TYPES = ['taxi', 'cargo', 'parcel', 'food', 'market'] as const;
 
 export type PromoServiceType = (typeof PROMO_SERVICE_TYPES)[number];
 
-export const PROMO_SERVICE_TYPE_LABELS: Record<PromoServiceType, string> = {
-  taxi: 'Taksi',
-  cargo: 'Yuk',
-  parcel: 'Posilka',
-  food: 'Ovqat',
-  market: 'Market',
-};
+/** Render paytida chaqiring — faol tildagi yorliqlar. */
+export function promoServiceTypeLabels(): Record<PromoServiceType, string> {
+  return t().promo.serviceTypes;
+}
 
-export const ALL_SERVICES_LABEL = 'Hammasi';
+export function allServicesLabel(): string {
+  return t().promo.allServices;
+}
 
 const isKnown = (v: unknown): v is PromoServiceType =>
   typeof v === 'string' && (PROMO_SERVICE_TYPES as readonly string[]).includes(v);
@@ -34,9 +35,10 @@ export function coversAllServices(list: readonly unknown[] | null | undefined): 
 
 /** Jadval/CSV uchun: "Hammasi" yoki "Ovqat, Market". */
 export function serviceTypesLabel(list: readonly unknown[] | null | undefined): string {
-  if (coversAllServices(list)) return ALL_SERVICES_LABEL;
+  if (coversAllServices(list)) return allServicesLabel();
+  const labels = promoServiceTypeLabels();
   return normalizeServiceTypes(list)
-    .map((t) => PROMO_SERVICE_TYPE_LABELS[t])
+    .map((type) => labels[type])
     .join(', ');
 }
 

@@ -19,6 +19,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { RetryBanner } from '@/components/ui/RetryBanner';
 import { SkeletonTable } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
+import { t } from '@/locales';
 
 interface CategoriesData {
   categories: MenuCategory[];
@@ -26,6 +27,8 @@ interface CategoriesData {
 }
 
 export default function CategoriesPage() {
+  const m = t();
+  const cm = m.categories;
   const { toast } = useToast();
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(false);
@@ -61,10 +64,10 @@ export default function CategoriesPage() {
     try {
       await foodApi.createCategory({ name, sortOrder: categories.length });
       setNewName('');
-      toast({ title: `«${name}» qo‘shildi`, variant: 'success' });
+      toast({ title: cm.added(name), variant: 'success' });
       await reload();
     } catch (err) {
-      toast({ title: 'Qo‘shib bo‘lmadi', description: errorMessage(err), variant: 'error' });
+      toast({ title: cm.addFailed, description: errorMessage(err), variant: 'error' });
     } finally {
       setCreating(false);
     }
@@ -75,11 +78,11 @@ export default function CategoriesPage() {
     setBusyId(renaming.id);
     try {
       await foodApi.updateCategory(renaming.id, { name: renameValue.trim() });
-      toast({ title: 'Nomi yangilandi', variant: 'success' });
+      toast({ title: cm.renamed, variant: 'success' });
       setRenaming(null);
       await reload();
     } catch (err) {
-      toast({ title: 'Saqlab bo‘lmadi', description: errorMessage(err), variant: 'error' });
+      toast({ title: m.common.saveFailedAlt, description: errorMessage(err), variant: 'error' });
     } finally {
       setBusyId(null);
     }
@@ -98,7 +101,7 @@ export default function CategoriesPage() {
       ]);
       await reload();
     } catch (err) {
-      toast({ title: 'Tartibni o‘zgartirib bo‘lmadi', description: errorMessage(err), variant: 'error' });
+      toast({ title: cm.reorderFailed, description: errorMessage(err), variant: 'error' });
     } finally {
       setBusyId(null);
     }
@@ -109,9 +112,9 @@ export default function CategoriesPage() {
     setRemovePending(true);
     try {
       await foodApi.deleteCategory(removing.id);
-      toast({ title: `«${removing.name}» o‘chirildi`, variant: 'success' });
+      toast({ title: cm.removed(removing.name), variant: 'success' });
     } catch (err) {
-      toast({ title: 'O‘chirib bo‘lmadi', description: errorMessage(err), variant: 'error' });
+      toast({ title: cm.removeFailed, description: errorMessage(err), variant: 'error' });
     } finally {
       setRemovePending(false);
       setRemoving(null);
@@ -122,8 +125,8 @@ export default function CategoriesPage() {
   return (
     <div className="mx-auto w-full max-w-3xl">
       <PageHeader
-        title="Kategoriyalar"
-        description="Menyu boʻlimlari — mijoz ilovasida shu tartibda koʻrinadi"
+        title={cm.title}
+        description={cm.description}
       />
 
       <Card padding="none">
@@ -135,14 +138,14 @@ export default function CategoriesPage() {
           }}
         >
           <Input
-            label="Yangi kategoriya"
+            label={cm.newLabel}
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            placeholder="Masalan: Salatlar"
+            placeholder={cm.newPlaceholder}
             wrapperClassName="flex-1"
           />
           <Button type="submit" leftIcon={<Plus size={15} />} isLoading={creating} disabled={!newName.trim()}>
-            Qo&apos;shish
+            {cm.add}
           </Button>
         </form>
 
@@ -160,16 +163,16 @@ export default function CategoriesPage() {
           <EmptyState
             variant="first-use"
             icon={<Tags size={20} />}
-            title="Kategoriya yoʻq"
-            description="Kategoriyalar menyuni mijoz uchun oʻqishli qiladi. Birinchisini yuqorida qoʻshing."
+            title={cm.emptyTitle}
+            description={cm.emptyDescription}
           />
         )}
 
         {status === 'ready' && categories.length > 0 && (
           <>
             <CardHeader
-              title="Tartib"
-              description={`${formatNumber(categories.length)} ta boʻlim`}
+              title={cm.order}
+              description={cm.sections(formatNumber(categories.length))}
               divider
               className="pt-3"
             />
@@ -184,25 +187,25 @@ export default function CategoriesPage() {
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-body font-medium text-ink">{category.name}</p>
-                      <p className="text-xs text-muted">{formatNumber(count)} ta taom</p>
+                      <p className="text-xs text-muted">{cm.dishes(formatNumber(count))}</p>
                     </div>
                     {count === 0 && (
                       <Badge variant="neutral" size="sm">
-                        Boʻsh
+                        {cm.empty}
                       </Badge>
                     )}
                     <div className="flex items-center gap-0.5">
                       <IconButton
                         disabled={index === 0 || busy}
                         onClick={() => move(category, -1)}
-                        aria-label={`${category.name} — yuqoriga ko'chirish`}
+                        aria-label={cm.moveUpAria(category.name)}
                       >
                         <ArrowUp aria-hidden />
                       </IconButton>
                       <IconButton
                         disabled={index === categories.length - 1 || busy}
                         onClick={() => move(category, 1)}
-                        aria-label={`${category.name} — pastga ko'chirish`}
+                        aria-label={cm.moveDownAria(category.name)}
                       >
                         <ArrowDown aria-hidden />
                       </IconButton>
@@ -211,14 +214,14 @@ export default function CategoriesPage() {
                           setRenaming(category);
                           setRenameValue(category.name);
                         }}
-                        aria-label={`${category.name} — nomini o'zgartirish`}
+                        aria-label={cm.renameAria(category.name)}
                       >
                         <Pencil aria-hidden />
                       </IconButton>
                       <IconButton
                         variant="danger-ghost"
                         onClick={() => setRemoving(category)}
-                        aria-label={`${category.name} — o'chirish`}
+                        aria-label={cm.deleteAria(category.name)}
                       >
                         <Trash2 aria-hidden />
                       </IconButton>
@@ -235,20 +238,20 @@ export default function CategoriesPage() {
         isOpen={renaming != null}
         onClose={() => setRenaming(null)}
         size="sm"
-        title="Kategoriya nomi"
+        title={cm.renameTitle}
         footer={
           <>
             <Button variant="secondary" onClick={() => setRenaming(null)}>
-              Bekor qilish
+              {m.common.cancel}
             </Button>
             <Button isLoading={busyId === renaming?.id} disabled={!renameValue.trim()} onClick={commitRename}>
-              Saqlash
+              {m.common.save}
             </Button>
           </>
         }
       >
         <Input
-          label="Nomi"
+          label={m.common.name}
           value={renameValue}
           onChange={(e) => setRenameValue(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && commitRename()}
@@ -261,15 +264,15 @@ export default function CategoriesPage() {
         onClose={() => setRemoving(null)}
         onConfirm={confirmRemove}
         isPending={removePending}
-        title="Kategoriyani oʻchirish"
+        title={cm.removeTitle}
         description={
           removing && dishCount(removing.id) > 0
-            ? `«${removing.name}» oʻchiriladi. Undagi ${dishCount(removing.id)} ta taom kategoriyasiz qoladi va menyuda pastda koʻrinadi.`
+            ? cm.removeWithDishes(removing.name, dishCount(removing.id))
             : removing
-              ? `«${removing.name}» oʻchiriladi. Boʻsh kategoriya — taomlarga taʼsir qilmaydi.`
+              ? cm.removeEmpty(removing.name)
               : undefined
         }
-        confirmLabel="O'chirish"
+        confirmLabel={m.common.delete}
       />
     </div>
   );

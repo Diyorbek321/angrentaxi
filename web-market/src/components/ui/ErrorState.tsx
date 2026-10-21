@@ -4,6 +4,7 @@
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { cn } from './cn';
 import { Button } from './Button';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 export interface ErrorStateProps {
   title?: string;
@@ -21,7 +22,7 @@ export interface ErrorStateProps {
  * If last good data exists, keep it on screen and use RetryBanner instead.
  */
 export function ErrorState({
-  title = 'Maʼlumotni yuklab boʻlmadi',
+  title,
   message,
   onRetry,
   retrying = false,
@@ -44,7 +45,7 @@ export function ErrorState({
         <AlertTriangle size={18} />
       </div>
       <div className="max-w-md">
-        <p className="text-sm font-semibold text-ink">{title}</p>
+        <p className="text-sm font-semibold text-ink">{title ?? kitT().errorState.title}</p>
         {message && <p className="text-[13px] text-muted mt-1 break-words">{message}</p>}
       </div>
       {onRetry && (
@@ -55,7 +56,7 @@ export function ErrorState({
           isLoading={retrying}
           leftIcon={<RefreshCw size={13} aria-hidden />}
         >
-          Qayta urinish
+          {kitT().common.retry}
         </Button>
       )}
     </div>

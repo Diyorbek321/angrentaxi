@@ -3,6 +3,7 @@
 
 import { RetryBanner } from './RetryBanner';
 import { LiveStatus } from '../shell/LiveStatus';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 export interface PollStatusProps {
   lastUpdatedAt: number | null;
@@ -45,7 +46,7 @@ export function StaleDataBanner({ error, lastUpdatedAt, onRetry, isRetrying = fa
   if (!error) return null;
   return (
     <RetryBanner
-      title="Aloqa uzildi — yangilanish muvaffaqiyatsiz"
+      title={kitT().retryBanner.connectionLost}
       message={error}
       onRetry={onRetry}
       isRetrying={isRetrying}

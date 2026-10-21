@@ -17,47 +17,28 @@ import {
 import { apiErrorMessage, apiErrorTitle } from '@/lib/api-error';
 import { intercityApi } from '@/lib/intercity-api';
 import { validateIntercitySettings, type FormErrors, type IntercitySettings } from '@/lib/intercity';
+import { t } from '@/locales';
 
 type NumericKey = Exclude<keyof IntercitySettings, 'intercityEnabled'>;
 
-const NUMERIC_FIELDS: readonly { key: NumericKey; label: string; hint: string; max: number }[] = [
-  {
-    key: 'intercityFreeCancelMinutes',
-    label: 'Bepul bekor qilish, daqiqa',
-    hint: 'Joʻnashdan shuncha oldingacha yoʻlovchi bandni bepul bekor qiladi.',
-    max: 1440,
-  },
-  {
-    key: 'intercityMaxSeatsPerBooking',
-    label: 'Bitta bandda eng koʻp oʻrindiq',
-    hint: 'Butun mashina bunga kirmaydi.',
-    max: 8,
-  },
-  {
-    key: 'intercityMinLeadMinutes',
-    label: 'Eʼlon qilish, kamida (daqiqa oldin)',
-    hint: 'Haydovchi qatnovni joʻnashdan kamida shuncha oldin eʼlon qiladi.',
-    max: 720,
-  },
-  {
-    key: 'intercityMaxAheadDays',
-    label: 'Eʼlon qilish, koʻpi bilan (kun oldin)',
-    hint: 'Shundan uzoq kelajakka qatnov eʼlon qilinmaydi.',
-    max: 30,
-  },
-  {
-    key: 'intercityMaxDetourMinutes',
-    label: 'Shahar ichida eng koʻp aylanma, daqiqa',
-    hint: 'Yangi yoʻlovchi mashinani shundan koʻp aylantirsa, band qilinmaydi. 0 — tekshiruv oʻchiq.',
-    max: 120,
-  },
-];
+const numericFields = (): readonly { key: NumericKey; label: string; hint: string; max: number }[] => {
+  const m = t().intercity.settings;
+  return [
+    { key: 'intercityFreeCancelMinutes', label: m.freeCancelLabel, hint: m.freeCancelHint, max: 1440 },
+    { key: 'intercityMaxSeatsPerBooking', label: m.maxSeatsLabel, hint: m.maxSeatsHint, max: 8 },
+    { key: 'intercityMinLeadMinutes', label: m.minLeadLabel, hint: m.minLeadHint, max: 720 },
+    { key: 'intercityMaxAheadDays', label: m.maxAheadLabel, hint: m.maxAheadHint, max: 30 },
+    { key: 'intercityMaxDetourMinutes', label: m.detourLabel, hint: m.detourHint, max: 120 },
+  ];
+};
 
 /**
  * "Shaharlararo" sozlamalari — alohida endpoint (`/settings/intercity`), shuning
  * uchun umumiy forma bilan emas, o'z saqlash tugmasi bilan.
  */
 export function IntercitySettingsCard() {
+  const m = t();
+  const sm = m.intercity.settings;
   const { toast } = useToast();
   const [form, setForm] = useState<IntercitySettings | null>(null);
   const [saved, setSaved] = useState<IntercitySettings | null>(null);
@@ -73,7 +54,7 @@ export function IntercitySettingsCard() {
       setForm(res.data.data);
       setSaved(res.data.data);
     } catch {
-      setLoadError('Shaharlararo sozlamalarini yuklab boʻlmadi.');
+      setLoadError(t().intercity.settings.loadError);
     }
   }, []);
 
@@ -112,11 +93,11 @@ export function IntercitySettingsCard() {
       const res = await intercityApi.updateSettings(form);
       setForm(res.data.data);
       setSaved(res.data.data);
-      toast({ title: 'Saqlandi', description: 'Shaharlararo sozlamalari yangilandi.', variant: 'success' });
+      toast({ title: sm.saved, description: sm.savedDescription, variant: 'success' });
     } catch (err) {
       toast({
-        title: apiErrorTitle(err, 'Xatolik'),
-        description: apiErrorMessage(err, 'Saqlashda xatolik'),
+        title: apiErrorTitle(err, m.common.error),
+        description: apiErrorMessage(err, m.common.saveError),
         variant: 'error',
       });
     } finally {
@@ -138,24 +119,24 @@ export function IntercitySettingsCard() {
 
   return (
     <Card padding="none">
-      <CardHeader title="Shaharlararo" divider />
+      <CardHeader title={sm.title} divider />
       <CardBody className="space-y-4 pt-4">
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-sm font-medium text-ink">Shaharlararo qatnovlar</p>
+            <p className="text-sm font-medium text-ink">{sm.enabledTitle}</p>
             <p className="mt-0.5 text-xs text-muted">
-              Yoqilganda haydovchilar qatnov eʼlon qiladi, yoʻlovchilar oʻrindiq yoki butun mashinani band qiladi.
+              {sm.enabledHint}
             </p>
           </div>
           <Switch
             checked={form.intercityEnabled}
             onCheckedChange={(v) => update('intercityEnabled', v)}
-            aria-label="Shaharlararo qatnovlarni yoqish"
+            aria-label={sm.enableAria}
           />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          {NUMERIC_FIELDS.map((field) => (
+          {numericFields().map((field) => (
             <Input
               key={field.key}
               label={field.label}
@@ -174,7 +155,7 @@ export function IntercitySettingsCard() {
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
           <span className="text-xs text-muted" aria-live="polite">
-            {isDirty ? 'Saqlanmagan oʻzgarish bor' : 'Barcha oʻzgarishlar saqlangan'}
+            {isDirty ? sm.dirty : sm.clean}
           </span>
           <div className="flex items-center gap-2">
             <Button
@@ -185,7 +166,7 @@ export function IntercitySettingsCard() {
                 setErrors({});
               }}
             >
-              Bekor qilish
+              {m.common.cancel}
             </Button>
             <Button
               onClick={handleSave}
@@ -193,7 +174,7 @@ export function IntercitySettingsCard() {
               disabled={!isDirty}
               leftIcon={<Save size={14} aria-hidden="true" />}
             >
-              Saqlash
+              {m.common.save}
             </Button>
           </div>
         </div>
@@ -205,9 +186,9 @@ export function IntercitySettingsCard() {
         onConfirm={persist}
         isPending={saving}
         tone="default"
-        title="Shaharlararo qatnovlarni yoqish"
-        confirmLabel="Yoqish"
-        description="Yoʻlovchi va haydovchi ilovalarida “Shaharlararo” xizmati darhol paydo boʻladi. Yoʻnalish narxlari va nuqtalar toʻgʻri kiritilganini tekshirdingizmi?"
+        title={sm.confirmTitle}
+        confirmLabel={sm.confirmLabel}
+        description={sm.confirmDescription}
       />
     </Card>
   );

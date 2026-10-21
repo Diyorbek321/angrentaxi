@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import {
-  PERMISSION_GROUPS,
-  PERMISSION_LABELS_UZ,
-  PERMISSION_SHORT_LABELS_UZ,
-} from './permission-labels';
+import { permissionGroups, permissionLabels, permissionShortLabels } from './permission-labels';
+
+const PERMISSION_LABELS_UZ = permissionLabels();
+const PERMISSION_SHORT_LABELS_UZ = permissionShortLabels();
+const PERMISSION_GROUPS = permissionGroups();
 
 /**
  * `Record<Permission, string>` tipi to'liqlikni kompilyatsiyada kafolatlaydi;

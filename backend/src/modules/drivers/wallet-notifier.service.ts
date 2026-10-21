@@ -6,6 +6,7 @@ import { computeWalletBalance } from '../payments/wallet-balance.util';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
 import { UsersService } from '../users/users.service';
+import type { LocalizedPush } from '../notifications/push-text';
 
 /** Realtime hodisa nomi — haydovchi ilovasi hamyon ekranini shundan yangilaydi. */
 export const WALLET_UPDATED_EVENT = 'wallet:updated';
@@ -24,7 +25,7 @@ export interface WalletChangeNotice {
   delta: number;
   reason: WalletChangeReason;
   /** Push matni; bo'lmasa faqat realtime hodisa. */
-  push?: { title: string; body: string; event: string };
+  push?: { text: LocalizedPush; event: string };
   /** Hodisaga qo'shimcha maydonlar (masalan `topupId`). */
   extra?: Record<string, string | number | null>;
 }
@@ -78,8 +79,7 @@ export class WalletNotifierService {
       if (user) {
         await this.notificationsService.notifyWalletEvent(
           user,
-          notice.push.title,
-          notice.push.body,
+          notice.push.text,
           notice.push.event,
           { reason: notice.reason, delta: String(notice.delta) },
         );

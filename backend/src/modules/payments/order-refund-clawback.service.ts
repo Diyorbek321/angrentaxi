@@ -17,6 +17,7 @@ import { FiscalReceiptsService } from '../fiscal/fiscal-receipts.service';
 import { TAX_WITHHOLDING_LEDGER_TAG } from '../tax/tax-withholding';
 import { formatSom } from '../delivery/vendor-wallet-settlement';
 import { lockWalletForUpdate, syncDriverBalanceColumn } from './wallet-balance.util';
+import { localized } from '../notifications/push-text';
 
 /**
  * Qaytarib olish qatorlari — `uq_transactions_refund_clawback` unikal indeksi
@@ -241,11 +242,22 @@ export class OrderRefundClawbackService {
       delta: -amount,
       reason: 'refund_clawback',
       push: {
-        title: "To'lov mijozga qaytarildi",
-        body:
-          party.role === 'driver'
-            ? `Safar uchun karta to'lovi mijozga qaytarildi — ulushingiz ${formatSom(amount)} so'm hamyondan qaytarib olindi`
-            : `Buyurtma uchun karta to'lovi mijozga qaytarildi — ${formatSom(amount)} so'm hisobingizdan qaytarib olindi`,
+        text: localized({
+          uz: {
+            title: "To'lov mijozga qaytarildi",
+            body:
+              party.role === 'driver'
+                ? `Safar uchun karta to'lovi mijozga qaytarildi — ulushingiz ${formatSom(amount)} so'm hamyondan qaytarib olindi`
+                : `Buyurtma uchun karta to'lovi mijozga qaytarildi — ${formatSom(amount)} so'm hisobingizdan qaytarib olindi`,
+          },
+          ru: {
+            title: 'Платёж возвращён клиенту',
+            body:
+              party.role === 'driver'
+                ? `Оплата картой за поездку возвращена клиенту — ваша доля ${formatSom(amount)} сум списана с кошелька`
+                : `Оплата картой за заказ возвращена клиенту — ${formatSom(amount)} сум списано с вашего счёта`,
+          },
+        }),
         event: 'payment_refund_clawback',
       },
       extra: { orderId: party.orderId },

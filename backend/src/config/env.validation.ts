@@ -121,6 +121,12 @@ class EnvironmentVariables {
   @IsOptional()
   ESKIZ_PASSWORD: string = '';
 
+  // Ruscha OTP shabloni Eskiz kabinetida moderatsiyadan o'tgach `true`.
+  // Unga qadar ruscha ilova ham o'zbekcha SMS oladi (sms-texts.ts).
+  @IsString()
+  @IsOptional()
+  ESKIZ_RU_TEMPLATE_APPROVED: string = 'false';
+
   @IsString()
   @IsOptional()
   PAYME_MERCHANT_ID: string = '';

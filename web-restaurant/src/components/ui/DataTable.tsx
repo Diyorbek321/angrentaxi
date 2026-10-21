@@ -11,6 +11,7 @@ import { Pagination, type PaginationProps } from './Pagination';
 import { RetryBanner } from './RetryBanner';
 import { Skeleton } from './Skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './Table';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 export type SortDirection = 'asc' | 'desc';
 
@@ -66,7 +67,7 @@ export interface DataTableProps<T> {
   onSortChange?: (sort: SortState | null) => void;
 
   selectable?: boolean;
-  /** Accessible name of a row — selection checkbox reads "Tanlash: {rowLabel}". */
+  /** Accessible name of a row — selection checkbox reads "Tanlash: {rowLabel}" (kit-messages). */
   rowLabel?: (row: T) => string;
   selectedKeys?: ReadonlySet<string>;
   onSelectionChange?: (keys: Set<string>) => void;
@@ -209,13 +210,13 @@ export function DataTable<T>({
             <EmptyState
               compact
               variant="no-results"
-              title="Hech narsa topilmadi"
-              description="Filtr shartlarini oʻzgartiring yoki tozalang."
+              title={kitT().dataTable.noResultsTitle}
+              description={kitT().dataTable.noResultsDescription}
               onClearFilters={onClearFilters}
               {...emptyFiltered}
             />
           ) : (
-            <EmptyState compact title="Maʼlumot yoʻq" {...empty} />
+            <EmptyState compact title={kitT().dataTable.emptyTitle} {...empty} />
           )}
         </TableCell>
       </TableRow>
@@ -241,7 +242,7 @@ export function DataTable<T>({
               <Checkbox
                 checked={isSel}
                 onCheckedChange={() => toggleOne(k)}
-                aria-label={rowLabel ? `Tanlash: ${rowLabel(row)}` : 'Qatorni tanlash'}
+                aria-label={rowLabel ? kitT().dataTable.selectRow(rowLabel(row)) : kitT().dataTable.selectRowGeneric}
               />
             </TableCell>
           )}
@@ -287,17 +288,17 @@ export function DataTable<T>({
       {selectable && selected.size > 0 && (
         <div
           role="region"
-          aria-label="Tanlanganlar bilan amallar"
+          aria-label={kitT().dataTable.bulkRegion}
           className="flex items-center gap-3 h-11 px-4 border-b border-line bg-mint-tint/50"
         >
-          <span className="num text-[13px] font-medium text-ink">{selected.size} ta tanlandi</span>
+          <span className="num text-[13px] font-medium text-ink">{kitT().dataTable.selected(selected.size)}</span>
           <div className="flex items-center gap-2">{bulkActions?.(selected)}</div>
           <button
             type="button"
             onClick={() => onSelectionChange?.(new Set())}
             className="ml-auto text-[13px] text-muted hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-focus rounded-ds-xs"
           >
-            Bekor qilish
+            {kitT().common.cancel}
           </button>
         </div>
       )}
@@ -316,7 +317,7 @@ export function DataTable<T>({
                   checked={allSelected}
                   indeterminate={someSelected}
                   onCheckedChange={toggleAll}
-                  aria-label="Hammasini tanlash"
+                  aria-label={kitT().dataTable.selectAll}
                   disabled={!hasRows}
                 />
               </TableHead>

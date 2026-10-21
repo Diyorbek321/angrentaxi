@@ -22,6 +22,7 @@ import {
 import { broadcastApi, BroadcastAudience, PushBroadcast } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 import { formatDateTime, formatNumber } from '@/lib/format';
+import { t } from '@/locales';
 
 const TITLE_MAX = 60;
 const BODY_MAX = 200;
@@ -32,31 +33,18 @@ interface AudienceOption {
   description: string;
 }
 
-const AUDIENCES: AudienceOption[] = [
-  {
-    value: 'all',
-    label: 'Hamma',
-    description: "Yo'lovchilar va haydovchilar — barcha ro'yxatdan o'tganlar",
-  },
-  {
-    value: 'customers',
-    label: "Faqat yo'lovchilar",
-    description: 'Haydovchilar bu xabarni olmaydi',
-  },
-  {
-    value: 'drivers',
-    label: 'Faqat haydovchilar',
-    description: "Yo'lovchilar bu xabarni olmaydi",
-  },
-];
+const AUDIENCE_ORDER: BroadcastAudience[] = ['all', 'customers', 'drivers'];
 
-const AUDIENCE_LABELS: Record<BroadcastAudience, string> = {
-  all: 'Hamma',
-  customers: "Yo'lovchilar",
-  drivers: 'Haydovchilar',
-};
+function audienceOptions(): AudienceOption[] {
+  const a = t().push.audiences;
+  return AUDIENCE_ORDER.map((value) => ({ value, ...a[value] }));
+}
 
 export default function PushNotificationsPage() {
+  const m = t();
+  const p = m.push;
+  const AUDIENCES = audienceOptions();
+  const AUDIENCE_LABELS: Record<BroadcastAudience, string> = p.audienceLabels;
   const { toast } = useToast();
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -78,7 +66,7 @@ export default function PushNotificationsPage() {
       setHasLoadedOnce(true);
     } catch {
       // Oxirgi muvaffaqiyatli tarix ekranda qoladi; banner + retry chiqadi.
-      setError("Yuborish tarixini yuklab bo'lmadi");
+      setError(p.historyLoadError);
     } finally {
       setIsLoading(false);
     }
@@ -91,10 +79,10 @@ export default function PushNotificationsPage() {
   // Validatsiya maydonning O'ZIGA biriktiriladi — toast emas.
   const validate = (): boolean => {
     const errors: { title?: string; body?: string } = {};
-    if (!title.trim()) errors.title = 'Sarlavhani kiriting';
-    else if (title.trim().length > TITLE_MAX) errors.title = `Ko'pi bilan ${TITLE_MAX} belgi`;
-    if (!body.trim()) errors.body = 'Xabar matnini kiriting';
-    else if (body.trim().length > BODY_MAX) errors.body = `Ko'pi bilan ${BODY_MAX} belgi`;
+    if (!title.trim()) errors.title = p.titleRequired;
+    else if (title.trim().length > TITLE_MAX) errors.title = p.maxChars(TITLE_MAX);
+    if (!body.trim()) errors.body = p.bodyRequired;
+    else if (body.trim().length > BODY_MAX) errors.body = p.maxChars(BODY_MAX);
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -109,11 +97,11 @@ export default function PushNotificationsPage() {
       const res = await broadcastApi.send(title.trim(), body.trim(), audience);
       const sentCount = res.data.data?.sentCount;
       toast({
-        title: 'Xabar yuborildi',
+        title: p.sent,
         description:
           sentCount != null
-            ? `${formatNumber(sentCount)} ta qurilmaga yetkazildi.`
-            : `Auditoriya: ${AUDIENCE_LABELS[audience]}`,
+            ? p.deliveredTo(formatNumber(sentCount))
+            : p.audienceIs(AUDIENCE_LABELS[audience]),
         variant: 'success',
       });
       setTitle('');
@@ -122,7 +110,7 @@ export default function PushNotificationsPage() {
       setConfirmOpen(false);
       await loadHistory();
     } catch {
-      toast({ title: 'Xatolik', description: 'Yuborishda xatolik', variant: 'error' });
+      toast({ title: m.common.error, description: p.sendFailed, variant: 'error' });
     } finally {
       setSending(false);
     }
@@ -134,34 +122,34 @@ export default function PushNotificationsPage() {
 
   return (
     <div className="px-4 sm:px-6 py-5">
-      <PageHeader title="Push xabarnomalar" description="Foydalanuvchilarga ommaviy push-xabar yuborish" />
+      <PageHeader title={p.title} description={p.description} />
       <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
         <Card padding="none">
-          <CardHeader title="Yangi xabar" divider />
+          <CardHeader title={p.newMessage} divider />
           <CardBody className="space-y-4 pt-4">
             <Input
-              label="Sarlavha"
-              placeholder="Masalan: Hafta oxiri chegirmasi"
+              label={p.fieldTitle}
+              placeholder={p.fieldTitlePlaceholder}
               value={title}
               maxLength={TITLE_MAX + 20}
               error={fieldErrors.title}
-              hint={`${title.trim().length} / ${TITLE_MAX} belgi`}
+              hint={p.charCount(title.trim().length, TITLE_MAX)}
               onChange={(e) => setTitle(e.target.value)}
             />
             <Textarea
-              label="Matn"
-              placeholder="Xabarning to'liq matni..."
+              label={p.fieldBody}
+              placeholder={p.fieldBodyPlaceholder}
               value={body}
               rows={4}
               error={fieldErrors.body}
-              hint={`${body.trim().length} / ${BODY_MAX} belgi`}
+              hint={p.charCount(body.trim().length, BODY_MAX)}
               onChange={(e) => setBody(e.target.value)}
             />
 
             {/* Kim OLADI va kim OLMAYDI — ikkalasi ham yozilgan. */}
             <RadioGroup
               name="audience"
-              label="Auditoriya"
+              label={p.audience}
               options={AUDIENCES}
               value={audience}
               onChange={setAudience}
@@ -169,19 +157,18 @@ export default function PushNotificationsPage() {
 
             <p className="flex items-start gap-2 text-xs text-muted">
               <Info className="mt-px h-3.5 w-3.5 shrink-0 text-subtle" aria-hidden="true" />
-              Push-xabar foydalanuvchilarga bir zumda boradi va uni qaytarib bo&apos;lmaydi. Yuborishdan oldin
-              matnni tekshiring.
+              {p.warning}
             </p>
           </CardBody>
           <CardFooter>
             <Button onClick={openConfirm} leftIcon={<Send className="h-4 w-4" aria-hidden="true" />}>
-              Yuborish
+              {p.send}
             </Button>
           </CardFooter>
         </Card>
 
         <Card padding="none">
-          <CardHeader title="Yuborish tarixi" divider />
+          <CardHeader title={p.history} divider />
           {showErrorBanner && (
             <RetryBanner message={error} onRetry={loadHistory} keepsLastData className="m-3 mb-0" />
           )}
@@ -199,8 +186,8 @@ export default function PushNotificationsPage() {
             <EmptyState
               compact
               variant="first-use"
-              title="Hali xabar yuborilmagan"
-              description="Birinchi push-xabarni yuborganingizda, u shu yerda ko'rinadi."
+              title={p.emptyTitle}
+              description={p.emptyDesc}
             />
           ) : (
             <ul className="max-h-[60vh] divide-y divide-line overflow-y-auto">
@@ -212,7 +199,7 @@ export default function PushNotificationsPage() {
                   </div>
                   <p className="mt-1 text-[13px] leading-relaxed text-muted">{h.body}</p>
                   <p className="num mt-1.5 text-xs text-subtle">
-                    {formatDateTime(h.createdAt, { withYear: true })} · {formatNumber(h.sentCount)} ta yetkazildi
+                    {formatDateTime(h.createdAt, { withYear: true })} · {p.delivered(formatNumber(h.sentCount))}
                   </p>
                 </li>
               ))}
@@ -226,26 +213,29 @@ export default function PushNotificationsPage() {
       <Modal
         isOpen={confirmOpen}
         onClose={() => !sending && setConfirmOpen(false)}
-        title="Push-xabarni yuborish"
+        title={p.confirmTitle}
         description={
           <>
-            Xabar <strong className="text-ink">{selectedAudience.label.toLowerCase()}</strong> auditoriyasiga darhol
-            yuboriladi. {selectedAudience.description}. Yuborilgan xabarni qaytarib yoki o&apos;chirib bo&apos;lmaydi.
+            {p.confirmPre}
+            <strong className="text-ink">{selectedAudience.label.toLowerCase()}</strong>
+            {p.confirmMid}
+            {selectedAudience.description}
+            {p.confirmPost}
           </>
         }
         footer={
           <>
             <Button variant="secondary" onClick={() => setConfirmOpen(false)} disabled={sending}>
-              Bekor qilish
+              {m.common.cancel}
             </Button>
             <Button isLoading={sending} onClick={handleSend} leftIcon={<Send className="h-4 w-4" aria-hidden="true" />}>
-              Yuborish — {selectedAudience.label}
+              {p.sendTo(selectedAudience.label)}
             </Button>
           </>
         }
       >
         <div className="rounded-ds-md border border-line bg-surface-2 p-3">
-          <p className="text-xs text-subtle">Qurilmada shunday ko&apos;rinadi:</p>
+          <p className="text-xs text-subtle">{p.preview}</p>
           <div className="mt-2 rounded-ds-sm border border-line bg-surface p-3">
             <p className="text-sm font-semibold text-ink">{title.trim()}</p>
             <p className="mt-1 text-[13px] leading-relaxed text-muted">{body.trim()}</p>

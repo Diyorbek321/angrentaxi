@@ -1,5 +1,5 @@
 import { Badge, BadgeVariant } from '@/components/ui/Badge';
-import { OrderStatus, ORDER_STATUS_LABELS } from '@/lib/constants';
+import { OrderStatus, orderStatusLabels } from '@/lib/constants';
 
 // One lifecycle, one ramp (see ORDER_STATUS_ACCENT in lib/constants.ts):
 // neutral -> searching (animated mint tint — the machine working) -> info
@@ -25,7 +25,7 @@ interface OrderStatusBadgeProps {
 export function OrderStatusBadge({ status, size = 'md', dot = false }: OrderStatusBadgeProps) {
   return (
     <Badge variant={statusVariantMap[status]} size={size} dot={dot}>
-      {ORDER_STATUS_LABELS[status]}
+      {orderStatusLabels()[status]}
     </Badge>
   );
 }

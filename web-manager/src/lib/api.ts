@@ -2,6 +2,8 @@ import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { OrderStatus, PaymentMethod } from './constants';
 import { attachAuthInterceptor } from './session';
 import type { TripOptionFees } from './trip-option-fees';
+import { getLocale } from './i18n/core';
+import { t } from '@/locales';
 
 // ─── Entity Types ───────────────────────────────────────────────────────────
 
@@ -233,14 +235,18 @@ export function createApiClient(config: AxiosRequestConfig = {}): AxiosInstance 
     timeout: 15000,
     headers: {
       'Content-Type': 'application/json',
-      // Panel o'zbekcha: server xatolari ham o'zbekcha (brauzer tili ruscha bo'lsa ham).
-      'Accept-Language': 'uz',
     },
     // Same-origin now, so the session cookie rides along automatically.
     withCredentials: true,
     ...config,
   });
 
+  // Server xatolari panel tilida keladi (brauzer tilidan qat'i nazar) —
+  // til har so'rovda o'qiladi, chunki foydalanuvchi uni sahifada almashtiradi.
+  client.interceptors.request.use((request) => {
+    request.headers.set('Accept-Language', getLocale());
+    return request;
+  });
   attachAuthInterceptor(client);
 
   return client;
@@ -275,7 +281,7 @@ export async function verifyOtp(phone: string, code: string): Promise<LoginRespo
     | null;
 
   if (!res.ok || !payload?.data?.user) {
-    throw new Error(payload?.message || 'Notoʻgʻri kod');
+    throw new Error(payload?.message || t().lib.invalidCode);
   }
 
   return { user: payload.data.user };

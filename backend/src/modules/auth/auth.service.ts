@@ -13,7 +13,8 @@ import { Otp } from '../../database/entities/otp.entity';
 import { User, UserRole, UserStatus } from '../../database/entities/user.entity';
 import { RefreshToken } from '../../database/entities/refresh-token.entity';
 import { EskizService } from '../notifications/eskiz.service';
-import { OTP_TTL_MINUTES, otpSmsText } from '../notifications/sms-texts';
+import { OTP_TTL_MINUTES, otpSmsText, smsLanguage } from '../notifications/sms-texts';
+import type { AppLanguage } from '../../common/i18n/error-messages';
 import { generateUniqueReferralCode } from '../../common/utils/referral-code.util';
 import {
   DEFAULT_ACCESS_TTL,
@@ -75,7 +76,7 @@ export class AuthService {
     private readonly eskizService: EskizService,
   ) {}
 
-  async sendOtp(phone: string): Promise<SendOtpResult> {
+  async sendOtp(phone: string, requestedLanguage: AppLanguage | null = null): Promise<SendOtpResult> {
     // Clean up expired OTPs for this phone
     await this.otpRepository.delete({
       phone,
@@ -153,7 +154,11 @@ export class AuthService {
         : { message: 'OTP sent successfully' };
     }
 
-    await this.eskizService.sendSms(phone, otpSmsText(code));
+    const language = smsLanguage(
+      requestedLanguage,
+      this.configService.get<string>('ESKIZ_RU_TEMPLATE_APPROVED') === 'true',
+    );
+    await this.eskizService.sendSms(phone, otpSmsText(code, language));
 
     return { message: 'OTP sent successfully' };
   }

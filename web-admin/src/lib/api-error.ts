@@ -5,6 +5,8 @@
  * qo'shimcha `code`, `reasons[]`, `details`. UI matnga emas, `code` ga tayanadi.
  */
 
+import { t } from '@/locales';
+
 export interface ApiErrorReason {
   code: string;
   message: string;
@@ -20,23 +22,10 @@ export interface ParsedApiError {
   statusCode: number | null;
 }
 
-/** Ma'lum kodlar uchun qisqa o'zbekcha sarlavhalar (toast title). */
-export const API_ERROR_TITLE: Readonly<Record<string, string>> = {
-  LEGAL_NOT_ELIGIBLE: 'Huquqiy talablar bajarilmagan',
-  WALLET_NEGATIVE_BALANCE: 'Hamyon qoldigʻi manfiy',
-  WALLET_INSUFFICIENT_FOR_VENDOR: 'Hamyonda mablagʻ yetarli emas',
-  SHIFT_PASS_DISABLED: 'Smena oʻchirilgan',
-  SHIFT_PASS_ACTIVE: 'Faol smena bor',
-  SHIFT_PASS_INSUFFICIENT_BALANCE: 'Smena uchun mablagʻ yetarli emas',
-  WALLET_TOPUP_TOO_MANY_PENDING: 'Ochiq toʻlovlar koʻp',
-  WALLET_WITHDRAWAL_ON_HOLD: 'Mablagʻ hali ushlab turilgan',
-  LEGAL_PROFILE_LOCKED: 'Huquqiy profil qulflangan',
-  LEGAL_PROFILE_DUPLICATE: 'Takroriy JShShIR yoki STIR',
-  MANUAL_ADJUSTMENT_LIMIT: 'Tuzatish chegarasidan oshdi',
-  INTERCITY_DISABLED: 'Shaharlararo oʻchirilgan',
-  INTERCITY_ROUTE_INVALID: 'Yoʻnalish narxlari notoʻgʻri',
-  INTERCITY_POINT_INVALID: 'Nuqtaning davom sozlamasi notoʻgʻri',
-};
+/** Ma'lum kodlar uchun qisqa sarlavhalar (toast title), faol tilda. */
+export function apiErrorTitles(): Readonly<Record<string, string>> {
+  return t().shell.apiErrorTitle;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -88,7 +77,7 @@ export function apiErrorMessage(err: unknown, fallback: string): string {
 /** Toast sarlavhasi: ma'lum kod bo'lsa uning nomi, aks holda zaxira. */
 export function apiErrorTitle(err: unknown, fallback: string): string {
   const { code } = parseApiError(err);
-  return (code && API_ERROR_TITLE[code]) || fallback;
+  return (code && apiErrorTitles()[code]) || fallback;
 }
 
 /** `details` dagi son (so'm, kun…); yo'q yoki son emas — `null`. */

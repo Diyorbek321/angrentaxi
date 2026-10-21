@@ -7,6 +7,8 @@
  * o'zi tekshiradi — bu yerdagi qoida faqat qulaylik, himoya emas.
  */
 
+import { t } from '@/locales';
+
 export const INTERCITY_MAX_PRICE = 10_000_000;
 export const INTERCITY_SEATS_MIN = 1;
 export const INTERCITY_SEATS_MAX = 8;
@@ -110,27 +112,28 @@ export interface IntercityRouteForm {
 export type FormErrors<T> = Partial<Record<keyof T, string>>;
 
 function priceError(value: number, label: string): string | undefined {
-  if (!Number.isFinite(value) || value <= 0) return `${label} 0 dan katta boʻlishi kerak`;
-  if (!Number.isInteger(value)) return `${label} butun soʻmda kiritiladi`;
-  if (value > INTERCITY_MAX_PRICE) return `${label} 10 000 000 soʻmdan oshmasin`;
+  const v = t().intercity.validation;
+  if (!Number.isFinite(value) || value <= 0) return v.priceZero(label);
+  if (!Number.isInteger(value)) return v.priceInteger(label);
+  if (value > INTERCITY_MAX_PRICE) return v.priceMax(label);
   return undefined;
 }
 
 function comfortErrors(form: IntercityRouteForm): FormErrors<IntercityRouteForm> {
+  const v = t().intercity.validation;
   const { comfortSeatPrice: seat, comfortWholeCarPrice: whole } = form;
   if (seat === null && whole === null) return {};
-  if (seat === null) return { comfortSeatPrice: 'Comfort uchun ikkala narx birga kiritiladi' };
-  if (whole === null) return { comfortWholeCarPrice: 'Comfort uchun ikkala narx birga kiritiladi' };
+  if (seat === null) return { comfortSeatPrice: v.comfortBoth };
+  if (whole === null) return { comfortWholeCarPrice: v.comfortBoth };
 
   const seatError =
-    priceError(seat, 'Narx') ??
-    (seat < form.seatPrice ? "Comfort oʻrindiq Start oʻrindiqdan arzon boʻlishi mumkin emas" : undefined);
+    priceError(seat, v.priceLabel) ?? (seat < form.seatPrice ? v.comfortSeatCheaper : undefined);
   const wholeError =
-    priceError(whole, 'Narx') ??
+    priceError(whole, v.priceLabel) ??
     (whole < form.wholeCarPrice
-      ? "Comfort butun mashina Start'dan arzon boʻlishi mumkin emas"
+      ? v.comfortWholeCheaper
       : whole < seat
-        ? "Butun mashina bitta oʻrindiqdan arzon boʻlishi mumkin emas"
+        ? v.wholeCheaperThanSeat
         : undefined);
 
   return {
@@ -141,34 +144,34 @@ function comfortErrors(form: IntercityRouteForm): FormErrors<IntercityRouteForm>
 
 /** Bo'sh obyekt — forma to'g'ri. */
 export function validateRouteForm(form: IntercityRouteForm): FormErrors<IntercityRouteForm> {
-  const seatError = priceError(form.seatPrice, 'Narx');
+  const v = t().intercity.validation;
+  const seatError = priceError(form.seatPrice, v.priceLabel);
   const wholeError =
-    priceError(form.wholeCarPrice, 'Narx') ??
-    (form.wholeCarPrice < form.seatPrice
-      ? "Butun mashina bitta oʻrindiqdan arzon boʻlishi mumkin emas"
-      : undefined);
+    priceError(form.wholeCarPrice, v.priceLabel) ??
+    (form.wholeCarPrice < form.seatPrice ? v.wholeCheaperThanSeat : undefined);
   const seatsValid =
     Number.isInteger(form.seatsDefault) &&
     form.seatsDefault >= INTERCITY_SEATS_MIN &&
     form.seatsDefault <= INTERCITY_SEATS_MAX;
 
   return {
-    ...(form.originPointId ? {} : { originPointId: 'Joʻnash nuqtasini tanlang' }),
+    ...(form.originPointId ? {} : { originPointId: v.originRequired }),
     ...(!form.destinationPointId
-      ? { destinationPointId: 'Borish nuqtasini tanlang' }
+      ? { destinationPointId: v.destinationRequired }
       : form.destinationPointId === form.originPointId
-        ? { destinationPointId: 'Joʻnash va borish nuqtasi bir xil boʻlmasin' }
+        ? { destinationPointId: v.sameEnds }
         : {}),
     ...(seatError ? { seatPrice: seatError } : {}),
     ...(wholeError ? { wholeCarPrice: wholeError } : {}),
     ...comfortErrors(form),
     ...(seatsValid
       ? {}
-      : { seatsDefault: `${INTERCITY_SEATS_MIN}–${INTERCITY_SEATS_MAX} oraligʻida butun son` }),
+      : { seatsDefault: v.seatsRange(INTERCITY_SEATS_MIN, INTERCITY_SEATS_MAX) }),
   };
 }
 
 export function validatePointForm(form: IntercityPointForm): FormErrors<IntercityPointForm> {
+  const v = t().intercity.validation;
   const latValid = Number.isFinite(form.centerLat) && form.centerLat >= -90 && form.centerLat <= 90;
   const lngValid = Number.isFinite(form.centerLng) && form.centerLng >= -180 && form.centerLng <= 180;
   const radiusValid =
@@ -176,12 +179,10 @@ export function validatePointForm(form: IntercityPointForm): FormErrors<Intercit
     form.radiusKm >= INTERCITY_RADIUS_MIN_KM &&
     form.radiusKm <= INTERCITY_RADIUS_MAX_KM;
   return {
-    ...(form.name.trim() ? {} : { name: 'Nuqta nomini kiriting' }),
-    ...(latValid ? {} : { centerLat: 'Kenglik −90…90 oraligʻida' }),
-    ...(lngValid ? {} : { centerLng: 'Uzunlik −180…180 oraligʻida' }),
-    ...(radiusValid
-      ? {}
-      : { radiusKm: `Radius ${INTERCITY_RADIUS_MIN_KM}–${INTERCITY_RADIUS_MAX_KM} km` }),
+    ...(form.name.trim() ? {} : { name: v.pointName }),
+    ...(latValid ? {} : { centerLat: v.latRange }),
+    ...(lngValid ? {} : { centerLng: v.lngRange }),
+    ...(radiusValid ? {} : { radiusKm: v.radiusRange(INTERCITY_RADIUS_MIN_KM, INTERCITY_RADIUS_MAX_KM) }),
     ...validatePointExtension(form),
   };
 }
@@ -191,18 +192,19 @@ const isPricePerKm = (value: number): boolean =>
 
 /** Backend `validateIntercityPointExtension` bilan bir xil qoidalar. */
 function validatePointExtension(form: IntercityPointForm): FormErrors<IntercityPointForm> {
+  const v = t().intercity.validation;
   const { extensionMaxKm: maxKm, extensionPricePerKm: start, extensionComfortPricePerKm: comfort } = form;
   const maxKmValid = Number.isFinite(maxKm) && maxKm >= 0 && maxKm <= INTERCITY_EXTENSION_MAX_KM;
   const enabled = maxKmValid && maxKm > 0;
-  if (!maxKmValid) return { extensionMaxKm: `0–${INTERCITY_EXTENSION_MAX_KM} km (0 — oʻchiq)` };
+  if (!maxKmValid) return { extensionMaxKm: v.extensionKmRange(INTERCITY_EXTENSION_MAX_KM) };
   if (!enabled) return {};
-  const priceText = `1–${INTERCITY_EXTENSION_MAX_PRICE_PER_KM.toLocaleString('ru-RU')} soʻm, butun son`;
+  const priceText = v.extensionPrice(INTERCITY_EXTENSION_MAX_PRICE_PER_KM.toLocaleString('ru-RU'));
   return {
-    ...(maxKm > form.radiusKm ? {} : { extensionMaxKm: 'Radiusdan katta boʻlishi kerak' }),
+    ...(maxKm > form.radiusKm ? {} : { extensionMaxKm: v.extensionGtRadius }),
     ...(isPricePerKm(start) && start > 0 ? {} : { extensionPricePerKm: priceText }),
     ...(comfort === null || (isPricePerKm(comfort) && comfort >= start)
       ? {}
-      : { extensionComfortPricePerKm: 'Start narxidan kam boʻlmasin' }),
+      : { extensionComfortPricePerKm: v.comfortNotBelowStart }),
   };
 }
 
@@ -215,7 +217,7 @@ export function formatPointExtension(point: PointExtension): string {
     comfort === null || comfort === point.extensionPricePerKm
       ? group(point.extensionPricePerKm)
       : `${group(point.extensionPricePerKm)} / ${group(comfort)}`;
-  return `${point.extensionMaxKm} km · ${prices} soʻm/km`;
+  return `${point.extensionMaxKm} km · ${prices} ${t().intercity.validation.pricePerKmSuffix}`;
 }
 
 function intInRange(value: number, min: number, max: number): boolean {
@@ -224,18 +226,13 @@ function intInRange(value: number, min: number, max: number): boolean {
 
 /** Chegaralar backend `UpdateIntercitySettingsDto` bilan bir xil. */
 export function validateIntercitySettings(form: IntercitySettings): FormErrors<IntercitySettings> {
+  const v = t().intercity.validation;
   return {
-    ...(intInRange(form.intercityFreeCancelMinutes, 0, 1440)
-      ? {}
-      : { intercityFreeCancelMinutes: '0–1440 daqiqa' }),
-    ...(intInRange(form.intercityMaxSeatsPerBooking, 1, 8)
-      ? {}
-      : { intercityMaxSeatsPerBooking: '1–8 oʻrindiq' }),
-    ...(intInRange(form.intercityMinLeadMinutes, 0, 720) ? {} : { intercityMinLeadMinutes: '0–720 daqiqa' }),
-    ...(intInRange(form.intercityMaxAheadDays, 1, 30) ? {} : { intercityMaxAheadDays: '1–30 kun' }),
-    ...(intInRange(form.intercityMaxDetourMinutes, 0, 120)
-      ? {}
-      : { intercityMaxDetourMinutes: '0–120 daqiqa (0 — oʻchiq)' }),
+    ...(intInRange(form.intercityFreeCancelMinutes, 0, 1440) ? {} : { intercityFreeCancelMinutes: v.freeCancelRange }),
+    ...(intInRange(form.intercityMaxSeatsPerBooking, 1, 8) ? {} : { intercityMaxSeatsPerBooking: v.maxSeatsRange }),
+    ...(intInRange(form.intercityMinLeadMinutes, 0, 720) ? {} : { intercityMinLeadMinutes: v.minLeadRange }),
+    ...(intInRange(form.intercityMaxAheadDays, 1, 30) ? {} : { intercityMaxAheadDays: v.maxAheadRange }),
+    ...(intInRange(form.intercityMaxDetourMinutes, 0, 120) ? {} : { intercityMaxDetourMinutes: v.detourRange }),
   };
 }
 
@@ -246,14 +243,15 @@ export const INTERCITY_ZONE_RADIUS_MIN_KM = 0.3;
 export const INTERCITY_ZONE_RADIUS_MAX_KM = 30;
 
 export function validateZoneForm(form: IntercityZoneForm): FormErrors<IntercityZoneForm> {
+  const v = t().intercity.validation;
   return {
-    ...(form.name.trim().length > 0 && form.name.trim().length <= 80 ? {} : { name: 'Nomi 1–80 belgi' }),
+    ...(form.name.trim().length > 0 && form.name.trim().length <= 80 ? {} : { name: v.zoneName }),
     ...(Number.isFinite(form.centerLat) && form.centerLat >= -90 && form.centerLat <= 90
       ? {}
-      : { centerLat: 'Kenglik −90…90' }),
+      : { centerLat: v.zoneLat }),
     ...(Number.isFinite(form.centerLng) && form.centerLng >= -180 && form.centerLng <= 180
       ? {}
-      : { centerLng: 'Uzunlik −180…180' }),
+      : { centerLng: v.zoneLng }),
     ...(Number.isFinite(form.radiusKm) &&
     form.radiusKm >= INTERCITY_ZONE_RADIUS_MIN_KM &&
     form.radiusKm <= INTERCITY_ZONE_RADIUS_MAX_KM
