@@ -25,6 +25,7 @@ import {
 } from '@/lib/driver-legal';
 import { formatDateShort } from '@/lib/format';
 import { DriverLegalModal } from './DriverLegalModal';
+import { licenceRegionState } from '@/lib/uz-regions';
 import { t } from '@/locales';
 
 const Mono = ({ value }: { value: string | null }) =>
@@ -54,6 +55,16 @@ function enforcementText(e: DriverLegalSummary['eligibility']): string {
 }
 
 /** VMQ 200 / PQ-247 huquqiy profili — `GET/PATCH /drivers/:id/legal`. */
+/** Bo'sh yoki eski erkin matn — hudud cheklovi ishlamaydi, ko'zga tashlansin. */
+function LicenceRegionValue({ value }: { value: string | null }) {
+  const m = t().drivers.legal.card;
+  const state = licenceRegionState(value);
+  if (state.kind === 'ok') return <>{state.name}</>;
+  return (
+    <Badge variant="muted-danger">{state.kind === 'missing' ? m.regionMissing : m.regionLegacy(state.text)}</Badge>
+  );
+}
+
 export function DriverLegalCard({ driverId }: { driverId: string }) {
   const { toast } = useToast();
   const m = t().drivers.legal.card;
@@ -79,12 +90,14 @@ export function DriverLegalCard({ driverId }: { driverId: string }) {
     if (!form) return;
     const next = { ...form, ...patch };
     setForm(next);
-    if (Object.keys(errors).length > 0) setErrors(validateDriverLegalForm(next, tashkentToday()));
+    if (Object.keys(errors).length > 0) {
+      setErrors(validateDriverLegalForm(next, tashkentToday(), summary?.profile.taxiLicenceRegion ?? null));
+    }
   };
 
   const save = async () => {
     if (!form || !summary) return;
-    const errs = validateDriverLegalForm(form, tashkentToday());
+    const errs = validateDriverLegalForm(form, tashkentToday(), summary.profile.taxiLicenceRegion ?? null);
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
     const patch = buildDriverLegalPatch(form, summary.profile);
@@ -168,7 +181,9 @@ export function DriverLegalCard({ driverId }: { driverId: string }) {
               <KeyValue label={m.taxiLicence}>
                 <Mono value={summary.profile.taxiLicenceNumber} />
               </KeyValue>
-              <KeyValue label={m.licenceRegion}>{summary.profile.taxiLicenceRegion || '—'}</KeyValue>
+              <KeyValue label={m.licenceRegion}>
+                <LicenceRegionValue value={summary.profile.taxiLicenceRegion} />
+              </KeyValue>
               <KeyValue label={m.citizenship}>{summary.profile.citizenship || '—'}</KeyValue>
             </KeyValueList>
           </div>

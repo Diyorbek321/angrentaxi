@@ -7,6 +7,7 @@ import type {
 } from './api';
 import { apiErrorDetailText, parseApiError } from './api-error';
 import { t } from '@/locales';
+import { isUzRegionCode } from './uz-regions';
 
 /**
  * Haydovchining huquqiy profili (VMQ 200 / PQ-247) — panel tomoni.
@@ -64,7 +65,11 @@ function isRealDate(value: string): boolean {
 }
 
 /** `today` — YYYY-MM-DD (testlar uchun tashqaridan beriladi). */
-export function validateLegalForm(values: LegalFormValues, today: string): LegalFormErrors {
+export function validateLegalForm(
+  values: LegalFormValues,
+  today: string,
+  initialRegion: string | null = null
+): LegalFormErrors {
   const m = t().lib.legalForm;
   const errors: LegalFormErrors = {};
   const pinfl = values.pinfl.trim();
@@ -93,7 +98,9 @@ export function validateLegalForm(values: LegalFormValues, today: string): Legal
   }
 
   if (values.taxiLicenceNumber.trim().length > 50) errors.taxiLicenceNumber = m.max50;
-  if (values.taxiLicenceRegion.trim().length > 100) errors.taxiLicenceRegion = m.max100;
+  const region = values.taxiLicenceRegion.trim();
+  // Eski erkin matn o'zgartirilmasa yuborilmaydi; yangi qiymat faqat ro'yxatdan.
+  if (region && !isUzRegionCode(region) && region !== initialRegion) errors.taxiLicenceRegion = m.region;
   if (!/^[A-Z]{2}$/.test(values.citizenship.trim())) {
     errors.citizenship = m.citizenship;
   }

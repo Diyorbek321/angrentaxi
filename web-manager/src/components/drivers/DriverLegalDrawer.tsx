@@ -34,6 +34,7 @@ import { SkeletonForm } from '@/components/ui/Skeleton';
 import { KeyValue, KeyValueList } from '@/components/ui/KeyValue';
 import { useToast } from '@/components/ui/Toast';
 import { formatDate, fullName } from '@/lib/format';
+import { isUzRegionCode, licenceRegionState, regionOptions } from '@/lib/uz-regions';
 import { t } from '@/locales';
 
 export interface DriverLegalDrawerProps {
@@ -101,7 +102,7 @@ export function DriverLegalDrawer({ driver, canEdit, onClose, onUpdated }: Drive
 
   const save = async () => {
     if (!driverId || !summary || !values) return;
-    const found = validateLegalForm(values, todayIso());
+    const found = validateLegalForm(values, todayIso(), summary.profile.taxiLicenceRegion);
     if (Object.values(found).some(Boolean)) {
       setErrors(found);
       return;
@@ -244,6 +245,25 @@ function EligibilitySection({ summary }: { summary: DriverLegalSummary }) {
   );
 }
 
+/** Bo'sh yoki eski erkin matn — hudud cheklovi ishlamaydi, ko'zga tashlansin. */
+function LicenceRegionValue({ value }: { value: string | null }) {
+  const lg = t().drivers.legal;
+  const state = licenceRegionState(value);
+  if (state.kind === 'ok') return <>{state.name}</>;
+  return <Badge variant="muted-danger">{state.kind === 'missing' ? lg.regionMissing : lg.regionLegacy(state.text)}</Badge>;
+}
+
+/** Eski erkin matn ro'yxatda qoladi — saqlashda o'zgarmasa yuborilmaydi. */
+function licenceRegionOptions(current: string) {
+  const lg = t().drivers.legal;
+  const legacy = current.trim() && !isUzRegionCode(current.trim()) ? current.trim() : null;
+  return [
+    { value: '', label: lg.regionNone },
+    ...(legacy ? [{ value: legacy, label: lg.regionLegacyOption(legacy) }] : []),
+    ...regionOptions(),
+  ];
+}
+
 function ProfileView({ summary }: { summary: DriverLegalSummary }) {
   const p = summary.profile;
   const lg = t().drivers.legal;
@@ -260,7 +280,9 @@ function ProfileView({ summary }: { summary: DriverLegalSummary }) {
       <KeyValue label={lg.taxiLicence}>
         {p.taxiLicenceNumber ? <span className="font-mono">{p.taxiLicenceNumber}</span> : dash}
       </KeyValue>
-      <KeyValue label={lg.licenceRegion}>{p.taxiLicenceRegion || dash}</KeyValue>
+      <KeyValue label={lg.licenceRegion}>
+        <LicenceRegionValue value={p.taxiLicenceRegion} />
+      </KeyValue>
       <KeyValue label={lg.citizenship}>{p.citizenship}</KeyValue>
     </KeyValueList>
   );
@@ -333,12 +355,13 @@ function LegalForm({
         onChange={(e) => onChange('taxiLicenceNumber', e.target.value)}
         error={errors.taxiLicenceNumber}
       />
-      <Input
+      <Select
         label={lg.licenceRegion}
-        maxLength={100}
+        options={licenceRegionOptions(values.taxiLicenceRegion)}
         value={values.taxiLicenceRegion}
         onChange={(e) => onChange('taxiLicenceRegion', e.target.value)}
         error={errors.taxiLicenceRegion}
+        hint={lg.regionHint}
       />
       <Input
         label={lg.citizenship}

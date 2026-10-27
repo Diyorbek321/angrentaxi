@@ -5,6 +5,7 @@ import 'package:angren_taxi/features/driver/legal/legal_validators.dart';
 import 'package:angren_taxi/features/driver/widgets/legal_eligibility_card.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/driver_legal.dart';
+import 'package:angren_taxi/shared/models/uz_region.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
@@ -13,25 +14,6 @@ import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-
-/// Litsenziya hududi — server erkin matn saqlaydi (≤100 belgi); ro'yxat
-/// haydovchi uchun yozishdan ko'ra tezroq va xatosiz.
-const List<String> kUzbekistanRegions = [
-  'Toshkent shahri',
-  'Toshkent viloyati',
-  'Andijon viloyati',
-  'Buxoro viloyati',
-  "Farg'ona viloyati",
-  'Jizzax viloyati',
-  'Xorazm viloyati',
-  'Namangan viloyati',
-  'Navoiy viloyati',
-  'Qashqadaryo viloyati',
-  "Qoraqalpog'iston Respublikasi",
-  'Samarqand viloyati',
-  'Sirdaryo viloyati',
-  'Surxondaryo viloyati',
-];
 
 /// HUQUQIY PROFIL — `GET/PATCH /drivers/me/legal` (VMQ 200, PQ-247).
 ///
@@ -93,9 +75,7 @@ class _DriverLegalScreenState extends State<DriverLegalScreen> {
       _birthDate = p.birthDate;
       _licenceIssuedAt = p.drivingLicenceIssuedAt;
       _licenceNumber.text = p.taxiLicenceNumber ?? '';
-      _region = kUzbekistanRegions.contains(p.taxiLicenceRegion)
-          ? p.taxiLicenceRegion
-          : null;
+      _region = UzRegion.fromCode(p.taxiLicenceRegion)?.code;
     });
   }
 
@@ -376,12 +356,16 @@ class _DriverLegalScreenState extends State<DriverLegalScreen> {
 
   Widget _buildRegion(BuildContext context, String? serverValue) {
     final l10n = context.l10n;
-    // Server qiymati ro'yxatda bo'lmasa (masalan menejer erkin yozgan) u
-    // ham tanlov sifatida qoladi — saqlashda yo'qolib ketmasin.
-    final options = [
-      ...kUzbekistanRegions,
-      if (serverValue != null && !kUzbekistanRegions.contains(serverValue))
-        serverValue,
+    final ru = AppL10n.localeName.startsWith('ru');
+    // Server hudud KODINI saqlaydi (`UZ-TO`), ko'rsatiladigani — nomi. Eski
+    // erkin matn (masalan "Angren") ham tanlov sifatida qoladi — saqlashda
+    // yo'qolib ketmasin; o'zgartirilmasa server uni o'zi kodga aylantiradi.
+    final legacy = serverValue != null && UzRegion.fromCode(serverValue) == null
+        ? serverValue
+        : null;
+    final options = <(String, String)>[
+      for (final r in UzRegion.values) (r.code, r.label(ru: ru)),
+      if (legacy != null) (legacy, legacy),
     ];
     return DropdownButtonFormField<String>(
       key: const ValueKey('legal_region_field'),
@@ -392,7 +376,8 @@ class _DriverLegalScreenState extends State<DriverLegalScreen> {
         hintText: l10n.lglSelectRegion,
       ),
       items: [
-        for (final r in options) DropdownMenuItem(value: r, child: Text(r)),
+        for (final (value, label) in options)
+          DropdownMenuItem(value: value, child: Text(label)),
       ],
       onChanged: (v) => setState(() => _region = v),
     );

@@ -1,6 +1,7 @@
 import { ServiceType } from '../../database/entities/order.entity';
 import { VehicleType } from '../../database/entities/tariff.entity';
 import { driverProvidesTripOptions } from '../orders/trip-options';
+import { isPickupAllowedForLicence } from '../../common/regions/uz-regions';
 
 /**
  * Haydovchi imkoniyatlari — "bu haydovchi shu buyurtmani BAJARA OLADIMI?"
@@ -32,6 +33,10 @@ export interface DriverCapabilityFilter {
   // Yo'lovchi so'ragan safar opsiyalari (bola o'rindig'i, hayvon, ...).
   // Bo'sh/yo'q = hech narsa talab qilinmaydi.
   tripOptions?: readonly string[];
+  // Olish nuqtasi shahrining hududi (ISO 3166-2:UZ) — faqat taksi zakazida
+  // beriladi. Haydovchi litsenziyasi shu yoki qo'shni hududga tegishli
+  // bo'lishi kerak (common/regions). `null`/`undefined` = cheklov yo'q.
+  pickupRegion?: string | null;
 }
 
 /** Haydovchidan imkoniyat tekshiruvi uchun kerak bo'ladigan minimal shakl. */
@@ -39,6 +44,7 @@ export interface DriverCapabilities {
   serviceTypes?: ServiceType[] | null;
   vehicleType?: VehicleType | null;
   amenities?: string[] | null;
+  taxiLicenceRegion?: string | null;
 }
 
 /**
@@ -70,6 +76,10 @@ export function driverMatchesCapabilities(
   filter?: DriverCapabilityFilter,
 ): boolean {
   if (!filter) return true;
+
+  if (!isPickupAllowedForLicence(driver.taxiLicenceRegion, filter.pickupRegion)) {
+    return false;
+  }
 
   if (
     filter.serviceType !== undefined &&

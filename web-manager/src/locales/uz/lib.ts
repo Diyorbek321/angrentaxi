@@ -65,6 +65,7 @@ export const lib = {
     licenceAfterBirth: 'Guvohnoma tugʻilgan sanadan keyin berilgan boʻlishi kerak',
     max50: 'Koʻpi bilan 50 belgi',
     max100: 'Koʻpi bilan 100 belgi',
+    region: 'Hududni roʻyxatdan tanlang',
     citizenship: '2 harfli ISO kod (masalan UZ)',
   },
   legalBadge: {

@@ -138,6 +138,7 @@ export const drivers = {
       licenceAfterBirth: "Guvohnoma tug'ilgan sanadan keyin berilgan bo'lishi kerak",
       maxChars: (n: number) => `Ko'pi bilan ${n} belgi`,
       citizenship: '2 harfli ISO kod (masalan UZ)',
+      region: 'Hududni roʻyxatdan tanlang',
     },
     brief: {
       unknown: "Noma'lum",
@@ -172,6 +173,8 @@ export const drivers = {
       licenceIssued: 'Guvohnoma berilgan',
       taxiLicence: 'Taksi litsenziyasi',
       licenceRegion: 'Litsenziya hududi',
+      regionMissing: 'Kiritilmagan — hudud cheklovi ishlamaydi',
+      regionLegacy: (text: string) => `${text} — eski yozuv, roʻyxatdan tanlang`,
       citizenship: 'Fuqarolik',
     },
     modal: {
@@ -190,7 +193,9 @@ export const drivers = {
       licenceIssued: 'Guvohnoma berilgan sana (B toifa)',
       taxiLicence: 'Taksi litsenziya raqami',
       licenceRegion: 'Litsenziya hududi',
-      licenceRegionPlaceholder: 'Masalan: Toshkent viloyati',
+      regionNone: '— Tanlanmagan —',
+      regionLegacy: (text: string) => `${text} (eski yozuv)`,
+      regionHint: 'Zakaz faqat shu va unga chegaradosh hududlarda taklif qilinadi',
     },
   },
 };

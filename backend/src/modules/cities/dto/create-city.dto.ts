@@ -10,7 +10,10 @@ import {
   Max,
   MaxLength,
   Min,
+  IsIn,
+  ValidateIf,
 } from 'class-validator';
+import { UZ_REGION_CODES, UzRegionCode } from '../../../common/regions/uz-regions';
 
 export class CreateCityDto {
   @ApiProperty({ example: 'Angren' })
@@ -33,6 +36,16 @@ export class CreateCityDto {
    * hech kim sezmasdi, chunki hech narsa buzilmaydi, shunchaki filtr
    * hech qachon ishlamay qo'yadi.
    */
+  @ApiPropertyOptional({
+    enum: UZ_REGION_CODES,
+    nullable: true,
+    description: 'Hudud (ISO 3166-2:UZ) — taksi litsenziyasi hududi cheklovi uchun',
+  })
+  @IsOptional()
+  @ValidateIf((_o, value) => value !== null)
+  @IsIn(UZ_REGION_CODES)
+  region?: UzRegionCode | null;
+
   @ApiProperty({ example: 25, description: 'Qamrov radiusi (km)' })
   @IsNumber()
   @Min(0.5)

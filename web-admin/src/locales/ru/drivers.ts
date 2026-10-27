@@ -140,6 +140,7 @@ export const drivers: Messages['drivers'] = {
       licenceAfterBirth: 'Удостоверение должно быть выдано после даты рождения',
       maxChars: (n: number) => `Не более ${n} символов`,
       citizenship: 'Двухбуквенный код ISO (например UZ)',
+      region: 'Выберите регион из списка',
     },
     brief: {
       unknown: 'Неизвестно',
@@ -174,6 +175,8 @@ export const drivers: Messages['drivers'] = {
       licenceIssued: 'Удостоверение выдано',
       taxiLicence: 'Лицензия такси',
       licenceRegion: 'Регион лицензии',
+      regionMissing: 'Не указан — ограничение по региону не действует',
+      regionLegacy: (text: string) => `${text} — старая запись, выберите из списка`,
       citizenship: 'Гражданство',
     },
     modal: {
@@ -192,7 +195,9 @@ export const drivers: Messages['drivers'] = {
       licenceIssued: 'Дата выдачи удостоверения (кат. B)',
       taxiLicence: 'Номер лицензии такси',
       licenceRegion: 'Регион лицензии',
-      licenceRegionPlaceholder: 'Например: Ташкентская область',
+      regionNone: '— Не выбран —',
+      regionLegacy: (text: string) => `${text} (старая запись)`,
+      regionHint: 'Заказы предлагаются только в этом и соседних регионах',
     },
   },
 };

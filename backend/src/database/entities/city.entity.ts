@@ -76,6 +76,11 @@ export class City {
   })
   radiusKm: number;
 
+  // Hudud (ISO 3166-2:UZ, masalan `UZ-TO`) — taksi litsenziyasi hududi
+  // cheklovi uchun (common/regions). `null` — cheklov qo'llanmaydi.
+  @Column({ type: 'varchar', length: 8, nullable: true })
+  region: string | null;
+
   // Faol emas = qamrovdan chiqarilgan. Qator O'CHIRILMAYDI, chunki unga
   // bog'langan buyurtmalar tarixi (`orders.city_id`) ma'nosini yo'qotmasligi
   // kerak.

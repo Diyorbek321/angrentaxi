@@ -66,6 +66,7 @@ export const lib: Messages['lib'] = {
     licenceAfterBirth: 'Удостоверение должно быть выдано после даты рождения',
     max50: 'Не более 50 символов',
     max100: 'Не более 100 символов',
+    region: 'Выберите регион из списка',
     citizenship: 'Двухбуквенный код ISO (например, UZ)',
   },
   legalBadge: {

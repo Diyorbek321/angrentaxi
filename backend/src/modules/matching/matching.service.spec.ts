@@ -654,6 +654,90 @@ describe('MatchingService (Redis-backed queue)', () => {
     });
   });
 
+  describe('taksi litsenziyasi hududi', () => {
+    interface LicencedDriver {
+      userId: string;
+      taxiLicenceRegion: string | null;
+    }
+
+    function usePool(pool: LicencedDriver[]) {
+      driversService.getNearbyDrivers.mockImplementation(
+        (_lat, _lng, _radius, _tier, capabilities) =>
+          Promise.resolve(
+            pool
+              .filter((d) =>
+                driverMatchesCapabilities({ serviceTypes: null, vehicleType: null, ...d }, capabilities),
+              )
+              .map((d) => makeDriver(d.userId)),
+          ),
+      );
+    }
+
+    function orderInCity(region: string | null, serviceType = ServiceType.TAXI) {
+      orderRepository.findOne.mockResolvedValue(makeOrder({ cityId: 'city-1', serviceType }));
+      orderRepository.query = jest
+        .fn()
+        .mockImplementation((sql: string) =>
+          Promise.resolve(
+            sql.includes('FROM cities')
+              ? [{ region }]
+              : sql.includes('ST_X(pickup_location')
+                ? [{ lat: 40.1, lng: 69.1 }]
+                : [coordsRow],
+          ),
+        );
+    }
+
+    const pool: LicencedDriver[] = [
+      { userId: 'samarqand', taxiLicenceRegion: 'UZ-SA' },
+      { userId: 'toshkent-shahar', taxiLicenceRegion: 'UZ-TK' },
+      { userId: 'hududsiz', taxiLicenceRegion: null },
+    ];
+
+    it("Toshkent viloyatidagi zakaz — o'z va qo'shni hudud litsenziyasi, hududsiz ham; Samarqand emas", async () => {
+      usePool(pool);
+      orderInCity('UZ-TO');
+
+      await service.startSearch(orderId);
+
+      const capabilities = driversService.getNearbyDrivers.mock.calls[0][4];
+      expect(capabilities).toEqual(expect.objectContaining({ pickupRegion: 'UZ-TO' }));
+      const offered = realtimeGateway.emitToUser.mock.calls
+        .filter(([, event]) => event === 'new_order_offer')
+        .map(([userId]) => userId);
+      expect(offered).not.toContain('samarqand');
+      expect(offered.length).toBeGreaterThan(0);
+    });
+
+    it('shaharga hudud berilmagan — cheklov yo\'q', async () => {
+      orderInCity(null);
+      await service.startSearch(orderId);
+      expect(driversService.getNearbyDrivers.mock.calls[0][4]).toEqual(
+        expect.objectContaining({ pickupRegion: null }),
+      );
+    });
+
+    it('ovqat yetkazish — taksi litsenziyasi talab qilinmaydi, hudud so\'ralmaydi', async () => {
+      orderInCity('UZ-TO', ServiceType.FOOD);
+      await service.startSearch(orderId);
+      expect(driversService.getNearbyDrivers.mock.calls[0][4]).toEqual(
+        expect.objectContaining({ pickupRegion: null }),
+      );
+      expect(
+        (orderRepository.query as jest.Mock).mock.calls.some(([sql]) => String(sql).includes('FROM cities')),
+      ).toBe(false);
+    });
+
+    it('qayta qidiruv navbatdagi hududni ishlatadi (zakaz qatori qayta o\'qilmaydi)', async () => {
+      orderInCity('UZ-TO');
+      await service.startSearch(orderId);
+      const queue = JSON.parse(
+        [...redis.store.entries()].find(([k]) => k.includes(orderId) && k.includes('queue'))?.[1] ?? '{}',
+      );
+      expect(queue.pickupRegion).toBe('UZ-TO');
+    });
+  });
+
   describe('bitta haydovchiga bir vaqtda faqat BITTA taklif', () => {
     // Ilgari ikki xil zakaz bir haydovchini bir vaqtda tanlay olardi: ilova
     // faqat oxirgi taklifni ko'rsatadi, birinchisi 15 soniya javobsiz qolib

@@ -5,6 +5,7 @@
 import type { DriverLegalBrief, DriverLegalPatch, DriverLegalProfile, DriverTaxStatus } from './compliance-api';
 import { isIsoDate, isPinfl, isTin } from './compliance';
 import { apiErrorDetailText, parseApiError } from './api-error';
+import { isUzRegionCode } from './uz-regions';
 import { t } from '@/locales';
 
 export interface DriverLegalForm {
@@ -39,7 +40,11 @@ export function toDriverLegalForm(p: DriverLegalProfile): DriverLegalForm {
 }
 
 /** `today` — `YYYY-MM-DD` (Toshkent), kelajak sanalarni rad etish uchun. */
-export function validateDriverLegalForm(form: DriverLegalForm, today: string): DriverLegalErrors {
+export function validateDriverLegalForm(
+  form: DriverLegalForm,
+  today: string,
+  initialRegion: string | null = null
+): DriverLegalErrors {
   const m = t().drivers.legal.errors;
   const errors: DriverLegalErrors = {};
   const pinfl = form.pinfl.trim();
@@ -64,7 +69,10 @@ export function validateDriverLegalForm(form: DriverLegalForm, today: string): D
     }
   }
   if (form.taxiLicenceNumber.trim().length > 50) errors.taxiLicenceNumber = m.maxChars(50);
-  if (form.taxiLicenceRegion.trim().length > 100) errors.taxiLicenceRegion = m.maxChars(100);
+  const region = form.taxiLicenceRegion.trim();
+  // Eski erkin matn o'zgartirilmasa yuborilmaydi (patch faqat o'zgarganni oladi);
+  // yangi qiymat esa faqat ro'yxatdan.
+  if (region && !isUzRegionCode(region) && region !== initialRegion) errors.taxiLicenceRegion = m.region;
   if (!/^[A-Z]{2}$/.test(form.citizenship.trim())) {
     errors.citizenship = m.citizenship;
   }

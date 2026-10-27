@@ -112,3 +112,18 @@ describe('legalDuplicateField (409 LEGAL_PROFILE_DUPLICATE)', () => {
     expect(legalDuplicateField(err({ code: 'OTHER' }))).toBeNull();
   });
 });
+
+describe('validateDriverLegalForm — litsenziya hududi', () => {
+  const base = toDriverLegalForm(EMPTY);
+
+  it("ro'yxatdagi kod va bo'sh — xatosiz", () => {
+    expect(validateDriverLegalForm({ ...base, taxiLicenceRegion: 'UZ-TO' }, TODAY).taxiLicenceRegion).toBeUndefined();
+    expect(validateDriverLegalForm({ ...base, taxiLicenceRegion: '' }, TODAY).taxiLicenceRegion).toBeUndefined();
+  });
+
+  it("o'zgartirilmagan eski matn — xatosiz; yangi erkin matn — xato", () => {
+    const legacy = { ...base, taxiLicenceRegion: 'Angren' };
+    expect(validateDriverLegalForm(legacy, TODAY, 'Angren').taxiLicenceRegion).toBeUndefined();
+    expect(validateDriverLegalForm(legacy, TODAY, null).taxiLicenceRegion).toBeDefined();
+  });
+});

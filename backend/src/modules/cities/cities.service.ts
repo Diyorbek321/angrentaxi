@@ -167,6 +167,7 @@ export class CitiesService {
       centerLat: dto.centerLat,
       centerLng: dto.centerLng,
       radiusKm: dto.radiusKm,
+      region: dto.region ?? null,
       isActive: dto.isActive ?? true,
       sortOrder: dto.sortOrder ?? 0,
     });
@@ -184,6 +185,7 @@ export class CitiesService {
       ...(dto.centerLat !== undefined && { centerLat: dto.centerLat }),
       ...(dto.centerLng !== undefined && { centerLng: dto.centerLng }),
       ...(dto.radiusKm !== undefined && { radiusKm: dto.radiusKm }),
+      ...(dto.region !== undefined && { region: dto.region }),
       ...(dto.isActive !== undefined && { isActive: dto.isActive }),
       ...(dto.sortOrder !== undefined && { sortOrder: dto.sortOrder }),
     });

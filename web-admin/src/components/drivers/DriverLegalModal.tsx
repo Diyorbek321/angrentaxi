@@ -6,6 +6,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { tashkentToday } from '@/lib/compliance';
 import { taxStatusLabels, type DriverLegalErrors, type DriverLegalForm } from '@/lib/driver-legal';
+import { isUzRegionCode, regionOptions } from '@/lib/uz-regions';
 import { t } from '@/locales';
 
 function taxStatusOptions() {
@@ -14,6 +15,17 @@ function taxStatusOptions() {
     { value: '', label: t().drivers.legal.modal.notEntered },
     { value: 'self_employed', label: labels.self_employed },
     { value: 'individual_entrepreneur', label: labels.individual_entrepreneur },
+  ];
+}
+
+/** Eski erkin matn ro'yxatda qoladi — saqlashda o'zgarmasa yuborilmaydi. */
+function licenceRegionOptions(current: string) {
+  const m = t().drivers.legal.modal;
+  const legacy = current.trim() && !isUzRegionCode(current.trim()) ? current.trim() : null;
+  return [
+    { value: '', label: m.regionNone },
+    ...(legacy ? [{ value: legacy, label: m.regionLegacy(legacy) }] : []),
+    ...regionOptions(),
   ];
 }
 
@@ -121,12 +133,12 @@ export function DriverLegalModal({ form, errors, saving, onChange, onClose, onSa
             error={errors.taxiLicenceNumber}
             onChange={(e) => onChange({ taxiLicenceNumber: e.target.value })}
           />
-          <Input
+          <Select
             label={m.licenceRegion}
-            maxLength={100}
-            placeholder={m.licenceRegionPlaceholder}
+            options={licenceRegionOptions(form.taxiLicenceRegion)}
             value={form.taxiLicenceRegion}
             error={errors.taxiLicenceRegion}
+            hint={m.regionHint}
             onChange={(e) => onChange({ taxiLicenceRegion: e.target.value })}
           />
           <button type="submit" hidden aria-hidden="true" tabIndex={-1} />

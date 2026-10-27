@@ -167,8 +167,14 @@ Sabab kodlari: `birth_date_missing`, `age_below_minimum`, `licence_date_missing`
 - **OFD/soliq.uz integratsiyasi** — hisob ma'lumotlari yo'q; hozir `noop`.
 - **Soliq to'lovi** — ushlab qolingan summani byudjetga o'tkazish va soliq organiga elektron
   hisobot yuborish qo'lda (CSV asosida). Avtomatik integratsiya yo'q.
-- **Hudud cheklovi** (buyurtma faqat litsenziya hududi va qo'shni hududlarda): `taxiLicenceRegion`
-  saqlanadi, lekin matching'da hali tekshirilmaydi — `cities` jadvali viloyatlarni modellashtirmaydi.
+- ~~**Hudud cheklovi**~~ — 2026-10-27 qilindi (migratsiya 044). `taxiLicenceRegion` endi ISO 3166-2:UZ
+  kodi (`UZ-TO`); eski erkin matn DTO'da kodga aylantiriladi, tanilmasa 400. `cities.region` — shahar
+  hududi; taksi zakazida matching faqat litsenziyasi shu yoki **chegaradosh** hududga tegishli
+  haydovchiga taklif yuboradi (`backend/src/common/regions/uz-regions.ts`). Hudud noma'lum bo'lsa
+  (haydovchi kiritmagan, eski matn tanilmagan, shaharga hudud berilmagan) — cheklanmaydi, panelda
+  belgilanadi (mahsulot qarori: pilotda dispetcherlik to'xtamasin). Ovqat/market/yuk — cheklovsiz.
+  ⚠️ Chegaradoshlik xaritasi yuridik tekshiruvdan o'tmagan (ishonch past: Navoiy — Qashqadaryo).
+  Shaharlarni boshqarish sahifasi panelda yo'q — `cities.region` migratsiya yoki API orqali.
 - **«Taksi pasporti»** mashinada bo'lishi — tizim tekshirmaydi (jismoniy hujjat).
 - Haydovchining o'zi kiritgan maydonlar (tug'ilgan sana, staj) — menejer hujjat bilan solishtirishi
   kerak; tasdiqlash oqimi faqat 4 ta hujjat uchun bor.

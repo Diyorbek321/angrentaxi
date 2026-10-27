@@ -44,6 +44,9 @@ interface DriverQueue {
   // sedanlarga tarqalib ketardi.
   serviceType: ServiceType;
   vehicleType: VehicleType | null;
+  // Olish nuqtasi shahrining hududi — taksi litsenziyasi hududi filtri.
+  // Eski navbatlarda yo'q (`undefined`) — cheklov qo'llanmaydi.
+  pickupRegion?: string | null;
   // Safar opsiyalari — xuddi shu sabab bilan navbatda saqlanadi: qayta
   // qidiruvda bola o'rindig'i so'ralgan safar o'rindiqsiz mashinaga ketmasin.
   tripOptions?: string[];
@@ -245,6 +248,7 @@ export class MatchingService {
       serviceType: order.serviceType ?? ServiceType.TAXI,
       vehicleType: tariff.vehicleType ?? null,
       tripOptions: order.options ?? [],
+      pickupRegion: await this.pickupRegionOf(order),
     };
 
     // ⚠️ SHARTLI: faqat CREATED dan. Yo'lovchi yaratgan zahoti bekor qilsa
@@ -272,6 +276,7 @@ export class MatchingService {
       serviceType: capabilities.serviceType ?? ServiceType.TAXI,
       vehicleType: capabilities.vehicleType ?? null,
       tripOptions: [...(capabilities.tripOptions ?? [])],
+      pickupRegion: capabilities.pickupRegion ?? null,
       payVendor: payVendorOf(order),
       radiusStepIndex: 0,
     };
@@ -531,6 +536,25 @@ export class MatchingService {
     }
   }
 
+  /**
+   * Taksi zakazining olish nuqtasi hududi (`orders.city_id` → `cities.region`).
+   * Taksi litsenziyasi faqat yo'lovchi tashishga tegishli — boshqa xizmatlarda
+   * `null`. O'qib bo'lmasa ham `null`: hudud filtri dispetcherlikni to'xtatmasin.
+   */
+  private async pickupRegionOf(order: Order): Promise<string | null> {
+    if ((order.serviceType ?? ServiceType.TAXI) !== ServiceType.TAXI || !order.cityId) return null;
+    try {
+      const rows: Array<{ region: string | null }> = await this.orderRepository.query(
+        `SELECT region FROM cities WHERE id = $1`,
+        [order.cityId],
+      );
+      return rows[0]?.region ?? null;
+    } catch (err) {
+      this.logger.warn(`Order ${order.id} pickup region lookup failed: ${(err as Error).message}`);
+      return null;
+    }
+  }
+
   /** Nearby drivers who are eligible, haven't refused, and aren't holding another order's offer. */
   private async findFreshCandidates(queue: DriverQueue, radiusKm: number): Promise<NearbyDriver[]> {
     const candidates = await this.driversService.getNearbyDrivers(
@@ -545,6 +569,7 @@ export class MatchingService {
         serviceType: queue.serviceType ?? ServiceType.TAXI,
         vehicleType: queue.vehicleType ?? null,
         tripOptions: queue.tripOptions ?? [],
+        pickupRegion: queue.pickupRegion ?? null,
       },
     );
 

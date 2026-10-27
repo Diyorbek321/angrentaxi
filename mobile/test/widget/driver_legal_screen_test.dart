@@ -155,6 +155,52 @@ void main() {
     expect(find.text('Huquqiy profil saqlandi'), findsOneWidget);
   });
 
+  group('litsenziya hududi', () {
+    testWidgets('serverdagi kod nomi bilan ko\'rinadi (xom "UZ-TO" emas)',
+        (tester) async {
+      when(() => api.get(ApiEndpoints.driverLegal)).thenAnswer((_) async => _ok(
+            ApiEndpoints.driverLegal,
+            _summary(profile: {'citizenship': 'UZ', 'taxiLicenceRegion': 'UZ-TO'}),
+          ));
+      await pump(tester);
+
+      expect(find.text('Toshkent viloyati'), findsOneWidget);
+      expect(find.text('UZ-TO'), findsNothing);
+    });
+
+    testWidgets("tanlangan hudud KOD bo'lib yuboriladi", (tester) async {
+      when(() => api.patch(ApiEndpoints.driverLegal, data: any(named: 'data')))
+          .thenAnswer((_) async => _ok(ApiEndpoints.driverLegal, _summary()));
+      await pump(tester);
+
+      await tester.tap(field('legal_tax_self_employed'));
+      await tester.pump();
+      await tester.enterText(field('legal_pinfl_field'), '12345678901234');
+      await tester.tap(field('legal_region_field'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Toshkent shahri').last);
+      await tester.pumpAndSettle();
+      await tester.tap(field('legal_save_button'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      final body = verify(() => api.patch(ApiEndpoints.driverLegal,
+          data: captureAny(named: 'data'))).captured.single as Map;
+      expect(body['taxiLicenceRegion'], 'UZ-TK');
+    });
+
+    testWidgets("eski erkin matn yo'qolmaydi va o'zgarmasa shundayligicha qoladi",
+        (tester) async {
+      when(() => api.get(ApiEndpoints.driverLegal)).thenAnswer((_) async => _ok(
+            ApiEndpoints.driverLegal,
+            _summary(profile: {'citizenship': 'UZ', 'taxiLicenceRegion': 'Angren'}),
+          ));
+      await pump(tester);
+
+      expect(find.textContaining('Angren'), findsOneWidget);
+    });
+  });
+
   group('kuryer hamyon rejimi', () {
     const message = "Hamyonda mablag' yetarli emas: do'konga 85 000 so'm "
         "o'tkazish kerak, balansingiz 10 000 so'm. Avval hamyonni to'ldiring.";

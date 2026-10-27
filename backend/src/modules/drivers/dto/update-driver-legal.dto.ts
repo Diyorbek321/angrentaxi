@@ -1,5 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString, Matches, MaxLength, ValidateIf } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsEnum, IsIn, IsOptional, IsString, Matches, MaxLength, ValidateIf } from 'class-validator';
+import { normalizeRegion, UZ_REGION_CODES, UzRegionCode } from '../../../common/regions/uz-regions';
 import { DriverTaxStatus } from '../../../database/entities/driver.entity';
 
 const ISO_DATE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
@@ -47,12 +49,20 @@ export class UpdateDriverLegalDto {
   @MaxLength(50)
   taxiLicenceNumber?: string | null;
 
-  @ApiPropertyOptional({ example: 'Toshkent viloyati', nullable: true })
+  /**
+   * Hudud kodi (ISO 3166-2:UZ). Eski ilova erkin matn yuboradi ("Toshkent
+   * viloyati") — kodga aylantiriladi; tanilmasa 400, bo'sh satr — tozalash.
+   */
+  @ApiPropertyOptional({ enum: UZ_REGION_CODES, example: 'UZ-TO', nullable: true })
   @IsOptional()
+  @Transform(({ value }: { value: unknown }) => {
+    if (value === null || value === undefined) return value;
+    if (typeof value === 'string' && value.trim() === '') return null;
+    return typeof value === 'string' ? (normalizeRegion(value) ?? value) : value;
+  })
   @ValidateIf((_o, value) => value !== null)
-  @IsString()
-  @MaxLength(100)
-  taxiLicenceRegion?: string | null;
+  @IsIn(UZ_REGION_CODES, { message: "taxiLicenceRegion ro'yxatdagi hududlardan biri bo'lishi kerak" })
+  taxiLicenceRegion?: UzRegionCode | null;
 
   @ApiPropertyOptional({ example: 'UZ', description: 'ISO 3166-1 alpha-2' })
   @IsOptional()

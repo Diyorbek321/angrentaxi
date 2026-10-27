@@ -636,7 +636,7 @@ export class DriversService implements OnModuleInit {
       // haydovchi geo-to'plamda qolib ketgan bo'lsa ham nomzod bo'lmaydi.
       const drivers = await this.driverRepository.find({
         where: { id: In(hits.map((h) => h.driverId)), user: { status: UserStatus.ACTIVE } },
-        select: ['id', 'userId', 'approvedTariffTier', 'serviceTypes', 'vehicleType', 'amenities'],
+        select: ['id', 'userId', 'approvedTariffTier', 'serviceTypes', 'vehicleType', 'amenities', 'taxiLicenceRegion'],
       });
       const byId = new Map(drivers.map((d) => [d.id, d]));
 
