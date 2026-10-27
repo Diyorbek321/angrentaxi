@@ -10,6 +10,7 @@
 
 import { AdBanner } from './entities/ad-banner.entity';
 import { AdBannerDailyStat } from './entities/ad-banner-daily-stat.entity';
+import { AppFunnelDaily } from './entities/app-funnel-daily.entity';
 import { AuditLog } from './entities/audit-log.entity';
 import { City } from './entities/city.entity';
 import { CourierWalletReminder } from './entities/courier-wallet-reminder.entity';
@@ -68,6 +69,7 @@ import { WithdrawalRequest } from './entities/withdrawal-request.entity';
 export const ENTITIES = [
   AdBanner,
   AdBannerDailyStat,
+  AppFunnelDaily,
   AuditLog,
   City,
   CourierWalletReminder,
