@@ -20,6 +20,14 @@
 # ham berilsa, har reliz simvollari va obfuskatsiya xaritasi Sentry'ga
 # yuklanadi (aks holda Sentry'dagi stek o'qib bo'lmas bo'ladi).
 #
+# VERSIYA. `versionCode` (Android) har reliz OSHISHI shart: aks holda Play
+# yangilanishni rad etadi, telefon esa eski APK ustiga o'rnatmaydi, Sentry va
+# support buildlarni ajrata olmaydi. Avtomatik — git'dagi commitlar soni
+# (`main` dan yig'ing); qo'lda berish: `BUILD_NUMBER=123`.
+#
+# Sentry DSN'siz reliz yig'ilmaydi — production'dagi yiqilishlar ko'rinmay
+# qolardi. Ataylab DSN'siz (masalan ichki test) yig'ish: `ALLOW_NO_SENTRY=1`.
+#
 # Ishlatish (mobile/ ichidan):
 #   API_BASE_URL=https://<domen>/api/v1 WS_URL=https://<domen> tool/build_release.sh
 set -euo pipefail
@@ -37,16 +45,34 @@ else
   defines_args=(--dart-define-from-file="$defines_file")
 fi
 
-version="$(sed -n 's/^version: *//p' pubspec.yaml)"
+sentry_args=()
+if [[ -n "${SENTRY_DSN:-}" ]]; then
+  sentry_args=(--dart-define=SENTRY_DSN="$SENTRY_DSN")
+elif [[ ! -f "$defines_file" ]] || ! grep -q '"SENTRY_DSN" *: *"[^"]' "$defines_file"; then
+  if [[ "${ALLOW_NO_SENTRY:-}" != "1" ]]; then
+    echo "❌ SENTRY_DSN yo'q ($defines_file yoki muhit o'zgaruvchisi)." >&2
+    echo "   Yiqilishlarsiz reliz kerak bo'lsa: ALLOW_NO_SENTRY=1" >&2
+    exit 1
+  fi
+  echo "⚠️  SENTRY_DSN'siz build — yiqilishlar yuborilmaydi" >&2
+fi
+
+version_name="$(sed -n 's/^version: *//p' pubspec.yaml | cut -d+ -f1)"
+build_number="${BUILD_NUMBER:-$(git rev-list --count HEAD)}"
+# sentry_flutter relizni `<applicationId>@<name>+<code>` deb nomlaydi.
+version="${version_name}+${build_number}"
+echo "==> versiya $version"
 
 for flavor in passenger driver; do
   echo "==> $flavor"
   flutter build apk --release \
     --flavor "$flavor" -t "lib/main_${flavor}.dart" \
     --split-per-abi \
+    --build-name="$version_name" --build-number="$build_number" \
     --obfuscate --split-debug-info="build/symbols/$flavor" \
     --extra-gen-snapshot-options=--save-obfuscation-map="build/symbols/$flavor/obfuscation.map.json" \
     "${defines_args[@]}" \
+    "${sentry_args[@]}" \
     --dart-define=API_BASE_URL="$API_BASE_URL" \
     --dart-define=WS_URL="$WS_URL"
 
