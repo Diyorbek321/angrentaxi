@@ -1,8 +1,11 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
+import 'package:angren_taxi/core/platform/secure_screen.dart';
+import 'package:angren_taxi/features/payments/payment_url_policy.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/payment_initiate_result.dart';
 import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 /// Signature used to open the hosted checkout page after
@@ -35,7 +38,7 @@ typedef OpenPaymentCheckout = Future<bool?> Function(
 /// `GET /payments/transactions` independently of what this screen reports.
 /// Ilovaning o'z sxemasi (`angrengo://…`) — to'lov sahifasidan qaytish.
 bool isAppReturnUrl(String url) =>
-    Uri.tryParse(url)?.scheme.toLowerCase() == 'angrengo';
+    classifyPaymentNavigation(url) == PaymentNavigation.appReturn;
 
 class PaymentWebViewScreen extends StatefulWidget {
   const PaymentWebViewScreen({super.key, required this.result});
@@ -51,34 +54,78 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
   bool _loading = true;
   String? _loadError;
 
+  /// Serverdan kelgan sahifa ma'lum provayderniki emas — ochilmaydi.
+  bool _untrusted = false;
+
   @override
   void initState() {
     super.initState();
+    // Karta raqami va SMS kodi skrinshotga, ekran yozuviga va "so'nggi
+    // ilovalar" rasmiga tushmasin.
+    SecureScreen.instance.acquire();
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
         NavigationDelegate(
-          // Hamyonni to'ldirishdan qaytish havolasi
-          // (`angrengo://wallet/topup/<id>`, WALLET_TOPUP_RETURN_URL): WebView
-          // bu sxemani ocholmaydi (ERR_UNKNOWN_URL_SCHEME) — sahifa yopiladi,
-          // chaqiruvchi ekran holatni serverdan so'raydi. Qaytish to'lovni
-          // tasdiqlamaydi.
+          // Siyosat: `payment_url_policy.dart`.
           onNavigationRequest: (request) {
-            if (isAppReturnUrl(request.url)) {
-              _finish(true);
-              return NavigationDecision.prevent;
+            switch (classifyPaymentNavigation(request.url)) {
+              // Hamyonni to'ldirishdan qaytish havolasi
+              // (`angrengo://wallet/topup/<id>`, WALLET_TOPUP_RETURN_URL) —
+              // sahifa yopiladi, chaqiruvchi ekran holatni serverdan
+              // so'raydi. Qaytish to'lovni tasdiqlamaydi.
+              case PaymentNavigation.appReturn:
+                _finish(true);
+                return NavigationDecision.prevent;
+              case PaymentNavigation.allow:
+                return NavigationDecision.navigate;
+              case PaymentNavigation.external:
+                _openExternally(request.url);
+                return NavigationDecision.prevent;
+              case PaymentNavigation.block:
+                return NavigationDecision.prevent;
             }
-            return NavigationDecision.navigate;
           },
           onPageStarted: (_) => setState(() => _loading = true),
           onPageFinished: (_) => setState(() => _loading = false),
-          onWebResourceError: (error) => setState(() {
-            _loading = false;
-            _loadError = error.description;
-          }),
+          // Faqat asosiy sahifa xatosi: bitta rasm yoki analitika skripti
+          // yuklanmasa butun to'lov oynasi xato ekraniga almashardi.
+          onWebResourceError: (error) {
+            if (error.isForMainFrame == false) return;
+            setState(() {
+              _loading = false;
+              _loadError = error.description;
+            });
+          },
         ),
-      )
-      ..loadRequest(Uri.parse(widget.result.url));
+      );
+    _loadCheckout();
+  }
+
+  void _loadCheckout() {
+    if (!isTrustedCheckoutUrl(widget.result.url)) {
+      _loading = false;
+      _untrusted = true;
+      return;
+    }
+    _controller.loadRequest(Uri.parse(widget.result.url));
+  }
+
+  Future<void> _openExternally(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      // Bank ilovasi o'rnatilmagan — provayder sahifasi odatda boshqa yo'l
+      // taklif qiladi, WebView o'z joyida qoladi.
+    }
+  }
+
+  @override
+  void dispose() {
+    SecureScreen.instance.release();
+    super.dispose();
   }
 
   void _finish(bool completed) {
@@ -122,15 +169,17 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
                 backgroundColor: kSurface2,
               ),
             Expanded(
-              child: _loadError != null
-                  ? _ErrorState(
-                      message: _loadError!,
-                      onRetry: () {
-                        setState(() => _loadError = null);
-                        _controller.loadRequest(Uri.parse(widget.result.url));
-                      },
-                    )
-                  : WebViewWidget(controller: _controller),
+              child: _untrusted
+                  ? AppErrorState(message: context.l10n.saPaymentUntrustedPage)
+                  : _loadError != null
+                      ? _ErrorState(
+                          message: _loadError!,
+                          onRetry: () {
+                            setState(() => _loadError = null);
+                            _loadCheckout();
+                          },
+                        )
+                      : WebViewWidget(controller: _controller),
             ),
             SafeArea(
               top: false,

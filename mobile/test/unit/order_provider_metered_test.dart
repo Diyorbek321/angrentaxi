@@ -45,7 +45,8 @@ void main() {
   setUp(() {
     api = MockApiClient();
     provider = OrderProvider(apiClient: api, socketService: SocketService());
-    when(() => api.post(ApiEndpoints.createOrder, data: any(named: 'data')))
+    when(() => api.post(ApiEndpoints.createOrder, data: any(named: 'data'),
+          headers: any(named: 'headers')))
         .thenAnswer((_) async => _ok(_created()));
     when(() => api.get(any(), params: any(named: 'params')))
         .thenAnswer((_) async => _ok(<dynamic>[]));
@@ -54,7 +55,8 @@ void main() {
   });
 
   Map<String, dynamic> sentBody() =>
-      verify(() => api.post(ApiEndpoints.createOrder, data: captureAny(named: 'data')))
+      verify(() => api.post(ApiEndpoints.createOrder, data: captureAny(named: 'data'),
+          headers: any(named: 'headers')))
           .captured
           .single as Map<String, dynamic>;
 
@@ -75,7 +77,8 @@ void main() {
 
   test('without metered and without a destination nothing is sent', () async {
     expect(await provider.createOrder(), isFalse);
-    verifyNever(() => api.post(ApiEndpoints.createOrder, data: any(named: 'data')));
+    verifyNever(() => api.post(ApiEndpoints.createOrder, data: any(named: 'data'),
+          headers: any(named: 'headers')));
   });
 
   test('picking a destination afterwards cancels the metered choice', () {

@@ -4,16 +4,79 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import android.provider.Settings
 import io.flutter.plugin.common.MethodChannel
+import android.app.KeyguardManager
 import android.content.Intent
+import android.os.Build
+import android.os.Bundle
+import android.view.WindowManager
 
 class MainActivity : FlutterActivity() {
     private var pushChannel: MethodChannel? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        showOverLockScreenIfOffer(intent)
+    }
 
     /** Ilova ochiq turganda chiqqan bildirishnoma bosildi → Dart (`tapped`). */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        showOverLockScreenIfOffer(intent)
         takePushData(intent)?.let { pushChannel?.invokeMethod("tapped", it) }
+    }
+
+    /**
+     * Zakaz bildirishnomasining full-screen intent'i (DriverOverlay) —
+     * ekranni yoqib, taklifni qulf USTIDA ko'rsatadi. Faqat shu holatda:
+     * ilova odatda qulf ostida yashirin qoladi.
+     */
+    private fun showOverLockScreenIfOffer(intent: Intent?) {
+        if (intent?.getBooleanExtra(DriverOverlay.EXTRA_OFFER_ALERT, false) != true) return
+        intent.removeExtra(DriverOverlay.EXTRA_OFFER_ALERT)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        } else {
+            @Suppress("DEPRECATION")
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
+            )
+        }
+    }
+
+    /**
+     * Taklif hal bo'ldi: qulf ustida ko'rsatish to'xtaydi. Telefon hali
+     * qulflangan bo'lsa avval qulfni ochish so'raladi (safar ilovada davom
+     * etadi); bekor qilinsa — ilova qulf ostiga qaytadi.
+     */
+    private fun releaseLockScreen() {
+        val keyguard = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
+        val clear = {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                setShowWhenLocked(false)
+                setTurnScreenOn(false)
+            } else {
+                @Suppress("DEPRECATION")
+                window.clearFlags(
+                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
+                )
+            }
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && keyguard.isKeyguardLocked) {
+            keyguard.requestDismissKeyguard(
+                this,
+                object : KeyguardManager.KeyguardDismissCallback() {
+                    override fun onDismissSucceeded() = clear()
+                    override fun onDismissCancelled() = clear()
+                    override fun onDismissError() = clear()
+                },
+            )
+        } else {
+            clear()
+        }
     }
 
     /** Bir marta o'qiladi: ekran burilganda yoki qayta ochilganda takrorlanmasin. */
@@ -51,6 +114,9 @@ class MainActivity : FlutterActivity() {
                     }
                     "cancelOfferNotification" -> {
                         DriverOverlay.cancelOfferNotification(ctx); result.success(null)
+                    }
+                    "releaseLockScreen" -> {
+                        releaseLockScreen(); result.success(null)
                     }
                     else -> result.notImplemented()
                 }
@@ -98,6 +164,22 @@ class MainActivity : FlutterActivity() {
                     "deviceId" -> result.success(
                         Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID),
                     )
+                    else -> result.notImplemented()
+                }
+            }
+
+        // Maxfiy ekranlar (OTP, to'lov, KYC) — lib/core/platform/secure_screen.dart
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "uz.angren.taxi/secure")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "setSecure" -> {
+                        if (call.argument<Boolean>("secure") == true) {
+                            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                        } else {
+                            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                        }
+                        result.success(null)
+                    }
                     else -> result.notImplemented()
                 }
             }

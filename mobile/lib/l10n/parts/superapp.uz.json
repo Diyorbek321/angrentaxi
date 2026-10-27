@@ -521,5 +521,6 @@
   "saStoreUnavailable": "Bu do'kon hozir buyurtma qabul qilmayapti",
   "saAddedToCart": "Savatga qo'shildi",
   "saMarketSearchAllHint": "Mahsulot qidirish — barcha do'konlardan",
-  "saMarketStores": "Do'konlar"
+  "saMarketStores": "Do'konlar",
+  "saPaymentUntrustedPage": "Bu to'lov sahifasi tanish provayderga tegishli emas, shuning uchun ochilmadi. Qo'llab-quvvatlash xizmatiga yozing."
 }

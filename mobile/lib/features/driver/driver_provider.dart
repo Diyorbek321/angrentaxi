@@ -9,6 +9,7 @@ import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/core/network/api_error.dart';
+import 'package:angren_taxi/core/observability/crash_reporting.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
 import 'package:angren_taxi/core/storage/local_storage.dart';
 import 'package:angren_taxi/features/driver/legal/legal_rejection.dart';
@@ -217,6 +218,13 @@ class DriverProvider extends ChangeNotifier {
   bool get isSubmittingWithdrawal => _isSubmittingWithdrawal;
   String? get withdrawalError => _withdrawalError;
   Position? get lastKnownPosition => _lastKnownPosition;
+
+  /// Har bir GPS fiksi (serverga yuborilmaganlari ham) — bosh ekrandagi
+  /// mashina markeri uchun. ⚠️ `notifyListeners` EMAS: fiks bir necha
+  /// soniyada keladi, provayderni tinglovchi barcha ekranlar qayta
+  /// qurilmasin — faqat xarita tinglaydi.
+  ValueListenable<Position?> get livePosition => _livePosition;
+  final ValueNotifier<Position?> _livePosition = ValueNotifier(null);
   DriverEarningsBreakdown get earningsBreakdown => _earningsBreakdown;
   List<DriverBonusProgress> get bonusProgress =>
       List.unmodifiable(_bonusProgress);
@@ -286,7 +294,35 @@ class DriverProvider extends ChangeNotifier {
     _socketService.addReconnectListener(_onSocketReconnected);
   }
 
-  void _onSocketReconnected() => resyncPendingOffer();
+  /// Socket qayta ulandi yoki ilova fondan qaytdi: uzilish paytida
+  /// yo'qolgan hodisalar o'rniga holat serverdan olinadi.
+  void _onSocketReconnected() {
+    unawaited(resyncActiveTrip());
+    unawaited(resyncPendingOffer());
+  }
+
+  /// Faol safar holatini serverdan qayta oladi (`GET /orders/:id`).
+  ///
+  /// Socket uzilgan paytda yo'lovchi bekor qilsa, `order:cancelled` hodisasi
+  /// yo'qoladi va haydovchi bekor qilingan safarni davom ettiraverardi.
+  /// Xato bo'lsa hech narsa o'zgarmaydi — keyingi ulanishda yana uriniladi.
+  Future<void> resyncActiveTrip() async {
+    final active = _activeOrder;
+    if (active == null || !active.isActive) return;
+    try {
+      final response = await _apiClient.get(ApiEndpoints.orderById(active.id));
+      final body = response.data;
+      final data = body is Map<String, dynamic> ? body['data'] : null;
+      if (data is! Map<String, dynamic>) return;
+      final fresh = Order.fromJson(data);
+      // So'rov davomida safar almashgan yoki tugatilgan bo'lsa — tegilmaydi.
+      if (_activeOrder?.id != fresh.id || _activeOrder == fresh) return;
+      _activeOrder = fresh;
+      notifyListeners();
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'DriverProvider.resyncActiveTrip');
+    }
+  }
 
   /// Taklifni serverdan tiklaydi (`GET /orders/offer/current`).
   ///
@@ -304,8 +340,8 @@ class DriverProvider extends ChangeNotifier {
       if (offer?.id == _pendingOffer?.id && offer != null) return;
       _pendingOffer = offer;
       notifyListeners();
-    } catch (e) {
-      debugPrint('[DriverProvider] resyncPendingOffer error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'DriverProvider.resyncPendingOffer');
     }
   }
 
@@ -315,8 +351,8 @@ class DriverProvider extends ChangeNotifier {
       final data = response.data as Map<String, dynamic>;
       _driver = Driver.fromJson(data['data'] as Map<String, dynamic>);
       notifyListeners();
-    } catch (e) {
-      debugPrint('[DriverProvider] loadProfile error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'DriverProvider.loadProfile');
     }
   }
 
@@ -395,8 +431,8 @@ class DriverProvider extends ChangeNotifier {
           .map((e) => DriverDocument.fromJson(e as Map<String, dynamic>))
           .toList();
       notifyListeners();
-    } catch (e) {
-      debugPrint('[DriverProvider] loadDriverDocuments error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'DriverProvider.loadDriverDocuments');
     }
   }
 
@@ -675,17 +711,25 @@ class DriverProvider extends ChangeNotifier {
     }
   }
 
+  /// Bosh ekran har safardan keyin qayta quriladi va [initialize] ni yana
+  /// chaqiradi. Bayroqsiz har safar tinglovchilar ustma-ust qo'shilardi:
+  /// N safardan keyin `wallet:updated` N marta ishlanib, hold summasi N
+  /// barobar oshardi.
+  bool _socketListening = false;
+
   void _listenToSocketEvents() {
-    _socketService.on(SocketEvents.newOrderOffer, (data) {
-      if (data is Map<String, dynamic>) {
-        _pendingOffer = Order.fromJson(data);
-        notifyListeners();
-      }
-    });
-
+    if (_socketListening) return;
+    _socketListening = true;
+    _socketService.on(SocketEvents.newOrderOffer, _onNewOrderOffer);
     _socketService.on(SocketEvents.walletUpdated, _onWalletUpdated);
-
     _socketService.on(SocketEvents.orderCancelled, applyOrderCancelled);
+  }
+
+  void _onNewOrderOffer(dynamic data) {
+    if (data is Map<String, dynamic>) {
+      _pendingOffer = Order.fromJson(data);
+      notifyListeners();
+    }
   }
 
   /// `order:cancelled {orderId, reason}` — faqat O'SHA buyurtmaga tegadi.
@@ -882,6 +926,7 @@ class DriverProvider extends ChangeNotifier {
       ),
     )
         .listen((position) {
+      _livePosition.value = position;
       // Masofa filtri o'zi yetarli emas — tirbandlikda mashina 10 m
       // yurmaydi va marker yo'lovchi ekranida muzlab qoladi.
       if (_pingGate.shouldEmit(
@@ -948,8 +993,8 @@ class DriverProvider extends ChangeNotifier {
       _hasIntercityInFlight = orders.any(
           (o) => o.isActive && o.serviceType == kServiceTypeIntercity);
       notifyListeners();
-    } catch (e) {
-      debugPrint('[DriverProvider] checkActiveOrder error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'DriverProvider.checkActiveOrder');
     }
   }
 
@@ -976,8 +1021,8 @@ class DriverProvider extends ChangeNotifier {
       final payload = data['data'] as Map<String, dynamic>;
       _todayEarnings = (payload['today'] as num?)?.toDouble() ?? 0;
       notifyListeners();
-    } catch (e) {
-      debugPrint('[DriverProvider] loadEarnings error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'DriverProvider.loadEarnings');
     }
   }
 
@@ -994,8 +1039,8 @@ class DriverProvider extends ChangeNotifier {
         data['data'] as Map<String, dynamic>,
       );
       notifyListeners();
-    } catch (e) {
-      debugPrint('[DriverProvider] loadEarningsBreakdown error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'DriverProvider.loadEarningsBreakdown');
     }
   }
 
@@ -1011,8 +1056,8 @@ class DriverProvider extends ChangeNotifier {
               DriverBonusProgress.fromJson(e as Map<String, dynamic>))
           .toList();
       notifyListeners();
-    } catch (e) {
-      debugPrint('[DriverProvider] loadBonusProgress error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'DriverProvider.loadBonusProgress');
     }
   }
 
@@ -1033,8 +1078,8 @@ class DriverProvider extends ChangeNotifier {
       _ratingStats =
           DriverRatingStats.fromJson(data['data'] as Map<String, dynamic>);
       notifyListeners();
-    } catch (e) {
-      debugPrint('[DriverProvider] loadRatingStats error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'DriverProvider.loadRatingStats');
     }
   }
 
@@ -1062,8 +1107,8 @@ class DriverProvider extends ChangeNotifier {
           (payload['withdrawalHoldDays'] as num?)?.round() ?? 0;
       _withdrawalBonus = (payload['bonusBalance'] as num?)?.toDouble();
       notifyListeners();
-    } catch (e) {
-      debugPrint('[DriverProvider] loadWalletBalance error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'DriverProvider.loadWalletBalance');
     }
   }
 
@@ -1129,8 +1174,8 @@ class DriverProvider extends ChangeNotifier {
           .map((e) => WithdrawalRequest.fromJson(e as Map<String, dynamic>))
           .toList();
       notifyListeners();
-    } catch (e) {
-      debugPrint('[DriverProvider] loadWithdrawals error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'DriverProvider.loadWithdrawals');
     }
   }
 
@@ -1156,11 +1201,12 @@ class DriverProvider extends ChangeNotifier {
   @override
   void dispose() {
     _stopLocationUpdates();
-    _socketService.off(SocketEvents.newOrderOffer);
-    _socketService.off(SocketEvents.orderCancelled);
+    _socketService.off(SocketEvents.newOrderOffer, _onNewOrderOffer);
+    _socketService.off(SocketEvents.orderCancelled, applyOrderCancelled);
     _socketService.removeReconnectListener(_onSocketReconnected);
     _socketService.off(SocketEvents.walletUpdated, _onWalletUpdated);
     _walletUpdates.close();
+    _livePosition.dispose();
     super.dispose();
   }
 }

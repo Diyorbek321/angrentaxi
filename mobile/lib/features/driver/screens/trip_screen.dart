@@ -75,10 +75,13 @@ class TripScreen extends StatefulWidget {
 
 class _TripScreenState extends State<TripScreen> {
   ml.MapLibreMapController? _mapController;
-  LatLng _currentLocation = const LatLng(
-    AppConfig.defaultLat,
-    AppConfig.defaultLng,
+  /// Haydovchining joyi. ⚠️ `setState` EMAS: GPS 5 metrda bir keladi va
+  /// ilgari har biri butun ekranni (panel, tugmalar, barcha markerlar)
+  /// qayta qurardi. Endi faqat xarita va manevr banneri tinglaydi.
+  final ValueNotifier<LatLng> _location = ValueNotifier(
+    const LatLng(AppConfig.defaultLat, AppConfig.defaultLng),
   );
+  LatLng get _currentLocation => _location.value;
   /// Safar soati shu paytdan sanaydi. Soniya sanog'i [_TripClock] ichida:
   /// ilgari bu yerdagi `Timer` har soniyada `setState` chaqirib, butun
   /// ekranni (xarita, panel, kartalar) qayta qurardi.
@@ -122,7 +125,7 @@ class _TripScreenState extends State<TripScreen> {
   @override
   void dispose() {
     _positionSubscription?.cancel();
-    _guidance?.removeListener(_onGuidanceChanged);
+    _location.dispose();
     // Ovoz ham to'xtaydi — safar tugagan ekranda burilish haqida gapirmasin.
     _guidance?.dispose();
     super.dispose();
@@ -143,7 +146,9 @@ class _TripScreenState extends State<TripScreen> {
     if (order.isMetered || _guidance != null) return;
     final guidance = widget.guidance ??
         TurnByTurnGuidance(routes: sl<RouteService>(), voice: sl<VoiceGuide>());
-    _guidance = guidance..addListener(_onGuidanceChanged);
+    // Banner va marshrut chizig'i yo'l-yo'riqni o'zlari tinglaydi
+    // (`ListenableBuilder`); bu yerda faqat bir marta — ular paydo bo'lsin.
+    setState(() => _guidance = guidance);
     await guidance.start(
       _currentLocation,
       LatLng(order.dropoff.lat, order.dropoff.lng),
@@ -164,23 +169,17 @@ class _TripScreenState extends State<TripScreen> {
   void _onPosition(Position position) {
     if (!mounted) return;
     final here = LatLng(position.latitude, position.longitude);
-    setState(() => _currentLocation = here);
+    _location.value = here;
     _guidance?.onPosition(here);
     _followingDriver = true;
     _followDriver();
-  }
-
-  void _onGuidanceChanged() {
-    if (mounted) setState(() {});
   }
 
   Future<void> _initLocation() async {
     final locationService = sl<LocationService>();
     final position = await locationService.getCurrentPosition();
     if (position != null && mounted) {
-      setState(() {
-        _currentLocation = LatLng(position.latitude, position.longitude);
-      });
+      _location.value = LatLng(position.latitude, position.longitude);
       // Ilgari bu yerda `newLatLngZoom` bor edi — u mashinani ekran
       // MARKAZIGA qo'yardi, markaz esa sheet ostida qoladi. Endi kamera
       // ochiq maydonga moslanadi (pastdagi "TO'LDIRILGAN TO'RTBURCHAK").
@@ -709,30 +708,39 @@ class _TripScreenState extends State<TripScreen> {
   }
 
   Widget _buildMap(Order order) {
-    return AppVectorMap(
-      initialCenter: _currentLocation,
-      initialZoom: 15,
-      onMapCreated: _onMapCreated,
-      markers: [
-        AppMapMarker(point: _currentLocation, icon: AppMapIcon.car),
-        for (final w in order.waypoints)
-          AppMapMarker(point: LatLng(w.lat, w.lng), icon: AppMapIcon.waypoint),
-        // Taksometrda `dropoff` = olish nuqtasi — manzil belgisi chizilmaydi.
-        if (!order.isMetered)
-          AppMapMarker(
-            point: LatLng(order.dropoff.lat, order.dropoff.lng),
-            icon: AppMapIcon.dropoff,
-          ),
-      ],
-      // Haqiqiy yo'l chizig'i (ilova ichidagi navigatsiya yuklagan).
-      route: _guidance?.routePoints ?? const [],
-      // Kamerani O'ZIMIZ boshqaramiz — yuqoridagi "TO'LDIRILGAN
-      // TO'RTBURCHAK" izohiga qarang.
-      fitToContent: false,
-      // Navigator ko'rinishi — olib ketishga borishdagi ekran bilan bir xil:
-      // egilgan kamera va tunda qora xarita (`navigation_screen.dart`).
-      tilt: 45,
-      style: MapStyleLoader.styleForNow(),
+    final guidance = _guidance;
+    // Markerlar safar davomida o'zgarmaydi — GPS kelganda xarita ularni
+    // qayta chizmaydi (`AppVectorMap._sameMarkers`), faqat mashina suriladi.
+    final markers = [
+      for (final w in order.waypoints)
+        AppMapMarker(point: LatLng(w.lat, w.lng), icon: AppMapIcon.waypoint),
+      // Taksometrda `dropoff` = olish nuqtasi — manzil belgisi chizilmaydi.
+      if (!order.isMetered)
+        AppMapMarker(
+          point: LatLng(order.dropoff.lat, order.dropoff.lng),
+          icon: AppMapIcon.dropoff,
+        ),
+    ];
+    return ListenableBuilder(
+      listenable: Listenable.merge([_location, if (guidance != null) guidance]),
+      builder: (context, _) => AppVectorMap(
+        initialCenter: _currentLocation,
+        initialZoom: 15,
+        onMapCreated: _onMapCreated,
+        // O'z mashinasi — silliq suriladi va yo'nalish bo'yicha buriladi
+        // (statik marker har GPS'da "sakrardi").
+        carLocation: _currentLocation,
+        markers: markers,
+        // Haqiqiy yo'l chizig'i (ilova ichidagi navigatsiya yuklagan).
+        route: guidance?.routePoints ?? const [],
+        // Kamerani O'ZIMIZ boshqaramiz — yuqoridagi "TO'LDIRILGAN
+        // TO'RTBURCHAK" izohiga qarang.
+        fitToContent: false,
+        // Navigator ko'rinishi — olib ketishga borishdagi ekran bilan bir xil:
+        // egilgan kamera va tunda qora xarita (`navigation_screen.dart`).
+        tilt: 45,
+        style: MapStyleLoader.styleForNow(),
+      ),
     );
   }
 
@@ -831,14 +839,25 @@ class _TripScreenState extends State<TripScreen> {
         ),
             // Navigatsiya ko'rsatmasi — holat qatori OSTIDA, haydovchi nigohi
             // tushadigan joyda (olishga borish ekranidagi bilan bir xil).
-            if (_guidance?.progress?.step case final step?) ...[
-              const SizedBox(height: kSpace2),
-              ManeuverBanner(
-                step: step,
-                instruction: _guidance!.progress!.instruction,
-                distanceMeters: _guidance!.progress!.distanceToManeuverMeters,
+            if (_guidance case final guidance?)
+              ListenableBuilder(
+                listenable: guidance,
+                builder: (context, _) {
+                  final progress = guidance.progress;
+                  final step = progress?.step;
+                  if (progress == null || step == null) {
+                    return const SizedBox.shrink();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.only(top: kSpace2),
+                    child: ManeuverBanner(
+                      step: step,
+                      instruction: progress.instruction,
+                      distanceMeters: progress.distanceToManeuverMeters,
+                    ),
+                  );
+                },
               ),
-            ],
           ],
         ),
       ),

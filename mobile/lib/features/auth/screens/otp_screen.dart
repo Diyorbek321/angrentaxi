@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/config/app_haptics.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
+import 'package:angren_taxi/core/platform/secure_screen.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
@@ -30,11 +31,14 @@ class _OtpScreenState extends State<OtpScreen> {
   @override
   void initState() {
     super.initState();
+    // SMS kodi skrinshot va "so'nggi ilovalar" rasmiga tushmasin.
+    SecureScreen.instance.acquire();
     _startCountdown();
   }
 
   @override
   void dispose() {
+    SecureScreen.instance.release();
     _timer?.cancel();
     _otpController.dispose();
     super.dispose();

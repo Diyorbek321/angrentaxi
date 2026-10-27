@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:angren_taxi/core/config/app_platform.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
+import 'package:angren_taxi/core/platform/secure_screen.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/driver/legal/legal_document_labels.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
@@ -50,9 +51,17 @@ class _DriverVerificationScreenState extends State<DriverVerificationScreen> {
   @override
   void initState() {
     super.initState();
+    // Pasport, haydovchilik guvohnomasi va selfi rasmlari ekranda.
+    SecureScreen.instance.acquire();
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => context.read<DriverProvider>().loadDriverVerification(),
     );
+  }
+
+  @override
+  void dispose() {
+    SecureScreen.instance.release();
+    super.dispose();
   }
 
   Future<void> _pickAndUpload(DriverVerificationItem item) async {

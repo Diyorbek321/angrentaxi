@@ -35,8 +35,20 @@ import kotlin.math.abs
  * applicationContext orqali.
  */
 object DriverOverlay {
-    private const val CHANNEL_ID = "driver_offers"
+    // ⚠️ Kanal sozlamasi (ovoz, muhimlik) yaratilgandan keyin O'ZGARMAYDI.
+    // Qo'ng'iroqdek jiringlash uchun yangi id; eskisi o'chiriladi.
+    private const val CHANNEL_ID = "driver_offers_ring"
+    private const val LEGACY_CHANNEL_ID = "driver_offers"
     private const val NOTIFICATION_ID = 4201
+
+    /**
+     * Taklif 15 s yashaydi (backend OFFER_TIMEOUT_MS). Odatda Dart uni bekor
+     * qiladi; bu — zaxira: Dart o'lgan bo'lsa ham jiringlash 30 s da to'xtaydi.
+     */
+    private const val OFFER_TIMEOUT_MS = 30_000L
+
+    /** MainActivity shu belgini ko'rsa, bloklangan ekran ustida ochiladi. */
+    const val EXTRA_OFFER_ALERT = "uz.angren.taxi.OFFER_ALERT"
 
     private var bubble: View? = null
     private var lastX = 0
@@ -160,23 +172,42 @@ object DriverOverlay {
     }
 
     /**
-     * Zaxira: ilovani ochib bo'lmasa ham haydovchi zakazni ESHITSIN.
-     * Yuqori muhimlik — ekran tepasida chiqadi; bosilsa ilova ochiladi.
+     * Zakaz — kiruvchi qo'ng'iroq kabi: ekran o'chiq va telefon qulflangan
+     * bo'lsa ham ekran yonadi va taklif qulf ustida ochiladi (full-screen
+     * intent), ovoz taklif hal bo'lguncha takrorlanadi (FLAG_INSISTENT).
+     *
+     * Ilgari oddiy bildirishnoma bir marta "dzin" qilardi, ekran yonmasdi —
+     * cho'ntakdagi telefonda 15 soniyalik taklif ko'pincha o'tib ketardi.
+     *
+     * Android 14+ da USE_FULL_SCREEN_INTENT faqat qo'ng'iroq/budilnik
+     * ilovalariga avtomatik beriladi; berilmasa tizim baribir yuqori
+     * muhimlikdagi (heads-up) bildirishnoma ko'rsatadi — yiqilmaydi.
      */
     fun showOfferNotification(context: Context, title: String, text: String, channelName: String) {
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && nm.getNotificationChannel(CHANNEL_ID) == null) {
+            nm.deleteNotificationChannel(LEGACY_CHANNEL_ID)
             val channel = NotificationChannel(CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_HIGH).apply {
                 enableVibration(true)
+                vibrationPattern = longArrayOf(0, 600, 400, 600)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
                 setSound(
-                    RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
+                    RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE),
                     AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
+                        .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                         .build(),
                 )
             }
             nm.createNotificationChannel(channel)
         }
+        val fullScreen = PendingIntent.getActivity(
+            context, 1,
+            Intent(context, MainActivity::class.java)
+                .putExtra(EXTRA_OFFER_ALERT, true)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
         val open = PendingIntent.getActivity(
             context, 0,
             Intent(context, MainActivity::class.java).addFlags(
@@ -192,14 +223,21 @@ object DriverOverlay {
                 .setPriority(android.app.Notification.PRIORITY_HIGH)
                 .setDefaults(android.app.Notification.DEFAULT_ALL)
         }
-        val notification = builder
+        builder
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
             .setContentText(text)
-            .setCategory(android.app.Notification.CATEGORY_MESSAGE)
+            .setCategory(android.app.Notification.CATEGORY_CALL)
+            .setVisibility(android.app.Notification.VISIBILITY_PUBLIC)
             .setAutoCancel(true)
             .setContentIntent(open)
-            .build()
+            .setFullScreenIntent(fullScreen, true)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            builder.setTimeoutAfter(OFFER_TIMEOUT_MS)
+        }
+        val notification = builder.build().apply {
+            flags = flags or android.app.Notification.FLAG_INSISTENT
+        }
         try {
             nm.notify(NOTIFICATION_ID, notification)
         } catch (_: SecurityException) {

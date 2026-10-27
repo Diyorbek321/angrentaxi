@@ -64,7 +64,13 @@ class DriverBackgroundBridge {
 
     final offer = pendingOffer();
     if (offer == null) {
-      _announcedOfferId = null;
+      // E'lon qilingan taklif hal bo'ldi yoki muddati tugadi: tinimsiz
+      // jiringlash to'xtaydi va bloklangan ekran ustidan chiqiladi.
+      if (_announcedOfferId != null) {
+        _announcedOfferId = null;
+        await overlay.cancelOfferNotification();
+        await overlay.releaseLockScreen();
+      }
       return;
     }
     // Provider bitta taklif uchun bir necha marta xabar beradi — e'lon bir marta.

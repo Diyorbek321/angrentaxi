@@ -2365,6 +2365,7 @@
       }
     }
   },
+  "saPaymentUntrustedPage": "Bu to'lov sahifasi tanish provayderga tegishli emas, shuning uchun ochilmadi. Qo'llab-quvvatlash xizmatiga yozing.",
   "saPickup": "Olib ketish",
   "saPopularRestaurants": "Mashhur restoranlar",
   "saPriceWithDiscount": "Chegirmali narx {now}, eski narx {old}",
@@ -2970,6 +2971,7 @@
       }
     }
   },
+  "shReconnecting": "Aloqa yo'q — qayta ulanmoqda…",
   "shRetry": "Qayta urinish",
   "shRouteFromSemantics": "Qayerdan: {address}",
   "@shRouteFromSemantics": {
@@ -3031,6 +3033,10 @@
   "shTxTopUp": "Hisobni to'ldirish",
   "shTxTrip": "Sayohat",
   "shTxWithdrawal": "Pul yechish",
+  "shUpdateAction": "Yangilash",
+  "shUpdateAvailable": "Ilovaning yangi versiyasi chiqdi",
+  "shUpdateRequiredBody": "Bu versiya endi ishlamaydi. Davom etish uchun yangi versiyani o'rnating.",
+  "shUpdateRequiredTitle": "Ilovani yangilang",
   "shValDigitsOnly": "Faqat raqamlar kiriting",
   "shValFieldRequired": "{field} bo'sh bo'lmasligi kerak",
   "@shValFieldRequired": {

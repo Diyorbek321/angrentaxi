@@ -46,7 +46,8 @@ void main() {
       socketService: SocketService(),
       syncInterval: const Duration(milliseconds: 20),
     );
-    when(() => api.post(any(), data: any(named: 'data'))).thenAnswer(
+    when(() => api.post(any(), data: any(named: 'data'),
+          headers: any(named: 'headers'))).thenAnswer(
       (_) async => _ok(ApiEndpoints.createOrder, _order('searching')),
     );
     when(() => api.get(ApiEndpoints.orderById('order-1'))).thenAnswer(

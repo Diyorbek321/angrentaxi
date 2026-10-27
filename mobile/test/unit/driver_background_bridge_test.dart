@@ -32,6 +32,9 @@ class _RecordingOverlay extends DriverOverlay {
 
   @override
   Future<void> cancelOfferNotification() async => calls.add('cancelNotification');
+
+  @override
+  Future<void> releaseLockScreen() async => calls.add('releaseLockScreen');
 }
 
 Order _offer(String id) => Order(
@@ -112,6 +115,23 @@ void main() {
     online = false;
     await bridge.onDriverChanged();
     expect(overlay.calls.last, 'hideBubble');
+  });
+
+  test("taklif muddati fonda tugasa — jiringlash to'xtaydi, qulf ekrani bo'shaydi",
+      () async {
+    await bridge.onLifecycle(AppLifecycleState.paused);
+    offer = _offer('o-1');
+    await bridge.onDriverChanged();
+    overlay.calls.clear();
+
+    offer = null;
+    await bridge.onDriverChanged();
+    expect(overlay.calls, containsAllInOrder(['cancelNotification', 'releaseLockScreen']));
+
+    // Takroriy xabar — qayta chaqirilmaydi.
+    overlay.calls.clear();
+    await bridge.onDriverChanged();
+    expect(overlay.calls, isNot(contains('releaseLockScreen')));
   });
 
   test('pulling the notification shade (inactive) does nothing', () async {

@@ -47,10 +47,13 @@ class NavigationScreen extends StatefulWidget {
 
 class _NavigationScreenState extends State<NavigationScreen> {
   ml.MapLibreMapController? _mapController;
-  LatLng _currentLocation = const LatLng(
-    AppConfig.defaultLat,
-    AppConfig.defaultLng,
+  /// Haydovchining joyi. ⚠️ `setState` EMAS: GPS 5 metrda bir keladi va
+  /// ilgari har biri butun ekranni va barcha markerlarni qayta qurardi.
+  /// Endi faqat xarita va manevr banneri tinglaydi (`ListenableBuilder`).
+  final ValueNotifier<LatLng> _location = ValueNotifier(
+    const LatLng(AppConfig.defaultLat, AppConfig.defaultLng),
   );
+  LatLng get _currentLocation => _location.value;
   double? _distanceToPickup;
 
   /// Pog'onali navigatsiya — marshrut, ko'rsatma, ovoz, qayta qurish.
@@ -58,7 +61,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
   late final TurnByTurnGuidance _guidance = TurnByTurnGuidance(
     routes: sl<RouteService>(),
     voice: sl<VoiceGuide>(),
-  )..addListener(_onGuidanceChanged);
+  );
 
   StreamSubscription<Position>? _positionSubscription;
 
@@ -94,6 +97,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
   @override
   void dispose() {
     _positionSubscription?.cancel();
+    _location.dispose();
     // Ekran yopilganda gap o'rtasida qolgan ovoz to'xtatiladi — aks holda
     // haydovchi allaqachon boshqa ekranda turib burilish haqida eshitardi.
     _guidance.dispose();
@@ -104,9 +108,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
     final locationService = sl<LocationService>();
     final position = await locationService.getCurrentPosition();
     if (position != null && mounted) {
-      setState(() {
-        _currentLocation = LatLng(position.latitude, position.longitude);
-      });
+      _location.value = LatLng(position.latitude, position.longitude);
 
       final order = context.read<DriverProvider>().activeOrder;
       if (order != null) {
@@ -139,10 +141,6 @@ class _NavigationScreenState extends State<NavigationScreen> {
     _listenToPosition();
   }
 
-  void _onGuidanceChanged() {
-    if (mounted) setState(() {});
-  }
-
   /// GPS oqimini navigatsiyaga ulaydi.
   ///
   /// `distanceFilter` ATAYLAB kichik: navigatsiyada har 5 metr ham muhim,
@@ -170,7 +168,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
   void _onPosition(Position position) {
     if (!mounted || !_guidance.hasRoute) return;
     final here = LatLng(position.latitude, position.longitude);
-    setState(() => _currentLocation = here);
+    _location.value = here;
     _guidance.onPosition(here);
 
     _followingDriver = true;
@@ -374,17 +372,29 @@ class _NavigationScreenState extends State<NavigationScreen> {
   }
 
   Widget _buildMap(Order order) {
+    // Markerlar o'zgarmaydi — GPS kelganda xarita ularni qayta chizmaydi
+    // (`AppVectorMap._sameMarkers`), faqat mashina suriladi.
+    final markers = [
+      AppMapMarker(
+        point: LatLng(order.pickup.lat, order.pickup.lng),
+        icon: AppMapIcon.pickup,
+      ),
+    ];
+    return ListenableBuilder(
+      listenable: Listenable.merge([_location, _guidance]),
+      builder: (context, _) => _buildMapView(markers),
+    );
+  }
+
+  Widget _buildMapView(List<AppMapMarker> markers) {
     return AppVectorMap(
       initialCenter: _currentLocation,
       initialZoom: 15,
       onMapCreated: _onMapCreated,
-      markers: [
-        AppMapMarker(point: _currentLocation, icon: AppMapIcon.car),
-        AppMapMarker(
-          point: LatLng(order.pickup.lat, order.pickup.lng),
-          icon: AppMapIcon.pickup,
-        ),
-      ],
+      // O'z mashinasi — silliq suriladi va yo'nalish bo'yicha buriladi
+      // (statik marker har GPS'da "sakrardi").
+      carLocation: _currentLocation,
+      markers: markers,
       // Haqiqiy yo'l chizig'i — to'g'ri chiziq emas.
       route: _guidance.routePoints,
       // Kamerani O'ZIMIZ boshqaramiz — yuqoridagi "TO'LDIRILGAN
@@ -397,7 +407,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
       // Kechasi qora xarita. Faqat shu ekranda: haydovchi navigatsiyaga
       // uzoq qaraydi va qorong'ida oq ekran ko'zni qamashtirib, yo'lga
       // qarab qaytganda ko'rishni sekinlashtiradi. Joylashuv yangilanishi
-      // ekranni qayta qurgani uchun uslub tun kirganda o'zi almashadi.
+      // xaritani qayta qurgani uchun uslub tun kirganda o'zi almashadi.
       style: MapStyleLoader.styleForNow(),
     );
   }
@@ -440,7 +450,12 @@ class _NavigationScreenState extends State<NavigationScreen> {
               ),
             ),
             const SizedBox(width: kSpace3),
-            Expanded(child: _buildGuidanceHeader(wording)),
+            Expanded(
+              child: ListenableBuilder(
+                listenable: _guidance,
+                builder: (context, _) => _buildGuidanceHeader(wording),
+              ),
+            ),
           ],
         ),
       ),

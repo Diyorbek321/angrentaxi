@@ -5,9 +5,13 @@ import 'package:angren_taxi/core/config/app_platform.dart';
 import 'package:angren_taxi/core/config/app_responsive.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
+import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/observability/crash_reporting.dart';
 import 'package:angren_taxi/core/push/push_notifications.dart';
 import 'package:angren_taxi/core/push/push_tap_router.dart';
+import 'package:angren_taxi/core/socket/socket_service.dart';
+import 'package:angren_taxi/core/update/app_update.dart';
+import 'package:angren_taxi/core/update/force_update_gate.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/auth/screens/otp_screen.dart';
 import 'package:angren_taxi/features/auth/screens/phone_screen.dart';
@@ -50,6 +54,7 @@ import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/support/support_provider.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/push_tap_host.dart';
+import 'package:angren_taxi/shared/widgets/connection_banner.dart';
 import 'package:angren_taxi/shared/widgets/loading_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -67,7 +72,9 @@ AuthProvider _withPushBinding(AuthProvider auth, AppFlavor flavor) {
   CrashReporting.setUserId(auth.currentUser?.id);
   auth.addListener(() {
     final now = auth.isAuthenticated;
-    if (now != wasAuthenticated) CrashReporting.setUserId(now ? auth.currentUser?.id : null);
+    if (now != wasAuthenticated) {
+      CrashReporting.setUserId(now ? auth.currentUser?.id : null);
+    }
     if (now && !wasAuthenticated) {
       final push = PushNotifications.instance;
       unawaited(push.syncToken());
@@ -214,21 +221,31 @@ class AngrenTaxiApp extends StatelessWidget {
               // Navigator ORTIDAGI fon. Sahifa o'tishida yoki sahifa hali
               // chizilmagan kadrda ko'rinadigan narsa — qora bo'sh yuza emas,
               // ilova foni (`AppMotion` dagi qora chaqnash izohiga qarang).
-              child: ColoredBox(
-                color: Theme.of(context).scaffoldBackgroundColor,
-                // Push bosilganda tegishli ekran (shaharlararo, chat, ...).
-                child: PushTapHost(
-                  navigatorKey: sl<GlobalKey<NavigatorState>>(),
-                  child: flavor == AppFlavor.driver
-                  ? DriverBackgroundHost(
-                      // Hamyon hodisalari (`wallet:updated`, push) — har
-                      // qanday ekranda snackbar / to'ldirish ekraniga o'tish.
-                      child: DriverWalletEventsHost(
-                        navigatorKey: sl<GlobalKey<NavigatorState>>(),
-                        child: child ?? const SizedBox.shrink(),
-                      ),
-                    )
-                  : (child ?? const SizedBox.shrink()),
+              // Eski build: "yangilang" ekrani yoki yumshoq taklif.
+              child: ForceUpdateGate(
+                check: AppConfig.demoMode
+                    ? null
+                    : AppUpdateService(sl<ApiClient>(), flavor: flavor).check,
+                // Real vaqt aloqasi uzilsa — tepada "qayta ulanmoqda".
+                child: ConnectionBanner(
+                  offline: sl<SocketService>().offline,
+                  child: ColoredBox(
+                    color: Theme.of(context).scaffoldBackgroundColor,
+                    // Push bosilganda tegishli ekran (shaharlararo, chat, ...).
+                    child: PushTapHost(
+                      navigatorKey: sl<GlobalKey<NavigatorState>>(),
+                      child: flavor == AppFlavor.driver
+                          ? DriverBackgroundHost(
+                              // Hamyon hodisalari (`wallet:updated`, push) — har
+                              // qanday ekranda snackbar / to'ldirish ekraniga o'tish.
+                              child: DriverWalletEventsHost(
+                                navigatorKey: sl<GlobalKey<NavigatorState>>(),
+                                child: child ?? const SizedBox.shrink(),
+                              ),
+                            )
+                          : (child ?? const SizedBox.shrink()),
+                    ),
+                  ),
                 ),
               ),
             );

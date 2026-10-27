@@ -2,6 +2,9 @@ class ApiEndpoints {
   ApiEndpoints._();
 
   // Auth
+  // Ilova versiyasi siyosati (ochiq, JWT'siz) — lib/core/update.
+  static const String appVersion = '/app/version';
+
   static const String sendOtp = '/auth/send-otp';
   static const String verifyOtp = '/auth/verify-otp';
   static const String refreshToken = '/auth/refresh';

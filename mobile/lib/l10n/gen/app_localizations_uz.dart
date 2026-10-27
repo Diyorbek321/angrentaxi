@@ -3717,6 +3717,10 @@ class AppLocalizationsUz extends AppLocalizations {
   }
 
   @override
+  String get saPaymentUntrustedPage =>
+      'Bu to\'lov sahifasi tanish provayderga tegishli emas, shuning uchun ochilmadi. Qo\'llab-quvvatlash xizmatiga yozing.';
+
+  @override
   String get saPickup => 'Olib ketish';
 
   @override
@@ -4541,6 +4545,9 @@ class AppLocalizationsUz extends AppLocalizations {
   }
 
   @override
+  String get shReconnecting => 'Aloqa yo\'q — qayta ulanmoqda…';
+
+  @override
   String get shRetry => 'Qayta urinish';
 
   @override
@@ -4638,6 +4645,19 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get shTxWithdrawal => 'Pul yechish';
+
+  @override
+  String get shUpdateAction => 'Yangilash';
+
+  @override
+  String get shUpdateAvailable => 'Ilovaning yangi versiyasi chiqdi';
+
+  @override
+  String get shUpdateRequiredBody =>
+      'Bu versiya endi ishlamaydi. Davom etish uchun yangi versiyani o\'rnating.';
+
+  @override
+  String get shUpdateRequiredTitle => 'Ilovani yangilang';
 
   @override
   String get shValDigitsOnly => 'Faqat raqamlar kiriting';

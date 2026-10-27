@@ -6584,6 +6584,12 @@ abstract class AppLocalizations {
   /// **'To\'lov — {provider}'**
   String saPaymentTitle(String provider);
 
+  /// No description provided for @saPaymentUntrustedPage.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bu to\'lov sahifasi tanish provayderga tegishli emas, shuning uchun ochilmadi. Qo\'llab-quvvatlash xizmatiga yozing.'**
+  String get saPaymentUntrustedPage;
+
   /// No description provided for @saPickup.
   ///
   /// In uz, this message translates to:
@@ -8013,6 +8019,12 @@ abstract class AppLocalizations {
   /// **'To\'lanmagan qoldiq: {amount}'**
   String shReceiptUnpaid(String amount);
 
+  /// No description provided for @shReconnecting.
+  ///
+  /// In uz, this message translates to:
+  /// **'Aloqa yo\'q — qayta ulanmoqda…'**
+  String get shReconnecting;
+
   /// No description provided for @shRetry.
   ///
   /// In uz, this message translates to:
@@ -8192,6 +8204,30 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Pul yechish'**
   String get shTxWithdrawal;
+
+  /// No description provided for @shUpdateAction.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yangilash'**
+  String get shUpdateAction;
+
+  /// No description provided for @shUpdateAvailable.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ilovaning yangi versiyasi chiqdi'**
+  String get shUpdateAvailable;
+
+  /// No description provided for @shUpdateRequiredBody.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bu versiya endi ishlamaydi. Davom etish uchun yangi versiyani o\'rnating.'**
+  String get shUpdateRequiredBody;
+
+  /// No description provided for @shUpdateRequiredTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ilovani yangilang'**
+  String get shUpdateRequiredTitle;
 
   /// No description provided for @shValDigitsOnly.
   ///

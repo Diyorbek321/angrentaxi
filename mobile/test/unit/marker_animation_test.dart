@@ -96,4 +96,58 @@ void main() {
       expect(a.advance(half), isFalse);
     });
   });
+
+  group('MarkerAnimation — silliqlik', () {
+    test('davomiylik fikslar oralig\'iga moslashadi (to\'xtab-yurish yo\'q)',
+        () {
+      var now = DateTime(2026, 10, 27, 12);
+      final a = MarkerAnimation(start: start, clock: () => now);
+      var lat = 40.100;
+      for (var i = 0; i < 12; i++) {
+        now = now.add(const Duration(seconds: 4));
+        lat += 0.0003; // ~33 m
+        a.retarget(LatLng(lat, 69.100));
+      }
+      expect(a.duration.inMilliseconds, closeTo(4000, 300));
+    });
+
+    test('davomiylik chegaralangan: 0.6 s .. 5 s', () {
+      var now = DateTime(2026, 10, 27, 12);
+      final a = MarkerAnimation(start: start, clock: () => now);
+      var lat = 40.100;
+      for (var i = 0; i < 30; i++) {
+        now = now.add(const Duration(seconds: 30));
+        lat += 0.0003;
+        a.retarget(LatLng(lat, 69.100));
+      }
+      expect(a.duration, const Duration(seconds: 5));
+    });
+
+    test('soatsiz — avvalgidek qat\'iy 1.2 s', () {
+      final a = animation();
+      a.retarget(const LatLng(40.102, 69.100));
+      expect(a.duration, full);
+    });
+
+    test('ikona eng qisqa yoy bo\'ylab buriladi (350° → 10°, 340° emas)', () {
+      final a = animation();
+      // Shimoli-g'arbga (≈350°) harakat.
+      a.retarget(const LatLng(40.102, 69.0995));
+      a.advance(full);
+      final before = a.displayBearing!;
+      expect(before, greaterThan(340));
+
+      // Endi shimoli-sharqqa (≈10°).
+      a.retarget(const LatLng(40.104, 69.1000));
+      expect(a.displayBearing, closeTo(before, 0.5)); // hali burilmagan
+
+      a.advance(const Duration(milliseconds: 300));
+      final mid = a.displayBearing!;
+      // Yarim yo'lda ~0° atrofida — 180° orqali aylanmagan.
+      expect(mid < 20 || mid > 340, isTrue, reason: '$mid');
+
+      a.advance(const Duration(milliseconds: 600));
+      expect(a.displayBearing, closeTo(a.bearing!, 0.5));
+    });
+  });
 }

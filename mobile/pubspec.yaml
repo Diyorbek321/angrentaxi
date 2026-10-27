@@ -71,6 +71,8 @@ dependencies:
   permission_handler: ^11.3.1
   cached_network_image: ^3.4.0
   sentry_flutter: ^8.14.2
+  # Build raqami — majburiy yangilash tekshiruvi (lib/core/update).
+  package_info_plus: ^9.0.1
 
 dev_dependencies:
   flutter_test:

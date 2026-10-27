@@ -257,5 +257,6 @@
   "saStoreUnavailable": "Этот магазин сейчас не принимает заказы",
   "saAddedToCart": "Добавлено в корзину",
   "saMarketSearchAllHint": "Поиск товаров во всех магазинах",
-  "saMarketStores": "Магазины"
+  "saMarketStores": "Магазины",
+  "saPaymentUntrustedPage": "Эта страница оплаты не принадлежит известному провайдеру и не была открыта. Напишите в поддержку."
 }

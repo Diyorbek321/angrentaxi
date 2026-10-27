@@ -42,11 +42,15 @@ class ApiClient {
   /// the session entirely.
   Completer<bool>? _refreshInFlight;
 
+  /// [forceLogout] dan keyin chaqiriladi (masalan socketni uzish uchun).
+  final VoidCallback? onForceLogout;
+
   ApiClient(
     this._storage,
     this.navigatorKey, {
     Dio? dio,
     Dio? refreshDio,
+    this.onForceLogout,
   }) {
     _dio = dio ?? Dio(_baseOptions());
     _refreshDio = refreshDio ?? Dio(_baseOptions());
@@ -172,6 +176,10 @@ class ApiClient {
   /// Coalesces concurrent refresh attempts into one network call. Callers that
   /// arrive while a refresh is running simply await its result and are then
   /// replayed with the freshly issued access token.
+  /// Sessiyani yangilaydi (REST'dan tashqari, masalan socket server
+  /// tomonidan rad etilganda). Parallel chaqiruvlar bitta so'rovga birlashadi.
+  Future<bool> refreshSession() => _refreshTokens();
+
   Future<bool> _refreshTokens() {
     final inFlight = _refreshInFlight;
     if (inFlight != null) return inFlight.future;
@@ -249,6 +257,7 @@ class ApiClient {
   Future<void> forceLogout() async {
     await _storage.clearTokens();
     await _storage.clearUser();
+    onForceLogout?.call();
     navigatorKey.currentState?.pushNamedAndRemoveUntil(
       '/phone',
       (route) => false,
@@ -264,7 +273,13 @@ class ApiClient {
     String path, {
     dynamic data,
     ProgressCallback? onSendProgress,
-  }) => _dio.post(path, data: data, onSendProgress: onSendProgress);
+    Map<String, dynamic>? headers,
+  }) => _dio.post(
+    path,
+    data: data,
+    onSendProgress: onSendProgress,
+    options: headers == null ? null : Options(headers: headers),
+  );
 
   Future<Response<dynamic>> patch(String path, {dynamic data}) =>
       _dio.patch(path, data: data);

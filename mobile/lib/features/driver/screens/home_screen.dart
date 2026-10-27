@@ -367,25 +367,33 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   }
 
   Widget _buildMap(DriverProvider driverProvider) {
-    return AppVectorMap(
-      initialCenter: _currentLocation,
-      initialZoom: 15,
-      onMapCreated: (controller) {
-        _mapController = controller;
-        // Fiks xarita qurilishidan OLDIN kelgan bo'lsa, kamerani shu yerda
-        // sheet ustiga chiqaramiz — aks holda haydovchi nuqtasi ekran
-        // markazida, ya'ni sheet ostida qolardi.
-        if (_hasLocationFix) {
-          WidgetsBinding.instance.addPostFrameCallback((_) => _centerOnUser());
-        }
+    // Onlayn mashina har GPS fiksida silliq suriladi. Ilgari marker ekran
+    // ochilgandagi bitta joyda qotib turardi.
+    return ValueListenableBuilder<Position?>(
+      valueListenable: driverProvider.livePosition,
+      builder: (context, live, _) {
+        final here = live == null
+            ? _currentLocation
+            : LatLng(live.latitude, live.longitude);
+        return AppVectorMap(
+          initialCenter: _currentLocation,
+          initialZoom: 15,
+          onMapCreated: (controller) {
+            _mapController = controller;
+            // Fiks xarita qurilishidan OLDIN kelgan bo'lsa, kamerani shu
+            // yerda sheet ustiga chiqaramiz — aks holda haydovchi nuqtasi
+            // ekran markazida, ya'ni sheet ostida qolardi.
+            if (_hasLocationFix) {
+              WidgetsBinding.instance
+                  .addPostFrameCallback((_) => _centerOnUser());
+            }
+          },
+          // Onlaynda mint mashina (holat xaritada ham ko'rinadi), oflaynda
+          // esa oddiy native joylashuv nuqtasi.
+          carLocation: driverProvider.isOnline ? here : null,
+          showUserLocation: !driverProvider.isOnline && _hasLocationFix,
+        );
       },
-      // Onlaynda mint mashina markeri (holat xaritada ham ko'rinadi),
-      // oflaynda esa oddiy native joylashuv nuqtasi.
-      markers: [
-        if (driverProvider.isOnline)
-          AppMapMarker(point: _currentLocation, icon: AppMapIcon.car),
-      ],
-      showUserLocation: !driverProvider.isOnline && _hasLocationFix,
     );
   }
 

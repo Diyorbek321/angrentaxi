@@ -4,7 +4,9 @@ import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/city_coverage.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/core/network/idempotency_key.dart';
 import 'package:angren_taxi/core/network/poll_gate.dart';
+import 'package:angren_taxi/core/observability/crash_reporting.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/driver.dart';
@@ -166,8 +168,8 @@ class OrderProvider extends ChangeNotifier {
       final data = response.data as Map<String, dynamic>;
       _tripOptionFees = TripOption.feesFromApi(data['data']);
       notifyListeners();
-    } catch (e) {
-      debugPrint('[OrderProvider] loadTripOptionFees error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'OrderProvider.loadTripOptionFees');
     }
   }
 
@@ -295,8 +297,8 @@ class OrderProvider extends ChangeNotifier {
       _tariffs =
           list.map((e) => Tariff.fromJson(e as Map<String, dynamic>)).toList();
       notifyListeners();
-    } catch (e) {
-      debugPrint('[OrderProvider] loadTariffs error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'OrderProvider.loadTariffs');
     }
   }
 
@@ -342,8 +344,8 @@ class OrderProvider extends ChangeNotifier {
       final response = await _apiClient.get(ApiEndpoints.cities);
       _coverage = CityCoverage.fromResponse(response.data);
       notifyListeners();
-    } catch (e) {
-      debugPrint('[OrderProvider] loadCities error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'OrderProvider.loadCities');
     }
   }
 
@@ -460,8 +462,8 @@ class OrderProvider extends ChangeNotifier {
         _routeDistanceKm = serverDistance;
       }
       notifyListeners();
-    } catch (e) {
-      debugPrint('[OrderProvider] estimatePrice error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'OrderProvider.estimatePrice');
     }
   }
 
@@ -496,6 +498,7 @@ class OrderProvider extends ChangeNotifier {
       // key, then fails on the now-missing flat ones).
       final response = await _apiClient.post(
         ApiEndpoints.createOrder,
+        headers: {'Idempotency-Key': _orderAttemptKey ??= newIdempotencyKey()},
         data: {
           'tariffId': _selectedTariff!.id,
           'pickupLat': _pendingPickup!.lat,
@@ -523,6 +526,7 @@ class OrderProvider extends ChangeNotifier {
         },
       );
 
+      _orderAttemptKey = null;
       final data = response.data as Map<String, dynamic>;
       final order = Order.fromJson(data['data'] as Map<String, dynamic>);
       final wasScheduled = _scheduledAt != null;
@@ -552,10 +556,25 @@ class OrderProvider extends ChangeNotifier {
       _setState(OrderProviderState.success);
       return true;
     } catch (e) {
+      // Javob kelmagan (timeout, internet uzildi) yoki server hali birinchi
+      // so'rovni bajaryapti (409) — buyurtma serverda yaratilgan bo'lishi
+      // mumkin. Kalit SAQLANADI: qayta bosish yangi buyurtma ochmaydi,
+      // server o'shani qaytaradi. Server aniq rad etgan bo'lsa — yangi kalit.
+      if (!_mayHaveReachedServer(e)) _orderAttemptKey = null;
       _error = extractErrorMessage(e);
       _setState(OrderProviderState.error);
       return false;
     }
+  }
+
+  /// Joriy buyurtma urinishining `Idempotency-Key` i (backend
+  /// `OrderIdempotencyService`). Muvaffaqiyatdan keyin tozalanadi.
+  String? _orderAttemptKey;
+
+  static bool _mayHaveReachedServer(Object e) {
+    if (e is! DioException) return false;
+    final status = e.response?.statusCode;
+    return status == null || status == 409 || status >= 500;
   }
 
   /// Nomlangan metod — `off` da AYNAN SHU tinglovchini o'chirish uchun:
@@ -716,8 +735,8 @@ class OrderProvider extends ChangeNotifier {
         _activeOrder = fresh;
         notifyListeners();
       }
-    } catch (e) {
-      debugPrint('[OrderProvider] _syncActiveOrder error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'OrderProvider._syncActiveOrder');
     } finally {
       _syncInFlight = false;
     }
@@ -762,8 +781,8 @@ class OrderProvider extends ChangeNotifier {
       final data = response.data as Map<String, dynamic>;
       _activeOrder = Order.fromJson(data['data'] as Map<String, dynamic>);
       notifyListeners();
-    } catch (e) {
-      debugPrint('[OrderProvider] _refreshActiveOrder error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'OrderProvider._refreshActiveOrder');
     }
   }
 
@@ -830,8 +849,8 @@ class OrderProvider extends ChangeNotifier {
         // mid-delivery would lose the code the recipient has to be told.
         if (_activeOrder!.isParcel) await _refreshActiveOrder();
       }
-    } catch (e) {
-      debugPrint('[OrderProvider] checkActiveOrder error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'OrderProvider.checkActiveOrder');
     }
   }
 
@@ -871,8 +890,8 @@ class OrderProvider extends ChangeNotifier {
       _orderHistory =
           list.map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
       notifyListeners();
-    } catch (e) {
-      debugPrint('[OrderProvider] loadRecentDestinations error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'OrderProvider.loadRecentDestinations');
     }
   }
 
@@ -889,8 +908,8 @@ class OrderProvider extends ChangeNotifier {
       _scheduledOrders =
           list.map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
       notifyListeners();
-    } catch (e) {
-      debugPrint('[OrderProvider] loadScheduledOrders error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'OrderProvider.loadScheduledOrders');
     }
   }
 

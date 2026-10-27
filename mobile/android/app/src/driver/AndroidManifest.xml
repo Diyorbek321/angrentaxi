@@ -9,6 +9,13 @@
          ATAYLAB kirmaydi. Kod: kotlin/uz/angren/taxi/DriverOverlay.kt -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
+    <!-- Zakaz taklifi qulflangan telefonda ekranni yoqib, qulf ustida
+         ochiladi (kiruvchi qo'ng'iroq kabi) — DriverOverlay.showOfferNotification.
+         Android 14+ da tizim bu ruxsatni faqat qo'ng'iroq/budilnik
+         ilovalariga avtomatik beradi; berilmasa oddiy heads-up chiqadi.
+         Play Console'da deklaratsiya talab qilinadi. -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+
     <application>
         <!-- Asosiy manifestdagi MainActivity bilan birlashadi (nomi bir xil). -->
         <activity android:name=".MainActivity">

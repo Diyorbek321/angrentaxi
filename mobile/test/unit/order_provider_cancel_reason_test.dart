@@ -59,7 +59,8 @@ void main() {
     apiClient = MockApiClient();
     provider = OrderProvider(apiClient: apiClient, socketService: SocketService());
 
-    when(() => apiClient.post(any(), data: any(named: 'data'))).thenAnswer(
+    when(() => apiClient.post(any(), data: any(named: 'data'),
+          headers: any(named: 'headers'))).thenAnswer(
       (_) async => _jsonResponse(ApiEndpoints.createOrder, _createdOrderJson),
     );
 

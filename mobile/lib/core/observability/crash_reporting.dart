@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:angren_taxi/core/config/app_config.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
@@ -50,6 +51,40 @@ class CrashReporting {
       ..tracesSampleRate = null
       ..beforeSend = ((event, hint) => scrubEvent(event, flavor: flavor))
       ..beforeBreadcrumb = ((crumb, hint) => scrubBreadcrumb(crumb));
+  }
+
+  /// `catch` ichida ushlangan, lekin production'da ko'rinishi kerak bo'lgan
+  /// xato. Ilgari bunday xatolar faqat `debugPrint` qilinardi va Sentry
+  /// faqat yiqilishlarni ko'rardi — tarif/narx/safar tiklash haqiqiy
+  /// foydalanuvchilarda yiqilayotganini bilishning iloji yo'q edi.
+  ///
+  /// Tarmoq uzilishi va 4xx kutilgan holat — ular yuborilmaydi (kvota va
+  /// shovqin), faqat iz (breadcrumb) qoladi.
+  static void reportHandled(Object error, StackTrace stack, String where) {
+    debugPrint('[$where] $error');
+    if (!_enabled) return;
+    if (!shouldReport(error)) {
+      unawaited(Future.sync(() => Sentry.addBreadcrumb(
+            Breadcrumb(category: 'handled', message: '$where: ${error.runtimeType}'),
+          )));
+      return;
+    }
+    unawaited(Future.sync(() => Sentry.captureException(
+          error,
+          stackTrace: stack,
+          withScope: (scope) => scope.setTag('where', where),
+        )));
+  }
+
+  /// Faqat kutilmagan xatolar: 5xx, javobni o'qib bo'lmasligi (model
+  /// o'zgargan), dasturiy xato. Internet yo'qligi va 4xx — yo'q.
+  @visibleForTesting
+  static bool shouldReport(Object error) {
+    if (error is DioException) {
+      final status = error.response?.statusCode;
+      return status != null && status >= 500;
+    }
+    return true;
   }
 
   /// Kirish/chiqishda chaqiriladi: faqat id, telefon emas.

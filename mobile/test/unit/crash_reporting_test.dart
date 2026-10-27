@@ -1,6 +1,7 @@
 // Sentry: DSN bo'lmasa o'chiq; yoqilganda shaxsiy ma'lumot chet elga ketmaydi.
 import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/observability/crash_reporting.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
@@ -54,5 +55,29 @@ void main() {
   test('breadcrumb xabaridagi telefon ham yashiriladi', () {
     final crumb = Breadcrumb(message: 'OTP sent to +998901234567');
     expect(CrashReporting.scrubBreadcrumb(crumb)?.message, 'OTP sent to +998***');
+  });
+
+  group('ushlangan xatolar (reportHandled)', () {
+    DioException dio({int? status}) => DioException(
+          requestOptions: RequestOptions(path: '/tariffs'),
+          response: status == null
+              ? null
+              : Response<dynamic>(
+                  requestOptions: RequestOptions(path: '/tariffs'),
+                  statusCode: status,
+                ),
+        );
+
+    test('internet yo\'q va 4xx — Sentry\'ga yuborilmaydi', () {
+      expect(CrashReporting.shouldReport(dio()), isFalse);
+      expect(CrashReporting.shouldReport(dio(status: 404)), isFalse);
+      expect(CrashReporting.shouldReport(dio(status: 401)), isFalse);
+    });
+
+    test('5xx va dasturiy xato — yuboriladi', () {
+      expect(CrashReporting.shouldReport(dio(status: 502)), isTrue);
+      expect(CrashReporting.shouldReport(TypeError()), isTrue);
+      expect(CrashReporting.shouldReport(const FormatException('x')), isTrue);
+    });
   });
 }

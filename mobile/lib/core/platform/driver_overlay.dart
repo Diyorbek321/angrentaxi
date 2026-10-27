@@ -51,4 +51,9 @@ class DriverOverlay {
       _call('showOfferNotification', {'title': title, 'text': text, 'channel': channel});
 
   Future<void> cancelOfferNotification() => _call('cancelOfferNotification');
+
+  /// Taklif hal bo'ldi (qabul / rad / muddati o'tdi): bloklangan ekran
+  /// ustida ko'rsatish to'xtaydi. Telefon qulflangan bo'lsa, avval qulfni
+  /// ochish so'raladi — haydovchi safarga ilovada davom etadi.
+  Future<void> releaseLockScreen() => _call('releaseLockScreen');
 }

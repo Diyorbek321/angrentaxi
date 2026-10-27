@@ -3705,6 +3705,10 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get saPaymentUntrustedPage =>
+      'Эта страница оплаты не принадлежит известному провайдеру и не была открыта. Напишите в поддержку.';
+
+  @override
   String get saPickup => 'Откуда';
 
   @override
@@ -4527,6 +4531,9 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get shReconnecting => 'Нет связи — переподключаемся…';
+
+  @override
   String get shRetry => 'Повторить';
 
   @override
@@ -4623,6 +4630,19 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get shTxWithdrawal => 'Вывод средств';
+
+  @override
+  String get shUpdateAction => 'Обновить';
+
+  @override
+  String get shUpdateAvailable => 'Вышла новая версия приложения';
+
+  @override
+  String get shUpdateRequiredBody =>
+      'Эта версия больше не поддерживается. Установите новую версию, чтобы продолжить.';
+
+  @override
+  String get shUpdateRequiredTitle => 'Обновите приложение';
 
   @override
   String get shValDigitsOnly => 'Введите только цифры';

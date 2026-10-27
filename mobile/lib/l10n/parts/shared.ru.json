@@ -142,5 +142,10 @@
   "shManeuverRerouting": "Вы отклонились от маршрута. Маршрут перестраивается.",
   "shFareOptionOther": "Дополнительная опция",
   "shPanelCollapse": "Свернуть панель",
-  "shPanelExpand": "Развернуть панель"
+  "shPanelExpand": "Развернуть панель",
+  "shReconnecting": "Нет связи — переподключаемся…",
+  "shUpdateRequiredTitle": "Обновите приложение",
+  "shUpdateRequiredBody": "Эта версия больше не поддерживается. Установите новую версию, чтобы продолжить.",
+  "shUpdateAction": "Обновить",
+  "shUpdateAvailable": "Вышла новая версия приложения"
 }

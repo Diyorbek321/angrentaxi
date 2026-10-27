@@ -70,7 +70,8 @@ void main() {
     provider =
         OrderProvider(apiClient: apiClient, socketService: SocketService());
 
-    when(() => apiClient.post(ApiEndpoints.createOrder, data: any(named: 'data')))
+    when(() => apiClient.post(ApiEndpoints.createOrder, data: any(named: 'data'),
+          headers: any(named: 'headers')))
         .thenAnswer(
       (_) async => _jsonResponse(ApiEndpoints.createOrder, _createdOrderJson),
     );
@@ -187,7 +188,8 @@ void main() {
       expect(provider.coverageWarning, isNull);
       expect(await provider.createOrder(), isTrue);
       verify(() => apiClient.post(ApiEndpoints.createOrder,
-          data: any(named: 'data'))).called(1);
+          data: any(named: 'data'),
+          headers: any(named: 'headers'))).called(1);
     });
 
     test('so\'rov yiqilsa ham buyurtma o\'tadi', () async {
@@ -242,7 +244,8 @@ void main() {
       expect(provider.state, OrderProviderState.error);
       expect(provider.error, contains('Eng yaqin xizmat hududi: Angren'));
       verifyNever(() => apiClient.post(ApiEndpoints.createOrder,
-          data: any(named: 'data')));
+          data: any(named: 'data'),
+          headers: any(named: 'headers')));
     });
 
     test('hudud ichidagi buyurtma odatdagidek yaratiladi', () async {
@@ -263,7 +266,8 @@ void main() {
       setPendingTrip(lat: _outsideLat, lng: _outsideLng);
 
       when(() => apiClient.post(ApiEndpoints.createOrder,
-          data: any(named: 'data'))).thenThrow(
+          data: any(named: 'data'),
+          headers: any(named: 'headers'))).thenThrow(
         DioException(
           requestOptions: RequestOptions(path: ApiEndpoints.createOrder),
           response: Response<dynamic>(

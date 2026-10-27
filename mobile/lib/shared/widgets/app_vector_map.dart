@@ -200,7 +200,10 @@ class _AppVectorMapState extends State<AppVectorMap>
   void initState() {
     super.initState();
     if (widget.carLocation != null) {
-      _carAnimation = MarkerAnimation(start: widget.carLocation!);
+      _carAnimation = MarkerAnimation(
+        start: widget.carLocation!,
+        clock: DateTime.now,
+      );
     }
     _loadStyle();
   }
@@ -322,7 +325,29 @@ class _AppVectorMapState extends State<AppVectorMap>
   /// MapLibre'ning o'z turi shu vidjetdan tashqariga chiqmaydi.
   static ml.LatLng _ml(LatLng p) => ml.LatLng(p.latitude, p.longitude);
 
+  bool _markerSyncRunning = false;
+  bool _markerSyncPending = false;
+
+  /// Markerlarni ketma-ket yangilaydi. Ikki sinxronlash ustma-ust tushsa
+  /// (birinchisi hali `addSymbol` kutayotganda yangi markerlar keldi),
+  /// eski simvollar yetim qolib xaritada "arvoh" ikonalar paydo bo'lardi.
   Future<void> _syncMarkers() async {
+    if (_markerSyncRunning) {
+      _markerSyncPending = true;
+      return;
+    }
+    _markerSyncRunning = true;
+    try {
+      do {
+        _markerSyncPending = false;
+        await _syncMarkersOnce();
+      } while (_markerSyncPending && mounted);
+    } finally {
+      _markerSyncRunning = false;
+    }
+  }
+
+  Future<void> _syncMarkersOnce() async {
     final controller = _controller;
     if (controller == null) return;
 
@@ -498,7 +523,8 @@ class _AppVectorMapState extends State<AppVectorMap>
       return;
     }
 
-    final animation = _carAnimation ??= MarkerAnimation(start: target);
+    final animation = _carAnimation ??=
+        MarkerAnimation(start: target, clock: DateTime.now);
     animation.retarget(target);
 
     _carSymbol ??= await controller.addSymbol(
@@ -506,7 +532,7 @@ class _AppVectorMapState extends State<AppVectorMap>
         geometry: _ml(animation.value),
         iconImage: AppMapIcon.car.name,
         iconSize: 0.5,
-        iconRotate: animation.bearing ?? 0,
+        iconRotate: animation.displayBearing ?? 0,
       ),
     );
 
@@ -521,9 +547,15 @@ class _AppVectorMapState extends State<AppVectorMap>
   }
 
   void _stopTicker() {
+    _pauseTicker();
+    _carAnimation = null;
+  }
+
+  /// Mashina joyiga yetdi — keyingi fiksgacha kadr so'ralmaydi. Ilgari
+  /// ticker butun safar davomida sekundiga 60 marta "bo'sh" ishlardi.
+  void _pauseTicker() {
     _ticker?.dispose();
     _ticker = null;
-    _carAnimation = null;
   }
 
   void _onTick(Duration now) {
@@ -535,17 +567,22 @@ class _AppVectorMapState extends State<AppVectorMap>
     final delta = _lastTick == Duration.zero ? Duration.zero : now - _lastTick;
     _lastTick = now;
 
-    if (!animation.advance(delta)) return;
+    if (!animation.advance(delta)) {
+      _pauseTicker();
+      return;
+    }
 
+    // Oxirgi kadr har doim yuboriladi — aks holda throttle tufayli mashina
+    // manzildan bir oz oldin to'xtab qolishi mumkin edi.
     _sinceLastPush += delta;
-    if (_sinceLastPush < _pushInterval) return;
+    if (_sinceLastPush < _pushInterval && animation.isAnimating) return;
     _sinceLastPush = Duration.zero;
 
     controller.updateSymbol(
       symbol,
       ml.SymbolOptions(
         geometry: _ml(animation.value),
-        iconRotate: animation.bearing ?? 0,
+        iconRotate: animation.displayBearing ?? 0,
       ),
     );
   }

@@ -411,5 +411,10 @@
   "shManeuverRerouting": "Marshrutdan chiqdingiz. Yo'l qayta hisoblanmoqda.",
   "shFareOptionOther": "Qo'shimcha opsiya",
   "shPanelCollapse": "Panelni yig'ish",
-  "shPanelExpand": "Panelni ochish"
+  "shPanelExpand": "Panelni ochish",
+  "shReconnecting": "Aloqa yo'q — qayta ulanmoqda…",
+  "shUpdateRequiredTitle": "Ilovani yangilang",
+  "shUpdateRequiredBody": "Bu versiya endi ishlamaydi. Davom etish uchun yangi versiyani o'rnating.",
+  "shUpdateAction": "Yangilash",
+  "shUpdateAvailable": "Ilovaning yangi versiyasi chiqdi"
 }

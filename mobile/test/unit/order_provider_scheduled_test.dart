@@ -74,7 +74,8 @@ void main() {
 
   /// Oxirgi `POST /orders` chaqiruvining tanasi.
   Map<String, dynamic> capturedBody() =>
-      verify(() => apiClient.post(ApiEndpoints.createOrder, data: captureAny(named: 'data')))
+      verify(() => apiClient.post(ApiEndpoints.createOrder, data: captureAny(named: 'data'),
+          headers: any(named: 'headers')))
           .captured
           .last as Map<String, dynamic>;
 
@@ -100,7 +101,8 @@ void main() {
 
   group('createOrder — rejalashtirilgan', () {
     setUp(() {
-      when(() => apiClient.post(ApiEndpoints.createOrder, data: any(named: 'data')))
+      when(() => apiClient.post(ApiEndpoints.createOrder, data: any(named: 'data'),
+          headers: any(named: 'headers')))
           .thenAnswer((_) async => _jsonResponse(
                 ApiEndpoints.createOrder,
                 _orderJson(scheduledAt: '2026-08-20T03:00:00.000Z'),
@@ -123,7 +125,8 @@ void main() {
     test('oddiy buyurtmada scheduledAt kaliti UMUMAN yuborilmaydi', () async {
       // `forbidNonWhitelisted` emas, lekin `null` yuborish backend
       // validatsiyasini keraksiz ishga soladi — kalit butunlay bo'lmasin.
-      when(() => apiClient.post(ApiEndpoints.createOrder, data: any(named: 'data')))
+      when(() => apiClient.post(ApiEndpoints.createOrder, data: any(named: 'data'),
+          headers: any(named: 'headers')))
           .thenAnswer((_) async => _jsonResponse(
                 ApiEndpoints.createOrder,
                 _orderJson(status: 'created'),
@@ -159,7 +162,8 @@ void main() {
     });
 
     test('oddiy buyurtmada activeOrder odatdagidek o\'rnatiladi', () async {
-      when(() => apiClient.post(ApiEndpoints.createOrder, data: any(named: 'data')))
+      when(() => apiClient.post(ApiEndpoints.createOrder, data: any(named: 'data'),
+          headers: any(named: 'headers')))
           .thenAnswer((_) async => _jsonResponse(
                 ApiEndpoints.createOrder,
                 _orderJson(status: 'searching'),

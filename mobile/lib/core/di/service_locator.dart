@@ -31,10 +31,22 @@ Future<void> setupServiceLocator() async {
   sl.registerSingleton<LocalStorage>(localStorage);
 
   sl.registerLazySingleton<ApiClient>(
-    () => ApiClient(sl<LocalStorage>(), sl<GlobalKey<NavigatorState>>()),
+    () => ApiClient(
+      sl<LocalStorage>(),
+      sl<GlobalKey<NavigatorState>>(),
+      // Majburiy chiqishda socket ham uziladi — aks holda keyingi
+      // foydalanuvchi oldingi akkauntning socketida qolib ketishi mumkin.
+      onForceLogout: () => sl<SocketService>().disconnect(),
+    ),
   );
 
-  sl.registerLazySingleton<SocketService>(() => SocketService());
+  sl.registerLazySingleton<SocketService>(
+    () => SocketService()
+      ..configureAuth(
+        readToken: sl<LocalStorage>().getToken,
+        refreshTokens: () => sl<ApiClient>().refreshSession(),
+      ),
+  );
 
   sl.registerLazySingleton<LocationService>(() => LocationService());
 
