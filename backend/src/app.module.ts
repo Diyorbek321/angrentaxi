@@ -45,6 +45,7 @@ import { SafetyModule } from './modules/safety/safety.module';
 import { ReferralsModule } from './modules/referrals/referrals.module';
 import { AdsModule } from './modules/ads/ads.module';
 import { HealthModule } from './modules/health/health.module';
+import { AppVersionModule } from './modules/app-version/app-version.module';
 import { FiscalModule } from './modules/fiscal/fiscal.module';
 import { TaxModule } from './modules/tax/tax.module';
 import { ShiftPassesModule } from './modules/shift-passes/shift-passes.module';
@@ -181,6 +182,7 @@ import { ENTITIES } from './database/entities';
     ReferralsModule,
     AdsModule,
     HealthModule,
+    AppVersionModule,
     FiscalModule,
     TaxModule,
     ShiftPassesModule,

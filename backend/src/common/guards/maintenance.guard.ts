@@ -62,6 +62,8 @@ export class MaintenanceGuard implements CanActivate {
     '/payments/click/callback',
     '/payments/uzcard/callback',
     '/health',
+    // Ilova "yangilang" ekranini texnik ishlar paytida ham ko'rsata olsin.
+    '/app/version',
     '/api/docs',
   ];
 
