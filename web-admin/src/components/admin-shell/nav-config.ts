@@ -2,6 +2,7 @@ import {
   BadgePercent,
   BarChart2,
   Bell,
+  Filter,
   Car,
   ClipboardList,
   FileCheck2,
@@ -89,6 +90,7 @@ export function adminNav(): readonly NavGroup[] {
       items: [
         { href: '/dashboard/staff', label: n.staff, icon: ShieldCheck },
         { href: '/dashboard/reports', label: n.reports, icon: BarChart2 },
+        { href: '/dashboard/funnel', label: n.funnel, icon: Filter },
         { href: '/dashboard/settings', label: n.settings, icon: Settings },
         { href: '/dashboard/global-settings', label: n.globalSettings, icon: SlidersHorizontal },
         { href: '/dashboard/legal-compliance', label: n.legal, icon: Scale },

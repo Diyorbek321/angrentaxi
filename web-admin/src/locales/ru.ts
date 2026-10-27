@@ -13,6 +13,7 @@ import { driverDocs } from './ru/driverDocs';
 import { finance } from './ru/finance';
 import { compliance } from './ru/compliance';
 import { reports } from './ru/reports';
+import { funnel } from './ru/funnel';
 import { vendors } from './ru/vendors';
 import { moderation } from './ru/moderation';
 import { ads } from './ru/ads';
@@ -38,6 +39,7 @@ export const ru: Messages = {
   finance,
   compliance,
   reports,
+  funnel,
   vendors,
   moderation,
   ads,

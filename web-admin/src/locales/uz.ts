@@ -12,6 +12,7 @@ import { driverDocs } from './uz/driverDocs';
 import { finance } from './uz/finance';
 import { compliance } from './uz/compliance';
 import { reports } from './uz/reports';
+import { funnel } from './uz/funnel';
 import { vendors } from './uz/vendors';
 import { moderation } from './uz/moderation';
 import { ads } from './uz/ads';
@@ -41,6 +42,7 @@ export const uz = {
   finance,
   compliance,
   reports,
+  funnel,
   vendors,
   moderation,
   ads,

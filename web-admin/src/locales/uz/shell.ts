@@ -26,6 +26,7 @@ export const shell = {
     groupSystem: 'Tizim',
     staff: 'Xodimlar',
     reports: 'Hisobotlar',
+    funnel: 'Voronka',
     settings: 'Sozlamalar',
     globalSettings: 'Umumiy sozlamalar',
     legal: 'Huquqiy talablar',

@@ -3,6 +3,7 @@ import { attachAuthInterceptor } from './session';
 import { t } from '@/locales';
 import { getLocale } from '@/lib/i18n/core';
 import type { DriverLegalBrief } from './compliance-api';
+import type { FunnelReport } from './funnel';
 
 /**
  * Requests go to this app's own /api/proxy, not to the backend directly. The
@@ -584,6 +585,11 @@ export const reportsApi = {
 
   exportCsv: (params: { from: string; to: string }) =>
     api.get('/orders/reports', { params, responseType: 'blob' }),
+};
+
+export const funnelApi = {
+  get: (params: { from: string; to: string }) =>
+    api.get<ApiResponse<FunnelReport>>('/analytics/funnel', { params }),
 };
 
 // ─── Dashboard ────────────────────────────────────────────────────

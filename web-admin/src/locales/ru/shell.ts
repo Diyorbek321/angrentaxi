@@ -28,6 +28,7 @@ export const shell: Messages['shell'] = {
     groupSystem: 'Система',
     staff: 'Сотрудники',
     reports: 'Отчёты',
+    funnel: 'Воронка',
     settings: 'Настройки',
     globalSettings: 'Общие настройки',
     legal: 'Правовые требования',
