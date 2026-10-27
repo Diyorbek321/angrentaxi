@@ -189,11 +189,16 @@ export class NotificationsService {
     await this.logNotification(passenger.id, title, body, 'trip_completed');
   }
 
-  async notifyNewOrderOffer(driver: User, order: Order): Promise<void> {
+  /**
+   * Data-only push (FirebaseService.sendDataPush): ilova o'ldirilgan bo'lsa
+   * ham haydovchi ilovasi taklifni qo'ng'iroqdek jiringlatadi. [expiresAt] —
+   * taklif tugash vaqti (ms); ilova eskirgan taklif uchun jiringlamaydi.
+   */
+  async notifyNewOrderOffer(driver: User, order: Order, expiresAt?: number): Promise<void> {
     const { title, body } = newOrderOfferText(order.pickupAddress, userLanguage(driver));
 
     if (driver.fcmToken) {
-      await this.firebaseService.sendPush(
+      await this.firebaseService.sendDataPush(
         driver.fcmToken,
         title,
         body,
@@ -203,7 +208,9 @@ export class NotificationsService {
           pickupAddress: order.pickupAddress || '',
           dropoffAddress: order.dropoffAddress || '',
           estimatedPrice: order.estimatedPrice.toString(),
+          ...(expiresAt !== undefined && { expiresAt: String(expiresAt) }),
         },
+        expiresAt,
       );
     }
 

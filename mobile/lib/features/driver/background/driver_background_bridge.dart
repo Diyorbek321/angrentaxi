@@ -84,6 +84,7 @@ class DriverBackgroundBridge {
       title: notice.title,
       text: notice.text,
       channel: notice.channel,
+      offerId: offer.id,
     );
   }
 }

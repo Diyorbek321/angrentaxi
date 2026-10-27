@@ -18,6 +18,16 @@ class MainActivity : FlutterActivity() {
         showOverLockScreenIfOffer(intent)
     }
 
+    override fun onResume() {
+        super.onResume()
+        DriverOverlay.appVisible = true
+    }
+
+    override fun onPause() {
+        DriverOverlay.appVisible = false
+        super.onPause()
+    }
+
     /** Ilova ochiq turganda chiqqan bildirishnoma bosildi → Dart (`tapped`). */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -109,6 +119,7 @@ class MainActivity : FlutterActivity() {
                             call.argument<String>("title") ?: "",
                             call.argument<String>("text") ?: "",
                             call.argument<String>("channel") ?: "",
+                            call.argument<String>("offerId"),
                         )
                         result.success(null)
                     }

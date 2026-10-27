@@ -27,8 +27,9 @@ class _RecordingOverlay extends DriverOverlay {
     required String title,
     required String text,
     required String channel,
+    String? offerId,
   }) async =>
-      calls.add('notify:$text');
+      calls.add('notify:$text#$offerId');
 
   @override
   Future<void> cancelOfferNotification() async => calls.add('cancelNotification');
@@ -80,7 +81,7 @@ void main() {
     await bridge.onLifecycle(AppLifecycleState.paused);
     offer = _offer('o-1');
     await bridge.onDriverChanged();
-    expect(overlay.calls, ['showBubble', 'showBubble', 'bringToFront', 'notify:Markaz']);
+    expect(overlay.calls, ['showBubble', 'showBubble', 'bringToFront', 'notify:Markaz#o-1']);
   });
 
   test('the same offer is announced once even if the provider notifies again', () async {

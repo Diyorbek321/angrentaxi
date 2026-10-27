@@ -20,7 +20,7 @@ describe('NotificationsService', () => {
     findOne: jest.Mock;
     update: jest.Mock;
   };
-  let firebaseService: { sendPush: jest.Mock };
+  let firebaseService: { sendPush: jest.Mock; sendDataPush: jest.Mock };
   let eskizService: { sendSms: jest.Mock };
 
   const baseUser = (overrides: Partial<User> = {}): User =>
@@ -58,7 +58,10 @@ describe('NotificationsService', () => {
       findOne: jest.fn(),
       update: jest.fn(),
     };
-    firebaseService = { sendPush: jest.fn().mockResolvedValue(undefined) };
+    firebaseService = {
+      sendPush: jest.fn().mockResolvedValue(undefined),
+      sendDataPush: jest.fn().mockResolvedValue(undefined),
+    };
     eskizService = { sendSms: jest.fn().mockResolvedValue(undefined) };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -120,9 +123,29 @@ describe('NotificationsService', () => {
 
       await service.notifyNewOrderOffer(driver, baseOrder());
 
-      expect(firebaseService.sendPush).not.toHaveBeenCalled();
+      expect(firebaseService.sendDataPush).not.toHaveBeenCalled();
       expect(notificationLogRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({ userId: 'driver-user-1', event: 'new_order_offer' }),
+      );
+    });
+
+    it('notifyNewOrderOffer sends a data-only push carrying the text and offer deadline', async () => {
+      const driver = baseUser({ id: 'driver-user-1', fcmToken: 'driver-token' });
+      const expiresAt = Date.now() + 15_000;
+
+      await service.notifyNewOrderOffer(driver, baseOrder(), expiresAt);
+
+      expect(firebaseService.sendPush).not.toHaveBeenCalled();
+      expect(firebaseService.sendDataPush).toHaveBeenCalledWith(
+        'driver-token',
+        expect.any(String),
+        expect.stringContaining('Amir Temur 1'),
+        expect.objectContaining({
+          event: 'new_order_offer',
+          orderId: 'order-1',
+          expiresAt: String(expiresAt),
+        }),
+        expiresAt,
       );
     });
 

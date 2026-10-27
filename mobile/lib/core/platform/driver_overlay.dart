@@ -43,12 +43,20 @@ class DriverOverlay {
   /// baribir jim rad etishi mumkin; shuning uchun bildirishnoma ham chiqadi).
   Future<bool> bringToFront() => _bool('bringToFront');
 
+  /// [offerId] — native tomon shu taklifni data-only FCM orqali ham olsa
+  /// (OfferPushReceiver), ikkinchi marta jiringlamaydi.
   Future<void> showOfferNotification({
     required String title,
     required String text,
     required String channel,
+    String? offerId,
   }) =>
-      _call('showOfferNotification', {'title': title, 'text': text, 'channel': channel});
+      _call('showOfferNotification', {
+        'title': title,
+        'text': text,
+        'channel': channel,
+        'offerId': offerId,
+      });
 
   Future<void> cancelOfferNotification() => _call('cancelOfferNotification');
 

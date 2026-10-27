@@ -50,6 +50,14 @@ object DriverOverlay {
     /** MainActivity shu belgini ko'rsa, bloklangan ekran ustida ochiladi. */
     const val EXTRA_OFFER_ALERT = "uz.angren.taxi.OFFER_ALERT"
 
+    /** MainActivity onResume/onPause: ekrandagi ilovada taklif ekrani o'zi ochiq. */
+    @Volatile
+    var appVisible = false
+
+    /** Oxirgi e'lon qilingan taklif — socket va FCM bir taklifni ikki marta jiringlatmasin. */
+    @Volatile
+    private var lastOfferId: String? = null
+
     private var bubble: View? = null
     private var lastX = 0
     private var lastY = 300
@@ -183,7 +191,18 @@ object DriverOverlay {
      * ilovalariga avtomatik beriladi; berilmasa tizim baribir yuqori
      * muhimlikdagi (heads-up) bildirishnoma ko'rsatadi — yiqilmaydi.
      */
-    fun showOfferNotification(context: Context, title: String, text: String, channelName: String) {
+    fun showOfferNotification(
+        context: Context,
+        title: String,
+        text: String,
+        channelName: String,
+        offerId: String? = null,
+        timeoutMs: Long = OFFER_TIMEOUT_MS,
+    ) {
+        if (offerId != null) {
+            if (offerId == lastOfferId) return
+            lastOfferId = offerId
+        }
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && nm.getNotificationChannel(CHANNEL_ID) == null) {
             nm.deleteNotificationChannel(LEGACY_CHANNEL_ID)
@@ -233,7 +252,7 @@ object DriverOverlay {
             .setContentIntent(open)
             .setFullScreenIntent(fullScreen, true)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            builder.setTimeoutAfter(OFFER_TIMEOUT_MS)
+            builder.setTimeoutAfter(timeoutMs)
         }
         val notification = builder.build().apply {
             flags = flags or android.app.Notification.FLAG_INSISTENT
@@ -244,6 +263,17 @@ object DriverOverlay {
             // Bildirishnoma ruxsati yo'q — tayyorlik oynasi buni oldini oladi.
         }
     }
+
+    /**
+     * Data-only FCM taklifi jiringlatilsinmi (OfferPushReceiver). Ilova
+     * ekranda bo'lsa — taklif ekrani o'zi ochiq; socket allaqachon e'lon
+     * qilgan bo'lsa — takror yo'q; muddati o'tgan bo'lsa — kech kelgan push.
+     */
+    fun shouldRingFromPush(offerId: String?, expiresAtMs: Long?, nowMs: Long): Boolean =
+        !appVisible &&
+            !offerId.isNullOrEmpty() &&
+            offerId != lastOfferId &&
+            (expiresAtMs == null || expiresAtMs > nowMs)
 
     fun cancelOfferNotification(context: Context) {
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

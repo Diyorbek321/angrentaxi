@@ -40,5 +40,19 @@
                     android:pathPrefix="/topup/" />
             </intent-filter>
         </activity>
+
+        <!-- Data-only FCM taklifi (backend FirebaseService.sendDataPush):
+             ilova o'ldirilgan bo'lsa ham qo'ng'iroqdek jiringlaydi. Xuddi
+             firebase_messaging plaginining FlutterFirebaseMessagingReceiver'i
+             kabi c2dm RECEIVE'ni tinglaydi — FCM servisini almashtirMAYDI
+             (asosiy manifestdagi ⚠️ izohga qarang), plagin xabarni baribir oladi. -->
+        <receiver
+            android:name=".OfferPushReceiver"
+            android:exported="true"
+            android:permission="com.google.android.c2dm.permission.SEND">
+            <intent-filter>
+                <action android:name="com.google.android.c2dm.intent.RECEIVE" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

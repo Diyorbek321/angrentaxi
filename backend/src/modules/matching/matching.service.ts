@@ -614,7 +614,7 @@ export class MatchingService {
 
     // Push KUTILMAYDI: sekin/osilgan FCM taklif oqimini (va shu paytdagi
     // rad etishni) to'xtatib turmasligi kerak.
-    this.notificationsService.notifyNewOrderOffer(driverUser, order).catch((err: unknown) => {
+    this.notificationsService.notifyNewOrderOffer(driverUser, order, offered.offerExpiresAt).catch((err: unknown) => {
       this.logger.warn(
         `Offer push to driver ${driver.userId} failed: ${(err as Error).message}`,
       );
