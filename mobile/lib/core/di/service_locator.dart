@@ -1,3 +1,4 @@
+import 'package:angren_taxi/core/analytics/funnel_tracker.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/core/location/route_service.dart';
 import 'package:angren_taxi/core/location/voice_guide.dart';
@@ -39,6 +40,9 @@ Future<void> setupServiceLocator() async {
       onForceLogout: () => sl<SocketService>().disconnect(),
     ),
   );
+
+  // Anonim voronka (faqat yo'lovchi ilovasi ishga tushiradi — main_passenger).
+  sl.registerLazySingleton<FunnelTracker>(() => FunnelTracker(api: sl<ApiClient>()));
 
   sl.registerLazySingleton<SocketService>(
     () => SocketService()

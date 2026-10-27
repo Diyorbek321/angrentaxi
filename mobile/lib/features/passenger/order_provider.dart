@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:angren_taxi/core/analytics/funnel_tracker.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/city_coverage.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
@@ -25,9 +26,18 @@ class OrderProvider extends ChangeNotifier {
     required ApiClient apiClient,
     required SocketService socketService,
     Duration? syncInterval,
+    FunnelTracker? funnel,
   })  : _apiClient = apiClient,
         _socketService = socketService,
+        _funnel = funnel,
         syncInterval = syncInterval ?? defaultSyncInterval;
+
+  /// Anonim voronka — faqat taksi zakazi (`null` — testlarda o'chiq).
+  final FunnelTracker? _funnel;
+
+  void _markFunnel(FunnelStep step) {
+    if (_serviceType == 'taxi') _funnel?.mark(step);
+  }
 
   /// Faol safar holatini serverdan tekshirish oralig'i — socket event'i
   /// yo'qolganda ekran shu vaqtdan ko'p qotib qolmaydi ([_syncActiveOrder]).
@@ -245,6 +255,7 @@ class OrderProvider extends ChangeNotifier {
   void setPendingDropoff(OrderLocation location) {
     _pendingDropoff = location;
     _isMetered = false;
+    _markFunnel(FunnelStep.destinationSelected);
     notifyListeners();
   }
 
@@ -461,6 +472,7 @@ class OrderProvider extends ChangeNotifier {
       if (serverDistance != null && serverDistance > 0) {
         _routeDistanceKm = serverDistance;
       }
+      _markFunnel(FunnelStep.priceShown);
       notifyListeners();
     } catch (e, st) {
       CrashReporting.reportHandled(e, st, 'OrderProvider.estimatePrice');
@@ -527,6 +539,7 @@ class OrderProvider extends ChangeNotifier {
       );
 
       _orderAttemptKey = null;
+      _markFunnel(FunnelStep.orderRequested);
       final data = response.data as Map<String, dynamic>;
       final order = Order.fromJson(data['data'] as Map<String, dynamic>);
       final wasScheduled = _scheduledAt != null;
@@ -1062,4 +1075,5 @@ class OrderProvider extends ChangeNotifier {
 OrderProvider buildOrderProvider() => OrderProvider(
       apiClient: sl<ApiClient>(),
       socketService: sl<SocketService>(),
+      funnel: sl<FunnelTracker>(),
     );

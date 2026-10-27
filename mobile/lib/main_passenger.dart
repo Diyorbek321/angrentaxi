@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:angren_taxi/app.dart';
+import 'package:angren_taxi/core/analytics/funnel_tracker.dart';
 import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/config/map_offline_region.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
@@ -66,6 +67,11 @@ Future<void> main() async {
   if (firebaseReady) {
     _registerFcmToken();
   }
+
+  // Voronka: ilova ochildi; fondan qaytishlarni tracker o'zi tinglaydi.
+  sl<FunnelTracker>()
+    ..attach()
+    ..onAppResumed();
 
   // Yiqilishlar Sentry'ga (SENTRY_DSN bo'lmasa — oddiy runApp).
   await CrashReporting.run(
