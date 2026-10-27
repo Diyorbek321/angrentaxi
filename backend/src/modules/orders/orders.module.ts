@@ -6,6 +6,7 @@ import { OrdersService } from './orders.service';
 import { ORDERS_PROVIDERS } from './orders.providers';
 import { OrdersMeterService } from './orders-meter.service';
 import { OrderFraudService } from './order-fraud.service';
+import { OrderIdempotencyService } from './order-idempotency.service';
 import { ScheduledOrdersService } from './scheduled-orders.service';
 import { Order } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
@@ -62,7 +63,13 @@ import { ShiftPassesModule } from '../shift-passes/shift-passes.module';
   // `OrdersMeterService` ham tashqarida: u `TaximeterService` ni talab qiladi,
   // `ORDERS_PROVIDERS` dan modul yig'adigan o'nlab unit spec'lar esa uni
   // bermaydi (taksometr ular sinayotgan oqimlarga aloqasi yo'q).
-  providers: [...ORDERS_PROVIDERS, ScheduledOrdersService, OrdersMeterService, OrderFraudService],
+  providers: [
+    ...ORDERS_PROVIDERS,
+    ScheduledOrdersService,
+    OrdersMeterService,
+    OrderFraudService,
+    OrderIdempotencyService,
+  ],
   // Only the facade is exported — other modules must keep depending on
   // OrdersService, not on the internal collaborator services.
   exports: [OrdersService],

@@ -45,6 +45,7 @@ import { FraudReviewDto } from './dto/fraud-review.dto';
 import { FraudReviewEntry, OrderFraudService } from './order-fraud.service';
 import { parseDeviceId } from './fraud-rules';
 import { VendorCashService, VendorPaidResult } from '../delivery/vendor-cash.service';
+import { OrderIdempotencyService } from './order-idempotency.service';
 
 @ApiTags('Orders')
 @ApiBearerAuth('JWT-auth')
@@ -60,6 +61,7 @@ export class OrdersController {
     // Optional: controller spec'lari uni qurmaydi; prod'da OrdersModule beradi.
     @Optional() private readonly fraudService?: OrderFraudService,
     @Optional() private readonly vendorCash?: VendorCashService,
+    @Optional() private readonly idempotency?: OrderIdempotencyService,
   ) {}
 
   @Post('calculate-price')
@@ -77,8 +79,17 @@ export class OrdersController {
     @CurrentUser() user: User,
     @Body() dto: CreateOrderDto,
     @Headers('x-device-id') deviceId?: string,
+    @Headers('idempotency-key') idempotencyKey?: string,
   ): Promise<Order> {
-    const order = await this.ordersService.create(user.id, dto);
+    const create = () => this.ordersService.create(user.id, dto);
+    const { order, replayed } = this.idempotency
+      ? await this.idempotency.run(user.id, idempotencyKey, create, (id) =>
+          this.ordersService.findByIdForUser(id, user),
+        )
+      : { order: await create(), replayed: false };
+    // Takror so'rov: buyurtma va uning qidiruvi allaqachon bor.
+    if (replayed) return order;
+
     await this.fraudService?.recordPassengerDevice(order.id, parseDeviceId(deviceId));
 
     this.startSearchUnlessScheduled(order);
