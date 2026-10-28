@@ -77,6 +77,7 @@ export class SupplyReportService {
       ) as Promise<ShortageHour[]>,
       this.one(
         `SELECT COUNT(*)::int AS kyc_pending,
+                COUNT(DISTINCT driver_id)::int AS kyc_pending_drivers,
                 FLOOR(EXTRACT(EPOCH FROM now() - MIN(submitted_at)) / 3600)::int AS kyc_oldest_hours
            FROM driver_verification_submissions
           WHERE review_status = 'pending'`,
@@ -138,6 +139,7 @@ export class SupplyReportService {
       },
       queue: {
         kycPending: num(queue.kyc_pending),
+        kycPendingDrivers: num(queue.kyc_pending_drivers),
         kycOldestHours: queue.kyc_oldest_hours === null ? null : num(queue.kyc_oldest_hours),
       },
       churning,

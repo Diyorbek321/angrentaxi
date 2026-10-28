@@ -28,10 +28,10 @@ export function supplyAlerts(s: SupplySnapshot): string[] {
     );
   }
 
-  const { kycPending, kycOldestHours } = s.queue;
+  const { kycPending, kycPendingDrivers, kycOldestHours } = s.queue;
   if (kycPending > 0 && kycOldestHours !== null && kycOldestHours >= KYC_WAIT_ALERT_HOURS) {
     alerts.push(
-      `${kycPending} ta haydovchi hujjat tasdig'ini kutyapti, eng eskisi ${kycOldestHours} soat — admin panel → Tasdiqlash`,
+      `${kycPendingDrivers} ta haydovchining ${kycPending} ta hujjati tasdiq kutyapti, eng eskisi ${kycOldestHours} soat — admin panel → Tasdiqlash`,
     );
   }
 
@@ -71,7 +71,7 @@ export function formatSupplyReport(title: string, s: SupplySnapshot): string {
     '',
     `👥 <b>Faol haydovchilar: ${s.activity.activeDrivers}</b> / ${d.approved} tasdiqlangan`,
     `  Hozir onlayn: ${d.onlineNow} · yangi ro'yxatdan o'tgan: ${d.newRegistrations}`,
-    `  Tasdiq kutyapti: ${d.pendingApproval} · KYC navbatda: ${s.queue.kycPending} · bloklangan: ${d.blocked}`,
+    `  Tasdiq kutyapti: ${d.pendingApproval} · KYC navbatda: ${s.queue.kycPendingDrivers} · bloklangan: ${d.blocked}`,
     ...(s.topDrivers.length > 0
       ? ['', '🏆 <b>Eng faollar</b>', ...s.topDrivers.slice(0, 3).map((t) => brief(t, `${t.rides} safar`))]
       : []),

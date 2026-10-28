@@ -2,6 +2,11 @@ import { FinanceSnapshot, netRevenue } from './finance-report.types';
 
 /** Shundan ko'p pasayish — ogohlantirish (0.3 = 30%). */
 const DROP_THRESHOLD = 0.3;
+/**
+ * O'rtacha shundan kam safar bo'lsa, foizli taqqoslash shovqin: 0,25 dan 0 ga
+ * tushish "100% pasayish" bo'lib ko'rinadi (ishga tushishgacha bo'lgan haftalar).
+ */
+const MIN_BASELINE_RIDES = 5;
 /** Bekor qilish ulushi shundan yuqori bo'lsa — ogohlantirish. */
 const CANCEL_RATE_THRESHOLD = 0.25;
 /** Bekor qilish ulushini shuncha buyurtmadan kam bo'lsa baholamaymiz. */
@@ -30,7 +35,7 @@ export function financeAlerts(current: FinanceSnapshot, baseline: FinanceSnapsho
   const alerts: string[] = [];
   const net = netRevenue(current);
 
-  if (baseline) {
+  if (baseline && baseline.rides.completed >= MIN_BASELINE_RIDES) {
     const ridesDrop = dropPercent(current.rides.completed, baseline.rides.completed);
     if (ridesDrop !== null) {
       alerts.push(

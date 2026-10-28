@@ -63,6 +63,21 @@ describe('financeAlerts', () => {
     expect(financeAlerts(snapshot({ rides: { ...snapshot().rides, completed: 1 } }), empty)).toEqual([]);
   });
 
+  it('stays quiet when the baseline is too small to compare (pre-launch weeks)', () => {
+    const tiny = snapshot({
+      rides: { ...snapshot().rides, completed: 0.25 },
+      revenue: { ...snapshot().revenue, rideCommission: 273, vendorCommission: 0, shiftPassRevenue: 0 },
+      costs: { ridePromos: 0, referralBonuses: 0, driverBonuses: 0 },
+    });
+    const today = snapshot({
+      rides: { ...snapshot().rides, completed: 0 },
+      revenue: { ...snapshot().revenue, rideCommission: 0, vendorCommission: 0, shiftPassRevenue: 0 },
+      costs: { ridePromos: 0, referralBonuses: 0, driverBonuses: 0 },
+    });
+
+    expect(financeAlerts(today, tiny)).toEqual([]);
+  });
+
   it('flags a high cancellation rate only with enough orders to mean something', () => {
     const many = snapshot({ rides: { ...snapshot().rides, completed: 30, cancelled: 20 } });
     const few = snapshot({ rides: { ...snapshot().rides, completed: 2, cancelled: 3 } });

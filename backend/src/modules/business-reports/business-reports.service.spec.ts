@@ -20,7 +20,7 @@ const supplySnap = (from: string, to: string): SupplySnapshot => ({
   drivers: { approved: 5, pendingApproval: 0, blocked: 0, onlineNow: 2, negativeBalance: 0, newRegistrations: 0 },
   activity: { activeDrivers: 3, completedRides: 10 },
   demand: { orders: 10, completed: 10, noDriverFound: 0, passengerGaveUp: 0, shortageHours: [] },
-  queue: { kycPending: 0, kycOldestHours: null },
+  queue: { kycPending: 0, kycPendingDrivers: 0, kycOldestHours: null },
   churning: [],
   topDrivers: [],
 });

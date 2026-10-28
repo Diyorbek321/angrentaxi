@@ -15,7 +15,7 @@ const snapshot = (overrides: Partial<SupplySnapshot> = {}): SupplySnapshot => ({
       { hour: 18, orders: 25, unmet: 3 },
     ],
   },
-  queue: { kycPending: 0, kycOldestHours: null },
+  queue: { kycPending: 0, kycPendingDrivers: 0, kycOldestHours: null },
   churning: [],
   topDrivers: [{ driverId: 'd1', name: 'Ali V.', phone: '+998901112233', daysSinceLastRide: 0, rides: 22 }],
   ...overrides,
@@ -48,20 +48,20 @@ describe('supplyAlerts', () => {
 
   it('flags KYC waiting longer than a day, drivers locked out by debt, and churn', () => {
     const s = snapshot({
-      queue: { kycPending: 3, kycOldestHours: 30 },
+      queue: { kycPending: 3, kycPendingDrivers: 2, kycOldestHours: 30 },
       drivers: { ...snapshot().drivers, negativeBalance: 4 },
       churning: [
         { driverId: 'd2', name: 'Vali', phone: '+998900000002', daysSinceLastRide: 9, rides: 40 },
       ],
     });
     const alerts = supplyAlerts(s);
-    expect(alerts.some((a) => a.includes('3 ta') && a.includes('30 soat'))).toBe(true);
+    expect(alerts.some((a) => a.includes('2 ta haydovchi') && a.includes('3 ta hujjat') && a.includes('30 soat'))).toBe(true);
     expect(alerts.some((a) => a.includes('4 ta') && a.includes('manfiy'))).toBe(true);
     expect(alerts.some((a) => a.includes('1 ta') && a.includes('7+'))).toBe(true);
   });
 
   it('a fresh KYC submission is not an alert yet', () => {
-    expect(supplyAlerts(snapshot({ queue: { kycPending: 1, kycOldestHours: 2 } }))).toEqual([]);
+    expect(supplyAlerts(snapshot({ queue: { kycPending: 1, kycPendingDrivers: 1, kycOldestHours: 2 } }))).toEqual([]);
   });
 });
 

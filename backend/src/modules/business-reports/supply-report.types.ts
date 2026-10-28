@@ -49,7 +49,10 @@ export interface SupplySnapshot {
   };
 
   queue: {
+    /** Kutayotgan hujjat arizalari (bir haydovchida bir nechta bo'ladi). */
     kycPending: number;
+    /** Arizasi kutayotgan haydovchilar soni. */
+    kycPendingDrivers: number;
     /** Eng eski kutayotgan ariza necha soat kutyapti. */
     kycOldestHours: number | null;
   };
