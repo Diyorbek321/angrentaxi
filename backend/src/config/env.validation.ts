@@ -135,6 +135,22 @@ class EnvironmentVariables {
   @IsOptional()
   PAYME_SECRET_KEY: string = '';
 
+  // Egasiga kunlik/haftalik moliya hisobotlari (modules/business-reports).
+  // Server alertlari (deploy/oracle/lib.sh) bilan bir xil bot.
+  @IsString()
+  @IsOptional()
+  TELEGRAM_BOT_TOKEN: string = '';
+
+  @IsString()
+  @IsOptional()
+  TELEGRAM_CHAT_ID: string = '';
+
+  // `X-Reports-Key` — egasining Claude skill'lari uchun hisobot API'si.
+  // 32 belgidan qisqa bo'lsa API yopiq (`reports-key.guard.ts`).
+  @IsString()
+  @IsOptional()
+  REPORTS_API_KEY: string = '';
+
   // ⚠️ `@Transform(envBoolean)` MAJBURIY: implicit conversion "false" ni
   // `true` qilardi (`common/utils/env-boolean.util.ts`). Har bir yangi boolean
   // env shu naqsh bilan e'lon qilinsin.

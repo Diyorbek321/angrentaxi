@@ -22,6 +22,7 @@ declare -A lengths=(
   [REDIS_PASSWORD]=24
   [APP_SECRET]=32
   [BACKUP_GPG_PASSPHRASE]=32
+  [REPORTS_API_KEY]=32
 )
 
 changed=0

@@ -53,6 +53,7 @@ import { ShiftPassesModule } from './modules/shift-passes/shift-passes.module';
 import { IntercityModule } from './modules/intercity/intercity.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { CourierWalletRemindersModule } from './modules/delivery/courier-wallet-reminders.module';
+import { BusinessReportsModule } from './modules/business-reports/business-reports.module';
 import { ENTITIES } from './database/entities';
 
 @Module({
@@ -191,6 +192,7 @@ import { ENTITIES } from './database/entities';
     IntercityModule,
     AuditModule,
     CourierWalletRemindersModule,
+    BusinessReportsModule,
   ],
   providers: [
     // ThrottlerModule only configures the limits — nothing enforces them until
