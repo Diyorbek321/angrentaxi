@@ -5,6 +5,7 @@ import { FinanceReportService } from './finance-report.service';
 import { TelegramService } from './telegram.service';
 import { SupplyReportService } from './supply-report.service';
 import { FraudReportService } from './fraud-report.service';
+import { QualityReportService } from './quality-report.service';
 import { ReportsKeyGuard } from './reports-key.guard';
 
 @Module({
@@ -14,6 +15,7 @@ import { ReportsKeyGuard } from './reports-key.guard';
     FinanceReportService,
     SupplyReportService,
     FraudReportService,
+    QualityReportService,
     TelegramService,
     ReportsKeyGuard,
   ],

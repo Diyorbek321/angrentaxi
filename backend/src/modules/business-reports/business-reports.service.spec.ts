@@ -5,6 +5,8 @@ import { SupplyReportService } from './supply-report.service';
 import { SupplySnapshot } from './supply-report.types';
 import { FraudReportService } from './fraud-report.service';
 import { FraudSnapshot } from './fraud-report.types';
+import { QualityReportService } from './quality-report.service';
+import { QualitySnapshot } from './quality-report.types';
 import { FinanceSnapshot } from './finance-report.types';
 
 const snap = (from: string, to: string, completed = 10): FinanceSnapshot => ({
@@ -46,11 +48,21 @@ const fraudSnap = (from: string, to: string, lost = 0): FraudSnapshot => ({
   selfOrderReview: { flaggedInPeriod: 0, pending: 0, oldestPendingHours: null },
 });
 
+const qualitySnap = (from: string, to: string, activeSos = 0): QualitySnapshot => ({
+  period: { from, to },
+  ratings: { count: 0, average: null, low: 0, completedRides: 0, lowPassengerRatings: 0, lowList: [] },
+  driversAtRisk: [],
+  support: { openedInPeriod: 0, medianFirstResponseMin: null, openNow: 0, unanswered: 0, oldestUnansweredHours: null },
+  sos: { inPeriod: activeSos, active: activeSos, oldestActiveMinutes: activeSos ? 10 : null },
+  lostItems: { reportedInPeriod: 0, open: 0, oldestOpenHours: null },
+});
+
 describe('BusinessReportsService', () => {
   let finance: { snapshot: jest.Mock; baseline: jest.Mock };
   let telegram: { send: jest.Mock };
   let supply: { snapshot: jest.Mock };
   let fraud: { snapshot: jest.Mock };
+  let quality: { snapshot: jest.Mock };
   let service: BusinessReportsService;
   const NOW = new Date('2026-10-28T03:00:00Z'); // 08:00 Toshkent, chorshanba
 
@@ -62,10 +74,12 @@ describe('BusinessReportsService', () => {
     telegram = { send: jest.fn().mockResolvedValue(true) };
     supply = { snapshot: jest.fn(async (p) => supplySnap(p.from, p.to)) };
     fraud = { snapshot: jest.fn(async (p) => fraudSnap(p.from, p.to)) };
+    quality = { snapshot: jest.fn(async (p) => qualitySnap(p.from, p.to)) };
     service = new BusinessReportsService(
       finance as unknown as FinanceReportService,
       supply as unknown as SupplyReportService,
       fraud as unknown as FraudReportService,
+      quality as unknown as QualityReportService,
       telegram as unknown as TelegramService,
     );
   });
@@ -101,8 +115,35 @@ describe('BusinessReportsService', () => {
     await service.sendWeekly(NOW);
 
     expect(fraud.snapshot).toHaveBeenCalledWith({ from: '2026-10-19', to: '2026-10-26' });
-    expect(telegram.send).toHaveBeenCalledTimes(3);
-    expect(telegram.send.mock.calls[2][0]).toContain('Antifrod — 19.10–25.10.2026');
+    expect(telegram.send.mock.calls.map(([t]) => t).join()).toContain('Antifrod — 19.10–25.10.2026');
+  });
+
+  it('daily quality message is sent only when something needs attention', async () => {
+    await service.sendDaily(NOW);
+    expect(telegram.send).toHaveBeenCalledTimes(2);
+
+    telegram.send.mockClear();
+    quality.snapshot.mockImplementation(async (p) => qualitySnap(p.from, p.to, 1));
+    await service.sendDaily(NOW);
+    const texts = telegram.send.mock.calls.map(([t]) => t as string);
+    expect(texts).toHaveLength(3);
+    expect(texts[2]).toContain('Sifat va support — 27.10.2026');
+    expect(texts[2]).toContain('SOS');
+  });
+
+  it('weekly sends all four departments', async () => {
+    await service.sendWeekly(NOW);
+
+    expect(quality.snapshot).toHaveBeenCalledWith({ from: '2026-10-19', to: '2026-10-26' });
+    expect(telegram.send).toHaveBeenCalledTimes(4);
+  });
+
+  it('qualityReport() returns the snapshot with its alerts', async () => {
+    quality.snapshot.mockImplementation(async (p) => qualitySnap(p.from, p.to, 2));
+    const result = await service.qualityReport({ from: '2026-10-01', to: '2026-10-08' });
+
+    expect(result.snapshot.sos.active).toBe(2);
+    expect(result.alerts[0]).toContain('SOS');
   });
 
   it('fraudReport() returns the snapshot with its alerts', async () => {

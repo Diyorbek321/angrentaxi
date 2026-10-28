@@ -1,6 +1,12 @@
 import { BadRequestException, Controller, Get, HttpCode, HttpStatus, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { BusinessReportsService, FinanceReport, FraudReport, SupplyReport } from './business-reports.service';
+import {
+  BusinessReportsService,
+  FinanceReport,
+  FraudReport,
+  QualityReport,
+  SupplyReport,
+} from './business-reports.service';
 import { ReportsKeyGuard } from './reports-key.guard';
 import { ReportPeriodQuery } from './dto/report-period.query';
 import { ReportPeriod, periodDays, yesterday } from './report-period';
@@ -33,9 +39,15 @@ export class BusinessReportsController {
     return this.reports.fraudReport(toPeriod(query));
   }
 
+  @Get('quality')
+  @ApiOperation({ summary: 'Quality & support snapshot (ratings, support, SOS, lost items)' })
+  quality(@Query() query: ReportPeriodQuery): Promise<QualityReport> {
+    return this.reports.qualityReport(toPeriod(query));
+  }
+
   @Post('finance/send-daily')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Send yesterday's finance + drivers reports to Telegram now (setup check)" })
+  @ApiOperation({ summary: "Send yesterday's department reports to Telegram now (setup check)" })
   async sendDaily(): Promise<{ sent: boolean }> {
     return { sent: await this.reports.sendDaily() };
   }

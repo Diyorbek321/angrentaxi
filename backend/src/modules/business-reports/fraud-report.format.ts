@@ -1,5 +1,5 @@
 import { FraudSnapshot, SuspiciousPair } from './fraud-report.types';
-import { escapeHtml } from './html';
+import { escapeHtml, formatWait } from './html';
 
 /** "O'ziga o'zi zakaz" navbatidagi safar shundan uzoq kutsa — bonus qarori kechikyapti. */
 const REVIEW_WAIT_ALERT_HOURS = 48;
@@ -29,7 +29,7 @@ export function fraudAlerts(s: FraudSnapshot): string[] {
   const r = s.selfOrderReview;
   if (r.pending > 0 && r.oldestPendingHours !== null && r.oldestPendingHours >= REVIEW_WAIT_ALERT_HOURS) {
     alerts.push(
-      `${r.pending} ta shubhali safar menejer qarorini kutyapti, eng eskisi ${r.oldestPendingHours} soat — menejer paneli → Firibgarlik`,
+      `${r.pending} ta shubhali safar menejer qarorini kutyapti, eng eskisi ${formatWait(r.oldestPendingHours)} — menejer paneli → Shubhali safarlar`,
     );
   }
   return alerts;

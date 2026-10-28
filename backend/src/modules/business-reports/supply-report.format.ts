@@ -1,5 +1,5 @@
 import { DriverBrief, SupplySnapshot, fulfilmentRate } from './supply-report.types';
-import { escapeHtml } from './html';
+import { escapeHtml, formatWait } from './html';
 
 /** Bajarilish shundan past bo'lsa — haydovchi yetishmayapti. */
 const FULFILMENT_THRESHOLD = 85;
@@ -30,7 +30,7 @@ export function supplyAlerts(s: SupplySnapshot): string[] {
   const { kycPending, kycPendingDrivers, kycOldestHours } = s.queue;
   if (kycPending > 0 && kycOldestHours !== null && kycOldestHours >= KYC_WAIT_ALERT_HOURS) {
     alerts.push(
-      `${kycPendingDrivers} ta haydovchining ${kycPending} ta hujjati tasdiq kutyapti, eng eskisi ${kycOldestHours} soat — admin panel → Hujjatlar`,
+      `${kycPendingDrivers} ta haydovchining ${kycPending} ta hujjati tasdiq kutyapti, eng eskisi ${formatWait(kycOldestHours)} — admin panel → Hujjatlar`,
     );
   }
 

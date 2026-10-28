@@ -44,7 +44,7 @@ describe('fraudAlerts', () => {
     expect(alerts.some((a) => a.includes('1 ta haydovchi'))).toBe(true);
     expect(alerts.some((a) => a.includes('1 ta juftlik'))).toBe(true);
     expect(alerts.some((a) => a.includes('doimiy mijoz'))).toBe(true);
-    expect(alerts.some((a) => a.includes('2 ta') && a.includes('50 soat'))).toBe(true);
+    expect(alerts.some((a) => a.includes('2 ta') && a.includes('2 kun'))).toBe(true);
   });
 
   it('a fresh review item is not an alert yet', () => {

@@ -8,6 +8,9 @@ import { formatSupplyReport, supplyAlerts } from './supply-report.format';
 import { FraudReportService } from './fraud-report.service';
 import { FraudSnapshot } from './fraud-report.types';
 import { formatFraudReport, fraudAlerts } from './fraud-report.format';
+import { QualityReportService } from './quality-report.service';
+import { QualitySnapshot } from './quality-report.types';
+import { formatQualityReport, qualityAlerts } from './quality-report.format';
 import { FinanceSnapshot, netRevenue } from './finance-report.types';
 import { financeAlerts, formatFinanceReport } from './finance-report.format';
 import { ReportPeriod, addDays, periodDays, previousWeek, yesterday } from './report-period';
@@ -27,6 +30,11 @@ export interface SupplyReport {
 
 export interface FraudReport {
   snapshot: FraudSnapshot;
+  alerts: string[];
+}
+
+export interface QualityReport {
+  snapshot: QualitySnapshot;
   alerts: string[];
 }
 
@@ -50,6 +58,7 @@ export class BusinessReportsService {
     private readonly finance: FinanceReportService,
     private readonly supply: SupplyReportService,
     private readonly fraud: FraudReportService,
+    private readonly quality: QualityReportService,
     private readonly telegram: TelegramService,
   ) {}
 
@@ -71,6 +80,11 @@ export class BusinessReportsService {
     return { snapshot, alerts: fraudAlerts(snapshot) };
   }
 
+  async qualityReport(period: ReportPeriod): Promise<QualityReport> {
+    const snapshot = await this.quality.snapshot(period);
+    return { snapshot, alerts: qualityAlerts(snapshot) };
+  }
+
   @Cron('0 8 * * *', { name: 'business-report-daily', timeZone: 'Asia/Tashkent' })
   async dailyCron(): Promise<void> {
     await this.sendDaily();
@@ -82,29 +96,31 @@ export class BusinessReportsService {
   }
 
   /**
-   * Moliya, haydovchilar, antifrod — alohida xabarlar. Kunlik antifrod faqat
-   * shubhali holat bo'lsa yuboriladi (har kuni "hammasi joyida" — shovqin).
+   * Moliya, haydovchilar, antifrod, sifat — alohida xabarlar. Kunlik antifrod
+   * va sifat faqat e'tibor kerak bo'lsa yuboriladi (har kuni "hammasi
+   * joyida" — shovqin); haftalikda hammasi.
    */
   async sendDaily(now: Date = new Date()): Promise<boolean> {
     const period = yesterday(now);
-    return this.sendAll(period, 'Kunlik hisobot', dmy(period.from), { quietFraud: true });
+    return this.sendAll(period, 'Kunlik hisobot', dmy(period.from), { quiet: true });
   }
 
   async sendWeekly(now: Date = new Date()): Promise<boolean> {
     const period = previousWeek(now);
     const range = `${dmy(period.from).slice(0, 5)}–${dmy(addDays(period.to, -1))}`;
-    return this.sendAll(period, 'Haftalik hisobot', range, { quietFraud: false });
+    return this.sendAll(period, 'Haftalik hisobot', range, { quiet: false });
   }
 
   private async sendAll(
     period: ReportPeriod,
     financeLabel: string,
     when: string,
-    opts: { quietFraud: boolean },
+    opts: { quiet: boolean },
   ): Promise<boolean> {
     const financeTitle = `${financeLabel} — ${when}`;
     const supplyTitle = `Haydovchilar bo'limi — ${when}`;
     const fraudTitle = `Antifrod — ${when}`;
+    const qualityTitle = `Sifat va support — ${when}`;
 
     const finance = await this.send(financeTitle, async () => {
       const { snapshot, baseline } = await this.report(period);
@@ -115,9 +131,13 @@ export class BusinessReportsService {
     );
     const fraud = await this.send(fraudTitle, async () => {
       const { snapshot, alerts } = await this.fraudReport(period);
-      return opts.quietFraud && alerts.length === 0 ? null : formatFraudReport(fraudTitle, snapshot);
+      return opts.quiet && alerts.length === 0 ? null : formatFraudReport(fraudTitle, snapshot);
     });
-    return finance && supply && fraud;
+    const quality = await this.send(qualityTitle, async () => {
+      const { snapshot, alerts } = await this.qualityReport(period);
+      return opts.quiet && alerts.length === 0 ? null : formatQualityReport(qualityTitle, snapshot);
+    });
+    return finance && supply && fraud && quality;
   }
 
   /**
