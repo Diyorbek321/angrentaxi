@@ -55,7 +55,6 @@ Oxirgi prod deploy: `30e9d24` (2026-10-28). Oxirgi APK: v15 (2026-10-28, build 2
 ## 🔧 Kod (keyinroq)
 
 - [ ] Dizayn fazalari 3–5: haydovchi taklif halqasi, super-app `home_tab` + PMTiles, kutish hisoblagichi; tarif kartalari uchun 4 ta mashina SVG.
-- [ ] Admin broadcast push bir tilda (admin yozgan matn) — uz/ru ikki maydon.
 - [ ] Socket (`WsException`) va class-validator xabarlari tarjima qilinmaydi.
 - [ ] Market "Kategoriyalar" va "Zaxira" sahifalari hali to'liq ro'yxatni oladi (sahifalanmagan).
 - [ ] Prod bazasi: bitta haydovchida bir nechta faol zakaz qolmaganini tekshirish (tuzatilgan bug izi).

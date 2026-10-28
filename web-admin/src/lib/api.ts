@@ -321,14 +321,25 @@ export interface PushBroadcast {
   id: string;
   title: string;
   body: string;
+  titleRu: string | null;
+  bodyRu: string | null;
   audience: BroadcastAudience;
   sentCount: number;
   createdAt: string;
 }
 
+/** Ruscha maydonlar bo'sh bo'lsa, ruscha foydalanuvchilar o'zbekcha matnni oladi. */
+export interface BroadcastInput {
+  title: string;
+  body: string;
+  titleRu?: string;
+  bodyRu?: string;
+  audience: BroadcastAudience;
+}
+
 export const broadcastApi = {
-  send: (title: string, body: string, audience: BroadcastAudience) =>
-    api.post<ApiResponse<PushBroadcast>>('/notifications/broadcast', { title, body, audience }),
+  send: (input: BroadcastInput) =>
+    api.post<ApiResponse<PushBroadcast>>('/notifications/broadcast', input),
   getHistory: (page = 1, limit = 20) =>
     api.get<ApiResponse<{ broadcasts: PushBroadcast[]; total: number; page: number; limit: number }>>(
       '/notifications/broadcast/history',

@@ -38,4 +38,10 @@ export const push = {
   confirmPost: ". Yuborilgan xabarni qaytarib yoki o'chirib bo'lmaydi.",
   sendTo: (label: string) => `Yuborish — ${label}`,
   preview: "Qurilmada shunday ko'rinadi:",
+  langUz: "O'zbekcha",
+  langRu: 'Ruscha',
+  ruOptional: "ixtiyoriy",
+  ruHint: "Ilovasi rus tilida bo'lganlar shu matnni oladi. Bo'sh qoldirilsa — o'zbekchasini.",
+  ruIncomplete: "Ruscha sarlavha va matn ikkalasi to'ldirilsin yoki ikkalasi bo'sh qolsin",
+  ruFallback: "Ruscha matn yo'q — rus tilidagilar o'zbekchasini oladi.",
 };

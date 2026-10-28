@@ -33,6 +33,8 @@ interface AudienceOption {
   description: string;
 }
 
+type FieldErrors = { title?: string; body?: string; titleRu?: string; bodyRu?: string };
+
 const AUDIENCE_ORDER: BroadcastAudience[] = ['all', 'customers', 'drivers'];
 
 function audienceOptions(): AudienceOption[] {
@@ -48,10 +50,12 @@ export default function PushNotificationsPage() {
   const { toast } = useToast();
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [titleRu, setTitleRu] = useState('');
+  const [bodyRu, setBodyRu] = useState('');
   const [audience, setAudience] = useState<BroadcastAudience>('all');
   const [sending, setSending] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<{ title?: string; body?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [history, setHistory] = useState<PushBroadcast[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,11 +82,16 @@ export default function PushNotificationsPage() {
 
   // Validatsiya maydonning O'ZIGA biriktiriladi — toast emas.
   const validate = (): boolean => {
-    const errors: { title?: string; body?: string } = {};
+    const errors: FieldErrors = {};
     if (!title.trim()) errors.title = p.titleRequired;
     else if (title.trim().length > TITLE_MAX) errors.title = p.maxChars(TITLE_MAX);
     if (!body.trim()) errors.body = p.bodyRequired;
     else if (body.trim().length > BODY_MAX) errors.body = p.maxChars(BODY_MAX);
+    // Ruscha: ikkalasi yoki hech biri — aralash tilli push chiqmasin.
+    if (titleRu.trim().length > TITLE_MAX) errors.titleRu = p.maxChars(TITLE_MAX);
+    else if (!titleRu.trim() && bodyRu.trim()) errors.titleRu = p.ruIncomplete;
+    if (bodyRu.trim().length > BODY_MAX) errors.bodyRu = p.maxChars(BODY_MAX);
+    else if (titleRu.trim() && !bodyRu.trim()) errors.bodyRu = p.ruIncomplete;
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -94,7 +103,12 @@ export default function PushNotificationsPage() {
   const handleSend = async () => {
     setSending(true);
     try {
-      const res = await broadcastApi.send(title.trim(), body.trim(), audience);
+      const res = await broadcastApi.send({
+        title: title.trim(),
+        body: body.trim(),
+        ...(hasRu && { titleRu: titleRu.trim(), bodyRu: bodyRu.trim() }),
+        audience,
+      });
       const sentCount = res.data.data?.sentCount;
       toast({
         title: p.sent,
@@ -106,6 +120,8 @@ export default function PushNotificationsPage() {
       });
       setTitle('');
       setBody('');
+      setTitleRu('');
+      setBodyRu('');
       setFieldErrors({});
       setConfirmOpen(false);
       await loadHistory();
@@ -118,6 +134,7 @@ export default function PushNotificationsPage() {
 
   const showFullError = error && !isLoading && !hasLoadedOnce;
   const showErrorBanner = error && !isLoading && hasLoadedOnce;
+  const hasRu = Boolean(titleRu.trim() && bodyRu.trim());
   const selectedAudience = AUDIENCES.find((a) => a.value === audience)!;
 
   return (
@@ -127,6 +144,7 @@ export default function PushNotificationsPage() {
         <Card padding="none">
           <CardHeader title={p.newMessage} divider />
           <CardBody className="space-y-4 pt-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-subtle">{p.langUz}</p>
             <Input
               label={p.fieldTitle}
               placeholder={p.fieldTitlePlaceholder}
@@ -145,6 +163,35 @@ export default function PushNotificationsPage() {
               hint={p.charCount(body.trim().length, BODY_MAX)}
               onChange={(e) => setBody(e.target.value)}
             />
+
+            <div className="space-y-4 border-t border-line pt-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-subtle">
+                  {p.langRu} <span className="font-normal normal-case tracking-normal">· {p.ruOptional}</span>
+                </p>
+                <p className="mt-1 text-xs text-muted">{p.ruHint}</p>
+              </div>
+              <Input
+                label={p.fieldTitle}
+                placeholder="Например: Скидка на выходные"
+                lang="ru"
+                value={titleRu}
+                maxLength={TITLE_MAX + 20}
+                error={fieldErrors.titleRu}
+                hint={p.charCount(titleRu.trim().length, TITLE_MAX)}
+                onChange={(e) => setTitleRu(e.target.value)}
+              />
+              <Textarea
+                label={p.fieldBody}
+                placeholder="Полный текст сообщения..."
+                lang="ru"
+                value={bodyRu}
+                rows={4}
+                error={fieldErrors.bodyRu}
+                hint={p.charCount(bodyRu.trim().length, BODY_MAX)}
+                onChange={(e) => setBodyRu(e.target.value)}
+              />
+            </div>
 
             {/* Kim OLADI va kim OLMAYDI — ikkalasi ham yozilgan. */}
             <RadioGroup
@@ -198,6 +245,15 @@ export default function PushNotificationsPage() {
                     <Badge variant="neutral">{AUDIENCE_LABELS[h.audience] ?? h.audience}</Badge>
                   </div>
                   <p className="mt-1 text-[13px] leading-relaxed text-muted">{h.body}</p>
+                  {h.titleRu && (
+                    <div className="mt-2 border-l-2 border-line pl-2" lang="ru">
+                      <p className="text-[13px] font-medium text-ink">
+                        <span className="mr-1.5 text-[11px] font-semibold text-subtle">RU</span>
+                        {h.titleRu}
+                      </p>
+                      <p className="mt-0.5 text-[13px] leading-relaxed text-muted">{h.bodyRu}</p>
+                    </div>
+                  )}
                   <p className="num mt-1.5 text-xs text-subtle">
                     {formatDateTime(h.createdAt, { withYear: true })} · {p.delivered(formatNumber(h.sentCount))}
                   </p>
@@ -236,10 +292,20 @@ export default function PushNotificationsPage() {
       >
         <div className="rounded-ds-md border border-line bg-surface-2 p-3">
           <p className="text-xs text-subtle">{p.preview}</p>
-          <div className="mt-2 rounded-ds-sm border border-line bg-surface p-3">
+          <p className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-subtle">{p.langUz}</p>
+          <div className="mt-1 rounded-ds-sm border border-line bg-surface p-3">
             <p className="text-sm font-semibold text-ink">{title.trim()}</p>
             <p className="mt-1 text-[13px] leading-relaxed text-muted">{body.trim()}</p>
           </div>
+          <p className="mt-3 text-[11px] font-semibold uppercase tracking-wide text-subtle">{p.langRu}</p>
+          {hasRu ? (
+            <div className="mt-1 rounded-ds-sm border border-line bg-surface p-3" lang="ru">
+              <p className="text-sm font-semibold text-ink">{titleRu.trim()}</p>
+              <p className="mt-1 text-[13px] leading-relaxed text-muted">{bodyRu.trim()}</p>
+            </div>
+          ) : (
+            <p className="mt-1 text-xs text-muted">{p.ruFallback}</p>
+          )}
         </div>
       </Modal>
     </div>

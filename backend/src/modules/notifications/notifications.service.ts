@@ -17,7 +17,7 @@ import {
   vendorOrderCancelledText,
   verificationDueText,
 } from './misc-notification-texts';
-import { LocalizedPush, userLanguage } from './push-text';
+import { LocalizedPush, PushText, userLanguage } from './push-text';
 import { otpSmsText } from './sms-texts';
 import type { AppLanguage } from '../../common/i18n/error-messages';
 import { EskizService } from './eskiz.service';
@@ -29,6 +29,14 @@ import {
   BroadcastAudience,
   PushNotificationLog,
 } from '../../database/entities/push-notification-log.entity';
+
+/** Admin yozgan ommaviy xabar; ruscha maydonlar ixtiyoriy. */
+export interface BroadcastText {
+  title: string;
+  body: string;
+  titleRu?: string | null;
+  bodyRu?: string | null;
+}
 
 @Injectable()
 export class NotificationsService {
@@ -48,10 +56,11 @@ export class NotificationsService {
   // Super Admin > Marketing > Push Notifications. Best-effort per user — one
   // bad/expired token must never abort the whole broadcast. Persists a
   // PushNotificationLog row regardless of how many actually succeeded, so
-  // the send-history list always reflects what was attempted.
+  // the send-history list always reflects what was attempted. Each user gets
+  // the text in their `users.language`; Russian falls back to Uzbek when the
+  // admin left the Russian fields empty.
   async broadcast(
-    title: string,
-    body: string,
+    text: BroadcastText,
     audience: BroadcastAudience,
     performedByUserId: string,
   ): Promise<PushNotificationLog> {
@@ -68,8 +77,20 @@ export class NotificationsService {
       .andWhere('u.fcm_token IS NOT NULL')
       .getMany();
 
+    // Ruscha faqat juft holda: yarmi ruscha, yarmi o'zbekcha push chiqmasin.
+    const ruTitle = text.titleRu?.trim();
+    const ruBody = text.bodyRu?.trim();
+    const titleRu = ruTitle && ruBody ? ruTitle : null;
+    const bodyRu = ruTitle && ruBody ? ruBody : null;
+    const uz: PushText = { title: text.title, body: text.body };
+    const byLanguage: Record<AppLanguage, PushText> = {
+      uz,
+      ru: titleRu && bodyRu ? { title: titleRu, body: bodyRu } : uz,
+    };
+
     let sentCount = 0;
     for (const user of recipients) {
+      const { title, body } = byLanguage[userLanguage(user)];
       try {
         await this.firebaseService.sendPush(user.fcmToken as string, title, body);
         sentCount += 1;
@@ -82,8 +103,10 @@ export class NotificationsService {
 
     return this.pushNotificationLogRepository.save(
       this.pushNotificationLogRepository.create({
-        title,
-        body,
+        title: text.title,
+        body: text.body,
+        titleRu,
+        bodyRu,
         audience,
         sentCount,
         createdByUserId: performedByUserId,
