@@ -1,6 +1,6 @@
 import { BadRequestException, Controller, Get, HttpCode, HttpStatus, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { BusinessReportsService, FinanceReport, SupplyReport } from './business-reports.service';
+import { BusinessReportsService, FinanceReport, FraudReport, SupplyReport } from './business-reports.service';
 import { ReportsKeyGuard } from './reports-key.guard';
 import { ReportPeriodQuery } from './dto/report-period.query';
 import { ReportPeriod, periodDays, yesterday } from './report-period';
@@ -25,6 +25,12 @@ export class BusinessReportsController {
   @ApiOperation({ summary: 'Drivers department (supply) snapshot for a Tashkent date range' })
   supply(@Query() query: ReportPeriodQuery): Promise<SupplyReport> {
     return this.reports.supplyReport(toPeriod(query));
+  }
+
+  @Get('fraud')
+  @ApiOperation({ summary: 'Antifraud (platform bypass) snapshot for a Tashkent date range' })
+  fraud(@Query() query: ReportPeriodQuery): Promise<FraudReport> {
+    return this.reports.fraudReport(toPeriod(query));
   }
 
   @Post('finance/send-daily')

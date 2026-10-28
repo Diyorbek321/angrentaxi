@@ -6,6 +6,7 @@ describe('BusinessReportsController', () => {
   const reports = {
     report: jest.fn().mockResolvedValue({}),
     supplyReport: jest.fn().mockResolvedValue({}),
+    fraudReport: jest.fn().mockResolvedValue({}),
     sendDaily: jest.fn().mockResolvedValue(true),
   };
   const controller = new BusinessReportsController(reports as unknown as BusinessReportsService);
@@ -37,6 +38,12 @@ describe('BusinessReportsController', () => {
     await controller.supply({ from: '2026-10-01', to: '2026-10-08' });
     expect(reports.supplyReport).toHaveBeenCalledWith({ from: '2026-10-01', to: '2026-10-08' });
     expect(() => controller.supply({ to: '2026-10-08' })).toThrow(BadRequestException);
+  });
+
+  it('fraud uses the same period rules', async () => {
+    await controller.fraud({ from: '2026-10-01', to: '2026-10-08' });
+    expect(reports.fraudReport).toHaveBeenCalledWith({ from: '2026-10-01', to: '2026-10-08' });
+    expect(() => controller.fraud({ from: '2026-10-08' })).toThrow(BadRequestException);
   });
 
   it('send-daily reports whether Telegram accepted the message', async () => {

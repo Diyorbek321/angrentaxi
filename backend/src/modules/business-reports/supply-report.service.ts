@@ -4,13 +4,7 @@ import { DataSource } from 'typeorm';
 import { NO_DRIVERS_CANCEL_REASON } from '../matching/matching.constants';
 import { DriverBrief, ShortageHour, SupplySnapshot } from './supply-report.types';
 import { ReportPeriod } from './report-period';
-
-/** `orders.driver_id` — haydovchining `users.id` si (drivers.id EMAS). */
-/** Davr chegarasi — `timestamp` ustunlarda Toshkent mahalliy vaqti (finance-report.service.ts). */
-const LOCAL = (col: string) => `${col} >= $1::timestamp AND ${col} < $2::timestamp`;
-
-/** Yo'lovchi safarlari; ovqat/market kuryer bosqichlari kirmaydi. */
-const RIDE_SERVICE_TYPES = `('taxi', 'cargo', 'parcel', 'intercity')`;
+import { LOCAL, PERSON_NAME, RIDE_SERVICE_TYPES } from './report-sql';
 
 /** Shuncha kun safar qilmasa — "ketib qolayotgan". */
 const CHURN_AFTER_DAYS = 7;
@@ -20,12 +14,9 @@ const CHURN_LIST_LIMIT = 20;
 const TOP_LIMIT = 5;
 const SHORTAGE_HOURS_LIMIT = 3;
 
-/** "Ali V." — familiyadan faqat bosh harf. */
-const DRIVER_NAME = `COALESCE(NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' ||
-  COALESCE(LEFT(u.last_name, 1) || '.', '')), ''), 'Ismsiz')`;
-
 type Row = Record<string, number | string | null>;
 
+/** ⚠️ `orders.driver_id` — haydovchining `users.id` si (drivers.id EMAS). */
 @Injectable()
 export class SupplyReportService {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
@@ -85,7 +76,7 @@ export class SupplyReportService {
       ),
       // Davr oxiriga nisbatan: 7+ kun ishlamagan, lekin 60 kun ichida ishlagan.
       this.dataSource.query(
-        `SELECT d.id AS "driverId", ${DRIVER_NAME} AS name, u.phone,
+        `SELECT d.id AS "driverId", ${PERSON_NAME('u')} AS name, u.phone,
                 ($1::date - MAX(o.completed_at)::date)::int AS "daysSinceLastRide",
                 COUNT(*)::int AS rides
            FROM orders o
@@ -101,7 +92,7 @@ export class SupplyReportService {
         [period.to],
       ) as Promise<DriverBrief[]>,
       this.dataSource.query(
-        `SELECT d.id AS "driverId", ${DRIVER_NAME} AS name, u.phone,
+        `SELECT d.id AS "driverId", ${PERSON_NAME('u')} AS name, u.phone,
                 ($2::date - MAX(o.completed_at)::date - 1)::int AS "daysSinceLastRide",
                 COUNT(*)::int AS rides
            FROM orders o

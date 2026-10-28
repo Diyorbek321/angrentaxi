@@ -3,6 +3,8 @@ import { FinanceReportService } from './finance-report.service';
 import { TelegramService } from './telegram.service';
 import { SupplyReportService } from './supply-report.service';
 import { SupplySnapshot } from './supply-report.types';
+import { FraudReportService } from './fraud-report.service';
+import { FraudSnapshot } from './fraud-report.types';
 import { FinanceSnapshot } from './finance-report.types';
 
 const snap = (from: string, to: string, completed = 10): FinanceSnapshot => ({
@@ -25,10 +27,30 @@ const supplySnap = (from: string, to: string): SupplySnapshot => ({
   topDrivers: [],
 });
 
+const fraudSnap = (from: string, to: string, lost = 0): FraudSnapshot => ({
+  period: { from, to },
+  cancellations: { afterAccept: 0, afterArrival: 0, afterArrivalByDriver: 0, afterArrivalByPassenger: 0 },
+  drivers: [],
+  cancelPairs: [],
+  lostRegulars: Array.from({ length: lost }, (_, i) => ({
+    passengerId: `p${i}`,
+    passengerName: 'Laylo',
+    passengerPhone: '',
+    driverUserId: 'd',
+    driverName: 'Bobur',
+    driverPhone: '',
+    cancelledTogether: 0,
+    completedTogether: 4,
+    daysSinceLastTrip: 15,
+  })),
+  selfOrderReview: { flaggedInPeriod: 0, pending: 0, oldestPendingHours: null },
+});
+
 describe('BusinessReportsService', () => {
   let finance: { snapshot: jest.Mock; baseline: jest.Mock };
   let telegram: { send: jest.Mock };
   let supply: { snapshot: jest.Mock };
+  let fraud: { snapshot: jest.Mock };
   let service: BusinessReportsService;
   const NOW = new Date('2026-10-28T03:00:00Z'); // 08:00 Toshkent, chorshanba
 
@@ -39,9 +61,11 @@ describe('BusinessReportsService', () => {
     };
     telegram = { send: jest.fn().mockResolvedValue(true) };
     supply = { snapshot: jest.fn(async (p) => supplySnap(p.from, p.to)) };
+    fraud = { snapshot: jest.fn(async (p) => fraudSnap(p.from, p.to)) };
     service = new BusinessReportsService(
       finance as unknown as FinanceReportService,
       supply as unknown as SupplyReportService,
+      fraud as unknown as FraudReportService,
       telegram as unknown as TelegramService,
     );
   });
@@ -60,6 +84,33 @@ describe('BusinessReportsService', () => {
     expect(supply.snapshot).toHaveBeenCalledWith({ from: '2026-10-27', to: '2026-10-28' });
     expect(telegram.send).toHaveBeenCalledTimes(2);
     expect(telegram.send.mock.calls[1][0]).toContain("Haydovchilar bo'limi — 27.10.2026");
+  });
+
+  it('daily antifraud message is sent only when something is suspicious', async () => {
+    await service.sendDaily(NOW);
+    expect(telegram.send).toHaveBeenCalledTimes(2);
+
+    telegram.send.mockClear();
+    fraud.snapshot.mockImplementation(async (p) => fraudSnap(p.from, p.to, 1));
+    await service.sendDaily(NOW);
+    expect(telegram.send).toHaveBeenCalledTimes(3);
+    expect(telegram.send.mock.calls[2][0]).toContain('Antifrod — 27.10.2026');
+  });
+
+  it('weekly antifraud summary is always sent, even when clean', async () => {
+    await service.sendWeekly(NOW);
+
+    expect(fraud.snapshot).toHaveBeenCalledWith({ from: '2026-10-19', to: '2026-10-26' });
+    expect(telegram.send).toHaveBeenCalledTimes(3);
+    expect(telegram.send.mock.calls[2][0]).toContain('Antifrod — 19.10–25.10.2026');
+  });
+
+  it('fraudReport() returns the snapshot with its alerts', async () => {
+    fraud.snapshot.mockImplementation(async (p) => fraudSnap(p.from, p.to, 2));
+    const result = await service.fraudReport({ from: '2026-10-01', to: '2026-10-08' });
+
+    expect(result.snapshot.lostRegulars).toHaveLength(2);
+    expect(result.alerts).toHaveLength(1);
   });
 
   it('a failing finance query still lets the drivers report go out', async () => {

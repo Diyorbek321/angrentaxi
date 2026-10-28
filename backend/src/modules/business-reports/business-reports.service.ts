@@ -5,6 +5,9 @@ import { TelegramService } from './telegram.service';
 import { SupplyReportService } from './supply-report.service';
 import { SupplySnapshot } from './supply-report.types';
 import { formatSupplyReport, supplyAlerts } from './supply-report.format';
+import { FraudReportService } from './fraud-report.service';
+import { FraudSnapshot } from './fraud-report.types';
+import { formatFraudReport, fraudAlerts } from './fraud-report.format';
 import { FinanceSnapshot, netRevenue } from './finance-report.types';
 import { financeAlerts, formatFinanceReport } from './finance-report.format';
 import { ReportPeriod, addDays, periodDays, previousWeek, yesterday } from './report-period';
@@ -19,6 +22,11 @@ export interface FinanceReport {
 
 export interface SupplyReport {
   snapshot: SupplySnapshot;
+  alerts: string[];
+}
+
+export interface FraudReport {
+  snapshot: FraudSnapshot;
   alerts: string[];
 }
 
@@ -41,6 +49,7 @@ export class BusinessReportsService {
   constructor(
     private readonly finance: FinanceReportService,
     private readonly supply: SupplyReportService,
+    private readonly fraud: FraudReportService,
     private readonly telegram: TelegramService,
   ) {}
 
@@ -57,6 +66,11 @@ export class BusinessReportsService {
     return { snapshot, alerts: supplyAlerts(snapshot) };
   }
 
+  async fraudReport(period: ReportPeriod): Promise<FraudReport> {
+    const snapshot = await this.fraud.snapshot(period);
+    return { snapshot, alerts: fraudAlerts(snapshot) };
+  }
+
   @Cron('0 8 * * *', { name: 'business-report-daily', timeZone: 'Asia/Tashkent' })
   async dailyCron(): Promise<void> {
     await this.sendDaily();
@@ -67,20 +81,31 @@ export class BusinessReportsService {
     await this.sendWeekly();
   }
 
-  /** Moliya, keyin haydovchilar bo'limi — ikki alohida xabar. */
+  /**
+   * Moliya, haydovchilar, antifrod — alohida xabarlar. Kunlik antifrod faqat
+   * shubhali holat bo'lsa yuboriladi (har kuni "hammasi joyida" — shovqin).
+   */
   async sendDaily(now: Date = new Date()): Promise<boolean> {
     const period = yesterday(now);
-    const day = dmy(period.from);
-    return this.sendAll(period, `Kunlik hisobot — ${day}`, `Haydovchilar bo'limi — ${day}`);
+    return this.sendAll(period, 'Kunlik hisobot', dmy(period.from), { quietFraud: true });
   }
 
   async sendWeekly(now: Date = new Date()): Promise<boolean> {
     const period = previousWeek(now);
     const range = `${dmy(period.from).slice(0, 5)}–${dmy(addDays(period.to, -1))}`;
-    return this.sendAll(period, `Haftalik hisobot — ${range}`, `Haydovchilar bo'limi — ${range}`);
+    return this.sendAll(period, 'Haftalik hisobot', range, { quietFraud: false });
   }
 
-  private async sendAll(period: ReportPeriod, financeTitle: string, supplyTitle: string): Promise<boolean> {
+  private async sendAll(
+    period: ReportPeriod,
+    financeLabel: string,
+    when: string,
+    opts: { quietFraud: boolean },
+  ): Promise<boolean> {
+    const financeTitle = `${financeLabel} — ${when}`;
+    const supplyTitle = `Haydovchilar bo'limi — ${when}`;
+    const fraudTitle = `Antifrod — ${when}`;
+
     const finance = await this.send(financeTitle, async () => {
       const { snapshot, baseline } = await this.report(period);
       return formatFinanceReport(financeTitle, snapshot, baseline);
@@ -88,13 +113,21 @@ export class BusinessReportsService {
     const supply = await this.send(supplyTitle, async () =>
       formatSupplyReport(supplyTitle, await this.supply.snapshot(period)),
     );
-    return finance && supply;
+    const fraud = await this.send(fraudTitle, async () => {
+      const { snapshot, alerts } = await this.fraudReport(period);
+      return opts.quietFraud && alerts.length === 0 ? null : formatFraudReport(fraudTitle, snapshot);
+    });
+    return finance && supply && fraud;
   }
 
-  /** Bitta bo'lim xatosi boshqasini to'xtatmaydi; xato Telegram'ga yoziladi. */
-  private async send(title: string, build: () => Promise<string>): Promise<boolean> {
+  /**
+   * Bitta bo'lim xatosi boshqasini to'xtatmaydi; xato Telegram'ga yoziladi.
+   * `build` `null` qaytarsa — yuboradigan narsa yo'q (muvaffaqiyat).
+   */
+  private async send(title: string, build: () => Promise<string | null>): Promise<boolean> {
     try {
-      return await this.telegram.send(await build());
+      const text = await build();
+      return text === null ? true : await this.telegram.send(text);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`${title} failed: ${message}`);

@@ -65,7 +65,7 @@ export function financeAlerts(current: FinanceSnapshot, baseline: FinanceSnapsho
   const b = current.balances;
   if (b.pendingWithdrawalsCount > 0) {
     alerts.push(
-      `${b.pendingWithdrawalsCount} ta pul yechish so'rovi kutyapti (${formatSom(b.pendingWithdrawals)} so'm) — admin panel → To'lovlar`,
+      `${b.pendingWithdrawalsCount} ta pul yechish so'rovi kutyapti (${formatSom(b.pendingWithdrawals)} so'm) — admin panel → Pul yechish`,
     );
   }
 

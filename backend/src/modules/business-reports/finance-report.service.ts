@@ -3,22 +3,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { FinanceSnapshot } from './finance-report.types';
 import { ReportPeriod, addDays, periodDays } from './report-period';
-
-/**
- * Davr chegaralari. Eski jadvallarda (`orders`, `transactions`, `food_orders`,
- * `market_orders`, `withdrawal_requests`) ustun `timestamp` — backend
- * TZ=Asia/Tashkent bo'lgani uchun unda Toshkent mahalliy vaqti yoziladi
- * (`analytics.service.ts` bilan bir xil). Yangi jadvallar `timestamptz`.
- */
-const LOCAL = (col: string) => `${col} >= $1::timestamp AND ${col} < $2::timestamp`;
-const TZ = (col: string) =>
-  `${col} >= ($1::timestamp AT TIME ZONE 'Asia/Tashkent') AND ${col} < ($2::timestamp AT TIME ZONE 'Asia/Tashkent')`;
-
-/** Yo'lovchi safarlari; ovqat/market kuryer bosqichlari `vendors` da sanaladi. */
-const RIDE_SERVICE_TYPES = `('taxi', 'cargo', 'parcel', 'intercity')`;
-
-const SUM = (expr: string, where?: string) =>
-  `COALESCE(SUM(${expr})${where ? ` FILTER (WHERE ${where})` : ''}, 0)::float8`;
+import { LOCAL, RIDE_SERVICE_TYPES, SUM, TZ } from './report-sql';
 
 @Injectable()
 export class FinanceReportService {
