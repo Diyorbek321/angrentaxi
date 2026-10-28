@@ -53,6 +53,8 @@ export const DRIVER_ACTIVE_ORDER_STATUSES: readonly OrderStatus[] = [
   OrderStatus.IN_PROGRESS,
 ];
 
+export type OrderCancelledBy = 'passenger' | 'driver' | 'manager' | 'system';
+
 export enum PaymentMethod {
   CASH = 'cash',
   CARD = 'card',
@@ -443,6 +445,14 @@ export class Order {
 
   @Column({ nullable: true, type: 'varchar' })
   cancelReason: string | null;
+
+  /**
+   * Kim bekor qildi. Antifrod uchun (`business-reports/fraud-report`):
+   * haydovchi yetib kelgach bekor qilish — platformani chetlab o'tishning
+   * eng kuchli belgisi. Migratsiya 046 gacha bo'lgan buyurtmalarda `null`.
+   */
+  @Column({ name: 'cancelled_by', type: 'varchar', length: 20, nullable: true })
+  cancelledBy: OrderCancelledBy | null;
 
   /**
    * Rejalashtirilgan olib ketish vaqti. `null` = "hozir" (odatdagi buyurtma).

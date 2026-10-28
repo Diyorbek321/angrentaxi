@@ -299,6 +299,7 @@ export class OrdersDispatchService {
     await this.statusTransition.updateOrderStatusAtomic(orderId, cancellableStatuses, {
       status: OrderStatus.CANCELLED,
       cancelReason: reason ?? null,
+      cancelledBy: isDriver ? 'driver' : isPassenger ? 'passenger' : 'manager',
     });
 
     const updatedOrder = await this.queryService.findByIdOrThrow(orderId);

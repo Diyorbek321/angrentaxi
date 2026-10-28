@@ -10,8 +10,11 @@ import { OrdersDispatchService } from './orders-dispatch.service';
  * bo'lishi shart.
  */
 describe('OrdersDispatchService — matching navbati bilan muvofiqlik', () => {
-  function build(status: OrderStatus, opts: { activeOrdersOfNewDriver?: number } = {}) {
-    const order = { id: 'ride-1', status, driverId: null, passengerId: 'p-1' };
+  function build(
+    status: OrderStatus,
+    opts: { activeOrdersOfNewDriver?: number; driverId?: string | null } = {},
+  ) {
+    const order = { id: 'ride-1', status, driverId: opts.driverId ?? null, passengerId: 'p-1' };
     const updated = { ...order, status: OrderStatus.CANCELLED };
     const manager = {
       query: jest.fn().mockResolvedValue([]),
@@ -44,7 +47,7 @@ describe('OrdersDispatchService — matching navbati bilan muvofiqlik', () => {
       undefined,
       matching as never,
     );
-    return { service, matching, manager };
+    return { service, matching, manager, statusTransition };
   }
 
   it.each([OrderStatus.CREATED, OrderStatus.SEARCHING])(
@@ -64,6 +67,22 @@ describe('OrdersDispatchService — matching navbati bilan muvofiqlik', () => {
     await service.cancelOrder('p-1', UserRole.PASSENGER, 'ride-1');
 
     expect(matching.cancelSearch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['p-1', UserRole.PASSENGER, 'passenger'],
+    ['driver-1', UserRole.DRIVER, 'driver'],
+    ['m-1', UserRole.MANAGER, 'manager'],
+  ])('bekor qilgan tomon yoziladi (antifrod): %s → %s', async (userId, role, expected) => {
+    const { service, statusTransition } = build(OrderStatus.ARRIVED, { driverId: 'driver-1' });
+
+    await service.cancelOrder(userId, role, 'ride-1');
+
+    expect(statusTransition.updateOrderStatusAtomic).toHaveBeenCalledWith(
+      'ride-1',
+      expect.any(Array),
+      expect.objectContaining({ status: OrderStatus.CANCELLED, cancelledBy: expected }),
+    );
   });
 
   it('qo‘lda biriktirish: yangi haydovchida faol buyurtma bo‘lsa — 409', async () => {

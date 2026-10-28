@@ -663,7 +663,7 @@ export class MatchingService {
   ): Promise<void> {
     const result = await this.orderRepository.update(
       { id: orderId, status: expectedStatus },
-      { status: OrderStatus.CANCELLED, cancelReason: NO_DRIVERS_CANCEL_REASON },
+      { status: OrderStatus.CANCELLED, cancelReason: NO_DRIVERS_CANCEL_REASON, cancelledBy: 'system' },
     );
 
     if (result?.affected === 0) {

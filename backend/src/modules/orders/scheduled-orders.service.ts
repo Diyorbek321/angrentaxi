@@ -295,7 +295,7 @@ export class ScheduledOrdersService {
       await this.statusTransition.updateOrderStatusAtomic(
         order.id,
         [OrderStatus.SCHEDULED],
-        { status: OrderStatus.CANCELLED, cancelReason: reason },
+        { status: OrderStatus.CANCELLED, cancelReason: reason, cancelledBy: 'system' },
       );
     } catch (err) {
       if (err instanceof ConflictException) return;
