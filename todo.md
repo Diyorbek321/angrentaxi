@@ -3,14 +3,13 @@
 Oxirgi yangilanish: 2026-10-27. Bu fayl faqat **hali ochiq** ishlar uchun — bajarilganlar tarixi `git log` da.
 
 Prod: Oracle Free ARM VM (`deploy/oracle`, sslip.io domeni) — Railway 2026-10-15 dan ishlatilmaydi.
-Oxirgi prod deploy: `c99c938` (2026-10-19). Oxirgi APK: v14 (2026-10-19).
+Oxirgi prod deploy: `30e9d24` (2026-10-28). Oxirgi APK: v14 (2026-10-19).
 
 ---
 
 ## 🔴 Hozir
 
 - [ ] **GitHub hisobi bloklangan (billing)** — CI va uptime monitor ishga tushmaydi (PR #3). Settings → Billing.
-- [ ] **Prod'ga deploy** — `774ba20` dan keyingi hammasi serverda yo'q: i18n (migr. 042), idempotency, force-update, data-only push, analytics (043), litsenziya hududi (044). `deploy/oracle/deploy.sh feat/legal-compliance`.
 - [ ] **Yangi APK (v15)** — reklama karuseli, data-only push, force-update, voronka, hudud tanlovi faqat yangi build'da. `mobile/tool/build_release.sh`.
 - [ ] **PR #3 → `main`** — CI yashil bo'lgach.
 
