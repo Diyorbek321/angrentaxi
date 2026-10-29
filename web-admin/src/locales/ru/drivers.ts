@@ -126,6 +126,12 @@ export const drivers: Messages['drivers'] = {
     managerLimit: (limit: string) =>
       `Менеджер может изменить не более ${limit} за одну корректировку. Для большей суммы обратитесь к администратору.`,
   },
+  history: {
+    title: 'История',
+    openLog: 'Весь журнал',
+    empty: 'Сотрудники ещё не выполняли ручных действий с этим водителем.',
+    loadFailed: 'Не удалось загрузить историю',
+  },
   legal: {
     taxStatus: {
       self_employed: 'Самозанятый',

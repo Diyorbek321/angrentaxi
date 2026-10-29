@@ -16,6 +16,7 @@ import { Skeleton, SkeletonTable } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { DriverStatusBadge } from '@/components/drivers/DriverStatusBadge';
 import { DriverLegalCard } from '@/components/drivers/DriverLegalCard';
+import { DriverHistoryCard } from '@/components/drivers/DriverHistoryCard';
 import { OrderStatusBadge } from '@/components/orders/OrderStatusBadge';
 import { driversApi, settingsApi, Driver, DriverTrip } from '@/lib/api';
 import { usePagination } from '@/hooks/usePagination';
@@ -344,6 +345,8 @@ export default function DriverDetailPage() {
           </DetailCard>
 
           <DriverLegalCard driverId={driver.id} />
+
+          <DriverHistoryCard driverId={driver.id} userId={driver.userId} />
         </div>
 
         <DataTable

@@ -25,8 +25,21 @@ export const staff: Messages['staff'] = {
   selected: (n: number, total: number) => `Выбрано: ${n} / ${total}`,
   unsaved: '· не сохранено',
   presetAll: 'Все (полный менеджер)',
-  presetDispatch: 'Только диспетчерская',
   presetClear: 'Очистить',
+  templatesLabel: 'Шаблон роли',
+  customRole: 'Настроено вручную',
+  moneyOutWarning:
+    'Подтверждение вывода — деньги уходят с платформы. Давайте этот доступ только сотруднику, отвечающему за финансы; каждое подтверждение пишется в журнал аудита.',
+  roleTemplates: {
+    operator: {
+      label: 'Оператор',
+      description: 'Диспетчерская, водители, KYC, обращения — без доступа к деньгам',
+    },
+    finance: {
+      label: 'Финансы',
+      description: 'Очередь вывода и подтверждение, баланс водителя, бонусы',
+    },
+  },
   permissionLabels: {
     dispatch: 'Диспетчерская — живой монитор, исключения, ручное назначение, журнал аудита',
     drivers_view: 'Просмотр списка водителей',
@@ -37,6 +50,7 @@ export const staff: Messages['staff'] = {
     bonuses_view: 'Просмотр бонусных правил и прогресса',
     support_manage: 'Работа с обращениями в поддержку',
     withdrawals_view: 'Просмотр очереди вывода средств',
+    withdrawals_approve: 'Подтверждение, отклонение и отметка выплаты вывода средств',
     users_view: 'Просмотр списка пользователей',
   },
   permissionShortLabels: {
@@ -49,6 +63,7 @@ export const staff: Messages['staff'] = {
     bonuses_view: 'Бонусы',
     support_manage: 'Поддержка',
     withdrawals_view: 'Вывод средств',
+    withdrawals_approve: 'Подтверждение выплат',
     users_view: 'Пользователи',
   },
   permissionGroups: {

@@ -50,6 +50,7 @@ import {
 import { WalletTopupsService } from './wallet-topups.service';
 import { syncDriverBalanceColumn } from './wallet-balance.util';
 import { OrderRefundClawbackService } from './order-refund-clawback.service';
+import { AUDIT_ACTIONS, AuditLogService } from '../audit/audit-log.service';
 
 /** Buyurtma karta to'lovining joriy holati (merchant protokollari uchun). */
 export interface OrderPaymentState {
@@ -118,6 +119,8 @@ export class PaymentsService {
     @Optional() private readonly refundClawback?: OrderRefundClawbackService,
     // `walletTopupHoldDays` (#3a). Ixtiyoriy — qo'lda yig'iladigan spec'lar uchun.
     @Optional() private readonly settingsService?: SettingsService,
+    // Kim tasdiqladi / to'ladi. Ixtiyoriy — qo'lda yig'iladigan spec'lar uchun.
+    @Optional() private readonly auditLog?: AuditLogService,
   ) {}
 
   /**
@@ -777,6 +780,7 @@ export class PaymentsService {
   async processWithdrawal(
     id: string,
     dto: ProcessWithdrawalDto,
+    actorUserId: string | null = null,
   ): Promise<WithdrawalRequest> {
     const withdrawal = await this.findWithdrawalOrThrow(id);
 
@@ -799,16 +803,17 @@ export class PaymentsService {
           `Only approved withdrawal requests can be marked as paid, current status is ${withdrawal.status}`,
         );
       }
-      return this.payWithdrawal(withdrawal, dto);
+      return this.payWithdrawal(withdrawal, dto, actorUserId);
     }
 
-    return this.decideWithdrawal(withdrawal, dto);
+    return this.decideWithdrawal(withdrawal, dto, actorUserId);
   }
 
   /** PENDING → APPROVED / REJECTED. REJECT ushlab qolishni qaytaradi. */
   private async decideWithdrawal(
     withdrawal: WithdrawalRequest,
     dto: ProcessWithdrawalDto,
+    actorUserId: string | null,
   ): Promise<WithdrawalRequest> {
     const patch = {
       status: dto.status,
@@ -842,6 +847,23 @@ export class PaymentsService {
         // `drivers.balance` — daftarning keshi (§13); sotuvchi uchun no-op.
         await syncDriverBalanceColumn(manager, withdrawal.driverId);
       }
+
+      // Holat bilan bitta tranzaksiyada: jurnalsiz qaror bo'lmasin.
+      await this.auditLog?.record(
+        {
+          actorUserId,
+          action:
+            dto.status === WithdrawalStatus.APPROVED
+              ? AUDIT_ACTIONS.withdrawalApprove
+              : AUDIT_ACTIONS.withdrawalReject,
+          targetType: 'withdrawal',
+          targetId: withdrawal.id,
+          amount: withdrawal.amount,
+          note: patch.adminNote ?? null,
+          metadata: { ownerUserId: withdrawal.driverId },
+        },
+        manager,
+      );
     });
 
     return { ...withdrawal, ...patch };
@@ -870,6 +892,7 @@ export class PaymentsService {
   private async payWithdrawal(
     withdrawal: WithdrawalRequest,
     dto: ProcessWithdrawalDto,
+    actorUserId: string | null,
   ): Promise<WithdrawalRequest> {
     if (withdrawal.payoutStartedAt) {
       throw new BadRequestException(this.payoutInProgressMessage(withdrawal.id));
@@ -915,6 +938,27 @@ export class PaymentsService {
       this.logger.error(
         `Withdrawal ${withdrawal.id} was sent (ref ${result.reference ?? '—'}) but its PAID status was not saved — fix manually`,
       );
+    }
+
+    // Pul allaqachon ketdi — jurnal xatosi to'lovni yiqilgan qilib ko'rsatmasin.
+    try {
+      await this.auditLog?.record({
+        actorUserId,
+        action: AUDIT_ACTIONS.withdrawalPaid,
+        targetType: 'withdrawal',
+        targetId: withdrawal.id,
+        amount: withdrawal.amount,
+        note: patch.adminNote ?? null,
+        metadata: {
+          ownerUserId: withdrawal.driverId,
+          payoutReference: patch.payoutReference ?? null,
+          provider: this.payoutProvider.name,
+          // Pul ketdi, lekin PAID holati yozilmagan bo'lsa — jurnal buni yashirmasin.
+          statusSaved: !!done.affected,
+        },
+      });
+    } catch (err) {
+      this.logger.error(`Audit write failed for paid withdrawal ${withdrawal.id}: ${(err as Error).message}`);
     }
     return { ...withdrawal, ...patch, payoutStartedAt };
   }

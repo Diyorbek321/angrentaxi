@@ -237,15 +237,17 @@ export class PaymentsController {
 
   @Patch('wallet/withdrawals/:id')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Approve, reject, or mark a withdrawal request paid (admin only)' })
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.WITHDRAWALS_APPROVE)
+  @ApiOperation({ summary: 'Approve, reject, or mark a withdrawal request paid (admin, or manager with withdrawals_approve)' })
   @ApiParam({ name: 'id', description: 'Withdrawal request UUID' })
   @ApiResponse({ status: 200, description: 'Withdrawal request updated' })
   async processWithdrawal(
+    @CurrentUser() actor: User,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ProcessWithdrawalDto,
   ) {
-    return this.paymentsService.processWithdrawal(id, dto);
+    return this.paymentsService.processWithdrawal(id, dto, actor.id);
   }
 }

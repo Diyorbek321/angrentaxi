@@ -108,6 +108,7 @@ export type Permission =
   | 'bonuses_view'
   | 'support_manage'
   | 'withdrawals_view'
+  | 'withdrawals_approve'
   | 'users_view';
 
 export const ALL_PERMISSIONS: Permission[] = [
@@ -120,6 +121,7 @@ export const ALL_PERMISSIONS: Permission[] = [
   'bonuses_view',
   'support_manage',
   'withdrawals_view',
+  'withdrawals_approve',
   'users_view',
 ];
 
@@ -133,6 +135,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   bonuses_view: 'View bonus rules/progress',
   support_manage: 'Support threads',
   withdrawals_view: 'View withdrawal payout queue',
+  withdrawals_approve: 'Approve / reject / mark paid withdrawals (money out)',
   users_view: 'View general user list',
 };
 

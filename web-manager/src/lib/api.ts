@@ -582,7 +582,7 @@ export async function getCurrentUserProfile(): Promise<CurrentUserProfile> {
   return res.data.data;
 }
 
-// ─── Finance (view-only for managers — requires withdrawals_view) ──────────
+// ─── Finance (view: withdrawals_view; decide/pay: withdrawals_approve) ─────
 
 export type WithdrawalStatus = 'pending' | 'approved' | 'rejected' | 'paid';
 
@@ -593,7 +593,24 @@ export interface WithdrawalRequest {
   payoutDestination: string;
   status: WithdrawalStatus;
   requestedAt: string;
+  adminNote?: string | null;
   driver?: { firstName: string | null; lastName: string | null; phone: string } | null;
+}
+
+export type WithdrawalDecision = Exclude<WithdrawalStatus, 'pending'>;
+
+// Requires withdrawals_approve (ADMIN always allowed). Every call is written
+// to the audit log server-side under the acting staff member.
+export async function processWithdrawal(
+  id: string,
+  status: WithdrawalDecision,
+  adminNote?: string
+): Promise<WithdrawalRequest> {
+  const res = await apiClient.patch<ApiResponse<WithdrawalRequest>>(`/payments/wallet/withdrawals/${id}`, {
+    status,
+    adminNote,
+  });
+  return res.data.data;
 }
 
 export async function getAllWithdrawals(

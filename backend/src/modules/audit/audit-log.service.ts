@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, In, Repository } from 'typeorm';
+import { Between, EntityManager, In, LessThanOrEqual, MoreThanOrEqual, Not, Repository } from 'typeorm';
 import { User } from '../../database/entities/user.entity';
 import { AuditLog } from '../../database/entities/audit-log.entity';
 
@@ -18,9 +18,30 @@ export const AUDIT_ACTIONS = {
   intercityRouteCreate: 'intercity_route.create',
   /** Shaharlararo yo'nalish narxi/holati o'zgardi. `metadata.before`/`after`. */
   intercityRouteUpdate: 'intercity_route.update',
+  /** Pul yechish so'rovi tasdiqlandi / rad etildi / to'landi. `amount` — so'rov summasi. */
+  withdrawalApprove: 'withdrawal.approve',
+  withdrawalReject: 'withdrawal.reject',
+  withdrawalPaid: 'withdrawal.paid',
+  /** Foydalanuvchi bloklandi / blokdan chiqarildi. `note` — sabab. */
+  userBlock: 'user.block',
+  userUnblock: 'user.unblock',
+  /** Xodim ruxsatlari o'zgardi. `metadata.before`/`after` — ruxsatlar ro'yxati. */
+  staffPermissionsUpdate: 'staff.permissions_update',
+  /** Haydovchi KYC materiali ko'rib chiqildi. `metadata.code`/`approved`. */
+  driverKycReview: 'driver.kyc_review',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
+
+/**
+ * Faqat ADMIN ko'radigan yozuvlar: kimda qanday ruxsat borligi va
+ * foydalanuvchi nega bloklangani — moliya menejerining ishi emas.
+ */
+export const ADMIN_ONLY_AUDIT_ACTIONS: readonly string[] = [
+  AUDIT_ACTIONS.staffPermissionsUpdate,
+  AUDIT_ACTIONS.userBlock,
+  AUDIT_ACTIONS.userUnblock,
+];
 
 export interface AuditEntryInput {
   actorUserId: string | null;
@@ -36,6 +57,12 @@ export interface AuditLogQuery {
   action?: string;
   targetType?: string;
   targetId?: string;
+  actorUserId?: string;
+  /** `createdAt` oralig'i, ikkala chegara ham kiradi. */
+  from?: Date;
+  to?: Date;
+  /** ADMIN emas: admin-only yozuvlar va xodim bo'yicha filtr yopiq. */
+  restricted?: boolean;
   page: number;
   limit: number;
 }
@@ -55,6 +82,13 @@ export interface AuditLogPage {
   total: number;
   page: number;
   limit: number;
+}
+
+function createdAtRange(from?: Date, to?: Date) {
+  if (from && to) return { createdAt: Between(from, to) };
+  if (from) return { createdAt: MoreThanOrEqual(from) };
+  if (to) return { createdAt: LessThanOrEqual(to) };
+  return {};
 }
 
 /**
@@ -86,10 +120,20 @@ export class AuditLogService {
   }
 
   async list(query: AuditLogQuery): Promise<AuditLogPage> {
+    if (query.restricted && query.action && ADMIN_ONLY_AUDIT_ACTIONS.includes(query.action)) {
+      return { items: [], total: 0, page: query.page, limit: query.limit };
+    }
+    const actionWhere = query.action
+      ? { action: query.action }
+      : query.restricted
+        ? { action: Not(In([...ADMIN_ONLY_AUDIT_ACTIONS])) }
+        : {};
     const where = {
-      ...(query.action ? { action: query.action } : {}),
+      ...actionWhere,
       ...(query.targetType ? { targetType: query.targetType } : {}),
       ...(query.targetId ? { targetId: query.targetId } : {}),
+      ...(query.actorUserId && !query.restricted ? { actorUserId: query.actorUserId } : {}),
+      ...createdAtRange(query.from, query.to),
     };
     const [items, total] = await this.repository.findAndCount({
       where,

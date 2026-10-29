@@ -36,7 +36,10 @@ export function permissionGroups(): PermissionGroup[] {
   return [
     { title: g.operations, permissions: ['dispatch'] },
     { title: g.drivers, permissions: ['drivers_view', 'drivers_approve', 'drivers_finance'] },
-    { title: g.finance, permissions: ['tariffs_manage', 'withdrawals_view', 'bonuses_view'] },
+    {
+      title: g.finance,
+      permissions: ['tariffs_manage', 'withdrawals_view', 'withdrawals_approve', 'bonuses_view'],
+    },
     { title: g.marketing, permissions: ['promo_manage'] },
     { title: g.customers, permissions: ['users_view', 'support_manage'] },
   ];

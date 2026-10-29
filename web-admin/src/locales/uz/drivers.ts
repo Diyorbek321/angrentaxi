@@ -124,6 +124,12 @@ export const drivers = {
     managerLimit: (limit: string) =>
       `Menejer bitta tuzatishda koʻpi bilan ${limit} oʻzgartira oladi. Kattaroq summa uchun admin bilan bogʻlaning.`,
   },
+  history: {
+    title: 'Tarix',
+    openLog: "To'liq jurnal",
+    empty: "Bu haydovchi bo'yicha xodimlar hali hech qanday qo'lda amal bajarmagan.",
+    loadFailed: "Tarixni yuklab bo'lmadi",
+  },
   legal: {
     taxStatus: {
       self_employed: "O'zini o'zi band qilgan",

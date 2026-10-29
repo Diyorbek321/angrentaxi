@@ -1,8 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Download, Info, RefreshCw, Wallet } from 'lucide-react';
-import { getAllWithdrawals, WithdrawalRequest, WithdrawalStatus } from '@/lib/api';
+import { CheckCircle2, Download, Info, RefreshCw, ScrollText, Wallet } from 'lucide-react';
+import {
+  getAllWithdrawals,
+  getCurrentUserProfile,
+  processWithdrawal,
+  WithdrawalDecision,
+  WithdrawalRequest,
+  WithdrawalStatus,
+} from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Badge, BadgeVariant } from '@/components/ui/Badge';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
@@ -12,11 +19,14 @@ import type { EmptyStateProps } from '@/components/ui/EmptyState';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { FilterBar } from '@/components/ui/FilterBar';
 import { MoneyText } from '@/components/ui/MoneyText';
+import { Modal } from '@/components/ui/Modal';
+import { Input } from '@/components/ui/Input';
 import { SkeletonStats } from '@/components/ui/Skeleton';
 import { PageBody } from '@/components/ui/PageBody';
 import { useToast } from '@/components/ui/Toast';
 import { downloadCsv } from '@/lib/csv';
-import { formatDateTime, formatNumber, formatPhone } from '@/lib/format';
+import { apiErrorMessage } from '@/lib/api-error';
+import { formatDateTime, formatMoney, formatNumber, formatPhone } from '@/lib/format';
 import { t } from '@/locales';
 
 const PAGE_SIZES = [20, 50, 100] as const;
@@ -64,6 +74,20 @@ export default function FinancePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Decide/pay buttons exist only for withdrawals_approve — hidden, not
+  // disabled, for everyone else (the page stays a read-only queue for them).
+  const [canDecide, setCanDecide] = useState(false);
+  const [target, setTarget] = useState<WithdrawalRequest | null>(null);
+  const [action, setAction] = useState<WithdrawalDecision | null>(null);
+  const [note, setNote] = useState('');
+  const [noteError, setNoteError] = useState<string | null>(null);
+  const [acting, setActing] = useState(false);
+
+  useEffect(() => {
+    getCurrentUserProfile()
+      .then((p) => setCanDecide(p.role === 'admin' || p.permissions.includes('withdrawals_approve')))
+      .catch(() => setCanDecide(false));
+  }, []);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -97,6 +121,49 @@ export default function FinancePage() {
       ),
     [withdrawals]
   );
+
+  const a = fp.actions;
+
+  const openAction = (w: WithdrawalRequest, next: WithdrawalDecision) => {
+    setTarget(w);
+    setAction(next);
+    setNote('');
+    setNoteError(null);
+  };
+
+  const closeAction = () => {
+    if (acting) return;
+    setTarget(null);
+    setAction(null);
+  };
+
+  const handleConfirm = async () => {
+    if (!target || !action) return;
+    // A rejection without a reason tells the requester nothing to fix.
+    if (action === 'rejected' && !note.trim()) {
+      setNoteError(a.reasonRequired);
+      return;
+    }
+    setActing(true);
+    try {
+      await processWithdrawal(target.id, action, note.trim() || undefined);
+      toast({
+        title: action === 'approved' ? a.toastApproved : action === 'rejected' ? a.toastRejected : a.toastPaid,
+        description: `${formatMoney(target.amount)} · ${requesterName(target)}`,
+        variant: 'success',
+      });
+      setTarget(null);
+      setAction(null);
+      fetchData();
+    } catch (err) {
+      // Server sababini ko'rsatadi ("allaqachon ko'rib chiqilgan", "to'lov jarayonda") —
+      // va qator eskirgan bo'lishi mumkin, shuning uchun navbat yangilanadi.
+      toast({ title: a.failed, description: apiErrorMessage(err, a.failed), variant: 'error' });
+      fetchData();
+    } finally {
+      setActing(false);
+    }
+  };
 
   const pending = rows.filter((w) => w.status === 'pending');
   const totalPendingAmount = pending.reduce((sum, w) => sum + w.amount, 0);
@@ -201,6 +268,34 @@ export default function FinancePage() {
         </Badge>
       ),
     },
+    ...(canDecide
+      ? [
+          {
+            key: 'actions',
+            header: <span className="sr-only">{a.approve}</span>,
+            align: 'right' as const,
+            cell: (w: WithdrawalRequest) => (
+              <div className="flex justify-end gap-1.5 whitespace-nowrap">
+                {w.status === 'pending' && (
+                  <>
+                    <Button size="sm" variant="primary" onClick={() => openAction(w, 'approved')}>
+                      {a.approve}
+                    </Button>
+                    <Button size="sm" variant="danger-ghost" onClick={() => openAction(w, 'rejected')}>
+                      {a.reject}
+                    </Button>
+                  </>
+                )}
+                {w.status === 'approved' && (
+                  <Button size="sm" variant="override" onClick={() => openAction(w, 'paid')}>
+                    {a.markPaid}
+                  </Button>
+                )}
+              </div>
+            ),
+          },
+        ]
+      : []),
   ];
 
   const chips = statusFilter
@@ -237,12 +332,14 @@ export default function FinancePage() {
         }
       />
 
-      {/* Read-only surface — approving/paying happens in the admin panel. */}
+      {/* Without withdrawals_approve this is a read-only queue; with it, every decision is audit-logged. */}
       <div className="flex items-start gap-2.5 rounded-ds-sm border border-line bg-surface-2/60 px-3 py-2.5 mb-4">
-        <Info size={14} className="text-muted shrink-0 mt-0.5" aria-hidden />
-        <p className="text-[13px] text-muted leading-relaxed">
-          {fp.readOnlyNote}
-        </p>
+        {canDecide ? (
+          <ScrollText size={14} className="text-muted shrink-0 mt-0.5" aria-hidden />
+        ) : (
+          <Info size={14} className="text-muted shrink-0 mt-0.5" aria-hidden />
+        )}
+        <p className="text-[13px] text-muted leading-relaxed">{canDecide ? fp.auditNote : fp.readOnlyNote}</p>
       </div>
 
       {isLoading && !hasLoadedOnce ? (
@@ -291,6 +388,53 @@ export default function FinancePage() {
           pageSizeOptions: PAGE_SIZES,
         }}
       />
+
+      {/* Money decision — always explicit: amount repeated, consequence named. */}
+      <Modal
+        isOpen={!!action}
+        onClose={closeAction}
+        tone={action === 'rejected' ? 'danger' : action === 'paid' ? 'override' : 'default'}
+        title={action === 'approved' ? a.modalApproveTitle : action === 'rejected' ? a.modalRejectTitle : a.modalPaidTitle}
+        description={action === 'approved' ? a.modalApproveDesc : action === 'rejected' ? a.modalRejectDesc : a.modalPaidDesc}
+        footer={
+          <>
+            <Button variant="secondary" onClick={closeAction} disabled={acting}>
+              {m.common.cancel}
+            </Button>
+            <Button
+              variant={action === 'rejected' ? 'danger' : action === 'paid' ? 'override' : 'primary'}
+              isLoading={acting}
+              onClick={handleConfirm}
+            >
+              {action === 'approved' && target
+                ? a.confirmApprove(formatMoney(target.amount))
+                : action === 'rejected'
+                ? a.reject
+                : a.markPaid}
+            </Button>
+          </>
+        }
+      >
+        {target && (
+          <div className="mb-4 rounded-ds-md border border-line bg-surface-2 px-3 py-2.5">
+            <p className="text-xs text-muted">
+              {requesterName(target)} · {ownerTypeLabel[target.ownerType] ?? target.ownerType}
+            </p>
+            <MoneyText value={target.amount} className="mt-1 block text-h2 font-semibold text-ink" />
+            <p className="mt-1 font-mono text-xs text-subtle">{target.payoutDestination}</p>
+          </div>
+        )}
+        <Input
+          label={action === 'rejected' ? a.reasonLabel : a.noteLabel}
+          placeholder={action === 'rejected' ? a.reasonPh : a.notePh}
+          value={note}
+          error={noteError ?? undefined}
+          onChange={(e) => {
+            setNote(e.target.value);
+            if (noteError) setNoteError(null);
+          }}
+        />
+      </Modal>
     </PageBody>
   );
 }

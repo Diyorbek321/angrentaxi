@@ -245,7 +245,16 @@ export interface AuditLogPage {
 }
 
 export const auditLogApi = {
-  list: (params: { action?: string; targetType?: string; targetId?: string; page: number; limit: number }) =>
+  list: (params: {
+    action?: string;
+    targetType?: string;
+    targetId?: string;
+    actorUserId?: string;
+    from?: string;
+    to?: string;
+    page: number;
+    limit: number;
+  }) =>
     api.get<ApiResponse<AuditLogPage>>('/admin/audit-log', { params }),
 };
 

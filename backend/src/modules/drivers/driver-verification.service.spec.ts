@@ -167,13 +167,15 @@ function buildService(
     rawSave({ submittedAt: NOW, ...entity }),
   );
   const driverRepository = fakeRepository(drivers);
+  const auditLog = { record: jest.fn().mockResolvedValue({}) };
   const service = new DriverVerificationService(
     requirementRepository as never,
     submissionRepository as never,
     driverRepository as never,
     fakeUploads() as never,
+    auditLog as never,
   );
-  return { service, requirementRepository, submissionRepository, driverRepository };
+  return { service, requirementRepository, submissionRepository, driverRepository, auditLog };
 }
 
 describe('DriverVerificationService — KONTRAKT shakli', () => {
@@ -708,6 +710,21 @@ describe('DriverVerificationService.submit', () => {
 });
 
 describe('DriverVerificationService.review', () => {
+  it("ko'rib chiqish audit jurnaliga haydovchi bo'yicha yoziladi", async () => {
+    const { service, auditLog } = buildService([requirement()], [submission({ id: 'sub-1' })]);
+
+    await service.review('sub-1', 'manager-1', { approved: false, rejectionReason: ' Rasm xira ' }, NOW);
+
+    expect(auditLog.record).toHaveBeenCalledWith({
+      actorUserId: 'manager-1',
+      action: 'driver.kyc_review',
+      targetType: 'driver',
+      targetId: 'driver-1',
+      note: 'Rasm xira',
+      metadata: { submissionId: 'sub-1', code: expect.any(String), approved: false },
+    });
+  });
+
   it('tasdiqlashda validUntil = now + cadenceDays', async () => {
     const pending = submission({ id: 'sub-1' });
     const { service, submissionRepository } = buildService(

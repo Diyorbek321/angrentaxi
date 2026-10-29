@@ -1,16 +1,18 @@
 import {
   Injectable,
   Logger,
+  Optional,
   NotFoundException,
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { ALL_PERMISSIONS, Permission, User, UserRole, UserStatus } from '../../database/entities/user.entity';
+import { DEFAULT_MANAGER_PERMISSIONS, Permission, User, UserRole, UserStatus } from '../../database/entities/user.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { generateUniqueReferralCode } from '../../common/utils/referral-code.util';
 import type { AppLanguage } from '../../common/i18n/error-messages';
+import { AUDIT_ACTIONS, AuditEntryInput, AuditLogService } from '../audit/audit-log.service';
 
 /** Called after a user is blocked; failures are logged, never fail the block. */
 export type UserBlockedListener = (userId: string) => Promise<void>;
@@ -27,6 +29,8 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    // Ixtiyoriy: qo'lda yig'iladigan eski spec'lar jurnalni bilmaydi.
+    @Optional() private readonly auditLog?: AuditLogService,
   ) {}
 
   /** Batch lookup for lists that show several people at once (one query, not N). */
@@ -87,10 +91,11 @@ export class UsersService {
       fcmToken: null,
       referralCode,
       referredByUserId: null,
-      // A brand-new manager starts with every permission — an admin can
-      // deliberately narrow them (e.g. to dispatch-only) afterward from
-      // Staff & Roles. Nobody should land with zero access by default.
-      permissions: role === UserRole.MANAGER ? ALL_PERMISSIONS : [],
+      // A brand-new manager starts with every permission except payout
+      // approval — an admin can deliberately narrow them (e.g. to
+      // dispatch-only) or grant payouts afterward from Staff & Roles.
+      // Nobody should land with zero access by default.
+      permissions: role === UserRole.MANAGER ? DEFAULT_MANAGER_PERMISSIONS : [],
     });
   }
 
@@ -141,7 +146,7 @@ export class UsersService {
     this.blockListeners.push(listener);
   }
 
-  async blockUser(id: string, reason?: string): Promise<User> {
+  async blockUser(id: string, reason?: string, actorUserId: string | null = null): Promise<User> {
     const user = await this.findByIdOrThrow(id);
     const blockReason = reason?.trim() || null;
     await this.userRepository.update(id, { status: UserStatus.BLOCKED, blockReason });
@@ -158,22 +163,69 @@ export class UsersService {
       }
     });
 
+    await this.recordAudit({
+      actorUserId,
+      action: AUDIT_ACTIONS.userBlock,
+      targetType: 'user',
+      targetId: id,
+      note: blockReason,
+      metadata: { role: user.role },
+    });
+
     return { ...user, status: UserStatus.BLOCKED, blockReason };
   }
 
-  async unblockUser(id: string): Promise<User> {
+  async unblockUser(id: string, actorUserId: string | null = null): Promise<User> {
     const user = await this.findByIdOrThrow(id);
     await this.userRepository.update(id, { status: UserStatus.ACTIVE, blockReason: null });
+    await this.recordAudit({
+      actorUserId,
+      action: AUDIT_ACTIONS.userUnblock,
+      targetType: 'user',
+      targetId: id,
+      note: user.blockReason ?? null,
+      metadata: { role: user.role },
+    });
     return { ...user, status: UserStatus.ACTIVE, blockReason: null };
   }
 
   // Staff & Roles (RBAC) — replaces a manager's entire permission set. Only
   // meaningful for MANAGER accounts; harmless no-op for any other role since
   // PermissionsGuard never consults this column for them.
-  async updatePermissions(id: string, permissions: Permission[]): Promise<User> {
+  async updatePermissions(
+    id: string,
+    permissions: Permission[],
+    actorUserId: string | null = null,
+  ): Promise<User> {
     const user = await this.findByIdOrThrow(id);
     await this.userRepository.update(id, { permissions });
+
+    const before = user.permissions ?? [];
+    const added = permissions.filter((p) => !before.includes(p));
+    const removed = before.filter((p) => !permissions.includes(p));
+    if (added.length > 0 || removed.length > 0) {
+      await this.recordAudit({
+        actorUserId,
+        action: AUDIT_ACTIONS.staffPermissionsUpdate,
+        targetType: 'user',
+        targetId: id,
+        metadata: { before, after: permissions, added, removed },
+      });
+    }
     return { ...user, permissions };
+  }
+
+  /**
+   * Amal (status/ruxsat) allaqachon yozilgan — jurnal xatosi uni bekor
+   * qilmaydi, faqat logga tushadi.
+   */
+  private async recordAudit(entry: AuditEntryInput): Promise<void> {
+    if (!this.auditLog) return;
+    try {
+      await this.auditLog.record(entry);
+    } catch (err) {
+      this.logger.error(`Audit write failed (${entry.action} ${entry.targetId}): ${(err as Error).message}`);
+    }
   }
 
   async findAll(

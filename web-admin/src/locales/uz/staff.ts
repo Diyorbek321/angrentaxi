@@ -24,8 +24,21 @@ export const staff = {
   selected: (n: number, total: number) => `Tanlangan: ${n} / ${total}`,
   unsaved: '· saqlanmagan',
   presetAll: "Barchasi (to'liq menejer)",
-  presetDispatch: 'Faqat dispetcherlik',
   presetClear: 'Tozalash',
+  templatesLabel: 'Rol shabloni',
+  customRole: "Qo'lda sozlangan",
+  moneyOutWarning:
+    "Pul yechishni tasdiqlash — pul platformadan chiqadi. Bu ruxsatni faqat moliya uchun javobgar xodimga bering; har bir tasdiq audit jurnaliga yoziladi.",
+  roleTemplates: {
+    operator: {
+      label: 'Operator',
+      description: 'Dispetcherlik, haydovchilar, KYC, murojaatlar — pulga tegmaydi',
+    },
+    finance: {
+      label: 'Moliya',
+      description: "Pul yechish navbati va tasdiqlash, haydovchi balansi, bonuslar",
+    },
+  },
   permissionLabels: {
     dispatch: "Dispetcherlik — jonli monitor, istisnolar, qo'lda biriktirish, audit jurnali",
     drivers_view: "Haydovchilar ro'yxatini ko'rish",
@@ -36,6 +49,7 @@ export const staff = {
     bonuses_view: "Bonus qoidalari va progressini ko'rish",
     support_manage: "Qo'llab-quvvatlash murojaatlarini boshqarish",
     withdrawals_view: "Pul yechish navbatini ko'rish",
+    withdrawals_approve: "Pul yechishni tasdiqlash, rad etish va to'landi deb belgilash",
     users_view: "Foydalanuvchilar ro'yxatini ko'rish",
   },
   permissionShortLabels: {
@@ -48,6 +62,7 @@ export const staff = {
     bonuses_view: 'Bonuslar',
     support_manage: 'Yordam',
     withdrawals_view: 'Pul yechish',
+    withdrawals_approve: "To'lov tasdiqlash",
     users_view: 'Foydalanuvchilar',
   },
   permissionGroups: {

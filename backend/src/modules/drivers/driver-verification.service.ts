@@ -2,7 +2,9 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
@@ -21,6 +23,7 @@ import { resolveDriverServiceTypes } from './driver-capabilities';
 import { UserRole } from '../../database/entities/user.entity';
 import { DriverUploadFile, DriverUploadsStore, UploadedMemoryFile } from './driver-uploads';
 import { ReviewDriverVerificationDto } from './dto/review-driver-verification.dto';
+import { AUDIT_ACTIONS, AuditLogService } from '../audit/audit-log.service';
 
 /** Kontraktda kelishilgan holatlar to'plami. */
 export type DriverVerificationStatus =
@@ -120,6 +123,8 @@ const SERVICE_ENABLE_OK_STATUSES: readonly DriverVerificationStatus[] = ['ok', '
 
 @Injectable()
 export class DriverVerificationService {
+  private readonly logger = new Logger(DriverVerificationService.name);
+
   constructor(
     @InjectRepository(DriverVerificationRequirement)
     private readonly requirementRepository: Repository<DriverVerificationRequirement>,
@@ -128,6 +133,9 @@ export class DriverVerificationService {
     @InjectRepository(Driver)
     private readonly driverRepository: Repository<Driver>,
     private readonly uploads: DriverUploadsStore,
+    // Kim tasdiqladi / rad etdi — haydovchi "Tarix"i uchun. Ixtiyoriy:
+    // qo'lda yig'iladigan spec'lar jurnalni bilmaydi.
+    @Optional() private readonly auditLog?: AuditLogService,
   ) {}
 
   // ---------------------------------------------------------------- o'qish
@@ -562,6 +570,20 @@ export class DriverVerificationService {
       reviewedBy,
       validUntil,
     });
+
+    try {
+      await this.auditLog?.record({
+        actorUserId: reviewedBy,
+        action: AUDIT_ACTIONS.driverKycReview,
+        targetType: 'driver',
+        targetId: saved.driverId,
+        note: saved.rejectionReason,
+        metadata: { submissionId: saved.id, code: saved.code, approved: dto.approved },
+      });
+    } catch (err) {
+      // Qaror allaqachon saqlangan (`reviewed_by` ham) — jurnal xatosi uni bekor qilmaydi.
+      this.logger.error(`Audit write failed for KYC review ${saved.id}: ${(err as Error).message}`);
+    }
 
     const fallback: DriverVerificationRequirement = {
       code: saved.code,

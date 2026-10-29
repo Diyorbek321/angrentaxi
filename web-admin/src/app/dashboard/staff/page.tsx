@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ShieldCheck, Users } from 'lucide-react';
+import { AlertTriangle, ShieldCheck, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Checkbox } from '@/components/ui/Checkbox';
@@ -16,6 +16,7 @@ import {
   permissionLabels,
   permissionShortLabels,
 } from '@/lib/permission-labels';
+import { MONEY_OUT_PERMISSIONS, matchRoleTemplate, roleTemplates } from '@/lib/role-templates';
 import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/lib/utils';
 import { formatPhone, fullName } from '@/lib/format';
@@ -24,7 +25,26 @@ import { t } from '@/locales';
 function PermissionSummary({ perms }: { perms: Permission[] }) {
   const m = t().staff;
   if (perms.length === 0) return <Badge variant="danger">{m.noPermissions}</Badge>;
-  if (perms.length === ALL_PERMISSIONS.length) return <Badge variant="success">{m.fullAccess}</Badge>;
+  // "To'liq" = every non-money permission; payout approval shows as its own badge.
+  const hasMoneyOut = perms.some((p) => MONEY_OUT_PERMISSIONS.includes(p));
+  const isFullManager = ALL_PERMISSIONS.every((p) => MONEY_OUT_PERMISSIONS.includes(p) || perms.includes(p));
+  if (isFullManager) {
+    return (
+      <div className="flex flex-wrap gap-1">
+        <Badge variant="success">{m.fullAccess}</Badge>
+        {hasMoneyOut && <Badge variant="neutral">{permissionShortLabels().withdrawals_approve}</Badge>}
+      </div>
+    );
+  }
+  // Job-named role first: "Moliya" reads faster than five permission chips.
+  const template = matchRoleTemplate(perms);
+  if (template) {
+    return (
+      <Badge variant="neutral" title={perms.map((p) => permissionShortLabels()[p] ?? p).join(', ')}>
+        {template.label}
+      </Badge>
+    );
+  }
   return (
     <div className="flex flex-wrap gap-1">
       {perms.slice(0, 3).map((p) => (
@@ -101,11 +121,15 @@ export default function StaffRolesPage() {
     setDraftPermissions((prev) => (prev.includes(perm) ? prev.filter((p) => p !== perm) : [...prev, perm]));
   };
 
-  const applyPreset = (preset: 'all' | 'dispatch-only' | 'none') => {
-    if (preset === 'all') setDraftPermissions(ALL_PERMISSIONS);
-    else if (preset === 'none') setDraftPermissions([]);
-    else setDraftPermissions(['dispatch', 'drivers_view']);
+  // "Barchasi" = to'liq menejer, lekin pul chiqarish emas: u faqat ataylab, alohida belgilanadi.
+  const applyPreset = (preset: 'all' | 'none') => {
+    setDraftPermissions(
+      preset === 'all' ? ALL_PERMISSIONS.filter((p) => !MONEY_OUT_PERMISSIONS.includes(p)) : []
+    );
   };
+
+  const activeTemplate = matchRoleTemplate(draftPermissions);
+  const grantsMoneyOut = draftPermissions.some((p) => MONEY_OUT_PERMISSIONS.includes(p));
 
   // "Saqlash" is enabled only on a real change (dirty).
   const originalPermissions = editTarget?.permissions ?? [];
@@ -224,17 +248,42 @@ export default function StaffRolesPage() {
           </>
         }
       >
+        <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-subtle">
+          {m.templatesLabel}
+          <span className="ml-2 normal-case tracking-normal font-normal text-muted">
+            {activeTemplate ? activeTemplate.label : draftPermissions.length > 0 ? m.customRole : ''}
+          </span>
+        </p>
         <div className="flex flex-wrap gap-2 mb-4">
+          {roleTemplates().map((tpl) => (
+            <Button
+              key={tpl.id}
+              size="sm"
+              variant={activeTemplate?.id === tpl.id ? 'primary' : 'secondary'}
+              aria-pressed={activeTemplate?.id === tpl.id}
+              title={tpl.description}
+              onClick={() => setDraftPermissions([...tpl.permissions])}
+            >
+              {tpl.label}
+            </Button>
+          ))}
           <Button size="sm" variant="secondary" onClick={() => applyPreset('all')}>
             {m.presetAll}
-          </Button>
-          <Button size="sm" variant="secondary" onClick={() => applyPreset('dispatch-only')}>
-            {m.presetDispatch}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => applyPreset('none')}>
             {m.presetClear}
           </Button>
         </div>
+
+        {grantsMoneyOut && (
+          <div
+            role="note"
+            className="mb-4 flex items-start gap-2 rounded-ds-sm border border-danger/30 bg-danger-tint px-3 py-2 text-[13px] text-danger-dark dark:text-danger-light"
+          >
+            <AlertTriangle size={15} className="mt-0.5 shrink-0" aria-hidden />
+            <span>{m.moneyOutWarning}</span>
+          </div>
+        )}
 
         {/* Permissions grouped by DOMAIN — the operator thinks "which section". */}
         <div className="space-y-4">
