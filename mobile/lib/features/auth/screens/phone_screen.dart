@@ -1,5 +1,6 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
+import 'package:angren_taxi/features/auth/widgets/account_legal_actions.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/utils/validators.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
@@ -163,14 +164,31 @@ class _PhoneScreenState extends State<PhoneScreen> {
   }
 
   Widget _buildTermsText() {
-    return Text(
-      context.l10n.shAuthTerms,
-      style: const TextStyle(
-        fontSize: kFontCaption,
-        color: kInkMuted,
-        height: 1.5,
-      ),
-      textAlign: TextAlign.center,
+    // Rozilik matni siyosatning o'ziga olib borishi shart (Google Play) —
+    // ilgari u havolasiz, ya'ni o'qib bo'lmaydigan hujjatga rozilik so'rardi.
+    return Column(
+      children: [
+        Text(
+          context.l10n.shAuthTerms,
+          style: const TextStyle(
+            fontSize: kFontCaption,
+            color: kInkMuted,
+            height: 1.5,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        TextButton(
+          onPressed: openPrivacyPolicy,
+          style: TextButton.styleFrom(minimumSize: const Size(0, kMinTapTarget)),
+          child: Text(
+            context.l10n.accPrivacyPolicy,
+            style: const TextStyle(
+              fontSize: kFontCaption,
+              decoration: TextDecoration.underline,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

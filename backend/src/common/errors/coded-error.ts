@@ -98,6 +98,13 @@ export const ERROR_CODES = {
   intercityRequestAlreadyOpen: 'INTERCITY_REQUEST_ALREADY_OPEN',
   /** So'rov endi ochiq emas — boshqa haydovchi oldi, bekor yoki eskirgan (409). `details: { status }`. */
   intercityRequestClosed: 'INTERCITY_REQUEST_CLOSED',
+  /**
+   * Hisobni hozir o'chirib bo'lmaydi (409). `reasons[]`: ACTIVE_ORDER,
+   * OPEN_WITHDRAWAL, WALLET_BALANCE_POSITIVE, WALLET_DEBT.
+   */
+  accountDeletionBlocked: 'ACCOUNT_DELETION_BLOCKED',
+  /** Xodim/sotuvchi hisobini ilovadan o'chirib bo'lmaydi (403). */
+  accountDeletionNotAllowed: 'ACCOUNT_DELETION_NOT_ALLOWED',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];

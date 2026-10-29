@@ -96,12 +96,6 @@
             android:name="com.google.firebase.messaging.default_notification_color"
             android:resource="@color/notification_accent" />
 
-        <!-- Geolocator background service -->
-        <service
-            android:name="com.baseflow.geolocator.GeolocatorService"
-            android:foregroundServiceType="location"
-            android:exported="false" />
-
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

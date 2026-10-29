@@ -12,8 +12,9 @@
 # `build/symbols/<flavor>/` da qoladi — ularni har reliz uchun saqlang:
 #   flutter symbolize -i <stack.txt> -d build/symbols/<flavor>/app.android-arm64.symbols
 #
-# Play Market uchun APK emas, `flutter build appbundle` — u bo'lishni o'zi
-# qiladi (shu bayroqlar bilan, `--split-per-abi` siz).
+# PLAY MARKET: `BUNDLE=1` — APK o'rniga AAB (`flutter build appbundle`).
+# Play bo'lishni o'zi qiladi, shuning uchun `--split-per-abi` siz. Natija:
+# build/app/outputs/bundle/<flavor>Release/app-<flavor>-release.aab
 #
 # Sentry: `SENTRY_DSN` ni `.env.dart-defines.json` ga yozing — ilova
 # yiqilishlarni yuboradi. `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`
@@ -63,11 +64,16 @@ build_number="${BUILD_NUMBER:-$(git rev-list --count HEAD)}"
 version="${version_name}+${build_number}"
 echo "==> versiya $version"
 
+if [[ "${BUNDLE:-0}" == "1" ]]; then
+  build_cmd=(flutter build appbundle --release)
+else
+  build_cmd=(flutter build apk --release --split-per-abi)
+fi
+
 for flavor in passenger driver; do
   echo "==> $flavor"
-  flutter build apk --release \
+  "${build_cmd[@]}" \
     --flavor "$flavor" -t "lib/main_${flavor}.dart" \
-    --split-per-abi \
     --build-name="$version_name" --build-number="$build_number" \
     --obfuscate --split-debug-info="build/symbols/$flavor" \
     --extra-gen-snapshot-options=--save-obfuscation-map="build/symbols/$flavor/obfuscation.map.json" \
@@ -88,5 +94,10 @@ for flavor in passenger driver; do
 done
 
 echo
-echo "APK'lar: build/app/outputs/flutter-apk/"
-ls -lh build/app/outputs/flutter-apk/*-release.apk
+if [[ "${BUNDLE:-0}" == "1" ]]; then
+  echo "AAB'lar (Play Console'ga yuklang):"
+  ls -lh build/app/outputs/bundle/*Release/*.aab
+else
+  echo "APK'lar: build/app/outputs/flutter-apk/"
+  ls -lh build/app/outputs/flutter-apk/*-release.apk
+fi

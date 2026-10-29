@@ -18,6 +18,7 @@ import { MaintenanceGuard } from './common/guards/maintenance.guard';
 // Feature Modules
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
+import { AccountDeletionModule } from './modules/account-deletion/account-deletion.module';
 import { DriversModule } from './modules/drivers/drivers.module';
 import { TariffsModule } from './modules/tariffs/tariffs.module';
 import { OrdersModule } from './modules/orders/orders.module';
@@ -155,6 +156,7 @@ import { ENTITIES } from './database/entities';
     AuthModule,
     FavoritesModule,
     UsersModule,
+    AccountDeletionModule,
     DriversModule,
     TariffsModule,
     OrdersModule,

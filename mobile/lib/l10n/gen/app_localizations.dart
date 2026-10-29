@@ -98,6 +98,54 @@ abstract class AppLocalizations {
     Locale('uz')
   ];
 
+  /// No description provided for @accDeleteBlockedTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hozir o\'chirib bo\'lmaydi'**
+  String get accDeleteBlockedTitle;
+
+  /// No description provided for @accDeleteBody.
+  ///
+  /// In uz, this message translates to:
+  /// **'Telefon raqamingiz, ismingiz va kirish ma\'lumotlari o\'chiriladi, barcha qurilmalarda tizimdan chiqasiz. Buni qaytarib bo\'lmaydi. Safar va to\'lov yozuvlari qonun bo\'yicha shaxssiz holda saqlanadi.'**
+  String get accDeleteBody;
+
+  /// No description provided for @accDeleteButton.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hisobni o\'chirish'**
+  String get accDeleteButton;
+
+  /// No description provided for @accDeleteConfirm.
+  ///
+  /// In uz, this message translates to:
+  /// **'O\'chirish'**
+  String get accDeleteConfirm;
+
+  /// No description provided for @accDeleteOk.
+  ///
+  /// In uz, this message translates to:
+  /// **'Tushunarli'**
+  String get accDeleteOk;
+
+  /// No description provided for @accDeleteTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hisobni o\'chirasizmi?'**
+  String get accDeleteTitle;
+
+  /// No description provided for @accDeleted.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hisobingiz o\'chirildi'**
+  String get accDeleted;
+
+  /// No description provided for @accPrivacyPolicy.
+  ///
+  /// In uz, this message translates to:
+  /// **'Maxfiylik siyosati'**
+  String get accPrivacyPolicy;
+
   /// No description provided for @appLanguage.
   ///
   /// In uz, this message translates to:

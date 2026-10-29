@@ -27,6 +27,8 @@ export const AUDIT_ACTIONS = {
   userUnblock: 'user.unblock',
   /** Xodim ruxsatlari o'zgardi. `metadata.before`/`after` — ruxsatlar ro'yxati. */
   staffPermissionsUpdate: 'staff.permissions_update',
+  /** Foydalanuvchi o'z hisobini o'chirdi (anonimlashtirildi). `metadata.role`. */
+  userSelfDelete: 'user.self_delete',
   /** Haydovchi KYC materiali ko'rib chiqildi. `metadata.code`/`approved`. */
   driverKycReview: 'driver.kyc_review',
 } as const;

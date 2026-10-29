@@ -1,5 +1,6 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
+import 'package:angren_taxi/features/auth/widgets/account_legal_actions.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/driver/screens/driver_amenities_screen.dart';
 import 'package:angren_taxi/features/driver/screens/earnings_screen.dart';
@@ -112,6 +113,8 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
                   backgroundColor: kErrorDeep,
                   foregroundColor: kOnPrimary,
                 ),
+                const SizedBox(height: kSpace2),
+                const AccountLegalActions(),
               ],
             ),
           );

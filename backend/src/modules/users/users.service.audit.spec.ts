@@ -81,3 +81,46 @@ describe('UsersService — audit jurnali', () => {
     expect(created.permissions).not.toContain(Permission.WITHDRAWALS_APPROVE);
   });
 });
+
+describe("UsersService.deleteOwnAccount — anonimlashtirish", () => {
+  function build() {
+    const repo = {
+      findOne: jest.fn().mockResolvedValue({ id: 'u-1', role: UserRole.DRIVER, status: UserStatus.ACTIVE }),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
+    const auditLog = { record: jest.fn().mockResolvedValue({}) };
+    return { service: new UsersService(repo as never, auditLog as never), repo, auditLog };
+  }
+
+  it("shaxsiy maydonlar tozalanadi, telefon bo'shaydi, hisob qayta ishlamaydi", async () => {
+    const { service, repo } = build();
+    await service.deleteOwnAccount('u-1');
+    expect(repo.update).toHaveBeenCalledWith('u-1', {
+      phone: 'deleted:u-1',
+      firstName: null,
+      lastName: null,
+      fcmToken: null,
+      status: UserStatus.BLOCKED,
+      blockReason: 'account_deleted',
+      permissions: [],
+    });
+  });
+
+  it('bloklash tinglovchilari (oflayn, socket) chaqiriladi va o\'zi-o\'chirish jurnalga yoziladi', async () => {
+    const { service, auditLog } = build();
+    const listener = jest.fn().mockResolvedValue(undefined);
+    service.onUserBlocked(listener);
+    await service.deleteOwnAccount('u-1');
+    expect(listener).toHaveBeenCalledWith('u-1');
+    expect(auditLog.record).toHaveBeenCalledWith(
+      expect.objectContaining({ actorUserId: 'u-1', action: 'user.self_delete', targetId: 'u-1' }),
+    );
+  });
+
+  it("o'chirilgan hisobni admin blokdan chiqara olmaydi", async () => {
+    const { service, repo } = build();
+    repo.findOne.mockResolvedValue({ id: 'u-1', status: UserStatus.BLOCKED, blockReason: 'account_deleted' });
+    await expect(service.unblockUser('u-1', 'admin-1')).rejects.toThrow('cannot be restored');
+    expect(repo.update).not.toHaveBeenCalled();
+  });
+});

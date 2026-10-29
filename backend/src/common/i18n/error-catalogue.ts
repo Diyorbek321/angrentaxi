@@ -214,6 +214,23 @@ export const ERROR_CATALOGUE: readonly ErrorCatalogueEntry[] = [
     ru: 'Доставка временно недоступна',
   },
 
+  // ─── Hisobni o'chirish — ACCOUNT_DELETION_* ─────────────────────────
+  { source: "Hisobni hozir o'chirib bo'lmaydi", ru: 'Сейчас удалить аккаунт нельзя' },
+  {
+    source: 'Faol buyurtmangiz bor — avval uni yakunlang yoki bekor qiling',
+    ru: 'У вас есть активный заказ — сначала завершите или отмените его',
+  },
+  {
+    source: "Pul yechish so'rovingiz ko'rib chiqilmoqda — yakunlanishini kuting",
+    ru: 'Ваша заявка на вывод средств на рассмотрении — дождитесь её завершения',
+  },
+  { source: 'Hamyoningizda pul bor — avval uni yechib oling', ru: 'В кошельке есть деньги — сначала выведите их' },
+  { source: 'Platformaga qarzingiz bor — avval uni yoping', ru: 'У вас есть долг перед платформой — сначала погасите его' },
+  {
+    source: "Bu turdagi hisobni ilovadan o'chirib bo'lmaydi — qo'llab-quvvatlash xizmatiga murojaat qiling",
+    ru: 'Этот тип аккаунта нельзя удалить из приложения — обратитесь в поддержку',
+  },
+
   // ─── Huquqiy talablar (VMQ 200) — LEGAL_NOT_ELIGIBLE ────────────────
   {
     source: "Taksi uchun onlayn chiqa olmaysiz: {0}. Ilovadagi «Hujjatlar» bo'limida to'ldiring.",

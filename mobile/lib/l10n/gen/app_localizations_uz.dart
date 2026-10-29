@@ -9,6 +9,31 @@ class AppLocalizationsUz extends AppLocalizations {
   AppLocalizationsUz([String locale = 'uz']) : super(locale);
 
   @override
+  String get accDeleteBlockedTitle => 'Hozir o\'chirib bo\'lmaydi';
+
+  @override
+  String get accDeleteBody =>
+      'Telefon raqamingiz, ismingiz va kirish ma\'lumotlari o\'chiriladi, barcha qurilmalarda tizimdan chiqasiz. Buni qaytarib bo\'lmaydi. Safar va to\'lov yozuvlari qonun bo\'yicha shaxssiz holda saqlanadi.';
+
+  @override
+  String get accDeleteButton => 'Hisobni o\'chirish';
+
+  @override
+  String get accDeleteConfirm => 'O\'chirish';
+
+  @override
+  String get accDeleteOk => 'Tushunarli';
+
+  @override
+  String get accDeleteTitle => 'Hisobni o\'chirasizmi?';
+
+  @override
+  String get accDeleted => 'Hisobingiz o\'chirildi';
+
+  @override
+  String get accPrivacyPolicy => 'Maxfiylik siyosati';
+
+  @override
   String get appLanguage => 'Ilova tili';
 
   @override

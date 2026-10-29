@@ -10,6 +10,8 @@ class ApiEndpoints {
   static const String verifyOtp = '/auth/verify-otp';
   static const String refreshToken = '/auth/refresh';
   static const String logout = '/auth/logout';
+  // Hisobni o'chirish (Google Play talabi) — o'z hisobi, id yo'q.
+  static const String account = '/account';
 
   // User / Passenger
   // Backend route is GET/PATCH /users/me (users.controller.ts) — was

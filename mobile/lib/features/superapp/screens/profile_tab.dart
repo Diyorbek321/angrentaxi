@@ -1,4 +1,5 @@
 import 'package:angren_taxi/features/auth/auth_provider.dart';
+import 'package:angren_taxi/features/auth/widgets/account_legal_actions.dart';
 import 'package:angren_taxi/features/lost_items/screens/lost_items_screen.dart';
 import 'package:angren_taxi/features/passenger/screens/destination_screen.dart';
 import 'package:angren_taxi/features/passenger/screens/edit_profile_screen.dart';
@@ -241,6 +242,8 @@ class ProfileTab extends StatelessWidget {
                     ),
                   ),
                 ),
+                const SizedBox(height: kSpace2),
+                const AccountLegalActions(),
               ],
             ),
           ),

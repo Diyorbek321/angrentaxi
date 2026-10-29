@@ -9,6 +9,31 @@ class AppLocalizationsRu extends AppLocalizations {
   AppLocalizationsRu([String locale = 'ru']) : super(locale);
 
   @override
+  String get accDeleteBlockedTitle => 'Сейчас удалить нельзя';
+
+  @override
+  String get accDeleteBody =>
+      'Ваш номер телефона, имя и данные для входа будут удалены, вы выйдете на всех устройствах. Это действие необратимо. Записи о поездках и платежах по закону хранятся в обезличенном виде.';
+
+  @override
+  String get accDeleteButton => 'Удалить аккаунт';
+
+  @override
+  String get accDeleteConfirm => 'Удалить';
+
+  @override
+  String get accDeleteOk => 'Понятно';
+
+  @override
+  String get accDeleteTitle => 'Удалить аккаунт?';
+
+  @override
+  String get accDeleted => 'Ваш аккаунт удалён';
+
+  @override
+  String get accPrivacyPolicy => 'Политика конфиденциальности';
+
+  @override
   String get appLanguage => 'Язык приложения';
 
   @override

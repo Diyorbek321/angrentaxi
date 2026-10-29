@@ -44,7 +44,10 @@ android {
         // Narxi: Android 6.0 (2015) qo'llab-quvvatlashdan chiqadi. Android
         // 7.0+ hozirgi faol qurilmalarning deyarli hammasini qamrab oladi.
         minSdk = 24
-        targetSdk = flutter.targetSdkVersion
+        // Play 2026-08-31 dan yangi ilova va yangilanishlardan API 36 talab
+        // qiladi; Flutter 3.32 standarti hali 35. Android 16 xulqi: edge-to-edge
+        // majburiy (Flutter allaqachon chizadi), predictive back yoqiq.
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }

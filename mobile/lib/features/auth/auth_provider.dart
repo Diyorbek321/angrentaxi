@@ -2,6 +2,7 @@ import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/core/network/api_error.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
 import 'package:angren_taxi/core/storage/local_storage.dart';
 import 'package:angren_taxi/features/auth/app_role_gate.dart';
@@ -170,18 +171,40 @@ class AuthProvider extends ChangeNotifier {
     } catch (_) {
       // Ignore logout API errors
     } finally {
-      _socketService.disconnect();
-      await _localStorage.clearAll();
-      _currentUser = null;
-      _phone = null;
-      _setState(AuthState.idle);
-      // Return to the auth flow from wherever logout was triggered (home menu,
-      // profile, etc.). Centralised here so every caller behaves consistently.
-      _navigatorKey.currentState?.pushNamedAndRemoveUntil(
-        '/phone',
-        (route) => false,
+      await _clearSessionAndExit();
+    }
+  }
+
+  /// Hisobni o'chiradi (`DELETE /account`). Muvaffaqiyatda sessiya tozalanadi
+  /// va kirish ekraniga qaytiladi — server barcha tokenlarni allaqachon bekor
+  /// qilgan. Rad etilsa (faol buyurtma, hamyonda pul/qarz) — server bergan
+  /// sabablar ro'yxati qaytadi; ilova ularni ko'rsatadi.
+  Future<AccountDeletionResult> deleteAccount() async {
+    try {
+      await _apiClient.delete(ApiEndpoints.account);
+    } catch (e) {
+      final error = ApiError.from(e);
+      final reasons = error?.reasons.map((r) => r.message).toList() ?? const <String>[];
+      return AccountDeletionResult.blocked(
+        reasons.isNotEmpty ? reasons : [extractErrorMessage(e)],
       );
     }
+    await _clearSessionAndExit();
+    return const AccountDeletionResult.deleted();
+  }
+
+  Future<void> _clearSessionAndExit() async {
+    _socketService.disconnect();
+    await _localStorage.clearAll();
+    _currentUser = null;
+    _phone = null;
+    _setState(AuthState.idle);
+    // Return to the auth flow from wherever logout was triggered (home menu,
+    // profile, etc.). Centralised here so every caller behaves consistently.
+    _navigatorKey.currentState?.pushNamedAndRemoveUntil(
+      '/phone',
+      (route) => false,
+    );
   }
 
   Future<void> _revokeQuietly(String? refreshToken) async {
@@ -214,3 +237,16 @@ AuthProvider buildAuthProvider(AppFlavor flavor) => AuthProvider(
   navigatorKey: sl<GlobalKey<NavigatorState>>(),
   flavor: flavor,
 );
+
+/// [AuthProvider.deleteAccount] natijasi.
+class AccountDeletionResult {
+  const AccountDeletionResult.deleted()
+      : deleted = true,
+        reasons = const [];
+  const AccountDeletionResult.blocked(this.reasons) : deleted = false;
+
+  final bool deleted;
+
+  /// Nega o'chirib bo'lmadi — server matni (foydalanuvchi tilida).
+  final List<String> reasons;
+}

@@ -14,6 +14,9 @@ import { generateUniqueReferralCode } from '../../common/utils/referral-code.uti
 import type { AppLanguage } from '../../common/i18n/error-messages';
 import { AUDIT_ACTIONS, AuditEntryInput, AuditLogService } from '../audit/audit-log.service';
 
+/** `users.block_reason` of an account its owner deleted (anonymised, never reactivated). */
+export const ACCOUNT_DELETED_REASON = 'account_deleted';
+
 /** Called after a user is blocked; failures are logged, never fail the block. */
 export type UserBlockedListener = (userId: string) => Promise<void>;
 
@@ -177,6 +180,10 @@ export class UsersService {
 
   async unblockUser(id: string, actorUserId: string | null = null): Promise<User> {
     const user = await this.findByIdOrThrow(id);
+    if (user.blockReason === ACCOUNT_DELETED_REASON) {
+      // Egasi o'chirgan hisob anonim — uni "tiriltirish" egasiz hisob yaratardi.
+      throw new BadRequestException('This account was deleted by its owner and cannot be restored');
+    }
     await this.userRepository.update(id, { status: UserStatus.ACTIVE, blockReason: null });
     await this.recordAudit({
       actorUserId,
@@ -187,6 +194,44 @@ export class UsersService {
       metadata: { role: user.role },
     });
     return { ...user, status: UserStatus.ACTIVE, blockReason: null };
+  }
+
+  /**
+   * Hisob egasi o'zi o'chirdi (AccountDeletionService tekshiruvlaridan keyin).
+   * Qator QOLADI — safar/to'lov/soliq yozuvlari unga bog'langan va qonun
+   * bo'yicha saqlanadi; shaxsni bog'laydigan maydonlar tozalanadi. Telefon
+   * `deleted:<id>` ga almashadi: raqam bo'shaydi (keyin yangi hisob ochish
+   * mumkin) va unique cheklov buzilmaydi. Bloklash tinglovchilari ishlaydi —
+   * haydovchi oflayn bo'ladi, socketlar uziladi.
+   */
+  async deleteOwnAccount(id: string, actorUserId: string = id): Promise<void> {
+    const user = await this.findByIdOrThrow(id);
+    await this.userRepository.update(id, {
+      phone: `deleted:${id}`,
+      firstName: null,
+      lastName: null,
+      fcmToken: null,
+      status: UserStatus.BLOCKED,
+      blockReason: ACCOUNT_DELETED_REASON,
+      permissions: [],
+    });
+
+    const results = await Promise.allSettled(this.blockListeners.map((listener) => listener(id)));
+    results.forEach((result) => {
+      if (result.status === 'rejected') {
+        this.logger.error(
+          `Delete side effect failed for user ${id}: ${(result.reason as Error)?.message ?? result.reason}`,
+        );
+      }
+    });
+
+    await this.recordAudit({
+      actorUserId,
+      action: AUDIT_ACTIONS.userSelfDelete,
+      targetType: 'user',
+      targetId: id,
+      metadata: { role: user.role },
+    });
   }
 
   // Staff & Roles (RBAC) — replaces a manager's entire permission set. Only
