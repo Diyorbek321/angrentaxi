@@ -255,12 +255,31 @@ class _AppVectorMapState extends State<AppVectorMap>
         clock: DateTime.now,
       );
     }
-    _loadStyle();
     _syncUserTracking();
   }
 
+  /// Uslub ilova tiliga bog'liq (yorliqlar yozuvi) — til
+  /// `Localizations` dan olinadi, u `initState` da hali o'qilmaydi.
+  String? _languageCode;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Localizations'siz (widget testlari) — o'zbekcha.
+    final languageCode = Localizations.maybeLocaleOf(context)?.languageCode ?? 'uz';
+    if (languageCode == _languageCode) return;
+    final first = _languageCode == null;
+    _languageCode = languageCode;
+    // Til ilova ishlab turganda almashsa — uslub almashgandagidek.
+    if (!first) _resetAnnotations();
+    _loadStyle();
+  }
+
   Future<void> _loadStyle() async {
-    final document = await MapStyleLoader.load(widget.style);
+    final document = await MapStyleLoader.load(
+      widget.style,
+      languageCode: _languageCode ?? 'uz',
+    );
     if (!mounted) return;
     setState(() => _styleDocument = document);
   }

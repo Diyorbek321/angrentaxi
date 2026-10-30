@@ -28,7 +28,7 @@ class MapStyleLoader {
 
   /// Uslub JSON'i o'zgarmaydi, lekin har xarita ochilishida assetdan o'qish
   /// va satr almashtirish ortiqcha ish — bir marta o'qib saqlaymiz.
-  static final Map<AppMapStyle, String> _cache = {};
+  static final Map<String, String> _cache = {};
 
   static const Map<AppMapStyle, String> _assets = {
     AppMapStyle.light: 'assets/map/style_light.json',
@@ -39,8 +39,12 @@ class MapStyleLoader {
   ///
   /// MapLibre `styleString` ga URL ham, to'liq JSON hujjat ham berish
   /// mumkin — biz ikkinchisini beramiz, chunki uslub bizniki.
-  static Future<String> load(AppMapStyle style) async {
-    final cached = _cache[style];
+  ///
+  /// [languageCode] — ilova tili: yorliqlar shu tilga mos yozuvda chiqadi
+  /// ([localizeLabels]).
+  static Future<String> load(AppMapStyle style, {String languageCode = 'uz'}) async {
+    final cacheKey = '${style.name}/$languageCode';
+    final cached = _cache[cacheKey];
     if (cached != null) return cached;
 
     final raw = await rootBundle.loadString(_assets[style]!);
@@ -59,10 +63,40 @@ class MapStyleLoader {
     // `{range}` — MapLibre'ning o'z shablonlari, ularga tegilmaydi.
     final withKey = raw.replaceAll('{MAPTILER_KEY}', AppConfig.mapTilerKey);
 
-    final resolved = _applySelfHostedSource(withKey);
+    final resolved = localizeLabels(_applySelfHostedSource(withKey), languageCode);
 
-    _cache[style] = resolved;
+    _cache[cacheKey] = resolved;
     return resolved;
+  }
+
+  /// Nom yorliqlarini ilova tiliga moslaydi.
+  ///
+  /// Angren OSM ma'lumotida ko'chalarning ~60% `name` i ruscha kirill
+  /// ("улица Уйгун"), qolgani o'zbekcha lotin ("Navoiy ko'chasi"), `name:uz`
+  /// esa deyarli yo'q. Ruscha ilovada `name:ru` (~65% ko'chada bor) birinchi
+  /// olinsa yozuv deyarli butunlay kirillga o'tadi.
+  ///
+  /// O'zbekcha uchun ilova ichida yechim yo'q: uslub ifodalari kirillni
+  /// lotinga o'gira olmaydi. U OSM'da `name:uz` to'ldirilgani sari o'zi
+  /// tuzaladi — uslub `name:uz` ni allaqachon birinchi oladi.
+  static String localizeLabels(String styleJson, String languageCode) {
+    if (languageCode != 'ru') return styleJson;
+
+    final doc = jsonDecode(styleJson) as Map<String, dynamic>;
+    for (final layer in (doc['layers'] as List? ?? const [])) {
+      final layout = (layer as Map<String, dynamic>)['layout'] as Map<String, dynamic>?;
+      final field = layout?['text-field'];
+      if (field is List) layout!['text-field'] = _swapNameKey(field, 'name:ru');
+    }
+    return jsonEncode(doc);
+  }
+
+  /// `["get","name:uz"]` ni [key] bilan almashtiradi (ifoda ichida ham).
+  static List<dynamic> _swapNameKey(List<dynamic> expr, String key) {
+    if (expr.length == 2 && expr[0] == 'get' && expr[1] == 'name:uz') {
+      return ['get', key];
+    }
+    return [for (final e in expr) e is List ? _swapNameKey(e, key) : e];
   }
 
   /// O'zini hostlash sozlangan bo'lsa, uslubdagi tile va shrift manbasini
