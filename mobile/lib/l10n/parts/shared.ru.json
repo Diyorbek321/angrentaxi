@@ -147,5 +147,6 @@
   "shUpdateRequiredTitle": "Обновите приложение",
   "shUpdateRequiredBody": "Эта версия больше не поддерживается. Установите новую версию, чтобы продолжить.",
   "shUpdateAction": "Обновить",
-  "shUpdateAvailable": "Вышла новая версия приложения"
+  "shUpdateAvailable": "Вышла новая версия приложения",
+  "shMapLoadFailed": "Карта не загрузилась. Проверьте интернет."
 }

@@ -7773,6 +7773,12 @@ abstract class AppLocalizations {
   /// **'Orqaga qayting'**
   String get shManeuverUturn;
 
+  /// No description provided for @shMapLoadFailed.
+  ///
+  /// In uz, this message translates to:
+  /// **'Xarita yuklanmadi. Internetni tekshiring.'**
+  String get shMapLoadFailed;
+
   /// No description provided for @shMarketPacking.
   ///
   /// In uz, this message translates to:

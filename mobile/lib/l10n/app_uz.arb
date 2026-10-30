@@ -2781,6 +2781,7 @@
   "shManeuverSharpRight": "Keskin o'ngga buriling",
   "shManeuverStraight": "To'g'ri davom eting",
   "shManeuverUturn": "Orqaga qayting",
+  "shMapLoadFailed": "Xarita yuklanmadi. Internetni tekshiring.",
   "shMarketPacking": "Do'kon yig'moqda",
   "shMeterAtLeast": "kamida {price}",
   "@shMeterAtLeast": {

@@ -4368,6 +4368,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get shManeuverUturn => 'Развернитесь';
 
   @override
+  String get shMapLoadFailed => 'Карта не загрузилась. Проверьте интернет.';
+
+  @override
   String get shMarketPacking => 'Магазин собирает заказ';
 
   @override

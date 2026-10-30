@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/location/daylight.dart';
+import 'package:angren_taxi/core/observability/crash_reporting.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
 /// Xarita uslubining ikki varianti.
@@ -43,6 +44,16 @@ class MapStyleLoader {
     if (cached != null) return cached;
 
     final raw = await rootBundle.loadString(_assets[style]!);
+
+    // Kalitsiz build xaritani jimgina bo'sh qoldiradi (MapTiler 403) —
+    // hech bo'lmasa jurnalda ko'rinsin.
+    if (AppConfig.mapTilerKey.isEmpty && !selfHostedIsComplete) {
+      CrashReporting.reportHandled(
+        StateError('MAPTILER_KEY bo\'sh — xarita tile\'lari yuklanmaydi'),
+        StackTrace.current,
+        'MapStyleLoader.load',
+      );
+    }
 
     // Faqat `{MAPTILER_KEY}` ni almashtiramiz. JSON'dagi `{fontstack}` va
     // `{range}` — MapLibre'ning o'z shablonlari, ularga tegilmaydi.
@@ -98,10 +109,24 @@ class MapStyleLoader {
     // PMTiles bitta fayl — `tiles.json` emas, shuning uchun `url` o'rniga
     // to'g'ridan-to'g'ri manba beriladi.
     openmaptiles['url'] = tilesUrl;
+    // Uslubdagi MapTiler tile SHABLONI va uning masshtab chegaralari olib
+    // tashlanadi: MapLibre `tiles` ni `url` dan ustun qo'yadi va qolsa
+    // xarita MapTiler'dan o'qiyverardi. Chegaralar PMTiles sarlavhasida.
+    openmaptiles
+      ..remove('tiles')
+      ..remove('minzoom')
+      ..remove('maxzoom');
+    // O'z tile'larimiz ham OSM ma'lumotidan (OpenMapTiles sxemasi) —
+    // atribut litsenziya talabi, faqat MapTiler qismi olib tashlanadi.
+    openmaptiles['attribution'] = _osmAttribution;
     doc['glyphs'] = glyphsUrl;
 
     return jsonEncode(doc);
   }
+
+  static const String _osmAttribution =
+      '<a href="https://openmaptiles.org/" target="_blank">&copy; OpenMapTiles</a> '
+      '<a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>';
 
   /// O'zini hostlash TO'LIQ sozlanganmi.
   ///

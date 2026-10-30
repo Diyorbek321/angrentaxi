@@ -5,10 +5,12 @@ import 'package:angren_taxi/core/config/map_style.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/core/location/marker_animation.dart';
+import 'package:angren_taxi/core/observability/crash_reporting.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:flutter/widgets.dart';
 import 'package:geolocator/geolocator.dart' show Position;
 import 'package:latlong2/latlong.dart';
 import 'package:maplibre_gl/maplibre_gl.dart' as ml;
@@ -144,6 +146,10 @@ class AppVectorMap extends StatefulWidget {
   State<AppVectorMap> createState() => _AppVectorMapState();
 }
 
+/// `style_light.json` dagi `background` qatlami bilan BIR XIL — uslub
+/// yuklangunicha va qoplama so'nayotganda rang sakramasin.
+const Color _mapBackgroundLight = Color(0xFFE7EBEE);
+
 class _AppVectorMapState extends State<AppVectorMap>
     with SingleTickerProviderStateMixin {
   static const _iconAssets = <AppMapIcon, String>{
@@ -167,6 +173,19 @@ class _AppVectorMapState extends State<AppVectorMap>
   /// kadrni chizgunicha QORA bo'ladi va taksi bo'limiga o'tishda ekran
   /// qorayib ochilgandek ko'rinardi.
   bool _mapVisible = false;
+
+  /// Xarita birinchi marta to'liq chizildimi (`onMapIdle` — barcha
+  /// ko'rinadigan tile'lar yuklandi).
+  bool _tilesLoaded = false;
+
+  /// [_loadTimeout] ichida chizilmadi — "Qayta urinish" ko'rsatiladi.
+  /// Ilgari sekin tarmoqda foydalanuvchi cheksiz kulrang fonga qarab turardi.
+  bool _loadFailed = false;
+  Timer? _loadTimer;
+  static const Duration _loadTimeout = Duration(seconds: 12);
+
+  /// Qayta urinishda xarita platform view'i NOLDAN quriladi (yangi kalit).
+  int _mapGeneration = 0;
 
   /// Uslub hujjati assetdan o'qilgunicha xarita qurilmaydi — aks holda
   /// MapLibre'ga bo'sh `styleString` beriladi.
@@ -240,6 +259,7 @@ class _AppVectorMapState extends State<AppVectorMap>
 
   @override
   void dispose() {
+    _loadTimer?.cancel();
     _userSubscription?.cancel();
     _ticker?.dispose();
     super.dispose();
@@ -253,6 +273,41 @@ class _AppVectorMapState extends State<AppVectorMap>
     Future<void>.delayed(const Duration(seconds: 2), () {
       if (mounted && !_mapVisible) setState(() => _mapVisible = true);
     });
+    _loadTimer?.cancel();
+    _loadTimer = Timer(_loadTimeout, () {
+      if (mounted && !_tilesLoaded) setState(() => _loadFailed = true);
+    });
+  }
+
+  void _onMapIdle() {
+    _loadTimer?.cancel();
+    if (_tilesLoaded && !_loadFailed) return;
+    _tilesLoaded = true;
+    if (_loadFailed && mounted) setState(() => _loadFailed = false);
+  }
+
+  /// Xaritani yangi platform view bilan qayta quradi. Eski annotatsiya
+  /// havolalari yangi xaritada yo'q — ular uslub almashgandagidek tozalanadi.
+  void _retryLoad() {
+    _resetAnnotations();
+    _controller = null;
+    setState(() {
+      _mapGeneration++;
+      _loadFailed = false;
+      _tilesLoaded = false;
+      _mapVisible = false;
+    });
+  }
+
+  void _resetAnnotations() {
+    _styleReady = false;
+    _markerSymbols.clear();
+    _carSymbol = null;
+    _carSymbolPending = null;
+    _userSymbol = null;
+    _userSymbolPending = null;
+    _routeLayersAdded = false;
+    _fillLayerAdded = false;
   }
 
   /// Simvollar faqat uslub yuklangandan keyin qo'shilishi mumkin — plagin
@@ -263,14 +318,20 @@ class _AppVectorMapState extends State<AppVectorMap>
     if (controller == null) return;
 
     for (final entry in _iconAssets.entries) {
-      final bytes = await rootBundle.load(entry.value);
-      await controller.addImage(
-        entry.key.name,
-        // Offset/uzunlik bilan kesamiz: `buffer.asUint8List()` o'zi butun
-        // bufferni oladi va asset bufer boshidan boshlanmasa, ikona buzilgan
-        // baytlar bilan ro'yxatdan o'tadi.
-        bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
-      );
+      // Bitta ikona yiqilsa qolganlari, marshrut va markerlar baribir
+      // chizilsin — ilgari birinchi xato butun xaritani bo'sh qoldirardi.
+      try {
+        final bytes = await rootBundle.load(entry.value);
+        await controller.addImage(
+          entry.key.name,
+          // Offset/uzunlik bilan kesamiz: `buffer.asUint8List()` o'zi butun
+          // bufferni oladi va asset bufer boshidan boshlanmasa, ikona
+          // buzilgan baytlar bilan ro'yxatdan o'tadi.
+          bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+        );
+      } catch (e, st) {
+        CrashReporting.reportHandled(e, st, 'AppVectorMap.addImage ${entry.key.name}');
+      }
     }
 
     if (!mounted) return;
@@ -296,14 +357,7 @@ class _AppVectorMapState extends State<AppVectorMap>
     // chaqiruvi platformada xato beradi. `_onStyleLoaded` hammasini
     // noldan qayta qo'shadi.
     if (widget.style != oldWidget.style) {
-      _styleReady = false;
-      _markerSymbols.clear();
-      _carSymbol = null;
-      _carSymbolPending = null;
-      _userSymbol = null;
-      _userSymbolPending = null;
-      _routeLayersAdded = false;
-      _fillLayerAdded = false;
+      _resetAnnotations();
       _loadStyle();
       return;
     }
@@ -746,15 +800,12 @@ class _AppVectorMapState extends State<AppVectorMap>
     // Uslub assetdan o'qilgunicha (bir kadr, keshdan keyin esa darhol)
     // xaritaning o'z fon rangini ko'rsatamiz — oq "chaqnash" bo'lmasligi
     // uchun. Rang uslubdagi `background` qatlami bilan bir xil.
+    final background =
+        widget.style == AppMapStyle.dark ? kBackgroundDark : _mapBackgroundLight;
     if (styleDocument == null) {
-      return ColoredBox(
-        color: widget.style == AppMapStyle.dark ? kBackgroundDark : kBackground,
-        child: const SizedBox.expand(),
-      );
+      return ColoredBox(color: background, child: const SizedBox.expand());
     }
 
-    final background =
-        widget.style == AppMapStyle.dark ? kBackgroundDark : kBackground;
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -766,13 +817,16 @@ class _AppVectorMapState extends State<AppVectorMap>
             child: ColoredBox(color: background),
           ),
         ),
+        if (_loadFailed) Center(child: _MapLoadFailed(onRetry: _retryLoad)),
       ],
     );
   }
 
   Widget _buildMap(String styleDocument) {
     return ml.MapLibreMap(
+      key: ValueKey(_mapGeneration),
       styleString: styleDocument,
+      onMapIdle: _onMapIdle,
       initialCameraPosition: ml.CameraPosition(
         target: _ml(widget.initialCenter),
         zoom: widget.initialZoom,
@@ -809,3 +863,33 @@ class _AppVectorMapState extends State<AppVectorMap>
 /// Test uchun: [Uint8List] ni bevosita ishlatmasak ham, `rootBundle.load`
 /// qaytargan turni saqlab qolamiz.
 typedef MapIconBytes = Uint8List;
+
+/// Xarita [_AppVectorMapState._loadTimeout] ichida chizilmadi.
+class _MapLoadFailed extends StatelessWidget {
+  const _MapLoadFailed({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 32),
+      padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+      decoration: BoxDecoration(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(color: Color(0x22000000), blurRadius: 12, offset: Offset(0, 4)),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(child: Text(l10n.shMapLoadFailed)),
+          TextButton(onPressed: onRetry, child: Text(l10n.commonRetry)),
+        ],
+      ),
+    );
+  }
+}

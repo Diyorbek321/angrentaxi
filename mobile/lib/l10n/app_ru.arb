@@ -1279,6 +1279,7 @@
   "shManeuverSharpRight": "Резко поверните направо",
   "shManeuverStraight": "Продолжайте прямо",
   "shManeuverUturn": "Развернитесь",
+  "shMapLoadFailed": "Карта не загрузилась. Проверьте интернет.",
   "shMarketPacking": "Магазин собирает заказ",
   "shMeterAtLeast": "от {price}",
   "shMeterDistanceTime": "{distance} · {minutes} мин",

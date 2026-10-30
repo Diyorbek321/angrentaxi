@@ -4382,6 +4382,9 @@ class AppLocalizationsUz extends AppLocalizations {
   String get shManeuverUturn => 'Orqaga qayting';
 
   @override
+  String get shMapLoadFailed => 'Xarita yuklanmadi. Internetni tekshiring.';
+
+  @override
   String get shMarketPacking => 'Do\'kon yig\'moqda';
 
   @override
