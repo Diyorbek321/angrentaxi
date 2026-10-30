@@ -267,6 +267,7 @@ class _AppVectorMapState extends State<AppVectorMap>
 
   Future<void> _onMapCreated(ml.MapLibreMapController controller) async {
     _controller = controller;
+    controller.addListener(_onCameraChanged);
     widget.onMapCreated?.call(controller);
     // Zaxira: uslub yuklanmasa ham (tarmoq, plagin xatosi) qoplama abadiy
     // turib qolmasin.
@@ -692,7 +693,7 @@ class _AppVectorMapState extends State<AppVectorMap>
           geometry: _ml(animation.value),
           iconImage: AppMapIcon.car.name,
           iconSize: _iconSize,
-          iconRotate: animation.displayBearing ?? 0,
+          iconRotate: _carIconRotate(animation),
         ),
       );
       final symbol = await pending;
@@ -755,8 +756,40 @@ class _AppVectorMapState extends State<AppVectorMap>
       symbol,
       ml.SymbolOptions(
         geometry: _ml(animation.value),
-        iconRotate: animation.displayBearing ?? 0,
+        iconRotate: _carIconRotate(animation),
       ),
+    );
+  }
+
+  /// Kamera burchagi (shimoldan, gradus). Kuzatish o'chiq bo'lsa `0`.
+  double get _cameraBearing => _controller?.cameraPosition?.bearing ?? 0;
+
+  /// Mashina ikonasining EKRANDAGI burilishi.
+  ///
+  /// Plagin annotatsiya qatlamiga `icon-rotation-alignment: map` qo'yishga
+  /// ruxsat bermaydi — ikona ekranga nisbatan aylanadi. Xarita burilganda
+  /// (navigatsiyada kamera yo'nalish bo'yicha turadi, foydalanuvchi ham
+  /// buradi) strelka yo'lga qaramay qolardi; shuning uchun kamera burchagi
+  /// ayiriladi.
+  double _carIconRotate(MarkerAnimation animation) =>
+      (animation.displayBearing ?? 0) - _cameraBearing;
+
+  /// Faqat kamera burilganda (mashina turgan bo'lsa ham) strelkani
+  /// to'g'rilaydi; harakatda buni ticker o'zi qiladi.
+  double? _lastCameraBearing;
+  void _onCameraChanged() {
+    final bearing = _cameraBearing;
+    final last = _lastCameraBearing;
+    if (last != null && (bearing - last).abs() < 1) return;
+    _lastCameraBearing = bearing;
+    final animation = _carAnimation;
+    final symbol = _carSymbol;
+    final controller = _controller;
+    if (animation == null || symbol == null || controller == null) return;
+    if (_ticker?.isActive ?? false) return;
+    controller.updateSymbol(
+      symbol,
+      ml.SymbolOptions(iconRotate: _carIconRotate(animation)),
     );
   }
 
@@ -834,8 +867,10 @@ class _AppVectorMapState extends State<AppVectorMap>
       ),
       onMapCreated: _onMapCreated,
       onStyleLoadedCallback: _onStyleLoaded,
-      trackCameraPosition:
-          widget.trackCameraPosition || widget.onCameraIdle != null,
+      // Mashina bo'lsa kamera burchagi kerak — `_carIconRotate`.
+      trackCameraPosition: widget.trackCameraPosition ||
+          widget.onCameraIdle != null ||
+          widget.carLocation != null,
       onCameraIdle: widget.onCameraIdle == null
           ? null
           : () {

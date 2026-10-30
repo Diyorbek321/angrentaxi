@@ -1,6 +1,7 @@
 import 'package:angren_taxi/core/location/maneuver_phrases.dart';
 import 'package:angren_taxi/core/location/navigation_engine.dart';
 import 'package:angren_taxi/core/location/off_route_detector.dart';
+import 'package:angren_taxi/core/location/route_progress.dart';
 import 'package:angren_taxi/core/location/route_service.dart';
 import 'package:angren_taxi/core/location/voice_guide.dart';
 import 'package:flutter/foundation.dart';
@@ -35,6 +36,14 @@ class TurnByTurnGuidance extends ChangeNotifier {
   OffRouteDetector? _offRoute;
   NavigationProgress? _progress;
   List<LatLng> _routePoints = const [];
+  RouteProgress? _line;
+  double _routeDurationMin = 0;
+  double? _remainingMeters;
+
+  /// GPS shuncha yaqin bo'lsa mashina yo'lda deb hisoblanadi va chiziq
+  /// uning ortidan qisqartiriladi. Uzoqroqda (chetga chiqqan, GPS adashgan)
+  /// to'liq chiziq qoladi — qayerga qaytishni ko'rsatadi.
+  static const double onRouteMeters = 40;
   bool _rerouting = false;
   bool _disposed = false;
 
@@ -46,8 +55,21 @@ class TurnByTurnGuidance extends ChangeNotifier {
   /// safar marshrutsiz qolardi.
   static const Duration routeRetryInterval = Duration(seconds: 15);
 
-  /// Xaritadagi marshrut chizig'i (yuklanmaguncha bo'sh).
+  /// Xaritadagi marshrut chizig'i (yuklanmaguncha bo'sh). Mashina yo'lda
+  /// bo'lsa — faqat OLDINDAGI qismi.
   List<LatLng> get routePoints => _routePoints;
+
+  /// Manzilgacha YO'L bo'yicha qolgan masofa (metr). Marshrut yo'q yoki
+  /// birinchi ping'gacha — `null`.
+  double? get remainingMeters => _remainingMeters;
+
+  /// Manzilgacha taxminiy vaqt — marshrut davomiyligining qolgan ulushi.
+  int? get remainingMinutes {
+    final left = _remainingMeters;
+    final total = _line?.totalMeters ?? 0;
+    if (left == null || total <= 0) return null;
+    return (_routeDurationMin * left / total).ceil();
+  }
 
   /// Oxirgi ping'dagi holat — banner uchun. Birinchi ping'gacha `null`.
   NavigationProgress? get progress => _progress;
@@ -75,6 +97,9 @@ class TurnByTurnGuidance extends ChangeNotifier {
     final route = await _routes.getRoute(from, to, waypoints: _waypoints);
     if (_disposed || route == null) return;
     _routePoints = route.points;
+    _line = RouteProgress(route.points);
+    _routeDurationMin = route.durationMin;
+    _remainingMeters = null;
     _engine = NavigationEngine(steps: route.steps);
     _offRoute = OffRouteDetector(route.points);
     _notify();
@@ -102,6 +127,15 @@ class TurnByTurnGuidance extends ChangeNotifier {
     }
 
     _progress = engine.update(here);
+
+    final line = _line;
+    if (line != null) {
+      final projection = line.project(here);
+      _remainingMeters = projection.remainingMeters;
+      if (projection.offRouteMeters <= onRouteMeters) {
+        _routePoints = line.remainingPoints(projection);
+      }
+    }
 
     // Chetga chiqildi (bir necha ping tasdiqlagan) — yo'l joriy joydan
     // qayta quriladi. Javob kelguncha eski ko'rsatma ekranda qoladi.

@@ -9,6 +9,7 @@ import 'package:angren_taxi/core/payments/payment_service.dart';
 import 'package:angren_taxi/core/push/push_notifications.dart';
 import 'package:angren_taxi/features/passenger/map_camera_insets.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
+import 'package:angren_taxi/features/passenger/pickup_eta_tracker.dart';
 import 'package:angren_taxi/features/passenger/widgets/coverage_notice.dart';
 import 'package:angren_taxi/features/passenger/widgets/schedule_ride_sheet.dart';
 import 'package:angren_taxi/features/passenger/widgets/trip_options_sheet.dart';
@@ -268,10 +269,13 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
     final tariff = provider.selectedTariff ?? provider.tariffs.first;
     // Straight-line Haversine fallback if OSRM didn't return a route, so
     // price estimation still works (less accurate than the real route, but
-    // better than not estimating at all).
+    // better than not estimating at all). Shahar yo'llari to'g'ri chiziqdan
+    // ~1.3 marta uzun — koeffitsiyentsiz taxmin narxni doim kam ko'rsatardi
+    // (server ham marshrut topa olmasa mijoz raqamini ishlatadi).
     final distanceKm = provider.routeDistanceKm ??
         (const Distance().as(LengthUnit.Kilometer,
-            LatLng(pickup.lat, pickup.lng), LatLng(dropoff.lat, dropoff.lng)));
+                LatLng(pickup.lat, pickup.lng), LatLng(dropoff.lat, dropoff.lng)) *
+            PickupEtaTracker.roadFactor);
     final durationMin = provider.routeDurationMin ?? (distanceKm / 30 * 60);
 
     provider.estimatePrice(

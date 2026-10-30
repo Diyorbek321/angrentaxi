@@ -9,6 +9,7 @@ import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/core/location/route_service.dart';
 import 'package:angren_taxi/core/location/voice_guide.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
+import 'package:angren_taxi/features/driver/navigation/follow_camera.dart';
 import 'package:angren_taxi/features/driver/navigation/turn_by_turn_guidance.dart';
 import 'package:angren_taxi/features/driver/service_wording.dart';
 import 'package:angren_taxi/features/driver/widgets/maneuver_banner.dart';
@@ -88,17 +89,9 @@ class _NavigationScreenState extends State<NavigationScreen> {
   /// ERGASHISHGA o'tadi va boshqa orqaga qaytmaydi.
   bool _followingDriver = false;
 
-  /// Ergashishda oxirgi qo'llangan chetlar — sheet balandligi o'zgarmaguncha
-  /// kamera qayta hisoblanmaydi.
-  MapCameraInsets? _appliedFollowInsets;
-
-  /// Ergashish animatsiyasi ketayotganda kelgan ping o'tkazib yuboriladi.
-  ///
-  /// NEGA KERAK: `distanceFilter` 5 metr, ya'ni 60 km/soatda sekundiga uchta
-  /// ping keladi. Har biriga ikkita kamera animatsiyasi berilsa, xarita
-  /// to'xtovsiz sakraydi. Tashlab yuborilgan ping yo'qolmaydi — keyingisi
-  /// baribir ENG YANGI joylashuvni olib keladi.
-  bool _cameraBusy = false;
+  /// Navigator kamerasi — yo'nalish bo'yicha, bitta animatsiya bilan
+  /// (`follow_camera.dart` dagi izohga qarang).
+  final FollowCamera _camera = FollowCamera();
 
   @override
   void initState() {
@@ -139,12 +132,14 @@ class _NavigationScreenState extends State<NavigationScreen> {
 
     final order = context.read<DriverProvider>().activeOrder;
     if (order == null) return;
-    final dist = sl<LocationService>().calculateDistance(
-      here.latitude,
-      here.longitude,
-      order.pickup.lat,
-      order.pickup.lng,
-    );
+    // Marshrut bor bo'lsa — YO'L bo'yicha; yo'q bo'lsa to'g'ri chiziq.
+    final dist = _guidance.remainingMeters ??
+        sl<LocationService>().calculateDistance(
+          here.latitude,
+          here.longitude,
+          order.pickup.lat,
+          order.pickup.lng,
+        );
     final shown = _distanceToPickup;
     if (shown == null || (shown - dist).abs() >= _distanceRefreshMeters) {
       setState(() => _distanceToPickup = dist);
@@ -193,13 +188,15 @@ class _NavigationScreenState extends State<NavigationScreen> {
   void _onPosition(Position position) {
     if (!mounted) return;
     final here = LatLng(position.latitude, position.longitude);
-    _applyFix(here);
+    // Avval yo'l-yo'riq — `_applyFix` uning qolgan masofasini o'qiydi.
     if (_guidanceStarted) {
       _guidance.onPosition(here);
     } else {
       _startGuidance();
     }
+    _applyFix(here);
 
+    _camera.onPosition(position);
     _followingDriver = true;
     _followDriver();
   }
@@ -223,9 +220,8 @@ class _NavigationScreenState extends State<NavigationScreen> {
   // naqshdan ko'chirilgan:
   //   · GPS oqimi boshlanmaguncha — marshrutni ochiq maydonga sig'dirish
   //     (`newLatLngBounds` + chetlar), naqsh tariff_select_screen.dart;
-  //   · birinchi ping'dan keyin — haydovchiga ergashish, lekin mashina
-  //     ekran markazida emas, OCHIQ maydon markazida turadi
-  //     (`newLatLng` + `scrollBy`), naqsh home_screen._centerOnUser.
+  //   · birinchi ping'dan keyin — haydovchiga ergashish, mashina ekran
+  //     markazida emas, OCHIQ maydon markazida turadi ([FollowCamera]).
   //
   // `AppVectorMap.fitToContent` shu sababdan ATAYLAB o'chirilgan: u
   // paddingni ichkarida qat'iy saqlaydi va sheet balandligini bilmaydi.
@@ -257,10 +253,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
     // Ergashish rejimida kamera ping'da yangilanadi; bu yerda faqat sheet
     // balandligi o'zgargan bo'lsa aralashamiz (masofa qatori paydo bo'ldi,
     // yuklanish holati kirdi).
-    final applied = _appliedFollowInsets;
-    if (applied == null || _insetsDiffer(_insets(), applied)) {
-      _followDriver();
-    }
+    if (_camera.insetsChanged(_insets())) _followDriver();
   }
 
   /// Xaritada CHIZILGAN nuqtalar — kamera aynan shularni sig'diradi.
@@ -315,45 +308,11 @@ class _NavigationScreenState extends State<NavigationScreen> {
     );
   }
 
-  /// Kamerani haydovchiga qaratadi va uni sheet USTIGA chiqaradi.
-  ///
-  /// ⚠️ NEGA IKKI QADAM. `newLatLng` nuqtani ekran MARKAZIGA qo'yadi, markaz
-  /// esa sheet ostida qoladi. Chegara paddingi bitta nuqta uchun ishlamaydi
-  /// — hech qanday to'rtburchak yo'q — shuning uchun nuqta qo'yilgandan
-  /// keyin kamera ochiq maydon markaziga suriladi. Siljish ishorasi
-  /// `MapCameraInsets.centeringScroll` da tushuntirilgan.
   Future<void> _followDriver() async {
     final controller = _mapController;
-    if (controller == null || !mounted || _cameraBusy) return;
-
-    _cameraBusy = true;
-    try {
-      final insets = _insets();
-      _appliedFollowInsets = insets;
-
-      await controller.animateCamera(
-        ml.CameraUpdate.newLatLng(
-          ml.LatLng(_currentLocation.latitude, _currentLocation.longitude),
-        ),
-      );
-      if (!mounted) return;
-
-      final scroll = insets.centeringScroll;
-      // 1dp dan kichik siljish sezilmaydi — ortiqcha animatsiya qilmaymiz.
-      if (scroll.dx.abs() < 1 && scroll.dy.abs() < 1) return;
-      await controller.animateCamera(
-        ml.CameraUpdate.scrollBy(scroll.dx, scroll.dy),
-      );
-    } finally {
-      _cameraBusy = false;
-    }
+    if (controller == null || !mounted) return;
+    await _camera.follow(controller, _currentLocation, _insets());
   }
-
-  bool _insetsDiffer(MapCameraInsets a, MapCameraInsets b) =>
-      (a.left - b.left).abs() > _kFitInsetEpsilon ||
-      (a.top - b.top).abs() > _kFitInsetEpsilon ||
-      (a.right - b.right).abs() > _kFitInsetEpsilon ||
-      (a.bottom - b.bottom).abs() > _kFitInsetEpsilon;
 
   /// This screen only shows before the passenger is picked up (see
   /// app.dart / home_screen.dart#_navigateToActiveOrder — driverAssigned and

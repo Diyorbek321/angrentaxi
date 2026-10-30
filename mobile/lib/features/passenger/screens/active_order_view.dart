@@ -2,10 +2,12 @@ import 'package:angren_taxi/core/config/app_haptics.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
+import 'package:angren_taxi/core/location/route_service.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/safety/sos_service.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/passenger/map_camera_insets.dart';
+import 'package:angren_taxi/features/passenger/pickup_eta_tracker.dart';
 import 'package:angren_taxi/features/passenger/widgets/parcel_pin_card.dart';
 import 'package:angren_taxi/features/trip/meter/live_meter_card.dart';
 import 'package:angren_taxi/features/trip/meter/meter_service.dart';
@@ -132,6 +134,51 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
 
   ml.MapLibreMapController? _mapController;
 
+  /// Haqiqiy yo'l bo'yicha ETA va haydovchi→olish chizig'i. `RouteService`
+  /// ro'yxatdan o'tmagan muhitda (vidjet testlari) `null` — unda ETA
+  /// to'g'ri chiziq bo'yicha taxmin qilinadi.
+  PickupEtaTracker? _pickupEta;
+
+  @override
+  void initState() {
+    super.initState();
+    if (sl.isRegistered<RouteService>()) {
+      _pickupEta = PickupEtaTracker(routes: sl<RouteService>());
+    }
+    widget.driverLocation.addListener(_onDriverMoved);
+    _onDriverMoved();
+  }
+
+  @override
+  void didUpdateWidget(ActiveOrderView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.driverLocation, widget.driverLocation)) {
+      oldWidget.driverLocation.removeListener(_onDriverMoved);
+      widget.driverLocation.addListener(_onDriverMoved);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.driverLocation.removeListener(_onDriverMoved);
+    _pickupEta?.dispose();
+    super.dispose();
+  }
+
+  bool get _headingToPickup =>
+      widget.order.status == OrderStatus.driverAssigned ||
+      widget.order.status == OrderStatus.driverEnRoute;
+
+  void _onDriverMoved() {
+    final driver = widget.driverLocation.value;
+    final tracker = _pickupEta;
+    if (driver == null || tracker == null || !_headingToPickup) return;
+    tracker.update(
+      driver,
+      LatLng(widget.order.pickup.lat, widget.order.pickup.lng),
+    );
+  }
+
   /// Oxirgi o'lchangan sheet kontenti balandligi. Faqat kameraga ta'sir
   /// qiladi, vidjet daraxtiga emas — shuning uchun `setState` chaqirilmaydi.
   double? _panelContentHeight;
@@ -240,9 +287,11 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
         ),
     ];
 
-    return ValueListenableBuilder<LatLng?>(
-      valueListenable: widget.driverLocation,
-      builder: (context, driverLocation, _) {
+    final pickupEta = _pickupEta;
+    return ListenableBuilder(
+      listenable: Listenable.merge([widget.driverLocation, if (pickupEta != null) pickupEta]),
+      builder: (context, _) {
+        final driverLocation = widget.driverLocation.value;
         return AppVectorMap(
           initialCenter:
               LatLng(widget.order.pickup.lat, widget.order.pickup.lng),
@@ -252,6 +301,10 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
           // qiladi, shuning uchun mashina sakramaydi va yo'nalish bo'yicha
           // buriladi. Vidjet daraxti bunda qayta qurilmaydi.
           carLocation: driverLocation,
+          // Haydovchi kelayotganda — uning olish nuqtasigacha yo'li.
+          route: _headingToPickup && pickupEta != null
+              ? pickupEta.routePoints
+              : const [],
           // Kamerani O'ZIMIZ boshqaramiz — `_fitCamera` izohiga qarang.
           fitToContent: false,
           onMapCreated: _onMapCreated,
@@ -568,19 +621,19 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
     );
   }
 
-  /// Rough ETA (in minutes) from the driver's live location to the pickup
-  /// point, assuming an average city driving speed of 25 km/h. Only
-  /// meaningful before the driver has arrived — once `driverArrived` (or
-  /// later), there's nothing left to count down to.
-  static const double _averageCitySpeedKmh = 25;
-
+  /// ETA (daqiqa) haydovchidan olish nuqtasigacha. Faqat haydovchi
+  /// kelayotganda ma'noli — `driverArrived` dan keyin sanaydigan narsa yo'q.
+  ///
+  /// Asosiy manba — [PickupEtaTracker] (haqiqiy yo'l). Marshrut hali
+  /// kelmagan bo'lsa — to'g'ri chiziq × yo'l koeffitsiyenti, o'rtacha
+  /// shahar tezligida.
   int? _etaMinutesToPickup(Order order) {
-    if (order.status != OrderStatus.driverAssigned &&
-        order.status != OrderStatus.driverEnRoute) {
-      return null;
-    }
+    if (!_headingToPickup) return null;
     final driverLocation = widget.driverLocation.value;
     if (driverLocation == null) return null;
+
+    final tracked = _pickupEta?.etaMinutes;
+    if (tracked != null) return tracked;
 
     const distanceCalculator = Distance();
     final distanceKm = distanceCalculator.as(
@@ -588,7 +641,10 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
       driverLocation,
       LatLng(order.pickup.lat, order.pickup.lng),
     );
-    final minutes = (distanceKm / _averageCitySpeedKmh) * 60;
+    final minutes = distanceKm *
+        PickupEtaTracker.roadFactor /
+        PickupEtaTracker.fallbackSpeedKmh *
+        60;
     return minutes.round();
   }
 
@@ -600,9 +656,9 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
   /// yetib keladi" haydovchi yaqinlashsa ham qotib turardi va faqat
   /// holat o'zgarganda (masalan "yetib keldi") yangilanardi.
   Widget _buildEtaBanner(Order order) {
-    return ValueListenableBuilder<LatLng?>(
-      valueListenable: widget.driverLocation,
-      builder: (context, _, __) {
+    return ListenableBuilder(
+      listenable: Listenable.merge([widget.driverLocation, if (_pickupEta != null) _pickupEta!]),
+      builder: (context, _) {
         // Banner paydo bo'lganda/yo'qolganda sheet balandligi o'zgaradi,
         // kamera paddingi esa shundan hisoblanadi — qayta o'lchaymiz.
         // (`_syncPanelHeight` balandlik o'zgarmagan bo'lsa hech narsa

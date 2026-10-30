@@ -12,6 +12,7 @@ import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/safety/sos_service.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
+import 'package:angren_taxi/features/driver/navigation/follow_camera.dart';
 import 'package:angren_taxi/features/driver/navigation/turn_by_turn_guidance.dart';
 import 'package:angren_taxi/features/driver/screens/rate_passenger_screen.dart';
 import 'package:angren_taxi/features/driver/service_wording.dart';
@@ -107,8 +108,9 @@ class _TripScreenState extends State<TripScreen> {
   /// ERGASHISHGA o'tadi (navigator rejimi) — `navigation_screen.dart` bilan
   /// bir xil xulq.
   bool _followingDriver = false;
-  bool _cameraBusy = false;
-  MapCameraInsets? _appliedFollowInsets;
+
+  /// Navigator kamerasi — `follow_camera.dart` dagi izohga qarang.
+  final FollowCamera _camera = FollowCamera();
 
   MeterService get _meterService =>
       widget.meterService ?? MeterService(sl<ApiClient>());
@@ -190,6 +192,7 @@ class _TripScreenState extends State<TripScreen> {
       final order = context.read<DriverProvider>().activeOrder;
       if (order != null) _startGuidance(order);
     }
+    _camera.onPosition(position);
     _followingDriver = true;
     _followDriver();
   }
@@ -258,10 +261,7 @@ class _TripScreenState extends State<TripScreen> {
     }
     // Ergashishda kamera ping'da yangilanadi; bu yerda faqat sheet
     // balandligi o'zgargan bo'lsa aralashamiz.
-    final applied = _appliedFollowInsets;
-    if (applied == null || _insetsDiffer(_followInsets(), applied)) {
-      _followDriver();
-    }
+    if (_camera.insetsChanged(_followInsets())) _followDriver();
   }
 
   MapCameraInsets _followInsets() => MapCameraInsets.forPanel(
@@ -269,36 +269,10 @@ class _TripScreenState extends State<TripScreen> {
         panelContentHeight: _panelContentHeight,
       );
 
-  bool _insetsDiffer(MapCameraInsets a, MapCameraInsets b) =>
-      (a.left - b.left).abs() > 1 ||
-      (a.top - b.top).abs() > 1 ||
-      (a.right - b.right).abs() > 1 ||
-      (a.bottom - b.bottom).abs() > 1;
-
-  /// Kamerani haydovchiga qaratadi va ochiq maydon (sheet usti) markaziga
-  /// suradi. Ikki qadam sababi `navigation_screen.dart#_followDriver` da.
   Future<void> _followDriver() async {
     final controller = _mapController;
-    if (controller == null || !mounted || _cameraBusy) return;
-    _cameraBusy = true;
-    try {
-      final insets = _followInsets();
-      _appliedFollowInsets = insets;
-      await controller.animateCamera(
-        ml.CameraUpdate.newLatLngZoom(
-          ml.LatLng(_currentLocation.latitude, _currentLocation.longitude),
-          16.5,
-        ),
-      );
-      if (!mounted) return;
-      final scroll = insets.centeringScroll;
-      if (scroll.dx.abs() < 1 && scroll.dy.abs() < 1) return;
-      await controller.animateCamera(
-        ml.CameraUpdate.scrollBy(scroll.dx, scroll.dy),
-      );
-    } finally {
-      _cameraBusy = false;
-    }
+    if (controller == null || !mounted) return;
+    await _camera.follow(controller, _currentLocation, _followInsets());
   }
 
   void _fitCamera() {
