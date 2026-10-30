@@ -168,6 +168,24 @@ class _AppVectorMapState extends State<AppVectorMap>
     AppMapIcon.car: 'assets/map/marker_car.png',
   };
 
+  /// Uslubning o'zi ishlatadigan ikonalar (`style_*.json` dagi `icon-image`).
+  /// Sprite o'rniga shu yerdan qo'shiladi — tayyor MapTiler sprite'i bizning
+  /// palitraga mos emas va har ochilishda qo'shimcha so'rov.
+  static const _poiIcons = <String, String>{
+    'poi-health': 'assets/map/poi_health.png',
+    'poi-worship': 'assets/map/poi_worship.png',
+    'poi-education': 'assets/map/poi_education.png',
+    'poi-shop': 'assets/map/poi_shop.png',
+    'poi-fuel': 'assets/map/poi_fuel.png',
+    'poi-bank': 'assets/map/poi_bank.png',
+    'poi-transport': 'assets/map/poi_transport.png',
+    'poi-civic': 'assets/map/poi_civic.png',
+  };
+
+  /// Uslubdagi ikonali qatlamlar — ularning `icon-size` i ham zichlikka
+  /// moslanadi ([_iconSize]).
+  static const _styleIconLayers = ['road-oneway', 'label-poi'];
+
   /// Marker platformaga har 40 ms dan tez-tez yuborilmaydi (~25 kadr/s).
   /// Ko'z uchun silliq, kanal uchun arzon — 60 kadr/s da har bir kadr uchun
   /// platforma chaqiruvi ortiqcha yuk bo'lardi.
@@ -345,23 +363,32 @@ class _AppVectorMapState extends State<AppVectorMap>
     final controller = _controller;
     if (controller == null) return;
 
-    for (final entry in _iconAssets.entries) {
+    final images = <String, String>{
+      for (final entry in _iconAssets.entries) entry.key.name: entry.value,
+      ..._poiIcons,
+      'oneway': widget.style == AppMapStyle.dark
+          ? 'assets/map/oneway_dark.png'
+          : 'assets/map/oneway_light.png',
+    };
+    for (final entry in images.entries) {
       // Bitta ikona yiqilsa qolganlari, marshrut va markerlar baribir
       // chizilsin — ilgari birinchi xato butun xaritani bo'sh qoldirardi.
       try {
         final bytes = await rootBundle.load(entry.value);
         await controller.addImage(
-          entry.key.name,
+          entry.key,
           // Offset/uzunlik bilan kesamiz: `buffer.asUint8List()` o'zi butun
           // bufferni oladi va asset bufer boshidan boshlanmasa, ikona
           // buzilgan baytlar bilan ro'yxatdan o'tadi.
           bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
         );
       } catch (e, st) {
-        CrashReporting.reportHandled(e, st, 'AppVectorMap.addImage ${entry.key.name}');
+        CrashReporting.reportHandled(e, st, 'AppVectorMap.addImage ${entry.key}');
       }
     }
 
+    if (!mounted) return;
+    await _scaleStyleIcons(controller);
     if (!mounted) return;
     _styleReady = true;
 
@@ -622,6 +649,22 @@ class _AppVectorMapState extends State<AppVectorMap>
     );
 
     _routeLayersAdded = true;
+  }
+
+  /// Uslub qatlamlaridagi ikonalarni [_iconSize] ga keltiradi. JSON'da
+  /// qurilma zichligi noma'lum, shuning uchun o'lcham ish vaqtida beriladi.
+  Future<void> _scaleStyleIcons(ml.MapLibreMapController controller) async {
+    final size = _iconSize;
+    for (final layerId in _styleIconLayers) {
+      try {
+        await controller.setLayerProperties(
+          layerId,
+          ml.SymbolLayerProperties(iconSize: size),
+        );
+      } catch (e, st) {
+        CrashReporting.reportHandled(e, st, 'AppVectorMap.scaleStyleIcons $layerId');
+      }
+    }
   }
 
   /// Ikona o'lchami. Ikonalar 3x zichlikda chizilgan (1 dp = 3 px,

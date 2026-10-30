@@ -53,6 +53,22 @@ class Canvas:
     def polygon(self, pts, fill):
         self.d.polygon([(x * self.k, y * self.k) for x, y in pts], fill=fill)
 
+    def rect(self, x0, y0, x1, y1, fill, radius=0):
+        k = self.k
+        self.d.rounded_rectangle(
+            [x0 * k, y0 * k, x1 * k, y1 * k], radius=radius * k, fill=fill
+        )
+
+    def line(self, pts, fill, width):
+        k = self.k
+        self.d.line(
+            [(x * k, y * k) for x, y in pts], fill=fill, width=round(width * k),
+            joint="curve",
+        )
+
+    def arc(self, cx, cy, r, start, end, fill, width):
+        self.d.arc(self._box(cx, cy, r), start, end, fill=fill, width=round(width * self.k))
+
     def shadow_circle(self, cx, cy, r, alpha=70):
         # Soya biroz pastda — yorug'lik tepadan.
         self.sd.ellipse(self._box(cx, cy + 1.2, r), fill=alpha)
@@ -135,9 +151,101 @@ def waypoint():
     c.save("marker_waypoint.png")
 
 
+def oneway(name, color):
+    # 12x10 dp: bir tomonlama yo'l strelkasi. O'ngga qaragan — MapLibre
+    # `symbol-placement: line` da ikonaning +x o'qi chiziq yo'nalishi.
+    c = Canvas(12, 10)
+    c.line([(3, 1.8), (8.4, 5), (3, 8.2)], color, 2.2)
+    c.save(name)
+
+
+# Joy (POI) ikonalari: 16 dp doira, oq hoshiya, toifa rangi, oq piktogramma.
+# Ranglar xira — xarita FON, ikonalar marshrut va markerlardan baland
+# chiqmasligi kerak.
+POI_COLORS = {
+    "health": (0xD9, 0x4A, 0x4F, 255),
+    "worship": (0x0E, 0x8A, 0x7E, 255),
+    "education": (0xB8, 0x7A, 0x12, 255),
+    "shop": (0x7A, 0x52, 0xC2, 255),
+    "fuel": (0x4F, 0x62, 0x6C, 255),
+    "bank": PRIMARY,
+    "transport": ME_BLUE,
+    "civic": (0x5B, 0x6B, 0x73, 255),
+}
+
+
+def poi(kind, glyph):
+    c = Canvas(16, 16)
+    color = POI_COLORS[kind]
+    c.circle(8, 8, 7.5, WHITE)
+    c.circle(8, 8, 6.4, color)
+    glyph(c, color)
+    c.save(f"poi_{kind}.png")
+
+
+def _health(c, color):
+    c.rect(7, 4.4, 9, 11.6, WHITE)
+    c.rect(4.4, 7, 11.6, 9, WHITE)
+
+
+def _worship(c, color):
+    # Yarim oy.
+    c.circle(7.4, 8, 3.6, WHITE)
+    c.circle(8.9, 7.3, 3.1, color)
+
+
+def _education(c, color):
+    # Ochiq kitob.
+    c.polygon([(4.2, 5.4), (7.6, 6.2), (7.6, 11.2), (4.2, 10.4)], WHITE)
+    c.polygon([(11.8, 5.4), (8.4, 6.2), (8.4, 11.2), (11.8, 10.4)], WHITE)
+
+
+def _shop(c, color):
+    # Sumka.
+    c.rect(4.8, 6.6, 11.2, 11.6, WHITE, radius=0.8)
+    c.arc(8, 6.6, 1.9, 180, 360, WHITE, 1.1)
+
+
+def _fuel(c, color):
+    # Benzin kolonkasi.
+    c.rect(5, 4.6, 9.4, 11.6, WHITE, radius=0.6)
+    c.rect(5.9, 5.6, 8.5, 7.6, color)
+    c.line([(9.4, 6.2), (11, 7.4), (11, 10.4)], WHITE, 1.1)
+
+
+def _bank(c, color):
+    c.polygon([(8, 3.9), (12, 6.4), (4, 6.4)], WHITE)
+    for x in (5, 7.4, 9.8):
+        c.rect(x, 7.1, x + 1.2, 10.4, WHITE)
+    c.rect(4.2, 10.9, 11.8, 11.9, WHITE)
+
+
+def _transport(c, color):
+    # Avtobus.
+    c.rect(4.8, 4.4, 11.2, 11, WHITE, radius=1.2)
+    c.rect(5.7, 5.6, 10.3, 7.8, color)
+    c.rect(5.4, 11, 6.8, 12, WHITE)
+    c.rect(9.2, 11, 10.6, 12, WHITE)
+
+
+def _civic(c, color):
+    # Bayroq.
+    c.rect(5.2, 4.2, 6.2, 12, WHITE)
+    c.polygon([(6.2, 4.4), (11.4, 6.2), (6.2, 8)], WHITE)
+
+
 if __name__ == "__main__":
     car()
     pickup()
     dropoff()
     me()
     waypoint()
+    # Strelka rangi `style_*.json` dagi kichik ko'cha yorlig'i rangiga yaqin.
+    oneway("oneway_light.png", (0x8C, 0x9B, 0xA3, 255))
+    oneway("oneway_dark.png", (0x5E, 0x72, 0x6A, 255))
+    for kind, glyph in [
+        ("health", _health), ("worship", _worship), ("education", _education),
+        ("shop", _shop), ("fuel", _fuel), ("bank", _bank),
+        ("transport", _transport), ("civic", _civic),
+    ]:
+        poi(kind, glyph)

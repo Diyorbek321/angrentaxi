@@ -434,6 +434,50 @@
       }
     },
     {
+      "id": "road-oneway",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 15,
+      "filter": [
+        "all",
+        [
+          "in",
+          "oneway",
+          1,
+          -1
+        ],
+        [
+          "in",
+          "class",
+          "motorway",
+          "trunk",
+          "primary",
+          "secondary",
+          "tertiary",
+          "minor",
+          "service"
+        ]
+      ],
+      "layout": {
+        "symbol-placement": "line",
+        "symbol-spacing": 90,
+        "icon-image": "oneway",
+        "icon-rotate": [
+          "match",
+          [
+            "get",
+            "oneway"
+          ],
+          -1,
+          180,
+          0
+        ],
+        "icon-rotation-alignment": "map",
+        "icon-padding": 2
+      }
+    },
+    {
       "id": "boundary",
       "type": "line",
       "source": "openmaptiles",
@@ -651,6 +695,50 @@
             "name:latin"
           ]
         ],
+        "icon-image": [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "hospital",
+            "clinic",
+            "pharmacy"
+          ],
+          "poi-health",
+          "place_of_worship",
+          "poi-worship",
+          [
+            "school",
+            "college",
+            "university"
+          ],
+          "poi-education",
+          [
+            "marketplace",
+            "shop",
+            "grocery"
+          ],
+          "poi-shop",
+          "fuel",
+          "poi-fuel",
+          "bank",
+          "poi-bank",
+          [
+            "bus",
+            "railway"
+          ],
+          "poi-transport",
+          "poi-civic"
+        ],
+        "text-anchor": "left",
+        "text-offset": [
+          1.1,
+          0
+        ],
+        "text-justify": "left",
+        "icon-padding": 2,
         "text-font": [
           "Noto Sans Regular"
         ],
