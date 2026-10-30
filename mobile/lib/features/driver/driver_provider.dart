@@ -989,10 +989,16 @@ class DriverProvider extends ChangeNotifier {
     }
 
     // HTTP zaxira — faqat socket uzilganda, toki haydovchining saqlangan
-    // joylashuvi yaqin-haydovchi qidiruvi uchun eskirib qolmasin.
+    // joylashuvi yaqin-haydovchi qidiruvi uchun eskirib qolmasin. `orderId`
+    // bilan server paketni yo'lovchi xonasiga ham uzatadi — aks holda
+    // socket uzilgan paytda yo'lovchi xaritasidagi mashina qotib qolardi.
     _apiClient.post(
       ApiEndpoints.updateLocation,
-      data: {'lat': position.latitude, 'lng': position.longitude},
+      data: {
+        'lat': position.latitude,
+        'lng': position.longitude,
+        if (_activeOrder != null) 'orderId': _activeOrder!.id,
+      },
     ).then<void>(
       (_) {},
       onError: (Object e) => debugPrint('[Location] HTTP update failed: $e'),

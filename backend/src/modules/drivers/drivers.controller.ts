@@ -240,7 +240,8 @@ export class DriversController {
     @CurrentUser() user: User,
     @Body() dto: UpdateLocationDto,
   ): Promise<{ updated: boolean }> {
-    await this.driversService.updateLocation(user.id, dto.lat, dto.lng);
+    // Gateway orqali — yo'lovchi xonasi va dispetcher xaritasi ham yangilansin.
+    await this.realtimeGateway.broadcastDriverLocation(user.id, dto.lat, dto.lng, dto.orderId);
     return { updated: true };
   }
 }

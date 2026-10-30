@@ -109,6 +109,23 @@ describe('RealtimeGateway — driver:location buyurtma xonasiga', () => {
 
     expect(toOrderRoom()).toHaveLength(1);
   });
+
+  // HTTP zaxira yo'li (`POST /drivers/location`) — socket uzilganda ham
+  // yo'lovchi xaritasidagi mashina yuraversin.
+  it('HTTP zaxira yo\'li ham xonaga va bazaga yetadi', async () => {
+    await gateway.broadcastDriverLocation(DRIVER_USER.id, 41.01, 70.14, 'ride-1');
+
+    expect(toOrderRoom()).toHaveLength(1);
+    expect(drivers.updateLocation).toHaveBeenCalledWith(DRIVER_USER.id, 41.01, 70.14);
+  });
+
+  it('orderId siz faqat bazaga yoziladi', async () => {
+    await gateway.broadcastDriverLocation(DRIVER_USER.id, 41.01, 70.14);
+
+    expect(toOrderRoom()).toEqual([]);
+    expect(orderRepository.findOne).not.toHaveBeenCalled();
+    expect(drivers.updateLocation).toHaveBeenCalledTimes(1);
+  });
 });
 
 /**

@@ -329,16 +329,32 @@ export class RealtimeGateway
       throw new WsException('Invalid location payload');
     }
 
+    await this.broadcastDriverLocation(user.id, lat, lng, orderId);
+  }
+
+  /**
+   * Haydovchi joylashuvini buyurtma xonasiga va dispetcherlarga tarqatadi,
+   * keyin bazaga yozadi. Socket paketi ham, HTTP zaxira yo'li ham
+   * (`POST /drivers/location`) shu yerdan o'tadi — ilgari HTTP faqat bazaga
+   * yozardi va socketi uzilgan haydovchining mashinasi yo'lovchi xaritasida
+   * qotib qolardi.
+   */
+  async broadcastDriverLocation(
+    driverUserId: string,
+    lat: number,
+    lng: number,
+    orderId?: string,
+  ): Promise<void> {
     // The order room is what the passenger — or the food/market customer
     // watching their courier — draws the car from, so only the driver
     // assigned to that order may write to it. `orderId` rides along so a
     // client tracking two orders at once never mixes their cars up.
-    if (orderId && (await this.isAssignedDriver(user.id, orderId))) {
+    if (orderId && (await this.isAssignedDriver(driverUserId, orderId))) {
       this.server.to(`order:${orderId}`).emit('driver:location', {
         lat,
         lng,
         orderId,
-        driverId: user.id,
+        driverId: driverUserId,
         timestamp: new Date().toISOString(),
       });
     }
@@ -347,12 +363,12 @@ export class RealtimeGateway
     // taksometr + tezlik profili) bir necha so'rov — ilgari yo'lovchi
     // xaritasidagi mashina shularning hammasini kutardi, baza yiqilsa
     // esa umuman yurmasdi.
-    await this.driversService.updateLocation(user.id, lat, lng);
+    await this.driversService.updateLocation(driverUserId, lat, lng);
 
     // Feed the dispatcher live map — keyed by driver profile id, matching
     // the shape /drivers/online returns (not the order-room payload above,
     // which is keyed by user id for the passenger-tracking use case).
-    const driver = await this.driversService.findByUserId(user.id);
+    const driver = await this.driversService.findByUserId(driverUserId);
     if (driver) {
       this.emitToManagers('driver:location', {
         driverId: driver.id,
