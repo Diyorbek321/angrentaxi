@@ -7,6 +7,7 @@ import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/core/location/marker_animation.dart';
 import 'package:angren_taxi/core/observability/crash_reporting.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
+import 'package:angren_taxi/shared/widgets/ag_map_fab.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -94,6 +95,7 @@ class AppVectorMap extends StatefulWidget {
     this.interactive = true,
     this.fitToContent = false,
     this.showUserLocation = false,
+    this.showZoomControls,
     this.tilt = 0,
     this.style = AppMapStyle.light,
   });
@@ -133,6 +135,12 @@ class AppVectorMap extends StatefulWidget {
   /// filtri bilan) chiziladi — pin bilan BITTA manba.
   /// Joylashuvga ruxsat berilgandan keyin yoqiladi.
   final bool showUserLocation;
+
+  /// +/− tugmalari. Standart — xarita interaktiv bo'lsa ko'rsatiladi.
+  ///
+  /// Barmoq bilan chimchilash bir qo'lda (haydovchi rulda, yo'lovchi sumka
+  /// ushlagan) noqulay; ikki marta bosish esa ko'pchilikka ma'lum emas.
+  final bool? showZoomControls;
 
   /// Kamera egilishi (gradus). Navigatsiya ekranida 45° — oldinda yotgan
   /// yo'l ko'proq ko'rinadi va uch o'lchamli his beradi.
@@ -850,9 +858,25 @@ class _AppVectorMapState extends State<AppVectorMap>
             child: ColoredBox(color: background),
           ),
         ),
+        if (widget.showZoomControls ?? widget.interactive)
+          // O'ng chekka, o'rtadan biroz yuqori: pastda sheet, tepada ekran
+          // tugmalari (menyu, orqaga) turadi — bu joy hamma ekranda bo'sh.
+          Align(
+            alignment: const Alignment(1, -0.25),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: _ZoomControls(onZoom: _zoomBy),
+              ),
+            ),
+          ),
         if (_loadFailed) Center(child: _MapLoadFailed(onRetry: _retryLoad)),
       ],
     );
+  }
+
+  void _zoomBy(double delta) {
+    _controller?.animateCamera(ml.CameraUpdate.zoomBy(delta));
   }
 
   Widget _buildMap(String styleDocument) {
@@ -925,6 +949,36 @@ class _MapLoadFailed extends StatelessWidget {
           TextButton(onPressed: onRetry, child: Text(l10n.commonRetry)),
         ],
       ),
+    );
+  }
+}
+
+class _ZoomControls extends StatelessWidget {
+  const _ZoomControls({required this.onZoom});
+
+  final void Function(double delta) onZoom;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    // Tegish qutisi 56dp — haydovchi nishoni (tebranayotgan mashinada 48dp
+    // ga birinchi urinishda tushmaydi). Ko'rinadigan doira o'zgarmaydi
+    // (`driver/screens/home_screen.dart#_driverFab` bilan bir xil usul).
+    Widget box(Widget fab) => SizedBox.square(dimension: kMinTapTargetDriver, child: fab);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        box(AgMapFab(
+          icon: Icons.add_rounded,
+          semanticsLabel: l10n.shMapZoomIn,
+          onTap: () => onZoom(1),
+        )),
+        box(AgMapFab(
+          icon: Icons.remove_rounded,
+          semanticsLabel: l10n.shMapZoomOut,
+          onTap: () => onZoom(-1),
+        )),
+      ],
     );
   }
 }

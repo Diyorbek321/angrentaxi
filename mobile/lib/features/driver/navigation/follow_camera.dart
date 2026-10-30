@@ -24,6 +24,11 @@ class FollowCamera {
 
   final HeadingTracker _heading = HeadingTracker();
   MapCameraInsets? _appliedInsets;
+
+  /// Birinchi ergashishda kamera [zoom] ga o'rnatiladi; keyin haydovchi
+  /// tanlagan masshtab (+/− tugmalari, chimchilash) SAQLANADI — aks holda
+  /// har ping uni 16.5 ga qaytarib, tugmalar ishlamay qolardi.
+  bool _zoomSet = false;
   bool _busy = false;
 
   /// Ping orasidagi animatsiya — GPS ~1 soniyada keladi, shundan qisqaroq.
@@ -68,13 +73,14 @@ class FollowCamera {
         ml.CameraUpdate.newCameraPosition(
           ml.CameraPosition(
             target: ml.LatLng(target.latitude, target.longitude),
-            zoom: zoom,
+            zoom: _zoomSet ? controller.cameraPosition?.zoom ?? zoom : zoom,
             tilt: tilt,
             bearing: _heading.bearing ?? 0,
           ),
         ),
         duration: _animation,
       );
+      _zoomSet = true;
     } finally {
       _busy = false;
     }

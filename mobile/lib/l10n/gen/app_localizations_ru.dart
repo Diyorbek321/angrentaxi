@@ -4371,6 +4371,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get shMapLoadFailed => 'Карта не загрузилась. Проверьте интернет.';
 
   @override
+  String get shMapZoomIn => 'Приблизить';
+
+  @override
+  String get shMapZoomOut => 'Отдалить';
+
+  @override
   String get shMarketPacking => 'Магазин собирает заказ';
 
   @override

@@ -7779,6 +7779,18 @@ abstract class AppLocalizations {
   /// **'Xarita yuklanmadi. Internetni tekshiring.'**
   String get shMapLoadFailed;
 
+  /// No description provided for @shMapZoomIn.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yaqinlashtirish'**
+  String get shMapZoomIn;
+
+  /// No description provided for @shMapZoomOut.
+  ///
+  /// In uz, this message translates to:
+  /// **'Uzoqlashtirish'**
+  String get shMapZoomOut;
+
   /// No description provided for @shMarketPacking.
   ///
   /// In uz, this message translates to:

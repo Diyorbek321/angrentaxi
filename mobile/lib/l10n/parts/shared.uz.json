@@ -417,5 +417,7 @@
   "shUpdateRequiredBody": "Bu versiya endi ishlamaydi. Davom etish uchun yangi versiyani o'rnating.",
   "shUpdateAction": "Yangilash",
   "shUpdateAvailable": "Ilovaning yangi versiyasi chiqdi",
-  "shMapLoadFailed": "Xarita yuklanmadi. Internetni tekshiring."
+  "shMapLoadFailed": "Xarita yuklanmadi. Internetni tekshiring.",
+  "shMapZoomIn": "Yaqinlashtirish",
+  "shMapZoomOut": "Uzoqlashtirish"
 }

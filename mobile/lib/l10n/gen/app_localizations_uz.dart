@@ -4385,6 +4385,12 @@ class AppLocalizationsUz extends AppLocalizations {
   String get shMapLoadFailed => 'Xarita yuklanmadi. Internetni tekshiring.';
 
   @override
+  String get shMapZoomIn => 'Yaqinlashtirish';
+
+  @override
+  String get shMapZoomOut => 'Uzoqlashtirish';
+
+  @override
   String get shMarketPacking => 'Do\'kon yig\'moqda';
 
   @override

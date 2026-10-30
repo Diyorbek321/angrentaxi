@@ -333,8 +333,9 @@ void main() {
     stubVerification();
     await pumpHome(tester, const Size(360, 640));
 
+    // Menyu, "meni top" va xaritaning +/− tugmalari.
     final fabs = find.byType(AgMapFab);
-    expect(fabs, findsNWidgets(2));
+    expect(fabs, findsNWidgets(4));
     for (var i = 0; i < fabs.evaluate().length; i++) {
       final size = tester.getSize(fabs.at(i));
       expect(size.width, greaterThanOrEqualTo(kMinTapTargetDriver));

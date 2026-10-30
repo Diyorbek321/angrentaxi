@@ -1280,6 +1280,8 @@
   "shManeuverStraight": "Продолжайте прямо",
   "shManeuverUturn": "Развернитесь",
   "shMapLoadFailed": "Карта не загрузилась. Проверьте интернет.",
+  "shMapZoomIn": "Приблизить",
+  "shMapZoomOut": "Отдалить",
   "shMarketPacking": "Магазин собирает заказ",
   "shMeterAtLeast": "от {price}",
   "shMeterDistanceTime": "{distance} · {minutes} мин",
