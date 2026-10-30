@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:math';
 
 import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/config/map_style.dart';
@@ -13,12 +16,14 @@ import 'package:maplibre_gl/maplibre_gl.dart' as ml;
 // kichik — zoom 10–14 da ~200 ta tile (bir necha MB) — shuning uchun uni
 // bir marta MapLibre'ning offline bazasiga yuklab qo'yamiz.
 //
-// ⚠️ NEGA `streets-v2` USLUBI, BIZNIKI EMAS. Offline yuklovchi uslubni
-// faqat http(s) URL orqali oladi (`file://` va JSON satr qabul
-// qilinmaydi). `streets-v2` bizning uslub bilan BIR XIL tile manbasini
-// ishlatadi (`api.maptiler.com/tiles/v3/tiles.json`), offline baza esa
-// tile'larni URL bo'yicha saqlaydi — ya'ni bizning uslub ham shu
-// tile'larni bazadan oladi.
+// ⚠️ NEGA LOKAL SERVER. Offline yuklovchi uslubni faqat http(s) URL
+// orqali oladi (`file://`, `asset://` va JSON satr qabul qilinmaydi), offline
+// baza esa resurslarni URL bo'yicha saqlaydi. Ilgari MapTiler'ning
+// `streets-v2` uslubi yuklanardi — uning tile manzili va shriftlari
+// (`Roboto`) bizning uslubnikiga (tile shabloni, `Noto Sans`) mos emas edi,
+// ya'ni bazaga tushgan narsa xaritada ishlatilmasdi. Endi BIZNING uslub
+// yuklash davomida `localhost` da vaqtincha beriladi ([StyleHost]) — tile
+// va shrift manzillari ta'rif bo'yicha bir xil.
 //
 // ⚠️ ZOOM 15 ATAYLAB YO'Q. U yolg'iz ~480 tile, ya'ni hajmning ~70%.
 // Ko'cha darajasidagi tile'lar odatiy (ambient) keshga foydalanuvchi
@@ -27,6 +32,50 @@ import 'package:maplibre_gl/maplibre_gl.dart' as ml;
 // O'zini hostlash (PMTiles) sozlangan bo'lsa yuklanmaydi: u boshqa
 // manba va boshqa protokol.
 // ============================================================================
+
+/// Uslub hujjatini offline yuklovchiga http URL sifatida beradi.
+abstract class StyleHost {
+  Future<HostedStyle> serve(String styleJson);
+}
+
+class HostedStyle {
+  const HostedStyle(this.url, this.close);
+
+  final String url;
+  final Future<void> Function() close;
+}
+
+/// Faqat qurilmaning o'zidan (`127.0.0.1`) ochiladigan, tasodifiy yo'lli
+/// vaqtinchalik server. `localhost` ga ochiq HTTP Android'da
+/// `network_security_config.xml` da ruxsat etilgan.
+class LoopbackStyleHost implements StyleHost {
+  const LoopbackStyleHost();
+
+  @override
+  Future<HostedStyle> serve(String styleJson) async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final random = Random.secure();
+    final token = List.generate(16, (_) => random.nextInt(16).toRadixString(16)).join();
+    final path = '/$token/style.json';
+    final body = utf8.encode(styleJson);
+
+    server.listen((request) {
+      final response = request.response;
+      if (request.uri.path == path) {
+        response.headers.contentType = ContentType.json;
+        response.add(body);
+      } else {
+        response.statusCode = HttpStatus.notFound;
+      }
+      response.close();
+    });
+
+    return HostedStyle(
+      'http://localhost:${server.port}$path',
+      () => server.close(force: true),
+    );
+  }
+}
 
 /// Platforma chaqiruvlari — testda soxta bilan almashtiriladi.
 abstract class OfflineMapApi {
@@ -70,7 +119,10 @@ class MapOfflineRegion {
 
   /// Hudud yoki zoom o'zgarsa versiyani oshiring — eski hudud o'chirilib,
   /// yangisi yuklanadi.
-  static const String regionName = 'angren-v1';
+  ///
+  /// v2: `streets-v2` o'rniga bizning uslub — v1 dagi tile'lar boshqa
+  /// manzilda saqlangan va ishlatilmaydi.
+  static const String regionName = 'angren-v2';
 
   static final ml.LatLngBounds bounds = ml.LatLngBounds(
     southwest: const ml.LatLng(40.96, 70.00),
@@ -80,14 +132,13 @@ class MapOfflineRegion {
   static const double minZoom = 10;
   static const double maxZoom = 14;
 
-  /// Yuklash uchun uslub URL'i yoki `null` — yuklash kerak emas.
-  static String? styleUrl({
+  /// Kalitsiz build'da yuklanadigan narsa yo'q; o'zini hostlash (PMTiles)
+  /// boshqa manba va boshqa protokol.
+  static bool shouldDownload({
     required String mapTilerKey,
     required bool selfHosted,
-  }) {
-    if (mapTilerKey.isEmpty || selfHosted) return null;
-    return 'https://api.maptiler.com/maps/streets-v2/style.json?key=$mapTilerKey';
-  }
+  }) =>
+      mapTilerKey.isNotEmpty && !selfHosted;
 
   /// Hudud to'liq yuklangan bo'lsa hech narsa qilmaydi. Yarim qolgan
   /// (ilova yuklash paytida yopilgan) yoki eski versiyadagi hududni
@@ -95,15 +146,18 @@ class MapOfflineRegion {
   /// tarmoqdan ishlashda davom etadi.
   static Future<void> ensureDownloaded({
     OfflineMapApi api = const _MapLibreOfflineApi(),
+    StyleHost styleHost = const LoopbackStyleHost(),
+    Future<String> Function()? loadStyle,
     String? mapTilerKey,
     bool? selfHosted,
   }) async {
-    final url = styleUrl(
+    final download = shouldDownload(
       mapTilerKey: mapTilerKey ?? AppConfig.mapTilerKey,
       selfHosted: selfHosted ?? MapStyleLoader.selfHostedIsComplete,
     );
-    if (url == null) return;
+    if (!download) return;
 
+    HostedStyle? hosted;
     try {
       final regions = await api.listRegions();
       for (final region in regions) {
@@ -114,13 +168,19 @@ class MapOfflineRegion {
         if (ours) await api.delete(region.id);
       }
 
+      // Kunduzgi va tungi uslub bir xil tile va shriftlarni ishlatadi —
+      // bittasini yuklash yetarli.
+      final styleJson =
+          await (loadStyle ?? () => MapStyleLoader.load(AppMapStyle.light))();
+      hosted = await styleHost.serve(styleJson);
+
       // Native chaqiruv hudud YARATILGANDA qaytadi, yuklash esa keyin
-      // tugaydi — natijani hodisadan kutamiz.
+      // tugaydi — natijani hodisadan kutamiz. Server shu vaqtgacha ochiq.
       final done = Completer<bool>();
       final region = await api.download(
         ml.OfflineRegionDefinition(
           bounds: bounds,
-          mapStyleUrl: url,
+          mapStyleUrl: hosted.url,
           minZoom: minZoom,
           maxZoom: maxZoom,
         ),
@@ -143,6 +203,8 @@ class MapOfflineRegion {
       }
     } catch (e) {
       debugPrint('[MapOffline] skipped: $e');
+    } finally {
+      await hosted?.close();
     }
   }
 }
