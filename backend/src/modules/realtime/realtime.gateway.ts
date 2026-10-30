@@ -18,7 +18,7 @@ import { DriversService } from '../drivers/drivers.service';
 import { User, UserRole, UserStatus } from '../../database/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { SupportService } from '../support/support.service';
-import { Order } from '../../database/entities/order.entity';
+import { DRIVER_ACTIVE_ORDER_STATUSES, Order } from '../../database/entities/order.entity';
 import { WsJwtGuard } from '../../common/guards/ws-jwt.guard';
 import { resolveCorsOrigin } from '../../config/cors-origin.util';
 
@@ -139,14 +139,21 @@ export class RealtimeGateway
    * correct. The Order repository is injected directly rather than going
    * through OrdersQueryService to avoid a module-level circular dependency.
    */
-  private async assertCanJoinOrder(user: User, orderId: string): Promise<void> {
+  /**
+   * Returns the order for a passenger/driver (so the caller can send the
+   * driver's last location), or `null` for staff, who may watch any room.
+   */
+  private async assertCanJoinOrder(
+    user: User,
+    orderId: string,
+  ): Promise<Pick<Order, 'id' | 'passengerId' | 'driverId' | 'status'> | null> {
     if (user.role === UserRole.MANAGER || user.role === UserRole.ADMIN) {
-      return;
+      return null;
     }
 
     const order = await this.orderRepository.findOne({
       where: { id: orderId },
-      select: { id: true, passengerId: true, driverId: true },
+      select: { id: true, passengerId: true, driverId: true, status: true },
     });
 
     if (!order) {
@@ -159,6 +166,7 @@ export class RealtimeGateway
     if (!isPassenger && !isAssignedDriver) {
       throw new WsException('You are not authorized to join this order');
     }
+    return order;
   }
 
   afterInit(_server: Server): void {
@@ -317,12 +325,9 @@ export class RealtimeGateway
 
     const { lat, lng, orderId } = payload;
 
-    if (typeof lat !== 'number' || typeof lng !== 'number') {
+    if (!isValidCoordinate(lat, lng)) {
       throw new WsException('Invalid location payload');
     }
-
-    // Update driver location in DB + Redis
-    await this.driversService.updateLocation(user.id, lat, lng);
 
     // The order room is what the passenger — or the food/market customer
     // watching their courier — draws the car from, so only the driver
@@ -337,6 +342,12 @@ export class RealtimeGateway
         timestamp: new Date().toISOString(),
       });
     }
+
+    // Yo'lovchiga yuborilgandan KEYIN: bazaga yozish (PostGIS + Redis +
+    // taksometr + tezlik profili) bir necha so'rov — ilgari yo'lovchi
+    // xaritasidagi mashina shularning hammasini kutardi, baza yiqilsa
+    // esa umuman yurmasdi.
+    await this.driversService.updateLocation(user.id, lat, lng);
 
     // Feed the dispatcher live map — keyed by driver profile id, matching
     // the shape /drivers/online returns (not the order-room payload above,
@@ -386,10 +397,38 @@ export class RealtimeGateway
       throw new WsException('orderId is required');
     }
 
-    await this.assertCanJoinOrder(user, orderId);
+    const order = await this.assertCanJoinOrder(user, orderId);
 
     await client.join(`order:${orderId}`);
     this.logger.log(`Client ${client.id} joined order room order:${orderId}`);
+
+    await this.sendLastDriverLocation(client, order);
+  }
+
+  /**
+   * Xonaga yangi qo'shilganga haydovchining OXIRGI joyini darhol beradi.
+   * Ilgari ilova qayta ochilsa mashina haydovchining keyingi paketigacha
+   * (turgan bo'lsa ~30 soniya) xaritada ko'rinmasdi.
+   *
+   * Faqat haydovchi buyurtmani bajarayotgan holatlarda — safar tugagach
+   * yo'lovchi haydovchining qayerdaligini bilmasligi kerak (maxfiylik).
+   */
+  private async sendLastDriverLocation(
+    client: Socket,
+    order: Pick<Order, 'id' | 'driverId' | 'status'> | null,
+  ): Promise<void> {
+    if (!order?.driverId || !DRIVER_ACTIVE_ORDER_STATUSES.includes(order.status)) {
+      return;
+    }
+    const location = await this.driversService.getLastLocationByUserId(order.driverId);
+    if (!location) return;
+    client.emit('driver:location', {
+      lat: location.lat,
+      lng: location.lng,
+      orderId: order.id,
+      driverId: order.driverId,
+      timestamp: new Date().toISOString(),
+    });
   }
 
   @SubscribeMessage('leave:order')
@@ -504,4 +543,16 @@ export class RealtimeGateway
   emitToManagers(event: string, data: unknown): void {
     this.server.to('managers').emit(event, data);
   }
+}
+
+/** Chekli va Yer chegarasidagi koordinata (NaN/Infinity ham rad etiladi). */
+function isValidCoordinate(lat: unknown, lng: unknown): boolean {
+  return (
+    typeof lat === 'number' &&
+    typeof lng === 'number' &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    Math.abs(lat) <= 90 &&
+    Math.abs(lng) <= 180
+  );
 }

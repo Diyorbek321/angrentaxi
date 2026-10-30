@@ -398,6 +398,20 @@ export class DriversService implements OnModuleInit {
     }
   }
 
+  /**
+   * Haydovchining oxirgi saqlangan joyi (foydalanuvchi id bo'yicha) yoki
+   * hali hech qachon yubormagan bo'lsa `null`.
+   */
+  async getLastLocationByUserId(userId: string): Promise<{ lat: number; lng: number } | null> {
+    const rows = (await this.driverRepository.query(
+      `SELECT ST_Y(current_location::geometry) AS lat, ST_X(current_location::geometry) AS lng
+         FROM drivers WHERE user_id = $1 AND current_location IS NOT NULL`,
+      [userId],
+    )) as Array<{ lat: number | string; lng: number | string }>;
+    if (rows.length === 0) return null;
+    return { lat: Number(rows[0].lat), lng: Number(rows[0].lng) };
+  }
+
   async setOnlineStatus(userId: string, isOnline: boolean): Promise<Driver> {
     const driver = await this.findByUserIdOrThrow(userId);
 
