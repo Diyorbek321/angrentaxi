@@ -18,6 +18,10 @@ class DemoEngine {
   Map<String, dynamic>? _driverOrder;
   int _orderSeq = 0;
 
+  /// Oxirgi narx bahosi — buyurtma narxi ekranda ko'rsatilgan bahodan
+  /// farq qilmasin (haqiqiy server ham bahoni buyurtmaga qo'yadi).
+  double? _lastEstimate;
+
   /// Demo hamyon qoldig'i — chaqim undan yechiladi, shunda ketma-ket
   /// berilgan chaqimlar ko'rsatuvda haqiqiy pulday kamayadi.
   double _walletBalance = 120000;
@@ -71,12 +75,29 @@ class DemoEngine {
     }
 
     // ---- Passenger orders ----
-    if (path.endsWith('/orders/estimate')) {
+    // Haqiqiy `POST /orders/calculate-price` javobi shaklida (`price`).
+    if (path.endsWith('/orders/calculate-price')) {
       const distanceKm = 4.2;
-      final baseFare = (body['baseFare'] as num?)?.toDouble() ?? 8000;
-      final perKm = (body['perKmRate'] as num?)?.toDouble() ?? 2500;
-      final price = (baseFare + perKm * distanceKm).clamp(8000, 200000);
-      return _ok({'estimatedPrice': price, 'distanceKm': distanceKm, 'durationMin': 14});
+      final tariffs = DemoData.tariffs();
+      final tariff = tariffs.firstWhere(
+        (t) => t['id'] == body['tariffId'],
+        orElse: () => tariffs.first,
+      );
+      final base = (tariff['basePrice'] as num).toDouble();
+      final perKm = (tariff['pricePerKm'] as num).toDouble();
+      final min = (tariff['minPrice'] as num).toDouble();
+      // So'mni minglikka yaxlitlaymiz — ekranda "12 560" emas, "13 000".
+      final raw = (base + perKm * distanceKm).clamp(min, 200000);
+      final price = (raw / 1000).ceil() * 1000.0;
+      _lastEstimate = price;
+      return _ok({
+        'price': price,
+        'tariffId': tariff['id'],
+        'distanceKm': distanceKm,
+        'durationMin': 14,
+        'surgeMultiplier': 1.0,
+        'optionsFare': 0,
+      });
     }
     if (path.endsWith('/orders') && method == 'POST') {
       final order = _buildPassengerOrder(body);
@@ -159,8 +180,19 @@ class DemoEngine {
     if (path.endsWith('/drivers/active-order')) {
       return {'data': _driverOrder};
     }
-    if (path.endsWith('/drivers/earnings')) {
-      return _ok({'today': 184000, 'week': 1240000, 'trips': 12});
+    // Ilova `GET /orders/earnings` (bosh ekran) va `.../breakdown` (Daromad
+    // ekrani) ni so'raydi. Raqamlar o'zaro mos: komissiya 10%, soliq 1%,
+    // net = gross − komissiya − soliq.
+    if (path.endsWith('/orders/earnings/breakdown')) {
+      return _ok({
+        'today': DemoData.earningsPeriod(gross: 205000, trips: 11, tips: 5000),
+        'week': DemoData.earningsPeriod(gross: 1380000, trips: 74, tips: 21000),
+        'month': DemoData.earningsPeriod(gross: 5650000, trips: 302, tips: 87000),
+      });
+    }
+    if (path.endsWith('/orders/earnings')) {
+      final today = DemoData.earningsPeriod(gross: 205000, trips: 11, tips: 5000);
+      return _ok({'today': today['netWithTips'], 'week': 1249200, 'trips': 11});
     }
     if (path.endsWith('/drivers/orders/history')) {
       return _okList(DemoData.orderHistory());
@@ -256,7 +288,7 @@ class DemoEngine {
         'lng': (dropoff?['lng'] as num?)?.toDouble() ?? DemoData.dropoffLng,
       },
       'status': 'searching',
-      'estimatedPrice': (body['estimatedPrice'] as num?)?.toDouble() ?? 18500,
+      'estimatedPrice': (body['estimatedPrice'] as num?)?.toDouble() ?? _lastEstimate ?? 18500,
       'createdAt': DateTime.now().toIso8601String(),
       'driver': null,
       'tariffId': body['tariffId'],
@@ -273,8 +305,11 @@ class DemoEngine {
     final dLat = dropoff['lat'] as double;
     final dLng = dropoff['lng'] as double;
 
-    // Driver found + assigned.
+    // Driver found + assigned. Saqlangan buyurtma ham yangilanadi: ilova
+    // qayta ulanganda `GET /orders/:id` bilan holatni tiklaydi va eski
+    // "searching" ni olib, ekranni orqaga qaytarardi.
     _schedule(2500, () {
+      _setPassengerStatus('accepted', withDriver: true);
       _socket.simulateIncoming(SocketEvents.orderAccepted, {'driver': DemoData.driver()});
     });
 
@@ -291,11 +326,13 @@ class DemoEngine {
 
     // Arrived at pickup.
     _schedule(9200, () {
+      _setPassengerStatus('arrived');
       _socket.simulateIncoming(SocketEvents.orderArrived, {'message': 'Your driver has arrived'});
     });
 
     // Trip starts, drive to destination.
     _schedule(12000, () {
+      _setPassengerStatus('in_progress');
       _socket.simulateIncoming(SocketEvents.orderInProgress, {'message': 'Trip started'});
     });
     _animate(
@@ -372,6 +409,17 @@ class DemoEngine {
       };
       _socket.simulateIncoming(SocketEvents.newOrderOffer, _driverOrder);
     });
+  }
+
+  /// Yo'lovchining saqlangan demo buyurtmasi holatini yangilaydi.
+  void _setPassengerStatus(String status, {bool withDriver = false}) {
+    final order = _passengerOrder;
+    if (order == null) return;
+    _passengerOrder = {
+      ...order,
+      'status': status,
+      if (withDriver) 'driver': DemoData.driver(),
+    };
   }
 
   Map<String, dynamic> _updateDriverStatus(String status) {

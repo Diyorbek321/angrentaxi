@@ -56,6 +56,27 @@ class DemoData {
         'currentLng': driverStartLng,
       };
 
+  /// Daromad davri — backend `GET /orders/earnings/breakdown` shaklida.
+  static Map<String, dynamic> earningsPeriod({
+    required double gross,
+    required int trips,
+    double tips = 0,
+  }) {
+    final commission = (gross * 0.10).roundToDouble();
+    final tax = (gross * 0.01).roundToDouble();
+    final net = gross - commission - tax;
+    return {
+      'gross': gross,
+      'commission': commission,
+      'taxWithheld': tax,
+      'shiftPassCost': 0,
+      'net': net,
+      'trips': trips,
+      'tips': tips,
+      'netWithTips': net + tips,
+    };
+  }
+
   static List<Map<String, dynamic>> tariffs() => [
         {
           'id': 'tariff-econom',
@@ -74,7 +95,9 @@ class DemoData {
           'description': 'Yangi va qulay avtomobillar',
           'basePrice': 8000,
           'pricePerKm': 2500,
-          'minPrice': 12000,
+          // Ekonom bahosidan (≈13 000) yuqori — ro'yxatda "arzon tarif
+          // qimmatroq" ko'rinmasin.
+          'minPrice': 15000,
           'iconName': 'comfort',
           'isActive': true,
           'maxPassengers': 4,
