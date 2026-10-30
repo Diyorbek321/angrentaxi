@@ -1631,6 +1631,8 @@
   "paxPickOnMap": "Xaritadan tanlash",
   "paxPickThisPlace": "Shu joyni tanlash",
   "paxPickupPoint": "Olish nuqtasi",
+  "paxPreciseLocationEnable": "Yoqish",
+  "paxPreciseLocationHint": "Joylashuv taxminiy — olish nuqtasi ~1 km xato bo'lishi mumkin. Aniq joylashuvni yoqing.",
   "paxPriceLocked": "Narx qotirilgan — safar paytida o'zgarmaydi.",
   "paxProfileSaved": "Ma'lumotlar saqlandi",
   "paxProfileTitle": "Profil",

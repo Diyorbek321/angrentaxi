@@ -761,6 +761,8 @@
   "paxPickOnMap": "Выбрать на карте",
   "paxPickThisPlace": "Выбрать это место",
   "paxPickupPoint": "Точка посадки",
+  "paxPreciseLocationEnable": "Включить",
+  "paxPreciseLocationHint": "Геолокация приблизительная — точка посадки может ошибаться на ~1 км. Включите точную геолокацию.",
   "paxPriceLocked": "Цена зафиксирована — в пути не изменится.",
   "paxProfileSaved": "Данные сохранены",
   "paxProfileTitle": "Профиль",

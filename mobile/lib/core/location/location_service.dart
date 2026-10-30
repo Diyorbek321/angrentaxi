@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:angren_taxi/core/location/position_quality.dart';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
@@ -52,13 +53,53 @@ class LocationService {
     final hasPermission = await requestPermission();
     if (!hasPermission) return null;
 
+    final Position first;
     try {
-      return await Geolocator.getCurrentPosition(
+      first = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
         timeLimit: const Duration(seconds: 10),
       );
     } catch (_) {
       return null;
+    }
+    if (first.accuracy <= PositionQuality.goodAccuracyMeters) return first;
+
+    // Birinchi javob ko'pincha minora/Wi-Fi bo'yicha (yuzlab metr) — GPS
+    // hali "qizimagan". Aniqrog'ini qisqa kutamiz; kelmasa borini qaytaramiz
+    // (umuman yo'qdan yaxshi — chaqiruvchi xaritani shu yerga qaratadi).
+    try {
+      final second = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.best,
+        timeLimit: const Duration(seconds: 6),
+      );
+      return PositionQuality.better(first, second);
+    } catch (_) {
+      return first;
+    }
+  }
+
+  /// Android 12+ / iOS 14+ da foydalanuvchi "taxminiy" joylashuvni
+  /// tanlaganmi. Unda telefon ~1 km aniqlikdagi nuqta beradi va olish pini
+  /// qo'shni mahallaga tushadi. Aniqlab bo'lmasa — `false` (ogohlantirish
+  /// sababsiz chiqmasin).
+  Future<bool> isApproximate() async {
+    try {
+      return await Geolocator.getLocationAccuracy() ==
+          LocationAccuracyStatus.reduced;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Aniq joylashuvni so'raydi: avval tizim oynasi (Android 12+ unda
+  /// "aniq" ni tanlashni taklif qiladi), bo'lmasa ilova sozlamalari.
+  /// Haydovchi tayyorlik tekshiruvidagi bilan bir xil yo'l.
+  Future<void> requestPrecise() async {
+    try {
+      await Geolocator.requestPermission();
+      if (await isApproximate()) await Geolocator.openAppSettings();
+    } catch (_) {
+      // Plagin xatosi — foydalanuvchi sozlamalardan o'zi yoqadi.
     }
   }
 
@@ -124,6 +165,9 @@ class LocationService {
   StreamSubscription<Position>? _source;
   ({int distanceFilter, BackgroundNotice? background})? _sourceConfig;
 
+  /// Oqimda oxirgi yetkazilgan fiks — tartibni tekshirish uchun.
+  Position? _lastDelivered;
+
   /// Qayta sozlashlar ketma-ket bajariladi: eski manbani yopish asinxron va
   /// u tugamay yangisi ochilsa, plagin hali yopilmagan oqimni qaytarardi.
   Future<void> _reconfigureChain = Future<void>.value();
@@ -162,6 +206,12 @@ class LocationService {
       locationSettings: _settingsFor(minFilter, background),
     ).listen(
       (position) {
+        // Noaniq va tartibdan chiqqan fikslar hech bir tinglovchiga bormaydi
+        // (`PositionQuality` dagi izohga qarang).
+        if (!PositionQuality.isUsable(position, previous: _lastDelivered)) {
+          return;
+        }
+        _lastDelivered = position;
         for (final c in List.of(_clients)) {
           c.controller.add(position);
         }

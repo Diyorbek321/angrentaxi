@@ -2605,6 +2605,13 @@ class AppLocalizationsRu extends AppLocalizations {
   String get paxPickupPoint => 'Точка посадки';
 
   @override
+  String get paxPreciseLocationEnable => 'Включить';
+
+  @override
+  String get paxPreciseLocationHint =>
+      'Геолокация приблизительная — точка посадки может ошибаться на ~1 км. Включите точную геолокацию.';
+
+  @override
   String get paxPriceLocked => 'Цена зафиксирована — в пути не изменится.';
 
   @override

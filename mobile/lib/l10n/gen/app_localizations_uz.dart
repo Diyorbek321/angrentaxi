@@ -2611,6 +2611,13 @@ class AppLocalizationsUz extends AppLocalizations {
   String get paxPickupPoint => 'Olish nuqtasi';
 
   @override
+  String get paxPreciseLocationEnable => 'Yoqish';
+
+  @override
+  String get paxPreciseLocationHint =>
+      'Joylashuv taxminiy — olish nuqtasi ~1 km xato bo\'lishi mumkin. Aniq joylashuvni yoqing.';
+
+  @override
   String get paxPriceLocked => 'Narx qotirilgan — safar paytida o\'zgarmaydi.';
 
   @override

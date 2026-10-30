@@ -101,6 +101,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
         _hasLocationFix = true;
       });
       _openSearchIfRequested();
+      _warnIfApproximate(locationService);
       // Xarita allaqachon qurilgan bo'lsa kamerani surib qo'yamiz; hali
       // qurilmagan bo'lsa buni `onMapCreated` bajaradi (ikki marta emas —
       // o'sha paytda `_hasLocationFix` hali `false` bo'ladi).
@@ -111,6 +112,26 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     } else {
       if (mounted) setState(() => _locationLoading = false);
     }
+  }
+
+  /// "Taxminiy joylashuv" ruxsatida pin ~1 km xato tushadi va haydovchi
+  /// boshqa joyga keladi. Ilgari buni faqat haydovchi ilovasi tekshirardi.
+  Future<void> _warnIfApproximate(LocationService locationService) async {
+    if (!await locationService.isApproximate() || !mounted) return;
+    final l10n = context.l10n;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l10n.paxPreciseLocationHint),
+        duration: const Duration(seconds: 8),
+        action: SnackBarAction(
+          label: l10n.paxPreciseLocationEnable,
+          onPressed: () async {
+            await locationService.requestPrecise();
+            if (mounted) _initLocation();
+          },
+        ),
+      ),
+    );
   }
 
   /// Kamerani foydalanuvchiga qaratadi va uni sheet USTIGA chiqaradi.

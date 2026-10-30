@@ -1,11 +1,15 @@
-import 'dart:typed_data';
+import 'dart:async';
 
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/config/map_style.dart';
+import 'package:angren_taxi/core/di/service_locator.dart';
+import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/core/location/marker_animation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/widgets.dart';
+import 'package:geolocator/geolocator.dart' show Position;
 import 'package:latlong2/latlong.dart';
 import 'package:maplibre_gl/maplibre_gl.dart' as ml;
 
@@ -118,11 +122,14 @@ class AppVectorMap extends StatefulWidget {
   /// Ochilishda barcha markerlar va marshrut ko'rinadigan qilib masshtablash.
   final bool fitToContent;
 
-  /// Native joylashuv nuqtasi (ko'k puck + aniqlik doirasi).
+  /// Foydalanuvchining joyi (ko'k nuqta), GPS bilan uzluksiz yangilanadi.
   ///
-  /// Qo'lda qo'yilgan markerdan ustunligi: u GPS bilan uzluksiz yangilanadi
-  /// va qurilma kompasidan yo'nalishni ham ko'rsatadi — Yandex/Google
-  /// xaritalaridagi kabi. Joylashuvga ruxsat berilgandan keyin yoqiladi.
+  /// ⚠️ Plaginning o'z nuqtasi (`myLocationEnabled`) ISHLATILMAYDI: u
+  /// Android'da "balanced" rejimda ishlaydi, ya'ni ko'pincha minora/Wi-Fi
+  /// bo'yicha — nuqta olish pinidan yuzlab metr nariga tushardi. Endi nuqta
+  /// ilovaning o'z [LocationService] oqimidan (yuqori aniqlik, sifat
+  /// filtri bilan) chiziladi — pin bilan BITTA manba.
+  /// Joylashuvga ruxsat berilgandan keyin yoqiladi.
   final bool showUserLocation;
 
   /// Kamera egilishi (gradus). Navigatsiya ekranida 45° — oldinda yotgan
@@ -194,6 +201,16 @@ class _AppVectorMapState extends State<AppVectorMap>
   /// simvol qo'shardi — ikkinchisi xaritada qotib qolgan "arvoh" mashina
   /// bo'lib qolardi. Endi ikkinchi chaqiruv shu so'rovni kutadi.
   Future<ml.Symbol>? _carSymbolPending;
+
+  /// Foydalanuvchi nuqtasi — [AppVectorMap.showUserLocation] dagi izohga
+  /// qarang. Mashina simvolidagi poyga himoyasi bu yerda ham.
+  StreamSubscription<Position>? _userSubscription;
+  LatLng? _userPoint;
+  ml.Symbol? _userSymbol;
+  Future<ml.Symbol>? _userSymbolPending;
+
+  /// Ko'k nuqta uchun masofa filtri — piyoda yurganda ham ergashsin.
+  static const int _userDistanceFilter = 5;
   bool _routeLayersAdded = false;
   bool _fillLayerAdded = false;
 
@@ -212,6 +229,7 @@ class _AppVectorMapState extends State<AppVectorMap>
       );
     }
     _loadStyle();
+    _syncUserTracking();
   }
 
   Future<void> _loadStyle() async {
@@ -222,6 +240,7 @@ class _AppVectorMapState extends State<AppVectorMap>
 
   @override
   void dispose() {
+    _userSubscription?.cancel();
     _ticker?.dispose();
     super.dispose();
   }
@@ -260,6 +279,7 @@ class _AppVectorMapState extends State<AppVectorMap>
     await _syncFillOverlay();
     await _syncRoute();
     await _syncMarkers();
+    await _syncUser();
     await _syncCar();
 
     if (widget.fitToContent) await _fitToContent();
@@ -280,10 +300,16 @@ class _AppVectorMapState extends State<AppVectorMap>
       _markerSymbols.clear();
       _carSymbol = null;
       _carSymbolPending = null;
+      _userSymbol = null;
+      _userSymbolPending = null;
       _routeLayersAdded = false;
       _fillLayerAdded = false;
       _loadStyle();
       return;
+    }
+
+    if (widget.showUserLocation != oldWidget.showUserLocation) {
+      _syncUserTracking();
     }
 
     if (!_styleReady) return;
@@ -368,7 +394,7 @@ class _AppVectorMapState extends State<AppVectorMap>
         ml.SymbolOptions(
           geometry: _ml(marker.point),
           iconImage: marker.icon.name,
-          iconSize: 0.5,
+          iconSize: _iconSize,
           // Manzil pini uchi bilan nuqtani ko'rsatadi; qolgan ikonalar
           // markazi bo'yicha joylashadi.
           iconAnchor: marker.icon == AppMapIcon.dropoff ? 'bottom' : 'center',
@@ -516,6 +542,78 @@ class _AppVectorMapState extends State<AppVectorMap>
     _routeLayersAdded = true;
   }
 
+  /// Ikona o'lchami. Ikonalar 3x zichlikda chizilgan (1 dp = 3 px,
+  /// `tool/generate_map_markers.py`). Android plagini rasmni EKRAN
+  /// zichligida qabul qiladi, shuning uchun ko'rinadigan dp = px × o'lcham
+  /// ÷ zichlik — o'lcham zichlik/3 bo'lsa, har telefonda bir xil dp.
+  /// iOS rasmni 1x deb oladi.
+  double get _iconSize => defaultTargetPlatform == TargetPlatform.iOS
+      ? 1 / 3
+      : MediaQuery.devicePixelRatioOf(context) / 3;
+
+  /// GPS oqimiga [AppVectorMap.showUserLocation] bo'yicha ulanadi/uziladi.
+  void _syncUserTracking() {
+    if (widget.showUserLocation) {
+      // Testlarda va demo rejimida xizmat ro'yxatdan o'tmagan bo'lishi
+      // mumkin — unda nuqta shunchaki chizilmaydi.
+      if (_userSubscription != null || !sl.isRegistered<LocationService>()) {
+        return;
+      }
+      _userSubscription = sl<LocationService>()
+          .getPositionStream(distanceFilter: _userDistanceFilter)
+          .listen(
+        (position) {
+          _userPoint = LatLng(position.latitude, position.longitude);
+          _syncUser();
+        },
+        // Oqim uzilishi (ruxsat olib qo'yildi) xaritani yiqitmasin.
+        onError: (Object _) {},
+      );
+    } else {
+      _userSubscription?.cancel();
+      _userSubscription = null;
+      _userPoint = null;
+      _syncUser();
+    }
+  }
+
+  Future<void> _syncUser() async {
+    final controller = _controller;
+    if (controller == null || !_styleReady) return;
+    final point = _userPoint;
+
+    if (point == null) {
+      final symbol = _userSymbol;
+      _userSymbol = null;
+      if (symbol != null) await controller.removeSymbol(symbol);
+      return;
+    }
+
+    final existing = _userSymbol;
+    if (existing != null) {
+      await controller.updateSymbol(
+        existing,
+        ml.SymbolOptions(geometry: _ml(point)),
+      );
+      return;
+    }
+
+    final pending = _userSymbolPending ??= controller.addSymbol(
+      ml.SymbolOptions(
+        geometry: _ml(point),
+        iconImage: AppMapIcon.me.name,
+        iconSize: _iconSize,
+      ),
+    );
+    final symbol = await pending;
+    if (!identical(_userSymbolPending, pending)) return;
+    _userSymbolPending = null;
+    _userSymbol = symbol;
+    if (!mounted) return;
+    // Kutish paytida nuqta o'chirilgan yoki surilgan bo'lishi mumkin.
+    await _syncUser();
+  }
+
   Future<void> _syncCar() async {
     final controller = _controller;
     final target = widget.carLocation;
@@ -539,7 +637,7 @@ class _AppVectorMapState extends State<AppVectorMap>
         ml.SymbolOptions(
           geometry: _ml(animation.value),
           iconImage: AppMapIcon.car.name,
-          iconSize: 0.5,
+          iconSize: _iconSize,
           iconRotate: animation.displayBearing ?? 0,
         ),
       );
@@ -697,10 +795,6 @@ class _AppVectorMapState extends State<AppVectorMap>
       // MapTiler litsenziyasi atributni talab qiladi — plagin uni o'zi
       // chizadi, faqat joyini belgilaymiz.
       attributionButtonPosition: ml.AttributionButtonPosition.bottomRight,
-      myLocationEnabled: widget.showUserLocation,
-      myLocationRenderMode: widget.showUserLocation
-          ? ml.MyLocationRenderMode.compass
-          : ml.MyLocationRenderMode.normal,
       // Kompas faqat xarita burilganda kerak — u ham xaritani shimolga
       // qaytaradigan yagona yo'l.
       compassEnabled: widget.interactive,

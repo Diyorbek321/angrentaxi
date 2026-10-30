@@ -4664,6 +4664,18 @@ abstract class AppLocalizations {
   /// **'Olish nuqtasi'**
   String get paxPickupPoint;
 
+  /// No description provided for @paxPreciseLocationEnable.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yoqish'**
+  String get paxPreciseLocationEnable;
+
+  /// No description provided for @paxPreciseLocationHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Joylashuv taxminiy — olish nuqtasi ~1 km xato bo\'lishi mumkin. Aniq joylashuvni yoqing.'**
+  String get paxPreciseLocationHint;
+
   /// No description provided for @paxPriceLocked.
   ///
   /// In uz, this message translates to:

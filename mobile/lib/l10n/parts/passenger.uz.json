@@ -493,5 +493,7 @@
     }
   },
   "paxRecentPlaces": "Oxirgi manzillar",
-  "paxAddressNotFoundHint": "Xaritadan aniq joyni belgilang yoki boshqacha yozib ko'ring"
+  "paxAddressNotFoundHint": "Xaritadan aniq joyni belgilang yoki boshqacha yozib ko'ring",
+  "paxPreciseLocationHint": "Joylashuv taxminiy — olish nuqtasi ~1 km xato bo'lishi mumkin. Aniq joylashuvni yoqing.",
+  "paxPreciseLocationEnable": "Yoqish"
 }
