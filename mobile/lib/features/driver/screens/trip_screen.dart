@@ -142,8 +142,15 @@ class _TripScreenState extends State<TripScreen> {
   TurnByTurnGuidance? _guidance;
   StreamSubscription<Position>? _positionSubscription;
 
+  /// Haqiqiy GPS kelganmi. Kelmaguncha mashina CHIZILMAYDI va marshrut
+  /// so'ralmaydi — aks holda ikkalasi ham shahar markazidagi standart
+  /// nuqtadan boshlanardi.
+  bool _hasFix = false;
+
+  /// Marshrutni yuklab, ovozni tayyorlaydi. Marshrut kelmasa
+  /// [TurnByTurnGuidance] keyingi ping'larda o'zi qayta so'raydi.
   Future<void> _startGuidance(Order order) async {
-    if (order.isMetered || _guidance != null) return;
+    if (order.isMetered || _guidance != null || !_hasFix) return;
     final guidance = widget.guidance ??
         TurnByTurnGuidance(routes: sl<RouteService>(), voice: sl<VoiceGuide>());
     // Banner va marshrut chizig'i yo'l-yo'riqni o'zlari tinglaydi
@@ -154,7 +161,12 @@ class _TripScreenState extends State<TripScreen> {
       LatLng(order.dropoff.lat, order.dropoff.lng),
       waypoints: [for (final w in order.waypoints) LatLng(w.lat, w.lng)],
     );
-    if (!mounted) return;
+  }
+
+  /// GPS oqimi HAR safarda ulanadi. Ilgari u faqat navigatsiya bilan birga
+  /// ulanardi va taksometr safarida (manzil yo'q) mashina butun safar
+  /// davomida bir joyda qotib turardi.
+  void _listenToPosition() {
     try {
       // 5 m — "hozir buriling" oynasini o'tkazib yubormaslik uchun
       // (navigation_screen bilan bir xil sabab).
@@ -169,8 +181,15 @@ class _TripScreenState extends State<TripScreen> {
   void _onPosition(Position position) {
     if (!mounted) return;
     final here = LatLng(position.latitude, position.longitude);
+    _hasFix = true;
     _location.value = here;
-    _guidance?.onPosition(here);
+    final guidance = _guidance;
+    if (guidance != null) {
+      guidance.onPosition(here);
+    } else {
+      final order = context.read<DriverProvider>().activeOrder;
+      if (order != null) _startGuidance(order);
+    }
     _followingDriver = true;
     _followDriver();
   }
@@ -178,16 +197,18 @@ class _TripScreenState extends State<TripScreen> {
   Future<void> _initLocation() async {
     final locationService = sl<LocationService>();
     final position = await locationService.getCurrentPosition();
-    if (position != null && mounted) {
+    if (!mounted) return;
+    if (position != null) {
+      _hasFix = true;
       _location.value = LatLng(position.latitude, position.longitude);
       // Ilgari bu yerda `newLatLngZoom` bor edi — u mashinani ekran
       // MARKAZIGA qo'yardi, markaz esa sheet ostida qoladi. Endi kamera
       // ochiq maydonga moslanadi (pastdagi "TO'LDIRILGAN TO'RTBURCHAK").
       _fitCamera();
+      final order = context.read<DriverProvider>().activeOrder;
+      if (order != null) _startGuidance(order);
     }
-    if (!mounted) return;
-    final order = context.read<DriverProvider>().activeOrder;
-    if (order != null) await _startGuidance(order);
+    _listenToPosition();
   }
 
   // -------------------------------------------------------------------
@@ -729,7 +750,7 @@ class _TripScreenState extends State<TripScreen> {
         onMapCreated: _onMapCreated,
         // O'z mashinasi — silliq suriladi va yo'nalish bo'yicha buriladi
         // (statik marker har GPS'da "sakrardi").
-        carLocation: _currentLocation,
+        carLocation: _hasFix ? _currentLocation : null,
         markers: markers,
         // Haqiqiy yo'l chizig'i (ilova ichidagi navigatsiya yuklagan).
         route: guidance?.routePoints ?? const [],

@@ -188,6 +188,12 @@ class _AppVectorMapState extends State<AppVectorMap>
 
   final List<ml.Symbol> _markerSymbols = [];
   ml.Symbol? _carSymbol;
+
+  /// Mashina simvoli qo'shilayotgan payt. `_onStyleLoaded` va
+  /// `didUpdateWidget` ikkalasi ham `_carSymbol == null` ni ko'rib, ikkita
+  /// simvol qo'shardi — ikkinchisi xaritada qotib qolgan "arvoh" mashina
+  /// bo'lib qolardi. Endi ikkinchi chaqiruv shu so'rovni kutadi.
+  Future<ml.Symbol>? _carSymbolPending;
   bool _routeLayersAdded = false;
   bool _fillLayerAdded = false;
 
@@ -273,6 +279,7 @@ class _AppVectorMapState extends State<AppVectorMap>
       _styleReady = false;
       _markerSymbols.clear();
       _carSymbol = null;
+      _carSymbolPending = null;
       _routeLayersAdded = false;
       _fillLayerAdded = false;
       _loadStyle();
@@ -527,14 +534,28 @@ class _AppVectorMapState extends State<AppVectorMap>
         MarkerAnimation(start: target, clock: DateTime.now);
     animation.retarget(target);
 
-    _carSymbol ??= await controller.addSymbol(
-      ml.SymbolOptions(
-        geometry: _ml(animation.value),
-        iconImage: AppMapIcon.car.name,
-        iconSize: 0.5,
-        iconRotate: animation.displayBearing ?? 0,
-      ),
-    );
+    if (_carSymbol == null) {
+      final pending = _carSymbolPending ??= controller.addSymbol(
+        ml.SymbolOptions(
+          geometry: _ml(animation.value),
+          iconImage: AppMapIcon.car.name,
+          iconSize: 0.5,
+          iconRotate: animation.displayBearing ?? 0,
+        ),
+      );
+      final symbol = await pending;
+      // Kutish paytida uslub almashgan (simvol endi yo'q) yoki boshqa
+      // chaqiruv allaqachon o'rnatgan — bu yerda ish qolmadi.
+      if (!identical(_carSymbolPending, pending)) return;
+      _carSymbolPending = null;
+      _carSymbol = symbol;
+      if (!mounted) return;
+      // Kutish paytida mashina olib tashlangan — endi simvolni ham olamiz.
+      if (widget.carLocation == null) {
+        await _syncCar();
+        return;
+      }
+    }
 
     _startTicker();
   }

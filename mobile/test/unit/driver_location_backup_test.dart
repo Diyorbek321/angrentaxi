@@ -5,6 +5,7 @@
 // ikki yozuv bo'lardi.
 import 'dart:async';
 
+import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
@@ -114,5 +115,39 @@ void main() {
     verify(
       () => api.post(ApiEndpoints.updateLocation, data: any(named: 'data')),
     ).called(1);
+  });
+
+  // Masofa filtri tufayli turgan mashinadan fiks kelmaydi. Ilgari shunda
+  // hech narsa yuborilmasdi va yo'lovchi ekranida mashina yo'qolardi.
+  testWidgets('turgan haydovchi — oxirgi joy taymer bilan qayta yuboriladi',
+      (tester) async {
+    final socket = _FakeSocket(connected: true);
+    final provider = DriverProvider(
+      apiClient: api,
+      socketService: socket,
+      locationService: location,
+      localStorage: storage,
+    );
+    await provider.goOnline();
+    location.controller.add(_fix());
+    await tester.pump();
+    int pings() =>
+        socket.emitted.where((e) => e == SocketEvents.driverLocation).length;
+    expect(pings(), 1);
+
+    // Birinchi davrda fiks kelgan — ritm darvozada, taymer aralashmaydi.
+    await tester.pump(AppConfig.locationIdlePingInterval);
+    expect(pings(), 1);
+
+    // Endi yangi fiks yo'q — yurak urishi oxirgisini qayta yuboradi.
+    await tester.pump(AppConfig.locationIdlePingInterval);
+    expect(pings(), 2);
+    await tester.pump(AppConfig.locationIdlePingInterval);
+    expect(pings(), 3);
+
+    // Provayder yopildi — taymer to'xtaydi.
+    provider.dispose();
+    await tester.pump(AppConfig.locationIdlePingInterval * 2);
+    expect(pings(), 3);
   });
 }

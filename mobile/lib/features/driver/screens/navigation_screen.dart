@@ -54,7 +54,19 @@ class _NavigationScreenState extends State<NavigationScreen> {
     const LatLng(AppConfig.defaultLat, AppConfig.defaultLng),
   );
   LatLng get _currentLocation => _location.value;
+
+  /// Haqiqiy GPS kelganmi. Kelmaguncha mashina CHIZILMAYDI — aks holda u
+  /// shahar markazidagi standart nuqtada paydo bo'lib, keyin o'z joyiga
+  /// "sirpanib" borardi.
+  bool _hasFix = false;
+
+  /// Marshrut so'rovi boshlanganmi (birinchi fiksdan keyin bir marta).
+  bool _guidanceStarted = false;
   double? _distanceToPickup;
+
+  /// Masofa shuncha o'zgarmaguncha panel qayta qurilmaydi (har 5 m ping'da
+  /// `setState` butun ekranni chizardi).
+  static const double _distanceRefreshMeters = 50;
 
   /// Pog'onali navigatsiya — marshrut, ko'rsatma, ovoz, qayta qurish.
   /// Marshrut yuklanmaguncha banner o'rnida oddiy sarlavha turadi.
@@ -104,41 +116,51 @@ class _NavigationScreenState extends State<NavigationScreen> {
     super.dispose();
   }
 
+  /// GPS oqimi birinchi fiksni kutmasdan ulanadi. Ilgari u faqat boshlang'ich
+  /// fiks kelsa VA marshrut yuklangandan keyin ulanardi — ikkalasidan biri
+  /// yiqilsa mashina, kamera va masofa butunlay qotib qolardi.
   Future<void> _initLocation() async {
-    final locationService = sl<LocationService>();
-    final position = await locationService.getCurrentPosition();
-    if (position != null && mounted) {
-      _location.value = LatLng(position.latitude, position.longitude);
-
-      final order = context.read<DriverProvider>().activeOrder;
-      if (order != null) {
-        final dist = locationService.calculateDistance(
-          position.latitude,
-          position.longitude,
-          order.pickup.lat,
-          order.pickup.lng,
-        );
-        if (mounted) setState(() => _distanceToPickup = dist);
-      }
-
+    final position = await sl<LocationService>().getCurrentPosition();
+    if (!mounted) return;
+    if (position != null) {
+      _applyFix(LatLng(position.latitude, position.longitude));
       // Ilgari bu yerda `newLatLngZoom` bor edi — u mashinani ekran
       // MARKAZIGA qo'yardi, markaz esa sheet ostida qoladi.
       _fitCamera();
+      _startGuidance();
+    }
+    _listenToPosition();
+  }
 
-      await _startGuidance();
+  /// Joriy joyni va olish nuqtasigacha masofani yangilaydi.
+  void _applyFix(LatLng here) {
+    _hasFix = true;
+    _location.value = here;
+
+    final order = context.read<DriverProvider>().activeOrder;
+    if (order == null) return;
+    final dist = sl<LocationService>().calculateDistance(
+      here.latitude,
+      here.longitude,
+      order.pickup.lat,
+      order.pickup.lng,
+    );
+    final shown = _distanceToPickup;
+    if (shown == null || (shown - dist).abs() >= _distanceRefreshMeters) {
+      setState(() => _distanceToPickup = dist);
     }
   }
 
-  /// Marshrutni yuklab, ovozni tayyorlab, GPS oqimiga ulanadi.
+  /// Marshrutni yuklab, ovozni tayyorlaydi. Marshrut kelmasa
+  /// [TurnByTurnGuidance] keyingi ping'larda o'zi qayta so'raydi.
   Future<void> _startGuidance() async {
-    if (!mounted) return;
+    if (!mounted || _guidanceStarted) return;
     final order = context.read<DriverProvider>().activeOrder;
     if (order == null) return;
+    _guidanceStarted = true;
 
     final destination = _nextDestination(order);
     await _guidance.start(_currentLocation, LatLng(destination.lat, destination.lng));
-    if (!mounted) return;
-    _listenToPosition();
   }
 
   /// GPS oqimini navigatsiyaga ulaydi.
@@ -165,11 +187,18 @@ class _NavigationScreenState extends State<NavigationScreen> {
   }
 
   /// Bitta GPS ping'i.
+  ///
+  /// Marshrut bo'lmasa ham mashina va kamera yuradi — ilgari bu yerdagi
+  /// `!hasRoute` sharti OSRM xatosida butun ekranni muzlatardi.
   void _onPosition(Position position) {
-    if (!mounted || !_guidance.hasRoute) return;
+    if (!mounted) return;
     final here = LatLng(position.latitude, position.longitude);
-    _location.value = here;
-    _guidance.onPosition(here);
+    _applyFix(here);
+    if (_guidanceStarted) {
+      _guidance.onPosition(here);
+    } else {
+      _startGuidance();
+    }
 
     _followingDriver = true;
     _followDriver();
@@ -393,7 +422,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
       onMapCreated: _onMapCreated,
       // O'z mashinasi — silliq suriladi va yo'nalish bo'yicha buriladi
       // (statik marker har GPS'da "sakrardi").
-      carLocation: _currentLocation,
+      carLocation: _hasFix ? _currentLocation : null,
       markers: markers,
       // Haqiqiy yo'l chizig'i — to'g'ri chiziq emas.
       route: _guidance.routePoints,

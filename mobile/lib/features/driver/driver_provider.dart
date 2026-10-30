@@ -111,6 +111,17 @@ class DriverProvider extends ChangeNotifier {
   double _todayEarnings = 0;
   bool _isOnline = false;
   StreamSubscription<Position>? _locationSubscription;
+
+  /// Turgan haydovchi uchun "yurak urishi". GPS oqimi masofa filtri bilan
+  /// ishlaydi: mashina joyidan qo'zg'almasa (yo'lovchini kutish, svetofor)
+  /// fiks KELMAYDI va [LocationPingGate] yuboradigan narsa topmaydi —
+  /// yo'lovchi ekranida mashina yo'qolardi. Taymer davri ichida yangi fiks
+  /// kelmagan bo'lsa, oxirgisini qayta yuboradi.
+  Timer? _heartbeatTimer;
+
+  /// Oxirgi yurak urishidan beri GPS fiks kelganmi — kelgan bo'lsa, ritmni
+  /// [LocationPingGate] o'zi boshqaradi va taymer aralashmaydi.
+  bool _fixSinceHeartbeat = false;
   List<DriverDocument> _documents = [];
   final Map<DriverDocumentType, DriverDocumentUploadState>
       _documentUploadStates = {};
@@ -927,6 +938,7 @@ class DriverProvider extends ChangeNotifier {
     )
         .listen((position) {
       _livePosition.value = position;
+      _fixSinceHeartbeat = true;
       // Masofa filtri o'zi yetarli emas — tirbandlikda mashina 10 m
       // yurmaydi va marker yo'lovchi ekranida muzlab qoladi.
       if (_pingGate.shouldEmit(
@@ -936,11 +948,27 @@ class DriverProvider extends ChangeNotifier {
         _emitLocation(position);
       }
     });
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = Timer.periodic(
+      AppConfig.locationIdlePingInterval,
+      (_) => _emitHeartbeat(),
+    );
+  }
+
+  void _emitHeartbeat() {
+    final position = _livePosition.value;
+    if (_fixSinceHeartbeat || position == null) {
+      _fixSinceHeartbeat = false;
+      return;
+    }
+    _emitLocation(position);
   }
 
   void _stopLocationUpdates() {
     _locationSubscription?.cancel();
     _locationSubscription = null;
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
     _pingGate.reset();
   }
 

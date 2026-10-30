@@ -38,6 +38,14 @@ class TurnByTurnGuidance extends ChangeNotifier {
   bool _rerouting = false;
   bool _disposed = false;
 
+  /// Oxirgi marshrut so'rovi vaqti — qayta urinishlarni siyraklash uchun.
+  DateTime? _lastLoadAt;
+
+  /// Marshrut kelmagan bo'lsa (OSRM xatosi, tarmoq) shuncha vaqtda bir
+  /// qayta so'raladi. Ilgari birinchi urinish yiqilsa navigatsiya butun
+  /// safar marshrutsiz qolardi.
+  static const Duration routeRetryInterval = Duration(seconds: 15);
+
   /// Xaritadagi marshrut chizig'i (yuklanmaguncha bo'sh).
   List<LatLng> get routePoints => _routePoints;
 
@@ -63,6 +71,7 @@ class TurnByTurnGuidance extends ChangeNotifier {
   Future<void> _load(LatLng from) async {
     final to = _destination;
     if (to == null) return;
+    _lastLoadAt = _clock();
     final route = await _routes.getRoute(from, to, waypoints: _waypoints);
     if (_disposed || route == null) return;
     _routePoints = route.points;
@@ -79,8 +88,12 @@ class TurnByTurnGuidance extends ChangeNotifier {
 
   /// Bitta GPS ping'i.
   void onPosition(LatLng here) {
+    if (_disposed) return;
     final engine = _engine;
-    if (engine == null || _disposed) return;
+    if (engine == null) {
+      _retryLoad(here);
+      return;
+    }
 
     // Navbatdagi bekatga yetildi — qayta qurishda u endi kiritilmaydi.
     if (_waypoints.isNotEmpty &&
@@ -103,6 +116,20 @@ class TurnByTurnGuidance extends ChangeNotifier {
       _voice.speak(announcement.text, clips: announcement.clips);
     }
     _notify();
+  }
+
+  /// Marshrut hali yo'q — joriy joydan jimgina qayta so'raladi ("qayta
+  /// quryapman" degan ovozsiz: haydovchi hech qayerdan chetga chiqmagan).
+  Future<void> _retryLoad(LatLng here) async {
+    final last = _lastLoadAt;
+    if (_rerouting || _destination == null) return;
+    if (last != null && _clock().difference(last) < routeRetryInterval) return;
+    _rerouting = true;
+    try {
+      await _load(here);
+    } finally {
+      _rerouting = false;
+    }
   }
 
   Future<void> _reroute(LatLng here) async {

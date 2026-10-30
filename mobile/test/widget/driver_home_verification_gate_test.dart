@@ -159,6 +159,13 @@ void main() {
   late DriverProvider driverProvider;
   var offerScreensOpened = 0;
 
+  /// Onlayn haydovchining joylashuv "yurak urishi" davriy taymer — test
+  /// oxirida ekran yechilib, provayder yopilmasa taymer osilib qoladi.
+  Future<void> leaveOnline(WidgetTester tester) async {
+    await tester.pumpWidget(const SizedBox());
+    driverProvider.dispose();
+  }
+
   Future<void> pumpHome(WidgetTester tester, {ReadinessChecker? readiness}) async {
     locationService = _FakeLocationService();
     offerScreensOpened = 0;
@@ -401,6 +408,7 @@ void main() {
       await tester.tap(goOnline);
       await pumpUntilQuiet(tester);
       verify(() => mockApiClient.patch(ApiEndpoints.driverStatus, data: any(named: 'data'))).called(1);
+      await leaveOnline(tester);
     });
 
     testWidgets('hammasi joyida — oyna ko\'rinmaydi, oqim fon xizmati bilan ochiladi',
@@ -417,6 +425,7 @@ void main() {
       expect(locationService.lastBackground, isNotNull,
           reason: 'onlayn haydovchi joylashuvi fonda ham yuborilishi kerak');
       expect(locationService.lastBackground!.title, contains('onlayn'));
+      await leaveOnline(tester);
     });
   });
 
