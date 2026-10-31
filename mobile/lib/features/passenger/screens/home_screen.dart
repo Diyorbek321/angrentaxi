@@ -56,7 +56,8 @@ class PassengerHomeScreen extends StatefulWidget {
   State<PassengerHomeScreen> createState() => _PassengerHomeScreenState();
 }
 
-class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
+class _PassengerHomeScreenState extends State<PassengerHomeScreen>
+    with WidgetsBindingObserver {
   ml.MapLibreMapController? _mapController;
   LatLng _currentLocation = const LatLng(
     AppConfig.defaultLat,
@@ -76,6 +77,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initLocation();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<OrderProvider>().checkActiveOrder();
@@ -89,6 +91,22 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
       context.read<OrderProvider>().loadCities();
       context.read<FavoritesProvider>().loadFavorites();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Fondan qaytganda buyurtma holati DARHOL serverdan olinadi: fonda
+  /// so'rov to'xtaydi va socket hodisalari yo'qoladi, keyingi tikgacha
+  /// (10 s gacha) yo'lovchi eskirgan "qidirilmoqda" ni ko'rardi.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      context.read<OrderProvider>().refreshOnResume();
+    }
   }
 
   Future<void> _initLocation() async {
@@ -256,11 +274,24 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
       order: orderProvider.activeOrder!,
       driverLocation: orderProvider.driverLocationListenable,
       isBusy: orderProvider.state == OrderProviderState.loading,
-      onCancel: (reason) => orderProvider.cancelOrder(reason: reason),
+      onCancel: (reason) => _cancelActiveOrder(orderProvider, reason),
       // Dangasa: `ActiveOrderView` uni faqat SOS bosilganda quradi.
       sosService: widget.sosService,
       fallbackLocation: _currentLocation,
       topBar: _buildTopBar(),
+    );
+  }
+
+  Future<void> _cancelActiveOrder(OrderProvider orderProvider, String? reason) async {
+    final ok = await orderProvider.cancelOrder(reason: reason);
+    if (ok || !mounted) return;
+    final message = orderProvider.error;
+    orderProvider.clearError();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message ?? context.l10n.paxGenericError),
+        backgroundColor: kErrorDeep,
+      ),
     );
   }
 

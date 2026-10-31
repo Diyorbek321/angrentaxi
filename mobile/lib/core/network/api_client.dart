@@ -304,7 +304,10 @@ String extractErrorMessage(dynamic error) {
       final message = _messageText(data['message']) ?? _messageText(data['error']);
       return message ?? AppL10n.current.shErrorGeneric;
     }
+    // `sendTimeout` ham — sekin mobil tarmoqda buyurtma so'rovi aynan
+    // yuborish bosqichida qotadi; ilgari "noma'lum xato" chiqardi.
     if (error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.sendTimeout ||
         error.type == DioExceptionType.receiveTimeout) {
       return AppL10n.current.shErrorTimeout;
     }

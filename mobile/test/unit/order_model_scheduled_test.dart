@@ -26,7 +26,9 @@ void main() {
     });
 
     test('mavjud qiymatlar o\'zgarmadi', () {
-      expect(orderStatusFromString('created'), OrderStatus.pending);
+      // 2026-10-31: `created` — qidiruv boshlanayotgan buyurtma, yo'lovchi
+      // uchun "qidirilmoqda" (order_provider_dispatch_chain_test.dart).
+      expect(orderStatusFromString('created'), OrderStatus.searching);
       expect(orderStatusFromString('searching'), OrderStatus.searching);
       expect(orderStatusFromString('cancelled'), OrderStatus.cancelled);
     });
@@ -56,7 +58,7 @@ void main() {
       final order = Order.fromJson(orderJson(status: 'created'));
 
       expect(order.scheduledAt, isNull);
-      expect(order.status, OrderStatus.pending);
+      expect(order.status, OrderStatus.searching);
     });
   });
 

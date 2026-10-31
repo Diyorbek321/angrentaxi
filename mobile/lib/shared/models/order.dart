@@ -46,6 +46,9 @@ extension OrderStatusExtension on OrderStatus {
   }
 }
 
+/// Backend `NO_DRIVERS_CANCEL_REASON` bilan aynan bir xil bo'lishi shart.
+const String kNoDriversCancelReason = 'No drivers available';
+
 // Backend's actual OrderStatus enum values (order.entity.ts) are
 // created/searching/accepted/arrived/in_progress/completed/cancelled — there
 // is no 'pending', 'driver_assigned', or 'driver_arrived' on the wire. Map
@@ -54,8 +57,13 @@ OrderStatus orderStatusFromString(String status) {
   switch (status) {
     case 'scheduled':
       return OrderStatus.scheduled;
+    // ⚠️ `created` = server buyurtmani yozdi va qidiruvni HOZIR boshlaydi
+    // (`startSearch` javobdan keyin ishga tushadi). Yo'lovchi uchun bu
+    // allaqachon "haydovchi izlanmoqda". Ilgari `pending` ga tushardi —
+    // u faol hisoblanmagani uchun `POST /orders` javobidan keyin holat
+    // tekshirilmas, kuzatuv ekrani ochilmay qolishi mumkin edi.
     case 'created':
-      return OrderStatus.pending;
+      return OrderStatus.searching;
     case 'searching':
       return OrderStatus.searching;
     case 'accepted':
@@ -256,6 +264,11 @@ class Order extends Equatable {
   final String? tariffId;
   final DateTime? completedAt;
   final String? cancelReason;
+
+  /// Server "haydovchi topilmadi" deb bekor qilgan
+  /// (`NO_DRIVERS_CANCEL_REASON`, backend matching.constants.ts).
+  bool get isNoDriversCancel =>
+      status == OrderStatus.cancelled && cancelReason == kNoDriversCancelReason;
   final double? distanceKm;
   final int? durationMin;
 

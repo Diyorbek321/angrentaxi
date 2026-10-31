@@ -176,6 +176,11 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
   bool _payingByCard = false;
   bool _routeLoading = false;
 
+  /// Buyurtma tugmasi bosilgan va natija hali shu ekran ichida qayta
+  /// ishlanmoqda — [_onOrderRecovered] aralashmasin (karta to'lovi oqimi).
+  bool _submitting = false;
+  OrderProvider? _orders;
+
   ml.MapLibreMapController? _mapController;
 
   /// Sheet kontentining balandligini o'lchash uchun — kamera paddingi
@@ -214,6 +219,7 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<OrderProvider>();
+      _orders = provider..addListener(_onOrderRecovered);
       // `OrderProvider.error` UMUMIY maydon: tarix yuklanmagani yoki oldingi
       // bekor qilish xatosi ham shu yerda qoladi. Tozalanmasa yo'lovchi bu
       // ekranga hech narsa bosmay turib "Noma'lum xatolik yuz berdi" ni
@@ -290,6 +296,23 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
   Future<void> _askNotificationsOnce() =>
       PushNotifications.instance.ensurePermission();
 
+  @override
+  void dispose() {
+    _orders?.removeListener(_onOrderRecovered);
+    super.dispose();
+  }
+
+  /// Javobsiz qolgan buyurtma (timeout) server tomonda yaratilgan bo'lib
+  /// chiqsa, provider uni tiklaydi — yo'lovchi xato ko'rgan shu ekranda
+  /// qolib ketmasin, kuzatuv ekraniga o'tkaziladi. Ilgari qidiruv yashirin
+  /// davom etar, haydovchi esa ko'rinmas yo'lovchiga yo'lga chiqardi.
+  void _onOrderRecovered() {
+    if (_submitting || !mounted) return;
+    if (!(_orders?.hasActiveOrder ?? false)) return;
+    _orders?.removeListener(_onOrderRecovered);
+    Navigator.of(context).pushNamedAndRemoveUntil('/passenger/home', (_) => false);
+  }
+
   Future<void> _onConfirmOrder() async {
     final provider = context.read<OrderProvider>();
     if (provider.selectedTariff == null && provider.tariffs.isNotEmpty) {
@@ -298,9 +321,13 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
     // `createOrder` muvaffaqiyatda tanlovni tozalaydi, shuning uchun
     // shoxlanish qarori UNDAN OLDIN olinadi.
     final wasScheduled = provider.isScheduledBooking;
+    _submitting = true;
     final success = await provider.createOrder();
     if (!mounted) return;
-    if (!success) return;
+    if (!success) {
+      _submitting = false;
+      return;
+    }
 
     // Bildirishnoma ruxsati AYNAN SHU YERDA — yo'lovchi hozirgina buyurtma
     // berdi va "haydovchi topildi/keldi" xabarini kutadi. Ilova ochilishida
