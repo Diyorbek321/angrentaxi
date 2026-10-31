@@ -13,6 +13,9 @@ import android.view.WindowManager
 class MainActivity : FlutterActivity() {
     private var pushChannel: MethodChannel? = null
 
+    /** Ilova taklif uchun qulf ustida ko'rsatilyaptimi ([releaseLockScreen]). */
+    private var shownOverLock = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         showOverLockScreenIfOffer(intent)
@@ -44,6 +47,7 @@ class MainActivity : FlutterActivity() {
     private fun showOverLockScreenIfOffer(intent: Intent?) {
         if (intent?.getBooleanExtra(DriverOverlay.EXTRA_OFFER_ALERT, false) != true) return
         intent.removeExtra(DriverOverlay.EXTRA_OFFER_ALERT)
+        shownOverLock = true
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
@@ -62,6 +66,11 @@ class MainActivity : FlutterActivity() {
      * etadi); bekor qilinsa — ilova qulf ostiga qaytadi.
      */
     private fun releaseLockScreen() {
+        // Faqat O'ZIMIZ qulf ustiga chiqqan bo'lsak. Dart buni taklif topilmagan
+        // har holatda chaqira oladi (push bosildi, lekin taklif allaqachon
+        // tugagan) — bayroqsiz oddiy qulflangan telefonda qulf ochish so'ralardi.
+        if (!shownOverLock) return
+        shownOverLock = false
         val keyguard = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
         val clear = {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
@@ -120,8 +129,15 @@ class MainActivity : FlutterActivity() {
                             call.argument<String>("text") ?: "",
                             call.argument<String>("channel") ?: "",
                             call.argument<String>("offerId"),
+                            // Dart taklifning QOLGAN umrini beradi; eski
+                            // chaqiruvlarda yo'q — standart 30 s.
+                            call.argument<Number>("timeoutMs")?.toLong()
+                                ?.takeIf { it > 0 } ?: DriverOverlay.DEFAULT_OFFER_TIMEOUT_MS,
                         )
                         result.success(null)
+                    }
+                    "playOfferSound" -> {
+                        DriverOverlay.playOfferSound(ctx); result.success(null)
                     }
                     "cancelOfferNotification" -> {
                         DriverOverlay.cancelOfferNotification(ctx); result.success(null)

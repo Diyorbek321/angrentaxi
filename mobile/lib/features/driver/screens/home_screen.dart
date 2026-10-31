@@ -83,6 +83,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
 
   /// Taklif ekrani ochilgan oxirgi buyurtma — [_onDriverProviderChanged].
   String? _offerShownFor;
+  bool _offerRouteOpen = false;
   LatLng _currentLocation = const LatLng(
     AppConfig.defaultLat,
     AppConfig.defaultLng,
@@ -141,13 +142,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     // "Qabul qilish" bosilganda `loading` holati). Har xabarda ekran ochilsa,
     // bitta taklif ustma-ust bir necha marta ochilardi — shuning uchun har
     // taklif uchun faqat BIR MARTA.
-    final offer = driver.pendingOffer;
-    if (offer == null) {
-      _offerShownFor = null;
-    } else if (offer.id != _offerShownFor && mounted) {
-      _offerShownFor = offer.id;
-      Navigator.of(context).pushNamed('/driver/offer');
-    }
+    _maybeShowOffer(driver);
+    // Taklif ekrani ochiq — "qabul" xatosini U O'ZI ko'rsatadi. Bu yerda
+    // tozalansa, u umumiy "qabul bo'lmadi" ni ko'rsatardi (ikki snackbar).
+    // Huquqiy blok bundan mustasno — sabablar oynasini faqat bosh ekran ochadi.
+    if (_offerRouteOpen && driver.errorKind != DriverErrorKind.legalBlocked) return;
     // Surfaces goOnline/goOffline failures — critically the "balance is
     // negative" block, which the driver otherwise has no way to see.
     if (driver.state == DriverProviderState.error &&
@@ -190,6 +189,26 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
         ),
       );
     }
+  }
+
+  /// Taklif ekrani bir vaqtda BITTA. Ochiq ekran yangi taklifga o'zi
+  /// qayta bog'lanadi; ilgari ikkinchi ekran ustiga ochilar va birinchisining
+  /// taymeri ikkinchi taklifni muddatidan oldin rad etardi. Ekran yopilganda
+  /// hal bo'lmagan taklif qolgan bo'lsa (masalan rad etish paytida yangisi
+  /// keldi) — qayta ochiladi.
+  void _maybeShowOffer(DriverProvider driver) {
+    final offer = driver.pendingOffer;
+    if (offer == null) {
+      _offerShownFor = null;
+      return;
+    }
+    if (_offerRouteOpen || offer.id == _offerShownFor || !mounted) return;
+    _offerShownFor = offer.id;
+    _offerRouteOpen = true;
+    Navigator.of(context).pushNamed('/driver/offer').whenComplete(() {
+      _offerRouteOpen = false;
+      if (mounted) _maybeShowOffer(context.read<DriverProvider>());
+    });
   }
 
   /// Huquqiy darvoza rad etdi: sabablarni RO'YXAT qilib ko'rsatamiz.

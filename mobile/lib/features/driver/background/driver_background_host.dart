@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:angren_taxi/core/platform/driver_overlay.dart';
 import 'package:angren_taxi/features/driver/background/driver_background_bridge.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
@@ -27,6 +29,7 @@ class _DriverBackgroundHostState extends State<DriverBackgroundHost> with Widget
     overlay: widget.overlay,
     isOnline: () => _driver.isOnline,
     pendingOffer: () => _driver.pendingOffer,
+    offerTimeLeft: () => _driver.offerTimeLeft,
     noticeFor: (offer) {
       final l10n = AppL10n.current;
       final price = offer.isMetered
@@ -45,6 +48,24 @@ class _DriverBackgroundHostState extends State<DriverBackgroundHost> with Widget
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _driver.addListener(_bridge.onDriverChanged);
+    // Sovuq start jiringlagan taklif bildirishnomasidan: ilova qulf USTIDA
+    // ochilgan, lekin taklif allaqachon tugagan bo'lishi mumkin. Tiklash
+    // so'roviga vaqt beriladi; taklif topilmasa qulf ustidan chiqiladi —
+    // aks holda hamyon va profil qulfni ochmasdan ochiq qolardi.
+    _coldStartLockCheck = Timer(coldStartLockCheckDelay, _releaseLockIfNoOffer);
+  }
+
+  /// Sovuq startda qulf tekshiruvi kechikishi (testlarda qisqartiriladi).
+  @visibleForTesting
+  static Duration coldStartLockCheckDelay = const Duration(seconds: 8);
+
+  Timer? _coldStartLockCheck;
+
+  /// Taklif yo'q — qulf ustida ko'rsatish to'xtaydi. Native tomon buni faqat
+  /// ilova taklif uchun qulf ustiga chiqqan bo'lsa bajaradi (aks holda jim).
+  void _releaseLockIfNoOffer() {
+    if (!mounted || _driver.pendingOffer != null) return;
+    widget.overlay.releaseLockScreen();
   }
 
   @override
@@ -55,12 +76,17 @@ class _DriverBackgroundHostState extends State<DriverBackgroundHost> with Widget
     if (state == AppLifecycleState.resumed) {
       // Faol safar oflayn rejimda ham davom etadi — holat har doim tiklanadi.
       _driver.resyncActiveTrip();
-      if (_driver.isOnline) _driver.resyncPendingOffer();
+      if (_driver.isOnline) {
+        _driver.resyncPendingOffer().whenComplete(_releaseLockIfNoOffer);
+      } else {
+        _releaseLockIfNoOffer();
+      }
     }
   }
 
   @override
   void dispose() {
+    _coldStartLockCheck?.cancel();
     _driver.removeListener(_bridge.onDriverChanged);
     WidgetsBinding.instance.removeObserver(this);
     widget.overlay.hideBubble();

@@ -308,6 +308,8 @@ class SocketEvents {
   // Driver receives
   static const String newOrderOffer = 'new_order_offer';
   static const String orderCancelled = 'order:cancelled';
+  // Server taklif muddatini tugatdi `{orderId}` (matching.service offerTimeout).
+  static const String offerExpired = 'order:offer_expired';
 
   // Hamyon balansi o'zgardi (to'ldirish, qaytarim, qo'lda tuzatish, ...) —
   // `{ balance, delta, reason, topupId?|auditLogId?|shiftPassId?|vendorOrderId? }`

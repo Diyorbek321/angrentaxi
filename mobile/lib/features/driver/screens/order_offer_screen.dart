@@ -4,6 +4,7 @@ import 'package:angren_taxi/core/config/app_haptics.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
+import 'package:angren_taxi/core/platform/driver_overlay.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/driver/legal/legal_rejection.dart';
 import 'package:angren_taxi/features/driver/service_wording.dart';
@@ -18,7 +19,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 class OrderOfferScreen extends StatefulWidget {
-  const OrderOfferScreen({super.key});
+  const OrderOfferScreen({super.key, this.overlay = const DriverOverlay()});
+
+  /// Ovoz signali uchun (testlarda soxta).
+  final DriverOverlay overlay;
 
   @override
   State<OrderOfferScreen> createState() => _OrderOfferScreenState();
@@ -36,26 +40,24 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
   /// [_leave] ga qarang.
   bool _leaving = false;
 
+  /// Ekran HOZIR ko'rsatayotgan taklif. Ekran ochiq turganda yangi taklif
+  /// kelsa (oldingisi tugagan), hisoblagich unga qayta bog'lanadi — ilgari
+  /// birinchi taklifning taymeri ikkinchisini muddatidan oldin rad etardi.
+  String? _offerId;
+
+  /// "Qabul qilish" bosildi va javob kutilmoqda — ikkinchi bosish e'tiborsiz.
+  bool _accepting = false;
+
+  DriverProvider get _provider => context.read<DriverProvider>();
+
   @override
   void initState() {
     super.initState();
-    // Qayta ulanganda tiklangan taklifda server QOLGAN soniyalarni beradi —
-    // hisoblagich undan boshlanadi (aks holda 8 s qolganda "15" ko'rinardi).
-    final full = AppConfig.orderOfferTimeout.inSeconds;
-    final left = context.read<DriverProvider>().pendingOffer?.offerTimeoutSeconds;
-    _secondsLeft = (left == null || left <= 0 || left > full) ? full : left;
-
     _progressController = AnimationController(
       vsync: this,
       duration: AppConfig.orderOfferTimeout,
-    )..forward(from: 1 - _secondsLeft / full);
-
-    // Buyurtma taklifi keldi — haydovchi telefonga qaramayotgan bo'lishi
-    // mumkin (yo'lda, cho'ntakda). Bu ilovadagi eng kuchli haptik signal
-    // bo'lishi kerak, chunki taklif vaqt bilan chegaralangan.
-    AppHaptics.heavy();
-
-    _startCountdown();
+    );
+    _bindToOffer(_provider.pendingOffer);
     _calculateDistance();
   }
 
@@ -66,18 +68,62 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
     super.dispose();
   }
 
+  /// Hisoblagichni [offer] ga bog'laydi va signal beradi.
+  void _bindToOffer(Order? offer) {
+    _offerId = offer?.id;
+    if (offer == null) return;
+    _syncCountdown();
+    // Buyurtma taklifi keldi — haydovchi telefonga qaramayotgan bo'lishi
+    // mumkin (yo'lda, cho'ntakda). Bu ilovadagi eng kuchli haptik signal
+    // bo'lishi kerak, chunki taklif vaqt bilan chegaralangan.
+    AppHaptics.heavy();
+    // Ilova EKRANDA bo'lsa ovoz ham (fonda fon bildirishnomasi jiringlaydi).
+    // Ilgari faqat vibratsiya edi — ushlagichdagi telefonda sezilmasdi.
+    if (!_inBackground(WidgetsBinding.instance.lifecycleState)) {
+      unawaited(widget.overlay.playOfferSound());
+    }
+    _startCountdown();
+  }
+
+  /// Fonda — u holda jiringlovchi bildirishnoma `DriverBackgroundBridge`
+  /// dan chiqadi, ikkinchi ovoz kerak emas. `null` (holat hali noma'lum) —
+  /// ekranda deb hisoblanadi: jim qolishdan ortiqcha ovoz yaxshiroq.
+  static bool _inBackground(AppLifecycleState? state) =>
+      state == AppLifecycleState.paused ||
+      state == AppLifecycleState.hidden ||
+      state == AppLifecycleState.detached;
+
+  /// Qolgan vaqt PROVIDER muddatidan olinadi (taklif kelgan paytdan) —
+  /// mahalliy kamaytiruvchi hisoblagich emas. Ekran fonda kech qurilsa yoki
+  /// taymer qabul paytida to'xtab qolsa ham ko'rsatkich haqiqiy bo'ladi.
+  void _syncCountdown() {
+    const full = AppConfig.orderOfferTimeout;
+    final left = _provider.offerTimeLeft;
+    _secondsLeft = (left.inMilliseconds / 1000).ceil();
+    _progressController.forward(
+      from: 1 - left.inMilliseconds / full.inMilliseconds,
+    );
+  }
+
   void _startCountdown() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_secondsLeft <= 0) {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(milliseconds: 250), (timer) {
+      if (!mounted) {
         timer.cancel();
-        if (mounted) _autoDecline();
         return;
       }
-      if (mounted) {
-        setState(() => _secondsLeft--);
+      final before = _secondsLeft;
+      final seconds = (_provider.offerTimeLeft.inMilliseconds / 1000).ceil();
+      if (seconds <= 0) {
+        timer.cancel();
+        _autoDecline();
+        return;
+      }
+      if (seconds != before) {
+        setState(() => _secondsLeft = seconds);
         // Oxirgi 5 soniyada har soniyada yengil "tik" — vaqt tugayotgani
         // ekranga qaramasdan ham seziladi.
-        if (_secondsLeft <= 5 && _secondsLeft > 0) AppHaptics.select();
+        if (seconds <= 5) AppHaptics.select();
       }
     });
   }
@@ -107,10 +153,12 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
   /// degan ekran — jazo, va uni yopish uchun yana bir teginish talab
   /// qilinadi. Ekran shunchaki yopiladi, haydovchi bosh ekranga qaytadi.
   void _autoDecline() {
-    final provider = context.read<DriverProvider>();
-    final offer = provider.pendingOffer;
-    if (offer != null) {
-      provider.declineOrder(offer.id);
+    final provider = _provider;
+    // Faqat SHU ekran ko'rsatgan taklif — orada yangisi kelgan bo'lsa
+    // unga tegilmaydi.
+    final offerId = _offerId;
+    if (offerId != null && provider.pendingOffer?.id == offerId) {
+      provider.declineOrder(offerId);
     }
     _leave();
   }
@@ -135,39 +183,61 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
   }
 
   Future<void> _onAccept(Order offer) async {
+    if (_accepting) return;
+    _accepting = true;
     _timer?.cancel();
     // Qabul so'rovi tugaganda `pendingOffer` tozalanadi — bu ekran o'shanda
     // o'zini yopmasligi kerak, uni navigatsiya almashtiradi.
     _leaving = true;
-    final provider = context.read<DriverProvider>();
+    final provider = _provider;
     await provider.acceptOrder(offer.id);
+    _accepting = false;
 
     if (!mounted) return;
     if (provider.state == DriverProviderState.success) {
       AppHaptics.success();
       Navigator.of(context).pushReplacementNamed('/driver/navigation');
-    } else {
-      // Qabul o'tmadi — ekran yana o'z holatiga qaraydi (taklif boshqa
-      // haydovchiga ketgan bo'lsa yopiladi).
-      _leaving = false;
-      AppHaptics.error();
-      final message = provider.error ?? context.l10n.drvAcceptFailed;
-      // Hamyon rejimi (e-tijorat qonuni, 23-modda): naqd ovqat/market
-      // buyurtmasida tovar puli do'konga hamyondan o'tadi. Yetmasa —
-      // umumiy xato emas, aniq tushuntirish va "To'ldirish" tugmasi.
-      if (provider.errorKind == DriverErrorKind.vendorWalletInsufficient) {
-        final amounts = codedErrorAmountsText(provider.errorDetails);
-        provider.clearError();
-        await showVendorWalletInsufficientDialog(
-          context,
-          message,
-          amounts: amounts,
-        );
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
+      return;
+    }
+    // Qabul o'tmadi — ekran yana o'z holatiga qaraydi (taklif boshqa
+    // haydovchiga ketgan bo'lsa yopiladi).
+    _leaving = false;
+    AppHaptics.error();
+    final message = provider.error ?? context.l10n.drvAcceptFailed;
+    // Hamyon rejimi (e-tijorat qonuni, 23-modda): naqd ovqat/market
+    // buyurtmasida tovar puli do'konga hamyondan o'tadi. Yetmasa —
+    // umumiy xato emas, aniq tushuntirish va "To'ldirish" tugmasi.
+    if (provider.errorKind == DriverErrorKind.vendorWalletInsufficient) {
+      final amounts = codedErrorAmountsText(provider.errorDetails);
+      provider.clearError();
+      await showVendorWalletInsufficientDialog(
+        context,
+        message,
+        amounts: amounts,
       );
+      return;
+    }
+    // Huquqiy blok — bosh ekran sabablar ro'yxati bilan oyna ochadi (u
+    // xatoni o'zi tozalaydi); bu yerda takroriy snackbar kerak emas.
+    if (provider.errorKind == DriverErrorKind.legalBlocked || provider.error == null) {
+      return;
+    }
+    // Boshqa xatoni SHU ekran ko'rsatadi (bosh ekran taklif ochiq paytda
+    // jim turadi) — ikki marta, bittasi umumiy matn bilan, chiqmaydi.
+    provider.clearError();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+    // Tarmoq xatosi — taklif hali bu haydovchiniki: hisoblagich QAYTA
+    // yuradi (ilgari to'xtab, ekran abadiy "7 s" da qotib qolardi).
+    // Vaqt allaqachon tugagan bo'lsa ekran yopiladi.
+    if (provider.pendingOffer?.id == offer.id) {
+      if (provider.offerTimeLeft > Duration.zero) {
+        _syncCountdown();
+        _startCountdown();
+      } else {
+        _leave();
+      }
     }
   }
 
@@ -183,6 +253,14 @@ class _OrderOfferScreenState extends State<OrderOfferScreen>
     return Consumer<DriverProvider>(
       builder: (context, provider, _) {
         final offer = provider.pendingOffer;
+        if (offer != null && offer.id != _offerId && !_leaving) {
+          // Ekran ochiq turganda yangi taklif keldi — hisoblagich unga.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && provider.pendingOffer?.id != _offerId) {
+              setState(() => _bindToOffer(provider.pendingOffer));
+            }
+          });
+        }
         if (offer == null) {
           // Taklif bekor qilindi yoki boshqa haydovchiga ketdi. Ekran o'zi
           // chiqib ketayotgan bo'lsa (qabul qilindi) — tegilmaydi.

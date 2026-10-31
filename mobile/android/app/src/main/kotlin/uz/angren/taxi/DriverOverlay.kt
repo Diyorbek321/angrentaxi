@@ -45,7 +45,10 @@ object DriverOverlay {
      * Taklif 15 s yashaydi (backend OFFER_TIMEOUT_MS). Odatda Dart uni bekor
      * qiladi; bu — zaxira: Dart o'lgan bo'lsa ham jiringlash 30 s da to'xtaydi.
      */
-    private const val OFFER_TIMEOUT_MS = 30_000L
+    const val DEFAULT_OFFER_TIMEOUT_MS = 30_000L
+
+    /** Server qanday raqam yubormasin, jiringlash bundan uzoq davom etmaydi. */
+    private const val MAX_OFFER_LIFETIME_MS = 60_000L
 
     /** MainActivity shu belgini ko'rsa, bloklangan ekran ustida ochiladi. */
     const val EXTRA_OFFER_ALERT = "uz.angren.taxi.OFFER_ALERT"
@@ -57,6 +60,8 @@ object DriverOverlay {
     /** Oxirgi e'lon qilingan taklif — socket va FCM bir taklifni ikki marta jiringlatmasin. */
     @Volatile
     private var lastOfferId: String? = null
+
+    private var offerSound: android.media.Ringtone? = null
 
     private var bubble: View? = null
     private var lastX = 0
@@ -197,7 +202,7 @@ object DriverOverlay {
         text: String,
         channelName: String,
         offerId: String? = null,
-        timeoutMs: Long = OFFER_TIMEOUT_MS,
+        timeoutMs: Long = DEFAULT_OFFER_TIMEOUT_MS,
     ) {
         if (offerId != null) {
             if (offerId == lastOfferId) return
@@ -243,7 +248,9 @@ object DriverOverlay {
                 .setDefaults(android.app.Notification.DEFAULT_ALL)
         }
         builder
-            .setSmallIcon(R.mipmap.ic_launcher)
+            // Monoxrom status-bar ikonasi: rangli launcher ikonasi Android 5+
+            // da oq kvadrat bo'lib chiqar, ba'zi OEM'lar bildirishnomani tashlardi.
+            .setSmallIcon(R.drawable.ic_stat_notification)
             .setContentTitle(title)
             .setContentText(text)
             .setCategory(android.app.Notification.CATEGORY_CALL)
@@ -269,11 +276,59 @@ object DriverOverlay {
      * ekranda bo'lsa — taklif ekrani o'zi ochiq; socket allaqachon e'lon
      * qilgan bo'lsa — takror yo'q; muddati o'tgan bo'lsa — kech kelgan push.
      */
-    fun shouldRingFromPush(offerId: String?, expiresAtMs: Long?, nowMs: Long): Boolean =
+    fun shouldRingFromPush(offerId: String?, remainingMs: Long?): Boolean =
         !appVisible &&
             !offerId.isNullOrEmpty() &&
             offerId != lastOfferId &&
-            (expiresAtMs == null || expiresAtMs > nowMs)
+            (remainingMs == null || remainingMs > 0)
+
+    /**
+     * Taklifning qolgan umri (ms), TELEFON SOATIGA bog'lanmasdan.
+     *
+     * ⚠️ Ilgari `expiresAt - System.currentTimeMillis()` edi: soati 15 s
+     * oldinda turgan telefon HAR taklifni "muddati o'tgan" deb jim tashlar,
+     * orqada turgani esa daqiqalab jiringlardi. Server endi o'z soatidagi
+     * yuborish vaqtini (`sentAt`) ham beradi — ikkalasi bir soatdan, farqi
+     * aniq umr. Kech kelgan push'ni FCM o'zi tashlaydi (TTL = taklif umri).
+     *
+     * Ma'lum cheklov: Doze tufayli kechikib YETKAZILGAN push to'liq umr
+     * jiringlaydi (kechikishni telefon soatisiz o'lchab bo'lmaydi). Taklif
+     * serverda tugagach, ilova ochilsa `order:offer_expired` / tiklash
+     * kartani baribir yopadi — ortiqcha bir necha soniya ovoz, jim qolish emas.
+     * Eski server (`sentAt` yo'q) uchun avvalgi hisob qoladi.
+     */
+    fun offerLifetimeMs(expiresAtMs: Long?, sentAtMs: Long?, nowMs: Long): Long? = when {
+        expiresAtMs == null -> null
+        sentAtMs != null -> (expiresAtMs - sentAtMs).coerceAtMost(MAX_OFFER_LIFETIME_MS)
+        else -> (expiresAtMs - nowMs).coerceAtMost(MAX_OFFER_LIFETIME_MS)
+    }
+
+    /**
+     * Ilova EKRANDA turganda kelgan taklif uchun qisqa ovoz. Ilgari faqat
+     * vibratsiya bor edi — telefon mashina ushlagichida tursa haydovchi
+     * taklifni sezmay qolardi. Bildirishnoma ovozi oqimida: telefon jim
+     * rejimda bo'lsa tizimning o'zi o'chiradi.
+     */
+    fun playOfferSound(context: Context) {
+        try {
+            val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION) ?: return
+            offerSound?.stop()
+            // Havola saqlanadi — aks holda GC ovozni yarmida uzib qo'yishi mumkin.
+            offerSound = RingtoneManager.getRingtone(context, uri)?.apply {
+                // Aniq setter (API 21): `audioAttributes =` xossasi getter
+                // bilan juftlanib (API 28) lint NewApi xatosini beradi.
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build(),
+                )
+                play()
+            }
+        } catch (_: Exception) {
+            // Ovoz yordamchi signal — yiqilishi taklif oqimini buzmasin.
+        }
+    }
 
     fun cancelOfferNotification(context: Context) {
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

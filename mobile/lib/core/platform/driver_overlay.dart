@@ -45,18 +45,26 @@ class DriverOverlay {
 
   /// [offerId] — native tomon shu taklifni data-only FCM orqali ham olsa
   /// (OfferPushReceiver), ikkinchi marta jiringlamaydi.
+  ///
+  /// [timeout] — taklifning QOLGAN umri: jiringlash shundan keyin o'zi
+  /// to'xtaydi (berilmasa native standart 30 s).
   Future<void> showOfferNotification({
     required String title,
     required String text,
     required String channel,
     String? offerId,
+    Duration? timeout,
   }) =>
       _call('showOfferNotification', {
         'title': title,
         'text': text,
         'channel': channel,
         'offerId': offerId,
+        if (timeout != null) 'timeoutMs': timeout.inMilliseconds,
       });
+
+  /// Ilova ekranda turganda kelgan taklif uchun qisqa ovoz.
+  Future<void> playOfferSound() => _call('playOfferSound');
 
   Future<void> cancelOfferNotification() => _call('cancelOfferNotification');
 

@@ -28,8 +28,13 @@ class _RecordingOverlay extends DriverOverlay {
     required String text,
     required String channel,
     String? offerId,
-  }) async =>
-      calls.add('notify:$text#$offerId');
+    Duration? timeout,
+  }) async {
+    calls.add('notify:$text#$offerId');
+    lastTimeout = timeout;
+  }
+
+  Duration? lastTimeout;
 
   @override
   Future<void> cancelOfferNotification() async => calls.add('cancelNotification');
@@ -63,7 +68,16 @@ void main() {
       isOnline: () => online,
       pendingOffer: () => offer,
       noticeFor: (o) => (title: 'Yangi buyurtma', text: o.pickup.address, channel: 'c'),
+      offerTimeLeft: () => const Duration(seconds: 11),
     );
+  });
+
+  test('ring lasts exactly the time the offer has left (not a fixed 30 s)', () async {
+    await bridge.onLifecycle(AppLifecycleState.paused);
+    offer = _offer('o-1');
+    await bridge.onDriverChanged();
+
+    expect(overlay.lastTimeout, const Duration(seconds: 11));
   });
 
   test('online driver leaves the app — floating button appears', () async {

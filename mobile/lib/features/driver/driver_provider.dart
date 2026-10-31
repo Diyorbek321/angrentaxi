@@ -26,7 +26,7 @@ import 'package:angren_taxi/shared/models/driver_verification.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/models/trip_option.dart';
 import 'package:angren_taxi/shared/models/withdrawal_request.dart';
-import 'package:dio/dio.dart' show MultipartFile, FormData;
+import 'package:dio/dio.dart' show DioException, FormData, MultipartFile;
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
@@ -79,10 +79,14 @@ class DriverProvider extends ChangeNotifier {
     required SocketService socketService,
     required LocationService locationService,
     required LocalStorage localStorage,
+    @visibleForTesting DateTime Function()? clock,
   })  : _apiClient = apiClient,
         _socketService = socketService,
         _locationService = locationService,
-        _localStorage = localStorage;
+        _localStorage = localStorage,
+        _clock = clock ?? DateTime.now;
+
+  final DateTime Function() _clock;
 
   final ApiClient _apiClient;
   final SocketService _socketService;
@@ -107,6 +111,20 @@ class DriverProvider extends ChangeNotifier {
   DriverOnboardingStatus _onboardingStatus = DriverOnboardingStatus.unknown;
   Order? _activeOrder;
   Order? _pendingOffer;
+
+  /// Taklif qachon tugaydi — QABUL QILINGAN paytdan (`timeoutSeconds`)
+  /// hisoblanadi, telefon soati server soati bilan solishtirilmaydi.
+  /// Taklif ekrani hisoblagichni shundan oladi: ekran fonda kech ochilsa
+  /// yoki taymer to'xtab qolsa ham haqiqiy qolgan vaqt ko'rsatiladi.
+  DateTime? _offerDeadline;
+
+  /// Har yangi taklifda oshadi — [resyncPendingOffer] javobi kelguncha
+  /// socket'dan yangi taklif kelgan bo'lsa, eski javob uni o'chirmasin.
+  int _offerSeq = 0;
+
+  /// "Qabul qilish" so'rovi ketyapti — ikkinchi bosish yangi so'rov yubormaydi.
+  bool _acceptInFlight = false;
+
   List<Order> _orderHistory = [];
   double _todayEarnings = 0;
   bool _isOnline = false;
@@ -184,6 +202,31 @@ class DriverProvider extends ChangeNotifier {
   DriverOnboardingStatus get onboardingStatus => _onboardingStatus;
   Order? get activeOrder => _activeOrder;
   Order? get pendingOffer => _pendingOffer;
+  DateTime? get offerDeadline => _offerDeadline;
+
+  /// Taklifning qolgan vaqti (manfiy emas). Taklif yo'q bo'lsa — nol.
+  Duration get offerTimeLeft {
+    final deadline = _offerDeadline;
+    if (deadline == null || _pendingOffer == null) return Duration.zero;
+    final left = deadline.difference(_clock());
+    return left.isNegative ? Duration.zero : left;
+  }
+
+  /// Taklif holatining YAGONA yozuvchisi — muddat bilan birga.
+  void _setOffer(Order? offer) {
+    // HAR o'zgarishda — tozalashda ham: qabul/bekor/muddat tugashidan keyin
+    // kelgan eski tiklash javobi hal bo'lgan taklifni qayta ochmasin.
+    _offerSeq++;
+    _pendingOffer = offer;
+    if (offer == null) {
+      _offerDeadline = null;
+      return;
+    }
+    final full = AppConfig.orderOfferTimeout.inSeconds;
+    final left = offer.offerTimeoutSeconds;
+    final seconds = (left == null || left <= 0 || left > full) ? full : left;
+    _offerDeadline = _clock().add(Duration(seconds: seconds));
+  }
   List<Order> get orderHistory => List.unmodifiable(_orderHistory);
   double get todayEarnings => _todayEarnings;
   bool get isOnline => _isOnline;
@@ -262,7 +305,7 @@ class DriverProvider extends ChangeNotifier {
 
   @visibleForTesting
   void debugSetPendingOfferForTest(Order offer) {
-    _pendingOffer = offer;
+    _setOffer(offer);
     notifyListeners();
   }
 
@@ -303,6 +346,11 @@ class DriverProvider extends ChangeNotifier {
     }
     _listenToSocketEvents();
     _socketService.addReconnectListener(_onSocketReconnected);
+    // ⚠️ SOVUQ START: ilova yopiq turganda taklif jiringladi va haydovchi
+    // bildirishnomani bosdi. Socket'ning birinchi ulanishi "qayta ulanish"
+    // hisoblanmaydi va fondan qaytish hodisasi ham bo'lmaydi — ilgari ilova
+    // bosh xaritada ochilar, taklif ekrani umuman chiqmasdi.
+    if (_isOnline) unawaited(resyncPendingOffer());
   }
 
   /// Socket qayta ulandi yoki ilova fondan qaytdi: uzilish paytida
@@ -343,13 +391,17 @@ class DriverProvider extends ChangeNotifier {
   /// hech narsa o'zgarmaydi (socket hodisasi baribir kelishi mumkin).
   Future<void> resyncPendingOffer() async {
     if (_activeOrder?.isActive ?? false) return;
+    final seqAtStart = _offerSeq;
     try {
       final response = await _apiClient.get(ApiEndpoints.currentOffer);
       final body = response.data;
       final data = body is Map<String, dynamic> ? body['data'] : null;
       final offer = data is Map<String, dynamic> ? Order.fromJson(data) : null;
+      // So'rov davomida taklif holati o'zgardi (yangi taklif, qabul, bekor)
+      // yoki safar boshlandi — javob eskirgan.
+      if (_offerSeq != seqAtStart || (_activeOrder?.isActive ?? false)) return;
       if (offer?.id == _pendingOffer?.id && offer != null) return;
-      _pendingOffer = offer;
+      _setOffer(offer);
       notifyListeners();
     } catch (e, st) {
       CrashReporting.reportHandled(e, st, 'DriverProvider.resyncPendingOffer');
@@ -734,13 +786,25 @@ class DriverProvider extends ChangeNotifier {
     _socketService.on(SocketEvents.newOrderOffer, _onNewOrderOffer);
     _socketService.on(SocketEvents.walletUpdated, _onWalletUpdated);
     _socketService.on(SocketEvents.orderCancelled, applyOrderCancelled);
+    _socketService.on(SocketEvents.offerExpired, applyOfferExpired);
   }
 
   void _onNewOrderOffer(dynamic data) {
     if (data is Map<String, dynamic>) {
-      _pendingOffer = Order.fromJson(data);
+      _setOffer(Order.fromJson(data));
       notifyListeners();
     }
+  }
+
+  /// `order:offer_expired {orderId}` — server muddatni tugatdi. Mahalliy
+  /// taymer to'xtagan / kech boshlangan bo'lsa ham karta yopiladi.
+  /// Faqat O'SHA taklif: yangi taklif kelgan bo'lsa unga tegilmaydi.
+  void applyOfferExpired(dynamic data) {
+    final raw = data is Map ? data['orderId'] : null;
+    final orderId = raw is String ? raw : null;
+    if (orderId == null || _pendingOffer?.id != orderId) return;
+    _setOffer(null);
+    notifyListeners();
   }
 
   /// `order:cancelled {orderId, reason}` — faqat O'SHA buyurtmaga tegadi.
@@ -756,7 +820,7 @@ class DriverProvider extends ChangeNotifier {
       _activeOrder = active.copyWith(status: OrderStatus.cancelled);
     }
     if (orderId == null || _pendingOffer?.id == orderId) {
-      _pendingOffer = null;
+      _setOffer(null);
     }
     notifyListeners();
   }
@@ -791,6 +855,10 @@ class DriverProvider extends ChangeNotifier {
   }
 
   Future<void> acceptOrder(String orderId) async {
+    // Ikki marta tez bosish: ikkinchi PATCH 409 olib, birinchisining
+    // muvaffaqiyatini "xato" holatiga almashtirib yuborardi.
+    if (_acceptInFlight) return;
+    _acceptInFlight = true;
     _setState(DriverProviderState.loading);
     try {
       final response = await _apiClient.patch(
@@ -798,7 +866,7 @@ class DriverProvider extends ChangeNotifier {
       );
       final data = response.data as Map<String, dynamic>;
       _activeOrder = Order.fromJson(data['data'] as Map<String, dynamic>);
-      _pendingOffer = null;
+      _setOffer(null);
       _setState(DriverProviderState.success);
     } catch (e) {
       _error = extractErrorMessage(e);
@@ -807,18 +875,26 @@ class DriverProvider extends ChangeNotifier {
       // 409/400 — taklif endi bu haydovchiniki emas (vaqti tugadi, boshqasi
       // oldi, bekor qilindi). Eskirgan kartani ekranda qoldirmaymiz.
       final status = _errorDetails?.statusCode;
-      if (status == 409 || status == 400) _pendingOffer = null;
+      if (status == 409 || status == 400) _setOffer(null);
       _setState(DriverProviderState.error);
+    } finally {
+      _acceptInFlight = false;
     }
   }
 
   Future<void> declineOrder(String orderId) async {
     try {
       await _apiClient.patch(ApiEndpoints.declineOrder(orderId));
-      _pendingOffer = null;
-      notifyListeners();
-    } catch (e) {
-      _pendingOffer = null;
+    } catch (e, st) {
+      // 4xx — odatiy (taklif allaqachon tugagan); faqat kutilmaganlari.
+      final status = e is DioException ? e.response?.statusCode : null;
+      if (status == null || status >= 500) {
+        CrashReporting.reportHandled(e, st, 'DriverProvider.declineOrder');
+      }
+    }
+    // Rad etish paytida YANGI taklif kelgan bo'lishi mumkin — faqat o'shani.
+    if (_pendingOffer?.id == orderId) {
+      _setOffer(null);
       notifyListeners();
     }
   }
@@ -1219,7 +1295,7 @@ class DriverProvider extends ChangeNotifier {
   }
 
   void clearPendingOffer() {
-    _pendingOffer = null;
+    _setOffer(null);
     notifyListeners();
   }
 
@@ -1237,6 +1313,7 @@ class DriverProvider extends ChangeNotifier {
     _stopLocationUpdates();
     _socketService.off(SocketEvents.newOrderOffer, _onNewOrderOffer);
     _socketService.off(SocketEvents.orderCancelled, applyOrderCancelled);
+    _socketService.off(SocketEvents.offerExpired, applyOfferExpired);
     _socketService.removeReconnectListener(_onSocketReconnected);
     _socketService.off(SocketEvents.walletUpdated, _onWalletUpdated);
     _walletUpdates.close();

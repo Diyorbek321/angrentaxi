@@ -22,12 +22,17 @@ class DriverBackgroundBridge {
     required this.isOnline,
     required this.pendingOffer,
     required this.noticeFor,
+    this.offerTimeLeft,
   });
 
   final DriverOverlay overlay;
   final bool Function() isOnline;
   final Order? Function() pendingOffer;
   final OfferNotice Function(Order offer) noticeFor;
+
+  /// Taklifning qolgan vaqti — jiringlash shuncha davom etadi (ilgari
+  /// har doim 30 s, ya'ni taklif tugagandan keyin ham 15 s jiringlardi).
+  final Duration Function()? offerTimeLeft;
 
   bool _inBackground = false;
   String? _announcedOfferId;
@@ -85,6 +90,7 @@ class DriverBackgroundBridge {
       text: notice.text,
       channel: notice.channel,
       offerId: offer.id,
+      timeout: offerTimeLeft?.call(),
     );
   }
 }

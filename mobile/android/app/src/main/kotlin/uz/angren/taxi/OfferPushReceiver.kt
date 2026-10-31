@@ -20,9 +20,12 @@ class OfferPushReceiver : BroadcastReceiver() {
         if (extras.getString("event") != "new_order_offer") return
 
         val offerId = extras.getString("orderId")
-        val expiresAt = extras.getString("expiresAt")?.toLongOrNull()
-        val now = System.currentTimeMillis()
-        if (!DriverOverlay.shouldRingFromPush(offerId, expiresAt, now)) return
+        val remainingMs = DriverOverlay.offerLifetimeMs(
+            expiresAtMs = extras.getString("expiresAt")?.toLongOrNull(),
+            sentAtMs = extras.getString("sentAt")?.toLongOrNull(),
+            nowMs = System.currentTimeMillis(),
+        )
+        if (!DriverOverlay.shouldRingFromPush(offerId, remainingMs)) return
 
         val app = context.applicationContext
         DriverOverlay.showOfferNotification(
@@ -31,7 +34,7 @@ class OfferPushReceiver : BroadcastReceiver() {
             extras.getString("body").orEmpty(),
             app.getString(R.string.driver_offer_channel),
             offerId,
-            expiresAt?.let { it - now } ?: OFFER_FALLBACK_TIMEOUT_MS,
+            remainingMs ?: OFFER_FALLBACK_TIMEOUT_MS,
         )
     }
 
