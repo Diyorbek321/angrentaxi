@@ -1,160 +1,95 @@
+import 'package:angren_taxi/features/superapp/screens/vendor_order_detail_screen.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/features/superapp/widgets/vendor_cancel_flow.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-/// Combined order-processing → order-done flow matching the prototype: a brief
-/// animated "sending" state, then a success confirmation.
-class OrderStatusScreen extends StatefulWidget {
-  const OrderStatusScreen({super.key});
+/// Confirmation shown after a food/market order is actually placed.
+///
+/// This screen used to run a fixed 2200 ms timer and then declare success,
+/// with three hardcoded progress steps ("To'lov qabul qilindi" ticked, "Do'konga
+/// yuborilmoqda", "Kuryer tayinlanmoqda") that were unconnected to the order,
+/// plus an invented "Kuryer 20–30 daqiqada yetkazib beradi" promise. By the
+/// time this screen opens the order already exists server-side, so it now
+/// simply reports what is true: the order number, and whether payment was
+/// settled or is still outstanding.
+class OrderStatusScreen extends StatelessWidget {
+  const OrderStatusScreen({
+    super.key,
+    required this.orderId,
+    required this.paidOnline,
+    this.kind,
+  });
 
-  @override
-  State<OrderStatusScreen> createState() => _OrderStatusScreenState();
-}
+  /// `food` / `market` — bekor qilish amali uchun. `null` — amal ko'rsatilmaydi.
+  final String? kind;
 
-class _OrderStatusScreenState extends State<OrderStatusScreen> {
-  bool _done = false;
+  /// Server-assigned id of the order that was just created.
+  final String orderId;
 
-  @override
-  void initState() {
-    super.initState();
-    // Cart is already cleared by CheckoutScreen once the real order succeeds —
-    // this delay is purely a cosmetic "sending" transition.
-    Future<void>.delayed(const Duration(milliseconds: 2200), () {
-      if (!mounted) return;
-      setState(() => _done = true);
-    });
-  }
+  /// True only when the card checkout actually completed. Cash-on-delivery and
+  /// an abandoned card flow both leave this false, and the copy says so rather
+  /// than claiming the payment was accepted.
+  final bool paidOnline;
 
   @override
   Widget build(BuildContext context) {
+    final kind = this.kind;
+    final order = kind == null ? null : findVendorOrder(context, kind, orderId);
     return Scaffold(
       backgroundColor: agSurface,
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: kSpace8),
-          child: _done ? _DoneView() : const _ProcessingView(),
+      // Kichik ekranda (360×640) va katta shriftda tugmalar ekrandan
+      // chiqib ketmasligi uchun aylantiriladigan, markazlashtirilgan.
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: kSpace6, vertical: kSpace4),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight - kSpace8),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 480),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _DoneView(orderId: orderId, paidOnline: paidOnline),
+                      // Bekor qilish — ikkilamchi, lekin KO'RINADIGAN amal.
+                      // Restoran qabul qilgach o'chiq holda sababi bilan turadi.
+                      if (kind != null && order != null && order.isActive) ...[
+                        const SizedBox(height: kSpace4),
+                        VendorCancelAction(
+                          kind: kind,
+                          canCancel: order.canCancel,
+                          onCancel: () async {
+                            final cancelled =
+                                await runVendorCancelFlow(context, kind: kind, orderId: orderId);
+                            if (cancelled && context.mounted) {
+                              Navigator.of(context).popUntil((route) => route.isFirst);
+                              context.read<SuperappProvider>().tabIndex = 1;
+                            }
+                          },
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
-class _ProcessingView extends StatelessWidget {
-  const _ProcessingView();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          width: 88,
-          height: 88,
-          child: ExcludeSemantics(
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                SizedBox(
-                  width: 88,
-                  height: 88,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 5,
-                    valueColor: AlwaysStoppedAnimation(agPrimary),
-                    backgroundColor: agTint,
-                  ),
-                ),
-                Icon(Icons.receipt_long_rounded, color: agGreenText, size: 38),
-              ],
-            ),
-          ),
-        ),
-        SizedBox(height: kSpace8),
-        Text('Buyurtma yuborilmoqda…',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: kFontH1, fontWeight: FontWeight.w800, color: agText, letterSpacing: -0.4)),
-        SizedBox(height: kSpace2),
-        Text(
-          "To'lov tasdiqlanmoqda va do'kon\nbuyurtmangizni qabul qilmoqda",
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: kFontBody, color: agSubtle, fontWeight: FontWeight.w500, height: 1.5),
-        ),
-        SizedBox(height: kSpace6),
-        Column(
-          children: [
-            _Step(label: "To'lov qabul qilindi", state: _StepState.done),
-            SizedBox(height: kSpace3),
-            _Step(label: "Do'konga yuborilmoqda", state: _StepState.active),
-            SizedBox(height: kSpace3),
-            _Step(label: 'Kuryer tayinlanmoqda', state: _StepState.idle),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-enum _StepState { done, active, idle }
-
-class _Step extends StatelessWidget {
-  const _Step({required this.label, required this.state});
-  final String label;
-  final _StepState state;
-
-  @override
-  Widget build(BuildContext context) {
-    Widget marker;
-    switch (state) {
-      case _StepState.done:
-        marker = Container(
-          width: 22,
-          height: 22,
-          decoration: const BoxDecoration(color: agPrimary, shape: BoxShape.circle),
-          child: const Icon(Icons.check_rounded, size: 15, color: agOnPrimary),
-        );
-      case _StepState.active:
-        marker = Container(
-          width: 22,
-          height: 22,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: agPrimary, width: 2),
-          ),
-          child: Center(
-            child: Container(
-              width: 8,
-              height: 8,
-              decoration: const BoxDecoration(color: agPrimary, shape: BoxShape.circle),
-            ),
-          ),
-        );
-      case _StepState.idle:
-        marker = Container(
-          width: 22,
-          height: 22,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: agBorder, width: 2),
-          ),
-        );
-    }
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        ExcludeSemantics(child: marker),
-        const SizedBox(width: kSpace3),
-        Text(label,
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: kFontLabel,
-              color: state == _StepState.idle ? agSubtle : agText,
-            )),
-      ],
-    );
-  }
-}
-
 class _DoneView extends StatelessWidget {
+  const _DoneView({required this.orderId, required this.paidOnline});
+
+  final String orderId;
+  final bool paidOnline;
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -173,40 +108,65 @@ class _DoneView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: kSpace6),
-        const Text('Buyurtma qabul qilindi',
+        Text(context.l10n.saOrderAccepted,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: kFontH1, fontWeight: FontWeight.w800, color: agText, letterSpacing: -0.5)),
+            style: const TextStyle(fontSize: kFontH1, fontWeight: FontWeight.w800, color: agText, letterSpacing: -0.5)),
         const SizedBox(height: kSpace2),
-        const Text(
-          "Kuryer 20–30 daqiqada yetkazib beradi.\nHolatni «Buyurtmalar» bo'limida kuzating.",
+        Text(
+          context.l10n
+              .saOrderNumber(orderId.split('-').first.toUpperCase()),
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: kFontBody, color: agSubtle, fontWeight: FontWeight.w500, height: 1.5),
+          style: const TextStyle(
+            fontSize: kFontBody,
+            color: agText,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: kSpace1),
+        Text(
+          paidOnline
+              ? context.l10n.saOrderPaidOnlineHint
+              : context.l10n.saOrderPayOnDeliveryHint,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: kFontBody,
+            color: agSubtle,
+            fontWeight: FontWeight.w500,
+            height: 1.5,
+          ),
         ),
         const SizedBox(height: kSpace6),
         SizedBox(
           width: double.infinity,
           child: Semantics(
             button: true,
-            label: 'Buyurtmalarni koʻrish',
+            label: context.l10n.saViewOrders,
             excludeSemantics: true,
             child: GestureDetector(
               onTap: () => _backToHome(context),
               behavior: HitTestBehavior.opaque,
               child: Container(
-                height: kControlHeight,
+                // Qat'iy balandlik emas — 1.3x shriftda matn kesilmasin.
+                constraints: const BoxConstraints(minHeight: kControlHeight),
+                padding: const EdgeInsets.symmetric(horizontal: kSpace4, vertical: kSpace2),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: agInk,
                   borderRadius: BorderRadius.circular(kRadiusMd),
                   boxShadow: agInkShadow,
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.near_me_rounded, color: agOnPrimary, size: 21),
-                    SizedBox(width: kSpace2),
-                    Text('Buyurtmalarni koʻrish',
-                        style: TextStyle(color: agOnPrimary, fontSize: kFontTitle, fontWeight: FontWeight.w800)),
+                    const Icon(Icons.near_me_rounded, color: agOnPrimary, size: 21),
+                    const SizedBox(width: kSpace2),
+                    Flexible(
+                      child: Text(context.l10n.saViewOrders,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: agOnPrimary, fontSize: kFontTitle, fontWeight: FontWeight.w800)),
+                    ),
                   ],
                 ),
               ),
@@ -216,7 +176,7 @@ class _DoneView extends StatelessWidget {
         const SizedBox(height: kSpace3),
         Semantics(
           button: true,
-          label: 'Bosh sahifaga',
+          label: context.l10n.saBackToHome,
           excludeSemantics: true,
           child: GestureDetector(
             onTap: () => _backToHome(context),
@@ -224,8 +184,8 @@ class _DoneView extends StatelessWidget {
             child: Container(
               constraints: const BoxConstraints(minHeight: kMinTapTarget, minWidth: kMinTapTarget),
               alignment: Alignment.center,
-              child: const Text('Bosh sahifaga',
-                  style: TextStyle(color: agGreenText, fontWeight: FontWeight.w700, fontSize: kFontBody)),
+              child: Text(context.l10n.saBackToHome,
+                  style: const TextStyle(color: agGreenText, fontWeight: FontWeight.w700, fontSize: kFontBody)),
             ),
           ),
         ),

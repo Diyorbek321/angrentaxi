@@ -29,7 +29,7 @@ export class FirebaseService implements OnModuleInit {
           }),
         });
       } else {
-        this.app = admin.apps[0] as admin.app.App;
+        this.app = admin.apps[0];
       }
 
       this.logger.log('Firebase Admin SDK initialized');
@@ -75,6 +75,57 @@ export class FirebaseService implements OnModuleInit {
       this.logger.log(`Push notification sent, id: ${messageId}`);
     } catch (err) {
       this.logger.error(`Push notification failed: ${(err as Error).message}`);
+    }
+  }
+
+  /**
+   * Android'da data-only push: tizim o'zi bildirishnoma CHIQARMAYDI —
+   * xabarni ilova (haydovchi ilovasida OfferPushReceiver) qabul qilib,
+   * qo'ng'iroqdek jiringlatadi. `notification` bloki bo'lsa, ilova fonda yoki
+   * o'ldirilgan bo'lganda tizim bir marta "dzin" qilib qo'yardi, xolos.
+   * Matn `data.title` / `data.body` ichida. iOS'da data-only ko'rinmaydi —
+   * u yerga APNs alert ketadi.
+   *
+   * [expiresAt] (ms) berilsa: muddati o'tgan push yuborilmaydi, yetkazilmagani
+   * esa shu vaqtdan keyin FCM navbatida tashlanadi (ttl).
+   */
+  async sendDataPush(
+    fcmToken: string,
+    title: string,
+    body: string,
+    data: Record<string, string> = {},
+    expiresAt?: number,
+  ): Promise<void> {
+    if (!this.app) {
+      this.logger.warn('Firebase not initialized, skipping data push');
+      return;
+    }
+
+    const ttl = expiresAt === undefined ? undefined : expiresAt - Date.now();
+    if (ttl !== undefined && ttl <= 0) return;
+
+    try {
+      const message: admin.messaging.Message = {
+        data: { ...data, title, body },
+        token: fcmToken,
+        android: {
+          priority: 'high',
+          ...(ttl !== undefined && { ttl }),
+        },
+        apns: {
+          payload: {
+            aps: {
+              alert: { title, body },
+              sound: 'default',
+            },
+          },
+        },
+      };
+
+      const messageId = await admin.messaging(this.app).send(message);
+      this.logger.log(`Data push sent, id: ${messageId}`);
+    } catch (err) {
+      this.logger.error(`Data push failed: ${(err as Error).message}`);
     }
   }
 

@@ -1,4 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import { AddressDetails } from './address-details';
 
 // A passenger's saved place (Yandex Go's "Uy"/"Ish"/saved-places equivalent).
 // No FK relation object is declared (mirrors withdrawal-request.entity.ts'
@@ -43,6 +44,10 @@ export class FavoriteAddress {
     },
   })
   lng: number;
+
+  // Podyezd/qavat/... (migratsiya 031) — keyingi buyurtmada avtomatik to'ldiriladi.
+  @Column({ name: 'address_details', type: 'jsonb', nullable: true })
+  addressDetails: AddressDetails | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

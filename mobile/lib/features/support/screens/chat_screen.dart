@@ -1,5 +1,6 @@
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/features/support/support_provider.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/support_message.dart';
 import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
 import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
@@ -49,7 +50,7 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Column(
           children: [
             AgHeader(
-                title: 'Operator bilan chat',
+                title: context.l10n.shSupportChatTitle,
                 onBack: () => Navigator.of(context).pop()),
             Expanded(
               child: Consumer<SupportProvider>(
@@ -66,16 +67,15 @@ class _ChatScreenState extends State<ChatScreen> {
                   if (provider.state == SupportProviderState.error &&
                       provider.messages.isEmpty) {
                     return AppErrorState(
-                      message: provider.error ?? 'Xatolik yuz berdi',
+                      message: provider.error ?? context.l10n.shErrorGeneric,
                       onRetry: provider.loadThread,
                     );
                   }
 
                   if (provider.messages.isEmpty) {
-                    return const AppEmptyState(
+                    return AppEmptyState(
                       icon: Icons.forum_outlined,
-                      title:
-                          "Xabar yozing — operatorlarimiz 24/7 yordam berishga tayyor",
+                      title: context.l10n.shSupportChatEmpty,
                     );
                   }
 
@@ -168,7 +168,7 @@ class _Composer extends StatelessWidget {
               textInputAction: TextInputAction.send,
               onSubmitted: (_) => onSend(),
               decoration: InputDecoration(
-                hintText: 'Xabar yozing...',
+                hintText: context.l10n.shChatHint,
                 hintStyle: const TextStyle(color: agSubtle),
                 filled: true,
                 fillColor: agSurface2,
@@ -190,7 +190,7 @@ class _Composer extends StatelessWidget {
           const SizedBox(width: kSpace2),
           Semantics(
             button: true,
-            label: 'Yuborish',
+            label: context.l10n.shSend,
             excludeSemantics: true,
             child: GestureDetector(
               onTap: onSend,

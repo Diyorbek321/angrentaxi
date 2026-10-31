@@ -1,6 +1,9 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { OrderStatus, PaymentMethod } from './constants';
 import { attachAuthInterceptor } from './session';
+import type { TripOptionFees } from './trip-option-fees';
+import { getLocale } from './i18n/core';
+import { t } from '@/locales';
 
 // ─── Entity Types ───────────────────────────────────────────────────────────
 
@@ -34,6 +37,8 @@ export interface Tariff {
   name: string;
   basePrice: number;
   pricePerKm: number;
+  /** Taksometr km narxi; `null` — oddiy [pricePerKm] ishlatiladi. */
+  meteredPricePerKm: number | null;
   pricePerMin: number;
   minPrice: number;
   maxPrice: number | null;
@@ -52,6 +57,8 @@ export interface PromoCode {
   expiresAt: string | null;
   isActive: boolean;
   createdAt: string;
+  /** Spec v5 §2: qaysi xizmatlarda amal qiladi; `null`/yo'q = hammasi. */
+  serviceTypes?: string[] | null;
 }
 
 export interface CreatePromoCodePayload {
@@ -61,6 +68,8 @@ export interface CreatePromoCodePayload {
   maxUses?: number;
   minOrderAmount?: number;
   expiresAt?: string;
+  /** Faqat tanlov bo'lsa yuboriladi — lib/promo-service-types.ts `serviceTypesPayload`. */
+  serviceTypes?: string[];
 }
 
 export type TariffChangeAction = 'create' | 'update';
@@ -129,6 +138,10 @@ export interface Order {
   estimatedPrice: number;
   finalPrice: number | null;
   note: string | null;
+  // 'taxi' | 'cargo' | 'food' | 'market' | 'parcel' | 'intercity'; details carry the
+  // vertical's payload (for a parcel: recipient and item — see lib/parcel.ts).
+  serviceType?: string;
+  details?: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
   // Not tracked as separate columns on the backend today — always absent;
@@ -228,6 +241,12 @@ export function createApiClient(config: AxiosRequestConfig = {}): AxiosInstance 
     ...config,
   });
 
+  // Server xatolari panel tilida keladi (brauzer tilidan qat'i nazar) —
+  // til har so'rovda o'qiladi, chunki foydalanuvchi uni sahifada almashtiradi.
+  client.interceptors.request.use((request) => {
+    request.headers.set('Accept-Language', getLocale());
+    return request;
+  });
   attachAuthInterceptor(client);
 
   return client;
@@ -262,7 +281,7 @@ export async function verifyOtp(phone: string, code: string): Promise<LoginRespo
     | null;
 
   if (!res.ok || !payload?.data?.user) {
-    throw new Error(payload?.message || 'Notoʻgʻri kod');
+    throw new Error(payload?.message || t().lib.invalidCode);
   }
 
   return { user: payload.data.user };
@@ -335,7 +354,9 @@ export async function cancelOrder(orderId: string, reason?: string): Promise<Ord
 }
 
 export async function completeOrder(orderId: string): Promise<Order> {
-  const res = await apiClient.patch<ApiResponse<Order>>(`/orders/${orderId}/complete`);
+  // `/complete` is the driver's own route (403 for a dispatcher); this one
+  // completes on the assigned driver's behalf, parcel PIN included.
+  const res = await apiClient.patch<ApiResponse<Order>>(`/orders/${orderId}/force-complete`);
   return res.data.data;
 }
 
@@ -459,13 +480,31 @@ export interface DriverProfile {
   // Only meaningful when the caller has the drivers_finance permission —
   // present on the API response regardless, but the UI only shows/edits
   // these when that permission is granted (see getCurrentUserProfile).
+  /** @deprecated Qaror va ko'rsatish uchun `walletBalance` ishlating. */
   balance?: number;
+  /**
+   * Haydovchining HAQIQIY pul holati — tranzaksiyalar daftaridan
+   * hisoblanadi. Manfiy bo'lishi mumkin: bu haydovchining platformaga
+   * qarzi (asosan naqd safarlar komissiyasi).
+   *
+   * ⚠️ `balance` ustunidan FARQ QILADI va aynan shuni ko'rsatish kerak.
+   * Ustun yechib olingan pulni hisobga olmaydi (yechish faqat daftarni
+   * debetlaydi), ya'ni birinchi yechishdan keyin u haqiqiy qoldiqdan
+   * ajralib ketadi. Ustunni ko'rsatish operator bilan haydovchiga ikki
+   * xil raqam berardi.
+   */
+  walletBalance?: number;
   commissionRate?: number | null;
   // Self-reported at application time; null until the driver enters it.
   carYear?: number | null;
   // Highest Tariff.tier (1 = Start ... 5 = Biznes) this driver may be
   // matched against — set by a manager/admin after reviewing the car.
   approvedTariffTier: number;
+  /**
+   * Huquqiy talablar qisqa xulosasi (`GET /drivers`, §22). `null` — backend
+   * hisoblay olmadi. Boshqa endpointlar (approve, balance…) qaytarmasligi mumkin.
+   */
+  legal?: DriverLegalBrief | null;
 }
 
 // Keep in sync with backend Tariff.tier (1-5) and the seed data in
@@ -501,7 +540,7 @@ export async function approveDriverProfile(id: string): Promise<DriverProfile> {
 export async function addDriverFunds(
   id: string,
   amount: number,
-  note?: string
+  note: string
 ): Promise<DriverProfile> {
   const res = await apiClient.patch<ApiResponse<DriverProfile>>(`/drivers/${id}/balance`, {
     amount,
@@ -543,7 +582,7 @@ export async function getCurrentUserProfile(): Promise<CurrentUserProfile> {
   return res.data.data;
 }
 
-// ─── Finance (view-only for managers — requires withdrawals_view) ──────────
+// ─── Finance (view: withdrawals_view; decide/pay: withdrawals_approve) ─────
 
 export type WithdrawalStatus = 'pending' | 'approved' | 'rejected' | 'paid';
 
@@ -554,7 +593,24 @@ export interface WithdrawalRequest {
   payoutDestination: string;
   status: WithdrawalStatus;
   requestedAt: string;
+  adminNote?: string | null;
   driver?: { firstName: string | null; lastName: string | null; phone: string } | null;
+}
+
+export type WithdrawalDecision = Exclude<WithdrawalStatus, 'pending'>;
+
+// Requires withdrawals_approve (ADMIN always allowed). Every call is written
+// to the audit log server-side under the acting staff member.
+export async function processWithdrawal(
+  id: string,
+  status: WithdrawalDecision,
+  adminNote?: string
+): Promise<WithdrawalRequest> {
+  const res = await apiClient.patch<ApiResponse<WithdrawalRequest>>(`/payments/wallet/withdrawals/${id}`, {
+    status,
+    adminNote,
+  });
+  return res.data.data;
 }
 
 export async function getAllWithdrawals(
@@ -660,6 +716,21 @@ export async function setSupportThreadStatus(
   return res.data.data;
 }
 
+// ─── Trip Option Fees ────────────────────────────────────────────────────────
+
+export async function getTripOptionFees(): Promise<TripOptionFees> {
+  const res = await apiClient.get<ApiResponse<TripOptionFees>>('/settings/trip-option-fees');
+  return res.data.data;
+}
+
+export async function updateTripOptionFees(changes: TripOptionFees): Promise<TripOptionFees> {
+  const res = await apiClient.patch<ApiResponse<TripOptionFees>>(
+    '/settings/trip-option-fees',
+    changes
+  );
+  return res.data.data;
+}
+
 // ─── Tariff Change Requests ──────────────────────────────────────────────────
 
 export async function proposeTariffChange(
@@ -709,5 +780,254 @@ export async function getDriverBonusProgress(
   const res = await apiClient.get<ApiResponse<DriverBonusProgress[]>>(
     `/driver-bonus-rules/driver/${driverId}/progress`
   );
+  return res.data.data;
+}
+
+// ─── Lost items (passenger left something in the car) ─────────────────────
+
+export type LostItemStatus = 'open' | 'found' | 'not_found' | 'returned' | 'closed';
+
+export interface LostItemReport {
+  id: string;
+  orderId: string;
+  description: string;
+  status: LostItemStatus;
+  driverNote: string | null;
+  operatorNote: string | null;
+  passengerPhone: string | null;
+  passengerName: string | null;
+  driverPhone: string | null;
+  driverName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function getLostItems(status?: LostItemStatus): Promise<LostItemReport[]> {
+  const res = await apiClient.get<ApiResponse<LostItemReport[]>>('/lost-items', {
+    params: status ? { status } : undefined,
+  });
+  return res.data.data;
+}
+
+export async function closeLostItem(
+  id: string,
+  status: 'returned' | 'closed',
+  note?: string
+): Promise<LostItemReport> {
+  const res = await apiClient.patch<ApiResponse<LostItemReport>>(`/lost-items/${id}`, { status, note });
+  return res.data.data;
+}
+
+// ─── Driver periodic checks (vehicle inspection, selfie) ─────────
+
+export type VerificationKind = 'document' | 'vehicle_photo' | 'selfie';
+
+export interface PendingVerification {
+  id: string;
+  driverId: string;
+  driverName: string | null;
+  driverPhone: string | null;
+  code: string;
+  label: string;
+  kind: VerificationKind;
+  submittedAt: string;
+  /** Selfie only: the previous approved selfie (or passport) to compare against. */
+  referenceSubmissionId: string | null;
+}
+
+export async function getPendingVerifications(): Promise<PendingVerification[]> {
+  const res = await apiClient.get<ApiResponse<PendingVerification[]>>('/drivers/verification/pending');
+  return res.data.data;
+}
+
+export async function reviewVerification(
+  id: string,
+  /** `validUntil` (YYYY-MM-DD) — hujjatda yozilgan muddat; faqat tasdiqlashda. */
+  body: { approved: boolean; rejectionReason?: string; validUntil?: string }
+): Promise<void> {
+  await apiClient.patch(`/drivers/verification/${id}/review`, body);
+}
+
+/** Binary file through the proxy; the backend checks the reviewer's role. */
+export async function getVerificationFile(id: string): Promise<Blob> {
+  const res = await apiClient.get<Blob>(`/drivers/verification/${id}/file`, { responseType: 'blob' });
+  return res.data;
+}
+
+// ─── Self-order (fraud) review ───────────────────────────────────
+
+export type FraudSignal =
+  | 'same_device'
+  | 'repeated_pair'
+  | 'new_passenger_one_driver'
+  | 'driver_at_pickup'
+  | 'too_short';
+
+export interface FraudReviewEntry {
+  orderId: string;
+  completedAt: string | null;
+  finalPrice: number | null;
+  pickupAddress: string | null;
+  dropoffAddress: string | null;
+  distanceKm: number | null;
+  durationMin: number | null;
+  signals: FraudSignal[];
+  passengerName: string | null;
+  passengerPhone: string | null;
+  driverName: string | null;
+  driverPhone: string | null;
+  pairTripsTotal: number;
+}
+
+export async function getFraudReviewQueue(): Promise<FraudReviewEntry[]> {
+  const res = await apiClient.get<ApiResponse<FraudReviewEntry[]>>('/orders/fraud-review');
+  return res.data.data;
+}
+
+export async function reviewFraud(orderId: string, approved: boolean, note?: string): Promise<void> {
+  await apiClient.patch(`/orders/${orderId}/fraud-review`, { approved, note });
+}
+
+// ─── Cash disputes (courier ↔ vendor) ────────────────────────────
+
+/** Sotuvchi "kuryerdan tovar pulini olmadim" degan naqd buyurtma. */
+export interface CashDispute {
+  kind: 'food' | 'market';
+  vendorOrderId: string;
+  vendorName: string;
+  vendorPhone: string | null;
+  amount: number;
+  courierPaidAt: string | null;
+  disputedAt: string;
+  deliveryOrderId: string | null;
+}
+
+export async function getCashDisputes(): Promise<CashDispute[]> {
+  const res = await apiClient.get<ApiResponse<CashDispute[]>>('/delivery/cash-disputes');
+  return res.data.data;
+}
+
+/** Nizoni yopadi — navbatdan chiqadi, sotuvchiga izoh bilan xabar boradi. */
+export async function resolveCashDispute(
+  kind: CashDispute['kind'],
+  vendorOrderId: string,
+  resolution: string,
+): Promise<void> {
+  await apiClient.post(`/delivery/cash-disputes/${kind}/${vendorOrderId}/resolve`, {
+    resolution: resolution.trim(),
+  });
+}
+
+// ─── Driver legal profile (VMQ 200 / PQ-247) — docs/LEGAL-COMPLIANCE.md §1, §5 ───
+
+export type DriverTaxStatus = 'self_employed' | 'individual_entrepreneur';
+
+export interface DriverLegalProfile {
+  taxStatus: DriverTaxStatus | null;
+  pinfl: string | null;
+  tin: string | null;
+  /** YYYY-MM-DD */
+  birthDate: string | null;
+  /** YYYY-MM-DD */
+  drivingLicenceIssuedAt: string | null;
+  taxiLicenceNumber: string | null;
+  taxiLicenceRegion: string | null;
+  citizenship: string;
+}
+
+export interface DriverLegalReason {
+  code: string;
+  message: string;
+}
+
+export interface DriverLegalEligibility {
+  eligible: boolean;
+  /** Majburlash sanasi o'tganmi (`legalComplianceEnforcedFrom`). */
+  enforced: boolean;
+  enforcedFrom: string | null;
+  /** Haydovchida taksi xizmati bormi — darvoza faqat taksiga tegishli. */
+  appliesToTaxi: boolean;
+  /** Hozir taksi uchun onlayn chiqishi to'silganmi. */
+  blocking: boolean;
+  reasons: DriverLegalReason[];
+}
+
+/** `GET /drivers` qatoridagi qisqa xulosa; to'liq ro'yxat — `GET /drivers/:id/legal`. */
+export interface DriverLegalBrief {
+  eligible: boolean;
+  blocking: boolean;
+  /** `reasons` soni. */
+  issueCount: number;
+}
+
+export interface DriverLegalSummary {
+  profile: DriverLegalProfile;
+  eligibility: DriverLegalEligibility;
+}
+
+export type DriverLegalPatch = Partial<{
+  taxStatus: DriverTaxStatus | null;
+  pinfl: string | null;
+  tin: string | null;
+  birthDate: string | null;
+  drivingLicenceIssuedAt: string | null;
+  taxiLicenceNumber: string | null;
+  taxiLicenceRegion: string | null;
+  citizenship: string;
+}>;
+
+/** drivers_view ruxsati. */
+export async function getDriverLegal(driverId: string): Promise<DriverLegalSummary> {
+  const res = await apiClient.get<ApiResponse<DriverLegalSummary>>(`/drivers/${driverId}/legal`);
+  return res.data.data;
+}
+
+/** drivers_approve ruxsati. Faqat yuborilgan maydonlar o'zgaradi; `null` — tozalaydi. */
+export async function updateDriverLegal(
+  driverId: string,
+  patch: DriverLegalPatch
+): Promise<DriverLegalSummary> {
+  const res = await apiClient.patch<ApiResponse<DriverLegalSummary>>(`/drivers/${driverId}/legal`, patch);
+  return res.data.data;
+}
+
+// ─── Audit log (manual money actions) — §12, drivers_finance ───
+
+export interface AuditLogActor {
+  id: string;
+  name: string | null;
+  phone: string | null;
+  role: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  actorUserId: string | null;
+  /** `null` — tizim amali yoki o'chirilgan foydalanuvchi (§22). */
+  actor?: AuditLogActor | null;
+  action: string;
+  targetType: string;
+  targetId: string | null;
+  amount: number | null;
+  note: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface AuditLogPage {
+  items: AuditLogEntry[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export async function getAuditLog(params: {
+  action?: string;
+  targetType?: string;
+  targetId?: string;
+  page?: number;
+  limit?: number;
+}): Promise<AuditLogPage> {
+  const res = await apiClient.get<ApiResponse<AuditLogPage>>('/admin/audit-log', { params });
   return res.data.data;
 }

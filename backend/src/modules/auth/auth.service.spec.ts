@@ -32,7 +32,7 @@ describe('AuthService OTP brute-force protection', () => {
       expiresAt: new Date(Date.now() + 5 * 60 * 1000),
       createdAt: new Date(),
       ...overrides,
-    }) as Otp;
+    });
 
   beforeEach(async () => {
     config = { OTP_BYPASS_ENABLED: 'false', NODE_ENV: 'test' };
@@ -118,7 +118,7 @@ describe('AuthService OTP brute-force protection', () => {
       phone,
       role: UserRole.PASSENGER,
       status: UserStatus.ACTIVE,
-    } as User);
+    });
 
     const result = await service.verifyOtp(phone, '111111');
 

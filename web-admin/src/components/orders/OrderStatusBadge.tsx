@@ -1,25 +1,28 @@
-import { cn } from '@/lib/utils';
-import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, OrderStatus } from '@/lib/constants';
+import { Badge, type BadgeVariant } from '@/components/ui/Badge';
+import { orderStatusLabels, type OrderStatus } from '@/lib/constants';
 
 interface OrderStatusBadgeProps {
   status: string;
   className?: string;
 }
 
-export function OrderStatusBadge({ status, className }: OrderStatusBadgeProps) {
-  const label = ORDER_STATUS_LABELS[status as OrderStatus] ?? status;
-  const color =
-    ORDER_STATUS_COLORS[status as OrderStatus] ?? 'bg-surface-2 text-muted border border-line';
+/** Status → canonical Badge tone. Amber is reserved for manual overrides, so no status uses it. */
+const ORDER_STATUS_VARIANT: Record<OrderStatus, BadgeVariant> = {
+  pending: 'neutral',
+  searching: 'searching',
+  accepted: 'info',
+  arriving: 'violet',
+  in_progress: 'info',
+  completed: 'success',
+  cancelled: 'muted-danger',
+};
 
+export function OrderStatusBadge({ status, className }: OrderStatusBadgeProps) {
+  const label = orderStatusLabels()[status as OrderStatus] ?? status;
+  const variant = ORDER_STATUS_VARIANT[status as OrderStatus] ?? 'neutral';
   return (
-    <span
-      className={cn(
-        'inline-flex items-center rounded-full px-2.5 py-0.5 text-caption font-semibold',
-        color,
-        className
-      )}
-    >
+    <Badge variant={variant} dot className={className}>
       {label}
-    </span>
+    </Badge>
   );
 }

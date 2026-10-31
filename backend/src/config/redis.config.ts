@@ -3,6 +3,21 @@ import Redis from 'ioredis';
 
 export const REDIS_CLIENT = 'REDIS_CLIENT';
 
+const REDIS_RETRY_STEP_MS = 200;
+const REDIS_RETRY_MAX_MS = 5000;
+
+/**
+ * Qayta ulanish kechikishi — HECH QACHON taslim bo'lmaydi.
+ *
+ * ⚠️ Ilgari 10 urinishdan keyin (~5 s) `null` qaytarilardi: ioredis butunlay
+ * to'xtar, Redis qaytib yonsa ham backend unga ulanmasdi va qayta ishga
+ * tushirilmaguncha birorta haydovchi topilmasdi. Liveness healthcheck esa
+ * Redis'ni tekshirmaydi — konteyner "sog'lom" turaverardi.
+ */
+export function redisRetryDelay(times: number): number {
+  return Math.min(times * REDIS_RETRY_STEP_MS, REDIS_RETRY_MAX_MS);
+}
+
 export const redisProvider = {
   provide: REDIS_CLIENT,
   useFactory: (configService: ConfigService): Redis => {
@@ -15,13 +30,7 @@ export const redisProvider = {
       host,
       port,
       password,
-      retryStrategy: (times: number) => {
-        if (times > 10) {
-          console.error('Redis connection failed after 10 retries');
-          return null;
-        }
-        return Math.min(times * 100, 3000);
-      },
+      retryStrategy: redisRetryDelay,
       enableReadyCheck: true,
       maxRetriesPerRequest: 3,
     });

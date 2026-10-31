@@ -76,6 +76,13 @@ export const SOCKET_EVENTS = {
   JOIN_SUPPORT_THREAD: 'join:support:thread',
   LEAVE_SUPPORT_THREAD: 'leave:support:thread',
 
+  // Intercity (server → managers): backend intercity-events.ts
+  INTERCITY_TRIP_UPDATED: 'intercity:trip:updated',
+  // Yo'lovchi so'rovlari: yangi / narx oshirildi / yopildi (qabul, bekor, muddat).
+  INTERCITY_REQUEST_CREATED: 'intercity:request:created',
+  INTERCITY_REQUEST_UPDATED: 'intercity:request:updated',
+  INTERCITY_REQUEST_CLOSED: 'intercity:request:closed',
+
   // Connection events
   CONNECT: 'connect',
   DISCONNECT: 'disconnect',

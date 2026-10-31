@@ -1,6 +1,7 @@
 import { BellRing, CheckCircle2, ChefHat, PackageCheck, XCircle, type LucideIcon } from 'lucide-react';
 import type { FoodOrderStatus } from './api';
 import type { BadgeVariant } from '@/components/ui/Badge';
+import { t } from '@/locales';
 
 /**
  * Buyurtma holati YANGI rang kiritmaydi — mavjud semantik tokenlarga
@@ -16,41 +17,19 @@ export interface OrderStatusMeta {
   Icon: LucideIcon;
 }
 
-export const ORDER_STATUS: Record<FoodOrderStatus, OrderStatusMeta> = {
-  new: {
-    label: 'Yangi',
-    hint: 'Qabul qilish kutilmoqda',
-    variant: 'info',
-    Icon: BellRing,
-  },
-  preparing: {
-    label: 'Tayyorlanmoqda',
-    hint: 'Oshxonada',
-    variant: 'warning',
-    Icon: ChefHat,
-  },
-  ready: {
-    label: 'Tayyor',
-    hint: 'Kuryer kutilmoqda',
-    variant: 'success',
-    Icon: CheckCircle2,
-  },
-  delivered: {
-    label: 'Yetkazildi',
-    hint: 'Yakunlangan',
-    variant: 'default',
-    Icon: PackageCheck,
-  },
-  cancelled: {
-    label: 'Bekor qilindi',
-    hint: 'Rad etilgan',
-    variant: 'danger',
-    Icon: XCircle,
-  },
+const STATUS_STYLE: Record<FoodOrderStatus, Pick<OrderStatusMeta, 'variant' | 'Icon'>> = {
+  new: { variant: 'info', Icon: BellRing },
+  // `warning` faqat qo'lda aralashuv uchun (PANEL-UI-KIT §5) — bu yerda emas.
+  preparing: { variant: 'violet', Icon: ChefHat },
+  ready: { variant: 'success', Icon: CheckCircle2 },
+  delivered: { variant: 'neutral', Icon: PackageCheck },
+  cancelled: { variant: 'muted-danger', Icon: XCircle },
 };
 
+/** Yozuv va izoh faol tilda — render paytida chaqiriladi. */
 export function statusMeta(status: string): OrderStatusMeta {
-  return ORDER_STATUS[status as FoodOrderStatus] ?? ORDER_STATUS.new;
+  const key: FoodOrderStatus = Object.prototype.hasOwnProperty.call(STATUS_STYLE, status) ? (status as FoodOrderStatus) : 'new';
+  return { ...t().orderStatus[key], ...STATUS_STYLE[key] };
 }
 
 /** Oshxona oqimidagi keyingi bosqich. `undefined` — oxirgi bosqich. */
@@ -60,8 +39,21 @@ export const NEXT_STATUS: Partial<Record<FoodOrderStatus, FoodOrderStatus>> = {
   ready: 'delivered',
 };
 
-export const ADVANCE_LABEL: Partial<Record<FoodOrderStatus, string>> = {
-  new: 'Qabul qilish',
-  preparing: 'Tayyor deb belgilash',
-  ready: 'Yetkazildi deb belgilash',
-};
+function advanceLabel(status: FoodOrderStatus): string | undefined {
+  const labels = t().advance;
+  return status === 'new' || status === 'preparing' || status === 'ready' ? labels[status] : undefined;
+}
+
+/**
+ * Sotuvchi buyurtmani keyingi bosqichga o'tkaza oladimi — va qaysi yozuv
+ * bilan. Platforma kuryeri chaqirilgan buyurtmani "yetkazildi" qilishni
+ * faqat kuryer (yoki dispetcher) qiladi: backend buni rad etadi, shuning
+ * uchun tugma umuman ko'rsatilmaydi — kuryer topilmagan bo'lsa ham.
+ */
+export function advanceLabelFor(order: {
+  status: FoodOrderStatus;
+  deliveryOrderId?: string | null;
+}): string | undefined {
+  if (NEXT_STATUS[order.status] === 'delivered' && order.deliveryOrderId) return undefined;
+  return advanceLabel(order.status);
+}

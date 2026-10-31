@@ -1,57 +1,43 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import {
-  Car,
-  CheckCircle2,
-  DollarSign,
-  LayoutDashboard,
-  Receipt,
-  RefreshCw,
-  Tag,
-  TrendingDown,
-  TrendingUp,
-  UserPlus,
-  Users,
-  XCircle,
-} from 'lucide-react';
+import { CheckCircle2, ChevronRight, RefreshCw, Tag, Users } from 'lucide-react';
 import { getDashboardStats, getPromoCodes, DashboardStats, PromoCode } from '@/lib/api';
-import { Card } from '@/components/ui/Card';
+import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
-import { Skeleton } from '@/components/ui/Skeleton';
-import { formatMoney, formatNumber } from '@/lib/format';
+import { RetryBanner } from '@/components/ui/RetryBanner';
+import { Skeleton, SkeletonStats } from '@/components/ui/Skeleton';
+import { StatCard } from '@/components/ui/StatCard';
+import { MoneyText } from '@/components/ui/MoneyText';
+import { PageBody } from '@/components/ui/PageBody';
+import { formatNumber, formatPercent, formatTime } from '@/lib/format';
+import { t } from '@/locales';
 
-function StatCard({
-  label,
-  value,
-  icon,
-  positive,
-}: {
-  label: string;
-  value: string;
-  icon: React.ReactNode;
-  positive?: boolean;
-}) {
+const DAY_MS = 86_400_000;
+
+/** A row in "Eʼtibor talab qiladi": what it is, then where to act on it. */
+function AttentionRow({ href, icon, children }: { href: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <Card className="p-4">
-      <div className="flex items-center justify-between mb-2">
-        <span className="h-8 w-8 rounded-xl bg-primary/12 flex items-center justify-center text-primary-600 dark:text-primary-300">
-          {icon}
+    <li>
+      <Link
+        href={href}
+        className="flex items-center justify-between gap-3 px-4 py-2.5 text-[13px] text-ink hover:bg-surface-2 transition-colors"
+      >
+        <span className="flex items-center gap-2.5 min-w-0">
+          <span className="text-subtle shrink-0 [&_svg]:h-4 [&_svg]:w-4">{icon}</span>
+          <span className="truncate">{children}</span>
         </span>
-        {positive !== undefined &&
-          (positive ? (
-            <TrendingUp size={14} className="text-primary-600 dark:text-primary-300" />
-          ) : (
-            <TrendingDown size={14} className="text-danger" />
-          ))}
-      </div>
-      <p className="font-mono text-xl font-bold text-ink tabular-nums">{value}</p>
-      <p className="text-xs text-muted mt-0.5">{label}</p>
-    </Card>
+        <span className="flex items-center gap-1 text-xs font-medium text-muted shrink-0">
+          {t().dispatch.overview.review}
+          <ChevronRight size={14} aria-hidden />
+        </span>
+      </Link>
+    </li>
   );
 }
 
@@ -60,162 +46,166 @@ export default function ManagerOverviewPage() {
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadedAt, setLoadedAt] = useState<number | null>(null);
+  const m = t().dispatch.overview;
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
       const [statsResult, promoResult] = await Promise.all([getDashboardStats(), getPromoCodes()]);
       setStats(statsResult);
       setPromoCodes(promoResult);
+      setLoadedAt(Date.now());
       setError(null);
     } catch (err) {
       console.error('Failed to load overview:', err);
-      setError('Statistikani yuklab boʻlmadi.');
+      // The last good snapshot stays on screen; the banner names the failure.
+      setError(t().dispatch.overview.loadFailedBanner);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
-  const expiringPromos = promoCodes
-    .filter((p) => p.isActive && p.expiresAt)
-    .filter((p) => {
-      const days = (new Date(p.expiresAt as string).getTime() - Date.now()) / 86400000;
-      return days > 0 && days <= 7;
-    });
+  // Promo expiry is computed against the load time, not during render.
+  const expiringPromos =
+    loadedAt == null
+      ? []
+      : promoCodes.filter((p) => {
+          if (!p.isActive || !p.expiresAt) return false;
+          const days = (new Date(p.expiresAt).getTime() - loadedAt) / DAY_MS;
+          return days > 0 && days <= 7;
+        });
 
-  const nothingToReview =
-    stats != null && stats.pendingDriverApprovals === 0 && expiringPromos.length === 0;
+  const attentionCount = (stats?.pendingDriverApprovals ?? 0) + expiringPromos.length;
+  const firstLoad = isLoading && !stats;
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="px-5 py-4">
-        <PageHeader
-          title="Umumiy koʻrinish"
-          description="Bugungi koʻrsatkichlar bir qarashda"
-          icon={<LayoutDashboard size={17} />}
-          actions={
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={fetchData}
-              leftIcon={<RefreshCw size={13} />}
-            >
-              Yangilash
-            </Button>
-          }
+    <PageBody>
+      <PageHeader
+        title={m.title}
+        description={
+          loadedAt ? m.subtitleAt(formatTime(loadedAt)) : m.subtitle
+        }
+        actions={
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={fetchData}
+            isLoading={isLoading && stats != null}
+            leftIcon={<RefreshCw size={13} aria-hidden />}
+          >
+            {t().common.refresh}
+          </Button>
+        }
+      />
+
+      {error && stats && (
+        <RetryBanner
+          message={error}
+          onRetry={fetchData}
+          keepsLastData
+          lastUpdatedAt={loadedAt}
+          className="mb-4"
         />
+      )}
 
-        {error ? (
-          <ErrorState message={error} onRetry={fetchData} />
-        ) : (
-          <div className="space-y-6">
-            {isLoading || !stats ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <Skeleton key={i} className="h-[104px] rounded-xl" />
-                ))}
+      {error && !stats ? (
+        <Card>
+          <ErrorState
+            title={m.loadFailed}
+            message={m.loadFailedDesc}
+            onRetry={fetchData}
+            retrying={isLoading}
+          />
+        </Card>
+      ) : (
+        <div className="space-y-6">
+          {/* "Are we OK today?" — business tempo. Live counters (online
+              drivers, active orders) already sit in the topbar. No deltas:
+              the API returns today only, there is no real baseline. */}
+          {firstLoad ? (
+            <SkeletonStats count={4} />
+          ) : stats ? (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <StatCard label={m.revenueToday} value={<MoneyText value={stats.revenueToday} />} />
+              <StatCard
+                label={m.ordersToday}
+                value={formatNumber(stats.ordersToday)}
+                hint={m.completedHint(formatNumber(stats.completedToday))}
+              />
+              <StatCard
+                label={m.cancelRate}
+                value={formatPercent(stats.cancellationRateToday)}
+                hint={m.cancelRateHint}
+              />
+              <StatCard label={m.avgTripPrice} value={<MoneyText value={stats.avgTripPriceToday} />} />
+            </div>
+          ) : null}
+
+          <Card padding="none">
+            <CardHeader
+              title={m.attention}
+              actions={attentionCount > 0 ? <Badge variant="neutral">{attentionCount}</Badge> : undefined}
+              divider
+            />
+            {firstLoad ? (
+              <div className="p-4 space-y-2" aria-busy="true">
+                <Skeleton className="h-9" />
+                <Skeleton className="h-9" />
               </div>
+            ) : attentionCount === 0 ? (
+              <EmptyState
+                compact
+                variant="cleared"
+                icon={<CheckCircle2 aria-hidden />}
+                title={m.attentionEmpty}
+                description={m.attentionEmptyDesc}
+              />
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+              <ul className="divide-y divide-line">
+                {stats && stats.pendingDriverApprovals > 0 && (
+                  <AttentionRow href="/dispatch/drivers" icon={<Users aria-hidden />}>
+                    <span className="num font-semibold">{stats.pendingDriverApprovals}</span> {m.pendingDrivers}
+                  </AttentionRow>
+                )}
+                {expiringPromos.map((p) => (
+                  <AttentionRow key={p.id} href="/dispatch/promo-codes" icon={<Tag aria-hidden />}>
+                    <span className="font-mono">{p.code}</span> — {m.promoExpiring} ·{' '}
+                    <span className="num">
+                      {p.usedCount}
+                      {p.maxUses ? `/${p.maxUses}` : ''}
+                    </span>{' '}
+                    {m.timesUsed}
+                  </AttentionRow>
+                ))}
+              </ul>
+            )}
+          </Card>
+
+          <section>
+            <h2 className="text-h3 text-ink mb-3">{m.platformTotals}</h2>
+            {firstLoad ? (
+              <SkeletonStats count={4} />
+            ) : stats ? (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <StatCard size="sm" label={m.totalUsers} value={formatNumber(stats.totalUsers)} />
+                <StatCard size="sm" label={m.totalOrders} value={formatNumber(stats.totalOrders)} />
+                <StatCard size="sm" label={m.newCustomersToday} value={formatNumber(stats.newCustomersToday)} />
                 <StatCard
-                  label="Bugungi tushum"
-                  value={formatMoney(stats.revenueToday)}
-                  icon={<DollarSign size={16} />}
-                />
-                <StatCard
-                  label="Yakunlangan buyurtmalar"
-                  value={formatNumber(stats.completedToday)}
-                  icon={<CheckCircle2 size={16} />}
-                />
-                <StatCard
-                  label="Faol haydovchilar"
+                  size="sm"
+                  label={m.activeDrivers}
                   value={formatNumber(stats.activeDrivers)}
-                  icon={<Car size={16} />}
-                />
-                <StatCard
-                  label="Oʻrtacha safar narxi"
-                  value={formatMoney(stats.avgTripPriceToday)}
-                  icon={<Receipt size={16} />}
-                />
-                <StatCard
-                  label="Bekor qilish ulushi"
-                  value={`${stats.cancellationRateToday}%`}
-                  icon={<XCircle size={16} />}
-                  positive={stats.cancellationRateToday < 10}
-                />
-                <StatCard
-                  label="Yangi mijozlar"
-                  value={formatNumber(stats.newCustomersToday)}
-                  icon={<UserPlus size={16} />}
-                  positive
+                  hint={m.onlineNow(formatNumber(stats.onlineDrivers))}
                 />
               </div>
-            )}
-
-            <Card padding="lg">
-              <h2 className="text-sm font-semibold text-ink mb-3">Eʼtibor talab qiladi</h2>
-
-              {isLoading ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-11" />
-                  <Skeleton className="h-11" />
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {stats && stats.pendingDriverApprovals > 0 && (
-                    <Link
-                      href="/dispatch/drivers"
-                      className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-override/[0.08] border border-override/30 hover:bg-override/[0.14] transition-colors"
-                    >
-                      <span className="flex items-center gap-2 text-sm text-override-dark dark:text-override-light">
-                        <Users size={14} className="shrink-0" />
-                        {stats.pendingDriverApprovals} ta haydovchi tasdiq kutmoqda
-                      </span>
-                      <span className="text-xs font-semibold text-override shrink-0">
-                        Koʻrib chiqish →
-                      </span>
-                    </Link>
-                  )}
-
-                  {expiringPromos.map((p) => (
-                    <Link
-                      key={p.id}
-                      href="/dispatch/promo-codes"
-                      className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-info/[0.08] border border-info/30 hover:bg-info/[0.14] transition-colors"
-                    >
-                      <span className="flex items-center gap-2 text-sm text-info dark:text-blue-300 min-w-0">
-                        <Tag size={14} className="shrink-0" />
-                        <span className="font-mono">{p.code}</span>
-                        <span className="truncate">
-                          — 7 kun ichida tugaydi · {p.usedCount}
-                          {p.maxUses ? `/${p.maxUses}` : ''} marta ishlatilgan
-                        </span>
-                      </span>
-                      <span className="text-xs font-semibold text-info shrink-0">
-                        Koʻrib chiqish →
-                      </span>
-                    </Link>
-                  ))}
-
-                  {nothingToReview && (
-                    <EmptyState
-                      compact
-                      tone="positive"
-                      icon={<CheckCircle2 size={20} />}
-                      title="Hozircha hech narsa talab qilinmaydi"
-                      description="Tasdiq kutayotgan haydovchi ham, tugayotgan promo kod ham yoʻq."
-                    />
-                  )}
-                </div>
-              )}
-            </Card>
-          </div>
-        )}
-      </div>
-    </div>
+            ) : null}
+          </section>
+        </div>
+      )}
+    </PageBody>
   );
 }

@@ -3,10 +3,18 @@
 // cancellation with its role-based permission rules. Both walk an order
 // *backwards or sideways* out of the automated matching flow, which is why
 // they sit apart from the forward driver lifecycle.
-import { BadRequestException, ForbiddenException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  Optional,
+} from '@nestjs/common';
+import { DeliveryEventsService } from '../delivery/delivery-events.service';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Order, OrderStatus } from '../../database/entities/order.entity';
+import { In, Repository } from 'typeorm';
+import { DRIVER_ACTIVE_ORDER_STATUSES, Order, OrderStatus } from '../../database/entities/order.entity';
 import { DispatchOverride } from '../../database/entities/dispatch-override.entity';
 import { UserRole } from '../../database/entities/user.entity';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
@@ -15,6 +23,8 @@ import { UsersService } from '../users/users.service';
 import { DriversService } from '../drivers/drivers.service';
 import { OrdersQueryService } from './orders-query.service';
 import { OrderStatusTransitionService } from './order-status-transition.service';
+import { MatchingService } from '../matching/matching.service';
+import { ERROR_CODES, codedBadRequest } from '../../common/errors/coded-error';
 
 @Injectable()
 export class OrdersDispatchService {
@@ -29,7 +39,44 @@ export class OrdersDispatchService {
     private readonly driversService: DriversService,
     private readonly queryService: OrdersQueryService,
     private readonly statusTransition: OrderStatusTransitionService,
+    // Optional only so unit tests that build this service by hand keep
+    // compiling; DeliveryEventsModule is global, so the app always has it.
+    @Optional() private readonly deliveryEvents?: DeliveryEventsService,
+    // Qidiruvdagi buyurtma bekor/qo'lda biriktirilganda matching navbatini
+    // yopish uchun. Ilovada har doim bor (OrdersModule → MatchingModule).
+    @Optional() private readonly matching?: MatchingService,
   ) {}
+
+  /** Statuses in which MatchingService may still be offering the order. */
+  private static isInSearch(status: OrderStatus): boolean {
+    return status === OrderStatus.CREATED || status === OrderStatus.SEARCHING;
+  }
+
+  /** Never lets a matching hiccup fail a cancel/assignment that already committed. */
+  private async closeSearch(orderId: string, reason?: string, exceptDriverId?: string): Promise<void> {
+    if (!this.matching) return;
+    try {
+      await (exceptDriverId === undefined
+        ? this.matching.cancelSearch(orderId, reason)
+        : this.matching.cancelSearch(orderId, reason, exceptDriverId));
+    } catch (err) {
+      this.logger.warn(`Could not close matching search for ${orderId}: ${(err as Error).message}`);
+    }
+  }
+
+  /**
+   * Shaharlararo bandlar faqat `/intercity/...` yo'llari orqali bekor
+   * qilinadi (yo'lovchi: `bookings/:id/cancel`, haydovchi: `no-show` yoki
+   * qatnovni bekor qilish, dispetcher: `bookings/:id/cancel/manage`).
+   */
+  private static assertNotIntercity(order: Pick<Order, 'intercityTripId'>): void {
+    if (order.intercityTripId) {
+      throw codedBadRequest(
+        ERROR_CODES.intercityUseIntercityEndpoint,
+        "Shaharlararo band faqat «Shaharlararo» bo'limi orqali bekor qilinadi yoki o'zgartiriladi",
+      );
+    }
+  }
 
   // Manual driver assignment/reassignment — the exception path under the
   // automated-dispatch model (MatchingService handles the normal case with
@@ -44,6 +91,9 @@ export class OrdersDispatchService {
     reason: string,
   ): Promise<Order> {
     const order = await this.queryService.findByIdOrThrow(orderId);
+    // Shaharlararo band qatnov egasiga bog'langan — boshqa haydovchiga
+    // berilsa qatnov va band ajralib qoladi.
+    OrdersDispatchService.assertNotIntercity(order);
 
     const reassignableStatuses: OrderStatus[] = [
       OrderStatus.CREATED,
@@ -70,25 +120,71 @@ export class OrdersDispatchService {
 
     const previousDriverId = order.driverId;
 
-    // Only logged once the conditional update actually lands — see the
-    // TOCTOU race guard on updateOrderStatusAtomic (throws ConflictException
-    // and touches 0 rows if another request already moved the order out of
-    // the expected status), which must never produce an audit entry for an
-    // override that didn't actually happen.
-    await this.statusTransition.updateOrderStatusAtomic(orderId, reassignableStatuses, {
-      driverId: newDriver.userId,
-      status: OrderStatus.ACCEPTED,
-    });
+    // The reassignment and its audit row commit together.
+    //
+    // These used to be two independent writes, so anything that failed after
+    // the status update — the audit insert itself, a lost connection — left
+    // the order silently moved to a new driver with no record of who did it,
+    // while the dispatcher saw a 500 and assumed nothing had happened.
+    //
+    // The conditional update keeps its TOCTOU guard: it touches 0 rows and
+    // throws ConflictException if another request already moved the order out
+    // of a reassignable status, which rolls the transaction back so no audit
+    // entry is written for an override that didn't happen.
+    await this.dispatchOverrideRepository.manager.transaction(async (manager) => {
+      // Qo'lda biriktirish ataylab taklif darvozasini chetlab o'tadi, lekin
+      // band haydovchiga IKKINCHI safarni bermaydi. Qulf kaliti
+      // `acceptForDriver` niki bilan bir xil — bir vaqtdagi qabul va
+      // biriktirish bitta haydovchi uchun navbatma-navbat bajariladi.
+      await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
+        `order-accept:${newDriver.userId}`,
+      ]);
+      const active = await manager.count(Order, {
+        where: { driverId: newDriver.userId, status: In([...DRIVER_ACTIVE_ORDER_STATUSES]) },
+      });
+      if (active > 0) {
+        throw new ConflictException('Selected driver already has an active order');
+      }
 
-    await this.dispatchOverrideRepository.save({
-      orderId,
-      performedByUserId,
-      previousDriverId,
-      newDriverId: newDriver.userId,
-      reason,
+      const result = await manager
+        .createQueryBuilder()
+        .update(Order)
+        // ⚠️ `arrivedAt` NOLLANADI. Yangi haydovchi hali yo'lda, ya'ni kutish
+        // oynasi hali boshlanmagan. Tozalanmasa, oldingi haydovchi ARRIVED
+        // bosgan buyurtmada eski vaqt qolib ketardi va yo'lovchi ALMASHTIRISH
+        // jarayonida o'tgan butun vaqt uchun kutish haqi to'lardi — o'zi
+        // sabab bo'lmagan kechikish uchun.
+        .set({
+          driverId: newDriver.userId,
+          status: OrderStatus.ACCEPTED,
+          arrivedAt: null,
+        })
+        .where('id = :id', { id: orderId })
+        .andWhere('status IN (:...expectedStatuses)', {
+          expectedStatuses: reassignableStatuses,
+        })
+        .execute();
+
+      if (!result.affected) {
+        throw new ConflictException('Order is no longer in the expected state');
+      }
+
+      await manager.save(DispatchOverride, {
+        orderId,
+        performedByUserId,
+        previousDriverId,
+        newDriverId: newDriver.userId,
+        reason,
+      });
     });
 
     const updatedOrder = await this.queryService.findByIdOrThrow(orderId);
+
+    // Matching hali shu buyurtmani boshqa haydovchiga taklif qilayotgan
+    // bo'lishi mumkin — taklif yopiladi (yangi haydovchiga "bekor" bormaydi).
+    if (OrdersDispatchService.isInSearch(order.status)) {
+      await this.closeSearch(orderId, 'Assigned by dispatcher', newDriver.userId);
+    }
 
     // The previous driver (if any) loses this order — reuse the cancellation
     // event so the driver app's existing handler dismisses it immediately.
@@ -134,6 +230,14 @@ export class OrdersDispatchService {
       status: 'busy',
     });
 
+    // Kuryer safari: oldingi kuryer sotuvchiga hamyondan to'lagan bo'lsa,
+    // o'tkazmasi teskari qilinadi (VendorCashService, §19).
+    if (previousDriverId) {
+      await this.deliveryEvents?.publish(updatedOrder, 'reassigned', {
+        previousCourierUserId: previousDriverId,
+      });
+    }
+
     if (previousDriverId) {
       const previousDriver = await this.driversService.findByUserId(previousDriverId);
       if (previousDriver) {
@@ -158,8 +262,15 @@ export class OrdersDispatchService {
     reason?: string,
   ): Promise<Order> {
     const order = await this.queryService.findByIdOrThrow(orderId);
+    // Bu yo'l o'rindiq hisobini (seats_taken) va kech bekor qilish/kelmaslik
+    // belgilarini bilmaydi — qatnovda "arvoh" band joy qolardi.
+    OrdersDispatchService.assertNotIntercity(order);
 
     const cancellableStatuses: OrderStatus[] = [
+      // Rejalashtirilgan safar bajarilishidan OLDIN bekor qilinishi kerak —
+      // aynan shu narsa uni rejaga aylantiradi. Haydovchi hali biriktirilmagan,
+      // shuning uchun bekor qilish hech kimga zarar keltirmaydi.
+      OrderStatus.SCHEDULED,
       OrderStatus.CREATED,
       OrderStatus.SEARCHING,
       OrderStatus.ACCEPTED,
@@ -173,7 +284,10 @@ export class OrdersDispatchService {
     }
 
     // Permission check: passenger can cancel their own, driver can cancel their assigned order
-    const isPassenger = userRole === UserRole.PASSENGER && order.passengerId === userId;
+    // Buyurtma egasi — rolidan qat'i nazar (menejer/do'kon egasi ham yo'lovchi
+    // bo'lib taksi chaqiradi, `PASSENGER_APP_ROLES`). Haydovchi o'z nomidan
+    // buyurtma bera olmaydi, shuning uchun bu shart uni qamramaydi.
+    const isPassenger = userRole !== UserRole.DRIVER && order.passengerId === userId;
     const isDriver = userRole === UserRole.DRIVER && order.driverId === userId;
     const isManagerOrAdmin =
       userRole === UserRole.MANAGER || userRole === UserRole.ADMIN;
@@ -185,9 +299,23 @@ export class OrdersDispatchService {
     await this.statusTransition.updateOrderStatusAtomic(orderId, cancellableStatuses, {
       status: OrderStatus.CANCELLED,
       cancelReason: reason ?? null,
+      cancelledBy: isDriver ? 'driver' : isPassenger ? 'passenger' : 'manager',
     });
 
     const updatedOrder = await this.queryService.findByIdOrThrow(orderId);
+    // ⚠️ Haydovchi YANGI o'qilgan qatordan. `order` qidiruv paytida o'qilgan
+    // bo'lsa (driverId = null), shu orada haydovchi qabul qilib ulgurgan
+    // bo'lishi mumkin — atomik bekor qilish ACCEPTED ni ham qabul qiladi.
+    // Eski qiymat bilan o'sha haydovchiga "bekor" xabari bormas va u o'lik
+    // safarda qolib ketardi.
+    const assignedDriverId = updatedOrder.driverId ?? order.driverId;
+
+    // ⚠️ Qidiruv paytida `order.driverId` hali null — taklifni ko'rib turgan
+    // haydovchini faqat matching navbati biladi. Ilgari unga hech narsa
+    // bormasdi: taklif ekranida qolib, "qabul" bosganda xato olardi.
+    if (OrdersDispatchService.isInSearch(order.status)) {
+      await this.closeSearch(orderId, reason);
+    }
 
     // Notify both parties
     if (order.passengerId !== userId) {
@@ -202,10 +330,10 @@ export class OrdersDispatchService {
       }
     }
 
-    if (order.driverId && order.driverId !== userId) {
-      const driver = await this.usersService.findById(order.driverId);
+    if (assignedDriverId && assignedDriverId !== userId) {
+      const driver = await this.usersService.findById(assignedDriverId);
       if (driver) {
-        this.realtimeGateway.emitToUser(order.driverId, 'order:cancelled', {
+        this.realtimeGateway.emitToUser(assignedDriverId, 'order:cancelled', {
           orderId,
           reason,
           cancelledBy: userRole,
@@ -215,9 +343,11 @@ export class OrdersDispatchService {
     }
 
     this.realtimeGateway.emitToManagers('order:cancelled', updatedOrder);
+    // Food/market: the vendor needs a new courier.
+    await this.deliveryEvents?.publish(updatedOrder, 'cancelled');
 
-    if (order.driverId) {
-      const freedDriver = await this.driversService.findByUserId(order.driverId);
+    if (assignedDriverId) {
+      const freedDriver = await this.driversService.findByUserId(assignedDriverId);
       if (freedDriver) {
         this.realtimeGateway.emitToManagers('driver:status_changed', {
           driverId: freedDriver.id,

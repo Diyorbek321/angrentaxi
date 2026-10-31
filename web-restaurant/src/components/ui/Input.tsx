@@ -1,73 +1,86 @@
-import { forwardRef, InputHTMLAttributes, ReactNode, useId } from 'react';
-import { clsx } from 'clsx';
+// AUTO-SYNCED from web-manager — edit there, then run scripts/sync-panel-ui.sh
+'use client';
 
-export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
-  label?: string;
-  /** Xato matni — `aria-describedby` orqali inputga bog'lanadi. */
+import { forwardRef, useId, type InputHTMLAttributes, type ReactNode } from 'react';
+import { cn } from './cn';
+import { Field, controlBase, controlBorder, describedBy } from './Field';
+
+export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> {
+  label?: ReactNode;
   error?: string;
-  hint?: string;
+  hint?: ReactNode;
+  /** Prefix slot (icon or text). Alias: `leftIcon`. */
   leftElement?: ReactNode;
+  leftIcon?: ReactNode;
+  /** Suffix slot (icon, unit, button). Alias: `rightIcon`. */
   rightElement?: ReactNode;
-  /** Raqam, narx, telefon — mono shrift bilan yaxshiroq o'qiladi. */
+  rightIcon?: ReactNode;
+  /** Monospace — ONLY for ids, plates, SKUs, codes. Numbers/money stay sans (`.num`). */
   mono?: boolean;
+  /** sm 28px · md 32px (default) · lg 40px. */
+  size?: 'sm' | 'md' | 'lg';
+  /** Classes for the outer wrapper. */
+  wrapperClassName?: string;
 }
+
+const heights = { sm: 'h-7 text-[13px]', md: 'h-8', lg: 'h-10' } as const;
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
   (
-    { label, error, hint, leftElement, rightElement, mono = false, className, id, ...props },
+    {
+      label,
+      error,
+      hint,
+      leftElement,
+      leftIcon,
+      rightElement,
+      rightIcon,
+      mono = false,
+      size = 'md',
+      wrapperClassName,
+      className,
+      id,
+      required,
+      type,
+      ...props
+    },
     ref
   ) => {
-    const autoId = useId();
-    const inputId = id ?? `input-${autoId}`;
-    const errorId = `${inputId}-error`;
-    const hintId = `${inputId}-hint`;
-
+    const auto = useId();
+    const inputId = id ?? auto;
+    const left = leftElement ?? leftIcon;
+    const right = rightElement ?? rightIcon;
     return (
-      <div className="flex flex-col gap-1.5">
-        {label && (
-          <label htmlFor={inputId} className="text-caption font-semibold text-muted">
-            {label}
-          </label>
-        )}
+      <Field id={inputId} label={label} hint={hint} error={error} required={required} className={wrapperClassName}>
         <div className="relative flex items-center">
-          {leftElement && (
-            <div className="absolute left-3 text-subtle pointer-events-none flex items-center" aria-hidden>
-              {leftElement}
+          {left && (
+            <div className="absolute left-2.5 text-subtle pointer-events-none flex items-center [&_svg]:h-4 [&_svg]:w-4">
+              {left}
             </div>
           )}
           <input
             ref={ref}
             id={inputId}
+            type={type}
+            required={required}
             aria-invalid={error ? true : undefined}
-            aria-describedby={error ? errorId : hint ? hintId : undefined}
-            className={clsx(
-              'w-full bg-surface border rounded-ds-sm text-ink placeholder-subtle text-body py-2.5',
-              'transition-colors duration-fast ease-standard',
-              'disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-muted',
-              mono && 'font-mono',
-              error
-                ? 'border-danger focus:border-danger'
-                : 'border-line hover:border-line-strong focus:border-primary',
-              leftElement ? 'pl-10' : 'pl-3.5',
-              rightElement ? 'pr-10' : 'pr-3.5',
+            aria-describedby={describedBy(inputId, error, hint)}
+            className={cn(
+              controlBase,
+              controlBorder(!!error),
+              heights[size],
+              mono ? 'font-mono' : type === 'number' && 'num',
+              left ? 'pl-8' : 'pl-2.5',
+              right ? 'pr-8' : 'pr-2.5',
               className
             )}
             {...props}
           />
-          {rightElement && <div className="absolute right-3 text-subtle flex items-center">{rightElement}</div>}
+          {right && (
+            <div className="absolute right-2.5 text-subtle flex items-center [&_svg]:h-4 [&_svg]:w-4">{right}</div>
+          )}
         </div>
-        {/* Xato faqat rang bilan emas — matn bilan ham beriladi. */}
-        {error && (
-          <p id={errorId} className="text-caption text-danger-deep dark:text-danger-light">
-            {error}
-          </p>
-        )}
-        {hint && !error && (
-          <p id={hintId} className="text-caption text-subtle">
-            {hint}
-          </p>
-        )}
-      </div>
+      </Field>
     );
   }
 );

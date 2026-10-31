@@ -1,84 +1,195 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Package, Plus, RefreshCw, Search } from 'lucide-react';
-import { clsx } from 'clsx';
-import {
-  marketApi,
-  MarketCategory,
-  Product,
-  ProductStatus,
-  ProductUnit,
-} from '@/lib/api';
-import { errorMessage, hueTint } from '@/lib/utils';
+import { useEffect, useMemo, useState } from 'react';
+import { Package, Plus, RefreshCw } from 'lucide-react';
+import { marketApi, MarketCategory, Product, ProductPage, ProductStatus, Store } from '@/lib/api';
+import { productStatusMeta } from '@/lib/product-status';
+import { errorMessage } from '@/lib/utils';
+import { formatNumber } from '@/lib/format';
 import { useAsyncData } from '@/hooks/useAsyncData';
+import { useServerPagination } from '@/hooks/usePagination';
 import { useToast } from '@/components/ui/Toast';
-import { ProductStatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { ErrorState } from '@/components/ui/ErrorState';
-import { Input } from '@/components/ui/Input';
-import { Modal } from '@/components/ui/Modal';
+import { DataTable } from '@/components/ui/DataTable';
+import { FilterBar } from '@/components/ui/FilterBar';
+import { type FilterChip } from '@/components/ui/FilterChips';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Select } from '@/components/ui/Select';
-import { SkeletonTable } from '@/components/ui/Skeleton';
+import { type TabItem } from '@/components/ui/Tabs';
+import { AddProductModal } from '@/components/products/AddProductModal';
+import { ProductImageModal } from '@/components/products/ProductImageModal';
+import { BulkPriceModal, type BulkPriceChange } from '@/components/products/BulkPriceModal';
+import { productColumns } from '@/components/products/productColumns';
+import { usePageRefresh } from '@/components/shell';
+import { t } from '@/locales';
 
-interface CatalogData {
-  products: Product[];
+interface CatalogMeta {
   categories: MarketCategory[];
+  store: Store;
 }
 
-const ROW_GRID =
-  'grid grid-cols-[36px_minmax(0,2.2fr)_1fr_130px_150px_130px] gap-3 items-center';
+type TabKey = 'all' | ProductStatus;
 
-/** Stock colouring, with the word repeated in `title` so hue is never alone. */
-function stockTone(stock: number, threshold: number) {
-  if (stock === 0) return { text: 'text-danger-deep dark:text-danger-light', label: 'Tugagan' };
-  if (stock <= threshold)
-    return { text: 'text-override-dark dark:text-override-light', label: 'Kam qolgan' };
-  return { text: 'text-ink', label: 'Yetarli' };
-}
+/** Katalog HOLAT bo'yicha birinchi bo'linadi (Ozon naqshi) — real API holatlari. */
+const TAB_ORDER: TabKey[] = ['all', 'active', 'out', 'hidden'];
+
+/** Qidiruv har harfda emas, yozish to'xtagach serverga ketadi. */
+const SEARCH_DEBOUNCE_MS = 300;
 
 export default function ProductsPage() {
+  const m = t();
+  const pm = m.products;
   const { toast } = useToast();
-  const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [tab, setTab] = useState<TabKey>('all');
+  /** Tanlov sahifalar orasida saqlanadi — shuning uchun mahsulotning o'zi saqlanadi. */
+  const [selected, setSelected] = useState<Record<string, Product>>({});
   const [showAdd, setShowAdd] = useState(false);
   const [bulkPriceOpen, setBulkPriceOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [search, setSearch] = useState('');
+  const [categoryId, setCategoryId] = useState('');
   const [busy, setBusy] = useState(false);
+  const [statusBusyId, setStatusBusyId] = useState<string | null>(null);
+  const [imageFor, setImageFor] = useState<Product | null>(null);
 
-  const { data, isLoading, isRefreshing, error, reload } = useAsyncData<CatalogData>(async () => {
-    const [p, c] = await Promise.all([marketApi.getProducts(), marketApi.getCategories()]);
-    return { products: p.data.data, categories: c.data.data };
+  const pager = useServerPagination(25);
+  const { page, pageSize, setPage } = pager;
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setSearch(query.trim());
+      setPage(1);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(id);
+  }, [query, setPage]);
+
+  const meta = useAsyncData<CatalogMeta>(async () => {
+    const [c, s] = await Promise.all([marketApi.getCategories(), marketApi.getStore()]);
+    return { categories: c.data.data, store: s.data.data };
   });
 
+  // Katalog server tomonida sahifalanadi va filtrlanadi — katalog o'sgani sari
+  // hammasini olib brauzerda saralash sekinlashib borardi.
+  const { data, isLoading, isRefreshing, error, reload } = useAsyncData<ProductPage>(
+    async () =>
+      (
+        await marketApi.browseProducts({
+          page,
+          limit: pageSize,
+          search: search || undefined,
+          status: tab === 'all' ? undefined : tab,
+          categoryId: categoryId || undefined,
+        })
+      ).data.data,
+    [page, pageSize, search, tab, categoryId]
+  );
+  usePageRefresh(reload);
+
   const products = useMemo(() => data?.products ?? [], [data]);
-  const categories = useMemo(() => data?.categories ?? [], [data]);
+  const total = data?.total ?? 0;
+  const categories = useMemo(() => meta.data?.categories ?? [], [meta.data]);
+  // Haqiqiy do'kon sozlamasi; u kelguncha faqat "tugagan" belgilanadi (soxta chegara yo'q).
+  const threshold = meta.data?.store.lowStockThreshold ?? 0;
+  const paged = pager.toPaged(products, total);
+
+  // Tanlangan qatorlar sahifadagi eng yangi nusxa bilan yangilanadi — inline
+  // narx tahriridan keyin ommaviy narx eski narxdan hisoblanmasin.
+  useEffect(() => {
+    if (!data) return;
+    setSelected((s) => {
+      const fresh = data.products.filter((p) => s[p.id] && s[p.id] !== p);
+      return fresh.length ? { ...s, ...Object.fromEntries(fresh.map((p) => [p.id, p])) } : s;
+    });
+  }, [data]);
+
+  // O'chirish yoki holat o'zgarishidan keyin sahifa bo'shab qolsa — oxirgisiga qaytamiz.
+  useEffect(() => {
+    if (data && page > paged.pageCount) setPage(paged.pageCount);
+  }, [data, page, paged.pageCount, setPage]);
 
   const categoryName = (id: string | null) => categories.find((c) => c.id === id)?.name ?? '—';
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter(
-      (p) => p.name.toLowerCase().includes(q) || (p.sku ?? '').toLowerCase().includes(q)
-    );
-  }, [products, query]);
+  const tabs: readonly TabItem<TabKey>[] = useMemo(
+    () =>
+      TAB_ORDER.map((value) => ({
+        value,
+        label: value === 'all' ? t().common.all : productStatusMeta(value).segmentLabel,
+        count: data?.counts[value] ?? 0,
+      })),
+    [data]
+  );
 
-  const selectedIds = Object.entries(selected)
-    .filter(([, v]) => v)
-    .map(([id]) => id);
-  const selectedCount = selectedIds.length;
+  const changeTab = (next: TabKey) => {
+    setTab(next);
+    setPage(1);
+  };
+
+  const changeCategory = (next: string) => {
+    setCategoryId(next);
+    setPage(1);
+  };
+
+  const reloadAll = async () => {
+    await Promise.all([reload(), meta.reload()]);
+  };
+
+  const chips: FilterChip[] = [
+    ...(query.trim()
+      ? [{ key: 'q', label: pm.searchChip(query.trim()), onRemove: () => setQuery('') }]
+      : []),
+    ...(categoryId
+      ? [
+          {
+            key: 'cat',
+            label: pm.categoryChip(categoryName(categoryId)),
+            onRemove: () => changeCategory(''),
+          },
+        ]
+      : []),
+  ];
+
+  const clearFilters = () => {
+    setQuery('');
+    setSearch('');
+    setCategoryId('');
+    setTab('all');
+    setPage(1);
+  };
+
+  const selectedProducts = Object.values(selected);
+  const selectedIds = selectedProducts.map((p) => p.id);
+  const selectedKeys = useMemo(() => new Set(Object.keys(selected)), [selected]);
+
+  // DataTable kalitlar to'plamini beradi; mahsulotning o'zi saqlanadi —
+  // tanlov sahifalar orasida yashaydi (ommaviy narx eski sahifadagini ham oladi).
+  const changeSelection = (keys: Set<string>) =>
+    setSelected((s) => {
+      const next: Record<string, Product> = {};
+      keys.forEach((k) => {
+        const p = s[k] ?? products.find((x) => x.id === k);
+        if (p) next[k] = p;
+      });
+      return next;
+    });
 
   const patchProduct = async (id: string, patch: Parameters<typeof marketApi.updateProduct>[1]) => {
     try {
       await marketApi.updateProduct(id, patch);
       await reload();
-      toast({ title: 'Saqlandi', variant: 'success' });
+      toast({ title: m.common.saved, variant: 'success' });
     } catch (err) {
-      toast({ title: 'Xatolik', description: errorMessage(err), variant: 'error' });
+      toast({ title: m.common.error, description: errorMessage(err), variant: 'error' });
       await reload();
+    }
+  };
+
+  const setStatus = async (id: string, status: ProductStatus) => {
+    setStatusBusyId(id);
+    try {
+      await patchProduct(id, { status });
+    } finally {
+      setStatusBusyId(null);
     }
   };
 
@@ -88,266 +199,149 @@ export default function ProductsPage() {
       await marketApi.bulkUpdateProducts(selectedIds, status);
       setSelected({});
       await reload();
-      toast({ title: `${selectedIds.length} ta mahsulot yangilandi`, variant: 'success' });
+      toast({ title: pm.updated(selectedIds.length), variant: 'success' });
     } catch (err) {
-      toast({ title: 'Xatolik', description: errorMessage(err), variant: 'error' });
+      toast({ title: m.common.error, description: errorMessage(err), variant: 'error' });
     } finally {
       setBusy(false);
     }
   };
 
-  // No dedicated bulk-price backend endpoint — this applies the same
-  // per-product update the inline price field already uses, just looped over
-  // the selection (exact value, or a % adjustment floored at 0).
-  const bulkChangePrice = async (mode: 'set' | 'pct', value: number) => {
-    await Promise.all(
-      selectedIds.map((id) => {
-        const product = products.find((p) => p.id === id);
-        if (!product) return Promise.resolve();
-        const newPrice =
-          mode === 'set'
-            ? Math.max(0, value)
-            : Math.max(0, Math.round(product.price * (1 + value / 100)));
-        return marketApi.updateProduct(id, { price: newPrice });
-      })
-    );
-    setBulkPriceOpen(false);
-    setSelected({});
-    await reload();
-    toast({ title: 'Narxlar yangilandi', variant: 'success' });
+  // Ommaviy narx uchun alohida endpoint yo'q — inline narx tahriri ishlatadigan
+  // updateProduct har bir tanlangan mahsulotga qo'llanadi (modal oldin
+  // ko'rib chiqishni ko'rsatgan bo'ladi).
+  const bulkApplyPrice = async (changes: BulkPriceChange[]) => {
+    try {
+      await Promise.all(changes.map((c) => marketApi.updateProduct(c.id, { price: c.newPrice })));
+      setBulkPriceOpen(false);
+      setSelected({});
+      await reload();
+      toast({ title: pm.pricesUpdated(changes.length), variant: 'success' });
+    } catch (err) {
+      toast({ title: m.common.error, description: errorMessage(err), variant: 'error' });
+      await reload();
+    }
   };
+
+  const hasFilters = search !== '' || categoryId !== '' || tab !== 'all';
+  const catalogEmpty = !hasFilters && total === 0;
+  // "Tugaganlar" tabi bo'sh = yaxshi xabar (filtr natijasi emas).
+  const outOfStockCleared = tab === 'out' && !search && !categoryId;
+
+  const columns = productColumns({
+    categoryName,
+    threshold,
+    onSavePrice: (p, v) => patchProduct(p.id, { price: v }),
+    onSaveStock: (p, v) => patchProduct(p.id, { stock: Math.max(0, v) }),
+    onSetStatus: (p, status) => void setStatus(p.id, status),
+    statusBusyId,
+    onEditImage: setImageFor,
+  });
+
+  const openAdd = () => setShowAdd(true);
 
   return (
     <div>
       <PageHeader
-        title="Mahsulotlar"
-        description="Katalog, narx va zaxirani boshqaring"
-        icon={<Package size={18} aria-hidden />}
+        title={pm.title}
+        description={
+          data ? pm.description(formatNumber(data.counts.all)) : pm.descriptionLoading
+        }
         actions={
           <>
             <Button
               variant="secondary"
-              size="sm"
-              onClick={() => void reload()}
+              onClick={() => void reloadAll()}
               isLoading={isRefreshing}
-              leftIcon={<RefreshCw size={13} aria-hidden />}
+              leftIcon={<RefreshCw size={14} aria-hidden />}
             >
-              Yangilash
+              {m.common.refresh}
             </Button>
-            <Button size="sm" onClick={() => setShowAdd(true)} leftIcon={<Plus size={14} aria-hidden />}>
-              Mahsulot qo&apos;shish
+            <Button onClick={openAdd} leftIcon={<Plus size={14} aria-hidden />}>
+              {pm.add}
             </Button>
           </>
         }
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="w-full sm:w-72">
-          <Input
-            aria-label="Mahsulot qidirish"
-            placeholder="Nomi yoki SKU bo'yicha qidirish"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            leftElement={<Search size={15} aria-hidden />}
-          />
-        </div>
-        {selectedCount > 0 && (
-          <div
-            role="group"
-            aria-label="Tanlanganlar uchun amallar"
-            className="flex flex-wrap items-center gap-2 rounded-ds-sm border border-line bg-surface-2/60 px-3 py-1.5"
-          >
-            <span className="text-caption font-bold text-primary-text">
-              {selectedCount} tanlandi
-            </span>
+      <DataTable
+        ariaLabel={pm.title}
+        columns={columns}
+        rows={catalogEmpty ? [] : products}
+        rowKey={(p) => p.id}
+        loading={isLoading || (isRefreshing && products.length === 0)}
+        error={error}
+        onRetry={reload}
+        selectable
+        rowLabel={(p) => p.name}
+        selectedKeys={selectedKeys}
+        onSelectionChange={changeSelection}
+        bulkActions={() => (
+          <>
             <Button size="sm" variant="secondary" isLoading={busy} onClick={() => void bulkSetStatus('active')}>
-              Faollashtirish
+              {pm.activate}
             </Button>
             <Button size="sm" variant="secondary" isLoading={busy} onClick={() => void bulkSetStatus('hidden')}>
-              Yashirish
+              {pm.hide}
             </Button>
             <Button size="sm" variant="secondary" onClick={() => setBulkPriceOpen(true)}>
-              Narxni o&apos;zgartirish
+              {pm.changePrice}
             </Button>
-          </div>
+          </>
         )}
-      </div>
+        pagination={{ paged }}
+        toolbar={
+          <FilterBar
+            searchAriaLabel={pm.searchAria}
+            searchPlaceholder={pm.searchPlaceholder}
+            search={query}
+            onSearchChange={setQuery}
+            searchClassName="w-full sm:w-60"
+            chips={chips}
+            onClearAll={clearFilters}
+          >
+            <SegmentedControl items={tabs} value={tab} onChange={changeTab} ariaLabel={pm.statusAria} />
+            <Select
+              aria-label={pm.categoryFilterAria}
+              options={[
+                { value: '', label: pm.allCategories },
+                ...categories.map((c) => ({ value: c.id, label: `${c.emoji} ${c.name}` })),
+              ]}
+              value={categoryId}
+              onChange={(e) => changeCategory(e.target.value)}
+              wrapperClassName="w-full sm:w-52"
+            />
+          </FilterBar>
+        }
+        isFiltered={!catalogEmpty && !outOfStockCleared}
+        onClearFilters={clearFilters}
+        emptyFiltered={{ title: pm.nothingFound, description: pm.nothingFoundDescription }}
+        empty={
+          catalogEmpty
+            ? {
+                variant: 'first-use',
+                icon: <Package aria-hidden />,
+                title: pm.catalogEmpty,
+                description: pm.catalogEmptyDescription,
+                action: (
+                  <Button size="sm" onClick={openAdd} leftIcon={<Plus size={14} aria-hidden />}>
+                    {pm.add}
+                  </Button>
+                ),
+              }
+            : {
+                variant: 'cleared',
+                title: pm.noOutOfStock,
+                description: pm.noOutOfStockDescription,
+              }
+        }
+      />
 
-      {isLoading ? (
-        <SkeletonTable rows={8} cols={5} />
-      ) : error && products.length === 0 ? (
-        <ErrorState message={error} onRetry={reload} />
-      ) : filtered.length === 0 ? (
-        <Card>
-          <EmptyState
-            icon={<Package size={24} aria-hidden />}
-            title={query ? 'Hech narsa topilmadi' : 'Katalog hali bo’sh'}
-            description={
-              query
-                ? "Qidiruv so'zini o'zgartirib ko'ring."
-                : "Birinchi mahsulotni qo'shsangiz, u shu yerda ko'rinadi."
-            }
-            action={
-              query ? (
-                <Button size="sm" variant="secondary" onClick={() => setQuery('')}>
-                  Qidiruvni tozalash
-                </Button>
-              ) : (
-                <Button size="sm" onClick={() => setShowAdd(true)} leftIcon={<Plus size={14} aria-hidden />}>
-                  Mahsulot qo&apos;shish
-                </Button>
-              )
-            }
-          />
-        </Card>
-      ) : (
-        <>
-          {/* Desktop: editable table. */}
-          <Card padding="none" className="hidden overflow-hidden lg:block">
-            <div
-              className={clsx(
-                ROW_GRID,
-                'border-b border-line bg-surface-2/60 px-4 py-2.5 text-micro uppercase text-muted'
-              )}
-            >
-              <span aria-hidden />
-              <span>Mahsulot</span>
-              <span>Kategoriya</span>
-              <span>Narx (so&apos;m)</span>
-              <span>Zaxira</span>
-              <span>Holat</span>
-            </div>
-            <ul className="divide-y divide-divider">
-              {filtered.map((p) => {
-                const tone = stockTone(p.stock, 10);
-                return (
-                  <li key={p.id} className={clsx(ROW_GRID, 'px-4 py-2.5')}>
-                    <input
-                      type="checkbox"
-                      checked={!!selected[p.id]}
-                      onChange={() => setSelected((s) => ({ ...s, [p.id]: !s[p.id] }))}
-                      aria-label={`${p.name} tanlash`}
-                      className="h-4 w-4 accent-brand"
-                    />
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span
-                        aria-hidden
-                        style={hueTint(p.hue)}
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-ds-sm text-lg"
-                      >
-                        {p.emoji}
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block truncate text-body font-semibold text-ink">
-                          {p.name}
-                        </span>
-                        <span className="mt-0.5 block font-mono text-caption text-subtle">
-                          {p.sku || '—'}
-                        </span>
-                      </span>
-                    </div>
-                    <span className="truncate text-caption text-muted">
-                      {categoryName(p.categoryId)}
-                    </span>
-                    <Input
-                      type="number"
-                      mono
-                      defaultValue={p.price}
-                      aria-label={`${p.name} narxi`}
-                      onBlur={(e) => {
-                        const v = Number(e.target.value);
-                        if (!Number.isNaN(v) && v !== p.price) void patchProduct(p.id, { price: v });
-                      }}
-                    />
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        mono
-                        defaultValue={p.stock}
-                        title={tone.label}
-                        aria-label={`${p.name} zaxirasi — ${tone.label}`}
-                        className={clsx('font-bold', tone.text)}
-                        onBlur={(e) => {
-                          const v = Number(e.target.value);
-                          if (!Number.isNaN(v) && v !== p.stock)
-                            void patchProduct(p.id, { stock: Math.max(0, v) });
-                        }}
-                      />
-                      <span className="shrink-0 text-caption text-muted">{p.unit}</span>
-                    </div>
-                    <span>
-                      <ProductStatusBadge status={p.status} size="sm" />
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          </Card>
-
-          {/* Mobile: one card per product, same editable fields stacked. */}
-          <ul className="space-y-2.5 lg:hidden">
-            {filtered.map((p) => {
-              const tone = stockTone(p.stock, 10);
-              return (
-                <li key={p.id}>
-                  <Card padding="sm">
-                    <div className="flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        checked={!!selected[p.id]}
-                        onChange={() => setSelected((s) => ({ ...s, [p.id]: !s[p.id] }))}
-                        aria-label={`${p.name} tanlash`}
-                        className="mt-1 h-4 w-4 shrink-0 accent-brand"
-                      />
-                      <span
-                        aria-hidden
-                        style={hueTint(p.hue)}
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-ds-sm text-lg"
-                      >
-                        {p.emoji}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-body font-semibold text-ink">{p.name}</p>
-                        <p className="mt-0.5 truncate font-mono text-caption text-subtle">
-                          {p.sku || '—'} · {categoryName(p.categoryId)}
-                        </p>
-                      </div>
-                      <ProductStatusBadge status={p.status} size="sm" />
-                    </div>
-                    <div className="mt-3 grid grid-cols-2 gap-3">
-                      <Input
-                        label="Narx (so'm)"
-                        type="number"
-                        mono
-                        defaultValue={p.price}
-                        onBlur={(e) => {
-                          const v = Number(e.target.value);
-                          if (!Number.isNaN(v) && v !== p.price)
-                            void patchProduct(p.id, { price: v });
-                        }}
-                      />
-                      <Input
-                        label={`Zaxira (${p.unit})`}
-                        type="number"
-                        mono
-                        defaultValue={p.stock}
-                        hint={tone.label}
-                        className={clsx('font-bold', tone.text)}
-                        onBlur={(e) => {
-                          const v = Number(e.target.value);
-                          if (!Number.isNaN(v) && v !== p.stock)
-                            void patchProduct(p.id, { stock: Math.max(0, v) });
-                        }}
-                      />
-                    </div>
-                  </Card>
-                </li>
-              );
-            })}
-          </ul>
-        </>
+      {hasFilters && total > 0 && (
+        <p className="num mt-2 text-xs text-muted">
+          {pm.filtered(total)}
+        </p>
       )}
-
       <AddProductModal
         isOpen={showAdd}
         categories={categories}
@@ -355,231 +349,30 @@ export default function ProductsPage() {
         onCreated={async () => {
           setShowAdd(false);
           await reload();
-          toast({ title: "Mahsulot qo'shildi", variant: 'success' });
+          toast({ title: pm.added, variant: 'success' });
         }}
-        onError={(msg) => toast({ title: 'Xatolik', description: msg, variant: 'error' })}
+        onError={(msg) => toast({ title: m.common.error, description: msg, variant: 'error' })}
       />
+
+      {imageFor && (
+        <ProductImageModal
+          product={imageFor}
+          onClose={() => setImageFor(null)}
+          onSaved={async () => {
+            setImageFor(null);
+            await reload();
+            toast({ title: pm.imageUpdated, variant: 'success' });
+          }}
+          onError={(msg) => toast({ title: m.common.error, description: msg, variant: 'error' })}
+        />
+      )}
 
       <BulkPriceModal
         isOpen={bulkPriceOpen}
-        count={selectedCount}
+        products={selectedProducts}
         onClose={() => setBulkPriceOpen(false)}
-        onApply={bulkChangePrice}
-        onError={(msg) => toast({ title: 'Xatolik', description: msg, variant: 'error' })}
+        onApply={bulkApplyPrice}
       />
     </div>
-  );
-}
-
-function BulkPriceModal({
-  isOpen,
-  count,
-  onClose,
-  onApply,
-  onError,
-}: {
-  isOpen: boolean;
-  count: number;
-  onClose: () => void;
-  onApply: (mode: 'set' | 'pct', value: number) => Promise<void>;
-  onError: (message: string) => void;
-}) {
-  const [mode, setMode] = useState<'set' | 'pct'>('set');
-  const [value, setValue] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  const submit = async () => {
-    const num = parseFloat(value);
-    if (Number.isNaN(num)) return;
-    setSaving(true);
-    try {
-      await onApply(mode, num);
-      setValue('');
-    } catch (err) {
-      onError(errorMessage(err));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Narxni ommaviy o'zgartirish"
-      subtitle={`${count} ta mahsulotga qo'llaniladi`}
-      size="sm"
-    >
-      <div className="space-y-4">
-        <div role="radiogroup" aria-label="O'zgartirish usuli" className="flex gap-2">
-          {(
-            [
-              { key: 'set', label: 'Aniq narx' },
-              { key: 'pct', label: 'Foizda (%)' },
-            ] as const
-          ).map((opt) => (
-            <button
-              key={opt.key}
-              type="button"
-              role="radio"
-              aria-checked={mode === opt.key}
-              onClick={() => setMode(opt.key)}
-              className={clsx(
-                'flex-1 rounded-ds-sm border py-2 text-caption font-bold transition-colors duration-fast',
-                mode === opt.key
-                  ? 'border-primary bg-mint-tint text-primary-text'
-                  : 'border-line text-muted hover:bg-surface-2 hover:text-ink'
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-
-        <Input
-          type="number"
-          mono
-          autoFocus
-          label={mode === 'set' ? "Yangi narx (so'm)" : "O'zgarish foizi"}
-          hint={mode === 'pct' ? 'Masalan: -10 yoki 15' : undefined}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-        />
-
-        <div className="flex gap-2.5">
-          <Button variant="secondary" className="flex-1" onClick={onClose}>
-            Bekor qilish
-          </Button>
-          <Button
-            className="flex-1"
-            disabled={!value}
-            isLoading={saving}
-            onClick={() => void submit()}
-          >
-            Qo&apos;llash
-          </Button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
-const UNIT_OPTIONS = [
-  { value: 'dona', label: 'dona' },
-  { value: 'kg', label: 'kg' },
-  { value: 'litr', label: 'litr' },
-];
-
-function AddProductModal({
-  isOpen,
-  categories,
-  onClose,
-  onCreated,
-  onError,
-}: {
-  isOpen: boolean;
-  categories: MarketCategory[];
-  onClose: () => void;
-  onCreated: () => Promise<void>;
-  onError: (message: string) => void;
-}) {
-  const [name, setName] = useState('');
-  const [sku, setSku] = useState('');
-  const [price, setPrice] = useState('');
-  const [stock, setStock] = useState('');
-  const [unit, setUnit] = useState<ProductUnit>('dona');
-  const [categoryId, setCategoryId] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  const save = async () => {
-    if (!name.trim()) return;
-    setSaving(true);
-    try {
-      await marketApi.createProduct({
-        name: name.trim(),
-        sku: sku.trim() || undefined,
-        price: Number(price) || 0,
-        stock: Number(stock) || 0,
-        unit,
-        categoryId: categoryId || undefined,
-      });
-      setName('');
-      setSku('');
-      setPrice('');
-      setStock('');
-      await onCreated();
-    } catch (err) {
-      onError(errorMessage(err));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Yangi mahsulot" size="lg">
-      <form
-        className="space-y-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void save();
-        }}
-      >
-        <Input
-          label="Nomi"
-          autoFocus
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Masalan: Guruch Lazer 1kg"
-        />
-        <Input
-          label="SKU / Shtrix-kod"
-          mono
-          value={sku}
-          onChange={(e) => setSku(e.target.value)}
-          placeholder="GRC-1002"
-        />
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Input
-            label="Narx (so'm)"
-            type="number"
-            mono
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            placeholder="0"
-          />
-          <Input
-            label="Zaxira"
-            type="number"
-            mono
-            value={stock}
-            onChange={(e) => setStock(e.target.value)}
-            placeholder="0"
-          />
-          <Select
-            label="Birlik"
-            options={UNIT_OPTIONS}
-            value={unit}
-            onChange={(e) => setUnit(e.target.value as ProductUnit)}
-          />
-        </div>
-        <Select
-          label="Kategoriya"
-          placeholder={categories.length ? 'Kategoriyani tanlang' : 'Kategoriya yo’q'}
-          options={categories.map((c) => ({ value: c.id, label: `${c.emoji} ${c.name}` }))}
-          value={categoryId}
-          onChange={(e) => setCategoryId(e.target.value)}
-          hint={categories.length ? undefined : "Avval kategoriya qo'shing"}
-        />
-
-        <div className="flex justify-end gap-2.5 pt-1">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Bekor qilish
-          </Button>
-          <Button type="submit" disabled={!name.trim()} isLoading={saving}>
-            Qo&apos;shish
-          </Button>
-        </div>
-      </form>
-    </Modal>
   );
 }

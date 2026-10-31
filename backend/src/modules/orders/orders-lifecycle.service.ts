@@ -3,9 +3,10 @@
 // atomically (TOCTOU guard), and fans the result out to the passenger and the
 // dispatcher board. Trip completion is heavy enough (settlement, promo,
 // referral bonuses) that it lives in OrdersCompletionService instead.
-import { BadRequestException, ForbiddenException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { TaximeterService } from '../taximeter/taximeter.service';
 import { Order, OrderStatus } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
@@ -14,6 +15,10 @@ import { UsersService } from '../users/users.service';
 import { DriversService } from '../drivers/drivers.service';
 import { OrdersQueryService } from './orders-query.service';
 import { OrderStatusTransitionService } from './order-status-transition.service';
+import { waitingSettingsOf } from '../tariffs/waiting-charge';
+import { DeliveryEventsService } from '../delivery/delivery-events.service';
+import { VendorCashService } from '../delivery/vendor-cash.service';
+import { MatchingService } from '../matching/matching.service';
 
 @Injectable()
 export class OrdersLifecycleService {
@@ -30,6 +35,14 @@ export class OrdersLifecycleService {
     private readonly driversService: DriversService,
     private readonly queryService: OrdersQueryService,
     private readonly statusTransition: OrderStatusTransitionService,
+    // Optional only so unit tests that build this service by hand keep
+    // compiling; DeliveryEventsModule is global, so the app always has it.
+    @Optional() private readonly deliveryEvents?: DeliveryEventsService,
+    @Optional() private readonly taximeterService?: TaximeterService,
+    @Optional() private readonly vendorCash?: VendorCashService,
+    // Taklif darvozasi. OrdersModule MatchingModule'ni import qiladi, ya'ni
+    // ilovada har doim bor; ixtiyoriy faqat qo'lda yig'iladigan spec'lar uchun.
+    @Optional() private readonly matching?: MatchingService,
   ) {}
 
   async acceptOrder(driverId: string, orderId: string): Promise<Order> {
@@ -45,13 +58,38 @@ export class OrdersLifecycleService {
       throw new BadRequestException('Order already has a driver');
     }
 
-    await this.statusTransition.updateOrderStatusAtomic(orderId, OrderStatus.SEARCHING, {
-      driverId,
-      status: OrderStatus.ACCEPTED,
-    });
+    // ⚠️ Faqat O'ZIGA taklif qilingan haydovchi. Ilgari SEARCHING buyurtmani
+    // ID sini bilgan har qanday haydovchi olib qo'yardi — navbat, radius va
+    // ETA tartibi chetlab o'tilardi. Band belgisi taklif + qisqa grace
+    // (OFFER_ACCEPT_GRACE_SECONDS) yashaydi, ya'ni 15-soniyadagi kech "qabul"
+    // ham o'tadi. Dispetcherning qo'lda biriktirishi bu yo'ldan o'tmaydi
+    // (OrdersDispatchService.reassignDriver).
+    if (this.matching && !(await this.matching.isOfferedTo(driverId, orderId))) {
+      throw new ConflictException('This order is not (or no longer) offered to you');
+    }
+
+    // Hamyon rejimida (e-tijorat qonuni 23-modda) naqd ovqat/market
+    // buyurtmasini faqat hamyonida tovar summasi bor kuryer oladi.
+    await this.vendorCash?.assertCanAccept(driverId, order);
+
+    await this.statusTransition.acceptForDriver(orderId, driverId);
 
     const updatedOrder = await this.queryService.findByIdOrThrow(orderId);
 
+    // ⚠️ Shu nuqtadan safar HAYDOVCHINIKI (yozuv commit bo'lgan). Xabarnomalar
+    // xatosi (FCM, delivery event) "qabul" so'roviga 500 qaytarmasligi kerak:
+    // haydovchi xato ko'rib safarni tashlab ketar, yo'lovchi esa kutib qolardi.
+    try {
+      await this.announceAccepted(order, updatedOrder, driverId);
+    } catch (err) {
+      this.logger.error(`Post-accept notifications for order ${orderId} failed: ${(err as Error).message}`);
+    }
+
+    return updatedOrder;
+  }
+
+  private async announceAccepted(order: Order, updatedOrder: Order, driverId: string): Promise<void> {
+    const orderId = order.id;
     // Notify passenger
     const passenger = await this.usersService.findById(order.passengerId);
     const driver = await this.driversService.findByUserId(driverId);
@@ -70,19 +108,27 @@ export class OrdersLifecycleService {
         },
       });
 
-      // Send push notification
-      await this.notificationsService.notifyOrderAccepted(passenger, driver, updatedOrder);
+      // Send push notification. Alohida himoyalangan: FCM xatosi quyidagi
+      // dispetcher/vendor xabarlarini to'xtatmasin.
+      try {
+        await this.notificationsService.notifyOrderAccepted(passenger, driver, updatedOrder);
+      } catch (err) {
+        this.logger.warn(`Accepted push for order ${orderId} failed: ${(err as Error).message}`);
+      }
     }
 
     this.realtimeGateway.emitToManagers('order:updated', updatedOrder);
+    try {
+      await this.deliveryEvents?.publish(updatedOrder, 'accepted');
+    } catch (err) {
+      this.logger.warn(`Accepted delivery event for order ${orderId} failed: ${(err as Error).message}`);
+    }
     if (driver) {
       this.realtimeGateway.emitToManagers('driver:status_changed', {
         driverId: driver.id,
         status: 'busy',
       });
     }
-
-    return updatedOrder;
   }
 
   async driverArrived(driverId: string, orderId: string): Promise<Order> {
@@ -127,18 +173,53 @@ export class OrdersLifecycleService {
       );
     }
 
-    await this.statusTransition.updateOrderStatusAtomic(orderId, OrderStatus.ACCEPTED, {
-      status: OrderStatus.ARRIVED,
-    });
+    // ⚠️ KUTISH HISOBI SHU YERDA BOSHLANADI. `arrived_at` — pul undiriladigan
+    // maydon (`orders-completion.service.ts` uni safar boshlanishigacha
+    // bo'lgan kutish haqiga aylantiradi), shuning uchun uni yozish
+    // qoidalari status o'zgarishidan qat'iyroq.
+    //
+    // ⚠️ IDEMPOTENT — `COALESCE("arrived_at", :arrivedAt)`: qiymat FAQAT
+    // bo'sh bo'lganda yoziladi. Aks holda haydovchi "Yetib keldim" tugmasini
+    // qayta bosib kutish hisobini nolga tushira olardi, ya'ni yo'lovchi
+    // qancha kutdirgani ahamiyatsiz bo'lib qolardi. Status qo'riqchisi
+    // (`status IN ('accepted')`) ham takroriy chaqiruvni to'sadi; COALESCE
+    // esa qoidani MA'LUMOTLAR BAZASI darajasida saqlaydi va kelajakda status
+    // sharti yumshatilsa ham buzilmaydi.
+    //
+    // Vaqt JS'dan olinadi, SQL `NOW()` dan emas: kutish daqiqalari shu
+    // maydon bilan `trips.start_time` orasidagi FARQ, va u ham JS `Date`
+    // sifatida yoziladi. Ikkalasi bitta soatdan chiqishi shart — aks holda
+    // baza va Node vaqt mintaqasi farq qilganda kutish soatlab noto'g'ri
+    // hisoblanardi.
+    const arrivedAt = new Date();
+
+    await this.statusTransition.updateOrderStatusAtomic(
+      orderId,
+      OrderStatus.ACCEPTED,
+      {
+        status: OrderStatus.ARRIVED,
+        arrivedAt: () => 'COALESCE("arrived_at", :arrivedAt)',
+      },
+      { arrivedAt },
+    );
 
     const updatedOrder = await this.queryService.findByIdOrThrow(orderId);
+    const waiting = waitingSettingsOf(updatedOrder.tariff ?? {});
 
     // Notify passenger
     const passenger = await this.usersService.findById(order.passengerId);
 
     if (passenger) {
+      // ⚠️ PAKETDA KUTISH SHARTNOMASI TO'LIQ UZATILADI. Yo'lovchi ilovasi
+      // hisoblagichni O'Z soatidan emas, shu uch maydondan yuritadi —
+      // aks holda haydovchi va yo'lovchi har xil raqam ko'radi va bu aynan
+      // tuzatilayotgan nuqson edi. `arrivedAt` serverdan kelgani uchun
+      // ilova qayta ishga tushsa ham hisob nolga qaytmaydi.
       this.realtimeGateway.emitToUser(order.passengerId, 'order:arrived', {
         orderId,
+        arrivedAt: updatedOrder.arrivedAt,
+        freeWaitMinutes: waiting.freeWaitMinutes,
+        waitingPricePerMinute: waiting.waitingPricePerMinute,
         message: 'Your driver has arrived',
       });
 
@@ -146,6 +227,7 @@ export class OrdersLifecycleService {
     }
 
     this.realtimeGateway.emitToManagers('order:updated', updatedOrder);
+    await this.deliveryEvents?.publish(updatedOrder, 'arrived');
 
     return updatedOrder;
   }
@@ -163,6 +245,18 @@ export class OrdersLifecycleService {
       throw new ForbiddenException('You are not the driver for this order');
     }
 
+    // Shaharlararo band ALOHIDA boshlanmaydi: yo'lovchilar qatnov jo'naganda
+    // birga yo'lga chiqadi (`IntercityLifecycleService.depart`). Alohida
+    // boshlangan band jo'nashdan oldin yakunlanib, qatnovni `boarding` da
+    // qotirib qo'yardi — uni na jo'natib, na cron bilan yopib bo'lardi.
+    if (order.intercityTripId) {
+      throw new BadRequestException("Shaharlararo qatnovda yo'lovchilar «Jo'nash» tugmasi bilan birga yo'lga chiqadi");
+    }
+
+    // Naqd ovqat/market: kuryer do'konga tovar pulini to'lamaguncha tovarni
+    // olib keta olmaydi (`delivery/vendor-cash.ts`).
+    await this.vendorCash?.assertReadyForPickup(order);
+
     await this.statusTransition.updateOrderStatusAtomic(orderId, OrderStatus.ARRIVED, {
       status: OrderStatus.IN_PROGRESS,
     });
@@ -176,6 +270,12 @@ export class OrdersLifecycleService {
       actualDurationMin: null,
     });
 
+    // Taksometr izining birinchi nuqtasi — haydovchi turgan joy. Busiz
+    // birinchi ping kelguncha bosilgan metrlar hisobdan tushib qolardi.
+    if (order.isMetered) {
+      await this.taximeterService?.recordDriverPosition(orderId);
+    }
+
     const updatedOrder = await this.queryService.findByIdOrThrow(orderId);
 
     // Notify passenger
@@ -185,6 +285,7 @@ export class OrdersLifecycleService {
     });
 
     this.realtimeGateway.emitToManagers('order:updated', updatedOrder);
+    await this.deliveryEvents?.publish(updatedOrder, 'picked_up');
 
     return updatedOrder;
   }

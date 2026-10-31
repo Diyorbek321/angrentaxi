@@ -1,19 +1,20 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { FoodService } from './food.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { User, UserRole } from '../../database/entities/user.entity';
+import { User, PASSENGER_APP_ROLES } from '../../database/entities/user.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
 import { CreateFoodOrderDto } from './dto/create-food-order.dto';
 import { OptionalPaginationDto } from '../../common/dto/optional-pagination.dto';
+import { CancelVendorOrderDto } from '../../common/dto/cancel-vendor-order.dto';
 
 @ApiTags('Food (storefront)')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.PASSENGER)
+@Roles(...PASSENGER_APP_ROLES)
 @Controller('food')
 export class FoodStorefrontController {
   constructor(private readonly foodService: FoodService) {}
@@ -51,5 +52,16 @@ export class FoodStorefrontController {
   @ApiOperation({ summary: 'Place a food order' })
   createOrder(@CurrentUser() user: User, @Body() dto: CreateFoodOrderDto) {
     return this.foodService.createOrder(user.id, user.phone, dto);
+  }
+
+  @Post('orders/:id/cancel')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Cancel my food order (only before the vendor accepts it)' })
+  cancelMyOrder(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CancelVendorOrderDto,
+  ) {
+    return this.foodService.cancelByCustomer(user.id, id, dto.reason);
   }
 }

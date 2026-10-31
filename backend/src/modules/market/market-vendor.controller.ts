@@ -1,17 +1,38 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { MarketService } from './market.service';
+import { MarketImagesService } from './market-images.service';
+import { CatalogImageService } from '../storage/catalog-image.service';
+import { catalogImageMulterOptions, requireImage } from '../storage/catalog-images';
+import type { UploadedMemoryFile } from '../drivers/driver-uploads';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { User, UserRole } from '../../database/entities/user.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
+import { VendorCashService } from '../delivery/vendor-cash.service';
+import { CashReceivedDto } from '../delivery/dto/cash-received.dto';
 import { OptionalEnumPipe } from '../../common/pipes/optional-enum.pipe';
 import { UpdateStoreDto } from './dto/update-store.dto';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { BulkUpdateProductsDto } from './dto/bulk-update-products.dto';
+import { VendorProductQueryDto } from './dto/vendor-product-query.dto';
 import { MarketOrderStatus } from '../../database/entities/market-order.entity';
 
 @ApiTags('Market (vendor)')
@@ -20,7 +41,12 @@ import { MarketOrderStatus } from '../../database/entities/market-order.entity';
 @Roles(UserRole.MARKET)
 @Controller('market/vendor')
 export class MarketVendorController {
-  constructor(private readonly marketService: MarketService) {}
+  constructor(
+    private readonly marketService: MarketService,
+    private readonly marketImages: MarketImagesService,
+    private readonly catalogImages: CatalogImageService,
+    private readonly vendorCash: VendorCashService,
+  ) {}
 
   @Get('store')
   @ApiOperation({ summary: 'Get my store profile' })
@@ -32,6 +58,22 @@ export class MarketVendorController {
   @ApiOperation({ summary: 'Update my store settings' })
   async updateStore(@CurrentUser() user: User, @Body() dto: UpdateStoreDto) {
     return this.marketService.updateStore(user.id, dto);
+  }
+
+  @Put('store/image')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: "Do'kon muqovasini yuklash/almashtirish" })
+  @UseInterceptors(FileInterceptor('image', catalogImageMulterOptions))
+  async uploadStoreImage(@CurrentUser() user: User, @UploadedFile() file: UploadedMemoryFile) {
+    const store = await this.marketService.getStoreByOwner(user.id);
+    return this.marketImages.setStoreImage(store.id, requireImage(file));
+  }
+
+  @Delete('store/image')
+  @ApiOperation({ summary: "Do'kon muqovasini olib tashlash" })
+  async removeStoreImage(@CurrentUser() user: User) {
+    const store = await this.marketService.getStoreByOwner(user.id);
+    return this.marketImages.setStoreImage(store.id, null);
   }
 
   @Get('dashboard')
@@ -92,6 +134,13 @@ export class MarketVendorController {
     return this.marketService.listProducts(store.id);
   }
 
+  @Get('products/browse')
+  @ApiOperation({ summary: 'List my products — paged, with search and status/category filters' })
+  async browseProducts(@CurrentUser() user: User, @Query() query: VendorProductQueryDto) {
+    const store = await this.marketService.getStoreByOwner(user.id);
+    return this.marketService.browseProducts(store.id, query);
+  }
+
   @Post('products')
   @ApiOperation({ summary: 'Create a product' })
   async createProduct(@CurrentUser() user: User, @Body() dto: CreateProductDto) {
@@ -121,8 +170,29 @@ export class MarketVendorController {
   @ApiOperation({ summary: 'Delete a product' })
   async deleteProduct(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
     const store = await this.marketService.getStoreByOwner(user.id);
-    await this.marketService.deleteProduct(store.id, id);
+    const imageKey = await this.marketService.deleteProduct(store.id, id);
+    await this.catalogImages.discard(imageKey);
     return { deleted: true };
+  }
+
+  @Put('products/:id/image')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Mahsulot rasmini yuklash/almashtirish' })
+  @UseInterceptors(FileInterceptor('image', catalogImageMulterOptions))
+  async uploadProductImage(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file: UploadedMemoryFile,
+  ) {
+    const store = await this.marketService.getStoreByOwner(user.id);
+    return this.marketImages.setProductImage(store.id, id, requireImage(file));
+  }
+
+  @Delete('products/:id/image')
+  @ApiOperation({ summary: 'Mahsulot rasmini olib tashlash' })
+  async removeProductImage(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
+    const store = await this.marketService.getStoreByOwner(user.id);
+    return this.marketImages.setProductImage(store.id, id, null);
   }
 
   @Get('stock/movements')
@@ -168,5 +238,27 @@ export class MarketVendorController {
   async advanceOrder(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
     const store = await this.marketService.getStoreByOwner(user.id);
     return this.marketService.advanceOrder(store.id, id);
+  }
+
+  @Post('orders/:id/redispatch')
+  @ApiOperation({ summary: 'Send a new courier after the previous one was not found or cancelled' })
+  async redispatchOrder(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
+    const store = await this.marketService.getStoreByOwner(user.id);
+    return this.marketService.redispatchDelivery(store.id, id);
+  }
+
+  /**
+   * Naqd buyurtma: kuryer tovar pulini to'ladimi (`delivery/vendor-cash.ts`).
+   * "Olmadim" — dispetcherga nizo ketadi.
+   */
+  @Patch('orders/:id/cash-received')
+  @ApiOperation({ summary: "Kuryerdan tovar puli olindi / olinmadi (naqd buyurtma)" })
+  async cashReceived(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CashReceivedDto,
+  ) {
+    await this.vendorCash.vendorDecision(user.id, 'market', id, dto.received);
+    return { ok: true };
   }
 }

@@ -5,33 +5,44 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Phone, Lock, ArrowRight, Shield } from 'lucide-react';
+import { AlertCircle, ArrowRight, Lock, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { LanguageToggle } from '@/components/ui';
+import { cn } from '@/components/ui/cn';
+import { formatPhone as formatPhoneDisplay } from '@/lib/format';
 import { authApi } from '@/lib/api';
 import { isValidUzPhone, formatPhone } from '@/lib/auth';
 import { sanitizeNextPath } from '@/lib/route-guard';
 import { useAuth } from '@/hooks/useAuth';
+import { t } from '@/locales';
 
-const phoneSchema = z.object({
-  phone: z
-    .string()
-    .min(9, 'Telefon raqamini kiriting')
-    .refine((v) => isValidUzPhone(v), 'Noto\'g\'ri telefon raqam (+998XXXXXXXXX)'),
-});
+// Schemas are built per render so validation messages follow the active locale.
+const makePhoneSchema = () => {
+  const v = t().login.validation;
+  return z.object({
+    phone: z
+      .string()
+      .min(9, v.phoneRequired)
+      .refine((value) => isValidUzPhone(value), v.phoneInvalid),
+  });
+};
 
-const otpSchema = z.object({
-  code: z
-    .string()
-    .length(6, '6 raqamli kod kiriting')
-    .regex(/^\d+$/, 'Faqat raqamlar'),
-});
+const makeOtpSchema = () => {
+  const v = t().login.validation;
+  return z.object({
+    code: z.string().length(6, v.codeLength).regex(/^\d+$/, v.digitsOnly),
+  });
+};
 
-type PhoneForm = z.infer<typeof phoneSchema>;
-type OtpForm = z.infer<typeof otpSchema>;
+type PhoneForm = z.infer<ReturnType<typeof makePhoneSchema>>;
+type OtpForm = z.infer<ReturnType<typeof makeOtpSchema>>;
 
 export default function LoginPage() {
+  const c = t().common;
+  const m = t().login;
   const router = useRouter();
   const { login } = useAuth();
   const { toast } = useToast();
@@ -54,12 +65,12 @@ export default function LoginPage() {
   }, []);
 
   const phoneForm = useForm<PhoneForm>({
-    resolver: zodResolver(phoneSchema),
+    resolver: zodResolver(makePhoneSchema()),
     defaultValues: { phone: '' },
   });
 
   const otpForm = useForm<OtpForm>({
-    resolver: zodResolver(otpSchema),
+    resolver: zodResolver(makeOtpSchema()),
     defaultValues: { code: '' },
   });
 
@@ -77,16 +88,16 @@ export default function LoginPage() {
         otpForm.setValue('code', code);
       }
       toast({
-        title: 'Kod yuborildi',
-        description: code ? `[DEV] Kod: ${code}` : `${normalized} raqamiga SMS kod yuborildi`,
+        title: m.codeSent,
+        description: code ? m.devCode(code) : m.codeSentTo(normalized),
         variant: 'success',
       });
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        'Kod yuborishda xatolik yuz berdi';
+        m.sendError;
       setAuthError(message);
-      toast({ title: 'Xatolik', description: message, variant: 'error' });
+      toast({ title: c.error, description: message, variant: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -100,147 +111,152 @@ export default function LoginPage() {
       // never reaches this code — only the profile comes back.
       const user = await authApi.verifyOtp(phone, data.code);
       login(user);
-      toast({ title: 'Muvaffaqiyatli kirildi', variant: 'success' });
+      toast({ title: m.loggedIn, variant: 'success' });
       router.push(nextPath);
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         (err instanceof Error && err.message ? err.message : null) ||
-        'Noto\'g\'ri kod';
+        m.wrongCode;
       setAuthError(message);
-      toast({ title: 'Xatolik', description: message, variant: 'error' });
+      toast({ title: c.error, description: message, variant: 'error' });
     } finally {
       setIsLoading(false);
     }
   };
 
-  return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-bg p-4">
-      {/* Decorative background orbs — brend rangi, dekorativ (aria-hidden). */}
-      <div
-        className="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full bg-primary/10 blur-[80px]"
-        aria-hidden="true"
-      />
-      <div
-        className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-info/10 blur-[100px]"
-        aria-hidden="true"
-      />
+  const stepIndex = step === 'phone' ? 1 : 2;
 
-      {/* Card */}
-      <div className="relative w-full max-w-md">
-        {/* Logo section */}
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-ds-md bg-gradient-cta shadow-cta">
-            <Shield className="h-7 w-7 text-white" aria-hidden="true" />
-          </div>
+  return (
+    <div className="relative flex min-h-screen items-center justify-center bg-bg px-4 py-10">
+      <div className="absolute right-4 top-4 flex items-center gap-2">
+        <LanguageToggle />
+        <ThemeToggle />
+      </div>
+
+      <main className="w-full max-w-sm">
+        <div className="mb-6 flex flex-col items-center gap-3 text-center">
+          <span
+            aria-hidden
+            className="flex h-10 w-10 items-center justify-center rounded-ds-sm bg-primary text-base font-bold text-white dark:bg-primary-on-dark"
+          >
+            A
+          </span>
           <div>
-            <h1 className="text-h1 text-ink">Angren Taxi</h1>
-            <p className="text-body text-primary-text">Admin Panel</p>
+            <p className="text-title text-ink">Angren Taxi</p>
+            <p className="text-[13px] text-muted">{m.panelName}</p>
           </div>
         </div>
 
-        {/* Card */}
-        <div className="rounded-ds-lg border border-line bg-surface p-8 shadow-pop">
-          {/* Step indicator */}
-          <div className="mb-6 flex items-center gap-2" aria-hidden="true">
-            <div
-              className={`h-1.5 flex-1 rounded-full transition-colors ${
-                step === 'phone' || step === 'otp' ? 'bg-primary' : 'bg-surface-2'
-              }`}
-            />
-            <div
-              className={`h-1.5 flex-1 rounded-full transition-colors ${
-                step === 'otp' ? 'bg-primary' : 'bg-surface-2'
-              }`}
-            />
+        <div className="rounded-ds-md border border-line bg-surface p-6 shadow-card">
+          {/* Step indicator — meaning in words too, not colour alone. */}
+          <div className="mb-5">
+            <div className="flex items-center gap-1.5" aria-hidden="true">
+              <span className="h-1 flex-1 rounded-full bg-primary dark:bg-primary-on-dark" />
+              <span
+                className={cn(
+                  'h-1 flex-1 rounded-full transition-colors',
+                  step === 'otp' ? 'bg-primary dark:bg-primary-on-dark' : 'bg-surface-3'
+                )}
+              />
+            </div>
+            <p className="num mt-2 text-xs text-subtle">{m.step(stepIndex)}</p>
           </div>
 
-          <div className="mb-6">
-            <h2 className="text-h2 text-ink">
-              {step === 'phone' ? 'Admin paneliga kirish' : 'Tasdiqlash kodi'}
-            </h2>
-            <p className="mt-1.5 text-body text-muted">
+          <div className="mb-5">
+            <h1 className="text-h2 text-ink">{step === 'phone' ? m.title : m.codeLabel}</h1>
+            <p className="mt-1 text-[13px] leading-relaxed text-muted">
               {step === 'phone'
-                ? 'Telefon raqamingizni kiriting'
-                : `${phone} raqamiga yuborilgan 6 raqamli kodni kiriting`}
+                ? m.phoneHint
+                : m.codeHint(formatPhoneDisplay(phone))}
             </p>
           </div>
 
           {authError && (
-            <p
+            <div
               role="alert"
-              className="mb-4 rounded-ds-md border border-danger/30 bg-danger-tint px-3 py-2.5 text-body text-danger-deep dark:text-danger-light"
+              className="mb-4 flex items-start gap-2 rounded-ds-sm border border-danger/30 bg-danger-tint px-3 py-2 text-[13px] text-danger-dark dark:text-danger-light"
             >
-              {authError}
-            </p>
+              <AlertCircle size={15} className="mt-px shrink-0" aria-hidden="true" />
+              <span>{authError}</span>
+            </div>
           )}
 
           {step === 'phone' ? (
             <form onSubmit={phoneForm.handleSubmit(handleSendOtp)} className="space-y-4" noValidate>
               <Input
-                label="Telefon raqam"
+                label={m.phoneLabel}
                 type="tel"
                 autoComplete="tel"
+                autoFocus
                 placeholder="+998901234567"
-                mono
-                leftIcon={<Phone className="h-4 w-4" />}
+                className="num"
+                leftIcon={<Phone aria-hidden="true" />}
                 error={phoneForm.formState.errors.phone?.message}
                 {...phoneForm.register('phone')}
               />
               <Button
                 type="submit"
                 variant="primary"
+                size="lg"
                 className="w-full"
                 isLoading={isLoading}
-                rightIcon={<ArrowRight className="h-4 w-4" />}
+                rightIcon={<ArrowRight size={15} aria-hidden="true" />}
               >
-                Kod yuborish
+                {isLoading ? m.sending : m.send}
               </Button>
             </form>
           ) : (
             <form onSubmit={otpForm.handleSubmit(handleVerifyOtp)} className="space-y-4" noValidate>
               <Input
-                label="Tasdiqlash kodi"
+                label={m.codeLabel}
                 type="text"
+                autoFocus
+                autoComplete="one-time-code"
                 placeholder="000000"
                 maxLength={6}
                 mono
-                leftIcon={<Lock className="h-4 w-4" />}
+                leftIcon={<Lock aria-hidden="true" />}
                 error={otpForm.formState.errors.code?.message}
                 inputMode="numeric"
                 {...otpForm.register('code')}
               />
+              {/* Dev-only helper — informational blue; amber stays reserved
+                  for manual overrides. */}
               {devOtpCode && (
-                <div className="rounded-ds-md border border-override/40 bg-override-tint px-3 py-2 text-body text-override-dark dark:text-override-light">
-                  <span className="font-semibold">DEV:</span> OTP kod —{' '}
-                  <span className="font-mono font-bold">{devOtpCode}</span>{' '}
-                  <span className="text-subtle">(avtomatik kiritildi)</span>
+                <div className="rounded-ds-sm border border-info/30 bg-info-tint px-3 py-2 text-[13px] text-info-dark dark:text-info-light">
+                  <span className="font-semibold">TEST:</span> {m.devOtpPrefix}{' '}
+                  <span className="font-mono font-semibold">{devOtpCode}</span> {m.devOtpSuffix}
                 </div>
               )}
               <Button
                 type="submit"
                 variant="primary"
+                size="lg"
                 className="w-full"
                 isLoading={isLoading}
-                rightIcon={<ArrowRight className="h-4 w-4" />}
+                rightIcon={<ArrowRight size={15} aria-hidden="true" />}
               >
-                Kirish
+                {isLoading ? m.verifying : m.submit}
               </Button>
-              <button
+              <Button
                 type="button"
-                className="w-full rounded-ds-xs text-center text-body text-muted transition-colors hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+                variant="ghost"
+                className="w-full"
                 onClick={() => {
                   setStep('phone');
                   setDevOtpCode('');
                   setAuthError(null);
                 }}
               >
-                Raqamni o&apos;zgartirish
-              </button>
+                {m.changeNumber}
+              </Button>
             </form>
           )}
         </div>
-      </div>
+
+        <p className="mt-6 text-center text-xs text-subtle">Angren Taxi · Super Admin</p>
+      </main>
     </div>
   );
 }

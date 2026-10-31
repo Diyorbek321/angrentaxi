@@ -1,12 +1,28 @@
+import 'dart:async';
+
 import 'package:angren_taxi/core/config/app_config.dart';
+import 'package:angren_taxi/core/config/app_platform.dart';
+import 'package:angren_taxi/core/config/app_responsive.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
+import 'package:angren_taxi/core/network/api_client.dart';
+import 'package:angren_taxi/core/observability/crash_reporting.dart';
+import 'package:angren_taxi/core/push/push_notifications.dart';
+import 'package:angren_taxi/core/push/push_tap_router.dart';
+import 'package:angren_taxi/core/socket/socket_service.dart';
+import 'package:angren_taxi/core/update/app_update.dart';
+import 'package:angren_taxi/core/update/force_update_gate.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/auth/screens/otp_screen.dart';
 import 'package:angren_taxi/features/auth/screens/phone_screen.dart';
+import 'package:angren_taxi/features/driver/background/driver_background_host.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
+import 'package:angren_taxi/features/driver/legal/driver_legal_provider.dart';
 import 'package:angren_taxi/features/driver/screens/arrived_screen.dart';
+import 'package:angren_taxi/features/driver/screens/demand_map_screen.dart';
+import 'package:angren_taxi/features/driver/screens/driver_legal_screen.dart';
 import 'package:angren_taxi/features/driver/screens/driver_onboarding_screen.dart';
+import 'package:angren_taxi/features/driver/screens/driver_services_screen.dart';
 import 'package:angren_taxi/features/driver/screens/earnings_screen.dart';
 import 'package:angren_taxi/features/driver/screens/home_screen.dart'
     as driver_home;
@@ -15,6 +31,11 @@ import 'package:angren_taxi/features/driver/screens/order_offer_screen.dart';
 import 'package:angren_taxi/features/driver/screens/profile_screen.dart'
     as driver_profile;
 import 'package:angren_taxi/features/driver/screens/trip_screen.dart';
+import 'package:angren_taxi/features/driver/screens/verification_screen.dart';
+import 'package:angren_taxi/features/driver/screens/wallet_topup_screen.dart';
+import 'package:angren_taxi/features/driver/wallet/driver_wallet_events_host.dart';
+import 'package:angren_taxi/features/driver/wallet/driver_wallet_provider.dart';
+import 'package:angren_taxi/features/driver/wallet/wallet_deep_links.dart';
 import 'package:angren_taxi/features/notifications/notifications_provider.dart';
 import 'package:angren_taxi/features/passenger/favorites_provider.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
@@ -24,15 +45,49 @@ import 'package:angren_taxi/features/passenger/screens/home_screen.dart'
 import 'package:angren_taxi/features/passenger/screens/order_history_screen.dart';
 import 'package:angren_taxi/features/passenger/screens/profile_screen.dart'
     as passenger_profile;
+import 'package:angren_taxi/features/passenger/screens/scheduled_orders_screen.dart';
 import 'package:angren_taxi/features/passenger/screens/tariff_select_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/main_shell.dart';
 import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/market_provider.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/support/support_provider.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
+import 'package:angren_taxi/push_tap_host.dart';
+import 'package:angren_taxi/shared/widgets/connection_banner.dart';
 import 'package:angren_taxi/shared/widgets/loading_widget.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// Kirish holati o'zgarganda push tokenini serverga yozadi.
+///
+/// Ilgari token faqat sovuq startdan 3 s keyin yuborilardi: yangi
+/// o'rnatishda foydalanuvchi o'sha paytda hali OTP kiritayotgan bo'lardi,
+/// so'rov 401 bilan yo'qolardi va serverda ESKI token qolardi. Yo'lovchidan
+/// bildirishnoma ruxsati ham shu yerda — kirgandan keyin — so'raladi.
+AuthProvider _withPushBinding(AuthProvider auth, AppFlavor flavor) {
+  var wasAuthenticated = auth.isAuthenticated;
+  CrashReporting.setUserId(auth.currentUser?.id);
+  auth.addListener(() {
+    final now = auth.isAuthenticated;
+    if (now != wasAuthenticated) {
+      CrashReporting.setUserId(now ? auth.currentUser?.id : null);
+    }
+    if (now && !wasAuthenticated) {
+      final push = PushNotifications.instance;
+      unawaited(push.syncToken());
+      if (flavor == AppFlavor.passenger) unawaited(push.ensurePermission());
+    } else if (!now && wasAuthenticated) {
+      PushNotifications.instance.forgetSentToken();
+      // Chiqilgan: push bosilsa ekran kirishdan keyingi bosh ekranni kutsin.
+      PushTapRouter.instance.markNotReady();
+    }
+    wasAuthenticated = now;
+  });
+  return auth;
+}
 
 class AngrenTaxiApp extends StatelessWidget {
   const AngrenTaxiApp({super.key, required this.flavor});
@@ -43,8 +98,12 @@ class AngrenTaxiApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        // Ilova tili — sozlamalardan almashtiriladi va saqlanadi.
+        ChangeNotifierProvider<LocaleController>(
+          create: (_) => LocaleController(sl<SharedPreferences>()),
+        ),
         ChangeNotifierProvider<AuthProvider>(
-            create: (_) => buildAuthProvider()),
+            create: (_) => _withPushBinding(buildAuthProvider(flavor), flavor)),
         ChangeNotifierProvider<SupportProvider>(
             create: (_) => buildSupportProvider()),
         if (flavor == AppFlavor.passenger)
@@ -75,16 +134,151 @@ class AngrenTaxiApp extends StatelessWidget {
           ChangeNotifierProvider<DriverProvider>(
             create: (_) => buildDriverProvider(),
           ),
+        // Huquqiy profil va hamyon bo'limlari (to'ldirish, smena) —
+        // docs/LEGAL-COMPLIANCE.md. DriverProvider'dan alohida: u allaqachon
+        // katta, bular esa mustaqil.
+        if (flavor == AppFlavor.driver)
+          ChangeNotifierProvider<DriverLegalProvider>(
+            create: (_) => buildDriverLegalProvider(),
+          ),
+        if (flavor == AppFlavor.driver)
+          ChangeNotifierProvider<DriverWalletProvider>(
+            create: (_) => buildDriverWalletProvider(),
+          ),
       ],
-      child: MaterialApp(
-        title: 'Angren Taxi',
-        debugShowCheckedModeBanner: false,
-        theme: appTheme,
-        navigatorKey: sl<GlobalKey<NavigatorState>>(),
-        home: _AppEntryPoint(flavor: flavor),
-        routes: _buildRoutes(flavor),
+      child: Builder(
+        builder: (context) => MaterialApp(
+          title: 'Angren Taxi',
+          debugShowCheckedModeBanner: false,
+
+          // O'zbekcha (asosiy) va ruscha. Matnlar lib/l10n/parts/*.json dan.
+          locale: context.watch<LocaleController>().locale,
+          supportedLocales: kSupportedLocales,
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+
+          // Yorug' va qorong'i temalar bitta quruvchidan chiqadi
+          // (`app_theme.dart` 12-bo'lim).
+          //
+          // ⚠️ `themeMode` ATAYLAB `light` — `system` EMAS.
+          //
+          // Qorong'i tema TO'LIQ qurilgan va to'g'ri, lekin ekranlar hali
+          // unga tayyor emas: 51 faylda 461 marta `kSurface`, `kInk`,
+          // `agBg` kabi YORUG'LIKKA QATTIQ BOG'LANGAN const tokenlar
+          // ishlatilgan. Ular `const Color` bo'lgani uchun temaga javob
+          // bermaydi — `system` rejimida qurilma qorong'i bo'lsa, Scaffold
+          // foni qorayadi-yu, kartalar oq, matn esa deyarli qora bo'lib
+          // qoladi. Ya'ni yoqish "qorong'i rejim" emas, BUZILGAN ekran
+          // beradi.
+          //
+          // YOQISH TARTIBI: ekranlardagi `kSurface` → `scheme.surface`,
+          // `kInk` → `scheme.onSurface`, `kInkMuted` → `scheme.onSurfaceVariant`,
+          // `kBackground` → `scheme.surfaceContainerLowest`,
+          // `kLine` → `scheme.outlineVariant` ga ko'chirilgach, shu qatorni
+          // `ThemeMode.system` ga o'zgartirish kifoya — boshqa hech narsa
+          // kerak emas.
+          theme: appTheme,
+          darkTheme: appDarkTheme,
+          themeMode: ThemeMode.light,
+
+          // Platformaga mos scroll fizikasi butun ilovaga bir joydan
+          // qo'llanadi: iOS'da bounce, Android'da M3 stretch.
+          scrollBehavior: const AppScrollBehavior(),
+
+          navigatorKey: sl<GlobalKey<NavigatorState>>(),
+          // Xiaomi/Samsung qobiqlarida "Shrift o'lchami" va "Ekran o'lchami"
+          // sozlamalari matnni 1.5–2x gacha kattalashtirishi mumkin. Ekranlar
+          // qattiq balandlikdagi kartalar bilan qurilgani uchun bu yerda matn
+          // toshib ketardi ("responsive emas" deb ko'rinadigan holat).
+          //
+          // Foydalanuvchi tanlovini butunlay bekor qilmaymiz — kattalashtirishga
+          // ruxsat beriladi, lekin layout buziladigan darajagacha emas.
+          builder: (context, child) {
+            final media = MediaQuery.of(context);
+
+            // Planshetda tartib allaqachon kengroq bo'lgani uchun matnni
+            // 1.4x gacha kattalashtirishga joy bor; tor telefonda (< 360dp)
+            // esa 1.2x dan oshsa kartalar toshib ketadi.
+            final wide =
+                breakpointForWidth(media.size.width) != Breakpoint.tight;
+
+            return MediaQuery(
+              data: media.copyWith(
+                textScaler: media.textScaler.clamp(
+                  minScaleFactor: 0.85,
+                  // 1.3 — ekranlar 360dp kenglikda shu shkalaga tekshirilgan
+                  // (test/widget/responsive_v5_test.dart).
+                  maxScaleFactor: wide ? 1.4 : 1.3,
+                ),
+              ),
+              // Haydovchi: ilovadan chiqqanda suzuvchi tugma va fonda
+              // kelgan zakazda ilovani ekranga chiqarish. Shu yerda —
+              // ekranlar almashganda qayta qurilmaydi.
+              // Navigator ORTIDAGI fon. Sahifa o'tishida yoki sahifa hali
+              // chizilmagan kadrda ko'rinadigan narsa — qora bo'sh yuza emas,
+              // ilova foni (`AppMotion` dagi qora chaqnash izohiga qarang).
+              // Eski build: "yangilang" ekrani yoki yumshoq taklif.
+              child: ForceUpdateGate(
+                check: AppConfig.demoMode
+                    ? null
+                    : AppUpdateService(sl<ApiClient>(), flavor: flavor).check,
+                // Real vaqt aloqasi uzilsa — tepada "qayta ulanmoqda".
+                child: ConnectionBanner(
+                  offline: sl<SocketService>().offline,
+                  child: ColoredBox(
+                    color: Theme.of(context).scaffoldBackgroundColor,
+                    // Push bosilganda tegishli ekran (shaharlararo, chat, ...).
+                    child: PushTapHost(
+                      navigatorKey: sl<GlobalKey<NavigatorState>>(),
+                      child: flavor == AppFlavor.driver
+                          ? DriverBackgroundHost(
+                              // Hamyon hodisalari (`wallet:updated`, push) — har
+                              // qanday ekranda snackbar / to'ldirish ekraniga o'tish.
+                              child: DriverWalletEventsHost(
+                                navigatorKey: sl<GlobalKey<NavigatorState>>(),
+                                child: child ?? const SizedBox.shrink(),
+                              ),
+                            )
+                          : (child ?? const SizedBox.shrink()),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+          home: _AppEntryPoint(flavor: flavor),
+          routes: _buildRoutes(flavor),
+          // Sovuq start to'lovdan qaytish havolasi bilan
+          // (`angrengo://wallet/topup/<id>`): havola DriverDeepLinks'ga
+          // beriladi (bosh ekran tayyor bo'lgach ochiladi), Navigator esa
+          // odatdagidek "/" dan boshlaydi — aks holda u havolani nomli
+          // marshrut deb qidirib, "marshrut topilmadi" xatosiga tushardi.
+          onGenerateInitialRoutes: flavor == AppFlavor.driver
+              ? (initialRoute) => _driverInitialRoutes(initialRoute)
+              : null,
+        ),
       ),
     );
+  }
+
+  List<Route<dynamic>> _driverInitialRoutes(String initialRoute) {
+    final route = DriverDeepLinks.instance.handle(initialRoute)
+        ? Navigator.defaultRouteName
+        : initialRoute;
+    final navigator = sl<GlobalKey<NavigatorState>>().currentState;
+    if (navigator != null) {
+      return Navigator.defaultGenerateInitialRoutes(navigator, route);
+    }
+    return [
+      MaterialPageRoute<void>(
+        settings: const RouteSettings(name: Navigator.defaultRouteName),
+        builder: (_) => _AppEntryPoint(flavor: flavor),
+      ),
+    ];
   }
 
   Map<String, WidgetBuilder> _buildRoutes(AppFlavor flavor) {
@@ -105,6 +299,7 @@ class AngrenTaxiApp extends StatelessWidget {
         '/passenger/destination': (_) => const DestinationScreen(),
         '/passenger/tariff': (_) => const TariffSelectScreen(),
         '/passenger/history': (_) => const OrderHistoryScreen(),
+        '/passenger/scheduled': (_) => const ScheduledOrdersScreen(),
         '/passenger/profile': (_) =>
             const passenger_profile.PassengerProfileScreen(),
       };
@@ -123,7 +318,21 @@ class AngrenTaxiApp extends StatelessWidget {
       '/driver/arrived': (_) => const ArrivedScreen(),
       '/driver/trip': (_) => const TripScreen(),
       '/driver/earnings': (_) => const EarningsScreen(),
+      '/driver/demand': (_) => const DemandMapScreen(),
       '/driver/profile': (_) => const driver_profile.DriverProfileScreen(),
+      // Tekshiruv ro'yxati SERVERDAN keladi — bu ekran yangi talab
+      // qo'shilganda o'zgarmaydi (verification_screen.dart boshidagi izoh).
+      '/driver/verification': (_) => const DriverVerificationScreen(),
+      // Kuryer rejimi: haydovchi qaysi vertikallardan buyurtma olishini
+      // o'zi tanlaydi (ovqat/market shusiz hech kimga mos kelmaydi).
+      '/driver/services': (_) => const DriverServicesScreen(),
+      // Huquqiy profil (VMQ 200 / PQ-247) va hamyonni to'ldirish.
+      '/driver/legal': (_) => const DriverLegalScreen(),
+      // `arguments` — to'ldirish id'si (to'lovdan qaytish havolasi, §24).
+      kDriverTopupRoute: (context) {
+        final args = ModalRoute.of(context)?.settings.arguments;
+        return WalletTopupScreen(topupId: args is String ? args : null);
+      },
     };
   }
 }

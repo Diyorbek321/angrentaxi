@@ -51,8 +51,9 @@ describe('FavoritesService', () => {
         address: dto.address,
         lat: dto.lat,
         lng: dto.lng,
+        addressDetails: null,
         createdAt: new Date(),
-      } as FavoriteAddress;
+      };
       favoriteAddressRepository.save.mockResolvedValue(saved);
 
       const result = await service.create(userId, dto);
@@ -67,6 +68,20 @@ describe('FavoritesService', () => {
         }),
       );
       expect(result).toEqual(saved);
+    });
+
+    it('stores trimmed address details (v5) and null when all are blank', async () => {
+      favoriteAddressRepository.save.mockImplementation((row) => Promise.resolve(row));
+
+      await service.create(userId, { ...dto, addressDetails: { entrance: ' 2 ', floor: '5', landmark: '' } });
+      expect(favoriteAddressRepository.save).toHaveBeenLastCalledWith(
+        expect.objectContaining({ addressDetails: { entrance: '2', floor: '5' } }),
+      );
+
+      await service.create(userId, { ...dto, addressDetails: { apartment: '  ' } });
+      expect(favoriteAddressRepository.save).toHaveBeenLastCalledWith(
+        expect.objectContaining({ addressDetails: null }),
+      );
     });
   });
 

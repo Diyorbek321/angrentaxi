@@ -1,56 +1,61 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { Search, ShieldOff, Shield, Users as UsersIcon } from 'lucide-react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Download, Shield, ShieldOff, Users as UsersIcon } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Pagination } from '@/components/ui/Pagination';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/Table';
-import { SkeletonTable } from '@/components/ui/Skeleton';
+import { Avatar } from '@/components/ui/Avatar';
+import { Modal } from '@/components/ui/Modal';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { ErrorState } from '@/components/ui/ErrorState';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/Select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/Modal';
+import { FilterBar } from '@/components/ui/FilterBar';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import type { FilterChip } from '@/components/ui/FilterChips';
+import { DataTable, type DataTableColumn, type SortState } from '@/components/ui/DataTable';
+import { Skeleton, SkeletonTable } from '@/components/ui/Skeleton';
 import { usersApi, User } from '@/lib/api';
 import { usePagination } from '@/hooks/usePagination';
 import { useToast } from '@/components/ui/Toast';
-import { formatDate, formatPhone, getFullName, debounce } from '@/lib/utils';
-import { USER_ROLE_LABELS, UserRole } from '@/lib/constants';
+import { debounce } from '@/lib/utils';
+import { formatDateShort, formatDateTime, formatNumber, formatPhone, fullName } from '@/lib/format';
+import { downloadCsv } from '@/lib/csv';
+import { userRoleLabels, UserRole } from '@/lib/constants';
+import { t } from '@/locales';
 
-export default function UsersPage() {
+const roleItems = () => [
+  { value: 'all', label: t().users.all },
+  { value: 'passenger', label: userRoleLabels().passenger },
+  { value: 'driver', label: userRoleLabels().driver },
+  { value: 'admin', label: userRoleLabels().admin },
+];
+
+function UsersPageInner() {
+  const m = t();
+  const u0 = m.users;
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  // `?q=` — topbar qidiruvidan chuqur havola.
+  const initialQuery = searchParams.get('q')?.trim() ?? '';
   const pagination = usePagination(20);
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState(initialQuery);
+  const [search, setSearch] = useState(initialQuery);
   const [role, setRole] = useState<string>('all');
-  const [confirmUser, setConfirmUser] = useState<User | null>(null);
+  // Tasdiqlash modali FAQAT bloklash uchun — u og'ir oqibatli amal.
+  // Blokdan chiqarish darhol bajariladi va undo-toast bilan himoyalanadi.
+  const [blockTarget, setBlockTarget] = useState<User | null>(null);
   const [blockReason, setBlockReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [sort, setSort] = useState<SortState | null>(null);
+
+  // A new topbar search while already on this page.
+  useEffect(() => {
+    setSearchInput(initialQuery);
+    setSearch(initialQuery);
+  }, [initialQuery]);
 
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
@@ -67,8 +72,9 @@ export default function UsersPage() {
       pagination.setTotal(total, Math.ceil(total / pagination.limit));
       setError(null);
     } catch {
-      setError("Foydalanuvchilarni yuklab bo'lmadi.");
-      toast({ title: 'Xatolik', description: 'Foydalanuvchilarni yuklashda xatolik', variant: 'error' });
+      // Oxirgi muvaffaqiyatli qatorlar ekranda qoladi; banner + retry chiqadi.
+      setError(u0.loadError);
+      toast({ title: m.common.error, description: u0.loadErrorToast, variant: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -79,219 +85,339 @@ export default function UsersPage() {
     fetchUsers();
   }, [fetchUsers]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const debouncedSearch = useCallback(
+  const paginationReset = pagination.reset;
+  const debouncedSearch = useRef(
     debounce((value: string) => {
       setSearch(value);
-      pagination.reset();
-    }, 400),
-    []
-  );
+      paginationReset();
+    }, 400)
+  ).current;
 
-  const handleToggleBlock = async () => {
-    if (!confirmUser) return;
+  const handleSearchChange = (value: string) => {
+    setSearchInput(value);
+    debouncedSearch(value);
+  };
+
+  // Sahifadagi yuklangan qatorlar ustida, mijoz tomonida tartiblash.
+  const sortedUsers = useMemo(() => {
+    if (!sort) return users;
+    const dir = sort.direction === 'asc' ? 1 : -1;
+    return [...users].sort((a, b) => {
+      switch (sort.key) {
+        case 'name':
+          return fullName(a.firstName, a.lastName).localeCompare(fullName(b.firstName, b.lastName)) * dir;
+        case 'status':
+          return a.status.localeCompare(b.status) * dir;
+        case 'createdAt':
+          return a.createdAt.localeCompare(b.createdAt) * dir;
+        case 'totalOrders':
+          return ((a.totalOrders ?? 0) - (b.totalOrders ?? 0)) * dir;
+        default:
+          return 0;
+      }
+    });
+  }, [users, sort]);
+
+  const clearAllFilters = () => {
+    setSearchInput('');
+    setSearch('');
+    setRole('all');
+    pagination.reset();
+  };
+
+  const chips: FilterChip[] = [];
+  if (search) {
+    chips.push({
+      key: 'search',
+      label: u0.chipSearch(search),
+      onRemove: () => { setSearchInput(''); setSearch(''); pagination.reset(); },
+    });
+  }
+  if (role !== 'all') {
+    chips.push({
+      key: 'role',
+      label: u0.chipRole(userRoleLabels()[role as UserRole] ?? role),
+      onRemove: () => { setRole('all'); pagination.reset(); },
+    });
+  }
+  const hasActiveFilters = chips.length > 0;
+
+  const handleBlock = async () => {
+    if (!blockTarget) return;
     setActionLoading(true);
     try {
-      if (confirmUser.status === 'active') {
-        await usersApi.block(confirmUser.id, blockReason.trim() || undefined);
-        toast({ title: 'Foydalanuvchi bloklandi', variant: 'success' });
-      } else {
-        await usersApi.unblock(confirmUser.id);
-        toast({ title: 'Foydalanuvchi blokdan chiqarildi', variant: 'success' });
-      }
-      setConfirmUser(null);
+      await usersApi.block(blockTarget.id, blockReason.trim() || undefined);
+      toast({
+        title: u0.blocked,
+        description: u0.blockedDesc(fullName(blockTarget.firstName, blockTarget.lastName)),
+        variant: 'success',
+      });
+      setBlockTarget(null);
       setBlockReason('');
       await fetchUsers();
     } catch {
-      toast({ title: 'Xatolik', description: 'Amalni bajarishda xatolik', variant: 'error' });
+      toast({ title: m.common.error, description: u0.blockFailed, variant: 'error' });
     } finally {
       setActionLoading(false);
     }
   };
 
-  return (
-    <div className="p-4 sm:p-6">
-      <PageHeader
-        title="Foydalanuvchilar"
-        description={`Jami: ${pagination.total.toLocaleString()} ta`}
-        icon={<UsersIcon className="h-4 w-4" />}
-      />
-      <div className="space-y-4">
-        {/* Filters */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="flex-1">
-            <Input
-              placeholder="Telefon, ism yoki familiya bo'yicha qidirish..."
-              leftIcon={<Search className="h-4 w-4" />}
-              onChange={(e) => debouncedSearch(e.target.value)}
-            />
-          </div>
-          <Select value={role} onValueChange={(v) => { setRole(v); pagination.reset(); }}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Rol" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Barcha rollar</SelectItem>
-              <SelectItem value="passenger">Yo&apos;lovchi</SelectItem>
-              <SelectItem value="driver">Haydovchi</SelectItem>
-              <SelectItem value="admin">Admin</SelectItem>
-            </SelectContent>
-          </Select>
+  // Blokdan chiqarish — qaytariladigan amal: modal YO'Q, darhol bajariladi,
+  // toast esa "Qaytarish" (undo) tugmasini taklif qiladi (avvalgi sabab bilan
+  // qayta bloklaydi).
+  const handleUnblock = async (user: User) => {
+    const name = fullName(user.firstName, user.lastName);
+    const prevReason = user.blockReason ?? undefined;
+    try {
+      await usersApi.unblock(user.id);
+      setUsers((prev) =>
+        prev.map((u) => (u.id === user.id ? { ...u, status: 'active', blockReason: null } : u))
+      );
+      toast({
+        title: u0.unblocked,
+        description: u0.unblockedDesc(name),
+        variant: 'success',
+        action: {
+          label: u0.undo,
+          altText: u0.undoAlt,
+          onClick: async () => {
+            try {
+              await usersApi.block(user.id, prevReason);
+              toast({ title: u0.reblocked, description: u0.reblockedDesc(name), variant: 'info' });
+              await fetchUsers();
+            } catch {
+              toast({ title: m.common.error, description: u0.reblockFailed, variant: 'error' });
+            }
+          },
+        },
+      });
+    } catch {
+      toast({ title: m.common.error, description: u0.unblockFailed, variant: 'error' });
+    }
+  };
+
+  const handleExportCsv = () => {
+    if (sortedUsers.length === 0) return;
+    downloadCsv<User>(
+      u0.csvFile(new Date().toISOString().slice(0, 10)),
+      [
+        { header: u0.colName, value: (u) => fullName(u.firstName, u.lastName) },
+        { header: u0.colPhone, value: (u) => u.phone },
+        { header: u0.colRole, value: (u) => userRoleLabels()[u.role as UserRole] ?? u.role },
+        { header: u0.colStatus, value: (u) => (u.status === 'active' ? u0.statusActive : u0.statusBlocked) },
+        { header: u0.colBlockReason, value: (u) => u.blockReason ?? '' },
+        { header: u0.colRegistered, value: (u) => formatDateTime(u.createdAt, { withYear: true }) },
+        { header: u0.colOrders, value: (u) => u.totalOrders ?? '' },
+      ],
+      sortedUsers
+    );
+    toast({ title: u0.csvDone, description: u0.csvRows(sortedUsers.length), variant: 'success' });
+  };
+
+  const closeBlock = () => {
+    setBlockTarget(null);
+    setBlockReason('');
+  };
+
+  const columns: DataTableColumn<User>[] = [
+    {
+      key: 'name',
+      header: u0.colUser,
+      sortable: true,
+      cell: (u) => (
+        <div className="flex items-center gap-2.5 min-w-0">
+          <Avatar firstName={u.firstName} lastName={u.lastName} size="sm" />
+          <span className="font-medium text-ink truncate max-w-[240px]">{fullName(u.firstName, u.lastName)}</span>
         </div>
-
-        <Card>
-          <CardContent className="p-0">
-            {error ? (
-              <ErrorState message={error} onRetry={fetchUsers} />
-            ) : isLoading ? (
-              <div className="p-4">
-                <SkeletonTable rows={10} cols={7} />
-              </div>
-            ) : users.length === 0 ? (
-              <EmptyState
-                icon={<UsersIcon className="h-6 w-6" />}
-                title="Foydalanuvchilar topilmadi"
-                description="Filtrlarni o'zgartirib qayta urinib ko'ring."
-              />
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Foydalanuvchi</TableHead>
-                    <TableHead>Telefon</TableHead>
-                    <TableHead>Rol</TableHead>
-                    <TableHead>Holat</TableHead>
-                    <TableHead>Ro&apos;yxatdan o&apos;tgan</TableHead>
-                    <TableHead>Buyurtmalar</TableHead>
-                    <TableHead className="text-right">Amal</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-2 text-caption font-semibold text-muted"
-                            aria-hidden="true"
-                          >
-                            {user.firstName?.charAt(0) || '?'}
-                          </div>
-                          <span className="font-medium text-ink">
-                            {getFullName(user.firstName || '', user.lastName || '')}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted">
-                        {formatPhone(user.phone)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">
-                          {USER_ROLE_LABELS[user.role as UserRole] ?? user.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-0.5">
-                          <Badge variant={user.status === 'active' ? 'success' : 'destructive'} dot>
-                            {user.status === 'active' ? 'Faol' : 'Bloklangan'}
-                          </Badge>
-                          {user.status === 'blocked' && user.blockReason && (
-                            <span
-                              className="max-w-[180px] truncate text-caption text-subtle"
-                              title={user.blockReason}
-                            >
-                              {user.blockReason}
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-caption text-muted">
-                        {formatDate(user.createdAt, 'dd.MM.yyyy')}
-                      </TableCell>
-                      <TableCell className="font-medium text-ink">
-                        {user.totalOrders ?? '—'}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant={user.status === 'active' ? 'destructive' : 'success'}
-                          size="sm"
-                          onClick={() => setConfirmUser(user)}
-                        >
-                          {user.status === 'active' ? (
-                            <>
-                              <ShieldOff className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-                              Bloklash
-                            </>
-                          ) : (
-                            <>
-                              <Shield className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-                              Blokdan chiqarish
-                            </>
-                          )}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-
-        {!error && !isLoading && users.length > 0 && (
-          <div className="flex items-center justify-between">
-            <p className="text-body text-subtle">
-              {pagination.total} ta natijadan{' '}
-              {(pagination.page - 1) * pagination.limit + 1}–
-              {Math.min(pagination.page * pagination.limit, pagination.total)} ko&apos;rsatilmoqda
-            </p>
-            <Pagination
-              page={pagination.page}
-              totalPages={pagination.totalPages}
-              pageRange={pagination.pageRange}
-              canGoPrev={pagination.canGoPrev}
-              canGoNext={pagination.canGoNext}
-              onPageChange={pagination.goToPage}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Confirm modal */}
-      <Dialog open={!!confirmUser} onOpenChange={() => { setConfirmUser(null); setBlockReason(''); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {confirmUser?.status === 'active' ? 'Foydalanuvchini bloklash' : 'Blokdan chiqarish'}
-            </DialogTitle>
-            <DialogDescription>
-              {confirmUser?.status === 'active'
-                ? `${getFullName(confirmUser?.firstName || '', confirmUser?.lastName || '')} ni bloklamoqchimisiz? U tizimga kira olmaydi.`
-                : `${getFullName(confirmUser?.firstName || '', confirmUser?.lastName || '')} ni blokdan chiqarmoqchimisiz?`}
-            </DialogDescription>
-          </DialogHeader>
-          {confirmUser?.status === 'active' && (
-            <Input
-              label="Sabab (ixtiyoriy)"
-              placeholder="Masalan: qoidabuzarlik, spam..."
-              value={blockReason}
-              onChange={(e) => setBlockReason(e.target.value)}
-            />
+      ),
+    },
+    { key: 'phone', header: u0.colPhone, className: 'num whitespace-nowrap text-muted', cell: (u) => formatPhone(u.phone) },
+    {
+      key: 'role',
+      header: u0.colRole,
+      cell: (u) => <Badge variant="neutral">{userRoleLabels()[u.role as UserRole] ?? u.role}</Badge>,
+    },
+    {
+      key: 'status',
+      header: u0.colStatus,
+      sortable: true,
+      cell: (u) => (
+        <span className="inline-flex items-center gap-2 min-w-0">
+          <Badge variant={u.status === 'active' ? 'success' : 'danger'} dot>
+            {u.status === 'active' ? u0.statusActive : u0.statusBlocked}
+          </Badge>
+          {u.status === 'blocked' && u.blockReason && (
+            <span className="max-w-[160px] truncate text-xs text-subtle" title={u.blockReason}>
+              {u.blockReason}
+            </span>
           )}
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => { setConfirmUser(null); setBlockReason(''); }}>
-              Bekor qilish
+        </span>
+      ),
+    },
+    {
+      key: 'createdAt',
+      header: u0.colRegistered,
+      sortable: true,
+      hideBelow: 'xl',
+      className: 'num whitespace-nowrap text-muted',
+      cell: (u) => formatDateShort(u.createdAt),
+    },
+    {
+      key: 'totalOrders',
+      header: u0.colOrders,
+      numeric: true,
+      sortable: true,
+      hideBelow: 'xl',
+      cell: (u) => (u.totalOrders != null ? formatNumber(u.totalOrders) : '—'),
+    },
+    {
+      key: 'action',
+      header: <span className="sr-only">{u0.colAction}</span>,
+      align: 'right',
+      cell: (u) =>
+        u.status === 'active' ? (
+          <Button
+            variant="danger-ghost"
+            size="sm"
+            onClick={() => setBlockTarget(u)}
+            leftIcon={<ShieldOff className="h-3.5 w-3.5" aria-hidden="true" />}
+          >
+            {u0.block}
+          </Button>
+        ) : (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => handleUnblock(u)}
+            leftIcon={<Shield className="h-3.5 w-3.5" aria-hidden="true" />}
+          >
+            {u0.unblock}
+          </Button>
+        ),
+    },
+  ];
+
+  return (
+    <div className="px-4 sm:px-6 py-5">
+      <PageHeader
+        title={u0.title}
+        description={u0.total(formatNumber(pagination.total))}
+        actions={
+          <Button
+            variant="secondary"
+            onClick={handleExportCsv}
+            disabled={sortedUsers.length === 0}
+            leftIcon={<Download className="h-4 w-4" aria-hidden="true" />}
+          >
+            {u0.exportCsv}
+          </Button>
+        }
+      />
+
+      <DataTable
+        ariaLabel={u0.title}
+        columns={columns}
+        rows={sortedUsers}
+        rowKey={(u) => u.id}
+        loading={isLoading}
+        error={error}
+        onRetry={fetchUsers}
+        sort={sort}
+        onSortChange={setSort}
+        maxHeightClassName="max-h-[calc(100vh-260px)]"
+        toolbar={
+          <FilterBar
+            search={searchInput}
+            onSearchChange={handleSearchChange}
+            searchPlaceholder={u0.searchPlaceholder}
+            searchAriaLabel={u0.searchAria}
+            chips={chips}
+            onClearAll={clearAllFilters}
+          >
+            <SegmentedControl
+              items={roleItems()}
+              value={role}
+              onChange={(v) => {
+                setRole(v);
+                pagination.reset();
+              }}
+              ariaLabel={u0.roleFilter}
+            />
+          </FilterBar>
+        }
+        isFiltered={hasActiveFilters}
+        onClearFilters={clearAllFilters}
+        emptyFiltered={{ title: u0.noMatchTitle, description: u0.noMatchDesc }}
+        empty={{
+          variant: 'first-use',
+          icon: <UsersIcon aria-hidden />,
+          title: u0.emptyTitle,
+          description: u0.emptyDesc,
+        }}
+        pagination={{
+          page: pagination.page,
+          limit: pagination.limit,
+          total: pagination.total,
+          totalPages: pagination.totalPages,
+          pageRange: pagination.pageRange,
+          canGoPrev: pagination.canGoPrev,
+          canGoNext: pagination.canGoNext,
+          onPageChange: pagination.goToPage,
+          onLimitChange: pagination.setLimit,
+        }}
+      />
+
+      {/* Bloklash — OG'IR OQIBATLI amal: modal oqibatni aniq aytadi. */}
+      <Modal
+        isOpen={!!blockTarget}
+        onClose={closeBlock}
+        tone="danger"
+        title={u0.blockTitle}
+        description={
+          <>
+            <strong className="text-ink">{fullName(blockTarget?.firstName, blockTarget?.lastName)}</strong>{' '}
+            {u0.blockBody}
+          </>
+        }
+        footer={
+          <>
+            <Button variant="secondary" onClick={closeBlock} disabled={actionLoading}>
+              {m.common.cancel}
             </Button>
             <Button
-              variant={confirmUser?.status === 'active' ? 'destructive' : 'success'}
+              variant="danger"
               isLoading={actionLoading}
-              onClick={handleToggleBlock}
+              onClick={handleBlock}
+              leftIcon={<ShieldOff className="h-3.5 w-3.5" aria-hidden="true" />}
             >
-              Tasdiqlash
+              {u0.block}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        }
+      >
+        <Input
+          label={u0.reason}
+          placeholder={u0.reasonPlaceholder}
+          value={blockReason}
+          onChange={(e) => setBlockReason(e.target.value)}
+        />
+      </Modal>
     </div>
+  );
+}
+
+export default function UsersPage() {
+  // useSearchParams Next 14 build'ida Suspense chegarasini talab qiladi.
+  return (
+    <Suspense
+      fallback={
+        <div className="px-4 sm:px-6 py-5 space-y-5">
+          <Skeleton className="h-5 w-40" />
+          <SkeletonTable rows={10} cols={7} />
+        </div>
+      }
+    >
+      <UsersPageInner />
+    </Suspense>
   );
 }

@@ -1,285 +1,243 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlarmClock, ClipboardList, Inbox, MapPin, Maximize2, Phone, Timer, User } from 'lucide-react';
-import { clsx } from 'clsx';
-import { foodApi, FoodOrder, FoodOrderStatus } from '@/lib/api';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { shortId } from '@/lib/format';
+import { Inbox, Info, Maximize2 } from 'lucide-react';
+import { foodApi, FoodOrder, Restaurant } from '@/lib/api';
 import { useAsyncData } from '@/hooks/useAsyncData';
-import { money, formatTime } from '@/lib/utils';
-import { ADVANCE_LABEL, NEXT_STATUS, statusMeta } from '@/lib/order-status';
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
+import { useVendorSettlement } from '@/hooks/useVendorSettlement';
+import { walletSwitchNotice } from '@/lib/vendor-settlement';
+import type { VendorSettlementContext } from '@/lib/vendor-cash';
+import { NEXT_STATUS, statusMeta } from '@/lib/order-status';
+import { trackNewOrders } from '@/lib/order-alerts';
 import { useKiosk } from '@/lib/kiosk-context';
-import { OrderStatusBadge } from '@/components/OrderStatusBadge';
-import { Badge } from '@/components/ui/Badge';
+import { usePageRefresh } from '@/components/shell';
+import { OrderCard } from '@/components/orders/OrderCard';
+import { OrderDrawer } from '@/components/orders/OrderDrawer';
+import { QueueTabEmpty } from '@/components/orders/QueueTabEmpty';
+import { RejectModal } from '@/components/orders/RejectModal';
+import { groupOrders, rejectReasonDisplay, tabLabel, TAB_ORDER, type QueueTab } from '@/components/orders/queue';
+import { cn } from '@/components/ui/cn';
 import { Button } from '@/components/ui/Button';
-import { Drawer } from '@/components/ui/Drawer';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
-import { Modal } from '@/components/ui/Modal';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { SkeletonCards } from '@/components/ui/Skeleton';
+import { StaleDataBanner } from '@/components/ui/PollStatus';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { Skeleton, SkeletonCards } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
+import { t } from '@/locales';
 
-const COLUMNS: ReadonlyArray<{ key: FoodOrderStatus; title: string }> = [
-  { key: 'new', title: 'Yangi' },
-  { key: 'preparing', title: 'Tayyorlanmoqda' },
-  { key: 'ready', title: 'Tayyor · kuryer kutilmoqda' },
-  { key: 'delivered', title: 'Yetkazildi' },
-];
-
-const REJECT_REASONS = [
-  'Ingredientlar tugagan',
-  'Oshxona band',
-  'Ish vaqti tugadi',
-  'Manzil yetkazib berish zonasidan tashqarida',
-  'Boshqa sabab',
-];
-
-type Urgency = 'calm' | 'soon' | 'late';
-
-interface Sla {
-  text: string;
-  urgency: Urgency;
-  label: string;
-}
-
-/**
- * Qolgan tayyorlash vaqti. Ma'no faqat rang bilan emas — yozuv va ikonka
- * bilan ham beriladi ("Kechikdi" / "Tugayapti" / "Vaqt bor").
- */
-function slaInfo(order: FoodOrder, now: number): Sla | null {
-  if (order.status !== 'new' && order.status !== 'preparing') return null;
-  const prepSeconds = Math.max(...order.items.map((i) => i.prepMinutes), 1) * 60;
-  const elapsed = (now - new Date(order.createdAt).getTime()) / 1000;
-  const remaining = Math.round(prepSeconds - elapsed);
-  const overdue = remaining < 0;
-  const abs = Math.abs(remaining);
-  const text = `${overdue ? '−' : ''}${String(Math.floor(abs / 60)).padStart(2, '0')}:${String(abs % 60).padStart(2, '0')}`;
-
-  if (overdue) return { text, urgency: 'late', label: 'Kechikdi' };
-  if (remaining <= 300) return { text, urgency: 'soon', label: 'Tugayapti' };
-  return { text, urgency: 'calm', label: 'Vaqt bor' };
-}
-
-const slaClasses: Record<Urgency, string> = {
-  calm: 'border-mint/45 bg-mint-tint text-primary-text',
-  soon: 'border-override/45 bg-override-tint text-override-dark dark:text-override-light',
-  late: 'border-danger/50 bg-danger-tint text-danger-deep dark:text-danger-light',
-};
+const ORDERS_POLL_MS = 15_000;
 
 export default function OrdersPage() {
+  const m = t();
+  const om = m.orders;
   const { toast } = useToast();
   const { kiosk, setKiosk } = useKiosk();
+  const [tab, setTab] = useState<QueueTab>('new');
   const [openOrderId, setOpenOrderId] = useState<string | null>(null);
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
-  const load = useCallback(async (): Promise<FoodOrder[]> => {
-    const res = await foodApi.getOrders();
+  // Ovoz sozlamasi restoran profilidan — bir marta yuklanadi, poll shart emas.
+  const loadRestaurant = useCallback(async (): Promise<Restaurant> => {
+    const res = await foodApi.getRestaurant();
     return res.data.data;
   }, []);
+  const restaurantData = useAsyncData<Restaurant>(loadRestaurant);
+  const soundOnRef = useRef(false);
+  soundOnRef.current = restaurantData.data?.notifications.sound ?? false;
 
-  const { data, status, error, isRefreshing, reload } = useAsyncData<FoodOrder[]>(load, { pollMs: 15000 });
+  const load = useCallback(async (): Promise<FoodOrder[]> => {
+    const res = await foodApi.getOrders();
+    const orders = res.data.data;
+    // Signal POLL natijasidan otiladi (ramkaning 30 s poll'i bilan dedup
+    // modul ichida) — operator ekranga qaramasa ham eshitadi.
+    trackNewOrders(orders, soundOnRef.current);
+    return orders;
+  }, []);
+
+  const { data, status, error, isRefreshing, lastUpdatedAt, reload } = useAsyncData<FoodOrder[]>(load, {
+    pollMs: ORDERS_POLL_MS,
+  });
+  useRealtimeRefresh(reload);
+  usePageRefresh(reload);
   const orders = useMemo(() => data ?? [], [data]);
 
-  // Taymer sekundlik — bu faqat ko'rsatkichni qayta chizadi, so'rov yubormaydi.
+  // Hisob-kitob rejimi (naqd / kuryer hamyoni) — hamyon rejimida naqd tasdig'i
+  // so'ralmaydi; o'tkazma summalari buyurtmaning o'zidan (`vendorWalletSettlement`).
+  const publicSettings = useVendorSettlement();
+  const settlement: VendorSettlementContext = useMemo(
+    () => ({ mode: publicSettings?.vendorSettlementMode }),
+    [publicSettings]
+  );
+  const switchNotice = walletSwitchNotice(publicSettings);
+
+  // Taymer sekundlik — faqat ko'rsatkichni qayta chizadi, so'rov yubormaydi.
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
 
-  const columns = useMemo(
-    () => COLUMNS.map((c) => ({ ...c, orders: orders.filter((o) => o.status === c.key) })),
-    [orders]
+  const grouped = useMemo(() => groupOrders(orders), [orders]);
+  const tabItems = useMemo(
+    () => TAB_ORDER.map((tab) => ({ value: tab, label: tabLabel(tab), count: grouped[tab].length })),
+    [grouped]
   );
 
-  const advance = async (order: FoodOrder) => {
+  const runAction = async (order: FoodOrder, action: () => Promise<unknown>, ok: string, fail: string) => {
     setBusyId(order.id);
     try {
-      if (order.status === 'new') await foodApi.acceptOrder(order.id);
-      else await foodApi.advanceOrder(order.id);
+      await action();
       await reload();
-      const next = NEXT_STATUS[order.status];
-      toast({
-        title: `#${order.id.slice(0, 6)} — ${next ? statusMeta(next).label : 'yangilandi'}`,
-        variant: 'success',
-      });
+      toast({ title: ok, variant: 'success' });
     } catch {
-      toast({ title: 'Holatni o‘zgartirib bo‘lmadi', description: 'Qayta urinib ko‘ring', variant: 'error' });
+      toast({ title: fail, description: m.common.retry, variant: 'error' });
     } finally {
       setBusyId(null);
     }
   };
 
+  const advance = (order: FoodOrder) => {
+    const next = NEXT_STATUS[order.status];
+    return runAction(
+      order,
+      () => (order.status === 'new' ? foodApi.acceptOrder(order.id) : foodApi.advanceOrder(order.id)),
+      `${shortId(order.id)} — ${next ? statusMeta(next).label : om.updated}`,
+      om.statusChangeFailed
+    );
+  };
+
+  const redispatch = (order: FoodOrder) =>
+    runAction(
+      order,
+      () => foodApi.redispatchOrder(order.id),
+      om.courierResearching(shortId(order.id)),
+      om.courierCallFailed
+    );
+
+  const decideCash = async (order: FoodOrder, received: boolean) => {
+    setBusyId(order.id);
+    try {
+      await foodApi.cashReceived(order.id, received);
+      await reload();
+      toast({
+        title: received ? om.cashReceived : om.dispatcherNotified,
+        variant: received ? 'success' : 'info',
+      });
+    } catch {
+      toast({ title: m.common.saveFailed, description: m.common.retry, variant: 'error' });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const confirmReject = async (reason: string) => {
+    if (!rejectId) return;
+    try {
+      await foodApi.rejectOrder(rejectId, reason);
+      toast({ title: om.rejected, description: rejectReasonDisplay(reason), variant: 'info' });
+    } catch {
+      toast({ title: om.rejectFailed, variant: 'error' });
+    } finally {
+      setRejectId(null);
+      await reload();
+    }
+  };
+
   const openOrder = orders.find((o) => o.id === openOrderId) ?? null;
-  const newCount = columns[0]?.orders.length ?? 0;
+  const visible = grouped[tab];
 
   return (
-    <div className="flex h-full flex-col">
-      <PageHeader
-        title="Buyurtmalar"
-        description="Real vaqtli oqim — har 15 soniyada yangilanadi"
-        icon={<ClipboardList size={20} />}
-        actions={
-          <>
-            <Badge variant={newCount > 0 ? 'info' : 'default'} dot={newCount > 0}>
-              {newCount} ta yangi
-            </Badge>
-            <Button variant="secondary" onClick={reload} isLoading={isRefreshing}>
-              Yangilash
+    <div className="flex flex-col">
+      {!kiosk && (
+        <PageHeader
+          title={om.title}
+          description={om.description}
+          actions={
+            <Button variant="secondary" leftIcon={<Maximize2 size={14} />} onClick={() => setKiosk(true)}>
+              {om.kioskButton}
             </Button>
-            {!kiosk && (
-              <Button variant="secondary" leftIcon={<Maximize2 size={14} />} onClick={() => setKiosk(true)}>
-                Oshxona ekrani
-              </Button>
-            )}
-          </>
-        }
-      />
-
-      {status === 'loading' && <SkeletonCards count={6} height="h-44" columns />}
-
-      {status === 'error' && <ErrorState message={error} onRetry={reload} />}
-
-      {status === 'ready' && orders.length === 0 && (
-        <EmptyState
-          tone="positive"
-          icon={<Inbox size={24} />}
-          title="Hozircha buyurtma yo'q"
-          description="Yangi buyurtma kelganda u shu yerda paydo bo'ladi va yon menyuda hisoblanadi."
+          }
         />
       )}
 
-      {status === 'ready' && orders.length > 0 && (
-        <div className="flex flex-1 gap-4 overflow-x-auto pb-2 items-start">
-          {columns.map((col) => {
-            const meta = statusMeta(col.key);
-            return (
-              <section
-                key={col.key}
-                aria-label={`${col.title} — ${col.orders.length} ta buyurtma`}
-                className="flex w-[320px] shrink-0 max-h-full flex-col gap-3 rounded-ds-md border border-line bg-surface-2/60 p-3.5"
-              >
-                <h2 className="flex items-center gap-2 text-label text-ink">
-                  <meta.Icon size={16} className="shrink-0 text-muted" aria-hidden />
-                  <span className="flex-1">{col.title}</span>
-                  <span className="rounded-full bg-surface px-2 py-0.5 font-mono text-micro text-muted">
-                    {col.orders.length}
-                  </span>
-                </h2>
+      {switchNotice && !kiosk && (
+        <p
+          role="note"
+          className="mb-4 flex items-start gap-2 rounded-ds-sm border border-info/30 bg-info-tint px-3 py-2 text-[13px] text-ink"
+        >
+          <Info size={14} aria-hidden className="mt-0.5 shrink-0 text-info-dark dark:text-info-light" />
+          <span>
+            {switchNotice}
+            {om.switchNoticeTail}
+          </span>
+        </p>
+      )}
 
-                <div className="flex flex-col gap-3 overflow-y-auto">
-                  {col.orders.length === 0 && (
-                    <p className="rounded-ds-sm border border-dashed border-line px-3 py-6 text-center text-caption text-subtle">
-                      Bo&apos;sh
-                    </p>
-                  )}
-
-                  {col.orders.map((order) => {
-                    const sla = slaInfo(order, now);
-                    const itemsCount = order.items.reduce((s, i) => s + i.qty, 0);
-                    const canAdvance = NEXT_STATUS[order.status] != null;
-                    return (
-                      <article
-                        key={order.id}
-                        className="rounded-ds-md border border-line bg-surface p-3.5 shadow-card"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setOpenOrderId(order.id)}
-                            className="font-mono text-title text-ink hover:text-primary-text transition-colors duration-fast"
-                          >
-                            #{order.id.slice(0, 6)}
-                            <span className="sr-only"> — tafsilotlarni ochish</span>
-                          </button>
-                          {sla && (
-                            <span
-                              className={clsx(
-                                'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-micro',
-                                slaClasses[sla.urgency]
-                              )}
-                            >
-                              {sla.urgency === 'late' ? (
-                                <AlarmClock size={13} aria-hidden />
-                              ) : (
-                                <Timer size={13} aria-hidden />
-                              )}
-                              <span className="font-mono tabular-nums">{sla.text}</span>
-                              <span className="sr-only">{sla.label}</span>
-                            </span>
-                          )}
-                        </div>
-
-                        <p className="mt-2 text-body font-semibold text-ink truncate">
-                          {[order.customer?.firstName, order.customer?.lastName].filter(Boolean).join(' ') ||
-                            order.customerPhone ||
-                            'Mijoz'}
-                        </p>
-                        <p className="mt-1 flex items-center gap-1.5 text-caption text-muted">
-                          <MapPin size={13} className="shrink-0" aria-hidden />
-                          <span className="truncate">{order.deliveryAddress}</span>
-                        </p>
-
-                        <div className="mt-3 flex items-center justify-between border-t border-divider pt-3">
-                          <span className="text-caption text-muted">{itemsCount} ta taom</span>
-                          <span className="font-mono text-title text-ink tabular-nums">
-                            {money(order.totalPrice)}
-                          </span>
-                        </div>
-
-                        {order.status === 'new' && (
-                          <div className="mt-3 flex gap-2">
-                            <Button
-                              size="kitchen"
-                              className="flex-1"
-                              isLoading={busyId === order.id}
-                              onClick={() => advance(order)}
-                            >
-                              Qabul qilish
-                            </Button>
-                            <Button
-                              size="kitchen"
-                              variant="danger"
-                              onClick={() => setRejectId(order.id)}
-                              aria-label={`#${order.id.slice(0, 6)} buyurtmasini rad etish`}
-                            >
-                              Rad
-                            </Button>
-                          </div>
-                        )}
-
-                        {order.status !== 'new' && canAdvance && (
-                          <Button
-                            size="kitchen"
-                            fullWidth
-                            className="mt-3"
-                            isLoading={busyId === order.id}
-                            onClick={() => advance(order)}
-                          >
-                            {ADVANCE_LABEL[order.status]}
-                          </Button>
-                        )}
-
-                        {order.status === 'delivered' && (
-                          <div className="mt-3">
-                            <OrderStatusBadge status={order.status} size="sm" />
-                          </div>
-                        )}
-                      </article>
-                    );
-                  })}
-                </div>
-              </section>
-            );
-          })}
+      {status === 'loading' && (
+        <div className="flex flex-col gap-4" role="status" aria-label={om.loading}>
+          <Skeleton className="h-9 w-full max-w-md rounded-ds-sm" />
+          <SkeletonCards count={6} height="h-64" columns />
         </div>
       )}
 
-      {error && status === 'ready' && (
-        <p role="status" className="mt-3 text-caption text-override-dark dark:text-override-light">
-          Oxirgi yangilash muvaffaqiyatsiz: {error}
-        </p>
+      {status === 'error' && <ErrorState title={om.loadFailed} message={error} onRetry={reload} />}
+
+      {status === 'ready' && (
+        <div className="flex flex-col gap-4">
+          {/* Fon yangilanishi uzilsa — oxirgi yaxshi ma'lumot qoladi, banner belgilaydi. */}
+          <StaleDataBanner error={error} lastUpdatedAt={lastUpdatedAt} onRetry={reload} isRetrying={isRefreshing} />
+
+          <SegmentedControl
+            items={tabItems}
+            value={tab}
+            onChange={setTab}
+            label={om.queueLabel}
+            // Planshet: barmoq uchun 40px segmentlar; kioskda butun qator.
+            size="lg"
+            fullWidth={kiosk}
+            className={kiosk ? undefined : 'self-start'}
+          />
+
+          {orders.length === 0 ? (
+            <EmptyState
+              variant="first-use"
+              tone="positive"
+              icon={<Inbox size={20} />}
+              title={om.emptyTitle}
+              description={om.emptyDescription}
+            />
+          ) : visible.length === 0 ? (
+            <QueueTabEmpty tab={tab} newCount={grouped.new.length} onGoToNew={() => setTab('new')} />
+          ) : (
+            <div
+              className={cn(
+                'grid content-start',
+                kiosk ? 'gap-5 md:grid-cols-2 2xl:grid-cols-3' : 'gap-4 md:grid-cols-2 2xl:grid-cols-3'
+              )}
+            >
+              {visible.map((order) => (
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  kiosk={kiosk}
+                  now={now}
+                  busy={busyId === order.id}
+                  onOpen={() => setOpenOrderId(order.id)}
+                  onAdvance={() => advance(order)}
+                  onReject={() => setRejectId(order.id)}
+                  onRedispatch={() => redispatch(order)}
+                  onCashDecision={(received) => decideCash(order, received)}
+                  settlement={settlement}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       <OrderDrawer
@@ -294,206 +252,7 @@ export default function OrdersPage() {
         }}
       />
 
-      <RejectModal
-        isOpen={rejectId != null}
-        onClose={() => setRejectId(null)}
-        onConfirm={async (reason) => {
-          if (!rejectId) return;
-          try {
-            await foodApi.rejectOrder(rejectId, reason);
-            toast({ title: 'Buyurtma rad etildi', description: reason, variant: 'info' });
-          } catch {
-            toast({ title: 'Rad etib bo‘lmadi', variant: 'error' });
-          } finally {
-            setRejectId(null);
-            await reload();
-          }
-        }}
-      />
+      <RejectModal isOpen={rejectId != null} onClose={() => setRejectId(null)} onConfirm={confirmReject} />
     </div>
-  );
-}
-
-function OrderDrawer({
-  order,
-  busy,
-  onClose,
-  onAdvance,
-  onReject,
-}: {
-  order: FoodOrder | null;
-  busy: boolean;
-  onClose: () => void;
-  onAdvance: () => void;
-  onReject: () => void;
-}) {
-  if (!order) return null;
-  const next = NEXT_STATUS[order.status];
-
-  return (
-    <Drawer
-      isOpen
-      onClose={onClose}
-      width="md"
-      title={`Buyurtma #${order.id.slice(0, 6)}`}
-      subtitle={
-        <span className="flex items-center gap-2">
-          <OrderStatusBadge status={order.status} size="sm" />
-          <span className="font-mono text-micro text-subtle">{formatTime(order.createdAt)}</span>
-        </span>
-      }
-      footer={
-        (order.status === 'new' || next) && (
-          <div className="flex gap-2">
-            {order.status === 'new' && (
-              <Button variant="danger" size="lg" onClick={onReject}>
-                Rad etish
-              </Button>
-            )}
-            {next && (
-              <Button size="lg" className="flex-1" isLoading={busy} onClick={onAdvance}>
-                {ADVANCE_LABEL[order.status]}
-              </Button>
-            )}
-          </div>
-        )
-      }
-    >
-      <dl className="flex flex-col gap-2.5 text-body">
-        <div className="flex items-center gap-2.5">
-          <dt className="text-muted">
-            <User size={16} aria-hidden />
-            <span className="sr-only">Mijoz</span>
-          </dt>
-          <dd className="font-semibold text-ink">
-            {[order.customer?.firstName, order.customer?.lastName].filter(Boolean).join(' ') || 'Mijoz'}
-          </dd>
-        </div>
-        <div className="flex items-center gap-2.5">
-          <dt className="text-muted">
-            <Phone size={16} aria-hidden />
-            <span className="sr-only">Telefon</span>
-          </dt>
-          <dd>
-            <a
-              href={`tel:${order.customerPhone ?? order.customer?.phone ?? ''}`}
-              className="font-mono text-primary-text hover:underline underline-offset-4"
-            >
-              {order.customerPhone ?? order.customer?.phone ?? '—'}
-            </a>
-          </dd>
-        </div>
-        <div className="flex items-start gap-2.5">
-          <dt className="text-muted mt-0.5">
-            <MapPin size={16} aria-hidden />
-            <span className="sr-only">Manzil</span>
-          </dt>
-          <dd className="text-ink">{order.deliveryAddress}</dd>
-        </div>
-      </dl>
-
-      {order.note && (
-        <div className="rounded-ds-sm border border-override/40 bg-override-tint p-3.5">
-          <p className="text-micro uppercase text-override-dark dark:text-override-light">Maxsus izoh</p>
-          <p className="mt-1 text-body text-ink">{order.note}</p>
-        </div>
-      )}
-
-      {order.rejectReason && (
-        <div className="rounded-ds-sm border border-danger/40 bg-danger-tint p-3.5">
-          <p className="text-micro uppercase text-danger-deep dark:text-danger-light">Rad etish sababi</p>
-          <p className="mt-1 text-body text-ink">{order.rejectReason}</p>
-        </div>
-      )}
-
-      <div>
-        <h3 className="text-micro uppercase text-subtle">Tarkibi</h3>
-        <ul className="mt-2 divide-y divide-divider">
-          {order.items.map((it, i) => (
-            <li key={`${it.dishId}-${i}`} className="flex items-center gap-3 py-2.5">
-              <span className="w-9 shrink-0 font-mono text-title text-primary-text tabular-nums">{it.qty}×</span>
-              <span className="flex-1 text-body text-ink">{it.name}</span>
-              <span className="font-mono text-body text-muted tabular-nums">{money(it.qty * it.price)}</span>
-            </li>
-          ))}
-        </ul>
-        <div className="mt-3 flex items-center justify-between">
-          <span className="text-body text-muted">
-            To&apos;lov:{' '}
-            <span className="font-semibold text-ink">
-              {order.paymentMethod === 'card' ? 'Karta' : 'Naqd'}
-            </span>
-          </span>
-          <span className="font-mono text-h2 text-ink tabular-nums">{money(order.totalPrice)}</span>
-        </div>
-      </div>
-    </Drawer>
-  );
-}
-
-function RejectModal({
-  isOpen,
-  onClose,
-  onConfirm,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirm: (reason: string) => void | Promise<void>;
-}) {
-  const [reason, setReason] = useState('');
-
-  useEffect(() => {
-    if (isOpen) setReason('');
-  }, [isOpen]);
-
-  return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      tone="danger"
-      title="Buyurtmani rad etish"
-      subtitle="Sababni tanlang — mijozga shu matn yuboriladi."
-      footer={
-        <div className="flex gap-2">
-          <Button variant="secondary" size="lg" className="flex-1" onClick={onClose}>
-            Bekor qilish
-          </Button>
-          <Button
-            variant="danger"
-            size="lg"
-            className="flex-1"
-            disabled={!reason}
-            onClick={() => reason && onConfirm(reason)}
-          >
-            Rad etish
-          </Button>
-        </div>
-      }
-    >
-      <fieldset className="flex flex-col gap-2">
-        <legend className="sr-only">Rad etish sababi</legend>
-        {REJECT_REASONS.map((r) => (
-          <label
-            key={r}
-            className={clsx(
-              'flex cursor-pointer items-center gap-3 rounded-ds-sm border px-3.5 py-3 text-body transition-colors duration-fast min-h-touch',
-              reason === r
-                ? 'border-primary bg-mint-tint text-ink'
-                : 'border-line bg-surface hover:bg-surface-2 text-muted'
-            )}
-          >
-            <input
-              type="radio"
-              name="reject-reason"
-              value={r}
-              checked={reason === r}
-              onChange={() => setReason(r)}
-              className="h-4 w-4 accent-[rgb(var(--primary-text))]"
-            />
-            <span className="font-semibold">{r}</span>
-          </label>
-        ))}
-      </fieldset>
-    </Modal>
   );
 }

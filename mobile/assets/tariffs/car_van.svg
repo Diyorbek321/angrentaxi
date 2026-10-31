@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 52" width="120" height="52">
+  <title>Yuk tarifi — qutisimon furgon</title>
+  <!-- Umumiy shartnoma (car_econom.svg ga qarang): viewBox 0 0 120 52,
+       g'ildirak markazi y=37, radius 8.5 — to'rt mashina bitta yer
+       chizig'ida turishi uchun.
+       Furgon bitta hajmli (one-box): kapot yo'q, oyna to'g'ridan-to'g'ri
+       burundan ko'tariladi va tom y=5 da — sedanlardan 2.5..5 dp
+       baland. Aynan shu balandlik "bu yerga yuk sig'adi" deydi. -->
+
+  <path d="M5 34 L5 24 C5 20 7 16.5 11 15 L27 6.5 C28.5 5.5 30 5 32 5
+           L105 5 C110 5 113 8 113 13 L113 34 Q113 37 110 37
+           L100 37 A10 10 0 0 0 80 37 L40 37 A10 10 0 0 0 20 37
+           L8 37 Q5 37 5 34 Z"
+        fill="#5A6C75"/>
+
+  <!-- To'rtta oyna — sedandagi ikki-uch o'rniga. Yo'lovchi sig'imi
+       raqam bilan emas, oyna SONI bilan o'qiladi.
+       Ranglar old→orqa yorug'likdan to'qqa boradi. -->
+  <path d="M15 16.5 L27.5 8 L33 8 L33 16.5 Z" fill="#CFEDE0"/>
+  <path d="M37 8 L55 8 L55 16.5 L37 16.5 Z" fill="#9FE3C6"/>
+  <path d="M59 8 L77 8 L77 16.5 L59 16.5 Z" fill="#9FE3C6"/>
+  <path d="M81 8 L102 8 L102 16.5 L81 16.5 Z" fill="#6FE4B8"/>
+
+  <rect x="6" y="20.5" width="6" height="4" rx="1.6" fill="#6FE4B8"/>
+  <rect x="106" y="21" width="5.5" height="3.5" rx="1.5" fill="#6FE4B8"/>
+
+  <circle cx="30" cy="37" r="8.5" fill="#0F1B22"/>
+  <circle cx="30" cy="37" r="3.4" fill="#E2EBEC"/>
+  <circle cx="90" cy="37" r="8.5" fill="#0F1B22"/>
+  <circle cx="90" cy="37" r="3.4" fill="#E2EBEC"/>
+</svg>

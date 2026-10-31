@@ -28,6 +28,14 @@ export class PushNotificationLog {
   @Column({ type: 'varchar' })
   body: string;
 
+  // Ruscha variant — `users.language = 'ru'` bo'lganlarga boradi. NULL bo'lsa
+  // ular ham o'zbekcha matnni oladi.
+  @Column({ name: 'title_ru', type: 'varchar', nullable: true })
+  titleRu: string | null;
+
+  @Column({ name: 'body_ru', type: 'varchar', nullable: true })
+  bodyRu: string | null;
+
   @Column({ type: 'enum', enum: BroadcastAudience })
   audience: BroadcastAudience;
 

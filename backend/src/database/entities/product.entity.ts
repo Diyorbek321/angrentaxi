@@ -83,6 +83,13 @@ export class Product {
   @Column({ type: 'varchar', default: '📦' })
   emoji: string;
 
+  /**
+   * Katalog rasmi kaliti (`catalog/<uuid>.<ext>`), null = rasm yo'q.
+   * Maxfiy emas: mijoz uni `GET /media/<kalit>` orqali ochiq yuklaydi.
+   */
+  @Column({ name: 'image_key', type: 'varchar', length: 200, nullable: true })
+  imageKey: string | null;
+
   // Hue (0-360) used to render the mock's gradient product swatch — kept as a
   // literal field rather than derived so the same swatch persists across edits.
   @Column({ type: 'int', default: 45 })

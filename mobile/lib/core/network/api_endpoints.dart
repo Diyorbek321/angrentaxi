@@ -2,10 +2,16 @@ class ApiEndpoints {
   ApiEndpoints._();
 
   // Auth
+  // Ilova versiyasi siyosati (ochiq, JWT'siz) — lib/core/update.
+  static const String appVersion = '/app/version';
+  static const String analyticsFunnel = '/analytics/funnel';
+
   static const String sendOtp = '/auth/send-otp';
   static const String verifyOtp = '/auth/verify-otp';
   static const String refreshToken = '/auth/refresh';
   static const String logout = '/auth/logout';
+  // Hisobni o'chirish (Google Play talabi) — o'z hisobi, id yo'q.
+  static const String account = '/account';
 
   // User / Passenger
   // Backend route is GET/PATCH /users/me (users.controller.ts) — was
@@ -31,13 +37,58 @@ class ApiEndpoints {
   static String orderById(String id) => '/orders/$id';
   static String cancelOrder(String id) => '/orders/$id/cancel';
 
+  // Olish nuqtasi atrofidagi bo'sh haydovchilar SONI (koordinatalar emas).
+  static const String nearbyDriversCount = '/drivers/nearby-count';
+
+  // GET /orders/scheduled (orders.controller.ts) — yo'lovchining kelgusi
+  // rejalashtirilgan safarlari, eng yaqini birinchi.
+  //
+  // ⚠️ Backend'da bu marshrut `@Get(':id')` DAN OLDIN e'lon qilingan
+  // bo'lishi shart, aks holda Nest 'scheduled' ni UUID deb o'qib
+  // `ParseUUIDPipe` bilan 400 qaytaradi.
+  //
+  // Bekor qilish uchun alohida endpoint YO'Q — rejalashtirilgan buyurtma
+  // mavjud `cancelOrder` orqali bekor qilinadi (backend'da SCHEDULED
+  // bekor qilinadigan holatlar ro'yxatiga qo'shilgan).
+  static const String scheduledOrders = '/orders/scheduled';
+
+  // GET /orders/:id/receipt (orders.controller.ts) — TUGAGAN safarning
+  // moliyaviy hujjati: narx tarkibi, chegirma, chaqim, to'lov holati.
+  // Safar tugamagan bo'lsa 400, chek boshqaning bo'lsa 403 qaytadi.
+  static String orderReceipt(String id) => '/orders/$id/receipt';
+
+  // Chaqim — POST /orders/:id/tip (orders.controller.ts). Faqat yo'lovchi
+  // roli, faqat TUGAGAN safar uchun va safar tugaganidan keyingi 24 soat
+  // ichida. Tana: {amount} — 1 000..200 000 oralig'idagi BUTUN son
+  // (add-tip.dto.ts), javob: {tipAmount, walletBalance}.
+  //
+  // ⚠️ Summa faqat HAMYONDAN yechiladi — naqd/karta yo'q, chunki chaqim
+  // DEBIT qatori yo'l haqi DEBIT qatorini to'sib qo'yardi
+  // (orders-tips.service.ts dagi izohga qarang).
+  static String addTip(String id) => '/orders/$id/tip';
+
   // Tariffs
   static const String tariffs = '/tariffs';
+
+  // Xizmat ko'rsatiladigan shaharlar — OMMAVIY marshrut (token talab
+  // qilmaydi), chunki qamrov buyurtmadan OLDIN kerak.
+  //
+  //   GET /cities → [{id, name, centerLat, centerLng, radiusKm}]
+  //
+  // Har bir shahar MARKAZ + RADIUS bilan berilgan doira. Ro'yxat bo'sh
+  // kelsa yoki so'rov yiqilsa mobil tomon hech narsani bloklamaydi —
+  // core/location/city_coverage.dart dagi izohga qarang.
+  static const String cities = '/cities';
+
+  // Routing — OSRM backend orqali (ilova OSRM manzilini bilmaydi)
+  static const String routingRoute = '/routing/route';
 
   // Driver
   static const String driverProfile = '/drivers/me';
   static const String driverApply = '/drivers/profile';
   static const String driverStatus = '/drivers/status';
+  // Mashina almashtirish — faqat so'rov orqali, menejer tasdiqlaydi
+  static const String driverVehicleChange = '/drivers/me/vehicle-change';
   static const String driverEarnings = '/orders/earnings';
   // GET /orders/earnings/breakdown (orders.controller.ts) — today/week/month
   // gross/commission/net/trips for the calling driver. Distinct from
@@ -45,13 +96,74 @@ class ApiEndpoints {
   // and is kept for the existing headline figure).
   static const String driverEarningsBreakdown = '/orders/earnings/breakdown';
   static const String driverOrderHistory = '/orders/history';
+  // Socket qayta ulanganda o'tkazib yuborilgan taklifni tiklash.
+  static const String currentOffer = '/orders/offer/current';
+  // Bosh sahifa: trenddagi market mahsulotlari (sahifalangan).
+  static const String marketTrending = '/market/trending';
+  // Market sahifasi: barcha do'konlar bo'yicha mahsulot qidiruvi.
+  static const String marketProductSearch = '/market/products/search';
   static String acceptOrder(String id) => '/orders/$id/accept';
   static String declineOrder(String id) => '/orders/$id/decline';
   static String arrivedAtPickup(String id) => '/orders/$id/arrived';
   static String startTrip(String id) => '/orders/$id/start';
+  static String vendorPaid(String id) => '/orders/$id/vendor-paid';
   static String completeTrip(String id) => '/orders/$id/complete';
   static const String updateLocation = '/drivers/location';
   static const String driverDocuments = '/drivers/documents';
+
+  // Haydovchi tekshiruvi — hujjat muddatlari + avtomobil suratlari.
+  //
+  // ⚠️ Talablar RO'YXATI SERVERDAN keladi: `code` erkin satr, `label`/`hint`
+  // ni ham server beradi. Mobil tomonda qattiq kodlangan ro'yxat YO'Q —
+  // yangi talab qo'shish uchun APK chiqarish SHART EMAS. To'liq kontrakt
+  // uchun shared/models/driver_verification.dart ga qarang.
+  static const String driverVerification = '/drivers/me/verification';
+
+  // POST, multipart/form-data, maydon nomi "file". `code` serverdan kelgan
+  // erkin satr bo'lgani uchun manzilga qo'yishdan oldin kodlanadi — unda
+  // `/` yoki bo'sh joy chiqib qolsa marshrut buzilmasin.
+  static String driverVerificationUpload(String code) =>
+      '/drivers/me/verification/${Uri.encodeComponent(code)}';
+
+  // Haydovchining XIZMAT TURLARI — qaysi vertikallardan buyurtma oladi.
+  //
+  //   GET   /drivers/me/services  → { enabled: [...], options: [...] }
+  //   PATCH /drivers/me/services  ← { serviceTypes: ['taxi', 'food'] }
+  //
+  // ⚠️ Ro'yxat, nom va izoh SERVERDAN keladi — mobil tomonda tarjima
+  // jadvali YO'Q (tekshiruv ekranidagi naqshning aynan o'zi). To'liq
+  // kontrakt uchun shared/models/driver_service.dart ga qarang.
+  static const String driverServices = '/drivers/me/services';
+  static const String driverAmenities = '/drivers/me/amenities';
+
+  // Huquqiy profil (VMQ 200 / PQ-247) — docs/LEGAL-COMPLIANCE.md §5.
+  //   GET/PATCH /drivers/me/legal → { profile, eligibility }
+  static const String driverLegal = '/drivers/me/legal';
+
+  // Kunlik smena — docs/LEGAL-COMPLIANCE.md §8, §10.
+  //   GET  → { enabled, price, durationHours, serviceTypes, current, comparison }
+  //   POST → ShiftPass (400 o'chiq/balans yetmaydi, 409 faol smena bor)
+  static const String driverShiftPass = '/drivers/me/shift-pass';
+  // Yo'qolgan buyumlar
+  static const String lostItems = '/lost-items';
+  static const String myLostItems = '/lost-items/mine';
+  static String lostItemDriverResponse(String id) => '/lost-items/$id/driver-response';
+
+  // Reklama — bosh ekran banner karuseli (3-versiya).
+  static const String activeAds = '/ads/active';
+  static String adImpression(String id) => '/ads/$id/impression';
+  static String adClick(String id) => '/ads/$id/click';
+
+  // Taksometr — safar davomidagi jonli masofa/vaqt/summa.
+  static String orderMeter(String id) => '/orders/$id/meter';
+
+  // Talab (surge) xaritasi — faqat haydovchi roli uchun.
+  // GET /surge/zones?lat=<double>&lng=<double>&rings=<int, default 4>
+  // To'g'ridan-to'g'ri MapLibre'ga beriladigan GeoJSON `FeatureCollection`
+  // qaytaradi; har bir feature `properties`ida `zone`, `level` va
+  // `multiplier` bo'ladi (koeffitsiyent EKRANGA CHIQMAYDI — shared/models/
+  // demand_zone.dart dagi izohga qarang).
+  static const String surgeZones = '/surge/zones';
 
   // Ratings
   static const String submitRating = '/ratings';
@@ -91,9 +203,55 @@ class ApiEndpoints {
   static const String foodOrders = '/food/orders';
   static String foodOrderById(String id) => '/food/orders/$id';
 
+  // docs/specs/food-market-ux-v5.md — bekor qilish va aksiyalar.
+  static String foodOrderCancel(String id) => '/food/orders/$id/cancel';
+  static String marketOrderCancel(String id) => '/market/orders/$id/cancel';
+  // ?serviceType=food|market — bosh ekrandagi "Chegirmalar" lentasi.
+  static const String activePromotions = '/promotions/active';
+
   // Payments (Payme / Click / Uzcard online checkout)
   static const String paymentsInitiate = '/payments/initiate';
   static const String paymentsWallet = '/payments/wallet';
+
+  /// Customer-facing platform settings (support phone, delivery fee).
+  static const String settingsPublic = '/settings/public';
+
+  // Shaharlararo (backend/src/modules/intercity). Flag o'chiq bo'lsa
+  // hammasi 404 INTERCITY_DISABLED qaytaradi.
+  static const String intercityRoutes = '/intercity/routes';
+  static const String intercityTrips = '/intercity/trips';
+  static String intercityTrip(String id) => '/intercity/trips/$id';
+  static String intercityTripBookings(String id) =>
+      '/intercity/trips/$id/bookings';
+  // Narx (shahar ichiga davom bilan) — band qilmaydi.
+  static String intercityTripQuote(String id) => '/intercity/trips/$id/quote';
+  static const String intercityMyBookings = '/intercity/bookings/me';
+  // Haydovchi: e'lon, qatnovlarim, bekor qilish, yig'ish, jo'nash, kelmadi.
+  static const String intercityMyTrips = '/intercity/trips/mine';
+  static String intercityTripCancel(String id) => '/intercity/trips/$id/cancel';
+  static String intercityTripStartBoarding(String id) =>
+      '/intercity/trips/$id/start-boarding';
+  static String intercityTripDepart(String id) => '/intercity/trips/$id/depart';
+  static String intercityTripRoutePlan(String id) =>
+      '/intercity/trips/$id/route-plan';
+  static String intercityBookingNoShow(String orderId) =>
+      '/intercity/bookings/$orderId/no-show';
+  static String intercityBookingCancel(String orderId) =>
+      '/intercity/bookings/$orderId/cancel';
+  // Yo'lovchi so'rovlari doskasi (10-qadam): mos qatnov yo'q — so'rov.
+  static const String intercityRequests = '/intercity/requests';
+  static const String intercityRequestQuote = '/intercity/requests/quote';
+  static const String intercityMyRequests = '/intercity/requests/me';
+  static const String intercityRequestBoard = '/intercity/requests/board';
+  static String intercityRequestBonus(String id) =>
+      '/intercity/requests/$id/bonus';
+  static String intercityRequestCancel(String id) =>
+      '/intercity/requests/$id/cancel';
+  static String intercityRequestAccept(String id) =>
+      '/intercity/requests/$id/accept';
+
+  /// Safar opsiyalari haqi (`{"child_seat": 5000}`) — menejer belgilaydi.
+  static const String tripOptionFees = '/settings/trip-option-fees';
   static const String paymentsTransactions = '/payments/transactions';
 
   // Driver wallet withdrawals (payout requests)
@@ -101,6 +259,12 @@ class ApiEndpoints {
   static const String walletWithdrawals = '/payments/wallet/withdrawals';
   static String walletWithdrawalById(String id) =>
       '/payments/wallet/withdrawals/$id';
+
+  // Hamyonni Payme/Click orqali o'zi to'ldirish — docs/LEGAL-COMPLIANCE.md §11.
+  //   POST {amount, provider} → WalletTopup & { topupId, checkoutUrl }
+  static const String walletTopup = '/payments/wallet/topup';
+  static String walletTopupById(String id) => '/payments/wallet/topup/$id';
+  static const String walletTopups = '/payments/wallet/topups';
 
   // Support chat
   static const String supportThreadMe = '/support/threads/me';

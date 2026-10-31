@@ -68,8 +68,10 @@ async function seedFood(): Promise<void> {
 
     if (!vendorUser) {
       [vendorUser] = (await qr.query(
-        `INSERT INTO users (phone, first_name, last_name, role, status)
-         VALUES ($1, 'Mix', 'Burger', 'restaurant', 'active')
+        // referral_code is NOT NULL + UNIQUE on the users table; omitting it
+        // made every vendor seed fail outright.
+        `INSERT INTO users (phone, first_name, last_name, role, status, referral_code)
+         VALUES ($1, 'Mix', 'Burger', 'restaurant', 'active', 'RSTRN1')
          RETURNING id;`,
         [VENDOR_PHONE],
       )) as Array<{ id: string }>;

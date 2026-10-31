@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 52" width="120" height="52">
+  <title>Komfort tarifi — uzun tomli sedan</title>
+  <!-- Umumiy shartnoma (car_econom.svg ga qarang): viewBox 0 0 120 52,
+       g'ildirak markazi y=37, radius 8.5 — to'rt mashina bitta yer
+       chizig'ida turishi uchun.
+       Komfortni tejamkordan AJRATADIGAN narsa — tom: 44..84 (tejamkorda
+       47..78). Ikkinchi qator oynasi shu yerdan chiqadi va "orqada joy
+       ko'p" degan ma'noni matnsiz beradi. -->
+
+  <!-- Kuzov qora (#0F1B22) va g'ildirak ham qora — ular QO'SHILIB
+       ketmasligi uchun g'ildirak kamari yoyi (r=10) g'ildirakdan
+       (r=8.5) kattaroq: orasida fon rangi ingichka halqa bo'lib
+       ko'rinadi va shakl ajraladi. Bu farqni kamaytirmang. -->
+  <path d="M5 34 L5 28 C5 24 7.5 21.5 11 21 L34 18 L44 7 L84 7
+           L95 19 L109 21.5 C113 22 115 25 115 29 L115 34 Q115 37 112 37
+           L100 37 A10 10 0 0 0 80 37 L40 37 A10 10 0 0 0 20 37
+           L8 37 Q5 37 5 34 Z"
+        fill="#0F1B22"/>
+
+  <!-- Oynalar old→orqa yorug'likdan to'qqa boradi: yassi siluetda
+       chuqurlikni faqat shu farq beradi, soya ishlatilmaydi. -->
+  <path d="M39 17 L46.5 9.5 L56 9.5 L56 17 Z" fill="#CFEDE0"/>
+  <path d="M59 9.5 L71 9.5 L71 17 L59 17 Z" fill="#9FE3C6"/>
+  <path d="M74 9.5 L82 9.5 L89 17 L74 17 Z" fill="#6FE4B8"/>
+
+  <rect x="6" y="24" width="6" height="4" rx="1.6" fill="#6FE4B8"/>
+  <rect x="108" y="25.5" width="5.5" height="3.5" rx="1.5" fill="#6FE4B8"/>
+
+  <circle cx="30" cy="37" r="8.5" fill="#0F1B22"/>
+  <circle cx="30" cy="37" r="3.4" fill="#E2EBEC"/>
+  <circle cx="90" cy="37" r="8.5" fill="#0F1B22"/>
+  <circle cx="90" cy="37" r="3.4" fill="#E2EBEC"/>
+</svg>

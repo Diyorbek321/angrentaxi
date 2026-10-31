@@ -22,6 +22,13 @@ import { PaymentsService } from './payments.service';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 import { RequestWithdrawalDto } from './dto/request-withdrawal.dto';
 import { ProcessWithdrawalDto } from './dto/process-withdrawal.dto';
+import { ListWithdrawalsQueryDto } from './dto/list-withdrawals-query.dto';
+import { CreateWalletTopupDto } from './dto/create-wallet-topup.dto';
+import {
+  WalletTopupCheckout,
+  WalletTopupView,
+  WalletTopupsService,
+} from './wallet-topups.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
@@ -29,10 +36,14 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Permission, User, UserRole } from '../../database/entities/user.entity';
-import { WithdrawalOwnerType, WithdrawalStatus } from '../../database/entities/withdrawal-request.entity';
+import { WithdrawalOwnerType } from '../../database/entities/withdrawal-request.entity';
 import { PaginationDto } from '../orders/dto/pagination.dto';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
-import { OptionalEnumPipe } from '../../common/pipes/optional-enum.pipe';
+import { RawResponse } from '../../common/decorators/raw-response.decorator';
+import { SkipThrottle } from '@nestjs/throttler';
+import { PaymeMerchantService } from './merchant/payme-merchant.service';
+import { ClickShopService, ClickShopResponse } from './merchant/click-shop.service';
+import { PaymeRpcResponse } from './merchant/payme-rpc';
 
 // Maps the caller's account role to the withdrawal's informational
 // ownerType tag (see WithdrawalRequest.ownerType). Anything that isn't a
@@ -47,7 +58,12 @@ function resolveWithdrawalOwnerType(role: UserRole): WithdrawalOwnerType {
 @ApiTags('Payments')
 @Controller('payments')
 export class PaymentsController {
-  constructor(private readonly paymentsService: PaymentsService) {}
+  constructor(
+    private readonly paymentsService: PaymentsService,
+    private readonly walletTopups: WalletTopupsService,
+    private readonly paymeMerchant: PaymeMerchantService,
+    private readonly clickShop: ClickShopService,
+  ) {}
 
   @Post('initiate')
   @ApiBearerAuth('JWT-auth')
@@ -63,23 +79,32 @@ export class PaymentsController {
     return this.paymentsService.initiatePayment(dto.orderId, provider, user.id);
   }
 
+  // Payme va Click: buyurtma to'lovi VA hamyonni to'ldirish uchun yagona
+  // protokol (docs/LEGAL-COMPLIANCE.md §18). Javob xom — `{ success, data }`
+  // konvertisiz (`@RawResponse()`), HTTP 200; provayder serverlari tez-tez
+  // chaqiradi — throttling yo'q (imzo/Basic auth himoya qiladi).
+
   @Post('payme/callback')
+  @RawResponse()
+  @SkipThrottle()
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Payme payment callback (internal use)' })
-  @ApiResponse({ status: 200, description: 'Callback processed' })
+  @ApiOperation({ summary: 'Payme Merchant API endpoint (JSON-RPC 2.0, internal use)' })
+  @ApiResponse({ status: 200, description: '{ jsonrpc, id, result } | { jsonrpc, id, error }' })
   async handlePaymeCallback(
     @Body() body: Record<string, unknown>,
-    @Headers('authorization') authHeader: string,
-  ) {
-    return this.paymentsService.handlePaymeCallback(body, authHeader);
+    @Headers('authorization') authHeader: string | undefined,
+  ): Promise<PaymeRpcResponse> {
+    return this.paymeMerchant.handle(body, authHeader);
   }
 
   @Post('click/callback')
+  @RawResponse()
+  @SkipThrottle()
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Click payment callback (internal use)' })
-  @ApiResponse({ status: 200, description: 'Callback processed' })
-  async handleClickCallback(@Body() body: Record<string, unknown>) {
-    return this.paymentsService.handleClickCallback(body);
+  @ApiOperation({ summary: 'Click SHOP API Prepare (action=0) / Complete (action=1) (internal use)' })
+  @ApiResponse({ status: 200, description: 'Click SHOP API response object' })
+  async handleClickCallback(@Body() body: Record<string, unknown>): Promise<ClickShopResponse> {
+    return this.clickShop.handle(body ?? {});
   }
 
   @Post('uzcard/callback')
@@ -113,6 +138,50 @@ export class PaymentsController {
       pagination.page ?? 1,
       pagination.limit ?? 20,
     );
+  }
+
+  // --- Hamyonni to'ldirish (Payme / Click / UZPS) — docs/LEGAL-COMPLIANCE.md §11 ---
+  //
+  // Haydovchi/kuryer summani tanlaydi → `checkoutUrl` ni ochadi → provayder
+  // callback'i (`payme|click|uzcard/callback`, merchant havolasi
+  // `topup_<id>`) to'lovni tasdiqlaganda hamyonga kirim tushadi va ilovaga
+  // `wallet:updated` hodisasi + push keladi. Ilova holatni shu GET bilan ham
+  // so'rashi mumkin.
+
+  @Post('wallet/topup')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({ summary: 'Start a wallet top-up via Payme/Click/Uzcard (driver/courier)' })
+  @ApiResponse({ status: 201, description: '{ topupId, checkoutUrl, ...WalletTopup }' })
+  @ApiResponse({ status: 400, description: 'Disabled, amount out of range, or provider not configured' })
+  async createTopup(
+    @CurrentUser() user: User,
+    @Body() dto: CreateWalletTopupDto,
+  ): Promise<WalletTopupCheckout> {
+    return this.walletTopups.create(user.id, user.phone ?? '', dto);
+  }
+
+  @Get('wallet/topups')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({ summary: 'My last 20 wallet top-ups' })
+  async listTopups(@CurrentUser() user: User): Promise<WalletTopupView[]> {
+    return this.walletTopups.listForUser(user.id);
+  }
+
+  @Get('wallet/topup/:id')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({ summary: 'Wallet top-up status (pending | paid | failed | cancelled | expired)' })
+  @ApiParam({ name: 'id', description: 'Top-up UUID' })
+  async getTopup(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<WalletTopupView> {
+    return this.walletTopups.getForUser(user.id, id);
   }
 
   // --- Withdrawal requests (MVP/skeleton payout flow) ---
@@ -161,24 +230,24 @@ export class PaymentsController {
   })
   @ApiResponse({ status: 200, description: 'Paginated withdrawal request list' })
   async getAllWithdrawals(
-    @Query() pagination: PaginationDto,
-    @Query('status', new OptionalEnumPipe(WithdrawalStatus, 'status'))
-    status?: WithdrawalStatus,
+    @Query() query: ListWithdrawalsQueryDto,
   ) {
-    return this.paymentsService.getAllWithdrawals(status, pagination.page ?? 1, pagination.limit ?? 20);
+    return this.paymentsService.getAllWithdrawals(query.status, query.page ?? 1, query.limit ?? 20);
   }
 
   @Patch('wallet/withdrawals/:id')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Approve, reject, or mark a withdrawal request paid (admin only)' })
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.WITHDRAWALS_APPROVE)
+  @ApiOperation({ summary: 'Approve, reject, or mark a withdrawal request paid (admin, or manager with withdrawals_approve)' })
   @ApiParam({ name: 'id', description: 'Withdrawal request UUID' })
   @ApiResponse({ status: 200, description: 'Withdrawal request updated' })
   async processWithdrawal(
+    @CurrentUser() actor: User,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ProcessWithdrawalDto,
   ) {
-    return this.paymentsService.processWithdrawal(id, dto);
+    return this.paymentsService.processWithdrawal(id, dto, actor.id);
   }
 }

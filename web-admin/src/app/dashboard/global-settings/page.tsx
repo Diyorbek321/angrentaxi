@@ -1,27 +1,52 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Settings } from 'lucide-react';
-import { PageHeader } from '@/components/ui/PageHeader';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
-import { ErrorState } from '@/components/ui/ErrorState';
-import { SkeletonForm } from '@/components/ui/Skeleton';
-import { settingsApi, GlobalSettings } from '@/lib/api';
-import { useToast } from '@/components/ui/Toast';
+import { AlertTriangle, Save } from 'lucide-react';
+import {
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  ErrorState,
+  Input,
+  PageHeader,
+  RetryBanner,
+  SkeletonForm,
+  Switch,
+  useToast,
+} from '@/components/ui';
+import { settingsApi, type GlobalSettings } from '@/lib/api';
+import { validateDeliverySettings } from '@/lib/delivery-settings';
+import { IntercitySettingsCard } from '@/components/intercity/IntercitySettingsCard';
+import { t } from '@/locales';
+
+const EMPTY_FORM: GlobalSettings = {
+  platformName: '',
+  supportPhone: '',
+  supportEmail: '',
+  maintenanceMode: false,
+  maxCashVendorOrder: 200000,
+  deliveryFee: 7000,
+  freeDeliveryFrom: 0,
+  deliveryEtaMinMinutes: 30,
+  deliveryEtaMaxMinutes: 50,
+};
+
+type FieldErrors = Partial<Record<keyof GlobalSettings, string>>;
 
 export default function GlobalSettingsPage() {
+  const c = t().common;
+  const s = t().settings;
+  const m = s.global;
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState<GlobalSettings>({
-    platformName: '',
-    supportPhone: '',
-    supportEmail: '',
-    maintenanceMode: false,
-  });
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const [form, setForm] = useState<GlobalSettings>(EMPTY_FORM);
+  /** Serverdagi oxirgi holat — "o'zgardimi" (dirty) ni aniqlash uchun. */
+  const [saved, setSaved] = useState<GlobalSettings>(EMPTY_FORM);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   const fetchSettings = () => {
     setIsLoading(true);
@@ -29,12 +54,12 @@ export default function GlobalSettingsPage() {
       .getGlobal()
       .then((res) => {
         setForm(res.data.data);
+        setSaved(res.data.data);
         setError(null);
+        setHasLoadedOnce(true);
       })
       .catch(() => {
-        const message = 'Sozlamalarni yuklashda xatolik';
-        setError(message);
-        toast({ title: 'Xatolik', description: message, variant: 'error' });
+        setError(s.loadFailed);
       })
       .finally(() => setIsLoading(false));
   };
@@ -44,111 +69,243 @@ export default function GlobalSettingsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const isDirty = (Object.keys(form) as (keyof GlobalSettings)[]).some((k) => form[k] !== saved[k]);
+
+  // Validatsiya har bir maydonning O'ZIGA biriktiriladi — toast emas.
+  const validate = (values: GlobalSettings): FieldErrors => {
+    const errors: FieldErrors = {};
+    if (!values.platformName.trim()) errors.platformName = m.errPlatformName;
+    if (values.supportPhone.trim() && !/^\+?\d[\d\s-]{7,}$/.test(values.supportPhone.trim())) {
+      errors.supportPhone = m.errPhone;
+    }
+    if (values.supportEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.supportEmail.trim())) {
+      errors.supportEmail = m.errEmail;
+    }
+    if (!Number.isFinite(values.maxCashVendorOrder) || values.maxCashVendorOrder < 0) {
+      errors.maxCashVendorOrder = m.errMaxCash;
+    }
+    return { ...errors, ...validateDeliverySettings(values) };
+  };
+
+  const update = <K extends keyof GlobalSettings>(key: K, value: GlobalSettings[K]) => {
+    const next = { ...form, [key]: value };
+    setForm(next);
+    // Re-validate while typing once an error is showing (no side effect inside
+    // a state updater — that runs twice in StrictMode).
+    if (fieldErrors[key]) setFieldErrors(validate(next));
+  };
+
   const handleSave = async () => {
+    const errors = validate(form);
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
     setSaving(true);
     try {
       const res = await settingsApi.updateGlobal(form);
       setForm(res.data.data);
-      toast({ title: 'Saqlandi', variant: 'success' });
+      setSaved(res.data.data);
+      toast({ title: s.saved, description: m.savedDesc, variant: 'success' });
     } catch {
-      toast({ title: 'Xatolik', description: 'Saqlashda xatolik', variant: 'error' });
+      toast({ title: c.error, description: c.saveError, variant: 'error' });
     } finally {
       setSaving(false);
     }
   };
 
+  const showFullError = error && !isLoading && !hasLoadedOnce;
+  const showErrorBanner = error && !isLoading && hasLoadedOnce;
+
   return (
-    <div className="p-4 sm:p-6">
+    <div className="px-4 sm:px-6 py-5">
       <PageHeader
-        title="Umumiy sozlamalar"
-        description="Platforma nomi, aloqa va texnik profilaktika rejimi"
-        icon={<Settings className="h-4 w-4" />}
+        title={m.title}
+        description={m.description}
       />
 
-      {error ? (
-        <ErrorState message={error} onRetry={fetchSettings} />
-      ) : isLoading ? (
-        <div className="max-w-2xl">
-          <SkeletonForm fields={4} />
-        </div>
-      ) : (
-        <div className="max-w-2xl space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Platforma</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Input
-                label="Platforma nomi"
-                value={form.platformName}
-                onChange={(e) => setForm((f) => ({ ...f, platformName: e.target.value }))}
-              />
-              <Input
-                label="Qo'llab-quvvatlash telefoni"
-                value={form.supportPhone}
-                onChange={(e) => setForm((f) => ({ ...f, supportPhone: e.target.value }))}
-              />
-              <Input
-                label="Qo'llab-quvvatlash emaili"
-                value={form.supportEmail}
-                onChange={(e) => setForm((f) => ({ ...f, supportEmail: e.target.value }))}
-              />
-            </CardContent>
-          </Card>
+      <div className="max-w-2xl space-y-4">
+        {showErrorBanner && (
+          <RetryBanner message={error} onRetry={fetchSettings} keepsLastData retrying={isLoading} />
+        )}
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Texnik profilaktika rejimi</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between rounded-ds-md bg-surface-2 px-4 py-3">
-                <div>
-                  <p className="text-body font-medium text-ink">Maintenance mode</p>
-                  <p className="mt-0.5 text-caption text-muted">
-                    Faqat belgi sifatida saqlanadi — hozircha haqiqiy so&apos;rovlarni bloklamaydi.
-                  </p>
+        {showFullError ? (
+          <Card padding="none">
+            <ErrorState message={error} onRetry={fetchSettings} />
+          </Card>
+        ) : isLoading && !hasLoadedOnce ? (
+          <Card padding="lg">
+            <SkeletonForm fields={4} />
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            <Card padding="none">
+              <CardHeader title={m.contactTitle} divider />
+              <CardBody className="space-y-4 pt-4">
+                <Input
+                  label={m.platformName}
+                  value={form.platformName}
+                  error={fieldErrors.platformName}
+                  hint={m.platformNameHint}
+                  onChange={(e) => update('platformName', e.target.value)}
+                />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Input
+                    label={m.supportPhone}
+                    type="tel"
+                    className="num"
+                    placeholder="+998901234567"
+                    value={form.supportPhone}
+                    error={fieldErrors.supportPhone}
+                    onChange={(e) => update('supportPhone', e.target.value)}
+                  />
+                  <Input
+                    label={m.supportEmail}
+                    type="email"
+                    placeholder="support@angrentaxi.uz"
+                    value={form.supportEmail}
+                    error={fieldErrors.supportEmail}
+                    onChange={(e) => update('supportEmail', e.target.value)}
+                  />
                 </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={form.maintenanceMode}
-                  aria-label="Texnik profilaktika rejimi"
-                  onClick={() => setForm((f) => ({ ...f, maintenanceMode: !f.maintenanceMode }))}
-                  className={`relative h-6 w-11 shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bg ${
-                    form.maintenanceMode ? 'bg-danger' : 'bg-surface-3'
-                  }`}
+              </CardBody>
+            </Card>
+
+            {/* Food/market: the courier buys the goods with their own cash
+                (backend delivery/vendor-cash.ts) — cash only up to this sum. */}
+            <Card padding="none">
+              <CardHeader title={m.cashTitle} divider />
+              <CardBody className="pt-4">
+                <Input
+                  label={m.maxCash}
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  step={1000}
+                  value={String(form.maxCashVendorOrder)}
+                  error={fieldErrors.maxCashVendorOrder}
+                  hint={m.maxCashHint}
+                  onChange={(e) => update('maxCashVendorOrder', Number(e.target.value))}
+                  wrapperClassName="max-w-xs"
+                />
+              </CardBody>
+            </Card>
+
+            {/* Mijoz ilovasi: "Yetkazish 7 000 soʻm · 30–50 daq · 100 000 soʻmdan bepul".
+                Bepul chegara aksiyadan keyingi tovar summasiga qaraydi (backend
+                settings/delivery-pricing.ts). */}
+            <Card padding="none">
+              <CardHeader title={m.deliveryTitle} divider />
+              <CardBody className="space-y-4 pt-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Input
+                    label={m.deliveryFee}
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    step={500}
+                    value={String(form.deliveryFee)}
+                    error={fieldErrors.deliveryFee}
+                    onChange={(e) => update('deliveryFee', Number(e.target.value))}
+                  />
+                  <Input
+                    label={m.freeDeliveryFrom}
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    step={1000}
+                    value={String(form.freeDeliveryFrom)}
+                    error={fieldErrors.freeDeliveryFrom}
+                    hint={m.freeDeliveryHint}
+                    onChange={(e) => update('freeDeliveryFrom', Number(e.target.value))}
+                  />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Input
+                    label={m.etaMin}
+                    type="number"
+                    inputMode="numeric"
+                    min={5}
+                    max={240}
+                    step={5}
+                    value={String(form.deliveryEtaMinMinutes)}
+                    error={fieldErrors.deliveryEtaMinMinutes}
+                    onChange={(e) => update('deliveryEtaMinMinutes', Number(e.target.value))}
+                  />
+                  <Input
+                    label={m.etaMax}
+                    type="number"
+                    inputMode="numeric"
+                    min={5}
+                    max={240}
+                    step={5}
+                    value={String(form.deliveryEtaMaxMinutes)}
+                    error={fieldErrors.deliveryEtaMaxMinutes}
+                    onChange={(e) => update('deliveryEtaMaxMinutes', Number(e.target.value))}
+                  />
+                </div>
+              </CardBody>
+            </Card>
+
+            {/* O'z endpointi va saqlash tugmasi bor — umumiy formaning "dirty" holatiga kirmaydi. */}
+            <IntercitySettingsCard />
+
+            <Card padding="none">
+              <CardHeader title={m.maintenanceTitle} divider />
+              <CardBody className="space-y-3 pt-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-ink">{m.maintenanceMode}</p>
+                    <p className="mt-0.5 text-xs text-muted">{m.maintenanceHint}</p>
+                  </div>
+                  <Switch
+                    checked={form.maintenanceMode}
+                    onCheckedChange={(v) => update('maintenanceMode', v)}
+                    tone="danger"
+                    aria-label={m.maintenanceAria}
+                  />
+                </div>
+                {form.maintenanceMode && (
+                  <div className="flex items-start gap-2 rounded-ds-sm border border-danger/30 bg-danger-tint px-3 py-2">
+                    <AlertTriangle
+                      size={15}
+                      className="mt-px shrink-0 text-danger-dark dark:text-danger-light"
+                      aria-hidden="true"
+                    />
+                    <p className="text-xs leading-relaxed text-danger-dark dark:text-danger-light">
+                      {m.maintenanceWarning}
+                    </p>
+                  </div>
+                )}
+              </CardBody>
+            </Card>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+              <span className="text-xs text-muted" aria-live="polite">
+                {isDirty ? s.dirty : s.clean}
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  disabled={!isDirty || saving}
+                  onClick={() => {
+                    setForm(saved);
+                    setFieldErrors({});
+                  }}
                 >
-                  {/* Tugmacha ikkala temada ham oq qoladi: yo'lakcha yo
-                      `danger` (3.9:1), yo `surface-3` (qorong'ida 1.6:1 emas,
-                      oq bilan 11:1) — tokenli yuza bu yerda ko'rinmay qolardi. */}
-                  <span
-                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-card transition-transform ${
-                      form.maintenanceMode ? 'translate-x-5' : 'translate-x-0.5'
-                    }`}
-                  />
-                </button>
+                  {c.cancel}
+                </Button>
+                <Button
+                  onClick={handleSave}
+                  isLoading={saving}
+                  disabled={!isDirty}
+                  leftIcon={<Save size={14} aria-hidden="true" />}
+                >
+                  {c.save}
+                </Button>
               </div>
-              {form.maintenanceMode && (
-                <div className="flex items-start gap-2 rounded-ds-md border border-danger/30 bg-danger-tint px-3 py-2.5">
-                  <AlertTriangle
-                    size={15}
-                    className="mt-0.5 shrink-0 text-danger-deep dark:text-danger-light"
-                    aria-hidden="true"
-                  />
-                  <p className="text-caption text-danger-deep dark:text-danger-light">
-                    Belgi yoqildi, lekin bu real trafikni bloklamaydi — bu qadam ataylab qo&apos;shilmagan
-                    (jonli tizimga ta&apos;sir qiladigan o&apos;zgarish, alohida tasdiq talab qiladi).
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Button onClick={handleSave} isLoading={saving}>
-            Saqlash
-          </Button>
-        </div>
-      )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

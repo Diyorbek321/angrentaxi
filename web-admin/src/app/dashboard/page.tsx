@@ -1,35 +1,113 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { format, subDays } from 'date-fns';
+import { ArrowRight } from 'lucide-react';
 import {
-  Users,
-  Car,
-  ClipboardList,
-  DollarSign,
-  Clock,
-  CheckCircle,
-  LayoutDashboard,
-  Inbox,
-} from 'lucide-react';
-import { PageHeader } from '@/components/ui/PageHeader';
-import { StatCard } from '@/components/ui/StatCard';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { ErrorState } from '@/components/ui/ErrorState';
-import { SkeletonStats, SkeletonCards } from '@/components/ui/Skeleton';
+  Avatar,
+  Button,
+  Card,
+  CardHeader,
+  DataTable,
+  ErrorState,
+  MoneyText,
+  PageHeader,
+  PlateNumber,
+  SkeletonStats,
+  StatCard,
+  type DataTableColumn,
+} from '@/components/ui';
+import { OrdersChart, RevenueChart } from '@/components/charts/lazy';
 import { OrderStatusBadge } from '@/components/orders/OrderStatusBadge';
 import { DriverStatusBadge } from '@/components/drivers/DriverStatusBadge';
-import { dashboardApi, DashboardStats, ordersApi, driversApi, Order, Driver } from '@/lib/api';
-import { formatCurrency, getFullName } from '@/lib/utils';
-import { useToast } from '@/components/ui/Toast';
+import {
+  dashboardApi,
+  driversApi,
+  ordersApi,
+  reportsApi,
+  type DashboardStats,
+  type Driver,
+  type Order,
+  type RevenueDataPoint,
+} from '@/lib/api';
+import { formatMoney, formatNumber, formatRating, formatTime, fullName } from '@/lib/format';
+import { t } from '@/locales';
 
+const DATE_FMT = 'yyyy-MM-dd';
+const TREND_DAYS = 7;
+
+function ViewAll({ href }: { href: string }) {
+  return (
+    <Button href={href} variant="ghost" size="sm" rightIcon={<ArrowRight size={13} aria-hidden />}>
+      {t().common.allAlt}
+    </Button>
+  );
+}
+
+function orderColumns(): DataTableColumn<Order>[] {
+  const m = t().dashboard.columns;
+  return [
+    {
+      key: 'passenger',
+      header: m.passenger,
+      cell: (o) => (
+        <div className="min-w-0">
+          <p className="truncate font-medium">{fullName(o.passenger?.firstName, o.passenger?.lastName)}</p>
+          <p className="truncate text-xs text-muted">{o.pickupAddress ?? '—'}</p>
+        </div>
+      ),
+      className: 'max-w-[220px]',
+    },
+    { key: 'time', header: m.time, cell: (o) => formatTime(o.createdAt), numeric: true, hideBelow: 'md' },
+    { key: 'status', header: m.status, cell: (o) => <OrderStatusBadge status={o.status} /> },
+    {
+      key: 'price',
+      header: m.price,
+      numeric: true,
+      cell: (o) => <MoneyText value={o.finalPrice ?? o.estimatedPrice} />,
+    },
+  ];
+}
+
+function driverColumns(): DataTableColumn<Driver>[] {
+  const m = t().dashboard.columns;
+  return [
+    {
+      key: 'name',
+      header: m.driver,
+      cell: (d) => (
+        <div className="flex items-center gap-2.5 min-w-0">
+          <Avatar firstName={d.firstName} lastName={d.lastName} size="xs" tone="mint" />
+          <span className="truncate font-medium">{fullName(d.firstName, d.lastName)}</span>
+        </div>
+      ),
+      className: 'max-w-[200px]',
+    },
+    { key: 'plate', header: m.plate, cell: (d) => <PlateNumber plate={d.carNumber} /> },
+    { key: 'rating', header: m.rating, numeric: true, cell: (d) => formatRating(d.rating), hideBelow: 'md' },
+    { key: 'status', header: m.status, cell: (d) => <DriverStatusBadge status={d.status} isOnline={d.isOnline} /> },
+  ];
+}
+
+/**
+ * Inverted pyramid: "are we OK?" KPIs on top (most important top-left),
+ * 7-day trends in the middle, recent detail at the bottom.
+ *
+ * No deltas and no sparklines on purpose: /orders/stats has no previous
+ * period to compare against, and a delta is only drawn from real data.
+ */
 export default function DashboardPage() {
-  const { toast } = useToast();
+  const m = t().dashboard;
+  const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [onlineDrivers, setOnlineDrivers] = useState<Driver[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [trendData, setTrendData] = useState<RevenueDataPoint[]>([]);
+  const [trendsLoading, setTrendsLoading] = useState(true);
+  const [trendsError, setTrendsError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -44,161 +122,120 @@ export default function DashboardPage() {
       setOnlineDrivers(driversRes.data.data?.drivers ?? []);
       setError(null);
     } catch {
-      const message = "Ma'lumotlarni yuklashda xatolik";
-      setError(message);
-      toast({ title: 'Xatolik', description: message, variant: 'error' });
+      setError(m.loadFailed);
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, []);
+
+  // Trends load separately: KPIs first, charts after — a failed trend request
+  // never blanks the numbers above it.
+  const fetchTrends = useCallback(async () => {
+    setTrendsLoading(true);
+    try {
+      const res = await reportsApi.getData({
+        from: format(subDays(new Date(), TREND_DAYS), DATE_FMT),
+        to: format(new Date(), DATE_FMT),
+      });
+      setTrendData(res.data.data?.revenueChart ?? []);
+      setTrendsError(null);
+    } catch {
+      setTrendsError(m.trendsFailed);
+    } finally {
+      setTrendsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    void fetchData();
+    void fetchTrends();
+  }, [fetchData, fetchTrends]);
 
   return (
-    <div className="p-4 sm:p-6">
-      <PageHeader
-        title="Bosh sahifa"
-        description="Tizimning umumiy ko'rinishi"
-        icon={<LayoutDashboard className="h-4 w-4" />}
-      />
+    <div className="px-4 sm:px-6 py-5">
+      <PageHeader title={m.title} description={m.description} />
 
-      {error ? (
-        <ErrorState message={error} onRetry={fetchData} />
+      {error && !stats ? (
+        <Card padding="none">
+          <ErrorState message={error} onRetry={fetchData} retrying={isLoading} />
+        </Card>
       ) : (
-        <div className="space-y-6">
-          {/* Stats grid */}
-          {isLoading ? (
-            <SkeletonStats count={6} className="sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6" />
+        <div className="space-y-5">
+          {isLoading && !stats ? (
+            <SkeletonStats count={5} className="sm:grid-cols-3 xl:grid-cols-5" />
           ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+              <StatCard label={m.ordersToday} value={formatNumber(stats?.ordersToday)} />
               <StatCard
-                title="Jami foydalanuvchilar"
-                value={stats?.totalUsers?.toLocaleString() ?? '—'}
-                icon={<Users className="h-5 w-5" />}
-                variant="info"
+                label={m.revenueToday}
+                value={formatMoney(stats?.revenueToday, { currency: false })}
+                unit={m.som}
               />
               <StatCard
-                title="Faol haydovchilar"
-                value={stats?.activeDrivers?.toLocaleString() ?? '—'}
-                icon={<Car className="h-5 w-5" />}
-                variant="mint"
+                label={m.onlineDrivers}
+                value={formatNumber(stats?.onlineDrivers)}
+                hint={stats ? m.ofActiveDrivers(formatNumber(stats.activeDrivers)) : undefined}
               />
               <StatCard
-                title="Onlayn haydovchilar"
-                value={stats?.onlineDrivers?.toLocaleString() ?? '—'}
-                icon={<CheckCircle className="h-5 w-5" />}
-                variant="mint"
+                label={m.pendingApprovals}
+                value={formatNumber(stats?.pendingDriverApprovals)}
+                hint={m.driverApplications}
+                onClick={() => router.push('/dashboard/drivers?status=pending')}
               />
-              <StatCard
-                title="Bugungi buyurtmalar"
-                value={stats?.ordersToday?.toLocaleString() ?? '—'}
-                icon={<ClipboardList className="h-5 w-5" />}
-                variant="override"
-              />
-              <StatCard
-                title="Bugungi daromad"
-                value={stats ? formatCurrency(stats.revenueToday) : '—'}
-                icon={<DollarSign className="h-5 w-5" />}
-                variant="violet"
-              />
-              <StatCard
-                title="Tasdiqlanmagan"
-                value={stats?.pendingDriverApprovals?.toLocaleString() ?? '—'}
-                subtitle="Haydovchi arizalari"
-                icon={<Clock className="h-5 w-5" />}
-                variant="override"
-              />
+              <StatCard label={m.totalUsers} value={formatNumber(stats?.totalUsers)} />
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {/* Recent orders */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Oxirgi buyurtmalar</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                {isLoading ? (
-                  <div className="p-4">
-                    <SkeletonCards count={5} height="h-12" />
-                  </div>
-                ) : recentOrders.length === 0 ? (
-                  <EmptyState
-                    compact
-                    icon={<Inbox className="h-5 w-5" />}
-                    title="Buyurtmalar yo'q"
-                  />
-                ) : (
-                  <ul className="divide-y divide-divider">
-                    {recentOrders.map((order) => (
-                      <li
-                        key={order.id}
-                        className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-surface-2"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate text-body font-medium text-ink">
-                            {getFullName(order.passenger.firstName, order.passenger.lastName)}
-                          </p>
-                          <p className="truncate text-caption text-muted">
-                            {order.pickupAddress ?? '—'}
-                          </p>
-                        </div>
-                        <div className="ml-4 flex shrink-0 items-center gap-3">
-                          <OrderStatusBadge status={order.status} />
-                          <span className="text-body font-semibold text-ink">
-                            {formatCurrency(order.finalPrice ?? order.estimatedPrice)}
-                          </span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
+          {trendsError && !trendsLoading ? (
+            <Card padding="none">
+              <CardHeader title={m.trends} />
+              <ErrorState compact message={trendsError} onRetry={fetchTrends} />
             </Card>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+              <OrdersChart data={trendData} isLoading={trendsLoading} description={m.last7Days} />
+              <RevenueChart data={trendData} isLoading={trendsLoading} description={m.last7Days} />
+            </div>
+          )}
 
-            {/* Online drivers */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Onlayn haydovchilar</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                {isLoading ? (
-                  <div className="p-4">
-                    <SkeletonCards count={5} height="h-12" />
-                  </div>
-                ) : onlineDrivers.length === 0 ? (
-                  <EmptyState
-                    compact
-                    icon={<Inbox className="h-5 w-5" />}
-                    title="Onlayn haydovchilar yo'q"
-                  />
-                ) : (
-                  <ul className="divide-y divide-divider">
-                    {onlineDrivers.map((driver) => (
-                      <li
-                        key={driver.id}
-                        className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-surface-2"
-                      >
-                        <div className="flex min-w-0 items-center gap-3">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-caption font-bold text-white">
-                            {driver.firstName?.charAt(0)}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="truncate text-body font-medium text-ink">
-                              {getFullName(driver.firstName, driver.lastName)}
-                            </p>
-                            <p className="text-caption text-muted">{driver.carNumber}</p>
-                          </div>
-                        </div>
-                        <DriverStatusBadge status={driver.status} isOnline={driver.isOnline} />
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+            <section aria-label={m.recentOrders} className="min-w-0">
+              <DataTable
+                title={m.recentOrders}
+                actions={<ViewAll href="/dashboard/orders" />}
+                ariaLabel={m.recentOrders}
+                columns={orderColumns()}
+                rows={recentOrders}
+                rowKey={(o) => o.id}
+                loading={isLoading}
+                error={error}
+                onRetry={fetchData}
+                onRowClick={(o) => router.push(`/dashboard/orders/${o.id}`)}
+                empty={{
+                  title: m.noOrders,
+                  description: m.noOrdersDesc,
+                }}
+              />
+            </section>
+
+            <section aria-label={m.onlineDrivers} className="min-w-0">
+              <DataTable
+                title={m.onlineDrivers}
+                actions={<ViewAll href="/dashboard/drivers?status=online" />}
+                ariaLabel={m.onlineDrivers}
+                columns={driverColumns()}
+                rows={onlineDrivers}
+                rowKey={(d) => d.id}
+                loading={isLoading}
+                error={error}
+                onRetry={fetchData}
+                onRowClick={(d) => router.push(`/dashboard/drivers/${d.id}`)}
+                empty={{
+                  title: m.noDrivers,
+                  description: m.noDriversDesc,
+                }}
+              />
+            </section>
           </div>
         </div>
       )}

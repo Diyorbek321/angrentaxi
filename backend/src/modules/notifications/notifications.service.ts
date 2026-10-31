@@ -1,7 +1,25 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { FirebaseService } from './firebase.service';
+import {
+  driverArrivedText,
+  newOrderOfferText,
+  orderAcceptedText,
+  orderCancelledText,
+  tripCompletedText,
+} from './order-notification-texts';
+import {
+  bonusAwardedText,
+  lostItemAnsweredText,
+  lostItemReportedText,
+  supportReplyText,
+  vendorOrderCancelledText,
+  verificationDueText,
+} from './misc-notification-texts';
+import { LocalizedPush, PushText, userLanguage } from './push-text';
+import { otpSmsText } from './sms-texts';
+import type { AppLanguage } from '../../common/i18n/error-messages';
 import { EskizService } from './eskiz.service';
 import { User, UserRole } from '../../database/entities/user.entity';
 import { Order } from '../../database/entities/order.entity';
@@ -11,6 +29,14 @@ import {
   BroadcastAudience,
   PushNotificationLog,
 } from '../../database/entities/push-notification-log.entity';
+
+/** Admin yozgan ommaviy xabar; ruscha maydonlar ixtiyoriy. */
+export interface BroadcastText {
+  title: string;
+  body: string;
+  titleRu?: string | null;
+  bodyRu?: string | null;
+}
 
 @Injectable()
 export class NotificationsService {
@@ -30,10 +56,11 @@ export class NotificationsService {
   // Super Admin > Marketing > Push Notifications. Best-effort per user — one
   // bad/expired token must never abort the whole broadcast. Persists a
   // PushNotificationLog row regardless of how many actually succeeded, so
-  // the send-history list always reflects what was attempted.
+  // the send-history list always reflects what was attempted. Each user gets
+  // the text in their `users.language`; Russian falls back to Uzbek when the
+  // admin left the Russian fields empty.
   async broadcast(
-    title: string,
-    body: string,
+    text: BroadcastText,
     audience: BroadcastAudience,
     performedByUserId: string,
   ): Promise<PushNotificationLog> {
@@ -50,8 +77,20 @@ export class NotificationsService {
       .andWhere('u.fcm_token IS NOT NULL')
       .getMany();
 
+    // Ruscha faqat juft holda: yarmi ruscha, yarmi o'zbekcha push chiqmasin.
+    const ruTitle = text.titleRu?.trim();
+    const ruBody = text.bodyRu?.trim();
+    const titleRu = ruTitle && ruBody ? ruTitle : null;
+    const bodyRu = ruTitle && ruBody ? ruBody : null;
+    const uz: PushText = { title: text.title, body: text.body };
+    const byLanguage: Record<AppLanguage, PushText> = {
+      uz,
+      ru: titleRu && bodyRu ? { title: titleRu, body: bodyRu } : uz,
+    };
+
     let sentCount = 0;
     for (const user of recipients) {
+      const { title, body } = byLanguage[userLanguage(user)];
       try {
         await this.firebaseService.sendPush(user.fcmToken as string, title, body);
         sentCount += 1;
@@ -64,8 +103,10 @@ export class NotificationsService {
 
     return this.pushNotificationLogRepository.save(
       this.pushNotificationLogRepository.create({
-        title,
-        body,
+        title: text.title,
+        body: text.body,
+        titleRu,
+        bodyRu,
         audience,
         sentCount,
         createdByUserId: performedByUserId,
@@ -114,10 +155,7 @@ export class NotificationsService {
     driver: Driver,
     order: Order,
   ): Promise<void> {
-    const driverUser = driver.user;
-    const driverName = `${driverUser?.firstName ?? ""} ${driverUser?.lastName ?? ""}`.trim() || "Driver" || 'Driver';
-    const title = 'Driver Found!';
-    const body = `${driverName} is on the way to pick you up`;
+    const { title, body } = orderAcceptedText(driver.user, userLanguage(passenger));
 
     if (passenger.fcmToken) {
       await this.firebaseService.sendPush(
@@ -138,8 +176,7 @@ export class NotificationsService {
   }
 
   async notifyDriverArrived(passenger: User, order: Order): Promise<void> {
-    const title = 'Driver Arrived';
-    const body = 'Your driver has arrived at the pickup location';
+    const { title, body } = driverArrivedText(userLanguage(passenger));
 
     if (passenger.fcmToken) {
       await this.firebaseService.sendPush(
@@ -157,8 +194,7 @@ export class NotificationsService {
   }
 
   async notifyTripCompleted(passenger: User, finalPrice: number, order: Order): Promise<void> {
-    const title = 'Trip Completed';
-    const body = `Your trip is complete. Total: ${finalPrice.toLocaleString()} UZS`;
+    const { title, body } = tripCompletedText(finalPrice, userLanguage(passenger));
 
     if (passenger.fcmToken) {
       await this.firebaseService.sendPush(
@@ -176,12 +212,16 @@ export class NotificationsService {
     await this.logNotification(passenger.id, title, body, 'trip_completed');
   }
 
-  async notifyNewOrderOffer(driver: User, order: Order): Promise<void> {
-    const title = 'New Order';
-    const body = `New ride request from ${order.pickupAddress || 'nearby location'}`;
+  /**
+   * Data-only push (FirebaseService.sendDataPush): ilova o'ldirilgan bo'lsa
+   * ham haydovchi ilovasi taklifni qo'ng'iroqdek jiringlatadi. [expiresAt] —
+   * taklif tugash vaqti (ms); ilova eskirgan taklif uchun jiringlamaydi.
+   */
+  async notifyNewOrderOffer(driver: User, order: Order, expiresAt?: number): Promise<void> {
+    const { title, body } = newOrderOfferText(order.pickupAddress, userLanguage(driver));
 
     if (driver.fcmToken) {
-      await this.firebaseService.sendPush(
+      await this.firebaseService.sendDataPush(
         driver.fcmToken,
         title,
         body,
@@ -191,7 +231,14 @@ export class NotificationsService {
           pickupAddress: order.pickupAddress || '',
           dropoffAddress: order.dropoffAddress || '',
           estimatedPrice: order.estimatedPrice.toString(),
+          ...(expiresAt !== undefined && { expiresAt: String(expiresAt) }),
+          // Server soatidagi yuborish vaqti: ilova qolgan muddatni
+          // `expiresAt - sentAt` dan oladi, TELEFON soatidan emas — soati
+          // 15 s oldinda turgan telefon har taklifni "eskirgan" deb
+          // tashlardi, orqada turgani esa daqiqalab jiringlardi.
+          ...(expiresAt !== undefined && { sentAt: String(Date.now()) }),
         },
+        expiresAt,
       );
     }
 
@@ -203,8 +250,7 @@ export class NotificationsService {
     order: Order,
     reason?: string,
   ): Promise<void> {
-    const title = 'Order Cancelled';
-    const body = reason ? `Order cancelled: ${reason}` : 'Order has been cancelled';
+    const { title, body } = orderCancelledText(reason, userLanguage(targetUser));
 
     if (targetUser.fcmToken) {
       await this.firebaseService.sendPush(
@@ -222,9 +268,30 @@ export class NotificationsService {
     await this.logNotification(targetUser.id, title, body, 'order_cancelled');
   }
 
+  /**
+   * Haydovchiga: yo'lovchi uning mashinasida buyum qoldirgan. Tavsif matnda
+   * turadi — haydovchi bildirishnomaning o'zidan qidirishni boshlay olsin.
+   * Yo'lovchi telefoni ATAYLAB yo'q: topshirishni dispetcher tashkil qiladi.
+   */
+  async notifyLostItemReported(driver: User, description: string): Promise<void> {
+    const { title, body } = lostItemReportedText(description, userLanguage(driver));
+    if (driver.fcmToken) {
+      await this.firebaseService.sendPush(driver.fcmToken, title, body, { event: 'lost_item_reported' });
+    }
+    await this.logNotification(driver.id, title, body, 'lost_item_reported');
+  }
+
+  /** Yo'lovchiga: haydovchi buyumni topdimi-yo'qmi. */
+  async notifyLostItemAnswered(passenger: User, found: boolean): Promise<void> {
+    const { title, body } = lostItemAnsweredText(found, userLanguage(passenger));
+    if (passenger.fcmToken) {
+      await this.firebaseService.sendPush(passenger.fcmToken, title, body, { event: 'lost_item_answered' });
+    }
+    await this.logNotification(passenger.id, title, body, 'lost_item_answered');
+  }
+
   async notifySupportReply(recipient: User): Promise<void> {
-    const title = 'Qo\'llab-quvvatlash xizmati';
-    const body = 'Operatordan yangi xabar keldi';
+    const { title, body } = supportReplyText(userLanguage(recipient));
 
     if (recipient.fcmToken) {
       await this.firebaseService.sendPush(
@@ -240,11 +307,138 @@ export class NotificationsService {
     await this.logNotification(recipient.id, title, body, 'support_reply');
   }
 
-  async sendOtpSms(phone: string, code: string): Promise<void> {
-    await this.eskizService.sendSms(
-      phone,
-      `Angren Taxi: Your verification code is ${code}. Valid for 5 minutes.`,
-    );
+  /**
+   * Haydovchiga bonus yozilgani haqida xabar.
+   *
+   * NEGA aniq matn kerak: bonus haydovchining hamyoniga jimgina tushadi va
+   * u faqat daromad ekranini ochsagina ko'radi. "Sizga bonus berildi" degan
+   * umumiy matn esa savol tug'diradi — qaysi shart bajarildi, qancha pul
+   * keldi? Shuning uchun qoida nomi ham, summa ham matnning o'zida turadi.
+   *
+   * Summa `uz-UZ` bilan formatlanadi (drivers.service.ts dagi balans matni
+   * bilan bir xil): haydovchi "25 000 so'm" ni bir qarashda o'qiydi,
+   * "25000" ni esa o'qishga to'xtaydi.
+   */
+  async notifyBonusAwarded(driver: User, bonusName: string, amount: number): Promise<void> {
+    const { title, body } = bonusAwardedText(bonusName, amount, userLanguage(driver));
+
+    if (driver.fcmToken) {
+      await this.firebaseService.sendPush(driver.fcmToken, title, body, {
+        event: 'bonus_awarded',
+        bonusName,
+        amount: amount.toString(),
+      });
+    }
+
+    await this.logNotification(driver.id, title, body, 'bonus_awarded');
+  }
+
+  /**
+   * Davriy tekshiruv muddati haqida haydovchiga eslatma.
+   *
+   * NEGA aniq ro'yxat matnda: "hujjatlaringizni yangilang" degan umumiy
+   * xabar haydovchini ilovani ochib, qaysi biri ekanini qidirishga majbur
+   * qiladi va ko'pchilik shunchaki e'tiborsiz qoldiradi. Nomi va qolgan
+   * kunlari yozilgan xabar esa darhol harakatga chorlaydi.
+   *
+   * `overdue` va `due_soon` matni ATAYLAB har xil: birinchisi allaqachon
+   * ishdan chetlatish xavfi, ikkinchisi shunchaki ogohlantirish.
+   */
+  async notifyVerificationDue(
+    driver: User,
+    labels: string[],
+    hasOverdue: boolean,
+  ): Promise<void> {
+    const { title, body } = verificationDueText(labels, hasOverdue, userLanguage(driver));
+
+    if (driver.fcmToken) {
+      await this.firebaseService.sendPush(driver.fcmToken, title, body, {
+        event: 'verification_due',
+        codes: labels.join('|'),
+      });
+    }
+
+    await this.logNotification(driver.id, title, body, 'verification_due');
+  }
+
+  /**
+   * Hamyon harakati haqida xabar (to'ldirish, qo'lda tuzatish, qaytarim,
+   * kuryerga hamyon eslatmasi). Matnni chaqiruvchi tuzadi — summa va sabab
+   * matnning o'zida turishi kerak (`notifyBonusAwarded` dagi sabab bilan).
+   */
+  async notifyWalletEvent(
+    recipient: User,
+    text: LocalizedPush,
+    event: string,
+    data: Record<string, string> = {},
+  ): Promise<void> {
+    const { title, body } = text(userLanguage(recipient));
+    if (recipient.fcmToken) {
+      await this.firebaseService.sendPush(recipient.fcmToken, title, body, { event, ...data });
+    }
+
+    await this.logNotification(recipient.id, title, body, event);
+  }
+
+  /**
+   * Bir nechta foydalanuvchiga id bo'yicha bir xil xabar (shaharlararo:
+   * qatnovdagi barcha yo'lovchilar). Chaqiruvchida faqat id bor — `User`
+   * qatorlarini shu yerda bitta so'rov bilan oladi.
+   *
+   * Har biri ALOHIDA himoyalangan: bitta eskirgan token qolgan yo'lovchilarni
+   * xabarsiz qoldirmasligi kerak (`broadcast` dagi bilan bir xil qoida), va
+   * push hech qachon chaqiruvchining so'rovini yiqitmaydi.
+   */
+  async notifyUserIds(
+    userIds: readonly string[],
+    text: LocalizedPush,
+    event: string,
+    data: Record<string, string> = {},
+  ): Promise<void> {
+    const unique = [...new Set(userIds)];
+    if (unique.length === 0) return;
+
+    const users = await this.userRepository.find({ where: { id: In(unique) } });
+    for (const user of users) {
+      const { title, body } = text(userLanguage(user));
+      if (user.fcmToken) {
+        try {
+          await this.firebaseService.sendPush(user.fcmToken, title, body, { event, ...data });
+        } catch (error) {
+          this.logger.warn(
+            `Push failed for user ${user.id} (event=${event}): ${error instanceof Error ? error.message : error}`,
+          );
+        }
+      }
+      await this.logNotification(user.id, title, body, event);
+    }
+  }
+
+  /**
+   * Sotuvchiga: mijoz qabul qilinmagan ovqat/market buyurtmasini bekor qildi
+   * (docs/specs/food-market-ux-v5.md §1).
+   */
+  async notifyVendorOrderCancelled(
+    owner: User,
+    kind: 'food' | 'market',
+    orderId: string,
+    reason: string | null,
+  ): Promise<void> {
+    const { title, body } = vendorOrderCancelledText(reason, userLanguage(owner));
+    const event = `${kind}_order_cancelled`;
+    if (owner.fcmToken) {
+      await this.firebaseService.sendPush(owner.fcmToken, title, body, {
+        event,
+        orderId,
+        cancelledBy: 'customer',
+        reason: reason ?? '',
+      });
+    }
+    await this.logNotification(owner.id, title, body, event);
+  }
+
+  async sendOtpSms(phone: string, code: string, language: AppLanguage = 'uz'): Promise<void> {
+    await this.eskizService.sendSms(phone, otpSmsText(code, language));
   }
 
   // Caller's own notification history, newest first. Flat-capped list (no

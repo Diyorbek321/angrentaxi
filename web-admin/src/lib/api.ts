@@ -1,5 +1,9 @@
 import axios from 'axios';
 import { attachAuthInterceptor } from './session';
+import { t } from '@/locales';
+import { getLocale } from '@/lib/i18n/core';
+import type { DriverLegalBrief } from './compliance-api';
+import type { FunnelReport } from './funnel';
 
 /**
  * Requests go to this app's own /api/proxy, not to the backend directly. The
@@ -19,6 +23,13 @@ const api = axios.create({
   },
   // Same-origin now, so the session cookie rides along automatically.
   withCredentials: true,
+});
+
+// Server xatolari panel tilida keladi (brauzer tilidan qat'i nazar) —
+// til har so'rovda o'qiladi, chunki foydalanuvchi uni sahifada almashtiradi.
+api.interceptors.request.use((request) => {
+  request.headers.set('Accept-Language', getLocale());
+  return request;
 });
 
 // Handles 401 → single-flight refresh → retry. See lib/session.ts for why the
@@ -69,7 +80,7 @@ export const authApi = {
       | null;
 
     if (!res.ok || !payload?.data?.user) {
-      throw new Error(payload?.message || 'Notoʻgʻri kod');
+      throw new Error(payload?.message || t().shell.wrongCode);
     }
 
     return payload.data.user;
@@ -97,6 +108,7 @@ export type Permission =
   | 'bonuses_view'
   | 'support_manage'
   | 'withdrawals_view'
+  | 'withdrawals_approve'
   | 'users_view';
 
 export const ALL_PERMISSIONS: Permission[] = [
@@ -109,6 +121,7 @@ export const ALL_PERMISSIONS: Permission[] = [
   'bonuses_view',
   'support_manage',
   'withdrawals_view',
+  'withdrawals_approve',
   'users_view',
 ];
 
@@ -122,6 +135,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   bonuses_view: 'View bonus rules/progress',
   support_manage: 'Support threads',
   withdrawals_view: 'View withdrawal payout queue',
+  withdrawals_approve: 'Approve / reject / mark paid withdrawals (money out)',
   users_view: 'View general user list',
 };
 
@@ -177,9 +191,31 @@ export interface Driver {
   carNumber: string;
   carColor?: string;
   licenseNumber?: string;
-  createdAt: string;
+  /**
+   * NOT returned by GET /drivers or /drivers/:id — the driver profile entity
+   * has no createdAt. Registration date lives on the nested `user`; read it
+   * with `driverRegisteredAt()` (lib/driver.ts).
+   */
+  createdAt?: string;
+  /** Nested account row the backend embeds; only what the panel reads. */
+  user?: { createdAt?: string | null } | null;
+  /** @deprecated Qaror va ko'rsatish uchun `walletBalance` ishlating. */
   balance?: number;
+  /**
+   * Haydovchining HAQIQIY pul holati — tranzaksiyalar daftaridan
+   * hisoblanadi. Manfiy bo'lishi mumkin: bu haydovchining platformaga
+   * qarzi (asosan naqd safarlar komissiyasi).
+   *
+   * ⚠️ `balance` ustunidan FARQ QILADI va aynan shuni ko'rsatish kerak.
+   * Ustun yechib olingan pulni hisobga olmaydi (yechish faqat daftarni
+   * debetlaydi), ya'ni birinchi yechishdan keyin u haqiqiy qoldiqdan
+   * ajralib ketadi. Ustunni ko'rsatish operator bilan haydovchiga ikki
+   * xil raqam berardi.
+   */
+  walletBalance?: number;
   commissionRate?: number | null;
+  /** Huquqiy talablar qisqa xulosasi (`GET /drivers`, §22); `null` — hisoblab bo'lmadi. */
+  legal?: DriverLegalBrief | null;
 }
 
 export interface DriverTrip {
@@ -215,7 +251,7 @@ export const driversApi = {
   unblock: (userId: string) => api.patch<ApiResponse<User>>(`/users/${userId}/unblock`),
 
   // amount may be negative for a manual correction; positive tops up the balance.
-  addFunds: (id: string, amount: number, note?: string) =>
+  addFunds: (id: string, amount: number, note: string) =>
     api.patch<ApiResponse<Driver>>(`/drivers/${id}/balance`, { amount, note }),
 
   setCommissionRate: (id: string, commissionRate: number | null) =>
@@ -260,6 +296,15 @@ export interface GlobalSettings {
   supportPhone: string;
   supportEmail: string;
   maintenanceMode: boolean;
+  /** Naqd ovqat/market buyurtmasi chegarasi, so'm. 0 — cheklanmagan. */
+  maxCashVendorOrder: number;
+  /** Ovqat/market yetkazish haqi, so'm. */
+  deliveryFee: number;
+  /** Bepul yetkazish chegarasi, so'm (aksiyadan keyingi tovar summasi); 0 — o'chiq. */
+  freeDeliveryFrom: number;
+  /** Yetkazish vaqti oralig'i, daqiqa (5–240, eng kami ≤ eng ko'pi). */
+  deliveryEtaMinMinutes: number;
+  deliveryEtaMaxMinutes: number;
 }
 
 export const settingsApi = {
@@ -279,14 +324,25 @@ export interface PushBroadcast {
   id: string;
   title: string;
   body: string;
+  titleRu: string | null;
+  bodyRu: string | null;
   audience: BroadcastAudience;
   sentCount: number;
   createdAt: string;
 }
 
+/** Ruscha maydonlar bo'sh bo'lsa, ruscha foydalanuvchilar o'zbekcha matnni oladi. */
+export interface BroadcastInput {
+  title: string;
+  body: string;
+  titleRu?: string;
+  bodyRu?: string;
+  audience: BroadcastAudience;
+}
+
 export const broadcastApi = {
-  send: (title: string, body: string, audience: BroadcastAudience) =>
-    api.post<ApiResponse<PushBroadcast>>('/notifications/broadcast', { title, body, audience }),
+  send: (input: BroadcastInput) =>
+    api.post<ApiResponse<PushBroadcast>>('/notifications/broadcast', input),
   getHistory: (page = 1, limit = 20) =>
     api.get<ApiResponse<{ broadcasts: PushBroadcast[]; total: number; page: number; limit: number }>>(
       '/notifications/broadcast/history',
@@ -301,6 +357,7 @@ export interface ModeratedProduct {
   name: string;
   price: number;
   status: string;
+  imageKey?: string | null;
   store?: { name: string };
 }
 
@@ -309,14 +366,90 @@ export interface ModeratedDish {
   name: string;
   price: number;
   isAvailable: boolean;
+  imageKey?: string | null;
   restaurant?: { name: string };
 }
 
+export interface ModerationQuery {
+  page: number;
+  limit: number;
+  search?: string;
+}
+
 export const moderationApi = {
-  getProducts: () => api.get<ApiResponse<ModeratedProduct[]>>('/market/admin/products'),
+  /** Server sahifalaydi va qidiradi (nomi yoki do'kon nomi). */
+  getProducts: (params: ModerationQuery) =>
+    api.get<ApiResponse<{ products: ModeratedProduct[]; total: number; page: number; limit: number }>>(
+      '/market/admin/products',
+      { params }
+    ),
   deleteProduct: (id: string) => api.delete<ApiResponse<void>>(`/market/admin/products/${id}`),
-  getDishes: () => api.get<ApiResponse<ModeratedDish[]>>('/food/admin/dishes'),
+  getDishes: (params: ModerationQuery) =>
+    api.get<ApiResponse<{ dishes: ModeratedDish[]; total: number; page: number; limit: number }>>(
+      '/food/admin/dishes',
+      { params }
+    ),
   deleteDish: (id: string) => api.delete<ApiResponse<void>>(`/food/admin/dishes/${id}`),
+};
+
+// ─── Driver documents & periodic verification ─────────────────────
+
+export interface PendingKycDocument {
+  id: string;
+  driverId: string;
+  driverName: string | null;
+  driverPhone: string | null;
+  documentType: string;
+  uploadedAt: string;
+}
+
+export interface PendingVerification {
+  id: string;
+  driverId: string;
+  driverName: string | null;
+  driverPhone: string | null;
+  code: string;
+  label: string;
+  kind: 'document' | 'photo';
+  submittedAt: string;
+}
+
+export interface VehicleFields {
+  carModel: string | null;
+  carNumber: string | null;
+  licensePlate: string | null;
+  carYear: number | null;
+  vehicleType: string | null;
+}
+
+export interface PendingVehicleChange {
+  id: string;
+  driverId: string;
+  driverName: string | null;
+  driverPhone: string | null;
+  previous: VehicleFields;
+  proposed: VehicleFields;
+  createdAt: string;
+}
+
+export const driverReviewApi = {
+  pendingVehicleChanges: () =>
+    api.get<ApiResponse<PendingVehicleChange[]>>('/drivers/vehicle-changes/pending'),
+  reviewVehicleChange: (id: string, body: { approved: boolean; note?: string }) =>
+    api.patch<ApiResponse<unknown>>(`/drivers/vehicle-changes/${id}/review`, body),
+  pendingDocuments: () => api.get<ApiResponse<PendingKycDocument[]>>('/drivers/documents/pending'),
+  reviewDocument: (id: string, body: { status: 'approved' | 'rejected'; reason?: string }) =>
+    api.patch<ApiResponse<unknown>>(`/drivers/documents/${id}/review`, body),
+  pendingVerifications: () => api.get<ApiResponse<PendingVerification[]>>('/drivers/verification/pending'),
+  reviewVerification: (
+    id: string,
+    body: { approved: boolean; rejectionReason?: string; validUntil?: string }
+  ) => api.patch<ApiResponse<unknown>>(`/drivers/verification/${id}/review`, body),
+  /** Binary file through the proxy; the backend checks the reviewer's role. */
+  documentFile: (id: string) =>
+    api.get<Blob>(`/drivers/documents/${id}/file`, { responseType: 'blob' }),
+  verificationFile: (id: string) =>
+    api.get<Blob>(`/drivers/verification/${id}/file`, { responseType: 'blob' }),
 };
 
 // ─── Orders ───────────────────────────────────────────────────────
@@ -384,6 +517,8 @@ export interface Tariff {
   description?: string;
   basePrice: number;
   pricePerKm: number;
+  /** Taksometr km narxi; `null` — oddiy [pricePerKm] ishlatiladi. */
+  meteredPricePerKm: number | null;
   pricePerMin: number;
   minPrice: number;
   maxPrice: number | null;
@@ -398,6 +533,7 @@ export interface TariffCreateInput {
   description?: string;
   basePrice: number;
   pricePerKm: number;
+  meteredPricePerKm: number | null;
   pricePerMin: number;
   minPrice: number;
   maxPrice?: number;
@@ -405,7 +541,8 @@ export interface TariffCreateInput {
 }
 
 export const tariffsApi = {
-  getAll: () => api.get<ApiResponse<Tariff[]>>('/tariffs'),
+  // Admin needs inactive and non-taxi tariffs too — '/tariffs' is the public, active-taxi list.
+  getAll: () => api.get<ApiResponse<Tariff[]>>('/tariffs/all'),
 
   getById: (id: string) => api.get<ApiResponse<Tariff>>(`/tariffs/${id}`),
 
@@ -464,6 +601,11 @@ export const reportsApi = {
     api.get('/orders/reports', { params, responseType: 'blob' }),
 };
 
+export const funnelApi = {
+  get: (params: { from: string; to: string }) =>
+    api.get<ApiResponse<FunnelReport>>('/analytics/funnel', { params }),
+};
+
 // ─── Dashboard ────────────────────────────────────────────────────
 
 export interface DashboardStats {
@@ -492,10 +634,25 @@ export interface PromoCode {
   expiresAt: string | null;
   isActive: boolean;
   createdAt: string;
+  /** Spec v5 §2: qaysi xizmatlarda amal qiladi; `null`/yo'q = hammasi. */
+  serviceTypes?: string[] | null;
+}
+
+export interface CreatePromoCodePayload {
+  code: string;
+  discountPercent?: number;
+  discountFixed?: number;
+  maxUses?: number;
+  minOrderAmount?: number;
+  expiresAt?: string;
+  /** Faqat tanlov bo'lsa yuboriladi — lib/promo-service-types.ts `serviceTypesPayload`. */
+  serviceTypes?: string[];
 }
 
 export const promoCodesApi = {
   getAll: () => api.get<ApiResponse<PromoCode[]>>('/promo-codes'),
+
+  create: (payload: CreatePromoCodePayload) => api.post<ApiResponse<PromoCode>>('/promo-codes', payload),
 
   deactivate: (id: string) => api.delete<ApiResponse<PromoCode>>(`/promo-codes/${id}`),
 };
@@ -582,6 +739,8 @@ export interface StoreVendor {
   lng: number | null;
   status: 'active' | 'closed';
   owner: { phone: string; firstName: string | null; lastName: string | null };
+  /** Sotuvchining STIR'i (9 raqam) — fiskal chek komitenti. Sotuvchi o'zi kiritadi. */
+  tin?: string | null;
   createdAt: string;
 }
 
@@ -594,6 +753,8 @@ export interface RestaurantVendor {
   lng: number | null;
   status: 'active' | 'closed';
   owner: { phone: string; firstName: string | null; lastName: string | null };
+  /** Sotuvchining STIR'i (9 raqam) — fiskal chek komitenti. Sotuvchi o'zi kiritadi. */
+  tin?: string | null;
   createdAt: string;
 }
 
@@ -625,6 +786,9 @@ export const marketAdminApi = {
     api.post<ApiResponse<StoreVendor>>('/market/admin/stores', data),
   setStatus: (id: string, status: 'active' | 'closed') =>
     api.patch<ApiResponse<StoreVendor>>(`/market/admin/stores/${id}/status`, { status }),
+  /** Admin: STIR (9 raqam) yoki `null` — tozalash. Audit `vendor.tin_update` (§23). */
+  setTin: (id: string, tin: string | null) =>
+    api.patch<ApiResponse<StoreVendor>>(`/market/admin/stores/${id}/tin`, { tin }),
 };
 
 export const foodAdminApi = {
@@ -633,4 +797,63 @@ export const foodAdminApi = {
     api.post<ApiResponse<RestaurantVendor>>('/food/admin/restaurants', data),
   setStatus: (id: string, status: 'active' | 'closed') =>
     api.patch<ApiResponse<RestaurantVendor>>(`/food/admin/restaurants/${id}/status`, { status }),
+  /** Admin: STIR (9 raqam) yoki `null` — tozalash. Audit `vendor.tin_update` (§23). */
+  setTin: (id: string, tin: string | null) =>
+    api.patch<ApiResponse<RestaurantVendor>>(`/food/admin/restaurants/${id}/tin`, { tin }),
+};
+
+// ─── Ads (home-screen banners) ────────────────────────────────────
+
+export type AdLinkType = 'none' | 'restaurant' | 'store' | 'url';
+
+export interface AdBanner {
+  id: string;
+  title: string;
+  linkType: AdLinkType;
+  linkTarget: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  isActive: boolean;
+  sortOrder: number;
+  impressions: number;
+  clicks: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Bannerning bir kuni (Toshkent sanasi, `YYYY-MM-DD`). */
+export interface AdDailyRow {
+  day: string;
+  impressions: number;
+  clicks: number;
+}
+
+export type UpdateAdBannerInput = Partial<
+  Pick<AdBanner, 'title' | 'linkType' | 'linkTarget' | 'startsAt' | 'endsAt' | 'isActive' | 'sortOrder'>
+>;
+
+export const adsApi = {
+  getAll: () => api.get<ApiResponse<AdBanner[]>>('/ads'),
+
+  /**
+   * Multipart. Content-Type ATAYLAB `multipart/form-data`: instansiyaning
+   * standart `application/json` sarlavhasi bilan axios FormData'ni JSON'ga
+   * aylantirib yuborardi. Brauzer boundary'ni o'zi qo'shadi.
+   */
+  create: (form: FormData) =>
+    api.post<ApiResponse<AdBanner>>('/ads', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+
+  update: (id: string, data: UpdateAdBannerInput) =>
+    api.patch<ApiResponse<AdBanner>>(`/ads/${id}`, data),
+
+  remove: (id: string) => api.delete(`/ads/${id}`),
+
+  /** Oxirgi [days] kun, eskisidan boshlab; jim kunlar 0 bilan keladi. */
+  daily: (id: string, days = 30) =>
+    api.get<ApiResponse<AdDailyRow[]>>(`/ads/${id}/daily`, { params: { days } }),
+
+  /** `<img src>` uchun — backend'da ochiq, proksi orqali shu origin'dan. */
+  imageUrl: (id: string) => `${API_PROXY_BASE_URL}/ads/${id}/image`,
 };

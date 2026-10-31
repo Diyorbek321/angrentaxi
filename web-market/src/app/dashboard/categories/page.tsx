@@ -1,243 +1,303 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus, RefreshCw, Tags, Trash2 } from 'lucide-react';
-import { clsx } from 'clsx';
-import { marketApi, MarketCategory } from '@/lib/api';
+import { useMemo, useState } from 'react';
+import { ChevronDown, ChevronUp, Pencil, Plus, RefreshCw, Tags, Trash2 } from 'lucide-react';
+import { marketApi, MarketCategory, Product } from '@/lib/api';
 import { errorMessage, hueTint } from '@/lib/utils';
+import { formatNumber } from '@/lib/format';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { useToast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { ErrorState } from '@/components/ui/ErrorState';
-import { Input } from '@/components/ui/Input';
-import { Modal } from '@/components/ui/Modal';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { DataErrorBanner } from '@/components/ui/DataErrorBanner';
+import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
+import { IconButton } from '@/components/ui/IconButton';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { SkeletonCards } from '@/components/ui/Skeleton';
+import { Switch } from '@/components/ui/Switch';
+import { CategoryModal } from '@/components/categories/CategoryModal';
+import { usePageRefresh } from '@/components/shell';
+import { getLocale } from '@/lib/i18n/core';
+import { t } from '@/locales';
 
 const HUES = [45, 200, 25, 280, 150, 320];
 
-export default function CategoriesPage() {
-  const { toast } = useToast();
-  const [showAdd, setShowAdd] = useState(false);
-  const [name, setName] = useState('');
-  const [emoji, setEmoji] = useState('🛒');
-  const [saving, setSaving] = useState(false);
-  const [pendingDelete, setPendingDelete] = useState<MarketCategory | null>(null);
+interface CategoriesData {
+  categories: MarketCategory[];
+  products: Product[];
+}
 
-  const { data, isLoading, isRefreshing, error, reload } = useAsyncData<MarketCategory[]>(
+export default function CategoriesPage() {
+  const m = t();
+  const cm = m.categories;
+  const { toast } = useToast();
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<MarketCategory | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<MarketCategory | null>(null);
+  const [reordering, setReordering] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const { data, isLoading, isRefreshing, error, reload } = useAsyncData<CategoriesData>(
     async () => {
-      const res = await marketApi.getCategories();
-      return res.data.data;
+      const [c, p] = await Promise.all([marketApi.getCategories(), marketApi.getProducts()]);
+      return { categories: c.data.data, products: p.data.data };
     }
   );
+  usePageRefresh(reload);
 
-  const categories = data ?? [];
+  // Mijoz ilovasida ko'rinadigan tartib — sortOrder bo'yicha.
+  const categories = useMemo(
+    () =>
+      [...(data?.categories ?? [])].sort(
+        (a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, getLocale())
+      ),
+    [data]
+  );
+
+  const productCount = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const p of data?.products ?? []) {
+      if (p.categoryId) counts[p.categoryId] = (counts[p.categoryId] ?? 0) + 1;
+    }
+    return counts;
+  }, [data]);
 
   const toggle = async (c: MarketCategory) => {
     try {
       await marketApi.updateCategory(c.id, { isActive: !c.isActive });
       await reload();
     } catch (err) {
-      toast({ title: 'Xatolik', description: errorMessage(err), variant: 'error' });
+      toast({ title: m.common.error, description: errorMessage(err), variant: 'error' });
+    }
+  };
+
+  /** Yuqoriga/pastga: ikkala qo'shni ham YANGI o'rnini sortOrder qilib oladi. */
+  const move = async (index: number, dir: -1 | 1) => {
+    const target = categories[index];
+    const neighbor = categories[index + dir];
+    if (!target || !neighbor) return;
+    setReordering(true);
+    try {
+      await Promise.all([
+        marketApi.updateCategory(target.id, { sortOrder: index + dir }),
+        marketApi.updateCategory(neighbor.id, { sortOrder: index }),
+      ]);
+      await reload();
+    } catch (err) {
+      toast({ title: m.common.error, description: errorMessage(err), variant: 'error' });
+    } finally {
+      setReordering(false);
     }
   };
 
   const confirmRemove = async () => {
     if (!pendingDelete) return;
+    setDeleting(true);
     try {
       await marketApi.deleteCategory(pendingDelete.id);
       setPendingDelete(null);
       await reload();
-      toast({ title: "Kategoriya o'chirildi", variant: 'success' });
+      toast({ title: cm.deleted, variant: 'success' });
     } catch (err) {
-      toast({ title: 'Xatolik', description: errorMessage(err), variant: 'error' });
+      toast({ title: m.common.error, description: errorMessage(err), variant: 'error' });
+    } finally {
+      setDeleting(false);
     }
   };
 
-  const create = async () => {
-    if (!name.trim()) return;
-    setSaving(true);
+  const save = async (form: { name: string; emoji: string }) => {
     try {
-      await marketApi.createCategory({
-        name: name.trim(),
-        emoji: emoji || '🛒',
-        sortOrder: categories.length,
-      });
-      setName('');
-      setEmoji('🛒');
-      setShowAdd(false);
+      if (editing) {
+        await marketApi.updateCategory(editing.id, form);
+      } else {
+        await marketApi.createCategory({ ...form, sortOrder: categories.length });
+      }
+      setModalOpen(false);
+      setEditing(null);
       await reload();
-      toast({ title: "Kategoriya qo'shildi", variant: 'success' });
+      toast({ title: editing ? m.common.saved : cm.added, variant: 'success' });
     } catch (err) {
-      toast({ title: 'Xatolik', description: errorMessage(err), variant: 'error' });
-    } finally {
-      setSaving(false);
+      toast({ title: m.common.error, description: errorMessage(err), variant: 'error' });
     }
   };
+
+  const openCreate = () => {
+    setEditing(null);
+    setModalOpen(true);
+  };
+
+  const columns: DataTableColumn<MarketCategory>[] = [
+    {
+      key: 'order',
+      header: <span className="sr-only">{cm.order}</span>,
+      width: 'w-16',
+      cell: (c) => {
+        const i = categories.indexOf(c);
+        return (
+          // Tartib: drag emas — aniq yuqoriga/pastga tugmalar.
+          <span className="inline-flex items-center">
+            <IconButton
+              size="sm"
+              aria-label={cm.moveUp(c.name)}
+              disabled={i === 0 || reordering}
+              onClick={() => void move(i, -1)}
+            >
+              <ChevronUp aria-hidden />
+            </IconButton>
+            <IconButton
+              size="sm"
+              aria-label={cm.moveDown(c.name)}
+              disabled={i === categories.length - 1 || reordering}
+              onClick={() => void move(i, 1)}
+            >
+              <ChevronDown aria-hidden />
+            </IconButton>
+          </span>
+        );
+      },
+    },
+    {
+      key: 'name',
+      header: m.common.category,
+      cell: (c) => {
+        const i = categories.indexOf(c);
+        return (
+          <span className="flex min-w-0 items-center gap-2.5">
+            <span
+              aria-hidden
+              style={hueTint(HUES[i % HUES.length])}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-ds-xs text-base"
+            >
+              {c.emoji}
+            </span>
+            <span className={c.isActive ? 'truncate font-medium text-ink' : 'truncate font-medium text-muted'}>
+              {c.name}
+            </span>
+          </span>
+        );
+      },
+    },
+    {
+      key: 'count',
+      header: m.common.product,
+      numeric: true,
+      width: 'w-28',
+      cell: (c) => m.common.count(formatNumber(productCount[c.id] ?? 0)),
+    },
+    {
+      key: 'active',
+      header: m.common.active,
+      width: 'w-20',
+      cell: (c) => (
+        <Switch
+          size="sm"
+          checked={c.isActive}
+          onCheckedChange={() => void toggle(c)}
+          aria-label={cm.activeAria(c.name)}
+        />
+      ),
+    },
+    {
+      key: 'actions',
+      header: <span className="sr-only">{m.common.actions}</span>,
+      align: 'right',
+      width: 'w-20',
+      cell: (c) => (
+        <span className="inline-flex items-center">
+          <IconButton
+            size="sm"
+            aria-label={cm.editAria(c.name)}
+            onClick={() => {
+              setEditing(c);
+              setModalOpen(true);
+            }}
+          >
+            <Pencil aria-hidden />
+          </IconButton>
+          <IconButton
+            size="sm"
+            variant="danger-ghost"
+            aria-label={cm.deleteAria(c.name)}
+            onClick={() => setPendingDelete(c)}
+          >
+            <Trash2 aria-hidden />
+          </IconButton>
+        </span>
+      ),
+    },
+  ];
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-4xl">
       <PageHeader
-        title="Kategoriyalar"
-        description="Mahsulot guruhlari va ularning tartibi"
-        icon={<Tags size={18} aria-hidden />}
+        title={cm.title}
+        description={cm.description}
         actions={
           <>
             <Button
               variant="secondary"
-              size="sm"
               onClick={() => void reload()}
               isLoading={isRefreshing}
-              leftIcon={<RefreshCw size={13} aria-hidden />}
+              leftIcon={<RefreshCw size={14} aria-hidden />}
             >
-              Yangilash
+              {m.common.refresh}
             </Button>
-            <Button size="sm" onClick={() => setShowAdd(true)} leftIcon={<Plus size={14} aria-hidden />}>
-              Kategoriya
+            <Button onClick={openCreate} leftIcon={<Plus size={14} aria-hidden />}>
+              {cm.add}
             </Button>
           </>
         }
       />
 
-      {isLoading ? (
-        <SkeletonCards count={4} height="h-[72px]" />
-      ) : error && categories.length === 0 ? (
-        <ErrorState message={error} onRetry={reload} />
-      ) : categories.length === 0 ? (
-        <Card>
-          <EmptyState
-            icon={<Tags size={24} aria-hidden />}
-            title="Kategoriya yo'q"
-            description="Kategoriyalar mahsulotlarni mijoz uchun guruhlaydi."
-            action={
-              <Button size="sm" onClick={() => setShowAdd(true)} leftIcon={<Plus size={14} aria-hidden />}>
-                Birinchi kategoriya
-              </Button>
-            }
-          />
-        </Card>
-      ) : (
-        <ul className="flex flex-col gap-2.5">
-          {categories.map((c, i) => (
-            <li key={c.id}>
-              <Card padding="sm" className="flex items-center gap-3.5">
-                <span
-                  aria-hidden
-                  style={hueTint(HUES[i % HUES.length])}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-ds-sm text-lg"
-                >
-                  {c.emoji}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-body font-bold text-ink">{c.name}</p>
-                  <p className="mt-0.5 text-caption text-muted">
-                    {c.isActive ? 'Faol' : "O'chirilgan"}
-                  </p>
-                </div>
+      {error && data && <DataErrorBanner message={error} onRetry={reload} retrying={isRefreshing} />}
 
-                {/* Switch, not a styled div: role + aria-checked make the state
-                    readable, and the label says which category it belongs to. */}
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={c.isActive}
-                  aria-label={`${c.name} — faol holati`}
-                  onClick={() => void toggle(c)}
-                  className={clsx(
-                    'relative h-6 w-11 shrink-0 rounded-full transition-colors duration-fast',
-                    c.isActive ? 'bg-primary' : 'bg-surface-3 border border-line'
-                  )}
-                >
-                  <span
-                    aria-hidden
-                    className={clsx(
-                      'absolute top-1 h-4 w-4 rounded-full bg-white shadow-card transition-all duration-fast',
-                      c.isActive ? 'left-6' : 'left-1'
-                    )}
-                  />
-                </button>
-
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  aria-label={`${c.name} kategoriyasini o'chirish`}
-                  onClick={() => setPendingDelete(c)}
-                  className="shrink-0 hover:text-danger"
-                >
-                  <Trash2 size={15} aria-hidden />
-                </Button>
-              </Card>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <Modal
-        isOpen={showAdd}
-        onClose={() => setShowAdd(false)}
-        title="Yangi kategoriya"
-        size="sm"
-      >
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void create();
-          }}
-        >
-          <div className="flex gap-3">
-            <div className="w-20">
-              <Input
-                label="Belgi"
-                value={emoji}
-                maxLength={2}
-                onChange={(e) => setEmoji(e.target.value)}
-                className="text-center text-lg"
-              />
-            </div>
-            <div className="flex-1">
-              <Input
-                label="Kategoriya nomi"
-                autoFocus
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Masalan: Ichimliklar"
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2.5">
-            <Button type="button" variant="secondary" onClick={() => setShowAdd(false)}>
-              Bekor qilish
+      <DataTable
+        ariaLabel={cm.title}
+        columns={columns}
+        rows={categories}
+        rowKey={(c) => c.id}
+        loading={isLoading}
+        error={data ? null : error}
+        onRetry={reload}
+        empty={{
+          variant: 'first-use',
+          icon: <Tags aria-hidden />,
+          title: cm.emptyTitle,
+          description: cm.emptyDescription,
+          action: (
+            <Button size="sm" onClick={openCreate} leftIcon={<Plus size={14} aria-hidden />}>
+              {cm.first}
             </Button>
-            <Button type="submit" disabled={!name.trim()} isLoading={saving}>
-              Saqlash
-            </Button>
-          </div>
-        </form>
-      </Modal>
+          ),
+        }}
+      />
 
-      <Modal
+      <CategoryModal
+        isOpen={modalOpen}
+        category={editing}
+        onClose={() => {
+          setModalOpen(false);
+          setEditing(null);
+        }}
+        onSave={save}
+      />
+
+      <ConfirmDialog
         isOpen={!!pendingDelete}
         onClose={() => setPendingDelete(null)}
-        title="Kategoriyani o'chirish"
-        subtitle={pendingDelete?.name}
+        onConfirm={confirmRemove}
+        title={cm.deleteTitle(pendingDelete?.name ?? '')}
+        description={
+          <>
+            {cm.irreversible}{' '}
+            {pendingDelete && (productCount[pendingDelete.id] ?? 0) > 0
+              ? cm.orphaned(productCount[pendingDelete.id])
+              : cm.noProducts}
+          </>
+        }
+        confirmLabel={m.common.delete}
         tone="danger"
-        size="sm"
-      >
-        <p className="text-body text-muted">
-          Bu amalni bekor qilib bo&apos;lmaydi. Kategoriyadagi mahsulotlar kategoriyasiz qoladi.
-        </p>
-        <div className="mt-5 flex justify-end gap-2.5">
-          <Button variant="secondary" onClick={() => setPendingDelete(null)}>
-            Bekor qilish
-          </Button>
-          <Button variant="danger" onClick={() => void confirmRemove()}>
-            O&apos;chirish
-          </Button>
-        </div>
-      </Modal>
+        isPending={deleting}
+      />
     </div>
   );
 }

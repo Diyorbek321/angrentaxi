@@ -7,10 +7,15 @@ import { OrderStatusBadge } from '@/components/orders/OrderStatusBadge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Avatar } from '@/components/ui/Avatar';
-import { ORDER_STATUS_ACCENT, PAYMENT_METHOD_LABELS } from '@/lib/constants';
-import { formatMoney, formatMoneyApprox, formatPhone, formatRating, formatRelative, shortId } from '@/lib/format';
+import { MoneyText } from '@/components/ui/MoneyText';
+import { PlateNumber } from '@/components/ui/PlateNumber';
+import { useToast } from '@/components/ui/Toast';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { ORDER_STATUS_ACCENT, paymentMethodLabels } from '@/lib/constants';
+import { formatPhone, formatRating, formatRelative, nameFallback, shortId } from '@/lib/format';
 import { AUTO_MATCH_WINDOW_MS, SearchProgress } from './SearchProgress';
 import { useNow } from './useNow';
+import { t } from '@/locales';
 
 interface OrderCardProps {
   order: Order;
@@ -32,6 +37,9 @@ export function OrderCard({
 }: OrderCardProps) {
   const [isCancelling, setIsCancelling] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
+  const [confirming, setConfirming] = useState<'cancel' | 'complete' | null>(null);
+  const { toast } = useToast();
+  const m = t().dispatch.orderCard;
   // Elapsed time gates the manual override, but Date.now() must not be read
   // during render — it differs between server and client output.
   const now = useNow(5000);
@@ -52,29 +60,42 @@ export function OrderCard({
   const canComplete = order.status === 'in_progress';
   const hasActions = canAssign || canReassign || canCancel || canComplete;
 
+  // Destructive acts are the one case that earns a blocking confirmation. The
+  // outcome feedback is a toast — non-blocking, so the operator's flow isn't
+  // interrupted twice.
   const handleCancel = async () => {
-    if (!confirm('Bu buyurtma bekor qilinsinmi?')) return;
+    setConfirming(null);
     setIsCancelling(true);
     try {
       const updated = await cancelOrder(order.id, 'Cancelled by dispatcher');
       onOrderCancelled(updated.id);
+      toast({ title: m.cancelledToast(shortId(order.id)), variant: 'info' });
     } catch (err) {
       console.error('Cancel failed:', err);
-      alert('Buyurtmani bekor qilib boʻlmadi');
+      toast({
+        title: m.cancelFailed,
+        description: m.tryAgain,
+        variant: 'error',
+      });
     } finally {
       setIsCancelling(false);
     }
   };
 
   const handleComplete = async () => {
-    if (!confirm('Buyurtma yakunlandi deb belgilansinmi?')) return;
+    setConfirming(null);
     setIsCompleting(true);
     try {
       const updated = await completeOrder(order.id);
       onOrderUpdated(updated);
+      toast({ title: m.completedToast(shortId(order.id)), variant: 'success' });
     } catch (err) {
       console.error('Complete failed:', err);
-      alert('Buyurtmani yakunlab boʻlmadi');
+      toast({
+        title: m.completeFailed,
+        description: m.tryAgain,
+        variant: 'error',
+      });
     } finally {
       setIsCompleting(false);
     }
@@ -97,11 +118,11 @@ export function OrderCard({
     >
       <div className={`h-0.5 w-full ${ORDER_STATUS_ACCENT[order.status]}`} />
 
-      <div className="p-3.5 space-y-3">
+      <div className="p-3 space-y-2.5 text-[13px]">
         {/* Header: id, status, age */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="font-mono text-xs font-semibold text-muted">{shortId(order.id)}</span>
+            <span className="font-mono text-xs font-medium text-muted">{shortId(order.id)}</span>
             <OrderStatusBadge status={order.status} size="sm" dot />
           </div>
           <span className="flex items-center gap-1 text-[11px] text-subtle shrink-0">
@@ -113,10 +134,10 @@ export function OrderCard({
         {/* Passenger */}
         <div className="flex items-center gap-2 min-w-0">
           <Avatar name={order.passenger?.name} size="xs" tone="muted" />
-          <span className="text-sm font-medium text-ink truncate">
-            {order.passenger?.name ?? 'Mijoz'}
+          <span className="text-[13px] font-medium text-ink truncate">
+            {order.passenger?.name || m.customer}
           </span>
-          <span className="ml-auto flex items-center gap-1 text-[11px] font-mono text-muted shrink-0">
+          <span className="ml-auto flex items-center gap-1 text-xs num text-muted shrink-0">
             <Phone size={11} />
             {formatPhone(order.passenger?.phone)}
           </span>
@@ -141,11 +162,11 @@ export function OrderCard({
 
         {/* Assigned driver */}
         {order.driver ? (
-          <div className="flex items-center gap-2 rounded-lg bg-surface-2 border border-line px-2.5 py-2">
+          <div className="flex items-center gap-2 rounded-ds-xs bg-surface-2 border border-line px-2.5 py-2">
             <Avatar name={order.driver.name} size="xs" />
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium text-ink truncate">{order.driver.name}</p>
-              <p className="text-[11px] font-mono text-subtle truncate">{order.driver.carNumber}</p>
+              <p className="text-xs font-medium text-ink truncate">{order.driver.name || nameFallback()}</p>
+              <PlateNumber plate={order.driver.carNumber} className="mt-0.5 h-[18px] text-[11px]" />
             </div>
             <span className="flex items-center gap-1 text-[11px] text-muted shrink-0">
               <Star size={11} className="text-primary" fill="currentColor" />
@@ -154,8 +175,8 @@ export function OrderCard({
           </div>
         ) : (
           order.status !== 'searching' && (
-            <div className="rounded-lg border border-dashed border-line px-2.5 py-2">
-              <p className="text-[11px] text-subtle">Haydovchi hali tayinlanmagan</p>
+            <div className="rounded-ds-xs border border-dashed border-line px-2.5 py-2">
+              <p className="text-[11px] text-subtle">{m.noDriverYet}</p>
             </div>
           )
         )}
@@ -166,13 +187,13 @@ export function OrderCard({
             <Car size={12} className="shrink-0" />
             <span className="truncate">{order.tariff?.name ?? '—'}</span>
             <span className="text-line-strong">·</span>
-            <span className="shrink-0">{PAYMENT_METHOD_LABELS[order.paymentMethod]}</span>
+            <span className="shrink-0">{paymentMethodLabels()[order.paymentMethod]}</span>
           </span>
-          <span className="font-mono font-semibold text-ink shrink-0">
-            {order.finalPrice != null
-              ? formatMoney(order.finalPrice)
-              : formatMoneyApprox(order.estimatedPrice)}
-          </span>
+          {order.finalPrice != null ? (
+            <MoneyText value={order.finalPrice} className="font-semibold text-ink shrink-0" />
+          ) : (
+            <MoneyText value={order.estimatedPrice} approx className="font-semibold text-ink shrink-0" />
+          )}
         </div>
 
         {/* Actions — deliberately quiet. Assignment is the algorithm's job;
@@ -191,35 +212,70 @@ export function OrderCard({
                 leftIcon={<UserCog size={13} />}
                 className="flex-1"
               >
-                Qoʻlda aralashuv
+                {m.manualOverride}
               </Button>
             )}
             {canComplete && (
               <Button
                 size="sm"
                 variant="secondary"
-                onClick={handleComplete}
+                onClick={() => setConfirming('complete')}
                 isLoading={isCompleting}
                 leftIcon={<CheckCircle2 size={13} />}
                 className="flex-1"
               >
-                Yakunlash
+                {m.complete}
               </Button>
             )}
             {canCancel && (
               <Button
                 size="sm"
                 variant="danger"
-                onClick={handleCancel}
+                onClick={() => setConfirming('cancel')}
                 isLoading={isCancelling}
                 leftIcon={<Ban size={13} />}
                 className={canAssign || canReassign || canComplete ? '' : 'flex-1'}
               >
-                Bekor qilish
+                {t().common.cancel}
               </Button>
             )}
           </div>
         )}
+      </div>
+
+      {/* The dialog is portalled, but React synthetic events still bubble
+          through the component tree — without this guard every click in the
+          dialog would also open the detail drawer behind it. */}
+      <div onClick={(e) => e.stopPropagation()} role="presentation">
+        <ConfirmDialog
+          isOpen={confirming === 'cancel'}
+          onClose={() => setConfirming(null)}
+          onConfirm={handleCancel}
+          title={m.cancelConfirmTitle}
+          description={
+            <>
+              <span className="font-mono">{shortId(order.id)}</span> {m.cancelConfirmDesc}
+            </>
+          }
+          confirmLabel={t().common.cancel}
+          cancelLabel={t().common.no}
+          tone="danger"
+          isPending={isCancelling}
+        />
+        <ConfirmDialog
+          isOpen={confirming === 'complete'}
+          onClose={() => setConfirming(null)}
+          onConfirm={handleComplete}
+          title={m.completeConfirmTitle}
+          description={
+            <>
+              <span className="font-mono">{shortId(order.id)}</span> {m.completeConfirmDesc}
+            </>
+          }
+          confirmLabel={m.complete}
+          tone="default"
+          isPending={isCompleting}
+        />
       </div>
     </Card>
   );

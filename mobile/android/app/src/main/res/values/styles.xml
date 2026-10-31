@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+    <!-- ⚠️ Light — Black EMAS. Ilgari ikkala tema `Theme.Black.NoTitleBar`
+         edi va NormalTheme'ning `windowBackground`i `?android:colorBackground`
+         (ya'ni QORA) edi. Flutter yuzasi ostidagi oyna foni shu bo'lgani
+         uchun bo'limdan bo'limga o'tishda, xarita (MapLibre platform view)
+         ulanayotganda va splash'dan keyin ekran bir lahza qorayib ochilardi. -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">@drawable/launch_background</item>
     </style>
-    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
-        <item name="android:windowBackground">?android:colorBackground</item>
+    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@color/app_background</item>
     </style>
 </resources>

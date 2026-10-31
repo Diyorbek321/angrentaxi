@@ -2,8 +2,12 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Reflector } from '@nestjs/core';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
+import { WalletTopupsService } from './wallet-topups.service';
+import { PaymeMerchantService } from './merchant/payme-merchant.service';
+import { ClickShopService } from './merchant/click-shop.service';
 import { ROLES_KEY } from '../../common/decorators/roles.decorator';
-import { User, UserRole } from '../../database/entities/user.entity';
+import { PERMISSIONS_KEY } from '../../common/decorators/permissions.decorator';
+import { Permission, User, UserRole } from '../../database/entities/user.entity';
 import { WithdrawalOwnerType, WithdrawalStatus } from '../../database/entities/withdrawal-request.entity';
 
 /**
@@ -15,10 +19,10 @@ import { WithdrawalOwnerType, WithdrawalStatus } from '../../database/entities/w
  *    withdrawal requests for anyone but themselves.
  *  - The caller's role is mapped to the withdrawal's informational
  *    ownerType tag (resolveWithdrawalOwnerType in payments.controller.ts).
- *  - PATCH wallet/withdrawals/:id is ADMIN-only, so a non-admin (even one
- *    who knows another account's withdrawal request id) is rejected by
- *    RolesGuard before the handler — and therefore before the service —
- *    ever runs.
+ *  - PATCH wallet/withdrawals/:id is ADMIN, or a MANAGER explicitly granted
+ *    withdrawals_approve — anyone else is rejected by RolesGuard /
+ *    PermissionsGuard before the handler (and the service) ever runs. The
+ *    acting staff id goes to the service for the audit log.
  */
 describe('PaymentsController - withdrawals', () => {
   let controller: PaymentsController;
@@ -40,7 +44,13 @@ describe('PaymentsController - withdrawals', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [PaymentsController],
-      providers: [{ provide: PaymentsService, useValue: service }],
+      providers: [
+        { provide: PaymentsService, useValue: service },
+        // Hamyonni to'ldirish yo'llari (§11) — bu spec ularni sinamaydi.
+        { provide: WalletTopupsService, useValue: {} },
+        { provide: PaymeMerchantService, useValue: {} },
+        { provide: ClickShopService, useValue: {} },
+      ],
     }).compile();
 
     controller = module.get<PaymentsController>(PaymentsController);
@@ -104,18 +114,22 @@ describe('PaymentsController - withdrawals', () => {
     expect(controller.getMyWithdrawals.length).toBe(1);
   });
 
-  it('processWithdrawal (approve/reject/paid) is ADMIN-only', () => {
+  it('processWithdrawal (approve/reject/paid) needs ADMIN or MANAGER + withdrawals_approve', () => {
     const roles = reflector.get<UserRole[]>(ROLES_KEY, controller.processWithdrawal);
-    expect(roles).toEqual([UserRole.ADMIN]);
+    expect(roles).toEqual([UserRole.MANAGER, UserRole.ADMIN]);
+    const perms = reflector.get<Permission[]>(PERMISSIONS_KEY, controller.processWithdrawal);
+    expect(perms).toEqual([Permission.WITHDRAWALS_APPROVE]);
   });
 
-  it('processWithdrawal forwards the id and dto to the service unchanged', async () => {
-    await controller.processWithdrawal('withdrawal-1', {
+  it('processWithdrawal forwards the id, dto and acting staff id to the service', async () => {
+    await controller.processWithdrawal({ id: 'fin-1' } as User, 'withdrawal-1', {
       status: WithdrawalStatus.APPROVED,
     });
 
-    expect(service.processWithdrawal).toHaveBeenCalledWith('withdrawal-1', {
-      status: WithdrawalStatus.APPROVED,
-    });
+    expect(service.processWithdrawal).toHaveBeenCalledWith(
+      'withdrawal-1',
+      { status: WithdrawalStatus.APPROVED },
+      'fin-1',
+    );
   });
 });

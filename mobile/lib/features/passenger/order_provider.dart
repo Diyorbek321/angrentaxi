@@ -1,10 +1,22 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:angren_taxi/core/analytics/funnel_tracker.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
+import 'package:angren_taxi/core/location/city_coverage.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/core/network/idempotency_key.dart';
+import 'package:angren_taxi/core/network/poll_gate.dart';
+import 'package:angren_taxi/core/observability/crash_reporting.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/driver.dart';
 import 'package:angren_taxi/shared/models/order.dart';
+import 'package:angren_taxi/shared/models/service_city.dart';
 import 'package:angren_taxi/shared/models/tariff.dart';
+import 'package:angren_taxi/shared/models/trip_option.dart';
+import 'package:dio/dio.dart' show DioException;
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -14,8 +26,30 @@ class OrderProvider extends ChangeNotifier {
   OrderProvider({
     required ApiClient apiClient,
     required SocketService socketService,
+    Duration? syncInterval,
+    FunnelTracker? funnel,
   })  : _apiClient = apiClient,
-        _socketService = socketService;
+        _socketService = socketService,
+        _funnel = funnel,
+        syncInterval = syncInterval ?? defaultSyncInterval;
+
+  /// Anonim voronka — faqat taksi zakazi (`null` — testlarda o'chiq).
+  final FunnelTracker? _funnel;
+
+  void _markFunnel(FunnelStep step) {
+    if (_serviceType == 'taxi') _funnel?.mark(step);
+  }
+
+  /// Faol safar holatini serverdan tekshirish oralig'i — socket event'i
+  /// yo'qolganda ekran shu vaqtdan ko'p qotib qolmaydi ([_syncActiveOrder]).
+  /// `null` — davriy tekshiruv o'chiq (faqat qayta ulanishda).
+  final Duration? syncInterval;
+
+  /// Widget testlari `test/flutter_test_config.dart` da `null` qiladi:
+  /// aks holda ochiq qolgan davriy taymer har bir testni yiqitadi.
+  static Duration? defaultSyncInterval = const Duration(seconds: 10);
+  Timer? _syncTimer;
+  bool _syncInFlight = false;
 
   final ApiClient _apiClient;
   final SocketService _socketService;
@@ -30,13 +64,41 @@ class OrderProvider extends ChangeNotifier {
   // Pending order creation data
   OrderLocation? _pendingPickup;
   OrderLocation? _pendingDropoff;
+  // TAKSOMETR: yo'lovchi "Manzilsiz" ni tanlagan — buyurtma manzilsiz
+  // yuboriladi, narx safar oxirida haqiqiy yo'ldan hisoblanadi.
+  bool _isMetered = false;
   final List<OrderLocation> _pendingWaypoints = [];
   Tariff? _selectedTariff;
   double? _estimatedPrice;
 
+  /// Live surge for the pickup zone, as returned with the last quote. 1.0
+  /// means normal pricing; anything above it is worth telling the passenger
+  /// about, since an unexplained higher price reads as arbitrary.
+  double _surgeMultiplier = 1.0;
+
+  /// Tanlangan rejalashtirish vaqti (MAHALLIY vaqt). `null` = "hozir".
+  ///
+  /// Bu buyurtma qurilayotgan paytdagi TANLOV, saqlangan buyurtma emas —
+  /// shuning uchun [_scheduledOrders] dan alohida turadi.
+  DateTime? _scheduledAt;
+  List<TripOption> _tripOptions = const [];
+  Map<TripOption, int> _tripOptionFees = const {};
+  double _optionsFare = 0;
+
+  /// Serverdagi kelgusi rejalar (`GET /orders/scheduled`).
+  List<Order> _scheduledOrders = [];
+
   /// Max intermediate stops allowed on a multi-stop ride, matching the
   /// backend's `WaypointDto` (`@ArrayMaxSize(5)`).
   static const int maxWaypoints = 5;
+
+  /// Ilova bilgan xizmat hududlari. Boshlanishi — MA'LUMOT YO'Q holati,
+  /// ya'ni hech qanday cheklov yo'q.
+  CityCoverage _coverage = CityCoverage.empty;
+
+  /// `GET /cities` hozir uchayaptimi — bosh ekran va tarif ekrani ikkalasi
+  /// ham [loadCities] ni chaqiradi, ikki marta so'ramaslik uchun.
+  Future<void>? _citiesInFlight;
 
   // Active super-app vertical: 'taxi' or 'cargo'. Drives which tariffs load
   // and which serviceType the order is created with.
@@ -52,27 +114,127 @@ class OrderProvider extends ChangeNotifier {
   // pendingRatingOrderId above.
   String? noDriversFoundMessage;
 
+  // ---- Chaqim (tips) holati ----
+  //
+  // ⚠️ NEGA umumiy [_state]/[_error] EMAS: baholash ekrani asosiy ekran
+  // USTIDA modal sifatida ochiladi, va home_screen.dart dagi asosiy CTA
+  // `state == loading` ga qarab aylanadi. Umumiy holatni ishlatsak,
+  // chaqim yuborilayotganda orqadagi ekran ham "yuklanmoqda"ga o'tib
+  // ketardi. Xuddi shu sabab bilan driver_provider.dart dagi
+  // `requestWithdrawal` ham o'z bayroqlaridan foydalanadi.
+  bool _isSubmittingTip = false;
+  String? _tipError;
+
+  /// Server 409 qaytardi — bu safar uchun chaqim allaqachon yozilgan.
+  /// Qayta urinish foydasiz, shuning uchun UI tanlovni butunlay yopadi.
+  bool _tipAlreadyGiven = false;
+
   OrderProviderState get state => _state;
   String? get error => _error;
   Order? get activeOrder => _activeOrder;
   List<Order> get orderHistory => List.unmodifiable(_orderHistory);
   List<Tariff> get tariffs => List.unmodifiable(_tariffs);
   LatLng? get driverLocation => _driverLocation;
+
   OrderLocation? get pendingPickup => _pendingPickup;
   OrderLocation? get pendingDropoff => _pendingDropoff;
+  bool get isMetered => _isMetered;
+
+  /// Taksometr faqat oddiy taksida (server ham shuni talab qiladi) va oraliq
+  /// bekatlarsiz — bekat bor-u, oxirgi manzil yo'q bo'lgan marshrut yo'q.
+  bool get canChooseMetered =>
+      _serviceType == 'taxi' && _pendingWaypoints.isEmpty;
   List<OrderLocation> get pendingWaypoints => List.unmodifiable(_pendingWaypoints);
   Tariff? get selectedTariff => _selectedTariff;
   double? get estimatedPrice => _estimatedPrice;
+  double get surgeMultiplier => _surgeMultiplier;
+  bool get isSurging => _surgeMultiplier > 1.0;
   bool get hasActiveOrder => _activeOrder != null && _activeOrder!.isActive;
   String get serviceType => _serviceType;
   bool get isCargo => _serviceType == 'cargo';
+  bool get isSubmittingTip => _isSubmittingTip;
+  String? get tipError => _tipError;
+  bool get isTipAlreadyGiven => _tipAlreadyGiven;
+
+  /// Safar opsiyalari — matching filtri (faqat mos haydovchiga boradi).
+  List<TripOption> get tripOptions => List.unmodifiable(_tripOptions);
+
+  /// Opsiyalar uchun qo'shimcha haq (menejer belgilaydi). Faqat KO'RSATISH
+  /// uchun — narxga qo'shishni server qiladi ([estimatePrice], buyurtma).
+  Map<TripOption, int> get tripOptionFees => _tripOptionFees;
+
+  /// Tanlangan opsiyalar haqi — taksometr rejimida (narx oldindan yo'q)
+  /// "kamida" summa yonida ko'rsatiladi.
+  int get selectedOptionsFee => TripOption.totalFee(_tripOptions, _tripOptionFees);
+
+  /// Serverning oxirgi bahosidagi opsiya haqi (narx ichida).
+  double get optionsFare => _optionsFare;
+
+  /// `GET /settings/trip-option-fees`. Xato jimgina yutiladi: haq yonidagi
+  /// yozuv chiqmaydi, lekin narxni baribir server hisoblaydi — ya'ni
+  /// yo'lovchi noto'g'ri summa ko'rmaydi.
+  Future<void> loadTripOptionFees() async {
+    try {
+      final response = await _apiClient.get(ApiEndpoints.tripOptionFees);
+      final data = response.data as Map<String, dynamic>;
+      _tripOptionFees = TripOption.feesFromApi(data['data']);
+      notifyListeners();
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'OrderProvider.loadTripOptionFees');
+    }
+  }
+
+  void setTripOptions(Iterable<TripOption> options) {
+    _tripOptions = options.toSet().toList()
+      ..sort((a, b) => a.index.compareTo(b.index));
+    notifyListeners();
+  }
+
+  DateTime? get scheduledAt => _scheduledAt;
+  bool get isScheduledBooking => _scheduledAt != null;
+  List<Order> get scheduledOrders => List.unmodifiable(_scheduledOrders);
+
+  /// Rejalashtirish vaqtini o'rnatadi ([when] `null` — "hozir" ga qaytaradi).
+  ///
+  /// Backend hozirdan kamida 30 daqiqa keyingi vaqtni talab qiladi
+  /// (`SCHEDULED_MIN_LEAD_MINUTES`); tanlagichning o'zi o'tgan va juda
+  /// yaqin slotlarni o'chirib qo'yadi, bu esa oxirgi darvoza.
+  void setScheduledAt(DateTime? when) {
+    _scheduledAt = when;
+    notifyListeners();
+  }
+
+  /// Haydovchi joylashuvi — alohida kanal orqali.
+  ///
+  /// U safar davomida har necha soniyada yangilanadi. Ilgari har yangilanish
+  /// `notifyListeners()` chaqirardi, ya'ni butun asosiy ekran (xarita bilan
+  /// birga) qaytadan qurilardi — bu sezilarli jank manbai edi. Endi faqat
+  /// shu notifierga obuna bo'lgan marker qatlami yangilanadi.
+  final ValueNotifier<LatLng?> driverLocationListenable =
+      ValueNotifier<LatLng?>(null);
+
+  void _setDriverLocation(LatLng? location) {
+    _driverLocation = location;
+    driverLocationListenable.value = location;
+  }
 
   /// Switch the active vertical (taxi/cargo) and reset any in-progress selection.
-  void setServiceType(String type) {
+  /// Switches the booking flow between 'taxi' and 'cargo'.
+  ///
+  /// [cargoVehicle] carries the vehicle class picked on the cargo entry screen
+  /// ("Kuryer" / "Yengil" / "Yuk") into the order details. It used to be
+  /// selected and then silently discarded, so the courier had no idea what
+  /// size of vehicle the customer had asked for.
+  /// [details] — the vertical's payload sent with the order (a parcel's
+  /// recipient and item, see ParcelInfo.toDetails); [cargoVehicle] is the
+  /// cargo shorthand for `{'vehicle': ...}`.
+  void setServiceType(String type, {String? cargoVehicle, Map<String, dynamic>? details}) {
     _serviceType = type;
+    // Taksometr faqat taksida — boshqa xizmatga o'tilsa tanlov bekor.
+    if (type != 'taxi') _isMetered = false;
     _selectedTariff = null;
     _estimatedPrice = null;
-    _cargoDetails = null;
+    _cargoDetails = details ?? (cargoVehicle == null ? null : {'vehicle': cargoVehicle});
     notifyListeners();
   }
 
@@ -93,6 +255,21 @@ class OrderProvider extends ChangeNotifier {
 
   void setPendingDropoff(OrderLocation location) {
     _pendingDropoff = location;
+    _isMetered = false;
+    _markFunnel(FunnelStep.destinationSelected);
+    notifyListeners();
+  }
+
+  /// "Manzilsiz — taksometr". Oldingi manzil, marshrut va narx bahosi
+  /// tozalanadi: ular endi bu buyurtmaga tegishli emas.
+  void chooseMetered() {
+    if (!canChooseMetered) return;
+    _isMetered = true;
+    _pendingDropoff = null;
+    _routePoints = [];
+    _routeDistanceKm = null;
+    _routeDurationMin = null;
+    _estimatedPrice = null;
     notifyListeners();
   }
 
@@ -132,10 +309,84 @@ class OrderProvider extends ChangeNotifier {
       _tariffs =
           list.map((e) => Tariff.fromJson(e as Map<String, dynamic>)).toList();
       notifyListeners();
-    } catch (e) {
-      debugPrint('[OrderProvider] loadTariffs error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'OrderProvider.loadTariffs');
     }
   }
+
+  // ==========================================================================
+  // XIZMAT QAMROVI
+  //
+  // Shahar OLISH NUQTASIDAN aniqlanadi, foydalanuvchi qo'lda TANLAMAYDI:
+  // qo'lda tanlash yana bir xato manbai (odam Angrenni tanlab Toshkentdan
+  // buyurtma berishi mumkin), koordinatadan aniqlash esa har doim rost.
+  //
+  // Bu mobil tomondagi BIRINCHI qatlam: foydalanuvchi xizmat yo'q hududda
+  // ekanini buyurtma berishdan OLDIN biladi. Oxirgi so'zni baribir server
+  // aytadi (`POST /orders` → 400) — [createOrder] uning xabarini ko'rsatadi.
+  // ==========================================================================
+
+  CityCoverage get coverage => _coverage;
+
+  /// `GET /cities` — qamrov ro'yxati. Sessiyada bir marta yetarli.
+  ///
+  /// ⚠️ Xato JIMGINA yutiladi va holat o'zgarmaydi: qamrov ma'lumotining
+  /// yo'qligi buyurtma berishga to'sqinlik qilmasligi kerak (bo'sh ro'yxat
+  /// = cheklov yo'q). Shu sabab bu yerda `_setState(error)` YO'Q — aks
+  /// holda bosh ekrandagi CTA sababsiz "yuklanmoqda"/xato holatiga tushib
+  /// qolardi.
+  Future<void> loadCities() {
+    if (_coverage.hasData) return Future<void>.value();
+    // ⚠️ Tozalash `_fetchCities` ning `finally` blokida EMAS, `whenComplete`
+    // da: so'rov SINXRON yiqilsa (masalan `Dio` argumentni tekshirib darhol
+    // otsa) `finally` quyidagi `??=` tayinlanishidan OLDIN ishlardi, ya'ni
+    // tugagan future maydonga qaytadan yozilib qolardi va keyingi
+    // `loadCities()` abadiy o'sha bo'sh natijani qaytarardi — bir marta
+    // yiqilgan qamrov sessiya oxirigacha tiklanmasdi.
+    // `whenComplete` qayta chaqiruvi mikrotaskda ishlaydi, ya'ni tayinlash
+    // ALLAQACHON bo'lib bo'lgan.
+    return _citiesInFlight ??= _fetchCities().whenComplete(() {
+      // Yiqilgan urinishdan keyin qayta so'rashga yo'l ochiq qoladi.
+      _citiesInFlight = null;
+    });
+  }
+
+  Future<void> _fetchCities() async {
+    try {
+      final response = await _apiClient.get(ApiEndpoints.cities);
+      _coverage = CityCoverage.fromResponse(response.data);
+      notifyListeners();
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'OrderProvider.loadCities');
+    }
+  }
+
+  /// [lat]/[lng] ga eng yaqin xizmat hududi (ma'lumot bo'lmasa `null`).
+  ServiceCity? nearestServiceCity(double lat, double lng) =>
+      _coverage.nearestTo(lat, lng);
+
+  /// Nuqta xizmat hududidan tashqarida bo'lsa — foydalanuvchiga
+  /// ko'rsatiladigan sabab, aks holda `null`.
+  ///
+  /// Xabar ikki qismdan iborat: NIMA bo'lgani va NIMA qilish mumkinligi
+  /// (eng yaqin hudud nomi). Faqat "xizmat yo'q" deyish odamni boshi berk
+  /// ko'chada qoldiradi.
+  String? coverageWarningFor(double lat, double lng) {
+    if (_coverage.isServiceable(lat, lng)) return null;
+    final nearest = _coverage.nearestTo(lat, lng);
+    if (nearest == null) return null;
+    return AppL10n.current.paxCoverageWarning(nearest.name);
+  }
+
+  /// Tanlangan olish nuqtasi bo'yicha ogohlantirish — buyurtma tugmasini
+  /// o'chirish qarori shundan chiqadi.
+  String? get coverageWarning {
+    final pickup = _pendingPickup;
+    if (pickup == null) return null;
+    return coverageWarningFor(pickup.lat, pickup.lng);
+  }
+
+  bool get isPickupOutsideCoverage => coverageWarning != null;
 
   // Route geometry + distance/duration for the pending pickup/dropoff pair,
   // fetched from OSRM by the tariff-select screen. Kept here (rather than
@@ -160,37 +411,90 @@ class OrderProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Matches backend's POST /orders/calculate-price, which prices a tariff
-  /// from a distance/duration pair rather than raw pickup/dropoff coordinates
-  /// (the backend has no routing engine of its own).
+  /// Backend'ning POST /orders/calculate-price chaqiruvi.
+  ///
+  /// Olish VA tushish nuqtalari yuboriladi:
+  ///
+  /// · Olish nuqtasi — hudud koeffitsienti (surge) uchun. Usiz backend faqat
+  ///   tarifning qo'lda qo'yilgan koeffitsientini qo'llay oladi.
+  ///
+  /// · Tushish nuqtasi — bu YANGI va u eng muhim. Backend marshrutni O'ZI
+  ///   hisoblaydi va bu yerdagi `distanceKm` ni e'tiborga olmaydi.
+  ///
+  ///   ⚠️ NEGA: buyurtma yaratilganda narx baribir server tomonda
+  ///   hisoblanadi. Ilgari baholash mijozning OSRM raqamiga tayanardi,
+  ///   buyurtma esa serverning haversine (to'g'ri chiziq) raqamiga — ya'ni
+  ///   yo'lovchi ko'rgan narx bilan yozilgan narx boshqa-boshqa sonlar edi.
+  ///   Endi ikkalasi ham bitta hisob-kitobdan chiqadi va ko'rsatilgan summa
+  ///   MARSHRUT uchun qat'iy: tirbandlik yoki uzunroq yo'l narxni
+  ///   oshirmaydi.
+  ///
+  ///   ⚠️ KUTISH BU KAFOLATDAN TASHQARIDA. Haydovchi yetib kelgach bepul
+  ///   oyna tugasa, kutish haqi shu summa USTIGA qo'shiladi (backend
+  ///   `waiting-charge.ts`). Sababi: qat'iy narx haydovchi boshqarmaydigan
+  ///   noaniqlikni yopadi, kutish esa YO'LOVCHI boshqaradigan narsa.
+  ///   Shuning uchun ekranda ham "narx belgilangan, kutish alohida" degan
+  ///   ma'no berilishi shart — yig'ilayotgan summa
+  ///   `active_order_view.dart` da real vaqtda ko'rsatiladi.
   Future<void> estimatePrice({
     required double distanceKm,
     required double durationMin,
     required String tariffId,
   }) async {
     try {
+      final pickup = _pendingPickup;
+      final dropoff = _pendingDropoff;
       final response = await _apiClient.post(
         ApiEndpoints.estimatePrice,
         data: {
           'tariffId': tariffId,
+          // Server marshrutni hisoblay olmasa (OSRM javob bermasa) shu
+          // qiymatlar zaxira sifatida ishlatiladi.
           'distanceKm': distanceKm,
           'durationMin': durationMin,
+          if (pickup != null) 'pickupLat': pickup.lat,
+          if (pickup != null) 'pickupLng': pickup.lng,
+          if (dropoff != null) 'dropoffLat': dropoff.lat,
+          if (dropoff != null) 'dropoffLng': dropoff.lng,
+          // Opsiya haqi narxga qo'shiladi — ko'rsatilgan narx buyurtma
+          // narxi bilan bir xil bo'lishi uchun bahoda ham yuboriladi.
+          if (_tripOptions.isNotEmpty)
+            'options': _tripOptions.map((o) => o.apiValue).toList(),
         },
       );
       final data = response.data as Map<String, dynamic>;
       final payload = data['data'] as Map<String, dynamic>;
       _estimatedPrice = (payload['price'] as num?)?.toDouble() ?? 0;
+      _optionsFare = (payload['optionsFare'] as num?)?.toDouble() ?? 0;
+      _surgeMultiplier = (payload['surgeMultiplier'] as num?)?.toDouble() ?? 1.0;
+      // Server o'z masofasini qaytaradi — ekranda ko'rsatiladigan masofa ham
+      // narx asosidagi masofa bilan bir xil bo'lishi kerak.
+      final serverDistance = (payload['distanceKm'] as num?)?.toDouble();
+      if (serverDistance != null && serverDistance > 0) {
+        _routeDistanceKm = serverDistance;
+      }
+      _markFunnel(FunnelStep.priceShown);
       notifyListeners();
-    } catch (e) {
-      debugPrint('[OrderProvider] estimatePrice error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'OrderProvider.estimatePrice');
     }
   }
 
   Future<bool> createOrder() async {
     if (_pendingPickup == null ||
-        _pendingDropoff == null ||
+        (_pendingDropoff == null && !_isMetered) ||
         _selectedTariff == null) {
-      _error = 'Manzil va tarif tanlanmagan';
+      _error = AppL10n.current.paxOrderMissingRouteOrTariff;
+      _setState(OrderProviderState.error);
+      return false;
+    }
+
+    // Qamrov darvozasi — tarmoqqa chiqishdan oldin. UI tugmani allaqachon
+    // o'chirib qo'ygan, bu esa oxirgi mahalliy tekshiruv (masalan buyurtma
+    // saqlangan manzil orqali to'g'ridan-to'g'ri berilsa).
+    final blocked = coverageWarning;
+    if (blocked != null) {
+      _error = blocked;
       _setState(OrderProviderState.error);
       return false;
     }
@@ -205,134 +509,438 @@ class OrderProvider extends ChangeNotifier {
       // rejected with "property pickup should not exist" plus "pickupLat
       // must be a number" (whitelist validation strips the unknown nested
       // key, then fails on the now-missing flat ones).
-      final response = await _apiClient.post(
-        ApiEndpoints.createOrder,
-        data: {
+      final body = <String, dynamic>{
           'tariffId': _selectedTariff!.id,
           'pickupLat': _pendingPickup!.lat,
           'pickupLng': _pendingPickup!.lng,
           'pickupAddress': _pendingPickup!.address,
-          'dropoffLat': _pendingDropoff!.lat,
-          'dropoffLng': _pendingDropoff!.lng,
-          'dropoffAddress': _pendingDropoff!.address,
+          // Taksometrda manzil umuman yuborilmaydi — server shundan biladi.
+          if (!_isMetered) ...{
+            'dropoffLat': _pendingDropoff!.lat,
+            'dropoffLng': _pendingDropoff!.lng,
+            'dropoffAddress': _pendingDropoff!.address,
+          },
           'serviceType': _serviceType,
           if (_pendingWaypoints.isNotEmpty)
             'waypoints': _pendingWaypoints
                 .map((w) => {'lat': w.lat, 'lng': w.lng, 'address': w.address})
                 .toList(),
           if (_cargoDetails != null) 'details': _cargoDetails,
-        },
-      );
-
-      final data = response.data as Map<String, dynamic>;
-      _activeOrder = Order.fromJson(
-        data['data'] as Map<String, dynamic>,
-      );
-
-      _listenToOrderEvents();
-      _setState(OrderProviderState.success);
-      return true;
+          // Backend `@IsISO8601({strict: true})` kutadi va `timestamptz`
+          // ga yozadi — mahalliy vaqt yuborilsa O'zbekistonda (UTC+5)
+          // safar 5 soatga surilib ketardi.
+          if (_scheduledAt != null)
+            'scheduledAt': _scheduledAt!.toUtc().toIso8601String(),
+          if (_tripOptions.isNotEmpty)
+            'options': _tripOptions.map((o) => o.apiValue).toList(),
+      };
+      return _submitOrder(body);
     } catch (e) {
+      // Tana qurishdagi kutilmagan xato (bo'lmasligi kerak) — foydalanuvchi
+      // tugma "osilib" qolganini ko'rmasin.
       _error = extractErrorMessage(e);
       _setState(OrderProviderState.error);
       return false;
     }
   }
 
+  /// Oxirgi JONLI (rejalashtirilmagan) buyurtmaning so'rov tanasi —
+  /// "Haydovchi topilmadi" oynasidagi "Qayta izlash" aynan shuni qayta
+  /// yuboradi (marshrut, tarif, opsiyalar bir xil; kalit yangi).
+  Map<String, dynamic>? _lastLiveOrderBody;
+
+  bool get canRetryLastOrder => _lastLiveOrderBody != null;
+
+  /// Olish nuqtasi atrofidagi BO'SH haydovchilar soni (`GET
+  /// /drivers/nearby-count`). `null` — noma'lum (eski server, tarmoq xatosi):
+  /// UI hech narsa ko'rsatmaydi, ya'ni yolg'on "0" chiqmaydi.
+  int? get nearbyFreeDrivers => _nearbyFreeDrivers;
+  int? _nearbyFreeDrivers;
+
+  Future<void> loadNearbyDrivers(double lat, double lng) async {
+    try {
+      final response = await _apiClient.get(
+        ApiEndpoints.nearbyDriversCount,
+        params: {'lat': lat, 'lng': lng},
+      );
+      final data = (response.data as Map<String, dynamic>)['data'];
+      final count = data is Map ? (data['count'] as num?)?.toInt() : null;
+      if (count == _nearbyFreeDrivers) return;
+      _nearbyFreeDrivers = count;
+      notifyListeners();
+    } catch (_) {
+      // Yordamchi ma'lumot: eski serverda 404, tarmoq xatosi — jim,
+      // faqat ko'rsatilmaydi (Sentry'ni har 15 s da to'ldirmasin).
+      if (_nearbyFreeDrivers != null) {
+        _nearbyFreeDrivers = null;
+        notifyListeners();
+      }
+    }
+  }
+
+  /// "Boshqa tarif": tugagan buyurtmaning marshruti qaytadan tanlov
+  /// sifatida qo'yiladi — yo'lovchi manzilni qayta qidirmaydi. Ilova qayta
+  /// ochilgan bo'lsa ham ishlaydi (tanlov xotirada bo'lmasa).
+  void restorePendingFromOrder(Order order) {
+    _serviceType = 'taxi';
+    _pendingPickup = order.pickup;
+    _pendingWaypoints
+      ..clear()
+      ..addAll(order.waypoints);
+    if (order.isMetered) {
+      _isMetered = true;
+      _pendingDropoff = null;
+    } else {
+      _isMetered = false;
+      _pendingDropoff = order.dropoff;
+    }
+    _tripOptions = [...order.options];
+    _selectedTariff = null;
+    _estimatedPrice = null;
+    notifyListeners();
+  }
+
+  /// "Qayta izlash": o'sha buyurtmani yangidan beradi. Avvalgisi "topilmadi"
+  /// bilan bekor bo'lgan, ya'ni serverdagi "bitta faol taksi" cheklovi
+  /// to'smaydi.
+  Future<bool> retryLastOrder() async {
+    final body = _lastLiveOrderBody;
+    if (body == null) return false;
+    _error = null;
+    _setState(OrderProviderState.loading);
+    return _submitOrder(body);
+  }
+
+  /// Qidiruv qachon boshlangani — qidiruv ekranidagi "o'tgan vaqt" uchun.
+  /// Yangi buyurtmada — telefon soati; tiklangan buyurtmada — server
+  /// `createdAt` (kelajakda bo'lsa hozirga qisqartiriladi, soat farqi).
+  DateTime? get searchStartedAt {
+    final start = _searchStart;
+    return start != null && start.orderId == _activeOrder?.id ? start.at : null;
+  }
+
+  /// Qaysi buyurtma uchun — eski buyurtma vaqti yangisiga o'tib ketmasin.
+  ({String orderId, DateTime at})? _searchStart;
+
+  static DateTime _searchStartFor(Order order) {
+    final now = DateTime.now();
+    final created = order.createdAt.toLocal();
+    return created.isAfter(now) ? now : created;
+  }
+
+  Future<bool> _submitOrder(Map<String, dynamic> body) async {
+    try {
+      // ⚠️ Kalit AYNAN SHU so'rov mazmuniga bog'langan. Ilgari u timeout'dan
+      // keyin tarif/manzil o'zgarsa ham saqlanardi va server "takror" deb
+      // ESKI buyurtmani qaytarardi — yo'lovchi Komfort tanlab Start oldi.
+      final fingerprint = jsonEncode(body);
+      if (fingerprint != _orderAttemptFingerprint) {
+        _orderAttemptKey = newIdempotencyKey();
+        _orderAttemptFingerprint = fingerprint;
+      }
+      final response = await _apiClient.post(
+        ApiEndpoints.createOrder,
+        headers: {'Idempotency-Key': _orderAttemptKey!},
+        data: body,
+      );
+
+      _orderAttemptKey = null;
+      _orderAttemptFingerprint = null;
+      _markFunnel(FunnelStep.orderRequested);
+      final data = response.data as Map<String, dynamic>;
+      final order = Order.fromJson(data['data'] as Map<String, dynamic>);
+      final wasScheduled = _scheduledAt != null;
+
+      // ⚠️ TANLOV DARHOL TOZALANADI — muvaffaqiyatning IKKALA shoxida ham.
+      // Aks holda keyingi oddiy safar jimgina o'tib ketgan vaqtga
+      // rejalashtirilardi va backend 400 qaytarardi ("kamida 30 daqiqa
+      // keyin bo'lishi kerak") — foydalanuvchi uchun sababsiz xato.
+      _scheduledAt = null;
+      // Opsiyalar ham shu buyurtmaga tegishli edi — keyingisiga o'tmaydi.
+      _tripOptions = const [];
+      _isMetered = false;
+
+      if (wasScheduled) {
+        // Rejalashtirilgan buyurtmada `_activeOrder` O'RNATILMAYDI va
+        // soket tinglovchilari QO'SHILMAYDI: kuzatiladigan hech narsa
+        // yo'q (haydovchi hali qidirilmayapti ham), va `_activeOrder`
+        // to'ldirilsa bosh ekran kuzatuv rejimiga qulflanib qolardi.
+        _scheduledOrders = [..._scheduledOrders, order]
+          ..sort((a, b) => (a.scheduledAt ?? a.createdAt)
+              .compareTo(b.scheduledAt ?? b.createdAt));
+      } else {
+        _activeOrder = order;
+        _lastLiveOrderBody = body;
+        _searchStart = (orderId: order.id, at: DateTime.now());
+        _listenToOrderEvents();
+      }
+
+      _setState(OrderProviderState.success);
+      return true;
+    } catch (e) {
+      // Javob kelmagan (timeout, internet uzildi) yoki server hali birinchi
+      // so'rovni bajaryapti (409) — buyurtma serverda yaratilgan bo'lishi
+      // mumkin. Kalit SAQLANADI: qayta bosish yangi buyurtma ochmaydi,
+      // server o'shani qaytaradi. Server aniq rad etgan bo'lsa — yangi kalit.
+      if (_mayHaveReachedServer(e)) {
+        // Buyurtma serverda yaratilgan bo'lishi mumkin. Yo'lovchi qayta
+        // bosmay orqaga qaytsa ham qidiruv yashirin qolmasin — server
+        // holati tekshiriladi va topilsa kuzatuv ekrani ochiladi.
+        unawaited(_recoverUncertainOrder());
+      } else {
+        _orderAttemptKey = null;
+        _orderAttemptFingerprint = null;
+      }
+      _error = extractErrorMessage(e);
+      _setState(OrderProviderState.error);
+      return false;
+    }
+  }
+
+  /// Joriy buyurtma urinishining `Idempotency-Key` i (backend
+  /// `OrderIdempotencyService`). Muvaffaqiyatdan keyin tozalanadi.
+  String? _orderAttemptKey;
+
+  /// [_orderAttemptKey] qaysi so'rov mazmuni uchun yaratilgani.
+  String? _orderAttemptFingerprint;
+
+  /// Javobsiz qolgan `POST /orders` dan keyin serverdagi holatni tekshirish
+  /// kechikishi (server so'rovni shu orada tugatib ulguradi).
+  @visibleForTesting
+  static Duration uncertainOrderRecheckDelay = const Duration(seconds: 3);
+
+  Future<void> _recoverUncertainOrder() async {
+    await Future<void>.delayed(uncertainOrderRecheckDelay);
+    if (_activeOrder?.isActive ?? false) return;
+    await checkActiveOrder();
+  }
+
+  static bool _mayHaveReachedServer(Object e) {
+    if (e is! DioException) return false;
+    final status = e.response?.statusCode;
+    return status == null || status == 409 || status >= 500;
+  }
+
+  /// Nomlangan metod — `off` da AYNAN SHU tinglovchini o'chirish uchun:
+  /// `driver:location` ni ovqat/market kuryer kuzatuvi ham tinglaydi.
+  void _onDriverLocation(dynamic data) {
+    if (data is! Map) return;
+    // Server paketga `orderId` qo'shadi: yo'lovchi bir vaqtda ovqat kuryerini
+    // ham kuzatayotgan bo'lsa, u mashina taksi o'rnida chizilmasin.
+    final orderId = data['orderId'];
+    if (orderId != null && orderId != _activeOrder?.id) return;
+    final lat = (data['lat'] as num?)?.toDouble();
+    final lng = (data['lng'] as num?)?.toDouble();
+    if (lat != null && lng != null) {
+      _setDriverLocation(LatLng(lat, lng));
+    }
+  }
+
+  /// Hodisa AYNAN joriy taksi buyurtmasiga tegishlimi.
+  ///
+  /// Ovqat/market kuryer safari ham shu yo'lovchi nomidan yaratiladi va
+  /// server `order:accepted` / `no_drivers_found` ni unga ham yuboradi.
+  /// Filtrsiz kuryer hodisasi faol taksi ekranini "haydovchi topildi" yoki
+  /// "bekor qilindi" holatiga o'tkazib yuborardi. `orderId` siz eski paket
+  /// (server har doim qo'shadi) — qabul qilinadi.
+  bool _isForActiveOrder(dynamic data) {
+    final active = _activeOrder;
+    if (active == null) return false;
+    final orderId = data is Map ? data['orderId'] : null;
+    return orderId == null || orderId == active.id;
+  }
+
+  // ⚠️ Tinglovchilar NOMLANGAN metodlar. Ilgari har `_listenToOrderEvents`
+  // chaqiruvi yangi anonim funksiya qo'shardi (`SocketService.on` faqat
+  // bir xil funksiyani ajrata oladi) — `checkActiveOrder` har chaqirilganda
+  // har hodisa N marta ishlab, N ta qayta so'rov yuborardi. `off` ham
+  // event'ning BARCHA tinglovchilarini o'chirardi.
   void _listenToOrderEvents() {
     if (_activeOrder != null) {
       _socketService.emit(SocketEvents.joinOrder, {'orderId': _activeOrder!.id});
     }
+    _startSync();
 
-    _socketService.on(SocketEvents.driverLocationUpdate, (data) {
-      if (data is Map) {
-        final lat = (data['lat'] as num?)?.toDouble();
-        final lng = (data['lng'] as num?)?.toDouble();
-        if (lat != null && lng != null) {
-          _driverLocation = LatLng(lat, lng);
-          notifyListeners();
+    _socketService.on(SocketEvents.driverLocationUpdate, _onDriverLocation);
+    _socketService.on(SocketEvents.orderAccepted, _onOrderAccepted);
+    _socketService.on(SocketEvents.orderArrived, _onOrderArrived);
+    _socketService.on(SocketEvents.orderInProgress, _onOrderInProgress);
+    _socketService.on(SocketEvents.orderCompleted, _onOrderCompleted);
+    _socketService.on(SocketEvents.orderCancelled, _onOrderCancelled);
+    _socketService.on(SocketEvents.noDriversFound, _onNoDriversFound);
+  }
+
+  // orders.service.ts's 'driver' payload here only carries
+  // id/userId/carModel/carNumber/rating (no name/phone — those are only on
+  // the flat User entity GET /orders/:id returns), so apply it optimistically
+  // for an instant status flip, then refetch to backfill the rest.
+  void _onOrderAccepted(dynamic data) {
+    if (data is! Map || !_isForActiveOrder(data)) return;
+    final driver = data['driver'];
+    _activeOrder = _activeOrder!.copyWith(
+      status: OrderStatus.driverAssigned,
+      driver: driver is Map<String, dynamic>
+          ? Driver.fromJson(driver)
+          : _activeOrder!.driver,
+    );
+    notifyListeners();
+    _refreshActiveOrder();
+  }
+
+  // ⚠️ KUTISH SHARTNOMASI SHU PAKETDAN OLINADI. Server `arrivedAt` ni
+  // O'Z soatidan yuboradi va yo'lovchi hisoblagichi AYNAN shundan
+  // hisoblaydi — qurilma soatidan emas. Aks holda haydovchi bilan
+  // yo'lovchi har xil raqam ko'rardi va bu aynan tuzatilayotgan nuqson
+  // edi (kutish endi PUL undiradi, ya'ni raqam nizoli).
+  //
+  // Paket kelmasa yoki `arrivedAt` yaroqsiz bo'lsa maydon `null` qolib,
+  // hisoblagich umuman ko'rsatilmaydi; keyingi to'liq yangilanish
+  // (`_refreshActiveOrder` / `checkActiveOrder`) uni REST javobidan
+  // to'ldiradi, chunki backend uchala maydonni har bir buyurtma
+  // javobiga qo'shadi.
+  void _onOrderArrived(dynamic data) {
+    if (!_isForActiveOrder(data)) return;
+    final payload = data is Map ? data : const {};
+    final rawArrivedAt = payload['arrivedAt'];
+    _activeOrder = _activeOrder!.copyWith(
+      status: OrderStatus.driverArrived,
+      arrivedAt: rawArrivedAt is String
+          ? DateTime.tryParse(rawArrivedAt)?.toLocal()
+          : null,
+      freeWaitMinutes: (payload['freeWaitMinutes'] as num?)?.toInt(),
+      waitingPricePerMinute:
+          (payload['waitingPricePerMinute'] as num?)?.toInt(),
+    );
+    notifyListeners();
+  }
+
+  void _onOrderInProgress(dynamic data) {
+    if (!_isForActiveOrder(data)) return;
+    _activeOrder = _activeOrder!.copyWith(status: OrderStatus.inProgress);
+    notifyListeners();
+  }
+
+  void _onOrderCompleted(dynamic data) {
+    if (data is! Map || !_isForActiveOrder(data)) return;
+    _finishCompleted(_activeOrder!.copyWith(
+      status: OrderStatus.completed,
+      actualPrice: (data['finalPrice'] as num?)?.toDouble(),
+      distanceKm: (data['actualDistanceKm'] as num?)?.toDouble(),
+      durationMin: (data['actualDurationMin'] as num?)?.toInt(),
+    ));
+  }
+
+  void _onOrderCancelled(dynamic data) {
+    if (!_isForActiveOrder(data)) return;
+    final reason = data is Map ? data['reason'] as String? : null;
+    _finishCancelled(_activeOrder!.copyWith(
+      status: OrderStatus.cancelled,
+      cancelReason: reason,
+    ));
+  }
+
+  // matching.service.ts's handleNoDriversFound already cancels the order
+  // server-side (status -> cancelled) and emits ONLY this event, never
+  // 'order:cancelled' — without this listener the app kept showing
+  // "searching..." forever, and tapping cancel afterward 400'd with
+  // "Cannot cancel order with status cancelled" since it already was.
+  void _onNoDriversFound(dynamic data) {
+    if (!_isForActiveOrder(data)) return;
+    _finishNoDrivers(_activeOrder!);
+  }
+
+  void _finishNoDrivers(Order order) {
+    _activeOrder = order.copyWith(
+      status: OrderStatus.cancelled,
+      cancelReason: AppL10n.current.paxNoDriversNearby,
+    );
+    noDriversFoundMessage = AppL10n.current.paxNoDriversNearbyRetry;
+    notifyListeners();
+    _cleanupOrderListeners();
+  }
+
+  /// Safar tugadi — reyting ma'lumotini saqlab, tinglovchilarni yopadi.
+  /// Socket event'i ham, zaxira sinxronlash ham AYNAN shu yo'ldan o'tadi.
+  void _finishCompleted(Order completed) {
+    _activeOrder = completed;
+    pendingRatingOrderId = completed.id;
+    pendingRatingDriverName =
+        completed.driver?.name ?? AppL10n.current.paxDetailDriver;
+    notifyListeners();
+    _cleanupOrderListeners();
+    loadOrderHistory();
+  }
+
+  void _finishCancelled(Order cancelled) {
+    _activeOrder = cancelled;
+    notifyListeners();
+    _cleanupOrderListeners();
+  }
+
+  /// ZAXIRA: socket event'lari uzilish paytida yo'qoladi (server ularni
+  /// saqlamaydi). Holat serverdan olinadi va o'zgargan bo'lsa event kelgandek
+  /// qo'llanadi. Faol safar davomida har [syncInterval] da va socket qayta
+  /// ulanganda chaqiriladi.
+  Future<void> _syncActiveOrder() async {
+    final current = _activeOrder;
+    if (current == null || !current.isActive || _syncInFlight) return;
+    _syncInFlight = true;
+    try {
+      final response = await _apiClient.get(ApiEndpoints.orderById(current.id));
+      final data = response.data as Map<String, dynamic>;
+      final fresh = Order.fromJson(data['data'] as Map<String, dynamic>);
+      // Kutish paytida boshqa buyurtma boshlangan yoki bekor qilingan bo'lsa
+      // eski javobni qo'llamaymiz.
+      if (_activeOrder?.id != current.id || !(_activeOrder?.isActive ?? false)) {
+        return;
+      }
+      if (fresh.status == OrderStatus.completed) {
+        _finishCompleted(fresh);
+      } else if (fresh.status == OrderStatus.cancelled) {
+        // Socket `no_drivers_found` yo'qolgan bo'lsa ham yo'lovchi sababini
+        // ko'rsin — ilgari ekran izohsiz bosh sahifaga sakrardi.
+        if (fresh.isNoDriversCancel) {
+          _finishNoDrivers(fresh);
+        } else {
+          _finishCancelled(fresh);
         }
-      }
-    });
-
-    // orders.service.ts's 'driver' payload here only carries
-    // id/userId/carModel/carNumber/rating (no name/phone — those are only on
-    // the flat User entity GET /orders/:id returns), so apply it optimistically
-    // for an instant status flip, then refetch to backfill the rest.
-    _socketService.on(SocketEvents.orderAccepted, (data) {
-      if (data is Map && _activeOrder != null) {
-        final driver = data['driver'];
-        _activeOrder = _activeOrder!.copyWith(
-          status: OrderStatus.driverAssigned,
-          driver: driver is Map<String, dynamic>
-              ? Driver.fromJson(driver)
-              : _activeOrder!.driver,
-        );
-        notifyListeners();
-        _refreshActiveOrder();
-      }
-    });
-
-    _socketService.on(SocketEvents.orderArrived, (data) {
-      if (_activeOrder != null) {
-        _activeOrder = _activeOrder!.copyWith(status: OrderStatus.driverArrived);
+      } else if (fresh.status != current.status) {
+        _activeOrder = fresh;
         notifyListeners();
       }
-    });
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'OrderProvider._syncActiveOrder');
+    } finally {
+      _syncInFlight = false;
+    }
+  }
 
-    _socketService.on(SocketEvents.orderInProgress, (data) {
-      if (_activeOrder != null) {
-        _activeOrder = _activeOrder!.copyWith(status: OrderStatus.inProgress);
-        notifyListeners();
-      }
-    });
+  void _onSocketReconnect() {
+    final order = _activeOrder;
+    if (order == null) return;
+    // Qayta ulanishda server buyurtma xonasini unutadi — haydovchi
+    // joylashuvi kelishi uchun qayta qo'shilamiz.
+    _socketService.emit(SocketEvents.joinOrder, {'orderId': order.id});
+    _syncActiveOrder();
+  }
 
-    _socketService.on(SocketEvents.orderCompleted, (data) {
-      if (data is Map && _activeOrder != null) {
-        _activeOrder = _activeOrder!.copyWith(
-          status: OrderStatus.completed,
-          actualPrice: (data['finalPrice'] as num?)?.toDouble(),
-          distanceKm: (data['actualDistanceKm'] as num?)?.toDouble(),
-          durationMin: (data['actualDurationMin'] as num?)?.toInt(),
-        );
-        // Store info needed for post-trip rating before clearing the order.
-        pendingRatingOrderId = _activeOrder!.id;
-        pendingRatingDriverName = _activeOrder!.driver?.name ?? 'Haydovchi';
-        notifyListeners();
-        _cleanupOrderListeners();
-        loadOrderHistory();
-      }
-    });
+  void _startSync() {
+    _syncTimer?.cancel();
+    final interval = syncInterval;
+    final gate = PollGate(isConnected: () => _socketService.isConnected);
+    _syncTimer = interval == null
+        ? null
+        : Timer.periodic(interval, (_) {
+            if (gate.shouldPoll()) _syncActiveOrder();
+          });
+    _socketService.removeReconnectListener(_onSocketReconnect);
+    _socketService.addReconnectListener(_onSocketReconnect);
+  }
 
-    _socketService.on(SocketEvents.orderCancelled, (data) {
-      if (_activeOrder != null) {
-        final reason = data is Map ? data['reason'] as String? : null;
-        _activeOrder = _activeOrder!.copyWith(
-          status: OrderStatus.cancelled,
-          cancelReason: reason,
-        );
-        notifyListeners();
-        _cleanupOrderListeners();
-      }
-    });
-
-    // matching.service.ts's handleNoDriversFound already cancels the order
-    // server-side (status -> cancelled) and emits ONLY this event, never
-    // 'order:cancelled' — without this listener the app kept showing
-    // "searching..." forever, and tapping cancel afterward 400'd with
-    // "Cannot cancel order with status cancelled" since it already was.
-    _socketService.on(SocketEvents.noDriversFound, (data) {
-      if (_activeOrder != null) {
-        _activeOrder = _activeOrder!.copyWith(
-          status: OrderStatus.cancelled,
-          cancelReason: "Yaqin atrofda haydovchi topilmadi",
-        );
-        noDriversFoundMessage =
-            "Yaqin atrofda haydovchi topilmadi. Birozdan so'ng qayta urinib ko'ring.";
-        notifyListeners();
-        _cleanupOrderListeners();
-      }
-    });
+  void _stopSync() {
+    _syncTimer?.cancel();
+    _syncTimer = null;
+    _socketService.removeReconnectListener(_onSocketReconnect);
   }
 
   // Socket payloads for order:accepted only carry the driver's
@@ -346,27 +954,33 @@ class OrderProvider extends ChangeNotifier {
       final data = response.data as Map<String, dynamic>;
       _activeOrder = Order.fromJson(data['data'] as Map<String, dynamic>);
       notifyListeners();
-    } catch (e) {
-      debugPrint('[OrderProvider] _refreshActiveOrder error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'OrderProvider._refreshActiveOrder');
     }
   }
 
   void _cleanupOrderListeners() {
+    _stopSync();
     if (_activeOrder != null) {
       _socketService.emit(SocketEvents.leaveOrder, {'orderId': _activeOrder!.id});
     }
-    _socketService.off(SocketEvents.driverLocationUpdate);
-    _socketService.off(SocketEvents.orderAccepted);
-    _socketService.off(SocketEvents.orderArrived);
-    _socketService.off(SocketEvents.orderInProgress);
-    _socketService.off(SocketEvents.orderCompleted);
-    _socketService.off(SocketEvents.orderCancelled);
-    _socketService.off(SocketEvents.noDriversFound);
-    _driverLocation = null;
+    // Faqat O'Z tinglovchilarimiz — shu event'larni tinglayotgan boshqa
+    // ekranlar (ovqat/market kuzatuvi) tegilmaydi.
+    _socketService.off(SocketEvents.driverLocationUpdate, _onDriverLocation);
+    _socketService.off(SocketEvents.orderAccepted, _onOrderAccepted);
+    _socketService.off(SocketEvents.orderArrived, _onOrderArrived);
+    _socketService.off(SocketEvents.orderInProgress, _onOrderInProgress);
+    _socketService.off(SocketEvents.orderCompleted, _onOrderCompleted);
+    _socketService.off(SocketEvents.orderCancelled, _onOrderCancelled);
+    _socketService.off(SocketEvents.noDriversFound, _onNoDriversFound);
+    _setDriverLocation(null);
   }
 
-  Future<void> cancelOrder({String? reason}) async {
-    if (_activeOrder == null) return;
+  /// `false` — server rad etdi yoki tarmoq xatosi; sabab [error] da.
+  /// Chaqiruvchi uni ko'rsatishi SHART: ilgari xato umumiy maydonga yozilib,
+  /// faol safar ekrani uni hech qachon ko'rsatmasdi.
+  Future<bool> cancelOrder({String? reason}) async {
+    if (_activeOrder == null) return false;
 
     _setState(OrderProviderState.loading);
     try {
@@ -377,9 +991,24 @@ class OrderProvider extends ChangeNotifier {
       _cleanupOrderListeners();
       _activeOrder = null;
       _setState(OrderProviderState.idle);
+      return true;
     } catch (e) {
       _error = extractErrorMessage(e);
       _setState(OrderProviderState.error);
+      // Ko'pincha sabab — holat shu orada o'zgargan (haydovchi qabul qilgan,
+      // "topilmadi" bilan bekor bo'lgan). Ekran haqiqiy holatga o'tsin.
+      unawaited(_syncActiveOrder());
+      return false;
+    }
+  }
+
+  /// Ilova fondan qaytdi: socket uzilgan paytdagi hodisalar o'rniga holat
+  /// darhol serverdan olinadi (keyingi so'rov tikini kutmasdan).
+  Future<void> refreshOnResume() async {
+    if (_activeOrder?.isActive ?? false) {
+      await _syncActiveOrder();
+    } else {
+      await checkActiveOrder();
     }
   }
 
@@ -393,14 +1022,116 @@ class OrderProvider extends ChangeNotifier {
       final list =
           (data['data'] as Map<String, dynamic>)['orders'] as List<dynamic>;
       final orders = list.map((e) => Order.fromJson(e as Map<String, dynamic>));
-      final active = orders.where((o) => o.isActive);
+      // Ovqat/market kuryer safari ham shu yo'lovchi nomidan yaratiladi
+      // (mijoz = safar "yo'lovchisi"). U taksi oqimiga tiklanmasligi kerak:
+      // aks holda ovqat buyurtmasi bergan odam bosh ekranda "haydovchi
+      // yo'lda" taksi ekraniga qulflanib qolardi. Kuryerni u ovqat/market
+      // buyurtmasi ekranida kuzatadi.
+      // Shaharlararo bandi ham shunday: yig'ish boshlanganda u ACCEPTED
+      // bo'ladi, lekin uni "Mening bandlarim" ekrani kuzatadi.
+      final active = orders.where((o) =>
+          o.isActive &&
+          !o.isDelivery &&
+          o.serviceType != kServiceTypeIntercity);
       if (active.isNotEmpty) {
         _activeOrder = active.first;
+        if (_searchStart?.orderId != active.first.id) {
+          _searchStart = (orderId: active.first.id, at: _searchStartFor(active.first));
+        }
         _listenToOrderEvents();
         notifyListeners();
+        // The history list never carries a parcel's delivery PIN — only the
+        // sender's own GET /orders/:id does. Without this, reopening the app
+        // mid-delivery would lose the code the recipient has to be told.
+        if (_activeOrder!.isParcel) await _refreshActiveOrder();
       }
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'OrderProvider.checkActiveOrder');
+    }
+  }
+
+  /// Oxirgi borilgan joylar — manzil ekranida bir bosishda tanlash uchun.
+  ///
+  /// Kichik shaharda odamlarning safarlari asosan bir xil 3–5 joy orasida
+  /// (uy, ish, bozor, ota-ona uyi) — har safar qidirib yozish ortiqcha.
+  /// Tarix yangisidan eskisiga keladi; bir xil manzil bir marta olinadi.
+  /// Taksometr (manzilsiz) va kuryer safarlari olinmaydi.
+  List<OrderLocation> get recentDestinations {
+    final seen = <String>{};
+    final result = <OrderLocation>[];
+    for (final order in _orderHistory) {
+      if (order.isMetered || order.isDelivery) continue;
+      if (order.status != OrderStatus.completed) continue;
+      final key = order.dropoff.address.trim().toLowerCase();
+      if (key.isEmpty || !seen.add(key)) continue;
+      result.add(order.dropoff);
+      if (result.length == maxRecentDestinations) break;
+    }
+    return result;
+  }
+
+  static const int maxRecentDestinations = 5;
+
+  /// Tarixni JIMGINA yuklaydi — [loadOrderHistory] dan farqi: umumiy
+  /// [_state] / [_error] ga TEGMAYDI. Manzil ekrani ochilganda chaqiriladi;
+  /// uning xatosi buyurtma oqimida "Noma'lum xatolik" bo'lib chiqmasligi
+  /// kerak — oxirgi manzillar shunchaki ko'rinmaydi.
+  Future<void> loadRecentDestinations() async {
+    if (_orderHistory.isNotEmpty) return;
+    try {
+      final response = await _apiClient.get(ApiEndpoints.orderHistory);
+      final data = response.data as Map<String, dynamic>;
+      final list =
+          (data['data'] as Map<String, dynamic>)['orders'] as List<dynamic>;
+      _orderHistory =
+          list.map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
+      notifyListeners();
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'OrderProvider.loadRecentDestinations');
+    }
+  }
+
+  /// GET /orders/scheduled — yo'lovchining kelgusi rejalari.
+  ///
+  /// Xato bo'lsa umumiy [_state] ga TEGMAYDI: bu ro'yxat asosiy buyurtma
+  /// oqimidan mustaqil va uning yuklanmasligi bosh ekrandagi CTA ni
+  /// "yuklanmoqda" holatiga tushirmasligi kerak.
+  Future<void> loadScheduledOrders() async {
+    try {
+      final response = await _apiClient.get(ApiEndpoints.scheduledOrders);
+      final data = response.data as Map<String, dynamic>;
+      final list = data['data'] as List<dynamic>;
+      _scheduledOrders =
+          list.map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
+      notifyListeners();
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'OrderProvider.loadScheduledOrders');
+    }
+  }
+
+  /// Rejalashtirilgan safarni bekor qiladi.
+  ///
+  /// Alohida endpoint yo'q — backend `SCHEDULED` ni bekor qilinadigan
+  /// holatlar ro'yxatiga qo'shgan, ya'ni odatdagi
+  /// `PATCH /orders/:id/cancel` ishlaydi.
+  ///
+  /// ⚠️ [cancelOrder] dan farqi: u `_activeOrder` bilan ishlaydi, bu esa
+  /// ro'yxatdagi ELEMENT bilan — rejalashtirilgan buyurtma hech qachon
+  /// `_activeOrder` bo'lmaydi.
+  Future<bool> cancelScheduledOrder(String orderId, {String? reason}) async {
+    try {
+      await _apiClient.patch(
+        ApiEndpoints.cancelOrder(orderId),
+        data: reason != null ? {'reason': reason} : null,
+      );
+      _scheduledOrders =
+          _scheduledOrders.where((o) => o.id != orderId).toList();
+      notifyListeners();
+      return true;
     } catch (e) {
-      debugPrint('[OrderProvider] checkActiveOrder error: $e');
+      _error = extractErrorMessage(e);
+      notifyListeners();
+      return false;
     }
   }
 
@@ -420,6 +1151,67 @@ class OrderProvider extends ChangeNotifier {
     }
   }
 
+  /// POST /orders/:id/tip — safar tugagandan keyin haydovchiga chaqim.
+  ///
+  /// [amount] BUTUN so'm bo'lishi shart (backend `@IsInt`), 1 000..200 000.
+  /// Muvaffaqiyatda `true`, aks holda `false` qaytaradi va sababni
+  /// [tipError] ga yozadi — chaqiruvchi ekran xabarni o'zi ko'rsatadi.
+  Future<bool> addTip({required String orderId, required int amount}) async {
+    _isSubmittingTip = true;
+    _tipError = null;
+    // Har urinishda noldan: bayroqlar OXIRGI urinish haqida gapiradi,
+    // aks holda boshqa buyurtmadagi eski 409 yangi safarni ham blokladi.
+    _tipAlreadyGiven = false;
+    notifyListeners();
+    try {
+      await _apiClient.post(
+        ApiEndpoints.addTip(orderId),
+        data: {'amount': amount},
+      );
+      _isSubmittingTip = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      // 409 alohida eslab qolinadi: qayta urinish har doim yana 409 beradi,
+      // shuning uchun UI summa tanlashni butunlay yopishi kerak.
+      _tipAlreadyGiven = e is DioException && e.response?.statusCode == 409;
+      _tipError = _tipFailureMessage(e);
+      _isSubmittingTip = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Chaqim xatolarini foydalanuvchi tushunadigan xabarga o'giradi.
+  ///
+  /// NEGA backend matnini shundayligicha ko'rsatmaymiz: 400 kodi ostida
+  /// to'rt xil sabab bor (safar tugamagan · haydovchi yo'q · 24 soat o'tgan ·
+  /// mablag' yetarli emas) va ulardan faqat bittasi foydalanuvchi TUZATA
+  /// oladigan holat. Hamyon holati alohida ajratiladi — unda keyingi qadam
+  /// aniq: hamyonni to'ldirish.
+  static String _tipFailureMessage(Object error) {
+    if (error is! DioException) return extractErrorMessage(error);
+
+    final status = error.response?.statusCode;
+    if (status == 409) {
+      return AppL10n.current.paxTipAlreadyGiven;
+    }
+    if (status == 403) {
+      return AppL10n.current.paxTipNotYourTrip;
+    }
+
+    final serverMessage = extractErrorMessage(error);
+    if (status == 400) {
+      // Backend matni o'zgarishi mumkin, shuning uchun o'zak bo'yicha
+      // qidiriladi: "mablag'" / "mablag" (apostrofsiz yozuv ham).
+      if (serverMessage.toLowerCase().contains('mablag')) {
+        return AppL10n.current.paxTipInsufficientFunds;
+      }
+      return serverMessage;
+    }
+    return serverMessage;
+  }
+
   void clearPendingRating() {
     pendingRatingOrderId = null;
     pendingRatingDriverName = null;
@@ -434,8 +1226,14 @@ class OrderProvider extends ChangeNotifier {
   void clearPendingOrder() {
     _pendingPickup = null;
     _pendingDropoff = null;
+    _isMetered = false;
     _selectedTariff = null;
     _estimatedPrice = null;
+    // ⚠️ Rejalashtirish tanlovi ham tozalanadi — u ham "qurilayotgan
+    // buyurtma" holatining bir qismi. `createOrder` uni allaqachon
+    // tozalaydi; bu esa yarim yo'lda tashlab ketilgan oqim uchun.
+    _scheduledAt = null;
+    _tripOptions = const [];
     _routePoints = [];
     _routeDistanceKm = null;
     _routeDurationMin = null;
@@ -452,6 +1250,7 @@ class OrderProvider extends ChangeNotifier {
   @override
   void dispose() {
     _cleanupOrderListeners();
+    driverLocationListenable.dispose();
     super.dispose();
   }
 }
@@ -459,4 +1258,5 @@ class OrderProvider extends ChangeNotifier {
 OrderProvider buildOrderProvider() => OrderProvider(
       apiClient: sl<ApiClient>(),
       socketService: sl<SocketService>(),
+      funnel: sl<FunnelTracker>(),
     );

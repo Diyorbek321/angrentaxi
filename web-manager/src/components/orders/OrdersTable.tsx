@@ -1,196 +1,215 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, ChevronRight, Eye, Inbox } from 'lucide-react';
+import { CalendarCheck, Eye } from 'lucide-react';
 import { Order, PaginatedResponse } from '@/lib/api';
-import { PAYMENT_METHOD_LABELS } from '@/lib/constants';
+import { paymentMethodLabels } from '@/lib/constants';
 import { OrderStatusBadge } from './OrderStatusBadge';
+import { Badge } from '@/components/ui/Badge';
+import { serviceTypeLabel } from '@/lib/intercity';
 import { Button } from '@/components/ui/Button';
-import { Avatar } from '@/components/ui/Avatar';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { SkeletonTable } from '@/components/ui/Skeleton';
-import { formatDateTime, formatMoney, formatMoneyApprox, formatPhone, shortId } from '@/lib/format';
+import { IconButton } from '@/components/ui/IconButton';
+import { Tooltip } from '@/components/ui/Tooltip';
+import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
+import { MoneyText } from '@/components/ui/MoneyText';
+import { PlateNumber } from '@/components/ui/PlateNumber';
+import type { EmptyStateProps } from '@/components/ui/EmptyState';
+import { formatDateTime, formatPhone, nameFallback, shortId } from '@/lib/format';
+import { t } from '@/locales';
+
+export const ORDERS_PAGE_SIZES = [20, 50, 100] as const;
 
 interface OrdersTableProps {
   data: PaginatedResponse<Order>;
   currentPage: number;
   onPageChange: (page: number) => void;
+  pageSize: number;
+  onPageSizeChange: (size: number) => void;
   isLoading?: boolean;
+  /** Failure of the latest request; rows already on screen stay visible. */
+  error?: string | null;
+  onRetry?: () => void | Promise<void>;
   /** Shown in the empty state when filters are active. */
   hasFilters?: boolean;
   onClearFilters?: () => void;
+  /** True when the only active filter is the "Bugun" date preset. */
+  isTodayView?: boolean;
 }
 
-const HEADERS = [
-  'Buyurtma',
-  'Mijoz',
-  'Olib ketish',
-  'Tashlab ketish',
-  'Status',
-  'Haydovchi',
-  'Toʻlov',
-  'Narx',
-  'Sana',
-  '',
-];
+function OrderPrice({ order }: { order: Order }) {
+  if (order.finalPrice != null) return <MoneyText value={order.finalPrice} className="font-medium text-ink" />;
+  if (order.estimatedPrice > 0) return <MoneyText value={order.estimatedPrice} approx className="text-ink" />;
+  return <span className="text-subtle">—</span>;
+}
 
 export function OrdersTable({
   data,
   currentPage,
   onPageChange,
+  pageSize,
+  onPageSizeChange,
   isLoading = false,
+  error = null,
+  onRetry,
   hasFilters = false,
   onClearFilters,
+  isTodayView = false,
 }: OrdersTableProps) {
+  const m = t().orders.table;
   const router = useRouter();
+  const open = (order: Order) => router.push(`/orders/${order.id}`);
 
-  if (isLoading) {
-    return <SkeletonTable rows={8} cols={6} />;
-  }
+  // Meaningful default sort: newest first, guaranteed client-side even if
+  // the backend's ordering ever drifts.
+  const rows = useMemo(
+    () =>
+      [...data.data].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      ),
+    [data.data]
+  );
 
-  if (data.data.length === 0) {
-    return (
-      <EmptyState
-        icon={<Inbox size={22} />}
-        title={hasFilters ? 'Filtrga mos buyurtma topilmadi' : 'Buyurtmalar yoʻq'}
-        description={
-          hasFilters
-            ? 'Qidiruv soʻzini yoki status filtrini oʻzgartirib koʻring.'
-            : 'Yangi buyurtmalar shu roʻyxatda paydo boʻladi.'
-        }
-        action={
-          hasFilters && onClearFilters ? (
-            <Button variant="secondary" size="sm" onClick={onClearFilters}>
-              Filtrlarni tozalash
-            </Button>
-          ) : undefined
-        }
-      />
-    );
-  }
+  // First column is the human identifier (customer) — the mono order id
+  // rides inside that cell as a sub-line, not as its own column.
+  const columns: DataTableColumn<Order>[] = [
+    {
+      key: 'customer',
+      header: m.customer,
+      cell: (o) => (
+        <div className="min-w-0">
+          <p className="text-ink font-medium truncate">{o.passenger?.name || m.customer}</p>
+          <p className="text-subtle text-xs whitespace-nowrap">
+            <span className="font-mono">{shortId(o.id)}</span>
+            <span className="num"> · {formatPhone(o.passenger?.phone)}</span>
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: 'route',
+      header: m.route,
+      className: 'max-w-[260px]',
+      hideBelow: 'md',
+      cell: (o) => (
+        <div className="min-w-0">
+          {o.serviceType === 'intercity' && (
+            <Badge size="sm" variant="info" className="mb-0.5">
+              {serviceTypeLabel(o.serviceType)}
+            </Badge>
+          )}
+          <p className="text-ink truncate">{o.pickupAddress ?? '—'}</p>
+          <p className="text-muted truncate text-xs">→ {o.dropoffAddress ?? '—'}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      header: m.status,
+      cell: (o) => <OrderStatusBadge status={o.status} size="sm" dot />,
+    },
+    {
+      key: 'driver',
+      header: m.driver,
+      hideBelow: 'xl',
+      cell: (o) =>
+        o.driver ? (
+          <div className="min-w-0 flex items-center gap-2">
+            <span className="text-ink truncate">{o.driver.name || nameFallback()}</span>
+            <PlateNumber plate={o.driver.carNumber} className="shrink-0" />
+          </div>
+        ) : (
+          <span className="text-subtle">—</span>
+        ),
+    },
+    {
+      key: 'payment',
+      header: m.payment,
+      hideBelow: '2xl',
+      cell: (o) => <span className="text-muted whitespace-nowrap">{paymentMethodLabels()[o.paymentMethod]}</span>,
+    },
+    { key: 'price', header: m.price, numeric: true, cell: (o) => <OrderPrice order={o} /> },
+    {
+      key: 'createdAt',
+      header: m.date,
+      hideBelow: 'xl',
+      className: 'num text-muted whitespace-nowrap',
+      cell: (o) => formatDateTime(o.createdAt),
+    },
+    {
+      key: 'actions',
+      header: <span className="sr-only">{m.actions}</span>,
+      align: 'right',
+      width: 'w-12',
+      // Icon-only: a labelled "Koʻrish" button cost ~110px and clipped the
+      // table at 1440. The whole row opens the order too; the button keeps
+      // the keyboard/screen-reader path with the same accessible name.
+      cell: (o) => (
+        <Tooltip content={m.view} side="left">
+          <IconButton
+            size="sm"
+            title=""
+            aria-label={m.viewOrder}
+            onClick={(e) => {
+              e.stopPropagation();
+              open(o);
+            }}
+          >
+            <Eye aria-hidden />
+          </IconButton>
+        </Tooltip>
+      ),
+    },
+  ];
 
-  const from = (currentPage - 1) * data.limit + 1;
-  const to = Math.min(currentPage * data.limit, data.total);
+  // Three different empties, not one generic void: filtered-to-empty offers
+  // Clear filters; the today preset is a calm positive; first-use explains.
+  const empty: EmptyStateProps = hasFilters
+    ? {
+        variant: 'no-results',
+        title: m.emptyFilteredTitle,
+        description: m.emptyFilteredHint,
+        onClearFilters,
+      }
+    : isTodayView
+    ? {
+        variant: 'cleared',
+        icon: <CalendarCheck aria-hidden />,
+        title: m.emptyTodayTitle,
+        description: m.emptyTodayHint,
+        action: onClearFilters ? (
+          <Button variant="secondary" size="sm" onClick={onClearFilters}>
+            {m.showAllHistory}
+          </Button>
+        ) : undefined,
+      }
+    : {
+        variant: 'first-use',
+        title: m.emptyTitle,
+        description: m.emptyHint,
+      };
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="overflow-x-auto rounded-xl border border-line bg-surface">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-surface-2 text-subtle uppercase text-[10px] tracking-wider">
-            <tr>
-              {HEADERS.map((h, i) => (
-                <th key={i} className="px-4 py-3 font-semibold whitespace-nowrap">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line">
-            {data.data.map((order) => (
-              <tr
-                key={order.id}
-                onClick={() => router.push(`/orders/${order.id}`)}
-                className="hover:bg-surface-2/70 transition-colors cursor-pointer"
-              >
-                <td className="px-4 py-3 font-mono text-xs font-semibold text-muted whitespace-nowrap">
-                  {shortId(order.id)}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Avatar name={order.passenger?.name} size="xs" tone="muted" />
-                    <div className="min-w-0">
-                      <p className="text-ink font-medium truncate">
-                        {order.passenger?.name ?? '—'}
-                      </p>
-                      <p className="text-subtle text-[11px] font-mono">
-                        {formatPhone(order.passenger?.phone)}
-                      </p>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-4 py-3 max-w-[170px]">
-                  <p className="text-muted truncate text-xs">{order.pickupAddress ?? '—'}</p>
-                </td>
-                <td className="px-4 py-3 max-w-[170px]">
-                  <p className="text-muted truncate text-xs">{order.dropoffAddress ?? '—'}</p>
-                </td>
-                <td className="px-4 py-3">
-                  <OrderStatusBadge status={order.status} size="sm" dot />
-                </td>
-                <td className="px-4 py-3">
-                  {order.driver ? (
-                    <div className="min-w-0">
-                      <p className="text-ink text-xs font-medium truncate">{order.driver.name}</p>
-                      <p className="text-subtle text-[11px] font-mono">{order.driver.carNumber}</p>
-                    </div>
-                  ) : (
-                    <span className="text-subtle text-xs">—</span>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-muted text-xs whitespace-nowrap">
-                  {PAYMENT_METHOD_LABELS[order.paymentMethod]}
-                </td>
-                <td className="px-4 py-3 text-ink text-xs font-mono font-medium whitespace-nowrap">
-                  {order.finalPrice != null
-                    ? formatMoney(order.finalPrice)
-                    : order.estimatedPrice > 0
-                    ? formatMoneyApprox(order.estimatedPrice)
-                    : '—'}
-                </td>
-                <td className="px-4 py-3 text-muted text-xs whitespace-nowrap">
-                  {formatDateTime(order.createdAt)}
-                </td>
-                <td className="px-4 py-3">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      router.push(`/orders/${order.id}`);
-                    }}
-                    leftIcon={<Eye size={14} />}
-                    aria-label="Buyurtmani koʻrish"
-                  >
-                    <span className="hidden lg:inline">Koʻrish</span>
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
-        <p className="text-xs">
-          <span className="font-mono">
-            {from}–{to}
-          </span>{' '}
-          / jami <span className="font-mono">{data.total}</span> buyurtma
-        </p>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage <= 1}
-            leftIcon={<ChevronLeft size={14} />}
-          >
-            Oldingi
-          </Button>
-          <span className="px-3 py-1.5 text-xs font-mono bg-surface-2 border border-line rounded-lg text-muted">
-            {currentPage} / {Math.max(1, data.totalPages)}
-          </span>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage >= data.totalPages}
-            rightIcon={<ChevronRight size={14} />}
-          >
-            Keyingi
-          </Button>
-        </div>
-      </div>
-    </div>
+    <DataTable
+      ariaLabel={t().orders.list.title}
+      columns={columns}
+      rows={rows}
+      rowKey={(o) => o.id}
+      loading={isLoading}
+      error={error}
+      onRetry={onRetry}
+      empty={empty}
+      onRowClick={open}
+      maxHeightClassName="max-h-[calc(100vh-260px)]"
+      pagination={{
+        page: currentPage,
+        totalPages: Math.max(1, data.totalPages),
+        total: data.total,
+        pageSize,
+        onPageChange,
+        onPageSizeChange,
+        pageSizeOptions: ORDERS_PAGE_SIZES,
+      }}
+    />
   );
 }

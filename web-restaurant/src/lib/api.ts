@@ -1,5 +1,11 @@
 import axios from 'axios';
 import { attachAuthInterceptor } from './session';
+import { getLocale } from './i18n/core';
+import { t } from '@/locales';
+import type { DeliveryInfo } from './courier';
+import type { VendorWalletSettlement } from './vendor-cash';
+import type { OrderV5Fields } from './order-extras';
+import type { DiscountType, Promotion, PromotionPayload } from './promotions';
 
 /**
  * Requests go to this app's own /api/proxy, not to the backend directly. The
@@ -22,6 +28,13 @@ const api = axios.create({
 // Handles 401 -> single-flight refresh -> retry. See lib/session.ts for why the
 // refresh must never run more than once at a time.
 attachAuthInterceptor(api);
+
+// Server xatolari panel tilida (brauzer tilidan qat'i nazar): backend faqat
+// aniq `uz` / `ru` qiymatini qabul qiladi (common/i18n/error-messages.ts).
+api.interceptors.request.use((config) => {
+  config.headers.set('Accept-Language', getLocale());
+  return config;
+});
 
 export default api;
 
@@ -66,7 +79,7 @@ export const authApi = {
       | null;
 
     if (!res.ok || !payload?.data?.user) {
-      throw new Error(payload?.message || "Noto'g'ri kod");
+      throw new Error(payload?.message || t().api.wrongCodeClient);
     }
 
     return payload.data.user;
@@ -112,6 +125,10 @@ export interface Restaurant {
   commissionRate: number;
   notifications: Notifications;
   status: RestaurantStatus;
+  /** STIR (9 raqam) — fiskal chekda komitent sifatida (docs/LEGAL-COMPLIANCE.md §3). */
+  tin?: string | null;
+  /** Muqova rasmi kaliti (`lib/catalog-image.ts`); faqat o'qish — rasm alohida endpoint orqali. */
+  imageKey?: string | null;
 }
 
 export interface MenuCategory {
@@ -132,13 +149,18 @@ export interface Dish {
   isAvailable: boolean;
   tags: string[];
   /**
-   * Taom rasmi. Backend `dishes` jadvalida hozircha bunday ustun YO'Q,
-   * shuning uchun maydon ixtiyoriy va faqat O'QISH uchun: menyu kartochkasi
-   * rasm kelsa uni ko'rsatadi, kelmasa dekorativ o'rin egallovchi chizadi.
-   * ⚠️ Bu maydonni PATCH/POST tanasiga QO'SHMANG — backend
+   * Taom rasmi kaliti (`catalog/<uuid>.jpg`), `catalogImageSrc` bilan
+   * manzilga aylanadi. Faqat O'QISH: rasm `uploadDishImage`/`removeDishImage`
+   * orqali o'zgaradi. ⚠️ PATCH/POST tanasiga QO'SHMANG — backend
    * `forbidNonWhitelisted` bilan ishlaydi va noma'lum maydon 400 qaytaradi.
    */
-  imageUrl?: string | null;
+  imageKey?: string | null;
+  /**
+   * Faol aksiya qo'llangandagi narx (spec v5 §4) — vendor menyu API'si
+   * qaytarsa. Faqat O'QISH; PATCH/POST tanasiga qo'shmang.
+   */
+  finalPrice?: number | null;
+  discount?: { title: string; discountType: DiscountType; discountValue: number } | null;
 }
 
 export interface FoodOrderItem {
@@ -147,9 +169,13 @@ export interface FoodOrderItem {
   qty: number;
   price: number;
   prepMinutes: number;
+  /** v5: asl narx va aksiya chegirmasi (birlik uchun), bo'lsa. */
+  unitPrice?: number | null;
+  discountAmount?: number | null;
 }
 
-export interface FoodOrder {
+/** v5: manzil tafsilotlari, promokod/aksiya chegirmasi, mijoz bekor qilgani — lib/order-extras.ts. */
+export interface FoodOrder extends OrderV5Fields {
   id: string;
   restaurantId: string;
   customerId: string;
@@ -164,6 +190,21 @@ export interface FoodOrder {
   createdAt: string;
   updatedAt: string;
   customer?: { firstName: string | null; lastName: string | null; phone: string };
+  /** Courier ride, once the order reached "ready". See lib/courier.ts. */
+  /** Platforma kuryeri safari — bo'lsa "yetkazildi"ni faqat kuryer qiladi. */
+  deliveryOrderId?: string | null;
+  delivery?: DeliveryInfo | null;
+  /** Naqd buyurtma: kuryer tovar pulini toʻladi / sotuvchi qarori (lib/vendor-cash.ts). */
+  vendorCashPaidAt?: string | null;
+  vendorCashConfirmedAt?: string | null;
+  vendorCashDisputedAt?: string | null;
+  vendorCashDisputeResolvedAt?: string | null;
+  vendorCashDisputeResolution?: string | null;
+  /** Hamyon rejimi: kuryer hamyonidan o'tkazilgan payt (lib/vendor-cash.ts). */
+  vendorWalletSettledAt?: string | null;
+  /** O'tkazma summalari, o'tkazma PAYTIDA saqlangan (§22); `null` — hamyon orqali o'tkazilmagan. */
+  vendorWalletSettlement?: VendorWalletSettlement | null;
+  vendorWalletReversalCount?: number;
 }
 
 export interface DashboardData {
@@ -196,16 +237,35 @@ export interface ReportsData {
   };
 }
 
+// ─── Platforma sozlamalari ─────────────────────────────────────────
+
+export const settingsApi = {
+  /** Hisob-kitob rejimi (amaldagi) va hamyonga o'tish sanasi — lib/vendor-settlement.ts. */
+  getPublic: () => api.get<ApiResponse<unknown>>('/settings/public'),
+};
+
 // ─── Vendor API ────────────────────────────────────────────────────
 
 export const foodApi = {
   getRestaurant: () => api.get<ApiResponse<Restaurant>>('/food/vendor/restaurant'),
   updateRestaurant: (
     data: Partial<
-      Pick<Restaurant, 'name' | 'phone' | 'address' | 'lat' | 'lng' | 'hours' | 'deliveryRadiusKm' | 'commissionRate' | 'notifications'>
+      Pick<Restaurant, 'name' | 'phone' | 'address' | 'lat' | 'lng' | 'hours' | 'deliveryRadiusKm' | 'commissionRate' | 'notifications' | 'tin'>
     >
   ) => api.patch<ApiResponse<Restaurant>>('/food/vendor/restaurant', data),
   toggleOpen: () => api.patch<ApiResponse<Restaurant>>('/food/vendor/restaurant/toggle-open'),
+
+  /**
+   * Rasmlar — multipart. Content-Type ATAYLAB `multipart/form-data`:
+   * instansiyaning standart `application/json` sarlavhasi bilan axios
+   * FormData'ni JSON'ga aylantirib yuborardi. Brauzer boundary'ni o'zi qo'shadi.
+   * Almashtirilganda eski rasm serverda o'chadi.
+   */
+  uploadRestaurantImage: (form: FormData) =>
+    api.put<ApiResponse<Restaurant>>('/food/vendor/restaurant/image', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  removeRestaurantImage: () => api.delete<ApiResponse<Restaurant>>('/food/vendor/restaurant/image'),
 
   getDashboard: () => api.get<ApiResponse<DashboardData>>('/food/vendor/dashboard'),
   getReports: (range: 7 | 30) =>
@@ -240,6 +300,11 @@ export const foodApi = {
     }>
   ) => api.patch<ApiResponse<Dish>>(`/food/vendor/dishes/${id}`, data),
   deleteDish: (id: string) => api.delete<ApiResponse<{ deleted: boolean }>>(`/food/vendor/dishes/${id}`),
+  uploadDishImage: (id: string, form: FormData) =>
+    api.put<ApiResponse<Dish>>(`/food/vendor/dishes/${id}/image`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  removeDishImage: (id: string) => api.delete<ApiResponse<Dish>>(`/food/vendor/dishes/${id}/image`),
 
   getOrders: () => api.get<ApiResponse<FoodOrder[]>>('/food/vendor/orders'),
   getOrder: (id: string) => api.get<ApiResponse<FoodOrder>>(`/food/vendor/orders/${id}`),
@@ -247,4 +312,18 @@ export const foodApi = {
   advanceOrder: (id: string) => api.patch<ApiResponse<FoodOrder>>(`/food/vendor/orders/${id}/advance`),
   rejectOrder: (id: string, reason: string) =>
     api.patch<ApiResponse<FoodOrder>>(`/food/vendor/orders/${id}/reject`, { reason }),
+  redispatchOrder: (id: string) => api.post<ApiResponse<FoodOrder>>(`/food/vendor/orders/${id}/redispatch`),
+  /** Naqd: kuryerdan tovar puli olindimi. `false` — dispetcherga nizo. */
+  cashReceived: (id: string, received: boolean) =>
+    api.patch<ApiResponse<{ ok: true }>>(`/food/vendor/orders/${id}/cash-received`, { received }),
+};
+
+// ─── Aksiyalar (spec v5 §4) ────────────────────────────────────────
+
+export const promotionsApi = {
+  list: () => api.get<ApiResponse<Promotion[]>>('/food/vendor/promotions'),
+  create: (data: PromotionPayload) => api.post<ApiResponse<Promotion>>('/food/vendor/promotions', data),
+  update: (id: string, data: Partial<PromotionPayload>) =>
+    api.patch<ApiResponse<Promotion>>(`/food/vendor/promotions/${id}`, data),
+  remove: (id: string) => api.delete<ApiResponse<{ deleted: boolean }>>(`/food/vendor/promotions/${id}`),
 };

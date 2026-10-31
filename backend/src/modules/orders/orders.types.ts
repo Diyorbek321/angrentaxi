@@ -14,8 +14,20 @@ export interface PaginatedOrders {
 export interface DriverEarningsPeriod {
   gross: number;
   commission: number;
+  /** 1% soliq agenti ushlab qolgani (`tax_withholding` qatorlari). */
+  taxWithheld: number;
+  /** Davrda BOSHLANGAN smenalar narxi (bekor qilinganlarsiz). */
+  shiftPassCost: number;
+  /**
+   * gross − commission − taxWithheld − shiftPassCost. Chaqiq (tips) KIRMAYDI —
+   * eski mijozlar uchun ma'no o'zgarmagan.
+   */
   net: number;
   trips: number;
+  /** Davrdagi yakunlangan safarlar chaqiqlari (`orders.tip_amount`), komissiyasiz. */
+  tips: number;
+  /** net + tips — haydovchining jami sof tushumi (naqd qo'lda + hamyonga). */
+  netWithTips: number;
 }
 
 export interface DriverEarningsBreakdown {

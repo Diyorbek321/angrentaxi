@@ -1,0 +1,55 @@
+{
+  "_comment": "Navigatsiya ovoz bo'laklari katalogi — YAGONA MANBA. ManeuverPhrases.voiceClipsFor faqat shu id'larni qaytaradi (test bilan qo'riqlanadi), tool/generate_voice_clips.py esa matnni ARB'dan olib, har biri uchun assets/voice/<til>/<id>.mp3 yaratadi.",
+  "languages": {
+    "uz": "uz-UZ-MadinaNeural",
+    "ru": "ru-RU-SvetlanaNeural"
+  },
+  "clips": [
+    {
+      "id": "shManeuverArrive",
+      "arb": "shManeuverArrive"
+    },
+    {
+      "id": "shManeuverUturn",
+      "arb": "shManeuverUturn"
+    },
+    {
+      "id": "shManeuverSharpRight",
+      "arb": "shManeuverSharpRight"
+    },
+    {
+      "id": "shManeuverRight",
+      "arb": "shManeuverRight"
+    },
+    {
+      "id": "shManeuverLeft",
+      "arb": "shManeuverLeft"
+    },
+    {
+      "id": "shManeuverSharpLeft",
+      "arb": "shManeuverSharpLeft"
+    },
+    {
+      "id": "shManeuverRerouting",
+      "arb": "shManeuverRerouting"
+    },
+    {
+      "id": "dist_500",
+      "arb": "shManeuverInDistance",
+      "meters": 500,
+      "part": "prefix"
+    },
+    {
+      "id": "dist_100",
+      "arb": "shManeuverInDistance",
+      "meters": 100,
+      "part": "prefix"
+    },
+    {
+      "id": "arrive_in",
+      "arb": "shManeuverArriveIn",
+      "meters": 0,
+      "part": "suffix"
+    }
+  ]
+}

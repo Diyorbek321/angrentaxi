@@ -1,9 +1,10 @@
 import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
+import 'package:angren_taxi/shared/widgets/app_vector_map.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -52,7 +53,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
       if (!mounted) return;
       if (placemarks.isEmpty) {
         setState(() {
-          _address = "Noma'lum manzil";
+          _address = AppL10n.current.paxUnknownAddress;
           _resolving = false;
         });
         return;
@@ -63,13 +64,13 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
           .where((e) => e != null && e.isNotEmpty)
           .join(', ');
       setState(() {
-        _address = addr.isEmpty ? "Noma'lum manzil" : addr;
+        _address = addr.isEmpty ? AppL10n.current.paxUnknownAddress : addr;
         _resolving = false;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _address = "Manzilni aniqlab bo'lmadi";
+        _address = AppL10n.current.paxAddressResolveFailed;
         _resolving = false;
       });
     }
@@ -78,7 +79,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   void _confirm() {
     Navigator.of(context).pop(
       OrderLocation(
-        address: _address ?? "Noma'lum manzil",
+        address: _address ?? context.l10n.paxUnknownAddress,
         lat: _center.latitude,
         lng: _center.longitude,
       ),
@@ -92,25 +93,15 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
       body: Stack(
         alignment: Alignment.center,
         children: [
-          FlutterMap(
-            options: MapOptions(
-              initialCenter: _center,
-              initialZoom: 16,
-              onMapEvent: (event) {
-                if (event is MapEventMoveEnd) {
-                  _resolveAddress(event.camera.center);
-                  _center = event.camera.center;
-                } else if (event is MapEventMove) {
-                  _center = event.camera.center;
-                }
-              },
-            ),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'uz.angren.taxi',
-              ),
-            ],
+          AppVectorMap(
+            initialCenter: _center,
+            initialZoom: 16,
+            // Xarita to'xtaganda markazdagi nuqta manzilga aylantiriladi —
+            // pin qimirlamaydi, xarita uning ostida suriladi.
+            onCameraIdle: (center) {
+              _center = center;
+              _resolveAddress(center);
+            },
           ),
           // Fixed pin — the map moves under it, not the other way around.
           const Padding(
@@ -128,7 +119,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                 padding: const EdgeInsets.all(kSpace4),
                 child: _CircleButton(
                   icon: Icons.arrow_back_rounded,
-                  semanticsLabel: 'Orqaga',
+                  semanticsLabel: context.l10n.paxBack,
                   onTap: () => Navigator.of(context).pop(),
                 ),
               ),
@@ -176,7 +167,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
               const SizedBox(width: kSpace3),
               Expanded(
                 child: Text(
-                  _resolving ? 'Manzil aniqlanmoqda...' : (_address ?? ''),
+                  _resolving ? context.l10n.paxResolvingAddress : (_address ?? ''),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -190,7 +181,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
           ),
           const SizedBox(height: kSpace5),
           AppButton(
-            label: 'Shu joyni tanlash',
+            label: context.l10n.paxPickThisPlace,
             isEnabled: !_resolving,
             onPressed: _resolving ? null : _confirm,
           ),

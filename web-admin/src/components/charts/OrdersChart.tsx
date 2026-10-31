@@ -1,100 +1,51 @@
 'use client';
 
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from 'recharts';
-import { format, parseISO } from 'date-fns';
-import { RevenueDataPoint } from '@/lib/api';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Skeleton } from '@/components/ui/Skeleton';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { CHART_COLORS } from '@/lib/chart-tokens';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import type { RevenueDataPoint } from '@/lib/api';
+import { formatNumber } from '@/lib/format';
+import { CHART_BAR_MAX_PX, CHART_COLORS, CHART_HEIGHT_PX } from '@/lib/chart-tokens';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { ChartCard } from './ChartCard';
+import { t } from '@/locales';
+import { formatAxisDate } from './axis';
 
 interface OrdersChartProps {
   data: RevenueDataPoint[];
   isLoading?: boolean;
+  description?: string;
 }
 
-const formatAxisDate = (dateStr: string) => {
-  try {
-    return format(parseISO(dateStr), 'dd.MM');
-  } catch {
-    return dateStr;
-  }
-};
-
-export function OrdersChart({ data, isLoading }: OrdersChartProps) {
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Buyurtmalar soni</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {/* Spinner emas — diagramma shakliga mos skeleton. */}
-          <Skeleton className="h-[300px] w-full rounded-ds-md" />
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!data || data.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Buyurtmalar soni</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <EmptyState
-            compact
-            title="Maʼlumot yoʻq"
-            description="Tanlangan davr uchun buyurtma maʼlumoti topilmadi."
-          />
-        </CardContent>
-      </Card>
-    );
-  }
-
+/** Orders per day — length encodes quantity; horizontal grid only. */
+export function OrdersChart({ data, isLoading, description }: OrdersChartProps) {
+  const reducedMotion = useReducedMotion();
+  const m = t().dashboard.chart;
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Buyurtmalar soni</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={data} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis
-              dataKey="date"
-              tickFormatter={formatAxisDate}
-              tick={{ fontSize: 12 }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-            <Tooltip
-              formatter={(value: number) => [value, 'Buyurtmalar']}
-              labelFormatter={formatAxisDate}
-              cursor={{ fill: 'rgba(16,160,100,0.08)' }}
-            />
-            <Legend />
-            <Bar
-              dataKey="orders"
-              name="Buyurtmalar"
-              fill={CHART_COLORS.primary}
-              radius={[4, 4, 0, 0]}
-              maxBarSize={40}
-            />
-          </BarChart>
-        </ResponsiveContainer>
-      </CardContent>
-    </Card>
+    <ChartCard title={m.ordersTitle} description={description} isLoading={isLoading} points={data?.length ?? 0}>
+      <ResponsiveContainer width="100%" height={CHART_HEIGHT_PX}>
+        <BarChart data={data} margin={{ top: 4, right: 4, left: -12, bottom: 0 }}>
+          <CartesianGrid vertical={false} />
+          <XAxis dataKey="date" tickFormatter={formatAxisDate} axisLine={false} tickLine={false} />
+          <YAxis
+            allowDecimals={false}
+            tickFormatter={(v: number) => formatNumber(v)}
+            axisLine={false}
+            tickLine={false}
+            width={44}
+          />
+          <Tooltip
+            formatter={(value: number) => [formatNumber(value), m.ordersSeries]}
+            labelFormatter={formatAxisDate}
+          />
+          <Bar
+            dataKey="orders"
+            name={m.ordersSeries}
+            fill={CHART_COLORS.primary}
+            radius={[3, 3, 0, 0]}
+            maxBarSize={CHART_BAR_MAX_PX}
+            isAnimationActive={!reducedMotion}
+          />
+        </BarChart>
+      </ResponsiveContainer>
+    </ChartCard>
   );
 }

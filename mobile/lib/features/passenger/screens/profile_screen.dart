@@ -1,8 +1,12 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
+import 'package:angren_taxi/features/auth/widgets/account_legal_actions.dart';
+import 'package:angren_taxi/features/lost_items/screens/lost_items_screen.dart';
 import 'package:angren_taxi/features/passenger/screens/edit_profile_screen.dart';
+import 'package:angren_taxi/features/superapp/screens/notifications_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/support_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/wallet_screen.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:flutter/material.dart';
@@ -14,67 +18,74 @@ class PassengerProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Profil')),
-      body: Consumer<AuthProvider>(
-        builder: (context, auth, _) {
-          final user = auth.currentUser;
-          if (user == null) return const SizedBox.shrink();
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(kSpace5),
-            child: Column(
-              children: [
-                _buildAvatar(user.displayName),
-                const SizedBox(height: kSpace5),
-                Text(
-                  user.displayName,
-                  style: const TextStyle(
-                    fontSize: kFontH1,
-                    fontWeight: FontWeight.w800,
-                    color: kInk,
+      appBar: AppBar(title: Text(context.l10n.paxProfileTitle)),
+      body: SafeArea(
+        top: false,
+        child: Consumer<AuthProvider>(
+          builder: (context, auth, _) {
+            final user = auth.currentUser;
+            if (user == null) return const SizedBox.shrink();
+  
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(kSpace5),
+              child: Column(
+                children: [
+                  _buildAvatar(user.displayName),
+                  const SizedBox(height: kSpace5),
+                  Text(
+                    user.displayName,
+                    style: const TextStyle(
+                      fontSize: kFontH1,
+                      fontWeight: FontWeight.w800,
+                      color: kInk,
+                    ),
                   ),
-                ),
-                const SizedBox(height: kSpace1),
-                Text(
-                  Formatters.formatPhone(user.phone),
-                  style: const TextStyle(color: kInkMuted),
-                ),
-                if (user.rating != null) ...[
-                  const SizedBox(height: kSpace2),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Yorug' fonda ko'rinishi shart bo'lgan mint —
-                      // kMintDeep (kMint oq ustida atigi 2.12:1).
-                      const ExcludeSemantics(
-                        child: Icon(Icons.star, color: kMintDeep, size: 18),
-                      ),
-                      const SizedBox(width: kSpace1),
-                      Text(
-                        '${Formatters.formatRating(user.rating!)} reyting',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: kInk,
+                  const SizedBox(height: kSpace1),
+                  Text(
+                    Formatters.formatPhone(user.phone),
+                    style: const TextStyle(color: kInkMuted),
+                  ),
+                  if (user.rating != null) ...[
+                    const SizedBox(height: kSpace2),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Yorug' fonda ko'rinishi shart bo'lgan mint —
+                        // kMintDeep (kMint oq ustida atigi 2.12:1).
+                        const ExcludeSemantics(
+                          child: Icon(Icons.star, color: kMintDeep, size: 18),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: kSpace1),
+                        Text(
+                          context.l10n.paxRatingValue(
+                            Formatters.formatRating(user.rating!),
+                          ),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: kInk,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: kSpace8),
+                  _buildStatsRow(context, user.totalTrips ?? 0),
+                  const SizedBox(height: kSpace6),
+                  _buildMenuList(context),
+                  const SizedBox(height: kSpace6),
+                  AppButton(
+                    label: context.l10n.paxLogout,
+                    onPressed: () => _confirmLogout(context, auth),
+                    backgroundColor: kError,
+                    foregroundColor: kOnPrimary,
                   ),
+                  const SizedBox(height: kSpace2),
+                  const AccountLegalActions(),
                 ],
-                const SizedBox(height: kSpace8),
-                _buildStatsRow(user.totalTrips ?? 0),
-                const SizedBox(height: kSpace6),
-                _buildMenuList(context),
-                const SizedBox(height: kSpace6),
-                AppButton(
-                  label: 'Chiqish',
-                  onPressed: () => _confirmLogout(context, auth),
-                  backgroundColor: kError,
-                  foregroundColor: kOnPrimary,
-                ),
-              ],
-            ),
-          );
-        },
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -101,22 +112,14 @@ class PassengerProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatsRow(int totalTrips) {
+  Widget _buildStatsRow(BuildContext context, int totalTrips) {
     return Row(
       children: [
         Expanded(
           child: _StatCard(
             value: totalTrips.toString(),
-            label: 'Sayohatlar',
+            label: context.l10n.paxTripsStat,
             icon: Icons.route,
-          ),
-        ),
-        const SizedBox(width: kSpace3),
-        const Expanded(
-          child: _StatCard(
-            value: '0',
-            label: 'Bonus ball',
-            icon: Icons.star_outline,
           ),
         ),
       ],
@@ -128,33 +131,46 @@ class PassengerProfileScreen extends StatelessWidget {
       children: [
         _buildMenuTile(
           Icons.edit_outlined,
-          'Ma\'lumotlarni tahrirlash',
+          context.l10n.paxEditProfile,
           () => Navigator.of(context).push(
             MaterialPageRoute<void>(builder: (_) => const EditProfileScreen()),
           ),
         ),
         _buildMenuTile(
           Icons.payment_outlined,
-          'To\'lov usullari',
+          context.l10n.paxPaymentMethods,
           () => Navigator.of(context).push(
             MaterialPageRoute<void>(builder: (_) => const WalletScreen()),
           ),
         ),
         _buildMenuTile(
           Icons.notifications_outlined,
-          'Bildirishnomalar',
-          () => _notImplementedYet(context),
+          context.l10n.paxNotifications,
+          // NotificationsScreen is fully API-backed; this used to dead-end in
+          // a "tez kunda" snackbar for a feature that already worked.
+          () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const NotificationsScreen()),
+          ),
+        ),
+        _buildMenuTile(
+          Icons.inventory_2_outlined,
+          context.l10n.paxLostItems,
+          () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const LostItemsScreen(isDriver: false),
+            ),
+          ),
         ),
         _buildMenuTile(
           Icons.help_outline,
-          'Yordam',
+          context.l10n.paxHelp,
           () => Navigator.of(context).push(
             MaterialPageRoute<void>(builder: (_) => const SupportScreen()),
           ),
         ),
         _buildMenuTile(
           Icons.info_outline,
-          'Dastur haqida',
+          context.l10n.paxAbout,
           () => _showAbout(context),
         ),
       ],
@@ -191,12 +207,12 @@ class PassengerProfileScreen extends StatelessWidget {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Chiqishni tasdiqlang'),
-        content: const Text('Hisobdan chiqmoqchimisiz?'),
+        title: Text(context.l10n.paxLogoutConfirmTitle),
+        content: Text(context.l10n.paxLogoutConfirmBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text("Bekor qilish"),
+            child: Text(context.l10n.paxCancel),
           ),
           TextButton(
             onPressed: () {
@@ -204,16 +220,13 @@ class PassengerProfileScreen extends StatelessWidget {
               auth.logout();
             },
             // Yorug' fondagi xato MATNI — kErrorDeep (6.47:1).
-            child: const Text('Chiqish', style: TextStyle(color: kErrorDeep)),
+            child: Text(
+              context.l10n.paxLogout,
+              style: const TextStyle(color: kErrorDeep),
+            ),
           ),
         ],
       ),
-    );
-  }
-
-  void _notImplementedYet(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Bu bo\'lim tez kunda ishga tushadi')),
     );
   }
 

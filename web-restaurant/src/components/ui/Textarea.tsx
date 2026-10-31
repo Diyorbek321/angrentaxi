@@ -1,53 +1,33 @@
-import { forwardRef, TextareaHTMLAttributes, useId } from 'react';
-import { clsx } from 'clsx';
+// AUTO-SYNCED from web-manager — edit there, then run scripts/sync-panel-ui.sh
+'use client';
+
+import { forwardRef, useId, type ReactNode, type TextareaHTMLAttributes } from 'react';
+import { cn } from './cn';
+import { Field, controlBase, controlBorder, describedBy } from './Field';
 
 export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
-  label?: string;
+  label?: ReactNode;
   error?: string;
-  hint?: string;
+  hint?: ReactNode;
+  wrapperClassName?: string;
 }
 
 const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ label, error, hint, className, id, ...props }, ref) => {
-    const autoId = useId();
-    const areaId = id ?? `textarea-${autoId}`;
-    const errorId = `${areaId}-error`;
-    const hintId = `${areaId}-hint`;
-
+  ({ label, error, hint, wrapperClassName, className, id, required, ...props }, ref) => {
+    const auto = useId();
+    const areaId = id ?? auto;
     return (
-      <div className="flex flex-col gap-1.5">
-        {label && (
-          <label htmlFor={areaId} className="text-caption font-semibold text-muted">
-            {label}
-          </label>
-        )}
+      <Field id={areaId} label={label} hint={hint} error={error} required={required} className={wrapperClassName}>
         <textarea
           ref={ref}
           id={areaId}
+          required={required}
           aria-invalid={error ? true : undefined}
-          aria-describedby={error ? errorId : hint ? hintId : undefined}
-          className={clsx(
-            'w-full bg-surface border rounded-ds-sm text-ink placeholder-subtle text-body px-3.5 py-2.5',
-            'transition-colors duration-fast ease-standard resize-y min-h-[76px]',
-            'disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-muted',
-            error
-              ? 'border-danger focus:border-danger'
-              : 'border-line hover:border-line-strong focus:border-primary',
-            className
-          )}
+          aria-describedby={describedBy(areaId, error, hint)}
+          className={cn(controlBase, controlBorder(!!error), 'px-2.5 py-1.5 resize-y min-h-[72px]', className)}
           {...props}
         />
-        {error && (
-          <p id={errorId} className="text-caption text-danger-deep dark:text-danger-light">
-            {error}
-          </p>
-        )}
-        {hint && !error && (
-          <p id={hintId} className="text-caption text-subtle">
-            {hint}
-          </p>
-        )}
-      </div>
+      </Field>
     );
   }
 );

@@ -17,17 +17,21 @@ import { Drawer } from '@/components/ui/Drawer';
 import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { MoneyText } from '@/components/ui/MoneyText';
+import { KeyValue, KeyValueList } from '@/components/ui/KeyValue';
+import { PlateNumber } from '@/components/ui/PlateNumber';
 import { OrderStatusBadge } from '@/components/orders/OrderStatusBadge';
-import { PAYMENT_METHOD_LABELS } from '@/lib/constants';
+import { DeliveryExtrasContent, deliveryExtras } from '@/components/orders/DeliveryExtras';
+import { paymentMethodLabels } from '@/lib/constants';
 import {
   formatDateTime,
-  formatMoney,
-  formatMoneyApprox,
   formatPhone,
   formatRating,
   formatRelative,
+  nameFallback,
   shortId,
 } from '@/lib/format';
+import { t } from '@/locales';
 
 const HISTORY_LIMIT = 5;
 
@@ -42,7 +46,7 @@ function Section({
 }) {
   return (
     <section>
-      <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-subtle mb-2">
+      <h3 className="flex items-center gap-1.5 text-micro uppercase text-subtle mb-2">
         <span className="text-muted">{icon}</span>
         {title}
       </h3>
@@ -51,19 +55,11 @@ function Section({
   );
 }
 
-function Row({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex items-start justify-between gap-3 py-1.5 text-sm">
-      <span className="text-muted shrink-0">{label}</span>
-      <span className="text-ink text-right min-w-0 break-words">{value}</span>
-    </div>
-  );
-}
-
 /** Passenger's recent orders, so the operator has context before calling. */
 function PassengerHistory({ order }: { order: Order }) {
   const [history, setHistory] = useState<Order[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const m = t().dispatch.orderDrawer;
 
   useEffect(() => {
     let cancelled = false;
@@ -91,7 +87,7 @@ function PassengerHistory({ order }: { order: Order }) {
   }, [order.id, order.passenger?.phone]);
 
   if (failed) {
-    return <p className="text-xs text-subtle">Mijoz tarixini yuklab boʻlmadi.</p>;
+    return <p className="text-xs text-subtle">{m.historyFailed}</p>;
   }
 
   if (history == null) {
@@ -105,11 +101,11 @@ function PassengerHistory({ order }: { order: Order }) {
   }
 
   if (history.length === 0) {
-    return <p className="text-xs text-subtle">Bu mijozning boshqa buyurtmasi topilmadi.</p>;
+    return <p className="text-xs text-subtle">{m.historyEmpty}</p>;
   }
 
   return (
-    <ul className="divide-y divide-line rounded-lg border border-line overflow-hidden">
+    <ul className="divide-y divide-line rounded-ds-xs border border-line overflow-hidden">
       {history.map((h) => (
         <li key={h.id} className="flex items-center gap-2 px-3 py-2 bg-surface">
           <span className="font-mono text-[11px] text-muted shrink-0">{shortId(h.id)}</span>
@@ -137,14 +133,16 @@ interface OrderDetailDrawerProps {
 export function OrderDetailDrawer({ order, isOpen, onClose }: OrderDetailDrawerProps) {
   if (!order) return null;
 
-  const t = order.tariff;
+  const tariff = order.tariff;
+  const m = t().dispatch.orderDrawer;
+  const extras = deliveryExtras(order);
 
   return (
     <Drawer
       isOpen={isOpen}
       onClose={onClose}
       width="lg"
-      title={`Buyurtma ${shortId(order.id)}`}
+      title={m.title(shortId(order.id))}
       subtitle={
         <span className="flex items-center gap-2">
           <OrderStatusBadge status={order.status} size="sm" dot />
@@ -152,42 +150,41 @@ export function OrderDetailDrawer({ order, isOpen, onClose }: OrderDetailDrawerP
         </span>
       }
     >
-      <div className="flex items-center gap-2 rounded-lg border border-line bg-surface-2/60 px-3 py-2">
+      <div className="flex items-center gap-2 rounded-ds-xs border border-line bg-surface-2/60 px-3 py-2">
         <Eye size={14} className="text-muted shrink-0" />
         <p className="text-xs text-muted leading-snug">
-          Faqat koʻrish uchun. Haydovchi tayinlash tizim tomonidan avtomatik bajariladi —
-          aralashuv faqat Istisnolar boʻlimidan yoki kartadagi «Qoʻlda aralashuv» tugmasidan.
+          {m.readOnlyNote}
         </p>
       </div>
 
-      <Section icon={<User size={12} />} title="Mijoz">
-        <div className="rounded-lg border border-line bg-surface px-3 py-2.5 flex items-center gap-3">
+      <Section icon={<User size={12} />} title={m.customer}>
+        <div className="rounded-ds-xs border border-line bg-surface px-3 py-2.5 flex items-center gap-3">
           <Avatar name={order.passenger?.name} size="md" tone="muted" />
           <div className="min-w-0">
             <p className="text-sm font-medium text-ink truncate">
-              {order.passenger?.name ?? 'Mijoz'}
+              {order.passenger?.name || m.customer}
             </p>
-            <p className="font-mono text-xs text-muted">{formatPhone(order.passenger?.phone)}</p>
+            <p className="num text-xs text-muted">{formatPhone(order.passenger?.phone)}</p>
           </div>
           {order.passenger?.phone && (
             <a
               href={`tel:${order.passenger.phone}`}
-              className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-xs text-muted hover:text-ink hover:bg-surface-2 transition-colors"
+              className="ml-auto inline-flex items-center gap-1.5 rounded-ds-xs border border-line px-2.5 py-1.5 text-xs text-muted hover:text-ink hover:bg-surface-2 transition-colors"
             >
               <Phone size={13} />
-              Qoʻngʻiroq
+              {m.call}
             </a>
           )}
         </div>
       </Section>
 
-      <Section icon={<MapPin size={12} />} title="Marshrut">
-        <div className="rounded-lg border border-line bg-surface px-3 py-2.5 space-y-3">
+      <Section icon={<MapPin size={12} />} title={m.route}>
+        <div className="rounded-ds-xs border border-line bg-surface px-3 py-2.5 space-y-3">
           <div className="flex items-start gap-2.5">
             <span className="mt-1 h-2.5 w-2.5 rounded-full bg-mint-deep shrink-0 ring-2 ring-mint/25" />
             <div className="min-w-0">
               <p className="text-sm text-ink">{order.pickupAddress ?? '—'}</p>
-              <p className="font-mono text-[11px] text-subtle">
+              <p className="num text-[11px] text-subtle">
                 {order.pickupLocation?.coordinates
                   ? `${order.pickupLocation.coordinates[1].toFixed(5)}, ${order.pickupLocation.coordinates[0].toFixed(5)}`
                   : '—'}
@@ -198,7 +195,7 @@ export function OrderDetailDrawer({ order, isOpen, onClose }: OrderDetailDrawerP
             <MapPin size={14} className="text-danger mt-0.5 shrink-0" />
             <div className="min-w-0">
               <p className="text-sm text-ink">{order.dropoffAddress ?? '—'}</p>
-              <p className="font-mono text-[11px] text-subtle">
+              <p className="num text-[11px] text-subtle">
                 {order.dropoffLocation?.coordinates
                   ? `${order.dropoffLocation.coordinates[1].toFixed(5)}, ${order.dropoffLocation.coordinates[0].toFixed(5)}`
                   : '—'}
@@ -208,15 +205,15 @@ export function OrderDetailDrawer({ order, isOpen, onClose }: OrderDetailDrawerP
         </div>
       </Section>
 
-      <Section icon={<Car size={12} />} title="Haydovchi">
+      <Section icon={<Car size={12} />} title={m.driver}>
         {order.driver ? (
-          <div className="rounded-lg border border-line bg-surface px-3 py-2.5 flex items-center gap-3">
+          <div className="rounded-ds-xs border border-line bg-surface px-3 py-2.5 flex items-center gap-3">
             <Avatar name={order.driver.name} size="md" />
             <div className="min-w-0">
-              <p className="text-sm font-medium text-ink truncate">{order.driver.name}</p>
+              <p className="text-sm font-medium text-ink truncate">{order.driver.name || nameFallback()}</p>
               <p className="text-xs text-muted truncate">
                 {order.driver.carModel} ·{' '}
-                <span className="font-mono">{order.driver.carNumber}</span>
+                <PlateNumber plate={order.driver.carNumber} />
               </p>
             </div>
             <span className="ml-auto flex items-center gap-1 text-xs text-muted shrink-0">
@@ -225,73 +222,77 @@ export function OrderDetailDrawer({ order, isOpen, onClose }: OrderDetailDrawerP
             </span>
           </div>
         ) : (
-          <div className="rounded-lg border border-dashed border-line px-3 py-3">
+          <div className="rounded-ds-xs border border-dashed border-line px-3 py-3">
             <p className="text-xs text-subtle">
               {order.status === 'searching'
-                ? 'Tizim eng yaqin haydovchini qidirmoqda.'
-                : 'Haydovchi tayinlanmagan.'}
+                ? m.searchingNearest
+                : m.noDriver}
             </p>
           </div>
         )}
       </Section>
 
-      <Section icon={<Receipt size={12} />} title="Narx tafsiloti">
-        <div className="rounded-lg border border-line bg-surface px-3 py-1.5 divide-y divide-line">
-          <Row label="Tarif" value={t?.name ?? '—'} />
-          <Row label="Boshlangʻich narx" value={<span className="font-mono">{formatMoney(t?.basePrice)}</span>} />
-          <Row label="Har km uchun" value={<span className="font-mono">{formatMoney(t?.pricePerKm)}</span>} />
-          <Row label="Har daqiqa uchun" value={<span className="font-mono">{formatMoney(t?.pricePerMin)}</span>} />
-          <Row label="Minimal narx" value={<span className="font-mono">{formatMoney(t?.minPrice)}</span>} />
-          {t?.surgeMultiplier != null && t.surgeMultiplier !== 1 && (
-            <Row
-              label="Oshirilgan koeffitsient"
-              value={<Badge variant="override" size="sm">×{t.surgeMultiplier}</Badge>}
-            />
+      {extras.hasContent && (
+        <Section icon={<MapPin size={12} />} title={m.deliveryDetails}>
+          <DeliveryExtrasContent order={order} />
+        </Section>
+      )}
+
+      <Section icon={<Receipt size={12} />} title={m.priceDetails}>
+        <KeyValueList className="rounded-ds-xs border border-line bg-surface px-3 py-2">
+          <KeyValue label={m.tariff}>{tariff?.name ?? '—'}</KeyValue>
+          <KeyValue label={m.basePrice}><MoneyText value={tariff?.basePrice} /></KeyValue>
+          <KeyValue label={m.perKm}><MoneyText value={tariff?.pricePerKm} /></KeyValue>
+          <KeyValue label={m.perMin}><MoneyText value={tariff?.pricePerMin} /></KeyValue>
+          <KeyValue label={m.minPrice}><MoneyText value={tariff?.minPrice} /></KeyValue>
+          {tariff?.surgeMultiplier != null && tariff.surgeMultiplier !== 1 && (
+            <KeyValue label={m.surge}>
+              <Badge variant="info" size="sm">
+                ×{tariff.surgeMultiplier}
+              </Badge>
+            </KeyValue>
           )}
-          <Row label="Toʻlov turi" value={PAYMENT_METHOD_LABELS[order.paymentMethod]} />
-          <Row
-            label={order.finalPrice != null ? 'Yakuniy narx' : 'Taxminiy narx'}
-            value={
-              <span className="font-mono font-semibold text-ink">
-                {order.finalPrice != null
-                  ? formatMoney(order.finalPrice)
-                  : formatMoneyApprox(order.estimatedPrice)}
-              </span>
-            }
-          />
-        </div>
+          <KeyValue label={m.paymentMethod}>{paymentMethodLabels()[order.paymentMethod]}</KeyValue>
+          <KeyValue label={order.finalPrice != null ? m.finalPrice : m.estimatedPrice}>
+            {order.finalPrice != null ? (
+              <MoneyText value={order.finalPrice} className="font-semibold text-ink" />
+            ) : (
+              <MoneyText value={order.estimatedPrice} approx className="font-semibold text-ink" />
+            )}
+          </KeyValue>
+        </KeyValueList>
       </Section>
 
       {order.note && (
-        <Section icon={<Receipt size={12} />} title="Izoh">
-          <p className="rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-ink whitespace-pre-wrap">
+        <Section icon={<Receipt size={12} />} title={m.note}>
+          <p className="rounded-ds-xs border border-line bg-surface px-3 py-2.5 text-sm text-ink whitespace-pre-wrap">
             {order.note}
           </p>
         </Section>
       )}
 
-      <Section icon={<Clock size={12} />} title="Vaqt belgilari">
-        <div className="rounded-lg border border-line bg-surface px-3 py-1.5 divide-y divide-line">
-          <Row label="Yaratildi" value={<span className="font-mono">{formatDateTime(order.createdAt)}</span>} />
+      <Section icon={<Clock size={12} />} title={m.timestamps}>
+        <KeyValueList className="rounded-ds-xs border border-line bg-surface px-3 py-2">
+          <KeyValue label={m.createdAt}><span className="num">{formatDateTime(order.createdAt)}</span></KeyValue>
           {/* acceptedAt/startedAt/completedAt are not separate columns on the
               backend today — rendered only when the API actually sends them. */}
           {order.acceptedAt && (
-            <Row label="Qabul qilindi" value={<span className="font-mono">{formatDateTime(order.acceptedAt)}</span>} />
+            <KeyValue label={m.acceptedAt}><span className="num">{formatDateTime(order.acceptedAt)}</span></KeyValue>
           )}
           {order.startedAt && (
-            <Row label="Yoʻlga chiqdi" value={<span className="font-mono">{formatDateTime(order.startedAt)}</span>} />
+            <KeyValue label={m.startedAt}><span className="num">{formatDateTime(order.startedAt)}</span></KeyValue>
           )}
           {order.completedAt && (
-            <Row label="Yakunlandi" value={<span className="font-mono">{formatDateTime(order.completedAt)}</span>} />
+            <KeyValue label={m.completedAt}><span className="num">{formatDateTime(order.completedAt)}</span></KeyValue>
           )}
           {order.cancelledAt && (
-            <Row label="Bekor qilindi" value={<span className="font-mono">{formatDateTime(order.cancelledAt)}</span>} />
+            <KeyValue label={m.cancelledAt}><span className="num">{formatDateTime(order.cancelledAt)}</span></KeyValue>
           )}
-          <Row label="Oxirgi yangilanish" value={<span className="font-mono">{formatDateTime(order.updatedAt)}</span>} />
-        </div>
+          <KeyValue label={m.updatedAt}><span className="num">{formatDateTime(order.updatedAt)}</span></KeyValue>
+        </KeyValueList>
       </Section>
 
-      <Section icon={<History size={12} />} title="Mijozning oxirgi buyurtmalari">
+      <Section icon={<History size={12} />} title={m.recentOrders}>
         <PassengerHistory order={order} />
       </Section>
     </Drawer>

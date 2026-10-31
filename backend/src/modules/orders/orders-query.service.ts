@@ -13,12 +13,20 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Order, OrderStatus } from '../../database/entities/order.entity';
+import { Repository, In } from 'typeorm';
+import { Order, OrderStatus, ServiceType } from '../../database/entities/order.entity';
 import { DispatchOverride } from '../../database/entities/dispatch-override.entity';
 import { UserRole } from '../../database/entities/user.entity';
 import { DriversService } from '../drivers/drivers.service';
+import {
+  IntercityContactTrip,
+  redactUnrevealedDriverPhone,
+} from '../intercity/intercity-contact-redaction';
+import { IntercityTripStatus } from '../../database/entities/intercity-trip.entity';
 import { PaginatedOrders } from './orders.types';
+import { Trip } from '../../database/entities/trip.entity';
+import { SCHEDULED_LIST_LIMIT } from './scheduled-orders.constants';
+import { waitingSettingsOf, waitingStartOf } from '../tariffs/waiting-charge';
 
 // Upper bound on the dispatcher board feed (see getActiveOrders). Sized well
 // above any realistic number of simultaneously in-flight orders for a single
@@ -40,6 +48,8 @@ export class OrdersQueryService {
     private readonly orderRepository: Repository<Order>,
     @InjectRepository(DispatchOverride)
     private readonly dispatchOverrideRepository: Repository<DispatchOverride>,
+    @InjectRepository(Trip)
+    private readonly tripRepository: Repository<Trip>,
     private readonly driversService: DriversService,
   ) {}
 
@@ -56,7 +66,8 @@ export class OrdersQueryService {
       relations: ['passenger', 'driver', 'tariff'],
     });
 
-    return { orders: await this.attachDisplayFields(orders), total, page, limit };
+    const shown = await this.redactIntercityContacts(await this.attachDisplayFields(orders));
+    return { orders: shown, total, page, limit };
   }
 
   async getDriverHistory(
@@ -115,6 +126,30 @@ export class OrdersQueryService {
     return this.attachDisplayFields(orders);
   }
 
+  /**
+   * Yo'lovchining kelgusi rejalashtirilgan safarlari (`GET /orders/scheduled`).
+   *
+   * ⚠️ `getActiveOrders` ATAYLAB o'zgarmadi — rejalashtirilgan buyurtma
+   * dispetcher taxtasida ko'rinmaydi. Taxta 200 qator bilan cheklangan va
+   * faqat JONLI safarlar uchun; kelasi haftagacha bo'lgan rejalar uni
+   * bosib ketardi.
+   *
+   * ⚠️ `attachDisplayFields` MAJBURIY: `pickupLocation` ORM orqali opaque
+   * PostGIS geometry bo'lib qaytadi, mobil `Order.fromJson` esa
+   * `json['pickup']` ni kutadi — usiz ro'yxat ekranida null exception.
+   */
+  async getScheduledOrders(passengerId: string): Promise<Order[]> {
+    const orders = await this.orderRepository.find({
+      where: { passengerId, status: OrderStatus.SCHEDULED },
+      // Eng yaqin reja birinchi — ro'yxatning tabiiy o'qilish tartibi.
+      order: { scheduledAt: 'ASC' },
+      take: SCHEDULED_LIST_LIMIT,
+      relations: ['passenger', 'driver', 'tariff'],
+    });
+
+    return this.redactIntercityContacts(await this.attachDisplayFields(orders));
+  }
+
   async findByIdOrThrow(id: string): Promise<Order> {
     const order = await this.orderRepository.findOne({
       where: { id },
@@ -157,7 +192,47 @@ export class OrdersQueryService {
       throw new ForbiddenException('You are not authorized to view this order');
     }
 
+    // Shaharlararo: yo'lovchiga haydovchi telefoni faqat jo'nashga yaqin
+    // ochiladi (haydovchi va menejer o'zgarishsiz ko'radi).
+    if (isPassenger && !isStaff && order.intercityTripId) {
+      const [shown] = await this.redactIntercityContacts([order]);
+      return this.withDeliveryPinIfSender(shown, isPassenger, id);
+    }
+
+    return this.withDeliveryPinIfSender(order, isPassenger, id);
+  }
+
+  // Posilka PIN — faqat yuboruvchiga (u qabul qiluvchiga aytadi). Haydovchi
+  // uni HECH QACHON ko'rmasligi kerak: aks holda tekshiruv ma'nosiz bo'lardi.
+  private async withDeliveryPinIfSender(order: Order, isPassenger: boolean, id: string): Promise<Order> {
+    if (isPassenger && order.serviceType === ServiceType.PARCEL) {
+      const [row] = (await this.orderRepository.query(
+        'SELECT delivery_pin FROM orders WHERE id = $1',
+        [id],
+      )) as Array<{ delivery_pin: string | null }>;
+      return { ...order, deliveryPin: row?.delivery_pin ?? null };
+    }
     return order;
+  }
+
+  /**
+   * Yo'lovchiga qaytadigan ro'yxatlarda shaharlararo bandlarning haydovchi
+   * telefonini yashiradi (`redactUnrevealedDriverPhone`). Bandsiz sahifada
+   * bazaga murojaat yo'q; aks holda bitta `ANY` so'rovi.
+   */
+  private async redactIntercityContacts(orders: Order[], now: Date = new Date()): Promise<Order[]> {
+    const tripIds = [...new Set(orders.map((o) => o.intercityTripId).filter((id): id is string => !!id))];
+    if (tripIds.length === 0) return orders;
+    const rows = (await this.orderRepository.query(
+      `SELECT "id", "status", "departure_at" FROM "intercity_trips" WHERE "id" = ANY($1)`,
+      [tripIds],
+    )) as Array<{ id: string; status: IntercityTripStatus; departure_at: Date | string }>;
+    const tripsById = new Map<string, IntercityContactTrip>(
+      rows.map((row) => [row.id, { status: row.status, departureAt: new Date(row.departure_at) }]),
+    );
+    return orders.map((order) =>
+      redactUnrevealedDriverPhone(order, order.intercityTripId ? tripsById.get(order.intercityTripId) : undefined, now),
+    );
   }
 
   /**
@@ -181,7 +256,7 @@ export class OrdersQueryService {
       );
     }
 
-    const where = status ? { status: status as OrderStatus } : {};
+    const where = status ? { status: status } : {};
     const [orders, total] = await this.orderRepository.findAndCount({
       where,
       order: { createdAt: 'DESC' },
@@ -275,6 +350,25 @@ export class OrdersQueryService {
       }
     }
 
+    // Haqiqiy masofa va davomiylik `trips` da yashaydi.
+    //
+    // ⚠️ MAVJUD XATO TUZATILMOQDA: mobil `Order.fromJson` `distanceKm`,
+    // `durationMin` va `completedAt` ni o'qiydi, lekin ular javobga HECH
+    // QACHON qo'shilmasdi — ya'ni tarix ekranidagi "Masofa" va "Davomiyligi"
+    // qatorlari prodda hech qachon ko'rinmagan. Demo rejimida ko'ringani
+    // uchun bu sezilmay qolgan.
+    //
+    // Bitta `IN` so'rovi — sahifadagi har bir buyurtma uchun alohida emas.
+    const tripByOrderId = new Map<string, Trip>();
+    if (orderIds.length > 0) {
+      const trips = await this.tripRepository.find({
+        where: { orderId: In(orderIds) },
+      });
+      for (const trip of trips) {
+        tripByOrderId.set(trip.orderId, trip);
+      }
+    }
+
     for (const order of orders) {
       if (order.passenger) {
         const passenger = order.passenger as unknown as Record<string, unknown>;
@@ -306,6 +400,38 @@ export class OrdersQueryService {
         lng: coords?.dropoffLng ?? null,
       };
       orderRecord.waypoints = order.waypoints ?? [];
+
+      const trip = tripByOrderId.get(order.id);
+      orderRecord.distanceKm = trip?.actualDistanceKm ?? null;
+      orderRecord.durationMin = trip?.actualDurationMin ?? null;
+      orderRecord.completedAt = order.completedAt ?? null;
+
+      // ⚠️ KUTISH SHARTNOMASI — HAR BIR BUYURTMA JAVOBIDA.
+      //
+      // Uchta maydon birga chiqadi va ular MOBIL ILOVALAR UCHUN YAGONA
+      // MANBA: `arrivedAt` (hisob qachondan boshlanadi), `freeWaitMinutes`
+      // (qachongacha bepul) va `waitingPricePerMinute` (keyin daqiqasiga
+      // qancha). Haydovchi ham, yo'lovchi ham SHU uchtadan hisoblaydi.
+      //
+      // NEGA MUHIM: ilgari kutish hisoblagichi faqat haydovchi ilovasida,
+      // LOKAL edi — ekran ochilganda boshlanardi, ilova qayta ishga tushsa
+      // nolga qaytardi, yo'lovchi esa umuman ko'rmasdi. Ikki tomon har xil
+      // raqam ko'rardi. Endi raqam bitta va u pul bilan bir xil manbadan
+      // (`orders-completion.service.ts` ham aynan shu maydonlardan
+      // hisoblaydi).
+      //
+      // Tarif qiymatlari buyurtma yozuvining o'ziga TEKISLAB qo'yiladi:
+      // mobil `Order.fromJson` ni `order.tariff` ichiga kirishga majburlash
+      // uni tarif munosabati yuklanishiga bog'lab qo'yardi, holbuki ba'zi
+      // javoblarda u yuklanmasligi mumkin.
+      const waiting = waitingSettingsOf(order.tariff ?? {});
+      orderRecord.arrivedAt = order.arrivedAt ?? null;
+      // Kutish hisobi shu lahzadan boshlanadi: rejalashtirilgan safarda erta
+      // kelgan haydovchi uchun — belgilangan vaqtdan (yakuniy narx bilan bir
+      // xil qoida, `waitingStartOf`). Mobil hisoblagich shuni ishlatadi.
+      orderRecord.waitingStartsAt = waitingStartOf(order.arrivedAt, order.scheduledAt) ?? null;
+      orderRecord.freeWaitMinutes = waiting.freeWaitMinutes;
+      orderRecord.waitingPricePerMinute = waiting.waitingPricePerMinute;
     }
 
     return orders;

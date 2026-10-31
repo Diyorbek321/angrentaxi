@@ -3,8 +3,12 @@ import 'dart:async';
 import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/demo/demo_engine.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/core/network/performance_interceptor.dart';
+import 'package:angren_taxi/core/platform/device_identity.dart';
 import 'package:angren_taxi/core/storage/local_storage.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 
 /// Marks a request that has already been replayed after a token refresh, so a
@@ -38,11 +42,15 @@ class ApiClient {
   /// the session entirely.
   Completer<bool>? _refreshInFlight;
 
+  /// [forceLogout] dan keyin chaqiriladi (masalan socketni uzish uchun).
+  final VoidCallback? onForceLogout;
+
   ApiClient(
     this._storage,
     this.navigatorKey, {
     Dio? dio,
     Dio? refreshDio,
+    this.onForceLogout,
   }) {
     _dio = dio ?? Dio(_baseOptions());
     _refreshDio = refreshDio ?? Dio(_baseOptions());
@@ -78,6 +86,15 @@ class ApiClient {
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
           }
+          // Server xato xabarlari ilova tilida keladi (backend
+          // `common/i18n`). Har so'rovda o'qiladi — til ilova ichida
+          // almashtirilsa keyingi so'rovdan kuchga kiradi.
+          options.headers['Accept-Language'] = AppL10n.localeName;
+          // O'zini o'zi zakaz qilishni aniqlash uchun (`DeviceIdentity`).
+          final deviceId = await DeviceIdentity.instance.id();
+          if (deviceId != null) {
+            options.headers['X-Device-Id'] = deviceId;
+          }
           handler.next(options);
         },
         onError: (error, handler) async {
@@ -105,13 +122,23 @@ class ApiClient {
       ),
     );
 
-    _dio.interceptors.add(
-      LogInterceptor(
-        requestBody: true,
-        responseBody: true,
-        logPrint: (obj) => debugPrint(obj.toString()),
-      ),
-    );
+    // Oxirgi bo'lib qo'shiladi: o'lchov tarmoqqa chiqishdan oldin boshlanib,
+    // javob kelgan zahoti to'xtaydi (token yangilash kutishi kirmaydi).
+    _dio.interceptors.add(PerformanceInterceptor());
+
+    // Debug builds only. `debugPrint` still writes in release mode, so an
+    // unconditional LogInterceptor would put the `Authorization: Bearer <jwt>`
+    // header, the verify-otp body (phone + code) and every response body into
+    // logcat on real users' phones, where any app with log access can read it.
+    if (kDebugMode) {
+      _dio.interceptors.add(
+        LogInterceptor(
+          requestBody: true,
+          responseBody: true,
+          logPrint: (obj) => debugPrint(obj.toString()),
+        ),
+      );
+    }
   }
 
   static BaseOptions _baseOptions() => BaseOptions(
@@ -149,6 +176,10 @@ class ApiClient {
   /// Coalesces concurrent refresh attempts into one network call. Callers that
   /// arrive while a refresh is running simply await its result and are then
   /// replayed with the freshly issued access token.
+  /// Sessiyani yangilaydi (REST'dan tashqari, masalan socket server
+  /// tomonidan rad etilganda). Parallel chaqiruvlar bitta so'rovga birlashadi.
+  Future<bool> refreshSession() => _refreshTokens();
+
   Future<bool> _refreshTokens() {
     final inFlight = _refreshInFlight;
     if (inFlight != null) return inFlight.future;
@@ -226,6 +257,7 @@ class ApiClient {
   Future<void> forceLogout() async {
     await _storage.clearTokens();
     await _storage.clearUser();
+    onForceLogout?.call();
     navigatorKey.currentState?.pushNamedAndRemoveUntil(
       '/phone',
       (route) => false,
@@ -241,7 +273,13 @@ class ApiClient {
     String path, {
     dynamic data,
     ProgressCallback? onSendProgress,
-  }) => _dio.post(path, data: data, onSendProgress: onSendProgress);
+    Map<String, dynamic>? headers,
+  }) => _dio.post(
+    path,
+    data: data,
+    onSendProgress: onSendProgress,
+    options: headers == null ? null : Options(headers: headers),
+  );
 
   Future<Response<dynamic>> patch(String path, {dynamic data}) =>
       _dio.patch(path, data: data);
@@ -257,17 +295,58 @@ String extractErrorMessage(dynamic error) {
   if (error is DioException) {
     final data = error.response?.data;
     if (data is Map<String, dynamic>) {
-      return (data['message'] as String?) ??
-          (data['error'] as String?) ??
-          'Xatolik yuz berdi';
+      // ⚠️ `message` HAR DOIM satr emas: NestJS'ning `ValidationPipe`
+      // xatolari massiv bo'lib keladi (`["pickupLat must be a number"]`).
+      // Ilgari bu yerda to'g'ridan-to'g'ri `as String?` turardi va massiv
+      // kelganda funksiyaning O'ZI `TypeError` bilan yiqilardi — ya'ni
+      // serverning aniq xabari o'rniga foydalanuvchi umuman hech narsa
+      // ko'rmasdi.
+      final message = _messageText(data['message']) ?? _messageText(data['error']);
+      return message ?? AppL10n.current.shErrorGeneric;
     }
+    // `sendTimeout` ham — sekin mobil tarmoqda buyurtma so'rovi aynan
+    // yuborish bosqichida qotadi; ilgari "noma'lum xato" chiqardi.
     if (error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.sendTimeout ||
         error.type == DioExceptionType.receiveTimeout) {
-      return 'Ulanish vaqti tugadi. Internetni tekshiring';
+      return AppL10n.current.shErrorTimeout;
     }
     if (error.type == DioExceptionType.connectionError) {
-      return 'Internet bilan muammo bor';
+      return AppL10n.current.shErrorNoInternet;
     }
   }
-  return 'Noma\'lum xatolik yuz berdi';
+  return AppL10n.current.shErrorUnknown;
+}
+
+/// NestJS xato javobidagi `message` / `error` maydonini bitta ko'rsatiladigan
+/// qatorga o'giradi (hech narsa chiqmasa `null`).
+///
+/// ⚠️ NEGA alohida funksiya kerak: bu maydon UCH xil ko'rinishda keladi —
+///
+///   · sof satr — biznes qoidasi buzilganda, masalan qamrov darvozasi:
+///     `{"message": "Bu hududda hozircha xizmat ko'rsatilmaymiz"}`;
+///   · satrlar massivi — `ValidationPipe`:
+///     `{"message": ["pickupLat must be a number"]}`;
+///   · umuman yo'q — proksi yoki shlyuz qaytargan javobda.
+///
+/// Ilgari bu yerda to'g'ridan-to'g'ri `as String?` turardi: massiv kelganda
+/// `extractErrorMessage` ning O'ZI `TypeError` bilan yiqilardi va
+/// foydalanuvchi serverning aniq sababi o'rniga umuman hech narsa
+/// ko'rmasdi. Endi eng yomon holatda ham `null` qaytadi, chaqiruvchi esa
+/// umumiy matnga o'tadi.
+String? _messageText(dynamic value) {
+  if (value is String) {
+    final text = value.trim();
+    return text.isEmpty ? null : text;
+  }
+  if (value is List) {
+    // Bir nechta validatsiya xatosi bitta jumlaga birlashtiriladi —
+    // foydalanuvchi ro'yxatni emas, gapni o'qiydi.
+    final parts = value
+        .map((e) => e?.toString().trim() ?? '')
+        .where((e) => e.isNotEmpty)
+        .toList();
+    return parts.isEmpty ? null : parts.join('. ');
+  }
+  return null;
 }

@@ -51,6 +51,14 @@ describe('UzcardProvider', () => {
 
       expect(result).toBe(false);
     });
+
+    it('fetchStatus: provider status, null on network error (fail closed)', async () => {
+      const provider = makeProvider({ UZCARD_TERMINAL_ID: TERMINAL_ID });
+      mockedAxios.get.mockResolvedValueOnce({ data: { status: 'CANCELLED' } });
+      await expect(provider.fetchStatus('tx_4')).resolves.toBe('CANCELLED');
+      mockedAxios.get.mockRejectedValueOnce(new Error('timeout'));
+      await expect(provider.fetchStatus('tx_5')).resolves.toBeNull();
+    });
   });
 
   describe('verifyCallback()', () => {
@@ -80,7 +88,7 @@ describe('UzcardProvider', () => {
     });
 
     it('returns true when configured with a valid signature', () => {
-      const provider = makeProvider({ UZCARD_SECRET_KEY: SECRET_KEY });
+      const provider = makeProvider({ UZCARD_SECRET_KEY: SECRET_KEY, UZCARD_TERMINAL_ID: TERMINAL_ID });
       const validSign = sign(TERMINAL_ID, 'order_2', 2000, SECRET_KEY);
 
       const result = provider.verifyCallback({
@@ -104,6 +112,26 @@ describe('UzcardProvider', () => {
       });
 
       expect(result).toBe(false);
+    });
+
+    // Security review #7: imzo kaliti boshqa terminal bilan umumiy bo'lsa ham
+    // callback faqat BIZNING terminalimizdan qabul qilinadi.
+    it('returns false for a validly signed callback from another terminal', () => {
+      const provider = makeProvider({ UZCARD_SECRET_KEY: SECRET_KEY, UZCARD_TERMINAL_ID: TERMINAL_ID });
+      const foreignSign = sign('other-terminal', 'order_5', 5000, SECRET_KEY);
+
+      expect(
+        provider.verifyCallback({ terminal_id: 'other-terminal', order_id: 'order_5', amount: 5000, sign: foreignSign }),
+      ).toBe(false);
+    });
+
+    it('returns false when UZCARD_TERMINAL_ID is not configured (fail closed)', () => {
+      const provider = makeProvider({ UZCARD_SECRET_KEY: SECRET_KEY });
+      const validSign = sign(TERMINAL_ID, 'order_6', 6000, SECRET_KEY);
+
+      expect(
+        provider.verifyCallback({ terminal_id: TERMINAL_ID, order_id: 'order_6', amount: 6000, sign: validSign }),
+      ).toBe(false);
     });
 
     it('returns false when configured but no signature is present', () => {

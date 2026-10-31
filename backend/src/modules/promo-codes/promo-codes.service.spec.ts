@@ -31,10 +31,11 @@ describe('PromoCodesService - findActive', () => {
       minOrderAmount: 0,
       expiresAt: null,
       isActive: true,
+      serviceTypes: null,
       createdAt: NOW,
       updatedAt: NOW,
       ...overrides,
-    } as PromoCode;
+    };
   }
 
   beforeAll(() => {

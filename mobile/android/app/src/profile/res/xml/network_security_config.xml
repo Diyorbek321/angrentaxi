@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  FAQAT PROFILE build'lar uchun tarmoq siyosati (debug'dagi bilan bir xil).
+
+  Profile — release tezligidagi (AOT) sinov build'i: real telefonda ilova
+  qanchalik tez ishlashini shu ko'rsatadi. Debug build JIT va assert'lar
+  bilan bir necha barobar sekin, uni tezlik bo'yicha baholab bo'lmaydi.
+
+  Lokal sinovda backend `http://<noutbuk IP>:3000` da turadi — cleartext
+  ochilmasa profile APK unga ulana olmaydi. Release'ga TEGILMAYDI:
+  `src/main` dagi qat'iy konfiguratsiya o'z kuchida.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

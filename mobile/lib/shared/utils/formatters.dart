@@ -1,3 +1,4 @@
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:intl/intl.dart';
 
 class Formatters {
@@ -8,17 +9,15 @@ class Formatters {
     'uz_UZ',
   );
 
-  static String formatPrice(double amount) {
-    final formatted = _priceFormat.format(amount.toInt());
-    // Replace standard comma grouping with space
-    final spaced = formatted.replaceAll(',', ' ');
-    return '$spaced UZS';
-  }
+  /// Narx — ilova bo'ylab BITTA ko'rinishda: "18 500 so'm" ("сум").
+  /// Ilgari bu "18 500 UZS" berardi, `formatSom` esa "so'm" — bitta
+  /// safarning narxi bir ekranda UZS, keyingisida so'm bo'lib chiqardi.
+  static String formatPrice(double amount) => formatSom(amount);
 
   /// Angren Go style amount: "18 000 so'm" (space grouping, so'm suffix).
   static String formatSom(double amount) {
     final formatted = _priceFormat.format(amount.toInt()).replaceAll(',', ' ');
-    return "$formatted so'm";
+    return AppL10n.current.fmtCurrencySom(formatted);
   }
 
   /// Just the grouped number without a currency suffix: "124 500".
@@ -28,24 +27,24 @@ class Formatters {
 
   static String formatPriceCompact(double amount) {
     if (amount >= 1000000) {
-      return '${(amount / 1000000).toStringAsFixed(1)} mln UZS';
+      return AppL10n.current.fmtMillionUzs((amount / 1000000).toStringAsFixed(1));
     }
     if (amount >= 1000) {
-      return '${(amount / 1000).toStringAsFixed(0)} ming UZS';
+      return AppL10n.current.fmtThousandUzs((amount / 1000).toStringAsFixed(0));
     }
-    return '${amount.toInt()} UZS';
+    return formatSom(amount);
   }
 
   static String formatDate(DateTime date) {
-    return DateFormat('dd.MM.yyyy', 'uz').format(date);
+    return DateFormat('dd.MM.yyyy', AppL10n.localeName).format(date);
   }
 
   static String formatDateTime(DateTime date) {
-    return DateFormat('dd.MM.yyyy HH:mm', 'uz').format(date);
+    return DateFormat('dd.MM.yyyy HH:mm', AppL10n.localeName).format(date);
   }
 
   static String formatTime(DateTime date) {
-    return DateFormat('HH:mm', 'uz').format(date);
+    return DateFormat('HH:mm', AppL10n.localeName).format(date);
   }
 
   static String formatRelativeDate(DateTime date) {
@@ -53,11 +52,11 @@ class Formatters {
     final diff = now.difference(date);
 
     if (diff.inDays == 0) {
-      return "Bugun, ${formatTime(date)}";
+      return AppL10n.current.fmtTodayAt(formatTime(date));
     } else if (diff.inDays == 1) {
-      return "Kecha, ${formatTime(date)}";
+      return AppL10n.current.fmtYesterdayAt(formatTime(date));
     } else if (diff.inDays < 7) {
-      return '${diff.inDays} kun oldin';
+      return AppL10n.current.fmtDaysAgo(diff.inDays);
     } else {
       return formatDate(date);
     }
@@ -72,14 +71,45 @@ class Formatters {
     final diff = now.difference(date);
 
     if (diff.inMinutes < 1) {
-      return 'Hozirgina';
+      return AppL10n.current.fmtJustNow;
     } else if (diff.inMinutes < 60) {
-      return '${diff.inMinutes} daqiqa oldin';
+      return AppL10n.current.fmtMinutesAgo(diff.inMinutes);
     } else if (diff.inHours < 24 && diff.inDays == 0) {
-      return '${diff.inHours} soat oldin';
+      return AppL10n.current.fmtHoursAgo(diff.inHours);
     }
     return formatRelativeDate(date);
   }
+
+  /// Qisqartirilgan oy nomlari — `intl` ning `uz` lokali oy nomlarini
+  /// ruscha/inglizcha aralash qaytaradi, shuning uchun tarjima faylidan.
+  static List<String> get _monthsShort => AppL10n.current.fmtMonthsShort.split(',');
+
+  /// Qisqa sana: "22-avg" (ruschada "22 авг").
+  static String formatShortDate(DateTime when) => AppL10n.localeName == 'ru'
+      ? '${when.day} ${_monthsShort[when.month - 1]}'
+      : '${when.day}-${_monthsShort[when.month - 1]}';
+
+  /// Kun yorlig'i: "Bugun" / "Ertaga" / "22-avg".
+  ///
+  /// [now] ATAYLAB parametr — testda soatga bog'lanmaslik uchun.
+  /// Solishtirish KALENDAR KUNI bo'yicha, 24 soatlik farq bo'yicha EMAS:
+  /// bugun 23:50 dan ertaga 00:10 gacha atigi 20 daqiqa, lekin bu
+  /// "Ertaga" bo'lishi kerak.
+  static String formatDayLabel(DateTime when, {DateTime? now}) {
+    final today = now ?? DateTime.now();
+    final thatDay = DateTime(when.year, when.month, when.day);
+    final thisDay = DateTime(today.year, today.month, today.day);
+    final dayDiff = thatDay.difference(thisDay).inDays;
+
+    if (dayDiff == 0) return AppL10n.current.fmtToday;
+    if (dayDiff == 1) return AppL10n.current.fmtTomorrow;
+    return formatShortDate(when);
+  }
+
+  /// Rejalashtirilgan safar yorlig'i: "Bugun, 18:30" / "Ertaga, 08:00" /
+  /// "22-avg, 08:00".
+  static String formatScheduleLabel(DateTime when, {DateTime? now}) =>
+      '${formatDayLabel(when, now: now)}, ${formatTime(when)}';
 
   static String formatDistance(double meters) {
     if (meters < 1000) {
@@ -89,12 +119,13 @@ class Formatters {
   }
 
   static String formatDuration(int minutes) {
+    final l = AppL10n.current;
     if (minutes < 60) {
-      return '$minutes daqiqa';
+      return l.fmtMinutes(minutes);
     }
     final hours = minutes ~/ 60;
     final mins = minutes % 60;
-    return mins == 0 ? '$hours soat' : '$hours soat $mins daqiqa';
+    return mins == 0 ? l.fmtHours(hours) : l.fmtHoursMinutes(hours, mins);
   }
 
   static String formatRating(double rating) {

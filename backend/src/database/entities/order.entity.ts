@@ -1,4 +1,5 @@
 import {
+  Check,
   Column,
   CreateDateColumn,
   Entity,
@@ -11,8 +12,28 @@ import {
 import { User } from './user.entity';
 import { Tariff } from './tariff.entity';
 import { PromoCode } from './promo_code.entity';
+import { FareBreakdown } from '../../modules/tariffs/fare-breakdown';
+import { IntercityTrip } from './intercity-trip.entity';
+
+/** Shaharlararo band turi: o'rindiq(lar) yoki butun mashina. */
+export enum IntercityBookingKind {
+  SEAT = 'seat',
+  WHOLE_CAR = 'whole_car',
+}
 
 export enum OrderStatus {
+  /**
+   * Yo'lovchi safarni KELAJAKDAGI vaqtga rejalashtirgan.
+   *
+   * Bu holatda haydovchi qidirilmaydi: buyurtma `scheduled_at` vaqti
+   * yaqinlashguncha kutib turadi, so'ng `ScheduledOrdersService` uni
+   * `CREATED` ga o'tkazadi va aynan o'shanda `matching.startSearch`
+   * chaqiriladi. Alohida holat kerak, chunki "kutayotgan reja" bilan
+   * "hozir haydovchi izlanayotgan buyurtma" ni bitta holat bilan
+   * ifodalab bo'lmaydi — dispetcher taxtasi, bekor qilish qoidalari va
+   * cron so'rovi uchtasi ham ularni ajrata olishi kerak.
+   */
+  SCHEDULED = 'scheduled',
   CREATED = 'created',
   SEARCHING = 'searching',
   ACCEPTED = 'accepted',
@@ -21,6 +42,18 @@ export enum OrderStatus {
   COMPLETED = 'completed',
   CANCELLED = 'cancelled',
 }
+
+/**
+ * Statuses in which an order occupies its driver. A driver holds at most one
+ * such order: matching skips them and accepting a second one is refused.
+ */
+export const DRIVER_ACTIVE_ORDER_STATUSES: readonly OrderStatus[] = [
+  OrderStatus.ACCEPTED,
+  OrderStatus.ARRIVED,
+  OrderStatus.IN_PROGRESS,
+];
+
+export type OrderCancelledBy = 'passenger' | 'driver' | 'manager' | 'system';
 
 export enum PaymentMethod {
   CASH = 'cash',
@@ -35,6 +68,12 @@ export enum ServiceType {
   CARGO = 'cargo',
   FOOD = 'food',
   MARKET = 'market',
+  // Shahar ichida buyum/hujjat yetkazish — taksi oqimi + PIN bilan topshirish
+  // (modules/orders/parcel.ts).
+  PARCEL = 'parcel',
+  // Shaharlararo qatnovdagi band (o'rindiq yoki butun mashina) — narx
+  // yo'nalishdan, qatnov `intercity_trips` da (modules/intercity).
+  INTERCITY = 'intercity',
 }
 
 // Read-path indexes. Every hot orders query filters by owner or status and
@@ -55,6 +94,20 @@ export enum ServiceType {
 @Index('idx_orders_passenger_id_created_at', ['passengerId', 'createdAt'])
 @Index('idx_orders_status_created_at', ['status', 'createdAt'])
 @Index('idx_orders_created_at', ['createdAt'])
+// - status + scheduled_at: ScheduledOrdersService cron'i HAR DAQIQADA
+//   `WHERE status='scheduled' AND scheduled_at <= :cutoff` deb so'raydi.
+//   Bu indekssiz har tick to'liq jadval skani bo'lardi — va jadval
+//   tugagan safarlar bilan cheksiz o'sadi, ya'ni sekinlashuv vaqt o'tishi
+//   bilan yomonlashadigan turdan.
+@Index('idx_orders_status_scheduled_at', ['status', 'scheduledAt'])
+// - city_id + created_at: hisobotning shahar kesimi va menejer panelidagi
+//   "shu shahar buyurtmalari" filtri. Ko'p shaharli bo'lgach har bir
+//   hisobot so'rovi shu ustundan boshlanadi.
+@Index('idx_orders_city_id_created_at', ['cityId', 'createdAt'])
+// Shaharlararo band ustunlari (migratsiya 036). Entity'da ham e'lon
+// qilingan: aks holda dev'dagi `synchronize` ularni "begona" deb o'chirardi.
+@Check('chk_orders_booking_kind', `"booking_kind" IS NULL OR "booking_kind" IN ('seat', 'whole_car')`)
+@Check('chk_orders_seats_positive', '"seats" IS NULL OR "seats" BETWEEN 1 AND 8')
 @Entity('orders')
 export class Order {
   @PrimaryGeneratedColumn('uuid')
@@ -163,6 +216,188 @@ export class Order {
   })
   driverEarning: number | null;
 
+  // ---------------------------------------------------------------------
+  // CHEK VA CHAQIM
+  // ---------------------------------------------------------------------
+
+  /**
+   * Safar tugagan lahzadagi narx tarkibi, muzlatib yozilgan.
+   *
+   * Chekni jonli tarifdan qayta hisoblab BO'LMAYDI: tarif keyin o'zgarsa,
+   * o'sha safar cheki boshqa raqam ko'rsatardi. Eski safarlarda `null` —
+   * chek ekrani buni "tarkib mavjud emas" deb ko'rsatadi va soxta tarkib
+   * o'ylab topmaydi.
+   */
+  @Column({ name: 'fare_breakdown', type: 'jsonb', nullable: true })
+  fareBreakdown: FareBreakdown | null;
+
+  /**
+   * Safar tugagan aniq vaqt.
+   *
+   * `updatedAt` chek sanasi bo'la OLMAYDI — undan keyingi har qanday yozuv
+   * (masalan `PaymentsService.settleOrderPayout`) uni surib yuboradi.
+   */
+  @Column({ name: 'completed_at', type: 'timestamp', nullable: true })
+  completedAt: Date | null;
+
+  /**
+   * Haydovchi olish nuqtasiga YETIB KELGAN lahza (ARRIVED holatiga o'tish).
+   *
+   * Kutish haqi shu lahzadan safar boshlanishigacha hisoblanadi. NEGA server
+   * tomonda saqlanadi: ilgari kutish hisoblagichi faqat haydovchi ilovasida,
+   * LOKAL edi — ekran ochilganda boshlanardi, ilova qayta ishga tushsa nolga
+   * qaytardi, yo'lovchi esa uni umuman ko'rmasdi. Ya'ni ikki tomon har xil
+   * raqam ko'rardi va o'sha raqamning pulga aloqasi yo'q edi. Endi ikkala
+   * ilova ham AYNAN shu maydondan hisoblaydi.
+   *
+   * ⚠️ BIR MARTA yoziladi: `driverArrived`
+   * `COALESCE("arrived_at", :arrivedAt)` qiladi, ya'ni tugma ikki marta
+   * bosilsa vaqt QAYTA yozilmaydi — aks holda haydovchi kutish hisobini
+   * nolga tushira olardi.
+   *
+   * ⚠️ Vaqt SQL `NOW()` dan EMAS, Node'dagi `new Date()` dan olinadi va
+   * parametr sifatida bog'lanadi. Sabab: kutish daqiqalari shu maydon bilan
+   * `trips.start_time` (u ham JS `Date`) AYIRMASI. Ikkalasi bitta soatdan
+   * chiqishi shart — baza va Node vaqt mintaqasi farq qilganda `NOW()`
+   * kutishni soatlab noto'g'ri hisoblardi.
+   *
+   * ⚠️ Haydovchi almashtirilganda (`reassignDriver`) ATAYLAB `null` ga
+   * qaytariladi: yangi haydovchi hali kelmagan, oldingisining kutgan vaqti
+   * esa yo'lovchidan undirilmasligi kerak.
+   *
+   * Eski buyurtmalarda `null` — kutish 0, hisob-kitob o'zgarmaydi.
+   */
+  @Column({ name: 'arrived_at', type: 'timestamp', nullable: true })
+  arrivedAt: Date | null;
+
+  /**
+   * Narx QAT'IYmi (yo'lovchiga ko'rsatilgan summa bilan bir xilmi).
+   *
+   * `true`  — yo'lovchi manzilni xaritada belgilagan, ya'ni marshrut oldindan
+   *           ma'lum. Bunda safar oxirida `fare_breakdown` dagi QUOTE YO'L
+   *           HAQI sifatida aynan undiriladi: tirbandlik ham, uzunroq yo'l
+   *           ham summani o'zgartirmaydi.
+   * `false` — manzil oldindan ma'lum emas, narx haqiqiy bosib o'tilgan
+   *           masofadan hisoblanadi (hisoblagich rejimi).
+   *
+   * ⚠️ KAFOLAT MARSHRUTGA TEGISHLI, KUTISHGA EMAS. Qat'iy narxli safarda ham
+   * kutish haqi ALOHIDA qo'shiladi (`arrivedAt` ga qarang), ya'ni undiriladigan
+   * summa `quote.total + waitingFare` bo'lishi mumkin. Sababi: qat'iy narx
+   * haydovchi boshqarmaydigan noaniqlikni (yo'l, tirbandlik) yopadi; kutish esa
+   * YO'LOVCHI boshqaradigan xarajat. Yo'lovchiga ko'rsatiladigan va'da shunga
+   * mos bo'lishi SHART: "narx belgilangan, kutish alohida".
+   *
+   * ⚠️ Ilgari bunday ajratish yo'q edi va uchta har xil masofa ishlatilardi:
+   * yo'lovchiga OSRM yo'l masofasi ko'rsatilardi, buyurtma esa HAVERSINE
+   * (to'g'ri chiziq) bo'yicha yaratilardi, yakunda yana boshqacha
+   * hisoblanardi. Ya'ni "ko'rsatilgan narx" hech qayerda saqlanmasdi ham.
+   */
+  @Column({ name: 'is_fixed_price', type: 'boolean', default: false })
+  isFixedPrice: boolean;
+
+  /**
+   * TAKSOMETR: yo'lovchi manzil KO'RSATMAGAN. Narx safar oxirida haydovchining
+   * haqiqiy GPS izidan (`trip_track_points`) hisoblanadi.
+   *
+   * ⚠️ `dropoffLocation` ustuni NOT NULL, shuning uchun bunday buyurtmada u
+   * vaqtincha OLISH NUQTASIGA teng va `dropoffAddress = null`; safar tugaganda
+   * haqiqiy tugash nuqtasiga yangilanadi. Mijozlar manzilni ko'rsatishdan
+   * oldin shu bayroqqa qarashi SHART — aks holda "A → A" chiqadi.
+   */
+  @Column({ name: 'is_metered', type: 'boolean', default: false })
+  isMetered: boolean;
+
+  // -------------------------------------------------------------------
+  // O'ZINI O'ZI ZAKAZ QILISHNI ANIQLASH (migratsiya 018, `fraud-rules.ts`).
+  //
+  // ⚠️ HAMMASI `select: false`: buyurtma javobi yo'lovchiga ham, haydovchiga
+  // ham boradi. Haydovchi "shubhali" belgisini ko'rsa, qoidani aylanib
+  // o'tishni o'rganadi; qurilma ID si esa boshqa tomonga umuman tegishli
+  // emas. Faqat `OrderFraudService` (xom SQL) va bonus hisobi o'qiydi.
+  // -------------------------------------------------------------------
+
+  @Column({ name: 'passenger_device_id', type: 'varchar', length: 64, nullable: true, select: false })
+  passengerDeviceId: string | null;
+
+  @Column({ name: 'driver_device_id', type: 'varchar', length: 64, nullable: true, select: false })
+  driverDeviceId: string | null;
+
+  @Column({ name: 'accept_distance_m', type: 'int', nullable: true, select: false })
+  acceptDistanceM: number | null;
+
+  @Column({ name: 'fraud_signals', type: 'jsonb', default: () => `'[]'`, select: false })
+  fraudSignals: string[];
+
+  /** NULL (toza) | pending | approved | rejected. */
+  @Column({ name: 'fraud_review', type: 'varchar', length: 20, nullable: true, select: false })
+  fraudReview: 'pending' | 'approved' | 'rejected' | null;
+
+  @Column({ name: 'fraud_reviewed_by', type: 'uuid', nullable: true, select: false })
+  fraudReviewedBy: string | null;
+
+  @Column({ name: 'fraud_reviewed_at', type: 'timestamptz', nullable: true, select: false })
+  fraudReviewedAt: Date | null;
+
+  @Column({ name: 'fraud_note', type: 'varchar', length: 300, nullable: true, select: false })
+  fraudNote: string | null;
+
+  /**
+   * Buyurtma yaratilgan paytdagi hudud koeffitsienti.
+   *
+   * Ilgari u `OrdersCreationService` da hisoblanib, narxga qo'shilib,
+   * TASHLAB YUBORILARDI — natijada chekda "nega qimmat?" savoliga javob
+   * beradigan hech narsa qolmasdi.
+   */
+  @Column({
+    name: 'surge_multiplier',
+    type: 'decimal',
+    precision: 4,
+    scale: 2,
+    default: 1.0,
+    transformer: {
+      to: (value: number) => value,
+      from: (value: string) => parseFloat(value),
+    },
+  })
+  surgeMultiplier: number;
+
+  /**
+   * Yo'lovchi bergan chaqim. `null` = chaqim berilmagan (0 emas — mavjud
+   * `discountAmount`/`driverEarning` bilan bir xil konventsiya).
+   *
+   * ⚠️ Chaqim KOMISSIYASIZ — to'liq haydovchiga o'tadi, shuning uchun u
+   * `driverEarning` ga QO'SHILMAYDI: u yerda komissiya ayirilgan sof yo'l
+   * haqi turadi va aralashtirilsa daromad hisoboti buziladi.
+   */
+  @Column({
+    name: 'tip_amount',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    transformer: {
+      to: (value: number | null) => value,
+      from: (value: string | null) => (value !== null ? parseFloat(value) : null),
+    },
+  })
+  tipAmount: number | null;
+
+  /**
+   * Chaqim qanday to'langani. Safarning o'z `paymentMethod` idan MUSTAQIL:
+   * yo'l naqd bo'lib, chaqim hamyondan berilishi mumkin.
+   */
+  @Column({
+    name: 'tip_payment_method',
+    type: 'enum',
+    enum: PaymentMethod,
+    nullable: true,
+  })
+  tipPaymentMethod: PaymentMethod | null;
+
+  /** Idempotentlik va hisobot uchun. */
+  @Column({ name: 'tip_paid_at', type: 'timestamp', nullable: true })
+  tipPaidAt: Date | null;
+
   @Column({
     type: 'enum',
     enum: ServiceType,
@@ -174,6 +409,22 @@ export class Order {
   // Vertical-specific payload, e.g. cargo: { vehicleType, weightKg, loaders, cargoNote }.
   @Column({ type: 'jsonb', nullable: true })
   details: Record<string, unknown> | null;
+
+  // Posilka topshirish kodi. `select: false` — oddiy so'rovlarda HECH QACHON
+  // o'qilmaydi, ya'ni haydovchiga ketadigan javob va taklif paketiga tasodifan
+  // tushib qolmaydi. Faqat yuboruvchi yo'lovchiga va yakunlash tekshiruviga
+  // aniq so'rov bilan o'qiladi.
+  @Column({ name: 'delivery_pin', type: 'varchar', length: 4, nullable: true, select: false })
+  deliveryPin?: string | null;
+
+  @Column({ name: 'delivery_pin_attempts', type: 'int', default: 0, select: false })
+  deliveryPinAttempts?: number;
+
+  // Passenger-requested extras (child seat, pet, ...). A matching filter:
+  // only drivers whose `amenities` cover all of these get the offer.
+  // See modules/orders/trip-options.ts.
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  options: string[];
 
   @Column({
     type: 'enum',
@@ -194,6 +445,73 @@ export class Order {
 
   @Column({ nullable: true, type: 'varchar' })
   cancelReason: string | null;
+
+  /**
+   * Kim bekor qildi. Antifrod uchun (`business-reports/fraud-report`):
+   * haydovchi yetib kelgach bekor qilish — platformani chetlab o'tishning
+   * eng kuchli belgisi. Migratsiya 046 gacha bo'lgan buyurtmalarda `null`.
+   */
+  @Column({ name: 'cancelled_by', type: 'varchar', length: 20, nullable: true })
+  cancelledBy: OrderCancelledBy | null;
+
+  /**
+   * Rejalashtirilgan olib ketish vaqti. `null` = "hozir" (odatdagi buyurtma).
+   *
+   * ⚠️ TIP `timestamptz`, `timestamp` EMAS. Loyihada `TZ` sozlanmagan va
+   * `@CreateDateColumn` mintaqasiz `TIMESTAMP` hosil qiladi — agar bu ustun
+   * ham shunday bo'lsa, O'zbekiston (UTC+5) da rejalashtirilgan safar 5
+   * soatga surilib ketardi. Mobil ilova UTC ISO yuboradi, ko'rsatishda
+   * `.toLocal()` qiladi. Precedent: `promo_code.entity.ts`,
+   * `support-thread.entity.ts`.
+   *
+   * ⚠️ NARX HAQIDA — ATAYLAB QILINGAN TANLOV: narx buyurtma BERILGAN
+   * lahzada qotiriladi (`fare_breakdown` + `is_fixed_price`), safar
+   * bajariladigan paytda QAYTA HISOBLANMAYDI. Ya'ni ertalab buyurtma
+   * berilgan safar kechqurun tirbandlikda bajarilsa, o'sha paytdagi hudud
+   * koeffitsienti yuqori bo'lishi mumkin, lekin yo'lovchidan ko'rsatilgan
+   * summa undiriladi — farqni platforma ko'taradi. Buning aksi ham
+   * to'g'ri: yo'lovchi rejalashtirgan paytda surge yuqori bo'lsa, u
+   * o'sha yuqori narxni to'laydi. Sabab — ishonch: yo'lovchiga
+   * ko'rsatilgan raqam bilan undiriladigan raqam HAR DOIM bir xil
+   * bo'lishi kerak.
+   */
+  @Column({ name: 'scheduled_at', type: 'timestamptz', nullable: true })
+  scheduledAt: Date | null;
+
+  /**
+   * Shaharlararo band — qaysi qatnovga (migratsiya 036). `null` — oddiy
+   * buyurtma. O'rindiq hisobi qatnov qatorida, bu yerda faqat bog'lanish:
+   * pul (komissiya, ushlash, chek) shu buyurtma bo'yicha ketadi.
+   */
+  @Index('idx_orders_intercity_trip_id')
+  @Column({ name: 'intercity_trip_id', type: 'uuid', nullable: true })
+  intercityTripId: string | null;
+
+  @ManyToOne(() => IntercityTrip, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'intercity_trip_id', foreignKeyConstraintName: 'fk_orders_intercity_trip' })
+  intercityTrip?: IntercityTrip | null;
+
+  /** Band qilingan o'rindiqlar soni (butun mashinada — qatnov o'rindiqlari). */
+  @Column({ name: 'seats', type: 'int', nullable: true })
+  seats: number | null;
+
+  @Column({ name: 'booking_kind', type: 'varchar', length: 10, nullable: true })
+  bookingKind: IntercityBookingKind | null;
+
+  /**
+   * Buyurtma qaysi shaharda yaratilgan — OLISH NUQTASIDAN aniqlanadi.
+   *
+   * ⚠️ FOYDALANUVCHI TANLAMAYDI. Qo'lda tanlash yana bir xato manbai
+   * bo'lardi: odam ro'yxatdan "Angren" ni tanlab, Toshkentdan buyurtma
+   * berishi mumkin. Koordinatadan aniqlangan shahar esa har doim rost.
+   *
+   * `null` — ikki xil holatda: (1) jadvalda birorta faol shahar yo'q, ya'ni
+   * qamrov cheklovi umuman qo'llanilmayapti; (2) shahar qatori keyinchalik
+   * o'chirilgan (`ON DELETE SET NULL`). Ikkalasi ham buyurtmaning o'zi
+   * uchun ma'nosiz — ustun faqat hisobot va filtr uchun.
+   */
+  @Column({ name: 'city_id', type: 'uuid', nullable: true })
+  cityId: string | null;
 
   @CreateDateColumn()
   createdAt: Date;

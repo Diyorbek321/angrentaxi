@@ -19,7 +19,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { User, UserRole } from '../../database/entities/user.entity';
+import { User, PASSENGER_APP_ROLES, UserRole } from '../../database/entities/user.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
 import { Rating } from '../../database/entities/rating.entity';
 
@@ -31,7 +31,7 @@ export class RatingsController {
   constructor(private readonly ratingsService: RatingsService) {}
 
   @Post()
-  @Roles(UserRole.PASSENGER, UserRole.DRIVER)
+  @Roles(...PASSENGER_APP_ROLES, UserRole.DRIVER)
   @ApiOperation({ summary: 'Submit a rating for a completed order' })
   @ApiResponse({ status: 201, description: 'Rating submitted successfully' })
   @ApiResponse({ status: 400, description: 'Order not completed or user not a party to order' })

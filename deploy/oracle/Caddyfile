@@ -1,0 +1,73 @@
+# Angren super-app edge proxy. Caddy obtains and renews Let's Encrypt
+# certificates on its own for every site below — as soon as the DNS A records
+# point at this VM and ports 80/443 are open (VCN security list + host
+# iptables, see README.md).
+#
+# {$DOMAIN} / {$ACME_EMAIL} come from the container environment
+# (docker-compose.prod.yml ← .env.prod).
+#
+# WebSockets need no special config: reverse_proxy passes Upgrade/Connection
+# through and keeps the connection open — both the backend's socket.io
+# namespace /ws (path /socket.io/) and the panels' own socket proxy.
+
+{
+	email {$ACME_EMAIL}
+	# Admin API stays inside the container (healthcheck uses it).
+	admin 127.0.0.1:2019
+	# Long-lived sockets get time to finish on config reloads.
+	grace_period 10s
+}
+
+(common) {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+	log {
+		output stdout
+		format console
+	}
+}
+
+api.{$DOMAIN} {
+	import common
+	# KYC photo uploads; anything larger is a mistake or an attack.
+	request_body {
+		max_size 25MB
+	}
+	reverse_proxy backend:3000 {
+		# Do not buffer: socket.io long-polling and streamed file responses.
+		flush_interval -1
+		health_uri /api/v1/health
+		health_interval 30s
+	}
+}
+
+admin.{$DOMAIN} {
+	import common
+	reverse_proxy web-admin:3001
+}
+
+manager.{$DOMAIN} {
+	import common
+	reverse_proxy web-manager:3002 {
+		flush_interval -1
+	}
+}
+
+market.{$DOMAIN} {
+	import common
+	reverse_proxy web-market:3003 {
+		flush_interval -1
+	}
+}
+
+restaurant.{$DOMAIN} {
+	import common
+	reverse_proxy web-restaurant:3004 {
+		flush_interval -1
+	}
+}

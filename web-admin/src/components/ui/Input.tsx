@@ -1,81 +1,90 @@
-import * as React from 'react';
-import { cn } from '@/lib/utils';
+// AUTO-SYNCED from web-manager — edit there, then run scripts/sync-panel-ui.sh
+'use client';
 
-export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  label?: string;
+import { forwardRef, useId, type InputHTMLAttributes, type ReactNode } from 'react';
+import { cn } from './cn';
+import { Field, controlBase, controlBorder, describedBy } from './Field';
+
+export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> {
+  label?: ReactNode;
   error?: string;
-  hint?: string;
-  leftIcon?: React.ReactNode;
-  rightIcon?: React.ReactNode;
-  /** Raqam, ID, telefon va narxlar mono shriftda yaxshiroq o'qiladi. */
+  hint?: ReactNode;
+  /** Prefix slot (icon or text). Alias: `leftIcon`. */
+  leftElement?: ReactNode;
+  leftIcon?: ReactNode;
+  /** Suffix slot (icon, unit, button). Alias: `rightIcon`. */
+  rightElement?: ReactNode;
+  rightIcon?: ReactNode;
+  /** Monospace — ONLY for ids, plates, SKUs, codes. Numbers/money stay sans (`.num`). */
   mono?: boolean;
+  /** sm 28px · md 32px (default) · lg 40px. */
+  size?: 'sm' | 'md' | 'lg';
+  /** Classes for the outer wrapper. */
+  wrapperClassName?: string;
 }
 
-const Input = React.forwardRef<HTMLInputElement, InputProps>(
+const heights = { sm: 'h-7 text-[13px]', md: 'h-8', lg: 'h-10' } as const;
+
+const Input = forwardRef<HTMLInputElement, InputProps>(
   (
-    { className, type, label, error, hint, leftIcon, rightIcon, mono = false, id, ...props },
+    {
+      label,
+      error,
+      hint,
+      leftElement,
+      leftIcon,
+      rightElement,
+      rightIcon,
+      mono = false,
+      size = 'md',
+      wrapperClassName,
+      className,
+      id,
+      required,
+      type,
+      ...props
+    },
     ref
   ) => {
-    const generatedId = React.useId();
-    const inputId = id || `input-${generatedId}`;
-    const errorId = `${inputId}-error`;
-    const hintId = `${inputId}-hint`;
-
+    const auto = useId();
+    const inputId = id ?? auto;
+    const left = leftElement ?? leftIcon;
+    const right = rightElement ?? rightIcon;
     return (
-      <div className="w-full">
-        {label && (
-          <label htmlFor={inputId} className="mb-1.5 block text-caption font-medium text-muted">
-            {label}
-          </label>
-        )}
-        <div className="relative">
-          {leftIcon && (
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-subtle">
-              {leftIcon}
+      <Field id={inputId} label={label} hint={hint} error={error} required={required} className={wrapperClassName}>
+        <div className="relative flex items-center">
+          {left && (
+            <div className="absolute left-2.5 text-subtle pointer-events-none flex items-center [&_svg]:h-4 [&_svg]:w-4">
+              {left}
             </div>
           )}
           <input
+            ref={ref}
             id={inputId}
             type={type}
+            required={required}
             aria-invalid={error ? true : undefined}
-            aria-describedby={error ? errorId : hint ? hintId : undefined}
+            aria-describedby={describedBy(inputId, error, hint)}
             className={cn(
-              'flex h-10 w-full rounded-ds-md border bg-surface px-3 py-2 text-body text-ink',
-              'placeholder:text-subtle',
-              'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
-              'disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-muted',
-              'transition-colors duration-fast',
-              mono && 'font-mono',
-              leftIcon && 'pl-10',
-              rightIcon && 'pr-10',
-              error
-                ? 'border-danger focus:border-danger'
-                : 'border-line hover:border-line-strong focus:border-primary',
+              controlBase,
+              controlBorder(!!error),
+              heights[size],
+              mono ? 'font-mono' : type === 'number' && 'num',
+              left ? 'pl-8' : 'pl-2.5',
+              right ? 'pr-8' : 'pr-2.5',
               className
             )}
-            ref={ref}
             {...props}
           />
-          {rightIcon && (
-            <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-subtle">
-              {rightIcon}
-            </div>
+          {right && (
+            <div className="absolute right-2.5 text-subtle flex items-center [&_svg]:h-4 [&_svg]:w-4">{right}</div>
           )}
         </div>
-        {error && (
-          <p id={errorId} className="mt-1.5 text-caption text-danger-deep dark:text-danger-light">
-            {error}
-          </p>
-        )}
-        {hint && !error && (
-          <p id={hintId} className="mt-1.5 text-caption text-subtle">
-            {hint}
-          </p>
-        )}
-      </div>
+      </Field>
     );
   }
 );
+
 Input.displayName = 'Input';
 
 export { Input };

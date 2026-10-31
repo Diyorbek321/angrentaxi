@@ -3,11 +3,14 @@ import 'package:angren_taxi/features/superapp/screens/restaurant_detail_screen.d
 import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/features/superapp/widgets/deals.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/food_restaurant.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
 import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
 import 'package:angren_taxi/shared/widgets/app_status_badge.dart';
+import 'package:angren_taxi/shared/widgets/catalog_image.dart';
 import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -24,7 +27,10 @@ class _FoodListScreenState extends State<FoodListScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<FoodProvider>().loadRestaurants();
+      final food = context.read<FoodProvider>();
+      food.loadRestaurants();
+      // Chegirmalar lentasi mustaqil — sekin/yo'q bo'lsa ro'yxatni ushlamaydi.
+      food.loadActivePromotions();
     });
   }
 
@@ -45,31 +51,47 @@ class _FoodListScreenState extends State<FoodListScreen> {
                   const AppSkeletonList(itemCount: 4)
                 else if (food.state == FoodProviderState.error && food.restaurants.isEmpty)
                   AppErrorState(
-                    message: food.error ?? 'Xatolik yuz berdi',
+                    message: food.error ?? context.l10n.saErrorOccurred,
                     onRetry: () => context.read<FoodProvider>().loadRestaurants(),
                   )
                 else if (food.restaurants.isEmpty)
                   AppEmptyState(
                     icon: Icons.storefront_outlined,
-                    title: 'Restoran topilmadi',
-                    message: 'Hozircha ochiq restoran yo\'q. Birozdan keyin qayta urinib ko\'ring.',
-                    actionLabel: 'Yangilash',
+                    title: context.l10n.saFoodNoRestaurantsTitle,
+                    message: context.l10n.saFoodNoRestaurantsMessage,
+                    actionLabel: context.l10n.saRefresh,
                     onAction: () => context.read<FoodProvider>().loadRestaurants(),
                   )
                 else
-                  ListView(
-                    padding: const EdgeInsets.fromLTRB(kSpace4, kSpace4, kSpace4, 110),
-                    children: [
-                      for (final r in food.restaurants) ...[
-                        _FoodCard(
+                  // Dangasa ro'yxat — faqat ko'ringan kartalar quriladi.
+                  ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(0, 0, 0, 110),
+                    // 0-element — "Chegirmalar" lentasi (bo'sh bo'lsa o'zi
+                    // hech narsa chizmaydi): chegirmalar ENG TEPADA.
+                    itemCount: food.restaurants.length + 1,
+                    itemBuilder: (context, index) {
+                      if (index == 0) {
+                        return DealsCarousel(
+                          deals: food.activePromotions,
+                          onTap: (deal) => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => RestaurantDetailScreen(restaurantId: deal.vendorId),
+                            ),
+                          ),
+                        );
+                      }
+                      final i = index - 1;
+                      final r = food.restaurants[i];
+                      return Padding(
+                        padding: EdgeInsets.fromLTRB(kSpace4, i == 0 ? kSpace4 : 0, kSpace4, kSpace4),
+                        child: _FoodCard(
                           restaurant: r,
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute<void>(builder: (_) => RestaurantDetailScreen(restaurantId: r.id)),
                           ),
                         ),
-                        const SizedBox(height: kSpace4),
-                      ],
-                    ],
+                      );
+                    },
                   ),
                 if (cart.cartCount > 0)
                   Positioned(
@@ -78,7 +100,7 @@ class _FoodListScreenState extends State<FoodListScreen> {
                     bottom: MediaQuery.of(context).padding.bottom + kSpace4,
                     child: AgCartBar(
                       count: cart.cartCount,
-                      label: "Savatga o'tish",
+                      label: context.l10n.saGoToCart,
                       trailing: Formatters.formatSom(cart.cartSubtotal),
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(builder: (_) => const CartScreen()),
@@ -109,17 +131,19 @@ class _FoodHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          AgIconButton(icon: Icons.arrow_back_rounded, onTap: () => Navigator.of(context).pop(), semanticsLabel: 'Orqaga'),
+          AgIconButton(icon: Icons.arrow_back_rounded, onTap: () => Navigator.of(context).pop(), semanticsLabel: context.l10n.saBack),
           const SizedBox(width: kSpace3),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Ovqat yetkazish',
-                    style: TextStyle(
+                Text(context.l10n.saFoodTitle,
+                    style: const TextStyle(
                         fontSize: kFontH2, fontWeight: FontWeight.w800, color: agText)),
-                Text('Angren · 20–40 daqiqa',
-                    style: TextStyle(
+                Text(context.l10n.saFoodSubtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
                         fontSize: kFontCaption, fontWeight: FontWeight.w600, color: agSubtle)),
               ],
             ),
@@ -128,7 +152,9 @@ class _FoodHeader extends StatelessWidget {
             icon: Icons.shopping_bag_outlined,
             onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const CartScreen())),
             badge: cartCount > 0 ? '$cartCount' : null,
-            semanticsLabel: cartCount > 0 ? 'Savat, $cartCount ta mahsulot' : 'Savat',
+            semanticsLabel: cartCount > 0
+                ? context.l10n.saCartWithCount(cartCount)
+                : context.l10n.saCart,
           ),
         ],
       ),
@@ -161,20 +187,31 @@ class _FoodCard extends StatelessWidget {
             children: [
               Stack(
                 children: [
-                  Container(
-                    height: 100,
+                  SizedBox(
+                    height: 132,
                     width: double.infinity,
-                    color: agOrange,
-                    child: ExcludeSemantics(
-                      child: Icon(Icons.restaurant_rounded,
-                          size: 48, color: agOnPrimary.withValues(alpha: 0.7)),
+                    child: CatalogImage(
+                      imageUrl: r.imageUrl,
+                      placeholder: Container(
+                        color: agOrange,
+                        child: ExcludeSemantics(
+                          child: Icon(Icons.restaurant_rounded,
+                              size: 48, color: agOnPrimary.withValues(alpha: 0.7)),
+                        ),
+                      ),
                     ),
                   ),
+                  if (r.activePromotion != null)
+                    Positioned(
+                      top: kSpace3,
+                      right: kSpace3,
+                      child: DiscountBadge(label: r.activePromotion!.shortLabel),
+                    ),
                   Positioned(
                     top: kSpace3,
                     left: kSpace3,
                     child: AppStatusBadge(
-                      label: r.isOpen ? 'Ochiq' : 'Yopiq',
+                      label: r.isOpen ? context.l10n.saOpen : context.l10n.saClosed,
                       tone: r.isOpen ? AppStatusTone.success : AppStatusTone.danger,
                       dense: true,
                     ),
@@ -187,8 +224,18 @@ class _FoodCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(r.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                             fontWeight: FontWeight.w800, fontSize: kFontTitle, color: agText)),
+                    if (r.activePromotion case final promo? when promo.title.isNotEmpty) ...[
+                      const SizedBox(height: kSpace1),
+                      Text(promo.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: kFontCaption, color: kErrorDeep, fontWeight: FontWeight.w700)),
+                    ],
                     if (r.address != null) ...[
                       const SizedBox(height: kSpace1),
                       Text(r.address!,

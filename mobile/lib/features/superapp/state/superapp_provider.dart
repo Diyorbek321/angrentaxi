@@ -1,7 +1,9 @@
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/features/intercity/models/intercity_models.dart';
 import 'package:angren_taxi/features/superapp/models/cart_item.dart';
+import 'package:angren_taxi/features/superapp/models/wallet_transaction.dart';
 import 'package:flutter/foundation.dart';
 
 /// Holds cross-vertical super-app state: the unified cart, wallet balance and
@@ -16,14 +18,26 @@ import 'package:flutter/foundation.dart';
 class SuperappProvider extends ChangeNotifier {
   SuperappProvider({required ApiClient apiClient}) : _apiClient = apiClient;
 
-  static const double _deliveryFee = 7000;
+  /// Fallback used only until [loadPlatformSettings] answers — the server
+  /// is the source of truth. This was previously a hardcoded constant that
+  /// the checkout total was built from, so the passenger saw a figure the
+  /// order row never contained.
+  static const double _deliveryFeeFallback = 7000;
+
+  double _deliveryFee = _deliveryFeeFallback;
 
   final ApiClient _apiClient;
+
+  /// Checkout'dagi promokod tekshiruvi uchun (`PromoCodeController`).
+  ApiClient get apiClient => _apiClient;
 
   final List<CartItem> _cart = [];
   double? _walletBalance;
   bool _walletLoading = false;
   String? _walletError;
+  List<WalletTransaction> _transactions = const [];
+  bool _txnsLoading = false;
+  String? _txnsError;
   int _tabIndex = 0;
 
   // Which real-backend vertical the current cart belongs to ('food' or
@@ -37,7 +51,79 @@ class SuperappProvider extends ChangeNotifier {
   bool get isCartEmpty => _cart.isEmpty;
   int get cartCount => _cart.fold(0, (sum, c) => sum + c.qty);
   double get cartSubtotal => _cart.fold(0, (sum, c) => sum + c.lineTotal);
-  double get deliveryFee => _cart.isEmpty ? 0 : _deliveryFee;
+  double get deliveryFee {
+    if (_cart.isEmpty || isFreeDelivery) return 0;
+    return _deliveryFee;
+  }
+
+  /// Bepul yetkazish chegarasi bo'lmasa ham yetkazish narxi (vitrina uchun).
+  double get baseDeliveryFee => _deliveryFee;
+
+  /// Server `freeDeliveryFrom` (so'm). `null` yoki 0 — bepul yetkazish yo'q.
+  /// Qoida server bilan bir xil: tovar summasi (aksiyadan keyin, promokodsiz)
+  /// chegaraga TENG yoki undan katta bo'lsa yetkazish 0.
+  double? _freeDeliveryFrom;
+  double? get freeDeliveryFrom =>
+      (_freeDeliveryFrom ?? 0) > 0 ? _freeDeliveryFrom : null;
+
+  bool get isFreeDelivery {
+    final from = freeDeliveryFrom;
+    return from != null && _cart.isNotEmpty && cartSubtotal >= from;
+  }
+
+  /// Bepul yetkazishgacha qolgan summa; chegara yo'q yoki yetgan — `null`.
+  double? get freeDeliveryRemaining {
+    final from = freeDeliveryFrom;
+    if (from == null || _cart.isEmpty || cartSubtotal >= from) return null;
+    return from - cartSubtotal;
+  }
+
+  /// Taxminiy yetkazish vaqti, daqiqa (server `deliveryEtaMin/MaxMinutes`).
+  /// Eski server bermaydi — `null`, ilova vaqtni ko'rsatmaydi.
+  ({int min, int max})? _deliveryEta;
+  ({int min, int max})? get deliveryEta => _deliveryEta;
+
+  /// Naqd ovqat/market buyurtmasi chegarasi (server `max_cash_vendor_order`).
+  /// Kuryer tovarni do'kondan o'z pulidan oladi — katta summa faqat karta.
+  /// `null` — hali noma'lum: ilova cheklamaydi, server baribir tekshiradi.
+  double? _maxCashVendorOrder;
+  double? get maxCashVendorOrder => _maxCashVendorOrder;
+
+  /// Joriy savat naqd to'lanishi mumkinmi.
+  bool get cashAllowed {
+    final limit = _maxCashVendorOrder;
+    return limit == null || limit <= 0 || cartTotal <= limit;
+  }
+
+  @visibleForTesting
+  void debugSetDeliveryPricingForTest({
+    double? deliveryFee,
+    double? freeDeliveryFrom,
+    ({int min, int max})? eta,
+  }) {
+    if (deliveryFee != null) _deliveryFee = deliveryFee;
+    _freeDeliveryFrom = freeDeliveryFrom;
+    _deliveryEta = eta;
+    notifyListeners();
+  }
+
+  /// Shaharlararo sozlamalari (`intercityEnabled` va h.k.). Server javob
+  /// bermaguncha — O'CHIQ: plitka ko'rinmaydi, ya'ni flag yoqilmagan
+  /// serverga hech qachon so'rov ketmaydi.
+  IntercityPublicSettings _intercity = IntercityPublicSettings.disabled;
+  IntercityPublicSettings get intercity => _intercity;
+
+  @visibleForTesting
+  void debugSetIntercityForTest(IntercityPublicSettings value) {
+    _intercity = value;
+    notifyListeners();
+  }
+
+  @visibleForTesting
+  void debugSetMaxCashVendorOrderForTest(double? value) {
+    _maxCashVendorOrder = value;
+    notifyListeners();
+  }
   double get cartTotal => cartSubtotal + deliveryFee;
   String? get activeKind => _activeKind;
   String? get activeEntityId => _activeEntityId;
@@ -55,6 +141,10 @@ class SuperappProvider extends ChangeNotifier {
   double? get walletBalance => _walletBalance;
   bool get isWalletLoading => _walletLoading;
   String? get walletError => _walletError;
+
+  List<WalletTransaction> get transactions => _transactions;
+  bool get isTransactionsLoading => _txnsLoading;
+  String? get transactionsError => _txnsError;
 
   /// Fetches the signed-in user's wallet balance from `GET /payments/wallet`.
   ///
@@ -82,6 +172,61 @@ class SuperappProvider extends ChangeNotifier {
       _walletError = extractErrorMessage(e);
     } finally {
       _walletLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Reads the platform delivery fee so the cart total matches what the
+  /// server will record for the order.
+  Future<void> loadPlatformSettings() async {
+    try {
+      final response = await _apiClient.get(ApiEndpoints.settingsPublic);
+      final envelope = response.data as Map<String, dynamic>;
+      final payload = envelope['data'] as Map<String, dynamic>;
+      final fee = (payload['deliveryFee'] as num?)?.toDouble();
+      if (fee != null) _deliveryFee = fee;
+      _freeDeliveryFrom =
+          (payload['freeDeliveryFrom'] as num?)?.toDouble() ?? _freeDeliveryFrom;
+      final etaMin = (payload['deliveryEtaMinMinutes'] as num?)?.toInt();
+      final etaMax = (payload['deliveryEtaMaxMinutes'] as num?)?.toInt();
+      if (etaMin != null && etaMax != null && etaMin > 0 && etaMax >= etaMin) {
+        _deliveryEta = (min: etaMin, max: etaMax);
+      }
+      _maxCashVendorOrder =
+          (payload['maxCashVendorOrder'] as num?)?.toDouble() ?? _maxCashVendorOrder;
+      _intercity = IntercityPublicSettings.fromJson(payload);
+      notifyListeners();
+    } catch (e) {
+      // Keep the last known fee. A settings blip must not block checkout;
+      // the server recomputes the authoritative total on order creation.
+      debugPrint('[SuperappProvider] loadPlatformSettings error: $e');
+    }
+  }
+
+  /// Real ledger history from `GET /payments/transactions`.
+  ///
+  /// Envelope: `{ success, data: { transactions: [...], total, page, limit } }`.
+  Future<void> loadTransactions() async {
+    if (_txnsLoading) return;
+    _txnsLoading = true;
+    _txnsError = null;
+    notifyListeners();
+    try {
+      final response = await _apiClient.get(
+        ApiEndpoints.paymentsTransactions,
+        params: {'page': 1, 'limit': 20},
+      );
+      final envelope = response.data as Map<String, dynamic>;
+      final payload = envelope['data'] as Map<String, dynamic>;
+      final rows = (payload['transactions'] as List<dynamic>? ?? []);
+      _transactions = rows
+          .map((r) => WalletTransaction.fromJson(r as Map<String, dynamic>))
+          .toList(growable: false);
+    } catch (e) {
+      debugPrint('[SuperappProvider] loadTransactions error: $e');
+      _txnsError = extractErrorMessage(e);
+    } finally {
+      _txnsLoading = false;
       notifyListeners();
     }
   }

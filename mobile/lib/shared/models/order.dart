@@ -1,7 +1,16 @@
+import 'package:angren_taxi/l10n/l10n.dart';
+import 'package:angren_taxi/shared/models/address_details.dart';
 import 'package:angren_taxi/shared/models/driver.dart';
+import 'package:angren_taxi/shared/models/parcel_info.dart';
+import 'package:angren_taxi/shared/models/trip_option.dart';
+import 'package:angren_taxi/shared/utils/waiting_charge.dart';
 import 'package:equatable/equatable.dart';
 
 enum OrderStatus {
+  /// Yo'lovchi safarni kelajakdagi vaqtga rejalashtirgan. Haydovchi hali
+  /// qidirilmayapti — backend cron'i `scheduled_at` yaqinlashganda buyurtmani
+  /// jonli holatga o'tkazadi.
+  scheduled,
   pending,
   searching,
   driverAssigned,
@@ -15,25 +24,30 @@ enum OrderStatus {
 extension OrderStatusExtension on OrderStatus {
   String get label {
     switch (this) {
+      case OrderStatus.scheduled:
+        return AppL10n.current.shOrderStatusScheduled;
       case OrderStatus.pending:
-        return 'Kutilmoqda';
+        return AppL10n.current.shStatusPending;
       case OrderStatus.searching:
-        return 'Haydovchi izlanmoqda';
+        return AppL10n.current.shOrderStatusSearching;
       case OrderStatus.driverAssigned:
-        return 'Haydovchi tayinlandi';
+        return AppL10n.current.shOrderStatusDriverAssigned;
       case OrderStatus.driverEnRoute:
-        return 'Haydovchi kelmoqda';
+        return AppL10n.current.shOrderStatusDriverEnRoute;
       case OrderStatus.driverArrived:
-        return 'Haydovchi yetib keldi';
+        return AppL10n.current.shOrderStatusDriverArrived;
       case OrderStatus.inProgress:
-        return 'Sayohat davom etmoqda';
+        return AppL10n.current.shOrderStatusInProgress;
       case OrderStatus.completed:
-        return 'Yakunlandi';
+        return AppL10n.current.shOrderStatusCompleted;
       case OrderStatus.cancelled:
-        return 'Bekor qilindi';
+        return AppL10n.current.shStatusCancelled;
     }
   }
 }
+
+/// Backend `NO_DRIVERS_CANCEL_REASON` bilan aynan bir xil bo'lishi shart.
+const String kNoDriversCancelReason = 'No drivers available';
 
 // Backend's actual OrderStatus enum values (order.entity.ts) are
 // created/searching/accepted/arrived/in_progress/completed/cancelled — there
@@ -41,8 +55,15 @@ extension OrderStatusExtension on OrderStatus {
 // those real values onto the richer local enum below.
 OrderStatus orderStatusFromString(String status) {
   switch (status) {
+    case 'scheduled':
+      return OrderStatus.scheduled;
+    // ⚠️ `created` = server buyurtmani yozdi va qidiruvni HOZIR boshlaydi
+    // (`startSearch` javobdan keyin ishga tushadi). Yo'lovchi uchun bu
+    // allaqachon "haydovchi izlanmoqda". Ilgari `pending` ga tushardi —
+    // u faol hisoblanmagani uchun `POST /orders` javobidan keyin holat
+    // tekshirilmas, kuzatuv ekrani ochilmay qolishi mumkin edi.
     case 'created':
-      return OrderStatus.pending;
+      return OrderStatus.searching;
     case 'searching':
       return OrderStatus.searching;
     case 'accepted':
@@ -58,6 +79,113 @@ OrderStatus orderStatusFromString(String status) {
     default:
       return OrderStatus.pending;
   }
+}
+
+// ============================================================================
+// XIZMAT TURI (`serviceType`) — taksi · cargo · ovqat · market.
+//
+// ⚠️ ENUM EMAS, ATAYLAB XOM SATR. Server yangi vertikal qo'shsa (masalan
+// `pharmacy`), eski APK bu qiymatni ko'rib YIQILMASLIGI kerak. Qaysi matn
+// ko'rsatilishi features/driver/service_wording.dart ning ishi va u
+// noma'lum turda taksi matnlariga qaytadi.
+// ============================================================================
+
+const String kServiceTypeTaxi = 'taxi';
+const String kServiceTypeCargo = 'cargo';
+const String kServiceTypeFood = 'food';
+const String kServiceTypeMarket = 'market';
+const String kServiceTypeParcel = 'parcel';
+/// Shaharlararo band — har biri alohida buyurtma (features/intercity).
+const String kServiceTypeIntercity = 'intercity';
+
+/// Xom qiymatni normallashtiradi.
+///
+/// Maydon umuman kelmasa `taxi` qaytadi — bu ZAXIRA emas, ZARURAT: eski
+/// buyurtmalarda va `serviceType` yubormaydigan realtime paketlarida bu
+/// maydon yo'q, ular esa aynan taksi buyurtmalari.
+String serviceTypeFromApi(dynamic value) {
+  final raw = value is String ? value.trim().toLowerCase() : '';
+  return raw.isEmpty ? kServiceTypeTaxi : raw;
+}
+
+// ============================================================================
+// YETKAZIB BERISH MA'LUMOTI — ovqat/market kuryer safarida.
+//
+// Backend kuryer safarining `details` ga restoran/do'kon, mahsulot soni va
+// eshik oldida mijozdan olinadigan NAQD summani yozadi
+// (backend: delivery-ride-details.ts). Taksi va cargo buyurtmalarida bu
+// maydon bo'lmaydi va [Order.delivery] `null` qoladi.
+// ============================================================================
+
+class DeliveryInfo extends Equatable {
+  const DeliveryInfo({
+    required this.vendorName,
+    required this.itemsCount,
+    required this.collectCash,
+    this.payVendor = 0,
+    this.vendorPhone,
+    this.customerPhone,
+    this.addressDetails,
+  });
+
+  final String vendorName;
+
+  /// Podyezd/qavat/xonadon/domofon/mo'ljal/izoh — mijoz checkout'da
+  /// kiritadi (docs/specs/food-market-ux-v5.md §3, `details.addressDetails`).
+  final AddressDetails? addressDetails;
+  final String? vendorPhone;
+  final String? customerPhone;
+  final int itemsCount;
+
+  /// Eshik oldida mijozdan olinadigan naqd, so'm. `0` = onlayn to'langan.
+  final int collectCash;
+
+  bool get mustCollectCash => collectCash > 0;
+
+  /// Tovarni olayotganda do'konga O'Z pulidan to'lanadigan summa (faqat
+  /// tovar, yetkazishsiz), so'm. Mijozdan [collectCash] bilan qaytariladi.
+  /// `0` = onlayn to'langan (backend `delivery/vendor-cash.ts`).
+  final int payVendor;
+
+  bool get mustPayVendor => payVendor > 0;
+
+  /// `details` ovqat yoki market buyurtmasiga bog'langan bo'lsagina qiymat
+  /// qaytaradi. Buzuq maydon butun buyurtmani yiqitmasligi uchun har bir
+  /// maydon alohida, zaxira bilan o'qiladi.
+  static DeliveryInfo? fromDetails(dynamic details) {
+    if (details is! Map) return null;
+    final isDelivery =
+        details['foodOrderId'] is String || details['marketOrderId'] is String;
+    if (!isDelivery) return null;
+
+    String? text(String key) {
+      final value = details[key];
+      return value is String && value.trim().isNotEmpty ? value.trim() : null;
+    }
+
+    return DeliveryInfo(
+      vendorName: text('vendorName') ?? '',
+      vendorPhone: text('vendorPhone'),
+      customerPhone: text('customerPhone'),
+      itemsCount: switch (details['itemsCount']) {
+        final num n => n.toInt(),
+        _ => 0,
+      },
+      collectCash: switch (details['collectCash']) {
+        final num n => n.round(),
+        _ => 0,
+      },
+      payVendor: switch (details['payVendor']) {
+        final num n => n.round(),
+        _ => 0,
+      },
+      addressDetails: AddressDetails.tryParse(details['addressDetails']),
+    );
+  }
+
+  @override
+  List<Object?> get props =>
+      [vendorName, vendorPhone, customerPhone, itemsCount, collectCash, payVendor, addressDetails];
 }
 
 class OrderLocation extends Equatable {
@@ -105,8 +233,23 @@ class Order extends Equatable {
     this.cancelReason,
     this.distanceKm,
     this.durationMin,
+    this.tripDistanceKm,
+    this.tripDurationMin,
     this.passengerPhone,
     this.passengerName,
+    this.scheduledAt,
+    this.serviceType = kServiceTypeTaxi,
+    this.arrivedAt,
+    this.serverWaitingStartsAt,
+    this.offerTimeoutSeconds,
+    this.freeWaitMinutes = kDefaultFreeWaitMinutes,
+    this.waitingPricePerMinute = kDefaultWaitingPricePerMinute,
+    this.delivery,
+    this.options = const [],
+    this.parcel,
+    this.deliveryPin,
+    this.isMetered = false,
+    this.waypoints = const [],
   });
 
   final String id;
@@ -121,10 +264,145 @@ class Order extends Equatable {
   final String? tariffId;
   final DateTime? completedAt;
   final String? cancelReason;
+
+  /// Server "haydovchi topilmadi" deb bekor qilgan
+  /// (`NO_DRIVERS_CANCEL_REASON`, backend matching.constants.ts).
+  bool get isNoDriversCancel =>
+      status == OrderStatus.cancelled && cancelReason == kNoDriversCancelReason;
   final double? distanceKm;
   final int? durationMin;
+
+  /// Safarning o'zi (olish → manzil), buyurtmada qotirilgan baholash.
+  /// Taklif paketida keladi (`matching.service.ts`); taksometrda yo'q.
+  ///
+  /// ⚠️ [distanceKm] bilan adashtirmang: taklifda u haydovchidan OLISH
+  /// NUQTASIGACHA bo'lgan masofa.
+  final double? tripDistanceKm;
+  final int? tripDurationMin;
   final String? passengerPhone;
   final String? passengerName;
+
+  /// Rejalashtirilgan olib ketish vaqti, MAHALLIY vaqtda. `null` = odatdagi
+  /// "hozir" buyurtmasi.
+  ///
+  /// Backend `timestamptz` yuboradi (UTC), shuning uchun `fromJson` da
+  /// `.toLocal()` qilinadi — usiz O'zbekistonda (UTC+5) ekranda 5 soatlik
+  /// xato ko'rinardi.
+  final DateTime? scheduledAt;
+
+  /// Buyurtma qaysi vertikaldan kelgani: `taxi` · `cargo` · `food` ·
+  /// `market` (yoki server kelajakda qo'shadigan boshqa qiymat).
+  ///
+  /// Haydovchi ekranlaridagi BUTUN matn shu maydonga bog'langan: ovqat
+  /// buyurtmasida olish nuqtasi restoran, market'da esa do'kon bo'ladi.
+  /// Tanlash faqat bitta joyda — features/driver/service_wording.dart.
+  final String serviceType;
+
+  // ==========================================================================
+  // KUTISH SHARTNOMASI — uchta maydon BIRGA keladi va birga ishlatiladi.
+  //
+  // Backend ularni HAR BIR buyurtma javobiga `attachDisplayFields` orqali
+  // ildizga tekislab qo'yadi (`order.tariff` ichida EMAS): GET /orders/:id,
+  // /orders/active, /orders/my, ro'yxatlar — hammasida bir xil uchtasi bor.
+  // Shuning uchun ilova tarif munosabati yuklanganiga tayanmaydi.
+  //
+  // Bu uchtadan hisoblangan raqam HAYDOVCHIDA HAM, YO'LOVCHIDA HAM bir xil
+  // bo'ladi va u pul undiradigan server hisobining aynan o'zi —
+  // lib/shared/utils/waiting_charge.dart ga qarang.
+  // ==========================================================================
+
+  /// Haydovchi "yetib keldim" bosgan lahza, MAHALLIY vaqtda.
+  ///
+  /// `null` = haydovchi hali bosmagan YOKI buyurtma kutish migratsiyasidan
+  /// oldin yaratilgan. Ikkala holatda ham hisoblagich UMUMAN
+  /// ko'rsatilmaydi — nol turgan hisoblagich "kutish boshlandi" degan
+  /// yolg'on ma'no berardi.
+  ///
+  /// Backend `timestamptz` (UTC) yuboradi, shuning uchun `fromJson` da
+  /// `.toLocal()` — `scheduledAt` bilan bir xil sabab: usiz O'zbekistonda
+  /// (UTC+5) ekranda 5 soatlik xato ko'rinardi.
+  final DateTime? arrivedAt;
+
+  /// Kutish hisobi qachondan boshlanadi. Rejalashtirilgan safarda haydovchi
+  /// ko'pincha erta keladi — yo'lovchi belgilangan vaqtgacha kutishga majbur
+  /// emas, shuning uchun `max(arrivedAt, scheduledAt)`. Server yakuniy narxni
+  /// aynan shu qoida bilan hisoblaydi (`waitingStartOf`) va natijani
+  /// `waitingStartsAt` bilan yuboradi — u bo'lsa, o'shani olamiz (qoida
+  /// serverda o'zgarsa ham hisoblagich yakuniy narx bilan mos qoladi).
+  /// Eski server bermaydi — o'zimiz hisoblaymiz.
+  DateTime? get waitingStartsAt {
+    final fromServer = serverWaitingStartsAt;
+    if (fromServer != null) return fromServer;
+    final arrived = arrivedAt;
+    if (arrived == null) return null;
+    final scheduled = scheduledAt;
+    return scheduled != null && scheduled.isAfter(arrived) ? scheduled : arrived;
+  }
+
+  /// Taklif paketidagi `timeoutSeconds` — taklif ekranida QOLGAN soniyalar.
+  /// Socket orqali yangi taklifda to'liq muddat; qayta ulanganda tiklangan
+  /// taklifda — qolgani. Taklif bo'lmagan javoblarda `null`.
+  final int? offerTimeoutSeconds;
+
+  /// Serverning `waitingStartsAt` maydoni (ixtiyoriy). To'g'ridan-to'g'ri
+  /// emas, [waitingStartsAt] orqali o'qing.
+  final DateTime? serverWaitingStartsAt;
+
+  /// Bepul kutish oynasi, daqiqa. Buyurtma tarifidan keladi.
+  ///
+  /// Maydon javobda umuman bo'lmasa (eski server) zaxira qiymat
+  /// [kDefaultFreeWaitMinutes] ishlatiladi — `null` bo'lib hisobni
+  /// `NaN` ga aylantirmasligi uchun.
+  final int freeWaitMinutes;
+
+  /// Bepul oynadan keyingi har bir BOSHLANGAN daqiqa narxi, so'm.
+  /// Zaxira qiymat [kDefaultWaitingPricePerMinute].
+  final int waitingPricePerMinute;
+
+  /// Ovqat/market kuryer safarida — nima olib ketilayotgani va qancha naqd
+  /// olinishi. Taksi va cargoda `null`.
+  final DeliveryInfo? delivery;
+
+  /// Yo'lovchi so'ragan safar opsiyalari (bola o'rindig'i, hayvon, ...).
+  /// Haydovchi taklifda ko'radi — u shu opsiyalar tufayli tanlangan.
+  final List<TripOption> options;
+
+  /// Posilka safarida — qabul qiluvchi va buyum. Boshqa safarlarda `null`.
+  final ParcelInfo? parcel;
+
+  /// Posilka topshirish PIN kodi. FAQAT yuboruvchi yo'lovchiga keladi —
+  /// haydovchi javobida server uni umuman yubormaydi.
+  final String? deliveryPin;
+
+  /// TAKSOMETR: yo'lovchi manzil ko'rsatmagan, narx safar oxirida haqiqiy
+  /// yo'ldan hisoblanadi. ⚠️ Bunday buyurtmada [dropoff] safar tugaguncha
+  /// OLISH NUQTASIGA teng va manzilsiz — uni manzil sifatida ko'rsatmang,
+  /// `estimatedPrice` esa "kamida" summa, yakuniy narx emas.
+  final bool isMetered;
+
+  /// Oraliq bekatlar, borish tartibida. Haydovchi navigatsiyasi yo'lni shular
+  /// orqali quradi — aks holda ko'p bekatli safarda to'g'ri manzilga yo'l
+  /// ko'rsatilib, bekatlar o'tkazib yuborilardi.
+  final List<OrderLocation> waypoints;
+
+  /// Ekranda ko'rsatiladigan manzil. Taksometrda manzil matni YO'Q (safar
+  /// tugagach ham — tugash joyi faqat koordinata), shuning uchun bo'sh qator
+  /// yoki olish manzilining takrori o'rniga "Manzil yo'q — taksometr".
+  String get dropoffLabel => isMetered && dropoff.address.isEmpty
+      ? AppL10n.current.shMeterNoDestination
+      : dropoff.address;
+
+  bool get isParcel => serviceType == kServiceTypeParcel;
+
+  /// Bu safar ovqat yoki market yetkazish (kuryer) safarimi.
+  ///
+  /// `serviceType` ham tekshiriladi: `details` yubormaydigan javoblarda
+  /// (eski server, ba'zi realtime paketlar) ham kuryer safari taksi deb
+  /// adashtirilmasin.
+  bool get isDelivery =>
+      delivery != null ||
+      serviceType == kServiceTypeFood ||
+      serviceType == kServiceTypeMarket;
 
   factory Order.fromJson(Map<String, dynamic> json) {
     return Order(
@@ -154,6 +432,8 @@ class Order extends Equatable {
           ? (json['distanceKm'] as num).toDouble()
           : null,
       durationMin: json['durationMin'] as int?,
+      tripDistanceKm: (json['tripDistanceKm'] as num?)?.toDouble(),
+      tripDurationMin: (json['tripDurationMin'] as num?)?.round(),
       passengerPhone: json['passenger'] != null
           ? (json['passenger'] as Map<String, dynamic>)['phone'] as String?
           : null,
@@ -163,6 +443,38 @@ class Order extends Equatable {
               (json['passenger'] as Map<String, dynamic>)['lastName'],
             ].whereType<String>().where((s) => s.isNotEmpty).join(' ')
           : null,
+      scheduledAt: json['scheduledAt'] != null
+          ? DateTime.parse(json['scheduledAt'] as String).toLocal()
+          : null,
+      serviceType: serviceTypeFromApi(json['serviceType']),
+      // ⚠️ `tryParse`, `parse` EMAS: yaroqsiz sana matni kelsa hisoblagich
+      // ko'rsatilmasligi kerak, `Order.fromJson` esa YIQILMASLIGI kerak —
+      // aks holda bitta buzuq maydon butun faol safar ekranini o'ldirardi.
+      arrivedAt: json['arrivedAt'] is String
+          ? DateTime.tryParse(json['arrivedAt'] as String)?.toLocal()
+          : null,
+      offerTimeoutSeconds: (json['timeoutSeconds'] as num?)?.toInt(),
+      serverWaitingStartsAt: json['waitingStartsAt'] is String
+          ? DateTime.tryParse(json['waitingStartsAt'] as String)?.toLocal()
+          : null,
+      // ⚠️ ORQAGA MOSLIK: eski server bu maydonlarni umuman yubormaydi.
+      // `?? zaxira` ularni standart tarifga qaytaradi.
+      freeWaitMinutes:
+          (json['freeWaitMinutes'] as num?)?.toInt() ?? kDefaultFreeWaitMinutes,
+      waitingPricePerMinute: (json['waitingPricePerMinute'] as num?)?.toInt() ??
+          kDefaultWaitingPricePerMinute,
+      delivery: DeliveryInfo.fromDetails(json['details']),
+      options: TripOption.listFromApi(json['options']),
+      parcel: ParcelInfo.fromDetails(
+        serviceTypeFromApi(json['serviceType']),
+        json['details'],
+      ),
+      deliveryPin: json['deliveryPin'] as String?,
+      isMetered: json['isMetered'] == true,
+      waypoints: [
+        for (final w in (json['waypoints'] as List<dynamic>? ?? const []))
+          if (w is Map<String, dynamic>) OrderLocation.fromJson(w),
+      ],
     );
   }
 
@@ -181,8 +493,24 @@ class Order extends Equatable {
         'cancelReason': cancelReason,
         'distanceKm': distanceKm,
         'durationMin': durationMin,
+        'tripDistanceKm': tripDistanceKm,
+        'tripDurationMin': tripDurationMin,
+        'scheduledAt': scheduledAt?.toIso8601String(),
+        'serviceType': serviceType,
+        'arrivedAt': arrivedAt?.toIso8601String(),
+        'waitingStartsAt': serverWaitingStartsAt?.toIso8601String(),
+        'freeWaitMinutes': freeWaitMinutes,
+        'waitingPricePerMinute': waitingPricePerMinute,
+        'isMetered': isMetered,
+        'waypoints': [for (final w in waypoints) w.toJson()],
       };
 
+  /// ⚠️ `scheduled` ATAYLAB BU YERGA KIRMAYDI.
+  ///
+  /// `checkActiveOrder()` shu getter bo'yicha filtrlaydi va topganini
+  /// `_activeOrder` ga qo'yadi. Rejalashtirilgan safar "aktiv" hisoblansa,
+  /// bosh ekran "haydovchi izlanmoqda" holatiga qulflanib qolardi va
+  /// yo'lovchi ertangi safari borligi uchun BUGUN taksi chaqira olmasdi.
   bool get isActive =>
       status == OrderStatus.searching ||
       status == OrderStatus.driverAssigned ||
@@ -205,6 +533,17 @@ class Order extends Equatable {
     String? cancelReason,
     double? distanceKm,
     int? durationMin,
+    DateTime? scheduledAt,
+    String? serviceType,
+    DateTime? arrivedAt,
+    int? freeWaitMinutes,
+    int? waitingPricePerMinute,
+    DeliveryInfo? delivery,
+    List<TripOption>? options,
+    ParcelInfo? parcel,
+    String? deliveryPin,
+    bool? isMetered,
+    List<OrderLocation>? waypoints,
   }) {
     return Order(
       id: id ?? this.id,
@@ -221,6 +560,31 @@ class Order extends Equatable {
       cancelReason: cancelReason ?? this.cancelReason,
       distanceKm: distanceKm ?? this.distanceKm,
       durationMin: durationMin ?? this.durationMin,
+      tripDistanceKm: tripDistanceKm,
+      tripDurationMin: tripDurationMin,
+      scheduledAt: scheduledAt ?? this.scheduledAt,
+      serviceType: serviceType ?? this.serviceType,
+      // ⚠️ `copyWith` bu maydonni TOZALAY OLMAYDI (`??` naqshi). Buyurtma
+      // boshqa haydovchiga o'tkazilganda server `arrived_at` ni nollaydi va
+      // ilova o'sha yangi holatni to'liq `Order.fromJson` orqali oladi
+      // (`_refreshActiveOrder` / `checkActiveOrder`), ya'ni eskirgan
+      // `arrivedAt` u yerda tabiiy ravishda yo'qoladi.
+      arrivedAt: arrivedAt ?? this.arrivedAt,
+      // Kelish yoki reja vaqti o'zgarsa, serverning eski hisobi endi to'g'ri
+      // emas — keyingi `fromJson` gacha o'zimiz hisoblaymiz.
+      offerTimeoutSeconds: offerTimeoutSeconds,
+      serverWaitingStartsAt: arrivedAt == null && scheduledAt == null
+          ? serverWaitingStartsAt
+          : null,
+      freeWaitMinutes: freeWaitMinutes ?? this.freeWaitMinutes,
+      waitingPricePerMinute:
+          waitingPricePerMinute ?? this.waitingPricePerMinute,
+      delivery: delivery ?? this.delivery,
+      options: options ?? this.options,
+      parcel: parcel ?? this.parcel,
+      deliveryPin: deliveryPin ?? this.deliveryPin,
+      isMetered: isMetered ?? this.isMetered,
+      waypoints: waypoints ?? this.waypoints,
     );
   }
 
@@ -240,5 +604,27 @@ class Order extends Equatable {
         cancelReason,
         distanceKm,
         durationMin,
+        tripDistanceKm,
+        tripDurationMin,
+        // ⚠️ `props` GA QO'SHILISHI SHART. `Order extends Equatable`, ya'ni
+        // bu yerda yo'q maydon tenglikda HISOBGA OLINMAYDI: `copyWith(
+        // scheduledAt: ...)` natijasi eskisiga TENG deb topilardi va
+        // `notifyListeners()` chaqirilsa ham UI yangilanmasdi.
+        scheduledAt,
+        serviceType,
+        // `props` ga qo'shilishi SHART — yuqoridagi izohga qarang: bu yerda
+        // yo'q maydon o'zgarsa `copyWith` natijasi eskisiga TENG deb
+        // topilardi va kutish hisoblagichi yangilanmasdi.
+        arrivedAt,
+        serverWaitingStartsAt,
+        offerTimeoutSeconds,
+        freeWaitMinutes,
+        waitingPricePerMinute,
+        delivery,
+        options,
+        parcel,
+        deliveryPin,
+        isMetered,
+        waypoints,
       ];
 }

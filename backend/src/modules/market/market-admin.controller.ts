@@ -1,11 +1,16 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { MarketService } from './market.service';
+import { CatalogImageService } from '../storage/catalog-image.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { UserRole } from '../../database/entities/user.entity';
+import { User, UserRole } from '../../database/entities/user.entity';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { VendorTinService } from '../vendor-tin/vendor-tin.service';
+import { SetVendorTinDto } from '../vendor-tin/dto/set-vendor-tin.dto';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
+import { CatalogModerationQueryDto } from '../../common/dto/catalog-moderation-query.dto';
 import { CreateStoreAdminDto } from './dto/create-store-admin.dto';
 import { SetStoreStatusDto } from './dto/set-store-status.dto';
 
@@ -15,7 +20,11 @@ import { SetStoreStatusDto } from './dto/set-store-status.dto';
 @Roles(UserRole.ADMIN)
 @Controller('market/admin')
 export class MarketAdminController {
-  constructor(private readonly marketService: MarketService) {}
+  constructor(
+    private readonly marketService: MarketService,
+    private readonly catalogImages: CatalogImageService,
+    private readonly vendorTin: VendorTinService,
+  ) {}
 
   @Get('stores')
   @ApiOperation({ summary: 'List all Market stores (admin only)' })
@@ -29,6 +38,17 @@ export class MarketAdminController {
     return this.marketService.adminCreateStore(dto);
   }
 
+  /** Fiskal chekdagi komitent STIR'i (9 raqam | null) — amallar jurnaliga yoziladi (`vendor.tin_update`). */
+  @Patch('stores/:id/tin')
+  @ApiOperation({ summary: "Set or clear a store's TIN (9 digits | null), audit-logged (admin only)" })
+  setTin(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SetVendorTinDto,
+  ) {
+    return this.vendorTin.setTin(user.id, 'store', id, dto.tin);
+  }
+
   @Patch('stores/:id/status')
   @ApiOperation({ summary: "Set a store's active/closed status (admin only)" })
   setStatus(@Param('id', ParseUUIDPipe) id: string, @Body() dto: SetStoreStatusDto) {
@@ -37,13 +57,14 @@ export class MarketAdminController {
 
   @Get('products')
   @ApiOperation({ summary: 'List products across every store, for moderation (admin only)' })
-  listProducts() {
-    return this.marketService.adminListProducts();
+  listProducts(@Query() query: CatalogModerationQueryDto) {
+    return this.marketService.adminListProducts(query);
   }
 
   @Delete('products/:id')
   @ApiOperation({ summary: 'Remove a product (moderation — admin only)' })
-  deleteProduct(@Param('id', ParseUUIDPipe) id: string) {
-    return this.marketService.adminDeleteProduct(id);
+  async deleteProduct(@Param('id', ParseUUIDPipe) id: string) {
+    const imageKey = await this.marketService.adminDeleteProduct(id);
+    await this.catalogImages.discard(imageKey);
   }
 }

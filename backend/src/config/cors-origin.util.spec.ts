@@ -16,6 +16,19 @@ describe('resolveCorsOrigin', () => {
     expect(result).toEqual(expect.arrayContaining(['http://localhost:3000']));
   });
 
+  it('allows every local web panel (admin, manager, market, restaurant) in development', () => {
+    const result = resolveCorsOrigin('development', undefined);
+
+    expect(result).toEqual(
+      expect.arrayContaining([
+        'http://localhost:3001',
+        'http://localhost:3002',
+        'http://localhost:3003',
+        'http://localhost:3004',
+      ]),
+    );
+  });
+
   it('returns a permissive localhost default when NODE_ENV is unset', () => {
     const result = resolveCorsOrigin(undefined, undefined);
 

@@ -1,0 +1,5 @@
+# Real secrets — never commit. (Root .gitignore ignores `.env.*`; the example
+# is re-included here.)
+.env.prod
+!.env.prod.example
+.state/

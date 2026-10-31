@@ -1,4 +1,7 @@
 import 'package:angren_taxi/features/auth/auth_provider.dart';
+import 'package:angren_taxi/features/auth/widgets/account_legal_actions.dart';
+import 'package:angren_taxi/features/lost_items/screens/lost_items_screen.dart';
+import 'package:angren_taxi/features/passenger/screens/destination_screen.dart';
 import 'package:angren_taxi/features/passenger/screens/edit_profile_screen.dart';
 import 'package:angren_taxi/features/passenger/screens/referral_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/notifications_screen.dart';
@@ -8,6 +11,7 @@ import 'package:angren_taxi/features/superapp/screens/support_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/wallet_screen.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -25,17 +29,11 @@ class ProfileTab extends StatelessWidget {
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
   }
 
-  void _notImplementedYet(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Bu bo\'lim tez kunda ishga tushadi')),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final user = auth.currentUser;
-    final name = (user?.name?.trim().isNotEmpty ?? false) ? user!.name! : 'Foydalanuvchi';
+    final name = (user?.name?.trim().isNotEmpty ?? false) ? user!.name! : context.l10n.saDefaultUserName;
     final phone = user?.phone ?? '';
     final topPad = MediaQuery.of(context).padding.top;
 
@@ -92,7 +90,7 @@ class ProfileTab extends StatelessWidget {
                     ),
                     Semantics(
                       button: true,
-                      label: 'Profilni tahrirlash',
+                      label: context.l10n.saEditProfile,
                       excludeSemantics: true,
                       child: GestureDetector(
                         onTap: () => _push(context, const EditProfileScreen()),
@@ -109,11 +107,11 @@ class ProfileTab extends StatelessWidget {
                 const SizedBox(height: kSpace5),
                 Row(
                   children: [
-                    _stat('${user?.totalTrips ?? 0}', 'Safarlar'),
+                    _stat('${user?.totalTrips ?? 0}', context.l10n.saProfileTrips),
                     const SizedBox(width: kSpace3),
                     _stat(
                       user?.rating != null ? user!.rating!.toStringAsFixed(1) : '—',
-                      'Reyting',
+                      context.l10n.saProfileRating,
                     ),
                   ],
                 ),
@@ -126,7 +124,7 @@ class ProfileTab extends StatelessWidget {
               children: [
                 Semantics(
                   button: true,
-                  label: "Yordam kerakmi? 24/7 qo'llab-quvvatlash xizmati",
+                  label: context.l10n.saProfileHelpBannerLabel,
                   excludeSemantics: true,
                   child: GestureDetector(
                     onTap: () => _push(context, const SupportScreen()),
@@ -154,12 +152,12 @@ class ProfileTab extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Yordam kerakmi?',
-                                    style: TextStyle(
+                                Text(context.l10n.saProfileNeedHelp,
+                                    style: const TextStyle(
                                         color: agOnPrimary,
                                         fontWeight: FontWeight.w800,
                                         fontSize: kFontTitle)),
-                                Text("24/7 qo'llab-quvvatlash xizmati",
+                                Text(context.l10n.saProfileSupport247,
                                     style: TextStyle(
                                         color: agOnPrimary.withValues(alpha: 0.75),
                                         fontSize: kFontCaption,
@@ -183,25 +181,32 @@ class ProfileTab extends StatelessWidget {
                   ),
                   child: Column(
                     children: [
-                      _MenuRow(icon: Icons.account_balance_wallet_rounded, iconColor: agGreenText, label: 'Hamyon va kartalar',
+                      _MenuRow(icon: Icons.account_balance_wallet_rounded, iconColor: agGreenText, label: context.l10n.saWalletAndCards,
                           onTap: () => _push(context, const WalletScreen())),
-                      _MenuRow(icon: Icons.receipt_long_rounded, label: 'Buyurtmalar tarixi',
+                      _MenuRow(icon: Icons.receipt_long_rounded, label: context.l10n.saOrderHistory,
                           onTap: () => context.read<SuperappProvider>().tabIndex = 1),
-                      _MenuRow(icon: Icons.favorite_rounded, label: 'Sevimlilar',
-                          onTap: () => _notImplementedYet(context)),
-                      _MenuRow(icon: Icons.workspace_premium_rounded, iconColor: agOrange, label: 'Bonuslar',
-                          onTap: () => _notImplementedYet(context)),
-                      _MenuRow(icon: Icons.reviews_rounded, label: 'Mening baholarim',
-                          onTap: () => _notImplementedYet(context)),
-                      _MenuRow(icon: Icons.place_rounded, label: 'Saqlangan manzillar',
-                          onTap: () => _notImplementedYet(context)),
-                      _MenuRow(icon: Icons.redeem_rounded, label: 'Aksiyalar va promokodlar',
+                      // Four rows here used to dead-end in a "tez kunda"
+                      // snackbar. "Saqlangan manzillar" now opens the address
+                      // manager that FavoritesProvider has always backed;
+                      // "Sevimlilar" was the same feature under a second name,
+                      // and "Bonuslar" duplicated the two rows below it, so
+                      // both are gone. "Mening baholarim" has no endpoint
+                      // behind it at all — a passenger-ratings API does not
+                      // exist — so advertising it was the wrong call.
+                      _MenuRow(icon: Icons.place_rounded, label: context.l10n.saSavedAddresses,
+                          onTap: () => _push(
+                                context,
+                                const DestinationScreen(isSavingFavorite: true),
+                              )),
+                      _MenuRow(icon: Icons.redeem_rounded, label: context.l10n.saPromosTitle,
                           onTap: () => _push(context, const PromosScreen())),
-                      _MenuRow(icon: Icons.group_add_rounded, iconColor: agPurple, label: "Do'stlarni taklif qilish",
+                      _MenuRow(icon: Icons.group_add_rounded, iconColor: agPurple, label: context.l10n.saInviteFriends,
                           onTap: () => _push(context, const ReferralScreen())),
-                      _MenuRow(icon: Icons.notifications_rounded, label: 'Bildirishnomalar',
+                      _MenuRow(icon: Icons.notifications_rounded, label: context.l10n.saNotificationsTitle,
                           onTap: () => _push(context, const NotificationsScreen())),
-                      _MenuRow(icon: Icons.settings_rounded, label: 'Sozlamalar', last: true,
+                      _MenuRow(icon: Icons.inventory_2_rounded, label: context.l10n.saLostItemsTitle,
+                          onTap: () => _push(context, const LostItemsScreen(isDriver: false))),
+                      _MenuRow(icon: Icons.settings_rounded, label: context.l10n.saSettingsTitle, last: true,
                           onTap: () => _push(context, const SettingsScreen())),
                     ],
                   ),
@@ -209,7 +214,7 @@ class ProfileTab extends StatelessWidget {
                 const SizedBox(height: kSpace4),
                 Semantics(
                   button: true,
-                  label: 'Chiqish',
+                  label: context.l10n.saLogout,
                   excludeSemantics: true,
                   child: GestureDetector(
                     onTap: () => auth.logout(),
@@ -222,13 +227,13 @@ class ProfileTab extends StatelessWidget {
                         borderRadius: BorderRadius.circular(kRadiusMd),
                         border: Border.all(color: kErrorBorder),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.logout_rounded, size: 20, color: kErrorDeep),
-                          SizedBox(width: kSpace2),
-                          Text('Chiqish',
-                              style: TextStyle(
+                          const Icon(Icons.logout_rounded, size: 20, color: kErrorDeep),
+                          const SizedBox(width: kSpace2),
+                          Text(context.l10n.saLogout,
+                              style: const TextStyle(
                                   color: kErrorDeep,
                                   fontWeight: FontWeight.w800,
                                   fontSize: kFontBody)),
@@ -237,6 +242,8 @@ class ProfileTab extends StatelessWidget {
                     ),
                   ),
                 ),
+                const SizedBox(height: kSpace2),
+                const AccountLegalActions(),
               ],
             ),
           ),

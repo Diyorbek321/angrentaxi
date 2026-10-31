@@ -7,12 +7,18 @@ plugins {
 
 android {
     namespace "uz.angren.taxi"
-    compileSdk = flutter.compileSdkVersion
-    // Pinned to an NDK already present on this machine. AGP auto-downloads a
-    // missing NDK on build, and large Google-CDN downloads stall in this
-    // environment, so we point at the locally available 26.1.10909125 instead
-    // of flutter.ndkVersion (which resolves to an uninstalled version).
-    ndkVersion = "26.1.10909125"
+    // flutter_tts SDK 36 ga qarshi kompilyatsiya qilinadi. compileSdk faqat
+    // qaysi API'lar ko'rinishini belgilaydi — ilova xulqini targetSdk
+    // (flutter.targetSdkVersion) boshqaradi, u o'zgarmadi.
+    compileSdk = 36
+    // Plaginlar talab qilgan eng yuqori NDK: maplibre_gl — 28.1, qolganlari
+    // 27.0. Pastroq versiyada build "Your project is configured with Android
+    // NDK ..., but the following plugin(s) depend on a different Android NDK
+    // version" deb ogohlantiradi. NDK'lar orqaga mos — eng yangisi tanlanadi.
+    // Plagin yangilanib talab o'ssa, shu xabar yana chiqadi: shu yerni
+    // ko'taring (AGP yetishmagan NDK'ni o'zi yuklashga urinadi, bu muhitda
+    // katta yuklamalar to'xtab qoladi — oldindan qo'lda o'rnating).
+    ndkVersion = "28.1.13356709"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -25,8 +31,23 @@ android {
 
     defaultConfig {
         applicationId "uz.angren.taxi"
-        minSdk = 23
-        targetSdk = flutter.targetSdkVersion
+        // ⚠️ 24 — 23 EMAS. Ovozli navigatsiya uchun qo'shilgan `flutter_tts`
+        // minSdk 24 talab qiladi va 23 bilan manifest birlashtiruvchi
+        // butun build'ni to'xtatadi (ilova umuman qurilmaydi).
+        //
+        // `tools:overrideLibrary` bilan majburlash ham mumkin edi, lekin u
+        // kutubxonani o'zi qo'llab-quvvatlamaydigan API darajasida ishga
+        // tushirardi — ya'ni build o'tardi-yu, ovozli yo'riqnoma eski
+        // qurilmada ish vaqtida yiqilardi. Jim ishlamaydigan funksiya
+        // ochiq talabdan yomonroq.
+        //
+        // Narxi: Android 6.0 (2015) qo'llab-quvvatlashdan chiqadi. Android
+        // 7.0+ hozirgi faol qurilmalarning deyarli hammasini qamrab oladi.
+        minSdk = 24
+        // Play 2026-08-31 dan yangi ilova va yangilanishlardan API 36 talab
+        // qiladi; Flutter 3.32 standarti hali 35. Android 16 xulqi: edge-to-edge
+        // majburiy (Flutter allaqachon chizadi), predictive back yoqiq.
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -47,11 +68,45 @@ android {
         }
     }
 
+    // Release signing is read from android/key.properties, which is gitignored
+    // and never committed. See android/key.properties.example for the format
+    // and the keytool command that creates the keystore.
+    //
+    // Without it the release build used to fall back to signingConfigs.debug —
+    // an APK signed with the shared debug key, which the Play Store rejects
+    // and which cannot be updated later by a properly signed build.
+    signingConfigs {
+        release {
+            def keystorePropertiesFile = rootProject.file("key.properties")
+            if (keystorePropertiesFile.exists()) {
+                def keystoreProperties = new Properties()
+                keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+                keyAlias = keystoreProperties["keyAlias"]
+                keyPassword = keystoreProperties["keyPassword"]
+                storeFile = file(keystoreProperties["storeFile"])
+                storePassword = keystoreProperties["storePassword"]
+            }
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig = signingConfigs.debug
-            minifyEnabled = false
-            shrinkResources = false
+            // Fall back to debug signing only for local release-mode testing,
+            // and say so loudly — a debug-signed artifact must never be the one
+            // that reaches the store.
+            if (rootProject.file("key.properties").exists()) {
+                signingConfig = signingConfigs.release
+            } else {
+                logger.warn(
+                    "WARNING: android/key.properties not found — signing the release build " +
+                    "with the DEBUG key. This APK cannot be published to Google Play."
+                )
+                signingConfig = signingConfigs.debug
+            }
+
+            minifyEnabled = true
+            shrinkResources = true
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
     }
 }

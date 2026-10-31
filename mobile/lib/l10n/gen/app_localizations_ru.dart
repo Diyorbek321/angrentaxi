@@ -1,0 +1,5111 @@
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for Russian (`ru`).
+class AppLocalizationsRu extends AppLocalizations {
+  AppLocalizationsRu([String locale = 'ru']) : super(locale);
+
+  @override
+  String get accDeleteBlockedTitle => 'Сейчас удалить нельзя';
+
+  @override
+  String get accDeleteBody =>
+      'Ваш номер телефона, имя и данные для входа будут удалены, вы выйдете на всех устройствах. Это действие необратимо. Записи о поездках и платежах по закону хранятся в обезличенном виде.';
+
+  @override
+  String get accDeleteButton => 'Удалить аккаунт';
+
+  @override
+  String get accDeleteConfirm => 'Удалить';
+
+  @override
+  String get accDeleteOk => 'Понятно';
+
+  @override
+  String get accDeleteTitle => 'Удалить аккаунт?';
+
+  @override
+  String get accDeleted => 'Ваш аккаунт удалён';
+
+  @override
+  String get accPrivacyPolicy => 'Политика конфиденциальности';
+
+  @override
+  String get appLanguage => 'Язык приложения';
+
+  @override
+  String get authWrongAppDriver =>
+      'Этот номер зарегистрирован как водитель. Используйте приложение для водителей или войдите как пассажир с другим номером.';
+
+  @override
+  String get authWrongAppStaff =>
+      'С этим номером в это приложение не войти. Аккаунт администратора работает только в панели управления; сотрудники и продавцы вызывают такси через приложение пассажира.';
+
+  @override
+  String get commonCancel => 'Отмена';
+
+  @override
+  String get commonDone => 'Готово';
+
+  @override
+  String get commonErrorTitle => 'Произошла ошибка';
+
+  @override
+  String get commonRetry => 'Повторить';
+
+  @override
+  String get commonSave => 'Сохранить';
+
+  @override
+  String get commonSend => 'Отправить';
+
+  @override
+  String get drvAbout => 'О приложении';
+
+  @override
+  String get drvAccept => 'Принять';
+
+  @override
+  String get drvAcceptFailed => 'Не удалось принять заказ';
+
+  @override
+  String get drvAcceptedOrders => 'Принимаемые заказы';
+
+  @override
+  String get drvAmenitiesIntro =>
+      'Отметьте, что есть в вашей машине, — если пассажир попросит это, заказ придёт вам.';
+
+  @override
+  String get drvAmenitiesTitle => 'Дополнительные опции';
+
+  @override
+  String get drvAmenitiesWarning =>
+      'Не отмечайте то, чего нет в машине: пассажир будет ждать детское кресло и отменит поездку.';
+
+  @override
+  String get drvAmount => 'Сумма';
+
+  @override
+  String drvAmountExceedsWallet(String balance) {
+    return 'Сумма больше баланса. Кошелёк: $balance';
+  }
+
+  @override
+  String get drvAmountHint => 'Например: 60000';
+
+  @override
+  String get drvAppName => 'Angren Taxi — Водитель';
+
+  @override
+  String drvApplicationIntro(String phone) {
+    return 'Номер $phone ещё не зарегистрирован как водитель. Укажите данные автомобиля — после одобрения администратором вы сможете выйти на линию.';
+  }
+
+  @override
+  String get drvApplicationPending => 'Заявка на рассмотрении';
+
+  @override
+  String get drvApplicationPendingBody =>
+      'Ваша заявка ждёт одобрения администратором. После одобрения вы автоматически продолжите отсюда.';
+
+  @override
+  String get drvApplicationRoleWarning =>
+      'Внимание: после отправки заявки этот номер станет аккаунтом водителя, и с ним нельзя будет заказывать такси, еду или товары в приложении для пассажиров. Для поездок как пассажир понадобится другой номер.';
+
+  @override
+  String get drvApplicationTitle => 'Заявка на работу водителем';
+
+  @override
+  String get drvArrivedCargo => 'Вы на месте загрузки!';
+
+  @override
+  String get drvArrivedParcel => 'Вы на месте получения посылки!';
+
+  @override
+  String get drvArrivedRestaurant => 'Вы в ресторане!';
+
+  @override
+  String get drvArrivedShop => 'Вы в магазине!';
+
+  @override
+  String get drvArrivedTaxi => 'Вы на месте посадки!';
+
+  @override
+  String get drvArrivedTitle => 'Я на месте';
+
+  @override
+  String get drvBack => 'Назад';
+
+  @override
+  String drvBalanceNegative(String balance) {
+    return 'Баланс отрицательный ($balance). Сначала погасите долг.';
+  }
+
+  @override
+  String get drvBankAndWithdraw => 'Банковский счёт и вывод';
+
+  @override
+  String drvBonusDone(String amount) {
+    return 'Выполнено — $amount';
+  }
+
+  @override
+  String get drvBonusProgram => 'Бонусная программа';
+
+  @override
+  String drvBonusRemaining(int count, String amount) {
+    return 'Ещё $count поездок — $amount';
+  }
+
+  @override
+  String drvBonusTrips(int current, int threshold) {
+    return '$current/$threshold поездок';
+  }
+
+  @override
+  String get drvCall => 'Позвонить';
+
+  @override
+  String get drvCallCustomer => 'Позвонить клиенту';
+
+  @override
+  String get drvCallFailed => 'Не удалось позвонить';
+
+  @override
+  String get drvCallRecipient => 'Позвонить получателю';
+
+  @override
+  String get drvCallSeller => 'Позвонить продавцу';
+
+  @override
+  String get drvCamera => 'Камера';
+
+  @override
+  String get drvCameraAhead => 'Камера';
+
+  @override
+  String drvCameraLimit(int speed) {
+    return 'Лимит $speed';
+  }
+
+  @override
+  String drvCameraSem(String distance) {
+    return 'Впереди камера скорости, $distance';
+  }
+
+  @override
+  String drvCameraSpeak(int speed) {
+    return 'Впереди камера. Ограничение $speed.';
+  }
+
+  @override
+  String get drvCameraSpeakNoLimit => 'Впереди камера.';
+
+  @override
+  String get drvCancel => 'Отмена';
+
+  @override
+  String get drvCancelFailed => 'Не удалось отменить';
+
+  @override
+  String get drvCarColor => 'Цвет';
+
+  @override
+  String get drvCarDetails => 'Данные автомобиля';
+
+  @override
+  String get drvCarModel => 'Марка и модель';
+
+  @override
+  String get drvCarModelField => 'Модель автомобиля';
+
+  @override
+  String get drvCarModelHint => 'Например: Chevrolet Cobalt';
+
+  @override
+  String get drvCarModelRequired => 'Введите марку автомобиля';
+
+  @override
+  String get drvCarYear => 'Год выпуска';
+
+  @override
+  String get drvCarYearField => 'Год выпуска автомобиля';
+
+  @override
+  String get drvCarYearHelper =>
+      'По этим данным определят, в каком тарифе вы сможете работать';
+
+  @override
+  String get drvCarYearHint => 'Например: 2019';
+
+  @override
+  String get drvCarYearOptional => 'Год выпуска (необязательно)';
+
+  @override
+  String drvCarYearRange(int max) {
+    return 'Введите год от 1990 до $max';
+  }
+
+  @override
+  String get drvCardOrPhone => 'Номер карты или телефона';
+
+  @override
+  String get drvCargo => 'Груз';
+
+  @override
+  String get drvCargoDelivered => 'Груз успешно доставлен!';
+
+  @override
+  String get drvCargoInProgress => 'Груз в пути';
+
+  @override
+  String get drvCargoNotGiven => 'Груз не выдали';
+
+  @override
+  String get drvCargoPickupPlace => 'Место загрузки';
+
+  @override
+  String get drvChatCustomer => 'Чат с клиентом';
+
+  @override
+  String get drvChatPassenger => 'Чат с пассажиром';
+
+  @override
+  String get drvCheckStatus => 'Проверить статус';
+
+  @override
+  String get drvCollectCash => 'Получите наличные у клиента';
+
+  @override
+  String get drvCompleteCargoConfirm => 'Подтвердите, что груз передан';
+
+  @override
+  String get drvCompleteDelivery => 'Завершить доставку';
+
+  @override
+  String get drvCompleteFailed => 'Не удалось завершить';
+
+  @override
+  String get drvCompleteOrderConfirm =>
+      'Подтвердите, что заказ передан клиенту';
+
+  @override
+  String get drvCompleteParcelConfirm =>
+      'Попросите у получателя 4-значный PIN-код и введите его.';
+
+  @override
+  String get drvCompleteTrip => 'Завершить поездку';
+
+  @override
+  String get drvCompleteTripConfirm => 'Завершить поездку?';
+
+  @override
+  String get drvCompletedTrips => 'Завершённые поездки';
+
+  @override
+  String get drvContinue => 'Продолжить';
+
+  @override
+  String get drvCurrentCar => 'Текущий автомобиль';
+
+  @override
+  String get drvCustomer => 'Клиент';
+
+  @override
+  String get drvDataNotLoaded => 'Данные не загрузились';
+
+  @override
+  String get drvDeadlineApproaching => 'Срок подходит к концу';
+
+  @override
+  String get drvDebt => 'Долг';
+
+  @override
+  String drvDebtAmount(String amount) {
+    return 'Долг: $amount';
+  }
+
+  @override
+  String get drvDebtConsequence =>
+      'Комиссия за поездки за наличные. Пока долг не погашен, выйти на линию нельзя.';
+
+  @override
+  String get drvDecline => 'Отклонить';
+
+  @override
+  String get drvDeliveryAddress => 'Адрес доставки';
+
+  @override
+  String get drvDemandEvenMessage =>
+      'Разницы между зонами нет — ждать можно где угодно. Данные обновляются каждую минуту.';
+
+  @override
+  String get drvDemandEvenTitle => 'Сейчас спрос везде обычный';
+
+  @override
+  String get drvDemandHigh => 'Спрос высокий';
+
+  @override
+  String get drvDemandLoadFailed => 'Не удалось получить данные о спросе';
+
+  @override
+  String get drvDemandMapLinkSem => 'Карта спроса: где больше заказов';
+
+  @override
+  String get drvDemandMapTitle => 'Карта спроса';
+
+  @override
+  String get drvDemandNormal => 'Спрос обычный';
+
+  @override
+  String get drvDemandPaintedMore => 'В закрашенных зонах заказов больше';
+
+  @override
+  String drvDemandRowSem(String title, String count) {
+    return '$title, $count';
+  }
+
+  @override
+  String drvDemandRowSemNearest(String title, String count, String distance) {
+    return '$title, $count, ближайшая — $distance';
+  }
+
+  @override
+  String get drvDemandStayNear =>
+      'Держитесь ближе к этим зонам — заказ придёт быстрее.';
+
+  @override
+  String get drvDemandUnpaintedNormal =>
+      'В незакрашенных местах спрос обычный.';
+
+  @override
+  String get drvDemandVeryHigh => 'Спрос очень высокий';
+
+  @override
+  String get drvDemandZone => 'Зона спроса';
+
+  @override
+  String get drvDestination => 'Адрес';
+
+  @override
+  String get drvDispatchersNotified => 'Диспетчеры оповещены';
+
+  @override
+  String get drvDistanceToCargo => 'До груза';
+
+  @override
+  String get drvDistanceToParcel => 'До посылки';
+
+  @override
+  String get drvDistanceToPassenger => 'До пассажира';
+
+  @override
+  String get drvDistanceToRestaurant => 'До ресторана';
+
+  @override
+  String get drvDistanceToShop => 'До магазина';
+
+  @override
+  String get drvDocApproved => 'Одобрено';
+
+  @override
+  String get drvDocLicenseBack =>
+      'Водительское удостоверение (оборотная сторона)';
+
+  @override
+  String get drvDocLicenseFront =>
+      'Водительское удостоверение (лицевая сторона)';
+
+  @override
+  String get drvDocPassport => 'Паспорт';
+
+  @override
+  String get drvDocRejectedReupload => 'Отклонено — загрузите заново';
+
+  @override
+  String get drvDocUnderReview => 'На проверке';
+
+  @override
+  String get drvDocVehicleRegistration => 'Техпаспорт';
+
+  @override
+  String get drvDocsExpiringSoon =>
+      'У некоторых документов истекает срок. Обновите их заранее, чтобы работа не остановилась.';
+
+  @override
+  String get drvDocsExpiringSoonShort =>
+      'У некоторых документов истекает срок. Обновите их заранее.';
+
+  @override
+  String get drvDriver => 'Водитель';
+
+  @override
+  String get drvEarnings => 'Заработок';
+
+  @override
+  String get drvEditProfile => 'Редактировать данные';
+
+  @override
+  String get drvEmergencyCall => 'Экстренный вызов (102/103)';
+
+  @override
+  String get drvEmergencyHelp => 'Экстренная помощь';
+
+  @override
+  String get drvEmergencySos => 'Экстренная помощь (SOS)';
+
+  @override
+  String get drvEnable => 'Включить';
+
+  @override
+  String get drvEnterCardOrPhone => 'Введите номер карты или телефона';
+
+  @override
+  String get drvEnterValidAmount => 'Введите корректную сумму';
+
+  @override
+  String get drvErrorOccurred => 'Произошла ошибка';
+
+  @override
+  String get drvEstimatedEarnings => 'Примерный заработок';
+
+  @override
+  String get drvEstimatedPrice => 'Примерная цена:';
+
+  @override
+  String get drvFindMyLocation => 'Моё местоположение';
+
+  @override
+  String get drvFitZones => 'Показать все зоны';
+
+  @override
+  String get drvForegroundChannel => 'Статус на линии';
+
+  @override
+  String get drvForegroundText =>
+      'Ваше местоположение передаётся для заказов и поездок';
+
+  @override
+  String get drvForegroundTitle => 'Angren Taxi — вы на линии';
+
+  @override
+  String get drvFreeWait => 'Бесплатное ожидание';
+
+  @override
+  String get drvGallery => 'Галерея';
+
+  @override
+  String get drvGoOffline => 'Уйти с линии';
+
+  @override
+  String get drvGoOnline => 'Выйти на линию';
+
+  @override
+  String get drvGoOnlineBlocked => 'Выход на линию закрыт';
+
+  @override
+  String get drvGoToNearestZone => 'Ехать к ближайшей зоне';
+
+  @override
+  String drvGoToNearestZoneSem(String level, String distance) {
+    return 'Открыть навигацию к ближайшей зоне спроса, $level, $distance';
+  }
+
+  @override
+  String get drvGpsDisabled =>
+      'Геолокация (GPS) на телефоне выключена — включите её, чтобы карта работала правильно.';
+
+  @override
+  String get drvHelp => 'Помощь';
+
+  @override
+  String drvHeroSemBonus(String name, int threshold, int count) {
+    return '$name: выполнено $count из $threshold';
+  }
+
+  @override
+  String drvHeroSemEarnings(String amount) {
+    return 'Заработок сегодня $amount';
+  }
+
+  @override
+  String get drvHeroSemOpenHistory => 'Открыть историю заработка';
+
+  @override
+  String drvItemsCount(int count) {
+    return 'Товаров: $count';
+  }
+
+  @override
+  String get drvLast30Days => 'Последние 30 дней';
+
+  @override
+  String get drvLast7Days => 'Последние 7 дней';
+
+  @override
+  String get drvLoading => 'Загрузка';
+
+  @override
+  String get drvLocationDenied =>
+      'У приложения нет доступа к геолокации — разрешите его, чтобы видеть своё точное место на карте.';
+
+  @override
+  String get drvLocationFailed =>
+      'Не удалось определить местоположение. Выйдите на открытое место или попробуйте ещё раз.';
+
+  @override
+  String get drvLocationUnavailable =>
+      'Не удалось определить местоположение. Проверьте, что GPS включён и у приложения есть доступ.';
+
+  @override
+  String get drvLogout => 'Выйти';
+
+  @override
+  String get drvLogoutConfirmBody => 'Выйти из аккаунта?';
+
+  @override
+  String get drvLogoutConfirmTitle => 'Подтвердите выход';
+
+  @override
+  String get drvLostItems => 'Забытые вещи';
+
+  @override
+  String get drvMenu => 'Меню';
+
+  @override
+  String get drvMessage => 'Сообщение';
+
+  @override
+  String get drvMoreActions => 'Дополнительно';
+
+  @override
+  String get drvNavAppNotFound => 'Навигатор не найден';
+
+  @override
+  String drvNeedsAttention(int count) {
+    return 'Требуют внимания: $count';
+  }
+
+  @override
+  String drvNetEarnings(String period) {
+    return 'Чистый заработок · $period';
+  }
+
+  @override
+  String get drvNewCar => 'Новый автомобиль';
+
+  @override
+  String get drvNewOrder => 'Новый заказ!';
+
+  @override
+  String get drvNoFundsToWithdraw => 'Нет средств для вывода';
+
+  @override
+  String get drvNoKeepWaiting => 'Нет, подожду';
+
+  @override
+  String get drvNoOrderHistory => 'История заказов пуста';
+
+  @override
+  String get drvNoRequestsYet => 'Заявок пока нет';
+
+  @override
+  String get drvNoShowConfirm => 'Отменить заказ?';
+
+  @override
+  String drvNoShowConfirmWaited(String elapsed) {
+    return 'Вы ждали $elapsed. Отменить заказ?';
+  }
+
+  @override
+  String drvNoShowConfirmWaitedFee(String elapsed, String fare) {
+    return 'Вы ждали $elapsed, начислено $fare за ожидание. Отменить заказ?';
+  }
+
+  @override
+  String drvNotUpdated(String message) {
+    return 'Не обновилось: $message';
+  }
+
+  @override
+  String get drvNotUploaded => 'Не загружено';
+
+  @override
+  String get drvNotifications => 'Уведомления';
+
+  @override
+  String get drvNotifyDispatchers => 'Сообщить диспетчерам';
+
+  @override
+  String get drvOfferNotificationChannel => 'Новые заказы';
+
+  @override
+  String get drvOfferNotificationTitle => 'Новый заказ';
+
+  @override
+  String get drvOffline => 'Офлайн';
+
+  @override
+  String get drvOfflineLower => 'офлайн';
+
+  @override
+  String get drvOnline => 'Онлайн';
+
+  @override
+  String get drvOnlineLower => 'онлайн';
+
+  @override
+  String get drvOpenNavigation => 'Открыть навигатор';
+
+  @override
+  String get drvOpenOrder => 'Открыть заказ';
+
+  @override
+  String drvOpenOrderSem(String type) {
+    return 'Открыть заказ: $type';
+  }
+
+  @override
+  String get drvOpenVerification => 'Открыть проверку';
+
+  @override
+  String get drvOptional => 'Необязательно';
+
+  @override
+  String get drvOrderDelivered => 'Заказ успешно доставлен!';
+
+  @override
+  String get drvOrderDetails => 'Детали заказа';
+
+  @override
+  String get drvOrderHistory => 'История заказов';
+
+  @override
+  String get drvOrderInProgress => 'Заказ в пути';
+
+  @override
+  String get drvOrderNotGiven => 'Заказ не выдали';
+
+  @override
+  String get drvPaidOnline => 'Оплачено онлайн — деньги не берите';
+
+  @override
+  String get drvParcel => 'Посылка';
+
+  @override
+  String get drvParcelDelivered => 'Посылка вручена!';
+
+  @override
+  String get drvParcelInProgress => 'Посылка в пути';
+
+  @override
+  String get drvParcelNotGiven => 'Посылку не передали';
+
+  @override
+  String get drvParcelPickupPlace => 'Где забрать посылку';
+
+  @override
+  String get drvParcelPinHint =>
+      '4-значный код — отправитель сообщил его получателю.';
+
+  @override
+  String get drvParcelPinSubmit => 'Вручить';
+
+  @override
+  String get drvParcelPinTitle => 'Спросите PIN-код у получателя';
+
+  @override
+  String get drvParcelRecipient => 'Получатель';
+
+  @override
+  String get drvParcelSizeLarge => 'Большая';
+
+  @override
+  String get drvParcelSizeMedium => 'Средняя';
+
+  @override
+  String get drvParcelSizeSmall => 'Маленькая';
+
+  @override
+  String get drvPassenger => 'Пассажир';
+
+  @override
+  String get drvPassengerNoShow => 'Пассажир не пришёл';
+
+  @override
+  String drvPassengerRequested(String options) {
+    return 'Пассажир просит: $options';
+  }
+
+  @override
+  String get drvPayVendor => 'Оплатите магазину сами';
+
+  @override
+  String get drvPayVendorHint =>
+      'Заплатите при получении товара — клиент вернёт вам эту сумму вместе с доставкой.';
+
+  @override
+  String get drvPayment => 'Оплата';
+
+  @override
+  String drvPeriodEarningsSem(String period) {
+    return 'Заработок: $period';
+  }
+
+  @override
+  String get drvPeriodMonth => 'Месяц';
+
+  @override
+  String get drvPeriodWeek => 'Неделя';
+
+  @override
+  String get drvPickupCargo => 'Заберите груз';
+
+  @override
+  String get drvPickupOrder => 'Заберите заказ';
+
+  @override
+  String get drvPickupParcel => 'Заберите посылку';
+
+  @override
+  String get drvPickupPassenger => 'Заберите пассажира';
+
+  @override
+  String get drvPickupPlace => 'Место посадки';
+
+  @override
+  String get drvPlateHint => 'Например: 01 A 123 BC';
+
+  @override
+  String get drvPlateNumber => 'Госномер';
+
+  @override
+  String get drvPlateRequired => 'Введите госномер';
+
+  @override
+  String get drvPlatformCommission => 'Комиссия платформы';
+
+  @override
+  String get drvPleaseRate => 'Пожалуйста, поставьте оценку';
+
+  @override
+  String get drvProfileTitle => 'Профиль';
+
+  @override
+  String drvRateCommentHint(String client) {
+    return '$client: ваш комментарий...';
+  }
+
+  @override
+  String drvRateHowWas(String client) {
+    return 'Оцените: $client';
+  }
+
+  @override
+  String drvRateStars(int count) {
+    return '$count из 5';
+  }
+
+  @override
+  String get drvRating1 => 'Очень плохо';
+
+  @override
+  String get drvRating2 => 'Плохо';
+
+  @override
+  String get drvRating3 => 'Нормально';
+
+  @override
+  String get drvRating4 => 'Хорошо';
+
+  @override
+  String get drvRating5 => 'Отлично!';
+
+  @override
+  String get drvRatingPick => 'Выберите оценку';
+
+  @override
+  String drvRatingStarsSem(String rating) {
+    return 'Рейтинг $rating звезды';
+  }
+
+  @override
+  String drvRatingValue(String rating) {
+    return 'Рейтинг $rating';
+  }
+
+  @override
+  String drvRatingsCount(int count) {
+    return 'Оценок: $count';
+  }
+
+  @override
+  String get drvReadyBattery => 'Без ограничений батареи';
+
+  @override
+  String get drvReadyBatteryWhy =>
+      'Чтобы телефон не выключал приложение в фоне. В настройках: Батарея → Без ограничений.';
+
+  @override
+  String get drvReadyDone => 'Готово';
+
+  @override
+  String get drvReadyEnable => 'Включить';
+
+  @override
+  String get drvReadyGoOnline => 'Выйти на линию';
+
+  @override
+  String get drvReadyGps => 'GPS включён';
+
+  @override
+  String get drvReadyGpsWhy =>
+      'Чтобы телефон мог определить ваше местоположение.';
+
+  @override
+  String get drvReadyGrant => 'Разрешить';
+
+  @override
+  String get drvReadyLocation => 'Доступ к геолокации';
+
+  @override
+  String get drvReadyLocationWhy =>
+      'Чтобы получать заказы рядом и показывать пассажиру, где вы.';
+
+  @override
+  String get drvReadyMissing => 'Не выполнено';
+
+  @override
+  String get drvReadyNotifications => 'Уведомления';
+
+  @override
+  String get drvReadyNotificationsWhy =>
+      'Чтобы показывать, что приложение работает в фоне, и сообщать о новых заказах.';
+
+  @override
+  String get drvReadyOpenSettings => 'Настройки';
+
+  @override
+  String get drvReadyOverlay => 'Поверх других приложений';
+
+  @override
+  String get drvReadyOverlayWhy =>
+      'Если вы вышли из приложения и пришёл заказ, приложение откроется само. У края экрана будет маленькая кнопка — нажмите, чтобы вернуться.';
+
+  @override
+  String get drvReadyOverlayXiaomi =>
+      'Xiaomi/Redmi: Настройки → Приложения → Angren Taxi Driver → Другие разрешения → включите также «Отображать всплывающие окна, когда приложение работает в фоне».';
+
+  @override
+  String get drvReadyPrecise => 'Точная геолокация';
+
+  @override
+  String get drvReadyPreciseWhy =>
+      'Для таксометра и проверки «я на месте». «Приблизительная» геолокация ошибается примерно на 1 км.';
+
+  @override
+  String get drvReadyRecommended => 'Рекомендуется';
+
+  @override
+  String get drvReadySubtitle =>
+      'Чтобы получать заказы, нужно следующее. Без отмеченных пунктов выйти на линию нельзя.';
+
+  @override
+  String get drvReadyTitle => 'Готовность к работе';
+
+  @override
+  String drvReason(String reason) {
+    return 'Причина: $reason';
+  }
+
+  @override
+  String get drvRefreshDemand => 'Обновить данные о спросе';
+
+  @override
+  String get drvRefreshing => 'Обновление…';
+
+  @override
+  String get drvRequestApproved => 'Одобрено — профиль обновлён';
+
+  @override
+  String get drvRequestPending => 'Заявка на рассмотрении';
+
+  @override
+  String get drvRequestRejected => 'Отклонено';
+
+  @override
+  String drvRequirementsNeeded(String items) {
+    return 'Нужно: $items';
+  }
+
+  @override
+  String get drvRestaurant => 'Ресторан';
+
+  @override
+  String get drvRetry => 'Повторить';
+
+  @override
+  String get drvReupload => 'Загрузить заново';
+
+  @override
+  String get drvRouteToCargo => 'Путь к грузу';
+
+  @override
+  String get drvRouteToParcel => 'Путь к посылке';
+
+  @override
+  String get drvRouteToPassenger => 'Путь к пассажиру';
+
+  @override
+  String get drvRouteToRestaurant => 'Путь к ресторану';
+
+  @override
+  String get drvRouteToShop => 'Путь к магазину';
+
+  @override
+  String get drvSafetyNote =>
+      'Ваша безопасность важна для нас. Если нужно, нажмите одну из кнопок ниже.';
+
+  @override
+  String get drvSave => 'Сохранить';
+
+  @override
+  String get drvSaved => 'Сохранено';
+
+  @override
+  String drvSecondsToAccept(int seconds) {
+    return 'На принятие осталось $seconds сек';
+  }
+
+  @override
+  String get drvSeller => 'Продавец';
+
+  @override
+  String get drvSend => 'Отправить';
+
+  @override
+  String get drvSendRequest => 'Отправить заявку';
+
+  @override
+  String get drvServiceBlockedDefault =>
+      'Чтобы включить эту услугу, выполните требования проверки.';
+
+  @override
+  String drvServiceChipOff(String label) {
+    return '$label, выключено. Открыть услуги';
+  }
+
+  @override
+  String drvServiceChipOn(String label) {
+    return '$label, включено. Открыть услуги';
+  }
+
+  @override
+  String drvServiceChipUnavailable(String label) {
+    return '$label, недоступно. Открыть услуги';
+  }
+
+  @override
+  String drvServiceChipUnavailableReason(String label, String reason) {
+    return '$label, недоступно: $reason. Открыть услуги';
+  }
+
+  @override
+  String get drvServicesEmptyMessage =>
+      'Пока для вас нет доступных услуг. Новые появятся здесь.';
+
+  @override
+  String get drvServicesEmptySelection =>
+      'Включите хотя бы одну услугу — иначе заказы не будут приходить.';
+
+  @override
+  String get drvServicesEmptyTitle => 'Нет доступных услуг';
+
+  @override
+  String get drvServicesHeading => 'Какие заказы вы принимаете';
+
+  @override
+  String get drvServicesSaved => 'Услуги сохранены';
+
+  @override
+  String get drvServicesSubtitle =>
+      'Заказы приходят только по включённым услугам. Услугу с невыполненными требованиями включить нельзя.';
+
+  @override
+  String get drvServicesTitle => 'Услуги';
+
+  @override
+  String get drvSettings => 'Настройки';
+
+  @override
+  String get drvShop => 'Магазин';
+
+  @override
+  String get drvSkip => 'Пропустить';
+
+  @override
+  String get drvSom => 'сум';
+
+  @override
+  String get drvSosSem => 'SOS — экстренная помощь';
+
+  @override
+  String get drvStartDelivery => 'Начать доставку';
+
+  @override
+  String get drvStartTrip => 'Начать поездку';
+
+  @override
+  String get drvSubmitApplication => 'Отправить заявку';
+
+  @override
+  String get drvToday => 'Сегодня';
+
+  @override
+  String get drvTodayEarnings => 'Заработок сегодня';
+
+  @override
+  String get drvTotalTrips => 'Всего поездок';
+
+  @override
+  String get drvTripCompleted => 'Поездка успешно завершена!';
+
+  @override
+  String get drvTripInProgress => 'Поездка идёт';
+
+  @override
+  String get drvTripLength => 'Поездка';
+
+  @override
+  String drvTripsCount(int count) {
+    return 'Поездок: $count';
+  }
+
+  @override
+  String get drvTripsGross => 'Всего за поездки';
+
+  @override
+  String get drvTypeCargo => 'Грузоперевозка';
+
+  @override
+  String get drvTypeFood => 'Доставка еды';
+
+  @override
+  String get drvTypeMarket => 'Доставка из магазина';
+
+  @override
+  String get drvTypeParcel => 'Посылка';
+
+  @override
+  String get drvTypeTaxi => 'Такси';
+
+  @override
+  String drvUpdatedAt(String time) {
+    return 'Обновлено: $time';
+  }
+
+  @override
+  String get drvUpload => 'Загрузить';
+
+  @override
+  String get drvUploadDocuments => 'Загрузите документы';
+
+  @override
+  String get drvUploadDocumentsHint =>
+      'Чтобы проверка прошла быстрее, загрузите чёткие фото документов ниже.';
+
+  @override
+  String get drvUploadError => 'Ошибка загрузки';
+
+  @override
+  String get drvUploadNew => 'Загрузить новый';
+
+  @override
+  String drvUploadingPercent(String percent) {
+    return 'Загрузка... $percent%';
+  }
+
+  @override
+  String drvUploadingPercentSem(String percent) {
+    return 'Загрузка, $percent процентов';
+  }
+
+  @override
+  String get drvVehicleChangeNote =>
+      'Пока менеджер не подтвердит, в профиле останется текущий автомобиль. Фото новой машины могут запросить в разделе проверки.';
+
+  @override
+  String get drvVehicleChangeTitle => 'Смена автомобиля';
+
+  @override
+  String get drvVehicleRequestSent => 'Заявка отправлена — менеджер проверит';
+
+  @override
+  String drvVendorPaidAction(String amount) {
+    return 'Я заплатил магазину $amount';
+  }
+
+  @override
+  String get drvVendorPaidDone => 'Магазину оплачено';
+
+  @override
+  String get drvVendorPayFirst => 'Сначала оплатите магазину и подтвердите';
+
+  @override
+  String get drvVerificationEmptyMessage =>
+      'Пока от вас не требуется ни документов, ни фото. Новые требования появятся здесь.';
+
+  @override
+  String get drvVerificationEmptyTitle => 'Требований нет';
+
+  @override
+  String get drvVerificationIncomplete =>
+      'Проверка не завершена — выполните требования ниже.';
+
+  @override
+  String get drvVerificationIncompleteShort =>
+      'Проверка не завершена — выполните требования.';
+
+  @override
+  String get drvVerificationTitle => 'Проверка';
+
+  @override
+  String get drvView => 'Посмотреть';
+
+  @override
+  String drvWaitBillingCaption(String elapsed, String perMinute) {
+    return 'Всего $elapsed · $perMinute/мин';
+  }
+
+  @override
+  String drvWaitBillingSem(String fare, String elapsed) {
+    return 'Плата за ожидание $fare, всего ожидание $elapsed';
+  }
+
+  @override
+  String get drvWaitFee => 'Платное ожидание';
+
+  @override
+  String drvWaitFreeCaption(String perMinute) {
+    return 'Далее $perMinute/мин';
+  }
+
+  @override
+  String drvWaitFreeSem(String remaining, String perMinute) {
+    return 'До конца бесплатного ожидания $remaining, далее $perMinute за каждую минуту';
+  }
+
+  @override
+  String get drvWallet => 'Кошелёк';
+
+  @override
+  String drvWalletAmount(String amount) {
+    return 'Кошелёк: $amount';
+  }
+
+  @override
+  String drvWeekAmount(String amount) {
+    return 'Неделя: $amount';
+  }
+
+  @override
+  String get drvWhereMoreOrders => 'Где больше заказов';
+
+  @override
+  String get drvWithdraw => 'Вывести деньги';
+
+  @override
+  String get drvWithdrawApproved => 'Одобрено';
+
+  @override
+  String get drvWithdrawPaid => 'Выплачено';
+
+  @override
+  String get drvWithdrawPending => 'Ожидает';
+
+  @override
+  String get drvWithdrawRequests => 'Заявки на вывод';
+
+  @override
+  String get drvYesCancel => 'Да, отменить';
+
+  @override
+  String get drvYouKeep => 'Вам остаётся';
+
+  @override
+  String drvZonesCount(int count) {
+    return 'Зон: $count';
+  }
+
+  @override
+  String get ernNetFromFares => 'Чистыми с поездок';
+
+  @override
+  String get ernNetWithTips => 'Итого чистыми';
+
+  @override
+  String get ernShiftPass => 'Смена';
+
+  @override
+  String get ernTaxWithheld => 'Налог (1%)';
+
+  @override
+  String get ernTips => 'Чаевые (без комиссии)';
+
+  @override
+  String errBalanceIs(String balance) {
+    return 'Баланс: $balance';
+  }
+
+  @override
+  String errNeedVsBalance(String required, String balance) {
+    return 'Нужно: $required, баланс: $balance';
+  }
+
+  @override
+  String errPriceVsBalance(String price, String balance) {
+    return 'Стоимость: $price, баланс: $balance';
+  }
+
+  @override
+  String fmtCurrencySom(String amount) {
+    return '$amount сум';
+  }
+
+  @override
+  String fmtDaysAgo(int days) {
+    return '$days дн. назад';
+  }
+
+  @override
+  String fmtHours(int hours) {
+    return '$hours ч';
+  }
+
+  @override
+  String fmtHoursAgo(int hours) {
+    return '$hours ч. назад';
+  }
+
+  @override
+  String fmtHoursMinutes(int hours, int minutes) {
+    return '$hours ч $minutes мин';
+  }
+
+  @override
+  String get fmtJustNow => 'Только что';
+
+  @override
+  String fmtMillionUzs(String value) {
+    return '$value млн сум';
+  }
+
+  @override
+  String fmtMinutes(int minutes) {
+    return '$minutes мин';
+  }
+
+  @override
+  String fmtMinutesAgo(int minutes) {
+    return '$minutes мин. назад';
+  }
+
+  @override
+  String get fmtMonthsShort =>
+      'янв,фев,мар,апр,мая,июн,июл,авг,сен,окт,ноя,дек';
+
+  @override
+  String fmtThousandUzs(String value) {
+    return '$value тыс. сум';
+  }
+
+  @override
+  String get fmtToday => 'Сегодня';
+
+  @override
+  String fmtTodayAt(String time) {
+    return 'Сегодня, $time';
+  }
+
+  @override
+  String get fmtTomorrow => 'Завтра';
+
+  @override
+  String fmtYesterdayAt(String time) {
+    return 'Вчера, $time';
+  }
+
+  @override
+  String get icAddressFilterClear => 'Очистить адрес';
+
+  @override
+  String get icAddressFilterDropoff => 'Мой адрес высадки (необязательно)';
+
+  @override
+  String get icAddressFilterHint =>
+      'Укажите адрес — отметим рейсы, которые едут в вашу сторону';
+
+  @override
+  String get icAddressFilterPickup => 'Мой адрес посадки (необязательно)';
+
+  @override
+  String get icAllDistricts => 'Все районы';
+
+  @override
+  String get icBasePrice => 'Цена рейса';
+
+  @override
+  String get icBookTitle => 'Бронирование';
+
+  @override
+  String get icBooked => 'Место забронировано';
+
+  @override
+  String get icCallDriver => 'Позвонить водителю';
+
+  @override
+  String get icCancelBooking => 'Отменить бронь';
+
+  @override
+  String get icCancelConfirmNo => 'Нет';
+
+  @override
+  String get icCancelConfirmTitle => 'Отменить бронь?';
+
+  @override
+  String get icCancelConfirmYes => 'Да, отменить';
+
+  @override
+  String get icCancelled => 'Бронь отменена';
+
+  @override
+  String get icChooseOnMap => 'Выберите на карте';
+
+  @override
+  String get icClassComfort => 'Comfort';
+
+  @override
+  String get icClassStart => 'Start';
+
+  @override
+  String get icConfirm => 'Забронировать';
+
+  @override
+  String icDepartsIn(String time) {
+    return 'До отправления: $time';
+  }
+
+  @override
+  String get icDeparture => 'Отправление';
+
+  @override
+  String get icDriverPhoneHidden =>
+      'Номер водителя откроется за 1 час до отправления';
+
+  @override
+  String get icDriverUnknown => 'Водитель';
+
+  @override
+  String get icDropoff => 'Место высадки';
+
+  @override
+  String icDropoffFixed(String place) {
+    return '$place — фиксированная остановка. Въезд в город оплачивается отдельно.';
+  }
+
+  @override
+  String get icDrvCancelReasonHint => 'Причина (например: сломалась машина)';
+
+  @override
+  String get icDrvCancelReasonRequired => 'Укажите причину';
+
+  @override
+  String get icDrvCancelTrip => 'Отменить рейс';
+
+  @override
+  String get icDrvCancelTripBody =>
+      'Брони всех пассажиров будут отменены, им придёт уведомление. Частые отмены влияют на рейтинг.';
+
+  @override
+  String get icDrvClass => 'Класс';
+
+  @override
+  String get icDrvComfortUnavailable => 'На этом маршруте нет цены Comfort';
+
+  @override
+  String get icDrvDeparture => 'Время отправления';
+
+  @override
+  String get icDrvEntrySubtitle =>
+      'Опубликуйте рейс — пассажиры запишутся сами';
+
+  @override
+  String get icDrvEntryTitle => 'Мои междугородние рейсы';
+
+  @override
+  String get icDrvInFlight => 'В вашем рейсе ждут пассажиры';
+
+  @override
+  String get icDrvMyTripsTitle => 'Мои рейсы';
+
+  @override
+  String get icDrvNewTrip => 'Новый рейс';
+
+  @override
+  String get icDrvNextTrip => 'Следующий рейс';
+
+  @override
+  String get icDrvNoTrips => 'Рейсов пока нет';
+
+  @override
+  String get icDrvNoTripsHint => 'Опубликуйте первый рейс';
+
+  @override
+  String get icDrvPast => 'Прошедшие';
+
+  @override
+  String get icDrvPickDeparture => 'Выберите дату и время';
+
+  @override
+  String get icDrvPrice => 'Цена (платит пассажир)';
+
+  @override
+  String get icDrvPublish => 'Опубликовать';
+
+  @override
+  String get icDrvPublishTitle => 'Опубликовать рейс';
+
+  @override
+  String get icDrvPublished => 'Рейс опубликован';
+
+  @override
+  String get icDrvRoute => 'Маршрут';
+
+  @override
+  String get icDrvSeats => 'Количество мест';
+
+  @override
+  String icDrvSeatsTaken(int taken, int total) {
+    return 'Занято $taken/$total';
+  }
+
+  @override
+  String icDrvTooFar(int days) {
+    return 'Рейс можно опубликовать не более чем за $days дн.';
+  }
+
+  @override
+  String icDrvTooSoon(int minutes) {
+    return 'Отправление — не раньше чем через $minutes мин';
+  }
+
+  @override
+  String get icDrvTripCancelled => 'Рейс отменён';
+
+  @override
+  String get icDrvUpcoming => 'Предстоящие';
+
+  @override
+  String get icDrvWholeCarBooked => 'Машина выкуплена целиком';
+
+  @override
+  String icDurationHm(int hours, int minutes) {
+    return '$hours ч $minutes мин';
+  }
+
+  @override
+  String icDurationM(int minutes) {
+    return '$minutes мин';
+  }
+
+  @override
+  String get icErrAlreadyBooked => 'Вы уже забронировали место в этом рейсе';
+
+  @override
+  String icErrDetourTooLong(int minutes) {
+    return 'Этому рейсу придётся сильно отклониться к вашему адресу (+$minutes мин). Выберите другой рейс.';
+  }
+
+  @override
+  String get icErrDisabled => 'Межгород пока отключён';
+
+  @override
+  String get icErrDriverBusy => 'Сначала завершите активную поездку по городу';
+
+  @override
+  String get icErrGeneric =>
+      'Не удалось выполнить действие. Попробуйте ещё раз';
+
+  @override
+  String get icErrNotCancellable => 'Эту бронь уже нельзя отменить';
+
+  @override
+  String icErrOutOfZone(String zones) {
+    return 'Этот рейс не едет в ваш район ($zones). Выберите другой рейс.';
+  }
+
+  @override
+  String get icErrRequestAlreadyOpen =>
+      'У вас уже есть открытая заявка — сначала отмените её или поднимите цену';
+
+  @override
+  String get icErrRequestClosed =>
+      'Заявка больше не открыта: её взял другой водитель или истёк срок';
+
+  @override
+  String get icErrRequestNotFound => 'Заявка не найдена';
+
+  @override
+  String get icErrSeatsUnavailable =>
+      'К сожалению, эти места уже заняли. Данные обновлены.';
+
+  @override
+  String get icErrServiceNotEnabled =>
+      'Сначала включите услугу «Межгород» в разделе «Виды услуг»';
+
+  @override
+  String get icErrTripActionNotAllowed =>
+      'Это действие недоступно в текущем статусе рейса';
+
+  @override
+  String get icErrTripNotCancellable => 'Рейс в пути нельзя отменить';
+
+  @override
+  String get icErrTripOverlap => 'У вас уже есть рейс в пределах ±3 часов';
+
+  @override
+  String icExtensionDropoffLine(String place, String km, String price) {
+    return '$place → адрес: $km км × $price';
+  }
+
+  @override
+  String get icExtensionEstimated => 'расстояние приблизительное';
+
+  @override
+  String icExtensionHint(String place, String maxKm, String price) {
+    return 'До $maxKm км от «$place» · +$price/км';
+  }
+
+  @override
+  String icExtensionPickupLine(String place, String km, String price) {
+    return 'Адрес → $place: $km км × $price';
+  }
+
+  @override
+  String icFitDetour(int minutes) {
+    return '+$minutes мин крюк';
+  }
+
+  @override
+  String get icFitOtherDistrict => 'В другой район';
+
+  @override
+  String get icFitYourWay => 'В вашу сторону';
+
+  @override
+  String icFreeCancelUntil(String time) {
+    return 'Бесплатная отмена до $time';
+  }
+
+  @override
+  String get icFrom => 'Откуда';
+
+  @override
+  String icInsideArea(String place) {
+    return 'В пределах: $place';
+  }
+
+  @override
+  String get icKindSeat => 'Место';
+
+  @override
+  String get icKindWholeCar => 'Вся машина';
+
+  @override
+  String get icLateCancelWarning =>
+      'Срок бесплатной отмены прошёл. Отмена будет зафиксирована — при частых отменах бронирование может быть ограничено.';
+
+  @override
+  String get icLoadError => 'Не удалось загрузить данные';
+
+  @override
+  String get icMyBookings => 'Мои брони';
+
+  @override
+  String get icNoBookings => 'Забронированных рейсов пока нет';
+
+  @override
+  String get icNoRoutes => 'Пока нет направлений';
+
+  @override
+  String get icNoSeatsLeft => 'Мест нет';
+
+  @override
+  String get icNoTripsHint => 'Попробуйте выбрать другой день';
+
+  @override
+  String get icNoTripsTitle => 'На этот день рейсов нет';
+
+  @override
+  String icOutsideArea(String place) {
+    return 'Адрес вне зоны: $place';
+  }
+
+  @override
+  String icOutsideExtension(String place, String maxKm) {
+    return 'Адрес дальше $maxKm км от «$place»';
+  }
+
+  @override
+  String get icPaymentCash => 'Оплата: наличными водителю';
+
+  @override
+  String get icPickAnotherTrip => 'Выберите другой рейс или адрес';
+
+  @override
+  String get icPickup => 'Адрес посадки';
+
+  @override
+  String icPlaceAtPoint(String place) {
+    return 'У «$place»';
+  }
+
+  @override
+  String get icPlaceFromAddress => 'От моего адреса';
+
+  @override
+  String get icPlaceToAddress => 'До моего адреса';
+
+  @override
+  String icPublishDistrictsDestination(String place) {
+    return 'Районы высадки ($place)';
+  }
+
+  @override
+  String get icPublishDistrictsHint =>
+      'Бронировать смогут только пассажиры из выбранных районов — машина не будет кружить по городу';
+
+  @override
+  String icPublishDistrictsOrigin(String place) {
+    return 'Районы посадки ($place)';
+  }
+
+  @override
+  String icQuoteDetour(int minutes, int limit) {
+    return 'Ваш адрес добавит машине +$minutes мин крюка (не более $limit мин)';
+  }
+
+  @override
+  String get icQuoteFailed => 'Не удалось рассчитать цену';
+
+  @override
+  String get icQuoteLoading => 'Считаем цену…';
+
+  @override
+  String icQuoteOutOfZone(String zones) {
+    return 'Этот рейс едет только в районы: $zones';
+  }
+
+  @override
+  String get icQuoteRetry => 'Повторить';
+
+  @override
+  String get icReqAccept => 'Принять';
+
+  @override
+  String get icReqAcceptConfirm => 'Принять';
+
+  @override
+  String get icReqAcceptNewTripHint =>
+      'На это время откроется новая поездка; остальные места будут доступны другим пассажирам.';
+
+  @override
+  String get icReqAcceptNoRoom => 'Не хватает мест';
+
+  @override
+  String get icReqAcceptNoRoomHint =>
+      'В вашей поездке в этом интервале не хватает мест, поэтому заявку принять нельзя.';
+
+  @override
+  String get icReqAcceptOverlap =>
+      'Этот интервал пересекается с другой вашей поездкой (между ними должно быть не меньше 3 часов)';
+
+  @override
+  String get icReqAcceptPickTime => 'Выберите время выезда';
+
+  @override
+  String get icReqAcceptPickTrip => 'В какую поездку добавить';
+
+  @override
+  String get icReqAcceptSlotPassed =>
+      'Выбранное время уже прошло — выберите время позже';
+
+  @override
+  String get icReqAcceptTitle => 'Принять заявку';
+
+  @override
+  String get icReqAcceptTooLate => 'К этому интервалу уже не успеть';
+
+  @override
+  String get icReqAcceptedExisting => 'Пассажир добавлен в вашу поездку';
+
+  @override
+  String get icReqAcceptedNewTrip => 'Открыта новая поездка, пассажир добавлен';
+
+  @override
+  String icReqBoardBonus(String amount) {
+    return 'из них надбавка $amount';
+  }
+
+  @override
+  String get icReqBoardEmpty => 'Открытых заявок пока нет';
+
+  @override
+  String get icReqBoardEmptyHint =>
+      'Когда появится новая заявка, придёт push и список обновится сам';
+
+  @override
+  String get icReqBoardShort => 'Заявки';
+
+  @override
+  String get icReqBoardTitle => 'Заявки пассажиров';
+
+  @override
+  String get icReqBonusDecrease => 'Снизить цену';
+
+  @override
+  String get icReqBonusHint => 'Необязательно: водитель найдётся быстрее';
+
+  @override
+  String get icReqBonusIncrease => 'Поднять цену';
+
+  @override
+  String get icReqBonusTitle => 'Поднять цену';
+
+  @override
+  String get icReqCancel => 'Отменить';
+
+  @override
+  String get icReqCancelBody => 'Водители больше не увидят её.';
+
+  @override
+  String get icReqCancelConfirm => 'Да, отменить';
+
+  @override
+  String get icReqCancelKeep => 'Нет';
+
+  @override
+  String get icReqCancelTitle => 'Отменить заявку?';
+
+  @override
+  String get icReqCancelled => 'Заявка отменена';
+
+  @override
+  String get icReqCreated =>
+      'Заявка отправлена — сообщим, когда найдётся водитель';
+
+  @override
+  String get icReqCtaSubtitle => 'Оставьте заявку — водители сами откликнутся';
+
+  @override
+  String get icReqCtaTitle => 'Не нашли удобное время?';
+
+  @override
+  String get icReqFound => 'Водитель найден — бронь создана';
+
+  @override
+  String get icReqIntro =>
+      'Если подходящей поездки нет, оставьте заявку: водители получат уведомление, и первый принявший вас заберёт.';
+
+  @override
+  String get icReqMineEmpty => 'Заявок пока нет';
+
+  @override
+  String get icReqMineEmptyHint =>
+      'Если подходящей поездки нет, оставьте заявку на экране поиска';
+
+  @override
+  String get icReqMineTitle => 'Мои заявки';
+
+  @override
+  String get icReqNoTripsHint => 'Выберите другой день или оставьте заявку';
+
+  @override
+  String get icReqOpenBooking => 'Открыть бронь';
+
+  @override
+  String get icReqRaise => 'Поднять цену';
+
+  @override
+  String get icReqRaiseConfirm => 'Поднять';
+
+  @override
+  String get icReqRaiseHint =>
+      'Цену можно только повысить; новая цена сразу появится у водителей.';
+
+  @override
+  String get icReqRaiseTitle => 'Поднять цену';
+
+  @override
+  String get icReqRaised => 'Цена повышена';
+
+  @override
+  String icReqSeats(int count) {
+    return 'Мест: $count';
+  }
+
+  @override
+  String get icReqStatusAccepted => 'Принята';
+
+  @override
+  String get icReqStatusCancelled => 'Отменена';
+
+  @override
+  String get icReqStatusExpired => 'Срок истёк';
+
+  @override
+  String get icReqStatusOpen => 'Ждём водителя';
+
+  @override
+  String get icReqSubmit => 'Оставить заявку';
+
+  @override
+  String get icReqTitle => 'Оставить заявку';
+
+  @override
+  String get icReqWaiting => 'Водители видят заявку';
+
+  @override
+  String get icReqWindowFrom => 'С';
+
+  @override
+  String get icReqWindowHint =>
+      'Водитель выедет в любое время в этом интервале. Если до конца интервала водитель не найдётся, заявка закроется сама.';
+
+  @override
+  String get icReqWindowInvalid => 'Конец интервала должен быть позже начала';
+
+  @override
+  String get icReqWindowTitle => 'Когда удобно выехать';
+
+  @override
+  String get icReqWindowTo => 'До';
+
+  @override
+  String icReqWindowTooFar(int days) {
+    return 'Заявку можно оставить не более чем на $days дн. вперёд';
+  }
+
+  @override
+  String icReqWindowTooLong(int hours) {
+    return 'Интервал может быть не больше $hours часов';
+  }
+
+  @override
+  String icReqWindowTooShort(int minutes) {
+    return 'Интервал должен быть не меньше $minutes минут';
+  }
+
+  @override
+  String get icReqWindowTooSoon =>
+      'Интервал заканчивается слишком рано — выберите время позже';
+
+  @override
+  String get icRetry => 'Повторить';
+
+  @override
+  String get icRunArrived => 'Я на месте';
+
+  @override
+  String get icRunCall => 'Позвонить';
+
+  @override
+  String get icRunCancelledTitle => 'Рейс отменён';
+
+  @override
+  String get icRunClose => 'Закрыть';
+
+  @override
+  String icRunCollectCash(String amount) {
+    return 'Возьмите наличными: $amount';
+  }
+
+  @override
+  String get icRunCompletedTitle => 'Рейс завершён';
+
+  @override
+  String get icRunDepart => 'Сдвиньте, чтобы выехать';
+
+  @override
+  String get icRunDepartHint =>
+      'Сначала заберите каждого пассажира или отметьте «Не пришёл»';
+
+  @override
+  String get icRunDropOff => 'Высадил';
+
+  @override
+  String icRunEtaFromPrev(int minutes) {
+    return '~$minutes мин';
+  }
+
+  @override
+  String icRunExtension(String km, String place) {
+    return 'По городу +$km км ($place)';
+  }
+
+  @override
+  String get icRunNavigate => 'Навигация';
+
+  @override
+  String get icRunNoBookings => 'Пока никто не забронировал';
+
+  @override
+  String get icRunNoShow => 'Не пришёл';
+
+  @override
+  String get icRunNoShowBody =>
+      'Бронь будет отменена, место не вернётся. Вы звонили пассажиру?';
+
+  @override
+  String get icRunNoShowConfirm => 'Да, не пришёл';
+
+  @override
+  String get icRunNoShowTitle => 'Пассажир не пришёл?';
+
+  @override
+  String get icRunOrderNearest => 'Порядок от ближайшего';
+
+  @override
+  String icRunOrderOptimized(int minutes) {
+    return 'Кратчайший порядок · всего ~$minutes мин';
+  }
+
+  @override
+  String get icRunPassengers => 'Пассажиры';
+
+  @override
+  String get icRunPhoneLater => 'Номер откроется за 60 минут до отправления';
+
+  @override
+  String get icRunPickedUp => 'Забран';
+
+  @override
+  String get icRunReasonNoBookings => 'В рейсе нет активных пассажиров';
+
+  @override
+  String get icRunReasonPending =>
+      'Есть незабранные пассажиры — заберите или отметьте «Не пришёл»';
+
+  @override
+  String get icRunReasonTooEarly =>
+      'Сбор открывается за 60 минут до отправления';
+
+  @override
+  String get icRunReasonWrongStatus =>
+      'Статус рейса изменился, список обновлён';
+
+  @override
+  String icRunSeats(int count) {
+    return '$count мест';
+  }
+
+  @override
+  String get icRunStartBoarding => 'Начать сбор';
+
+  @override
+  String get icRunStartBoardingHint =>
+      'Доступно за 60 минут до отправления или когда машина заполнена';
+
+  @override
+  String icRunTerminal(String place, int minutes) {
+    return 'Затем $place: ~$minutes мин';
+  }
+
+  @override
+  String get icRunTitle => 'Рейс';
+
+  @override
+  String icRunTotalCash(String amount) {
+    return 'Всего наличными: $amount';
+  }
+
+  @override
+  String get icRunWholeCar => 'Вся машина';
+
+  @override
+  String get icSearchTitle => 'Межгород';
+
+  @override
+  String icSeatPrice(String price) {
+    return '1 место — $price';
+  }
+
+  @override
+  String icSeatsBooked(int count) {
+    return 'Мест: $count';
+  }
+
+  @override
+  String get icSeatsCount => 'Количество мест';
+
+  @override
+  String get icSeatsDecrease => 'Уменьшить количество мест';
+
+  @override
+  String get icSeatsIncrease => 'Увеличить количество мест';
+
+  @override
+  String icSeatsLeft(int count) {
+    return 'Свободно мест: $count';
+  }
+
+  @override
+  String get icStatusAccepted => 'Водитель начал сбор';
+
+  @override
+  String get icStatusArrived => 'Водитель на месте';
+
+  @override
+  String get icStatusCancelled => 'Отменено';
+
+  @override
+  String get icStatusCompleted => 'Завершено';
+
+  @override
+  String get icStatusInProgress => 'В пути';
+
+  @override
+  String get icStatusScheduled => 'Забронировано';
+
+  @override
+  String get icSwap => 'Поменять направление';
+
+  @override
+  String get icTileSubtitle =>
+      'Ташкент, Алмалык, Ахангаран — место или вся машина';
+
+  @override
+  String get icTileTitle => 'Межгород';
+
+  @override
+  String get icTo => 'Куда';
+
+  @override
+  String get icToday => 'Сегодня';
+
+  @override
+  String get icTomorrow => 'Завтра';
+
+  @override
+  String get icTotal => 'Итого';
+
+  @override
+  String get icTripBoarding => 'Посадка';
+
+  @override
+  String get icTripCancelled => 'Рейс отменён';
+
+  @override
+  String get icTripCancelledStatus => 'Отменён';
+
+  @override
+  String get icTripCompleted => 'Завершён';
+
+  @override
+  String icTripDistricts(String zones) {
+    return 'Районы: $zones';
+  }
+
+  @override
+  String get icTripFull => 'Заполнен';
+
+  @override
+  String get icTripInProgress => 'В пути';
+
+  @override
+  String get icTripOpen => 'Открыт';
+
+  @override
+  String icWholeCarPrice(String price) {
+    return 'Вся машина — $price';
+  }
+
+  @override
+  String get icWholeCarUnavailable => 'Вся машина: места уже заняты';
+
+  @override
+  String get languageRussian => 'Русский';
+
+  @override
+  String get languageUzbek => 'O\'zbekcha';
+
+  @override
+  String get lglBirthDate => 'Дата рождения';
+
+  @override
+  String lglBlockedBannerBody(int count) {
+    return 'Не выполнены юридические требования: $count';
+  }
+
+  @override
+  String get lglBlockedBannerTitle => 'Нельзя выйти на линию в такси';
+
+  @override
+  String get lglClose => 'Закрыть';
+
+  @override
+  String get lglCourierHint =>
+      'Чтобы продолжить работу курьером, отключите такси в разделе «Виды услуг».';
+
+  @override
+  String get lglDocCarrierInsurance =>
+      'Страхование ответственности перевозчика';
+
+  @override
+  String get lglDocCarrierInsuranceHint =>
+      'Страховой полис — должен быть виден срок действия';
+
+  @override
+  String get lglDocMedicalCheck => 'Справка о медосмотре';
+
+  @override
+  String get lglDocMedicalCheckHint => 'О прохождении ежегодного медосмотра';
+
+  @override
+  String get lglDocTaxiLicence => 'Лицензионная карточка такси';
+
+  @override
+  String get lglDocTaxiLicenceHint =>
+      'Должны быть видны регион и срок действия';
+
+  @override
+  String get lglDocTechInspection => 'Ежегодный техосмотр';
+
+  @override
+  String get lglDocTechInspectionHint => 'Свидетельство о техосмотре';
+
+  @override
+  String get lglDuplicatePinfl =>
+      'Этот ПИНФЛ уже зарегистрирован в профиле другого водителя';
+
+  @override
+  String get lglDuplicateTin =>
+      'Этот ИНН уже зарегистрирован в профиле другого водителя';
+
+  @override
+  String get lglEligibleBody => 'Вы можете принимать заказы такси.';
+
+  @override
+  String get lglEligibleTitle => 'Все требования выполнены';
+
+  @override
+  String get lglFill => 'Заполнить';
+
+  @override
+  String get lglGoOnlineBlockedBody => 'Для такси не выполнены требования:';
+
+  @override
+  String get lglGoOnlineBlockedTitle => 'Не удалось выйти на линию';
+
+  @override
+  String get lglIndividualEntrepreneur => 'ИП (индивидуальный предприниматель)';
+
+  @override
+  String get lglIntro =>
+      'Требования постановления Кабмина № 200 для работы в такси. Данные используются для отчёта по налогу 1% и в чеках.';
+
+  @override
+  String get lglLegalRequirement => 'Юридическое требование для такси';
+
+  @override
+  String get lglLicenceIssuedAt =>
+      'Дата выдачи водительского удостоверения (кат. B)';
+
+  @override
+  String get lglLoadFailed => 'Не удалось загрузить юридический профиль';
+
+  @override
+  String get lglLockedNote =>
+      'Ваш документ подтверждён. Чтобы изменить ПИНФЛ, ИНН, налоговый статус или дату рождения, обратитесь к оператору.';
+
+  @override
+  String get lglMenuSubtitle => 'Налоговый статус, ПИНФЛ, лицензия';
+
+  @override
+  String get lglNotEligibleTitle => 'Невыполненные требования';
+
+  @override
+  String get lglOpenDocuments => 'Загрузить документы';
+
+  @override
+  String get lglOpenProfile => 'Открыть юридический профиль';
+
+  @override
+  String get lglPinfl => 'ПИНФЛ';
+
+  @override
+  String get lglPinflHint => '14 цифр — в паспорте или ID-карте';
+
+  @override
+  String get lglSave => 'Сохранить';
+
+  @override
+  String get lglSaved => 'Юридический профиль сохранён';
+
+  @override
+  String get lglSelectDate => 'Выберите дату';
+
+  @override
+  String get lglSelectRegion => 'Выберите регион';
+
+  @override
+  String get lglSelfEmployed => 'Самозанятый';
+
+  @override
+  String get lglStatusBlocking =>
+      'Выход на линию в такси остановлен. Заполните следующее.';
+
+  @override
+  String lglStatusGrace(String date) {
+    return 'Обязательно с $date. Пока можно работать.';
+  }
+
+  @override
+  String get lglStatusWarning =>
+      'Пока это предупреждение — работать не мешает.';
+
+  @override
+  String get lglTaxStatus => 'Налоговый статус';
+
+  @override
+  String get lglTaxiLicenceNumber => 'Номер лицензионной карточки такси';
+
+  @override
+  String get lglTaxiLicenceRegion => 'Регион лицензии';
+
+  @override
+  String get lglTin => 'ИНН';
+
+  @override
+  String get lglTinHintOptional => '9 цифр — необязательно';
+
+  @override
+  String get lglTinHintRequired => '9 цифр — обязательно для ИП';
+
+  @override
+  String get lglTitle => 'Юридический профиль';
+
+  @override
+  String get lglValPinflFormat => 'ПИНФЛ должен состоять из 14 цифр';
+
+  @override
+  String get lglValPinflRequired => 'Введите ПИНФЛ';
+
+  @override
+  String get lglValTaxStatusRequired => 'Выберите налоговый статус';
+
+  @override
+  String get lglValTinFormat => 'ИНН должен состоять из 9 цифр';
+
+  @override
+  String get lglValTinRequired => 'Для ИП ИНН обязателен';
+
+  @override
+  String get paxAbout => 'О приложении';
+
+  @override
+  String get paxAddFavorite => 'Добавить';
+
+  @override
+  String get paxAddStop => 'Добавить остановку';
+
+  @override
+  String get paxAddressNotFound => 'Не удалось найти адрес';
+
+  @override
+  String get paxAddressNotFoundHint =>
+      'Отметьте точку на карте или попробуйте написать иначе';
+
+  @override
+  String get paxAddressResolveFailed => 'Не удалось определить адрес';
+
+  @override
+  String paxApproxDistance(String distance) {
+    return 'примерно $distance';
+  }
+
+  @override
+  String get paxBack => 'Назад';
+
+  @override
+  String get paxCall => 'Позвонить';
+
+  @override
+  String get paxCallFailed => 'Не удалось позвонить';
+
+  @override
+  String get paxCancel => 'Отмена';
+
+  @override
+  String get paxCancelConfirmYes => 'Да, отменить';
+
+  @override
+  String get paxCancelFailed => 'Не удалось отменить';
+
+  @override
+  String get paxCancelReasonChangedMind => 'Передумал(а)';
+
+  @override
+  String get paxCancelReasonHint => 'Опишите причину...';
+
+  @override
+  String get paxCancelReasonLongWait => 'Слишком долгое ожидание';
+
+  @override
+  String get paxCancelReasonOther => 'Другая причина';
+
+  @override
+  String get paxCancelReasonPrompt => 'Выберите причину отмены заказа:';
+
+  @override
+  String get paxCancelReasonTitle => 'Причина отмены';
+
+  @override
+  String get paxCancelReasonTooExpensive => 'Слишком дорого';
+
+  @override
+  String paxCancelScheduleBody(String when) {
+    return 'Отменить поездку, запланированную на $when?';
+  }
+
+  @override
+  String get paxCancelScheduleTitle => 'Отменить поездку';
+
+  @override
+  String get paxCancelTrip => 'Отменить поездку';
+
+  @override
+  String get paxCancelTripUnavailable =>
+      'Поездка началась — отменить уже нельзя';
+
+  @override
+  String paxCardPaymentStartFailed(String error) {
+    return 'Не удалось начать оплату: $error. Заказ принят, оплата пройдёт в конце поездки.';
+  }
+
+  @override
+  String get paxClear => 'Очистить';
+
+  @override
+  String get paxClose => 'Закрыть';
+
+  @override
+  String paxCoverageWarning(String area) {
+    return 'Здесь мы пока не работаем. Ближайшая зона обслуживания: $area.';
+  }
+
+  @override
+  String get paxCurrentLocation => 'Текущее местоположение';
+
+  @override
+  String get paxDestination => 'Куда';
+
+  @override
+  String get paxDetailCar => 'Автомобиль';
+
+  @override
+  String get paxDetailDate => 'Дата';
+
+  @override
+  String get paxDetailDistance => 'Расстояние';
+
+  @override
+  String get paxDetailDriver => 'Водитель';
+
+  @override
+  String get paxDetailDuration => 'Время';
+
+  @override
+  String get paxDetailFrom => 'Откуда';
+
+  @override
+  String get paxDetailPrice => 'Стоимость';
+
+  @override
+  String get paxDetailStatus => 'Статус';
+
+  @override
+  String get paxDone => 'Готово';
+
+  @override
+  String get paxDriverAlmostThere => 'Водитель почти на месте';
+
+  @override
+  String paxDriverEta(int minutes) {
+    return 'Водитель приедет через $minutes мин';
+  }
+
+  @override
+  String get paxEditProfile => 'Редактировать данные';
+
+  @override
+  String get paxEnterAddress => 'Введите адрес';
+
+  @override
+  String get paxExtras => 'Пожелания';
+
+  @override
+  String paxExtrasCount(int count) {
+    return 'Пожелания · $count';
+  }
+
+  @override
+  String paxExtrasListSemantics(String options) {
+    return 'Дополнительные пожелания: $options';
+  }
+
+  @override
+  String get paxExtrasNoneSemantics => 'Дополнительные пожелания: нет';
+
+  @override
+  String get paxFavoriteHome => 'Дом';
+
+  @override
+  String get paxFavoriteNameHint => 'Название (например, Рынок)';
+
+  @override
+  String get paxFavoriteWork => 'Работа';
+
+  @override
+  String get paxFirstName => 'Имя';
+
+  @override
+  String get paxFirstNameHint => 'Ваше имя';
+
+  @override
+  String get paxFrom => 'Откуда';
+
+  @override
+  String paxFromChangeSemantics(String address) {
+    return 'Откуда: $address. Изменить';
+  }
+
+  @override
+  String get paxGenericError => 'Произошла ошибка';
+
+  @override
+  String get paxHasScheduledTrip => 'Есть запланированная поездка';
+
+  @override
+  String get paxHelp => 'Помощь';
+
+  @override
+  String get paxHighDemand => 'Высокий спрос';
+
+  @override
+  String get paxHistoryEmpty => 'Поездок пока нет';
+
+  @override
+  String get paxHistoryTitle => 'История поездок';
+
+  @override
+  String get paxLastName => 'Фамилия';
+
+  @override
+  String get paxLastNameHint => 'Ваша фамилия';
+
+  @override
+  String get paxLocatingAddress => 'Определяем местоположение...';
+
+  @override
+  String get paxLocation => 'Местоположение';
+
+  @override
+  String get paxLogout => 'Выйти';
+
+  @override
+  String get paxLogoutConfirmBody => 'Выйти из аккаунта?';
+
+  @override
+  String get paxLogoutConfirmTitle => 'Подтвердите выход';
+
+  @override
+  String get paxLostItemButton => 'Я забыл вещь';
+
+  @override
+  String get paxLostItemDialogHint =>
+      'Например: чёрный кошелёк, на заднем сиденье';
+
+  @override
+  String get paxLostItemDialogTitle => 'Что вы забыли?';
+
+  @override
+  String get paxLostItemSent =>
+      'Сообщение отправлено водителю — ответ появится в разделе «Забытые вещи»';
+
+  @override
+  String get paxLostItems => 'Забытые вещи';
+
+  @override
+  String get paxMenu => 'Меню';
+
+  @override
+  String get paxMessage => 'Чат';
+
+  @override
+  String paxMeteredRates(String base, String perKm, String perMin, String min) {
+    return 'Таксометр: $base + $perKm/км + $perMin/мин, минимум $min. Итоговая цена считается в конце поездки по пройденному пути и времени.';
+  }
+
+  @override
+  String get paxMeteredTo => 'Без адреса — по таксометру';
+
+  @override
+  String paxNearbyFreeDrivers(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count свободных водителей',
+      few: '$count свободных водителя',
+      one: '$count свободный водитель',
+    );
+    return 'Рядом $_temp0';
+  }
+
+  @override
+  String get paxNearbyFreeDriversMany => 'Рядом больше 10 свободных водителей';
+
+  @override
+  String get paxNearbyNone => 'Сейчас рядом нет свободных водителей';
+
+  @override
+  String get paxNearbyNoneHint =>
+      'Сейчас рядом нет свободных водителей. Если закажете, будем искать 3 минуты.';
+
+  @override
+  String get paxNo => 'Нет';
+
+  @override
+  String get paxNoDestination => 'Без адреса';
+
+  @override
+  String get paxNoDriversBody =>
+      'Водители поблизости сейчас заняты. Попробуйте поискать снова или выберите другой тариф.';
+
+  @override
+  String get paxNoDriversClose => 'Закрыть';
+
+  @override
+  String get paxNoDriversNearby => 'Поблизости нет свободных водителей';
+
+  @override
+  String get paxNoDriversNearbyRetry =>
+      'Поблизости нет свободных водителей. Попробуйте чуть позже.';
+
+  @override
+  String get paxNoDriversOtherTariff => 'Другой тариф';
+
+  @override
+  String get paxNoDriversRetry => 'Искать снова';
+
+  @override
+  String get paxNoDriversTitle => 'Водитель не найден';
+
+  @override
+  String get paxNoResults => 'Ничего не найдено';
+
+  @override
+  String get paxNoTariffs => 'Нет доступных тарифов';
+
+  @override
+  String get paxNotifications => 'Уведомления';
+
+  @override
+  String get paxNow => 'Сейчас';
+
+  @override
+  String get paxOrderCta => 'Заказать';
+
+  @override
+  String get paxOrderDetails => 'Детали заказа';
+
+  @override
+  String get paxOrderMissingRouteOrTariff => 'Не выбраны адрес и тариф';
+
+  @override
+  String get paxOutsideServiceArea => 'Вне зоны обслуживания';
+
+  @override
+  String get paxParcelPinHint =>
+      'Сообщите получателю. Без этого кода водитель не сможет вручить посылку.';
+
+  @override
+  String get paxParcelPinTitle => 'Код вручения';
+
+  @override
+  String get paxPaymentCard => 'Карта';
+
+  @override
+  String get paxPaymentCash => 'Наличные';
+
+  @override
+  String get paxPaymentMethods => 'Способы оплаты';
+
+  @override
+  String get paxPickOnMap => 'Выбрать на карте';
+
+  @override
+  String get paxPickThisPlace => 'Выбрать это место';
+
+  @override
+  String get paxPickupPoint => 'Точка посадки';
+
+  @override
+  String get paxPreciseLocationEnable => 'Включить';
+
+  @override
+  String get paxPreciseLocationHint =>
+      'Геолокация приблизительная — точка посадки может ошибаться на ~1 км. Включите точную геолокацию.';
+
+  @override
+  String get paxPriceLocked => 'Цена зафиксирована — в пути не изменится.';
+
+  @override
+  String get paxProfileSaved => 'Данные сохранены';
+
+  @override
+  String get paxProfileTitle => 'Профиль';
+
+  @override
+  String get paxRateCloseWithoutTip => 'Закрыть без чаевых';
+
+  @override
+  String get paxRateCommentHint => 'Комментарий о водителе...';
+
+  @override
+  String get paxRateHowWasTrip => 'Как прошла поездка?';
+
+  @override
+  String get paxRatePleaseRate => 'Пожалуйста, поставьте оценку';
+
+  @override
+  String paxRatePrimaryNoTipSemantics(String action) {
+    return '$action, без чаевых';
+  }
+
+  @override
+  String paxRatePrimaryWithTipSemantics(String action, String amount) {
+    return '$action, с чаевыми $amount';
+  }
+
+  @override
+  String get paxRateSkip => 'Пропустить';
+
+  @override
+  String paxRateStarSemantics(int count) {
+    return '$count из 5 звёзд';
+  }
+
+  @override
+  String get paxRateThanks => 'Спасибо за оценку!';
+
+  @override
+  String paxRateTipSent(String amount) {
+    return 'Чаевые $amount отправлены водителю. Спасибо!';
+  }
+
+  @override
+  String get paxRatingBad => 'Плохо';
+
+  @override
+  String get paxRatingExcellent => 'Отлично!';
+
+  @override
+  String get paxRatingGood => 'Хорошо';
+
+  @override
+  String get paxRatingOk => 'Нормально';
+
+  @override
+  String get paxRatingPickStars => 'Поставьте оценку';
+
+  @override
+  String paxRatingValue(String rating) {
+    return 'Рейтинг $rating';
+  }
+
+  @override
+  String get paxRatingVeryBad => 'Очень плохо';
+
+  @override
+  String get paxReceiptAddressMissing => 'Адрес не сохранён';
+
+  @override
+  String get paxReceiptCopySemantics => 'Скопировать текст чека';
+
+  @override
+  String get paxReceiptDiscount => 'Скидка';
+
+  @override
+  String paxReceiptDiscountWithCode(String code) {
+    return 'Скидка ($code)';
+  }
+
+  @override
+  String get paxReceiptDropoff => 'Высадка';
+
+  @override
+  String get paxReceiptDuration => 'Длительность';
+
+  @override
+  String get paxReceiptFareBreakdown => 'Детализация стоимости';
+
+  @override
+  String get paxReceiptForbiddenBody =>
+      'Чек могут видеть только пассажир, назначенный водитель или менеджер.';
+
+  @override
+  String get paxReceiptForbiddenTitle => 'Этот чек вам недоступен';
+
+  @override
+  String get paxReceiptGrandTotal => 'К оплате';
+
+  @override
+  String get paxReceiptLoading => 'Загружаем чек';
+
+  @override
+  String get paxReceiptNoBreakdown =>
+      'Детализация для этой поездки не сохранилась. Ниже — только итоговая сумма.';
+
+  @override
+  String get paxReceiptNoPaymentInfo => 'Данные об оплате не сохранились.';
+
+  @override
+  String paxReceiptOrderNumber(String number) {
+    return 'Заказ № $number';
+  }
+
+  @override
+  String get paxReceiptOrderNumberLabel => 'Номер заказа';
+
+  @override
+  String get paxReceiptParseError => 'Не удалось прочитать данные чека';
+
+  @override
+  String get paxReceiptPayment => 'Оплата';
+
+  @override
+  String get paxReceiptPaymentMethod => 'Способ';
+
+  @override
+  String get paxReceiptPaymentStatus => 'Статус';
+
+  @override
+  String get paxReceiptPickup => 'Посадка';
+
+  @override
+  String get paxReceiptService => 'Услуга';
+
+  @override
+  String paxReceiptStop(int index) {
+    return 'Остановка $index';
+  }
+
+  @override
+  String get paxReceiptSubtotal => 'Итого';
+
+  @override
+  String get paxReceiptTariff => 'Тариф';
+
+  @override
+  String get paxReceiptTextCopied => 'Текст чека скопирован';
+
+  @override
+  String get paxReceiptTip => 'Чаевые';
+
+  @override
+  String get paxReceiptTipHint => 'Без комиссии — полностью водителю';
+
+  @override
+  String get paxReceiptTitle => 'Чек поездки';
+
+  @override
+  String paxReceiptUnpaid(String amount) {
+    return 'Неоплаченный остаток: $amount. Пополните кошелёк — долг блокирует новые заказы.';
+  }
+
+  @override
+  String get paxReceiptWaitingNote =>
+      'Платное ожидание не входит в фиксированную цену: после бесплатных минут каждая начатая минута оплачивается отдельно.';
+
+  @override
+  String get paxRecentPlaces => 'Недавние адреса';
+
+  @override
+  String get paxReferralApplied => 'Промокод применён!';
+
+  @override
+  String get paxReferralAppliedBanner => 'Код успешно применён';
+
+  @override
+  String get paxReferralApply => 'Применить';
+
+  @override
+  String get paxReferralCardHint =>
+      'Если друг введёт этот код при первой поездке, вы оба получите бонус';
+
+  @override
+  String get paxReferralCodeCopied => 'Код скопирован';
+
+  @override
+  String get paxReferralCopy => 'Копировать';
+
+  @override
+  String get paxReferralEnterCode => 'Введите код';
+
+  @override
+  String get paxReferralEnterFriendCode => 'Введите код друга';
+
+  @override
+  String get paxReferralErrAlreadyApplied => 'Вы уже применили промокод';
+
+  @override
+  String get paxReferralErrInvalid => 'Такой код не найден';
+
+  @override
+  String get paxReferralErrOwnCode => 'Нельзя применить собственный код';
+
+  @override
+  String get paxReferralInvitedCount => 'Приглашено';
+
+  @override
+  String get paxReferralShare => 'Поделиться';
+
+  @override
+  String get paxReferralShareCopied =>
+      'Текст приглашения скопирован — отправьте его другу';
+
+  @override
+  String paxReferralShareMessage(String code) {
+    return 'Приглашаю в Angren Taxi! При регистрации введите мой код: $code';
+  }
+
+  @override
+  String get paxReferralTitle => 'Пригласить друзей';
+
+  @override
+  String get paxReferralTotalBonus => 'Всего бонусов';
+
+  @override
+  String get paxReferralYourCode => 'ВАШ ПРИГЛАСИТЕЛЬНЫЙ КОД';
+
+  @override
+  String get paxRemoveStop => 'Удалить остановку';
+
+  @override
+  String get paxRepeatRide => 'Повторить поездку';
+
+  @override
+  String get paxResolvingAddress => 'Определяем адрес...';
+
+  @override
+  String get paxRouteLoading => 'Загружаем маршрут...';
+
+  @override
+  String get paxSave => 'Сохранить';
+
+  @override
+  String get paxSaveAddress => 'Сохранить адрес';
+
+  @override
+  String get paxSaveAddressFailed => 'Не удалось сохранить адрес';
+
+  @override
+  String get paxSavedAddresses => 'Сохранённые адреса';
+
+  @override
+  String get paxSavedPlaces => 'Сохранённые места';
+
+  @override
+  String get paxScheduleCancelled => 'Поездка отменена';
+
+  @override
+  String get paxScheduleCta => 'Запланировать';
+
+  @override
+  String get paxScheduleHint =>
+      'Водителя начнём искать за 10 минут до указанного времени. Цена фиксируется сейчас и не изменится.';
+
+  @override
+  String get paxScheduleNoSlots =>
+      'На этот день времени не осталось — выберите следующий.';
+
+  @override
+  String get paxScheduleOrderNow => 'Заказать сейчас';
+
+  @override
+  String get paxSchedulePickTime => 'Выберите время';
+
+  @override
+  String get paxScheduleTitle => 'Запланировать поездку';
+
+  @override
+  String get paxScheduledEmptyBody =>
+      'Укажите время на экране тарифа, чтобы заказать поездку заранее.';
+
+  @override
+  String get paxScheduledEmptyTitle => 'Нет запланированных поездок';
+
+  @override
+  String get paxScheduledPriceNote =>
+      'Цена фиксируется сейчас и не изменится в день поездки — плата за ожидание оплачивается отдельно. Водителя начнём искать за 10 минут до указанного времени.';
+
+  @override
+  String get paxScheduledTripsTitle => 'Запланированные поездки';
+
+  @override
+  String get paxSearchAddressHint => 'Поиск адреса...';
+
+  @override
+  String get paxSearchAddressSemantics => 'Поиск адреса';
+
+  @override
+  String paxSearchElapsed(String time) {
+    return 'Ищем · $time';
+  }
+
+  @override
+  String get paxSearchPlaceHint => 'Улица, махалля, название места...';
+
+  @override
+  String get paxSearchStageBusy => 'Сейчас все заняты — продолжаем искать';
+
+  @override
+  String get paxSearchStageNearby => 'Проверяем водителей поблизости';
+
+  @override
+  String get paxSearchStageWiden => 'Расширяем зону поиска';
+
+  @override
+  String paxSeats(int count) {
+    return 'Мест: $count';
+  }
+
+  @override
+  String get paxSend => 'Отправить';
+
+  @override
+  String get paxShareTripCopied => 'Данные о поездке скопированы';
+
+  @override
+  String paxShareTripDriver(String name, String car) {
+    return 'Водитель: $name, $car';
+  }
+
+  @override
+  String paxShareTripFrom(String address) {
+    return 'Откуда: $address';
+  }
+
+  @override
+  String get paxShareTripHeader => 'Angren Taxi — моя поездка';
+
+  @override
+  String paxShareTripStatus(String status) {
+    return 'Статус: $status';
+  }
+
+  @override
+  String paxShareTripTo(String address) {
+    return 'Куда: $address';
+  }
+
+  @override
+  String get paxSomSuffix => 'сум';
+
+  @override
+  String get paxSosAlertDispatchers => 'Сообщить диспетчерам';
+
+  @override
+  String get paxSosBody =>
+      'Ваша безопасность важна для нас. При необходимости нажмите одну из кнопок ниже.';
+
+  @override
+  String get paxSosDispatchersAlerted => 'Диспетчеры оповещены';
+
+  @override
+  String get paxSosEmergencyCall => 'Экстренный вызов (102/103)';
+
+  @override
+  String get paxSosSemantics => 'SOS — экстренная помощь';
+
+  @override
+  String get paxSosTitle => 'Экстренная помощь';
+
+  @override
+  String get paxStop => 'Остановка';
+
+  @override
+  String get paxStopPoint => 'Точка остановки';
+
+  @override
+  String paxSurgeNotice(String multiplier) {
+    return 'Сейчас высокий спрос — цена ×$multiplier. Через несколько минут может стать дешевле.';
+  }
+
+  @override
+  String paxTariffWaitingNote(int freeMinutes, String perMinute) {
+    return 'После приезда водителя $freeMinutes мин ожидания бесплатно, далее $perMinute за каждую начатую минуту. Эта плата добавляется к указанной цене отдельно.';
+  }
+
+  @override
+  String get paxTipAlreadyGiven => 'Чаевые за эту поездку уже отправлены.';
+
+  @override
+  String get paxTipExplainer =>
+      'Вся сумма уходит водителю — без комиссии. Спишем с вашего кошелька.';
+
+  @override
+  String get paxTipInsufficientFunds =>
+      'В кошельке недостаточно средств. Пополните его или выберите сумму поменьше.';
+
+  @override
+  String get paxTipNotYourTrip => 'Это не ваша поездка.';
+
+  @override
+  String get paxTipOptional => 'Необязательно';
+
+  @override
+  String get paxTipOther => 'Другая';
+
+  @override
+  String paxTipRangeError(String min, String max) {
+    return 'Чаевые — от $min до $max';
+  }
+
+  @override
+  String get paxTipTitle => 'Чаевые водителю';
+
+  @override
+  String get paxTo => 'Куда';
+
+  @override
+  String paxTripOptionsFeeNote(String amount) {
+    return 'За выбранные опции к цене добавится $amount.';
+  }
+
+  @override
+  String get paxTripOptionsHint =>
+      'Ищем только водителей, которые могут выполнить эти пожелания — это может занять немного больше времени.';
+
+  @override
+  String get paxTripOptionsTitle => 'Дополнительные пожелания';
+
+  @override
+  String get paxTripScheduled => 'Поездка запланирована';
+
+  @override
+  String paxTripTimeSemantics(String time) {
+    return 'Время поездки: $time';
+  }
+
+  @override
+  String get paxTripsStat => 'Поездки';
+
+  @override
+  String get paxUnknownAddress => 'Неизвестный адрес';
+
+  @override
+  String paxUpcomingTrip(String when) {
+    return 'Ближайшая поездка: $when';
+  }
+
+  @override
+  String get paxUserFallback => 'Пользователь';
+
+  @override
+  String get paxWaitingFree => 'Бесплатное ожидание';
+
+  @override
+  String paxWaitingFreeCaption(String perMinute) {
+    return 'Далее $perMinute/мин, добавится к стоимости поездки';
+  }
+
+  @override
+  String paxWaitingFreeSemantics(String remaining, String perMinute) {
+    return 'До конца бесплатного ожидания $remaining, затем за каждую минуту к стоимости поездки добавится $perMinute';
+  }
+
+  @override
+  String get paxWaitingPaid => 'Платное ожидание';
+
+  @override
+  String paxWaitingPaidCaption(String elapsed) {
+    return 'Всего $elapsed · добавится к стоимости поездки';
+  }
+
+  @override
+  String paxWaitingPaidSemantics(String amount, String elapsed) {
+    return 'Плата за ожидание $amount, всего ожидание $elapsed. Добавится к стоимости поездки.';
+  }
+
+  @override
+  String get paxWhereTo => 'Куда едем?';
+
+  @override
+  String saActiveOrderLabel(String service, String title, String stage) {
+    return 'Активный заказ: $service. $title. $stage';
+  }
+
+  @override
+  String get saAdBadge => 'Реклама';
+
+  @override
+  String get saAdOpenFailed => 'Не удалось открыть ссылку';
+
+  @override
+  String saAddItemToCartLabel(String name) {
+    return '$name — добавить в корзину';
+  }
+
+  @override
+  String saAddToCartWithPrice(String price) {
+    return 'В корзину · $price';
+  }
+
+  @override
+  String get saAddedToCart => 'Добавлено в корзину';
+
+  @override
+  String get saAddressApartment => 'Квартира';
+
+  @override
+  String get saAddressCourierNote => 'Комментарий курьеру';
+
+  @override
+  String get saAddressCourierNoteHint => 'Например: позвоните, когда приедете';
+
+  @override
+  String get saAddressDetailsPrefilled => 'Заполнено из прошлого заказа';
+
+  @override
+  String get saAddressDetailsSubtitle => 'Чтобы курьер быстрее вас нашёл';
+
+  @override
+  String get saAddressDetailsTitle => 'Детали адреса';
+
+  @override
+  String get saAddressEntrance => 'Подъезд';
+
+  @override
+  String get saAddressFloor => 'Этаж';
+
+  @override
+  String get saAddressIntercom => 'Домофон';
+
+  @override
+  String get saAddressLabelHome => 'Дом';
+
+  @override
+  String get saAddressLabelParents => 'Родители';
+
+  @override
+  String get saAddressLabelWork => 'Работа';
+
+  @override
+  String get saAddressLandmark => 'Ориентир';
+
+  @override
+  String get saAddressLandmarkHint =>
+      'Например: рядом со школой, зелёные ворота';
+
+  @override
+  String get saAddressResolving => 'Определяем адрес…';
+
+  @override
+  String saAddressSaveFailed(String message) {
+    return 'Не удалось сохранить адрес: $message';
+  }
+
+  @override
+  String get saAddressSaved =>
+      'Адрес сохранён — в следующий раз выберите одним нажатием';
+
+  @override
+  String get saAngrenCity => 'г. Ангрен';
+
+  @override
+  String get saBack => 'Назад';
+
+  @override
+  String get saBackToHome => 'На главную';
+
+  @override
+  String saBadgeCount(String count) {
+    return '$count шт.';
+  }
+
+  @override
+  String get saCallDriver => 'Позвонить водителю';
+
+  @override
+  String get saCallFailed => 'Не удалось позвонить';
+
+  @override
+  String saCallFailedDialManually(String phone) {
+    return 'Не удалось позвонить — наберите $phone вручную';
+  }
+
+  @override
+  String get saCancel => 'Отмена';
+
+  @override
+  String saCancelFailed(String message) {
+    return 'Не удалось отменить: $message';
+  }
+
+  @override
+  String get saCancelNotAllowedHint =>
+      'Заведение уже приняло заказ — чтобы отменить, напишите в поддержку';
+
+  @override
+  String get saCancelNotAllowedMarketHint =>
+      'Магазин уже принял заказ — чтобы отменить, напишите в поддержку';
+
+  @override
+  String get saCancelOrderAction => 'Отменить заказ';
+
+  @override
+  String get saCancelOrderConfirm => 'Да, отменить';
+
+  @override
+  String get saCancelOrderKeep => 'Нет, оставить';
+
+  @override
+  String get saCancelOrderReasonPrompt => 'Выберите причину (необязательно)';
+
+  @override
+  String get saCancelOrderTitle => 'Отменить заказ?';
+
+  @override
+  String get saCancelReasonChangedMind => 'Передумал';
+
+  @override
+  String get saCancelReasonHint => 'Опишите причину';
+
+  @override
+  String saCancelReasonLabel(String reason) {
+    return 'Причина: $reason';
+  }
+
+  @override
+  String get saCancelReasonOther => 'Другая причина';
+
+  @override
+  String get saCancelReasonTooLong => 'Слишком долго ждать';
+
+  @override
+  String get saCancelReasonWrongAddress => 'Неверный адрес';
+
+  @override
+  String get saCancelReasonWrongItems => 'Ошибся с выбором';
+
+  @override
+  String get saCargoAddressHint =>
+      'Адреса выберете на карте на следующем шаге — там же рассчитаем точную цену по расстоянию.';
+
+  @override
+  String get saCargoCallCourier => 'Вызвать курьера';
+
+  @override
+  String get saCargoCourier => 'Курьер';
+
+  @override
+  String get saCargoLight => 'Лёгкий';
+
+  @override
+  String get saCargoSubtitle => 'Быстрая доставка по городу';
+
+  @override
+  String get saCargoTitle => 'Cargo · Доставка грузов';
+
+  @override
+  String get saCargoTruck => 'Грузовой';
+
+  @override
+  String get saCargoUpTo1t => 'до 1 т';
+
+  @override
+  String get saCargoUpTo300kg => 'до 300 кг';
+
+  @override
+  String get saCargoUpTo5kg => 'до 5 кг';
+
+  @override
+  String get saCargoVehicleType => 'Тип транспорта';
+
+  @override
+  String get saCart => 'Корзина';
+
+  @override
+  String get saCartBarLabel => 'Заказ в корзине';
+
+  @override
+  String saCartBarSemantics(int count, String total, String action) {
+    return 'Корзина: товаров $count, $total. $action';
+  }
+
+  @override
+  String get saCartEmptyMessage =>
+      'Добавьте еду или товары из маркета — они появятся здесь.';
+
+  @override
+  String get saCartEmptyTitle => 'Корзина пуста';
+
+  @override
+  String get saCartNoExtraFees =>
+      'При оформлении дополнительных сборов не будет.';
+
+  @override
+  String saCartWithCount(int count) {
+    return 'Корзина, товаров: $count';
+  }
+
+  @override
+  String saCashLimitNote(String limit) {
+    return 'Наличными — до $limit сум, этот заказ оплачивается картой';
+  }
+
+  @override
+  String get saCheckoutTitle => 'Оформление';
+
+  @override
+  String saCheckoutWithTotal(String total) {
+    return 'Оформить · $total';
+  }
+
+  @override
+  String saCheckoutWithTotalLabel(String total) {
+    return 'Оформить, итого $total';
+  }
+
+  @override
+  String get saChooseAddress => 'Выберите адрес';
+
+  @override
+  String get saChooseDeliveryAddress => 'Выберите адрес доставки';
+
+  @override
+  String get saChoosePaymentMethod => 'Выберите способ оплаты';
+
+  @override
+  String get saClose => 'Закрыть';
+
+  @override
+  String get saClosed => 'Закрыто';
+
+  @override
+  String get saCompletedAt => 'Завершён';
+
+  @override
+  String get saConfirmOrder => 'Подтвердить заказ';
+
+  @override
+  String get saContactOperator => 'Связаться с оператором';
+
+  @override
+  String get saContactSupport => 'Написать в поддержку';
+
+  @override
+  String get saCurrentAddress => 'Текущий адрес';
+
+  @override
+  String get saCurrentLocation => 'Текущее местоположение';
+
+  @override
+  String saDealMinOrder(String amount) {
+    return 'при заказе от $amount';
+  }
+
+  @override
+  String saDealUntil(String date) {
+    return 'до $date';
+  }
+
+  @override
+  String get saDealsTitle => 'Скидки';
+
+  @override
+  String get saDefaultUserName => 'Пользователь';
+
+  @override
+  String get saDelivery => 'Доставка';
+
+  @override
+  String get saDeliveryAddress => 'Адрес доставки';
+
+  @override
+  String saDeliveryEta(int min, int max) {
+    return '$min–$max мин';
+  }
+
+  @override
+  String get saDeliveryFree => 'Бесплатно';
+
+  @override
+  String saDeliveryInfoLabel(String fee, String eta) {
+    return 'Доставка $fee, $eta';
+  }
+
+  @override
+  String get saDestination => 'Куда';
+
+  @override
+  String get saDialogCancel => 'Отмена';
+
+  @override
+  String get saDiscountLine => 'Скидка';
+
+  @override
+  String saDishesCount(int count) {
+    return 'Блюд: $count';
+  }
+
+  @override
+  String get saDistance => 'Расстояние';
+
+  @override
+  String get saDuration => 'Длительность';
+
+  @override
+  String get saEditProfile => 'Редактировать профиль';
+
+  @override
+  String get saErrorOccurred => 'Произошла ошибка';
+
+  @override
+  String get saFaqCancelA =>
+      'На экране активного заказа нажмите «Отменить» и выберите причину. Пока водитель не приехал, отмена бесплатная.';
+
+  @override
+  String get saFaqCancelQ => 'Как отменить заказ?';
+
+  @override
+  String get saFaqComplaintA =>
+      'После поездки оставьте комментарий на экране оценки или отправьте номер поездки оператору в чат. Мы рассматриваем каждую жалобу.';
+
+  @override
+  String get saFaqComplaintQ => 'Жалоба на водителя';
+
+  @override
+  String get saFaqLostItemA =>
+      'Откройте поездку в истории заказов и позвоните водителю. Если он не отвечает, напишите оператору в чат — мы свяжемся с водителем.';
+
+  @override
+  String get saFaqLostItemQ => 'Забыл вещь в машине';
+
+  @override
+  String get saFaqPaymentA =>
+      'Проверьте баланс кошелька. Если средств не хватит, поездка запишется в долг, и пока вы его не погасите, новый заказ оформить не получится. Можно также выбрать оплату наличными.';
+
+  @override
+  String get saFaqPaymentQ => 'Оплата не прошла — что делать?';
+
+  @override
+  String get saFaqTitle => 'Частые вопросы';
+
+  @override
+  String get saFoodNoRestaurantsMessage =>
+      'Сейчас нет открытых ресторанов. Попробуйте чуть позже.';
+
+  @override
+  String get saFoodNoRestaurantsTitle => 'Рестораны не найдены';
+
+  @override
+  String get saFoodSubtitle => 'Ангрен · 20–40 минут';
+
+  @override
+  String get saFoodTitle => 'Доставка еды';
+
+  @override
+  String saFreeDeliveryFrom(String amount) {
+    return 'Бесплатная доставка от $amount';
+  }
+
+  @override
+  String get saFreeDeliveryReached => 'Доставка бесплатно!';
+
+  @override
+  String saFreeDeliveryRemaining(String amount) {
+    return 'До бесплатной доставки ещё $amount';
+  }
+
+  @override
+  String get saGoToCart => 'Перейти в корзину';
+
+  @override
+  String get saGoToHome => 'На главную';
+
+  @override
+  String get saHelpCenter => 'Центр помощи';
+
+  @override
+  String get saInviteFriends => 'Пригласить друзей';
+
+  @override
+  String get saLoading => 'Загрузка';
+
+  @override
+  String get saLogout => 'Выйти';
+
+  @override
+  String saLostItemDriverNote(String note) {
+    return 'Водитель: $note';
+  }
+
+  @override
+  String get saLostItemFound => 'Нашёл';
+
+  @override
+  String get saLostItemFoundTitle => 'Вещь найдена';
+
+  @override
+  String get saLostItemNotFound => 'Не нашёл';
+
+  @override
+  String saLostItemOperatorNote(String note) {
+    return 'Оператор: $note';
+  }
+
+  @override
+  String get saLostItemWhereHint => 'Где она сейчас? (необязательно)';
+
+  @override
+  String get saLostItemsEmptyDriver =>
+      'Если пассажир забудет вещь в вашей поездке, заявка появится здесь.';
+
+  @override
+  String get saLostItemsEmptyPassenger =>
+      'Если что-то забыли в поездке, сообщите об этом со страницы чека.';
+
+  @override
+  String get saLostItemsEmptyTitle => 'Заявок нет';
+
+  @override
+  String get saLostItemsTitle => 'Забытые вещи';
+
+  @override
+  String get saMarket => 'Маркет';
+
+  @override
+  String get saMarketNoProductsMessage => 'В этом магазине пока нет товаров.';
+
+  @override
+  String get saMarketNoProductsTitle => 'Товары не найдены';
+
+  @override
+  String get saMarketProducts => 'Товары';
+
+  @override
+  String get saMarketSearchAllHint => 'Поиск товаров во всех магазинах';
+
+  @override
+  String get saMarketSearchHint => 'Поиск товаров…';
+
+  @override
+  String get saMarketStores => 'Магазины';
+
+  @override
+  String get saMarketSubtitle => '15–25 минут · Ближайший магазин';
+
+  @override
+  String get saMenu => 'Меню';
+
+  @override
+  String get saMenuEmptyMessage => 'Ресторан пока не добавил блюда.';
+
+  @override
+  String get saMenuEmptyTitle => 'Меню пустое';
+
+  @override
+  String get saMenuOther => 'Другое';
+
+  @override
+  String get saNoStoreYet => 'Магазинов пока нет';
+
+  @override
+  String saNotificationUnreadLabel(String title) {
+    return 'Непрочитанное: $title';
+  }
+
+  @override
+  String get saNotificationsEmpty => 'Уведомлений пока нет';
+
+  @override
+  String get saNotificationsMarkAllRead => 'Отметить все как прочитанные';
+
+  @override
+  String get saNotificationsReadAction => 'Прочитано';
+
+  @override
+  String get saNotificationsTitle => 'Уведомления';
+
+  @override
+  String get saOpen => 'Открыто';
+
+  @override
+  String get saOpenTripReceipt => 'Открыть чек поездки';
+
+  @override
+  String get saOrderAccepted => 'Заказ принят';
+
+  @override
+  String get saOrderCancelledToast => 'Заказ отменён';
+
+  @override
+  String saOrderDetailTitle(String number) {
+    return 'Заказ #$number';
+  }
+
+  @override
+  String get saOrderHistory => 'История заказов';
+
+  @override
+  String get saOrderItems => 'Состав';
+
+  @override
+  String get saOrderNotSent => 'Не удалось отправить заказ';
+
+  @override
+  String saOrderNumber(String number) {
+    return 'Номер заказа: $number';
+  }
+
+  @override
+  String get saOrderNumberLabel => 'Номер заказа';
+
+  @override
+  String get saOrderPaidOnlineHint =>
+      'Оплата получена. Следите за статусом в разделе «Заказы».';
+
+  @override
+  String get saOrderPayOnDeliveryHint =>
+      'Оплата при получении. Следите за статусом в разделе «Заказы».';
+
+  @override
+  String get saOrdersActive => 'Активные';
+
+  @override
+  String get saOrdersHistory => 'История';
+
+  @override
+  String get saOrdersNoActiveMessage =>
+      'Вызовите такси или закажите еду — здесь можно будет следить за заказом.';
+
+  @override
+  String get saOrdersNoActiveTitle => 'Активных заказов нет';
+
+  @override
+  String get saOrdersNoHistoryMessage =>
+      'Здесь будут храниться завершённые заказы.';
+
+  @override
+  String get saOrdersNoHistoryTitle => 'История заказов пуста';
+
+  @override
+  String get saOrdersTitle => 'Заказы';
+
+  @override
+  String saOtherStoreBody(String store) {
+    return 'В корзине товары из другого магазина. Один заказ — только из одного магазина. Очистить корзину и добавить из $store?';
+  }
+
+  @override
+  String get saOtherStoreConfirm => 'Очистить и добавить';
+
+  @override
+  String get saOtherStoreTitle => 'Другой магазин';
+
+  @override
+  String get saParcelContinue => 'Выбрать адрес';
+
+  @override
+  String get saParcelPinInfo =>
+      'Водитель вручит посылку только по PIN-коду. Вы увидите код после заказа — сообщите его получателю.';
+
+  @override
+  String get saParcelRecipientName => 'Имя получателя (необязательно)';
+
+  @override
+  String get saParcelRecipientPhone => 'Телефон получателя';
+
+  @override
+  String get saParcelSize => 'Размер';
+
+  @override
+  String get saParcelSizeLarge => 'Большая';
+
+  @override
+  String get saParcelSizeLargeHint => 'Помещается в багажник';
+
+  @override
+  String get saParcelSizeMedium => 'Средняя';
+
+  @override
+  String get saParcelSizeMediumHint => 'Сумка, коробка';
+
+  @override
+  String get saParcelSizeSmall => 'Маленькая';
+
+  @override
+  String get saParcelSizeSmallHint => 'Ключи, документы';
+
+  @override
+  String get saParcelSubtitle => 'Доставим ключи, документы или вещи по городу';
+
+  @override
+  String get saParcelTitle => 'Отправить посылку';
+
+  @override
+  String get saParcelWhat => 'Что отправляете?';
+
+  @override
+  String get saParcelWhatHint => 'Например: ключи, документы';
+
+  @override
+  String get saParcelWhatRequired => 'Укажите, что отправляете';
+
+  @override
+  String get saPaymentCard => 'Карта (Payme / Click)';
+
+  @override
+  String get saPaymentCash => 'Наличные';
+
+  @override
+  String get saPaymentIPaid => 'Я оплатил';
+
+  @override
+  String get saPaymentMethod => 'Способ оплаты';
+
+  @override
+  String get saPaymentNotCompleted =>
+      'Оплата не завершена — заказ принят, оплатить можно позже';
+
+  @override
+  String saPaymentPageLoadFailed(String message) {
+    return 'Не удалось загрузить страницу оплаты: $message';
+  }
+
+  @override
+  String saPaymentStartFailed(String message) {
+    return 'Не удалось начать оплату: $message';
+  }
+
+  @override
+  String saPaymentTitle(String provider) {
+    return 'Оплата — $provider';
+  }
+
+  @override
+  String get saPaymentUntrustedPage =>
+      'Эта страница оплаты не принадлежит известному провайдеру и не была открыта. Напишите в поддержку.';
+
+  @override
+  String get saPickup => 'Откуда';
+
+  @override
+  String get saPopularRestaurants => 'Популярные рестораны';
+
+  @override
+  String saPriceWithDiscount(String now, String old) {
+    return 'Цена со скидкой $now, старая цена $old';
+  }
+
+  @override
+  String get saProductDeliveryLabel => 'ДОСТАВКА';
+
+  @override
+  String get saProductDeliveryValue => '15–25 мин';
+
+  @override
+  String get saProductDescription =>
+      'Свежий и качественный товар — быстро привезём из ближайшего магазина.';
+
+  @override
+  String get saProductInStock => 'В наличии';
+
+  @override
+  String get saProductOutOfStock => 'Нет в наличии';
+
+  @override
+  String get saProductRatingLabel => 'РЕЙТИНГ';
+
+  @override
+  String get saProductStockLabel => 'НАЛИЧИЕ';
+
+  @override
+  String saProductStoreUnit(String unit) {
+    return 'Магазин · $unit';
+  }
+
+  @override
+  String saProductsCount(int count) {
+    return 'Товаров: $count';
+  }
+
+  @override
+  String get saProfileHelpBannerLabel => 'Нужна помощь? Поддержка 24/7';
+
+  @override
+  String get saProfileNeedHelp => 'Нужна помощь?';
+
+  @override
+  String get saProfileRating => 'Рейтинг';
+
+  @override
+  String get saProfileSupport247 => 'Служба поддержки 24/7';
+
+  @override
+  String get saProfileTrips => 'Поездки';
+
+  @override
+  String get saPromoActive => 'АКТИВЕН';
+
+  @override
+  String saPromoApplied(String code) {
+    return '$code применён';
+  }
+
+  @override
+  String get saPromoApply => 'Применить';
+
+  @override
+  String get saPromoCodeCopied => 'Код скопирован';
+
+  @override
+  String saPromoCodeLine(String code) {
+    return 'Промокод $code';
+  }
+
+  @override
+  String saPromoCopyLabel(String code) {
+    return 'Скопировать промокод: $code';
+  }
+
+  @override
+  String get saPromoDiscount => 'Скидка по промокоду';
+
+  @override
+  String get saPromoEmpty => 'Сначала введите промокод';
+
+  @override
+  String get saPromoHint => 'Введите промокод';
+
+  @override
+  String get saPromoInvalid => 'Промокод недействителен';
+
+  @override
+  String saPromoMinOrder(String amount) {
+    return 'Мин. заказ: $amount';
+  }
+
+  @override
+  String get saPromoNotApplicable =>
+      'Этот промокод не действует для этой услуги';
+
+  @override
+  String get saPromoRemove => 'Убрать';
+
+  @override
+  String get saPromoServerRecalc =>
+      'Итоговую скидку сервер рассчитает при оформлении';
+
+  @override
+  String get saPromoTitle => 'Промокод';
+
+  @override
+  String saPromoUntil(String date) {
+    return 'до $date';
+  }
+
+  @override
+  String get saPromosEmpty => 'Активных промокодов пока нет';
+
+  @override
+  String get saPromosTitle => 'Акции и промокоды';
+
+  @override
+  String get saQtyDecrease => 'Уменьшить количество';
+
+  @override
+  String get saQtyIncrease => 'Увеличить количество';
+
+  @override
+  String get saRefresh => 'Обновить';
+
+  @override
+  String get saReorderAction => 'Повторить заказ';
+
+  @override
+  String get saReorderLoading => 'Проверяем меню…';
+
+  @override
+  String get saReorderNothingAvailable =>
+      'Товаров из этого заказа сейчас нет в наличии';
+
+  @override
+  String saReorderPartial(int count) {
+    return '$count поз. нет в наличии или меньше — остальное добавлено в корзину';
+  }
+
+  @override
+  String get saReorderReplaceConfirm => 'Заменить';
+
+  @override
+  String get saReorderReplaceMessage =>
+      'Текущие товары в корзине будут удалены, вместо них — этот заказ.';
+
+  @override
+  String get saReorderReplaceTitle => 'Заменить корзину?';
+
+  @override
+  String get saReorderUnavailable => 'Заведение сейчас не принимает заказы';
+
+  @override
+  String get saRestaurantNotFound => 'Ресторан не найден';
+
+  @override
+  String get saRestaurantsNotFound => 'Рестораны не найдены';
+
+  @override
+  String get saSave => 'Сохранить';
+
+  @override
+  String get saSaveAddressAction => 'Сохранить';
+
+  @override
+  String get saSaveAddressHint => 'Название, например: Дом';
+
+  @override
+  String get saSaveAddressTitle => 'Сохранить адрес';
+
+  @override
+  String get saSavedAddresses => 'Сохранённые адреса';
+
+  @override
+  String get saSearch => 'Поиск';
+
+  @override
+  String get saSearchClear => 'Очистить поиск';
+
+  @override
+  String get saSearchEmptyMessage => 'Попробуйте другой запрос.';
+
+  @override
+  String get saSearchEmptyTitle => 'Ничего не найдено';
+
+  @override
+  String get saSearchHint => 'блюдо, магазин, товар…';
+
+  @override
+  String saSearchMarketUnit(String unit) {
+    return 'Маркет · $unit';
+  }
+
+  @override
+  String get saSearchSectionProducts => 'ТОВАРЫ';
+
+  @override
+  String get saSearchSectionRestaurants => 'РЕСТОРАНЫ';
+
+  @override
+  String get saSearchingDriver => 'Ищем водителя';
+
+  @override
+  String get saSeeAll => 'Все';
+
+  @override
+  String saSegChipLabel(String label, int count) {
+    return '$label, $count шт.';
+  }
+
+  @override
+  String saSegChipLabelSelected(String label, int count) {
+    return '$label, $count шт., выбрано';
+  }
+
+  @override
+  String get saSend => 'Отправить';
+
+  @override
+  String get saSettingsPush => 'Push-уведомления';
+
+  @override
+  String get saSettingsPushSyncFailed =>
+      'Настройка сохранена, но не отправлена на сервер';
+
+  @override
+  String get saSettingsSectionGeneral => 'ОБЩИЕ';
+
+  @override
+  String get saSettingsSectionHelp => 'ПОМОЩЬ';
+
+  @override
+  String get saSettingsTitle => 'Настройки';
+
+  @override
+  String saSettingsVersion(String version) {
+    return 'Angren Go · версия $version';
+  }
+
+  @override
+  String get saSom => 'сум';
+
+  @override
+  String get saStageAccepted => 'Принят';
+
+  @override
+  String get saStageDelivered => 'Доставлен';
+
+  @override
+  String get saStageDriverEnRoute => 'Водитель в пути';
+
+  @override
+  String get saStageInTrip => 'В поездке';
+
+  @override
+  String get saStageOnTheWay => 'В пути';
+
+  @override
+  String get saStagePacking => 'Собирается';
+
+  @override
+  String get saStagePreparing => 'Готовится';
+
+  @override
+  String saStageProgress(int total, int step, String stage) {
+    return 'Этап $step из $total: $stage';
+  }
+
+  @override
+  String get saStageSearching => 'Поиск';
+
+  @override
+  String get saStoreUnavailable => 'Этот магазин сейчас не принимает заказы';
+
+  @override
+  String get saSubmitting => 'Отправляем...';
+
+  @override
+  String get saSupportCall => 'Позвонить';
+
+  @override
+  String saSupportCallSub(String phone) {
+    return '$phone · бесплатно';
+  }
+
+  @override
+  String get saSupportOperatorChat => 'Чат с оператором';
+
+  @override
+  String get saSupportOperatorChatSub => 'Напишите вопрос — оператор ответит';
+
+  @override
+  String get saTabHome => 'Главная';
+
+  @override
+  String get saTabOrders => 'Заказы';
+
+  @override
+  String get saTabProfile => 'Профиль';
+
+  @override
+  String get saTaxiWhereToLabel => 'Такси. Куда едем?';
+
+  @override
+  String get saTelegramOpenFailed => 'Не удалось открыть Telegram';
+
+  @override
+  String get saTopUpAmountLabel => 'Сумма пополнения';
+
+  @override
+  String get saTopUpOnlineUnavailable => 'Онлайн-пополнение пока недоступно';
+
+  @override
+  String get saTopUpTitle => 'Пополнение счёта';
+
+  @override
+  String get saTopUpViaOperatorHint =>
+      'Пока кошелёк пополняется через оператора: позвоните по номеру 1056 или напишите в чат. Поездки можно оплачивать и наличными.';
+
+  @override
+  String get saTotal => 'Итого';
+
+  @override
+  String get saTrackCallCourier => 'Позвонить курьеру';
+
+  @override
+  String get saTrackCancelled => 'Заказ отменён';
+
+  @override
+  String get saTrackCourier => 'Следить за курьером на карте';
+
+  @override
+  String get saTrackDelivered => 'Заказ доставлен';
+
+  @override
+  String get saTrackOnTheWay => 'Курьер в пути';
+
+  @override
+  String get saTrackOpenMap => 'Курьер на карте';
+
+  @override
+  String get saTrackSearching => 'Ищем курьера';
+
+  @override
+  String get saTrackTitle => 'Курьер на карте';
+
+  @override
+  String get saTrackWaitingLocation => 'Ожидаем местоположение курьера…';
+
+  @override
+  String get saTrendingLoadFailed => 'Не удалось загрузить товары';
+
+  @override
+  String get saTrendingProducts => 'Популярные товары';
+
+  @override
+  String get saTxnBonus => 'Бонус';
+
+  @override
+  String get saTxnCommission => 'Комиссия платформы';
+
+  @override
+  String get saTxnCredit => 'зачисление';
+
+  @override
+  String get saTxnDebit => 'Списание';
+
+  @override
+  String get saTxnDebitWord => 'списание';
+
+  @override
+  String saTxnPending(String when) {
+    return '$when · в обработке';
+  }
+
+  @override
+  String get saTxnReferralBonus => 'Реферальный бонус';
+
+  @override
+  String saTxnSemantics(
+      String title, String amount, String direction, String subtitle) {
+    return '$title, $amount сум, $direction, $subtitle';
+  }
+
+  @override
+  String get saTxnTopUp => 'Пополнение счёта';
+
+  @override
+  String get saTxnTripEarning => 'Доход за поездку';
+
+  @override
+  String get saTxnTripPayment => 'Оплата поездки';
+
+  @override
+  String get saTxnWithdrawal => 'Вывод средств';
+
+  @override
+  String get saVendorDiscountLine => 'Скидка заведения';
+
+  @override
+  String get saViewOrders => 'Посмотреть заказы';
+
+  @override
+  String get saViewReceipt => 'Посмотреть чек';
+
+  @override
+  String get saWalletAllServices => 'Все сервисы';
+
+  @override
+  String get saWalletAndCards => 'Кошелёк и карты';
+
+  @override
+  String saWalletBalanceLabel(String amount) {
+    return 'Баланс кошелька $amount сум';
+  }
+
+  @override
+  String get saWalletBalanceNotLoaded => 'Баланс кошелька ещё не загружен';
+
+  @override
+  String get saWalletBalanceTitle => 'Баланс Angren Go';
+
+  @override
+  String get saWalletCards => 'Карты';
+
+  @override
+  String get saWalletCardsUnavailableMessage =>
+      'Пока оплачивайте поездки наличными или с баланса кошелька.';
+
+  @override
+  String get saWalletCardsUnavailableTitle => 'Привязка карты пока недоступна';
+
+  @override
+  String get saWalletNoTxnsMessage =>
+      'Появятся здесь после первой поездки или пополнения.';
+
+  @override
+  String get saWalletNoTxnsTitle => 'Операций пока нет';
+
+  @override
+  String get saWalletOneWalletNote =>
+      'Такси, грузы, еда и маркет — один кошелёк, одна история.';
+
+  @override
+  String get saWalletRecentActivity => 'Последние операции';
+
+  @override
+  String get saWalletTitle => 'Кошелёк';
+
+  @override
+  String get saWalletTopUp => 'Пополнить';
+
+  @override
+  String get saWalletTransfer => 'Перевести';
+
+  @override
+  String get saWhereTo => 'Куда едем?';
+
+  @override
+  String get shAuthContinue => 'Продолжить';
+
+  @override
+  String get shAuthEnterPhone => 'Введите номер телефона';
+
+  @override
+  String get shAuthPhoneLabel => 'Номер телефона';
+
+  @override
+  String get shAuthTerms =>
+      'Продолжая, вы соглашаетесь с условиями использования и политикой конфиденциальности.';
+
+  @override
+  String get shBack => 'Назад';
+
+  @override
+  String get shCancel => 'Отмена';
+
+  @override
+  String get shChatHint => 'Напишите сообщение...';
+
+  @override
+  String get shConfirm => 'Подтвердить';
+
+  @override
+  String get shDeliveryAccepted => 'Принят';
+
+  @override
+  String get shDeliveryDelivered => 'Доставлен';
+
+  @override
+  String get shDeliveryOnTheWay => 'В пути';
+
+  @override
+  String get shDeliveryPreparing => 'Готовится';
+
+  @override
+  String get shDriverFallbackName => 'Водитель';
+
+  @override
+  String get shErrorGeneric => 'Произошла ошибка';
+
+  @override
+  String get shErrorNoInternet => 'Проблема с интернетом';
+
+  @override
+  String shErrorSemantics(String message) {
+    return 'Ошибка: $message';
+  }
+
+  @override
+  String get shErrorTimeout => 'Время ожидания истекло. Проверьте интернет';
+
+  @override
+  String get shErrorUnknown => 'Произошла неизвестная ошибка';
+
+  @override
+  String get shFareBase => 'Базовый тариф';
+
+  @override
+  String shFareDistance(String km, String price) {
+    return 'Расстояние ($km км × $price)';
+  }
+
+  @override
+  String get shFareMaxCap => 'Ограничение максимальной цены';
+
+  @override
+  String get shFareMinAdjustment => 'Доплата до минимальной стоимости';
+
+  @override
+  String get shFareOptionOther => 'Дополнительная опция';
+
+  @override
+  String get shFareRounding => 'Округление';
+
+  @override
+  String shFareSurge(String multiplier) {
+    return 'Повышенный спрос (×$multiplier)';
+  }
+
+  @override
+  String shFareTime(int minutes, String price) {
+    return 'Время ($minutes мин × $price)';
+  }
+
+  @override
+  String shFareWaiting(int minutes) {
+    return 'Ожидание ($minutes мин)';
+  }
+
+  @override
+  String get shFareWaitingFree =>
+      'Ожидание (0 мин — в пределах бесплатного времени)';
+
+  @override
+  String shFareWaitingRate(int minutes, String price) {
+    return 'Ожидание ($minutes мин × $price)';
+  }
+
+  @override
+  String get shLoading => 'Загрузка';
+
+  @override
+  String get shLostItemClosed => 'Закрыто';
+
+  @override
+  String get shLostItemFound => 'Найдено — оператор свяжется с вами';
+
+  @override
+  String get shLostItemNotFound => 'В машине не найдено';
+
+  @override
+  String get shLostItemOpen => 'Водитель проверяет';
+
+  @override
+  String get shLostItemReturned => 'Возвращено';
+
+  @override
+  String get shManeuverArrive => 'Вы прибыли на место';
+
+  @override
+  String shManeuverArriveIn(int meters) {
+    return 'Через $meters метров вы прибудете на место';
+  }
+
+  @override
+  String get shManeuverContinue => 'Продолжайте движение';
+
+  @override
+  String get shManeuverDepart => 'Начните движение';
+
+  @override
+  String shManeuverInDistance(int meters, String instruction) {
+    return 'Через $meters метров $instruction';
+  }
+
+  @override
+  String get shManeuverLeft => 'Поверните налево';
+
+  @override
+  String get shManeuverRerouting =>
+      'Вы отклонились от маршрута. Маршрут перестраивается.';
+
+  @override
+  String get shManeuverRight => 'Поверните направо';
+
+  @override
+  String get shManeuverSharpLeft => 'Резко поверните налево';
+
+  @override
+  String get shManeuverSharpRight => 'Резко поверните направо';
+
+  @override
+  String get shManeuverStraight => 'Продолжайте прямо';
+
+  @override
+  String get shManeuverUturn => 'Развернитесь';
+
+  @override
+  String get shMapLoadFailed => 'Карта не загрузилась. Проверьте интернет.';
+
+  @override
+  String get shMapZoomIn => 'Приблизить';
+
+  @override
+  String get shMapZoomOut => 'Отдалить';
+
+  @override
+  String get shMarketPacking => 'Магазин собирает заказ';
+
+  @override
+  String shMeterAtLeast(String price) {
+    return 'от $price';
+  }
+
+  @override
+  String shMeterDistanceTime(String distance, int minutes) {
+    return '$distance · $minutes мин';
+  }
+
+  @override
+  String get shMeterFinalNote =>
+      'Итоговая цена уточняется по маршруту в конце поездки';
+
+  @override
+  String get shMeterNoDestination => 'Без адреса — таксометр';
+
+  @override
+  String get shMeterTitle => 'Таксометр';
+
+  @override
+  String shNeedsAttentionSemantics(String label) {
+    return '$label, требует внимания';
+  }
+
+  @override
+  String get shOrderStatusCompleted => 'Завершён';
+
+  @override
+  String get shOrderStatusDriverArrived => 'Водитель на месте';
+
+  @override
+  String get shOrderStatusDriverAssigned => 'Водитель назначен';
+
+  @override
+  String get shOrderStatusDriverEnRoute => 'Водитель в пути';
+
+  @override
+  String get shOrderStatusInProgress => 'В пути';
+
+  @override
+  String get shOrderStatusScheduled => 'Запланирован';
+
+  @override
+  String get shOrderStatusSearching => 'Ищем водителя';
+
+  @override
+  String get shOtpEnterSixDigits => 'Введите 6-значный код';
+
+  @override
+  String get shOtpHeading => 'Введите код из SMS';
+
+  @override
+  String get shOtpResend => 'Отправить код повторно';
+
+  @override
+  String shOtpResendIn(int seconds) {
+    return 'Повторная отправка: $seconds с';
+  }
+
+  @override
+  String get shOtpSentPrefix => 'Код отправлен на номер ';
+
+  @override
+  String get shOtpSentSuffix => ' ';
+
+  @override
+  String get shOtpTitle => 'Подтверждение';
+
+  @override
+  String get shPanelCollapse => 'Свернуть панель';
+
+  @override
+  String get shPanelExpand => 'Развернуть панель';
+
+  @override
+  String get shPayMethodCard => 'Карта';
+
+  @override
+  String get shPayMethodCash => 'Наличные';
+
+  @override
+  String get shPayMethodWallet => 'Кошелёк';
+
+  @override
+  String get shPayStatusFailed => 'Не выполнено';
+
+  @override
+  String get shPayStatusPaid => 'Оплачено';
+
+  @override
+  String get shPayStatusRefunded => 'Возвращено';
+
+  @override
+  String get shPushChannelOrders => 'Заказы';
+
+  @override
+  String get shPushChannelOrdersDescription =>
+      'Статус заказа, сообщения водителя и курьера';
+
+  @override
+  String shReceiptDate(String date) {
+    return 'Дата: $date';
+  }
+
+  @override
+  String shReceiptDiscount(String promo, String amount) {
+    return 'Скидка$promo: −$amount';
+  }
+
+  @override
+  String shReceiptDistance(String distance) {
+    return 'Расстояние: $distance';
+  }
+
+  @override
+  String shReceiptDriver(String driver) {
+    return 'Водитель: $driver';
+  }
+
+  @override
+  String shReceiptDropoff(String address) {
+    return 'Куда: $address';
+  }
+
+  @override
+  String shReceiptDuration(String duration) {
+    return 'Длительность: $duration';
+  }
+
+  @override
+  String shReceiptGrandTotal(String amount) {
+    return 'Итоговая сумма: $amount';
+  }
+
+  @override
+  String get shReceiptHeader => 'Angren Go — чек поездки';
+
+  @override
+  String get shReceiptMeteredDropoff => 'По таксометру (без адреса)';
+
+  @override
+  String get shReceiptNoFareBreakdown => 'Детализация стоимости не сохранена.';
+
+  @override
+  String get shReceiptNotSaved => 'не сохранён';
+
+  @override
+  String shReceiptOrder(String number) {
+    return 'Заказ: $number';
+  }
+
+  @override
+  String shReceiptPayment(String payment) {
+    return 'Оплата: $payment';
+  }
+
+  @override
+  String shReceiptPickup(String address) {
+    return 'Откуда: $address';
+  }
+
+  @override
+  String shReceiptService(String service) {
+    return 'Услуга: $service';
+  }
+
+  @override
+  String shReceiptStop(int index, String address) {
+    return 'Остановка $index: $address';
+  }
+
+  @override
+  String shReceiptTariff(String tariff) {
+    return 'Тариф: $tariff';
+  }
+
+  @override
+  String shReceiptTip(String amount) {
+    return 'Чаевые: +$amount';
+  }
+
+  @override
+  String shReceiptTotal(String amount) {
+    return 'Итого: $amount';
+  }
+
+  @override
+  String shReceiptUnpaid(String amount) {
+    return 'Неоплаченный остаток: $amount';
+  }
+
+  @override
+  String get shReconnecting => 'Нет связи — переподключаемся…';
+
+  @override
+  String get shRetry => 'Повторить';
+
+  @override
+  String shRouteFromSemantics(String address) {
+    return 'Откуда: $address';
+  }
+
+  @override
+  String get shRouteSwap => 'Поменять адреса местами';
+
+  @override
+  String shRouteToSemantics(String address) {
+    return 'Куда: $address';
+  }
+
+  @override
+  String shRouteToWithDistanceSemantics(String address, String distance) {
+    return 'Куда: $address, $distance';
+  }
+
+  @override
+  String get shSend => 'Отправить';
+
+  @override
+  String get shServiceCargo => 'Грузоперевозка';
+
+  @override
+  String get shServiceCargoShort => 'Грузы';
+
+  @override
+  String get shServiceFood => 'Доставка еды';
+
+  @override
+  String get shServiceFoodShort => 'Еда';
+
+  @override
+  String get shServiceIntercityShort => 'Межгород';
+
+  @override
+  String get shServiceMarket => 'Доставка из магазина';
+
+  @override
+  String get shServiceMarketShort => 'Маркет';
+
+  @override
+  String get shServiceParcelShort => 'Посылка';
+
+  @override
+  String get shServiceTaxi => 'Такси';
+
+  @override
+  String get shStatusCancelled => 'Отменён';
+
+  @override
+  String get shStatusPending => 'Ожидание';
+
+  @override
+  String shStatusSemantics(String status) {
+    return 'Статус: $status';
+  }
+
+  @override
+  String get shSupportChatEmpty => 'Напишите нам — операторы на связи 24/7';
+
+  @override
+  String get shSupportChatTitle => 'Чат с оператором';
+
+  @override
+  String get shTripChatEmpty => 'Сообщений пока нет. Напишите первым!';
+
+  @override
+  String get shTripChatTitle => 'Чат';
+
+  @override
+  String get shTripOptionAirConditioner => 'Кондиционер';
+
+  @override
+  String get shTripOptionBigLuggage => 'Большой багаж';
+
+  @override
+  String get shTripOptionChildSeat => 'Детское кресло';
+
+  @override
+  String get shTripOptionPet => 'С животным';
+
+  @override
+  String get shTxBonus => 'Бонус';
+
+  @override
+  String get shTxTopUp => 'Пополнение';
+
+  @override
+  String get shTxTrip => 'Поездка';
+
+  @override
+  String get shTxWithdrawal => 'Вывод средств';
+
+  @override
+  String get shUpdateAction => 'Обновить';
+
+  @override
+  String get shUpdateAvailable => 'Вышла новая версия приложения';
+
+  @override
+  String get shUpdateRequiredBody =>
+      'Эта версия больше не поддерживается. Установите новую версию, чтобы продолжить.';
+
+  @override
+  String get shUpdateRequiredTitle => 'Обновите приложение';
+
+  @override
+  String get shValDigitsOnly => 'Введите только цифры';
+
+  @override
+  String shValFieldRequired(String field) {
+    return 'Поле «$field» не может быть пустым';
+  }
+
+  @override
+  String get shValNameRequired => 'Введите имя';
+
+  @override
+  String get shValNameTooShort => 'Имя должно содержать не менее 2 букв';
+
+  @override
+  String get shValOtpLength => 'Код должен состоять из 6 цифр';
+
+  @override
+  String get shValOtpRequired => 'Введите код';
+
+  @override
+  String get shValPhoneInvalid => 'Неверный номер телефона (+998XXXXXXXXX)';
+
+  @override
+  String get shValPhoneRequired => 'Введите номер телефона';
+
+  @override
+  String get shValThisFieldRequired => 'Это поле не может быть пустым';
+
+  @override
+  String shVerifDaysLeft(int days) {
+    return 'Осталось $days дн.';
+  }
+
+  @override
+  String shVerifDaysOverdue(int days) {
+    return 'Просрочено на $days дн.';
+  }
+
+  @override
+  String get shVerifDueSoon => 'Скоро истекает';
+
+  @override
+  String get shVerifExpiresToday => 'Истекает сегодня';
+
+  @override
+  String get shVerifMissing => 'Не загружен';
+
+  @override
+  String get shVerifOk => 'Действителен';
+
+  @override
+  String get shVerifOverdue => 'Просрочен';
+
+  @override
+  String get shVerifPendingReview => 'На проверке';
+
+  @override
+  String get shVerifRejected => 'Отклонён';
+
+  @override
+  String get shVerifUnknown => 'Требует внимания';
+
+  @override
+  String get shfActive => 'Смена активна';
+
+  @override
+  String get shfAlreadyActive => 'У вас уже есть активная смена';
+
+  @override
+  String get shfBought => 'Смена активирована';
+
+  @override
+  String shfBuy(String price) {
+    return 'Купить смену — $price';
+  }
+
+  @override
+  String get shfCancel => 'Отмена';
+
+  @override
+  String shfComparison(int days, String commission, String passCost) {
+    return 'За последние $days дн. вы заплатили $commission комиссии, со сменой было бы $passCost.';
+  }
+
+  @override
+  String shfComparisonNoTrips(int days) {
+    return 'За последние $days дн. поездок не было — сравнивать не с чем.';
+  }
+
+  @override
+  String get shfConfirm => 'Купить';
+
+  @override
+  String shfConfirmBody(String price, int hours, String services) {
+    return 'С кошелька спишется $price. $hours ч комиссия за поездки «$services» не берётся. Налог 1% удерживается как обычно.';
+  }
+
+  @override
+  String get shfConfirmTitle => 'Купить смену?';
+
+  @override
+  String shfHoursMinutes(int hours, int minutes) {
+    return '$hours ч $minutes мин';
+  }
+
+  @override
+  String shfMinutes(int minutes) {
+    return '$minutes мин';
+  }
+
+  @override
+  String shfRemaining(String time) {
+    return 'Осталось $time';
+  }
+
+  @override
+  String shfSubtitle(int hours) {
+    return '$hours ч без комиссии';
+  }
+
+  @override
+  String get shfTitle => 'Смена';
+
+  @override
+  String shfVerdictCommission(String amount) {
+    return 'Комиссия вышла дешевле на $amount';
+  }
+
+  @override
+  String get shfVerdictEqual => 'Одинаково';
+
+  @override
+  String shfVerdictShift(String amount) {
+    return 'Смена сэкономила бы $amount';
+  }
+
+  @override
+  String wdrAmountExceedsAvailable(String amount) {
+    return 'Сейчас можно вывести не больше $amount';
+  }
+
+  @override
+  String wdrAvailable(String amount) {
+    return 'Доступно к выводу: $amount';
+  }
+
+  @override
+  String wdrBonusNote(String amount) {
+    return 'Бонус $amount — расходуется на комиссию и смены, вывести нельзя';
+  }
+
+  @override
+  String wdrHoldNote(String amount, String days) {
+    return 'Пополнение картой $amount можно будет вывести через $days дн.';
+  }
+
+  @override
+  String get wdrNothingAvailable => 'Сейчас нет средств, доступных к выводу';
+
+  @override
+  String get wltAmount => 'Сумма';
+
+  @override
+  String get wltAmountHint => 'Введите сумму';
+
+  @override
+  String wltAmountRange(String min, String max) {
+    return 'От $min до $max';
+  }
+
+  @override
+  String wltCallFailed(String phone) {
+    return 'Не удалось позвонить. Номер: $phone';
+  }
+
+  @override
+  String wltCallOperator(String phone) {
+    return 'Позвонить оператору: $phone';
+  }
+
+  @override
+  String get wltContinuePending => 'Продолжить оплату';
+
+  @override
+  String get wltCurrentBalance => 'Текущий баланс';
+
+  @override
+  String get wltDisabledBody =>
+      'Пополнение из приложения пока не включено. Позвоните оператору — он пополнит кошелёк.';
+
+  @override
+  String get wltDisabledTitle => 'Пополнение через оператора';
+
+  @override
+  String get wltDone => 'Готово';
+
+  @override
+  String get wltFailedBody =>
+      'Деньги не списаны. Попробуйте ещё раз или выберите другой способ.';
+
+  @override
+  String get wltFailedTitle => 'Оплата не прошла';
+
+  @override
+  String get wltHistory => 'История пополнений';
+
+  @override
+  String get wltHistoryEmpty => 'Пополнений пока нет';
+
+  @override
+  String wltNewBalance(String balance) {
+    return 'Новый баланс: $balance';
+  }
+
+  @override
+  String get wltNoSupportPhone =>
+      'Номер оператора не найден — напишите в чат поддержки.';
+
+  @override
+  String get wltOpenCheckoutAgain => 'Снова открыть страницу оплаты';
+
+  @override
+  String wltPay(String amount) {
+    return 'Оплатить $amount';
+  }
+
+  @override
+  String get wltProvider => 'Способ оплаты';
+
+  @override
+  String get wltRefundClawbackFallback =>
+      'Клиенту вернули оплату картой — ваша доля по этому заказу списана с кошелька.';
+
+  @override
+  String get wltReminderFallback =>
+      'Расчёт с ресторанами и магазинами будет через кошелёк — пополните его.';
+
+  @override
+  String get wltShowPending => 'Показать незавершённые платежи';
+
+  @override
+  String get wltStatusCancelled => 'Отменено';
+
+  @override
+  String get wltStatusExpired => 'Истекло';
+
+  @override
+  String get wltStatusFailed => 'Не прошло';
+
+  @override
+  String get wltStatusPaid => 'Оплачено';
+
+  @override
+  String get wltStatusPending => 'Ожидает';
+
+  @override
+  String get wltStillPending =>
+      'Пока не подтверждено. Если деньги списаны, они поступят автоматически — следите в истории.';
+
+  @override
+  String wltSuccessBody(String amount) {
+    return '$amount зачислено на кошелёк';
+  }
+
+  @override
+  String get wltSuccessTitle => 'Кошелёк пополнен';
+
+  @override
+  String wltTooManyPending(String count) {
+    return 'У вас $count незавершённых платежа. Сначала завершите их или дождитесь отмены.';
+  }
+
+  @override
+  String get wltTooManyPendingNoCount =>
+      'У вас слишком много незавершённых платежей. Сначала завершите их или дождитесь отмены.';
+
+  @override
+  String get wltTopUpShort => 'Пополнить';
+
+  @override
+  String get wltTopUpTitle => 'Пополнить кошелёк';
+
+  @override
+  String get wltTryAgain => 'Попробовать снова';
+
+  @override
+  String wltUpdGeneric(String amount) {
+    return 'Кошелёк обновлён: $amount';
+  }
+
+  @override
+  String wltUpdManual(String amount) {
+    return 'Оператор скорректировал кошелёк: $amount';
+  }
+
+  @override
+  String wltUpdRefundClawback(String amount) {
+    return 'Оплата возвращена клиенту — доля списана с кошелька: $amount';
+  }
+
+  @override
+  String wltUpdShiftRefund(String amount) {
+    return 'Возврат за смену: $amount';
+  }
+
+  @override
+  String wltUpdTopup(String amount) {
+    return 'Кошелёк пополнен: $amount';
+  }
+
+  @override
+  String wltUpdTopupReversal(String amount) {
+    return 'Пополнение отменено: $amount';
+  }
+
+  @override
+  String wltUpdVendorReversal(String amount) {
+    return 'Перевод магазину возвращён: $amount';
+  }
+
+  @override
+  String get wltValAmountEmpty => 'Введите сумму';
+
+  @override
+  String get wltValAmountInvalid => 'Введите только цифры';
+
+  @override
+  String wltValAmountMax(String max) {
+    return 'Максимальная сумма — $max';
+  }
+
+  @override
+  String wltValAmountMin(String min) {
+    return 'Минимальная сумма — $min';
+  }
+
+  @override
+  String get wltVendorInsufficientBody =>
+      'При наличном заказе оплата товара магазину списывается с кошелька. Пополните кошелёк и примите заказ снова.';
+
+  @override
+  String get wltVendorInsufficientTitle => 'На кошельке недостаточно средств';
+
+  @override
+  String get wltWaitingBody =>
+      'Деньги поступят, как только платёжная система подтвердит оплату. Обычно несколько секунд.';
+
+  @override
+  String get wltWaitingTitle => 'Ожидаем подтверждения оплаты';
+}

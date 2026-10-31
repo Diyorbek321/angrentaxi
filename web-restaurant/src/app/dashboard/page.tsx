@@ -1,48 +1,59 @@
 'use client';
 
 import { useCallback } from 'react';
-import Link from 'next/link';
-import { ClipboardList, Clock, Inbox, LayoutGrid, UtensilsCrossed, Wallet } from 'lucide-react';
+import { ClipboardList, Clock, Inbox, UtensilsCrossed, Wallet } from 'lucide-react';
 import { foodApi, DashboardData } from '@/lib/api';
 import { useAsyncData } from '@/hooks/useAsyncData';
-import { money, formatTime } from '@/lib/utils';
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
+import { formatMoney, formatNumber, formatTime, shortId } from '@/lib/format';
+import { usePageRefresh } from '@/components/shell';
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
-import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
-import { EmptyState } from '@/components/ui/EmptyState';
+import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { MoneyText } from '@/components/ui/MoneyText';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { StaleDataBanner } from '@/components/ui/PollStatus';
 import { SkeletonStats, SkeletonTable } from '@/components/ui/Skeleton';
-import { StatTile } from '@/components/ui/StatTile';
+import { StatCard } from '@/components/ui/StatCard';
+import { t, type Messages } from '@/locales';
+
+type RecentOrder = DashboardData['recentOrders'][number];
+
+// Funksiya: ustun sarlavhalari faol tilda (modul darajasida qotib qolmasin).
+const columns = (m: Messages['dashboard'], common: Messages['common']): DataTableColumn<RecentOrder>[] => [
+  {
+    key: 'customer',
+    header: m.colCustomer,
+    cell: (o) => (
+      <div className="min-w-0">
+        <p className="truncate font-medium text-ink">{o.customer?.trim() || m.customerFallback}</p>
+        <p className="font-mono text-xs text-subtle">{shortId(o.id)}</p>
+      </div>
+    ),
+  },
+  { key: 'items', header: m.colItems, numeric: true, cell: (o) => common.count(formatNumber(o.itemsCount)), hideBelow: 'sm' },
+  { key: 'total', header: m.colTotal, numeric: true, cell: (o) => <MoneyText value={o.totalPrice} /> },
+  { key: 'status', header: m.colStatus, cell: (o) => <OrderStatusBadge status={o.status} size="sm" /> },
+  { key: 'time', header: m.colTime, numeric: true, cell: (o) => formatTime(o.createdAt), hideBelow: 'md' },
+];
 
 export default function DashboardPage() {
+  const { dashboard: m, common } = t();
   const load = useCallback(async (): Promise<DashboardData> => {
     const res = await foodApi.getDashboard();
     return res.data.data;
   }, []);
 
-  const { data, status, error, isRefreshing, reload } = useAsyncData<DashboardData>(load, { pollMs: 30000 });
+  const { data, status, error, isRefreshing, lastUpdatedAt, reload } = useAsyncData<DashboardData>(load, {
+    pollMs: 30000,
+  });
+  useRealtimeRefresh(reload);
+  usePageRefresh(reload);
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <PageHeader
-        title="Bosh sahifa"
-        description="Bugungi faoliyat ko'rsatkichlari"
-        icon={<LayoutGrid size={20} />}
-        actions={
-          <>
-            {data && (
-              <Badge variant={data.isOpen ? 'success' : 'danger'} dot>
-                {data.isOpen ? 'Qabul ochiq' : 'Qabul yopiq'}
-              </Badge>
-            )}
-            <Button variant="secondary" onClick={reload} isLoading={isRefreshing}>
-              Yangilash
-            </Button>
-          </>
-        }
-      />
+      <PageHeader title={m.title} description={m.description} />
 
       {status === 'loading' && (
         <div className="flex flex-col gap-5">
@@ -55,111 +66,59 @@ export default function DashboardPage() {
 
       {status === 'ready' && data && (
         <div className="flex flex-col gap-5">
+          {/* Fon yangilanishi uzilsa — oxirgi yaxshi ma'lumot qoladi va belgilanadi. */}
+          <StaleDataBanner error={error} lastUpdatedAt={lastUpdatedAt} onRetry={reload} isRetrying={isRefreshing} />
+
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <StatTile
-              label="Bugungi buyurtmalar"
-              value={data.todayOrdersCount}
-              tone="info"
-              icon={<ClipboardList size={20} />}
+            <StatCard
+              label={m.todayOrders}
+              value={formatNumber(data.todayOrdersCount)}
+              icon={<ClipboardList aria-hidden />}
               live
             />
-            <StatTile
-              label="Bugungi tushum"
-              value={money(data.todayRevenue)}
-              tone="mint"
-              icon={<Wallet size={20} />}
+            <StatCard
+              label={m.todayRevenue}
+              value={formatMoney(data.todayRevenue, { currency: false })}
+              unit={common.som}
+              icon={<Wallet aria-hidden />}
             />
-            <StatTile
-              label="O'rtacha tayyorlash"
-              value={data.avgPrepMinutes}
-              unit="daq"
-              tone="override"
-              icon={<Clock size={20} />}
-              hint="Oxirgi 30 kun bo'yicha"
+            <StatCard
+              label={m.avgPrep}
+              value={formatNumber(data.avgPrepMinutes)}
+              unit={m.minutesUnit}
+              icon={<Clock aria-hidden />}
+              hint={m.last30Days}
             />
-            <StatTile
-              label="Faol taomlar"
-              value={data.activeDishesCount}
-              tone="neutral"
-              icon={<UtensilsCrossed size={20} />}
+            <StatCard
+              label={m.activeDishes}
+              value={formatNumber(data.activeDishesCount)}
+              icon={<UtensilsCrossed aria-hidden />}
             />
           </div>
 
-          <Card padding="none">
-            <CardHeader className="mb-0 px-5 py-4 border-b border-line">
-              <CardTitle>So&apos;nggi buyurtmalar</CardTitle>
-              <Link
-                href="/dashboard/orders"
-                className="text-label text-primary-text hover:underline underline-offset-4"
-              >
-                Barchasi
-              </Link>
-            </CardHeader>
-
-            {data.recentOrders.length === 0 ? (
-              <EmptyState
-                icon={<Inbox size={24} />}
-                title="Bugun hali buyurtma yo'q"
-                description="Yangi buyurtma kelganda u shu yerda va Buyurtmalar sahifasida ko'rinadi."
-                action={
-                  <Link href="/dashboard/orders">
-                    <Button variant="secondary">Buyurtmalar oqimi</Button>
-                  </Link>
-                }
-              />
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[640px] border-collapse text-left">
-                  <caption className="sr-only">Oxirgi buyurtmalar ro&apos;yxati</caption>
-                  <thead>
-                    <tr className="text-micro uppercase text-subtle">
-                      <th scope="col" className="px-5 py-3 font-extrabold">
-                        Raqam
-                      </th>
-                      <th scope="col" className="px-5 py-3 font-extrabold">
-                        Mijoz
-                      </th>
-                      <th scope="col" className="px-5 py-3 font-extrabold">
-                        Taomlar
-                      </th>
-                      <th scope="col" className="px-5 py-3 font-extrabold">
-                        Summa
-                      </th>
-                      <th scope="col" className="px-5 py-3 font-extrabold">
-                        Holat
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-divider">
-                    {data.recentOrders.map((o) => (
-                      <tr key={o.id} className="hover:bg-surface-2/60 transition-colors duration-fast">
-                        <td className="px-5 py-3.5 font-mono text-body text-muted">#{o.id.slice(0, 6)}</td>
-                        <td className="px-5 py-3.5 text-body font-semibold text-ink">{o.customer}</td>
-                        <td className="px-5 py-3.5 text-body text-muted">{o.itemsCount} ta</td>
-                        <td className="px-5 py-3.5 font-mono text-body text-ink tabular-nums">
-                          {money(o.totalPrice)}
-                        </td>
-                        <td className="px-5 py-3.5">
-                          <div className="flex items-center gap-2">
-                            <OrderStatusBadge status={o.status} size="sm" />
-                            <span className="text-micro text-subtle font-mono">{formatTime(o.createdAt)}</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
-
-          {/* Fon yangilanishi uzilib qolsa — sahifa xatoga aylanmaydi, lekin
-              foydalanuvchi ma'lumot eskirganini bilishi kerak. */}
-          {error && (
-            <p role="status" className="text-caption text-override-dark dark:text-override-light">
-              Oxirgi yangilash muvaffaqiyatsiz: {error}
-            </p>
-          )}
+          <DataTable
+            title={m.recentOrders}
+            actions={
+              <Button variant="ghost" size="sm" href="/dashboard/orders">
+                {m.all}
+              </Button>
+            }
+            ariaLabel={m.recentOrders}
+            columns={columns(m, common)}
+            rows={data.recentOrders}
+            rowKey={(o) => o.id}
+            empty={{
+              variant: 'first-use',
+              icon: <Inbox size={20} />,
+              title: m.emptyTitle,
+              description: m.emptyDescription,
+              action: (
+                <Button variant="secondary" href="/dashboard/orders">
+                  {m.queueButton}
+                </Button>
+              ),
+            }}
+          />
         </div>
       )}
     </div>

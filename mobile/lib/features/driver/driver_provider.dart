@@ -1,21 +1,32 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
+import 'package:angren_taxi/core/location/location_ping_gate.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/core/network/api_error.dart';
+import 'package:angren_taxi/core/observability/crash_reporting.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
 import 'package:angren_taxi/core/storage/local_storage.dart';
+import 'package:angren_taxi/features/driver/legal/legal_rejection.dart';
+import 'package:angren_taxi/features/driver/wallet/wallet_error_messages.dart';
+import 'package:angren_taxi/features/driver/wallet/wallet_messages.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/driver.dart';
 import 'package:angren_taxi/shared/models/driver_bonus_progress.dart';
 import 'package:angren_taxi/shared/models/driver_document.dart';
 import 'package:angren_taxi/shared/models/driver_earnings_breakdown.dart';
 import 'package:angren_taxi/shared/models/driver_rating_stats.dart';
+import 'package:angren_taxi/shared/models/driver_service.dart';
+import 'package:angren_taxi/shared/models/driver_verification.dart';
 import 'package:angren_taxi/shared/models/order.dart';
+import 'package:angren_taxi/shared/models/trip_option.dart';
 import 'package:angren_taxi/shared/models/withdrawal_request.dart';
-import 'package:dio/dio.dart' show MultipartFile, FormData;
+import 'package:dio/dio.dart' show DioException, FormData, MultipartFile;
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
@@ -68,10 +79,14 @@ class DriverProvider extends ChangeNotifier {
     required SocketService socketService,
     required LocationService locationService,
     required LocalStorage localStorage,
+    @visibleForTesting DateTime Function()? clock,
   })  : _apiClient = apiClient,
         _socketService = socketService,
         _locationService = locationService,
-        _localStorage = localStorage;
+        _localStorage = localStorage,
+        _clock = clock ?? DateTime.now;
+
+  final DateTime Function() _clock;
 
   final ApiClient _apiClient;
   final SocketService _socketService;
@@ -80,20 +95,92 @@ class DriverProvider extends ChangeNotifier {
 
   DriverProviderState _state = DriverProviderState.idle;
   String? _error;
+
+  /// Oxirgi xato TANILGAN turkumga tegishli bo'lsa (huquqiy blok, hamyon
+  /// yetishmasligi) — ekran oddiy snackbar o'rniga tushuntirish ko'rsatadi.
+  DriverErrorKind? _errorKind;
+
+  /// Oxirgi tanilgan xatoning konverti (`reasons[]`, `details` summalari).
+  ApiError? _errorDetails;
+
+  /// `wallet:updated` hodisalari — global xost snackbar ko'rsatadi,
+  /// to'ldirish ekrani esa o'z to'lovi tasdiqlanganini shu yerdan biladi.
+  final StreamController<WalletUpdate> _walletUpdates =
+      StreamController<WalletUpdate>.broadcast();
   Driver? _driver;
   DriverOnboardingStatus _onboardingStatus = DriverOnboardingStatus.unknown;
   Order? _activeOrder;
   Order? _pendingOffer;
+
+  /// Taklif qachon tugaydi — QABUL QILINGAN paytdan (`timeoutSeconds`)
+  /// hisoblanadi, telefon soati server soati bilan solishtirilmaydi.
+  /// Taklif ekrani hisoblagichni shundan oladi: ekran fonda kech ochilsa
+  /// yoki taymer to'xtab qolsa ham haqiqiy qolgan vaqt ko'rsatiladi.
+  DateTime? _offerDeadline;
+
+  /// Har yangi taklifda oshadi — [resyncPendingOffer] javobi kelguncha
+  /// socket'dan yangi taklif kelgan bo'lsa, eski javob uni o'chirmasin.
+  int _offerSeq = 0;
+
+  /// "Qabul qilish" so'rovi ketyapti — ikkinchi bosish yangi so'rov yubormaydi.
+  bool _acceptInFlight = false;
+
   List<Order> _orderHistory = [];
   double _todayEarnings = 0;
   bool _isOnline = false;
   StreamSubscription<Position>? _locationSubscription;
+
+  /// Turgan haydovchi uchun "yurak urishi". GPS oqimi masofa filtri bilan
+  /// ishlaydi: mashina joyidan qo'zg'almasa (yo'lovchini kutish, svetofor)
+  /// fiks KELMAYDI va [LocationPingGate] yuboradigan narsa topmaydi —
+  /// yo'lovchi ekranida mashina yo'qolardi. Taymer davri ichida yangi fiks
+  /// kelmagan bo'lsa, oxirgisini qayta yuboradi.
+  Timer? _heartbeatTimer;
+
+  /// Oxirgi yurak urishidan beri GPS fiks kelganmi — kelgan bo'lsa, ritmni
+  /// [LocationPingGate] o'zi boshqaradi va taymer aralashmaydi.
+  bool _fixSinceHeartbeat = false;
   List<DriverDocument> _documents = [];
   final Map<DriverDocumentType, DriverDocumentUploadState>
       _documentUploadStates = {};
+  // Serverdan boshqariladigan tekshiruv ro'yxati (hujjat muddatlari +
+  // avtomobil suratlari). Yuqoridagi `_documents` dan FARQ QILADI: u eski,
+  // qattiq kodlangan KYC oqimi; bu esa server aytgan har qanday talabni
+  // ko'rsatadi. Yuklash holati `code` (erkin satr) bo'yicha kuzatiladi.
+  DriverVerification _verification = DriverVerification.unrestricted;
+  bool _isLoadingVerification = false;
+  String? _verificationError;
+  final Map<String, DriverDocumentUploadState> _verificationUploadStates = {};
+  // Haydovchi qaysi vertikallardan buyurtma olishi. Ro'yxatning O'ZI ham
+  // serverdan keladi — shared/models/driver_service.dart dagi izohga qarang.
+  DriverServices _services = DriverServices.empty;
+  bool _isLoadingServices = false;
+  String? _servicesError;
+  bool _isSavingServices = false;
+  String? _servicesSaveError;
   List<WithdrawalRequest> _withdrawals = [];
   bool _isSubmittingWithdrawal = false;
   String? _withdrawalError;
+
+  /// Haydovchining HAQIQIY pul holati — `GET /payments/wallet`.
+  ///
+  /// ⚠️ NEGA `Driver.balance` EMAS. Ekranda ilgari o'sha ustun ko'rsatilardi,
+  /// server esa yechishni butunlay boshqa raqamga — tranzaksiyalar daftariga
+  /// — solishtirardi. Ikkalasi bir xil emas: yechib olish daftarni
+  /// debetlaydi, ustunga esa tegmaydi, ya'ni birinchi yechishdan keyin ular
+  /// abadiy ajralib ketardi. Haydovchi ilovada 500 000 ko'rib, "yechish"
+  /// bosganda serverdan "summa balansdan oshdi" javobini olardi.
+  ///
+  /// `null` = hali o'qilmagan (yoki so'rov yiqilgan). Bu 0 dan FARQ QILADI:
+  /// nolni ko'rsatish "puling yo'q" degan yolg'on bo'lardi.
+  double? _walletBalance;
+
+  /// Karta to'ldirishlaridan hozir USHLAB TURILGAN summa (§25 #3a) va
+  /// muddat (kun). `null` = server bermagan (eski server) — yechish chegarasi
+  /// faqat qoldiq bo'yicha.
+  double? _withdrawalHold;
+  double? _withdrawalBonus;
+  int _withdrawalHoldDays = 0;
   DriverEarningsBreakdown _earningsBreakdown = DriverEarningsBreakdown.empty;
   List<DriverBonusProgress> _bonusProgress = [];
   DriverRatingStats _ratingStats = DriverRatingStats.empty;
@@ -103,23 +190,95 @@ class DriverProvider extends ChangeNotifier {
   // a fresh one from the OS.
   Position? _lastKnownPosition;
 
+  /// Joylashuv yuborish ritmini boshqaradi (harakatda tez, turganda sekin).
+  final LocationPingGate _pingGate = LocationPingGate();
+
   DriverProviderState get state => _state;
   String? get error => _error;
+  DriverErrorKind? get errorKind => _errorKind;
+  ApiError? get errorDetails => _errorDetails;
+  Stream<WalletUpdate> get walletUpdates => _walletUpdates.stream;
   Driver? get driver => _driver;
   DriverOnboardingStatus get onboardingStatus => _onboardingStatus;
   Order? get activeOrder => _activeOrder;
   Order? get pendingOffer => _pendingOffer;
+  DateTime? get offerDeadline => _offerDeadline;
+
+  /// Taklifning qolgan vaqti (manfiy emas). Taklif yo'q bo'lsa — nol.
+  Duration get offerTimeLeft {
+    final deadline = _offerDeadline;
+    if (deadline == null || _pendingOffer == null) return Duration.zero;
+    final left = deadline.difference(_clock());
+    return left.isNegative ? Duration.zero : left;
+  }
+
+  /// Taklif holatining YAGONA yozuvchisi — muddat bilan birga.
+  void _setOffer(Order? offer) {
+    // HAR o'zgarishda — tozalashda ham: qabul/bekor/muddat tugashidan keyin
+    // kelgan eski tiklash javobi hal bo'lgan taklifni qayta ochmasin.
+    _offerSeq++;
+    _pendingOffer = offer;
+    if (offer == null) {
+      _offerDeadline = null;
+      return;
+    }
+    final full = AppConfig.orderOfferTimeout.inSeconds;
+    final left = offer.offerTimeoutSeconds;
+    final seconds = (left == null || left <= 0 || left > full) ? full : left;
+    _offerDeadline = _clock().add(Duration(seconds: seconds));
+  }
   List<Order> get orderHistory => List.unmodifiable(_orderHistory);
   double get todayEarnings => _todayEarnings;
   bool get isOnline => _isOnline;
   bool get hasActiveOrder => _activeOrder != null;
+
+  bool _hasIntercityInFlight = false;
+
+  /// Shaharlararo qatnovda faol band bor (yig'ish/yo'lda). Bosh ekran
+  /// shunda "Shaharlararo qatnovlarim" ga yo'naltiradi.
+  bool get hasIntercityInFlight => _hasIntercityInFlight;
   List<DriverDocument> get documents => List.unmodifiable(_documents);
   Map<DriverDocumentType, DriverDocumentUploadState>
       get documentUploadStates => Map.unmodifiable(_documentUploadStates);
+  DriverVerification get verification => _verification;
+  bool get isLoadingVerification => _isLoadingVerification;
+  String? get verificationError => _verificationError;
+  DriverServices get services => _services;
+  bool get isLoadingServices => _isLoadingServices;
+  String? get servicesError => _servicesError;
+  bool get isSavingServices => _isSavingServices;
+  String? get servicesSaveError => _servicesSaveError;
   List<WithdrawalRequest> get withdrawals => List.unmodifiable(_withdrawals);
+
+  double? get walletBalance => _walletBalance;
+
+  /// Qoldiq manfiy — haydovchi platformaga qarzdor (asosan naqd
+  /// safarlarning komissiyasi). Bunday holatda onlayn chiqib bo'lmaydi.
+  bool get hasWalletDebt => (_walletBalance ?? 0) < 0;
+  double? get withdrawalHold => _withdrawalHold;
+  int get withdrawalHoldDays => _withdrawalHoldDays;
+
+  /// Yechish mumkin: `max(0, balance − hold)` — qoldiq realtime yangilansa
+  /// ham mos qoladi. `null` = noma'lum.
+  double? get availableForWithdrawal => withdrawableAmount(
+        balance: _walletBalance,
+        held: _withdrawalHold,
+        bonus: _withdrawalBonus,
+      );
+
+  /// Sarflanmagan bonus — komissiya/smenaga ketadi, yechilmaydi.
+  /// `null` — eski server (maydon yo'q).
+  double? get withdrawalBonus => _withdrawalBonus;
   bool get isSubmittingWithdrawal => _isSubmittingWithdrawal;
   String? get withdrawalError => _withdrawalError;
   Position? get lastKnownPosition => _lastKnownPosition;
+
+  /// Har bir GPS fiksi (serverga yuborilmaganlari ham) — bosh ekrandagi
+  /// mashina markeri uchun. ⚠️ `notifyListeners` EMAS: fiks bir necha
+  /// soniyada keladi, provayderni tinglovchi barcha ekranlar qayta
+  /// qurilmasin — faqat xarita tinglaydi.
+  ValueListenable<Position?> get livePosition => _livePosition;
+  final ValueNotifier<Position?> _livePosition = ValueNotifier(null);
   DriverEarningsBreakdown get earningsBreakdown => _earningsBreakdown;
   List<DriverBonusProgress> get bonusProgress =>
       List.unmodifiable(_bonusProgress);
@@ -134,6 +293,22 @@ class DriverProvider extends ChangeNotifier {
     _lastKnownPosition = position;
   }
 
+  // Test-only seam: buyurtma taklifi odatda socket hodisasi bilan keladi
+  // (`newOrderOffer`), uni vidjet testida haydash uchun butun socket
+  // qatlamini soxtalashtirish kerak bo'lardi. Taklif ekrani esa aynan shu
+  // maydonga qarab quriladi.
+  @visibleForTesting
+  void debugSetActiveOrderForTest(Order order) {
+    _activeOrder = order;
+    notifyListeners();
+  }
+
+  @visibleForTesting
+  void debugSetPendingOfferForTest(Order offer) {
+    _setOffer(offer);
+    notifyListeners();
+  }
+
   // Most recent uploaded record for a document type, if any (list is newest
   // first per the backend's `order: { uploadedAt: 'DESC' }`).
   DriverDocument? documentFor(DriverDocumentType type) {
@@ -146,19 +321,91 @@ class DriverProvider extends ChangeNotifier {
   DriverDocumentUploadState uploadStateFor(DriverDocumentType type) =>
       _documentUploadStates[type] ?? const DriverDocumentUploadState();
 
+  /// Tekshiruv elementining (erkin satrli `code` bo'yicha) yuklash holati.
+  DriverDocumentUploadState verificationUploadStateFor(String code) =>
+      _verificationUploadStates[code] ?? const DriverDocumentUploadState();
+
   void _setState(DriverProviderState state) {
     _state = state;
+    if (state != DriverProviderState.error) {
+      _errorKind = null;
+      _errorDetails = null;
+    }
     notifyListeners();
   }
 
   Future<void> initialize() async {
     _isOnline = _localStorage.getDriverOnlineStatus();
     await loadProfile();
+    // Bosh ekran onlayn tugmasini shu ma'lumotga qarab o'chiradi, shuning
+    // uchun u faol buyurtmani tekshirishdan OLDIN kerak.
+    await loadDriverVerification();
     await checkActiveOrder();
     if (_isOnline) {
       _startLocationUpdates();
     }
     _listenToSocketEvents();
+    _socketService.addReconnectListener(_onSocketReconnected);
+    // ⚠️ SOVUQ START: ilova yopiq turganda taklif jiringladi va haydovchi
+    // bildirishnomani bosdi. Socket'ning birinchi ulanishi "qayta ulanish"
+    // hisoblanmaydi va fondan qaytish hodisasi ham bo'lmaydi — ilgari ilova
+    // bosh xaritada ochilar, taklif ekrani umuman chiqmasdi.
+    if (_isOnline) unawaited(resyncPendingOffer());
+  }
+
+  /// Socket qayta ulandi yoki ilova fondan qaytdi: uzilish paytida
+  /// yo'qolgan hodisalar o'rniga holat serverdan olinadi.
+  void _onSocketReconnected() {
+    unawaited(resyncActiveTrip());
+    unawaited(resyncPendingOffer());
+  }
+
+  /// Faol safar holatini serverdan qayta oladi (`GET /orders/:id`).
+  ///
+  /// Socket uzilgan paytda yo'lovchi bekor qilsa, `order:cancelled` hodisasi
+  /// yo'qoladi va haydovchi bekor qilingan safarni davom ettiraverardi.
+  /// Xato bo'lsa hech narsa o'zgarmaydi — keyingi ulanishda yana uriniladi.
+  Future<void> resyncActiveTrip() async {
+    final active = _activeOrder;
+    if (active == null || !active.isActive) return;
+    try {
+      final response = await _apiClient.get(ApiEndpoints.orderById(active.id));
+      final body = response.data;
+      final data = body is Map<String, dynamic> ? body['data'] : null;
+      if (data is! Map<String, dynamic>) return;
+      final fresh = Order.fromJson(data);
+      // So'rov davomida safar almashgan yoki tugatilgan bo'lsa — tegilmaydi.
+      if (_activeOrder?.id != fresh.id || _activeOrder == fresh) return;
+      _activeOrder = fresh;
+      notifyListeners();
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'DriverProvider.resyncActiveTrip');
+    }
+  }
+
+  /// Taklifni serverdan tiklaydi (`GET /orders/offer/current`).
+  ///
+  /// B reja: taklif faqat socket orqali keladi va uzilish paytidagi hodisa
+  /// yo'qoladi — socket qayta ulanganda va ilova fondan qaytganda chaqiriladi.
+  /// Server "taklif yo'q" desa, eskirgan karta yopiladi. So'rov xato bersa —
+  /// hech narsa o'zgarmaydi (socket hodisasi baribir kelishi mumkin).
+  Future<void> resyncPendingOffer() async {
+    if (_activeOrder?.isActive ?? false) return;
+    final seqAtStart = _offerSeq;
+    try {
+      final response = await _apiClient.get(ApiEndpoints.currentOffer);
+      final body = response.data;
+      final data = body is Map<String, dynamic> ? body['data'] : null;
+      final offer = data is Map<String, dynamic> ? Order.fromJson(data) : null;
+      // So'rov davomida taklif holati o'zgardi (yangi taklif, qabul, bekor)
+      // yoki safar boshlandi — javob eskirgan.
+      if (_offerSeq != seqAtStart || (_activeOrder?.isActive ?? false)) return;
+      if (offer?.id == _pendingOffer?.id && offer != null) return;
+      _setOffer(offer);
+      notifyListeners();
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'DriverProvider.resyncPendingOffer');
+    }
   }
 
   Future<void> loadProfile() async {
@@ -167,8 +414,8 @@ class DriverProvider extends ChangeNotifier {
       final data = response.data as Map<String, dynamic>;
       _driver = Driver.fromJson(data['data'] as Map<String, dynamic>);
       notifyListeners();
-    } catch (e) {
-      debugPrint('[DriverProvider] loadProfile error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'DriverProvider.loadProfile');
     }
   }
 
@@ -247,8 +494,8 @@ class DriverProvider extends ChangeNotifier {
           .map((e) => DriverDocument.fromJson(e as Map<String, dynamic>))
           .toList();
       notifyListeners();
-    } catch (e) {
-      debugPrint('[DriverProvider] loadDriverDocuments error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'DriverProvider.loadDriverDocuments');
     }
   }
 
@@ -311,6 +558,188 @@ class DriverProvider extends ChangeNotifier {
     }
   }
 
+  // GET /drivers/me/verification — haydovchi uchun QAYSI tekshiruvlar
+  // kerakligini va ularning holatini serverdan oladi.
+  //
+  // ⚠️ Ro'yxatning o'zi ham serverdan keladi — bu yerda hech qanday talab
+  // taxmin qilinmaydi. Xato o'z alohida maydoniga yoziladi (`state`/`error`
+  // ga EMAS), aks holda bosh ekrandagi onlayn tugmasi tekshiruv so'rovi
+  // yiqilgani uchun "xato" holatiga tushib qolardi.
+  Future<void> loadDriverVerification() async {
+    _isLoadingVerification = true;
+    notifyListeners();
+    try {
+      final response = await _apiClient.get(ApiEndpoints.driverVerification);
+      final data = response.data as Map<String, dynamic>;
+      final payload = data['data'];
+      _verification = payload is Map<String, dynamic>
+          ? DriverVerification.fromJson(payload)
+          : DriverVerification.unrestricted;
+      _verificationError = null;
+    } catch (e) {
+      _verificationError = extractErrorMessage(e);
+    } finally {
+      _isLoadingVerification = false;
+      notifyListeners();
+    }
+  }
+
+  void _setVerificationUploadState(
+    String code,
+    DriverDocumentUploadState state,
+  ) {
+    _verificationUploadStates[code] = state;
+    notifyListeners();
+  }
+
+  // POST /drivers/me/verification/:code (multipart/form-data, maydon "file").
+  // Javob — YUBORILGAN ELEMENTNING o'zi, `pending_review` holatida.
+  //
+  // Muvaffaqiyatdan keyin ro'yxat qayta so'ralmaydi: server aynan shu
+  // elementni qaytaradi va uni joyiga qo'yish yetarli. `canGoOnline` esa
+  // bir yuklashdan o'zgarmaydi — element `pending_review` ga o'tadi, ya'ni
+  // menejer ko'rmaguncha blok saqlanadi.
+  Future<bool> uploadVerificationItem(String code, File file) async {
+    _setVerificationUploadState(
+      code,
+      const DriverDocumentUploadState(
+        status: DriverDocumentUploadStatus.uploading,
+      ),
+    );
+    try {
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(
+          file.path,
+          filename: file.path.split('/').last,
+        ),
+      });
+      final response = await _apiClient.post(
+        ApiEndpoints.driverVerificationUpload(code),
+        data: formData,
+        onSendProgress: (sent, total) {
+          if (total <= 0) return;
+          _setVerificationUploadState(
+            code,
+            DriverDocumentUploadState(
+              status: DriverDocumentUploadStatus.uploading,
+              progress: sent / total,
+            ),
+          );
+        },
+      );
+      final data = response.data as Map<String, dynamic>;
+      final payload = data['data'];
+      if (payload is Map<String, dynamic>) {
+        _verification = _verification.withItem(
+          DriverVerificationItem.fromJson(payload),
+        );
+      }
+      _setVerificationUploadState(
+        code,
+        const DriverDocumentUploadState(
+          status: DriverDocumentUploadStatus.uploaded,
+          progress: 1,
+        ),
+      );
+      return true;
+    } catch (e) {
+      _setVerificationUploadState(
+        code,
+        DriverDocumentUploadState(
+          status: DriverDocumentUploadStatus.failed,
+          error: extractErrorMessage(e),
+        ),
+      );
+      return false;
+    }
+  }
+
+  // GET /drivers/me/services — haydovchi qaysi xizmat turlaridan buyurtma
+  // olishi va qaysilarini YOQA OLMASLIGI (tekshiruv talablari bajarilmagan).
+  //
+  // ⚠️ Xato o'z alohida maydoniga yoziladi (`state`/`error` ga EMAS): bu
+  // so'rov yiqilgani uchun bosh ekrandagi onlayn tugmasi "xato" holatiga
+  // tushib qolmasligi kerak — `loadDriverVerification` bilan bir mantiq.
+  Future<void> loadDriverServices() async {
+    _isLoadingServices = true;
+    notifyListeners();
+    try {
+      final response = await _apiClient.get(ApiEndpoints.driverServices);
+      final data = response.data as Map<String, dynamic>;
+      final payload = data['data'];
+      _services = payload is Map<String, dynamic>
+          ? DriverServices.fromJson(payload)
+          : DriverServices.empty;
+      _servicesError = null;
+    } catch (e) {
+      _servicesError = extractErrorMessage(e);
+    } finally {
+      _isLoadingServices = false;
+      notifyListeners();
+    }
+  }
+
+  // PATCH /drivers/me/services — tanlangan turlarni saqlaydi.
+  //
+  // Javob GET bilan BIR XIL shaklda qaytadi, shuning uchun ro'yxat qayta
+  // so'ralmaydi: server yangilangan holatni (nima yoqildi, nima hamon
+  // bloklangan) o'zi aytadi.
+  //
+  // 400 — tanlangan turlardan birining tekshiruv talablari bajarilmagan.
+  // Sabab o'zbekcha matn sifatida serverdan keladi va `servicesSaveError`
+  // orqali ekranga chiqadi; bu yerda hech narsa taxmin qilinmaydi.
+  Future<bool> updateDriverServices(List<String> serviceTypes) async {
+    _isSavingServices = true;
+    _servicesSaveError = null;
+    notifyListeners();
+    try {
+      final response = await _apiClient.patch(
+        ApiEndpoints.driverServices,
+        data: {'serviceTypes': serviceTypes},
+      );
+      final data = response.data as Map<String, dynamic>;
+      final payload = data['data'];
+      if (payload is Map<String, dynamic>) {
+        _services = DriverServices.fromJson(payload);
+      }
+      return true;
+    } catch (e) {
+      _servicesSaveError = extractErrorMessage(e);
+      return false;
+    } finally {
+      _isSavingServices = false;
+      notifyListeners();
+    }
+  }
+
+  /// Safar opsiyalari (bola o'rindig'i, hayvon, ...) — to'liq ro'yxat
+  /// yuboriladi. Muvaffaqiyatda profil server javobi bilan yangilanadi,
+  /// shunda ekran haqiqatan saqlangan ro'yxatni ko'rsatadi.
+  Future<String?> updateAmenities(List<TripOption> amenities) async {
+    try {
+      final response = await _apiClient.patch(
+        ApiEndpoints.driverAmenities,
+        data: {'amenities': amenities.map((a) => a.apiValue).toList()},
+      );
+      final payload = (response.data as Map<String, dynamic>)['data'];
+      if (payload is Map<String, dynamic> && _driver != null) {
+        _driver = _driver!.copyWith(amenities: TripOption.listFromApi(payload['amenities']));
+        notifyListeners();
+      }
+      return null;
+    } catch (e) {
+      return extractErrorMessage(e);
+    }
+  }
+
+  /// Saqlash xatosini tozalaydi — haydovchi tanlovni o'zgartirganda eski
+  /// sabab ekranda osilib qolmasligi uchun.
+  void clearServicesSaveError() {
+    if (_servicesSaveError == null) return;
+    _servicesSaveError = null;
+    notifyListeners();
+  }
+
   Future<void> goOnline() async {
     _setState(DriverProviderState.loading);
     try {
@@ -323,6 +752,8 @@ class DriverProvider extends ChangeNotifier {
       _setState(DriverProviderState.success);
     } catch (e) {
       _error = extractErrorMessage(e);
+      _errorKind = classifyDriverError(e);
+      _errorDetails = ApiError.from(e);
       _setState(DriverProviderState.error);
     }
   }
@@ -343,25 +774,91 @@ class DriverProvider extends ChangeNotifier {
     }
   }
 
-  void _listenToSocketEvents() {
-    _socketService.on(SocketEvents.newOrderOffer, (data) {
-      if (data is Map<String, dynamic>) {
-        _pendingOffer = Order.fromJson(data);
-        notifyListeners();
-      }
-    });
+  /// Bosh ekran har safardan keyin qayta quriladi va [initialize] ni yana
+  /// chaqiradi. Bayroqsiz har safar tinglovchilar ustma-ust qo'shilardi:
+  /// N safardan keyin `wallet:updated` N marta ishlanib, hold summasi N
+  /// barobar oshardi.
+  bool _socketListening = false;
 
-    _socketService.on(SocketEvents.orderCancelled, (data) {
-      if (_activeOrder != null) {
-        _activeOrder = _activeOrder!.copyWith(status: OrderStatus.cancelled);
-        notifyListeners();
-      }
-      _pendingOffer = null;
+  void _listenToSocketEvents() {
+    if (_socketListening) return;
+    _socketListening = true;
+    _socketService.on(SocketEvents.newOrderOffer, _onNewOrderOffer);
+    _socketService.on(SocketEvents.walletUpdated, _onWalletUpdated);
+    _socketService.on(SocketEvents.orderCancelled, applyOrderCancelled);
+    _socketService.on(SocketEvents.offerExpired, applyOfferExpired);
+  }
+
+  void _onNewOrderOffer(dynamic data) {
+    if (data is Map<String, dynamic>) {
+      _setOffer(Order.fromJson(data));
       notifyListeners();
-    });
+    }
+  }
+
+  /// `order:offer_expired {orderId}` — server muddatni tugatdi. Mahalliy
+  /// taymer to'xtagan / kech boshlangan bo'lsa ham karta yopiladi.
+  /// Faqat O'SHA taklif: yangi taklif kelgan bo'lsa unga tegilmaydi.
+  void applyOfferExpired(dynamic data) {
+    final raw = data is Map ? data['orderId'] : null;
+    final orderId = raw is String ? raw : null;
+    if (orderId == null || _pendingOffer?.id != orderId) return;
+    _setOffer(null);
+    notifyListeners();
+  }
+
+  /// `order:cancelled {orderId, reason}` — faqat O'SHA buyurtmaga tegadi.
+  ///
+  /// Server bu hodisani taklif paytida ham yuboradi (qidiruv tugadi,
+  /// yo'lovchi bekor qildi, boshqa haydovchi oldi). `orderId` ga qaramaslik
+  /// haydovchining FAOL safarini ham "bekor" qilib qo'yardi. `orderId` siz
+  /// eski xabar — avvalgi xulq (testlar ham shu orqali haydaydi).
+  void applyOrderCancelled(dynamic data) {
+    final orderId = data is Map ? data['orderId'] as String? : null;
+    final active = _activeOrder;
+    if (active != null && (orderId == null || active.id == orderId)) {
+      _activeOrder = active.copyWith(status: OrderStatus.cancelled);
+    }
+    if (orderId == null || _pendingOffer?.id == orderId) {
+      _setOffer(null);
+    }
+    notifyListeners();
+  }
+
+  /// `wallet:updated` — server yangi qoldiqni o'zi yuboradi (daftardan),
+  /// shuning uchun qayta so'ralmaydi.
+  void _onWalletUpdated(dynamic data) {
+    final update = WalletUpdate.tryParse(data);
+    if (update == null) return;
+    applyWalletUpdate(update);
+  }
+
+  /// Realtime hodisani qo'llaydi (testlar ham shu orqali haydaydi).
+  void applyWalletUpdate(WalletUpdate update) {
+    _walletBalance = update.balance;
+    _applyHoldDelta(update);
+    notifyListeners();
+    if (!_walletUpdates.isClosed) _walletUpdates.add(update);
+  }
+
+  /// Karta to'ldirishi ushlab turiladi (muddat yoqilgan bo'lsa), teskari
+  /// o'tkazma esa ushlab turilganini kamaytiradi. Aniq qiymat keyingi
+  /// `GET /payments/wallet` da keladi.
+  void _applyHoldDelta(WalletUpdate update) {
+    final hold = _withdrawalHold;
+    if (hold == null || _withdrawalHoldDays <= 0) return;
+    if (update.reason == 'topup' && update.delta > 0) {
+      _withdrawalHold = hold + update.delta;
+    } else if (update.reason == 'topup_reversal') {
+      _withdrawalHold = math.max(0.0, hold - update.delta.abs());
+    }
   }
 
   Future<void> acceptOrder(String orderId) async {
+    // Ikki marta tez bosish: ikkinchi PATCH 409 olib, birinchisining
+    // muvaffaqiyatini "xato" holatiga almashtirib yuborardi.
+    if (_acceptInFlight) return;
+    _acceptInFlight = true;
     _setState(DriverProviderState.loading);
     try {
       final response = await _apiClient.patch(
@@ -369,21 +866,35 @@ class DriverProvider extends ChangeNotifier {
       );
       final data = response.data as Map<String, dynamic>;
       _activeOrder = Order.fromJson(data['data'] as Map<String, dynamic>);
-      _pendingOffer = null;
+      _setOffer(null);
       _setState(DriverProviderState.success);
     } catch (e) {
       _error = extractErrorMessage(e);
+      _errorKind = classifyDriverError(e);
+      _errorDetails = ApiError.from(e);
+      // 409/400 — taklif endi bu haydovchiniki emas (vaqti tugadi, boshqasi
+      // oldi, bekor qilindi). Eskirgan kartani ekranda qoldirmaymiz.
+      final status = _errorDetails?.statusCode;
+      if (status == 409 || status == 400) _setOffer(null);
       _setState(DriverProviderState.error);
+    } finally {
+      _acceptInFlight = false;
     }
   }
 
   Future<void> declineOrder(String orderId) async {
     try {
       await _apiClient.patch(ApiEndpoints.declineOrder(orderId));
-      _pendingOffer = null;
-      notifyListeners();
-    } catch (e) {
-      _pendingOffer = null;
+    } catch (e, st) {
+      // 4xx — odatiy (taklif allaqachon tugagan); faqat kutilmaganlari.
+      final status = e is DioException ? e.response?.statusCode : null;
+      if (status == null || status >= 500) {
+        CrashReporting.reportHandled(e, st, 'DriverProvider.declineOrder');
+      }
+    }
+    // Rad etish paytida YANGI taklif kelgan bo'lishi mumkin — faqat o'shani.
+    if (_pendingOffer?.id == orderId) {
+      _setOffer(null);
       notifyListeners();
     }
   }
@@ -404,6 +915,30 @@ class DriverProvider extends ChangeNotifier {
     }
   }
 
+  /// Naqd ovqat/market: kuryer do'konga tovar pulini to'lagan buyurtmalar.
+  /// Server ham saqlaydi (qayta belgilash xavfsiz); bu to'plam faqat
+  /// "Olib ketdim" tugmasini darhol ochish uchun.
+  final Set<String> _vendorPaidOrderIds = {};
+
+  bool isVendorPaid(String orderId) => _vendorPaidOrderIds.contains(orderId);
+
+  /// "Do'konga to'ladim". Busiz server safarni boshlatmaydi.
+  Future<bool> markVendorPaid() async {
+    final order = _activeOrder;
+    if (order == null) return false;
+    _setState(DriverProviderState.loading);
+    try {
+      await _apiClient.patch(ApiEndpoints.vendorPaid(order.id));
+      _vendorPaidOrderIds.add(order.id);
+      _setState(DriverProviderState.success);
+      return true;
+    } catch (e) {
+      _error = extractErrorMessage(e);
+      _setState(DriverProviderState.error);
+      return false;
+    }
+  }
+
   Future<void> startTrip() async {
     if (_activeOrder == null) return;
     _setState(DriverProviderState.loading);
@@ -420,12 +955,15 @@ class DriverProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> completeTrip() async {
+  /// [deliveryPin] — posilkada qabul qiluvchi aytgan kod (server usiz
+  /// yakunlamaydi; noto'g'ri bo'lsa qolgan urinishlar sonini aytadi).
+  Future<void> completeTrip({String? deliveryPin}) async {
     if (_activeOrder == null) return;
     _setState(DriverProviderState.loading);
     try {
       final response = await _apiClient.patch(
         ApiEndpoints.completeTrip(_activeOrder!.id),
+        data: {if (deliveryPin != null) 'deliveryPin': deliveryPin},
       );
       final data = response.data as Map<String, dynamic>;
       final completedOrder = Order.fromJson(
@@ -435,6 +973,8 @@ class DriverProvider extends ChangeNotifier {
           completedOrder.actualPrice ?? completedOrder.estimatedPrice;
       _activeOrder = null;
       _setState(DriverProviderState.success);
+      // Bosh ekrandagi sof daromad shu taqsimotdan — safar qo'shilsin.
+      unawaited(loadEarningsBreakdown());
     } catch (e) {
       _error = extractErrorMessage(e);
       _setState(DriverProviderState.error);
@@ -459,18 +999,53 @@ class DriverProvider extends ChangeNotifier {
 
   void _startLocationUpdates() {
     _locationSubscription?.cancel();
+    // Onlayn turgan butun vaqt davomida fon xizmati: haydovchi ko'pincha
+    // telefonni qulflaydi yoki navigatorga o'tadi, joylashuv esa buyurtma
+    // taklifi, yo'lovchi xaritasi va taksometr uchun uzluksiz kerak.
+    final l10n = AppL10n.current;
     _locationSubscription = _locationService
         .getPositionStream(
       distanceFilter: AppConfig.locationUpdateDistanceFilter,
+      background: BackgroundNotice(
+        title: l10n.drvForegroundTitle,
+        text: l10n.drvForegroundText,
+        channelName: l10n.drvForegroundChannel,
+      ),
     )
         .listen((position) {
-      _emitLocation(position);
+      _livePosition.value = position;
+      _fixSinceHeartbeat = true;
+      // Masofa filtri o'zi yetarli emas — tirbandlikda mashina 10 m
+      // yurmaydi va marker yo'lovchi ekranida muzlab qoladi.
+      if (_pingGate.shouldEmit(
+        speedMetersPerSecond: position.speed,
+        now: DateTime.now(),
+      )) {
+        _emitLocation(position);
+      }
     });
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = Timer.periodic(
+      AppConfig.locationIdlePingInterval,
+      (_) => _emitHeartbeat(),
+    );
+  }
+
+  void _emitHeartbeat() {
+    final position = _livePosition.value;
+    if (_fixSinceHeartbeat || position == null) {
+      _fixSinceHeartbeat = false;
+      return;
+    }
+    _emitLocation(position);
   }
 
   void _stopLocationUpdates() {
     _locationSubscription?.cancel();
     _locationSubscription = null;
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+    _pingGate.reset();
   }
 
   void _emitLocation(Position position) {
@@ -482,13 +1057,24 @@ class DriverProvider extends ChangeNotifier {
         if (_activeOrder != null) 'orderId': _activeOrder!.id,
       };
       _socketService.emit(SocketEvents.driverLocation, payload);
+      // Socket handler joylashuvni o'zi DB + Redis'ga yozadi
+      // (`realtime.gateway.ts` → `driversService.updateLocation`). Ilgari
+      // HTTP ham har fiksda ketardi: harakatda har 4 soniyada ikki yozuv
+      // va ikki tarmoq so'rovi (batareya, trafik, DB yuki).
+      return;
     }
 
-    // HTTP backup, sent whenever online (not just mid-trip) so the driver's
-    // stored location stays fresh for nearby-driver matching.
+    // HTTP zaxira — faqat socket uzilganda, toki haydovchining saqlangan
+    // joylashuvi yaqin-haydovchi qidiruvi uchun eskirib qolmasin. `orderId`
+    // bilan server paketni yo'lovchi xonasiga ham uzatadi — aks holda
+    // socket uzilgan paytda yo'lovchi xaritasidagi mashina qotib qolardi.
     _apiClient.post(
       ApiEndpoints.updateLocation,
-      data: {'lat': position.latitude, 'lng': position.longitude},
+      data: {
+        'lat': position.latitude,
+        'lng': position.longitude,
+        if (_activeOrder != null) 'orderId': _activeOrder!.id,
+      },
     ).then<void>(
       (_) {},
       onError: (Object e) => debugPrint('[Location] HTTP update failed: $e'),
@@ -507,11 +1093,18 @@ class DriverProvider extends ChangeNotifier {
       final orders = ordersJson
           .map((e) => Order.fromJson(e as Map<String, dynamic>))
           .toList();
-      final active = orders.where((o) => o.isActive);
+      // ⚠️ Shaharlararo bandlari SHAHAR SAFARI EMAS: yig'ish boshlangach ular
+      // ACCEPTED/ARRIVED/IN_PROGRESS bo'ladi, lekin o'z ekrani va o'z
+      // amallari bor (`/orders/:id/start` ular uchun 400). Bu yerda olinsa
+      // bosh ekran haydovchini taksi oqimiga qulflab qo'yardi.
+      final active = orders.where(
+          (o) => o.isActive && o.serviceType != kServiceTypeIntercity);
       _activeOrder = active.isEmpty ? null : active.first;
+      _hasIntercityInFlight = orders.any(
+          (o) => o.isActive && o.serviceType == kServiceTypeIntercity);
       notifyListeners();
-    } catch (e) {
-      debugPrint('[DriverProvider] checkActiveOrder error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'DriverProvider.checkActiveOrder');
     }
   }
 
@@ -538,8 +1131,8 @@ class DriverProvider extends ChangeNotifier {
       final payload = data['data'] as Map<String, dynamic>;
       _todayEarnings = (payload['today'] as num?)?.toDouble() ?? 0;
       notifyListeners();
-    } catch (e) {
-      debugPrint('[DriverProvider] loadEarnings error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'DriverProvider.loadEarnings');
     }
   }
 
@@ -556,8 +1149,8 @@ class DriverProvider extends ChangeNotifier {
         data['data'] as Map<String, dynamic>,
       );
       notifyListeners();
-    } catch (e) {
-      debugPrint('[DriverProvider] loadEarningsBreakdown error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'DriverProvider.loadEarningsBreakdown');
     }
   }
 
@@ -573,8 +1166,8 @@ class DriverProvider extends ChangeNotifier {
               DriverBonusProgress.fromJson(e as Map<String, dynamic>))
           .toList();
       notifyListeners();
-    } catch (e) {
-      debugPrint('[DriverProvider] loadBonusProgress error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'DriverProvider.loadBonusProgress');
     }
   }
 
@@ -595,8 +1188,37 @@ class DriverProvider extends ChangeNotifier {
       _ratingStats =
           DriverRatingStats.fromJson(data['data'] as Map<String, dynamic>);
       notifyListeners();
-    } catch (e) {
-      debugPrint('[DriverProvider] loadRatingStats error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'DriverProvider.loadRatingStats');
+    }
+  }
+
+  /// `GET /payments/wallet` — daftardan hisoblangan qoldiq.
+  ///
+  /// Xato JIMGINA yutiladi va oldingi qiymat SAQLANADI: bir marta yiqilgan
+  /// so'rov tufayli ekrandagi summani nolga tushirish yoki yo'q qilish
+  /// haydovchida pul yo'qolgandek taassurot qoldirardi.
+  Future<void> loadWalletBalance() async {
+    try {
+      final response = await _apiClient.get(ApiEndpoints.paymentsWallet);
+      final envelope = response.data as Map<String, dynamic>;
+      final payload = envelope['data'] as Map<String, dynamic>;
+      final balance = (payload['balance'] as num?)?.toDouble();
+      if (balance == null) {
+        throw const FormatException('wallet javobida raqamli balans yo\'q');
+      }
+      _walletBalance = balance;
+      // §25: eski server bu maydonlarni bermaydi — u holda chegara yo'q.
+      final available = (payload['availableForWithdrawal'] as num?)?.toDouble();
+      final hold = (payload['withdrawalHold'] as num?)?.toDouble();
+      _withdrawalHold = hold ??
+          (available == null ? null : math.max(0.0, balance - available));
+      _withdrawalHoldDays =
+          (payload['withdrawalHoldDays'] as num?)?.round() ?? 0;
+      _withdrawalBonus = (payload['bonusBalance'] as num?)?.toDouble();
+      notifyListeners();
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'DriverProvider.loadWalletBalance');
     }
   }
 
@@ -626,11 +1248,24 @@ class DriverProvider extends ChangeNotifier {
       final withdrawal =
           WithdrawalRequest.fromJson(data['data'] as Map<String, dynamic>);
       _withdrawals = [withdrawal, ..._withdrawals];
+      // Server so'rov paytida darhol ushlab qolish (DEBIT) yozadi, ya'ni
+      // qoldiq SHU ZAHOTI kamayadi. Ekrandagi eski summani qoldirsak,
+      // haydovchi o'sha pulni yana yechmoqchi bo'lib rad javobini olardi —
+      // aynan tuzatilayotgan chalkashlikning takrori.
+      _walletBalance = (_walletBalance ?? 0) - amount;
       _isSubmittingWithdrawal = false;
       notifyListeners();
       return true;
     } catch (e) {
-      _withdrawalError = extractErrorMessage(e);
+      final api = ApiError.from(e);
+      final onHold = withdrawalOnHoldMessage(api);
+      if (onHold != null) {
+        // Server aniq summalarni berdi — dialog ham shu bo'yicha tekshirsin.
+        _withdrawalHold = api!.amount('held') ?? _withdrawalHold;
+        _withdrawalHoldDays =
+            api.amount('holdDays')?.round() ?? _withdrawalHoldDays;
+      }
+      _withdrawalError = onHold ?? extractErrorMessage(e);
       _isSubmittingWithdrawal = false;
       notifyListeners();
       return false;
@@ -649,8 +1284,8 @@ class DriverProvider extends ChangeNotifier {
           .map((e) => WithdrawalRequest.fromJson(e as Map<String, dynamic>))
           .toList();
       notifyListeners();
-    } catch (e) {
-      debugPrint('[DriverProvider] loadWithdrawals error: $e');
+    } catch (e, st) {
+      CrashReporting.reportHandled(e, st, 'DriverProvider.loadWithdrawals');
     }
   }
 
@@ -660,12 +1295,14 @@ class DriverProvider extends ChangeNotifier {
   }
 
   void clearPendingOffer() {
-    _pendingOffer = null;
+    _setOffer(null);
     notifyListeners();
   }
 
   void clearError() {
     _error = null;
+    _errorKind = null;
+    _errorDetails = null;
     if (_state == DriverProviderState.error) {
       _setState(DriverProviderState.idle);
     }
@@ -674,8 +1311,13 @@ class DriverProvider extends ChangeNotifier {
   @override
   void dispose() {
     _stopLocationUpdates();
-    _socketService.off(SocketEvents.newOrderOffer);
-    _socketService.off(SocketEvents.orderCancelled);
+    _socketService.off(SocketEvents.newOrderOffer, _onNewOrderOffer);
+    _socketService.off(SocketEvents.orderCancelled, applyOrderCancelled);
+    _socketService.off(SocketEvents.offerExpired, applyOfferExpired);
+    _socketService.removeReconnectListener(_onSocketReconnected);
+    _socketService.off(SocketEvents.walletUpdated, _onWalletUpdated);
+    _walletUpdates.close();
+    _livePosition.dispose();
     super.dispose();
   }
 }

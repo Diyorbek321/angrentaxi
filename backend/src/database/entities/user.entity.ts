@@ -6,6 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import type { AppLanguage } from '../../common/i18n/error-messages';
 
 export enum UserRole {
   PASSENGER = 'passenger',
@@ -15,6 +16,23 @@ export enum UserRole {
   MARKET = 'market',
   RESTAURANT = 'restaurant',
 }
+
+/**
+ * Yo'lovchi ilovasidan foydalana oladigan rollar (biznes qarori, 2026-10-06).
+ *
+ * Menejer, do'kon va restoran egasi ham taksi chaqiradi — alohida yo'lovchi
+ * akkaunti ochishga majbur qilinmaydi. ⚠️ ADMIN ATAYLAB YO'Q: admin tokeni
+ * telefonda saqlanadi, telefon yo'qolsa butun tizim boshqaruvi begona qo'lga
+ * o'tadi. ⚠️ HAYDOVCHI ham yo'q: o'zi o'ziga zakaz berib bonus yig'ish
+ * (firibgarlik) shu bilan yopiladi — haydovchi o'z raqami bilan yo'lovchi
+ * bo'la olmaydi.
+ */
+export const PASSENGER_APP_ROLES: readonly UserRole[] = [
+  UserRole.PASSENGER,
+  UserRole.MANAGER,
+  UserRole.MARKET,
+  UserRole.RESTAURANT,
+];
 
 export enum UserStatus {
   ACTIVE = 'active',
@@ -53,14 +71,25 @@ export enum Permission {
   BONUSES_VIEW = 'bonuses_view',
   // View and respond to passenger/driver support threads.
   SUPPORT_MANAGE = 'support_manage',
-  // View the withdrawal payout queue — approving/rejecting/marking paid
-  // stays ADMIN-only.
+  // View the withdrawal payout queue.
   WITHDRAWALS_VIEW = 'withdrawals_view',
+  // Approve / reject / mark paid a withdrawal request — money leaves the
+  // platform. Separate from VIEW so a finance manager can be trusted with it
+  // deliberately; never part of a new manager's defaults.
+  WITHDRAWALS_APPROVE = 'withdrawals_approve',
   // View the general user list/detail (passengers, drivers, vendors).
   USERS_VIEW = 'users_view',
 }
 
 export const ALL_PERMISSIONS: Permission[] = Object.values(Permission);
+
+/**
+ * A brand-new manager's permissions: everything except paying money out.
+ * Payout approval is granted one person at a time from Staff & Roles.
+ */
+export const DEFAULT_MANAGER_PERMISSIONS: Permission[] = ALL_PERMISSIONS.filter(
+  (p) => p !== Permission.WITHDRAWALS_APPROVE,
+);
 
 // Read-path indexes.
 // - role + created_at: UsersService.findAll (admin user list, filtered by
@@ -105,6 +134,12 @@ export class User {
 
   @Column({ nullable: true, type: 'varchar' })
   fcmToken: string | null;
+
+  // Push / SMS / bildirishnoma jurnali shu tilda yoziladi. Ilova har so'rovda
+  // `Accept-Language: uz|ru` yuboradi — `JwtStrategy` farq bo'lsa yangilaydi,
+  // shuning uchun alohida "tilni saqlash" chaqiruvi yo'q.
+  @Column({ type: 'varchar', length: 2, default: 'uz' })
+  language: AppLanguage;
 
   // Short shareable code identifying this user as a referrer. Auto-generated
   // at user creation (see generateUniqueReferralCode) and never changes.

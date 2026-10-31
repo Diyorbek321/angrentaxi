@@ -97,4 +97,33 @@ export class WithdrawalRequest {
   // Admin's note when approving/rejecting/marking paid (e.g. rejection reason).
   @Column({ name: 'admin_note', type: 'varchar', nullable: true })
   adminNote: string | null;
+
+  /**
+   * To'lov provayderi bergan o'tkazma identifikatori.
+   *
+   * ⚠️ `adminNote` dan ALOHIDA maydon: izoh odam yozadigan erkin matn,
+   * bu esa tizim bergan raqam. Ularni bitta ustunga qo'shish keyinchalik
+   * "qaysi o'tkazma?" degan savolga javob berishni matn ichidan qidirishga
+   * aylantirardi.
+   *
+   * Qo'lda o'tkazmada `null` — hech qanday tizim raqam bermagan
+   * (`ManualPayoutProvider` izohiga qarang).
+   */
+  @Column({ name: 'payout_reference', type: 'varchar', nullable: true })
+  payoutReference: string | null;
+
+  /**
+   * Pul chiqarish BOSHLANGAN vaqt — PAID uchun single-flight da'vosi
+   * (migratsiya 033). `PaymentsService.processWithdrawal` provayderni
+   * chaqirishdan OLDIN `APPROVED AND payout_started_at IS NULL` shartida
+   * yozadi: ikki admin bir vaqtda "to'landi" bossa, faqat bittasi yuboradi.
+   * Provayder yiqilsa `NULL` ga qaytariladi (qayta urinish mumkin).
+   *
+   * ⚠️ Jarayon yuborish o'rtasida o'lsa qiymat qoladi va so'rov qayta
+   * yuborilmaydi — bu ATAYLAB: pul ketgan-ketmaganini provayderdan qo'lda
+   * tekshirib, keyin ustunni tozalash kerak. Ikki marta to'lashdan ko'ra
+   * to'xtab qolish arzon.
+   */
+  @Column({ name: 'payout_started_at', type: 'timestamptz', nullable: true })
+  payoutStartedAt: Date | null;
 }

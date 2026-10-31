@@ -15,9 +15,12 @@ import {
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
+import { MoneyText } from '@/components/ui/MoneyText';
 import { Textarea } from '@/components/ui/Textarea';
-import { PAYMENT_METHOD, PAYMENT_METHOD_LABELS } from '@/lib/constants';
+import { useToast } from '@/components/ui/Toast';
+import { PAYMENT_METHOD, paymentMethodLabels } from '@/lib/constants';
 import { formatDistanceKm, formatMoney } from '@/lib/format';
+import { t } from '@/locales';
 
 const PAYMENT_VALUES = [
   PAYMENT_METHOD.CASH,
@@ -39,40 +42,44 @@ function haversineDistanceKm(lat1: number, lng1: number, lat2: number, lng2: num
   return R * c;
 }
 
-const schema = z.object({
-  passengerPhone: z
-    .string()
-    .min(9, 'Telefon raqami kamida 9 ta raqamdan iborat boʻlsin')
-    .regex(/^\+?[\d\s-]+$/, 'Telefon raqami notoʻgʻri'),
-  passengerName: z.string().optional(),
-  pickupAddress: z.string().min(3, 'Olib ketish manzili majburiy'),
-  pickupLat: z
-    .string()
-    .refine((v) => !isNaN(parseFloat(v)), 'Kenglik notoʻgʻri')
-    .optional()
-    .or(z.literal('')),
-  pickupLng: z
-    .string()
-    .refine((v) => !isNaN(parseFloat(v)), 'Uzunlik notoʻgʻri')
-    .optional()
-    .or(z.literal('')),
-  dropoffAddress: z.string().min(3, 'Tashlab ketish manzili majburiy'),
-  dropoffLat: z
-    .string()
-    .refine((v) => !isNaN(parseFloat(v)), 'Kenglik notoʻgʻri')
-    .optional()
-    .or(z.literal('')),
-  dropoffLng: z
-    .string()
-    .refine((v) => !isNaN(parseFloat(v)), 'Uzunlik notoʻgʻri')
-    .optional()
-    .or(z.literal('')),
-  tariffId: z.string().min(1, 'Tarifni tanlang'),
-  paymentMethod: z.enum(PAYMENT_VALUES),
-  note: z.string().optional(),
-});
+// Funksiya ichida: validatsiya xabarlari joriy tilda olinadi.
+function buildSchema() {
+  const v = t().orders.form.validation;
+  return z.object({
+    passengerPhone: z
+      .string()
+      .min(9, v.phoneMin)
+      .regex(/^\+?[\d\s-]+$/, v.phoneInvalid),
+    passengerName: z.string().optional(),
+    pickupAddress: z.string().min(3, v.pickupRequired),
+    pickupLat: z
+      .string()
+      .refine((x) => !isNaN(parseFloat(x)), v.latInvalid)
+      .optional()
+      .or(z.literal('')),
+    pickupLng: z
+      .string()
+      .refine((x) => !isNaN(parseFloat(x)), v.lngInvalid)
+      .optional()
+      .or(z.literal('')),
+    dropoffAddress: z.string().min(3, v.dropoffRequired),
+    dropoffLat: z
+      .string()
+      .refine((x) => !isNaN(parseFloat(x)), v.latInvalid)
+      .optional()
+      .or(z.literal('')),
+    dropoffLng: z
+      .string()
+      .refine((x) => !isNaN(parseFloat(x)), v.lngInvalid)
+      .optional()
+      .or(z.literal('')),
+    tariffId: z.string().min(1, v.tariffRequired),
+    paymentMethod: z.enum(PAYMENT_VALUES),
+    note: z.string().optional(),
+  });
+}
 
-type FormData = z.infer<typeof schema>;
+type FormData = z.infer<ReturnType<typeof buildSchema>>;
 
 interface CreateOrderFormProps {
   onSuccess?: () => void;
@@ -80,7 +87,7 @@ interface CreateOrderFormProps {
 
 function SectionTitle({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <h3 className="text-xs font-semibold uppercase tracking-wider text-subtle flex items-center gap-2">
+    <h3 className="text-[13px] font-semibold text-ink flex items-center gap-2 [&_svg]:text-subtle">
       {icon}
       {children}
     </h3>
@@ -88,6 +95,8 @@ function SectionTitle({ icon, children }: { icon: React.ReactNode; children: Rea
 }
 
 export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
+  const m = t();
+  const f = m.orders.form;
   const [tariffs, setTariffs] = useState<Tariff[]>([]);
   const [tariffLoading, setTariffLoading] = useState(true);
   const [tariffError, setTariffError] = useState(false);
@@ -96,6 +105,7 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const { toast } = useToast();
 
   const {
     register,
@@ -104,7 +114,7 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
     reset,
     formState: { errors },
   } = useForm<FormData>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(buildSchema()),
     defaultValues: {
       paymentMethod: 'cash',
     },
@@ -177,22 +187,29 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
       reset();
       setPriceEstimate(null);
       onSuccess?.();
+      // The inline banner above stays as the persistent record; the toast is
+      // the immediate, non-blocking confirmation.
+      toast({
+        title: f.createdTitle,
+        description: f.createdHint,
+        variant: 'success',
+      });
     } catch (err) {
       console.error('Create order failed:', err);
-      setSubmitError('Buyurtma yaratilmadi. Qaytadan urinib koʻring.');
+      setSubmitError(f.createFailed);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const tariffOptions = tariffs.map((t) => ({
-    value: t.id,
-    label: `${t.name} — min ${formatMoney(t.minPrice)}`,
+  const tariffOptions = tariffs.map((tariff) => ({
+    value: tariff.id,
+    label: f.tariffOption(tariff.name, formatMoney(tariff.minPrice)),
   }));
 
   const paymentOptions = PAYMENT_VALUES.map((value) => ({
     value,
-    label: PAYMENT_METHOD_LABELS[value],
+    label: paymentMethodLabels()[value],
   }));
 
   const canCalculate = watchedFields.every(Boolean);
@@ -200,36 +217,35 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {submitSuccess && (
-        <div className="flex items-start gap-2.5 rounded-lg border border-primary/40 bg-primary/[0.08] p-3.5">
-          <CheckCircle2 size={16} className="text-primary-600 dark:text-primary-300 shrink-0 mt-0.5" />
-          <p className="text-sm text-primary-700 dark:text-primary-300">
-            Buyurtma yaratildi. Tizim avtomatik ravishda haydovchi qidirishni boshladi.
+        <div role="status" className="flex items-start gap-2.5 rounded-ds-sm border border-mint/40 bg-mint-tint px-3 py-2.5">
+          <CheckCircle2 size={15} className="text-primary-text shrink-0 mt-0.5" aria-hidden />
+          <p className="text-[13px] text-primary-text">
+            {f.createdBanner}
           </p>
         </div>
       )}
 
       {submitError && (
-        <div className="flex items-start gap-2.5 rounded-lg border border-danger/40 bg-danger/[0.08] p-3.5">
-          <AlertTriangle size={16} className="text-danger shrink-0 mt-0.5" />
-          <p className="text-sm text-danger">{submitError}</p>
+        <div role="alert" className="flex items-start gap-2.5 rounded-ds-sm border border-danger/30 bg-danger-tint px-3 py-2.5">
+          <AlertTriangle size={15} className="text-danger shrink-0 mt-0.5" aria-hidden />
+          <p className="text-[13px] text-danger-dark dark:text-danger-light">{submitError}</p>
         </div>
       )}
 
       {/* Passenger */}
       <div className="space-y-3">
-        <SectionTitle icon={<User size={13} />}>Mijoz</SectionTitle>
+        <SectionTitle icon={<User size={13} />}>{f.customer}</SectionTitle>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input
-            label="Telefon *"
+            label={f.phone}
             placeholder="+998 90 123 45 67"
-            mono
             {...register('passengerPhone')}
             error={errors.passengerPhone?.message}
             leftElement={<Phone size={14} />}
           />
           <Input
-            label="Ism (ixtiyoriy)"
-            placeholder="Mijoz ismi"
+            label={f.name}
+            placeholder={f.namePlaceholder}
             {...register('passengerName')}
             error={errors.passengerName?.message}
           />
@@ -241,31 +257,29 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
         <SectionTitle
           icon={<span className="h-2 w-2 rounded-full bg-mint-deep ring-2 ring-mint/25" />}
         >
-          Olib ketish
+          {f.pickup}
         </SectionTitle>
         <Input
-          label="Manzil *"
-          placeholder="Olib ketish manzilini kiriting"
+          label={f.address}
+          placeholder={f.pickupPlaceholder}
           {...register('pickupAddress')}
           error={errors.pickupAddress?.message}
           leftElement={<MapPin size={14} />}
         />
         <div className="grid grid-cols-2 gap-3">
           <Input
-            label="Kenglik (lat)"
+            label={f.lat}
             placeholder="40.0956"
             type="number"
             step="any"
-            mono
             {...register('pickupLat')}
             error={errors.pickupLat?.message}
           />
           <Input
-            label="Uzunlik (lng)"
+            label={f.lng}
             placeholder="70.9432"
             type="number"
             step="any"
-            mono
             {...register('pickupLng')}
             error={errors.pickupLng?.message}
           />
@@ -275,31 +289,29 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
       {/* Dropoff */}
       <div className="space-y-3">
         <SectionTitle icon={<MapPin size={13} className="text-danger" />}>
-          Tashlab ketish
+          {f.dropoff}
         </SectionTitle>
         <Input
-          label="Manzil *"
-          placeholder="Tashlab ketish manzilini kiriting"
+          label={f.address}
+          placeholder={f.dropoffPlaceholder}
           {...register('dropoffAddress')}
           error={errors.dropoffAddress?.message}
           leftElement={<MapPin size={14} />}
         />
         <div className="grid grid-cols-2 gap-3">
           <Input
-            label="Kenglik (lat)"
+            label={f.lat}
             placeholder="40.1050"
             type="number"
             step="any"
-            mono
             {...register('dropoffLat')}
             error={errors.dropoffLat?.message}
           />
           <Input
-            label="Uzunlik (lng)"
+            label={f.lng}
             placeholder="70.9510"
             type="number"
             step="any"
-            mono
             {...register('dropoffLng')}
             error={errors.dropoffLng?.message}
           />
@@ -309,18 +321,18 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
       {/* Tariff & payment */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Select
-          label="Tarif *"
+          label={f.tariff}
           options={tariffOptions}
           placeholder={
-            tariffLoading ? 'Yuklanmoqda…' : tariffError ? 'Tariflar yuklanmadi' : 'Tarifni tanlang'
+            tariffLoading ? m.common.loading : tariffError ? f.tariffsFailed : f.tariffPlaceholder
           }
           disabled={tariffLoading || tariffError}
           {...register('tariffId')}
           error={errors.tariffId?.message}
-          hint={tariffError ? 'Sahifani yangilab koʻring.' : undefined}
+          hint={tariffError ? f.reloadHint : undefined}
         />
         <Select
-          label="Toʻlov turi *"
+          label={f.paymentMethod}
           options={paymentOptions}
           {...register('paymentMethod')}
           error={errors.paymentMethod?.message}
@@ -328,16 +340,16 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
       </div>
 
       <Textarea
-        label="Izoh (ixtiyoriy)"
+        label={f.note}
         rows={3}
-        placeholder="Qoʻshimcha koʻrsatmalar…"
+        placeholder={f.notePlaceholder}
         {...register('note')}
       />
 
       {/* Price estimate */}
-      <div className="rounded-xl border border-line bg-surface-2/60 p-4 space-y-3">
+      <div className="rounded-ds-md border border-line bg-surface-2/60 p-4 space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <SectionTitle icon={<Calculator size={13} />}>Taxminiy narx</SectionTitle>
+          <SectionTitle icon={<Calculator size={13} />}>{f.estimate}</SectionTitle>
           <Button
             type="button"
             variant="secondary"
@@ -345,44 +357,46 @@ export function CreateOrderForm({ onSuccess }: CreateOrderFormProps) {
             onClick={handleCalculatePrice}
             isLoading={calculatingPrice}
             disabled={!canCalculate}
-            title={!canCalculate ? 'Avval koordinatalar va tarifni kiriting' : undefined}
+            title={!canCalculate ? f.calculateDisabled : undefined}
             leftIcon={<Calculator size={13} />}
           >
-            Hisoblash
+            {f.calculate}
           </Button>
         </div>
 
         {priceEstimate ? (
           <div className="grid grid-cols-3 gap-3">
             <div className="text-center">
-              <p className="text-[11px] text-subtle">Narx</p>
-              <p className="font-mono text-lg font-bold text-primary-700 dark:text-primary-300 leading-tight">
-                {formatMoney(priceEstimate.price)}
+              <p className="text-[11px] text-subtle">{f.price}</p>
+              <p className="text-lg font-semibold text-ink leading-tight">
+                <MoneyText value={priceEstimate.price} />
               </p>
             </div>
             <div className="text-center">
-              <p className="text-[11px] text-subtle">Masofa</p>
-              <p className="font-mono text-lg font-bold text-ink leading-tight">
+              <p className="text-[11px] text-subtle">{f.distance}</p>
+              <p className="num text-lg font-semibold text-ink leading-tight">
                 {formatDistanceKm(priceEstimate.distanceKm)}
               </p>
             </div>
             <div className="text-center">
-              <p className="text-[11px] text-subtle">Vaqt</p>
-              <p className="font-mono text-lg font-bold text-ink leading-tight">
-                ~{priceEstimate.durationMin} daq
+              <p className="text-[11px] text-subtle">{f.time}</p>
+              <p className="num text-lg font-semibold text-ink leading-tight">
+                {f.minutes(priceEstimate.durationMin)}
               </p>
             </div>
           </div>
         ) : (
           <p className="text-xs text-subtle">
-            Koordinatalar va tarifni kiriting, soʻng «Hisoblash» tugmasini bosing.
+            {f.estimateHint}
           </p>
         )}
       </div>
 
-      <Button type="submit" variant="primary" size="lg" isLoading={isSubmitting} className="w-full">
-        Buyurtma yaratish
-      </Button>
+      <div className="flex items-center justify-end gap-2 pt-4 border-t border-line">
+        <Button type="submit" variant="primary" isLoading={isSubmitting}>
+          {f.submit}
+        </Button>
+      </div>
     </form>
   );
 }

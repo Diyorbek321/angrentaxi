@@ -1,53 +1,124 @@
-import * as React from 'react';
-import { cva, type VariantProps } from 'class-variance-authority';
-import { cn } from '@/lib/utils';
+// AUTO-SYNCED from web-manager — edit there, then run scripts/sync-panel-ui.sh
+import { forwardRef, type HTMLAttributes, type ReactNode } from 'react';
+import { cn } from './cn';
 
 /**
- * Badge — AKSENT qatlam. Fon `mint`/tint, matn esa `*-deep` (yorug' tema) yoki
- * `*-light` (qorong'i tema); `text-white` + mint fon HECH QACHON (2.12:1).
- *
- * `dot` — ma'no faqat rang orqali berilmasligi uchun emas, balki qo'shimcha
- * ko'rsatkich sifatida; badge matni har doim holatni so'z bilan ham aytadi.
+ * Canonical tones: neutral · success · info · warning (= override, amber —
+ * ONLY for manual human intervention) · danger · muted-danger · violet · searching.
+ * `muted-danger` = low-emphasis red text on a neutral fill — a terminal
+ * negative state (cancelled order) that must not shout next to live alerts.
+ * Every other name is a legacy alias kept so all four panels compile.
  */
-const badgeVariants = cva(
-  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
-  {
-    variants: {
-      variant: {
-        default: 'bg-mint-tint text-primary-text border border-mint/30',
-        primary: 'bg-mint-tint text-primary-text border border-mint/30',
-        secondary: 'bg-surface-2 text-muted border border-line',
-        outline: 'border border-line-strong text-muted',
-        destructive: 'bg-danger-tint text-danger-deep dark:text-danger-light border border-danger/30',
-        danger: 'bg-danger-tint text-danger-deep dark:text-danger-light border border-danger/30',
-        /** success = brend yashili; alohida yashil kiritilmaydi. */
-        success: 'bg-mint-tint text-primary-text border border-mint/30',
-        warning: 'bg-override-tint text-override-dark dark:text-override-light border border-override/30',
-        override: 'bg-override-tint text-override-dark dark:text-override-light border border-override/40',
-        info: 'bg-info-tint text-info-deep dark:text-info-light border border-info/30',
-        violet: 'bg-violet-tint text-violet-deep dark:text-violet-light border border-violet/30',
-      },
-    },
-    defaultVariants: {
-      variant: 'default',
-    },
+export type BadgeVariant =
+  | 'neutral'
+  | 'success'
+  | 'info'
+  | 'warning'
+  | 'override'
+  | 'danger'
+  | 'muted-danger'
+  | 'violet'
+  | 'searching'
+  // legacy aliases
+  | 'default'
+  | 'secondary'
+  | 'outline'
+  | 'primary'
+  | 'mint'
+  | 'mint-soft'
+  | 'destructive'
+  | 'orange';
+
+type Tone = 'neutral' | 'success' | 'info' | 'warning' | 'danger' | 'muted-danger' | 'violet' | 'searching';
+
+const ALIAS: Record<BadgeVariant, Tone> = {
+  neutral: 'neutral',
+  success: 'success',
+  info: 'info',
+  warning: 'warning',
+  override: 'warning',
+  danger: 'danger',
+  'muted-danger': 'muted-danger',
+  violet: 'violet',
+  searching: 'searching',
+  default: 'neutral',
+  secondary: 'neutral',
+  outline: 'neutral',
+  primary: 'success',
+  mint: 'success',
+  'mint-soft': 'success',
+  destructive: 'danger',
+  orange: 'warning',
+};
+
+// Tinted fill + deep text (AA in both themes); hue never the only signal.
+const toneClasses: Record<Tone, string> = {
+  neutral: 'bg-surface-2 text-muted border-line',
+  success: 'bg-mint-tint text-primary-text border-mint/30',
+  info: 'bg-info-tint text-info-dark dark:text-info-light border-info/25',
+  warning: 'bg-override-tint text-override-dark dark:text-override-light border-override/35',
+  danger: 'bg-danger-tint text-danger-dark dark:text-danger-light border-danger/30',
+  'muted-danger': 'bg-surface-2 text-danger-dark/80 dark:text-danger-light/80 border-line',
+  violet: 'bg-violet-tint text-violet-dark dark:text-violet-light border-violet/25',
+  searching: 'bg-mint-tint text-primary-text border-mint/40',
+};
+
+const dotClasses: Record<Tone, string> = {
+  neutral: 'bg-subtle',
+  success: 'bg-mint-deep',
+  info: 'bg-info',
+  warning: 'bg-override',
+  danger: 'bg-danger',
+  'muted-danger': 'bg-danger/50',
+  violet: 'bg-violet',
+  searching: 'bg-mint-deep animate-pulse',
+};
+
+const sizeClasses = {
+  sm: 'h-[18px] px-1.5 text-[11px] gap-1',
+  md: 'h-5 px-1.5 text-xs gap-1',
+  lg: 'h-6 px-2 text-[13px] gap-1.5',
+} as const;
+
+export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
+  variant?: BadgeVariant;
+  size?: 'sm' | 'md' | 'lg';
+  /** Leading status dot. */
+  dot?: boolean;
+  /** Leading icon (replaces the dot). */
+  icon?: ReactNode;
+}
+
+/** 20px status label, 12px text, 6px radius — not a pill. */
+const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
+  ({ variant = 'neutral', size = 'md', dot = false, icon, className, children, ...props }, ref) => {
+    const tone = ALIAS[variant] ?? 'neutral';
+    return (
+      <span
+        ref={ref}
+        className={cn(
+          'inline-flex items-center font-medium rounded-ds-xs border whitespace-nowrap leading-none align-middle',
+          '[&_svg]:h-3 [&_svg]:w-3 [&_svg]:shrink-0',
+          toneClasses[tone],
+          sizeClasses[size],
+          className
+        )}
+        {...props}
+      >
+        {icon ? (
+          <span aria-hidden className="inline-flex">{icon}</span>
+        ) : dot ? (
+          <span aria-hidden className={cn('h-1.5 w-1.5 rounded-full shrink-0', dotClasses[tone])} />
+        ) : null}
+        {children}
+      </span>
+    );
   }
 );
 
-export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof badgeVariants> {
-  /** Yetakchi nuqta — jonli status chirog'i sifatida o'qiladi. */
-  dot?: boolean;
-}
+Badge.displayName = 'Badge';
 
-function Badge({ className, variant, dot = false, children, ...props }: BadgeProps) {
-  return (
-    <div className={cn(badgeVariants({ variant }), className)} {...props}>
-      {dot && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" aria-hidden="true" />}
-      {children}
-    </div>
-  );
-}
+/** Alias: status pills read as `<StatusBadge variant="success">Faol</StatusBadge>`. */
+const StatusBadge = Badge;
 
-export { Badge, badgeVariants };
+export { Badge, StatusBadge };

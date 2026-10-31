@@ -1,5 +1,10 @@
 import axios from 'axios';
 import { attachAuthInterceptor } from './session';
+import { getLocale } from './i18n/core';
+import type { DeliveryInfo } from './courier';
+import type { VendorWalletSettlement } from './vendor-cash';
+import type { OrderV5Fields } from './order-extras';
+import type { DiscountType, Promotion, PromotionPayload } from './promotions';
 
 /**
  * Requests go to this app's own /api/proxy, not to the backend directly. The
@@ -14,7 +19,9 @@ export const API_PROXY_BASE_URL = '/api/proxy';
 
 const api = axios.create({
   baseURL: API_PROXY_BASE_URL,
-  headers: { 'Content-Type': 'application/json' },
+  // Server xatolari panel tilida (brauzer tilida emas) — pastdagi interceptor
+  // har so'rovda joriy panel tilini qo'yadi.
+  headers: { 'Content-Type': 'application/json', 'Accept-Language': 'uz' },
   // Same-origin now, so the session cookie rides along automatically.
   withCredentials: true,
 });
@@ -22,6 +29,11 @@ const api = axios.create({
 // Handles 401 -> single-flight refresh -> retry. See lib/session.ts for why the
 // refresh must never run more than once at a time.
 attachAuthInterceptor(api);
+
+api.interceptors.request.use((config) => {
+  config.headers.set('Accept-Language', getLocale());
+  return config;
+});
 
 export default api;
 
@@ -100,6 +112,12 @@ export interface Store {
   deliveryMode: DeliveryMode;
   lowStockThreshold: number;
   status: 'active' | 'closed';
+  /** STIR (9 raqam) — fiskal chekda komitent sifatida (docs/LEGAL-COMPLIANCE.md §3). */
+  tin?: string | null;
+  /** Platforma komissiyasi, % — faqat o'qish. */
+  commissionRate?: number;
+  /** Muqova rasmi kaliti (`lib/catalog-image.ts`); faqat o'qish — rasm alohida endpoint orqali. */
+  imageKey?: string | null;
 }
 
 export interface MarketCategory {
@@ -123,6 +141,31 @@ export interface Product {
   status: ProductStatus;
   emoji: string;
   hue: number;
+  /**
+   * Rasm kaliti (`catalog/<uuid>.jpg`), `catalogImageSrc` bilan manzilga
+   * aylanadi. Faqat O'QISH — PATCH/POST tanasiga qo'shmang (`forbidNonWhitelisted`).
+   */
+  imageKey?: string | null;
+  /** Faol aksiya qo'llangandagi narx (spec v5 §4) — API qaytarsa. Faqat O'QISH. */
+  finalPrice?: number | null;
+  discount?: { title: string; discountType: DiscountType; discountValue: number } | null;
+}
+
+export interface ProductBrowseQuery {
+  page: number;
+  limit: number;
+  search?: string;
+  status?: ProductStatus;
+  categoryId?: string;
+}
+
+/** Server sahifasi; `counts` — tab sonlari (qidiruv/kategoriya hisobga olingan, holat emas). */
+export interface ProductPage {
+  products: Product[];
+  total: number;
+  page: number;
+  limit: number;
+  counts: Record<'all' | ProductStatus, number>;
 }
 
 export interface OrderItem {
@@ -131,9 +174,13 @@ export interface OrderItem {
   qty: number;
   price: number;
   packed: boolean;
+  /** v5: asl narx va aksiya chegirmasi (birlik uchun), bo'lsa. */
+  unitPrice?: number | null;
+  discountAmount?: number | null;
 }
 
-export interface MarketOrder {
+/** v5: manzil tafsilotlari, promokod/aksiya chegirmasi, mijoz bekor qilgani — lib/order-extras.ts. */
+export interface MarketOrder extends OrderV5Fields {
   id: string;
   storeId: string;
   customerId: string;
@@ -147,6 +194,22 @@ export interface MarketOrder {
   createdAt: string;
   updatedAt: string;
   customer?: { firstName: string | null; lastName: string | null; phone: string };
+  /** Courier ride for platform delivery, once shipped. See lib/courier.ts. */
+  /** Platforma kuryeri safari — bo'lsa "yetkazildi"ni faqat kuryer qiladi. */
+  deliveryOrderId?: string | null;
+  delivery?: DeliveryInfo | null;
+  paymentMethod: 'cash' | 'card';
+  /** Naqd buyurtma: kuryer tovar pulini toʻladi / sotuvchi qarori (lib/vendor-cash.ts). */
+  vendorCashPaidAt?: string | null;
+  vendorCashConfirmedAt?: string | null;
+  vendorCashDisputedAt?: string | null;
+  vendorCashDisputeResolvedAt?: string | null;
+  vendorCashDisputeResolution?: string | null;
+  /** Hamyon rejimi: kuryer hamyonidan o'tkazilgan payt (lib/vendor-cash.ts). */
+  vendorWalletSettledAt?: string | null;
+  /** O'tkazma summalari, o'tkazma PAYTIDA saqlangan (§22); `null` — hamyon orqali o'tkazilmagan. */
+  vendorWalletSettlement?: VendorWalletSettlement | null;
+  vendorWalletReversalCount?: number;
 }
 
 export interface StockMovement {
@@ -185,11 +248,30 @@ export interface ReportsData {
   stockTurnover: number;
 }
 
+// ─── Platforma sozlamalari ─────────────────────────────────────────
+
+export const settingsApi = {
+  /** Hisob-kitob rejimi (amaldagi) va hamyonga o'tish sanasi — lib/vendor-settlement.ts. */
+  getPublic: () => api.get<ApiResponse<unknown>>('/settings/public'),
+};
+
 // ─── Vendor API ────────────────────────────────────────────────────
 
 export const marketApi = {
   getStore: () => api.get<ApiResponse<Store>>('/market/vendor/store'),
-  updateStore: (data: Partial<Pick<Store, 'name' | 'phone' | 'address' | 'lat' | 'lng' | 'workingHoursStart' | 'workingHoursEnd' | 'deliveryMode' | 'lowStockThreshold'>>) =>
+
+  /**
+   * Rasmlar — multipart. Content-Type ATAYLAB `multipart/form-data`:
+   * instansiyaning standart `application/json` sarlavhasi bilan axios
+   * FormData'ni JSON'ga aylantirib yuborardi. Brauzer boundary'ni o'zi qo'shadi.
+   * Almashtirilganda eski rasm serverda o'chadi.
+   */
+  uploadStoreImage: (form: FormData) =>
+    api.put<ApiResponse<Store>>('/market/vendor/store/image', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  removeStoreImage: () => api.delete<ApiResponse<Store>>('/market/vendor/store/image'),
+  updateStore: (data: Partial<Pick<Store, 'name' | 'phone' | 'address' | 'lat' | 'lng' | 'workingHoursStart' | 'workingHoursEnd' | 'deliveryMode' | 'lowStockThreshold' | 'tin'>>) =>
     api.patch<ApiResponse<Store>>('/market/vendor/store', data),
 
   getDashboard: () => api.get<ApiResponse<DashboardData>>('/market/vendor/dashboard'),
@@ -203,6 +285,8 @@ export const marketApi = {
   deleteCategory: (id: string) => api.delete<ApiResponse<{ deleted: boolean }>>(`/market/vendor/categories/${id}`),
 
   getProducts: () => api.get<ApiResponse<Product[]>>('/market/vendor/products'),
+  browseProducts: (params: ProductBrowseQuery) =>
+    api.get<ApiResponse<ProductPage>>('/market/vendor/products/browse', { params }),
   createProduct: (data: {
     name: string;
     sku?: string;
@@ -228,6 +312,11 @@ export const marketApi = {
   bulkUpdateProducts: (productIds: string[], status: ProductStatus) =>
     api.patch<ApiResponse<{ updated: number }>>('/market/vendor/products/bulk-status', { productIds, status }),
   deleteProduct: (id: string) => api.delete<ApiResponse<{ deleted: boolean }>>(`/market/vendor/products/${id}`),
+  uploadProductImage: (id: string, form: FormData) =>
+    api.put<ApiResponse<Product>>(`/market/vendor/products/${id}/image`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  removeProductImage: (id: string) => api.delete<ApiResponse<Product>>(`/market/vendor/products/${id}/image`),
 
   getStockMovements: () => api.get<ApiResponse<StockMovement[]>>('/market/vendor/stock/movements'),
 
@@ -238,4 +327,19 @@ export const marketApi = {
     api.patch<ApiResponse<MarketOrder>>(`/market/vendor/orders/${orderId}/items/${index}/toggle-pack`),
   advanceOrder: (orderId: string) =>
     api.patch<ApiResponse<MarketOrder>>(`/market/vendor/orders/${orderId}/advance`),
+  redispatchOrder: (orderId: string) =>
+    api.post<ApiResponse<MarketOrder>>(`/market/vendor/orders/${orderId}/redispatch`),
+  /** Naqd: kuryerdan tovar puli olindimi. `false` — dispetcherga nizo. */
+  cashReceived: (orderId: string, received: boolean) =>
+    api.patch<ApiResponse<{ ok: true }>>(`/market/vendor/orders/${orderId}/cash-received`, { received }),
+};
+
+// ─── Aksiyalar (spec v5 §4) ────────────────────────────────────────
+
+export const promotionsApi = {
+  list: () => api.get<ApiResponse<Promotion[]>>('/market/vendor/promotions'),
+  create: (data: PromotionPayload) => api.post<ApiResponse<Promotion>>('/market/vendor/promotions', data),
+  update: (id: string, data: Partial<PromotionPayload>) =>
+    api.patch<ApiResponse<Promotion>>(`/market/vendor/promotions/${id}`, data),
+  remove: (id: string) => api.delete<ApiResponse<{ deleted: boolean }>>(`/market/vendor/promotions/${id}`),
 };

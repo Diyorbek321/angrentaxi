@@ -1,12 +1,32 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FoodService } from './food.service';
+import { FoodImagesService } from './food-images.service';
+import { CatalogImageService } from '../storage/catalog-image.service';
+import { catalogImageMulterOptions, requireImage } from '../storage/catalog-images';
+import type { UploadedMemoryFile } from '../drivers/driver-uploads';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { User, UserRole } from '../../database/entities/user.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
+import { VendorCashService } from '../delivery/vendor-cash.service';
+import { CashReceivedDto } from '../delivery/dto/cash-received.dto';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 import { CreateMenuCategoryDto, UpdateMenuCategoryDto } from './dto/category.dto';
 import { CreateDishDto, UpdateDishDto } from './dto/dish.dto';
@@ -18,7 +38,12 @@ import { RejectOrderDto } from './dto/reject-order.dto';
 @Roles(UserRole.RESTAURANT)
 @Controller('food/vendor')
 export class FoodVendorController {
-  constructor(private readonly foodService: FoodService) {}
+  constructor(
+    private readonly foodService: FoodService,
+    private readonly foodImages: FoodImagesService,
+    private readonly catalogImages: CatalogImageService,
+    private readonly vendorCash: VendorCashService,
+  ) {}
 
   @Get('restaurant')
   @ApiOperation({ summary: 'Get my restaurant profile' })
@@ -30,6 +55,22 @@ export class FoodVendorController {
   @ApiOperation({ summary: 'Update my restaurant settings' })
   updateRestaurant(@CurrentUser() user: User, @Body() dto: UpdateRestaurantDto) {
     return this.foodService.updateRestaurant(user.id, dto);
+  }
+
+  @Put('restaurant/image')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Restoran muqovasini yuklash/almashtirish' })
+  @UseInterceptors(FileInterceptor('image', catalogImageMulterOptions))
+  async uploadRestaurantImage(@CurrentUser() user: User, @UploadedFile() file: UploadedMemoryFile) {
+    const restaurant = await this.foodService.getRestaurantByOwner(user.id);
+    return this.foodImages.setRestaurantImage(restaurant.id, requireImage(file));
+  }
+
+  @Delete('restaurant/image')
+  @ApiOperation({ summary: 'Restoran muqovasini olib tashlash' })
+  async removeRestaurantImage(@CurrentUser() user: User) {
+    const restaurant = await this.foodService.getRestaurantByOwner(user.id);
+    return this.foodImages.setRestaurantImage(restaurant.id, null);
   }
 
   @Patch('restaurant/toggle-open')
@@ -119,8 +160,29 @@ export class FoodVendorController {
   @ApiOperation({ summary: 'Delete a dish' })
   async deleteDish(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
     const restaurant = await this.foodService.getRestaurantByOwner(user.id);
-    await this.foodService.deleteDish(restaurant.id, id);
+    const imageKey = await this.foodService.deleteDish(restaurant.id, id);
+    await this.catalogImages.discard(imageKey);
     return { deleted: true };
+  }
+
+  @Put('dishes/:id/image')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Taom rasmini yuklash/almashtirish' })
+  @UseInterceptors(FileInterceptor('image', catalogImageMulterOptions))
+  async uploadDishImage(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file: UploadedMemoryFile,
+  ) {
+    const restaurant = await this.foodService.getRestaurantByOwner(user.id);
+    return this.foodImages.setDishImage(restaurant.id, id, requireImage(file));
+  }
+
+  @Delete('dishes/:id/image')
+  @ApiOperation({ summary: 'Taom rasmini olib tashlash' })
+  async removeDishImage(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
+    const restaurant = await this.foodService.getRestaurantByOwner(user.id);
+    return this.foodImages.setDishImage(restaurant.id, id, null);
   }
 
   // ---------- orders ----------
@@ -153,6 +215,13 @@ export class FoodVendorController {
     return this.foodService.advanceOrder(restaurant.id, id);
   }
 
+  @Post('orders/:id/redispatch')
+  @ApiOperation({ summary: 'Send a new courier after the previous one was not found or cancelled' })
+  async redispatchOrder(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
+    const restaurant = await this.foodService.getRestaurantByOwner(user.id);
+    return this.foodService.redispatchDelivery(restaurant.id, id);
+  }
+
   @Patch('orders/:id/reject')
   @ApiOperation({ summary: 'Reject an order with a reason' })
   async rejectOrder(
@@ -162,5 +231,20 @@ export class FoodVendorController {
   ) {
     const restaurant = await this.foodService.getRestaurantByOwner(user.id);
     return this.foodService.rejectOrder(restaurant.id, id, dto.reason);
+  }
+
+  /**
+   * Naqd buyurtma: kuryer tovar pulini to'ladimi (`delivery/vendor-cash.ts`).
+   * "Olmadim" — dispetcherga nizo ketadi.
+   */
+  @Patch('orders/:id/cash-received')
+  @ApiOperation({ summary: "Kuryerdan tovar puli olindi / olinmadi (naqd buyurtma)" })
+  async cashReceived(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CashReceivedDto,
+  ) {
+    await this.vendorCash.vendorDecision(user.id, 'food', id, dto.received);
+    return { ok: true };
   }
 }

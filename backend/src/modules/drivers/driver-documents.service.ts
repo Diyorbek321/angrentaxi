@@ -1,5 +1,3 @@
-import * as fs from 'fs';
-import * as path from 'path';
 import {
   BadRequestException,
   ForbiddenException,
@@ -16,52 +14,36 @@ import {
 import { UserRole } from '../../database/entities/user.entity';
 import { DriversService } from './drivers.service';
 import { ReviewDriverDocumentDto } from './dto/review-driver-document.dto';
+import { DriverUploadFile, DriverUploadsStore, UploadedMemoryFile } from './driver-uploads';
 
-// PRODUCTION TODO: local disk does not survive redeploys/scale-out on most
-// hosts (e.g. Railway). Move to S3 (or another object store) behind this same
-// service interface before launch; only this directory + the fileUrl
-// construction and the download resolver below would change.
-export const DRIVER_DOCUMENTS_UPLOAD_DIR = path.resolve(
-  process.cwd(),
-  'uploads',
-  'driver-documents',
-);
+// Saqlash, MIME ro'yxati va kalit tiklash mantig'i `driver-uploads.ts` da —
+// davriy tekshiruv fotolari ham AYNAN o'sha qoidalardan foydalanadi.
 
-// Public path prefix recorded in DriverDocument.fileUrl. Kept as-is so existing
-// rows stay valid — the value is treated as an opaque record, never as a path
-// to read from (see resolveStoredFilePath).
-const DRIVER_DOCUMENTS_URL_PREFIX = '/uploads/driver-documents';
+/** KYC fayli — ruxsat berilgan chaqiruvchiga oqim bilan qaytariladi. */
+export type DriverDocumentFile = DriverUploadFile;
 
-const EXTENSION_MIME_TYPES: Record<string, string> = {
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.png': 'image/png',
-  '.webp': 'image/webp',
-  '.pdf': 'application/pdf',
-};
+export type { UploadedMemoryFile };
 
-const FALLBACK_MIME_TYPE = 'application/octet-stream';
-
-// A KYC file resolved for streaming back to an authorized caller.
-export interface DriverDocumentFile {
-  absolutePath: string;
-  filename: string;
-  mimeType: string;
+/** One row of the KYC review queue (`GET /drivers/documents/pending`). */
+export interface PendingDriverDocument {
+  id: string;
+  driverId: string;
+  driverName: string | null;
+  driverPhone: string | null;
+  documentType: DriverDocumentType;
+  uploadedAt: string;
 }
+
+/**
+ * Upper bound on one queue read. A backlog bigger than this is an operations
+ * problem the reviewer works through oldest-first anyway; the cap only keeps
+ * one request from materialising the whole table.
+ */
+export const PENDING_DOCUMENTS_LIMIT = 200;
 
 export interface DocumentRequester {
   id: string;
   role: UserRole;
-}
-
-// File on disk as handed to us by Multer's diskStorage engine. Kept minimal
-// (rather than depending on @types/multer's fuller Express.Multer.File) so the
-// service stays decoupled from the HTTP/multipart layer.
-export interface UploadedDiskFile {
-  filename: string;
-  path: string;
-  mimetype: string;
-  size: number;
 }
 
 const VALID_DOCUMENT_TYPES = Object.values(DriverDocumentType) as string[];
@@ -72,16 +54,17 @@ export class DriverDocumentsService {
     @InjectRepository(DriverDocument)
     private readonly documentRepository: Repository<DriverDocument>,
     private readonly driversService: DriversService,
+    private readonly uploads: DriverUploadsStore,
   ) {}
 
-  // Records an already-saved-to-disk file against the authenticated driver.
+  // Stores the file and records it against the authenticated driver.
   // `documentType` arrives as a raw string from the multipart form field, so
   // it's validated here too (not just via the DTO/ValidationPipe) since this
   // is the boundary that actually persists the record.
   async recordUpload(
     userId: string,
     documentType: string,
-    file: UploadedDiskFile,
+    file: UploadedMemoryFile,
   ): Promise<DriverDocument> {
     if (!VALID_DOCUMENT_TYPES.includes(documentType)) {
       throw new BadRequestException(
@@ -91,11 +74,11 @@ export class DriverDocumentsService {
 
     const driver = await this.driversService.findByUserIdOrThrow(userId);
 
-    // Storage locator, NOT a publicly reachable URL: these are passport and
-    // licence scans, so they are only served through the authorized
-    // GET /drivers/documents/:id/file endpoint. Kept in this shape so existing
-    // rows keep working without a data migration.
-    const fileUrl = `${DRIVER_DOCUMENTS_URL_PREFIX}/${file.filename}`;
+    // Stored only after the type and driver checks pass, so a rejected
+    // request leaves no orphan object behind. The returned value is a storage
+    // locator, NOT a publicly reachable URL: these are passport and licence
+    // scans, only served through GET /drivers/documents/:id/file.
+    const fileUrl = await this.uploads.save(file);
 
     return this.documentRepository.save({
       driverId: driver.id,
@@ -117,6 +100,32 @@ export class DriverDocumentsService {
     });
   }
 
+  /**
+   * Every document still waiting for a decision, oldest first — the order a
+   * reviewer should work in, since the oldest upload is the driver who has
+   * waited longest to start earning.
+   */
+  async listPending(): Promise<PendingDriverDocument[]> {
+    const documents = await this.documentRepository.find({
+      where: { reviewStatus: DriverDocumentReviewStatus.PENDING },
+      relations: ['driver', 'driver.user'],
+      order: { uploadedAt: 'ASC' },
+      take: PENDING_DOCUMENTS_LIMIT,
+    });
+
+    return documents.map((document) => {
+      const user = document.driver?.user;
+      return {
+        id: document.id,
+        driverId: document.driverId,
+        driverName: user ? [user.firstName, user.lastName].filter(Boolean).join(' ') || null : null,
+        driverPhone: user?.phone ?? null,
+        documentType: document.documentType,
+        uploadedAt: document.uploadedAt.toISOString(),
+      };
+    });
+  }
+
   // Resolves a KYC file for download, enforcing access itself rather than
   // relying on the route guard alone: a driver may only read their own
   // documents, while managers and admins may read any. Everyone else is
@@ -132,18 +141,12 @@ export class DriverDocumentsService {
 
     await this.assertCanReadDocument(document, requester);
 
-    const absolutePath = this.resolveStoredFilePath(document.fileUrl);
-    if (!absolutePath || !fs.existsSync(absolutePath)) {
+    const file = await this.uploads.open(document.fileUrl);
+    if (!file) {
       throw new NotFoundException(`File for driver document "${documentId}" is missing`);
     }
 
-    const filename = path.basename(absolutePath);
-    return {
-      absolutePath,
-      filename,
-      mimeType:
-        EXTENSION_MIME_TYPES[path.extname(filename).toLowerCase()] ?? FALLBACK_MIME_TYPE,
-    };
+    return file;
   }
 
   private async assertCanReadDocument(
@@ -162,28 +165,6 @@ export class DriverDocumentsService {
     }
 
     throw new ForbiddenException('You may only access your own documents');
-  }
-
-  // Path-traversal guard. The DB value is never handed to path.join directly:
-  // only its basename is used, and the result must still land directly inside
-  // the upload directory. So "../../etc/passwd" or an absolute path stored in
-  // fileUrl cannot escape.
-  private resolveStoredFilePath(fileUrl: string | null | undefined): string | null {
-    if (!fileUrl) {
-      return null;
-    }
-
-    const filename = path.basename(fileUrl);
-    if (!filename || filename === '.' || filename === '..') {
-      return null;
-    }
-
-    const absolutePath = path.resolve(DRIVER_DOCUMENTS_UPLOAD_DIR, filename);
-    if (!absolutePath.startsWith(DRIVER_DOCUMENTS_UPLOAD_DIR + path.sep)) {
-      return null;
-    }
-
-    return absolutePath;
   }
 
   // Admin/manager review decision on an uploaded KYC document. 'pending' is

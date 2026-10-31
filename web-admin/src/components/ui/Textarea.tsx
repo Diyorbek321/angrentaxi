@@ -1,58 +1,37 @@
-import * as React from 'react';
-import { cn } from '@/lib/utils';
+// AUTO-SYNCED from web-manager — edit there, then run scripts/sync-panel-ui.sh
+'use client';
 
-export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-  label?: string;
+import { forwardRef, useId, type ReactNode, type TextareaHTMLAttributes } from 'react';
+import { cn } from './cn';
+import { Field, controlBase, controlBorder, describedBy } from './Field';
+
+export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
+  label?: ReactNode;
   error?: string;
-  hint?: string;
+  hint?: ReactNode;
+  wrapperClassName?: string;
 }
 
-const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className, label, error, hint, id, ...props }, ref) => {
-    const generatedId = React.useId();
-    const areaId = id || `textarea-${generatedId}`;
-    const errorId = `${areaId}-error`;
-    const hintId = `${areaId}-hint`;
-
+const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
+  ({ label, error, hint, wrapperClassName, className, id, required, ...props }, ref) => {
+    const auto = useId();
+    const areaId = id ?? auto;
     return (
-      <div className="w-full">
-        {label && (
-          <label htmlFor={areaId} className="mb-1.5 block text-caption font-medium text-muted">
-            {label}
-          </label>
-        )}
+      <Field id={areaId} label={label} hint={hint} error={error} required={required} className={wrapperClassName}>
         <textarea
-          id={areaId}
           ref={ref}
+          id={areaId}
+          required={required}
           aria-invalid={error ? true : undefined}
-          aria-describedby={error ? errorId : hint ? hintId : undefined}
-          className={cn(
-            'min-h-[80px] w-full resize-y rounded-ds-md border bg-surface px-3 py-2 text-body text-ink',
-            'placeholder:text-subtle',
-            'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
-            'disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-muted',
-            'transition-colors duration-fast',
-            error
-              ? 'border-danger focus:border-danger'
-              : 'border-line hover:border-line-strong focus:border-primary',
-            className
-          )}
+          aria-describedby={describedBy(areaId, error, hint)}
+          className={cn(controlBase, controlBorder(!!error), 'px-2.5 py-1.5 resize-y min-h-[72px]', className)}
           {...props}
         />
-        {error && (
-          <p id={errorId} className="mt-1.5 text-caption text-danger-deep dark:text-danger-light">
-            {error}
-          </p>
-        )}
-        {hint && !error && (
-          <p id={hintId} className="mt-1.5 text-caption text-subtle">
-            {hint}
-          </p>
-        )}
-      </div>
+      </Field>
     );
   }
 );
+
 Textarea.displayName = 'Textarea';
 
 export { Textarea };

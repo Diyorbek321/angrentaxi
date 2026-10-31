@@ -1,0 +1,356 @@
+# Angren super-app — production stack for ONE Oracle Cloud Ampere A1 VM
+# (linux/arm64, 4 OCPU, 24 GB RAM). See deploy/oracle/README.md.
+#
+# Run from the repo root, always through deploy.sh or with the same flags:
+#   docker compose -f deploy/oracle/docker-compose.prod.yml \
+#                  --env-file deploy/oracle/.env.prod <command>
+#
+# Relative build contexts below resolve against THIS file's directory.
+#
+# Network exposure: only `caddy` publishes ports (80/443). Postgres, Redis,
+# OSRM, the backend and the panels are reachable solely on the internal
+# `angren` bridge network. Docker-published ports bypass the host INPUT chain,
+# so "not published" is the real protection — do not add `ports:` to the
+# data services.
+#
+# Memory budget (limits, 24 GB box):
+#   postgres 6g · redis 1.5g · osrm 1.5g · backend 2g · 4 panels × 768m
+#   · caddy 256m  ≈ 14.3 GB  — leaves ~9 GB for the page cache, `docker build`
+#   (Next.js builds peak at ~2-3 GB each) and the OS.
+
+name: angren
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '5'
+
+x-panel-healthcheck: &panel-healthcheck
+  # Node 20 ships fetch; the alpine runner has no curl. Any status < 500 means
+  # the Next server is up (the route guard may legitimately answer 307).
+  test:
+    - CMD-SHELL
+    - >-
+      node -e "fetch('http://127.0.0.1:'+process.env.PORT+'/login',{redirect:'manual'})
+      .then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 40s
+
+services:
+  postgres:
+    # postgis/postgis:16-3.4-alpine is published for linux/amd64 ONLY (verified
+    # 2026-10-15 with `docker buildx imagetools inspect`). imresamu/postgis is
+    # the multi-arch build of the very same docker-postgis recipe — same
+    # Postgres 16 + PostGIS 3.4, same entrypoint/env, so Railway dumps restore
+    # into it unchanged.
+    image: imresamu/postgis:16-3.4-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:?set DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS:?set DB_PASS}
+      POSTGRES_DB: ${DB_NAME:?set DB_NAME}
+    # Tuned for a 24 GB host shared with the rest of the stack (~6 GB for PG).
+    command:
+      - postgres
+      - -c
+      - shared_buffers=1536MB
+      - -c
+      - effective_cache_size=4GB
+      - -c
+      - work_mem=16MB
+      - -c
+      - maintenance_work_mem=256MB
+      - -c
+      - max_connections=100
+      - -c
+      - wal_compression=on
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - log_min_duration_statement=1000
+    shm_size: 512m
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 6g
+    networks: [angren]
+    logging: *default-logging
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD}
+      # redis-cli reads this, so the healthcheck needs no password on argv.
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
+    # noeviction: Redis holds live state (driver positions, OTP throttles,
+    # locks). Silently evicting it is worse than a loud write error.
+    command:
+      - sh
+      - -c
+      - >-
+        exec redis-server --appendonly yes --appendfsync everysec
+        --maxmemory 1gb --maxmemory-policy noeviction
+        --requirepass "$$REDIS_PASSWORD"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    deploy:
+      resources:
+        limits:
+          memory: 1536m
+    networks: [angren]
+    logging: *default-logging
+
+  osrm:
+    # ghcr.io/project-osrm/osrm-backend:v5.27.1 publishes linux/arm64, so the
+    # existing osrm/Dockerfile builds natively on the A1 VM unchanged.
+    build:
+      context: ../../osrm
+    image: angren/osrm:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      PORT: '5000'
+    # The image has bash but no curl/wget: a TCP connect proves osrm-routed is
+    # listening (it only binds after the graph is loaded).
+    healthcheck:
+      test: ['CMD', 'bash', '-c', 'exec 3<>/dev/tcp/127.0.0.1/5000']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1536m
+    networks: [angren]
+    logging: *default-logging
+
+  backend:
+    build:
+      context: ../../backend
+    image: angren/backend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Migrations run automatically on boot (AppModule: migrationsRun: true),
+    # so "deploy" = start the new image and wait for this healthcheck.
+    #
+    # Secrets and integration keys come from .env.prod via env_file, so a
+    # variable that is absent stays absent (an empty JWT_ACCESS_TTL= would fail
+    # the backend's env validation). `required: false` only lets
+    # `docker compose config` run on a dev box; deploy.sh refuses to run
+    # without the file.
+    env_file:
+      - path: .env.prod
+        required: false
+    # Internal wiring — always wins over env_file.
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      DB_HOST: postgres
+      DB_PORT: '5432'
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_NAME: ${DB_NAME}
+      DB_SSL: 'false'
+      REDIS_HOST: redis
+      REDIS_PORT: '6379'
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      OSRM_URL: http://osrm:5000
+      APP_SECRET: ${APP_SECRET:?set APP_SECRET (openssl rand -hex 32)}
+      APP_URL: https://api.${DOMAIN:?set DOMAIN}
+      CORS_ORIGIN: https://admin.${DOMAIN},https://manager.${DOMAIN},https://market.${DOMAIN},https://restaurant.${DOMAIN}${CORS_EXTRA_ORIGINS:-}
+      TZ: Asia/Tashkent
+      # Sentry'da xato qaysi commitdan ekanini ko'rsatadi (deploy.sh beradi).
+      SENTRY_RELEASE: ${IMAGE_TAG:-}
+    volumes:
+      # Used only while STORAGE_DRIVER=local; harmless with s3.
+      - backend_uploads:/app/uploads
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          node -e "fetch('http://127.0.0.1:3000/api/v1/health')
+          .then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      # First boot on an empty DB runs every migration before listening.
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+    networks: [angren]
+    logging: *default-logging
+
+  # ---------------------------------------------------------------- panels --
+  # NEXT_PUBLIC_* are inlined at BUILD time (public URLs the browser uses).
+  # API_URL / SOCKET_URL are read at RUNTIME by each panel's Node server, which
+  # proxies API calls and the socket.io upgrade to the backend — that hop stays
+  # on the internal network (no TLS round-trip through Caddy).
+  web-admin:
+    build:
+      context: ../../web-admin
+      args:
+        NEXT_PUBLIC_API_URL: https://api.${DOMAIN}/api/v1
+        NEXT_PUBLIC_SOCKET_URL: https://api.${DOMAIN}
+    image: angren/web-admin:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+      PORT: '3001'
+      # Docker sets HOSTNAME to the container id; Next standalone binds to it.
+      HOSTNAME: 0.0.0.0
+      API_URL: http://backend:3000/api/v1
+      SOCKET_URL: http://backend:3000
+    healthcheck: *panel-healthcheck
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+    networks: [angren]
+    logging: *default-logging
+
+  web-manager:
+    build:
+      context: ../../web-manager
+      args:
+        NEXT_PUBLIC_API_URL: https://api.${DOMAIN}/api/v1
+        NEXT_PUBLIC_SOCKET_URL: https://api.${DOMAIN}
+        NEXT_PUBLIC_MAPTILER_KEY: ${NEXT_PUBLIC_MAPTILER_KEY:-}
+        NEXT_PUBLIC_MAPTILER_STYLE: ${NEXT_PUBLIC_MAPTILER_STYLE:-}
+    image: angren/web-manager:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+      PORT: '3002'
+      HOSTNAME: 0.0.0.0
+      API_URL: http://backend:3000/api/v1
+      SOCKET_URL: http://backend:3000
+    healthcheck: *panel-healthcheck
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+    networks: [angren]
+    logging: *default-logging
+
+  web-market:
+    build:
+      context: ../../web-market
+      args:
+        NEXT_PUBLIC_API_URL: https://api.${DOMAIN}/api/v1
+    image: angren/web-market:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+      PORT: '3003'
+      HOSTNAME: 0.0.0.0
+      API_URL: http://backend:3000/api/v1
+      SOCKET_URL: http://backend:3000
+    healthcheck: *panel-healthcheck
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+    networks: [angren]
+    logging: *default-logging
+
+  web-restaurant:
+    build:
+      context: ../../web-restaurant
+      args:
+        NEXT_PUBLIC_API_URL: https://api.${DOMAIN}/api/v1
+    image: angren/web-restaurant:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+      PORT: '3004'
+      HOSTNAME: 0.0.0.0
+      API_URL: http://backend:3000/api/v1
+      SOCKET_URL: http://backend:3000
+    healthcheck: *panel-healthcheck
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+    networks: [angren]
+    logging: *default-logging
+
+  # ----------------------------------------------------------------- edge --
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - web-admin
+      - web-manager
+      - web-market
+      - web-restaurant
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp' # HTTP/3 (optional: also open UDP 443 in the VCN)
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificates + ACME account. Losing this volume = re-issuing every cert
+      # (Let's Encrypt rate limits: 50 certs / registered domain / week).
+      - caddy_data:/data
+      - caddy_config:/config
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:2019/config/']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    networks: [angren]
+    logging: *default-logging
+
+networks:
+  angren:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  backend_uploads:
+  caddy_data:
+  caddy_config:

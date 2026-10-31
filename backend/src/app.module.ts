@@ -1,67 +1,33 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { DataSource } from 'typeorm';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
-import { DefaultNamingStrategy, NamingStrategyInterface } from 'typeorm';
+import { JwtModule } from '@nestjs/jwt';
 import { validateEnv } from './config/env.validation';
 import { resolveDbSynchronize } from './config/db-synchronize.util';
+import { bootDataSource, schemaBootOptions } from './config/schema-boot';
+import { SnakeNamingStrategy } from './config/snake-naming.strategy';
 import { HttpThrottlerGuard } from './common/guards/http-throttler.guard';
-
-class SnakeNamingStrategy extends DefaultNamingStrategy implements NamingStrategyInterface {
-  columnName(propertyName: string, customName: string): string {
-    return customName || propertyName.replace(/([A-Z])/g, '_$1').toLowerCase();
-  }
-  relationName(propertyName: string): string {
-    return propertyName.replace(/([A-Z])/g, '_$1').toLowerCase();
-  }
-  joinColumnName(relationName: string, referencedColumnName: string): string {
-    return `${relationName.replace(/([A-Z])/g, '_$1').toLowerCase()}_${referencedColumnName}`;
-  }
-}
+import { MaintenanceGuard } from './common/guards/maintenance.guard';
 
 // Entities
-import { User } from './database/entities/user.entity';
-import { Driver } from './database/entities/driver.entity';
-import { DriverDocument } from './database/entities/driver-document.entity';
-import { Tariff } from './database/entities/tariff.entity';
-import { Order } from './database/entities/order.entity';
-import { Trip } from './database/entities/trip.entity';
-import { Transaction } from './database/entities/transaction.entity';
-import { Otp } from './database/entities/otp.entity';
-import { Rating } from './database/entities/rating.entity';
-import { PromoCode } from './database/entities/promo_code.entity';
-import { PromoCodeUsage } from './database/entities/promo_code_usage.entity';
-import { TariffChangeRequest } from './database/entities/tariff-change-request.entity';
-import { DriverBonusRule } from './database/entities/driver-bonus-rule.entity';
-import { DriverBonusAward } from './database/entities/driver-bonus-award.entity';
-import { SupportThread } from './database/entities/support-thread.entity';
-import { SupportMessage } from './database/entities/support-message.entity';
-import { PlatformSettings } from './database/entities/platform-settings.entity';
-import { Store } from './database/entities/store.entity';
-import { MarketCategory } from './database/entities/market-category.entity';
-import { Product } from './database/entities/product.entity';
-import { StockMovement } from './database/entities/stock-movement.entity';
-import { MarketOrder } from './database/entities/market-order.entity';
-import { Restaurant } from './database/entities/restaurant.entity';
-import { MenuCategory } from './database/entities/menu-category.entity';
-import { Dish } from './database/entities/dish.entity';
-import { FoodOrder } from './database/entities/food-order.entity';
-import { WithdrawalRequest } from './database/entities/withdrawal-request.entity';
-import { FavoriteAddress } from './database/entities/favorite-address.entity';
-import { TripMessage } from './database/entities/trip-message.entity';
-import { SosAlert } from './database/entities/sos-alert.entity';
-import { NotificationLog } from './database/entities/notification-log.entity';
-import { RefreshToken } from './database/entities/refresh-token.entity';
 
 // Feature Modules
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
+import { AccountDeletionModule } from './modules/account-deletion/account-deletion.module';
 import { DriversModule } from './modules/drivers/drivers.module';
 import { TariffsModule } from './modules/tariffs/tariffs.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { MatchingModule } from './modules/matching/matching.module';
+import { SurgeModule } from './modules/surge/surge.module';
+import { StorageModule } from './modules/storage/storage.module';
+import { DeliveryEventsModule } from './modules/delivery/delivery-events.service';
+import { VendorCashModule } from './modules/delivery/vendor-cash.service';
+import { LostItemsModule } from './modules/lost-items/lost-items.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
@@ -73,10 +39,23 @@ import { SupportModule } from './modules/support/support.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { MarketModule } from './modules/market/market.module';
 import { FoodModule } from './modules/food/food.module';
+import { PromotionsModule } from './modules/promotions/promotions.module';
 import { FavoritesModule } from './modules/favorites/favorites.module';
 import { TripChatModule } from './modules/trip-chat/trip-chat.module';
 import { SafetyModule } from './modules/safety/safety.module';
 import { ReferralsModule } from './modules/referrals/referrals.module';
+import { AdsModule } from './modules/ads/ads.module';
+import { HealthModule } from './modules/health/health.module';
+import { AppVersionModule } from './modules/app-version/app-version.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { FiscalModule } from './modules/fiscal/fiscal.module';
+import { TaxModule } from './modules/tax/tax.module';
+import { ShiftPassesModule } from './modules/shift-passes/shift-passes.module';
+import { IntercityModule } from './modules/intercity/intercity.module';
+import { AuditModule } from './modules/audit/audit.module';
+import { CourierWalletRemindersModule } from './modules/delivery/courier-wallet-reminders.module';
+import { BusinessReportsModule } from './modules/business-reports/business-reports.module';
+import { ENTITIES } from './database/entities';
 
 @Module({
   imports: [
@@ -97,45 +76,19 @@ import { ReferralsModule } from './modules/referrals/referrals.module';
         username: configService.get<string>('DB_USER', 'postgres'),
         password: configService.get<string>('DB_PASS', 'postgres'),
         database: configService.get<string>('DB_NAME', 'angren_taxi'),
-        entities: [
-          User,
-          Driver,
-          DriverDocument,
-          Tariff,
-          Order,
-          Trip,
-          Transaction,
-          Otp,
-          Rating,
-          PromoCode,
-          PromoCodeUsage,
-          TariffChangeRequest,
-          DriverBonusRule,
-          DriverBonusAward,
-          SupportThread,
-          SupportMessage,
-          PlatformSettings,
-          Store,
-          MarketCategory,
-          Product,
-          StockMovement,
-          MarketOrder,
-          Restaurant,
-          MenuCategory,
-          Dish,
-          FoodOrder,
-          WithdrawalRequest,
-          FavoriteAddress,
-          TripMessage,
-          SosAlert,
-          NotificationLog,
-          RefreshToken,
-        ],
+        // Single list, checked against every @Entity by entities.spec.ts.
+        entities: ENTITIES,
         migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
-        // Schema is built from entities via synchronize (default on) for the test/MVP server,
-        // since the hand-written migration drifted from the entities. Set DB_SYNC=false to
-        // switch back to migrations in development. In production, synchronize defaults OFF
-        // (to avoid silently altering the live schema on deploy) unless DB_SYNC=true is set.
+        // Pending migrations always run on boot. The 000_baseline migration is
+        // generated from the entities and no-ops on a database that already
+        // has the schema, so this is safe both for a fresh deploy and for the
+        // existing server whose tables were built by synchronize.
+        // The actual ordering (synchronize first, then migrations) is done by
+        // `dataSourceFactory` below — see config/schema-boot.ts.
+        migrationsRun: true,
+        // synchronize stays as a development convenience only. In production it
+        // defaults OFF (it can silently alter or drop columns on deploy) —
+        // migrations are the supported path there.
         synchronize: resolveDbSynchronize(
           configService.get<string>('NODE_ENV'),
           configService.get<string>('DB_SYNC'),
@@ -153,6 +106,10 @@ import { ReferralsModule } from './modules/referrals/referrals.module';
             : false,
       }),
       inject: [ConfigService],
+      dataSourceFactory: async (options) => {
+        if (!options) throw new Error('TypeORM options missing');
+        return bootDataSource(new DataSource(schemaBootOptions(options)), options.synchronize === true);
+      },
     }),
 
     // Cron/interval scheduling. Registered at the root so every module's
@@ -161,6 +118,11 @@ import { ReferralsModule } from './modules/referrals/referrals.module';
     // idempotent (Nest dedupes identical dynamic modules), so MatchingModule's
     // own call remains harmless.
     ScheduleModule.forRoot(),
+
+    // MaintenanceGuard verifies the bearer token itself to identify staff,
+    // because as a global guard it runs before the controller-level
+    // JwtAuthGuard that would otherwise populate request.user.
+    JwtModule.register({}),
 
     // Rate Limiting. Three named windows apply to every HTTP route (see the
     // APP_GUARD registration below, without which none of this is enforced);
@@ -194,10 +156,19 @@ import { ReferralsModule } from './modules/referrals/referrals.module';
     AuthModule,
     FavoritesModule,
     UsersModule,
+    AccountDeletionModule,
     DriversModule,
     TariffsModule,
     OrdersModule,
     MatchingModule,
+    // Listed here even though OrdersModule already imports it: the surge map is
+    // an endpoint of its own now, and it should not go missing the day orders
+    // stop needing surge pricing.
+    SurgeModule,
+    StorageModule,
+    DeliveryEventsModule,
+    VendorCashModule,
+    LostItemsModule,
     RealtimeModule,
     PaymentsModule,
     NotificationsModule,
@@ -209,9 +180,21 @@ import { ReferralsModule } from './modules/referrals/referrals.module';
     SettingsModule,
     MarketModule,
     FoodModule,
+    PromotionsModule,
     TripChatModule,
     SafetyModule,
     ReferralsModule,
+    AdsModule,
+    HealthModule,
+    AppVersionModule,
+    AnalyticsModule,
+    FiscalModule,
+    TaxModule,
+    ShiftPassesModule,
+    IntercityModule,
+    AuditModule,
+    CourierWalletRemindersModule,
+    BusinessReportsModule,
   ],
   providers: [
     // ThrottlerModule only configures the limits — nothing enforces them until
@@ -220,6 +203,13 @@ import { ReferralsModule } from './modules/referrals/referrals.module';
     {
       provide: APP_GUARD,
       useClass: HttpThrottlerGuard,
+    },
+    // Makes the Global Settings maintenance switch actually stop traffic.
+    // Registered after the throttler so an admin flipping it off is never
+    // blocked by the switch itself (see MaintenanceGuard's allow-list).
+    {
+      provide: APP_GUARD,
+      useClass: MaintenanceGuard,
     },
   ],
 })
