@@ -410,6 +410,36 @@ abstract class AppLocalizations {
   /// **'Kamera'**
   String get drvCamera;
 
+  /// No description provided for @drvCameraAhead.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kamera'**
+  String get drvCameraAhead;
+
+  /// No description provided for @drvCameraLimit.
+  ///
+  /// In uz, this message translates to:
+  /// **'Chegara {speed}'**
+  String drvCameraLimit(int speed);
+
+  /// No description provided for @drvCameraSem.
+  ///
+  /// In uz, this message translates to:
+  /// **'Oldinda tezlik kamerasi, {distance}'**
+  String drvCameraSem(String distance);
+
+  /// No description provided for @drvCameraSpeak.
+  ///
+  /// In uz, this message translates to:
+  /// **'Oldinda kamera. Tezlik chegarasi {speed}.'**
+  String drvCameraSpeak(int speed);
+
+  /// No description provided for @drvCameraSpeakNoLimit.
+  ///
+  /// In uz, this message translates to:
+  /// **'Oldinda kamera.'**
+  String get drvCameraSpeakNoLimit;
+
   /// No description provided for @drvCancel.
   ///
   /// In uz, this message translates to:

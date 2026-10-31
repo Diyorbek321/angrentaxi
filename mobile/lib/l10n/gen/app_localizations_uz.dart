@@ -184,6 +184,27 @@ class AppLocalizationsUz extends AppLocalizations {
   String get drvCamera => 'Kamera';
 
   @override
+  String get drvCameraAhead => 'Kamera';
+
+  @override
+  String drvCameraLimit(int speed) {
+    return 'Chegara $speed';
+  }
+
+  @override
+  String drvCameraSem(String distance) {
+    return 'Oldinda tezlik kamerasi, $distance';
+  }
+
+  @override
+  String drvCameraSpeak(int speed) {
+    return 'Oldinda kamera. Tezlik chegarasi $speed.';
+  }
+
+  @override
+  String get drvCameraSpeakNoLimit => 'Oldinda kamera.';
+
+  @override
   String get drvCancel => 'Bekor qilish';
 
   @override

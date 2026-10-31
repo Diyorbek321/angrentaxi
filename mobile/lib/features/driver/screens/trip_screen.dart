@@ -13,6 +13,7 @@ import 'package:angren_taxi/core/safety/sos_service.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/driver/navigation/follow_camera.dart';
+import 'package:angren_taxi/features/driver/navigation/speed_camera_controller.dart';
 import 'package:angren_taxi/features/driver/navigation/turn_by_turn_guidance.dart';
 import 'package:angren_taxi/features/driver/screens/rate_passenger_screen.dart';
 import 'package:angren_taxi/features/driver/service_wording.dart';
@@ -24,6 +25,7 @@ import 'package:angren_taxi/features/driver/widgets/parcel_pin_dialog.dart';
 // TARTIBGA bog'liq: sheet ostida qolgan maydonni hisoblaydi. Haydovchi
 // xarita ekranlari ham xuddi shu qoidaga bo'ysunishi kerak, aks holda
 // ikkita turli "sheet ostida markazlashish" xatosi paydo bo'ladi.
+import 'package:angren_taxi/features/driver/widgets/speed_camera_banner.dart';
 import 'package:angren_taxi/features/passenger/map_camera_insets.dart';
 import 'package:angren_taxi/features/trip/meter/live_meter_card.dart';
 import 'package:angren_taxi/features/trip/meter/meter_service.dart';
@@ -127,6 +129,7 @@ class _TripScreenState extends State<TripScreen> {
   @override
   void dispose() {
     _positionSubscription?.cancel();
+    _speedCameras?.dispose();
     _location.dispose();
     // Ovoz ham to'xtaydi — safar tugagan ekranda burilish haqida gapirmasin.
     _guidance?.dispose();
@@ -143,6 +146,34 @@ class _TripScreenState extends State<TripScreen> {
   // -------------------------------------------------------------------
   TurnByTurnGuidance? _guidance;
   StreamSubscription<Position>? _positionSubscription;
+
+  /// Tezlik kameralari haqida ogohlantirish. Birinchi GPS'da yaratiladi —
+  /// ovoz servisi bo'lmagan muhitda (testlar) umuman ishlamaydi.
+  SpeedCameraController? _speedCameras;
+
+  void _feedSpeedCameras(Position position) {
+    if (_speedCameras == null) {
+      if (!sl.isRegistered<VoiceGuide>()) return;
+      setState(() => _speedCameras = SpeedCameraController(voice: sl<VoiceGuide>()));
+    }
+    _speedCameras!.onPosition(position);
+  }
+
+  Widget _buildSpeedCameraBanner() {
+    final cameras = _speedCameras;
+    if (cameras == null) return const SizedBox.shrink();
+    return ListenableBuilder(
+      listenable: cameras,
+      builder: (context, _) {
+        final alert = cameras.alert;
+        if (alert == null) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(top: kSpace2),
+          child: SpeedCameraBanner(alert: alert),
+        );
+      },
+    );
+  }
 
   /// Haqiqiy GPS kelganmi. Kelmaguncha mashina CHIZILMAYDI va marshrut
   /// so'ralmaydi — aks holda ikkalasi ham shahar markazidagi standart
@@ -193,6 +224,7 @@ class _TripScreenState extends State<TripScreen> {
       if (order != null) _startGuidance(order);
     }
     _camera.onPosition(position);
+    _feedSpeedCameras(position);
     _followingDriver = true;
     _followDriver();
   }
@@ -853,6 +885,7 @@ class _TripScreenState extends State<TripScreen> {
                   );
                 },
               ),
+            _buildSpeedCameraBanner(),
           ],
         ),
       ),

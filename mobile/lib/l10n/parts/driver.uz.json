@@ -62,7 +62,13 @@
   "drvVendorPaidAction": "Do'konga {amount} to'ladim",
   "drvVendorPaidDone": "Do'konga to'landi",
   "drvVendorPayFirst": "Avval do'konga to'lang va tasdiqlang",
-  "@drvVendorPaidAction": {"placeholders": {"amount": {"type": "String"}}},
+  "@drvVendorPaidAction": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "drvCollectCash": "Mijozdan naqd oling",
   "drvPaidOnline": "Onlayn to'langan — pul olmaysiz",
   "drvPassengerRequested": "Yo'lovchi so'ragan: {options}",
@@ -701,5 +707,31 @@
   "drvReadyOverlay": "Boshqa ilovalar ustida ko'rsatish",
   "drvReadyOverlayWhy": "Ilovadan chiqib ketganingizda zakaz kelsa, ilova o'zi ochiladi. Ekran chetida kichik tugma turadi — bosib qaytasiz.",
   "drvReadyOverlayXiaomi": "Xiaomi/Redmi: Sozlamalar → Ilovalar → Angren Taxi Driver → Boshqa ruxsatlar → «Fonda ishlayotganda qalqib chiquvchi oynalarni ko'rsatish» ni ham yoqing.",
-  "drvTripLength": "Safar"
+  "drvTripLength": "Safar",
+  "drvCameraAhead": "Kamera",
+  "drvCameraLimit": "Chegara {speed}",
+  "@drvCameraLimit": {
+    "placeholders": {
+      "speed": {
+        "type": "int"
+      }
+    }
+  },
+  "drvCameraSpeak": "Oldinda kamera. Tezlik chegarasi {speed}.",
+  "@drvCameraSpeak": {
+    "placeholders": {
+      "speed": {
+        "type": "int"
+      }
+    }
+  },
+  "drvCameraSpeakNoLimit": "Oldinda kamera.",
+  "drvCameraSem": "Oldinda tezlik kamerasi, {distance}",
+  "@drvCameraSem": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  }
 }

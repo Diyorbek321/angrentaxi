@@ -10,12 +10,14 @@ import 'package:angren_taxi/core/location/route_service.dart';
 import 'package:angren_taxi/core/location/voice_guide.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/driver/navigation/follow_camera.dart';
+import 'package:angren_taxi/features/driver/navigation/speed_camera_controller.dart';
 import 'package:angren_taxi/features/driver/navigation/turn_by_turn_guidance.dart';
 import 'package:angren_taxi/features/driver/service_wording.dart';
 import 'package:angren_taxi/features/driver/widgets/maneuver_banner.dart';
 import 'package:angren_taxi/features/driver/widgets/passenger_contact_card.dart';
 // `MapCameraInsets` yo'lovchi papkasida yashaydi, lekin u ekranga emas
 // TARTIBGA bog'liq — izoh `trip_screen.dart` dagi import ustida.
+import 'package:angren_taxi/features/driver/widgets/speed_camera_banner.dart';
 import 'package:angren_taxi/features/passenger/map_camera_insets.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order.dart';
@@ -78,6 +80,34 @@ class _NavigationScreenState extends State<NavigationScreen> {
 
   StreamSubscription<Position>? _positionSubscription;
 
+  /// Tezlik kameralari haqida ogohlantirish. Birinchi GPS'da yaratiladi —
+  /// ovoz servisi bo'lmagan muhitda (testlar) umuman ishlamaydi.
+  SpeedCameraController? _speedCameras;
+
+  void _feedSpeedCameras(Position position) {
+    if (_speedCameras == null) {
+      if (!sl.isRegistered<VoiceGuide>()) return;
+      setState(() => _speedCameras = SpeedCameraController(voice: sl<VoiceGuide>()));
+    }
+    _speedCameras!.onPosition(position);
+  }
+
+  Widget _buildSpeedCameraBanner() {
+    final cameras = _speedCameras;
+    if (cameras == null) return const SizedBox.shrink();
+    return ListenableBuilder(
+      listenable: cameras,
+      builder: (context, _) {
+        final alert = cameras.alert;
+        if (alert == null) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(top: kSpace2),
+          child: SpeedCameraBanner(alert: alert),
+        );
+      },
+    );
+  }
+
   /// Sheet kontentining balandligi — kamera paddingi shundan hisoblanadi.
   final GlobalKey _panelContentKey = GlobalKey();
   double? _panelContentHeight;
@@ -102,6 +132,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
   @override
   void dispose() {
     _positionSubscription?.cancel();
+    _speedCameras?.dispose();
     _location.dispose();
     // Ekran yopilganda gap o'rtasida qolgan ovoz to'xtatiladi — aks holda
     // haydovchi allaqachon boshqa ekranda turib burilish haqida eshitardi.
@@ -197,6 +228,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
     _applyFix(here);
 
     _camera.onPosition(position);
+    _feedSpeedCameras(position);
     _followingDriver = true;
     _followDriver();
   }
@@ -413,7 +445,11 @@ class _NavigationScreenState extends State<NavigationScreen> {
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.fromLTRB(left, kSpace4, kSpace4, kSpace4),
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+        Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Semantics(
@@ -444,6 +480,11 @@ class _NavigationScreenState extends State<NavigationScreen> {
                 builder: (context, _) => _buildGuidanceHeader(wording),
               ),
             ),
+          ],
+        ),
+            // Kamera — manevr ostida: burilish muhimroq, kamera esa
+            // yuzlab metr oldindan ko'rinadi.
+            _buildSpeedCameraBanner(),
           ],
         ),
       ),
