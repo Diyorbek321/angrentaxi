@@ -37,6 +37,9 @@ class ApiEndpoints {
   static String orderById(String id) => '/orders/$id';
   static String cancelOrder(String id) => '/orders/$id/cancel';
 
+  // Olish nuqtasi atrofidagi bo'sh haydovchilar SONI (koordinatalar emas).
+  static const String nearbyDriversCount = '/drivers/nearby-count';
+
   // GET /orders/scheduled (orders.controller.ts) — yo'lovchining kelgusi
   // rejalashtirilgan safarlari, eng yaqini birinchi.
   //

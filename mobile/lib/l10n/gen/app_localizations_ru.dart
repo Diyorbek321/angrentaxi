@@ -2564,10 +2564,39 @@ class AppLocalizationsRu extends AppLocalizations {
   String get paxMeteredTo => 'Без адреса — по таксометру';
 
   @override
+  String paxNearbyFreeDrivers(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count свободных водителей',
+      few: '$count свободных водителя',
+      one: '$count свободный водитель',
+    );
+    return 'Рядом $_temp0';
+  }
+
+  @override
+  String get paxNearbyFreeDriversMany => 'Рядом больше 10 свободных водителей';
+
+  @override
+  String get paxNearbyNone => 'Сейчас рядом нет свободных водителей';
+
+  @override
+  String get paxNearbyNoneHint =>
+      'Сейчас рядом нет свободных водителей. Если закажете, будем искать 3 минуты.';
+
+  @override
   String get paxNo => 'Нет';
 
   @override
   String get paxNoDestination => 'Без адреса';
+
+  @override
+  String get paxNoDriversBody =>
+      'Водители поблизости сейчас заняты. Попробуйте поискать снова или выберите другой тариф.';
+
+  @override
+  String get paxNoDriversClose => 'Закрыть';
 
   @override
   String get paxNoDriversNearby => 'Поблизости нет свободных водителей';
@@ -2575,6 +2604,15 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get paxNoDriversNearbyRetry =>
       'Поблизости нет свободных водителей. Попробуйте чуть позже.';
+
+  @override
+  String get paxNoDriversOtherTariff => 'Другой тариф';
+
+  @override
+  String get paxNoDriversRetry => 'Искать снова';
+
+  @override
+  String get paxNoDriversTitle => 'Водитель не найден';
 
   @override
   String get paxNoResults => 'Ничего не найдено';
@@ -2935,7 +2973,21 @@ class AppLocalizationsRu extends AppLocalizations {
   String get paxSearchAddressSemantics => 'Поиск адреса';
 
   @override
+  String paxSearchElapsed(String time) {
+    return 'Ищем · $time';
+  }
+
+  @override
   String get paxSearchPlaceHint => 'Улица, махалля, название места...';
+
+  @override
+  String get paxSearchStageBusy => 'Сейчас все заняты — продолжаем искать';
+
+  @override
+  String get paxSearchStageNearby => 'Проверяем водителей поблизости';
+
+  @override
+  String get paxSearchStageWiden => 'Расширяем зону поиска';
 
   @override
   String paxSeats(int count) {

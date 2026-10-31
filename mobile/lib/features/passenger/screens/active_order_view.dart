@@ -9,6 +9,7 @@ import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/passenger/map_camera_insets.dart';
 import 'package:angren_taxi/features/passenger/pickup_eta_tracker.dart';
 import 'package:angren_taxi/features/passenger/widgets/parcel_pin_card.dart';
+import 'package:angren_taxi/features/passenger/widgets/searching_status.dart';
 import 'package:angren_taxi/features/trip/meter/live_meter_card.dart';
 import 'package:angren_taxi/features/trip/meter/meter_service.dart';
 import 'package:angren_taxi/features/trip/screens/trip_chat_screen.dart';
@@ -80,9 +81,17 @@ class ActiveOrderView extends StatefulWidget {
     this.meterService,
     required this.fallbackLocation,
     this.topBar,
+    this.searchStartedAt,
+    this.nearbyFreeDrivers,
+    this.onRefreshNearby,
   });
 
   final Order order;
+
+  /// Qidiruv kartasi uchun (`SearchingStatusCard`) — faqat `searching` da.
+  final DateTime? searchStartedAt;
+  final int? nearbyFreeDrivers;
+  final VoidCallback? onRefreshNearby;
 
   /// Haydovchi joylashuvi alohida kanal orqali keladi: uni `ValueListenable`
   /// sifatida olamiz, shunda har yangilanishda butun ko'rinish emas, faqat
@@ -342,6 +351,19 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
               _buildSosButton(order),
             ],
           ),
+          // Qidiruv — o'z SHAKLIGA ega holat (radar, vaqt, bo'sh haydovchilar),
+          // haydovchi kartasi yoki ETA bilan adashtirilmaydi.
+          if (order.status == OrderStatus.searching) ...[
+            const SizedBox(height: kSpace3),
+            AgSurfaceCard(
+              padding: const EdgeInsets.all(kSpace3),
+              child: SearchingStatusCard(
+                startedAt: widget.searchStartedAt,
+                nearbyFreeDrivers: widget.nearbyFreeDrivers,
+                onRefreshNearby: widget.onRefreshNearby,
+              ),
+            ),
+          ],
           _buildEtaBanner(order),
           // ⚠️ ETA BANNERI O'RNIGA TUSHADI. Haydovchi yetib kelgach ETA
           // yo'qoladi (sanaydigan narsa qolmaydi) va aynan o'sha joyda

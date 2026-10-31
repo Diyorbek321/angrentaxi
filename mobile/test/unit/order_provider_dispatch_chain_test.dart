@@ -305,4 +305,68 @@ void main() {
     ));
     expect(message, AppL10n.current.shErrorTimeout);
   });
+
+  group('4-bosqich: qayta izlash, boshqa tarif, bo‘sh haydovchilar', () {
+    test('qayta izlash — o‘sha tana, YANGI kalit', () async {
+      createOutcomes.addAll([_order('searching'), _order('searching', id: 'order-2')]);
+      await orders.createOrder();
+      emit(SocketEvents.noDriversFound, {'orderId': 'order-1'});
+      expect(orders.canRetryLastOrder, isTrue);
+
+      expect(await orders.retryLastOrder(), isTrue);
+
+      final calls = verify(() => api.post(ApiEndpoints.createOrder,
+          data: captureAny(named: 'data'), headers: any(named: 'headers'))).captured;
+      expect(calls[1], calls[0]);
+      expect(sentKeys[1], isNot(sentKeys[0]));
+      expect(orders.activeOrder!.id, 'order-2');
+    });
+
+    test('rejalashtirilgan buyurtma qayta izlash uchun saqlanmaydi', () async {
+      orders.setScheduledAt(DateTime.now().add(const Duration(hours: 2)));
+      createOutcomes.add(_order('scheduled'));
+
+      await orders.createOrder();
+
+      expect(orders.canRetryLastOrder, isFalse);
+    });
+
+    test('boshqa tarif — marshrut tugagan buyurtmadan tiklanadi, tarif tanlanmagan', () {
+      final fresh = OrderProvider(apiClient: api, socketService: socket);
+      final cancelled = Order.fromJson(_order('cancelled'));
+
+      fresh.restorePendingFromOrder(cancelled);
+
+      expect(fresh.pendingPickup!.address, 'Bobur 10');
+      expect(fresh.pendingDropoff!.address, 'Markaz');
+      expect(fresh.selectedTariff, isNull);
+      fresh.dispose();
+    });
+
+    test('bo‘sh haydovchilar soni o‘qiladi; xato bo‘lsa — noma’lum (null), "0" emas', () async {
+      when(() => api.get(ApiEndpoints.nearbyDriversCount, params: any(named: 'params')))
+          .thenAnswer((_) async => _ok(ApiEndpoints.nearbyDriversCount, {'count': 3, 'radiusKm': 5}));
+      await orders.loadNearbyDrivers(41.0, 70.1);
+      expect(orders.nearbyFreeDrivers, 3);
+
+      when(() => api.get(ApiEndpoints.nearbyDriversCount, params: any(named: 'params')))
+          .thenThrow(_rejected(404, 'Not found'));
+      await orders.loadNearbyDrivers(41.0, 70.1);
+      expect(orders.nearbyFreeDrivers, isNull);
+    });
+
+    test('qidiruv vaqti faqat O‘SHA buyurtmaga tegishli', () async {
+      createOutcomes.add(_order('searching'));
+      await orders.createOrder();
+      expect(orders.searchStartedAt, isNotNull);
+
+      emit(SocketEvents.noDriversFound, {'orderId': 'order-1'});
+      history = [_order('searching', id: 'order-9')];
+      await orders.checkActiveOrder();
+
+      // order-9 o'z createdAt idan (kelajakda emas), order-1 vaqtidan emas.
+      expect(orders.activeOrder!.id, 'order-9');
+      expect(orders.searchStartedAt, DateTime.parse('2026-10-31T10:00:00.000Z').toLocal());
+    });
+  });
 }

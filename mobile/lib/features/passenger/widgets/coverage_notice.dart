@@ -12,7 +12,15 @@ import 'package:flutter/material.dart';
 /// noto'g'ri ish qilgani emas, shunchaki hozir bu joyda xizmat yo'qligi.
 /// Xato rangi aybdorlik hissi beradi va ilova buzilgandek ko'rinadi.
 class CoverageNotice extends StatelessWidget {
-  const CoverageNotice({super.key, required this.message});
+  const CoverageNotice({
+    super.key,
+    required this.message,
+    this.icon = Icons.location_off_rounded,
+  });
+
+  /// Bir xil ogohlantirish shakli boshqa "hozir xizmat cheklangan" holat
+  /// uchun ham (masalan yaqinda bo'sh haydovchi yo'q) — boshqa ikonka bilan.
+  final IconData icon;
 
   /// `OrderProvider.coverageWarning` dan keladigan tayyor matn: NIMA
   /// bo'lgani + eng yaqin xizmat hududi nomi.
@@ -36,12 +44,8 @@ class CoverageNotice extends StatelessWidget {
         children: [
           // Ikonka dekorativ — butun ma'no matnda, shuning uchun ekran
           // o'quvchi uni o'qimaydi.
-          const ExcludeSemantics(
-            child: Icon(
-              Icons.location_off_rounded,
-              color: kWarningDeep,
-              size: 20,
-            ),
+          ExcludeSemantics(
+            child: Icon(icon, color: kWarningDeep, size: 20),
           ),
           const SizedBox(width: kSpace3),
           Expanded(

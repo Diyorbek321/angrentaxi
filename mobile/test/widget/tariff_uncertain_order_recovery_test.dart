@@ -1,3 +1,5 @@
+// Tarif ekrani: javobsiz buyurtma tiklanishi va bo'sh haydovchi ogohlantirishi.
+//
 // Buyurtma so'rovi javobsiz qolsa (timeout), server uni baribir yaratgan
 // bo'lishi mumkin. Provider buni tiklaganda yo'lovchi xato ko'rgan tarif
 // ekranida qolib ketmasligi, kuzatuv (bosh) ekraniga o'tishi kerak —
@@ -11,6 +13,7 @@ import 'package:angren_taxi/core/socket/socket_service.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
 import 'package:angren_taxi/features/passenger/screens/tariff_select_screen.dart';
 import 'package:angren_taxi/shared/models/order.dart';
+import 'package:angren_taxi/shared/widgets/app_pressable.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -148,5 +151,26 @@ void main() {
 
     expect(find.text('HOME'), findsNothing);
     expect(find.byType(TariffSelectScreen), findsOneWidget);
+  });
+
+  // 4-bosqich: buyurtmadan OLDIN rostini aytish — to'smasdan.
+  testWidgets('yaqinda bo‘sh haydovchi yo‘q — ogohlantirish, tugma faol', (tester) async {
+    when(() => apiClient.get(ApiEndpoints.nearbyDriversCount, params: any(named: 'params')))
+        .thenAnswer((_) async => _jsonResponse(ApiEndpoints.nearbyDriversCount, {'count': 0, 'radiusKm': 5}));
+    await pumpTariffScreen(tester);
+
+    expect(find.byKey(const ValueKey('tariff-no-free-drivers')), findsOneWidget);
+    final cta = tester.widget<AppPressable>(
+      find.ancestor(of: find.text('Buyurtma'), matching: find.byType(AppPressable)).first,
+    );
+    expect(cta.onTap, isNotNull);
+  });
+
+  testWidgets('bo‘sh haydovchi bor — ogohlantirish yo‘q', (tester) async {
+    when(() => apiClient.get(ApiEndpoints.nearbyDriversCount, params: any(named: 'params')))
+        .thenAnswer((_) async => _jsonResponse(ApiEndpoints.nearbyDriversCount, {'count': 2, 'radiusKm': 5}));
+    await pumpTariffScreen(tester);
+
+    expect(find.byKey(const ValueKey('tariff-no-free-drivers')), findsNothing);
   });
 }

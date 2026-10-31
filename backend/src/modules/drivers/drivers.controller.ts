@@ -26,6 +26,7 @@ import { UpdateDriverDto } from './dto/update-driver.dto';
 import { UpdateAmenitiesDto } from './dto/update-amenities.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
 import { SetOnlineStatusDto } from './dto/set-online-status.dto';
+import { NearbyCountQueryDto } from './dto/nearby-count-query.dto';
 import { AddFundsDto } from './dto/add-funds.dto';
 import { SetCommissionRateDto } from './dto/set-commission-rate.dto';
 import { SetTariffTierDto } from './dto/set-tariff-tier.dto';
@@ -35,12 +36,15 @@ import { PermissionsGuard } from '../auth/permissions.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
-import { Permission, User, UserRole, UserStatus } from '../../database/entities/user.entity';
+import { PASSENGER_APP_ROLES, Permission, User, UserRole, UserStatus } from '../../database/entities/user.entity';
 import { Driver } from '../../database/entities/driver.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
 import { OptionalEnumPipe } from '../../common/pipes/optional-enum.pipe';
 import { UsersService } from '../users/users.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+
+/** Qidiruvning eng keng radiusi (matching SEARCH_RADIUS_STEPS_KM oxirgisi). */
+const NEARBY_COUNT_RADIUS_KM = 5;
 
 @ApiTags('Drivers')
 @ApiBearerAuth('JWT-auth')
@@ -72,6 +76,24 @@ export class DriversController {
     });
     // PINFL/STIR/tug'ilgan sana — faqat `GET /drivers/:id/legal` da (#2).
     return { ...result, drivers: result.drivers.map((driver) => toDriverPublicView(driver)) };
+  }
+
+  /**
+   * Olish nuqtasi atrofidagi BO'SH haydovchilar SONI — yo'lovchi qidiruv
+   * ekrani ("3 ta haydovchi yaqinda") va buyurtmadan oldingi ogohlantirish
+   * ("hozir yaqinda bo'sh mashina yo'q") uchun.
+   *
+   * ⚠️ Faqat son, joylashuv EMAS: haydovchi koordinatalari yo'lovchiga
+   * berilmaydi (maxfiylik, raqobatchi skreypingi). Son matching bilan bir
+   * xil filtrdan o'tadi (onlayn, tirik, bo'sh, faol) va qidiruvning eng keng
+   * radiusida (5 km), MATCHING_CANDIDATE_LIMIT bilan cheklangan.
+   */
+  @Get('nearby-count')
+  @Roles(...PASSENGER_APP_ROLES)
+  @ApiOperation({ summary: 'Free drivers near a pickup point (count only)' })
+  async getNearbyCount(@Query() query: NearbyCountQueryDto): Promise<{ count: number; radiusKm: number }> {
+    const count = await this.driversService.countFreeDriversNear(query.lat, query.lng, NEARBY_COUNT_RADIUS_KM);
+    return { count, radiusKm: NEARBY_COUNT_RADIUS_KM };
   }
 
   @Get('online')

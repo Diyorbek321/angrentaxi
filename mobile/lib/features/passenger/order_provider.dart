@@ -534,6 +534,102 @@ class OrderProvider extends ChangeNotifier {
           if (_tripOptions.isNotEmpty)
             'options': _tripOptions.map((o) => o.apiValue).toList(),
       };
+      return _submitOrder(body);
+    } catch (e) {
+      // Tana qurishdagi kutilmagan xato (bo'lmasligi kerak) — foydalanuvchi
+      // tugma "osilib" qolganini ko'rmasin.
+      _error = extractErrorMessage(e);
+      _setState(OrderProviderState.error);
+      return false;
+    }
+  }
+
+  /// Oxirgi JONLI (rejalashtirilmagan) buyurtmaning so'rov tanasi —
+  /// "Haydovchi topilmadi" oynasidagi "Qayta izlash" aynan shuni qayta
+  /// yuboradi (marshrut, tarif, opsiyalar bir xil; kalit yangi).
+  Map<String, dynamic>? _lastLiveOrderBody;
+
+  bool get canRetryLastOrder => _lastLiveOrderBody != null;
+
+  /// Olish nuqtasi atrofidagi BO'SH haydovchilar soni (`GET
+  /// /drivers/nearby-count`). `null` — noma'lum (eski server, tarmoq xatosi):
+  /// UI hech narsa ko'rsatmaydi, ya'ni yolg'on "0" chiqmaydi.
+  int? get nearbyFreeDrivers => _nearbyFreeDrivers;
+  int? _nearbyFreeDrivers;
+
+  Future<void> loadNearbyDrivers(double lat, double lng) async {
+    try {
+      final response = await _apiClient.get(
+        ApiEndpoints.nearbyDriversCount,
+        params: {'lat': lat, 'lng': lng},
+      );
+      final data = (response.data as Map<String, dynamic>)['data'];
+      final count = data is Map ? (data['count'] as num?)?.toInt() : null;
+      if (count == _nearbyFreeDrivers) return;
+      _nearbyFreeDrivers = count;
+      notifyListeners();
+    } catch (_) {
+      // Yordamchi ma'lumot: eski serverda 404, tarmoq xatosi — jim,
+      // faqat ko'rsatilmaydi (Sentry'ni har 15 s da to'ldirmasin).
+      if (_nearbyFreeDrivers != null) {
+        _nearbyFreeDrivers = null;
+        notifyListeners();
+      }
+    }
+  }
+
+  /// "Boshqa tarif": tugagan buyurtmaning marshruti qaytadan tanlov
+  /// sifatida qo'yiladi — yo'lovchi manzilni qayta qidirmaydi. Ilova qayta
+  /// ochilgan bo'lsa ham ishlaydi (tanlov xotirada bo'lmasa).
+  void restorePendingFromOrder(Order order) {
+    _serviceType = 'taxi';
+    _pendingPickup = order.pickup;
+    _pendingWaypoints
+      ..clear()
+      ..addAll(order.waypoints);
+    if (order.isMetered) {
+      _isMetered = true;
+      _pendingDropoff = null;
+    } else {
+      _isMetered = false;
+      _pendingDropoff = order.dropoff;
+    }
+    _tripOptions = [...order.options];
+    _selectedTariff = null;
+    _estimatedPrice = null;
+    notifyListeners();
+  }
+
+  /// "Qayta izlash": o'sha buyurtmani yangidan beradi. Avvalgisi "topilmadi"
+  /// bilan bekor bo'lgan, ya'ni serverdagi "bitta faol taksi" cheklovi
+  /// to'smaydi.
+  Future<bool> retryLastOrder() async {
+    final body = _lastLiveOrderBody;
+    if (body == null) return false;
+    _error = null;
+    _setState(OrderProviderState.loading);
+    return _submitOrder(body);
+  }
+
+  /// Qidiruv qachon boshlangani — qidiruv ekranidagi "o'tgan vaqt" uchun.
+  /// Yangi buyurtmada — telefon soati; tiklangan buyurtmada — server
+  /// `createdAt` (kelajakda bo'lsa hozirga qisqartiriladi, soat farqi).
+  DateTime? get searchStartedAt {
+    final start = _searchStart;
+    return start != null && start.orderId == _activeOrder?.id ? start.at : null;
+  }
+
+  /// Qaysi buyurtma uchun — eski buyurtma vaqti yangisiga o'tib ketmasin.
+  ({String orderId, DateTime at})? _searchStart;
+
+  static DateTime _searchStartFor(Order order) {
+    final now = DateTime.now();
+    final created = order.createdAt.toLocal();
+    return created.isAfter(now) ? now : created;
+  }
+
+  Future<bool> _submitOrder(Map<String, dynamic> body) async {
+    try {
       // ⚠️ Kalit AYNAN SHU so'rov mazmuniga bog'langan. Ilgari u timeout'dan
       // keyin tarif/manzil o'zgarsa ham saqlanardi va server "takror" deb
       // ESKI buyurtmani qaytarardi — yo'lovchi Komfort tanlab Start oldi.
@@ -574,6 +670,8 @@ class OrderProvider extends ChangeNotifier {
               .compareTo(b.scheduledAt ?? b.createdAt));
       } else {
         _activeOrder = order;
+        _lastLiveOrderBody = body;
+        _searchStart = (orderId: order.id, at: DateTime.now());
         _listenToOrderEvents();
       }
 
@@ -937,6 +1035,9 @@ class OrderProvider extends ChangeNotifier {
           o.serviceType != kServiceTypeIntercity);
       if (active.isNotEmpty) {
         _activeOrder = active.first;
+        if (_searchStart?.orderId != active.first.id) {
+          _searchStart = (orderId: active.first.id, at: _searchStartFor(active.first));
+        }
         _listenToOrderEvents();
         notifyListeners();
         // The history list never carries a parcel's delivery PIN — only the

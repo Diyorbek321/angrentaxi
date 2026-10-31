@@ -698,6 +698,17 @@ export class DriversService implements OnModuleInit {
 
   /** User ids (orders.driver_id) among [userIds] that currently hold an active order. */
   /**
+   * Nuqta atrofidagi BO'SH (onlayn, tirik, safarda emas, faol) haydovchilar
+   * soni — matching nomzodlari bilan bir xil filtr. `CANDIDATE_LIMIT` bilan
+   * cheklangan (ilova "10+" ko'rsatadi). Redis xatosida `getNearbyDrivers`
+   * bo'sh ro'yxat qaytaradi, ya'ni 0 — ilova ogohlantirish ko'rsatadi, lekin
+   * buyurtmani hech qachon to'smaydi.
+   */
+  async countFreeDriversNear(lat: number, lng: number, radiusKm: number): Promise<number> {
+    return (await this.getNearbyDrivers(lat, lng, radiusKm)).length;
+  }
+
+  /**
    * Partiyadagi 2-/3-haydovchi taklif PAYTIDA hali ham bo'shmi: onlayn
    * (geo-to'plamda), mavjudligi yangi va safarda emas. Partiya ~30 s oldin
    * tuzilgan bo'ladi — shu orada oflayn bo'lgan yoki boshqa safar olgan

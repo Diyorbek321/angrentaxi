@@ -495,5 +495,32 @@
   "paxRecentPlaces": "Oxirgi manzillar",
   "paxAddressNotFoundHint": "Xaritadan aniq joyni belgilang yoki boshqacha yozib ko'ring",
   "paxPreciseLocationHint": "Joylashuv taxminiy — olish nuqtasi ~1 km xato bo'lishi mumkin. Aniq joylashuvni yoqing.",
-  "paxPreciseLocationEnable": "Yoqish"
+  "paxPreciseLocationEnable": "Yoqish",
+  "paxSearchStageNearby": "Yaqin atrofdagi haydovchilar tekshirilmoqda",
+  "paxSearchStageWiden": "Qidiruv hududi kengaytirilmoqda",
+  "paxSearchStageBusy": "Hozircha hamma band — izlashda davom etamiz",
+  "paxSearchElapsed": "Izlanmoqda · {time}",
+  "@paxSearchElapsed": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "paxNearbyFreeDrivers": "Yaqinda {count} ta bo'sh haydovchi",
+  "@paxNearbyFreeDrivers": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "paxNearbyFreeDriversMany": "Yaqinda 10 dan ortiq bo'sh haydovchi",
+  "paxNearbyNone": "Hozir yaqinda bo'sh haydovchi yo'q",
+  "paxNearbyNoneHint": "Hozir yaqinda bo'sh haydovchi yo'q. Buyurtma bersangiz, 3 daqiqa davomida izlaymiz.",
+  "paxNoDriversTitle": "Haydovchi topilmadi",
+  "paxNoDriversBody": "Yaqin atrofdagi haydovchilar hozir band. Qayta izlab ko'ring yoki boshqa tarifni tanlang.",
+  "paxNoDriversRetry": "Qayta izlash",
+  "paxNoDriversOtherTariff": "Boshqa tarif",
+  "paxNoDriversClose": "Yopish"
 }

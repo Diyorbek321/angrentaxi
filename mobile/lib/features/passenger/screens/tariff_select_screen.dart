@@ -233,6 +233,8 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
       // chunki tarif ekraniga saqlangan manzil orqali TO'G'RIDAN-TO'G'RI
       // kelish mumkin va u holda bosh ekran umuman ochilmagan bo'ladi.
       provider.loadCities();
+      final pickup = provider.pendingPickup;
+      if (pickup != null) provider.loadNearbyDrivers(pickup.lat, pickup.lng);
       _loadRoute(provider);
     });
   }
@@ -728,6 +730,17 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
           // qimmatlashuv o'zboshimchalik bo'lib ko'rinadi va ishonchni yo'qotadi.
           if (provider.isSurging) _buildSurgeNotice(provider.surgeMultiplier),
           if (coverageWarning != null) CoverageNotice(message: coverageWarning),
+          // Yaqinda bo'sh haydovchi yo'q — buyurtmani TO'SMAYDI (3 daqiqada
+          // kimdir bo'shashi mumkin), lekin oldindan rostini aytadi: kutilmagan
+          // "topilmadi" ishonchni yo'qotadi. Reja safariga taalluqli emas.
+          if (coverageWarning == null &&
+              !provider.isScheduledBooking &&
+              provider.nearbyFreeDrivers == 0)
+            CoverageNotice(
+              key: const ValueKey('tariff-no-free-drivers'),
+              message: context.l10n.paxNearbyNoneHint,
+              icon: Icons.no_crash_outlined,
+            ),
           if (provider.isScheduledBooking) _buildScheduleNotice(),
           // Serverning oxirgi so'zi ham SHU YERDA ko'rinadi: `POST /orders`
           // 400 bilan "Bu hududda hozircha xizmat ko'rsatilmaymiz" qaytarsa,

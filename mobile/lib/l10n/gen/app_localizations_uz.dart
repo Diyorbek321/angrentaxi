@@ -2570,10 +2570,33 @@ class AppLocalizationsUz extends AppLocalizations {
   String get paxMeteredTo => 'Manzilsiz — taksometr bo\'yicha';
 
   @override
+  String paxNearbyFreeDrivers(int count) {
+    return 'Yaqinda $count ta bo\'sh haydovchi';
+  }
+
+  @override
+  String get paxNearbyFreeDriversMany =>
+      'Yaqinda 10 dan ortiq bo\'sh haydovchi';
+
+  @override
+  String get paxNearbyNone => 'Hozir yaqinda bo\'sh haydovchi yo\'q';
+
+  @override
+  String get paxNearbyNoneHint =>
+      'Hozir yaqinda bo\'sh haydovchi yo\'q. Buyurtma bersangiz, 3 daqiqa davomida izlaymiz.';
+
+  @override
   String get paxNo => 'Yo\'q';
 
   @override
   String get paxNoDestination => 'Manzilsiz';
+
+  @override
+  String get paxNoDriversBody =>
+      'Yaqin atrofdagi haydovchilar hozir band. Qayta izlab ko\'ring yoki boshqa tarifni tanlang.';
+
+  @override
+  String get paxNoDriversClose => 'Yopish';
 
   @override
   String get paxNoDriversNearby => 'Yaqin atrofda haydovchi topilmadi';
@@ -2581,6 +2604,15 @@ class AppLocalizationsUz extends AppLocalizations {
   @override
   String get paxNoDriversNearbyRetry =>
       'Yaqin atrofda haydovchi topilmadi. Birozdan so\'ng qayta urinib ko\'ring.';
+
+  @override
+  String get paxNoDriversOtherTariff => 'Boshqa tarif';
+
+  @override
+  String get paxNoDriversRetry => 'Qayta izlash';
+
+  @override
+  String get paxNoDriversTitle => 'Haydovchi topilmadi';
 
   @override
   String get paxNoResults => 'Natija topilmadi';
@@ -2944,7 +2976,23 @@ class AppLocalizationsUz extends AppLocalizations {
   String get paxSearchAddressSemantics => 'Manzilni qidiring';
 
   @override
+  String paxSearchElapsed(String time) {
+    return 'Izlanmoqda · $time';
+  }
+
+  @override
   String get paxSearchPlaceHint => 'Ko\'cha, mahalla, joy nomi...';
+
+  @override
+  String get paxSearchStageBusy =>
+      'Hozircha hamma band — izlashda davom etamiz';
+
+  @override
+  String get paxSearchStageNearby =>
+      'Yaqin atrofdagi haydovchilar tekshirilmoqda';
+
+  @override
+  String get paxSearchStageWiden => 'Qidiruv hududi kengaytirilmoqda';
 
   @override
   String paxSeats(int count) {

@@ -230,5 +230,18 @@
   "paxRecentPlaces": "Недавние адреса",
   "paxAddressNotFoundHint": "Отметьте точку на карте или попробуйте написать иначе",
   "paxPreciseLocationHint": "Геолокация приблизительная — точка посадки может ошибаться на ~1 км. Включите точную геолокацию.",
-  "paxPreciseLocationEnable": "Включить"
+  "paxPreciseLocationEnable": "Включить",
+  "paxSearchStageNearby": "Проверяем водителей поблизости",
+  "paxSearchStageWiden": "Расширяем зону поиска",
+  "paxSearchStageBusy": "Сейчас все заняты — продолжаем искать",
+  "paxSearchElapsed": "Ищем · {time}",
+  "paxNearbyFreeDrivers": "Рядом {count, plural, one{{count} свободный водитель} few{{count} свободных водителя} other{{count} свободных водителей}}",
+  "paxNearbyFreeDriversMany": "Рядом больше 10 свободных водителей",
+  "paxNearbyNone": "Сейчас рядом нет свободных водителей",
+  "paxNearbyNoneHint": "Сейчас рядом нет свободных водителей. Если закажете, будем искать 3 минуты.",
+  "paxNoDriversTitle": "Водитель не найден",
+  "paxNoDriversBody": "Водители поблизости сейчас заняты. Попробуйте поискать снова или выберите другой тариф.",
+  "paxNoDriversRetry": "Искать снова",
+  "paxNoDriversOtherTariff": "Другой тариф",
+  "paxNoDriversClose": "Закрыть"
 }

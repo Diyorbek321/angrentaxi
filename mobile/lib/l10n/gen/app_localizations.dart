@@ -4574,6 +4574,30 @@ abstract class AppLocalizations {
   /// **'Manzilsiz — taksometr bo\'yicha'**
   String get paxMeteredTo;
 
+  /// No description provided for @paxNearbyFreeDrivers.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yaqinda {count} ta bo\'sh haydovchi'**
+  String paxNearbyFreeDrivers(int count);
+
+  /// No description provided for @paxNearbyFreeDriversMany.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yaqinda 10 dan ortiq bo\'sh haydovchi'**
+  String get paxNearbyFreeDriversMany;
+
+  /// No description provided for @paxNearbyNone.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hozir yaqinda bo\'sh haydovchi yo\'q'**
+  String get paxNearbyNone;
+
+  /// No description provided for @paxNearbyNoneHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hozir yaqinda bo\'sh haydovchi yo\'q. Buyurtma bersangiz, 3 daqiqa davomida izlaymiz.'**
+  String get paxNearbyNoneHint;
+
   /// No description provided for @paxNo.
   ///
   /// In uz, this message translates to:
@@ -4586,6 +4610,18 @@ abstract class AppLocalizations {
   /// **'Manzilsiz'**
   String get paxNoDestination;
 
+  /// No description provided for @paxNoDriversBody.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yaqin atrofdagi haydovchilar hozir band. Qayta izlab ko\'ring yoki boshqa tarifni tanlang.'**
+  String get paxNoDriversBody;
+
+  /// No description provided for @paxNoDriversClose.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yopish'**
+  String get paxNoDriversClose;
+
   /// No description provided for @paxNoDriversNearby.
   ///
   /// In uz, this message translates to:
@@ -4597,6 +4633,24 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Yaqin atrofda haydovchi topilmadi. Birozdan so\'ng qayta urinib ko\'ring.'**
   String get paxNoDriversNearbyRetry;
+
+  /// No description provided for @paxNoDriversOtherTariff.
+  ///
+  /// In uz, this message translates to:
+  /// **'Boshqa tarif'**
+  String get paxNoDriversOtherTariff;
+
+  /// No description provided for @paxNoDriversRetry.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qayta izlash'**
+  String get paxNoDriversRetry;
+
+  /// No description provided for @paxNoDriversTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Haydovchi topilmadi'**
+  String get paxNoDriversTitle;
 
   /// No description provided for @paxNoResults.
   ///
@@ -5252,11 +5306,35 @@ abstract class AppLocalizations {
   /// **'Manzilni qidiring'**
   String get paxSearchAddressSemantics;
 
+  /// No description provided for @paxSearchElapsed.
+  ///
+  /// In uz, this message translates to:
+  /// **'Izlanmoqda · {time}'**
+  String paxSearchElapsed(String time);
+
   /// No description provided for @paxSearchPlaceHint.
   ///
   /// In uz, this message translates to:
   /// **'Ko\'cha, mahalla, joy nomi...'**
   String get paxSearchPlaceHint;
+
+  /// No description provided for @paxSearchStageBusy.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hozircha hamma band — izlashda davom etamiz'**
+  String get paxSearchStageBusy;
+
+  /// No description provided for @paxSearchStageNearby.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yaqin atrofdagi haydovchilar tekshirilmoqda'**
+  String get paxSearchStageNearby;
+
+  /// No description provided for @paxSearchStageWiden.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qidiruv hududi kengaytirilmoqda'**
+  String get paxSearchStageWiden;
 
   /// No description provided for @paxSeats.
   ///

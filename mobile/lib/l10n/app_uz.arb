@@ -1637,10 +1637,26 @@
     }
   },
   "paxMeteredTo": "Manzilsiz — taksometr bo'yicha",
+  "paxNearbyFreeDrivers": "Yaqinda {count} ta bo'sh haydovchi",
+  "@paxNearbyFreeDrivers": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "paxNearbyFreeDriversMany": "Yaqinda 10 dan ortiq bo'sh haydovchi",
+  "paxNearbyNone": "Hozir yaqinda bo'sh haydovchi yo'q",
+  "paxNearbyNoneHint": "Hozir yaqinda bo'sh haydovchi yo'q. Buyurtma bersangiz, 3 daqiqa davomida izlaymiz.",
   "paxNo": "Yo'q",
   "paxNoDestination": "Manzilsiz",
+  "paxNoDriversBody": "Yaqin atrofdagi haydovchilar hozir band. Qayta izlab ko'ring yoki boshqa tarifni tanlang.",
+  "paxNoDriversClose": "Yopish",
   "paxNoDriversNearby": "Yaqin atrofda haydovchi topilmadi",
   "paxNoDriversNearbyRetry": "Yaqin atrofda haydovchi topilmadi. Birozdan so'ng qayta urinib ko'ring.",
+  "paxNoDriversOtherTariff": "Boshqa tarif",
+  "paxNoDriversRetry": "Qayta izlash",
+  "paxNoDriversTitle": "Haydovchi topilmadi",
   "paxNoResults": "Natija topilmadi",
   "paxNoTariffs": "Tariflar mavjud emas",
   "paxNotifications": "Bildirishnomalar",
@@ -1823,7 +1839,18 @@
   "paxScheduledTripsTitle": "Rejalashtirilgan safarlar",
   "paxSearchAddressHint": "Manzilni qidiring...",
   "paxSearchAddressSemantics": "Manzilni qidiring",
+  "paxSearchElapsed": "Izlanmoqda · {time}",
+  "@paxSearchElapsed": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "paxSearchPlaceHint": "Ko'cha, mahalla, joy nomi...",
+  "paxSearchStageBusy": "Hozircha hamma band — izlashda davom etamiz",
+  "paxSearchStageNearby": "Yaqin atrofdagi haydovchilar tekshirilmoqda",
+  "paxSearchStageWiden": "Qidiruv hududi kengaytirilmoqda",
   "paxSeats": "{count} o'rin",
   "@paxSeats": {
     "placeholders": {

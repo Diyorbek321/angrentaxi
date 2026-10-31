@@ -11,6 +11,7 @@ import 'package:angren_taxi/features/passenger/screens/active_order_view.dart';
 import 'package:angren_taxi/features/passenger/screens/destination_screen.dart';
 import 'package:angren_taxi/features/passenger/screens/rate_driver_screen.dart';
 import 'package:angren_taxi/features/passenger/widgets/coverage_notice.dart';
+import 'package:angren_taxi/features/passenger/widgets/no_drivers_sheet.dart';
 import 'package:angren_taxi/features/superapp/screens/cargo_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/food_list_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/market_home_screen.dart';
@@ -238,12 +239,9 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen>
             });
           }
           if (orderProvider.noDriversFoundMessage != null) {
-            final message = orderProvider.noDriversFoundMessage!;
             WidgetsBinding.instance.addPostFrameCallback((_) {
               orderProvider.clearNoDriversFoundMessage();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(message), backgroundColor: kErrorDeep),
-              );
+              _onNoDriversFound(orderProvider);
             });
           }
           if (orderProvider.hasActiveOrder) {
@@ -279,7 +277,44 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen>
       sosService: widget.sosService,
       fallbackLocation: _currentLocation,
       topBar: _buildTopBar(),
+      searchStartedAt: orderProvider.searchStartedAt,
+      nearbyFreeDrivers: orderProvider.nearbyFreeDrivers,
+      onRefreshNearby: () {
+        final pickup = orderProvider.activeOrder?.pickup;
+        if (pickup != null) orderProvider.loadNearbyDrivers(pickup.lat, pickup.lng);
+      },
     );
+  }
+
+  /// "Haydovchi topilmadi" — boshi berk ko'cha emas: qayta izlash yoki
+  /// marshrutni saqlagan holda boshqa tarif (`no_drivers_sheet.dart`).
+  Future<void> _onNoDriversFound(OrderProvider orderProvider) async {
+    if (!mounted) return;
+    final cancelled = orderProvider.activeOrder;
+    final choice = await showNoDriversSheet(
+      context,
+      canRetry: orderProvider.canRetryLastOrder,
+    );
+    if (!mounted) return;
+    switch (choice) {
+      case NoDriversChoice.retry:
+        final ok = await orderProvider.retryLastOrder();
+        if (!ok && mounted) {
+          final message = orderProvider.error;
+          orderProvider.clearError();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message ?? context.l10n.paxGenericError),
+              backgroundColor: kErrorDeep,
+            ),
+          );
+        }
+      case NoDriversChoice.otherTariff:
+        if (cancelled != null) orderProvider.restorePendingFromOrder(cancelled);
+        Navigator.of(context).pushNamed('/passenger/tariff');
+      case NoDriversChoice.close:
+        break;
+    }
   }
 
   Future<void> _cancelActiveOrder(OrderProvider orderProvider, String? reason) async {
