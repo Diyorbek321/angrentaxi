@@ -31,7 +31,7 @@ describe('OrdersService - multi-stop rides (waypoints)', () => {
   let service: OrdersService;
   let orderRepository: {
     query: jest.Mock;
-    findOne: jest.Mock;
+    findOne: jest.Mock; count?: jest.Mock;
   };
 
   const tariff = {
@@ -104,6 +104,7 @@ describe('OrdersService - multi-stop rides (waypoints)', () => {
 
   beforeEach(async () => {
     orderRepository = {
+      count: jest.fn().mockResolvedValue(0),
       query: jest.fn(),
       findOne: jest.fn(),
     };

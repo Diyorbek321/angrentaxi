@@ -76,6 +76,20 @@ export class OrdersLifecycleService {
 
     const updatedOrder = await this.queryService.findByIdOrThrow(orderId);
 
+    // ⚠️ Shu nuqtadan safar HAYDOVCHINIKI (yozuv commit bo'lgan). Xabarnomalar
+    // xatosi (FCM, delivery event) "qabul" so'roviga 500 qaytarmasligi kerak:
+    // haydovchi xato ko'rib safarni tashlab ketar, yo'lovchi esa kutib qolardi.
+    try {
+      await this.announceAccepted(order, updatedOrder, driverId);
+    } catch (err) {
+      this.logger.error(`Post-accept notifications for order ${orderId} failed: ${(err as Error).message}`);
+    }
+
+    return updatedOrder;
+  }
+
+  private async announceAccepted(order: Order, updatedOrder: Order, driverId: string): Promise<void> {
+    const orderId = order.id;
     // Notify passenger
     const passenger = await this.usersService.findById(order.passengerId);
     const driver = await this.driversService.findByUserId(driverId);
@@ -94,20 +108,27 @@ export class OrdersLifecycleService {
         },
       });
 
-      // Send push notification
-      await this.notificationsService.notifyOrderAccepted(passenger, driver, updatedOrder);
+      // Send push notification. Alohida himoyalangan: FCM xatosi quyidagi
+      // dispetcher/vendor xabarlarini to'xtatmasin.
+      try {
+        await this.notificationsService.notifyOrderAccepted(passenger, driver, updatedOrder);
+      } catch (err) {
+        this.logger.warn(`Accepted push for order ${orderId} failed: ${(err as Error).message}`);
+      }
     }
 
     this.realtimeGateway.emitToManagers('order:updated', updatedOrder);
-    await this.deliveryEvents?.publish(updatedOrder, 'accepted');
+    try {
+      await this.deliveryEvents?.publish(updatedOrder, 'accepted');
+    } catch (err) {
+      this.logger.warn(`Accepted delivery event for order ${orderId} failed: ${(err as Error).message}`);
+    }
     if (driver) {
       this.realtimeGateway.emitToManagers('driver:status_changed', {
         driverId: driver.id,
         status: 'busy',
       });
     }
-
-    return updatedOrder;
   }
 
   async driverArrived(driverId: string, orderId: string): Promise<Order> {

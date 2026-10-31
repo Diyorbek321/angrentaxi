@@ -48,6 +48,7 @@ describe('MatchingService — hamyon rejimida kuryer filtri', () => {
     const gateway = { emitToUser: jest.fn() };
     const drivers = {
       getNearbyDrivers: jest.fn(async () => [driver('poor', 0.5), driver('rich', 1.5)]),
+      isStillOfferable: jest.fn().mockResolvedValue(true),
     };
     const service = new MatchingService(
       {

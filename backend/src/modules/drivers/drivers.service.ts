@@ -697,6 +697,27 @@ export class DriversService implements OnModuleInit {
   }
 
   /** User ids (orders.driver_id) among [userIds] that currently hold an active order. */
+  /**
+   * Partiyadagi 2-/3-haydovchi taklif PAYTIDA hali ham bo'shmi: onlayn
+   * (geo-to'plamda), mavjudligi yangi va safarda emas. Partiya ~30 s oldin
+   * tuzilgan bo'ladi — shu orada oflayn bo'lgan yoki boshqa safar olgan
+   * haydovchiga taklif yuborish yo'lovchining 15 soniyasini yeydi.
+   *
+   * Tekshiruv xato bersa `true`: dispetcherlik Redis/DB xatosidan to'xtamasin,
+   * qabul qilishdagi tekshiruvlar baribir himoya qiladi.
+   */
+  async isStillOfferable(driverRowId: string, driverUserId: string): Promise<boolean> {
+    try {
+      const inGeoSet = await this.redis.zscore(DRIVERS_ONLINE_KEY, driverRowId);
+      if (inGeoSet === null) return false;
+      if (!(await this.filterPresent([driverRowId])).has(driverRowId)) return false;
+      return !(await this.findBusyUserIds([driverUserId])).has(driverUserId);
+    } catch (err) {
+      this.logger.warn(`Offer re-check failed for ${driverUserId}: ${(err as Error).message}`);
+      return true;
+    }
+  }
+
   private async findBusyUserIds(userIds: string[]): Promise<Set<string>> {
     if (userIds.length === 0) return new Set();
     const rows: Array<{ driver_id: string }> = await this.driverRepository.query(

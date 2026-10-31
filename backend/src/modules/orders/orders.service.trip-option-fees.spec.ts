@@ -27,7 +27,7 @@ import { SettingsService } from '../settings/settings.service';
  */
 describe('OrdersService — safar opsiyalari haqi', () => {
   let service: OrdersService;
-  let orderRepository: { query: jest.Mock; findOne: jest.Mock; createQueryBuilder: jest.Mock };
+  let orderRepository: { query: jest.Mock; findOne: jest.Mock; count?: jest.Mock; createQueryBuilder: jest.Mock };
   let routeDistanceMeters: jest.Mock;
   let calculatePriceBreakdown: jest.Mock;
   let getTripOptionFees: jest.Mock;
@@ -37,6 +37,7 @@ describe('OrdersService — safar opsiyalari haqi', () => {
 
   beforeEach(async () => {
     orderRepository = {
+      count: jest.fn().mockResolvedValue(0),
       query: jest.fn().mockResolvedValue([{ id: 'order-1' }]),
       findOne: jest.fn(),
       createQueryBuilder: jest.fn(),

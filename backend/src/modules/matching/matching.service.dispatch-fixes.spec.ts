@@ -20,7 +20,7 @@ describe('MatchingService — dispetcherlik tuzatishlari', () => {
 
   let service: MatchingService;
   let orderRepository: { findOne: jest.Mock; update: jest.Mock; query: jest.Mock; find: jest.Mock };
-  let driversService: { getNearbyDrivers: jest.Mock };
+  let driversService: { getNearbyDrivers: jest.Mock; isStillOfferable: jest.Mock };
   let realtimeGateway: { emitToUser: jest.Mock };
   let notificationsService: { notifyNewOrderOffer: jest.Mock; notifyOrderCancelled: jest.Mock };
   let usersService: { findById: jest.Mock };
@@ -86,7 +86,10 @@ describe('MatchingService — dispetcherlik tuzatishlari', () => {
         .mockResolvedValue([coordsRow]),
       find: jest.fn().mockResolvedValue([]),
     };
-    driversService = { getNearbyDrivers: jest.fn().mockResolvedValue([]) };
+    driversService = {
+      getNearbyDrivers: jest.fn().mockResolvedValue([]),
+      isStillOfferable: jest.fn().mockResolvedValue(true),
+    };
     realtimeGateway = { emitToUser: jest.fn() };
     notificationsService = {
       notifyNewOrderOffer: jest.fn().mockResolvedValue(undefined),

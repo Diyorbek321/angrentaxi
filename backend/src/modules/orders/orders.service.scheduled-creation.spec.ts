@@ -36,7 +36,7 @@ const DAY = 24 * 60 * MINUTE;
 describe('OrdersService.create — rejalashtirilgan safar', () => {
   let service: OrdersService;
   let queryService: OrdersQueryService;
-  let orderRepository: { query: jest.Mock; findOne: jest.Mock; createQueryBuilder: jest.Mock };
+  let orderRepository: { query: jest.Mock; findOne: jest.Mock; count?: jest.Mock; createQueryBuilder: jest.Mock };
   let realtimeGateway: { emitToUser: jest.Mock; emitToManagers: jest.Mock };
   let surgeService: { snapshotFor: jest.Mock };
 
@@ -56,6 +56,7 @@ describe('OrdersService.create — rejalashtirilgan safar', () => {
 
   beforeEach(async () => {
     orderRepository = {
+      count: jest.fn().mockResolvedValue(0),
       query: jest.fn().mockResolvedValue([{ id: 'order-1' }]),
       findOne: jest.fn(),
       createQueryBuilder: jest.fn(),
@@ -325,6 +326,7 @@ describe('CreateOrderDto.scheduledAt', () => {
 describe('OrdersService.create — kelishilgan narx (kuryer safari)', () => {
   it('yetkazish haqi AYNAN narx bo‘ladi, tarif qo‘llanmaydi, narx qat‘iy', async () => {
     const orderRepository = {
+      count: jest.fn().mockResolvedValue(0),
       query: jest.fn().mockResolvedValue([{ id: 'ride-1' }]),
       findOne: jest.fn(),
       createQueryBuilder: jest.fn(),

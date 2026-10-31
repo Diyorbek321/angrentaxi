@@ -86,6 +86,15 @@ export const ERROR_CATALOGUE: readonly ErrorCatalogueEntry[] = [
     ru: 'Статус заказа изменился — обновите страницу',
   },
   { source: 'Driver already has an active order', uz: 'Sizda allaqachon faol buyurtma bor', ru: 'У вас уже есть активный заказ' },
+  {
+    source: 'This order is not (or no longer) offered to you',
+    uz: "Bu buyurtma sizga endi taklif qilinmayapti",
+    ru: 'Этот заказ вам больше не предлагается',
+  },
+  {
+    source: 'Sizda faol taksi buyurtmasi bor — avval uni yakunlang yoki bekor qiling',
+    ru: 'У вас уже есть активный заказ такси — сначала завершите или отмените его',
+  },
   { source: 'Order already has a driver', uz: 'Buyurtmani boshqa haydovchi oldi', ru: 'Заказ уже взял другой водитель' },
   { source: 'Cannot accept order with status {0}', uz: "Bu buyurtmani endi qabul qilib bo'lmaydi", ru: 'Этот заказ уже нельзя принять' },
   { source: 'Cannot mark arrived for order with status {0}', uz: "Hozir \"Yetib keldim\" deb belgilab bo'lmaydi", ru: 'Сейчас нельзя отметить «Я на месте»' },

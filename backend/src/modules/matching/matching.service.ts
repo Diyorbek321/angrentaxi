@@ -29,9 +29,15 @@ interface DriverQueue {
   // Epoch ms — absolute deadline for the whole search, independent of how
   // many individual driver offers have been tried.
   noDriverDeadline: number;
-  // User ids already offered this order (declined or timed out). A re-search
-  // skips them so the same driver isn't re-offered a ride they just refused.
+  // User ids who explicitly DECLINED this order. A re-search skips them for
+  // the rest of the search. (Queues written before 2026-10-31 also hold
+  // timed-out drivers here — harmless, they just aren't re-offered.)
   exhaustedDriverIds: string[];
+  // Taklifga ulgurmagan (vaqti tugagan) haydovchilar → epoch ms. Ular
+  // MISSED_OFFER_COOLDOWN_MS dan keyin yana nomzod: siyrak Angrenda bitta
+  // o'tkazib yuborilgan 15 soniya haydovchini butun 3 daqiqalik qidiruvdan
+  // chiqarib, yo'lovchini bekorga "topilmadi" ga olib kelardi.
+  missedAt?: Record<string, number>;
   // Pickup point and tariff tier, cached so a re-search doesn't have to
   // re-read the order row on every sweep tick.
   pickupLat: number;
@@ -81,6 +87,14 @@ export const SEARCH_RADIUS_STEPS_KM = [2, 3, 5] as const;
  * tarmoq kechikishi tufayli rad etilmasin.
  */
 export const OFFER_ACCEPT_GRACE_SECONDS = 5;
+/**
+ * Taklifga ulgurmagan haydovchi shuncha vaqtdan keyin shu buyurtmaga yana
+ * nomzod bo'ladi (aniq "rad etish" esa butun qidiruv davomida amal qiladi).
+ * Grace (5 s) dan ancha uzun — kech "qabul" oynasi bilan to'qnashmaydi.
+ */
+export const MISSED_OFFER_COOLDOWN_MS = 30_000;
+/** Navbat yozuvi qidiruv muddatidan shuncha uzoqroq yashaydi. */
+const QUEUE_TTL_MARGIN_SECONDS = 120;
 export { NO_DRIVERS_CANCEL_REASON };
 
 const BATCH_SIZE = 3;
@@ -205,6 +219,19 @@ export class MatchingService {
       .map((entry) => entry.driver);
   }
 
+  /**
+   * Qidiruvning umumiy muddati. Rejalashtirilgan safar qidiruvi belgilangan
+   * vaqtdan ~10 daqiqa OLDIN boshlanadi (SCHEDULED_DISPATCH_LEAD_MINUTES) —
+   * oddiy 3 daqiqa bilan u safar vaqtidan 7 daqiqa oldin "haydovchi topilmadi"
+   * deb bekor bo'lardi. Shuning uchun muddat belgilangan vaqtdan hisoblanadi.
+   */
+  static searchDeadlineFor(order: Pick<Order, 'scheduledAt'>, now: number): number {
+    const fromNow = now + SEARCH_DEADLINE_MS;
+    const scheduledMs = order.scheduledAt ? new Date(order.scheduledAt).getTime() : NaN;
+    if (Number.isNaN(scheduledMs)) return fromNow;
+    return Math.max(fromNow, scheduledMs + SEARCH_DEADLINE_MS);
+  }
+
   async startSearch(orderId: string): Promise<void> {
     const order = await this.orderRepository.findOne({ where: { id: orderId } });
 
@@ -268,7 +295,7 @@ export class MatchingService {
       currentIndex: 0,
       passengerId: order.passengerId,
       offerExpiresAt: 0,
-      noDriverDeadline: Date.now() + SEARCH_DEADLINE_MS,
+      noDriverDeadline: MatchingService.searchDeadlineFor(order, Date.now()),
       exhaustedDriverIds: [],
       pickupLat: lat,
       pickupLng: lng,
@@ -365,33 +392,57 @@ export class MatchingService {
 
   async offerTimeout(driverId: string, orderId: string): Promise<void> {
     this.logger.log(`Offer to driver ${driverId} for order ${orderId} timed out`);
+    // ⚠️ Haydovchi 15-soniya chegarasida qabul qilgan (yoki qabuldan keyingi
+    // navbat tozalash yiqilgan) bo'lishi mumkin — u holda buyurtma endi
+    // SEARCHING emas. "Muddati tugadi" xabari o'z safarini endi olgan
+    // haydovchi ekranidan uni olib tashlardi; navbat esa shunchaki yopiladi.
+    const order = await this.orderRepository.findOne({ where: { id: orderId } });
+    if (order && order.status !== OrderStatus.SEARCHING) {
+      await this.deleteQueue(orderId);
+      return;
+    }
+
     // Band belgisi ATAYLAB qoldiriladi (OFFER_ACCEPT_GRACE_SECONDS): u o'zi
     // tugaydi, shu orada kech kelgan "qabul" hali o'tadi.
-    await this.advanceQueue(driverId, orderId, false);
+    const advanced = await this.advanceQueue(driverId, orderId, false);
+    if (advanced) {
+      // Ilova kartani o'z taymeri bilan yopadi, lekin taymer serverniki emas
+      // (kech ochilgan ekran, to'xtab qolgan taymer) — server muddati tugaganini
+      // aniq aytadi, haydovchi o'lik kartada qolmaydi.
+      this.realtimeGateway.emitToUser(driverId, 'order:offer_expired', { orderId });
+    }
   }
 
-  /** Moves the queue past [driverId]'s offer. Caller holds the order lock. */
-  private async advanceQueue(driverId: string, orderId: string, releaseHold: boolean): Promise<void> {
+  /**
+   * Moves the queue past [driverId]'s offer. Caller holds the order lock.
+   * [declined]: an explicit refusal (hold released now, driver excluded for
+   * the whole search); otherwise a timeout (hold kept for the late-accept
+   * grace, driver re-eligible after MISSED_OFFER_COOLDOWN_MS).
+   * Returns false when the call was stale and nothing moved.
+   */
+  private async advanceQueue(driverId: string, orderId: string, declined: boolean): Promise<boolean> {
     const queue = await this.getQueue(orderId);
-    if (!queue) return;
+    if (!queue) return false;
 
     const currentDriver = queue.drivers[queue.currentIndex];
     // Ignore a stale decline/timeout for a driver who isn't the current
     // offer — the socket-driven decline and the sweep's timeout can race
     // for the same driver; only the first should advance the queue.
-    if (!currentDriver || currentDriver.userId !== driverId) return;
+    if (!currentDriver || currentDriver.userId !== driverId) return false;
 
-    this.logger.log(`Driver ${driverId} passed on order ${orderId}`);
-    if (releaseHold) {
+    this.logger.log(`Driver ${driverId} ${declined ? 'declined' : 'missed'} order ${orderId}`);
+    if (declined) {
       await this.releaseDriverHold(driverId, orderId);
     }
 
     const advanced: DriverQueue = {
       ...queue,
       currentIndex: queue.currentIndex + 1,
-      exhaustedDriverIds: queue.exhaustedDriverIds.includes(driverId)
-        ? queue.exhaustedDriverIds
-        : [...queue.exhaustedDriverIds, driverId],
+      exhaustedDriverIds:
+        !declined || queue.exhaustedDriverIds.includes(driverId)
+          ? queue.exhaustedDriverIds
+          : [...queue.exhaustedDriverIds, driverId],
+      missedAt: declined ? queue.missedAt : { ...(queue.missedAt ?? {}), [driverId]: Date.now() },
     };
 
     if (advanced.currentIndex >= advanced.drivers.length) {
@@ -399,10 +450,11 @@ export class MatchingService {
       // exhausted list and let the sweep look for drivers who have since come
       // online (widening the radius), right up to the overall deadline.
       await this.saveQueue({ ...advanced, offerExpiresAt: 0 });
-      return;
+      return true;
     }
 
-    await this.offerToDriver(orderId, advanced.drivers[advanced.currentIndex], advanced);
+    await this.offerToDriver(orderId, advanced.drivers[advanced.currentIndex], advanced, true);
+    return true;
   }
 
   /// Runs every 2s, checking Redis-persisted queues for expired per-driver
@@ -573,9 +625,12 @@ export class MatchingService {
       },
     );
 
-    const notRefused = candidates.filter(
-      (driver) => !queue.exhaustedDriverIds.includes(driver.userId),
-    );
+    const now = Date.now();
+    const notRefused = candidates.filter((driver) => {
+      if (queue.exhaustedDriverIds.includes(driver.userId)) return false;
+      const missed = queue.missedAt?.[driver.userId];
+      return missed === undefined || now - missed >= MISSED_OFFER_COOLDOWN_MS;
+    });
 
     // Boshqa buyurtma taklifini ko'rib turgan haydovchi bu radiusda "bor"
     // hisoblanmaydi — aks holda u bo'shaguncha radius kengaymasdi. Ular
@@ -595,6 +650,9 @@ export class MatchingService {
     orderId: string,
     driver: NearbyDriver,
     queue: DriverQueue,
+    // Partiya oldinroq tuzilgan (2-/3-haydovchi) — haydovchi hali ham bo'shligini
+    // qayta tekshirish. Yangi qidiruvdan kelgan nomzod hozirgina tekshirilgan.
+    recheck = false,
   ): Promise<void> {
     const order = await this.orderRepository.findOne({ where: { id: orderId } });
 
@@ -603,6 +661,14 @@ export class MatchingService {
     // Check order is still in SEARCHING state
     if (order.status !== OrderStatus.SEARCHING) {
       await this.deleteQueue(orderId);
+      return;
+    }
+
+    // Exhausted ga QO'SHILMAYDI: haydovchi bo'shashi bilan keyingi qidiruvda
+    // yana nomzod bo'ladi.
+    if (recheck && !(await this.driversService.isStillOfferable(driver.driverId, driver.userId))) {
+      this.logger.log(`Driver ${driver.userId} no longer free; skipping for order ${orderId}`);
+      await this.offerToNextFreeDriver(orderId, queue);
       return;
     }
 
@@ -673,8 +739,15 @@ export class MatchingService {
     }
 
     // The driver still looking at the offer must not be left with a dead one.
-    await this.withdrawOffer(queue, NO_DRIVERS_CANCEL_REASON);
-    await this.deleteQueue(orderId);
+    // ⚠️ Buyurtma allaqachon CANCELLED: bu yerdagi Redis xatosi yo'lovchiga
+    // xabarni to'xtatmasligi kerak — keyingi tik `affected=0` ko'rib jim
+    // qaytadi va `no_drivers_found` hech qachon yuborilmasdi.
+    try {
+      await this.withdrawOffer(queue, NO_DRIVERS_CANCEL_REASON);
+      await this.deleteQueue(orderId);
+    } catch (err) {
+      this.logger.error(`No-drivers cleanup for order ${orderId} failed: ${(err as Error).message}`);
+    }
 
     // Notify passenger
     this.realtimeGateway.emitToUser(passengerId, 'no_drivers_found', {
@@ -738,7 +811,7 @@ export class MatchingService {
   private async offerToNextFreeDriver(orderId: string, queue: DriverQueue): Promise<void> {
     const nextIndex = queue.currentIndex + 1;
     if (nextIndex < queue.drivers.length) {
-      await this.offerToDriver(orderId, queue.drivers[nextIndex], { ...queue, currentIndex: nextIndex });
+      await this.offerToDriver(orderId, queue.drivers[nextIndex], { ...queue, currentIndex: nextIndex }, true);
       return;
     }
     // Nobody in this batch is free: no outstanding offer, so the next sweep
@@ -905,11 +978,19 @@ export class MatchingService {
   }
 
   private async saveQueue(queue: DriverQueue): Promise<void> {
+    // Rejalashtirilgan safar qidiruvi 13 daqiqagacha cho'ziladi va oxirgi
+    // radiusda bo'sh qidiruv navbatni qayta yozmaydi — qat'iy 300 s TTL
+    // navbatni muddatidan oldin o'chirib, buyurtmani yetim qoldirardi.
+    const untilDeadline = Math.ceil((queue.noDriverDeadline - Date.now()) / 1000);
+    const ttlSeconds = Math.max(
+      MatchingService.QUEUE_TTL_SECONDS,
+      untilDeadline + QUEUE_TTL_MARGIN_SECONDS,
+    );
     await this.redis.set(
       this.queueKey(queue.orderId),
       JSON.stringify(queue),
       'EX',
-      MatchingService.QUEUE_TTL_SECONDS,
+      ttlSeconds,
     );
     await this.redis.sadd(MatchingService.ACTIVE_SET_KEY, queue.orderId);
   }

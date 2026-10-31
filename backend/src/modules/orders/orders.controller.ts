@@ -90,7 +90,14 @@ export class OrdersController {
     // Takror so'rov: buyurtma va uning qidiruvi allaqachon bor.
     if (replayed) return order;
 
-    await this.fraudService?.recordPassengerDevice(order.id, parseDeviceId(deviceId));
+    // Antifrod yozuvi xatosi qidiruvni to'xtatmasin: ilgari bu yerda
+    // yiqilish buyurtmani CREATED da qoldirar, yo'lovchi 4 daqiqa (reaper)
+    // hech narsasiz kutardi.
+    try {
+      await this.fraudService?.recordPassengerDevice(order.id, parseDeviceId(deviceId));
+    } catch (err) {
+      this.logger.warn(`Passenger device record for order ${order.id} failed: ${(err as Error).message}`);
+    }
 
     this.startSearchUnlessScheduled(order);
 
@@ -357,8 +364,21 @@ export class OrdersController {
     @Headers('x-device-id') deviceId?: string,
   ): Promise<Order> {
     const order = await this.ordersService.acceptOrder(user.id, id);
-    await this.fraudService?.recordDriverAccept(id, user.id, parseDeviceId(deviceId));
-    await this.matchingService.driverAccepted(user.id, id);
+    // ⚠️ Safar allaqachon haydovchiniki. Antifrod yozuvi yoki navbatni
+    // tozalash xatosi haydovchiga 500 qaytarmasin — u "qabul bo'lmadi" deb
+    // safarni tashlab ketardi. Ikkalasi alohida: biri yiqilsa ikkinchisi
+    // baribir bajariladi (navbat tozalanmasa keyingi haydovchi taklifi
+    // ekranida qolib ketardi).
+    try {
+      await this.fraudService?.recordDriverAccept(id, user.id, parseDeviceId(deviceId));
+    } catch (err) {
+      this.logger.warn(`Accept fraud record for order ${id} failed: ${(err as Error).message}`);
+    }
+    try {
+      await this.matchingService.driverAccepted(user.id, id);
+    } catch (err) {
+      this.logger.error(`Matching cleanup after accept of ${id} failed: ${(err as Error).message}`);
+    }
     return order;
   }
 

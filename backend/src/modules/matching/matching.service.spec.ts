@@ -10,7 +10,7 @@ describe('MatchingService (Redis-backed queue)', () => {
     update: jest.Mock;
     query: jest.Mock;
   };
-  let driversService: { getNearbyDrivers: jest.Mock };
+  let driversService: { getNearbyDrivers: jest.Mock; isStillOfferable: jest.Mock };
   let osrmService: { durationsTo: jest.Mock };
   let realtimeGateway: { emitToUser: jest.Mock };
   let notificationsService: { notifyNewOrderOffer: jest.Mock; notifyOrderCancelled: jest.Mock };
@@ -65,7 +65,10 @@ describe('MatchingService (Redis-backed queue)', () => {
         .mockResolvedValueOnce([{ lat: 40.1, lng: 69.1 }]) // startSearch's pickup coords query
         .mockResolvedValue([coordsRow]), // subsequent offerToDriver coords queries
     };
-    driversService = { getNearbyDrivers: jest.fn().mockResolvedValue([]) };
+    driversService = {
+      getNearbyDrivers: jest.fn().mockResolvedValue([]),
+      isStillOfferable: jest.fn().mockResolvedValue(true),
+    };
     realtimeGateway = { emitToUser: jest.fn() };
     notificationsService = {
       notifyNewOrderOffer: jest.fn().mockResolvedValue(undefined),

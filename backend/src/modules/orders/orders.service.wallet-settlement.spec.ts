@@ -390,6 +390,7 @@ describe('createOrder — outstanding wallet debt', () => {
           provide: getRepositoryToken(Order),
           useValue: {
             query: jest.fn().mockResolvedValue([{ id: 'new-order' }]),
+            count: jest.fn().mockResolvedValue(0),
             findOne: jest.fn().mockResolvedValue({
               id: 'new-order',
               passengerId: 'passenger-1',

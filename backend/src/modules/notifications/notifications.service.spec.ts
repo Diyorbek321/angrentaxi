@@ -149,6 +149,30 @@ describe('NotificationsService', () => {
       );
     });
 
+    it('notifyNewOrderOffer sends the server send time so the phone never compares against its own clock', async () => {
+      const driver = baseUser({ id: 'driver-user-1', fcmToken: 'driver-token' });
+      const now = 1_800_000_000_000;
+      const spy = jest.spyOn(Date, 'now').mockReturnValue(now);
+      try {
+        await service.notifyNewOrderOffer(driver, baseOrder(), now + 15_000);
+      } finally {
+        spy.mockRestore();
+      }
+
+      const data = firebaseService.sendDataPush.mock.calls[0][3] as Record<string, string>;
+      expect(Number(data.expiresAt) - Number(data.sentAt)).toBe(15_000);
+    });
+
+    it('notifyNewOrderOffer without a deadline sends neither expiresAt nor sentAt', async () => {
+      const driver = baseUser({ id: 'driver-user-1', fcmToken: 'driver-token' });
+
+      await service.notifyNewOrderOffer(driver, baseOrder());
+
+      const data = firebaseService.sendDataPush.mock.calls[0][3] as Record<string, string>;
+      expect(data.expiresAt).toBeUndefined();
+      expect(data.sentAt).toBeUndefined();
+    });
+
     it('notifyOrderCancelled persists a log row even when the target user has no fcmToken', async () => {
       const targetUser = baseUser({ fcmToken: null });
 

@@ -303,6 +303,12 @@ export class OrdersDispatchService {
     });
 
     const updatedOrder = await this.queryService.findByIdOrThrow(orderId);
+    // ⚠️ Haydovchi YANGI o'qilgan qatordan. `order` qidiruv paytida o'qilgan
+    // bo'lsa (driverId = null), shu orada haydovchi qabul qilib ulgurgan
+    // bo'lishi mumkin — atomik bekor qilish ACCEPTED ni ham qabul qiladi.
+    // Eski qiymat bilan o'sha haydovchiga "bekor" xabari bormas va u o'lik
+    // safarda qolib ketardi.
+    const assignedDriverId = updatedOrder.driverId ?? order.driverId;
 
     // ⚠️ Qidiruv paytida `order.driverId` hali null — taklifni ko'rib turgan
     // haydovchini faqat matching navbati biladi. Ilgari unga hech narsa
@@ -324,10 +330,10 @@ export class OrdersDispatchService {
       }
     }
 
-    if (order.driverId && order.driverId !== userId) {
-      const driver = await this.usersService.findById(order.driverId);
+    if (assignedDriverId && assignedDriverId !== userId) {
+      const driver = await this.usersService.findById(assignedDriverId);
       if (driver) {
-        this.realtimeGateway.emitToUser(order.driverId, 'order:cancelled', {
+        this.realtimeGateway.emitToUser(assignedDriverId, 'order:cancelled', {
           orderId,
           reason,
           cancelledBy: userRole,
@@ -340,8 +346,8 @@ export class OrdersDispatchService {
     // Food/market: the vendor needs a new courier.
     await this.deliveryEvents?.publish(updatedOrder, 'cancelled');
 
-    if (order.driverId) {
-      const freedDriver = await this.driversService.findByUserId(order.driverId);
+    if (assignedDriverId) {
+      const freedDriver = await this.driversService.findByUserId(assignedDriverId);
       if (freedDriver) {
         this.realtimeGateway.emitToManagers('driver:status_changed', {
           driverId: freedDriver.id,

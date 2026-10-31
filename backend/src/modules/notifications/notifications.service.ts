@@ -232,6 +232,11 @@ export class NotificationsService {
           dropoffAddress: order.dropoffAddress || '',
           estimatedPrice: order.estimatedPrice.toString(),
           ...(expiresAt !== undefined && { expiresAt: String(expiresAt) }),
+          // Server soatidagi yuborish vaqti: ilova qolgan muddatni
+          // `expiresAt - sentAt` dan oladi, TELEFON soatidan emas — soati
+          // 15 s oldinda turgan telefon har taklifni "eskirgan" deb
+          // tashlardi, orqada turgani esa daqiqalab jiringlardi.
+          ...(expiresAt !== undefined && { sentAt: String(Date.now()) }),
         },
         expiresAt,
       );

@@ -1,9 +1,9 @@
 // Order intake: fare quoting, passenger-initiated order creation (raw PostGIS
 // INSERT plus promo validation and the "order created" fan-out), and the
 // manager/admin manual-entry variant that resolves a passenger by phone first.
-import { BadRequestException, Injectable, Logger, Optional } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Order, OrderStatus, PaymentMethod, ServiceType } from '../../database/entities/order.entity';
 import { generateDeliveryPin, parseParcelDetails } from './parcel';
 import { Transaction } from '../../database/entities/transaction.entity';
@@ -295,6 +295,35 @@ export class OrdersCreationService {
   }
 
   /**
+   * Bir vaqtda faqat BITTA jonli taksi buyurtmasi (egasi qarori, 2026-10-31).
+   * Ilgari ikkinchi buyurtma ham qabul qilinardi: ikki haydovchi yo'lga
+   * chiqar, ilova esa ikkala buyurtma hodisalarini bitta ekranga qo'yib,
+   * birining bekor bo'lishi ikkinchisini ham "bekor" qilib ko'rsatardi.
+   *
+   * Ovqat/market/posilka va rejalashtirilgan safar bu cheklovga KIRMAYDI.
+   * Bir xil kalitsiz ikki parallel so'rov orasida tor poyga oynasi qoladi —
+   * ilovadagi Idempotency-Key oddiy qayta bosishni allaqachon yopadi.
+   */
+  private async assertNoActiveTaxiOrder(passengerId: string): Promise<void> {
+    const active = await this.orderRepository.count({
+      where: {
+        passengerId,
+        serviceType: ServiceType.TAXI,
+        status: In([
+          OrderStatus.CREATED,
+          OrderStatus.SEARCHING,
+          OrderStatus.ACCEPTED,
+          OrderStatus.ARRIVED,
+          OrderStatus.IN_PROGRESS,
+        ]),
+      },
+    });
+    if (active > 0) {
+      throw new ConflictException('Sizda faol taksi buyurtmasi bor — avval uni yakunlang yoki bekor qiling');
+    }
+  }
+
+  /**
    * @param options.agreedFare Internal callers only (never from a request
    *   body): the fare was already agreed elsewhere — the delivery fee a
    *   food/market customer paid at checkout — so the tariff is not consulted
@@ -352,6 +381,10 @@ export class OrdersCreationService {
       ? { lat: dto.pickupLat, lng: dto.pickupLng }
       : { lat: dto.dropoffLat!, lng: dto.dropoffLng! };
     const deliveryPin = isParcel ? generateDeliveryPin() : null;
+
+    if (!scheduledAt && (dto.serviceType ?? ServiceType.TAXI) === ServiceType.TAXI) {
+      await this.assertNoActiveTaxiOrder(passengerId);
+    }
 
     const outstandingDebt = await this.getOutstandingWalletDebt(passengerId);
 
