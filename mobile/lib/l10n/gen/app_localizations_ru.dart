@@ -843,6 +843,17 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get drvReadyAutostart => 'Автозапуск';
+
+  @override
+  String get drvReadyAutostartUnverifiable =>
+      'Телефон не даёт проверить эту настройку — убедитесь, что на открывшейся странице Angren Taxi Driver включён.';
+
+  @override
+  String get drvReadyAutostartWhy =>
+      'Этот телефон не будит закрытые приложения — если приложение закрыто, заказ не придёт. Включите автозапуск для Angren Taxi Driver в настройках.';
+
+  @override
   String get drvReadyBattery => 'Без ограничений батареи';
 
   @override
@@ -854,6 +865,13 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get drvReadyEnable => 'Включить';
+
+  @override
+  String get drvReadyFullScreen => 'Показ на заблокированном экране';
+
+  @override
+  String get drvReadyFullScreenWhy =>
+      'На заблокированном телефоне заказ включит экран, как входящий звонок. Включите «Полноэкранные уведомления» в настройках.';
 
   @override
   String get drvReadyGoOnline => 'Выйти на линию';
@@ -884,6 +902,13 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get drvReadyNotificationsWhy =>
       'Чтобы показывать, что приложение работает в фоне, и сообщать о новых заказах.';
+
+  @override
+  String get drvReadyOfferAlerts => 'Звук заказа';
+
+  @override
+  String get drvReadyOfferAlertsWhy =>
+      'Уведомления «Новые заказы» отключены или без звука — когда приложение в фоне, вы не услышите заказ. Включите звук и всплывающие уведомления в настройках.';
 
   @override
   String get drvReadyOpenSettings => 'Настройки';

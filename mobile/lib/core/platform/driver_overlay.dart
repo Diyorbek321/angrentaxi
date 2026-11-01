@@ -36,6 +36,39 @@ class DriverOverlay {
   /// Xiaomi/Redmi/POCO — MIUI'ning qo'shimcha ruxsati haqida ko'rsatma uchun.
   Future<bool> isXiaomiFamily() => _bool('isXiaomiFamily');
 
+  /// Xato bo'lsa `true` — bu tekshiruvlar onlayn bo'lishni to'sishi mumkin,
+  /// va kanal yo'qligi (eski native, iOS) haydovchini to'xtatib qo'ymasin.
+  Future<bool> _boolOpen(String method) async {
+    try {
+      return await _channel.invokeMethod<bool>(method) ?? true;
+    } catch (e) {
+      debugPrint('[Overlay] $method: $e');
+      return true;
+    }
+  }
+
+  /// Zakaz bildirishnomasi kanali ovoz bilan chiqadimi (jim/o'chiq emas).
+  Future<bool> offerAlertsEnabled() => _boolOpen('offerAlertsEnabled');
+  Future<void> openOfferAlertSettings() => _call('openOfferAlertSettings');
+
+  /// Android 14+: taklif qulflangan ekran ustida ochila oladimi.
+  Future<bool> canUseFullScreenIntent() => _boolOpen('canUseFullScreenIntent');
+  Future<void> openFullScreenIntentSettings() => _call('openFullScreenIntentSettings');
+
+  /// `notApplicable` / `allowed` / `denied` / `unknown` (`AutostartStatus`).
+  Future<String?> autostartStatus() async {
+    try {
+      return await _channel.invokeMethod<String>('autostartStatus');
+    } catch (e) {
+      debugPrint('[Overlay] autostartStatus: $e');
+      return null;
+    }
+  }
+
+  /// Ishlab chiqaruvchining "Avtozapusk" sahifasi; topilmasa — ilova
+  /// sozlamalari.
+  Future<void> openAutostartSettings() => _call('openAutostartSettings');
+
   Future<bool> showBubble() => _bool('showBubble');
   Future<void> hideBubble() => _call('hideBubble');
 

@@ -5,7 +5,7 @@ import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:flutter/material.dart';
 
-/// Tavsiyalar (ustida ko'rsatish, batareya) sessiyada bir marta ko'rsatiladi: ular to'smaydi, har
+/// Tavsiyalar (full-screen, ustida ko'rsatish, autostart, batareya) sessiyada bir marta ko'rsatiladi: ular to'smaydi, har
 /// "Onlayn" bosilganda chiqsa — bezovta qiladi va e'tiborsiz qoladi.
 bool _recommendationsNudged = false;
 
@@ -79,6 +79,15 @@ class _DriverReadinessSheetState extends State<DriverReadinessSheet>
     await _refresh();
   }
 
+  /// Dastur tekshira olmaydigan narsalar uchun ko'rsatma — band "bajarildi"
+  /// bo'lsa ham ko'rinadi.
+  String? _extraHint(BuildContext context, ReadinessItem item) => switch (item) {
+        ReadinessItem.overlay when _readiness.xiaomiFamily => context.l10n.drvReadyOverlayXiaomi,
+        ReadinessItem.autostart when _readiness.autostartUnverifiable =>
+          context.l10n.drvReadyAutostartUnverifiable,
+        _ => null,
+      };
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -104,15 +113,14 @@ class _DriverReadinessSheetState extends State<DriverReadinessSheet>
                 child: Column(
                   children: [
                     for (final item in ReadinessItem.values)
-                      _ReadinessRow(
-                        item: item,
-                        ok: _readiness.isOk(item),
-                        blocking: DriverReadiness.blocking.contains(item),
-                        onFix: _readiness.canFix(item) ? () => _fix(item) : null,
-                        extraHint: item == ReadinessItem.overlay && _readiness.xiaomiFamily
-                            ? context.l10n.drvReadyOverlayXiaomi
-                            : null,
-                      ),
+                      if (_readiness.isVisible(item))
+                        _ReadinessRow(
+                          item: item,
+                          ok: _readiness.isOk(item),
+                          blocking: DriverReadiness.blocking.contains(item),
+                          onFix: _readiness.canFix(item) ? () => _fix(item) : null,
+                          extraHint: _extraHint(context, item),
+                        ),
                   ],
                 ),
               ),
@@ -157,7 +165,13 @@ class _ReadinessRow extends StatelessWidget {
       ReadinessItem.preciseLocation => (l10n.drvReadyPrecise, l10n.drvReadyPreciseWhy, l10n.drvReadyGrant),
       ReadinessItem.notifications =>
         (l10n.drvReadyNotifications, l10n.drvReadyNotificationsWhy, l10n.drvReadyGrant),
+      ReadinessItem.offerAlerts =>
+        (l10n.drvReadyOfferAlerts, l10n.drvReadyOfferAlertsWhy, l10n.drvReadyOpenSettings),
+      ReadinessItem.fullScreen =>
+        (l10n.drvReadyFullScreen, l10n.drvReadyFullScreenWhy, l10n.drvReadyOpenSettings),
       ReadinessItem.overlay => (l10n.drvReadyOverlay, l10n.drvReadyOverlayWhy, l10n.drvReadyOpenSettings),
+      ReadinessItem.autostart =>
+        (l10n.drvReadyAutostart, l10n.drvReadyAutostartWhy, l10n.drvReadyOpenSettings),
       ReadinessItem.battery => (l10n.drvReadyBattery, l10n.drvReadyBatteryWhy, l10n.drvReadyOpenSettings),
     };
 

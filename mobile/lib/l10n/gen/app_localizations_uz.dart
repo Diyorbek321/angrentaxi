@@ -843,6 +843,17 @@ class AppLocalizationsUz extends AppLocalizations {
   }
 
   @override
+  String get drvReadyAutostart => 'Avtozapusk';
+
+  @override
+  String get drvReadyAutostartUnverifiable =>
+      'Telefon bu sozlamani tekshirishga ruxsat bermaydi — ochilgan sahifada Angren Taxi Driver yoqilganiga ishonch hosil qiling.';
+
+  @override
+  String get drvReadyAutostartWhy =>
+      'Bu telefon yopilgan ilovani uyg\'otmaydi — ilova yopiq bo\'lsa zakaz kelmaydi. Sozlamalarda Angren Taxi Driver uchun avtozapuskni yoqing.';
+
+  @override
   String get drvReadyBattery => 'Batareya cheklovisiz';
 
   @override
@@ -854,6 +865,13 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get drvReadyEnable => 'Yoqish';
+
+  @override
+  String get drvReadyFullScreen => 'Qulflangan ekranda ochilish';
+
+  @override
+  String get drvReadyFullScreenWhy =>
+      'Telefon qulflangan bo\'lsa zakaz qo\'ng\'iroq kabi ekranni yoqib ochiladi. Sozlamalarda «To\'liq ekranli bildirishnomalar» ni yoqing.';
 
   @override
   String get drvReadyGoOnline => 'Onlayn bo\'lish';
@@ -883,6 +901,13 @@ class AppLocalizationsUz extends AppLocalizations {
   @override
   String get drvReadyNotificationsWhy =>
       'Ilova fonda ishlayotganini ko\'rsatish va yangi buyurtma haqida xabar berish uchun.';
+
+  @override
+  String get drvReadyOfferAlerts => 'Buyurtma ovozi';
+
+  @override
+  String get drvReadyOfferAlertsWhy =>
+      '«Yangi buyurtmalar» bildirishnomasi jim qilingan — ilova fonda bo\'lsa zakazni eshitmaysiz. Sozlamalarda ovoz va qalqib chiqishni yoqing.';
 
   @override
   String get drvReadyOpenSettings => 'Sozlamalar';

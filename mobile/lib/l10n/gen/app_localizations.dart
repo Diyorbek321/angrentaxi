@@ -1592,6 +1592,24 @@ abstract class AppLocalizations {
   /// **'{count} ta baholash'**
   String drvRatingsCount(int count);
 
+  /// No description provided for @drvReadyAutostart.
+  ///
+  /// In uz, this message translates to:
+  /// **'Avtozapusk'**
+  String get drvReadyAutostart;
+
+  /// No description provided for @drvReadyAutostartUnverifiable.
+  ///
+  /// In uz, this message translates to:
+  /// **'Telefon bu sozlamani tekshirishga ruxsat bermaydi — ochilgan sahifada Angren Taxi Driver yoqilganiga ishonch hosil qiling.'**
+  String get drvReadyAutostartUnverifiable;
+
+  /// No description provided for @drvReadyAutostartWhy.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bu telefon yopilgan ilovani uyg\'otmaydi — ilova yopiq bo\'lsa zakaz kelmaydi. Sozlamalarda Angren Taxi Driver uchun avtozapuskni yoqing.'**
+  String get drvReadyAutostartWhy;
+
   /// No description provided for @drvReadyBattery.
   ///
   /// In uz, this message translates to:
@@ -1615,6 +1633,18 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Yoqish'**
   String get drvReadyEnable;
+
+  /// No description provided for @drvReadyFullScreen.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qulflangan ekranda ochilish'**
+  String get drvReadyFullScreen;
+
+  /// No description provided for @drvReadyFullScreenWhy.
+  ///
+  /// In uz, this message translates to:
+  /// **'Telefon qulflangan bo\'lsa zakaz qo\'ng\'iroq kabi ekranni yoqib ochiladi. Sozlamalarda «To\'liq ekranli bildirishnomalar» ni yoqing.'**
+  String get drvReadyFullScreenWhy;
 
   /// No description provided for @drvReadyGoOnline.
   ///
@@ -1669,6 +1699,18 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Ilova fonda ishlayotganini ko\'rsatish va yangi buyurtma haqida xabar berish uchun.'**
   String get drvReadyNotificationsWhy;
+
+  /// No description provided for @drvReadyOfferAlerts.
+  ///
+  /// In uz, this message translates to:
+  /// **'Buyurtma ovozi'**
+  String get drvReadyOfferAlerts;
+
+  /// No description provided for @drvReadyOfferAlertsWhy.
+  ///
+  /// In uz, this message translates to:
+  /// **'«Yangi buyurtmalar» bildirishnomasi jim qilingan — ilova fonda bo\'lsa zakazni eshitmaysiz. Sozlamalarda ovoz va qalqib chiqishni yoqing.'**
+  String get drvReadyOfferAlertsWhy;
 
   /// No description provided for @drvReadyOpenSettings.
   ///

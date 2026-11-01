@@ -78,6 +78,73 @@ object DriverOverlay {
         context.startActivity(intent)
     }
 
+    /**
+     * Zakaz kanali ovoz bilan chiqadimi. Kanal hali yaratilmagan bo'lsa —
+     * ha: birinchi taklifda IMPORTANCE_HIGH bilan yaratiladi, undan oldin uni
+     * hech kim jim qila olmaydi. Haydovchi kanalni "jim" (LOW) yoki o'chiq
+     * (NONE) qilgan bo'lsa — fonda kelgan taklif eshitilmaydi.
+     */
+    fun offerAlertsEnabled(context: Context): Boolean {
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (!nm.areNotificationsEnabled()) return false
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return true
+        val channel = nm.getNotificationChannel(CHANNEL_ID) ?: return true
+        return channel.importance >= NotificationManager.IMPORTANCE_DEFAULT
+    }
+
+    /** Aynan zakaz kanali sahifasi (bo'lmasa — ilova bildirishnomalari). */
+    fun openOfferAlertSettings(context: Context) {
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (nm.getNotificationChannel(CHANNEL_ID) != null) {
+                Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                    .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                    .putExtra(Settings.EXTRA_CHANNEL_ID, CHANNEL_ID)
+            } else {
+                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                    .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+            }
+        } else {
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))
+        }
+        startSettings(context, intent)
+    }
+
+    /**
+     * Android 14+: full-screen intent ruxsati. Play'dan o'rnatilgan, qo'ng'iroq
+     * yoki budilnik bo'lmagan ilovaga u AVTOMATIK BERILMAYDI — berilmasa
+     * qulflangan telefonda taklif faqat kichik heads-up bo'lib chiqadi.
+     */
+    fun canUseFullScreenIntent(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < 34) return true
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        return nm.canUseFullScreenIntent()
+    }
+
+    fun openFullScreenIntentSettings(context: Context) {
+        val intent = if (Build.VERSION.SDK_INT >= 34) {
+            Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:${context.packageName}"))
+        } else {
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))
+        }
+        startSettings(context, intent)
+    }
+
+    /** Sozlamalar sahifasi; ba'zi OEM'larda yo'q bo'lsa — ilova ma'lumotlari. */
+    private fun startSettings(context: Context, intent: Intent) {
+        try {
+            context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (_: Exception) {
+            try {
+                context.startActivity(
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            } catch (_: Exception) {
+            }
+        }
+    }
+
     /** MIUI'da qo'shimcha "fonda qalqib chiquvchi oynalar" ruxsati bor. */
     fun isXiaomiFamily(): Boolean {
         val m = Build.MANUFACTURER.lowercase()

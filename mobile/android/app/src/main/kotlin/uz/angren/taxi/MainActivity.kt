@@ -117,6 +117,18 @@ class MainActivity : FlutterActivity() {
                         DriverOverlay.openOverlaySettings(ctx); result.success(null)
                     }
                     "isXiaomiFamily" -> result.success(DriverOverlay.isXiaomiFamily())
+                    "offerAlertsEnabled" -> result.success(DriverOverlay.offerAlertsEnabled(ctx))
+                    "openOfferAlertSettings" -> {
+                        DriverOverlay.openOfferAlertSettings(ctx); result.success(null)
+                    }
+                    "canUseFullScreenIntent" -> result.success(DriverOverlay.canUseFullScreenIntent(ctx))
+                    "openFullScreenIntentSettings" -> {
+                        DriverOverlay.openFullScreenIntentSettings(ctx); result.success(null)
+                    }
+                    "autostartStatus" -> result.success(Autostart.status(ctx))
+                    "openAutostartSettings" -> {
+                        Autostart.openSettings(ctx); result.success(null)
+                    }
                     "showBubble" -> result.success(DriverOverlay.showBubble(ctx))
                     "hideBubble" -> {
                         DriverOverlay.hideBubble(ctx); result.success(null)
