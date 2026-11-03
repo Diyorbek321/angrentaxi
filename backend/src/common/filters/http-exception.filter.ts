@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { localizeMessage, resolveLanguage } from '../i18n/error-messages';
+import { localizeValidationMessage } from '../i18n/validation-messages';
 import {
   PAYME_ERRORS,
   paymeError,
@@ -113,7 +114,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
       ) {
         const resp = exceptionResponse as Record<string, unknown>;
         if (Array.isArray(resp['message'])) {
-          message = (resp['message'] as string[]).join('; ');
+          // ValidationPipe: har bir xabar alohida tarjima qilinadi — birlashgan
+          // satr lug'atda hech qachon topilmaydi.
+          const language = resolveLanguage(request.headers?.['accept-language']);
+          message = (resp['message'] as unknown[])
+            .map((item) => localizeMessage(localizeValidationMessage(String(item), language), language))
+            .join('; ');
         } else if (typeof resp['message'] === 'string') {
           message = resp['message'];
         }

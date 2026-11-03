@@ -42,6 +42,11 @@ export const ERROR_CATALOGUE: readonly ErrorCatalogueEntry[] = [
     ru: 'Сервис временно приостановлен из-за технических работ. Пожалуйста, попробуйте позже.',
   },
 
+  // ─── DTO'dagi o'z xabarlarimiz (class-validator `message`) ───────────
+  { source: 'OTP code must be exactly 6 digits', uz: "SMS kod 6 ta raqamdan iborat bo'lishi kerak", ru: 'Код из SMS должен состоять из 6 цифр' },
+  { source: 'Invalid phone number', uz: "Telefon raqami noto'g'ri", ru: 'Неверный номер телефона' },
+  { source: '{0} must be HH:mm', uz: "«{0}» SS:dd formatida bo'lishi kerak", ru: '«{0}» — в формате ЧЧ:мм' },
+
   // ─── Buyurtma berish ─────────────────────────────────────────────────
   { source: "Bu hududda hozircha xizmat ko'rsatilmaymiz", ru: 'В этом районе мы пока не работаем' },
   { source: "Rejalashtirilgan vaqt formati noto'g'ri", ru: 'Неверный формат запланированного времени' },

@@ -93,6 +93,15 @@ describe('HttpExceptionFilter', () => {
     expect(lastBody()).toMatchObject({ message: 'В этом районе мы пока не работаем' });
   });
 
+  it("ValidationPipe xabarlari har biri alohida tarjima qilinadi", () => {
+    headers['accept-language'] = 'ru';
+    filter.catch(
+      new BadRequestException({ message: ['phone must be a string', 'Invalid phone number'], error: 'Bad Request' }),
+      host,
+    );
+    expect(lastBody()).toMatchObject({ message: '«phone» должно быть строкой; Неверный номер телефона' });
+  });
+
   it("til ko'rsatilmasa — o'zbekcha, inglizcha xabar ham o'zbekchaga", () => {
     filter.catch(new BadRequestException('Selected tariff is not available'), host);
     expect(lastBody()).toMatchObject({ message: 'Tanlangan tarif hozir mavjud emas' });
