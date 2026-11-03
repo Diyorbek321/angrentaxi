@@ -22,6 +22,7 @@ import { users } from './uz/users';
 import { intercity } from './uz/intercity';
 import { tariffs } from './uz/tariffs';
 import { bonuses } from './uz/bonuses';
+import { legalDocs } from './uz/legalDocs';
 
 /**
  * Admin panel lug'ati (o'zbekcha — asosiy til). Har bo'lim alohida faylda:
@@ -52,6 +53,7 @@ export const uz = {
   intercity,
   tariffs,
   bonuses,
+  legalDocs,
 };
 
 export type Messages = typeof uz;

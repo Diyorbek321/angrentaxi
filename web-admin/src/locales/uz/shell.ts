@@ -30,6 +30,7 @@ export const shell = {
     settings: 'Sozlamalar',
     globalSettings: 'Umumiy sozlamalar',
     legal: 'Huquqiy talablar',
+    legalDocs: 'Huquqiy hujjatlar',
     auditLog: 'Amallar jurnali',
   },
   roleAdministrator: 'Administrator',

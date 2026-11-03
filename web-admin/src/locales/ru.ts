@@ -23,6 +23,7 @@ import { users } from './ru/users';
 import { intercity } from './ru/intercity';
 import { tariffs } from './ru/tariffs';
 import { bonuses } from './ru/bonuses';
+import { legalDocs } from './ru/legalDocs';
 
 export const ru: Messages = {
   common,
@@ -49,4 +50,5 @@ export const ru: Messages = {
   intercity,
   tariffs,
   bonuses,
+  legalDocs,
 };

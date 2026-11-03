@@ -32,6 +32,7 @@ export const shell: Messages['shell'] = {
     settings: 'Настройки',
     globalSettings: 'Общие настройки',
     legal: 'Правовые требования',
+    legalDocs: 'Правовые документы',
     auditLog: 'Журнал действий',
   },
   roleAdministrator: 'Администратор',
