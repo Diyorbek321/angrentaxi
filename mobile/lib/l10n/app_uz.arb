@@ -2176,6 +2176,14 @@
       }
     }
   },
+  "saCheckoutBlockedNoCard": "Naqd to'lov {limit} so'mgacha, karta orqali to'lov esa hozircha mavjud emas. Buyurtma berish uchun savatni kamaytiring.",
+  "@saCheckoutBlockedNoCard": {
+    "placeholders": {
+      "limit": {
+        "type": "String"
+      }
+    }
+  },
   "saCheckoutTitle": "Rasmiylashtirish",
   "saCheckoutWithTotal": "Rasmiylashtirish · {total}",
   "@saCheckoutWithTotal": {
@@ -2419,6 +2427,10 @@
       }
     }
   },
+  "saPaymentPendingHint": "Karta to'lovi tugallanmagan. Sotuvchi buyurtmani to'lovdan keyin qabul qiladi; to'lanmasa buyurtma avtomatik bekor qilinadi.",
+  "saPaymentPendingTitle": "To'lov kutilmoqda",
+  "saPaymentReceived": "To'lov qabul qilindi",
+  "saPaymentRetry": "Karta bilan to'lash",
   "saPaymentStartFailed": "To'lovni boshlab bo'lmadi: {message}",
   "@saPaymentStartFailed": {
     "placeholders": {

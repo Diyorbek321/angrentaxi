@@ -3405,6 +3405,11 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String saCheckoutBlockedNoCard(String limit) {
+    return 'Наличными — до $limit сум, а оплата картой пока недоступна. Чтобы оформить заказ, уменьшите корзину.';
+  }
+
+  @override
   String get saCheckoutTitle => 'Оформление';
 
   @override
@@ -3823,6 +3828,19 @@ class AppLocalizationsRu extends AppLocalizations {
   String saPaymentPageLoadFailed(String message) {
     return 'Не удалось загрузить страницу оплаты: $message';
   }
+
+  @override
+  String get saPaymentPendingHint =>
+      'Оплата картой не завершена. Продавец примет заказ после оплаты; без оплаты заказ будет автоматически отменён.';
+
+  @override
+  String get saPaymentPendingTitle => 'Ожидается оплата';
+
+  @override
+  String get saPaymentReceived => 'Оплата получена';
+
+  @override
+  String get saPaymentRetry => 'Оплатить картой';
 
   @override
   String saPaymentStartFailed(String message) {

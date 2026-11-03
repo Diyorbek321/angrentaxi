@@ -113,6 +113,7 @@ describe('SettingsService — sotuvchi hisob-kitobi va smena', () => {
         maxCashVendorOrder: 200000,
         // Karta provayderi sozlanmagan (§1).
         cardPaymentsAvailable: false,
+        cardPaymentProviders: [],
         // UX v5 §7: bepul yetkazish standart o'chiq, vaqt 30–50 daq.
         freeDeliveryFrom: 0,
         deliveryEtaMinMinutes: 30,

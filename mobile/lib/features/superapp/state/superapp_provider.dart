@@ -95,6 +95,27 @@ class SuperappProvider extends ChangeNotifier {
     return limit == null || limit <= 0 || cartTotal <= limit;
   }
 
+  /// Karta to'lovi mavjudmi (server `cardPaymentsAvailable` — kamida bitta
+  /// provayder sozlangan, docs/INCIDENT-POLICY.md §1). Server javob bermaguncha
+  /// (yoki eski server) — YO'Q: karta tanlovi ko'rinmaydi, chunki to'lovsiz
+  /// kartali buyurtma sotuvchiga bepul tovar bo'lib ketardi.
+  bool _cardPaymentsAvailable = false;
+  bool get cardPaymentsAvailable => _cardPaymentsAvailable;
+
+  /// Sozlangan provayderlar (`payme`/`click`/`uzcard`) — checkout birinchisi bilan.
+  List<String> _cardPaymentProviders = const [];
+  List<String> get cardPaymentProviders => _cardPaymentProviders;
+
+  /// Savat naqd chegarasidan oshgan, karta esa yo'q — buyurtma berib bo'lmaydi.
+  bool get checkoutBlockedByPayment => !cashAllowed && !_cardPaymentsAvailable;
+
+  @visibleForTesting
+  void debugSetCardPaymentsForTest({required bool available, List<String> providers = const ['payme']}) {
+    _cardPaymentsAvailable = available;
+    _cardPaymentProviders = available ? providers : const [];
+    notifyListeners();
+  }
+
   @visibleForTesting
   void debugSetDeliveryPricingForTest({
     double? deliveryFee,
@@ -195,6 +216,11 @@ class SuperappProvider extends ChangeNotifier {
       _maxCashVendorOrder =
           (payload['maxCashVendorOrder'] as num?)?.toDouble() ?? _maxCashVendorOrder;
       _intercity = IntercityPublicSettings.fromJson(payload);
+      _cardPaymentsAvailable = (payload['cardPaymentsAvailable'] as bool?) ?? false;
+      _cardPaymentProviders = [
+        for (final p in (payload['cardPaymentProviders'] as List<dynamic>?) ?? const [])
+          if (p is String) p,
+      ];
       notifyListeners();
     } catch (e) {
       // Keep the last known fee. A settings blip must not block checkout;

@@ -29,7 +29,18 @@ export function uzcardConfigured(config: ConfigReader): boolean {
   return has(config, 'UZCARD_TERMINAL_ID', 'UZCARD_SECRET_KEY');
 }
 
+export type CardPaymentProvider = 'payme' | 'click' | 'uzcard';
+
+/** Sozlangan provayderlar — ilova checkout'ni shulardan biri bilan ochadi. */
+export function configuredCardProviders(config: ConfigReader): CardPaymentProvider[] {
+  return [
+    ...(paymeConfigured(config) ? (['payme'] as const) : []),
+    ...(clickConfigured(config) ? (['click'] as const) : []),
+    ...(uzcardConfigured(config) ? (['uzcard'] as const) : []),
+  ];
+}
+
 /** Kamida bitta provayder sozlangan bo'lsa — karta bilan to'lash mumkin. */
 export function cardPaymentsConfigured(config: ConfigReader): boolean {
-  return paymeConfigured(config) || clickConfigured(config) || uzcardConfigured(config);
+  return configuredCardProviders(config).length > 0;
 }

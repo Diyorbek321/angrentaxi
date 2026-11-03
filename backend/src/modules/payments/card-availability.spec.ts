@@ -1,4 +1,10 @@
-import { cardPaymentsConfigured, clickConfigured, paymeConfigured, uzcardConfigured } from './card-availability';
+import {
+  cardPaymentsConfigured,
+  clickConfigured,
+  configuredCardProviders,
+  paymeConfigured,
+  uzcardConfigured,
+} from './card-availability';
 
 const config = (values: Record<string, string>) => ({
   get: <T>(key: string, fallback?: T) => (values[key] ?? fallback) as T,
@@ -22,5 +28,14 @@ describe('card-availability — karta to\'lovi mavjudmi', () => {
       cardPaymentsConfigured(config({ CLICK_MERCHANT_ID: 'm', CLICK_SECRET_KEY: 's', CLICK_SERVICE_ID: '1' })),
     ).toBe(true);
     expect(cardPaymentsConfigured(config({ UZCARD_TERMINAL_ID: 't', UZCARD_SECRET_KEY: 's' }))).toBe(true);
+  });
+
+  it('configuredCardProviders — faqat to\'liq sozlanganlar', () => {
+    expect(configuredCardProviders(config({}))).toEqual([]);
+    expect(
+      configuredCardProviders(
+        config({ CLICK_MERCHANT_ID: 'm', CLICK_SECRET_KEY: 's', CLICK_SERVICE_ID: '1', UZCARD_TERMINAL_ID: 't' }),
+      ),
+    ).toEqual(['click']);
   });
 });

@@ -3,6 +3,7 @@ import 'package:angren_taxi/features/superapp/screens/courier_tracking_screen.da
 import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/market_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/features/superapp/widgets/card_payment_pending.dart';
 import 'package:angren_taxi/features/superapp/widgets/reorder_flow.dart';
 import 'package:angren_taxi/features/superapp/widgets/vendor_cancel_flow.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
@@ -38,6 +39,7 @@ class VendorOrderView {
     this.delivery,
     this.trackPath,
     this.source,
+    this.paymentPending = false,
   });
 
   final String kind;
@@ -60,6 +62,9 @@ class VendorOrderView {
 
   /// Asl buyurtma (`FoodOrder`/`MarketOrder`) — "Yana buyurtma qilish" uchun.
   final Object? source;
+
+  /// Kartali buyurtmaning to'lovi hali tushmagan (INCIDENT-POLICY §1).
+  final bool paymentPending;
 
   factory VendorOrderView.food(FoodOrder o) => VendorOrderView(
         kind: 'food',
@@ -84,6 +89,7 @@ class VendorOrderView {
         delivery: o.isTrackable ? o.delivery : null,
         trackPath: ApiEndpoints.foodOrderById(o.id),
         source: o,
+        paymentPending: o.paymentPending && o.status.isActive,
       );
 
   factory VendorOrderView.market(MarketOrder o) => VendorOrderView(
@@ -109,6 +115,7 @@ class VendorOrderView {
         delivery: o.isTrackable ? o.delivery : null,
         trackPath: ApiEndpoints.marketOrderById(o.id),
         source: o,
+        paymentPending: o.paymentPending && o.status.isActive,
       );
 }
 
@@ -177,6 +184,10 @@ class VendorOrderDetailScreen extends StatelessWidget {
                           ],
                         ),
                       ),
+                      if (order.paymentPending) ...[
+                        const SizedBox(height: kSpace4),
+                        CardPaymentPendingCard(kind: kind, orderId: orderId),
+                      ],
                       if (order.cancelReason != null && !order.isActive) ...[
                         const SizedBox(height: kSpace2),
                         Text(

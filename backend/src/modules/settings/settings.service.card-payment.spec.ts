@@ -31,7 +31,10 @@ describe('SettingsService — karta to\'lovi', () => {
   it('Payme sozlangan — true', async () => {
     const { service } = build({ PAYME_MERCHANT_ID: 'm', PAYME_SECRET_KEY: 's' });
     expect(service.cardPaymentsAvailable()).toBe(true);
-    await expect(service.getPublicSettings()).resolves.toMatchObject({ cardPaymentsAvailable: true });
+    await expect(service.getPublicSettings()).resolves.toMatchObject({
+      cardPaymentsAvailable: true,
+      cardPaymentProviders: ['payme'],
+    });
   });
 
   it('ConfigService berilmagan (qo\'lda yig\'ilgan spec) — false', () => {

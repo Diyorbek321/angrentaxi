@@ -94,7 +94,13 @@ class MarketOrder extends Equatable {
     this.promotionDiscount = 0,
     this.addressDetails,
     double? payableTotal,
+    this.paymentPending = false,
   }) : _payableTotal = payableTotal;
+
+  /// Kartali buyurtmaning to'lovi hali tushmagan (server `paymentPending`,
+  /// docs/INCIDENT-POLICY.md §1). Sotuvchi to'lovgacha qabul qilmaydi; ilova
+  /// "To'lov kutilmoqda" va qayta to'lash tugmasini ko'rsatadi.
+  final bool paymentPending;
 
   final String id;
   final String storeId;
@@ -175,6 +181,7 @@ class MarketOrder extends Equatable {
       promotionDiscount: (json['promotionDiscount'] as num?)?.toDouble() ?? 0,
       addressDetails: AddressDetails.tryParse(json['addressDetails']),
       payableTotal: (json['payableTotal'] as num?)?.toDouble(),
+      paymentPending: (json['paymentPending'] as bool?) ?? false,
     );
   }
 
@@ -198,9 +205,10 @@ class MarketOrder extends Equatable {
       promotionDiscount: promotionDiscount,
       addressDetails: addressDetails,
       payableTotal: _payableTotal,
+      paymentPending: status == MarketOrderStatus.cancelled ? false : paymentPending,
     );
   }
 
   @override
-  List<Object?> get props => [id, storeId, status, items, deliveryAddress, totalPrice, createdAt, delivery, canCancelFlag, cancelReason, cancelledBy, promoCode, promoDiscount, promotionDiscount, addressDetails, _payableTotal];
+  List<Object?> get props => [id, storeId, status, items, deliveryAddress, totalPrice, createdAt, delivery, canCancelFlag, cancelReason, cancelledBy, promoCode, promoDiscount, promotionDiscount, addressDetails, _payableTotal, paymentPending];
 }

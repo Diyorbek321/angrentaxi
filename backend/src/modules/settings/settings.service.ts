@@ -32,7 +32,7 @@ import {
   DeliveryPricing,
   assertDeliveryEtaRange,
 } from './delivery-pricing';
-import { cardPaymentsConfigured } from '../payments/card-availability';
+import { CardPaymentProvider, configuredCardProviders } from '../payments/card-availability';
 
 /** `GET/PATCH /settings/global` shakli. */
 export interface GlobalSettings extends DeliveryEta {
@@ -86,7 +86,12 @@ export class SettingsService {
    * tanlovini yashiradi va server kartali buyurtmani rad etadi.
    */
   cardPaymentsAvailable(): boolean {
-    return this.config ? cardPaymentsConfigured(this.config) : false;
+    return this.cardPaymentProviders().length > 0;
+  }
+
+  /** Sozlangan karta provayderlari (`payme`, `click`, `uzcard`). */
+  cardPaymentProviders(): CardPaymentProvider[] {
+    return this.config ? configuredCardProviders(this.config) : [];
   }
 
   /** To'lanmagan kartali buyurtma muddati, daqiqa (§1). */
@@ -301,6 +306,7 @@ export class SettingsService {
       maxCashVendorOrder: settings.maxCashVendorOrder,
       // Ilova karta tanlovini shunga qarab ko'rsatadi/yashiradi (§1).
       cardPaymentsAvailable: this.cardPaymentsAvailable(),
+      cardPaymentProviders: this.cardPaymentProviders(),
       // Ilova: "Yetkazish 7 000 so'm · 30–50 daq · 100 000 so'mdan bepul" (§7).
       freeDeliveryFrom: toDeliveryPricing(settings).freeDeliveryFrom,
       ...toDeliveryEta(settings),

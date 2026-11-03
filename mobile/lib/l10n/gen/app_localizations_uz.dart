@@ -3410,6 +3410,11 @@ class AppLocalizationsUz extends AppLocalizations {
   }
 
   @override
+  String saCheckoutBlockedNoCard(String limit) {
+    return 'Naqd to\'lov $limit so\'mgacha, karta orqali to\'lov esa hozircha mavjud emas. Buyurtma berish uchun savatni kamaytiring.';
+  }
+
+  @override
   String get saCheckoutTitle => 'Rasmiylashtirish';
 
   @override
@@ -3831,6 +3836,19 @@ class AppLocalizationsUz extends AppLocalizations {
   String saPaymentPageLoadFailed(String message) {
     return 'To\'lov sahifasini yuklab bo\'lmadi: $message';
   }
+
+  @override
+  String get saPaymentPendingHint =>
+      'Karta to\'lovi tugallanmagan. Sotuvchi buyurtmani to\'lovdan keyin qabul qiladi; to\'lanmasa buyurtma avtomatik bekor qilinadi.';
+
+  @override
+  String get saPaymentPendingTitle => 'To\'lov kutilmoqda';
+
+  @override
+  String get saPaymentReceived => 'To\'lov qabul qilindi';
+
+  @override
+  String get saPaymentRetry => 'Karta bilan to\'lash';
 
   @override
   String saPaymentStartFailed(String message) {

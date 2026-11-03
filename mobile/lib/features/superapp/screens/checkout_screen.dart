@@ -65,12 +65,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   OrderLocation? _destination;
   CheckoutPaymentMethod _paymentMethod = CheckoutPaymentMethod.cash;
 
-  /// Haqiqatda ishlatiladigan usul: savat naqd chegarasidan oshsa — karta,
-  /// tanlovdan qat'i nazar (`SuperappProvider.cashAllowed`).
-  CheckoutPaymentMethod get _effectiveMethod =>
-      context.read<SuperappProvider>().cashAllowed
-          ? _paymentMethod
-          : CheckoutPaymentMethod.card;
+  /// Haqiqatda ishlatiladigan usul: karta to'lovi mavjud bo'lmasa — naqd
+  /// (docs/INCIDENT-POLICY.md §1); savat naqd chegarasidan oshsa — karta,
+  /// tanlovdan qat'i nazar (`SuperappProvider.cashAllowed`). Ikkalasi ham
+  /// bo'lmasa buyurtma berib bo'lmaydi (`checkoutBlockedByPayment`).
+  CheckoutPaymentMethod get _effectiveMethod {
+    final superapp = context.read<SuperappProvider>();
+    if (!superapp.cardPaymentsAvailable) return CheckoutPaymentMethod.cash;
+    return superapp.cashAllowed ? _paymentMethod : CheckoutPaymentMethod.card;
+  }
   bool _submitting = false;
 
   bool _resolvingAddress = true;
@@ -257,15 +260,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   /// Naqd ruxsat etilmasa — sababi ("200 000 so'mgacha"), aks holda `null`.
+  /// Karta ham yo'q bo'lsa — buyurtma nega berib bo'lmasligi.
   String? get cashLimitNote {
     final superapp = context.read<SuperappProvider>();
     final limit = superapp.maxCashVendorOrder;
     if (superapp.cashAllowed || limit == null) return null;
-    return context.l10n.saCashLimitNote(Formatters.formatSom(limit));
+    final formatted = Formatters.formatSom(limit);
+    return superapp.cardPaymentsAvailable
+        ? context.l10n.saCashLimitNote(formatted)
+        : context.l10n.saCheckoutBlockedNoCard(formatted);
   }
 
   Future<void> _choosePaymentMethod() async {
     final note = cashLimitNote;
+    final cardAvailable = context.read<SuperappProvider>().cardPaymentsAvailable;
     final choice = await showModalBottomSheet<CheckoutPaymentMethod>(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -300,13 +308,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ? (v) => Navigator.pop(sheetContext, v)
                   : null,
             ),
-            RadioListTile<CheckoutPaymentMethod>(
-              value: CheckoutPaymentMethod.card,
-              groupValue: _effectiveMethod,
-              title: Text(context.l10n.saPaymentCard),
-              secondary: const Icon(Icons.credit_card_rounded),
-              onChanged: (v) => Navigator.pop(sheetContext, v),
-            ),
+            // Karta provayderi sozlanmagan — tanlov umuman ko'rsatilmaydi.
+            if (cardAvailable)
+              RadioListTile<CheckoutPaymentMethod>(
+                value: CheckoutPaymentMethod.card,
+                groupValue: _effectiveMethod,
+                title: Text(context.l10n.saPaymentCard),
+                secondary: const Icon(Icons.credit_card_rounded),
+                onChanged: (v) => Navigator.pop(sheetContext, v),
+              ),
             const SizedBox(height: kSpace2),
           ],
         ),
@@ -435,7 +445,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (_effectiveMethod == CheckoutPaymentMethod.card) {
       final orderId = placedOrderId;
       try {
-        final result = await _paymentService.initiate(orderId: orderId);
+        final result = await _paymentService.initiate(
+          orderId: orderId,
+          provider: preferredOnlineProvider(superapp.cardPaymentProviders),
+        );
         if (!mounted) return;
         final completed = await _openPaymentCheckout(context, result);
         if (!mounted) return;
@@ -468,6 +481,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         builder: (_) => OrderStatusScreen(
           orderId: placedOrderId,
           paidOnline: paidOnline,
+          // Karta tanlangan, lekin to'lov tugamadi — "To'lov kutilmoqda".
+          paymentPending: _effectiveMethod == CheckoutPaymentMethod.card && !paidOnline,
           kind: kind == 'food' ? 'food' : 'market',
         ),
       ),
@@ -607,7 +622,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 kSpace4, 0, kSpace4, MediaQuery.of(context).padding.bottom + kSpace4),
             child: AgPrimaryButton(
               label: _submitting ? context.l10n.saSubmitting : context.l10n.saConfirmOrder,
-              onPressed: (_submitting || provider.isCartEmpty) ? null : _submit,
+              onPressed: (_submitting || provider.isCartEmpty || provider.checkoutBlockedByPayment)
+                  ? null
+                  : _submit,
             ),
           ),
         ],

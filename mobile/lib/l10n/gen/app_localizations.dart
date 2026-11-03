@@ -6032,6 +6032,12 @@ abstract class AppLocalizations {
   /// **'Naqd to\'lov {limit} so\'mgacha — bu buyurtma karta bilan to\'lanadi'**
   String saCashLimitNote(String limit);
 
+  /// No description provided for @saCheckoutBlockedNoCard.
+  ///
+  /// In uz, this message translates to:
+  /// **'Naqd to\'lov {limit} so\'mgacha, karta orqali to\'lov esa hozircha mavjud emas. Buyurtma berish uchun savatni kamaytiring.'**
+  String saCheckoutBlockedNoCard(String limit);
+
   /// No description provided for @saCheckoutTitle.
   ///
   /// In uz, this message translates to:
@@ -6781,6 +6787,30 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'To\'lov sahifasini yuklab bo\'lmadi: {message}'**
   String saPaymentPageLoadFailed(String message);
+
+  /// No description provided for @saPaymentPendingHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Karta to\'lovi tugallanmagan. Sotuvchi buyurtmani to\'lovdan keyin qabul qiladi; to\'lanmasa buyurtma avtomatik bekor qilinadi.'**
+  String get saPaymentPendingHint;
+
+  /// No description provided for @saPaymentPendingTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'To\'lov kutilmoqda'**
+  String get saPaymentPendingTitle;
+
+  /// No description provided for @saPaymentReceived.
+  ///
+  /// In uz, this message translates to:
+  /// **'To\'lov qabul qilindi'**
+  String get saPaymentReceived;
+
+  /// No description provided for @saPaymentRetry.
+  ///
+  /// In uz, this message translates to:
+  /// **'Karta bilan to\'lash'**
+  String get saPaymentRetry;
 
   /// No description provided for @saPaymentStartFailed.
   ///

@@ -72,6 +72,8 @@ export interface PublicSettings {
    * (docs/INCIDENT-POLICY.md §1). `false` — ilova karta tanlovini yashiradi.
    */
   cardPaymentsAvailable: boolean;
+  /** Sozlangan provayderlar — ilova checkout'ni birinchisi bilan ochadi. */
+  cardPaymentProviders: Array<'payme' | 'click' | 'uzcard'>;
   /**
    * Bepul yetkazish chegarasi, so'm (tovar summasi aksiyadan keyin,
    * promokoddan oldin); 0 — o'chiq (docs/specs/food-market-ux-v5.md §7).
