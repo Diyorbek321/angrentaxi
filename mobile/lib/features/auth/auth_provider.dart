@@ -47,6 +47,18 @@ class AuthProvider extends ChangeNotifier {
   User? get currentUser => _currentUser;
   bool get isAuthenticated => _state == AuthState.authenticated;
 
+  /// Shu sessiyada hozirgina OTP bilan kirildi (saqlangan sessiyadan emas).
+  /// Kirish ekranidagi "davom etish orqali rozilik bildirasiz" matni shu
+  /// kirishga tegishli — [LegalAcceptanceHost] buni bir marta o'qiydi.
+  bool _justLoggedIn = false;
+
+  /// [_justLoggedIn] ni o'qiydi va tozalaydi.
+  bool consumeJustLoggedIn() {
+    final value = _justLoggedIn;
+    _justLoggedIn = false;
+    return value;
+  }
+
   void _setState(AuthState state) {
     _state = state;
     notifyListeners();
@@ -125,6 +137,7 @@ class AuthProvider extends ChangeNotifier {
       _currentUser = User.fromJson(userJson);
       _socketService.connect(token);
 
+      _justLoggedIn = true;
       _setState(AuthState.authenticated);
       return true;
     } catch (e) {

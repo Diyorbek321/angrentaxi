@@ -1,6 +1,8 @@
+import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/auth/widgets/account_legal_actions.dart';
+import 'package:angren_taxi/features/legal/legal_terms_service.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/utils/validators.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
@@ -164,8 +166,18 @@ class _PhoneScreenState extends State<PhoneScreen> {
   }
 
   Widget _buildTermsText() {
-    // Rozilik matni siyosatning o'ziga olib borishi shart (Google Play) —
-    // ilgari u havolasiz, ya'ni o'qib bo'lmaydigan hujjatga rozilik so'rardi.
+    // Rozilik matni hujjatlarning o'ziga olib borishi shart (Google Play,
+    // oferta): ilova turiga mos oferta + maxfiylik siyosati. Kirish
+    // muvaffaqiyatli bo'lgach rozilik versiyasi bilan yoziladi
+    // (`LegalAcceptanceGate`).
+    final flavor =
+        Provider.of<AuthProvider?>(context, listen: false)?.flavor ?? AppFlavor.passenger;
+    final termsDocument = primaryTermsDocument(flavor);
+    const linkStyle = TextStyle(
+      fontSize: kFontCaption,
+      decoration: TextDecoration.underline,
+    );
+    final linkButtonStyle = TextButton.styleFrom(minimumSize: const Size(0, kMinTapTarget));
     return Column(
       children: [
         Text(
@@ -177,18 +189,25 @@ class _PhoneScreenState extends State<PhoneScreen> {
           ),
           textAlign: TextAlign.center,
         ),
-        TextButton(
-          onPressed: openPrivacyPolicy,
-          style: TextButton.styleFrom(minimumSize: const Size(0, kMinTapTarget)),
-          child: Text(
-            context.l10n.accPrivacyPolicy,
-            style: const TextStyle(
-              fontSize: kFontCaption,
-              decoration: TextDecoration.underline,
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: kSpace2,
+          children: [
+            TextButton(
+              key: const Key('authTermsLink'),
+              onPressed: () => openLegalDocument(termsDocument),
+              style: linkButtonStyle,
+              child: Text(legalDocumentTitle(context.l10n, termsDocument), style: linkStyle),
             ),
-          ),
+            TextButton(
+              onPressed: openPrivacyPolicy,
+              style: linkButtonStyle,
+              child: Text(context.l10n.accPrivacyPolicy, style: linkStyle),
+            ),
+          ],
         ),
       ],
     );
   }
+
 }

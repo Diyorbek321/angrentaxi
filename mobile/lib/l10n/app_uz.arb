@@ -1534,6 +1534,29 @@
   "lglValTaxStatusRequired": "Soliq maqomini tanlang",
   "lglValTinFormat": "STIR 9 ta raqamdan iborat bo'lishi kerak",
   "lglValTinRequired": "YaTT uchun STIR majburiy",
+  "ofrAccept": "Qabul qilaman",
+  "ofrAcceptFailed": "Saqlab bo'lmadi. Internetni tekshirib, qayta urinib ko'ring.",
+  "ofrDriverTermsLink": "Haydovchi ofertasi",
+  "ofrLater": "Keyinroq",
+  "ofrLogout": "Chiqish",
+  "ofrOutdatedReloaded": "Hujjatning yangi tahriri chiqdi — iltimos, qaytadan ko'rib chiqing.",
+  "ofrPrivacyLink": "Maxfiylik siyosati",
+  "ofrReadFull": "To'liq matnni o'qish",
+  "ofrSheetIntro": "Davom etish uchun quyidagi hujjatlarni o'qing va qabul qiling.",
+  "ofrSheetIntroDriver": "Onlayn chiqish uchun haydovchi ofertasining joriy tahririni qabul qiling.",
+  "ofrSheetTitleNew": "Foydalanish shartlari",
+  "ofrSheetTitleUpdated": "Shartlar yangilandi",
+  "ofrTermsLink": "Foydalanish shartlari",
+  "ofrVendorTermsLink": "Sotuvchi shartlari",
+  "ofrVersion": "Tahrir {version}",
+  "@ofrVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "ofrWhatChanged": "Nima o'zgardi",
   "paxAbout": "Dastur haqida",
   "paxAddFavorite": "Qo'shish",
   "paxAddStop": "To'xtash qo'shish",

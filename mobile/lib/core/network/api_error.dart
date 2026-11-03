@@ -50,6 +50,13 @@ abstract final class ApiErrorCode {
 
   /// Promokod bu xizmat turiga tegishli emas (spec v5 §2).
   static const promoNotApplicable = 'PROMO_NOT_APPLICABLE';
+
+  /// 400 — haydovchi ofertasining joriy tahriri qabul qilinmagan, onlayn
+  /// chiqib bo'lmaydi; `details: { document, version }`.
+  static const legalTermsNotAccepted = 'LEGAL_TERMS_NOT_ACCEPTED';
+
+  /// 409 — qabul qilinayotgan hujjat versiyasi eskirgan (holatni qayta yuklang).
+  static const legalVersionOutdated = 'LEGAL_VERSION_OUTDATED';
 }
 
 /// `reasons[]` elementi.

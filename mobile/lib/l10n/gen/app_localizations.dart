@@ -4244,6 +4244,102 @@ abstract class AppLocalizations {
   /// **'YaTT uchun STIR majburiy'**
   String get lglValTinRequired;
 
+  /// No description provided for @ofrAccept.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qabul qilaman'**
+  String get ofrAccept;
+
+  /// No description provided for @ofrAcceptFailed.
+  ///
+  /// In uz, this message translates to:
+  /// **'Saqlab bo\'lmadi. Internetni tekshirib, qayta urinib ko\'ring.'**
+  String get ofrAcceptFailed;
+
+  /// No description provided for @ofrDriverTermsLink.
+  ///
+  /// In uz, this message translates to:
+  /// **'Haydovchi ofertasi'**
+  String get ofrDriverTermsLink;
+
+  /// No description provided for @ofrLater.
+  ///
+  /// In uz, this message translates to:
+  /// **'Keyinroq'**
+  String get ofrLater;
+
+  /// No description provided for @ofrLogout.
+  ///
+  /// In uz, this message translates to:
+  /// **'Chiqish'**
+  String get ofrLogout;
+
+  /// No description provided for @ofrOutdatedReloaded.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hujjatning yangi tahriri chiqdi — iltimos, qaytadan ko\'rib chiqing.'**
+  String get ofrOutdatedReloaded;
+
+  /// No description provided for @ofrPrivacyLink.
+  ///
+  /// In uz, this message translates to:
+  /// **'Maxfiylik siyosati'**
+  String get ofrPrivacyLink;
+
+  /// No description provided for @ofrReadFull.
+  ///
+  /// In uz, this message translates to:
+  /// **'To\'liq matnni o\'qish'**
+  String get ofrReadFull;
+
+  /// No description provided for @ofrSheetIntro.
+  ///
+  /// In uz, this message translates to:
+  /// **'Davom etish uchun quyidagi hujjatlarni o\'qing va qabul qiling.'**
+  String get ofrSheetIntro;
+
+  /// No description provided for @ofrSheetIntroDriver.
+  ///
+  /// In uz, this message translates to:
+  /// **'Onlayn chiqish uchun haydovchi ofertasining joriy tahririni qabul qiling.'**
+  String get ofrSheetIntroDriver;
+
+  /// No description provided for @ofrSheetTitleNew.
+  ///
+  /// In uz, this message translates to:
+  /// **'Foydalanish shartlari'**
+  String get ofrSheetTitleNew;
+
+  /// No description provided for @ofrSheetTitleUpdated.
+  ///
+  /// In uz, this message translates to:
+  /// **'Shartlar yangilandi'**
+  String get ofrSheetTitleUpdated;
+
+  /// No description provided for @ofrTermsLink.
+  ///
+  /// In uz, this message translates to:
+  /// **'Foydalanish shartlari'**
+  String get ofrTermsLink;
+
+  /// No description provided for @ofrVendorTermsLink.
+  ///
+  /// In uz, this message translates to:
+  /// **'Sotuvchi shartlari'**
+  String get ofrVendorTermsLink;
+
+  /// No description provided for @ofrVersion.
+  ///
+  /// In uz, this message translates to:
+  /// **'Tahrir {version}'**
+  String ofrVersion(String version);
+
+  /// No description provided for @ofrWhatChanged.
+  ///
+  /// In uz, this message translates to:
+  /// **'Nima o\'zgardi'**
+  String get ofrWhatChanged;
+
   /// No description provided for @paxAbout.
   ///
   /// In uz, this message translates to:

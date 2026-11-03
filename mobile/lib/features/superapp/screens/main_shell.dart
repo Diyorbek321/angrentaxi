@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:angren_taxi/core/config/app_haptics.dart';
 import 'package:angren_taxi/core/push/push_tap_router.dart';
+import 'package:angren_taxi/features/legal/legal_acceptance_gate.dart';
 import 'package:angren_taxi/features/superapp/screens/cart_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/home_tab.dart';
 import 'package:angren_taxi/features/superapp/screens/orders_screen.dart';
@@ -48,7 +49,11 @@ class _SuperappShellState extends State<SuperappShell> {
     super.initState();
     // Ilova yopiq turganda bosilgan push (shaharlararo, chat) endi ochilishi
     // mumkin — kirish tugadi, bosh ekran chizildi.
-    WidgetsBinding.instance.addPostFrameCallback((_) => PushTapRouter.instance.markReady());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      PushTapRouter.instance.markReady();
+      // Oferta: kirishda yoziladi yoki tahrir o'zgargan bo'lsa — oyna.
+      if (mounted) LegalAcceptanceGate.check(context);
+    });
   }
 
   List<_TabDef> _tabs(BuildContext context) => [

@@ -26,6 +26,10 @@ enum DriverErrorKind {
 
   /// Hamyon manfiy — onlayn chiqib bo'lmaydi (yechim: to'ldirish).
   walletNegativeBalance,
+
+  /// Haydovchi ofertasining joriy tahriri qabul qilinmagan (yechim: rozilik
+  /// oynasi, keyin qayta onlayn).
+  termsNotAccepted,
 }
 
 const _legalPrefixes = <String>[
@@ -76,6 +80,7 @@ DriverErrorKind? driverErrorKindForCode(String? code) => switch (code) {
         DriverErrorKind.vendorWalletInsufficient,
       ApiErrorCode.walletNegativeBalance =>
         DriverErrorKind.walletNegativeBalance,
+      ApiErrorCode.legalTermsNotAccepted => DriverErrorKind.termsNotAccepted,
       _ => null,
     };
 

@@ -919,3 +919,59 @@ sanalmaydi); taklif — onlayn, faol, taksi xizmatidagi haydovchilar.
   §26a dan OLDINGI safarlarda — chegirmali narx (o'sha paytda komissiya va
   1% soliq shundan olingan). O'tgan oylar hisoboti ushlangan soliq bilan
   mos qoladi.
+
+---
+
+# 28. Oferta va versiyali rozilik (2026-11-03, migratsiya 048)
+
+⚠️ Matnlar — **QORALAMA**, yurist ko'rib chiqishi kerak (har sahifa
+yuqorisida belgi bor). Raqamlar `docs/INCIDENT-POLICY.md` standartlari;
+**komissiya stavkasi** sahifa ochilganda `platform_settings` dan o'qiladi,
+qolganlari hozircha `backend/src/modules/legal/legal-policy.ts` dagi
+standartlar (sozlamalari 049–052 da qo'shilgach, shu yerdan uzatiladi).
+E'tiroz muddati (7 kun) siyosatda yo'q — taklif.
+
+| Sahifa (avtorizatsiyasiz HTML, `?lang=uz\|ru`) | Kim uchun |
+|---|---|
+| `GET /legal/terms` | yo'lovchi / mijoz ofertasi |
+| `GET /legal/driver-terms` | haydovchi / kuryer ofertasi + xulq kodeksi + jarima zinapoyasi |
+| `GET /legal/vendor-terms` | restoran / do'kon shartlari |
+
+**Versiyalar** — `modules/legal/legal-versions.ts` (`LEGAL_VERSIONS`,
+`YYYY-MM-DD.N` + qisqa "nima o'zgardi"). Matn mazmunan o'zgarsa versiyani
+oshiring — barcha foydalanuvchilardan qayta rozilik so'raladi.
+
+| Rol | Talab qilinadigan hujjatlar |
+|---|---|
+| passenger | terms, privacy |
+| driver | driver-terms, privacy |
+| restaurant, market | vendor-terms, terms, privacy |
+| manager, admin | — |
+
+**Jadval `legal_acceptances`** (`user_id, document, version, accepted_at,
+ip, user_agent, source`), `(user_id, document, version)` unikal. Ustun emas,
+jadval: nizoda "qaysi tahrirga, qachon, qaysi qurilmadan" degan tarix kerak;
+ustun eski rozilikni ustidan yozardi. Faqat INSERT.
+
+| Metod va yo'l | Rol | Vazifa |
+|---|---|---|
+| `GET /legal/acceptance` | kirgan | `{ mustAccept, documents: [{ document, version, acceptedVersion, mustAccept, summary: {uz, ru} }] }` |
+| `POST /legal/acceptance` | kirgan | body `{ items: [{ document, version }], source?: 'login'\|'sheet' }` → shu shakl; eskirgan versiya → 409 `LEGAL_VERSION_OUTDATED` |
+| `GET /admin/legal/acceptances` | admin | har hujjat: joriy versiya, `acceptedCurrent`, `requiredUsers`, versiyalar bo'yicha sonlar |
+
+**Darvoza:** haydovchi OFLAYN → ONLAYN o'tishda joriy `driver-terms`
+qabul qilinmagan bo'lsa — 400 `LEGAL_TERMS_NOT_ACCEPTED`
+(`details: { document, version }`). Allaqachon onlayn haydovchi va faol
+safar to'xtatilmaydi. **B reja:** `LEGAL_DRIVER_TERMS_GATE=off` (env) —
+darvoza o'chadi (masalan, yangi APK hali tarqalmagan). Yo'lovchi uchun
+server darvozasi yo'q — faqat ilovadagi oyna.
+
+**Ilova:** kirish ekranida oferta (haydovchi ilovasida — haydovchi ofertasi)
+va maxfiylik havolalari; OTP bilan kirilgach kutilayotgan hujjatlar
+`source: login` bilan yoziladi. Saqlangan sessiyada tahrir o'zgargan
+bo'lsa — bosh ekranda yopib bo'lmaydigan oyna ("Qabul qilaman" / "Chiqish").
+Haydovchi onlayn chiqishda `LEGAL_TERMS_NOT_ACCEPTED` olsa — oyna, qabul
+qilinsa darhol qayta onlayn. Panel: web-admin → "Huquqiy hujjatlar".
+Sotuvchi panellarida rozilik oynasi hali yo'q (holat endpointi tayyor).
+
+Huquqni muhofaza qilish organlari so'rovi — `docs/legal/huquq-tartibot-sorovi.md`.

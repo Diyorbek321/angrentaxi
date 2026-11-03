@@ -2396,6 +2396,60 @@ class AppLocalizationsUz extends AppLocalizations {
   String get lglValTinRequired => 'YaTT uchun STIR majburiy';
 
   @override
+  String get ofrAccept => 'Qabul qilaman';
+
+  @override
+  String get ofrAcceptFailed =>
+      'Saqlab bo\'lmadi. Internetni tekshirib, qayta urinib ko\'ring.';
+
+  @override
+  String get ofrDriverTermsLink => 'Haydovchi ofertasi';
+
+  @override
+  String get ofrLater => 'Keyinroq';
+
+  @override
+  String get ofrLogout => 'Chiqish';
+
+  @override
+  String get ofrOutdatedReloaded =>
+      'Hujjatning yangi tahriri chiqdi — iltimos, qaytadan ko\'rib chiqing.';
+
+  @override
+  String get ofrPrivacyLink => 'Maxfiylik siyosati';
+
+  @override
+  String get ofrReadFull => 'To\'liq matnni o\'qish';
+
+  @override
+  String get ofrSheetIntro =>
+      'Davom etish uchun quyidagi hujjatlarni o\'qing va qabul qiling.';
+
+  @override
+  String get ofrSheetIntroDriver =>
+      'Onlayn chiqish uchun haydovchi ofertasining joriy tahririni qabul qiling.';
+
+  @override
+  String get ofrSheetTitleNew => 'Foydalanish shartlari';
+
+  @override
+  String get ofrSheetTitleUpdated => 'Shartlar yangilandi';
+
+  @override
+  String get ofrTermsLink => 'Foydalanish shartlari';
+
+  @override
+  String get ofrVendorTermsLink => 'Sotuvchi shartlari';
+
+  @override
+  String ofrVersion(String version) {
+    return 'Tahrir $version';
+  }
+
+  @override
+  String get ofrWhatChanged => 'Nima o\'zgardi';
+
+  @override
   String get paxAbout => 'Dastur haqida';
 
   @override

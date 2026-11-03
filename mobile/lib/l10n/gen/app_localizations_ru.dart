@@ -2389,6 +2389,60 @@ class AppLocalizationsRu extends AppLocalizations {
   String get lglValTinRequired => 'Для ИП ИНН обязателен';
 
   @override
+  String get ofrAccept => 'Принимаю';
+
+  @override
+  String get ofrAcceptFailed =>
+      'Не удалось сохранить. Проверьте интернет и попробуйте снова.';
+
+  @override
+  String get ofrDriverTermsLink => 'Оферта для водителей';
+
+  @override
+  String get ofrLater => 'Позже';
+
+  @override
+  String get ofrLogout => 'Выйти';
+
+  @override
+  String get ofrOutdatedReloaded =>
+      'Вышла новая редакция документа — пожалуйста, ознакомьтесь заново.';
+
+  @override
+  String get ofrPrivacyLink => 'Политика конфиденциальности';
+
+  @override
+  String get ofrReadFull => 'Читать полный текст';
+
+  @override
+  String get ofrSheetIntro =>
+      'Чтобы продолжить, прочитайте и примите документы ниже.';
+
+  @override
+  String get ofrSheetIntroDriver =>
+      'Чтобы выйти на линию, примите текущую редакцию оферты для водителей.';
+
+  @override
+  String get ofrSheetTitleNew => 'Условия использования';
+
+  @override
+  String get ofrSheetTitleUpdated => 'Условия обновлены';
+
+  @override
+  String get ofrTermsLink => 'Условия использования';
+
+  @override
+  String get ofrVendorTermsLink => 'Условия для продавцов';
+
+  @override
+  String ofrVersion(String version) {
+    return 'Редакция $version';
+  }
+
+  @override
+  String get ofrWhatChanged => 'Что изменилось';
+
+  @override
   String get paxAbout => 'О приложении';
 
   @override

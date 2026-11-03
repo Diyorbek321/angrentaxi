@@ -12,6 +12,8 @@ class ApiEndpoints {
   static const String logout = '/auth/logout';
   // Hisobni o'chirish (Google Play talabi) — o'z hisobi, id yo'q.
   static const String account = '/account';
+  // Oferta roziligi: GET — holat, POST — `{ items: [{document, version}], source }`.
+  static const String legalAcceptance = '/legal/acceptance';
 
   // User / Passenger
   // Backend route is GET/PATCH /users/me (users.controller.ts) — was

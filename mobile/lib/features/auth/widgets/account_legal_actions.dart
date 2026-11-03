@@ -1,6 +1,7 @@
 import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
+import 'package:angren_taxi/features/legal/legal_terms_service.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -26,8 +27,19 @@ class AccountLegalActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final flavor =
+        Provider.of<AuthProvider?>(context, listen: false)?.flavor ?? AppFlavor.passenger;
+    final termsDocument = primaryTermsDocument(flavor);
     return Column(
       children: [
+        TextButton(
+          onPressed: () => openLegalDocument(termsDocument),
+          style: TextButton.styleFrom(minimumSize: const Size(0, kMinTapTarget)),
+          child: Text(
+            legalDocumentTitle(context.l10n, termsDocument),
+            style: const TextStyle(color: kInkMuted, fontSize: kFontCaption),
+          ),
+        ),
         TextButton(
           onPressed: openPrivacyPolicy,
           style: TextButton.styleFrom(minimumSize: const Size(0, kMinTapTarget)),

@@ -4,6 +4,7 @@ import 'package:angren_taxi/core/config/app_platform.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
+import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_error.dart';
 import 'package:angren_taxi/core/push/push_tap_router.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
@@ -21,6 +22,9 @@ import 'package:angren_taxi/features/driver/widgets/driver_earnings_hero.dart';
 import 'package:angren_taxi/features/driver/widgets/driver_verification_notice.dart';
 import 'package:angren_taxi/features/driver/widgets/legal_block_sheet.dart';
 import 'package:angren_taxi/features/intercity/widgets/intercity_driver_entry_card.dart';
+import 'package:angren_taxi/features/legal/legal_acceptance_gate.dart';
+import 'package:angren_taxi/features/legal/legal_acceptance_sheet.dart';
+import 'package:angren_taxi/features/legal/legal_terms_service.dart';
 import 'package:angren_taxi/features/passenger/map_camera_insets.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/driver_bonus_progress.dart';
@@ -126,6 +130,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       Provider.of<DriverLegalProvider?>(context, listen: false)?.load();
       Provider.of<DriverWalletProvider?>(context, listen: false)
           ?.loadSettings();
+      // Oferta: kirishda yoziladi yoki tahrir o'zgargan bo'lsa — oyna.
+      LegalAcceptanceGate.check(context);
       // Ilova yopiq turganda bosilgan push (masalan kuryer eslatmasi)
       // endi ochilishi mumkin — bosh ekran tayyor.
       DriverPushBus.instance.markReady();
@@ -161,6 +167,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       // bilmay qolardi.
       if (kind == DriverErrorKind.vendorWalletInsufficient) return;
       driver.clearError();
+      if (kind == DriverErrorKind.termsNotAccepted) {
+        _showTermsForGoOnline(driver);
+        return;
+      }
       if (kind == DriverErrorKind.legalBlocked) {
         _showLegalBlock(
           rawMessage,
@@ -215,6 +225,34 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   /// Manba — xatodagi `reasons[]` (server tilida, §21); eski serverda
   /// `GET /drivers/me/legal` (har holda yangilanadi — banner/karta uchun),
   /// u ham bo'sh bo'lsa matndan ajratilgani ([fromError]).
+  /// Server onlayn chiqishni oferta tufayli rad etdi: rozilik oynasi
+  /// (yopsa bo'ladi — "Keyinroq"), qabul qilinsa darhol qayta onlayn.
+  Future<void> _showTermsForGoOnline(DriverProvider driver) async {
+    if (!sl.isRegistered<ApiClient>()) return;
+    final service = LegalTermsService(sl<ApiClient>());
+    try {
+      final status = await service.fetchStatus();
+      if (status == null || !mounted) return;
+      if (!status.mustAccept) {
+        await driver.goOnline();
+        return;
+      }
+      final accepted = await showLegalAcceptanceSheet(
+        context,
+        status: status,
+        service: service,
+        blocking: false,
+        intro: context.l10n.ofrSheetIntroDriver,
+      );
+      if (accepted && mounted) await driver.goOnline();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.ofrAcceptFailed), backgroundColor: kErrorDeep),
+      );
+    }
+  }
+
   Future<void> _showLegalBlock(
     String message, {
     required List<String> fromError,
