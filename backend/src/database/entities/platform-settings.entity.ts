@@ -120,6 +120,48 @@ export class PlatformSettings {
   @Column({ name: 'stale_courier_location_minutes', type: 'int', default: 10 })
   staleCourierLocationMinutes: number;
 
+  // Shikoyat va hodisa (migratsiya 050, docs/INCIDENT-POLICY.md §3;
+  // o'qish `settings/incident-settings.ts` orqali).
+  @Column({ name: 'incident_report_window_days', type: 'int', default: 7 })
+  incidentReportWindowDays: number;
+
+  @Column({ name: 'incident_appeal_window_days', type: 'int', default: 7 })
+  incidentAppealWindowDays: number;
+
+  @Column({ name: 'suspension_days', type: 'int', default: 3 })
+  suspensionDays: number;
+
+  @Column({ name: 'strike_window_days', type: 'int', default: 90 })
+  strikeWindowDays: number;
+
+  @Column({ name: 'strike_warning_at', type: 'int', default: 1 })
+  strikeWarningAt: number;
+
+  @Column({ name: 'strike_suspension_at', type: 'int', default: 3 })
+  strikeSuspensionAt: number;
+
+  @Column({ name: 'strike_block_at', type: 'int', default: 5 })
+  strikeBlockAt: number;
+
+  @Column({ name: 'rating_signal_window', type: 'int', default: 20 })
+  ratingSignalWindow: number;
+
+  @Column({
+    name: 'rating_signal_threshold',
+    type: 'decimal',
+    precision: 3,
+    scale: 2,
+    default: 4.3,
+    transformer: { to: (value: number) => value, from: (value: string) => parseFloat(value) },
+  })
+  ratingSignalThreshold: number;
+
+  @Column({ name: 'rating_signal_cooldown_days', type: 'int', default: 30 })
+  ratingSignalCooldownDays: number;
+
+  @Column({ name: 'low_rating_incident_max_score', type: 'int', default: 2 })
+  lowRatingIncidentMaxScore: number;
+
   // Safar opsiyalari haqi, so'm (migratsiya 023): `{ child_seat: 5000 }`.
   // Menejer belgilaydi; o'qish `normalizeTripOptionFees` orqali.
   @Column({ name: 'trip_option_fees', type: 'jsonb', default: () => "'{}'" })

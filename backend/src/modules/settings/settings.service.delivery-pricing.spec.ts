@@ -1,3 +1,4 @@
+import { DEFAULT_INCIDENT_SETTINGS } from './incident-settings';
 import { DEFAULT_DELIVERY_INCIDENT_SETTINGS } from './delivery-incident-settings';
 import { BadRequestException } from '@nestjs/common';
 import { SettingsService } from './settings.service';
@@ -71,6 +72,7 @@ describe('SettingsService — bepul yetkazish va yetkazish vaqti', () => {
       deliveryEtaMaxMinutes: 50,
       cardPaymentTimeoutMinutes: 15,
       ...DEFAULT_DELIVERY_INCIDENT_SETTINGS,
+      ...DEFAULT_INCIDENT_SETTINGS,
     });
   });
 

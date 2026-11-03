@@ -1,4 +1,5 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { accountBlockedError } from './blocked-error';
 import type { Request } from 'express';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
@@ -48,7 +49,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // next request rather than only at login/refresh time — otherwise a
     // blocked account keeps working until its access token expires.
     if (user.status === UserStatus.BLOCKED) {
-      throw new UnauthorizedException('Account is blocked');
+      throw accountBlockedError(user);
     }
 
     await this.syncLanguage(user, req.headers['accept-language']);

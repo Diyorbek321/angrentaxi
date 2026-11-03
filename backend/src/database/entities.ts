@@ -26,6 +26,7 @@ import { DriverShiftPass } from './entities/driver-shift-pass.entity';
 import { FavoriteAddress } from './entities/favorite-address.entity';
 import { FiscalReceipt } from './entities/fiscal-receipt.entity';
 import { FoodOrder } from './entities/food-order.entity';
+import { Incident } from './entities/incident.entity';
 import { IntercityPoint } from './entities/intercity-point.entity';
 import { IntercityRoute } from './entities/intercity-route.entity';
 import { IntercityTrip } from './entities/intercity-trip.entity';
@@ -86,6 +87,7 @@ export const ENTITIES = [
   FavoriteAddress,
   FiscalReceipt,
   FoodOrder,
+  Incident,
   IntercityPoint,
   IntercityRoute,
   IntercityTrip,

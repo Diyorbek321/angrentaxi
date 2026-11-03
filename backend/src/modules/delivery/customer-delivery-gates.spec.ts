@@ -37,4 +37,16 @@ describe('assertCustomerMayCheckout', () => {
     const since = (d.query.mock.calls[0] as unknown as [string, unknown[]])[1][1] as Date;
     expect(now.getTime() - since.getTime()).toBe(30 * 86_400_000);
   });
+
+  it("to'xtatilgan mijoz — ACCOUNT_SUSPENDED (karta ham)", async () => {
+    const now = new Date('2026-11-03T00:00:00Z');
+    const d = deps(0, 0);
+    d.query.mockImplementation((async (sql: string) =>
+      sql.includes('suspended_until')
+        ? [{ suspendedUntil: new Date('2026-11-05T00:00:00Z'), suspensionReason: 'Mast' }]
+        : [{ refusals: 0 }]) as never);
+    await expect(
+      assertCustomerMayCheckout(d, { customerId: 'c', isCash: false, settings, now }),
+    ).rejects.toMatchObject({ response: { code: 'ACCOUNT_SUSPENDED' } });
+  });
 });

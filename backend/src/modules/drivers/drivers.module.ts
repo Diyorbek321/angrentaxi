@@ -106,6 +106,7 @@ import { LegalModule } from '../legal/legal.module';
     DriverLegalService,
     RoadSpeedService,
     WalletNotifierService,
+    DriverWalletAdjustmentsService,
     REDIS_CLIENT,
   ],
 })

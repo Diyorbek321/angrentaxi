@@ -38,9 +38,15 @@ import {
   DeliveryIncidentSettings,
   toDeliveryIncidentSettings,
 } from './delivery-incident-settings';
+import {
+  INCIDENT_SETTINGS_FIELDS,
+  IncidentSettings,
+  strikeLadderError,
+  toIncidentSettings,
+} from './incident-settings';
 
 /** `GET/PATCH /settings/global` shakli. */
-export interface GlobalSettings extends DeliveryEta, DeliveryIncidentSettings {
+export interface GlobalSettings extends DeliveryEta, DeliveryIncidentSettings, IncidentSettings {
   platformName: string;
   supportPhone: string;
   supportEmail: string;
@@ -72,6 +78,8 @@ const GLOBAL_SETTINGS_FIELDS: ReadonlyArray<keyof GlobalSettings> = [
   'cardPaymentTimeoutMinutes',
   // Yetkazish hodisalari (INCIDENT-POLICY §2, migratsiya 049).
   ...DELIVERY_INCIDENT_FIELDS,
+  // Shikoyat va hodisa (INCIDENT-POLICY §3, migratsiya 050).
+  ...INCIDENT_SETTINGS_FIELDS,
 ];
 
 /** Ustun qo'shilmagan eski qatorda — migratsiya 047 standarti. */
@@ -104,6 +112,11 @@ export class SettingsService {
   /** Yetkazish hodisalari sozlamalari (§2). */
   async getDeliveryIncidentSettings(): Promise<DeliveryIncidentSettings> {
     return toDeliveryIncidentSettings(await this.getOrCreate());
+  }
+
+  /** Shikoyat va hodisa sozlamalari (§3). */
+  async getIncidentSettings(): Promise<IncidentSettings> {
+    return toIncidentSettings(await this.getOrCreate());
   }
 
   /** To'lanmagan kartali buyurtma muddati, daqiqa (§1). */
@@ -395,6 +408,10 @@ export class SettingsService {
       update.deliveryEtaMinMinutes ?? current.deliveryEtaMinMinutes,
       update.deliveryEtaMaxMinutes ?? current.deliveryEtaMaxMinutes,
     );
+    const ladderError = strikeLadderError(
+      toIncidentSettings({ ...toIncidentSettings(settings), ...(update as Partial<IncidentSettings>) }),
+    );
+    if (ladderError) throw new BadRequestException(ladderError);
     if (Object.keys(update).length > 0) {
       await this.settingsRepository.update(settings.id, update);
     }
@@ -414,6 +431,7 @@ function toGlobalSettings(settings: PlatformSettings): GlobalSettings {
     ...toDeliveryEta(settings),
     cardPaymentTimeoutMinutes: toCardPaymentTimeoutMinutes(settings),
     ...toDeliveryIncidentSettings(settings),
+    ...toIncidentSettings(settings),
   };
 }
 

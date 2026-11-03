@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import {
@@ -20,6 +20,7 @@ import { Transaction } from '../../database/entities/transaction.entity';
 import { haversineDistance } from '../orders/orders.distance.util';
 import { outstandingWalletDebt } from '../orders/outstanding-wallet-debt';
 import { SettingsService } from '../settings/settings.service';
+import { SuspensionGate } from '../incidents/suspension-gate.service';
 import { FareBreakdown, IntercityExtensionCharge } from '../tariffs/fare-breakdown';
 import { CreateIntercityBookingDto } from './dto/create-intercity-booking.dto';
 import { evaluateBooking, isLateCancel, seatReleaseOf } from './intercity-booking-policy';
@@ -138,6 +139,7 @@ export class IntercityBookingsService {
     private readonly extensionPricer: IntercityExtensionPricer,
     private readonly fit: IntercityFitService,
     private readonly zones: IntercityZonesService,
+    @Optional() private readonly suspensionGate?: SuspensionGate,
   ) {}
 
   /**
@@ -201,6 +203,7 @@ export class IntercityBookingsService {
     if (!zoneFit.zoneOk) throw this.outOfZone(zoneFit);
     const measureDetour = dto.kind === IntercityBookingKind.SEAT && settings.intercityMaxDetourMinutes > 0;
 
+    await this.suspensionGate?.assertMay(passengerId, 'new_order');
     // Oddiy buyurtma bilan BIR XIL darvoza (`outstanding-wallet-debt.ts`).
     const debt = await outstandingWalletDebt(this.transactionRepository, passengerId);
     if (debt > 0) {

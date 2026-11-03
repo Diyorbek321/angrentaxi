@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 
 /**
@@ -112,6 +113,30 @@ export const ERROR_CODES = {
   legalTermsNotAccepted: 'LEGAL_TERMS_NOT_ACCEPTED',
   /** Qabul qilinayotgan versiya joriy emas — matnni qayta yuklang (409). `details: { document, version }`. */
   legalVersionOutdated: 'LEGAL_VERSION_OUTDATED',
+  /**
+   * Hisob bloklangan (401 — kirish/refresh/token). `details: { reason }` —
+   * admin yozgan sabab (bo'lmasa `null`). Xabar o'zgarmagan: "Account is blocked".
+   */
+  accountBlocked: 'ACCOUNT_BLOCKED',
+  /**
+   * Hisob vaqtincha to'xtatilgan — onlayn chiqish / yangi buyurtma rad (403).
+   * Kirish TO'SILMAYDI. `details: { until (ISO), reason }`.
+   */
+  accountSuspended: 'ACCOUNT_SUSPENDED',
+  /** Shikoyat muddati o'tgan yoki buyurtma hali tugamagan (400). `details: { days }`. */
+  incidentWindowClosed: 'INCIDENT_WINDOW_CLOSED',
+  /** Shu buyurtma bo'yicha ochiq shikoyatingiz bor (409). `details: { incidentId }`. */
+  incidentAlreadyOpen: 'INCIDENT_ALREADY_OPEN',
+  /** Siz bu buyurtma ishtirokchisi emassiz yoki toifa sizga mos emas (403/400). */
+  incidentNotAllowed: 'INCIDENT_NOT_ALLOWED',
+  /** Natijalar qoidaga zid (400). `reasons[]` — har bir buzilgan qoida. */
+  incidentOutcomeInvalid: 'INCIDENT_OUTCOME_INVALID',
+  /** Bu hodisani faqat admin hal qiladi (xavfsizlik / blok / e'tiroz) — 403. */
+  incidentAdminRequired: 'INCIDENT_ADMIN_REQUIRED',
+  /** E'tiroz mumkin emas (409). `details: { reason: 'not_subject'|'not_resolved'|'already_appealed'|'window_closed'|'no_sanction' }`. */
+  incidentAppealNotAllowed: 'INCIDENT_APPEAL_NOT_ALLOWED',
+  /** Hodisa holati bu amalga mos emas (409). `details: { status }`. */
+  incidentStateConflict: 'INCIDENT_STATE_CONFLICT',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
@@ -166,4 +191,12 @@ export function codedNotFound(
   extras: CodedErrorExtras = {},
 ): NotFoundException {
   return new NotFoundException(body(code, message, extras));
+}
+
+export function codedUnauthorized(
+  code: ErrorCode,
+  message: string,
+  extras: CodedErrorExtras = {},
+): UnauthorizedException {
+  return new UnauthorizedException(body(code, message, extras));
 }

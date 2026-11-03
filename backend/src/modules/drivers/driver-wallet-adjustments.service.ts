@@ -8,10 +8,10 @@ import {
 } from '../../database/entities/transaction.entity';
 import { PaymentMethod } from '../../database/entities/order.entity';
 import { lockWalletForUpdate } from '../payments/wallet-balance.util';
-import { AUDIT_ACTIONS, AuditLogService } from '../audit/audit-log.service';
+import { AUDIT_ACTIONS, AuditAction, AuditLogService } from '../audit/audit-log.service';
 import { formatSom } from '../delivery/vendor-wallet-settlement';
 import { DriversService } from './drivers.service';
-import { WalletNotifierService } from './wallet-notifier.service';
+import { WalletChangeReason, WalletNotifierService } from './wallet-notifier.service';
 import { UserRole } from '../../database/entities/user.entity';
 import { SettingsService, DEFAULT_MANUAL_ADJUSTMENT_MANAGER_LIMIT } from '../settings/settings.service';
 import { ERROR_CODES, codedForbidden } from '../../common/errors/coded-error';
@@ -24,6 +24,27 @@ export const MANUAL_ADJUSTMENT_MAX = 5_000_000;
 export const MANUAL_ADJUSTMENT_LEDGER_PREFIX = 'manual_adjustment_';
 
 export type DriverWithWallet = Driver & { walletBalance: number };
+
+export interface WalletMovementInput {
+  actorUserId: string | null;
+  driverId: string;
+  driverUserId: string;
+  /** Ishorali: + kirim, − chiqim. */
+  amount: number;
+  note: string;
+  action: AuditAction;
+  /** Daftar belgisi: `<prefix><auditLogId>`. */
+  ledgerPrefix: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface WalletMovementResult {
+  auditId: string;
+  driverId: string;
+  driverUserId: string;
+  newBalance: number;
+  wentOffline: boolean;
+}
 
 /**
  * Hamyonni qo'lda to'ldirish/tuzatish — `PATCH /drivers/:id/balance`
@@ -80,44 +101,78 @@ export class DriverWalletAdjustmentsService {
 
     const driver = await this.driversService.findByIdOrThrow(driverId);
 
-    const result = await this.dataSource.transaction(async (manager: EntityManager) => {
-      await lockWalletForUpdate(manager, driver.userId);
-      const audit = await this.auditLog.record(
-        {
-          actorUserId,
-          action: AUDIT_ACTIONS.walletManualAdjustment,
-          targetType: 'driver',
-          targetId: driver.id,
-          amount,
-          note,
-          metadata: { driverUserId: driver.userId },
-        },
-        manager,
-      );
-      await manager.getRepository(Transaction).save({
-        userId: driver.userId,
-        orderId: null,
-        amount: Math.abs(amount),
-        type: amount > 0 ? TransactionType.CREDIT : TransactionType.DEBIT,
-        paymentMethod: PaymentMethod.CASH,
-        status: TransactionStatus.COMPLETED,
-        externalId: `${MANUAL_ADJUSTMENT_LEDGER_PREFIX}${audit.id}`,
-      });
-      const synced = await this.driversService.adjustBalanceWithin(manager, driver.userId, amount);
-      return { auditId: audit.id, ...synced };
-    });
+    const result = await this.dataSource.transaction((manager: EntityManager) =>
+      this.applyWithin(manager, {
+        actorUserId,
+        driverId: driver.id,
+        driverUserId: driver.userId,
+        amount,
+        note,
+        action: AUDIT_ACTIONS.walletManualAdjustment,
+        ledgerPrefix: MANUAL_ADJUSTMENT_LEDGER_PREFIX,
+      }),
+    );
+    await this.finalize(result, { amount, note, reason: 'manual_adjustment' });
 
+    this.logger.log(
+      `Manual wallet adjustment ${amount} for driver ${driver.id} by ${actorUserId} (audit ${result.auditId})`,
+    );
+
+    const updated = await this.driversService.findByIdOrThrow(driverId);
+    return { ...updated, walletBalance: result.newBalance };
+  }
+
+  /**
+   * Hamyon harakati chaqiruvchining tranzaksiyasi ICHIDA: qulf → jurnal →
+   * daftar qatori → `drivers.balance` sinxroni. Hodisa natijalari
+   * (kompensatsiya/jarima, INCIDENT-POLICY §3) ham shu yo'ldan — boshqa
+   * natijalar bilan BITTA tranzaksiyada. Commit'dan keyin {@link finalize}.
+   *
+   * ⚠️ Summa va chegara tekshiruvi chaqiruvchida (bu yerda faqat yozuv).
+   */
+  async applyWithin(manager: EntityManager, input: WalletMovementInput): Promise<WalletMovementResult> {
+    await lockWalletForUpdate(manager, input.driverUserId);
+    const audit = await this.auditLog.record(
+      {
+        actorUserId: input.actorUserId,
+        action: input.action,
+        targetType: 'driver',
+        targetId: input.driverId,
+        amount: input.amount,
+        note: input.note,
+        metadata: { driverUserId: input.driverUserId, ...(input.metadata ?? {}) },
+      },
+      manager,
+    );
+    await manager.getRepository(Transaction).save({
+      userId: input.driverUserId,
+      orderId: null,
+      amount: Math.abs(input.amount),
+      type: input.amount > 0 ? TransactionType.CREDIT : TransactionType.DEBIT,
+      paymentMethod: PaymentMethod.CASH,
+      status: TransactionStatus.COMPLETED,
+      externalId: `${input.ledgerPrefix}${audit.id}`,
+    });
+    const synced = await this.driversService.adjustBalanceWithin(manager, input.driverUserId, input.amount);
+    return { auditId: audit.id, driverUserId: input.driverUserId, ...synced };
+  }
+
+  /** Commit'dan keyin: manfiyga tushgan bo'lsa oflayn (Redis) + push + `wallet:updated`. */
+  async finalize(
+    result: WalletMovementResult,
+    push: { amount: number; note: string; reason: WalletChangeReason },
+  ): Promise<void> {
     if (result.wentOffline) {
       await this.driversService.takeOfflineInRedis(
         result.driverId,
-        `balance went negative after manual adjustment (${result.newBalance})`,
+        `balance went negative after ${push.reason} (${result.newBalance})`,
       );
     }
-
+    const { amount, note } = push;
     const sum = formatSom(Math.abs(amount));
-    await this.notifier.balanceChanged(driver.userId, {
+    await this.notifier.balanceChanged(result.driverUserId, {
       delta: amount,
-      reason: 'manual_adjustment',
+      reason: push.reason,
       push: {
         // `note` — operator yozgan izoh, tarjima qilinmaydi.
         text:
@@ -130,17 +185,16 @@ export class DriverWalletAdjustmentsService {
                 uz: { title: 'Hamyon tuzatildi', body: `Hamyoningizdan ${sum} so'm yechildi (tuzatish): ${note}` },
                 ru: { title: 'Корректировка кошелька', body: `С кошелька списано ${sum} сум (корректировка): ${note}` },
               }),
-        event: 'wallet_manual_adjustment',
+        event: `wallet_${push.reason}`,
       },
       extra: { auditLogId: result.auditId },
     });
+  }
 
-    this.logger.log(
-      `Manual wallet adjustment ${amount} for driver ${driver.id} by ${actorUserId} (audit ${result.auditId})`,
-    );
-
-    const updated = await this.driversService.findByIdOrThrow(driverId);
-    return { ...updated, walletBalance: result.newBalance };
+  /** Bir martalik pul amali chegarasi: admin — mutlaq, menejer — `manualAdjustmentManagerLimit`. */
+  async amountLimitFor(isAdmin: boolean): Promise<number> {
+    if (isAdmin) return MANUAL_ADJUSTMENT_MAX;
+    return Math.min(await this.managerLimit(), MANUAL_ADJUSTMENT_MAX);
   }
 
   private async managerLimit(): Promise<number> {

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, FindOptionsWhere, In, MoreThan, Repository } from 'typeorm';
 import { ERROR_CODES, ErrorReason, codedBadRequest, codedConflict, codedNotFound } from '../../common/errors/coded-error';
@@ -11,6 +11,7 @@ import { Transaction } from '../../database/entities/transaction.entity';
 import { haversineDistance } from '../orders/orders.distance.util';
 import { outstandingWalletDebt } from '../orders/outstanding-wallet-debt';
 import { SettingsService } from '../settings/settings.service';
+import { SuspensionGate } from '../incidents/suspension-gate.service';
 import { FareBreakdown } from '../tariffs/fare-breakdown';
 import {
   CreateIntercityRequestDto,
@@ -98,6 +99,7 @@ export class IntercityRequestsService {
     private readonly notifier: IntercityNotifier,
     private readonly trips: IntercityTripsService,
     private readonly gate: IntercityDriverGate,
+    @Optional() private readonly suspensionGate?: SuspensionGate,
   ) {}
 
   // ---------------------------------------------------------------- yo'lovchi
@@ -139,6 +141,7 @@ export class IntercityRequestsService {
       if (bonusReasons.length > 0) throw this.invalid(bonusReasons);
     }
 
+    await this.suspensionGate?.assertMay(passengerId, 'new_order');
     // Oddiy band bilan BIR XIL darvoza (`outstanding-wallet-debt.ts`).
     const debt = await outstandingWalletDebt(this.transactionRepository, passengerId);
     if (debt > 0) {

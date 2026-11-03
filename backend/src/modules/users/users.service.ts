@@ -149,14 +149,12 @@ export class UsersService {
     this.blockListeners.push(listener);
   }
 
-  async blockUser(id: string, reason?: string, actorUserId: string | null = null): Promise<User> {
-    const user = await this.findByIdOrThrow(id);
-    const blockReason = reason?.trim() || null;
-    await this.userRepository.update(id, { status: UserStatus.BLOCKED, blockReason });
-
-    // ⚠️ Ilgari bloklash faqat status yozardi: bloklangan haydovchi onlayn,
-    // geo-to'plamda qolib, taklif olishda davom etardi. Status allaqachon
-    // yozilgan — tinglovchi xatosi bloklashni bekor qilmaydi.
+  /**
+   * Bloklash oqibatlari (oflayn, socket uzish, push). Hodisa natijasi
+   * (INCIDENT-POLICY §3) statusni o'z tranzaksiyasida yozadi va commit'dan
+   * keyin shuni chaqiradi. Tinglovchi xatosi faqat log — blok bekor bo'lmaydi.
+   */
+  async runBlockListeners(id: string): Promise<void> {
     const results = await Promise.allSettled(this.blockListeners.map((listener) => listener(id)));
     results.forEach((result) => {
       if (result.status === 'rejected') {
@@ -165,6 +163,17 @@ export class UsersService {
         );
       }
     });
+  }
+
+  async blockUser(id: string, reason?: string, actorUserId: string | null = null): Promise<User> {
+    const user = await this.findByIdOrThrow(id);
+    const blockReason = reason?.trim() || null;
+    await this.userRepository.update(id, { status: UserStatus.BLOCKED, blockReason });
+
+    // ⚠️ Ilgari bloklash faqat status yozardi: bloklangan haydovchi onlayn,
+    // geo-to'plamda qolib, taklif olishda davom etardi. Status allaqachon
+    // yozilgan — tinglovchi xatosi bloklashni bekor qilmaydi.
+    await this.runBlockListeners(id);
 
     await this.recordAudit({
       actorUserId,

@@ -3,6 +3,7 @@ import { Repository } from 'typeorm';
 import { Transaction } from '../../database/entities/transaction.entity';
 import { outstandingWalletDebt } from '../orders/outstanding-wallet-debt';
 import { DeliveryIncidentSettings } from '../settings/delivery-incident-settings';
+import { assertNotSuspended } from '../incidents/suspension';
 
 /**
  * Ovqat/market checkout darvozalari (docs/INCIDENT-POLICY.md §2):
@@ -53,11 +54,32 @@ export async function assertCustomerMayCheckout(
         'Please top up your wallet before ordering again.',
     );
   }
-  if (!input.isCash) return;
   const now = input.now ?? new Date();
-  const since = new Date(now.getTime() - input.settings.refusalWindowDays * 86_400_000);
-  const refusals = await countRecentDeliveryRefusals(deps.query, input.customerId, since);
-  if (refusals >= input.settings.refusalCashBlockCount) {
-    throw new BadRequestException(refusalCashBlockedMessage(input.settings.refusalWindowDays, refusals));
+  if (input.isCash) await assertCashNotRefusalBlocked(deps.query, input.customerId, input.settings, now);
+  await assertCustomerNotSuspended(deps.query, input.customerId, now);
+}
+
+async function assertCashNotRefusalBlocked(
+  query: RawQuery,
+  customerId: string,
+  settings: Pick<DeliveryIncidentSettings, 'refusalCashBlockCount' | 'refusalWindowDays'>,
+  now: Date,
+): Promise<void> {
+  const since = new Date(now.getTime() - settings.refusalWindowDays * 86_400_000);
+  const refusals = await countRecentDeliveryRefusals(query, customerId, since);
+  if (refusals >= settings.refusalCashBlockCount) {
+    throw new BadRequestException(refusalCashBlockedMessage(settings.refusalWindowDays, refusals));
+  }
+}
+
+/** Vaqtincha to'xtatilgan mijoz yangi buyurtma bermaydi (INCIDENT-POLICY §3). */
+async function assertCustomerNotSuspended(query: RawQuery, customerId: string, now: Date): Promise<void> {
+  const rows = (await query(
+    'SELECT suspended_until AS "suspendedUntil", suspension_reason AS "suspensionReason" FROM users WHERE id = $1',
+    [customerId],
+  )) as Array<{ suspendedUntil?: Date | null; suspensionReason?: string | null }> | undefined;
+  const state = Array.isArray(rows) ? rows[0] : undefined;
+  if (state?.suspendedUntil) {
+    assertNotSuspended({ suspendedUntil: state.suspendedUntil, suspensionReason: state.suspensionReason ?? null }, 'new_order', now);
   }
 }

@@ -17,6 +17,7 @@ import { normalizeTripOptions } from './trip-options';
 import { tripOptionCharges, withOptionsFare } from './trip-option-fees';
 import { TripOptionCharge } from '../tariffs/fare-breakdown';
 import { SettingsService } from '../settings/settings.service';
+import { SuspensionGate } from '../incidents/suspension-gate.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { UsersService } from '../users/users.service';
 import { PromoCodesService } from '../promo-codes/promo-codes.service';
@@ -54,6 +55,8 @@ export class OrdersCreationService {
     private readonly citiesService: CitiesService,
     // Optional: qo'lda quriladigan spec'lar uni bermaydi; prod'da OrdersModule.
     @Optional() private readonly settingsService?: SettingsService,
+    // Vaqtincha to'xtatish (INCIDENT-POLICY §3). Ixtiyoriy — qo'lda yig'iladigan spec'lar.
+    @Optional() private readonly suspensionGate?: SuspensionGate,
   ) {}
 
   /**
@@ -409,6 +412,10 @@ export class OrdersCreationService {
     // darvozasidan O'TMAYDI: u mijoz buyurtmasining davomi, va qarz
     // checkout'da (food/market `createOrder`) tekshiriladi. Ilgari qarzdor
     // mijozning buyurtmasi sotuvchi "tayyor" deganda 400 bilan qotib qolardi.
+    // To'xtatilgan yo'lovchi yangi buyurtma bermaydi (§3). Kuryer safari
+    // (`agreedFare`) — mijoz buyurtmasining davomi, checkout'da tekshirilgan.
+    if (options.agreedFare === undefined) await this.suspensionGate?.assertMay(passengerId, 'new_order');
+
     const outstandingDebt =
       options.agreedFare !== undefined ? 0 : await this.getOutstandingWalletDebt(passengerId);
 

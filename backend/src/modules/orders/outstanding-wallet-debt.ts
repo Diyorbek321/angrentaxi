@@ -6,6 +6,9 @@ import {
   TransactionType,
 } from '../../database/entities/transaction.entity';
 
+/** Yo'lovchiga hodisa jarimasi — PENDING hamyon DEBIT'i: `incident_penalty_<auditLogId>`. */
+export const INCIDENT_PENALTY_LEDGER_PREFIX = 'incident_penalty_';
+
 /**
  * Yo'lovchining oldingi safarlardan to'lanmay qolgan hamyon qarzi (so'm).
  *
@@ -25,7 +28,9 @@ export async function outstandingWalletDebt(
     .andWhere('t.type = :type', { type: TransactionType.DEBIT })
     .andWhere('t.status = :status', { status: TransactionStatus.PENDING })
     .andWhere('t.paymentMethod = :method', { method: PaymentMethod.WALLET })
-    .andWhere('t.orderId IS NOT NULL')
+    // Hodisa jarimasi (INCIDENT-POLICY §3) buyurtmaga bog'lanmaydi — chek va
+    // karta to'lovi qidiruvi buyurtmaning "oxirgi DEBIT" iga tayanadi.
+    .andWhere("(t.orderId IS NOT NULL OR t.externalId LIKE :penalty)", { penalty: `${INCIDENT_PENALTY_LEDGER_PREFIX}%` })
     .getRawOne<{ debt: string }>();
 
   return parseFloat(result?.debt ?? '0');

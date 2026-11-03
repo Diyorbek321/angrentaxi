@@ -20,6 +20,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { AccountDeletionModule } from './modules/account-deletion/account-deletion.module';
 import { LegalModule } from './modules/legal/legal.module';
+import { IncidentsModule } from './modules/incidents/incidents.module';
+import { SuspensionModule } from './modules/incidents/suspension-gate.service';
 import { DriversModule } from './modules/drivers/drivers.module';
 import { TariffsModule } from './modules/tariffs/tariffs.module';
 import { OrdersModule } from './modules/orders/orders.module';
@@ -159,6 +161,8 @@ import { ENTITIES } from './database/entities';
     UsersModule,
     AccountDeletionModule,
     LegalModule,
+    SuspensionModule,
+    IncidentsModule,
     DriversModule,
     TariffsModule,
     OrdersModule,

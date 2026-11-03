@@ -39,6 +39,21 @@ export const AUDIT_ACTIONS = {
   deliveryRefundPending: 'delivery.refund_pending',
   /** Menejer qo'lda qaytarishni bajarildi deb belgiladi. `amount`, `note`. */
   deliveryRefundDone: 'delivery.refund_done',
+  /** Hodisa hal qilindi / rad etildi (INCIDENT-POLICY §3). `metadata.status`, `outcomes`. */
+  incidentResolve: 'incident.resolve',
+  /** Hodisa natijalari — har biri alohida yozuv, natija bilan bitta tranzaksiyada. */
+  incidentWarning: 'incident.warning',
+  incidentSuspension: 'incident.suspension',
+  /** Xavfsizlik toifasi — subyekt avtomatik to'xtatildi (tizim, `actor = null`). */
+  incidentSafetySuspension: 'incident.safety_suspension',
+  /** To'xtatish olib tashlandi (admin qarori / e'tiroz qabul qilindi). */
+  incidentSuspensionLifted: 'incident.suspension_lifted',
+  /** Mijozga qaytarish. `metadata.refundMethod` — wallet | card. */
+  incidentRefund: 'incident.refund',
+  incidentCompensation: 'incident.compensation',
+  incidentPenalty: 'incident.penalty',
+  /** E'tiroz bo'yicha admin qarori. `metadata.decision` — upheld | overturned. */
+  incidentAppealDecision: 'incident.appeal_decision',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

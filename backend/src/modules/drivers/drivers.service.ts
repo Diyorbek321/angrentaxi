@@ -30,6 +30,7 @@ import { TaximeterService } from '../taximeter/taximeter.service';
 import { DriverVerificationService } from './driver-verification.service';
 import { DriverLegalBrief, DriverLegalService } from './driver-legal.service';
 import { LegalAcceptanceService } from '../legal/legal-acceptance.service';
+import { SuspensionGate } from '../incidents/suspension-gate.service';
 import {
   DEFAULT_DRIVER_SERVICE_TYPES,
   DriverCapabilityFilter,
@@ -146,6 +147,8 @@ export class DriversService implements OnModuleInit {
     // Haydovchi ofertasi roziligi (migratsiya 048). Ixtiyoriy — qo'lda
     // yig'iladigan unit spec'lar uchun; ilovada `LegalModule` ulangan.
     @Optional() private readonly termsGate?: LegalAcceptanceService,
+    // Vaqtincha to'xtatish (migratsiya 050). Ixtiyoriy — qo'lda yig'iladigan spec'lar.
+    @Optional() private readonly suspensionGate?: SuspensionGate,
   ) {}
 
   onModuleInit(): void {
@@ -424,6 +427,9 @@ export class DriversService implements OnModuleInit {
     if (isOnline && driver.user?.status === UserStatus.BLOCKED) {
       throw new ForbiddenException('Your account is blocked');
     }
+
+    // To'xtatilgan haydovchi onlayn chiqmaydi — sabab va muddat xabarda (§3).
+    if (isOnline) await this.suspensionGate?.assertMay(userId, 'go_online');
 
     if (isOnline && driver.user?.status === UserStatus.PENDING) {
       throw new BadRequestException(

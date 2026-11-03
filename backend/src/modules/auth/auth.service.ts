@@ -4,6 +4,7 @@ import {
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
+import { accountBlockedError } from './blocked-error';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -208,7 +209,7 @@ export class AuthService {
     }
 
     if (user.status === UserStatus.BLOCKED) {
-      throw new UnauthorizedException('Account is blocked');
+      throw accountBlockedError(user);
     }
 
     const tokens = await this.issueTokenPair(user, context);
@@ -310,7 +311,7 @@ export class AuthService {
       }
 
       if (user.status === UserStatus.BLOCKED) {
-        throw new UnauthorizedException('Account is blocked');
+        throw accountBlockedError(user);
       }
 
       const tokens = await this.issueTokenPair(user, {

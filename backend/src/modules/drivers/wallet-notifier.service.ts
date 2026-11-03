@@ -18,7 +18,10 @@ export type WalletChangeReason =
   | 'shift_pass_refund'
   | 'vendor_settlement_reversal'
   /** Karta to'lovi qaytarildi — ulush qaytarib olindi (§23). */
-  | 'refund_clawback';
+  | 'refund_clawback'
+  /** Hodisa natijasi: haydovchiga kompensatsiya / jarima (INCIDENT-POLICY §3). */
+  | 'incident_compensation'
+  | 'incident_penalty';
 
 export interface WalletChangeNotice {
   /** Ishorali: + kirim, − chiqim. */

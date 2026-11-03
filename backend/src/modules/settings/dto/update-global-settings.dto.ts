@@ -15,6 +15,7 @@ import {
   DELIVERY_ETA_MINUTES_MIN,
 } from '../delivery-pricing';
 import { DELIVERY_INCIDENT_LIMITS as L } from '../delivery-incident-settings';
+import { INCIDENT_SETTINGS_LIMITS as IL } from '../incident-settings';
 
 export class UpdateGlobalSettingsDto {
   @ApiPropertyOptional({ example: 'Angren Taxi' })
@@ -139,4 +140,81 @@ export class UpdateGlobalSettingsDto {
   @Min(L.staleCourierLocationMinutes.min)
   @Max(L.staleCourierLocationMinutes.max)
   staleCourierLocationMinutes?: number;
+
+  @ApiPropertyOptional({ example: 7, description: "Shikoyat muddati — buyurtmadan keyin, kun" })
+  @IsOptional()
+  @IsInt()
+  @Min(IL.incidentReportWindowDays.min)
+  @Max(IL.incidentReportWindowDays.max)
+  incidentReportWindowDays?: number;
+
+  @ApiPropertyOptional({ example: 7, description: "E'tiroz muddati — natijadan keyin, kun" })
+  @IsOptional()
+  @IsInt()
+  @Min(IL.incidentAppealWindowDays.min)
+  @Max(IL.incidentAppealWindowDays.max)
+  incidentAppealWindowDays?: number;
+
+  @ApiPropertyOptional({ example: 3, description: "Vaqtincha to'xtatish standarti, kun" })
+  @IsOptional()
+  @IsInt()
+  @Min(IL.suspensionDays.min)
+  @Max(IL.suspensionDays.max)
+  suspensionDays?: number;
+
+  @ApiPropertyOptional({ example: 90, description: "Jarima zinapoyasi oynasi, kun" })
+  @IsOptional()
+  @IsInt()
+  @Min(IL.strikeWindowDays.min)
+  @Max(IL.strikeWindowDays.max)
+  strikeWindowDays?: number;
+
+  @ApiPropertyOptional({ example: 1, description: "Shuncha tasdiqlangan shikoyat — ogohlantirish" })
+  @IsOptional()
+  @IsInt()
+  @Min(IL.strikeWarningAt.min)
+  @Max(IL.strikeWarningAt.max)
+  strikeWarningAt?: number;
+
+  @ApiPropertyOptional({ example: 3, description: "Shuncha — to'xtatish" })
+  @IsOptional()
+  @IsInt()
+  @Min(IL.strikeSuspensionAt.min)
+  @Max(IL.strikeSuspensionAt.max)
+  strikeSuspensionAt?: number;
+
+  @ApiPropertyOptional({ example: 5, description: "Shuncha — blok (admin)" })
+  @IsOptional()
+  @IsInt()
+  @Min(IL.strikeBlockAt.min)
+  @Max(IL.strikeBlockAt.max)
+  strikeBlockAt?: number;
+
+  @ApiPropertyOptional({ example: 20, description: "Reyting signali: oxirgi shuncha baho" })
+  @IsOptional()
+  @IsInt()
+  @Min(IL.ratingSignalWindow.min)
+  @Max(IL.ratingSignalWindow.max)
+  ratingSignalWindow?: number;
+
+  @ApiPropertyOptional({ example: 4.3, description: "Reyting signali: o'rtacha shundan past" })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(IL.ratingSignalThreshold.min)
+  @Max(IL.ratingSignalThreshold.max)
+  ratingSignalThreshold?: number;
+
+  @ApiPropertyOptional({ example: 30, description: "Bitta haydovchiga signal shuncha kunda bir marta" })
+  @IsOptional()
+  @IsInt()
+  @Min(IL.ratingSignalCooldownDays.min)
+  @Max(IL.ratingSignalCooldownDays.max)
+  ratingSignalCooldownDays?: number;
+
+  @ApiPropertyOptional({ example: 2, description: "Shu bahodan past-teng + izoh — hodisa qoralamasi" })
+  @IsOptional()
+  @IsInt()
+  @Min(IL.lowRatingIncidentMaxScore.min)
+  @Max(IL.lowRatingIncidentMaxScore.max)
+  lowRatingIncidentMaxScore?: number;
 }

@@ -132,6 +132,33 @@ export class User {
   @Column({ nullable: true, type: 'varchar', length: 300 })
   blockReason: string | null;
 
+  // Vaqtincha to'xtatish (migratsiya 050, docs/INCIDENT-POLICY.md §3): shu
+  // vaqtgacha haydovchi onlayn chiqmaydi, yo'lovchi yangi buyurtma bermaydi.
+  // Kirish (login) TO'SILMAYDI — sababini ilovada ko'rsin va e'tiroz bersin.
+  @Column({ name: 'suspended_until', type: 'timestamptz', nullable: true })
+  suspendedUntil: Date | null;
+
+  @Column({ name: 'suspension_reason', type: 'varchar', length: 300, nullable: true })
+  suspensionReason: string | null;
+
+  // Haydovchilarning yo'lovchiga bergan bahosi o'rtachasi (migratsiya 050) —
+  // menejer ko'radi. Baho yo'q — `null`.
+  @Column({
+    name: 'passenger_rating',
+    type: 'decimal',
+    precision: 3,
+    scale: 2,
+    nullable: true,
+    transformer: {
+      to: (value: number | null) => value,
+      from: (value: string | null) => (value === null || value === undefined ? null : parseFloat(value)),
+    },
+  })
+  passengerRating: number | null;
+
+  @Column({ name: 'passenger_rating_count', type: 'int', default: 0 })
+  passengerRatingCount: number;
+
   @Column({ nullable: true, type: 'varchar' })
   fcmToken: string | null;
 
