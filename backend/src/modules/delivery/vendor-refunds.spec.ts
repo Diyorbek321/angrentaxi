@@ -5,7 +5,7 @@ import { VendorRefundsService } from './vendor-refunds';
 function build(affected = 1) {
   const foodRepo = {
     find: jest.fn(async () => [
-      { id: 'fo-1', restaurant: { name: 'Osh' }, customerPhone: '+998', totalPrice: 57000, returnCharge: 10500, refundDue: 46500, returnedAt: new Date('2026-11-03T10:00:00Z') },
+      { id: 'fo-1', restaurant: { name: 'Osh', phone: '+99871' }, deliveryOrderId: 'ride-1', customerPhone: '+998', totalPrice: 57000, returnCharge: 10500, refundDue: 46500, returnedAt: new Date('2026-11-03T10:00:00Z') },
     ]),
     findOne: jest.fn(async () => ({ id: 'fo-1', refundDue: 46500 })),
     update: jest.fn(async () => ({ affected })),
@@ -18,7 +18,7 @@ function build(affected = 1) {
 describe('VendorRefundsService', () => {
   it("kutilayotganlar ro'yxati", async () => {
     const [item] = await build().service.listPending();
-    expect(item).toMatchObject({ kind: 'food', vendorName: 'Osh', refundDue: 46500, returnCharge: 10500 });
+    expect(item).toMatchObject({ kind: 'food', vendorName: 'Osh', vendorPhone: '+99871', deliveryOrderId: 'ride-1', refundDue: 46500, returnCharge: 10500 });
   });
 
   it('bajarildi — shartli yozuv + audit', async () => {

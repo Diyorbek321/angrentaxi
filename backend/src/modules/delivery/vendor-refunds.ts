@@ -32,6 +32,9 @@ export interface PendingVendorRefund {
   kind: 'food' | 'market';
   vendorOrderId: string;
   vendorName: string;
+  vendorPhone: string | null;
+  /** Kuryer safari — menejer iz va chekni ko'radi. */
+  deliveryOrderId: string | null;
   customerPhone: string | null;
   totalPrice: number;
   returnCharge: number;
@@ -60,10 +63,16 @@ export class VendorRefundsService {
       this.foodOrderRepo.find({ where, relations: ['restaurant'], order: { returnedAt: 'ASC' }, take: PENDING_LIMIT }),
       this.marketOrderRepo.find({ where, relations: ['store'], order: { returnedAt: 'ASC' }, take: PENDING_LIMIT }),
     ]);
-    const entry = (kind: 'food' | 'market', o: FoodOrder | MarketOrder, vendorName: string | undefined): PendingVendorRefund => ({
+    const entry = (
+      kind: 'food' | 'market',
+      o: FoodOrder | MarketOrder,
+      vendor: { name: string; phone?: string | null } | undefined,
+    ): PendingVendorRefund => ({
       kind,
       vendorOrderId: o.id,
-      vendorName: vendorName ?? '—',
+      vendorName: vendor?.name ?? '—',
+      vendorPhone: vendor?.phone ?? null,
+      deliveryOrderId: o.deliveryOrderId ?? null,
       customerPhone: o.customerPhone ?? null,
       totalPrice: Number(o.totalPrice),
       returnCharge: Number(o.returnCharge ?? 0),
@@ -71,8 +80,8 @@ export class VendorRefundsService {
       returnedAt: o.returnedAt ? new Date(o.returnedAt).toISOString() : null,
     });
     return [
-      ...food.map((o) => entry('food', o, o.restaurant?.name)),
-      ...market.map((o) => entry('market', o, o.store?.name)),
+      ...food.map((o) => entry('food', o, o.restaurant)),
+      ...market.map((o) => entry('market', o, o.store)),
     ].sort((a, b) => (a.returnedAt ?? '').localeCompare(b.returnedAt ?? ''));
   }
 
