@@ -59,7 +59,6 @@ Oxirgi prod deploy: `d4a7f75` (2026-11-01). Oxirgi APK: v21 (2026-11-01, `02d538
 - [ ] **O'z ikonalari** — 302 ta Material ikona, 0 ta o'ziniki; "shablon ilova" hissining asosiy sababi.
 - [ ] Doze kechiktirgan taklif push'i to'liq muddat jiringlaydi (ma'lum cheklov); Oppo/Vivo/Huawei autostart sahifasi aniqlanmagan.
 - [ ] Socket (`WsException`) xabarlari tarjima qilinmaydi — hozir hech bir mijoz ularni ko'rsatmaydi (mobil faqat debugPrint); UI'ga chiqarilsa, tarjima kerak bo'ladi.
-- [ ] Market "Kategoriyalar" va "Zaxira" sahifalari hali to'liq ro'yxatni oladi (sahifalanmagan).
 - [ ] Prod bazasi: bitta haydovchida bir nechta faol zakaz qolmaganini tekshirish (tuzatilgan bug izi).
 - [ ] Seed admin raqami `+998901234567` hujjatlarda ochiq — prod'da ishlatilmasligini tasdiqlash.
 - [ ] `apk/` papkasidagi eski APK'larni tozalash.

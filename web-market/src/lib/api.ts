@@ -127,6 +127,19 @@ export interface MarketCategory {
   emoji: string;
   sortOrder: number;
   isActive: boolean;
+  /** Faqat sotuvchi ro'yxatida (`GET /market/vendor/categories`) — bazada sanalgan. */
+  productCount?: number;
+}
+
+/** `GET /market/vendor/stock/summary` — sanash bazada, katalog to'liq yuklanmaydi. */
+export interface StockSummary {
+  threshold: number;
+  totalCount: number;
+  outCount: number;
+  lowCount: number;
+  /** `outCount + lowCount`; `restock` ko'pi bilan 100 ta (eng kamlari). */
+  restockTotal: number;
+  restock: Product[];
 }
 
 export interface Product {
@@ -318,6 +331,7 @@ export const marketApi = {
     }),
   removeProductImage: (id: string) => api.delete<ApiResponse<Product>>(`/market/vendor/products/${id}/image`),
 
+  getStockSummary: () => api.get<ApiResponse<StockSummary>>('/market/vendor/stock/summary'),
   getStockMovements: () => api.get<ApiResponse<StockMovement[]>>('/market/vendor/stock/movements'),
 
   getOrders: (status?: MarketOrderStatus) =>

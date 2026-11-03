@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, Pencil, Plus, RefreshCw, Tags, Trash2 } from 'lucide-react';
-import { marketApi, MarketCategory, Product } from '@/lib/api';
+import { marketApi, MarketCategory } from '@/lib/api';
 import { errorMessage, hueTint } from '@/lib/utils';
 import { formatNumber } from '@/lib/format';
 import { useAsyncData } from '@/hooks/useAsyncData';
@@ -23,7 +23,6 @@ const HUES = [45, 200, 25, 280, 150, 320];
 
 interface CategoriesData {
   categories: MarketCategory[];
-  products: Product[];
 }
 
 export default function CategoriesPage() {
@@ -38,8 +37,9 @@ export default function CategoriesPage() {
 
   const { data, isLoading, isRefreshing, error, reload } = useAsyncData<CategoriesData>(
     async () => {
-      const [c, p] = await Promise.all([marketApi.getCategories(), marketApi.getProducts()]);
-      return { categories: c.data.data, products: p.data.data };
+      // Mahsulot sonlari server javobida (`productCount`) — butun katalog kerak emas.
+      const c = await marketApi.getCategories();
+      return { categories: c.data.data };
     }
   );
   usePageRefresh(reload);
@@ -53,13 +53,10 @@ export default function CategoriesPage() {
     [data]
   );
 
-  const productCount = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const p of data?.products ?? []) {
-      if (p.categoryId) counts[p.categoryId] = (counts[p.categoryId] ?? 0) + 1;
-    }
-    return counts;
-  }, [data]);
+  const productCount = useMemo(
+    () => Object.fromEntries(categories.map((c) => [c.id, c.productCount ?? 0])) as Record<string, number>,
+    [categories]
+  );
 
   const toggle = async (c: MarketCategory) => {
     try {

@@ -96,7 +96,7 @@ export class MarketVendorController {
   @ApiOperation({ summary: 'List my categories' })
   async listCategories(@CurrentUser() user: User) {
     const store = await this.marketService.getStoreByOwner(user.id);
-    return this.marketService.listCategories(store.id);
+    return this.marketService.listCategoriesWithCounts(store.id);
   }
 
   @Post('categories')
@@ -193,6 +193,13 @@ export class MarketVendorController {
   async removeProductImage(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
     const store = await this.marketService.getStoreByOwner(user.id);
     return this.marketImages.setProductImage(store.id, id, null);
+  }
+
+  @Get('stock/summary')
+  @ApiOperation({ summary: 'Out-of-stock / low-stock counts and the restock list' })
+  async stockSummary(@CurrentUser() user: User) {
+    const store = await this.marketService.getStoreByOwner(user.id);
+    return this.marketService.stockSummary(store);
   }
 
   @Get('stock/movements')

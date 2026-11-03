@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, History, Minus, Plus, RefreshCw } from 'lucide-react';
-import { marketApi, type Product, type StockMovement, type Store } from '@/lib/api';
+import { marketApi, type Product, type StockMovement, type StockSummary } from '@/lib/api';
 import { errorMessage, hueTint } from '@/lib/utils';
 import { formatDateTime, formatNumber } from '@/lib/format';
 import { stockTone } from '@/lib/product-status';
@@ -20,13 +20,11 @@ import { SkeletonStats, SkeletonTable } from '@/components/ui/Skeleton';
 import { StatCard } from '@/components/ui/StatCard';
 import { cn } from '@/components/ui/cn';
 import { usePageRefresh } from '@/components/shell';
-import { getLocale } from '@/lib/i18n/core';
 import { t } from '@/locales';
 
 interface StockData {
-  products: Product[];
+  summary: StockSummary;
   movements: StockMovement[];
-  store: Store;
 }
 
 const STEP = 5;
@@ -38,31 +36,20 @@ export default function StockPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const { data, isLoading, isRefreshing, error, reload } = useAsyncData<StockData>(async () => {
-    const [p, m, s] = await Promise.all([
-      marketApi.getProducts(),
-      marketApi.getStockMovements(),
-      marketApi.getStore(),
-    ]);
-    return { products: p.data.data, movements: m.data.data, store: s.data.data };
+    const [s, m] = await Promise.all([marketApi.getStockSummary(), marketApi.getStockMovements()]);
+    return { summary: s.data.data, movements: m.data.data };
   });
   usePageRefresh(reload);
 
-  const products = useMemo(() => data?.products ?? [], [data]);
   const movements = useMemo(() => data?.movements ?? [], [data]);
-  // Do'konning haqiqiy chegarasi (Sozlamalar → Zaxira ogohlantirishi).
-  const threshold = data?.store.lowStockThreshold ?? 0;
-
-  const outCount = products.filter((p) => p.stock === 0).length;
-  const lowCount = products.filter((p) => p.stock > 0 && p.stock <= threshold).length;
-
-  // Kritik birinchi: tugaganlar, keyin eng kami tepada; teng bo'lsa nom bo'yicha.
-  const needRestock = useMemo(
-    () =>
-      products
-        .filter((p) => p.stock <= threshold)
-        .sort((a, b) => a.stock - b.stock || a.name.localeCompare(b.name, getLocale())),
-    [products, threshold]
-  );
+  // Sanash bazada: katalog o'sganda ham sahifa butun ro'yxatni olmaydi.
+  // Chegara — do'konning o'zi (Sozlamalar → Zaxira ogohlantirishi).
+  const threshold = data?.summary.threshold ?? 0;
+  const outCount = data?.summary.outCount ?? 0;
+  const lowCount = data?.summary.lowCount ?? 0;
+  const totalCount = data?.summary.totalCount ?? 0;
+  // Server tartibi: tugaganlar, keyin eng kami tepada; teng bo'lsa nom bo'yicha.
+  const needRestock = useMemo(() => data?.summary.restock ?? [], [data]);
 
   const pagedMovements = usePagination(movements, 25);
 
@@ -238,7 +225,7 @@ export default function StockPage() {
               value={formatNumber(lowCount)}
               hint={lowCount > 0 ? m.common.refillSoon : m.common.allEnough}
             />
-            <StatCard label={sm.totalProducts} value={formatNumber(products.length)} />
+            <StatCard label={sm.totalProducts} value={formatNumber(totalCount)} />
           </div>
 
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
@@ -251,7 +238,7 @@ export default function StockPage() {
               rowKey={(p) => p.id}
               rowClassName={(p) => (p.stock === 0 ? 'bg-danger-tint/40' : undefined)}
               empty={
-                products.length === 0
+                totalCount === 0
                   ? {
                       variant: 'first-use',
                       title: sm.noProducts,

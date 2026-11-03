@@ -33,6 +33,7 @@ import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { BulkUpdateProductsDto } from './dto/bulk-update-products.dto';
 import { VendorProductQueryDto } from './dto/vendor-product-query.dto';
+import { countProductsByCategory, vendorStockSummary, VendorStockSummary } from './vendor-catalog-summary';
 import { browseVendorProducts } from './vendor-product-browse';
 import { CreateMarketOrderDto } from './dto/create-market-order.dto';
 import { CreateStoreAdminDto } from './dto/create-store-admin.dto';
@@ -195,6 +196,15 @@ export class MarketService implements OnModuleInit {
     return this.categoryRepo.find({ where: { storeId }, order: { sortOrder: 'ASC' } });
   }
 
+  /** Sotuvchi paneli: har kategoriyada nechta mahsulot borligi bilan (sanash bazada). */
+  async listCategoriesWithCounts(storeId: string): Promise<Array<MarketCategory & { productCount: number }>> {
+    const [categories, counts] = await Promise.all([
+      this.listCategories(storeId),
+      countProductsByCategory(this.productRepo, storeId),
+    ]);
+    return categories.map((category) => ({ ...category, productCount: counts[category.id] ?? 0 }));
+  }
+
   createCategory(storeId: string, dto: CreateCategoryDto): Promise<MarketCategory> {
     return this.categoryRepo.save(
       this.categoryRepo.create({
@@ -318,6 +328,11 @@ export class MarketService implements OnModuleInit {
     const product = await this.getOwnedProduct(storeId, id);
     await this.productRepo.remove(product);
     return product.imageKey;
+  }
+
+  /** Sotuvchi paneli "Zaxira": tugagan/kam qolgan sonlari va to'ldirish ro'yxati. */
+  stockSummary(store: Pick<Store, 'id' | 'lowStockThreshold'>): Promise<VendorStockSummary> {
+    return vendorStockSummary(this.productRepo, store.id, store.lowStockThreshold ?? 0);
   }
 
   listStockMovements(storeId: string): Promise<StockMovement[]> {
