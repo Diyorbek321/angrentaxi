@@ -531,6 +531,8 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
     // `arrivedAt` yo'q buyurtmada kutish vaqti haqida GAPIRMAYMIZ — soxta
     // "0 soniya kutdingiz" yozuvidan ko'ra savolning o'zi yaxshiroq.
     final l10n = context.l10n;
+    // Taksi/yuk: server kutish vaqtini tekshiradi va jarima haydovchiga (§5).
+    final penaltyNote = order.taxiPenaltiesApply ? '\n\n${l10n.drvNoShowFeeNote}' : '';
     final confirmText = order.arrivedAt == null
         ? l10n.drvNoShowConfirm
         : charge.isBilling
@@ -544,7 +546,7 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(wording.noShowActionLabel),
-        content: Text(confirmText),
+        content: Text('$confirmText$penaltyNote'),
         // ⚠️ TASDIQ DIALOGIDA HAM IKKI TANLOV YONMA-YON QO'YILMAYDI —
         // ekrandagi tugmalar bilan bir xil qoida, chunki xavf ham o'sha:
         // tanlovlardan biri buyurtmani BEKOR qiladi.
@@ -592,7 +594,13 @@ class _ArrivedScreenState extends State<ArrivedScreen> {
                 borderColor: kError,
                 onPressed: () async {
                   Navigator.of(ctx).pop();
-                  await provider.cancelOrder(reason: 'passenger_no_show');
+                  // Taksi/yuk — "yo'lovchi chiqmadi" (bekor qilish sanalmaydi,
+                  // jarima haydovchiga); boshqalar — avvalgidek bekor qilish.
+                  if (order.taxiPenaltiesApply) {
+                    await provider.markNoShow();
+                  } else {
+                    await provider.cancelOrder(reason: 'passenger_no_show');
+                  }
                   if (!mounted) return;
                   if (provider.state == DriverProviderState.success) {
                     Navigator.of(context).pushNamedAndRemoveUntil(

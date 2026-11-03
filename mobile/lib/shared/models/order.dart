@@ -430,6 +430,10 @@ class Order extends Equatable {
 
   bool get isParcel => serviceType == kServiceTypeParcel;
 
+  /// Kech bekor qilish / kelmaslik jarimasi va safar uzilishi qo'llanadigan
+  /// xizmat (backend `taxi-cancel-policy.ts#penaltiesApply`, INCIDENT-POLICY §5).
+  bool get taxiPenaltiesApply => serviceType == kServiceTypeTaxi || serviceType == kServiceTypeCargo;
+
   /// Bu safar ovqat yoki market yetkazish (kuryer) safarimi.
   ///
   /// `serviceType` ham tekshiriladi: `details` yubormaydigan javoblarda

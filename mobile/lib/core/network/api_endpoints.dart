@@ -303,6 +303,10 @@ class ApiEndpoints {
   static String orderCall(String orderId) => '/orders/$orderId/call';
   // Safar kuzatuvi havolasi — `{token, path}`; ommaviy sahifa `${apiBaseUrl}$path`.
   static String orderShare(String orderId) => '/orders/$orderId/share';
+  // Taksi: bekor qilish jarimasi, kelmaslik, uzilish (INCIDENT-POLICY §5).
+  static String cancelFee(String orderId) => '/orders/$orderId/cancel-fee';
+  static String noShow(String orderId) => '/orders/$orderId/no-show';
+  static String interruptTrip(String orderId) => '/orders/$orderId/interrupt';
   static String resolveSos(String id) => '/sos/$id/resolve';
   static const String activeSosAlerts = '/sos/active';
 }

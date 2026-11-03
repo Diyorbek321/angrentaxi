@@ -265,7 +265,7 @@ void main() {
             order: order,
             driverLocation: ValueNotifier<LatLng?>(null),
             isBusy: false,
-            onCancel: (_) {},
+            onCancel: (_, __) {},
             sosService: SosService(apiClient: apiClient),
             fallbackLocation: const LatLng(41.0167, 70.1436),
           ),

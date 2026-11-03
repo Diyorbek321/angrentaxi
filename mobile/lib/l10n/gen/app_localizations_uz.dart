@@ -573,6 +573,40 @@ class AppLocalizationsUz extends AppLocalizations {
   String get drvHeroSemOpenHistory => 'Daromad tarixini ochish';
 
   @override
+  String get drvInterruptAccident => 'Avariya';
+
+  @override
+  String get drvInterruptAction => 'Safar uzildi (avariya, buzilish)';
+
+  @override
+  String get drvInterruptBody =>
+      'Safar shu nuqtagacha bo\'lgan narx bilan yakunlanadi, yo\'lovchiga shu joydan yangi taksi taklif qilinadi.';
+
+  @override
+  String get drvInterruptBreakdown => 'Mashina buzildi';
+
+  @override
+  String get drvInterruptConfirm => 'Safarni yakunlash';
+
+  @override
+  String drvInterruptDone(String price) {
+    return 'Safar uzildi. Undirildi: $price';
+  }
+
+  @override
+  String get drvInterruptFailed =>
+      'Safarni yakunlab bo\'lmadi. Dispetcherga qo\'ng\'iroq qiling.';
+
+  @override
+  String get drvInterruptNoteHint => 'Izoh (ixtiyoriy)';
+
+  @override
+  String get drvInterruptOther => 'Boshqa sabab';
+
+  @override
+  String get drvInterruptTitle => 'Safar uzildi';
+
+  @override
   String drvItemsCount(int count) {
     return '$count ta mahsulot';
   }
@@ -662,6 +696,10 @@ class AppLocalizationsUz extends AppLocalizations {
   String drvNoShowConfirmWaitedFee(String elapsed, String fare) {
     return '$elapsed kutdingiz, $fare kutish haqi yig\'ildi. Buyurtmani bekor qilmoqchimisiz?';
   }
+
+  @override
+  String get drvNoShowFeeNote =>
+      'Yo\'lovchidan jarima olinadi va to\'liq sizga o\'tkaziladi. Kutish vaqtini server tekshiradi.';
 
   @override
   String drvNotUpdated(String message) {
@@ -2732,6 +2770,16 @@ class AppLocalizationsUz extends AppLocalizations {
   String get paxCancelFailed => 'Bekor qilib bo\'lmadi';
 
   @override
+  String paxCancelFeeWarning(String fee) {
+    return 'Haydovchi sizga vaqt sarfladi: bekor qilsangiz $fee jarima — u to\'liq haydovchiga o\'tadi. Hamyonda yetmasa, qarz bo\'lib qoladi.';
+  }
+
+  @override
+  String paxCancelFreeUntil(String time) {
+    return '$time gacha bekor qilish bepul.';
+  }
+
+  @override
   String get paxCancelReasonChangedMind => 'Fikrimni o\'zgartirdim';
 
   @override
@@ -2767,6 +2815,11 @@ class AppLocalizationsUz extends AppLocalizations {
   @override
   String get paxCancelTripUnavailable =>
       'Safar boshlangan — endi bekor qilib bo\'lmaydi';
+
+  @override
+  String paxCancelWithFee(String fee) {
+    return 'Ha, $fee to\'layman';
+  }
 
   @override
   String paxCardPaymentStartFailed(String error) {
@@ -2887,6 +2940,19 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get paxHistoryTitle => 'Sayohat tarixi';
+
+  @override
+  String get paxInterruptedBody =>
+      'Safar shu nuqtagacha bo\'lgan narx bilan yakunlandi. Shu joydan yangi taksi chaqiraylikmi?';
+
+  @override
+  String get paxInterruptedClose => 'Yopish';
+
+  @override
+  String get paxInterruptedNewSearch => 'Shu yerdan yangi taksi';
+
+  @override
+  String get paxInterruptedTitle => 'Safar uzildi';
 
   @override
   String get paxLastName => 'Familiya';

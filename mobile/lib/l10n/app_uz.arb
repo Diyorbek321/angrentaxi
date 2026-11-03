@@ -328,6 +328,23 @@
     }
   },
   "drvHeroSemOpenHistory": "Daromad tarixini ochish",
+  "drvInterruptAccident": "Avariya",
+  "drvInterruptAction": "Safar uzildi (avariya, buzilish)",
+  "drvInterruptBody": "Safar shu nuqtagacha bo'lgan narx bilan yakunlanadi, yo'lovchiga shu joydan yangi taksi taklif qilinadi.",
+  "drvInterruptBreakdown": "Mashina buzildi",
+  "drvInterruptConfirm": "Safarni yakunlash",
+  "drvInterruptDone": "Safar uzildi. Undirildi: {price}",
+  "@drvInterruptDone": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "drvInterruptFailed": "Safarni yakunlab bo'lmadi. Dispetcherga qo'ng'iroq qiling.",
+  "drvInterruptNoteHint": "Izoh (ixtiyoriy)",
+  "drvInterruptOther": "Boshqa sabab",
+  "drvInterruptTitle": "Safar uzildi",
   "drvItemsCount": "{count} ta mahsulot",
   "@drvItemsCount": {
     "placeholders": {
@@ -392,6 +409,7 @@
       }
     }
   },
+  "drvNoShowFeeNote": "Yo'lovchidan jarima olinadi va to'liq sizga o'tkaziladi. Kutish vaqtini server tekshiradi.",
   "drvNotUpdated": "Yangilanmadi: {message}",
   "@drvNotUpdated": {
     "placeholders": {
@@ -1721,6 +1739,22 @@
   "paxCancel": "Bekor qilish",
   "paxCancelConfirmYes": "Ha, bekor qilish",
   "paxCancelFailed": "Bekor qilib bo'lmadi",
+  "paxCancelFeeWarning": "Haydovchi sizga vaqt sarfladi: bekor qilsangiz {fee} jarima — u to'liq haydovchiga o'tadi. Hamyonda yetmasa, qarz bo'lib qoladi.",
+  "@paxCancelFeeWarning": {
+    "placeholders": {
+      "fee": {
+        "type": "String"
+      }
+    }
+  },
+  "paxCancelFreeUntil": "{time} gacha bekor qilish bepul.",
+  "@paxCancelFreeUntil": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "paxCancelReasonChangedMind": "Fikrimni o'zgartirdim",
   "paxCancelReasonHint": "Sababni yozing...",
   "paxCancelReasonLongWait": "Juda uzoq kutdim",
@@ -1739,6 +1773,14 @@
   "paxCancelScheduleTitle": "Rejani bekor qilish",
   "paxCancelTrip": "Safarni bekor qilish",
   "paxCancelTripUnavailable": "Safar boshlangan — endi bekor qilib bo'lmaydi",
+  "paxCancelWithFee": "Ha, {fee} to'layman",
+  "@paxCancelWithFee": {
+    "placeholders": {
+      "fee": {
+        "type": "String"
+      }
+    }
+  },
   "paxCardPaymentStartFailed": "To'lovni hozir boshlab bo'lmadi: {error}. Buyurtma qabul qilindi, safar oxirida to'lov amalga oshiriladi.",
   "@paxCardPaymentStartFailed": {
     "placeholders": {
@@ -1817,6 +1859,10 @@
   "paxHighDemand": "Talab yuqori",
   "paxHistoryEmpty": "Sayohat tarixi yo'q",
   "paxHistoryTitle": "Sayohat tarixi",
+  "paxInterruptedBody": "Safar shu nuqtagacha bo'lgan narx bilan yakunlandi. Shu joydan yangi taksi chaqiraylikmi?",
+  "paxInterruptedClose": "Yopish",
+  "paxInterruptedNewSearch": "Shu yerdan yangi taksi",
+  "paxInterruptedTitle": "Safar uzildi",
   "paxLastName": "Familiya",
   "paxLastNameHint": "Familiyangiz",
   "paxLocatingAddress": "Joylashuv aniqlanmoqda...",

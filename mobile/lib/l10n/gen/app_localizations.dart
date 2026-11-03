@@ -1106,6 +1106,66 @@ abstract class AppLocalizations {
   /// **'Daromad tarixini ochish'**
   String get drvHeroSemOpenHistory;
 
+  /// No description provided for @drvInterruptAccident.
+  ///
+  /// In uz, this message translates to:
+  /// **'Avariya'**
+  String get drvInterruptAccident;
+
+  /// No description provided for @drvInterruptAction.
+  ///
+  /// In uz, this message translates to:
+  /// **'Safar uzildi (avariya, buzilish)'**
+  String get drvInterruptAction;
+
+  /// No description provided for @drvInterruptBody.
+  ///
+  /// In uz, this message translates to:
+  /// **'Safar shu nuqtagacha bo\'lgan narx bilan yakunlanadi, yo\'lovchiga shu joydan yangi taksi taklif qilinadi.'**
+  String get drvInterruptBody;
+
+  /// No description provided for @drvInterruptBreakdown.
+  ///
+  /// In uz, this message translates to:
+  /// **'Mashina buzildi'**
+  String get drvInterruptBreakdown;
+
+  /// No description provided for @drvInterruptConfirm.
+  ///
+  /// In uz, this message translates to:
+  /// **'Safarni yakunlash'**
+  String get drvInterruptConfirm;
+
+  /// No description provided for @drvInterruptDone.
+  ///
+  /// In uz, this message translates to:
+  /// **'Safar uzildi. Undirildi: {price}'**
+  String drvInterruptDone(String price);
+
+  /// No description provided for @drvInterruptFailed.
+  ///
+  /// In uz, this message translates to:
+  /// **'Safarni yakunlab bo\'lmadi. Dispetcherga qo\'ng\'iroq qiling.'**
+  String get drvInterruptFailed;
+
+  /// No description provided for @drvInterruptNoteHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Izoh (ixtiyoriy)'**
+  String get drvInterruptNoteHint;
+
+  /// No description provided for @drvInterruptOther.
+  ///
+  /// In uz, this message translates to:
+  /// **'Boshqa sabab'**
+  String get drvInterruptOther;
+
+  /// No description provided for @drvInterruptTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Safar uzildi'**
+  String get drvInterruptTitle;
+
   /// No description provided for @drvItemsCount.
   ///
   /// In uz, this message translates to:
@@ -1261,6 +1321,12 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'{elapsed} kutdingiz, {fare} kutish haqi yig\'ildi. Buyurtmani bekor qilmoqchimisiz?'**
   String drvNoShowConfirmWaitedFee(String elapsed, String fare);
+
+  /// No description provided for @drvNoShowFeeNote.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yo\'lovchidan jarima olinadi va to\'liq sizga o\'tkaziladi. Kutish vaqtini server tekshiradi.'**
+  String get drvNoShowFeeNote;
 
   /// No description provided for @drvNotUpdated.
   ///
@@ -4844,6 +4910,18 @@ abstract class AppLocalizations {
   /// **'Bekor qilib bo\'lmadi'**
   String get paxCancelFailed;
 
+  /// No description provided for @paxCancelFeeWarning.
+  ///
+  /// In uz, this message translates to:
+  /// **'Haydovchi sizga vaqt sarfladi: bekor qilsangiz {fee} jarima — u to\'liq haydovchiga o\'tadi. Hamyonda yetmasa, qarz bo\'lib qoladi.'**
+  String paxCancelFeeWarning(String fee);
+
+  /// No description provided for @paxCancelFreeUntil.
+  ///
+  /// In uz, this message translates to:
+  /// **'{time} gacha bekor qilish bepul.'**
+  String paxCancelFreeUntil(String time);
+
   /// No description provided for @paxCancelReasonChangedMind.
   ///
   /// In uz, this message translates to:
@@ -4909,6 +4987,12 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Safar boshlangan — endi bekor qilib bo\'lmaydi'**
   String get paxCancelTripUnavailable;
+
+  /// No description provided for @paxCancelWithFee.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ha, {fee} to\'layman'**
+  String paxCancelWithFee(String fee);
 
   /// No description provided for @paxCardPaymentStartFailed.
   ///
@@ -5125,6 +5209,30 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Sayohat tarixi'**
   String get paxHistoryTitle;
+
+  /// No description provided for @paxInterruptedBody.
+  ///
+  /// In uz, this message translates to:
+  /// **'Safar shu nuqtagacha bo\'lgan narx bilan yakunlandi. Shu joydan yangi taksi chaqiraylikmi?'**
+  String get paxInterruptedBody;
+
+  /// No description provided for @paxInterruptedClose.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yopish'**
+  String get paxInterruptedClose;
+
+  /// No description provided for @paxInterruptedNewSearch.
+  ///
+  /// In uz, this message translates to:
+  /// **'Shu yerdan yangi taksi'**
+  String get paxInterruptedNewSearch;
+
+  /// No description provided for @paxInterruptedTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Safar uzildi'**
+  String get paxInterruptedTitle;
 
   /// No description provided for @paxLastName.
   ///

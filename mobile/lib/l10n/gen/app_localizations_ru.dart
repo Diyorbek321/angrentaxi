@@ -572,6 +572,40 @@ class AppLocalizationsRu extends AppLocalizations {
   String get drvHeroSemOpenHistory => 'Открыть историю заработка';
 
   @override
+  String get drvInterruptAccident => 'ДТП';
+
+  @override
+  String get drvInterruptAction => 'Поездка прервана (ДТП, поломка)';
+
+  @override
+  String get drvInterruptBody =>
+      'Поездка завершится по цене до этой точки, пассажиру предложат новое такси отсюда.';
+
+  @override
+  String get drvInterruptBreakdown => 'Поломка машины';
+
+  @override
+  String get drvInterruptConfirm => 'Завершить поездку';
+
+  @override
+  String drvInterruptDone(String price) {
+    return 'Поездка прервана. Списано: $price';
+  }
+
+  @override
+  String get drvInterruptFailed =>
+      'Не удалось завершить поездку. Позвоните диспетчеру.';
+
+  @override
+  String get drvInterruptNoteHint => 'Комментарий (необязательно)';
+
+  @override
+  String get drvInterruptOther => 'Другая причина';
+
+  @override
+  String get drvInterruptTitle => 'Поездка прервана';
+
+  @override
   String drvItemsCount(int count) {
     return 'Товаров: $count';
   }
@@ -661,6 +695,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String drvNoShowConfirmWaitedFee(String elapsed, String fare) {
     return 'Вы ждали $elapsed, начислено $fare за ожидание. Отменить заказ?';
   }
+
+  @override
+  String get drvNoShowFeeNote =>
+      'С пассажира будет взят штраф, он полностью переводится вам. Время ожидания проверяет сервер.';
 
   @override
   String drvNotUpdated(String message) {
@@ -2724,6 +2762,16 @@ class AppLocalizationsRu extends AppLocalizations {
   String get paxCancelFailed => 'Не удалось отменить';
 
   @override
+  String paxCancelFeeWarning(String fee) {
+    return 'Водитель уже потратил время: при отмене штраф $fee — он полностью уходит водителю. Если в кошельке не хватит, останется долг.';
+  }
+
+  @override
+  String paxCancelFreeUntil(String time) {
+    return 'Отмена бесплатна до $time.';
+  }
+
+  @override
   String get paxCancelReasonChangedMind => 'Передумал(а)';
 
   @override
@@ -2758,6 +2806,11 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get paxCancelTripUnavailable =>
       'Поездка началась — отменить уже нельзя';
+
+  @override
+  String paxCancelWithFee(String fee) {
+    return 'Да, заплачу $fee';
+  }
 
   @override
   String paxCardPaymentStartFailed(String error) {
@@ -2878,6 +2931,19 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get paxHistoryTitle => 'История поездок';
+
+  @override
+  String get paxInterruptedBody =>
+      'Поездка завершена по цене до этой точки. Вызвать новое такси отсюда?';
+
+  @override
+  String get paxInterruptedClose => 'Закрыть';
+
+  @override
+  String get paxInterruptedNewSearch => 'Новое такси отсюда';
+
+  @override
+  String get paxInterruptedTitle => 'Поездка прервана';
 
   @override
   String get paxLastName => 'Фамилия';

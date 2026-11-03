@@ -18,6 +18,7 @@ import 'package:angren_taxi/features/safety/call_relay.dart';
 import 'package:angren_taxi/features/trip/meter/live_meter_card.dart';
 import 'package:angren_taxi/features/trip/meter/meter_service.dart';
 import 'package:angren_taxi/features/trip/screens/trip_chat_screen.dart';
+import 'package:angren_taxi/features/trip_rules/cancel_fee_service.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/incident.dart';
 import 'package:angren_taxi/shared/models/order.dart';
@@ -82,6 +83,7 @@ class ActiveOrderView extends StatefulWidget {
     required this.driverLocation,
     required this.isBusy,
     required this.onCancel,
+    this.quoteCancelFee,
     required this.sosService,
     this.meterService,
     required this.fallbackLocation,
@@ -118,7 +120,12 @@ class ActiveOrderView extends StatefulWidget {
 
   /// Bekor qilish tasdiqlangandan keyin chaqiriladi. Sabab `null` bo'lishi
   /// mumkin (foydalanuvchi "Boshqa sabab" ni bo'sh qoldirgan).
-  final void Function(String? reason) onCancel;
+  /// `expectedFee` — tasdiq varag'ida ko'rsatilgan jarima (INCIDENT-POLICY §5);
+  /// narx olinmagan bo'lsa `null`.
+  final void Function(String? reason, int? expectedFee) onCancel;
+
+  /// Bekor qilish narxi — varaq ochilishidan OLDIN so'raladi. `null` — so'ralmaydi.
+  final Future<CancelFeeQuote?> Function(String orderId)? quoteCancelFee;
 
   /// Injectable for tests. `null` bo'lsa xizmat KERAK BO'LGANDA
   /// (SOS bosilganda) service locator'dan quriladi.
@@ -1131,17 +1138,28 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
   static String get _otherCancelReason => AppL10n.current.paxCancelReasonOther;
 
   Future<void> _confirmCancel() async {
+    // Jarima tasdiqdan OLDIN ko'rinadi (§5): bepul bo'lsa — qachongacha.
+    final quote = await widget.quoteCancelFee?.call(widget.order.id);
+    if (!mounted) return;
+    final l10n = context.l10n;
+    final feeText = quote == null || quote.isFree ? null : Formatters.formatSom(quote.fee.toDouble());
+    final freeUntil = quote?.freeUntil;
+    final prompt = feeText != null
+        ? l10n.paxCancelFeeWarning(feeText)
+        : freeUntil != null
+            ? '${l10n.paxCancelReasonPrompt}\n${l10n.paxCancelFreeUntil(Formatters.formatTime(freeUntil))}'
+            : l10n.paxCancelReasonPrompt;
     final choice = await showCancelOrderSheet(
       context,
-      title: context.l10n.paxCancelReasonTitle,
-      prompt: context.l10n.paxCancelReasonPrompt,
+      title: l10n.paxCancelReasonTitle,
+      prompt: prompt,
       reasons: _cancelReasons,
       otherReason: _otherCancelReason,
-      confirmLabel: context.l10n.paxCancelConfirmYes,
-      keepLabel: context.l10n.paxNo,
+      confirmLabel: feeText != null ? l10n.paxCancelWithFee(feeText) : l10n.paxCancelConfirmYes,
+      keepLabel: l10n.paxNo,
     );
     if (choice == null || !mounted) return;
-    widget.onCancel(choice.reason);
+    widget.onCancel(choice.reason, quote?.fee);
   }
 }
 

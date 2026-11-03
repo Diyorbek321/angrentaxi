@@ -2,6 +2,7 @@ import 'package:angren_taxi/core/config/app_config.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
+import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/safety/sos_service.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/passenger/favorites_provider.dart';
@@ -17,6 +18,8 @@ import 'package:angren_taxi/features/superapp/screens/food_list_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/market_home_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/parcel_screen.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
+import 'package:angren_taxi/features/trip_rules/cancel_fee_service.dart';
+import 'package:angren_taxi/features/trip_rules/interrupted_trip_prompt.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/favorite_address.dart';
 import 'package:angren_taxi/shared/models/order.dart';
@@ -203,6 +206,14 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen>
     _onWhereToTap();
   }
 
+  Future<void> _offerSearchAfterInterruption(OrderLocation resume) async {
+    if (!mounted || !await showInterruptedTripPrompt(context) || !mounted) return;
+    context.read<OrderProvider>().setPendingPickup(
+          OrderLocation(address: context.l10n.paxCurrentLocation, lat: resume.lat, lng: resume.lng),
+        );
+    await Navigator.of(context).pushNamed('/passenger/destination');
+  }
+
   void _onWhereToTap() {
     final orderProvider = context.read<OrderProvider>();
     orderProvider.setPendingPickup(
@@ -240,6 +251,11 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen>
               );
             });
           }
+          // Safar uzildi (§5) — shu joydan yangi taksi taklifi, bir marta.
+          if (orderProvider.interruptedResume != null) {
+            final resume = orderProvider.takeInterruptedResume()!;
+            WidgetsBinding.instance.addPostFrameCallback((_) => _offerSearchAfterInterruption(resume));
+          }
           if (orderProvider.noDriversFoundMessage != null) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               orderProvider.clearNoDriversFoundMessage();
@@ -274,7 +290,8 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen>
       order: orderProvider.activeOrder!,
       driverLocation: orderProvider.driverLocationListenable,
       isBusy: orderProvider.state == OrderProviderState.loading,
-      onCancel: (reason) => _cancelActiveOrder(orderProvider, reason),
+      onCancel: (reason, expectedFee) => _cancelActiveOrder(orderProvider, reason, expectedFee),
+      quoteCancelFee: _quoteCancelFee,
       // Dangasa: `ActiveOrderView` uni faqat SOS bosilganda quradi.
       sosService: widget.sosService,
       fallbackLocation: _currentLocation,
@@ -333,8 +350,15 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen>
     }
   }
 
-  Future<void> _cancelActiveOrder(OrderProvider orderProvider, String? reason) async {
-    final ok = await orderProvider.cancelOrder(reason: reason);
+  /// Bekor qilish narxi (§5). API ro'yxatda bo'lmasa (test, demo) — `null`:
+  /// odatdagi varaq, server jarima bo'lsa 409 bilan qayta so'raydi.
+  Future<CancelFeeQuote?> _quoteCancelFee(String orderId) async {
+    if (!sl.isRegistered<ApiClient>()) return null;
+    return CancelFeeService(sl<ApiClient>()).quote(orderId);
+  }
+
+  Future<void> _cancelActiveOrder(OrderProvider orderProvider, String? reason, int? expectedFee) async {
+    final ok = await orderProvider.cancelOrder(reason: reason, expectedFee: expectedFee);
     if (ok || !mounted) return;
     final message = orderProvider.error;
     orderProvider.clearError();

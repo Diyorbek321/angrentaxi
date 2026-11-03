@@ -20,6 +20,7 @@ import 'package:angren_taxi/features/driver/service_wording.dart';
 import 'package:angren_taxi/features/driver/wallet/driver_wallet_provider.dart';
 import 'package:angren_taxi/features/driver/widgets/delivery_info_card.dart';
 import 'package:angren_taxi/features/driver/widgets/dropoff_incident_panel.dart';
+import 'package:angren_taxi/features/driver/widgets/interrupt_trip_flow.dart';
 import 'package:angren_taxi/features/driver/widgets/maneuver_banner.dart';
 import 'package:angren_taxi/features/driver/widgets/parcel_info_card.dart';
 import 'package:angren_taxi/features/driver/widgets/parcel_pin_dialog.dart';
@@ -733,6 +734,19 @@ class _TripScreenState extends State<TripScreen> {
                   _showSosSheet(order);
                 },
               ),
+              // Avariya / buzilish — shu nuqtagacha narx (INCIDENT-POLICY §5).
+              if (order.taxiPenaltiesApply) ...[
+                const SizedBox(height: kSpace3),
+                _buildMenuAction(
+                  icon: Icons.car_crash_rounded,
+                  label: context.l10n.drvInterruptAction,
+                  foreground: kInk,
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    unawaited(interruptTripFlow(context));
+                  },
+                ),
+              ],
             ],
           ),
         ),

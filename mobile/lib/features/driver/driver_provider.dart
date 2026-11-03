@@ -1078,6 +1078,50 @@ class DriverProvider extends ChangeNotifier {
     }
   }
 
+  /// "Yo'lovchi chiqmadi" (INCIDENT-POLICY §5): server kutish vaqtini o'zi
+  /// tekshiradi (erta bo'lsa xabari [error] da), jarima haydovchiga.
+  Future<void> markNoShow() async {
+    if (_activeOrder == null) return;
+    _setState(DriverProviderState.loading);
+    try {
+      await _apiClient.patch(ApiEndpoints.noShow(_activeOrder!.id));
+      _activeOrder = null;
+      _setState(DriverProviderState.success);
+    } catch (e) {
+      _error = extractErrorMessage(e);
+      _setState(DriverProviderState.error);
+    }
+  }
+
+  /// Safar uzildi — avariya / buzilish (§5): shu nuqtagacha narx bilan
+  /// yakunlanadi. Qaytadi: undirilgan summa (xato bo'lsa `null`, sabab [error] da).
+  Future<double?> interruptTrip({required String reason, String? note}) async {
+    if (_activeOrder == null) return null;
+    _setState(DriverProviderState.loading);
+    final position = _livePosition.value ?? _lastKnownPosition;
+    try {
+      final response = await _apiClient.patch(
+        ApiEndpoints.interruptTrip(_activeOrder!.id),
+        data: {
+          'reason': reason,
+          if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+          if (position != null) 'lat': position.latitude,
+          if (position != null) 'lng': position.longitude,
+        },
+      );
+      final body = response.data;
+      final data = body is Map ? body['data'] : null;
+      final price = data is Map ? data['finalPrice'] : null;
+      _activeOrder = null;
+      _setState(DriverProviderState.success);
+      return price is num ? price.toDouble() : double.tryParse('$price') ?? 0;
+    } catch (e) {
+      _error = extractErrorMessage(e);
+      _setState(DriverProviderState.error);
+      return null;
+    }
+  }
+
   void _startLocationUpdates() {
     _locationSubscription?.cancel();
     // Onlayn turgan butun vaqt davomida fon xizmati: haydovchi ko'pincha

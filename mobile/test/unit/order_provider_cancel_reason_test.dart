@@ -116,4 +116,21 @@ void main() {
 
     expect(captured, isNull);
   });
+
+  test('cancelOrder sends the fee the sheet showed (INCIDENT-POLICY §5)', () async {
+    when(() => apiClient.patch(any(), data: any(named: 'data'))).thenAnswer(
+      (_) async => _jsonResponse(ApiEndpoints.cancelOrder('order-1'), <String, dynamic>{}),
+    );
+
+    await provider.cancelOrder(reason: 'kech', expectedFee: 3000);
+
+    final captured = verify(
+      () => apiClient.patch(
+        ApiEndpoints.cancelOrder('order-1'),
+        data: captureAny(named: 'data'),
+      ),
+    ).captured.single;
+
+    expect(captured, {'reason': 'kech', 'expectedFee': 3000});
+  });
 }

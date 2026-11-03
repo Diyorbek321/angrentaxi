@@ -886,14 +886,41 @@ class OrderProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Safar uzildi (avariya/buzilish, INCIDENT-POLICY §5) — yangi qidiruv shu
+  /// nuqtadan taklif qilinadi. Bosh ekran ko'rsatgach [takeInterruptedResume].
+  OrderLocation? _interruptedResume;
+  OrderLocation? get interruptedResume => _interruptedResume;
+
+  OrderLocation? takeInterruptedResume() {
+    final resume = _interruptedResume;
+    _interruptedResume = null;
+    return resume;
+  }
+
   void _onOrderCompleted(dynamic data) {
     if (data is! Map || !_isForActiveOrder(data)) return;
+    if (data['tripOutcome'] == 'interrupted') {
+      // Mashina turgan joy = yo'lovchi turgan joy; bo'lmasa buyurtma manzili
+      // (server uni uzilish nuqtasiga yangilaydi).
+      final here = _driverLocation;
+      final fallback = _activeOrder!.dropoff;
+      _interruptedResume = OrderLocation(
+        address: '',
+        lat: here?.latitude ?? fallback.lat,
+        lng: here?.longitude ?? fallback.lng,
+      );
+    }
     _finishCompleted(_activeOrder!.copyWith(
       status: OrderStatus.completed,
       actualPrice: (data['finalPrice'] as num?)?.toDouble(),
       distanceKm: (data['actualDistanceKm'] as num?)?.toDouble(),
       durationMin: (data['actualDurationMin'] as num?)?.toInt(),
     ));
+    // Avariyadan keyin baho so'rash o'rinsiz — yangi qidiruv taklifi birinchi.
+    if (_interruptedResume != null) {
+      pendingRatingOrderId = null;
+      notifyListeners();
+    }
   }
 
   void _onOrderCancelled(dynamic data) {
@@ -1051,14 +1078,22 @@ class OrderProvider extends ChangeNotifier {
   /// `false` — server rad etdi yoki tarmoq xatosi; sabab [error] da.
   /// Chaqiruvchi uni ko'rsatishi SHART: ilgari xato umumiy maydonga yozilib,
   /// faol safar ekrani uni hech qachon ko'rsatmasdi.
-  Future<bool> cancelOrder({String? reason}) async {
+  ///
+  /// `expectedFee` — ilova ko'rsatgan bekor qilish jarimasi (INCIDENT-POLICY
+  /// §5). Server hisobi undan katta bo'lsa 409 — xabari [error] da.
+  Future<bool> cancelOrder({String? reason, int? expectedFee}) async {
     if (_activeOrder == null) return false;
 
     _setState(OrderProviderState.loading);
     try {
       await _apiClient.patch(
         ApiEndpoints.cancelOrder(_activeOrder!.id),
-        data: reason != null ? {'reason': reason} : null,
+        data: reason == null && expectedFee == null
+            ? null
+            : {
+                if (reason != null) 'reason': reason,
+                if (expectedFee != null) 'expectedFee': expectedFee,
+              },
       );
       _cleanupOrderListeners();
       _activeOrder = null;

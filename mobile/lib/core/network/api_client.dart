@@ -26,7 +26,9 @@ const Set<String> _noRefreshPaths = {
 
 /// Mijoz imkoniyatlari sarlavhasi (backend `contact-policy.ts`).
 const String kClientFeaturesHeader = 'X-Client-Features';
-const String kClientFeatures = 'call-relay';
+/// `call-relay` — raqam javobda emas, `/call` dan (§4); `cancel-fee` — ilova
+/// bekor qilish jarimasini tasdiqlashdan oldin ko'rsatadi (§5).
+const String kClientFeatures = 'call-relay,cancel-fee';
 
 class ApiClient {
   late final Dio _dio;

@@ -59,7 +59,7 @@ void main() {
 
     test('mijoz sarlavhasi call-relay', () {
       expect(kClientFeaturesHeader, 'X-Client-Features');
-      expect(kClientFeatures, 'call-relay');
+      expect(kClientFeatures.split(','), containsAll(<String>['call-relay', 'cancel-fee']));
     });
   });
 
