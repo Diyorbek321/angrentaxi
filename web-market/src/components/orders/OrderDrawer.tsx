@@ -29,6 +29,7 @@ import { KeyValue, KeyValueList } from '@/components/ui/KeyValue';
 import { cn } from '@/components/ui/cn';
 import { AddressDetailsBlock, CustomerCancelNotice, DiscountLines, PaymentPendingNotice } from './OrderExtras';
 import { isPaymentPending } from '@/lib/order-extras';
+import { ReportIncidentButton } from '@/components/incidents/ReportIncidentButton';
 import { t } from '@/locales';
 
 export interface OrderDrawerProps {
@@ -222,6 +223,10 @@ export function OrderDrawer({ order, onClose, onChanged, onError, settlement }: 
       )}
 
       <AddressDetailsBlock details={order.addressDetails} />
+      {/* Kuryer yoki mijoz haqida xabar (INCIDENT-POLICY §3) */}
+      <div className="flex justify-end">
+        <ReportIncidentButton order={order} vertical="market" />
+      </div>
 
       <div>
         <p className="mb-2 text-[13px] font-medium text-muted">

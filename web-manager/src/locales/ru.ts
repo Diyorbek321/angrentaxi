@@ -7,6 +7,7 @@ import { dispatch } from './ru/dispatch';
 import { drivers } from './ru/drivers';
 import { ops } from './ru/ops';
 import { control } from './ru/control';
+import { incidents } from './ru/incidents';
 
 /** Ruscha lug'at — tipi `uz` dan, kalit tushib qolsa TypeScript to'xtatadi. */
-export const ru: Messages = { common, meta, lib, orders, dispatch, drivers, ops, control };
+export const ru: Messages = { common, meta, lib, orders, dispatch, drivers, ops, control, incidents };

@@ -13,6 +13,7 @@ export const users = {
   undoAlt: 'Blokni qaytarish',
   reblocked: 'Blok qaytarildi',
   reblockedDesc: (name: string) => `${name} yana bloklandi.`,
+  reblockReason: 'Blok qayta tiklandi (avvalgi sabab)',
   reblockFailed: "Blokni qaytarib bo'lmadi",
   unblockFailed: "Blokdan chiqarib bo'lmadi",
   csvFile: (date: string) => `foydalanuvchilar-${date}.csv`,

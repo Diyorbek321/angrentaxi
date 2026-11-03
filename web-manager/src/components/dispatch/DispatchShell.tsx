@@ -17,7 +17,8 @@ import {
   type ShellUser,
 } from '@/components/shell';
 import { IconButton } from '@/components/ui/IconButton';
-import { dispatchNav, EXCEPTIONS_HREF } from './nav-config';
+import { dispatchNav, EXCEPTIONS_HREF, INCIDENTS_HREF } from './nav-config';
+import { getIncidentOpenCount } from '@/lib/incidents-api';
 import { DispatchDataProvider, useDispatchData } from './DispatchDataContext';
 import { t } from '@/locales';
 
@@ -108,6 +109,7 @@ export function DispatchShell({
   const [permissions, setPermissions] = useState<string[] | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [exceptionsCount, setExceptionsCount] = useState(0);
+  const [incidentsCount, setIncidentsCount] = useState(0);
   const [user, setUser] = useState<ShellUser | null>(null);
 
   useEffect(() => {
@@ -161,6 +163,27 @@ export function DispatchShell({
     };
   }, [canSeeExceptions]);
 
+  // Ochiq shikoyatlar nishoni — xuddi shu 30 s so'rov naqshi (INCIDENT-POLICY §3).
+  const canSeeIncidents = isAdmin || (permissions ?? []).includes('support_manage');
+  useEffect(() => {
+    if (!canSeeIncidents) return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const { count } = await getIncidentOpenCount();
+        if (!cancelled) setIncidentsCount(count);
+      } catch {
+        /* xato so'rov kuzatilayotgan sonni o'chirmaydi */
+      }
+    };
+    load();
+    const interval = setInterval(load, EXCEPTIONS_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [canSeeIncidents]);
+
   // Hide items rather than disable them. ADMIN sees everything; while
   // permissions load, gated items stay hidden (no flash of items that vanish).
   const can = useCallback(
@@ -176,10 +199,12 @@ export function DispatchShell({
         items: group.items.map((item) =>
           item.href === EXCEPTIONS_HREF
             ? { ...item, badge: canSeeExceptions ? exceptionsCount : 0, badgeTone: 'danger' as const }
-            : item
+            : item.href === INCIDENTS_HREF
+              ? { ...item, badge: canSeeIncidents ? incidentsCount : 0, badgeTone: 'neutral' as const }
+              : item
         ),
       })),
-    [exceptionsCount, canSeeExceptions]
+    [exceptionsCount, canSeeExceptions, incidentsCount, canSeeIncidents]
   );
 
   const handleLogout = useCallback(async () => {

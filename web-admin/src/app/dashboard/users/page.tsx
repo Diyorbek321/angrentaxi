@@ -146,7 +146,7 @@ function UsersPageInner() {
     if (!blockTarget) return;
     setActionLoading(true);
     try {
-      await usersApi.block(blockTarget.id, blockReason.trim() || undefined);
+      await usersApi.block(blockTarget.id, blockReason.trim());
       toast({
         title: u0.blocked,
         description: u0.blockedDesc(fullName(blockTarget.firstName, blockTarget.lastName)),
@@ -167,7 +167,7 @@ function UsersPageInner() {
   // qayta bloklaydi).
   const handleUnblock = async (user: User) => {
     const name = fullName(user.firstName, user.lastName);
-    const prevReason = user.blockReason ?? undefined;
+    const prevReason = user.blockReason && user.blockReason.trim().length >= 3 ? user.blockReason : u0.reblockReason;
     try {
       await usersApi.unblock(user.id);
       setUsers((prev) =>
@@ -388,6 +388,8 @@ function UsersPageInner() {
               variant="danger"
               isLoading={actionLoading}
               onClick={handleBlock}
+              // Sabab majburiy (INCIDENT-POLICY §3): foydalanuvchi uni kirishda va push'da ko'radi.
+              disabled={blockReason.trim().length < 3}
               leftIcon={<ShieldOff className="h-3.5 w-3.5" aria-hidden="true" />}
             >
               {u0.block}

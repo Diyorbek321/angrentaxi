@@ -23,6 +23,13 @@ import {
   INCIDENT_SETTING_KEYS,
   validateIncidentSettings,
 } from '@/lib/incident-settings';
+import {
+  COMPLAINT_SETTING_BOUNDS,
+  COMPLAINT_SETTING_DEFAULTS,
+  COMPLAINT_SETTING_KEYS,
+  DECIMAL_COMPLAINT_KEYS,
+  validateComplaintSettings,
+} from '@/lib/complaint-settings';
 import { IntercitySettingsCard } from '@/components/intercity/IntercitySettingsCard';
 import { t } from '@/locales';
 
@@ -37,6 +44,7 @@ const EMPTY_FORM: GlobalSettings = {
   deliveryEtaMinMinutes: 30,
   deliveryEtaMaxMinutes: 50,
   ...INCIDENT_SETTING_DEFAULTS,
+  ...COMPLAINT_SETTING_DEFAULTS,
 };
 
 /** Eski backend yangi maydonlarni qaytarmasa — forma standart qiymat bilan to'ladi. */
@@ -94,7 +102,7 @@ export default function GlobalSettingsPage() {
     if (!Number.isFinite(values.maxCashVendorOrder) || values.maxCashVendorOrder < 0) {
       errors.maxCashVendorOrder = m.errMaxCash;
     }
-    return { ...errors, ...validateDeliverySettings(values), ...validateIncidentSettings(values) };
+    return { ...errors, ...validateDeliverySettings(values), ...validateIncidentSettings(values), ...validateComplaintSettings(values) };
   };
 
   const update = <K extends keyof GlobalSettings>(key: K, value: GlobalSettings[K]) => {
@@ -271,6 +279,28 @@ export default function GlobalSettingsPage() {
                     value={String(form[key])}
                     error={fieldErrors[key]}
                     hint={m.incident.hints[key] || undefined}
+                    onChange={(e) => update(key, Number(e.target.value))}
+                  />
+                ))}
+              </CardBody>
+            </Card>
+
+            {/* Shikoyat va hodisalar: muddat, jarima zinapoyasi, reyting signali (§3). */}
+            <Card padding="none">
+              <CardHeader title={m.complaints.title} description={m.complaints.description} divider />
+              <CardBody className="grid gap-4 pt-4 sm:grid-cols-2">
+                {COMPLAINT_SETTING_KEYS.map((key) => (
+                  <Input
+                    key={key}
+                    label={m.complaints.labels[key]}
+                    type="number"
+                    inputMode={DECIMAL_COMPLAINT_KEYS.includes(key) ? 'decimal' : 'numeric'}
+                    min={COMPLAINT_SETTING_BOUNDS[key].min}
+                    max={COMPLAINT_SETTING_BOUNDS[key].max}
+                    step={DECIMAL_COMPLAINT_KEYS.includes(key) ? 0.1 : 1}
+                    value={String(form[key])}
+                    error={fieldErrors[key]}
+                    hint={m.complaints.hints[key] || undefined}
                     onChange={(e) => update(key, Number(e.target.value))}
                   />
                 ))}

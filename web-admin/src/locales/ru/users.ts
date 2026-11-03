@@ -15,6 +15,7 @@ export const users: Messages['users'] = {
   undoAlt: 'Вернуть блокировку',
   reblocked: 'Блокировка возвращена',
   reblockedDesc: (name: string) => `${name} снова заблокирован.`,
+  reblockReason: 'Блокировка восстановлена (прежняя причина)',
   reblockFailed: 'Не удалось вернуть блокировку',
   unblockFailed: 'Не удалось разблокировать',
   csvFile: (date: string) => `polzovateli-${date}.csv`,

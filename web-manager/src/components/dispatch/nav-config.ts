@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   ClipboardList,
   DollarSign,
+  Flag,
   Gift,
   LayoutDashboard,
   Megaphone,
@@ -22,6 +23,7 @@ import type { NavGroup } from '@/components/shell';
 import { t } from '@/locales';
 
 export const EXCEPTIONS_HREF = '/dispatch/exceptions';
+export const INCIDENTS_HREF = '/dispatch/incidents';
 
 /**
  * Dispatcher navigation. `permission` is the RBAC permission required to see
@@ -69,6 +71,7 @@ export function dispatchNav(): readonly NavGroup[] {
     title: m.customers,
     items: [
       { href: '/dispatch/support', label: m.support, icon: MessageCircle, permission: 'support_manage' },
+      { href: INCIDENTS_HREF, label: m.incidents, icon: Flag, permission: 'support_manage' },
       { href: '/dispatch/lost-items', label: m.lostItems, icon: PackageSearch, permission: 'support_manage' },
     ],
   },

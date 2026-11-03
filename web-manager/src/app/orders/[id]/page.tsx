@@ -9,6 +9,7 @@ import { canMarkDeliveryFailed, deliveryFailureReasonLabels, deliveryState } fro
 import { ConfirmReturnedModal, DeliveryFailedModal } from '@/components/dispatch/DeliveryIncidentModals';
 import { AssignDriverModal } from '@/components/dispatch/AssignDriverModal';
 import { DeliveryExtrasCard } from '@/components/orders/DeliveryExtras';
+import { OrderIncidentsSection } from '@/components/incidents/OrderIncidentsSection';
 import { useDispatchData } from '@/components/dispatch/DispatchDataContext';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -262,6 +263,9 @@ export default function OrderDetailPage() {
         )}
 
         <DeliveryExtrasCard order={order} />
+
+        {/* Shikoyat va hodisalar (INCIDENT-POLICY §3) */}
+        <OrderIncidentsSection order={order} />
 
         {/* Yetkazib bo'lmagan safar: qachon, nima sabab, qachon qaytdi */}
         {order.deliveryFailedAt && (

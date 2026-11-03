@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type { IncidentSettingsValues } from './incident-settings';
+import type { ComplaintSettingsValues } from './complaint-settings';
 import { attachAuthInterceptor } from './session';
 import { t } from '@/locales';
 import { getLocale } from '@/lib/i18n/core';
@@ -167,7 +168,7 @@ export const usersApi = {
 
   getById: (id: string) => api.get<ApiResponse<User>>(`/users/${id}`),
 
-  block: (id: string, reason?: string) => api.patch<ApiResponse<User>>(`/users/${id}/block`, { reason }),
+  block: (id: string, reason: string) => api.patch<ApiResponse<User>>(`/users/${id}/block`, { reason }),
 
   unblock: (id: string) => api.patch<ApiResponse<User>>(`/users/${id}/unblock`),
 
@@ -247,7 +248,7 @@ export const driversApi = {
 
   // Note: takes the driver's userId, not the driver profile id — blocking is
   // a User-level action (/users/:id/block), a different id than /drivers/:id.
-  block: (userId: string, reason?: string) => api.patch<ApiResponse<User>>(`/users/${userId}/block`, { reason }),
+  block: (userId: string, reason: string) => api.patch<ApiResponse<User>>(`/users/${userId}/block`, { reason }),
 
   unblock: (userId: string) => api.patch<ApiResponse<User>>(`/users/${userId}/unblock`),
 
@@ -293,7 +294,7 @@ export const withdrawalsApi = {
 // ─── Settings ─────────────────────────────────────────────────────
 
 /** Hodisa siyosati raqamlari — lib/incident-settings.ts (INCIDENT-POLICY §1–§2). */
-export interface GlobalSettings extends IncidentSettingsValues {
+export interface GlobalSettings extends IncidentSettingsValues, ComplaintSettingsValues {
   platformName: string;
   supportPhone: string;
   supportEmail: string;

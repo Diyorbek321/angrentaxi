@@ -1,4 +1,4 @@
-import { BadgePercent, BarChart3, ClipboardList, LayoutGrid, Settings, Tags, UtensilsCrossed } from 'lucide-react';
+import { BadgePercent, BarChart3, ClipboardList, Flag, LayoutGrid, Settings, Tags, UtensilsCrossed } from 'lucide-react';
 import type { NavGroup } from '@/components/shell';
 import { t } from '@/locales';
 
@@ -17,6 +17,7 @@ export function restaurantNav(): NavGroup[] {
       items: [
         { href: '/dashboard', label: m.home, icon: LayoutGrid, exact: true },
         { href: ORDERS_HREF, label: m.orders, icon: ClipboardList },
+        { href: '/dashboard/incidents', label: t().incidents.navLabel, icon: Flag },
       ],
     },
     {

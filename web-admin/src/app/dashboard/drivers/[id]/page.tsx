@@ -142,7 +142,7 @@ export default function DriverDetailPage() {
         setDriver(prev => prev ? { ...prev, ...(res.data.data as Partial<Driver>) } : null);
         toast({ title: m.toast.approved, variant: 'success' });
       } else if (actionType === 'block') {
-        await driversApi.block(driver.userId, blockReason.trim() || undefined);
+        await driversApi.block(driver.userId, blockReason.trim());
         setDriver(prev => prev ? { ...prev, status: 'blocked', blockReason: blockReason.trim() || null } : null);
         toast({ title: m.toast.blocked, variant: 'success' });
       } else if (actionType === 'unblock') {
@@ -390,7 +390,7 @@ export default function DriverDetailPage() {
               onClick={handleAction}
               // Izoh majburiy (backend 400 qaytaradi) — amallar jurnaliga va
               // haydovchiga push matniga tushadi.
-              disabled={actionType === 'addFunds' && !fundsNote.trim()}
+              disabled={(actionType === 'addFunds' && !fundsNote.trim()) || (actionType === 'block' && blockReason.trim().length < 3)}
             >
               {mc.confirm}
             </Button>

@@ -23,6 +23,7 @@ export const dispatch = {
     customers: 'Mijozlar',
     support: 'Qoʻllab-quvvatlash',
     lostItems: 'Yoʻqolgan buyumlar',
+    incidents: 'Shikoyatlar',
   },
   shell: {
     activeOrders: 'Aktiv buyurtmalar',

@@ -11,6 +11,7 @@ import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { customerNameOf, customerPhoneOf } from './OrderCard';
 import { AddressDetailsBlock, CustomerCancelNotice, DiscountLines, PaymentPendingNotice } from './OrderExtras';
 import { isPaymentPending } from '@/lib/order-extras';
+import { ReportIncidentButton } from '@/components/incidents/ReportIncidentButton';
 import { t } from '@/locales';
 
 export function OrderDrawer({
@@ -98,6 +99,10 @@ export function OrderDrawer({
       {/* Qaytarish holati; tugma pastki qatorda */}
       <ReturnStrip order={order} busy={busy} />
       <AddressDetailsBlock details={order.addressDetails} />
+      {/* Kuryer yoki mijoz haqida xabar (INCIDENT-POLICY §3) */}
+      <div className="flex justify-end">
+        <ReportIncidentButton order={order} vertical="food" />
+      </div>
 
       {order.note && (
         <div className="rounded-ds-sm border border-override/40 bg-override-tint px-3 py-2.5">
