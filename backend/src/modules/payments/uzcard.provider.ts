@@ -4,6 +4,7 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import axios from 'axios';
 import { IPaymentProvider, PaymentInitiateOptions, PaymentInitiateResult } from './payment.interface';
 import { PAYMENT_PROVIDER_TIMEOUT_MS } from './provider-http';
+import { uzcardConfigured } from './card-availability';
 
 /**
  * Constant-time string comparison for secrets/signatures.
@@ -30,10 +31,7 @@ export class UzcardProvider implements IPaymentProvider {
 
   /** Terminal va imzo kaliti bormi (dev mock hisobga olinmaydi). */
   isConfigured(): boolean {
-    return Boolean(
-      this.configService.get<string>('UZCARD_TERMINAL_ID', '') &&
-        this.configService.get<string>('UZCARD_SECRET_KEY', ''),
-    );
+    return uzcardConfigured(this.configService);
   }
 
   async initiate(

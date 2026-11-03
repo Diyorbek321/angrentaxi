@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash, timingSafeEqual } from 'crypto';
 import { IPaymentProvider, PaymentInitiateOptions, PaymentInitiateResult } from './payment.interface';
+import { clickConfigured } from './card-availability';
 
 /**
  * Constant-time string comparison for secrets/signatures.
@@ -35,7 +36,7 @@ export class ClickProvider implements IPaymentProvider {
 
   /** Merchant kalitlari bormi — yo'q bo'lsa callback'lar baribir rad etiladi. */
   isConfigured(): boolean {
-    return Boolean(this.merchantId && this.secretKey && this.serviceId);
+    return clickConfigured(this.configService);
   }
 
   async initiate(

@@ -85,3 +85,20 @@ export function vendorOrderCancelledText(reason: string | null, language: AppLan
     body: reason ? `Mijoz buyurtmani bekor qildi: ${reason}` : 'Mijoz buyurtmani bekor qildi',
   };
 }
+
+/**
+ * Mijozga: kartali ovqat/market buyurtmasi to'lanmagani uchun avtomatik
+ * bekor qilindi (docs/INCIDENT-POLICY.md §1, `cardPaymentTimeoutMinutes`).
+ */
+export function unpaidCardOrderCancelledText(minutes: number, language: AppLanguage = 'uz'): PushText {
+  if (language === 'ru') {
+    return {
+      title: 'Заказ отменён',
+      body: `Оплата картой не поступила за ${minutes} мин — заказ отменён. Оформите его заново.`,
+    };
+  }
+  return {
+    title: 'Buyurtma bekor qilindi',
+    body: `Karta to'lovi ${minutes} daqiqa ichida qilinmadi — buyurtma bekor qilindi. Qaytadan buyurtma bering.`,
+  };
+}

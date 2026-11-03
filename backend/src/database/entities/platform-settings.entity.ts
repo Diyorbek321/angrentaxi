@@ -92,6 +92,11 @@ export class PlatformSettings {
   @Column({ name: 'delivery_eta_max_minutes', type: 'int', default: 50 })
   deliveryEtaMaxMinutes: number;
 
+  // To'lanmagan kartali ovqat/market buyurtmasi shuncha daqiqadan keyin
+  // avtomatik bekor qilinadi (migratsiya 047, docs/INCIDENT-POLICY.md §1).
+  @Column({ name: 'card_payment_timeout_minutes', type: 'int', default: 15 })
+  cardPaymentTimeoutMinutes: number;
+
   // Safar opsiyalari haqi, so'm (migratsiya 023): `{ child_seat: 5000 }`.
   // Menejer belgilaydi; o'qish `normalizeTripOptionFees` orqali.
   @Column({ name: 'trip_option_fees', type: 'jsonb', default: () => "'{}'" })

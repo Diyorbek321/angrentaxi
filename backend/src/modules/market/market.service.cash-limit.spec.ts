@@ -35,6 +35,8 @@ describe('MarketService.createOrder — naqd chegarasi', () => {
         getDeliveryFee: jest.fn().mockResolvedValue(7000),
         getDeliveryPricing: jest.fn().mockResolvedValue({ deliveryFee: 7000, freeDeliveryFrom: 0 }),
         getMaxCashVendorOrder: jest.fn().mockResolvedValue(200000),
+        // Karta provayderi sozlangan (INCIDENT-POLICY §1).
+        cardPaymentsAvailable: jest.fn().mockReturnValue(true),
       } as never,
     );
   });

@@ -77,6 +77,19 @@ export const ERROR_CATALOGUE: readonly ErrorCatalogueEntry[] = [
     source: "Naqd to'lov {0} so'mgacha. Bu buyurtmani karta bilan to'lang.",
     ru: 'Наличными — до {0} сум. Оплатите этот заказ картой.',
   },
+  // Kartali buyurtma — to'lovdan oldin sotuvchiga ketmaydi (INCIDENT-POLICY §1).
+  {
+    source: "Karta orqali to'lov hozircha mavjud emas — naqd to'lovni tanlang",
+    ru: 'Оплата картой пока недоступна — выберите оплату наличными',
+  },
+  {
+    source: "Naqd to'lov {0} so'mgacha, karta orqali to'lov esa hozircha mavjud emas — savatni kamaytiring.",
+    ru: 'Наличными — до {0} сум, а оплата картой пока недоступна — уменьшите корзину.',
+  },
+  {
+    source: "Mijoz karta to'lovini hali tugatmagan — to'lov kelguncha buyurtmani qabul qilib bo'lmaydi",
+    ru: 'Клиент ещё не завершил оплату картой — до оплаты заказ принять нельзя',
+  },
 
   // ─── Buyurtma holati ─────────────────────────────────────────────────
   { source: 'Order not found', uz: 'Buyurtma topilmadi', ru: 'Заказ не найден' },

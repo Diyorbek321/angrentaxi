@@ -52,7 +52,12 @@ describe('FoodService — courier delivery bridge', () => {
       findOne: jest.fn().mockResolvedValue(restaurant),
       findOneOrFail: jest.fn().mockResolvedValue(restaurant),
     };
-    const transactionRepo = { save: jest.fn().mockImplementation(async (t) => t) };
+    const transactionRepo = {
+      save: jest.fn().mockImplementation(async (t) => t),
+      // Kartali buyurtma to'langan (COMPLETED karta DEBIT bor) — INCIDENT-POLICY §1.
+      count: jest.fn().mockResolvedValue(1),
+      find: jest.fn().mockResolvedValue([]),
+    };
     const realtimeGateway = { emitToUser: jest.fn() };
     const ordersService = {
       create: jest.fn().mockResolvedValue({ id: 'ride-2' }),

@@ -79,4 +79,14 @@ export class UpdateGlobalSettingsDto {
   @Min(DELIVERY_ETA_MINUTES_MIN)
   @Max(DELIVERY_ETA_MINUTES_MAX)
   deliveryEtaMaxMinutes?: number;
+
+  @ApiPropertyOptional({
+    example: 15,
+    description: "To'lanmagan kartali ovqat/market buyurtmasi shuncha daqiqadan keyin bekor qilinadi",
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(5)
+  @Max(1440)
+  cardPaymentTimeoutMinutes?: number;
 }

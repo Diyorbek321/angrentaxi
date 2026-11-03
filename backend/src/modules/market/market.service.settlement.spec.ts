@@ -23,7 +23,7 @@ import { DeliveryEventsService } from '../delivery/delivery-events.service';
 describe('MarketService - store earnings settlement on delivery', () => {
   let orderRepo: { findOne: jest.Mock; save: jest.Mock; update: jest.Mock };
   let storeRepo: { findOneOrFail: jest.Mock };
-  let transactionRepo: { save: jest.Mock };
+  let transactionRepo: { save: jest.Mock; count: jest.Mock; find: jest.Mock };
   let realtimeGateway: { emitToUser: jest.Mock };
   let fiscalReceipts: { recordForVendorOrder: jest.Mock };
   let events: DeliveryEventsService;
@@ -56,7 +56,12 @@ describe('MarketService - store earnings settlement on delivery', () => {
       update: jest.fn().mockResolvedValue({ affected: 1 }),
     };
     storeRepo = { findOneOrFail: jest.fn().mockResolvedValue(store) };
-    transactionRepo = { save: jest.fn().mockImplementation((tx) => Promise.resolve({ id: 'tx-1', ...tx })) };
+    transactionRepo = {
+      save: jest.fn().mockImplementation((tx) => Promise.resolve({ id: 'tx-1', ...tx })),
+      // Kartali buyurtma to'langan (COMPLETED karta DEBIT bor) — INCIDENT-POLICY §1.
+      count: jest.fn().mockResolvedValue(1),
+      find: jest.fn().mockResolvedValue([]),
+    };
     realtimeGateway = { emitToUser: jest.fn() };
     fiscalReceipts = { recordForVendorOrder: jest.fn().mockResolvedValue(null) };
     events = new DeliveryEventsService();

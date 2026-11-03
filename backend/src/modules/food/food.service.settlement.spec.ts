@@ -15,7 +15,7 @@ import { PaymentMethod } from '../../database/entities/order.entity';
 describe('FoodService - restaurant earnings settlement on delivery', () => {
   let orderRepo: { findOne: jest.Mock; save: jest.Mock; update: jest.Mock };
   let restaurantRepo: { findOneOrFail: jest.Mock };
-  let transactionRepo: { save: jest.Mock };
+  let transactionRepo: { save: jest.Mock; count: jest.Mock; find: jest.Mock };
   let realtimeGateway: { emitToUser: jest.Mock };
   let fiscalReceipts: { recordForVendorOrder: jest.Mock };
   let service: FoodService;
@@ -50,7 +50,12 @@ describe('FoodService - restaurant earnings settlement on delivery', () => {
       update: jest.fn().mockResolvedValue({ affected: 1 }),
     };
     restaurantRepo = { findOneOrFail: jest.fn().mockResolvedValue(restaurant) };
-    transactionRepo = { save: jest.fn().mockImplementation((tx) => Promise.resolve({ id: 'tx-1', ...tx })) };
+    transactionRepo = {
+      save: jest.fn().mockImplementation((tx) => Promise.resolve({ id: 'tx-1', ...tx })),
+      // Kartali buyurtma to'langan (COMPLETED karta DEBIT bor) — INCIDENT-POLICY §1.
+      count: jest.fn().mockResolvedValue(1),
+      find: jest.fn().mockResolvedValue([]),
+    };
     realtimeGateway = { emitToUser: jest.fn() };
     fiscalReceipts = { recordForVendorOrder: jest.fn().mockResolvedValue(null) };
 

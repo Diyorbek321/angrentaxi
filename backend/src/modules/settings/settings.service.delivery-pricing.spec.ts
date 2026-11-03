@@ -68,6 +68,7 @@ describe('SettingsService — bepul yetkazish va yetkazish vaqti', () => {
       freeDeliveryFrom: 0,
       deliveryEtaMinMinutes: 30,
       deliveryEtaMaxMinutes: 50,
+      cardPaymentTimeoutMinutes: 15,
     });
   });
 

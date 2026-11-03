@@ -68,6 +68,11 @@ export interface PublicSettings {
   deliveryFee: number;
   maxCashVendorOrder: number;
   /**
+   * Karta to'lovi mavjudmi — kamida bitta provayder sozlangan
+   * (docs/INCIDENT-POLICY.md §1). `false` — ilova karta tanlovini yashiradi.
+   */
+  cardPaymentsAvailable: boolean;
+  /**
    * Bepul yetkazish chegarasi, so'm (tovar summasi aksiyadan keyin,
    * promokoddan oldin); 0 — o'chiq (docs/specs/food-market-ux-v5.md §7).
    */

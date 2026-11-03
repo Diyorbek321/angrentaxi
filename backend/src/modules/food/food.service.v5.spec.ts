@@ -66,7 +66,12 @@ describe('FoodService — UX v5', () => {
       ]),
     };
     const dishRepo = { find: jest.fn().mockResolvedValue(dishes) };
-    const transactionRepo = { save: jest.fn(async (t) => t) };
+    const transactionRepo = {
+      save: jest.fn(async (t) => t),
+      // Kartali buyurtma to'langan (COMPLETED karta DEBIT bor) — INCIDENT-POLICY §1.
+      count: jest.fn().mockResolvedValue(1),
+      find: jest.fn().mockResolvedValue([]),
+    };
     const realtimeGateway = { emitToUser: jest.fn() };
     const usersService = { findById: jest.fn().mockResolvedValue({ id: 'owner-1', fcmToken: 'tok' }) };
     const ordersService = { findByIdOrThrow: jest.fn().mockResolvedValue({ id: 'ride-1', driverId: 'courier-1' }) };
@@ -74,6 +79,8 @@ describe('FoodService — UX v5', () => {
       getDeliveryFee: jest.fn().mockResolvedValue(7000),
       getDeliveryPricing: jest.fn().mockResolvedValue({ deliveryFee: 7000, freeDeliveryFrom: 0 }),
       getMaxCashVendorOrder: jest.fn().mockResolvedValue(0),
+      // Karta provayderi sozlangan (INCIDENT-POLICY §1).
+      cardPaymentsAvailable: jest.fn().mockReturnValue(true),
     };
     const promotionsService = {
       activeForVendor: jest.fn().mockResolvedValue([promotion()]),

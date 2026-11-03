@@ -4,6 +4,7 @@ import { timingSafeEqual } from 'crypto';
 import axios from 'axios';
 import { IPaymentProvider, PaymentInitiateOptions, PaymentInitiateResult } from './payment.interface';
 import { PAYMENT_PROVIDER_TIMEOUT_MS } from './provider-http';
+import { paymeConfigured } from './card-availability';
 
 /**
  * Constant-time string comparison for secrets/signatures.
@@ -39,7 +40,7 @@ export class PaymeProvider implements IPaymentProvider {
 
   /** Merchant kalitlari bormi — yo'q bo'lsa callback'lar baribir rad etiladi. */
   isConfigured(): boolean {
-    return Boolean(this.merchantId && this.secretKey);
+    return paymeConfigured(this.configService);
   }
 
   async initiate(

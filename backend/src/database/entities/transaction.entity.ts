@@ -131,7 +131,10 @@ export class Transaction {
   @Column({ name: 'user_id' })
   userId: string;
 
-  @ManyToOne(() => Order, { nullable: true, eager: false })
+  // `order_id` — taksi, ovqat YOKI market buyurtmasi id'si (karta to'lovi
+  // qatori uchala vertikalda). Shuning uchun `orders` ga tashqi kalit yo'q
+  // (migratsiya 047); munosabat faqat taksi qatorlari uchun join.
+  @ManyToOne(() => Order, { nullable: true, eager: false, createForeignKeyConstraints: false })
   @JoinColumn({ name: 'order_id' })
   order: Order | null;
 

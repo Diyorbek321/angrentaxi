@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Optional } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PlatformSettings } from '../../database/entities/platform-settings.entity';
@@ -31,6 +32,7 @@ import {
   DeliveryPricing,
   assertDeliveryEtaRange,
 } from './delivery-pricing';
+import { cardPaymentsConfigured } from '../payments/card-availability';
 
 /** `GET/PATCH /settings/global` shakli. */
 export interface GlobalSettings extends DeliveryEta {
@@ -42,6 +44,8 @@ export interface GlobalSettings extends DeliveryEta {
   maxCashVendorOrder: number;
   /** Bepul yetkazish chegarasi, so'm; 0 — o'chiq. */
   freeDeliveryFrom: number;
+  /** To'lanmagan kartali ovqat/market buyurtmasi shuncha daqiqada bekor (§1). */
+  cardPaymentTimeoutMinutes: number;
 }
 
 export type GlobalSettingsChanges = Partial<GlobalSettings>;
@@ -60,14 +64,35 @@ const GLOBAL_SETTINGS_FIELDS: ReadonlyArray<keyof GlobalSettings> = [
   'freeDeliveryFrom',
   'deliveryEtaMinMinutes',
   'deliveryEtaMaxMinutes',
+  'cardPaymentTimeoutMinutes',
 ];
+
+/** Ustun qo'shilmagan eski qatorda — migratsiya 047 standarti. */
+export const DEFAULT_CARD_PAYMENT_TIMEOUT_MINUTES = 15;
 
 @Injectable()
 export class SettingsService {
   constructor(
     @InjectRepository(PlatformSettings)
     private readonly settingsRepository: Repository<PlatformSettings>,
+    // Karta provayderi kalitlari (`payments/card-availability.ts`).
+    // Ixtiyoriy — qo'lda yig'iladigan spec'lar uchun (u holda karta yo'q).
+    @Optional() private readonly config?: ConfigService,
   ) {}
+
+  /**
+   * Karta to'lovi mavjudmi — kamida bitta provayder (Payme/Click/Uzcard)
+   * sozlangan (docs/INCIDENT-POLICY.md §1). Yo'q bo'lsa ilova karta
+   * tanlovini yashiradi va server kartali buyurtmani rad etadi.
+   */
+  cardPaymentsAvailable(): boolean {
+    return this.config ? cardPaymentsConfigured(this.config) : false;
+  }
+
+  /** To'lanmagan kartali buyurtma muddati, daqiqa (§1). */
+  async getCardPaymentTimeoutMinutes(): Promise<number> {
+    return toCardPaymentTimeoutMinutes(await this.getOrCreate());
+  }
 
   // The single settings row is created lazily on first access rather than via
   // a seed migration, so a fresh DB never has to run one just for this.
@@ -274,6 +299,8 @@ export class SettingsService {
       supportPhone: settings.supportPhone,
       deliveryFee: settings.deliveryFee,
       maxCashVendorOrder: settings.maxCashVendorOrder,
+      // Ilova karta tanlovini shunga qarab ko'rsatadi/yashiradi (§1).
+      cardPaymentsAvailable: this.cardPaymentsAvailable(),
       // Ilova: "Yetkazish 7 000 so'm · 30–50 daq · 100 000 so'mdan bepul" (§7).
       freeDeliveryFrom: toDeliveryPricing(settings).freeDeliveryFrom,
       ...toDeliveryEta(settings),
@@ -365,7 +392,14 @@ function toGlobalSettings(settings: PlatformSettings): GlobalSettings {
     maxCashVendorOrder: settings.maxCashVendorOrder,
     freeDeliveryFrom: toDeliveryPricing(settings).freeDeliveryFrom,
     ...toDeliveryEta(settings),
+    cardPaymentTimeoutMinutes: toCardPaymentTimeoutMinutes(settings),
   };
+}
+
+function toCardPaymentTimeoutMinutes(
+  settings: Partial<Pick<PlatformSettings, 'cardPaymentTimeoutMinutes'>>,
+): number {
+  return Number(settings.cardPaymentTimeoutMinutes ?? DEFAULT_CARD_PAYMENT_TIMEOUT_MINUTES);
 }
 
 function toDeliveryPricing(

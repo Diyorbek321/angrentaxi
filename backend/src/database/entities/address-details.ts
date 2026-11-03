@@ -17,5 +17,5 @@ export interface AddressDetails {
   courierNote?: string;
 }
 
-/** Ovqat/market buyurtmasini kim bekor qildi. */
-export type VendorOrderCancelledBy = 'customer' | 'vendor';
+/** Ovqat/market buyurtmasini kim bekor qildi (`system` — to'lanmagan karta muddati, §1). */
+export type VendorOrderCancelledBy = 'customer' | 'vendor' | 'system';

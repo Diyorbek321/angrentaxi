@@ -111,6 +111,8 @@ describe('SettingsService — sotuvchi hisob-kitobi va smena', () => {
         supportPhone: '+998',
         deliveryFee: 7000,
         maxCashVendorOrder: 200000,
+        // Karta provayderi sozlanmagan (§1).
+        cardPaymentsAvailable: false,
         // UX v5 §7: bepul yetkazish standart o'chiq, vaqt 30–50 daq.
         freeDeliveryFrom: 0,
         deliveryEtaMinMinutes: 30,

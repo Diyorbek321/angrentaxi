@@ -8,8 +8,9 @@ import {
   Optional,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, In, MoreThanOrEqual, Repository } from 'typeorm';
+import { Between, In, LessThan, MoreThanOrEqual, Raw, Repository } from 'typeorm';
 import { trendingProductIds } from './market-trending';
 import { normalizeProductQuery, searchProductIds } from './market-product-search';
 import { toPublicStore } from './public-store';
@@ -51,7 +52,19 @@ import { DeliveryEvent, DeliveryEventsService } from '../delivery/delivery-event
 import { checkoutDeliveryFee, deliveryRideDetails } from '../delivery/delivery-ride-details';
 import { appliedDeliveryFee } from '../settings/delivery-pricing';
 import { courierTracking } from '../delivery/delivery-tracking';
-import { assertCashWithinLimit } from '../delivery/vendor-cash';
+import {
+  CARD_PAYMENT_EXPIRED_REASON,
+  UNPAID_CARD_EXPIRY_BATCH,
+  assertCheckoutPaymentAllowed,
+  assertVendorOrderPaid,
+  cardPaymentPending,
+  closePendingCardPayments,
+  isCardOrder,
+  isVendorOrderPaid,
+  notPaidByCardSql,
+  paidCardOrderIds,
+} from '../delivery/vendor-card-payment';
+import { unpaidCardOrderCancelledText } from '../notifications/misc-notification-texts';
 import { PromotionsService } from '../promotions/promotions.service';
 import { PromoCodesService } from '../promo-codes/promo-codes.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -363,7 +376,8 @@ export class MarketService implements OnModuleInit {
       relations: ['customer'],
       order: { createdAt: 'DESC' },
     });
-    return Promise.all(orders.map((o) => this.withDelivery(o)));
+    const paid = await paidCardOrderIds(this.transactionRepo, orders);
+    return Promise.all(orders.map((o) => this.withDelivery(o, paid.has(o.id))));
   }
 
   async getOrder(storeId: string, id: string) {
@@ -388,6 +402,8 @@ export class MarketService implements OnModuleInit {
     if (!next) {
       throw new BadRequestException(`Order cannot advance from status "${order.status}"`);
     }
+    // Kartali buyurtma to'lovdan oldin sotuvchiga ketmaydi (INCIDENT-POLICY §1).
+    await assertVendorOrderPaid(this.transactionRepo, order);
     // Platforma kuryeri chaqirilgan buyurtma faqat kuryer topshirganda
     // (yoki dispetcher kuryer safarini yakunlaganda) "yetkazildi" bo'ladi.
     // Kuryer topilmagan bo'lsa ham: aks holda mijoz hech narsa olmagan
@@ -489,6 +505,15 @@ export class MarketService implements OnModuleInit {
     // olib ketishda allaqachon daftarga yozilgan
     // (`delivery/vendor-wallet-settlement.ts`) — ikkinchi marta yozilmaydi.
     if (order.vendorWalletSettledAt) {
+      return;
+    }
+    // Himoya (INCIDENT-POLICY §1): karta puli platformaga tushmagan bo'lsa,
+    // sotuvchiga "karta tushumi" ham, komissiya ham yozilmaydi — aks holda
+    // platforma olmagan pulini sotuvchiga qarz bo'lib qolardi.
+    if (!(await isVendorOrderPaid(this.transactionRepo, order))) {
+      this.logger.warn(
+        `To'lanmagan kartali market buyurtmasi yetkazildi (${order.id}) — sotuvchiga tushum yozilmadi`,
+      );
       return;
     }
 
@@ -660,15 +685,20 @@ export class MarketService implements OnModuleInit {
     });
   }
 
-  private async withDelivery(order: MarketOrder) {
+  /**
+   * `paid` — ro'yxatda oldindan bitta so'rov bilan hisoblangan
+   * (`paidCardOrderIds`); berilmasa shu buyurtma uchun tekshiriladi.
+   */
+  private async withDelivery(order: MarketOrder, paid?: boolean) {
+    const base = { ...withCustomerFields(order), paymentPending: await this.paymentPendingOf(order, paid) };
     if (!order.deliveryOrderId) {
-      return { ...withCustomerFields(order), delivery: null };
+      return { ...base, delivery: null };
     }
     try {
       const deliveryOrder = await this.ordersService.findByIdOrThrow(order.deliveryOrderId);
       // Vendor panels read orderId/status/driverName/driverPhone; the customer
       // app also uses the car and the two points for its live courier map.
-      return { ...withCustomerFields(order), delivery: courierTracking(deliveryOrder) };
+      return { ...base, delivery: courierTracking(deliveryOrder) };
     } catch (err) {
       // A genuine failure here (DB down, bad join) used to be indistinguishable
       // from "no courier assigned yet": both returned delivery: null, so the
@@ -678,7 +708,23 @@ export class MarketService implements OnModuleInit {
       this.logger.error(
         `Failed to resolve delivery for market order ${order.id}: ${(err as Error).message}`,
       );
-      return { ...withCustomerFields(order), delivery: null };
+      return { ...base, delivery: null };
+    }
+  }
+
+  /** `paymentPending` — kartali, bekor qilinmagan va to'lanmagan (§1). */
+  private async paymentPendingOf(order: MarketOrder, paid?: boolean): Promise<boolean> {
+    if (!isCardOrder(order) || order.status === MarketOrderStatus.CANCELLED) return false;
+    return cardPaymentPending(order, paid ?? (await isVendorOrderPaid(this.transactionRepo, order)));
+  }
+
+  /** Bekor qilingan kartali buyurtmaning ochiq to'lovi yopiladi — xato so'rovni yiqitmaydi. */
+  private async closeCardPayments(order: MarketOrder): Promise<void> {
+    if (!isCardOrder(order)) return;
+    try {
+      await closePendingCardPayments(this.transactionRepo, order);
+    } catch (err) {
+      this.logger.error(`Karta to'lovi yopilmadi (market ${order.id}): ${(err as Error).message}`);
     }
   }
 
@@ -1022,13 +1068,16 @@ export class MarketService implements OnModuleInit {
     // mahsulotni band qilib qo'ymasin. Faqat platforma kuryeri uchun — u
     // tovarni do'kondan o'z pulidan oladi (`delivery/vendor-cash.ts`);
     // do'konning o'z kuryeri pulni do'kon nomidan oladi.
+    // Karta provayderi sozlanmagan bo'lsa kartali buyurtma ham rad
+    // (INCIDENT-POLICY §1).
     const deliveryMode = dto.deliveryMode ?? MarketOrderDeliveryMode.PLATFORM;
-    assertCashWithinLimit(
-      (dto.paymentMethod ?? MarketPaymentMethod.CASH) === MarketPaymentMethod.CASH &&
-        deliveryMode === MarketOrderDeliveryMode.PLATFORM,
+    assertCheckoutPaymentAllowed({
+      isCash: (dto.paymentMethod ?? MarketPaymentMethod.CASH) === MarketPaymentMethod.CASH,
       totalPrice,
-      await this.settingsService.getMaxCashVendorOrder(),
-    );
+      cashLimit: await this.settingsService.getMaxCashVendorOrder(),
+      cashLimitApplies: deliveryMode === MarketOrderDeliveryMode.PLATFORM,
+      cardAvailable: this.settingsService.cardPaymentsAvailable(),
+    });
 
     // Promokod ham zaxiraga tegishdan oldin: yaroqsiz kod hech narsani band qilmaydi.
     const promo = await this.resolvePromo(customerId, dto.promoCode, itemsTotal);
@@ -1081,7 +1130,8 @@ export class MarketService implements OnModuleInit {
       storeId: store.id,
     });
 
-    return withCustomerFields(order);
+    // Yangi buyurtmaning to'lovi hali boshlanmagan.
+    return { ...withCustomerFields(order), paymentPending: isCardOrder(order) };
   }
 
   private requirePromoCodes(): PromoCodesService {
@@ -1146,6 +1196,7 @@ export class MarketService implements OnModuleInit {
     const saved: MarketOrder = { ...order, ...changes };
     await this.restoreStock(saved);
     await this.releasePromo(saved);
+    await this.closeCardPayments(saved);
 
     const store = await this.storeRepo.findOne({ where: { id: order.storeId } });
     if (store) {
@@ -1163,16 +1214,104 @@ export class MarketService implements OnModuleInit {
     return this.withDelivery(saved);
   }
 
-  private async restoreStock(order: MarketOrder): Promise<void> {
+  private async restoreStock(order: MarketOrder, reason = 'Mijoz bekor qildi'): Promise<void> {
     for (const item of order.items) {
       try {
         const product = await this.productRepo.findOne({ where: { id: item.productId, storeId: order.storeId } });
         if (!product) continue;
-        await this.recordStockChange(order.storeId, product, product.stock + item.qty, 'Mijoz bekor qildi');
+        await this.recordStockChange(order.storeId, product, product.stock + item.qty, reason);
       } catch (err) {
         this.logger.error(`Zaxira qaytarilmadi (market ${order.id}, ${item.productId}): ${(err as Error).message}`);
       }
     }
+  }
+
+  // ---------- to'lanmagan kartali buyurtma muddati (INCIDENT-POLICY §1) ----------
+
+  @Cron(CronExpression.EVERY_MINUTE, { name: 'market-unpaid-card-orders' })
+  async handleUnpaidCardOrdersTick(): Promise<void> {
+    // Ushlanmagan xato scheduler'ni jim qoldirishi mumkin.
+    try {
+      await this.expireUnpaidCardOrders();
+    } catch (err) {
+      this.logger.error(`To'lanmagan kartali market buyurtmalarini bekor qilish yiqildi: ${err}`);
+    }
+  }
+
+  /**
+   * `cardPaymentTimeoutMinutes` ichida to'lanmagan kartali (`new`)
+   * buyurtmalarni bekor qiladi: ochiq to'lov yopiladi, zaxira qaytadi,
+   * promokod bo'shaydi, mijozga push. Bir nechta instansda xavfsiz —
+   * bekor qilish shartli UPDATE (`status = 'new'`). Qaytaradi: bekor
+   * qilinganlar soni.
+   */
+  async expireUnpaidCardOrders(now: Date = new Date()): Promise<number> {
+    const minutes = await this.settingsService.getCardPaymentTimeoutMinutes();
+    const cutoff = new Date(now.getTime() - minutes * 60_000);
+    const candidates = await this.orderRepo.find({
+      where: {
+        status: MarketOrderStatus.NEW,
+        paymentMethod: MarketPaymentMethod.CARD,
+        createdAt: LessThan(cutoff),
+        id: Raw(notPaidByCardSql),
+      },
+      order: { createdAt: 'ASC' },
+      take: UNPAID_CARD_EXPIRY_BATCH,
+    });
+    let cancelled = 0;
+    for (const order of candidates) {
+      try {
+        if (await this.expireUnpaidCardOrder(order, minutes, now)) cancelled += 1;
+      } catch (err) {
+        this.logger.error(`To'lanmagan market buyurtmasi bekor qilinmadi (${order.id}): ${(err as Error).message}`);
+      }
+    }
+    return cancelled;
+  }
+
+  private async expireUnpaidCardOrder(order: MarketOrder, minutes: number, now: Date): Promise<boolean> {
+    // Avval ochiq to'lov yopiladi — shundan keyin kelgan callback pulni
+    // bekor qilingan buyurtmaga tushira olmaydi; keyin to'langanmi qayta
+    // tekshiriladi (shu orada to'lagan mijozning buyurtmasi qoladi).
+    await closePendingCardPayments(this.transactionRepo, order);
+    if (await isVendorOrderPaid(this.transactionRepo, order)) return false;
+
+    const changes = {
+      status: MarketOrderStatus.CANCELLED,
+      cancelledBy: 'system' as const,
+      cancelReason: CARD_PAYMENT_EXPIRED_REASON,
+      cancelledAt: now,
+    };
+    const result = await this.orderRepo.update({ id: order.id, status: MarketOrderStatus.NEW }, changes);
+    if (!result.affected) return false;
+    const saved: MarketOrder = { ...order, ...changes };
+    await this.restoreStock(saved, "Karta to'lovi muddati o'tdi");
+    await this.releasePromo(saved);
+
+    this.realtimeGateway.emitToUser(saved.customerId, 'market:order:status', {
+      orderId: saved.id,
+      status: saved.status,
+      reason: saved.cancelReason,
+    });
+    const store = await this.storeRepo.findOne({ where: { id: order.storeId } });
+    if (store) {
+      this.realtimeGateway.emitToUser(store.ownerUserId, 'market:order:cancelled', {
+        orderId: saved.id,
+        cancelledBy: 'system',
+        cancelReason: saved.cancelReason,
+      });
+    }
+    try {
+      await this.notificationsService?.notifyUserIds(
+        [saved.customerId],
+        (language) => unpaidCardOrderCancelledText(minutes, language),
+        'market_order_payment_expired',
+        { orderId: saved.id },
+      );
+    } catch (err) {
+      this.logger.warn(`To'lov muddati push'i yuborilmadi (market ${saved.id}): ${(err as Error).message}`);
+    }
+    return true;
   }
 
   private async pushVendorCancelled(ownerUserId: string, order: MarketOrder): Promise<void> {
@@ -1209,7 +1348,8 @@ export class MarketService implements OnModuleInit {
       skip: (safePage - 1) * safeLimit,
       take: safeLimit,
     });
-    return Promise.all(orders.map((o) => this.withDelivery(o)));
+    const paid = await paidCardOrderIds(this.transactionRepo, orders);
+    return Promise.all(orders.map((o) => this.withDelivery(o, paid.has(o.id))));
   }
 
   async getCustomerOrder(customerId: string, id: string) {
