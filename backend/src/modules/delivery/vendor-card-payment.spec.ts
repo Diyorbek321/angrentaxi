@@ -1,3 +1,4 @@
+import { notPaidByCardSql } from './vendor-card-payment';
 import { BadRequestException } from '@nestjs/common';
 import {
   CARD_PAYMENT_PENDING_MESSAGE,
@@ -135,5 +136,18 @@ describe('vendor-card-payment', () => {
         }),
       ).not.toThrow();
     });
+  });
+});
+
+describe('notPaidByCardSql', () => {
+  // TypeORM `Raw` alias'ni qo'shtirnoqsiz beradi (`FoodOrder.id`) — Postgres
+  // uni `foodorder` ga kichraytirib "missing FROM-clause" bilan yiqilardi
+  // (cron har daqiqa yiqilgan, unit testlar sezmagan).
+  it("TypeORM alias'ini qo'shtirnoqqa oladi", () => {
+    expect(notPaidByCardSql('FoodOrder.id')).toContain('t."order_id" = "FoodOrder"."id"');
+  });
+
+  it("allaqachon qo'shtirnoqli alias o'zgarmaydi", () => {
+    expect(notPaidByCardSql('"o"."id"')).toContain('t."order_id" = "o"."id"');
   });
 });

@@ -41,9 +41,20 @@ export const UNPAID_CARD_EXPIRY_BATCH = 100;
  * Muddat cron'i to'langan, lekin hali qabul qilinmagan buyurtmalarni
  * har daqiqada qayta ko'rmasin.
  */
+/**
+ * TypeORM `Raw` alias'ni qo'shtirnoqsiz beradi (`FoodOrder.id`); Postgres
+ * qo'shtirnoqsiz nomni kichraytiradi va "missing FROM-clause" bilan yiqiladi.
+ */
+function quoteColumnRef(ref: string): string {
+  return ref
+    .split('.')
+    .map((part) => (part.startsWith('"') ? part : `"${part.replace(/"/g, '""')}"`))
+    .join('.');
+}
+
 export function notPaidByCardSql(alias: string): string {
   return `NOT EXISTS (SELECT 1 FROM "transactions" t
-    WHERE t."order_id" = ${alias}
+    WHERE t."order_id" = ${quoteColumnRef(alias)}
       AND t."type" = '${TransactionType.DEBIT}'
       AND t."payment_method" = '${PaymentMethod.CARD}'
       AND t."status" = '${TransactionStatus.COMPLETED}')`;
