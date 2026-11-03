@@ -739,6 +739,8 @@ export class OrdersCompletionService {
         // "top up to keep ordering" prompt rather than letting the passenger
         // discover the block on their next request.
         unpaidAmount: walletShortfall,
+        // Safar uzildi (INCIDENT-POLICY §5) — ilova shu joydan yangi qidiruv taklif qiladi.
+        ...(interruption ? { tripOutcome: 'interrupted', interruptReason: interruption.reason } : {}),
       });
 
       // Qaytarilganda "safar yakunlandi" push'i chalg'itadi — realtime yetarli,

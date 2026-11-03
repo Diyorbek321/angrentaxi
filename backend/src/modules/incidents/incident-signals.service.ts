@@ -123,7 +123,8 @@ export class IncidentSignalsService {
    * Haydovchi qabul qilgan buyurtmani bekor qildi (INCIDENT-POLICY §5): pul
    * yo'q, lekin sanaladi. Bugun ≥ `driverCancelSignalCount` — tizim hodisasi
    * menejer navbatiga (kuniga bir marta; ochig'i bo'lsa matni yangilanadi).
-   * "Yo'lovchi chiqmadi" sanalmaydi — u haydovchining aybi emas.
+   * "Yo'lovchi chiqmadi" sanalmaydi — u haydovchining aybi emas (eski APK
+   * uni oddiy bekor qilish sifatida `passenger_no_show` sababi bilan yuboradi).
    */
   async onDriverCancelled(driverUserId: string, now: Date = new Date()): Promise<void> {
     const threshold = this.settingsService
@@ -134,7 +135,7 @@ export class IncidentSignalsService {
     const [row] = (await this.dataSource.query(
       `SELECT COUNT(*)::int AS cnt FROM orders
         WHERE driver_id = $1 AND cancelled_by = 'driver' AND cancelled_at >= $2
-          AND cancel_reason IS DISTINCT FROM 'no_show'`,
+          AND COALESCE(cancel_reason, '') NOT IN ('no_show', 'passenger_no_show')`,
       [driverUserId, startOfDay],
     )) as Array<{ cnt: number }>;
     const count = Number(row?.cnt ?? 0);

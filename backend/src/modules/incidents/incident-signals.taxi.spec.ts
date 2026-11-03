@@ -37,7 +37,7 @@ describe('IncidentSignalsService — taksi signallari', () => {
       }),
     );
     const [sql, params] = ctx.dataSource.query.mock.calls[0] as unknown as [string, unknown[]];
-    expect(sql).toContain("cancel_reason IS DISTINCT FROM 'no_show'");
+    expect(sql).toContain("NOT IN ('no_show', 'passenger_no_show')");
     expect((params[1] as Date).getHours()).toBe(0);
   });
 

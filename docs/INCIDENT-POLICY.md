@@ -77,6 +77,15 @@ Haydovchining yo'lovchiga bahosi endi yo'lovchi profilida (o'rtacha) saqlanadi.
   virtual raqam.
 - Menejer nizoli buyurtmada GPS izi va chatni ko'radi (har ko'rish audit).
 
+Amalda (051): ulashish havolasi — tokenli ommaviy sahifa (`/share/:token`,
+haydovchi ismi + bosh harf, mashina, manzil, holat, joylashuv faqat safar
+davomida; telefon yo'q), safar tugagach `tripShareGraceMinutes` (30).
+Telefon: `POST orders/:id/call` (accepted..in_progress, ishtirokchi, har
+so'rov `order_call_logs` + audit). Eski APK (v21 va oldingi,
+`X-Client-Features: call-relay` yo'q) raqamni faqat qo'ng'iroq oynasi ochiq
+paytda oladi — `/call` beradiganidan ortiq emas, faqat jurnalsiz;
+`APP_MIN_BUILD_*` ko'tarilgach bu yo'l yopiladi.
+
 ## 5. Taksi: bekor qilish, kelmaslik, uzilish
 
 | Qoida | Standart |
@@ -86,6 +95,16 @@ Haydovchining yo'lovchiga bahosi endi yo'lovchi profilida (o'rtacha) saqlanadi.
 | Yo'lovchi chiqmadi | yetib kelgandan **5** daq keyin haydovchi belgilaydi, **5 000** so'm → haydovchiga |
 | Jarima to'lanmasa | yo'lovchi qarzi (mavjud qarz mexanizmi) |
 | Safar uzildi (avariya/buzilish) | shu nuqtagacha bo'lgan narx, yo'lovchiga yangi qidiruv |
+| Haydovchi qabul qilgandan keyin bekor qildi | pul yo'q; kunda **3** (`driverCancelSignalCount`) → menejerga signal |
+
+Amalda (052): jarima **to'liq haydovchiga, komissiyasiz**; haydovchi
+CREDIT'i yo'lovchi to'lovi holatini oladi (qarz bo'lsa — PENDING, yig'ilmagan
+pul sarflanadigan bo'lib yozilmaydi). Ilova jarimani tasdiqdan oldin
+ko'rsatadi (`GET orders/:id/cancel-fee`), server ko'rsatilganidan kattasini
+409 bilan qaytaradi; narxni ko'rsatmaydigan eski APK'dan jarima olinmaydi.
+Uzilgan safar: taksometrda GPS izi, qat'iy narxda olish → uzilish nuqtasi
+to'g'ri chizig'i tarif bo'yicha, qat'iy narxdan oshmaydi; avariyada
+xavfsizlik hodisasi (avtomatik to'xtatishsiz).
 
 ## 6. Dalillarni saqlash
 
@@ -94,6 +113,10 @@ Haydovchining yo'lovchiga bahosi endi yo'lovchi profilida (o'rtacha) saqlanadi.
 | GPS izi, chat, SOS, hodisa fotolari | **180** kun, keyin o'chiriladi |
 | Ochiq hodisaga bog'langanlari | hodisa yopilgandan keyin 180 kun |
 | Moliyaviy yozuvlar | soliq talabi bo'yicha (o'chirilmaydi) |
+
+Amalda (053): `EvidenceRetentionService`, har kuni 03:30 — GPS izi, chat,
+yopilgan SOS (faoli qoladi), qo'ng'iroq jurnali, ulashish havolalari,
+yopilgan hodisa fotolari; `evidenceRetentionDays` (180, kamida 30).
 
 Huquqni muhofaza qilish organlari so'rovi: faqat yozma so'rov, admin
 eksport qiladi, har eksport audit logga — `docs/legal/huquq-tartibot-sorovi.md`.
