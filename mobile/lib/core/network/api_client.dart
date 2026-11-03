@@ -302,6 +302,13 @@ String extractErrorMessage(dynamic error) {
       // serverning aniq xabari o'rniga foydalanuvchi umuman hech narsa
       // ko'rmasdi.
       final message = _messageText(data['message']) ?? _messageText(data['error']);
+      // Bloklangan hisob: admin yozgan sabab ham ko'rinsin (INCIDENT-POLICY §3).
+      final blockedReason = data['code'] == 'ACCOUNT_BLOCKED' && data['details'] is Map
+          ? _messageText((data['details'] as Map)['reason'])
+          : null;
+      if (message != null && blockedReason != null) {
+        return '$message\n${AppL10n.current.incReason(blockedReason)}';
+      }
       return message ?? AppL10n.current.shErrorGeneric;
     }
     // `sendTimeout` ham — sekin mobil tarmoqda buyurtma so'rovi aynan

@@ -36,6 +36,27 @@ abstract final class PushEvent {
   static const lostItemAnswered = 'lost_item_answered';
   static const verificationDue = 'verification_due';
   static const bonusAwarded = 'bonus_awarded';
+
+  // Shikoyat va hodisa (docs/INCIDENT-POLICY.md §3) — ikkala rolga ham.
+  static const incidentWarning = 'incident_warning';
+  static const incidentSuspended = 'incident_suspended';
+  static const incidentSuspensionLifted = 'incident_suspension_lifted';
+  static const incidentRefund = 'incident_refund';
+  static const incidentPenalty = 'incident_penalty';
+  static const incidentResolved = 'incident_resolved';
+  static const incidentAppealDecided = 'incident_appeal_decided';
+
+  /// Menga nisbatan chora — "Murojaatlarim / Menga nisbatan".
+  static const aboutMeEvents = {
+    incidentWarning,
+    incidentSuspended,
+    incidentSuspensionLifted,
+    incidentPenalty,
+    incidentAppealDecided,
+  };
+
+  /// Men qoldirgan shikoyat natijasi — "Murojaatlarim / Shikoyatlarim".
+  static const reporterEvents = {incidentRefund, incidentResolved};
 }
 
 enum PushTapTarget {
@@ -54,6 +75,12 @@ enum PushTapTarget {
   lostItems,
   driverVerification,
   driverEarnings,
+
+  /// "Murojaatlarim" — men qoldirgan shikoyatlar.
+  incidentsMine,
+
+  /// "Murojaatlarim" — menga nisbatan choralar (e'tiroz).
+  incidentsAboutMe,
 }
 
 /// Push turi va ilova (haydovchi/yo'lovchi) bo'yicha ochiladigan ekran;
@@ -63,6 +90,8 @@ enum PushTapTarget {
 /// haydovchiga ham, yo'lovchilarga ham) — shuning uchun [driver] hal qiladi.
 PushTapTarget? pushTapTarget(Map<String, dynamic> data, {required bool driver}) {
   final event = data['event']?.toString();
+  if (PushEvent.aboutMeEvents.contains(event)) return PushTapTarget.incidentsAboutMe;
+  if (PushEvent.reporterEvents.contains(event)) return PushTapTarget.incidentsMine;
   if (driver) {
     return switch (event) {
       PushEvent.intercityRequestCreated => PushTapTarget.intercityRequestBoard,

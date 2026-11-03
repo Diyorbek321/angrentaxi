@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:angren_taxi/core/push/push_tap_router.dart';
+import 'package:angren_taxi/features/incidents/screens/my_incidents_screen.dart';
 import 'package:angren_taxi/features/intercity/data/intercity_repository.dart';
 import 'package:angren_taxi/features/intercity/models/intercity_models.dart';
 import 'package:angren_taxi/features/intercity/screens/driver_intercity_trips_screen.dart';
@@ -102,6 +103,8 @@ class _PushTapHostState extends State<PushTapHost> {
           IntercityRequestsScreen(settings: await _intercitySettings(), repository: _intercity),
         PushTapTarget.supportChat => const ChatScreen(),
         PushTapTarget.lostItems => LostItemsScreen(isDriver: _router.driver),
+        PushTapTarget.incidentsMine => const MyIncidentsScreen(),
+        PushTapTarget.incidentsAboutMe => const MyIncidentsScreen(initialTab: 1),
         // Nomli marshrutlar `_open` da.
         PushTapTarget.driverVerification || PushTapTarget.driverEarnings => const SizedBox.shrink(),
       };

@@ -6,6 +6,7 @@ import 'package:angren_taxi/core/location/route_service.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/safety/sos_service.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
+import 'package:angren_taxi/features/incidents/screens/report_incident_screen.dart';
 import 'package:angren_taxi/features/passenger/map_camera_insets.dart';
 import 'package:angren_taxi/features/passenger/pickup_eta_tracker.dart';
 import 'package:angren_taxi/features/passenger/widgets/parcel_pin_card.dart';
@@ -15,6 +16,7 @@ import 'package:angren_taxi/features/trip/meter/live_meter_card.dart';
 import 'package:angren_taxi/features/trip/meter/meter_service.dart';
 import 'package:angren_taxi/features/trip/screens/trip_chat_screen.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
+import 'package:angren_taxi/shared/models/incident.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/utils/waiting_charge.dart';
@@ -653,6 +655,24 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
                 onPressed: () {
                   Navigator.of(sheetContext).pop();
                   _alertDispatchers(order.id);
+                },
+              ),
+              const SizedBox(height: kSpace3),
+              // Safar davomida — faqat xavfsizlik shikoyati (INCIDENT-POLICY §3).
+              AppOutlinedButton(
+                key: const ValueKey('sos-incident-button'),
+                label: context.l10n.incReportSafetyTitle,
+                onPressed: () {
+                  Navigator.of(sheetContext).pop();
+                  openIncidentReport(
+                    context,
+                    IncidentReportArgs(
+                      vertical: IncidentVertical.taxi,
+                      orderId: order.id,
+                      side: IncidentReporterSide.customer,
+                      safetyOnly: true,
+                    ),
+                  );
                 },
               ),
             ],

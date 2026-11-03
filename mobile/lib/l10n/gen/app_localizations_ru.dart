@@ -2212,6 +2212,245 @@ class AppLocalizationsRu extends AppLocalizations {
   String get icWholeCarUnavailable => 'Вся машина: места уже заняты';
 
   @override
+  String get incAddPhoto => 'Добавить фото';
+
+  @override
+  String get incAppealAction => 'Обжаловать';
+
+  @override
+  String incAppealDeadline(String date) {
+    return 'Обжаловать до: $date';
+  }
+
+  @override
+  String get incAppealHint => 'Почему вы считаете решение неверным?';
+
+  @override
+  String get incAppealOverturned => 'Апелляция принята — мера отменена';
+
+  @override
+  String get incAppealPending => 'Апелляция на рассмотрении у администратора';
+
+  @override
+  String get incAppealSent => 'Апелляция отправлена администратору';
+
+  @override
+  String get incAppealTitle => 'Апелляция';
+
+  @override
+  String get incAppealUpheld => 'Апелляция отклонена — мера остаётся в силе';
+
+  @override
+  String get incCancel => 'Отмена';
+
+  @override
+  String get incCatColdFood => 'Холодная еда';
+
+  @override
+  String get incCatDamagedGoods => 'Повреждённый товар';
+
+  @override
+  String get incCatDangerousDriving => 'Опасное вождение';
+
+  @override
+  String get incCatDetour => 'Объезд / лишний путь';
+
+  @override
+  String get incCatDidNotPay => 'Не оплатил';
+
+  @override
+  String get incCatDirtyCar => 'Грязная машина';
+
+  @override
+  String get incCatDrunkPassenger => 'Пьяный пассажир';
+
+  @override
+  String get incCatHarassment => 'Хулиганство / преследование';
+
+  @override
+  String get incCatLostCargo => 'Груз потерян';
+
+  @override
+  String get incCatLowRating => 'Низкая оценка';
+
+  @override
+  String get incCatNoShow => 'Не пришёл';
+
+  @override
+  String get incCatOther => 'Другое';
+
+  @override
+  String get incCatOvercharge => 'Завышенная цена';
+
+  @override
+  String get incCatRatingSignal => 'Низкий рейтинг';
+
+  @override
+  String get incCatRude => 'Грубость';
+
+  @override
+  String get incCatSafety => 'Угроза безопасности';
+
+  @override
+  String get incCatSmoking => 'Курение';
+
+  @override
+  String get incCatVehicleDamage => 'Повреждение машины';
+
+  @override
+  String get incCatWrongItems => 'Не тот или неполный товар';
+
+  @override
+  String get incCategoryLabel => 'Что случилось?';
+
+  @override
+  String get incClose => 'Закрыть';
+
+  @override
+  String get incComplainAction => 'Оставить жалобу';
+
+  @override
+  String get incDescriptionHint => 'Опишите подробно (не менее 3 символов)';
+
+  @override
+  String get incEmptyAboutMe => 'Мер в отношении вас нет';
+
+  @override
+  String get incEmptyAboutMeBody =>
+      'Предупреждения и приостановки с причиной будут показаны здесь.';
+
+  @override
+  String get incEmptyMine => 'Обращений пока нет';
+
+  @override
+  String get incEmptyMineBody =>
+      'Если в поездке или заказе была проблема, нажмите «Есть проблема» на странице чека или заказа.';
+
+  @override
+  String get incMyTitle => 'Мои обращения';
+
+  @override
+  String get incOpenDetails => 'Подробнее';
+
+  @override
+  String incPhotoCount(int count) {
+    return 'Фото: $count';
+  }
+
+  @override
+  String get incPhotosLabel => 'Фото (необязательно, до 3)';
+
+  @override
+  String get incPickCategory => 'Выберите причину';
+
+  @override
+  String get incProblemButton => 'Есть проблема';
+
+  @override
+  String incReason(String reason) {
+    return 'Причина: $reason';
+  }
+
+  @override
+  String incRefunded(String amount) {
+    return 'Возвращено на кошелёк: $amount';
+  }
+
+  @override
+  String get incRemovePhoto => 'Убрать фото';
+
+  @override
+  String incReportClient(String client) {
+    return 'Жалоба: $client';
+  }
+
+  @override
+  String get incReportSafetyTitle => 'Жалоба по безопасности';
+
+  @override
+  String get incReportTitle => 'Сообщить о проблеме';
+
+  @override
+  String incResolution(String note) {
+    return 'Решение: $note';
+  }
+
+  @override
+  String get incSafetyNote =>
+      'Если вы в опасности, сначала позвоните 102. Жалобу по безопасности администратор рассмотрит сразу.';
+
+  @override
+  String get incSafetySuspended =>
+      'Жалоба по безопасности — работа приостановлена до решения администратора';
+
+  @override
+  String get incSanctionBlock => 'Аккаунт заблокирован';
+
+  @override
+  String incSanctionPenalty(String amount) {
+    return 'Штраф: $amount';
+  }
+
+  @override
+  String incSanctionSuspension(int days, String until) {
+    return 'Приостановка: $days дн. (до $until)';
+  }
+
+  @override
+  String get incSanctionWarning => 'Предупреждение';
+
+  @override
+  String get incSent =>
+      'Обращение принято. Результат — в разделе «Мои обращения».';
+
+  @override
+  String get incSentPhotosFailed =>
+      'Обращение принято, но некоторые фото не загрузились';
+
+  @override
+  String get incStatusInvestigating => 'На рассмотрении';
+
+  @override
+  String get incStatusOpen => 'Принято';
+
+  @override
+  String get incStatusRejected => 'Не подтвердилось';
+
+  @override
+  String get incStatusResolved => 'Решено';
+
+  @override
+  String get incSubjectCourier => 'Курьер';
+
+  @override
+  String get incSubjectLabel => 'На кого?';
+
+  @override
+  String get incSubjectVendor => 'Ресторан / магазин';
+
+  @override
+  String get incSubmit => 'Отправить';
+
+  @override
+  String incSuspendedBanner(String until) {
+    return 'Аккаунт временно приостановлен до $until';
+  }
+
+  @override
+  String incSuspendedDialogBody(String until) {
+    return 'До $until выйти на линию нельзя.';
+  }
+
+  @override
+  String get incSuspendedDialogTitle => 'Аккаунт временно приостановлен';
+
+  @override
+  String get incTabAboutMe => 'В отношении меня';
+
+  @override
+  String get incTabMine => 'Мои жалобы';
+
+  @override
   String get languageRussian => 'Русский';
 
   @override

@@ -30,6 +30,10 @@ enum DriverErrorKind {
   /// Haydovchi ofertasining joriy tahriri qabul qilinmagan (yechim: rozilik
   /// oynasi, keyin qayta onlayn).
   termsNotAccepted,
+
+  /// Hisob vaqtincha to'xtatilgan (shikoyat natijasi) — muddat va sabab
+  /// `details` da; yechim: kutish yoki e'tiroz (INCIDENT-POLICY §3).
+  accountSuspended,
 }
 
 const _legalPrefixes = <String>[
@@ -81,6 +85,7 @@ DriverErrorKind? driverErrorKindForCode(String? code) => switch (code) {
       ApiErrorCode.walletNegativeBalance =>
         DriverErrorKind.walletNegativeBalance,
       ApiErrorCode.legalTermsNotAccepted => DriverErrorKind.termsNotAccepted,
+      ApiErrorCode.accountSuspended => DriverErrorKind.accountSuspended,
       _ => null,
     };
 

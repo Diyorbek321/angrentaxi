@@ -4,9 +4,12 @@ import 'package:angren_taxi/features/driver/wallet/driver_wallet_events_host.dar
 import 'package:angren_taxi/features/driver/wallet/driver_wallet_provider.dart';
 import 'package:angren_taxi/features/driver/wallet/wallet_error_messages.dart';
 import 'package:angren_taxi/features/driver/widgets/shift_pass_card.dart';
+import 'package:angren_taxi/features/incidents/incident_entry_points.dart';
+import 'package:angren_taxi/features/incidents/screens/report_incident_screen.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/driver_bonus_progress.dart';
 import 'package:angren_taxi/shared/models/driver_earnings_breakdown.dart';
+import 'package:angren_taxi/shared/models/incident.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/models/withdrawal_request.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
@@ -1168,6 +1171,22 @@ class _DriverOrderCard extends StatelessWidget {
                 ),
               ),
             ],
+            // Yo'lovchi/mijoz haqida shikoyat — 7 kun ichida (INCIDENT-POLICY §3).
+            if (order.status == OrderStatus.completed &&
+                incidentReportWindowOpen(order.completedAt ?? order.createdAt))
+              IconButton(
+                key: ValueKey('history-incident-${order.id}'),
+                tooltip: context.l10n.incComplainAction,
+                icon: const Icon(Icons.flag_outlined, color: kInkMuted),
+                onPressed: () => openIncidentReport(
+                  context,
+                  IncidentReportArgs(
+                    vertical: IncidentVertical.taxi,
+                    orderId: order.id,
+                    side: IncidentReporterSide.driver,
+                  ),
+                ),
+              ),
           ],
         ),
       ),

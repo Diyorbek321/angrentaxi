@@ -1,0 +1,146 @@
+{
+  "incProblemButton": "Muammo bor",
+  "incReportTitle": "Muammo haqida xabar",
+  "incReportSafetyTitle": "Xavfsizlik shikoyati",
+  "incCategoryLabel": "Nima bo'ldi?",
+  "incSubjectLabel": "Kim haqida?",
+  "incSubjectCourier": "Kuryer",
+  "incSubjectVendor": "Restoran / do'kon",
+  "incDescriptionHint": "Batafsil yozing (kamida 3 belgi)",
+  "incPhotosLabel": "Foto (ixtiyoriy, 3 tagacha)",
+  "incAddPhoto": "Foto qo'shish",
+  "incRemovePhoto": "Fotoni olib tashlash",
+  "incSubmit": "Yuborish",
+  "incCancel": "Bekor qilish",
+  "incPickCategory": "Sababni tanlang",
+  "incSent": "Murojaatingiz qabul qilindi. Natijani «Murojaatlarim» bo'limida ko'rasiz.",
+  "incSentPhotosFailed": "Murojaat qabul qilindi, lekin ba'zi fotolar yuklanmadi",
+  "incSafetyNote": "Xavf ostida bo'lsangiz avval 102 ga qo'ng'iroq qiling. Xavfsizlik shikoyatini admin darhol ko'radi.",
+  "incComplainAction": "Shikoyat qoldirish",
+  "incReportClient": "{client} haqida shikoyat",
+  "@incReportClient": {
+    "placeholders": {
+      "client": {
+        "type": "String"
+      }
+    }
+  },
+  "incMyTitle": "Murojaatlarim",
+  "incTabMine": "Shikoyatlarim",
+  "incTabAboutMe": "Menga nisbatan",
+  "incEmptyMine": "Hali murojaat yo'q",
+  "incEmptyMineBody": "Safar yoki buyurtmada muammo bo'lsa, chek yoki buyurtma sahifasidagi «Muammo bor» tugmasini bosing.",
+  "incEmptyAboutMe": "Sizga nisbatan chora yo'q",
+  "incEmptyAboutMeBody": "Ogohlantirish yoki to'xtatish bo'lsa, sababi bilan shu yerda ko'rinadi.",
+  "incStatusOpen": "Qabul qilindi",
+  "incStatusInvestigating": "Ko'rib chiqilmoqda",
+  "incStatusResolved": "Hal qilindi",
+  "incStatusRejected": "Tasdiqlanmadi",
+  "incResolution": "Qaror: {note}",
+  "@incResolution": {
+    "placeholders": {
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "incRefunded": "Hamyoningizga qaytarildi: {amount}",
+  "@incRefunded": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "incPhotoCount": "Foto: {count}",
+  "@incPhotoCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "incSuspendedBanner": "Hisobingiz {until} gacha vaqtincha to'xtatilgan",
+  "@incSuspendedBanner": {
+    "placeholders": {
+      "until": {
+        "type": "String"
+      }
+    }
+  },
+  "incReason": "Sabab: {reason}",
+  "@incReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "incSanctionWarning": "Ogohlantirish",
+  "incSanctionSuspension": "To'xtatish: {days} kun ({until} gacha)",
+  "@incSanctionSuspension": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      },
+      "until": {
+        "type": "String"
+      }
+    }
+  },
+  "incSanctionBlock": "Hisob bloklandi",
+  "incSanctionPenalty": "Jarima: {amount}",
+  "@incSanctionPenalty": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "incSafetySuspended": "Xavfsizlik shikoyati — admin ko'rib chiqquncha ishlash to'xtatilgan",
+  "incAppealAction": "E'tiroz bildirish",
+  "incAppealDeadline": "E'tiroz muddati: {date}",
+  "@incAppealDeadline": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "incAppealTitle": "E'tiroz",
+  "incAppealHint": "Nega qaror noto'g'ri deb hisoblaysiz?",
+  "incAppealSent": "E'tirozingiz adminga yuborildi",
+  "incAppealPending": "E'tiroz admin tomonidan ko'rib chiqilmoqda",
+  "incAppealUpheld": "E'tiroz rad etildi — chora o'z kuchida",
+  "incAppealOverturned": "E'tiroz qabul qilindi — chora bekor qilindi",
+  "incSuspendedDialogTitle": "Hisob vaqtincha to'xtatilgan",
+  "incSuspendedDialogBody": "{until} gacha onlayn chiqa olmaysiz.",
+  "@incSuspendedDialogBody": {
+    "placeholders": {
+      "until": {
+        "type": "String"
+      }
+    }
+  },
+  "incOpenDetails": "Batafsil",
+  "incClose": "Yopish",
+  "incCatRude": "Qo'pollik",
+  "incCatDangerousDriving": "Xavfli haydash",
+  "incCatDetour": "Aylanma yo'l",
+  "incCatOvercharge": "Ortiqcha narx",
+  "incCatSmoking": "Chekish",
+  "incCatDirtyCar": "Iflos mashina",
+  "incCatHarassment": "Bezorilik / ta'qib",
+  "incCatSafety": "Xavfsizlikka tahdid",
+  "incCatDrunkPassenger": "Mast yo'lovchi",
+  "incCatVehicleDamage": "Mashinaga zarar",
+  "incCatDidNotPay": "To'lamadi",
+  "incCatNoShow": "Kelmadi",
+  "incCatDamagedGoods": "Buzilgan tovar",
+  "incCatWrongItems": "Noto'g'ri yoki kam tovar",
+  "incCatColdFood": "Sovuq ovqat",
+  "incCatLostCargo": "Yuk yo'qoldi",
+  "incCatOther": "Boshqa",
+  "incCatRatingSignal": "Past reyting",
+  "incCatLowRating": "Past baho"
+}

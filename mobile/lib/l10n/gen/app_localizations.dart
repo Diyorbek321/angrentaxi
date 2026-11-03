@@ -3920,6 +3920,432 @@ abstract class AppLocalizations {
   /// **'Butun mashina: joylar allaqachon band'**
   String get icWholeCarUnavailable;
 
+  /// No description provided for @incAddPhoto.
+  ///
+  /// In uz, this message translates to:
+  /// **'Foto qo\'shish'**
+  String get incAddPhoto;
+
+  /// No description provided for @incAppealAction.
+  ///
+  /// In uz, this message translates to:
+  /// **'E\'tiroz bildirish'**
+  String get incAppealAction;
+
+  /// No description provided for @incAppealDeadline.
+  ///
+  /// In uz, this message translates to:
+  /// **'E\'tiroz muddati: {date}'**
+  String incAppealDeadline(String date);
+
+  /// No description provided for @incAppealHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Nega qaror noto\'g\'ri deb hisoblaysiz?'**
+  String get incAppealHint;
+
+  /// No description provided for @incAppealOverturned.
+  ///
+  /// In uz, this message translates to:
+  /// **'E\'tiroz qabul qilindi — chora bekor qilindi'**
+  String get incAppealOverturned;
+
+  /// No description provided for @incAppealPending.
+  ///
+  /// In uz, this message translates to:
+  /// **'E\'tiroz admin tomonidan ko\'rib chiqilmoqda'**
+  String get incAppealPending;
+
+  /// No description provided for @incAppealSent.
+  ///
+  /// In uz, this message translates to:
+  /// **'E\'tirozingiz adminga yuborildi'**
+  String get incAppealSent;
+
+  /// No description provided for @incAppealTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'E\'tiroz'**
+  String get incAppealTitle;
+
+  /// No description provided for @incAppealUpheld.
+  ///
+  /// In uz, this message translates to:
+  /// **'E\'tiroz rad etildi — chora o\'z kuchida'**
+  String get incAppealUpheld;
+
+  /// No description provided for @incCancel.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bekor qilish'**
+  String get incCancel;
+
+  /// No description provided for @incCatColdFood.
+  ///
+  /// In uz, this message translates to:
+  /// **'Sovuq ovqat'**
+  String get incCatColdFood;
+
+  /// No description provided for @incCatDamagedGoods.
+  ///
+  /// In uz, this message translates to:
+  /// **'Buzilgan tovar'**
+  String get incCatDamagedGoods;
+
+  /// No description provided for @incCatDangerousDriving.
+  ///
+  /// In uz, this message translates to:
+  /// **'Xavfli haydash'**
+  String get incCatDangerousDriving;
+
+  /// No description provided for @incCatDetour.
+  ///
+  /// In uz, this message translates to:
+  /// **'Aylanma yo\'l'**
+  String get incCatDetour;
+
+  /// No description provided for @incCatDidNotPay.
+  ///
+  /// In uz, this message translates to:
+  /// **'To\'lamadi'**
+  String get incCatDidNotPay;
+
+  /// No description provided for @incCatDirtyCar.
+  ///
+  /// In uz, this message translates to:
+  /// **'Iflos mashina'**
+  String get incCatDirtyCar;
+
+  /// No description provided for @incCatDrunkPassenger.
+  ///
+  /// In uz, this message translates to:
+  /// **'Mast yo\'lovchi'**
+  String get incCatDrunkPassenger;
+
+  /// No description provided for @incCatHarassment.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bezorilik / ta\'qib'**
+  String get incCatHarassment;
+
+  /// No description provided for @incCatLostCargo.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yuk yo\'qoldi'**
+  String get incCatLostCargo;
+
+  /// No description provided for @incCatLowRating.
+  ///
+  /// In uz, this message translates to:
+  /// **'Past baho'**
+  String get incCatLowRating;
+
+  /// No description provided for @incCatNoShow.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kelmadi'**
+  String get incCatNoShow;
+
+  /// No description provided for @incCatOther.
+  ///
+  /// In uz, this message translates to:
+  /// **'Boshqa'**
+  String get incCatOther;
+
+  /// No description provided for @incCatOvercharge.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ortiqcha narx'**
+  String get incCatOvercharge;
+
+  /// No description provided for @incCatRatingSignal.
+  ///
+  /// In uz, this message translates to:
+  /// **'Past reyting'**
+  String get incCatRatingSignal;
+
+  /// No description provided for @incCatRude.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qo\'pollik'**
+  String get incCatRude;
+
+  /// No description provided for @incCatSafety.
+  ///
+  /// In uz, this message translates to:
+  /// **'Xavfsizlikka tahdid'**
+  String get incCatSafety;
+
+  /// No description provided for @incCatSmoking.
+  ///
+  /// In uz, this message translates to:
+  /// **'Chekish'**
+  String get incCatSmoking;
+
+  /// No description provided for @incCatVehicleDamage.
+  ///
+  /// In uz, this message translates to:
+  /// **'Mashinaga zarar'**
+  String get incCatVehicleDamage;
+
+  /// No description provided for @incCatWrongItems.
+  ///
+  /// In uz, this message translates to:
+  /// **'Noto\'g\'ri yoki kam tovar'**
+  String get incCatWrongItems;
+
+  /// No description provided for @incCategoryLabel.
+  ///
+  /// In uz, this message translates to:
+  /// **'Nima bo\'ldi?'**
+  String get incCategoryLabel;
+
+  /// No description provided for @incClose.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yopish'**
+  String get incClose;
+
+  /// No description provided for @incComplainAction.
+  ///
+  /// In uz, this message translates to:
+  /// **'Shikoyat qoldirish'**
+  String get incComplainAction;
+
+  /// No description provided for @incDescriptionHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Batafsil yozing (kamida 3 belgi)'**
+  String get incDescriptionHint;
+
+  /// No description provided for @incEmptyAboutMe.
+  ///
+  /// In uz, this message translates to:
+  /// **'Sizga nisbatan chora yo\'q'**
+  String get incEmptyAboutMe;
+
+  /// No description provided for @incEmptyAboutMeBody.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ogohlantirish yoki to\'xtatish bo\'lsa, sababi bilan shu yerda ko\'rinadi.'**
+  String get incEmptyAboutMeBody;
+
+  /// No description provided for @incEmptyMine.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hali murojaat yo\'q'**
+  String get incEmptyMine;
+
+  /// No description provided for @incEmptyMineBody.
+  ///
+  /// In uz, this message translates to:
+  /// **'Safar yoki buyurtmada muammo bo\'lsa, chek yoki buyurtma sahifasidagi «Muammo bor» tugmasini bosing.'**
+  String get incEmptyMineBody;
+
+  /// No description provided for @incMyTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Murojaatlarim'**
+  String get incMyTitle;
+
+  /// No description provided for @incOpenDetails.
+  ///
+  /// In uz, this message translates to:
+  /// **'Batafsil'**
+  String get incOpenDetails;
+
+  /// No description provided for @incPhotoCount.
+  ///
+  /// In uz, this message translates to:
+  /// **'Foto: {count}'**
+  String incPhotoCount(int count);
+
+  /// No description provided for @incPhotosLabel.
+  ///
+  /// In uz, this message translates to:
+  /// **'Foto (ixtiyoriy, 3 tagacha)'**
+  String get incPhotosLabel;
+
+  /// No description provided for @incPickCategory.
+  ///
+  /// In uz, this message translates to:
+  /// **'Sababni tanlang'**
+  String get incPickCategory;
+
+  /// No description provided for @incProblemButton.
+  ///
+  /// In uz, this message translates to:
+  /// **'Muammo bor'**
+  String get incProblemButton;
+
+  /// No description provided for @incReason.
+  ///
+  /// In uz, this message translates to:
+  /// **'Sabab: {reason}'**
+  String incReason(String reason);
+
+  /// No description provided for @incRefunded.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hamyoningizga qaytarildi: {amount}'**
+  String incRefunded(String amount);
+
+  /// No description provided for @incRemovePhoto.
+  ///
+  /// In uz, this message translates to:
+  /// **'Fotoni olib tashlash'**
+  String get incRemovePhoto;
+
+  /// No description provided for @incReportClient.
+  ///
+  /// In uz, this message translates to:
+  /// **'{client} haqida shikoyat'**
+  String incReportClient(String client);
+
+  /// No description provided for @incReportSafetyTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Xavfsizlik shikoyati'**
+  String get incReportSafetyTitle;
+
+  /// No description provided for @incReportTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Muammo haqida xabar'**
+  String get incReportTitle;
+
+  /// No description provided for @incResolution.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qaror: {note}'**
+  String incResolution(String note);
+
+  /// No description provided for @incSafetyNote.
+  ///
+  /// In uz, this message translates to:
+  /// **'Xavf ostida bo\'lsangiz avval 102 ga qo\'ng\'iroq qiling. Xavfsizlik shikoyatini admin darhol ko\'radi.'**
+  String get incSafetyNote;
+
+  /// No description provided for @incSafetySuspended.
+  ///
+  /// In uz, this message translates to:
+  /// **'Xavfsizlik shikoyati — admin ko\'rib chiqquncha ishlash to\'xtatilgan'**
+  String get incSafetySuspended;
+
+  /// No description provided for @incSanctionBlock.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hisob bloklandi'**
+  String get incSanctionBlock;
+
+  /// No description provided for @incSanctionPenalty.
+  ///
+  /// In uz, this message translates to:
+  /// **'Jarima: {amount}'**
+  String incSanctionPenalty(String amount);
+
+  /// No description provided for @incSanctionSuspension.
+  ///
+  /// In uz, this message translates to:
+  /// **'To\'xtatish: {days} kun ({until} gacha)'**
+  String incSanctionSuspension(int days, String until);
+
+  /// No description provided for @incSanctionWarning.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ogohlantirish'**
+  String get incSanctionWarning;
+
+  /// No description provided for @incSent.
+  ///
+  /// In uz, this message translates to:
+  /// **'Murojaatingiz qabul qilindi. Natijani «Murojaatlarim» bo\'limida ko\'rasiz.'**
+  String get incSent;
+
+  /// No description provided for @incSentPhotosFailed.
+  ///
+  /// In uz, this message translates to:
+  /// **'Murojaat qabul qilindi, lekin ba\'zi fotolar yuklanmadi'**
+  String get incSentPhotosFailed;
+
+  /// No description provided for @incStatusInvestigating.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ko\'rib chiqilmoqda'**
+  String get incStatusInvestigating;
+
+  /// No description provided for @incStatusOpen.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qabul qilindi'**
+  String get incStatusOpen;
+
+  /// No description provided for @incStatusRejected.
+  ///
+  /// In uz, this message translates to:
+  /// **'Tasdiqlanmadi'**
+  String get incStatusRejected;
+
+  /// No description provided for @incStatusResolved.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hal qilindi'**
+  String get incStatusResolved;
+
+  /// No description provided for @incSubjectCourier.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kuryer'**
+  String get incSubjectCourier;
+
+  /// No description provided for @incSubjectLabel.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kim haqida?'**
+  String get incSubjectLabel;
+
+  /// No description provided for @incSubjectVendor.
+  ///
+  /// In uz, this message translates to:
+  /// **'Restoran / do\'kon'**
+  String get incSubjectVendor;
+
+  /// No description provided for @incSubmit.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yuborish'**
+  String get incSubmit;
+
+  /// No description provided for @incSuspendedBanner.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hisobingiz {until} gacha vaqtincha to\'xtatilgan'**
+  String incSuspendedBanner(String until);
+
+  /// No description provided for @incSuspendedDialogBody.
+  ///
+  /// In uz, this message translates to:
+  /// **'{until} gacha onlayn chiqa olmaysiz.'**
+  String incSuspendedDialogBody(String until);
+
+  /// No description provided for @incSuspendedDialogTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hisob vaqtincha to\'xtatilgan'**
+  String get incSuspendedDialogTitle;
+
+  /// No description provided for @incTabAboutMe.
+  ///
+  /// In uz, this message translates to:
+  /// **'Menga nisbatan'**
+  String get incTabAboutMe;
+
+  /// No description provided for @incTabMine.
+  ///
+  /// In uz, this message translates to:
+  /// **'Shikoyatlarim'**
+  String get incTabMine;
+
   /// No description provided for @languageRussian.
   ///
   /// In uz, this message translates to:

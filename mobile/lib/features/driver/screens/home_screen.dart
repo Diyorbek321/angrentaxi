@@ -21,6 +21,8 @@ import 'package:angren_taxi/features/driver/wallet/wallet_deep_links.dart';
 import 'package:angren_taxi/features/driver/widgets/driver_earnings_hero.dart';
 import 'package:angren_taxi/features/driver/widgets/driver_verification_notice.dart';
 import 'package:angren_taxi/features/driver/widgets/legal_block_sheet.dart';
+import 'package:angren_taxi/features/incidents/incident_entry_points.dart';
+import 'package:angren_taxi/features/incidents/incident_labels.dart';
 import 'package:angren_taxi/features/intercity/widgets/intercity_driver_entry_card.dart';
 import 'package:angren_taxi/features/legal/legal_acceptance_gate.dart';
 import 'package:angren_taxi/features/legal/legal_acceptance_sheet.dart';
@@ -169,6 +171,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       driver.clearError();
       if (kind == DriverErrorKind.termsNotAccepted) {
         _showTermsForGoOnline(driver);
+        return;
+      }
+      final suspension = kind == DriverErrorKind.accountSuspended ? suspensionFromError(details) : null;
+      if (suspension != null) {
+        showSuspensionDialog(context, suspension);
         return;
       }
       if (kind == DriverErrorKind.legalBlocked) {

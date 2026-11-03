@@ -4,8 +4,11 @@ import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/features/incidents/incident_entry_points.dart';
+import 'package:angren_taxi/features/incidents/screens/report_incident_screen.dart';
 import 'package:angren_taxi/features/passenger/order_provider.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
+import 'package:angren_taxi/shared/models/incident.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:angren_taxi/shared/widgets/app_pressable.dart';
@@ -398,6 +401,15 @@ class _RateDriverScreenState extends State<RateDriverScreen>
                         const SizedBox(height: kSpace4),
 
                         _buildTipSection(),
+                        // 1–2 yulduz — shikoyatga yo'l (INCIDENT-POLICY §3).
+                        IncidentComplaintLink(
+                          score: _selectedScore,
+                          args: IncidentReportArgs(
+                            vertical: IncidentVertical.taxi,
+                            orderId: widget.orderId,
+                            side: IncidentReporterSide.customer,
+                          ),
+                        ),
 
                         const Spacer(),
                         const SizedBox(height: kSpace5),

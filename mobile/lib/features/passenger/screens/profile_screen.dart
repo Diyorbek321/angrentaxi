@@ -1,6 +1,7 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/auth/widgets/account_legal_actions.dart';
+import 'package:angren_taxi/features/incidents/screens/my_incidents_screen.dart';
 import 'package:angren_taxi/features/lost_items/screens/lost_items_screen.dart';
 import 'package:angren_taxi/features/passenger/screens/edit_profile_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/notifications_screen.dart';
@@ -159,6 +160,13 @@ class PassengerProfileScreen extends StatelessWidget {
             MaterialPageRoute<void>(
               builder: (_) => const LostItemsScreen(isDriver: false),
             ),
+          ),
+        ),
+        _buildMenuTile(
+          Icons.support_agent_outlined,
+          context.l10n.incMyTitle,
+          () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const MyIncidentsScreen()),
           ),
         ),
         _buildMenuTile(

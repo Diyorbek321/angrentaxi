@@ -1,4 +1,6 @@
 import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/features/incidents/incident_entry_points.dart';
+import 'package:angren_taxi/features/incidents/screens/report_incident_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/courier_tracking_screen.dart';
 import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/market_provider.dart';
@@ -11,6 +13,7 @@ import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/address_details.dart';
 import 'package:angren_taxi/shared/models/courier_tracking.dart';
 import 'package:angren_taxi/shared/models/food_order.dart';
+import 'package:angren_taxi/shared/models/incident.dart';
 import 'package:angren_taxi/shared/models/market_order.dart';
 import 'package:angren_taxi/shared/models/order.dart' show deliveryFailureReasonLabel;
 import 'package:angren_taxi/shared/utils/formatters.dart';
@@ -289,6 +292,25 @@ class VendorOrderDetailScreen extends StatelessWidget {
                           key: const ValueKey('vendor-reorder-button'),
                           label: context.l10n.saReorderAction,
                           onPressed: () => runReorderFlow(context, order.source!),
+                        ),
+                      ],
+                      // Shikoyat (INCIDENT-POLICY §3) — yakunlangan buyurtma,
+                      // ~7 kun (aniq muddatni server tekshiradi).
+                      if (!order.isActive &&
+                          incidentReportWindowOpen(order.createdAt, days: 8)) ...[
+                        const SizedBox(height: kSpace3),
+                        TextButton.icon(
+                          key: const ValueKey('vendor-incident-button'),
+                          onPressed: () => openIncidentReport(
+                            context,
+                            IncidentReportArgs(
+                              vertical: kind == 'food' ? IncidentVertical.food : IncidentVertical.market,
+                              orderId: orderId,
+                              side: IncidentReporterSide.customer,
+                            ),
+                          ),
+                          icon: const Icon(Icons.flag_outlined, size: 18),
+                          label: Text(l10n.incProblemButton),
                         ),
                       ],
                     ],

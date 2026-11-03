@@ -2,10 +2,13 @@ import 'package:angren_taxi/core/config/app_responsive.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/features/incidents/incident_entry_points.dart';
+import 'package:angren_taxi/features/incidents/screens/report_incident_screen.dart';
 import 'package:angren_taxi/features/lost_items/lost_items_service.dart';
 import 'package:angren_taxi/features/passenger/widgets/receipt_widgets.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
+import 'package:angren_taxi/shared/models/incident.dart';
 import 'package:angren_taxi/shared/models/order_receipt.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/utils/receipt_formatter.dart';
@@ -242,6 +245,23 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
               label: context.l10n.paxLostItemButton,
               icon: const Icon(Icons.inventory_2_outlined, size: 18),
               onPressed: () => _reportLostItem(receipt),
+            ),
+          ],
+          // Shikoyat (INCIDENT-POLICY §3): haydovchili safar, 7 kun ichida.
+          if (receipt.driver != null && incidentReportWindowOpen(receipt.completedAt)) ...[
+            const SizedBox(height: kSpace3),
+            AppOutlinedButton(
+              key: const ValueKey('receipt-incident-button'),
+              label: context.l10n.incProblemButton,
+              icon: const Icon(Icons.flag_outlined, size: 18),
+              onPressed: () => openIncidentReport(
+                context,
+                IncidentReportArgs(
+                  vertical: IncidentVertical.taxi,
+                  orderId: receipt.orderId,
+                  side: IncidentReporterSide.customer,
+                ),
+              ),
             ),
           ],
         ],

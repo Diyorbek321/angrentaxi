@@ -155,6 +155,13 @@ class ApiEndpoints {
   static const String myLostItems = '/lost-items/mine';
   static String lostItemDriverResponse(String id) => '/lost-items/$id/driver-response';
 
+  // Shikoyat va hodisa (docs/INCIDENT-POLICY.md §3).
+  static const String incidents = '/incidents';
+  static const String myIncidents = '/incidents/mine';
+  static const String incidentsAboutMe = '/incidents/about-me';
+  static String incidentPhotos(String id) => '/incidents/$id/photos';
+  static String incidentAppeal(String id) => '/incidents/$id/appeal';
+
   // Reklama — bosh ekran banner karuseli (3-versiya).
   static const String activeAds = '/ads/active';
   static String adImpression(String id) => '/ads/$id/impression';

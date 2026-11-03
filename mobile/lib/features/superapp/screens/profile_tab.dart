@@ -1,5 +1,6 @@
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/auth/widgets/account_legal_actions.dart';
+import 'package:angren_taxi/features/incidents/screens/my_incidents_screen.dart';
 import 'package:angren_taxi/features/lost_items/screens/lost_items_screen.dart';
 import 'package:angren_taxi/features/passenger/screens/destination_screen.dart';
 import 'package:angren_taxi/features/passenger/screens/edit_profile_screen.dart';
@@ -206,6 +207,8 @@ class ProfileTab extends StatelessWidget {
                           onTap: () => _push(context, const NotificationsScreen())),
                       _MenuRow(icon: Icons.inventory_2_rounded, label: context.l10n.saLostItemsTitle,
                           onTap: () => _push(context, const LostItemsScreen(isDriver: false))),
+                      _MenuRow(icon: Icons.support_agent_rounded, label: context.l10n.incMyTitle,
+                          onTap: () => _push(context, const MyIncidentsScreen())),
                       _MenuRow(icon: Icons.settings_rounded, label: context.l10n.saSettingsTitle, last: true,
                           onTap: () => _push(context, const SettingsScreen())),
                     ],

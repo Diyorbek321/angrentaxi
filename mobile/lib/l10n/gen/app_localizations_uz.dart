@@ -2217,6 +2217,246 @@ class AppLocalizationsUz extends AppLocalizations {
   String get icWholeCarUnavailable => 'Butun mashina: joylar allaqachon band';
 
   @override
+  String get incAddPhoto => 'Foto qo\'shish';
+
+  @override
+  String get incAppealAction => 'E\'tiroz bildirish';
+
+  @override
+  String incAppealDeadline(String date) {
+    return 'E\'tiroz muddati: $date';
+  }
+
+  @override
+  String get incAppealHint => 'Nega qaror noto\'g\'ri deb hisoblaysiz?';
+
+  @override
+  String get incAppealOverturned =>
+      'E\'tiroz qabul qilindi — chora bekor qilindi';
+
+  @override
+  String get incAppealPending => 'E\'tiroz admin tomonidan ko\'rib chiqilmoqda';
+
+  @override
+  String get incAppealSent => 'E\'tirozingiz adminga yuborildi';
+
+  @override
+  String get incAppealTitle => 'E\'tiroz';
+
+  @override
+  String get incAppealUpheld => 'E\'tiroz rad etildi — chora o\'z kuchida';
+
+  @override
+  String get incCancel => 'Bekor qilish';
+
+  @override
+  String get incCatColdFood => 'Sovuq ovqat';
+
+  @override
+  String get incCatDamagedGoods => 'Buzilgan tovar';
+
+  @override
+  String get incCatDangerousDriving => 'Xavfli haydash';
+
+  @override
+  String get incCatDetour => 'Aylanma yo\'l';
+
+  @override
+  String get incCatDidNotPay => 'To\'lamadi';
+
+  @override
+  String get incCatDirtyCar => 'Iflos mashina';
+
+  @override
+  String get incCatDrunkPassenger => 'Mast yo\'lovchi';
+
+  @override
+  String get incCatHarassment => 'Bezorilik / ta\'qib';
+
+  @override
+  String get incCatLostCargo => 'Yuk yo\'qoldi';
+
+  @override
+  String get incCatLowRating => 'Past baho';
+
+  @override
+  String get incCatNoShow => 'Kelmadi';
+
+  @override
+  String get incCatOther => 'Boshqa';
+
+  @override
+  String get incCatOvercharge => 'Ortiqcha narx';
+
+  @override
+  String get incCatRatingSignal => 'Past reyting';
+
+  @override
+  String get incCatRude => 'Qo\'pollik';
+
+  @override
+  String get incCatSafety => 'Xavfsizlikka tahdid';
+
+  @override
+  String get incCatSmoking => 'Chekish';
+
+  @override
+  String get incCatVehicleDamage => 'Mashinaga zarar';
+
+  @override
+  String get incCatWrongItems => 'Noto\'g\'ri yoki kam tovar';
+
+  @override
+  String get incCategoryLabel => 'Nima bo\'ldi?';
+
+  @override
+  String get incClose => 'Yopish';
+
+  @override
+  String get incComplainAction => 'Shikoyat qoldirish';
+
+  @override
+  String get incDescriptionHint => 'Batafsil yozing (kamida 3 belgi)';
+
+  @override
+  String get incEmptyAboutMe => 'Sizga nisbatan chora yo\'q';
+
+  @override
+  String get incEmptyAboutMeBody =>
+      'Ogohlantirish yoki to\'xtatish bo\'lsa, sababi bilan shu yerda ko\'rinadi.';
+
+  @override
+  String get incEmptyMine => 'Hali murojaat yo\'q';
+
+  @override
+  String get incEmptyMineBody =>
+      'Safar yoki buyurtmada muammo bo\'lsa, chek yoki buyurtma sahifasidagi «Muammo bor» tugmasini bosing.';
+
+  @override
+  String get incMyTitle => 'Murojaatlarim';
+
+  @override
+  String get incOpenDetails => 'Batafsil';
+
+  @override
+  String incPhotoCount(int count) {
+    return 'Foto: $count';
+  }
+
+  @override
+  String get incPhotosLabel => 'Foto (ixtiyoriy, 3 tagacha)';
+
+  @override
+  String get incPickCategory => 'Sababni tanlang';
+
+  @override
+  String get incProblemButton => 'Muammo bor';
+
+  @override
+  String incReason(String reason) {
+    return 'Sabab: $reason';
+  }
+
+  @override
+  String incRefunded(String amount) {
+    return 'Hamyoningizga qaytarildi: $amount';
+  }
+
+  @override
+  String get incRemovePhoto => 'Fotoni olib tashlash';
+
+  @override
+  String incReportClient(String client) {
+    return '$client haqida shikoyat';
+  }
+
+  @override
+  String get incReportSafetyTitle => 'Xavfsizlik shikoyati';
+
+  @override
+  String get incReportTitle => 'Muammo haqida xabar';
+
+  @override
+  String incResolution(String note) {
+    return 'Qaror: $note';
+  }
+
+  @override
+  String get incSafetyNote =>
+      'Xavf ostida bo\'lsangiz avval 102 ga qo\'ng\'iroq qiling. Xavfsizlik shikoyatini admin darhol ko\'radi.';
+
+  @override
+  String get incSafetySuspended =>
+      'Xavfsizlik shikoyati — admin ko\'rib chiqquncha ishlash to\'xtatilgan';
+
+  @override
+  String get incSanctionBlock => 'Hisob bloklandi';
+
+  @override
+  String incSanctionPenalty(String amount) {
+    return 'Jarima: $amount';
+  }
+
+  @override
+  String incSanctionSuspension(int days, String until) {
+    return 'To\'xtatish: $days kun ($until gacha)';
+  }
+
+  @override
+  String get incSanctionWarning => 'Ogohlantirish';
+
+  @override
+  String get incSent =>
+      'Murojaatingiz qabul qilindi. Natijani «Murojaatlarim» bo\'limida ko\'rasiz.';
+
+  @override
+  String get incSentPhotosFailed =>
+      'Murojaat qabul qilindi, lekin ba\'zi fotolar yuklanmadi';
+
+  @override
+  String get incStatusInvestigating => 'Ko\'rib chiqilmoqda';
+
+  @override
+  String get incStatusOpen => 'Qabul qilindi';
+
+  @override
+  String get incStatusRejected => 'Tasdiqlanmadi';
+
+  @override
+  String get incStatusResolved => 'Hal qilindi';
+
+  @override
+  String get incSubjectCourier => 'Kuryer';
+
+  @override
+  String get incSubjectLabel => 'Kim haqida?';
+
+  @override
+  String get incSubjectVendor => 'Restoran / do\'kon';
+
+  @override
+  String get incSubmit => 'Yuborish';
+
+  @override
+  String incSuspendedBanner(String until) {
+    return 'Hisobingiz $until gacha vaqtincha to\'xtatilgan';
+  }
+
+  @override
+  String incSuspendedDialogBody(String until) {
+    return '$until gacha onlayn chiqa olmaysiz.';
+  }
+
+  @override
+  String get incSuspendedDialogTitle => 'Hisob vaqtincha to\'xtatilgan';
+
+  @override
+  String get incTabAboutMe => 'Menga nisbatan';
+
+  @override
+  String get incTabMine => 'Shikoyatlarim';
+
+  @override
   String get languageRussian => 'Русский';
 
   @override

@@ -1466,6 +1466,150 @@
     }
   },
   "icWholeCarUnavailable": "Butun mashina: joylar allaqachon band",
+  "incAddPhoto": "Foto qo'shish",
+  "incAppealAction": "E'tiroz bildirish",
+  "incAppealDeadline": "E'tiroz muddati: {date}",
+  "@incAppealDeadline": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "incAppealHint": "Nega qaror noto'g'ri deb hisoblaysiz?",
+  "incAppealOverturned": "E'tiroz qabul qilindi — chora bekor qilindi",
+  "incAppealPending": "E'tiroz admin tomonidan ko'rib chiqilmoqda",
+  "incAppealSent": "E'tirozingiz adminga yuborildi",
+  "incAppealTitle": "E'tiroz",
+  "incAppealUpheld": "E'tiroz rad etildi — chora o'z kuchida",
+  "incCancel": "Bekor qilish",
+  "incCatColdFood": "Sovuq ovqat",
+  "incCatDamagedGoods": "Buzilgan tovar",
+  "incCatDangerousDriving": "Xavfli haydash",
+  "incCatDetour": "Aylanma yo'l",
+  "incCatDidNotPay": "To'lamadi",
+  "incCatDirtyCar": "Iflos mashina",
+  "incCatDrunkPassenger": "Mast yo'lovchi",
+  "incCatHarassment": "Bezorilik / ta'qib",
+  "incCatLostCargo": "Yuk yo'qoldi",
+  "incCatLowRating": "Past baho",
+  "incCatNoShow": "Kelmadi",
+  "incCatOther": "Boshqa",
+  "incCatOvercharge": "Ortiqcha narx",
+  "incCatRatingSignal": "Past reyting",
+  "incCatRude": "Qo'pollik",
+  "incCatSafety": "Xavfsizlikka tahdid",
+  "incCatSmoking": "Chekish",
+  "incCatVehicleDamage": "Mashinaga zarar",
+  "incCatWrongItems": "Noto'g'ri yoki kam tovar",
+  "incCategoryLabel": "Nima bo'ldi?",
+  "incClose": "Yopish",
+  "incComplainAction": "Shikoyat qoldirish",
+  "incDescriptionHint": "Batafsil yozing (kamida 3 belgi)",
+  "incEmptyAboutMe": "Sizga nisbatan chora yo'q",
+  "incEmptyAboutMeBody": "Ogohlantirish yoki to'xtatish bo'lsa, sababi bilan shu yerda ko'rinadi.",
+  "incEmptyMine": "Hali murojaat yo'q",
+  "incEmptyMineBody": "Safar yoki buyurtmada muammo bo'lsa, chek yoki buyurtma sahifasidagi «Muammo bor» tugmasini bosing.",
+  "incMyTitle": "Murojaatlarim",
+  "incOpenDetails": "Batafsil",
+  "incPhotoCount": "Foto: {count}",
+  "@incPhotoCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "incPhotosLabel": "Foto (ixtiyoriy, 3 tagacha)",
+  "incPickCategory": "Sababni tanlang",
+  "incProblemButton": "Muammo bor",
+  "incReason": "Sabab: {reason}",
+  "@incReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "incRefunded": "Hamyoningizga qaytarildi: {amount}",
+  "@incRefunded": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "incRemovePhoto": "Fotoni olib tashlash",
+  "incReportClient": "{client} haqida shikoyat",
+  "@incReportClient": {
+    "placeholders": {
+      "client": {
+        "type": "String"
+      }
+    }
+  },
+  "incReportSafetyTitle": "Xavfsizlik shikoyati",
+  "incReportTitle": "Muammo haqida xabar",
+  "incResolution": "Qaror: {note}",
+  "@incResolution": {
+    "placeholders": {
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "incSafetyNote": "Xavf ostida bo'lsangiz avval 102 ga qo'ng'iroq qiling. Xavfsizlik shikoyatini admin darhol ko'radi.",
+  "incSafetySuspended": "Xavfsizlik shikoyati — admin ko'rib chiqquncha ishlash to'xtatilgan",
+  "incSanctionBlock": "Hisob bloklandi",
+  "incSanctionPenalty": "Jarima: {amount}",
+  "@incSanctionPenalty": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "incSanctionSuspension": "To'xtatish: {days} kun ({until} gacha)",
+  "@incSanctionSuspension": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      },
+      "until": {
+        "type": "String"
+      }
+    }
+  },
+  "incSanctionWarning": "Ogohlantirish",
+  "incSent": "Murojaatingiz qabul qilindi. Natijani «Murojaatlarim» bo'limida ko'rasiz.",
+  "incSentPhotosFailed": "Murojaat qabul qilindi, lekin ba'zi fotolar yuklanmadi",
+  "incStatusInvestigating": "Ko'rib chiqilmoqda",
+  "incStatusOpen": "Qabul qilindi",
+  "incStatusRejected": "Tasdiqlanmadi",
+  "incStatusResolved": "Hal qilindi",
+  "incSubjectCourier": "Kuryer",
+  "incSubjectLabel": "Kim haqida?",
+  "incSubjectVendor": "Restoran / do'kon",
+  "incSubmit": "Yuborish",
+  "incSuspendedBanner": "Hisobingiz {until} gacha vaqtincha to'xtatilgan",
+  "@incSuspendedBanner": {
+    "placeholders": {
+      "until": {
+        "type": "String"
+      }
+    }
+  },
+  "incSuspendedDialogBody": "{until} gacha onlayn chiqa olmaysiz.",
+  "@incSuspendedDialogBody": {
+    "placeholders": {
+      "until": {
+        "type": "String"
+      }
+    }
+  },
+  "incSuspendedDialogTitle": "Hisob vaqtincha to'xtatilgan",
+  "incTabAboutMe": "Menga nisbatan",
+  "incTabMine": "Shikoyatlarim",
   "languageRussian": "Русский",
   "languageUzbek": "O'zbekcha",
   "lglBirthDate": "Tug'ilgan sana",

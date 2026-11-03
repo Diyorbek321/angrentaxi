@@ -57,6 +57,22 @@ abstract final class ApiErrorCode {
 
   /// 409 — qabul qilinayotgan hujjat versiyasi eskirgan (holatni qayta yuklang).
   static const legalVersionOutdated = 'LEGAL_VERSION_OUTDATED';
+
+  /// 401 — hisob bloklangan; `details: { reason }` (admin yozgan sabab).
+  static const accountBlocked = 'ACCOUNT_BLOCKED';
+
+  /// 403 — hisob vaqtincha to'xtatilgan: onlayn chiqish / yangi buyurtma
+  /// rad; `details: { until (ISO), reason }`. Kirish ochiq.
+  static const accountSuspended = 'ACCOUNT_SUSPENDED';
+
+  /// 409 — shu buyurtma bo'yicha ochiq shikoyat bor; `details: { incidentId }`.
+  static const incidentAlreadyOpen = 'INCIDENT_ALREADY_OPEN';
+
+  /// 400 — shikoyat muddati o'tgan; `details: { days }`.
+  static const incidentWindowClosed = 'INCIDENT_WINDOW_CLOSED';
+
+  /// 409 — e'tiroz mumkin emas; `details: { reason }`.
+  static const incidentAppealNotAllowed = 'INCIDENT_APPEAL_NOT_ALLOWED';
 }
 
 /// `reasons[]` elementi.

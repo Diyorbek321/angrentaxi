@@ -2,7 +2,10 @@ import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/features/incidents/incident_entry_points.dart';
+import 'package:angren_taxi/features/incidents/screens/report_incident_screen.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
+import 'package:angren_taxi/shared/models/incident.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:flutter/material.dart';
 
@@ -232,6 +235,18 @@ class _RatePassengerScreenState extends State<RatePassengerScreen>
                   ),
                   contentPadding: const EdgeInsets.all(kSpace4),
                   counterStyle: const TextStyle(color: kInkMuted),
+                ),
+              ),
+              // Haydovchi/kuryer yo'lovchi yoki mijoz haqida shikoyat qila
+              // oladi (mast, zarar, to'lamadi, kelmadi...) — INCIDENT-POLICY §3.
+              IncidentComplaintLink(
+                score: _selectedScore,
+                always: true,
+                args: IncidentReportArgs(
+                  vertical: IncidentVertical.taxi,
+                  orderId: widget.orderId,
+                  side: IncidentReporterSide.driver,
+                  clientLabel: clientLabel,
                 ),
               ),
               const Spacer(),

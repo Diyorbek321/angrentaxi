@@ -5,6 +5,7 @@ import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/driver/screens/driver_amenities_screen.dart';
 import 'package:angren_taxi/features/driver/screens/earnings_screen.dart';
 import 'package:angren_taxi/features/driver/screens/vehicle_change_screen.dart';
+import 'package:angren_taxi/features/incidents/screens/my_incidents_screen.dart';
 import 'package:angren_taxi/features/lost_items/screens/lost_items_screen.dart';
 import 'package:angren_taxi/features/passenger/screens/edit_profile_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/notifications_screen.dart';
@@ -378,6 +379,13 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
             MaterialPageRoute<void>(
               builder: (_) => const LostItemsScreen(isDriver: true),
             ),
+          ),
+        ),
+        _buildMenuTile(
+          Icons.support_agent_outlined,
+          context.l10n.incMyTitle,
+          () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const MyIncidentsScreen()),
           ),
         ),
         _buildMenuTile(
