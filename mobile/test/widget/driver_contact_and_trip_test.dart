@@ -10,6 +10,8 @@ import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/driver/screens/order_offer_screen.dart';
 import 'package:angren_taxi/features/driver/service_wording.dart';
 import 'package:angren_taxi/features/driver/widgets/passenger_contact_card.dart';
+import 'package:angren_taxi/features/safety/call_relay.dart';
+import 'package:angren_taxi/features/safety/contact_relay_service.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -18,6 +20,18 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _MockApiClient extends Mock implements ApiClient {}
+
+class _FakeRelay extends ContactRelayService {
+  _FakeRelay(this.phone) : super(_MockApiClient(), apiBaseUrl: 'https://api.test/api/v1');
+  final String? phone;
+
+  @override
+  Future<String> counterpartyPhone(String orderId) async {
+    final value = phone;
+    if (value == null) throw StateError('closed');
+    return value;
+  }
+}
 
 class _NoGpsLocation extends LocationService {
   @override
@@ -29,6 +43,7 @@ Map<String, dynamic> _json({
   double? tripKm,
   int? tripMin,
   bool metered = false,
+  String status = 'searching',
 }) =>
     {
       'id': 'o-1',
@@ -36,7 +51,7 @@ Map<String, dynamic> _json({
       if (passenger != null) 'passenger': passenger,
       'pickup': {'address': 'Bobur 10', 'lat': 41.0, 'lng': 70.1},
       'dropoff': {'address': 'Bozor', 'lat': 41.02, 'lng': 70.15},
-      'status': 'searching',
+      'status': status,
       'estimatedPrice': 18000,
       'createdAt': '2026-10-10T10:00:00.000Z',
       'isMetered': metered,
@@ -57,26 +72,47 @@ void main() {
           ),
         );
 
-    testWidgets('ism va faol qo\'ng\'iroq tugmasi', (tester) async {
+    tearDown(() {
+      CallRelay.service = () => ContactRelayService(sl<ApiClient>());
+      CallRelay.dial = (uri) async => false;
+    });
+
+    testWidgets("faol buyurtma — raqam javobda yo'q, qo'ng'iroq ilova orqali (§4)", (tester) async {
+      final dialed = <Uri>[];
+      CallRelay.service = () => _FakeRelay('+998901112233');
+      CallRelay.dial = (uri) async {
+        dialed.add(uri);
+        return true;
+      };
       await pump(
         tester,
-        Order.fromJson(_json(passenger: {
-          'firstName': 'Aziz',
-          'lastName': 'Karimov',
-          'phone': '+998901112233',
-        })),
+        Order.fromJson(_json(status: 'accepted', passenger: {'firstName': 'Aziz', 'lastName': 'Karimov'})),
       );
 
       expect(find.textContaining('Aziz'), findsOneWidget);
       final button = tester.widget<IconButton>(find.byKey(PassengerContactCard.callButtonKey));
       expect(button.onPressed, isNotNull);
+      await tester.tap(find.byKey(PassengerContactCard.callButtonKey));
+      await tester.pump();
+      expect(dialed.single.toString(), 'tel:+998901112233');
     });
 
-    testWidgets('raqam yo\'q — tugma joyida, lekin o\'chiq', (tester) async {
-      await pump(tester, Order.fromJson(_json()));
+    testWidgets("faol bo'lmagan buyurtma — tugma joyida, lekin o'chiq", (tester) async {
+      await pump(tester, Order.fromJson(_json(passenger: {'phone': '+998901112233'})));
 
       final button = tester.widget<IconButton>(find.byKey(PassengerContactCard.callButtonKey));
       expect(button.onPressed, isNull);
+    });
+
+    testWidgets("server rad etsa — xabari ko'rsatiladi, terilmaydi", (tester) async {
+      var dialed = false;
+      CallRelay.service = () => _FakeRelay(null);
+      CallRelay.dial = (uri) async => dialed = true;
+      await pump(tester, Order.fromJson(_json(status: 'arrived')));
+      await tester.tap(find.byKey(PassengerContactCard.callButtonKey));
+      await tester.pump();
+      expect(dialed, isFalse);
+      expect(find.byType(SnackBar), findsOneWidget);
     });
   });
 

@@ -2,6 +2,7 @@ import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
+import 'package:angren_taxi/features/safety/call_relay.dart';
 import 'package:angren_taxi/features/superapp/state/courier_tracking_controller.dart';
 import 'package:angren_taxi/features/superapp/widgets/delivery_incident_card.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
@@ -13,7 +14,6 @@ import 'package:angren_taxi/shared/widgets/app_status_badge.dart';
 import 'package:angren_taxi/shared/widgets/app_vector_map.dart';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 /// Ovqat/market buyurtmasini olib kelayotgan kuryer — xaritada, jonli.
 ///
@@ -197,24 +197,16 @@ class _CourierTrackingScreenState extends State<CourierTrackingScreen> {
             ],
           ),
         ),
-        if (phone != null && phone.isNotEmpty)
+        // Raqam javobda kelmaydi — server faol yetkazishda beradi (§4).
+        // Eski server raqam yuborsa ham shu yo'l (jurnal uchun).
+        if (tracking.callRelayOpen && (tracking.hasCourier || (phone?.isNotEmpty ?? false)))
           AgMapFab(
             icon: Icons.call_rounded,
             semanticsLabel: context.l10n.saTrackCallCourier,
-            onTap: () => _call(phone),
+            onTap: () => callViaRelay(context, tracking.orderId),
           ),
       ],
     );
   }
 
-  Future<void> _call(String phone) async {
-    final uri = Uri(scheme: 'tel', path: phone);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.saCallFailed)),
-      );
-    }
-  }
 }

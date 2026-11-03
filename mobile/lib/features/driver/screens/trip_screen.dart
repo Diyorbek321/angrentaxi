@@ -29,6 +29,7 @@ import 'package:angren_taxi/features/driver/widgets/parcel_pin_dialog.dart';
 // ikkita turli "sheet ostida markazlashish" xatosi paydo bo'ladi.
 import 'package:angren_taxi/features/driver/widgets/speed_camera_banner.dart';
 import 'package:angren_taxi/features/passenger/map_camera_insets.dart';
+import 'package:angren_taxi/features/safety/call_relay.dart';
 import 'package:angren_taxi/features/trip/meter/live_meter_card.dart';
 import 'package:angren_taxi/features/trip/meter/meter_service.dart';
 import 'package:angren_taxi/features/trip/screens/trip_chat_screen.dart';
@@ -579,13 +580,8 @@ class _TripScreenState extends State<TripScreen> {
 
   Future<void> _callEmergency() => _dial(_emergencyPhoneNumber);
 
-  /// Mijozga qo'ng'iroq. Raqam kelmagan bo'lsa tugma o'chirilgan bo'ladi,
-  /// shuning uchun bu yerda faqat zaxira tekshiruv.
-  Future<void> _callClient(Order order) async {
-    final phone = order.passengerPhone;
-    if (phone == null || phone.isEmpty) return;
-    await _dial(phone);
-  }
+  /// Mijozga ilova orqali qo'ng'iroq — raqam serverdan (§4).
+  Future<void> _callClient(Order order) => callViaRelay(context, order.id);
 
   /// Yagona `tel:` yo'li — `canLaunchUrl` qo'riqchisi va xato xabari bir
   /// joyda (naqsh `passenger/screens/home_screen.dart#_callDriver` dan).
@@ -1085,6 +1081,7 @@ class _TripScreenState extends State<TripScreen> {
                   DeliveryInfoCard(
                     delivery: order.delivery!,
                     stage: DeliveryCardStage.dropoff,
+                    orderId: order.id,
                   ),
                   const SizedBox(height: kSpace2),
                 ],
@@ -1162,7 +1159,6 @@ class _TripScreenState extends State<TripScreen> {
   /// Bu ekranda umuman bekor qilish yo'q; kelajakda kerak bo'lsa, u
   /// `_showTripMenu` ichiga tushadi.
   Widget _buildActionRow(Order order, DriverServiceWording wording) {
-    final phone = order.passengerPhone;
     return AgActionRow(
       // 60dp — `kMinTapTargetDriver` (56) dan yuqori.
       driver: true,
@@ -1173,9 +1169,7 @@ class _TripScreenState extends State<TripScreen> {
           // Raqam kelmagan buyurtmada tugma o'z o'rnida qoladi, lekin
           // bosilmaydi — yo'qolib qolsa qolgan nishonlar siljib ketardi va
           // haydovchi mushak xotirasiga tayanib boshqasini bosardi.
-          onTap: (phone == null || phone.isEmpty)
-              ? null
-              : () => _callClient(order),
+          onTap: order.callRelayOpen ? () => _callClient(order) : null,
         ),
         AgActionItem(
           icon: Icons.chat_bubble_outline_rounded,

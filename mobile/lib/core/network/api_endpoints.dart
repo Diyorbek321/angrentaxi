@@ -298,6 +298,11 @@ class ApiEndpoints {
 
   // Safety / SOS (backend/src/modules/safety)
   static String reportSos(String orderId) => '/orders/$orderId/sos';
+  // Ilova orqali qo'ng'iroq (INCIDENT-POLICY §4): server qarshi tomon
+  // raqamini faqat faol buyurtmada beradi va har so'rovni yozadi.
+  static String orderCall(String orderId) => '/orders/$orderId/call';
+  // Safar kuzatuvi havolasi — `{token, path}`; ommaviy sahifa `${apiBaseUrl}$path`.
+  static String orderShare(String orderId) => '/orders/$orderId/share';
   static String resolveSos(String id) => '/sos/$id/resolve';
   static const String activeSosAlerts = '/sos/active';
 }

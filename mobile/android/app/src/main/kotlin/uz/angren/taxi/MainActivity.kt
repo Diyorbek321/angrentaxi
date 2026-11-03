@@ -223,6 +223,29 @@ class MainActivity : FlutterActivity() {
                 }
             }
 
+        // Tizim "Ulashish" oynasi — lib/core/platform/system_share.dart
+        // (safar kuzatuvi havolasi, INCIDENT-POLICY §4). Paket qo'shilmadi:
+        // share_plus'ning mos versiyasi firebase bog'liqliklari bilan sig'maydi.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "uz.angren.taxi/share")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "shareText" -> {
+                        val send = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, call.argument<String>("text") ?: "")
+                            call.argument<String>("subject")?.let { putExtra(Intent.EXTRA_SUBJECT, it) }
+                        }
+                        try {
+                            startActivity(Intent.createChooser(send, call.argument<String>("title")))
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.success(false)
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+
         // Navigatsiya ovoz bo'laklari — lib/core/location/voice_clip_player.dart
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "uz.angren.taxi/voice")
             .setMethodCallHandler { call, result ->

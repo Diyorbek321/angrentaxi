@@ -1,4 +1,5 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
+import 'package:angren_taxi/features/safety/call_relay.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/address_details.dart';
 import 'package:angren_taxi/shared/models/order.dart';
@@ -22,6 +23,7 @@ class DeliveryInfoCard extends StatelessWidget {
     required this.delivery,
     required this.stage,
     this.onCall,
+    this.orderId,
   });
 
   final DeliveryInfo delivery;
@@ -29,6 +31,13 @@ class DeliveryInfoCard extends StatelessWidget {
 
   /// Testlar uchun almashtiriladi; standart — tizim `tel:` terish oynasi.
   final Future<void> Function(String phone)? onCall;
+
+  /// Kuryer safari id'si. Berilsa, MIJOZGA qo'ng'iroq ilova orqali
+  /// (`callViaRelay`) — mijoz raqami javobda kelmaydi (INCIDENT-POLICY §4).
+  /// Sotuvchi raqami — biznes raqami, to'g'ridan-to'g'ri.
+  final String? orderId;
+
+  bool get _relaysCustomerCall => stage == DeliveryCardStage.dropoff && orderId != null;
 
   Future<void> _dial(BuildContext context, String phone) async {
     if (onCall != null) return onCall!(phone);
@@ -53,6 +62,7 @@ class DeliveryInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final phone = _phoneForStage;
+    final canCall = _relaysCustomerCall || phone != null;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(kSpace4),
@@ -101,7 +111,7 @@ class DeliveryInfoCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (phone != null)
+              if (canCall)
                 SizedBox(
                   width: kMinTapTargetDriver,
                   height: kMinTapTargetDriver,
@@ -109,7 +119,9 @@ class DeliveryInfoCard extends StatelessWidget {
                     tooltip: stage == DeliveryCardStage.pickup
                         ? context.l10n.drvCallSeller
                         : context.l10n.drvCallCustomer,
-                    onPressed: () => _dial(context, phone),
+                    onPressed: () => _relaysCustomerCall
+                        ? callViaRelay(context, orderId!)
+                        : _dial(context, phone!),
                     icon: const Icon(Icons.call, color: kPrimary),
                   ),
                 ),

@@ -1,10 +1,10 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/driver/service_wording.dart';
+import 'package:angren_taxi/features/safety/call_relay.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/widgets/ag_map_fab.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 /// Yo'lovchi (yoki yetkazishda mijoz) ismi va qo'ng'iroq tugmasi.
 ///
@@ -13,7 +13,9 @@ import 'package:url_launcher/url_launcher.dart';
 /// kutayotganda kerak: manzil noaniq, yo'lovchi ko'rinmaydi, "qaysi
 /// darvoza?" — navigatsiya va "Yetib keldim" ekranlarida.
 ///
-/// Raqam kelmagan buyurtmada tugma o'z joyida qoladi, lekin o'chiq —
+/// Qo'ng'iroq ilova orqali (`callViaRelay`, INCIDENT-POLICY §4) — raqam
+/// buyurtma javobida kelmaydi. Faol bo'lmagan buyurtmada tugma o'z joyida
+/// qoladi, lekin o'chiq —
 /// yo'qolib qolsa, tartib siljib, haydovchi boshqa narsani bosib yuborardi.
 class PassengerContactCard extends StatelessWidget {
   const PassengerContactCard({
@@ -27,16 +29,6 @@ class PassengerContactCard extends StatelessWidget {
 
   static const Key callButtonKey = ValueKey('passenger_contact_call');
 
-  Future<void> _call(BuildContext context, String phone) async {
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    final failed = context.l10n.drvCallFailed;
-    final uri = Uri(scheme: 'tel', path: phone);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    } else {
-      messenger?.showSnackBar(SnackBar(content: Text(failed)));
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,8 +36,8 @@ class PassengerContactCard extends StatelessWidget {
     // Ism kelmasa sarlavhaning o'zi qoladi — "Yo'lovchi / Yo'lovchi" deb
     // ikki marta yozilmaydi.
     final name = hasName ? order.passengerName! : wording.clientLabel;
-    final phone = order.passengerPhone;
-    final canCall = phone != null && phone.isNotEmpty;
+    // Raqam javobda kelmaydi — server faol buyurtmada beradi (§4).
+    final canCall = order.callRelayOpen;
 
     return AgSurfaceCard(
       child: Row(
@@ -91,7 +83,7 @@ class PassengerContactCard extends StatelessWidget {
               dimension: kMinTapTargetDriver,
               child: IconButton.filled(
                 key: callButtonKey,
-                onPressed: canCall ? () => _call(context, phone) : null,
+                onPressed: canCall ? () => callViaRelay(context, order.id) : null,
                 style: IconButton.styleFrom(
                   backgroundColor: kPrimary,
                   foregroundColor: kOnPrimary,

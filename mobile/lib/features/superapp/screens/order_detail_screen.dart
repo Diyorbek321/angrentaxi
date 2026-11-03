@@ -1,11 +1,11 @@
 import 'package:angren_taxi/features/passenger/screens/receipt_screen.dart';
+import 'package:angren_taxi/features/safety/call_relay.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 /// Receipt for a single taxi/cargo order.
 ///
@@ -174,10 +174,11 @@ class OrderDetailScreen extends StatelessWidget {
                             ],
                           ),
                         ),
-                        if (driver.phone.isNotEmpty)
+                        // Faqat faol safarda, ilova orqali (raqam javobda yo'q, §4).
+                        if (order.callRelayOpen)
                           AgIconButton(
                             icon: Icons.call_rounded,
-                            onTap: () => _callDriver(context, driver.phone),
+                            onTap: () => callViaRelay(context, order.id),
                             semanticsLabel: context.l10n.saCallDriver,
                           ),
                       ],
@@ -243,16 +244,6 @@ class OrderDetailScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _callDriver(BuildContext context, String phone) async {
-    final uri = Uri(scheme: 'tel', path: phone);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    } else if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.saCallFailed)),
-      );
-    }
-  }
 
   Widget _card({required Widget child}) => Container(
     padding: const EdgeInsets.all(kSpace4),

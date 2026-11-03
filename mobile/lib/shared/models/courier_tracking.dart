@@ -58,6 +58,13 @@ class CourierTracking extends Equatable {
       deliveryFailedAt == null &&
       status == OrderStatus.inProgress;
 
+  /// Kuryerga ilova orqali qo'ng'iroq oynasi (raqam javobda kelmaydi, §4).
+  bool get callRelayOpen =>
+      status == OrderStatus.driverAssigned ||
+      status == OrderStatus.driverEnRoute ||
+      status == OrderStatus.driverArrived ||
+      status == OrderStatus.inProgress;
+
   bool get hasCourier => driverName != null || driverPhone != null;
 
   /// "Cobalt · 01 A 777 BB" — bo'sh qismlar tashlab yuboriladi.

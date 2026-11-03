@@ -4797,6 +4797,26 @@ class AppLocalizationsUz extends AppLocalizations {
   String get saWhereTo => 'Qayerga borasiz?';
 
   @override
+  String get safetyCallFailed =>
+      'Qo\'ng\'iroq qilib bo\'lmadi. Chat orqali yozing.';
+
+  @override
+  String get safetyShareCopied =>
+      'Kuzatuv havolasi nusxalandi — yaqiningizga yuboring';
+
+  @override
+  String get safetyShareFailed =>
+      'Havolani yaratib bo\'lmadi. Qayta urinib ko\'ring.';
+
+  @override
+  String safetyShareMessage(String url) {
+    return 'Safarimni jonli kuzating (Angren Taxi): $url';
+  }
+
+  @override
+  String get safetyShareTitle => 'Safarni ulashish';
+
+  @override
   String get shAuthContinue => 'Davom etish';
 
   @override

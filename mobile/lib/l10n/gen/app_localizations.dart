@@ -8475,6 +8475,36 @@ abstract class AppLocalizations {
   /// **'Qayerga borasiz?'**
   String get saWhereTo;
 
+  /// No description provided for @safetyCallFailed.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qo\'ng\'iroq qilib bo\'lmadi. Chat orqali yozing.'**
+  String get safetyCallFailed;
+
+  /// No description provided for @safetyShareCopied.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kuzatuv havolasi nusxalandi — yaqiningizga yuboring'**
+  String get safetyShareCopied;
+
+  /// No description provided for @safetyShareFailed.
+  ///
+  /// In uz, this message translates to:
+  /// **'Havolani yaratib bo\'lmadi. Qayta urinib ko\'ring.'**
+  String get safetyShareFailed;
+
+  /// No description provided for @safetyShareMessage.
+  ///
+  /// In uz, this message translates to:
+  /// **'Safarimni jonli kuzating (Angren Taxi): {url}'**
+  String safetyShareMessage(String url);
+
+  /// No description provided for @safetyShareTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Safarni ulashish'**
+  String get safetyShareTitle;
+
   /// No description provided for @shAuthContinue.
   ///
   /// In uz, this message translates to:

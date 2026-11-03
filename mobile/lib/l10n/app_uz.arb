@@ -3025,6 +3025,18 @@
   "saWalletTopUp": "To'ldirish",
   "saWalletTransfer": "O'tkazish",
   "saWhereTo": "Qayerga borasiz?",
+  "safetyCallFailed": "Qo'ng'iroq qilib bo'lmadi. Chat orqali yozing.",
+  "safetyShareCopied": "Kuzatuv havolasi nusxalandi — yaqiningizga yuboring",
+  "safetyShareFailed": "Havolani yaratib bo'lmadi. Qayta urinib ko'ring.",
+  "safetyShareMessage": "Safarimni jonli kuzating (Angren Taxi): {url}",
+  "@safetyShareMessage": {
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "safetyShareTitle": "Safarni ulashish",
   "shAuthContinue": "Davom etish",
   "shAuthEnterPhone": "Telefon raqamingizni kiriting",
   "shAuthPhoneLabel": "Telefon raqam",

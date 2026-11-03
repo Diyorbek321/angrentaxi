@@ -4,6 +4,8 @@ import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
 import 'package:angren_taxi/core/location/route_service.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
+import 'package:angren_taxi/core/network/api_error.dart';
+import 'package:angren_taxi/core/platform/system_share.dart';
 import 'package:angren_taxi/core/safety/sos_service.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/incidents/screens/report_incident_screen.dart';
@@ -12,6 +14,7 @@ import 'package:angren_taxi/features/passenger/pickup_eta_tracker.dart';
 import 'package:angren_taxi/features/passenger/widgets/parcel_pin_card.dart';
 import 'package:angren_taxi/features/passenger/widgets/parcel_return_card.dart';
 import 'package:angren_taxi/features/passenger/widgets/searching_status.dart';
+import 'package:angren_taxi/features/safety/call_relay.dart';
 import 'package:angren_taxi/features/trip/meter/live_meter_card.dart';
 import 'package:angren_taxi/features/trip/meter/meter_service.dart';
 import 'package:angren_taxi/features/trip/screens/trip_chat_screen.dart';
@@ -31,7 +34,6 @@ import 'package:angren_taxi/shared/widgets/cancel_order_sheet.dart';
 import 'package:angren_taxi/shared/widgets/waiting_charge_ticker.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:latlong2/latlong.dart';
 // Xarita kamerasi MapLibre'ning o'z LatLng turini kutadi; ilovaning qolgan
 // qismi latlong2 ni ishlatadi, shuning uchun bu yerda prefiks bilan.
@@ -463,9 +465,10 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
         AgActionItem(
           icon: Icons.phone_rounded,
           label: context.l10n.paxCall,
-          onTap: driver == null || driver.phone.isEmpty
+          // Raqam javobda kelmaydi — server faol safarda beradi (§4).
+          onTap: driver == null || !order.callRelayOpen
               ? null
-              : () => _callDriver(driver.phone),
+              : () => callViaRelay(context, order.id),
         ),
         AgActionItem(
           icon: Icons.chat_bubble_outline_rounded,
@@ -955,18 +958,6 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
     );
   }
 
-  Future<void> _callDriver(String phone) async {
-    if (phone.isEmpty) return;
-    final uri = Uri(scheme: 'tel', path: phone);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.paxCallFailed)),
-      );
-    }
-  }
-
   void _openChat(Order order) {
     final currentUserId = context.read<AuthProvider>().currentUser?.id;
     if (currentUserId == null) return;
@@ -980,29 +971,26 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
     );
   }
 
-  /// Safar ma'lumotini yaqin kishiga yuborish uchun buferga nusxalaydi.
-  ///
-  /// ⚠️ NEGA TIZIM "SHARE" OYNASI EMAS: `share_plus` loyihada yo'q va uni
-  /// qo'shish bu vazifaning doirasidan tashqarida. Xuddi shu yechim
-  /// `referral_screen.dart` da ham qo'llangan — ikkalasi bir xil xatti
-  /// harakat qilsin. Paket qo'shilganda faqat shu metod almashadi.
+  /// Yaqin kishiga JONLI kuzatuv havolasi (INCIDENT-POLICY §4): server
+  /// tokenli ommaviy sahifa yaratadi (haydovchi ismi, mashina, joylashuv,
+  /// holat; telefon raqamlari yo'q), safar tugagach 30 daqiqada yopiladi.
+  /// Tizim "Ulashish" oynasi; u bo'lmasa — havola buferga.
   Future<void> _shareTrip(Order order) async {
-    final driver = order.driver;
-    final lines = <String>[
-      context.l10n.paxShareTripHeader,
-      context.l10n.paxShareTripFrom(order.pickup.address),
-      context.l10n.paxShareTripTo(
-        order.dropoffLabel,
-      ),
-      if (driver != null)
-        context.l10n.paxShareTripDriver(driver.name, driver.carInfo),
-      context.l10n.paxShareTripStatus(order.status.label),
-    ];
-    await Clipboard.setData(ClipboardData(text: lines.join('\n')));
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.l10n.paxShareTripCopied)),
-    );
+    final l10n = context.l10n;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final link = await CallRelay.service().shareLink(order.id);
+      final shown = await SystemShare.instance.shareText(
+        l10n.safetyShareMessage(link.toString()),
+        title: l10n.safetyShareTitle,
+      );
+      if (!shown) messenger.showSnackBar(SnackBar(content: Text(l10n.safetyShareCopied)));
+    } catch (error) {
+      final message = ApiError.from(error)?.message;
+      messenger.showSnackBar(
+        SnackBar(content: Text(message == null || message.isEmpty ? l10n.safetyShareFailed : message)),
+      );
+    }
   }
 
   Widget _buildDriverInfo(Order order) {

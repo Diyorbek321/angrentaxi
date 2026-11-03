@@ -24,6 +24,10 @@ const Set<String> _noRefreshPaths = {
   ApiEndpoints.verifyOtp,
 };
 
+/// Mijoz imkoniyatlari sarlavhasi (backend `contact-policy.ts`).
+const String kClientFeaturesHeader = 'X-Client-Features';
+const String kClientFeatures = 'call-relay';
+
 class ApiClient {
   late final Dio _dio;
 
@@ -148,6 +152,10 @@ class ApiClient {
     headers: {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
+      // Bu build raqamni javobdan emas, `POST orders/:id/call` dan oladi —
+      // server qarshi tomon telefonini javoblardan olib tashlaydi
+      // (backend `safety/contact-policy.ts`, INCIDENT-POLICY §4).
+      kClientFeaturesHeader: kClientFeatures,
     },
   );
 

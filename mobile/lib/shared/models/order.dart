@@ -595,6 +595,15 @@ class Order extends Equatable {
       status == OrderStatus.driverArrived ||
       status == OrderStatus.inProgress;
 
+  /// Ilova orqali qo'ng'iroq oynasi (backend `contact-policy.ts#callWindowOpen`):
+  /// haydovchi qabul qilgandan safar/yetkazish tugaguncha. Raqam javobda
+  /// kelmaydi — `POST orders/:id/call` beradi (INCIDENT-POLICY §4).
+  bool get callRelayOpen =>
+      status == OrderStatus.driverAssigned ||
+      status == OrderStatus.driverEnRoute ||
+      status == OrderStatus.driverArrived ||
+      status == OrderStatus.inProgress;
+
   Order copyWith({
     String? id,
     String? passengerId,

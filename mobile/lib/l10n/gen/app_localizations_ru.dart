@@ -4784,6 +4784,25 @@ class AppLocalizationsRu extends AppLocalizations {
   String get saWhereTo => 'Куда едем?';
 
   @override
+  String get safetyCallFailed => 'Не удалось позвонить. Напишите в чат.';
+
+  @override
+  String get safetyShareCopied =>
+      'Ссылка для отслеживания скопирована — отправьте близкому';
+
+  @override
+  String get safetyShareFailed =>
+      'Не удалось создать ссылку. Попробуйте ещё раз.';
+
+  @override
+  String safetyShareMessage(String url) {
+    return 'Следите за моей поездкой (Angren Taxi): $url';
+  }
+
+  @override
+  String get safetyShareTitle => 'Поделиться поездкой';
+
+  @override
   String get shAuthContinue => 'Продолжить';
 
   @override
