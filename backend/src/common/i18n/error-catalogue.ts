@@ -309,6 +309,18 @@ export const ERROR_CATALOGUE: readonly ErrorCatalogueEntry[] = [
     ru: 'Этот тип аккаунта нельзя удалить из приложения — обратитесь в поддержку',
   },
 
+  // ─── Oferta roziligi — LEGAL_TERMS_NOT_ACCEPTED / LEGAL_VERSION_OUTDATED ─
+  {
+    source:
+      "Onlayn chiqish uchun haydovchi ofertasining yangi tahririni qabul qiling. Ilovani yangilang va «Shartlar» oynasida «Qabul qilaman» tugmasini bosing.",
+    ru: 'Чтобы выйти на линию, примите новую редакцию оферты для водителей. Обновите приложение и нажмите «Принимаю» в окне «Условия».',
+  },
+  {
+    source: "Hujjatning yangi tahriri chiqdi — sahifani yangilab, qaytadan o'qing.",
+    ru: 'Вышла новая редакция документа — обновите страницу и прочитайте заново.',
+  },
+  { source: 'Bu hujjat sizning hisobingizga tegishli emas: {0}', ru: 'Этот документ не относится к вашему аккаунту: {0}' },
+
   // ─── Huquqiy talablar (VMQ 200) — LEGAL_NOT_ELIGIBLE ────────────────
   {
     source: "Taksi uchun onlayn chiqa olmaysiz: {0}. Ilovadagi «Hujjatlar» bo'limida to'ldiring.",

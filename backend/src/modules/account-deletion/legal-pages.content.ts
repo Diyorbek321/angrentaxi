@@ -17,7 +17,7 @@ export interface LegalContext {
   privacyUrl: string;
 }
 
-interface Section {
+export interface Section {
   h: string;
   p?: string[];
   li?: string[];
@@ -26,6 +26,8 @@ interface Section {
 export interface LegalPage {
   title: string;
   intro: string;
+  /** Sahifa yuqorisidagi ajratilgan ogohlantirish (masalan, QORALAMA). */
+  draft?: string;
   sections: Section[];
 }
 

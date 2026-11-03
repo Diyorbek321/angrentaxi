@@ -32,6 +32,7 @@ import { UsersModule } from '../users/users.module';
 import { RealtimeModule } from '../realtime/realtime.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { SettingsModule } from '../settings/settings.module';
+import { LegalModule } from '../legal/legal.module';
 
 @Module({
   imports: [
@@ -58,6 +59,8 @@ import { SettingsModule } from '../settings/settings.module';
     // Huquqiy talablar sozlamasi (VMQ 200 majburlash sanasi, chegaralar).
     // SettingsModule faqat TypeORM'ga tayanadi — aylanma bog'liqlik yo'q.
     SettingsModule,
+    // Haydovchi ofertasi roziligi (onlayn darvozasi). Faqat TypeORM'ga tayanadi.
+    LegalModule,
   ],
   // RoadSpeed* shu modulda turadi (alohida modul emas): u DriversService
   // yozadigan REDIS_CLIENT ning AYNI o'zidan foydalanadi. Alohida modulda

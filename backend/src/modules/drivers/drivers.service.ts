@@ -29,6 +29,7 @@ import { RoadSpeedService } from './road-speed.service';
 import { TaximeterService } from '../taximeter/taximeter.service';
 import { DriverVerificationService } from './driver-verification.service';
 import { DriverLegalBrief, DriverLegalService } from './driver-legal.service';
+import { LegalAcceptanceService } from '../legal/legal-acceptance.service';
 import {
   DEFAULT_DRIVER_SERVICE_TYPES,
   DriverCapabilityFilter,
@@ -142,6 +143,9 @@ export class DriversService implements OnModuleInit {
     // VMQ 200 / PQ-247 darvozasi (faqat taksi). Ixtiyoriy — qo'lda
     // yig'iladigan unit spec'lar uchun; ilovada har doim ulangan.
     @Optional() private readonly legalGate?: DriverLegalService,
+    // Haydovchi ofertasi roziligi (migratsiya 048). Ixtiyoriy — qo'lda
+    // yig'iladigan unit spec'lar uchun; ilovada `LegalModule` ulangan.
+    @Optional() private readonly termsGate?: LegalAcceptanceService,
   ) {}
 
   onModuleInit(): void {
@@ -462,6 +466,10 @@ export class DriversService implements OnModuleInit {
       // Huquqiy talablar: `legalComplianceEnforcedFrom` o'chiq bo'lsa hech
       // narsa qilmaydi (docs/LEGAL-COMPLIANCE.md).
       await this.legalGate?.assertCanGoOnline(driver);
+      // Oferta: faqat OFLAYN → ONLAYN o'tishda. Allaqachon onlayn haydovchi
+      // (ilova qayta ishga tushib holatni qayta yuborsa, safar o'rtasida)
+      // to'silmaydi — yangi tahrir keyingi onlayn chiqishda so'raladi.
+      if (!driver.isOnline) await this.termsGate?.assertDriverTermsAccepted(userId);
     }
 
     if (!isOnline) {

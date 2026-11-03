@@ -105,6 +105,13 @@ export const ERROR_CODES = {
   accountDeletionBlocked: 'ACCOUNT_DELETION_BLOCKED',
   /** Xodim/sotuvchi hisobini ilovadan o'chirib bo'lmaydi (403). */
   accountDeletionNotAllowed: 'ACCOUNT_DELETION_NOT_ALLOWED',
+  /**
+   * Haydovchi ofertasining joriy tahriri qabul qilinmagan — onlayn chiqib
+   * bo'lmaydi (400). `details: { document: 'driver-terms', version }`.
+   */
+  legalTermsNotAccepted: 'LEGAL_TERMS_NOT_ACCEPTED',
+  /** Qabul qilinayotgan versiya joriy emas — matnni qayta yuklang (409). `details: { document, version }`. */
+  legalVersionOutdated: 'LEGAL_VERSION_OUTDATED',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
