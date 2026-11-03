@@ -376,6 +376,11 @@ class DriverProvider extends ChangeNotifier {
       final fresh = Order.fromJson(data);
       // So'rov davomida safar almashgan yoki tugatilgan bo'lsa — tegilmaydi.
       if (_activeOrder?.id != fresh.id || _activeOrder == fresh) return;
+      // Qaytarish tasdiqlangan, lekin `order:returned` hodisasi yo'qolgan.
+      if (fresh.isReturned) {
+        applyOrderReturned({'orderId': fresh.id, 'finalPrice': fresh.actualPrice});
+        return;
+      }
       _activeOrder = fresh;
       notifyListeners();
     } catch (e, st) {
@@ -787,6 +792,8 @@ class DriverProvider extends ChangeNotifier {
     _socketService.on(SocketEvents.walletUpdated, _onWalletUpdated);
     _socketService.on(SocketEvents.orderCancelled, applyOrderCancelled);
     _socketService.on(SocketEvents.offerExpired, applyOfferExpired);
+    _socketService.on(SocketEvents.orderReturned, applyOrderReturned);
+    _socketService.on(SocketEvents.orderDeliveryFailed, applyDeliveryFailed);
   }
 
   void _onNewOrderOffer(dynamic data) {
@@ -979,6 +986,80 @@ class DriverProvider extends ChangeNotifier {
       _error = extractErrorMessage(e);
       _setState(DriverProviderState.error);
     }
+  }
+
+  // -------------------------------------------------------------------
+  // YETKAZISH HODISALARI (docs/INCIDENT-POLICY.md §2)
+  // -------------------------------------------------------------------
+
+  /// Sotuvchi/yuboruvchi/dispetcher qaytarishni tasdiqlagan safar — safar
+  /// ekrani shu orqali "qaytarish tasdiqlandi" oynasini ko'rsatadi.
+  ({String orderId, double? finalPrice})? _returnedTrip;
+  ({String orderId, double? finalPrice})? get returnedTrip => _returnedTrip;
+
+  /// Ekran oynani ko'rsatgach chaqiradi — qayta ko'rsatilmasin.
+  void consumeReturnedTrip() => _returnedTrip = null;
+
+  /// "Manzilga yetib keldim" — manzilda kutish shundan boshlanadi. Server
+  /// 500 m dan uzoqda bo'lsa rad etadi; matni [error] da.
+  Future<bool> markDropoffArrived() async {
+    final order = _activeOrder;
+    if (order == null) return false;
+    return _patchActive(ApiEndpoints.dropoffArrived(order.id));
+  }
+
+  /// "Yetkazib bo'lmadi" — safar qaytarish yo'liga o'tadi. Bepul kutish
+  /// tugamaguncha server rad etadi ("Mijozni yana N daqiqa kuting").
+  Future<bool> markDeliveryFailed(String reason) async {
+    final order = _activeOrder;
+    if (order == null) return false;
+    return _patchActive(
+      ApiEndpoints.deliveryFailed(order.id),
+      data: {'reason': reason},
+    );
+  }
+
+  /// Faol safarga PATCH; javobdagi buyurtma faol safar o'rniga qo'yiladi.
+  Future<bool> _patchActive(String path, {Map<String, dynamic>? data}) async {
+    _setState(DriverProviderState.loading);
+    try {
+      final response = await _apiClient.patch(path, data: data);
+      final body = response.data;
+      final json = body is Map<String, dynamic> ? body['data'] : null;
+      if (json is Map<String, dynamic> && _activeOrder?.id == json['id']) {
+        _activeOrder = Order.fromJson(json);
+      }
+      _setState(DriverProviderState.success);
+      return true;
+    } catch (e) {
+      _error = extractErrorMessage(e);
+      _setState(DriverProviderState.error);
+      return false;
+    }
+  }
+
+  /// `order:returned {orderId, finalPrice}` — qaytarish tasdiqlandi, safar
+  /// yopildi. Kuryer buni o'zi tasdiqlay olmaydi, shuning uchun safar
+  /// faqat shu hodisa (yoki keyingi sinxronlash) bilan tugaydi.
+  void applyOrderReturned(dynamic data) {
+    final orderId = data is Map ? data['orderId'] : null;
+    final active = _activeOrder;
+    if (orderId is! String || active == null || active.id != orderId) return;
+    final finalPrice = (data as Map)['finalPrice'];
+    final price = finalPrice is num ? finalPrice.toDouble() : null;
+    _todayEarnings += price ?? active.estimatedPrice;
+    _returnedTrip = (orderId: orderId, finalPrice: price);
+    _activeOrder = null;
+    notifyListeners();
+    unawaited(loadEarningsBreakdown());
+  }
+
+  /// `order:delivery_failed` — dispetcher "yetkazib bo'lmadi" deb belgiladi:
+  /// to'liq holat (qaytarish manzili, sabab) serverdan olinadi.
+  void applyDeliveryFailed(dynamic data) {
+    final orderId = data is Map ? data['orderId'] : null;
+    if (orderId is! String || _activeOrder?.id != orderId) return;
+    unawaited(resyncActiveTrip());
   }
 
   Future<void> cancelOrder({String? reason}) async {
@@ -1314,6 +1395,8 @@ class DriverProvider extends ChangeNotifier {
     _socketService.off(SocketEvents.newOrderOffer, _onNewOrderOffer);
     _socketService.off(SocketEvents.orderCancelled, applyOrderCancelled);
     _socketService.off(SocketEvents.offerExpired, applyOfferExpired);
+    _socketService.off(SocketEvents.orderReturned, applyOrderReturned);
+    _socketService.off(SocketEvents.orderDeliveryFailed, applyDeliveryFailed);
     _socketService.removeReconnectListener(_onSocketReconnected);
     _socketService.off(SocketEvents.walletUpdated, _onWalletUpdated);
     _walletUpdates.close();

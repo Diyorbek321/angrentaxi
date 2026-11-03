@@ -8,15 +8,21 @@ import 'package:flutter/services.dart';
 /// Modal bu yerda o'rinli (safar ekranidagi boshqa amallardan farqli):
 /// topshirish paytida mashina to'xtagan, haydovchi qabul qiluvchi bilan yuzma-
 /// yuz turibdi. Qaytaradi: 4 xonali kod yoki `null` (bekor qilindi).
-Future<String?> showParcelPinDialog(BuildContext context) {
+///
+/// Ovqat/market ham shu oynadan o'tadi (docs/INCIDENT-POLICY.md §2) — faqat
+/// [title]/[hint] boshqa: kodni mijozning o'zi aytadi.
+Future<String?> showParcelPinDialog(BuildContext context, {String? title, String? hint}) {
   return showDialog<String>(
     context: context,
-    builder: (_) => const _ParcelPinDialog(),
+    builder: (_) => _ParcelPinDialog(title: title, hint: hint),
   );
 }
 
 class _ParcelPinDialog extends StatefulWidget {
-  const _ParcelPinDialog();
+  const _ParcelPinDialog({this.title, this.hint});
+
+  final String? title;
+  final String? hint;
 
   @override
   State<_ParcelPinDialog> createState() => _ParcelPinDialogState();
@@ -42,12 +48,12 @@ class _ParcelPinDialogState extends State<_ParcelPinDialog> {
     final l10n = context.l10n;
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(kRadiusLg)),
-      title: Text(l10n.drvParcelPinTitle),
+      title: Text(widget.title ?? l10n.drvParcelPinTitle),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(l10n.drvParcelPinHint, style: const TextStyle(color: kInkMuted)),
+          Text(widget.hint ?? l10n.drvParcelPinHint, style: const TextStyle(color: kInkMuted)),
           const SizedBox(height: kSpace4),
           TextField(
             controller: _controller,

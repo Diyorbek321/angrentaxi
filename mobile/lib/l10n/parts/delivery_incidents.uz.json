@@ -1,0 +1,127 @@
+{
+  "shDeliveryReturning": "Qaytarilmoqda",
+  "shDeliveryReturned": "Qaytarildi",
+  "shFailReasonCustomerAbsent": "Mijoz yo'q",
+  "shFailReasonCustomerRefused": "Mijoz rad etdi",
+  "shFailReasonUnreachable": "Bog'lanib bo'lmadi",
+  "drvDropoffArrived": "Manzilga yetib keldim",
+  "drvDropoffWaitFree": "Bepul kutish: {time}",
+  "@drvDropoffWaitFree": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "drvDropoffWaitPaid": "Pullik kutish: {minutes} daq · {amount}",
+  "@drvDropoffWaitPaid": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "drvDropoffWaitCashNote": "Kutish haqi naqd summaga qo'shiladi — mijozdan jami {amount} oling",
+  "@drvDropoffWaitCashNote": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "drvDeliveryFailed": "Yetkazib bo'lmadi",
+  "drvDeliveryFailedLocked": "Bepul kutish tugagach ochiladi",
+  "drvDeliveryFailedTitle": "Nima bo'ldi?",
+  "drvDeliveryFailedHint": "Tovar olingan joyga qaytariladi. Mijoz yetkazish va qaytarish haqini to'laydi.",
+  "drvReturnBannerTitle": "Tovarni qaytaring",
+  "drvReturnBannerHint": "Tovarni olingan joyga olib boring. Qaytarishni sotuvchi (posilkada — yuboruvchi) tasdiqlaydi, shundan keyin safar yopiladi va to'lov hisoblanadi.",
+  "drvReturnDestination": "Qaytarish manzili",
+  "drvReturnedSuccess": "Qaytarish tasdiqlandi!",
+  "drvHandoverCodeTitle": "Mijozdan topshirish kodini so'rang",
+  "drvHandoverCodeHint": "4 xonali kod mijozning ilovasida ko'rinadi.",
+  "saHandoverCodeTitle": "Kuryerga ayting",
+  "saHandoverCodeHint": "Kuryer buyurtmani shu kodsiz topshira olmaydi. Kodni buyurtmani qo'lingizga olganda ayting.",
+  "saCourierAtDoor": "Kuryer eshik oldida",
+  "saCourierAtDoorHint": "Kuryer {minutes} daqiqa bepul kutadi, keyin kutish pullik.",
+  "@saCourierAtDoorHint": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "saReturningTitle": "Buyurtma qaytarilmoqda",
+  "saReturningHint": "Kuryer buyurtmani topshira olmadi va uni sotuvchiga qaytarmoqda.",
+  "saReturnedTitle": "Buyurtma qaytarildi",
+  "saReturnChargeLine": "To'lanadi: {amount}",
+  "@saReturnChargeLine": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "saReturnChargeExplain": "Yetkazish haqi + qaytarish haqi (yetkazish haqining {percent}%)",
+  "@saReturnChargeExplain": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "saRefundDueLine": "Kartangizga qaytariladi: {amount}",
+  "@saRefundDueLine": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "saRefundDoneLine": "Kartangizga qaytarildi: {amount}",
+  "@saRefundDoneLine": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "saParcelDeclaredValue": "Posilka qiymati, so'm",
+  "saParcelDeclaredValueHint": "Masalan: 150000",
+  "saParcelDeclaredValueRequired": "Posilka qiymatini kiriting",
+  "saParcelDeclaredValueRange": "1 dan {max} so'mgacha bo'lishi kerak",
+  "@saParcelDeclaredValueRange": {
+    "placeholders": {
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "saParcelProhibitedTitle": "Yuborish taqiqlangan",
+  "saProhibitedMoney": "Pul",
+  "saProhibitedDocuments": "Hujjatlar",
+  "saProhibitedWeapons": "Qurol",
+  "saProhibitedMedicine": "Dori-darmon",
+  "saProhibitedAlcohol": "Alkogol",
+  "saProhibitedLiveAnimals": "Tirik hayvonlar",
+  "saProhibitedDrugs": "Giyohvand moddalar",
+  "saParcelProhibitedConfirm": "Posilkada taqiqlangan narsa yo'qligini tasdiqlayman",
+  "saParcelProhibitedRequired": "Davom etish uchun tasdiqlang",
+  "paxParcelReturningTitle": "Posilka qaytarilmoqda",
+  "paxParcelReturningHint": "Haydovchi posilkani topshira olmadi va uni sizga qaytarmoqda. Posilkani qo'lingizga olgach, tasdiqlang.",
+  "paxParcelConfirmReturned": "Posilka qaytib keldi",
+  "paxParcelReturnFeeExplain": "To'lov: yetkazish haqi + qaytarish haqi (yetkazish haqining {percent}%)",
+  "@paxParcelReturnFeeExplain": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "saCargoWeight": "Og'irligi, kg (ixtiyoriy)",
+  "saCargoWeightRange": "1 dan 20 000 kg gacha",
+  "saCargoLoaders": "Yuk ortuvchilar (ixtiyoriy)",
+  "saCargoLoadersRange": "0 dan 10 tagacha"
+}

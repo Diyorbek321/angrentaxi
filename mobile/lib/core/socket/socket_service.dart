@@ -325,6 +325,10 @@ class SocketEvents {
   static const String orderArrived = 'order:arrived';
   static const String orderInProgress = 'order:in_progress';
   static const String orderCompleted = 'order:completed';
+  // Yetkazish hodisalari (docs/INCIDENT-POLICY.md §2).
+  static const String orderDropoffArrived = 'order:dropoff_arrived';
+  static const String orderDeliveryFailed = 'order:delivery_failed';
+  static const String orderReturned = 'order:returned';
   // Emitted by matching.service.ts's handleNoDriversFound — a distinct event
   // from 'order:cancelled' (and the only notification sent) when the order
   // auto-cancels after the matching retry window finds nobody nearby.
@@ -348,6 +352,9 @@ class SocketEvents {
 
   // Food (passenger receives)
   static const String foodOrderStatus = 'food:order:status';
+  /// Kuryer bosqichi (`stage`: accepted/arrived/picked_up/dropoff_arrived/...).
+  static const String foodOrderCourier = 'food:order:courier';
+  static const String marketOrderCourier = 'market:order:courier';
 
   // Shaharlararo (backend 6-qadam): o'rindiqlar/holat o'zgardi yoki
   // haydovchi qatnovni bekor qildi. Payload: {tripId, status, seatsTaken,

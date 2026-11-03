@@ -9,6 +9,7 @@ import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/passenger/map_camera_insets.dart';
 import 'package:angren_taxi/features/passenger/pickup_eta_tracker.dart';
 import 'package:angren_taxi/features/passenger/widgets/parcel_pin_card.dart';
+import 'package:angren_taxi/features/passenger/widgets/parcel_return_card.dart';
 import 'package:angren_taxi/features/passenger/widgets/searching_status.dart';
 import 'package:angren_taxi/features/trip/meter/live_meter_card.dart';
 import 'package:angren_taxi/features/trip/meter/meter_service.dart';
@@ -84,7 +85,16 @@ class ActiveOrderView extends StatefulWidget {
     this.searchStartedAt,
     this.nearbyFreeDrivers,
     this.onRefreshNearby,
+    this.onConfirmReturned,
+    this.returnFeePercent = 50,
   });
+
+  /// Posilka qaytarilmoqda — yuboruvchi "Posilka qaytib keldi" ni bosadi
+  /// (docs/INCIDENT-POLICY.md §2). `null` — tugma yo'q.
+  final VoidCallback? onConfirmReturned;
+
+  /// Qaytarish haqi foizi (`/settings/public` → `returnFeePercent`).
+  final int returnFeePercent;
 
   final Order order;
 
@@ -374,7 +384,16 @@ class _ActiveOrderViewState extends State<ActiveOrderView> {
           const SizedBox(height: kSpace3),
           // Posilka: qabul qiluvchiga aytiladigan topshirish kodi — haydovchi
           // usiz yakunlay olmaydi, shuning uchun haydovchi kartasidan yuqorida.
-          if (order.isParcel && order.deliveryPin != null) ...[
+          // Qaytarish yo'lida kod endi kerak emas — o'rnida qaytarish kartasi.
+          if (order.isParcel && order.isReturning) ...[
+            ParcelReturnCard(
+              order: order,
+              returnFeePercent: widget.returnFeePercent,
+              busy: widget.isBusy,
+              onConfirm: widget.onConfirmReturned,
+            ),
+            const SizedBox(height: kSpace2),
+          ] else if (order.isParcel && order.deliveryPin != null) ...[
             ParcelPinCard(pin: order.deliveryPin!),
             const SizedBox(height: kSpace2),
           ],

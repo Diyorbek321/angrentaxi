@@ -3,8 +3,10 @@ import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
 import 'package:angren_taxi/features/superapp/state/courier_tracking_controller.dart';
+import 'package:angren_taxi/features/superapp/widgets/delivery_incident_card.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/courier_tracking.dart';
+import 'package:angren_taxi/shared/models/order.dart' show deliveryFailureReasonLabel;
 import 'package:angren_taxi/shared/widgets/adaptive_map_panel.dart';
 import 'package:angren_taxi/shared/widgets/ag_map_fab.dart';
 import 'package:angren_taxi/shared/widgets/app_status_badge.dart';
@@ -106,7 +108,10 @@ class _CourierTrackingScreenState extends State<CourierTrackingScreen> {
 
   Widget _buildPanel(CourierTracking tracking) {
     final l10n = context.l10n;
-    final (label, tone) = _controller.isCancelled
+    final (label, tone) = _controller.isReturnFlow
+        ? (_controller.isReturned ? l10n.shDeliveryReturned : l10n.shDeliveryReturning,
+            AppStatusTone.warning)
+        : _controller.isCancelled
         ? (l10n.saTrackCancelled, AppStatusTone.danger)
         : _controller.isDelivered
         ? (l10n.saTrackDelivered, AppStatusTone.success)
@@ -124,6 +129,20 @@ class _CourierTrackingScreenState extends State<CourierTrackingScreen> {
             alignment: Alignment.centerLeft,
             child: AppStatusBadge(label: label, tone: tone),
           ),
+          // Qaytarish (INCIDENT-POLICY §2) yoki topshirish kodi.
+          if (_controller.isReturnFlow) ...[
+            const SizedBox(height: kSpace3),
+            VendorReturnCard(
+              returned: _controller.isReturned,
+              reasonLabel: deliveryFailureReasonLabel(tracking.deliveryFailureReason),
+            ),
+          ] else if (!_controller.isFinished && tracking.handoverCode != null) ...[
+            const SizedBox(height: kSpace3),
+            HandoverCodeCard(
+              code: tracking.handoverCode!,
+              courierAtDoor: tracking.isAtDoor,
+            ),
+          ],
           if (tracking.hasCourier) ...[
             const SizedBox(height: kSpace3),
             AgSurfaceCard(child: _buildCourierRow(tracking)),

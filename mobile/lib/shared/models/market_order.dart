@@ -4,7 +4,7 @@ import 'package:angren_taxi/shared/models/courier_tracking.dart';
 import 'package:angren_taxi/shared/models/order.dart' show OrderStatus;
 import 'package:equatable/equatable.dart';
 
-enum MarketOrderStatus { newOrder, packing, shipped, delivered, cancelled }
+enum MarketOrderStatus { newOrder, packing, shipped, delivered, cancelled, returning, returned }
 
 extension MarketOrderStatusExtension on MarketOrderStatus {
   String get label {
@@ -19,8 +19,18 @@ extension MarketOrderStatusExtension on MarketOrderStatus {
         return AppL10n.current.shDeliveryDelivered;
       case MarketOrderStatus.cancelled:
         return AppL10n.current.shStatusCancelled;
+      case MarketOrderStatus.returning:
+        return AppL10n.current.shDeliveryReturning;
+      case MarketOrderStatus.returned:
+        return AppL10n.current.shDeliveryReturned;
     }
   }
+
+  /// Qaytarish oqimi (docs/INCIDENT-POLICY.md §2): kuryer topshira olmadi.
+  /// `returning` FAOL hisoblanmaydi — bekor qilish va kuzatuv yo'q — lekin
+  /// tugagan ham emas: `returned` hodisasi hali keladi.
+  bool get isReturnFlow =>
+      this == MarketOrderStatus.returning || this == MarketOrderStatus.returned;
 
   bool get isActive =>
       this == MarketOrderStatus.newOrder ||
@@ -29,7 +39,7 @@ extension MarketOrderStatusExtension on MarketOrderStatus {
 }
 
 // Backend's MarketOrder.status wire values (market-order.entity.ts):
-// new/packing/shipped/delivered/cancelled.
+// new/packing/shipped/delivered/cancelled/returning/returned.
 MarketOrderStatus marketOrderStatusFromString(String status) {
   switch (status) {
     case 'new':
@@ -42,6 +52,10 @@ MarketOrderStatus marketOrderStatusFromString(String status) {
       return MarketOrderStatus.delivered;
     case 'cancelled':
       return MarketOrderStatus.cancelled;
+    case 'returning':
+      return MarketOrderStatus.returning;
+    case 'returned':
+      return MarketOrderStatus.returned;
     default:
       return MarketOrderStatus.newOrder;
   }
@@ -95,7 +109,23 @@ class MarketOrder extends Equatable {
     this.addressDetails,
     double? payableTotal,
     this.paymentPending = false,
+    this.returnedAt,
+    this.returnCharge,
+    this.refundDue,
+    this.refundStatus,
   }) : _payableTotal = payableTotal;
+
+  /// Qaytarish tasdiqlangan lahza.
+  final DateTime? returnedAt;
+
+  /// Mijoz to'laydigan: yetkazish haqi + kutish + qaytarish haqi, so'm.
+  final double? returnCharge;
+
+  /// Kartali buyurtma: mijozga qaytariladigan summa, so'm. Naqdda `null`.
+  final double? refundDue;
+
+  /// `pending` — qaytarish kutilmoqda; `done` — qaytarildi.
+  final String? refundStatus;
 
   /// Kartali buyurtmaning to'lovi hali tushmagan (server `paymentPending`,
   /// docs/INCIDENT-POLICY.md §1). Sotuvchi to'lovgacha qabul qilmaydi; ilova
@@ -182,10 +212,28 @@ class MarketOrder extends Equatable {
       addressDetails: AddressDetails.tryParse(json['addressDetails']),
       payableTotal: (json['payableTotal'] as num?)?.toDouble(),
       paymentPending: (json['paymentPending'] as bool?) ?? false,
+      returnedAt: json['returnedAt'] is String
+          ? DateTime.tryParse(json['returnedAt'] as String)?.toLocal()
+          : null,
+      returnCharge: _money(json['returnCharge']),
+      refundDue: _money(json['refundDue']),
+      refundStatus: json['refundStatus'] as String?,
     );
   }
 
-  MarketOrder copyWith({MarketOrderStatus? status}) {
+  /// Decimal ustun ba'zan satr bo'lib keladi — ikkalasini ham o'qiymiz.
+  static double? _money(dynamic value) => switch (value) {
+        final num n => n.toDouble(),
+        final String s => double.tryParse(s),
+        _ => null,
+      };
+
+  MarketOrder copyWith({
+    MarketOrderStatus? status,
+    CourierTracking? delivery,
+    double? returnCharge,
+    double? refundDue,
+  }) {
     return MarketOrder(
       id: id,
       storeId: storeId,
@@ -194,7 +242,7 @@ class MarketOrder extends Equatable {
       deliveryAddress: deliveryAddress,
       totalPrice: totalPrice,
       createdAt: createdAt,
-      delivery: delivery,
+      delivery: delivery ?? this.delivery,
       // Holat o'zgargach eski bayroq yolg'on bo'lib qoladi (masalan
       // restoran qabul qildi) — keyingi yangilanishgacha qoida ishlaydi.
       canCancelFlag: status == null || status == this.status ? canCancelFlag : null,
@@ -206,9 +254,13 @@ class MarketOrder extends Equatable {
       addressDetails: addressDetails,
       payableTotal: _payableTotal,
       paymentPending: status == MarketOrderStatus.cancelled ? false : paymentPending,
+      returnedAt: returnedAt,
+      returnCharge: returnCharge ?? this.returnCharge,
+      refundDue: refundDue ?? this.refundDue,
+      refundStatus: refundStatus,
     );
   }
 
   @override
-  List<Object?> get props => [id, storeId, status, items, deliveryAddress, totalPrice, createdAt, delivery, canCancelFlag, cancelReason, cancelledBy, promoCode, promoDiscount, promotionDiscount, addressDetails, _payableTotal, paymentPending];
+  List<Object?> get props => [id, storeId, status, items, deliveryAddress, totalPrice, createdAt, delivery, canCancelFlag, cancelReason, cancelledBy, promoCode, promoDiscount, promotionDiscount, addressDetails, _payableTotal, paymentPending, returnedAt, returnCharge, refundDue, refundStatus];
 }

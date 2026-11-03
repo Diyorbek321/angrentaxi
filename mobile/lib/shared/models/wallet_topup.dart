@@ -132,7 +132,25 @@ class PublicSettings extends Equatable {
     this.walletTopupMax = 2000000,
     this.walletTopupPresets = const [50000, 100000, 200000],
     this.vendorSettlementMode = 'cash',
+    this.parcelMaxDeclaredValue = kDefaultParcelMaxDeclaredValue,
+    this.dropoffFreeWaitMinutes = kDefaultDropoffFreeWaitMinutes,
+    this.returnFeePercent = kDefaultReturnFeePercent,
   });
+
+  // Yetkazish hodisalari (docs/INCIDENT-POLICY.md §2). Eski server bu
+  // maydonlarni yubormaydi — standart qiymatlar backend bilan bir xil.
+  static const int kDefaultParcelMaxDeclaredValue = 1000000;
+  static const int kDefaultDropoffFreeWaitMinutes = 5;
+  static const int kDefaultReturnFeePercent = 50;
+
+  /// Posilkaning e'lon qilinadigan eng katta qiymati, so'm.
+  final int parcelMaxDeclaredValue;
+
+  /// Topshirish manzilida bepul kutish, daqiqa.
+  final int dropoffFreeWaitMinutes;
+
+  /// Qaytarish haqi — yetkazish haqining necha foizi.
+  final int returnFeePercent;
 
   final String? supportPhone;
   final bool walletTopupEnabled;
@@ -162,6 +180,12 @@ class PublicSettings extends Equatable {
           : defaults.walletTopupPresets,
       vendorSettlementMode:
           (json['vendorSettlementMode'] as String?) ?? 'cash',
+      parcelMaxDeclaredValue: (json['parcelMaxDeclaredValue'] as num?)?.toInt() ??
+          kDefaultParcelMaxDeclaredValue,
+      dropoffFreeWaitMinutes: (json['dropoffFreeWaitMinutes'] as num?)?.toInt() ??
+          kDefaultDropoffFreeWaitMinutes,
+      returnFeePercent:
+          (json['returnFeePercent'] as num?)?.toInt() ?? kDefaultReturnFeePercent,
     );
   }
 
@@ -173,5 +197,8 @@ class PublicSettings extends Equatable {
         walletTopupMax,
         walletTopupPresets,
         vendorSettlementMode,
+        parcelMaxDeclaredValue,
+        dropoffFreeWaitMinutes,
+        returnFeePercent,
       ];
 }

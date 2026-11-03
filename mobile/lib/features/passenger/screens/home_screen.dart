@@ -16,9 +16,11 @@ import 'package:angren_taxi/features/superapp/screens/cargo_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/food_list_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/market_home_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/parcel_screen.dart';
+import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/favorite_address.dart';
 import 'package:angren_taxi/shared/models/order.dart';
+import 'package:angren_taxi/shared/models/wallet_topup.dart' show PublicSettings;
 import 'package:angren_taxi/shared/service_catalog.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/adaptive_map_panel.dart';
@@ -283,6 +285,20 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen>
         final pickup = orderProvider.activeOrder?.pickup;
         if (pickup != null) orderProvider.loadNearbyDrivers(pickup.lat, pickup.lng);
       },
+      onConfirmReturned: () => _confirmParcelReturned(orderProvider),
+      returnFeePercent: Provider.of<SuperappProvider?>(context, listen: false)
+              ?.publicSettings
+              .returnFeePercent ??
+          PublicSettings.kDefaultReturnFeePercent,
+    );
+  }
+
+  /// Posilka yuboruvchisi qaytarishni tasdiqlaydi (INCIDENT-POLICY §2).
+  Future<void> _confirmParcelReturned(OrderProvider orderProvider) async {
+    final ok = await orderProvider.confirmParcelReturned();
+    if (ok || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(orderProvider.error ?? context.l10n.paxParcelConfirmReturned)),
     );
   }
 

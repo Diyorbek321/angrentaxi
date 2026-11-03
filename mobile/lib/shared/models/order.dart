@@ -98,6 +98,36 @@ const String kServiceTypeParcel = 'parcel';
 /// Shaharlararo band — har biri alohida buyurtma (features/intercity).
 const String kServiceTypeIntercity = 'intercity';
 
+// ============================================================================
+// YETKAZISH HODISALARI (docs/INCIDENT-POLICY.md §2).
+//
+// Holat enum'i O'ZGARMAYDI: qaytarish yo'li — `in_progress` ichidagi kichik
+// holat (`deliveryFailedAt` bor), yakuni — `completed` +
+// `deliveryOutcome == 'returned'`. Topshirish kodi posilka, ovqat va
+// market'da (cargo/taksida yo'q).
+// ============================================================================
+
+const String kFailReasonCustomerAbsent = 'customer_absent';
+const String kFailReasonCustomerRefused = 'customer_refused';
+const String kFailReasonUnreachable = 'unreachable';
+const List<String> kDeliveryFailureReasons = [
+  kFailReasonCustomerAbsent,
+  kFailReasonCustomerRefused,
+  kFailReasonUnreachable,
+];
+
+/// "Yetkazib bo'lmadi" sababining matni. Noma'lum qiymat — `null`.
+String? deliveryFailureReasonLabel(String? reason) => switch (reason) {
+      kFailReasonCustomerAbsent => AppL10n.current.shFailReasonCustomerAbsent,
+      kFailReasonCustomerRefused => AppL10n.current.shFailReasonCustomerRefused,
+      kFailReasonUnreachable => AppL10n.current.shFailReasonUnreachable,
+      _ => null,
+    };
+
+/// Yaroqsiz sana butun buyurtmani yiqitmasin — `null` qaytadi.
+DateTime? _localDate(dynamic value) =>
+    value is String ? DateTime.tryParse(value)?.toLocal() : null;
+
 /// Xom qiymatni normallashtiradi.
 ///
 /// Maydon umuman kelmasa `taxi` qaytadi — bu ZAXIRA emas, ZARURAT: eski
@@ -250,6 +280,12 @@ class Order extends Equatable {
     this.deliveryPin,
     this.isMetered = false,
     this.waypoints = const [],
+    this.dropoffArrivedAt,
+    this.deliveryFailedAt,
+    this.deliveryFailureReason,
+    this.deliveryOutcome,
+    this.returnedAt,
+    this.returnFare,
   });
 
   final String id;
@@ -404,6 +440,35 @@ class Order extends Equatable {
       serviceType == kServiceTypeFood ||
       serviceType == kServiceTypeMarket;
 
+  /// Kuryer topshirish manziliga yetib kelgan lahza (MAHALLIY vaqt).
+  /// Manzilda kutish shundan sanaladi; `null` — hali belgilanmagan.
+  final DateTime? dropoffArrivedAt;
+
+  /// "Yetkazib bo'lmadi" belgilangan lahza. Bor bo'lsa safar QAYTARISH
+  /// yo'lida ([isReturning]).
+  final DateTime? deliveryFailedAt;
+
+  /// [kDeliveryFailureReasons] dan biri yoki `null`.
+  final String? deliveryFailureReason;
+
+  /// `returned` — tovar qaytarib berildi; `null` — oddiy yakun / hali yo'lda.
+  final String? deliveryOutcome;
+  final DateTime? returnedAt;
+
+  /// Chekdagi qaytarish haqi qatori (`fareBreakdown.returnFare`), so'm.
+  final double? returnFare;
+
+  /// Qaytarish yo'lida: kuryer tovarni olingan joyga olib ketmoqda.
+  bool get isReturning =>
+      status == OrderStatus.inProgress && deliveryFailedAt != null;
+
+  /// Qaytarish tasdiqlangan va safar yopilgan.
+  bool get isReturned =>
+      status == OrderStatus.completed && deliveryOutcome == 'returned';
+
+  /// Topshirish kodi talab qilinadigan safar: posilka, ovqat, market.
+  bool get requiresHandoverCode => isParcel || isDelivery;
+
   factory Order.fromJson(Map<String, dynamic> json) {
     return Order(
       id: json['id'] as String,
@@ -475,6 +540,18 @@ class Order extends Equatable {
         for (final w in (json['waypoints'] as List<dynamic>? ?? const []))
           if (w is Map<String, dynamic>) OrderLocation.fromJson(w),
       ],
+      dropoffArrivedAt: _localDate(json['dropoffArrivedAt']),
+      deliveryFailedAt: _localDate(json['deliveryFailedAt']),
+      deliveryFailureReason: json['deliveryFailureReason'] is String
+          ? json['deliveryFailureReason'] as String
+          : null,
+      deliveryOutcome:
+          json['deliveryOutcome'] is String ? json['deliveryOutcome'] as String : null,
+      returnedAt: _localDate(json['returnedAt']),
+      returnFare: switch (json['fareBreakdown']) {
+        {'returnFare': final num v} => v.toDouble(),
+        _ => null,
+      },
     );
   }
 
@@ -544,6 +621,12 @@ class Order extends Equatable {
     String? deliveryPin,
     bool? isMetered,
     List<OrderLocation>? waypoints,
+    DateTime? dropoffArrivedAt,
+    DateTime? deliveryFailedAt,
+    String? deliveryFailureReason,
+    String? deliveryOutcome,
+    DateTime? returnedAt,
+    double? returnFare,
   }) {
     return Order(
       id: id ?? this.id,
@@ -585,6 +668,12 @@ class Order extends Equatable {
       deliveryPin: deliveryPin ?? this.deliveryPin,
       isMetered: isMetered ?? this.isMetered,
       waypoints: waypoints ?? this.waypoints,
+      dropoffArrivedAt: dropoffArrivedAt ?? this.dropoffArrivedAt,
+      deliveryFailedAt: deliveryFailedAt ?? this.deliveryFailedAt,
+      deliveryFailureReason: deliveryFailureReason ?? this.deliveryFailureReason,
+      deliveryOutcome: deliveryOutcome ?? this.deliveryOutcome,
+      returnedAt: returnedAt ?? this.returnedAt,
+      returnFare: returnFare ?? this.returnFare,
     );
   }
 
@@ -626,5 +715,11 @@ class Order extends Equatable {
         deliveryPin,
         isMetered,
         waypoints,
+        dropoffArrivedAt,
+        deliveryFailedAt,
+        deliveryFailureReason,
+        deliveryOutcome,
+        returnedAt,
+        returnFare,
       ];
 }

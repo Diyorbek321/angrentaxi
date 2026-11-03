@@ -340,6 +340,19 @@ class AppLocalizationsUz extends AppLocalizations {
   String get drvDeliveryAddress => 'Yetkazish manzili';
 
   @override
+  String get drvDeliveryFailed => 'Yetkazib bo\'lmadi';
+
+  @override
+  String get drvDeliveryFailedHint =>
+      'Tovar olingan joyga qaytariladi. Mijoz yetkazish va qaytarish haqini to\'laydi.';
+
+  @override
+  String get drvDeliveryFailedLocked => 'Bepul kutish tugagach ochiladi';
+
+  @override
+  String get drvDeliveryFailedTitle => 'Nima bo\'ldi?';
+
+  @override
   String get drvDemandEvenMessage =>
       'Zonalar orasida farq yo‘q — istalgan joyda kutishingiz mumkin. Maʼlumot har daqiqada yangilanadi.';
 
@@ -443,6 +456,24 @@ class AppLocalizationsUz extends AppLocalizations {
   String get drvDriver => 'Haydovchi';
 
   @override
+  String get drvDropoffArrived => 'Manzilga yetib keldim';
+
+  @override
+  String drvDropoffWaitCashNote(String amount) {
+    return 'Kutish haqi naqd summaga qo\'shiladi — mijozdan jami $amount oling';
+  }
+
+  @override
+  String drvDropoffWaitFree(String time) {
+    return 'Bepul kutish: $time';
+  }
+
+  @override
+  String drvDropoffWaitPaid(int minutes, String amount) {
+    return 'Pullik kutish: $minutes daq · $amount';
+  }
+
+  @override
   String get drvEarnings => 'Daromad';
 
   @override
@@ -517,6 +548,13 @@ class AppLocalizationsUz extends AppLocalizations {
   @override
   String get drvGpsDisabled =>
       'Telefoningizda joylashuv (GPS) o\'chirilgan — xarita to\'g\'ri ishlashi uchun uni yoqing.';
+
+  @override
+  String get drvHandoverCodeHint =>
+      '4 xonali kod mijozning ilovasida ko\'rinadi.';
+
+  @override
+  String get drvHandoverCodeTitle => 'Mijozdan topshirish kodini so\'rang';
 
   @override
   String get drvHelp => 'Yordam';
@@ -970,6 +1008,19 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get drvRetry => 'Qayta urinish';
+
+  @override
+  String get drvReturnBannerHint =>
+      'Tovarni olingan joyga olib boring. Qaytarishni sotuvchi (posilkada — yuboruvchi) tasdiqlaydi, shundan keyin safar yopiladi va to\'lov hisoblanadi.';
+
+  @override
+  String get drvReturnBannerTitle => 'Tovarni qaytaring';
+
+  @override
+  String get drvReturnDestination => 'Qaytarish manzili';
+
+  @override
+  String get drvReturnedSuccess => 'Qaytarish tasdiqlandi!';
 
   @override
   String get drvReupload => 'Qayta yuklash';
@@ -2664,11 +2715,26 @@ class AppLocalizationsUz extends AppLocalizations {
   String get paxOutsideServiceArea => 'Xizmat hududidan tashqarida';
 
   @override
+  String get paxParcelConfirmReturned => 'Posilka qaytib keldi';
+
+  @override
   String get paxParcelPinHint =>
       'Qabul qiluvchiga ayting. Haydovchi posilkani shu kodsiz topshira olmaydi.';
 
   @override
   String get paxParcelPinTitle => 'Topshirish kodi';
+
+  @override
+  String paxParcelReturnFeeExplain(int percent) {
+    return 'To\'lov: yetkazish haqi + qaytarish haqi (yetkazish haqining $percent%)';
+  }
+
+  @override
+  String get paxParcelReturningHint =>
+      'Haydovchi posilkani topshira olmadi va uni sizga qaytarmoqda. Posilkani qo\'lingizga olgach, tasdiqlang.';
+
+  @override
+  String get paxParcelReturningTitle => 'Posilka qaytarilmoqda';
 
   @override
   String get paxPaymentCard => 'Karta';
@@ -3357,6 +3423,12 @@ class AppLocalizationsUz extends AppLocalizations {
   String get saCargoLight => 'Yengil';
 
   @override
+  String get saCargoLoaders => 'Yuk ortuvchilar (ixtiyoriy)';
+
+  @override
+  String get saCargoLoadersRange => '0 dan 10 tagacha';
+
+  @override
   String get saCargoSubtitle => 'Shahar ichida tez yetkazib berish';
 
   @override
@@ -3376,6 +3448,12 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get saCargoVehicleType => 'Transport turi';
+
+  @override
+  String get saCargoWeight => 'Og\'irligi, kg (ixtiyoriy)';
+
+  @override
+  String get saCargoWeightRange => '1 dan 20 000 kg gacha';
 
   @override
   String get saCart => 'Savat';
@@ -3453,6 +3531,14 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get saContactSupport => 'Qo\'llab-quvvatlashga yozish';
+
+  @override
+  String get saCourierAtDoor => 'Kuryer eshik oldida';
+
+  @override
+  String saCourierAtDoorHint(int minutes) {
+    return 'Kuryer $minutes daqiqa bepul kutadi, keyin kutish pullik.';
+  }
 
   @override
   String get saCurrentAddress => 'Joriy manzil';
@@ -3583,6 +3669,13 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get saGoToHome => 'Bosh sahifaga o\'tish';
+
+  @override
+  String get saHandoverCodeHint =>
+      'Kuryer buyurtmani shu kodsiz topshira olmaydi. Kodni buyurtmani qo\'lingizga olganda ayting.';
+
+  @override
+  String get saHandoverCodeTitle => 'Kuryerga ayting';
 
   @override
   String get saHelpCenter => 'Yordam markazi';
@@ -3770,8 +3863,32 @@ class AppLocalizationsUz extends AppLocalizations {
   String get saParcelContinue => 'Manzilni tanlash';
 
   @override
+  String get saParcelDeclaredValue => 'Posilka qiymati, so\'m';
+
+  @override
+  String get saParcelDeclaredValueHint => 'Masalan: 150000';
+
+  @override
+  String saParcelDeclaredValueRange(String max) {
+    return '1 dan $max so\'mgacha bo\'lishi kerak';
+  }
+
+  @override
+  String get saParcelDeclaredValueRequired => 'Posilka qiymatini kiriting';
+
+  @override
   String get saParcelPinInfo =>
       'Haydovchi posilkani faqat PIN kod bilan topshiradi. Kodni buyurtma berganingizdan keyin ko\'rasiz — uni qabul qiluvchiga ayting.';
+
+  @override
+  String get saParcelProhibitedConfirm =>
+      'Posilkada taqiqlangan narsa yo\'qligini tasdiqlayman';
+
+  @override
+  String get saParcelProhibitedRequired => 'Davom etish uchun tasdiqlang';
+
+  @override
+  String get saParcelProhibitedTitle => 'Yuborish taqiqlangan';
 
   @override
   String get saParcelRecipientName => 'Qabul qiluvchi ismi (ixtiyoriy)';
@@ -3924,6 +4041,27 @@ class AppLocalizationsUz extends AppLocalizations {
   String get saProfileTrips => 'Safarlar';
 
   @override
+  String get saProhibitedAlcohol => 'Alkogol';
+
+  @override
+  String get saProhibitedDocuments => 'Hujjatlar';
+
+  @override
+  String get saProhibitedDrugs => 'Giyohvand moddalar';
+
+  @override
+  String get saProhibitedLiveAnimals => 'Tirik hayvonlar';
+
+  @override
+  String get saProhibitedMedicine => 'Dori-darmon';
+
+  @override
+  String get saProhibitedMoney => 'Pul';
+
+  @override
+  String get saProhibitedWeapons => 'Qurol';
+
+  @override
   String get saPromoActive => 'FAOL';
 
   @override
@@ -3998,6 +4136,16 @@ class AppLocalizationsUz extends AppLocalizations {
   String get saRefresh => 'Yangilash';
 
   @override
+  String saRefundDoneLine(String amount) {
+    return 'Kartangizga qaytarildi: $amount';
+  }
+
+  @override
+  String saRefundDueLine(String amount) {
+    return 'Kartangizga qaytariladi: $amount';
+  }
+
+  @override
   String get saReorderAction => 'Yana buyurtma qilish';
 
   @override
@@ -4030,6 +4178,26 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get saRestaurantsNotFound => 'Restoranlar topilmadi';
+
+  @override
+  String saReturnChargeExplain(int percent) {
+    return 'Yetkazish haqi + qaytarish haqi (yetkazish haqining $percent%)';
+  }
+
+  @override
+  String saReturnChargeLine(String amount) {
+    return 'To\'lanadi: $amount';
+  }
+
+  @override
+  String get saReturnedTitle => 'Buyurtma qaytarildi';
+
+  @override
+  String get saReturningHint =>
+      'Kuryer buyurtmani topshira olmadi va uni sotuvchiga qaytarmoqda.';
+
+  @override
+  String get saReturningTitle => 'Buyurtma qaytarilmoqda';
 
   @override
   String get saSave => 'Saqlash';
@@ -4372,6 +4540,12 @@ class AppLocalizationsUz extends AppLocalizations {
   String get shDeliveryPreparing => 'Tayyorlanmoqda';
 
   @override
+  String get shDeliveryReturned => 'Qaytarildi';
+
+  @override
+  String get shDeliveryReturning => 'Qaytarilmoqda';
+
+  @override
   String get shDriverFallbackName => 'Haydovchi';
 
   @override
@@ -4390,6 +4564,15 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get shErrorUnknown => 'Noma\'lum xatolik yuz berdi';
+
+  @override
+  String get shFailReasonCustomerAbsent => 'Mijoz yo\'q';
+
+  @override
+  String get shFailReasonCustomerRefused => 'Mijoz rad etdi';
+
+  @override
+  String get shFailReasonUnreachable => 'Bog\'lanib bo\'lmadi';
 
   @override
   String get shFareBase => 'Asos';

@@ -81,6 +81,12 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
                         paidOnline: paidOnline,
                         paymentPending: paymentPending,
                       ),
+                      // Topshirish kodi / qaytarish (INCIDENT-POLICY §2).
+                      if (order != null)
+                        for (final card in vendorIncidentWidgets(order)) ...[
+                          const SizedBox(height: kSpace4),
+                          card,
+                        ],
                       if (paymentPending && kind != null) ...[
                         const SizedBox(height: kSpace4),
                         CardPaymentPendingCard(

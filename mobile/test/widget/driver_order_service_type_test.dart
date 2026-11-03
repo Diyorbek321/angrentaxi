@@ -385,7 +385,17 @@ void main() {
       await tester.drag(slider, Offset(tester.getSize(slider).width, 0));
       await pumpUntilQuiet(tester);
 
-      verify(() => apiClient.patch(ApiEndpoints.completeTrip(_orderId), data: any(named: 'data')))
+      // Ovqat ham endi topshirish kodi bilan (INCIDENT-POLICY §2): kod
+      // kiritilmaguncha hech narsa yuborilmaydi.
+      expect(find.text("Mijozdan topshirish kodini so'rang"), findsOneWidget);
+      verifyNever(() => apiClient.patch(ApiEndpoints.completeTrip(_orderId), data: any(named: 'data')));
+      final dialog = find.byType(AlertDialog);
+      await tester.enterText(find.descendant(of: dialog, matching: find.byType(TextField)), '0427');
+      await tester.pump();
+      await tester.tap(find.descendant(of: dialog, matching: find.text('Topshirish')));
+      await pumpUntilQuiet(tester);
+
+      verify(() => apiClient.patch(ApiEndpoints.completeTrip(_orderId), data: {'deliveryPin': '0427'}))
           .called(1);
       expect(
         find.text('Buyurtma muvaffaqiyatli yetkazildi!'),

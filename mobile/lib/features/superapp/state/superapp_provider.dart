@@ -4,6 +4,7 @@ import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/features/intercity/models/intercity_models.dart';
 import 'package:angren_taxi/features/superapp/models/cart_item.dart';
 import 'package:angren_taxi/features/superapp/models/wallet_transaction.dart';
+import 'package:angren_taxi/shared/models/wallet_topup.dart' show PublicSettings;
 import 'package:flutter/foundation.dart';
 
 /// Holds cross-vertical super-app state: the unified cart, wallet balance and
@@ -197,6 +198,12 @@ class SuperappProvider extends ChangeNotifier {
     }
   }
 
+  PublicSettings _publicSettings = PublicSettings.defaults;
+
+  /// Yetkazish hodisalari sozlamalari (posilka qiymati chegarasi, manzilda
+  /// bepul kutish, qaytarish foizi). Yuklanmaguncha — standart qiymatlar.
+  PublicSettings get publicSettings => _publicSettings;
+
   /// Reads the platform delivery fee so the cart total matches what the
   /// server will record for the order.
   Future<void> loadPlatformSettings() async {
@@ -216,6 +223,7 @@ class SuperappProvider extends ChangeNotifier {
       _maxCashVendorOrder =
           (payload['maxCashVendorOrder'] as num?)?.toDouble() ?? _maxCashVendorOrder;
       _intercity = IntercityPublicSettings.fromJson(payload);
+      _publicSettings = PublicSettings.fromJson(payload);
       _cardPaymentsAvailable = (payload['cardPaymentsAvailable'] as bool?) ?? false;
       _cardPaymentProviders = [
         for (final p in (payload['cardPaymentProviders'] as List<dynamic>?) ?? const [])

@@ -339,6 +339,19 @@ class AppLocalizationsRu extends AppLocalizations {
   String get drvDeliveryAddress => 'Адрес доставки';
 
   @override
+  String get drvDeliveryFailed => 'Не удалось доставить';
+
+  @override
+  String get drvDeliveryFailedHint =>
+      'Товар вернётся туда, где его забрали. Клиент оплатит доставку и возврат.';
+
+  @override
+  String get drvDeliveryFailedLocked => 'Доступно после бесплатного ожидания';
+
+  @override
+  String get drvDeliveryFailedTitle => 'Что случилось?';
+
+  @override
   String get drvDemandEvenMessage =>
       'Разницы между зонами нет — ждать можно где угодно. Данные обновляются каждую минуту.';
 
@@ -443,6 +456,24 @@ class AppLocalizationsRu extends AppLocalizations {
   String get drvDriver => 'Водитель';
 
   @override
+  String get drvDropoffArrived => 'Я на месте';
+
+  @override
+  String drvDropoffWaitCashNote(String amount) {
+    return 'Плата за ожидание добавляется к наличным — возьмите у клиента всего $amount';
+  }
+
+  @override
+  String drvDropoffWaitFree(String time) {
+    return 'Бесплатное ожидание: $time';
+  }
+
+  @override
+  String drvDropoffWaitPaid(int minutes, String amount) {
+    return 'Платное ожидание: $minutes мин · $amount';
+  }
+
+  @override
   String get drvEarnings => 'Заработок';
 
   @override
@@ -517,6 +548,12 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get drvGpsDisabled =>
       'Геолокация (GPS) на телефоне выключена — включите её, чтобы карта работала правильно.';
+
+  @override
+  String get drvHandoverCodeHint => '4-значный код виден в приложении клиента.';
+
+  @override
+  String get drvHandoverCodeTitle => 'Спросите у клиента код передачи';
 
   @override
   String get drvHelp => 'Помощь';
@@ -971,6 +1008,19 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get drvRetry => 'Повторить';
+
+  @override
+  String get drvReturnBannerHint =>
+      'Отвезите товар туда, где его забрали. Возврат подтверждает продавец (для посылки — отправитель), после этого поездка закроется и будет рассчитана оплата.';
+
+  @override
+  String get drvReturnBannerTitle => 'Верните товар';
+
+  @override
+  String get drvReturnDestination => 'Адрес возврата';
+
+  @override
+  String get drvReturnedSuccess => 'Возврат подтверждён!';
 
   @override
   String get drvReupload => 'Загрузить заново';
@@ -2664,11 +2714,26 @@ class AppLocalizationsRu extends AppLocalizations {
   String get paxOutsideServiceArea => 'Вне зоны обслуживания';
 
   @override
+  String get paxParcelConfirmReturned => 'Посылка вернулась';
+
+  @override
   String get paxParcelPinHint =>
       'Сообщите получателю. Без этого кода водитель не сможет вручить посылку.';
 
   @override
   String get paxParcelPinTitle => 'Код вручения';
+
+  @override
+  String paxParcelReturnFeeExplain(int percent) {
+    return 'Оплата: доставка + плата за возврат ($percent% от стоимости доставки)';
+  }
+
+  @override
+  String get paxParcelReturningHint =>
+      'Водитель не смог передать посылку и везёт её обратно вам. Когда получите посылку, подтвердите.';
+
+  @override
+  String get paxParcelReturningTitle => 'Посылка возвращается';
 
   @override
   String get paxPaymentCard => 'Карта';
@@ -3352,6 +3417,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get saCargoLight => 'Лёгкий';
 
   @override
+  String get saCargoLoaders => 'Грузчики (необязательно)';
+
+  @override
+  String get saCargoLoadersRange => 'От 0 до 10';
+
+  @override
   String get saCargoSubtitle => 'Быстрая доставка по городу';
 
   @override
@@ -3371,6 +3442,12 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get saCargoVehicleType => 'Тип транспорта';
+
+  @override
+  String get saCargoWeight => 'Вес, кг (необязательно)';
+
+  @override
+  String get saCargoWeightRange => 'От 1 до 20 000 кг';
 
   @override
   String get saCart => 'Корзина';
@@ -3448,6 +3525,14 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get saContactSupport => 'Написать в поддержку';
+
+  @override
+  String get saCourierAtDoor => 'Курьер у двери';
+
+  @override
+  String saCourierAtDoorHint(int minutes) {
+    return 'Курьер ждёт $minutes мин бесплатно, затем ожидание платное.';
+  }
 
   @override
   String get saCurrentAddress => 'Текущий адрес';
@@ -3578,6 +3663,13 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get saGoToHome => 'На главную';
+
+  @override
+  String get saHandoverCodeHint =>
+      'Без этого кода курьер не сможет передать заказ. Назовите код, когда получите заказ.';
+
+  @override
+  String get saHandoverCodeTitle => 'Скажите курьеру';
 
   @override
   String get saHelpCenter => 'Центр помощи';
@@ -3763,8 +3855,32 @@ class AppLocalizationsRu extends AppLocalizations {
   String get saParcelContinue => 'Выбрать адрес';
 
   @override
+  String get saParcelDeclaredValue => 'Стоимость посылки, сум';
+
+  @override
+  String get saParcelDeclaredValueHint => 'Например: 150000';
+
+  @override
+  String saParcelDeclaredValueRange(String max) {
+    return 'Должна быть от 1 до $max сум';
+  }
+
+  @override
+  String get saParcelDeclaredValueRequired => 'Укажите стоимость посылки';
+
+  @override
   String get saParcelPinInfo =>
       'Водитель вручит посылку только по PIN-коду. Вы увидите код после заказа — сообщите его получателю.';
+
+  @override
+  String get saParcelProhibitedConfirm =>
+      'Подтверждаю, что в посылке нет запрещённого';
+
+  @override
+  String get saParcelProhibitedRequired => 'Подтвердите, чтобы продолжить';
+
+  @override
+  String get saParcelProhibitedTitle => 'Запрещено к отправке';
 
   @override
   String get saParcelRecipientName => 'Имя получателя (необязательно)';
@@ -3915,6 +4031,27 @@ class AppLocalizationsRu extends AppLocalizations {
   String get saProfileTrips => 'Поездки';
 
   @override
+  String get saProhibitedAlcohol => 'Алкоголь';
+
+  @override
+  String get saProhibitedDocuments => 'Документы';
+
+  @override
+  String get saProhibitedDrugs => 'Наркотические вещества';
+
+  @override
+  String get saProhibitedLiveAnimals => 'Живые животные';
+
+  @override
+  String get saProhibitedMedicine => 'Лекарства';
+
+  @override
+  String get saProhibitedMoney => 'Деньги';
+
+  @override
+  String get saProhibitedWeapons => 'Оружие';
+
+  @override
   String get saPromoActive => 'АКТИВЕН';
 
   @override
@@ -3990,6 +4127,16 @@ class AppLocalizationsRu extends AppLocalizations {
   String get saRefresh => 'Обновить';
 
   @override
+  String saRefundDoneLine(String amount) {
+    return 'Возвращено на карту: $amount';
+  }
+
+  @override
+  String saRefundDueLine(String amount) {
+    return 'Вернём на карту: $amount';
+  }
+
+  @override
   String get saReorderAction => 'Повторить заказ';
 
   @override
@@ -4022,6 +4169,26 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get saRestaurantsNotFound => 'Рестораны не найдены';
+
+  @override
+  String saReturnChargeExplain(int percent) {
+    return 'Стоимость доставки + плата за возврат ($percent% от стоимости доставки)';
+  }
+
+  @override
+  String saReturnChargeLine(String amount) {
+    return 'К оплате: $amount';
+  }
+
+  @override
+  String get saReturnedTitle => 'Заказ возвращён';
+
+  @override
+  String get saReturningHint =>
+      'Курьер не смог передать заказ и возвращает его продавцу.';
+
+  @override
+  String get saReturningTitle => 'Заказ возвращается';
 
   @override
   String get saSave => 'Сохранить';
@@ -4361,6 +4528,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get shDeliveryPreparing => 'Готовится';
 
   @override
+  String get shDeliveryReturned => 'Возвращён';
+
+  @override
+  String get shDeliveryReturning => 'Возвращается';
+
+  @override
   String get shDriverFallbackName => 'Водитель';
 
   @override
@@ -4379,6 +4552,15 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get shErrorUnknown => 'Произошла неизвестная ошибка';
+
+  @override
+  String get shFailReasonCustomerAbsent => 'Клиента нет';
+
+  @override
+  String get shFailReasonCustomerRefused => 'Клиент отказался';
+
+  @override
+  String get shFailReasonUnreachable => 'Не удалось связаться';
 
   @override
   String get shFareBase => 'Базовый тариф';

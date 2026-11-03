@@ -4,6 +4,7 @@ import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/market_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/features/superapp/widgets/card_payment_pending.dart';
+import 'package:angren_taxi/features/superapp/widgets/delivery_incident_card.dart';
 import 'package:angren_taxi/features/superapp/widgets/reorder_flow.dart';
 import 'package:angren_taxi/features/superapp/widgets/vendor_cancel_flow.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
@@ -11,6 +12,7 @@ import 'package:angren_taxi/shared/models/address_details.dart';
 import 'package:angren_taxi/shared/models/courier_tracking.dart';
 import 'package:angren_taxi/shared/models/food_order.dart';
 import 'package:angren_taxi/shared/models/market_order.dart';
+import 'package:angren_taxi/shared/models/order.dart' show deliveryFailureReasonLabel;
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_status_badge.dart';
 import 'package:flutter/material.dart';
@@ -40,7 +42,26 @@ class VendorOrderView {
     this.trackPath,
     this.source,
     this.paymentPending = false,
+    this.handoverCode,
+    this.courierAtDoor = false,
+    this.isReturning = false,
+    this.isReturned = false,
+    this.failureReason,
+    this.returnCharge,
+    this.refundDue,
+    this.refundStatus,
   });
+
+  // Yetkazish hodisalari (docs/INCIDENT-POLICY.md §2).
+  /// Kuryerga aytiladigan kod — faqat kuryer yo'lda bo'lganda.
+  final String? handoverCode;
+  final bool courierAtDoor;
+  final bool isReturning;
+  final bool isReturned;
+  final String? failureReason;
+  final double? returnCharge;
+  final double? refundDue;
+  final String? refundStatus;
 
   final String kind;
   final String id;
@@ -73,6 +94,7 @@ class VendorOrderView {
         tone: switch (o.status) {
           FoodOrderStatus.cancelled => AppStatusTone.danger,
           FoodOrderStatus.delivered => AppStatusTone.success,
+          FoodOrderStatus.returning || FoodOrderStatus.returned => AppStatusTone.warning,
           _ => AppStatusTone.info,
         },
         isActive: o.status.isActive,
@@ -90,6 +112,14 @@ class VendorOrderView {
         trackPath: ApiEndpoints.foodOrderById(o.id),
         source: o,
         paymentPending: o.paymentPending && o.status.isActive,
+        handoverCode: o.status.isActive ? o.delivery?.handoverCode : null,
+        courierAtDoor: o.status.isActive && (o.delivery?.isAtDoor ?? false),
+        isReturning: o.status == FoodOrderStatus.returning,
+        isReturned: o.status == FoodOrderStatus.returned,
+        failureReason: o.delivery?.deliveryFailureReason,
+        returnCharge: o.returnCharge,
+        refundDue: o.refundDue,
+        refundStatus: o.refundStatus,
       );
 
   factory VendorOrderView.market(MarketOrder o) => VendorOrderView(
@@ -99,6 +129,7 @@ class VendorOrderView {
         tone: switch (o.status) {
           MarketOrderStatus.cancelled => AppStatusTone.danger,
           MarketOrderStatus.delivered => AppStatusTone.success,
+          MarketOrderStatus.returning || MarketOrderStatus.returned => AppStatusTone.warning,
           _ => AppStatusTone.info,
         },
         isActive: o.status.isActive,
@@ -116,7 +147,33 @@ class VendorOrderView {
         trackPath: ApiEndpoints.marketOrderById(o.id),
         source: o,
         paymentPending: o.paymentPending && o.status.isActive,
+        handoverCode: o.status.isActive ? o.delivery?.handoverCode : null,
+        courierAtDoor: o.status.isActive && (o.delivery?.isAtDoor ?? false),
+        isReturning: o.status == MarketOrderStatus.returning,
+        isReturned: o.status == MarketOrderStatus.returned,
+        failureReason: o.delivery?.deliveryFailureReason,
+        returnCharge: o.returnCharge,
+        refundDue: o.refundDue,
+        refundStatus: o.refundStatus,
       );
+}
+
+/// Topshirish kodi yoki qaytarish kartasi — tafsilot va holat ekranlari
+/// uchun umumiy. Hech biri bo'lmasa bo'sh ro'yxat.
+List<Widget> vendorIncidentWidgets(VendorOrderView order) {
+  final code = order.handoverCode;
+  return [
+    if (order.isReturning || order.isReturned)
+      VendorReturnCard(
+        returned: order.isReturned,
+        reasonLabel: deliveryFailureReasonLabel(order.failureReason),
+        returnCharge: order.returnCharge,
+        refundDue: order.refundDue,
+        refundStatus: order.refundStatus,
+      )
+    else if (code != null)
+      HandoverCodeCard(code: code, courierAtDoor: order.courierAtDoor),
+  ];
 }
 
 /// Provayderdagi JONLI nusxa — bekor qilingach yoki holat o'zgarganda ekran
@@ -187,6 +244,10 @@ class VendorOrderDetailScreen extends StatelessWidget {
                       if (order.paymentPending) ...[
                         const SizedBox(height: kSpace4),
                         CardPaymentPendingCard(kind: kind, orderId: orderId),
+                      ],
+                      for (final card in vendorIncidentWidgets(order)) ...[
+                        const SizedBox(height: kSpace4),
+                        card,
                       ],
                       if (order.cancelReason != null && !order.isActive) ...[
                         const SizedBox(height: kSpace2),

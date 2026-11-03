@@ -151,6 +151,9 @@ class OrderProvider extends ChangeNotifier {
   bool get isSurging => _surgeMultiplier > 1.0;
   bool get hasActiveOrder => _activeOrder != null && _activeOrder!.isActive;
   String get serviceType => _serviceType;
+
+  /// Buyurtma bilan ketadigan vertikal `details` (posilka/cargo).
+  Map<String, dynamic>? get serviceDetails => _cargoDetails;
   bool get isCargo => _serviceType == 'cargo';
   bool get isSubmittingTip => _isSubmittingTip;
   String? get tipError => _tipError;
@@ -768,6 +771,69 @@ class OrderProvider extends ChangeNotifier {
     _socketService.on(SocketEvents.orderCompleted, _onOrderCompleted);
     _socketService.on(SocketEvents.orderCancelled, _onOrderCancelled);
     _socketService.on(SocketEvents.noDriversFound, _onNoDriversFound);
+    _socketService.on(SocketEvents.orderDropoffArrived, _onDropoffArrived);
+    _socketService.on(SocketEvents.orderDeliveryFailed, _onDeliveryFailed);
+    _socketService.on(SocketEvents.orderReturned, _onOrderReturned);
+  }
+
+  // --------------------------------------------------------------------
+  // YETKAZISH HODISALARI (docs/INCIDENT-POLICY.md §2) — posilka yuboruvchisi.
+  // Status o'zgarmaydi (`in_progress`), shuning uchun alohida hodisalar.
+  // --------------------------------------------------------------------
+
+  void _onDropoffArrived(dynamic data) {
+    if (data is! Map || !_isForActiveOrder(data)) return;
+    final raw = data['dropoffArrivedAt'];
+    _activeOrder = _activeOrder!.copyWith(
+      dropoffArrivedAt:
+          (raw is String ? DateTime.tryParse(raw)?.toLocal() : null) ?? DateTime.now(),
+    );
+    notifyListeners();
+  }
+
+  void _onDeliveryFailed(dynamic data) {
+    if (data is! Map || !_isForActiveOrder(data)) return;
+    final reason = data['reason'];
+    _activeOrder = _activeOrder!.copyWith(
+      deliveryFailedAt: DateTime.now(),
+      deliveryFailureReason: reason is String ? reason : null,
+    );
+    notifyListeners();
+    // Aniq vaqt va narx tarkibi — serverdan.
+    unawaited(_refreshActiveOrder());
+  }
+
+  void _onOrderReturned(dynamic data) {
+    if (data is! Map || !_isForActiveOrder(data)) return;
+    _finishCompleted(_activeOrder!.copyWith(
+      status: OrderStatus.completed,
+      deliveryOutcome: 'returned',
+      actualPrice: (data['finalPrice'] as num?)?.toDouble(),
+      returnFare: (data['returnFare'] as num?)?.toDouble(),
+    ));
+  }
+
+  /// Posilka yuboruvchisi: "Posilka qaytib keldi" — qaytarish tasdiqlanadi
+  /// va safar yopiladi (yetkazish + kutish + qaytarish haqi).
+  Future<bool> confirmParcelReturned() async {
+    final order = _activeOrder;
+    if (order == null) return false;
+    _setState(OrderProviderState.loading);
+    try {
+      final response = await _apiClient.patch(ApiEndpoints.confirmReturned(order.id));
+      final body = response.data;
+      final json = body is Map<String, dynamic> ? body['data'] : null;
+      _setState(OrderProviderState.idle);
+      _finishCompleted(json is Map<String, dynamic>
+          ? Order.fromJson(json)
+          : order.copyWith(status: OrderStatus.completed, deliveryOutcome: 'returned'));
+      return true;
+    } catch (e) {
+      _error = extractErrorMessage(e);
+      _setState(OrderProviderState.error);
+      unawaited(_syncActiveOrder());
+      return false;
+    }
   }
 
   // orders.service.ts's 'driver' payload here only carries
@@ -904,7 +970,10 @@ class OrderProvider extends ChangeNotifier {
         } else {
           _finishCancelled(fresh);
         }
-      } else if (fresh.status != current.status) {
+      } else if (fresh.status != current.status ||
+          // Yetkazish hodisalari statusni o'zgartirmaydi (§2).
+          fresh.dropoffArrivedAt != current.dropoffArrivedAt ||
+          fresh.deliveryFailedAt != current.deliveryFailedAt) {
         _activeOrder = fresh;
         notifyListeners();
       }
@@ -973,6 +1042,9 @@ class OrderProvider extends ChangeNotifier {
     _socketService.off(SocketEvents.orderCompleted, _onOrderCompleted);
     _socketService.off(SocketEvents.orderCancelled, _onOrderCancelled);
     _socketService.off(SocketEvents.noDriversFound, _onNoDriversFound);
+    _socketService.off(SocketEvents.orderDropoffArrived, _onDropoffArrived);
+    _socketService.off(SocketEvents.orderDeliveryFailed, _onDeliveryFailed);
+    _socketService.off(SocketEvents.orderReturned, _onOrderReturned);
     _setDriverLocation(null);
   }
 

@@ -17,7 +17,9 @@ import 'package:angren_taxi/features/driver/navigation/speed_camera_controller.d
 import 'package:angren_taxi/features/driver/navigation/turn_by_turn_guidance.dart';
 import 'package:angren_taxi/features/driver/screens/rate_passenger_screen.dart';
 import 'package:angren_taxi/features/driver/service_wording.dart';
+import 'package:angren_taxi/features/driver/wallet/driver_wallet_provider.dart';
 import 'package:angren_taxi/features/driver/widgets/delivery_info_card.dart';
+import 'package:angren_taxi/features/driver/widgets/dropoff_incident_panel.dart';
 import 'package:angren_taxi/features/driver/widgets/maneuver_banner.dart';
 import 'package:angren_taxi/features/driver/widgets/parcel_info_card.dart';
 import 'package:angren_taxi/features/driver/widgets/parcel_pin_dialog.dart';
@@ -32,6 +34,7 @@ import 'package:angren_taxi/features/trip/meter/meter_service.dart';
 import 'package:angren_taxi/features/trip/screens/trip_chat_screen.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order.dart';
+import 'package:angren_taxi/shared/models/wallet_topup.dart' show PublicSettings;
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/adaptive_map_panel.dart';
 import 'package:angren_taxi/shared/widgets/ag_action_row.dart';
@@ -133,6 +136,7 @@ class _TripScreenState extends State<TripScreen> {
     _location.dispose();
     // Ovoz ham to'xtaydi — safar tugagan ekranda burilish haqida gapirmasin.
     _guidance?.dispose();
+    _returnSync?.cancel();
     super.dispose();
   }
 
@@ -189,12 +193,102 @@ class _TripScreenState extends State<TripScreen> {
     // Banner va marshrut chizig'i yo'l-yo'riqni o'zlari tinglaydi
     // (`ListenableBuilder`); bu yerda faqat bir marta — ular paydo bo'lsin.
     setState(() => _guidance = guidance);
+    _guidanceToPickup = order.isReturning;
     await guidance.start(
       _currentLocation,
-      LatLng(order.dropoff.lat, order.dropoff.lng),
-      waypoints: [for (final w in order.waypoints) LatLng(w.lat, w.lng)],
+      _navTarget(order),
+      waypoints: order.isReturning
+          ? const []
+          : [for (final w in order.waypoints) LatLng(w.lat, w.lng)],
     );
   }
+
+  // -------------------------------------------------------------------
+  // QAYTARISH YO'LI (docs/INCIDENT-POLICY.md §2)
+  //
+  // "Yetkazib bo'lmadi" dan keyin safar `in_progress` qoladi, lekin manzil
+  // OLISH NUQTASIGA (restoran/do'kon/yuboruvchi) almashadi: navigatsiya,
+  // marker va kamera shu nuqtaga. Safarni kuryer emas, qabul qiluvchi
+  // tomon yopadi — `order:returned` kelguncha ekran shu holatda turadi.
+  // -------------------------------------------------------------------
+
+  /// Navigatsiya hozir olish nuqtasiga (qaytarish) qurilganmi.
+  bool? _guidanceToPickup;
+
+  /// Qaytarish yo'lida socket yo'qolsa ham tasdiq sezilsin — zaxira.
+  Timer? _returnSync;
+  static const Duration _returnSyncInterval = Duration(seconds: 30);
+
+  LatLng _navTarget(Order order) => order.isReturning
+      ? LatLng(order.pickup.lat, order.pickup.lng)
+      : LatLng(order.dropoff.lat, order.dropoff.lng);
+
+  /// Holat qaytarishga o'tganda navigatsiyani qayta quradi va zaxira
+  /// sinxronlashni yoqadi/o'chiradi. Har `build` dan keyin chaqiriladi.
+  void _syncReturnState(Order order) {
+    if (!mounted) return;
+    final returning = order.isReturning;
+    final guidance = _guidance;
+    if (guidance != null && _guidanceToPickup != returning) {
+      _guidanceToPickup = returning;
+      _lastCameraFit = null;
+      unawaited(guidance.start(_currentLocation, _navTarget(order)));
+      _fitCamera();
+    }
+    if (returning && _returnSync == null) {
+      final provider = context.read<DriverProvider>();
+      _returnSync = Timer.periodic(_returnSyncInterval, (_) => provider.resyncActiveTrip());
+    } else if (!returning && _returnSync != null) {
+      _returnSync?.cancel();
+      _returnSync = null;
+    }
+  }
+
+  /// Topshirish manzilidagi bepul kutish (`dropoffFreeWaitMinutes`).
+  /// Hamyon provayderi bo'lmagan muhitda (eski testlar) — standart qiymat.
+  int get _dropoffFreeWaitMinutes =>
+      Provider.of<DriverWalletProvider?>(context, listen: false)
+          ?.settings
+          .dropoffFreeWaitMinutes ??
+      PublicSettings.kDefaultDropoffFreeWaitMinutes;
+
+  Future<void> _onDropoffArrived() async {
+    final provider = context.read<DriverProvider>();
+    final ok = await provider.markDropoffArrived();
+    if (!mounted || ok) return;
+    _showError(provider.error);
+  }
+
+  Future<void> _onDeliveryFailed() async {
+    final reason = await showDeliveryFailureReasonSheet(context);
+    if (reason == null || !mounted) return;
+    final provider = context.read<DriverProvider>();
+    final ok = await provider.markDeliveryFailed(reason);
+    if (!mounted || ok) return;
+    _showError(provider.error);
+  }
+
+  void _showError(String? message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message ?? context.l10n.drvCompleteFailed)),
+    );
+  }
+
+  /// `order:returned` keldi — safar yopildi. Oyna bir marta ko'rsatiladi.
+  void _handleReturnedTrip(DriverProvider provider) {
+    final returned = provider.returnedTrip;
+    if (returned == null || _returnedShown) return;
+    _returnedShown = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      provider.consumeReturnedTrip();
+      _showFinishedDialog(context.l10n.drvReturnedSuccess, onContinue: () {
+        Navigator.of(context).pushNamedAndRemoveUntil('/driver/home', (route) => false);
+      });
+    });
+  }
+
+  bool _returnedShown = false;
 
   /// GPS oqimi HAR safarda ulanadi. Ilgari u faqat navigatsiya bilan birga
   /// ulanardi va taksometr safarida (manzil yo'q) mashina butun safar
@@ -272,7 +366,7 @@ class _TripScreenState extends State<TripScreen> {
         ]
       : <LatLng>[
           _currentLocation,
-          LatLng(order.dropoff.lat, order.dropoff.lng),
+          _navTarget(order),
         ];
 
   void _onMapCreated(ml.MapLibreMapController controller) {
@@ -372,9 +466,19 @@ class _TripScreenState extends State<TripScreen> {
     final provider = context.read<DriverProvider>();
     // Posilka faqat qabul qiluvchi aytgan PIN bilan topshiriladi. Bekor
     // qilinsa hech narsa yuborilmaydi — haydovchi qayta surib urinadi.
+    // Ovqat/market ham faqat mijoz aytgan topshirish kodi bilan
+    // (docs/INCIDENT-POLICY.md §2). Noto'g'ri kodda server qolgan urinishlar
+    // sonini, 5 tadan keyin esa "dispetcherga murojaat" ni aytadi — matn
+    // pastdagi xabarda.
     String? deliveryPin;
-    if (order.isParcel) {
-      deliveryPin = await showParcelPinDialog(context);
+    if (order.requiresHandoverCode) {
+      deliveryPin = order.isParcel
+          ? await showParcelPinDialog(context)
+          : await showParcelPinDialog(
+              context,
+              title: context.l10n.drvHandoverCodeTitle,
+              hint: context.l10n.drvHandoverCodeHint,
+            );
       if (deliveryPin == null || !mounted) return;
     }
     await provider.completeTrip(deliveryPin: deliveryPin);
@@ -386,12 +490,36 @@ class _TripScreenState extends State<TripScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(provider.error ?? context.l10n.drvCompleteFailed),
+          // Kod xatosi/urinishlar soni — o'qib ulgurilsin.
+          duration: const Duration(seconds: 6),
         ),
       );
     }
   }
 
   void _showSuccessAndNavigate(Order order, DriverServiceWording wording) {
+    _showFinishedDialog(wording.completeSuccessMessage, onContinue: () {
+      // Land on /driver/home first (clearing the trip stack beneath
+      // it), then push the rating screen on top — its own
+      // submit/skip just calls Navigator.pop(), which then correctly
+      // reveals home instead of stale navigation/arrived screens.
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        '/driver/home',
+        (route) => false,
+      );
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => RatePassengerScreen(
+            orderId: order.id,
+            passengerPhone: order.passengerName ?? order.passengerPhone ?? '',
+            clientLabel: wording.clientLabel,
+          ),
+        ),
+      );
+    });
+  }
+
+  void _showFinishedDialog(String message, {required VoidCallback onContinue}) {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -408,7 +536,7 @@ class _TripScreenState extends State<TripScreen> {
             ),
             const SizedBox(height: kSpace4),
             Text(
-              wording.completeSuccessMessage,
+              message,
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: kFontTitle,
@@ -422,24 +550,7 @@ class _TripScreenState extends State<TripScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.of(ctx).pop();
-              // Land on /driver/home first (clearing the trip stack beneath
-              // it), then push the rating screen on top — its own
-              // submit/skip just calls Navigator.pop(), which then correctly
-              // reveals home instead of stale navigation/arrived screens.
-              Navigator.of(context).pushNamedAndRemoveUntil(
-                '/driver/home',
-                (route) => false,
-              );
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => RatePassengerScreen(
-                    orderId: order.id,
-                    passengerPhone:
-                        order.passengerName ?? order.passengerPhone ?? '',
-                    clientLabel: wording.clientLabel,
-                  ),
-                ),
-              );
+              onContinue();
             },
             child: Text(context.l10n.drvContinue),
           ),
@@ -709,6 +820,7 @@ class _TripScreenState extends State<TripScreen> {
         builder: (context, provider, _) {
           final order = provider.activeOrder;
           if (order == null) {
+            _handleReturnedTrip(provider);
             return const Center(child: CircularProgressIndicator());
           }
 
@@ -720,7 +832,10 @@ class _TripScreenState extends State<TripScreen> {
           // yuklanish holati kirdi), kamera esa shu balandlikka bog'liq.
           // Ro'yxatga olish `Consumer` ICHIDA: provider xabar berganda
           // tashqi `build` qayta ishlamaydi, faqat shu quruvchi.
-          WidgetsBinding.instance.addPostFrameCallback((_) => _syncCamera());
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _syncReturnState(order);
+            _syncCamera();
+          });
 
           return Stack(
             children: [
@@ -742,7 +857,10 @@ class _TripScreenState extends State<TripScreen> {
       for (final w in order.waypoints)
         AppMapMarker(point: LatLng(w.lat, w.lng), icon: AppMapIcon.waypoint),
       // Taksometrda `dropoff` = olish nuqtasi — manzil belgisi chizilmaydi.
-      if (!order.isMetered)
+      // Qaytarish yo'lida belgi — olish nuqtasi (restoran/do'kon/yuboruvchi).
+      if (order.isReturning)
+        AppMapMarker(point: _navTarget(order), icon: AppMapIcon.pickup)
+      else if (!order.isMetered)
         AppMapMarker(
           point: LatLng(order.dropoff.lat, order.dropoff.lng),
           icon: AppMapIcon.dropoff,
@@ -988,6 +1106,18 @@ class _TripScreenState extends State<TripScreen> {
                   )
                 else
                   _buildEarningsCard(order),
+                // Manzilga yetib keldim / kutish / yetkazib bo'lmadi /
+                // qaytarish banneri — posilka, ovqat, market.
+                if (order.requiresHandoverCode) ...[
+                  const SizedBox(height: kSpace2),
+                  DropoffIncidentPanel(
+                    order: order,
+                    freeWaitMinutes: _dropoffFreeWaitMinutes,
+                    busy: busy,
+                    onArrived: _onDropoffArrived,
+                    onFailed: _onDeliveryFailed,
+                  ),
+                ],
                 const SizedBox(height: kSpace4),
                 _buildActionRow(order, wording),
                 // 12dp — ikkilamchi qator bilan QAYTARIB BO'LMAYDIGAN amal
@@ -1004,6 +1134,11 @@ class _TripScreenState extends State<TripScreen> {
     DriverServiceWording wording,
     bool busy,
   ) {
+    // Qaytarish yo'lida yakunlash YO'Q — uni sotuvchi/yuboruvchi tasdiqlaydi.
+    // Yig'ilgan panelda ham kuryer nima qilishini ko'rsin.
+    if (order.isReturning) {
+      return _panelCollapsed ? ReturnTripBanner(order: order) : const SizedBox.shrink();
+    }
     if (busy) {
       // Surish bajarildi, so'rov yo'lda. Balandlik AYNAN o'sha (64) —
       // panel sakramaydi, ya'ni kamera ham qayta hisoblanmaydi.
@@ -1069,14 +1204,16 @@ class _TripScreenState extends State<TripScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  wording.dropoffTitle,
+                  order.isReturning
+                      ? context.l10n.drvReturnDestination
+                      : wording.dropoffTitle,
                   style: const TextStyle(
                     color: kInkMuted,
                     fontSize: kFontMicro,
                   ),
                 ),
                 Text(
-                  order.dropoffLabel,
+                  order.isReturning ? order.pickup.address : order.dropoffLabel,
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     // Manzil — bu ekrandagi eng ko'p o'qiladigan matn;

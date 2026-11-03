@@ -692,6 +692,30 @@ abstract class AppLocalizations {
   /// **'Yetkazish manzili'**
   String get drvDeliveryAddress;
 
+  /// No description provided for @drvDeliveryFailed.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yetkazib bo\'lmadi'**
+  String get drvDeliveryFailed;
+
+  /// No description provided for @drvDeliveryFailedHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Tovar olingan joyga qaytariladi. Mijoz yetkazish va qaytarish haqini to\'laydi.'**
+  String get drvDeliveryFailedHint;
+
+  /// No description provided for @drvDeliveryFailedLocked.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bepul kutish tugagach ochiladi'**
+  String get drvDeliveryFailedLocked;
+
+  /// No description provided for @drvDeliveryFailedTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Nima bo\'ldi?'**
+  String get drvDeliveryFailedTitle;
+
   /// No description provided for @drvDemandEvenMessage.
   ///
   /// In uz, this message translates to:
@@ -878,6 +902,30 @@ abstract class AppLocalizations {
   /// **'Haydovchi'**
   String get drvDriver;
 
+  /// No description provided for @drvDropoffArrived.
+  ///
+  /// In uz, this message translates to:
+  /// **'Manzilga yetib keldim'**
+  String get drvDropoffArrived;
+
+  /// No description provided for @drvDropoffWaitCashNote.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kutish haqi naqd summaga qo\'shiladi — mijozdan jami {amount} oling'**
+  String drvDropoffWaitCashNote(String amount);
+
+  /// No description provided for @drvDropoffWaitFree.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bepul kutish: {time}'**
+  String drvDropoffWaitFree(String time);
+
+  /// No description provided for @drvDropoffWaitPaid.
+  ///
+  /// In uz, this message translates to:
+  /// **'Pullik kutish: {minutes} daq · {amount}'**
+  String drvDropoffWaitPaid(int minutes, String amount);
+
   /// No description provided for @drvEarnings.
   ///
   /// In uz, this message translates to:
@@ -1021,6 +1069,18 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Telefoningizda joylashuv (GPS) o\'chirilgan — xarita to\'g\'ri ishlashi uchun uni yoqing.'**
   String get drvGpsDisabled;
+
+  /// No description provided for @drvHandoverCodeHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'4 xonali kod mijozning ilovasida ko\'rinadi.'**
+  String get drvHandoverCodeHint;
+
+  /// No description provided for @drvHandoverCodeTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Mijozdan topshirish kodini so\'rang'**
+  String get drvHandoverCodeTitle;
 
   /// No description provided for @drvHelp.
   ///
@@ -1819,6 +1879,30 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Qayta urinish'**
   String get drvRetry;
+
+  /// No description provided for @drvReturnBannerHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Tovarni olingan joyga olib boring. Qaytarishni sotuvchi (posilkada — yuboruvchi) tasdiqlaydi, shundan keyin safar yopiladi va to\'lov hisoblanadi.'**
+  String get drvReturnBannerHint;
+
+  /// No description provided for @drvReturnBannerTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Tovarni qaytaring'**
+  String get drvReturnBannerTitle;
+
+  /// No description provided for @drvReturnDestination.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qaytarish manzili'**
+  String get drvReturnDestination;
+
+  /// No description provided for @drvReturnedSuccess.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qaytarish tasdiqlandi!'**
+  String get drvReturnedSuccess;
 
   /// No description provided for @drvReupload.
   ///
@@ -4742,6 +4826,12 @@ abstract class AppLocalizations {
   /// **'Xizmat hududidan tashqarida'**
   String get paxOutsideServiceArea;
 
+  /// No description provided for @paxParcelConfirmReturned.
+  ///
+  /// In uz, this message translates to:
+  /// **'Posilka qaytib keldi'**
+  String get paxParcelConfirmReturned;
+
   /// No description provided for @paxParcelPinHint.
   ///
   /// In uz, this message translates to:
@@ -4753,6 +4843,24 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Topshirish kodi'**
   String get paxParcelPinTitle;
+
+  /// No description provided for @paxParcelReturnFeeExplain.
+  ///
+  /// In uz, this message translates to:
+  /// **'To\'lov: yetkazish haqi + qaytarish haqi (yetkazish haqining {percent}%)'**
+  String paxParcelReturnFeeExplain(int percent);
+
+  /// No description provided for @paxParcelReturningHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Haydovchi posilkani topshira olmadi va uni sizga qaytarmoqda. Posilkani qo\'lingizga olgach, tasdiqlang.'**
+  String get paxParcelReturningHint;
+
+  /// No description provided for @paxParcelReturningTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Posilka qaytarilmoqda'**
+  String get paxParcelReturningTitle;
 
   /// No description provided for @paxPaymentCard.
   ///
@@ -5942,6 +6050,18 @@ abstract class AppLocalizations {
   /// **'Yengil'**
   String get saCargoLight;
 
+  /// No description provided for @saCargoLoaders.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yuk ortuvchilar (ixtiyoriy)'**
+  String get saCargoLoaders;
+
+  /// No description provided for @saCargoLoadersRange.
+  ///
+  /// In uz, this message translates to:
+  /// **'0 dan 10 tagacha'**
+  String get saCargoLoadersRange;
+
   /// No description provided for @saCargoSubtitle.
   ///
   /// In uz, this message translates to:
@@ -5983,6 +6103,18 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Transport turi'**
   String get saCargoVehicleType;
+
+  /// No description provided for @saCargoWeight.
+  ///
+  /// In uz, this message translates to:
+  /// **'Og\'irligi, kg (ixtiyoriy)'**
+  String get saCargoWeight;
+
+  /// No description provided for @saCargoWeightRange.
+  ///
+  /// In uz, this message translates to:
+  /// **'1 dan 20 000 kg gacha'**
+  String get saCargoWeightRange;
 
   /// No description provided for @saCart.
   ///
@@ -6109,6 +6241,18 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Qo\'llab-quvvatlashga yozish'**
   String get saContactSupport;
+
+  /// No description provided for @saCourierAtDoor.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kuryer eshik oldida'**
+  String get saCourierAtDoor;
+
+  /// No description provided for @saCourierAtDoorHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kuryer {minutes} daqiqa bepul kutadi, keyin kutish pullik.'**
+  String saCourierAtDoorHint(int minutes);
 
   /// No description provided for @saCurrentAddress.
   ///
@@ -6331,6 +6475,18 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Bosh sahifaga o\'tish'**
   String get saGoToHome;
+
+  /// No description provided for @saHandoverCodeHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kuryer buyurtmani shu kodsiz topshira olmaydi. Kodni buyurtmani qo\'lingizga olganda ayting.'**
+  String get saHandoverCodeHint;
+
+  /// No description provided for @saHandoverCodeTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kuryerga ayting'**
+  String get saHandoverCodeTitle;
 
   /// No description provided for @saHelpCenter.
   ///
@@ -6662,11 +6818,53 @@ abstract class AppLocalizations {
   /// **'Manzilni tanlash'**
   String get saParcelContinue;
 
+  /// No description provided for @saParcelDeclaredValue.
+  ///
+  /// In uz, this message translates to:
+  /// **'Posilka qiymati, so\'m'**
+  String get saParcelDeclaredValue;
+
+  /// No description provided for @saParcelDeclaredValueHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Masalan: 150000'**
+  String get saParcelDeclaredValueHint;
+
+  /// No description provided for @saParcelDeclaredValueRange.
+  ///
+  /// In uz, this message translates to:
+  /// **'1 dan {max} so\'mgacha bo\'lishi kerak'**
+  String saParcelDeclaredValueRange(String max);
+
+  /// No description provided for @saParcelDeclaredValueRequired.
+  ///
+  /// In uz, this message translates to:
+  /// **'Posilka qiymatini kiriting'**
+  String get saParcelDeclaredValueRequired;
+
   /// No description provided for @saParcelPinInfo.
   ///
   /// In uz, this message translates to:
   /// **'Haydovchi posilkani faqat PIN kod bilan topshiradi. Kodni buyurtma berganingizdan keyin ko\'rasiz — uni qabul qiluvchiga ayting.'**
   String get saParcelPinInfo;
+
+  /// No description provided for @saParcelProhibitedConfirm.
+  ///
+  /// In uz, this message translates to:
+  /// **'Posilkada taqiqlangan narsa yo\'qligini tasdiqlayman'**
+  String get saParcelProhibitedConfirm;
+
+  /// No description provided for @saParcelProhibitedRequired.
+  ///
+  /// In uz, this message translates to:
+  /// **'Davom etish uchun tasdiqlang'**
+  String get saParcelProhibitedRequired;
+
+  /// No description provided for @saParcelProhibitedTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yuborish taqiqlangan'**
+  String get saParcelProhibitedTitle;
 
   /// No description provided for @saParcelRecipientName.
   ///
@@ -6932,6 +7130,48 @@ abstract class AppLocalizations {
   /// **'Safarlar'**
   String get saProfileTrips;
 
+  /// No description provided for @saProhibitedAlcohol.
+  ///
+  /// In uz, this message translates to:
+  /// **'Alkogol'**
+  String get saProhibitedAlcohol;
+
+  /// No description provided for @saProhibitedDocuments.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hujjatlar'**
+  String get saProhibitedDocuments;
+
+  /// No description provided for @saProhibitedDrugs.
+  ///
+  /// In uz, this message translates to:
+  /// **'Giyohvand moddalar'**
+  String get saProhibitedDrugs;
+
+  /// No description provided for @saProhibitedLiveAnimals.
+  ///
+  /// In uz, this message translates to:
+  /// **'Tirik hayvonlar'**
+  String get saProhibitedLiveAnimals;
+
+  /// No description provided for @saProhibitedMedicine.
+  ///
+  /// In uz, this message translates to:
+  /// **'Dori-darmon'**
+  String get saProhibitedMedicine;
+
+  /// No description provided for @saProhibitedMoney.
+  ///
+  /// In uz, this message translates to:
+  /// **'Pul'**
+  String get saProhibitedMoney;
+
+  /// No description provided for @saProhibitedWeapons.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qurol'**
+  String get saProhibitedWeapons;
+
   /// No description provided for @saPromoActive.
   ///
   /// In uz, this message translates to:
@@ -7058,6 +7298,18 @@ abstract class AppLocalizations {
   /// **'Yangilash'**
   String get saRefresh;
 
+  /// No description provided for @saRefundDoneLine.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kartangizga qaytarildi: {amount}'**
+  String saRefundDoneLine(String amount);
+
+  /// No description provided for @saRefundDueLine.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kartangizga qaytariladi: {amount}'**
+  String saRefundDueLine(String amount);
+
   /// No description provided for @saReorderAction.
   ///
   /// In uz, this message translates to:
@@ -7117,6 +7369,36 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Restoranlar topilmadi'**
   String get saRestaurantsNotFound;
+
+  /// No description provided for @saReturnChargeExplain.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yetkazish haqi + qaytarish haqi (yetkazish haqining {percent}%)'**
+  String saReturnChargeExplain(int percent);
+
+  /// No description provided for @saReturnChargeLine.
+  ///
+  /// In uz, this message translates to:
+  /// **'To\'lanadi: {amount}'**
+  String saReturnChargeLine(String amount);
+
+  /// No description provided for @saReturnedTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Buyurtma qaytarildi'**
+  String get saReturnedTitle;
+
+  /// No description provided for @saReturningHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kuryer buyurtmani topshira olmadi va uni sotuvchiga qaytarmoqda.'**
+  String get saReturningHint;
+
+  /// No description provided for @saReturningTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'Buyurtma qaytarilmoqda'**
+  String get saReturningTitle;
 
   /// No description provided for @saSave.
   ///
@@ -7743,6 +8025,18 @@ abstract class AppLocalizations {
   /// **'Tayyorlanmoqda'**
   String get shDeliveryPreparing;
 
+  /// No description provided for @shDeliveryReturned.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qaytarildi'**
+  String get shDeliveryReturned;
+
+  /// No description provided for @shDeliveryReturning.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qaytarilmoqda'**
+  String get shDeliveryReturning;
+
   /// No description provided for @shDriverFallbackName.
   ///
   /// In uz, this message translates to:
@@ -7778,6 +8072,24 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Noma\'lum xatolik yuz berdi'**
   String get shErrorUnknown;
+
+  /// No description provided for @shFailReasonCustomerAbsent.
+  ///
+  /// In uz, this message translates to:
+  /// **'Mijoz yo\'q'**
+  String get shFailReasonCustomerAbsent;
+
+  /// No description provided for @shFailReasonCustomerRefused.
+  ///
+  /// In uz, this message translates to:
+  /// **'Mijoz rad etdi'**
+  String get shFailReasonCustomerRefused;
+
+  /// No description provided for @shFailReasonUnreachable.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bog\'lanib bo\'lmadi'**
+  String get shFailReasonUnreachable;
 
   /// No description provided for @shFareBase.
   ///

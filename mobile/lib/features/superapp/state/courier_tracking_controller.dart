@@ -44,9 +44,17 @@ class CourierTrackingController extends ChangeNotifier {
   String? _orderStatus;
 
   /// Buyurtma yetkazildi yoki bekor qilindi — kuzatadigan narsa qolmadi.
-  bool get isFinished => isDelivered || isCancelled;
+  bool get isFinished => isDelivered || isCancelled || isReturnFlow;
   bool get isDelivered => _orderStatus == 'delivered';
   bool get isCancelled => _orderStatus == 'cancelled';
+
+  /// Kuryer topshira olmadi — tovar sotuvchiga qaytarilmoqda/qaytarildi
+  /// (docs/INCIDENT-POLICY.md §2). Mijoz uchun kuzatuv shu bilan tugaydi.
+  bool get isReturnFlow =>
+      _orderStatus == 'returning' ||
+      _orderStatus == 'returned' ||
+      _tracking.deliveryFailedAt != null;
+  bool get isReturned => _orderStatus == 'returned';
 
   /// Kuryerning oxirgi ma'lum joyi. `null` — hali birorta paket kelmadi.
   final ValueNotifier<LatLng?> courierLocation = ValueNotifier<LatLng?>(null);

@@ -108,6 +108,10 @@ class ApiEndpoints {
   static String startTrip(String id) => '/orders/$id/start';
   static String vendorPaid(String id) => '/orders/$id/vendor-paid';
   static String completeTrip(String id) => '/orders/$id/complete';
+  // Yetkazish hodisalari (docs/INCIDENT-POLICY.md §2).
+  static String dropoffArrived(String id) => '/orders/$id/dropoff-arrived';
+  static String deliveryFailed(String id) => '/orders/$id/delivery-failed';
+  static String confirmReturned(String id) => '/orders/$id/confirm-returned';
   static const String updateLocation = '/drivers/location';
   static const String driverDocuments = '/drivers/documents';
 

@@ -210,17 +210,86 @@ class FoodProvider extends ChangeNotifier {
     }
   }
 
+  bool _listening = false;
+
   void _listenToOrderEvents() {
-    _socketService.on(SocketEvents.foodOrderStatus, (data) {
-      if (data is Map && _activeOrder != null && data['orderId'] == _activeOrder!.id) {
-        final status = foodOrderStatusFromString(data['status'] as String? ?? '');
-        _activeOrder = _activeOrder!.copyWith(status: status);
-        notifyListeners();
-        if (!status.isActive) {
-          _socketService.off(SocketEvents.foodOrderStatus);
-        }
-      }
-    });
+    // Nomlangan tinglovchilar va bayroq — qayta chaqirilganda ikki marta
+    // ishlamasin (`checkActiveOrder` har ochilishda chaqiriladi).
+    if (_listening) return;
+    _listening = true;
+    _socketService.on(SocketEvents.foodOrderStatus, _onStatusEvent);
+    _socketService.on(SocketEvents.foodOrderCourier, _onCourierEvent);
+  }
+
+  void _stopListening() {
+    _listening = false;
+    _socketService.off(SocketEvents.foodOrderStatus, _onStatusEvent);
+    _socketService.off(SocketEvents.foodOrderCourier, _onCourierEvent);
+  }
+
+  /// `{orderId, status}`; qaytarish (docs/INCIDENT-POLICY.md §2) — `returning`
+  /// `{reason}` bilan, `returned` `{returnCharge, refundDue}` bilan keladi.
+  @visibleForTesting
+  void applyStatusEvent(dynamic data) => _onStatusEvent(data);
+
+  void _onStatusEvent(dynamic data) {
+    if (data is! Map) return;
+    final orderId = data['orderId'];
+    if (orderId is! String || !_knows(orderId)) return;
+    final status = foodOrderStatusFromString(data['status'] as String? ?? '');
+    _update(orderId, (o) => o.copyWith(
+          status: status,
+          returnCharge: (data['returnCharge'] as num?)?.toDouble(),
+          refundDue: (data['refundDue'] as num?)?.toDouble(),
+        ));
+    // Qaytarish boshlandi/tugadi — to'liq ma'lumot (sabab, summa) serverdan.
+    if (status.isReturnFlow) unawaited(refreshOrder(orderId));
+  }
+
+  /// Kuryer bosqichi: `dropoff_arrived` — "Kuryer eshik oldida". Boshqa
+  /// bosqichlarda (qabul qildi, olib ketdi) topshirish kodi paydo bo'ladi —
+  /// buyurtma serverdan qayta olinadi.
+  @visibleForTesting
+  void applyCourierEvent(dynamic data) => _onCourierEvent(data);
+
+  void _onCourierEvent(dynamic data) {
+    if (data is! Map) return;
+    final orderId = data['orderId'];
+    if (orderId is! String || !_knows(orderId)) return;
+    if (data['stage'] == 'dropoff_arrived') {
+      _update(orderId, (o) {
+        final delivery = o.delivery;
+        return delivery == null
+            ? o
+            : o.copyWith(delivery: delivery.withDropoffArrived(DateTime.now()));
+      });
+    }
+    unawaited(refreshOrder(orderId));
+  }
+
+  bool _knows(String id) =>
+      _activeOrder?.id == id || _orderHistory.any((o) => o.id == id);
+
+  /// Faol buyurtma VA tarixdagi nusxa birga yangilanadi — tafsilot ekrani
+  /// tarixdagisini o'qiydi.
+  void _update(String id, FoodOrder Function(FoodOrder) next) {
+    _orderHistory = [for (final o in _orderHistory) o.id == id ? next(o) : o];
+    if (_activeOrder?.id == id) _activeOrder = next(_activeOrder!);
+    notifyListeners();
+  }
+
+  /// `GET /food/orders/:id` — topshirish kodi, kuryer holati, qaytarish summasi.
+  Future<void> refreshOrder(String id) async {
+    try {
+      final response = await _apiClient.get(ApiEndpoints.foodOrderById(id));
+      final body = response.data;
+      final data = body is Map<String, dynamic> ? body['data'] : null;
+      if (data is! Map<String, dynamic>) return;
+      final fresh = FoodOrder.fromJson(data);
+      _update(id, (_) => fresh);
+    } catch (e) {
+      debugPrint('[FoodProvider] refreshOrder error: $e');
+    }
   }
 
   Future<void> checkActiveOrder() async {
@@ -244,6 +313,8 @@ class FoodProvider extends ChangeNotifier {
       final response = await _apiClient.get(ApiEndpoints.foodOrders);
       final list = (response.data as Map<String, dynamic>)['data'] as List<dynamic>;
       _orderHistory = list.map((e) => FoodOrder.fromJson(e as Map<String, dynamic>)).toList();
+      // Tarixdagi buyurtma ham qaytarilishi mumkin (§2) — hodisalar kerak.
+      _listenToOrderEvents();
       notifyListeners();
     } catch (e) {
       debugPrint('[FoodProvider] loadOrderHistory error: $e');
@@ -279,9 +350,6 @@ class FoodProvider extends ChangeNotifier {
     _orderHistory = [for (final o in _orderHistory) o.id == id ? next(o) : o];
     if (_activeOrder?.id == id) {
       _activeOrder = next(_activeOrder!);
-      if (!_activeOrder!.status.isActive) {
-        _socketService.off(SocketEvents.foodOrderStatus);
-      }
     }
     notifyListeners();
   }
@@ -293,14 +361,14 @@ class FoodProvider extends ChangeNotifier {
   }
 
   void clearActiveOrder() {
-    _socketService.off(SocketEvents.foodOrderStatus);
+    _stopListening();
     _activeOrder = null;
     notifyListeners();
   }
 
   @override
   void dispose() {
-    _socketService.off(SocketEvents.foodOrderStatus);
+    _stopListening();
     super.dispose();
   }
 }

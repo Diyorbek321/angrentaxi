@@ -267,6 +267,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       tone: switch (order.status) {
         FoodOrderStatus.cancelled => AppStatusTone.danger,
         FoodOrderStatus.delivered => AppStatusTone.success,
+        FoodOrderStatus.returning || FoodOrderStatus.returned => AppStatusTone.warning,
         _ => AppStatusTone.info,
       },
       stages: [
@@ -276,7 +277,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
         context.l10n.saStageDelivered,
       ],
       stageIndex: switch (order.status) {
-        FoodOrderStatus.cancelled => null,
+        // Qaytarish — bosqich chizig'idan tashqari holat.
+        FoodOrderStatus.cancelled || FoodOrderStatus.returning || FoodOrderStatus.returned => null,
         FoodOrderStatus.newOrder => 0,
         FoodOrderStatus.preparing => 1,
         FoodOrderStatus.ready => 2,
@@ -307,6 +309,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       tone: switch (order.status) {
         MarketOrderStatus.cancelled => AppStatusTone.danger,
         MarketOrderStatus.delivered => AppStatusTone.success,
+        MarketOrderStatus.returning || MarketOrderStatus.returned => AppStatusTone.warning,
         _ => AppStatusTone.info,
       },
       stages: [
@@ -316,7 +319,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
         context.l10n.saStageDelivered,
       ],
       stageIndex: switch (order.status) {
-        MarketOrderStatus.cancelled => null,
+        // Qaytarish — bosqich chizig'idan tashqari holat.
+        MarketOrderStatus.cancelled || MarketOrderStatus.returning || MarketOrderStatus.returned => null,
         MarketOrderStatus.newOrder => 0,
         MarketOrderStatus.packing => 1,
         MarketOrderStatus.shipped => 2,

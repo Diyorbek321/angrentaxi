@@ -18,6 +18,11 @@ class CourierTracking extends Equatable {
     this.carNumber,
     this.pickup,
     this.dropoff,
+    this.dropoffArrivedAt,
+    this.deliveryFailedAt,
+    this.deliveryFailureReason,
+    this.deliveryOutcome,
+    this.handoverCode,
   });
 
   final String orderId;
@@ -32,6 +37,26 @@ class CourierTracking extends Equatable {
 
   /// Mijozning manzili.
   final LatLng? dropoff;
+
+  /// Kuryer mijoz manziliga yetib keldi — "Kuryer eshik oldida".
+  final DateTime? dropoffArrivedAt;
+
+  /// "Yetkazib bo'lmadi" — kuryer tovarni sotuvchiga qaytarmoqda.
+  final DateTime? deliveryFailedAt;
+  final String? deliveryFailureReason;
+
+  /// `returned` — qaytarildi; `null` — topshirildi yoki hali yo'lda.
+  final String? deliveryOutcome;
+
+  /// Topshirish kodi (docs/INCIDENT-POLICY.md §2). FAQAT mijoz javobida va
+  /// faqat kuryer yo'lda bo'lganda keladi — mijoz uni kuryerga aytadi.
+  final String? handoverCode;
+
+  /// Kuryer eshik oldida va hali topshirmagan/qaytarmagan.
+  bool get isAtDoor =>
+      dropoffArrivedAt != null &&
+      deliveryFailedAt == null &&
+      status == OrderStatus.inProgress;
 
   bool get hasCourier => driverName != null || driverPhone != null;
 
@@ -60,8 +85,36 @@ class CourierTracking extends Equatable {
       carNumber: json['carNumber'] as String?,
       pickup: _point(json['pickup']),
       dropoff: _point(json['dropoff']),
+      dropoffArrivedAt: _date(json['dropoffArrivedAt']),
+      deliveryFailedAt: _date(json['deliveryFailedAt']),
+      deliveryFailureReason: _text(json['deliveryFailureReason']),
+      deliveryOutcome: _text(json['deliveryOutcome']),
+      handoverCode: _text(json['handoverCode']),
     );
   }
+
+  /// Socket `stage: dropoff_arrived` — to'liq yangilanishgacha darhol.
+  CourierTracking withDropoffArrived(DateTime at) => CourierTracking(
+        orderId: orderId,
+        status: status,
+        driverName: driverName,
+        driverPhone: driverPhone,
+        carModel: carModel,
+        carNumber: carNumber,
+        pickup: pickup,
+        dropoff: dropoff,
+        dropoffArrivedAt: dropoffArrivedAt ?? at,
+        deliveryFailedAt: deliveryFailedAt,
+        deliveryFailureReason: deliveryFailureReason,
+        deliveryOutcome: deliveryOutcome,
+        handoverCode: handoverCode,
+      );
+
+  static DateTime? _date(dynamic value) =>
+      value is String ? DateTime.tryParse(value)?.toLocal() : null;
+
+  static String? _text(dynamic value) =>
+      value is String && value.trim().isNotEmpty ? value.trim() : null;
 
   static LatLng? _point(dynamic value) {
     if (value is! Map) return null;
@@ -73,5 +126,19 @@ class CourierTracking extends Equatable {
 
   @override
   List<Object?> get props =>
-      [orderId, status, driverName, driverPhone, carModel, carNumber, pickup, dropoff];
+      [
+        orderId,
+        status,
+        driverName,
+        driverPhone,
+        carModel,
+        carNumber,
+        pickup,
+        dropoff,
+        dropoffArrivedAt,
+        deliveryFailedAt,
+        deliveryFailureReason,
+        deliveryOutcome,
+        handoverCode,
+      ];
 }

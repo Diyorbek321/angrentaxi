@@ -182,6 +182,10 @@
   "drvDebtConsequence": "Naqd safarlar komissiyasi. Qarz yopilmaguncha onlayn chiqib bo'lmaydi.",
   "drvDecline": "Rad etish",
   "drvDeliveryAddress": "Yetkazish manzili",
+  "drvDeliveryFailed": "Yetkazib bo'lmadi",
+  "drvDeliveryFailedHint": "Tovar olingan joyga qaytariladi. Mijoz yetkazish va qaytarish haqini to'laydi.",
+  "drvDeliveryFailedLocked": "Bepul kutish tugagach ochiladi",
+  "drvDeliveryFailedTitle": "Nima bo'ldi?",
   "drvDemandEvenMessage": "Zonalar orasida farq yo‘q — istalgan joyda kutishingiz mumkin. Maʼlumot har daqiqada yangilanadi.",
   "drvDemandEvenTitle": "Hozir talab hamma joyda oddiy",
   "drvDemandHigh": "Talab yuqori",
@@ -236,6 +240,34 @@
   "drvDocsExpiringSoon": "Ba'zi hujjatlarning muddati tugayapti. Ishingiz to'xtab qolmasligi uchun oldindan yangilang.",
   "drvDocsExpiringSoonShort": "Ba'zi hujjatlarning muddati tugayapti. Oldindan yangilab qo'ying.",
   "drvDriver": "Haydovchi",
+  "drvDropoffArrived": "Manzilga yetib keldim",
+  "drvDropoffWaitCashNote": "Kutish haqi naqd summaga qo'shiladi — mijozdan jami {amount} oling",
+  "@drvDropoffWaitCashNote": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "drvDropoffWaitFree": "Bepul kutish: {time}",
+  "@drvDropoffWaitFree": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "drvDropoffWaitPaid": "Pullik kutish: {minutes} daq · {amount}",
+  "@drvDropoffWaitPaid": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "drvEarnings": "Daromad",
   "drvEditProfile": "Ma'lumotlarni tahrirlash",
   "drvEmergencyCall": "Favqulodda chaqiruv (102/103)",
@@ -270,6 +302,8 @@
     }
   },
   "drvGpsDisabled": "Telefoningizda joylashuv (GPS) o'chirilgan — xarita to'g'ri ishlashi uchun uni yoqing.",
+  "drvHandoverCodeHint": "4 xonali kod mijozning ilovasida ko'rinadi.",
+  "drvHandoverCodeTitle": "Mijozdan topshirish kodini so'rang",
   "drvHelp": "Yordam",
   "drvHeroSemBonus": "{name}: {threshold} tadan {count} ta bajarildi",
   "@drvHeroSemBonus": {
@@ -545,6 +579,10 @@
   },
   "drvRestaurant": "Restoran",
   "drvRetry": "Qayta urinish",
+  "drvReturnBannerHint": "Tovarni olingan joyga olib boring. Qaytarishni sotuvchi (posilkada — yuboruvchi) tasdiqlaydi, shundan keyin safar yopiladi va to'lov hisoblanadi.",
+  "drvReturnBannerTitle": "Tovarni qaytaring",
+  "drvReturnDestination": "Qaytarish manzili",
+  "drvReturnedSuccess": "Qaytarish tasdiqlandi!",
   "drvReupload": "Qayta yuklash",
   "drvRouteToCargo": "Yukka yo'l",
   "drvRouteToParcel": "Posilkaga yo'l",
@@ -1672,8 +1710,19 @@
   "paxOrderDetails": "Buyurtma tafsilotlari",
   "paxOrderMissingRouteOrTariff": "Manzil va tarif tanlanmagan",
   "paxOutsideServiceArea": "Xizmat hududidan tashqarida",
+  "paxParcelConfirmReturned": "Posilka qaytib keldi",
   "paxParcelPinHint": "Qabul qiluvchiga ayting. Haydovchi posilkani shu kodsiz topshira olmaydi.",
   "paxParcelPinTitle": "Topshirish kodi",
+  "paxParcelReturnFeeExplain": "To'lov: yetkazish haqi + qaytarish haqi (yetkazish haqining {percent}%)",
+  "@paxParcelReturnFeeExplain": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "paxParcelReturningHint": "Haydovchi posilkani topshira olmadi va uni sizga qaytarmoqda. Posilkani qo'lingizga olgach, tasdiqlang.",
+  "paxParcelReturningTitle": "Posilka qaytarilmoqda",
   "paxPaymentCard": "Karta",
   "paxPaymentCash": "Naqd",
   "paxPaymentMethods": "To'lov usullari",
@@ -2134,6 +2183,8 @@
   "saCargoCallCourier": "Kuryer chaqirish",
   "saCargoCourier": "Kuryer",
   "saCargoLight": "Yengil",
+  "saCargoLoaders": "Yuk ortuvchilar (ixtiyoriy)",
+  "saCargoLoadersRange": "0 dan 10 tagacha",
   "saCargoSubtitle": "Shahar ichida tez yetkazib berish",
   "saCargoTitle": "Cargo · Yuk yetkazish",
   "saCargoTruck": "Yuk",
@@ -2141,6 +2192,8 @@
   "saCargoUpTo300kg": "300 kg gacha",
   "saCargoUpTo5kg": "5 kg gacha",
   "saCargoVehicleType": "Transport turi",
+  "saCargoWeight": "Og'irligi, kg (ixtiyoriy)",
+  "saCargoWeightRange": "1 dan 20 000 kg gacha",
   "saCart": "Savat",
   "saCartBarLabel": "Savatga buyurtma",
   "saCartBarSemantics": "Savat: {count} ta mahsulot, {total}. {action}",
@@ -2210,6 +2263,15 @@
   "saConfirmOrder": "Buyurtmani tasdiqlash",
   "saContactOperator": "Operator bilan bog'lanish",
   "saContactSupport": "Qo'llab-quvvatlashga yozish",
+  "saCourierAtDoor": "Kuryer eshik oldida",
+  "saCourierAtDoorHint": "Kuryer {minutes} daqiqa bepul kutadi, keyin kutish pullik.",
+  "@saCourierAtDoorHint": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
   "saCurrentAddress": "Joriy manzil",
   "saCurrentLocation": "Joriy joylashuv",
   "saDealMinOrder": "{amount} dan buyurtmada",
@@ -2302,6 +2364,8 @@
   },
   "saGoToCart": "Savatga o'tish",
   "saGoToHome": "Bosh sahifaga o'tish",
+  "saHandoverCodeHint": "Kuryer buyurtmani shu kodsiz topshira olmaydi. Kodni buyurtmani qo'lingizga olganda ayting.",
+  "saHandoverCodeTitle": "Kuryerga ayting",
   "saHelpCenter": "Yordam markazi",
   "saInviteFriends": "Do'stlarni taklif qilish",
   "saLoading": "Yuklanmoqda",
@@ -2399,7 +2463,21 @@
   "saOtherStoreConfirm": "Tozalab qo'shish",
   "saOtherStoreTitle": "Boshqa do'kon",
   "saParcelContinue": "Manzilni tanlash",
+  "saParcelDeclaredValue": "Posilka qiymati, so'm",
+  "saParcelDeclaredValueHint": "Masalan: 150000",
+  "saParcelDeclaredValueRange": "1 dan {max} so'mgacha bo'lishi kerak",
+  "@saParcelDeclaredValueRange": {
+    "placeholders": {
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "saParcelDeclaredValueRequired": "Posilka qiymatini kiriting",
   "saParcelPinInfo": "Haydovchi posilkani faqat PIN kod bilan topshiradi. Kodni buyurtma berganingizdan keyin ko'rasiz — uni qabul qiluvchiga ayting.",
+  "saParcelProhibitedConfirm": "Posilkada taqiqlangan narsa yo'qligini tasdiqlayman",
+  "saParcelProhibitedRequired": "Davom etish uchun tasdiqlang",
+  "saParcelProhibitedTitle": "Yuborish taqiqlangan",
   "saParcelRecipientName": "Qabul qiluvchi ismi (ixtiyoriy)",
   "saParcelRecipientPhone": "Qabul qiluvchi telefoni",
   "saParcelSize": "O'lchami",
@@ -2489,6 +2567,13 @@
   "saProfileRating": "Reyting",
   "saProfileSupport247": "24/7 qo'llab-quvvatlash xizmati",
   "saProfileTrips": "Safarlar",
+  "saProhibitedAlcohol": "Alkogol",
+  "saProhibitedDocuments": "Hujjatlar",
+  "saProhibitedDrugs": "Giyohvand moddalar",
+  "saProhibitedLiveAnimals": "Tirik hayvonlar",
+  "saProhibitedMedicine": "Dori-darmon",
+  "saProhibitedMoney": "Pul",
+  "saProhibitedWeapons": "Qurol",
   "saPromoActive": "FAOL",
   "saPromoApplied": "{code} qo'llandi",
   "@saPromoApplied": {
@@ -2545,6 +2630,22 @@
   "saQtyDecrease": "Miqdorni kamaytirish",
   "saQtyIncrease": "Miqdorni oshirish",
   "saRefresh": "Yangilash",
+  "saRefundDoneLine": "Kartangizga qaytarildi: {amount}",
+  "@saRefundDoneLine": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "saRefundDueLine": "Kartangizga qaytariladi: {amount}",
+  "@saRefundDueLine": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "saReorderAction": "Yana buyurtma qilish",
   "saReorderLoading": "Menyu tekshirilmoqda…",
   "saReorderNothingAvailable": "Bu buyurtmadagi mahsulotlar hozir mavjud emas",
@@ -2562,6 +2663,25 @@
   "saReorderUnavailable": "Bu joy hozir buyurtma qabul qilmayapti",
   "saRestaurantNotFound": "Restoran topilmadi",
   "saRestaurantsNotFound": "Restoranlar topilmadi",
+  "saReturnChargeExplain": "Yetkazish haqi + qaytarish haqi (yetkazish haqining {percent}%)",
+  "@saReturnChargeExplain": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "saReturnChargeLine": "To'lanadi: {amount}",
+  "@saReturnChargeLine": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "saReturnedTitle": "Buyurtma qaytarildi",
+  "saReturningHint": "Kuryer buyurtmani topshira olmadi va uni sotuvchiga qaytarmoqda.",
+  "saReturningTitle": "Buyurtma qaytarilmoqda",
   "saSave": "Saqlash",
   "saSaveAddressAction": "Saqlash",
   "saSaveAddressHint": "Nomi, masalan: Uy",
@@ -2750,6 +2870,8 @@
   "shDeliveryDelivered": "Yetkazildi",
   "shDeliveryOnTheWay": "Yo'lda",
   "shDeliveryPreparing": "Tayyorlanmoqda",
+  "shDeliveryReturned": "Qaytarildi",
+  "shDeliveryReturning": "Qaytarilmoqda",
   "shDriverFallbackName": "Haydovchi",
   "shErrorGeneric": "Xatolik yuz berdi",
   "shErrorNoInternet": "Internet bilan muammo bor",
@@ -2763,6 +2885,9 @@
   },
   "shErrorTimeout": "Ulanish vaqti tugadi. Internetni tekshiring",
   "shErrorUnknown": "Noma'lum xatolik yuz berdi",
+  "shFailReasonCustomerAbsent": "Mijoz yo'q",
+  "shFailReasonCustomerRefused": "Mijoz rad etdi",
+  "shFailReasonUnreachable": "Bog'lanib bo'lmadi",
   "shFareBase": "Asos",
   "shFareDistance": "Masofa ({km} km × {price})",
   "@shFareDistance": {
