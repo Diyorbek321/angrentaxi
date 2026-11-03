@@ -1,6 +1,6 @@
 # Angren Taxi — qolgan ishlar
 
-Oxirgi yangilanish: 2026-11-03. Bu fayl faqat **hali ochiq** ishlar uchun — bajarilganlar tarixi `git log` da.
+Oxirgi yangilanish: 2026-11-04. Bu fayl faqat **hali ochiq** ishlar uchun — bajarilganlar tarixi `git log` da.
 
 Prod: Oracle Free ARM VM (`deploy/oracle`, sslip.io domeni) — Railway 2026-10-15 dan ishlatilmaydi.
 Oxirgi prod deploy: `d4a7f75` (2026-11-01). Oxirgi APK: v21 (2026-11-01, `02d5388`).
@@ -25,9 +25,19 @@ Oxirgi prod deploy: `d4a7f75` (2026-11-01). Oxirgi APK: v21 (2026-11-01, `02d538
 - [ ] **Haqiqiy domen** — hozir `92-5-69-158.sslip.io`; almashtirilsa `DOMAIN` + panellarni qayta yig'ish.
 - [ ] **Azure TTS** — ovoz bo'laklari edge-tts bilan (tijorat uchun rasmiy ruxsat yo'q). `mobile/.env.voice` ga `AZURE_TTS_KEY`/`AZURE_TTS_REGION` → `python3 tool/generate_voice_clips.py --force`.
 
+## 🛡 Hodisalar tizimi (2026-11-04, 15fe41d, push qilinmagan)
+
+- [ ] **Push + deploy** — 047–053 migratsiyalar boot'da ishlaydi; keyin yangi APK (v22) yig'ib telefonda sinash: SOS, ulashish havolasi, ilova orqali qo'ng'iroq, "Muammo bor", kech bekor qilish, "chiqmadi", safar uzildi, yetkazib bo'lmadi.
+- [ ] **Panellarni brauzerda tekshirish** — hodisalar navbati, SOS ovozi, buyurtma dalillari, yangi sozlamalar.
+- [ ] **Hamyon qarzini to'lash yo'li yo'q** — jarima qarzi osilib qoladi (haydovchiga ham kutilmoqda).
+- [ ] **SOS/chat `created_at` timezone'siz** — vaqt 5 soat siljiydi.
+- [ ] **Posilka oluvchi raqami kuryerga ochiq** — yashirish kerak.
+- [ ] **Karta `refund_due` qaytarish** — hozir qo'lda.
+
 ## 🚀 Yangi APK tarqalgach
 
 - [ ] **Haydovchi oferta darvozasini yoqish** — server `.env.prod` ga `LEGAL_DRIVER_TERMS_GATE=on`, backend qayta ishga tushirish. Eski APK'da rozilik oynasi yo'q, shuning uchun hozir o'chiq.
+- [ ] **Eski APK yon berishlarini olib tashlash** — `X-Client-Features` yo'q ilovaga raqam ko'rinadi va kech bekor qilish jarimasi kechiriladi.
 
 ## 📱 Google Play Console
 
