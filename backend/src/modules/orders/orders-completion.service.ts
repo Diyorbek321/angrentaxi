@@ -17,6 +17,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, IsNull, Not, QueryFailedError, Repository } from 'typeorm';
 import { TaximeterService } from '../taximeter/taximeter.service';
 import { Order, OrderStatus, PaymentMethod, ServiceType } from '../../database/entities/order.entity';
+import { capInterruptedFare, TripInterruption } from './trip-interruption';
 import {
   dropoffWaitingMinutes,
   isHandoverRide,
@@ -161,7 +162,9 @@ export class OrdersCompletionService {
     // `returned` — "yetkazib bo'lmadi" dan keyin tovar qaytib keldi
     // (`OrdersReturnService.confirmReturned`): narxga qaytarish haqi qo'shiladi,
     // kod so'ralmaydi, sotuvchiga `delivered` emas `returned` e'lon qilinadi.
-    options: { byDispatcher?: boolean; returned?: boolean } = {},
+    // `interruption` — safar uzildi (avariya/buzilish, INCIDENT-POLICY §5):
+    // shu nuqtagacha narx (`trip-interruption.ts`), kod so'ralmaydi.
+    options: { byDispatcher?: boolean; returned?: boolean; interruption?: TripInterruption } = {},
   ): Promise<Order> {
     const order = await this.queryService.findByIdOrThrow(orderId);
 
@@ -191,7 +194,8 @@ export class OrdersCompletionService {
     // Posilka, ovqat va market faqat qabul qiluvchi aytgan kod bilan
     // topshiriladi (§2). Dispetcher (kod bloklanganda, qabul qiluvchi bilan
     // gaplashib) va qaytarish undan ozod.
-    if (isHandoverRide(order) && !options.byDispatcher && !returned) {
+    const interruption = options.interruption ?? null;
+    if (isHandoverRide(order) && !options.byDispatcher && !returned && !interruption) {
       await this.verifyDeliveryPin(orderId, deliveryPin, order.serviceType);
     }
 
@@ -212,7 +216,9 @@ export class OrdersCompletionService {
     // to'xtashlar bo'ylab o'lchanadi (pastdagi `plannedPathDistanceKm`).
     actualDistanceKm = order.isMetered
       ? await this.meteredDistanceKm(orderId)
-      : await this.plannedPathDistanceKm(orderId);
+      : interruption
+        ? interruption.distanceKm
+        : await this.plannedPathDistanceKm(orderId);
 
     // Yakuniy narx — endi qatorlarga ajratilgan holda, chunki chek uni
     // jonli tarifdan qayta hisoblay olmaydi (tarif keyin o'zgarishi mumkin).
@@ -253,12 +259,12 @@ export class OrdersCompletionService {
     //
     // Eski buyurtmalarda `isFixedPrice = false` va `fareBreakdown = null` —
     // ular hisoblagich yo'lidan o'tadi, ya'ni bugungi xulq saqlanadi.
-    const useQuote = order.isFixedPrice && order.fareBreakdown != null;
+    const useQuote = !interruption && order.isFixedPrice && order.fareBreakdown != null;
 
     // OPSIYA HAQI: qat'iy narxda quote'ning ichida; hisoblagich yo'lida esa
     // buyurtma berilganda MUZLATILGAN qatorlar qayta qo'shiladi
     // (`trip-option-fees.ts`) — sozlama keyin o'zgargan bo'lsa ham.
-    const rideFare = useQuote
+    const meterFare = useQuote
       ? order.fareBreakdown!
       : withOptionsFare(
           this.tariffsService.calculatePriceBreakdown(
@@ -269,6 +275,10 @@ export class OrdersCompletionService {
           ),
           order.fareBreakdown?.optionCharges ?? [],
         );
+    // Uzilgan safar qat'iy narxdan qimmat bo'lmaydi.
+    const rideFare = interruption
+      ? capInterruptedFare(meterFare, order.fareBreakdown ?? null, order.isFixedPrice)
+      : meterFare;
 
     // ⚠️ KUTISH — IKKALA REJIM UCHUN BITTA JOYDA. Ataylab shunday: qoida
     // ikki tarmoqqa ko'chirilsa, ular vaqt o'tishi bilan ajralib ketardi va
@@ -435,6 +445,7 @@ export class OrdersCompletionService {
           driverEarning: split.driverEarning,
           fareBreakdown,
           completedAt: now,
+          ...(interruption ? { tripOutcome: 'interrupted' as const, interruptReason: interruption.reason } : {}),
         },
       );
       if (!claim.affected) {

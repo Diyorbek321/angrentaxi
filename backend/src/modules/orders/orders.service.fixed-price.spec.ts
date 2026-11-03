@@ -274,8 +274,10 @@ describe('Qat\'iy narx qoidasi', () => {
       'utf8',
     );
 
+    // Uzilgan safar (INCIDENT-POLICY §5) quote'ni chetlab o'tadi —
+    // `trip-interruption.spec.ts` sinaydi; oddiy safar uchun shart o'zgarmagan.
     expect(source).toContain(
-      'const useQuote = order.isFixedPrice && order.fareBreakdown != null;',
+      'const useQuote = !interruption && order.isFixedPrice && order.fareBreakdown != null;',
     );
   });
 });

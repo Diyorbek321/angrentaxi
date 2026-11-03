@@ -4,6 +4,7 @@ import { DataSource, In, MoreThanOrEqual, Repository } from 'typeorm';
 import { Incident, IncidentStatus } from '../../database/entities/incident.entity';
 import { SettingsService } from '../settings/settings.service';
 import { DEFAULT_INCIDENT_SETTINGS, IncidentSettings } from '../settings/incident-settings';
+import { DEFAULT_SAFETY_POLICY_SETTINGS } from '../settings/safety-policy-settings';
 
 export interface SubmittedRating {
   id: string;
@@ -116,5 +117,83 @@ export class IncidentSignalsService {
       }),
     );
     this.logger.log(`Rating signal for driver ${driverUserId}: avg ${avg}`);
+  }
+
+  /**
+   * Haydovchi qabul qilgan buyurtmani bekor qildi (INCIDENT-POLICY §5): pul
+   * yo'q, lekin sanaladi. Bugun ≥ `driverCancelSignalCount` — tizim hodisasi
+   * menejer navbatiga (kuniga bir marta; ochig'i bo'lsa matni yangilanadi).
+   * "Yo'lovchi chiqmadi" sanalmaydi — u haydovchining aybi emas.
+   */
+  async onDriverCancelled(driverUserId: string, now: Date = new Date()): Promise<void> {
+    const threshold = this.settingsService
+      ? (await this.settingsService.getSafetyPolicySettings()).driverCancelSignalCount
+      : DEFAULT_SAFETY_POLICY_SETTINGS.driverCancelSignalCount;
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+    const [row] = (await this.dataSource.query(
+      `SELECT COUNT(*)::int AS cnt FROM orders
+        WHERE driver_id = $1 AND cancelled_by = 'driver' AND cancelled_at >= $2
+          AND cancel_reason IS DISTINCT FROM 'no_show'`,
+      [driverUserId, startOfDay],
+    )) as Array<{ cnt: number }>;
+    const count = Number(row?.cnt ?? 0);
+    if (count < threshold) return;
+
+    const description = `Bugun ${count} ta qabul qilingan buyurtma bekor qilindi (chegara ${threshold})`;
+    const today = await this.incidents.findOne({
+      where: { subjectUserId: driverUserId, source: 'driver_cancel_signal', createdAt: MoreThanOrEqual(startOfDay) },
+    });
+    if (today) {
+      if (today.status === IncidentStatus.OPEN || today.status === IncidentStatus.INVESTIGATING) {
+        await this.incidents.update(today.id, { description });
+      }
+      return;
+    }
+    await this.incidents.save(
+      this.incidents.create({
+        reporterUserId: null,
+        reporterRole: 'system',
+        subjectUserId: driverUserId,
+        subjectRole: 'driver',
+        category: 'driver_cancels',
+        description,
+        source: 'driver_cancel_signal',
+      }),
+    );
+    this.logger.log(`Driver cancel signal for ${driverUserId}: ${count} today`);
+  }
+
+  /**
+   * Safar avariya bilan uzildi (§5) — xavfsizlik hodisasi menejer navbatiga.
+   * Avtomatik to'xtatish YO'Q (tamoyil 4): avariya haydovchining aybi
+   * bo'lmasligi mumkin, odam qaror qiladi.
+   */
+  async onTripInterrupted(input: {
+    orderId: string;
+    driverUserId: string | null;
+    passengerId: string;
+    note: string | null;
+    byRole: 'driver' | 'manager';
+  }): Promise<void> {
+    const existing = await this.incidents.count({
+      where: { orderVertical: 'taxi', orderId: input.orderId, source: 'trip_interrupted' },
+    });
+    if (existing > 0) return;
+    await this.incidents.save(
+      this.incidents.create({
+        reporterUserId: null,
+        reporterRole: 'system',
+        subjectUserId: input.driverUserId,
+        subjectRole: input.driverUserId ? 'driver' : null,
+        orderVertical: 'taxi',
+        orderId: input.orderId,
+        category: 'safety',
+        description: `Safar avariya sababli uzildi (${input.byRole === 'driver' ? 'haydovchi' : 'menejer'} belgiladi)${
+          input.note ? `: ${input.note}` : ''
+        }`.slice(0, 1000),
+        source: 'trip_interrupted',
+      }),
+    );
   }
 }

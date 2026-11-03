@@ -17,7 +17,14 @@ describe('SettingsService — xavfsizlik siyosati sozlamalari', () => {
 
   it('standart qiymatlar — siyosat hujjatidagidek', async () => {
     await expect(build().service.getSafetyPolicySettings()).resolves.toEqual(DEFAULT_SAFETY_POLICY_SETTINGS);
-    expect(DEFAULT_SAFETY_POLICY_SETTINGS).toMatchObject({ tripShareGraceMinutes: 30 });
+    expect(DEFAULT_SAFETY_POLICY_SETTINGS).toMatchObject({
+      tripShareGraceMinutes: 30,
+      freeCancelMinutes: 2,
+      lateCancelFee: 3000,
+      noShowWaitMinutes: 5,
+      noShowFee: 5000,
+      driverCancelSignalCount: 3,
+    });
   });
 
   it("noto'g'ri qiymat — standart", () => {

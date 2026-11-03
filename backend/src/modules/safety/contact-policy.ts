@@ -30,12 +30,19 @@ export function callWindowOpen(status: OrderStatus): boolean {
   return DRIVER_ACTIVE_ORDER_STATUSES.includes(status);
 }
 
-export function clientSupportsCallRelay(header: string | string[] | undefined): boolean {
+/** Ilova "Bekor qilish narxi" ni tasdiqlashdan oldin ko'rsatadi (INCIDENT-POLICY §5). */
+export const CANCEL_FEE_FEATURE = 'cancel-fee';
+
+export function clientHasFeature(header: string | string[] | undefined, feature: string): boolean {
   const raw = Array.isArray(header) ? header.join(',') : (header ?? '');
   return raw
     .split(',')
     .map((part) => part.trim().toLowerCase())
-    .includes(CALL_RELAY_FEATURE);
+    .includes(feature);
+}
+
+export function clientSupportsCallRelay(header: string | string[] | undefined): boolean {
+  return clientHasFeature(header, CALL_RELAY_FEATURE);
 }
 
 export interface ContactViewer {

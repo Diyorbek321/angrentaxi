@@ -13,6 +13,10 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { OrderContactMaskingInterceptor } from '../safety/contact-masking.interceptor';
+import { CANCEL_FEE_FEATURE, CLIENT_FEATURES_HEADER, clientHasFeature } from '../safety/contact-policy';
+import { InterruptedTrip, OrdersInterruptionService } from './orders-interruption.service';
+import { InterruptTripDto } from './dto/interrupt-trip.dto';
+import type { CancelFeeQuote } from './taxi-cancel-policy';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -74,7 +78,13 @@ export class OrdersController {
     @Optional() private readonly vendorCash?: VendorCashService,
     @Optional() private readonly idempotency?: OrderIdempotencyService,
     @Optional() private readonly returns?: OrdersReturnService,
+    @Optional() private readonly interruption?: OrdersInterruptionService,
   ) {}
+
+  private requireInterruption(): OrdersInterruptionService {
+    if (!this.interruption) throw new Error('OrdersInterruptionService is not wired');
+    return this.interruption;
+  }
 
   private requireReturns(): OrdersReturnService {
     if (!this.returns) throw new Error('OrdersReturnService is not wired');
@@ -569,7 +579,56 @@ export class OrdersController {
     @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: CancelOrderDto,
+    @Headers(CLIENT_FEATURES_HEADER) features?: string,
   ): Promise<Order> {
-    return this.ordersService.cancelOrder(user.id, user.role, id, dto.reason);
+    // Eski APK jarimani ko'rsatmaydi — unga jarima qo'llanmaydi (§5).
+    return this.ordersService.cancelOrder(user.id, user.role, id, dto.reason, {
+      expectedFee: dto.expectedFee,
+      legacyClient: !clientHasFeature(features, CANCEL_FEE_FEATURE),
+    });
+  }
+
+  /** Yo'lovchi: hozir bekor qilsam qancha (INCIDENT-POLICY §5) — tasdiqlashdan OLDIN. */
+  @Get(':id/cancel-fee')
+  @Roles(...PASSENGER_APP_ROLES)
+  @ApiOperation({ summary: 'Passenger: the late-cancel fee that would apply right now' })
+  @ApiParam({ name: 'id', description: 'Order UUID' })
+  async getCancelFee(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string): Promise<CancelFeeQuote> {
+    return this.ordersService.quoteCancelFee(user.id, user.role, id);
+  }
+
+  /** Haydovchi: "Yo'lovchi chiqmadi" — server vaqti bo'yicha kutish tekshiriladi (§5). */
+  @Patch(':id/no-show')
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({ summary: 'Driver: passenger did not show up (after the wait); fee goes to the driver' })
+  @ApiParam({ name: 'id', description: 'Order UUID' })
+  async markNoShow(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string): Promise<Order> {
+    return this.ordersService.markNoShow(user.id, id);
+  }
+
+  /** Haydovchi: safar uzildi (avariya/buzilish) — shu nuqtagacha narx (§5). */
+  @Patch(':id/interrupt')
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({ summary: 'Driver: trip interrupted (accident/breakdown) — fare up to this point' })
+  @ApiParam({ name: 'id', description: 'Order UUID' })
+  async interruptTrip(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: InterruptTripDto,
+  ): Promise<InterruptedTrip> {
+    return this.requireInterruption().interrupt(id, user, dto);
+  }
+
+  @Patch(':id/manager/interrupt')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DISPATCH)
+  @ApiOperation({ summary: 'Dispatcher: mark an in-progress trip interrupted' })
+  @ApiParam({ name: 'id', description: 'Order UUID' })
+  async managerInterruptTrip(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: InterruptTripDto,
+  ): Promise<InterruptedTrip> {
+    return this.requireInterruption().interrupt(id, user, dto);
   }
 }

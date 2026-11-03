@@ -32,11 +32,13 @@ export const INCIDENT_CATEGORIES = [
   'other',
   'rating_signal',
   'low_rating',
+  // Tizim: haydovchi bir kunda ko'p bekor qildi (§5).
+  'driver_cancels',
 ] as const;
 export type IncidentCategory = (typeof INCIDENT_CATEGORIES)[number];
 
 /** Tizim toifalari — `POST /incidents` ularni qabul qilmaydi. */
-export const SYSTEM_CATEGORIES: readonly IncidentCategory[] = ['rating_signal', 'low_rating'];
+export const SYSTEM_CATEGORIES: readonly IncidentCategory[] = ['rating_signal', 'low_rating', 'driver_cancels'];
 
 /**
  * Bezorilik / ta'qib / xavfsizlik — subyekt DARHOL to'xtatiladi, admin

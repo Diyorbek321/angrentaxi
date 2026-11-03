@@ -586,4 +586,17 @@ export const ERROR_CATALOGUE: readonly ErrorCatalogueEntry[] = [
   { source: 'Havola muddati tugagan', ru: 'Срок действия ссылки истёк' },
   { source: "Qo'ng'iroq faqat faol buyurtma davomida mumkin", ru: 'Позвонить можно только во время активного заказа' },
   { source: 'Qarshi tomon raqami mavjud emas', ru: 'Номер собеседника недоступен' },
+  // ─── Taksi: bekor qilish, kelmaslik, uzilish (INCIDENT-POLICY §5) ────
+  { source: "Bekor qilish endi {0} so'm turadi. Qayta tasdiqlang", ru: 'Отмена теперь стоит {0} сум. Подтвердите ещё раз' },
+  {
+    source: "Yo'lovchini yana biroz kuting — kelmaganini keyinroq belgilash mumkin",
+    ru: 'Подождите пассажира ещё немного — отметить неявку можно позже',
+  },
+  { source: "Bu buyurtmada «yo'lovchi chiqmadi» belgilanmaydi", ru: 'Для этого заказа нельзя отметить «пассажир не вышел»' },
+  { source: 'Avval manzilga yetib kelganingizni belgilang', ru: 'Сначала отметьте, что вы прибыли на место' },
+  { source: 'Faqat boshlangan safarni uzish mumkin', ru: 'Прервать можно только начатую поездку' },
+  {
+    source: "Bu buyurtmani uzib bo'lmaydi — yetkazishni boshqa kuryerga biriktiring",
+    ru: 'Этот заказ нельзя прервать — назначьте доставку другому курьеру',
+  },
 ];

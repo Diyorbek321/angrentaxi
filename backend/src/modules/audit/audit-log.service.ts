@@ -62,6 +62,10 @@ export const AUDIT_ACTIONS = {
   orderCallRequest: 'order.call_request',
   /** Xodim buyurtma dalillarini (GPS izi, chat, SOS) ko'rdi. `metadata.sections`. */
   orderEvidenceView: 'order.evidence_view',
+  /** Kech bekor qilish / kelmaslik jarimasi (INCIDENT-POLICY §5). `amount`, `metadata.kind`/`status`. */
+  orderCancelFee: 'order.cancel_fee',
+  /** Safar uzildi (avariya/buzilish) — shu nuqtagacha narx. `metadata.reason`, `finalPrice`. */
+  orderInterrupted: 'order.interrupted',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

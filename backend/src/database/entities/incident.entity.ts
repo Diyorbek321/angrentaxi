@@ -28,7 +28,14 @@ export enum IncidentStatus {
 export type IncidentVertical = 'taxi' | 'food' | 'market';
 
 /** Kim ochdi: foydalanuvchi, menejer, yoki tizim signali. */
-export type IncidentSource = 'user' | 'manager' | 'rating_signal' | 'low_rating';
+export type IncidentSource =
+  | 'user'
+  | 'manager'
+  | 'rating_signal'
+  | 'low_rating'
+  // INCIDENT-POLICY §5 (migratsiya 052): haydovchi kunda ko'p bekor qildi / safar uzildi.
+  | 'driver_cancel_signal'
+  | 'trip_interrupted';
 
 export type IncidentPartyRole = 'passenger' | 'driver' | 'vendor' | 'manager' | 'system';
 

@@ -63,7 +63,12 @@ describe('OrderStatusTransitionService.acceptForDriver', () => {
     await service.acceptForDriver('order-1', 'driver-1');
 
     expect(queryBuilder.update).toHaveBeenCalledWith(Order);
-    expect(queryBuilder.set).toHaveBeenCalledWith({ driverId: 'driver-1', status: OrderStatus.ACCEPTED });
+    expect(queryBuilder.set).toHaveBeenCalledWith({
+      driverId: 'driver-1',
+      status: OrderStatus.ACCEPTED,
+      // Bepul bekor qilish oynasi shundan (INCIDENT-POLICY §5).
+      acceptedAt: expect.any(Date),
+    });
     expect(queryBuilder.andWhere).toHaveBeenCalledWith('status IN (:...expectedStatuses)', {
       expectedStatuses: [OrderStatus.SEARCHING],
     });

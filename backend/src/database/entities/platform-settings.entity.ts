@@ -167,6 +167,21 @@ export class PlatformSettings {
   @Column({ name: 'trip_share_grace_minutes', type: 'int', default: 30 })
   tripShareGraceMinutes: number;
 
+  @Column({ name: 'free_cancel_minutes', type: 'int', default: 2 })
+  freeCancelMinutes: number;
+
+  @Column({ name: 'late_cancel_fee', type: 'int', default: 3000 })
+  lateCancelFee: number;
+
+  @Column({ name: 'no_show_wait_minutes', type: 'int', default: 5 })
+  noShowWaitMinutes: number;
+
+  @Column({ name: 'no_show_fee', type: 'int', default: 5000 })
+  noShowFee: number;
+
+  @Column({ name: 'driver_cancel_signal_count', type: 'int', default: 3 })
+  driverCancelSignalCount: number;
+
   // Safar opsiyalari haqi, so'm (migratsiya 023): `{ child_seat: 5000 }`.
   // Menejer belgilaydi; o'qish `normalizeTripOptionFees` orqali.
   @Column({ name: 'trip_option_fees', type: 'jsonb', default: () => "'{}'" })

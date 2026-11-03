@@ -137,6 +137,15 @@ export const ERROR_CODES = {
   incidentAppealNotAllowed: 'INCIDENT_APPEAL_NOT_ALLOWED',
   /** Hodisa holati bu amalga mos emas (409). `details: { status }`. */
   incidentStateConflict: 'INCIDENT_STATE_CONFLICT',
+  /**
+   * Bekor qilish jarimasi ilova ko'rsatganidan katta (bepul oyna tugadi /
+   * haydovchi yetib keldi) — qayta tasdiqlash kerak (409). `details: { fee, reason }`.
+   */
+  cancelFeeChanged: 'CANCEL_FEE_CHANGED',
+  /** "Yo'lovchi chiqmadi" hali mumkin emas (400). `details: { reason, waitUntil }`. */
+  noShowNotAllowed: 'NO_SHOW_NOT_ALLOWED',
+  /** Safarni uzib bo'lmaydi (400). `details: { reason }`. */
+  tripInterruptNotAllowed: 'TRIP_INTERRUPT_NOT_ALLOWED',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];

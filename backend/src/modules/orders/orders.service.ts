@@ -4,6 +4,7 @@
 // that preserves the single injectable surface every other module already
 // depends on (controller, matching, realtime, safety, trip-chat, food,
 // market...) so splitting the implementation stayed a no-op for callers.
+import type { CancelFeeQuote } from './taxi-cancel-policy';
 import { Injectable } from '@nestjs/common';
 import { Order } from '../../database/entities/order.entity';
 import { DispatchOverride } from '../../database/entities/dispatch-override.entity';
@@ -105,8 +106,19 @@ export class OrdersService {
     userRole: UserRole,
     orderId: string,
     reason?: string,
+    options: { expectedFee?: number; legacyClient?: boolean } = {},
   ): Promise<Order> {
-    return this.dispatchService.cancelOrder(userId, userRole, orderId, reason);
+    return this.dispatchService.cancelOrder(userId, userRole, orderId, reason, options);
+  }
+
+  /** Yo'lovchi hozir bekor qilsa jarima (INCIDENT-POLICY §5). */
+  quoteCancelFee(userId: string, userRole: UserRole, orderId: string): Promise<CancelFeeQuote> {
+    return this.dispatchService.quoteCancelFee(userId, userRole, orderId);
+  }
+
+  /** Haydovchi: "Yo'lovchi chiqmadi" (§5). */
+  markNoShow(driverUserId: string, orderId: string): Promise<Order> {
+    return this.dispatchService.markNoShow(driverUserId, orderId);
   }
 
   // --- Reads ---

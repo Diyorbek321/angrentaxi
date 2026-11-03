@@ -93,7 +93,8 @@ export class OrderStatusTransitionService {
       const result = await manager
         .createQueryBuilder()
         .update(Order)
-        .set({ driverId, status: OrderStatus.ACCEPTED })
+        // `acceptedAt` — bepul bekor qilish oynasi shundan (INCIDENT-POLICY §5).
+        .set({ driverId, status: OrderStatus.ACCEPTED, acceptedAt: new Date() })
         .where('id = :id', { id: orderId })
         .andWhere('status IN (:...expectedStatuses)', { expectedStatuses: [OrderStatus.SEARCHING] })
         .execute();

@@ -1,3 +1,5 @@
+import { OrdersInterruptionService } from './orders-interruption.service';
+import { IncidentSignalsModule } from '../incidents/incident-signals.module';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TaximeterModule } from '../taximeter/taximeter.module';
@@ -53,6 +55,9 @@ import { ShiftPassesModule } from '../shift-passes/shift-passes.module';
     // Smena: faol smena komissiyani 0 qiladi; daromad ekrani smena narxini
     // ko'rsatadi. Modul orders'ni import qilmaydi — aylanma bog'liqlik yo'q.
     ShiftPassesModule,
+    // Haydovchi bekor qilish signali va uzilgan safar hodisasi (§5). Kichik
+    // modul — faqat incidents jadvali + sozlamalar, aylanma bog'liqlik yo'q.
+    IncidentSignalsModule,
   ],
   controllers: [OrdersController],
   // ⚠️ `ScheduledOrdersService` ATAYLAB `ORDERS_PROVIDERS` dan TASHQARIDA.
@@ -73,6 +78,8 @@ import { ShiftPassesModule } from '../shift-passes/shift-passes.module';
     // Yetkazish hodisalari (INCIDENT-POLICY §2) — ovqat/market sotuvchi
     // tasdig'i uchun eksport qilinadi.
     OrdersReturnService,
+    // Taksi: safar uzildi (INCIDENT-POLICY §5) — controller'ga ixtiyoriy.
+    OrdersInterruptionService,
   ],
   // Only the facade is exported — other modules must keep depending on
   // OrdersService, not on the internal collaborator services.

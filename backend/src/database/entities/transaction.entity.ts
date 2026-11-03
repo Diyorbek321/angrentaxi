@@ -119,6 +119,12 @@ export const FARE_BONUS_SPEND_LEDGER_TAG = 'fare_bonus_spend';
   unique: true,
   where: "external_id LIKE 'referral_bonus_%'",
 })
+// Taksi jarimasi (kech bekor qilish / kelmaslik, INCIDENT-POLICY §5):
+// `taxi_fee_charge_<orderId>` / `taxi_fee_payout_<orderId>` — bir marta (migratsiya 052).
+@Index('uq_transactions_taxi_fee', ['externalId'], {
+  unique: true,
+  where: "external_id LIKE 'taxi_fee_%'",
+})
 @Entity('transactions')
 export class Transaction {
   @PrimaryGeneratedColumn('uuid')

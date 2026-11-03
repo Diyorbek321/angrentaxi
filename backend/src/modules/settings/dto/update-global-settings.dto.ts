@@ -225,4 +225,39 @@ export class UpdateGlobalSettingsDto {
   @Min(SL.tripShareGraceMinutes.min)
   @Max(SL.tripShareGraceMinutes.max)
   tripShareGraceMinutes?: number;
+
+  @ApiPropertyOptional({ example: 2, description: "Qabuldan shuncha daqiqa ichida bepul bekor qilish" })
+  @IsOptional()
+  @IsInt()
+  @Min(SL.freeCancelMinutes.min)
+  @Max(SL.freeCancelMinutes.max)
+  freeCancelMinutes?: number;
+
+  @ApiPropertyOptional({ example: 3000, description: "Kech bekor qilish jarimasi, so'm (haydovchiga)" })
+  @IsOptional()
+  @IsInt()
+  @Min(SL.lateCancelFee.min)
+  @Max(SL.lateCancelFee.max)
+  lateCancelFee?: number;
+
+  @ApiPropertyOptional({ example: 5, description: "Yetib kelgach shuncha daqiqadan keyin 'chiqmadi'" })
+  @IsOptional()
+  @IsInt()
+  @Min(SL.noShowWaitMinutes.min)
+  @Max(SL.noShowWaitMinutes.max)
+  noShowWaitMinutes?: number;
+
+  @ApiPropertyOptional({ example: 5000, description: "'Yo'lovchi chiqmadi' jarimasi, so'm (haydovchiga)" })
+  @IsOptional()
+  @IsInt()
+  @Min(SL.noShowFee.min)
+  @Max(SL.noShowFee.max)
+  noShowFee?: number;
+
+  @ApiPropertyOptional({ example: 3, description: "Haydovchi kunda shuncha bekor qilsa — signal" })
+  @IsOptional()
+  @IsInt()
+  @Min(SL.driverCancelSignalCount.min)
+  @Max(SL.driverCancelSignalCount.max)
+  driverCancelSignalCount?: number;
 }

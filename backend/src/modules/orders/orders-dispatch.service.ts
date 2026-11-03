@@ -14,7 +14,13 @@ import {
 import { DeliveryEventsService } from '../delivery/delivery-events.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { DRIVER_ACTIVE_ORDER_STATUSES, Order, OrderStatus } from '../../database/entities/order.entity';
+import {
+  DRIVER_ACTIVE_ORDER_STATUSES,
+  NO_SHOW_CANCEL_REASON,
+  Order,
+  OrderCancelledBy,
+  OrderStatus,
+} from '../../database/entities/order.entity';
 import { DispatchOverride } from '../../database/entities/dispatch-override.entity';
 import { UserRole } from '../../database/entities/user.entity';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
@@ -24,7 +30,19 @@ import { DriversService } from '../drivers/drivers.service';
 import { OrdersQueryService } from './orders-query.service';
 import { OrderStatusTransitionService } from './order-status-transition.service';
 import { MatchingService } from '../matching/matching.service';
-import { ERROR_CODES, codedBadRequest } from '../../common/errors/coded-error';
+import { ERROR_CODES, codedBadRequest, codedConflict } from '../../common/errors/coded-error';
+import { SettingsService } from '../settings/settings.service';
+import { DEFAULT_SAFETY_POLICY_SETTINGS } from '../settings/safety-policy-settings';
+import { AuditLogService } from '../audit/audit-log.service';
+import { IncidentSignalsService } from '../incidents/incident-signals.service';
+import {
+  CancelFeeQuote,
+  checkNoShow,
+  penaltiesApply,
+  quoteCancelFee,
+  TaxiPenaltySettings,
+} from './taxi-cancel-policy';
+import { chargeTaxiFee, TaxiFeeKind } from './taxi-fee-ledger';
 
 @Injectable()
 export class OrdersDispatchService {
@@ -45,6 +63,11 @@ export class OrdersDispatchService {
     // Qidiruvdagi buyurtma bekor/qo'lda biriktirilganda matching navbatini
     // yopish uchun. Ilovada har doim bor (OrdersModule → MatchingModule).
     @Optional() private readonly matching?: MatchingService,
+    // Taksi jarimalari (INCIDENT-POLICY §5). Ixtiyoriy — qo'lda yig'iladigan
+    // spec'lar uchun (u holda standart sozlamalar, jarima audit'siz yozilmaydi).
+    @Optional() private readonly settingsService?: SettingsService,
+    @Optional() private readonly auditLog?: AuditLogService,
+    @Optional() private readonly incidentSignals?: IncidentSignalsService,
   ) {}
 
   /** Statuses in which MatchingService may still be offering the order. */
@@ -158,6 +181,9 @@ export class OrdersDispatchService {
           driverId: newDriver.userId,
           status: OrderStatus.ACCEPTED,
           arrivedAt: null,
+          // Bepul bekor qilish oynasi YANGI haydovchidan boshlanadi — yo'lovchi
+          // almashtirish uchun jarima to'lamasin (INCIDENT-POLICY §5).
+          acceptedAt: new Date(),
         })
         .where('id = :id', { id: orderId })
         .andWhere('status IN (:...expectedStatuses)', {
@@ -255,11 +281,28 @@ export class OrdersDispatchService {
     return updatedOrder;
   }
 
+  /**
+   * Yo'lovchi HOZIR bekor qilsa qancha jarima (INCIDENT-POLICY §5) — ilova
+   * tasdiqlashdan OLDIN ko'rsatadi. Faqat buyurtma egasi so'raydi.
+   */
+  async quoteCancelFee(userId: string, userRole: UserRole, orderId: string, now: Date = new Date()): Promise<CancelFeeQuote> {
+    const order = await this.queryService.findByIdOrThrow(orderId);
+    if (userRole === UserRole.DRIVER || order.passengerId !== userId) {
+      throw new ForbiddenException('You are not authorized to cancel this order');
+    }
+    return quoteCancelFee(order, await this.penaltySettings(), now);
+  }
+
   async cancelOrder(
     userId: string,
     userRole: UserRole,
     orderId: string,
     reason?: string,
+    // `expectedFee` — ilova ko'rsatgan jarima; server hisobi undan katta
+    // bo'lsa 409 (qayta tasdiqlash). `legacyClient` — narxni ko'rsatmaydigan
+    // eski APK: unga jarima QO'LLANMAYDI (ogohlantirilmagan odamdan pul
+    // yechilmasin), jurnalda qoladi.
+    options: { expectedFee?: number; legacyClient?: boolean } = {},
   ): Promise<Order> {
     const order = await this.queryService.findByIdOrThrow(orderId);
     // Bu yo'l o'rindiq hisobini (seats_taken) va kech bekor qilish/kelmaslik
@@ -296,12 +339,159 @@ export class OrdersDispatchService {
       throw new ForbiddenException('You are not authorized to cancel this order');
     }
 
-    await this.statusTransition.updateOrderStatusAtomic(orderId, cancellableStatuses, {
-      status: OrderStatus.CANCELLED,
-      cancelReason: reason ?? null,
+    const now = new Date();
+    const fee = isPassenger ? await this.passengerCancelFee(order, now, options) : 0;
+
+    await this.commitCancellation(order, cancellableStatuses, {
+      reason: reason ?? null,
       cancelledBy: isDriver ? 'driver' : isPassenger ? 'passenger' : 'manager',
+      now,
+      fee,
+      actorUserId: userId,
+      feeKind: 'late_cancel',
     });
 
+    const updatedOrder = await this.announceCancelled(order, userId, userRole, reason);
+
+    // Haydovchi qabul qilgan buyurtmani bekor qildi — pul yo'q, signal bor (§5).
+    if (isDriver && (order.status === OrderStatus.ACCEPTED || order.status === OrderStatus.ARRIVED)) {
+      try {
+        await this.incidentSignals?.onDriverCancelled(userId, now);
+      } catch (err) {
+        this.logger.warn(`Driver cancel signal failed for ${userId}: ${(err as Error).message}`);
+      }
+    }
+
+    return updatedOrder;
+  }
+
+  /**
+   * Haydovchi: "Yo'lovchi chiqmadi" (INCIDENT-POLICY §5). Server vaqti
+   * bo'yicha: yetib kelgandan `noShowWaitMinutes` o'tgach. Buyurtma
+   * bekor (haydovchi, `no_show`), `noShowFee` to'liq haydovchiga.
+   */
+  async markNoShow(driverUserId: string, orderId: string): Promise<Order> {
+    const order = await this.queryService.findByIdOrThrow(orderId);
+    OrdersDispatchService.assertNotIntercity(order);
+    if (order.driverId !== driverUserId) {
+      throw new ForbiddenException('You are not authorized to cancel this order');
+    }
+    const now = new Date();
+    const check = checkNoShow(order, await this.penaltySettings(), now);
+    if (!check.allowed) {
+      throw codedBadRequest(
+        ERROR_CODES.noShowNotAllowed,
+        check.reason === 'too_early'
+          ? "Yo'lovchini yana biroz kuting — kelmaganini keyinroq belgilash mumkin"
+          : check.reason === 'not_taxi'
+            ? "Bu buyurtmada «yo'lovchi chiqmadi» belgilanmaydi"
+            : 'Avval manzilga yetib kelganingizni belgilang',
+        { details: { reason: check.reason, waitUntil: check.waitUntil } },
+      );
+    }
+
+    await this.commitCancellation(order, [OrderStatus.ARRIVED], {
+      reason: NO_SHOW_CANCEL_REASON,
+      cancelledBy: 'driver',
+      now,
+      fee: check.fee,
+      actorUserId: driverUserId,
+      feeKind: 'no_show',
+    });
+    this.logger.log(`Order ${orderId}: passenger no-show marked by driver ${driverUserId}, fee ${check.fee}`);
+    return this.announceCancelled(order, driverUserId, UserRole.DRIVER, NO_SHOW_CANCEL_REASON);
+  }
+
+  private async penaltySettings(): Promise<TaxiPenaltySettings> {
+    return this.settingsService ? this.settingsService.getSafetyPolicySettings() : DEFAULT_SAFETY_POLICY_SETTINGS;
+  }
+
+  private async passengerCancelFee(
+    order: Order,
+    now: Date,
+    options: { expectedFee?: number; legacyClient?: boolean },
+  ): Promise<number> {
+    // Jarima bo'lishi mumkin bo'lmagan holatda sozlama o'qilmaydi.
+    const mayCharge =
+      !!order.driverId &&
+      penaltiesApply(order) &&
+      (order.status === OrderStatus.ACCEPTED || order.status === OrderStatus.ARRIVED);
+    if (!mayCharge) return 0;
+    const quote = quoteCancelFee(order, await this.penaltySettings(), now);
+    if (quote.fee <= 0) return 0;
+    if (options.expectedFee === undefined && options.legacyClient) {
+      this.logger.warn(
+        `Order ${order.id}: late-cancel fee ${quote.fee} waived — client does not show the fee (old app)`,
+      );
+      return 0;
+    }
+    if ((options.expectedFee ?? 0) < quote.fee) {
+      throw codedConflict(
+        ERROR_CODES.cancelFeeChanged,
+        `Bekor qilish endi ${quote.fee} so'm turadi. Qayta tasdiqlang`,
+        { details: { fee: quote.fee, reason: quote.reason } },
+      );
+    }
+    return quote.fee;
+  }
+
+  /**
+   * Holat + (bo'lsa) jarima BITTA tranzaksiyada: shartli UPDATE qatorni
+   * qulflaydi, parallel bekor qilish/qabul 0 qator ko'radi va pul yozilmaydi.
+   */
+  private async commitCancellation(
+    order: Order,
+    expectedStatuses: OrderStatus[],
+    input: {
+      reason: string | null;
+      cancelledBy: OrderCancelledBy;
+      now: Date;
+      fee: number;
+      actorUserId: string;
+      feeKind: TaxiFeeKind;
+    },
+  ): Promise<void> {
+    const update = {
+      status: OrderStatus.CANCELLED,
+      cancelReason: input.reason,
+      cancelledBy: input.cancelledBy,
+      cancelledAt: input.now,
+    };
+    if (input.fee <= 0 || !order.driverId || !this.auditLog) {
+      await this.statusTransition.updateOrderStatusAtomic(order.id, expectedStatuses, update);
+      return;
+    }
+    const auditLog = this.auditLog;
+    const driverUserId = order.driverId;
+    // Haydovchiga faqat CREDIT — daftar manfiyga tushmaydi, oflayn qilish yo'q.
+    await this.dispatchOverrideRepository.manager.transaction(async (manager) => {
+      const result = await manager
+        .createQueryBuilder()
+        .update(Order)
+        .set(update)
+        .where('id = :id', { id: order.id })
+        .andWhere('status IN (:...expectedStatuses)', { expectedStatuses })
+        .execute();
+      if (!result.affected) throw new ConflictException('Order is no longer in the expected state');
+      await chargeTaxiFee(manager, auditLog, {
+        orderId: order.id,
+        passengerId: order.passengerId,
+        driverUserId,
+        fee: input.fee,
+        kind: input.feeKind,
+        actorUserId: input.actorUserId,
+      });
+    });
+  }
+
+  /** Bekor qilingandan keyingi xabarlar — tomonlarga, dispetcherga, sotuvchiga. */
+  private async announceCancelled(
+    order: Order,
+    userId: string,
+    userRole: UserRole,
+    reason: string | undefined,
+  ): Promise<Order> {
+    const orderId = order.id;
     const updatedOrder = await this.queryService.findByIdOrThrow(orderId);
     // ⚠️ Haydovchi YANGI o'qilgan qatordan. `order` qidiruv paytida o'qilgan
     // bo'lsa (driverId = null), shu orada haydovchi qabul qilib ulgurgan
@@ -317,6 +507,8 @@ export class OrdersDispatchService {
       await this.closeSearch(orderId, reason);
     }
 
+    const fee = updatedOrder.cancellationFee ?? null;
+
     // Notify both parties
     if (order.passengerId !== userId) {
       const passenger = await this.usersService.findById(order.passengerId);
@@ -325,6 +517,7 @@ export class OrdersDispatchService {
           orderId,
           reason,
           cancelledBy: userRole,
+          ...(fee ? { cancellationFee: fee } : {}),
         });
         await this.notificationsService.notifyOrderCancelled(passenger, updatedOrder, reason);
       }
@@ -337,6 +530,7 @@ export class OrdersDispatchService {
           orderId,
           reason,
           cancelledBy: userRole,
+          ...(fee ? { cancellationFee: fee } : {}),
         });
         await this.notificationsService.notifyOrderCancelled(driver, updatedOrder, reason);
       }

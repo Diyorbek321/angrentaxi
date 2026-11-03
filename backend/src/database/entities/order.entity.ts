@@ -65,6 +65,14 @@ export type DeliveryOutcome = 'returned';
 
 export type OrderCancelledBy = 'passenger' | 'driver' | 'manager' | 'system';
 
+/** Safar natijasi (INCIDENT-POLICY §5, migratsiya 052). */
+export type TripOutcome = 'interrupted';
+export const INTERRUPT_REASONS = ['accident', 'breakdown', 'other'] as const;
+export type InterruptReason = (typeof INTERRUPT_REASONS)[number];
+
+/** Kelmaslik bilan bekor qilingan buyurtmaning `cancel_reason` qiymati. */
+export const NO_SHOW_CANCEL_REASON = 'no_show';
+
 export enum PaymentMethod {
   CASH = 'cash',
   CARD = 'card',
@@ -123,6 +131,8 @@ export enum ServiceType {
 )
 @Check('chk_orders_delivery_outcome', `"delivery_outcome" IS NULL OR "delivery_outcome" IN ('returned')`)
 @Check('chk_orders_seats_positive', '"seats" IS NULL OR "seats" BETWEEN 1 AND 8')
+// Haydovchining bugungi bekor qilishlari (INCIDENT-POLICY §5, migratsiya 052).
+@Index('idx_orders_driver_cancelled_at', ['driverId', 'cancelledAt'], { where: `"cancelled_by" = 'driver'` })
 @Entity('orders')
 export class Order {
   @PrimaryGeneratedColumn('uuid')
@@ -284,6 +294,40 @@ export class Order {
    */
   @Column({ name: 'arrived_at', type: 'timestamp', nullable: true })
   arrivedAt: Date | null;
+
+  /**
+   * Haydovchi qabul qilgan lahza (migratsiya 052) — bepul bekor qilish
+   * oynasi shundan (INCIDENT-POLICY §5). `arrivedAt` kabi JS `Date`.
+   * Qayta biriktirishda yangilanadi: yo'lovchi almashtirish uchun jarima
+   * to'lamasin. Eski qatorlarda `null` — jarima yo'q.
+   */
+  @Column({ name: 'accepted_at', type: 'timestamp', nullable: true })
+  acceptedAt: Date | null;
+
+  /** Bekor qilingan lahza (migratsiya 052). Eskilarida `null`. */
+  @Column({ name: 'cancelled_at', type: 'timestamp', nullable: true })
+  cancelledAt: Date | null;
+
+  /** Kech bekor qilish / kelmaslik jarimasi, so'm (§5). Yo'q bo'lsa `null`. */
+  @Column({
+    name: 'cancellation_fee',
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+    transformer: {
+      to: (value: number | null) => value,
+      from: (value: string | null) => (value == null ? null : parseFloat(value)),
+    },
+  })
+  cancellationFee: number | null;
+
+  /** `interrupted` — safar avariya/buzilish bilan shu nuqtagacha narxda yakunlandi (§5). */
+  @Column({ name: 'trip_outcome', type: 'varchar', length: 20, nullable: true })
+  tripOutcome: TripOutcome | null;
+
+  @Column({ name: 'interrupt_reason', type: 'varchar', length: 20, nullable: true })
+  interruptReason: InterruptReason | null;
 
   /**
    * Narx QAT'IYmi (yo'lovchiga ko'rsatilgan summa bilan bir xilmi).
