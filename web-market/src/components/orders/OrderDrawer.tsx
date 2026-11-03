@@ -5,6 +5,7 @@ import { Check, MapPin, MessageSquareText, Phone, Truck } from 'lucide-react';
 import { marketApi, MarketOrder } from '@/lib/api';
 import {
   advanceLabelFor,
+  canConfirmReturned,
   deliveryModeLabel,
   terminalLabel,
   orderCustomerName,
@@ -15,7 +16,11 @@ import { formatPhone, formatRelative, formatTime, shortId } from '@/lib/format';
 import { courierState, CourierTone } from '@/lib/courier';
 import { StatusBadge } from '@/components/StatusBadge';
 import { VendorCashStrip } from '@/components/VendorCashStrip';
-import type { VendorSettlementContext } from '@/lib/vendor-cash';
+import { returnCashToCourier, type VendorSettlementContext } from '@/lib/vendor-cash';
+import { formatMoney } from '@/lib/format';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/components/ui/Toast';
+import { ReturnStrip } from './ReturnStrip';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Drawer } from '@/components/ui/Drawer';
@@ -43,6 +48,8 @@ export interface OrderDrawerProps {
 export function OrderDrawer({ order, onClose, onChanged, onError, settlement }: OrderDrawerProps) {
   const [busy, setBusy] = useState(false);
   const [togglingIndex, setTogglingIndex] = useState<number | null>(null);
+  const [confirmingReturn, setConfirmingReturn] = useState(false);
+  const { toast } = useToast();
 
   if (!order) return null;
 
@@ -89,6 +96,23 @@ export function OrderDrawer({ order, onClose, onChanged, onError, settlement }: 
     }
   };
 
+  // Kuryer qaytargan tovar do'konga yetdi — buyurtma "Qaytarildi" bo'ladi.
+  const confirmReturned = async () => {
+    setBusy(true);
+    try {
+      await marketApi.confirmReturned(order.id);
+      setConfirmingReturn(false);
+      await onChanged();
+      toast({ title: m.returns.confirmed, variant: 'success' });
+    } catch (err) {
+      setConfirmingReturn(false);
+      onError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const returnCash = returnCashToCourier(order, settlement);
+
   const advance = async () => {
     setBusy(true);
     try {
@@ -115,7 +139,11 @@ export function OrderDrawer({ order, onClose, onChanged, onError, settlement }: 
             <span className="text-[13px] text-muted">{m.orders.total}</span>
             <MoneyText value={order.totalPrice} className="text-base font-semibold text-ink" />
           </div>
-          {advanceLabel ? (
+          {canConfirmReturned(order) ? (
+            <Button className="w-full" size="lg" isLoading={busy} onClick={() => setConfirmingReturn(true)}>
+              {m.returns.confirm}
+            </Button>
+          ) : advanceLabel ? (
             <Button className="w-full" size="lg" isLoading={busy} disabled={paymentPending} onClick={() => void advance()}>
               {paymentPending ? m.cardPayment.pending : advanceLabel}
             </Button>
@@ -147,6 +175,7 @@ export function OrderDrawer({ order, onClose, onChanged, onError, settlement }: 
 
       <CustomerCancelNotice order={order} />
       <PaymentPendingNotice order={order} className="mt-3" />
+      <ReturnStrip order={order} settlement={settlement} />
 
       {/* Naqd + platforma kuryeri: kuryer tovar pulini do'konga to'laydi. */}
       {order.deliveryMode === 'platform' &&
@@ -236,6 +265,23 @@ export function OrderDrawer({ order, onClose, onChanged, onError, settlement }: 
           ))}
         </ul>
       </div>
+      <ConfirmDialog
+        isOpen={confirmingReturn}
+        onClose={() => setConfirmingReturn(false)}
+        onConfirm={confirmReturned}
+        title={m.returns.confirmTitle}
+        description={
+          returnCash > 0 ? (
+            <>
+              {m.returns.confirmBody} <strong>{m.returns.confirmCash(formatMoney(returnCash))}</strong>
+            </>
+          ) : (
+            m.returns.confirmBody
+          )
+        }
+        confirmLabel={m.returns.confirm}
+        isPending={busy}
+      />
     </Drawer>
   );
 }

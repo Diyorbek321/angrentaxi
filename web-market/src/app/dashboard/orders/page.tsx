@@ -32,7 +32,8 @@ import { isPaymentPending } from '@/lib/order-extras';
 
 type TabKey = 'all' | MarketOrderStatus;
 
-const TAB_ORDER: TabKey[] = ['all', 'new', 'packing', 'shipped', 'delivered', 'cancelled'];
+// Qaytarilayotgani faol holatlardan keyin — sotuvchi tovarni qabul qilishi kerak.
+const TAB_ORDER: TabKey[] = ['all', 'new', 'packing', 'shipped', 'returning', 'delivered', 'returned', 'cancelled'];
 
 const POLL_INTERVAL_MS = 30_000;
 

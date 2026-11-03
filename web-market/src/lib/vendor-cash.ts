@@ -121,3 +121,17 @@ export function vendorCashView(order: VendorCashFields, ctx: VendorSettlementCon
   if (order.vendorCashPaidAt) return { step: 'awaiting_vendor', amount };
   return { step: 'awaiting_courier', amount };
 }
+
+/** Kuryer naqd to'lagani sotuvchi tomonidan rad etilmagan bosqichlar. */
+const COURIER_PAID_CASH_STEPS: ReadonlySet<VendorCashStep> = new Set<VendorCashStep>(['awaiting_vendor', 'confirmed', 'resolved']);
+
+/**
+ * Buyurtma qaytarilganda (INCIDENT-POLICY §2) sotuvchi kuryerga qaytarishi
+ * kerak bo'lgan naqd: kuryer tovar pulini do'konga naqd to'lagan bo'lsa —
+ * tovar summasi. Hamyon o'tkazmasi backend'da avtomatik teskari qilinadi,
+ * "olmadim" nizosida esa sotuvchida pul yo'q — ikkalasida 0.
+ */
+export function returnCashToCourier(order: VendorCashFields, ctx: VendorSettlementContext = {}): number {
+  const view = vendorCashView(order, ctx);
+  return COURIER_PAID_CASH_STEPS.has(view.step) ? view.amount : 0;
+}

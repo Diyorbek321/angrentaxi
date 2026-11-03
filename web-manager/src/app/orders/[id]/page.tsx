@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Ban, CheckCircle2, MapPin, Phone, Star, UserCog } from 'lucide-react';
+import { Ban, CheckCircle2, MapPin, PackageX, Phone, Star, Undo2, UserCog } from 'lucide-react';
 import { getOrderById, cancelOrder, completeOrder, Order } from '@/lib/api';
 import { OrderStatusBadge } from '@/components/orders/OrderStatusBadge';
+import { canMarkDeliveryFailed, deliveryFailureReasonLabels, deliveryState } from '@/lib/delivery-incident';
+import { ConfirmReturnedModal, DeliveryFailedModal } from '@/components/dispatch/DeliveryIncidentModals';
 import { AssignDriverModal } from '@/components/dispatch/AssignDriverModal';
 import { DeliveryExtrasCard } from '@/components/orders/DeliveryExtras';
 import { useDispatchData } from '@/components/dispatch/DispatchDataContext';
@@ -50,6 +52,7 @@ export default function OrderDetailPage() {
   const [isCompleting, setIsCompleting] = useState(false);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [confirming, setConfirming] = useState<'cancel' | 'complete' | null>(null);
+  const [incident, setIncident] = useState<'failed' | 'returned' | null>(null);
   const { toast } = useToast();
   // Drivers come from the shell provider — no second live-drivers request.
   const { drivers } = useDispatchData();
@@ -113,7 +116,11 @@ export default function OrderDetailPage() {
   const canAssign = order && ['created', 'searching'].includes(order.status) && !order.driver;
   const canReassign = order && ['accepted', 'arrived'].includes(order.status) && !!order.driver;
   const canCancel = order && ['created', 'searching', 'accepted', 'arrived'].includes(order.status);
-  const canComplete = order && order.status === 'in_progress';
+  // Qaytarilayotgan safar majburan yakunlanmaydi — faqat "Qaytib keldi".
+  const isReturning = !!order && deliveryState(order) === 'returning';
+  const canComplete = order && order.status === 'in_progress' && !isReturning;
+  const canMarkFailed = !!order && canMarkDeliveryFailed(order);
+  const di = m.dispatch.deliveryIncident;
 
   if (isLoading && !order) return <DetailSkeleton />;
 
@@ -150,7 +157,7 @@ export default function OrderDetailPage() {
         title={
           <span className="inline-flex items-center gap-2.5">
             <span className="font-mono">{shortId(order.id)}</span>
-            <OrderStatusBadge status={order.status} dot />
+            <OrderStatusBadge status={order.status} delivery={deliveryState(order)} dot />
           </span>
         }
         description={<span className="num">{d.createdAt(formatDateTime(order.createdAt, { withYear: true }))}</span>}
@@ -176,6 +183,26 @@ export default function OrderDetailPage() {
                 leftIcon={<CheckCircle2 size={13} aria-hidden />}
               >
                 {d.complete}
+              </Button>
+            )}
+            {canMarkFailed && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setIncident('failed')}
+                leftIcon={<PackageX size={13} aria-hidden />}
+              >
+                {di.failAction}
+              </Button>
+            )}
+            {isReturning && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setIncident('returned')}
+                leftIcon={<Undo2 size={13} aria-hidden />}
+              >
+                {di.returnAction}
               </Button>
             )}
             {canCancel && (
@@ -235,6 +262,28 @@ export default function OrderDetailPage() {
         )}
 
         <DeliveryExtrasCard order={order} />
+
+        {/* Yetkazib bo'lmagan safar: qachon, nima sabab, qachon qaytdi */}
+        {order.deliveryFailedAt && (
+          <DetailCard title={di.cardTitle}>
+            <KeyValueList>
+              {order.dropoffArrivedAt && (
+                <KeyValue label={di.dropoffArrivedAt}>
+                  <span className="num">{formatDateTime(order.dropoffArrivedAt)}</span>
+                </KeyValue>
+              )}
+              <KeyValue label={di.failedAt}>
+                <span className="num">{formatDateTime(order.deliveryFailedAt)}</span>
+              </KeyValue>
+              <KeyValue label={di.reasonLabel}>
+                {order.deliveryFailureReason ? deliveryFailureReasonLabels()[order.deliveryFailureReason] : '—'}
+              </KeyValue>
+              <KeyValue label={di.returnedAt}>
+                <span className="num">{order.returnedAt ? formatDateTime(order.returnedAt) : '—'}</span>
+              </KeyValue>
+            </KeyValueList>
+          </DetailCard>
+        )}
 
         <DetailCard title={d.driver}>
           {order.driver ? (
@@ -361,6 +410,24 @@ export default function OrderDetailPage() {
         confirmLabel={d.complete}
         tone="default"
         isPending={isCompleting}
+      />
+      <DeliveryFailedModal
+        order={order}
+        isOpen={incident === 'failed'}
+        onClose={() => setIncident(null)}
+        onDone={(updated) => {
+          setIncident(null);
+          setOrder(updated);
+        }}
+      />
+      <ConfirmReturnedModal
+        order={order}
+        isOpen={incident === 'returned'}
+        onClose={() => setIncident(null)}
+        onDone={(updated) => {
+          setIncident(null);
+          setOrder(updated);
+        }}
       />
     </PageBody>
   );

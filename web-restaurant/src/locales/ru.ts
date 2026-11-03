@@ -96,12 +96,33 @@ export const ru: Messages = {
     },
   },
 
+  returns: {
+    returningTitle: 'Курьер не смог доставить — товар возвращается',
+    returnedTitle: 'Товар возвращён — выручки по заказу нет',
+    reasons: {
+      customer_absent: 'Клиента нет на месте',
+      customer_refused: 'Клиент отказался',
+      unreachable: 'Не удалось связаться с клиентом',
+    },
+    courier: 'Курьер',
+    cashBack: (amount: string) => `Верните курьеру ${amount} наличными`,
+    confirm: 'Вернулся',
+    confirmTitle: 'Товар вернулся?',
+    confirmBody: 'Подтвердите, что курьер вернул товар в заведение. Заказ станет «Возвращён».',
+    confirmCash: (amount: string) =>
+      `Курьер заплатил заведению ${amount} наличными за этот заказ — примите товар и верните эти деньги курьеру.`,
+    confirmed: (no: string) => `${no} — товар возвращён`,
+    confirmFailed: 'Не удалось подтвердить',
+  },
+
   orderStatus: {
     new: { label: 'Новый', hint: 'Ожидает принятия' },
     preparing: { label: 'Готовится', hint: 'На кухне' },
     ready: { label: 'Готов', hint: 'Ждёт курьера' },
     delivered: { label: 'Доставлен', hint: 'Завершён' },
     cancelled: { label: 'Отменён', hint: 'Отклонён' },
+    returning: { label: 'Возвращается', hint: 'Курьер везёт товар обратно' },
+    returned: { label: 'Возвращён', hint: 'Товар вернулся в заведение' },
   },
 
   advance: {

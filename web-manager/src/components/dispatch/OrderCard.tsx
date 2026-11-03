@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Ban, Car, CheckCircle2, Clock, MapPin, Phone, Star, UserCog } from 'lucide-react';
+import { Ban, Car, CheckCircle2, Clock, MapPin, Phone, PackageX, Star, Undo2, UserCog } from 'lucide-react';
 import { Order, cancelOrder, completeOrder } from '@/lib/api';
 import { OrderStatusBadge } from '@/components/orders/OrderStatusBadge';
+import { canMarkDeliveryFailed, deliveryState } from '@/lib/delivery-incident';
+import { ConfirmReturnedModal, DeliveryFailedModal } from './DeliveryIncidentModals';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Avatar } from '@/components/ui/Avatar';
@@ -38,8 +40,10 @@ export function OrderCard({
   const [isCancelling, setIsCancelling] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const [confirming, setConfirming] = useState<'cancel' | 'complete' | null>(null);
+  const [incident, setIncident] = useState<'failed' | 'returned' | null>(null);
   const { toast } = useToast();
   const m = t().dispatch.orderCard;
+  const di = t().dispatch.deliveryIncident;
   // Elapsed time gates the manual override, but Date.now() must not be read
   // during render — it differs between server and client output.
   const now = useNow(5000);
@@ -57,8 +61,12 @@ export function OrderCard({
     (order.status === 'created' || (order.status === 'searching' && pastAutoMatchWindow));
   const canReassign = ['accepted', 'arrived'].includes(order.status) && !!order.driver;
   const canCancel = ['created', 'searching', 'accepted', 'arrived'].includes(order.status);
-  const canComplete = order.status === 'in_progress';
-  const hasActions = canAssign || canReassign || canCancel || canComplete;
+  // Qaytarilayotgan safarni majburan yakunlab bo'lmaydi (backend rad etadi) —
+  // o'rniga "Qaytib keldi" tasdig'i.
+  const isReturning = deliveryState(order) === 'returning';
+  const canComplete = order.status === 'in_progress' && !isReturning;
+  const canMarkFailed = canMarkDeliveryFailed(order);
+  const hasActions = canAssign || canReassign || canCancel || canComplete || canMarkFailed || isReturning;
 
   // Destructive acts are the one case that earns a blocking confirmation. The
   // outcome feedback is a toast — non-blocking, so the operator's flow isn't
@@ -123,7 +131,7 @@ export function OrderCard({
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <span className="font-mono text-xs font-medium text-muted">{shortId(order.id)}</span>
-            <OrderStatusBadge status={order.status} size="sm" dot />
+            <OrderStatusBadge status={order.status} delivery={deliveryState(order)} size="sm" dot />
           </div>
           <span className="flex items-center gap-1 text-[11px] text-subtle shrink-0">
             <Clock size={11} />
@@ -227,6 +235,28 @@ export function OrderCard({
                 {m.complete}
               </Button>
             )}
+            {canMarkFailed && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setIncident('failed')}
+                leftIcon={<PackageX size={13} />}
+                className="flex-1"
+              >
+                {di.failAction}
+              </Button>
+            )}
+            {isReturning && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setIncident('returned')}
+                leftIcon={<Undo2 size={13} />}
+                className="flex-1"
+              >
+                {di.returnAction}
+              </Button>
+            )}
             {canCancel && (
               <Button
                 size="sm"
@@ -275,6 +305,24 @@ export function OrderCard({
           confirmLabel={m.complete}
           tone="default"
           isPending={isCompleting}
+        />
+        <DeliveryFailedModal
+          order={order}
+          isOpen={incident === 'failed'}
+          onClose={() => setIncident(null)}
+          onDone={(updated) => {
+            setIncident(null);
+            onOrderUpdated(updated);
+          }}
+        />
+        <ConfirmReturnedModal
+          order={order}
+          isOpen={incident === 'returned'}
+          onClose={() => setIncident(null)}
+          onDone={(updated) => {
+            setIncident(null);
+            onOrderUpdated(updated);
+          }}
         />
       </div>
     </Card>

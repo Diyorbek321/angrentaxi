@@ -1,4 +1,4 @@
-import { BellRing, CheckCircle2, ChefHat, PackageCheck, XCircle, type LucideIcon } from 'lucide-react';
+import { BellRing, CheckCircle2, ChefHat, PackageCheck, PackageX, Undo2, XCircle, type LucideIcon } from 'lucide-react';
 import type { FoodOrderStatus } from './api';
 import type { BadgeVariant } from '@/components/ui/Badge';
 import { t } from '@/locales';
@@ -24,6 +24,9 @@ const STATUS_STYLE: Record<FoodOrderStatus, Pick<OrderStatusMeta, 'variant' | 'I
   ready: { variant: 'success', Icon: CheckCircle2 },
   delivered: { variant: 'neutral', Icon: PackageCheck },
   cancelled: { variant: 'muted-danger', Icon: XCircle },
+  // Kuryer yetkaza olmadi — tovar qaytib kelmoqda, sotuvchi qabul qilishi kerak.
+  returning: { variant: 'danger', Icon: Undo2 },
+  returned: { variant: 'muted-danger', Icon: PackageX },
 };
 
 /** Yozuv va izoh faol tilda — render paytida chaqiriladi. */
@@ -56,4 +59,9 @@ export function advanceLabelFor(order: {
 }): string | undefined {
   if (NEXT_STATUS[order.status] === 'delivered' && order.deliveryOrderId) return undefined;
   return advanceLabel(order.status);
+}
+
+/** "Qaytib keldi" tugmasi — faqat kuryer tovarni qaytarayotganda (backend shuni talab qiladi). */
+export function canConfirmReturned(order: { status: FoodOrderStatus }): boolean {
+  return order.status === 'returning';
 }

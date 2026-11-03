@@ -197,6 +197,21 @@ export const lib = {
     resolutionRequired: 'Nizo qanday hal qilinganini yozing',
     resolutionMax: (n: number) => `Izoh ${n} belgidan oshmasin`,
   },
+  deliveryIncident: {
+    noteRequired: 'Nima boʻlganini yozing',
+    noteMax: (n: number) => `Izoh ${n} belgidan oshmasin`,
+    reasons: {
+      customer_absent: 'Mijoz manzilda yoʻq',
+      customer_refused: 'Mijoz rad etdi',
+      unreachable: 'Mijoz bilan bogʻlanib boʻlmadi',
+    },
+    stuckReasons: {
+      too_long: 'Juda uzoq davom etmoqda',
+      stale_location: 'Kuryer joylashuvi eskirgan',
+    },
+    returning: 'Qaytarilmoqda',
+    returned: 'Qaytarildi',
+  },
   invalidCode: 'Notoʻgʻri kod',
   authRoute: {
     phoneAndCodeRequired: 'Telefon raqam va kod talab qilinadi',

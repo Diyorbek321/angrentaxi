@@ -106,6 +106,8 @@ export const ru: Messages = {
       shipped: 'Отправлен',
       delivered: 'Доставлен',
       cancelled: 'Отменён',
+      returning: 'Возвращается',
+      returned: 'Возвращён',
     },
     hint: {
       new: 'Ожидает сборки',
@@ -113,6 +115,8 @@ export const ru: Messages = {
       shipped: 'В пути',
       delivered: 'Завершён',
       cancelled: 'Отклонён',
+      returning: 'Курьер везёт товар обратно',
+      returned: 'Товар вернулся в магазин',
     },
     advance: {
       new: 'Начать сборку',
@@ -122,12 +126,29 @@ export const ru: Messages = {
     terminal: {
       delivered: 'Заказ завершён',
       cancelled: 'Заказ отменён',
+      returned: 'Товар возвращён — выручки по заказу нет',
     },
     deliveryMode: {
       self: 'Доставляет магазин',
       platform: 'Курьер платформы',
     },
     customerFallback: 'Клиент',
+  },
+  returns: {
+    returningTitle: 'Курьер не смог доставить — товар возвращается',
+    reasons: {
+      customer_absent: 'Клиента нет на месте',
+      customer_refused: 'Клиент отказался',
+      unreachable: 'Не удалось связаться с клиентом',
+    },
+    courier: 'Курьер',
+    cashBack: (amount: string) => `Верните курьеру ${amount} наличными`,
+    confirm: 'Вернулся',
+    confirmTitle: 'Товар вернулся?',
+    confirmBody: 'Подтвердите, что курьер вернул товар в магазин. Заказ станет «Возвращён».',
+    confirmCash: (amount: string) =>
+      `Курьер заплатил магазину ${amount} наличными за этот заказ — примите товар и верните эти деньги курьеру.`,
+    confirmed: 'Товар возвращён',
   },
   productStatus: {
     label: { active: 'Активен', out: 'Закончился', hidden: 'Скрыт' },

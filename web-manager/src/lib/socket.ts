@@ -76,6 +76,9 @@ export const SOCKET_EVENTS = {
   JOIN_SUPPORT_THREAD: 'join:support:thread',
   LEAVE_SUPPORT_THREAD: 'leave:support:thread',
 
+  // Yetkazish hodisalari (server → managers): osilib qolgan safar, bir marta
+  DELIVERY_STUCK: 'delivery:stuck',
+
   // Intercity (server → managers): backend intercity-events.ts
   INTERCITY_TRIP_UPDATED: 'intercity:trip:updated',
   // Yo'lovchi so'rovlari: yangi / narx oshirildi / yopildi (qabul, bekor, muddat).

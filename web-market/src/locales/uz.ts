@@ -110,6 +110,8 @@ export const uz = {
       shipped: 'Yuborildi',
       delivered: 'Yetkazildi',
       cancelled: 'Bekor qilindi',
+      returning: 'Qaytarilmoqda',
+      returned: 'Qaytarildi',
     },
     hint: {
       new: "Yig'ish kutilmoqda",
@@ -117,6 +119,8 @@ export const uz = {
       shipped: "Yo'lda",
       delivered: 'Yakunlangan',
       cancelled: 'Rad etilgan',
+      returning: 'Kuryer tovarni qaytarib olib kelyapti',
+      returned: 'Tovar doʻkonga qaytdi',
     },
     advance: {
       new: "Yig'ishni boshlash",
@@ -126,12 +130,30 @@ export const uz = {
     terminal: {
       delivered: 'Buyurtma yakunlangan',
       cancelled: 'Buyurtma bekor qilingan',
+      returned: 'Tovar qaytarildi — bu buyurtmadan tushum yoʻq',
     } as Partial<Record<string, string>>,
     deliveryMode: {
       self: "Do'kon yetkazadi",
       platform: 'Platforma kuryeri',
     },
     customerFallback: 'Mijoz',
+  },
+  /** Kuryer yetkaza olmadi — tovar qaytarilmoqda (INCIDENT-POLICY §2). */
+  returns: {
+    returningTitle: 'Kuryer yetkaza olmadi — tovar qaytarilmoqda',
+    reasons: {
+      customer_absent: 'Mijoz manzilda yoʻq',
+      customer_refused: 'Mijoz rad etdi',
+      unreachable: 'Mijoz bilan bogʻlanib boʻlmadi',
+    },
+    courier: 'Kuryer',
+    cashBack: (amount: string) => `Kuryerga ${amount} naqd qaytarasiz`,
+    confirm: 'Qaytib keldi',
+    confirmTitle: 'Tovar qaytib keldimi?',
+    confirmBody: 'Kuryer tovarni doʻkonga qaytarib berganini tasdiqlang. Buyurtma „Qaytarildi“ boʻladi.',
+    confirmCash: (amount: string) =>
+      `Kuryer bu buyurtma uchun doʻkonga ${amount} naqd toʻlagan — tovarni qabul qilib, shu pulni kuryerga qaytaring.`,
+    confirmed: 'Tovar qaytarildi',
   },
   productStatus: {
     label: { active: 'Faol', out: 'Tugagan', hidden: 'Yashirilgan' },

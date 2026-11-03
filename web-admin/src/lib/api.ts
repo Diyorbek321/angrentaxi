@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { IncidentSettingsValues } from './incident-settings';
 import { attachAuthInterceptor } from './session';
 import { t } from '@/locales';
 import { getLocale } from '@/lib/i18n/core';
@@ -291,7 +292,8 @@ export const withdrawalsApi = {
 
 // ─── Settings ─────────────────────────────────────────────────────
 
-export interface GlobalSettings {
+/** Hodisa siyosati raqamlari — lib/incident-settings.ts (INCIDENT-POLICY §1–§2). */
+export interface GlobalSettings extends IncidentSettingsValues {
   platformName: string;
   supportPhone: string;
   supportEmail: string;

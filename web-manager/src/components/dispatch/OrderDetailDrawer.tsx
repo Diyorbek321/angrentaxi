@@ -21,6 +21,7 @@ import { MoneyText } from '@/components/ui/MoneyText';
 import { KeyValue, KeyValueList } from '@/components/ui/KeyValue';
 import { PlateNumber } from '@/components/ui/PlateNumber';
 import { OrderStatusBadge } from '@/components/orders/OrderStatusBadge';
+import { deliveryState } from '@/lib/delivery-incident';
 import { DeliveryExtrasContent, deliveryExtras } from '@/components/orders/DeliveryExtras';
 import { paymentMethodLabels } from '@/lib/constants';
 import {
@@ -109,7 +110,7 @@ function PassengerHistory({ order }: { order: Order }) {
       {history.map((h) => (
         <li key={h.id} className="flex items-center gap-2 px-3 py-2 bg-surface">
           <span className="font-mono text-[11px] text-muted shrink-0">{shortId(h.id)}</span>
-          <OrderStatusBadge status={h.status} size="sm" />
+          <OrderStatusBadge status={h.status} delivery={deliveryState(h)} size="sm" />
           <span className="ml-auto text-[11px] text-subtle shrink-0">
             {formatDateTime(h.createdAt)}
           </span>
@@ -145,7 +146,7 @@ export function OrderDetailDrawer({ order, isOpen, onClose }: OrderDetailDrawerP
       title={m.title(shortId(order.id))}
       subtitle={
         <span className="flex items-center gap-2">
-          <OrderStatusBadge status={order.status} size="sm" dot />
+          <OrderStatusBadge status={order.status} delivery={deliveryState(order)} size="sm" dot />
           <span className="text-subtle">{formatRelative(order.createdAt)}</span>
         </span>
       }

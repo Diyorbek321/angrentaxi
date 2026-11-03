@@ -2,7 +2,7 @@
 
 import { Hourglass, MessageSquareText } from 'lucide-react';
 import type { MarketOrder } from '@/lib/api';
-import { advanceLabelFor, deliveryModeLabel, orderCustomerName } from '@/lib/order-status';
+import { advanceLabelFor, canConfirmReturned, deliveryModeLabel, orderCustomerName } from '@/lib/order-status';
 import { formatNumber, formatRelative, shortId } from '@/lib/format';
 import { vendorCashView, type VendorSettlementMode } from '@/lib/vendor-cash';
 import { customerCancelText, isCustomerCancelled, isPaymentPending } from '@/lib/order-extras';
@@ -94,6 +94,11 @@ export function OrderRow({
             className="w-full"
           >
             {advanceLabel}
+          </Button>
+        ) : canConfirmReturned(o) ? (
+          // Tasdiq (va naqd qaytarish eslatmasi) oynada — qatordan to'g'ridan-to'g'ri yuborilmaydi.
+          <Button size="sm" variant="secondary" onClick={onOpen} className="w-full">
+            {t().returns.confirm}
           </Button>
         ) : (
           <span className="text-xs text-subtle">—</span>

@@ -6,6 +6,7 @@ import { CalendarCheck, Eye } from 'lucide-react';
 import { Order, PaginatedResponse } from '@/lib/api';
 import { paymentMethodLabels } from '@/lib/constants';
 import { OrderStatusBadge } from './OrderStatusBadge';
+import { deliveryState } from '@/lib/delivery-incident';
 import { Badge } from '@/components/ui/Badge';
 import { serviceTypeLabel } from '@/lib/intercity';
 import { Button } from '@/components/ui/Button';
@@ -106,7 +107,7 @@ export function OrdersTable({
     {
       key: 'status',
       header: m.status,
-      cell: (o) => <OrderStatusBadge status={o.status} size="sm" dot />,
+      cell: (o) => <OrderStatusBadge status={o.status} delivery={deliveryState(o)} size="sm" dot />,
     },
     {
       key: 'driver',

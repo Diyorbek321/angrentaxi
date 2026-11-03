@@ -8,7 +8,9 @@ import { useAsyncData } from '@/hooks/useAsyncData';
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
 import { useVendorSettlement } from '@/hooks/useVendorSettlement';
 import { walletSwitchNotice } from '@/lib/vendor-settlement';
-import type { VendorSettlementContext } from '@/lib/vendor-cash';
+import { returnCashToCourier, type VendorSettlementContext } from '@/lib/vendor-cash';
+import { formatMoney } from '@/lib/format';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { NEXT_STATUS, statusMeta } from '@/lib/order-status';
 import { trackNewOrders } from '@/lib/order-alerts';
 import { useKiosk } from '@/lib/kiosk-context';
@@ -40,6 +42,7 @@ export default function OrdersPage() {
   const [openOrderId, setOpenOrderId] = useState<string | null>(null);
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [returnId, setReturnId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
   // Ovoz sozlamasi restoran profilidan — bir marta yuklanadi, poll shart emas.
@@ -135,6 +138,19 @@ export default function OrdersPage() {
     }
   };
 
+  // Kuryer qaytargan tovar do'konga yetdi — buyurtma "Qaytarildi" bo'ladi.
+  const confirmReturned = async () => {
+    const order = orders.find((o) => o.id === returnId);
+    setReturnId(null);
+    if (!order) return;
+    await runAction(
+      order,
+      () => foodApi.confirmReturned(order.id),
+      m.returns.confirmed(shortId(order.id)),
+      m.returns.confirmFailed
+    );
+  };
+
   const confirmReject = async (reason: string) => {
     if (!rejectId) return;
     try {
@@ -150,6 +166,9 @@ export default function OrdersPage() {
 
   const openOrder = orders.find((o) => o.id === openOrderId) ?? null;
   const visible = grouped[tab];
+  const returnOrder = orders.find((o) => o.id === returnId) ?? null;
+  // Kuryer naqd to'lagan bo'lsa — sotuvchi shu pulni kuryerga qaytaradi.
+  const returnCash = returnOrder ? returnCashToCourier(returnOrder, settlement) : 0;
 
   return (
     <div className="flex flex-col">
@@ -232,6 +251,7 @@ export default function OrdersPage() {
                   onReject={() => setRejectId(order.id)}
                   onRedispatch={() => redispatch(order)}
                   onCashDecision={(received) => decideCash(order, received)}
+                  onConfirmReturned={() => setReturnId(order.id)}
                   settlement={settlement}
                 />
               ))}
@@ -250,6 +270,29 @@ export default function OrdersPage() {
           setRejectId(openOrder.id);
           setOpenOrderId(null);
         }}
+        onConfirmReturned={() => {
+          if (!openOrder) return;
+          setReturnId(openOrder.id);
+          setOpenOrderId(null);
+        }}
+      />
+
+      <ConfirmDialog
+        isOpen={returnOrder != null}
+        onClose={() => setReturnId(null)}
+        onConfirm={confirmReturned}
+        title={m.returns.confirmTitle}
+        description={
+          returnOrder && returnCash > 0 ? (
+            <>
+              {m.returns.confirmBody} <strong>{m.returns.confirmCash(formatMoney(returnCash))}</strong>
+            </>
+          ) : (
+            m.returns.confirmBody
+          )
+        }
+        confirmLabel={m.returns.confirm}
+        isPending={returnOrder != null && busyId === returnOrder.id}
       />
 
       <RejectModal isOpen={rejectId != null} onClose={() => setRejectId(null)} onConfirm={confirmReject} />

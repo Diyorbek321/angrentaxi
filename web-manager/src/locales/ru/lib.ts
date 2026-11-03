@@ -198,6 +198,21 @@ export const lib: Messages['lib'] = {
     resolutionRequired: 'Опишите, как решён спор',
     resolutionMax: (n: number) => `Комментарий не длиннее ${n} символов`,
   },
+  deliveryIncident: {
+    noteRequired: 'Опишите, что произошло',
+    noteMax: (n: number) => `Комментарий не длиннее ${n} символов`,
+    reasons: {
+      customer_absent: 'Клиента нет на месте',
+      customer_refused: 'Клиент отказался',
+      unreachable: 'Не удалось связаться с клиентом',
+    },
+    stuckReasons: {
+      too_long: 'Слишком долго в пути',
+      stale_location: 'Устарела геопозиция курьера',
+    },
+    returning: 'Возвращается',
+    returned: 'Возвращён',
+  },
   invalidCode: 'Неверный код',
   authRoute: {
     phoneAndCodeRequired: 'Требуются номер телефона и код',

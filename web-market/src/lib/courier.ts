@@ -10,6 +10,11 @@ export interface DeliveryInfo {
   status: string;
   driverName: string | null;
   driverPhone: string | null;
+  /** Yetkazish hodisalari (INCIDENT-POLICY §2) — eski javobda bo'lmasligi mumkin. */
+  dropoffArrivedAt?: string | null;
+  deliveryFailedAt?: string | null;
+  deliveryFailureReason?: 'customer_absent' | 'customer_refused' | 'unreachable' | null;
+  deliveryOutcome?: 'returned' | null;
 }
 
 export type CourierTone = 'waiting' | 'active' | 'done' | 'failed';

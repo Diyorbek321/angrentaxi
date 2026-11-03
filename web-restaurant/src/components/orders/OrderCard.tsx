@@ -12,6 +12,7 @@ import { CourierStrip } from './CourierStrip';
 import { AddressShortLine, CustomerCancelNotice, DiscountLines, PaymentPendingNotice } from './OrderExtras';
 import { isPaymentPending } from '@/lib/order-extras';
 import { PrepTimerChip } from './PrepTimerChip';
+import { ReturnStrip } from './ReturnStrip';
 import { t } from '@/locales';
 
 export interface OrderCardProps {
@@ -25,6 +26,8 @@ export interface OrderCardProps {
   onReject: () => void;
   onRedispatch: () => void;
   onCashDecision: (received: boolean) => void;
+  /** Qaytarilayotgan buyurtma: "Qaytib keldi" (tasdiq oynasi sahifada). */
+  onConfirmReturned: () => void;
   /** Hisob-kitob rejimi + restoran komissiyasi (lib/vendor-cash.ts). */
   settlement?: VendorSettlementContext;
 }
@@ -53,6 +56,7 @@ export function OrderCard({
   onReject,
   onRedispatch,
   onCashDecision,
+  onConfirmReturned,
   settlement,
 }: OrderCardProps) {
   const m = t();
@@ -62,7 +66,9 @@ export function OrderCard({
   const isNew = order.status === 'new';
   // Kartali buyurtma toʻlovdan oldin qabul qilinmaydi (INCIDENT-POLICY §1).
   const paymentPending = isPaymentPending(order);
-  const isDone = order.status === 'delivered' || order.status === 'cancelled';
+  const isDone = order.status === 'delivered' || order.status === 'cancelled' || order.status === 'returned';
+  // Qaytarilayotgani ham holat belgisi bilan — "Tayyor" tabida ajralib tursin.
+  const showBadge = isDone || order.status === 'returning';
   const phone = customerPhoneOf(order);
   const no = shortId(order.id);
 
@@ -97,7 +103,7 @@ export function OrderCard({
           </p>
         </div>
         {timer && <PrepTimerChip timer={timer} large={kiosk} />}
-        {isDone && <OrderStatusBadge status={order.status} size="sm" />}
+        {showBadge && <OrderStatusBadge status={order.status} size="sm" />}
       </header>
 
       <div className={cn('mt-3 flex flex-wrap items-center gap-x-3 gap-y-0.5', kiosk ? 'text-body-lg' : 'text-body')}>
@@ -160,6 +166,14 @@ export function OrderCard({
       {order.status === 'ready' && (
         <CourierStrip order={order} large={kiosk} busy={busy} onRedispatch={onRedispatch} />
       )}
+
+      <ReturnStrip
+        order={order}
+        busy={busy}
+        onConfirm={onConfirmReturned}
+        large={kiosk}
+        settlement={settlement}
+      />
 
       {/* Naqd: kuryer tovar pulini toʻlaydi — sotuvchi tasdiqlaydi yoki nizo. */}
       {(order.status === 'ready' || order.status === 'delivered') && (

@@ -17,6 +17,12 @@ import {
 } from '@/components/ui';
 import { settingsApi, type GlobalSettings } from '@/lib/api';
 import { validateDeliverySettings } from '@/lib/delivery-settings';
+import {
+  INCIDENT_SETTING_BOUNDS,
+  INCIDENT_SETTING_DEFAULTS,
+  INCIDENT_SETTING_KEYS,
+  validateIncidentSettings,
+} from '@/lib/incident-settings';
 import { IntercitySettingsCard } from '@/components/intercity/IntercitySettingsCard';
 import { t } from '@/locales';
 
@@ -30,7 +36,11 @@ const EMPTY_FORM: GlobalSettings = {
   freeDeliveryFrom: 0,
   deliveryEtaMinMinutes: 30,
   deliveryEtaMaxMinutes: 50,
+  ...INCIDENT_SETTING_DEFAULTS,
 };
+
+/** Eski backend yangi maydonlarni qaytarmasa — forma standart qiymat bilan to'ladi. */
+const withDefaults = (data: GlobalSettings): GlobalSettings => ({ ...EMPTY_FORM, ...data });
 
 type FieldErrors = Partial<Record<keyof GlobalSettings, string>>;
 
@@ -53,8 +63,8 @@ export default function GlobalSettingsPage() {
     settingsApi
       .getGlobal()
       .then((res) => {
-        setForm(res.data.data);
-        setSaved(res.data.data);
+        setForm(withDefaults(res.data.data));
+        setSaved(withDefaults(res.data.data));
         setError(null);
         setHasLoadedOnce(true);
       })
@@ -84,7 +94,7 @@ export default function GlobalSettingsPage() {
     if (!Number.isFinite(values.maxCashVendorOrder) || values.maxCashVendorOrder < 0) {
       errors.maxCashVendorOrder = m.errMaxCash;
     }
-    return { ...errors, ...validateDeliverySettings(values) };
+    return { ...errors, ...validateDeliverySettings(values), ...validateIncidentSettings(values) };
   };
 
   const update = <K extends keyof GlobalSettings>(key: K, value: GlobalSettings[K]) => {
@@ -102,8 +112,8 @@ export default function GlobalSettingsPage() {
     setSaving(true);
     try {
       const res = await settingsApi.updateGlobal(form);
-      setForm(res.data.data);
-      setSaved(res.data.data);
+      setForm(withDefaults(res.data.data));
+      setSaved(withDefaults(res.data.data));
       toast({ title: s.saved, description: m.savedDesc, variant: 'success' });
     } catch {
       toast({ title: c.error, description: c.saveError, variant: 'error' });
@@ -242,6 +252,28 @@ export default function GlobalSettingsPage() {
                     onChange={(e) => update('deliveryEtaMaxMinutes', Number(e.target.value))}
                   />
                 </div>
+              </CardBody>
+            </Card>
+
+            {/* Yetkazish hodisalari: posilka, kutish, qaytarish, rad etganlar, osilib qolgan. */}
+            <Card padding="none">
+              <CardHeader title={m.incident.title} description={m.incident.description} divider />
+              <CardBody className="grid gap-4 pt-4 sm:grid-cols-2">
+                {INCIDENT_SETTING_KEYS.map((key) => (
+                  <Input
+                    key={key}
+                    label={m.incident.labels[key]}
+                    type="number"
+                    inputMode="numeric"
+                    min={INCIDENT_SETTING_BOUNDS[key].min}
+                    max={INCIDENT_SETTING_BOUNDS[key].max}
+                    step={key === 'parcelMaxDeclaredValue' ? 10000 : 1}
+                    value={String(form[key])}
+                    error={fieldErrors[key]}
+                    hint={m.incident.hints[key] || undefined}
+                    onChange={(e) => update(key, Number(e.target.value))}
+                  />
+                ))}
               </CardBody>
             </Card>
 

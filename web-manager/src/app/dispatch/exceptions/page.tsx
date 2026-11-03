@@ -16,6 +16,8 @@ import { useNow } from '@/components/dispatch/useNow';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { CashDisputesSection } from '@/components/dispatch/CashDisputesSection';
+import { StuckDeliveriesSection } from '@/components/dispatch/StuckDeliveriesSection';
+import { PendingRefundsSection } from '@/components/dispatch/PendingRefundsSection';
 import { Badge } from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -439,8 +441,14 @@ export default function ExceptionsPage() {
         )}
       </section>
 
+      {/* Kuryer safari juda uzoq yoki joylashuvi eskirgan — mijoz kutmoqda */}
+      <StuckDeliveriesSection />
+
       {/* Kuryer do'konga to'ladim dedi, sotuvchi olmadim dedi */}
       <CashDisputesSection />
+
+      {/* Qaytarilgan kartali buyurtma: pul mijozga qo'lda qaytariladi */}
+      <PendingRefundsSection />
 
       {/* No drivers found */}
       <section>

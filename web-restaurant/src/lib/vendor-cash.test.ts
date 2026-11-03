@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { vendorCashView } from './vendor-cash';
+import { returnCashToCourier, vendorCashView } from './vendor-cash';
 
 const base = {
   paymentMethod: 'cash' as const,
@@ -125,5 +125,34 @@ describe('vendorCashView — hamyon rejimi', () => {
     expect(
       vendorCashView({ ...order, paymentMethod: 'card', vendorWalletSettlement: settlement }, { mode: 'wallet' }).step
     ).toBe('none');
+  });
+});
+
+describe('returnCashToCourier — qaytarilganda sotuvchi kuryerga qaytaradigan naqd', () => {
+  it('karta yoki kuryer hali to\'lamagan — 0', () => {
+    expect(returnCashToCourier({ ...base, paymentMethod: 'card' })).toBe(0);
+    expect(returnCashToCourier(base)).toBe(0);
+  });
+
+  it('kuryer naqd to\'lagan (tasdiqlangan yoki kutilmoqda) — tovar summasi', () => {
+    const paid = { ...base, vendorCashPaidAt: '2026-10-07T10:00:00Z' };
+    expect(returnCashToCourier(paid)).toBe(65000);
+    expect(returnCashToCourier({ ...paid, vendorCashConfirmedAt: '2026-10-07T10:01:00Z' })).toBe(65000);
+  });
+
+  it('sotuvchi "olmadim" degan nizoda — qaytaradigan pul yo\'q', () => {
+    expect(
+      returnCashToCourier({ ...base, vendorCashPaidAt: '2026-10-07T10:00:00Z', vendorCashDisputedAt: '2026-10-07T10:01:00Z' })
+    ).toBe(0);
+  });
+
+  it('hamyon orqali o\'tkazilgan — backend avtomatik teskari qiladi, 0', () => {
+    const wallet = {
+      ...base,
+      vendorCashPaidAt: '2026-10-07T10:00:00Z',
+      vendorWalletSettlement: { amount: 65000, commission: 6500, net: 58500, settledAt: '2026-10-07T10:00:00Z', reversedAt: null, reversalCount: 0 },
+    };
+    expect(returnCashToCourier(wallet)).toBe(0);
+    expect(returnCashToCourier({ ...base, vendorWalletSettledAt: '2026-10-07T10:00:00Z' })).toBe(0);
   });
 });

@@ -2,6 +2,8 @@ import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { OrderStatus, PaymentMethod } from './constants';
 import { attachAuthInterceptor } from './session';
 import type { TripOptionFees } from './trip-option-fees';
+import type { DeliveryFailureReason, PendingRefund, StuckDelivery } from './delivery-incident';
+export type { DeliveryFailureReason, PendingRefund, StuckDelivery } from './delivery-incident';
 import { getLocale } from './i18n/core';
 import { t } from '@/locales';
 
@@ -150,6 +152,12 @@ export interface Order {
   startedAt?: string | null;
   completedAt?: string | null;
   cancelledAt?: string | null;
+  // Yetkazish hodisalari (INCIDENT-POLICY §2) — holatni lib/delivery-incident.ts chiqaradi.
+  dropoffArrivedAt?: string | null;
+  deliveryFailedAt?: string | null;
+  deliveryFailureReason?: DeliveryFailureReason | null;
+  deliveryOutcome?: 'returned' | null;
+  returnedAt?: string | null;
 }
 
 export interface PaginatedResponse<T> {
@@ -366,6 +374,47 @@ export async function reassignDriver(orderId: string, driverId: string, reason: 
     reason,
   });
   return res.data.data;
+}
+
+/** Dispetcher: yetkazib bo'lmadi → kuryer tovarni qaytaradi. Izoh majburiy (audit). */
+export async function markDeliveryFailed(
+  orderId: string,
+  reason: DeliveryFailureReason,
+  note: string,
+): Promise<Order> {
+  const res = await apiClient.patch<ApiResponse<Order>>(`/orders/${orderId}/manager/delivery-failed`, {
+    reason,
+    note: note.trim(),
+  });
+  return res.data.data;
+}
+
+/** Dispetcher: tovar jo'natuvchiga qaytib keldi. Izoh majburiy (audit). */
+export async function confirmDeliveryReturned(orderId: string, note: string): Promise<Order> {
+  const res = await apiClient.patch<ApiResponse<Order>>(`/orders/${orderId}/manager/confirm-returned`, {
+    note: note.trim(),
+  });
+  return res.data.data;
+}
+
+export async function getStuckDeliveries(): Promise<StuckDelivery[]> {
+  const res = await apiClient.get<ApiResponse<StuckDelivery[]>>('/orders/exceptions/stuck-deliveries');
+  return res.data.data;
+}
+
+export async function getPendingRefunds(): Promise<PendingRefund[]> {
+  const res = await apiClient.get<ApiResponse<PendingRefund[]>>('/delivery/refunds-pending');
+  return res.data.data;
+}
+
+/** Kartali qaytarish summasi mijozga qo'lda qaytarildi — navbatdan chiqadi. */
+export async function markRefundDone(
+  kind: PendingRefund['kind'],
+  vendorOrderId: string,
+  note?: string,
+): Promise<void> {
+  const text = note?.trim();
+  await apiClient.post(`/delivery/refunds/${kind}/${vendorOrderId}/done`, text ? { note: text } : {});
 }
 
 export interface DispatchOverride {

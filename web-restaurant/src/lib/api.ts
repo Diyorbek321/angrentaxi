@@ -96,7 +96,8 @@ export const authApi = {
 // ─── Food domain types ─────────────────────────────────────────────
 
 export type RestaurantStatus = 'active' | 'closed';
-export type FoodOrderStatus = 'new' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
+/** `returning`/`returned` — kuryer yetkaza olmadi, tovar qaytarildi (INCIDENT-POLICY §2). */
+export type FoodOrderStatus = 'new' | 'preparing' | 'ready' | 'delivered' | 'cancelled' | 'returning' | 'returned';
 export type PaymentMethod = 'card' | 'cash';
 
 export interface WorkingHoursDay {
@@ -205,6 +206,11 @@ export interface FoodOrder extends OrderV5Fields {
   /** O'tkazma summalari, o'tkazma PAYTIDA saqlangan (§22); `null` — hamyon orqali o'tkazilmagan. */
   vendorWalletSettlement?: VendorWalletSettlement | null;
   vendorWalletReversalCount?: number;
+  /** Qaytarish (INCIDENT-POLICY §2): qachon qaytdi, mijoz to'laydigan haq, kartali qaytarish. */
+  returnedAt?: string | null;
+  returnCharge?: number | null;
+  refundDue?: number | null;
+  refundStatus?: 'pending' | 'done' | null;
 }
 
 export interface DashboardData {
@@ -316,6 +322,8 @@ export const foodApi = {
   /** Naqd: kuryerdan tovar puli olindimi. `false` — dispetcherga nizo. */
   cashReceived: (id: string, received: boolean) =>
     api.patch<ApiResponse<{ ok: true }>>(`/food/vendor/orders/${id}/cash-received`, { received }),
+  /** Kuryer qaytargan tovar do'konga yetib keldi — faqat `returning` holatida. */
+  confirmReturned: (id: string) => api.post<ApiResponse<FoodOrder>>(`/food/vendor/orders/${id}/confirm-returned`),
 };
 
 // ─── Aksiyalar (spec v5 §4) ────────────────────────────────────────

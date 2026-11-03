@@ -102,12 +102,34 @@ export const uz = {
     },
   },
 
+  /** Kuryer yetkaza olmadi — tovar qaytarilmoqda (INCIDENT-POLICY §2). */
+  returns: {
+    returningTitle: 'Kuryer yetkaza olmadi — tovar qaytarilmoqda',
+    returnedTitle: 'Tovar qaytarildi — bu buyurtmadan tushum yoʻq',
+    reasons: {
+      customer_absent: 'Mijoz manzilda yoʻq',
+      customer_refused: 'Mijoz rad etdi',
+      unreachable: 'Mijoz bilan bogʻlanib boʻlmadi',
+    },
+    courier: 'Kuryer',
+    cashBack: (amount: string) => `Kuryerga ${amount} naqd qaytarasiz`,
+    confirm: 'Qaytib keldi',
+    confirmTitle: 'Tovar qaytib keldimi?',
+    confirmBody: 'Kuryer tovarni doʻkonga qaytarib berganini tasdiqlang. Buyurtma „Qaytarildi“ boʻladi.',
+    confirmCash: (amount: string) =>
+      `Kuryer bu buyurtma uchun doʻkonga ${amount} naqd toʻlagan — tovarni qabul qilib, shu pulni kuryerga qaytaring.`,
+    confirmed: (no: string) => `${no} — tovar qaytarildi`,
+    confirmFailed: 'Tasdiqlab boʻlmadi',
+  },
+
   orderStatus: {
     new: { label: 'Yangi', hint: 'Qabul qilish kutilmoqda' },
     preparing: { label: 'Tayyorlanmoqda', hint: 'Oshxonada' },
     ready: { label: 'Tayyor', hint: 'Kuryer kutilmoqda' },
     delivered: { label: 'Yetkazildi', hint: 'Yakunlangan' },
     cancelled: { label: 'Bekor qilindi', hint: 'Rad etilgan' },
+    returning: { label: 'Qaytarilmoqda', hint: 'Kuryer tovarni qaytarib olib kelyapti' },
+    returned: { label: 'Qaytarildi', hint: 'Tovar doʻkonga qaytdi' },
   },
 
   advance: {

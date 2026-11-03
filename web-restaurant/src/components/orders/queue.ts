@@ -47,6 +47,8 @@ export function rejectReasonDisplay(value: string): string {
 
 export function tabOf(status: FoodOrderStatus): QueueTab {
   if (status === 'new' || status === 'preparing' || status === 'ready') return status;
+  // Qaytarilayotgan buyurtma hali tugamagan — sotuvchi tovarni qabul qilishi kerak.
+  if (status === 'returning') return 'ready';
   return 'done';
 }
 

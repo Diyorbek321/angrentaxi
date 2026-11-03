@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { vendorCashView } from './vendor-cash';
+import { returnCashToCourier, vendorCashView } from './vendor-cash';
 
 const base = {
   paymentMethod: 'cash' as const,
@@ -125,5 +125,29 @@ describe('vendorCashView — hamyon rejimi', () => {
     expect(
       vendorCashView({ ...order, paymentMethod: 'card', vendorWalletSettlement: settlement }, { mode: 'wallet' }).step
     ).toBe('none');
+  });
+});
+
+describe('returnCashToCourier — qaytarilganda sotuvchi kuryerga qaytaradigan naqd', () => {
+  it('karta yoki kuryer hali to\'lamagan — 0', () => {
+    expect(returnCashToCourier({ ...base, paymentMethod: 'card' })).toBe(0);
+    expect(returnCashToCourier(base)).toBe(0);
+  });
+
+  it('kuryer naqd to\'lagan — tovar summasi', () => {
+    const paid = { ...base, vendorCashPaidAt: '2026-10-07T10:00:00Z' };
+    expect(returnCashToCourier(paid)).toBe(65000);
+    expect(returnCashToCourier({ ...paid, vendorCashConfirmedAt: '2026-10-07T10:01:00Z' })).toBe(65000);
+  });
+
+  it('"olmadim" nizosi yoki hamyon o\'tkazmasi — 0', () => {
+    const paid = { ...base, vendorCashPaidAt: '2026-10-07T10:00:00Z' };
+    expect(returnCashToCourier({ ...paid, vendorCashDisputedAt: '2026-10-07T10:01:00Z' })).toBe(0);
+    expect(
+      returnCashToCourier({
+        ...paid,
+        vendorWalletSettlement: { amount: 65000, commission: 6500, net: 58500, settledAt: null, reversedAt: '2026-10-07T11:00:00Z', reversalCount: 1 },
+      })
+    ).toBe(0);
   });
 });

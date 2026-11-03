@@ -1,6 +1,7 @@
 import { MapPin, MessageSquareWarning, Phone } from 'lucide-react';
 import type { FoodOrder } from '@/lib/api';
-import { advanceLabelFor } from '@/lib/order-status';
+import { advanceLabelFor, canConfirmReturned } from '@/lib/order-status';
+import { ReturnStrip } from './ReturnStrip';
 import { formatPhone, formatTime, shortId } from '@/lib/format';
 import { Button } from '@/components/ui/Button';
 import { Drawer } from '@/components/ui/Drawer';
@@ -18,12 +19,14 @@ export function OrderDrawer({
   onClose,
   onAdvance,
   onReject,
+  onConfirmReturned,
 }: {
   order: FoodOrder | null;
   busy: boolean;
   onClose: () => void;
   onAdvance: () => void;
   onReject: () => void;
+  onConfirmReturned: () => void;
 }) {
   if (!order) return null;
   const m = t().orders;
@@ -44,8 +47,13 @@ export function OrderDrawer({
         </span>
       }
       footer={
-        (order.status === 'new' || advanceLabel) && (
+        (order.status === 'new' || advanceLabel || canConfirmReturned(order)) && (
           <div className="flex w-full gap-2">
+            {canConfirmReturned(order) && (
+              <Button size="lg" className="flex-1" isLoading={busy} onClick={onConfirmReturned}>
+                {t().returns.confirm}
+              </Button>
+            )}
             {order.status === 'new' && (
               <Button variant="danger-ghost" size="lg" onClick={onReject}>
                 {m.card.reject}
@@ -87,6 +95,8 @@ export function OrderDrawer({
 
       <CustomerCancelNotice order={order} />
       <PaymentPendingNotice order={order} className="mt-3" />
+      {/* Qaytarish holati; tugma pastki qatorda */}
+      <ReturnStrip order={order} busy={busy} />
       <AddressDetailsBlock details={order.addressDetails} />
 
       {order.note && (

@@ -19,6 +19,8 @@ export const VENDOR_REFRESH_EVENTS = [
   // Mijoz buyurtmani bekor qildi (spec v5 §1) — nom backend bilan kelishiladi.
   'food:order:cancelled',
   'food:delivery:failed',
+  // Holat o'zgardi, jumladan returning/returned (INCIDENT-POLICY §2).
+  'food:order:status',
   'vendor:cash_paid',
   'vendor:cash_dispute_resolved',
   // Hamyon rejimi (docs/LEGAL-COMPLIANCE.md §7, §14): o'tkazma va teskarisi.

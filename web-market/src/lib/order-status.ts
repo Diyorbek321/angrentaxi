@@ -4,6 +4,8 @@ import {
   PackageCheck,
   PackageOpen,
   Truck,
+  Undo2,
+  PackageX,
   XCircle,
   type LucideIcon,
 } from 'lucide-react';
@@ -33,6 +35,9 @@ const ORDER_STATUS_STYLE: Record<MarketOrderStatus, Pick<OrderStatusMeta, 'varia
   shipped: { variant: 'neutral', Icon: Truck },
   delivered: { variant: 'success', Icon: PackageCheck },
   cancelled: { variant: 'muted-danger', Icon: XCircle },
+  // Kuryer yetkaza olmadi — tovar qaytib kelmoqda, sotuvchi qabul qilishi kerak.
+  returning: { variant: 'danger', Icon: Undo2 },
+  returned: { variant: 'muted-danger', Icon: PackageX },
 };
 
 export function orderStatusMeta(status: string): OrderStatusMeta {
@@ -71,9 +76,15 @@ const STATUS_PRIORITY: Record<MarketOrderStatus, number> = {
   new: 0,
   packing: 1,
   shipped: 2,
-  delivered: 3,
-  cancelled: 4,
+  // Qaytarilayotgani hali faol — sotuvchi tovarni qabul qilishi kerak.
+  returning: 3,
+  delivered: 4,
+  returned: 5,
+  cancelled: 6,
 };
+
+/** Shu darajagacha — faol holatlar (eskisi tepada). */
+const LAST_ACTIVE_PRIORITY = STATUS_PRIORITY.returning;
 
 export function compareOrders(a: MarketOrder, b: MarketOrder): number {
   const byStatus = STATUS_PRIORITY[a.status] - STATUS_PRIORITY[b.status];
@@ -81,7 +92,7 @@ export function compareOrders(a: MarketOrder, b: MarketOrder): number {
   const at = new Date(a.createdAt).getTime();
   const bt = new Date(b.createdAt).getTime();
   // Faol holatlar: eskisi tepada. Yakuniylar: yangisi tepada.
-  return STATUS_PRIORITY[a.status] <= 2 ? at - bt : bt - at;
+  return STATUS_PRIORITY[a.status] <= LAST_ACTIVE_PRIORITY ? at - bt : bt - at;
 }
 
 /**
@@ -115,4 +126,9 @@ export function advanceLabelFor(order: {
 }): string | undefined {
   if (NEXT_STATUS[order.status] === 'delivered' && order.deliveryOrderId) return undefined;
   return advanceLabel(order.status);
+}
+
+/** "Qaytib keldi" tugmasi — faqat kuryer tovarni qaytarayotganda (backend shuni talab qiladi). */
+export function canConfirmReturned(order: { status: MarketOrderStatus }): boolean {
+  return order.status === 'returning';
 }

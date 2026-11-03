@@ -97,7 +97,8 @@ export const authApi = {
 export type DeliveryMode = 'self' | 'platform';
 export type ProductUnit = 'dona' | 'kg' | 'litr';
 export type ProductStatus = 'active' | 'out' | 'hidden';
-export type MarketOrderStatus = 'new' | 'packing' | 'shipped' | 'delivered' | 'cancelled';
+/** `returning`/`returned` — kuryer yetkaza olmadi, tovar qaytarildi (INCIDENT-POLICY §2). */
+export type MarketOrderStatus = 'new' | 'packing' | 'shipped' | 'delivered' | 'cancelled' | 'returning' | 'returned';
 
 export interface Store {
   id: string;
@@ -223,6 +224,11 @@ export interface MarketOrder extends OrderV5Fields {
   /** O'tkazma summalari, o'tkazma PAYTIDA saqlangan (§22); `null` — hamyon orqali o'tkazilmagan. */
   vendorWalletSettlement?: VendorWalletSettlement | null;
   vendorWalletReversalCount?: number;
+  /** Qaytarish (INCIDENT-POLICY §2): qachon qaytdi, mijoz to'laydigan haq, kartali qaytarish. */
+  returnedAt?: string | null;
+  returnCharge?: number | null;
+  refundDue?: number | null;
+  refundStatus?: 'pending' | 'done' | null;
 }
 
 export interface StockMovement {
@@ -346,6 +352,9 @@ export const marketApi = {
   /** Naqd: kuryerdan tovar puli olindimi. `false` — dispetcherga nizo. */
   cashReceived: (orderId: string, received: boolean) =>
     api.patch<ApiResponse<{ ok: true }>>(`/market/vendor/orders/${orderId}/cash-received`, { received }),
+  /** Kuryer qaytargan tovar do'konga yetib keldi — faqat `returning` holatida. */
+  confirmReturned: (orderId: string) =>
+    api.post<ApiResponse<MarketOrder>>(`/market/vendor/orders/${orderId}/confirm-returned`),
 };
 
 // ─── Aksiyalar (spec v5 §4) ────────────────────────────────────────
