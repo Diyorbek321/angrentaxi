@@ -46,6 +46,13 @@ import { FraudReviewEntry, OrderFraudService } from './order-fraud.service';
 import { parseDeviceId } from './fraud-rules';
 import { VendorCashService, VendorPaidResult } from '../delivery/vendor-cash.service';
 import { OrderIdempotencyService } from './order-idempotency.service';
+import { OrdersReturnService } from './orders-return.service';
+import { StuckDelivery } from './stuck-deliveries';
+import {
+  DeliveryFailedDto,
+  ManagerConfirmReturnedDto,
+  ManagerDeliveryFailedDto,
+} from './dto/delivery-incident.dto';
 
 @ApiTags('Orders')
 @ApiBearerAuth('JWT-auth')
@@ -62,7 +69,13 @@ export class OrdersController {
     @Optional() private readonly fraudService?: OrderFraudService,
     @Optional() private readonly vendorCash?: VendorCashService,
     @Optional() private readonly idempotency?: OrderIdempotencyService,
+    @Optional() private readonly returns?: OrdersReturnService,
   ) {}
+
+  private requireReturns(): OrdersReturnService {
+    if (!this.returns) throw new Error('OrdersReturnService is not wired');
+    return this.returns;
+  }
 
   @Post('calculate-price')
   @ApiOperation({ summary: 'Calculate estimated trip price' })
@@ -270,6 +283,15 @@ export class OrdersController {
     return this.ordersService.getNoDriversFoundExceptions(pagination.page ?? 1, pagination.limit ?? 20);
   }
 
+  /** ⚠️ `@Get(':id')` DAN OLDIN. "Osilib qolgan" yetkazishlar (INCIDENT-POLICY §2). */
+  @Get('exceptions/stuck-deliveries')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DISPATCH)
+  @ApiOperation({ summary: "Osilib qolgan yetkazishlar: IN_PROGRESS uzoq yoki kuryer joylashuvi eski" })
+  async getStuckDeliveries(): Promise<StuckDelivery[]> {
+    return this.requireReturns().listStuckDeliveries();
+  }
+
   /** ⚠️ `@Get(':id')` DAN OLDIN turishi shart (yuqoridagi izohga qarang). */
   @Get('fraud-review')
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
@@ -448,6 +470,57 @@ export class OrdersController {
     @Body() dto: CompleteTripDto,
   ): Promise<Order> {
     return this.ordersService.completeTrip(user.id, id, dto.deliveryPin);
+  }
+
+  // ─── Yetkazish hodisalari (docs/INCIDENT-POLICY.md §2) ──────────────
+
+  @Patch(':id/dropoff-arrived')
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({ summary: 'Kuryer topshirish manziliga yetib keldi (manzilda kutish boshlanadi)' })
+  async dropoffArrived(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string): Promise<Order> {
+    return this.requireReturns().markDropoffArrived(user.id, id);
+  }
+
+  @Patch(':id/delivery-failed')
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({ summary: "Kuryer: yetkazib bo'lmadi (bepul kutishdan keyin) — qaytarish yo'li" })
+  async deliveryFailed(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: DeliveryFailedDto,
+  ): Promise<Order> {
+    return this.requireReturns().markDeliveryFailed({ userId: user.id, byManager: false }, id, dto.reason);
+  }
+
+  @Patch(':id/confirm-returned')
+  @Roles(...PASSENGER_APP_ROLES)
+  @ApiOperation({ summary: 'Posilka yuboruvchisi: posilka qaytib keldi' })
+  async senderConfirmReturned(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string): Promise<Order> {
+    return this.requireReturns().confirmReturned(id, { kind: 'sender', userId: user.id });
+  }
+
+  @Patch(':id/manager/delivery-failed')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DISPATCH)
+  @ApiOperation({ summary: "Dispetcher: yetkazib bo'lmadi → qaytarish (izoh majburiy, audit)" })
+  async managerDeliveryFailed(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ManagerDeliveryFailedDto,
+  ): Promise<Order> {
+    return this.requireReturns().markDeliveryFailed({ userId: user.id, byManager: true, note: dto.note }, id, dto.reason);
+  }
+
+  @Patch(':id/manager/confirm-returned')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DISPATCH)
+  @ApiOperation({ summary: 'Dispetcher: tovar qaytib keldi (izoh majburiy, audit)' })
+  async managerConfirmReturned(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ManagerConfirmReturnedDto,
+  ): Promise<Order> {
+    return this.requireReturns().confirmReturned(id, { kind: 'manager', userId: user.id, note: dto.note });
   }
 
   // The dispatcher panel's "Yakunlash" used to call the driver-only route

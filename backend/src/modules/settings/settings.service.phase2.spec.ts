@@ -110,6 +110,9 @@ describe('SettingsService — sotuvchi hisob-kitobi va smena', () => {
         platformName: 'Angren Taxi',
         supportPhone: '+998',
         deliveryFee: 7000,
+        parcelMaxDeclaredValue: 1000000,
+        dropoffFreeWaitMinutes: 5,
+        returnFeePercent: 50,
         maxCashVendorOrder: 200000,
         // Karta provayderi sozlanmagan (§1).
         cardPaymentsAvailable: false,

@@ -31,6 +31,14 @@ export const AUDIT_ACTIONS = {
   userSelfDelete: 'user.self_delete',
   /** Haydovchi KYC materiali ko'rib chiqildi. `metadata.code`/`approved`. */
   driverKycReview: 'driver.kyc_review',
+  /** Dispetcher yetkazishni "yetkazib bo'lmadi" deb belgiladi. `note` — izoh, `metadata.reason`. */
+  deliveryMarkFailed: 'delivery.mark_failed',
+  /** Dispetcher tovar qaytib kelganini tasdiqladi. `metadata.amount` — mijozdan olinadigan. */
+  deliveryConfirmReturned: 'delivery.confirm_returned',
+  /** Kartali qaytarish — mijozga qo'lda qaytariladigan summa yozildi (tizim). `amount`. */
+  deliveryRefundPending: 'delivery.refund_pending',
+  /** Menejer qo'lda qaytarishni bajarildi deb belgiladi. `amount`, `note`. */
+  deliveryRefundDone: 'delivery.refund_done',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

@@ -6,6 +6,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Order, OrderStatus, PaymentMethod, ServiceType } from '../../database/entities/order.entity';
 import { generateDeliveryPin, parseParcelDetails } from './parcel';
+import { parseCargoDetails } from './cargo';
+import { DEFAULT_DELIVERY_INCIDENT_SETTINGS } from '../settings/delivery-incident-settings';
+import { HANDOVER_CODE_SERVICE_TYPES } from '../delivery/delivery-return';
 import { Transaction } from '../../database/entities/transaction.entity';
 import { TariffsService } from '../tariffs/tariffs.service';
 import { agreedFareBreakdown } from '../tariffs/fare-breakdown';
@@ -221,6 +224,12 @@ export class OrdersCreationService {
    * yaratishda qolsa, rejalashtirilgan safar qarz darvozasini butunlay
    * chetlab o'tadigan yo'lga aylanardi.
    */
+  /** Posilka qiymati chegarasi (§2); sozlama ulanmagan spec'da — standart. */
+  private async parcelMaxDeclaredValue(): Promise<number> {
+    if (!this.settingsService) return DEFAULT_DELIVERY_INCIDENT_SETTINGS.parcelMaxDeclaredValue;
+    return (await this.settingsService.getDeliveryIncidentSettings()).parcelMaxDeclaredValue;
+  }
+
   async getOutstandingWalletDebt(passengerId: string): Promise<number> {
     return outstandingWalletDebt(this.transactionRepository, passengerId);
   }
@@ -371,7 +380,13 @@ export class OrdersCreationService {
         isParcel ? "Posilka faqat 'Posilka' tarifi bilan beriladi" : "Bu tarif faqat posilka uchun",
       );
     }
-    const details = isParcel ? parseParcelDetails(dto.details) : dto.details;
+    // Posilka va yuk `details` i faqat ma'lum, chegaralangan maydonlar bilan
+    // (INCIDENT-POLICY §2): JSON kuryer taklifiga to'g'ridan-to'g'ri ketadi.
+    const details = isParcel
+      ? parseParcelDetails(dto.details, await this.parcelMaxDeclaredValue())
+      : dto.serviceType === ServiceType.CARGO
+        ? parseCargoDetails(dto.details)
+        : dto.details;
 
     // TAKSOMETR: manzil ko'rsatilmagan — narx safar oxirida GPS izidan.
     const isMetered = this.resolveMetered(dto, tariff.serviceType, options);
@@ -380,13 +395,22 @@ export class OrdersCreationService {
     const dropoff = isMetered
       ? { lat: dto.pickupLat, lng: dto.pickupLng }
       : { lat: dto.dropoffLat!, lng: dto.dropoffLng! };
-    const deliveryPin = isParcel ? generateDeliveryPin() : null;
+    // Topshirish kodi — posilka, ovqat va market (INCIDENT-POLICY §2): kodni
+    // faqat yuboruvchi/mijoz ko'radi, kuryer uni kiritmasa topshira olmaydi.
+    const deliveryPin = HANDOVER_CODE_SERVICE_TYPES.includes(dto.serviceType ?? ServiceType.TAXI)
+      ? generateDeliveryPin()
+      : null;
 
     if (!scheduledAt && (dto.serviceType ?? ServiceType.TAXI) === ServiceType.TAXI) {
       await this.assertNoActiveTaxiOrder(passengerId);
     }
 
-    const outstandingDebt = await this.getOutstandingWalletDebt(passengerId);
+    // ⚠️ Ovqat/market kuryer safari (`agreedFare` — ichki chaqiruv) qarz
+    // darvozasidan O'TMAYDI: u mijoz buyurtmasining davomi, va qarz
+    // checkout'da (food/market `createOrder`) tekshiriladi. Ilgari qarzdor
+    // mijozning buyurtmasi sotuvchi "tayyor" deganda 400 bilan qotib qolardi.
+    const outstandingDebt =
+      options.agreedFare !== undefined ? 0 : await this.getOutstandingWalletDebt(passengerId);
 
     if (outstandingDebt > 0) {
       throw new BadRequestException(

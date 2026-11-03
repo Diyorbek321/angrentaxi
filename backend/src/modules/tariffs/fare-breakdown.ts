@@ -10,7 +10,7 @@
  *
  *   baseFare + distanceFare + timeFare
  *     + minPriceAdjustment + surgeFare + maxPriceCap
- *     + optionsFare + waitingFare + roundingAdjustment === total
+ *     + optionsFare + waitingFare + returnFare + roundingAdjustment === total
  *
  * Bu shunchaki did masalasi emas. Chek qatorlari jamiga qo'shilmasa, u
  * chekning umuman yo'qligidan ham yomon — foydalanuvchi hisob-kitobda xato
@@ -126,6 +126,14 @@ export interface FareBreakdown {
    * maydon faqat chekdagi qator nomi uchun. Boshqa hollarda YO'Q.
    */
   intercityBonus?: number;
+
+  /**
+   * Qaytarish haqi — "yetkazib bo'lmadi" dan keyin tovar sotuvchi/yuboruvchiga
+   * qaytarilgan kuryer safarida (`delivery/delivery-return.ts`): yetkazish
+   * haqining `returnFeePercent` foizi. Faqat shunday safarlarda bor; eski va
+   * oddiy tarkiblarda YO'Q — o'quvchi `0` deb qabul qiladi.
+   */
+  returnFare?: number;
 
   /** Yakuniy summa. `calculatePrice()` natijasi bilan AYNAN teng. */
   total: number;

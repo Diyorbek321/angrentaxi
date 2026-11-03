@@ -31,6 +31,24 @@ describe('courierTracking', () => {
       carNumber: '01 A 777 BB',
       pickup: { address: 'Osh Markazi', lat: 41.01, lng: 70.14 },
       dropoff: { address: 'Uy', lat: 41.02, lng: 70.15 },
+      dropoffArrivedAt: null,
+      deliveryFailedAt: null,
+      deliveryFailureReason: null,
+      deliveryOutcome: null,
+      handoverCode: null,
+    });
+  });
+
+  it('yetkazish hodisalari maydonlari (INCIDENT-POLICY §2)', () => {
+    const at = new Date('2026-11-03T10:00:00Z');
+    const result = courierTracking(
+      ride({ dropoffArrivedAt: at, deliveryFailedAt: at, deliveryFailureReason: 'customer_refused' } as never),
+    );
+    expect(result).toMatchObject({
+      dropoffArrivedAt: at.toISOString(),
+      deliveryFailedAt: at.toISOString(),
+      deliveryFailureReason: 'customer_refused',
+      handoverCode: null,
     });
   });
 

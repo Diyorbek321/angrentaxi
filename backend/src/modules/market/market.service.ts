@@ -10,7 +10,7 @@ import {
 import { randomUUID } from 'crypto';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, In, LessThan, MoreThanOrEqual, Raw, Repository } from 'typeorm';
+import { Between, In, LessThan, MoreThanOrEqual, Not, Raw, Repository } from 'typeorm';
 import { trendingProductIds } from './market-trending';
 import { normalizeProductQuery, searchProductIds } from './market-product-search';
 import { toPublicStore } from './public-store';
@@ -51,7 +51,12 @@ import { clampPageSize } from '../../common/utils/pagination.util';
 import { DeliveryEvent, DeliveryEventsService } from '../delivery/delivery-events.service';
 import { checkoutDeliveryFee, deliveryRideDetails } from '../delivery/delivery-ride-details';
 import { appliedDeliveryFee } from '../settings/delivery-pricing';
-import { courierTracking } from '../delivery/delivery-tracking';
+import { CourierTracking, courierTracking } from '../delivery/delivery-tracking';
+import { assertCustomerMayCheckout } from '../delivery/customer-delivery-gates';
+import { withHandoverCodes } from '../delivery/handover-code';
+import { assertVendorCanConfirmReturn, handleVendorReturnEvent } from '../delivery/vendor-return';
+import { OrdersReturnService } from '../orders/orders-return.service';
+import { AuditLogService } from '../audit/audit-log.service';
 import {
   CARD_PAYMENT_EXPIRED_REASON,
   UNPAID_CARD_EXPIRY_BATCH,
@@ -146,6 +151,9 @@ export class MarketService implements OnModuleInit {
     // FiscalReceiptsService o'zi `delivered` hodisasidan yozadi). Ixtiyoriy —
     // qo'lda yig'iladigan spec'lar uchun.
     @Optional() private readonly fiscalReceipts?: FiscalReceiptsService,
+    // Yetkazish hodisalari (INCIDENT-POLICY §2). Ixtiyoriy — qo'lda yig'iladigan spec'lar.
+    @Optional() private readonly orderReturns?: OrdersReturnService,
+    @Optional() private readonly auditLog?: AuditLogService,
   ) {}
 
   onModuleInit(): void {
@@ -377,7 +385,12 @@ export class MarketService implements OnModuleInit {
       order: { createdAt: 'DESC' },
     });
     const paid = await paidCardOrderIds(this.transactionRepo, orders);
-    return Promise.all(orders.map((o) => this.withDelivery(o, paid.has(o.id))));
+    // Topshirish kodi — faqat mijozga (INCIDENT-POLICY §2).
+    return this.withHandoverCodes(await Promise.all(orders.map((o) => this.withDelivery(o, paid.has(o.id)))));
+  }
+
+  private withHandoverCodes<T extends { delivery: CourierTracking | null }>(items: T[]): Promise<T[]> {
+    return withHandoverCodes((sql, params) => this.orderRepo.query(sql, params), items);
   }
 
   async getOrder(storeId: string, id: string) {
@@ -635,6 +648,16 @@ export class MarketService implements OnModuleInit {
     return this.withDelivery(saved);
   }
 
+  /** Sotuvchi: qaytarilgan tovar do'konga qaytib keldi (INCIDENT-POLICY §2; ovqatdagi bilan bir xil). */
+  async confirmReturned(storeId: string, id: string) {
+    const order = await this.findOrderEntity(storeId, id);
+    assertVendorCanConfirmReturn(order, MarketOrderStatus.RETURNING);
+    if (!this.orderReturns) throw new BadRequestException('Bu buyurtma qaytarilmayapti');
+    const store = await this.storeRepo.findOneOrFail({ where: { id: storeId } });
+    await this.orderReturns.confirmReturned(order.deliveryOrderId, { kind: 'vendor', userId: store.ownerUserId });
+    return this.withDelivery(await this.findOrderEntity(storeId, id));
+  }
+
   /**
    * Courier ride → market order. Only the ride currently linked to the order
    * counts; late events from a ride abandoned by a re-dispatch are ignored.
@@ -642,6 +665,29 @@ export class MarketService implements OnModuleInit {
   private async onDeliveryEvent(marketOrderId: string, event: DeliveryEvent): Promise<void> {
     const order = await this.orderRepo.findOne({ where: { id: marketOrderId } });
     if (!order || order.deliveryOrderId !== event.deliveryOrderId) return;
+
+    // "Yetkazib bo'lmadi" → qaytarilmoqda; "qaytib keldi" → tushumsiz yopiladi,
+    // tovar zaxiraga qaytadi (§2).
+    if (event.kind === 'delivery_failed' || event.kind === 'returned') {
+      const store = await this.storeRepo.findOneOrFail({ where: { id: order.storeId } });
+      await handleVendorReturnEvent(
+        {
+          kind: 'market',
+          order,
+          ownerUserId: store.ownerUserId,
+          repo: this.orderRepo,
+          transactions: this.transactionRepo,
+          inTransitStatus: MarketOrderStatus.SHIPPED,
+          emit: (userId, name, payload) => this.realtimeGateway.emitToUser(userId, name, payload),
+          push: (userIds, text, name, data) =>
+            this.notificationsService?.notifyUserIds(userIds, text, name, data) ?? Promise.resolve(),
+          audit: (entry) => this.auditLog?.record(entry) ?? Promise.resolve(),
+          afterReturned: () => this.restoreStock(order, 'Yetkazib bo‘lmadi — qaytarildi'),
+        },
+        event,
+      );
+      return;
+    }
 
     if (event.kind === 'delivered') {
       // Conditional write so a simultaneous manual "delivered" click and the
@@ -813,7 +859,12 @@ export class MarketService implements OnModuleInit {
     since.setDate(since.getDate() - ANALYTICS_WINDOW_DAYS);
 
     return this.orderRepo.find({
-      where: { storeId, createdAt: MoreThanOrEqual(since) },
+      // Qaytarilgan/qaytarilayotgan buyurtma — sotilgan tovar emas (§2).
+      where: {
+        storeId,
+        createdAt: MoreThanOrEqual(since),
+        status: Not(In([MarketOrderStatus.RETURNING, MarketOrderStatus.RETURNED])),
+      },
       order: { createdAt: 'DESC' },
       take: ANALYTICS_MAX_ORDERS,
     });
@@ -1071,6 +1122,15 @@ export class MarketService implements OnModuleInit {
     // Karta provayderi sozlanmagan bo'lsa kartali buyurtma ham rad
     // (INCIDENT-POLICY §1).
     const deliveryMode = dto.deliveryMode ?? MarketOrderDeliveryMode.PLATFORM;
+    // Qarz va rad etishlar darvozasi (INCIDENT-POLICY §2).
+    await assertCustomerMayCheckout(
+      { query: (sql, params) => this.orderRepo.query(sql, params), transactions: this.transactionRepo },
+      {
+        customerId,
+        isCash: (dto.paymentMethod ?? MarketPaymentMethod.CASH) === MarketPaymentMethod.CASH,
+        settings: await this.settingsService.getDeliveryIncidentSettings(),
+      },
+    );
     assertCheckoutPaymentAllowed({
       isCash: (dto.paymentMethod ?? MarketPaymentMethod.CASH) === MarketPaymentMethod.CASH,
       totalPrice,
@@ -1357,7 +1417,8 @@ export class MarketService implements OnModuleInit {
     if (!order) {
       throw new NotFoundException('Order not found');
     }
-    return this.withDelivery(order);
+    const [shown] = await this.withHandoverCodes([await this.withDelivery(order)]);
+    return shown;
   }
 
   // ---------- admin ----------

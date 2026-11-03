@@ -14,6 +14,7 @@ import {
   DELIVERY_ETA_MINUTES_MAX,
   DELIVERY_ETA_MINUTES_MIN,
 } from '../delivery-pricing';
+import { DELIVERY_INCIDENT_LIMITS as L } from '../delivery-incident-settings';
 
 export class UpdateGlobalSettingsDto {
   @ApiPropertyOptional({ example: 'Angren Taxi' })
@@ -89,4 +90,53 @@ export class UpdateGlobalSettingsDto {
   @Min(5)
   @Max(1440)
   cardPaymentTimeoutMinutes?: number;
+
+  @ApiPropertyOptional({ example: 1000000, description: "Posilka e'lon qilingan qiymati chegarasi, so'm" })
+  @IsOptional()
+  @IsInt()
+  @Min(L.parcelMaxDeclaredValue.min)
+  @Max(L.parcelMaxDeclaredValue.max)
+  parcelMaxDeclaredValue?: number;
+
+  @ApiPropertyOptional({ example: 5, description: "Manzilda bepul kutish, daqiqa" })
+  @IsOptional()
+  @IsInt()
+  @Min(L.dropoffFreeWaitMinutes.min)
+  @Max(L.dropoffFreeWaitMinutes.max)
+  dropoffFreeWaitMinutes?: number;
+
+  @ApiPropertyOptional({ example: 50, description: "Qaytarish haqi — yetkazish haqining foizi" })
+  @IsOptional()
+  @IsInt()
+  @Min(L.returnFeePercent.min)
+  @Max(L.returnFeePercent.max)
+  returnFeePercent?: number;
+
+  @ApiPropertyOptional({ example: 2, description: "Shuncha rad — ovqat/market naqd to'lovi o'chadi" })
+  @IsOptional()
+  @IsInt()
+  @Min(L.refusalCashBlockCount.min)
+  @Max(L.refusalCashBlockCount.max)
+  refusalCashBlockCount?: number;
+
+  @ApiPropertyOptional({ example: 30, description: "Rad etishlar sanaladigan oyna, kun" })
+  @IsOptional()
+  @IsInt()
+  @Min(L.refusalWindowDays.min)
+  @Max(L.refusalWindowDays.max)
+  refusalWindowDays?: number;
+
+  @ApiPropertyOptional({ example: 60, description: "IN_PROGRESS yetkazish shuncha daqiqadan oshsa signal" })
+  @IsOptional()
+  @IsInt()
+  @Min(L.stuckDeliveryMinutes.min)
+  @Max(L.stuckDeliveryMinutes.max)
+  stuckDeliveryMinutes?: number;
+
+  @ApiPropertyOptional({ example: 10, description: "Kuryer joylashuvi shuncha daqiqadan eski bo'lsa signal" })
+  @IsOptional()
+  @IsInt()
+  @Min(L.staleCourierLocationMinutes.min)
+  @Max(L.staleCourierLocationMinutes.max)
+  staleCourierLocationMinutes?: number;
 }

@@ -19,3 +19,9 @@ export interface AddressDetails {
 
 /** Ovqat/market buyurtmasini kim bekor qildi (`system` — to'lanmagan karta muddati, §1). */
 export type VendorOrderCancelledBy = 'customer' | 'vendor' | 'system';
+
+/** Nullable decimal ustun — pg matnini songa o'giradi (qaytarish summalari, 049). */
+export const NULLABLE_DECIMAL = {
+  to: (value: number | null) => value,
+  from: (value: string | null) => (value !== null && value !== undefined ? parseFloat(value) : null),
+};

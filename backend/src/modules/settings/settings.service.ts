@@ -33,9 +33,14 @@ import {
   assertDeliveryEtaRange,
 } from './delivery-pricing';
 import { CardPaymentProvider, configuredCardProviders } from '../payments/card-availability';
+import {
+  DELIVERY_INCIDENT_FIELDS,
+  DeliveryIncidentSettings,
+  toDeliveryIncidentSettings,
+} from './delivery-incident-settings';
 
 /** `GET/PATCH /settings/global` shakli. */
-export interface GlobalSettings extends DeliveryEta {
+export interface GlobalSettings extends DeliveryEta, DeliveryIncidentSettings {
   platformName: string;
   supportPhone: string;
   supportEmail: string;
@@ -65,6 +70,8 @@ const GLOBAL_SETTINGS_FIELDS: ReadonlyArray<keyof GlobalSettings> = [
   'deliveryEtaMinMinutes',
   'deliveryEtaMaxMinutes',
   'cardPaymentTimeoutMinutes',
+  // Yetkazish hodisalari (INCIDENT-POLICY §2, migratsiya 049).
+  ...DELIVERY_INCIDENT_FIELDS,
 ];
 
 /** Ustun qo'shilmagan eski qatorda — migratsiya 047 standarti. */
@@ -92,6 +99,11 @@ export class SettingsService {
   /** Sozlangan karta provayderlari (`payme`, `click`, `uzcard`). */
   cardPaymentProviders(): CardPaymentProvider[] {
     return this.config ? configuredCardProviders(this.config) : [];
+  }
+
+  /** Yetkazish hodisalari sozlamalari (§2). */
+  async getDeliveryIncidentSettings(): Promise<DeliveryIncidentSettings> {
+    return toDeliveryIncidentSettings(await this.getOrCreate());
   }
 
   /** To'lanmagan kartali buyurtma muddati, daqiqa (§1). */
@@ -310,6 +322,8 @@ export class SettingsService {
       // Ilova: "Yetkazish 7 000 so'm · 30–50 daq · 100 000 so'mdan bepul" (§7).
       freeDeliveryFrom: toDeliveryPricing(settings).freeDeliveryFrom,
       ...toDeliveryEta(settings),
+      // Posilka formasi, kutish taymeri va qaytarish haqi izohi (§2).
+      ...publicDeliveryIncidentSettings(toDeliveryIncidentSettings(settings)),
       vendorSettlementMode: vendor.effectiveVendorSettlementMode,
       vendorWalletSettlementFrom: vendor.vendorWalletSettlementFrom,
       ...publicWalletTopupSettings(toWalletTopupSettings(settings)),
@@ -399,6 +413,17 @@ function toGlobalSettings(settings: PlatformSettings): GlobalSettings {
     freeDeliveryFrom: toDeliveryPricing(settings).freeDeliveryFrom,
     ...toDeliveryEta(settings),
     cardPaymentTimeoutMinutes: toCardPaymentTimeoutMinutes(settings),
+    ...toDeliveryIncidentSettings(settings),
+  };
+}
+
+function publicDeliveryIncidentSettings(
+  settings: DeliveryIncidentSettings,
+): Pick<DeliveryIncidentSettings, 'parcelMaxDeclaredValue' | 'dropoffFreeWaitMinutes' | 'returnFeePercent'> {
+  return {
+    parcelMaxDeclaredValue: settings.parcelMaxDeclaredValue,
+    dropoffFreeWaitMinutes: settings.dropoffFreeWaitMinutes,
+    returnFeePercent: settings.returnFeePercent,
   };
 }
 

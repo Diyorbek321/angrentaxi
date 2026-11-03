@@ -5,6 +5,7 @@
 // enrichment every read path shares — which is why the write-side services
 // (creation, lifecycle, completion, dispatch) depend on this service for their
 // own findByIdOrThrow calls rather than duplicating it.
+import { HANDOVER_CODE_SERVICE_TYPES } from '../delivery/delivery-return';
 import {
   BadRequestException,
   ForbiddenException,
@@ -14,7 +15,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
-import { Order, OrderStatus, ServiceType } from '../../database/entities/order.entity';
+import { Order, OrderStatus } from '../../database/entities/order.entity';
 import { DispatchOverride } from '../../database/entities/dispatch-override.entity';
 import { UserRole } from '../../database/entities/user.entity';
 import { DriversService } from '../drivers/drivers.service';
@@ -202,10 +203,11 @@ export class OrdersQueryService {
     return this.withDeliveryPinIfSender(order, isPassenger, id);
   }
 
-  // Posilka PIN — faqat yuboruvchiga (u qabul qiluvchiga aytadi). Haydovchi
-  // uni HECH QACHON ko'rmasligi kerak: aks holda tekshiruv ma'nosiz bo'lardi.
+  // Topshirish kodi — faqat yuboruvchi/mijozga (posilka: qabul qiluvchiga
+  // aytadi; ovqat/market: mijozning o'zi kuryerga aytadi, INCIDENT-POLICY §2).
+  // Haydovchi uni HECH QACHON ko'rmasligi kerak: aks holda tekshiruv ma'nosiz bo'lardi.
   private async withDeliveryPinIfSender(order: Order, isPassenger: boolean, id: string): Promise<Order> {
-    if (isPassenger && order.serviceType === ServiceType.PARCEL) {
+    if (isPassenger && HANDOVER_CODE_SERVICE_TYPES.includes(order.serviceType)) {
       const [row] = (await this.orderRepository.query(
         'SELECT delivery_pin FROM orders WHERE id = $1',
         [id],

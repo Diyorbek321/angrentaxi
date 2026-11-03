@@ -1,3 +1,4 @@
+import { noDebtQueryBuilder, noRefusalsQuery } from '../delivery/checkout-gates.testing';
 import { BadRequestException } from '@nestjs/common';
 import { FoodService } from './food.service';
 import { FoodOrder, FoodOrderStatus, FoodPaymentMethod } from '../../database/entities/food-order.entity';
@@ -36,6 +37,7 @@ describe('FoodService — kartali buyurtma to\'lovi', () => {
   function build(opts: { paid?: boolean; cardAvailable?: boolean; stored?: FoodOrder } = {}) {
     const stored = opts.stored ?? order();
     const orderRepo = {
+      query: noRefusalsQuery(),
       create: jest.fn((x) => x),
       save: jest.fn(async (x) => x),
       findOne: jest.fn().mockResolvedValue(stored),
@@ -52,6 +54,7 @@ describe('FoodService — kartali buyurtma to\'lovi', () => {
       ]),
     };
     const transactionRepo = {
+      createQueryBuilder: noDebtQueryBuilder(),
       save: jest.fn(async (t) => t),
       count: jest.fn().mockResolvedValue(opts.paid ? 1 : 0),
       find: jest.fn().mockResolvedValue(opts.paid ? [{ orderId: stored.id, userId: stored.customerId }] : []),
@@ -61,6 +64,7 @@ describe('FoodService — kartali buyurtma to\'lovi', () => {
     const settingsService = {
       getDeliveryPricing: jest.fn().mockResolvedValue({ deliveryFee: 7000, freeDeliveryFrom: 0 }),
       getMaxCashVendorOrder: jest.fn().mockResolvedValue(200000),
+      getDeliveryIncidentSettings: jest.fn().mockResolvedValue({ refusalCashBlockCount: 2, refusalWindowDays: 30 }),
       cardPaymentsAvailable: jest.fn().mockReturnValue(opts.cardAvailable ?? true),
       getCardPaymentTimeoutMinutes: jest.fn().mockResolvedValue(15),
     };

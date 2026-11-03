@@ -54,6 +54,7 @@ import {
 } from './vendor-wallet-settlement';
 import { DeliveryEvent, DeliveryEventsService } from './delivery-events.service';
 import type { NearbyDriver } from '../drivers/drivers.service';
+import { VendorRefundsController, VendorRefundsService } from './vendor-refunds';
 
 export type VendorKind = 'food' | 'market';
 
@@ -180,12 +181,15 @@ export class VendorCashService implements OnModuleInit {
   }
 
   /**
-   * `cancelled` — safar bekor (§14); `reassigned` — dispetcher kuryerni
+   * `cancelled` — safar bekor (§14); `returned` — qaytarildi (INCIDENT-POLICY §2); `reassigned` — dispetcher kuryerni
    * almashtirdi (§19): oldingi kuryer hamyondan to'lagan bo'lsa, o'tkazmasi
    * teskari, keyingi kuryer olib ketishda yangidan (`_N` belgilari) o'tkazadi.
    */
   private async onDeliveryEvent(event: DeliveryEvent): Promise<void> {
-    if (event.kind !== 'cancelled' && event.kind !== 'reassigned') return;
+    // `returned` — tovar sotuvchiga qaytdi (INCIDENT-POLICY §2): kuryer
+    // olib ketishda hamyondan to'lagan tovar puli unga qaytariladi. Naqd
+    // rejimda sotuvchi naqdni kuryerga qo'lda qaytaradi (panel tugmasi matni).
+    if (event.kind !== 'cancelled' && event.kind !== 'reassigned' && event.kind !== 'returned') return;
     // Qayta biriktirishda faqat oldingi kuryerning o'tkazmasi.
     const courier = event.kind === 'reassigned' ? event.previousCourierUserId : undefined;
     if (event.kind === 'reassigned' && !courier) return;
@@ -517,8 +521,9 @@ export class VendorCashController {
     // tayanadi — aylanma bog'liqlik yo'q.
     SettingsModule,
   ],
-  controllers: [VendorCashController],
-  providers: [VendorCashService],
+  // Kartali qaytarishlar navbati (INCIDENT-POLICY §2) — shu repozitoriylar bilan.
+  controllers: [VendorCashController, VendorRefundsController],
+  providers: [VendorCashService, VendorRefundsService],
   exports: [VendorCashService],
 })
 export class VendorCashModule {}

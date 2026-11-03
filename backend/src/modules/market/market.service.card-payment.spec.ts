@@ -1,3 +1,4 @@
+import { noDebtQueryBuilder, noRefusalsQuery } from '../delivery/checkout-gates.testing';
 import { MarketService } from './market.service';
 import {
   MarketOrder,
@@ -37,6 +38,7 @@ describe('MarketService — kartali buyurtma to\'lovi', () => {
     };
     const movementRepo = { create: jest.fn((m) => m), save: jest.fn(async (m) => m) };
     const orderRepo = {
+      query: noRefusalsQuery(),
       create: jest.fn((o) => o),
       save: jest.fn(async (o) => ({ id: 'mo-1', ...o })),
       findOne: jest.fn().mockResolvedValue(stored),
@@ -44,6 +46,7 @@ describe('MarketService — kartali buyurtma to\'lovi', () => {
       update: jest.fn().mockResolvedValue({ affected: 1 }),
     };
     const transactionRepo = {
+      createQueryBuilder: noDebtQueryBuilder(),
       save: jest.fn(async (t) => t),
       count: jest.fn().mockResolvedValue(opts.paid ? 1 : 0),
       find: jest.fn().mockResolvedValue(opts.paid ? [{ orderId: stored.id, userId: stored.customerId }] : []),
@@ -53,6 +56,7 @@ describe('MarketService — kartali buyurtma to\'lovi', () => {
     const settingsService = {
       getDeliveryPricing: jest.fn().mockResolvedValue({ deliveryFee: 7000, freeDeliveryFrom: 0 }),
       getMaxCashVendorOrder: jest.fn().mockResolvedValue(200000),
+      getDeliveryIncidentSettings: jest.fn().mockResolvedValue({ refusalCashBlockCount: 2, refusalWindowDays: 30 }),
       cardPaymentsAvailable: jest.fn().mockReturnValue(opts.cardAvailable ?? true),
       getCardPaymentTimeoutMinutes: jest.fn().mockResolvedValue(15),
     };

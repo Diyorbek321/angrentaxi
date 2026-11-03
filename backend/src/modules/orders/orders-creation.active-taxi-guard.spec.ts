@@ -21,6 +21,7 @@ import { DriversService } from '../drivers/drivers.service';
 import { PromoCodesService } from '../promo-codes/promo-codes.service';
 import { DriverBonusesService } from '../driver-bonuses/driver-bonuses.service';
 import { SettingsService } from '../settings/settings.service';
+import { DEFAULT_DELIVERY_INCIDENT_SETTINGS } from '../settings/delivery-incident-settings';
 
 /**
  * Bir vaqtda faqat BITTA jonli taksi buyurtmasi (egasi qarori, 2026-10-31).
@@ -76,7 +77,7 @@ describe('OrdersService.create — bitta faol taksi buyurtmasi', () => {
         { provide: DriversService, useValue: { findByUserId: jest.fn() } },
         { provide: PromoCodesService, useValue: { validate: jest.fn() } },
         { provide: DriverBonusesService, useValue: {} },
-        { provide: SettingsService, useValue: {} },
+        { provide: SettingsService, useValue: { getDeliveryIncidentSettings: async () => DEFAULT_DELIVERY_INCIDENT_SETTINGS } },
       ],
     }).compile();
 
@@ -136,7 +137,7 @@ describe('OrdersService.create — bitta faol taksi buyurtmasi', () => {
 
     await service.create('passenger-1', {
       tariffId: 'tariff-1', ...PICKUP, ...DEST, serviceType: ServiceType.PARCEL,
-      details: { recipientName: 'Ali', recipientPhone: '+998901234567', itemDescription: 'Hujjat', size: 'small' },
+      details: { recipientName: 'Ali', recipientPhone: '+998901234567', itemDescription: 'Hujjat', size: 'small', declaredValue: 50000, prohibitedItemsAccepted: true },
     } as unknown as CreateOrderDto);
 
     expect(orderRepository.count).not.toHaveBeenCalled();

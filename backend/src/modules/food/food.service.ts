@@ -10,7 +10,7 @@ import {
 import { randomUUID } from 'crypto';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { LessThan, MoreThanOrEqual, Not, Raw, Repository } from 'typeorm';
+import { In, LessThan, MoreThanOrEqual, Not, Raw, Repository } from 'typeorm';
 import { Restaurant, RestaurantStatus, WorkingHoursDay } from '../../database/entities/restaurant.entity';
 import { MenuCategory } from '../../database/entities/menu-category.entity';
 import { Dish } from '../../database/entities/dish.entity';
@@ -51,7 +51,12 @@ import {
   paidCardOrderIds,
 } from '../delivery/vendor-card-payment';
 import { unpaidCardOrderCancelledText } from '../notifications/misc-notification-texts';
-import { courierTracking } from '../delivery/delivery-tracking';
+import { CourierTracking, courierTracking } from '../delivery/delivery-tracking';
+import { assertCustomerMayCheckout } from '../delivery/customer-delivery-gates';
+import { withHandoverCodes } from '../delivery/handover-code';
+import { assertVendorCanConfirmReturn, handleVendorReturnEvent } from '../delivery/vendor-return';
+import { OrdersReturnService } from '../orders/orders-return.service';
+import { AuditLogService } from '../audit/audit-log.service';
 import { PromotionsService } from '../promotions/promotions.service';
 import { PromoCodesService } from '../promo-codes/promo-codes.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -125,6 +130,10 @@ export class FoodService implements OnModuleInit {
     // FiscalReceiptsService o'zi `delivered` hodisasidan yozadi). Ixtiyoriy —
     // qo'lda yig'iladigan spec'lar uchun.
     @Optional() private readonly fiscalReceipts?: FiscalReceiptsService,
+    // Yetkazish hodisalari (INCIDENT-POLICY §2): sotuvchining "Qaytib keldi"
+    // tasdig'i va kartali qaytarish jurnali. Ixtiyoriy — qo'lda yig'iladigan spec'lar.
+    @Optional() private readonly orderReturns?: OrdersReturnService,
+    @Optional() private readonly auditLog?: AuditLogService,
   ) {}
 
   onModuleInit(): void {
@@ -534,6 +543,21 @@ export class FoodService implements OnModuleInit {
   }
 
   /**
+   * Sotuvchi: qaytarilgan tovar qo'liga keldi (INCIDENT-POLICY §2). Kuryer
+   * safari "qaytarildi" bo'lib yakunlanadi — mijozdan yetkazish + qaytarish
+   * haqi, kuryerning oldindan to'lagan tovar puli qaytariladi; buyurtma
+   * `returned` (tushumsiz) bo'ladi — hammasi `returned` hodisasidan.
+   */
+  async confirmReturned(restaurantId: string, id: string) {
+    const order = await this.findOrderEntity(restaurantId, id);
+    assertVendorCanConfirmReturn(order, FoodOrderStatus.RETURNING);
+    if (!this.orderReturns) throw new BadRequestException('Bu buyurtma qaytarilmayapti');
+    const restaurant = await this.restaurantRepo.findOneOrFail({ where: { id: restaurantId } });
+    await this.orderReturns.confirmReturned(order.deliveryOrderId, { kind: 'vendor', userId: restaurant.ownerUserId });
+    return this.withDelivery(await this.findOrderEntity(restaurantId, id));
+  }
+
+  /**
    * Courier ride → food order. Only the ride currently linked to the order
    * counts: after a re-dispatch, late events from the abandoned ride are
    * ignored rather than, say, marking the order "courier not found" while the
@@ -542,6 +566,27 @@ export class FoodService implements OnModuleInit {
   private async onDeliveryEvent(foodOrderId: string, event: DeliveryEvent): Promise<void> {
     const order = await this.orderRepo.findOne({ where: { id: foodOrderId } });
     if (!order || order.deliveryOrderId !== event.deliveryOrderId) return;
+
+    // "Yetkazib bo'lmadi" → qaytarilmoqda, "qaytib keldi" → tushumsiz yopiladi (§2).
+    if (event.kind === 'delivery_failed' || event.kind === 'returned') {
+      const restaurant = await this.restaurantRepo.findOneOrFail({ where: { id: order.restaurantId } });
+      await handleVendorReturnEvent(
+        {
+          kind: 'food',
+          order,
+          ownerUserId: restaurant.ownerUserId,
+          repo: this.orderRepo,
+          transactions: this.transactionRepo,
+          inTransitStatus: FoodOrderStatus.READY,
+          emit: (userId, name, payload) => this.realtimeGateway.emitToUser(userId, name, payload),
+          push: (userIds, text, name, data) =>
+            this.notificationsService?.notifyUserIds(userIds, text, name, data) ?? Promise.resolve(),
+          audit: (entry) => this.auditLog?.record(entry) ?? Promise.resolve(),
+        },
+        event,
+      );
+      return;
+    }
 
     if (event.kind === 'delivered') {
       // Conditional write: the restaurant may click "delivered" by hand at the
@@ -717,7 +762,8 @@ export class FoodService implements OnModuleInit {
       where: {
         restaurantId,
         createdAt: MoreThanOrEqual(since),
-        status: Not(FoodOrderStatus.CANCELLED),
+        // Qaytarilgan/qaytarilayotgan buyurtma — tushum emas (§2).
+        status: Not(In([FoodOrderStatus.CANCELLED, FoodOrderStatus.RETURNING, FoodOrderStatus.RETURNED])),
       },
       order: { createdAt: 'DESC' },
       take: ANALYTICS_MAX_ORDERS,
@@ -892,6 +938,15 @@ export class FoodService implements OnModuleInit {
     // Kuryer tovarni restorandan o'z pulidan oladi — naqd chegaralangan
     // (`delivery/vendor-cash.ts`). Karta provayderi sozlanmagan bo'lsa
     // kartali buyurtma ham rad (INCIDENT-POLICY §1).
+    // Qarz va rad etishlar darvozasi (INCIDENT-POLICY §2).
+    await assertCustomerMayCheckout(
+      { query: (sql, params) => this.orderRepo.query(sql, params), transactions: this.transactionRepo },
+      {
+        customerId,
+        isCash: (dto.paymentMethod ?? FoodPaymentMethod.CASH) === FoodPaymentMethod.CASH,
+        settings: await this.settingsService.getDeliveryIncidentSettings(),
+      },
+    );
     assertCheckoutPaymentAllowed({
       isCash: (dto.paymentMethod ?? FoodPaymentMethod.CASH) === FoodPaymentMethod.CASH,
       totalPrice,
@@ -1146,7 +1201,8 @@ export class FoodService implements OnModuleInit {
       take: safeLimit,
     });
     const paid = await paidCardOrderIds(this.transactionRepo, orders);
-    return Promise.all(orders.map((o) => this.withDelivery(o, paid.has(o.id))));
+    // Topshirish kodi — faqat mijozga (INCIDENT-POLICY §2).
+    return this.withHandoverCodes(await Promise.all(orders.map((o) => this.withDelivery(o, paid.has(o.id)))));
   }
 
   async getCustomerOrder(customerId: string, id: string) {
@@ -1154,7 +1210,12 @@ export class FoodService implements OnModuleInit {
     if (!order) {
       throw new NotFoundException('Order not found');
     }
-    return this.withDelivery(order);
+    const [shown] = await this.withHandoverCodes([await this.withDelivery(order)]);
+    return shown;
+  }
+
+  private withHandoverCodes<T extends { delivery: CourierTracking | null }>(items: T[]): Promise<T[]> {
+    return withHandoverCodes((sql, params) => this.orderRepo.query(sql, params), items);
   }
 
   // ---------- admin ----------

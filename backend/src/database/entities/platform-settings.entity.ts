@@ -97,6 +97,29 @@ export class PlatformSettings {
   @Column({ name: 'card_payment_timeout_minutes', type: 'int', default: 15 })
   cardPaymentTimeoutMinutes: number;
 
+  // Yetkazish hodisalari (migratsiya 049, docs/INCIDENT-POLICY.md §2;
+  // o'qish `settings/delivery-incident-settings.ts` orqali).
+  @Column({ name: 'parcel_max_declared_value', type: 'int', default: 1000000 })
+  parcelMaxDeclaredValue: number;
+
+  @Column({ name: 'dropoff_free_wait_minutes', type: 'int', default: 5 })
+  dropoffFreeWaitMinutes: number;
+
+  @Column({ name: 'return_fee_percent', type: 'int', default: 50 })
+  returnFeePercent: number;
+
+  @Column({ name: 'refusal_cash_block_count', type: 'int', default: 2 })
+  refusalCashBlockCount: number;
+
+  @Column({ name: 'refusal_window_days', type: 'int', default: 30 })
+  refusalWindowDays: number;
+
+  @Column({ name: 'stuck_delivery_minutes', type: 'int', default: 60 })
+  stuckDeliveryMinutes: number;
+
+  @Column({ name: 'stale_courier_location_minutes', type: 'int', default: 10 })
+  staleCourierLocationMinutes: number;
+
   // Safar opsiyalari haqi, so'm (migratsiya 023): `{ child_seat: 5000 }`.
   // Menejer belgilaydi; o'qish `normalizeTripOptionFees` orqali.
   @Column({ name: 'trip_option_fees', type: 'jsonb', default: () => "'{}'" })

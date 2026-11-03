@@ -8,7 +8,18 @@ import { Global, Injectable, Logger, Module } from '@nestjs/common';
  * either way the vendor needs a new courier. `reassigned` — a dispatcher moved
  * the SAME ride to another courier (`previousCourierUserId` is the old one).
  */
-export type DeliveryEventKind = 'accepted' | 'arrived' | 'picked_up' | 'delivered' | 'cancelled' | 'reassigned';
+export type DeliveryEventKind =
+  | 'accepted'
+  | 'arrived'
+  | 'picked_up'
+  | 'delivered'
+  | 'cancelled'
+  | 'reassigned'
+  // Yetkazish hodisalari (INCIDENT-POLICY §2): kuryer manzilga yetdi,
+  // "yetkazib bo'lmadi" (qaytarish boshlandi), tovar qaytib keldi.
+  | 'dropoff_arrived'
+  | 'delivery_failed'
+  | 'returned';
 
 export interface DeliveryEvent {
   kind: DeliveryEventKind;
@@ -18,10 +29,16 @@ export interface DeliveryEvent {
   marketOrderId: string | null;
   /** `reassigned`: dispetcher almashtirgan oldingi kuryer (`users.id`). */
   previousCourierUserId?: string;
+  /** `delivered`/`returned`: mijozdan olinadigan kuryer safari summasi (so'm). */
+  customerOwes?: number;
+  /** `delivery_failed`: sabab. */
+  failureReason?: string;
 }
 
 export interface DeliveryEventExtra {
   previousCourierUserId?: string;
+  customerOwes?: number;
+  failureReason?: string;
 }
 
 export type DeliveryListener = (event: DeliveryEvent) => Promise<void> | void;

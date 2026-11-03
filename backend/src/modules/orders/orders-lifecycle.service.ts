@@ -6,7 +6,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { TaximeterService } from '../taximeter/taximeter.service';
+import { TaximeterService, tracksRide } from '../taximeter/taximeter.service';
 import { Order, OrderStatus } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
@@ -272,7 +272,8 @@ export class OrdersLifecycleService {
 
     // Taksometr izining birinchi nuqtasi — haydovchi turgan joy. Busiz
     // birinchi ping kelguncha bosilgan metrlar hisobdan tushib qolardi.
-    if (order.isMetered) {
+    // Yetkazish safarida ham (INCIDENT-POLICY §2) — iz nizo dalili.
+    if (tracksRide(order)) {
       await this.taximeterService?.recordDriverPosition(orderId);
     }
 

@@ -254,6 +254,13 @@ export class MarketVendorController {
     return this.marketService.redispatchDelivery(store.id, id);
   }
 
+  @Post('orders/:id/confirm-returned')
+  @ApiOperation({ summary: "Qaytarilgan buyurtma do'konga qaytib keldi (INCIDENT-POLICY §2)" })
+  async confirmReturned(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
+    const store = await this.marketService.getStoreByOwner(user.id);
+    return this.marketService.confirmReturned(store.id, id);
+  }
+
   /**
    * Naqd buyurtma: kuryer tovar pulini to'ladimi (`delivery/vendor-cash.ts`).
    * "Olmadim" — dispetcherga nizo ketadi.

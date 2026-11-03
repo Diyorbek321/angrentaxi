@@ -1,3 +1,4 @@
+import { noDebtQueryBuilder, noRefusalsQuery } from '../delivery/checkout-gates.testing';
 import { BadRequestException } from '@nestjs/common';
 import { MarketService } from './market.service';
 import { MarketOrderDeliveryMode, MarketPaymentMethod } from '../../database/entities/market-order.entity';
@@ -18,14 +19,18 @@ describe('MarketService.createOrder — naqd chegarasi', () => {
   beforeEach(() => {
     productRepo = { find: jest.fn().mockResolvedValue([{ ...product }]), save: jest.fn(async (p) => p) };
     movementRepo = { create: jest.fn((m) => m), save: jest.fn(async (m) => m) } as never;
-    orderRepo = { create: jest.fn((o) => o), save: jest.fn(async (o) => ({ id: 'mo-1', ...o })) };
+    orderRepo = {
+      create: jest.fn((o) => o),
+      save: jest.fn(async (o) => ({ id: 'mo-1', ...o })),
+      query: noRefusalsQuery(),
+    } as never;
     service = new MarketService(
       { findOne: jest.fn().mockResolvedValue({ id: 's1', ownerUserId: 'owner-1' }) } as never,
       {} as never,
       productRepo as never,
       movementRepo as never,
       orderRepo as never,
-      {} as never,
+      { createQueryBuilder: noDebtQueryBuilder() } as never,
       { emitToUser: jest.fn() } as never,
       {} as never,
       {} as never,
@@ -35,6 +40,7 @@ describe('MarketService.createOrder — naqd chegarasi', () => {
         getDeliveryFee: jest.fn().mockResolvedValue(7000),
         getDeliveryPricing: jest.fn().mockResolvedValue({ deliveryFee: 7000, freeDeliveryFrom: 0 }),
         getMaxCashVendorOrder: jest.fn().mockResolvedValue(200000),
+        getDeliveryIncidentSettings: jest.fn().mockResolvedValue({ refusalCashBlockCount: 2, refusalWindowDays: 30 }),
         // Karta provayderi sozlangan (INCIDENT-POLICY §1).
         cardPaymentsAvailable: jest.fn().mockReturnValue(true),
       } as never,

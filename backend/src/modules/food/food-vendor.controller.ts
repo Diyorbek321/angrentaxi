@@ -222,6 +222,13 @@ export class FoodVendorController {
     return this.foodService.redispatchDelivery(restaurant.id, id);
   }
 
+  @Post('orders/:id/confirm-returned')
+  @ApiOperation({ summary: "Qaytarilgan buyurtma do'konga qaytib keldi (INCIDENT-POLICY §2)" })
+  async confirmReturned(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
+    const restaurant = await this.foodService.getRestaurantByOwner(user.id);
+    return this.foodService.confirmReturned(restaurant.id, id);
+  }
+
   @Patch('orders/:id/reject')
   @ApiOperation({ summary: 'Reject an order with a reason' })
   async rejectOrder(

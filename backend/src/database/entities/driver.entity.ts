@@ -202,6 +202,14 @@ export class Driver {
   @Column({ type: 'varchar', length: 2, default: 'UZ' })
   citizenship: string;
 
+  /**
+   * Oxirgi GPS ping vaqti (migratsiya 049) — `updateLocation` bilan bir
+   * so'rovda yoziladi. "Kuryer joylashuvi eski" signali shundan
+   * (docs/INCIDENT-POLICY.md §2). `null` — hali ping kelmagan.
+   */
+  @Column({ name: 'location_updated_at', type: 'timestamptz', nullable: true })
+  locationUpdatedAt: Date | null;
+
   @UpdateDateColumn()
   updatedAt: Date;
 }

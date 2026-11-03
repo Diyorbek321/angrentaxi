@@ -26,7 +26,28 @@ export interface ParcelDetails {
   recipientName?: string;
   itemDescription: string;
   size: ParcelSize;
+  /**
+   * Yuboruvchi e'lon qilgan qiymat, so'm (docs/INCIDENT-POLICY.md §2) —
+   * javobgarlik chegarasi. 1..`parcelMaxDeclaredValue`.
+   */
+  declaredValue: number;
+  /** Taqiqlangan narsalar ro'yxati bilan tanishib, ular yo'qligini tasdiqladi. */
+  prohibitedItemsAccepted: true;
 }
+
+/**
+ * Posilkada yuborib bo'lmaydiganlar (§2) — ilova shu kalitlarni uz/ru matn
+ * bilan ko'rsatadi, server esa faqat tasdiqni talab qiladi.
+ */
+export const PARCEL_PROHIBITED_ITEMS = [
+  'money',
+  'documents',
+  'weapons',
+  'medicine',
+  'alcohol',
+  'live_animals',
+  'drugs',
+] as const;
 
 const UZ_PHONE = /^\+998\d{9}$/;
 const MAX_DESCRIPTION = 200;
@@ -37,7 +58,7 @@ const MAX_NAME = 50;
  * fields — the JSON goes straight into the driver's offer, so nothing the
  * client invents may ride along.
  */
-export function parseParcelDetails(raw: unknown): ParcelDetails {
+export function parseParcelDetails(raw: unknown, maxDeclaredValue: number): ParcelDetails {
   const fail = (reason: string): never => {
     throw new BadRequestException(`Posilka ma'lumoti noto'g'ri: ${reason}`);
   };
@@ -54,7 +75,27 @@ export function parseParcelDetails(raw: unknown): ParcelDetails {
   const size = input.size as ParcelSize;
   if (!Object.values(ParcelSize).includes(size)) fail("o'lcham small, medium yoki large bo'lsin");
 
-  const details: ParcelDetails = { recipientPhone, itemDescription, size };
+  const declaredValue = input.declaredValue;
+  if (
+    typeof declaredValue !== 'number' ||
+    !Number.isInteger(declaredValue) ||
+    declaredValue < 1 ||
+    declaredValue > maxDeclaredValue
+  ) {
+    fail(`qiymat 1 dan ${maxDeclaredValue} so'mgacha butun son bo'lsin`);
+  }
+  // Faqat aniq `true` — "yes", 1 kabi qiymatlar tasdiq emas.
+  if (input.prohibitedItemsAccepted !== true) {
+    fail("taqiqlangan narsalar yo'qligini tasdiqlang");
+  }
+
+  const details: ParcelDetails = {
+    recipientPhone,
+    itemDescription,
+    size,
+    declaredValue: declaredValue as number,
+    prohibitedItemsAccepted: true,
+  };
   const recipientName = typeof input.recipientName === 'string' ? input.recipientName.trim() : '';
   if (recipientName) details.recipientName = recipientName.slice(0, MAX_NAME);
   return details;
@@ -78,9 +119,16 @@ export const PARCEL_PIN_MAX_ATTEMPTS = 5;
  * let a burst of parallel guesses all see the same count and slip past the
  * limit. Every guess consumes an attempt; a right one completes the order.
  */
-export function assertPinGiven(given: string | undefined): asserts given is string {
+export function assertPinGiven(
+  given: string | undefined,
+  kind: 'parcel' | 'vendor' = 'parcel',
+): asserts given is string {
   if (!given) {
-    throw new BadRequestException("Posilkani topshirish uchun qabul qiluvchidan 4 xonali PIN kodni so'rang.");
+    throw new BadRequestException(
+      kind === 'parcel'
+        ? "Posilkani topshirish uchun qabul qiluvchidan 4 xonali PIN kodni so'rang."
+        : "Buyurtmani topshirish uchun mijozdan ilovadagi 4 xonali kodni so'rang.",
+    );
   }
 }
 

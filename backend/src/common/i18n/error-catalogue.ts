@@ -91,6 +91,57 @@ export const ERROR_CATALOGUE: readonly ErrorCatalogueEntry[] = [
     ru: 'Клиент ещё не завершил оплату картой — до оплаты заказ принять нельзя',
   },
 
+  // Yetkazish hodisalari (INCIDENT-POLICY §2).
+  {
+    source: "Buyurtmani topshirish uchun mijozdan ilovadagi 4 xonali kodni so'rang.",
+    ru: 'Чтобы передать заказ, спросите у клиента 4-значный код из приложения.',
+  },
+  { source: "Bu buyurtmada topshirish manzilida kutish yo'q", ru: 'Для этого заказа нет ожидания на адресе доставки' },
+  {
+    source: 'Manzilga yetib kelganingizni faqat yetkazish davomida belgilash mumkin',
+    ru: 'Отметить прибытие на адрес можно только во время доставки',
+  },
+  {
+    source: "Sababni tanlang: mijoz yo'q, rad etdi yoki bog'lanib bo'lmadi",
+    ru: 'Выберите причину: клиента нет, отказался или недоступен',
+  },
+  { source: "Bu buyurtmani qaytarish yo'li bilan yopib bo'lmaydi", ru: 'Этот заказ нельзя закрыть возвратом' },
+  {
+    source: "Yetkazib bo'lmadi deb faqat yetkazish davomida belgilash mumkin",
+    ru: 'Отметить «Не удалось доставить» можно только во время доставки',
+  },
+  { source: 'Bu yetkazish allaqachon qaytarilmoqda', ru: 'Эта доставка уже возвращается' },
+  {
+    source: 'Avval manzilga yetib kelganingizni belgilang va mijozni kuting',
+    ru: 'Сначала отметьте прибытие на адрес и подождите клиента',
+  },
+  { source: 'Mijozni yana {0} daqiqa kuting', ru: 'Подождите клиента ещё {0} мин' },
+  {
+    source:
+      'Bu yetkazish qaytarilmoqda — tovar qaytib kelgach sotuvchi yoki yuboruvchi qaytarishni tasdiqlaydi',
+    ru: 'Эта доставка возвращается — после возврата товара продавец или отправитель подтвердит возврат',
+  },
+  {
+    source: "Yetkazish muvaffaqiyatsiz deb belgilanmagan — qaytarishni tasdiqlab bo'lmaydi",
+    ru: 'Доставка не отмечена как неудачная — подтвердить возврат нельзя',
+  },
+  { source: 'Izoh majburiy — nima bo‘lganini yozing', ru: 'Комментарий обязателен — опишите, что произошло' },
+  { source: "Bu buyurtmada qaytarish yo'q", ru: 'У этого заказа нет возврата' },
+  { source: 'Qaytarishni faqat posilka yuboruvchisi tasdiqlaydi', ru: 'Возврат подтверждает только отправитель посылки' },
+  { source: 'Bu buyurtma sotuvchiniki emas', ru: 'Этот заказ не принадлежит продавцу' },
+  { source: 'Bu buyurtma qaytarilmayapti', ru: 'Этот заказ не возвращается' },
+  {
+    source: "Manzilga {0} m dan yaqin bo'lishingiz kerak (hozir {1} m)",
+    ru: 'Нужно быть ближе {0} м к адресу (сейчас {1} м)',
+  },
+  {
+    source:
+      "So'nggi {0} kunda {1} marta yetkazishni qabul qilmadingiz — ovqat va market buyurtmasini faqat karta bilan to'lash mumkin",
+    ru: 'За последние {0} дн. вы {1} раз не приняли доставку — заказы еды и маркета можно оплатить только картой',
+  },
+  { source: "Yuk ma'lumoti noto'g'ri: {0}", ru: 'Неверные данные груза: {0}' },
+  { source: 'Qaytarish allaqachon bajarilgan yoki kutilmayapti', ru: 'Возврат уже выполнен или не ожидается' },
+
   // ─── Buyurtma holati ─────────────────────────────────────────────────
   { source: 'Order not found', uz: 'Buyurtma topilmadi', ru: 'Заказ не найден' },
   { source: 'Order {0} not found', uz: 'Buyurtma topilmadi', ru: 'Заказ не найден' },

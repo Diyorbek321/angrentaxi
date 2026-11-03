@@ -24,6 +24,17 @@ export interface CourierTracking {
   carNumber: string | null;
   pickup: TrackingPoint | null;
   dropoff: TrackingPoint | null;
+  /** Yetkazish hodisalari (INCIDENT-POLICY §2): kuryer manzilga yetdi / yetkazib bo'lmadi. */
+  dropoffArrivedAt: string | null;
+  deliveryFailedAt: string | null;
+  deliveryFailureReason: string | null;
+  /** `returned` — qaytarildi; `null` — topshirildi yoki hali yo'lda. */
+  deliveryOutcome: string | null;
+  /**
+   * Topshirish kodi — FAQAT mijozga (`withHandoverCode`); sotuvchi panelida
+   * va kuryerda hech qachon. Bu yerda doim `null`.
+   */
+  handoverCode: string | null;
 }
 
 /**
@@ -45,7 +56,16 @@ export function courierTracking(ride: Order): CourierTracking {
     carNumber: (driver?.carNumber as string | null | undefined) ?? null,
     pickup: toPoint(record.pickup),
     dropoff: toPoint(record.dropoff),
+    dropoffArrivedAt: isoOrNull(ride.dropoffArrivedAt),
+    deliveryFailedAt: isoOrNull(ride.deliveryFailedAt),
+    deliveryFailureReason: ride.deliveryFailureReason ?? null,
+    deliveryOutcome: ride.deliveryOutcome ?? null,
+    handoverCode: null,
   };
+}
+
+function isoOrNull(value: Date | string | null | undefined): string | null {
+  return value == null ? null : new Date(value).toISOString();
 }
 
 /** A point without coordinates is dropped rather than drawn at (0, 0). */

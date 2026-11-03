@@ -1,5 +1,5 @@
 import { ConflictException, Logger } from '@nestjs/common';
-import { QueryFailedError } from 'typeorm';
+import { IsNull, QueryFailedError } from 'typeorm';
 import { Order, OrderStatus, PaymentMethod, ServiceType } from '../../database/entities/order.entity';
 import {
   Transaction,
@@ -233,7 +233,7 @@ describe('OrdersCompletionService — pul xatolari tuzatishlari', () => {
 
       const [entity, criteria, data] = h.managerUpdate.mock.calls[0];
       expect(entity).toBe(Order);
-      expect(criteria).toEqual({ id: ORDER_ID, status: OrderStatus.IN_PROGRESS });
+      expect(criteria).toEqual({ id: ORDER_ID, status: OrderStatus.IN_PROGRESS, deliveryFailedAt: IsNull() });
       expect(data).toEqual(expect.objectContaining({ status: OrderStatus.COMPLETED }));
     });
 

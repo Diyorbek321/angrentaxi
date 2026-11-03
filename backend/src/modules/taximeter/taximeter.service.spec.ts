@@ -1,4 +1,4 @@
-import { TaximeterService } from './taximeter.service';
+import { TaximeterService, tracksRide } from './taximeter.service';
 
 const T0 = new Date('2026-10-06T10:00:00Z').getTime();
 const row = (sec: number, dLat: number) => ({
@@ -53,5 +53,23 @@ describe('TaximeterService.recordForDriver', () => {
     expect(sql).toContain('NOT EXISTS');
     expect(sql).toContain('o.is_metered = true');
     expect(params).toEqual(['driver-user-1', 41.01, 70.15]);
+  });
+
+  it('har bir yetkazish safari ham iz yozadi (INCIDENT-POLICY §2), taksi — faqat taksometrda', async () => {
+    const { service, trackRepository } = build([], null);
+    await service.recordForDriver('driver-user-1', 41.01, 70.15);
+    const [sql] = trackRepository.query.mock.calls[0] as unknown as [string];
+    expect(sql).toContain("o.service_type IN ('parcel', 'cargo', 'food', 'market')");
+  });
+});
+
+describe('tracksRide', () => {
+  it('taksometr yoki yetkazish', () => {
+    expect(tracksRide({ isMetered: true, serviceType: 'taxi' })).toBe(true);
+    expect(tracksRide({ isMetered: false, serviceType: 'taxi' })).toBe(false);
+    for (const t of ['parcel', 'cargo', 'food', 'market']) {
+      expect(tracksRide({ isMetered: false, serviceType: t })).toBe(true);
+    }
+    expect(tracksRide({ isMetered: false, serviceType: 'intercity' })).toBe(false);
   });
 });

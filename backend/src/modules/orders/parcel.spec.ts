@@ -10,10 +10,17 @@ import {
 } from './parcel';
 
 describe('parseParcelDetails', () => {
-  const valid = { recipientPhone: '+998901112233', itemDescription: 'Kalitlar', size: ParcelSize.SMALL };
+  const valid = {
+    recipientPhone: '+998901112233',
+    itemDescription: 'Kalitlar',
+    size: ParcelSize.SMALL,
+    declaredValue: 50_000,
+    prohibitedItemsAccepted: true as const,
+  };
+  const MAX = 1_000_000;
 
   it('accepts a complete parcel and keeps only known fields', () => {
-    expect(parseParcelDetails({ ...valid, recipientName: '  Ona  ', hacker: 'x' })).toEqual({
+    expect(parseParcelDetails({ ...valid, recipientName: '  Ona  ', hacker: 'x' }, MAX)).toEqual({
       ...valid,
       recipientName: 'Ona',
     });
@@ -26,8 +33,19 @@ describe('parseParcelDetails', () => {
     ['an empty description', { ...valid, itemDescription: ' ' }],
     ['an over-long description', { ...valid, itemDescription: 'x'.repeat(201) }],
     ['an unknown size', { ...valid, size: 'huge' }],
+    ["qiymat yo'q", { ...valid, declaredValue: undefined }],
+    ['qiymat 0', { ...valid, declaredValue: 0 }],
+    ['qiymat kasr', { ...valid, declaredValue: 10.5 }],
+    ['qiymat matn', { ...valid, declaredValue: '50000' }],
+    ['qiymat chegaradan oshdi', { ...valid, declaredValue: MAX + 1 }],
+    ["taqiqlangan narsalar tasdiqlanmagan", { ...valid, prohibitedItemsAccepted: undefined }],
+    ["tasdiq true emas", { ...valid, prohibitedItemsAccepted: 'yes' }],
   ])('refuses %s', (_label, details) => {
-    expect(() => parseParcelDetails(details)).toThrow(BadRequestException);
+    expect(() => parseParcelDetails(details, MAX)).toThrow(BadRequestException);
+  });
+
+  it('chegaraning o\'zi — qabul', () => {
+    expect(parseParcelDetails({ ...valid, declaredValue: MAX }, MAX).declaredValue).toBe(MAX);
   });
 });
 

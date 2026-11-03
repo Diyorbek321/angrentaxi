@@ -1,3 +1,4 @@
+import { noDebtQueryBuilder, noRefusalsQuery } from '../delivery/checkout-gates.testing';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { FoodService } from './food.service';
 import { FoodOrder, FoodOrderStatus, FoodPaymentMethod } from '../../database/entities/food-order.entity';
@@ -48,6 +49,7 @@ describe('FoodService — UX v5', () => {
 
   function build(stored?: Partial<FoodOrder>) {
     const orderRepo = {
+      query: noRefusalsQuery(),
       create: jest.fn((x) => x),
       save: jest.fn(async (x) => x),
       findOne: jest.fn().mockResolvedValue(stored ? ({ id: 'fo-1', ...stored } as FoodOrder) : null),
@@ -67,6 +69,7 @@ describe('FoodService — UX v5', () => {
     };
     const dishRepo = { find: jest.fn().mockResolvedValue(dishes) };
     const transactionRepo = {
+      createQueryBuilder: noDebtQueryBuilder(),
       save: jest.fn(async (t) => t),
       // Kartali buyurtma to'langan (COMPLETED karta DEBIT bor) — INCIDENT-POLICY §1.
       count: jest.fn().mockResolvedValue(1),
@@ -79,6 +82,7 @@ describe('FoodService — UX v5', () => {
       getDeliveryFee: jest.fn().mockResolvedValue(7000),
       getDeliveryPricing: jest.fn().mockResolvedValue({ deliveryFee: 7000, freeDeliveryFrom: 0 }),
       getMaxCashVendorOrder: jest.fn().mockResolvedValue(0),
+      getDeliveryIncidentSettings: jest.fn().mockResolvedValue({ refusalCashBlockCount: 2, refusalWindowDays: 30 }),
       // Karta provayderi sozlangan (INCIDENT-POLICY §1).
       cardPaymentsAvailable: jest.fn().mockReturnValue(true),
     };

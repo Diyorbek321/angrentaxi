@@ -1,3 +1,4 @@
+import { noDebtQueryBuilder, noRefusalsQuery } from '../delivery/checkout-gates.testing';
 import { ConflictException } from '@nestjs/common';
 import { MarketService } from './market.service';
 import {
@@ -54,6 +55,7 @@ describe('MarketService — UX v5', () => {
   function build(stored?: Partial<MarketOrder>) {
     const productRows = products();
     const orderRepo = {
+      query: noRefusalsQuery(),
       create: jest.fn((x) => x),
       save: jest.fn(async (x) => x),
       findOne: jest.fn().mockResolvedValue(stored ? ({ id: 'mo-1', ...stored } as MarketOrder) : null),
@@ -72,6 +74,7 @@ describe('MarketService — UX v5', () => {
     const movementRepo = { create: jest.fn((x) => x), save: jest.fn(async (x) => x) };
     const categoryRepo = { find: jest.fn().mockResolvedValue([]) };
     const transactionRepo = {
+      createQueryBuilder: noDebtQueryBuilder(),
       save: jest.fn(async (t) => t),
       // Kartali buyurtma to'langan (COMPLETED karta DEBIT bor) — INCIDENT-POLICY §1.
       count: jest.fn().mockResolvedValue(1),
@@ -84,6 +87,7 @@ describe('MarketService — UX v5', () => {
       getDeliveryFee: jest.fn().mockResolvedValue(7000),
       getDeliveryPricing: jest.fn().mockResolvedValue({ deliveryFee: 7000, freeDeliveryFrom: 0 }),
       getMaxCashVendorOrder: jest.fn().mockResolvedValue(0),
+      getDeliveryIncidentSettings: jest.fn().mockResolvedValue({ refusalCashBlockCount: 2, refusalWindowDays: 30 }),
       // Karta provayderi sozlangan (INCIDENT-POLICY §1).
       cardPaymentsAvailable: jest.fn().mockReturnValue(true),
     };

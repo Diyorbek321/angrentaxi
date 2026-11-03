@@ -9,7 +9,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { AddressDetails, VendorOrderCancelledBy } from './address-details';
+import { AddressDetails, NULLABLE_DECIMAL, VendorOrderCancelledBy } from './address-details';
 import { Store } from './store.entity';
 import { User } from './user.entity';
 import {
@@ -23,6 +23,10 @@ export enum MarketOrderStatus {
   SHIPPED = 'shipped',
   DELIVERED = 'delivered',
   CANCELLED = 'cancelled',
+  /** Kuryer "yetkazib bo'lmadi" dedi — tovar sotuvchiga qaytarilmoqda (§2). */
+  RETURNING = 'returning',
+  /** Tovar sotuvchiga qaytib keldi (sotuvchi/dispetcher tasdiqladi) — yakuniy, tushum yo'q. */
+  RETURNED = 'returned',
 }
 
 export enum MarketOrderDeliveryMode {
@@ -244,6 +248,22 @@ export class MarketOrder {
 
   @Column({ name: 'cancelled_at', type: 'timestamptz', nullable: true })
   cancelledAt: Date | null;
+
+  // Qaytarish (migratsiya 049, docs/INCIDENT-POLICY.md §2).
+  @Column({ name: 'returned_at', type: 'timestamptz', nullable: true })
+  returnedAt: Date | null;
+
+  /** Mijozdan olinadigan: yetkazish haqi + kutish + qaytarish haqi (so'm). */
+  @Column({ name: 'return_charge', type: 'decimal', precision: 12, scale: 2, nullable: true, transformer: NULLABLE_DECIMAL })
+  returnCharge: number | null;
+
+  /** Kartali buyurtma: mijozga qaytarilishi kerak bo'lgan summa (qo'lda). */
+  @Column({ name: 'refund_due', type: 'decimal', precision: 12, scale: 2, nullable: true, transformer: NULLABLE_DECIMAL })
+  refundDue: number | null;
+
+  /** `pending` — qaytarish qo'lda bajarilishi kutilmoqda; `done` — bajarildi. */
+  @Column({ name: 'refund_status', type: 'varchar', length: 20, nullable: true })
+  refundStatus: 'pending' | 'done' | null;
 
   @Column({ name: 'promo_code_id', type: 'uuid', nullable: true })
   promoCodeId: string | null;

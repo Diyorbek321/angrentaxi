@@ -53,6 +53,16 @@ export const DRIVER_ACTIVE_ORDER_STATUSES: readonly OrderStatus[] = [
   OrderStatus.IN_PROGRESS,
 ];
 
+/** "Yetkazib bo'lmadi" sababi (docs/INCIDENT-POLICY.md §2). */
+export enum DeliveryFailureReason {
+  CUSTOMER_ABSENT = 'customer_absent',
+  CUSTOMER_REFUSED = 'customer_refused',
+  UNREACHABLE = 'unreachable',
+}
+
+/** Yakunlangan kuryer safarining natijasi: `null` — topshirildi, `returned` — qaytarildi. */
+export type DeliveryOutcome = 'returned';
+
 export type OrderCancelledBy = 'passenger' | 'driver' | 'manager' | 'system';
 
 export enum PaymentMethod {
@@ -107,6 +117,11 @@ export enum ServiceType {
 // Shaharlararo band ustunlari (migratsiya 036). Entity'da ham e'lon
 // qilingan: aks holda dev'dagi `synchronize` ularni "begona" deb o'chirardi.
 @Check('chk_orders_booking_kind', `"booking_kind" IS NULL OR "booking_kind" IN ('seat', 'whole_car')`)
+@Check(
+  'chk_orders_delivery_failure_reason',
+  `"delivery_failure_reason" IS NULL OR "delivery_failure_reason" IN ('customer_absent', 'customer_refused', 'unreachable')`,
+)
+@Check('chk_orders_delivery_outcome', `"delivery_outcome" IS NULL OR "delivery_outcome" IN ('returned')`)
 @Check('chk_orders_seats_positive', '"seats" IS NULL OR "seats" BETWEEN 1 AND 8')
 @Entity('orders')
 export class Order {
@@ -419,6 +434,38 @@ export class Order {
 
   @Column({ name: 'delivery_pin_attempts', type: 'int', default: 0, select: false })
   deliveryPinAttempts?: number;
+
+  // -------------------------------------------------------------------
+  // YETKAZISH HODISALARI (migratsiya 049, docs/INCIDENT-POLICY.md §2).
+  //
+  // Holat enum'i O'ZGARMAYDI. Qaytarish yo'li — `in_progress` ichidagi
+  // kichik holat: `deliveryFailedAt` bor = "qaytarilmoqda". Yakuni —
+  // `completed` + `deliveryOutcome = 'returned'`. Shu tufayli haydovchi
+  // bandligi, GPS izi, daromad va komissiya hisobotlari o'zgarishsiz
+  // ishlaydi (`delivery/delivery-return.ts`).
+  // -------------------------------------------------------------------
+
+  /** Kuryer topshirish manziliga yetib keldi (bir marta yoziladi) — manzilda kutish shundan. */
+  @Column({ name: 'dropoff_arrived_at', type: 'timestamp', nullable: true })
+  dropoffArrivedAt: Date | null;
+
+  /** "Yetkazib bo'lmadi" belgilangan lahza — shundan keyin safar qaytarish yo'lida. */
+  @Column({ name: 'delivery_failed_at', type: 'timestamp', nullable: true })
+  deliveryFailedAt: Date | null;
+
+  @Column({ name: 'delivery_failure_reason', type: 'varchar', length: 30, nullable: true })
+  deliveryFailureReason: DeliveryFailureReason | null;
+
+  @Column({ name: 'delivery_outcome', type: 'varchar', length: 20, nullable: true })
+  deliveryOutcome: DeliveryOutcome | null;
+
+  /** Qaytarish tasdiqlangan lahza (sotuvchi/yuboruvchi/dispetcher). */
+  @Column({ name: 'returned_at', type: 'timestamp', nullable: true })
+  returnedAt: Date | null;
+
+  /** "Osilib qolgan" signali bir marta yuborildi (cron). */
+  @Column({ name: 'stuck_flagged_at', type: 'timestamptz', nullable: true, select: false })
+  stuckFlaggedAt?: Date | null;
 
   // Passenger-requested extras (child seat, pet, ...). A matching filter:
   // only drivers whose `amenities` cover all of these get the offer.

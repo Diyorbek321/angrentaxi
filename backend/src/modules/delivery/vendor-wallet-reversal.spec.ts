@@ -290,6 +290,22 @@ describe('kuryer qayta biriktirilganda hamyon o\'tkazmasi', () => {
     reverse.mockClear();
     await listener?.({ kind: 'accepted', deliveryOrderId: 'ride-1', foodOrderId: 'fo-1', marketOrderId: null });
     expect(reverse).not.toHaveBeenCalled();
+
+    // Qaytarildi (INCIDENT-POLICY §2): kuryerning tovar puli qaytadi — kim o'tkazgan bo'lsa ham.
+    await listener?.({ kind: 'returned', deliveryOrderId: 'ride-1', foodOrderId: null, marketOrderId: 'mo-1' });
+    expect(reverse).toHaveBeenCalledWith('market', 'mo-1', 'ride-1', undefined);
+  });
+
+  it("'returned' bo'lgan (status returned) buyurtmada ham teskari o'tkazma bajariladi", async () => {
+    const h = harness();
+    await h.settle(1);
+    (h.order() as { status: string }).status = 'returned';
+    const result = await reverseVendorWalletSettlement(h.manager as never, {
+      kind: 'food',
+      vendorOrderId: 'fo-1',
+      deliveryOrderId: 'ride-1',
+    });
+    expect(result.reversed).toBe(true);
   });
 });
 

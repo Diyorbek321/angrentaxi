@@ -7,6 +7,7 @@ import { ORDERS_PROVIDERS } from './orders.providers';
 import { OrdersMeterService } from './orders-meter.service';
 import { OrderFraudService } from './order-fraud.service';
 import { OrderIdempotencyService } from './order-idempotency.service';
+import { OrdersReturnService } from './orders-return.service';
 import { ScheduledOrdersService } from './scheduled-orders.service';
 import { Order } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
@@ -69,9 +70,12 @@ import { ShiftPassesModule } from '../shift-passes/shift-passes.module';
     OrdersMeterService,
     OrderFraudService,
     OrderIdempotencyService,
+    // Yetkazish hodisalari (INCIDENT-POLICY §2) — ovqat/market sotuvchi
+    // tasdig'i uchun eksport qilinadi.
+    OrdersReturnService,
   ],
   // Only the facade is exported — other modules must keep depending on
   // OrdersService, not on the internal collaborator services.
-  exports: [OrdersService],
+  exports: [OrdersService, OrdersReturnService],
 })
 export class OrdersModule {}

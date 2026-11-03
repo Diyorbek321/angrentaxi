@@ -363,7 +363,9 @@ export class DriversService implements OnModuleInit {
 
     // Update PostGIS geometry
     await this.driverRepository.query(
-      `UPDATE drivers SET current_location = ST_SetSRID(ST_MakePoint($1, $2), 4326) WHERE user_id = $3`,
+      // `location_updated_at` — "kuryer joylashuvi eski" signali (INCIDENT-POLICY §2).
+      `UPDATE drivers SET current_location = ST_SetSRID(ST_MakePoint($1, $2), 4326),
+              location_updated_at = now() WHERE user_id = $3`,
       [lng, lat, userId],
     );
 

@@ -14,6 +14,23 @@ export interface MeteredDistance {
 }
 
 /**
+ * GPS izi yoziladigan xizmatlar: taksometrdan tashqari HAR BIR yetkazish
+ * safari (docs/INCIDENT-POLICY.md §2) — nizoda menejer kuryer qayerda
+ * bo'lganini ko'radi. Narxga ta'sir qilmaydi: masofa faqat taksometrda izdan.
+ */
+export const TRACKED_DELIVERY_SERVICE_TYPES = ['parcel', 'cargo', 'food', 'market'] as const;
+
+const TRACKED_SQL_LIST = TRACKED_DELIVERY_SERVICE_TYPES.map((t) => `'${t}'`).join(', ');
+
+/** Safar izi yoziladimi — taksometr yoki yetkazish. */
+export function tracksRide(order: { isMetered?: boolean | null; serviceType?: string | null }): boolean {
+  return (
+    order.isMetered === true ||
+    (TRACKED_DELIVERY_SERVICE_TYPES as readonly string[]).includes(order.serviceType ?? '')
+  );
+}
+
+/**
  * Taksometr izi: yozish va masofani o'lchash.
  *
  * O'z modulida, chunki uni ham `DriversModule` (har GPS ping), ham
@@ -31,8 +48,8 @@ export class TaximeterService {
   ) {}
 
   /**
-   * Haydovchining yangi joylashuvi — agar u hozir taksometrli safarda bo'lsa,
-   * izga yoziladi. Bitta so'rov: buyurtma topilmasa hech narsa qo'shilmaydi.
+   * Haydovchining yangi joylashuvi — agar u hozir taksometrli yoki yetkazish
+   * safarida bo'lsa, izga yoziladi (namuna olish bir xil). Bitta so'rov: buyurtma topilmasa hech narsa qo'shilmaydi.
    * `orders.driver_id` — haydovchining `users.id` si.
    *
    * ⚠️ TAKROR: ilova har fiksni IKKI yo'l bilan yuboradi (socket + HTTP
@@ -44,7 +61,8 @@ export class TaximeterService {
     await this.trackRepository.query(
       `INSERT INTO trip_track_points (order_id, lat, lng)
        SELECT o.id, $2, $3 FROM orders o
-        WHERE o.driver_id = $1 AND o.status = 'in_progress' AND o.is_metered = true
+        WHERE o.driver_id = $1 AND o.status = 'in_progress'
+          AND (o.is_metered = true OR o.service_type IN (${TRACKED_SQL_LIST}))
           AND NOT EXISTS (
             SELECT 1 FROM trip_track_points t
              WHERE t.order_id = o.id AND t.lat = $2 AND t.lng = $3

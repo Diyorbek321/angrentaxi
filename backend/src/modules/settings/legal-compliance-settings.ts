@@ -82,6 +82,10 @@ export interface PublicSettings {
   /** Yetkazish vaqti oralig'i, daqiqa ("30–50 daq"). */
   deliveryEtaMinMinutes: number;
   deliveryEtaMaxMinutes: number;
+  /** Posilka qiymati chegarasi, manzilda bepul kutish, qaytarish haqi foizi (§2). */
+  parcelMaxDeclaredValue: number;
+  dropoffFreeWaitMinutes: number;
+  returnFeePercent: number;
   /** AMALDAGI rejim (sana hisobga olingan). */
   vendorSettlementMode: VendorSettlementMode;
   vendorWalletSettlementFrom: string | null;

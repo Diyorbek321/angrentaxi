@@ -14,9 +14,20 @@ import {
 } from '@nestjs/common';
 import { DeliveryEventsService } from '../delivery/delivery-events.service';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, In, QueryFailedError, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, IsNull, Not, QueryFailedError, Repository } from 'typeorm';
 import { TaximeterService } from '../taximeter/taximeter.service';
 import { Order, OrderStatus, PaymentMethod, ServiceType } from '../../database/entities/order.entity';
+import {
+  dropoffWaitingMinutes,
+  isHandoverRide,
+  isVendorDeliveryRide,
+  returnFeeOf,
+  withReturnFare,
+} from '../delivery/delivery-return';
+import {
+  DEFAULT_DELIVERY_INCIDENT_SETTINGS,
+  DeliveryIncidentSettings,
+} from '../settings/delivery-incident-settings';
 import {
   PARCEL_PIN_MAX_ATTEMPTS,
   assertPinGiven,
@@ -88,13 +99,6 @@ const REFERRAL_RIDE_SERVICE_TYPES: readonly ServiceType[] = [
   ServiceType.INTERCITY,
 ];
 
-/** Ovqat/market kuryer safari — buyurtma `details` ida sotuvchi buyurtmasi id'si bor. */
-function isVendorDeliveryRide(order: Pick<Order, 'details'>): boolean {
-  return (
-    typeof order.details?.foodOrderId === 'string' ||
-    typeof order.details?.marketOrderId === 'string'
-  );
-}
 
 function isUniqueViolation(err: unknown): boolean {
   return (
@@ -154,7 +158,10 @@ export class OrdersCompletionService {
     driverId: string,
     orderId: string,
     deliveryPin?: string,
-    options: { byDispatcher?: boolean } = {},
+    // `returned` — "yetkazib bo'lmadi" dan keyin tovar qaytib keldi
+    // (`OrdersReturnService.confirmReturned`): narxga qaytarish haqi qo'shiladi,
+    // kod so'ralmaydi, sotuvchiga `delivered` emas `returned` e'lon qilinadi.
+    options: { byDispatcher?: boolean; returned?: boolean } = {},
   ): Promise<Order> {
     const order = await this.queryService.findByIdOrThrow(orderId);
 
@@ -168,10 +175,24 @@ export class OrdersCompletionService {
       throw new ForbiddenException('You are not the driver for this order');
     }
 
-    // Posilka faqat qabul qiluvchi aytgan PIN bilan topshiriladi. Dispetcher
-    // (PIN bloklanganda, qabul qiluvchi bilan gaplashib) undan ozod.
-    if (order.serviceType === ServiceType.PARCEL && !options.byDispatcher) {
-      await this.verifyDeliveryPin(orderId, deliveryPin);
+    const returned = options.returned === true;
+    // Qaytarilayotgan yetkazishni "topshirildi" deb yopib bo'lmaydi — na
+    // kuryer, na dispetcher (aks holda sotuvchiga tushum yozilardi).
+    // Qaytarish faqat `confirmReturned` orqali (INCIDENT-POLICY §2).
+    if (order.deliveryFailedAt && !returned) {
+      throw new BadRequestException(
+        "Bu yetkazish qaytarilmoqda — tovar qaytib kelgach sotuvchi yoki yuboruvchi qaytarishni tasdiqlaydi",
+      );
+    }
+    if (returned && !order.deliveryFailedAt) {
+      throw new BadRequestException("Yetkazish muvaffaqiyatsiz deb belgilanmagan — qaytarishni tasdiqlab bo'lmaydi");
+    }
+
+    // Posilka, ovqat va market faqat qabul qiluvchi aytgan kod bilan
+    // topshiriladi (§2). Dispetcher (kod bloklanganda, qabul qiluvchi bilan
+    // gaplashib) va qaytarish undan ozod.
+    if (isHandoverRide(order) && !options.byDispatcher && !returned) {
+      await this.verifyDeliveryPin(orderId, deliveryPin, order.serviceType);
     }
 
     // Get trip record
@@ -280,12 +301,34 @@ export class OrdersCompletionService {
           freeWaitMinutes,
         );
 
-    const fareBreakdown = withWaitingFare(
+    // MANZILDA KUTISH (INCIDENT-POLICY §2): kuryer "yetib keldim (manzil)"
+    // dan keyin bepul daqiqalardan oshgani — tarif kutish narxida, faqat
+    // yetkazish haqi tomoniga (tovar puli o'zgarmaydi). ⚠️ Kartali ovqat/
+    // market TOPSHIRILGANDA undirilmaydi: mijoz checkout'da to'lagan, karta
+    // qayta yechish API'si yo'q — qarz qilib qo'yish adolatsiz bo'lardi.
+    // Qaytarilganda esa qaytariladigan summadan ushlanadi.
+    const incident = isHandoverRide(order) ? await this.incidentSettings() : DEFAULT_DELIVERY_INCIDENT_SETTINGS;
+    const vendorRide = isVendorDeliveryRide(order);
+    const chargesDropoffWait =
+      isHandoverRide(order) && (!vendorRide || returned || order.paymentMethod === PaymentMethod.CASH);
+    const dropoffMinutes = chargesDropoffWait
+      ? dropoffWaitingMinutes(order, now, incident.dropoffFreeWaitMinutes)
+      : 0;
+
+    const withWaiting = withWaitingFare(
       rideFare,
-      waitingMinutes,
+      waitingMinutes + dropoffMinutes,
       waitingPricePerMinute,
     );
+    // QAYTARISH HAQI — yetkazish haqining `returnFeePercent` foizi (kutishsiz).
+    const returnFare = returned ? returnFeeOf(rideFare.total, incident.returnFeePercent) : 0;
+    const fareBreakdown = withReturnFare(withWaiting, returnFare);
     const finalPrice = fareBreakdown.total;
+    if (dropoffMinutes > 0 || returnFare > 0) {
+      this.logger.log(
+        `Order ${orderId}: manzilda kutish ${dropoffMinutes} daq, qaytarish haqi ${returnFare} so'm`,
+      );
+    }
 
     if (useQuote) {
       this.logger.log(
@@ -379,11 +422,14 @@ export class OrdersCompletionService {
       // Chek ma'lumotlari (`fareBreakdown`) AYNI SHU tranzaksiyada yoziladi:
       // chek — pul harakatining qog'ozdagi aksi, ular ajralib qolsa chek
       // yolg'on gapiradi.
+      // `deliveryFailedAt` sharti: kuryerning "topshirdim" i bilan "yetkazib
+      // bo'lmadi" / qaytarish tasdig'i poygasida faqat bittasi o'tadi.
       const claim = await manager.update(
         Order,
-        { id: orderId, status: OrderStatus.IN_PROGRESS },
+        { id: orderId, status: OrderStatus.IN_PROGRESS, deliveryFailedAt: returned ? Not(IsNull()) : IsNull() },
         {
           status: OrderStatus.COMPLETED,
+          ...(returned ? { deliveryOutcome: 'returned' as const, returnedAt: now } : {}),
           finalPrice: split.passengerPays,
           discountAmount: split.discountAmount || null,
           driverEarning: split.driverEarning,
@@ -424,7 +470,21 @@ export class OrdersCompletionService {
       let chargeStatus: TransactionStatus;
       let bonusFundedFare = 0;
 
-      if (order.paymentMethod === PaymentMethod.CASH) {
+      // ⚠️ QAYTARILGAN OVQAT/MARKET (§2): mijoz eshik oldida yo'q — naqdni
+      // kuryer OLMAGAN. Yetkazish + kutish + qaytarish haqi mijozning QARZI
+      // bo'ladi (hamyon PENDING DEBIT — `outstanding-wallet-debt.ts`, keyingi
+      // buyurtma shu bilan to'siladi), kuryerga esa platforma oddiy safardek
+      // to'laydi. Kartada summa mijoz to'lagan puldan ushlanadi (qolgani
+      // qo'lda qaytariladi), ya'ni pul platformada — darhol COMPLETED.
+      const vendorReturn = returned && vendorRide;
+      const passengerChargeMethod =
+        vendorReturn && order.paymentMethod === PaymentMethod.CASH ? PaymentMethod.WALLET : order.paymentMethod;
+
+      if (vendorReturn) {
+        chargeStatus =
+          order.paymentMethod === PaymentMethod.CASH ? TransactionStatus.PENDING : TransactionStatus.COMPLETED;
+        if (chargeStatus === TransactionStatus.PENDING) walletShortfall = split.passengerPays;
+      } else if (order.paymentMethod === PaymentMethod.CASH) {
         chargeStatus = TransactionStatus.COMPLETED;
       } else if (order.paymentMethod === PaymentMethod.WALLET) {
         await lockWalletForUpdate(manager, order.passengerId);
@@ -475,11 +535,13 @@ export class OrdersCompletionService {
           orderId,
           amount: part.amount,
           type: TransactionType.DEBIT,
-          paymentMethod: order.paymentMethod,
+          paymentMethod: passengerChargeMethod,
           status: chargeStatus,
           externalId: part.externalId,
         });
       }
+      // Kuryer ulushi holati: qaytarilgan ovqat/marketda platforma to'laydi.
+      const payoutStatus = vendorReturn ? TransactionStatus.COMPLETED : chargeStatus;
 
       // Driver payout.
       //
@@ -507,7 +569,7 @@ export class OrdersCompletionService {
       // ishlaydigan haydovchi shu yo'l bilan bir pulni ikki marta olishi
       // mumkin edi: bir marta yo'lovchidan, ikkinchi marta platformadan
       // yechib.
-      const platformHoldsFare = order.paymentMethod !== PaymentMethod.CASH;
+      const platformHoldsFare = order.paymentMethod !== PaymentMethod.CASH || vendorReturn;
       const promoCompensation = platformHoldsFare ? 0 : split.discountAmount;
 
       if (order.driverId && payoutDriver) {
@@ -525,7 +587,7 @@ export class OrdersCompletionService {
               amount: part.amount,
               type: TransactionType.CREDIT,
               paymentMethod: order.paymentMethod,
-              status: chargeStatus,
+              status: payoutStatus,
               externalId: part.externalId,
             });
           }
@@ -555,7 +617,7 @@ export class OrdersCompletionService {
             amount: split.commissionAmount,
             type: TransactionType.DEBIT,
             paymentMethod: order.paymentMethod,
-            status: chargeStatus,
+            status: payoutStatus,
             externalId: 'commission',
           });
         }
@@ -571,7 +633,7 @@ export class OrdersCompletionService {
             amount: taxWithheld,
             type: TransactionType.DEBIT,
             paymentMethod: order.paymentMethod,
-            status: chargeStatus,
+            status: payoutStatus,
             externalId: TAX_WITHHOLDING_LEDGER_TAG,
           });
         }
@@ -588,10 +650,10 @@ export class OrdersCompletionService {
         //  - Uncollected non-cash: nothing has been collected, so nothing is
         //    owed yet. Crediting here is exactly the bug that paid drivers out
         //    of platform funds for fares no passenger ever paid.
-        const isCollected = chargeStatus === TransactionStatus.COMPLETED;
+        const isCollected = payoutStatus === TransactionStatus.COMPLETED;
         let balanceDelta: number;
 
-        if (order.paymentMethod === PaymentMethod.CASH) {
+        if (order.paymentMethod === PaymentMethod.CASH && !vendorReturn) {
           balanceDelta = promoCompensation - split.commissionAmount - taxWithheld;
         } else if (isCollected) {
           balanceDelta = split.driverEarning - taxWithheld;
@@ -655,8 +717,10 @@ export class OrdersCompletionService {
     const passenger = await this.usersService.findById(order.passengerId);
 
     if (passenger) {
-      this.realtimeGateway.emitToUser(order.passengerId, 'order:completed', {
+      this.realtimeGateway.emitToUser(order.passengerId, returned ? 'order:returned' : 'order:completed', {
         orderId,
+        returned,
+        returnFare,
         finalPrice: discountedFinalPrice,
         actualDistanceKm,
         actualDurationMin,
@@ -666,7 +730,11 @@ export class OrdersCompletionService {
         unpaidAmount: walletShortfall,
       });
 
-      await this.notificationsService.notifyTripCompleted(passenger, discountedFinalPrice, updatedOrder);
+      // Qaytarilganda "safar yakunlandi" push'i chalg'itadi — realtime yetarli,
+      // mijozga xabarni sotuvchi buyurtmasi hodisasi beradi.
+      if (!returned) {
+        await this.notificationsService.notifyTripCompleted(passenger, discountedFinalPrice, updatedOrder);
+      }
     }
 
     this.realtimeGateway.emitToManagers('order:completed', updatedOrder);
@@ -681,7 +749,11 @@ export class OrdersCompletionService {
       }
     }
     // Food/market: marks the vendor order delivered and settles the vendor.
-    await this.deliveryEvents?.publish(updatedOrder, 'delivered');
+    // Qaytarilganda — `returned`: sotuvchi buyurtmasi tushumsiz yopiladi,
+    // kuryerning oldindan to'lagan tovar puli qaytariladi (§2).
+    await this.deliveryEvents?.publish(updatedOrder, returned ? 'returned' : 'delivered', {
+      customerOwes: discountedFinalPrice,
+    });
 
     // Chek jami — yo'lovchi HAQIQATAN to'lagan summa; komissiya chegirmasiz
     // narxdan (promokodni platforma ko'taradi).
@@ -703,7 +775,7 @@ export class OrdersCompletionService {
 
     // Shubhali safarda referal ushlab qolinadi — menejer tasdiqlasa
     // `creditReferralBonus` beradi.
-    if (passenger?.referredByUserId && !suspicious) {
+    if (passenger?.referredByUserId && !suspicious && !returned) {
       await this.creditFirstRideReferralBonus(order, passenger.referredByUserId);
     }
 
@@ -1031,8 +1103,21 @@ export class OrdersCompletionService {
    * limit. (Wrapped in a CTE so the driver returns plain rows, not the
    * [rows, count] pair TypeORM gives for a bare UPDATE.)
    */
-  private async verifyDeliveryPin(orderId: string, given: string | undefined): Promise<void> {
-    assertPinGiven(given);
+  private async verifyDeliveryPin(
+    orderId: string,
+    given: string | undefined,
+    serviceType: ServiceType,
+  ): Promise<void> {
+    // Ovqat/market kodi 049 dan keyin yaratilgan safarlarda bor; undan oldin
+    // yo'lga chiqqanlari kodsiz topshiriladi (kod hech kimga ko'rsatilmagan).
+    if (serviceType !== ServiceType.PARCEL) {
+      const [row] = (await this.orderRepository.query(
+        'SELECT delivery_pin IS NOT NULL AS has_pin FROM orders WHERE id = $1',
+        [orderId],
+      )) as Array<{ has_pin: boolean }>;
+      if (!row?.has_pin) return;
+    }
+    assertPinGiven(given, serviceType === ServiceType.PARCEL ? 'parcel' : 'vendor');
     const rows = (await this.orderRepository.query(
       `WITH spent AS (
          UPDATE orders SET delivery_pin_attempts = delivery_pin_attempts + 1
@@ -1045,6 +1130,16 @@ export class OrdersCompletionService {
       throw deliveryPinLocked();
     }
     checkDeliveryPin({ pin: rows[0].delivery_pin, attemptsUsed: rows[0].delivery_pin_attempts }, given);
+  }
+
+  /** Hodisa sozlamalari; o'qib bo'lmasa (qo'lda yig'ilgan spec) — standart, jurnalda. */
+  private async incidentSettings(): Promise<DeliveryIncidentSettings> {
+    try {
+      return await this.settingsService.getDeliveryIncidentSettings();
+    } catch (err) {
+      this.logger.warn(`Delivery incident settings unavailable, defaults used: ${(err as Error).message}`);
+      return DEFAULT_DELIVERY_INCIDENT_SETTINGS;
+    }
   }
 
   /**

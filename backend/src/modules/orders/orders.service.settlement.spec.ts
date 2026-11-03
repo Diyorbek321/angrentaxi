@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource, EntityManager, IsNull } from 'typeorm';
 import { Order, OrderStatus, PaymentMethod } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
 import { Transaction } from '../../database/entities/transaction.entity';
@@ -193,7 +193,7 @@ describe('completeTrip settlement atomicity', () => {
     // concurrent completion cannot settle the same trip again...
     expect(managerUpdate).toHaveBeenCalledWith(
       Order,
-      { id: ORDER_ID, status: OrderStatus.IN_PROGRESS },
+      { id: ORDER_ID, status: OrderStatus.IN_PROGRESS, deliveryFailedAt: IsNull() },
       expect.objectContaining({ status: OrderStatus.COMPLETED }),
     );
     // ...and so did the ledger rows: the passenger charge plus the driver's
