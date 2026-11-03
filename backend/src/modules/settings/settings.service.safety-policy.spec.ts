@@ -24,6 +24,7 @@ describe('SettingsService — xavfsizlik siyosati sozlamalari', () => {
       noShowWaitMinutes: 5,
       noShowFee: 5000,
       driverCancelSignalCount: 3,
+      evidenceRetentionDays: 180,
     });
   });
 

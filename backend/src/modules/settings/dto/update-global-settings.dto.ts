@@ -260,4 +260,11 @@ export class UpdateGlobalSettingsDto {
   @Min(SL.driverCancelSignalCount.min)
   @Max(SL.driverCancelSignalCount.max)
   driverCancelSignalCount?: number;
+
+  @ApiPropertyOptional({ example: 180, description: "GPS izi, chat, SOS, hodisa fotolari shuncha kundan keyin o'chiriladi" })
+  @IsOptional()
+  @IsInt()
+  @Min(SL.evidenceRetentionDays.min)
+  @Max(SL.evidenceRetentionDays.max)
+  evidenceRetentionDays?: number;
 }

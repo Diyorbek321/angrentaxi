@@ -45,7 +45,9 @@ export function assertSafeKey(key: string): void {
 }
 
 /** The only prefixes whose objects may be deleted (see the interface note). */
-export const DELETABLE_PREFIXES: readonly string[] = ['ads/', 'catalog/'];
+// `incident-photos/` — dalillarni saqlash muddati (INCIDENT-POLICY §6):
+// faqat `EvidenceRetentionService` o'chiradi, 180 kundan keyin.
+export const DELETABLE_PREFIXES: readonly string[] = ['ads/', 'catalog/', 'incident-photos/'];
 
 export function assertDeletableKey(key: string): void {
   assertSafeKey(key);

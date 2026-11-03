@@ -17,6 +17,12 @@ export interface SafetyPolicySettings {
   noShowFee: number;
   /** Haydovchi bir kunda shuncha qabul qilingan buyurtmani bekor qilsa — menejerga signal. */
   driverCancelSignalCount: number;
+  /**
+   * GPS izi, safar chati, SOS va hodisa fotolari shuncha kundan keyin
+   * o'chiriladi (§6); ochiq hodisaga bog'langanlari — hodisa yopilgandan
+   * keyin shuncha kun. Moliyaviy yozuvlarga tegilmaydi.
+   */
+  evidenceRetentionDays: number;
 }
 
 /** Standart qiymatlar — migratsiyalar bilan bir xil (ustuni yo'q eski qator uchun ham). */
@@ -27,6 +33,7 @@ export const DEFAULT_SAFETY_POLICY_SETTINGS: SafetyPolicySettings = {
   noShowWaitMinutes: 5,
   noShowFee: 5000,
   driverCancelSignalCount: 3,
+  evidenceRetentionDays: 180,
 };
 
 /** PATCH chegaralari — DTO va spec shu yerdan oladi. */
@@ -37,6 +44,8 @@ export const SAFETY_POLICY_LIMITS: Record<keyof SafetyPolicySettings, { min: num
   noShowWaitMinutes: { min: 1, max: 60 },
   noShowFee: { min: 0, max: 100_000 },
   driverCancelSignalCount: { min: 1, max: 50 },
+  // Pastki chegara 30: tasodifan 1 kiritilsa hamma dalil bir kechada o'chardi.
+  evidenceRetentionDays: { min: 30, max: 3650 },
 };
 
 export const SAFETY_POLICY_FIELDS = Object.keys(DEFAULT_SAFETY_POLICY_SETTINGS) as ReadonlyArray<

@@ -182,6 +182,10 @@ export class PlatformSettings {
   @Column({ name: 'driver_cancel_signal_count', type: 'int', default: 3 })
   driverCancelSignalCount: number;
 
+  // Dalillarni saqlash muddati, kun (migratsiya 053, §6).
+  @Column({ name: 'evidence_retention_days', type: 'int', default: 180 })
+  evidenceRetentionDays: number;
+
   // Safar opsiyalari haqi, so'm (migratsiya 023): `{ child_seat: 5000 }`.
   // Menejer belgilaydi; o'qish `normalizeTripOptionFees` orqali.
   @Column({ name: 'trip_option_fees', type: 'jsonb', default: () => "'{}'" })

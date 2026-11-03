@@ -14,6 +14,7 @@ import { TripShareService } from './trip-share.service';
 import { TripShareController } from './trip-share.controller';
 import { OrderCallsService } from './order-calls.service';
 import { OrderEvidenceService } from './order-evidence.service';
+import { EvidenceRetentionService } from './evidence-retention.service';
 
 @Module({
   imports: [
@@ -24,7 +25,7 @@ import { OrderEvidenceService } from './order-evidence.service';
     SettingsModule,
   ],
   controllers: [SafetyController, TripShareController],
-  providers: [SafetyService, TripShareService, OrderCallsService, OrderEvidenceService],
-  exports: [SafetyService],
+  providers: [SafetyService, TripShareService, OrderCallsService, OrderEvidenceService, EvidenceRetentionService],
+  exports: [SafetyService, EvidenceRetentionService],
 })
 export class SafetyModule {}

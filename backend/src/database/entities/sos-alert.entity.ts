@@ -32,6 +32,8 @@ export enum SosAlertStatus {
 //   filters resolved alerts on resolved_at rather than created_at.
 @Index('idx_sos_alerts_status_created_at', ['status', 'createdAt'])
 @Index('idx_sos_alerts_status_resolved_at', ['status', 'resolvedAt'])
+// Saqlash muddati cron'i (migratsiya 053, INCIDENT-POLICY §6).
+@Index('idx_sos_alerts_created_at', ['createdAt'])
 @Entity('sos_alerts')
 export class SosAlert {
   @PrimaryGeneratedColumn('uuid')

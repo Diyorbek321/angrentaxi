@@ -16,6 +16,8 @@ import { User } from './user.entity';
 // RealtimeGateway.emitToOrder (order:${orderId} room), which clients already
 // join/leave via the existing join:order / leave:order socket events used
 // for driver-location updates.
+// Saqlash muddati cron'i (migratsiya 053, INCIDENT-POLICY §6).
+@Index('idx_trip_messages_created_at', ['createdAt'])
 @Entity('trip_messages')
 export class TripMessage {
   @PrimaryGeneratedColumn('uuid')

@@ -8,6 +8,8 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
  * — "nega shuncha?" degan nizoda dispetcher marshrutni ko'rsata oladi.
  */
 @Index('idx_trip_track_points_order_time', ['orderId', 'recordedAt'])
+// Saqlash muddati cron'i (migratsiya 053, INCIDENT-POLICY §6).
+@Index('idx_trip_track_points_recorded_at', ['recordedAt'])
 @Entity('trip_track_points')
 export class TripTrackPoint {
   @PrimaryGeneratedColumn('increment', { type: 'bigint' })
