@@ -962,8 +962,9 @@ ustun eski rozilikni ustidan yozardi. Faqat INSERT.
 **Darvoza:** haydovchi OFLAYN → ONLAYN o'tishda joriy `driver-terms`
 qabul qilinmagan bo'lsa — 400 `LEGAL_TERMS_NOT_ACCEPTED`
 (`details: { document, version }`). Allaqachon onlayn haydovchi va faol
-safar to'xtatilmaydi. **B reja:** `LEGAL_DRIVER_TERMS_GATE=off` (env) —
-darvoza o'chadi (masalan, yangi APK hali tarqalmagan). Yo'lovchi uchun
+safar to'xtatilmaydi. **Standart o'chiq:** faqat `LEGAL_DRIVER_TERMS_GATE=on`
+(env) yoqadi — v21 va eski APK'da rozilik oynasi yo'q; yangi APK tarqalgach
+yoqing. Muammo bo'lsa — qiymatni olib tashlang (B reja). Yo'lovchi uchun
 server darvozasi yo'q — faqat ilovadagi oyna.
 
 **Ilova:** kirish ekranida oferta (haydovchi ilovasida — haydovchi ofertasi)

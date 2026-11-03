@@ -96,7 +96,7 @@ describe('LegalAcceptanceService.accept', () => {
 
 describe('LegalAcceptanceService.assertDriverTermsAccepted', () => {
   it("qabul qilmagan haydovchi — 400 LEGAL_TERMS_NOT_ACCEPTED", async () => {
-    const { service } = setup();
+    const { service } = setup([], { LEGAL_DRIVER_TERMS_GATE: 'on' });
     const err = await service.assertDriverTermsAccepted(driver.id).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(BadRequestException);
     expect((err as BadRequestException).getResponse()).toMatchObject({
@@ -106,17 +106,21 @@ describe('LegalAcceptanceService.assertDriverTermsAccepted', () => {
   });
 
   it("joriy versiyani qabul qilgan — o'tadi", async () => {
-    const { service } = setup([
-      { userId: 'd-1', document: 'driver-terms', version: LEGAL_VERSIONS['driver-terms'].version, acceptedAt: new Date() },
-    ]);
+    const { service } = setup(
+      [{ userId: 'd-1', document: 'driver-terms', version: LEGAL_VERSIONS['driver-terms'].version, acceptedAt: new Date() }],
+      { LEGAL_DRIVER_TERMS_GATE: 'on' },
+    );
     await expect(service.assertDriverTermsAccepted('d-1')).resolves.toBeUndefined();
   });
 
-  it("B reja: LEGAL_DRIVER_TERMS_GATE=off — darvoza o'chiq", async () => {
-    const { service, repo } = setup([], { LEGAL_DRIVER_TERMS_GATE: 'off' });
-    await expect(service.assertDriverTermsAccepted('d-1')).resolves.toBeUndefined();
-    expect(repo.count).not.toHaveBeenCalled();
-  });
+  it.each([[{}], [{ LEGAL_DRIVER_TERMS_GATE: 'off' }], [{ LEGAL_DRIVER_TERMS_GATE: 'yes' }]])(
+    "standart o'chiq — faqat aniq `on` yoqadi (eski APK'da rozilik oynasi yo'q): %j",
+    async (env) => {
+      const { service, repo } = setup([], env as Record<string, string>);
+      await expect(service.assertDriverTermsAccepted('d-1')).resolves.toBeUndefined();
+      expect(repo.count).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe('LegalAcceptanceService.summary (admin)', () => {

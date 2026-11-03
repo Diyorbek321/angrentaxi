@@ -105,11 +105,13 @@ export class LegalAcceptanceService {
    * Onlayn chiqish darvozasi: haydovchi ofertasining JORIY tahriri qabul
    * qilinmagan bo'lsa — 400 `LEGAL_TERMS_NOT_ACCEPTED`.
    *
-   * B reja: `LEGAL_DRIVER_TERMS_GATE=off` — darvoza o'chadi (masalan, yangi
-   * APK hali tarqalmagan, eski ilovada rozilik oynasi yo'q).
+   * STANDART O'CHIQ: faqat `LEGAL_DRIVER_TERMS_GATE=on` yoqadi. Sabab —
+   * v21 va undan eski APK'da rozilik oynasi yo'q: yoqiq deploy qilinsa,
+   * yangi APK o'rnatilmaguncha HECH BIR haydovchi onlayn chiqa olmasdi.
+   * Yangi APK tarqalgach serverdagi `.env.prod` da yoqiladi.
    */
   async assertDriverTermsAccepted(userId: string): Promise<void> {
-    if (this.config?.get<string>(DRIVER_TERMS_GATE_ENV) === 'off') return;
+    if (this.config?.get<string>(DRIVER_TERMS_GATE_ENV) !== 'on') return;
     const version = LEGAL_VERSIONS['driver-terms'].version;
     const accepted = await this.repo.count({ where: { userId, document: 'driver-terms', version } });
     if (accepted > 0) return;

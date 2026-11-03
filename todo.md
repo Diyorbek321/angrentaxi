@@ -25,6 +25,10 @@ Oxirgi prod deploy: `d4a7f75` (2026-11-01). Oxirgi APK: v21 (2026-11-01, `02d538
 - [ ] **Haqiqiy domen** — hozir `92-5-69-158.sslip.io`; almashtirilsa `DOMAIN` + panellarni qayta yig'ish.
 - [ ] **Azure TTS** — ovoz bo'laklari edge-tts bilan (tijorat uchun rasmiy ruxsat yo'q). `mobile/.env.voice` ga `AZURE_TTS_KEY`/`AZURE_TTS_REGION` → `python3 tool/generate_voice_clips.py --force`.
 
+## 🚀 Yangi APK tarqalgach
+
+- [ ] **Haydovchi oferta darvozasini yoqish** — server `.env.prod` ga `LEGAL_DRIVER_TERMS_GATE=on`, backend qayta ishga tushirish. Eski APK'da rozilik oynasi yo'q, shuning uchun hozir o'chiq.
+
 ## 📱 Google Play Console
 
 - [ ] **`FOREGROUND_SERVICE_LOCATION` deklaratsiyasi** + 30 soniyalik video (haydovchi onlayn → bildirishnoma → navigator → joylashuv yuborilaveradi). Busiz haydovchi ilovasi chiqmaydi.
