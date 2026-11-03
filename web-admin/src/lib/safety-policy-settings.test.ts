@@ -4,7 +4,15 @@ import { SAFETY_POLICY_DEFAULTS, SAFETY_POLICY_KEYS, validateSafetyPolicy } from
 describe('xavfsizlik siyosati sozlamalari (INCIDENT-POLICY §4–§6)', () => {
   it('standart — xatosiz, siyosat hujjatidagidek', () => {
     expect(validateSafetyPolicy(SAFETY_POLICY_DEFAULTS)).toEqual({});
-    expect(SAFETY_POLICY_DEFAULTS.tripShareGraceMinutes).toBe(30);
+    expect(SAFETY_POLICY_DEFAULTS).toEqual({
+      tripShareGraceMinutes: 30,
+      freeCancelMinutes: 2,
+      lateCancelFee: 3000,
+      noShowWaitMinutes: 5,
+      noShowFee: 5000,
+      driverCancelSignalCount: 3,
+      evidenceRetentionDays: 180,
+    });
     expect(SAFETY_POLICY_KEYS.length).toBeGreaterThan(0);
   });
 
@@ -14,6 +22,12 @@ describe('xavfsizlik siyosati sozlamalari (INCIDENT-POLICY §4–§6)', () => {
     ]);
     expect(Object.keys(validateSafetyPolicy({ ...SAFETY_POLICY_DEFAULTS, tripShareGraceMinutes: 1.5 }))).toEqual([
       'tripShareGraceMinutes',
+    ]);
+  });
+
+  it("saqlash muddati 30 kundan kam bo'lmaydi (tasodifiy o'chirishdan himoya)", () => {
+    expect(Object.keys(validateSafetyPolicy({ ...SAFETY_POLICY_DEFAULTS, evidenceRetentionDays: 7 }))).toEqual([
+      'evidenceRetentionDays',
     ]);
   });
 });

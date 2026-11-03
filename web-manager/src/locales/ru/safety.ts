@@ -46,4 +46,22 @@ export const safety: Messages['safety'] = {
     incidents: 'Обращения',
     roles: { passenger: 'Пассажир', driver: 'Водитель' } as Record<string, string>,
   },
+  penalties: {
+    outcomeTitle: 'Итог',
+    interrupted: 'Поездка прервана — цена до этой точки',
+    reasons: { accident: 'ДТП', breakdown: 'Поломка машины', other: 'Другая причина' } as Record<string, string>,
+    reasonLabel: 'Причина',
+    noShow: 'Пассажир не вышел',
+    lateCancel: 'Поздняя отмена',
+    feeLabel: 'Штраф (водителю)',
+    feeNote: 'С кошелька пассажира или в долг',
+    interruptAction: 'Прервать поездку',
+    interruptTitle: 'Прервать поездку',
+    interruptBody:
+      'ДТП или поломка: поездка завершается по цене до этой точки, пассажиру предлагается новый поиск отсюда. При ДТП открывается инцидент безопасности.',
+    noteLabel: 'Комментарий (необязательно)',
+    submit: 'Прервать',
+    done: (id: string) => `Поездка ${id} прервана`,
+    failed: 'Не удалось прервать поездку',
+  },
 };

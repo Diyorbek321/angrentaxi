@@ -5,7 +5,14 @@
 
 export type IncidentStatus = 'open' | 'investigating' | 'resolved' | 'rejected';
 export type IncidentVertical = 'taxi' | 'food' | 'market';
-export type IncidentSource = 'user' | 'manager' | 'rating_signal' | 'low_rating';
+export type IncidentSource =
+  | 'user'
+  | 'manager'
+  | 'rating_signal'
+  | 'low_rating'
+  // INCIDENT-POLICY §5: haydovchi kunda ko'p bekor qildi / safar uzildi.
+  | 'driver_cancel_signal'
+  | 'trip_interrupted';
 export type IncidentOutcomeType =
   | 'warning'
   | 'suspension'
@@ -36,6 +43,7 @@ export const INCIDENT_CATEGORIES = [
   'other',
   'rating_signal',
   'low_rating',
+  'driver_cancels',
 ] as const;
 export type IncidentCategory = (typeof INCIDENT_CATEGORIES)[number];
 

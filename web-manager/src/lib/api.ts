@@ -158,6 +158,12 @@ export interface Order {
   deliveryFailureReason?: DeliveryFailureReason | null;
   deliveryOutcome?: 'returned' | null;
   returnedAt?: string | null;
+  // Taksi: bekor qilish, kelmaslik, uzilish (INCIDENT-POLICY §5, migratsiya 052).
+  cancelReason?: string | null;
+  cancelledBy?: 'passenger' | 'driver' | 'manager' | 'system' | null;
+  cancellationFee?: number | null;
+  tripOutcome?: 'interrupted' | null;
+  interruptReason?: 'accident' | 'breakdown' | 'other' | null;
 }
 
 export interface PaginatedResponse<T> {

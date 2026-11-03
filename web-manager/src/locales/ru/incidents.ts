@@ -41,6 +41,7 @@ export const incidents: Messages['incidents'] = {
     other: 'Другое',
     rating_signal: 'Низкий рейтинг (сигнал)',
     low_rating: 'Низкая оценка + отзыв',
+    driver_cancels: 'Частые отмены (сигнал)',
   },
   outcomes: {
     warning: 'Предупреждение',

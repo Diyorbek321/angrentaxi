@@ -39,6 +39,7 @@ export const incidents = {
     other: 'Boshqa',
     rating_signal: 'Past reyting (signal)',
     low_rating: 'Past baho + izoh',
+    driver_cancels: 'Koʻp bekor qilish (signal)',
   } as Record<string, string>,
   outcomes: {
     warning: 'Ogohlantirish',

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Ban, CheckCircle2, MapPin, PackageX, Phone, Star, Undo2, UserCog } from 'lucide-react';
+import { Ban, CheckCircle2, MapPin, Octagon, PackageX, Phone, Star, Undo2, UserCog } from 'lucide-react';
 import { getOrderById, cancelOrder, completeOrder, Order } from '@/lib/api';
 import { OrderStatusBadge } from '@/components/orders/OrderStatusBadge';
 import { canMarkDeliveryFailed, deliveryFailureReasonLabels, deliveryState } from '@/lib/delivery-incident';
@@ -11,6 +11,9 @@ import { AssignDriverModal } from '@/components/dispatch/AssignDriverModal';
 import { DeliveryExtrasCard } from '@/components/orders/DeliveryExtras';
 import { OrderIncidentsSection } from '@/components/incidents/OrderIncidentsSection';
 import { OrderEvidenceSection } from '@/components/orders/OrderEvidenceSection';
+import { TaxiOutcomeCard } from '@/components/orders/TaxiOutcomeCard';
+import { InterruptTripModal } from '@/components/dispatch/InterruptTripModal';
+import { canInterrupt } from '@/lib/taxi-penalties';
 import { useDispatchData } from '@/components/dispatch/DispatchDataContext';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -55,6 +58,7 @@ export default function OrderDetailPage() {
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [confirming, setConfirming] = useState<'cancel' | 'complete' | null>(null);
   const [incident, setIncident] = useState<'failed' | 'returned' | null>(null);
+  const [interrupting, setInterrupting] = useState(false);
   const { toast } = useToast();
   // Drivers come from the shell provider — no second live-drivers request.
   const { drivers } = useDispatchData();
@@ -187,6 +191,17 @@ export default function OrderDetailPage() {
                 {d.complete}
               </Button>
             )}
+            {/* Avariya/buzilish — shu nuqtagacha narx (INCIDENT-POLICY §5) */}
+            {canInterrupt(order) && (
+              <Button
+                size="sm"
+                variant="override"
+                onClick={() => setInterrupting(true)}
+                leftIcon={<Octagon size={13} aria-hidden />}
+              >
+                {m.safety.penalties.interruptAction}
+              </Button>
+            )}
             {canMarkFailed && (
               <Button
                 size="sm"
@@ -267,6 +282,9 @@ export default function OrderDetailPage() {
 
         {/* Shikoyat va hodisalar (INCIDENT-POLICY §3) */}
         <OrderIncidentsSection order={order} />
+
+        {/* Kech bekor qilish / kelmaslik jarimasi yoki uzilgan safar (§5) */}
+        <TaxiOutcomeCard order={order} />
 
         {/* Dalillar: GPS izi, chat, SOS, baholar — har ko'rish audit (INCIDENT-POLICY §4) */}
         <OrderEvidenceSection orderId={order.id} />
@@ -378,6 +396,16 @@ export default function OrderDetailPage() {
           )}
         </DetailCard>
       </div>
+
+      <InterruptTripModal
+        order={order}
+        isOpen={interrupting}
+        onClose={() => setInterrupting(false)}
+        onDone={() => {
+          setInterrupting(false);
+          load();
+        }}
+      />
 
       <AssignDriverModal
         isOpen={assignModalOpen}

@@ -44,4 +44,22 @@ export const safety = {
     incidents: 'Hodisalar',
     roles: { passenger: 'Yoʻlovchi', driver: 'Haydovchi' } as Record<string, string>,
   },
+  penalties: {
+    outcomeTitle: 'Natija',
+    interrupted: 'Safar uzildi — shu nuqtagacha narx',
+    reasons: { accident: 'Avariya', breakdown: 'Mashina buzildi', other: 'Boshqa sabab' } as Record<string, string>,
+    reasonLabel: 'Sabab',
+    noShow: 'Yoʻlovchi chiqmadi',
+    lateCancel: 'Kech bekor qilish',
+    feeLabel: 'Jarima (haydovchiga)',
+    feeNote: 'Yoʻlovchi hamyonidan yoki qarz sifatida',
+    interruptAction: 'Safarni uzish',
+    interruptTitle: 'Safarni uzish',
+    interruptBody:
+      'Avariya yoki buzilish: safar shu nuqtagacha boʻlgan narx bilan yakunlanadi, yoʻlovchiga shu joydan yangi qidiruv taklif qilinadi. Avariyada xavfsizlik hodisasi ochiladi.',
+    noteLabel: 'Izoh (ixtiyoriy)',
+    submit: 'Uzish',
+    done: (id: string) => `Safar ${id} uzildi`,
+    failed: 'Safarni uzib boʻlmadi',
+  },
 };
