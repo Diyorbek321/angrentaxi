@@ -30,6 +30,12 @@ import {
   DECIMAL_COMPLAINT_KEYS,
   validateComplaintSettings,
 } from '@/lib/complaint-settings';
+import {
+  SAFETY_POLICY_BOUNDS,
+  SAFETY_POLICY_DEFAULTS,
+  SAFETY_POLICY_KEYS,
+  validateSafetyPolicy,
+} from '@/lib/safety-policy-settings';
 import { IntercitySettingsCard } from '@/components/intercity/IntercitySettingsCard';
 import { t } from '@/locales';
 
@@ -45,6 +51,7 @@ const EMPTY_FORM: GlobalSettings = {
   deliveryEtaMaxMinutes: 50,
   ...INCIDENT_SETTING_DEFAULTS,
   ...COMPLAINT_SETTING_DEFAULTS,
+  ...SAFETY_POLICY_DEFAULTS,
 };
 
 /** Eski backend yangi maydonlarni qaytarmasa — forma standart qiymat bilan to'ladi. */
@@ -102,7 +109,7 @@ export default function GlobalSettingsPage() {
     if (!Number.isFinite(values.maxCashVendorOrder) || values.maxCashVendorOrder < 0) {
       errors.maxCashVendorOrder = m.errMaxCash;
     }
-    return { ...errors, ...validateDeliverySettings(values), ...validateIncidentSettings(values), ...validateComplaintSettings(values) };
+    return { ...errors, ...validateDeliverySettings(values), ...validateIncidentSettings(values), ...validateComplaintSettings(values), ...validateSafetyPolicy(values) };
   };
 
   const update = <K extends keyof GlobalSettings>(key: K, value: GlobalSettings[K]) => {
@@ -301,6 +308,28 @@ export default function GlobalSettingsPage() {
                     value={String(form[key])}
                     error={fieldErrors[key]}
                     hint={m.complaints.hints[key] || undefined}
+                    onChange={(e) => update(key, Number(e.target.value))}
+                  />
+                ))}
+              </CardBody>
+            </Card>
+
+            {/* Xavfsizlik, taksi jarimalari, dalillarni saqlash (§4–§6). */}
+            <Card padding="none">
+              <CardHeader title={m.safety.title} description={m.safety.description} divider />
+              <CardBody className="grid gap-4 pt-4 sm:grid-cols-2">
+                {SAFETY_POLICY_KEYS.map((key) => (
+                  <Input
+                    key={key}
+                    label={m.safety.labels[key]}
+                    type="number"
+                    inputMode="numeric"
+                    min={SAFETY_POLICY_BOUNDS[key].min}
+                    max={SAFETY_POLICY_BOUNDS[key].max}
+                    step={1}
+                    value={String(form[key])}
+                    error={fieldErrors[key]}
+                    hint={m.safety.hints[key] || undefined}
                     onChange={(e) => update(key, Number(e.target.value))}
                   />
                 ))}

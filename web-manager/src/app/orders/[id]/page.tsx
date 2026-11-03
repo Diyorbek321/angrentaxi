@@ -10,6 +10,7 @@ import { ConfirmReturnedModal, DeliveryFailedModal } from '@/components/dispatch
 import { AssignDriverModal } from '@/components/dispatch/AssignDriverModal';
 import { DeliveryExtrasCard } from '@/components/orders/DeliveryExtras';
 import { OrderIncidentsSection } from '@/components/incidents/OrderIncidentsSection';
+import { OrderEvidenceSection } from '@/components/orders/OrderEvidenceSection';
 import { useDispatchData } from '@/components/dispatch/DispatchDataContext';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -266,6 +267,9 @@ export default function OrderDetailPage() {
 
         {/* Shikoyat va hodisalar (INCIDENT-POLICY §3) */}
         <OrderIncidentsSection order={order} />
+
+        {/* Dalillar: GPS izi, chat, SOS, baholar — har ko'rish audit (INCIDENT-POLICY §4) */}
+        <OrderEvidenceSection orderId={order.id} />
 
         {/* Yetkazib bo'lmagan safar: qachon, nima sabab, qachon qaytdi */}
         {order.deliveryFailedAt && (

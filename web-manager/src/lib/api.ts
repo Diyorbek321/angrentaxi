@@ -469,6 +469,9 @@ export interface SosAlert {
   status: SosAlertStatus;
   createdAt: string;
   resolvedAt: string | null;
+  /** Kim yopdi va izoh (INCIDENT-POLICY §4, migratsiya 051). */
+  resolvedBy?: string | null;
+  resolutionNote?: string | null;
 }
 
 export async function getActiveSosAlerts(): Promise<SosAlert[]> {
@@ -476,8 +479,9 @@ export async function getActiveSosAlerts(): Promise<SosAlert[]> {
   return res.data.data;
 }
 
-export async function resolveSosAlert(id: string): Promise<SosAlert> {
-  const res = await apiClient.patch<ApiResponse<SosAlert>>(`/sos/${id}/resolve`);
+/** Izoh MAJBURIY (backend 3..500 belgi) — `lib/safety.ts#sosNoteError`. */
+export async function resolveSosAlert(id: string, note: string): Promise<SosAlert> {
+  const res = await apiClient.patch<ApiResponse<SosAlert>>(`/sos/${id}/resolve`, { note: note.trim() });
   return res.data.data;
 }
 

@@ -97,6 +97,17 @@ export const settings: Messages['settings'] = {
         lowRatingIncidentMaxScore: '0 — выключено.',
       },
     },
+    safety: {
+      title: 'Безопасность и правила такси',
+      description: 'Ссылка на поездку, штрафы за отмену и хранение доказательств (INCIDENT-POLICY §4–§6).',
+      range: (min: string, max: string) => `От ${min} до ${max}`,
+      labels: {
+        tripShareGraceMinutes: 'Ссылка на поездку после завершения, мин',
+      },
+      hints: {
+        tripShareGraceMinutes: 'Близкие видят страницу отслеживания ещё столько минут.',
+      },
+    },
     maintenanceTitle: 'Техобслуживание',
     maintenanceMode: 'Режим техобслуживания',
     maintenanceHint: 'Сохраняется только как флаг — пока не блокирует реальные запросы.',

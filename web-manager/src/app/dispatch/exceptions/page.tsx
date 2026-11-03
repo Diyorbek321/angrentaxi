@@ -6,12 +6,12 @@ import {
   getActiveSosAlerts,
   getNoDriversFoundExceptions,
   getOrderById,
-  resolveSosAlert,
   Order,
   SosAlert,
 } from '@/lib/api';
 import { useDispatchData } from '@/components/dispatch/DispatchDataContext';
 import { AssignDriverModal } from '@/components/dispatch/AssignDriverModal';
+import { ResolveSosModal } from '@/components/dispatch/ResolveSosModal';
 import { useNow } from '@/components/dispatch/useNow';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -74,7 +74,7 @@ function SosCard({
   onOverride: (order: Order) => void;
 }) {
   const em = t().ops.exceptions;
-  const [isResolving, setIsResolving] = useState(false);
+  const [resolving, setResolving] = useState<SosAlert | null>(null);
   const { toast } = useToast();
   // A minute-level clock is enough for threshold checks (OpenFor ticks by
   // itself every second).
@@ -99,23 +99,8 @@ function SosCard({
     };
   }, [alert.orderId]);
 
-  const handleResolve = async () => {
-    setIsResolving(true);
-    try {
-      await resolveSosAlert(alert.id);
-      onResolved(alert.id);
-      toast({ title: em.sosResolved, variant: 'success' });
-    } catch (err) {
-      console.error('Resolve SOS failed:', err);
-      toast({
-        title: em.sosResolveFailed,
-        description: em.tryAgain,
-        variant: 'error',
-      });
-    } finally {
-      setIsResolving(false);
-    }
-  };
+  // Izoh MAJBURIY (INCIDENT-POLICY §4) — modal; kim yopgani serverda yoziladi.
+  const handleResolve = () => setResolving(alert);
 
   const canOverride =
     !!order && ['created', 'searching', 'accepted', 'arrived'].includes(order.status);
@@ -195,7 +180,6 @@ function SosCard({
             size="sm"
             variant="primary"
             onClick={handleResolve}
-            isLoading={isResolving}
             leftIcon={<CheckCircle2 size={13} />}
             className="flex-1 min-w-[8rem]"
           >
@@ -203,6 +187,16 @@ function SosCard({
           </Button>
         </div>
       </div>
+      <ResolveSosModal
+        alert={resolving}
+        onClose={() => setResolving(null)}
+        onResolved={(id) => {
+          setResolving(null);
+          onResolved(id);
+          toast({ title: em.sosResolved, variant: 'success' });
+        }}
+        onFailed={() => toast({ title: em.sosResolveFailed, description: em.tryAgain, variant: 'error' })}
+      />
     </Card>
   );
 }

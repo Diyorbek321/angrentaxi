@@ -76,6 +76,10 @@ export const SOCKET_EVENTS = {
   JOIN_SUPPORT_THREAD: 'join:support:thread',
   LEAVE_SUPPORT_THREAD: 'leave:support:thread',
 
+  // Xavfsizlik (server → managers): SOS darhol, boshqa panelda yopildi
+  SOS_ALERT: 'sos:alert',
+  SOS_RESOLVED: 'sos:resolved',
+
   // Yetkazish hodisalari (server → managers): osilib qolgan safar, bir marta
   DELIVERY_STUCK: 'delivery:stuck',
 

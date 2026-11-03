@@ -95,6 +95,17 @@ export const settings = {
         lowRatingIncidentMaxScore: '0 — oʻchiq.',
       },
     },
+    safety: {
+      title: 'Xavfsizlik va taksi qoidalari',
+      description: 'Safarni ulashish, bekor qilish jarimalari va dalillarni saqlash (INCIDENT-POLICY §4–§6).',
+      range: (min: string, max: string) => `${min} dan ${max} gacha kiriting`,
+      labels: {
+        tripShareGraceMinutes: 'Ulashish havolasi safar tugagach, daqiqa',
+      },
+      hints: {
+        tripShareGraceMinutes: 'Yaqinlar kuzatuv sahifasini shuncha vaqt ochib turadi.',
+      },
+    },
     maintenanceTitle: 'Texnik profilaktika',
     maintenanceMode: 'Profilaktika rejimi',
     maintenanceHint: 'Faqat belgi sifatida saqlanadi — hozircha haqiqiy soʻrovlarni bloklamaydi.',

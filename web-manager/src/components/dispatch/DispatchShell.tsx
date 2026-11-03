@@ -20,6 +20,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { dispatchNav, EXCEPTIONS_HREF, INCIDENTS_HREF } from './nav-config';
 import { getIncidentOpenCount } from '@/lib/incidents-api';
 import { DispatchDataProvider, useDispatchData } from './DispatchDataContext';
+import { SosAlarm } from './SosAlarm';
 import { t } from '@/locales';
 
 const EXCEPTIONS_POLL_MS = 30_000;
@@ -244,6 +245,9 @@ export function DispatchShell({
           ) : null
         }
       >
+        {canSeeExceptions && (
+          <SosAlarm exceptionsHref={EXCEPTIONS_HREF} onNewAlert={() => setExceptionsCount((c) => c + 1)} />
+        )}
         {children}
       </AppShell>
     </DispatchDataProvider>
