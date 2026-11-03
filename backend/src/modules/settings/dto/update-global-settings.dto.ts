@@ -16,6 +16,7 @@ import {
 } from '../delivery-pricing';
 import { DELIVERY_INCIDENT_LIMITS as L } from '../delivery-incident-settings';
 import { INCIDENT_SETTINGS_LIMITS as IL } from '../incident-settings';
+import { SAFETY_POLICY_LIMITS as SL } from '../safety-policy-settings';
 
 export class UpdateGlobalSettingsDto {
   @ApiPropertyOptional({ example: 'Angren Taxi' })
@@ -217,4 +218,11 @@ export class UpdateGlobalSettingsDto {
   @Min(IL.lowRatingIncidentMaxScore.min)
   @Max(IL.lowRatingIncidentMaxScore.max)
   lowRatingIncidentMaxScore?: number;
+
+  @ApiPropertyOptional({ example: 30, description: "Ulashish havolasi safar tugagach shuncha daqiqa ochiq" })
+  @IsOptional()
+  @IsInt()
+  @Min(SL.tripShareGraceMinutes.min)
+  @Max(SL.tripShareGraceMinutes.max)
+  tripShareGraceMinutes?: number;
 }

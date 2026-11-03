@@ -54,6 +54,14 @@ export const AUDIT_ACTIONS = {
   incidentPenalty: 'incident.penalty',
   /** E'tiroz bo'yicha admin qarori. `metadata.decision` — upheld | overturned. */
   incidentAppealDecision: 'incident.appeal_decision',
+  /** SOS yopildi (INCIDENT-POLICY §4). `note` — majburiy izoh, `metadata.orderId`. */
+  sosResolve: 'sos.resolve',
+  /** Yo'lovchi safar ulashish havolasini yaratdi. `metadata.linkId` (token yozilmaydi). */
+  tripShareCreate: 'trip_share.create',
+  /** Ilova orqali qo'ng'iroq — raqam berildi. `metadata.callerRole`, `callLogId`. */
+  orderCallRequest: 'order.call_request',
+  /** Xodim buyurtma dalillarini (GPS izi, chat, SOS) ko'rdi. `metadata.sections`. */
+  orderEvidenceView: 'order.evidence_view',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

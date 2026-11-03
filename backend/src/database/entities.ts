@@ -52,6 +52,8 @@ import { RefreshToken } from './entities/refresh-token.entity';
 import { Restaurant } from './entities/restaurant.entity';
 import { RoadSpeedSample } from './entities/road-speed-sample.entity';
 import { SosAlert } from './entities/sos-alert.entity';
+import { TripShareLink } from './entities/trip-share-link.entity';
+import { OrderCallLog } from './entities/order-call-log.entity';
 import { StockMovement } from './entities/stock-movement.entity';
 import { Store } from './entities/store.entity';
 import { SupportMessage } from './entities/support-message.entity';
@@ -113,6 +115,8 @@ export const ENTITIES = [
   Restaurant,
   RoadSpeedSample,
   SosAlert,
+  TripShareLink,
+  OrderCallLog,
   StockMovement,
   Store,
   SupportMessage,

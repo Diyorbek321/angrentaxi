@@ -162,6 +162,11 @@ export class PlatformSettings {
   @Column({ name: 'low_rating_incident_max_score', type: 'int', default: 2 })
   lowRatingIncidentMaxScore: number;
 
+  // Xavfsizlik va taksi jarimalari (migratsiyalar 051–053, INCIDENT-POLICY
+  // §4–§6; o'qish `settings/safety-policy-settings.ts` orqali).
+  @Column({ name: 'trip_share_grace_minutes', type: 'int', default: 30 })
+  tripShareGraceMinutes: number;
+
   // Safar opsiyalari haqi, so'm (migratsiya 023): `{ child_seat: 5000 }`.
   // Menejer belgilaydi; o'qish `normalizeTripOptionFees` orqali.
   @Column({ name: 'trip_option_fees', type: 'jsonb', default: () => "'{}'" })

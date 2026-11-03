@@ -574,4 +574,16 @@ export const ERROR_CATALOGUE: readonly ErrorCatalogueEntry[] = [
   { source: 'Qaytariladigan summa buyurtma summasidan oshmasligi kerak', ru: 'Сумма возврата не должна превышать сумму заказа' },
   { source: "Bu hodisada haydovchi yo'q", ru: 'В этом обращении нет водителя' },
   { source: 'Haydovchi profili topilmadi', ru: 'Профиль водителя не найден' },
+  // ─── Xavfsizlik (INCIDENT-POLICY §4) — SOS, ulashish, qo'ng'iroq ─────
+  { source: 'SOS yopish izohini yozing (kamida 3 belgi)', ru: 'Напишите комментарий к закрытию SOS (не менее 3 символов)' },
+  { source: 'SOS allaqachon yopilgan', ru: 'SOS уже закрыт' },
+  {
+    source: "Safarni haydovchi biriktirilgandan keyin va tugaguncha ulashish mumkin",
+    ru: 'Поделиться поездкой можно после назначения водителя и до её завершения',
+  },
+  { source: 'Bu safar uchun havolalar soni chegarasiga yetdi', ru: 'Достигнут лимит ссылок для этой поездки' },
+  { source: 'Havola topilmadi', ru: 'Ссылка не найдена' },
+  { source: 'Havola muddati tugagan', ru: 'Срок действия ссылки истёк' },
+  { source: "Qo'ng'iroq faqat faol buyurtma davomida mumkin", ru: 'Позвонить можно только во время активного заказа' },
+  { source: 'Qarshi tomon raqami mavjud emas', ru: 'Номер собеседника недоступен' },
 ];

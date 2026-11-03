@@ -10,7 +10,9 @@ import {
   Post,
   Query,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { OrderContactMaskingInterceptor } from '../safety/contact-masking.interceptor';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -57,6 +59,8 @@ import {
 @ApiTags('Orders')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+// Qarshi tomon telefoni yashiriladi (INCIDENT-POLICY §4, `safety/contact-policy.ts`).
+@UseInterceptors(OrderContactMaskingInterceptor)
 @Controller('orders')
 export class OrdersController {
   private readonly logger = new Logger(OrdersController.name);

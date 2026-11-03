@@ -1,4 +1,5 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Query, UseGuards, UseInterceptors } from '@nestjs/common';
+import { CourierContactMaskingInterceptor } from '../safety/contact-masking.interceptor';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { MarketService } from './market.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -16,6 +17,8 @@ import { CancelVendorOrderDto } from '../../common/dto/cancel-vendor-order.dto';
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(...PASSENGER_APP_ROLES)
+// Qarshi tomon telefoni yashiriladi (INCIDENT-POLICY §4, `safety/contact-policy.ts`).
+@UseInterceptors(CourierContactMaskingInterceptor)
 @Controller('market')
 export class MarketStorefrontController {
   constructor(private readonly marketService: MarketService) {}

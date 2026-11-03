@@ -86,4 +86,12 @@ export class SosAlert {
 
   @Column({ name: 'resolved_at', type: 'timestamp', nullable: true })
   resolvedAt: Date | null;
+
+  /** Kim yopdi (migratsiya 051) — eski yopilganlarida `null`. */
+  @Column({ name: 'resolved_by', type: 'uuid', nullable: true })
+  resolvedBy: string | null;
+
+  /** Yopish izohi — majburiy (INCIDENT-POLICY §4). */
+  @Column({ name: 'resolution_note', type: 'varchar', length: 500, nullable: true })
+  resolutionNote: string | null;
 }

@@ -44,9 +44,18 @@ import {
   strikeLadderError,
   toIncidentSettings,
 } from './incident-settings';
+import {
+  SAFETY_POLICY_FIELDS,
+  SafetyPolicySettings,
+  toSafetyPolicySettings,
+} from './safety-policy-settings';
 
 /** `GET/PATCH /settings/global` shakli. */
-export interface GlobalSettings extends DeliveryEta, DeliveryIncidentSettings, IncidentSettings {
+export interface GlobalSettings
+  extends DeliveryEta,
+    DeliveryIncidentSettings,
+    IncidentSettings,
+    SafetyPolicySettings {
   platformName: string;
   supportPhone: string;
   supportEmail: string;
@@ -80,6 +89,8 @@ const GLOBAL_SETTINGS_FIELDS: ReadonlyArray<keyof GlobalSettings> = [
   ...DELIVERY_INCIDENT_FIELDS,
   // Shikoyat va hodisa (INCIDENT-POLICY §3, migratsiya 050).
   ...INCIDENT_SETTINGS_FIELDS,
+  // Xavfsizlik, taksi jarimalari, saqlash muddati (§4–§6, migratsiyalar 051–053).
+  ...SAFETY_POLICY_FIELDS,
 ];
 
 /** Ustun qo'shilmagan eski qatorda — migratsiya 047 standarti. */
@@ -117,6 +128,11 @@ export class SettingsService {
   /** Shikoyat va hodisa sozlamalari (§3). */
   async getIncidentSettings(): Promise<IncidentSettings> {
     return toIncidentSettings(await this.getOrCreate());
+  }
+
+  /** Xavfsizlik / taksi jarimalari / saqlash muddati sozlamalari (§4–§6). */
+  async getSafetyPolicySettings(): Promise<SafetyPolicySettings> {
+    return toSafetyPolicySettings(await this.getOrCreate());
   }
 
   /** To'lanmagan kartali buyurtma muddati, daqiqa (§1). */
@@ -432,6 +448,7 @@ function toGlobalSettings(settings: PlatformSettings): GlobalSettings {
     cardPaymentTimeoutMinutes: toCardPaymentTimeoutMinutes(settings),
     ...toDeliveryIncidentSettings(settings),
     ...toIncidentSettings(settings),
+    ...toSafetyPolicySettings(settings),
   };
 }
 
