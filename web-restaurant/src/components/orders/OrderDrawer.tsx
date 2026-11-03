@@ -8,7 +8,8 @@ import { MoneyText } from '@/components/ui/MoneyText';
 import { KeyValue, KeyValueList } from '@/components/ui/KeyValue';
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { customerNameOf, customerPhoneOf } from './OrderCard';
-import { AddressDetailsBlock, CustomerCancelNotice, DiscountLines } from './OrderExtras';
+import { AddressDetailsBlock, CustomerCancelNotice, DiscountLines, PaymentPendingNotice } from './OrderExtras';
+import { isPaymentPending } from '@/lib/order-extras';
 import { t } from '@/locales';
 
 export function OrderDrawer({
@@ -28,6 +29,7 @@ export function OrderDrawer({
   const m = t().orders;
   const advanceLabel = advanceLabelFor(order);
   const phone = customerPhoneOf(order);
+  const paymentPending = isPaymentPending(order);
 
   return (
     <Drawer
@@ -50,8 +52,8 @@ export function OrderDrawer({
               </Button>
             )}
             {advanceLabel && (
-              <Button size="lg" className="flex-1" isLoading={busy} onClick={onAdvance}>
-                {advanceLabel}
+              <Button size="lg" className="flex-1" isLoading={busy} disabled={paymentPending} onClick={onAdvance}>
+                {paymentPending ? t().cardPayment.pending : advanceLabel}
               </Button>
             )}
           </div>
@@ -84,6 +86,7 @@ export function OrderDrawer({
       </KeyValueList>
 
       <CustomerCancelNotice order={order} />
+      <PaymentPendingNotice order={order} className="mt-3" />
       <AddressDetailsBlock details={order.addressDetails} />
 
       {order.note && (

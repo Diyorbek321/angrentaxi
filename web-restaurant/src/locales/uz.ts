@@ -128,6 +128,12 @@ export const uz = {
     redispatch: 'Kuryerni qayta chaqirish',
   },
 
+  /** Kartali buyurtma to'lovdan oldin qabul qilinmaydi (INCIDENT-POLICY §1). */
+  cardPayment: {
+    pending: 'Toʻlov kutilmoqda',
+    pendingHint: 'Mijoz karta toʻlovini tugatmagan — toʻlov kelguncha qabul qilib boʻlmaydi',
+  },
+
   orderExtras: {
     fields: {
       entrance: 'Podyezd',

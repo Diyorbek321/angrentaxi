@@ -1,9 +1,10 @@
-import { Building2, CircleSlash, Tag } from 'lucide-react';
+import { Building2, CircleSlash, Hourglass, Tag } from 'lucide-react';
 import {
   addressDetailLines,
   customerCancelText,
   formatAddressShort,
   isCustomerCancelled,
+  isPaymentPending,
   orderDiscounts,
   type AddressDetails,
   type OrderV5Fields,
@@ -110,6 +111,35 @@ export function CustomerCancelNotice({
     >
       <CircleSlash size={13} aria-hidden className="mt-0.5 shrink-0" />
       <span>{customerCancelText(order)}</span>
+    </p>
+  );
+}
+
+/**
+ * "Toʻlov kutilmoqda" — kartali buyurtma toʻlovi tushmagan (INCIDENT-POLICY §1).
+ * Server qabul qilishni rad etadi; tugma oʻchiq, sababi shu yerda.
+ */
+export function PaymentPendingNotice({
+  order,
+  className,
+}: {
+  order: { status: string } & OrderV5Fields;
+  className?: string;
+}) {
+  if (!isPaymentPending(order)) return null;
+  const m = t().cardPayment;
+  return (
+    <p
+      role="status"
+      className={cn(
+        'flex items-start gap-1.5 rounded-ds-sm border border-line bg-surface-2 px-3 py-2 text-[13px] text-ink',
+        className
+      )}
+    >
+      <Hourglass size={13} aria-hidden className="mt-0.5 shrink-0" />
+      <span>
+        <span className="font-semibold">{m.pending}</span> — {m.pendingHint}
+      </span>
     </p>
   );
 }

@@ -28,6 +28,11 @@ export interface OrderV5Fields {
   cancelledBy?: CancelledBy | string | null;
   cancelReason?: string | null;
   canCancel?: boolean;
+  /**
+   * Kartali buyurtmaning to'lovi hali tushmagan (docs/INCIDENT-POLICY.md §1).
+   * Server qabul qilish/oldinga surishni rad etadi — panel tugmani o'chiradi.
+   */
+  paymentPending?: boolean;
 }
 
 /** Spec tartibi — yozuvlar faol tilda (`t().orderExtras.fields`). */
@@ -143,4 +148,9 @@ export function disappearedIds(prev: readonly string[] | null, next: readonly st
   if (!prev) return [];
   const set = new Set(next);
   return prev.filter((id) => !set.has(id));
+}
+
+/** To'lov kutilmoqda: kartali, bekor qilinmagan va to'lanmagan (§1). */
+export function isPaymentPending(order: { status: string } & OrderV5Fields): boolean {
+  return order.paymentPending === true && order.status !== 'cancelled';
 }

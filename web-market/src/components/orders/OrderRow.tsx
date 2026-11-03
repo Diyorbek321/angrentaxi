@@ -1,11 +1,11 @@
 'use client';
 
-import { MessageSquareText } from 'lucide-react';
+import { Hourglass, MessageSquareText } from 'lucide-react';
 import type { MarketOrder } from '@/lib/api';
 import { advanceLabelFor, deliveryModeLabel, orderCustomerName } from '@/lib/order-status';
 import { formatNumber, formatRelative, shortId } from '@/lib/format';
 import { vendorCashView, type VendorSettlementMode } from '@/lib/vendor-cash';
-import { customerCancelText, isCustomerCancelled } from '@/lib/order-extras';
+import { customerCancelText, isCustomerCancelled, isPaymentPending } from '@/lib/order-extras';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -43,6 +43,8 @@ export function OrderRow({
   const m = t().orders;
   const isNew = o.status === 'new';
   const advanceLabel = advanceLabelFor(o);
+  // Kartali buyurtma toʻlovdan oldin yigʻishga olinmaydi (INCIDENT-POLICY §1).
+  const paymentPending = isPaymentPending(o);
   return (
     <li
       className={cn(
@@ -86,6 +88,8 @@ export function OrderRow({
             size="sm"
             variant={isNew ? 'primary' : 'secondary'}
             isLoading={advancing}
+            disabled={paymentPending}
+            title={paymentPending ? t().cardPayment.pendingHint : undefined}
             onClick={onAdvance}
             className="w-full"
           >
@@ -158,6 +162,14 @@ function CashBadge({ order, mode }: { order: MarketOrder; mode?: VendorSettlemen
 
 /** Mijoz bekor qilgan bo'lsa — "Mijoz bekor qildi" (sabab tooltip'da), aks holda odatdagi holat. */
 function OrderStateBadge({ order }: { order: MarketOrder }) {
+  if (isPaymentPending(order)) {
+    const m = t().cardPayment;
+    return (
+      <Badge variant="neutral" icon={<Hourglass aria-hidden />} title={m.pendingHint}>
+        {m.pending}
+      </Badge>
+    );
+  }
   if (isCustomerCancelled(order)) {
     return (
       <Badge variant="muted-danger" title={customerCancelText(order)}>

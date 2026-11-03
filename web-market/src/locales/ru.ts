@@ -173,6 +173,11 @@ export const ru: Messages = {
     yes: 'Да, получил',
     no: 'Не получил',
   },
+  cardPayment: {
+    pending: 'Ожидается оплата',
+    pendingHint: 'Клиент не завершил оплату картой — до оплаты заказ принять нельзя',
+  },
+
   orderExtras: {
     fields: {
       entrance: 'Подъезд',

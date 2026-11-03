@@ -28,6 +28,7 @@ import { OrderDrawer } from '@/components/orders/OrderDrawer';
 import { ORDER_ROW_GRID, OrderCardMobile, OrderRow } from '@/components/orders/OrderRow';
 import { usePageRefresh } from '@/components/shell';
 import { t } from '@/locales';
+import { isPaymentPending } from '@/lib/order-extras';
 
 type TabKey = 'all' | MarketOrderStatus;
 
@@ -107,10 +108,11 @@ export default function OrdersPage() {
     setBusy(true);
     try {
       // Faqat `new` holatdagilar yig'ishga o'tadi; qolganlari tasodifan
-      // bir bosqich oldinga surilib ketmasligi uchun o'tkazib yuboriladi.
+      // bir bosqich oldinga surilib ketmasligi uchun o'tkazib yuboriladi;
+      // to'lovi kutilayotgan kartali buyurtma ham (INCIDENT-POLICY §1).
       const targets = selectedIds
         .map((id) => orders.find((o) => o.id === id))
-        .filter((o): o is MarketOrder => !!o && o.status === 'new');
+        .filter((o): o is MarketOrder => !!o && o.status === 'new' && !isPaymentPending(o));
       await Promise.all(targets.map((o) => marketApi.advanceOrder(o.id)));
       setSelected({});
       await reload();

@@ -9,7 +9,8 @@ import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { VendorCashStrip } from '@/components/VendorCashStrip';
 import type { VendorSettlementContext } from '@/lib/vendor-cash';
 import { CourierStrip } from './CourierStrip';
-import { AddressShortLine, CustomerCancelNotice, DiscountLines } from './OrderExtras';
+import { AddressShortLine, CustomerCancelNotice, DiscountLines, PaymentPendingNotice } from './OrderExtras';
+import { isPaymentPending } from '@/lib/order-extras';
 import { PrepTimerChip } from './PrepTimerChip';
 import { t } from '@/locales';
 
@@ -59,6 +60,8 @@ export function OrderCard({
   const timer = formatPrepTimer(order, now);
   const advanceLabel = advanceLabelFor(order);
   const isNew = order.status === 'new';
+  // Kartali buyurtma toʻlovdan oldin qabul qilinmaydi (INCIDENT-POLICY §1).
+  const paymentPending = isPaymentPending(order);
   const isDone = order.status === 'delivered' || order.status === 'cancelled';
   const phone = customerPhoneOf(order);
   const no = shortId(order.id);
@@ -115,6 +118,7 @@ export function OrderCard({
       </p>
       <AddressShortLine details={order.addressDetails} className="mt-0.5" />
       <CustomerCancelNotice order={order} className="mt-3" />
+      <PaymentPendingNotice order={order} className="mt-3" />
 
       {/* Taomlar ro'yxati — oshxona bosmasdan ko'radi. */}
       <ul className={cn('mt-3 flex flex-col gap-1 border-t border-line pt-3', kiosk ? 'text-h3 font-medium' : 'text-body')}>
@@ -175,9 +179,10 @@ export function OrderCard({
             size="kitchen"
             className={cn('flex-1', kiosk && 'min-h-[56px] text-h3')}
             isLoading={busy}
+            disabled={paymentPending}
             onClick={onAdvance}
           >
-            {advanceLabel}
+            {paymentPending ? m.cardPayment.pending : advanceLabel}
           </Button>
           {isNew && (
             <Button

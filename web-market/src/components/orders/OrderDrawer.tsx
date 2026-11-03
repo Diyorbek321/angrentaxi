@@ -22,7 +22,8 @@ import { Drawer } from '@/components/ui/Drawer';
 import { MoneyText } from '@/components/ui/MoneyText';
 import { KeyValue, KeyValueList } from '@/components/ui/KeyValue';
 import { cn } from '@/components/ui/cn';
-import { AddressDetailsBlock, CustomerCancelNotice, DiscountLines } from './OrderExtras';
+import { AddressDetailsBlock, CustomerCancelNotice, DiscountLines, PaymentPendingNotice } from './OrderExtras';
+import { isPaymentPending } from '@/lib/order-extras';
 import { t } from '@/locales';
 
 export interface OrderDrawerProps {
@@ -49,6 +50,8 @@ export function OrderDrawer({ order, onClose, onChanged, onError, settlement }: 
   const packedCount = order.items.filter((i) => i.packed).length;
   const advanceLabel = advanceLabelFor(order);
   const phone = orderCustomerPhone(order);
+  // Kartali buyurtma toʻlovdan oldin yigʻishga olinmaydi (INCIDENT-POLICY §1).
+  const paymentPending = isPaymentPending(order);
 
   const togglePack = async (index: number) => {
     setTogglingIndex(index);
@@ -113,8 +116,8 @@ export function OrderDrawer({ order, onClose, onChanged, onError, settlement }: 
             <MoneyText value={order.totalPrice} className="text-base font-semibold text-ink" />
           </div>
           {advanceLabel ? (
-            <Button className="w-full" size="lg" isLoading={busy} onClick={() => void advance()}>
-              {advanceLabel}
+            <Button className="w-full" size="lg" isLoading={busy} disabled={paymentPending} onClick={() => void advance()}>
+              {paymentPending ? m.cardPayment.pending : advanceLabel}
             </Button>
           ) : (
             <p className="py-2 text-center text-sm font-medium text-muted">
@@ -143,6 +146,7 @@ export function OrderDrawer({ order, onClose, onChanged, onError, settlement }: 
       )}
 
       <CustomerCancelNotice order={order} />
+      <PaymentPendingNotice order={order} className="mt-3" />
 
       {/* Naqd + platforma kuryeri: kuryer tovar pulini do'konga to'laydi. */}
       {order.deliveryMode === 'platform' &&

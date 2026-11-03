@@ -6,6 +6,7 @@ import {
   disappearedIds,
   formatAddressShort,
   isCustomerCancelled,
+  isPaymentPending,
   orderDiscounts,
 } from './order-extras';
 
@@ -73,5 +74,14 @@ describe('customer cancellation', () => {
   it('disappearedIds', () => {
     expect(disappearedIds(null, ['a'])).toEqual([]);
     expect(disappearedIds(['a', 'b'], ['b', 'c'])).toEqual(['a']);
+  });
+});
+
+describe("to'lov kutilmoqda (INCIDENT-POLICY §1)", () => {
+  it('faqat server paymentPending: true va bekor qilinmagan', () => {
+    expect(isPaymentPending({ status: 'new', paymentPending: true })).toBe(true);
+    expect(isPaymentPending({ status: 'new', paymentPending: false })).toBe(false);
+    expect(isPaymentPending({ status: 'new' })).toBe(false);
+    expect(isPaymentPending({ status: 'cancelled', paymentPending: true })).toBe(false);
   });
 });
