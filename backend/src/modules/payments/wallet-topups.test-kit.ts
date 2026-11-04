@@ -15,7 +15,13 @@ export const WALLET_TOPUP_TEST_ID = '11111111-2222-3333-4444-555555555555';
  * Barcha tranzaksiyalar bitta `manager` ustida (merchant repo ham ulanadi).
  */
 export function buildTopupHarness(
-  opts: { enabled?: boolean; configured?: boolean; ledgerBalance?: () => number; returnUrl?: string } = {},
+  opts: {
+    enabled?: boolean;
+    configured?: boolean;
+    ledgerBalance?: () => number;
+    returnUrl?: string;
+    walletDebt?: unknown;
+  } = {},
 ) {
   const topups = new Map<string, WalletTopup>();
   const ledger: Array<Partial<Transaction>> = [];
@@ -136,6 +142,7 @@ export function buildTopupHarness(
     driversService as never,
     notifier as never,
     { get: (key: string) => (key === 'WALLET_TOPUP_RETURN_URL' ? (opts.returnUrl ?? '') : undefined) } as never,
+    opts.walletDebt as never,
   );
   const callbacks = new WalletTopupCallbacksService(service, uzcard as never);
   return {

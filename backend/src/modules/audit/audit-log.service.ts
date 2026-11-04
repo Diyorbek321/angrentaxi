@@ -64,6 +64,12 @@ export const AUDIT_ACTIONS = {
   orderEvidenceView: 'order.evidence_view',
   /** Kech bekor qilish / kelmaslik jarimasi (INCIDENT-POLICY §5). `amount`, `metadata.kind`/`status`. */
   orderCancelFee: 'order.cancel_fee',
+  /** Yo'lovchi qarzi hamyondagi haqiqiy pul bilan yopildi (tizim yoki yo'lovchi). `metadata.debtId`/`reason`/`source`. */
+  walletDebtSettled: 'wallet.debt_settled',
+  /** Menejer yo'lovchidan naqd oldi — qarz yopildi. `note` — sabab. */
+  walletDebtCashReceived: 'wallet.debt_cash_received',
+  /** Menejer qarzni kechirdi — zarar platformada, haydovchiga baribir to'lanadi. `note` — sabab. */
+  walletDebtWrittenOff: 'wallet.debt_written_off',
   /** Safar uzildi (avariya/buzilish) — shu nuqtagacha narx. `metadata.reason`, `finalPrice`. */
   orderInterrupted: 'order.interrupted',
 } as const;

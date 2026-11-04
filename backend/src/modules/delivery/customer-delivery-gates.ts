@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { Transaction } from '../../database/entities/transaction.entity';
-import { outstandingWalletDebt } from '../orders/outstanding-wallet-debt';
+import { outstandingWalletDebt, walletDebtBlockedError } from '../orders/outstanding-wallet-debt';
 import { DeliveryIncidentSettings } from '../settings/delivery-incident-settings';
 import { assertNotSuspended } from '../incidents/suspension';
 
@@ -49,10 +49,7 @@ export async function assertCustomerMayCheckout(
 ): Promise<void> {
   const debt = await outstandingWalletDebt(deps.transactions, input.customerId);
   if (debt > 0) {
-    throw new BadRequestException(
-      `You have an unpaid balance of ${debt} so'm from a previous trip. ` +
-        'Please top up your wallet before ordering again.',
-    );
+    throw walletDebtBlockedError(debt);
   }
   const now = input.now ?? new Date();
   if (input.isCash) await assertCashNotRefusalBlocked(deps.query, input.customerId, input.settings, now);

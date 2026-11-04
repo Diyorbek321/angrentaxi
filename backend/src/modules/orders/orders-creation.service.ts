@@ -28,7 +28,7 @@ import { SurgeService } from '../surge/surge.service';
 import { CitiesService } from '../cities/cities.service';
 import { haversineDistance, haversineRouteDistance } from './orders.distance.util';
 import { OrdersQueryService } from './orders-query.service';
-import { outstandingWalletDebt } from './outstanding-wallet-debt';
+import { outstandingWalletDebt, walletDebtBlockedError } from './outstanding-wallet-debt';
 import { OsrmService } from '../routing/osrm.service';
 import {
   MS_PER_MINUTE,
@@ -420,10 +420,7 @@ export class OrdersCreationService {
       options.agreedFare !== undefined ? 0 : await this.getOutstandingWalletDebt(passengerId);
 
     if (outstandingDebt > 0) {
-      throw new BadRequestException(
-        `You have an unpaid balance of ${outstandingDebt} so'm from a previous trip. ` +
-          'Please top up your wallet before ordering again.',
-      );
+      throw walletDebtBlockedError(outstandingDebt);
     }
 
     // Estimate distance using Haversine formula (frontend should provide actual distance).

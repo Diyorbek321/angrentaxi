@@ -39,6 +39,8 @@ export const ERROR_CODES = {
   walletTopupProviderError: 'WALLET_TOPUP_PROVIDER_ERROR',
   /** Ochiq (to'lanmagan) to'ldirishlar chegarasi (409). `details: { maxPending }`. */
   walletTopupTooManyPending: 'WALLET_TOPUP_TOO_MANY_PENDING',
+  /** To'lanmagan hamyon qarzi — yangi buyurtma yo'q. `details: { amount }`. */
+  walletDebtOutstanding: 'WALLET_DEBT_OUTSTANDING',
   /** Yechish: karta to'ldirishlari ushlab turilgan muddatda. `details: { available, held, holdDays }`. */
   walletWithdrawalOnHold: 'WALLET_WITHDRAWAL_ON_HOLD',
   /** Huquqiy hujjat tasdiqlangan — haydovchi PINFL/STIR/soliq maqomi/tug'ilgan sanani o'zi o'zgartira olmaydi (403). */

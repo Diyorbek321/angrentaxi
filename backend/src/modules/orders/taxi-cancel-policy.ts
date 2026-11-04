@@ -70,5 +70,6 @@ export function checkNoShow(order: PenaltyOrder, settings: TaxiPenaltySettings, 
 }
 
 /** Jarima daftar belgilari — buyurtmaga bir marta (`uq_transactions_taxi_fee`). */
-export const TAXI_FEE_CHARGE_TAG = (orderId: string): string => `taxi_fee_charge_${orderId}`;
+export const TAXI_FEE_CHARGE_PREFIX = 'taxi_fee_charge_';
+export const TAXI_FEE_CHARGE_TAG = (orderId: string): string => `${TAXI_FEE_CHARGE_PREFIX}${orderId}`;
 export const TAXI_FEE_PAYOUT_TAG = (orderId: string): string => `taxi_fee_payout_${orderId}`;

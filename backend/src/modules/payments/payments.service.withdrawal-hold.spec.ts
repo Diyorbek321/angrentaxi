@@ -29,7 +29,7 @@ describe('Withdrawal hold for recent card top-ups (#3a)', () => {
         expect(entity).toBe(Transaction);
         return {
           createQueryBuilder: () => {
-            const qb = { select: () => qb, where: () => qb, getRawOne: async () => ({ balance: String(balance) }) };
+            const qb = { select: () => qb, where: () => qb, andWhere: () => qb, getRawOne: async () => ({ balance: String(balance) }) };
             return qb;
           },
           save: jest.fn(async (row: { amount: number; type: TransactionType; status: TransactionStatus }) => {
@@ -115,6 +115,7 @@ describe('Withdrawal hold for recent card top-ups (#3a)', () => {
       withdrawalHold: 30000,
       withdrawalHoldDays: 7,
       bonusBalance: 0,
+      outstandingDebt: 0,
     });
   });
 

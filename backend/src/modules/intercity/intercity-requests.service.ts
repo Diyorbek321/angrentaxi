@@ -9,7 +9,7 @@ import { IntercityTripClass } from '../../database/entities/intercity-trip.entit
 import { IntercityBookingKind, PaymentMethod } from '../../database/entities/order.entity';
 import { Transaction } from '../../database/entities/transaction.entity';
 import { haversineDistance } from '../orders/orders.distance.util';
-import { outstandingWalletDebt } from '../orders/outstanding-wallet-debt';
+import { outstandingWalletDebt, walletDebtBlockedError } from '../orders/outstanding-wallet-debt';
 import { SettingsService } from '../settings/settings.service';
 import { SuspensionGate } from '../incidents/suspension-gate.service';
 import { FareBreakdown } from '../tariffs/fare-breakdown';
@@ -145,10 +145,7 @@ export class IntercityRequestsService {
     // Oddiy band bilan BIR XIL darvoza (`outstanding-wallet-debt.ts`).
     const debt = await outstandingWalletDebt(this.transactionRepository, passengerId);
     if (debt > 0) {
-      throw new BadRequestException(
-        `You have an unpaid balance of ${debt} so'm from a previous trip. ` +
-          'Please top up your wallet before ordering again.',
-      );
+      throw walletDebtBlockedError(debt);
     }
 
     const open = await this.requestRepository.findOne({

@@ -125,6 +125,12 @@ export const FARE_BONUS_SPEND_LEDGER_TAG = 'fare_bonus_spend';
   unique: true,
   where: "external_id LIKE 'taxi_fee_%'",
 })
+// Yo'lovchi qarzi naqd yopilganda kirim (`wallet_debt_cash_<debitId>`) —
+// har bir qarzga bir marta (migratsiya 054).
+@Index('uq_transactions_wallet_debt_cash', ['externalId'], {
+  unique: true,
+  where: "external_id LIKE 'wallet_debt_cash_%'",
+})
 @Entity('transactions')
 export class Transaction {
   @PrimaryGeneratedColumn('uuid')

@@ -17,6 +17,7 @@ import { DriversModule } from '../drivers/drivers.module';
 import { SettingsModule } from '../settings/settings.module';
 import { WalletTopup } from '../../database/entities/wallet-topup.entity';
 import { WalletTopupsService } from './wallet-topups.service';
+import { WalletDebtService } from './wallet-debt.service';
 import { WalletTopupCallbacksService } from './wallet-topup-callbacks.service';
 import { MerchantTransaction } from '../../database/entities/merchant-transaction.entity';
 import { PaymentTargetsService } from './merchant/payment-targets.service';
@@ -53,6 +54,8 @@ import { OrderRefundClawbackService } from './order-refund-clawback.service';
     ClickProvider,
     UzcardProvider,
     WalletTopupsService,
+    // Yo'lovchi qarzini yopish (INCIDENT-POLICY §7).
+    WalletDebtService,
     WalletTopupCallbacksService,
     // Payme Merchant API / Click SHOP API — buyurtma va to'ldirish uchun umumiy.
     PaymentTargetsService,

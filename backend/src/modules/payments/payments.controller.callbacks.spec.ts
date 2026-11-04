@@ -35,7 +35,7 @@ describe('PaymentsController — merchant callback yo\'llari', () => {
   it('Payme yo\'li kontrollerdan PaymeMerchantService ga to\'g\'ridan-to\'g\'ri boradi', async () => {
     const payme = { handle: jest.fn(async () => ({ jsonrpc: '2.0', id: 1, result: { allow: true } })) };
     const click = { handle: jest.fn(async () => ({ error: 0 })) };
-    const controller = new PaymentsController({} as never, {} as never, payme as never, click as never);
+    const controller = new PaymentsController({} as never, {} as never, {} as never, payme as never, click as never);
     await expect(controller.handlePaymeCallback({ id: 1 }, 'Basic x')).resolves.toEqual({
       jsonrpc: '2.0',
       id: 1,

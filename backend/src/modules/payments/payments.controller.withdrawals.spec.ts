@@ -3,6 +3,7 @@ import { Reflector } from '@nestjs/core';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 import { WalletTopupsService } from './wallet-topups.service';
+import { WalletDebtService } from './wallet-debt.service';
 import { PaymeMerchantService } from './merchant/payme-merchant.service';
 import { ClickShopService } from './merchant/click-shop.service';
 import { ROLES_KEY } from '../../common/decorators/roles.decorator';
@@ -48,6 +49,7 @@ describe('PaymentsController - withdrawals', () => {
         { provide: PaymentsService, useValue: service },
         // Hamyonni to'ldirish yo'llari (§11) — bu spec ularni sinamaydi.
         { provide: WalletTopupsService, useValue: {} },
+        { provide: WalletDebtService, useValue: {} },
         { provide: PaymeMerchantService, useValue: {} },
         { provide: ClickShopService, useValue: {} },
       ],

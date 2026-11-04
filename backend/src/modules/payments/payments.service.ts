@@ -35,6 +35,7 @@ import { UzcardProvider } from './uzcard.provider';
 import { PaymentInitiateResult } from './payment.interface';
 import { RequestWithdrawalDto } from './dto/request-withdrawal.dto';
 import { ProcessWithdrawalDto } from './dto/process-withdrawal.dto';
+import { outstandingWalletDebt } from '../orders/outstanding-wallet-debt';
 import { computeWalletBalance, computeWithdrawableBalance, lockWalletForUpdate } from './wallet-balance.util';
 import { SettingsService, DEFAULT_WALLET_TOPUP_HOLD_DAYS } from '../settings/settings.service';
 import { ERROR_CODES, codedBadRequest } from '../../common/errors/coded-error';
@@ -48,6 +49,7 @@ import {
   WalletTopupCallbacksService,
 } from './wallet-topup-callbacks.service';
 import { WalletTopupsService } from './wallet-topups.service';
+import { releaseOrderPayoutWithin } from './order-payout-release';
 import { syncDriverBalanceColumn } from './wallet-balance.util';
 import { OrderRefundClawbackService } from './order-refund-clawback.service';
 import { AUDIT_ACTIONS, AuditLogService } from '../audit/audit-log.service';
@@ -75,6 +77,8 @@ export interface WalletBalance {
    * `availableForWithdrawal` undan allaqachon ayirilgan. Qo'shimcha maydon.
    */
   bonusBalance: number;
+  /** To'lanmagan hamyon qarzi (`outstanding-wallet-debt.ts`); 0 — qarz yo'q. Qo'shimcha maydon. */
+  outstandingDebt: number;
 }
 
 /**
@@ -536,6 +540,7 @@ export class PaymentsService {
       withdrawalHold: held,
       withdrawalHoldDays: holdDays,
       bonusBalance: bonus,
+      outstandingDebt: await outstandingWalletDebt(this.transactionRepository, userId),
     };
   }
 
@@ -579,34 +584,17 @@ export class PaymentsService {
     const run = (work: (manager: EntityManager) => Promise<void>): Promise<void> =>
       outerManager ? work(outerManager) : this.dataSource.transaction(work);
     await run(async (manager: EntityManager) => {
-      await lockWalletForUpdate(manager, driverUserId);
-
-      const transactionRepo = manager.getRepository(Transaction);
-      const pendingLegs = await transactionRepo.find({
-        where: {
-          orderId,
-          userId: driverUserId,
-          status: TransactionStatus.PENDING,
-        },
-      });
-
-      if (pendingLegs.length === 0) {
-        return;
-      }
-
-      let netPayout = 0;
-      for (const leg of pendingLegs) {
-        netPayout += leg.type === TransactionType.CREDIT ? leg.amount : -leg.amount;
-        await transactionRepo.update({ id: leg.id }, { status: TransactionStatus.COMPLETED });
-      }
-
-      if (netPayout !== 0) {
-        await this.driversService.adjustBalanceWithin(manager, driverUserId, netPayout);
-      }
-
-      this.logger.log(
-        `Released driver payout of ${netPayout} for order ${orderId} after payment settlement`,
+      const release = await releaseOrderPayoutWithin(
+        manager,
+        (within, userId, delta) => this.driversService.adjustBalanceWithin(within, userId, delta),
+        orderId,
+        driverUserId,
       );
+      if (release) {
+        this.logger.log(
+          `Released driver payout of ${release.netPayout} for order ${orderId} after payment settlement`,
+        );
+      }
     });
   }
 

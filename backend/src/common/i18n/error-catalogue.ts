@@ -72,6 +72,12 @@ export const ERROR_CATALOGUE: readonly ErrorCatalogueEntry[] = [
     uz: "Oldingi safardan {0} so'm to'lanmagan qarzingiz bor. Yangi buyurtmadan oldin hamyonni to'ldiring.",
     ru: 'У вас неоплаченный долг {0} сум за прошлую поездку. Пополните кошелёк перед новым заказом.',
   },
+  { source: "Sabab majburiy: qarz nima uchun yopilayotganini yozing", ru: 'Укажите причину: почему закрывается долг' },
+  { source: "O'z qarzingizni o'zingiz yopa olmaysiz. Boshqa xodimga murojaat qiling.", ru: 'Нельзя закрыть собственный долг. Обратитесь к другому сотруднику.' },
+  {
+    source: "Menejer bir martada ko'pi bilan {0} so'm qarz yopishi mumkin. Kattaroq summa uchun adminga murojaat qiling.",
+    ru: 'Менеджер может закрыть не более {0} сум долга за раз. Для большей суммы обратитесь к администратору.',
+  },
   { source: "Posilka ma'lumoti noto'g'ri: {0}", ru: 'Неверные данные посылки: {0}' },
   {
     source: "Naqd to'lov {0} so'mgacha. Bu buyurtmani karta bilan to'lang.",

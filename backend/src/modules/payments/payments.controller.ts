@@ -35,7 +35,9 @@ import { PermissionsGuard } from '../auth/permissions.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Permission, User, UserRole } from '../../database/entities/user.entity';
+import { PASSENGER_APP_ROLES, Permission, User, UserRole } from '../../database/entities/user.entity';
+import { CloseWalletDebtDto } from './dto/close-wallet-debt.dto';
+import { WalletDebtService, WalletDebtView } from './wallet-debt.service';
 import { WithdrawalOwnerType } from '../../database/entities/withdrawal-request.entity';
 import { PaginationDto } from '../orders/dto/pagination.dto';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
@@ -55,12 +57,16 @@ function resolveWithdrawalOwnerType(role: UserRole): WithdrawalOwnerType {
   return WithdrawalOwnerType.DRIVER;
 }
 
+/** Hamyonni to'ldira oladiganlar: haydovchi/kuryer va yo'lovchi ilovasi rollari (qarz yopish). */
+const WALLET_TOPUP_ROLES: UserRole[] = [UserRole.DRIVER, ...PASSENGER_APP_ROLES];
+
 @ApiTags('Payments')
 @Controller('payments')
 export class PaymentsController {
   constructor(
     private readonly paymentsService: PaymentsService,
     private readonly walletTopups: WalletTopupsService,
+    private readonly walletDebt: WalletDebtService,
     private readonly paymeMerchant: PaymeMerchantService,
     private readonly clickShop: ClickShopService,
   ) {}
@@ -142,7 +148,7 @@ export class PaymentsController {
 
   // --- Hamyonni to'ldirish (Payme / Click / UZPS) — docs/LEGAL-COMPLIANCE.md §11 ---
   //
-  // Haydovchi/kuryer summani tanlaydi → `checkoutUrl` ni ochadi → provayder
+  // Foydalanuvchi summani tanlaydi → `checkoutUrl` ni ochadi → provayder
   // callback'i (`payme|click|uzcard/callback`, merchant havolasi
   // `topup_<id>`) to'lovni tasdiqlaganda hamyonga kirim tushadi va ilovaga
   // `wallet:updated` hodisasi + push keladi. Ilova holatni shu GET bilan ham
@@ -151,8 +157,8 @@ export class PaymentsController {
   @Post('wallet/topup')
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.DRIVER)
-  @ApiOperation({ summary: 'Start a wallet top-up via Payme/Click/Uzcard (driver/courier)' })
+  @Roles(...WALLET_TOPUP_ROLES)
+  @ApiOperation({ summary: 'Start a wallet top-up via Payme/Click/Uzcard' })
   @ApiResponse({ status: 201, description: '{ topupId, checkoutUrl, ...WalletTopup }' })
   @ApiResponse({ status: 400, description: 'Disabled, amount out of range, or provider not configured' })
   async createTopup(
@@ -165,7 +171,7 @@ export class PaymentsController {
   @Get('wallet/topups')
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.DRIVER)
+  @Roles(...WALLET_TOPUP_ROLES)
   @ApiOperation({ summary: 'My last 20 wallet top-ups' })
   async listTopups(@CurrentUser() user: User): Promise<WalletTopupView[]> {
     return this.walletTopups.listForUser(user.id);
@@ -174,7 +180,7 @@ export class PaymentsController {
   @Get('wallet/topup/:id')
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.DRIVER)
+  @Roles(...WALLET_TOPUP_ROLES)
   @ApiOperation({ summary: 'Wallet top-up status (pending | paid | failed | cancelled | expired)' })
   @ApiParam({ name: 'id', description: 'Top-up UUID' })
   async getTopup(
@@ -182,6 +188,52 @@ export class PaymentsController {
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<WalletTopupView> {
     return this.walletTopups.getForUser(user.id, id);
+  }
+
+  // --- Yo'lovchi hamyon qarzi (docs/INCIDENT-POLICY.md §7) ---
+
+  @Get('wallet/debt')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiOperation({ summary: 'My outstanding wallet debt: total, itemised reasons, how to close it' })
+  async getMyDebt(@CurrentUser() user: User): Promise<WalletDebtView> {
+    return this.walletDebt.view(user.id);
+  }
+
+  @Post('wallet/debt/settle')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Close my debt from real (non-bonus) wallet money already on the balance' })
+  async settleMyDebt(@CurrentUser() user: User): Promise<WalletDebtView> {
+    return this.walletDebt.settleOwn(user.id);
+  }
+
+  @Get('users/:userId/wallet-debt')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.USERS_VIEW)
+  @ApiOperation({ summary: "A passenger's outstanding wallet debt (manager/admin)" })
+  @ApiParam({ name: 'userId', description: 'User UUID' })
+  async getUserDebt(@Param('userId', ParseUUIDPipe) userId: string): Promise<WalletDebtView> {
+    return this.walletDebt.view(userId);
+  }
+
+  @Post('users/:userId/wallet-debt/close')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  @RequirePermissions(Permission.DRIVERS_FINANCE)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Close a passenger's debt: cash_received or write_off (admin, or manager with DRIVERS_FINANCE)" })
+  @ApiParam({ name: 'userId', description: 'User UUID' })
+  async closeUserDebt(
+    @CurrentUser() actor: User,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() dto: CloseWalletDebtDto,
+  ) {
+    return this.walletDebt.close({ id: actor.id, role: actor.role }, userId, dto);
   }
 
   // --- Withdrawal requests (MVP/skeleton payout flow) ---

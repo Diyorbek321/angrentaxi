@@ -21,7 +21,11 @@ export type WalletChangeReason =
   | 'refund_clawback'
   /** Hodisa natijasi: haydovchiga kompensatsiya / jarima (INCIDENT-POLICY §3). */
   | 'incident_compensation'
-  | 'incident_penalty';
+  | 'incident_penalty'
+  /** Yo'lovchi qarzi yopildi (hamyondan, naqd yoki kechirildi). */
+  | 'debt_closed'
+  /** Yo'lovchi qarzi yopilgach haydovchi ulushi ochildi. */
+  | 'debt_payout_released';
 
 export interface WalletChangeNotice {
   /** Ishorali: + kirim, − chiqim. */

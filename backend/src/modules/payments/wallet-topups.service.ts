@@ -32,6 +32,7 @@ import { sameSomAmount } from './tiyin';
 import { ConfigService } from '@nestjs/config';
 import { PaymentInitiateOptions } from './payment.interface';
 import { localized } from '../notifications/push-text';
+import { DebtClosure, WalletDebtService } from './wallet-debt.service';
 
 /**
  * Provayderga yuboriladigan merchant havolasi: `topup_<uuid>`. Buyurtma
@@ -122,6 +123,8 @@ export class WalletTopupsService {
     @Optional() private readonly notifier?: WalletNotifierService,
     // `WALLET_TOPUP_RETURN_URL` — to'lovdan keyin ilovaga qaytish (§21).
     @Optional() private readonly config?: ConfigService,
+    // To'langan to'ldirish bilan qarz yopiladi (INCIDENT-POLICY §7).
+    @Optional() private readonly walletDebt?: WalletDebtService,
   ) {}
 
   static reference(topupId: string): string {
@@ -147,11 +150,16 @@ export class WalletTopupsService {
       );
     }
     const amount = Math.round(input.amount);
-    if (amount < settings.walletTopupMin || amount > settings.walletTopupMax) {
+    // 3 000 so'mlik jarima uchun 10 000 to'ldirishga majburlanmaydi: yo'lovchi
+    // pulni yecha olmaydi, ortig'i hamyonda qotib qolardi.
+    const minAmount = this.walletDebt
+      ? await this.walletDebt.minTopUpForUser(userId, settings.walletTopupMin)
+      : settings.walletTopupMin;
+    if (amount < minAmount || amount > settings.walletTopupMax) {
       throw codedBadRequest(
         ERROR_CODES.walletTopupAmountOutOfRange,
-        `Summa ${formatSom(settings.walletTopupMin)} so'mdan ${formatSom(settings.walletTopupMax)} so'mgacha bo'lishi kerak`,
-        { details: { min: settings.walletTopupMin, max: settings.walletTopupMax } },
+        `Summa ${formatSom(minAmount)} so'mdan ${formatSom(settings.walletTopupMax)} so'mgacha bo'lishi kerak`,
+        { details: { min: minAmount, max: settings.walletTopupMax } },
       );
     }
     if (!this.providerConfigured(input.provider)) {
@@ -279,6 +287,7 @@ export class WalletTopupsService {
     input: { amount?: number; externalId?: string | null; provider?: WalletTopupProvider },
     ctx?: MoneyContext,
   ): Promise<TopupOutcome> {
+    let closure: DebtClosure | null = null;
     const outcome = await this.inTransaction(ctx, async (manager: EntityManager) => {
       const topup = await this.lockTopup(manager, topupId);
       if (!topup) return { kind: 'not_found', topup: null } as TopupOutcome;
@@ -317,6 +326,9 @@ export class WalletTopupsService {
         status: TransactionStatus.COMPLETED,
         externalId: WALLET_TOPUP_LEDGER.credit(topup.id),
       });
+      closure =
+        (await this.walletDebt?.settleWithin(manager, topup.userId, 'topup', topup.userId, { topupId: topup.id })) ??
+        null;
       await syncDriverBalanceColumn(manager, topup.userId);
       return {
         kind: 'paid',
@@ -327,6 +339,7 @@ export class WalletTopupsService {
     if (outcome.kind === 'paid' && outcome.topup) {
       const paid = outcome.topup;
       await this.afterCommit(ctx, () => this.notifyPaid(topupId, paid));
+      if (closure) await this.walletDebt?.afterCommit(ctx, paid.userId, closure);
     }
     return outcome;
   }

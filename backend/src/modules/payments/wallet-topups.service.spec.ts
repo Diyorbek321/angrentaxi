@@ -324,3 +324,32 @@ describe('Hamyonni to\'ldirish callback\'lari', () => {
     });
   });
 });
+
+describe('WalletTopupsService — qarz (INCIDENT-POLICY §7)', () => {
+  const debtDouble = (min = 3000) => ({
+    minTopUpForUser: jest.fn(async () => min),
+    settleWithin: jest.fn(async () => ({ closed: [{ id: 'd' }], total: 3000, releases: [] })),
+    afterCommit: jest.fn(async () => undefined),
+  });
+
+  it("qarzda quyi chegara pasayadi: 3 000 so'mlik jarima uchun 10 000 majburiy emas", async () => {
+    const walletDebt = debtDouble();
+    const { service } = buildTopupHarness({ walletDebt });
+    await expect(service.create('p1', '+998900000001', { amount: 3000, provider: 'payme' })).resolves.toMatchObject({ amount: 3000 });
+    await expect(service.create('p1', '+998900000001', { amount: 2999, provider: 'payme' })).rejects.toMatchObject({
+      response: expect.objectContaining({ code: 'WALLET_TOPUP_AMOUNT_OUT_OF_RANGE', details: { min: 3000, max: 2000000 } }),
+    });
+  });
+
+  it('markPaid qarzni shu tranzaksiyada yopadi, takror callback yopmaydi', async () => {
+    const walletDebt = debtDouble();
+    const { service, manager } = buildTopupHarness({ walletDebt });
+    const topup = await service.create('p1', '+998900000001', { amount: 3000, provider: 'payme' });
+    await service.markPaid(topup.topupId, { amount: 3000, externalId: 'payme_1' });
+    expect(walletDebt.settleWithin).toHaveBeenCalledWith(manager, 'p1', 'topup', 'p1', { topupId: topup.topupId });
+    expect(walletDebt.afterCommit).toHaveBeenCalledTimes(1);
+
+    await service.markPaid(topup.topupId, { amount: 3000, externalId: 'payme_1' });
+    expect(walletDebt.settleWithin).toHaveBeenCalledTimes(1);
+  });
+});
