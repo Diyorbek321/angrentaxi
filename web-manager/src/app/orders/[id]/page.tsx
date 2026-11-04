@@ -25,6 +25,7 @@ import { DetailCard, KeyValue, KeyValueList } from '@/components/ui/KeyValue';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { useToast } from '@/components/ui/Toast';
+import { PassengerDebtCard } from '@/components/orders/PassengerDebtCard';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { paymentMethodLabels } from '@/lib/constants';
 import { parcelSizeLabels, parcelInfo } from '@/lib/parcel';
@@ -260,6 +261,9 @@ export default function OrderDetailPage() {
             </KeyValue>
           </KeyValueList>
         </DetailCard>
+
+        {/* To'lanmagan hamyon qarzi va uni yopish (INCIDENT-POLICY §7) */}
+        <PassengerDebtCard passengerId={order.passengerId} />
 
         {/* Parcel: who receives it. When the driver's PIN locks, the dispatcher
             phones this number before completing the ride from here. */}

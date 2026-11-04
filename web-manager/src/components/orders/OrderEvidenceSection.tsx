@@ -137,7 +137,7 @@ export function OrderEvidenceSection({ orderId }: { orderId: string }) {
               <ul className="flex flex-col gap-1">
                 {evidence.calls.map((c, i) => (
                   <li key={i} className="text-[13px]">
-                    {m.callBy(role(c.callerRole))} · <span className="num">{formatDateTime(c.createdAt)}</span>
+                    {c.calleeType === 'recipient' ? m.callRecipient(role(c.callerRole)) : m.callBy(role(c.callerRole))} · <span className="num">{formatDateTime(c.createdAt)}</span>
                   </li>
                 ))}
               </ul>

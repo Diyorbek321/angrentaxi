@@ -79,6 +79,9 @@ export const drivers: Messages['drivers'] = {
   audit: {
     actions: {
       'wallet.manual_adjustment': 'Ручная корректировка',
+      'wallet.debt_settled': 'Долг закрыт с кошелька',
+      'wallet.debt_cash_received': 'Долг закрыт наличными',
+      'wallet.debt_written_off': 'Долг списан',
       'shift_pass.cancel': 'Смена отменена',
       'payment.refund_clawback': 'Возврат по карте — доля удержана',
     },

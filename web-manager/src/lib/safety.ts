@@ -38,7 +38,7 @@ export interface OrderEvidence {
     resolutionNote: string | null;
   }>;
   ratings: Array<{ fromRole: string; score: number; comment: string | null; createdAt: string }>;
-  calls: Array<{ callerRole: string; createdAt: string }>;
+  calls: Array<{ callerRole: string; calleeType?: string | null; createdAt: string }>;
   incidents: Array<{ id: string; category: string; status: string; createdAt: string }>;
 }
 

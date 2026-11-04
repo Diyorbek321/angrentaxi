@@ -39,6 +39,9 @@ export const compliance = {
     },
     auditAction: {
       'wallet.manual_adjustment': "Hamyonni qo'lda tuzatish",
+      'wallet.debt_settled': 'Qarz hamyondan yopildi',
+      'wallet.debt_cash_received': 'Qarz naqd yopildi',
+      'wallet.debt_written_off': 'Qarz kechirildi',
       'shift_pass.cancel': 'Smenani bekor qilish',
       'vendor.tin_update': "Sotuvchi STIR'ini o'zgartirish",
       'payment.refund_clawback': 'Karta qaytarimi — ulushni qaytarib olish',

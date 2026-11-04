@@ -41,6 +41,9 @@ export const compliance: Messages['compliance'] = {
     },
     auditAction: {
       'wallet.manual_adjustment': 'Ручная корректировка кошелька',
+      'wallet.debt_settled': 'Долг закрыт с кошелька',
+      'wallet.debt_cash_received': 'Долг закрыт наличными',
+      'wallet.debt_written_off': 'Долг списан',
       'shift_pass.cancel': 'Отмена смены',
       'vendor.tin_update': 'Изменение ИНН продавца',
       'payment.refund_clawback': 'Возврат по карте — удержание доли',

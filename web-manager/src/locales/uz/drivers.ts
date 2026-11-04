@@ -78,6 +78,9 @@ export const drivers = {
   audit: {
     actions: {
       'wallet.manual_adjustment': 'Qoʻlda tuzatish',
+      'wallet.debt_settled': 'Qarz hamyondan yopildi',
+      'wallet.debt_cash_received': 'Qarz naqd yopildi',
+      'wallet.debt_written_off': 'Qarz kechirildi',
       'shift_pass.cancel': 'Smena bekor qilindi',
       'payment.refund_clawback': 'Karta qaytarimi — ulush qaytarib olindi',
     } as Record<string, string>,
