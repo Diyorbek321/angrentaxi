@@ -29,10 +29,12 @@ Oxirgi prod deploy: `d4a7f75` (2026-11-01). Oxirgi APK: v21 (2026-11-01, `02d538
 
 - [ ] **Push + deploy** — 047–053 migratsiyalar boot'da ishlaydi; keyin yangi APK (v22) yig'ib telefonda sinash: SOS, ulashish havolasi, ilova orqali qo'ng'iroq, "Muammo bor", kech bekor qilish, "chiqmadi", safar uzildi, yetkazib bo'lmadi.
 - [ ] **Panellarni brauzerda tekshirish** — hodisalar navbati, SOS ovozi, buyurtma dalillari, yangi sozlamalar.
-- [ ] **Hamyon qarzini to'lash yo'li yo'q** — jarima qarzi osilib qoladi (haydovchiga ham kutilmoqda).
 - [ ] **SOS/chat `created_at` timezone'siz** — vaqt 5 soat siljiydi.
-- [ ] **Posilka oluvchi raqami kuryerga ochiq** — yashirish kerak.
 - [ ] **Karta `refund_due` qaytarish** — hozir qo'lda.
+- [ ] **To'ldirish qaytarilsa qarz tiklanmaydi** — qarz yopilib haydovchiga to'langan, keyin karta to'lovi bekor bo'lsa yo'lovchi qoldig'i manfiy, lekin yangi buyurtma darvozasi uni ko'rmaydi.
+- [ ] **Kech bekor qilish jarimasi bonusdan olinishi mumkin** — `chargeTaxiFee` sarflanadigan qoldiqni (bonus bilan) tekshiradi, haydovchiga yechiladigan pul bo'lib o'tadi.
+- [ ] **Kechirilgan qarz moliya hisobotida yo'q** — faqat audit jurnalida (`wallet.debt_written_off`).
+- [ ] **Hamyon ekranidagi umumiy "To'ldirish"** — hali operator yozuvi; to'lov faqat qarz oynasida.
 
 ## 🚀 Yangi APK tarqalgach
 

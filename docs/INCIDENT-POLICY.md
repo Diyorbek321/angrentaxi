@@ -86,6 +86,14 @@ so'rov `order_call_logs` + audit). Eski APK (v21 va oldingi,
 paytda oladi — `/call` beradiganidan ortiq emas, faqat jurnalsiz;
 `APP_MIN_BUILD_*` ko'tarilgach bu yo'l yopiladi.
 
+Posilka qabul qiluvchisi (054): kuryer raqamni ko'rmaydi — `details.recipientPhone`
+o'rnida niqob (`+998 90 *** ** 33`), taklif paketida (socket, `current-offer`)
+ham. Qo'ng'iroq: `POST orders/:id/call { target: 'recipient' }` — faqat
+biriktirilgan kuryer, posilka, faol buyurtma; `order_call_logs.callee_type =
+recipient` + audit. Yuboruvchi va xodim raqamni ko'radi. Eski APK faol buyurtmada
+raqamni oladi (yuqoridagi darvoza), qolgan paytda niqob — satr bo'lib qoladi,
+aks holda eski ilova posilka kartasini chizmaydi.
+
 ## 5. Taksi: bekor qilish, kelmaslik, uzilish
 
 | Qoida | Standart |
@@ -121,7 +129,40 @@ yopilgan hodisa fotolari; `evidenceRetentionDays` (180, kamida 30).
 Huquqni muhofaza qilish organlari so'rovi: faqat yozma so'rov, admin
 eksport qiladi, har eksport audit logga — `docs/legal/huquq-tartibot-sorovi.md`.
 
+## 7. Yo'lovchi qarzini yopish
+
+Qarz — PENDING hamyon DEBIT'i: hamyon yetmagan safar, rad etilgan naqd
+yetkazish, kech bekor qilish / kelmaslik jarimasi, hodisa jarimasi. Yopilmaguncha
+yangi buyurtma yo'q (`WALLET_DEBT_OUTSTANDING`, `details.amount`). Yagona joy —
+`WalletDebtService`; hamma yo'l yo'lovchi hamyoni qulfi ostida, bitta
+tranzaksiyada, shartli `pending →` o'tish bilan (takror/parallel chaqiruv hech
+narsa yozmaydi), har qarz alohida audit.
+
+| Yo'l | Kim | Daftar | Haydovchi oyoqlari |
+|---|---|---|---|
+| Karta to'ldirish | `markPaid` avtomatik | DEBIT → `completed` | ochiladi |
+| Hamyondagi pul | yo'lovchi, `POST payments/wallet/debt/settle` | DEBIT → `completed` | ochiladi |
+| Naqd olindi | menejer, `cash_received` | CREDIT naqd `wallet_debt_cash_<id>` + DEBIT → `completed`, qoldiq o'zgarmaydi | ochiladi |
+| Kechirish | menejer, `write_off` | DEBIT → `refunded`, kirimsiz | ochiladi, **zarar platformada** |
+
+Qoidalar:
+
+- **Faqat haqiqiy pul:** `sarflanadigan − bonus`. Bonus qarzni yopmaydi — aks
+  holda yechib bo'lmaydigan bonus haydovchiga yechiladigan pul bo'lib o'tardi.
+- **Eskisidan boshlab**, qoplanmagani o'tkazib yuboriladi, keyingi kichigi yopiladi.
+- **Kechirishda haydovchi baribir oladi:** u ishini qilgan, nizoni platforma
+  yopdi. Komissiya odatdagidek ushlanadi. Hodisa jarimasida haydovchi oyog'i yo'q.
+- **Menejer:** `Roles(MANAGER, ADMIN)` + `drivers_finance`, sabab majburiy,
+  bir amalda `manualAdjustmentManagerLimit` (admin — cheklanmaydi), o'z qarzini
+  yopa olmaydi. Panelda — buyurtma sahifasi.
+- **Quyi chegara:** qarzda to'ldirish `min(walletTopupMin, yetishmagan summa)`
+  dan — yo'lovchi pulni yecha olmaydi, ortig'i hamyonda qotib qolardi.
+- **Ilova:** karta faqat `cardPaymentsAvailable` va `walletTopupEnabled` bo'lsa;
+  aks holda `supportPhone`. Tugallangan qarz chekda `completed`, kechirilgani
+  `refunded`, ikkalasida to'lanmagan summa 0.
+
 ## Migratsiya raqamlari (bosqichlar to'qnashmasin)
 
 047 karta to'lovi · 048 oferta roziligi · 049 yetkazish hodisalari ·
-050 incidents · 051 xavfsizlik · 052 taksi jarimalari · 053 saqlash muddati
+050 incidents · 051 xavfsizlik · 052 taksi jarimalari · 053 saqlash muddati ·
+054 qarzni yopish, qo'ng'iroq turi
