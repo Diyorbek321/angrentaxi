@@ -1104,6 +1104,7 @@ class _TripScreenState extends State<TripScreen> {
                   ParcelInfoCard(
                     parcel: order.parcel!,
                     stage: DeliveryCardStage.dropoff,
+                    orderId: order.id,
                   ),
                   const SizedBox(height: kSpace2),
                 ],

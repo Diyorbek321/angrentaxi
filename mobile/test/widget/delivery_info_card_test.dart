@@ -1,8 +1,10 @@
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/features/driver/widgets/delivery_info_card.dart';
+import 'package:angren_taxi/features/driver/widgets/parcel_info_card.dart';
 import 'package:angren_taxi/features/safety/call_relay.dart';
 import 'package:angren_taxi/features/safety/contact_relay_service.dart';
 import 'package:angren_taxi/shared/models/order.dart';
+import 'package:angren_taxi/shared/models/parcel_info.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -14,6 +16,9 @@ class _FakeRelay extends ContactRelayService {
 
   @override
   Future<String> counterpartyPhone(String orderId) async => '+998905550000';
+
+  @override
+  Future<String> recipientPhone(String orderId) async => '+998901112233';
 }
 
 Widget _wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
@@ -96,6 +101,27 @@ void main() {
 
     expect(dialled, isEmpty);
     expect(relayDials.single.toString(), 'tel:+998905550000');
+  });
+
+  testWidgets('parcel: only the mask is shown, the recipient is called via the relay (§4)', (tester) async {
+    final relayDials = <Uri>[];
+    CallRelay.service = () => _FakeRelay();
+    CallRelay.dial = (uri) async {
+      relayDials.add(uri);
+      return true;
+    };
+    addTearDown(() => CallRelay.dial = (uri) async => false);
+
+    await tester.pumpWidget(_wrap(const ParcelInfoCard(
+      parcel: ParcelInfo(recipientPhone: '+998 90 *** ** 33', itemDescription: 'Kalit', size: kParcelSizeSmall),
+      stage: DeliveryCardStage.dropoff,
+      orderId: 'ride-1',
+    )));
+    expect(find.text('+998 90 *** ** 33'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.call));
+    await tester.pump();
+    expect(relayDials.single.toString(), 'tel:+998901112233');
   });
 
   testWidgets('before pickup the courier sees what to pay the vendor', (tester) async {

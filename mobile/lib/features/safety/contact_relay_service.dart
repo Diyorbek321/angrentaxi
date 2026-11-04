@@ -26,6 +26,14 @@ class ContactRelayService {
     return phone;
   }
 
+  /// Posilka qabul qiluvchisi raqami — faqat kuryerga, faol buyurtmada.
+  Future<String> recipientPhone(String orderId) async {
+    final response = await _api.post(ApiEndpoints.orderCall(orderId), data: {'target': 'recipient'});
+    final phone = _data(response.data)['phone']?.toString().trim() ?? '';
+    if (phone.isEmpty) throw StateError('empty phone');
+    return phone;
+  }
+
   /// Yaqinlarga yuboriladigan ommaviy sahifa havolasi.
   Future<Uri> shareLink(String orderId) async {
     final response = await _api.post(ApiEndpoints.orderShare(orderId));

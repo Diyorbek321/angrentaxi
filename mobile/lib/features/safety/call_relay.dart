@@ -25,11 +25,12 @@ class CallRelay {
 /// Raqam serverdan shu lahzada olinadi (faol buyurtma, ishtirokchi), keyin
 /// tizim terish oynasi. Xato bo'lsa — serverning tarjima qilingan xabari
 /// (masalan "Qo'ng'iroq faqat faol buyurtma davomida mumkin") yoki umumiy matn.
-Future<void> callViaRelay(BuildContext context, String orderId) async {
+Future<void> callViaRelay(BuildContext context, String orderId, {bool recipient = false}) async {
   final messenger = ScaffoldMessenger.maybeOf(context);
   final failed = context.l10n.safetyCallFailed;
   try {
-    final phone = await CallRelay.service().counterpartyPhone(orderId);
+    final service = CallRelay.service();
+    final phone = recipient ? await service.recipientPhone(orderId) : await service.counterpartyPhone(orderId);
     final ok = await CallRelay.dial(Uri(scheme: 'tel', path: phone));
     if (!ok) messenger?.showSnackBar(SnackBar(content: Text(failed)));
   } catch (error) {

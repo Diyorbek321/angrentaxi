@@ -1,5 +1,6 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/driver/widgets/delivery_info_card.dart' show DeliveryCardStage;
+import 'package:angren_taxi/features/safety/call_relay.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/parcel_info.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
@@ -11,21 +12,30 @@ import 'package:url_launcher/url_launcher.dart';
 /// Taklifda faqat buyum va o'lcham — haydovchi sig'dira olishini biladi.
 /// Yetkazish bosqichida qabul qiluvchi va unga qo'ng'iroq tugmasi; PIN kodni
 /// esa haydovchi hech qachon ko'rmaydi — uni qabul qiluvchidan so'raydi.
+///
+/// Raqam yashirin (INCIDENT-POLICY §4): server niqobni beradi, qo'ng'iroq —
+/// `POST orders/:id/call { target: recipient }`, faqat faol buyurtmada.
 class ParcelInfoCard extends StatelessWidget {
   const ParcelInfoCard({
     super.key,
     required this.parcel,
     required this.stage,
+    this.orderId,
     this.onCall,
   });
 
   final ParcelInfo parcel;
   final DeliveryCardStage stage;
 
+  /// Berilsa — qabul qiluvchiga qo'ng'iroq server orqali (raqam ilovada yo'q).
+  final String? orderId;
+
   /// Testlar uchun almashtiriladi; standart — tizim `tel:` terish oynasi.
   final Future<void> Function(String phone)? onCall;
 
   Future<void> _dial(BuildContext context, String phone) async {
+    final id = orderId;
+    if (id != null) return callViaRelay(context, id, recipient: true);
     if (onCall != null) return onCall!(phone);
     final uri = Uri(scheme: 'tel', path: phone);
     final messenger = ScaffoldMessenger.of(context);
@@ -87,7 +97,10 @@ class ParcelInfoCard extends StatelessWidget {
                         style: const TextStyle(fontSize: kFontTitle, fontWeight: FontWeight.w700, color: kInk),
                       ),
                       Text(
-                        Formatters.formatPhone(parcel.recipientPhone),
+                        // Niqob (`+998 90 *** ** 33`) o'zgarishsiz ko'rsatiladi.
+                        parcel.recipientPhone.contains('*')
+                            ? parcel.recipientPhone
+                            : Formatters.formatPhone(parcel.recipientPhone),
                         style: const TextStyle(fontSize: kFontLabel, color: kInkMuted),
                       ),
                     ],

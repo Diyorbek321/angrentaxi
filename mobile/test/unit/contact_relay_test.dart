@@ -40,6 +40,12 @@ void main() {
       expect(await ContactRelayService(api).counterpartyPhone('o-1'), '+998901112233');
     });
 
+    test('posilka qabul qiluvchisi: target=recipient bilan', () async {
+      when(() => api.post(ApiEndpoints.orderCall('o-1'), data: {'target': 'recipient'}))
+          .thenAnswer((_) async => _ok({'phone': '+998901112233', 'calleeRole': 'recipient'}));
+      expect(await ContactRelayService(api).recipientPhone('o-1'), '+998901112233');
+    });
+
     test("bo'sh raqam — xato", () async {
       when(() => api.post(ApiEndpoints.orderCall('o-1'))).thenAnswer((_) async => _ok({'phone': ''}));
       expect(() => ContactRelayService(api).counterpartyPhone('o-1'), throwsStateError);
