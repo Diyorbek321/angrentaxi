@@ -17,6 +17,7 @@ import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
 import 'package:angren_taxi/features/superapp/widgets/checkout_extras.dart';
 import 'package:angren_taxi/features/superapp/widgets/saved_address_bar.dart';
+import 'package:angren_taxi/features/superapp/widgets/wallet_debt_sheet.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/address_details.dart';
 import 'package:angren_taxi/shared/models/favorite_address.dart';
@@ -388,6 +389,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     Object? order;
     String? error;
+    var debtBlocked = false;
     if (kind == 'food') {
       final food = foodProvider!;
       order = await food.createOrder(
@@ -400,6 +402,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         addressDetails: details,
       );
       error = food.error;
+      debtBlocked = food.walletDebtBlocked;
     } else {
       final market = marketProvider!;
       order = await market.createOrder(
@@ -412,12 +415,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         addressDetails: details,
       );
       error = market.error;
+      debtBlocked = market.walletDebtBlocked;
     }
 
     if (!mounted) return;
 
     if (order == null) {
       setState(() => _submitting = false);
+      if (debtBlocked) {
+        await showWalletDebtSheet(context);
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(error ?? context.l10n.saOrderNotSent)),
       );

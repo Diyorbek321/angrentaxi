@@ -8,7 +8,9 @@ import 'package:angren_taxi/features/intercity/models/intercity_models.dart';
 import 'package:angren_taxi/features/intercity/widgets/intercity_place_card.dart';
 import 'package:angren_taxi/features/intercity/widgets/intercity_price_breakdown.dart';
 import 'package:angren_taxi/features/passenger/screens/map_picker_screen.dart';
+import 'package:angren_taxi/features/superapp/models/wallet_debt.dart' show isWalletDebtError;
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/features/superapp/widgets/wallet_debt_sheet.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
@@ -263,6 +265,10 @@ class _IntercityBookingScreenState extends State<IntercityBookingScreen> {
       if (mounted) Navigator.of(context).pop(booking);
     } catch (e) {
       if (!mounted) return;
+      if (isWalletDebtError(e)) {
+        await showWalletDebtSheet(context);
+        return;
+      }
       if (isSeatsUnavailable(e)) await _refreshTrip();
       if (!mounted) return;
       ScaffoldMessenger.of(context)

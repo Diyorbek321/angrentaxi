@@ -2,6 +2,7 @@ import 'package:angren_taxi/features/superapp/models/wallet_transaction.dart';
 import 'package:angren_taxi/features/superapp/screens/topup_screen.dart';
 import 'package:angren_taxi/features/superapp/state/superapp_provider.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/features/superapp/widgets/wallet_debt_sheet.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/ag_map_fab.dart';
@@ -47,6 +48,7 @@ class _WalletScreenState extends State<WalletScreen> {
       final superapp = context.read<SuperappProvider>();
       superapp.loadWalletBalance();
       superapp.loadTransactions();
+      superapp.loadWalletDebt();
     });
   }
 
@@ -80,6 +82,13 @@ class _WalletScreenState extends State<WalletScreen> {
                     MaterialPageRoute<void>(builder: (_) => const TopUpScreen()),
                   ),
                 ),
+                if (superapp.walletDebt?.hasDebt ?? false) ...[
+                  const SizedBox(height: kSpace3),
+                  WalletDebtBanner(
+                    debt: superapp.walletDebt!,
+                    onTap: () => showWalletDebtSheet(context),
+                  ),
+                ],
                 if (balance == null && walletError != null) ...[
                   const SizedBox(height: kSpace3),
                   // Matn o'zgarmaydi — faqat umumiy `InlineErrorWidget`

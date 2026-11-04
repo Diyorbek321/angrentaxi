@@ -27,6 +27,9 @@ abstract final class ApiErrorCode {
       'WALLET_TOPUP_PROVIDER_UNAVAILABLE';
   static const walletTopupProviderError = 'WALLET_TOPUP_PROVIDER_ERROR';
 
+  /// 400 — to'lanmagan hamyon qarzi, buyurtma rad; `details: { amount }`.
+  static const walletDebtOutstanding = 'WALLET_DEBT_OUTSTANDING';
+
   /// 409 — 3 ta ochiq to'ldirish bor; `details: { maxPending }`.
   static const walletTopupTooManyPending = 'WALLET_TOPUP_TOO_MANY_PENDING';
 

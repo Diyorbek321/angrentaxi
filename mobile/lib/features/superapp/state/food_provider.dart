@@ -6,6 +6,7 @@ import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
 import 'package:angren_taxi/core/storage/json_cache.dart';
 import 'package:angren_taxi/features/superapp/models/cart_item.dart';
+import 'package:angren_taxi/features/superapp/models/wallet_debt.dart' show isWalletDebtError;
 import 'package:angren_taxi/features/superapp/state/vendor_order_actions.dart';
 import 'package:angren_taxi/shared/models/address_details.dart';
 import 'package:angren_taxi/shared/models/dish.dart';
@@ -51,6 +52,10 @@ class FoodProvider extends ChangeNotifier {
 
   FoodProviderState get state => _state;
   String? get error => _error;
+
+  /// Oxirgi buyurtma hamyon qarzi sababli rad etildi (INCIDENT-POLICY §7).
+  bool _walletDebtBlocked = false;
+  bool get walletDebtBlocked => _walletDebtBlocked;
   List<FoodRestaurant> get restaurants => List.unmodifiable(_restaurants);
   FoodRestaurant? get restaurant => _restaurant;
   List<MenuCategory> get categories => List.unmodifiable(_categories);
@@ -181,6 +186,7 @@ class FoodProvider extends ChangeNotifier {
   }) async {
     if (_restaurant == null || items.isEmpty) return null;
 
+    _walletDebtBlocked = false;
     _setState(FoodProviderState.loading);
     try {
       final response = await _apiClient.post(
@@ -204,6 +210,7 @@ class FoodProvider extends ChangeNotifier {
       _setState(FoodProviderState.success);
       return _activeOrder;
     } catch (e) {
+      _walletDebtBlocked = isWalletDebtError(e);
       _error = extractErrorMessage(e);
       _setState(FoodProviderState.error);
       return null;

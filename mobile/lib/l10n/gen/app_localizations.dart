@@ -6914,6 +6914,120 @@ abstract class AppLocalizations {
   /// **'Chegirmalar'**
   String get saDealsTitle;
 
+  /// No description provided for @saDebtBanner.
+  ///
+  /// In uz, this message translates to:
+  /// **'To\'lanmagan qarz: {amount}. Yopish yo\'lini ko\'ring'**
+  String saDebtBanner(String amount);
+
+  /// No description provided for @saDebtCallSupport.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qo\'ng\'iroq: {phone}'**
+  String saDebtCallSupport(String phone);
+
+  /// No description provided for @saDebtClose.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yopish'**
+  String get saDebtClose;
+
+  /// No description provided for @saDebtContactHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hozircha ilovada karta bilan to\'lab bo\'lmaydi. Qo\'llab-quvvatlashga qo\'ng\'iroq qiling: naqd to\'lash yoki nizo bo\'lsa, xodim yordam beradi.'**
+  String get saDebtContactHint;
+
+  /// No description provided for @saDebtExplain.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qarz yopilmaguncha yangi buyurtma berib bo\'lmaydi.'**
+  String get saDebtExplain;
+
+  /// No description provided for @saDebtFailed.
+  ///
+  /// In uz, this message translates to:
+  /// **'Amalni bajarib bo\'lmadi. Qayta urinib ko\'ring.'**
+  String get saDebtFailed;
+
+  /// No description provided for @saDebtLoadFailed.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qarz ma\'lumotini yuklab bo\'lmadi.'**
+  String get saDebtLoadFailed;
+
+  /// No description provided for @saDebtPaid.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qarz yopildi. Endi buyurtma berishingiz mumkin.'**
+  String get saDebtPaid;
+
+  /// No description provided for @saDebtPayFromWallet.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hamyondan to\'lash'**
+  String get saDebtPayFromWallet;
+
+  /// No description provided for @saDebtPaymentPending.
+  ///
+  /// In uz, this message translates to:
+  /// **'To\'lov hali tasdiqlanmadi. Bir ozdan keyin hamyon ekranini tekshiring.'**
+  String get saDebtPaymentPending;
+
+  /// No description provided for @saDebtReasonDelivery.
+  ///
+  /// In uz, this message translates to:
+  /// **'Rad etilgan yetkazish haqi'**
+  String get saDebtReasonDelivery;
+
+  /// No description provided for @saDebtReasonIncident.
+  ///
+  /// In uz, this message translates to:
+  /// **'Hodisa bo\'yicha jarima'**
+  String get saDebtReasonIncident;
+
+  /// No description provided for @saDebtReasonLateCancel.
+  ///
+  /// In uz, this message translates to:
+  /// **'Kech bekor qilish jarimasi'**
+  String get saDebtReasonLateCancel;
+
+  /// No description provided for @saDebtReasonNoShow.
+  ///
+  /// In uz, this message translates to:
+  /// **'Haydovchi kutdi, siz chiqmadingiz'**
+  String get saDebtReasonNoShow;
+
+  /// No description provided for @saDebtReasonOther.
+  ///
+  /// In uz, this message translates to:
+  /// **'Boshqa to\'lov'**
+  String get saDebtReasonOther;
+
+  /// No description provided for @saDebtReasonRide.
+  ///
+  /// In uz, this message translates to:
+  /// **'Safar: hamyonda mablag\' yetmadi'**
+  String get saDebtReasonRide;
+
+  /// No description provided for @saDebtTitle.
+  ///
+  /// In uz, this message translates to:
+  /// **'To\'lanmagan qarz'**
+  String get saDebtTitle;
+
+  /// No description provided for @saDebtTopUp.
+  ///
+  /// In uz, this message translates to:
+  /// **'{amount} to\'lash'**
+  String saDebtTopUp(String amount);
+
+  /// No description provided for @saDebtTopUpHint.
+  ///
+  /// In uz, this message translates to:
+  /// **'Pul hamyonga tushgach qarz o\'zi yopiladi.'**
+  String get saDebtTopUpHint;
+
   /// No description provided for @saDefaultUserName.
   ///
   /// In uz, this message translates to:

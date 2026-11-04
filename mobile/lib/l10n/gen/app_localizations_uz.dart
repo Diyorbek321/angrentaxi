@@ -3920,6 +3920,72 @@ class AppLocalizationsUz extends AppLocalizations {
   String get saDealsTitle => 'Chegirmalar';
 
   @override
+  String saDebtBanner(String amount) {
+    return 'To\'lanmagan qarz: $amount. Yopish yo\'lini ko\'ring';
+  }
+
+  @override
+  String saDebtCallSupport(String phone) {
+    return 'Qo\'ng\'iroq: $phone';
+  }
+
+  @override
+  String get saDebtClose => 'Yopish';
+
+  @override
+  String get saDebtContactHint =>
+      'Hozircha ilovada karta bilan to\'lab bo\'lmaydi. Qo\'llab-quvvatlashga qo\'ng\'iroq qiling: naqd to\'lash yoki nizo bo\'lsa, xodim yordam beradi.';
+
+  @override
+  String get saDebtExplain =>
+      'Qarz yopilmaguncha yangi buyurtma berib bo\'lmaydi.';
+
+  @override
+  String get saDebtFailed => 'Amalni bajarib bo\'lmadi. Qayta urinib ko\'ring.';
+
+  @override
+  String get saDebtLoadFailed => 'Qarz ma\'lumotini yuklab bo\'lmadi.';
+
+  @override
+  String get saDebtPaid => 'Qarz yopildi. Endi buyurtma berishingiz mumkin.';
+
+  @override
+  String get saDebtPayFromWallet => 'Hamyondan to\'lash';
+
+  @override
+  String get saDebtPaymentPending =>
+      'To\'lov hali tasdiqlanmadi. Bir ozdan keyin hamyon ekranini tekshiring.';
+
+  @override
+  String get saDebtReasonDelivery => 'Rad etilgan yetkazish haqi';
+
+  @override
+  String get saDebtReasonIncident => 'Hodisa bo\'yicha jarima';
+
+  @override
+  String get saDebtReasonLateCancel => 'Kech bekor qilish jarimasi';
+
+  @override
+  String get saDebtReasonNoShow => 'Haydovchi kutdi, siz chiqmadingiz';
+
+  @override
+  String get saDebtReasonOther => 'Boshqa to\'lov';
+
+  @override
+  String get saDebtReasonRide => 'Safar: hamyonda mablag\' yetmadi';
+
+  @override
+  String get saDebtTitle => 'To\'lanmagan qarz';
+
+  @override
+  String saDebtTopUp(String amount) {
+    return '$amount to\'lash';
+  }
+
+  @override
+  String get saDebtTopUpHint => 'Pul hamyonga tushgach qarz o\'zi yopiladi.';
+
+  @override
   String get saDefaultUserName => 'Foydalanuvchi';
 
   @override

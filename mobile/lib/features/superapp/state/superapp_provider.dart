@@ -1,9 +1,12 @@
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/core/payments/payment_service.dart' show OnlinePaymentProviderWire, preferredOnlineProvider;
 import 'package:angren_taxi/features/intercity/models/intercity_models.dart';
 import 'package:angren_taxi/features/superapp/models/cart_item.dart';
+import 'package:angren_taxi/features/superapp/models/wallet_debt.dart';
 import 'package:angren_taxi/features/superapp/models/wallet_transaction.dart';
+import 'package:angren_taxi/shared/models/payment_initiate_result.dart';
 import 'package:angren_taxi/shared/models/wallet_topup.dart' show PublicSettings;
 import 'package:flutter/foundation.dart';
 
@@ -196,6 +199,49 @@ class SuperappProvider extends ChangeNotifier {
       _walletLoading = false;
       notifyListeners();
     }
+  }
+
+  WalletDebt? _walletDebt;
+
+  /// `null` — hali yuklanmagan yoki server qarz bo'limini bilmaydi.
+  WalletDebt? get walletDebt => _walletDebt;
+
+  WalletDebt _rememberDebt(dynamic body) {
+    final debt = WalletDebt.fromJson((body as Map<String, dynamic>)['data'] as Map<String, dynamic>);
+    _walletDebt = debt;
+    notifyListeners();
+    return debt;
+  }
+
+  /// `GET /payments/wallet/debt`. Xato — `null`, oxirgi ma'lum qiymat qoladi.
+  Future<WalletDebt?> loadWalletDebt() async {
+    try {
+      return _rememberDebt((await _apiClient.get(ApiEndpoints.walletDebt)).data);
+    } catch (e) {
+      debugPrint('[SuperappProvider] loadWalletDebt error: $e');
+      return null;
+    }
+  }
+
+  /// Hamyondagi haqiqiy pul bilan yopish (qaytarim, kompensatsiya tushgan bo'lsa).
+  Future<WalletDebt?> settleWalletDebt() async {
+    return _rememberDebt((await _apiClient.post(ApiEndpoints.walletDebtSettle)).data);
+  }
+
+  /// Qarz uchun karta orqali to'ldirishni ochadi. Pul callback'da tushadi va
+  /// server qarzni o'zi yopadi; bu chaqiruv faqat to'lov sahifasini beradi.
+  Future<PaymentInitiateResult> startDebtTopup(double amount) async {
+    final provider = preferredOnlineProvider(cardPaymentProviders).wireValue;
+    final response = await _apiClient.post(
+      ApiEndpoints.walletTopup,
+      data: {'amount': amount.ceil(), 'provider': provider},
+    );
+    final data = (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
+    return PaymentInitiateResult(
+      url: data['checkoutUrl'] as String,
+      id: data['topupId'] as String,
+      provider: provider,
+    );
   }
 
   PublicSettings _publicSettings = PublicSettings.defaults;

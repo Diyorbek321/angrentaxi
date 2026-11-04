@@ -3913,6 +3913,74 @@ class AppLocalizationsRu extends AppLocalizations {
   String get saDealsTitle => 'Скидки';
 
   @override
+  String saDebtBanner(String amount) {
+    return 'Неоплаченный долг: $amount. Посмотрите, как его закрыть';
+  }
+
+  @override
+  String saDebtCallSupport(String phone) {
+    return 'Позвонить: $phone';
+  }
+
+  @override
+  String get saDebtClose => 'Закрыть';
+
+  @override
+  String get saDebtContactHint =>
+      'Оплата картой в приложении пока недоступна. Позвоните в поддержку: сотрудник поможет оплатить наличными или разобраться со спором.';
+
+  @override
+  String get saDebtExplain =>
+      'Пока долг не закрыт, новый заказ оформить нельзя.';
+
+  @override
+  String get saDebtFailed =>
+      'Не удалось выполнить действие. Попробуйте ещё раз.';
+
+  @override
+  String get saDebtLoadFailed => 'Не удалось загрузить данные о долге.';
+
+  @override
+  String get saDebtPaid => 'Долг закрыт. Теперь можно оформлять заказы.';
+
+  @override
+  String get saDebtPayFromWallet => 'Оплатить с кошелька';
+
+  @override
+  String get saDebtPaymentPending =>
+      'Платёж ещё не подтверждён. Проверьте экран кошелька чуть позже.';
+
+  @override
+  String get saDebtReasonDelivery => 'Плата за отказ от доставки';
+
+  @override
+  String get saDebtReasonIncident => 'Штраф по инциденту';
+
+  @override
+  String get saDebtReasonLateCancel => 'Штраф за позднюю отмену';
+
+  @override
+  String get saDebtReasonNoShow => 'Водитель ждал, вы не вышли';
+
+  @override
+  String get saDebtReasonOther => 'Другой платёж';
+
+  @override
+  String get saDebtReasonRide => 'Поездка: не хватило средств на кошельке';
+
+  @override
+  String get saDebtTitle => 'Неоплаченный долг';
+
+  @override
+  String saDebtTopUp(String amount) {
+    return 'Оплатить $amount';
+  }
+
+  @override
+  String get saDebtTopUpHint =>
+      'Как только деньги поступят на кошелёк, долг закроется сам.';
+
+  @override
   String get saDefaultUserName => 'Пользователь';
 
   @override

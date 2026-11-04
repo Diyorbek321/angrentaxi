@@ -522,5 +522,45 @@
   "saAddedToCart": "Savatga qo'shildi",
   "saMarketSearchAllHint": "Mahsulot qidirish — barcha do'konlardan",
   "saMarketStores": "Do'konlar",
-  "saPaymentUntrustedPage": "Bu to'lov sahifasi tanish provayderga tegishli emas, shuning uchun ochilmadi. Qo'llab-quvvatlash xizmatiga yozing."
+  "saPaymentUntrustedPage": "Bu to'lov sahifasi tanish provayderga tegishli emas, shuning uchun ochilmadi. Qo'llab-quvvatlash xizmatiga yozing.",
+  "saDebtTitle": "To'lanmagan qarz",
+  "saDebtExplain": "Qarz yopilmaguncha yangi buyurtma berib bo'lmaydi.",
+  "saDebtReasonRide": "Safar: hamyonda mablag' yetmadi",
+  "saDebtReasonDelivery": "Rad etilgan yetkazish haqi",
+  "saDebtReasonLateCancel": "Kech bekor qilish jarimasi",
+  "saDebtReasonNoShow": "Haydovchi kutdi, siz chiqmadingiz",
+  "saDebtReasonIncident": "Hodisa bo'yicha jarima",
+  "saDebtReasonOther": "Boshqa to'lov",
+  "saDebtPayFromWallet": "Hamyondan to'lash",
+  "saDebtTopUp": "{amount} to'lash",
+  "@saDebtTopUp": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "saDebtTopUpHint": "Pul hamyonga tushgach qarz o'zi yopiladi.",
+  "saDebtContactHint": "Hozircha ilovada karta bilan to'lab bo'lmaydi. Qo'llab-quvvatlashga qo'ng'iroq qiling: naqd to'lash yoki nizo bo'lsa, xodim yordam beradi.",
+  "saDebtCallSupport": "Qo'ng'iroq: {phone}",
+  "@saDebtCallSupport": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "saDebtPaid": "Qarz yopildi. Endi buyurtma berishingiz mumkin.",
+  "saDebtClose": "Yopish",
+  "saDebtFailed": "Amalni bajarib bo'lmadi. Qayta urinib ko'ring.",
+  "saDebtLoadFailed": "Qarz ma'lumotini yuklab bo'lmadi.",
+  "saDebtPaymentPending": "To'lov hali tasdiqlanmadi. Bir ozdan keyin hamyon ekranini tekshiring.",
+  "saDebtBanner": "To'lanmagan qarz: {amount}. Yopish yo'lini ko'ring",
+  "@saDebtBanner": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  }
 }

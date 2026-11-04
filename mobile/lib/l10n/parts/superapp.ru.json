@@ -258,5 +258,45 @@
   "saAddedToCart": "Добавлено в корзину",
   "saMarketSearchAllHint": "Поиск товаров во всех магазинах",
   "saMarketStores": "Магазины",
-  "saPaymentUntrustedPage": "Эта страница оплаты не принадлежит известному провайдеру и не была открыта. Напишите в поддержку."
+  "saPaymentUntrustedPage": "Эта страница оплаты не принадлежит известному провайдеру и не была открыта. Напишите в поддержку.",
+  "saDebtTitle": "Неоплаченный долг",
+  "saDebtExplain": "Пока долг не закрыт, новый заказ оформить нельзя.",
+  "saDebtReasonRide": "Поездка: не хватило средств на кошельке",
+  "saDebtReasonDelivery": "Плата за отказ от доставки",
+  "saDebtReasonLateCancel": "Штраф за позднюю отмену",
+  "saDebtReasonNoShow": "Водитель ждал, вы не вышли",
+  "saDebtReasonIncident": "Штраф по инциденту",
+  "saDebtReasonOther": "Другой платёж",
+  "saDebtPayFromWallet": "Оплатить с кошелька",
+  "saDebtTopUp": "Оплатить {amount}",
+  "@saDebtTopUp": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "saDebtTopUpHint": "Как только деньги поступят на кошелёк, долг закроется сам.",
+  "saDebtContactHint": "Оплата картой в приложении пока недоступна. Позвоните в поддержку: сотрудник поможет оплатить наличными или разобраться со спором.",
+  "saDebtCallSupport": "Позвонить: {phone}",
+  "@saDebtCallSupport": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "saDebtPaid": "Долг закрыт. Теперь можно оформлять заказы.",
+  "saDebtClose": "Закрыть",
+  "saDebtFailed": "Не удалось выполнить действие. Попробуйте ещё раз.",
+  "saDebtLoadFailed": "Не удалось загрузить данные о долге.",
+  "saDebtPaymentPending": "Платёж ещё не подтверждён. Проверьте экран кошелька чуть позже.",
+  "saDebtBanner": "Неоплаченный долг: {amount}. Посмотрите, как его закрыть",
+  "@saDebtBanner": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  }
 }

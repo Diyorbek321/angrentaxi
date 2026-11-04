@@ -6,6 +6,7 @@ import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
 import 'package:angren_taxi/core/storage/json_cache.dart';
 import 'package:angren_taxi/features/superapp/models/cart_item.dart';
+import 'package:angren_taxi/features/superapp/models/wallet_debt.dart' show isWalletDebtError;
 import 'package:angren_taxi/features/superapp/state/vendor_order_actions.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/address_details.dart';
@@ -54,6 +55,10 @@ class MarketProvider extends ChangeNotifier {
 
   MarketProviderState get state => _state;
   String? get error => _error;
+
+  /// Oxirgi buyurtma hamyon qarzi sababli rad etildi (INCIDENT-POLICY §7).
+  bool _walletDebtBlocked = false;
+  bool get walletDebtBlocked => _walletDebtBlocked;
   MarketStore? get store => _store;
   List<MarketCategory> get categories => List.unmodifiable(_categories);
   List<MarketProduct> get products => List.unmodifiable(_products);
@@ -198,6 +203,7 @@ class MarketProvider extends ChangeNotifier {
   }) async {
     if (_store == null || items.isEmpty) return null;
 
+    _walletDebtBlocked = false;
     _setState(MarketProviderState.loading);
     try {
       final response = await _apiClient.post(
@@ -221,6 +227,7 @@ class MarketProvider extends ChangeNotifier {
       _setState(MarketProviderState.success);
       return _activeOrder;
     } catch (e) {
+      _walletDebtBlocked = isWalletDebtError(e);
       _error = extractErrorMessage(e);
       _setState(MarketProviderState.error);
       return null;

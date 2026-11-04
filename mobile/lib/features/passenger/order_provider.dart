@@ -10,6 +10,7 @@ import 'package:angren_taxi/core/network/idempotency_key.dart';
 import 'package:angren_taxi/core/network/poll_gate.dart';
 import 'package:angren_taxi/core/observability/crash_reporting.dart';
 import 'package:angren_taxi/core/socket/socket_service.dart';
+import 'package:angren_taxi/features/superapp/models/wallet_debt.dart' show isWalletDebtError;
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/driver.dart';
 import 'package:angren_taxi/shared/models/order.dart';
@@ -131,6 +132,11 @@ class OrderProvider extends ChangeNotifier {
 
   OrderProviderState get state => _state;
   String? get error => _error;
+
+  /// Oxirgi `POST /orders` hamyon qarzi sababli rad etildi — ekran xato
+  /// matni o'rniga qarz oynasini ochadi (INCIDENT-POLICY §7).
+  bool _walletDebtBlocked = false;
+  bool get walletDebtBlocked => _walletDebtBlocked;
   Order? get activeOrder => _activeOrder;
   List<Order> get orderHistory => List.unmodifiable(_orderHistory);
   List<Tariff> get tariffs => List.unmodifiable(_tariffs);
@@ -503,6 +509,7 @@ class OrderProvider extends ChangeNotifier {
     }
 
     _error = null;
+    _walletDebtBlocked = false;
     _setState(OrderProviderState.loading);
 
     try {
@@ -694,6 +701,7 @@ class OrderProvider extends ChangeNotifier {
         _orderAttemptKey = null;
         _orderAttemptFingerprint = null;
       }
+      _walletDebtBlocked = isWalletDebtError(e);
       _error = extractErrorMessage(e);
       _setState(OrderProviderState.error);
       return false;

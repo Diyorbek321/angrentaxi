@@ -12,7 +12,9 @@ import 'package:angren_taxi/features/intercity/screens/intercity_requests_screen
 import 'package:angren_taxi/features/intercity/widgets/intercity_bonus_stepper.dart';
 import 'package:angren_taxi/features/intercity/widgets/intercity_place_card.dart';
 import 'package:angren_taxi/features/intercity/widgets/intercity_price_breakdown.dart';
+import 'package:angren_taxi/features/superapp/models/wallet_debt.dart' show isWalletDebtError;
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/features/superapp/widgets/wallet_debt_sheet.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/order.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
@@ -308,6 +310,10 @@ class _IntercityRequestScreenState extends State<IntercityRequestScreen> {
       if (mounted) Navigator.of(context).pop(request);
     } catch (e) {
       if (!mounted) return;
+      if (isWalletDebtError(e)) {
+        await showWalletDebtSheet(context);
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(intercityErrorMessage(e))));
       // Allaqachon ochiq so'rov bor — yangisi o'rniga o'shani ko'rsatamiz.
       if (ApiError.from(e)?.code == IntercityErrorCode.requestAlreadyOpen) {

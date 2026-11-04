@@ -279,6 +279,10 @@ class ApiEndpoints {
   static String walletTopupById(String id) => '/payments/wallet/topup/$id';
   static const String walletTopups = '/payments/wallet/topups';
 
+  // Hamyon qarzi (docs/INCIDENT-POLICY.md §7).
+  static const String walletDebt = '/payments/wallet/debt';
+  static const String walletDebtSettle = '/payments/wallet/debt/settle';
+
   // Support chat
   static const String supportThreadMe = '/support/threads/me';
   static String supportThreadMessages(String id) =>

@@ -2504,6 +2504,46 @@
     }
   },
   "saDealsTitle": "Chegirmalar",
+  "saDebtBanner": "To'lanmagan qarz: {amount}. Yopish yo'lini ko'ring",
+  "@saDebtBanner": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "saDebtCallSupport": "Qo'ng'iroq: {phone}",
+  "@saDebtCallSupport": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "saDebtClose": "Yopish",
+  "saDebtContactHint": "Hozircha ilovada karta bilan to'lab bo'lmaydi. Qo'llab-quvvatlashga qo'ng'iroq qiling: naqd to'lash yoki nizo bo'lsa, xodim yordam beradi.",
+  "saDebtExplain": "Qarz yopilmaguncha yangi buyurtma berib bo'lmaydi.",
+  "saDebtFailed": "Amalni bajarib bo'lmadi. Qayta urinib ko'ring.",
+  "saDebtLoadFailed": "Qarz ma'lumotini yuklab bo'lmadi.",
+  "saDebtPaid": "Qarz yopildi. Endi buyurtma berishingiz mumkin.",
+  "saDebtPayFromWallet": "Hamyondan to'lash",
+  "saDebtPaymentPending": "To'lov hali tasdiqlanmadi. Bir ozdan keyin hamyon ekranini tekshiring.",
+  "saDebtReasonDelivery": "Rad etilgan yetkazish haqi",
+  "saDebtReasonIncident": "Hodisa bo'yicha jarima",
+  "saDebtReasonLateCancel": "Kech bekor qilish jarimasi",
+  "saDebtReasonNoShow": "Haydovchi kutdi, siz chiqmadingiz",
+  "saDebtReasonOther": "Boshqa to'lov",
+  "saDebtReasonRide": "Safar: hamyonda mablag' yetmadi",
+  "saDebtTitle": "To'lanmagan qarz",
+  "saDebtTopUp": "{amount} to'lash",
+  "@saDebtTopUp": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "saDebtTopUpHint": "Pul hamyonga tushgach qarz o'zi yopiladi.",
   "saDefaultUserName": "Foydalanuvchi",
   "saDelivery": "Yetkazib berish",
   "saDeliveryAddress": "Yetkazib berish manzili",

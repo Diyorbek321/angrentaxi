@@ -14,6 +14,7 @@ import 'package:angren_taxi/features/passenger/widgets/coverage_notice.dart';
 import 'package:angren_taxi/features/passenger/widgets/schedule_ride_sheet.dart';
 import 'package:angren_taxi/features/passenger/widgets/trip_options_sheet.dart';
 import 'package:angren_taxi/features/payments/screens/payment_webview_screen.dart';
+import 'package:angren_taxi/features/superapp/widgets/wallet_debt_sheet.dart';
 import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/payment_initiate_result.dart';
 import 'package:angren_taxi/shared/models/tariff.dart';
@@ -328,6 +329,11 @@ class _TariffSelectScreenState extends State<TariffSelectScreen> {
     if (!mounted) return;
     if (!success) {
       _submitting = false;
+      // Qarz: xato matni emas — qancha, nimadan, nima qilish kerak (§7).
+      if (provider.walletDebtBlocked) {
+        provider.clearError();
+        await showWalletDebtSheet(context);
+      }
       return;
     }
 
