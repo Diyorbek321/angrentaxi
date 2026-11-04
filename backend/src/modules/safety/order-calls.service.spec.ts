@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
-import { OrderStatus } from '../../database/entities/order.entity';
+import { OrderStatus, ServiceType } from '../../database/entities/order.entity';
 import { OrderCallLog } from '../../database/entities/order-call-log.entity';
 import { UserRole } from '../../database/entities/user.entity';
 import { OrderCallsService } from './order-calls.service';
@@ -47,6 +47,45 @@ describe('OrderCallsService (INCIDENT-POLICY §4)', () => {
     await expect(service.requestCall('o1', { id: 'd1', role: UserRole.DRIVER })).resolves.toEqual({
       phone: '+998900000005',
       calleeRole: 'passenger',
+    });
+  });
+
+  describe('posilka qabul qiluvchisi', () => {
+    const parcel = {
+      ...baseOrder,
+      serviceType: ServiceType.PARCEL,
+      status: OrderStatus.IN_PROGRESS,
+      details: { recipientPhone: '+998901112233' },
+    };
+
+    it('kuryer raqamni oladi; jurnalda callee_type=recipient, callee_user_id NULL', async () => {
+      const { service, tx, audit } = build(parcel);
+      await expect(service.requestCall('o1', { id: 'd1', role: UserRole.DRIVER }, 'recipient')).resolves.toEqual({
+        phone: '+998901112233',
+        calleeRole: 'recipient',
+      });
+      expect(tx.save).toHaveBeenCalledWith(
+        OrderCallLog,
+        expect.objectContaining({ callerRole: 'driver', calleeUserId: null, calleeType: 'recipient' }),
+      );
+      expect(audit.record).toHaveBeenCalledWith(
+        expect.objectContaining({ metadata: expect.objectContaining({ calleeType: 'recipient' }) }),
+        tx,
+      );
+    });
+
+    it("yuboruvchi bu yo'l bilan chaqirmaydi, taksida qabul qiluvchi yo'q, tugagan buyurtma — rad", async () => {
+      await expect(
+        build(parcel).service.requestCall('o1', { id: 'p1', role: UserRole.PASSENGER }, 'recipient'),
+      ).rejects.toThrow(ForbiddenException);
+      await expect(
+        build({ ...parcel, serviceType: ServiceType.TAXI }).service.requestCall('o1', { id: 'd1', role: UserRole.DRIVER }, 'recipient'),
+      ).rejects.toThrow(BadRequestException);
+      const done = build({ ...parcel, status: OrderStatus.COMPLETED });
+      await expect(done.service.requestCall('o1', { id: 'd1', role: UserRole.DRIVER }, 'recipient')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(done.tx.save).not.toHaveBeenCalled();
     });
   });
 

@@ -29,7 +29,7 @@ export interface OrderEvidence {
     resolutionNote: string | null;
   }>;
   ratings: Array<{ fromRole: string; score: number; comment: string | null; createdAt: string }>;
-  calls: Array<{ callerRole: string; createdAt: string }>;
+  calls: Array<{ callerRole: string; calleeType: string | null; createdAt: string }>;
   incidents: Array<{ id: string; category: string; status: string; createdAt: string }>;
 }
 
@@ -81,8 +81,8 @@ export class OrderEvidenceService {
         `SELECT from_role, score, comment, created_at FROM ratings WHERE order_id = $1 ORDER BY created_at ASC`,
         [orderId],
       ),
-      q<{ caller_role: string; created_at: Date }>(
-        `SELECT caller_role, created_at FROM order_call_logs WHERE order_id = $1 ORDER BY created_at ASC`,
+      q<{ caller_role: string; callee_type: string | null; created_at: Date }>(
+        `SELECT caller_role, callee_type, created_at FROM order_call_logs WHERE order_id = $1 ORDER BY created_at ASC`,
         [orderId],
       ),
       q<{ id: string; category: string; status: string; created_at: Date }>(
@@ -118,7 +118,7 @@ export class OrderEvidenceService {
         comment: r.comment,
         createdAt: iso(r.created_at) as string,
       })),
-      calls: calls.map((c) => ({ callerRole: c.caller_role, createdAt: iso(c.created_at) as string })),
+      calls: calls.map((c) => ({ callerRole: c.caller_role, calleeType: c.callee_type, createdAt: iso(c.created_at) as string })),
       incidents: incidents.map((i) => ({ id: i.id, category: i.category, status: i.status, createdAt: iso(i.created_at) as string })),
     };
 

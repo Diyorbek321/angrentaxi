@@ -2,6 +2,7 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 
 
 /** Kim qachon kimga "ilova orqali qo'ng'iroq" so'radi (INCIDENT-POLICY §4, migratsiya 051). */
 export type CallerRole = 'passenger' | 'driver';
+export type CalleeType = 'recipient';
 
 @Index('idx_order_call_logs_order_created', ['orderId', 'createdAt'])
 @Index('idx_order_call_logs_created', ['createdAt'])
@@ -21,6 +22,10 @@ export class OrderCallLog {
 
   @Column({ name: 'callee_user_id', type: 'uuid', nullable: true })
   calleeUserId: string | null;
+
+  /** `recipient` — posilka qabul qiluvchisi (ilova foydalanuvchisi emas); NULL — buyurtma qarshi tomoni. */
+  @Column({ name: 'callee_type', type: 'varchar', length: 20, nullable: true })
+  calleeType: CalleeType | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

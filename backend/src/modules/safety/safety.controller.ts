@@ -9,6 +9,7 @@ import {
 } from '@nestjs/swagger';
 import { SafetyService } from './safety.service';
 import { CallRelayResult, OrderCallsService } from './order-calls.service';
+import { RequestCallDto } from './dto/request-call.dto';
 import { OrderEvidence, OrderEvidenceService } from './order-evidence.service';
 import { ReportSosDto } from './dto/report-sos.dto';
 import { ResolveSosDto } from './dto/resolve-sos.dto';
@@ -46,8 +47,9 @@ export class SafetyController {
   async requestCall(
     @Param('orderId', ParseUUIDPipe) orderId: string,
     @CurrentUser() user: User,
+    @Body() dto: RequestCallDto,
   ): Promise<CallRelayResult> {
-    return this.orderCalls.requestCall(orderId, user);
+    return this.orderCalls.requestCall(orderId, user, dto?.target ?? 'counterparty');
   }
 
   /** Nizoli buyurtma dalillari — har ko'rish audit jurnaliga. */

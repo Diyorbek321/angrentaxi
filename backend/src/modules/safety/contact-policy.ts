@@ -13,8 +13,10 @@ import { UserRole } from '../../database/entities/user.entity';
  *  · menejer/admin — o'zgarishsiz (dispetcher ko'rinishi);
  *  · shaharlararo — o'z qoidasi bor (`intercity-contact-redaction.ts`);
  *  · sotuvchi telefoni (`details.vendorPhone`) — biznes raqami, ochiq;
- *  · posilka qabul qiluvchisi (`details.recipient*`) — ilova foydalanuvchisi
- *    emas, kuryer unga boshqa yo'l bilan qo'ng'iroq qila olmaydi.
+ *  · posilka qabul qiluvchisi: yuboruvchi (`passengerId`) va xodim raqamni
+ *    ko'radi; kuryer faqat niqobini (`details.recipientPhone`), qo'ng'iroq —
+ *    `POST orders/:id/call { target: 'recipient' }`. Niqob satr bo'lib qoladi:
+ *    eski APK `recipientPhone` satr bo'lmasa posilka kartasini umuman chizmaydi.
  *
  * ESKI ILOVA: `X-Client-Features` sarlavhasida `call-relay` yo'q mijoz
  * (v21 va oldingi APK) raqamni javobdan o'qiydi. Unga raqam FAQAT qo'ng'iroq
@@ -54,6 +56,28 @@ interface MaskableParty {
   phone?: string | null;
 }
 
+/** `+998901112233` → `+998 90 *** ** 33`. Boshqa shakl — oxirgi 2 raqam. */
+export function maskPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('998')) {
+    return `+998 ${digits.slice(3, 5)} *** ** ${digits.slice(-2)}`;
+  }
+  return `*** ** ${digits.slice(-2)}`;
+}
+
+/**
+ * `details` nusxasi — qabul qiluvchi raqami niqoblangan. Taklif paketi
+ * (socket va `current-offer`) ham shundan o'tadi: taklif hali buyurtmani
+ * olmagan har bir haydovchiga boradi, socket'da esa `X-Client-Features` yo'q.
+ * Eski ilova taklifda raqamni ko'rsatmaydi, qabuldan keyin REST javobi
+ * uni almashtiradi.
+ */
+export function maskRecipientPhone<T extends Record<string, unknown> | null | undefined>(details: T): T {
+  const phone = details?.recipientPhone;
+  if (typeof phone !== 'string' || !phone) return details;
+  return { ...details, recipientPhone: maskPhone(phone) };
+}
+
 /** Niqoblanadigan buyurtma shakli — `Order` va uning JSON ko'rinishi. */
 export interface MaskableOrder {
   passengerId: string;
@@ -90,8 +114,9 @@ export function maskOrderContacts<T extends MaskableOrder>(
   const masked: T = { ...order };
   if (hideDriver && order.driver) masked.driver = { ...order.driver, phone: null };
   if (hidePassenger && order.passenger) masked.passenger = { ...order.passenger, phone: null };
-  if (hidePassenger && order.details && 'customerPhone' in order.details) {
-    masked.details = { ...order.details, customerPhone: null };
+  if (hidePassenger && order.details) {
+    const details = maskRecipientPhone(order.details);
+    masked.details = 'customerPhone' in details ? { ...details, customerPhone: null } : details;
   }
   return masked;
 }

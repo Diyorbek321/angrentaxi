@@ -4,6 +4,8 @@ import {
   callWindowOpen,
   clientSupportsCallRelay,
   maskOrderContacts,
+  maskPhone,
+  maskRecipientPhone,
   maskResponseBody,
   MaskableOrder,
 } from './contact-policy';
@@ -69,6 +71,39 @@ describe('contact-policy (INCIDENT-POLICY §4)', () => {
     expect(maskOrderContacts(order(), passenger, true).driver?.phone).toBe('+998900000002');
     const done = maskOrderContacts(order({ status: OrderStatus.COMPLETED }), passenger, true);
     expect(done.driver?.phone).toBeNull();
+  });
+
+  describe('posilka qabul qiluvchisi', () => {
+    const parcel = (status = OrderStatus.IN_PROGRESS) =>
+      order({ status, details: { recipientPhone: '+998901112233', recipientName: 'Ona' } });
+    const masked = '+998 90 *** ** 33';
+
+    it('yangi ilovada kuryer faqat niqobni oladi', () => {
+      expect(maskOrderContacts(parcel(), driver, false).details).toEqual({ recipientPhone: masked, recipientName: 'Ona' });
+    });
+
+    it("yuboruvchi va menejer raqamni ko'radi", () => {
+      expect(maskOrderContacts(parcel(), passenger, false).details?.recipientPhone).toBe('+998901112233');
+      expect(maskOrderContacts(parcel(), { id: 'm', role: UserRole.MANAGER }, false).details?.recipientPhone).toBe('+998901112233');
+    });
+
+    it('eski APK faol buyurtmada raqamni oladi (oldingidek), tugagach — niqob, lekin satr', () => {
+      expect(maskOrderContacts(parcel(), driver, true).details?.recipientPhone).toBe('+998901112233');
+      expect(maskOrderContacts(parcel(OrderStatus.COMPLETED), driver, true).details?.recipientPhone).toBe(masked);
+    });
+
+    it('taklif paketi uchun niqob: nusxa, boshqa buyurtma tegilmaydi', () => {
+      const details = { recipientPhone: '+998901112233', size: 'small' };
+      expect(maskRecipientPhone(details)).toEqual({ recipientPhone: masked, size: 'small' });
+      expect(details.recipientPhone).toBe('+998901112233');
+      expect(maskRecipientPhone(null)).toBeNull();
+      const food = { foodOrderId: 'f' };
+      expect(maskRecipientPhone(food)).toBe(food);
+    });
+
+    it("maskPhone: noma'lum shakl — faqat oxirgi 2 raqam", () => {
+      expect(maskPhone('12345')).toBe('*** ** 45');
+    });
   });
 
   it("begona ko'ruvchi — ikkala raqam ham olinadi", () => {

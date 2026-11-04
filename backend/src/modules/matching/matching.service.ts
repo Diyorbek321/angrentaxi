@@ -16,6 +16,7 @@ import { OsrmService } from '../routing/osrm.service';
 import { REDIS_CLIENT } from '../../config/redis.config';
 import { DeliveryEventsService } from '../delivery/delivery-events.service';
 import { VendorCashService, payVendorOf } from '../delivery/vendor-cash.service';
+import { maskRecipientPhone } from '../safety/contact-policy';
 import { NO_DRIVERS_CANCEL_REASON } from './matching.constants';
 
 interface DriverQueue {
@@ -913,7 +914,8 @@ export class MatchingService {
       // Food/market: vendor, item count and the cash to collect at the door
       // (see deliveryRideDetails). The courier decides whether to take the
       // offer on these — a 150 000 so'm cash handover is not a taxi ride.
-      details: order.details ?? null,
+      // Qabul qiluvchi raqami taklifda ham niqoblanadi (INCIDENT-POLICY §4).
+      details: maskRecipientPhone(order.details) ?? null,
       // Haydovchi taklifda "bola o'rindig'i kerak" ni ko'rishi shart.
       options: order.options ?? [],
     };
