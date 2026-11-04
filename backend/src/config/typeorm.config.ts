@@ -2,6 +2,7 @@ import { DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { SnakeNamingStrategy } from './snake-naming.strategy';
 import * as dotenv from 'dotenv';
+import { dbSessionTimezoneExtra } from './db-session-timezone';
 
 dotenv.config();
 
@@ -14,6 +15,7 @@ export default new DataSource({
   username: configService.get<string>('DB_USER', 'postgres'),
   password: configService.get<string>('DB_PASS', 'postgres'),
   database: configService.get<string>('DB_NAME', 'angren_taxi'),
+  extra: dbSessionTimezoneExtra(),
   entities: [__dirname + '/../**/*.entity{.ts,.js}'],
   migrations: [__dirname + '/../database/migrations/*{.ts,.js}'],
   // MUST match AppModule's TypeORM config. Without it the CLI generates

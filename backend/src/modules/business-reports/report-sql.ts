@@ -4,8 +4,9 @@
  *
  * Eski jadvallarda (`orders`, `transactions`, `users`, `food_orders`,
  * `market_orders`, `withdrawal_requests`) ustun `timestamp` — backend
- * TZ=Asia/Tashkent bo'lgani uchun unda Toshkent mahalliy vaqti yoziladi
- * (`analytics.service.ts` bilan bir xil). Yangi jadvallar `timestamptz`.
+ * TZ=Asia/Tashkent va DB sessiyasi shunga tenglangan (`db-session-timezone.ts`),
+ * shuning uchun unda Toshkent mahalliy vaqti yoziladi (`analytics.service.ts`
+ * bilan bir xil). Yangi jadvallar `timestamptz`.
  */
 export const LOCAL = (col: string): string => `${col} >= $1::timestamp AND ${col} < $2::timestamp`;
 

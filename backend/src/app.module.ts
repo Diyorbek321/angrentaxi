@@ -59,6 +59,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { CourierWalletRemindersModule } from './modules/delivery/courier-wallet-reminders.module';
 import { BusinessReportsModule } from './modules/business-reports/business-reports.module';
 import { ENTITIES } from './database/entities';
+import { dbSessionTimezoneExtra } from './config/db-session-timezone';
 
 @Module({
   imports: [
@@ -79,6 +80,7 @@ import { ENTITIES } from './database/entities';
         username: configService.get<string>('DB_USER', 'postgres'),
         password: configService.get<string>('DB_PASS', 'postgres'),
         database: configService.get<string>('DB_NAME', 'angren_taxi'),
+        extra: dbSessionTimezoneExtra(),
         // Single list, checked against every @Entity by entities.spec.ts.
         entities: ENTITIES,
         migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
