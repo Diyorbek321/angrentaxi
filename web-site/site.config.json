@@ -16,6 +16,10 @@
     "passengerPlayUrl": null,
     "driverPlayUrl": null
   },
+  "legal": {
+    "_izoh": "reviewed=false — yurist tekshiruvi tugamaguncha saytda ogohlantirish ko'rsatiladi",
+    "reviewed": false
+  },
   "services": {
     "intercityLive": false,
     "cardPaymentsLive": false

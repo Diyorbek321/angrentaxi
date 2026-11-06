@@ -31,14 +31,24 @@ export function contactChannels(cfg, lang) {
   return out;
 }
 
+/** Backend chiqaradigan huquqiy hujjat (api.<domen>/api/v1/legal/<id>). */
+export const LEGAL_DOCS = ['terms', 'driver-terms', 'vendor-terms', 'privacy', 'account-deletion'];
+export function legalUrl(cfg, t, id) {
+  if (!LEGAL_DOCS.includes(id)) throw new Error(`Noma'lum hujjat: ${id}`);
+  return `https://api.${cfg.domain}/api/v1/legal/${id}?lang=${t.lang}`;
+}
+
 function urls(cfg, t) {
   const site = `https://${cfg.domain}`;
   const api = `https://api.${cfg.domain}/api/v1`;
   return {
     site,
     canonical: `${site}${t.path}`,
-    privacy: `${api}/legal/privacy?lang=${t.lang}`,
-    deletion: `${api}/legal/account-deletion?lang=${t.lang}`,
+    privacy: legalUrl(cfg, t, 'privacy'),
+    deletion: legalUrl(cfg, t, 'account-deletion'),
+    terms: legalUrl(cfg, t, 'terms'),
+    driverTerms: legalUrl(cfg, t, 'driver-terms'),
+    vendorTerms: legalUrl(cfg, t, 'vendor-terms'),
   };
 }
 
@@ -53,8 +63,9 @@ function header(t, other, cfg, assets) {
     ['safety', n.safety],
     ['drivers', n.drivers],
     ['partners', n.partners],
+    ['apply', n.apply],
+    ['docs', n.docs],
     ['faq', n.faq],
-    ['contact', n.contact],
   ]
     .map(([id, label]) => `<li><a href="#${id}">${esc(label)}</a></li>`)
     .join('');
@@ -120,6 +131,10 @@ function phoneMock(t) {
   <div class="float-card">
     <span class="float-icon">${icon('car')}</span>
     <span><strong>${esc(m.driverTitle)}</strong><small>${esc(m.driverEta)}</small></span>
+  </div>
+  <div class="float-card float-card-b">
+    <span class="float-icon float-icon-ok">${icon('shield')}</span>
+    <span><strong>${esc(m.verifiedTitle)}</strong><small>${esc(m.verifiedText)}</small></span>
   </div>
 </div>`;
 }
@@ -243,6 +258,7 @@ function drivers(t, cfg) {
       <h3 id="join-title">${esc(d.joinTitle)}</h3>
       <ol class="join-list">${join}</ol>
       <a class="btn btn-mint btn-lg btn-block" href="${esc(href)}">${esc(d.cta)}${icon('arrow')}</a>
+      <a class="btn btn-ghost btn-block join-apply" href="#apply" data-apply="driver">${esc(d.applyCta)}</a>
       <p class="join-note">${esc(d.note)}</p>
     </aside>
   </div>
@@ -262,9 +278,119 @@ function partners(t) {
   <div class="container">
     <div class="head-row">
       ${sectionHead(p.kicker, p.title, p.lead, 'partners')}
-      <a class="btn btn-ghost" href="#contact" data-reveal>${esc(p.cta)}${icon('arrow')}</a>
+      <a class="btn btn-ghost" href="#apply" data-apply="partner" data-reveal>${esc(p.cta)}${icon('arrow')}</a>
     </div>
     <ul class="grid grid-4">${cards}</ul>
+  </div>
+</section>`;
+}
+
+
+const APPLY_TYPES = [
+  ['driver', 'car'],
+  ['courier', 'bike'],
+  ['partner', 'store'],
+];
+
+function field(id, label, input, { full = false } = {}) {
+  return `<div class="field${full ? ' field-full' : ''}"><label for="${id}">${esc(label)}</label>${input}</div>`;
+}
+
+function options(map, placeholder) {
+  return `<option value="">${esc(placeholder)}</option>${Object.entries(map)
+    .map(([value, label]) => `<option value="${esc(value)}">${esc(label)}</option>`)
+    .join('')}`;
+}
+
+/** Ariza formasi: tur tanlanadi, turga xos maydonlar `fieldset[data-for]` da. */
+function applyForm(t, cfg, u) {
+  const a = t.apply;
+  const fl = a.fields;
+  const year = new Date().getFullYear() + 1;
+  const roles = APPLY_TYPES.map(
+    ([type, ic], i) => `<label class="role">
+        <input type="radio" name="type" value="${type}"${i === 0 ? ' checked' : ''}>
+        <span class="role-box"><span class="role-icon">${icon(ic)}</span><span class="role-name">${esc(a.tabs[type])}</span></span>
+      </label>`,
+  ).join('');
+  return `<form class="apply-form" data-apply-form novalidate
+      data-err-invalid="${esc(a.errInvalid)}" data-err-rate="${esc(a.errRate)}" data-err-network="${esc(a.errNetwork)}"
+      data-err-consent="${esc(a.errConsent)}" data-sending="${esc(a.sending)}" data-lang="${t.lang}">
+    <fieldset class="roles"><legend class="sr-only">${esc(a.tabsAria)}</legend>${roles}</fieldset>
+    <div class="fields">
+      ${field('ap-name', fl.name, `<input id="ap-name" name="name" required minlength="2" maxlength="80" autocomplete="name" placeholder="${esc(fl.namePh)}">`)}
+      ${field('ap-phone', fl.phone, `<input id="ap-phone" name="phone" type="tel" required inputmode="tel" autocomplete="tel" minlength="9" maxlength="20" placeholder="${esc(fl.phonePh)}">`)}
+      <fieldset class="fg" data-for="driver">
+        ${field('ap-car', fl.carModel, `<input id="ap-car" name="carModel" required maxlength="60" placeholder="${esc(fl.carModelPh)}">`)}
+        ${field('ap-year', fl.carYear, `<input id="ap-year" name="carYear" type="number" required min="1990" max="${year}" inputmode="numeric" placeholder="${esc(fl.carYearPh)}">`)}
+      </fieldset>
+      <fieldset class="fg" data-for="courier" disabled>
+        ${field('ap-vehicle', fl.vehicle, `<select id="ap-vehicle" name="vehicle" required>${options(a.vehicles, fl.choose)}</select>`, { full: true })}
+      </fieldset>
+      <fieldset class="fg" data-for="partner" disabled>
+        ${field('ap-biz', fl.businessName, `<input id="ap-biz" name="businessName" required maxlength="100" placeholder="${esc(fl.businessNamePh)}">`)}
+        ${field('ap-biztype', fl.businessType, `<select id="ap-biztype" name="businessType" required>${options(a.businessTypes, fl.choose)}</select>`)}
+        ${field('ap-addr', fl.address, `<input id="ap-addr" name="address" maxlength="160" autocomplete="street-address" placeholder="${esc(fl.addressPh)}">`, { full: true })}
+      </fieldset>
+      ${field('ap-comment', fl.comment, `<textarea id="ap-comment" name="comment" rows="3" maxlength="500" placeholder="${esc(fl.commentPh)}"></textarea>`, { full: true })}
+    </div>
+    <div class="hp" aria-hidden="true"><label>Website <input name="website" tabindex="-1" autocomplete="off"></label></div>
+    <label class="consent"><input type="checkbox" name="consent" required><span class="consent-box" aria-hidden="true">${icon('check')}</span><span>${esc(a.consentA)}<a href="${esc(u.privacy)}" target="_blank" rel="noopener">${esc(a.consentLink)}</a></span></label>
+    <p class="form-status" role="status" aria-live="polite" data-status></p>
+    <button class="btn btn-primary btn-lg btn-block" type="submit" data-submit><span data-submit-label>${esc(a.submit)}</span>${icon('arrow')}</button>
+    <p class="form-note">${icon('shield')}${esc(a.note)}</p>
+    <noscript><p class="form-status is-error">${esc(a.noscript)}</p></noscript>
+  </form>
+  <div class="apply-done" data-apply-done hidden tabindex="-1">
+    <svg class="done-mark" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24"/><path d="m15 27 7.5 7.5L38 19"/></svg>
+    <h3>${esc(a.successTitle)}</h3>
+    <p>${esc(a.successText)}</p>
+    <button class="btn btn-ghost" type="button" data-apply-again>${esc(a.again)}</button>
+  </div>`;
+}
+
+function apply(t, cfg) {
+  const a = t.apply;
+  const u = urls(cfg, t);
+  const intros = APPLY_TYPES.map(
+    ([type, ic]) => `<div class="role-intro" data-intro="${type}">
+        <span class="role-art">${icon(ic, 'ic ic-xl')}</span>
+        <p>${esc(a.intro[type])}</p>
+        <ul class="role-perks">${a.perks[type].map((p) => `<li>${icon('check')}${esc(p)}</li>`).join('')}</ul>
+      </div>`,
+  ).join('');
+  return `
+<section class="section section-apply" id="apply" aria-labelledby="apply-title" data-apply-section data-type="driver">
+  <div class="container apply-grid">
+    <div class="apply-side">
+      ${sectionHead(a.kicker, a.title, a.lead, 'apply')}
+      <div class="role-intros" data-reveal>${intros}</div>
+    </div>
+    <div class="apply-card" data-reveal>${applyForm(t, cfg, u)}</div>
+  </div>
+</section>`;
+}
+
+/** Ommaviy oferta va boshqa hujjatlar — backend'dagi HTML sahifalarga havola. */
+function docs(t, cfg) {
+  const d = t.docs;
+  const cards = d.items
+    .map(
+      (it) => `<li data-reveal><a class="doc-card" href="${esc(legalUrl(cfg, t, it.id))}">
+        <span class="tile">${icon(it.icon)}</span>
+        <h3>${esc(it.title)}</h3>
+        <p>${esc(it.text)}</p>
+        <span class="doc-open">${esc(d.open)}${icon('arrow')}</span>
+      </a></li>`,
+    )
+    .join('');
+  const note = cfg.legal?.reviewed ? '' : `<p class="doc-note" data-reveal>${icon('clock')}${esc(d.reviewNote)}</p>`;
+  return `
+<section class="section" id="docs" aria-labelledby="docs-title">
+  <div class="container">
+    ${sectionHead(d.kicker, d.title, d.lead, 'docs')}
+    <ul class="docs-grid">${cards}</ul>
+    ${note}
   </div>
 </section>`;
 }
@@ -368,6 +494,9 @@ function footer(t, cfg, u) {
     </div>
     <nav aria-label="${esc(f.sections)}"><p class="footer-title">${esc(f.sections)}</p><ul>${sections}</ul></nav>
     <nav aria-label="${esc(f.legal)}"><p class="footer-title">${esc(f.legal)}</p><ul>
+      <li><a href="${esc(u.terms)}">${esc(f.terms)}</a></li>
+      <li><a href="${esc(u.driverTerms)}">${esc(f.driverTerms)}</a></li>
+      <li><a href="${esc(u.vendorTerms)}">${esc(f.vendorTerms)}</a></li>
       <li><a href="${esc(u.privacy)}">${esc(f.privacy)}</a></li>
       <li><a href="${esc(u.deletion)}">${esc(f.deletion)}</a></li>
     </ul></nav>
@@ -442,7 +571,9 @@ ${steps(t)}
 ${safety(t)}
 ${drivers(t, cfg)}
 ${partners(t)}
+${apply(t, cfg)}
 ${company(t)}
+${docs(t, cfg)}
 ${faq(t, cfg)}
 ${download(t, cfg)}
 ${contact(t, cfg)}

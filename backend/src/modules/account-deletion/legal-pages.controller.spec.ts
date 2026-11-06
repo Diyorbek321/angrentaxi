@@ -1,4 +1,4 @@
-import { LegalPagesController } from './legal-pages.controller';
+import { LegalPagesController, siteUrlOf } from './legal-pages.controller';
 
 /** Oferta sahifalari: HTML, QORALAMA belgisi, jonli komissiya va zaxira. */
 describe('LegalPagesController — oferta sahifalari', () => {
@@ -38,5 +38,25 @@ describe('LegalPagesController — oferta sahifalari', () => {
     await controller.vendorTerms(req as never, res as never, 'ru');
     expect(sent[0]).toContain('Foydalanuvchi ofertasi');
     expect(sent[1]).toContain('Условия для продавцов');
+  });
+
+  it('brend sarlavhasi saytga va hujjatlar bo‘limiga qaytaradi', async () => {
+    const { controller, req, res, sent } = build(jest.fn(async () => 10));
+    await controller.terms(req as never, res as never, 'ru');
+    expect(sent[0]).toContain('href="https://example.uz/ru/"');
+    expect(sent[0]).toContain('href="https://example.uz/ru/#docs"');
+    expect(sent[0]).toContain('#F5C518');
+  });
+});
+
+describe('siteUrlOf', () => {
+  const req = (host: string | undefined) => ({ protocol: 'https', get: () => host }) as never;
+  it('api.<domen> → https://<domen>', () => {
+    expect(siteUrlOf(req('api.example.uz'))).toBe('https://example.uz');
+  });
+  it('boshqa yoki shubhali host — havola yo‘q', () => {
+    expect(siteUrlOf(req('localhost:3000'))).toBeUndefined();
+    expect(siteUrlOf(req('api.x.uz"><script>'))).toBeUndefined();
+    expect(siteUrlOf(req(undefined))).toBeUndefined();
   });
 });

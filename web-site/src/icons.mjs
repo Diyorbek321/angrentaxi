@@ -2,6 +2,9 @@
 // Tashqi kutubxona yo'q: har biri inline SVG bo'lib HTML ichiga tushadi.
 
 const P = {
+  doc: '<path d="M6.5 3h7.5l4.5 4.5V20a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M13.5 3v5h5M8.5 12.5h7M8.5 16h7"/>',
+  shield: '<path d="M12 3 4.5 6v5.5c0 4.5 3.2 8.2 7.5 9.5 4.3-1.3 7.5-5 7.5-9.5V6z"/><path d="m8.75 12 2.25 2.25 4.25-4.5"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/>',
   car: '<path d="M5 16.5h14M6.5 16.5v2M17.5 16.5v2"/><path d="M4 16.5v-4l2-5.5h12l2 5.5v4z"/><circle cx="8" cy="13.25" r=".9" fill="currentColor"/><circle cx="16" cy="13.25" r=".9" fill="currentColor"/><path d="M6.6 9.5h10.8"/>',
   box: '<path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5z"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9"/><path d="m7.75 5.25 8.5 4.5"/>',
   food: '<path d="M4 11h16a8 8 0 0 1-16 0z"/><path d="M12 7V4M8.5 7.5 7.5 5M15.5 7.5l1-2.5"/><path d="M9 21h6"/>',

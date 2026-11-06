@@ -7,7 +7,7 @@ import { after, before, describe, it } from 'node:test';
 import uz from './src/content/uz.mjs';
 import ru from './src/content/ru.mjs';
 import { build, loadConfig } from './build.mjs';
-import { contactChannels, esc, renderPage } from './src/render.mjs';
+import { contactChannels, esc, LEGAL_DOCS, legalUrl, renderPage } from './src/render.mjs';
 import { ICON_NAMES, icon } from './src/icons.mjs';
 
 /** Obyekt tuzilmasi: kalit yo'llari va massiv uzunliklari (qiymatlarsiz). */
@@ -122,6 +122,50 @@ describe('render', () => {
     assert.match(html, /rel="canonical" href="https:\/\/example\.uz\/ru\/"/);
     assert.match(html, /hreflang="uz-Latn" href="https:\/\/example\.uz\/"/);
     assert.match(html, /legal\/privacy\?lang=ru/);
+  });
+});
+
+describe('ariza va hujjatlar', () => {
+  const html = (cfg = baseCfg, t = uz) => renderPage(t, t === uz ? ru : uz, cfg, assets);
+
+  it('forma: honeypot, majburiy rozilik, uch tur, faqat haydovchi maydonlari faol', () => {
+    const h = html();
+    assert.match(h, /<form class="apply-form" data-apply-form/);
+    assert.match(h, /name="website" tabindex="-1"/);
+    assert.match(h, /type="checkbox" name="consent" required/);
+    for (const type of ['driver', 'courier', 'partner']) assert.match(h, new RegExp(`name="type" value="${type}"`));
+    assert.match(h, /<fieldset class="fg" data-for="driver">/);
+    assert.match(h, /<fieldset class="fg" data-for="courier" disabled>/);
+    assert.match(h, /<fieldset class="fg" data-for="partner" disabled>/);
+  });
+
+  it('ruscha sahifada ham til belgisi va matn', () => {
+    const h = html(baseCfg, ru);
+    assert.match(h, /data-lang="ru"/);
+    assert.ok(h.includes(esc(ru.apply.submit)));
+  });
+
+  it("hamkor va haydovchi tugmalari formaga olib boradi", () => {
+    const h = html();
+    assert.match(h, /href="#apply" data-apply="partner"/);
+    assert.match(h, /href="#apply" data-apply="driver"/);
+  });
+
+  it('hujjatlar: har bir oferta tilga mos backend havolasi bilan', () => {
+    const h = html();
+    for (const id of LEGAL_DOCS) {
+      assert.ok(h.includes(`href="https://api.example.uz/api/v1/legal/${id}?lang=uz"`), id);
+    }
+    assert.ok(html(baseCfg, ru).includes('/legal/terms?lang=ru'));
+  });
+
+  it("noma'lum hujjat — xato", () => {
+    assert.throws(() => legalUrl(baseCfg, uz, 'evil'), /Noma'lum hujjat/);
+  });
+
+  it('yurist tekshiruvi ogohlantirishi faqat reviewed=false bo‘lsa', () => {
+    assert.ok(html().includes('class="doc-note"'));
+    assert.ok(!html({ ...baseCfg, legal: { reviewed: true } }).includes('class="doc-note"'));
   });
 });
 
