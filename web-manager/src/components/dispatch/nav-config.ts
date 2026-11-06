@@ -4,6 +4,7 @@ import {
   DollarSign,
   Flag,
   Gift,
+  Inbox,
   LayoutDashboard,
   Megaphone,
   MessageCircle,
@@ -53,6 +54,7 @@ export function dispatchNav(): readonly NavGroup[] {
     items: [
       { href: '/dispatch/drivers', label: m.drivers, icon: Users, permission: 'drivers_view' },
       { href: '/dispatch/verification', label: m.verification, icon: ShieldCheck, permission: 'drivers_view' },
+      { href: '/dispatch/leads', label: m.leads, icon: Inbox, permission: 'drivers_view' },
       { href: '/dispatch/fraud', label: m.fraud, icon: ShieldAlert, permission: 'drivers_view' },
       { href: '/dispatch/audit-log', label: m.auditLog, icon: ScrollText, permission: 'dispatch' },
       { href: '/dispatch/shift-report', label: m.shiftReport, icon: Timer, permission: null },

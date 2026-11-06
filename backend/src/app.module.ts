@@ -58,6 +58,7 @@ import { IntercityModule } from './modules/intercity/intercity.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { CourierWalletRemindersModule } from './modules/delivery/courier-wallet-reminders.module';
 import { BusinessReportsModule } from './modules/business-reports/business-reports.module';
+import { LeadsModule } from './modules/leads/leads.module';
 import { ENTITIES } from './database/entities';
 import { dbSessionTimezoneExtra } from './config/db-session-timezone';
 
@@ -203,6 +204,7 @@ import { dbSessionTimezoneExtra } from './config/db-session-timezone';
     AuditModule,
     CourierWalletRemindersModule,
     BusinessReportsModule,
+    LeadsModule,
   ],
   providers: [
     // ThrottlerModule only configures the limits — nothing enforces them until

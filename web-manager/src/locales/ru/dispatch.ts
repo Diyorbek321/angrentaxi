@@ -24,6 +24,7 @@ export const dispatch: Messages['dispatch'] = {
     customers: 'Клиенты',
     support: 'Поддержка',
     lostItems: 'Забытые вещи',
+    leads: 'Заявки',
     incidents: 'Жалобы',
   },
   shell: {

@@ -877,6 +877,55 @@ export async function closeLostItem(
   return res.data.data;
 }
 
+// ─── Site leads (driver / courier / partner applications) ───────────────
+
+export type LeadType = 'driver' | 'courier' | 'partner';
+export type LeadStatus = 'new' | 'contacted' | 'accepted' | 'rejected';
+
+export interface LeadDetails {
+  carModel?: string;
+  carYear?: number;
+  vehicle?: string;
+  businessName?: string;
+  businessType?: string;
+  address?: string;
+  comment?: string;
+}
+
+export interface Lead {
+  id: string;
+  type: LeadType;
+  name: string;
+  phone: string;
+  details: LeadDetails;
+  lang: string;
+  status: LeadStatus;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface LeadsPage {
+  items: Lead[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export async function getLeads(params: {
+  type?: LeadType;
+  status?: LeadStatus;
+  page?: number;
+  limit?: number;
+}): Promise<LeadsPage> {
+  const res = await apiClient.get<ApiResponse<LeadsPage>>('/leads', { params });
+  return res.data.data;
+}
+
+export async function updateLead(id: string, status: LeadStatus, note?: string): Promise<Lead> {
+  const res = await apiClient.patch<ApiResponse<Lead>>(`/leads/${id}`, { status, note });
+  return res.data.data;
+}
+
 // ─── Driver periodic checks (vehicle inspection, selfie) ─────────
 
 export type VerificationKind = 'document' | 'vehicle_photo' | 'selfie';

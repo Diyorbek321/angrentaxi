@@ -75,7 +75,21 @@ restaurant.{$DOMAIN} {
 # Public corporate site on the bare domain; www → bare.
 {$DOMAIN} {
 	import common
-	reverse_proxy web-site:8080
+	# Site application forms post same-origin (CSP connect-src 'self', no CORS).
+	# Only this one public endpoint is exposed on the bare domain.
+	@leads {
+		method POST
+		path /api/v1/leads
+	}
+	handle @leads {
+		request_body {
+			max_size 16KB
+		}
+		reverse_proxy backend:3000
+	}
+	handle {
+		reverse_proxy web-site:8080
+	}
 }
 
 www.{$DOMAIN} {

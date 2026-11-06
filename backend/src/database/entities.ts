@@ -35,6 +35,7 @@ import { IntercityTripZone } from './entities/intercity-trip-zone.entity';
 import { IntercityRequest } from './entities/intercity-request.entity';
 import { LegalAcceptance } from './entities/legal-acceptance.entity';
 import { LostItemReport } from './entities/lost-item-report.entity';
+import { Lead } from './entities/lead.entity';
 import { MarketCategory } from './entities/market-category.entity';
 import { MarketOrder } from './entities/market-order.entity';
 import { MenuCategory } from './entities/menu-category.entity';
@@ -98,6 +99,7 @@ export const ENTITIES = [
   IntercityRequest,
   LegalAcceptance,
   LostItemReport,
+  Lead,
   MarketCategory,
   MarketOrder,
   MenuCategory,

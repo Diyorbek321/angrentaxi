@@ -23,6 +23,7 @@ export const dispatch = {
     customers: 'Mijozlar',
     support: 'Qoʻllab-quvvatlash',
     lostItems: 'Yoʻqolgan buyumlar',
+    leads: 'Arizalar',
     incidents: 'Shikoyatlar',
   },
   shell: {
