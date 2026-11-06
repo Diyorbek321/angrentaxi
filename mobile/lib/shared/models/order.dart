@@ -156,7 +156,11 @@ class DeliveryInfo extends Equatable {
     this.vendorPhone,
     this.customerPhone,
     this.addressDetails,
+    this.handoverCodeRequired = false,
   });
+
+  /// Server bu safarga topshirish kodi yaratgan (`details.handoverCode`).
+  final bool handoverCodeRequired;
 
   final String vendorName;
 
@@ -210,12 +214,21 @@ class DeliveryInfo extends Equatable {
         _ => 0,
       },
       addressDetails: AddressDetails.tryParse(details['addressDetails']),
+      handoverCodeRequired: details['handoverCode'] == true,
     );
   }
 
   @override
-  List<Object?> get props =>
-      [vendorName, vendorPhone, customerPhone, itemsCount, collectCash, payVendor, addressDetails];
+  List<Object?> get props => [
+        vendorName,
+        vendorPhone,
+        customerPhone,
+        itemsCount,
+        collectCash,
+        payVendor,
+        addressDetails,
+        handoverCodeRequired,
+      ];
 }
 
 class OrderLocation extends Equatable {
@@ -470,8 +483,12 @@ class Order extends Equatable {
   bool get isReturned =>
       status == OrderStatus.completed && deliveryOutcome == 'returned';
 
-  /// Topshirish kodi talab qilinadigan safar: posilka, ovqat, market.
+  /// Topshirish oqimi bor safar: posilka, ovqat, market.
   bool get requiresHandoverCode => isParcel || isDelivery;
+
+  /// Kuryer kod kiritishi shartmi. Ovqat/market kodi server darvozasi orqasida:
+  /// yoqilmagan bo'lsa mijoz kodni ko'rmaydi, so'rash uni qotirib qo'yardi.
+  bool get asksHandoverCode => isParcel || (delivery?.handoverCodeRequired ?? false);
 
   factory Order.fromJson(Map<String, dynamic> json) {
     return Order(

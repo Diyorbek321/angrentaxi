@@ -2,13 +2,14 @@
 // INSERT plus promo validation and the "order created" fan-out), and the
 // manager/admin manual-entry variant that resolves a passenger by phone first.
 import { BadRequestException, ConflictException, Injectable, Logger, Optional } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Order, OrderStatus, PaymentMethod, ServiceType } from '../../database/entities/order.entity';
 import { generateDeliveryPin, parseParcelDetails } from './parcel';
 import { parseCargoDetails } from './cargo';
 import { DEFAULT_DELIVERY_INCIDENT_SETTINGS } from '../settings/delivery-incident-settings';
-import { HANDOVER_CODE_SERVICE_TYPES } from '../delivery/delivery-return';
+import { issuesHandoverCode, VENDOR_HANDOVER_CODE_GATE_ENV } from '../delivery/delivery-return';
 import { Transaction } from '../../database/entities/transaction.entity';
 import { TariffsService } from '../tariffs/tariffs.service';
 import { agreedFareBreakdown } from '../tariffs/fare-breakdown';
@@ -57,6 +58,7 @@ export class OrdersCreationService {
     @Optional() private readonly settingsService?: SettingsService,
     // Vaqtincha to'xtatish (INCIDENT-POLICY §3). Ixtiyoriy — qo'lda yig'iladigan spec'lar.
     @Optional() private readonly suspensionGate?: SuspensionGate,
+    @Optional() private readonly config?: ConfigService,
   ) {}
 
   /**
@@ -344,7 +346,7 @@ export class OrdersCreationService {
   async create(
     passengerId: string,
     dto: CreateOrderDto,
-    options: { agreedFare?: number } = {},
+    options: { agreedFare?: number; requireParcelDeclaration?: boolean } = {},
   ): Promise<Order> {
     const scheduledAt = this.resolveScheduledAt(dto.scheduledAt, new Date());
 
@@ -386,7 +388,9 @@ export class OrdersCreationService {
     // Posilka va yuk `details` i faqat ma'lum, chegaralangan maydonlar bilan
     // (INCIDENT-POLICY §2): JSON kuryer taklifiga to'g'ridan-to'g'ri ketadi.
     const details = isParcel
-      ? parseParcelDetails(dto.details, await this.parcelMaxDeclaredValue())
+      ? parseParcelDetails(dto.details, await this.parcelMaxDeclaredValue(), {
+          requireDeclaration: options.requireParcelDeclaration ?? false,
+        })
       : dto.serviceType === ServiceType.CARGO
         ? parseCargoDetails(dto.details)
         : dto.details;
@@ -400,9 +404,15 @@ export class OrdersCreationService {
       : { lat: dto.dropoffLat!, lng: dto.dropoffLng! };
     // Topshirish kodi — posilka, ovqat va market (INCIDENT-POLICY §2): kodni
     // faqat yuboruvchi/mijoz ko'radi, kuryer uni kiritmasa topshira olmaydi.
-    const deliveryPin = HANDOVER_CODE_SERVICE_TYPES.includes(dto.serviceType ?? ServiceType.TAXI)
-      ? generateDeliveryPin()
-      : null;
+    // Ovqat/market kodi darvoza orqasida (`issuesHandoverCode`): kod yo'q safar
+    // kodsiz yakunlanadi, `handoverCode` belgisi kuryer ilovasiga kod so'rashni aytadi.
+    const issuesCode = issuesHandoverCode(
+      dto.serviceType ?? ServiceType.TAXI,
+      this.config?.get<string>(VENDOR_HANDOVER_CODE_GATE_ENV),
+    );
+    const deliveryPin = issuesCode ? generateDeliveryPin() : null;
+    const storedDetails =
+      issuesCode && !isParcel && details ? { ...details, handoverCode: true } : details;
 
     if (!scheduledAt && (dto.serviceType ?? ServiceType.TAXI) === ServiceType.TAXI) {
       await this.assertNoActiveTaxiOrder(passengerId);
@@ -549,7 +559,7 @@ export class OrdersCreationService {
         dto.paymentMethod ?? PaymentMethod.CASH,
         dto.note ?? null,
         dto.serviceType ?? 'taxi',
-        details ? JSON.stringify(details) : null,
+        storedDetails ? JSON.stringify(storedDetails) : null,
         promoCodeId,
         promoCodeId ? discountAmount : null,
         dto.waypoints?.length ? JSON.stringify(dto.waypoints) : null,

@@ -54,7 +54,7 @@ export class OrdersService {
   create(
     passengerId: string,
     dto: CreateOrderDto,
-    options?: { agreedFare?: number },
+    options?: { agreedFare?: number; requireParcelDeclaration?: boolean },
   ): Promise<Order> {
     return this.creationService.create(passengerId, dto, options);
   }

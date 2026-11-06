@@ -28,11 +28,12 @@ export interface ParcelDetails {
   size: ParcelSize;
   /**
    * Yuboruvchi e'lon qilgan qiymat, so'm (docs/INCIDENT-POLICY.md §2) —
-   * javobgarlik chegarasi. 1..`parcelMaxDeclaredValue`.
+   * javobgarlik chegarasi. 1..`parcelMaxDeclaredValue`. Eski APK va dispetcher
+   * paneli yubormaydi — {@link ParcelParseOptions}.
    */
-  declaredValue: number;
+  declaredValue?: number;
   /** Taqiqlangan narsalar ro'yxati bilan tanishib, ular yo'qligini tasdiqladi. */
-  prohibitedItemsAccepted: true;
+  prohibitedItemsAccepted: boolean;
 }
 
 /**
@@ -53,12 +54,25 @@ const UZ_PHONE = /^\+998\d{9}$/;
 const MAX_DESCRIPTION = 200;
 const MAX_NAME = 50;
 
+export interface ParcelParseOptions {
+  /**
+   * Qiymat va taqiqlangan narsalar tasdig'i majburiymi. `false` — bu maydonlar
+   * ekranida yo'q mijoz (v21 APK, dispetcher paneli): usiz posilka butunlay
+   * rad etilardi. Yuborilgan qiymat baribir tekshiriladi.
+   */
+  requireDeclaration?: boolean;
+}
+
 /**
  * Validates the free-form `details` of a parcel order and keeps only the known
  * fields — the JSON goes straight into the driver's offer, so nothing the
  * client invents may ride along.
  */
-export function parseParcelDetails(raw: unknown, maxDeclaredValue: number): ParcelDetails {
+export function parseParcelDetails(
+  raw: unknown,
+  maxDeclaredValue: number,
+  { requireDeclaration = true }: ParcelParseOptions = {},
+): ParcelDetails {
   const fail = (reason: string): never => {
     throw new BadRequestException(`Posilka ma'lumoti noto'g'ri: ${reason}`);
   };
@@ -76,16 +90,19 @@ export function parseParcelDetails(raw: unknown, maxDeclaredValue: number): Parc
   if (!Object.values(ParcelSize).includes(size)) fail("o'lcham small, medium yoki large bo'lsin");
 
   const declaredValue = input.declaredValue;
+  const declarationMissing = declaredValue === undefined && input.prohibitedItemsAccepted === undefined;
+  const legacyDeclaration = declarationMissing && !requireDeclaration;
   if (
-    typeof declaredValue !== 'number' ||
+    !legacyDeclaration &&
+    (typeof declaredValue !== 'number' ||
     !Number.isInteger(declaredValue) ||
     declaredValue < 1 ||
-    declaredValue > maxDeclaredValue
+    declaredValue > maxDeclaredValue)
   ) {
     fail(`qiymat 1 dan ${maxDeclaredValue} so'mgacha butun son bo'lsin`);
   }
   // Faqat aniq `true` — "yes", 1 kabi qiymatlar tasdiq emas.
-  if (input.prohibitedItemsAccepted !== true) {
+  if (!legacyDeclaration && input.prohibitedItemsAccepted !== true) {
     fail("taqiqlangan narsalar yo'qligini tasdiqlang");
   }
 
@@ -93,8 +110,8 @@ export function parseParcelDetails(raw: unknown, maxDeclaredValue: number): Parc
     recipientPhone,
     itemDescription,
     size,
-    declaredValue: declaredValue as number,
-    prohibitedItemsAccepted: true,
+    prohibitedItemsAccepted: !legacyDeclaration,
+    ...(legacyDeclaration ? {} : { declaredValue: declaredValue as number }),
   };
   const recipientName = typeof input.recipientName === 'string' ? input.recipientName.trim() : '';
   if (recipientName) details.recipientName = recipientName.slice(0, MAX_NAME);

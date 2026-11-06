@@ -28,7 +28,7 @@ const Set<String> _noRefreshPaths = {
 const String kClientFeaturesHeader = 'X-Client-Features';
 /// `call-relay` — raqam javobda emas, `/call` dan (§4); `cancel-fee` — ilova
 /// bekor qilish jarimasini tasdiqlashdan oldin ko'rsatadi (§5).
-const String kClientFeatures = 'call-relay,cancel-fee';
+const String kClientFeatures = 'call-relay,cancel-fee,parcel-declaration';
 
 class ApiClient {
   late final Dio _dio;

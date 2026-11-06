@@ -86,6 +86,10 @@ Map<String, dynamic> _orderJson({
       if (details != null) 'details': details,
     };
 
+// Server ovqat/market kodini darvoza yoqilganda yaratadi va `handoverCode`
+// belgisini qo'yadi — kuryer ilovasi faqat shunda kod so'raydi.
+const _foodWithCode = {'foodOrderId': 'food-1', 'handoverCode': true};
+
 const _parcelDetails = {
   'recipientPhone': '+998901112233',
   'recipientName': 'Ona',
@@ -358,12 +362,12 @@ void main() {
     // KELMAGANLIGI.
     testWidgets('ovqat: surib yakunlash ham yetkazish so\'zlarini beradi',
         (tester) async {
-      await seedActiveOrder(_orderJson(serviceType: 'food'));
+      await seedActiveOrder(_orderJson(serviceType: 'food', details: _foodWithCode));
       when(() => apiClient.patch(ApiEndpoints.completeTrip(_orderId), data: any(named: 'data')))
           .thenAnswer(
         (_) async => _jsonResponse(
           ApiEndpoints.completeTrip(_orderId),
-          _orderJson(serviceType: 'food', status: 'completed'),
+          _orderJson(serviceType: 'food', status: 'completed', details: _foodWithCode),
         ),
       );
       await pumpTripScreen(tester);

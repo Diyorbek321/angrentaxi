@@ -37,6 +37,19 @@ export const HANDOVER_CODE_SERVICE_TYPES: readonly ServiceType[] = [
   ServiceType.MARKET,
 ];
 
+/**
+ * Ovqat/market topshirish kodi darvozasi. STANDART O'CHIQ: v21 APK'da mijoz
+ * kodni ko'rmaydi, kuryer esa uni kirita olmaydi — yoqilsa birorta yetkazish
+ * yakunlanmas edi. Yangi APK tarqalgach `.env.prod` da `on`.
+ */
+export const VENDOR_HANDOVER_CODE_GATE_ENV = 'VENDOR_HANDOVER_CODE_GATE';
+
+/** Yangi safarga kod yaratiladimi. Posilkada doim: v21 ham kodni biladi. */
+export function issuesHandoverCode(serviceType: ServiceType, gate: string | undefined): boolean {
+  if (serviceType === ServiceType.PARCEL) return true;
+  return HANDOVER_CODE_SERVICE_TYPES.includes(serviceType) && gate === 'on';
+}
+
 export const DELIVERY_FAILURE_REASONS: readonly DeliveryFailureReason[] = Object.values(DeliveryFailureReason);
 
 /** Rad etish deb sanaladigan sabablar (naqd blok) — hammasi mijoz tomonida. */

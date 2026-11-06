@@ -42,6 +42,12 @@ qotirilmaydi.
 | Rad etgan mijoz | 30 kunda **2** rad → naqd buyurtma o'chiriladi (`refusalCashBlockCount`) |
 | "Osilib qolgan" yetkazish signali | IN_PROGRESS > **60** daq yoki kuryer joylashuvi > **10** daq eski |
 
+**Eski APK bilan moslik (v21):** ovqat/market kodi `VENDOR_HANDOVER_CODE_GATE=on`
+bo'lmaguncha yaratilmaydi, chunki eski ilovada mijoz kodni ko'rmaydi va kuryer
+kirita olmaydi. Posilka qiymati va taqiq tasdig'i `X-Client-Features` da
+`parcel-declaration` yuborgan mijozdan talab qilinadi; v21 va dispetcher paneli
+ularsiz posilka bera oladi. Yangi APK tarqalgach ikkalasi yopiladi.
+
 ## 3. Shikoyat va hodisa (yagona `incidents`)
 
 - Kim: yo'lovchi/mijoz, haydovchi/kuryer, do'kon, menejer (o'zi ochadi).

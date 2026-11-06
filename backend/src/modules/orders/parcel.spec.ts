@@ -9,6 +9,26 @@ import {
   parseParcelDetails,
 } from './parcel';
 
+describe('parseParcelDetails — qiymat maydonlarisiz mijoz', () => {
+  const legacy = { recipientPhone: '+998901112233', itemDescription: 'Kalitlar', size: ParcelSize.SMALL };
+
+  it('eski ilova qiymatsiz posilka bera oladi', () => {
+    const details = parseParcelDetails(legacy, 1_000_000, { requireDeclaration: false });
+    expect(details.declaredValue).toBeUndefined();
+    expect(details.prohibitedItemsAccepted).toBe(false);
+  });
+
+  it('yangi ilova qiymatsiz bera olmaydi', () => {
+    expect(() => parseParcelDetails(legacy, 1_000_000)).toThrow(BadRequestException);
+  });
+
+  it('eski mijoz yuborgan chegaradan oshgan qiymat baribir rad etiladi', () => {
+    expect(() =>
+      parseParcelDetails({ ...legacy, declaredValue: 2_000_000 }, 1_000_000, { requireDeclaration: false }),
+    ).toThrow(BadRequestException);
+  });
+});
+
 describe('parseParcelDetails', () => {
   const valid = {
     recipientPhone: '+998901112233',

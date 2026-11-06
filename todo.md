@@ -36,8 +36,13 @@ Oxirgi prod deploy: `d4a7f75` (2026-11-01). Oxirgi APK: v21 (2026-11-01, `02d538
 - [ ] **Kechirilgan qarz moliya hisobotida yo'q** — faqat audit jurnalida (`wallet.debt_written_off`).
 - [ ] **Hamyon ekranidagi umumiy "To'ldirish"** — hali operator yozuvi; to'lov faqat qarz oynasida.
 
+- [ ] **Sotilgan mahsulotni o'chirish 500 beradi** — `stock_movements` FK, `market.service.ts` `deleteProduct`: tushunarli xato yoki yashirishga o'tkazish kerak (eski xato).
+- [ ] **Eski yozuvlar vaqti** — 7f04ce8 dan oldingi `created_at` lar 5 soat erta ko'rinadi (faqat ko'rinish, xulq buzilmaydi).
+
 ## 🚀 Yangi APK tarqalgach
 
+- [ ] **Ovqat/market topshirish kodini yoqish** — `.env.prod` ga `VENDOR_HANDOVER_CODE_GATE=on`. Hozir o'chiq: v21 mijoz kodni ko'rmaydi, kuryer kirita olmaydi. O'chiq paytda kuryer eshik oldida kod so'ramaydi.
+- [ ] **Posilka qiymatini hammaga majburiy qilish** — `X-Client-Features` da `parcel-declaration` yo'q mijoz (v21, dispetcher paneli) qiymatsiz posilka bera oladi. Panel formasiga qiymat va tasdiq qo'shish kerak.
 - [ ] **Haydovchi oferta darvozasini yoqish** — server `.env.prod` ga `LEGAL_DRIVER_TERMS_GATE=on`, backend qayta ishga tushirish. Eski APK'da rozilik oynasi yo'q, shuning uchun hozir o'chiq.
 - [ ] **Eski APK yon berishlarini olib tashlash** — `X-Client-Features` yo'q ilovaga raqam ko'rinadi va kech bekor qilish jarimasi kechiriladi.
 

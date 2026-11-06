@@ -86,6 +86,16 @@ void main() {
       }
     });
 
+    test('kuryer kodni faqat server so\'raganda kiritadi', () {
+      Order ride(Map<String, dynamic> details) =>
+          Order.fromJson(_ride(extra: {'details': details}));
+
+      expect(Order.fromJson(_ride(serviceType: 'parcel')).asksHandoverCode, isTrue);
+      expect(ride({'foodOrderId': 'f-1'}).requiresHandoverCode, isTrue);
+      expect(ride({'foodOrderId': 'f-1'}).asksHandoverCode, isFalse);
+      expect(ride({'foodOrderId': 'f-1', 'handoverCode': true}).asksHandoverCode, isTrue);
+    });
+
     test('copyWith yangi maydonlarni saqlaydi va tenglikda hisobga oladi', () {
       final base = Order.fromJson(_ride());
       final arrived = base.copyWith(dropoffArrivedAt: DateTime(2026, 11, 3, 15));

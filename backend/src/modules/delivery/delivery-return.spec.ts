@@ -2,6 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import { DeliveryFailureReason, OrderStatus, ServiceType } from '../../database/entities/order.entity';
 import { agreedFareBreakdown } from '../tariffs/fare-breakdown';
 import {
+  issuesHandoverCode,
   assertCanMarkDropoffArrived,
   assertCanMarkFailed,
   dropoffWaitingMinutes,
@@ -86,5 +87,22 @@ describe('delivery-return', () => {
     expect(isReturningRide({ status: OrderStatus.IN_PROGRESS, deliveryFailedAt: T0 })).toBe(true);
     expect(isReturningRide({ status: OrderStatus.IN_PROGRESS, deliveryFailedAt: null })).toBe(false);
     expect(isReturningRide({ status: OrderStatus.COMPLETED, deliveryFailedAt: T0 })).toBe(false);
+  });
+});
+
+describe('issuesHandoverCode', () => {
+  it('posilkada doim kod', () => {
+    expect(issuesHandoverCode(ServiceType.PARCEL, undefined)).toBe(true);
+  });
+
+  it.each([[undefined], ['off'], ['1']])('ovqat/market: darvoza %s — kod yaratilmaydi', (gate) => {
+    expect(issuesHandoverCode(ServiceType.FOOD, gate)).toBe(false);
+    expect(issuesHandoverCode(ServiceType.MARKET, gate)).toBe(false);
+  });
+
+  it('darvoza on — ovqat/market ham kodli, taksi hech qachon', () => {
+    expect(issuesHandoverCode(ServiceType.FOOD, 'on')).toBe(true);
+    expect(issuesHandoverCode(ServiceType.MARKET, 'on')).toBe(true);
+    expect(issuesHandoverCode(ServiceType.TAXI, 'on')).toBe(false);
   });
 });

@@ -35,6 +35,9 @@ export function callWindowOpen(status: OrderStatus): boolean {
 /** Ilova "Bekor qilish narxi" ni tasdiqlashdan oldin ko'rsatadi (INCIDENT-POLICY §5). */
 export const CANCEL_FEE_FEATURE = 'cancel-fee';
 
+/** Posilka ekrani qiymat va taqiqlangan narsalar tasdig'ini yuboradi (§2). */
+export const PARCEL_DECLARATION_FEATURE = 'parcel-declaration';
+
 export function clientHasFeature(header: string | string[] | undefined, feature: string): boolean {
   const raw = Array.isArray(header) ? header.join(',') : (header ?? '');
   return raw

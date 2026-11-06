@@ -13,7 +13,12 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { OrderContactMaskingInterceptor } from '../safety/contact-masking.interceptor';
-import { CANCEL_FEE_FEATURE, CLIENT_FEATURES_HEADER, clientHasFeature } from '../safety/contact-policy';
+import {
+  CANCEL_FEE_FEATURE,
+  CLIENT_FEATURES_HEADER,
+  PARCEL_DECLARATION_FEATURE,
+  clientHasFeature,
+} from '../safety/contact-policy';
 import { InterruptedTrip, OrdersInterruptionService } from './orders-interruption.service';
 import { InterruptTripDto } from './dto/interrupt-trip.dto';
 import type { CancelFeeQuote } from './taxi-cancel-policy';
@@ -107,8 +112,12 @@ export class OrdersController {
     @Body() dto: CreateOrderDto,
     @Headers('x-device-id') deviceId?: string,
     @Headers('idempotency-key') idempotencyKey?: string,
+    @Headers(CLIENT_FEATURES_HEADER) features?: string,
   ): Promise<Order> {
-    const create = () => this.ordersService.create(user.id, dto);
+    const create = () =>
+      this.ordersService.create(user.id, dto, {
+        requireParcelDeclaration: clientHasFeature(features, PARCEL_DECLARATION_FEATURE),
+      });
     const { order, replayed } = this.idempotency
       ? await this.idempotency.run(user.id, idempotencyKey, create, (id) =>
           this.ordersService.findByIdForUser(id, user),

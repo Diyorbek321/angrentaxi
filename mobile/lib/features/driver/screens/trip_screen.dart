@@ -473,7 +473,7 @@ class _TripScreenState extends State<TripScreen> {
     // sonini, 5 tadan keyin esa "dispetcherga murojaat" ni aytadi — matn
     // pastdagi xabarda.
     String? deliveryPin;
-    if (order.requiresHandoverCode) {
+    if (order.asksHandoverCode) {
       deliveryPin = order.isParcel
           ? await showParcelPinDialog(context)
           : await showParcelPinDialog(
