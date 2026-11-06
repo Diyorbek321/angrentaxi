@@ -52,7 +52,16 @@ else
 fi
 
 prev="$(git rev-parse --short HEAD)"
+self_before="$(sha256sum "$0" | cut -d' ' -f1)"
 git checkout -q --detach "$sha"
+# git replaces this file on checkout, but bash keeps reading the OLD copy — a
+# release that changes deploy.sh would otherwise run with the previous logic
+# (b8597c1: new web-site service was never built). Re-run the new copy once.
+if [[ "$rollback" == "0" && -z "${DEPLOY_REEXEC:-}" ]] \
+  && [[ "$(sha256sum "$0" | cut -d' ' -f1)" != "$self_before" ]]; then
+  log "deploy.sh changed in $sha — re-running the new version"
+  DEPLOY_REEXEC=1 exec "$0" "$sha"
+fi
 export IMAGE_TAG="$sha"
 log "deploying commit $sha (was $prev)"
 
