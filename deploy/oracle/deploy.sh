@@ -122,8 +122,21 @@ done
 
 log "caddy"
 dc up -d --no-deps caddy
-# Pick up Caddyfile edits without dropping connections.
-dc exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile || true
+# The Caddyfile is a single-file bind mount: git checkout replaces the file
+# (new inode) and the container keeps seeing the OLD one, so `caddy reload`
+# alone silently reloads stale config (ce6505c: bare-domain block never
+# loaded, no certificate). If the mounted copy differs, recreate the
+# container (a few seconds of downtime); otherwise reload without dropping
+# connections.
+if [[ "$(dc exec -T caddy cat /etc/caddy/Caddyfile 2>/dev/null | sha256sum)" \
+  != "$(sha256sum < "$ORACLE_DIR/Caddyfile")" ]]; then
+  log "Caddyfile changed — recreating caddy"
+  dc up -d --no-deps --force-recreate caddy
+  wait_healthy caddy 60 || die "caddy unhealthy after recreate"
+else
+  dc exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile \
+    || warn "caddy reload failed"
+fi
 wait_healthy osrm 300 || warn "osrm not healthy yet — backend falls back to straight-line"
 
 # --- record + smoke ---------------------------------------------------------
