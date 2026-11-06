@@ -43,7 +43,7 @@ function urls(cfg, t) {
 }
 
 function logo(brand) {
-  return `<span class="logo"><img src="/static/logo.svg" width="32" height="32" alt=""><span class="logo-word">${esc(brand)}</span></span>`;
+  return `<span class="logo"><img src="/static/logo.svg" width="36" height="36" alt=""><span class="logo-word">${esc(brand)}</span></span>`;
 }
 
 function header(t, other, cfg, assets) {
@@ -60,6 +60,7 @@ function header(t, other, cfg, assets) {
     .join('');
   return `
 <header class="site-header" data-header>
+  <span class="scroll-progress" data-progress aria-hidden="true"></span>
   <div class="container header-row">
     <a class="brand-link" href="${t.path}" aria-label="${esc(cfg.brand)} — ${esc(n.home)}">${logo(cfg.brand)}</a>
     <nav class="main-nav" id="main-nav" aria-label="${esc(n.menu)}" data-nav>
@@ -99,7 +100,11 @@ function phoneMock(t) {
         <path class="route-live" d="M60 330 V216 H112 V100 H202 V60 H250"/>
         <circle class="pin-ping" cx="250" cy="60" r="16"/>
         <circle class="pin-to" cx="250" cy="60" r="8"/>
-        <circle class="pin-car" cx="112" cy="160" r="9"/>
+        <g class="car-move">
+          <circle r="11" class="car-halo"/>
+          <circle r="7.5" class="car-dot"/>
+          <animateMotion dur="7s" begin="2.6s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear" path="M60 330 V216 H112 V100 H202 V60 H250"/>
+        </g>
       </svg>
       <div class="sheet">
         <span class="sheet-grip"></span>
@@ -119,6 +124,20 @@ function phoneMock(t) {
 </div>`;
 }
 
+/** Sarlavha so'zlari — har biri alohida chiqishi uchun (faqat bezak). */
+function words(str) {
+  // Yolg'iz tire oldingi so'zga yopishadi — qator boshiga tushmasin.
+  const parts = str.split(' ').reduce((acc, w) => (/^[—–-]$/.test(w) && acc.length ? [...acc.slice(0, -1), `${acc.at(-1)}\u00a0${w}`] : [...acc, w]), []);
+  return parts.map((w) => `<span class="w">${esc(w)}</span>`).join(' ');
+}
+
+/** Xizmatlar lentasi: ikki marta takrorlanadi — CSS uni uzluksiz suradi. */
+function marquee(t) {
+  const items = [...t.services.items.map((s) => [s.icon, s.title]), ...t.safety.items.slice(0, 3).map((s) => [s.icon, s.title])];
+  const row = items.map(([ic, title]) => `<li>${icon(ic)}<span>${esc(title)}</span></li>`).join('');
+  return `<div class="marquee" aria-hidden="true"><ul class="marquee-track">${row}${row}</ul></div>`;
+}
+
 function hero(t) {
   const h = t.hero;
   const chips = h.chips.map((c) => `<li>${icon('check')}${esc(c)}</li>`).join('');
@@ -127,7 +146,7 @@ function hero(t) {
   <div class="container hero-grid">
     <div class="hero-copy">
       <p class="eyebrow"><span class="eyebrow-dot"></span>${esc(h.eyebrow)}</p>
-      <h1 id="hero-title">${esc(h.titleA)} <span class="accent">${esc(h.titleB)}</span></h1>
+      <h1 id="hero-title">${words(h.titleA)} <span class="mark"><span class="w">${esc(h.titleB)}</span></span></h1>
       <p class="lead">${esc(h.lead)}</p>
       <div class="cta-row">
         <a class="btn btn-primary btn-lg" href="#download">${esc(h.ctaPrimary)}${icon('arrow')}</a>
@@ -137,7 +156,8 @@ function hero(t) {
     </div>
     ${phoneMock(t)}
   </div>
-</section>`;
+</section>
+${marquee(t)}`;
 }
 
 function sectionHead(kicker, title, lead, id) {
@@ -180,7 +200,7 @@ function steps(t) {
 <section class="section section-alt" id="how" aria-labelledby="how-title">
   <div class="container">
     ${sectionHead(s.kicker, s.title, null, 'how')}
-    <ol class="steps">${items}</ol>
+    <ol class="steps" data-reveal>${items}</ol>
   </div>
 </section>`;
 }
@@ -212,6 +232,7 @@ function drivers(t, cfg) {
   const join = d.join.map((step) => `<li>${esc(step)}</li>`).join('');
   const href = cfg.apps.driverPlayUrl ?? '#download';
   return `
+<div class="checker" aria-hidden="true"></div>
 <section class="section section-dark" id="drivers" aria-labelledby="drivers-title">
   <div class="container drivers-grid">
     <div>
@@ -225,7 +246,8 @@ function drivers(t, cfg) {
       <p class="join-note">${esc(d.note)}</p>
     </aside>
   </div>
-</section>`;
+</section>
+<div class="checker" aria-hidden="true"></div>`;
 }
 
 function partners(t) {
@@ -337,6 +359,7 @@ function footer(t, cfg, u) {
     .map((id) => `<li><a href="${t.path}#${id}">${esc(n[id])}</a></li>`)
     .join('');
   return `
+<div class="checker" aria-hidden="true"></div>
 <footer class="site-footer">
   <div class="container footer-grid">
     <div class="footer-brand">
@@ -385,7 +408,7 @@ function head(t, other, cfg, assets, u) {
 <link rel="alternate" hreflang="${t.htmlLang}" href="${esc(u.canonical)}">
 <link rel="alternate" hreflang="${other.htmlLang}" href="${esc(`${u.site}${other.path}`)}">
 <link rel="alternate" hreflang="x-default" href="${esc(`${u.site}/`)}">
-<meta name="theme-color" content="#0C7A4D">
+<meta name="theme-color" content="#F5C518">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" href="/static/logo.svg" type="image/svg+xml">
 <link rel="preload" href="/static/fonts/pjs-extrabold.woff2" as="font" type="font/woff2" crossorigin>

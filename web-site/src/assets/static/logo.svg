@@ -1,6 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
   <title>Angren Taxi</title>
-  <rect width="64" height="64" rx="16" fill="#0C7A4D"/>
-  <path d="M32 12c-8.3 0-15 6.5-15 14.6C17 37.4 32 52 32 52s15-14.6 15-25.4C47 18.5 40.3 12 32 12z" fill="#fff"/>
-  <circle cx="32" cy="26.5" r="6.5" fill="#1FCA8E"/>
+  <!-- mobile/android/.../ic_launcher.png dan qayta chizilgan: #F5C518 fon, #1A1A1A "AT". -->
+  <rect width="192" height="192" rx="34" fill="#F5C518"/>
+  <path fill="#1A1A1A" fill-rule="evenodd" d="M31 130 56 62h24l24 68H86l-5-14H54l-5 14H31zm36-53-10 28h20z"/>
+  <path fill="#1A1A1A" d="M98 62h64v12h-23v56h-17V74H98z"/>
 </svg>

@@ -111,6 +111,11 @@ describe('render', () => {
     }
   });
 
+  it("sarlavhadagi tire oldingi so'zga yopishadi", () => {
+    const html = renderPage(uz, ru, baseCfg, assets);
+    assert.match(html, /<span class="w">safar\u00a0—<\/span>/);
+  });
+
   it('hreflang juftligi va canonical', () => {
     const html = renderPage(ru, uz, baseCfg, assets);
     assert.match(html, /<html lang="ru">/);

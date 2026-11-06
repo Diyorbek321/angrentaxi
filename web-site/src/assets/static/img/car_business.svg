@@ -1,4 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 52" width="120" height="52">
+  <!-- Sayt nusxasi: ilova ranglari logo brendiga (sariq/qora) almashtirilgan. -->
   <title>Biznes tarifi — past va uzun sedan</title>
   <!-- Umumiy shartnoma (car_econom.svg ga qarang): viewBox 0 0 120 52,
        g'ildirak markazi y=37, radius 8.5 — to'rt mashina bitta yer
@@ -11,19 +12,19 @@
            L95 20 L111 22.5 C115 23 117 26 117 30 L117 34 Q117 37 114 37
            L104 37 A10 10 0 0 0 84 37 L38 37 A10 10 0 0 0 18 37
            L6 37 Q3 37 3 34 Z"
-        fill="#084F32"/>
+        fill="#1A1A1A"/>
 
   <!-- Oynalar old→orqa yorug'likdan to'qqa boradi: yassi siluetda
        chuqurlikni faqat shu farq beradi, soya ishlatilmaydi. -->
-  <path d="M39 18.5 L48 12 L58 12 L58 18.5 Z" fill="#CFEDE0"/>
-  <path d="M61 12 L72 12 L72 18.5 L61 18.5 Z" fill="#9FE3C6"/>
-  <path d="M75 12 L81 12 L88 18.5 L75 18.5 Z" fill="#6FE4B8"/>
+  <path d="M39 18.5 L48 12 L58 12 L58 18.5 Z" fill="#E3EEF2"/>
+  <path d="M61 12 L72 12 L72 18.5 L61 18.5 Z" fill="#B7D3DF"/>
+  <path d="M75 12 L81 12 L88 18.5 L75 18.5 Z" fill="#CFE3EC"/>
 
-  <rect x="4" y="25" width="6.5" height="4" rx="1.6" fill="#6FE4B8"/>
-  <rect x="110" y="26.5" width="5.5" height="3.5" rx="1.5" fill="#6FE4B8"/>
+  <rect x="4" y="25" width="6.5" height="4" rx="1.6" fill="#CFE3EC"/>
+  <rect x="110" y="26.5" width="5.5" height="3.5" rx="1.5" fill="#CFE3EC"/>
 
-  <circle cx="28" cy="37" r="8.5" fill="#0F1B22"/>
-  <circle cx="28" cy="37" r="3.4" fill="#E2EBEC"/>
-  <circle cx="94" cy="37" r="8.5" fill="#0F1B22"/>
-  <circle cx="94" cy="37" r="3.4" fill="#E2EBEC"/>
+  <circle cx="28" cy="37" r="8.5" fill="#1A1A1A"/>
+  <circle cx="28" cy="37" r="3.4" fill="#ECE8DC"/>
+  <circle cx="94" cy="37" r="8.5" fill="#1A1A1A"/>
+  <circle cx="94" cy="37" r="3.4" fill="#ECE8DC"/>
 </svg>
