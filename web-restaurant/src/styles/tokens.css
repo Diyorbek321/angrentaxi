@@ -1,0 +1,255 @@
+/* AUTO-SYNCED from web-manager — edit there, then run scripts/sync-panel-ui.sh */
+
+/* ==========================================================================
+   Angren Mint Design System — panel tokenlari (4 ta web panel uchun yagona).
+   Ranglar: docs/DESIGN-TOKENS.md (muzlatilgan).
+   Shakl/soya/zichlik: docs/design/PANEL-UI-KIT.md §2 — "Web panel zichlik
+   qatlami" (Linear/Stripe). Mobil ilova o'z radiuslarini saqlaydi.
+
+   Bu fayl `globals.css` boshida `@import` qilinadi, ya'ni Tailwind
+   chiqishidan OLDIN keladi — shuning uchun bu yerda `@layer` YO'Q (har
+   import alohida PostCSS'dan o'tadi) va har qanday Tailwind utility shu
+   yerdagi oddiy klasslarni bosib o'tadi.
+
+   Temaga bog'liq ranglar bo'sh joy bilan ajratilgan RGB kanallar — Tailwind
+   `/opacity` modifikatori ishlashi uchun (`bg-surface/60`).
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* --- Neytrallar --- */
+  --bg: 244 247 248; /* #F4F7F8 */
+  --surface: 255 255 255; /* #FFFFFF */
+  --surface-2: 237 243 244; /* #EDF3F4 */
+  --surface-3: 226 235 236; /* #E2EBEC */
+  --line: 228 233 237; /* #E4E9ED */
+  --line-strong: 198 212 215; /* #C6D4D7 */
+  --divider: 241 244 246; /* #F1F4F6 */
+  --ink: 15 27 34; /* #0F1B22 — 17.50:1 on surface */
+  --ink-muted: 90 108 117; /* #5A6C75 — 5.47:1 on surface */
+  --ink-subtle: 120 136 143; /* #78888F — 3.67:1, large/UI only */
+
+  /* --- Brend (temaga bog'liq qismi; qolgani tailwind.preset.js da) --- */
+  --mint-tint: 230 250 242; /* #E6FAF2 */
+  --primary-text: 12 122 77; /* #0C7A4D — 5.38:1 */
+  --focus-ring: 12 122 77; /* #0C7A4D */
+
+  /* --- Semantik tintlar --- */
+  --danger-tint: 254 242 242; /* #FEF2F2 */
+  --warning-tint: 255 251 235; /* #FFFBEB */
+  --info-tint: 239 246 255; /* #EFF6FF */
+  --accent-tint: 245 243 255; /* #F5F3FF */
+
+  /* --- Modal/drawer ortidagi parda: #04140F, Tailwind `bg-scrim/55` --- */
+  --scrim: 4 20 15;
+
+  /* --- Elevation (panel zichlik qatlami) ---
+     Karta "suzib yurmaydi": chegarani `border-line` beradi, soya faqat 1px
+     yerga tegish. `--shadow-hairline` = chegarasiz yuza uchun 1px halqa. */
+  --shadow-card: 0 1px 2px rgba(15, 27, 34, 0.04);
+  --shadow-hairline: 0 0 0 1px rgb(var(--line)), 0 1px 2px rgba(15, 27, 34, 0.04);
+  --shadow-pop: 0 8px 32px -8px rgba(15, 27, 34, 0.22), 0 2px 8px rgba(15, 27, 34, 0.08);
+  --shadow-cta: none; /* tugmada glow yo'q */
+
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: rgba(15, 27, 34, 0.16);
+  --skeleton-sheen: rgba(255, 255, 255, 0.65);
+}
+
+.dark {
+  color-scheme: dark;
+
+  --bg: 11 18 16; /* #0B1210 */
+  --surface: 17 26 23; /* #111A17 */
+  --surface-2: 24 36 31; /* #18241F */
+  --surface-3: 32 47 41; /* #202F29 */
+  --line: 37 53 47; /* #25352F */
+  --line-strong: 55 76 68; /* #374C44 */
+  --divider: 26 38 33; /* #1A2621 */
+  --ink: 232 241 237; /* #E8F1ED */
+  --ink-muted: 150 170 162; /* #96AAA2 */
+  --ink-subtle: 126 148 139; /* #7E948B */
+
+  --mint-tint: 14 42 32; /* #0E2A20 */
+  --primary-text: 111 228 184; /* #6FE4B8 */
+  --focus-ring: 111 228 184; /* #6FE4B8 */
+
+  --danger-tint: 42 20 22; /* #2A1416 */
+  --warning-tint: 42 31 8; /* #2A1F08 */
+  --info-tint: 14 30 51; /* #0E1E33 */
+  --accent-tint: 30 22 51; /* #1E1633 */
+
+  --scrim: 0 0 0;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-hairline: 0 0 0 1px rgb(var(--line)), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-pop: 0 12px 40px -10px rgba(0, 0, 0, 0.75), 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-cta: none;
+
+  --scrollbar-thumb: rgba(255, 255, 255, 0.12);
+  --skeleton-sheen: rgba(255, 255, 255, 0.06);
+}
+
+/* Temadan qat'i nazar bir xil tokenlar. */
+:root {
+  /* Panel radius shkalasi (mobil: 8/12/16/22/28 — u yerda o'zgarmaydi). */
+  --radius-xs: 0.375rem; /* 6px  — badge, checkbox, kbd */
+  --radius-sm: 0.5rem; /* 8px  — tugma, input, select, chip */
+  --radius-md: 0.625rem; /* 10px — karta, jadval konteyneri */
+  --radius-lg: 0.75rem; /* 12px — modal, katta panel */
+  --radius-xl: 0.875rem; /* 14px — drawer */
+
+  /* Shell o'lchamlari */
+  --sidebar-width: 240px;
+  --sidebar-rail: 56px;
+  --topbar-height: 56px;
+
+  /* Animatsiya */
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-slow: 300ms;
+  --duration-slower: 500ms;
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-emphasized: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+}
+
+/* ---------------------------------------------------------------- base -- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100vh;
+  background-color: rgb(var(--bg));
+  color: rgb(var(--ink));
+  font-size: 0.875rem;
+  font-feature-settings: 'cv11', 'ss01';
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::selection {
+  background: rgba(31, 202, 142, 0.28);
+}
+
+/* Klaviatura fokusi — temaga mos halqa (DESIGN-TOKENS §2.3). */
+:focus-visible {
+  outline: 2px solid rgb(var(--focus-ring));
+  outline-offset: 2px;
+}
+
+/* ----------------------------------------------------------- utilities -- */
+
+/* Pul, son, foiz, vaqt: sans + tabular raqamlar. Monospace FAQAT ID/plate/SKU. */
+.num {
+  font-family: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+.surface-card {
+  background-color: rgb(var(--surface));
+  border: 1px solid rgb(var(--line));
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.glass-card {
+  background-color: rgb(var(--surface) / 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgb(var(--line));
+  border-radius: var(--radius-md);
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: rgb(var(--surface-2));
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(90deg, transparent 0%, var(--skeleton-sheen) 55%, transparent 100%);
+  animation: shimmer 1.6s infinite;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.line-clamp-1,
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-1 {
+  -webkit-line-clamp: 1;
+}
+
+.line-clamp-2 {
+  -webkit-line-clamp: 2;
+}
+
+/* Muzlatilgan jadval sarlavhasi — qatorlar ostidan o'ta boshlaganda hairline. */
+.sticky-th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 1px 0 rgb(var(--line));
+}
+
+/* Reduced motion: harakat o'rniga darhol holat o'zgarishi — hisob va rang
+   saqlanadi, faqat pulsatsiya/siljish to'xtaydi. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+}

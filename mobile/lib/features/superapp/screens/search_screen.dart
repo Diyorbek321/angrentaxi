@@ -1,23 +1,38 @@
+import 'dart:async';
+
+import 'package:angren_taxi/core/di/service_locator.dart';
+import 'package:angren_taxi/core/network/api_client.dart';
+import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/features/superapp/screens/product_detail_screen.dart';
 import 'package:angren_taxi/features/superapp/screens/restaurant_detail_screen.dart';
 import 'package:angren_taxi/features/superapp/state/food_provider.dart';
 import 'package:angren_taxi/features/superapp/state/market_provider.dart';
+import 'package:angren_taxi/features/superapp/state/product_feed_controller.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
 import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
 import 'package:angren_taxi/shared/widgets/app_status_badge.dart';
+import 'package:angren_taxi/shared/widgets/catalog_image.dart';
 import 'package:angren_taxi/shared/widgets/error_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-/// Searches the real `/food` restaurants and `/market` products already
-/// exposed by [FoodProvider]/[MarketProvider]. There is no backend search
-/// endpoint yet, so this filters the loaded catalogue client-side — every
-/// result still carries a real backend id, so tapping through to the detail
-/// screen and ordering works end to end.
+/// Umumiy qidiruv: restoranlar (yuklangan ro'yxatdan) va market mahsulotlari.
+///
+/// Mahsulotlar 2+ belgida SERVERDAN, BARCHA ochiq do'konlar bo'yicha
+/// (`GET /market/products/search`) — ilgari faqat ochiq turgan bitta do'kon
+/// ichidan qidirilardi. B reja: server qidiruvi xato bersa, yuklangan
+/// do'kon katalogi ichidan qidiriladi (avvalgi xulq).
+const Duration _kProductSearchDebounce = Duration(milliseconds: 350);
+const int _kProductSearchMinLength = 2;
+
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key});
+  const SearchScreen({super.key, this.apiClient});
+
+  /// Testlar uchun; berilmasa `sl` dagi (u ham yo'q bo'lsa — faqat lokal).
+  final ApiClient? apiClient;
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -26,6 +41,35 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _controller = TextEditingController();
   String _query = '';
+  Timer? _debounce;
+  ProductFeedController? _productSearch;
+
+  ApiClient? get _api =>
+      widget.apiClient ?? (sl.isRegistered<ApiClient>() ? sl<ApiClient>() : null);
+
+  void _onQueryChanged(String value) {
+    setState(() => _query = value);
+    _debounce?.cancel();
+    _debounce = Timer(_kProductSearchDebounce, () => _searchProducts(value.trim()));
+  }
+
+  void _searchProducts(String q) {
+    if (!mounted) return;
+    final api = _api;
+    final previous = _productSearch;
+    final next = (api != null && q.length >= _kProductSearchMinLength)
+        ? ProductFeedController(api, endpoint: ApiEndpoints.marketProductSearch, extraParams: {'q': q})
+        : null;
+    previous?.removeListener(_onRemoteChanged);
+    next?.addListener(_onRemoteChanged);
+    setState(() => _productSearch = next);
+    previous?.dispose();
+    next?.loadMore();
+  }
+
+  void _onRemoteChanged() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void initState() {
@@ -41,6 +85,10 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _productSearch
+      ?..removeListener(_onRemoteChanged)
+      ..dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -54,12 +102,17 @@ class _SearchScreenState extends State<SearchScreen> {
     final restaurants = q.isEmpty
         ? food.restaurants
         : food.restaurants.where((r) => r.name.toLowerCase().contains(q)).toList();
-    final products = q.isEmpty
+    final remote = _productSearch;
+    final localProducts = q.isEmpty
         ? market.products
         : market.products.where((p) => p.name.toLowerCase().contains(q)).toList();
+    // Server natijasi bor bo'lsa — u (barcha do'konlar); xato bo'lsa yoki
+    // hali qidirilmagan bo'lsa — yuklangan do'kon ichidan.
+    final products = (remote != null && !remote.hasError) ? remote.items : localProducts;
 
     final loading = food.state == FoodProviderState.loading ||
-        market.state == MarketProviderState.loading;
+        market.state == MarketProviderState.loading ||
+        (remote?.isLoading ?? false);
     final empty = restaurants.isEmpty && products.isEmpty;
     final failed = food.state == FoodProviderState.error &&
         market.state == MarketProviderState.error;
@@ -77,7 +130,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
             child: Row(
               children: [
-                AgIconButton(icon: Icons.arrow_back_rounded, onTap: () => Navigator.of(context).pop(), semanticsLabel: 'Orqaga'),
+                AgIconButton(icon: Icons.arrow_back_rounded, onTap: () => Navigator.of(context).pop(), semanticsLabel: context.l10n.saBack),
                 const SizedBox(width: kSpace3),
                 Expanded(
                   child: Container(
@@ -97,12 +150,12 @@ class _SearchScreenState extends State<SearchScreen> {
                           child: TextField(
                             controller: _controller,
                             autofocus: true,
-                            onChanged: (value) => setState(() => _query = value),
-                            decoration: const InputDecoration(
+                            onChanged: _onQueryChanged,
+                            decoration: InputDecoration(
                               isCollapsed: true,
                               border: InputBorder.none,
-                              hintText: 'taom, doʻkon, mahsulot…',
-                              hintStyle: TextStyle(
+                              hintText: context.l10n.saSearchHint,
+                              hintStyle: const TextStyle(
                                   color: agSubtle,
                                   fontWeight: FontWeight.w600,
                                   fontSize: kFontBody),
@@ -114,12 +167,12 @@ class _SearchScreenState extends State<SearchScreen> {
                         if (_query.isNotEmpty)
                           Semantics(
                             button: true,
-                            label: 'Qidiruvni tozalash',
+                            label: context.l10n.saSearchClear,
                             excludeSemantics: true,
                             child: GestureDetector(
                               onTap: () {
                                 _controller.clear();
-                                setState(() => _query = '');
+                                _onQueryChanged('');
                               },
                               behavior: HitTestBehavior.opaque,
                               child: ConstrainedBox(
@@ -143,73 +196,87 @@ class _SearchScreenState extends State<SearchScreen> {
                 ? const AppSkeletonList(itemCount: 5, hasTrailing: true)
                 : (failed && empty)
                     ? AppErrorState(
-                        message: food.error ?? market.error ?? 'Xatolik yuz berdi',
+                        message: food.error ?? market.error ?? context.l10n.saErrorOccurred,
                         onRetry: () {
                           context.read<FoodProvider>().loadRestaurants();
                           context.read<MarketProvider>().loadStore();
                         },
                       )
                     : empty
-                        ? const AppEmptyState(
+                        ? AppEmptyState(
                             icon: Icons.search_off_rounded,
-                            title: 'Hech narsa topilmadi',
-                            message: 'Boshqa nom bilan qidirib ko\'ring.',
+                            title: context.l10n.saSearchEmptyTitle,
+                            message: context.l10n.saSearchEmptyMessage,
                           )
-                        : ListView(
-                            padding: const EdgeInsets.fromLTRB(
-                                kSpace4, kSpace4, kSpace4, kSpace6),
-                            children: [
+                        // Dangasa ro'yxat: qatorlar QURUVCHI sifatida yig'iladi
+                        // (arzon yopilmalar), vidjetlar esa faqat ekranga
+                        // chiqqanda quriladi — katalog o'sganda ham qidiruv
+                        // har harfda yuzlab qatorni qayta qurmaydi.
+                        : Builder(builder: (context) {
+                            final rows = <WidgetBuilder>[
                               if (restaurants.isNotEmpty) ...[
-                                _sectionLabel('RESTORANLAR'),
-                                for (final r in restaurants) ...[
-                                  _ResultRow(
-                                    color: agPrimary,
-                                    icon: Icons.restaurant_rounded,
-                                    title: r.name,
-                                    sub: r.address ?? (r.isOpen ? 'Ochiq' : 'Yopiq'),
-                                    trailing: AppStatusBadge(
-                                      label: r.isOpen ? 'Ochiq' : 'Yopiq',
-                                      tone: r.isOpen
-                                          ? AppStatusTone.success
-                                          : AppStatusTone.neutral,
-                                      dense: true,
-                                    ),
-                                    onTap: () => Navigator.of(context).push(
-                                      MaterialPageRoute<void>(
-                                        builder: (_) => RestaurantDetailScreen(restaurantId: r.id),
+                                (_) => _sectionLabel(context.l10n.saSearchSectionRestaurants),
+                                for (final r in restaurants)
+                                  (context) => Padding(
+                                        padding: const EdgeInsets.only(bottom: kSpace3),
+                                        child: _ResultRow(
+                                          color: agPrimary,
+                                          icon: Icons.restaurant_rounded,
+                                          imageUrl: r.imageUrl,
+                                          title: r.name,
+                                          sub: r.address ?? (r.isOpen ? context.l10n.saOpen : context.l10n.saClosed),
+                                          trailing: AppStatusBadge(
+                                            label: r.isOpen ? context.l10n.saOpen : context.l10n.saClosed,
+                                            tone: r.isOpen
+                                                ? AppStatusTone.success
+                                                : AppStatusTone.neutral,
+                                            dense: true,
+                                          ),
+                                          onTap: () => Navigator.of(context).push(
+                                            MaterialPageRoute<void>(
+                                              builder: (_) => RestaurantDetailScreen(restaurantId: r.id),
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: kSpace3),
-                                ],
-                                const SizedBox(height: kSpace3),
+                                (_) => const SizedBox(height: kSpace3),
                               ],
                               if (products.isNotEmpty) ...[
-                                _sectionLabel('MAHSULOTLAR'),
-                                for (final p in products) ...[
-                                  _ResultRow(
-                                    color: p.color,
-                                    icon: p.icon,
-                                    title: p.name,
-                                    sub: 'Market · ${p.unit}',
-                                    trailing: Text(
-                                      Formatters.formatSom(p.price),
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: kFontLabel,
-                                          color: agText),
-                                    ),
-                                    onTap: () => Navigator.of(context).push(
-                                      MaterialPageRoute<void>(
-                                        builder: (_) => ProductDetailScreen(marketProduct: p),
+                                (_) => _sectionLabel(context.l10n.saSearchSectionProducts),
+                                for (final p in products)
+                                  (context) => Padding(
+                                        padding: const EdgeInsets.only(bottom: kSpace3),
+                                        child: _ResultRow(
+                                          color: p.color,
+                                          icon: p.icon,
+                                          imageUrl: p.imageUrl,
+                                          title: p.name,
+                                          sub: p.storeName?.isNotEmpty ?? false
+                                              ? '${p.storeName} · ${p.unit}'
+                                              : context.l10n.saSearchMarketUnit(p.unit),
+                                          trailing: Text(
+                                            Formatters.formatSom(p.effectivePrice),
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: kFontLabel,
+                                                color: agText),
+                                          ),
+                                          onTap: () => Navigator.of(context).push(
+                                            MaterialPageRoute<void>(
+                                              builder: (_) => ProductDetailScreen(marketProduct: p),
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: kSpace3),
-                                ],
                               ],
-                            ],
-                          ),
+                            ];
+                            return ListView.builder(
+                              padding: const EdgeInsets.fromLTRB(
+                                  kSpace4, kSpace4, kSpace4, kSpace6),
+                              itemCount: rows.length,
+                              itemBuilder: (context, i) => rows[i](context),
+                            );
+                          }),
           ),
         ],
       ),
@@ -228,9 +295,18 @@ class _SearchScreenState extends State<SearchScreen> {
 }
 
 class _ResultRow extends StatelessWidget {
-  const _ResultRow({required this.color, required this.icon, required this.title, required this.sub, required this.trailing, required this.onTap});
+  const _ResultRow({
+    required this.color,
+    required this.icon,
+    this.imageUrl,
+    required this.title,
+    required this.sub,
+    required this.trailing,
+    required this.onTap,
+  });
   final Color color;
   final IconData icon;
+  final String? imageUrl;
   final String title;
   final String sub;
   final Widget trailing;
@@ -254,14 +330,19 @@ class _ResultRow extends StatelessWidget {
           child: Row(
             children: [
               ExcludeSemantics(
-                child: Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(kRadiusSm),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(kRadiusSm),
+                  child: SizedBox(
+                    width: 50,
+                    height: 50,
+                    child: CatalogImage(
+                      imageUrl: imageUrl,
+                      placeholder: Container(
+                        color: color,
+                        child: Icon(icon, size: 25, color: agOnPrimary.withValues(alpha: 0.95)),
+                      ),
+                    ),
                   ),
-                  child: Icon(icon, size: 25, color: agOnPrimary.withValues(alpha: 0.95)),
                 ),
               ),
               const SizedBox(width: kSpace3),

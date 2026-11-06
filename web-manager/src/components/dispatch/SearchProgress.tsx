@@ -3,6 +3,8 @@
 import { Radar } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useNow } from './useNow';
+import { formatClock, formatDuration } from '@/lib/format';
+import { t } from '@/locales';
 
 /**
  * Mirrors the backend's MatchingService.NO_DRIVER_TIMEOUT_MS — how long the
@@ -29,11 +31,19 @@ export function SearchProgress({
   // Null until mounted — see useNow: Date.now() during render would trip a
   // hydration mismatch.
   const now = useNow(1000);
+  const m = t().dispatch.search;
 
   const startedAt = new Date(createdAt).getTime();
   const elapsedMs = now == null ? 0 : Math.max(0, now - startedAt);
-  const elapsedSec = Math.floor(elapsedMs / 1000);
-  const windowSec = Math.round(AUTO_MATCH_WINDOW_MS / 1000);
+  // Clock format, never raw seconds ("184913s / 60s" read as noise): the
+  // live search shows "0:42 / 1:00"; once the window has passed the elapsed
+  // time is humanized ("Muddati oʻtgan · 2 kun 3 soat").
+  const timeText =
+    now == null
+      ? '—'
+      : elapsedMs >= AUTO_MATCH_WINDOW_MS
+      ? m.overdue(formatDuration(elapsedMs))
+      : `${formatClock(elapsedMs)} / ${formatClock(AUTO_MATCH_WINDOW_MS)}`;
   const ratio = Math.min(1, elapsedMs / AUTO_MATCH_WINDOW_MS);
   const expired = elapsedMs >= AUTO_MATCH_WINDOW_MS;
 
@@ -44,30 +54,44 @@ export function SearchProgress({
     Math.floor(elapsedMs / OFFER_TIMEOUT_MS) + 1
   );
 
+  // Mint, not amber, deliberately: this is the SYSTEM working (mint = the
+  // machine is driving). Amber belongs to manual override alone — if the
+  // search wore amber too, the intervention colour would stop meaning
+  // anything. Expiry hands over to danger: the algorithm has given up and
+  // the order is now an exception.
   return (
-    <div className={clsx('rounded-lg border border-override/30 bg-override/[0.07] px-3 py-2', className)}>
+    <div
+      className={clsx(
+        'rounded-ds-xs border px-3 py-2',
+        expired ? 'border-danger/40 bg-danger-tint' : 'border-mint/40 bg-mint-tint',
+        className
+      )}
+    >
       <div className="flex items-center justify-between gap-2 mb-1.5">
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-override-dark dark:text-override-light">
-          <Radar size={12} className="animate-pulse" />
-          {expired ? 'Qidiruv oynasi tugadi' : `Avtomatik qidiruv — ~${offerRound}-taklif`}
+        <span
+          className={clsx(
+            'inline-flex items-center gap-1.5 text-[11px] font-semibold',
+            expired ? 'text-danger-deep dark:text-danger-light' : 'text-primary-text'
+          )}
+        >
+          <Radar size={12} className={expired ? undefined : 'animate-pulse'} />
+          {expired ? m.windowEnded : m.autoSearch(offerRound)}
         </span>
-        <span className="font-mono text-[11px] text-muted tabular-nums">
-          {now == null ? '—' : `${elapsedSec}s / ${windowSec}s`}
-        </span>
+        <span className="num text-[11px] text-muted whitespace-nowrap">{timeText}</span>
       </div>
       <div className="h-1.5 w-full rounded-full bg-surface-3 overflow-hidden">
         <div
           className={clsx(
             'h-full rounded-full transition-[width] duration-1000 ease-linear',
-            expired ? 'bg-danger' : 'bg-override'
+            expired ? 'bg-danger' : 'bg-mint-deep'
           )}
           style={{ width: `${Math.round(ratio * 100)}%` }}
         />
       </div>
       <p className="text-[11px] text-subtle mt-1.5 leading-snug">
         {expired
-          ? 'Tizim haydovchi topa olmadi — Istisnolar boʻlimida hal qilinadi.'
-          : 'Har ~15 soniyada keyingi eng yaqin haydovchiga taklif yuboriladi.'}
+          ? m.expiredNote
+          : m.activeNote}
       </p>
     </div>
   );

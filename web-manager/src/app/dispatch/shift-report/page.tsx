@@ -1,60 +1,65 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { CheckCircle2, RefreshCw, ShieldAlert, Timer, UserCog } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { CheckCircle2, Download, RefreshCw } from 'lucide-react';
 import { getDispatchOverrides, getSosTodaySummary, DispatchOverride } from '@/lib/api';
-import { Card } from '@/components/ui/Card';
+import { Card, CardHeader } from '@/components/ui/Card';
+import { StatCard } from '@/components/ui/StatCard';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { PageBody } from '@/components/ui/PageBody';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
-import { Skeleton } from '@/components/ui/Skeleton';
-import { formatTime, shortId } from '@/lib/format';
+import { RetryBanner } from '@/components/ui/RetryBanner';
+import { Skeleton, SkeletonStats } from '@/components/ui/Skeleton';
+import { useToast } from '@/components/ui/Toast';
+import { downloadCsv } from '@/lib/csv';
+import { formatDateTime, formatNumber, formatTime, shortId } from '@/lib/format';
+import { t } from '@/locales';
 
-function SummaryCard({
-  icon,
-  label,
-  value,
-  hint,
-  tone = 'neutral',
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  hint: string;
-  tone?: 'neutral' | 'override' | 'danger';
-}) {
-  const toneClass =
-    tone === 'override'
-      ? 'text-override-dark dark:text-override-light'
-      : tone === 'danger'
-      ? 'text-danger'
-      : 'text-ink';
+// One page of overrides is what the report reads; the caveat under the KPI
+// row says so rather than implying the whole history was summed.
+const FETCH_LIMIT = 100;
 
-  return (
-    <Card className="p-4">
-      <div className="flex items-center gap-2 mb-2">
-        <span className={toneClass}>{icon}</span>
-        <span className="text-xs text-muted">{label}</span>
-      </div>
-      <p className={`font-mono text-2xl font-bold tabular-nums ${toneClass}`}>{value}</p>
-      <p className="text-xs text-subtle mt-1 leading-snug">{hint}</p>
-    </Card>
-  );
+type Period = 'today' | '7d' | '30d';
+
+function periods(): readonly { value: Period; label: string }[] {
+  const p = t().drivers.shiftReport.periods;
+  return [
+    { value: 'today', label: p.today },
+    { value: '7d', label: p.d7 },
+    { value: '30d', label: p.d30 },
+  ];
+}
+
+function periodStart(period: Period): Date {
+  const from = new Date();
+  if (period === 'today') from.setHours(0, 0, 0, 0);
+  else from.setDate(from.getDate() - (period === '7d' ? 7 : 30));
+  return from;
 }
 
 export default function ShiftReportPage() {
+  const m = t();
+  const sr = m.drivers.shiftReport;
+  const PERIODS = periods();
+  const { toast } = useToast();
+
   const [overrides, setOverrides] = useState<DispatchOverride[]>([]);
   const [sos, setSos] = useState<{ resolvedToday: number; stillOpen: number } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [period, setPeriod] = useState<Period>('today');
 
   const fetchData = async () => {
     setIsLoading(true);
     try {
       const [overridesResult, sosResult] = await Promise.all([
-        getDispatchOverrides(1, 100),
+        getDispatchOverrides(1, FETCH_LIMIT),
         getSosTodaySummary(),
       ]);
       setOverrides(overridesResult.overrides);
@@ -62,9 +67,10 @@ export default function ShiftReportPage() {
       setError(null);
     } catch (err) {
       console.error('Failed to load shift report:', err);
-      setError('Smena hisobotini yuklab boʻlmadi.');
+      setError(t().drivers.shiftReport.loadError);
     } finally {
       setIsLoading(false);
+      setHasLoadedOnce(true);
     }
   };
 
@@ -72,117 +78,191 @@ export default function ShiftReportPage() {
     fetchData();
   }, []);
 
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const overridesToday = overrides.filter((o) => new Date(o.createdAt) >= startOfToday);
+  const inPeriod = useMemo(() => {
+    const cutoff = periodStart(period).getTime();
+    return overrides
+      .filter((o) => new Date(o.createdAt).getTime() >= cutoff)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [overrides, period]);
+
+  const periodLabel = PERIODS.find((p) => p.value === period)?.label ?? '';
+
+  const handleExport = () => {
+    if (inPeriod.length === 0) return;
+    downloadCsv(
+      `smena-hisoboti-${period}`,
+      [sr.csv.time, sr.csv.order, sr.csv.operator, sr.csv.prevDriver, sr.csv.newDriver, sr.csv.reason],
+      inPeriod.map((o) => [
+        formatDateTime(o.createdAt, { withYear: true }),
+        shortId(o.orderId),
+        o.performedByUserId,
+        o.previousDriverId ?? '',
+        o.newDriverId,
+        o.reason,
+      ])
+    );
+    toast({
+      title: sr.exported(inPeriod.length),
+      description: sr.periodDesc(periodLabel),
+      variant: 'success',
+    });
+  };
+
+  const showSkeleton = isLoading && !hasLoadedOnce;
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="px-5 py-4 max-w-5xl mx-auto">
+    <PageBody className="max-w-5xl">
         <PageHeader
-          title="Smena hisoboti"
-          description="Bugun operator hal qilgan istisnolar"
-          icon={<Timer size={17} />}
+          title={sr.title}
+          description={sr.description}
           actions={
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={fetchData}
-              leftIcon={<RefreshCw size={13} />}
-            >
-              Yangilash
-            </Button>
+            <>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleExport}
+                disabled={inPeriod.length === 0}
+                leftIcon={<Download size={13} aria-hidden />}
+                title={sr.exportTitle}
+              >
+                {m.drivers.list.export}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={fetchData}
+                isLoading={isLoading && hasLoadedOnce}
+                leftIcon={<RefreshCw size={13} aria-hidden />}
+              >
+                {m.common.refresh}
+              </Button>
+            </>
           }
         />
 
-        {error ? (
-          <ErrorState message={error} onRetry={fetchData} />
+        {/* Period presets — one active at a time, today is the shift default. */}
+        <SegmentedControl
+          items={PERIODS}
+          value={period}
+          onChange={setPeriod}
+          ariaLabel={sr.periodAria}
+          className="mb-4"
+        />
+
+        {error && hasLoadedOnce && (
+          <RetryBanner message={error} onRetry={fetchData} keepsLastData className="mb-4" />
+        )}
+
+        {error && !hasLoadedOnce ? (
+          <Card padding="none">
+            <ErrorState
+              title={error}
+              message={m.drivers.bonuses.networkError}
+              onRetry={fetchData}
+              retrying={isLoading}
+            />
+          </Card>
         ) : (
           <div className="space-y-6">
-            {isLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <Skeleton key={i} className="h-[116px] rounded-xl" />
-                ))}
-              </div>
+            {showSkeleton ? (
+              <SkeletonStats count={3} />
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <SummaryCard
-                  icon={<UserCog size={16} />}
-                  label="Bugungi qoʻlda aralashuvlar"
-                  value={overridesToday.length}
-                  tone="override"
-                  hint={
-                    overridesToday.length > 5
-                      ? 'Odatdagidan koʻp — sabablarini koʻrib chiqing'
-                      : 'Har biri sababi bilan amallar tarixiga yozilgan'
-                  }
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Amber = a human stepped in: the one KPI that earns it. */}
+                <StatCard
+                  label={sr.overridesKpi(periodLabel)}
+                  value={formatNumber(inPeriod.length)}
+                  tone={inPeriod.length > 0 ? 'override' : 'neutral'}
+                  hint={sr.overridesHint}
                 />
-                <SummaryCard
-                  icon={<ShieldAlert size={16} />}
-                  label="Bugun yopilgan SOS"
-                  value={sos?.resolvedToday ?? 0}
-                  tone="danger"
-                  hint={
-                    sos && sos.stillOpen > 0
-                      ? `${sos.stillOpen} tasi hali ochiq`
-                      : 'Ochiq signal qolmadi'
-                  }
+                {/* The SOS endpoint returns today's figures only — the label
+                    says «bugun» in every period so the number is never read
+                    as the selected range. */}
+                <StatCard
+                  label={sr.sosResolved}
+                  value={formatNumber(sos?.resolvedToday ?? 0)}
+                  hint={sos && sos.stillOpen > 0 ? sr.stillOpen(sos.stillOpen) : sr.noOpen}
                 />
-                <SummaryCard
-                  icon={<CheckCircle2 size={16} />}
-                  label="Bugungi jami istisnolar"
-                  value={overridesToday.length + (sos?.resolvedToday ?? 0)}
-                  hint="Aralashuvlar + yopilgan SOS signallari"
+                <StatCard
+                  label={sr.sosOpen}
+                  value={formatNumber(sos?.stillOpen ?? 0)}
+                  tone={sos && sos.stillOpen > 0 ? 'danger' : 'neutral'}
+                  hint={sos && sos.stillOpen > 0 ? sr.reviewExceptions : sr.allClosed}
                 />
               </div>
             )}
 
-            <Card padding="none" className="overflow-hidden">
-              <div className="px-4 py-3 border-b border-line">
-                <h2 className="text-sm font-semibold text-ink">Bugungi aralashuvlar</h2>
-              </div>
+            <p className="text-xs text-subtle -mt-3">
+              {sr.caveat(FETCH_LIMIT)}
+            </p>
 
-              {isLoading ? (
-                <div className="p-4 space-y-2">
+            <Card padding="none" className="overflow-hidden">
+              <CardHeader
+                title={sr.listTitle(periodLabel)}
+                divider
+                actions={
+                  !showSkeleton && inPeriod.length > 0 ? (
+                    <Badge variant="neutral" size="sm">
+                      {inPeriod.length}
+                    </Badge>
+                  ) : undefined
+                }
+              />
+
+              {showSkeleton ? (
+                <div className="p-4 space-y-2" aria-busy="true">
                   {Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className="h-12" />
+                    <Skeleton key={i} className="h-14" />
                   ))}
                 </div>
-              ) : overridesToday.length === 0 ? (
+              ) : inPeriod.length === 0 ? (
                 <EmptyState
                   compact
-                  tone="positive"
-                  icon={<CheckCircle2 size={20} />}
-                  title="Bugun qoʻlda aralashuv boʻlmadi"
-                  description="Tizim barcha buyurtmalarni oʻzi taqsimladi."
+                  variant="cleared"
+                  icon={<CheckCircle2 aria-hidden />}
+                  title={
+                    period === 'today'
+                      ? sr.emptyToday
+                      : sr.emptyPeriod(periodLabel)
+                  }
+                  description={sr.emptyDesc}
                 />
               ) : (
-                <div className="divide-y divide-line">
-                  {overridesToday.map((o) => (
-                    <div key={o.id} className="px-4 py-3 flex items-start justify-between gap-3">
+                <ul className="divide-y divide-line">
+                  {inPeriod.map((o) => (
+                    // Amber left edge = a human intervened, the same mark the
+                    // audit log uses. It appears nowhere else on this page.
+                    <li
+                      key={o.id}
+                      className="px-4 py-3 flex items-start justify-between gap-3 border-l-2 border-l-override"
+                    >
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs text-muted">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Link
+                            href={`/orders/${o.orderId}`}
+                            className="font-mono text-xs text-primary-text hover:underline"
+                          >
                             {shortId(o.orderId)}
-                          </span>
+                          </Link>
                           <Badge variant="override" size="sm">
-                            Aralashuv
+                            {sr.override}
                           </Badge>
                         </div>
-                        <p className="text-sm text-ink mt-1 break-words">{o.reason}</p>
+                        <p className="text-[13px] text-ink mt-1 break-words">{o.reason}</p>
                       </div>
-                      <span className="font-mono text-xs text-subtle shrink-0">
-                        {formatTime(o.createdAt)}
+                      <span
+                        className="num text-xs text-subtle shrink-0"
+                        title={formatDateTime(o.createdAt)}
+                      >
+                        {period === 'today' ? formatTime(o.createdAt) : formatDateTime(o.createdAt)}
                       </span>
-                    </div>
+                    </li>
                   ))}
-                </div>
+                </ul>
               )}
             </Card>
           </div>
         )}
-      </div>
-    </div>
+    </PageBody>
   );
 }

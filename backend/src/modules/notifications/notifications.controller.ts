@@ -79,7 +79,11 @@ export class NotificationsController {
   @RequirePermissions(Permission.PROMO_MANAGE)
   @ApiOperation({ summary: 'Send a push notification to an audience (admin, or manager with PROMO_MANAGE)' })
   async broadcast(@CurrentUser() user: User, @Body() dto: BroadcastDto) {
-    return this.notificationsService.broadcast(dto.title, dto.body, dto.audience, user.id);
+    return this.notificationsService.broadcast(
+      { title: dto.title, body: dto.body, titleRu: dto.titleRu, bodyRu: dto.bodyRu },
+      dto.audience,
+      user.id,
+    );
   }
 
   @Get('broadcast/history')

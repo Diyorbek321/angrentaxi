@@ -13,6 +13,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+// Without API_BASE_URL, AppConfig falls back to the PRODUCTION backend — a
+// plain `flutter test` would log in as a real passenger and place real orders
+// there (and fail outright whenever that server is down). Run only when a
+// backend is named explicitly.
+const _backendGiven = bool.hasEnvironment('API_BASE_URL');
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   HttpOverrides.global = null;
@@ -58,9 +64,13 @@ void main() {
 
     expect(order, isNotNull, reason: food.error ?? '');
     expect(order!.itemsCount, 1);
-    expect(order.totalPrice, dish.price);
+    // The server adds the platform delivery fee to every food order.
+    final settings = await apiClient.get('/settings/public');
+    final deliveryFee =
+        (((settings.data as Map)['data'] as Map)['deliveryFee'] as num).toDouble();
+    expect(order.totalPrice, dish.price + deliveryFee);
 
     await food.loadOrderHistory();
     expect(food.orderHistory.any((o) => o.id == order.id), isTrue);
-  });
+  }, skip: _backendGiven ? false : 'needs --dart-define=API_BASE_URL=<local backend>');
 }

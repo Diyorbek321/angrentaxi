@@ -5,6 +5,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
@@ -12,6 +13,7 @@ import { Rating } from '../../database/entities/rating.entity';
 import { Order, OrderStatus } from '../../database/entities/order.entity';
 import { SubmitRatingDto } from './dto/submit-rating.dto';
 import { UserRole } from '../../database/entities/user.entity';
+import { IncidentSignalsService } from '../incidents/incident-signals.service';
 
 export interface DriverRatingStats {
   avg: number;
@@ -29,6 +31,8 @@ export class RatingsService {
     @InjectRepository(Order)
     private readonly orderRepository: Repository<Order>,
     private readonly dataSource: DataSource,
+    // Reyting signallari (INCIDENT-POLICY §3). Ixtiyoriy — qo'lda yig'iladigan spec'lar.
+    @Optional() private readonly incidentSignals?: IncidentSignalsService,
   ) {}
 
   async submitRating(
@@ -85,10 +89,30 @@ export class RatingsService {
 
     const saved = await this.ratingRepository.save(rating);
 
-    // Update driver's average rating when the passenger rates a driver
-    // (or when a driver is the target)
-    const driverUserId = fromRole === 'passenger' ? toUserId : fromUserId;
-    await this.updateDriverRating(driverUserId);
+    // ⚠️ Ilgari haydovchi baho berganda HAM haydovchining o'z o'rtachasi qayta
+    // hisoblanardi (bekorga), yo'lovchiga berilgan baho esa hech qayerga
+    // yozilmasdi. Endi: yo'lovchi bahosi → `drivers.rating`, haydovchi
+    // bahosi → `users.passenger_rating` (menejer ko'radi).
+    if (fromRole === 'passenger') {
+      await this.updateDriverRating(toUserId);
+    } else {
+      await this.updatePassengerRating(toUserId);
+    }
+
+    // Signal — baho saqlashni hech qachon yiqitmaydi.
+    try {
+      await this.incidentSignals?.onRatingSubmitted({
+        id: saved.id,
+        orderId: saved.orderId,
+        fromUserId,
+        toUserId,
+        fromRole,
+        score: saved.score,
+        comment: saved.comment ?? null,
+      });
+    } catch (error: unknown) {
+      this.logger.error(`Rating signal failed for order ${dto.orderId}`, (error as Error).message);
+    }
 
     return saved;
   }
@@ -158,7 +182,7 @@ export class RatingsService {
          SET rating = (
            SELECT COALESCE(AVG(score), 5.0)
            FROM ratings
-           WHERE to_user_id = $1
+           WHERE to_user_id = $1 AND from_role = 'passenger'
          )
          WHERE user_id = $1`,
         [driverUserId],
@@ -168,6 +192,21 @@ export class RatingsService {
         `Failed to update driver rating for user ${driverUserId}`,
         (error as Error).message,
       );
+    }
+  }
+
+  private async updatePassengerRating(passengerUserId: string): Promise<void> {
+    try {
+      await this.dataSource.query(
+        `UPDATE users u
+            SET passenger_rating = r.avg, passenger_rating_count = r.cnt
+           FROM (SELECT ROUND(AVG(score)::numeric, 2) AS avg, COUNT(*)::int AS cnt
+                   FROM ratings WHERE to_user_id = $1 AND from_role = 'driver') r
+          WHERE u.id = $1`,
+        [passengerUserId],
+      );
+    } catch (error: unknown) {
+      this.logger.error(`Failed to update passenger rating for user ${passengerUserId}`, (error as Error).message);
     }
   }
 }

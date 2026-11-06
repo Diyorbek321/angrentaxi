@@ -4,16 +4,22 @@ import { useCallback, useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, Pencil, Plus, Tags, Trash2 } from 'lucide-react';
 import { foodApi, Dish, MenuCategory } from '@/lib/api';
 import { useAsyncData, errorMessage } from '@/hooks/useAsyncData';
+import { formatNumber } from '@/lib/format';
+import { usePageRefresh } from '@/components/shell';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Card, CardHeader } from '@/components/ui/Card';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { IconButton } from '@/components/ui/IconButton';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { SkeletonCards } from '@/components/ui/Skeleton';
+import { RetryBanner } from '@/components/ui/RetryBanner';
+import { SkeletonTable } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
+import { t } from '@/locales';
 
 interface CategoriesData {
   categories: MenuCategory[];
@@ -21,12 +27,15 @@ interface CategoriesData {
 }
 
 export default function CategoriesPage() {
+  const m = t();
+  const cm = m.categories;
   const { toast } = useToast();
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(false);
   const [renaming, setRenaming] = useState<MenuCategory | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [removing, setRemoving] = useState<MenuCategory | null>(null);
+  const [removePending, setRemovePending] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async (): Promise<CategoriesData> => {
@@ -34,14 +43,19 @@ export default function CategoriesPage() {
     return { categories: c.data.data, dishes: d.data.data };
   }, []);
 
-  const { data, status, error, reload } = useAsyncData<CategoriesData>(load);
+  const { data, status, error, reload, isRefreshing, lastUpdatedAt } = useAsyncData<CategoriesData>(load);
+  usePageRefresh(reload);
 
   const categories = useMemo(
     () => [...(data?.categories ?? [])].sort((a, b) => a.sortOrder - b.sortOrder),
     [data]
   );
-  const dishes = data?.dishes ?? [];
-  const dishCount = (id: string) => dishes.filter((d) => d.categoryId === id).length;
+  const dishCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    (data?.dishes ?? []).forEach((d) => d.categoryId && map.set(d.categoryId, (map.get(d.categoryId) ?? 0) + 1));
+    return map;
+  }, [data]);
+  const dishCount = (id: string) => dishCounts.get(id) ?? 0;
 
   const create = async () => {
     const name = newName.trim();
@@ -50,10 +64,10 @@ export default function CategoriesPage() {
     try {
       await foodApi.createCategory({ name, sortOrder: categories.length });
       setNewName('');
-      toast({ title: `«${name}» qo‘shildi`, variant: 'success' });
+      toast({ title: cm.added(name), variant: 'success' });
       await reload();
     } catch (err) {
-      toast({ title: 'Qo‘shib bo‘lmadi', description: errorMessage(err), variant: 'error' });
+      toast({ title: cm.addFailed, description: errorMessage(err), variant: 'error' });
     } finally {
       setCreating(false);
     }
@@ -64,11 +78,11 @@ export default function CategoriesPage() {
     setBusyId(renaming.id);
     try {
       await foodApi.updateCategory(renaming.id, { name: renameValue.trim() });
-      toast({ title: 'Nomi yangilandi', variant: 'success' });
+      toast({ title: cm.renamed, variant: 'success' });
       setRenaming(null);
       await reload();
     } catch (err) {
-      toast({ title: 'Saqlab bo‘lmadi', description: errorMessage(err), variant: 'error' });
+      toast({ title: m.common.saveFailedAlt, description: errorMessage(err), variant: 'error' });
     } finally {
       setBusyId(null);
     }
@@ -87,7 +101,7 @@ export default function CategoriesPage() {
       ]);
       await reload();
     } catch (err) {
-      toast({ title: 'Tartibni o‘zgartirib bo‘lmadi', description: errorMessage(err), variant: 'error' });
+      toast({ title: cm.reorderFailed, description: errorMessage(err), variant: 'error' });
     } finally {
       setBusyId(null);
     }
@@ -95,12 +109,14 @@ export default function CategoriesPage() {
 
   const confirmRemove = async () => {
     if (!removing) return;
+    setRemovePending(true);
     try {
       await foodApi.deleteCategory(removing.id);
-      toast({ title: `«${removing.name}» o‘chirildi`, variant: 'success' });
+      toast({ title: cm.removed(removing.name), variant: 'success' });
     } catch (err) {
-      toast({ title: 'O‘chirib bo‘lmadi', description: errorMessage(err), variant: 'error' });
+      toast({ title: cm.removeFailed, description: errorMessage(err), variant: 'error' });
     } finally {
+      setRemovePending(false);
       setRemoving(null);
       await reload();
     }
@@ -109,131 +125,133 @@ export default function CategoriesPage() {
   return (
     <div className="mx-auto w-full max-w-3xl">
       <PageHeader
-        title="Kategoriyalar"
-        description="Menyu bo'limlari va ularning tartibi"
-        icon={<Tags size={20} />}
+        title={cm.title}
+        description={cm.description}
       />
 
-      <form
-        className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end"
-        onSubmit={(e) => {
-          e.preventDefault();
-          create();
-        }}
-      >
-        <div className="flex-1">
+      <Card padding="none">
+        <form
+          className="flex flex-col gap-3 border-b border-line p-4 sm:flex-row sm:items-end"
+          onSubmit={(e) => {
+            e.preventDefault();
+            create();
+          }}
+        >
           <Input
-            label="Yangi kategoriya"
+            label={cm.newLabel}
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            placeholder="Masalan: Salatlar"
+            placeholder={cm.newPlaceholder}
+            wrapperClassName="flex-1"
           />
-        </div>
-        <Button type="submit" leftIcon={<Plus size={16} />} isLoading={creating} disabled={!newName.trim()}>
-          Qo&apos;shish
-        </Button>
-      </form>
+          <Button type="submit" leftIcon={<Plus size={15} />} isLoading={creating} disabled={!newName.trim()}>
+            {cm.add}
+          </Button>
+        </form>
 
-      {status === 'loading' && <SkeletonCards count={4} height="h-[68px]" />}
+        {status === 'loading' && <SkeletonTable rows={4} cols={3} className="rounded-none border-0" />}
 
-      {status === 'error' && <ErrorState message={error} onRetry={reload} />}
+        {status === 'error' && <ErrorState message={error} onRetry={reload} compact className="py-8" />}
 
-      {status === 'ready' && categories.length === 0 && (
-        <EmptyState
-          icon={<Tags size={24} />}
-          title="Kategoriya yo'q"
-          description="Kategoriyalar menyuni mijoz uchun o'qishli qiladi. Birinchisini yuqorida qo'shing."
-        />
-      )}
+        {status === 'ready' && error && (
+          <div className="p-4 pb-0">
+            <RetryBanner message={error} onRetry={reload} isRetrying={isRefreshing} keepsLastData lastUpdatedAt={lastUpdatedAt} />
+          </div>
+        )}
 
-      {status === 'ready' && categories.length > 0 && (
-        <ol className="flex flex-col gap-2">
-          {categories.map((category, index) => (
-            <li key={category.id}>
-              <Card padding="none" className="flex items-center gap-3 px-4 py-3">
-                <span className="font-mono text-caption text-subtle w-6 tabular-nums" aria-hidden>
-                  {index + 1}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-title text-ink truncate">{category.name}</p>
-                  <p className="text-caption text-muted">{dishCount(category.id)} ta taom</p>
-                </div>
+        {status === 'ready' && categories.length === 0 && (
+          <EmptyState
+            variant="first-use"
+            icon={<Tags size={20} />}
+            title={cm.emptyTitle}
+            description={cm.emptyDescription}
+          />
+        )}
 
-                {dishCount(category.id) === 0 && (
-                  <Badge variant="warning" size="sm">
-                    Bo&apos;sh
-                  </Badge>
-                )}
-
-                <div className="flex items-center gap-1">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={index === 0 || busyId === category.id}
-                    onClick={() => move(category, -1)}
-                    aria-label={`${category.name} — yuqoriga ko'chirish`}
-                  >
-                    <ArrowUp size={16} aria-hidden />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={index === categories.length - 1 || busyId === category.id}
-                    onClick={() => move(category, 1)}
-                    aria-label={`${category.name} — pastga ko'chirish`}
-                  >
-                    <ArrowDown size={16} aria-hidden />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      setRenaming(category);
-                      setRenameValue(category.name);
-                    }}
-                    aria-label={`${category.name} — nomini o'zgartirish`}
-                  >
-                    <Pencil size={16} aria-hidden />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setRemoving(category)}
-                    aria-label={`${category.name} — o'chirish`}
-                  >
-                    <Trash2 size={16} aria-hidden />
-                  </Button>
-                </div>
-              </Card>
-            </li>
-          ))}
-        </ol>
-      )}
+        {status === 'ready' && categories.length > 0 && (
+          <>
+            <CardHeader
+              title={cm.order}
+              description={cm.sections(formatNumber(categories.length))}
+              divider
+              className="pt-3"
+            />
+            <ol className="divide-y divide-line">
+              {categories.map((category, index) => {
+                const count = dishCount(category.id);
+                const busy = busyId === category.id;
+                return (
+                  <li key={category.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-2/50">
+                    <span className="num w-6 text-[13px] text-subtle" aria-hidden>
+                      {index + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-body font-medium text-ink">{category.name}</p>
+                      <p className="text-xs text-muted">{cm.dishes(formatNumber(count))}</p>
+                    </div>
+                    {count === 0 && (
+                      <Badge variant="neutral" size="sm">
+                        {cm.empty}
+                      </Badge>
+                    )}
+                    <div className="flex items-center gap-0.5">
+                      <IconButton
+                        disabled={index === 0 || busy}
+                        onClick={() => move(category, -1)}
+                        aria-label={cm.moveUpAria(category.name)}
+                      >
+                        <ArrowUp aria-hidden />
+                      </IconButton>
+                      <IconButton
+                        disabled={index === categories.length - 1 || busy}
+                        onClick={() => move(category, 1)}
+                        aria-label={cm.moveDownAria(category.name)}
+                      >
+                        <ArrowDown aria-hidden />
+                      </IconButton>
+                      <IconButton
+                        onClick={() => {
+                          setRenaming(category);
+                          setRenameValue(category.name);
+                        }}
+                        aria-label={cm.renameAria(category.name)}
+                      >
+                        <Pencil aria-hidden />
+                      </IconButton>
+                      <IconButton
+                        variant="danger-ghost"
+                        onClick={() => setRemoving(category)}
+                        aria-label={cm.deleteAria(category.name)}
+                      >
+                        <Trash2 aria-hidden />
+                      </IconButton>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          </>
+        )}
+      </Card>
 
       <Modal
         isOpen={renaming != null}
         onClose={() => setRenaming(null)}
         size="sm"
-        title="Kategoriya nomi"
+        title={cm.renameTitle}
         footer={
-          <div className="flex gap-2">
-            <Button variant="secondary" size="lg" className="flex-1" onClick={() => setRenaming(null)}>
-              Bekor qilish
+          <>
+            <Button variant="secondary" onClick={() => setRenaming(null)}>
+              {m.common.cancel}
             </Button>
-            <Button
-              size="lg"
-              className="flex-1"
-              isLoading={busyId === renaming?.id}
-              disabled={!renameValue.trim()}
-              onClick={commitRename}
-            >
-              Saqlash
+            <Button isLoading={busyId === renaming?.id} disabled={!renameValue.trim()} onClick={commitRename}>
+              {m.common.save}
             </Button>
-          </div>
+          </>
         }
       >
         <Input
-          label="Nomi"
+          label={m.common.name}
           value={renameValue}
           onChange={(e) => setRenameValue(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && commitRename()}
@@ -241,30 +259,21 @@ export default function CategoriesPage() {
         />
       </Modal>
 
-      <Modal
+      <ConfirmDialog
         isOpen={removing != null}
         onClose={() => setRemoving(null)}
-        tone="danger"
-        size="sm"
-        title="Kategoriyani o'chirish"
-        subtitle={removing ? `«${removing.name}» o'chiriladi.` : undefined}
-        footer={
-          <div className="flex gap-2">
-            <Button variant="secondary" size="lg" className="flex-1" onClick={() => setRemoving(null)}>
-              Bekor qilish
-            </Button>
-            <Button variant="danger" size="lg" className="flex-1" onClick={confirmRemove}>
-              O&apos;chirish
-            </Button>
-          </div>
+        onConfirm={confirmRemove}
+        isPending={removePending}
+        title={cm.removeTitle}
+        description={
+          removing && dishCount(removing.id) > 0
+            ? cm.removeWithDishes(removing.name, dishCount(removing.id))
+            : removing
+              ? cm.removeEmpty(removing.name)
+              : undefined
         }
-      >
-        <p className="text-body text-muted">
-          {removing && dishCount(removing.id) > 0
-            ? `Bu bo'limda ${dishCount(removing.id)} ta taom bor — ular kategoriyasiz qoladi va menyuda pastda ko'rinadi.`
-            : "Bo'sh kategoriya o'chiriladi, taomlarga ta'sir qilmaydi."}
-        </p>
-      </Modal>
+        confirmLabel={m.common.delete}
+      />
     </div>
   );
 }

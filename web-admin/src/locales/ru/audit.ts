@@ -1,0 +1,41 @@
+import type { Messages } from '../uz';
+
+export const audit: Messages['audit'] = {
+  title: 'Журнал действий',
+  description:
+    'Важные действия сотрудников — выводы, корректировки кошелька, блокировки, доступы, KYC: кто, когда, что и почему',
+  allActions: 'Все действия',
+  allTargets: 'Все объекты',
+  colDate: 'Дата',
+  colAction: 'Действие',
+  colTarget: 'Объект',
+  colAmount: 'Сумма',
+  colNote: 'Комментарий',
+  colActor: 'Кто',
+  loadFailed: 'Не удалось загрузить журнал действий',
+  emptyTitle: 'Журнал пуст',
+  emptyDesc: 'Запись появится здесь, когда сотрудник подтвердит вывод, заблокирует кого-то или изменит доступы.',
+  appendOnly: 'Записи аудита не редактируются и не удаляются.',
+  actorChip: (name: string) => `Кто: ${name}`,
+  actorChipUnknown: 'Кто: выбранный сотрудник',
+  filterByActor: 'Все действия этого сотрудника',
+  added: 'Добавлено',
+  removed: 'Убрано',
+  actionType: 'Тип действия',
+  targetType: 'Тип объекта',
+  targetId: 'ID объекта',
+  targetIdPlaceholder: 'ID объекта (полный UUID)',
+  targetIdError: 'Введите полный UUID',
+  actor: {
+    deletedUser: 'Пользователь удалён',
+    system: 'Система',
+  },
+  roleLabels: {
+    admin: 'Админ',
+    manager: 'Менеджер',
+    driver: 'Водитель',
+    passenger: 'Пассажир',
+    market: 'Магазин',
+    restaurant: 'Ресторан',
+  },
+};

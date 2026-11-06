@@ -1,6 +1,16 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  OnModuleInit,
+  Optional,
+} from '@nestjs/common';
+import { randomUUID } from 'crypto';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThanOrEqual, Not, Repository } from 'typeorm';
+import { In, LessThan, MoreThanOrEqual, Not, Raw, Repository } from 'typeorm';
 import { Restaurant, RestaurantStatus, WorkingHoursDay } from '../../database/entities/restaurant.entity';
 import { MenuCategory } from '../../database/entities/menu-category.entity';
 import { Dish } from '../../database/entities/dish.entity';
@@ -15,14 +25,54 @@ import { CreateMenuCategoryDto, UpdateMenuCategoryDto } from './dto/category.dto
 import { CreateDishDto, UpdateDishDto } from './dto/dish.dto';
 import { CreateFoodOrderDto } from './dto/create-food-order.dto';
 import { CreateRestaurantAdminDto } from './dto/create-restaurant-admin.dto';
+import { CatalogModerationQueryDto, likePattern } from '../../common/dto/catalog-moderation-query.dto';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../../database/entities/user.entity';
-import { PaymentMethod, ServiceType } from '../../database/entities/order.entity';
+import { OrderStatus, PaymentMethod, ServiceType } from '../../database/entities/order.entity';
 import { OrdersService } from '../orders/orders.service';
 import { MatchingService } from '../matching/matching.service';
 import { TariffsService } from '../tariffs/tariffs.service';
+import { SettingsService } from '../settings/settings.service';
 import { clampPageSize } from '../../common/utils/pagination.util';
+import { DeliveryEvent, DeliveryEventsService } from '../delivery/delivery-events.service';
+import { checkoutDeliveryFee, deliveryRideDetails } from '../delivery/delivery-ride-details';
+import { appliedDeliveryFee } from '../settings/delivery-pricing';
+import {
+  CARD_PAYMENT_EXPIRED_REASON,
+  UNPAID_CARD_EXPIRY_BATCH,
+  assertCheckoutPaymentAllowed,
+  assertVendorOrderPaid,
+  cardPaymentPending,
+  closePendingCardPayments,
+  isCardOrder,
+  isVendorOrderPaid,
+  notPaidByCardSql,
+  paidCardOrderIds,
+} from '../delivery/vendor-card-payment';
+import { unpaidCardOrderCancelledText } from '../notifications/misc-notification-texts';
+import { CourierTracking, courierTracking } from '../delivery/delivery-tracking';
+import { assertCustomerMayCheckout } from '../delivery/customer-delivery-gates';
+import { withHandoverCodes } from '../delivery/handover-code';
+import { assertVendorCanConfirmReturn, handleVendorReturnEvent } from '../delivery/vendor-return';
+import { OrdersReturnService } from '../orders/orders-return.service';
+import { AuditLogService } from '../audit/audit-log.service';
+import { PromotionsService } from '../promotions/promotions.service';
+import { PromoCodesService } from '../promo-codes/promo-codes.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { Promotion, PromotionVendorType } from '../../database/entities/promotion.entity';
+import { priceCatalogItem, priceOrderLines, strongestPromotion } from '../promotions/promotion-pricing';
+import {
+  cancelNotAllowed,
+  cleanCancelReason,
+  customerCanCancel,
+  withCustomerFields,
+} from '../delivery/vendor-checkout';
+import { creditPromoCompensation } from '../delivery/promo-compensation';
+import { isSelfDelivered, vendorOrderCommission, vendorRevenue } from '../delivery/vendor-checkout';
+import { FiscalReceiptsService } from '../fiscal/fiscal-receipts.service';
+import { normalizeAddressDetails } from '../../common/dto/address-details.dto';
+import { toPublicRestaurant } from './public-restaurant';
 
 // Rolling window for the analytics that cannot be expressed as a single SQL
 // aggregate (per-dish totals live in a jsonb `items` column), plus a hard row
@@ -56,7 +106,9 @@ const ORDER_TRANSITIONS: Record<string, FoodOrderStatus> = {
 };
 
 @Injectable()
-export class FoodService {
+export class FoodService implements OnModuleInit {
+  private readonly logger = new Logger(FoodService.name);
+
   constructor(
     @InjectRepository(Restaurant) private readonly restaurantRepo: Repository<Restaurant>,
     @InjectRepository(MenuCategory) private readonly categoryRepo: Repository<MenuCategory>,
@@ -68,7 +120,27 @@ export class FoodService {
     private readonly ordersService: OrdersService,
     private readonly matchingService: MatchingService,
     private readonly tariffsService: TariffsService,
+    private readonly settingsService: SettingsService,
+    @Optional() private readonly deliveryEvents?: DeliveryEventsService,
+    // v5 (docs/specs/food-market-ux-v5.md): aksiyalar, promokod, push.
+    @Optional() private readonly promotionsService?: PromotionsService,
+    @Optional() private readonly promoCodesService?: PromoCodesService,
+    @Optional() private readonly notificationsService?: NotificationsService,
+    // O'zi yetkazgan buyurtmaning sotuvchi cheki (kuryer yetkazganini
+    // FiscalReceiptsService o'zi `delivered` hodisasidan yozadi). Ixtiyoriy —
+    // qo'lda yig'iladigan spec'lar uchun.
+    @Optional() private readonly fiscalReceipts?: FiscalReceiptsService,
+    // Yetkazish hodisalari (INCIDENT-POLICY §2): sotuvchining "Qaytib keldi"
+    // tasdig'i va kartali qaytarish jurnali. Ixtiyoriy — qo'lda yig'iladigan spec'lar.
+    @Optional() private readonly orderReturns?: OrdersReturnService,
+    @Optional() private readonly auditLog?: AuditLogService,
   ) {}
+
+  onModuleInit(): void {
+    this.deliveryEvents?.subscribe((event) =>
+      event.foodOrderId ? this.onDeliveryEvent(event.foodOrderId, event) : undefined,
+    );
+  }
 
   // ---------- shared ----------
 
@@ -126,8 +198,27 @@ export class FoodService {
 
   // ---------- vendor: dishes ----------
 
-  listDishes(restaurantId: string): Promise<Dish[]> {
-    return this.dishRepo.find({ where: { restaurantId }, order: { createdAt: 'DESC' } });
+  /** Panel ro'yxati — har taomda vitrinadagi kabi `finalPrice` / `discount` (spec §4). */
+  async listDishes(restaurantId: string) {
+    const [dishes, promotions] = await Promise.all([
+      this.dishRepo.find({ where: { restaurantId }, order: { createdAt: 'DESC' } }),
+      this.activePromotions(restaurantId),
+    ]);
+    return dishes.map((dish) => this.withDishPricing(dish, promotions));
+  }
+
+  private activePromotions(restaurantId: string): Promise<Promotion[]> {
+    return this.promotionsService
+      ? this.promotionsService.activeForVendor(PromotionVendorType.RESTAURANT, restaurantId)
+      : Promise.resolve([]);
+  }
+
+  private withDishPricing(dish: Dish, promotions: readonly Promotion[]) {
+    const priced = priceCatalogItem(
+      { id: dish.id, categoryId: dish.categoryId, price: Number(dish.price) },
+      promotions,
+    );
+    return { ...dish, finalPrice: priced.finalPrice, discount: priced.discount };
   }
 
   createDish(restaurantId: string, dto: CreateDishDto): Promise<Dish> {
@@ -159,9 +250,11 @@ export class FoodService {
     return this.dishRepo.save(dish);
   }
 
-  async deleteDish(restaurantId: string, id: string): Promise<void> {
+  /** O'chirilgan taomning rasm kaliti — chaqiruvchi faylni tozalaydi. */
+  async deleteDish(restaurantId: string, id: string): Promise<string | null> {
     const dish = await this.getOwnedDish(restaurantId, id);
     await this.dishRepo.remove(dish);
+    return dish.imageKey;
   }
 
   // ---------- vendor: orders ----------
@@ -180,7 +273,8 @@ export class FoodService {
       relations: ['customer'],
       order: { createdAt: 'DESC' },
     });
-    return Promise.all(orders.map((o) => this.withDelivery(o)));
+    const paid = await paidCardOrderIds(this.transactionRepo, orders);
+    return Promise.all(orders.map((o) => this.withDelivery(o, paid.has(o.id))));
   }
 
   async getOrder(restaurantId: string, id: string) {
@@ -193,8 +287,18 @@ export class FoodService {
     if (order.status !== FoodOrderStatus.NEW) {
       throw new BadRequestException('Only new orders can be accepted');
     }
-    order.status = FoodOrderStatus.PREPARING;
-    const saved = await this.orderRepo.save(order);
+    // Kartali buyurtma to'lovdan oldin sotuvchiga ketmaydi (INCIDENT-POLICY §1).
+    await assertVendorOrderPaid(this.transactionRepo, order);
+    // Shartli yozuv: mijoz shu lahzada bekor qilgan bo'lsa (v5 §1), qabul
+    // bekor qilingan buyurtmani "tiriltirmasin".
+    const result = await this.orderRepo.update(
+      { id: order.id, status: FoodOrderStatus.NEW },
+      { status: FoodOrderStatus.PREPARING },
+    );
+    if (!result.affected) {
+      throw new ConflictException('Order status has already changed — refresh the board');
+    }
+    const saved: FoodOrder = { ...order, status: FoodOrderStatus.PREPARING };
     this.realtimeGateway.emitToUser(saved.customerId, 'food:order:status', {
       orderId: saved.id,
       status: saved.status,
@@ -208,8 +312,33 @@ export class FoodService {
     if (!next) {
       throw new BadRequestException(`Order cannot advance from status "${order.status}"`);
     }
-    order.status = next;
-    let saved = await this.orderRepo.save(order);
+    await assertVendorOrderPaid(this.transactionRepo, order);
+    // Platforma kuryeri chaqirilgan buyurtma faqat kuryer topshirganda
+    // (yoki dispetcher kuryer safarini yakunlaganda) "yetkazildi" bo'ladi.
+    // Kuryer topilmagan bo'lsa ham: aks holda mijoz hech narsa olmagan
+    // buyurtma yopilib, sotuvchiga komissiya hisoblanib ketardi.
+    if (next === FoodOrderStatus.DELIVERED && order.deliveryOrderId) {
+      throw new BadRequestException(
+        "Buyurtmani kuryer topshiradi — kuryer topilmasa qayta chaqiring yoki dispetcherga murojaat qiling",
+      );
+    }
+    let saved: FoodOrder;
+    if (next === FoodOrderStatus.DELIVERED) {
+      // Conditional write: the courier's completion marks the order delivered
+      // too (onDeliveryEvent). Whichever lands first settles the vendor; the
+      // loser gets a 409 instead of booking the commission a second time.
+      const result = await this.orderRepo.update(
+        { id: order.id, status: order.status },
+        { status: next },
+      );
+      if (!result.affected) {
+        throw new ConflictException('Order status has already changed — refresh the board');
+      }
+      saved = { ...order, status: next };
+    } else {
+      order.status = next;
+      saved = await this.orderRepo.save(order);
+    }
     this.realtimeGateway.emitToUser(saved.customerId, 'food:order:status', {
       orderId: saved.id,
       status: saved.status,
@@ -222,7 +351,7 @@ export class FoodService {
 
     if (next === FoodOrderStatus.DELIVERED) {
       const restaurant = await this.restaurantRepo.findOneOrFail({ where: { id: restaurantId } });
-      await this.settleRestaurantEarnings(restaurant, saved);
+      await this.settleDelivered(restaurant, saved);
     }
 
     return this.withDelivery(saved);
@@ -233,20 +362,63 @@ export class FoodService {
   // OrdersService.completeTrip's driver payout, but deliberately skips the
   // gross CREDIT leg for cash orders so a restaurant can't withdraw a net
   // payout for money it already collected directly).
+  private async settleDelivered(restaurant: Restaurant, order: FoodOrder): Promise<void> {
+    await this.settleRestaurantEarnings(restaurant, order);
+    // Kuryer safari yo'q — chekni hech qanday `delivered` hodisasi yozmaydi.
+    // Bir martalik: `createAndSend` mavjud chekni qaytaradi; xato chiqarmaydi.
+    if (isSelfDelivered(order)) {
+      await this.fiscalReceipts?.recordForVendorOrder('food', order.id);
+    }
+    // Promokod (platforma hisobidan): naqdni olgan tomonga farq qaytariladi.
+    const isCash = order.paymentMethod === FoodPaymentMethod.CASH;
+    if (!isCash || !(Number(order.promoDiscount ?? 0) > 0)) return;
+    let collectorUserId: string | null = restaurant.ownerUserId;
+    if (order.deliveryOrderId) {
+      const ride = await this.ordersService.findByIdOrThrow(order.deliveryOrderId);
+      collectorUserId = ride.driverId ?? null;
+    }
+    await creditPromoCompensation(this.transactionRepo, {
+      kind: 'food',
+      vendorOrderId: order.id,
+      isCash,
+      promoDiscount: Number(order.promoDiscount),
+      collectorUserId,
+      collectorIsCourier: Boolean(order.deliveryOrderId),
+    });
+  }
+
   private async settleRestaurantEarnings(restaurant: Restaurant, order: FoodOrder): Promise<void> {
-    const commissionAmount = Math.round((order.totalPrice * restaurant.commissionRate) / 100);
-    if (commissionAmount <= 0) {
+    // Hamyon rejimida (e-tijorat qonuni 23-modda) tovar summasi va komissiya
+    // olib ketishda allaqachon daftarga yozilgan
+    // (`delivery/vendor-wallet-settlement.ts`) — ikkinchi marta yozilmaydi.
+    if (order.vendorWalletSettledAt) {
       return;
     }
+    // Himoya (INCIDENT-POLICY §1): karta puli platformaga tushmagan bo'lsa,
+    // sotuvchiga "karta tushumi" ham, komissiya ham yozilmaydi — aks holda
+    // platforma olmagan pulini sotuvchiga qarz bo'lib qolardi.
+    if (!(await isVendorOrderPaid(this.transactionRepo, order))) {
+      this.logger.warn(
+        `To'lanmagan kartali ovqat buyurtmasi yetkazildi (${order.id}) — sotuvchiga tushum yozilmadi`,
+      );
+      return;
+    }
+
+    // Komissiya FAQAT tovardan, yetkazish haqidan hech qachon
+    // (`vendorOrderCommission`). Sotuvchi tushumi: platforma kuryeri
+    // yetkazsa — tovar (yetkazish haqi kuryer safarining to'lovi); o'zi
+    // yetkazsa — tovar + yetkazish haqi (`vendorRevenue`).
+    const commissionAmount = vendorOrderCommission(order, Number(restaurant.commissionRate));
+    const revenue = vendorRevenue(order);
 
     const isCash = order.paymentMethod === FoodPaymentMethod.CASH;
     const paymentMethod = isCash ? PaymentMethod.CASH : PaymentMethod.CARD;
 
-    if (!isCash) {
+    if (!isCash && revenue > 0) {
       await this.transactionRepo.save({
         userId: restaurant.ownerUserId,
         orderId: null,
-        amount: order.totalPrice,
+        amount: revenue,
         type: TransactionType.CREDIT,
         paymentMethod,
         status: TransactionStatus.COMPLETED,
@@ -254,6 +426,9 @@ export class FoodService {
       });
     }
 
+    if (commissionAmount <= 0) {
+      return;
+    }
     await this.transactionRepo.save({
       userId: restaurant.ownerUserId,
       orderId: null,
@@ -272,7 +447,12 @@ export class FoodService {
     }
     order.status = FoodOrderStatus.CANCELLED;
     order.rejectReason = reason;
+    order.cancelledBy = 'vendor';
+    order.cancelReason = cleanCancelReason(reason);
+    order.cancelledAt = new Date();
     const saved = await this.orderRepo.save(order);
+    await this.releasePromo(saved);
+    await this.closeCardPayments(saved);
     this.realtimeGateway.emitToUser(saved.customerId, 'food:order:status', {
       orderId: saved.id,
       status: saved.status,
@@ -295,17 +475,41 @@ export class FoodService {
       throw new BadRequestException('No active delivery tariff configured for food orders');
     }
 
-    const deliveryOrder = await this.ordersService.create(order.customerId, {
-      tariffId: tariffs[0].id,
-      pickupLat: restaurant.lat,
-      pickupLng: restaurant.lng,
-      dropoffLat: order.deliveryLat,
-      dropoffLng: order.deliveryLng,
-      pickupAddress: restaurant.name,
-      dropoffAddress: order.deliveryAddress,
-      serviceType: ServiceType.FOOD,
-      details: { foodOrderId: order.id },
-    });
+    // The courier ride IS the delivery the customer already paid for at
+    // checkout: priced at that fee (the tariff price charged delivery twice)
+    // and paid the same way as the order, so a card order never has the
+    // courier asking for cash at the door.
+    const deliveryOrder = await this.ordersService.create(
+      order.customerId,
+      {
+        tariffId: tariffs[0].id,
+        pickupLat: restaurant.lat,
+        pickupLng: restaurant.lng,
+        dropoffLat: order.deliveryLat,
+        dropoffLng: order.deliveryLng,
+        pickupAddress: restaurant.name,
+        dropoffAddress: order.deliveryAddress,
+        serviceType: ServiceType.FOOD,
+        paymentMethod:
+          order.paymentMethod === FoodPaymentMethod.CASH ? PaymentMethod.CASH : PaymentMethod.CARD,
+        details: {
+          foodOrderId: order.id,
+          ...deliveryRideDetails({
+            vendorName: restaurant.name,
+            vendorPhone: restaurant.phone ?? null,
+            customerPhone: order.customerPhone ?? order.customer?.phone ?? null,
+            itemsCount: order.items.reduce((sum, item) => sum + item.qty, 0),
+            totalPrice: order.totalPrice,
+            // Tovar summasi — kuryer do'konga shuni to'laydi (`vendor-cash.ts`).
+            itemsTotal: Number(order.totalPrice) - checkoutDeliveryFee(order),
+            isCash: order.paymentMethod === FoodPaymentMethod.CASH,
+            promoDiscount: Number(order.promoDiscount ?? 0),
+            addressDetails: order.addressDetails ?? null,
+          }),
+        },
+      },
+      { agreedFare: checkoutDeliveryFee(order) },
+    );
     this.matchingService.startSearch(deliveryOrder.id).catch(() => {
       // Matching failures are logged inside MatchingService itself; the
       // food order still moves to "ready", just without an auto-assigned
@@ -316,27 +520,161 @@ export class FoodService {
     return this.orderRepo.save(order);
   }
 
-  private async withDelivery(order: FoodOrder) {
+  /**
+   * Sends a new courier for a READY order whose previous courier ride ended
+   * without a delivery (nobody accepted, or it was cancelled). Refuses while a
+   * courier ride is still live, so a double click cannot put two couriers on
+   * one bag.
+   */
+  async redispatchDelivery(restaurantId: string, id: string) {
+    const order = await this.findOrderEntity(restaurantId, id);
+    if (order.status !== FoodOrderStatus.READY) {
+      throw new BadRequestException('Only ready orders can be sent to a courier');
+    }
+    if (order.deliveryOrderId) {
+      const ride = await this.ordersService.findByIdOrThrow(order.deliveryOrderId);
+      if (ride.status !== OrderStatus.CANCELLED) {
+        throw new ConflictException('A courier is already being searched for or assigned');
+      }
+    }
+    const restaurant = await this.restaurantRepo.findOneOrFail({ where: { id: restaurantId } });
+    const saved = await this.dispatchDelivery(restaurant, order);
+    return this.withDelivery(saved);
+  }
+
+  /**
+   * Sotuvchi: qaytarilgan tovar qo'liga keldi (INCIDENT-POLICY §2). Kuryer
+   * safari "qaytarildi" bo'lib yakunlanadi — mijozdan yetkazish + qaytarish
+   * haqi, kuryerning oldindan to'lagan tovar puli qaytariladi; buyurtma
+   * `returned` (tushumsiz) bo'ladi — hammasi `returned` hodisasidan.
+   */
+  async confirmReturned(restaurantId: string, id: string) {
+    const order = await this.findOrderEntity(restaurantId, id);
+    assertVendorCanConfirmReturn(order, FoodOrderStatus.RETURNING);
+    if (!this.orderReturns) throw new BadRequestException('Bu buyurtma qaytarilmayapti');
+    const restaurant = await this.restaurantRepo.findOneOrFail({ where: { id: restaurantId } });
+    await this.orderReturns.confirmReturned(order.deliveryOrderId, { kind: 'vendor', userId: restaurant.ownerUserId });
+    return this.withDelivery(await this.findOrderEntity(restaurantId, id));
+  }
+
+  /**
+   * Courier ride → food order. Only the ride currently linked to the order
+   * counts: after a re-dispatch, late events from the abandoned ride are
+   * ignored rather than, say, marking the order "courier not found" while the
+   * new courier is on the way.
+   */
+  private async onDeliveryEvent(foodOrderId: string, event: DeliveryEvent): Promise<void> {
+    const order = await this.orderRepo.findOne({ where: { id: foodOrderId } });
+    if (!order || order.deliveryOrderId !== event.deliveryOrderId) return;
+
+    // "Yetkazib bo'lmadi" → qaytarilmoqda, "qaytib keldi" → tushumsiz yopiladi (§2).
+    if (event.kind === 'delivery_failed' || event.kind === 'returned') {
+      const restaurant = await this.restaurantRepo.findOneOrFail({ where: { id: order.restaurantId } });
+      await handleVendorReturnEvent(
+        {
+          kind: 'food',
+          order,
+          ownerUserId: restaurant.ownerUserId,
+          repo: this.orderRepo,
+          transactions: this.transactionRepo,
+          inTransitStatus: FoodOrderStatus.READY,
+          emit: (userId, name, payload) => this.realtimeGateway.emitToUser(userId, name, payload),
+          push: (userIds, text, name, data) =>
+            this.notificationsService?.notifyUserIds(userIds, text, name, data) ?? Promise.resolve(),
+          audit: (entry) => this.auditLog?.record(entry) ?? Promise.resolve(),
+        },
+        event,
+      );
+      return;
+    }
+
+    if (event.kind === 'delivered') {
+      // Conditional write: the restaurant may click "delivered" by hand at the
+      // same moment. Whoever lands first settles; the other is a no-op, so the
+      // commission is never booked twice.
+      const result = await this.orderRepo.update(
+        { id: order.id, status: FoodOrderStatus.READY },
+        { status: FoodOrderStatus.DELIVERED },
+      );
+      if (!result.affected) return;
+
+      const restaurant = await this.restaurantRepo.findOneOrFail({
+        where: { id: order.restaurantId },
+      });
+      await this.settleDelivered(restaurant, { ...order, status: FoodOrderStatus.DELIVERED });
+      for (const userId of [order.customerId, restaurant.ownerUserId]) {
+        this.realtimeGateway.emitToUser(userId, 'food:order:status', {
+          orderId: order.id,
+          status: FoodOrderStatus.DELIVERED,
+        });
+      }
+      return;
+    }
+
+    if (event.kind === 'cancelled') {
+      if (order.status !== FoodOrderStatus.READY) return;
+      const restaurant = await this.restaurantRepo.findOne({ where: { id: order.restaurantId } });
+      // The vendor board polls, but the push lets it flash the order at once:
+      // hot food is going cold while nobody is coming for it.
+      if (restaurant) {
+        this.realtimeGateway.emitToUser(restaurant.ownerUserId, 'food:delivery:failed', {
+          orderId: order.id,
+        });
+      }
+      this.realtimeGateway.emitToUser(order.customerId, 'food:order:courier', {
+        orderId: order.id,
+        stage: 'searching_again',
+      });
+      return;
+    }
+
+    this.realtimeGateway.emitToUser(order.customerId, 'food:order:courier', {
+      orderId: order.id,
+      // Qayta biriktirish — mijoz uchun yangi kuryer qabul qildi.
+      stage: event.kind === 'reassigned' ? 'accepted' : event.kind,
+    });
+  }
+
+  /**
+   * `paid` — ro'yxatda oldindan bitta so'rov bilan hisoblangan
+   * (`paidCardOrderIds`); berilmasa shu buyurtma uchun tekshiriladi.
+   */
+  private async withDelivery(order: FoodOrder, paid?: boolean) {
+    const base = { ...withCustomerFields(order), paymentPending: await this.paymentPendingOf(order, paid) };
     if (!order.deliveryOrderId) {
-      return { ...order, delivery: null };
+      return { ...base, delivery: null };
     }
     try {
       const deliveryOrder = await this.ordersService.findByIdOrThrow(order.deliveryOrderId);
-      return {
-        ...order,
-        delivery: {
-          orderId: deliveryOrder.id,
-          status: deliveryOrder.status,
-          driverName:
-            [deliveryOrder.driver?.firstName, deliveryOrder.driver?.lastName]
-              .filter(Boolean)
-              .join(' ')
-              .trim() || null,
-          driverPhone: deliveryOrder.driver?.phone ?? null,
-        },
-      };
-    } catch {
-      return { ...order, delivery: null };
+      // Vendor panels read orderId/status/driverName/driverPhone; the customer
+      // app also uses the car and the two points for its live courier map.
+      return { ...base, delivery: courierTracking(deliveryOrder) };
+    } catch (err) {
+      // A genuine failure here (DB down, bad join) used to be indistinguishable
+      // from "no courier assigned yet": both returned delivery: null, so the
+      // vendor board showed a dispatched order as undispatched with nothing in
+      // the logs. The fallback stays — an unavailable courier lookup must not
+      // break the order list — but it is no longer silent.
+      this.logger.error(
+        `Failed to resolve delivery for food order ${order.id}: ${(err as Error).message}`,
+      );
+      return { ...base, delivery: null };
+    }
+  }
+
+  /** `paymentPending` — kartali, bekor qilinmagan va to'lanmagan (§1). */
+  private async paymentPendingOf(order: FoodOrder, paid?: boolean): Promise<boolean> {
+    if (!isCardOrder(order) || order.status === FoodOrderStatus.CANCELLED) return false;
+    return cardPaymentPending(order, paid ?? (await isVendorOrderPaid(this.transactionRepo, order)));
+  }
+
+  /** Bekor qilingan kartali buyurtmaning ochiq to'lovi yopiladi — xato so'rovni yiqitmaydi. */
+  private async closeCardPayments(order: FoodOrder): Promise<void> {
+    if (!isCardOrder(order)) return;
+    try {
+      await closePendingCardPayments(this.transactionRepo, order);
+    } catch (err) {
+      this.logger.error(`Karta to'lovi yopilmadi (food ${order.id}): ${(err as Error).message}`);
     }
   }
 
@@ -424,7 +762,8 @@ export class FoodService {
       where: {
         restaurantId,
         createdAt: MoreThanOrEqual(since),
-        status: Not(FoodOrderStatus.CANCELLED),
+        // Qaytarilgan/qaytarilayotgan buyurtma — tushum emas (§2).
+        status: Not(In([FoodOrderStatus.CANCELLED, FoodOrderStatus.RETURNING, FoodOrderStatus.RETURNED])),
       },
       order: { createdAt: 'DESC' },
       take: ANALYTICS_MAX_ORDERS,
@@ -456,7 +795,11 @@ export class FoodService {
     const topDishes = [...dishSold.values()].sort((a, b) => b.qty - a.qty).slice(0, 5);
 
     const gross = inRange.reduce((sum, o) => sum + Number(o.totalPrice), 0);
-    const commission = Math.round(gross * (restaurant.commissionRate / 100));
+    // Komissiya FAQAT tovardan (yetkazish haqisiz) — daftar bilan bir xil.
+    const commission = inRange.reduce(
+      (sum, o) => sum + vendorOrderCommission(o, Number(restaurant.commissionRate)),
+      0,
+    );
 
     return {
       revenue,
@@ -488,23 +831,61 @@ export class FoodService {
 
   // ---------- storefront (customer) ----------
 
-  listActiveRestaurants(): Promise<Restaurant[]> {
-    return this.restaurantRepo.find({ where: { status: RestaurantStatus.ACTIVE }, order: { name: 'ASC' } });
+  /** Har restoranga `activePromotion` (eng kattasi) yoki null (spec §4). */
+  async listActiveRestaurants() {
+    const [restaurants, promotions] = await Promise.all([
+      this.restaurantRepo.find({ where: { status: RestaurantStatus.ACTIVE }, order: { name: 'ASC' } }),
+      this.promotionsService
+        ? this.promotionsService.activeByVendor(PromotionVendorType.RESTAURANT)
+        : Promise.resolve(new Map<string, Promotion[]>()),
+    ]);
+    return restaurants.map((restaurant) => ({
+      ...toPublicRestaurant(restaurant),
+      activePromotion: strongestPromotion(promotions.get(restaurant.id) ?? []),
+    }));
   }
 
+  /**
+   * Restoran tafsiloti (spec §4–§5): `categories: [{ id, name, sortOrder,
+   * itemCount }]` (bo'sh kategoriyalarsiz), taomlarda `price` (asl),
+   * `finalPrice`, `discount`, `categoryId`; restoranda `promotions` (faol) va
+   * `activePromotion`. `promotions` qulaylik uchun yuqori darajada ham bor.
+   */
   async getRestaurantDetail(restaurantId: string) {
     const restaurant = await this.restaurantRepo.findOne({ where: { id: restaurantId } });
     if (!restaurant) {
       throw new NotFoundException('Restaurant not found');
     }
-    const [categories, dishes] = await Promise.all([
+    const [categories, dishes, promotions] = await Promise.all([
       this.categoryRepo.find({ where: { restaurantId }, order: { sortOrder: 'ASC' } }),
       this.dishRepo.find({ where: { restaurantId, isAvailable: true } }),
+      this.activePromotions(restaurantId),
     ]);
-    return { restaurant, categories, dishes };
+    const counts = new Map<string, number>();
+    for (const dish of dishes) {
+      if (dish.categoryId) counts.set(dish.categoryId, (counts.get(dish.categoryId) ?? 0) + 1);
+    }
+    return {
+      restaurant: { ...toPublicRestaurant(restaurant), promotions, activePromotion: strongestPromotion(promotions) },
+      categories: categories
+        .filter((category) => (counts.get(category.id) ?? 0) > 0)
+        .map((category) => ({
+          id: category.id,
+          name: category.name,
+          sortOrder: category.sortOrder,
+          itemCount: counts.get(category.id) ?? 0,
+        })),
+      dishes: dishes.map((dish) => this.withDishPricing(dish, promotions)),
+      promotions,
+    };
   }
 
-  async createOrder(customerId: string, customerPhone: string | null, dto: CreateFoodOrderDto): Promise<FoodOrder> {
+  /**
+   * Narx serverda (spec §2, §4): avval aksiya (sotuvchi hisobidan, qatorga
+   * `price = finalPrice`, `unitPrice`, `discountAmount`), keyin promokod
+   * (platforma hisobidan, `promoDiscount`, `totalPrice` ga kirmaydi).
+   */
+  async createOrder(customerId: string, customerPhone: string | null, dto: CreateFoodOrderDto) {
     const restaurant = await this.restaurantRepo.findOne({ where: { id: dto.restaurantId } });
     if (!restaurant) {
       throw new NotFoundException('Restaurant not found');
@@ -513,7 +894,7 @@ export class FoodService {
     const dishes = await this.dishRepo.find({ where: { restaurantId: restaurant.id } });
     const byId = new Map(dishes.map((d) => [d.id, d]));
 
-    const items = dto.items.map((input) => {
+    const lines = dto.items.map((input) => {
       const dish = byId.get(input.dishId);
       if (!dish) {
         throw new NotFoundException(`Dish ${input.dishId} not found in this restaurant`);
@@ -521,38 +902,283 @@ export class FoodService {
       if (!dish.isAvailable) {
         throw new ConflictException(`"${dish.name}" is not available`);
       }
-      return {
-        dishId: dish.id,
-        name: dish.name,
-        qty: input.qty,
-        price: Number(dish.price),
-        prepMinutes: dish.prepMinutes,
-      };
+      return { dish, qty: input.qty };
     });
 
-    const totalPrice = items.reduce((sum, i) => sum + i.qty * i.price, 0);
-    const order = await this.orderRepo.save(
-      this.orderRepo.create({
-        restaurantId: restaurant.id,
-        customerId,
-        items,
-        totalPrice,
-        deliveryAddress: dto.deliveryAddress,
-        deliveryLat: dto.deliveryLat,
-        deliveryLng: dto.deliveryLng,
-        customerPhone,
-        paymentMethod: dto.paymentMethod ?? FoodPaymentMethod.CASH,
-        note: dto.note ?? null,
-        status: FoodOrderStatus.NEW,
-      }),
+    const priced = priceOrderLines(
+      lines.map(({ dish, qty }) => ({
+        item: { id: dish.id, categoryId: dish.categoryId, price: Number(dish.price) },
+        qty,
+      })),
+      await this.activePromotions(restaurant.id),
     );
+    const items = lines.map(({ dish, qty }, index) => ({
+      dishId: dish.id,
+      name: dish.name,
+      qty,
+      // Undiriladigan narx — komissiya, kuryer to'lovi va fiskal chek shundan.
+      price: priced.lines[index].finalPrice,
+      unitPrice: priced.lines[index].unitPrice,
+      discountAmount: priced.lines[index].discountPerUnit,
+      prepMinutes: dish.prepMinutes,
+    }));
+
+    // The delivery fee is part of what the customer owes, so it belongs in
+    // the recorded total. It used to exist only as a client-side constant in
+    // the app, which meant the checkout screen showed one figure and the
+    // order row, the vendor board and the receipt all showed a smaller one.
+    //
+    // Bepul yetkazish (docs/specs/food-market-ux-v5.md §7): chegara aksiyadan
+    // KEYINGI, promokoddan OLDINGI tovar summasiga qaraydi. Qo'llangan haq
+    // `totalPrice` ga kiradi — kuryer safari, chek va JSON'dagi `deliveryFee`
+    // shundan (`checkoutDeliveryFee`) olinadi, ya'ni bepulda hammasi 0.
+    const itemsTotal = priced.itemsTotal;
+    const deliveryFee = appliedDeliveryFee(await this.settingsService.getDeliveryPricing(), itemsTotal);
+    const totalPrice = itemsTotal + deliveryFee;
+    // Kuryer tovarni restorandan o'z pulidan oladi — naqd chegaralangan
+    // (`delivery/vendor-cash.ts`). Karta provayderi sozlanmagan bo'lsa
+    // kartali buyurtma ham rad (INCIDENT-POLICY §1).
+    // Qarz va rad etishlar darvozasi (INCIDENT-POLICY §2).
+    await assertCustomerMayCheckout(
+      { query: (sql, params) => this.orderRepo.query(sql, params), transactions: this.transactionRepo },
+      {
+        customerId,
+        isCash: (dto.paymentMethod ?? FoodPaymentMethod.CASH) === FoodPaymentMethod.CASH,
+        settings: await this.settingsService.getDeliveryIncidentSettings(),
+      },
+    );
+    assertCheckoutPaymentAllowed({
+      isCash: (dto.paymentMethod ?? FoodPaymentMethod.CASH) === FoodPaymentMethod.CASH,
+      totalPrice,
+      cashLimit: await this.settingsService.getMaxCashVendorOrder(),
+      cashLimitApplies: true,
+      cardAvailable: this.settingsService.cardPaymentsAvailable(),
+    });
+
+    const promo = await this.resolvePromo(customerId, dto.promoCode, itemsTotal);
+    const orderId = randomUUID();
+    if (promo) {
+      await this.requirePromoCodes().claimForVendorOrder(promo.promoCodeId, customerId, { kind: 'food', id: orderId });
+    }
+
+    let order: FoodOrder;
+    try {
+      order = await this.orderRepo.save(
+        this.orderRepo.create({
+          id: orderId,
+          restaurantId: restaurant.id,
+          customerId,
+          items,
+          totalPrice,
+          deliveryAddress: dto.deliveryAddress,
+          deliveryLat: dto.deliveryLat,
+          deliveryLng: dto.deliveryLng,
+          customerPhone,
+          paymentMethod: dto.paymentMethod ?? FoodPaymentMethod.CASH,
+          note: dto.note ?? null,
+          status: FoodOrderStatus.NEW,
+          promoCodeId: promo?.promoCodeId ?? null,
+          promoCode: promo?.code ?? null,
+          promoDiscount: promo?.discount ?? 0,
+          promotionDiscount: priced.promotionDiscount,
+          addressDetails: normalizeAddressDetails(dto.addressDetails),
+          cancelledBy: null,
+          cancelReason: null,
+          cancelledAt: null,
+        }),
+      );
+    } catch (err) {
+      if (promo) {
+        await this.requirePromoCodes().releaseForVendorOrder(promo.promoCodeId, customerId, { kind: 'food', id: orderId });
+      }
+      throw err;
+    }
 
     this.realtimeGateway.emitToUser(restaurant.ownerUserId, 'food:order:created', {
       orderId: order.id,
       restaurantId: restaurant.id,
     });
 
-    return order;
+    // Yangi buyurtmaning to'lovi hali boshlanmagan.
+    return { ...withCustomerFields(order), paymentPending: isCardOrder(order) };
+  }
+
+  private requirePromoCodes(): PromoCodesService {
+    if (!this.promoCodesService) {
+      throw new BadRequestException('Promo code not found');
+    }
+    return this.promoCodesService;
+  }
+
+  /** Promokod — tovar summasiga (aksiyadan keyin, yetkazishsiz); chegirma tovar summasidan oshmaydi. */
+  private async resolvePromo(
+    customerId: string,
+    code: string | undefined,
+    itemsTotal: number,
+  ): Promise<{ promoCodeId: string; code: string; discount: number } | null> {
+    const trimmed = code?.trim();
+    if (!trimmed) return null;
+    const result = await this.requirePromoCodes().validate(trimmed, customerId, itemsTotal, {
+      serviceType: ServiceType.FOOD,
+    });
+    return {
+      promoCodeId: result.promoCodeId,
+      code: trimmed.toUpperCase(),
+      discount: Math.min(itemsTotal, Math.max(0, Math.round(result.discountAmount))),
+    };
+  }
+
+  private async releasePromo(order: Pick<FoodOrder, 'id' | 'promoCodeId' | 'customerId'>): Promise<void> {
+    if (!order.promoCodeId || !this.promoCodesService) return;
+    try {
+      await this.promoCodesService.releaseForVendorOrder(order.promoCodeId, order.customerId, {
+        kind: 'food',
+        id: order.id,
+      });
+    } catch (err) {
+      this.logger.error(`Promokod bo'shatilmadi (food ${order.id}): ${(err as Error).message}`);
+    }
+  }
+
+  /**
+   * Mijoz bekor qilishi (spec §1): faqat restoran QABUL QILMAGAN (`new`)
+   * buyurtma. Shartli yozuv — restoran shu lahzada qabul qilsa, yutqazgan
+   * tomon 409 oladi.
+   */
+  async cancelByCustomer(customerId: string, id: string, reason?: string) {
+    const order = await this.orderRepo.findOne({ where: { id, customerId } });
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+    if (!customerCanCancel(order)) {
+      throw cancelNotAllowed('food');
+    }
+    const changes = {
+      status: FoodOrderStatus.CANCELLED,
+      cancelledBy: 'customer' as const,
+      cancelReason: cleanCancelReason(reason),
+      cancelledAt: new Date(),
+    };
+    const result = await this.orderRepo.update({ id, customerId, status: FoodOrderStatus.NEW }, changes);
+    if (!result.affected) {
+      throw cancelNotAllowed('food');
+    }
+    const saved: FoodOrder = { ...order, ...changes };
+    await this.releasePromo(saved);
+    await this.closeCardPayments(saved);
+
+    const restaurant = await this.restaurantRepo.findOne({ where: { id: order.restaurantId } });
+    if (restaurant) {
+      this.realtimeGateway.emitToUser(restaurant.ownerUserId, 'food:order:cancelled', {
+        orderId: saved.id,
+        cancelledBy: 'customer',
+        cancelReason: saved.cancelReason,
+      });
+      await this.pushVendorCancelled(restaurant.ownerUserId, saved);
+    }
+    this.realtimeGateway.emitToUser(customerId, 'food:order:status', {
+      orderId: saved.id,
+      status: saved.status,
+    });
+    return this.withDelivery(saved);
+  }
+
+  // ---------- to'lanmagan kartali buyurtma muddati (INCIDENT-POLICY §1) ----------
+
+  @Cron(CronExpression.EVERY_MINUTE, { name: 'food-unpaid-card-orders' })
+  async handleUnpaidCardOrdersTick(): Promise<void> {
+    // Ushlanmagan xato scheduler'ni jim qoldirishi mumkin.
+    try {
+      await this.expireUnpaidCardOrders();
+    } catch (err) {
+      this.logger.error(`To'lanmagan kartali ovqat buyurtmalarini bekor qilish yiqildi: ${err}`);
+    }
+  }
+
+  /**
+   * `cardPaymentTimeoutMinutes` ichida to'lanmagan kartali (`new`)
+   * buyurtmalarni bekor qiladi: ochiq to'lov yopiladi, promokod bo'shaydi,
+   * mijozga push. Bir nechta instansda xavfsiz — bekor qilish shartli
+   * UPDATE (`status = 'new'`). Qaytaradi: bekor qilinganlar soni.
+   */
+  async expireUnpaidCardOrders(now: Date = new Date()): Promise<number> {
+    const minutes = await this.settingsService.getCardPaymentTimeoutMinutes();
+    const cutoff = new Date(now.getTime() - minutes * 60_000);
+    const candidates = await this.orderRepo.find({
+      where: {
+        status: FoodOrderStatus.NEW,
+        paymentMethod: FoodPaymentMethod.CARD,
+        createdAt: LessThan(cutoff),
+        id: Raw(notPaidByCardSql),
+      },
+      order: { createdAt: 'ASC' },
+      take: UNPAID_CARD_EXPIRY_BATCH,
+    });
+    let cancelled = 0;
+    for (const order of candidates) {
+      try {
+        if (await this.expireUnpaidCardOrder(order, minutes, now)) cancelled += 1;
+      } catch (err) {
+        this.logger.error(`To'lanmagan ovqat buyurtmasi bekor qilinmadi (${order.id}): ${(err as Error).message}`);
+      }
+    }
+    return cancelled;
+  }
+
+  private async expireUnpaidCardOrder(order: FoodOrder, minutes: number, now: Date): Promise<boolean> {
+    // Avval ochiq to'lov yopiladi — shundan keyin kelgan callback pulni
+    // bekor qilingan buyurtmaga tushira olmaydi; keyin to'langanmi qayta
+    // tekshiriladi (shu orada to'lagan mijozning buyurtmasi qoladi).
+    await closePendingCardPayments(this.transactionRepo, order);
+    if (await isVendorOrderPaid(this.transactionRepo, order)) return false;
+
+    const changes = {
+      status: FoodOrderStatus.CANCELLED,
+      cancelledBy: 'system' as const,
+      cancelReason: CARD_PAYMENT_EXPIRED_REASON,
+      cancelledAt: now,
+    };
+    const result = await this.orderRepo.update({ id: order.id, status: FoodOrderStatus.NEW }, changes);
+    if (!result.affected) return false;
+    const saved: FoodOrder = { ...order, ...changes };
+    await this.releasePromo(saved);
+
+    this.realtimeGateway.emitToUser(saved.customerId, 'food:order:status', {
+      orderId: saved.id,
+      status: saved.status,
+      reason: saved.cancelReason,
+    });
+    const restaurant = await this.restaurantRepo.findOne({ where: { id: order.restaurantId } });
+    if (restaurant) {
+      this.realtimeGateway.emitToUser(restaurant.ownerUserId, 'food:order:cancelled', {
+        orderId: saved.id,
+        cancelledBy: 'system',
+        cancelReason: saved.cancelReason,
+      });
+    }
+    try {
+      await this.notificationsService?.notifyUserIds(
+        [saved.customerId],
+        (language) => unpaidCardOrderCancelledText(minutes, language),
+        'food_order_payment_expired',
+        { orderId: saved.id },
+      );
+    } catch (err) {
+      this.logger.warn(`To'lov muddati push'i yuborilmadi (food ${saved.id}): ${(err as Error).message}`);
+    }
+    return true;
+  }
+
+  private async pushVendorCancelled(ownerUserId: string, order: FoodOrder): Promise<void> {
+    if (!this.notificationsService) return;
+    try {
+      const owner = await this.usersService.findById(ownerUserId);
+      if (owner) {
+        await this.notificationsService.notifyVendorOrderCancelled(owner, 'food', order.id, order.cancelReason);
+      }
+    } catch (err) {
+      this.logger.warn(`Bekor qilish push'i yuborilmadi (food ${order.id}): ${(err as Error).message}`);
+    }
   }
 
   /**
@@ -574,7 +1200,9 @@ export class FoodService {
       skip: (safePage - 1) * safeLimit,
       take: safeLimit,
     });
-    return Promise.all(orders.map((o) => this.withDelivery(o)));
+    const paid = await paidCardOrderIds(this.transactionRepo, orders);
+    // Topshirish kodi — faqat mijozga (INCIDENT-POLICY §2).
+    return this.withHandoverCodes(await Promise.all(orders.map((o) => this.withDelivery(o, paid.has(o.id)))));
   }
 
   async getCustomerOrder(customerId: string, id: string) {
@@ -582,7 +1210,12 @@ export class FoodService {
     if (!order) {
       throw new NotFoundException('Order not found');
     }
-    return this.withDelivery(order);
+    const [shown] = await this.withHandoverCodes([await this.withDelivery(order)]);
+    return shown;
+  }
+
+  private withHandoverCodes<T extends { delivery: CourierTracking | null }>(items: T[]): Promise<T[]> {
+    return withHandoverCodes((sql, params) => this.orderRepo.query(sql, params), items);
   }
 
   // ---------- admin ----------
@@ -623,15 +1256,32 @@ export class FoodService {
 
   // Content moderation — an admin reviewing dishes across every restaurant,
   // not scoped to a single vendor's own menu (see listDishes for that).
-  adminListDishes(): Promise<Dish[]> {
-    return this.dishRepo.find({ relations: ['restaurant'], order: { createdAt: 'DESC' } });
+  async adminListDishes(
+    query: CatalogModerationQueryDto,
+  ): Promise<{ dishes: Dish[]; total: number; page: number; limit: number }> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const qb = this.dishRepo
+      .createQueryBuilder('dish')
+      .leftJoinAndSelect('dish.restaurant', 'restaurant')
+      .orderBy('dish.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+    const search = query.search?.trim();
+    if (search) {
+      qb.where('(dish.name ILIKE :q OR restaurant.name ILIKE :q)', { q: likePattern(search) });
+    }
+    const [dishes, total] = await qb.getManyAndCount();
+    return { dishes, total, page, limit };
   }
 
-  async adminDeleteDish(id: string): Promise<void> {
+  /** O'chirilgan taomning rasm kaliti — chaqiruvchi faylni tozalaydi. */
+  async adminDeleteDish(id: string): Promise<string | null> {
     const dish = await this.dishRepo.findOne({ where: { id } });
     if (!dish) {
       throw new NotFoundException('Dish not found');
     }
     await this.dishRepo.remove(dish);
+    return dish.imageKey;
   }
 }

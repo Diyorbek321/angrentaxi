@@ -1,10 +1,13 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { withRounding } from './fare-rounding';
+import { FareBreakdown } from './fare-breakdown';
 import { Tariff } from '../../database/entities/tariff.entity';
 import { CreateTariffDto } from './dto/create-tariff.dto';
 import { UpdateTariffDto } from './dto/update-tariff.dto';
@@ -51,6 +54,7 @@ export class TariffsService {
       name: dto.name,
       basePrice: dto.basePrice,
       pricePerKm: dto.pricePerKm,
+      meteredPricePerKm: dto.meteredPricePerKm ?? null,
       pricePerMin: dto.pricePerMin,
       minPrice: dto.minPrice,
       maxPrice: dto.maxPrice ?? null,
@@ -66,6 +70,7 @@ export class TariffsService {
       ...(dto.name !== undefined && { name: dto.name }),
       ...(dto.basePrice !== undefined && { basePrice: dto.basePrice }),
       ...(dto.pricePerKm !== undefined && { pricePerKm: dto.pricePerKm }),
+      ...(dto.meteredPricePerKm !== undefined && { meteredPricePerKm: dto.meteredPricePerKm }),
       ...(dto.pricePerMin !== undefined && { pricePerMin: dto.pricePerMin }),
       ...(dto.minPrice !== undefined && { minPrice: dto.minPrice }),
       ...(dto.maxPrice !== undefined && { maxPrice: dto.maxPrice }),
@@ -77,19 +82,135 @@ export class TariffsService {
     return this.tariffRepository.save(updated);
   }
 
+  /**
+   * Deletes a tariff nothing depends on.
+   *
+   * Refused when orders reference it (their receipts and reports read the
+   * tariff row) — deactivating is the way to retire such a tariff. Also
+   * refused for the last ACTIVE tariff of a service type: food/market
+   * dispatch picks "any active tariff of that type", so removing the last
+   * one would silently stop deliveries.
+   */
+  async remove(id: string): Promise<void> {
+    const tariff = await this.findById(id);
+
+    const [{ count }] = (await this.tariffRepository.query(
+      'SELECT COUNT(*) AS count FROM orders WHERE tariff_id = $1',
+      [id],
+    )) as Array<{ count: string }>;
+    const orders = Number(count);
+    if (orders > 0) {
+      throw new ConflictException(
+        `«${tariff.name}» bo'yicha ${orders} ta buyurtma bor — uni o'chirib bo'lmaydi. ` +
+          `Yangi buyurtmalarga chiqmasligi uchun faolsizlantiring.`,
+      );
+    }
+
+    if (tariff.isActive) {
+      const activeOfType = await this.tariffRepository.count({
+        where: { serviceType: tariff.serviceType, isActive: true },
+      });
+      if (activeOfType <= 1) {
+        throw new ConflictException(
+          `«${tariff.name}» — "${tariff.serviceType}" xizmatidagi yagona faol tarif. ` +
+            `Avval boshqa tarif qo'shing, aks holda bu xizmat to'xtab qoladi.`,
+        );
+      }
+    }
+
+    await this.tariffRepository.delete(id);
+  }
+
+  /**
+   * [zoneSurge], when given, is the live demand-based multiplier for the pickup
+   * area (see SurgeService). It does not replace the tariff's own
+   * `surgeMultiplier` — the higher of the two wins, so an admin who sets a
+   * manual multiplier for a holiday keeps it as a floor while the automatic
+   * one can still react to a rush hour above it.
+   */
   calculatePrice(
     tariff: Tariff,
     distanceKm: number,
     durationMin: number,
+    zoneSurge?: number,
   ): number {
-    const baseTotal =
-      tariff.basePrice +
-      distanceKm * tariff.pricePerKm +
-      durationMin * tariff.pricePerMin;
+    return this.calculatePriceBreakdown(
+      tariff,
+      distanceKm,
+      durationMin,
+      zoneSurge,
+    ).total;
+  }
 
-    const raw = Math.max(tariff.minPrice, baseTotal) * (tariff.surgeMultiplier ?? 1.0);
+  /**
+   * Narxni qatorlarga ajratib hisoblaydi — chek uchun.
+   *
+   * `calculatePrice` shu metodning ustidagi yupqa qobiq. Ular ATAYLAB bitta
+   * hisob-kitobdan chiqadi: ikkita alohida formula yozilsa, ular vaqt o'tishi
+   * bilan ajralib ketadi va chekdagi summa undirilgan summadan farq qila
+   * boshlaydi — bu esa eng yomon xato turi, chunki u jimgina yuzaga keladi.
+   *
+   * Qatorlar tartibi hisob-kitob tartibini aks ettiradi:
+   *   asos + masofa + vaqt  →  eng kam haq  →  koeffitsient  →  yuqori chegara
+   *     →  100 so'mga yaxlitlash (`fare-rounding.ts`)
+   *
+   * ⚠️ KUTISH HAQI BU YERDA HISOBLANMAYDI va ataylab shunday. Kutish safar
+   * BOSHLANISHIDAN oldingi vaqtga bog'liq (`orders.arrived_at` → safar
+   * boshlanishi), ya'ni narx baholanayotgan lahzada u hali mavjud emas.
+   * U safar yakunlanganda, `withWaitingFare` orqali BITTA joyda qo'shiladi
+   * (`orders-completion.service.ts`) — shu sababli qat'iy narxli va
+   * hisoblagichli safarlar kutish uchun AYNAN bir xil qoidadan o'tadi.
+   */
+  calculatePriceBreakdown(
+    tariff: Tariff,
+    distanceKm: number,
+    durationMin: number,
+    zoneSurge?: number,
+  ): FareBreakdown {
+    const baseFare = tariff.basePrice;
+    const distanceFare = distanceKm * tariff.pricePerKm;
+    const timeFare = durationMin * tariff.pricePerMin;
+    const subtotal = baseFare + distanceFare + timeFare;
 
-    return tariff.maxPrice != null ? Math.min(raw, tariff.maxPrice) : raw;
+    // Eng kam haq — `Math.max(minPrice, subtotal)` ning qator ko'rinishi.
+    const minPriceAdjustment = Math.max(0, tariff.minPrice - subtotal);
+    const afterMin = subtotal + minPriceAdjustment;
+
+    const surgeMultiplier = Math.max(
+      tariff.surgeMultiplier ?? 1.0,
+      zoneSurge ?? 1.0,
+    );
+    const surgeFare = afterMin * (surgeMultiplier - 1);
+    const afterSurge = afterMin + surgeFare;
+
+    // Yuqori chegara har doim MANFIY (yoki 0) — shunda u jamiga
+    // to'g'ridan-to'g'ri qo'shiladi va invariant saqlanadi.
+    const maxPriceCap =
+      tariff.maxPrice != null ? Math.min(0, tariff.maxPrice - afterSurge) : 0;
+
+    return withRounding({
+      baseFare,
+      distanceKm,
+      pricePerKm: tariff.pricePerKm,
+      distanceFare,
+      durationMin,
+      pricePerMin: tariff.pricePerMin,
+      timeFare,
+      minPriceAdjustment,
+      surgeMultiplier,
+      surgeFare,
+      maxPriceCap,
+      // Opsiya haqi buyurtmaga bog'liq — `withOptionsFare` ustiga qo'shadi.
+      optionsFare: 0,
+      optionCharges: [],
+      // Baholash lahzasida kutish yo'q — qatorlar mavjud, lekin nol.
+      // Ular tarkibda HAR DOIM bo'lishi shart: mobil ilova maydon bor-yo'qligini
+      // tekshirmasdan o'qiy olsin (eski jsonb qatorlaridan farqli o'laroq).
+      waitingMinutes: 0,
+      waitingFare: 0,
+      roundingAdjustment: 0,
+      total: afterSurge + maxPriceCap,
+    });
   }
 
   async setSurgeMultiplier(id: string, multiplier: number): Promise<Tariff> {
@@ -111,8 +232,9 @@ export class TariffsService {
     tariffId: string,
     distanceKm: number,
     durationMin: number,
+    zoneSurge?: number,
   ): Promise<number> {
     const tariff = await this.findById(tariffId);
-    return this.calculatePrice(tariff, distanceKm, durationMin);
+    return this.calculatePrice(tariff, distanceKm, durationMin, zoneSurge);
   }
 }

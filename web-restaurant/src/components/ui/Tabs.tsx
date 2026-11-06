@@ -1,106 +1,133 @@
+// AUTO-SYNCED from web-manager — edit there, then run scripts/sync-panel-ui.sh
 'use client';
 
-import { useRef } from 'react';
-import { clsx } from 'clsx';
+import { useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { cn } from './cn';
 
 export interface TabItem<T extends string = string> {
   value: T;
   label: string;
   count?: number;
+  icon?: ReactNode;
+  disabled?: boolean;
 }
 
 export interface TabsProps<T extends string = string> {
   items: readonly TabItem<T>[];
   value: T;
   onChange: (value: T) => void;
-  /** Skrinrider uchun ro'yxat nomi ("Menyu kategoriyalari"). */
-  label: string;
-  size?: 'sm' | 'md';
+  /** `underline` = in-page sections (default); `segmented` = compact filter switch. */
+  variant?: 'underline' | 'segmented';
+  /** `lg` = 40px touch targets (kitchen / tablet screens). */
+  size?: 'sm' | 'md' | 'lg';
+  /**
+   * Stretch items to fill the row (no horizontal scroll). Labels are never
+   * ellipsized: when the row is too narrow the items wrap onto a second row
+   * and each row stretches to the full width.
+   */
+  fullWidth?: boolean;
+  /** Accessible name of the tab list (alias: `label`). */
+  ariaLabel?: string;
+  label?: string;
   className?: string;
 }
 
-/**
- * WAI-ARIA tab naqshi: faqat faol tab tab-tartibida turadi (roving
- * tabindex), qolganlariga ← → Home End bilan o'tiladi.
- */
+/** Roving focus: arrows / Home / End move between enabled tabs. */
+function useRovingKeys<T extends string>(items: readonly TabItem<T>[], value: T, onChange: (v: T) => void) {
+  const ref = useRef<HTMLDivElement>(null);
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const enabled = items.filter((i) => !i.disabled);
+    const idx = enabled.findIndex((i) => i.value === value);
+    let next: TabItem<T> | undefined;
+    if (e.key === 'ArrowRight') next = enabled[(idx + 1) % enabled.length];
+    else if (e.key === 'ArrowLeft') next = enabled[(idx - 1 + enabled.length) % enabled.length];
+    else if (e.key === 'Home') next = enabled[0];
+    else if (e.key === 'End') next = enabled[enabled.length - 1];
+    if (!next) return;
+    e.preventDefault();
+    onChange(next.value);
+    const pos = items.indexOf(next);
+    requestAnimationFrame(() => ref.current?.querySelectorAll<HTMLElement>('[role="tab"]')[pos]?.focus());
+  };
+  return { ref, onKeyDown };
+}
+
+function Count({ n, active }: { n: number; active: boolean }) {
+  return (
+    <span
+      className={cn(
+        'num min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center rounded-ds-xs text-[11px] font-medium',
+        active ? 'bg-surface-3 text-ink' : 'bg-surface-2 text-muted'
+      )}
+    >
+      {n}
+    </span>
+  );
+}
+
 export function Tabs<T extends string = string>({
   items,
   value,
   onChange,
-  label,
+  variant = 'underline',
   size = 'md',
+  fullWidth = false,
+  ariaLabel,
+  label,
   className,
 }: TabsProps<T>) {
-  const listRef = useRef<HTMLDivElement>(null);
-
-  const focusAt = (index: number) => {
-    const next = items[(index + items.length) % items.length];
-    if (!next) return;
-    onChange(next.value);
-    const buttons = listRef.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
-    buttons?.[(index + items.length) % items.length]?.focus();
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent, index: number) => {
-    if (e.key === 'ArrowRight') {
-      e.preventDefault();
-      focusAt(index + 1);
-    } else if (e.key === 'ArrowLeft') {
-      e.preventDefault();
-      focusAt(index - 1);
-    } else if (e.key === 'Home') {
-      e.preventDefault();
-      focusAt(0);
-    } else if (e.key === 'End') {
-      e.preventDefault();
-      focusAt(items.length - 1);
-    }
-  };
+  const { ref, onKeyDown } = useRovingKeys(items, value, onChange);
+  const segmented = variant === 'segmented';
 
   return (
     <div
-      ref={listRef}
+      ref={ref}
       role="tablist"
-      aria-label={label}
-      className={clsx(
-        'inline-flex items-center gap-1 rounded-ds-sm border border-line bg-surface-2/60 p-1',
-        'overflow-x-auto no-scrollbar max-w-full',
+      aria-label={ariaLabel ?? label}
+      onKeyDown={onKeyDown}
+      className={cn(
+        fullWidth ? 'w-full' : 'max-w-full overflow-x-auto no-scrollbar',
+        segmented
+          ? cn(
+              fullWidth ? 'flex flex-wrap' : 'inline-flex',
+              'items-center gap-0.5 p-0.5 rounded-ds-sm border border-line bg-surface-2'
+            )
+          : cn('flex items-center gap-4 border-b border-line', fullWidth && 'flex-wrap gap-y-0'),
         className
       )}
     >
-      {items.map((item, index) => {
+      {items.map((item) => {
         const active = item.value === value;
         return (
           <button
             key={item.value}
             type="button"
             role="tab"
-            id={`tab-${item.value}`}
             aria-selected={active}
             tabIndex={active ? 0 : -1}
-            onKeyDown={(e) => handleKeyDown(e, index)}
+            disabled={item.disabled}
             onClick={() => onChange(item.value)}
-            className={clsx(
-              'inline-flex items-center gap-1.5 rounded-ds-xs font-bold whitespace-nowrap',
-              'transition-colors duration-fast ease-standard',
-              size === 'sm' ? 'px-3 py-1.5 text-caption' : 'px-3.5 py-2 text-label',
-              // Faol tab — INTERAKTIV qatlam: to'q yashil fon + oq matn.
-              active
-                ? 'bg-primary text-white dark:bg-primary-on-dark'
-                : 'text-muted hover:text-ink hover:bg-surface-3'
+            className={cn(
+              'inline-flex items-center gap-1.5 whitespace-nowrap font-medium transition-colors',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-40',
+              size === 'lg' ? '[&_svg]:h-4 [&_svg]:w-4' : '[&_svg]:h-3.5 [&_svg]:w-3.5',
+              fullWidth && 'flex-auto justify-center',
+              segmented
+                ? cn(
+                    'rounded-[5px]',
+                    size === 'sm' ? 'h-6 px-2.5 text-xs' : size === 'lg' ? 'h-10 px-3.5 text-sm' : 'h-7 px-2.5 text-[13px]',
+                    active ? 'bg-surface text-ink shadow-hairline' : 'text-muted hover:text-ink'
+                  )
+                : cn(
+                    'relative -mb-px border-b-2 px-0.5',
+                    size === 'sm' ? 'h-8 text-[13px]' : size === 'lg' ? 'h-11 text-[15px]' : 'h-9 text-sm',
+                    active ? 'border-primary text-ink' : 'border-transparent text-muted hover:text-ink'
+                  )
             )}
           >
+            {item.icon}
             {item.label}
-            {item.count != null && (
-              <span
-                className={clsx(
-                  'font-mono text-micro px-1.5 py-px rounded-full tabular-nums',
-                  active ? 'bg-white/20 text-white' : 'bg-surface-3 text-muted'
-                )}
-              >
-                {item.count}
-              </span>
-            )}
+            {item.count != null && <Count n={item.count} active={active} />}
           </button>
         );
       })}

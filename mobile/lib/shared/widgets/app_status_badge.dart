@@ -1,4 +1,5 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 // ============================================================================
@@ -87,7 +88,7 @@ class AppStatusBadge extends StatelessWidget {
     final fg = tone.foreground;
     return Semantics(
       container: true,
-      label: 'Holat: $label',
+      label: context.l10n.shStatusSemantics(label),
       excludeSemantics: true,
       child: Container(
         padding: EdgeInsets.symmetric(
@@ -103,13 +104,21 @@ class AppStatusBadge extends StatelessWidget {
           children: [
             Icon(icon ?? tone.icon, size: dense ? 12 : 14, color: fg),
             SizedBox(width: dense ? 4 : kSpace1 + 2),
-            Text(
-              label,
-              style: TextStyle(
-                color: fg,
-                fontSize: dense ? kFontMicro : kFontCaption,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.2,
+            // Nishon tor konteynerga (yon panel, ikki ustunli tartib)
+            // tushganda matn qisqarishi kerak — aks holda `Row` toshib
+            // ketadi. Ikonka har doim qoladi: holat FAQAT rang bilan
+            // emas, ikonka bilan ham berilishi shart (WCAG 1.4.1).
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: fg,
+                  fontSize: dense ? kFontMicro : kFontCaption,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.2,
+                ),
               ),
             ),
           ],

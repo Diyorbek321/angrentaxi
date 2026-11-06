@@ -42,6 +42,13 @@ export class Dish {
   @Column({ nullable: true, type: 'varchar' })
   description: string | null;
 
+  /**
+   * Katalog rasmi kaliti (`catalog/<uuid>.<ext>`), null = rasm yo'q.
+   * Maxfiy emas: mijoz uni `GET /media/<kalit>` orqali ochiq yuklaydi.
+   */
+  @Column({ name: 'image_key', type: 'varchar', length: 200, nullable: true })
+  imageKey: string | null;
+
   @Column({
     type: 'decimal',
     precision: 12,

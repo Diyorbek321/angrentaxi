@@ -86,10 +86,11 @@ export class UsersController {
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'User not found' })
   async blockUser(
+    @CurrentUser() actor: User,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: BlockUserDto,
   ): Promise<User> {
-    return this.usersService.blockUser(id, dto.reason);
+    return this.usersService.blockUser(id, dto.reason, actor.id);
   }
 
   @Patch(':id/unblock')
@@ -99,8 +100,11 @@ export class UsersController {
   @ApiResponse({ status: 200, description: 'User unblocked' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async unblockUser(@Param('id', ParseUUIDPipe) id: string): Promise<User> {
-    return this.usersService.unblockUser(id);
+  async unblockUser(
+    @CurrentUser() actor: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<User> {
+    return this.usersService.unblockUser(id, actor.id);
   }
 
   // Staff & Roles — an admin decides which of the fine-grained Permission
@@ -113,9 +117,10 @@ export class UsersController {
   @ApiParam({ name: 'id', description: 'User UUID' })
   @ApiResponse({ status: 200, description: 'Permissions updated' })
   async updatePermissions(
+    @CurrentUser() actor: User,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdatePermissionsDto,
   ): Promise<User> {
-    return this.usersService.updatePermissions(id, dto.permissions);
+    return this.usersService.updatePermissions(id, dto.permissions, actor.id);
   }
 }

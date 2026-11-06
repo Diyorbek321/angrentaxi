@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ACTIVE_SOS_ALERTS_LIMIT, SafetyService } from './safety.service';
 import {
   SosAlert,
@@ -10,6 +10,7 @@ import {
 import { OrdersService } from '../orders/orders.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { Order, OrderStatus } from '../../database/entities/order.entity';
+import { AuditLogService } from '../audit/audit-log.service';
 
 describe('SafetyService', () => {
   let service: SafetyService;
@@ -19,7 +20,10 @@ describe('SafetyService', () => {
     save: jest.Mock;
     findOne: jest.Mock;
     find: jest.Mock;
+    manager: { transaction: jest.Mock };
   };
+  let txManager: { update: jest.Mock };
+  let auditLog: { record: jest.Mock };
   let ordersService: { findByIdOrThrow: jest.Mock };
   let realtimeGateway: { emitToManagers: jest.Mock };
 
@@ -40,7 +44,10 @@ describe('SafetyService', () => {
       save: jest.fn((entity) => Promise.resolve(entity)),
       findOne: jest.fn(),
       find: jest.fn(),
+      manager: { transaction: jest.fn(async (work: (m: unknown) => Promise<unknown>) => work(txManager)) },
     };
+    txManager = { update: jest.fn(async () => ({ affected: 1 })) };
+    auditLog = { record: jest.fn(async () => ({ id: 'audit-1' })) };
     ordersService = { findByIdOrThrow: jest.fn() };
     realtimeGateway = { emitToManagers: jest.fn() };
 
@@ -50,6 +57,7 @@ describe('SafetyService', () => {
         { provide: getRepositoryToken(SosAlert), useValue: sosAlertRepository },
         { provide: OrdersService, useValue: ordersService },
         { provide: RealtimeGateway, useValue: realtimeGateway },
+        { provide: AuditLogService, useValue: auditLog },
       ],
     }).compile();
 
@@ -123,27 +131,60 @@ describe('SafetyService', () => {
   });
 
   describe('resolveSos', () => {
-    it('transitions status to resolved and sets resolvedAt', async () => {
-      const alert = {
-        id: 'alert-1',
-        status: SosAlertStatus.ACTIVE,
-        resolvedAt: null,
-      } as SosAlert;
-      sosAlertRepository.findOne.mockResolvedValue(alert);
+    const activeAlert = (): SosAlert =>
+      ({ id: 'alert-1', orderId: 'order-1', status: SosAlertStatus.ACTIVE, resolvedAt: null }) as SosAlert;
 
-      const result = await service.resolveSos('alert-1');
+    it("izoh va yopgan xodim saqlanadi, audit shu tranzaksiyada, panellarga sos:resolved", async () => {
+      sosAlertRepository.findOne.mockResolvedValue(activeAlert());
 
-      expect(result.status).toBe(SosAlertStatus.RESOLVED);
+      const result = await service.resolveSos('alert-1', 'manager-1', "  Yo'lovchi bilan gaplashildi  ");
+
+      expect(result).toMatchObject({
+        status: SosAlertStatus.RESOLVED,
+        resolvedBy: 'manager-1',
+        resolutionNote: "Yo'lovchi bilan gaplashildi",
+      });
       expect(result.resolvedAt).toBeInstanceOf(Date);
-      expect(sosAlertRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({ status: SosAlertStatus.RESOLVED }),
+      expect(txManager.update).toHaveBeenCalledWith(
+        SosAlert,
+        { id: 'alert-1', status: SosAlertStatus.ACTIVE },
+        expect.objectContaining({ status: SosAlertStatus.RESOLVED, resolvedBy: 'manager-1' }),
       );
+      expect(auditLog.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actorUserId: 'manager-1',
+          action: 'sos.resolve',
+          targetType: 'sos_alert',
+          targetId: 'alert-1',
+          note: "Yo'lovchi bilan gaplashildi",
+          metadata: { orderId: 'order-1' },
+        }),
+        txManager,
+      );
+      expect(realtimeGateway.emitToManagers).toHaveBeenCalledWith(
+        'sos:resolved',
+        expect.objectContaining({ id: 'alert-1', resolvedBy: 'manager-1' }),
+      );
+    });
+
+    it('allaqachon yopilgan — 409, audit yozilmaydi', async () => {
+      sosAlertRepository.findOne.mockResolvedValue({ ...activeAlert(), status: SosAlertStatus.RESOLVED });
+      await expect(service.resolveSos('alert-1', 'manager-1', 'izoh')).rejects.toThrow(ConflictException);
+      expect(auditLog.record).not.toHaveBeenCalled();
+    });
+
+    it("poyga: boshqa dispetcher birinchi yopdi — 0 qator, 409, socket yo'q", async () => {
+      sosAlertRepository.findOne.mockResolvedValue(activeAlert());
+      txManager.update.mockResolvedValue({ affected: 0 });
+      await expect(service.resolveSos('alert-1', 'manager-1', 'izoh')).rejects.toThrow(ConflictException);
+      expect(auditLog.record).not.toHaveBeenCalled();
+      expect(realtimeGateway.emitToManagers).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundException when the alert does not exist', async () => {
       sosAlertRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.resolveSos('missing-alert')).rejects.toThrow(NotFoundException);
+      await expect(service.resolveSos('missing-alert', 'manager-1', 'izoh')).rejects.toThrow(NotFoundException);
     });
   });
 

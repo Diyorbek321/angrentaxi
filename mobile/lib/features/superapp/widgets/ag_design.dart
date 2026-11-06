@@ -1,4 +1,6 @@
+import 'package:angren_taxi/core/config/app_haptics.dart';
 import 'package:angren_taxi/core/config/app_theme.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 /// Superapp ekranlari `ag*` va `k*` tokenlarni aralash ishlatadi
@@ -132,11 +134,16 @@ class _AgPrimaryButtonState extends State<AgPrimaryButton> {
       button: true,
       enabled: enabled,
       label: widget.semanticsLabel ?? widget.label,
-      value: widget.isLoading ? 'Yuklanmoqda' : null,
+      value: widget.isLoading ? context.l10n.saLoading : null,
       excludeSemantics: true,
       child: GestureDetector(
         onTap: enabled ? widget.onPressed : null,
-        onTapDown: enabled ? (_) => setState(() => _pressed = true) : null,
+        onTapDown: enabled
+            ? (_) {
+                AppHaptics.tap();
+                setState(() => _pressed = true);
+              }
+            : null,
         onTapUp: enabled ? (_) => setState(() => _pressed = false) : null,
         onTapCancel: enabled ? () => setState(() => _pressed = false) : null,
         child: AnimatedContainer(
@@ -167,13 +174,20 @@ class _AgPrimaryButtonState extends State<AgPrimaryButton> {
                     ),
                   ]
                 : [
-                    Text(
+                    // Flexible — uzun yorliq (ruscha / 1.3x shrift) tor
+                    // ekranda tugmadan chiqib ketmasin.
+                    Flexible(
+                      child: Text(
                       widget.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
                       style: TextStyle(
                         color: fg,
                         fontSize: kFontTitle,
                         fontWeight: FontWeight.w800,
                       ),
+                    ),
                     ),
                     if (widget.icon != null) ...[
                       const SizedBox(width: kSpace2),
@@ -222,7 +236,7 @@ class AgHeader extends StatelessWidget {
             AgIconButton(
               icon: Icons.arrow_back_rounded,
               onTap: onBack!,
-              semanticsLabel: 'Orqaga',
+              semanticsLabel: context.l10n.saBack,
             ),
           if (onBack != null) const SizedBox(width: kSpace3),
           Expanded(
@@ -301,7 +315,10 @@ class AgIconButton extends StatelessWidget {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: onTap,
+            onTap: () {
+              AppHaptics.tap();
+              onTap();
+            },
             borderRadius: BorderRadius.circular(kRadiusSm),
             child: Center(
               child: Stack(
@@ -369,10 +386,13 @@ class AgCartBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: 'Savat: $count ta mahsulot, $trailing. $label',
+      label: context.l10n.saCartBarSemantics(count, trailing, label),
       excludeSemantics: true,
       child: GestureDetector(
-        onTap: onTap,
+        onTap: () {
+          AppHaptics.impact();
+          onTap();
+        },
         child: Container(
           height: kControlHeight,
           padding: const EdgeInsets.symmetric(horizontal: kSpace5),
@@ -402,17 +422,22 @@ class AgCartBar extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: kSpace2),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: agOnPrimary,
-                  fontSize: kFontBody,
-                  fontWeight: FontWeight.w800,
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: agOnPrimary,
+                    fontSize: kFontBody,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: kSpace2),
               Text(
                 trailing,
+                maxLines: 1,
                 style: const TextStyle(
                   color: agOnPrimary,
                   fontSize: kFontTitle,
@@ -438,15 +463,20 @@ class AgSectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text(
-          text,
-          style: const TextStyle(
-            fontSize: kFontH3,
-            fontWeight: FontWeight.w800,
-            color: agText,
+        // Expanded — uzun sarlavha (ruscha, 1.3x shrift) "Hammasi"
+        // havolasini ekrandan itarib chiqarmasin.
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: kFontH3,
+              fontWeight: FontWeight.w800,
+              color: agText,
+            ),
           ),
         ),
-        const Spacer(),
         if (trailing != null)
           Semantics(
             button: onTrailingTap != null,
@@ -462,6 +492,7 @@ class AgSectionTitle extends StatelessWidget {
                 padding: const EdgeInsets.only(left: kSpace3),
                 child: Text(
                   trailing!,
+                  maxLines: 1,
                   style: const TextStyle(
                     fontSize: kFontLabel,
                     fontWeight: FontWeight.w700,

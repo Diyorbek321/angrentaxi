@@ -1,10 +1,12 @@
-import { NextResponse, type NextRequest } from 'next/server';
-import { API_BASE_URL } from '@/lib/server/api-config';
-import { setSessionCookies } from '@/lib/server/auth-cookies';
-import { crossOriginRejection, isSameOrigin } from '@/lib/server/same-origin';
+import { NextResponse, type NextRequest } from "next/server";
+import { API_BASE_URL } from "@/lib/server/api-config";
+import { clientIpHeaders } from "@/lib/server/client-ip";
+import { requestLocale, requestMessages } from "@/lib/server/request-locale";
+import { setSessionCookies } from "@/lib/server/auth-cookies";
+import { crossOriginRejection, isSameOrigin } from "@/lib/server/same-origin";
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 /**
  * Exchanges an OTP for a session.
@@ -15,47 +17,60 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(req: NextRequest) {
   if (!isSameOrigin(req)) return crossOriginRejection();
+  const m = requestMessages(req).api;
 
   let body: { phone?: unknown; code?: unknown };
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ success: false, message: 'Invalid request body' }, { status: 400 });
+    return NextResponse.json(
+      { success: false, message: "Invalid request body" },
+      { status: 400 },
+    );
   }
 
-  const phone = typeof body.phone === 'string' ? body.phone.trim() : '';
-  const code = typeof body.code === 'string' ? body.code.trim() : '';
+  const phone = typeof body.phone === "string" ? body.phone.trim() : "";
+  const code = typeof body.code === "string" ? body.code.trim() : "";
   if (!phone || !code) {
     return NextResponse.json(
-      { success: false, message: 'Telefon raqam va kod talab qilinadi' },
-      { status: 400 }
+      { success: false, message: m.phoneAndCodeRequired },
+      { status: 400 },
     );
   }
 
   let upstream: Response;
   try {
     upstream = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: {
+        ...clientIpHeaders(req.headers),
+        "Content-Type": "application/json",
+        // Backend xatosi ("kod noto'g'ri" va h.k.) panel tilida qaytsin.
+        "Accept-Language": requestLocale(req),
+      },
       body: JSON.stringify({ phone, code }),
-      cache: 'no-store',
+      cache: "no-store",
     });
   } catch {
     return NextResponse.json(
-      { success: false, message: 'Serverga ulanib boʻlmadi' },
-      { status: 502 }
+      { success: false, message: m.serverUnreachable },
+      { status: 502 },
     );
   }
 
   const payload = (await upstream.json().catch(() => null)) as {
-    data?: { accessToken?: string; refreshToken?: string; user?: { role?: string } };
+    data?: {
+      accessToken?: string;
+      refreshToken?: string;
+      user?: { role?: string };
+    };
     message?: string;
   } | null;
 
   if (!upstream.ok || !payload?.data?.accessToken || !payload.data.user) {
     return NextResponse.json(
-      { success: false, message: payload?.message || 'Notoʻgʻri kod' },
-      { status: upstream.ok ? 502 : upstream.status }
+      { success: false, message: payload?.message || m.wrongCode },
+      { status: upstream.ok ? 502 : upstream.status },
     );
   }
 
@@ -66,10 +81,10 @@ export async function POST(req: NextRequest) {
   // backend directly. It is not an authorization boundary — the backend still
   // enforces permissions per endpoint — but it stops a token for the wrong kind
   // of account from being planted in this panel's cookie at all.
-  if (user.role !== 'restaurant') {
+  if (user.role !== "restaurant") {
     return NextResponse.json(
-      { success: false, message: 'Bu panel faqat restoranlar uchun' },
-      { status: 403 }
+      { success: false, message: m.restaurantsOnly },
+      { status: 403 },
     );
   }
 

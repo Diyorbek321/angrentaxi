@@ -4,7 +4,9 @@ import { Driver } from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
-import { formatPhone, formatRating, formatRelative } from '@/lib/format';
+import { PlateNumber } from '@/components/ui/PlateNumber';
+import { formatPhone, formatRating, formatRelative, nameFallback } from '@/lib/format';
+import { t } from '@/locales';
 
 interface DriverCardProps {
   driver: Driver;
@@ -13,6 +15,7 @@ interface DriverCardProps {
 export function DriverCard({ driver }: DriverCardProps) {
   // Same rule as the map pins: mint means free, grey means on a trip.
   const isBusy = driver.status === 'busy' || !!driver.currentOrderId;
+  const labels = t().lib.driverStatus;
 
   return (
     <Card padding="sm" hoverable>
@@ -29,7 +32,7 @@ export function DriverCard({ driver }: DriverCardProps) {
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-medium text-ink truncate">{driver.name}</p>
+            <p className="text-[13px] font-medium text-ink truncate">{driver.name || nameFallback()}</p>
             <span className="flex items-center gap-1 shrink-0 text-xs text-muted">
               <Star size={12} className="text-primary" fill="currentColor" />
               {formatRating(driver.rating)}
@@ -41,17 +44,17 @@ export function DriverCard({ driver }: DriverCardProps) {
               <Car size={11} className="shrink-0" />
               {driver.carModel}
             </span>
-            <span className="font-mono shrink-0">{driver.carNumber}</span>
+            <PlateNumber plate={driver.carNumber} className="shrink-0" />
           </div>
 
           <div className="flex items-center justify-between gap-2 mt-2">
             {isBusy ? (
-              <Badge variant="default" size="sm" dot>
-                Band
+              <Badge variant="neutral" size="sm" dot>
+                {labels.busy}
               </Badge>
             ) : (
-              <Badge variant="mint-soft" size="sm" dot>
-                Boʻsh
+              <Badge variant="success" size="sm" dot>
+                {labels.online}
               </Badge>
             )}
             <span className="flex items-center gap-1 text-[11px] text-subtle shrink-0">
@@ -60,7 +63,7 @@ export function DriverCard({ driver }: DriverCardProps) {
             </span>
           </div>
 
-          <p className="font-mono text-[11px] text-subtle mt-1">{formatPhone(driver.phone)}</p>
+          <p className="num text-[11px] text-subtle mt-1">{formatPhone(driver.phone)}</p>
         </div>
       </div>
     </Card>

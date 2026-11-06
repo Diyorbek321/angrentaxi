@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FavoriteAddress } from '../../database/entities/favorite-address.entity';
 import { CreateFavoriteAddressDto } from './dto/create-favorite-address.dto';
+import { normalizeAddressDetails } from '../../common/dto/address-details.dto';
 
 @Injectable()
 export class FavoritesService {
@@ -18,6 +19,7 @@ export class FavoritesService {
       address: dto.address,
       lat: dto.lat,
       lng: dto.lng,
+      addressDetails: normalizeAddressDetails(dto.addressDetails),
     });
   }
 

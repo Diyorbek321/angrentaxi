@@ -8,12 +8,13 @@ import type { NextResponse } from 'next/server';
  * to this app's own origin, where the route handlers under /api/* read them and
  * forward the access token to the backend as a Bearer header.
  *
- * `access_token` keeps the name the panel has always used, so an old
- * JS-readable cookie is overwritten (same name + path) the first time a user
- * logs in against this build instead of lingering next to the new one.
+ * The names are namespaced to this panel (`market_*`). Browsers scope cookies by
+ * host, not port, so on localhost every panel shares one cookie jar — a generic
+ * `access_token` set by one panel was sent to the others, which then opened
+ * with the wrong role's session and hung on the loading skeleton.
  */
-export const ACCESS_TOKEN_COOKIE = 'access_token';
-export const REFRESH_TOKEN_COOKIE = 'refresh_token';
+export const ACCESS_TOKEN_COOKIE = 'market_token';
+export const REFRESH_TOKEN_COOKIE = 'market_refresh_token';
 
 // Cookie lifetime is not token lifetime. The backend is the only thing that can
 // judge whether a JWT is still valid; these numbers only decide how long the

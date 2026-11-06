@@ -2,9 +2,9 @@
   "name": "angren-taxi-restaurant",
   "version": "0.1.0",
   "scripts": {
-    "dev": "next dev -p 3004",
+    "dev": "node server.js",
     "build": "next build",
-    "start": "next start -p 3004",
+    "start": "NODE_ENV=production node server.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -21,6 +21,7 @@
     "react": "^18",
     "react-dom": "^18",
     "react-hook-form": "^7.51.0",
+    "socket.io-client": "^4.7.0",
     "tailwind-merge": "^2.2.1",
     "zod": "^3.22.4"
   },

@@ -1,58 +1,70 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import {
-  ArrowLeft,
-  ClipboardList,
-  MapPin,
-  User,
-  Car,
-  CreditCard,
-  XCircle,
-} from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import { ArrowLeft, XCircle } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { SkeletonCards } from '@/components/ui/Skeleton';
+import { Card } from '@/components/ui/Card';
+import { DetailCard, KeyValue, KeyValueList } from '@/components/ui/KeyValue';
+import { Skeleton, SkeletonText } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { Avatar } from '@/components/ui/Avatar';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/Modal';
-import { Input } from '@/components/ui/Input';
+import { Modal } from '@/components/ui/Modal';
+import { Textarea } from '@/components/ui/Textarea';
+import { MoneyText } from '@/components/ui/MoneyText';
+import { PlateNumber } from '@/components/ui/PlateNumber';
 import { OrderStatusBadge } from '@/components/orders/OrderStatusBadge';
+import { orderPrice } from '@/components/orders/OrdersTable';
 import { ordersApi, Order } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
-import {
-  formatCurrency,
-  formatDate,
-  formatPhone,
-  getFullName,
-  shortId,
-} from '@/lib/utils';
-import { PAYMENT_METHOD_LABELS, PaymentMethod } from '@/lib/constants';
+import { formatDateTime, formatPhone, fullName, shortId } from '@/lib/format';
+import { paymentMethodLabels, PaymentMethod } from '@/lib/constants';
+import { t } from '@/locales';
 
-interface InfoRowProps {
-  icon: React.ReactNode;
-  label: string;
-  value: string | React.ReactNode;
+function backCrumb() {
+  return { label: t().orders.detail.backCrumb, href: '/dashboard/orders' };
 }
 
-function InfoRow({ icon, label, value }: InfoRowProps) {
+function formatCoords(p: Order['pickupLocation'] | undefined): string {
+  if (!p?.coordinates) return '—';
+  return `${p.coordinates[1].toFixed(5)}, ${p.coordinates[0].toFixed(5)}`;
+}
+
+function PersonBlock({
+  firstName,
+  lastName,
+  phone,
+}: {
+  firstName: string | null | undefined;
+  lastName: string | null | undefined;
+  phone: string | null | undefined;
+}) {
   return (
-    <div className="flex items-start gap-3 border-b border-divider py-3 first:pt-0 last:border-0 last:pb-0">
-      <div className="mt-0.5 shrink-0 text-subtle" aria-hidden="true">
-        {icon}
+    <div className="flex items-center gap-3 mb-4">
+      <Avatar firstName={firstName} lastName={lastName} size="lg" />
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-ink truncate">{fullName(firstName, lastName)}</p>
+        <p className="num text-[13px] text-muted">{formatPhone(phone)}</p>
       </div>
-      <div className="flex flex-1 items-start justify-between gap-4">
-        <span className="text-body text-muted">{label}</span>
-        <span className="text-right text-body font-medium text-ink">{value}</span>
+    </div>
+  );
+}
+
+function DetailSkeleton() {
+  return (
+    <div className="px-4 sm:px-6 py-5">
+      <div className="mb-5 space-y-2">
+        <Skeleton className="h-3 w-40" />
+        <Skeleton className="h-5 w-56" />
+      </div>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Card key={i}>
+            <Skeleton className="h-4 w-32 mb-4" />
+            <SkeletonText lines={4} />
+          </Card>
+        ))}
       </div>
     </div>
   );
@@ -60,9 +72,11 @@ function InfoRow({ icon, label, value }: InfoRowProps) {
 
 export default function OrderDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const { toast } = useToast();
   const orderId = params.id as string;
+  const m = t().orders.detail;
+  const mc = t().common;
+  const BACK_CRUMB = backCrumb();
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -71,24 +85,24 @@ export default function OrderDetailPage() {
   const [cancelReason, setCancelReason] = useState('');
   const [cancelLoading, setCancelLoading] = useState(false);
 
+  const fetchOrder = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const res = await ordersApi.getById(orderId);
+      setOrder(res.data.data);
+      setLoadError(null);
+    } catch {
+      setLoadError(m.loadFailed);
+      toast({ title: mc.error, description: m.loadError, variant: 'error' });
+    } finally {
+      setIsLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderId, toast]);
+
   useEffect(() => {
-    const fetchOrder = async () => {
-      try {
-        const res = await ordersApi.getById(orderId);
-        setOrder(res.data.data);
-      } catch {
-        // Yo'naltirish avvalgidek qoladi; `loadError` esa yo'naltirish
-        // amalga oshguncha (yoki u ishlamasa) bo'sh ekran o'rniga
-        // tushunarli xato holatini ko'rsatadi.
-        setLoadError('Buyurtma maʼlumotlarini yuklab boʻlmadi');
-        toast({ title: 'Xatolik', description: 'Buyurtma ma\'lumotlarini yuklashda xatolik', variant: 'error' });
-        router.push('/dashboard/orders');
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchOrder();
-  }, [orderId, router, toast]);
+  }, [fetchOrder]);
 
   const handleCancel = async () => {
     if (!order || !cancelReason.trim()) return;
@@ -97,262 +111,163 @@ export default function OrderDetailPage() {
       const res = await ordersApi.cancel(order.id, cancelReason);
       setOrder(res.data.data);
       setShowCancelModal(false);
-      toast({ title: 'Buyurtma bekor qilindi', variant: 'success' });
+      toast({ title: m.cancelled, variant: 'success' });
     } catch {
-      toast({ title: 'Xatolik', description: 'Buyurtmani bekor qilishda xatolik', variant: 'error' });
+      toast({ title: mc.error, description: m.cancelError, variant: 'error' });
     } finally {
       setCancelLoading(false);
     }
   };
 
-  const canCancel =
-    order &&
-    !['completed', 'cancelled'].includes(order.status);
-
-  if (isLoading) {
-    return (
-      <div className="p-4 sm:p-6">
-        <PageHeader title="Buyurtma" icon={<ClipboardList className="h-4 w-4" aria-hidden="true" />} />
-        <SkeletonCards count={2} height="h-64" />
-      </div>
-    );
-  }
+  if (isLoading && !order) return <DetailSkeleton />;
 
   if (!order) {
     return (
-      <div className="p-4 sm:p-6">
+      <div className="px-4 sm:px-6 py-5">
         <PageHeader
-          title="Buyurtma"
-          icon={<ClipboardList className="h-4 w-4" aria-hidden="true" />}
+          breadcrumbs={[BACK_CRUMB, { label: m.order }]}
+          title={m.order}
           actions={
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push('/dashboard/orders')}
-              leftIcon={<ArrowLeft className="h-4 w-4" aria-hidden="true" />}
-            >
-              Buyurtmalarga qaytish
+            <Button variant="secondary" href="/dashboard/orders" leftIcon={<ArrowLeft size={14} aria-hidden />}>
+              {m.backToOrders}
             </Button>
           }
         />
-        <ErrorState
-          message={loadError ?? 'Buyurtma topilmadi'}
-          onRetry={() => router.refresh()}
-        />
+        <Card padding="none">
+          <ErrorState message={loadError ?? m.notFound} onRetry={fetchOrder} />
+        </Card>
       </div>
     );
   }
 
+  const canCancel = !['completed', 'cancelled'].includes(order.status);
+  const id = shortId(order.id);
+
   return (
-    <div className="p-4 sm:p-6">
+    <div className="px-4 sm:px-6 py-5">
       <PageHeader
-        title={`Buyurtma #${shortId(order.id)}`}
-        icon={<ClipboardList className="h-4 w-4" aria-hidden="true" />}
+        breadcrumbs={[BACK_CRUMB, { label: id }]}
+        title={
+          <span className="inline-flex items-center gap-2.5">
+            {m.order} <span className="font-mono">{id}</span>
+            <OrderStatusBadge status={order.status} />
+          </span>
+        }
+        description={
+          <span className="num">
+            {formatDateTime(order.createdAt, { withYear: true })}
+            {order.completedAt && ` → ${formatDateTime(order.completedAt, { withYear: true })}`}
+          </span>
+        }
         actions={
-          <>
-            <Button variant="ghost" size="sm" onClick={() => router.back()} leftIcon={<ArrowLeft className="h-4 w-4" aria-hidden="true" />}>
-              Orqaga
+          canCancel && (
+            <Button
+              variant="danger"
+              onClick={() => setShowCancelModal(true)}
+              leftIcon={<XCircle size={14} aria-hidden />}
+            >
+              {mc.cancel}
             </Button>
-            {canCancel && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setShowCancelModal(true)}
-                leftIcon={<XCircle className="h-4 w-4" aria-hidden="true" />}
-              >
-                Bekor qilish
-              </Button>
-            )}
-          </>
+          )
         }
       />
-      <div className="space-y-6">
-        {/* Status banner */}
-        <div className="flex flex-wrap items-center gap-3 rounded-ds-md border border-line bg-surface-2 p-4">
-          <OrderStatusBadge status={order.status} />
-          <span className="text-body text-muted">
-            {formatDate(order.createdAt)}
-            {order.completedAt && ` → ${formatDate(order.completedAt)}`}
-          </span>
-          {order.cancelReason && (
-            <span className="text-body text-danger-deep dark:text-danger-light">
-              Sabab: {order.cancelReason}
-            </span>
+
+      {order.cancelReason && (
+        <div className="mb-4 rounded-ds-md border border-danger/30 bg-danger-tint px-3 py-2 text-[13px] text-danger-dark dark:text-danger-light">
+          {m.cancelReason(order.cancelReason)}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <DetailCard title={m.route}>
+          <KeyValueList>
+            <KeyValue label={m.pickup}>{order.pickupAddress ?? '—'}</KeyValue>
+            <KeyValue label={m.coordinates}>
+              <span className="num text-muted">{formatCoords(order.pickupLocation)}</span>
+            </KeyValue>
+            <KeyValue label={m.dropoff}>{order.dropoffAddress ?? '—'}</KeyValue>
+            <KeyValue label={m.coordinates}>
+              <span className="num text-muted">{formatCoords(order.dropoffLocation)}</span>
+            </KeyValue>
+          </KeyValueList>
+        </DetailCard>
+
+        <DetailCard title={m.payment}>
+          <KeyValueList>
+            <KeyValue label={m.price}>
+              <MoneyText value={orderPrice(order)} className="text-sm font-semibold" />
+            </KeyValue>
+            <KeyValue label={m.paymentMethod}>
+              {paymentMethodLabels()[order.paymentMethod as PaymentMethod] ?? order.paymentMethod}
+            </KeyValue>
+            <KeyValue label={m.tariff}>{order.tariff?.name ?? '—'}</KeyValue>
+          </KeyValueList>
+        </DetailCard>
+
+        <DetailCard title={m.passenger}>
+          <PersonBlock
+            firstName={order.passenger.firstName}
+            lastName={order.passenger.lastName}
+            phone={order.passenger.phone}
+          />
+          <KeyValueList>
+            <KeyValue label="ID">
+              <span className="font-mono text-xs">{shortId(order.passenger.id)}</span>
+            </KeyValue>
+          </KeyValueList>
+        </DetailCard>
+
+        <DetailCard title={m.driver}>
+          {order.driver ? (
+            <>
+              <PersonBlock
+                firstName={order.driver.firstName}
+                lastName={order.driver.lastName}
+                phone={order.driver.phone}
+              />
+              <KeyValueList>
+                <KeyValue label={m.car}>{order.driver.carModel || '—'}</KeyValue>
+                <KeyValue label={m.plate}>
+                  <PlateNumber plate={order.driver.carNumber} />
+                </KeyValue>
+              </KeyValueList>
+            </>
+          ) : (
+            <p className="py-4 text-center text-[13px] text-subtle">{m.noDriver}</p>
           )}
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {/* Route */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Yo&apos;nalish</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-3">
-                <div className="flex flex-col items-center gap-1">
-                  {/* Boshlanish nuqtasi — yorug' fonda ko'rinishi shart bo'lgan
-                      mint, shuning uchun `mint-deep` (3.37:1), `mint` emas. */}
-                  <div className="h-3 w-3 rounded-full bg-mint-deep" aria-hidden="true" />
-                  <div className="min-h-[2rem] w-px flex-1 bg-line" aria-hidden="true" />
-                  <MapPin className="h-4 w-4 text-danger-deep dark:text-danger-light" aria-hidden="true" />
-                </div>
-                <div className="flex-1 space-y-4">
-                  <div>
-                    <p className="text-caption text-subtle">Boshlang&apos;ich nuqta</p>
-                    <p className="text-body font-medium text-ink">{order.pickupAddress ?? '—'}</p>
-                    <p className="text-caption text-subtle">
-                      {order.pickupLocation.coordinates[1].toFixed(5)}, {order.pickupLocation.coordinates[0].toFixed(5)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-caption text-subtle">Manzil</p>
-                    <p className="text-body font-medium text-ink">{order.dropoffAddress ?? '—'}</p>
-                    <p className="text-caption text-subtle">
-                      {order.dropoffLocation.coordinates[1].toFixed(5)}, {order.dropoffLocation.coordinates[0].toFixed(5)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 rounded-ds-md bg-surface-2 p-3">
-                <div className="text-center">
-                  <CreditCard className="mx-auto h-4 w-4 text-subtle" aria-hidden="true" />
-                  <p className="mt-1 text-caption text-subtle">Narx</p>
-                  <p className="text-body font-semibold text-ink">
-                    {formatCurrency(order.finalPrice ?? order.estimatedPrice)}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Payment info */}
-          <Card>
-            <CardHeader>
-              <CardTitle>To&apos;lov ma&apos;lumotlari</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <InfoRow
-                icon={<CreditCard className="h-4 w-4" />}
-                label="To'lov usuli"
-                value={PAYMENT_METHOD_LABELS[order.paymentMethod as PaymentMethod] ?? order.paymentMethod}
-              />
-              <InfoRow
-                icon={<CreditCard className="h-4 w-4" />}
-                label="Tarif"
-                value={order.tariff.name}
-              />
-              <InfoRow
-                icon={<CreditCard className="h-4 w-4" />}
-                label="Narx"
-                value={<span className="text-h3 font-bold text-ink">{formatCurrency(order.finalPrice ?? order.estimatedPrice)}</span>}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Passenger */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Yo&apos;lovchi</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-4 flex items-center gap-4">
-                <Avatar
-                  name={getFullName(order.passenger.firstName, order.passenger.lastName)}
-                  size="md"
-                  tone="mint"
-                />
-                <div>
-                  <p className="font-semibold text-ink">
-                    {getFullName(order.passenger.firstName, order.passenger.lastName)}
-                  </p>
-                  <p className="text-body text-muted">{formatPhone(order.passenger.phone)}</p>
-                </div>
-              </div>
-              <InfoRow
-                icon={<User className="h-4 w-4" />}
-                label="ID"
-                value={<span className="font-mono text-caption">{shortId(order.passenger.id)}</span>}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Driver */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Haydovchi</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {order.driver ? (
-                <>
-                  <div className="mb-4 flex items-center gap-4">
-                    <Avatar
-                      name={getFullName(order.driver.firstName, order.driver.lastName)}
-                      size="md"
-                      tone="mint"
-                    />
-                    <div>
-                      <p className="font-semibold text-ink">
-                        {getFullName(order.driver.firstName, order.driver.lastName)}
-                      </p>
-                      <p className="text-body text-muted">{formatPhone(order.driver.phone)}</p>
-                    </div>
-                  </div>
-                  <InfoRow
-                    icon={<Car className="h-4 w-4" />}
-                    label="Avtomobil"
-                    value={order.driver.carModel}
-                  />
-                  <InfoRow
-                    icon={<Car className="h-4 w-4" />}
-                    label="Raqam"
-                    value={
-                      <span className="rounded-ds-xs border border-line bg-surface-2 px-2 py-0.5 font-mono text-caption font-semibold text-ink">
-                        {order.driver.carNumber}
-                      </span>
-                    }
-                  />
-                </>
-              ) : (
-                <p className="py-4 text-center text-body text-subtle">
-                  Haydovchi tayinlanmagan
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+        </DetailCard>
       </div>
 
-      {/* Cancel modal */}
-      <Dialog open={showCancelModal} onOpenChange={setShowCancelModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Buyurtmani bekor qilish</DialogTitle>
-            <DialogDescription>
-              Bekor qilish sababini kiriting. Bu yo&apos;lovchi va haydovchiga ko&apos;rsatiladi.
-            </DialogDescription>
-          </DialogHeader>
-          <Input
-            label="Sabab"
-            placeholder="Bekor qilish sababini kiriting..."
-            value={cancelReason}
-            onChange={(e) => setCancelReason(e.target.value)}
-          />
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowCancelModal(false)}>
-              Ortga
+      <Modal
+        isOpen={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        title={m.cancelTitle}
+        description={m.cancelDescription}
+        tone="danger"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowCancelModal(false)} disabled={cancelLoading}>
+              {m.back}
             </Button>
             <Button
-              variant="destructive"
+              variant="danger"
               isLoading={cancelLoading}
               disabled={!cancelReason.trim()}
               onClick={handleCancel}
             >
-              Bekor qilish
+              {mc.cancel}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        }
+      >
+        <Textarea
+          label={m.reason}
+          placeholder={m.reasonPlaceholder}
+          value={cancelReason}
+          onChange={(e) => setCancelReason(e.target.value)}
+          rows={3}
+        />
+      </Modal>
     </div>
   );
 }

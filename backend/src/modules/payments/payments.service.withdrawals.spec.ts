@@ -8,6 +8,8 @@ import {
   TransactionStatus,
   TransactionType,
 } from '../../database/entities/transaction.entity';
+import { MarketOrder } from '../../database/entities/market-order.entity';
+import { FoodOrder } from '../../database/entities/food-order.entity';
 import { Order, PaymentMethod } from '../../database/entities/order.entity';
 import { User } from '../../database/entities/user.entity';
 import {
@@ -17,6 +19,8 @@ import {
 import { PaymeProvider } from './payme.provider';
 import { ClickProvider } from './click.provider';
 import { UzcardProvider } from './uzcard.provider';
+import { PAYOUT_PROVIDER } from './payout.interface';
+import { DriversService } from '../drivers/drivers.service';
 
 /**
  * Coverage for the driver withdrawal-request flow added to PaymentsService:
@@ -38,8 +42,11 @@ describe('PaymentsService - withdrawals', () => {
     save: jest.Mock;
     find: jest.Mock;
     findOne: jest.Mock;
+    update: jest.Mock;
   };
   let queryBuilderMock: { select: jest.Mock; where: jest.Mock; getRawOne: jest.Mock };
+  // Pul CHIQARISH adapteri — testlar undan nima so'ralganini tekshiradi.
+  let payoutProvider: { name: string; send: jest.Mock };
   let dataSource: { transaction: jest.Mock };
 
   const mockBalance = (balance: number): void => {
@@ -70,6 +77,8 @@ describe('PaymentsService - withdrawals', () => {
       ),
       find: jest.fn(),
       findOne: jest.fn(),
+      // processWithdrawal — shartli da'vo (`update({ id, status })`).
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
     };
 
     // requestWithdrawal wraps its balance-check-then-insert in
@@ -77,6 +86,12 @@ describe('PaymentsService - withdrawals', () => {
     // Postgres advisory lock (see payments.service.ts comment) for the
     // duration of the check + writes. This mock runs the callback
     // immediately (single-threaded unit test, no real concurrency) against
+    // Standart javob — qo'lda o'tkazma: raqam yo'q, tasdiq odamdan keladi.
+    payoutProvider = {
+      name: 'manual',
+      send: jest.fn().mockResolvedValue({ reference: null, settled: true }),
+    };
+
     // a fake EntityManager whose getRepository(Entity) resolves to the same
     // transactionRepository / withdrawalRepository mocks used everywhere
     // else in this file, so every existing assertion on those mocks keeps
@@ -100,11 +115,28 @@ describe('PaymentsService - withdrawals', () => {
         PaymentsService,
         { provide: getRepositoryToken(Transaction), useValue: transactionRepository },
         { provide: getRepositoryToken(Order), useValue: {} },
+        { provide: getRepositoryToken(MarketOrder), useValue: { findOne: jest.fn() } },
+        { provide: getRepositoryToken(FoodOrder), useValue: { findOne: jest.fn() } },
         { provide: getRepositoryToken(User), useValue: {} },
         { provide: getRepositoryToken(WithdrawalRequest), useValue: withdrawalRepository },
         { provide: PaymeProvider, useValue: {} },
         { provide: ClickProvider, useValue: {} },
         { provide: UzcardProvider, useValue: {} },
+        // Pul CHIQARISH adapteri. Qo'lda o'tkazma hech qanday tarmoqqa
+        // chiqmaydi, shuning uchun mock ham shunchaki natija qaytaradi.
+        {
+          provide: PAYOUT_PROVIDER,
+          useValue: payoutProvider,
+        },
+        // settleOrderPayout credits drivers.balance once a card payment lands.
+        {
+          provide: DriversService,
+          useValue: { adjustBalanceWithin: jest.fn().mockResolvedValue({
+            driverId: 'driver-profile-1',
+            newBalance: 0,
+            wentOffline: false,
+          }) },
+        },
         { provide: DataSource, useValue: dataSource },
       ],
     }).compile();
@@ -152,6 +184,24 @@ describe('PaymentsService - withdrawals', () => {
         service.requestWithdrawal('driver-1', {
           amount: 50001,
           payoutDestination: '+998901234567',
+        }),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(withdrawalRepository.save).not.toHaveBeenCalled();
+      expect(transactionRepository.save).not.toHaveBeenCalled();
+    });
+
+    it("qarzdor haydovchi umuman yecha OLMAYDI", async () => {
+      // Bitta hisob modelida qoldiq manfiy bo'lishi mumkin — bu haydovchining
+      // platformaga qarzi (asosan naqd safarlar komissiyasi). Ilgari balans
+      // 0 ga qirqilardi, ya'ni qarz ko'rinmasdi; endi u ochiq turadi va
+      // yechishni ham to'sadi.
+      mockBalance(-12000);
+
+      await expect(
+        service.requestWithdrawal('driver-1', {
+          amount: 1000,
+          payoutDestination: 'card-1234',
         }),
       ).rejects.toThrow(BadRequestException);
 
@@ -230,6 +280,68 @@ describe('PaymentsService - withdrawals', () => {
 
       expect(result.status).toBe(WithdrawalStatus.PAID);
       expect(transactionRepository.save).not.toHaveBeenCalled();
+    });
+
+    it("to'lash ADAPTER orqali o'tadi", async () => {
+      // Pul chiqarish yo'li interfeys ortida. Payme/Click payout kalitlari
+      // kelganda modulda bitta bog'lanish o'zgaradi va `processWithdrawal`
+      // o'zgarishsiz qoladi — bu test aynan shu chegarani ushlab turadi.
+      withdrawalRepository.findOne.mockResolvedValue(
+        pendingRequest({ status: WithdrawalStatus.APPROVED }),
+      );
+
+      await service.processWithdrawal('withdrawal-1', {
+        status: WithdrawalStatus.PAID,
+      });
+
+      expect(payoutProvider.send).toHaveBeenCalledWith({
+        amount: 40000,
+        destination: '+998901234567',
+        withdrawalId: 'withdrawal-1',
+      });
+    });
+
+    it("provayder o'tkazma raqamini bersa u SAQLANADI", async () => {
+      // Nizo chiqqanda ilinadigan yagona ip. Qo'lda o'tkazmada `null`,
+      // avtomatik provayderda esa haqiqiy raqam bo'ladi.
+      withdrawalRepository.findOne.mockResolvedValue(
+        pendingRequest({ status: WithdrawalStatus.APPROVED }),
+      );
+      payoutProvider.send.mockResolvedValue({ reference: 'payme-tx-77', settled: true });
+
+      const result = await service.processWithdrawal('withdrawal-1', {
+        status: WithdrawalStatus.PAID,
+      });
+
+      expect(result.payoutReference).toBe('payme-tx-77');
+    });
+
+    it("provayder yiqilsa holat 'to'landi' ga O'TMAYDI", async () => {
+      // ⚠️ Eng qimmat shart. "To'landi" deb belgilab qo'yib, keyin pul
+      // ketmagan bo'lishi haydovchining pulini yo'q qilardi: daftarda u
+      // yechilgan, aslida esa hech qayerga bormagan.
+      withdrawalRepository.findOne.mockResolvedValue(
+        pendingRequest({ status: WithdrawalStatus.APPROVED }),
+      );
+      payoutProvider.send.mockRejectedValue(new Error('provayder javob bermadi'));
+
+      await expect(
+        service.processWithdrawal('withdrawal-1', { status: WithdrawalStatus.PAID }),
+      ).rejects.toThrow('provayder javob bermadi');
+
+      expect(withdrawalRepository.save).not.toHaveBeenCalled();
+    });
+
+    it("tasdiqlash va rad etishda adapter CHAQIRILMAYDI", async () => {
+      // Pul faqat "to'landi" bosqichida harakat qiladi. Tasdiqlash — bu
+      // hali navbatga qo'yish, rad etish esa ushlab qolishni qaytarish.
+      withdrawalRepository.findOne.mockResolvedValue(pendingRequest());
+
+      await service.processWithdrawal('withdrawal-1', {
+        status: WithdrawalStatus.APPROVED,
+      });
+
+      expect(payoutProvider.send).not.toHaveBeenCalled();
     });
 
     it('rejects approving a request that is not pending', async () => {

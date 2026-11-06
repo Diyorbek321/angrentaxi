@@ -1,10 +1,19 @@
-import { NextResponse, type NextRequest } from 'next/server';
-import { API_BASE_URL } from '@/lib/server/api-config';
-import { setSessionCookies } from '@/lib/server/auth-cookies';
-import { crossOriginRejection, isSameOrigin } from '@/lib/server/same-origin';
+import { NextResponse, type NextRequest } from "next/server";
+import { API_BASE_URL } from "@/lib/server/api-config";
+import { clientIpHeaders } from "@/lib/server/client-ip";
+import { setSessionCookies } from "@/lib/server/auth-cookies";
+import { crossOriginRejection, isSameOrigin } from "@/lib/server/same-origin";
+import { getServerLocale } from "@/lib/i18n/server";
+import { t } from "@/locales";
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+/** Cookie'dagi tilda xabarlar (route handler — so'rov paytida chaqiriladi). */
+function routeMessages() {
+  getServerLocale();
+  return t().shell;
+}
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 /**
  * Exchanges an OTP for a session.
@@ -20,46 +29,67 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ success: false, message: 'Invalid request body' }, { status: 400 });
+    return NextResponse.json(
+      { success: false, message: "Invalid request body" },
+      { status: 400 },
+    );
   }
 
-  const phone = typeof body.phone === 'string' ? body.phone.trim() : '';
-  const code = typeof body.code === 'string' ? body.code.trim() : '';
+  const phone = typeof body.phone === "string" ? body.phone.trim() : "";
+  const code = typeof body.code === "string" ? body.code.trim() : "";
   if (!phone || !code) {
     return NextResponse.json(
-      { success: false, message: 'Telefon raqam va kod talab qilinadi' },
-      { status: 400 }
+      { success: false, message: "Telefon raqam va kod talab qilinadi" },
+      { status: 400 },
     );
   }
 
   let upstream: Response;
   try {
     upstream = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: {
+        ...clientIpHeaders(req.headers),
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ phone, code }),
-      cache: 'no-store',
+      cache: "no-store",
     });
   } catch {
     return NextResponse.json(
-      { success: false, message: 'Serverga ulanib boʻlmadi' },
-      { status: 502 }
+      { success: false, message: routeMessages().route.serverUnreachable },
+      { status: 502 },
     );
   }
 
   const payload = (await upstream.json().catch(() => null)) as {
-    data?: { accessToken?: string; refreshToken?: string; user?: unknown };
+    data?: {
+      accessToken?: string;
+      refreshToken?: string;
+      user?: { role?: string };
+    };
     message?: string;
   } | null;
 
   if (!upstream.ok || !payload?.data?.accessToken || !payload.data.user) {
     return NextResponse.json(
-      { success: false, message: payload?.message || 'Notoʻgʻri kod' },
-      { status: upstream.ok ? 502 : upstream.status }
+      { success: false, message: payload?.message || routeMessages().wrongCode },
+      { status: upstream.ok ? 502 : upstream.status },
     );
   }
 
   const { accessToken, refreshToken, user } = payload.data;
+
+  // The role gate used to live in the login page, where anyone could skip it by
+  // calling the backend directly. It is not a real authorization boundary here
+  // either — the backend still enforces permissions per endpoint — but it stops
+  // a driver's valid token from being planted in a super-admin cookie.
+  if (user.role !== "admin") {
+    return NextResponse.json(
+      { success: false, message: routeMessages().route.adminsOnly },
+      { status: 403 },
+    );
+  }
 
   const res = NextResponse.json({ success: true, data: { user } });
   setSessionCookies(res, { accessToken, refreshToken });

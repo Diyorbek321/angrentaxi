@@ -4,6 +4,9 @@ import 'reflect-metadata';
 import { validateEnv } from './env.validation';
 
 const baseEnv = {
+  // MAJBURIY: standart qiymati ataylab olib tashlangan
+  // (`env.validation.ts` dagi izohga qarang).
+  NODE_ENV: 'development',
   DB_HOST: 'localhost',
   DB_PORT: 5432,
   DB_USER: 'postgres',
@@ -13,6 +16,30 @@ const baseEnv = {
   REDIS_PORT: 6379,
   APP_SECRET: 'a'.repeat(32),
 };
+
+describe('validateEnv NODE_ENV', () => {
+  it("ko'rsatilmagan bo'lsa ilova KO'TARILMAYDI", () => {
+    // ⚠️ Ilgari bu holat jimgina `development` ga tushardi va deploy
+    // qilingan server bir vaqtning o'zida OTP kodini javobda qaytarishni,
+    // `synchronize` ni, yumshoq CORS'ni va stack trace'larni ochib
+    // qo'yardi. Sozlamaning yo'qligi eng ochiq holatni bermasligi kerak.
+    const { NODE_ENV: _omitted, ...withoutEnv } = baseEnv;
+
+    expect(() => validateEnv(withoutEnv)).toThrow(/NODE_ENV/);
+  });
+
+  it("noto'g'ri qiymatni rad etadi", () => {
+    // "prod" yoki "PRODUCTION" kabi yaqin, lekin noto'g'ri qiymat
+    // productionni ochib yuborardi — shuning uchun ro'yxat qat'iy.
+    expect(() => validateEnv({ ...baseEnv, NODE_ENV: 'prod' })).toThrow(/NODE_ENV/);
+  });
+
+  it("uchta yaroqli qiymatni qabul qiladi", () => {
+    for (const value of ['development', 'production', 'test']) {
+      expect(validateEnv({ ...baseEnv, NODE_ENV: value }).NODE_ENV).toBe(value);
+    }
+  });
+});
 
 describe('validateEnv APP_SECRET', () => {
   it('accepts a 32-character secret', () => {
@@ -54,5 +81,55 @@ describe('validateEnv token TTLs', () => {
     expect(() => validateEnv({ ...baseEnv, JWT_ACCESS_TTL: 'forever' })).toThrow(
       /JWT_ACCESS_TTL/,
     );
+  });
+});
+
+/**
+ * ⚠️ XAVFSIZLIK: `enableImplicitConversion` `Boolean("false") === true` qiladi.
+ * Ilgari `OTP_BYPASS_ENABLED=false` yozilgan server bypass'ni YOQIQ deb o'qirdi
+ * (ConfigService validatsiyadan o'tgan qiymatni qaytaradi). Endi barcha boolean
+ * env'lar `parseEnvBoolean` bilan aniq o'qiladi.
+ */
+describe('validateEnv boolean flags', () => {
+  it.each([
+    ['false', false],
+    ['FALSE', false],
+    ['0', false],
+    ['', false],
+    ['no', false],
+    ['off', false],
+    [false, false],
+    ['true', true],
+    ['TRUE', true],
+    ['1', true],
+    [true, true],
+  ])('OTP_BYPASS_ENABLED=%p → %p', (raw, expected) => {
+    expect(validateEnv({ ...baseEnv, OTP_BYPASS_ENABLED: raw }).OTP_BYPASS_ENABLED).toBe(expected);
+  });
+
+  it("ko'rsatilmagan bo'lsa — false", () => {
+    expect(validateEnv({ ...baseEnv }).OTP_BYPASS_ENABLED).toBe(false);
+  });
+
+  it("tushunarsiz qiymat ilovani ko'tarmaydi (jim yoqilmaydi)", () => {
+    expect(() => validateEnv({ ...baseEnv, OTP_BYPASS_ENABLED: 'yes please' })).toThrow(/OTP_BYPASS_ENABLED/);
+  });
+});
+
+describe('validateEnv wallet top-up / Click sozlamalari', () => {
+  it('standartlar', () => {
+    const config = validateEnv({ ...baseEnv });
+    expect(config.WALLET_TOPUP_RETURN_URL).toBe('');
+    expect(config.CLICK_PREPARE_TTL_MINUTES).toBe(60);
+  });
+
+  it('qiymatlarni qabul qiladi', () => {
+    const config = validateEnv({
+      ...baseEnv,
+      WALLET_TOPUP_RETURN_URL: 'angrengo://wallet/topup/{id}',
+      CLICK_PREPARE_TTL_MINUTES: '30',
+    });
+    expect(config.WALLET_TOPUP_RETURN_URL).toBe('angrengo://wallet/topup/{id}');
+    expect(config.CLICK_PREPARE_TTL_MINUTES).toBe(30);
   });
 });
