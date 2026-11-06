@@ -15,7 +15,7 @@
 #
 # Memory budget (limits, 24 GB box):
 #   postgres 6g · redis 1.5g · osrm 1.5g · backend 2g · 4 panels × 768m
-#   · caddy 256m  ≈ 14.3 GB  — leaves ~9 GB for the page cache, `docker build`
+#   · site 64m · caddy 256m  ≈ 14.4 GB  — leaves ~9 GB for the page cache, `docker build`
 #   (Next.js builds peak at ~2-3 GB each) and the OS.
 
 name: angren
@@ -309,6 +309,33 @@ services:
     networks: [angren]
     logging: *default-logging
 
+  # ---------------------------------------------------------- public site --
+  # Static corporate site (web-site/). DOMAIN is baked in at build time for
+  # canonical URLs, sitemap and legal links; contacts live in
+  # web-site/site.config.json.
+  web-site:
+    build:
+      context: ../../web-site
+      args:
+        DOMAIN: ${DOMAIN}
+    image: angren/web-site:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:8080/']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          memory: 64m
+    networks: [angren]
+    logging: *default-logging
+
   # ----------------------------------------------------------------- edge --
   caddy:
     image: caddy:2.10-alpine
@@ -319,6 +346,7 @@ services:
       - web-manager
       - web-market
       - web-restaurant
+      - web-site
     ports:
       - '80:80'
       - '443:443'

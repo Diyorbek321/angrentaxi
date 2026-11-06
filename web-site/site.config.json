@@ -1,0 +1,23 @@
+{
+  "_izoh": "Saytdagi barcha o'zgaruvchan ma'lumot shu yerda. null — sahifada ko'rsatilmaydi (soxta raqam chiqmasligi uchun). DOMAIN muhit o'zgaruvchisi siteUrl/apiBase ni almashtiradi.",
+  "brand": "Angren Taxi",
+  "domain": "92-5-69-158.sslip.io",
+  "operatorName": null,
+  "foundedYear": 2026,
+  "city": { "uz": "Angren", "ru": "Ангрен" },
+  "contacts": {
+    "phone": null,
+    "email": null,
+    "telegram": null,
+    "address": { "uz": null, "ru": null },
+    "hours": { "uz": null, "ru": null }
+  },
+  "apps": {
+    "passengerPlayUrl": null,
+    "driverPlayUrl": null
+  },
+  "services": {
+    "intercityLive": false,
+    "cardPaymentsLive": false
+  }
+}

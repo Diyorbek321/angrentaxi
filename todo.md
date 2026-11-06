@@ -3,7 +3,7 @@
 Oxirgi yangilanish: 2026-11-04. Bu fayl faqat **hali ochiq** ishlar uchun — bajarilganlar tarixi `git log` da.
 
 Prod: Oracle Free ARM VM (`deploy/oracle`, sslip.io domeni) — Railway 2026-10-15 dan ishlatilmaydi.
-Oxirgi prod deploy: `d4a7f75` (2026-11-01). Oxirgi APK: v21 (2026-11-01, `02d5388`).
+Oxirgi prod deploy: `045779f` (2026-11-06). Oxirgi APK: v22 (2026-11-06, `045779f`).
 
 ---
 

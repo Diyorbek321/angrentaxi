@@ -13,6 +13,7 @@ set -uo pipefail
 API_URL="${API_URL:-http://localhost:3000/api/v1}"
 API_URL="${API_URL%/}"
 PANEL_URLS="${PANEL_URLS:-}"
+SITE_URL="${SITE_URL:-}"
 SMOKE_TOKEN="${SMOKE_TOKEN:-}"
 TIMEOUT="${SMOKE_TIMEOUT:-10}"
 
@@ -65,6 +66,14 @@ if [[ -n "$PANEL_URLS" ]]; then
   for panel in $PANEL_URLS; do
     check "${panel#https://}/login" 200 "${panel%/}/login"
   done
+fi
+
+if [[ -n "$SITE_URL" ]]; then
+  echo "Sayt:"
+  SITE_URL="${SITE_URL%/}"
+  check "sayt (uz)" 200 "$SITE_URL/" && body_has "sayt brendi" "Angren Taxi"
+  check "sayt (ru)" 200 "$SITE_URL/ru/"
+  check "sayt 404" 404 "$SITE_URL/yoq-sahifa-smoke"
 fi
 
 echo

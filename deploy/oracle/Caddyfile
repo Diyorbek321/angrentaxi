@@ -71,3 +71,13 @@ restaurant.{$DOMAIN} {
 		flush_interval -1
 	}
 }
+
+# Public corporate site on the bare domain; www → bare.
+{$DOMAIN} {
+	import common
+	reverse_proxy web-site:8080
+}
+
+www.{$DOMAIN} {
+	redir https://{$DOMAIN}{uri} 308
+}

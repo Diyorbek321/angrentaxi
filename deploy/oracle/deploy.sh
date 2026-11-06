@@ -8,7 +8,8 @@
 #
 # Steps: fetch + checkout (detached) → pre-deploy DB backup → build images
 # tagged with the commit sha → start data services → backend (migrations run
-# on boot; we wait for its healthcheck) → panels one by one → Caddy → smoke.
+# on boot; we wait for its healthcheck) → panels + public site one by one →
+# Caddy → smoke.
 #
 # Each service is replaced in place, so expect a few seconds of 502 per
 # service (single replica; socket.io clients reconnect by themselves).
@@ -55,6 +56,18 @@ git checkout -q --detach "$sha"
 export IMAGE_TAG="$sha"
 log "deploying commit $sha (was $prev)"
 
+# Services built from this repo, in build order. Filtered by the checked-out
+# compose file, so a rollback to a release without e.g. web-site still works.
+BUILT_SERVICES=()
+compose_services="$(dc config --services)"
+for s in backend osrm web-admin web-manager web-market web-restaurant web-site; do
+  grep -qx "$s" <<<"$compose_services" && BUILT_SERVICES+=("$s")
+done
+WEB_SERVICES=()
+for s in "${BUILT_SERVICES[@]}"; do
+  [[ "$s" == web-* ]] && WEB_SERVICES+=("$s")
+done
+
 # --- pre-deploy backup (only if the DB is already running) ------------------
 if [[ "${SKIP_BACKUP:-0}" != "1" ]] && [[ -n "$(dc ps -q postgres 2>/dev/null)" ]]; then
   log "pre-deploy backup"
@@ -65,7 +78,7 @@ fi
 # --- build ------------------------------------------------------------------
 images_present() {
   local s
-  for s in backend web-admin web-manager web-market web-restaurant osrm; do
+  for s in "${BUILT_SERVICES[@]}"; do
     docker image inspect "angren/$s:$IMAGE_TAG" >/dev/null 2>&1 || return 1
   done
 }
@@ -73,7 +86,7 @@ if [[ "$rollback" == "1" ]] && images_present; then
   log "images for $sha still present — skipping build"
 else
   log "building images (sequential: Next.js builds are RAM-hungry)"
-  for s in backend osrm web-admin web-manager web-market web-restaurant; do
+  for s in "${BUILT_SERVICES[@]}"; do
     log "build $s"
     dc build "$s"
   done
@@ -92,7 +105,7 @@ if ! wait_healthy backend 300; then
   die "backend unhealthy on $sha — run: deploy/oracle/deploy.sh --rollback"
 fi
 
-for s in web-admin web-manager web-market web-restaurant; do
+for s in "${WEB_SERVICES[@]}"; do
   log "$s"
   dc up -d --no-deps "$s"
   wait_healthy "$s" 120 || { dc logs --tail 40 "$s" >&2; die "$s unhealthy"; }
@@ -119,6 +132,7 @@ log "smoke test"
 # before declaring the release broken.
 smoke() {
   API_URL="https://api.${DOMAIN}/api/v1" \
+  SITE_URL="https://${DOMAIN}" \
   PANEL_URLS="https://admin.${DOMAIN} https://manager.${DOMAIN} https://market.${DOMAIN} https://restaurant.${DOMAIN}" \
     "$REPO_DIR/scripts/smoke.sh"
 }
@@ -133,7 +147,7 @@ done
 log "pruning dangling images (keeps tagged releases for rollback)"
 docker image prune -f >/dev/null
 # Keep only the last 3 release tags per service.
-for s in backend web-admin web-manager web-market web-restaurant osrm; do
+for s in "${BUILT_SERVICES[@]}"; do
   docker image ls "angren/$s" --format '{{.CreatedAt}}\t{{.Tag}}' \
     | sort -r | awk -F'\t' 'NR>3 {print $2}' \
     | while read -r tag; do docker image rm "angren/$s:$tag" >/dev/null 2>&1 || true; done
