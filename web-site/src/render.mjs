@@ -409,7 +409,7 @@ function head(t, other, cfg, assets, u) {
 <link rel="alternate" hreflang="${other.htmlLang}" href="${esc(`${u.site}${other.path}`)}">
 <link rel="alternate" hreflang="x-default" href="${esc(`${u.site}/`)}">
 <meta name="theme-color" content="#F5C518">
-<meta name="color-scheme" content="light dark">
+<meta name="color-scheme" content="light">
 <link rel="icon" href="/static/logo.svg" type="image/svg+xml">
 <link rel="preload" href="/static/fonts/pjs-extrabold.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/static/fonts/pjs-regular.woff2" as="font" type="font/woff2" crossorigin>

@@ -12,9 +12,9 @@
 
 :root {
   --bg: #FFFFFF;
-  --bg-soft: #FBF9F3;
+  --bg-soft: #FFFFFF;
   --surface: #FFFFFF;
-  --surface-2: #F5F2E9;
+  --surface-2: #F7F6F2;
   --line: #EEEADF;
   --line-strong: #DAD4C3;
   --ink: #1A1A1A;
@@ -49,36 +49,7 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --bg: #0E0E0E;
-    --bg-soft: #141414;
-    --surface: #1A1A1A;
-    --surface-2: #232323;
-    --line: #2B2B2B;
-    --line-strong: #3B3B3B;
-    --ink: #F3F1EA;
-    --muted: #B4AFA3;
-    --brand-tint: #2A2411;
-    --brand-ink: #F5C518;
-    --dark: #0A0A0A;
-    --dark-2: #161616;
-    --link: #F5C518;
-    --focus: #F5C518;
-    --map-bg: #1B1B1B;
-    --map-block: #262626;
-    --map-park: #1F2A1C;
-    --route: #F5C518;
-    --shadow-sm: 0 1px 2px rgb(0 0 0 / .5);
-    --shadow-md: 0 14px 34px -14px rgb(0 0 0 / .7);
-    --shadow-lg: 0 44px 90px -34px rgb(0 0 0 / .9);
-    color-scheme: dark;
-  }
-  /* Qora matn qora fonda yo'qolmasin — marker so'zni to'liq yopadi. */
-  :root:not([data-theme='light']) .hero h1 .mark::before { top: .08em; bottom: .02em; height: auto; }
-  /* Tarif mashinalari to'q rangda chizilgan — tungi rejimda och fon ustida. */
-  :root:not([data-theme='light']) .tariffs img { padding: 2px 3px; border-radius: 6px; background: #F3F1EA; }
-}
+/* Sayt doim oq fonda — tungi rejim ataylab yo'q (egasi qarori, 2026-11-06). */
 
 /* ---------- base ---------- */
 *, *::before, *::after { box-sizing: border-box; }
@@ -437,28 +408,28 @@ a { color: var(--link); text-decoration-thickness: 1px; text-underline-offset: 3
 .feature p { margin-top: 6px; color: var(--muted); font-size: 1rem; }
 
 /* drivers (dark band) */
-.section-dark { position: relative; overflow: hidden; color: var(--on-dark); background: var(--dark); }
+.section-dark { position: relative; overflow: hidden; color: var(--ink); background: var(--bg); }
 /* Yo'l chizig'i — orqa fonda tinimsiz oqib turadi. */
 .section-dark::before {
   content: ''; position: absolute; left: -10%; right: -10%; top: 50%; height: 6px; margin-top: -3px;
-  background: repeating-linear-gradient(90deg, rgb(245 197 24 / .22) 0 60px, transparent 60px 110px);
+  background: repeating-linear-gradient(90deg, rgb(245 197 24 / .45) 0 60px, transparent 60px 110px);
   transform: rotate(-8deg); animation: road 2.4s linear infinite; pointer-events: none;
 }
 @keyframes road { to { background-position: 110px 0; } }
 .section-dark::after {
   content: ''; position: absolute; right: -12%; bottom: -45%; width: 60vw; max-width: 760px; aspect-ratio: 1; border-radius: 50%;
-  background: radial-gradient(closest-side, rgb(245 197 24 / .2), transparent); pointer-events: none;
+  background: radial-gradient(closest-side, rgb(245 197 24 / .22), transparent); pointer-events: none;
 }
-.section-dark .kicker { color: var(--brand); }
-.section-dark .section-lead, .on-dark .feature p { color: var(--on-dark-muted); }
-.on-dark .tile { background: rgb(245 197 24 / .12); color: var(--brand); border: 1px solid rgb(245 197 24 / .3); transition: transform .45s var(--spring), background-color .3s, color .3s; }
-.on-dark .feature:hover .tile { background: var(--brand); color: var(--on-brand); }
+.section-dark .kicker { color: var(--brand-ink); }
+.section-dark .section-lead, .on-dark .feature p { color: var(--muted); }
+.on-dark .tile { background: var(--brand); color: var(--on-brand); border: 0; transition: transform .45s var(--spring), background-color .3s, color .3s; }
+.on-dark .feature:hover .tile { background: var(--brand-hover); }
 .drivers-grid { position: relative; z-index: 1; display: grid; grid-template-columns: 1.2fr .8fr; gap: clamp(32px, 6vw, 72px); align-items: center; }
 @media (max-width: 960px) { .drivers-grid { grid-template-columns: 1fr; } }
-.join-card { padding: clamp(24px, 4vw, 36px); border-radius: 28px; background: var(--dark-2); border: 1px solid rgb(245 197 24 / .25); box-shadow: 0 30px 60px -30px rgb(0 0 0 / .8); }
+.join-card { padding: clamp(24px, 4vw, 36px); border-radius: 28px; background: var(--surface); border: 2px solid var(--brand); box-shadow: var(--shadow-md); }
 .join-card h3 { font-size: 1.375rem; }
 .join-list { margin: 22px 0 28px; counter-reset: join; display: grid; gap: 16px; }
-.join-list li { position: relative; padding-left: 46px; counter-increment: join; color: #DAD6CB; }
+.join-list li { position: relative; padding-left: 46px; counter-increment: join; color: var(--ink); }
 .join-list li::before {
   content: counter(join); position: absolute; left: 0; top: -2px; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
   background: var(--brand); color: var(--on-brand); font-weight: 800; font-size: .875rem;
@@ -467,7 +438,7 @@ a { color: var(--link); text-decoration-thickness: 1px; text-underline-offset: 3
 .join-card.is-in .join-list li:nth-child(2) { animation-delay: .12s; }
 .join-card.is-in .join-list li:nth-child(3) { animation-delay: .24s; }
 .join-card.is-in .join-list li:nth-child(4) { animation-delay: .36s; }
-.join-note { margin-top: 16px; font-size: .875rem; color: #9C978B; }
+.join-note { margin-top: 16px; font-size: .875rem; color: var(--muted); }
 
 /* company */
 .prose p + p { margin-top: 16px; }
@@ -578,5 +549,5 @@ a { color: var(--link); text-decoration-thickness: 1px; text-underline-offset: 3
 
 @media print {
   .site-header, .hero-visual, .download, .menu-toggle, .marquee, .checker { display: none; }
-  .section-dark { color: #000; background: none; }
+  .section-dark { background: none; }
 }
