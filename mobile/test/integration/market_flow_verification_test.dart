@@ -13,6 +13,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+// Without API_BASE_URL, AppConfig falls back to the PRODUCTION backend — a
+// plain `flutter test` would log in as a real passenger and place real orders
+// there (and fail outright whenever that server is down). Run only when a
+// backend is named explicitly.
+const _backendGiven = bool.hasEnvironment('API_BASE_URL');
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   // flutter_test fakes HttpClient to always 400 by default (network-call
@@ -63,7 +69,11 @@ void main() {
 
     expect(order, isNotNull, reason: market.error ?? '');
     expect(order!.itemsCount, 1);
-    expect(order.totalPrice, product.price);
+    // The server adds the platform delivery fee to every market order.
+    final settings = await apiClient.get('/settings/public');
+    final deliveryFee =
+        (((settings.data as Map)['data'] as Map)['deliveryFee'] as num).toDouble();
+    expect(order.totalPrice, product.price + deliveryFee);
 
     // Confirm it actually landed server-side, decremented stock, and shows
     // up in this customer's order history.
@@ -73,5 +83,5 @@ void main() {
 
     await market.loadOrderHistory();
     expect(market.orderHistory.any((o) => o.id == order.id), isTrue);
-  });
+  }, skip: _backendGiven ? false : 'needs --dart-define=API_BASE_URL=<local backend>');
 }

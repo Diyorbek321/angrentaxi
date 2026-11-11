@@ -25,7 +25,7 @@ class MockApiClient extends Mock implements ApiClient {}
 /// Avoids any real OSRM network call under `flutter test` — the tariff
 /// screen falls back to a straight-line route/distance when this returns
 /// null, which is all the test needs.
-class FakeRouteService extends RouteService {
+class FakeRouteService implements RouteService {
   @override
   Future<RouteResult?> getRoute(
     LatLng from,

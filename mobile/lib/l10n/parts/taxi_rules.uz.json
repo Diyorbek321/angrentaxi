@@ -1,0 +1,48 @@
+{
+  "paxCancelFreeUntil": "{time} gacha bekor qilish bepul.",
+  "@paxCancelFreeUntil": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "paxCancelFeeWarning": "Haydovchi sizga vaqt sarfladi: bekor qilsangiz {fee} jarima — u to'liq haydovchiga o'tadi. Hamyonda yetmasa, qarz bo'lib qoladi.",
+  "@paxCancelFeeWarning": {
+    "placeholders": {
+      "fee": {
+        "type": "String"
+      }
+    }
+  },
+  "paxCancelWithFee": "Ha, {fee} to'layman",
+  "@paxCancelWithFee": {
+    "placeholders": {
+      "fee": {
+        "type": "String"
+      }
+    }
+  },
+  "paxInterruptedTitle": "Safar uzildi",
+  "paxInterruptedBody": "Safar shu nuqtagacha bo'lgan narx bilan yakunlandi. Shu joydan yangi taksi chaqiraylikmi?",
+  "paxInterruptedNewSearch": "Shu yerdan yangi taksi",
+  "paxInterruptedClose": "Yopish",
+  "drvNoShowFeeNote": "Yo'lovchidan jarima olinadi va to'liq sizga o'tkaziladi. Kutish vaqtini server tekshiradi.",
+  "drvInterruptAction": "Safar uzildi (avariya, buzilish)",
+  "drvInterruptTitle": "Safar uzildi",
+  "drvInterruptBody": "Safar shu nuqtagacha bo'lgan narx bilan yakunlanadi, yo'lovchiga shu joydan yangi taksi taklif qilinadi.",
+  "drvInterruptAccident": "Avariya",
+  "drvInterruptBreakdown": "Mashina buzildi",
+  "drvInterruptOther": "Boshqa sabab",
+  "drvInterruptNoteHint": "Izoh (ixtiyoriy)",
+  "drvInterruptConfirm": "Safarni yakunlash",
+  "drvInterruptDone": "Safar uzildi. Undirildi: {price}",
+  "@drvInterruptDone": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "drvInterruptFailed": "Safarni yakunlab bo'lmadi. Dispetcherga qo'ng'iroq qiling."
+}

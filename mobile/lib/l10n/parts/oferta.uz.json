@@ -1,0 +1,25 @@
+{
+  "ofrTermsLink": "Foydalanish shartlari",
+  "ofrDriverTermsLink": "Haydovchi ofertasi",
+  "ofrVendorTermsLink": "Sotuvchi shartlari",
+  "ofrPrivacyLink": "Maxfiylik siyosati",
+  "ofrSheetTitleNew": "Foydalanish shartlari",
+  "ofrSheetTitleUpdated": "Shartlar yangilandi",
+  "ofrSheetIntro": "Davom etish uchun quyidagi hujjatlarni o'qing va qabul qiling.",
+  "ofrSheetIntroDriver": "Onlayn chiqish uchun haydovchi ofertasining joriy tahririni qabul qiling.",
+  "ofrWhatChanged": "Nima o'zgardi",
+  "ofrVersion": "Tahrir {version}",
+  "@ofrVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "ofrReadFull": "To'liq matnni o'qish",
+  "ofrAccept": "Qabul qilaman",
+  "ofrLater": "Keyinroq",
+  "ofrLogout": "Chiqish",
+  "ofrAcceptFailed": "Saqlab bo'lmadi. Internetni tekshirib, qayta urinib ko'ring.",
+  "ofrOutdatedReloaded": "Hujjatning yangi tahriri chiqdi — iltimos, qaytadan ko'rib chiqing."
+}

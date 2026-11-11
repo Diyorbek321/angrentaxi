@@ -1,0 +1,435 @@
+import 'package:angren_taxi/core/network/api_endpoints.dart';
+import 'package:angren_taxi/features/incidents/incident_entry_points.dart';
+import 'package:angren_taxi/features/incidents/screens/report_incident_screen.dart';
+import 'package:angren_taxi/features/superapp/screens/courier_tracking_screen.dart';
+import 'package:angren_taxi/features/superapp/state/food_provider.dart';
+import 'package:angren_taxi/features/superapp/state/market_provider.dart';
+import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/features/superapp/widgets/card_payment_pending.dart';
+import 'package:angren_taxi/features/superapp/widgets/delivery_incident_card.dart';
+import 'package:angren_taxi/features/superapp/widgets/reorder_flow.dart';
+import 'package:angren_taxi/features/superapp/widgets/vendor_cancel_flow.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
+import 'package:angren_taxi/shared/models/address_details.dart';
+import 'package:angren_taxi/shared/models/courier_tracking.dart';
+import 'package:angren_taxi/shared/models/food_order.dart';
+import 'package:angren_taxi/shared/models/incident.dart';
+import 'package:angren_taxi/shared/models/market_order.dart';
+import 'package:angren_taxi/shared/models/order.dart' show deliveryFailureReasonLabel;
+import 'package:angren_taxi/shared/utils/formatters.dart';
+import 'package:angren_taxi/shared/widgets/app_status_badge.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+/// Ovqat va market buyurtmasining bitta ko'rinishi — ekran ikkala modelni
+/// shu adapter orqali chizadi.
+@immutable
+class VendorOrderView {
+  const VendorOrderView({
+    required this.kind,
+    required this.id,
+    required this.statusLabel,
+    required this.tone,
+    required this.isActive,
+    required this.canCancel,
+    required this.items,
+    required this.address,
+    required this.total,
+    required this.createdAt,
+    this.addressDetails,
+    this.promoCode,
+    this.promoDiscount = 0,
+    this.promotionDiscount = 0,
+    this.cancelReason,
+    this.delivery,
+    this.trackPath,
+    this.source,
+    this.paymentPending = false,
+    this.handoverCode,
+    this.courierAtDoor = false,
+    this.isReturning = false,
+    this.isReturned = false,
+    this.failureReason,
+    this.returnCharge,
+    this.refundDue,
+    this.refundStatus,
+  });
+
+  // Yetkazish hodisalari (docs/INCIDENT-POLICY.md §2).
+  /// Kuryerga aytiladigan kod — faqat kuryer yo'lda bo'lganda.
+  final String? handoverCode;
+  final bool courierAtDoor;
+  final bool isReturning;
+  final bool isReturned;
+  final String? failureReason;
+  final double? returnCharge;
+  final double? refundDue;
+  final String? refundStatus;
+
+  final String kind;
+  final String id;
+  final String statusLabel;
+  final AppStatusTone tone;
+  final bool isActive;
+  final bool canCancel;
+  final List<({String name, int qty, double price})> items;
+  final String address;
+  final double total;
+  final DateTime createdAt;
+  final AddressDetails? addressDetails;
+  final String? promoCode;
+  final double promoDiscount;
+  final double promotionDiscount;
+  final String? cancelReason;
+  final CourierTracking? delivery;
+  final String? trackPath;
+
+  /// Asl buyurtma (`FoodOrder`/`MarketOrder`) — "Yana buyurtma qilish" uchun.
+  final Object? source;
+
+  /// Kartali buyurtmaning to'lovi hali tushmagan (INCIDENT-POLICY §1).
+  final bool paymentPending;
+
+  factory VendorOrderView.food(FoodOrder o) => VendorOrderView(
+        kind: 'food',
+        id: o.id,
+        statusLabel: o.status.label,
+        tone: switch (o.status) {
+          FoodOrderStatus.cancelled => AppStatusTone.danger,
+          FoodOrderStatus.delivered => AppStatusTone.success,
+          FoodOrderStatus.returning || FoodOrderStatus.returned => AppStatusTone.warning,
+          _ => AppStatusTone.info,
+        },
+        isActive: o.status.isActive,
+        canCancel: o.canCancel,
+        items: [for (final i in o.items) (name: i.name, qty: i.qty, price: i.price)],
+        address: o.deliveryAddress,
+        total: o.payableTotal,
+        createdAt: o.createdAt,
+        addressDetails: o.addressDetails,
+        promoCode: o.promoCode,
+        promoDiscount: o.promoDiscount,
+        promotionDiscount: o.promotionDiscount,
+        cancelReason: o.cancelReason,
+        delivery: o.isTrackable ? o.delivery : null,
+        trackPath: ApiEndpoints.foodOrderById(o.id),
+        source: o,
+        paymentPending: o.paymentPending && o.status.isActive,
+        handoverCode: o.status.isActive ? o.delivery?.handoverCode : null,
+        courierAtDoor: o.status.isActive && (o.delivery?.isAtDoor ?? false),
+        isReturning: o.status == FoodOrderStatus.returning,
+        isReturned: o.status == FoodOrderStatus.returned,
+        failureReason: o.delivery?.deliveryFailureReason,
+        returnCharge: o.returnCharge,
+        refundDue: o.refundDue,
+        refundStatus: o.refundStatus,
+      );
+
+  factory VendorOrderView.market(MarketOrder o) => VendorOrderView(
+        kind: 'market',
+        id: o.id,
+        statusLabel: o.status.label,
+        tone: switch (o.status) {
+          MarketOrderStatus.cancelled => AppStatusTone.danger,
+          MarketOrderStatus.delivered => AppStatusTone.success,
+          MarketOrderStatus.returning || MarketOrderStatus.returned => AppStatusTone.warning,
+          _ => AppStatusTone.info,
+        },
+        isActive: o.status.isActive,
+        canCancel: o.canCancel,
+        items: [for (final i in o.items) (name: i.name, qty: i.qty, price: i.price)],
+        address: o.deliveryAddress,
+        total: o.payableTotal,
+        createdAt: o.createdAt,
+        addressDetails: o.addressDetails,
+        promoCode: o.promoCode,
+        promoDiscount: o.promoDiscount,
+        promotionDiscount: o.promotionDiscount,
+        cancelReason: o.cancelReason,
+        delivery: o.isTrackable ? o.delivery : null,
+        trackPath: ApiEndpoints.marketOrderById(o.id),
+        source: o,
+        paymentPending: o.paymentPending && o.status.isActive,
+        handoverCode: o.status.isActive ? o.delivery?.handoverCode : null,
+        courierAtDoor: o.status.isActive && (o.delivery?.isAtDoor ?? false),
+        isReturning: o.status == MarketOrderStatus.returning,
+        isReturned: o.status == MarketOrderStatus.returned,
+        failureReason: o.delivery?.deliveryFailureReason,
+        returnCharge: o.returnCharge,
+        refundDue: o.refundDue,
+        refundStatus: o.refundStatus,
+      );
+}
+
+/// Topshirish kodi yoki qaytarish kartasi — tafsilot va holat ekranlari
+/// uchun umumiy. Hech biri bo'lmasa bo'sh ro'yxat.
+List<Widget> vendorIncidentWidgets(VendorOrderView order) {
+  final code = order.handoverCode;
+  return [
+    if (order.isReturning || order.isReturned)
+      VendorReturnCard(
+        returned: order.isReturned,
+        reasonLabel: deliveryFailureReasonLabel(order.failureReason),
+        returnCharge: order.returnCharge,
+        refundDue: order.refundDue,
+        refundStatus: order.refundStatus,
+      )
+    else if (code != null)
+      HandoverCodeCard(code: code, courierAtDoor: order.courierAtDoor),
+  ];
+}
+
+/// Provayderdagi JONLI nusxa — bekor qilingach yoki holat o'zgarganda ekran
+/// o'zi yangilanadi.
+VendorOrderView? findVendorOrder(BuildContext context, String kind, String id) {
+  if (kind == 'food') {
+    final food = context.watch<FoodProvider>();
+    final active = food.activeOrder;
+    final order = food.orderHistory.where((o) => o.id == id).firstOrNull ??
+        (active?.id == id ? active : null);
+    return order == null ? null : VendorOrderView.food(order);
+  }
+  final market = context.watch<MarketProvider>();
+  final active = market.activeOrder;
+  final order = market.orderHistory.where((o) => o.id == id).firstOrNull ??
+      (active?.id == id ? active : null);
+  return order == null ? null : VendorOrderView.market(order);
+}
+
+/// Ovqat / market buyurtmasi tafsiloti: holat, tarkib, manzil tafsilotlari,
+/// chegirmalar, kuryer kuzatuvi va BEKOR QILISH.
+class VendorOrderDetailScreen extends StatelessWidget {
+  const VendorOrderDetailScreen({super.key, required this.kind, required this.orderId});
+
+  final String kind;
+  final String orderId;
+
+  @override
+  Widget build(BuildContext context) {
+    final order = findVendorOrder(context, kind, orderId);
+    final l10n = context.l10n;
+    final shortId = orderId.split('-').first.toUpperCase();
+
+    return Scaffold(
+      backgroundColor: agBg,
+      body: Column(
+        children: [
+          AgHeader(
+            title: l10n.saOrderDetailTitle(shortId),
+            subtitle: order == null ? null : Formatters.formatDateTime(order.createdAt),
+            onBack: () => Navigator.of(context).pop(),
+          ),
+          Expanded(
+            child: order == null
+                ? const Center(child: CircularProgressIndicator())
+                : ListView(
+                    padding: EdgeInsets.fromLTRB(
+                        kSpace4, kSpace4, kSpace4, kSpace6 + MediaQuery.paddingOf(context).bottom),
+                    children: [
+                      _card(
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: AppStatusBadge(label: order.statusLabel, tone: order.tone),
+                              ),
+                            ),
+                            const SizedBox(width: kSpace2),
+                            Text(
+                              Formatters.formatSom(order.total),
+                              style: const TextStyle(
+                                  fontSize: kFontH2, fontWeight: FontWeight.w800, color: agText),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (order.paymentPending) ...[
+                        const SizedBox(height: kSpace4),
+                        CardPaymentPendingCard(kind: kind, orderId: orderId),
+                      ],
+                      for (final card in vendorIncidentWidgets(order)) ...[
+                        const SizedBox(height: kSpace4),
+                        card,
+                      ],
+                      if (order.cancelReason != null && !order.isActive) ...[
+                        const SizedBox(height: kSpace2),
+                        Text(
+                          l10n.saCancelReasonLabel(order.cancelReason!),
+                          style: const TextStyle(fontSize: kFontCaption, color: agSubtle),
+                        ),
+                      ],
+                      if (order.delivery != null) ...[
+                        const SizedBox(height: kSpace4),
+                        AgPrimaryButton(
+                          label: l10n.saTrackCourier,
+                          icon: Icons.near_me_rounded,
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => CourierTrackingScreen(
+                                refreshPath: order.trackPath!,
+                                initial: order.delivery!,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: kSpace4),
+                      _card(_ItemsBlock(order: order)),
+                      const SizedBox(height: kSpace4),
+                      _card(_AddressBlock(order: order)),
+                      if (order.isActive) ...[
+                        const SizedBox(height: kSpace5),
+                        VendorCancelAction(
+                          kind: kind,
+                          canCancel: order.canCancel,
+                          onCancel: () => runVendorCancelFlow(context, kind: kind, orderId: orderId),
+                        ),
+                      ],
+                      if (!order.isActive && order.source != null) ...[
+                        const SizedBox(height: kSpace5),
+                        AgPrimaryButton(
+                          key: const ValueKey('vendor-reorder-button'),
+                          label: context.l10n.saReorderAction,
+                          onPressed: () => runReorderFlow(context, order.source!),
+                        ),
+                      ],
+                      // Shikoyat (INCIDENT-POLICY §3) — yakunlangan buyurtma,
+                      // ~7 kun (aniq muddatni server tekshiradi).
+                      if (!order.isActive &&
+                          incidentReportWindowOpen(order.createdAt, days: 8)) ...[
+                        const SizedBox(height: kSpace3),
+                        TextButton.icon(
+                          key: const ValueKey('vendor-incident-button'),
+                          onPressed: () => openIncidentReport(
+                            context,
+                            IncidentReportArgs(
+                              vertical: kind == 'food' ? IncidentVertical.food : IncidentVertical.market,
+                              orderId: orderId,
+                              side: IncidentReporterSide.customer,
+                            ),
+                          ),
+                          icon: const Icon(Icons.flag_outlined, size: 18),
+                          label: Text(l10n.incProblemButton),
+                        ),
+                      ],
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Widget _card(Widget child) => Container(
+        padding: const EdgeInsets.all(kSpace4),
+        decoration: BoxDecoration(
+          color: agSurface,
+          borderRadius: BorderRadius.circular(kRadiusLg),
+          boxShadow: agCardShadow,
+        ),
+        child: child,
+      );
+}
+
+class _ItemsBlock extends StatelessWidget {
+  const _ItemsBlock({required this.order});
+  final VendorOrderView order;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(l10n.saOrderItems,
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: kFontBody, color: agText)),
+        const SizedBox(height: kSpace2),
+        for (final item in order.items)
+          _Line(label: '${item.qty} × ${item.name}', value: Formatters.formatSom(item.price * item.qty)),
+        if (order.promotionDiscount > 0)
+          _Line(
+            label: l10n.saVendorDiscountLine,
+            value: '−${Formatters.formatSom(order.promotionDiscount)}',
+            valueColor: agGreenText,
+          ),
+        if (order.promoDiscount > 0)
+          _Line(
+            label: order.promoCode == null ? l10n.saPromoDiscount : l10n.saPromoCodeLine(order.promoCode!),
+            value: '−${Formatters.formatSom(order.promoDiscount)}',
+            valueColor: agGreenText,
+          ),
+        const Divider(color: agBorder, height: kSpace5),
+        _Line(label: l10n.saTotal, value: Formatters.formatSom(order.total), bold: true),
+      ],
+    );
+  }
+}
+
+class _AddressBlock extends StatelessWidget {
+  const _AddressBlock({required this.order});
+  final VendorOrderView order;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final d = order.addressDetails;
+    final parts = <String>[
+      if (d?.entrance != null) '${l10n.saAddressEntrance} ${d!.entrance}',
+      if (d?.floor != null) '${l10n.saAddressFloor} ${d!.floor}',
+      if (d?.apartment != null) '${l10n.saAddressApartment} ${d!.apartment}',
+      if (d?.intercom != null) '${l10n.saAddressIntercom} ${d!.intercom}',
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(l10n.saDeliveryAddress,
+            style: const TextStyle(fontSize: kFontMicro, color: agSubtle, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 2),
+        Text(order.address,
+            style: const TextStyle(fontSize: kFontBody, color: agText, fontWeight: FontWeight.w600)),
+        if (parts.isNotEmpty) ...[
+          const SizedBox(height: kSpace1),
+          Text(parts.join(' · '),
+              style: const TextStyle(fontSize: kFontLabel, color: agText, fontWeight: FontWeight.w500)),
+        ],
+        if (d?.landmark != null) ...[
+          const SizedBox(height: kSpace1),
+          Text('${l10n.saAddressLandmark}: ${d!.landmark}',
+              style: const TextStyle(fontSize: kFontLabel, color: agSubtle)),
+        ],
+        if (d?.courierNote != null) ...[
+          const SizedBox(height: kSpace1),
+          Text('${l10n.saAddressCourierNote}: ${d!.courierNote}',
+              style: const TextStyle(fontSize: kFontLabel, color: agSubtle)),
+        ],
+      ],
+    );
+  }
+}
+
+class _Line extends StatelessWidget {
+  const _Line({required this.label, required this.value, this.bold = false, this.valueColor = agText});
+  final String label;
+  final String value;
+  final bool bold;
+  final Color valueColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final weight = bold ? FontWeight.w800 : FontWeight.w600;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: kSpace1),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(label, style: TextStyle(fontSize: kFontBody, color: bold ? agText : agSubtle, fontWeight: weight)),
+          ),
+          const SizedBox(width: kSpace2),
+          Text(value, style: TextStyle(fontSize: kFontBody, color: valueColor, fontWeight: weight)),
+        ],
+      ),
+    );
+  }
+}

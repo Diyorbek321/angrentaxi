@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/driver_document.dart';
 import 'package:angren_taxi/shared/widgets/app_button.dart';
 import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
@@ -11,25 +12,47 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
-// Label + icon for each KYC document type the driver must submit.
-const List<(DriverDocumentType, String, IconData)> _kDriverDocumentTypes = [
-  (
-    DriverDocumentType.licenseFront,
-    'Haydovchilik guvohnomasi (old tomoni)',
-    Icons.badge_outlined,
-  ),
-  (
-    DriverDocumentType.licenseBack,
-    'Haydovchilik guvohnomasi (orqa tomoni)',
-    Icons.badge_outlined,
-  ),
-  (DriverDocumentType.passport, 'Pasport', Icons.perm_identity_outlined),
-  (
-    DriverDocumentType.vehicleRegistration,
-    'Texnik pasport',
-    Icons.directions_car_filled_outlined,
-  ),
-];
+// ⚠️ ESKI NAQSH — QATTIQ KODLANGAN RO'YXAT. YANGI KOD BUNDAY QILMAYDI.
+//
+// Yangi, serverdan boshqariladigan naqsh:
+//   features/driver/screens/verification_screen.dart
+//   shared/models/driver_verification.dart
+// U yerda ro'yxat ham, nomlar ham, izohlar ham serverdan keladi — yangi
+// talab qo'shish uchun APK chiqarish shart emas.
+//
+// NEGA BU RO'YXAT SHU YERDA QOLDIRILDI (ataylab, "yarim ko'chirish" emas):
+// bu ekran — HISOB YARATISHNING yagona yo'li. `GET /drivers/me/verification`
+// hali yangi endpoint bo'lib, ariza `pending` holatda turgan haydovchi uchun
+// aynan shu to'rtta boshlang'ich KYC hujjatini qaytarishi KAFOLATLANMAGAN.
+// Agar u bo'sh ro'yxat qaytarsa, yangi haydovchi hujjat yuklay olmaydi va
+// hisobi butunlay tiqilib qoladi — tuzatib bo'lmaydigan regressiya.
+//
+// KO'CHIRISH SHARTI: server `pending` haydovchi uchun ham to'liq ro'yxat
+// qaytarishi tasdiqlangach, `_DriverDocumentsSection` ni tekshiruv ekrani
+// bilan almashtirish kifoya; POST manzili `/drivers/documents` dan
+// `/drivers/me/verification/:code` ga o'tadi.
+List<(DriverDocumentType, String, IconData)> get _kDriverDocumentTypes => [
+      (
+        DriverDocumentType.licenseFront,
+        AppL10n.current.drvDocLicenseFront,
+        Icons.badge_outlined,
+      ),
+      (
+        DriverDocumentType.licenseBack,
+        AppL10n.current.drvDocLicenseBack,
+        Icons.badge_outlined,
+      ),
+      (
+        DriverDocumentType.passport,
+        AppL10n.current.drvDocPassport,
+        Icons.perm_identity_outlined,
+      ),
+      (
+        DriverDocumentType.vehicleRegistration,
+        AppL10n.current.drvDocVehicleRegistration,
+        Icons.directions_car_filled_outlined,
+      ),
+    ];
 
 // Gatekeeper shown right after a driver-flavor login, before the map/home
 // screen. A fresh account has no driver profile yet, so this decides between:
@@ -150,9 +173,9 @@ class _ApplicationFormState extends State<_ApplicationForm> {
                 child: Icon(Icons.local_taxi, color: kPrimary, size: 48),
               ),
               const SizedBox(height: kSpace4),
-              const Text(
-                'Haydovchi bo\'lish uchun ariza',
-                style: TextStyle(
+              Text(
+                context.l10n.drvApplicationTitle,
+                style: const TextStyle(
                   fontSize: kFontH1,
                   fontWeight: FontWeight.w800,
                   color: kInk,
@@ -160,41 +183,40 @@ class _ApplicationFormState extends State<_ApplicationForm> {
               ),
               const SizedBox(height: kSpace2),
               Text(
-                '${auth.currentUser?.phone ?? ''} raqami hali haydovchi sifatida ro\'yxatdan o\'tmagan. Mashina ma\'lumotlarini kiriting — admin tasdiqlagach onlayn bo\'la olasiz.',
+                context.l10n.drvApplicationIntro(auth.currentUser?.phone ?? ''),
                 style: const TextStyle(color: kInkMuted, fontSize: kFontBody),
               ),
               const SizedBox(height: kSpace6),
               TextField(
                 controller: _carModelController,
-                decoration: const InputDecoration(
-                  labelText: 'Mashina modeli',
-                  hintText: 'Masalan: Chevrolet Cobalt',
-                  prefixIcon: Icon(Icons.directions_car_outlined),
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: context.l10n.drvCarModelField,
+                  hintText: context.l10n.drvCarModelHint,
+                  prefixIcon: const Icon(Icons.directions_car_outlined),
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: kSpace4),
               TextField(
                 controller: _carNumberController,
                 textCapitalization: TextCapitalization.characters,
-                decoration: const InputDecoration(
-                  labelText: 'Davlat raqami',
-                  hintText: 'Masalan: 01 A 123 BC',
-                  prefixIcon: Icon(Icons.pin_outlined),
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: context.l10n.drvPlateNumber,
+                  hintText: context.l10n.drvPlateHint,
+                  prefixIcon: const Icon(Icons.pin_outlined),
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: kSpace4),
               TextField(
                 controller: _carYearController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Mashina ishlab chiqarilgan yili',
-                  hintText: 'Masalan: 2019',
-                  prefixIcon: Icon(Icons.calendar_today_outlined),
-                  border: OutlineInputBorder(),
-                  helperText:
-                      "Qaysi tarif darajasida ishlay olishingiz shu ma'lumot asosida ko'rib chiqiladi",
+                decoration: InputDecoration(
+                  labelText: context.l10n.drvCarYearField,
+                  hintText: context.l10n.drvCarYearHint,
+                  prefixIcon: const Icon(Icons.calendar_today_outlined),
+                  border: const OutlineInputBorder(),
+                  helperText: context.l10n.drvCarYearHelper,
                 ),
               ),
               if (driverProvider.state == DriverProviderState.error &&
@@ -204,8 +226,13 @@ class _ApplicationFormState extends State<_ApplicationForm> {
                   child: InlineErrorWidget(message: driverProvider.error!),
                 ),
               const SizedBox(height: kSpace6),
+              // Ariza akkauntni QAYTARIB BO'LMAS darajada haydovchiga
+              // aylantiradi (backend `createProfile`) — yo'lovchi ilovasi
+              // shu raqam bilan endi ishlamaydi. Tugma yonida aytiladi.
+              const _RoleChangeWarning(),
+              const SizedBox(height: kSpace4),
               AppButton(
-                label: 'Arizani yuborish',
+                label: context.l10n.drvSubmitApplication,
                 isLoading: isLoading,
                 onPressed: () => _submit(driverProvider),
               ),
@@ -217,9 +244,9 @@ class _ApplicationFormState extends State<_ApplicationForm> {
                 ),
                 child: TextButton(
                   onPressed: () => context.read<AuthProvider>().logout(),
-                  child: const Text(
-                    'Chiqish',
-                    style: TextStyle(
+                  child: Text(
+                    context.l10n.drvLogout,
+                    style: const TextStyle(
                       color: kErrorDeep,
                       fontWeight: FontWeight.w700,
                     ),
@@ -271,26 +298,26 @@ class _PendingApprovalView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: kSpace5),
-          const Text(
-            'Ariza ko\'rib chiqilmoqda',
-            style: TextStyle(
+          Text(
+            context.l10n.drvApplicationPending,
+            style: const TextStyle(
               fontSize: kFontH2,
               fontWeight: FontWeight.w800,
               color: kInk,
             ),
           ),
           const SizedBox(height: kSpace2),
-          const Text(
-            'Sizning haydovchilik arizangiz admin tomonidan tasdiqlanishini kutmoqda. Tasdiqlangach shu yerdan avtomatik davom etasiz.',
+          Text(
+            context.l10n.drvApplicationPendingBody,
             textAlign: TextAlign.center,
-            style: TextStyle(color: kInkMuted, fontSize: kFontBody),
+            style: const TextStyle(color: kInkMuted, fontSize: kFontBody),
           ),
           const SizedBox(height: kSpace8),
-          const Align(
+          Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              'Hujjatlarni yuklang',
-              style: TextStyle(
+              context.l10n.drvUploadDocuments,
+              style: const TextStyle(
                 fontSize: kFontTitle,
                 fontWeight: FontWeight.w800,
                 color: kInk,
@@ -298,18 +325,18 @@ class _PendingApprovalView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: kSpace1),
-          const Align(
+          Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              'Tasdiqlash tezroq bo\'lishi uchun quyidagi hujjatlarning aniq suratlarini yuklang.',
-              style: TextStyle(color: kInkMuted, fontSize: kFontLabel),
+              context.l10n.drvUploadDocumentsHint,
+              style: const TextStyle(color: kInkMuted, fontSize: kFontLabel),
             ),
           ),
           const SizedBox(height: kSpace3),
           const _DriverDocumentsSection(),
           const SizedBox(height: kSpace6),
           AppOutlinedButton(
-            label: 'Holatni tekshirish',
+            label: context.l10n.drvCheckStatus,
             onPressed: () => onRefresh(),
           ),
           const SizedBox(height: kSpace3),
@@ -320,9 +347,9 @@ class _PendingApprovalView extends StatelessWidget {
             ),
             child: TextButton(
               onPressed: () => context.read<AuthProvider>().logout(),
-              child: const Text(
-                'Chiqish',
-                style: TextStyle(
+              child: Text(
+                context.l10n.drvLogout,
+                style: const TextStyle(
                   color: kErrorDeep,
                   fontWeight: FontWeight.w700,
                 ),
@@ -370,12 +397,12 @@ class _DriverDocumentsSectionState extends State<_DriverDocumentsSection> {
           children: [
             ListTile(
               leading: const Icon(Icons.photo_camera_outlined),
-              title: const Text('Kamera'),
+              title: Text(context.l10n.drvCamera),
               onTap: () => Navigator.of(sheetContext).pop(ImageSource.camera),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Galereya'),
+              title: Text(context.l10n.drvGallery),
               onTap: () => Navigator.of(sheetContext).pop(ImageSource.gallery),
             ),
           ],
@@ -439,24 +466,24 @@ class _DriverDocumentRow extends StatelessWidget {
   bool get _isFailed =>
       uploadState.status == DriverDocumentUploadStatus.failed;
 
-  String get _statusText {
+  String _statusTextFor(AppLocalizations l10n) {
     if (_isUploading) {
       final pct = (uploadState.progress * 100).clamp(0, 100).toStringAsFixed(0);
-      return 'Yuklanmoqda... $pct%';
+      return l10n.drvUploadingPercent(pct);
     }
     if (_isFailed) {
-      return uploadState.error ?? 'Yuklashda xatolik';
+      return uploadState.error ?? l10n.drvUploadError;
     }
     if (document == null) {
-      return 'Yuklanmagan';
+      return l10n.drvNotUploaded;
     }
     switch (document!.reviewStatus) {
       case DriverDocumentReviewStatus.pending:
-        return 'Tekshirilmoqda';
+        return l10n.drvDocUnderReview;
       case DriverDocumentReviewStatus.approved:
-        return 'Tasdiqlangan';
+        return l10n.drvDocApproved;
       case DriverDocumentReviewStatus.rejected:
-        return 'Rad etilgan — qayta yuklang';
+        return l10n.drvDocRejectedReupload;
     }
   }
 
@@ -492,11 +519,11 @@ class _DriverDocumentRow extends StatelessWidget {
     }
   }
 
-  String get _actionLabel {
-    if (_isFailed) return 'Qayta urinish';
+  String _actionLabelFor(AppLocalizations l10n) {
+    if (_isFailed) return l10n.drvRetry;
     if (_isUploading) return '';
-    if (document == null) return 'Yuklash';
-    return 'Qayta yuklash';
+    if (document == null) return l10n.drvUpload;
+    return l10n.drvReupload;
   }
 
   @override
@@ -548,7 +575,7 @@ class _DriverDocumentRow extends StatelessWidget {
                     const SizedBox(width: kSpace1 + 2),
                     Flexible(
                       child: Text(
-                        _statusText,
+                        _statusTextFor(context.l10n),
                         key: ValueKey('doc_status_${documentType.name}'),
                         style: TextStyle(
                           color: _statusColor,
@@ -597,7 +624,7 @@ class _DriverDocumentRow extends StatelessWidget {
                 ),
                 onPressed: onTap,
                 child: Text(
-                  _actionLabel,
+                  _actionLabelFor(context.l10n),
                   style: const TextStyle(
                     fontSize: kFontLabel,
                     fontWeight: FontWeight.w700,
@@ -605,6 +632,37 @@ class _DriverDocumentRow extends StatelessWidget {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RoleChangeWarning extends StatelessWidget {
+  const _RoleChangeWarning();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(kSpace3),
+      decoration: BoxDecoration(
+        color: kWarningLight,
+        borderRadius: BorderRadius.circular(kRadiusSm),
+        border: Border.all(color: kWarning.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const ExcludeSemantics(
+            child: Icon(Icons.info_outline_rounded, color: kWarningDeep, size: 20),
+          ),
+          const SizedBox(width: kSpace2),
+          Expanded(
+            child: Text(
+              context.l10n.drvApplicationRoleWarning,
+              style: const TextStyle(color: kInk, fontSize: kFontCaption + 1, height: 1.35),
+            ),
+          ),
         ],
       ),
     );

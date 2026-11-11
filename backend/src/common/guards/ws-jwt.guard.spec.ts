@@ -49,7 +49,7 @@ describe('WsJwtGuard', () => {
     usersService.findById.mockResolvedValue({
       id: 'user-1',
       status: UserStatus.BLOCKED,
-    } as User);
+    });
 
     await expect(guard.canActivate(context())).rejects.toBeInstanceOf(WsException);
   });

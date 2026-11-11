@@ -1,14 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  DEBUG-ONLY network security config.
+  FAQAT DEBUG build'lar uchun tarmoq siyosati.
 
-  This file lives under src/debug and therefore overrides the strict
-  src/main/res/xml/network_security_config.xml ONLY for debug builds
-  (resource merging gives the build variant priority over main).
+  Bu fayl `src/main` dagi bir xil nomli faylni DEBUG variantida almashtiradi
+  (Android resurs overlay qoidasi). Release build'da o'sha qat'iy asl
+  konfiguratsiya o'z kuchida qoladi — bu yerda hech narsa yumshatilmaydi.
 
-  Release/production builds keep the strict main config, so this permissive
-  cleartext policy never ships. It lets debug APKs talk to a local HTTP dev
-  backend on any LAN address (e.g. http://10.67.196.35:3000) without TLS.
+  ⚠️ NEGA KERAK. Asosiy konfiguratsiyada cleartext faqat `localhost`,
+  `10.0.2.2` va `192.168.0.0` uchun ochiq. Uchinchisi mo'ljallanganidek
+  ishlamaydi: `<domain>` xost NOMINI kutadi, CIDR diapazonini emas — ya'ni
+  faqat aynan `192.168.0.0` degan xost mos keladi. Natijada haqiqiy telefonda
+  ishlab chiqish serveriga (masalan `10.68.131.35:3100`) ulanish "cleartext
+  not permitted" bilan yiqilardi va sabab ilova ichida hech qanday tarmoq
+  xatosidan farq qilmasdi.
+
+  Har bir ishlab chiquvchining IP'sini asosiy faylga qo'shish o'rniga —
+  bu mashinaga bog'liq va commit'ga tushib qolardi — debug variantida
+  cleartext umuman ochiladi.
 -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="true">

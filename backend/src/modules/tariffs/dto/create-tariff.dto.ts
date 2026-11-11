@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
 export class CreateTariffDto {
@@ -15,6 +15,16 @@ export class CreateTariffDto {
   @IsNumber()
   @Min(0)
   pricePerKm: number;
+
+  @ApiPropertyOptional({
+    example: 1800,
+    description: "Taksometr (manzilsiz safar) km narxi, UZS. Bo'sh — oddiy km narxi",
+    nullable: true,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  meteredPricePerKm?: number | null;
 
   @ApiProperty({ example: 200, description: 'Price per minute in UZS' })
   @IsNumber()

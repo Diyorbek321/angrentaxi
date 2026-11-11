@@ -1,0 +1,170 @@
+import fs from 'node:fs';
+import { expect, type APIRequestContext, type APIResponse } from '@playwright/test';
+import { API_URL, authFile, type ApiAccount, type PanelConfig } from './env';
+import type { ApiTokens } from './login';
+
+// Angren city centre — inside the dispatch area, so a courier can be offered.
+export const DELIVERY_POINT = { deliveryAddress: "E2E test manzil, Angren", deliveryLat: 41.0167, deliveryLng: 70.1436 };
+
+async function data<T>(res: APIResponse, what: string): Promise<T> {
+  const text = await res.text();
+  expect(res.ok(), `${what} → ${res.status()} ${text.slice(0, 300)}`).toBe(true);
+  return (JSON.parse(text) as { data: T }).data;
+}
+
+/**
+ * Calls the backend through a panel's own /api/proxy, carrying the panel's
+ * httpOnly session cookies — the same path the panel's pages use.
+ */
+export class PanelApi {
+  constructor(
+    private readonly request: APIRequestContext,
+    private readonly panel: PanelConfig,
+  ) {}
+
+  private url(path: string) {
+    return `${this.panel.baseURL}/api/proxy${path}`;
+  }
+
+  private get headers() {
+    return { Origin: this.panel.baseURL };
+  }
+
+  async get<T>(path: string): Promise<T> {
+    return data<T>(await this.request.get(this.url(path), { headers: this.headers }), `GET ${path}`);
+  }
+
+  async post<T>(path: string, body?: unknown): Promise<T> {
+    return data<T>(await this.request.post(this.url(path), { headers: this.headers, data: body }), `POST ${path}`);
+  }
+
+  async patch<T>(path: string, body?: unknown): Promise<T> {
+    return data<T>(await this.request.patch(this.url(path), { headers: this.headers, data: body }), `PATCH ${path}`);
+  }
+
+  /** Best-effort cleanup: a leftover row must not fail an otherwise green test. */
+  async tryDelete(path: string): Promise<boolean> {
+    const res = await this.request.delete(this.url(path), { headers: this.headers });
+    return res.ok();
+  }
+}
+
+/** A mobile-app account talking to the backend directly, as the app does. */
+class AppApi {
+  protected readonly token: string;
+
+  constructor(
+    protected readonly request: APIRequestContext,
+    account: ApiAccount,
+  ) {
+    const tokens = JSON.parse(fs.readFileSync(authFile(account), 'utf8')) as ApiTokens;
+    this.token = tokens.accessToken;
+  }
+
+  protected get auth() {
+    return { Authorization: `Bearer ${this.token}` };
+  }
+
+  async get<T>(path: string): Promise<T> {
+    return data<T>(await this.request.get(`${API_URL}${path}`, { headers: this.auth }), `GET ${path}`);
+  }
+
+  async post<T>(path: string, body: unknown): Promise<T> {
+    const res = await this.request.post(`${API_URL}${path}`, { headers: this.auth, data: body });
+    return data<T>(res, `POST ${path}`);
+  }
+
+  async patch<T>(path: string, body?: unknown): Promise<T> {
+    const res = await this.request.patch(`${API_URL}${path}`, { headers: this.auth, data: body ?? {} });
+    return data<T>(res, `PATCH ${path}`);
+  }
+
+  /** For calls a test expects to fail — returns the raw response. */
+  rawPost(path: string, body: unknown): Promise<APIResponse> {
+    return this.request.post(`${API_URL}${path}`, { headers: this.auth, data: body });
+  }
+
+  rawPatch(path: string, body?: unknown): Promise<APIResponse> {
+    return this.request.patch(`${API_URL}${path}`, { headers: this.auth, data: body ?? {} });
+  }
+}
+
+/** The passenger: places the orders the vendor panels then work through. */
+export class PassengerApi extends AppApi {
+  constructor(request: APIRequestContext) {
+    super(request, 'passenger');
+  }
+
+  placeMarketOrder(storeId: string, items: { productId: string; qty: number }[]) {
+    return this.post<{ id: string; status: string; totalPrice: number }>('/market/orders', {
+      storeId,
+      items,
+      ...DELIVERY_POINT,
+      paymentMethod: 'cash',
+    });
+  }
+
+  placeParcelOrder(tariffId: string, details: Record<string, unknown>) {
+    return this.post<{ id: string; status: string; serviceType: string; deliveryPin?: string }>('/orders', {
+      tariffId,
+      serviceType: 'parcel',
+      details,
+      pickupLat: 41.0110,
+      pickupLng: 70.1420,
+      pickupAddress: 'E2E posilka olish',
+      dropoffLat: 41.0250,
+      dropoffLng: 70.1600,
+      dropoffAddress: 'E2E posilka manzil',
+      paymentMethod: 'cash',
+    });
+  }
+
+  placeFoodOrder(restaurantId: string, items: { dishId: string; qty: number }[]) {
+    return this.post<{ id: string; status: string; totalPrice: number }>('/food/orders', {
+      restaurantId,
+      items,
+      ...DELIVERY_POINT,
+      paymentMethod: 'cash',
+    });
+  }
+}
+
+// Smallest valid PNG the backend's magic-byte check accepts (1×1, red).
+const PNG_1X1 = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC',
+  'base64',
+);
+
+/** The driver: uploads KYC documents and asks for payouts. */
+export class DriverApi extends AppApi {
+  constructor(request: APIRequestContext) {
+    super(request, 'driver');
+  }
+
+  me() {
+    return this.get<{ id: string; userId: string }>('/drivers/me');
+  }
+
+  async uploadDocument(documentType: string): Promise<{ id: string; reviewStatus: string }> {
+    const res = await this.request.post(`${API_URL}/drivers/documents`, {
+      headers: this.auth,
+      multipart: {
+        documentType,
+        file: { name: 'e2e.png', mimeType: 'image/png', buffer: PNG_1X1 },
+      },
+    });
+    return data(res, 'POST /drivers/documents');
+  }
+
+  documents() {
+    return this.get<Array<{ id: string; reviewStatus: string }>>('/drivers/documents');
+  }
+
+  requestWithdrawal(amount: number, payoutDestination: string) {
+    return this.post<{ id: string; status: string }>('/payments/wallet/withdraw', { amount, payoutDestination });
+  }
+
+  withdrawals() {
+    return this.get<Array<{ id: string; status: string }>>('/payments/wallet/withdrawals');
+  }
+}

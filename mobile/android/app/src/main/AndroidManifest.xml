@@ -8,7 +8,14 @@
     <!-- Location -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <!--
+        ACCESS_BACKGROUND_LOCATION is deliberately NOT declared. The app only
+        ever requests foreground permission (LocationService.ensurePermission),
+        and driver tracking runs through the location foreground service below
+        for as long as the driver is online (DriverProvider._startLocationUpdates
+        → LocationService.getPositionStream(background: …)). Declaring it unused triggers Play Console's background
+        location review — a listing rejection for a permission nothing uses.
+    -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
@@ -20,10 +27,16 @@
     <!-- Wake lock for background tasks -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+    <!-- Backup O'CHIQ: SharedPreferences'dagi foydalanuvchi ma'lumoti (telefon,
+         ism) Google bulutiga ketmasin; EncryptedSharedPreferences esa boshqa
+         qurilmada ochilmaydi — tiklangan nusxa faqat xato beradi. -->
     <application
         android:label="@string/app_name"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:usesCleartextTraffic="false"
         android:networkSecurityConfig="@xml/network_security_config">
 
@@ -55,28 +68,88 @@
             </intent-filter>
         </activity>
 
-        <!-- Firebase Messaging Service -->
-        <service
-            android:name="com.google.firebase.messaging.FirebaseMessagingService"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
-            </intent-filter>
-        </service>
+        <!--
+            ⚠️ FirebaseMessagingService bu yerda E'LON QILINMAYDI.
+            Ilgari asosiy `com.google.firebase.messaging.FirebaseMessagingService`
+            shu yerda qayta e'lon qilingan edi. Manifest birlashtirilganda u
+            kutubxonaning priority="-500" filtri ustiga priority=0 li ikkinchi
+            MESSAGING_EVENT filtrini qo'shardi va birlashgan manifestda
+            firebase_messaging plaginining `FlutterFirebaseMessagingService`'idan
+            OLDIN turardi — FCM xabarlarni plagin emas, bazaviy servis olardi:
+            `onMessage` / `onBackgroundMessage` hech qachon chaqirilmasdi.
+            Servisni plagin o'zi e'lon qiladi.
+        -->
 
-        <!-- Geolocator background service -->
-        <service
-            android:name="com.baseflow.geolocator.GeolocatorService"
-            android:foregroundServiceType="location"
-            android:exported="false" />
+        <!-- Backend `channelId: 'angren_taxi_orders'` yuboradi; kanal
+             MainActivity / PushNotifications.kt da yaratiladi. channelId'siz
+             push ham shu kanalga tushadi (jim "Miscellaneous" emas). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="angren_taxi_orders" />
+        <!-- Monoxrom status-bar ikonkasi. Rangli launcher ikonkasi Android 5+
+             da oq kvadrat bo'lib chiqadi yoki ayrim qobiqlarda butunlay
+             tashlab yuboriladi. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_accent" />
 
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
 
-    <!-- Android 12+ splash screen -->
+    <!--
+        Package visibility (Android 11 / API 30+).
+
+        Without a matching <intent> entry here, canLaunchUrl() returns false and
+        url_launcher refuses the call — which silently killed the SOS call to
+        102, calling the driver, and handing navigation off to a maps app. The
+        url_launcher plugin contributes no queries of its own, so every scheme
+        the app launches has to be declared.
+    -->
     <queries>
+        <!-- SOS (102) and passenger <-> driver calls -->
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+            <data android:scheme="tel" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="tel" />
+        </intent>
+
+        <!-- Driver navigation hand-off. Turn-by-turn first (Yandex Navigator,
+             Google Maps navigation mode), plain map pin (geo:) as the last
+             resort — see lib/features/driver/external_navigation.dart -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="yandexnavi" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="google.navigation" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="geo" />
+        </intent>
+
+        <!-- Payment checkout pages and support links -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+
+        <!-- SMS fallback for support contact -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="sms" />
+        </intent>
+
+        <!-- Android 12+ splash screen -->
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />

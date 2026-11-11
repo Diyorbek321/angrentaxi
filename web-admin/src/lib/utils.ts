@@ -1,24 +1,29 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { format, parseISO, isValid } from 'date-fns';
+import { ru, uz } from 'date-fns/locale';
+import { getLocale } from './i18n/core';
+import {
+  formatMoney,
+  formatPhone as formatPhoneCanonical,
+  fullName,
+  initials,
+} from './format';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('uz-UZ', {
-    style: 'decimal',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount) + ' UZS';
+/** @deprecated use `formatMoney` from `@/lib/format` (or `<MoneyText>`). */
+export function formatCurrency(amount: number | string | null | undefined): string {
+  return formatMoney(amount);
 }
 
 export function formatDate(dateStr: string, fmt = 'dd.MM.yyyy HH:mm'): string {
   try {
     const date = parseISO(dateStr);
     if (!isValid(date)) return dateStr;
-    return format(date, fmt);
+    return format(date, fmt, { locale: getLocale() === 'ru' ? ru : uz });
   } catch {
     return dateStr;
   }
@@ -28,25 +33,19 @@ export function formatDateShort(dateStr: string): string {
   return formatDate(dateStr, 'dd.MM.yyyy');
 }
 
-export function formatPhone(phone: string): string {
-  // +998 XX XXX-XX-XX
-  const digits = phone.replace(/\D/g, '');
-  if (digits.startsWith('998') && digits.length === 12) {
-    return `+998 ${digits.slice(3, 5)} ${digits.slice(5, 8)}-${digits.slice(8, 10)}-${digits.slice(10, 12)}`;
-  }
-  return phone;
+/** @deprecated use `formatPhone` from `@/lib/format`. */
+export function formatPhone(phone: string | null | undefined): string {
+  return formatPhoneCanonical(phone);
 }
 
-export function shortId(id: string): string {
-  return id.slice(0, 8).toUpperCase();
+/** Null-safe (never "null null"); prefer `fullName` from `@/lib/format`. */
+export function getFullName(firstName: string | null | undefined, lastName?: string | null): string {
+  return fullName(firstName, lastName);
 }
 
-export function getFullName(firstName: string, lastName: string): string {
-  return `${firstName} ${lastName}`.trim();
-}
-
-export function getInitials(firstName: string, lastName: string): string {
-  return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+/** "" when there is no name — render an icon, never "NN". */
+export function getInitials(firstName: string | null | undefined, lastName?: string | null): string {
+  return initials(firstName, lastName ?? null);
 }
 
 export function formatRating(rating: number): string {
@@ -56,14 +55,6 @@ export function formatRating(rating: number): string {
 export function formatDistance(meters: number): string {
   if (meters < 1000) return `${meters} m`;
   return `${(meters / 1000).toFixed(1)} km`;
-}
-
-export function formatDuration(seconds: number): string {
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  const remainingMins = minutes % 60;
-  return `${hours}h ${remainingMins}min`;
 }
 
 export function debounce<T extends (...args: any[]) => any>(

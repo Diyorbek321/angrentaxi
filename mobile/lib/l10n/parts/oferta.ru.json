@@ -1,0 +1,18 @@
+{
+  "ofrTermsLink": "Условия использования",
+  "ofrDriverTermsLink": "Оферта для водителей",
+  "ofrVendorTermsLink": "Условия для продавцов",
+  "ofrPrivacyLink": "Политика конфиденциальности",
+  "ofrSheetTitleNew": "Условия использования",
+  "ofrSheetTitleUpdated": "Условия обновлены",
+  "ofrSheetIntro": "Чтобы продолжить, прочитайте и примите документы ниже.",
+  "ofrSheetIntroDriver": "Чтобы выйти на линию, примите текущую редакцию оферты для водителей.",
+  "ofrWhatChanged": "Что изменилось",
+  "ofrVersion": "Редакция {version}",
+  "ofrReadFull": "Читать полный текст",
+  "ofrAccept": "Принимаю",
+  "ofrLater": "Позже",
+  "ofrLogout": "Выйти",
+  "ofrAcceptFailed": "Не удалось сохранить. Проверьте интернет и попробуйте снова.",
+  "ofrOutdatedReloaded": "Вышла новая редакция документа — пожалуйста, ознакомьтесь заново."
+}

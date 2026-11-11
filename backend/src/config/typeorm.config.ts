@@ -1,6 +1,8 @@
 import { DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
+import { SnakeNamingStrategy } from './snake-naming.strategy';
 import * as dotenv from 'dotenv';
+import { dbSessionTimezoneExtra } from './db-session-timezone';
 
 dotenv.config();
 
@@ -13,8 +15,14 @@ export default new DataSource({
   username: configService.get<string>('DB_USER', 'postgres'),
   password: configService.get<string>('DB_PASS', 'postgres'),
   database: configService.get<string>('DB_NAME', 'angren_taxi'),
+  extra: dbSessionTimezoneExtra(),
   entities: [__dirname + '/../**/*.entity{.ts,.js}'],
   migrations: [__dirname + '/../database/migrations/*{.ts,.js}'],
+  // MUST match AppModule's TypeORM config. Without it the CLI generates
+  // migrations with camelCase column names while the running app expects
+  // snake_case, so every generated migration is silently wrong and the raw
+  // SQL in the services (pickup_location, user_id, ...) cannot resolve.
+  namingStrategy: new SnakeNamingStrategy(),
   synchronize: false,
   logging: configService.get<string>('NODE_ENV') === 'development',
 });

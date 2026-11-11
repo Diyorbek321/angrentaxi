@@ -15,6 +15,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { FoodPaymentMethod } from '../../../database/entities/food-order.entity';
+import { AddressDetailsDto } from '../../../common/dto/address-details.dto';
 
 export class FoodOrderItemInputDto {
   @ApiProperty()
@@ -66,4 +67,16 @@ export class CreateFoodOrderDto {
   @IsString()
   @MaxLength(300)
   note?: string;
+
+  @ApiPropertyOptional({ description: "Promokod — server qayta tekshiradi (chegirma platforma hisobidan)" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  promoCode?: string;
+
+  @ApiPropertyOptional({ type: AddressDetailsDto, nullable: true })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AddressDetailsDto)
+  addressDetails?: AddressDetailsDto | null;
 }

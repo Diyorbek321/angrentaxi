@@ -2,7 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { OrdersService } from './orders.service';
 import { ORDERS_PROVIDERS } from './orders.providers';
-import { fakeDataSourceProvider } from './orders.testing';
+import { SurgeService } from '../surge/surge.service';
+import { OsrmService } from '../routing/osrm.service';
+import { RoutedDistancePricing } from './routed-distance-pricing';
+import { fakeDataSourceProvider, fakeCitiesServiceProvider } from './orders.testing';
 import { OrdersQueryService } from './orders-query.service';
 import { Order, OrderStatus, PaymentMethod } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
@@ -73,6 +76,14 @@ describe('OrdersService - completeTrip referral bonus', () => {
     const tariffsService = {
       findById: jest.fn().mockResolvedValue({ id: 'tariff-1' }),
       calculatePrice: jest.fn().mockReturnValue(10000),
+      // `calculatePrice` endi `calculatePriceBreakdown` ustidagi qobiq —
+      // mock ikkalasini bir manbadan beradi, aks holda ular ajralib ketadi.
+      calculatePriceBreakdown: jest.fn((_t: unknown, km = 0, min = 0, surge = 1) => ({
+        baseFare: 0, distanceKm: km, pricePerKm: 0, distanceFare: 0,
+        durationMin: min, pricePerMin: 0, timeFare: 0,
+        minPriceAdjustment: 0, surgeMultiplier: surge, surgeFare: 0,
+        maxPriceCap: 0, total: 10000,
+      })),
     };
     const realtimeGateway = { emitToUser: jest.fn(), emitToManagers: jest.fn() };
     const notificationsService = { notifyTripCompleted: jest.fn().mockResolvedValue(undefined) };
@@ -88,6 +99,24 @@ describe('OrdersService - completeTrip referral bonus', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ...ORDERS_PROVIDERS,
+        fakeCitiesServiceProvider(),
+        // Routing is an accuracy layer over pricing; these tests assert the
+        // straight-line behaviour, which is also the shipped default.
+        { provide: OsrmService, useValue: { routeDistanceMeters: jest.fn() } },
+        { provide: RoutedDistancePricing, useValue: { enabled: false } },
+        // Surge is a pricing input, not a dependency of these flows: a quiet
+        // zone (1.0x) keeps the expected prices in these tests unchanged.
+        {
+          provide: SurgeService,
+          useValue: {
+            snapshotFor: jest.fn().mockResolvedValue({
+              multiplier: 1.0,
+              demand: 0,
+              supply: 0,
+              zone: 'test-zone',
+            }),
+          },
+        },
         fakeDataSourceProvider(),
         { provide: getRepositoryToken(Order), useValue: orderRepository },
         { provide: getRepositoryToken(Trip), useValue: tripRepository },

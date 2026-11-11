@@ -1,206 +1,261 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  AlertTriangle,
-  ArrowRight,
-  Boxes,
-  ClipboardList,
-  LayoutGrid,
-  RefreshCw,
-  Wallet,
-} from 'lucide-react';
-import { marketApi, DashboardData } from '@/lib/api';
-import { money, moneyShort, formatTime } from '@/lib/utils';
+import { ArrowRight, BellRing, CheckCircle2, CircleOff, ClipboardList, Trophy } from 'lucide-react';
+import { marketApi, type DashboardData } from '@/lib/api';
+import { formatNumber, formatTime, shortId } from '@/lib/format';
 import { useAsyncData } from '@/hooks/useAsyncData';
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh';
 import { StatusBadge } from '@/components/StatusBadge';
+import { RankedBars } from '@/components/charts/RankedBars';
 import { Button } from '@/components/ui/Button';
-import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Card, CardHeader } from '@/components/ui/Card';
+import { DataErrorBanner } from '@/components/ui/DataErrorBanner';
+import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { MoneyText } from '@/components/ui/MoneyText';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Skeleton, SkeletonStats } from '@/components/ui/Skeleton';
-import { StatTile } from '@/components/ui/StatTile';
+import { Skeleton, SkeletonStats, SkeletonTable } from '@/components/ui/Skeleton';
+import { StatCard } from '@/components/ui/StatCard';
+import { cn } from '@/components/ui/cn';
+import { usePageRefresh } from '@/components/shell';
+import { t } from '@/locales';
+
+interface HomeData {
+  dashboard: DashboardData;
+  /** Alohida so'rov: `new` holatdagi buyurtmalar — harakat talab qiladigan raqam. */
+  newOrdersCount: number;
+}
+
+type RecentOrder = DashboardData['recentOrders'][number];
+
+const POLL_INTERVAL_MS = 30_000;
+const ORDERS_HREF = '/dashboard/orders';
+const STOCK_HREF = '/dashboard/stock';
 
 export default function DashboardPage() {
+  const m = t();
   const router = useRouter();
-  const { data, isLoading, isRefreshing, error, reload } = useAsyncData<DashboardData>(async () => {
-    const res = await marketApi.getDashboard();
-    return res.data.data;
+  const { data, isLoading, isRefreshing, error, reload } = useAsyncData<HomeData>(async () => {
+    const [dash, newOrders] = await Promise.all([marketApi.getDashboard(), marketApi.getOrders('new')]);
+    return { dashboard: dash.data.data, newOrdersCount: newOrders.data.data.length };
   });
+  usePageRefresh(reload);
+
+  useEffect(() => {
+    const interval = setInterval(() => void reload(), POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [reload]);
+  useRealtimeRefresh(reload);
 
   return (
     <div>
-      <PageHeader
-        title="Bosh sahifa"
-        description="Bugungi savdo va zaxira holati"
-        icon={<LayoutGrid size={18} aria-hidden />}
-        actions={
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => void reload()}
-            isLoading={isRefreshing}
-            leftIcon={<RefreshCw size={13} aria-hidden />}
-          >
-            Yangilash
-          </Button>
-        }
-      />
+      <PageHeader title={m.dashboard.title} description={m.dashboard.description} />
+
+      {error && data && <DataErrorBanner message={error} onRetry={reload} retrying={isRefreshing} />}
 
       {isLoading ? (
         <DashboardSkeleton />
       ) : error && !data ? (
-        <ErrorState message={error} onRetry={reload} />
+        <ErrorState message={error} onRetry={reload} retrying={isRefreshing} />
       ) : data ? (
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-            <StatTile
-              label="Bugungi buyurtmalar"
-              value={data.todayOrdersCount}
-              tone="neutral"
-              icon={<ClipboardList size={18} aria-hidden />}
-            />
-            <StatTile
-              label="Bugungi tushum"
-              value={moneyShort(data.todayRevenue)}
-              hint="so'm"
-              tone="mint"
-              icon={<Wallet size={18} aria-hidden />}
-            />
-            <StatTile
-              label="Tugagan mahsulotlar"
-              value={data.outOfStockCount}
-              hint={data.outOfStockCount > 0 ? "Zudlik bilan to'ldiring" : 'Hammasi joyida'}
-              tone={data.outOfStockCount > 0 ? 'danger' : 'muted'}
-              icon={<AlertTriangle size={18} aria-hidden />}
-            />
-            <StatTile
-              label="Faol mahsulotlar"
-              value={data.activeProductsCount}
-              hint={`${data.hiddenProductsCount} yashirilgan`}
-              tone="neutral"
-              icon={<Boxes size={18} aria-hidden />}
-            />
-          </div>
-
-          {data.lowStock.length > 0 && (
-            <div
-              role="status"
-              className="flex flex-wrap items-center gap-4 rounded-ds-md border border-danger/40 bg-danger-tint px-4 py-3.5"
-            >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-ds-sm bg-danger/15 text-danger">
-                <AlertTriangle size={20} aria-hidden />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-danger-deep dark:text-danger-light">
-                  Zaxira tugash arafasida — {data.lowStock.length} ta mahsulot
-                </p>
-                <p className="mt-0.5 truncate text-caption text-muted">
-                  {data.lowStock.map((p) => `${p.name} (${p.stock} ${p.unit})`).join(' · ')}
-                </p>
-              </div>
-              <Button
-                size="sm"
-                onClick={() => router.push('/dashboard/stock')}
-                rightIcon={<ArrowRight size={14} aria-hidden />}
-              >
-                To&apos;ldirish
-              </Button>
-            </div>
-          )}
-
-          <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
-            <Card padding="none" className="overflow-hidden">
-              <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3.5">
-                <CardTitle>So&apos;nggi buyurtmalar</CardTitle>
-                <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard/orders')}>
-                  Barchasi
-                </Button>
-              </div>
-
-              {data.recentOrders.length === 0 ? (
-                <EmptyState
-                  compact
-                  title="Hali buyurtma yo'q"
-                  description="Yangi buyurtma kelganda shu yerda ko'rinadi."
-                />
-              ) : (
-                <ul className="divide-y divide-divider">
-                  {data.recentOrders.map((o) => (
-                    <li key={o.id}>
-                      <button
-                        type="button"
-                        onClick={() => router.push('/dashboard/orders')}
-                        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors duration-fast hover:bg-surface-2/60"
-                      >
-                        <span className="w-16 shrink-0 font-mono text-caption font-bold text-muted">
-                          {o.id.slice(0, 6)}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-body font-semibold text-ink">
-                            {o.customer}
-                          </span>
-                          <span className="mt-0.5 block text-caption text-muted">
-                            {o.itemsCount} ta mahsulot · {formatTime(o.createdAt)}
-                          </span>
-                        </span>
-                        <span className="shrink-0 font-mono text-body font-bold text-ink">
-                          {money(o.totalPrice)}
-                        </span>
-                        <StatusBadge status={o.status} size="sm" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Bugungi sotuvlar</CardTitle>
-              </CardHeader>
-              {data.bestSellers.length === 0 ? (
-                <EmptyState
-                  compact
-                  title="Hali ma'lumot yo'q"
-                  description="Birinchi sotuvdan keyin reyting shakllanadi."
-                />
-              ) : (
-                <ul className="space-y-3.5">
-                  {data.bestSellers.map((b, i) => {
-                    const maxSold = data.bestSellers[0]?.sold || 1;
-                    const pct = Math.round((b.sold / maxSold) * 100);
-                    return (
-                      <li key={b.name} className="flex items-center gap-3">
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-ds-xs bg-mint-tint font-mono text-caption font-bold text-primary-text">
-                          {i + 1}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-caption font-semibold text-ink">{b.name}</p>
-                          <div
-                            className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-3"
-                            role="progressbar"
-                            aria-valuemin={0}
-                            aria-valuemax={100}
-                            aria-valuenow={pct}
-                            aria-label={`${b.name}: ${b.sold} dona sotilgan`}
-                          >
-                            <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
-                          </div>
-                        </div>
-                        <span className="shrink-0 font-mono text-caption font-bold text-muted">
-                          {b.sold}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </Card>
-          </div>
-        </div>
+        <DashboardBody data={data} onNavigate={(href) => router.push(href)} />
       ) : null}
+    </div>
+  );
+}
+
+function recentColumns(): DataTableColumn<RecentOrder>[] {
+  const m = t();
+  return [
+  {
+    key: 'id',
+    header: 'ID',
+    width: 'w-24',
+    cell: (o) => <span className="font-mono text-xs text-muted">{shortId(o.id)}</span>,
+  },
+  {
+    key: 'customer',
+    header: m.dashboard.colCustomer,
+    cell: (o) => <span className="block truncate text-ink">{o.customer?.trim() || '—'}</span>,
+  },
+  {
+    key: 'items',
+    header: m.common.product,
+    numeric: true,
+    hideBelow: 'md',
+    cell: (o) => m.common.count(formatNumber(o.itemsCount)),
+  },
+  { key: 'time', header: m.common.time, numeric: true, hideBelow: 'sm', cell: (o) => formatTime(o.createdAt) },
+  { key: 'total', header: m.common.sum, numeric: true, cell: (o) => <MoneyText value={o.totalPrice} /> },
+  { key: 'status', header: m.common.status, width: 'w-36', cell: (o) => <StatusBadge status={o.status} /> },
+  ];
+}
+
+function DashboardBody({
+  data: { dashboard: d, newOrdersCount },
+  onNavigate,
+}: {
+  data: HomeData;
+  onNavigate: (href: string) => void;
+}) {
+  const m = t();
+  const dm = m.dashboard;
+  const lowCount = d.lowStock.length;
+
+  return (
+    <div className="space-y-4">
+      {/* API o'tgan davr bilan solishtirishni bermaydi — delta/sparkline YO'Q. */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label={dm.todayOrders} value={formatNumber(d.todayOrdersCount)} />
+        <StatCard label={dm.todayRevenue} value={formatNumber(d.todayRevenue)} unit={m.common.som} />
+        <StatCard
+          label={dm.activeProducts}
+          value={formatNumber(d.activeProductsCount)}
+          hint={dm.hidden(formatNumber(d.hiddenProductsCount))}
+        />
+        <StatCard
+          label={m.common.lowStock(formatNumber(d.lowStockThreshold))}
+          value={formatNumber(lowCount)}
+          hint={lowCount > 0 ? m.common.refillSoon : m.common.allEnough}
+        />
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <ActionBanner
+          icon={newOrdersCount > 0 ? <BellRing aria-hidden /> : <CheckCircle2 aria-hidden />}
+          title={
+            newOrdersCount > 0
+              ? dm.newOrders(formatNumber(newOrdersCount))
+              : dm.noNewOrders
+          }
+          description={
+            newOrdersCount > 0
+              ? dm.awaitingAccept
+              : dm.allAccepted
+          }
+          cta={dm.toOrders}
+          primary={newOrdersCount > 0}
+          onClick={() => onNavigate(ORDERS_HREF)}
+        />
+        <ActionBanner
+          icon={d.outOfStockCount > 0 ? <CircleOff aria-hidden /> : <CheckCircle2 aria-hidden />}
+          title={
+            d.outOfStockCount > 0
+              ? dm.outOfStock(formatNumber(d.outOfStockCount))
+              : dm.noOutOfStock
+          }
+          description={
+            d.outOfStockCount > 0
+              ? dm.outOfSale(lowCount > 0 ? formatNumber(lowCount) : null)
+              : lowCount > 0
+                ? dm.lowCount(formatNumber(lowCount))
+                : dm.stockEnough
+          }
+          cta={dm.refill}
+          danger={d.outOfStockCount > 0}
+          onClick={() => onNavigate(STOCK_HREF)}
+        />
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+        <DataTable
+          title={dm.recentOrders}
+          actions={
+            <Button variant="ghost" size="sm" href={ORDERS_HREF} rightIcon={<ArrowRight size={14} aria-hidden />}>
+              {m.common.all}
+            </Button>
+          }
+          ariaLabel={dm.recentOrders}
+          compact
+          columns={recentColumns()}
+          rows={d.recentOrders}
+          rowKey={(o) => o.id}
+          onRowClick={() => onNavigate(ORDERS_HREF)}
+          empty={{
+            icon: <ClipboardList aria-hidden />,
+            title: dm.noOrdersYet,
+            description: dm.noOrdersDescription,
+          }}
+        />
+
+        <Card padding="none">
+          <CardHeader title={dm.todaySales} description={dm.bestSellers} />
+          <div className="px-4 pb-4">
+            {d.bestSellers.length === 0 ? (
+              <EmptyState
+                compact
+                icon={<Trophy aria-hidden />}
+                title={m.common.noSalesYet}
+                description={m.common.ratingAfterFirstSale}
+              />
+            ) : (
+              <RankedBars
+                ariaLabel={dm.bestSellersToday}
+                unit={m.common.unitPcs}
+                items={d.bestSellers.map((b) => ({ label: b.name, value: b.sold }))}
+              />
+            )}
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Harakat banneri: sokin karta, BITTA CTA. Qizil tint faqat haqiqatan
+ * tugagan mahsulot bo'lganda; yangi buyurtma — oddiy karta + asosiy tugma.
+ */
+function ActionBanner({
+  icon,
+  title,
+  description,
+  cta,
+  primary = false,
+  danger = false,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  cta: string;
+  primary?: boolean;
+  danger?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <div
+      className={cn(
+        'flex items-center gap-3 rounded-ds-md border px-4 py-3',
+        danger ? 'border-danger/30 bg-danger-tint' : 'border-line bg-surface'
+      )}
+    >
+      <span
+        aria-hidden
+        className={cn(
+          'shrink-0 [&_svg]:h-[18px] [&_svg]:w-[18px]',
+          danger ? 'text-danger-dark dark:text-danger-light' : primary ? 'text-primary-text' : 'text-subtle'
+        )}
+      >
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className={cn('text-sm font-semibold', danger ? 'text-danger-dark dark:text-danger-light' : 'text-ink')}>
+          {title}
+        </p>
+        <p className="mt-0.5 truncate text-[13px] text-muted">{description}</p>
+      </div>
+      <Button
+        size="sm"
+        variant={primary ? 'primary' : danger ? 'danger' : 'secondary'}
+        onClick={onClick}
+        className="shrink-0"
+      >
+        {cta}
+      </Button>
     </div>
   );
 }
@@ -208,11 +263,15 @@ export default function DashboardPage() {
 function DashboardSkeleton() {
   return (
     <div className="space-y-4" aria-busy="true" aria-live="polite">
-      <span className="sr-only">Yuklanmoqda</span>
-      <SkeletonStats />
-      <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
-        <Skeleton className="h-80 rounded-ds-md" />
-        <Skeleton className="h-80 rounded-ds-md" />
+      <span className="sr-only">{t().common.loading}</span>
+      <SkeletonStats count={4} className="xl:grid-cols-4" />
+      <div className="grid gap-3 md:grid-cols-2">
+        <Skeleton className="h-[62px] rounded-ds-md" />
+        <Skeleton className="h-[62px] rounded-ds-md" />
+      </div>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+        <SkeletonTable rows={6} cols={5} compact />
+        <Skeleton className="h-72 rounded-ds-md" />
       </div>
     </div>
   );

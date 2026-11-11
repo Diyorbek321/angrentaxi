@@ -1,0 +1,30 @@
+import type { Messages } from '../uz';
+
+export const login: Messages['login'] = {
+  panelName: 'Панель супер-админа',
+  step: (n: number) => `Шаг ${n} из 2`,
+  title: 'Вход в панель',
+  phoneHint: 'Введите номер телефона — мы отправим одноразовый код по SMS.',
+  codeHint: (phone: string) => `Введите 6-значный код, отправленный на ${phone}.`,
+  phoneLabel: 'Номер телефона',
+  codeLabel: 'Код подтверждения',
+  sending: 'Отправка кода…',
+  send: 'Получить код',
+  verifying: 'Проверка…',
+  submit: 'Войти',
+  changeNumber: 'Изменить номер',
+  devOtpPrefix: 'OTP-код —',
+  devOtpSuffix: '(введён автоматически)',
+  codeSent: 'Код отправлен',
+  devCode: (code: string) => `[DEV] Код: ${code}`,
+  codeSentTo: (phone: string) => `SMS-код отправлен на ${phone}`,
+  sendError: 'Ошибка при отправке кода',
+  loggedIn: 'Вход выполнен',
+  wrongCode: 'Неверный код',
+  validation: {
+    phoneRequired: 'Введите номер телефона',
+    phoneInvalid: 'Неверный номер телефона (+998XXXXXXXXX)',
+    codeLength: 'Введите 6-значный код',
+    digitsOnly: 'Только цифры',
+  },
+};

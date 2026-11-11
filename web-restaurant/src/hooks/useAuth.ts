@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import { useRouter } from 'next/navigation';
 import { VendorUser, authApi } from '@/lib/api';
 import { authStorage } from '@/lib/auth';
+import { disconnectSocket } from '@/lib/realtime';
 
 interface AuthContextValue {
   user: VendorUser | null;
@@ -51,6 +52,7 @@ export function useAuthState() {
     // Awaited so the refresh token is revoked server-side before we navigate —
     // navigating first can cancel the in-flight request and leave it live.
     await authApi.logout();
+    disconnectSocket();
     authStorage.clearAll();
     setUser(null);
     router.push('/login');

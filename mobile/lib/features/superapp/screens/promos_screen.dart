@@ -12,6 +12,7 @@ import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/features/superapp/widgets/ag_design.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/promo_code.dart';
 import 'package:angren_taxi/shared/utils/formatters.dart';
 import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
@@ -72,7 +73,7 @@ class _PromosScreenState extends State<PromosScreen> {
   void _copyCode(String code) {
     Clipboard.setData(ClipboardData(text: code));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Kod nusxalandi')),
+      SnackBar(content: Text(context.l10n.saPromoCodeCopied)),
     );
   }
 
@@ -83,7 +84,7 @@ class _PromosScreenState extends State<PromosScreen> {
       body: Column(
         children: [
           AgHeader(
-            title: 'Aksiyalar va promokodlar',
+            title: context.l10n.saPromosTitle,
             onBack: () => Navigator.of(context).pop(),
           ),
           Expanded(child: _buildBody()),
@@ -109,9 +110,9 @@ class _PromosScreenState extends State<PromosScreen> {
     }
 
     if (_promoCodes.isEmpty) {
-      return const AppEmptyState(
+      return AppEmptyState(
         icon: Icons.confirmation_number_outlined,
-        title: 'Hozircha faol promokodlar yo\'q',
+        title: context.l10n.saPromosEmpty,
       );
     }
 
@@ -187,12 +188,12 @@ class _PromoCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: kSpace2 + 2, vertical: kSpace1),
                 decoration: BoxDecoration(color: agBright, borderRadius: BorderRadius.circular(kRadiusXs)),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.check_circle_rounded, size: 12, color: agOnMint),
-                    SizedBox(width: kSpace1),
-                    Text('FAOL', style: TextStyle(color: agOnMint, fontSize: kFontMicro, fontWeight: FontWeight.w800)),
+                    const Icon(Icons.check_circle_rounded, size: 12, color: agOnMint),
+                    const SizedBox(width: kSpace1),
+                    Text(context.l10n.saPromoActive, style: const TextStyle(color: agOnMint, fontSize: kFontMicro, fontWeight: FontWeight.w800)),
                   ],
                 ),
               ),
@@ -204,7 +205,7 @@ class _PromoCard extends StatelessWidget {
               const SizedBox(height: kSpace2),
               Semantics(
                 button: true,
-                label: 'Promokodni nusxalash: ${promo.code}',
+                label: context.l10n.saPromoCopyLabel(promo.code),
                 excludeSemantics: true,
                 child: GestureDetector(
                   onTap: onCopy,
@@ -240,8 +241,8 @@ class _PromoCard extends StatelessWidget {
                 Text(
                   [
                     if (minOrderAmount > 0)
-                      "Min. buyurtma: ${Formatters.formatSom(minOrderAmount)}",
-                    if (expiresAt != null) "${Formatters.formatDate(expiresAt)}gacha",
+                      context.l10n.saPromoMinOrder(Formatters.formatSom(minOrderAmount)),
+                    if (expiresAt != null) context.l10n.saPromoUntil(Formatters.formatDate(expiresAt)),
                   ].join(' · '),
                   style: TextStyle(color: agOnPrimary.withValues(alpha: 0.75), fontSize: kFontCaption, fontWeight: FontWeight.w600),
                 ),

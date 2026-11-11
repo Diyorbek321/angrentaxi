@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Faqat HAYDOVCHI ilovasi (driver flavor) — asosiy manifest bilan birlashtiriladi. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Onlayn haydovchi ilovadan chiqqanda suzuvchi tugma va zakaz kelganda
+         ilovani ekranga chiqarish: Android 10+ fondan Activity ochishga faqat
+         shu ruxsat bilan (Android 15 da — ko'rinib turgan oyna bilan) yo'l
+         qo'yadi. Foydalanuvchi sozlamalardan yoqadi. Yo'lovchi ilovasiga
+         ATAYLAB kirmaydi. Kod: kotlin/uz/angren/taxi/DriverOverlay.kt -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!-- Zakaz taklifi qulflangan telefonda ekranni yoqib, qulf ustida
+         ochiladi (kiruvchi qo'ng'iroq kabi) — DriverOverlay.showOfferNotification.
+         Android 14+ da tizim bu ruxsatni faqat qo'ng'iroq/budilnik
+         ilovalariga avtomatik beradi; berilmasa oddiy heads-up chiqadi.
+         Play Console'da deklaratsiya talab qilinadi. -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+
+    <application>
+        <!-- Asosiy manifestdagi MainActivity bilan birlashadi (nomi bir xil). -->
+        <activity android:name=".MainActivity">
+            <!-- Flutter'ning o'z deep link mexanizmi (plagin/kanal yo'q):
+                 havola marshrut sifatida keladi — lib/features/driver/wallet/
+                 wallet_deep_links.dart. -->
+            <meta-data
+                android:name="flutter_deeplinking_enabled"
+                android:value="true" />
+
+            <!-- Hamyonni to'ldirishdan qaytish (docs/LEGAL-COMPLIANCE.md §24):
+                 angrengo://wallet/topup/<id>. Backend WALLET_TOPUP_RETURN_URL
+                 = angrengo://wallet/topup/{id}. Qaytish to'lovni
+                 TASDIQLAMAYDI — ilova holatni serverdan so'raydi. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="angrengo"
+                    android:host="wallet"
+                    android:pathPrefix="/topup/" />
+            </intent-filter>
+        </activity>
+
+        <!-- Data-only FCM taklifi (backend FirebaseService.sendDataPush):
+             ilova o'ldirilgan bo'lsa ham qo'ng'iroqdek jiringlaydi. Xuddi
+             firebase_messaging plaginining FlutterFirebaseMessagingReceiver'i
+             kabi c2dm RECEIVE'ni tinglaydi — FCM servisini almashtirMAYDI
+             (asosiy manifestdagi ⚠️ izohga qarang), plagin xabarni baribir oladi. -->
+        <receiver
+            android:name=".OfferPushReceiver"
+            android:exported="true"
+            android:permission="com.google.android.c2dm.permission.SEND">
+            <intent-filter>
+                <action android:name="com.google.android.c2dm.intent.RECEIVE" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

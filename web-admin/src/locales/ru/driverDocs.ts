@@ -1,0 +1,58 @@
+import type { Messages } from '../uz';
+
+export const driverDocs: Messages['driverDocs'] = {
+  title: 'Документы водителей',
+  description: 'KYC-документы, периодическая проверка и смена авто — сначала самые старые',
+  loadError: 'Ошибка загрузки очереди документов',
+  vehicleChange: 'Смена автомобиля',
+  approved: 'Подтверждено',
+  rejected: 'Отклонено',
+  driverFallback: 'Водитель',
+  docType: {
+    license_front: 'Водительское удостоверение (лицевая)',
+    license_back: 'Водительское удостоверение (оборот)',
+    passport: 'Паспорт',
+    vehicle_registration: 'Техпаспорт',
+  },
+  validation: {
+    reasonRequired: 'Укажите причину отказа — водитель должен знать, что исправить',
+    pastDate: 'Срок не может быть в прошлом',
+  },
+  tabs: {
+    aria: 'Тип документа',
+    kyc: 'KYC-документы',
+    periodic: 'Периодическая проверка',
+    vehicle: 'Смена авто',
+  },
+  table: {
+    aria: 'Очередь документов',
+    driver: 'Водитель',
+    document: 'Документ',
+    submitted: 'Отправлено',
+    review: 'Проверить',
+    emptyTitle: 'Очередь пуста',
+    emptyDescription: 'Документов на проверку не осталось.',
+  },
+  drawer: {
+    saveFailed: 'Не удалось сохранить',
+    tryAgain: 'Попробуйте ещё раз',
+    reject: 'Отклонить',
+    fileError: 'Не удалось открыть файл — он удалён или хранилище не ответило.',
+    openInNewTab: 'Открыть документ в новом окне',
+    validUntil: 'Срок действия (если указан в документе)',
+    validUntilHint: 'Если оставить пустым, рассчитывается по периодичности проверки',
+    reason: 'Причина отказа',
+    reasonPlaceholder: 'Например: фото размыто, госномер не читается',
+  },
+  vehicle: {
+    model: 'Марка',
+    plate: 'Госномер',
+    plateLatin: 'Номер (латиница)',
+    year: 'Год',
+    type: 'Тип транспорта',
+    field: 'Поле',
+    current: 'Сейчас',
+    requested: 'Запрошено',
+    changed: '(изменено)',
+  },
+};

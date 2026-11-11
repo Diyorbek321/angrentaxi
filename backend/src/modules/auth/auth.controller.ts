@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Headers,
   HttpCode,
   HttpStatus,
   Post,
@@ -13,6 +14,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
+import { explicitLanguage } from '../../common/i18n/error-messages';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -64,8 +66,9 @@ export class AuthController {
   })
   @ApiResponse({ status: 400, description: 'Invalid phone number' })
   @ApiResponse({ status: 429, description: 'Too many requests' })
-  async sendOtp(@Body() dto: SendOtpDto) {
-    return this.authService.sendOtp(dto.phone);
+  async sendOtp(@Body() dto: SendOtpDto, @Headers('accept-language') acceptLanguage?: string) {
+    // Kirishdan oldin foydalanuvchi yo'q — SMS tili ilova sarlavhasidan.
+    return this.authService.sendOtp(dto.phone, explicitLanguage(acceptLanguage));
   }
 
   @Post('verify-otp')

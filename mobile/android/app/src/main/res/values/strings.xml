@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Zakaz taklifi kanali, Dart ishlamay turganda (OfferPushReceiver).
+         Dart'dagi drvOfferNotificationChannel bilan bir xil. -->
+    <string name="driver_offer_channel">Yangi buyurtmalar</string>
+</resources>

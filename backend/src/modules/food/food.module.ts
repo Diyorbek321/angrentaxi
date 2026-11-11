@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FoodService } from './food.service';
+import { FoodImagesService } from './food-images.service';
 import { FoodVendorController } from './food-vendor.controller';
 import { FoodStorefrontController } from './food-storefront.controller';
 import { FoodAdminController } from './food-admin.controller';
@@ -14,18 +15,33 @@ import { UsersModule } from '../users/users.module';
 import { OrdersModule } from '../orders/orders.module';
 import { MatchingModule } from '../matching/matching.module';
 import { TariffsModule } from '../tariffs/tariffs.module';
+import { SettingsModule } from '../settings/settings.module';
+import { PromotionsModule } from '../promotions/promotions.module';
+import { PromoCodesModule } from '../promo-codes/promo-codes.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { FoodPromotionsController } from './food-promotions.controller';
+import { VendorTinModule } from '../vendor-tin/vendor-tin.module';
+import { FiscalModule } from '../fiscal/fiscal.module';
 
 @Module({
   imports: [
+    // Admin: sotuvchi STIR'i (audit bilan).
+    VendorTinModule,
     TypeOrmModule.forFeature([Restaurant, MenuCategory, Dish, FoodOrder, Transaction]),
     forwardRef(() => RealtimeModule),
     UsersModule,
     forwardRef(() => OrdersModule),
     MatchingModule,
     TariffsModule,
+    SettingsModule,
+    PromotionsModule,
+    PromoCodesModule,
+    // Sotuvchi o'zi yetkazgan buyurtma cheki (settleDelivered).
+    FiscalModule,
+    NotificationsModule,
   ],
-  controllers: [FoodVendorController, FoodStorefrontController, FoodAdminController],
-  providers: [FoodService],
+  controllers: [FoodVendorController, FoodPromotionsController, FoodStorefrontController, FoodAdminController],
+  providers: [FoodService, FoodImagesService],
   exports: [FoodService],
 })
 export class FoodModule {}

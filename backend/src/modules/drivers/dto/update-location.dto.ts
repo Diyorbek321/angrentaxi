@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsNumber, IsOptional, IsUUID, Max, Min } from 'class-validator';
 
 export class UpdateLocationDto {
   @ApiProperty({ example: 40.0956, description: 'Latitude' })
@@ -16,6 +16,6 @@ export class UpdateLocationDto {
 
   @ApiPropertyOptional({ description: 'Active order ID if in progress' })
   @IsOptional()
-  @IsString()
+  @IsUUID()
   orderId?: string;
 }

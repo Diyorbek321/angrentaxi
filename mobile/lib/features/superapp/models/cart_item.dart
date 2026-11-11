@@ -10,6 +10,7 @@ class CartItem {
     required this.qty,
     required this.icon,
     required this.color,
+    this.imageUrl,
   });
 
   final String id;
@@ -18,6 +19,7 @@ class CartItem {
   final int qty;
   final IconData icon;
   final Color color;
+  final String? imageUrl;
 
   double get lineTotal => price * qty;
 
@@ -28,5 +30,6 @@ class CartItem {
         qty: qty ?? this.qty,
         icon: icon,
         color: color,
+        imageUrl: imageUrl,
       );
 }

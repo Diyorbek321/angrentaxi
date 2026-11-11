@@ -5,7 +5,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 /// Premium animated loader — a pulsing branded badge with looping glow.
 /// Used app-wide for every loading / "searching" state.
 class LoadingWidget extends StatelessWidget {
-  const LoadingWidget({super.key, this.message, this.icon = Icons.bolt_rounded});
+  const LoadingWidget(
+      {super.key, this.message, this.icon = Icons.bolt_rounded});
 
   final String? message;
   final IconData icon;
@@ -53,9 +54,7 @@ class LoadingWidget extends StatelessWidget {
                 ),
                 // kGradientCta ustidagi ikona — har doim kOnPrimary (5.38:1).
                 child: Icon(icon, color: kOnPrimary, size: 28),
-              )
-                  .animate(onPlay: (c) => c.repeat(reverse: true))
-                  .scaleXY(
+              ).animate(onPlay: (c) => c.repeat(reverse: true)).scaleXY(
                     begin: 1,
                     end: 1.08,
                     duration: 700.ms,

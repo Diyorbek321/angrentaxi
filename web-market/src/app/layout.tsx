@@ -3,6 +3,8 @@ import localFont from 'next/font/local';
 import './globals.css';
 import { Providers } from './providers';
 import { THEME_INIT_SCRIPT } from '@/lib/theme';
+import { getServerLocale } from '@/lib/i18n/server';
+import { t } from '@/locales';
 
 const manrope = localFont({
   src: [
@@ -26,12 +28,14 @@ const jetbrainsMono = localFont({
   display: 'swap',
 });
 
-export const metadata: Metadata = {
-  title: 'Angren Market — Sotuvchi paneli',
-  description: "Angren Market do'konini boshqarish paneli",
-};
+export function generateMetadata(): Metadata {
+  getServerLocale();
+  const m = t();
+  return { title: m.meta.title, description: m.meta.description };
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = getServerLocale();
   return (
     // suppressHydrationWarning: the inline script below toggles the `dark`
     // class on <html> before hydration, so the server markup and the DOM React
@@ -39,7 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     // a component instead would read localStorage during render — one value on
     // the server, another in the browser — which is the mismatch this avoids.
     <html
-      lang="uz"
+      lang={locale}
       suppressHydrationWarning
       className={`${manrope.variable} ${jetbrainsMono.variable}`}
     >
@@ -47,7 +51,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className="font-sans antialiased bg-bg text-ink">
-        <Providers>{children}</Providers>
+        <Providers locale={locale}>{children}</Providers>
       </body>
     </html>
   );

@@ -14,8 +14,11 @@
 // test/widget/sos_button_test.dart and test/widget/driver_kyc_upload_test.dart.
 // LocationService is faked via GetIt (`sl`) so TripScreen's initState map
 // centering doesn't touch the real geolocator platform channel.
+import 'dart:async';
 import 'package:angren_taxi/core/di/service_locator.dart';
 import 'package:angren_taxi/core/location/location_service.dart';
+import 'package:angren_taxi/core/location/route_service.dart';
+import 'package:angren_taxi/core/location/voice_guide.dart';
 import 'package:angren_taxi/core/network/api_client.dart';
 import 'package:angren_taxi/core/network/api_endpoints.dart';
 import 'package:angren_taxi/core/safety/sos_service.dart';
@@ -25,10 +28,12 @@ import 'package:angren_taxi/features/auth/auth_provider.dart';
 import 'package:angren_taxi/features/driver/driver_provider.dart';
 import 'package:angren_taxi/features/driver/screens/trip_screen.dart';
 import 'package:angren_taxi/features/trip/screens/trip_chat_screen.dart';
+import 'package:angren_taxi/shared/models/route_step.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -39,6 +44,27 @@ class MockApiClient extends Mock implements ApiClient {}
 /// plain `flutter test` — hands TripScreen's map-centering fetch a fixed fix,
 /// same pattern as test/widget/sos_button_test.dart.
 class _FakeLocationService extends LocationService {
+  // Yopiladi: tearDown'da.
+  // ignore: close_sinks
+  final positions = StreamController<Position>.broadcast();
+
+  static Position fixAt(LatLng p) => Position(
+        latitude: p.latitude,
+        longitude: p.longitude,
+        timestamp: DateTime(2026, 7, 13, 10),
+        accuracy: 5,
+        altitude: 0,
+        altitudeAccuracy: 0,
+        heading: 0,
+        headingAccuracy: 0,
+        speed: 10,
+        speedAccuracy: 0,
+      );
+
+  @override
+  Stream<Position> getPositionStream({int distanceFilter = 10, BackgroundNotice? background}) =>
+      positions.stream;
+
   @override
   Future<Position?> getCurrentPosition() async => Position(
         latitude: 41.0167,
@@ -52,6 +78,45 @@ class _FakeLocationService extends LocationService {
         speed: 0,
         speedAccuracy: 0,
       );
+}
+
+const LatLng _origin = LatLng(41.0167, 70.1436);
+LatLng _north(double meters) => LatLng(_origin.latitude + meters / 111194.9, _origin.longitude);
+
+/// Manzilgacha marshrut: shimolga 300 m, so'ng o'ngga (sharqqa).
+class _FakeRouteService implements RouteService {
+  int calls = 0;
+
+  @override
+  Future<RouteResult?> getRoute(LatLng from, LatLng to, {List<LatLng> waypoints = const []}) async {
+    calls++;
+    RouteStep step(ManeuverType type, ManeuverModifier modifier, LatLng at, {String name = ''}) =>
+        RouteStep(type: type, modifier: modifier, location: at, distanceMeters: 300, durationSeconds: 60, name: name);
+    return RouteResult(
+      points: [_origin, _north(300), LatLng(_north(300).latitude, _origin.longitude + 0.01)],
+      distanceKm: 1,
+      durationMin: 3,
+      steps: [
+        step(ManeuverType.depart, ManeuverModifier.none, _origin),
+        step(ManeuverType.turn, ManeuverModifier.right, _north(300), name: 'Navoiy ko\'chasi'),
+        step(ManeuverType.arrive, ManeuverModifier.none, to),
+      ],
+    );
+  }
+}
+
+class _RecordingTts implements TtsEngine {
+  final spoken = <String>[];
+  @override
+  Future<List<String>> languages() async => ['uz-UZ'];
+  @override
+  Future<void> setLanguage(String language) async {}
+  @override
+  Future<void> setSpeechRate(double rate) async {}
+  @override
+  Future<void> speak(String text) async => spoken.add(text);
+  @override
+  Future<void> stop() async {}
 }
 
 const String _orderId = 'order-1';
@@ -88,6 +153,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late MockApiClient apiClient;
+  late _FakeLocationService locationService;
+  late _FakeRouteService routes;
+  late _RecordingTts tts;
   late DriverProvider driverProvider;
   late AuthProvider authProvider;
   late SosService sosService;
@@ -130,7 +198,12 @@ void main() {
     await authProvider.initialize();
 
     await sl.reset();
-    sl.registerLazySingleton<LocationService>(() => _FakeLocationService());
+    locationService = _FakeLocationService();
+    routes = _FakeRouteService();
+    tts = _RecordingTts();
+    sl.registerLazySingleton<LocationService>(() => locationService);
+    sl.registerLazySingleton<RouteService>(() => routes);
+    sl.registerLazySingleton<VoiceGuide>(() => VoiceGuide(engine: tts));
     // TripChatScreen builds its own TripChatProvider from the service
     // locator when opened without an injected one (mirrors how it's opened
     // from PassengerHomeScreen._openChat), so both are needed here too.
@@ -148,6 +221,7 @@ void main() {
   });
 
   tearDown(() async {
+    await locationService.positions.close();
     await sl.reset();
   });
 
@@ -315,6 +389,23 @@ void main() {
           )).captured.single as Map<String, dynamic>;
       expect(captured['lat'], 41.05);
       expect(captured['lng'], 70.2);
+
+      tester.takeException();
+    },
+  );
+
+  testWidgets(
+    'safarda ham ilova ichida navigatsiya: banner va "100 metrdan keyin" ovozi',
+    (tester) async {
+      await pumpTripScreen(tester);
+      expect(routes.calls, 1, reason: 'manzilgacha marshrut so\'raladi');
+
+      locationService.positions.add(_FakeLocationService.fixAt(_north(220)));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(find.text('O\'ngga buriling, Navoiy ko\'chasi'), findsOneWidget);
+      expect(tts.spoken, ['100 metrdan keyin O\'ngga buriling, Navoiy ko\'chasi']);
 
       tester.takeException();
     },

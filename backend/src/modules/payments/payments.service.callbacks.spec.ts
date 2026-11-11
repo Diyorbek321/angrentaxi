@@ -7,12 +7,17 @@ import {
   TransactionStatus,
   TransactionType,
 } from '../../database/entities/transaction.entity';
+import { MarketOrder } from '../../database/entities/market-order.entity';
+import { FoodOrder } from '../../database/entities/food-order.entity';
 import { Order, PaymentMethod } from '../../database/entities/order.entity';
 import { User } from '../../database/entities/user.entity';
 import { WithdrawalRequest } from '../../database/entities/withdrawal-request.entity';
 import { PaymeProvider } from './payme.provider';
 import { ClickProvider } from './click.provider';
 import { UzcardProvider } from './uzcard.provider';
+import { PAYOUT_PROVIDER } from './payout.interface';
+import { DriversService } from '../drivers/drivers.service';
+import { OrderRefundClawbackService } from './order-refund-clawback.service';
 
 /**
  * Coverage for the hardened payment-callback handlers: a valid callback
@@ -29,10 +34,11 @@ describe('PaymentsService - provider callbacks', () => {
   const AMOUNT_UZS = 25000;
 
   let service: PaymentsService;
+  let clawback: { clawbackForRefundedPayment: jest.Mock };
   let transactionRepository: { findOne: jest.Mock; update: jest.Mock };
   let paymeProvider: { verifyCallbackSignature: jest.Mock };
   let clickProvider: { verifyCallbackSignature: jest.Mock };
-  let uzcardProvider: { verifyCallback: jest.Mock };
+  let uzcardProvider: { verifyCallback: jest.Mock; fetchStatus: jest.Mock };
 
   const makeTransaction = (
     status: TransactionStatus = TransactionStatus.PENDING,
@@ -56,19 +62,47 @@ describe('PaymentsService - provider callbacks', () => {
 
     paymeProvider = { verifyCallbackSignature: jest.fn().mockReturnValue(true) };
     clickProvider = { verifyCallbackSignature: jest.fn().mockReturnValue(true) };
-    uzcardProvider = { verifyCallback: jest.fn().mockReturnValue(true) };
+    uzcardProvider = { verifyCallback: jest.fn().mockReturnValue(true), fetchStatus: jest.fn().mockResolvedValue('PAID') };
+    clawback = { clawbackForRefundedPayment: jest.fn().mockResolvedValue([]) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PaymentsService,
         { provide: getRepositoryToken(Transaction), useValue: transactionRepository },
-        { provide: getRepositoryToken(Order), useValue: {} },
+        // settleOrderPayout looks the order up to find its driver. These
+        // callback tests assert ledger status transitions, not payout release,
+        // so the order resolves with no driver and settlement is a no-op.
+        {
+          provide: getRepositoryToken(Order),
+          useValue: { findOne: jest.fn().mockResolvedValue(null) },
+        },
+        { provide: getRepositoryToken(MarketOrder), useValue: { findOne: jest.fn() } },
+        { provide: getRepositoryToken(FoodOrder), useValue: { findOne: jest.fn() } },
         { provide: getRepositoryToken(User), useValue: {} },
         { provide: getRepositoryToken(WithdrawalRequest), useValue: {} },
         { provide: PaymeProvider, useValue: paymeProvider },
         { provide: ClickProvider, useValue: clickProvider },
         { provide: UzcardProvider, useValue: uzcardProvider },
+        // Pul CHIQARISH adapteri. Qo'lda o'tkazma hech qanday tarmoqqa
+        // chiqmaydi, shuning uchun mock ham shunchaki natija qaytaradi.
+        {
+          provide: PAYOUT_PROVIDER,
+          useValue: {
+            name: 'manual',
+            send: jest.fn().mockResolvedValue({ reference: null, settled: true }),
+          },
+        },
+        // settleOrderPayout credits drivers.balance once a card payment lands.
+        {
+          provide: DriversService,
+          useValue: { adjustBalanceWithin: jest.fn().mockResolvedValue({
+            driverId: 'driver-profile-1',
+            newBalance: 0,
+            wentOffline: false,
+          }) },
+        },
         { provide: DataSource, useValue: { transaction: jest.fn() } },
+        { provide: OrderRefundClawbackService, useValue: clawback },
       ],
     }).compile();
 
@@ -79,203 +113,127 @@ describe('PaymentsService - provider callbacks', () => {
     jest.clearAllMocks();
   });
 
-  // --- Payme -------------------------------------------------------------
+  // --- Buyurtma to'lovi (Payme/Click merchant protokollari nishoni) -------
+  //
+  // Protokol (JSON-RPC, prepare/complete, imzo) `merchant/*.spec.ts` da;
+  // bu yerda buyurtmaning pul qoidalari: summa, bir martalik, refund.
 
-  describe('handlePaymeCallback()', () => {
-    // Payme quotes amounts in tiyin.
-    const performBody = (amountTiyin: number): Record<string, unknown> => ({
-      method: 'PerformTransaction',
-      params: {
-        id: 'payme-tx-9',
-        amount: amountTiyin,
-        account: { order_id: ORDER_ID },
-      },
-    });
+  describe('completeOrderPayment()', () => {
+    const pay = (amount = AMOUNT_UZS, externalId = 'payme_p9') =>
+      service.completeOrderPayment(ORDER_ID, { amount, externalId });
 
-    it('rejects a callback whose signature does not verify', async () => {
-      paymeProvider.verifyCallbackSignature.mockReturnValue(false);
-
-      const result = await service.handlePaymeCallback(
-        performBody(AMOUNT_UZS * 100),
-        'Basic eDo=',
-      );
-
-      expect(result).toEqual({ allow: false });
-      expect(transactionRepository.update).not.toHaveBeenCalled();
-    });
-
-    it('completes the transaction when signature and amount are correct', async () => {
+    it("to'g'ri summa — pending → completed (shartli yozuv), 'paid'", async () => {
       transactionRepository.findOne.mockResolvedValue(makeTransaction());
 
-      const result = await service.handlePaymeCallback(
-        performBody(AMOUNT_UZS * 100),
-        'Basic key',
-      );
-
-      expect(result).toEqual({ allow: true });
+      await expect(pay()).resolves.toBe('paid');
       expect(transactionRepository.update).toHaveBeenCalledWith(
-        { id: 'tx-1' },
-        { status: TransactionStatus.COMPLETED, externalId: 'payme-tx-9' },
+        { id: 'tx-1', status: TransactionStatus.PENDING },
+        { status: TransactionStatus.COMPLETED, externalId: 'payme_p9' },
       );
     });
 
-    it('rejects a callback whose amount does not match the stored amount', async () => {
+    // ⚠️ REGRESSIYA: chaqim (tips) ayni shu buyurtmaga yo'lovchi nomidan
+    // IKKINCHI DEBIT yozadi va u yo'l haqidan KEYIN yaratiladi. CARD filtri
+    // uni tuzilishiga ko'ra chetlab o'tadi.
+    it('looks up the card debit only, so a wallet tip cannot shadow it', async () => {
       transactionRepository.findOne.mockResolvedValue(makeTransaction());
 
-      // Attacker pays 100 UZS for a 25 000 UZS order.
-      const result = await service.handlePaymeCallback(
-        performBody(100 * 100),
-        'Basic key',
-      );
+      await pay();
 
-      expect(result).toEqual({ allow: false });
+      expect(transactionRepository.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            orderId: ORDER_ID,
+            type: TransactionType.DEBIT,
+            paymentMethod: PaymentMethod.CARD,
+          }),
+        }),
+      );
+    });
+
+    it("summa mos emas — 'amount_mismatch', daftar o'zgarmaydi", async () => {
+      transactionRepository.findOne.mockResolvedValue(makeTransaction());
+      await expect(pay(100)).resolves.toBe('amount_mismatch');
       expect(transactionRepository.update).not.toHaveBeenCalled();
     });
 
-    it('rejects a callback for an unknown order', async () => {
+    it("noma'lum buyurtma — 'not_found'", async () => {
       transactionRepository.findOne.mockResolvedValue(null);
-
-      const result = await service.handlePaymeCallback(
-        performBody(AMOUNT_UZS * 100),
-        'Basic key',
-      );
-
-      expect(result).toEqual({ allow: false });
+      await expect(pay()).resolves.toBe('not_found');
       expect(transactionRepository.update).not.toHaveBeenCalled();
     });
 
-    it('acknowledges a replayed callback without rewriting the transaction', async () => {
-      transactionRepository.findOne.mockResolvedValue(
-        makeTransaction(TransactionStatus.COMPLETED),
-      );
-
-      const result = await service.handlePaymeCallback(
-        performBody(AMOUNT_UZS * 100),
-        'Basic key',
-      );
-
-      expect(result).toEqual({ allow: true });
+    it("xuddi shu provayder tranzaksiyasining takrori — 'already_paid', daftar o'zgarmaydi", async () => {
+      transactionRepository.findOne.mockResolvedValue({
+        ...makeTransaction(TransactionStatus.COMPLETED),
+        externalId: 'payme_p9',
+      });
+      await expect(pay()).resolves.toBe('already_paid');
       expect(transactionRepository.update).not.toHaveBeenCalled();
     });
 
-    it('refuses to complete a transaction that was already refunded', async () => {
-      transactionRepository.findOne.mockResolvedValue(
-        makeTransaction(TransactionStatus.REFUNDED),
-      );
+    it("boshqa tranzaksiya bilan to'langan — 'not_payable' (ikki marta to'lanmaydi)", async () => {
+      transactionRepository.findOne.mockResolvedValue({
+        ...makeTransaction(TransactionStatus.COMPLETED),
+        externalId: 'click_1',
+      });
+      await expect(pay()).resolves.toBe('not_payable');
+    });
 
-      const result = await service.handlePaymeCallback(
-        performBody(AMOUNT_UZS * 100),
-        'Basic key',
-      );
-
-      expect(result).toEqual({ allow: false });
+    it("qaytarilgan to'lovni yakunlamaydi — 'not_payable'", async () => {
+      transactionRepository.findOne.mockResolvedValue(makeTransaction(TransactionStatus.REFUNDED));
+      await expect(pay()).resolves.toBe('not_payable');
       expect(transactionRepository.update).not.toHaveBeenCalled();
     });
 
-    it('reverses a completed transaction on CancelTransaction', async () => {
-      transactionRepository.findOne.mockResolvedValue(
-        makeTransaction(TransactionStatus.COMPLETED),
-      );
+    it("parallel callback birinchi yozgan bo'lsa — 'already_paid'", async () => {
+      transactionRepository.findOne
+        .mockResolvedValueOnce(makeTransaction())
+        .mockResolvedValueOnce({ ...makeTransaction(TransactionStatus.COMPLETED), externalId: 'payme_p9' });
+      transactionRepository.update.mockResolvedValueOnce({ affected: 0 });
+      await expect(pay()).resolves.toBe('already_paid');
+    });
+  });
 
-      const result = await service.handlePaymeCallback(
-        { method: 'CancelTransaction', params: { id: 'payme-tx-9' } },
-        'Basic key',
-      );
-
-      expect(result).toEqual({ allow: true });
+  describe('refundOrderPayment()', () => {
+    it('completed → refunded', async () => {
+      transactionRepository.findOne.mockResolvedValue(makeTransaction(TransactionStatus.COMPLETED));
+      await expect(service.refundOrderPayment(ORDER_ID, 'payme_p9')).resolves.toBe(true);
       expect(transactionRepository.update).toHaveBeenCalledWith(
-        { id: 'tx-1' },
+        { id: 'tx-1', status: TransactionStatus.COMPLETED },
         { status: TransactionStatus.REFUNDED },
       );
     });
 
-    it('treats a repeated CancelTransaction as a no-op', async () => {
-      transactionRepository.findOne.mockResolvedValue(
-        makeTransaction(TransactionStatus.REFUNDED),
-      );
-
-      const result = await service.handlePaymeCallback(
-        { method: 'CancelTransaction', params: { id: 'payme-tx-9' } },
-        'Basic key',
-      );
-
-      expect(result).toEqual({ allow: true });
-      expect(transactionRepository.update).not.toHaveBeenCalled();
-    });
-  });
-
-  // --- Click -------------------------------------------------------------
-
-  describe('handleClickCallback()', () => {
-    // Click quotes amounts in whole soum.
-    const completeBody = (amount: number): Record<string, unknown> => ({
-      action: 2,
-      amount,
-      merchant_trans_id: ORDER_ID,
-      click_trans_id: 'click-tx-7',
-    });
-
-    it('rejects a callback whose signature does not verify', async () => {
-      clickProvider.verifyCallbackSignature.mockReturnValue(false);
-
-      const result = await service.handleClickCallback(completeBody(AMOUNT_UZS));
-
-      expect(result).toEqual({ error: -1, error_note: 'SIGNATURE_FAILED' });
+    it('takroriy refund — no-op', async () => {
+      transactionRepository.findOne.mockResolvedValue(makeTransaction(TransactionStatus.REFUNDED));
+      await expect(service.refundOrderPayment(ORDER_ID, 'payme_p9')).resolves.toBe(false);
       expect(transactionRepository.update).not.toHaveBeenCalled();
     });
 
-    it('completes the transaction when signature and amount are correct', async () => {
-      transactionRepository.findOne.mockResolvedValue(makeTransaction());
-
-      const result = await service.handleClickCallback(completeBody(AMOUNT_UZS));
-
-      expect(result).toEqual({ error: 0, error_note: 'Success' });
-      expect(transactionRepository.update).toHaveBeenCalledWith(
-        { id: 'tx-1' },
-        {
-          status: TransactionStatus.COMPLETED,
-          externalId: `click_${ORDER_ID}_click-tx-7`,
-        },
-      );
+    // §23: haydovchi/sotuvchi ulushi qaytarib olinadi (bir martalik — servis o'zi kafolatlaydi).
+    it("refunddan keyin ulush qaytarib olinadi (clawback)", async () => {
+      transactionRepository.findOne.mockResolvedValue(makeTransaction(TransactionStatus.COMPLETED));
+      await service.refundOrderPayment(ORDER_ID, 'payme_p9');
+      expect(clawback.clawbackForRefundedPayment).toHaveBeenCalledWith(ORDER_ID, 'payme_p9');
     });
 
-    it('rejects a callback whose amount does not match the stored amount', async () => {
-      transactionRepository.findOne.mockResolvedValue(makeTransaction());
-
-      const result = await service.handleClickCallback(completeBody(100));
-
-      expect(result).toEqual({ error: -2, error_note: 'INCORRECT_AMOUNT' });
-      expect(transactionRepository.update).not.toHaveBeenCalled();
+    it("takroriy refund ham clawback'ni chaqiradi (avvalgisi yiqilgan bo'lsa tiklanadi; idempotent)", async () => {
+      transactionRepository.findOne.mockResolvedValue(makeTransaction(TransactionStatus.REFUNDED));
+      await service.refundOrderPayment(ORDER_ID, 'payme_p9');
+      expect(clawback.clawbackForRefundedPayment).toHaveBeenCalledWith(ORDER_ID, 'payme_p9');
     });
 
-    it('rejects a callback for an unknown order', async () => {
-      transactionRepository.findOne.mockResolvedValue(null);
-
-      const result = await service.handleClickCallback(completeBody(AMOUNT_UZS));
-
-      expect(result).toEqual({ error: -5, error_note: 'TRANSACTION_NOT_FOUND' });
-      expect(transactionRepository.update).not.toHaveBeenCalled();
+    it("clawback xatosi provayder javobini buzmaydi", async () => {
+      transactionRepository.findOne.mockResolvedValue(makeTransaction(TransactionStatus.COMPLETED));
+      clawback.clawbackForRefundedPayment.mockRejectedValue(new Error('db down'));
+      await expect(service.refundOrderPayment(ORDER_ID, 'payme_p9')).resolves.toBe(true);
     });
 
-    it('acknowledges a replayed callback without rewriting the transaction', async () => {
-      transactionRepository.findOne.mockResolvedValue(
-        makeTransaction(TransactionStatus.COMPLETED),
-      );
-
-      const result = await service.handleClickCallback(completeBody(AMOUNT_UZS));
-
-      expect(result).toEqual({ error: 0, error_note: 'Success' });
-      expect(transactionRepository.update).not.toHaveBeenCalled();
-    });
-
-    it('does not touch the ledger on the prepare action', async () => {
-      const result = await service.handleClickCallback({
-        ...completeBody(AMOUNT_UZS),
-        action: 1,
-      });
-
-      expect(result).toEqual({ error: 0, error_note: 'Success' });
-      expect(transactionRepository.update).not.toHaveBeenCalled();
+    it("to'lanmagan (pending) to'lov — clawback yo'q", async () => {
+      transactionRepository.findOne.mockResolvedValue(makeTransaction(TransactionStatus.PENDING));
+      await expect(service.refundOrderPayment(ORDER_ID, 'payme_p9')).resolves.toBe(false);
+      expect(clawback.clawbackForRefundedPayment).not.toHaveBeenCalled();
     });
   });
 
@@ -340,10 +298,56 @@ describe('PaymentsService - provider callbacks', () => {
       expect(transactionRepository.update).not.toHaveBeenCalled();
     });
 
+    // Security review #7: UZPS imzosi `status` va `transaction_id` ni
+    // qamramaydi — pulga ta'sir qiluvchi o'tish provayder status API'si bilan.
+    it('does not complete a PAID callback the provider status API does not confirm', async () => {
+      transactionRepository.findOne.mockResolvedValue(makeTransaction());
+      uzcardProvider.fetchStatus.mockResolvedValue('PENDING');
+
+      const result = await service.handleUzcardCallback(paidBody(AMOUNT_UZS * 100));
+
+      expect(result).toEqual({ success: false, message: 'NOT_CONFIRMED' });
+      expect(uzcardProvider.fetchStatus).toHaveBeenCalledWith('uzcard-tx-3');
+      expect(transactionRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects a PAID callback without transaction_id', async () => {
+      transactionRepository.findOne.mockResolvedValue(makeTransaction());
+
+      const result = await service.handleUzcardCallback({ status: 'PAID', order_id: ORDER_ID, amount: AMOUNT_UZS * 100 });
+
+      expect(result.success).toBe(false);
+      expect(transactionRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects a fractional-tiyin amount (#10)', async () => {
+      transactionRepository.findOne.mockResolvedValue(makeTransaction());
+
+      const result = await service.handleUzcardCallback(paidBody(AMOUNT_UZS * 100 + 0.4));
+
+      expect(result).toEqual({ success: false, message: 'AMOUNT_MISMATCH' });
+    });
+
+    it('ignores a CANCELLED callback for a completed payment the provider still reports PAID', async () => {
+      transactionRepository.findOne.mockResolvedValue(makeTransaction(TransactionStatus.COMPLETED));
+      uzcardProvider.fetchStatus.mockResolvedValue('PAID');
+
+      const result = await service.handleUzcardCallback({
+        status: 'CANCELLED',
+        order_id: ORDER_ID,
+        transaction_id: 'uzcard-tx-3',
+      });
+
+      expect(result).toEqual({ success: false, message: 'NOT_CONFIRMED' });
+      expect(transactionRepository.update).not.toHaveBeenCalled();
+      expect(clawback.clawbackForRefundedPayment).not.toHaveBeenCalled();
+    });
+
     it('reverses a completed transaction on a CANCELLED callback', async () => {
       transactionRepository.findOne.mockResolvedValue(
         makeTransaction(TransactionStatus.COMPLETED),
       );
+      uzcardProvider.fetchStatus.mockResolvedValue('CANCELLED');
 
       const result = await service.handleUzcardCallback({
         status: 'CANCELLED',
@@ -356,6 +360,8 @@ describe('PaymentsService - provider callbacks', () => {
         { id: 'tx-1' },
         { status: TransactionStatus.REFUNDED },
       );
+      // To'langan to'lov qaytdi — ulush qaytarib olinadi (§23).
+      expect(clawback.clawbackForRefundedPayment).toHaveBeenCalledWith(ORDER_ID, 'uzcard-tx-3');
     });
 
     it('treats a repeated CANCELLED callback as a no-op', async () => {

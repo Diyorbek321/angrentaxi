@@ -1,0 +1,190 @@
+import 'dart:convert';
+
+import 'package:angren_taxi/core/config/app_config.dart';
+import 'package:angren_taxi/core/location/daylight.dart';
+import 'package:angren_taxi/core/observability/crash_reporting.dart';
+import 'package:flutter/services.dart' show rootBundle;
+
+/// Xarita uslubining ikki varianti.
+///
+/// [light] — kunduzgi, ilovaning asosiy temasi.
+/// [dark] — tungi navigatsiya. Haydovchi kechasi soatlab xaritaga qaraydi;
+/// oq fon qorong'ida ko'zni qamashtiradi va yo'lni ko'rishga xalaqit beradi.
+enum AppMapStyle { light, dark }
+
+/// Angren Taxi'ning O'Z xarita uslubi.
+///
+/// Nega tayyor `streets-v2` emas: MapTiler'ning tayyor uslubi umumiy
+/// maqsadli xarita — ko'k yo'llar, sariq magistrallar, o'nlab POI ikonasi.
+/// U turizm xaritasi uchun to'g'ri, taksi uchun emas. Taksida xarita FON
+/// bo'lishi kerak: ekrandagi eng yorqin element — marshrut chizig'i va
+/// haydovchi markeri, xarita esa ular ortida jim turishi lozim.
+///
+/// Shuning uchun uslub qo'lda yozilgan (`assets/map/style_*.json`) va
+/// ranglari `app_theme.dart` tokenlaridan olingan — xarita ham, interfeys
+/// ham bitta palitrada.
+class MapStyleLoader {
+  MapStyleLoader._();
+
+  /// Uslub JSON'i o'zgarmaydi, lekin har xarita ochilishida assetdan o'qish
+  /// va satr almashtirish ortiqcha ish — bir marta o'qib saqlaymiz.
+  static final Map<String, String> _cache = {};
+
+  static const Map<AppMapStyle, String> _assets = {
+    AppMapStyle.light: 'assets/map/style_light.json',
+    AppMapStyle.dark: 'assets/map/style_dark.json',
+  };
+
+  /// Uslub hujjatini tayyor holda qaytaradi.
+  ///
+  /// MapLibre `styleString` ga URL ham, to'liq JSON hujjat ham berish
+  /// mumkin — biz ikkinchisini beramiz, chunki uslub bizniki.
+  ///
+  /// [languageCode] — ilova tili: yorliqlar shu tilga mos yozuvda chiqadi
+  /// ([localizeLabels]).
+  static Future<String> load(AppMapStyle style, {String languageCode = 'uz'}) async {
+    final cacheKey = '${style.name}/$languageCode';
+    final cached = _cache[cacheKey];
+    if (cached != null) return cached;
+
+    final raw = await rootBundle.loadString(_assets[style]!);
+
+    // Kalitsiz build xaritani jimgina bo'sh qoldiradi (MapTiler 403) —
+    // hech bo'lmasa jurnalda ko'rinsin.
+    if (AppConfig.mapTilerKey.isEmpty && !selfHostedIsComplete) {
+      CrashReporting.reportHandled(
+        StateError('MAPTILER_KEY bo\'sh — xarita tile\'lari yuklanmaydi'),
+        StackTrace.current,
+        'MapStyleLoader.load',
+      );
+    }
+
+    // Faqat `{MAPTILER_KEY}` ni almashtiramiz. JSON'dagi `{fontstack}` va
+    // `{range}` — MapLibre'ning o'z shablonlari, ularga tegilmaydi.
+    final withKey = raw.replaceAll('{MAPTILER_KEY}', AppConfig.mapTilerKey);
+
+    final resolved = localizeLabels(_applySelfHostedSource(withKey), languageCode);
+
+    _cache[cacheKey] = resolved;
+    return resolved;
+  }
+
+  /// Nom yorliqlarini ilova tiliga moslaydi.
+  ///
+  /// Angren OSM ma'lumotida ko'chalarning ~60% `name` i ruscha kirill
+  /// ("улица Уйгун"), qolgani o'zbekcha lotin ("Navoiy ko'chasi"), `name:uz`
+  /// esa deyarli yo'q. Ruscha ilovada `name:ru` (~65% ko'chada bor) birinchi
+  /// olinsa yozuv deyarli butunlay kirillga o'tadi.
+  ///
+  /// O'zbekcha uchun ilova ichida yechim yo'q: uslub ifodalari kirillni
+  /// lotinga o'gira olmaydi. U OSM'da `name:uz` to'ldirilgani sari o'zi
+  /// tuzaladi — uslub `name:uz` ni allaqachon birinchi oladi.
+  static String localizeLabels(String styleJson, String languageCode) {
+    if (languageCode != 'ru') return styleJson;
+
+    final doc = jsonDecode(styleJson) as Map<String, dynamic>;
+    for (final layer in (doc['layers'] as List? ?? const [])) {
+      final layout = (layer as Map<String, dynamic>)['layout'] as Map<String, dynamic>?;
+      final field = layout?['text-field'];
+      if (field is List) layout!['text-field'] = _swapNameKey(field, 'name:ru');
+    }
+    return jsonEncode(doc);
+  }
+
+  /// `["get","name:uz"]` ni [key] bilan almashtiradi (ifoda ichida ham).
+  static List<dynamic> _swapNameKey(List<dynamic> expr, String key) {
+    if (expr.length == 2 && expr[0] == 'get' && expr[1] == 'name:uz') {
+      return ['get', key];
+    }
+    return [for (final e in expr) e is List ? _swapNameKey(e, key) : e];
+  }
+
+  /// O'zini hostlash sozlangan bo'lsa, uslubdagi tile va shrift manbasini
+  /// almashtiradi.
+  ///
+  /// ⚠️ NEGA JSON PARS QILINADI, satr almashtirish emas. Manba URL'i
+  /// uslubda ikki joyda uchraydi (`sources` va `glyphs`) va ularning
+  /// formati bir xil emas — ko'r-ko'rona `replaceAll` `glyphs` dagi
+  /// `{fontstack}` shablonini ham buzib qo'yardi. Hujjat kichik, pars
+  /// qilish arzon va tuzilma xatosi darhol ko'rinadi.
+  ///
+  /// Sozlanmagan bo'lsa hujjat O'ZGARMASDAN qaytadi — MapTiler yo'li
+  /// standart bo'lib qoladi.
+  static String _applySelfHostedSource(String styleJson) =>
+      applySelfHostedSource(
+        styleJson,
+        tilesUrl: AppConfig.mapTilesUrl,
+        glyphsUrl: AppConfig.mapGlyphsUrl,
+      );
+
+  /// Sof (pure) variant — testdan chaqirish uchun ochiq.
+  ///
+  /// ⚠️ NEGA PARAMETRLI. `AppConfig.mapTilesUrl` — `String.fromEnvironment`,
+  /// ya'ni KOMPILYATSIYA vaqtidagi konstanta. Uni testda o'zgartirib
+  /// bo'lmaydi, shuning uchun mantiq qiymatlarni argument sifatida oladi va
+  /// sozlamani o'qish yupqa o'ram (`_applySelfHostedSource`) zimmasida
+  /// qoladi. Aks holda bu almashtirish umuman testlanmasdi.
+  static String applySelfHostedSource(
+    String styleJson, {
+    required String tilesUrl,
+    required String glyphsUrl,
+  }) {
+    // Yarim sozlangan holatda MapTiler yo'lida qolamiz — u ishlaydi.
+    if (tilesUrl.isEmpty || glyphsUrl.isEmpty) return styleJson;
+
+    final doc = jsonDecode(styleJson) as Map<String, dynamic>;
+
+    final sources = doc['sources'] as Map<String, dynamic>?;
+    final openmaptiles = sources?['openmaptiles'] as Map<String, dynamic>?;
+    // Uslub kutilgan tuzilmada bo'lmasa hujjatni BUZMAYMIZ — o'zgarishsiz
+    // qaytaramiz. Bo'sh xaritadan ko'ra eski manba yaxshiroq.
+    if (openmaptiles == null) return styleJson;
+
+    // PMTiles bitta fayl — `tiles.json` emas, shuning uchun `url` o'rniga
+    // to'g'ridan-to'g'ri manba beriladi.
+    openmaptiles['url'] = tilesUrl;
+    // Uslubdagi MapTiler tile SHABLONI va uning masshtab chegaralari olib
+    // tashlanadi: MapLibre `tiles` ni `url` dan ustun qo'yadi va qolsa
+    // xarita MapTiler'dan o'qiyverardi. Chegaralar PMTiles sarlavhasida.
+    openmaptiles
+      ..remove('tiles')
+      ..remove('minzoom')
+      ..remove('maxzoom');
+    // O'z tile'larimiz ham OSM ma'lumotidan (OpenMapTiles sxemasi) —
+    // atribut litsenziya talabi, faqat MapTiler qismi olib tashlanadi.
+    openmaptiles['attribution'] = _osmAttribution;
+    doc['glyphs'] = glyphsUrl;
+
+    return jsonEncode(doc);
+  }
+
+  static const String _osmAttribution =
+      '<a href="https://openmaptiles.org/" target="_blank">&copy; OpenMapTiles</a> '
+      '<a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>';
+
+  /// O'zini hostlash TO'LIQ sozlanganmi.
+  ///
+  /// Ataylab "ikkalasi ham" shart: faqat tile manbasini bergan build
+  /// yorliqsiz xarita chizadi va bu prodda sezilmay qolishi mumkin.
+  /// Yarim sozlangan holatda MapTiler yo'lida qolamiz — u ishlaydi.
+  static bool get selfHostedIsComplete =>
+      AppConfig.mapTilesUrl.isNotEmpty && AppConfig.mapGlyphsUrl.isNotEmpty;
+
+  /// Hozirgi vaqtga mos uslub: quyosh botganidan keyin tungi, aks holda
+  /// kunduzgi.
+  ///
+  /// Koordinata sifatida shahar markazi olinadi — bitta shahar ichida
+  /// quyosh botishi soniyalar bilan farq qiladi, haydovchining aniq
+  /// joylashuvini kutib o'tirishning ma'nosi yo'q.
+  static AppMapStyle styleForNow({DateTime? now}) {
+    final night = Daylight.isNight(
+      at: now ?? DateTime.now(),
+      latitude: AppConfig.defaultLat,
+      longitude: AppConfig.defaultLng,
+    );
+    return night ? AppMapStyle.dark : AppMapStyle.light;
+  }
+
+  /// Testlar uchun keshni tozalash.
+  static void resetCacheForTest() => _cache.clear();
+}

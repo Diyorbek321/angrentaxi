@@ -76,6 +76,20 @@ export const SOCKET_EVENTS = {
   JOIN_SUPPORT_THREAD: 'join:support:thread',
   LEAVE_SUPPORT_THREAD: 'leave:support:thread',
 
+  // Xavfsizlik (server → managers): SOS darhol, boshqa panelda yopildi
+  SOS_ALERT: 'sos:alert',
+  SOS_RESOLVED: 'sos:resolved',
+
+  // Yetkazish hodisalari (server → managers): osilib qolgan safar, bir marta
+  DELIVERY_STUCK: 'delivery:stuck',
+
+  // Intercity (server → managers): backend intercity-events.ts
+  INTERCITY_TRIP_UPDATED: 'intercity:trip:updated',
+  // Yo'lovchi so'rovlari: yangi / narx oshirildi / yopildi (qabul, bekor, muddat).
+  INTERCITY_REQUEST_CREATED: 'intercity:request:created',
+  INTERCITY_REQUEST_UPDATED: 'intercity:request:updated',
+  INTERCITY_REQUEST_CLOSED: 'intercity:request:closed',
+
   // Connection events
   CONNECT: 'connect',
   DISCONNECT: 'disconnect',

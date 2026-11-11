@@ -2,7 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { OrdersService } from './orders.service';
 import { ORDERS_PROVIDERS } from './orders.providers';
-import { fakeDataSourceProvider } from './orders.testing';
+import { SurgeService } from '../surge/surge.service';
+import { OsrmService } from '../routing/osrm.service';
+import { RoutedDistancePricing } from './routed-distance-pricing';
+import { fakeDataSourceProvider, fakeTransactionRepository, fakeCitiesServiceProvider } from './orders.testing';
 import { Order } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
 import { Transaction } from '../../database/entities/transaction.entity';
@@ -28,7 +31,7 @@ describe('OrdersService - multi-stop rides (waypoints)', () => {
   let service: OrdersService;
   let orderRepository: {
     query: jest.Mock;
-    findOne: jest.Mock;
+    findOne: jest.Mock; count?: jest.Mock;
   };
 
   const tariff = {
@@ -51,6 +54,30 @@ describe('OrdersService - multi-stop rides (waypoints)', () => {
         const baseTotal = t.basePrice + distanceKm * t.pricePerKm + durationMin * t.pricePerMin;
         const raw = Math.max(t.minPrice, baseTotal) * (t.surgeMultiplier ?? 1);
         return t.maxPrice != null ? Math.min(raw, t.maxPrice) : raw;
+      },
+    ),
+    // `calculatePrice` endi `calculatePriceBreakdown` ustidagi qobiq —
+    // mock ham ikkalasini bir manbadan beradi, aks holda ular ajralib ketadi.
+    calculatePriceBreakdown: jest.fn(
+      (t: typeof tariff, distanceKm: number, durationMin: number) => {
+        const baseTotal =
+          t.basePrice + distanceKm * t.pricePerKm + durationMin * t.pricePerMin;
+        const raw = Math.max(t.minPrice, baseTotal) * (t.surgeMultiplier ?? 1);
+        const total = t.maxPrice != null ? Math.min(raw, t.maxPrice) : raw;
+        return {
+          baseFare: t.basePrice,
+          distanceKm,
+          pricePerKm: t.pricePerKm,
+          distanceFare: distanceKm * t.pricePerKm,
+          durationMin,
+          pricePerMin: t.pricePerMin,
+          timeFare: durationMin * t.pricePerMin,
+          minPriceAdjustment: 0,
+          surgeMultiplier: t.surgeMultiplier ?? 1,
+          surgeFare: 0,
+          maxPriceCap: 0,
+          total,
+        };
       },
     ),
   };
@@ -77,6 +104,7 @@ describe('OrdersService - multi-stop rides (waypoints)', () => {
 
   beforeEach(async () => {
     orderRepository = {
+      count: jest.fn().mockResolvedValue(0),
       query: jest.fn(),
       findOne: jest.fn(),
     };
@@ -84,10 +112,28 @@ describe('OrdersService - multi-stop rides (waypoints)', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ...ORDERS_PROVIDERS,
+        fakeCitiesServiceProvider(),
+        // Routing is an accuracy layer over pricing; these tests assert the
+        // straight-line behaviour, which is also the shipped default.
+        { provide: OsrmService, useValue: { routeDistanceMeters: jest.fn() } },
+        { provide: RoutedDistancePricing, useValue: { enabled: false } },
+        // Surge is a pricing input, not a dependency of these flows: a quiet
+        // zone (1.0x) keeps the expected prices in these tests unchanged.
+        {
+          provide: SurgeService,
+          useValue: {
+            snapshotFor: jest.fn().mockResolvedValue({
+              multiplier: 1.0,
+              demand: 0,
+              supply: 0,
+              zone: 'test-zone',
+            }),
+          },
+        },
         fakeDataSourceProvider(),
         { provide: getRepositoryToken(Order), useValue: orderRepository },
-        { provide: getRepositoryToken(Trip), useValue: {} },
-        { provide: getRepositoryToken(Transaction), useValue: {} },
+        { provide: getRepositoryToken(Trip), useValue: { find: jest.fn().mockResolvedValue([]),} },
+        { provide: getRepositoryToken(Transaction), useValue: fakeTransactionRepository() },
         { provide: getRepositoryToken(DispatchOverride), useValue: {} },
         { provide: TariffsService, useValue: tariffsService },
         {
@@ -122,7 +168,7 @@ describe('OrdersService - multi-stop rides (waypoints)', () => {
       passengerId: 'passenger-1',
       driverId: null,
       waypoints: waypoints ?? null,
-    } as unknown as Order);
+    });
   }
 
   it('prices a route with waypoints higher than the direct pickup->dropoff route', async () => {

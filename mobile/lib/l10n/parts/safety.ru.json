@@ -1,0 +1,7 @@
+{
+  "safetyCallFailed": "Не удалось позвонить. Напишите в чат.",
+  "safetyShareTitle": "Поделиться поездкой",
+  "safetyShareMessage": "Следите за моей поездкой (Angren Taxi): {url}",
+  "safetyShareCopied": "Ссылка для отслеживания скопирована — отправьте близкому",
+  "safetyShareFailed": "Не удалось создать ссылку. Попробуйте ещё раз."
+}

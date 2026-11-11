@@ -16,10 +16,17 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { DriversService } from './drivers.service';
+import { DriverPublicView, toDriverPublicView } from './driver-public-view';
+import {
+  DriverWalletAdjustmentsService,
+  DriverWithWallet,
+} from './driver-wallet-adjustments.service';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
+import { UpdateAmenitiesDto } from './dto/update-amenities.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
 import { SetOnlineStatusDto } from './dto/set-online-status.dto';
+import { NearbyCountQueryDto } from './dto/nearby-count-query.dto';
 import { AddFundsDto } from './dto/add-funds.dto';
 import { SetCommissionRateDto } from './dto/set-commission-rate.dto';
 import { SetTariffTierDto } from './dto/set-tariff-tier.dto';
@@ -29,12 +36,15 @@ import { PermissionsGuard } from '../auth/permissions.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
-import { Permission, User, UserRole, UserStatus } from '../../database/entities/user.entity';
+import { PASSENGER_APP_ROLES, Permission, User, UserRole, UserStatus } from '../../database/entities/user.entity';
 import { Driver } from '../../database/entities/driver.entity';
 import { ParseUUIDPipe } from '../../common/pipes/parse-uuid.pipe';
 import { OptionalEnumPipe } from '../../common/pipes/optional-enum.pipe';
 import { UsersService } from '../users/users.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+
+/** Qidiruvning eng keng radiusi (matching SEARCH_RADIUS_STEPS_KM oxirgisi). */
+const NEARBY_COUNT_RADIUS_KM = 5;
 
 @ApiTags('Drivers')
 @ApiBearerAuth('JWT-auth')
@@ -45,6 +55,7 @@ export class DriversController {
     private readonly driversService: DriversService,
     private readonly usersService: UsersService,
     private readonly realtimeGateway: RealtimeGateway,
+    private readonly walletAdjustments: DriverWalletAdjustmentsService,
   ) {}
 
   @Get()
@@ -58,11 +69,31 @@ export class DriversController {
     @Query('isOnline') isOnline?: string,
     @Query('search') search?: string,
   ) {
-    return this.driversService.findAll(Number(page), Number(limit), {
+    const result = await this.driversService.findAll(Number(page), Number(limit), {
       status,
       isOnline: isOnline === undefined ? undefined : isOnline === 'true',
       search,
     });
+    // PINFL/STIR/tug'ilgan sana — faqat `GET /drivers/:id/legal` da (#2).
+    return { ...result, drivers: result.drivers.map((driver) => toDriverPublicView(driver)) };
+  }
+
+  /**
+   * Olish nuqtasi atrofidagi BO'SH haydovchilar SONI — yo'lovchi qidiruv
+   * ekrani ("3 ta haydovchi yaqinda") va buyurtmadan oldingi ogohlantirish
+   * ("hozir yaqinda bo'sh mashina yo'q") uchun.
+   *
+   * ⚠️ Faqat son, joylashuv EMAS: haydovchi koordinatalari yo'lovchiga
+   * berilmaydi (maxfiylik, raqobatchi skreypingi). Son matching bilan bir
+   * xil filtrdan o'tadi (onlayn, tirik, bo'sh, faol) va qidiruvning eng keng
+   * radiusida (5 km), MATCHING_CANDIDATE_LIMIT bilan cheklangan.
+   */
+  @Get('nearby-count')
+  @Roles(...PASSENGER_APP_ROLES)
+  @ApiOperation({ summary: 'Free drivers near a pickup point (count only)' })
+  async getNearbyCount(@Query() query: NearbyCountQueryDto): Promise<{ count: number; radiusKm: number }> {
+    const count = await this.driversService.countFreeDriversNear(query.lat, query.lng, NEARBY_COUNT_RADIUS_KM);
+    return { count, radiusKm: NEARBY_COUNT_RADIUS_KM };
   }
 
   @Get('online')
@@ -112,14 +143,27 @@ export class DriversController {
     return this.driversService.updateProfile(user.id, dto);
   }
 
+  @Patch('me/amenities')
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({
+    summary: "Safar opsiyalari: bola o'rindig'i, hayvon, konditsioner, katta bagaj (to'liq ro'yxat)",
+  })
+  @ApiResponse({ status: 200, description: 'Updated driver profile' })
+  async updateMyAmenities(
+    @CurrentUser() user: User,
+    @Body() dto: UpdateAmenitiesDto,
+  ): Promise<Driver> {
+    return this.driversService.updateAmenities(user.id, dto.amenities);
+  }
+
   @Get(':id')
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
   @RequirePermissions(Permission.DRIVERS_VIEW)
   @ApiOperation({ summary: 'Get driver by ID (admin/manager only)' })
   @ApiParam({ name: 'id', description: 'Driver UUID' })
   @ApiResponse({ status: 200, description: 'Driver details' })
-  async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<Driver | null> {
-    return this.driversService.findById(id);
+  async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<DriverPublicView<Driver> | null> {
+    return toDriverPublicView(await this.driversService.findById(id));
   }
 
   @Patch(':id/approve')
@@ -130,7 +174,7 @@ export class DriversController {
   async approveDriver(@Param('id', ParseUUIDPipe) id: string) {
     const driver = await this.driversService.findByIdOrThrow(id);
     await this.usersService.updateStatus(driver.userId, UserStatus.ACTIVE);
-    return { ...driver, status: 'approved' };
+    return { ...toDriverPublicView(driver), status: 'approved' };
   }
 
   // Widened from ADMIN-only: a manager may now be granted DRIVERS_FINANCE
@@ -143,10 +187,13 @@ export class DriversController {
   @ApiOperation({ summary: "Add funds to (or deduct from) a driver's balance (admin, or manager with DRIVERS_FINANCE)" })
   @ApiParam({ name: 'id', description: 'Driver UUID' })
   async addFunds(
+    @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: AddFundsDto,
-  ): Promise<Driver> {
-    return this.driversService.addFunds(id, dto.amount, dto.note);
+  ): Promise<DriverPublicView<DriverWithWallet>> {
+    // Izoh majburiy; jurnal (`audit_logs`) + haydovchiga push —
+    // docs/LEGAL-COMPLIANCE.md §12. Menejer chegarasi — security review #6.
+    return toDriverPublicView(await this.walletAdjustments.adjust(user.id, id, dto.amount, dto.note, user.role));
   }
 
   @Patch(':id/commission-rate')
@@ -157,8 +204,8 @@ export class DriversController {
   async setCommissionRate(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: SetCommissionRateDto,
-  ): Promise<Driver> {
-    return this.driversService.setCommissionRate(id, dto.commissionRate ?? null);
+  ): Promise<DriverPublicView<Driver>> {
+    return toDriverPublicView(await this.driversService.setCommissionRate(id, dto.commissionRate ?? null));
   }
 
   @Patch(':id/tariff-tier')
@@ -172,8 +219,8 @@ export class DriversController {
   async setTariffTier(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: SetTariffTierDto,
-  ): Promise<Driver> {
-    return this.driversService.setApprovedTariffTier(id, dto.tier);
+  ): Promise<DriverPublicView<Driver>> {
+    return toDriverPublicView(await this.driversService.setApprovedTariffTier(id, dto.tier));
   }
 
   @Patch('status')
@@ -215,7 +262,8 @@ export class DriversController {
     @CurrentUser() user: User,
     @Body() dto: UpdateLocationDto,
   ): Promise<{ updated: boolean }> {
-    await this.driversService.updateLocation(user.id, dto.lat, dto.lng);
+    // Gateway orqali — yo'lovchi xonasi va dispetcher xaritasi ham yangilansin.
+    await this.realtimeGateway.broadcastDriverLocation(user.id, dto.lat, dto.lng, dto.orderId);
     return { updated: true };
   }
 }

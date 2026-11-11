@@ -1,5 +1,6 @@
 import 'package:angren_taxi/core/config/app_theme.dart';
 import 'package:angren_taxi/features/trip/trip_chat_provider.dart';
+import 'package:angren_taxi/l10n/l10n.dart';
 import 'package:angren_taxi/shared/models/trip_message.dart';
 import 'package:angren_taxi/shared/widgets/app_empty_state.dart';
 import 'package:angren_taxi/shared/widgets/app_skeleton.dart';
@@ -82,7 +83,7 @@ class _TripChatScreenState extends State<TripChatScreen> {
       child: Scaffold(
         backgroundColor: kBackground,
         appBar: AppBar(
-          title: const Text('Suhbat'),
+          title: Text(context.l10n.shTripChatTitle),
           backgroundColor: kSurface,
           foregroundColor: kTextPrimary,
           elevation: 0,
@@ -105,15 +106,15 @@ class _TripChatScreenState extends State<TripChatScreen> {
                     if (provider.state == TripChatState.error &&
                         provider.messages.isEmpty) {
                       return AppErrorState(
-                        message: provider.error ?? 'Xatolik yuz berdi',
+                        message: provider.error ?? context.l10n.shErrorGeneric,
                         onRetry: () => provider.loadHistory(widget.orderId),
                       );
                     }
 
                     if (provider.messages.isEmpty) {
-                      return const AppEmptyState(
+                      return AppEmptyState(
                         icon: Icons.chat_bubble_outline_rounded,
-                        title: 'Hali xabar yo\'q. Birinchi bo\'lib yozing!',
+                        title: context.l10n.shTripChatEmpty,
                       );
                     }
 
@@ -211,7 +212,7 @@ class _Composer extends StatelessWidget {
               textInputAction: TextInputAction.send,
               onSubmitted: (_) => onSend(),
               decoration: InputDecoration(
-                hintText: 'Xabar yozing...',
+                hintText: context.l10n.shChatHint,
                 hintStyle: const TextStyle(color: kInkMuted),
                 filled: true,
                 fillColor: kSurface2,
@@ -234,7 +235,7 @@ class _Composer extends StatelessWidget {
           const SizedBox(width: kSpace2),
           Semantics(
             button: true,
-            label: 'Yuborish',
+            label: context.l10n.shSend,
             excludeSemantics: true,
             child: GestureDetector(
               onTap: onSend,

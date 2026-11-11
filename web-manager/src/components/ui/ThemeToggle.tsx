@@ -1,15 +1,16 @@
+// AUTO-SYNCED from web-manager — edit there, then run scripts/sync-panel-ui.sh
 'use client';
 
 import { useEffect, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
-import { clsx } from 'clsx';
+import { cn } from './cn';
 import { applyTheme, getAppliedTheme, type Theme } from '@/lib/theme';
+import { kitT } from '@/lib/i18n/kit-messages';
 
 /**
- * The theme itself is applied before hydration by the inline script in
- * app/layout.tsx. This component only mirrors and flips it — it must never
- * read localStorage during render, or the server/client output diverges.
- * Until mounted it renders a fixed placeholder icon so both passes match.
+ * Mirrors and flips the theme the pre-paint script in app/layout.tsx applied.
+ * Never reads localStorage during render; renders a fixed icon until mounted.
+ * Each panel's `@/lib/theme` owns its own storage key.
  */
 export function ThemeToggle({ className }: { className?: string }) {
   const [theme, setTheme] = useState<Theme | null>(null);
@@ -24,21 +25,23 @@ export function ThemeToggle({ className }: { className?: string }) {
     setTheme(next);
   };
 
-  const label = theme === 'dark' ? 'Yorug‘ rejimga o‘tish' : 'Qorong‘i rejimga o‘tish';
+  const m = kitT().theme;
+  const label = theme === null ? m.generic : theme === 'dark' ? m.toLight : m.toDark;
 
   return (
     <button
       type="button"
       onClick={toggle}
-      title={theme === null ? 'Mavzu' : label}
-      aria-label={theme === null ? 'Mavzu' : label}
-      className={clsx(
-        'h-9 w-9 inline-flex items-center justify-center rounded-lg border border-line',
-        'text-muted hover:text-ink hover:bg-surface-2 transition-colors',
+      title={label}
+      aria-label={label}
+      className={cn(
+        'h-8 w-8 inline-flex items-center justify-center rounded-ds-sm text-muted',
+        'hover:text-ink hover:bg-surface-2 transition-colors',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus',
         className
       )}
     >
-      {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+      {theme === 'dark' ? <Sun size={16} aria-hidden /> : <Moon size={16} aria-hidden />}
     </button>
   );
 }

@@ -7,11 +7,21 @@ import { DriverBonusAward } from '../../database/entities/driver-bonus-award.ent
 import { Transaction } from '../../database/entities/transaction.entity';
 import { Order } from '../../database/entities/order.entity';
 import { DriversModule } from '../drivers/drivers.module';
+import { RealtimeModule } from '../realtime/realtime.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([DriverBonusRule, DriverBonusAward, Transaction, Order]),
     DriversModule,
+    // Bonus berilganda haydovchiga xabar berish uchun: socket (ilova ochiq
+    // bo'lsa) va push (yopiq bo'lsa). UsersModule — push uchun FCM tokenni
+    // olishga kerak. Aylanma bog'liqlik yo'q: bu uchtasining hech biri
+    // DriverBonusesModule ni import qilmaydi.
+    RealtimeModule,
+    NotificationsModule,
+    UsersModule,
   ],
   controllers: [DriverBonusesController],
   providers: [DriverBonusesService],
