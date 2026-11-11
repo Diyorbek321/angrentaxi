@@ -76,6 +76,7 @@ import { TAX_WITHHOLDING_LEDGER_TAG, computeTaxWithholding } from '../tax/tax-wi
 import { FiscalReceiptsService } from '../fiscal/fiscal-receipts.service';
 import { Driver } from '../../database/entities/driver.entity';
 import { ShiftPassesService } from '../shift-passes/shift-passes.service';
+import { CardAutoChargeService } from '../payments/saved-cards/card-auto-charge.service';
 import { completeTripIfDone, lockTripForCompletion } from '../intercity/intercity-seat-ledger';
 import { publishTripUpdated } from '../intercity/intercity-events';
 
@@ -153,6 +154,9 @@ export class OrdersCompletionService {
     // Smena (kunlik obuna) — faol bo'lsa komissiya 0. Ixtiyoriy: yo'q bo'lsa
     // smena hisobga olinmaydi (avvalgi xulq).
     @Optional() private readonly shiftPasses?: ShiftPassesService,
+    // Saqlangan kartadan avtomatik yechish (spec saqlangan-kartalar v2 §4).
+    // Ixtiyoriy: yo'q bo'lsa yoki flag o'chiq — eski oqim (Payme sahifasi).
+    @Optional() private readonly cardAutoCharge?: CardAutoChargeService,
   ) {}
 
   async completeTrip(
@@ -795,6 +799,13 @@ export class OrdersCompletionService {
     this.logger.log(
       `Order ${orderId} completed. Distance: ${actualDistanceKm.toFixed(2)}km, Price: ${discountedFinalPrice} UZS`,
     );
+
+    // Karta safari: yo'lovchining asosiy kartasidan yechamiz. COMMIT'dan
+    // keyin va KUTMASDAN — Payme javobi (10 s gacha) haydovchining "Yakunlash"
+    // tugmasini ushlab turmasin; xato yakunlashni hech qachon buzmaydi.
+    if (order.paymentMethod === PaymentMethod.CARD && this.cardAutoCharge) {
+      void this.cardAutoCharge.chargeCompletedOrderSafely(orderId);
+    }
 
     return updatedOrder;
   }

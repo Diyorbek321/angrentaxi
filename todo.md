@@ -17,7 +17,7 @@ Oxirgi prod deploy: `045779f` (2026-11-06). Oxirgi APK: v22 (2026-11-06, `045779
 ## 🔴 Bloker — tashqi shartnoma/hisob kerak
 
 - [ ] **Eskiz SMS** — `ESKIZ_EMAIL`/`ESKIZ_PASSWORD` (lokal `.env` dagisi yaroqsiz, 401). Hozir kirish faqat `OTP_BYPASS_PHONES` ro'yxati orqali. Shablon `backend/src/modules/notifications/sms-texts.ts#otpSmsText` bilan aynan bir xil bo'lishi kerak.
-- [ ] **Payme / Click merchant kalitlari** — karta to'lovi; karta bilan to'langan food/market'da kuryer to'lovi PENDING qoladi. Saqlangan kartalar uchun Payme Subscribe hujjati ham kerak (`docs/specs/saqlangan-kartalar.md`).
+- [ ] **Payme / Click merchant kalitlari** — karta to'lovi; karta bilan to'langan food/market'da kuryer to'lovi PENDING qoladi. Saqlangan kartalar (avtomatik yechish): backend 2026-11-11 tayyor, flag o'chiq — kerak: Payme **Subscribe API** kaliti (`PAYME_SUBSCRIBE_KEY`), sandbox sinovi, mobil ekranlar, rad etilgan karta → qarz darvozasi (`docs/specs/saqlangan-kartalar.md` v2).
 - [ ] **OFD / soliq.uz** — fiskal cheklar hozir `noop`.
 - [ ] **Haydovchiga bank orqali pul o'tkazish** — `WithdrawalStatus.PAID` hozir faqat status.
 - [ ] **Sentry DSN (Node + Flutter)** — kod tayyor, o'chiq.

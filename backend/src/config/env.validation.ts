@@ -135,6 +135,38 @@ class EnvironmentVariables {
   @IsOptional()
   PAYME_SECRET_KEY: string = '';
 
+  // Saqlangan kartalar (Payme Subscribe API). Merchant API kaliti EMAS —
+  // Payme kabinetida alohida beriladi. Uchala qiymat + flag bo'lmasa
+  // karta bog'lash va avtomatik yechish o'chiq.
+  @IsString()
+  @IsOptional()
+  PAYME_SUBSCRIBE_KEY: string = '';
+
+  // Sandbox: https://checkout.test.paycom.uz/api ; bo'sh — jonli manzil.
+  @IsString()
+  @IsOptional()
+  PAYME_SUBSCRIBE_API_URL: string = '';
+
+  // Payme Subscribe xato kodlari (vergul bilan), ular KARTA radi deb
+  // hisoblanadi: mablag' yetmadi, bloklangan, muddati o'tgan. Faqat shular
+  // kartaning rad hisoblagichini oshiradi (3 marta → karta o'chadi). Kodlar
+  // sandbox/shartnoma hujjatidan to'ldiriladi; bo'sh — hech bir xato kartani
+  // o'chirmaydi (kalit xatosi yoki 429 yo'lovchilarning kartasini o'chirmasin).
+  @IsString()
+  @IsOptional()
+  PAYME_CARD_DECLINE_CODES: string = '';
+
+  // Karta tokenlarini shifrlash: 64 belgi hex (`openssl rand -hex 32`).
+  // Almashtirilsa eski tokenlar ochilmaydi — kartalarni qayta bog'lash kerak.
+  @IsString()
+  @IsOptional()
+  CARD_TOKEN_ENCRYPTION_KEY: string = '';
+
+  // `true` — saqlangan kartalar yoqiladi (kalitlar ham bo'lishi shart).
+  @IsString()
+  @IsOptional()
+  SAVED_CARDS_ENABLED: string = 'false';
+
   // Egasiga kunlik/haftalik moliya hisobotlari (modules/business-reports).
   // Server alertlari (deploy/oracle/lib.sh) bilan bir xil bot.
   @IsString()

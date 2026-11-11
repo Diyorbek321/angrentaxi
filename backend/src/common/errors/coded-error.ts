@@ -148,6 +148,14 @@ export const ERROR_CODES = {
   noShowNotAllowed: 'NO_SHOW_NOT_ALLOWED',
   /** Safarni uzib bo'lmaydi (400). `details: { reason }`. */
   tripInterruptNotAllowed: 'TRIP_INTERRUPT_NOT_ALLOWED',
+  /** Karta bog'lash hozir o'chiq — kalitlar yo'q yoki flag o'chiq (400). */
+  savedCardsUnavailable: 'SAVED_CARDS_UNAVAILABLE',
+  /** Token Payme'da tasdiqlanmagan / takroriy yechishga yaramaydi (400). `details: { reason }`. */
+  savedCardInvalid: 'SAVED_CARD_INVALID',
+  /** Kartalar soni chegarada (400). `details: { max }`. */
+  savedCardLimit: 'SAVED_CARD_LIMIT',
+  /** Karta topilmadi yoki sizniki emas (404). */
+  savedCardNotFound: 'SAVED_CARD_NOT_FOUND',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];

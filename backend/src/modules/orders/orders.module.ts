@@ -29,6 +29,7 @@ import { RoutingModule } from '../routing/routing.module';
 import { SettingsModule } from '../settings/settings.module';
 import { FiscalModule } from '../fiscal/fiscal.module';
 import { ShiftPassesModule } from '../shift-passes/shift-passes.module';
+import { PaymentsModule } from '../payments/payments.module';
 
 @Module({
   imports: [
@@ -58,6 +59,10 @@ import { ShiftPassesModule } from '../shift-passes/shift-passes.module';
     // Haydovchi bekor qilish signali va uzilgan safar hodisasi (§5). Kichik
     // modul — faqat incidents jadvali + sozlamalar, aylanma bog'liqlik yo'q.
     IncidentSignalsModule,
+    // Safar yakunida saqlangan kartadan yechish (`CardAutoChargeService`).
+    // PaymentsModule OrdersModule'ni import qilmaydi — aylanma bog'liqlik yo'q.
+    // ⚠️ Kelajakda PaymentsModule'ga OrdersModule qo'shilsa — sikl paydo bo'ladi.
+    PaymentsModule,
   ],
   controllers: [OrdersController],
   // ⚠️ `ScheduledOrdersService` ATAYLAB `ORDERS_PROVIDERS` dan TASHQARIDA.

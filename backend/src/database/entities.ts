@@ -12,6 +12,7 @@ import { AdBanner } from './entities/ad-banner.entity';
 import { AdBannerDailyStat } from './entities/ad-banner-daily-stat.entity';
 import { AppFunnelDaily } from './entities/app-funnel-daily.entity';
 import { AuditLog } from './entities/audit-log.entity';
+import { CardChargeAttempt } from './entities/card-charge-attempt.entity';
 import { City } from './entities/city.entity';
 import { CourierWalletReminder } from './entities/courier-wallet-reminder.entity';
 import { Dish } from './entities/dish.entity';
@@ -49,6 +50,7 @@ import { PromoCodeUsage } from './entities/promo_code_usage.entity';
 import { Promotion } from './entities/promotion.entity';
 import { PushNotificationLog } from './entities/push-notification-log.entity';
 import { Rating } from './entities/rating.entity';
+import { SavedCard } from './entities/saved-card.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { Restaurant } from './entities/restaurant.entity';
 import { RoadSpeedSample } from './entities/road-speed-sample.entity';
@@ -76,6 +78,7 @@ export const ENTITIES = [
   AdBannerDailyStat,
   AppFunnelDaily,
   AuditLog,
+  CardChargeAttempt,
   City,
   CourierWalletReminder,
   Dish,
@@ -113,6 +116,7 @@ export const ENTITIES = [
   Promotion,
   PushNotificationLog,
   Rating,
+  SavedCard,
   RefreshToken,
   Restaurant,
   RoadSpeedSample,

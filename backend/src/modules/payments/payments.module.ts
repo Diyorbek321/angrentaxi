@@ -25,6 +25,12 @@ import { PaymeMerchantService } from './merchant/payme-merchant.service';
 import { ClickShopService } from './merchant/click-shop.service';
 import { FiscalModule } from '../fiscal/fiscal.module';
 import { OrderRefundClawbackService } from './order-refund-clawback.service';
+import { SavedCard } from '../../database/entities/saved-card.entity';
+import { CardChargeAttempt } from '../../database/entities/card-charge-attempt.entity';
+import { PaymeSubscribeClient } from './saved-cards/payme-subscribe.client';
+import { SavedCardsService } from './saved-cards/saved-cards.service';
+import { CardAutoChargeService } from './saved-cards/card-auto-charge.service';
+import { SavedCardsController } from './saved-cards/saved-cards.controller';
 
 @Module({
   imports: [
@@ -39,6 +45,9 @@ import { OrderRefundClawbackService } from './order-refund-clawback.service';
       FoodOrder,
       WalletTopup,
       MerchantTransaction,
+      // Saqlangan kartalar va avtomatik yechish (migratsiya 056).
+      SavedCard,
+      CardChargeAttempt,
     ]),
     // settleOrderPayout credits drivers.balance when a card payment lands.
     DriversModule,
@@ -47,7 +56,7 @@ import { OrderRefundClawbackService } from './order-refund-clawback.service';
     // Karta to'lovi qaytarilganda fiskal qaytarish cheki (§23).
     FiscalModule,
   ],
-  controllers: [PaymentsController],
+  controllers: [PaymentsController, SavedCardsController],
   providers: [
     PaymentsService,
     PaymeProvider,
@@ -63,11 +72,15 @@ import { OrderRefundClawbackService } from './order-refund-clawback.service';
     ClickShopService,
     // To'langan buyurtma qaytarilganda ulushni qaytarib olish (§23).
     OrderRefundClawbackService,
+    // Saqlangan kartalar (docs/specs/saqlangan-kartalar.md v2) — flag bilan.
+    PaymeSubscribeClient,
+    SavedCardsService,
+    CardAutoChargeService,
     // Pul CHIQARISH yo'li. Payme/Click payout kalitlari kelganda faqat shu
     // bog'lanish o'zgaradi — `PaymentsService` ga tegilmaydi
     // (`payout.interface.ts` dagi izohga qarang).
     { provide: PAYOUT_PROVIDER, useClass: ManualPayoutProvider },
   ],
-  exports: [PaymentsService],
+  exports: [PaymentsService, CardAutoChargeService],
 })
 export class PaymentsModule {}

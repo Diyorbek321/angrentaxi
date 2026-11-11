@@ -5,6 +5,57 @@
 
 ---
 
+## v2 — 2026-11-11 yangilanish (AMALDAGI REJA; quyidagi v1 tarix uchun)
+
+**Maqsad:** Yandex modeli — yo'lovchi kartani bir marta bog'laydi, safar
+tugaganda yo'l haqi avtomatik yechiladi.
+
+### v1 dan farqlar (qarorlar)
+
+1. **Karta raqami serverga KELMAYDI.** v1 da PAN backend'ga POST qilinardi
+   (PCI DSS yuki). v2: ilova Payme'ning `cards.create → cards.get_verify_code →
+   cards.verify` ni o'zi chaqiradi (`X-Auth: merchant_id` — ommaviy), serverga
+   faqat token yuboradi. Server tokenga ishonmaydi: `cards.check` bilan
+   `verify && recurrent` ni tekshiradi.
+2. **Pul daftari yangi yo'lda yozilmaydi.** `receipts.pay` paytida Payme bizning
+   Merchant API'ni (`CheckPerform/Create/PerformTransaction`) chaqiradi va
+   to'lov mavjud `completeOrderPayment → settleOrderPayout` yo'li bilan yopiladi.
+   v1 §5 tuzoq 1–3 (ikki DEBIT, haydovchi puli muzlashi) shu bilan yo'qoladi.
+3. **Urinishlar jadvali** `card_charge_attempts` — qisman unikal indeks bitta
+   buyurtmaga bitta `pending|paid` urinishni kafolatlaydi (ikki marta yechish yo'q).
+4. **Noaniq natija** (timeout) — urinish `pending` qoladi, har daqiqalik cron
+   `receipts.check` bilan yopadi (4 → paid, 50 → failed). 24 soatdan keyin — ERROR log.
+5. **Aniq rad** — urinish `failed`, chek bekor, kartada hisoblagich +1;
+   3 ketma-ket raddan keyin karta o'chiriladi.
+6. **Flag:** `SAVED_CARDS_ENABLED=true` + `PAYME_MERCHANT_ID` + `PAYME_SUBSCRIBE_KEY`
+   + `CARD_TOKEN_ENCRYPTION_KEY` (64 hex). Birortasi yo'q — funksiya to'liq o'chiq,
+   eski Payme sahifasi oqimi o'zgarmaydi.
+
+### Holat
+
+| Qism | Holat |
+|---|---|
+| Migratsiya 056 (`saved_cards`, `card_charge_attempts`) | ✅ |
+| `card-token-crypto.ts` (AES-256-GCM, fail closed) | ✅ |
+| `payme-subscribe.client.ts` (`cards.check/remove`, `receipts.create/pay/check/cancel`) | ✅ — formatlar sandbox'da TASDIQLANMAGAN |
+| `SavedCardsService` + `GET/POST/PATCH/DELETE /payments/cards`, `GET /payments/cards/availability` | ✅ |
+| `CardAutoChargeService` — `completeTrip` dan keyin (kutmasdan), reconcile cron | ✅ |
+| Mobil: karta bog'lash ekrani (Payme `cards.*` to'g'ridan), kartalar ro'yxati, tarifda karta tanlash | ⏳ keyingi bosqich |
+| **Qarz darvozasi:** rad etilgan karta to'lovi yangi buyurtmani to'smaydi (`outstandingWalletDebt` faqat WALLET) | ⏳ keyingi bosqich — `todo.md` dagi ochiq muammo bilan birga |
+| **Hold** (buyurtma vaqtida summani bloklash) | ❓ Payme qo'llab-quvvatlashi tasdiqlanmagan — shartnomada so'rash |
+| Click `card_token` | ⏳ Payme ishlagandan keyin |
+
+### Ochiq savollar (Payme bilan)
+
+- `receipts.pay` Merchant API callback'larini sinxron chaqiradimi va Merchant
+  tranzaksiya id'si chek `_id` ga tengmi (biz shunga tayanamiz; `markPaid` farq
+  bo'lsa ERROR log yozadi).
+- Hold (`receipts.create` + keyin tasdiqlash) bormi.
+- Xato kodlari ro'yxati (mablag' yetmadi / bloklangan / muddati o'tgan) — ilovada
+  aniq xabar ko'rsatish uchun.
+
+---
+
 # Saqlangan kartalar — bajarish rejasi
 
 ## 0. PROVIDER TAHLILI (kod asosida, taxminsiz)
