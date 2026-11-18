@@ -122,7 +122,7 @@ describe('OrdersService.create — rejalashtirilgan safar', () => {
 
   /** INSERT chaqiruvining parametrlar massivi. */
   const insertParams = (): unknown[] =>
-    orderRepository.query.mock.calls[0][1] as unknown[];
+    orderRepository.query.mock.calls.find(([q]) => /INSERT INTO/i.test(String(q)))![1] as unknown[];
 
   /** Qavs chuqurligini hisobga olib vergul bo'yicha bo'ladi. */
   const splitTopLevel = (text: string): string[] => {
@@ -156,7 +156,7 @@ describe('OrdersService.create — rejalashtirilgan safar', () => {
    * `VALUES` ifodasidan o'qiladi — ustun ifodasidagi BIRINCHI `$n`.
    */
   const insertParam = (column: string): unknown => {
-    const sql = orderRepository.query.mock.calls[0][0] as string;
+    const sql = orderRepository.query.mock.calls.find(([q]) => /INSERT INTO/i.test(String(q)))![0] as string;
     const columns = splitTopLevel(
       sql.slice(sql.indexOf('(') + 1, sql.indexOf(')')),
     );
@@ -383,7 +383,7 @@ describe('OrdersService.create — kelishilgan narx (kuryer safari)', () => {
       { agreedFare: 7000 },
     );
 
-    const params = orderRepository.query.mock.calls[0][1] as unknown[];
+    const params = orderRepository.query.mock.calls.find(([q]) => /INSERT INTO/i.test(String(q)))![1] as unknown[];
     // Hudud surge 2.0 bo'lsa ham mijoz checkout'da ko'rgan 7 000 qoladi.
     expect(params[8]).toBe(7000);
     expect(JSON.parse(params[18] as string).total).toBe(7000);

@@ -7,12 +7,14 @@ import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
 import { User, UserStatus } from '../../database/entities/user.entity';
 import { explicitLanguage } from '../../common/i18n/error-messages';
+import { DUAL_ROLE_LOGIN_ENV, scopeUserToToken } from './session-role';
 
 interface JwtPayload {
   sub: string;
   phone: string;
   role: string;
   type: 'access' | 'refresh';
+  app?: string;
 }
 
 @Injectable()
@@ -52,8 +54,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw accountBlockedError(user);
     }
 
-    await this.syncLanguage(user, req.headers['accept-language']);
-    return user;
+    // Haydovchi yo'lovchi ilovasida — shu so'rovda `role: passenger`
+    // (`session-role.ts`). Rol tokendan EMAS, bazadan + `app` claim'dan
+    // hisoblanadi: bloklash yoki rol o'zgarishi darhol ta'sir qiladi.
+    const scoped = scopeUserToToken(
+      user,
+      payload.app,
+      this.configService.get<unknown>(DUAL_ROLE_LOGIN_ENV),
+    );
+    await this.syncLanguage(scoped, req.headers['accept-language']);
+    return scoped;
   }
 
   /**

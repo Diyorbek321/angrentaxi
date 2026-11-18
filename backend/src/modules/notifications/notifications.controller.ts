@@ -44,7 +44,7 @@ export class NotificationsController {
     @CurrentUser() user: User,
     @Body() dto: RegisterFcmTokenDto,
   ): Promise<void> {
-    await this.usersService.updateFcmToken(user.id, dto.token);
+    await this.usersService.updateFcmToken(user.id, dto.token, user);
   }
 
   @Get()

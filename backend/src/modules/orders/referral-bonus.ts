@@ -27,11 +27,13 @@ export async function creditReferralBonus(
   orderId: string,
 ): Promise<boolean> {
   const [user] = (await orderRepository.query(
-    `SELECT referred_by_user_id FROM users WHERE id = $1`,
+    `SELECT referred_by_user_id, role FROM users WHERE id = $1`,
     [passengerId],
-  )) as Array<{ referred_by_user_id: string | null }>;
+  )) as Array<{ referred_by_user_id: string | null; role?: string }>;
   const referrerId = user?.referred_by_user_id;
   if (!referrerId) return false;
+  // Haydovchi akkaunti yo'lovchi sifatida referal olmaydi (completion bilan bir xil qoida).
+  if (user.role === 'driver') return false;
 
   const [already] = (await orderRepository.query(
     `SELECT 1 FROM transactions WHERE user_id = $1 AND external_id LIKE 'referral_bonus_passenger_%' LIMIT 1`,

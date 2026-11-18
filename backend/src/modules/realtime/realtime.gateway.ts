@@ -21,6 +21,7 @@ import { SupportService } from '../support/support.service';
 import { DRIVER_ACTIVE_ORDER_STATUSES, Order } from '../../database/entities/order.entity';
 import { WsJwtGuard } from '../../common/guards/ws-jwt.guard';
 import { resolveCorsOrigin } from '../../config/cors-origin.util';
+import { DUAL_ROLE_LOGIN_ENV, scopeUserToToken } from '../auth/session-role';
 
 interface AuthSocket extends Socket {
   user: User;
@@ -41,6 +42,7 @@ interface JwtPayload {
   phone: string;
   role: string;
   type: 'access' | 'refresh';
+  app?: string;
 }
 
 interface LocationPayload {
@@ -208,12 +210,21 @@ export class RealtimeGateway
         return;
       }
 
-      const user = await this.usersService.findById(payload.sub);
+      const accountUser = await this.usersService.findById(payload.sub);
 
-      if (!user) {
+      if (!accountUser) {
         client.disconnect();
         return;
       }
+
+      // Faol rol (`session-role.ts`): yo'lovchi ilovasidagi haydovchi bu
+      // socketda yo'lovchi — haydovchi xonasiga qo'shilmaydi va onlayn
+      // haydovchilar ro'yxatiga tushmaydi.
+      const user = scopeUserToToken(
+        accountUser,
+        payload.app,
+        this.configService.get<unknown>(DUAL_ROLE_LOGIN_ENV),
+      );
 
       // Blocked accounts must lose realtime access at the handshake, not when
       // their long-lived access token finally expires. WsJwtGuard re-checks
@@ -544,6 +555,11 @@ export class RealtimeGateway
     }
   }
 
+  // ℹ️ Bitta akkaunt ikkala ilovada ulangan bo'lishi mumkin (haydovchi
+  // yo'lovchi ilovasida, `session-role.ts`) — ikkalasi ham shu xonada va
+  // bir xil nomli `order:*` hodisalarni oladi. Bu xavfsiz: ikkala ilova
+  // hodisani faqat O'Z faol buyurtmasi `orderId` si bo'yicha qabul qiladi,
+  // haydovchi esa o'z buyurtmasini ololmaydi (matching + acceptOrder).
   emitToUser(userId: string, event: string, data: unknown): void {
     this.server.to(`user:${userId}`).emit(event, data);
   }

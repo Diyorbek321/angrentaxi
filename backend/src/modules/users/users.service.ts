@@ -1,3 +1,4 @@
+import { accountRoleOf, isDriverActingAsPassenger } from '../auth/session-role';
 import {
   Injectable,
   Logger,
@@ -110,17 +111,28 @@ export class UsersService {
     return user;
   }
 
-  async update(id: string, dto: UpdateUserDto): Promise<User> {
+  /**
+   * @param session So'rov foydalanuvchisi (`withSessionRole` nusxasi). Berilsa:
+   *   push tokeni to'g'ri ustunga yoziladi va javob SESSIYA rolini qaytaradi —
+   *   aks holda yo'lovchi ilovasidagi haydovchi javobda `driver` ni ko'rib,
+   *   ilova uni chiqarib yuborardi (`app_role_gate.dart`).
+   */
+  async update(
+    id: string,
+    dto: UpdateUserDto,
+    session?: Pick<User, 'role' | 'accountRole'>,
+  ): Promise<User> {
     const user = await this.findByIdOrThrow(id);
 
     const updatedUser = {
       ...user,
       ...(dto.firstName !== undefined && { firstName: dto.firstName }),
       ...(dto.lastName !== undefined && { lastName: dto.lastName }),
-      ...(dto.fcmToken !== undefined && { fcmToken: dto.fcmToken }),
+      ...(dto.fcmToken !== undefined && { [fcmTokenColumnFor(session)]: dto.fcmToken }),
     };
 
-    return this.userRepository.save(updatedUser);
+    const saved = await this.userRepository.save(updatedUser);
+    return session ? { ...saved, role: session.role, accountRole: accountRoleOf(session) } : saved;
   }
 
   async updateStatus(id: string, status: UserStatus): Promise<User> {
@@ -136,8 +148,18 @@ export class UsersService {
     return { ...user, role };
   }
 
-  async updateFcmToken(id: string, fcmToken: string): Promise<void> {
-    await this.userRepository.update(id, { fcmToken });
+  /**
+   * Haydovchi akkaunti yo'lovchi ilovasidan yuborgan token alohida ustunga
+   * tushadi (migratsiya 057): bitta telefonda ikkala ilova bo'lsa, aks holda
+   * yo'lovchi ilovasi driver ilovasining tokenini ustidan yozib, haydovchiga
+   * buyurtma pushi kelmay qolardi.
+   */
+  async updateFcmToken(
+    id: string,
+    fcmToken: string,
+    session?: Pick<User, 'role' | 'accountRole'>,
+  ): Promise<void> {
+    await this.userRepository.update(id, { [fcmTokenColumnFor(session)]: fcmToken });
   }
 
   async updateLanguage(id: string, language: AppLanguage): Promise<void> {
@@ -300,4 +322,11 @@ export class UsersService {
 
     return { users, total, page, limit };
   }
+}
+
+/** Push tokeni qaysi ustunga yoziladi — sessiya roliga qarab. */
+function fcmTokenColumnFor(
+  session: Pick<User, 'role' | 'accountRole'> | undefined,
+): 'fcmToken' | 'passengerAppFcmToken' {
+  return session && isDriverActingAsPassenger(session) ? 'passengerAppFcmToken' : 'fcmToken';
 }

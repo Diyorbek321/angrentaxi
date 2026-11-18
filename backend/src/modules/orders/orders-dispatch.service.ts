@@ -11,6 +11,7 @@ import {
   Logger,
   Optional,
 } from '@nestjs/common';
+import { isOwnOrder, OWN_ORDER_MESSAGE } from './driver-as-passenger';
 import { DeliveryEventsService } from '../delivery/delivery-events.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
@@ -139,6 +140,10 @@ export class OrdersDispatchService {
 
     if (order.driverId === newDriver.userId) {
       throw new BadRequestException('Order is already assigned to this driver');
+    }
+
+    if (isOwnOrder(order, newDriver.userId)) {
+      throw new BadRequestException(OWN_ORDER_MESSAGE);
     }
 
     const previousDriverId = order.driverId;

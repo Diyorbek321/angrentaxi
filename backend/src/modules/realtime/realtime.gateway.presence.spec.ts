@@ -61,7 +61,7 @@ describe('RealtimeGateway — haydovchi onlayn holati va socket', () => {
 
     gateway = new RealtimeGateway(
       jwtService as never,
-      { getOrThrow: () => 'test-secret' } as never,
+      { getOrThrow: () => 'test-secret', get: () => undefined } as never,
       driversService as never,
       usersService as never,
       {} as never,
@@ -115,6 +115,28 @@ describe('RealtimeGateway — haydovchi onlayn holati va socket', () => {
       await gateway.handleConnection(socket as never);
 
       expect(socket.disconnect).not.toHaveBeenCalled();
+    });
+
+    it("yo'lovchi ilovasidagi haydovchi (token app=passenger) — haydovchi sifatida ro'yxatga OLINMAYDI", async () => {
+      // Bitta raqam bilan ikkala ilova (`auth/session-role.ts`): yo'lovchi
+      // ilovasining socketi haydovchi mavjudligini tiklamasligi, yurak urishi
+      // ro'yxatiga tushmasligi kerak — aks holda u buyurtma taklifini olardi.
+      jwtService.verify.mockReturnValue({
+        sub: DRIVER_USER.id,
+        phone: '+998900000000',
+        role: 'passenger',
+        type: 'access',
+        app: 'passenger',
+      });
+      const socket = fakeSocket('sock-pax-app');
+
+      await gateway.handleConnection(socket as never);
+      await gateway.refreshDriverPresence();
+
+      expect(socket.disconnect).not.toHaveBeenCalled();
+      expect(driversService.restorePresence).not.toHaveBeenCalled();
+      expect(driversService.touchPresence).not.toHaveBeenCalled();
+      expect((socket as unknown as { user: { role: UserRole } }).user.role).toBe(UserRole.PASSENGER);
     });
 
     it('yo\'lovchi uchun mavjudlik tiklanmaydi', async () => {

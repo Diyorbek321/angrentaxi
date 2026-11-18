@@ -104,7 +104,15 @@ class AuthProvider extends ChangeNotifier {
     try {
       final response = await _apiClient.post(
         ApiEndpoints.verifyOtp,
-        data: {'phone': _phone, 'code': code},
+        // `app` — server haydovchi raqamini yo'lovchi ilovasida yo'lovchi
+        // sifatida kiritadi (backend `auth/session-role.ts`). Server buni
+        // o'chirsa (B reja), javobda `driver` keladi va pastdagi darvoza
+        // eski xabar bilan rad etadi — ilovani qayta yig'ish shart emas.
+        data: {
+          'phone': _phone,
+          'code': code,
+          if (flavor != null) 'app': flavor!.name,
+        },
       );
 
       final data = response.data as Map<String, dynamic>;

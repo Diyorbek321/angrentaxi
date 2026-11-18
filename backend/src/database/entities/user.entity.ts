@@ -23,9 +23,9 @@ export enum UserRole {
  * Menejer, do'kon va restoran egasi ham taksi chaqiradi — alohida yo'lovchi
  * akkaunti ochishga majbur qilinmaydi. ⚠️ ADMIN ATAYLAB YO'Q: admin tokeni
  * telefonda saqlanadi, telefon yo'qolsa butun tizim boshqaruvi begona qo'lga
- * o'tadi. ⚠️ HAYDOVCHI ham yo'q: o'zi o'ziga zakaz berib bonus yig'ish
- * (firibgarlik) shu bilan yopiladi — haydovchi o'z raqami bilan yo'lovchi
- * bo'la olmaydi.
+ * o'tadi. HAYDOVCHI ro'yxatda yo'q, lekin yo'lovchi ilovasidan kirganda
+ * uning SESSIYA roli `passenger` bo'ladi (`auth/session-role.ts`, 2026-11-18).
+ * O'z buyurtmasini olib bonus yig'ish matching/accept darvozalarida yopilgan.
  */
 export const PASSENGER_APP_ROLES: readonly UserRole[] = [
   UserRole.PASSENGER,
@@ -161,6 +161,22 @@ export class User {
 
   @Column({ nullable: true, type: 'varchar' })
   fcmToken: string | null;
+
+  /**
+   * Haydovchi akkauntining YO'LOVCHI ilovasidagi push tokeni (migratsiya 057).
+   * Bitta telefonda ikkala ilova bo'lsa, yo'lovchi ilovasi `fcmToken` ni
+   * ustidan yozib, haydovchiga buyurtma pushi kelmay qolardi. Haydovchi
+   * bo'lmagan akkauntlarda doim `null` — ularda `fcmToken` yetarli.
+   */
+  @Column({ name: 'passenger_app_fcm_token', nullable: true, type: 'varchar' })
+  passengerAppFcmToken: string | null;
+
+  /**
+   * Bazadagi rol — faqat so'rov nusxasida (`withSessionRole`), ustun EMAS.
+   * `role` o'sha nusxada sessiya roli bo'ladi (haydovchi yo'lovchi ilovasida
+   * → `passenger`). Bazadan o'qilgan oddiy obyektda `undefined`.
+   */
+  accountRole?: UserRole;
 
   // Push / SMS / bildirishnoma jurnali shu tilda yoziladi. Ilova har so'rovda
   // `Accept-Language: uz|ru` yuboradi — `JwtStrategy` farq bo'lsa yangilaydi,

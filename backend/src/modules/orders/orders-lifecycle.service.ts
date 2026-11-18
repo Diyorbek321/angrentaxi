@@ -6,6 +6,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { isOwnOrder, OWN_ORDER_MESSAGE } from './driver-as-passenger';
 import { TaximeterService, tracksRide } from '../taximeter/taximeter.service';
 import { Order, OrderStatus } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
@@ -56,6 +57,12 @@ export class OrdersLifecycleService {
 
     if (order.driverId) {
       throw new BadRequestException('Order already has a driver');
+    }
+
+    // Bitta raqam bilan ikkala ilova: o'z buyurtmasini olib bonus/komissiya
+    // o'ynash sxemasi. Matching uni taklif qilmaydi; bu — ikkinchi qulf.
+    if (isOwnOrder(order, driverId)) {
+      throw new ForbiddenException(OWN_ORDER_MESSAGE);
     }
 
     // ⚠️ Faqat O'ZIGA taklif qilingan haydovchi. Ilgari SEARCHING buyurtmani

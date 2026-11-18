@@ -9,7 +9,7 @@ import { creditReferralBonus, REFERRAL_BONUS_AMOUNT } from './referral-bonus';
  * "allaqachon berilgan" (false), xato emas.
  */
 describe('creditReferralBonus', () => {
-  function build(opts: { saveError?: Error } = {}) {
+  function build(opts: { saveError?: Error; role?: string } = {}) {
     const saved: Array<Record<string, unknown>> = [];
     const txManager = {
       query: jest.fn(async () => [[], 0]),
@@ -23,7 +23,7 @@ describe('creditReferralBonus', () => {
     };
     const transaction = jest.fn(async (cb: (m: unknown) => unknown) => cb(txManager));
     const query = jest.fn(async (sql: string) => {
-      if (sql.includes('FROM users')) return [{ referred_by_user_id: 'referrer-1' }];
+      if (sql.includes('FROM users')) return [{ referred_by_user_id: 'referrer-1', role: opts.role ?? 'passenger' }];
       if (sql.includes('referral_bonus_passenger_')) return [];
       if (sql.includes('FROM orders')) return [{ id: 'order-1' }];
       return [];
@@ -51,5 +51,12 @@ describe('creditReferralBonus', () => {
   it('boshqa xato yuqoriga otiladi', async () => {
     const { repo } = build({ saveError: new Error('db down') });
     await expect(creditReferralBonus(repo, 'passenger-1', 'order-1')).rejects.toThrow('db down');
+  });
+
+  it("haydovchi akkaunti (yo'lovchi sifatida) — bonus yo'q", async () => {
+    const { repo, saved, transaction } = build({ role: 'driver' });
+    await expect(creditReferralBonus(repo, 'passenger-1', 'order-1')).resolves.toBe(false);
+    expect(transaction).not.toHaveBeenCalled();
+    expect(saved).toHaveLength(0);
   });
 });

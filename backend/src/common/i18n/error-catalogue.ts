@@ -605,4 +605,23 @@ export const ERROR_CATALOGUE: readonly ErrorCatalogueEntry[] = [
     source: "Bu buyurtmani uzib bo'lmaydi — yetkazishni boshqa kuryerga biriktiring",
     ru: 'Этот заказ нельзя прервать — назначьте доставку другому курьеру',
   },
+  // Bitta raqam bilan ikkala ilova (orders/driver-as-passenger.ts).
+  { source: "O'z buyurtmangizni qabul qila olmaysiz", ru: 'Нельзя принять собственный заказ' },
+  {
+    source: 'Haydovchi sifatida liniyadasiz — taksi chaqirish uchun avval liniyadan chiqing',
+    ru: 'Вы на линии как водитель — чтобы вызвать такси, сначала уйдите с линии',
+  },
+  {
+    source: 'Sizda haydovchi sifatida faol safar bor — avval uni yakunlang',
+    ru: 'У вас есть активная поездка в качестве водителя — сначала завершите её',
+  },
+  {
+    source: "Haydovchi hamyoni bilan taksi uchun to'lab bo'lmaydi — naqd yoki karta tanlang",
+    ru: 'Кошельком водителя нельзя оплатить такси — выберите наличные или карту',
+  },
+  {
+    source:
+      "Sizda yo'lovchi sifatida faol buyurtma bor — liniyaga chiqishdan oldin uni yakunlang yoki bekor qiling",
+    ru: 'У вас есть активный заказ в качестве пассажира — завершите или отмените его перед выходом на линию',
+  },
 ];

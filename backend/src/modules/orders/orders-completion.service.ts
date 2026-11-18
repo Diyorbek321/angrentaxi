@@ -69,6 +69,7 @@ import { withOptionsFare } from './trip-option-fees';
 import { meteredTariff } from '../tariffs/metered-rate';
 import { OrderFraudService } from './order-fraud.service';
 import { REFERRAL_BONUS_AMOUNT } from './referral-bonus';
+import { UserRole } from '../../database/entities/user.entity';
 import { RideFareSplit, resolveCommissionRate, splitRideFare } from './commission-policy';
 import { FinancePolicyService } from '../settings/finance-policy.service';
 import { CompletionFinancePolicy } from '../settings/legal-compliance-settings';
@@ -791,8 +792,11 @@ export class OrdersCompletionService {
     }
 
     // Shubhali safarda referal ushlab qolinadi — menejer tasdiqlasa
-    // `creditReferralBonus` beradi.
-    if (passenger?.referredByUserId && !suspicious && !returned) {
+    // `creditReferralBonus` beradi. Haydovchi akkaunti yo'lovchi sifatida
+    // (bitta raqam bilan ikkala ilova) referal OLMAYDI: bonus uning haydovchi
+    // hamyoniga tushardi va "o'zim chaqirib, o'zim bonus yig'aman" sxemasi
+    // ochilardi.
+    if (passenger?.referredByUserId && passenger.role !== UserRole.DRIVER && !suspicious && !returned) {
       await this.creditFirstRideReferralBonus(order, passenger.referredByUserId);
     }
 

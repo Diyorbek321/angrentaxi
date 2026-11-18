@@ -1,4 +1,5 @@
-import { ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
+import { DRIVER_ONLINE_MESSAGE, DRIVER_WALLET_PAYMENT_MESSAGE } from './driver-as-passenger';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { OrdersService } from './orders.service';
@@ -9,7 +10,7 @@ import { RoutedDistancePricing } from './routed-distance-pricing';
 import { fakeDataSourceProvider, fakeTransactionRepository, fakeCitiesServiceProvider } from './orders.testing';
 import { OrdersQueryService } from './orders-query.service';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { Order, OrderStatus, ServiceType } from '../../database/entities/order.entity';
+import { Order, OrderStatus, PaymentMethod, ServiceType } from '../../database/entities/order.entity';
 import { Trip } from '../../database/entities/trip.entity';
 import { Transaction } from '../../database/entities/transaction.entity';
 import { DispatchOverride } from '../../database/entities/dispatch-override.entity';
@@ -142,4 +143,51 @@ describe('OrdersService.create — bitta faol taksi buyurtmasi', () => {
 
     expect(orderRepository.count).not.toHaveBeenCalled();
   });
+
+  describe("haydovchi akkaunti yo'lovchi sifatida (bitta raqam bilan ikkala ilova)", () => {
+    const driverState = (state: { isOnline: boolean; hasActiveTrip: boolean }) =>
+      orderRepository.query.mockImplementation(async (sql: string) =>
+        sql.includes('FROM drivers d') ? [{ isDriver: true, ...state }] : [{ id: 'order-1' }],
+      );
+    const inserts = () => orderRepository.query.mock.calls.filter(([q]) => /INSERT INTO/i.test(String(q)));
+
+    it('liniyada — 409, INSERT bajarilmaydi', async () => {
+      driverState({ isOnline: true, hasActiveTrip: false });
+
+      await expect(
+        service.create('driver-1', { tariffId: 'tariff-1', ...PICKUP, ...DEST } as CreateOrderDto),
+      ).rejects.toThrow(new ConflictException(DRIVER_ONLINE_MESSAGE));
+      expect(inserts()).toHaveLength(0);
+    });
+
+    it("haydovchi hamyoni bilan to'lov — 400", async () => {
+      driverState({ isOnline: false, hasActiveTrip: false });
+
+      await expect(
+        service.create('driver-1', {
+          tariffId: 'tariff-1',
+          ...PICKUP,
+          ...DEST,
+          paymentMethod: PaymentMethod.WALLET,
+        } as CreateOrderDto),
+      ).rejects.toThrow(new BadRequestException(DRIVER_WALLET_PAYMENT_MESSAGE));
+      expect(inserts()).toHaveLength(0);
+    });
+
+    it('liniyadan chiqqan, naqd — yaratiladi', async () => {
+      driverState({ isOnline: false, hasActiveTrip: false });
+
+      await service.create('driver-1', {
+        tariffId: 'tariff-1',
+        ...PICKUP,
+        ...DEST,
+        paymentMethod: PaymentMethod.CASH,
+      } as CreateOrderDto);
+
+      expect(inserts()).toHaveLength(1);
+      const stateCall = orderRepository.query.mock.calls.find(([q]) => String(q).includes('FROM drivers d'));
+      expect(stateCall?.[1]?.[0]).toBe('driver-1');
+    });
+  });
 });
+

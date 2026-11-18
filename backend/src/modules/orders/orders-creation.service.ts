@@ -5,7 +5,14 @@ import { BadRequestException, ConflictException, Injectable, Logger, Optional } 
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { Order, OrderStatus, PaymentMethod, ServiceType } from '../../database/entities/order.entity';
+import {
+  DRIVER_ACTIVE_ORDER_STATUSES,
+  Order,
+  OrderStatus,
+  PaymentMethod,
+  ServiceType,
+} from '../../database/entities/order.entity';
+import { assertDriverMayOrderAsPassenger, DriverSideState } from './driver-as-passenger';
 import { generateDeliveryPin, parseParcelDetails } from './parcel';
 import { parseCargoDetails } from './cargo';
 import { DEFAULT_DELIVERY_INCIDENT_SETTINGS } from '../settings/delivery-incident-settings';
@@ -318,6 +325,21 @@ export class OrdersCreationService {
    * Bir xil kalitsiz ikki parallel so'rov orasida tor poyga oynasi qoladi —
    * ilovadagi Idempotency-Key oddiy qayta bosishni allaqachon yopadi.
    */
+  /** Akkauntning haydovchi tomoni; haydovchi profili bo'lmasa `null`. */
+  private async driverSideState(userId: string): Promise<DriverSideState | null> {
+    const rows: Array<Partial<DriverSideState>> = await this.orderRepository.query(
+      `SELECT true AS "isDriver",
+              d.is_online AS "isOnline",
+              EXISTS (SELECT 1 FROM orders o WHERE o.driver_id = $1 AND o.status = ANY($2)) AS "hasActiveTrip"
+         FROM drivers d
+        WHERE d.user_id = $1`,
+      [userId, [...DRIVER_ACTIVE_ORDER_STATUSES]],
+    );
+    const row = rows[0];
+    if (row?.isDriver !== true) return null;
+    return { isDriver: true, isOnline: row.isOnline === true, hasActiveTrip: row.hasActiveTrip === true };
+  }
+
   private async assertNoActiveTaxiOrder(passengerId: string): Promise<void> {
     const active = await this.orderRepository.count({
       where: {
@@ -425,6 +447,17 @@ export class OrdersCreationService {
     // To'xtatilgan yo'lovchi yangi buyurtma bermaydi (§3). Kuryer safari
     // (`agreedFare`) — mijoz buyurtmasining davomi, checkout'da tekshirilgan.
     if (options.agreedFare === undefined) await this.suspensionGate?.assertMay(passengerId, 'new_order');
+
+    // Haydovchi akkaunti yo'lovchi sifatida (bitta raqam bilan ikkala ilova):
+    // liniyada/safarda bo'lsa yoki haydovchi hamyoni bilan to'lasa — rad.
+    // Rejalashtirilgan safar liniyaga to'sqinlik qilmaydi — faqat hamyon.
+    if (options.agreedFare === undefined) {
+      const state = await this.driverSideState(passengerId);
+      assertDriverMayOrderAsPassenger(
+        state && scheduledAt ? { ...state, isOnline: false, hasActiveTrip: false } : state,
+        dto.paymentMethod,
+      );
+    }
 
     const outstandingDebt =
       options.agreedFare !== undefined ? 0 : await this.getOutstandingWalletDebt(passengerId);

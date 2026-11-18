@@ -21,6 +21,10 @@ import {
 import { UserRole, UserStatus } from '../../database/entities/user.entity';
 import { Transaction } from '../../database/entities/transaction.entity';
 import { DRIVER_ACTIVE_ORDER_STATUSES } from '../../database/entities/order.entity';
+import {
+  PASSENGER_LIVE_ORDER_STATUSES,
+  PASSENGER_ORDER_ACTIVE_MESSAGE,
+} from '../orders/driver-as-passenger';
 import { REDIS_CLIENT } from '../../config/redis.config';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
@@ -431,6 +435,11 @@ export class DriversService implements OnModuleInit {
     // To'xtatilgan haydovchi onlayn chiqmaydi — sabab va muddat xabarda (§3).
     if (isOnline) await this.suspensionGate?.assertMay(userId, 'go_online');
 
+    // Bitta raqam bilan ikkala ilova: o'zi taksi kutayotgan/ketayotgan
+    // haydovchi liniyaga chiqmaydi (o'z buyurtmasini olish sxemasi; teskarisi —
+    // `assertDriverMayOrderAsPassenger`).
+    if (isOnline) await this.assertNoLivePassengerOrder(userId);
+
     if (isOnline && driver.user?.status === UserStatus.PENDING) {
       throw new BadRequestException(
         'Your account is awaiting admin approval before you can go online',
@@ -742,6 +751,16 @@ export class DriversService implements OnModuleInit {
     } catch (err) {
       this.logger.warn(`Offer re-check failed for ${driverUserId}: ${(err as Error).message}`);
       return true;
+    }
+  }
+
+  private async assertNoLivePassengerOrder(userId: string): Promise<void> {
+    const rows: Array<{ hasLive?: boolean }> = await this.driverRepository.query(
+      `SELECT EXISTS (SELECT 1 FROM orders WHERE passenger_id = $1 AND status = ANY($2)) AS "hasLive"`,
+      [userId, [...PASSENGER_LIVE_ORDER_STATUSES]],
+    );
+    if (rows[0]?.hasLive === true) {
+      throw new ConflictException(PASSENGER_ORDER_ACTIVE_MESSAGE);
     }
   }
 

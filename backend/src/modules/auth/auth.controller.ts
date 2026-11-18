@@ -110,7 +110,7 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Account blocked' })
   @ApiResponse({ status: 429, description: 'Too many requests' })
   async verifyOtp(@Body() dto: VerifyOtpDto, @Req() req: Request) {
-    return this.authService.verifyOtp(dto.phone, dto.code, this.sessionContext(req));
+    return this.authService.verifyOtp(dto.phone, dto.code, this.sessionContext(req), dto.app);
   }
 
   @Post('refresh')

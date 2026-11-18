@@ -87,7 +87,7 @@ describe('OrdersService.create — taksometr (manzilsiz)', () => {
 
   /** INSERT ustunlari nomi → qiymati. */
   const inserted = (): Record<string, unknown> => {
-    const [sql, params] = orderRepository.query.mock.calls[0] as [string, unknown[]];
+    const [sql, params] = orderRepository.query.mock.calls.find(([q]) => /INSERT INTO/i.test(String(q)))! as [string, unknown[]];
     const columns = sql
       .slice(sql.indexOf('(') + 1, sql.indexOf(')'))
       .split(',')

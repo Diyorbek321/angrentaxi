@@ -1,4 +1,4 @@
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { OrderStatus } from '../../database/entities/order.entity';
 import { OrdersLifecycleService } from './orders-lifecycle.service';
 
@@ -47,5 +47,14 @@ describe('OrdersLifecycleService.acceptOrder — taklif darvozasi', () => {
     await service.acceptOrder('driver-a', 'ride-1');
 
     expect(acceptForDriver).toHaveBeenCalledWith('ride-1', 'driver-a');
+  });
+
+  it("o'z buyurtmasi (yo'lovchi = haydovchi) — 403, taklif bo'lsa ham biriktirilmaydi", async () => {
+    // Bitta raqam bilan ikkala ilova: matching uni taklif qilmaydi, bu —
+    // eskirgan taklif yoki qo'lda yuborilgan so'rov uchun ikkinchi qulf.
+    const { service, acceptForDriver } = build(jest.fn().mockResolvedValue(true));
+
+    await expect(service.acceptOrder('p-1', 'ride-1')).rejects.toBeInstanceOf(ForbiddenException);
+    expect(acceptForDriver).not.toHaveBeenCalled();
   });
 });

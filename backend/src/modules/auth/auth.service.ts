@@ -23,12 +23,22 @@ import {
   parseTtlToMs,
 } from './token-ttl.util';
 import { parseEnvBoolean } from '../../common/utils/env-boolean.util';
+import {
+  ClientApp,
+  DUAL_ROLE_LOGIN_ENV,
+  isClientApp,
+  isDualRoleLoginEnabled,
+  withSessionRole,
+} from './session-role';
 
 interface JwtPayload {
   sub: string;
   phone: string;
+  /** Sessiya roli (ma'lumot uchun) — huquq har so'rovda bazadan qayta hisoblanadi. */
   role: string;
   type: 'access' | 'refresh';
+  /** Kirilgan ilova; eski tokenlarda yo'q. `session-role.ts`. */
+  app?: ClientApp;
 }
 
 export interface TokenPair {
@@ -168,6 +178,7 @@ export class AuthService {
     phone: string,
     code: string,
     context: SessionContext = {},
+    app?: ClientApp,
   ): Promise<AuthResult> {
     const otp = await this.otpRepository.findOne({
       where: {
@@ -212,9 +223,13 @@ export class AuthService {
       throw accountBlockedError(user);
     }
 
-    const tokens = await this.issueTokenPair(user, context);
+    const tokens = await this.issueTokenPair(user, context, app);
 
-    return { ...tokens, user };
+    // Javobdagi `role` — SESSIYA roli: ilova o'z darvozasini shu bilan
+    // tekshiradi (`app_role_gate.dart`). Flag o'chiq bo'lsa haydovchi
+    // yo'lovchi ilovasida `driver` oladi va ilova uni eski xabar bilan
+    // rad etadi — B reja ilovani qayta yig'masdan ishlaydi.
+    return { ...tokens, user: withSessionRole(user, app, this.dualRoleEnabled()) };
   }
 
   // Counts one wrong-code guess against the phone's live OTP and burns the code
@@ -314,10 +329,15 @@ export class AuthService {
         throw accountBlockedError(user);
       }
 
-      const tokens = await this.issueTokenPair(user, {
-        userAgent: context.userAgent ?? stored.userAgent,
-        ip: context.ip ?? stored.ip,
-      });
+      // Ilova sessiya davomida o'zgarmaydi: yangi juftlik eski token `app` ini oladi.
+      const tokens = await this.issueTokenPair(
+        user,
+        {
+          userAgent: context.userAgent ?? stored.userAgent,
+          ip: context.ip ?? stored.ip,
+        },
+        isClientApp(payload.app) ? payload.app : undefined,
+      );
 
       await this.refreshTokenRepository.update(stored.id, {
         revokedAt: new Date(),
@@ -360,11 +380,13 @@ export class AuthService {
   private async issueTokenPair(
     user: User,
     context: SessionContext = {},
+    app?: ClientApp,
   ): Promise<TokenPair> {
     const payload: Omit<JwtPayload, 'type'> = {
       sub: user.id,
       phone: user.phone,
-      role: user.role,
+      role: withSessionRole(user, app, this.dualRoleEnabled()).role,
+      ...(app ? { app } : {}),
     };
 
     const accessToken = this.jwtService.sign(
@@ -389,6 +411,10 @@ export class AuthService {
     });
 
     return { accessToken, refreshToken };
+  }
+
+  private dualRoleEnabled(): boolean {
+    return isDualRoleLoginEnabled(this.configService.get<unknown>(DUAL_ROLE_LOGIN_ENV));
   }
 
   // See token-ttl.util.ts for why the defaults are still 7d / 30d.

@@ -182,6 +182,18 @@ describe('OrdersService - completeTrip referral bonus', () => {
     expect(referralCalls).toHaveLength(0);
   });
 
+  it("haydovchi akkaunti yo'lovchi sifatida — referal berilmaydi (bitta raqam bilan ikkala ilova)", async () => {
+    usersServiceFindById.mockResolvedValue({ id: PASSENGER_ID, role: 'driver', referredByUserId: REFERRER_ID });
+    orderCountMock.mockResolvedValue(1);
+
+    await service.completeTrip(DRIVER_ID, ORDER_ID);
+
+    const referralCalls = transactionSaveMock.mock.calls.filter(([arg]) =>
+      (arg as { externalId?: string }).externalId?.startsWith('referral_bonus_'),
+    );
+    expect(referralCalls).toHaveLength(0);
+  });
+
   it('still completes the trip if bonus crediting throws', async () => {
     orderCountMock.mockResolvedValue(1);
     transactionSaveMock.mockImplementation((arg: { externalId?: string | null }) => {

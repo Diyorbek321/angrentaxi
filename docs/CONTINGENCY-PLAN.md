@@ -111,6 +111,8 @@ Holat belgisi: ✅ tayyor va sinalgan · ⚠️ qisman / qo'lda · ❌ yo'q (bo'
 | **Haydovchi qarzga botdi** | Manfiy balansda avtomatik oflayn ✅ |
 | **Noto'g'ri pul harakati** | Qo'lda tuzatish (menejer ≤2M, admin ≤5M, audit log) ✅ |
 | **Karta to'lovi qaytarildi** | Haydovchi ulushi avtomatik qaytarib olinadi ✅ |
+| **Haydovchi bitta raqam bilan yo'lovchi ham (2026-11-18)** | O'z buyurtmasi taklif qilinmaydi va qabul qilinmaydi; liniyada/safarda chaqira olmaydi; yo'lovchi buyurtmasi bor paytda liniyaga chiqmaydi; haydovchi hamyoni bilan to'lamaydi; referal olmaydi ✅ |
+| **↳ B reja** | Server `.env.prod`: `DUAL_ROLE_LOGIN_ENABLED=false` + backend qayta ishga tushirish → eski qoida (bitta raqam = bitta rol). Ilovani qayta yig'ish shart emas: ilova serverdan `driver` rolini olib, eski xabar bilan rad etadi. Allaqachon kirgan sessiyalar keyingi so'rovdan `driver` bo'lib, yo'lovchi endpoint'lari 403 beradi ✅ |
 
 ## 12. Huquqiy
 

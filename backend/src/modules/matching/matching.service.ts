@@ -628,6 +628,9 @@ export class MatchingService {
 
     const now = Date.now();
     const notRefused = candidates.filter((driver) => {
+      // Haydovchi akkaunti o'zi taksi chaqirgan bo'lishi mumkin (bitta raqam
+      // bilan ikkala ilova) — o'z buyurtmasi unga HECH QACHON taklif qilinmaydi.
+      if (driver.userId === queue.passengerId) return false;
       if (queue.exhaustedDriverIds.includes(driver.userId)) return false;
       const missed = queue.missedAt?.[driver.userId];
       return missed === undefined || now - missed >= MISSED_OFFER_COOLDOWN_MS;

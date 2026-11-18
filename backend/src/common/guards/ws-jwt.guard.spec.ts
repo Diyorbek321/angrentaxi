@@ -60,7 +60,8 @@ describe('WsJwtGuard', () => {
     usersService.findById.mockResolvedValue(user);
 
     await expect(guard.canActivate(context())).resolves.toBe(true);
-    expect((client as unknown as { user: User }).user).toBe(user);
+    // Nusxa (`scopeUserToToken`) — maydonlari bir xil.
+    expect((client as unknown as { user: User }).user).toMatchObject(user);
   });
 
   it('rejects a connection without a token', async () => {

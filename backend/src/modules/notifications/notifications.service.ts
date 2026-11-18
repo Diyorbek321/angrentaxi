@@ -22,6 +22,7 @@ import { otpSmsText } from './sms-texts';
 import type { AppLanguage } from '../../common/i18n/error-messages';
 import { EskizService } from './eskiz.service';
 import { User, UserRole } from '../../database/entities/user.entity';
+import { accountRoleOf } from '../auth/session-role';
 import { Order } from '../../database/entities/order.entity';
 import { Driver } from '../../database/entities/driver.entity';
 import { NotificationLog } from '../../database/entities/notification-log.entity';
@@ -157,9 +158,10 @@ export class NotificationsService {
   ): Promise<void> {
     const { title, body } = orderAcceptedText(driver.user, userLanguage(passenger));
 
-    if (passenger.fcmToken) {
+    const token = passengerPushToken(passenger);
+    if (token) {
       await this.firebaseService.sendPush(
-        passenger.fcmToken,
+        token,
         title,
         body,
         {
@@ -178,9 +180,10 @@ export class NotificationsService {
   async notifyDriverArrived(passenger: User, order: Order): Promise<void> {
     const { title, body } = driverArrivedText(userLanguage(passenger));
 
-    if (passenger.fcmToken) {
+    const token = passengerPushToken(passenger);
+    if (token) {
       await this.firebaseService.sendPush(
-        passenger.fcmToken,
+        token,
         title,
         body,
         {
@@ -196,9 +199,10 @@ export class NotificationsService {
   async notifyTripCompleted(passenger: User, finalPrice: number, order: Order): Promise<void> {
     const { title, body } = tripCompletedText(finalPrice, userLanguage(passenger));
 
-    if (passenger.fcmToken) {
+    const token = passengerPushToken(passenger);
+    if (token) {
       await this.firebaseService.sendPush(
-        passenger.fcmToken,
+        token,
         title,
         body,
         {
@@ -252,9 +256,12 @@ export class NotificationsService {
   ): Promise<void> {
     const { title, body } = orderCancelledText(reason, userLanguage(targetUser));
 
-    if (targetUser.fcmToken) {
+    // Buyurtmaning haydovchisi — driver ilovasi; aks holda u yo'lovchi tomoni.
+    const token =
+      order.driverId === targetUser.id ? targetUser.fcmToken : passengerPushToken(targetUser);
+    if (token) {
       await this.firebaseService.sendPush(
-        targetUser.fcmToken,
+        token,
         title,
         body,
         {
@@ -284,8 +291,9 @@ export class NotificationsService {
   /** Yo'lovchiga: haydovchi buyumni topdimi-yo'qmi. */
   async notifyLostItemAnswered(passenger: User, found: boolean): Promise<void> {
     const { title, body } = lostItemAnsweredText(found, userLanguage(passenger));
-    if (passenger.fcmToken) {
-      await this.firebaseService.sendPush(passenger.fcmToken, title, body, { event: 'lost_item_answered' });
+    const token = passengerPushToken(passenger);
+    if (token) {
+      await this.firebaseService.sendPush(token, title, body, { event: 'lost_item_answered' });
     }
     await this.logNotification(passenger.id, title, body, 'lost_item_answered');
   }
@@ -476,4 +484,16 @@ export class NotificationsService {
 
     return { updated: result.affected ?? 0 };
   }
+}
+
+/**
+ * Yo'lovchi tomoniga push tokeni. Haydovchi akkaunti o'zi taksi chaqirganda
+ * xabar uning YO'LOVCHI ilovasiga borishi kerak (`passengerAppFcmToken`,
+ * migratsiya 057) — `fcmToken` uning driver ilovasiniki. Haydovchi bo'lmagan
+ * akkauntlarda bitta token.
+ */
+export function passengerPushToken(
+  user: Pick<User, 'role' | 'accountRole' | 'fcmToken' | 'passengerAppFcmToken'>,
+): string | null {
+  return accountRoleOf(user) === UserRole.DRIVER ? (user.passengerAppFcmToken ?? null) : user.fcmToken;
 }

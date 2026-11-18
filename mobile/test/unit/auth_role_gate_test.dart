@@ -74,6 +74,29 @@ void main() {
     verify(() => api.post(ApiEndpoints.logout, data: {'refreshToken': 'refresh-driver'})).called(1);
   });
 
+  test('each app tells the server which app it is (one number, both apps)', () async {
+    await loginAs(build(AppFlavor.passenger), 'passenger');
+    verify(() => api.post(
+          ApiEndpoints.verifyOtp,
+          data: {'phone': '+998901234572', 'code': '123456', 'app': 'passenger'},
+        )).called(1);
+
+    await loginAs(build(AppFlavor.driver), 'driver');
+    verify(() => api.post(
+          ApiEndpoints.verifyOtp,
+          data: {'phone': '+998901234572', 'code': '123456', 'app': 'driver'},
+        )).called(1);
+  });
+
+  test("a driver number the server lets in as passenger is kept in the passenger app", () async {
+    // The server answers with the SESSION role: a driver account logging in
+    // from the passenger app gets 'passenger' (backend session-role.ts).
+    final auth = build(AppFlavor.passenger);
+
+    expect(await loginAs(auth, 'passenger'), isTrue);
+    expect(auth.isAuthenticated, isTrue);
+  });
+
   test('staff accounts are turned away from both apps', () async {
     expect(await loginAs(build(AppFlavor.passenger), 'admin'), isFalse);
     final driverApp = build(AppFlavor.driver);

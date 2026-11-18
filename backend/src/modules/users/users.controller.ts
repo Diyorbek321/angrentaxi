@@ -63,7 +63,7 @@ export class UsersController {
     @CurrentUser() user: User,
     @Body() dto: UpdateUserDto,
   ): Promise<User> {
-    return this.usersService.update(user.id, dto);
+    return this.usersService.update(user.id, dto, user);
   }
 
   @Get(':id')

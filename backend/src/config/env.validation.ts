@@ -186,6 +186,14 @@ class EnvironmentVariables {
   // ⚠️ `@Transform(envBoolean)` MAJBURIY: implicit conversion "false" ni
   // `true` qilardi (`common/utils/env-boolean.util.ts`). Har bir yangi boolean
   // env shu naqsh bilan e'lon qilinsin.
+  // Haydovchi raqami bilan yo'lovchi ilovasiga kirish (`auth/session-role.ts`).
+  // `false` — B reja: eski qoida, bitta raqam = bitta rol. Ilovani qayta
+  // yig'ish shart emas: ilova server qaytargan rolni o'zi tekshiradi.
+  // ⚠️ `envBoolean` emas: u bo'sh qiymatni `false` qiladi, bizga default `true` kerak.
+  @IsString()
+  @IsOptional()
+  DUAL_ROLE_LOGIN_ENABLED: string = 'true';
+
   @Transform(envBoolean)
   @IsBoolean()
   @IsOptional()
